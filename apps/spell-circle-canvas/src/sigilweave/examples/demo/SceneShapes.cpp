@@ -6,6 +6,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <cmath>
 #include <cstdio>
@@ -26,10 +27,10 @@ void sceneShapes(FontContext& fontContext,
   Paragraph paragraph;
   for (int repetitionIndex = 0; repetitionIndex < 7; ++repetitionIndex)
     paragraph.appendText(
-        u8"Text no longer flows around circles and boxes alone: any SkPath — "
-        "concave stars, compound paths, cubic hearts — carves its exact "
-        "silhouette out of the line bands, and even-odd holes stay open, so "
-        "the paragraph pours right through the middle of the donut. ",
+        u8"Any SkPath carves its exact silhouette out of the line bands — "
+        "concave stars, compound paths, cubic hearts — and even-odd holes "
+        "stay open, so the paragraph pours right through the middle of the "
+        "donut. ",
         body);
 
   // Star (concave, winding fill).
@@ -61,10 +62,13 @@ void sceneShapes(FontContext& fontContext,
   donut.setFillType(SkPathFillType::kEvenOdd);
 
   ExclusionFlow flow(SkRect::MakeXYWH(40, 40, 920, 800));
-  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(star.detach(), 10));
-  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(heart.detach(), 10));
-  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(donut.detach(), 8));
-  flow.setMinIntervalWidth(46);
+  const SkPath starPath = star.detach();
+  const SkPath heartPath = heart.detach();
+  const SkPath donutPath = donut.detach();
+  flow.exclusions().push_back({silhouette::path(starPath), 10});
+  flow.exclusions().push_back({silhouette::path(heartPath), 10});
+  flow.exclusions().push_back({silhouette::path(donutPath), 8});
+  flow.setMinimumIntervalWidth(46);
 
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
@@ -82,8 +86,8 @@ void sceneShapes(FontContext& fontContext,
   SkPaint shapePaint;
   shapePaint.setAntiAlias(true);
   shapePaint.setColor(kShape);
-  for (const auto& shape : flow.shapes())
-    canvas->drawPath(shape.path, shapePaint);
+  for (const SkPath& shape : {starPath, heartPath, donutPath})
+    canvas->drawPath(shape, shapePaint);
   layout.draw(canvas, paragraph);
 
   writePng(surface.get(), outputDirectory / "shapes.png");

@@ -33,12 +33,14 @@
 //   kPieces                  — instances in stanza 3; the Id stride
 //                              below scatters neighbouring runs apart.
 
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <algorithm>
 #include <cmath>
@@ -49,7 +51,7 @@ namespace sketch = sigil::sketch;
 using namespace sigil::compose;
 namespace mesh = sigil::geometry::mesh;
 namespace camera = sigil::geometry::mesh::camera;
-using sigil::geometry::mesh::pop;
+namespace pop = sigil::geometry::mesh::pop;
 namespace render = sigil::geometry::mesh::render;
 namespace material = sigil::material;
 
@@ -110,9 +112,10 @@ struct PopPrims final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background({0.051f, 0.051f, 0.075f, 1});
-    ctx.captureAt(1.0);
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                        .captureAt = 1.0,
+                        .background = SkColor4f{0.051f, 0.051f, 0.075f, 1}});
 
     // 1 — a prim lane written straight onto a formed body.
     facets = mesh::torus(130, 46, 34, 14);
@@ -154,9 +157,12 @@ struct PopPrims final : sketch::Sketch {
       }
     }
 
-    ctx.composer.render(custom([this](SkCanvas& canvas, const PaintContext&) {
-                          draw(canvas);
-                        }).inset(0));
+    // Keyed on the sink's own name: everything `draw` reads is cooked
+    // above, in this setup, and nothing after it moves.
+    ctx.composer.render(
+        custom("pop.prims", [this](SkCanvas& canvas, const PaintContext&) {
+          draw(canvas);
+        }).inset(0));
   }
 };
 

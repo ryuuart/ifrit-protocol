@@ -1,20 +1,40 @@
 /** @file
- * The identifying hashes, pinned to the exact numbers they produce.
+ * The identifying folds, pinned to the exact numbers they produce.
  *
- * A cache key computed one way must equal the same key computed
- * anywhere else, and a drifted fold answers a different bucket for the
- * same thing without failing anything that only checks determinism. So
- * the assertions here are the values themselves.
+ * These are the arithmetic several implementations have to agree on to
+ * the bit: the same fold is written again in a shader, in a tool and in
+ * whatever reads this repository's data next, and a second
+ * implementation is only correct if it answers these numbers. A property
+ * cannot say that — "deterministic", "in range" and "different for
+ * different inputs" all survive a drifted fold — so the assertions here
+ * are the values themselves.
  */
 
 #include <gtest/gtest.h>
 #include <sigilcore/compute/Hash.h>
 
 #include <cstdint>
+#include <string>
+#include <string_view>
+#include <variant>
 
 namespace {
 
 using namespace sigil::core;
+
+/** One fold: what goes in, and the number every implementation of the
+ *  fold must answer with. */
+struct Fold {
+  const char* name;
+  std::variant<uint64_t, std::string_view> input;
+  uint64_t folded;
+};
+
+std::string foldName(const testing::TestParamInfo<Fold>& info) {
+  return info.param.name;
+}
+
+struct Fnv1aFold : testing::TestWithParam<Fold> {};
 
 }  // namespace
 
@@ -23,21 +43,26 @@ TEST(Fnv1a, TheBasisAndThePrimeAreTheOnesEveryBucketUses) {
   EXPECT_EQ(hash::kFnvPrime, 1099511628211ull);
 }
 
-TEST(Fnv1a, FoldingAWordIsPinned) {
-  EXPECT_EQ(hash::fnv1a(hash::kFnvOffset, 0ull), 5187598658539770339ull);
-  EXPECT_EQ(hash::fnv1a(hash::kFnvOffset, 1ull), 2955283251572180930ull);
-  EXPECT_EQ(hash::fnv1a(hash::kFnvOffset, 0x0123456789abcdefull),
-            16263046467545340003ull);
+TEST_P(Fnv1aFold, AnswersTheNumberASecondImplementationMustAlsoAnswer) {
+  const Fold& fold = GetParam();
+  EXPECT_EQ(std::visit([](auto v) { return hash::fnv1a(hash::kFnvOffset, v); },
+                       fold.input),
+            fold.folded);
 }
 
-TEST(Fnv1a, FoldingTextIsPinned) {
-  EXPECT_EQ(hash::fnv1a(hash::kFnvOffset, std::string_view{}),
-            hash::kFnvOffset);
-  EXPECT_EQ(hash::fnv1a(hash::kFnvOffset, "a"), 4953267810257967366ull);
-  EXPECT_EQ(hash::fnv1a(hash::kFnvOffset, "sphere"), 6372007673032843326ull);
-  EXPECT_EQ(hash::fnv1a(hash::kFnvOffset, "the quick brown fox"),
-            14575528814630447928ull);
-}
+INSTANTIATE_TEST_SUITE_P(
+    Folds, Fnv1aFold,
+    testing::Values(
+        Fold{"AWordOfZero", uint64_t{0}, 5187598658539770339ull},
+        Fold{"AWordOfOne", uint64_t{1}, 2955283251572180930ull},
+        Fold{"AWordOfMixedBits", uint64_t{0x0123456789abcdefull},
+             16263046467545340003ull},
+        Fold{"NoTextAtAll", std::string_view{}, 1469598103934665603ull},
+        Fold{"OneLetter", std::string_view{"a"}, 4953267810257967366ull},
+        Fold{"AShortWord", std::string_view{"sphere"}, 6372007673032843326ull},
+        Fold{"ASentence", std::string_view{"the quick brown fox"},
+             14575528814630447928ull}),
+    foldName);
 
 TEST(Fnv1a, AWordAndTextFoldIntoOneRunningValue) {
   EXPECT_EQ(hash::fnv1a(hash::fnv1a(hash::kFnvOffset, 3ull), "x"),
@@ -52,11 +77,22 @@ TEST(Fnv1a, AByteWithItsHighBitSetFoldsUnsigned) {
             (hash::kFnvOffset ^ 0xffull) * hash::kFnvPrime);
 }
 
-TEST(Combine, TheStirIsPinned) {
+TEST(Combine, TheStirAnswersTheNumberASecondImplementationMustAlsoAnswer) {
   EXPECT_EQ(hash::combine(0u, 0u), 2654435769u);
   EXPECT_EQ(hash::combine(1u, 2u), 2654435834u);
   EXPECT_EQ(hash::combine(hash::combine(0x9E3779B9u, 0x3f800000u), 0xbf800000u),
-            11156902649582ull);
+            11161197616878ull);
+}
+
+TEST(Combine, AWordAboveThirtyTwoBitsFoldsBothOfItsHalves) {
+  // A key member is as often a 64-bit identifier or a pointer as it is a
+  // 32-bit one. Two that differ only above the 32nd bit must not fold to
+  // one key.
+  EXPECT_NE(hash::combine(0u, 0x1'0000'0000ull),
+            hash::combine(0u, 0x2'0000'0000ull));
+  EXPECT_NE(hash::combine(0u, 0x1'0000'0001ull), hash::combine(0u, 1ull));
+  // …and a value that fits in 32 bits folds exactly as a 32-bit one.
+  EXPECT_EQ(hash::combine(0u, uint64_t{7}), hash::combine(0u, uint32_t{7}));
 }
 
 TEST(Combine, OneChangedBitMovesTheWholeResult) {

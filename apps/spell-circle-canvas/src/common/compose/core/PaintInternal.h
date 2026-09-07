@@ -22,11 +22,11 @@ using namespace detail;
 // ---------------------------------------------------------------------------
 // Null-safe views into ElementNode's rare-field blocks (see ComposeInternal.h)
 
-inline const Material* liveMaterialOf(const ElementNode& n) {
+inline const material::skia::Paint* liveMaterialOf(const ElementNode& n) {
   return n.materialData && n.materialData->live ? &*n.materialData->live
                                                 : nullptr;
 }
-inline const Material* metricFillOf(const ElementNode& n) {
+inline const material::skia::Paint* metricFillOf(const ElementNode& n) {
   return n.textData && n.textData->metricFill ? &*n.textData->metricFill
                                               : nullptr;
 }
@@ -46,16 +46,16 @@ inline bool hasTextFx(const ElementNode& n) {
   return false;
 }
 inline bool hasTextFx(const Instance& inst) {
-  return hasTextFx(*inst.desc) ||
+  return hasTextFx(*inst.description) ||
          (inst.textState && !inst.textState->spanAxisTracks.empty());
 }
 inline const sigil::image::ImageAsset* imageAssetOf(const ElementNode& n) {
   return n.imageData ? n.imageData->asset.get() : nullptr;
 }
-inline const Effect* layerEffectOf(const ElementNode& n) {
+inline const material::skia::Effect* layerEffectOf(const ElementNode& n) {
   return n.fxData && n.fxData->layerEffect ? &*n.fxData->layerEffect : nullptr;
 }
-inline const Effect* backdropEffectOf(const ElementNode& n) {
+inline const material::skia::Effect* backdropEffectOf(const ElementNode& n) {
   return n.fxData && n.fxData->backdropEffect ? &*n.fxData->backdropEffect
                                               : nullptr;
 }

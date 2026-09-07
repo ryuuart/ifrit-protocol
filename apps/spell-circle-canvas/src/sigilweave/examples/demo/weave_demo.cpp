@@ -14,17 +14,14 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
-#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 
 #include "DemoScenes.h"
 
-int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
-                                   // uncaught error ends the demo
-  static_cast<void>(argc);
-  static_cast<void>(argv);
+int main() {  // NOLINT(bugprone-exception-escape): an uncaught error ends
+              // the demo
 
   const std::filesystem::path outputDirectory = "weave_demo_out";
   std::filesystem::create_directories(outputDirectory);
@@ -39,7 +36,7 @@ int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
   sceneCjk(fontContext, outputDirectory);
   sceneShapes(fontContext, outputDirectory);
   sceneFallback(fontContext, outputDirectory);
-  sceneNewFeatures(fontContext, outputDirectory);
+  sceneDecorations(fontContext, outputDirectory);
 
   std::printf("PNGs written to %s\n",
               std::filesystem::absolute(outputDirectory).string().c_str());

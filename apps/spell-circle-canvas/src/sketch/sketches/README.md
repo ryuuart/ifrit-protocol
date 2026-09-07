@@ -1,8 +1,9 @@
 # The sketches
 
-One file per scene. `../README.md` is the canon for what a sketch is, how
-it is registered and how it is run; this page is about what is in the
-directory.
+One file per scene — or one directory named for it, with that file as
+the entry and the sources beside it built with it. `../README.md` is the
+canon for what a sketch is, how it is registered and how it is run; this
+page is about what is in the directory.
 
 Most of these are **studies**: each rebuilds something that actually
 existed — a shipped game screen, a real website, a published plate, a
@@ -43,10 +44,13 @@ which is what you want while you are CHANGING one. Opening the app on
 the whole registry is what you want while you are LOOKING at one next to
 everything else.
 
-The table below is the studies that rebuild a REFERENCE, with what each
-one puts under load. Every other sketch here carries its own line in its
-own `SIGIL_SKETCH` declaration, which is what the application shows
-beside it — so there is one place to read and one place to change.
+The table below is every sketch filed under a `Study ·` category — the
+studies that rebuild a REFERENCE — with what each one puts under load.
+Every other sketch here carries its own line in its own `SIGIL_SKETCH`
+declaration, which is what the application shows beside it — so there
+is one place to read and one place to change. A `Catalog ·` folder holds
+reconstructions too, filed by what they are rather than by what they
+were read off; the rule above is written for all of them.
 
 | Sketch | Subject | What it puts under load |
 |---|---|---|
@@ -54,7 +58,7 @@ beside it — so there is one place to read and one place to change.
 | `chaucer_astrolabe` | A planispheric astrolabe of the English "Chaucer" type, computed for Oxford 51° 50′ | A working instrument that tells the time — every radius out of φ and ε, proving itself to 5.55e-16 R on the canvas |
 | `cde_motif` | CDE 1.0 on OSF/Motif 2.1 (1995) | A desktop as the OUTPUT of a published function — `XmGetColors` derives four colours from one background, byte-exact including C's truncating division |
 | `chevreul_circle` | Chevreul's *1er cercle chromatique*, Plate V, 1864 | The first study whose content is a PALETTE; 13 invariants computed, ten hold and three fail |
-| `chladni_tab1` | Chladni's Tab. I, sound-figures of a bowed plate, engraved by Capieux 1786 | 9,580 instanced sand grains migrating onto twelve nodal geometries in one stamp, at 0.23 ms |
+| `chladni_tab1` | Chladni's Tab. I, sound-figures of a bowed plate, engraved by Capieux 1786 | 9,580 instanced sand grains migrating onto twelve nodal geometries in one stamp |
 | `fallout2_charsheet` | The Fallout 2 character screen (Black Isle, 1998) at 2× | The program's first TYPE-SET study: ~134 positioned runs in five alignment regimes, 21/21 derived values verified |
 | `ds2_bench` | *Dead Space 2*'s Bench — the Nanocircuit Repair upgrade circuit (2011) | Routers, rails and connectors; a diegetic holographic panel |
 | `genesis_fire` | The Genesis Demo wall of fire (Lucasfilm, 1982) — the first particle system | Reeves' published attribute list against `instances()`; additive `kPlus` where the colour IS overlap count |
@@ -67,11 +71,10 @@ beside it — so there is one place to read and one place to change.
 | `spacejam_1996` | spacejam.com, Warner Bros. Online, still live and unmodified | A DOCUMENT, not a panel — HTML auto table layout as a `LayoutScheme` matching Chrome to 0.11 px, and a 216-colour dither in `setView` |
 | `psx_doom_fire` | The DOOM PlayStation title flame (1995) | A stateful cellular automaton at a fixed 27 Hz under a variable frame rate |
 | `minard_1869` | Minard's own BnF presentation copy of the 1869 sheet | The plate audited against its own printed legend, then the sketch audited by the same instrument |
-| `twoadvanced_equipment` | 2Advanced's Equipment.Modules store (2003), an HTML 4.0 frameset of Dreamweaver tables | The page's own bitmaps over the loader's https path, its table metrics verbatim, the styled IE scrollbar — and its only two behaviours (JS rollovers, frame scroll) as the only motion |
-| `twoadvanced_v3` | 2Advanced Studios "V3 Expansions Reboot" (2024), the live Rive/React rebuild of the 2001 v3 site | The production art itself — embedded PNGs lifted from the site's own `mainstage.riv` over the loader's https path, the 62-frame cloud loop composited through a soft mask, and the section cycle replaying the stepped shape-wipe |
+| `twoadvanced_equipment` | 2Advanced's Equipment.Modules store (2003), an HTML 4.0 frameset of Dreamweaver tables | The page's own bitmaps over SigilIO's https path, its table metrics verbatim, the styled IE scrollbar — and its only two behaviours (JS rollovers, frame scroll) as the only motion |
+| `twoadvanced_v3` | 2Advanced Studios "V3 Expansions Reboot" (2024), the live Rive/React rebuild of the 2001 v3 site | The production art itself — embedded PNGs lifted from the site's own `mainstage.riv` over SigilIO's https path, the 62-frame cloud loop composited through a soft mask, and the section cycle replaying the stepped shape-wipe |
 | `twoadvanced_v4` | 2Advanced Studios v4 "Prophecy" (2003–06) | Chamfered Flash chrome at four nesting depths, the real shell GIFs fetched from the studio's restoration host — and the MAINFRAME hero as what it was, a 3D render: a world scene of pods on water in front of a teal city, baked once and composited into the page |
 | `vagrant_story_target` | *Vagrant Story*'s battle-mode targeting screen (Square, 2000) | The only study that is a SET: a lit 3D scene with a wireframe reach sphere in real space, and the whole overlay — gauges, target card, the six-limb strip — baked aliased into one texture on a quad that fills the frustum |
-| `world_hud` | Veloren's HUD (github.com/veloren/veloren, voxygen/src/hud/) | Every dimension and colour read out of the source, over the thing a HUD has to stay legible on: a lit voxel valley in the same frame, with the whole HUD baked into one texture on a quad that fills the frustum |
 | `bg3_dice_roll` | Baldur's Gate 3's dialogue ability check, the instant after the die lands | The engine's own type surface as a picture — the SkillId ordinals in the engine's grouping, the ResolvedRollBonus row schema, and the thing that dates the UI: the modifiers are added AFTER the natural roll |
 | `xcom_battlescape` | X-COM: UFO Defense (1994), the Battlescape, at 4× | 115 colours and 115 of them in the palette; a 4× round trip with 0 mismatching pixels of 1,024,000 |
 | `vertigo_titles` | Saul Bass / John Whitney's *Vertigo* titles (1958) | The precessing Lissajous derived from Whitney's M-5 gun director; hollow display type |
@@ -82,11 +85,22 @@ beside it — so there is one place to read and one place to change.
 | `matrix_rain` | The Matrix's digital rain (Simon Whiteley, Animal Logic, 1999) — the in-film kind, where the light falls and the type stands still | Four vertical-RL curtains of mirrored half-width katakana; per-column cue tables with nested cluster cascades, a held keyframe streak, `fx::scramble` churn through an advance-uniform charset, and per-glyph fades splitting glow underlays into fade classes — thousands of glyphs, all moving |
 | `rota_convocationis` | An invented conjuring wheel in the real idiom of the Solomonic circles, Agrippa's planetary tables and the alchemical rotae | A magic circle that ASSEMBLES — fourteen curved baselines forming, orbiting and charging at once: fitted ring runs, a cue-table rim with a `beatsOf`-placed scribe, roundels chained start-to-start from `spanMs`, a kamea decoding under a nested cascade, and an `fx::pass` charge riding a marquee baseline |
 | `winamp_base` | Winamp 2.91's default "Base" skin | A bitmap skin rebuilt as generated material; a genuinely quantised 28-frame slider |
+| `astral_tome` | Astral Sorcery's constellation cluster page (Minecraft 1.12.2 mod, 2016–19) at exactly 3× | Four live star charts on one spread — the chart is square, the CELL is stretched |
+| `cosmati` | Cosmatesque opus sectile — quincunx and guilloche | Quarried stone as generated material, laid by the pavement's own construction |
+| `dunhuang_star_chart` | BL Or.8210/S.3326, the Dunhuang star chart (c. 649–684) | Reprojected from 1,460 real stars and the published projection, then checked against the published identifications — and it refuses to answer where the source does |
+| `eva_magi_defense` | *The End of Evangelion*'s MAGI defense plate (1997) | Six installations as one component, rotated |
+| `eva_magi_deliberation` | Evangelion's MAGI deliberation plate | One routed system: a rear circular bus, three rotated instances of one square module, and an information layer over both |
+| `eva_magi_interior` | Evangelion Ep 13, the MAGI under Ireul | The camera roll as the projection; the infection as a shader |
+| `lain_navi` | *Serial Experiments Lain*'s Copland OS | No opaque window anywhere, and text through a fixed focal plane |
+| `sigillum_aemeth` | Dee's Sigillum Dei Aemeth (1582), Sloane MS 3188 f. 30r | Solved from the angels' own jump rule — 33 of 40 cells — and the wax disc's burnish drawn |
+| `thaumonomicon` | Thaumcraft 6's research browser (2018) | Edges that are stamped art, not strokes |
+| `thunder_fulu` | A Thunder-Rite talisman, WRITTEN | Real stroke medians, and the foot at 7.1× the body's tempo |
 
-Three are not studies:
+These are not studies. They are named here because something outside the
+directory reaches for them, so a rename has somewhere to be noticed:
 
 | Sketch | Why it exists |
 |---|---|
 | `hello` | The starter. Copy it. |
+| `crossing_rule` | What `sketch_reload_runs_the_file` copies with its ground colour replaced, so the entry can tell a picture drawn by the file on disk from one drawn by the host's own compiled-in copy of it. |
 | `stock_materials` | One of every stock material, painted from a sketch dylib and wired up as the `sketch_reload_materials` test — so a helper added to a shader fails the build instead of failing someone's sketch three weeks later. |
-| `frame_asset` | Headless export of a frame at exact pixel size: the asset workflow's template. |

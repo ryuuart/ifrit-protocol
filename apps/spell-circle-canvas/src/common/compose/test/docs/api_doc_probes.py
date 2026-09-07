@@ -50,16 +50,27 @@ quietly leaving the guard.  Every exemption is listed by name and reason in
 the coverage report, so what the guard deliberately does not check is
 visible rather than folded into a count.
 
+  bare name in a header listing   a `core/Paint.h` bullet naming `hex`,
+                                  `mul` -> the header's own text
+      A bullet that opens with a header path is an INDEX of that header: every
+      bare backticked name in it claims to be something that header spells.
+      That claim is checked in Python against the identifiers the named
+      headers actually carry, and then against the rest of the scanned
+      headers, so a name the library does not have anywhere fails the run.
+      This is the one place bare names can be resolved without a C++ parser,
+      because the bullet says which header they belong to.
+
 STATED LIMITATIONS — what this guard structurally cannot see:
 
-  Unqualified names.  A document that writes `padding(24_px)` — a bad
-      argument to a real function — or invents a free function `px(float)`
-      spells no qualified name, so the extractor has nothing to match and
-      both errors pass unprobed.  Closing this would mean resolving an
-      unqualified call the way a C++ compiler does (scopes, using-directives,
-      ADL), i.e. writing a C++ parser, which this script deliberately is
-      not.  Reviewers own that class of error; where practical, documents
-      should spell names qualified so the guard can see them.
+  Unqualified names in prose and in code blocks.  A document that writes
+      `padding(24_px)` — a bad argument to a real function — or invents a
+      free function `px(float)` outside a header listing spells no qualified
+      name, so the extractor has nothing to match and both errors pass
+      unprobed.  Closing this would mean resolving an unqualified call the
+      way a C++ compiler does (scopes, using-directives, ADL), i.e. writing
+      a C++ parser, which this script deliberately is not.  Reviewers own
+      that class of error; where practical, documents should spell names
+      qualified so the guard can see them.
 
   Operator names.  The qualified-name pattern stops at the first character
       that cannot appear in an identifier, so `Spans::operator|` is captured
@@ -68,8 +79,9 @@ STATED LIMITATIONS — what this guard structurally cannot see:
       reported by name so the gap stays visible per document.
 
 `--self-test` runs the generator against small in-script fixtures — one
-name per behaviour it must keep: resolve, fail, exempt-and-report, and the
-class-scope probe for EXTERNAL_CLASSES — without touching the real corpus.
+name per behaviour it must keep: resolve, fail, exempt-and-report, the
+bare names of a header listing, and the class-scope probe for
+EXTERNAL_CLASSES — without touching the real corpus.
 """
 
 import argparse
@@ -101,11 +113,33 @@ NS_EXTERNAL = {
     # Nested inline namespaces count: a document writing `using namespace
     # std::chrono_literals` names one, and a using-DECLARATION probe on a
     # namespace is ill-formed, so it has to be recognised here.
-    "std", "chrono", "chrono_literals", "literals", "ranges", "views",
-    "choreograph", "ch",
+    "std",
+    "chrono",
+    "chrono_literals",
+    "literals",
+    "ranges",
+    "views",
+    "choreograph",
+    "ch",
     # Skia's actual namespaces, which are Sk-prefixed like its types and
     # would otherwise be probed as if they were classes.
-    "SkSurfaces", "SkShaders", "SkImages", "SkPathEffects",
+    "SkSurfaces",
+    "SkShaders",
+    "SkImages",
+    "SkPathEffects",
+    # SigilMaterial's root and its feature namespaces, whose include paths
+    # are deliberately NOT all given: scanning the core would put every
+    # type it declares into the candidate set a member probe ORs over, and
+    # one of those (`ProgramCache::Key`) is a PRIVATE nested type, which
+    # this scanner cannot see and which is a hard error the moment it is
+    # named.  Only the Skia feature's headers are scanned, for the paint
+    # value the documents name members of; the rest are listed here so a
+    # document naming one bare is passed over rather than probed as a
+    # type.
+    "material",
+    "sdf",
+    "pattern",
+    "field",
 }
 
 # Skia's static-factory aggregates that READ like namespaces but are CLASSES
@@ -158,20 +192,37 @@ UNPROBEABLE_MEMBERS = {}
 EXCLUDED_MEMBERS = {}
 
 
+# A bullet that OPENS with one or more backticked header paths is an index
+# of those headers: `- `core/Paint.h` — the paint values: …`.  Everything
+# backticked in it is claimed to be a name those headers carry, which is
+# what makes bare names resolvable here and nowhere else.
+LISTING_OPENER = re.compile(r"^\s*[-*]\s+(`[A-Za-z0-9_./]+\.h`(?:\s*(?:,|and|/)\s*`[A-Za-z0-9_./]+\.h`)*)")
+HEADER_PATH = re.compile(r"`([A-Za-z0-9_./]+\.h)`")
+BARE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
 def code_regions(path):
-    """[(line, text, kind)] — every ```cpp line and every inline `span`."""
+    """[(line, text, kind, headers)] — every ```cpp line and every inline
+    `span`, each span carrying the header paths of the listing bullet it
+    stands in (empty everywhere else)."""
     out = []
     fence = None
+    listing = ()  # the headers of the bullet being read, if any
     for i, line in enumerate(open(path, encoding="utf-8").read().split("\n"), 1):
         if line.startswith("```"):
             fence = None if fence is not None else line[3:].strip()
             continue
         if fence is not None:
             if fence.startswith("cpp"):
-                out.append((i, line, "block"))
-        else:
-            for m in re.finditer(r"`([^`]+)`", line):
-                out.append((i, m.group(1), "inline"))
+                out.append((i, line, "block", ()))
+            continue
+        opener = LISTING_OPENER.match(line)
+        if opener:
+            listing = tuple(HEADER_PATH.findall(opener.group(1)))
+        elif not line.strip() or re.match(r"^\s*[-*]\s", line) or line.startswith("#"):
+            listing = ()  # the bullet ended
+        for m in re.finditer(r"`([^`]+)`", line):
+            out.append((i, m.group(1), "listing" if listing else "inline", listing))
     return out
 
 
@@ -185,7 +236,8 @@ HEADER_TOKENS = re.compile(
     r"|(?P<agg>\b(?:struct|class|enum\s+class|enum\s+struct|enum)\s+"
     r"(?P<aggname>[A-Za-z_][A-Za-z0-9_]*)\b(?P<tail>[^;{\n]*)(?P<open>\{)?)"
     r"|(?P<fn>\b[A-Za-z_][A-Za-z0-9_]*)\s*\("
-    r"|(?P<open2>\{)|(?P<close>\})")
+    r"|(?P<open2>\{)|(?P<close>\})"
+)
 
 
 def scan_headers(incdirs):
@@ -200,17 +252,25 @@ def scan_headers(incdirs):
     namespaces = set()
     types = {}
     ns_paths = {}
-    funcs = {}          # simple type name -> names declared with a ( in its body
+    funcs = {}  # simple type name -> names declared with a ( in its body
+    # path suffix -> every identifier that header's CODE carries, which is
+    # what a header-listing bullet's bare names are checked against.
+    spelled_in = {}
     for incdir in incdirs:
         for root, _, files in os.walk(incdir):
             for name in sorted(files):
                 if not name.endswith(".h"):
                     continue
                 text = strip_comments(
-                    open(os.path.join(root, name), encoding="utf-8").read())
+                    open(os.path.join(root, name), encoding="utf-8").read()
+                )
+                rel = os.path.relpath(os.path.join(root, name), incdir)
+                spelled_in[rel.replace(os.sep, "/")] = set(
+                    re.findall(r"[A-Za-z_][A-Za-z0-9_]*", text)
+                )
                 text = re.sub(r'"(?:[^"\\]|\\.)*"', '""', text)
                 depth = 0
-                scope = []          # (depth_at_open, [namespace parts])
+                scope = []  # (depth_at_open, [namespace parts])
                 for m in HEADER_TOKENS.finditer(text):
                     if m.group("alias"):
                         namespaces.add(m.group("aname"))
@@ -222,13 +282,18 @@ def scan_headers(incdirs):
                         outer = [p for _, ps, _c in scope for p in ps]
                         for i in range(len(outer)):
                             ns_paths.setdefault(outer[i], set()).add(
-                                "::".join(outer[:i + 1]))
+                                "::".join(outer[: i + 1])
+                            )
                     elif m.group("agg"):
-                        if m.group("open"):                 # a definition
+                        if m.group("open"):  # a definition
                             qual = "::".join(p for _, ps, _c in scope for p in ps)
                             name_ = m.group("aggname")
                             types.setdefault(name_, set()).add(
-                                (qual + "::" + name_) if qual else name_)
+                                (
+                                    (qual + "::" + name_) if qual else name_,
+                                    os.path.join(root, name),
+                                )
+                            )
                             # A class is a scope too: `Composer::CacheState`
                             # must not come out as `sigil::compose::CacheState`.
                             scope.append((depth, [name_], True))
@@ -237,20 +302,65 @@ def scan_headers(incdirs):
                         # Only names declared DIRECTLY in a class body — not
                         # calls inside an inline function — so the index means
                         # "this class declares a member function of that name".
-                        if (scope and scope[-1][2]
-                                and scope[-1][0] == depth - 1):
-                            funcs.setdefault(scope[-1][1][0], set()).add(
-                                m.group("fn"))
+                        if scope and scope[-1][2] and scope[-1][0] == depth - 1:
+                            funcs.setdefault(scope[-1][1][0], set()).add(m.group("fn"))
                     elif m.group("open2"):
                         depth += 1
                     else:
                         depth -= 1
                         while scope and scope[-1][0] >= depth:
                             scope.pop()
-    return (namespaces,
-            {k: sorted(v) for k, v in types.items()},
-            {k: sorted(v) for k, v in ns_paths.items()},
-            {k: sorted(v) for k, v in funcs.items()})
+    return (
+        namespaces,
+        {k: sorted(v) for k, v in types.items()},  # (qualified, declaring file)
+        {k: sorted(v) for k, v in ns_paths.items()},
+        {k: sorted(v) for k, v in funcs.items()},
+        spelled_in,
+    )
+
+
+INCLUDE_LINE = re.compile(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]', re.M)
+
+
+def reachable_from(roots, incdirs):
+    """Every header a translation unit including `roots` actually sees.
+
+    A candidate the probe cannot see is a compile error wherever it is
+    named, even when the header that declares it exists: another library
+    on the scanner's include path is not automatically on the probe's.
+    Resolution is by path suffix against the scanned directories, which is
+    how the includes are spelled.
+    """
+    files = {}
+    for incdir in incdirs:
+        for root, _, names in os.walk(incdir):
+            for name in names:
+                if name.endswith(".h"):
+                    path = os.path.join(root, name)
+                    files.setdefault(
+                        os.path.relpath(path, os.path.dirname(incdir)).replace(
+                            os.sep, "/"
+                        ),
+                        path,
+                    )
+    seen, queue = set(), list(roots)
+    while queue:
+        path = queue.pop()
+        if path in seen or not os.path.exists(path):
+            continue
+        seen.add(path)
+        text = open(path, encoding="utf-8", errors="ignore").read()
+        for spelled in INCLUDE_LINE.findall(text):
+            spelled = spelled.replace(os.sep, "/")
+            for rel, full in files.items():
+                if rel == spelled or rel.endswith("/" + spelled):
+                    queue.append(full)
+                    break
+            else:
+                sibling = os.path.join(os.path.dirname(path), spelled)
+                if os.path.exists(sibling):
+                    queue.append(sibling)
+    return seen
 
 
 def resolve_type(name, types):
@@ -258,15 +368,23 @@ def resolve_type(name, types):
     if name in types:
         return ["::" + q for q in types[name]]
     if name.startswith("Sk") or name.startswith("Gr"):
-        return ["::" + name]          # Skia lives at global scope
+        return ["::" + name]  # Skia lives at global scope
     return []
 
 
 class Generator:
     def __init__(self, mds, incdirs):
         self.mds = mds
-        (self.namespaces, self.types, self.ns_paths,
-         self.funcs) = scan_headers(incdirs)
+        (
+            self.namespaces,
+            self.types,
+            self.ns_paths,
+            self.funcs,
+            self.spelled_in,
+        ) = scan_headers(incdirs)
+        self.spelled_anywhere = set()
+        for names in self.spelled_in.values():
+            self.spelled_anywhere |= names
         self.namespaces |= NS_EXTERNAL
         self.headers = []
         for incdir in incdirs:
@@ -276,32 +394,51 @@ class Generator:
             for root, _, files in os.walk(incdir):
                 for name in sorted(files):
                     if not name.endswith(".h") or name == "Web.h":
-                        continue        # Web.h is Ultralight-gated
-                    rel = os.path.relpath(os.path.join(root, name),
-                                          os.path.dirname(incdir))
+                        continue  # Web.h is Ultralight-gated
+                    rel = os.path.relpath(
+                        os.path.join(root, name), os.path.dirname(incdir)
+                    )
                     self.headers.append(rel.replace(os.sep, "/"))
-        self.usings = []        # (qualified, line, kind)
+        # The probe includes every compose header, so what those reach is
+        # what a probe may name. A type only another library's unreachable
+        # header declares is dropped from the candidates rather than
+        # written into a static_assert that cannot compile.
+        seen_files = reachable_from(
+            [
+                os.path.join(os.path.dirname(incdirs[0]), h)
+                for h in self.headers
+            ],
+            incdirs,
+        )
+        self.types = {
+            name: [q for q, f in cands if f in seen_files] or [q for q, _ in cands]
+            for name, cands in self.types.items()
+        }
+        self.usings = []  # (qualified, line, kind)
         self.class_usings = []  # (class, member, spelled, line, kind)
-        self.members = []       # (candidates, chain, spelled, line, kind)
-        self.designators = []   # (candidates, field, spelled, line, kind)
-        self.excluded = []      # (spelled, line, reason)
-        self.unresolved = []    # (spelled, line, why)
+        self.members = []  # (candidates, chain, spelled, line, kind)
+        self.designators = []  # (candidates, field, spelled, line, kind)
+        self.excluded = []  # (spelled, line, reason)
+        self.unresolved = []  # (spelled, line, why)
         self.index_checked = []  # (spelled, line, kind) — member fns
+        self.listed = []  # (spelled, line, header) — bare names in a listing
 
     def collect(self):
-        seen_q, seen_m = {}, {}
+        seen_q, seen_m, seen_b = {}, {}, {}
         for md in self.mds:
             doc = os.path.basename(md)
-            for line, text, kind in code_regions(md):
+            for line, text, kind, headers in code_regions(md):
                 where = "%s:%d" % (doc, line)
                 text = strip_comments(text)
                 for m in QUAL.finditer(text):
                     self.qualified(m.group(1), where, kind, seen_q)
                 for m in DESIG.finditer(text):
-                    tail = text[m.start():]
+                    tail = text[m.start() :]
                     fields = [m.group(2)] + DESIG_MORE.findall(tail)
                     for field in fields:
                         self.designated(m.group(1), field, where, kind, seen_m)
+                if kind == "listing" and BARE_NAME.match(text):
+                    self.bare(text, where, headers, seen_b)
 
     def expand(self, prefix):
         """Leaf namespace spelling -> the header's own full path for it."""
@@ -323,6 +460,38 @@ class Generator:
                 return True
         return False
 
+    def bare(self, spelled, line, headers, seen):
+        """A bare name in a header-listing bullet, resolved against the
+        headers the bullet names.
+
+        The bullet is the only place a bare name says which header owns it,
+        which is what makes this resolvable at all. A name the named headers
+        carry is the claim the bullet makes; one they do not, but another
+        header of the library does, is a misfiled entry rather than a
+        missing API and is reported without failing the run; one that
+        appears in no scanned header at all is a name that does not exist,
+        and the run fails on it exactly as it fails on a qualified name.
+        """
+        if spelled in seen or spelled in self.namespaces:
+            return
+        seen[spelled] = line
+        if self.excluded_hit(spelled, line):
+            return
+        for header in headers:
+            for path, names in self.spelled_in.items():
+                if path == header or path.endswith("/" + header):
+                    if spelled in names:
+                        self.listed.append((spelled, line, header))
+                        return
+        if spelled in self.spelled_anywhere:
+            self.excluded.append(
+                (spelled, line, "spelled by another header than the one listed")
+            )
+            return
+        self.unresolved.append(
+            (spelled, line, "no header of this library spells " + spelled)
+        )
+
     def qualified(self, spelled, line, kind, seen):
         if spelled in seen:
             return
@@ -337,30 +506,30 @@ class Generator:
         while i < len(parts) and parts[i] in self.namespaces:
             i += 1
         if i >= len(parts):
-            return                                     # a namespace, nothing to probe
+            return  # a namespace, nothing to probe
         if i == len(parts) - 1:
             # Documents write the LEAF namespace (`shapes::polygon`), which
             # is how it reads under `using namespace sigil::compose`; the
             # probe has to spell the path the headers actually put it on.
-            self.usings.append((self.expand(parts[:i]) + [parts[i]],
-                                spelled, line, kind))
+            self.usings.append(
+                (self.expand(parts[:i]) + [parts[i]], spelled, line, kind)
+            )
             return
         if parts[i] in EXTERNAL_CLASSES:
             # Probed through a derived-class using-declaration (see
             # EXTERNAL_CLASSES): the first member level is what the doc's
             # reader would copy, and the one thing a class-scope using can
             # name uniformly — overload sets included.
-            self.class_usings.append((parts[i], parts[i + 1], spelled, line,
-                                      kind))
+            self.class_usings.append((parts[i], parts[i + 1], spelled, line, kind))
             return
         # parts[i] names a type; the rest is a member chain.
         cands = resolve_type(parts[i], self.types)
         if not cands:
-            self.unresolved.append((spelled, line, "no header declares type "
-                                    + parts[i]))
+            self.unresolved.append(
+                (spelled, line, "no header declares type " + parts[i])
+            )
             return
-        self.member(cands, parts[i], "::".join(parts[i + 1:]), spelled, line,
-                    kind)
+        self.member(cands, parts[i], "::".join(parts[i + 1 :]), spelled, line, kind)
 
     def designated(self, typename, field, line, kind, seen):
         key = (typename, field)
@@ -369,20 +538,23 @@ class Generator:
         seen[key] = line
         leaf = typename.split("::")[-1]
         if (leaf, field) in EXCLUDED_MEMBERS:
-            self.excluded.append((typename + "{." + field, line,
-                                  EXCLUDED_MEMBERS[(leaf, field)]))
+            self.excluded.append(
+                (typename + "{." + field, line, EXCLUDED_MEMBERS[(leaf, field)])
+            )
             return
         if self.excluded_hit(typename, line) or field in EXCLUDED:
             return
         if not leaf[0].isupper():
-            return                                      # `ns::fn({.a = …})` etc.
+            return  # `ns::fn({.a = …})` etc.
         cands = resolve_type(leaf, self.types)
         if not cands:
-            self.unresolved.append((typename + "{." + field, line,
-                                    "no header declares type " + leaf))
+            self.unresolved.append(
+                (typename + "{." + field, line, "no header declares type " + leaf)
+            )
             return
-        self.designators.append((cands, field,
-                                 typename + "{." + field + " = …}", line, kind))
+        self.designators.append(
+            (cands, field, typename + "{." + field + " = …}", line, kind)
+        )
 
     def member(self, cands, typename, chain, spelled, line, kind):
         """Route one Type::member reference to the probe form that can see it.
@@ -394,15 +566,15 @@ class Generator:
         enforced one layer up, in Python, at build time.
         """
         if (typename, chain) in EXCLUDED_MEMBERS:
-            self.excluded.append((spelled, line,
-                                  EXCLUDED_MEMBERS[(typename, chain)]))
+            self.excluded.append((spelled, line, EXCLUDED_MEMBERS[(typename, chain)]))
             return
         if "::" not in chain and chain in self.funcs.get(typename, ()):
             self.index_checked.append((spelled, line, kind))
             return
         if (typename, chain) in UNPROBEABLE_MEMBERS:
-            self.excluded.append((spelled, line,
-                                  UNPROBEABLE_MEMBERS[(typename, chain)]))
+            self.excluded.append(
+                (spelled, line, UNPROBEABLE_MEMBERS[(typename, chain)])
+            )
             return
         self.members.append((cands, chain, spelled, line, kind))
 
@@ -415,61 +587,90 @@ class Generator:
         document asks."""
         if not self.designators:
             return
-        w("// A universal source value, so the probe tests the DESIGNATOR and\n"
-          "// not the type of whatever the document assigned to it.\n"
-          "struct AnyInit { template <class U> operator U() const; };\n\n")
+        w(
+            "// A universal source value, so the probe tests the DESIGNATOR and\n"
+            "// not the type of whatever the document assigned to it.\n"
+            "struct AnyInit { template <class U> operator U() const; };\n\n"
+        )
         for n, (cands, field, spelled, line, kind) in enumerate(self.designators):
-            w("template <class T> concept DI%d = requires { T{.%s = AnyInit{}}; };\n"
-              % (n, field))
+            w(
+                "template <class T> concept DI%d = requires { T{.%s = AnyInit{}}; };\n"
+                % (n, field)
+            )
             expr = " || ".join("DI%d<%s>" % (n, c) for c in cands)
-            msg = ("%s spells `%s`; the header has no such data member"
-                   % (line, spelled))
+            msg = "%s spells `%s`; the header has no such data member" % (line, spelled)
             w('static_assert(%s,\n              "%s");\n\n' % (expr, msg))
 
     def emit(self, out):
         w = out.write
         w("// GENERATED by test/docs/api_doc_probes.py — DO NOT EDIT.\n")
-        w("// Sources: %s.  Rebuilt whenever they change.\n"
-          % ", ".join(os.path.basename(m) for m in self.mds))
-        w("//\n// Every qualified name and designated-initialiser field these\n"
-          "// docs spell, compiled against the headers that own them.  A failure\n"
-          "// here is a documentation defect: HEADERS WIN.\n//\n")
-        w("//   using-probes   : %d (namespace-scope) + %d (class-scope, "
-          "EXTERNAL_CLASSES)\n" % (len(self.usings), len(self.class_usings)))
+        w(
+            "// Sources: %s.  Rebuilt whenever they change.\n"
+            % ", ".join(os.path.basename(m) for m in self.mds)
+        )
+        w(
+            "//\n// Every qualified name and designated-initialiser field these\n"
+            "// docs spell, compiled against the headers that own them.  A failure\n"
+            "// here is a documentation defect: HEADERS WIN.\n//\n"
+        )
+        w(
+            "//   using-probes   : %d (namespace-scope) + %d (class-scope, "
+            "EXTERNAL_CLASSES)\n" % (len(self.usings), len(self.class_usings))
+        )
         w("//   member-probes  : %d\n" % len(self.members))
         w("//   designator-probes : %d\n" % len(self.designators))
-        w("//   index-checked  : %d (overloaded member fns, checked in Python)\n"
-          % len(self.index_checked))
-        w("//   excluded       : %d (exclusion tables and operator-ids)\n"
-          % len(self.excluded))
+        w(
+            "//   index-checked  : %d (overloaded member fns, checked in Python)\n"
+            % len(self.index_checked)
+        )
+        w(
+            "//   listed-names   : %d (bare names in a header listing, checked "
+            "in Python)\n" % len(self.listed)
+        )
+        w(
+            "//   excluded       : %d (exclusion tables and operator-ids)\n"
+            % len(self.excluded)
+        )
         w('#include "support/DocsTestSupport.h"\n')
-        w("// Every compose header, so a name is never reported missing merely\n"
-          "// because the harness did not include the file that owns it.\n")
+        w(
+            "// Every compose header, so a name is never reported missing merely\n"
+            "// because the harness did not include the file that owns it.\n"
+        )
         for header in self.headers:
             w("#include <%s>\n" % header)
         for cls in sorted({c for c, *_ in self.class_usings}):
-            w("#include <%s>  // EXTERNAL_CLASSES probe base\n"
-              % EXTERNAL_CLASSES[cls])
+            w("#include <%s>  // EXTERNAL_CLASSES probe base\n" % EXTERNAL_CLASSES[cls])
         w("\n")
-        w("namespace sigil::compose {\nnamespace docs_probe {\nnamespace ch = choreograph;\n\n")
+        w(
+            "namespace sigil::compose {\nnamespace docs_probe {\nnamespace ch = choreograph;\n\n"
+        )
         for n, (path, spelled, line, kind) in enumerate(self.usings):
-            w("namespace u%d { using %s; }  // %s %s (%s)\n"
-              % (n, "::".join(path), line, spelled, kind))
+            w(
+                "namespace u%d { using %s; }  // %s %s (%s)\n"
+                % (n, "::".join(path), line, spelled, kind)
+            )
         for n, (cls, member, spelled, line, kind) in enumerate(self.class_usings):
-            w("namespace c%d { struct Probe : %s { using %s::%s; }; }"
-              "  // %s %s (%s)\n" % (n, cls, cls, member, line, spelled, kind))
+            w(
+                "namespace c%d { struct Probe : %s { using %s::%s; }; }"
+                "  // %s %s (%s)\n" % (n, cls, cls, member, line, spelled, kind)
+            )
         w("\n")
         for n, (cands, chain, spelled, line, kind) in enumerate(self.members):
             single = "::" not in chain
-            forms = ["requires { T::%s; }" % chain,
-                     "requires { typename T::%s; }" % chain]
+            forms = [
+                "requires { T::%s; }" % chain,
+                "requires { typename T::%s; }" % chain,
+            ]
             if single:
                 forms.append("requires(const T &v) { v.%s; }" % chain)
                 forms.append("requires { &T::%s; }" % chain)
             w("template <class T> concept M%d = %s;\n" % (n, "\n    || ".join(forms)))
             expr = " || ".join("M%d<%s>" % (n, c) for c in cands)
             msg = "%s spells `%s`; no header declares it" % (line, spelled)
-            w('static_assert(%s,\n              "%s");\n\n' % (expr, msg.replace('"', "'")))
+            w(
+                'static_assert(%s,\n              "%s");\n\n'
+                % (expr, msg.replace('"', "'"))
+            )
         self.emit_designators(w)
         w("} // namespace docs_probe\n} // namespace sigil::compose\n\n")
         # A guard whose extractor silently matches NOTHING compiles perfectly
@@ -478,28 +679,41 @@ class Generator:
         # set below the corpus's real yield, which means they catch a broken
         # extractor rather than ordinary edits, and lowering one is a
         # deliberate act someone has to write down.
-        w("namespace {\nconstexpr int kUsingProbes = %d; "
-          "// namespace-scope + class-scope\n"
-          "constexpr int kMemberProbes = %d;\n"
-          "constexpr int kIndexChecked = %d;\n"
-          "constexpr int kDesignatorProbes = %d;\n} // namespace\n\n"
-          % (len(self.usings) + len(self.class_usings), len(self.members),
-             len(self.index_checked), len(self.designators)))
-        w("TEST(ComposeDocs, EveryNameInTheDocsResolvesAgainstTheHeaders) {\n"
-          "  // The probes above are compile-time; this case exists so the\n"
-          "  // guard is VISIBLE in the suite, and so an extractor that\n"
-          "  // matched nothing fails loudly instead of passing vacuously.\n"
-          "  EXPECT_GE(kUsingProbes, 40)\n"
-          "      << \"the docs' namespace-scope names stopped being extracted\";\n"
-          "  EXPECT_GE(kMemberProbes, 3)\n"
-          "      << \"the docs' Type::member names stopped being extracted\";\n"
-          "  EXPECT_GE(kIndexChecked, 12)\n"
-          "      << \"the docs' member-function names stopped being extracted\";\n"
-          "  EXPECT_GE(kDesignatorProbes, 1)\n"
-          "      << \"no designated initialiser is covered — that form names \"\n"
-          "         \"no member directly, so the qualified-name scan cannot \"\n"
-          "         \"see it and only this probe can\";\n"
-          "}\n")
+        w(
+            "namespace {\nconstexpr int kUsingProbes = %d; "
+            "// namespace-scope + class-scope\n"
+            "constexpr int kMemberProbes = %d;\n"
+            "constexpr int kIndexChecked = %d;\n"
+            "constexpr int kListedNames = %d;\n"
+            "constexpr int kDesignatorProbes = %d;\n} // namespace\n\n"
+            % (
+                len(self.usings) + len(self.class_usings),
+                len(self.members),
+                len(self.index_checked),
+                len(self.listed),
+                len(self.designators),
+            )
+        )
+        w(
+            "TEST(ComposeDocs, EveryNameInTheDocsResolvesAgainstTheHeaders) {\n"
+            "  // The probes above are compile-time; this case exists so the\n"
+            "  // guard is VISIBLE in the suite, and so an extractor that\n"
+            "  // matched nothing fails loudly instead of passing vacuously.\n"
+            "  EXPECT_GE(kUsingProbes, 40)\n"
+            '      << "the docs\' namespace-scope names stopped being extracted";\n'
+            "  EXPECT_GE(kMemberProbes, 3)\n"
+            '      << "the docs\' Type::member names stopped being extracted";\n'
+            "  EXPECT_GE(kIndexChecked, 12)\n"
+            '      << "the docs\' member-function names stopped being extracted";\n'
+            "  EXPECT_GE(kListedNames, 40)\n"
+            '      << "the header listings\' bare names stopped being checked "\n'
+            '         "against the headers they are listed under";\n'
+            "  EXPECT_GE(kDesignatorProbes, 1)\n"
+            '      << "no designated initialiser is covered — that form names "\n'
+            '         "no member directly, so the qualified-name scan cannot "\n'
+            '         "see it and only this probe can";\n'
+            "}\n"
+        )
 
 
 def report_text(gen, mds):
@@ -507,14 +721,16 @@ def report_text(gen, mds):
     unresolved name.  An exemption folded into a bare count is invisible —
     a reader auditing the guard could not tell what it deliberately skips —
     so each one is listed with its reason."""
-    lines = ["Documented-name coverage (%s)"
-             % ", ".join(os.path.basename(m) for m in mds),
-             "  using-probes  : %d (+ %d class-scope)"
-             % (len(gen.usings), len(gen.class_usings)),
-             "  member-probes : %d" % len(gen.members),
-             "  designators   : %d" % len(gen.designators),
-             "  index-checked : %d" % len(gen.index_checked),
-             "  excluded      : %d" % len(gen.excluded)]
+    lines = [
+        "Documented-name coverage (%s)" % ", ".join(os.path.basename(m) for m in mds),
+        "  using-probes  : %d (+ %d class-scope)"
+        % (len(gen.usings), len(gen.class_usings)),
+        "  member-probes : %d" % len(gen.members),
+        "  designators   : %d" % len(gen.designators),
+        "  index-checked : %d" % len(gen.index_checked),
+        "  listed-names  : %d (bare, in a header listing)" % len(gen.listed),
+        "  excluded      : %d" % len(gen.excluded),
+    ]
     for spelled, line, reason in gen.excluded:
         lines.append("    exempt  %s  %s  (%s)" % (line, spelled, reason))
     lines.append("  unresolved    : %d" % len(gen.unresolved))
@@ -548,8 +764,7 @@ def fixture_generator(md_text):
     with tempfile.TemporaryDirectory() as tmp:
         incdir = os.path.join(tmp, "fixinc")
         os.makedirs(incdir)
-        with open(os.path.join(incdir, "Fixture.h"), "w",
-                  encoding="utf-8") as f:
+        with open(os.path.join(incdir, "Fixture.h"), "w", encoding="utf-8") as f:
             f.write(FIXTURE_HEADER)
         md = os.path.join(tmp, "fixture.md")
         with open(md, "w", encoding="utf-8") as f:
@@ -571,47 +786,71 @@ def self_test():
 
     # A qualified name the headers declare produces a probe.
     gen = fixture_generator("Call `fix::spin` to spin the widget.\n")
-    check(any(s == "fix::spin" for _, s, _, _ in gen.usings)
-          and not gen.unresolved,
-          "existing namespace-scope name -> using-probe emitted")
+    check(
+        any(s == "fix::spin" for _, s, _, _ in gen.usings) and not gen.unresolved,
+        "existing namespace-scope name -> using-probe emitted",
+    )
     gen = fixture_generator("Read `Widget::knob` before spinning.\n")
-    check(any(s == "Widget::knob" for _, _, s, _, _ in gen.members)
-          and not gen.unresolved,
-          "existing member name -> member probe emitted")
+    check(
+        any(s == "Widget::knob" for _, _, s, _, _ in gen.members)
+        and not gen.unresolved,
+        "existing member name -> member probe emitted",
+    )
 
     # A qualified name no header declares makes the run FAIL (main exits
     # non-zero on any unresolved name).
     gen = fixture_generator("Then call `Nonexistent::field` at will.\n")
-    check(any(s == "Nonexistent::field" for s, _, _ in gen.unresolved),
-          "unknown type -> reported unresolved, generator fails")
+    check(
+        any(s == "Nonexistent::field" for s, _, _ in gen.unresolved),
+        "unknown type -> reported unresolved, generator fails",
+    )
 
     # An operator spelling cannot be probed: the identifier pattern stops at
     # `|`, so the name arrives truncated and is exempted by the operator-id
     # rule.  The exemption must be REPORTED by name, not silently counted.
     gen = fixture_generator("Union them with `Spans::operator|`.\n")
-    check(any(s == "Spans::operator" and "operator-id" in r
-              for s, _, r in gen.excluded)
-          and not gen.unresolved,
-          "member-operator spelling -> exempted with a recorded reason")
-    check("exempt" in report_text(gen, ["fixture.md"])
-          and "Spans::operator" in report_text(gen, ["fixture.md"]),
-          "operator exemption is listed by name in the report")
+    check(
+        any(s == "Spans::operator" and "operator-id" in r for s, _, r in gen.excluded)
+        and not gen.unresolved,
+        "member-operator spelling -> exempted with a recorded reason",
+    )
+    check(
+        "exempt" in report_text(gen, ["fixture.md"])
+        and "Spans::operator" in report_text(gen, ["fixture.md"]),
+        "operator exemption is listed by name in the report",
+    )
+
+    # A header-listing bullet resolves its BARE names against the header it
+    # names — the one place an unqualified name says what owns it.
+    gen = fixture_generator("- `Fixture.h` — the widget: `Widget`, `knob`, `spin`.\n")
+    check(
+        {s for s, _, _ in gen.listed} == {"Widget", "knob", "spin"}
+        and not gen.unresolved,
+        "bare names in a header listing -> checked against that header",
+    )
+    gen = fixture_generator("- `Fixture.h` — the widget: `Widget`, `wobble`.\n")
+    check(
+        any(s == "wobble" for s, _, _ in gen.unresolved),
+        "a listed name no header spells -> reported unresolved, generator fails",
+    )
 
     # An EXTERNAL_CLASSES member takes the class-scope probe path: a derived
     # struct with a class-scope using-declaration, plus the include that
     # declares the base.
     gen = fixture_generator("Blur it with `SkImageFilters::Blur(...)`.\n")
-    check(any(c == "SkImageFilters" and m == "Blur"
-              for c, m, _, _, _ in gen.class_usings)
-          and not gen.unresolved,
-          "EXTERNAL_CLASSES member -> class-scope probe collected")
+    check(
+        any(c == "SkImageFilters" and m == "Blur" for c, m, _, _, _ in gen.class_usings)
+        and not gen.unresolved,
+        "EXTERNAL_CLASSES member -> class-scope probe collected",
+    )
     buf = io.StringIO()
     gen.emit(buf)
     emitted = buf.getvalue()
-    check("struct Probe : SkImageFilters { using SkImageFilters::Blur; }"
-          in emitted
-          and "#include <include/effects/SkImageFilters.h>" in emitted,
-          "class-scope probe and its include are emitted")
+    check(
+        "struct Probe : SkImageFilters { using SkImageFilters::Blur; }" in emitted
+        and "#include <include/effects/SkImageFilters.h>" in emitted,
+        "class-scope probe and its include are emitted",
+    )
 
     if failures:
         print("self-test: %d failure(s)" % len(failures))
@@ -626,12 +865,15 @@ def main():
     ap.add_argument("--include", action="append")
     ap.add_argument("--out")
     ap.add_argument("--report", default=None)
-    ap.add_argument("--self-test", action="store_true",
-                    help="run the generator's in-script fixtures (no --md/"
-                         "--include/--out needed): a real name must probe, "
-                         "an unreal one must fail, an operator spelling must "
-                         "be exempted and reported, and an EXTERNAL_CLASSES "
-                         "member must take the class-scope probe path")
+    ap.add_argument(
+        "--self-test",
+        action="store_true",
+        help="run the generator's in-script fixtures (no --md/"
+        "--include/--out needed): a real name must probe, "
+        "an unreal one must fail, an operator spelling must "
+        "be exempted and reported, and an EXTERNAL_CLASSES "
+        "member must take the class-scope probe path",
+    )
     args = ap.parse_args()
 
     if args.self_test:
@@ -653,7 +895,8 @@ def main():
             "\nThe docs name %d thing(s) no header declares.  Either the doc is\n"
             "wrong (fix the doc — HEADERS WIN) or the name is documented on\n"
             "purpose, in which case add it to EXCLUDED with a reason.\n"
-            % len(gen.unresolved))
+            % len(gen.unresolved)
+        )
         return 1
     return 0
 

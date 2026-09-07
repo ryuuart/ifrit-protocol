@@ -16,7 +16,9 @@
  */
 
 #include <choreograph/Choreograph.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/element/Node.h>
@@ -29,12 +31,10 @@
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
-
-using namespace sigil::world;
+namespace arrange = sigil::geometry::arrange;
+namespace gm = sigil::geometry::mesh;
 
 namespace {
-
-namespace gm = ::sigil::geometry::mesh;
 
 constexpr float kTwoPi = 6.283185307179586f;
 constexpr int kPosts = 9;
@@ -51,10 +51,10 @@ struct Dials {
 };
 
 /** A ring of posts round one body — the same tree at every moment. */
-Element subject() {
-  Element set;
+world::Element subject() {
+  world::Element set;
   set.key("subject").child(
-      Element()
+      world::Element()
           .key("body")
           .at({0.0f, 34.0f, 0.0f})
           .mesh(gm::superellipsoid({46, 46, 46}, 3.0f, 28, 18))
@@ -62,10 +62,14 @@ Element subject() {
               {.baseColor = {0.72f, 0.70f, 0.66f, 1.0f}, .roughness = 0.45f}))
           .tag("lit"));
   for (int i = 0; i < kPosts; ++i) {
-    const float angle = (float)i * kTwoPi / (float)kPosts;
-    set.child(Element()
+    // The angle is wanted too, to turn each post onto its own spoke, so
+    // the ring is taken as the two halves rather than as onRing.
+    const float angle =
+        arrange::along(0.0f, kTwoPi, (size_t)i, kPosts, arrange::Turn::Closed);
+    const SkPoint on = arrange::onEllipse({0, 0}, {kRing, kRing}, angle);
+    set.child(world::Element()
                   .key("post" + std::to_string(i))
-                  .at({kRing * std::cos(angle), 0.0f, kRing * std::sin(angle)})
+                  .at({on.fX, 0.0f, on.fY})
                   .rotateY(angle * 57.2957795f)
                   .mesh(gm::superellipsoid({11, 52, 11}, 5.0f, 12, 8))
                   .fill(material::kit::surface(
@@ -79,12 +83,12 @@ Element subject() {
  *  tree, so dressing one of its children is rebuilding the tree with
  *  that child replaced — which is what a copy-on-write value is for, and
  *  why a preset needs no hook for this. */
-Element rigWithDials(const kit::Rig& spec, Dials& dials) {
-  const Element rig = kit::threePoint(spec);
-  Element out;
+world::Element rigWithDials(const world::kit::Rig& spec, Dials& dials) {
+  const world::Element rig = world::kit::threePoint(spec);
+  world::Element out;
   out.key(rig.node()->key);
-  for (const Element& lamp : rig.node()->children) {
-    Element copy = lamp;
+  for (const world::Element& lamp : rig.node()->children) {
+    world::Element copy = lamp;
     if (lamp.node()->key == "key")
       copy.intensity(&dials.intensity)
           .emission(&dials.red, &dials.green, &dials.blue);
@@ -115,7 +119,7 @@ struct KeyLight final : sketch::Set {
     dials->green = 0.62f + 0.38f * swing;
     dials->blue = 0.35f + 0.65f * (1.0f - swing);
 
-    kit::Set set;
+    world::kit::Set set;
     set.rig.extent = 150.0f;
     set.rig.bearing = -50.0f;
     set.rig.elevation = 26.0f;
@@ -128,13 +132,13 @@ struct KeyLight final : sketch::Set {
     set.table.period = 16.0f;
     set.table.fovYDeg = 44.0f;
 
-    const Element root = kit::litSet(subject(), set, seconds);
-    Element dressed;
+    const world::Element root = world::kit::litSet(subject(), set, seconds);
+    world::Element dressed;
     dressed.key(root.node()->key);
-    for (const Element& child : root.node()->children)
+    for (const world::Element& child : root.node()->children)
       dressed.child(child.node()->key == "rig" ? rigWithDials(set.rig, *dials)
                                                : child);
-    return Frame(std::move(dressed));
+    return world::Frame(std::move(dressed));
   }
 };
 

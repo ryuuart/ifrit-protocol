@@ -2,6 +2,11 @@
  * The resampling core: adaptive curve flattening that keeps corner
  * anchors exact, uniform arc-length sampling, alignment of two closed
  * contours, and the rebuild of samples into a path.
+ *
+ * Beside them the two resamplings keyed to a SPACING rather than to a
+ * count — `subdivide` over the vertices, `catmullRom` through them — and
+ * the questions a polyline answers about the area it bounds: its rect,
+ * the even-odd ray test, and where a segment crosses its edges.
  */
 
 #include "sigilgeometry/path/Polyline.h"
@@ -22,6 +27,11 @@ namespace sigil::geometry::path {
 namespace {
 
 float segmentLength(glm::vec2 a, glm::vec2 b) { return distance(a, b); }
+
+/** The z of the 3D cross product of two planar vectors: positive when
+ *  `b` turns clockwise from `a` in Skia's y-down space, and zero when
+ *  the two are parallel. */
+float cross(glm::vec2 a, glm::vec2 b) { return a.x * b.y - a.y * b.x; }
 
 /** Farthest any interior control point sits from the chord: the flatness
  *  measure that decides how many segments a curve needs. */
@@ -107,7 +117,78 @@ float Polyline::signedArea() const {
   return (float)(area * 0.5);
 }
 
-void Polyline::reverse() { std::reverse(points.begin(), points.end()); }
+SkRect Polyline::bounds() const {
+  const Polyline* one = this;
+  return path::bounds(std::span<const Polyline>(one, 1));
+}
+
+bool Polyline::contains(glm::vec2 point) const {
+  if (points.size() < 3) return false;
+  // The ray test: count the edges a ray to +x crosses. `j` trails `i`, so
+  // the seam edge is walked with the rest whether or not `closed` is set.
+  bool inside = false;
+  for (size_t i = 0, j = points.size() - 1; i < points.size(); j = i++) {
+    const glm::vec2 a = points[i];
+    const glm::vec2 b = points[j];
+    if (((a.y > point.y) != (b.y > point.y)) &&
+        point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x)
+      inside = !inside;
+  }
+  return inside;
+}
+
+void Polyline::reverse() {
+  std::reverse(points.begin(), points.end());
+  std::reverse(lane.begin(), lane.end());
+}
+
+SkRect bounds(std::span<const Polyline> lines) {
+  float left = std::numeric_limits<float>::infinity();
+  float top = std::numeric_limits<float>::infinity();
+  float right = -std::numeric_limits<float>::infinity();
+  float bottom = -std::numeric_limits<float>::infinity();
+  for (const Polyline& line : lines)
+    for (const glm::vec2 point : line.points) {
+      left = std::min(left, point.x);
+      top = std::min(top, point.y);
+      right = std::max(right, point.x);
+      bottom = std::max(bottom, point.y);
+    }
+  if (!(left <= right) || !(top <= bottom)) return SkRect::MakeEmpty();
+  return SkRect::MakeLTRB(left, top, right, bottom);
+}
+
+bool containsEvenOdd(std::span<const Polyline> rings, glm::vec2 point) {
+  bool inside = false;
+  for (const Polyline& ring : rings)
+    if (ring.contains(point)) inside = !inside;
+  return inside;
+}
+
+std::vector<glm::vec2> edgeCrossings(const Polyline& line, glm::vec2 from,
+                                     glm::vec2 to) {
+  std::vector<glm::vec2> hits;
+  const glm::vec2 ray = to - from;
+  const size_t n = line.points.size();
+  const size_t edges = n < 2 ? 0 : (line.closed ? n : n - 1);
+  for (size_t i = 0; i < edges; ++i) {
+    const glm::vec2 start = line.points[i];
+    const glm::vec2 edge = line.points[(i + 1) % n] - start;
+    const float denominator = cross(ray, edge);
+    // Parallel: no one crossing to answer.
+    if (std::abs(denominator) < 1e-6f) continue;
+    const glm::vec2 between = start - from;
+    const float alongRay = cross(between, edge) / denominator;
+    const float alongEdge = cross(between, ray) / denominator;
+    if (alongRay >= 0.0f && alongRay <= 1.0f && alongEdge >= 0.0f &&
+        alongEdge <= 1.0f)
+      hits.push_back(from + ray * alongRay);
+  }
+  std::ranges::sort(hits, [&](glm::vec2 a, glm::vec2 b) {
+    return distance(a, from) < distance(b, from);
+  });
+  return hits;
+}
 
 std::vector<Polyline> flatten(const SkPath& path, float tolerance) {
   std::vector<Polyline> contours;
@@ -161,8 +242,12 @@ Polyline sample(const std::function<glm::vec2(float)>& f, float t0, float t1,
   Polyline out;
   out.closed = closed;
   const int n = std::max(count, 2);
-  out.points.reserve((size_t)n + 1);
-  for (int i = 0; i <= n; ++i)
+  // A closed curve arrives back where it started, and a ring spells its
+  // closure rather than repeating that vertex — which is what `subdivide`
+  // and `catmullRom` answer with too.
+  const int last = closed ? n - 1 : n;
+  out.points.reserve((size_t)last + 1);
+  for (int i = 0; i <= last; ++i)
     out.points.push_back(f(t0 + (t1 - t0) * ((float)i / (float)n)));
   return out;
 }
@@ -293,6 +378,130 @@ SkPath toPath(const Polyline& line) {
     builder.lineTo(toSk(line.points[i]));
   if (line.closed) builder.close();
   return builder.detach();
+}
+
+SkPath smoothThrough(std::span<const glm::vec2> points, bool closed) {
+  SkPathBuilder builder;
+  const size_t n = points.size();
+  if (n < 2) return builder.detach();
+  const auto midpoint = [&](size_t i, size_t j) {
+    return toSk((points[i] + points[j]) * 0.5f);
+  };
+  if (!closed) {
+    // The first point is the start, the last is the end, and every point
+    // between steers one quad from the midpoint before it to the midpoint
+    // after it; the one edge left over on each end is a straight run.
+    builder.moveTo(toSk(points[0]));
+    for (size_t i = 1; i + 1 < n; ++i)
+      builder.quadTo(toSk(points[i]), midpoint(i, i + 1));
+    builder.lineTo(toSk(points[n - 1]));
+    return builder.detach();
+  }
+  if (n == 2) {
+    builder.moveTo(toSk(points[0]));
+    builder.lineTo(toSk(points[1]));
+    builder.close();
+    return builder.detach();
+  }
+  // Round a loop every point is interior, so every point steers a quad
+  // and the curve starts where the seam edge is crossed: its midpoint.
+  builder.moveTo(midpoint(n - 1, 0));
+  for (size_t i = 0; i < n; ++i)
+    builder.quadTo(toSk(points[i]), midpoint(i, (i + 1) % n));
+  builder.close();
+  return builder.detach();
+}
+
+SkPath smoothThrough(const Polyline& line) {
+  return smoothThrough(line.points, line.closed);
+}
+
+Polyline subdivide(const Polyline& line, float spacing) {
+  Polyline out;
+  if (line.points.empty() || !(spacing > 0)) return line;
+  const bool laned = line.lane.size() == line.points.size();
+  out.lane.reserve(laned ? line.points.size() : 0);
+  auto emit = [&](glm::vec2 point, float value) {
+    out.points.push_back(point);
+    if (laned) out.lane.push_back(value);
+  };
+  emit(line.points.front(), laned ? line.lane.front() : 0.0f);
+  const size_t n = line.points.size();
+  const size_t edges = n < 2 ? 0 : (line.closed ? n : n - 1);
+  for (size_t i = 0; i < edges; ++i) {
+    const size_t next = (i + 1) % n;
+    const glm::vec2 a = line.points[i], b = line.points[next];
+    const float len = distance(a, b);
+    if (!(len > 0)) continue;
+    const int steps = std::max(1, (int)std::ceil(len / spacing));
+    for (int step = 1; step <= steps; ++step) {
+      const float t = (float)step / (float)steps;
+      emit(a + (b - a) * t,
+           laned ? line.lane[i] + (line.lane[next] - line.lane[i]) * t : 0.0f);
+    }
+  }
+  // A closed walk comes home to the point it left from; the seam is the
+  // closure rather than a repeated vertex.
+  if (line.closed && out.points.size() > 1) {
+    out.points.pop_back();
+    if (laned) out.lane.pop_back();
+    out.closed = true;
+  }
+  return out;
+}
+
+Polyline catmullRom(const Polyline& controls, float spacing, float curvature) {
+  if (controls.points.size() < 2 || !(spacing > 0)) return controls;
+  curvature = std::clamp(curvature, 0.0f, 1.0f);
+  const bool laned = controls.lane.size() == controls.points.size();
+  // The uniform basis, one axis at a time.
+  const auto basis = [](float p0, float p1, float p2, float p3, float t) {
+    const float t2 = t * t;
+    const float t3 = t2 * t;
+    return 0.5f * ((2.0f * p1) + (-p0 + p2) * t +
+                   (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3) * t2 +
+                   (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * t3);
+  };
+  Polyline out;
+  out.closed = controls.closed;
+  const size_t n = controls.points.size();
+  // A closed run of controls is a RING: it carries a chord across its
+  // seam like any other, and its end controls take their tangents from
+  // the far side rather than from a duplicated neighbour.
+  const size_t chords = controls.closed ? n : n - 1;
+  const auto control = [&](size_t k) {
+    return controls.closed ? controls.points[k % n]
+                           : controls.points[std::min(k, n - 1)];
+  };
+  for (size_t i = 0; i < chords; ++i) {
+    const glm::vec2 p0 = controls.closed ? controls.points[(i + n - 1) % n]
+                                         : controls.points[i == 0 ? 0 : i - 1];
+    const glm::vec2 p1 = controls.points[i];
+    const glm::vec2 p2 = control(i + 1);
+    const glm::vec2 p3 = control(i + 2);
+    const float chord = distance(p1, p2);
+    const int steps = std::max(1, (int)std::ceil(chord / spacing));
+    // Every chord but the first starts where the one before it ended.
+    for (int step = i == 0 ? 0 : 1; step <= steps; ++step) {
+      const float t = (float)step / (float)steps;
+      const glm::vec2 curve{basis(p0.x, p1.x, p2.x, p3.x, t),
+                            basis(p0.y, p1.y, p2.y, p3.y, t)};
+      const glm::vec2 chordAt = p1 + (p2 - p1) * t;
+      out.points.push_back(chordAt + (curve - chordAt) * curvature);
+      if (laned) {
+        const float from = controls.lane[i];
+        const float to = controls.lane[(i + 1) % n];
+        out.lane.push_back(from + (to - from) * t);
+      }
+    }
+  }
+  // The seam chord lands back on the first control, and a ring spells its
+  // closure rather than repeating that vertex.
+  if (controls.closed && out.points.size() > 1) {
+    out.points.pop_back();
+    if (laned) out.lane.pop_back();
+  }
+  return out;
 }
 
 Sampled lerp(const Sampled& a, const Sampled& b, float t) {

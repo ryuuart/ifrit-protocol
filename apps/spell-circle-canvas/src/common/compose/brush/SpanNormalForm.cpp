@@ -6,20 +6,13 @@
  */
 
 #include <include/core/SkContourMeasure.h>
-#include <include/core/SkImageFilter.h>
-#include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathUtils.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkTypes.h>  // SkDebugf — the slot-rename diagnostic
-#include <include/effects/SkImageFilters.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <include/pathops/SkPathOps.h>
+#include <include/core/SkRect.h>
+#include <sigilcore/compute/Intervals.h>
 
 #include <algorithm>
-#include <cmath>   // std::isfinite — the profileOffset non-finite guard
-#include <cstdio>  // std::snprintf — variationDrive's effect key
-#include <set>
+#include <cmath>
+#include <vector>
 
 #include "ComposeInternal.h"
 #include "SpanArithmetic.h"
@@ -142,70 +135,41 @@ std::vector<Span> fitSpans(const SkPath& outline, const SkRect& box,
 
 namespace detail {
 
+/** SHORTER THAN NOTHING, on a fraction of a path's total arc length: the
+ *  span the normal form drops, the gap the complement will not emit, and
+ *  the sliver two runs may share and still count as disjoint. */
+constexpr float kEpsilon = 1e-6f;
+/** …and the looser one an overlap REPORT reads by, so two runs that merely
+ *  meet at a corner are not called a conflict. */
+constexpr float kOverlapEpsilon = 1e-4f;
+
 std::vector<Span> normalizeSpans(const std::vector<Span>& spans) {
-  std::vector<Span> out;
-  out.reserve(spans.size());
-  for (Span s : spans) {
-    if (s.end < s.begin) std::swap(s.begin, s.end);
-    s.begin = std::clamp(s.begin, 0.0f, 1.0f);
-    s.end = std::clamp(s.end, 0.0f, 1.0f);
-    if (s.end - s.begin > 1e-6f) out.push_back(s);
-  }
-  std::sort(out.begin(), out.end(),
-            [](const Span& a, const Span& b) { return a.begin < b.begin; });
-  std::vector<Span> merged;
-  for (const Span& s : out) {
-    if (!merged.empty() && s.begin <= merged.back().end + 1e-6f)
-      merged.back().end = std::max(merged.back().end, s.end);
-    else
-      merged.push_back(s);
-  }
-  return merged;
+  // A span written backwards names the same run, so it is turned round
+  // rather than dropped; kEpsilon is what "shorter than nothing" means on
+  // a fraction of an arc length.
+  return core::normalizeIntervals<Span>(spans, 0.0f, 1.0f, kEpsilon,
+                                        core::Inverted::Swap);
 }
 
 std::vector<Span> complementSpans(const std::vector<Span>& spans) {
-  std::vector<Span> out;
-  float at = 0;
-  for (const Span& s : spans) {
-    if (s.begin - at > 1e-6f) out.push_back({at, s.begin});
-    at = std::max(at, s.end);
-  }
-  if (1.0f - at > 1e-6f) out.push_back({at, 1.0f});
-  return out;
+  return core::complementIntervals<Span>(spans, 0.0f, 1.0f, kEpsilon);
 }
 
 std::vector<Span> intersectSpans(const std::vector<Span>& a,
                                  const std::vector<Span>& b) {
-  // Both inputs are normalized (sorted, disjoint, non-degenerate), so one
-  // sweep suffices. Touching endpoints are not an intersection, by the
-  // same 1e-6 rule normalizeSpans drops empties with — two runs meeting
-  // at a corner share no arc length.
-  std::vector<Span> out;
-  size_t i = 0, j = 0;
-  while (i < a.size() && j < b.size()) {
-    const float lo = std::max(a[i].begin, b[j].begin);
-    const float hi = std::min(a[i].end, b[j].end);
-    if (hi - lo > 1e-6f) out.push_back({lo, hi});
-    if (a[i].end < b[j].end)
-      ++i;
-    else
-      ++j;
-  }
-  return out;
+  // Touching endpoints are not an intersection, by the same rule
+  // normalizeSpans drops empties with — two runs meeting at a corner
+  // share no arc length.
+  return core::intersectIntervals<Span>(a, b, kEpsilon);
 }
 
 std::optional<Span> spansOverlap(const std::vector<Span>& a,
                                  const std::vector<Span>& b) {
-  for (const Span& x : a)
-    for (const Span& y : b) {
-      const float lo = std::max(x.begin, y.begin);
-      const float hi = std::min(x.end, y.end);
-      // A shared END POINT is two runs meeting, not two runs overlapping —
-      // exactly what corners() next to edges() produces, and it must not
-      // be an error.
-      if (hi - lo > 1e-4f) return Span{lo, hi};
-    }
-  return std::nullopt;
+  // A shared END POINT is two runs meeting, not two runs overlapping —
+  // exactly what corners() next to edges() produces, and it must not be
+  // reported as a conflict. That wants a looser threshold than the one
+  // the normal form was built with.
+  return core::firstOverlap<Span>(a, b, kOverlapEpsilon);
 }
 
 SkPath spanPath(const SkPath& src, const std::vector<Span>& spans) {
@@ -241,32 +205,45 @@ SkPath spanPath(const SkPath& src, const std::vector<Span>& spans) {
       return true;
     };
 
-    // THE SEAM. Spans arrive sorted, so a claim that straddles fraction 0
-    // — a corner sitting on the seam, a wrapped window — arrives as its
-    // two halves at opposite ends of the list. On a CLOSED contour those
-    // halves are geometrically adjacent, and emitting them as two
-    // subpaths makes round caps and additive halo brushes double-hit
-    // there (the same defect the Wrap-mode trim path stitches away). So
-    // emit the tail first and append the head to it. An OPEN contour has
-    // no seam: joining its ends would invent a straight chord.
+    // Spans are fractions of the WHOLE path, so a multi-contour path
+    // interleaves every contour's claims in one sorted list. This contour
+    // sees only the ones that reach it, and its seam is read off those.
+    std::vector<const Span*> claims;
+    for (const Span& s : spans) {
+      const float lo = std::max(s.begin * total, run.start);
+      const float hi = std::min(s.end * total, run.start + run.length);
+      if (hi - lo > 1e-4f) claims.push_back(&s);
+    }
+    if (claims.empty()) continue;
+
+    // THE SEAM. Spans arrive sorted, so a claim that straddles this
+    // contour's start — a corner sitting on the seam, a wrapped window —
+    // arrives as its two halves at opposite ends of the contour's claims.
+    // On a CLOSED contour those halves are geometrically adjacent, and
+    // emitting them as two subpaths makes round caps and additive halo
+    // brushes double-hit there (the same defect the Wrap-mode trim path
+    // stitches away). So emit the tail first and append the head to it. An
+    // OPEN contour has no seam: joining its ends would invent a straight
+    // chord.
     const bool seamStraddled =
-        run.closed && spans.size() >= 2 &&
-        spans.front().begin * total <= run.start + 1e-4f &&
-        spans.back().end * total >= run.start + run.length - 1e-4f;
+        run.closed && claims.size() >= 2 &&
+        claims.front()->begin * total <= run.start + 1e-4f &&
+        claims.back()->end * total >= run.start + run.length - 1e-4f;
     if (seamStraddled) {
-      const bool inFlight = emit(spans.back(), false);
-      (void)emit(spans.front(), inFlight);
-      for (size_t k = 1; k + 1 < spans.size(); ++k) (void)emit(spans[k], false);
+      const bool inFlight = emit(*claims.back(), false);
+      (void)emit(*claims.front(), inFlight);
+      for (size_t k = 1; k + 1 < claims.size(); ++k)
+        (void)emit(*claims[k], false);
       continue;
     }
-    for (const Span& s : spans) (void)emit(s, false);
+    for (const Span* s : claims) (void)emit(*s, false);
   }
   return out.detach();
 }
 
 }  // namespace detail
 
-Spans& Spans::offset(Animatable<float> by) {
+Spans& Spans::offset(motion::Animatable<float> by) {
   for (size_t i = 0; i + 1 < terms.size(); ++i) terms[i].offset = by;
   if (!terms.empty()) terms.back().offset = std::move(by);
   return *this;
@@ -278,7 +255,8 @@ std::vector<Span> Spans::resolve(const SpanInput& in) const {
   // begin, end, offset per term — the order Instance::spanAnims and
   // spanEndpoints() both walk. The offset is ADDED to both ends before the
   // interval is read, which is exactly what trim() does with its third
-  // argument (Bounds.cpp's trim block: s0 = start + off, e0 = end + off).
+  // argument: both endpoints move by the offset, the window keeps its
+  // length.
   auto at = [&](size_t i, float fallback) {
     return in.values && in.values->size() > i ? (*in.values)[i] : fallback;
   };
@@ -362,7 +340,7 @@ std::vector<Span> Spans::resolve(const SpanInput& in) const {
 
 namespace spans {
 
-Spans range(Animatable<float> begin, Animatable<float> end) {
+Spans range(motion::Animatable<float> begin, motion::Animatable<float> end) {
   Spans s;
   Spans::Term t;
   t.rule = Spans::Rule::Range;
@@ -371,7 +349,7 @@ Spans range(Animatable<float> begin, Animatable<float> end) {
   s.terms.push_back(std::move(t));
   return s;
 }
-Spans wrap(Animatable<float> begin, Animatable<float> end) {
+Spans wrap(motion::Animatable<float> begin, motion::Animatable<float> end) {
   Spans s;
   Spans::Term t;
   t.rule = Spans::Rule::Wrap;
@@ -380,7 +358,9 @@ Spans wrap(Animatable<float> begin, Animatable<float> end) {
   s.terms.push_back(std::move(t));
   return s;
 }
-Spans upTo(Animatable<float> end) { return range(0.0f, std::move(end)); }
+Spans upTo(motion::Animatable<float> end) {
+  return range(0.0f, std::move(end));
+}
 Spans corners(float arm, float angleDeg) {
   Spans s;
   Spans::Term t;

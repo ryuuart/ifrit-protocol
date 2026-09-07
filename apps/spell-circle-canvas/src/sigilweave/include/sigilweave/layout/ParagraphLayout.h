@@ -20,6 +20,7 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
 
 #include <cstdint>
@@ -27,6 +28,7 @@
 #include <vector>
 
 #include "sigilweave/layout/Flow.h"
+#include "sigilweave/layout/InitialLetter.h"
 #include "sigilweave/layout/LayoutOptions.h"
 #include "sigilweave/layout/PositionedRun.h"
 #include "sigilweave/paragraph/Paragraph.h"
@@ -35,9 +37,24 @@ namespace sigil::weave {
 
 class FontContext;
 
-/** Positioned output of one paragraph layout pass. */
+/** Positioned output of one paragraph layout pass.
+ *
+ * IT BORROWS THE PARAGRAPH'S GLYPHS. Every PositionedRun points at a
+ * ShapedWord the paragraph holds rather than holding one itself, and every
+ * word and interval index a run carries reads a table on one of the two.
+ * A layout is therefore only meaningful while the paragraph it was set from
+ * is alive and unedited, which is what every consumer of a run already
+ * assumes — and every member below that reads the text takes that
+ * paragraph back as an argument.
+ */
 struct ParagraphLayout {
   std::vector<PositionedRun> runs;  ///< in logical word order, ready to draw
+  /// The few words this pass shaped for itself rather than finding in the
+  /// paragraph — a tab leader, an overflow marker, an initial letter and
+  /// the remainder of the word it split — held here so that the runs
+  /// pointing at them borrow from something with the layout's own
+  /// lifetime. Nothing reads this list; it exists to own.
+  std::vector<ShapedWordRef> shapedByTheLayout;
   /// Every flow interval the layout consumed, in the order the geometry
   /// handed them over — the numbering PositionedRun::intervalIndex uses.
   /// A caller that re-places transformed runs reads their geometry here
@@ -57,6 +74,22 @@ struct ParagraphLayout {
   /// An overflow marker from ParagraphLayoutOptions::overflow was appended
   /// to the final placed line. Its run is the last in `runs`.
   bool ellipsized = false;
+  /// How many blocks the optimizing breaker ran out of budget on and left
+  /// to the greedy breaker (KnuthPlassOptions::budgetMicroseconds). Zero
+  /// whenever no budget was set, and the number a caller watches to know
+  /// its budget is too short for the text it is setting.
+  int degradedBlocks = 0;
+  /// How many blocks were set from break decisions this thread had already
+  /// made for the same words at the same measure, under
+  /// ParagraphLayoutOptions::live. It is what says a moving text is costing
+  /// only its fill: a frame that reports as many reused blocks as it holds
+  /// made no break decision at all.
+  int reusedBlocks = 0;
+  /// Where the initial letter landed, when a block declared one
+  /// (ParagraphStyle::initial). Its glyphs are ordinary runs of this
+  /// layout and draw with the rest; this is the report, not a second thing
+  /// to draw.
+  PlacedInitial initial;
 
   /** Returns whether geometry ended before all paragraph words were placed. */
   [[nodiscard]] bool overflowed() const noexcept {
@@ -114,12 +147,29 @@ struct ParagraphLayout {
    * Derived, not stored: nothing is recorded during layout and calling this
    * costs one pass over `runs` (metrics resolved per font change). Mixed
    * fonts on a line report the tallest ascent/deepest descent, matching how
-   * a line box grows. Straight horizontal lines only: transformed (path /
-   * rotated) and vertical runs are skipped, and lines whose geometry placed
-   * nothing do not appear.
+   * a line box grows — except the initial letter, which is one run several
+   * lines tall and reports its own extent as `PlacedInitial::box`, so the
+   * line it stands on keeps its own band. Straight horizontal lines only:
+   * transformed (path / rotated) and vertical runs are skipped, and lines
+   * whose geometry placed nothing do not appear.
    */
   [[nodiscard]] std::vector<LineMetrics> lineMetrics(
       const Paragraph& paragraph) const;
+
+  /** Returns the OUTLINE OF EVERY GLYPH this layout placed, as one path in
+   * the layout's own coordinate space.
+   *
+   * Not the ink bounds and not the advance boxes: the actual contours, at
+   * the positions the placement put them, including the per-glyph
+   * transforms a rotated or curved run baked. It is what anything that
+   * dresses letters rather than a box needs — a bevel, a glow, a chrome, a
+   * cut-out — and it is derived, not stored: nothing is recorded during
+   * layout and a caller who never asks pays nothing.
+   *
+   * Glyphs a face reports no path for (bitmap and colour glyphs) are
+   * absent, because they have no contour to give.
+   */
+  [[nodiscard]] SkPath glyphOutline() const;
 
   /** Returns per-COLUMN geometry for a vertical layout, ascending by column
    * index — what lineMetrics() is for a horizontal one, and the only one of
@@ -135,13 +185,30 @@ struct ParagraphLayout {
       const Paragraph& paragraph) const;
 };
 
-/** Lays `paragraph` out into `geometry`. Ensures the paragraph is shaped
- * (cache-hot when little changed), breaks it into lines with the configured
- * breaker, and returns positioned runs backed by shared word blobs.
+/** Lays `paragraph` out into `geometry`, starting at `firstWord`. Ensures
+ * the paragraph is shaped (cache-hot when little changed), breaks it into
+ * lines with the configured breaker, and returns positioned runs backed by
+ * shared word blobs.
+ *
+ * `firstWord` IS THE RESUME POINT, and it is the same number the pass
+ * before it reported as `firstUnplacedWord` — which is what makes a text
+ * fill as many frames as it is given. One paragraph, shaped once, filled
+ * frame after frame: every pass reads the same word list and the same warm
+ * shape cache, and a word index is a sound cursor because a Word's extent
+ * is a fact about the text rather than about any one layout of it. Blocks
+ * are numbered from the START of the text however far in a pass begins, so
+ * `ParagraphLayoutOptions::blocks` addresses the same block in every frame
+ * of a chain.
+ *
+ * OVERFLOW IS THE NORMAL CASE HERE and is not a cut: a pass that ran out
+ * of geometry reports where it stopped and draws no marker unless the
+ * caller asked for one. A frame that means to be the last of a chain is
+ * the one that sets `OverflowOptions::ellipsis`.
  */
 ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
                                 FlowGeometry& geometry,
-                                const ParagraphLayoutOptions& options = {});
+                                const ParagraphLayoutOptions& options = {},
+                                uint32_t firstWord = 0);
 
 /**
  * Lays a paragraph out as one unconstrained horizontal line whose baseline

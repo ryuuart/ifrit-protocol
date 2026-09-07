@@ -3,22 +3,45 @@
  *
  *   Sketchbook [--no-gpu]                      the app, on the last sketch
  *   Sketchbook --sketch <name>                 the app, on that one
- *   Sketchbook --list [--kind canvas|set]      the registry, one per line
+ *   Sketchbook --list [--kind canvas|set|draw] the registry, one per line
+ *   Sketchbook --catalog [<file.cpp>]          the browser's rows, one JSON
+ *                                              object per line
+ *   Sketchbook --compare <dir-a> <dir-b>       two sweeps' plates, differenced
  *   Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
- *              [--ledger] [--no-promotion] [--capture-at <s>]
+ *              [--ledger] [--no-promotion | --promotion]
+ *              [--capture-at <s>]
  *              [--timing-json <path>]          plates, and the timing table
- *   Sketchbook <file.cpp> [--frame <png>] [--bench]
+ *   Sketchbook --video <out.mp4> [--video-frames <n>] [--fps <n>]
+ *              [--video-size <WxH>] [--video-bitrate <bits>]
+ *              [--sketch <name>] [--kind <k>] [--gpu]
+ *                                              the vertical video montage
+ *   Sketchbook <file.cpp> [--frame <png>] [--bench] [--gpu]
  *                                              a file, live or measured
  *   Sketchbook <file.cpp>                      the app, on that file
+ *   Sketchbook <stem>/<stem>.cpp               …either way, a sketch that
+ *                                              is a directory, by its entry
  *   Sketchbook --window-bench [<sec>] [--window-size <WxH>]
  *              [--window-scale <n>] [--sketch <name>] [--kind <k>]
  *                                              the window's own frame rate
+ *   Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set|draw]
+ *              [--thumbnail-budget <sec>] [--thumbnail-heavy]
+ *                                              render missing/stale stills
  *   … [--assets <dir>]                         where res:// mounts
- *   … [--plates <dir>]                        the stills the browser shows
+ *   … [--thumbnails-dir <dir>]                 the app's own thumbnail store
  *
  * `--sketch` takes a case-insensitive substring and answers to a
  * sketch's filed name or its file stem, which is the loop for visual
  * iteration.
+ *
+ * A HEADLESS SWEEP RENDERS WITH AUTOMATIC TEXTURE PROMOTION OFF, because
+ * a plate is judged on byte identity and a cost-driven bake depends on
+ * how busy the machine is. `--no-promotion` names that default so it
+ * holds on a backend that would otherwise decide for itself.
+ * `--promotion` opens the sessions EAGER instead: every node the
+ * runtime is allowed to bake is baked from its first frame, whatever it
+ * costs, so the set of nodes exercised is the scene's and identical on
+ * every machine. Such a run is judged by distance from a plate, never
+ * by hash.
  *
  * A `.cpp` PATH IS TAKEN WHEREVER IT STANDS. The file joins the app's
  * list under its own stem and opens there, and it is compiled and
@@ -30,17 +53,32 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/stock/Stock.h>
 #include <sigilmeasure/stats/Samples.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Registry.h>
-#include <sigilsketch/live/Crash.h>
+#include <sigilsketch/core/Sources.h>
+#include <sigilsketch/live/BenchCadence.h>
 #include <sigilsketch/live/Host.h>
+#include <sigilsketch/plate/Compare.h>
+#include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
+#include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/set/Set.h>
+#ifdef SIGILSKETCH_BOOK_SCRY
+#include <sigilsketch/scry/SharedEngine.h>
+#endif
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
+#include <QtCore/QCoreApplication>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
 #include <QtCore/QMutex>
+#include <QtCore/QStandardPaths>
 #include <QtCore/QTimer>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QImage>
@@ -49,7 +87,8 @@
 #include <QtQuick/QQuickWindow>
 
 #ifndef SIGILSKETCH_NO_DEVICE
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
+#include <sigilgeometry/mesh/render/device/Painter.h>
 #include <sigilworld/diligent/Runtime.h>
 #endif
 
@@ -66,6 +105,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <future>
 #include <memory>
 #include <optional>
 #include <string>
@@ -79,6 +119,35 @@ namespace sketch = sigil::sketch;
 
 namespace {
 
+#ifdef SIGILSKETCH_BOOK_SCRY
+/** THIS HOST OPTS INTO ONE LAZY WEB ENGINE for every sketch it opens.
+ *
+ * SigilScry's ordinary path remains explicit caller ownership through
+ * WebEngine::create(config). Sketchbook is the exceptional host whose live
+ * and resident sketches must borrow one renderer across selection and reload,
+ * so it chooses that renderer's configuration before any sketch can ask for
+ * it and releases it after every session is gone. */
+class SharedWebEngineScope {
+ public:
+  SharedWebEngineScope() {
+    if (!sketch::scry::configureSharedEngine({}))
+      std::fprintf(stderr,
+                   "[sketchbook] shared web engine was already configured\n");
+  }
+  ~SharedWebEngineScope() { sketch::scry::shutdownSharedEngine(); }
+
+  SharedWebEngineScope(const SharedWebEngineScope&) = delete;
+  SharedWebEngineScope& operator=(const SharedWebEngineScope&) = delete;
+
+  void shutdown() { sketch::scry::shutdownSharedEngine(); }
+};
+#else
+class SharedWebEngineScope {
+ public:
+  void shutdown() {}
+};
+#endif
+
 /** The 60 FPS gate, in milliseconds per frame. */
 constexpr double kFrameBudgetMs = 16.6;
 
@@ -87,13 +156,40 @@ constexpr double kFrameBudgetMs = 16.6;
  *  comfortably inside its budget and the compositor is merely uneven. */
 constexpr double kDefaultJitter = 0.35;
 
-/** How long `--window-bench` measures each sketch, and how long it lets
- *  one run before it starts. The measured stretch is longer than either
- *  rolling window the readout comes from, so what it reports is entirely
- *  frames from the measured stretch; the warm-up is what pays for the
- *  first frames' program compiles, texture bakes and glyph atlases. */
+/** How long `--window-bench` measures each sketch, how long it lets one
+ *  run before it starts, and how long it waits for a selection to reach
+ *  the screen at all. The warm-up is what pays for the first frames'
+ *  program compiles, texture bakes and glyph atlases, and it starts at
+ *  the first presented frame rather than at the ask — a session whose
+ *  first frame costs seconds would otherwise spend the whole of it
+ *  before anything of that sketch was on screen. The rolling windows the
+ *  readout comes from are emptied where the measured stretch begins, so
+ *  what is reported is frames from that stretch whatever the sketch's
+ *  rate. The ceiling is generous because a first frame legitimately
+ *  can be seconds long; what it catches is a window that has stopped
+ *  presenting altogether. */
 constexpr double kWindowBenchSeconds = 2.5;
 constexpr double kWindowBenchWarmupSeconds = 1.2;
+constexpr double kWindowBenchCeilingSeconds = 30.0;
+
+/** THE STOCK MATERIALS, COMPILED BEFORE THE FIRST SKETCH DRAWS: the
+ *  backend this host draws through, and then the material library's own
+ *  warm-up over every recipe it ships. How many catalogues that is, where
+ *  each reads its shader files from and how they are read side by side
+ *  are the library's business, not this host's. */
+sigil::material::WarmupResult warmStockMaterials() {
+  sigil::material::skia::install();
+  return sigil::material::stock::warmup(sigil::material::Target::SkSL);
+}
+
+void finishMaterialWarmup(std::future<sigil::material::WarmupResult>& loading) {
+  const sigil::material::WarmupResult result = loading.get();
+  if (result.ready != result.unique)
+    std::fprintf(stderr,
+                 "[sketchbook] material warm-up prepared %zu of %zu "
+                 "programs\n",
+                 result.ready, result.unique);
+}
 
 /** The compiler line the build captured, which lands beside the binaries
  *  rather than inside the bundle: a macOS application is a directory, and
@@ -132,7 +228,7 @@ sketch::Assets& assets() {
 #ifndef SIGILSKETCH_NO_DEVICE
 /** Held for the run: the runtime borrows the device, and every texture
  *  and pipeline it made goes when the device does. */
-std::unique_ptr<sigil::world::diligent::Device> g_device;
+std::unique_ptr<sigil::geometry::device::Device> g_device;
 
 /** Puts every set sketch on the device, and says whether it could. The
  *  sweep treats a false answer as fatal because drawing the CPU's
@@ -141,13 +237,21 @@ std::unique_ptr<sigil::world::diligent::Device> g_device;
  *  a window can say which tier it is showing. */
 bool useDevice() {
   std::string error;
-  const sigil::world::diligent::DeviceConfig config;
-  g_device = sigil::world::diligent::Device::create(config, &error);
+  const sigil::geometry::device::DeviceConfig config;
+  g_device = sigil::geometry::device::Device::create(config, &error);
   if (!g_device) {
     std::fprintf(stderr, "no device runtime (%s)\n", error.c_str());
     return false;
   }
   sketch::useRuntime(sigil::world::diligent::runtime(*g_device));
+  // …and the 2D twin: a canvas sketch that stands a mesh up in space
+  // reaches the same device through sketch::painterRuntime().
+  sketch::usePainterRuntime(
+      sigil::geometry::mesh::render::deviceRuntime(*g_device));
+  // …and the device itself, for the calls no runtime can stand in for:
+  // a foreign texture entering a material slot names the device it
+  // already stands on.
+  sketch::useDevice(g_device.get());
   return true;
 }
 
@@ -157,7 +261,9 @@ bool useDevice() {
  *  their teardown into static destruction, where the locks they want no
  *  longer exist. */
 void releaseDevice() {
+  sketch::useDevice(nullptr);
   sketch::useRuntime({});
+  sketch::usePainterRuntime({});
   g_device.reset();
 }
 #else
@@ -170,16 +276,17 @@ bool useDevice() {
 void releaseDevice() {}
 #endif
 
-/** True when the selection holds anything drawn through the set
- *  runtime — the only reason to bring a device up. */
+/** True when the selection holds a sketch that draws through a device.
+ *  The kind answers for itself, so a runtime added later is not a name
+ *  this has to learn. It is not what decides whether a device is brought
+ *  up — a `--gpu` run brings one up whatever it holds, because the
+ *  surface a canvas is photographed on comes off that same device — but
+ *  it is what a montage asks before spending one. */
 bool selectionNeedsDevice(int only, const std::string& kind) {
   const auto& entries = sketch::registry();
-  const int first = only >= 0 ? only : 0;
-  const int last = only >= 0 ? only + 1 : (int)entries.size();
-  for (int i = first; i < last && i < (int)entries.size(); ++i) {
-    if (!kind.empty() && kind != "set") continue;
-    const sketch::Kind entry = entries[i].kind();
-    if (entry && entry->runtime() == "set") return true;
+  for (int index : sketch::selection(only, kind)) {
+    const sketch::Kind entry = entries[index].kind();
+    if (entry && entry->needsDevice()) return true;
   }
   return false;
 }
@@ -187,9 +294,16 @@ bool selectionNeedsDevice(int only, const std::string& kind) {
 // ---------------------------------------------------------------------------
 // Running one file, headless
 
+/** Where a capture lands when neither the caller nor the sketch says. */
+constexpr double kFallbackMoment = 1.5;
+
 struct CaptureOptions {
   std::string out;
-  double at = 1.5;     // seconds of fixed-step warmup before capture
+  /** Seconds of fixed-step stepping before the capture, as the CALLER
+   *  stated it. Negative means unstated, which is not the same as 1.5:
+   *  a still then lands at the moment the sketch itself declared, and
+   *  only a sketch that declares none falls back to the number. */
+  double at = -1.0;
   float scale = 1.0f;  // multiplier over the sketch's canvas size
   int frames = 1;      // >1 captures a numbered sequence
   double fps = 60.0;   // fixed-step rate
@@ -233,8 +347,10 @@ bool awaitFirstBuild(sketch::Host& host) {
  *  glyph atlases, and folding those into the sample measures the wrong
  *  thing.
  *
- *  Always exits 0. The verdict is the output, not the exit status, so a
- *  slow sketch does not abort a pipeline that is benching several. */
+ *  A SLOW SKETCH IS NOT A FAILURE: the verdict is the output, not the
+ *  exit status, so benching several in a row does not stop at the first
+ *  one over budget. It exits 0 whenever it measured; a sketch that never
+ *  built, or a surface that could not be allocated, exits 1. */
 int runBench(sketch::Host& host, const CaptureOptions& options,
              const std::filesystem::path& path) {
   if (!awaitFirstBuild(host)) return 1;
@@ -287,7 +403,13 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
     flush();
   };
 
-  const int warmup = std::max(1, (int)std::lround(options.at / dt));
+  // A warm-up, not a capture: what it has to reach is the state where
+  // programs, bakes and atlases are hot, and any stretch of frames does
+  // that. So an unstated --at takes the fallback here rather than the
+  // sketch's declared moment, and the measured run stays the same run
+  // whatever moment the author chose to photograph.
+  const double warmSeconds = options.at >= 0.0 ? options.at : kFallbackMoment;
+  const int warmup = std::max(1, (int)std::lround(warmSeconds / dt));
   for (int i = 0; i < warmup; ++i) step();
 
   // One profiled frame BEFORE the timed run, so a failure can name the
@@ -306,11 +428,9 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
   std::vector<std::string> laneNames;
   frames.reserve((size_t)options.benchFrames);
   for (int i = 0; i < options.benchFrames; ++i) {
-    const auto begin = std::chrono::steady_clock::now();
+    const sigil::measure::Stopwatch watch;
     step();
-    frames.push_back(std::chrono::duration<double, std::milli>(
-                         std::chrono::steady_clock::now() - begin)
-                         .count());
+    frames.push_back(watch.elapsedMs());
     if (sketch::Session* session = host.session()) {
       const sketch::Timing timing = session->timing();
       updates.push_back(timing.updateMs);
@@ -336,7 +456,29 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
   const double p50 = sigil::measure::quantile(sorted, 0.50);
   const double p95 = sigil::measure::quantile(sorted, 0.95);
   const double p99 = sigil::measure::quantile(sorted, 0.99);
-  const bool pass = p99 < kFrameBudgetMs;
+
+  // A DECLARED PLATE IS JUDGED ON ITS CAPTURE COST, not on 60 FPS. Its
+  // subject is the size of the sheet it draws, so the still it is
+  // photographed as is what a reader waits on, and the frame-time gate a
+  // live scene must pass does not bind it. The mark is read here, off the
+  // running session's declared canvas — never a per-sketch timeout
+  // override, and nothing about the plate sweep changes.
+  const bool plateOnly = host.plateOnly();
+  double captureMs = 0.0;
+  if (plateOnly) {
+    if (sketch::Session* session = host.session()) {
+      sk_sp<SkSurface> plate =
+          SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
+      if (plate) {
+        plate->getCanvas()->clear(background);
+        const sigil::measure::Stopwatch watch;
+        session->still(*plate->getCanvas());
+        (void)plate->readPixels(probe.pixmap(), 0, 0);  // force completion
+        captureMs = watch.elapsedMs();
+      }
+    }
+  }
+  const bool pass = plateOnly || p99 < kFrameBudgetMs;
 
   // One machine-readable line, prefixed so collectors can find it. The
   // step regime is on the line rather than only in the invocation: a
@@ -348,7 +490,8 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
       path.stem().string().c_str(), width, height, (int)frames.size(),
       options.jitterDt > 0.0 ? "jittered" : "fixed", p50, p95, p99,
       mean(frames), sorted.empty() ? 0.0 : sorted.back(),
-      p50 > 0 ? 1000.0 / p50 : 0.0, pass ? "PASS" : "FAIL");
+      p50 > 0 ? 1000.0 / p50 : 0.0,
+      plateOnly ? "PLATE" : (pass ? "PASS" : "FAIL"));
   std::printf("  phases (mean ms): update %.2f · draw %.2f", mean(updates),
               mean(draws));
   for (size_t l = 0; l < lanes.size(); ++l)
@@ -360,7 +503,14 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
     std::printf("  most expensive nodes (self ms, excluding children):\n");
     for (const std::string& line : hot) std::printf("    %s\n", line.c_str());
   }
-  if (pass) {
+  if (plateOnly) {
+    std::printf(
+        "  PLATE — declared plate(), so it is judged on its CAPTURE COST,\n"
+        "  not on 60 FPS: the still it is photographed as took %.2f ms at\n"
+        "  %dx%d. The frame-time gate does not bind a sheet whose subject\n"
+        "  is its own size; the plate sweep steps and captures it as ever.\n",
+        captureMs, width, height);
+  } else if (pass) {
     std::printf(
         "  PASS — p99 %.2f ms is inside the %.1f ms budget (%.0f FPS "
         "gate)\n",
@@ -392,12 +542,22 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
 
 int runFrames(sketch::Host& host, const CaptureOptions& options) {
   if (!awaitFirstBuild(host)) return 1;
-  // Step the clock to --at with a fixed step, on a tiny scratch surface:
-  // the real pixels come from the capture below.
+  // THE MOMENT THE SKETCH DECLARED wins over any number this program
+  // could pick, because a still of an animation is a claim about that
+  // animation and the author is the one who knows which frame makes it.
+  // A stated --at overrides the declaration; a sketch declaring nothing
+  // gets the fallback. The declaration is only readable once a body has
+  // run its setup, which is why it is read here and not while parsing.
+  const double declared = host.captureSeconds();
+  const double at = options.at >= 0.0
+                        ? options.at
+                        : (declared > 0.0 ? declared : kFallbackMoment);
+  // Step the clock to that moment with a fixed step, on a tiny scratch
+  // surface: the real pixels come from the capture below.
   const double dt = 1.0 / options.fps;
   sk_sp<SkSurface> scratch =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
-  const int warmup = std::max(1, (int)std::lround(options.at / dt));
+  const int warmup = std::max(1, (int)std::lround(at / dt));
   for (int i = 0; i < warmup; ++i) host.frame(*scratch->getCanvas(), dt);
 
   for (int index = 0; index < options.frames; ++index) {
@@ -412,10 +572,14 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
     }
     if (index + 1 < options.frames) host.frame(*scratch->getCanvas(), dt);
   }
-  std::printf("wrote %s (%d frame%s at %.3gx, build %d, work %.2f ms avg)\n",
-              options.out.c_str(), options.frames,
-              options.frames == 1 ? "" : "s", options.scale, host.generation(),
-              host.workMsAverage());
+  std::printf(
+      "wrote %s (%d frame%s at %.3gx, t=%.3gs %s, build %d, work %.2f ms "
+      "avg)\n",
+      options.out.c_str(), options.frames, options.frames == 1 ? "" : "s",
+      options.scale, at,
+      options.at >= 0.0 ? "asked for"
+                        : (declared > 0.0 ? "declared" : "by default"),
+      host.generation(), host.workMsAverage());
   return 0;
 }
 
@@ -444,9 +608,18 @@ struct WindowBench {
  *  rate is the compositor's answer, so it is bounded by the display and
  *  a sketch inside its budget reads at the refresh rate.
  *
- *  It drives the selection through the same property QML sets, so every
- *  switch takes the same path a reader's click does — the resident set
- *  included. False when there is nothing to present. */
+ *  WHAT IS MEASURED IS THE SKETCH THAT IS ON SCREEN. Selection goes
+ *  through the same property QML sets, and setting it is an ask, not an
+ *  arrival: the session opens on the render thread and its first frame
+ *  can cost seconds. So each row waits for the window to be presenting
+ *  the selection's own session before its warm-up starts, empties the
+ *  rolling windows where the measured stretch begins, and reads them
+ *  where it ends — one sketch measured over its own frames, whatever
+ *  the one before it cost. A selection that never reaches the screen is
+ *  stood down by name and the run says so in its exit status; it is not
+ *  a rate of nothing.
+ *
+ *  False when there is nothing to present. */
 bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
                       QObject& view, const WindowBench& options,
                       std::vector<int> selection) {
@@ -454,15 +627,23 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
     std::fprintf(stderr, "--window-bench: nothing selected\n");
     return false;
   }
+  sketch::BenchCadence::Times times;
+  times.warmupSeconds = kWindowBenchWarmupSeconds;
+  times.measureSeconds = options.seconds;
+  times.ceilingSeconds = kWindowBenchCeilingSeconds;
   struct Run {
     std::vector<int> selection;
     size_t at = 0;
-    bool measuring = false;
-    std::chrono::steady_clock::time_point phaseStart;
+    sketch::BenchCadence cadence;
+    std::chrono::steady_clock::time_point began;
+    double measureBegan = 0.0;
+    unsigned long long framesAtBegin = 0;
+    int stoodDown = 0;
   };
-  auto run = std::make_shared<Run>();
-  run->selection = std::move(selection);
-  run->phaseStart = std::chrono::steady_clock::now();
+  auto run = std::make_shared<Run>(
+      Run{std::move(selection), 0, sketch::BenchCadence(times),
+          std::chrono::steady_clock::now(), 0.0, 0, 0});
+  run->cadence.select(0.0);
   view.setProperty("sketchIndex", run->selection[0]);
 
   auto* timer = new QTimer(&application);
@@ -476,55 +657,100 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
         // frames to would otherwise be measured as a sketch that stopped
         // drawing, which is a different finding entirely.
         if (auto* item = qobject_cast<QQuickItem*>(&view)) item->update();
-        const auto now = std::chrono::steady_clock::now();
-        const double elapsed =
-            std::chrono::duration<double>(now - run->phaseStart).count();
-        if (!run->measuring) {
-          if (elapsed < kWindowBenchWarmupSeconds) return;
-          run->measuring = true;
-          run->phaseStart = now;
-          return;
-        }
-        if (elapsed < options.seconds) return;
-
+        const double now = std::chrono::duration<double>(
+                               std::chrono::steady_clock::now() - run->began)
+                               .count();
         const sketch::Entry& entry =
             sketch::registry()[run->selection[run->at]];
-        {
-          QMutexLocker lock(&SketchbookView::hostMutex);
-          const sketch::Host* host = SketchbookView::host;
+        const std::filesystem::path wanted =
+            sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+
+        QMutexLocker lock(&SketchbookView::hostMutex);
+        sketch::Host* host = SketchbookView::host;
+        // THE SESSION ON SCREEN IS THIS ENTRY'S, AND A FRAME OF IT HAS
+        // BEEN PRESENTED. The file a session was opened from is what
+        // names it, which is the same key the resident set holds it by.
+        const bool presenting = host && host->live() &&
+                                host->sketchPath() == wanted &&
+                                host->presentedFrames() > 0;
+        const sketch::BenchCadence::Step step =
+            run->cadence.advance(now, presenting);
+        if (step == sketch::BenchCadence::Step::Wait) return;
+        if (step == sketch::BenchCadence::Step::Begin) {
+          run->measureBegan = now;
+          run->framesAtBegin = 0;
+          // The session can go between the warm-up and here — a frame it
+          // could not draw drops it — and a stretch measured over no
+          // session is stood down below rather than read.
+          if (host) {
+            host->resetMetrics();
+            run->framesAtBegin = host->presentedFrames();
+          }
+          return;
+        }
+
+        if (step == sketch::BenchCadence::Step::Read) {
           const QVariantMap metrics = view.property("metrics").toMap();
           const sketch::Kind kind = entry.kind();
           const std::string_view runtime = kind ? kind->runtime() : "?";
           const SkSize canvas = host ? host->canvasSize() : SkSize::Make(0, 0);
           const double work = host ? host->workMsAverage() : 0.0;
+          // THE SAME SESSION AT BOTH ENDS OF THE STRETCH, and the frames
+          // it put on screen in between.
+          const unsigned long long frames =
+              presenting && host->presentedFrames() >= run->framesAtBegin
+                  ? host->presentedFrames() - run->framesAtBegin
+                  : 0;
+          // THE RATE IS THE WHOLE STRETCH: the frames that reached the
+          // screen over the time they took. The host's own readout is a
+          // rolling one, short enough to answer a reader watching it
+          // change; a row is one number about a stated stretch, and a
+          // hitch inside that stretch weighs what it actually was.
+          const double stretch = now - run->measureBegan;
+          const double fps = stretch > 0 ? (double)frames / stretch : 0.0;
           // KEYED BY THE STEM, not by the filed name: the line is one
           // whitespace-separated record, and a filed name carries spaces
           // — "aero desktop" would be read as the name "aero" followed
           // by a field nobody wrote. The stem cannot contain a space and
           // is what --sketch already takes.
-          std::printf(
-              "WINDOW %s window=%dx%d@%g canvas=%dx%d kind=%.*s fps=%.1f "
-              "work=%.2fms p99=%.2fms draw=%.2fms submit=%.2fms "
-              "headroom=%.1f\n",
-              entry.key, window.width(), window.height(),
-              window.devicePixelRatio(), (int)canvas.width(),
-              (int)canvas.height(), (int)runtime.size(), runtime.data(),
-              host ? host->presentedFps() : 0.0, work,
-              host ? host->workMsP99() : 0.0,
-              host ? host->drawMsAverage() : 0.0,
-              metrics.value(QStringLiteral("submitMs")).toDouble(),
-              work > 0 ? 1000.0 / work : 0.0);
-          std::fflush(stdout);
+          //
+          // A stretch that ended with all but no frames in it is not a
+          // rate: it is stood down with what it did, rather than
+          // printed as a rate of nearly zero.
+          if (frames < 2) {
+            std::printf("WINDOW %s SKIPPED presented %llu frames in %.1fs\n",
+                        entry.key, frames, stretch);
+            ++run->stoodDown;
+          } else {
+            std::printf(
+                "WINDOW %s window=%dx%d@%g canvas=%dx%d kind=%.*s fps=%.1f "
+                "work=%.2fms p99=%.2fms draw=%.2fms submit=%.2fms "
+                "headroom=%.1f\n",
+                entry.key, window.width(), window.height(),
+                window.devicePixelRatio(), (int)canvas.width(),
+                (int)canvas.height(), (int)runtime.size(), runtime.data(), fps,
+                work, host->workMsP99(), host->drawMsAverage(),
+                metrics.value(QStringLiteral("submitMs")).toDouble(),
+                work > 0 ? 1000.0 / work : 0.0);
+          }
+        } else {
+          // Step::Skip — the window never presented this entry's session.
+          std::printf("WINDOW %s SKIPPED no frame presented in %.1fs\n",
+                      entry.key, run->cadence.elapsed(now));
+          ++run->stoodDown;
         }
+        std::fflush(stdout);
 
         if (++run->at >= run->selection.size()) {
           timer->stop();
-          QCoreApplication::quit();
+          // A stand-down is a sketch this sweep could not measure, and a
+          // sweep that could not measure one did not do what it was
+          // asked: the rows it did take stand, and the run says so.
+          QCoreApplication::exit(run->stoodDown > 0 ? 1 : 0);
           return;
         }
         view.setProperty("sketchIndex", run->selection[run->at]);
-        run->measuring = false;
-        run->phaseStart = now;
+        run->cadence.select(now);
       });
   timer->start();
   return true;
@@ -535,24 +761,114 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
  *  cannot run is named as stood down and left out, exactly as the sweep
  *  passes over it — a skip is not a failure and not a measurement. */
 std::vector<int> windowBenchSelection(int only, const std::string& kind) {
-  std::vector<int> selection;
+  std::vector<int> presented;
   const auto& entries = sketch::registry();
-  const int first = only >= 0 ? only : 0;
-  const int last = only >= 0 ? only + 1 : (int)entries.size();
-  for (int i = first; i < last && i < (int)entries.size(); ++i) {
-    if (!kind.empty()) {
-      const sketch::Kind entryKind = entries[i].kind();
-      if (!entryKind || entryKind->runtime() != kind) continue;
-    }
+  for (int index : sketch::selection(only, kind)) {
     std::string why;
-    if (!entries[i].available(&why)) {
-      std::printf("WINDOW %s SKIPPED %s\n", entries[i].key, why.c_str());
+    if (!entries[index].available(&why)) {
+      std::printf("WINDOW %s SKIPPED %s\n", entries[index].key, why.c_str());
       continue;
     }
-    selection.push_back(i);
+    presented.push_back(index);
   }
   std::fflush(stdout);
-  return selection;
+  return presented;
+}
+
+// ---------------------------------------------------------------------------
+// The thumbnail store, and the warm command that fills it
+
+/** WHERE SKETCHBOOK KEEPS ITS THUMBNAILS. The command line names one; an
+ *  environment variable names one for a test; otherwise the platform
+ *  cache location, under this app's own name. The store is the app's
+ *  alone: no ledger and no sweep writes into it. */
+std::filesystem::path thumbnailStoreDir(const std::string& override) {
+  if (!override.empty()) return override;
+  if (const char* env = std::getenv("SIGIL_SKETCHBOOK_THUMBNAILS"); env && *env)
+    return env;
+  const QString cache =
+      QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+  const std::filesystem::path base =
+      cache.isEmpty() ? std::filesystem::temp_directory_path()
+                      : std::filesystem::path(cache.toStdString());
+  return base / "Sketchbook" / "thumbnails";
+}
+
+/** THE WARM COMMAND: render every selected sketch's MISSING OR STALE
+ *  thumbnail through the same CPU path the window's own fill takes, and
+ *  exit non-zero naming the ones that could not be drawn.
+ *
+ *  It answers to the same budget the window's fill does: a still that
+ *  runs past it is abandoned and NOTED, so the note stands in for the
+ *  thumbnail and neither this command nor the window spends the budget
+ *  on that sketch again while its source stays put. A sketch
+ *  this machine cannot run is stood down by name rather than failed, and
+ *  a sketch whose thumbnail or note is already fresh is left alone. */
+int runThumbnails(int only, const std::string& kind,
+                  const std::filesystem::path& dir,
+                  std::chrono::milliseconds budget, bool heavy,
+                  sigil::weave::FontContext& fonts, sketch::Assets& store) {
+  std::filesystem::create_directories(dir);
+  const auto& entries = sketch::registry();
+  int rendered = 0;
+  size_t skipped = 0;
+  size_t noted = 0;
+  std::vector<std::string> failed;
+  for (int index : sketch::selection(only, kind)) {
+    const sketch::Entry& entry = entries[index];
+    std::string why;
+    if (!entry.available(&why)) {
+      std::printf("thumbnail %-24s [skipped: %s]\n", entry.name, why.c_str());
+      ++skipped;
+      continue;
+    }
+    const std::filesystem::path source =
+        sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+    const std::string key = sketch::thumbnailKey(source);
+    if (!sketch::freshThumbnail(dir, entry.name, key).empty())
+      continue;  // fresh
+    if (!sketch::thumbnailNote(dir, entry.name, key).empty()) {
+      ++noted;
+      continue;  // asked and answered
+    }
+    sketch::ThumbnailRun run;
+    run.out = sketch::thumbnailFile(dir, entry.name, key);
+    run.stem = entry.name;
+    run.maxDimension = sketch::kThumbnailWidth;
+    run.budget = budget;
+    run.heavy = heavy;
+    sketch::noteSketch(entry.name);
+    switch (sketch::renderThumbnail(entry, fonts, store, run)) {
+      case sketch::ThumbnailOutcome::Wrote:
+        std::printf("thumbnail %-24s wrote %s\n", entry.name,
+                    run.out.string().c_str());
+        ++rendered;
+        break;
+      case sketch::ThumbnailOutcome::Heavy:
+        sketch::noteThumbnail(dir, entry.name, key, "declared a plate");
+        std::printf("thumbnail %-24s [noted: declared a plate]\n", entry.name);
+        ++noted;
+        break;
+      case sketch::ThumbnailOutcome::OverBudget:
+        sketch::noteThumbnail(dir, entry.name, key,
+                              "still ran past its budget");
+        std::printf("thumbnail %-24s [noted: ran past its budget]\n",
+                    entry.name);
+        ++noted;
+        break;
+      case sketch::ThumbnailOutcome::Stopped:
+      case sketch::ThumbnailOutcome::Failed:
+        std::fprintf(stderr, "thumbnail %-24s FAILED to render\n", entry.name);
+        failed.push_back(entry.name);
+        break;
+    }
+  }
+  std::printf("thumbnails: %d rendered, %zu noted, %zu skipped, %zu failed\n",
+              rendered, noted, skipped, failed.size());
+  for (const std::string& name : failed)
+    std::fprintf(stderr, "  failed: %s\n", name.c_str());
+  std::fflush(stdout);
+  return failed.empty() ? 0 : 1;
 }
 
 }  // namespace
@@ -560,13 +876,34 @@ std::vector<int> windowBenchSelection(int only, const std::string& kind) {
 // an uncaught exception ends the app with its message
 // NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char* argv[]) {
+  // Set before any QStandardPaths lookup — the headless warm command
+  // resolves its cache directory before a QGuiApplication exists, and the
+  // location is named for this app. Static setters, so no instance is
+  // needed yet.
+  QCoreApplication::setOrganizationDomain(QStringLiteral("sigil.dev"));
+  QCoreApplication::setApplicationName(QStringLiteral("Sketchbook"));
+
+  // Every way out of main lets the device go first: released during static
+  // destruction, the textures and pipelines it holds want locks that no
+  // longer exist.
+  struct DeviceScope {
+    ~DeviceScope() { releaseDevice(); }
+  } deviceScope;
+
   std::filesystem::path sketchFile;
   std::filesystem::path assetsOverride;
   std::string selected, kind, shotPath;
+  sketch::CompareOptions compareOptions;
   sketch::SweepOptions sweepOptions;
+  sketch::StoryOptions storyOptions;
   CaptureOptions capture;
   WindowBench windowBench;
-  bool headless = false, list = false, gpu = false, noGpu = false;
+  bool headless = false, list = false, catalog = false, gpu = false;
+  bool noGpu = false;
+  bool warmThumbnails = false;
+  bool thumbnailHeavy = false;
+  std::chrono::milliseconds thumbnailBudget = sketch::kThumbnailBudget;
+  std::string thumbnailDirArg;
   std::optional<bool> deterministic;
 
   for (int i = 1; i < argc; ++i) {
@@ -577,6 +914,26 @@ int main(int argc, char* argv[]) {
         sweepOptions.outDir = argv[++i];
     } else if (arg == "--list") {
       list = true;
+    } else if (arg == "--catalog") {
+      catalog = true;
+    } else if (arg == "--compare" && i + 2 < argc) {
+      compareOptions.first = argv[++i];
+      compareOptions.second = argv[++i];
+    } else if (arg == "--video" && i + 1 < argc) {
+      storyOptions.out = argv[++i];
+    } else if (arg == "--video-frames" && i + 1 < argc) {
+      storyOptions.framesPerSketch = std::max(1, std::stoi(argv[++i]));
+    } else if (arg == "--video-size" && i + 1 < argc) {
+      const std::string size = argv[++i];
+      const size_t by = size.find('x');
+      if (by == std::string::npos) {
+        std::fprintf(stderr, "--video-size wants WIDTHxHEIGHT\n");
+        return 2;
+      }
+      storyOptions.width = std::max(2, std::stoi(size.substr(0, by)));
+      storyOptions.height = std::max(2, std::stoi(size.substr(by + 1)));
+    } else if (arg == "--video-bitrate" && i + 1 < argc) {
+      storyOptions.bitRate = std::max<int64_t>(1, std::stoll(argv[++i]));
     } else if (arg == "--gpu") {
       gpu = true;
     } else if (arg == "--no-gpu") {
@@ -589,6 +946,8 @@ int main(int argc, char* argv[]) {
       sweepOptions.ledger = true;
     } else if (arg == "--no-promotion") {
       sweepOptions.noPromotion = true;
+    } else if (arg == "--promotion") {
+      sweepOptions.promotion = true;
     } else if (arg == "--capture-at" && i + 1 < argc) {
       sweepOptions.captureAt = std::strtod(argv[++i], nullptr);
     } else if (arg == "--timing-json" && i + 1 < argc) {
@@ -597,8 +956,15 @@ int main(int argc, char* argv[]) {
       shotPath = argv[++i];
     } else if (arg == "--assets" && i + 1 < argc) {
       assetsOverride = argv[++i];
-    } else if (arg == "--plates" && i + 1 < argc) {
-      SketchCatalog::platesDir = argv[++i];
+    } else if (arg == "--thumbnails") {
+      warmThumbnails = true;
+    } else if (arg == "--thumbnails-dir" && i + 1 < argc) {
+      thumbnailDirArg = argv[++i];
+    } else if (arg == "--thumbnail-budget" && i + 1 < argc) {
+      thumbnailBudget = std::chrono::milliseconds(
+          (long long)std::lround(std::strtod(argv[++i], nullptr) * 1000.0));
+    } else if (arg == "--thumbnail-heavy") {
+      thumbnailHeavy = true;
     } else if (arg == "--window-bench") {
       // The stretch is optional: a bare flag takes the default, and only
       // a following token that reads as a number is consumed.
@@ -632,6 +998,7 @@ int main(int argc, char* argv[]) {
       capture.frames = std::max(1, std::stoi(argv[++i]));
     } else if (arg == "--fps" && i + 1 < argc) {
       capture.fps = std::stod(argv[++i]);
+      storyOptions.framesPerSecond = std::max(1, (int)std::lround(capture.fps));
     } else if (arg == "--bench") {
       capture.bench = true;
     } else if (arg == "--bench-frames" && i + 1 < argc) {
@@ -661,6 +1028,11 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  // NOTHING IS OPENED FOR A COMPARISON: it reads two directories of
+  // finished plates, so it wants no fonts, no assets, no device and no
+  // registry — and it answers before any of them is built.
+  if (!compareOptions.first.empty()) return sketch::compare(compareOptions);
+
   const int chosen = selected.empty() ? -1 : sketch::find(selected);
   if (!selected.empty() && chosen < 0) {
     std::fprintf(stderr, "no sketch matches \"%s\"; known sketches:\n",
@@ -683,11 +1055,9 @@ int main(int argc, char* argv[]) {
     // exist. Dropping it from the listing would say the same thing by
     // saying nothing, which reads as a sketch that was deleted.
     const bool toTerminal = isatty(fileno(stdout)) != 0;
-    for (const sketch::Entry& entry : sketch::registry()) {
-      if (!kind.empty()) {
-        const sketch::Kind entryKind = entry.kind();
-        if (!entryKind || entryKind->runtime() != kind) continue;
-      }
+    const auto& entries = sketch::registry();
+    for (int index : sketch::selection(-1, kind)) {
+      const sketch::Entry& entry = entries[index];
       std::string why;
       if (entry.available(&why)) {
         std::printf("%s\n", entry.name);
@@ -699,15 +1069,100 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
+  if (catalog) {
+    // THE BROWSER'S ROWS WITHOUT A WINDOW: what the catalog knows about
+    // every sketch before one is opened, the registry first and a file
+    // this run was pointed at after it, one JSON object per line. What a
+    // script reads off them is what the browser reads: a compiled-in
+    // sketch's row names the runtime it draws through, and a file opened
+    // by path has none until it has been built.
+    int coreArgc = 1;
+    const QCoreApplication core(coreArgc, argv);
+    SketchCatalog::sketchDir = SIGIL_SKETCH_DIR;
+    SketchCatalog::thumbnailDir.clear();  // no still is rendered here
+    if (!sketchFile.empty()) SketchCatalog::externals = {sketchFile};
+    const SketchCatalog rows;
+    for (const QVariant& row : rows.sketches())
+      std::printf("%s\n",
+                  QJsonDocument(QJsonObject::fromVariantMap(row.toMap()))
+                      .toJson(QJsonDocument::Compact)
+                      .constData());
+    return 0;
+  }
+
+  std::future<sigil::material::WarmupResult> materialWarmup =
+      std::async(std::launch::async, warmStockMaterials);
+
+  // THE WARM COMMAND renders straight through the CPU still path, exactly
+  // as the browser's lazy render does, and never brings a device up.
+  if (warmThumbnails) {
+    SketchCatalog::sketchDir = SIGIL_SKETCH_DIR;
+    // A SKETCH THAT DRAWS A PAGE NEEDS THE ONE ENGINE HERE TOO. Without
+    // it `sharedEngine()` answers null and such a sketch draws the card
+    // that says why it could not — which would then be written to disk
+    // under the sketch's own key, as if it were the picture.
+    SharedWebEngineScope sharedWebEngine;
+    sketch::installCrashReporter({});
+    finishMaterialWarmup(materialWarmup);
+    const int result =
+        runThumbnails(chosen, kind, thumbnailStoreDir(thumbnailDirArg),
+                      thumbnailBudget, thumbnailHeavy, fonts(), assets());
+    sharedWebEngine.shutdown();
+    return result;
+  }
+
+  if (!storyOptions.out.empty() && storyOptions.framesPerSketch > 0) {
+    storyOptions.only = chosen;
+    storyOptions.kind = kind;
+    // `--gpu` FIRST, exactly as the sweep tests it: a montage of a set
+    // needs the device its materials run in, and a run that did not ask
+    // for one must not bring it up as a side effect of the test. A
+    // selection that holds a set and did not ask is REFUSED rather than
+    // encoded on the CPU mesh executor: a set is lit by the device
+    // renderer, so the cut under that sketch's name would be a picture
+    // no recipe ran in.
+    if (selectionNeedsDevice(chosen, kind)) {
+      if (!gpu) {
+        std::fprintf(stderr,
+                     "--video: this selection holds a set, which is lit on "
+                     "the device; pass --gpu or narrow the selection with "
+                     "--kind\n");
+        return 2;
+      }
+      if (!useDevice()) return 1;
+    }
+    SharedWebEngineScope sharedWebEngine;
+    sketch::installCrashReporter({});
+    finishMaterialWarmup(materialWarmup);
+    const int result = story(storyOptions, fonts(), assets());
+    sharedWebEngine.shutdown();
+    releaseDevice();
+    return result;
+  }
+
   if (headless) {
     sweepOptions.only = chosen;
     sweepOptions.kind = kind;
     sweepOptions.gpu = gpu;
-    // A device is brought up only when something in the selection draws
-    // through one; the canvas runtime's device lane is the surface the
-    // sweep allocates, not a runtime it installs.
-    if (gpu && selectionNeedsDevice(chosen, kind) && !useDevice()) return 1;
+    // `--gpu` BRINGS THE ONE DEVICE UP, whatever the selection holds.
+    // A set is rendered by the runtime installed on it; a canvas is
+    // photographed on a Graphite surface allocated from that same
+    // device's context, so there is one device in the process and not
+    // two that cannot read each other's textures. A canvas sketch's mesh
+    // painter still stays on the CPU executor whatever the flag says: a
+    // plate is hashed from that executor, and the two rasterise the same
+    // picture but not the same bytes.
+    if (gpu && !useDevice()) return 1;
+    SharedWebEngineScope sharedWebEngine;
+    // A SWEEP HAS A GUEST TOO, and it has a hundred of them in one
+    // process: without the reporter a faulting sketch takes the run down
+    // with a bare signal, and the only thing left saying which sketch it
+    // was is whatever the one before it happened to print. There is no
+    // one file to name here — the sweep names the entry it is on.
+    sketch::installCrashReporter({});
+    finishMaterialWarmup(materialWarmup);
     const int result = sweep(sweepOptions, fonts(), assets());
+    sharedWebEngine.shutdown();
     releaseDevice();
     return result;
   }
@@ -719,8 +1174,7 @@ int main(int argc, char* argv[]) {
   // built with, and only the first joins the app's list on its own.
   const bool fileGiven = !sketchFile.empty();
   if (!fileGiven && chosen >= 0)
-    sketchFile = sketchDir / (std::string(sketch::registry()[chosen].key) +
-                              std::string(".cpp"));
+    sketchFile = sketch::sourceOf(sketchDir, sketch::registry()[chosen].key);
 
   sketch::Host::Options options;
   // DETERMINISTIC BY DEFAULT WHEN CAPTURING. A capture exists to be
@@ -737,6 +1191,10 @@ int main(int argc, char* argv[]) {
   // makes a directory outside this checkout a place to work.
   options.assetsDir = assetsOverride;
   options.flagsFile = flagsFileNear(executableDir(argv[0]));
+  // THE SHARED LAYER IS THIS REPOSITORY'S, for every sketch the host
+  // builds: a file anywhere on disk compiles with the same flags, so it
+  // may spell <shared/Name.h> too, and then needs the module behind it.
+  options.sharedDir = sketchDir / "shared";
 
   if (!capture.out.empty() || capture.bench) {
     if (sketchFile.empty() || !std::filesystem::exists(sketchFile)) {
@@ -745,7 +1203,7 @@ int main(int argc, char* argv[]) {
                    "[--at <sec>] [--scale <n>]\n"
                    "         [--frames <count>] [--fps <n>] [--bench] "
                    "[--bench-frames <n>]\n"
-                   "         [--jitter-dt [amplitude]] "
+                   "         [--gpu] [--jitter-dt [amplitude]] "
                    "[--deterministic | --no-deterministic]\n");
       return 2;
     }
@@ -758,9 +1216,27 @@ int main(int argc, char* argv[]) {
     // Installed before the guest can ever run: without it, a fault
     // inside a sketch is a bare signal with nothing printed.
     sketch::installCrashReporter(options.sketchPath);
-    sketch::Host host(std::move(options), fonts());
-    return capture.bench ? runBench(host, capture, host.sketchPath())
-                         : runFrames(host, capture);
+    // `--gpu` PUTS THIS RUN ON THE DEVICE, exactly as it does for a
+    // sweep: a set draws its frame there, and a canvas sketch's mesh
+    // painter rasterises there. Fatal when the device will not come up,
+    // because a run that asked for the device and quietly gave the CPU's
+    // picture puts two different pictures under one name — which is the
+    // one thing a capture must never do.
+    if (gpu && !useDevice()) return 1;
+    SharedWebEngineScope sharedWebEngine;
+    finishMaterialWarmup(materialWarmup);
+    int result = 0;
+    {
+      sketch::Host host(std::move(options), fonts());
+      result = capture.bench ? runBench(host, capture, host.sketchPath())
+                             : runFrames(host, capture);
+    }
+    // The session goes before the device does: it holds textures and
+    // pipelines the device made, and releasing the device first takes
+    // their teardown into static destruction.
+    sharedWebEngine.shutdown();
+    releaseDevice();
+    return result;
   }
 
   // ---- the app ---------------------------------------------------------
@@ -784,15 +1260,32 @@ int main(int argc, char* argv[]) {
     std::fprintf(stderr,
                  "[sketchbook] sets draw on the CPU mesh executor: a "
                  "surface reaches it as the colour extract read off it\n");
-  SketchbookView::sketchDir = sketchDir;
-  // WHERE THE BROWSER'S THUMBNAILS COME FROM: the quick tier's baseline,
-  // unless the command line already named somewhere else.
-#ifdef SIGILSKETCH_PLATES_DIR
-  if (SketchCatalog::platesDir.empty())
-    SketchCatalog::platesDir = SIGILSKETCH_PLATES_DIR;
-#endif
+  SharedWebEngineScope sharedWebEngine;
+  // The build directories of runs that were killed are the process's to
+  // clear, not the first sketch's: swept while the window is coming up,
+  // the first host built on the render thread walks no directories under
+  // the lock the live canvas draws under. THE WALK IS CLAIMED HERE, on
+  // this thread and before the async starts, so a first host opened
+  // before the async has run finds it taken and walks nothing.
+  std::future<void> buildDirSweep;
+  if (sketch::Host::claimSweep())
+    buildDirSweep =
+        std::async(std::launch::async, &sketch::Host::sweepAbandonedBuildDirs);
+  SketchCatalog::sketchDir = sketchDir;
+  // WHERE THE BROWSER'S THUMBNAILS COME FROM: this app's own store, filled
+  // on demand by a background worker and by the `--thumbnails` warm
+  // command. The worker renders with the process's own font context and
+  // asset store, on the CPU, so it shares no graphics context with the
+  // live canvas.
+  SketchCatalog::thumbnailDir = thumbnailStoreDir(thumbnailDirArg);
+  SketchCatalog::thumbnailBudget = thumbnailBudget;
+  SketchCatalog::thumbnailHeavy = thumbnailHeavy;
+  SketchCatalog::thumbnailFonts = &fonts();
+  SketchCatalog::thumbnailAssets = &assets();
+  SketchbookView::fonts = &fonts();
   SketchbookView::assetsDir = options.assetsDir;
   SketchbookView::flagsFile = options.flagsFile;
+  SketchbookView::sharedDir = options.sharedDir;
   // A FILE ON THE COMMAND LINE OPENS THE WINDOW ON THAT FILE. The
   // registry is the compiled-in table and settles the first time it is
   // read, so the file joins a session-local list the app's own listing
@@ -800,14 +1293,35 @@ int main(int argc, char* argv[]) {
   // exports carries neither key nor name.
   int openAt = chosen;
   if (fileGiven) {
-    SketchbookView::externals.push_back(std::filesystem::absolute(sketchFile));
+    SketchCatalog::externals.push_back(std::filesystem::absolute(sketchFile));
     openAt = (int)sketch::registry().size();
+  }
+  // WHAT THE CANVAS OPENS ON, AND WHEN. Left alone, the window comes up
+  // on the browser and fills in the thumbnails nothing has drawn yet,
+  // opening this sketch once that is done — the machine is the fill's
+  // for exactly as long as nothing is being presented. A run that named
+  // a sketch, or that is here to photograph or measure one, is not
+  // browsing: it opens at once and no fill starts.
+  SketchCatalog::opensAt = openAt >= 0 ? openAt : 0;
+  SketchCatalog::opensWithoutFill = !shotPath.empty() ||
+                                    windowBench.seconds > 0.0 || fileGiven ||
+                                    chosen >= 0;
+  // A FRAME-RATE SWEEP MEASURES THE FRAMES AND NOTHING BESIDE THEM. The
+  // browser photographs each sketch it opens for its own store, on the
+  // render thread and inside a frame; here that still would be taken in
+  // the middle of a stretch whose whole subject is how long a frame
+  // takes. So the store is out of reach for the run, and the sessions
+  // the window would otherwise keep warm behind the one on screen go as
+  // the next one opens rather than in the middle of measuring it.
+  if (windowBench.seconds > 0.0) {
+    SketchCatalog::thumbnailDir.clear();
+    SketchbookView::oneSessionAtATime = true;
   }
   sketch::installCrashReporter(sketchFile.empty() ? sketchDir : sketchFile);
 
   QGuiApplication application(argc, argv);
-  QGuiApplication::setOrganizationDomain("sigil.dev");
-  QGuiApplication::setApplicationName("Sketchbook");
+
+  finishMaterialWarmup(materialWarmup);
 
   QQmlApplicationEngine engine;
   QObject::connect(
@@ -826,7 +1340,6 @@ int main(int argc, char* argv[]) {
         view = child;
         break;
       }
-  if (view && openAt >= 0) view->setProperty("sketchIndex", openAt);
 
   if (windowBench.seconds > 0.0) {
     if (!window || !view) {
@@ -900,11 +1413,20 @@ int main(int argc, char* argv[]) {
   // process does — and before it, whatever still holds textures it made:
   // released after its own queue, those take their teardown into static
   // destruction, where the locks they want no longer exist.
+  //
+  // THE BACKGROUND STILL IS THE FIRST THING ENDED, because it is the one
+  // thing still running: the QML engine is destroyed after this function
+  // returns, so a worker left to its own destructor would be walking a
+  // sketch while everything below is let go.
+  for (QObject* root : engine.rootObjects())
+    for (SketchCatalog* browser : root->findChildren<SketchCatalog*>())
+      browser->stopThumbnails();
   {
     QMutexLocker lock(&SketchbookView::hostMutex);
     SketchbookView::sessions.clear();
     SketchbookView::host = nullptr;
   }
+  sharedWebEngine.shutdown();
   releaseDevice();
   return status;
 }

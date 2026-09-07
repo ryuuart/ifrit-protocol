@@ -6,13 +6,20 @@
 # SigilGeometry, SigilMaterial and the world's light values; nothing links
 # it but its tests, its demo hooks and whoever wants a stage.
 #
-# Every public header lives under one include root, include/sigilusd/
-# <feature>/, so a feature adds the root and spells its own directory.
-# <sigilusd/Usd.h> is the umbrella header. Added only when
-# SPELLCIRCLE_ENABLE_USD is on and vcpkg's usd port was found.
-find_package(pxr CONFIG REQUIRED)
+# <sigilusd/Usd.h> is the umbrella header. The fixtures every binary here
+# shares — the scratch path, the runtime skip and the scene both doors are
+# exercised over — sit in test/.
+#
+# OpenUSD is an optional dependency of the manifest; without it the whole
+# library is left out of the build.
+find_package(pxr CONFIG QUIET)
+if(NOT pxr_FOUND)
+  message(STATUS "OpenUSD (pxr) not found -- SigilUsd is left out")
+  return()
+endif()
 
-set(SIGIL_USD_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+sigil_library_root(SigilUsd
+  BRIEF "The world's data written to and read back from USD stages")
 
 # Dependencies point up this list; write and read are independent of
 # each other and both stand on nothing in this library but the runtime
@@ -21,18 +28,5 @@ add_subdirectory(runtime)
 add_subdirectory(write)
 add_subdirectory(read)
 
-add_library(SigilUsd INTERFACE)
-target_link_libraries(SigilUsd INTERFACE SigilUsdRuntime SigilUsdWrite SigilUsdRead)
-
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
-sigil_add_docs(
-  NAME SigilUsd
-  BRIEF "The world's data written to and read back from USD stages"
-  INPUT
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  STRIP
-        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+sigil_library(SigilUsd
+  INTERFACE SigilUsdRuntime SigilUsdWrite SigilUsdRead)

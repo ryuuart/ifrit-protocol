@@ -55,11 +55,11 @@
 // manoeuvre axes (green prograde / purple normal / blue radial).
 //
 // FOUR LIBRARY CONSTRAINTS THIS SCENE IS SHAPED AROUND:
-//  · `Material::radialUnit`'s radius is a fraction of the HALF-DIAGONAL, so
+//  · `Paint::radialUnit`'s radius is a fraction of the HALF-DIAGONAL, so
 //    a planet terminator authored at 1.28 puts the dark end of its ramp
 //    entirely OUTSIDE the disc and the shading silently disappears. 1.02
 //    is where the ramp finishes at the far limb of an inscribed circle.
-//  · `patterns::grain` over a NEAR-TRANSPARENT base does not modulate it —
+//  · `field::grain` over a NEAR-TRANSPARENT base does not modulate it —
 //    it composites as its own luminance, so a grained nebula comes out a
 //    white cloud. Grain belongs on opaque surfaces (it is on the altimeter
 //    plate here), and the milky way is built as mottle instead: many small
@@ -85,30 +85,51 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/core/Sdf.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/sdf/Sdf.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace field = sigil::material::field;
+namespace sdf = sigil::material::sdf;
+namespace arrange = sigil::geometry::arrange;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 // Absolute placement: this composition is pinned, so a node says
 // where it goes rather than a layout deciding.
 using sigil::compose::kit::at;
+using sigil::material::skia::Effect;
+using sigil::material::skia::Paint;
+using sigil::material::skia::Stop;
+using sigil::material::skia::toColor;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -117,115 +138,95 @@ namespace ksp {
 // ---------------------------------------------------------------------------
 // Palette
 
-constexpr SkColor4f kSpace = hex(0x090A0C);  // sampled
-constexpr SkColor4f kSpaceEdge = hex(0x06070A);
-constexpr SkColor4f kNebula = hex(0x6E7288);
-constexpr SkColor4f kNebula2 = hex(0x525F82);
+constexpr SkColor4f kSpace = hexColor(0x090A0C);  // sampled
+constexpr SkColor4f kSpaceEdge = hexColor(0x06070A);
+constexpr SkColor4f kNebula = hexColor(0x6E7288);
+constexpr SkColor4f kNebula2 = hexColor(0x525F82);
 
-constexpr SkColor4f kOceanLit = hex(0x235274);  // sampled mid-tone
-constexpr SkColor4f kOceanDark = hex(0x12283A);
-constexpr SkColor4f kLandMoss = hex(0x5F8C42);
-constexpr SkColor4f kLandTan = hex(0xA08A5C);
-constexpr SkColor4f kAtmo = hex(0x6FB3D9);
+constexpr SkColor4f kOceanLit = hexColor(0x235274);  // sampled mid-tone
+constexpr SkColor4f kOceanDark = hexColor(0x12283A);
+constexpr SkColor4f kLandMoss = hexColor(0x5F8C42);
+constexpr SkColor4f kLandTan = hexColor(0xA08A5C);
+constexpr SkColor4f kAtmo = hexColor(0x6FB3D9);
 
-constexpr SkColor4f kOrbit = hex(0x4DD0C8);  // current vessel, cyan-teal
-constexpr SkColor4f kOrbitCore = hex(0xDCF7F5);
-constexpr SkColor4f kTarget = hex(0xD8CE7A);  // target orbit, pale yellow
-constexpr SkColor4f kEscape = hex(0xD9DCE2);  // escape trajectory, white
+constexpr SkColor4f kOrbit = hexColor(0x4DD0C8);  // current vessel, cyan-teal
+constexpr SkColor4f kOrbitCore = hexColor(0xDCF7F5);
+constexpr SkColor4f kTarget = hexColor(0xD8CE7A);  // target orbit, pale yellow
+constexpr SkColor4f kEscape = hexColor(0xD9DCE2);  // escape trajectory, white
 
-constexpr SkColor4f kApLabel = hex(0x66D6C8);
-constexpr SkColor4f kPeLabel = hex(0xB87CE0);
-constexpr SkColor4f kAnLabel = hex(0xB7D66E);
+constexpr SkColor4f kApLabel = hexColor(0x66D6C8);
+constexpr SkColor4f kPeLabel = hexColor(0xB87CE0);
+constexpr SkColor4f kAnLabel = hexColor(0xB7D66E);
 
-constexpr SkColor4f kProgradeC = hex(0x4CD964);  // green  — prograde family
-constexpr SkColor4f kNormalC = hex(0xB87CE0);    // purple — normal family
-constexpr SkColor4f kRadialC = hex(0x5AC8E0);    // blue   — radial family
+constexpr SkColor4f kProgradeC =
+    hexColor(0x4CD964);                             // green  — prograde family
+constexpr SkColor4f kNormalC = hexColor(0xB87CE0);  // purple — normal family
+constexpr SkColor4f kRadialC = hexColor(0x5AC8E0);  // blue   — radial family
 
-constexpr SkColor4f kOrange = hex(0xDC6F2A);    // sampled (1770,250)
-constexpr SkColor4f kCardBody = hex(0xE4E5E7);  // sampled off-white
-constexpr SkColor4f kCardStrip = hex(0xF4F4F5);
-constexpr SkColor4f kCardInk = hex(0x2A2A2C);
-constexpr SkColor4f kCardSub = hex(0x3A3A3E);
+constexpr SkColor4f kOrange = hexColor(0xDC6F2A);    // sampled (1770,250)
+constexpr SkColor4f kCardBody = hexColor(0xE4E5E7);  // sampled off-white
+constexpr SkColor4f kCardStrip = hexColor(0xF4F4F5);
+constexpr SkColor4f kCardInk = hexColor(0x2A2A2C);
+constexpr SkColor4f kCardSub = hexColor(0x3A3A3E);
 
-constexpr SkColor4f kLcd = hex(0x35C93A);  // sampled, two hits averaged
-constexpr SkColor4f kLcdBg = hex(0x1C1E20);
-constexpr SkColor4f kLcdVal = hex(0xDCEEF2);
-constexpr SkColor4f kAmber = hex(0xE3D24A);  // burn readout text
+constexpr SkColor4f kLcd = hexColor(0x35C93A);  // sampled, two hits averaged
+constexpr SkColor4f kLcdBg = hexColor(0x1C1E20);
+constexpr SkColor4f kLcdVal = hexColor(0xDCEEF2);
+constexpr SkColor4f kAmber = hexColor(0xE3D24A);  // burn readout text
 
-constexpr SkColor4f kGun = hex(0x5E6C77);  // sampled (1893,55)
-constexpr SkColor4f kGunHi = hex(0x8D9AA3);
-constexpr SkColor4f kBezel = hex(0x9AA2A6);  // navball bezel silver
-constexpr SkColor4f kBezelDk = hex(0x555D64);
-constexpr SkColor4f kPanel = hex(0x33383E);
-constexpr SkColor4f kPanelDk = hex(0x1B1F23);
+constexpr SkColor4f kGun = hexColor(0x5E6C77);  // sampled (1893,55)
+constexpr SkColor4f kGunHi = hexColor(0x8D9AA3);
+constexpr SkColor4f kBezel = hexColor(0x9AA2A6);  // navball bezel silver
+constexpr SkColor4f kBezelDk = hexColor(0x555D64);
+constexpr SkColor4f kPanel = hexColor(0x33383E);
+constexpr SkColor4f kPanelDk = hexColor(0x1B1F23);
 
-constexpr SkColor4f kSky = hex(0x1180AC);
-constexpr SkColor4f kSkyHi = hex(0x8ED4E8);  // sampled (430,260)
-constexpr SkColor4f kGround = hex(0x8B5A2E);
-constexpr SkColor4f kGroundLo = hex(0x5A3A1E);
-constexpr SkColor4f kGold = hex(0xFCB100);  // sampled
+constexpr SkColor4f kSky = hexColor(0x1180AC);
+constexpr SkColor4f kSkyHi = hexColor(0x8ED4E8);  // sampled (430,260)
+constexpr SkColor4f kGround = hexColor(0x8B5A2E);
+constexpr SkColor4f kGroundLo = hexColor(0x5A3A1E);
+constexpr SkColor4f kGold = hexColor(0xFCB100);  // sampled
 
-constexpr SkColor4f kRcs = hex(0x73AC43);       // sampled (248,172)
-constexpr SkColor4f kSas = hex(0x77A9B0);       // sampled (520,172)
-constexpr SkColor4f kStageTab = hex(0xBE5907);  // sampled
-constexpr SkColor4f kFuel = hex(0x666C0A);      // sampled
-constexpr SkColor4f kStageLcd = hex(0xBFBFBF);  // sampled — the LIGHT panel
-constexpr SkColor4f kGo = hex(0x4CAF50);
-constexpr SkColor4f kDvArc = hex(0x7FE33F);  // the bright burn arc
+constexpr SkColor4f kRcs = hexColor(0x73AC43);       // sampled (248,172)
+constexpr SkColor4f kSas = hexColor(0x77A9B0);       // sampled (520,172)
+constexpr SkColor4f kStageTab = hexColor(0xBE5907);  // sampled
+constexpr SkColor4f kFuel = hexColor(0x666C0A);      // sampled
+constexpr SkColor4f kStageLcd =
+    hexColor(0xBFBFBF);  // sampled — the LIGHT panel
+constexpr SkColor4f kGo = hexColor(0x4CAF50);
+constexpr SkColor4f kDvArc = hexColor(0x7FE33F);  // the bright burn arc
 
 // ---------------------------------------------------------------------------
 // Type — two families, both plain. KSP1 shipped Unity's humanist grotesque;
 // the LCD readouts are a distinctly different, monospaced numeral set.
 
-inline sk_sp<SkTypeface> face(const char* family, int weight,
-                              const char* fallback = nullptr) {
-  auto mgr = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      family, SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                          SkFontStyle::kUpright_Slant));
-  if (!f && fallback)
-    f = mgr->matchFamilyStyle(fallback,
-                              SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                                          SkFontStyle::kUpright_Slant));
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-  return f;
+inline sk_sp<SkTypeface> sans() {
+  return weave::ports::face({"Helvetica Neue", "Arial"},
+                            SkFontStyle::kNormal_Weight);
 }
-inline const sk_sp<SkTypeface>& sans() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica Neue", SkFontStyle::kNormal_Weight, "Arial");
-  return f;
+inline sk_sp<SkTypeface> sansB() {
+  return weave::ports::face({"Helvetica Neue", "Arial"},
+                            SkFontStyle::kBold_Weight);
 }
-inline const sk_sp<SkTypeface>& sansB() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica Neue", SkFontStyle::kBold_Weight, "Arial");
-  return f;
-}
-inline const sk_sp<SkTypeface>& mono() {
-  static sk_sp<SkTypeface> f =
-      face("Menlo", SkFontStyle::kNormal_Weight, "Courier New");
-  return f;
+inline sk_sp<SkTypeface> mono() {
+  return sketch::kit::houseFace(sketch::kit::Voice::Terminal);
 }
 
-inline sigil::weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
-                                  SkColor4f color, float track = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = tf;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
+                           SkColor4f color, float track = 0) {
+  return weave::textStyle(
+      {.face = tf, .size = size, .color = color, .track = track});
 }
-inline sigil::weave::TextStyle body(float sz, SkColor4f c, float tr = 0) {
+inline weave::TextStyle body(float sz, SkColor4f c, float tr = 0) {
   return ty(sans(), sz, c, tr);
 }
-inline sigil::weave::TextStyle bold(float sz, SkColor4f c, float tr = 0) {
+inline weave::TextStyle bold(float sz, SkColor4f c, float tr = 0) {
   return ty(sansB(), sz, c, tr);
 }
-inline sigil::weave::TextStyle lcd(float sz, SkColor4f c, float tr = 0) {
+inline weave::TextStyle lcd(float sz, SkColor4f c, float tr = 0) {
   return ty(mono(), sz, c, tr);
 }
-inline Element t(const char* s, sigil::weave::TextStyle st) {
+inline Element t(const char* s, weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
 
@@ -323,6 +324,12 @@ constexpr float kNodeNu = -130.0f;  ///< the manoeuvre node's true anomaly
 
 // ---------------------------------------------------------------------------
 // Shape generators the kit does not ship.
+//
+// EVERY ONE IS A COMPARABLE VALUE. A raw `std::function<SkPath(SkSize)>`
+// compares equal to nothing, so every node wearing one re-patches and
+// re-records on each describe however still the glyph is; these are
+// functions of the few numbers they close over, so those numbers are the
+// key and the node settles on them.
 
 /** The manoeuvre-handle PADDLE: a shaft from the hub end out to a triangular
  *  head whose TIP is at the box's right edge, drawn pointing +x so the arm's
@@ -330,29 +337,29 @@ constexpr float kNodeNu = -130.0f;  ///< the manoeuvre node's true anomaly
  *  FRACTIONS of the box; the six arms here share a shaft width and a head
  *  in px across boxes of different lengths, which is a different
  *  parameterisation. */
-inline std::function<SkPath(SkSize)> paddle(float shaftW, float headW,
-                                            float headL) {
-  return [shaftW, headW, headL](SkSize s) {
-    const float w = s.width(), h = s.height(), cy = h * 0.5f;
-    const float hl = std::min(headL, w);
-    const float sh = shaftW * 0.5f, hh = headW * 0.5f;
-    SkPathBuilder b;
-    b.moveTo(0, cy - sh);
-    b.lineTo(w - hl, cy - sh);
-    b.lineTo(w - hl, cy - hh);
-    b.lineTo(w, cy);
-    b.lineTo(w - hl, cy + hh);
-    b.lineTo(w - hl, cy + sh);
-    b.lineTo(0, cy + sh);
-    b.close();
-    return b.detach();
-  };
+inline Shape paddle(float shaftW, float headW, float headL) {
+  return keyedShape(std::tuple(shaftW, headW, headL),
+                    [shaftW, headW, headL](SkSize s) {
+                      const float w = s.width(), h = s.height(), cy = h * 0.5f;
+                      const float hl = std::min(headL, w);
+                      const float sh = shaftW * 0.5f, hh = headW * 0.5f;
+                      SkPathBuilder b;
+                      b.moveTo(0, cy - sh);
+                      b.lineTo(w - hl, cy - sh);
+                      b.lineTo(w - hl, cy - hh);
+                      b.lineTo(w, cy);
+                      b.lineTo(w - hl, cy + hh);
+                      b.lineTo(w - hl, cy + sh);
+                      b.lineTo(0, cy + sh);
+                      b.close();
+                      return b.detach();
+                    });
 }
 
 /** Ring + centre dot: normal / antinormal point OUT of the map plane, and an
  *  arrow cannot say that honestly in flat 2D. Two contours, one outline. */
-inline std::function<SkPath(SkSize)> ringDot(float ringW, float dotR) {
-  return [ringW, dotR](SkSize s) {
+inline Shape ringDot(float ringW, float dotR) {
+  return keyedShape(std::tuple(ringW, dotR), [ringW, dotR](SkSize s) {
     const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
     const float r = std::min(cx, cy);
     SkPathBuilder b;
@@ -360,26 +367,31 @@ inline std::function<SkPath(SkSize)> ringDot(float ringW, float dotR) {
     b.addCircle(cx, cy, std::max(1.0f, r - ringW), SkPathDirection::kCCW);
     if (dotR > 0) b.addCircle(cx, cy, dotR);
     return b.detach();
-  };
+  });
 }
 
 /** The hollow variant of the same glyph — ring only, no dot. */
-inline std::function<SkPath(SkSize)> ringOnly(float ringW) {
-  return ringDot(ringW, 0);
-}
+inline Shape ringOnly(float ringW) { return ringDot(ringW, 0); }
 
-inline std::function<SkPath(SkSize)> circleOutline() {
-  return [](SkSize s) {
+/** THE CIRCLE INSCRIBED IN A BOX THAT IS NOT SQUARE — a true circle on the
+ *  short side, where `shapes::circle()` is the box's oval. Four marks on
+ *  this plate want it: a kerbal's two eyes and the pupils in them, drawn
+ *  in boxes a pixel or two taller than they are wide. Everything on a
+ *  square box is `shapes::circle()` and says so. */
+inline Shape inscribedCircle() {
+  return keyedShape(std::string_view("inscribed"), [](SkSize s) {
     SkPathBuilder b;
     b.addCircle(s.width() * 0.5f, s.height() * 0.5f,
                 std::min(s.width(), s.height()) * 0.5f);
     return b.detach();
-  };
+  });
 }
 
-/** Small diamond — the Ap/Pe/AN/DN map marker. */
-inline std::function<SkPath(SkSize)> diamond() {
-  return [](SkSize s) {
+/** Small diamond — the Ap/Pe/AN/DN map marker. Not `polygon(4, 45)`: that
+ *  one is CIRCUMSCRIBED about the box's inscribed circle and this one has
+ *  its vertices ON the box's edges, so the two are different sizes. */
+inline Shape diamond() {
+  return keyedShape(std::string_view("diamond"), [](SkSize s) {
     SkPathBuilder b;
     b.moveTo(s.width() * 0.5f, 0);
     b.lineTo(s.width(), s.height() * 0.5f);
@@ -387,13 +399,13 @@ inline std::function<SkPath(SkSize)> diamond() {
     b.lineTo(0, s.height() * 0.5f);
     b.close();
     return b.detach();
-  };
+  });
 }
 
 /** The gold level chevron: KSP's is a wide flat V with two outrigger bars,
  *  read straight off the flight-view frame. */
-inline std::function<SkPath(SkSize)> chevron() {
-  return [](SkSize s) {
+inline Shape chevron() {
+  return keyedShape(std::string_view("chevron"), [](SkSize s) {
     const float w = s.width(), h = s.height();
     const float cx = w * 0.5f, cy = h * 0.5f;
     const float arm = w * 0.20f, drop = h * 0.34f, th = h * 0.16f;
@@ -412,7 +424,7 @@ inline std::function<SkPath(SkSize)> chevron() {
     b.addRect(
         {cx + w * 0.5f - arm, cy - th * 0.5f, cx + w * 0.5f, cy + th * 0.5f});
     return b.detach();
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -462,8 +474,7 @@ struct MarchingDots {
 // One monolithic main(), no user-defined SkSL functions, no loops.
 
 inline sk_sp<SkRuntimeEffect> navballEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    const char* src = R"(
+  const char* src = R"(
 uniform float2 uResolution;
 uniform float  uYaw;
 uniform float  uPitch;
@@ -527,19 +538,16 @@ half4 main(float2 xy) {
   return half4(half3(col * edge), half(edge));
 }
 )";
-    auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
-    if (!e) std::fprintf(stderr, "navball sksl: %s\n", err.c_str());
-    return e;
-  }();
-  return fx;
+  auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
+  if (!e) std::fprintf(stderr, "navball sksl: %s\n", err.c_str());
+  return e;
 }
 
 /** Restrained bright-pass: luminance above a knee, nothing else. Paired with
  *  a small Gaussian and re-blended kPlus — the photographic half of the CRT
  *  recipe, deliberately without the scanline/backdrop half. */
 inline sk_sp<SkRuntimeEffect> brightPassEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    const char* src = R"(
+  const char* src = R"(
 uniform shader content;
 half4 main(float2 xy) {
   half4 s = content.eval(xy);
@@ -550,11 +558,9 @@ half4 main(float2 xy) {
   return half4(half3(straight * k), half(k));
 }
 )";
-    auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
-    if (!e) std::fprintf(stderr, "brightpass sksl: %s\n", err.c_str());
-    return e;
-  }();
-  return fx;
+  auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
+  if (!e) std::fprintf(stderr, "brightpass sksl: %s\n", err.c_str());
+  return e;
 }
 
 }  // namespace ksp
@@ -592,7 +598,7 @@ struct KspMapView : sketch::Sketch {
 
     Element g = stack().inset(0);
 
-    g.child(box().inset(0).fill(Material::radialUnit(
+    g.child(box().inset(0).fill(Paint::radialUnit(
         {0.42f, 0.45f}, 1.15f, {{0.0f, kSpace}, {1.0f, kSpaceEdge}})));
 
     // The milky-way band the reference frame is dominated by: soft
@@ -605,10 +611,11 @@ struct KspMapView : sketch::Sketch {
                     SkColor4f c, float a, float rot) {
       return at(box()
                     .shape(shapes::blob(seed, 0.30f, 9))
-                    .fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,
-                                               {{0.0f, alpha(c, a)},
-                                                {0.5f, alpha(c, a * 0.45f)},
-                                                {1.0f, alpha(c, 0.0f)}}))
+                    .fill(Paint::radialUnit(
+                        {0.5f, 0.5f}, 1.0f,
+                        {{0.0f, mskia::withAlpha(c, a)},
+                         {0.5f, mskia::withAlpha(c, a * 0.45f)},
+                         {1.0f, mskia::withAlpha(c, 0.0f)}}))
                     .rotate(rot),
                 x, y, w, h)
           .cache(Cache::Texture)
@@ -653,70 +660,71 @@ struct KspMapView : sketch::Sketch {
     const float d = kKerbinR * 2;
     Element g = stack();
 
-    g.child(at(box()
-                   .shape(circleOutline())
-                   // light offset toward the upper-left: the centre of the
-                   // ramp is displaced, which is what fakes sphere shading.
-                   .fill(Material::radial({kKerbinR * 0.60f, kKerbinR * 0.50f},
-                                          kKerbinR * 1.35f,
-                                          {{0.0f, lift(kOceanLit, 0.05f)},
-                                           {0.34f, kOceanLit},
-                                           {0.72f, hex(0x1B4260)},
-                                           {1.0f, kOceanDark}}))
-                   .clip(),
-               kKerbin, d, d)
-                .child(box()
-                           .inset(0)
-                           .rotate(&planetSpin)
-                           .child(at(box()
-                                         .shape(shapes::blob(4u, 0.30f, 9))
-                                         .fill(Material::solid(kLandMoss)),
-                                     16, 34, 152, 120))
-                           .child(at(box()
-                                         .shape(shapes::blob(11u, 0.26f, 8))
-                                         .fill(Material::solid(kLandTan)),
-                                     126, 148, 122, 100))
-                           .child(at(box()
-                                         .shape(shapes::blob(19u, 0.34f, 7))
-                                         .fill(Material::solid(hex(0x53803A))),
-                                     56, 172, 96, 78))
-                           .child(at(box()
-                                         .shape(shapes::blob(29u, 0.28f, 8))
-                                         .fill(Material::solid(hex(0x8E7C4E))),
-                                     30, 178, 62, 56)))
-                // The terminator: a dark ramp anchored past the lower-right
-                // limb, multiplied over land AND ocean alike. Without it the
-                // continents float on a flat blue coin.
-                .child(box()
-                           .inset(0)
-                           // radiusUnit is a fraction of the HALF-DIAGONAL,
-                           // so 1.02 is what finishes the ramp at the limb
-                           // of the inscribed disc: past ~1.28 the dark end
-                           // falls outside it and the terminator vanishes.
-                           .fill(Material::radialUnit(
-                               {0.34f, 0.28f}, 1.02f,
-                               {{0.0f, hex(0xFFFFFF, 0.0f)},
-                                {0.38f, hex(0x081420, 0.06f)},
-                                {0.70f, hex(0x061019, 0.42f)},
-                                {1.0f, hex(0x03070B, 0.92f)}})))
-                // and one hot specular sliver where the star hits the ocean
-                .child(box()
-                           .inset(0)
-                           .fill(Material::radialUnit(
-                               {0.30f, 0.24f}, 0.42f,
-                               {{0.0f, hex(0xBFE4F5, 0.13f)},
-                                {1.0f, hex(0xBFE4F5, 0.0f)}}))
-                           .blend(SkBlendMode::kPlus)));
+    g.child(
+        at(box()
+               .shape(shapes::circle())
+               // light offset toward the upper-left: the centre of the
+               // ramp is displaced, which is what fakes sphere shading.
+               .fill(Paint::radial({kKerbinR * 0.60f, kKerbinR * 0.50f},
+                                   kKerbinR * 1.35f,
+                                   {{0.0f, mskia::lighten(kOceanLit, 0.05f)},
+                                    {0.34f, kOceanLit},
+                                    {0.72f, hexColor(0x1B4260)},
+                                    {1.0f, kOceanDark}}))
+               .clip(),
+           kKerbin, d, d)
+            .child(box()
+                       .inset(0)
+                       .rotate(&planetSpin)
+                       .child(at(box()
+                                     .shape(shapes::blob(4u, 0.30f, 9))
+                                     .fill(Paint::solid(kLandMoss)),
+                                 16, 34, 152, 120))
+                       .child(at(box()
+                                     .shape(shapes::blob(11u, 0.26f, 8))
+                                     .fill(Paint::solid(kLandTan)),
+                                 126, 148, 122, 100))
+                       .child(at(box()
+                                     .shape(shapes::blob(19u, 0.34f, 7))
+                                     .fill(Paint::solid(hexColor(0x53803A))),
+                                 56, 172, 96, 78))
+                       .child(at(box()
+                                     .shape(shapes::blob(29u, 0.28f, 8))
+                                     .fill(Paint::solid(hexColor(0x8E7C4E))),
+                                 30, 178, 62, 56)))
+            // The terminator: a dark ramp anchored past the lower-right
+            // limb, multiplied over land AND ocean alike. Without it the
+            // continents float on a flat blue coin.
+            .child(box()
+                       .inset(0)
+                       // radiusUnit is a fraction of the HALF-DIAGONAL,
+                       // so 1.02 is what finishes the ramp at the limb
+                       // of the inscribed disc: past ~1.28 the dark end
+                       // falls outside it and the terminator vanishes.
+                       .fill(Paint::radialUnit(
+                           {0.34f, 0.28f}, 1.02f,
+                           {{0.0f, hexColor(0xFFFFFF, 0.0f)},
+                            {0.38f, hexColor(0x081420, 0.06f)},
+                            {0.70f, hexColor(0x061019, 0.42f)},
+                            {1.0f, hexColor(0x03070B, 0.92f)}})))
+            // and one hot specular sliver where the star hits the ocean
+            .child(
+                box()
+                    .inset(0)
+                    .fill(Paint::radialUnit({0.30f, 0.24f}, 0.42f,
+                                            {{0.0f, hexColor(0xBFE4F5, 0.13f)},
+                                             {1.0f, hexColor(0xBFE4F5, 0.0f)}}))
+                    .blend(SkBlendMode::kPlus)));
 
     // Fresnel limb: one SDF pass, border + exponential glow.
     const sdf::Style rim{.fill = {0, 0, 0, 0},
                          .borderWidth = 1.6f,
-                         .borderColor = alpha(kAtmo, 0.68f),
+                         .borderColor = toColor(mskia::withAlpha(kAtmo, 0.68f)),
                          .glowRadius = 8.0f,
-                         .glowColor = alpha(kAtmo, 0.26f)};
+                         .glowColor = toColor(mskia::withAlpha(kAtmo, 0.26f))};
     const float boxSize = sdf::minBoxFor(rim, d);
-    g.child(at(box().fill(sdf::material(sdf::circle(), rim)), kKerbin, boxSize,
-               boxSize));
+    g.child(at(box().fill(Paint::recipe(sdf::material(sdf::circle(), rim))),
+               kKerbin, boxSize, boxSize));
     return g;
   }
 
@@ -736,20 +744,22 @@ struct KspMapView : sketch::Sketch {
 
     // Target orbit: a huge ellipse whose periapsis arc is all that crosses
     // the frame — the reference's "distant orbit glimpsed as a flat band".
-    g.child(full(box()
-                     .shape(tgt.outline(-118, 118, 260))
-                     .stroke(MarchingDots{.width = 1.4f,
-                                          .color = alpha(kTarget, 0.80f),
-                                          .intervals = {1.6f, 5.4f},
-                                          .phase = &dashSlow,
-                                          .speed = 1.0f})));
+    g.child(
+        full(box()
+                 .shape(tgt.outline(-118, 118, 260))
+                 .stroke(MarchingDots{.width = 1.4f,
+                                      .color = mskia::withAlpha(kTarget, 0.80f),
+                                      .intervals = {1.6f, 5.4f},
+                                      .phase = &dashSlow,
+                                      .speed = 1.0f})));
     // …plus its bright solid near-edge, the way the reference frame shows
     // one lit segment of that same orbit crossing the top of the screen.
-    g.child(full(box()
-                     .shape(tgt.outline(-46, 46, 90))
-                     .stroke(PathFormat{
-                         .width = 1.5f,
-                         .strokeFill = Fill::color(alpha(kTarget, 0.95f))})));
+    g.child(full(
+        box()
+            .shape(tgt.outline(-46, 46, 90))
+            .stroke(PathFormat{
+                .width = 1.5f,
+                .strokeFill = Fill::color(mskia::withAlpha(kTarget, 0.95f))})));
 
     // Escape / flyby hyperbola — open, not a closed shape. The window is
     // hand-fitted to the part that crosses the frame: sampling out to the
@@ -758,15 +768,16 @@ struct KspMapView : sketch::Sketch {
     // stretch of baseline that a word may not straddle.
     const float nuA = -104.0f, nuB = 98.0f;
     (void)esc.nuInfinity();
-    g.child(full(box()
-                     .shape(esc.outline(nuA, nuB, 260))
-                     .stroke(MarchingDots{.width = 1.2f,
-                                          .color = alpha(kEscape, 0.50f),
-                                          .intervals = {1.4f, 5.8f},
-                                          .phase = &dashFast,
-                                          .speed = 0.55f})));
+    g.child(
+        full(box()
+                 .shape(esc.outline(nuA, nuB, 260))
+                 .stroke(MarchingDots{.width = 1.2f,
+                                      .color = mskia::withAlpha(kEscape, 0.50f),
+                                      .intervals = {1.4f, 5.8f},
+                                      .phase = &dashFast,
+                                      .speed = 0.55f})));
     g.child(full(t("ESCAPE  ·  KERBIN SOI EXIT  T+ 1h 12m",
-                   body(8.5f, alpha(kEscape, 0.6f), 1.3f))
+                   body(8.5f, mskia::withAlpha(kEscape, 0.6f), 1.3f))
                      .onPath(TextPath{.path = esc.outline(nuA, nuB, 260),
                                       .at = 0.80f,
                                       .align = TextPath::Align::Center,
@@ -776,17 +787,18 @@ struct KspMapView : sketch::Sketch {
     // The hero: the current orbit, drawn on with a trim reveal and dressed
     // in the organic 4-layer additive glow (a LayeredBrush, not a
     // frame-level effect()).
-    g.child(full(box()
-                     .shape(cur.outline(0, 360, 360))
-                     .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                                 {900ms, ch::easeOutQuad})),
-                             kit::brush::presets::filament(
-                                 alpha(kOrbit, 0.30f), kOrbitCore, 0.26f))));
+    g.child(full(
+        box()
+            .shape(cur.outline(0, 360, 360))
+            .stroke(spans::upTo(
+                        animate(from(0.0f).to(1.0f), {900ms, ch::easeOutQuad})),
+                    brush::presets::filament(mskia::withAlpha(kOrbit, 0.30f),
+                                             kOrbitCore, 0.26f))));
 
     // One arc label riding the orbit itself — shaped once, placed by arc
     // length, per-glyph tangent rotation. (Element::onPath.)
     g.child(full(t("KERBIN  ·  Ap 213,904 m  ·  Pe 88,012 m",
-                   body(9.5f, alpha(kOrbit, 0.9f), 1.6f))
+                   body(9.5f, mskia::withAlpha(kOrbit, 0.9f), 1.6f))
                      .onPath(TextPath{.path = cur.outline(0, 360, 360),
                                       .at = 0.855f,
                                       .align = TextPath::Align::Center,
@@ -803,7 +815,8 @@ struct KspMapView : sketch::Sketch {
   Element targetLabel(sketch::SketchContext& ctx) {
     using namespace ksp;
     const Conic tgt = targetOrbit();
-    return t("TGT · MUN TRANSFER", body(8.5f, alpha(kTarget, 0.85f), 1.4f))
+    return t("TGT · MUN TRANSFER",
+             body(8.5f, mskia::withAlpha(kTarget, 0.85f), 1.4f))
         .onPath(TextPath{.path = tgt.outline(-118, 118, 260),
                          .at = 0.30f,
                          .align = TextPath::Align::Center,
@@ -827,7 +840,7 @@ struct KspMapView : sketch::Sketch {
     Element g = stack();
     Element d = at(box().shape(diamond()), p, 9, 9);
     if (filled)
-      d.fill(Material::solid(c));
+      d.fill(Paint::solid(c));
     else
       d.stroke(PathFormat{.width = 1.2f, .strokeFill = Fill::color(c)});
     g.child(d);
@@ -867,13 +880,13 @@ struct KspMapView : sketch::Sketch {
       Element e =
           box().width(Dim(len)).height(Dim(20)).shape(paddle(4.5f, 15, 14));
       if (solid)
-        e.fill(Material::solid(c));
+        e.fill(Paint::solid(c));
       else
         e.stroke(PathFormat{.width = 1.8f, .strokeFill = Fill::color(c)})
-            .fill(Material::solid(alpha(c, 0.22f)));
+            .fill(Paint::solid(mskia::withAlpha(c, 0.22f)));
       const float rad2 = bearing * 0.017453293f;
-      e.centerAt({hub.fX + std::cos(rad2) * (len * 0.5f + 9),
-                  hub.fY + std::sin(rad2) * (len * 0.5f + 9)})
+      e.centerAt(
+           arrange::onEllipse(hub, {len * 0.5f + 9, len * 0.5f + 9}, rad2))
           .rotate(bearing)
           .key(k)
           .scale(&armPulse)
@@ -888,9 +901,8 @@ struct KspMapView : sketch::Sketch {
               .width(Dim(18))
               .height(Dim(18))
               .shape(solid ? ringDot(2.6f, 3.0f) : ringOnly(2.2f))
-              .fill(Material::solid(solid ? c : alpha(c, 0.62f)))
-              .centerAt(
-                  {hub.fX + std::cos(rad2) * 40, hub.fY + std::sin(rad2) * 40})
+              .fill(Paint::solid(solid ? c : mskia::withAlpha(c, 0.62f)))
+              .centerAt(arrange::onEllipse(hub, {40, 40}, rad2))
               .key(k)
               .scale(&armPulse)
               .opacity(animate(from(0.0f).to(1.0f), {380ms, ease::outBack()}));
@@ -900,18 +912,20 @@ struct KspMapView : sketch::Sketch {
     // six axes off one hub rather than two loose dots
     auto spoke = [&](float bearing, SkColor4f c) {
       const float r2 = bearing * 0.017453293f;
-      const SkPoint a{hub.fX + std::cos(r2) * 11, hub.fY + std::sin(r2) * 11};
-      const SkPoint b{hub.fX + std::cos(r2) * 31, hub.fY + std::sin(r2) * 31};
+      const SkPoint a = arrange::onEllipse(hub, {11, 11}, r2);
+      const SkPoint b = arrange::onEllipse(hub, {31, 31}, r2);
       return box()
           .inset(0)
-          .shape([a, b](SkSize) {
-            SkPathBuilder p;
-            p.moveTo(a);
-            p.lineTo(b);
-            return p.detach();
-          })
-          .stroke(PathFormat{.width = 2.0f,
-                             .strokeFill = Fill::color(alpha(c, 0.75f))});
+          .shape(keyedShape(std::tuple{a.fX, a.fY, b.fX, b.fY},
+                            [a, b](SkSize) {
+                              SkPathBuilder p;
+                              p.moveTo(a);
+                              p.lineTo(b);
+                              return p.detach();
+                            }))
+          .stroke(PathFormat{
+              .width = 2.0f,
+              .strokeFill = Fill::color(mskia::withAlpha(c, 0.75f))});
     };
 
     g.child(arm("pro", aPro, 54, kProgradeC, true, true));
@@ -920,34 +934,37 @@ struct KspMapView : sketch::Sketch {
     g.child(glyph("nrm", aNorm, kNormalC, true));
     g.child(arm("ret", aPro + 180, 54, kProgradeC, false, false));
     g.child(arm("rin", aRad + 180, 42, kRadialC, false, false));
-    g.child(spoke(aAnti, alpha(kNormalC, 0.6f)));
+    g.child(spoke(aAnti, mskia::withAlpha(kNormalC, 0.6f)));
     g.child(glyph("anrm", aAnti, kNormalC, false));
 
     // Hub: one SDF pass — fill, ring, and a breathing glow bound to a
     // quantised Output (instrument sampling, not a cinematic pulse).
-    const sdf::Style hs{.fill = hex(0x12181C, 0.72f),
-                        .borderWidth = 1.6f,
-                        .borderColor = hex(0xF0F4F5),
-                        .glowRadius = 9.0f,
-                        .glowColor = alpha(kProgradeC, 0.85f)};
+    const sdf::Style hs{
+        .fill = toColor(hexColor(0x12181C, 0.72f)),
+        .borderWidth = 1.6f,
+        .borderColor = toColor(hexColor(0xF0F4F5)),
+        .glowRadius = 9.0f,
+        .glowColor = toColor(mskia::withAlpha(kProgradeC, 0.85f))};
     const float hbox = sdf::minBoxFor(hs, 19.0f);
-    Material hm = sdf::material(sdf::circle(), hs);
-    hm.uniform("uGlowR", &hubGlow);
+    Paint hm = Paint::recipe(sdf::material(sdf::circle(), hs))
+                   .uniform("uGlowR", &hubGlow);
     g.child(at(box().fill(std::move(hm)).key("hub"), hub, hbox, hbox));
 
     // Δv direction stub: the burn vector, drawn from the hub along prograde.
-    g.child(
-        box()
-            .inset(0)
-            .shape([hub, pro](SkSize) {
-              SkPathBuilder b;
-              b.moveTo(hub);
-              b.lineTo(hub.fX + pro.fX * 96, hub.fY + pro.fY * 96);
-              return b.detach();
-            })
-            .stroke(lines::Line{.width = 1.2f,
-                                .fill = Fill::color(alpha(kProgradeC, 0.5f)),
-                                .dashIntervals = {4, 4}}));
+    g.child(box()
+                .inset(0)
+                .shape(keyedShape(std::tuple{hub.fX, hub.fY, pro.fX, pro.fY},
+                                  [hub, pro](SkSize) {
+                                    SkPathBuilder b;
+                                    b.moveTo(hub);
+                                    b.lineTo(hub.fX + pro.fX * 96,
+                                             hub.fY + pro.fY * 96);
+                                    return b.detach();
+                                  }))
+                .stroke(lines::Line{
+                    .width = 1.2f,
+                    .fill = Fill::color(mskia::withAlpha(kProgradeC, 0.5f)),
+                    .dashIntervals = {4, 4}}));
     return g;
   }
 
@@ -956,26 +973,27 @@ struct KspMapView : sketch::Sketch {
 
   Element burnCard() {
     using namespace ksp;
-    return at(box()
-                  .column()
-                  .padding(9, 8, 9, 8)
-                  .gap(3)
-                  .fill(Material::solid(hex(0x12181C, 0.86f)))
-                  .stroke(PathFormat{.width = 1.0f,
-                                     .strokeFill = Fill::color(hex(0x3A4148))})
-                  .child(box()
-                             .row()
-                             .gap(6)
-                             .alignItems(Align::Baseline)
-                             .child(t("Δv", body(10.5f, hex(0x9AA4AA))))
-                             .child(t("164.9", lcd(16, kLcd)))
-                             .child(t("m/s", body(10, alpha(kLcd, 0.8f)))))
-                  .child(slot("burn"))
-                  .child(box()
-                             .height(Dim(1))
-                             .fill(Material::solid(hex(0x2C3238)))
-                             .margin(2)),
-              646, 566, 190, 88);
+    return at(
+        box()
+            .column()
+            .padding(9, 8, 9, 8)
+            .gap(3)
+            .fill(Paint::solid(hexColor(0x12181C, 0.86f)))
+            .stroke(PathFormat{.width = 1.0f,
+                               .strokeFill = Fill::color(hexColor(0x3A4148))})
+            .child(box()
+                       .row()
+                       .gap(6)
+                       .alignItems(Align::Baseline)
+                       .child(t("Δv", body(10.5f, hexColor(0x9AA4AA))))
+                       .child(t("164.9", lcd(16, kLcd)))
+                       .child(t("m/s", body(10, mskia::withAlpha(kLcd, 0.8f)))))
+            .child(slot("burn"))
+            .child(box()
+                       .height(Dim(1))
+                       .fill(Paint::solid(hexColor(0x2C3238)))
+                       .margin(2)),
+        646, 566, 190, 88);
   }
 
   Element burnLines() {
@@ -1012,7 +1030,7 @@ struct KspMapView : sketch::Sketch {
         .height(Dim(19))
         .justify(Justify::Center)
         .padding(0, 0, 0, 8)
-        .fill(Material::solid(ksp::kCardStrip))
+        .fill(Paint::solid(ksp::kCardStrip))
         .child(t(label, bold(11, kOrange, 0.2f)));
   }
 
@@ -1021,7 +1039,7 @@ struct KspMapView : sketch::Sketch {
     return at(
         box()
             .column()
-            .fill(Material::solid(kCardBody))
+            .fill(Paint::solid(kCardBody))
             .clip()
             .translateX(animate(from(46.0f).to(0.0f), {380ms, ch::easeOutQuad}))
             .opacity(animate(from(0.0f).to(1.0f), {380ms}))
@@ -1029,14 +1047,14 @@ struct KspMapView : sketch::Sketch {
                        .height(Dim(26))
                        .justify(Justify::Center)
                        .padding(0, 0, 0, 9)
-                       .fill(Material::solid(kOrange))
-                       .child(t("Kerbal X", bold(14, hex(0xFFFFFF)))))
+                       .fill(Paint::solid(kOrange))
+                       .child(t("Kerbal X", bold(14, hexColor(0xFFFFFF)))))
             .child(box()
                        .height(Dim(19))
                        .justify(Justify::Center)
                        .padding(0, 0, 0, 9)
-                       .fill(Material::solid(kCardSub))
-                       .child(t("Info", bold(11, hex(0xE8E8EA)))))
+                       .fill(Paint::solid(kCardSub))
+                       .child(t("Info", bold(11, hexColor(0xE8E8EA)))))
             .child(infoHead("Vessel classification"))
             .child(box()
                        .row()
@@ -1046,13 +1064,13 @@ struct KspMapView : sketch::Sketch {
                                   .width(Dim(34))
                                   .height(Dim(40))
                                   .shape(shapes::polygon(7, 12))
-                                  .fill(Material::linearUnit(
+                                  .fill(Paint::linearUnit(
                                       {0, 0}, {1, 1},
-                                      {{0.0f, hex(0xF7F7F8)},
-                                       {1.0f, hex(0xB9BCC1)}}))
+                                      {{0.0f, hexColor(0xF7F7F8)},
+                                       {1.0f, hexColor(0xB9BCC1)}}))
                                   .stroke(PathFormat{.width = 1.0f,
                                                      .strokeFill = Fill::color(
-                                                         hex(0x8A8E93))}))
+                                                         hexColor(0x8A8E93))}))
                        .child(box()
                                   .column()
                                   .grow(1)
@@ -1073,7 +1091,7 @@ struct KspMapView : sketch::Sketch {
             .child(infoRow("Max. Acceleration", "21.4 m/s²"))
             .child(infoRow("Thrust / Weight", "1.63"))
             .child(box().grow(1))
-            .child(box().height(Dim(6)).fill(Material::solid(hex(0x9DA1A6)))),
+            .child(box().height(Dim(6)).fill(Paint::solid(hexColor(0x9DA1A6)))),
         906, 40, 240, 318);
   }
 
@@ -1083,21 +1101,21 @@ struct KspMapView : sketch::Sketch {
     static const char* kGlyphs[6] = {"◉", "◆", "▤", "✱", "▲", "◍"};
     for (int i = 0; i < 6; ++i) {
       const float y = 34.0f + (float)i * 46.0f;
-      g.child(
-          at(box()
-                 .corners({5})
-                 .fill(Material::linearUnit(
-                     {0, 0}, {0, 1},
-                     {{0.0f, lift(kGun, 0.10f)}, {1.0f, hex(0x3E4750)}}))
-                 .stroke(PathFormat{.width = 1.0f,
-                                    .strokeFill = Fill::color(hex(0x22282D)),
-                                    .align = PathFormat::Align::Inner})
-                 .alignItems(Align::Center)
-                 .justify(Justify::Center)
-                 .opacity(animate(from(0.0f).to(1.0f), {260ms}))
-                 .scale(animate(from(0.7f).to(1.0f), {320ms, ease::outBack()}))
-                 .child(t(kGlyphs[i], body(13, hex(0xD3DBE0)))),
-             1156, y, 38, 38));
+      g.child(at(
+          box()
+              .corners({5})
+              .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                      {{0.0f, mskia::lighten(kGun, 0.10f)},
+                                       {1.0f, hexColor(0x3E4750)}}))
+              .stroke(PathFormat{.width = 1.0f,
+                                 .strokeFill = Fill::color(hexColor(0x22282D)),
+                                 .align = PathFormat::Align::Inner})
+              .alignItems(Align::Center)
+              .justify(Justify::Center)
+              .opacity(animate(from(0.0f).to(1.0f), {260ms}))
+              .scale(animate(from(0.7f).to(1.0f), {320ms, ease::outBack()}))
+              .child(t(kGlyphs[i], body(13, hexColor(0xD3DBE0)))),
+          1156, y, 38, 38));
     }
     return g;
   }
@@ -1108,23 +1126,24 @@ struct KspMapView : sketch::Sketch {
   Element missionClock() {
     using namespace ksp;
     Element g = stack().inset(0);
+    g.child(at(
+        box()
+            .corners({4})
+            .alignItems(Align::Center)
+            .justify(Justify::Center)
+            .fill(Paint::solid(hexColor(0x26282C, 0.94f)))
+            .stroke(PathFormat{.width = 1.0f,
+                               .strokeFill = Fill::color(hexColor(0x4A5157))})
+            .child(t("T+ 0y, 0d, 00:05:10", lcd(13, kLcd)).key("met")),
+        18, 14, 200, 28));
     g.child(at(box()
                    .corners({4})
                    .alignItems(Align::Center)
                    .justify(Justify::Center)
-                   .fill(Material::solid(hex(0x26282C, 0.94f)))
-                   .stroke(PathFormat{.width = 1.0f,
-                                      .strokeFill = Fill::color(hex(0x4A5157))})
-                   .child(t("T+ 0y, 0d, 00:05:10", lcd(13, kLcd)).key("met")),
-               18, 14, 200, 28));
-    g.child(at(box()
-                   .corners({4})
-                   .alignItems(Align::Center)
-                   .justify(Justify::Center)
-                   .fill(Material::linearUnit(
-                       {0, 0}, {0, 1},
-                       {{0.0f, lift(kGun, 0.12f)}, {1.0f, hex(0x3E4750)}}))
-                   .child(t("MET", bold(11, hex(0xE6EAEC)))),
+                   .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                           {{0.0f, mskia::lighten(kGun, 0.12f)},
+                                            {1.0f, hexColor(0x3E4750)}}))
+                   .child(t("MET", bold(11, hexColor(0xE6EAEC)))),
                222, 14, 40, 28));
     static const char* kIcons[5] = {"◉", "▮▮", "▼", "◍", "◈"};
     for (int i = 0; i < 5; ++i)
@@ -1132,8 +1151,8 @@ struct KspMapView : sketch::Sketch {
                      .corners({3})
                      .alignItems(Align::Center)
                      .justify(Justify::Center)
-                     .fill(Material::solid(hex(0x474F57)))
-                     .child(t(kIcons[i], body(10, hex(0x8CE07A)))),
+                     .fill(Paint::solid(hexColor(0x474F57)))
+                     .child(t(kIcons[i], body(10, hexColor(0x8CE07A)))),
                  272 + (float)i * 28, 16, 24, 24));
     return g;
   }
@@ -1150,22 +1169,22 @@ struct KspMapView : sketch::Sketch {
     Element g = stack().inset(0);
 
     // Bezel: silver ring, gently lit from the top-left.
+    g.child(at(
+        box()
+            .shape(shapes::circle())
+            .fill(Paint::linearUnit({0.15f, 0}, {0.85f, 1},
+                                    {{0.0f, hexColor(0xC8CDD0)},
+                                     {0.45f, hexColor(0x8B9296)},
+                                     {1.0f, hexColor(0x5A6165)}}))
+            .stroke(PathFormat{.width = 1.2f,
+                               .strokeFill = Fill::color(hexColor(0x2A3034))}),
+        kBall, kBezelR * 2, kBezelR * 2));
     g.child(
-        at(box()
-               .shape(circleOutline())
-               .fill(Material::linearUnit({0.15f, 0}, {0.85f, 1},
-                                          {{0.0f, hex(0xC8CDD0)},
-                                           {0.45f, hex(0x8B9296)},
-                                           {1.0f, hex(0x5A6165)}}))
-               .stroke(PathFormat{.width = 1.2f,
-                                  .strokeFill = Fill::color(hex(0x2A3034))}),
-           kBall, kBezelR * 2, kBezelR * 2));
-    g.child(
-        at(box().shape(circleOutline()).fill(Material::solid(hex(0x171B1E))),
+        at(box().shape(shapes::circle()).fill(Paint::solid(hexColor(0x171B1E))),
            kBall, (kBallR + 5) * 2, (kBallR + 5) * 2));
 
     // The sphere itself.
-    Material ball = Material::sksl(navballEffect(), {});
+    Paint ball = Paint::sksl(navballEffect(), {});
     ball.uniform("uSky", kSky);
     ball.uniform("uSkyHi", kSkyHi);
     ball.uniform("uGnd", kGround);
@@ -1208,11 +1227,13 @@ struct KspMapView : sketch::Sketch {
                        .top(Dim(y - 0.9f))
                        .width(Dim(halfW * 2.0f))
                        .height(Dim(1.8f))
-                       .fill(Material::solid(alpha(hex(0xEAF4F8), 0.88f))));
+                       .fill(Paint::solid(
+                           mskia::withAlpha(hexColor(0xEAF4F8), 0.88f))));
         const std::string num = std::to_string(deg);
         for (int e = 0; e < 2; ++e)
           deck.child(
-              t(num.c_str(), bold(7.0f, alpha(hex(0xEAF4F8), 0.9f), 0.3f))
+              t(num.c_str(),
+                bold(7.0f, mskia::withAlpha(hexColor(0xEAF4F8), 0.9f), 0.3f))
                   .left(Dim(e ? mid + halfW + 3.0f : mid - halfW - 13.0f))
                   .top(Dim(y - 5.0f)));
       };
@@ -1227,8 +1248,8 @@ struct KspMapView : sketch::Sketch {
                      .top(Dim(mid - 1.4f))
                      .width(Dim(kBallR * 1.84f))
                      .height(Dim(2.8f))
-                     .fill(Material::solid(hex(0xFFFFFF))));
-      g.child(at(box().shape(circleOutline()).clip().child(std::move(deck)),
+                     .fill(Paint::solid(hexColor(0xFFFFFF))));
+      g.child(at(box().shape(shapes::circle()).clip().child(std::move(deck)),
                  kBall, kBallR * 2, kBallR * 2));
     }
 
@@ -1236,20 +1257,20 @@ struct KspMapView : sketch::Sketch {
     // exactly as the reference draws them. sector() gives the closed,
     // fillable annular segment; onPath gives the curved lettering.
     auto tape = [&](float startDeg, float sweep, SkColor4f fillC) {
-      return at(
-          box()
-              .shape(shapes::sector(startDeg, sweep, 0.845f))
-              .fill(Material::solid(fillC))
-              .stroke(PathFormat{.width = 0.9f,
-                                 .strokeFill = Fill::color(hex(0x2A3034))}),
-          kBall, kBezelR * 2, kBezelR * 2);
+      return at(box()
+                    .shape(shapes::sector(startDeg, sweep, 0.845f))
+                    .fill(Paint::solid(fillC))
+                    .stroke(PathFormat{
+                        .width = 0.9f,
+                        .strokeFill = Fill::color(hexColor(0x2A3034))}),
+                kBall, kBezelR * 2, kBezelR * 2);
     };
-    g.child(tape(150, 60, hex(0x23282B)));  // throttle body
-    g.child(tape(143, 8, hex(0xC0392B)));   // hazard cap, top
-    g.child(tape(210, 6, hex(0x2E7D32)));   // green foot
-    g.child(tape(-30, 60, hex(0x23282B)));  // g-force body
-    g.child(tape(-38, 9, hex(0xC0392B)));
-    g.child(tape(30, 7, hex(0x2E7D32)));
+    g.child(tape(150, 60, hexColor(0x23282B)));  // throttle body
+    g.child(tape(143, 8, hexColor(0xC0392B)));   // hazard cap, top
+    g.child(tape(210, 6, hexColor(0x2E7D32)));   // green foot
+    g.child(tape(-30, 60, hexColor(0x23282B)));  // g-force body
+    g.child(tape(-38, 9, hexColor(0xC0392B)));
+    g.child(tape(30, 7, hexColor(0x2E7D32)));
 
     // THE TICK LADDERS. The reference's two tapes are read against a rung
     // ladder, not against their own ends: eleven ticks across each arc,
@@ -1261,13 +1282,13 @@ struct KspMapView : sketch::Sketch {
       for (int i = 0; i <= 10; ++i) {
         const bool major = i % 5 == 0;
         const float a = from + sweep * (float)i / 10.0f;
-        g.child(
-            at(box()
-                   .shape(shapes::sector(-0.42f, 0.84f, major ? 0.79f : 0.86f))
-                   .fill(Material::solid(alpha(hex(0xC6CFD3), 0.85f)))
-                   .rotate(a)
-                   .transformOrigin(0.5f, 0.5f),
-               kBall, kBezelR * 2, kBezelR * 2));
+        g.child(at(
+            box()
+                .shape(shapes::sector(-0.42f, 0.84f, major ? 0.79f : 0.86f))
+                .fill(Paint::solid(mskia::withAlpha(hexColor(0xC6CFD3), 0.85f)))
+                .rotate(a)
+                .transformOrigin(0.5f, 0.5f),
+            kBall, kBezelR * 2, kBezelR * 2));
       }
     }
 
@@ -1277,13 +1298,13 @@ struct KspMapView : sketch::Sketch {
     // step with the first from the tick loop.
     g.child(at(box()
                    .shape(shapes::sector(-3.0f, 6.0f, 0.80f))
-                   .fill(Material::solid(hex(0xF2F4F5)))
+                   .fill(Paint::solid(hexColor(0xF2F4F5)))
                    .rotate(bind(&throttle).target(207, 148))
                    .transformOrigin(0.5f, 0.5f),
                kBall, kBezelR * 2, kBezelR * 2));
     g.child(at(box()
                    .shape(shapes::sector(-3.0f, 6.0f, 0.80f))
-                   .fill(Material::solid(hex(0xF2F4F5)))
+                   .fill(Paint::solid(hexColor(0xF2F4F5)))
                    .rotate(bind(&gforce).target(28, -33))
                    .transformOrigin(0.5f, 0.5f),
                kBall, kBezelR * 2, kBezelR * 2));
@@ -1291,19 +1312,19 @@ struct KspMapView : sketch::Sketch {
     auto arcLabel = [&](const char* s, float atFrac, float sz, SkColor4f c,
                         float off) {
       return at(t(s, body(sz, c, 1.1f))
-                    .onPath(TextPath{.path = circleOutline(),
+                    .onPath(TextPath{.path = shapes::circle(),
                                      .at = atFrac,
                                      .align = TextPath::Align::Center,
                                      .offset = off,
                                      .autoFlip = true}),
                 kBall, kBezelR * 1.88f, kBezelR * 1.88f);
     };
-    g.child(arcLabel("THROTTLE", 0.5f, 8.5f, hex(0xE8EDEF), 3));
-    g.child(arcLabel("G FORCE", 0.0f, 8.5f, hex(0xE8EDEF), 3));
-    g.child(arcLabel("100", 0.425f, 7.0f, hex(0xB9C2C6), -8));
-    g.child(arcLabel("0", 0.575f, 7.0f, hex(0xB9C2C6), -8));
-    g.child(arcLabel("+15", 0.075f, 7.0f, hex(0xB9C2C6), -8));
-    g.child(arcLabel("0", 0.925f, 7.0f, hex(0xB9C2C6), -8));
+    g.child(arcLabel("THROTTLE", 0.5f, 8.5f, hexColor(0xE8EDEF), 3));
+    g.child(arcLabel("G FORCE", 0.0f, 8.5f, hexColor(0xE8EDEF), 3));
+    g.child(arcLabel("100", 0.425f, 7.0f, hexColor(0xB9C2C6), -8));
+    g.child(arcLabel("0", 0.575f, 7.0f, hexColor(0xB9C2C6), -8));
+    g.child(arcLabel("+15", 0.075f, 7.0f, hexColor(0xB9C2C6), -8));
+    g.child(arcLabel("0", 0.925f, 7.0f, hexColor(0xB9C2C6), -8));
 
     // A heading ring of numerals inside the bezel, rotating with the ball —
     // eight onPath runs sharing one rotating container.
@@ -1311,96 +1332,102 @@ struct KspMapView : sketch::Sketch {
                       kBall, kBallR * 1.66f, kBallR * 1.66f);
     static const char* kHdg[4] = {"N", "E", "S", "W"};
     for (int i = 0; i < 4; ++i)
-      ring.child(t(kHdg[i], bold(9.0f, alpha(hex(0xEAF4F8), 0.85f), 0.6f))
-                     .inset(0)
-                     .onPath(TextPath{.path = circleOutline(),
-                                      .at = 0.75f + (float)i / 4.0f,
-                                      .align = TextPath::Align::Center,
-                                      .offset = 2.0f,
-                                      .autoFlip = true}));
+      ring.child(
+          t(kHdg[i],
+            bold(9.0f, mskia::withAlpha(hexColor(0xEAF4F8), 0.85f), 0.6f))
+              .inset(0)
+              .onPath(TextPath{.path = shapes::circle(),
+                               .at = 0.75f + (float)i / 4.0f,
+                               .align = TextPath::Align::Center,
+                               .offset = 2.0f,
+                               .autoFlip = true}));
     g.child(std::move(ring));
 
     // The gold level chevron — screen-locked while everything under it turns.
     g.child(
-        at(box().shape(chevron()).fill(Material::solid(kGold)), kBall, 92, 26));
+        at(box().shape(chevron()).fill(Paint::solid(kGold)), kBall, 92, 26));
 
     // Readouts above and below.
-    g.child(at(box()
-                   .column()
-                   .alignItems(Align::Center)
-                   .justify(Justify::Center)
-                   .corners({4})
-                   .fill(Material::solid(kLcdBg))
-                   .stroke(PathFormat{.width = 1.2f,
-                                      .strokeFill = Fill::color(hex(0x9AA2A6))})
-                   .child(t("Orbit", lcd(11, kLcd)))
-                   .child(t("1140.0m/s", lcd(13, kLcdVal)).key("spd")),
-               kBall.fX - 68, kBall.fY - kBezelR - 6, 136, 38));
-    g.child(at(box()
-                   .row()
-                   .gap(6)
-                   .alignItems(Align::Center)
-                   .justify(Justify::Center)
-                   .corners({4})
-                   .fill(Material::solid(kLcdBg))
-                   .stroke(PathFormat{.width = 1.2f,
-                                      .strokeFill = Fill::color(hex(0x9AA2A6))})
-                   .child(t("HDG", body(10, hex(0xA9B4B8))))
-                   .child(t("280°", lcd(12, kLcd)).key("hdg")),
-               kBall.fX - 52, kBall.fY + kBezelR - 8, 104, 24));
+    g.child(at(
+        box()
+            .column()
+            .alignItems(Align::Center)
+            .justify(Justify::Center)
+            .corners({4})
+            .fill(Paint::solid(kLcdBg))
+            .stroke(PathFormat{.width = 1.2f,
+                               .strokeFill = Fill::color(hexColor(0x9AA2A6))})
+            .child(t("Orbit", lcd(11, kLcd)))
+            .child(t("1140.0m/s", lcd(13, kLcdVal)).key("spd")),
+        kBall.fX - 68, kBall.fY - kBezelR - 6, 136, 38));
+    g.child(at(
+        box()
+            .row()
+            .gap(6)
+            .alignItems(Align::Center)
+            .justify(Justify::Center)
+            .corners({4})
+            .fill(Paint::solid(kLcdBg))
+            .stroke(PathFormat{.width = 1.2f,
+                               .strokeFill = Fill::color(hexColor(0x9AA2A6))})
+            .child(t("HDG", body(10, hexColor(0xA9B4B8))))
+            .child(t("280°", lcd(12, kLcd)).key("hdg")),
+        kBall.fX - 52, kBall.fY + kBezelR - 8, 104, 24));
 
     // RCS / SAS toggles, flanking the ball's shoulders.
     auto toggle = [&](const char* label, SkColor4f c, float x) {
-      return at(
-          box()
-              .corners({3})
-              .alignItems(Align::Center)
-              .justify(Justify::Center)
-              .fill(Material::linearUnit({0, 0}, {0, 1},
-                                         {{0.0f, lift(c, 0.14f)}, {1.0f, c}}))
-              .stroke(PathFormat{.width = 1.0f,
-                                 .strokeFill = Fill::color(hex(0xE8EDEF, 0.5f)),
-                                 .align = PathFormat::Align::Inner})
-              .opacity(&rcsPulse)
-              .child(t(label, bold(10, hex(0xFFFFFF)))),
-          x, kBall.fY - kBezelR + 4, 40, 20);
+      return at(box()
+                    .corners({3})
+                    .alignItems(Align::Center)
+                    .justify(Justify::Center)
+                    .fill(Paint::linearUnit(
+                        {0, 0}, {0, 1},
+                        {{0.0f, mskia::lighten(c, 0.14f)}, {1.0f, c}}))
+                    .stroke(PathFormat{
+                        .width = 1.0f,
+                        .strokeFill = Fill::color(hexColor(0xE8EDEF, 0.5f)),
+                        .align = PathFormat::Align::Inner})
+                    .opacity(&rcsPulse)
+                    .child(t(label, bold(10, hexColor(0xFFFFFF)))),
+                x, kBall.fY - kBezelR + 4, 40, 20);
     };
     g.child(toggle("RCS", kRcs, kBall.fX - kBezelR + 6));
     g.child(toggle("SAS", kSas, kBall.fX + kBezelR - 46));
 
     // The manoeuvre Δv arc riding outside the bezel, plus its tag — this is
     // the flight-view frame's own composition, verbatim.
+    g.child(
+        at(box()
+               .shape(shapes::arc(-72, 144))
+               .stroke(spans::upTo(&dvSweep),
+                       brush::presets::filament(mskia::withAlpha(kDvArc, 0.5f),
+                                                hexColor(0xEBFFDA), 0.5f)),
+           kBall, (kBezelR + 16) * 2, (kBezelR + 16) * 2));
     g.child(at(box()
-                   .shape(shapes::arc(-72, 144))
-                   .stroke(spans::upTo(&dvSweep),
-                           kit::brush::presets::filament(alpha(kDvArc, 0.5f),
-                                                         hex(0xEBFFDA), 0.5f)),
-               kBall, (kBezelR + 16) * 2, (kBezelR + 16) * 2));
-    g.child(at(
-        box()
-            .row()
-            .alignItems(Align::Center)
-            .justify(Justify::Center)
-            .corners({3})
-            .fill(Material::linearUnit(
-                {0, 0}, {0, 1}, {{0.0f, hex(0xA0A6AA)}, {1.0f, hex(0x6E767B)}}))
-            .gap(5)
-            .child(t("164.9m/s", body(11, hex(0x14181A))))
-            .child(box()
-                       .width(Dim(13))
-                       .height(Dim(13))
-                       .corners({2})
-                       .alignItems(Align::Center)
-                       .justify(Justify::Center)
-                       .fill(Material::solid(kStageTab))
-                       .child(t("×", bold(10, hex(0xFFFFFF))))),
-        // must clear SAS, whose right edge is at
-        // kBall.fX + kBezelR - 6
-        kBall.fX + kBezelR + 6, kBall.fY - kBezelR - 2, 92, 20));
+                   .row()
+                   .alignItems(Align::Center)
+                   .justify(Justify::Center)
+                   .corners({3})
+                   .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                           {{0.0f, hexColor(0xA0A6AA)},
+                                            {1.0f, hexColor(0x6E767B)}}))
+                   .gap(5)
+                   .child(t("164.9m/s", body(11, hexColor(0x14181A))))
+                   .child(box()
+                              .width(Dim(13))
+                              .height(Dim(13))
+                              .corners({2})
+                              .alignItems(Align::Center)
+                              .justify(Justify::Center)
+                              .fill(Paint::solid(kStageTab))
+                              .child(t("×", bold(10, hexColor(0xFFFFFF))))),
+               // must clear SAS, whose right edge is at
+               // kBall.fX + kBezelR - 6
+               kBall.fX + kBezelR + 6, kBall.fY - kBezelR - 2, 92, 20));
     // bezel index notch, top
     g.child(at(box()
                    .shape(shapes::polygon(3, 180))
-                   .fill(Material::solid(hex(0xD7DDE0))),
+                   .fill(Paint::solid(hexColor(0xD7DDE0))),
                {kBall.fX, kBall.fY - kBezelR - 4}, 16, 10));
     return g;
   }
@@ -1416,62 +1443,71 @@ struct KspMapView : sketch::Sketch {
     // SIBLING drawn after the striped plate rather than a child of it.
     auto stageTab = [&](const char* n, float y) {
       return at(stack(), x, y, 58, 25)
-          .child(
-              box()
-                  .inset(0)
-                  .corners({2})
-                  .fill(Material::solid(kStageTab))
-                  .foreground(lines::hatch(Fill::color(hex(0x101010, 0.45f)),
-                                           8.0f, 3.4f, -45.0f))
-                  .stroke(PathFormat{.width = 1.0f,
-                                     .strokeFill = Fill::color(hex(0x7A3703)),
-                                     .align = PathFormat::Align::Inner}))
+          .child(box()
+                     .inset(0)
+                     .corners({2})
+                     .fill(Paint::solid(kStageTab))
+                     .foreground(lines::presets::hatch(
+                         Fill::color(hexColor(0x101010, 0.45f)), 8.0f, 3.4f,
+                         -45.0f))
+                     .stroke(PathFormat{
+                         .width = 1.0f,
+                         .strokeFill = Fill::color(hexColor(0x7A3703)),
+                         .align = PathFormat::Align::Inner}))
           .child(box()
                      .inset(0)
                      .alignItems(Align::Center)
                      .justify(Justify::Center)
-                     .child(t(n, bold(13, hex(0xFFFFFF)))));
+                     .child(t(n, bold(13, hexColor(0xFFFFFF)))));
     };
     auto partIcon = [&](float py, const char* badge, const char* count) {
-      return at(stack()
-                    .corners({2})
-                    .fill(Material::linearUnit({0, 0}, {0, 1},
-                                               {{0.0f, hex(0x767F86)},
-                                                {0.5f, hex(0x545D64)},
-                                                {1.0f, hex(0x333A3F)}}))
-                    .stroke(PathFormat{.width = 1.0f,
-                                       .strokeFill = Fill::color(hex(0x1D2226)),
-                                       .align = PathFormat::Align::Inner})
-                    .child(box()
-                               .inset(0)
-                               .alignItems(Align::Center)
-                               .justify(Justify::Center)
-                               .child(t(badge, body(14, hex(0xE3E9EC)))))
-                    .child(box().right(Dim(1)).bottom(Dim(0)).child(
-                        t(count, bold(8, hex(0xF6D488))))),
-                x + 4, py, 27, 27);
+      return at(
+          stack()
+              .corners({2})
+              .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                      {{0.0f, hexColor(0x767F86)},
+                                       {0.5f, hexColor(0x545D64)},
+                                       {1.0f, hexColor(0x333A3F)}}))
+              .stroke(PathFormat{.width = 1.0f,
+                                 .strokeFill = Fill::color(hexColor(0x1D2226)),
+                                 .align = PathFormat::Align::Inner})
+              .child(box()
+                         .inset(0)
+                         .alignItems(Align::Center)
+                         .justify(Justify::Center)
+                         .child(t(badge, body(14, hexColor(0xE3E9EC)))))
+              .child(box().right(Dim(1)).bottom(Dim(0)).child(
+                  t(count, bold(8, hexColor(0xF6D488))))),
+          x + 4, py, 27, 27);
     };
+    // NOT `sketch::kit::meter`, and the difference is the artefact: that
+    // component sets a bar's name and its reading in a row ABOVE the bar,
+    // where a KSP resource gauge carries its name INSIDE the tank, over
+    // the fuel. Everything else about it is the same bound level scaled
+    // from its left edge over a cached bed.
     auto fuelBar = [&](float py, const ch::Output<float>* fill) {
-      return at(box()
-                    .fill(Material::solid(hex(0x14181B)))
-                    .stroke(PathFormat{.width = 1.0f,
-                                       .strokeFill = Fill::color(hex(0x3B4147)),
-                                       .align = PathFormat::Align::Inner})
-                    .clip()
-                    // scaleX + transformOrigin: the drain is a transform,
-                    // not a re-laid-out width
-                    .child(box()
-                               .inset(1)
-                               .fill(Material::linearUnit(
-                                   {0, 0}, {0, 1},
-                                   {{0.0f, lift(kFuel, 0.10f)}, {1.0f, kFuel}}))
-                               .scaleX(fill)
-                               .transformOrigin(0.0f, 0.5f))
-                    .child(box()
-                               .inset(4, 0, 0, 0)
-                               .alignItems(Align::Center)
-                               .child(t("LiquidFuel", body(9, hex(0xF0F3F0))))),
-                x + 37, py, 96, 13);
+      return at(
+          box()
+              .fill(Paint::solid(hexColor(0x14181B)))
+              .stroke(PathFormat{.width = 1.0f,
+                                 .strokeFill = Fill::color(hexColor(0x3B4147)),
+                                 .align = PathFormat::Align::Inner})
+              .clip()
+              // scaleX + transformOrigin: the drain is a transform,
+              // not a re-laid-out width
+              .child(box()
+                         .inset(1)
+                         .fill(Paint::linearUnit(
+                             {0, 0}, {0, 1},
+                             {{0.0f, mskia::lighten(kFuel, 0.10f)},
+                              {1.0f, kFuel}}))
+                         .scaleX(fill)
+                         .transformOrigin(0.0f, 0.5f))
+              .child(box()
+                         .inset(4, 0, 0, 0)
+                         .alignItems(Align::Center)
+                         .child(t("LiquidFuel", body(9, hexColor(0xF0F3F0))))),
+          x + 37, py, 96, 13);
     };
 
     g.child(stageTab("0", 528));
@@ -1493,15 +1529,16 @@ struct KspMapView : sketch::Sketch {
 
     // STAGE cluster: hazard header, green go-button, the ONE inverted LCD.
     Element stage = at(box().column().corners({3}).clip(), x - 6, 756, 152, 38);
-    stage.fill(Material::solid(hex(0x2A2E31)))
+    stage.fill(Paint::solid(hexColor(0x2A2E31)))
         .stroke(PathFormat{.width = 1.0f,
-                           .strokeFill = Fill::color(hex(0x4A5157)),
+                           .strokeFill = Fill::color(hexColor(0x4A5157)),
                            .align = PathFormat::Align::Inner});
-    stage.child(box()
-                    .height(Dim(9))
-                    .fill(Material::solid(hex(0xE0B720)))
-                    .foreground(lines::hatch(Fill::color(hex(0x141414, 0.9f)),
-                                             8.0f, 4.0f, -45.0f)));
+    stage.child(
+        box()
+            .height(Dim(9))
+            .fill(Paint::solid(hexColor(0xE0B720)))
+            .foreground(lines::presets::hatch(
+                Fill::color(hexColor(0x141414, 0.9f)), 8.0f, 4.0f, -45.0f)));
     stage.child(
         box()
             .row()
@@ -1512,13 +1549,13 @@ struct KspMapView : sketch::Sketch {
             .child(box()
                        .width(Dim(15))
                        .height(Dim(15))
-                       .shape(circleOutline())
-                       .fill(Material::radialUnit({0.38f, 0.30f}, 1.0f,
-                                                  {{0.0f, hex(0xE6FDD1)},
-                                                   {0.5f, kGo},
-                                                   {1.0f, hex(0x2E6E33)}}))
+                       .shape(shapes::circle())
+                       .fill(Paint::radialUnit({0.38f, 0.30f}, 1.0f,
+                                               {{0.0f, hexColor(0xE6FDD1)},
+                                                {0.5f, kGo},
+                                                {1.0f, hexColor(0x2E6E33)}}))
                        .opacity(&goPulse))
-            .child(t("STAGE", bold(9, hex(0xE8ECEE))))
+            .child(t("STAGE", bold(9, hexColor(0xE8ECEE))))
             .child(box().grow(1))
             .child(box().row().gap(2).children(std::vector<Element>{
                 digitCell("0"), digitCell("0"), digitCell("1")})));
@@ -1530,33 +1567,36 @@ struct KspMapView : sketch::Sketch {
       return at(
           stack()
               .corners({2})
-              .fill(Material::solid(hex(0x1B1F22)))
+              .fill(Paint::solid(hexColor(0x1B1F22)))
               .stroke(PathFormat{.width = 1.0f,
-                                 .strokeFill = Fill::color(hex(0x454C51)),
+                                 .strokeFill = Fill::color(hexColor(0x454C51)),
                                  .align = PathFormat::Align::Inner})
               .clip()
               .child(box()
                          .inset(0)
-                         .shape([](SkSize s) {
-                           SkPathBuilder b;
-                           b.moveTo(4, s.height() * 0.5f);
-                           b.lineTo(s.width() - 4, s.height() * 0.5f);
-                           return b.detach();
-                         })
-                         .stroke(lines::Line{.width = 0.8f,
-                                             .fill = Fill::color(hex(0x6C767C)),
-                                             .tickSpacing = 6.0f,
-                                             .tickLength = 9.0f}))
+                         .shape(keyedShape(std::string_view("gauge-rail"),
+                                           [](SkSize s) {
+                                             SkPathBuilder b;
+                                             b.moveTo(4, s.height() * 0.5f);
+                                             b.lineTo(s.width() - 4,
+                                                      s.height() * 0.5f);
+                                             return b.detach();
+                                           }))
+                         .stroke(lines::Line{
+                             .width = 0.8f,
+                             .fill = Fill::color(hexColor(0x6C767C)),
+                             .tickSpacing = 6.0f,
+                             .tickLength = 9.0f}))
               .child(box()
                          .width(Dim(9))
                          .height(Dim(8))
                          .top(Dim(0))
                          .left(Dim(48))
                          .shape(shapes::polygon(3, 180))
-                         .fill(Material::solid(kStageTab))
+                         .fill(Paint::solid(kStageTab))
                          .translateX(bind(drive).target(-42, 42)))
               .child(box().left(Dim(4)).top(Dim(1)).child(
-                  t(label, bold(8, hex(0xC7D0D5))))),
+                  t(label, bold(8, hexColor(0xC7D0D5))))),
           x + 154, py, 106, 16);
     };
     g.child(tapeGauge("ROLL", 756, &rollTape));
@@ -1571,9 +1611,9 @@ struct KspMapView : sketch::Sketch {
         .height(Dim(17))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .fill(Material::linearUnit({0, 0}, {0, 1},
-                                   {{0.0f, hex(0xF2F2F2)}, {1.0f, kStageLcd}}))
-        .child(ksp::t(d, lcd(13, hex(0x16181A))));
+        .fill(Paint::linearUnit(
+            {0, 0}, {0, 1}, {{0.0f, hexColor(0xF2F2F2)}, {1.0f, kStageLcd}}))
+        .child(ksp::t(d, lcd(13, hexColor(0x16181A))));
   }
 
   /** The top-centre altimeter block, straight off the flight-view frame:
@@ -1585,43 +1625,46 @@ struct KspMapView : sketch::Sketch {
     using namespace ksp;
     const float X = 430, Y = 6, W = 356, H = 82;
     Element g = at(stack().corners({4}).clip(), X, Y, W, H);
-    g.fill(Material::blend(
-               {{Material::linearUnit({0, 0}, {0, 1},
-                                      {{0.0f, hex(0xA8AFB4)},
-                                       {0.45f, hex(0x848D93)},
-                                       {1.0f, hex(0x4E565C)}}),
-                 SkBlendMode::kSrcOver},
-                // worn-metal luminance: the ONE place grain belongs here
-                {patterns::grain(0.9f, 2, 9.0f, 0.3f, 1.0f),
-                 SkBlendMode::kSoftLight}}))
+    g.fill(
+         Paint::blend({{Paint::linearUnit({0, 0}, {0, 1},
+                                          {{0.0f, hexColor(0xA8AFB4)},
+                                           {0.45f, hexColor(0x848D93)},
+                                           {1.0f, hexColor(0x4E565C)}}),
+                        SkBlendMode::kSrcOver},
+                       // worn-metal luminance: the ONE place grain belongs here
+                       {Paint::recipe(field::grain(0.9f, 2, 9.0f, 0.3f, 1.0f)),
+                        SkBlendMode::kSoftLight}}))
         .stroke(PathFormat{.width = 1.2f,
-                           .strokeFill = Fill::color(hex(0x22282C)),
+                           .strokeFill = Fill::color(hexColor(0x22282C)),
                            .align = PathFormat::Align::Inner});
 
-    g.child(at(box()
-                   .fill(Material::solid(hex(0xE0B720)))
-                   .foreground(lines::hatch(Fill::color(hex(0x141414, 0.9f)),
-                                            8.0f, 4.0f, -45.0f)),
-               0, 0, 11, H));
+    g.child(
+        at(box()
+               .fill(Paint::solid(hexColor(0xE0B720)))
+               .foreground(lines::presets::hatch(
+                   Fill::color(hexColor(0x141414, 0.9f)), 8.0f, 4.0f, -45.0f)),
+           0, 0, 11, H));
 
     // odometer wheels
     auto wheel = [&](const char* d, float x, bool red) {
-      return at(box()
-                    .alignItems(Align::Center)
-                    .justify(Justify::Center)
-                    .fill(Material::linearUnit(
-                        {0, 0}, {0, 1},
-                        red ? std::vector<Stop>{{0.0f, hex(0xE05B4A)},
-                                                {0.5f, hex(0xC0392B)},
-                                                {1.0f, hex(0x8E2A20)}}
-                            : std::vector<Stop>{{0.0f, hex(0xFAFAFA)},
-                                                {0.42f, hex(0xFFFFFF)},
-                                                {1.0f, hex(0xBFBFBF)}}))
-                    .stroke(PathFormat{.width = 1.0f,
-                                       .strokeFill = Fill::color(hex(0x50585E)),
-                                       .align = PathFormat::Align::Inner})
-                    .child(t(d, lcd(20, red ? hex(0xFFFFFF) : hex(0x101214)))),
-                x, 8, 26, 34);
+      return at(
+          box()
+              .alignItems(Align::Center)
+              .justify(Justify::Center)
+              .fill(Paint::linearUnit(
+                  {0, 0}, {0, 1},
+                  red ? std::vector<Stop>{{0.0f, hexColor(0xE05B4A)},
+                                          {0.5f, hexColor(0xC0392B)},
+                                          {1.0f, hexColor(0x8E2A20)}}
+                      : std::vector<Stop>{{0.0f, hexColor(0xFAFAFA)},
+                                          {0.42f, hexColor(0xFFFFFF)},
+                                          {1.0f, hexColor(0xBFBFBF)}}))
+              .stroke(PathFormat{.width = 1.0f,
+                                 .strokeFill = Fill::color(hexColor(0x50585E)),
+                                 .align = PathFormat::Align::Inner})
+              .child(
+                  t(d, lcd(20, red ? hexColor(0xFFFFFF) : hexColor(0x101214)))),
+          x, 8, 26, 34);
     };
     static const char* kDigits[6] = {"0", "0", "2", "1", "1", "3"};
     for (int i = 0; i < 6; ++i)
@@ -1629,75 +1672,78 @@ struct KspMapView : sketch::Sketch {
     g.child(wheel("K", 18.0f + 6 * 28.0f, true));
 
     // ATMOSPHERE tape
-    g.child(at(stack()
-                   .fill(Material::linearUnit({0, 0}, {0, 1},
-                                              {{0.0f, hex(0x2E6E9E)},
-                                               {0.5f, hex(0x4E9CC8)},
-                                               {1.0f, hex(0x1E4E72)}}))
-                   .stroke(PathFormat{.width = 1.0f,
-                                      .strokeFill = Fill::color(hex(0x18333F)),
-                                      .align = PathFormat::Align::Inner})
-                   .clip()
-                   .child(box()
-                              .inset(0)
-                              .shape([](SkSize s) {
-                                SkPathBuilder b;
-                                b.moveTo(2, s.height() * 0.62f);
-                                b.lineTo(s.width() - 2, s.height() * 0.62f);
-                                return b.detach();
-                              })
-                              .stroke(lines::Line{
-                                  .width = 0.9f,
-                                  .fill = Fill::color(hex(0xE8F4FA, 0.85f)),
-                                  .tickSpacing = 5.0f,
-                                  .tickLength = 12.0f}))
-                   .child(box().left(Dim(6)).top(Dim(1)).child(
-                       t("ATMOSPHERE", bold(8, hex(0xEAF4FA), 1.4f))))
-                   .child(box()
-                              .width(Dim(9))
-                              .height(Dim(8))
-                              .left(Dim(30))
-                              .top(Dim(0))
-                              .shape(shapes::polygon(3, 180))
-                              .fill(Material::solid(hex(0xFFFFFF)))
-                              .translateX(bind(&yawTape).target(0, 190))),
-               18, 48, 238, 22));
+    g.child(
+        at(stack()
+               .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                       {{0.0f, hexColor(0x2E6E9E)},
+                                        {0.5f, hexColor(0x4E9CC8)},
+                                        {1.0f, hexColor(0x1E4E72)}}))
+               .stroke(PathFormat{.width = 1.0f,
+                                  .strokeFill = Fill::color(hexColor(0x18333F)),
+                                  .align = PathFormat::Align::Inner})
+               .clip()
+               .child(box()
+                          .inset(0)
+                          .shape(keyedShape(std::string_view("atmosphere-rail"),
+                                            [](SkSize s) {
+                                              SkPathBuilder b;
+                                              b.moveTo(2, s.height() * 0.62f);
+                                              b.lineTo(s.width() - 2,
+                                                       s.height() * 0.62f);
+                                              return b.detach();
+                                            }))
+                          .stroke(lines::Line{
+                              .width = 0.9f,
+                              .fill = Fill::color(hexColor(0xE8F4FA, 0.85f)),
+                              .tickSpacing = 5.0f,
+                              .tickLength = 12.0f}))
+               .child(box().left(Dim(6)).top(Dim(1)).child(
+                   t("ATMOSPHERE", bold(8, hexColor(0xEAF4FA), 1.4f))))
+               .child(box()
+                          .width(Dim(9))
+                          .height(Dim(8))
+                          .left(Dim(30))
+                          .top(Dim(0))
+                          .shape(shapes::polygon(3, 180))
+                          .fill(Paint::solid(hexColor(0xFFFFFF)))
+                          .translateX(bind(&yawTape).target(0, 190))),
+           18, 48, 238, 22));
 
     // vertical-speed dial
     const SkPoint dc{300, 42};
     Element dial = stack().inset(0);
-    dial.child(
-        at(box()
-               .shape(circleOutline())
-               .fill(Material::radialUnit({0.4f, 0.32f}, 1.0f,
-                                          {{0.0f, hex(0xF2F4F5)},
-                                           {0.7f, hex(0xD3D8DB)},
-                                           {1.0f, hex(0x9AA2A7)}}))
-               .stroke(PathFormat{.width = 1.4f,
-                                  .strokeFill = Fill::color(hex(0x33393E))}),
-           dc, 74, 74));
+    dial.child(at(
+        box()
+            .shape(shapes::circle())
+            .fill(Paint::radialUnit({0.4f, 0.32f}, 1.0f,
+                                    {{0.0f, hexColor(0xF2F4F5)},
+                                     {0.7f, hexColor(0xD3D8DB)},
+                                     {1.0f, hexColor(0x9AA2A7)}}))
+            .stroke(PathFormat{.width = 1.4f,
+                               .strokeFill = Fill::color(hexColor(0x33393E))}),
+        dc, 74, 74));
     for (int i = 0; i < 13; ++i)
       dial.child(
           at(box()
                  .shape(shapes::sector(-1.1f, 2.2f, i % 3 ? 0.82f : 0.72f))
-                 .fill(Material::solid(hex(0x3A4046)))
+                 .fill(Paint::solid(hexColor(0x3A4046)))
                  .rotate(-125.0f + (float)i * 20.8f),
              dc, 68, 68));
-    dial.child(at(t("VERT", bold(6.5f, hex(0x4A5157), 0.6f)),
+    dial.child(at(t("VERT", bold(6.5f, hexColor(0x4A5157), 0.6f)),
                   {dc.fX + 15, dc.fY - 6}, 26, 9));
-    dial.child(at(t("SPD", bold(6.5f, hex(0x4A5157), 0.6f)),
+    dial.child(at(t("SPD", bold(6.5f, hexColor(0x4A5157), 0.6f)),
                   {dc.fX + 15, dc.fY + 3}, 26, 9));
-    dial.child(
-        at(t("100", body(6, hex(0x5A6167))), {dc.fX - 5, dc.fY - 26}, 20, 8));
-    dial.child(
-        at(t("-100", body(6, hex(0x5A6167))), {dc.fX - 5, dc.fY + 26}, 22, 8));
+    dial.child(at(t("100", body(6, hexColor(0x5A6167))),
+                  {dc.fX - 5, dc.fY - 26}, 20, 8));
+    dial.child(at(t("-100", body(6, hexColor(0x5A6167))),
+                  {dc.fX - 5, dc.fY + 26}, 22, 8));
     dial.child(at(box()
                       .shape(shapes::sector(-2.2f, 4.4f, 0.0f))
-                      .fill(Material::solid(kGold))
+                      .fill(Paint::solid(kGold))
                       .rotate(bind(&gforce).target(-118, 118)),
                   dc, 62, 62));
     dial.child(
-        at(box().shape(circleOutline()).fill(Material::solid(hex(0x33393E))),
+        at(box().shape(shapes::circle()).fill(Paint::solid(hexColor(0x33393E))),
            dc, 7, 7));
     g.child(std::move(dial));
     return g;
@@ -1710,90 +1756,92 @@ struct KspMapView : sketch::Sketch {
     using namespace ksp;
     const float X = 986, Y = 594, W = 178, H = 186;
     Element g = at(stack().corners({3}).clip(), X, Y, W, H);
-    g.fill(Material::linearUnit({0, 0}, {0, 1},
-                                {{0.0f, hex(0x7F878C)}, {1.0f, hex(0x454D53)}}))
+    g.fill(Paint::linearUnit(
+               {0, 0}, {0, 1},
+               {{0.0f, hexColor(0x7F878C)}, {1.0f, hexColor(0x454D53)}}))
         .stroke(PathFormat{.width = 1.2f,
-                           .strokeFill = Fill::color(hex(0x22282C)),
+                           .strokeFill = Fill::color(hexColor(0x22282C)),
                            .align = PathFormat::Align::Inner});
-    g.child(at(box().fill(Material::radialUnit(
+    g.child(at(box().fill(Paint::radialUnit(
                    {0.5f, 0.35f}, 1.1f,
-                   {{0.0f, hex(0x3E4A52)}, {1.0f, hex(0x1A2126)}})),
+                   {{0.0f, hexColor(0x3E4A52)}, {1.0f, hexColor(0x1A2126)}})),
                5, 5, W - 10, H - 34));
     // helmet
     g.child(at(box()
-                   .shape(circleOutline())
-                   .fill(Material::radialUnit({0.36f, 0.28f}, 1.0f,
-                                              {{0.0f, hex(0xFFFFFF)},
-                                               {0.5f, hex(0xD3D8DB)},
-                                               {1.0f, hex(0x7C858B)}})),
+                   .shape(shapes::circle())
+                   .fill(Paint::radialUnit({0.36f, 0.28f}, 1.0f,
+                                           {{0.0f, hexColor(0xFFFFFF)},
+                                            {0.5f, hexColor(0xD3D8DB)},
+                                            {1.0f, hexColor(0x7C858B)}})),
                46, 34, 92, 92));
     // face under the glass: green, because that is the one thing about a
     // kerbal nobody gets wrong
     g.child(at(box()
-                   .shape(circleOutline())
-                   .fill(Material::radialUnit(
-                       {0.4f, 0.32f}, 1.0f,
-                       {{0.0f, hex(0x9FC45C)}, {1.0f, hex(0x5F8330)}})),
+                   .shape(shapes::circle())
+                   .fill(Paint::radialUnit({0.4f, 0.32f}, 1.0f,
+                                           {{0.0f, hexColor(0x9FC45C)},
+                                            {1.0f, hexColor(0x5F8330)}})),
                60, 48, 64, 64));
-    g.child(
-        at(box().shape(circleOutline()).fill(Material::solid(hex(0xF4F4F0))),
-           74, 62, 14, 17));
-    g.child(
-        at(box().shape(circleOutline()).fill(Material::solid(hex(0xF4F4F0))),
-           96, 62, 14, 17));
-    g.child(
-        at(box().shape(circleOutline()).fill(Material::solid(hex(0x141414))),
-           78, 68, 6, 7));
-    g.child(
-        at(box().shape(circleOutline()).fill(Material::solid(hex(0x141414))),
-           100, 68, 6, 7));
+    g.child(at(
+        box().shape(inscribedCircle()).fill(Paint::solid(hexColor(0xF4F4F0))),
+        74, 62, 14, 17));
+    g.child(at(
+        box().shape(inscribedCircle()).fill(Paint::solid(hexColor(0xF4F4F0))),
+        96, 62, 14, 17));
+    g.child(at(
+        box().shape(inscribedCircle()).fill(Paint::solid(hexColor(0x141414))),
+        78, 68, 6, 7));
+    g.child(at(
+        box().shape(inscribedCircle()).fill(Paint::solid(hexColor(0x141414))),
+        100, 68, 6, 7));
     g.child(at(box()
                    .shape(shapes::sector(20, 140, 0.0f))
-                   .fill(Material::solid(hex(0x2E3A18))),
+                   .fill(Paint::solid(hexColor(0x2E3A18))),
                80, 84, 24, 14));
     // the glass itself, over the face
-    g.child(
-        at(box()
-               .shape(shapes::sector(150, 240, 0.0f))
-               .fill(Material::linearUnit({0, 0}, {1, 1},
-                                          {{0.0f, hex(0xBFE0D8, 0.34f)},
-                                           {0.55f, hex(0x6E9A94, 0.10f)},
-                                           {1.0f, hex(0x2E4A46, 0.26f)}}))
-               .stroke(PathFormat{.width = 1.4f,
-                                  .strokeFill = Fill::color(hex(0xE8ECEA))}),
-           54, 42, 76, 76));
+    g.child(at(
+        box()
+            .shape(shapes::sector(150, 240, 0.0f))
+            .fill(Paint::linearUnit({0, 0}, {1, 1},
+                                    {{0.0f, hexColor(0xBFE0D8, 0.34f)},
+                                     {0.55f, hexColor(0x6E9A94, 0.10f)},
+                                     {1.0f, hexColor(0x2E4A46, 0.26f)}}))
+            .stroke(PathFormat{.width = 1.4f,
+                               .strokeFill = Fill::color(hexColor(0xE8ECEA))}),
+        54, 42, 76, 76));
     g.child(at(box()
                    .shape(shapes::blob(3u, 0.18f, 7))
-                   .fill(Material::linearUnit({0, 0}, {1, 1},
-                                              {{0.0f, hex(0xFFFFFF, 0.42f)},
-                                               {1.0f, hex(0xFFFFFF, 0.0f)}}))
+                   .fill(Paint::linearUnit({0, 0}, {1, 1},
+                                           {{0.0f, hexColor(0xFFFFFF, 0.42f)},
+                                            {1.0f, hexColor(0xFFFFFF, 0.0f)}}))
                    .blend(SkBlendMode::kPlus),
                58, 44, 40, 34));
     // suit shoulders
-    g.child(
-        at(box().corners({26}).fill(Material::linearUnit(
-               {0, 0}, {0, 1}, {{0.0f, hex(0xE7E8E4)}, {1.0f, hex(0x9AA0A2)}})),
-           40, 124, 104, 40));
-    g.child(at(
-        box()
-            .corners({2})
-            .alignItems(Align::Center)
-            .justify(Justify::Center)
-            .fill(Material::linearUnit(
-                {0, 0}, {0, 1}, {{0.0f, hex(0x9AA2A7)}, {1.0f, hex(0x666E74)}}))
-            .child(t("Bill Kerman", body(11, hex(0x14181A)))),
-        5, H - 26, W - 10, 21));
+    g.child(at(box().corners({26}).fill(Paint::linearUnit(
+                   {0, 0}, {0, 1},
+                   {{0.0f, hexColor(0xE7E8E4)}, {1.0f, hexColor(0x9AA0A2)}})),
+               40, 124, 104, 40));
+    g.child(at(box()
+                   .corners({2})
+                   .alignItems(Align::Center)
+                   .justify(Justify::Center)
+                   .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                           {{0.0f, hexColor(0x9AA2A7)},
+                                            {1.0f, hexColor(0x666E74)}}))
+                   .child(t("Bill Kerman", body(11, hexColor(0x14181A)))),
+               5, H - 26, W - 10, 21));
     return g;
   }
 
   Element cluster() {
     using namespace ksp;
     Element g = stack().inset(0);
-    g.child(at(box().fill(Material::linearUnit({0, 0}, {0, 1},
-                                               {{0.0f, hex(0x0A0C10, 0.30f)},
-                                                {0.35f, hex(0x0A0C10, 0.62f)},
-                                                {1.0f, hex(0x0A0C10, 0.74f)}})),
-               0, 512, 528, 288));
+    g.child(
+        at(box().fill(Paint::linearUnit({0, 0}, {0, 1},
+                                        {{0.0f, hexColor(0x0A0C10, 0.30f)},
+                                         {0.35f, hexColor(0x0A0C10, 0.62f)},
+                                         {1.0f, hexColor(0x0A0C10, 0.74f)}})),
+           0, 512, 528, 288));
     g.child(staging());
     g.child(navball());
     return g;
@@ -1807,18 +1855,19 @@ struct KspMapView : sketch::Sketch {
                float r) {
     using namespace ksp;
     Element g = stack();
-    g.child(at(box()
-                   .shape(circleOutline())
-                   .fill(Material::radialUnit({0.38f, 0.30f}, 1.0f,
-                                              {{0.0f, hex(0xB8C0C6)},
-                                               {0.55f, hex(0x66707A)},
-                                               {1.0f, hex(0x2C3238)}}))
-                   .stroke(PathFormat{.width = 1.0f,
-                                      .strokeFill = Fill::color(hex(0x161A1E))})
-                   .alignItems(Align::Center)
-                   .justify(Justify::Center)
-                   .child(t(glyph, body(r * 0.9f, hex(0x0F1316)))),
-               p, r * 2, r * 2));
+    g.child(at(
+        box()
+            .shape(shapes::circle())
+            .fill(Paint::radialUnit({0.38f, 0.30f}, 1.0f,
+                                    {{0.0f, hexColor(0xB8C0C6)},
+                                     {0.55f, hexColor(0x66707A)},
+                                     {1.0f, hexColor(0x2C3238)}}))
+            .stroke(PathFormat{.width = 1.0f,
+                               .strokeFill = Fill::color(hexColor(0x161A1E))})
+            .alignItems(Align::Center)
+            .justify(Justify::Center)
+            .child(t(glyph, body(r * 0.9f, hexColor(0x0F1316)))),
+        p, r * 2, r * 2));
     if (label[0])
       g.child(
           at(t(label, bold(9, ink, 0.5f)), {p.fX + r + 12, p.fY - 8}, 34, 12));
@@ -1844,7 +1893,7 @@ struct KspMapView : sketch::Sketch {
     g.child(
         at(box()
                .shape(shapes::polygon(3, 90))
-               .fill(Material::solid(hex(0xE8F2F4)))
+               .fill(Paint::solid(hexColor(0xE8F2F4)))
                .rotate(std::atan2(cur.prograde(-40).fY, cur.prograde(-40).fX) *
                        57.29578f),
            cur.at(-40), 13, 11));
@@ -1857,9 +1906,19 @@ struct KspMapView : sketch::Sketch {
 
     Element map = mapLayer(ctx);
 
-    // Restrained photographic bloom: bright-pass → small Gaussian → kPlus,
+    // Restrained photographic bloom: bright-pass -> small Gaussian -> kPlus,
     // over the map layer only (the LCD panels get their own local glow).
     // No scanlines, no backdrop distortion, no tiling.
+    //
+    // THE SECOND `mapLayer(ctx)` IS THE COST OF THE RECIPE, and it is not
+    // avoidable at this seam: a bright pass has to run over the finished
+    // layer and be composited BACK over it, which is two nodes, and a node
+    // is described by building it. `Effect::phosphorBloom` retains its own
+    // source and would need only one — measured on this canvas it is 379 ms
+    // a frame against 123, because it is twenty-four taps per pixel over
+    // the whole 1200x800 map where this is one pass and a 4 px Gaussian.
+    // The cheap composite wins here and the duplicate describe is what it
+    // costs.
     Element bloom =
         mapLayer(ctx)
             .effect(
@@ -1882,26 +1941,26 @@ struct KspMapView : sketch::Sketch {
         .child(crewPlate())
         .child(cluster())
         // corner vignette, last
-        .child(box().inset(0).fill(Material::radialUnit(
-            {0.5f, 0.5f}, 1.0f,
-            {{0.50f, hex(0x000000, 0.0f)}, {1.0f, hex(0x000000, 0.30f)}})));
+        .child(box().inset(0).fill(
+            Paint::radialUnit({0.5f, 0.5f}, 1.0f,
+                              {{0.50f, hexColor(0x000000, 0.0f)},
+                               {1.0f, hexColor(0x000000, 0.30f)}})));
   }
 
   // -------------------------------------------------------------------
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(6.0);
     using namespace ksp;
-    ctx.canvas(1200, 800);
-    ctx.background(kSpace);
+    sketch::kit::stage(
+        ctx, {.size = {1200, 800}, .captureAt = 6.0, .background = kSpace});
 
     // Starfield: one soft-dot cell, 360 hashed instances.
     starAtlas = std::make_shared<instancing::Atlas>(2.0f);
     const int dot = starAtlas->cell(
-        box().fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,
-                                        {{0.0f, hex(0xFFFFFF, 1.0f)},
-                                         {0.42f, hex(0xFFFFFF, 0.55f)},
-                                         {1.0f, hex(0xFFFFFF, 0.0f)}})),
+        box().fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
+                                     {{0.0f, hexColor(0xFFFFFF, 1.0f)},
+                                      {0.42f, hexColor(0xFFFFFF, 0.55f)},
+                                      {1.0f, hexColor(0xFFFFFF, 0.0f)}})),
         {7, 7});
     starPool = std::make_shared<instancing::Pool>();
     uint32_t s = 0x9E3779B9u;
@@ -1913,12 +1972,12 @@ struct KspMapView : sketch::Sketch {
       const float px = rnd() * 1200.0f, py = rnd() * 800.0f;
       const float sc = 0.18f + rnd() * rnd() * 0.75f;
       const float a = 0.25f + rnd() * 0.7f;
-      SkColor4f tint = hex(0xFFFFFF, a);
+      SkColor4f tint = hexColor(0xFFFFFF, a);
       const float hue = rnd();
       if (hue > 0.90f)
-        tint = hex(0xBFD4FF, a);
+        tint = hexColor(0xBFD4FF, a);
       else if (hue < 0.08f)
-        tint = hex(0xFFD8B8, a);
+        tint = hexColor(0xFFD8B8, a);
       starPool->add({px, py}, dot, 0.0f, sc, tint);
     }
 
@@ -1929,8 +1988,8 @@ struct KspMapView : sketch::Sketch {
     burnTick = 0;
     nextBurnAt = 0;
 
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       const float ft = (float)t;
       dashFast = -ft * 22.0f;
       dashSlow = -ft * 14.0f;

@@ -91,7 +91,13 @@ class Contour {
  *  built by walking in `step`-length strides: outer corners take a round
  *  join, inner corners a miter (or a bevel where a miter would run
  *  away), and samples a miter swallows are dropped. Positive `across`
- *  is to the left of the direction of travel in Skia's y-down space. */
+ *  is to the left of the direction of travel in Skia's y-down space.
+ *
+ *  This is the RAIL — one curve, not a region — and it is the walk
+ *  `ops::offset` performs at either end of its position dial, where the
+ *  offset takes one side only. A caller that wants the band, the grown
+ *  silhouette or a join it can name asks the operator; a caller that
+ *  wants the curve beside this curve asks here. */
 SkPath parallel(const SkPath& path, float across, float step = 4.0f);
 
 /** Every contour displaced sideways by a wave: sinusoidal, or a

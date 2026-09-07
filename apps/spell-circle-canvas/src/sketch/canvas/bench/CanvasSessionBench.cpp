@@ -46,22 +46,20 @@ struct Grid : Sketch {
   }
 };
 
-void Frame(benchmark::State& state) {
+void CanvasFrame(benchmark::State& state) {
   std::unique_ptr<Session> session = kindOf<Grid>()->open(fonts(), assets());
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(640, 480));
   for (int i = 0; i < 8; ++i) session->frame(*surface->getCanvas(), 1.0 / 60.0);
   for (auto&& _ : state) session->frame(*surface->getCanvas(), 1.0 / 60.0);
 }
-BENCHMARK(Frame)->Unit(benchmark::kMicrosecond);
+BENCHMARK(CanvasFrame)->Unit(benchmark::kMicrosecond);
 
-void Open(benchmark::State& state) {
+void CanvasOpen(benchmark::State& state) {
   const Kind kind = kindOf<Grid>();
   for (auto&& _ : state)
     benchmark::DoNotOptimize(kind->open(fonts(), assets()));
 }
-BENCHMARK(Open)->Unit(benchmark::kMicrosecond);
+BENCHMARK(CanvasOpen)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

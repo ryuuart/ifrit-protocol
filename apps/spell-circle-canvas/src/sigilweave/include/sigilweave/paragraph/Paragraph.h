@@ -22,8 +22,10 @@
 #include <string_view>
 #include <vector>
 
+#include "sigilweave/paragraph/Hyphenation.h"
 #include "sigilweave/paragraph/Word.h"
 #include "sigilweave/style/Style.h"
+#include "sigilweave/unicode/Unicode.h"
 
 namespace sigil::weave {
 
@@ -103,6 +105,77 @@ class Paragraph {
   /** Returns whether a soft hyphen opens a break opportunity. */
   [[nodiscard]] bool softHyphenBreaks() const noexcept {
     return m_softHyphenBreaks;
+  }
+
+  /** Sets what is asked where INSIDE a word may break — see
+   * paragraph/Hyphenation.h.
+   *
+   * Null (the default) leaves the soft hyphens the author typed as the only
+   * discretionary opportunities. A hyphenator is consulted once per word
+   * during analysis, in the shaping style's own language tag, and the
+   * offsets it names become break opportunities carrying a hyphen glyph
+   * exactly as a typed soft hyphen does. Break opportunities are decided
+   * during analysis, so this belongs to the paragraph: changing it re-runs
+   * the segmentation. It has no effect while soft-hyphen breaks are off,
+   * because that setting is the switch for the whole discretionary idea.
+   *
+   * `layoutParagraph` sets this from `HyphenationOptions::patterns` before
+   * it analyzes, so callers who go through it never call this directly. The
+   * pointer is borrowed: it must outlive every layout of this paragraph.
+   */
+  void setHyphenator(const Hyphenator* hyphenator, HyphenationLimits limits);
+  /** Sets which characters may not stand at a line's edge — see
+   * KinsokuTable in paragraph/Hyphenation.h.
+   *
+   * A prohibition is a break opportunity that is never opened, so it is
+   * decided during segmentation like every other break opportunity, and
+   * neither breaker learns a rule. `layoutParagraph` sets this from
+   * `ParagraphLayoutOptions::kinsoku` before it analyzes.
+   */
+  void setKinsoku(KinsokuTable table);
+  /** THIS PARAGRAPH, TOLD APART FROM EVERY OTHER — a number issued once
+   * when it is built and never issued again, so a cache keyed on it cannot
+   * be answered for a different paragraph that happens to stand where a
+   * freed one stood.
+   */
+  [[nodiscard]] uint64_t identity() const { return m_identity; }
+
+  /** A NUMBER THAT CHANGES WHENEVER THE WORD LIST CAN HAVE CHANGED — an
+   * edit, a restyle, a change of break settings. Anything that keeps an
+   * answer computed from this paragraph's WORDS keys on it, and a change
+   * of content is then a miss rather than a stale answer. It is not the
+   * text revision above, which counts edits alone and stands still while a
+   * style or a break setting moves every word in the paragraph.
+   *
+   * Shaping more of the text does NOT change it: a word's advance is
+   * settled when the word is shaped and never moves after, so an answer
+   * computed over the words a pass had shaped stays the answer.
+   */
+  [[nodiscard]] uint64_t wordRevision() const { return m_wordRevision; }
+
+  /** Sets the TAILORING the line segmentation runs under: a BCP 47 tag,
+   * optionally carrying ICU's line-break keyword — "ja@lb=strict" is the
+   * strict Japanese rule set a printed page is set under, "zh@lb=loose"
+   * the loose Chinese one — and empty is the untailored behaviour a text
+   * that says nothing gets.
+   *
+   * It is where a script's own prohibitions come from before any table
+   * does: a tailoring the segmentation applies is a boundary that never
+   * opens, so nothing downstream learns a rule. A KinsokuTable stays the
+   * seam for a HOUSE's additions on top of it.
+   */
+  void setLineBreakLocale(std::string locale);
+  /** The tailoring the line segmentation runs under. */
+  [[nodiscard]] const std::string& lineBreakLocale() const {
+    return m_lineBreakLocale;
+  }
+  /** Returns the prohibitions this paragraph was segmented under. */
+  [[nodiscard]] const KinsokuTable& kinsoku() const noexcept {
+    return m_kinsoku;
+  }
+  /** Returns what is asked where inside a word may break, or null. */
+  [[nodiscard]] const Hyphenator* hyphenator() const noexcept {
+    return m_hyphenator;
   }
 
   // ── Inline placeholders (pills, icons, images in the flow) ────────────
@@ -187,8 +260,16 @@ class Paragraph {
   void ensureAnalyzed(FontContext& fontContext);
   /** Lazily shapes words in `[0, wordCount)`, ascending and idempotent — the
    * breakers call this just ahead of their frontier.
+   *
+   * A frontier that has already passed `wordCount` answers here, without a
+   * call: both breakers ask this once per word they consider, and on all
+   * but the few words that actually advance the frontier the answer is
+   * that there is nothing to do.
    */
-  void ensureShapedTo(FontContext& fontContext, uint32_t wordCount);
+  void ensureShapedTo(FontContext& fontContext, uint32_t wordCount) {
+    if (!m_dirty && !m_paintDirty && wordCount <= m_shapedWordCount) return;
+    shapeWordsTo(fontContext, wordCount);
+  }
   /** Returns the number of words whose glyph data is currently available. */
   uint32_t shapedWordCount() const { return m_shapedWordCount; }
   /** Returns whether analysis or paint reconciliation is pending. */
@@ -208,14 +289,24 @@ class Paragraph {
    */
   [[nodiscard]] std::span<const uint32_t> sentenceStarts() const;
 
-  /// Line-height inputs from the first span's font (the "strut"): returns
-  /// {ascent (positive), height} for a default single-spaced line.
+  /// Line-height inputs from a span's font (the "strut"): the ascent and
+  /// height of a default single-spaced line, plus the two heights a frame
+  /// may seat its first baseline on.
   struct Strut {
     float ascent = 0;  ///< baseline distance below the line top, px (positive)
     float height = 0;  ///< default single-spaced line height, px
+    float capHeight = 0;  ///< distance from baseline to cap top, px
+    float xHeight = 0;    ///< distance from baseline to x-height, px
   };
   /** Returns positive ascent and default line height from the first span. */
   [[nodiscard]] Strut strut(FontContext& fontContext) const;
+  /** Returns the same, measured from the first span the UTF-16 offset
+   * `textOffset` falls in — A BLOCK'S OWN STRUT, which is what its pitch is
+   * measured from. A text of one style answers identically wherever it is
+   * asked, which is why a layout that says nothing about blocks lays out
+   * exactly as it always did. */
+  [[nodiscard]] Strut strutAt(FontContext& fontContext,
+                              uint32_t textOffset) const;
 
   /** Returns cache-hot unwrapped width without final trailing whitespace.
    *
@@ -225,7 +316,14 @@ class Paragraph {
   [[nodiscard]] float naturalWidth(FontContext& fontContext);
 
  private:
-  void markDirty() { m_dirty = true; }
+  // Analyses if it must and shapes forward to `wordCount`; the frontier
+  // test that spares the call lives in ensureShapedTo().
+  void shapeWordsTo(FontContext& fontContext, uint32_t wordCount);
+
+  void markDirty() {
+    m_dirty = true;
+    ++m_wordRevision;
+  }
   // Paint edits only move span boundaries: analysis (words, scripts, bidi)
   // stands and the shaped prefix just needs its segments re-derived.
   void markPaintDirty() {
@@ -235,6 +333,10 @@ class Paragraph {
                   uint32_t insertedLength);
   void normalizeSpans();
   void analyze(FontContext& fontContext);
+  // Splits every word of `boundaries` at the offsets the hyphenator names,
+  // under m_hyphenationLimits, marking the added boundaries in `isHyphen`.
+  void openPatternBreaks(std::vector<unicode::LineBreak>& boundaries,
+                         std::vector<uint8_t>& isHyphen) const;
   void reshapeShapedPrefix(FontContext& fontContext);
   void shapeWordContent(FontContext& fontContext, Word& word);
 
@@ -245,7 +347,19 @@ class Paragraph {
   WritingMode m_writingMode = WritingMode::kHorizontal;
   // Whether analyze() keeps the UAX#14 boundary a soft hyphen opens.
   bool m_softHyphenBreaks = true;
+  // The tailoring the line segmentation runs under; empty is untailored.
+  std::string m_lineBreakLocale;
+  // Where inside a word analyze() opens further break opportunities;
+  // borrowed, and null for the typed soft hyphens alone.
+  const Hyphenator* m_hyphenator = nullptr;
+  HyphenationLimits m_hyphenationLimits;
+  KinsokuTable m_kinsoku;
   bool m_dirty = true;
+  // Changes with everything that can move a word; see wordRevision().
+  uint64_t m_wordRevision = 1;
+  // Issued once per paragraph and never reissued; see identity().
+  uint64_t m_identity = nextIdentity();
+  static uint64_t nextIdentity();
   bool m_paintDirty = false;
 
   // Itemization results analyze() leaves behind for lazy shaping

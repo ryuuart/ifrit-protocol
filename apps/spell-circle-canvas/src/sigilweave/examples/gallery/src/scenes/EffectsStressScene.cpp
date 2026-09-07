@@ -1,7 +1,10 @@
 // Scene: a fully placed 2,000-word paragraph with four animated paint passes.
 #include <include/core/SkBlendMode.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmaterial/kit/TextPaint.h>
+#include <sigilmeasure/time/Stopwatch.h>
+#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
-#include <sigilweave/shaders/PaintShaders.h>
 
 #include <algorithm>
 #include <array>
@@ -76,9 +79,9 @@ class StressPart final : public Scene {
       options.lineBreakStrategy = LineBreakStrategy::kGreedy;
       options.lineMetrics.height = stressFontSize * 1.22f;
       BlockFlow flow(textBounds);
-      const kit::Stopwatch layoutTime;
+      const sigil::measure::Stopwatch layoutTime;
       m_layout = layoutParagraph(fontContext, m_paragraph, flow, options);
-      layoutMicroseconds = layoutTime.microseconds();
+      layoutMicroseconds = layoutTime.elapsedUs();
       m_glyphCount = 0;
       for (const PositionedRun& run : m_layout.runs)
         if (run.shaped)
@@ -108,14 +111,14 @@ class StressPart final : public Scene {
             // opens up once the text is large enough to take it.
             const float cappedSpread =
                 std::min(m_glowSpread, stressFontSize * 0.06f);
-            m_effect.addUnderlay(PaintLayer::glow(
+            m_effect.addUnderlay(sigil::weave::kit::glow(
                 0x882A77FF, std::max(1.2f, stressFontSize * 0.28f),
                 cappedSpread, m_glowIntensity));
           }
           if (m_effectOutline)
-            m_effect.addUnderlay(
-                PaintLayer::outline(SkColors::kBlue.toSkColor(),
-                                    std::max(0.55f, stressFontSize * 0.03f)));
+            m_effect.addUnderlay(sigil::weave::kit::outline(
+                SkColors::kBlue.toSkColor(),
+                std::max(0.55f, stressFontSize * 0.03f)));
           if (m_effectStars) {
             SkPaint stars;
             stars.setAntiAlias(true);
@@ -127,12 +130,12 @@ class StressPart final : public Scene {
     const float time = static_cast<float>(elapsedSeconds);
     if (effectShader)
       m_effect.foreground.setShader(
-          PaintShaders::meshGradient(textBounds, time));
+          shade(sigil::material::kit::meshGradient(textBounds, time)));
     else
       m_effect.foreground.setShader(nullptr);
     if (m_effectStars && !m_effect.overlays.empty())
       m_effect.overlays[0].paint.setShader(
-          PaintShaders::sparkle(textBounds, time));
+          shade(sigil::material::kit::sparkle(textBounds, time)));
     m_paragraph.setPaint(0, m_textLength, m_effect);
 
     canvas->clear(0xFF050A18);
@@ -163,8 +166,9 @@ class StressPart final : public Scene {
   Paragraph m_paragraph;
   ParagraphLayout m_layout;
   PaintStyle m_effect;
-  kit::RebuildGuard<SkISize, const SkTypeface*, float> m_layoutBuild;
-  kit::RebuildGuard<bool, bool, bool, float, float, float> m_effectBuild;
+  sigil::core::RebuildGuard<SkISize, const SkTypeface*, float> m_layoutBuild;
+  sigil::core::RebuildGuard<bool, bool, bool, float, float, float>
+      m_effectBuild;
   sk_sp<SkTypeface> m_serif;
   uint32_t m_textLength = 0;
   int m_glyphCount = 0;

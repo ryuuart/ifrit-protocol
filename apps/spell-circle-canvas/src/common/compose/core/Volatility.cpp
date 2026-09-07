@@ -4,40 +4,14 @@
  * re-declares a node the moment an external output moves it.
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkContourMeasure.h>
-#include <include/core/SkFontMetrics.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathEffect.h>
-#include <include/core/SkPicture.h>
-#include <include/core/SkPictureRecorder.h>
-#include <include/core/SkRRect.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkStrokeRec.h>
-#include <include/core/SkSurface.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <include/effects/SkTrimPathEffect.h>
+#include <include/core/SkTypes.h>  // SkDebugf
 #include <sigilimage/asset/ImageAsset.h>
-#include <sigilweave/choreograph/Choreograph.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
 
-#include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <map>
-#include <ranges>
-#include <set>
-#include <tuple>
-#include <unordered_set>
 #include <utility>
 
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
-#include "sigilgeometry/path/Contour.h"
-#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
 
@@ -68,10 +42,10 @@ using namespace detail;
  *  what it decides whether to skip. */
 void collectGroupScalars(const Instance& inst, bool root,
                          std::vector<float>& out) {
-  const ElementNode& node = *inst.desc;
-  const auto push = [&](Instance::Slot slot, const Animatable<float>& v) {
-    if (v.binding() ||
-        (inst.anims[slot] && inst.anims[slot]->value.isConnected()))
+  const ElementNode& node = *inst.description;
+  const auto push = [&](Instance::Slot slot,
+                        const motion::Animatable<float>& v) {
+    if (motion::isLive(inst.anims[slot].get(), v))
       out.push_back(inst.resolveFloat(slot, v));
   };
   // Every slot the table can reach, in enum order (kSlotSpecs,
@@ -86,8 +60,13 @@ void collectGroupScalars(const Instance& inst, bool root,
   // verdict; what would break the memo is an order that varies between
   // frames for the same tree.
   for (const SlotSpec& spec : kSlotSpecs) {
-    if (root && spec.role != SlotRole::Content) continue;
-    if (const Animatable<float>* v = slotValueOf(spec, node))
+    // The root's own transform and opacity are outside its bake; its
+    // content scalars and the VIEW it declares for its children (a
+    // Projection lane) are inside it, since the children are.
+    if (root &&
+        (spec.role == SlotRole::Opacity || spec.role == SlotRole::Geometric))
+      continue;
+    if (const motion::Animatable<float>* v = slotValueOf(spec, node))
       push(spec.slot, *v);
   }
   // Mask gates: the same argument, over the per-mask vector. Only LIVE
@@ -96,11 +75,10 @@ void collectGroupScalars(const Instance& inst, bool root,
   if (node.hasMasks()) {
     size_t slot = 0;
     for (const Mask& m : node.fxData->masks) {
-      const auto pushGate = [&](const Animatable<float>& v) {
+      const auto pushGate = [&](const motion::Animatable<float>& v) {
         const AnimatedFloat* a =
             slot < inst.maskAnims.size() ? inst.maskAnims[slot].get() : nullptr;
-        if (v.binding() || (a && a->value.isConnected()))
-          out.push_back(inst.resolveFloatAt(a, v));
+        if (motion::isLive(a, v)) out.push_back(inst.resolveFloatAt(a, v));
         ++slot;
       };
       if (m.with.kind == Gate::Kind::Spans)
@@ -118,11 +96,10 @@ void collectGroupScalars(const Instance& inst, bool root,
   // carries a track's motion connecting or disconnecting.
   if (node.textData)
     for (size_t i = 0; i < node.textData->tracks.size(); ++i) {
-      const Animatable<float>& v = node.textData->tracks[i].progress;
+      const motion::Animatable<float>& v = node.textData->tracks[i].progress;
       const AnimatedFloat* a =
           i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
-      if (v.binding() || (a && a->value.isConnected()))
-        out.push_back(inst.resolveFloatAt(a, v));
+      if (motion::isLive(a, v)) out.push_back(inst.resolveFloatAt(a, v));
     }
   // The kFillLerp row (SlotRole::Bespoke): a synthesized progress with no
   // Animatable in the description, so it is read straight off the motion.
@@ -142,21 +119,44 @@ void collectGroupScalars(const Instance& inst, bool root,
  *  replays. Cheap by construction: released nodes are few and each check is
  *  a handful of float resolves. */
 // The node→root matrix, recomputed outside paint. The op sequence per level
-// — preTranslate(rect), preConcat(matrix()) — is EXACTLY the pair paint()
-// applies to curToRoot as it recurses, on the same resolved floats, so the
-// result is bit-identical to the paint-side accumulation. The settle
-// compare depends on that: an ulp of drift reads as motion, and the node
-// never releases.
+// — preTranslate(rect), preConcat(matrix()) for a flat node; preConcat of
+// the flattened 4x4 for a plane that has turned; the space's own plane
+// then preConcat for a node standing in a shared space — is EXACTLY the
+// sequence paint() applies to curToRoot as it recurses, on the same
+// resolved floats, so the result is bit-identical to the paint-side
+// accumulation. The settle compare depends on that: an ulp of drift reads
+// as motion, and the node never releases.
 SkMatrix Composer::Impl::worldMatrixOf(Instance& inst) {
   std::vector<Instance*> chain;
   for (Instance* i = &inst; i; i = i->parent) chain.push_back(i);
   SkMatrix m = SkMatrix::I();
+  std::optional<Space> space;  // the space the current link stands in
   for (Instance* link : std::views::reverse(chain)) {
     Instance& node = *link;
     const SkRect rect = instanceRect(node);
-    m.preTranslate(rect.left(), rect.top());
-    m.preConcat(transformOf(node).matrix({0, 0}, node.desc->paint, rect.width(),
-                                         rect.height()));
+    const NodeTransform tf = transformOf(node);
+    const SkMatrix plane = m;  // the parent's plane, before this link
+    const bool hosts = hostsSpace(node);
+    std::optional<SkM44> depth;
+    if (space || hosts || tf.spatial()) {
+      SkM44 d = depthMatrixOf(node, tf, rect);
+      if (space) d = SkM44(space->accum, d);
+      depth = d;
+    }
+    if (space) {
+      m = space->rootToPlane;
+      m.preConcat(depth->asM33());
+    } else if (depth) {
+      m.preConcat(depth->asM33());
+    } else {
+      m.preTranslate(rect.left(), rect.top());
+      m.preConcat(tf.matrix({0, 0}, node.description->paint, rect.width(),
+                            rect.height()));
+    }
+    if (hosts)
+      space = Space{*depth, space ? space->rootToPlane : plane};
+    else
+      space.reset();
   }
   return m;
 }
@@ -205,12 +205,13 @@ void Composer::Impl::scanReleasedScalars() {
 }
 
 core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
-                                                     bool movingAbove) {
-  const ElementNode& node = *inst.desc;
+                                                     Above above) {
+  const ElementNode& node = *inst.description;
+  const bool movingAbove = above.moving;
 
-  auto boundOrRunning = [&](Instance::Slot slot, const Animatable<float>& v) {
-    if (v.binding()) return true;
-    return inst.anims[slot] && inst.anims[slot]->value.isConnected();
+  auto boundOrRunning = [&](Instance::Slot slot,
+                            const motion::Animatable<float>& v) {
+    return motion::isLive(inst.anims[slot].get(), v);
   };
   // Span passes: an animated reveal rebuilds the pass's geometry, and an
   // animated brush repaints it. Both are CONTENT volatility, and both are
@@ -224,11 +225,12 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     for (const StrokePass& pass : node.strokeData->passes) {
       live |= pass.what.isAnimated();
       for (const Spans::Term& term : pass.where.terms)
-        for (const Animatable<float>* v :
+        for (const motion::Animatable<float>* v :
              {&term.begin, &term.end, &term.offset}) {
-          if (v->binding() ||
-              (slot < inst.spanAnims.size() && inst.spanAnims[slot] &&
-               inst.spanAnims[slot]->value.isConnected()))
+          if (motion::isLive(slot < inst.spanAnims.size()
+                                 ? inst.spanAnims[slot].get()
+                                 : nullptr,
+                             *v))
             live = true;
           ++slot;
         }
@@ -243,10 +245,10 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   bool maskScalarLive = false, maskOpaque = false;
   if (node.hasMasks()) {
     size_t slot = 0;
-    const auto live = [&](const Animatable<float>& v) {
+    const auto live = [&](const motion::Animatable<float>& v) {
       const AnimatedFloat* a =
           slot < inst.maskAnims.size() ? inst.maskAnims[slot].get() : nullptr;
-      if (v.binding() || (a && a->value.isConnected())) maskScalarLive = true;
+      if (motion::isLive(a, v)) maskScalarLive = true;
       ++slot;
     };
     for (const Mask& m : node.fxData->masks) {
@@ -289,8 +291,9 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   bool ownPaint = false;
   bool moving = false;
   bool scalarContent = false;
+  bool projecting = false;
   for (const SlotSpec& spec : kSlotSpecs) {
-    const Animatable<float>* v = slotValueOf(spec, node);
+    const motion::Animatable<float>* v = slotValueOf(spec, node);
     if (!v) continue;  // this node does not carry the block that holds the slot
     switch (spec.role) {
       case SlotRole::Opacity:
@@ -302,10 +305,25 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
       case SlotRole::Content:
         scalarContent |= boundOrRunning(spec.slot, *v);
         break;
+      case SlotRole::Projection:
+        // Lands on the CHILDREN: threaded down as `perspectiveLive`, where
+        // every child that projects reads it as its own motion. The node
+        // itself moves nothing of its own.
+        projecting |= boundOrRunning(spec.slot, *v);
+        break;
       case SlotRole::Bespoke:
         break;  // unreachable: slotValueOf answers nullptr for a Bespoke row
     }
   }
+  // A PLANE WHOSE PROJECTION MOVES is moving. A node standing in a shared
+  // space whose host turns, or a plane that has turned under a parent whose
+  // view is live, lands somewhere else next frame with no lane of its own
+  // connected — the same fact its own lane would declare, so it is
+  // declared the same way. A flat node under a live view is untouched by
+  // it (a point at z = 0 divides by 1) and stays still.
+  if ((above.spaceMoving || above.perspectiveLive) &&
+      (above.inSpace || (node.depthData && transformOf(inst).spatial())))
+    moving = true;
   inst.transformLive = moving;
   inst.placementUnderMotion = moving || movingAbove;
   ownPaint |= moving;
@@ -329,7 +347,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const bool fillLerp = inst.anims[Instance::kFillLerp] &&
                         inst.anims[Instance::kFillLerp]->value.isConnected();
   const bool boundFill = node.paint.fill && node.paint.fill->binding();
-  const Material* nodeLiveMat = liveMaterialOf(node);
+  const material::skia::Paint* nodeLiveMat = liveMaterialOf(node);
   // A fill material whose ONLY animation is its own bound tile pan is NOT
   // the live-material lane — it is two floats, resolvable outside paint by
   // a pointer dereference, so it rides the memoized scalar lane exactly as
@@ -339,12 +357,12 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // Conservative, and the split is a partition: patternPan and liveMat can
   // never both be true.
   const bool liveMatAnimated = nodeLiveMat && nodeLiveMat->isAnimated();
-  const bool patternPan = liveMatAnimated && nodeLiveMat->hasBoundOffset() &&
+  const bool patternPan = liveMatAnimated && nodeLiveMat->boundOffsetLive() &&
                           !nodeLiveMat->animatedBeyondBoundOffset();
   // truly live (bound/uTime) — geometry-dependent materials resolve at
   // record time and stay cacheable
   const bool liveMat = liveMatAnimated && !patternPan;
-  const Material* mfLive = metricFillOf(node);
+  const material::skia::Paint* mfLive = metricFillOf(node);
   const bool metricLive = mfLive && mfLive->isAnimated();  // chrome type
   const bool cacheNone = node.cacheMode == Cache::None;
   const bool decorLive = [&] {
@@ -355,14 +373,38 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
       for (const Decoration& d : node.fxData->overlays) live |= d.isAnimated();
     return live;
   }();
+  // …and the other declaration a decoration makes about the canvas: a mark
+  // painted through a blend mode of its own resolves against what is under
+  // the node, and a bake would offer it transparent black instead.
+  const bool decorBlends = [&] {
+    bool blends = false;
+    for (const Decoration& d : node.backgrounds) blends |= d.blends();
+    for (const Decoration& d : node.foregrounds) blends |= d.blends();
+    if (node.fxData)
+      for (const Decoration& d : node.fxData->overlays) blends |= d.blends();
+    // A BRUSH IS A DECORATION AND A STROKE PASS IS WHERE ONE STANDS: the
+    // same additive filament, multiply wash or soft-light halo, painted
+    // along a span of the outline instead of over the whole box. Every
+    // carrier of a Decoration is asked, or a mark declines the bake on one
+    // slot and takes it on another.
+    if (node.hasStrokePasses())
+      for (const StrokePass& pass : node.strokeData->passes)
+        blends |= pass.what.blends();
+    return blends;
+  }();
   const bool imageLive = node.kind == Kind::Image && imageAssetOf(node) &&
                          imageAssetOf(node)->animated();
   // A LIVE effect: the filter is captured by the recording, so bound
   // uniforms on it are content volatility, exactly as they are on a fill
-  // material.
-  const bool liveEffect =
-      (layerEffectOf(node) && layerEffectOf(node)->isAnimated()) ||
-      (backdropEffectOf(node) && backdropEffectOf(node)->isAnimated());
+  // material. Split by WHICH effect, because the two answer differently to
+  // the deferred-effect tier below: a layer effect is applied over what the
+  // node drew and may therefore be lifted off a bake of it, while a
+  // backdrop effect reads what is already on the canvas and can be applied
+  // nowhere else than live.
+  const material::skia::Effect* layerFx = layerEffectOf(node);
+  const material::skia::Effect* backdropFx = backdropEffectOf(node);
+  const bool liveLayerEffect = layerFx && layerFx->isAnimated();
+  const bool liveBackdropEffect = backdropFx && backdropFx->isAnimated();
   // A LIVE pass material on an fx() track — uTime, a bound uniform, a
   // bound block — repaints the pass's output every frame with no float the
   // scalar lane could compare, so it is opaque volatility, exactly as a
@@ -372,7 +414,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const bool passLive = [&] {
     for (const Track& t : tracksOf(node))
       if (t.effect)
-        if (const Material* pm = t.effect.passMaterial())
+        if (const material::skia::Paint* pm = t.effect.passMaterial())
           if (pm->isAnimated()) return true;
     return false;
   }();
@@ -390,10 +432,10 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   if (node.textData)
     for (size_t i = 0; i < node.textData->tracks.size(); ++i) {
       const Track& track = node.textData->tracks[i];
-      const Animatable<float>& v = track.progress;
+      const motion::Animatable<float>& v = track.progress;
       const AnimatedFloat* a =
           i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
-      if (!(v.binding() || (a && a->value.isConnected()))) continue;
+      if (!motion::isLive(a, v)) continue;
       scalarContent = true;
       // …and the THIRD way a run's placement creeps: a live track whose
       // effect moves glyphs off their pen positions carries every addressed
@@ -482,9 +524,28 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // memo, named once, while `boundFill` and `liveMat` are handled per
   // consumer below (the fill rides the memoized scalar lane, the live
   // material has its own memo). No consumer re-enumerates.
-  const bool sharedOpaque = metricLive || cacheNone || decorLive || imageLive ||
-                            spanVolatile || maskOpaque || liveEffect ||
-                            passLive;
+  //
+  // A LIVE PASSAGE STILL BEING COMPOSED joins them, and it is the one term
+  // here that is read off a REPORT rather than off a declaration. It has to
+  // be: whether the composer had to decide a break this frame is not
+  // knowable before it runs, and the whole point of telling a layout its
+  // input is moving is that the answer comes from the store on the frames
+  // it can. A passage answered entirely from that store is set exactly as
+  // the frame before it, so it is not here; one that still decided, or one
+  // the budget degraded, can be set differently next frame with no float on
+  // this node moving, which is precisely what no memo can see. Over-
+  // reporting costs a re-record and nothing else.
+  //
+  // Named in two halves: everything opaque to every memo EXCEPT a live
+  // layer effect, and then that. The split is the deferred-effect tier's
+  // whole predicate — "the layer effect is the only thing moving" is
+  // exactly `liveLayerEffect && !sharedOpaqueBesideLayerEffect && …` — and
+  // deriving it by subtraction is what keeps it from falling behind the
+  // list, the same argument the memo carve-outs below are built on.
+  const bool sharedOpaqueBesideLayerEffect =
+      metricLive || cacheNone || decorLive || imageLive || spanVolatile ||
+      maskOpaque || liveBackdropEffect || passLive || inst.textComposing;
+  const bool sharedOpaque = sharedOpaqueBesideLayerEffect || liveLayerEffect;
   // A bound fill still refuses Cache::Group, even though it rides the
   // node-level scalar lane. The group memo's currency is one flat float
   // vector gathered across the subtree (collectGroupScalars), and a Fill's
@@ -511,9 +572,15 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const bool ownContent = otherThanScalar || scalarContent;
 
   core::ChildVolatility kids;
-  for (auto& child : inst.children)
-    // A connected transform HERE moves every descendant's world matrix.
-    kids.add(computeVolatile(*child, movingAbove || moving));
+  // A connected transform HERE moves every descendant's world matrix; a
+  // host's motion moves the space its children stand in; and the view this
+  // node declares is the children's projection.
+  const bool hosts = hostsSpace(inst);
+  const Above below{.moving = movingAbove || moving,
+                    .spaceMoving = hosts && (moving || above.spaceMoving),
+                    .perspectiveLive = projecting,
+                    .inSpace = hosts};
+  for (auto& child : inst.children) kids.add(computeVolatile(*child, below));
   const bool childrenVolatile = kids.anyVolatile;
   // Does anything here composite against what is ALREADY on the canvas? If
   // so the subtree can never be baked into a transparent layer and blitted
@@ -526,8 +593,22 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // OWN layer and draws children over the blit, so it must ask only about
   // the node's own paint — the children composite against the blit exactly
   // as they would against freshly rasterized pixels.
+  //
+  // A CUSTOM PROGRAM IS A CALLABLE, AND NOTHING HERE CAN LOOK INSIDE IT.
+  // It is handed the canvas and may draw with any blend mode it likes — a
+  // plus-blended glow, a multiply wash, a picture recorded elsewhere that
+  // holds either — and every one of those composites against what is
+  // already on the canvas. Baked, they resolve against the layer's
+  // transparent black instead, and the difference is not a rounding: it is
+  // tens or hundreds of code values wherever the program blends. The only
+  // sound reading of an opaque callable is the conservative one, so a node
+  // that hands the canvas to a program of its own is counted as reading
+  // the backdrop. An author who knows their program only draws over what
+  // it covers asks for the bake themselves with `.cache(Cache::Texture)`,
+  // which is the same bargain every other rounding-accepting opt-in makes.
   inst.ownReadsBackdrop = backdropEffectOf(node) != nullptr ||
-                          node.paint.blendMode != SkBlendMode::kSrcOver;
+                          node.paint.blendMode != SkBlendMode::kSrcOver ||
+                          node.kind == Kind::Custom || decorBlends;
 
   // THE PROOF ITSELF is SigilCoreCache's: everything above resolves this
   // library's own lanes, materials, gates and text into the six
@@ -606,6 +687,34 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // which is the conservative answer and costs no more than having no memo
   // at all.
   inst.scalarMemo = scalarContent && !otherThanScalar && !childrenVolatile;
+  // THE DEFERRED-EFFECT TIER: the node's only volatility is its own layer
+  // effect's bound parameters, so the content UNDER the effect is static.
+  // Such a node is rasterized once with the effect left out and the effect
+  // is run over that one image at every blit — which is the difference
+  // between filtering a fresh layer every frame and filtering an image
+  // whose identity holds, since an effect built over held passes finds
+  // them already filtered for an image it has seen before.
+  //
+  // Neither memo above answers this: they ask whether the inputs have
+  // stopped moving, and a bound effect parameter never stops. This asks
+  // where the moving input is APPLIED — outside the content, so the
+  // content's bake is exact however hard the parameter runs.
+  //
+  // THE ONE EXCEPTION IS A BACKDROP EFFECT, which is why it is subtracted
+  // twice over: it reads what is already on the canvas, and a bake holds
+  // nothing of that, so a node carrying one stays live. `subtreeReadsBackdrop`
+  // covers a descendant's, `liveBackdropEffect` this node's own.
+  //
+  // A MASKED node is refused as well. The blit-side resolve hands the
+  // effect's child materials the node's box and clock — the contract a
+  // backdrop effect's children already have — and not the gated outline
+  // paintContent would hand them, so the tier is offered only where the
+  // two are the same path.
+  inst.effectOnly = liveLayerEffect && !sharedOpaqueBesideLayerEffect &&
+                    !boundFill && !liveMat && !patternPan && !fillLerp &&
+                    !scalarDeclared && !childrenVolatile &&
+                    !verdict.subtreeReadsBackdrop && !node.hasMasks() &&
+                    node.boundary == Boundary::Auto;
   const bool memoized = inst.liveMatOnly || inst.scalarMemo;
   if (blocked != inst.subtreeVolatile) {
     inst.subtreeVolatile = blocked;
@@ -621,7 +730,10 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     // reset: a group root never replays one, and leaving a stale recording
     // reachable is how the fall-through path would blit last frame's pixels
     // on the frame the memo just said not to.
-    if (!inst.groupRootOK) inst.textureImage.reset();
+    // …and a deferred effect's bake is kept for the same reason a group's
+    // is: the volatility this node declares is applied OUTSIDE those
+    // pixels, so they are still the pixels the filter wants.
+    if (!inst.groupRootOK && !inst.effectOnly) inst.textureImage.reset();
   }
   return verdict;
 }

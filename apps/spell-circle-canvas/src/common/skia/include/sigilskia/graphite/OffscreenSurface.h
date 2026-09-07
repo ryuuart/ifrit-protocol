@@ -4,18 +4,19 @@
 // plain values with no device code behind them; the entry points here
 // that read one are defined by the device feature, so a caller of those
 // links it.
-#include <sigilskia/device/Fence.h>
-#include <sigilskia/device/Handle.h>
+#include <sigilcore/hardware/Fence.h>
+#include <sigilcore/hardware/Handle.h>
 
 #include <cstdint>
+#include <memory>
 
 class SkCanvas;
 class SkSurface;
 
 namespace sigil::skia {
 
-class GpuDevice;
 class GraphiteContext;
+class PaintOrderCanvas;
 
 /**
  * A Vulkan image to draw into, as opaque values so this header pulls in
@@ -68,17 +69,23 @@ class OffscreenSurface {
    *  in the layout the device last knew it to be in — undefined for one
    *  the device made and nothing has drawn into, which is to say its
    *  contents before the first draw are not preserved. Defined by the
-   *  device feature, which every holder of a GpuDevice already links. */
-  OffscreenSurface(GraphiteContext& context, GpuDevice& device,
-                   TextureHandle texture);
+   *  hardware feature's device value. */
+  OffscreenSurface(GraphiteContext& context, core::hardware::GpuDevice& device,
+                   core::hardware::TextureHandle texture);
 
+  /** Moves the wrap. A moved-from surface holds neither the surface nor
+   *  the context: `canvas()` and `surface()` are null and every `submit()`
+   *  on it does nothing, so the recorder's work is only ever submitted by
+   *  the surface that was moved into. */
   OffscreenSurface(OffscreenSurface&& other) noexcept;
   OffscreenSurface& operator=(OffscreenSurface&&) = delete;
   OffscreenSurface(const OffscreenSurface&) = delete;
   OffscreenSurface& operator=(const OffscreenSurface&) = delete;
   ~OffscreenSurface();
 
-  /** Null if wrapping the backend texture failed. */
+  /** Null if wrapping the backend texture failed. Draws described
+   *  through it keep the order they were described in, whatever the
+   *  backend does with them — see <sigilskia/graphite/PaintOrder.h>. */
   SkCanvas* canvas() const;
   /** The wrapped surface itself, for a readback or a snapshot; null if
    *  wrapping failed. */
@@ -92,16 +99,21 @@ class OffscreenSurface {
 
   /** Submits as `submit()` does, then queues a signal of @p fence on
    *  @p device behind it and returns the value the fence will reach
-   *  (kFenceInitialValue for a stale handle). Graphite shares the
+   *  (kFenceInitialValue for a stale handle, and for a surface that has
+   *  been moved from, which submits nothing to signal). Graphite shares the
    *  device's one queue, so the value is reached only once this frame's
    *  drawing has landed. The wait for it belongs on another queue or on
    *  the CPU: a wait queued on this same queue ahead of the signal sits
    *  behind it and never passes. Defined by the device feature. */
-  FenceValue submit(GpuDevice& device, FenceHandle fence);
+  core::hardware::FenceValue submit(core::hardware::GpuDevice& device,
+                                    core::hardware::FenceHandle fence);
 
  private:
   GraphiteContext* m_context;
   sk_sp<SkSurface> m_surface;
+  /** Made on the first `canvas()` and kept, because it carries the
+   *  fence's own state across the draws of one frame. */
+  mutable std::unique_ptr<PaintOrderCanvas> m_ordered;
 };
 
 }  // namespace sigil::skia

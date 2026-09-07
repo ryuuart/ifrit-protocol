@@ -6,46 +6,28 @@
 # feature's face: the same draws as free functions, and the resolver a
 # pass with a material is shaded through, which this archive does not
 # supply — it links no renderer.
-add_library(SigilWeavePaint STATIC
-  Paint.cpp
-  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/paint/Paint.h
-)
-target_compile_features(SigilWeavePaint PUBLIC cxx_std_20)
-target_include_directories(SigilWeavePaint PUBLIC
-  $<BUILD_INTERFACE:${SIGIL_WEAVE_INCLUDE_DIR}>
-  $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(SigilWeavePaint
-  PUBLIC
-    SigilWeaveDecoration
-)
+sigil_library(SigilWeavePaint
+  SOURCES Paint.cpp
+  HEADERS Paint.h
+  PUBLIC SigilWeaveDecoration)
 
-# Every test here puts pixels on a surface. The stress case paints through
-# the preset runtime shaders, and the material pass installs their
-# resolver and shades with a kit paint, which is why both link here.
-add_executable(weave_paint_test
-  test/PaintTest.cpp
-  test/DecorationPaintTest.cpp
-  test/StressTest.cpp
-)
-target_include_directories(weave_paint_test PRIVATE ${SIGIL_WEAVE_TEST_SUPPORT_DIR})
-target_link_libraries(weave_paint_test PRIVATE
-  SigilWeavePaint
-  SigilWeaveShaders
-  SigilWeavePorts
-  SigilMaterialKit
-  GTest::gtest_main
-)
-add_test(NAME weave_paint_test COMMAND weave_paint_test)
+# What reaches the canvas, one file per subject: the passes a layout draws
+# with, and the decoration bands beneath and above the glyphs. Where a band
+# lands is geometry and belongs to the decoration feature; only whether the
+# ink arrives is asked here. A pass carrying a material shades through a
+# resolver the host installs, so the kit paints and the Skia backend that
+# shades them are both linked. The column band is drawn beside a Japanese
+# run in whatever face the machine resolves for it, so that case alone
+# carries the label.
+sigil_test(weave_test
+  SOURCES test/PaintTest.cpp test/DecorationPaintTest.cpp
+  LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialKit
+            SigilMaterialSkia
+  LABELS fonts
+  SUITES ColumnDecorationInk.AColumnDrawsItsBandBesideTheType)
 
-# draw and drawBatched per glyph on a raster surface. Built through
-# `benches`, run through scripts/bench_ledger.py from a Release build.
-add_executable(weave_paint_bench bench/PaintBench.cpp)
-target_include_directories(weave_paint_bench PRIVATE ${SIGIL_WEAVE_BENCH_SUPPORT_DIR})
-target_link_libraries(weave_paint_bench PRIVATE
-  SigilWeavePaint
-  SigilWeaveShaders
-  SigilWeavePorts
-  benchmark::benchmark
-)
-add_dependencies(benches weave_paint_bench)
+# draw and drawBatched per glyph on a raster surface.
+sigil_bench(weave_bench
+  SOURCES bench/PaintBench.cpp
+  LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialKit
+            SigilMaterialSkia)

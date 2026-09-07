@@ -52,7 +52,7 @@
 // tile floors rise 0.9 at the surround to 65.4 at the middle of the window,
 // and the min-luma cross-sections put the peak at (~510, ~340) both ways —
 // so the body is not a fill, it is a RADIAL PEDESTAL, and the pedestal IS
-// the Copland eye blurred into the phosphor. One Material::radialUnit whose
+// the Copland eye blurred into the phosphor. One Paint::radialUnit whose
 // twenty stops are the measured radial profile draws the pedestal and the
 // eye's rings in a single SIMD gradient.
 //
@@ -130,15 +130,15 @@
 //
 // -----------------------------------------------------------------------------
 // BUILT FROM (the library, not by hand)
-//   Material::radialUnit (20 stops)   the pedestal AND the eye's rings, one
+//   Paint::radialUnit (20 stops)   the pedestal AND the eye's rings, one
 //                                     SIMD gradient — an SkSL equivalent runs
 //                                     a shader per pixel for the same picture
-//   Material::linearUnit              each chrome bar's INVERSE bevel, its
+//   Paint::linearUnit              each chrome bar's INVERSE bevel, its
 //                                     six stops read off the bar's own rows
 //   a sampled ellipse path            every ellipse: the rims, the waist and
-//                                     the tilted orbit, as real curves — the
-//                                     arcs are cut by parameter, which an
-//                                     oval cannot express
+//                                     the tilted orbit, as chords rather than
+//                                     conics, because a DASH walks the
+//                                     flattened path and every rim is dotted
 //   LayeredBrush{blend = kPlus}       THE ADDITIVE TRICK. kPlus on a NODE
 //                                     allocates a saveLayer; kPlus on a
 //                                     stroke PASS is just a path draw
@@ -256,22 +256,43 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Curves.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Time.h>
+#include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace motion = sigil::motion;
+namespace path = sigil::geometry::path;
+namespace patterns = sigil::material::pattern;
+namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -285,39 +306,38 @@ namespace lain {
 
 constexpr float kW = 1016.0f, kH = 720.0f;
 
-using sigil::compose::hex;  // the same four lines as twenty-three other files
-using sigil::compose::mix;
-
 // ---------------------------------------------------------------------------
 // PALETTE — every entry is a CONTRIBUTION, i.e. what this stratum ADDS to the
 // #0F1023 ground under kPlus, computed as (measured colour - ground). Written
 // that way on purpose: a colour with an alpha would have to darken something
 // to read, and nothing in this interface darkens anything.
 
-const SkColor4f kGround = hex(0x060719);    // the plate's own p10; #0F1023,
-                                            // its p50, is what the CONTRIB-
-                                            // UTIONS above are taken against
-const SkColor4f kProse = hex(0x1B2138);     // Japanese glyph peaks, +46+54+77
-const SkColor4f kPanel = hex(0x101F27);     // the lightened panel, +16+31+39
-const SkColor4f kBodyMid = hex(0x475F86);   // pedestal centre  (#334D83)
-const SkColor4f kBodyEdge = hex(0x040A24);  // pedestal edge    (#151E52)
-const SkColor4f kBarTopHi = hex(0x587962);  // top bar bright edge   (#67899E)
-const SkColor4f kBarTopLo = hex(0x234A3C);  // top bar dark middle   (#325A74)
-const SkColor4f kBarBotHi = hex(0x6FA586);  // bottom bar peak       (#7EB5CA)
-const SkColor4f kBarBotLo = hex(0x578C70);  // bottom bar middle     (#669CB1)
-const SkColor4f kRail = hex(0x1D3242);      // side hairlines, dimmer than bars
+const SkColor4f kGround = hexColor(0x060719);  // the plate's own p10; #0F1023,
+                                               // its p50, is what the CONTRIB-
+                                               // UTIONS above are taken against
+const SkColor4f kProse = hexColor(0x1B2138);  // Japanese glyph peaks, +46+54+77
+const SkColor4f kPanel = hexColor(0x101F27);  // the lightened panel, +16+31+39
+const SkColor4f kBodyMid = hexColor(0x475F86);   // pedestal centre  (#334D83)
+const SkColor4f kBodyEdge = hexColor(0x040A24);  // pedestal edge    (#151E52)
+const SkColor4f kBarTopHi =
+    hexColor(0x587962);  // top bar bright edge   (#67899E)
+const SkColor4f kBarTopLo =
+    hexColor(0x234A3C);  // top bar dark middle   (#325A74)
+const SkColor4f kBarBotHi = hexColor(0x6FA586);  // bottom bar peak (#7EB5CA)
+const SkColor4f kBarBotLo = hexColor(0x578C70);  // bottom bar middle (#669CB1)
+const SkColor4f kRail = hexColor(0x1D3242);  // side hairlines, dimmer than bars
 const SkColor4f kConsoleInk =
-    hex(0x46C89A);                         // ~ #84FFFF - #425689, the add the
-                                           // reference's own body demands; the
-                                           // green is trimmed against the
-                                           // measured core #72F9F5, not guessed
-const SkColor4f kWire = hex(0x3A6257);     // hairline peak #5683AD on a
-                                           // #1C2156 ground, dLuma +55
-const SkColor4f kMinds = hex(0xA6B7BE);    // `no double minds`, +166+183+190
-const SkColor4f kAlright = hex(0xB3B6BF);  // `make me feel alright?` core
-const SkColor4f kCover = hex(0x7A3416);    // `COVer me`, dr-db = +40
-const SkColor4f kMagenta = hex(0x3A1B3C);  // the streaks, p90 #603871
-const SkColor4f kWordmark = hex(0x2B3A54);  // the rotated Copland lockup
+    hexColor(0x46C89A);  // ~ #84FFFF - #425689, the add the
+                         // reference's own body demands; the
+                         // green is trimmed against the
+                         // measured core #72F9F5, not guessed
+const SkColor4f kWire = hexColor(0x3A6257);   // hairline peak #5683AD on a
+                                              // #1C2156 ground, dLuma +55
+const SkColor4f kMinds = hexColor(0xA6B7BE);  // `no double minds`, +166+183+190
+const SkColor4f kAlright = hexColor(0xB3B6BF);   // `make me feel alright?` core
+const SkColor4f kCover = hexColor(0x7A3416);     // `COVer me`, dr-db = +40
+const SkColor4f kMagenta = hexColor(0x3A1B3C);   // the streaks, p90 #603871
+const SkColor4f kWordmark = hexColor(0x2B3A54);  // the rotated Copland lockup
 
 // ---------------------------------------------------------------------------
 // THE WINDOW. Measured off Layer 04 and shifted +58 in x, so the reconstruction
@@ -357,15 +377,15 @@ inline shapes::OutlineFn barOutline(float shear) {
  *  89 ... 85 83 89 99 101 107 125 137 122 93 66 down its 30 rows), which is
  *  where the "brushed capstan" reading comes from — it is not a highlight, it
  *  is a cylinder lit from outside its own silhouette. */
-inline Material barBevel(SkColor4f hi, SkColor4f lo, float bias) {
-  auto at = [&](float k) { return mix(lo, hi, k); };
-  return Material::linearUnit({0, 0}, {0, 1},
-                              {{0.00f, mul(at(0.05f), bias)},
-                               {0.13f, mul(at(1.00f), bias)},
-                               {0.30f, mul(at(0.32f), bias)},
-                               {0.62f, mul(at(0.28f), bias)},
-                               {0.87f, mul(at(1.00f), bias)},
-                               {1.00f, mul(at(0.02f), bias)}});
+inline mskia::Paint barBevel(SkColor4f hi, SkColor4f lo, float bias) {
+  auto at = [&](float k) { return mskia::mixLinear(lo, hi, k); };
+  return mskia::Paint::linearUnit({0, 0}, {0, 1},
+                                  {{0.00f, mskia::scale(at(0.05f), bias)},
+                                   {0.13f, mskia::scale(at(1.00f), bias)},
+                                   {0.30f, mskia::scale(at(0.32f), bias)},
+                                   {0.62f, mskia::scale(at(0.28f), bias)},
+                                   {0.87f, mskia::scale(at(1.00f), bias)},
+                                   {1.00f, mskia::scale(at(0.02f), bias)}});
 }
 
 // ---------------------------------------------------------------------------
@@ -385,15 +405,16 @@ constexpr float kEyeK[19] = {1.000f, 0.961f, 0.889f, 0.728f, 0.759f,
                              0.621f, 0.500f, 0.466f, 0.441f, 0.418f,
                              0.332f, 0.252f, 0.177f, 0.077f};
 
-inline Material pedestal() {
-  std::vector<Stop> stops;
+inline mskia::Paint pedestal() {
+  std::vector<mskia::Stop> stops;
   stops.reserve(20);
   for (int i = 0; i < 19; ++i)
-    stops.push_back({kEyeAt[i] / 359.0f, mix(kBodyEdge, kBodyMid, kEyeK[i])});
-  stops.push_back({1.0f, mul(kBodyEdge, 0.55f)});
+    stops.push_back(
+        {kEyeAt[i] / 359.0f, mskia::mixLinear(kBodyEdge, kBodyMid, kEyeK[i])});
+  stops.push_back({1.0f, mskia::scale(kBodyEdge, 0.55f)});
   // radius01 is a fraction of the HALF-DIAGONAL (513 px for this body), so
   // 0.70 puts the last measured annulus (r=336) at its own radius.
-  return Material::radialUnit({0.483f, 0.456f}, 0.70f, std::move(stops));
+  return mskia::Paint::radialUnit({0.483f, 0.456f}, 0.70f, std::move(stops));
 }
 
 /** The Copland eye's TOPOLOGY, from the ASCII transcription rather than a
@@ -458,7 +479,8 @@ inline SkPath generatrices(float phiDeg, int n) {
   const float phi = phiDeg * 0.01745329f;
   SkPathBuilder b;
   for (int i = 0; i < n; ++i) {
-    const float a = 6.2831853f * (float)i / (float)n;
+    const float a = arrange::along(0.0f, 6.2831853f, (size_t)i, (size_t)n,
+                                   arrange::Turn::Closed);
     const SkPoint lo = onRim(kRim, -kHalfH, a - phi);
     const SkPoint hi = onRim(kRim, +kHalfH, a + phi);
     const SkPoint d{hi.fX - lo.fX, hi.fY - lo.fY};
@@ -476,6 +498,12 @@ inline SkPath generatrices(float phiDeg, int n) {
 constexpr SkPoint kOrbit2C{491.0f + kWireShift.fX, 266.0f + kWireShift.fY};
 constexpr float kOrbit2A = 373.0f, kOrbit2B = 187.0f, kOrbit2Tilt = -17.4f;
 
+/** IT IS NOT `shapes::arc` ON A ROTATED BOX, which draws the same curve —
+ *  Skia's oval angles are parametric, so the cut this needs is expressible
+ *  there. What differs is the PATH: 168 chords against Skia's conics. Every
+ *  rim on this frame is a DOTTED hairline and a dash walks the flattened
+ *  path, so the dots land where the chords put them and land elsewhere on a
+ *  conic. Converting moves the plate; it is not a cleanup. */
 inline SkPath ellipsePath(SkPoint c, float a, float b, float tiltDeg,
                           float t0 = 0.0f, float t1 = 6.2831853f) {
   const float th = tiltDeg * 0.01745329f;
@@ -483,7 +511,8 @@ inline SkPath ellipsePath(SkPoint c, float a, float b, float tiltDeg,
   SkPathBuilder p;
   const int n = 168;
   for (int i = 0; i <= n; ++i) {
-    const float t = t0 + (t1 - t0) * (float)i / (float)n;
+    const float t = arrange::along(t0, t1 - t0, (size_t)i, (size_t)n + 1,
+                                   arrange::Turn::Open);
     const float x = a * std::cos(t), y = b * std::sin(t);
     const SkPoint q{c.fX + x * ct - y * st, c.fY + x * st + y * ct};
     if (i == 0)
@@ -498,56 +527,39 @@ inline SkPath ellipsePath(SkPoint c, float a, float b, float tiltDeg,
 // ---------------------------------------------------------------------------
 // TYPE.
 
-inline sk_sp<SkTypeface> face(std::initializer_list<const char*> families,
-                              int weight, SkFontStyle::Slant slant) {
-  auto mgr = weave::ports::systemFontManager();
-  for (const char* f : families)
-    if (sk_sp<SkTypeface> t = mgr->matchFamilyStyle(
-            f, SkFontStyle(weight, SkFontStyle::kNormal_Width, slant)))
-      return t;
-  return mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-}
-
-inline const sk_sp<SkTypeface>& monoFace() {
+inline sk_sp<SkTypeface> monoFace() {
   // A light-weight Latin mono stands in for the frame's face; the console
   // block is pure ASCII, so nothing wider is needed. ExtraLight (200) is the
   // closest match to the frame's hairline stems.
-  static sk_sp<SkTypeface> f =
-      face({"JetBrainsMono Nerd Font", "JetBrains Mono", "Andale Mono", "Menlo",
-            "Courier New"},
-           // LIGHT, not ExtraLight. At 22 px under a mask-filter blur an
-           // ExtraLight stem never reaches full coverage, which reads as
-           // #70BDE8 (blue) where the plate is #72F9F5 (cyan) — the
-           // colour is right and the STEM is too thin to show it.
-           300, SkFontStyle::kUpright_Slant);
-  return f;
+  return weave::ports::face(
+      {"JetBrainsMono Nerd Font", "JetBrains Mono", "Andale Mono", "Menlo",
+       "Courier New"},
+      // LIGHT, not ExtraLight. At 22 px under a mask-filter blur an
+      // ExtraLight stem never reaches full coverage, which reads as
+      // #70BDE8 (blue) where the plate is #72F9F5 (cyan) — the
+      // colour is right and the STEM is too thin to show it.
+      300);
 }
-inline const sk_sp<SkTypeface>& minchoFace() {
-  static sk_sp<SkTypeface> f =
-      face({"Hiragino Mincho ProN", "YuMincho", "Shippori Mincho",
-            "Noto Serif JP", "Hiragino Sans"},
-           400, SkFontStyle::kUpright_Slant);
-  return f;
+inline sk_sp<SkTypeface> minchoFace() {
+  return weave::ports::face(
+      {"Hiragino Mincho ProN", "YuMincho", "Shippori Mincho", "Noto Serif JP",
+       "Hiragino Sans"},
+      400);
 }
-inline const sk_sp<SkTypeface>& serifFace() {
-  static sk_sp<SkTypeface> f = face({"Times New Roman", "Times", "Georgia"},
-                                    400, SkFontStyle::kUpright_Slant);
-  return f;
+inline sk_sp<SkTypeface> serifFace() {
+  return weave::ports::face({"Times New Roman", "Times", "Georgia"}, 400);
 }
-inline const sk_sp<SkTypeface>& serifItalicFace() {
-  static sk_sp<SkTypeface> f = face({"Times New Roman", "Times", "Georgia"},
-                                    700, SkFontStyle::kItalic_Slant);
-  return f;
+inline sk_sp<SkTypeface> serifItalicFace() {
+  return weave::ports::face({"Times New Roman", "Times", "Georgia"}, 700,
+                            SkFontStyle::kItalic_Slant);
 }
 /** THE ENGLISH PHRASES ARE TITLES. Layer 07 sets them upright, at large
  *  size, in a plain grotesque — they read as cards over the picture, not
  *  as handwriting on it. A casual script leaned nine degrees is a
  *  different register and it made the one warm thing in the frame read as
  *  a scribble. */
-inline const sk_sp<SkTypeface>& phraseFace() {
-  static sk_sp<SkTypeface> f = face({"Helvetica Neue", "Helvetica", "Arial"},
-                                    500, SkFontStyle::kUpright_Slant);
-  return f;
+inline sk_sp<SkTypeface> phraseFace() {
+  return weave::ports::face({"Helvetica Neue", "Helvetica", "Arial"}, 500);
 }
 
 /** THE ONE TEXT STYLE IN THE FILE, and it is the focal plane.
@@ -561,8 +573,8 @@ inline const sk_sp<SkTypeface>& phraseFace() {
 inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                              SkColor4f c, float sigma = 0.0f,
                              float track = 0.0f) {
-  weave::TextStyle s = sigil::compose::type(
-      {.face = tf, .size = size, .color = c, .track = track});
+  weave::TextStyle s =
+      weave::textStyle({.face = tf, .size = size, .color = c, .track = track});
   s.paint.foreground.setBlendMode(SkBlendMode::kPlus);
   if (sigma > 0.01f)
     s.paint.foreground.setMaskFilter(
@@ -699,29 +711,26 @@ constexpr int kPhraseN = (int)(sizeof(kPhrases) / sizeof(kPhrases[0]));
 // shots, both beats present. Baked once, crept by whole pixels.
 
 inline sk_sp<SkRuntimeEffect> crtEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
-        "uniform float2 uResolution;\n"
-        "half4 main(float2 xy) {\n"
-        // Lottes: a raised-cosine beam profile about the scanline centre.
-        "  float f = fract(xy.y / 4.42) - 0.5;\n"
-        "  float w = exp2(-2.6 * f * f * 4.0);\n"
-        "  float g = fract(xy.y / 9.82) - 0.5;\n"
-        "  float w2 = exp2(-1.4 * g * g * 4.0);\n"
-        "  float dark = (1.0 - w) * 0.032 + (1.0 - w2) * 0.014;\n"
-        // the corner falloff of a curved tube, gentle: this plate is shot
-        // close, so the vignette barely enters frame
-        "  float2 p = (xy / max(uResolution, float2(1.0)) - 0.5) * 2.0;\n"
-        "  float vig = smoothstep(1.05, 1.90, length(p / 0.86)) * 0.30;\n"
-        "  float gr = fract(sin(dot(floor(xy), float2(12.9898, 78.233)))\n"
-        "            * 43758.5453) - 0.5;\n"
-        "  dark = clamp(dark + gr * 0.055, 0.0, 1.0);\n"
-        "  return half4(0.0, 0.0, 0.0, half(clamp(dark + vig, 0.0, 1.0)));\n"
-        "}\n"));
-    if (!effect) SkDebugf("lain crt shader: %s\n", err.c_str());
-    return effect;
-  }();
-  return fx;
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
+      "uniform float2 uResolution;\n"
+      "half4 main(float2 xy) {\n"
+      // Lottes: a raised-cosine beam profile about the scanline centre.
+      "  float f = fract(xy.y / 4.42) - 0.5;\n"
+      "  float w = exp2(-2.6 * f * f * 4.0);\n"
+      "  float g = fract(xy.y / 9.82) - 0.5;\n"
+      "  float w2 = exp2(-1.4 * g * g * 4.0);\n"
+      "  float dark = (1.0 - w) * 0.032 + (1.0 - w2) * 0.014;\n"
+      // the corner falloff of a curved tube, gentle: this plate is shot
+      // close, so the vignette barely enters frame
+      "  float2 p = (xy / max(uResolution, float2(1.0)) - 0.5) * 2.0;\n"
+      "  float vig = smoothstep(1.05, 1.90, length(p / 0.86)) * 0.30;\n"
+      "  float gr = fract(sin(dot(floor(xy), float2(12.9898, 78.233)))\n"
+      "            * 43758.5453) - 0.5;\n"
+      "  dark = clamp(dark + gr * 0.055, 0.0, 1.0);\n"
+      "  return half4(0.0, 0.0, 0.0, half(clamp(dark + vig, 0.0, 1.0)));\n"
+      "}\n"));
+  if (!effect) SkDebugf("lain crt shader: %s\n", err.c_str());
+  return effect;
 }
 
 /** The base plate: a photographed city at night, defocused past recognition.
@@ -729,32 +738,29 @@ inline sk_sp<SkRuntimeEffect> crtEffect() {
  *  about it is that it has NO edges anywhere: its 8x6 tile floor is flat to
  *  sd 10.8 and every lift is a stratum above it, not a feature in it. */
 inline sk_sp<SkRuntimeEffect> plateEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
-        "uniform float2 uResolution;\n"
-        "float h(float2 p){return fract(sin(dot(p,float2(12.9898,78.233)))"
-        "*43758.5453);}\n"
-        "float n(float2 p){float2 i=floor(p),f=fract(p);"
-        "f=f*f*(3.0-2.0*f);"
-        "return mix(mix(h(i),h(i+float2(1,0)),f.x),"
-        "mix(h(i+float2(0,1)),h(i+float2(1,1)),f.x),f.y);}\n"
-        "half4 main(float2 xy) {\n"
-        "  float2 u = xy / max(uResolution, float2(1.0));\n"
-        // vertical slabs: the buildings, three octaves, heavily smeared in x
-        "  float b = n(float2(u.x*7.0, u.y*1.6)) * 0.62\n"
-        "          + n(float2(u.x*17.0, u.y*2.4)) * 0.26\n"
-        "          + n(float2(u.x*3.0, u.y*0.7)) * 0.30;\n"
-        "  b = clamp(b - 0.52, 0.0, 1.0);\n"
-        // the right third of the plate carries the bright massing
-        "  b *= 0.13 + 1.55 * smoothstep(0.80, 1.14, u.x);\n"
-        "  b *= 0.34 + 0.80 * smoothstep(1.02, 0.10, u.y);\n"
-        "  half3 c = half3(half(0.0235 + b*0.34), half(0.0275 + b*0.40),\n"
-        "                  half(0.098 + b*0.72));\n"
-        "  return half4(c, 1.0);\n}\n"));
-    if (!effect) SkDebugf("lain plate shader: %s\n", err.c_str());
-    return effect;
-  }();
-  return fx;
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
+      "uniform float2 uResolution;\n"
+      "float h(float2 p){return fract(sin(dot(p,float2(12.9898,78.233)))"
+      "*43758.5453);}\n"
+      "float n(float2 p){float2 i=floor(p),f=fract(p);"
+      "f=f*f*(3.0-2.0*f);"
+      "return mix(mix(h(i),h(i+float2(1,0)),f.x),"
+      "mix(h(i+float2(0,1)),h(i+float2(1,1)),f.x),f.y);}\n"
+      "half4 main(float2 xy) {\n"
+      "  float2 u = xy / max(uResolution, float2(1.0));\n"
+      // vertical slabs: the buildings, three octaves, heavily smeared in x
+      "  float b = n(float2(u.x*7.0, u.y*1.6)) * 0.62\n"
+      "          + n(float2(u.x*17.0, u.y*2.4)) * 0.26\n"
+      "          + n(float2(u.x*3.0, u.y*0.7)) * 0.30;\n"
+      "  b = clamp(b - 0.52, 0.0, 1.0);\n"
+      // the right third of the plate carries the bright massing
+      "  b *= 0.13 + 1.55 * smoothstep(0.80, 1.14, u.x);\n"
+      "  b *= 0.34 + 0.80 * smoothstep(1.02, 0.10, u.y);\n"
+      "  half3 c = half3(half(0.0235 + b*0.34), half(0.0275 + b*0.40),\n"
+      "                  half(0.098 + b*0.72));\n"
+      "  return half4(c, 1.0);\n}\n"));
+  if (!effect) SkDebugf("lain plate shader: %s\n", err.c_str());
+  return effect;
 }
 
 /** An additive stroke pass. THE load-bearing call of the whole sketch: kPlus
@@ -792,9 +798,9 @@ struct LainNavi : sketch::Sketch {
   ch::Output<float> flicker{0};  // phosphor dip
   ch::Output<float> breathe{0};  // the camera hunting focus, 0.15 Hz
 
-  int scrollLine = 0;  // console scroll, one line / 220 ms
-  int orbitStep = 0;   // hyperboloid twist, 6 Hz over 24 s
-  int phraseStep = 0;  // the Layer 07 sequence, 12 Hz
+  long long scrollLine = 0;  // console scroll, one line / 220 ms
+  long long orbitStep = 0;   // hyperboloid twist, 6 Hz over 24 s
+  long long phraseStep = 0;  // the Layer 07 sequence, 12 Hz
   float monoSize = 22.0f;
   float proseSize = 30.0f;
 
@@ -820,8 +826,8 @@ struct LainNavi : sketch::Sketch {
       auto place = [&](Element e) {
         return e.at({kTextX, y - monoSize * 0.98f});
       };
-      g.child(place(text(line, type(monoFace(), monoSize, mul(c, 0.40f),
-                                    sigma + 2.4f)))
+      g.child(place(text(line, type(monoFace(), monoSize,
+                                    mskia::scale(c, 0.40f), sigma + 2.4f)))
                   .key("halo" + std::to_string(i)));
       g.child(place(text(line, type(monoFace(), monoSize, c, sigma)))
                   .key("mips" + std::to_string(i)));
@@ -845,8 +851,9 @@ struct LainNavi : sketch::Sketch {
     // the ruling — straight, and stopping 7% short of both rims
     g.child(box()
                 .inset(0)
-                .shape([phi](SkSize) { return generatrices(phi, 7); })
-                .foreground(add(1.5f, mul(kWire, 0.44f), 0.0f))
+                .shape(keyedShape(
+                    phi, [phi](SkSize) { return generatrices(phi, 7); }))
+                .foreground(add(1.5f, mskia::scale(kWire, 0.44f), 0.0f))
                 .key("ruling"));
 
     // the two rims and the waist — DOTTED, never solid (1.6 on 4.4 with a
@@ -856,9 +863,10 @@ struct LainNavi : sketch::Sketch {
                       float w, float t0, float t1, const char* key) {
       g.child(box()
                   .inset(0)
-                  .shape([c, a, b, tilt, t0, t1](SkSize) {
-                    return ellipsePath(c, a, b, tilt, t0, t1);
-                  })
+                  .shape(keyedShape(std::tuple{c.fX, c.fY, a, b, tilt, t0, t1},
+                                    [c, a, b, tilt, t0, t1](SkSize) {
+                                      return ellipsePath(c, a, b, tilt, t0, t1);
+                                    }))
                   .foreground(add(w, col, 0.0f, dot))
                   .key(key));
     };
@@ -870,9 +878,9 @@ struct LainNavi : sketch::Sketch {
     // tilted orbit is three concentric dotted rings and reads as a lampshade;
     // the plate shows arcs that leave frame and never close.
     ellArc({kAxis.fX, kAxis.fY - kHalfH}, kRim, kRim * kEcc, 0,
-           mul(kWire, 0.72f), 1.7f, 3.55f, 6.60f, "rimTop");
+           mskia::scale(kWire, 0.72f), 1.7f, 3.55f, 6.60f, "rimTop");
     ellArc({kAxis.fX, kAxis.fY + kHalfH}, kRim, kRim * kEcc, 0,
-           mul(kWire, 0.72f), 1.7f, 0.30f, 3.05f, "rimBot");
+           mskia::scale(kWire, 0.72f), 1.7f, 0.30f, 3.05f, "rimBot");
     ell(kAxis, waist, waist * kEcc, 0, kWire, 2.0f, "waist");
     ell(kOrbit2C, kOrbit2A, kOrbit2B, tilt2, kWire, 2.0f, "orbit2");
 
@@ -881,13 +889,15 @@ struct LainNavi : sketch::Sketch {
     // waist centred on 498.
     g.child(box()
                 .inset(0)
-                .shape([](SkSize) {
-                  SkPathBuilder b;
-                  b.moveTo(503 + kWireShift.fX, 28 + kWireShift.fY);
-                  b.lineTo(503 + kWireShift.fX, 524 + kWireShift.fY);
-                  return b.detach();
-                })
-                .foreground(add(2.4f, mul(kWire, 0.72f), 0.7f)));
+                .shape(keyedShape(
+                    std::string_view("wire-axis"),
+                    [](SkSize) {
+                      SkPathBuilder b;
+                      b.moveTo(503 + kWireShift.fX, 28 + kWireShift.fY);
+                      b.lineTo(503 + kWireShift.fX, 524 + kWireShift.fY);
+                      return b.detach();
+                    }))
+                .foreground(add(2.4f, mskia::scale(kWire, 0.72f), 0.7f)));
 
     // `make me feel alright?` stands UPRIGHT beside the orbit's lower-left
     // arc rather than riding it. A run laid on the conic is turned per
@@ -920,7 +930,7 @@ struct LainNavi : sketch::Sketch {
         k = (float)std::max(0.0, 1.0 - (u - p.hold) / 0.9);
       if (k <= 0.01f) continue;
       k = k * k * (3.0f - 2.0f * k);
-      const SkColor4f c = mul(kMinds, k);
+      const SkColor4f c = mskia::scale(kMinds, k);
       // the bloom is a second, blurred pass DECLARED FIRST so it paints under
       // the core; kPlus makes the order irrelevant for colour but not for the
       // core's own crispness
@@ -931,10 +941,12 @@ struct LainNavi : sketch::Sketch {
                   .centerAt(p.centre)
                   .key("ph" + std::to_string(i))
                   .child(text(std::u8string(p.text),
-                              type(serifFace(), p.size, mul(c, 0.42f), 6.5f))
+                              type(serifFace(), p.size, mskia::scale(c, 0.42f),
+                                   6.5f))
                              .inset(0))
                   .child(text(std::u8string(p.text),
-                              type(serifFace(), p.size, mul(c, 0.55f), 2.2f))
+                              type(serifFace(), p.size, mskia::scale(c, 0.55f),
+                                   2.2f))
                              .inset(0))
                   .child(text(std::u8string(p.text),
                               type(serifFace(), p.size, c, 0.7f))));
@@ -953,7 +965,7 @@ struct LainNavi : sketch::Sketch {
     // saveLayer that Cache::Texture plus .blend() would force.
     root.child(box()
                    .inset(0)
-                   .fill(Material::sksl(plateEffect()))
+                   .fill(mskia::Paint::sksl(plateEffect()))
                    .cache(Cache::Texture)
                    .key("plate"));
 
@@ -980,11 +992,12 @@ struct LainNavi : sketch::Sketch {
     // soft-edged: a radial ramp to nothing rather than a rect with a blur.
     root.child(box()
                    .rect(SkRect::MakeXYWH(178, 88, 304, 304))
-                   .fill(Material::radialUnit({0.48f, 0.46f}, 0.95f,
-                                              {{0.0f, kPanel},
-                                               {0.55f, mul(kPanel, 0.86f)},
-                                               {0.86f, mul(kPanel, 0.30f)},
-                                               {1.0f, mul(kPanel, 0.0f)}}))
+                   .fill(mskia::Paint::radialUnit(
+                       {0.48f, 0.46f}, 0.95f,
+                       {{0.0f, kPanel},
+                        {0.55f, mskia::scale(kPanel, 0.86f)},
+                        {0.86f, mskia::scale(kPanel, 0.30f)},
+                        {1.0f, mskia::scale(kPanel, 0.0f)}}))
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::Texture)
                    .key("panel"));
@@ -1013,32 +1026,45 @@ struct LainNavi : sketch::Sketch {
     // is also why Texture is excluded from the direct-blend path.
     // Bounded to the eye's own box, so the bake covers the eye and not the
     // whole canvas.
-    root.child(
-        box()
-            .rect(SkRect::MakeXYWH(370, 150, 376, 400))
-            .shape([](SkSize s) {
-              return eyeFurniture({s.width() * 0.5f, s.height() * 0.46f},
-                                  92.0f);
-            })
-            .foreground(LayeredBrush{
-                {{24.0f, hex(0x070C17), 13.0f, {}, 0, SkBlendMode::kPlus, true},
-                 {9.0f, hex(0x0A1120), 5.0f, {}, 0, SkBlendMode::kPlus, true}}})
-            .blend(SkBlendMode::kPlus)
-            .cache(Cache::Texture)
-            .key("eye"));
+    root.child(box()
+                   .rect(SkRect::MakeXYWH(370, 150, 376, 400))
+                   .shape(keyedShape(std::string_view("eye-furniture"),
+                                     [](SkSize s) {
+                                       return eyeFurniture({s.width() * 0.5f,
+                                                            s.height() * 0.46f},
+                                                           92.0f);
+                                     }))
+                   .foreground(LayeredBrush{{{24.0f,
+                                              hexColor(0x070C17),
+                                              13.0f,
+                                              {},
+                                              0,
+                                              SkBlendMode::kPlus,
+                                              true},
+                                             {9.0f,
+                                              hexColor(0x0A1120),
+                                              5.0f,
+                                              {},
+                                              0,
+                                              SkBlendMode::kPlus,
+                                              true}}})
+                   .blend(SkBlendMode::kPlus)
+                   .cache(Cache::Texture)
+                   .key("eye"));
 
     // the side rails: single hairlines at the body's own edges, dimmer than
     // the bars. No corner anywhere — the bars simply overhang them.
     root.child(box()
                    .inset(0)
-                   .shape([](SkSize) {
-                     SkPathBuilder b;
-                     b.moveTo(kBodyL, kBarTopB - 4);
-                     b.lineTo(kBodyL + 8, kBarBotT + 4);
-                     b.moveTo(kBodyR, kBarTopB - 4);
-                     b.lineTo(kBodyR - 6, kBarBotT + 4);
-                     return b.detach();
-                   })
+                   .shape(keyedShape(std::string_view("side-rails"),
+                                     [](SkSize) {
+                                       SkPathBuilder b;
+                                       b.moveTo(kBodyL, kBarTopB - 4);
+                                       b.lineTo(kBodyL + 8, kBarBotT + 4);
+                                       b.moveTo(kBodyR, kBarTopB - 4);
+                                       b.lineTo(kBodyR - 6, kBarBotT + 4);
+                                       return b.detach();
+                                     }))
                    .foreground(add(2.0f, kRail, 0.8f))
                    .key("rails"));
 
@@ -1082,8 +1108,8 @@ struct LainNavi : sketch::Sketch {
             .child(text(u8"Copland OS Enterprise",
                         type(serifItalicFace(), 34, kWordmark, 1.9f, 1.0f)))
             .child(text(u8"Produced By Tachibana Lab",
-                        type(serifItalicFace(), 16, mul(kWordmark, 0.7f), 1.6f,
-                             0.8f))));
+                        type(serifItalicFace(), 16,
+                             mskia::scale(kWordmark, 0.7f), 1.6f, 0.8f))));
 
     // ---- S4..S8, the Layer 07 strata over the window ------------------------
     root.child(slot("wire"));
@@ -1094,8 +1120,8 @@ struct LainNavi : sketch::Sketch {
         box()
             .centerAt({730, 182})
             .key("cover")
-            .child(text(u8"cover me",
-                        type(phraseFace(), 62, mul(kCover, 0.5f), 6.5f))
+            .child(text(u8"cover me", type(phraseFace(), 62,
+                                           mskia::scale(kCover, 0.5f), 6.5f))
                        .centerAt({0, 0}))
             .child(text(u8"cover me", type(phraseFace(), 62, kCover, 1.4f))));
 
@@ -1116,16 +1142,16 @@ struct LainNavi : sketch::Sketch {
                                  {640, 574, 190, 0.85f},
                                  {742, 604, 118, 0.48f}};
       for (const auto& b : bands)
-        g.child(
-            box()
-                .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
-                .fill(Material::linearUnit({0, 0}, {1, 0},
-                                           {{0.0f, mul(kMagenta, 0.0f)},
-                                            {0.30f, mul(kMagenta, b[3])},
-                                            {0.68f, mul(kMagenta, b[3] * 0.8f)},
-                                            {1.0f, mul(kMagenta, 0.0f)}}))
-                .blend(SkBlendMode::kPlus)
-                .cache(Cache::Texture));
+        g.child(box()
+                    .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
+                    .fill(mskia::Paint::linearUnit(
+                        {0, 0}, {1, 0},
+                        {{0.0f, mskia::scale(kMagenta, 0.0f)},
+                         {0.30f, mskia::scale(kMagenta, b[3])},
+                         {0.68f, mskia::scale(kMagenta, b[3] * 0.8f)},
+                         {1.0f, mskia::scale(kMagenta, 0.0f)}}))
+                    .blend(SkBlendMode::kPlus)
+                    .cache(Cache::Texture));
       root.child(std::move(g));
     }
 
@@ -1142,7 +1168,7 @@ struct LainNavi : sketch::Sketch {
     root.child(box().inset(0).translateY(&creep).child(
         box()
             .rect(SkRect::MakeXYWH(0, -12, kW, kH + 24))
-            .fill(Material::sksl(crtEffect()))
+            .fill(mskia::Paint::sksl(crtEffect()))
             .cache(Cache::Texture)
             .key("crt")));
     root.child(box()
@@ -1156,15 +1182,15 @@ struct LainNavi : sketch::Sketch {
   // --- host ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) override {
     using namespace lain;
-    ctx.canvas(kW, kH);
-    ctx.background(kGround);
     // This sketch brings its own canvas size — the source frames' 1016x720,
     // so a capture diffs against them directly — and its own ground colour.
     // Both cycles are phased for the 2.5 s still: the frame's verbatim
     // `.frame $fp,40,$31` line, which every sharpness measurement above is
     // anchored on, sits at the focal plane, and "no double minds" is at full
     // bloom.
-    ctx.captureAt(2.5);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = 2.5,
+                             .background = kGround});
 
     // SOLVE the mono size from the measured advance rather than guessing it:
     // measure a 40-character run at 100 pt and scale.
@@ -1174,20 +1200,16 @@ struct LainNavi : sketch::Sketch {
           ctx.measure(text(toU8(probe), type(monoFace(), 100.0f, kConsoleInk)));
       const float advAt100 = m.width() / 40.0f;
       monoSize = advAt100 > 1.0f ? 100.0f * kAdvance / advAt100 : 22.0f;
-      std::printf(
-          "  lain: mono advance %.3f px at 100pt -> size %.2f "
-          "(target advance %.2f)\n",
-          (double)advAt100, (double)monoSize, (double)kAdvance);
     }
     // and the prose size from the measured 48.5 px leading (CJK sets solid at
     // roughly 1.0 em, so the body size is the leading less the gap)
     proseSize = 28.0f;
 
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       // whole-pixel creep: a fractional translate turns a cached blit into a
       // resample, so the creep steps in whole pixels and never lands between
-      creep = (float)((int)std::floor(t * 0.5) % 6);
+      creep = (float)(motion::stepIndex(t, 0.5) % 6);
       const double ph = std::fmod(t, 4.0);
       flicker = ph < 0.05 ? 0.055f : 0.0f;
       // the camera hunting focus, +-0.4 px at 0.15 Hz
@@ -1203,9 +1225,9 @@ struct LainNavi : sketch::Sketch {
 
   void update(double elapsed, sketch::SketchContext& ctx) override {
     // Three independent rates, three slots. Nothing else re-describes at all.
-    const int line = (int)std::floor(elapsed / 0.220);
-    const int orbit = (int)std::floor(elapsed * 6.0);
-    const int phr = (int)std::floor(elapsed * 12.0);
+    const long long line = motion::stepIndex(elapsed, 1.0 / 0.220);
+    const long long orbit = motion::stepIndex(elapsed, 6.0);
+    const long long phr = motion::stepIndex(elapsed, 12.0);
     if (line != scrollLine) {
       scrollLine = line;
       ctx.composer.renderSlot("mips", consoleText());

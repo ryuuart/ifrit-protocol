@@ -22,6 +22,12 @@
  * primitive operator addresses triangles that do not exist yet; and an
  * operator whose definition calls for a library sine is not portable
  * arithmetic. `has()` is the honest answer for each.
+ *
+ * ONE NAMESPACE HOLDS EVERY KERNEL this library compiles: the point
+ * operators here, the swept rings in `Sweep.h` and the stamping in
+ * `Stamp.h`. Each names its own arguments and its own dispatch, so no
+ * two of them answer to one name, and `run` is one overload set the
+ * dispatch decides.
  */
 
 #include <cstdint>
@@ -39,7 +45,7 @@ namespace sigil::geometry::mesh::kernel {
  *  Every member is a four-component vector, so these bytes stand at the
  *  same offsets in a device's uniform buffer as they do here — there is
  *  no layout to report and none to guess. */
-struct Args {
+struct OpArgs {
   /** x: which operator, by its index among the language's descriptions;
    *  y: how many points; z: the operator's seed; w: flags, bit 0 meaning
    *  a mask lane is bound. */
@@ -57,7 +63,7 @@ struct Args {
   glm::vec4 m3{0, 0, 0, 0};
 };
 
-/** The flag bits `Args::code.w` carries. */
+/** The flag bits `OpArgs::code.w` carries. */
 enum : uint32_t {
   /** A mask lane is bound, so the operator's write is blended by it. */
   kMasked = 1u << 0u,
@@ -70,8 +76,8 @@ enum : uint32_t {
  *  bind anything to it — the kernel never reads it. Writing goes through
  *  `dst` alone. Where `dst` and a source name one lane, that is one lane
  *  read and written in place, which is what most filters are. */
-struct Dispatch {
-  Args args;
+struct OpDispatch {
+  OpArgs args;
   std::string dst;
   std::string a;
   std::string b;
@@ -89,27 +95,28 @@ bool has(const pop::Op& op);
 
 /** @p op over @p count points, as a dispatch. False — leaving @p out
  *  untouched — when there is no kernel for the operator. */
-bool describe(const pop::Op& op, size_t count, Dispatch* out);
+bool describe(const pop::Op& op, size_t count, OpDispatch* out);
 
 /** THE HOST RUN: the kernel's own generated C++ over the bound lanes.
  *
  *  Every pointer addresses at least `args.code.y` values. Only @p dst is
  *  written; a role @p dispatch left unnamed may be given any of the
  *  others, since nothing reads it. */
-void run(const Dispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
+void run(const OpDispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
          glm::vec4* c, glm::vec4* mask);
 
 /** THE KERNEL AS A DEVICE RUNS IT: the SPIR-V this build compiled from
- *  the same source `run` came out of, with one `NoContraction`
- *  decoration per arithmetic result.
+ *  the same source `run` came out of, under the precise float model.
  *
- *  The decoration is not optional and is not the emitter's: nothing in
- *  the words it produces tells a driver that a multiply and the add
- *  after it are two operations, so a driver is free to fuse them and
- *  round once where the source rounds twice. It is added here rather
- *  than by a runtime, so a second backend cannot forget it.
+ *  That model is what makes the two ends agree in their last place: it
+ *  puts a `NoContraction` decoration on every float arithmetic result,
+ *  which tells a driver that a multiply and the add after it are two
+ *  operations and forbids it fusing them into one that rounds once. It
+ *  is asked for where the module is compiled, so a second backend has
+ *  nothing to remember.
  *
- *  The words stand for the life of the process. */
-std::span<const uint32_t> spirv();
+ *  The words are the build's own and stand for the life of the
+ *  process. */
+std::span<const uint32_t> opSpirv();
 
 }  // namespace sigil::geometry::mesh::kernel

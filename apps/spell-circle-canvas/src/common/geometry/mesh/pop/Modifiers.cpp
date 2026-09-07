@@ -1,96 +1,70 @@
 /** @file
  * What is done to a cloud once it exists: positions jittered or
- * drifted by noise, a stamp mesh instanced at every point into one
- * merged mesh, and point lanes promoted onto the merged mesh's
- * primitive lanes.
+ * drifted by noise, the table a stamp rides its lanes by, and point
+ * lanes promoted onto a stamped mesh's primitive lanes. The stamping
+ * itself is an operator with a kernel and lives in `Stamp.cpp`.
+ *
+ * ONE VERB IS ONE FIELD. The two modifiers here are the chain
+ * operators of the same names with their arguments applied directly —
+ * `jitter` runs the operator's own kernel over the positions, and
+ * `displaceNoise` reads the field `Noise` displaces by — so a cloud
+ * perturbed with a chain and a cloud perturbed without one move by the
+ * same offsets. A second arithmetic under one name would mean nobody
+ * could say which of them a picture came from.
  */
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #include "sigilgeometry/mesh/Vec.h"
+#include "sigilgeometry/mesh/pop/Kernel.h"
 #include "sigilgeometry/mesh/pop/Points.h"
-#include "sigilgeometry/path/Noise.h"
+#include "sigilgeometry/mesh/pop/Pop.h"
 
 namespace sigil::geometry::mesh {
-
-// The tier's other features this file stands on, pulled in so the code
-// below reads as one vocabulary.
-namespace noise = path::noise;
 
 using glm::cross;
 
 namespace points {
 
 void jitter(Cloud& cloud, float amplitude, uint32_t seed) {
-  uint32_t state = seed * 2654435761u + 101u;
-  for (glm::vec3& p : cloud.positions)
-    p += glm::vec3{(noise::pcgUnitNext(state) * 2 - 1) * amplitude,
-                   (noise::pcgUnitNext(state) * 2 - 1) * amplitude,
-                   (noise::pcgUnitNext(state) * 2 - 1) * amplitude};
-}
-
-void displaceNoise(Cloud& cloud, float amplitude, float frequency,
-                   uint32_t seed) {
-  for (glm::vec3& p : cloud.positions) {
-    const glm::vec3 q = p * frequency;
-    p += glm::vec3{noise::value3(q, seed) * amplitude,
-                   noise::value3(q + glm::vec3{31.7f, 0, 0}, seed) * amplitude,
-                   noise::value3(q + glm::vec3{0, 47.3f, 0}, seed) * amplitude};
-  }
-}
-
-Mesh instance(const Cloud& cloud, const Mesh& stamp,
-              const InstanceOptions& options) {
-  Mesh out;
   const size_t n = cloud.size();
-  const size_t stampVerts = stamp.vertexCount();
-  out.positions.reserve(n * stampVerts);
-  out.normals.reserve(n * stampVerts);
-  out.uvs.reserve(n * stampVerts);
-  out.indices.reserve(n * stamp.indices.size());
-
-  const std::vector<float>* scaleLane =
-      options.scaleLane.empty() ? nullptr : cloud.scalarIf(options.scaleLane);
-  const std::vector<glm::vec4>* tintLane =
-      options.tintLane.empty() ? nullptr : cloud.colorIf(options.tintLane);
-  const std::vector<glm::vec3>* orientLane =
-      options.orientLane.empty() ? nullptr : cloud.vectorIf(options.orientLane);
-  const bool tinted = tintLane != nullptr || !stamp.colors.empty();
-
-  for (size_t i = 0; i < n; ++i) {
-    const float s =
-        options.scale *
-        (scaleLane && i < scaleLane->size() ? (*scaleLane)[i] : 1.0f);
-    glm::vec3 bx{1, 0, 0}, by{0, 1, 0}, bz{0, 0, 1};
-    if (orientLane && i < orientLane->size())
-      basisFor((*orientLane)[i], options.up, &bx, &by, &bz);
-    const glm::vec3 origin = cloud.positions[i];
-    const uint32_t base = (uint32_t)out.positions.size();
-    for (size_t v = 0; v < stampVerts; ++v) {
-      const glm::vec3& p = stamp.positions[v];
-      out.positions.push_back(origin + (bx * p.x + by * p.y + bz * p.z) * s);
-      if (v < stamp.normals.size()) {
-        const glm::vec3& nrm = stamp.normals[v];
-        out.normals.push_back(bx * nrm.x + by * nrm.y + bz * nrm.z);
-      }
-      if (v < stamp.uvs.size()) out.uvs.push_back(stamp.uvs[v]);
-      if (tinted) {
-        glm::vec4 tint = tintLane && i < tintLane->size()
-                             ? (*tintLane)[i]
-                             : glm::vec4{1, 1, 1, 1};
-        if (v < stamp.colors.size()) tint *= stamp.colors[v];
-        out.colors.push_back(tint);
-      }
-    }
-    for (uint32_t idx : stamp.indices) out.indices.push_back(base + idx);
-  }
-  return out;
+  if (n == 0) return;
+  mesh::kernel::OpDispatch work;
+  if (!mesh::kernel::describe(
+          pop::Op{pop::Jitter{pop::Lane::P, amplitude, seed}}, n, &work))
+    return;
+  // The kernel reads and writes one four-wide lane; the positions are
+  // poured across it and back, which is the whole of what reaching the
+  // operator without a chain costs.
+  std::vector<glm::vec4> lane(n);
+  for (size_t i = 0; i < n; ++i)
+    lane[i] = {cloud.positions[i].x, cloud.positions[i].y, cloud.positions[i].z,
+               0};
+  glm::vec4* const values = lane.data();
+  mesh::kernel::run(work, values, values, values, values, values);
+  for (size_t i = 0; i < n; ++i)
+    cloud.positions[i] = {lane[i].x, lane[i].y, lane[i].z};
 }
 
-Mesh quads(const Cloud& cloud, float width, float height,
-           const InstanceOptions& options) {
-  return instance(cloud, mesh::quad(width, height), options);
+void displaceNoise(Cloud& cloud, float amplitude, float frequency, float seed) {
+  for (glm::vec3& p : cloud.positions)
+    p += pop::noiseField(p, frequency, seed) * amplitude;
+}
+
+InstanceOptions stampOptions(const Cloud& cloud) {
+  InstanceOptions options;
+  options.scaleLane = cloud.scalarIf("size") ? "size" : "";
+  options.tintLane = cloud.colorIf("tint") ? "tint" : "";
+  // "dir" is what a chain exports and "normal" what a generator or an
+  // importer writes; either stands the stamp up, "dir" winning where
+  // both are present.
+  if (cloud.vectorIf("dir"))
+    options.orientLane = "dir";
+  else if (cloud.vectorIf("normal"))
+    options.orientLane = "normal";
+  return options;
 }
 
 void promoteToPrims(Mesh& mesh, const Cloud& cloud, std::string_view cloudLane,

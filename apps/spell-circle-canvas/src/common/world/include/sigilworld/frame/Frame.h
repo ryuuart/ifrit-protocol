@@ -35,7 +35,7 @@ class Readback {
   struct Result {
     std::string resource;
     sk_sp<SkImage> image;
-    const Cloud* points = nullptr;
+    const geometry::mesh::Cloud* points = nullptr;
     /** The frame the content was produced in. */
     uint64_t frame = 0;
   };
@@ -81,7 +81,7 @@ class Frame {
    *  needs one. */
   Frame& extent(SkISize size);
   /** The viewpoint, for a tree that declares none of its own. */
-  Frame& camera(Camera c);
+  Frame& camera(geometry::mesh::camera::Camera c);
   /** Adds a pass. The order passes are added in is not the order they
    *  run in — that is derived from what each one reads and writes. */
   Frame& pass(Pass p);
@@ -95,7 +95,9 @@ class Frame {
 
   [[nodiscard]] const Element& scene() const { return m_scene; }
   [[nodiscard]] SkISize extent() const { return m_extent; }
-  [[nodiscard]] const Camera& camera() const { return m_camera; }
+  [[nodiscard]] const geometry::mesh::camera::Camera& camera() const {
+    return m_camera;
+  }
   [[nodiscard]] std::span<const Pass> passes() const { return m_passes; }
   [[nodiscard]] std::span<const Readback> readbacks() const {
     return m_readbacks;
@@ -106,7 +108,7 @@ class Frame {
  private:
   Element m_scene;
   SkISize m_extent{0, 0};
-  Camera m_camera;
+  geometry::mesh::camera::Camera m_camera;
   std::vector<Pass> m_passes;
   std::vector<Readback> m_readbacks;
   Runtime m_runtime = Runtime::cpu();

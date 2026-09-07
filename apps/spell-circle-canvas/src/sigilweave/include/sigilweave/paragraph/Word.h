@@ -89,7 +89,7 @@ class WordSegmentList {
   // Room for the inline container: its size and alignment are checked
   // where it is instantiated, so a container that outgrows this space
   // fails to compile rather than overrunning it.
-  alignas(8) std::byte m_storage[48];
+  alignas(8) std::byte m_storage[56];
 };
 
 /// The atomic layout unit: the text between two line-break opportunities.

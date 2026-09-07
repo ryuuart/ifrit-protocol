@@ -10,11 +10,34 @@
  * through.
  */
 
+#include <sigilcore/compute/Intervals.h>
+#include <sigilweave/paragraph/Paragraph.h>
+
+#include <cstdint>
 #include <span>
 #include <string>
 #include <vector>
 
 #include "ComposeRuntime.h"
+
+namespace sigil::core {
+
+/** A paragraph range's endpoints, for the interval algebra the selection
+ *  forms are combined with. */
+template <>
+struct IntervalEnds<sigil::weave::CharRange> {
+  using Value = uint32_t;
+  static uint32_t& low(sigil::weave::CharRange& r) { return r.start; }
+  static uint32_t& high(sigil::weave::CharRange& r) { return r.end; }
+  static const uint32_t& low(const sigil::weave::CharRange& r) {
+    return r.start;
+  }
+  static const uint32_t& high(const sigil::weave::CharRange& r) {
+    return r.end;
+  }
+};
+
+}  // namespace sigil::core
 
 namespace sigil::compose::detail {
 
@@ -25,22 +48,39 @@ namespace sigil::compose::detail {
  *  numbering the words and lines — do not depend on which track is asking.
  *  Reused across frames: build() keeps the allocations. */
 struct GlyphStructure {
-  static constexpr size_t kUnits = 5;  ///< one lane per Unit enumerator
+  static constexpr size_t kUnits = 5;  ///< one lane per weave::Unit enumerator
 
   std::vector<GlyphInfo> glyphs;  ///< in draw order, structure filled in
-  /** Per Unit: glyph index → the unit it belongs to, numbered from 0 in
+  /** Per weave::Unit: glyph index → the unit it belongs to, numbered from 0 in
    *  draw order. */
   std::array<std::vector<uint32_t>, kUnits> unitOf;
   std::array<uint32_t, kUnits> unitCounts{};
+  /** THE SAME LANES NUMBERED OVER THE STORY, for a leaf that is one frame
+   *  of a chain: the beats of a cascade over a threaded story run on one
+   *  clock across the whole of it, so the fortieth word is beat forty
+   *  wherever it landed and a stagger does not restart at each frame.
+   *
+   *  Only three granularities have a story ordinal to report — the word,
+   *  the sentence and the line each carry one on the placed glyph, because
+   *  every frame builds the whole story's paragraph and resumes at a word.
+   *  A CLUSTER AND A GLYPH DO NOT: a cluster's ordinal is a walk position
+   *  and the walk is this frame's, so those two lanes are the frame's
+   *  numbering and a cascade over them restarts per frame. Empty on a leaf
+   *  that is not a frame of a chain, which then reads the lanes above and
+   *  is numbered exactly as it always was. */
+  std::array<std::vector<uint32_t>, kUnits> storyUnitOf;
+  std::array<uint32_t, kUnits> storyUnitCounts{};
+
+  TextScope scope;  ///< carried so every resolver reads one value
 
   void build(const sigil::weave::ParagraphLayout& layout,
-             const sigil::weave::Paragraph& paragraph);
+             const sigil::weave::Paragraph& paragraph, TextScope scope = {});
 };
 
 /** Which glyphs a selector addresses: one byte per glyph, in walk order.
  *  A pattern that does not compile answers all-zero and warns once, and so
  *  does an `sel::style` name @p named does not carry. */
-std::vector<uint8_t> resolveSelection(const Selector& selector,
+std::vector<uint8_t> resolveSelection(const sigil::weave::Selector& selector,
                                       const GlyphStructure& structure,
                                       const sigil::weave::Paragraph& paragraph,
                                       std::span<const NamedRun> named);
@@ -48,70 +88,30 @@ std::vector<uint8_t> resolveSelection(const Selector& selector,
 void warnBadSelectorPattern(const std::u8string& pattern);
 /** The once-per-name diagnostic behind an `sel::style` no run answers to. */
 void warnNoSuchStyleName(const std::u8string& name);
-/** The once-per-shape diagnostic behind a cue table that does not have one
- *  entry per unit: the tail either piles on the last cue or goes unread,
- *  and both are a table cut against the wrong text. */
-void warnCueTableMismatch(size_t cueCount, size_t unitCount);
+/** The once-per-key diagnostic behind an `sel::inFrame` naming a frame no
+ *  leaf in the tree carries. */
+void warnNoSuchFrameKey(const std::u8string& key);
 /** WHICH TEXT A SELECTOR ADDRESSES, as UTF-16 ranges rather than glyphs —
  *  the form span restyling needs, because a restyle happens on the
  *  Paragraph, before there are glyphs to point at.
  *
  *  Sorted, merged and non-overlapping. `|`, `&` and `!` are interval
  *  arithmetic over the text; the complement is taken against the whole
- *  text. `sel::line` reads @p lines, or @p columns where the passage is
+ *  text. `weave::sel::line` reads @p lines, or @p columns where the passage is
  *  vertical and a line IS a column — the geometry a previous layout
  *  produced, passed as plain values rather than as a layout because the
  *  paragraph that layout belongs to is the one being replaced — and
- *  addresses nothing when both are empty. `Selector::take`/`drop` slice
- *  glyphs inside a unit, which no text range can express: an `sel::each`
+ *  addresses nothing when both are empty. `weave::Selector::take`/`drop` slice
+ *  glyphs inside a unit, which no text range can express: an `weave::sel::each`
  *  selector answers with its whole units and the slice warns once.
  *  `sel::style` reads @p named, which is why the table is built before the
  *  restyles that consume it run. */
 std::vector<sigil::weave::CharRange> resolveTextRanges(
-    const Selector& selector, sigil::weave::Paragraph& paragraph,
+    const sigil::weave::Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
     std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns,
-    std::span<const NamedRun> named);
-
-/** ONE TRACK'S CASCADE, resolved for a frame's unit counts: the delay
- *  ladder, the beat length, and the virtual span the master progress maps
- *  onto. Built per track per paint; localTime() is then a few adds per
- *  glyph. */
-struct Cascade {
-  std::vector<float> outerOrder;  ///< outer unit → its place in the cascade
-  std::vector<float> innerOrder;  ///< inner unit → the same, within a beat
-  /** The author's start-time table at each level, in ms, or empty for the
-   *  even ladder above. A table names delays outright, so the order, the
-   *  spacing and the distribution curve have nothing left to say. */
-  std::vector<float> outerCue, innerCue;
-  choreograph::EaseFn outerDistribution, innerDistribution;
-  float outerEach = 0;  ///< ms between outer starts
-  float innerEach = 0;  ///< ms between inner starts
-  float duration = 1;   ///< ms one unit's own motion lasts
-  float beatMs = 1;     ///< ms one outer beat occupies
-  /** Ms the master progress spans: the one-shot closing span, or the loop
-   *  PERIOD when the cascade loops — either way, `master · totalMs` is the
-   *  virtual time every local clock reads. */
-  float totalMs = 1;
-  /** The wrapping period (`Stagger::loopMs`), or 0 for a one-shot cascade.
-   *  When set, `totalMs` IS this period and localTime() folds each unit's
-   *  elapsed time mod it, so every beat re-opens once per cycle. */
-  float loopMs = 0;
-
-  void build(const Stagger& spec, uint32_t outerCount, uint32_t innerCount);
-  /** When this unit's beat opens, in ms from the start of the master
-   *  progress — the outer delay plus, under a nested cascade, the inner
-   *  one. THE one place the schedule is arithmetic; everything that reports
-   *  a start time reads it here. */
-  [[nodiscard]] float startMs(uint32_t outerUnit, uint32_t innerUnit) const;
-  /** The local 0→1 this unit sees at master progress `master`. Clamped at
-   *  both ends for a one-shot cascade; a looping one folds the unit's
-   *  elapsed time mod `loopMs` first, so the answer re-opens at 0 once per
-   *  cycle and rests at 1 between its beat's close and its next opening. */
-  [[nodiscard]] float localTime(float master, uint32_t outerUnit,
-                                uint32_t innerUnit) const;
-};
+    std::span<const NamedRun> named, TextScope scope = {});
 
 /** ONE TRACK'S CASCADE RESOLVED AGAINST A LAID-OUT PARAGRAPH: which beat
  *  every glyph falls in at each level, and the ladder those beats run on.
@@ -123,12 +123,17 @@ struct Cascade {
  *  into the per-glyph lanes rather than clearing them, so a page of
  *  animated type does not mint a pair of vectors per track per frame. */
 struct TrackCascade {
-  Cascade cascade;
+  motion::Cascade cascade;
   std::vector<uint32_t> outerUnit;  ///< glyph → its beat
   std::vector<uint32_t> innerUnit;  ///< glyph → its beat inside that beat;
                                     ///< empty without a nested cascade
 
-  void build(const Stagger& spec, const GlyphStructure& structure,
+  /** THE GLYPH ADAPTER, and the whole of what compose adds to a schedule:
+   *  @p track says what a unit is (`unit`, `innerUnit`) and which list the
+   *  beats are numbered against (`beatsOver`), this walk turns the laid-out
+   *  glyphs into those numbers, and the arithmetic over them is
+   *  SigilMotion's. */
+  void build(const Track& track, const GlyphStructure& structure,
              const std::vector<uint8_t>& selected);
 };
 
@@ -139,11 +144,15 @@ struct TrackCascade {
  *  drift apart. */
 void compose(GlyphMod& into, const GlyphMod& next);
 GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w);
-/** FIELD PIN for GlyphMod (see the FIELD PINS block above) — defined beside
- *  the two functions it guards, never called. */
+/** FIELD PIN for GlyphMod: A FIELD ADDED TO IT IS A BUILD FAILURE until the
+ *  two functions above carry it. The definition binds every member by name,
+ *  so a new one breaks the count. What it closes is invisible otherwise — a
+ *  field left out of `compose` or `lerpMod` reads at rest for every stacked
+ *  track and never interpolates, so the effect appears to work and then
+ *  quietly does not move. Defined beside the two, never called. */
 void glyphModFieldPin(GlyphMod& v);
-/** The seed an effect's Rng is constructed from — the glyph's identity plus
- *  the operand lane inside a composite. */
+/** The seed an effect's random stream is constructed from — the glyph's
+ * identity plus the operand lane inside a composite. */
 uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane = 0);
 
 // ---------------------------------------------------------------------------
@@ -172,13 +181,37 @@ void ensurePathLayout(Composer::Impl& impl, Instance& inst,
  *  last draw() produced — the read-back behind Composer::beatsOf. Rects
  *  come out in the NODE's own space; the caller offsets them into the
  *  composer's, as the bounds query does. */
-std::vector<Beat> beatsOfTrack(Composer::Impl& impl, Instance& inst,
-                               size_t trackIndex);
+std::vector<Beat> beatsOfTrack(Instance& inst, size_t trackIndex);
+/** WHERE THE UNITS A SELECTOR ADDRESSES LANDED, one entry each, in draw
+ *  order — the read-back behind Composer::units. Read off the same layout
+ *  the letters are drawn from and built from the same pose and the same
+ *  advance box a mark and a beat are built from, so an annotation placed
+ *  from this and a mark anchored to the same selection cannot disagree
+ *  about where a unit is. Rects come out in the NODE's own space.
+ *
+ *  @p sources, when given, receives the SOURCE unit each entry came from,
+ *  one per entry: a base that broke across a line or a column is reported
+ *  on both, and the two pieces carry the same source. It is the only way to
+ *  tell one base's pieces from two neighbouring bases, because the text
+ *  between them — the space a line breaks at — is placed on neither. */
+std::vector<TextUnit> unitsOfText(Composer::Impl& impl, Instance& inst,
+                                  const sigil::weave::Selector& selector,
+                                  sigil::weave::Unit unit,
+                                  std::vector<uint32_t>* sources = nullptr);
+/** THE BAND A TEXT'S RESERVING READINGS NEED, from their own metrics
+ *  alone: the tallest reading's line height plus its standoff, on each
+ *  side that carries one. Asked BEFORE the base is laid out. */
+sigil::weave::ReservedBand reservedBandOf(
+    Composer::Impl& impl, std::span<const Annotation> annotations);
+/** LAYS OUT EVERY READING against the placement the base reached, leaving
+ *  the results on the instance for the kernel to draw. A base unit that
+ *  broke across a line or a column has its reading split between the
+ *  pieces in proportion to the base's advance either side. */
+void resolveTextAnnotations(Composer::Impl& impl, Instance& inst);
 /** THE SAME SCHEDULE'S WHOLE VIRTUAL SPAN in ms — the read-back behind
  *  Composer::cascadeSpanMs, resolved by the same body as beatsOfTrack.
  *  0 wherever beatsOfTrack answers empty. */
-float cascadeSpanOfTrack(Composer::Impl& impl, Instance& inst,
-                         size_t trackIndex);
+float cascadeSpanOfTrack(Instance& inst, size_t trackIndex);
 /** WHERE EACH mark() ANCHORS, refilling `textMarkRects` from the layout
  *  the letters are drawn from: one rect per anchor, the union of the
  *  advance boxes of the glyphs its selector addressed. A flow run's

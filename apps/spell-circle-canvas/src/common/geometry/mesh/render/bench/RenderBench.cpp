@@ -12,6 +12,7 @@
 #include <benchmark/benchmark.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 
 #include <glm/glm.hpp>
@@ -109,5 +110,3 @@ void BM_DrawPanel(benchmark::State& state) {
 BENCHMARK(BM_DrawPanel)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

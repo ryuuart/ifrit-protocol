@@ -1,8 +1,9 @@
 /** @file
  * The format-routing decode surface — the Skia codecs reached through
- * decodeImage()/probeImage() on raw bytes, and the SVG backend when it
- * is built in. The file reads here are the test's own; the library takes
- * no paths.
+ * decodeImage()/probeImage() on raw bytes, the KTX reader, the DDS cube
+ * map through OpenImageIO when it is built in, and the SVG backend when
+ * it is. The file reads here are the test's own; the library takes no
+ * paths.
  */
 
 #include <gtest/gtest.h>
@@ -14,11 +15,14 @@
 #include <string>
 #include <vector>
 
+#include "CubeContainers.h"
+#include "Pixels.h"
+
 namespace {
 
-std::string assetPath(const char* name) {
-  return std::string(IFRIT_IMAGE_TEST_ASSET_DIR "/") + name;
-}
+using sigil::image::test::assetPath;
+using sigil::image::test::expectNearColor;
+using sigil::image::test::pixelAt;
 
 std::vector<std::byte> readFile(const std::string& path) {
   std::ifstream stream(path, std::ios::binary | std::ios::ate);
@@ -31,25 +35,19 @@ std::vector<std::byte> readFile(const std::string& path) {
   return bytes;
 }
 
-/** Reads the pixel at (x, y) of a decoded frame as unpremultiplied color. */
-SkColor pixelAt(const sk_sp<SkImage>& image, int x, int y) {
-  SkBitmap bitmap;
-  bitmap.allocPixels(SkImageInfo::MakeN32(image->width(), image->height(),
-                                          kUnpremul_SkAlphaType));
-  EXPECT_TRUE(image->readPixels(nullptr, bitmap.pixmap(), 0, 0));
-  return bitmap.getColor(x, y);
-}
-
-void expectNearColor(SkColor actual, SkColor expected, int tolerance,
-                     const char* what) {
-  EXPECT_NEAR(int(SkColorGetR(actual)), int(SkColorGetR(expected)), tolerance)
-      << what;
-  EXPECT_NEAR(int(SkColorGetG(actual)), int(SkColorGetG(expected)), tolerance)
-      << what;
-  EXPECT_NEAR(int(SkColorGetB(actual)), int(SkColorGetB(expected)), tolerance)
-      << what;
-  EXPECT_EQ(SkColorGetA(actual), SkColorGetA(expected)) << what;
-}
+// The optional backends are a build-time fact, so a claim about one is
+// carried here whether or not it is built in: without the backend the
+// case says which backend it wanted rather than vanishing from the run.
+#ifdef SIGILIMAGE_HAS_OIIO
+constexpr bool kOiioBackend = true;
+#else
+constexpr bool kOiioBackend = false;
+#endif
+#ifdef SIGILIMAGE_HAS_SVG
+constexpr bool kSvgBackend = true;
+#else
+constexpr bool kSvgBackend = false;
+#endif
 
 TEST(ImageDecode, RoutesRasterBytesThroughTheSkiaCodecs) {
   const auto bytes = readFile(assetPath("anim.gif"));
@@ -93,7 +91,87 @@ TEST(ImageDecode, RejectsUnsupportedBytes) {
           .has_value());
 }
 
-#ifdef SIGILIMAGE_HAS_SVG
+// The six faces of a cube map, each its own colour in the +x -x +y -y
+// +z -z order, so where a face landed in the column is legible from the
+// texel.
+constexpr sigil::image::test::CubeFaces kCubeFaces = {
+    SK_ColorRED,    SK_ColorGREEN, SK_ColorBLUE,
+    SK_ColorYELLOW, SK_ColorCYAN,  SK_ColorMAGENTA};
+
+/** The decoded image must be the faces stacked into a 1:6 column. */
+void expectCubeColumn(const std::vector<std::byte>& bytes, const char* name) {
+  auto asset = sigil::image::decodeImage(bytes.data(), bytes.size(), {}, name);
+  ASSERT_TRUE(asset.has_value()) << name;
+  ASSERT_EQ(asset->frames().size(), 1u) << name;
+  const sk_sp<SkImage>& image = asset->frames()[0].image;
+  EXPECT_EQ(image->width(), 8) << name;
+  EXPECT_EQ(image->height(), 48) << name;
+  for (int face = 0; face < 6; ++face)
+    expectNearColor(pixelAt(image, 4, face * 8 + 4), kCubeFaces[(size_t)face],
+                    0, name);
+  auto info = sigil::image::probeImage(bytes.data(), bytes.size(), name);
+  ASSERT_TRUE(info.has_value()) << name;
+  EXPECT_EQ(info->width, 8) << name;
+  EXPECT_EQ(info->height, 48) << name;
+  EXPECT_EQ(info->channels, 4) << name;
+  EXPECT_FALSE(info->floatingPoint) << name;
+}
+
+TEST(KtxDecode, ACubeMapInEitherContainerIsTheSixFacesAsAColumn) {
+  const auto ktx1 = sigil::image::test::cubeKtx1(kCubeFaces, 8);
+  expectCubeColumn(ktx1, "cube.ktx");
+  auto info = sigil::image::probeImage(ktx1.data(), ktx1.size());
+  ASSERT_TRUE(info.has_value());
+  EXPECT_EQ(info->format, "ktx");
+  const auto ktx2 = sigil::image::test::cubeKtx2(kCubeFaces, 8);
+  expectCubeColumn(ktx2, "cube.ktx2");
+  info = sigil::image::probeImage(ktx2.data(), ktx2.size());
+  ASSERT_TRUE(info.has_value());
+  EXPECT_EQ(info->format, "ktx2");
+}
+
+TEST(KtxDecode, ATruncatedFileIsRefused) {
+  auto ktx2 = sigil::image::test::cubeKtx2(kCubeFaces, 8);
+  ktx2.resize(ktx2.size() - 1);  // the last face is one byte short
+  EXPECT_FALSE(sigil::image::decodeImage(ktx2.data(), ktx2.size()).has_value());
+  EXPECT_FALSE(sigil::image::probeImage(ktx2.data(), ktx2.size()).has_value());
+}
+
+// A crafted header, byte by byte over a good file: the fields a reader
+// takes its lengths from are the ones a hostile file lies about.
+void writeWord(std::vector<std::byte>& bytes, size_t at, uint32_t value) {
+  for (size_t i = 0; i < 4; ++i)
+    bytes[at + i] = (std::byte)((value >> (8 * i)) & 0xFFu);
+}
+
+TEST(KtxDecode, AHeaderWhoseLengthsOverflowIsRefused) {
+  // 2^30 by 2^30 at sixteen bytes a texel: the face length is a product
+  // of header fields that wraps to zero, so the length the file states
+  // covers it, the level is taken, and the image the reader is then
+  // asked to hold is 2^62 floats — from a file of a hundred-odd bytes.
+  auto ktx2 = sigil::image::test::cubeKtx2(kCubeFaces, 8);
+  writeWord(ktx2, 12, 109);       // vkFormat R32G32B32A32_SFLOAT
+  writeWord(ktx2, 20, 1u << 30);  // pixelWidth
+  writeWord(ktx2, 24, 1u << 30);  // pixelHeight
+  writeWord(ktx2, 36, 1);         // faceCount
+  EXPECT_FALSE(sigil::image::decodeImage(ktx2.data(), ktx2.size()).has_value());
+  EXPECT_FALSE(sigil::image::probeImage(ktx2.data(), ktx2.size()).has_value());
+
+  // The same lie in a KTX 1 header, where the width alone is past what
+  // any image holds.
+  auto ktx1 = sigil::image::test::cubeKtx1(kCubeFaces, 8);
+  writeWord(ktx1, 16, 0x1406);    // glType GL_FLOAT
+  writeWord(ktx1, 36, 1u << 30);  // pixelWidth
+  writeWord(ktx1, 40, 1u << 30);  // pixelHeight
+  writeWord(ktx1, 52, 1);         // numberOfFaces
+  EXPECT_FALSE(sigil::image::decodeImage(ktx1.data(), ktx1.size()).has_value());
+  EXPECT_FALSE(sigil::image::probeImage(ktx1.data(), ktx1.size()).has_value());
+}
+
+TEST(OiioDecode, ADdsCubeMapIsTheSixFacesAsAColumn) {
+  if (!kOiioBackend) GTEST_SKIP() << "built without the OpenImageIO backend";
+  expectCubeColumn(sigil::image::test::cubeDds(kCubeFaces, 8), "cube.dds");
+}
 
 // An 8x4 document, red left half, blue right half.
 constexpr char kTwoRectSvg[] =
@@ -107,6 +185,7 @@ const std::byte* svgBytes(const char* svg) {
 }
 
 TEST(SvgDecode, RendersAtExplicitSize) {
+  if (!kSvgBackend) GTEST_SKIP() << "built without the Skia SVG backend";
   auto asset = sigil::image::decodeImage(
       svgBytes(kTwoRectSvg), std::char_traits<char>::length(kTwoRectSvg),
       {.width = 64, .height = 32});
@@ -121,6 +200,7 @@ TEST(SvgDecode, RendersAtExplicitSize) {
 }
 
 TEST(SvgDecode, WidthOnlyDerivesHeightFromAspect) {
+  if (!kSvgBackend) GTEST_SKIP() << "built without the Skia SVG backend";
   auto asset = sigil::image::decodeImage(
       svgBytes(kTwoRectSvg), std::char_traits<char>::length(kTwoRectSvg),
       {.width = 100});
@@ -136,6 +216,7 @@ TEST(SvgDecode, WidthOnlyDerivesHeightFromAspect) {
 }
 
 TEST(SvgDecode, ProbeReportsFormatAndIntrinsicSize) {
+  if (!kSvgBackend) GTEST_SKIP() << "built without the Skia SVG backend";
   auto info = sigil::image::probeImage(
       svgBytes(kTwoRectSvg), std::char_traits<char>::length(kTwoRectSvg));
   ASSERT_TRUE(info.has_value());
@@ -146,7 +227,5 @@ TEST(SvgDecode, ProbeReportsFormatAndIntrinsicSize) {
   EXPECT_EQ(info->frames, 1);
   EXPECT_FALSE(info->floatingPoint);
 }
-
-#endif  // SIGILIMAGE_HAS_SVG
 
 }  // namespace

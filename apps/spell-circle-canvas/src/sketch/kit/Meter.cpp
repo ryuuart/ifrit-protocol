@@ -1,0 +1,106 @@
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilsketch/kit/Meter.h>
+
+#include <algorithm>
+#include <utility>
+
+namespace sigil::sketch::kit {
+
+using compose::Align;
+using compose::box;
+using compose::Corners;
+using compose::Dim;
+using compose::Element;
+using compose::Fill;
+using compose::text;
+
+compose::Element meter(const Meter& bar) {
+  const Theme& look = theme();
+  const float filled = std::clamp(bar.fraction, 0.0f, 1.0f);
+  const Ground trackPaint =
+      bar.track.value_or(Fill::color(look.palette.cellGround));
+  const Ground barPaint = bar.bar.value_or(Fill::color(look.palette.figure));
+
+  Element rail = box();
+  trackPaint.paint(rail);
+  rail.clip();
+  if (bar.width.unit != Dim::Unit::Auto) rail.width(bar.width);
+  rail.height(bar.height.value_or(Dim(look.spacing.barHeight)));
+  if (bar.corners > 0) rail.corners(Corners{bar.corners});
+  if (bar.keyline)
+    rail.stroke(compose::stroke(bar.keylineWidth, *bar.keyline,
+                                compose::PathFormat::Align::Inner));
+  if (bar.inset && *bar.inset > 0) rail.padding(*bar.inset);
+  if (bar.level) {
+    // Scaled from the left edge rather than sized: the bed keeps its
+    // recording and only the transform moves.
+    Element run = box().absolute().inset(bar.inset.value_or(0.0f));
+    barPaint.paint(run);
+    run.transformOrigin(0, 0.5f).scaleX(*bar.level);
+    if (bar.corners > 0) run.corners(Corners{bar.corners});
+    rail.child(std::move(run));
+  } else if (filled > 0) {
+    // The height is stated rather than left to the cross-axis stretch:
+    // a rail is laid out in whichever direction its caller's tree runs,
+    // and a fill that took its height from that would be a hairline on
+    // half of them.
+    Element run =
+        box().width(compose::pct(filled * 100)).height(compose::pct(100));
+    barPaint.paint(run);
+    run.alignSelf(Align::Stretch);
+    if (bar.corners > 0) run.corners(Corners{bar.corners});
+    rail.child(std::move(run));
+  }
+
+  if (bar.label.empty() && bar.reading.empty()) return rail;
+
+  Element column = box().column();
+  if (bar.width.unit != Dim::Unit::Auto) column.width(bar.width);
+  Element head = box().row().alignItems(Align::Baseline);
+  if (!bar.label.empty())
+    head.child(
+        text(bar.label, look.style(look.type.captionNote, look.palette.ash)));
+  head.child(box().grow(1));
+  if (!bar.reading.empty())
+    head.child(text(bar.reading,
+                    look.style(look.type.captionLabel, look.palette.figure)));
+  column.child(std::move(head));
+  column.child(std::move(rail.margin(0, look.spacing.captionNoteGap, 0, 0)));
+  return column;
+}
+
+compose::Element gauge(const Gauge& dial) {
+  const Theme& look = theme();
+  const float swept = std::clamp(dial.fraction, 0.0f, 1.0f);
+  const float diameter = std::max(dial.diameter, 1.0f);
+  // `Sector`'s inner ratio is a fraction of the RADIUS, so a ring of
+  // `thickness` px on a dial of `diameter` px leaves this much of it.
+  const float inner =
+      std::clamp(1.0f - (2.0f * dial.thickness) / diameter, 0.0f, 0.999f);
+  const auto ring = [&](float sweep, const Ground& paint) {
+    Element band = box().absolute().inset(0).shape(
+        geometry::shapes::sector(dial.startDeg, sweep, inner));
+    paint.paint(band);
+    return band;
+  };
+
+  Element face = box().width(Dim(diameter)).height(Dim(diameter));
+  face.child(ring(dial.sweepDeg,
+                  dial.track.value_or(Fill::color(look.palette.cellGround))));
+  if (swept > 0)
+    face.child(ring(dial.sweepDeg * swept,
+                    dial.bar.value_or(Fill::color(look.palette.figure))));
+  if (!dial.reading.empty())
+    face.child(box()
+                   .absolute()
+                   .inset(0)
+                   .alignItems(Align::Center)
+                   .justify(compose::Justify::Center)
+                   .child(text(dial.reading, look.style(look.type.captionLabel,
+                                                        look.palette.figure))));
+  return face;
+}
+
+}  // namespace sigil::sketch::kit

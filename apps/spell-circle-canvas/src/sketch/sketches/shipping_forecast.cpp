@@ -58,8 +58,8 @@
 // ONE CLOCK. A ticker lambda steps two scalars and nothing else:
 //   cycle   — seconds within one 15 s bulletin, wrapping
 //   secs    — seconds since start, never wrapping (the ring's marquee)
-// Every beat in the piece is then `bind(&cycle).window(lo, hi)`, which is a
-// beat on a timeline and not a second timeline: the window clamps outside
+// Every beat in the piece is then `motion::bind(&cycle).window(lo, hi)`, which
+// is a beat on a timeline and not a second timeline: the window clamps outside
 // its range, so a track that has not started reads 0 and one that has
 // finished reads 1, and the whole sheet re-performs on the wrap.
 //
@@ -140,22 +140,40 @@
 //
 //   The whole bulletin:  --at 0.2 --frames 30 --fps 4
 
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Cells.h>
+#include <sigilsketch/kit/Heading.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
+#include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Style.h>
+#include <sigilweave/style/Type.h>
 
 #include <cmath>
 #include <string>
+#include <utility>
+#include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
 namespace motion = sigil::motion;
+namespace mskia = sigil::material::skia;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 namespace ch = choreograph;
 
 namespace {
@@ -166,13 +184,13 @@ namespace {
 constexpr float kW = 1440.0f;
 constexpr float kH = 880.0f;
 
-constexpr SkColor4f kSea = hex(0x06090E);      // ground
-constexpr SkColor4f kSeaLift = hex(0x0B111A);  // panel wash
-constexpr SkColor4f kBone = hex(0xE9E5DB);     // primary type
-constexpr SkColor4f kSlate = hex(0x76828F);    // secondary type
-constexpr SkColor4f kSlateDim = hex(0x76828F, 0.62f);
-constexpr SkColor4f kKeyline = hex(0x1A2532);
-constexpr SkColor4f kAmber = hex(0xF0A03C);  // the one accent
+constexpr SkColor4f kSea = hexColor(0x06090E);      // ground
+constexpr SkColor4f kSeaLift = hexColor(0x0B111A);  // panel wash
+constexpr SkColor4f kBone = hexColor(0xE9E5DB);     // primary type
+constexpr SkColor4f kSlate = hexColor(0x76828F);    // secondary type
+constexpr SkColor4f kSlateDim = hexColor(0x76828F, 0.62f);
+constexpr SkColor4f kKeyline = hexColor(0x1A2532);
+constexpr SkColor4f kAmber = hexColor(0xF0A03C);  // the one accent
 
 constexpr float kRingBox = 660.0f;  // the square the ring panel occupies
 constexpr float kRingR = 292.0f;    // sea-area baseline radius
@@ -229,22 +247,22 @@ struct ShippingForecast : sketch::Sketch {
   ch::Output<float> secs{0};   // monotonic: the ring's marquee
 
   sk_sp<SkTypeface> faceDisplay, faceBody, faceBold, faceTerm, faceMono;
-  Material heroInk;
+  mskia::Paint heroInk;
 
   /** A beat on the bulletin's timeline. `window` clamps outside its range,
    *  so a track that has not started reads 0 and one that is over reads 1 —
    *  which is what makes a list of these a schedule rather than a set of
    *  independent animations. */
-  [[nodiscard]] Animatable<float> beat(float from, float to) {
-    return bind(&cycle).window(from, to);
+  [[nodiscard]] motion::Animatable<float> beat(float from, float to) {
+    return motion::bind(&cycle).window(from, to);
   }
 
   /** The sheet's own envelope: up at the head of the bulletin, held, and
    *  out before the wrap, so the loop's cut happens on a dark sheet. The
    *  curve is what rounds the two shoulders — the corners stay exactly
    *  where the constants put them. */
-  [[nodiscard]] Animatable<float> envelope() {
-    return bind(&cycle)
+  [[nodiscard]] motion::Animatable<float> envelope() {
+    return motion::bind(&cycle)
         .source(0.0f, (float)kLoop)
         .trapezoid(kInFrom, kInTo, kOutFrom, kOutTo)
         .map(&ch::easeInOutQuad);
@@ -255,12 +273,12 @@ struct ShippingForecast : sketch::Sketch {
 
   [[nodiscard]] sigil::weave::TextStyle body(float size, SkColor4f color,
                                              float track = 0) const {
-    return type(
+    return weave::textStyle(
         {.face = faceBody, .size = size, .color = color, .track = track});
   }
   [[nodiscard]] sigil::weave::TextStyle label(float size, SkColor4f color,
                                               float track = 2.4f) const {
-    return type(
+    return weave::textStyle(
         {.face = faceBold, .size = size, .color = color, .track = track});
   }
 
@@ -273,16 +291,16 @@ struct ShippingForecast : sketch::Sketch {
     sigil::weave::StyleSet set{body(19.5f, kBone)};
     // The wind direction: the one thing in the sentence that is a heading,
     // so it is set as one — condensed, tracked, and a shade brighter.
-    set.set("dir", type({.face = faceBold,
-                         .size = 19.5f,
-                         .color = kBone,
-                         .track = 0.6f,
-                         .condense = 0.94f}));
+    set.set("dir", weave::textStyle({.face = faceBold,
+                                     .size = 19.5f,
+                                     .color = kBone,
+                                     .track = 0.6f,
+                                     .condense = 0.94f}));
     // A defined term. A serif italic inside a grotesque paragraph reads as
     // a citation of a glossary, which is exactly what these words are.
     set.set(
         "term",
-        type(
+        weave::textStyle(
             {.face = faceTerm, .size = 20.5f, .color = kAmber, .track = 0.2f}));
     return set;
   }
@@ -305,9 +323,10 @@ struct ShippingForecast : sketch::Sketch {
   [[nodiscard]] Element heroLine(const char* words, const char* key,
                                  float delay) {
     Track rise{.effect = fx::rise(kHero * 1.24f),
-               .stagger = stagger(unit::Glyph, {.amountMs = 320,
-                                                .durationMs = 560,
-                                                .from = Stagger::From::Start}),
+               .stagger = {.amountMs = 320,
+                           .durationMs = 560,
+                           .from = motion::Spread::From::Start},
+               .unit = weave::Unit::Glyph,
                .progress = beat(0.55f + delay, 2.55f + delay)};
 
     // The swell. GRAD is the advance-invariant weight axis — it thickens a
@@ -324,13 +343,14 @@ struct ShippingForecast : sketch::Sketch {
         // A swell, not an arrival: `cosine()` is 0 at both ends of
         // its period and 1 in the middle, which is what a window —
         // one-way by construction — cannot say.
-        .progress = bind(&secs).source(0.0f, (float)kBreathPeriod).cosine()};
+        .progress =
+            motion::bind(&secs).source(0.0f, (float)kBreathPeriod).cosine()};
 
     return box().clip().width(pct(100)).child(
-        text(toU8(words), type({.face = faceDisplay,
-                                .size = kHero,
-                                .color = kBone,
-                                .track = 1.5f}))
+        text(toU8(words), weave::textStyle({.face = faceDisplay,
+                                            .size = kHero,
+                                            .color = kBone,
+                                            .track = 1.5f}))
             .key(key)
             .width(pct(100))
             .textAlign(sigil::weave::TextAlignment::kCenter)
@@ -351,8 +371,8 @@ struct ShippingForecast : sketch::Sketch {
    *  baseline. Each name is its own run at its own bearing, so the sweep
    *  across the sixteen is a delay per run rather than an outer level of
    *  one cascade. */
-  [[nodiscard]] static Stagger ringCascade() {
-    return stagger(unit::Cluster, {.eachMs = 20, .durationMs = 420});
+  [[nodiscard]] static motion::Spread ringCascade() {
+    return {.eachMs = 20, .durationMs = 420};
   }
 
   [[nodiscard]] Element ringPanel() {
@@ -360,9 +380,9 @@ struct ShippingForecast : sketch::Sketch {
 
     // The wash under the ring: a soft light filling the square, so the
     // lettering has something to sit on without a visible plate edge.
-    panel.child(box().inset(0).fill(Material::glowUnit(
+    panel.child(box().inset(0).fill(mskia::Paint::glowUnit(
         {0.5f, 0.5f}, 0.94f,
-        {{0.0f, kSeaLift}, {0.62f, hex(0x090E15)}, {1.0f, kSea}})));
+        {{0.0f, kSeaLift}, {0.62f, hexColor(0x090E15)}, {1.0f, kSea}})));
 
     const auto hair = [](float r, SkColor4f color, float width) {
       return kit::disc(kEye, r)
@@ -372,31 +392,36 @@ struct ShippingForecast : sketch::Sketch {
     };
     panel.child(hair(kRingR + 21.0f, kKeyline, 1.0f).key("ring-outer"));
     panel.child(hair(kInnerR, kKeyline, 1.0f).key("ring-inner"));
-    panel.child(hair(kInnerR - 9.0f, hex(0x121B26), 1.0f).key("ring-inner-2"));
+    panel.child(
+        hair(kInnerR - 9.0f, hexColor(0x121B26), 1.0f).key("ring-inner-2"));
 
     // THE COMPASS. A tick at every area's own bearing, and a longer one
     // with a letter at each cardinal point, so the ring can be read as a
     // bearing and not only as a list.
     for (int i = 0; i < kAreaCount; ++i) {
-      const float rad = kAreaRing[i].bearingDeg * 3.14159265f / 180.0f;
-      const float sx = std::sin(rad), sy = -std::cos(rad);
-      panel.child(box()
-                      .key("tick" + std::to_string(i))
-                      .width(1.0f)
-                      .height(9.0f)
-                      .rotate(kAreaRing[i].bearingDeg)
-                      .centerAt({kEye.x() + sx * (kRingR + 28.0f),
-                                 kEye.y() + sy * (kRingR + 28.0f)})
-                      .fill(Fill::color(kSlateDim))
-                      .opacity(beat(0.10f, 1.20f)));
+      // A bearing is clockwise from twelve, which is a quarter turn back
+      // from where the ellipse's own angle starts.
+      const float rad =
+          kAreaRing[i].bearingDeg * 3.14159265f / 180.0f - 1.5707963f;
+      panel.child(
+          box()
+              .key("tick" + std::to_string(i))
+              .width(1.0f)
+              .height(9.0f)
+              .rotate(kAreaRing[i].bearingDeg)
+              .centerAt(arrange::onEllipse(
+                  {kEye.x(), kEye.y()}, {kRingR + 28.0f, kRingR + 28.0f}, rad))
+              .fill(Fill::color(kSlateDim))
+              .opacity(beat(0.10f, 1.20f)));
     }
     const char* kCardinals[4] = {"N", "E", "S", "W"};
     for (int q = 0; q < 4; ++q) {
-      const float rad = (float)q * 1.5707963f;
       panel.child(text(toU8(kCardinals[q]), label(12.0f, kAmber, 2.0f))
                       .key(std::string("card") + kCardinals[q])
-                      .centerAt({kEye.x() + std::sin(rad) * (kRingR + 46.0f),
-                                 kEye.y() - std::cos(rad) * (kRingR + 46.0f)})
+                      .centerAt(arrange::onRing(
+                          (size_t)q, 4, {kEye.x(), kEye.y()},
+                          {kRingR + 46.0f, kRingR + 46.0f}, -1.5707963f,
+                          6.2831853f, arrange::Turn::Closed))
                       .opacity(beat(0.10f, 1.20f)));
     }
 
@@ -424,10 +449,11 @@ struct ShippingForecast : sketch::Sketch {
       // same sweep here, and saying it once in the delay is what makes that
       // visible rather than coincidental.
       const float start = 0.20f + (float)i * 0.17f;
-      panel.child(text(toU8(kAreaRing[i].name), type({.face = faceBold,
-                                                      .size = 11.5f,
-                                                      .color = hex(0xBFC7D1),
-                                                      .track = 1.1f}))
+      panel.child(text(toU8(kAreaRing[i].name),
+                       weave::textStyle({.face = faceBold,
+                                         .size = 11.5f,
+                                         .color = hexColor(0xBFC7D1),
+                                         .track = 1.1f}))
                       .key(std::string("area") + std::to_string(i))
                       .inset(kRingBox * 0.5f - radius)
                       .onPath({.path = shapes::circle(),
@@ -473,15 +499,15 @@ struct ShippingForecast : sketch::Sketch {
   [[nodiscard]] Element galeStrip() {
     TextEffect arrive = fx::seq(fx::slide(-46.0f).until(0.46f).xfade(0.20f),
                                 fx::pop(0.86f, 2.6f));
-    return box()
+    return sketch::kit::well({.ground = Fill::color(hexColor(0x1C1206)),
+                              .padding = 13,
+                              .paddingY = 10,
+                              .clip = false,
+                              .corners = 3,
+                              .keyline = Fill::color(hexColor(0x4A3411))})
         .row()
         .alignItems(Align::Center)
         .gap(12)
-        .padding(13, 10)
-        .corners({3})
-        .fill(Fill::color(hex(0x1C1206)))
-        .stroke(
-            stroke(1.0f, Fill::color(hex(0x4A3411)), PathFormat::Align::Inner))
         .opacity(beat(0.10f, 0.70f))
         .child(box().width(7).height(7).corners({4}).shrink(0).fill(
             Fill::color(kAmber)))
@@ -520,7 +546,7 @@ struct ShippingForecast : sketch::Sketch {
    *  colour. */
   [[nodiscard]] Element forecast() {
     const sigil::weave::StyleSet set = forecastStyles();
-    RichText copy = rich(set.base());
+    weave::RichText copy = weave::rich(set.base());
     copy.styles(set)
         .add(u8"Southwesterly", "dir")
         .add(u8" 5 to 7, occasionally gale 8 ")
@@ -542,24 +568,35 @@ struct ShippingForecast : sketch::Sketch {
     // a separate track over the whole set. Numbered over each track's own
     // selection the two would run cascades of different lengths, and the
     // grade would arrive on a different beat from the letter it grades.
-    const Selector everyInitial = sel::each(unit::Word).take(1);
-    const Selector glossary = sel::style("term");
+    const weave::Selector everyInitial =
+        weave::sel::each(weave::Unit::Word).take(1);
+    const weave::Selector glossary = sel::style("term");
+    // ONE CLOCK ACROSS THE THREE. `beats::Text` numbers every word of the
+    // paragraph, addressed or not, so three tracks that partition one
+    // sentence share a ladder BY CONSTRUCTION; under the default numbering
+    // each would count only its own selection and the grade would land on
+    // a different beat from the letter it grades. It is a TRACK's answer,
+    // beside the unit — the spread itself says nothing about text.
     const auto wordClock = [](float durationMs) {
-      return stagger(
-          unit::Word,
-          {.eachMs = 46, .durationMs = durationMs, .beatsOver = beats::Text});
+      return motion::Spread{.eachMs = 46, .durationMs = durationMs};
     };
     Track initials{.where = everyInitial,
                    .effect = fx::rise(16.0f),
                    .stagger = wordClock(460.0f),
+                   .unit = weave::Unit::Word,
+                   .beatsOver = beats::Text,
                    .progress = beat(1.75f, 4.10f)};
     Track grade{.where = everyInitial & !glossary,
                 .effect = fx::variableAxisSweep("GRAD", 400.0f, 900.0f),
                 .stagger = wordClock(460.0f),
+                .unit = weave::Unit::Word,
+                .beatsOver = beats::Text,
                 .progress = beat(1.75f, 4.10f)};
-    Track bodies{.where = sel::each(unit::Word).drop(1),
+    Track bodies{.where = weave::sel::each(weave::Unit::Word).drop(1),
                  .effect = fx::rise(9.0f),
                  .stagger = wordClock(500.0f),
+                 .unit = weave::Unit::Word,
+                 .beatsOver = beats::Text,
                  .progress = beat(1.83f, 4.30f)};
 
     return box()
@@ -572,7 +609,7 @@ struct ShippingForecast : sketch::Sketch {
                    .key("forecast")
                    .width(pct(100))
                    .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-                   .spanPaint(sel::regex(u8"[0-9]+"),
+                   .spanPaint(weave::sel::regex(u8"[0-9]+"),
                               sigil::weave::PaintStyle(kAmber.toSkColor()))
                    .fx(std::move(initials))
                    .fx(std::move(grade))
@@ -585,8 +622,8 @@ struct ShippingForecast : sketch::Sketch {
    *  why its charset is digits and capitals of one width. On a proportional
    *  face the runtime measures both, refuses, and draws the true letter. */
   [[nodiscard]] Element barometer() {
-    const sigil::weave::TextStyle mono =
-        type({.face = faceMono, .size = 27.0f, .color = kBone, .track = 3.0f});
+    const sigil::weave::TextStyle mono = weave::textStyle(
+        {.face = faceMono, .size = 27.0f, .color = kBone, .track = 3.0f});
     return box()
         .column()
         .gap(7)
@@ -607,7 +644,7 @@ struct ShippingForecast : sketch::Sketch {
                             U"0123456789ABCDEFGHJKLMNPRSTUVWXYZ", 16)),
                         .stagger = {.eachMs = 26,
                                     .durationMs = 520,
-                                    .from = Stagger::From::Start},
+                                    .from = motion::Spread::From::Start},
                         .progress = beat(2.25f, 4.10f)}))
         .child(text(toU8("SLOWLY \xe2\x80\x94 0.1 TO 1.5 MB IN THREE HOURS"),
                     body(12.0f, kSlateDim, 0.6f))
@@ -642,7 +679,7 @@ struct ShippingForecast : sketch::Sketch {
     const sigil::weave::StyleSet set = forecastStyles();
     sigil::weave::TextStyle graded = set.base();
     graded.variation("GRAD", 800.0f);
-    RichText copy = rich(set.base());
+    weave::RichText copy = weave::rich(set.base());
     copy.styles(set)
         .add(u8"Low", "dir")
         .add(u8", Rockall, ")
@@ -664,12 +701,12 @@ struct ShippingForecast : sketch::Sketch {
                    .key("synopsis")
                    .width(pct(100))
                    .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-                   .spanStyle(sel::regex(u8"[0-9]+"), graded)
-                   .spanPaint(sel::regex(u8"[0-9]+"),
+                   .spanStyle(weave::sel::regex(u8"[0-9]+"), graded)
+                   .spanPaint(weave::sel::regex(u8"[0-9]+"),
                               sigil::weave::PaintStyle(kAmber.toSkColor()))
                    .fx({.effect = fx::slide(-22.0f),
-                        .stagger = stagger(unit::Line,
-                                           {.eachMs = 150, .durationMs = 620}),
+                        .stagger = {.eachMs = 150, .durationMs = 620},
+                        .unit = weave::Unit::Line,
                         .progress = beat(2.70f, 4.60f)}));
   }
 
@@ -704,16 +741,16 @@ struct ShippingForecast : sketch::Sketch {
               .height(29)
               .alignItems(Align::Center)
               .key(std::string("st") + std::to_string(i))
-              .foreground(shapes::onEdges(shapes::Edge::Top, rule))
+              .foreground(onEdges(sigil::geometry::path::Edge::Top, rule))
               .opacity(beat(2.80f + (float)i * 0.14f, 3.40f + (float)i * 0.14f))
               .child(text(toU8(r.place), body(12.5f, kBone, 0.8f)).grow(1))
               .child(text(toU8(r.wind), label(12.5f, kSlate, 1.4f))
                          .width(74)
                          .textAlign(sigil::weave::TextAlignment::kEnd))
-              .child(text(toU8(r.baro), type({.face = faceMono,
-                                              .size = 12.0f,
-                                              .color = kSlate,
-                                              .track = 0.4f}))
+              .child(text(toU8(r.baro), weave::textStyle({.face = faceMono,
+                                                          .size = 12.0f,
+                                                          .color = kSlate,
+                                                          .track = 0.4f}))
                          .width(166)
                          .textAlign(sigil::weave::TextAlignment::kEnd)));
     }
@@ -730,7 +767,7 @@ struct ShippingForecast : sketch::Sketch {
     Element strip = box().row().gap(6).height(56).alignItems(Align::End);
     for (int f = 0; f <= 12; ++f) {
       const bool named = f >= 5 && f <= 8;
-      const SkColor4f ink = named ? kAmber : hex(0x37475B);
+      const SkColor4f ink = named ? kAmber : hexColor(0x37475B);
       strip.child(
           box()
               .grow(1)
@@ -783,36 +820,28 @@ struct ShippingForecast : sketch::Sketch {
              .stagger = {.eachMs = 0,
                          .amountMs = 780,
                          .durationMs = 420,
-                         .from = Stagger::From::Start},
+                         .from = motion::Spread::From::Start},
              .progress = beat(0.45f, 2.70f)});
   }
 
   // ------------------------------------------------------------------
 
-  [[nodiscard]] Element header() {
-    Element left =
-        box()
-            .column()
-            .grow(1)
-            .gap(8)
-            .child(text(toU8("MET OFFICE \xc2\xb7 FOR THE MARITIME AND "
-                             "COASTGUARD AGENCY"),
-                        label(11.0f, kSlateDim, 3.2f))
-                       .key("eyebrow")
-                       .opacity(beat(0.05f, 0.55f)))
-            .child(
-                text(toU8("THE SHIPPING FORECAST"), type({.face = faceDisplay,
-                                                          .size = 34.0f,
-                                                          .color = kBone,
-                                                          .track = 1.0f}))
-                    .key("title")
-                    .fx({.effect = fx::rise(16.0f),
-                         .stagger = {.eachMs = 0,
-                                     .amountMs = 420,
-                                     .durationMs = 520},
-                         .progress = beat(0.15f, 1.30f)}));
+  /** THE MASTHEAD'S OWN LOOK: the three registers its lines are set in,
+   *  each naming its own face, and the two inks. Everything else on the
+   *  sheet is set in the study's own registers. */
+  [[nodiscard]] sketch::kit::Theme mastheadTheme() const {
+    sketch::kit::Theme paper;
+    paper.palette.ink = kBone;
+    paper.palette.ash = kSlateDim;
+    paper.type.eyebrow = {11.0f, 3.2f, false, faceBold};
+    paper.type.title = {34.0f, 1.0f, false, faceDisplay};
+    paper.type.captionNote = {11.5f, 0.5f, false, faceBody};
+    paper.spacing.subtitleGap = 8;
+    paper.spacing.rowGap = 5;
+    return paper;
+  }
 
-    Element right = box().column().gap(5).alignItems(Align::End);
+  [[nodiscard]] Element header() {
     static constexpr const char* kSlug[] = {
         "ISSUED 0015 UTC \xc2\xb7 VALID TO 0600 UTC TOMORROW",
         // The literals break after an en dash on purpose: \x93 followed by
@@ -822,17 +851,26 @@ struct ShippingForecast : sketch::Sketch {
         "GOOD > 5 NM \xc2\xb7 MODERATE 2\xe2\x80\x93"
         "5 NM \xc2\xb7 POOR 1000 M \xe2\x80\x93 2 NM",
     };
+    std::vector<sketch::kit::Line> slugs;
     for (int i = 0; i < 3; ++i)
-      right.child(text(toU8(kSlug[i]), body(11.5f, kSlateDim, 0.5f))
-                      .key("slug" + std::to_string(i))
-                      .opacity(beat(0.55f + (float)i * 0.16f,
-                                    1.15f + (float)i * 0.16f)));
+      slugs.push_back({.words = toU8(kSlug[i]),
+                       .opacity = beat(0.55f + (float)i * 0.16f,
+                                       1.15f + (float)i * 0.16f)});
 
-    return box()
-        .row()
-        .alignItems(Align::End)
-        .child(std::move(left))
-        .child(std::move(right));
+    const sketch::kit::Provide look(mastheadTheme());
+    return sketch::kit::titleCard(
+        {.eyebrow = {.words = toU8("MET OFFICE \xc2\xb7 FOR THE MARITIME AND "
+                                   "COASTGUARD AGENCY"),
+                     .opacity = beat(0.05f, 0.55f)},
+         .title = {.words = toU8("THE SHIPPING FORECAST"),
+                   .fx = Track{.effect = fx::rise(16.0f),
+                               .stagger = {.eachMs = 0,
+                                           .amountMs = 420,
+                                           .durationMs = 520},
+                               .progress = beat(0.15f, 1.30f)}},
+         .notes = std::move(slugs),
+         .align = Align::Stretch,
+         .key = "head"});
   }
 
   [[nodiscard]] Element describe() {
@@ -876,17 +914,15 @@ struct ShippingForecast : sketch::Sketch {
                        .opacity(beat(3.10f, 3.75f)));
 
     return stack()
-        .fill(Material::linear(
-            {0, 0}, {0, kH},
-            {{0.0f, kSea}, {0.55f, kSeaLift}, {1.0f, hex(0x05080C)}}))
+        .fill(linearGradient({0, 0}, {0, kH},
+                             {kSea, kSeaLift, hexColor(0x05080C)},
+                             {0.0f, 0.55f, 1.0f}))
         .child(spine().opacity(envelope()))
         .child(std::move(column));
   }
 
   // ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kSea);
     // EVERY SCRAMBLE HAS RESOLVED. The barometer's readout runs an
     // `fx::hold(fx::scramble(...))` to 4.10 s and the forecast paragraph's
     // initials converge on their bodies after that, so a still taken
@@ -894,28 +930,31 @@ struct ShippingForecast : sketch::Sketch {
     // defines the real one, and a paragraph that reads as a rendering
     // fault. The grade swell peaks every 7.2 s, so the second peak is the
     // frame where the swell is at its height AND nothing is mid-decode.
-    ctx.captureAt(10.8);
+    sketch::kit::stage(
+        ctx,
+        {.size = SkSize::Make(kW, kH), .captureAt = 10.8, .background = kSea});
 
     // The system grotesque is the face that carries GRAD, the
     // advance-invariant weight axis the swell needs. The stand-ins keep the
     // sheet legible where it is absent; the swell then simply does not
     // happen, and says so once.
-    faceDisplay = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
-    faceBold = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
-    faceBody = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 400);
-    faceTerm = pickFace({"Iowan Old Style", "Charter", "Georgia"}, 400,
-                        SkFontStyle::kItalic_Slant);
-    faceMono = pickFace({"Menlo", "SF Mono", "Courier New"}, 400);
+    faceDisplay = sketch::kit::houseFace(sketch::kit::Voice::Interface, 700);
+    faceBold = sketch::kit::houseFace(sketch::kit::Voice::Interface, 600);
+    faceBody = sketch::kit::houseFace(sketch::kit::Voice::Interface, 400);
+    faceTerm = weave::ports::face({"Iowan Old Style", "Charter", "Georgia"},
+                                  400, SkFontStyle::kItalic_Slant);
+    faceMono = weave::ports::face({"Menlo", "SF Mono", "Courier New"}, 400);
 
     // The hero's ink: a ramp pinned to the metric band, warm at the
     // baseline and bone at the cap line, so a letter arriving from below
     // cools as it rises into place.
-    heroInk = Material::linearUnit(
-        {0.5f, 0.0f}, {0.5f, 1.0f},
-        {{0.00f, hex(0xFFFBF2)}, {0.52f, kBone}, {1.00f, hex(0xC9A46A)}});
+    heroInk = mskia::Paint::linearUnit({0.5f, 0.0f}, {0.5f, 1.0f},
+                                       {{0.00f, hexColor(0xFFFBF2)},
+                                        {0.52f, kBone},
+                                        {1.00f, hexColor(0xC9A46A)}});
 
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       cycle = motion::phase(t, kLoop) * (float)kLoop;
       secs = (float)t;
       return true;

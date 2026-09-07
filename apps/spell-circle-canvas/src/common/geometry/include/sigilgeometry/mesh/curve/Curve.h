@@ -3,18 +3,16 @@
 /** @file
  * SigilGeometry curves — splines that cross space, held as VALUES. A
  * Spline3 is control points + a type + closure: edit any of them and
- * re-evaluate; nothing downstream is baked until asked. Three
- * consumers, all regenerable from the same spline:
+ * re-evaluate; nothing downstream is baked until asked. Two consumers,
+ * both regenerable from the same spline:
  *
  *  - sample()/frames()/hangFrames(): positions and moving frames —
  *    the RAIL, and the spine for placement, cameras and point clouds;
- *  - sweep(): one 2D profile carried along that rail into a Mesh —
- *    a circle makes a tube, a two-point line makes a ribbon, any
- *    flattened outline makes an extrusion. `curve/Sweep.h` is the
- *    subject on its own: the profiles, the options, the ring executor
- *    and the runtime that carries one;
  *  - project(): the curve as a 2D SkPath under a Camera — draw the
- *    SAME spline as a glowing overlay over the scene that swept it.
+ *    SAME spline as a glowing overlay over the scene that reads it.
+ *
+ * What a rail CARRIES is a separate subject: sweeping a profile along
+ * one is a point operator, and `pop/Sweep.h` is where it lives.
  *
  * CatmullRom interpolates THROUGH its points (the default; closed
  * loops wrap), Bezier reads points as cubic segments (3n+1 layout,
@@ -29,7 +27,6 @@
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/curve/Frame.h"
-#include "sigilgeometry/mesh/curve/Sweep.h"
 #include "sigilgeometry/path/Polyline.h"
 
 namespace sigil::geometry::mesh::curve {
@@ -79,11 +76,6 @@ std::vector<Frame3> frames(const Spline3& spline, int count,
  *  0 at the tail and 1 at the head, not the curve parameter. */
 std::vector<Frame3> hangFrames(const Spline3& spline, int sections,
                                float head = 1, float span = 1);
-
-/** The same sweep over a spline, whose parallel-transport frames are
- *  the rail (`segments` of them, seeded by `up`). */
-Mesh sweep(const Spline3& spline, const path::Polyline& profile,
-           const SweepOptions& options = {});
 
 /** The spline as a 2D path under @p camera — points behind the near
  *  plane split the path into separate contours. */

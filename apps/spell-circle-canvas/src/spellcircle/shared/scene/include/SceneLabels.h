@@ -9,11 +9,11 @@
 // which knows how to run a pen along an arbitrary contour; only the business of
 // deciding WHICH contour a spell-circle label follows lives here.
 
-#include <absl/container/flat_hash_map.h>
 #include <include/core/SkFontMetrics.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilweave/layout/Flow.h>
 
+#include <boost/unordered/unordered_node_map.hpp>
 #include <cstddef>
 
 namespace spellcircle {
@@ -51,7 +51,7 @@ class RingLabelGeometryCache {
   void clear() { m_rings.clear(); }
 
  private:
-  absl::flat_hash_map<int, sigil::geometry::path::Contour> m_rings;
+  boost::unordered_node_map<int, sigil::geometry::path::Contour> m_rings;
   size_t m_maximumEntries;
 };
 

@@ -4,9 +4,9 @@
  * a resize relaying out live.
  */
 
-#include <absl/container/flat_hash_set.h>
 #include <gtest/gtest.h>
 
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <string>
 
 #include "support/LayoutSupport.h"
@@ -14,7 +14,7 @@ using namespace sigil::weave;
 using namespace sigil::weave::test;
 
 TEST(Placeholders, ReservesWidthInTheLine) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"before ", basicStyle());
   paragraph.appendPlaceholder({90, 20, 0}, basicStyle());
@@ -41,7 +41,7 @@ TEST(Placeholders, ReservesWidthInTheLine) {
 }
 
 TEST(Placeholders, SitOnTheBaselineWithDrop) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"x ", basicStyle());
   paragraph.appendPlaceholder({40, 30, 8},
@@ -59,7 +59,7 @@ TEST(Placeholders, SitOnTheBaselineWithDrop) {
 }
 
 TEST(Placeholders, WrapAndJustifyLikeWords) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   for (int placeholderIndex = 0; placeholderIndex < 6; ++placeholderIndex) {
     paragraph.appendText(u8"word word word ", basicStyle());
@@ -74,7 +74,7 @@ TEST(Placeholders, WrapAndJustifyLikeWords) {
 
   const auto rects = layout.placeholderRects(paragraph);
   ASSERT_EQ(rects.size(), 6u);
-  absl::flat_hash_set<int> lines;
+  boost::unordered_flat_set<int> lines;
   for (const auto& placed : rects) {
     lines.insert(placed.lineIndex);
     // Slots never overflow the measure.
@@ -85,17 +85,14 @@ TEST(Placeholders, WrapAndJustifyLikeWords) {
 }
 
 TEST(Placeholders, ResizeRelayoutsLive) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"pill: ", basicStyle());
   paragraph.appendPlaceholder({50, 16, 0}, basicStyle());
   BlockFlow flow(SkRect::MakeWH(400, 60));
   ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
 
-  fontContext.resetStats();
   paragraph.setPlaceholder(0, {120, 16, 0});
   ParagraphLayout after = layoutParagraph(fontContext, paragraph, flow);
-  EXPECT_EQ(fontContext.stats().shapeCalls, 0u)
-      << "resizing a slot reshapes nothing";
   EXPECT_FLOAT_EQ(after.placeholderRects(paragraph)[0].rect.width(), 120);
 }

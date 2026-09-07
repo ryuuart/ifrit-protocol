@@ -1,13 +1,18 @@
 /** @file
- * The mesh-forming sinks: a cooked chain stamped into one mesh with its
- * promoted lanes, or treated as a path and swept with a profile. Both
- * stand on the cloud the runtime cooked; the forming itself is CPU code
- * over that cloud, because a Mesh is what they hand back.
+ * The sinks a chain ends at: stamped into one mesh with its promoted
+ * lanes, treated as a path and swept with a profile, or splatted onto a
+ * canvas as camera-facing sprites. Every one of them stands on the cloud
+ * the runtime cooked; what each does with it afterwards is its own.
  */
 
+#include <algorithm>
+#include <cstdint>
+#include <glm/geometric.hpp>
 #include <string>
+#include <vector>
 
 #include "sigilgeometry/mesh/pop/Pop.h"
+#include "sigilgeometry/path/Neighbours.h"
 
 namespace sigil::geometry::mesh {
 
@@ -16,48 +21,14 @@ namespace sigil::geometry::mesh {
 using curve::Spline3;
 using path::Polyline;
 
-namespace {
-
-/** pop's attribute names -> the Cloud lane cook() exported them under.
- *  The builtins land on the conventional lowercase lanes; "Tex" and
- *  every custom keep their own name. One table, so the prim class
- *  addresses attributes with exactly the same spelling the point class
- *  does. "Id" is reserved and handled by promoteToPrims. */
-std::string cloudLaneFor(const std::string& attr) {
-  if (attr == "T") return "t";
-  if (attr == "Dir") return "dir";
-  if (attr == "Scale") return "size";
-  if (attr == "Color") return "tint";
-  return attr;  // "P" has no lane; "Tex" and customs keep their names
-}
-
-}  // namespace
-
 Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp,
                    const pop::Runtime& runtime) {
   const Cloud cloud = cook(chain, runtime);
-  points::InstanceOptions options;
-  options.orientLane = "dir";
-  options.scaleLane = "size";
-  options.tintLane = "tint";
-  Mesh out = points::instance(cloud, stamp, options);
-  // The texture hint: "Tex" = {uOff, vOff, uScale, vScale} per point
-  // remaps each stamped point's uv block — atlas selection, sprite
-  // variety, per-point texture windows.
-  if (const std::vector<glm::vec4>* tex = cloud.colorIf("Tex")) {
-    const size_t stampVerts = stamp.vertexCount();
-    // A uv-less stamp instances with an EMPTY uv lane; only remap
-    // when the instanced uvs actually cover every stamped vertex.
-    if (out.uvs.size() == cloud.size() * stampVerts) {
-      for (size_t point = 0; point < cloud.size(); ++point) {
-        const glm::vec4& cell = (*tex)[point];
-        for (size_t v = 0; v < stampVerts; ++v) {
-          glm::vec2& uv = out.uvs[point * stampVerts + v];
-          uv = {cell.x + uv.x * cell.z, cell.y + uv.y * cell.w};
-        }
-      }
-    }
-  }
+  // The texture hint — "Tex" = {uOff, vOff, uScale, vScale} per point,
+  // which remaps each stamped vertex's uv for atlas selection and sprite
+  // variety — is the stamping operator's own, applied as the vertex is
+  // formed rather than walked over afterwards.
+  Mesh out = points::instance(cloud, stamp, points::stampOptions(cloud));
   // The PRIMITIVE class: every Promote op bakes a point lane onto the
   // stamped triangles. Each point owns stamp.triangleCount() of them,
   // which is exactly the run points::promoteToPrims addresses.
@@ -65,7 +36,9 @@ Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp,
     if (const auto* promote = std::get_if<pop::Promote>(&op))
       points::promoteToPrims(
           out, cloud,
-          promote->from.name == "Id" ? "Id" : cloudLaneFor(promote->from.name),
+          promote->from.name == "Id"
+              ? "Id"
+              : std::string(cloudLaneFor(promote->from.name)),
           promote->to.empty() ? promote->from.name : promote->to);
   return out;
 }
@@ -82,12 +55,81 @@ Spline3 pathThrough(const pop::Chain& chain, bool closed,
 
 }  // namespace
 
+void pop::cookBillboards(const pop::Chain& chain, SkCanvas& canvas,
+                         const camera::Camera& camera, SkSize viewport,
+                         const points::BillboardStyle& style,
+                         const pop::Runtime& runtime) {
+  // The size and tint lanes a cook exports are "size" and "tint"; a
+  // style that named neither takes them, so a chain that varied either
+  // shows it without the caller repeating the table.
+  points::BillboardStyle splat = style;
+  const Cloud cloud = cook(chain, runtime);
+  if (splat.sizeLane.empty() && cloud.scalarIf("size")) splat.sizeLane = "size";
+  if (splat.tintLane.empty() && cloud.colorIf("tint")) splat.tintLane = "tint";
+  points::drawBillboards(canvas, cloud, camera, viewport, splat);
+}
+
 Mesh pop::cookSweep(const pop::Chain& chain, const Polyline& profile,
-                    bool closed, const curve::SweepOptions& options,
+                    bool closed, const pop::SweepOptions& options,
                     const pop::Runtime& runtime) {
   const Spline3 path = pathThrough(chain, closed, runtime);
   if (path.points.size() < 2) return {};
-  return curve::sweep(path, profile, options);
+  return pop::sweep(path, profile, options);
+}
+
+std::vector<glm::uvec2> pop::connectAdjacent(const Cloud& cloud,
+                                             const pop::Connect& connect) {
+  std::vector<glm::uvec2> pairs;
+  if (cloud.positions.size() < 2 || !(connect.radius > 0)) return pairs;
+
+  const std::vector<float>* pieces =
+      connect.pieceLane.empty() ? nullptr : cloud.scalarIf(connect.pieceLane);
+  // A lane is one value per point or it is not this cloud's lane. A
+  // hand-built cloud can carry a short one, and it is read below by the
+  // point's own index.
+  if (pieces && pieces->size() != cloud.positions.size()) pieces = nullptr;
+  const path::Neighbours index(cloud.positions, connect.radius);
+  std::vector<uint32_t> found;
+  std::vector<uint32_t> keep;
+  for (uint32_t i = 0; i < (uint32_t)cloud.positions.size(); ++i) {
+    const glm::vec3 here = cloud.positions[i];
+    index.within(here, connect.radius, found);
+    keep.clear();
+    for (const uint32_t other : found) {
+      if (other == i) continue;
+      if (connect.acrossPiecesOnly) {
+        // Without a piece lane every point is in the same piece, so
+        // nothing is across one — which is what the caller asked for.
+        if (!pieces || (*pieces)[other] == (*pieces)[i]) continue;
+      }
+      keep.push_back(other);
+    }
+    if (connect.maxPerPoint > 0 && keep.size() > (size_t)connect.maxPerPoint) {
+      // Nearest first, and only as many as asked for. The whole list is
+      // ordered rather than the head selected, so which neighbours a point
+      // keeps does not depend on the order the grid answered in.
+      std::sort(keep.begin(), keep.end(), [&](uint32_t a, uint32_t b) {
+        const float da = glm::length(cloud.positions[a] - here);
+        const float db = glm::length(cloud.positions[b] - here);
+        return da != db ? da < db : a < b;
+      });
+      keep.resize((size_t)connect.maxPerPoint);
+    }
+    // Lower index first, so a pair found from both ends is one entry and
+    // a pair only one end kept — which `maxPerPoint` makes possible — is
+    // still one edge rather than none.
+    for (const uint32_t other : keep)
+      pairs.push_back(i < other ? glm::uvec2{i, other} : glm::uvec2{other, i});
+  }
+  std::sort(pairs.begin(), pairs.end(), [](glm::uvec2 a, glm::uvec2 b) {
+    return a.x != b.x ? a.x < b.x : a.y < b.y;
+  });
+  pairs.erase(std::unique(pairs.begin(), pairs.end(),
+                          [](glm::uvec2 a, glm::uvec2 b) {
+                            return a.x == b.x && a.y == b.y;
+                          }),
+              pairs.end());
+  return pairs;
 }
 
 }  // namespace sigil::geometry::mesh

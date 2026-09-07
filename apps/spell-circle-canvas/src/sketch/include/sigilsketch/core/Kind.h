@@ -43,6 +43,21 @@ struct KindOps {
   [[nodiscard]] virtual std::unique_ptr<Session> open(
       weave::FontContext& fonts, Assets& assets,
       bool deterministic = false) const = 0;
+
+  /** WHETHER A FRAME BUILDS ON THE PIXELS THE LAST ONE LEFT.
+   *
+   *  An immediate-mode runtime draws into a surface it keeps, so the
+   *  picture IS the accumulated frames and stepping one on a scratch
+   *  canvas throws it away. A runtime that describes its frame afresh
+   *  may be stepped anywhere and photographed afterwards. A host that
+   *  reaches a moment before it captures has to know which it holds. */
+  [[nodiscard]] virtual bool retainsPixels() const { return false; }
+
+  /** WHETHER A SESSION OF THIS KIND DRAWS THROUGH A DEVICE, so a host
+   *  brings one up for a selection that holds one and not otherwise —
+   *  a device is a process-wide resource and the machines this runs on
+   *  do not all have one. */
+  [[nodiscard]] virtual bool needsDevice() const { return false; }
 };
 
 /** WHAT A SKETCH DRAWS, as a value.

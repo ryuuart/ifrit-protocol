@@ -1,5 +1,5 @@
 // genesis_fire.cpp — the Genesis Demo wall of fire (Lucasfilm
-// Ltd, 1982) and the first particle system.
+// Ltd, 1982) and the first particle system, drawn by a pen.
 //
 // SUBJECT  The wall-of-fire element of the ~67-second Genesis Demo in
 //          Star Trek II: The Wrath of Khan (Paramount, 4 June 1982),
@@ -90,29 +90,35 @@
 //   m = 4.83 + 5*log10(3.64) - 5 = 2.63, between Megrez (3.31) and
 //   Merak (2.37). The number is printed on the star field.
 //
-// HOW IT MAPS ONTO SigilCompose
-//   Reeves' §2.2 attribute list is, in effect, an instancing Pool schema
-//   published in 1983. Five of its seven attributes fit: position,
-//   colour, transparency and initial size land on
-//   positions()/tints()/scales(), and per-sprite blend carries the
-//   additive-and-clamp colour model — the sidebar's three-path bench
-//   shows the SAME pool at kSrcOver and kPlus side by side. Two do not:
-//     * `shape: streaked spherical` is per-instance NON-UNIFORM scale (a
-//       quad 0.5*|v| long by `size` wide: elongated at ejection, wider
-//       than it is long at apogee). `instancing::Pool::sizes()` carries
-//       exactly that lane, and the sidebar's bench pool takes it; the main
-//       field is drawn instead by custom() plus one SkVertices list per
-//       8,000 streaks — which is Reeves' own renderer, "merely antialiased
-//       lines", with a per-vertex alpha ramp across the quad that no baked
-//       atlas cell carries.
-//     * `lifetime`, measured in frames, has no delay/progress lane, and
-//       the wall of fire IS a stagger. It lives in a parallel Site::t0.
-//   Everything else is the library: two CONTROL pools through
-//   instances() (the star field, Fig. 2's 149 ring marks), Materials for
-//   the regolith and every soft light, shapes:: outlines, onPath for the
-//   rim caption, bind() shaping ONE phase Output into four units,
-//   slot() for the two live readouts, and ticker.addFixed for the 24 Hz
-//   film clock.
+// HOW IT IS DRAWN
+//   A particle system is a LOOP: births, an integration, three
+//   extinction rules and one additive pass, sixty times a minute of
+//   film. So the piece is a pen program, and the parts divide by what
+//   each is:
+//     * the field is the pen's. 8,000 streaks per SkVertices list, six
+//       triangles each with a colour ramp across the cross-section, put
+//       down by `pen.vertices()` under `blendMode(ADD)` - light ADDS and
+//       CLAMPS [R83 §2.5] - inside a `clip()` of the stage. The
+//       magnified motion-blur callout beside it is the same quad drawn
+//       in the pen's own words - `beginShape(TRIANGLE_STRIP)` with a
+//       `fill()` between the vertices, so the corners either side of a
+//       fill carry it and the ramp costs one shape rather than one per
+//       band.
+//     * every panel is a retained tree, painted through `pen.element`:
+//       the census with its live row, the generation law, the overlap
+//       ramp, the three-path bench over two instancing pools, the
+//       production panel, the header with its cascading title. What a
+//       described tree is good at - typography, layout, the pools - it
+//       keeps.
+//     * the stage's own furniture is two guests with the field drawn
+//       between them: the star field, the Dipper, the regolith and the
+//       shockwave under it, Fig. 2's live plan inset over it. One
+//       canvas, so ordering is just the order the calls are made in.
+//   `ticker.addFixed(24 Hz, ..., &simAlpha)` is the film clock, and its
+//   leftover fraction rides the loop phase, so the wavefront, Duff's
+//   light and the plan ring sweep smoothly at any draw rate while the
+//   particles still step in whole film frames - which is what [R83]
+//   counts lifetimes in.
 //
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/genesis_fire.cpp \
@@ -125,21 +131,29 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
-#include <include/core/SkFont.h>
-#include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkVertices.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
+#include <shared/Instrument.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/TextFx.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
+#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/kit/Meter.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -151,9 +165,19 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace patterns = sigil::material::pattern;
+namespace arrange = sigil::geometry::arrange;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
+using sigil::draw::Pen;
+using sigil::material::skia::Paint;
+using sigil::material::skia::toColor;
+namespace draw = sigil::draw;
 namespace ch = choreograph;
 
 namespace {
@@ -161,13 +185,13 @@ namespace {
 // ---------------------------------------------------------------------------
 // Palette — this study's own chrome, not sourced
 
-constexpr SkColor4f kInk = hex(0x06070B);
-constexpr SkColor4f kPanel = hex(0x0B0D14);
-constexpr SkColor4f kBone = hex(0xE9ECF3);
-constexpr SkColor4f kSteel = hex(0x77819A);
-constexpr SkColor4f kSteelDim = hex(0x545E74);
-constexpr SkColor4f kKeyline = hex(0x242A36);
-constexpr SkColor4f kCyan = hex(0x4FB8D8);
+constexpr SkColor4f kInk = hexColor(0x06070B);
+constexpr SkColor4f kPanel = hexColor(0x0B0D14);
+constexpr SkColor4f kBone = hexColor(0xE9ECF3);
+constexpr SkColor4f kSteel = hexColor(0x77819A);
+constexpr SkColor4f kSteelDim = hexColor(0x545E74);
+constexpr SkColor4f kKeyline = hexColor(0x242A36);
+constexpr SkColor4f kCyan = hexColor(0x4FB8D8);
 
 // THE EMISSION SEED. Everything about the fire's colour is a consequence
 // of this triple plus "light adds and clamps" [R83 §2.5].
@@ -192,6 +216,25 @@ constexpr int kRampN[14] = {1, 2, 3, 4, 5, 8, 12, 16, 20, 28, 40, 60, 85, 111};
 constexpr float kCanvasW = 1440, kCanvasH = 926;
 constexpr float kStageW = 888, kStageH = 666;  // 4:3 — the 500-line raster
 constexpr float kSideW = 448;
+
+// The page, laid out by the pen: the padding, the header, the stage and
+// the sidebar's five panel boxes, each a number rather than a flex
+// negotiation.
+constexpr float kPad = 36;
+constexpr float kHeaderH = 102;
+constexpr float kBodyY = kPad + kHeaderH + 24;  // 162
+constexpr float kStageX = kPad;                 // 36
+constexpr float kSideX = kPad + kStageW + 32;   // 956
+constexpr float kCaptionY = kBodyY + kStageH + 10;
+constexpr float kPanelGap = 8;
+constexpr float kPanelH[5] = {104, 192, 98, 144, 96};
+
+/** The top of sidebar panel @p i, counting from zero. */
+constexpr float panelTop(int i) {
+  float y = kBodyY;
+  for (int k = 0; k < i; ++k) y += kPanelH[k] + kPanelGap;
+  return y;
+}
 
 constexpr float kLimbCx = 444.0f, kLimbCy = 1620.0f, kLimbR = 1150.0f;
 
@@ -248,56 +291,21 @@ constexpr double kFrontCrossSeconds = (kStageW - kX0) / kSpread;  // 5.762 s
 // ---------------------------------------------------------------------------
 // Type
 
-sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  return sigil::compose::pickFace({family}, style);
-}
-sk_sp<SkTypeface> monoFace() {
-  static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Normal());
-  return f;
-}
-sk_sp<SkTypeface> monoBoldFace() {
-  static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Bold());
-  return f;
-}
-sk_sp<SkTypeface> uiFace() {
-  static sk_sp<SkTypeface> f = face("Helvetica Neue", SkFontStyle::Normal());
-  return f;
-}
-sk_sp<SkTypeface> heavyFace() {
-  static sk_sp<SkTypeface> f = [] {
-    auto mgr = sigil::weave::ports::systemFontManager();
-    sk_sp<SkTypeface> t = mgr->matchFamilyStyle(
-        "Helvetica Neue",
-        SkFontStyle(SkFontStyle::kBlack_Weight, SkFontStyle::kNormal_Width,
-                    SkFontStyle::kUpright_Slant));
-    return t ? t : face("Helvetica", SkFontStyle::Bold());
-  }();
-  return f;
-}
+using instrument::faced;
+using instrument::heavyFace;
+using instrument::mono;
+using instrument::monoB;
+using instrument::monoBoldFace;
+using instrument::monoFace;
+using instrument::t;
+using instrument::ui;
+using instrument::uiFace;
 
-// A positional shorthand over the library's designated-init `type()`, for
-// the one display line that names its own face.
-sigil::weave::TextStyle type(sk_sp<SkTypeface> tf, float size, SkColor4f color,
-                             float track = 0.0f) {
-  return sigil::compose::type(
-      {.face = std::move(tf), .size = size, .color = color, .track = track});
-}
-// The three registers the panel is set in.
-sigil::weave::TextStyle mono(float size, SkColor4f c, float track = 0.0f) {
-  return sigil::compose::type(
-      {.face = monoFace(), .size = size, .color = c, .track = track});
-}
-sigil::weave::TextStyle monoB(float size, SkColor4f c, float track = 0.0f) {
-  return sigil::compose::type(
-      {.face = monoBoldFace(), .size = size, .color = c, .track = track});
-}
-sigil::weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
-  return sigil::compose::type(
-      {.face = uiFace(), .size = size, .color = c, .track = track});
-}
-
-Element t(const char* s, sigil::weave::TextStyle st) {
-  return text(toU8(s), std::move(st));
+/** The same register on the PEN: a pen carries one type and one fill, so
+ *  a register is set rather than described. */
+void penMono(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
+  pen.textFont(instrument::penType(monoFace(), size, track));
+  pen.fill(c);
 }
 
 // The planet's silhouette: the limb arc, closed down to the stage floor.
@@ -317,8 +325,11 @@ std::function<SkPath(SkSize)> limbOutline() {
   };
 }
 
-/** A panel shell: ground, keyline, corners, padding. */
+/** A panel shell: ground, keyline, corners, padding. Each panel is its
+ *  own guest at its own box, so each carries its own entrance delay
+ *  rather than taking a stagger from a column above it. */
 Element panel(float height, int order) {
+  const auto delay = std::chrono::milliseconds(90 * order);
   return box()
       .column()
       .width(kSideW)
@@ -328,8 +339,10 @@ Element panel(float height, int order) {
       .corners({5})
       .fill(kPanel)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-      .opacity(animate(from(0.0f).to(1.0f), {.duration = 300ms}))
-      .translateX(animate(from(14.0f).to(0.0f), {.duration = 300ms}))
+      .opacity(
+          animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = delay}))
+      .translateX(
+          animate(from(14.0f).to(0.0f), {.duration = 300ms, .delay = delay}))
       .key(std::string("panel") + std::to_string(order));
 }
 
@@ -341,7 +354,7 @@ Element panelHead(const char* s) {
 
 // ===========================================================================
 
-struct GenesisFire : sketch::Sketch {
+struct GenesisFire final : sketch::DrawSketch {
   // --- the two levels ------------------------------------------------------
   struct Site {
     SkPoint p;      // surface point
@@ -366,6 +379,7 @@ struct GenesisFire : sketch::Sketch {
 
   // --- the A/B bench: one explosion, three renderers -----------------------
   std::vector<Particle> abParts;
+  std::vector<sk_sp<SkVertices>> abChunks;
   std::shared_ptr<instancing::Atlas> abAtlas;
   std::shared_ptr<instancing::Pool> abPool;
 
@@ -381,14 +395,30 @@ struct GenesisFire : sketch::Sketch {
   std::vector<PlanMark> planMarks;
 
   // --- clocks --------------------------------------------------------------
-  double loopT = 0, elapsed = 0;
+  double loopT = 0;
   bool stepped = false;  // set by the fixed-timestep steppable
   uint64_t simSteps = 0;
   uint32_t rng = 0x9E3779B9u;
 
+  /** THE FILM CLOCK'S LEFTOVER FRACTION, published by addFixed. The
+   *  particles step in whole FILM frames — that is what [R83] counts
+   *  lifetimes in, and a half-frame position is what the motion-blur
+   *  streak already draws — so what this interpolates is the loop
+   *  PHASE: the wavefront, Duff's light and the plan ring sweep
+   *  smoothly at any draw rate off one Output. */
+  ch::Output<float> simAlpha{0.0f};
+
   // --- ONE phase Output; bind() derives every consumer from it -------------
   ch::Output<float> loopU{0.0f};     // loop fraction, [0,1)
   ch::Output<float> liveFrac{0.0f};  // census bar, [0,1]
+
+  /** THE GUESTS THAT DO NOT CHANGE, built once. A guest is retained —
+   *  the pen keeps a composer per call site — so a description that says
+   *  the same thing every frame is work nobody asked for. Only the
+   *  census panel is rebuilt, because its live row carries numbers that
+   *  tick, and the two stage guests hold pools whose lanes are rewritten
+   *  in place rather than re-described. */
+  Element headerEl, belowEl, aboveEl, genEl, rampEl, benchEl, prodEl;
 
   // --- measured ------------------------------------------------------------
   size_t liveCount = 0;
@@ -481,7 +511,7 @@ struct GenesisFire : sketch::Sketch {
     const int nb = (int)std::lround(std::max(0.0f, 25.0f + rand11() * 5.0f));
     for (int k = 0; k < nb && abParts.size() < kAbCount; ++k)
       emitAt(abParts, abSite(), 0, 0.55f, 0.72f, 0.35f);
-    advance(abParts, abSites(), 1.06f, false);
+    advance(abParts, abSites, 1.06f, false);
 
     liveCount = parts.size();
     ++simSteps;
@@ -491,12 +521,12 @@ struct GenesisFire : sketch::Sketch {
   // emitter sits 2 px above the cell's bottom edge, so the whole arc stays
   // inside the clip and the below-emitter cull (2 px under the emitter, in
   // advance()) lands exactly on the cell's edge.
-  static const std::vector<Site>& abSites() {
-    static const std::vector<Site> s = {
-        Site{{65.0f, 50.0f}, {0.0f, -1.0f}, {1.0f, 0.0f}, 0.0f}};
-    return s;
-  }
-  static const Site& abSite() { return abSites()[0]; }
+  /** HELD ON THE SKETCH, not in a function-local static: a static with a
+   *  dynamic initialiser registers its destructor with the process, and a
+   *  hot-reloaded sketch's dylib is unloaded out from under it. */
+  const std::vector<Site> abSites{
+      Site{{65.0f, 50.0f}, {0.0f, -1.0f}, {1.0f, 0.0f}, 0.0f}};
+  const Site& abSite() const { return abSites[0]; }
 
   // =========================================================================
   // The renderer that defines the look.
@@ -506,7 +536,7 @@ struct GenesisFire : sketch::Sketch {
   // 1/50 s shutter at 24 fps is half the inter-frame motion — six
   // vertices wide so the cross-section falls off (drawVertices does not
   // antialias its own edges, so the falloff lives in the vertex colours).
-  // kPlus on the paint is the whole colour model: light ADDS and CLAMPS.
+  // ADD is the whole colour model: light ADDS and the buffer CLAMPS.
 
   void buildStreaks(const std::vector<Particle>& v,
                     std::vector<sk_sp<SkVertices>>& out) {
@@ -574,7 +604,7 @@ struct GenesisFire : sketch::Sketch {
         col.push_back(kEdge);
         pos.push_back({tail.fX - nn.fX, tail.fY - nn.fY});
         col.push_back(kEdge);
-        for (uint16_t t : kTri) idx.push_back((uint16_t)(v0 + t));
+        for (uint16_t tri : kTri) idx.push_back((uint16_t)(v0 + tri));
       }
       out.push_back(SkVertices::MakeCopy(
           SkVertices::kTriangles_VertexMode, (int)pos.size(), pos.data(),
@@ -582,30 +612,26 @@ struct GenesisFire : sketch::Sketch {
     }
   }
 
-  static void drawField(SkCanvas& canvas,
-                        const std::vector<sk_sp<SkVertices>>& chunks) {
-    SkPaint p;
-    p.setAntiAlias(true);
-    p.setBlendMode(SkBlendMode::kPlus);  // light adds; the buffer clamps
-    for (const sk_sp<SkVertices>& v : chunks)
-      if (v)
-        canvas.drawVertices(v, SkBlendMode::kDst, p);  // no shader -> vertex
-  }  // colour is the source
-
-  PaintProgram fieldProgram() {
-    return [this](SkCanvas& canvas, const PaintContext&) {
-      drawField(canvas, fieldChunks);
-    };
-  }
-
-  /** The A/B bench's third cell: the same particles as the two instanced
-   *  cells, through the streak quads above. */
-  PaintProgram benchQuadProgram() {
-    return [this](SkCanvas& canvas, const PaintContext&) {
-      std::vector<sk_sp<SkVertices>> chunks;
-      buildStreaks(abParts, chunks);
-      drawField(canvas, chunks);
-    };
+  /** THE ADDITIVE PASS, IN THE PEN'S OWN WORDS. A streak list is an
+   *  `SkVertices` and `pen.vertices` takes one: it lands in the pen's
+   *  space and in the pen's order, wearing the pen's fill under the
+   *  `blendMode(ADD)` the caller's push stands at, so light adds where
+   *  every other verb in this frame adds too. The fill carries no colour
+   *  of its own — the vertices carry theirs, and a plain fill is where
+   *  the corner colours govern.
+   *
+   *  THE FADE AT EITHER END OF THE LOOP IS THE FILL'S ALPHA. A layer would
+   *  gather the streaks additively and then composite the gathered picture
+   *  over the stage src-over, which is not what a dimming light does;
+   *  scaling the source keeps the pass additive from the first streak all
+   *  the way to the canvas. */
+  static void paintField(Pen& pen, const std::vector<sk_sp<SkVertices>>& chunks,
+                         float alpha) {
+    if (chunks.empty() || alpha <= 0.001f) return;
+    pen.push();
+    pen.fill(255, 255, 255, alpha * 255.0f);
+    for (const sk_sp<SkVertices>& v : chunks) pen.vertices(v);
+    pen.pop();
   }
 
   /** The bench pool: ONE pool, read by two instances() leaves at two
@@ -689,18 +715,19 @@ struct GenesisFire : sketch::Sketch {
     const float sizes[5] = {7.0f, 5.4f, 4.2f, 3.2f, 2.4f};
     for (float s : sizes)
       starAtlas->cell(box().width(s).height(s).fill(
-                          Material::radialUnit({0.5f, 0.5f}, 0.707f,
-                                               {{0.0f, {1, 1, 1, 1}},
-                                                {0.22f, {1, 1, 1, 0.78f}},
-                                                {0.58f, {1, 1, 1, 0.14f}},
-                                                {1.0f, {1, 1, 1, 0.0f}}})),
+                          Paint::radialUnit({0.5f, 0.5f}, 0.707f,
+                                            {{0.0f, {1, 1, 1, 1}},
+                                             {0.22f, {1, 1, 1, 0.78f}},
+                                             {0.58f, {1, 1, 1, 0.14f}},
+                                             {1.0f, {1, 1, 1, 0.0f}}})),
                       {s, s});
     // N(m) ~ 10^(0.6m): 1 / 5 / 19 / 76 / 319 = 420 stars.
     const int bin[5] = {1, 5, 19, 76, 319};
     // B-V ramp [S82]: Carpenter "deduced the colors of the individual
     // stars" from the Yale Bright Star Catalogue.
-    const SkColor4f bv[6] = {hex(0xAEC6FF), hex(0xD6E2FF), hex(0xFFFFFF),
-                             hex(0xFFE9B8), hex(0xFFC48A), hex(0xFF9E6E)};
+    const SkColor4f bv[6] = {hexColor(0xAEC6FF), hexColor(0xD6E2FF),
+                             hexColor(0xFFFFFF), hexColor(0xFFE9B8),
+                             hexColor(0xFFC48A), hexColor(0xFF9E6E)};
     const int bvWeight[6] = {6, 12, 20, 26, 24, 12};
     starPool = std::make_shared<instancing::Pool>();
     rng = 0x5EED1982u;
@@ -731,14 +758,14 @@ struct GenesisFire : sketch::Sketch {
                         .width(3.2f)
                         .height(3.2f)
                         .shape(shapes::circle())
-                        .stroke(stroke(0.7f, Fill::color(hex(0x2E3A46)),
+                        .stroke(stroke(0.7f, Fill::color(hexColor(0x2E3A46)),
                                        PathFormat::Align::Inner)),
                     {4, 4});
     planAtlas->cell(box().width(4.0f).height(4.0f).fill(
-                        Material::radialUnit({0.5f, 0.5f}, 0.707f,
-                                             {{0.0f, {1, 1, 1, 1}},
-                                              {0.45f, {1, 1, 1, 0.8f}},
-                                              {1.0f, {1, 1, 1, 0}}})),
+                        Paint::radialUnit({0.5f, 0.5f}, 0.707f,
+                                          {{0.0f, {1, 1, 1, 1}},
+                                           {0.45f, {1, 1, 1, 0.8f}},
+                                           {1.0f, {1, 1, 1, 0}}})),
                     {4, 4});
     // Seven rings from the impact point; marks per ring =
     // round(0.055 * 2*pi*r) — [R83 §3]'s circumference x density rule.
@@ -752,8 +779,7 @@ struct GenesisFire : sketch::Sketch {
       const int n = (int)std::lround(0.055f * 2.0f * 3.14159265f * r);
       for (int i = 0; i < n; ++i) {
         const float a = rand01() * 6.2831853f;
-        const SkPoint p{impact.fX + std::cos(a) * r,
-                        impact.fY + std::sin(a) * r};
+        const SkPoint p = arrange::onEllipse(impact, {r, r}, a);
         planMarks.push_back({p, r});
         planPool->add(p, 0, 0.0f, 1.0f, {1, 1, 1, 0.55f});
       }
@@ -766,17 +792,17 @@ struct GenesisFire : sketch::Sketch {
     // stubby at apogee; an atlas cell is one size and a Pool scale is one
     // float, so this cell is the compromise the middle two panels show.
     abAtlas->cell(box().width(4.4f).height(2.3f).corners({1.0f}).fill(
-                      Material::radialUnit({0.5f, 0.5f}, 1.05f,
-                                           {{0.0f, {1, 1, 1, 1}},
-                                            {0.42f, {1, 1, 1, 0.9f}},
-                                            {1.0f, {1, 1, 1, 0}}})),
+                      Paint::radialUnit({0.5f, 0.5f}, 1.05f,
+                                        {{0.0f, {1, 1, 1, 1}},
+                                         {0.42f, {1, 1, 1, 0.9f}},
+                                         {1.0f, {1, 1, 1, 0}}})),
                   {4.8f, 2.6f});
     abPool = std::make_shared<instancing::Pool>();
     abPool->resize(kAbCount);
   }
 
   // =========================================================================
-  // Stage
+  // Stage — the retained furniture, under the field and over it
 
   Element starField() {
     return box()
@@ -794,7 +820,7 @@ struct GenesisFire : sketch::Sketch {
 
   Element dipper() {
     // Real relative geometry, framed into x[430,860] y[40,250].
-    static const DipStar kStars[8] = {
+    static constexpr DipStar kStars[8] = {
         {"ALKAID", 0.05f, 0.10f, 1.85f}, {"MIZAR", 0.24f, 0.26f, 2.23f},
         {"ALIOTH", 0.42f, 0.30f, 1.77f}, {"MEGREZ", 0.58f, 0.36f, 3.31f},
         {"PHECDA", 0.62f, 0.52f, 2.44f}, {"MERAK", 0.86f, 0.44f, 2.37f},
@@ -810,42 +836,44 @@ struct GenesisFire : sketch::Sketch {
     g.child(
         box()
             .inset(0)
-            .shape([&, bx, by, bw, bh](SkSize) {
-              SkPathBuilder b;
-              auto P = [&](int i) {
-                return SkPoint{bx + kStars[i].u * bw, by + kStars[i].v * bh};
-              };
-              b.moveTo(P(0));
-              b.lineTo(P(1));
-              b.lineTo(P(2));
-              b.lineTo(P(3));
-              b.lineTo(P(4));
-              b.lineTo(P(5));
-              b.lineTo(P(6));
-              b.lineTo(P(3));
-              return b.detach();
-            })
+            .shape(keyedShape(std::string_view("asterism"),
+                              [](SkSize) {
+                                SkPathBuilder b;
+                                auto P = [](int i) {
+                                  return SkPoint{bx + kStars[i].u * bw,
+                                                 by + kStars[i].v * bh};
+                                };
+                                b.moveTo(P(0));
+                                b.lineTo(P(1));
+                                b.lineTo(P(2));
+                                b.lineTo(P(3));
+                                b.lineTo(P(4));
+                                b.lineTo(P(5));
+                                b.lineTo(P(6));
+                                b.lineTo(P(3));
+                                return b.detach();
+                              }))
             .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
                                         {.duration = 620ms, .delay = 1300ms})),
-                    stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.35f))))
+                    stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.35f))))
             .key("asterism"));
 
     for (int i = 0; i < 8; ++i) {
       const SkPoint p = at(i);
       const float rad = std::max(1.4f, 4.6f - 0.85f * kStars[i].mag);
       const bool sol = i == 7;
-      g.child(
-          kit::disc(p, rad * 2.0f)
-              .fill(Material::radialUnit(
-                  {0.5f, 0.5f}, 0.707f,
-                  {{0.0f, sol ? hex(0xFFFFFF) : hex(0xEFF3FF)},
-                   {0.22f, sol ? hex(0xFFF4D8, 0.9f) : hex(0xD9E4FF, 0.85f)},
-                   {1.0f, {1, 1, 1, 0}}}))
-              .blend(SkBlendMode::kPlus)
-              .opacity(animate(from(0.0f).to(1.0f),
-                               {.duration = 500ms, .delay = 1200ms})));
+      g.child(kit::disc(p, rad * 2.0f)
+                  .fill(Paint::radialUnit(
+                      {0.5f, 0.5f}, 0.707f,
+                      {{0.0f, sol ? hexColor(0xFFFFFF) : hexColor(0xEFF3FF)},
+                       {0.22f, sol ? hexColor(0xFFF4D8, 0.9f)
+                                   : hexColor(0xD9E4FF, 0.85f)},
+                       {1.0f, {1, 1, 1, 0}}}))
+                  .blend(SkBlendMode::kPlus)
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   {.duration = 500ms, .delay = 1200ms})));
       g.child(t(kStars[i].name,
-                mono(7.0f, sol ? kCyan : hex(0x9FB0CC, 0.85f), 1.1f))
+                mono(7.0f, sol ? kCyan : hexColor(0x9FB0CC, 0.85f), 1.1f))
                   .left(p.fX + rad + 5.0f)
                   .top(p.fY - 5.0f)
                   .opacity(animate(from(0.0f).to(1.0f),
@@ -854,7 +882,7 @@ struct GenesisFire : sketch::Sketch {
     // Smith's joke, verified in the header block.
     const SkPoint s = at(7);
     g.child(box().left(s.fX + 4).top(s.fY + 6).width(1).height(16).fill(
-        hex(0x4FB8D8, 0.5f)));
+        hexColor(0x4FB8D8, 0.5f)));
     g.child(box()
                 .left(s.fX + 9)
                 .top(s.fY + 12)
@@ -865,24 +893,26 @@ struct GenesisFire : sketch::Sketch {
                 .child(t("m = 2.63 FROM \xce\xb5 INDI (3.64 pc)",
                          mono(7.0f, kCyan, 0.9f)))
                 .child(t("\"OUR SUN WOULD APPEAR AS AN EXTRA STAR\"",
-                         mono(7.0f, hex(0x4FB8D8, 0.7f), 0.9f))));
+                         mono(7.0f, hexColor(0x4FB8D8, 0.7f), 0.9f))));
     return g;
   }
 
   Element regolith() {
     // A generated surface, plus the ONE hand-added light in the shot
     // (Tom Duff's), riding the wavefront.
-    Material ground = Material::blend(
-        {{Material::radialUnit({0.5f, 0.723f}, 0.50f,
-                               {{0.0f, hex(0x3B3933)},
-                                {0.42f, hex(0x232119)},
-                                {1.0f, hex(0x0A0A0C)}}),
-          SkBlendMode::kSrc},
-         {patterns::grain(0.022f, 4, 7.0f, 0.5f, 1.0f),
-          SkBlendMode::kSoftLight},
-         {patterns::speckle(170, 17, 0.9f, 3.4f, {hex(0x6A655B), hex(0x171512)})
-              .material(),
-          SkBlendMode::kOverlay}});
+    Paint ground =
+        Paint::blend({{Paint::radialUnit({0.5f, 0.723f}, 0.50f,
+                                         {{0.0f, hexColor(0x3B3933)},
+                                          {0.42f, hexColor(0x232119)},
+                                          {1.0f, hexColor(0x0A0A0C)}}),
+                       SkBlendMode::kSrc},
+                      {Paint::recipe(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f)),
+                       SkBlendMode::kSoftLight},
+                      {Pattern(patterns::speckle(170, 17, 0.9f, 3.4f,
+                                                 {toColor(hexColor(0x6A655B)),
+                                                  toColor(hexColor(0x171512))}))
+                           .material(),
+                       SkBlendMode::kOverlay}});
 
     return box()
         .inset(0)
@@ -895,11 +925,11 @@ struct GenesisFire : sketch::Sketch {
             from(12.0f).to(0.0f),
             {.duration = 520ms, .ease = &ch::easeOutCubic, .delay = 420ms}))
         // Duff's local light. ONE Output (loopU) shaped into px.
-        .child(kit::disc({0, 0}, 132)
-                   .fill(Material::radialUnit({0.5f, 0.5f}, 0.707f,
-                                              {{0.0f, hex(0xFF8A3A, 0.62f)},
-                                               {0.38f, hex(0xC24E14, 0.24f)},
-                                               {1.0f, hex(0xFF8A3A, 0.0f)}}))
+        .child(kit::disc(SkPoint{0, 0}, 132)
+                   .fill(Paint::radialUnit({0.5f, 0.5f}, 0.707f,
+                                           {{0.0f, hexColor(0xFF8A3A, 0.62f)},
+                                            {0.38f, hexColor(0xC24E14, 0.24f)},
+                                            {1.0f, hexColor(0xFF8A3A, 0.0f)}}))
                    .blend(SkBlendMode::kPlus)
                    .translateX(bind(&loopU).scale(1680.0f).offset(-80.0f))
                    .translateY(limbY(444.0f) + 26.0f)
@@ -916,10 +946,10 @@ struct GenesisFire : sketch::Sketch {
     const SkPoint impact{kX0, limbY(kX0 < 0 ? 0.0f : kX0) + 8.0f};
     Element g = box().inset(0);
     g.child(kit::disc(impact, 170)
-                .fill(Material::radialUnit({0.5f, 0.5f}, 0.707f,
-                                           {{0.0f, {1, 1, 1, 0.95f}},
-                                            {0.25f, hex(0xFFE7B0, 0.6f)},
-                                            {1.0f, hex(0xFF7A20, 0.0f)}}))
+                .fill(Paint::radialUnit({0.5f, 0.5f}, 0.707f,
+                                        {{0.0f, {1, 1, 1, 0.95f}},
+                                         {0.25f, hexColor(0xFFE7B0, 0.6f)},
+                                         {1.0f, hexColor(0xFF7A20, 0.0f)}}))
                 .blend(SkBlendMode::kPlus)
                 .opacity(bind(&loopU).map([](float v) {
                   const float t = v * 10.0f;
@@ -932,7 +962,7 @@ struct GenesisFire : sketch::Sketch {
                 })));
     g.child(kit::disc(impact, 520)
                 .shape(shapes::circle())
-                .stroke(stroke(2.0f, Fill::color(hex(0xFFB070, 0.85f))))
+                .stroke(stroke(2.0f, Fill::color(hexColor(0xFFB070, 0.85f))))
                 .blend(SkBlendMode::kPlus)
                 .scale(bind(&loopU)
                            .map([](float v) {
@@ -949,6 +979,23 @@ struct GenesisFire : sketch::Sketch {
     return g;
   }
 
+  /** Everything under the field: the sky, the stars, the Dipper, the
+   *  regolith and the shockwave, in one guest the size of the stage. */
+  Element stageBelow() {
+    return stack()
+        .width(kStageW)
+        .height(kStageH)
+        .clip()
+        .fill(Paint::linearUnit({0.5f, 0.0f}, {0.5f, 0.85f},
+                                {{0.0f, hexColor(0x03040A)},
+                                 {0.55f, hexColor(0x05060D)},
+                                 {1.0f, hexColor(0x0A0B13)}}))
+        .child(starField().zIndex(1))
+        .child(dipper().zIndex(2))
+        .child(regolith().zIndex(3))
+        .child(shockwave().zIndex(4));
+  }
+
   Element planInset() {
     // Fig. 2: the distribution of second-level systems on the planet's
     // surface, live.
@@ -960,12 +1007,13 @@ struct GenesisFire : sketch::Sketch {
             .height(184)
             .shape(shapes::circle())
             .clip(true)
-            .stroke(stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.55f)),
+            .stroke(stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.55f)),
                            PathFormat::Align::Inner))
             // the expanding wavefront ring — same Output, unit scale
-            .child(kit::disc({34, 106}, 124)
+            .child(kit::disc(SkPoint{34, 106}, 124)
                        .shape(shapes::circle())
-                       .stroke(stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.75f))))
+                       .stroke(
+                           stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.75f))))
                        .scale(bind(&loopU)
                                   .scale(10.0f / (float)kFrontCrossSeconds)
                                   .clamp(0.004f, 1.0f)))
@@ -979,13 +1027,13 @@ struct GenesisFire : sketch::Sketch {
         .width(208)
         .height(208)
         .corners({6})
-        .fill(hex(0x0B0D14, 0.86f))
+        .fill(hexColor(0x0B0D14, 0.86f))
         .stroke(stroke(1.5f, Fill::color(kKeyline), PathFormat::Align::Inner))
         .opacity(
             animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 900ms}))
-        .scale(animate(from(0.94f).to(1.0f), {.duration = 340ms,
-                                              .ease = ease::outBack(1.70158f),
-                                              .delay = 900ms}))
+        .scale(animate(
+            from(0.94f).to(1.0f),
+            {.duration = 340ms, .ease = ease::outBack(), .delay = 900ms}))
         .child(std::move(inner))
         // the impact point itself
         .child(box()
@@ -994,7 +1042,7 @@ struct GenesisFire : sketch::Sketch {
                    .width(4)
                    .height(4)
                    .shape(shapes::circle())
-                   .fill(hex(0xFFFFFF, 0.95f)))
+                   .fill(hexColor(0xFFFFFF, 0.95f)))
         // rim caption on a curved baseline
         .child(t("IMPACT \xc2\xb7 KETI BANDAR \xc2\xb7 \xce\xb5 INDI",
                  mono(8.0f, kCyan, 1.4f))
@@ -1008,158 +1056,117 @@ struct GenesisFire : sketch::Sketch {
                                     .offset = 8.0f}));
   }
 
-  Element planCaption() {
-    return t("FIG. 2 \xe2\x80\x94 DISTRIBUTION OF PARTICLE SYSTEMS ON THE "
-             "PLANET'S SURFACE",
-             mono(8.5f, kSteel, 0.6f))
-        .left(24)
-        .top(236)
-        .width(300)
-        .opacity(
-            animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = 1050ms}));
-  }
-
-  /** [R83 §3]'s motion-blur construction, magnified 3x. */
-  PaintProgram blurCalloutProgram() {
-    return [](SkCanvas& canvas, const PaintContext& ctx) {
-      const float h = ctx.size.height();
-      const float y = h * 0.42f;
-      const float x0 = 16, x1 = 152;
-      SkPaint line;
-      line.setAntiAlias(true);
-      line.setBlendMode(SkBlendMode::kPlus);
-      // the streak itself: a 3x-magnified quad, additive
-      const SkColor4f hot = overlap(9);
-      const SkColor c = hot.toSkColor();
-      SkPoint verts[6] = {{x0, y - 5}, {x1, y - 5}, {x1, y},
-                          {x0, y},     {x1, y + 5}, {x0, y + 5}};
-      SkColor vc[6] = {0, 0, c, c, 0, 0};
-      const uint16_t idx[12] = {0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5};
-      auto v = SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode, 6, verts,
-                                    nullptr, vc, 12, idx);
-      canvas.drawVertices(v, SkBlendMode::kDst, line);
-      // the two sample positions
-      SkPaint dot;
-      dot.setAntiAlias(true);
-      dot.setColor4f(hex(0xFFFFFF, 0.95f), nullptr);
-      canvas.drawCircle(x1, y, 2.6f, dot);
-      dot.setColor4f(hex(0xFFFFFF, 0.45f), nullptr);
-      canvas.drawCircle(x0, y, 2.0f, dot);
-      // cyan dimension bracket
-      SkPaint br;
-      br.setAntiAlias(true);
-      br.setStyle(SkPaint::kStroke_Style);
-      br.setStrokeWidth(1.0f);
-      br.setColor4f(hex(0x4FB8D8, 0.9f), nullptr);
-      const float by = y + 13;
-      canvas.drawLine(x0, by - 3, x0, by + 3, br);
-      canvas.drawLine(x1, by - 3, x1, by + 3, br);
-      canvas.drawLine(x0, by, x1, by, br);
-      // labels
-      SkFont f(monoFace(), 7.0f);
-      SkPaint tp;
-      tp.setAntiAlias(true);
-      tp.setColor4f(hex(0x9FB0CC), nullptr);
-      canvas.drawString("pos(f + 1/2)", x0 - 8, y - 11, f, tp);
-      canvas.drawString("pos(f)", x1 - 14, y - 11, f, tp);
-      tp.setColor4f(hex(0x4FB8D8), nullptr);
-      canvas.drawString("0.5 \xc2\xb7 |v|", (x0 + x1) * 0.5f - 16, by + 12, f,
-                        tp);
-    };
-  }
-
-  Element blurCallout() {
-    return box()
-        .left(24)
-        .bottom(24)
-        .width(268)
-        .height(142)
-        .column()
-        .gap(3)
-        .padding(11)
-        .corners({6})
-        .fill(hex(0x0B0D14, 0.86f))
-        .stroke(stroke(1.5f, Fill::color(kKeyline), PathFormat::Align::Inner))
-        .opacity(
-            animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 1150ms}))
-        .child(t("MOTION BLUR \xe2\x80\x94 REEVES 1983 \xc2\xa7"
-                 "3",
-                 ui(8.5f, kCyan, 1.7f))
-                   .shrink(0))
-        .child(custom(blurCalloutProgram()).height(44).shrink(0))
-        .child(t("SHUTTER 1/50 s @ 24 fps \xe2\x89\x88 \xc2\xbd FRAME OF "
-                 "MOTION",
-                 mono(7.5f, kBone, 0.4f))
-                   .shrink(0))
-        .child(t("STREAK = pos(f) \xe2\x86\x92 pos(f+\xc2\xbd), ANTIALIASED, "
-                 "ADDITIVE",
-                 mono(7.5f, kSteel, 0.4f))
-                   .shrink(0))
-        .child(t("FN.4: \"A PARTICLE'S TRAJECTORY IS ACTUALLY PARABOLIC, BUT "
-                 "THE STRAIGHT-LINE APPROXIMATION HAS SO FAR PROVED "
-                 "SUFFICIENT\"",
-                 mono(6.5f, kSteelDim, 0.2f)));
-  }
-
-  /** THE CAPTION BAND. It states what the study proves — how many streaks
-   *  are alive, the raster the demo was computed for, and which light in
-   *  the picture is hand-placed — and it is declared OUTSIDE the stage,
-   *  because a plate of an artefact is a plate of the artefact. Nothing
-   *  here is a mark on the frame; it is a band under it. */
-  Element stageCaption() {
-    return box()
-        .column()
-        .gap(2)
-        .shrink(0)
-        .opacity(
-            animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = 1250ms}))
-        .child(slot("fieldStat"))
-        .child(t("888\xc3\x97"
-                 "666 = 4:3 \xe2\x80\x94 THE 500-LINE VIDEO "
-                 "RASTER THE DEMO WAS COMPUTED FOR",
-                 mono(8.5f, kSteel, 0.5f))
-                   .textAlign(sigil::weave::TextAlignment::kEnd))
-        .child(t("WARM GROUND LIGHT RIDING THE FRONT = TOM DUFF'S LOCAL "
-                 "LIGHT, THE ONLY HAND-PLACED LIGHT IN THE SHOT",
-                 mono(8.5f, hex(0xFF8A3A, 0.75f), 0.5f))
-                   .textAlign(sigil::weave::TextAlignment::kEnd));
-  }
-
-  Element stage() {
+  /** Everything over the field: Fig. 2's live plan inset and its caption.
+   *  Both are retained — a pool written every tick and a line of type on
+   *  a curved baseline are a described tree's business. */
+  Element stageAbove() {
     return stack()
         .width(kStageW)
         .height(kStageH)
-        .shrink(0)
         .clip()
-        .fill(Material::linearUnit({0.5f, 0.0f}, {0.5f, 0.85f},
-                                   {{0.0f, hex(0x03040A)},
-                                    {0.55f, hex(0x05060D)},
-                                    {1.0f, hex(0x0A0B13)}}))
-        .child(starField().zIndex(1))
-        .child(dipper().zIndex(2))
-        .child(regolith().zIndex(3))
-        .child(shockwave().zIndex(4))
-        .child(custom(fieldProgram())
-                   .inset(0)
-                   .cache(Cache::None)
-                   .zIndex(5)
-                   .opacity(bind(&loopU).map([](float v) {
-                     const float t = v * 10.0f;
-                     return std::clamp(t / 0.30f, 0.0f, 1.0f) *
-                            std::clamp((9.55f - t) / 0.5f, 0.0f, 1.0f);
-                   })))
-        .child(planInset().zIndex(6))
-        .child(planCaption().zIndex(6))
-        .child(blurCallout().zIndex(6))
-        .child(box()
-                   .inset(0)
-                   .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                               {.duration = 520ms,
-                                                .ease = &ch::easeOutCubic,
-                                                .delay = 260ms})),
-                           stroke(1.5f, Fill::color(kKeyline),
-                                  PathFormat::Align::Inner))
-                   .zIndex(9));
+        .child(planInset())
+        .child(t("FIG. 2 \xe2\x80\x94 DISTRIBUTION OF PARTICLE SYSTEMS ON THE "
+                 "PLANET'S SURFACE",
+                 mono(8.5f, kSteel, 0.6f))
+                   .left(24)
+                   .top(236)
+                   .width(300)
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    {.duration = 300ms, .delay = 1050ms})));
+  }
+
+  // =========================================================================
+  // The motion-blur callout — the one place the pen draws a streak in its
+  // own words.
+
+  /** [R83 §3]'s motion-blur construction, magnified 3x, in pen verbs.
+   *  ONE shape: `beginShape(TRIANGLE_STRIP)` with a `fill()` between the
+   *  vertex pairs, so the corners either side of that call carry it and
+   *  the cross-section's falloff is interpolated across the mesh. The
+   *  edge colour is the streak's own colour at zero alpha rather than
+   *  transparent BLACK, because the corners are interpolated before they
+   *  are composited and a black edge would darken the ramp's middle. */
+  void blurCallout(Pen& pen, float x0, float y0, float w, float h, float a) {
+    // the panel
+    pen.noStroke();
+    pen.fill(hexColor(0x0B0D14, 0.86f * a));
+    pen.rect(x0, y0, w, h, 6);
+    pen.noFill();
+    pen.stroke(hexColor(0x242A36, a));
+    pen.strokeWeight(1.5f);
+    pen.rect(x0 + 0.75f, y0 + 0.75f, w - 1.5f, h - 1.5f, 6);
+    pen.noStroke();
+
+    float cy = y0 + 11;
+    pen.textFont(weave::Type{.face = uiFace(), .size = 8.5f, .track = 1.7f});
+    pen.fill(hexColor(0x4FB8D8, a));
+    pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
+    pen.text(
+        "MOTION BLUR \xe2\x80\x94 REEVES 1983 \xc2\xa7"
+        "3",
+        x0 + 11, cy);
+    cy += 14;
+
+    // the streak itself: a 3x-magnified quad, one shape, colour ramped
+    // across the cross-section by the fills between its vertices
+    const float sx = x0 + 11, sy = cy + h * 0.30f;
+    const float x1 = sx + 5, x2 = sx + 141;
+    const SkColor4f hot = overlap(9);
+    const SkColor4f edge = {hot.fR, hot.fG, hot.fB, 0.0f};
+    pen.noStroke();
+    pen.beginShape(sigil::draw::TRIANGLE_STRIP);
+    pen.fill(edge);
+    pen.vertex(x1, sy - 5);
+    pen.vertex(x2, sy - 5);
+    pen.fill(hexColor(hot.toSkColor() & 0xFFFFFFu, a));
+    pen.vertex(x1, sy);
+    pen.vertex(x2, sy);
+    pen.fill(edge);
+    pen.vertex(x1, sy + 5);
+    pen.vertex(x2, sy + 5);
+    pen.endShape();
+
+    // the two sample positions
+    pen.fill(hexColor(0xFFFFFF, 0.95f * a));
+    pen.circle(x2, sy, 5.2f);
+    pen.fill(hexColor(0xFFFFFF, 0.45f * a));
+    pen.circle(x1, sy, 4.0f);
+    // cyan dimension bracket
+    pen.noFill();
+    pen.stroke(hexColor(0x4FB8D8, 0.9f * a));
+    pen.strokeWeight(1.0f);
+    const float by = sy + 13;
+    pen.line(x1, by - 3, x1, by + 3);
+    pen.line(x2, by - 3, x2, by + 3);
+    pen.line(x1, by, x2, by);
+    pen.noStroke();
+    // labels
+    penMono(pen, 7.0f, hexColor(0x9FB0CC, a));
+    pen.text("pos(f + 1/2)", x1 - 8, sy - 18);
+    pen.text("pos(f)", x2 - 14, sy - 18);
+    penMono(pen, 7.0f, hexColor(0x4FB8D8, a));
+    pen.text("0.5 \xc2\xb7 |v|", (x1 + x2) * 0.5f - 16, by + 4);
+
+    cy = y0 + h - 46;
+    penMono(pen, 7.5f, fadeTo(kBone, a), 0.4f);
+    pen.text("SHUTTER 1/50 s @ 24 fps \xe2\x89\x88 \xc2\xbd FRAME OF MOTION",
+             x0 + 11, cy);
+    cy += 11;
+    penMono(pen, 7.5f, fadeTo(kSteel, a), 0.4f);
+    pen.text(
+        "STREAK = pos(f) \xe2\x86\x92 pos(f+\xc2\xbd), ANTIALIASED, "
+        "ADDITIVE",
+        x0 + 11, cy);
+    cy += 11;
+    penMono(pen, 6.5f, fadeTo(kSteelDim, a), 0.2f);
+    pen.text(
+        "FN.4: \"A PARTICLE'S TRAJECTORY IS ACTUALLY PARABOLIC, BUT\n"
+        "THE STRAIGHT-LINE APPROXIMATION HAS SO FAR PROVED SUFFICIENT\"",
+        x0 + 11, cy);
+  }
+
+  static SkColor4f fadeTo(SkColor4f c, float a) {
+    return {c.fR, c.fG, c.fB, c.fA * a};
   }
 
   // =========================================================================
@@ -1170,7 +1177,7 @@ struct GenesisFire : sketch::Sketch {
   }
 
   Element generationPanel() {
-    return panel(104, 1)
+    return panel(kPanelH[0], 1)
         .gap(3)
         .child(panelHead("GENERATION LAW"))
         .child(eqn("NParts_f    = MeanParts_f + Rand() \xc3\x97 VarParts_f"))
@@ -1187,29 +1194,29 @@ struct GenesisFire : sketch::Sketch {
                    .shrink(0));
   }
 
-  Element censusCell(const char* s, float w, sigil::weave::TextStyle st) {
+  Element censusCell(const char* s, float w, weave::TextStyle st) {
     return t(s, std::move(st)).width(w).shrink(0);
   }
 
+  /** A ROW'S SHARE OF THE LARGEST CENSUS, as a bar SCALED from its left
+   *  edge rather than sized: the sidebar's bed keeps its recording, and
+   *  the live row's bar moves every frame off one bound Output where a
+   *  width would be layout every frame. The entrance eases past its own
+   *  fraction and the rail clips, which is what keeps a bar that
+   *  overshoots inside its own track. The live row names its bar, since
+   *  that row is described again every frame. */
   Element censusBar(float frac, SkColor4f c, const char* key) {
-    Element fill =
-        box()
-            .left(0)
-            .top(0)
-            .width(96)
-            .height(7)
-            .fill(c)
-            .transformOrigin(0.0f, 0.5f)
-            .scaleX(animate(from(0.0f).to(frac), {.duration = 420ms,
-                                                  .ease = ease::outBack(1.2f),
-                                                  .delay = 1200ms}));
-    if (key) fill.scaleX(bind(&liveFrac).clamp(0.02f, 1.0f)).key(key);
-    return box()
-        .width(96)
-        .height(7)
-        .shrink(0)
-        .fill(hex(0x171B24))
-        .child(std::move(fill));
+    sketch::kit::Meter bar{.width = Dim(96),
+                           .height = Dim(7),
+                           .track = Fill::color(hexColor(0x171B24)),
+                           .bar = Fill::color(c)};
+    bar.level = animate(
+        from(0.0f).to(frac),
+        {.duration = 420ms, .ease = ease::outBack(1.2f), .delay = 1200ms});
+    if (key) bar.level = bind(&liveFrac).clamp(0.02f, 1.0f);
+    Element rail = sketch::kit::meter(bar).shrink(0);
+    if (key) rail.key(key);
+    return rail;
   }
 
   Element censusRow(const char* fig, const char* sys, const char* particles,
@@ -1225,12 +1232,38 @@ struct GenesisFire : sketch::Sketch {
         .child(censusCell(sys, 62, mono(9.5f, c, 0.4f)))
         .child(censusCell(particles, 108, monoB(9.5f, c, 0.4f)))
         .child(censusCell(per, 76, mono(9.5f, cd, 0.4f)))
-        .child(censusBar(frac, live ? kCyan : hex(0x6D5A3F),
+        .child(censusBar(frac, live ? kCyan : hexColor(0x6D5A3F),
                          live ? "livebar" : nullptr));
   }
 
+  /** The live census row. The numbers tick, so the row is re-described
+   *  every frame and reconciled against what the guest's own composer
+   *  already holds: the reconcile is what keeps a ticking number from
+   *  re-recording the panel around it. */
+  Element liveRow() {
+    char parts_[32], per_[24], sys_[16];
+    std::snprintf(parts_, sizeof parts_, "%zu,%03zu", liveCount / 1000,
+                  liveCount % 1000);
+    std::snprintf(per_, sizeof per_, "%d",
+                  (int)std::lround((double)liveCount / (33.0 * kDepth)));
+    std::snprintf(sys_, sizeof sys_,
+                  "33\xc3\x97"
+                  "%d",
+                  kDepth);
+    return box()
+        .row()
+        .height(14)
+        .shrink(0)
+        .alignItems(Align::Center)
+        .child(censusCell("THIS", 46, monoB(9.5f, kCyan, 0.4f)))
+        .child(censusCell(sys_, 62, mono(9.5f, kCyan, 0.4f)))
+        .child(censusCell(parts_, 108, monoB(9.5f, kCyan, 0.4f)))
+        .child(censusCell(per_, 76, mono(9.5f, kCyan, 0.4f)))
+        .child(censusBar(0.0f, kCyan, "livebar"));
+  }
+
   Element censusPanel() {
-    return panel(192, 2)
+    return panel(kPanelH[1], 2)
         .gap(4)
         .child(panelHead("PARTICLE CENSUS \xe2\x80\x94 REEVES 1983 \xc2\xa7"
                          "3"))
@@ -1258,7 +1291,7 @@ struct GenesisFire : sketch::Sketch {
                 .child(censusRow("7\xe2\x80\x93"
                                  "8",
                                  "~400", ">750,000", ">1,875", 0.945f, false))
-                .child(slot("censusLive")))
+                .child(liveRow()))
         .child(box().grow(1))
         .child(t("* FIG. 4 IS \"ONE VERY LARGE PARTICLE SYSTEM AND ABOUT 20 "
                  "SMALLER ONES\" \xe2\x80\x94 THAT MEAN IS MEANINGLESS.",
@@ -1283,16 +1316,16 @@ struct GenesisFire : sketch::Sketch {
     swatches.reserve(14);
     labels.reserve(14);
     for (int n : kRampN) {
-      swatches.push_back(box()
-                             .width(28)
-                             .height(26)
-                             .shrink(0)
-                             .fill(Material::solid(overlap(n)))
-                             .transformOrigin(0.5f, 1.0f)
-                             .scaleY(animate(from(0.0f).to(1.0f),
-                                             {.duration = 220ms,
-                                              .ease = ease::outBack(1.70158f),
-                                              .delay = 1500ms})));
+      swatches.push_back(
+          box()
+              .width(28)
+              .height(26)
+              .shrink(0)
+              .fill(Paint::solid(overlap(n)))
+              .transformOrigin(0.5f, 1.0f)
+              .scaleY(animate(from(0.0f).to(1.0f), {.duration = 220ms,
+                                                    .ease = ease::outBack(),
+                                                    .delay = 1500ms})));
       const bool key = n == 5 || n == 20 || n == 111;
       labels.push_back(t(std::to_string(n).c_str(),
                          mono(7.0f, key ? kBone : kSteelDim, 0.2f))
@@ -1300,7 +1333,7 @@ struct GenesisFire : sketch::Sketch {
                            .shrink(0)
                            .textAlign(sigil::weave::TextAlignment::kCenter));
     }
-    return panel(98, 3)
+    return panel(kPanelH[2], 3)
         .gap(3)
         .child(panelHead("COLOUR IS OVERLAP COUNT"))
         .child(box().row().gap(2).shrink(0).staggerChildren(26ms).children(
@@ -1327,8 +1360,8 @@ struct GenesisFire : sketch::Sketch {
                    .height(52)
                    .shrink(0)
                    .clip(true)
-                   .fill(hex(0x05060A))
-                   .stroke(stroke(1.0f, Fill::color(hex(0x1B2029)),
+                   .fill(hexColor(0x05060A))
+                   .stroke(stroke(1.0f, Fill::color(hexColor(0x1B2029)),
                                   PathFormat::Align::Inner))
                    .child(std::move(content)))
         .child(t(caption, mono(7.0f, cc, 0.2f))
@@ -1336,27 +1369,29 @@ struct GenesisFire : sketch::Sketch {
                    .textAlign(sigil::weave::TextAlignment::kCenter));
   }
 
+  /** The bench's third cell is EMPTY in the tree: the pen draws the quads
+   *  into it afterwards, at the cell's own box, because those quads are
+   *  the field's renderer and the field is the pen's. */
   Element renderModelPanel() {
-    return panel(144, 4)
+    return panel(kPanelH[3], 4)
         .gap(4)
         .child(panelHead("RENDER MODEL \xe2\x80\x94 THREE PATHS, ONE POOL"))
-        .child(
-            box()
-                .row()
-                .gap(15)
-                .shrink(0)
-                .child(benchCell(box().inset(0).child(instancing::instances(
-                                     abAtlas, abPool, instancing::Mode::Live,
-                                     SkBlendMode::kSrcOver)),
-                                 "instances() \xc2\xb7 kSrcOver",
-                                 hex(0x8A93A8)))
-                .child(benchCell(box().inset(0).child(instancing::instances(
-                                     abAtlas, abPool, instancing::Mode::Live,
-                                     SkBlendMode::kPlus)),
-                                 "instances() \xc2\xb7 kPlus", hex(0xFFB672)))
-                .child(benchCell(
-                    custom(benchQuadProgram()).inset(0).cache(Cache::None),
-                    "custom() quads \xc2\xb7 kPlus", hex(0xFFB672))))
+        .child(box()
+                   .row()
+                   .gap(15)
+                   .shrink(0)
+                   .child(benchCell(box().inset(0).child(instancing::instances(
+                                        abAtlas, abPool, instancing::Mode::Live,
+                                        SkBlendMode::kSrcOver)),
+                                    "instances() \xc2\xb7 kSrcOver",
+                                    hexColor(0x8A93A8)))
+                   .child(benchCell(box().inset(0).child(instancing::instances(
+                                        abAtlas, abPool, instancing::Mode::Live,
+                                        SkBlendMode::kPlus)),
+                                    "instances() \xc2\xb7 kPlus",
+                                    hexColor(0xFFB672)))
+                   .child(benchCell(box().inset(0), "pen quads \xc2\xb7 kPlus",
+                                    hexColor(0xFFB672))))
         .child(box().grow(1))
         .child(t("SAME 700 PARTICLES, ONE POOL. LEFT AND CENTRE DIFFER ONLY "
                  "IN BLEND: kSrcOver CANNOT ACCUMULATE, SO ITS WHOLE PALETTE "
@@ -1373,7 +1408,7 @@ struct GenesisFire : sketch::Sketch {
   }
 
   Element productionPanel() {
-    return panel(96, 5)
+    return panel(kPanelH[4], 5)
         .gap(1)
         .child(panelHead("PRODUCTION \xe2\x80\x94 SMITH 1982"))
         .child(prodLine("67-SECOND SHOT \xc2\xb7 250,000 PX/FRAME \xc2\xb7 "
@@ -1408,14 +1443,14 @@ struct GenesisFire : sketch::Sketch {
                    {.duration = 850ms, .ease = &ch::easeNone, .delay = 120ms})};
     return box()
         .column()
-        .height(102)
+        .height(kHeaderH)
         .shrink(0)
         .gap(4)
         .child(
             t("STOCHASTIC PARTICLE SYSTEMS", ui(11.5f, kSteel, 2.7f))
                 .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
                 .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})))
-        .child(t("THE GENESIS DEMO, 1982", type(heavyFace(), 46, kBone, -0.4f))
+        .child(t("THE GENESIS DEMO, 1982", faced(heavyFace(), 46, kBone, -0.4f))
                    .key("title")
                    .fx(std::move(rise)))
         .child(t("W. T. Reeves, Lucasfilm Ltd \xe2\x80\x94 \"Particle "
@@ -1431,86 +1466,17 @@ struct GenesisFire : sketch::Sketch {
             animate(from(0.0f).to(1.0f), {.duration = 400ms, .delay = 320ms})));
   }
 
-  Element describe() {
-    return box().column().padding(36).gap(24).fill(kInk).child(header()).child(
-        box()
-            .row()
-            .gap(32)
-            .grow(1)
-            .child(box().column().gap(10).child(stage()).child(stageCaption()))
-            .child(box()
-                       .column()
-                       .width(kSideW)
-                       .shrink(0)
-                       .gap(8)
-                       .staggerChildren(90ms)
-                       .child(generationPanel())
-                       .child(censusPanel())
-                       .child(rampPanel())
-                       .child(renderModelPanel())
-                       .child(productionPanel())));
-  }
-
-  /** The live census row. An Animatable carries no string, so a number that
-   *  ticks cannot be bound; it is republished through a slot instead, which
-   *  re-describes only this row. */
-  Element liveRow() {
-    char parts_[32], per_[24], sys_[16];
-    std::snprintf(parts_, sizeof parts_, "%zu,%03zu", liveCount / 1000,
-                  liveCount % 1000);
-    std::snprintf(per_, sizeof per_, "%d",
-                  (int)std::lround((double)liveCount / (33.0 * kDepth)));
-    std::snprintf(sys_, sizeof sys_,
-                  "33\xc3\x97"
-                  "%d",
-                  kDepth);
-    return box()
-        .row()
-        .height(14)
-        .shrink(0)
-        .alignItems(Align::Center)
-        .child(censusCell("THIS", 46, monoB(9.5f, kCyan, 0.4f)))
-        .child(censusCell(sys_, 62, mono(9.5f, kCyan, 0.4f)))
-        .child(censusCell(parts_, 108, monoB(9.5f, kCyan, 0.4f)))
-        .child(censusCell(per_, 76, mono(9.5f, kCyan, 0.4f)))
-        .child(censusBar(0.0f, kCyan, "livebar"));
-  }
-
-  /** The field's own live cost, printed on the stage. Same slot idiom as
-   *  the census row: a number that ticks has no binding path. */
-  Element fieldStat(const sketch::SketchContext& ctx) {
-    char buf[160];
-    std::snprintf(buf, sizeof buf,
-                  "FIELD: %zu,%03zu STREAKS \xc2\xb7 %zu,%03zu VERTS "
-                  "\xc2\xb7 %zu drawVertices \xc2\xb7 BUILD %.2f ms / SIM "
-                  "FRAME",
-                  liveCount / 1000, liveCount % 1000, vertCount / 1000,
-                  vertCount % 1000, fieldChunks.size(),
-                  // The one number on this canvas that measures the host
-                  // rather than the artefact, so it differs between two
-                  // renders of the same frame. `ctx.measured` hands back
-                  // zero when the host is capturing for a diff, which is
-                  // what makes a captured still comparable byte for byte.
-                  ctx.measured(buildUs / 1000.0));
-    return t(buf, mono(8.5f, hex(0xFFB672, 0.85f), 0.5f))
-        .textAlign(sigil::weave::TextAlignment::kEnd);
-  }
-
   // =========================================================================
 
-  bool statDirty = false;  // the field readout is behind the simulation
-
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::DrawContext& ctx) override {
     // 4.6 s into the 10 s loop: the wavefront is near the right edge, the
     // leftmost systems are burning out and the rightmost have just ignited.
-    ctx.captureAt(4.6);
-    statDirty = false;
-    ctx.canvas((int)kCanvasW, (int)kCanvasH);
+    ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(kInk);
+    ctx.captureAt(4.6);
 
     loopT = 0;
     stepped = false;
-    elapsed = 0;
     simSteps = 0;
     liveCount = 0;
     buildUs = 0;
@@ -1518,6 +1484,7 @@ struct GenesisFire : sketch::Sketch {
     parts.clear();
     abParts.clear();
     fieldChunks.clear();
+    abChunks.clear();
 
     // The 53 second-level systems, and THE STAGGER.
     rng = 0x0F1E2D3Cu;
@@ -1540,7 +1507,6 @@ struct GenesisFire : sketch::Sketch {
     seedBench();
     rng = 0x9E3779B9u;
 
-    Composer& composer = ctx.composer;
     // The clock. [R83] counts lifetimes in FRAMES and the frames in
     // question are film frames, so the whole simulation runs at a fixed
     // 24 Hz whatever rate the host draws at. addFixed's catch-up clamp
@@ -1548,51 +1514,169 @@ struct GenesisFire : sketch::Sketch {
     // the ticker dt = 1.0, addFixed runs its 8 steps and DROPS the other
     // 16, so the sim lags the wall clock — which is the correct failure,
     // not a bug.
-    ctx.ticker.addFixed(kSimHz, [this] {
-      stepSim();
-      stepped = true;
-      return true;
-    });
-    ctx.ticker.add([this, &composer](double dt) {
-      elapsed += dt;
-      if (stepped) {
-        stepped = false;
-        const auto t0 = std::chrono::steady_clock::now();
-        buildStreaks(parts, fieldChunks);
-        const auto t1 = std::chrono::steady_clock::now();
-        const double us =
-            std::chrono::duration<double, std::micro>(t1 - t0).count();
-        buildUs = buildUs > 0 ? buildUs * 0.85 + us * 0.15 : us;
-        vertCount = parts.size() * 8;
-        writeBenchPool();
-        writePlanPool();
-        composer.renderSlot("censusLive", liveRow());
-        statDirty = true;
-      }
-      // ONE phase Output. bind() derives the wavefront in px, the plan
-      // ring's unit scale, and two piecewise alphas from it; without that
-      // shaping each consumer would need an Output of its own, kept in
-      // step by hand.
-      loopU = (float)(loopT / kLoopSeconds);
-      liveFrac = std::clamp(
-          (float)(std::log10(std::max(1.0, (double)liveCount)) - 3.8) / 2.2f,
-          0.0f, 1.0f);
-      return true;
-    });
+    ctx.ticker.addFixed(
+        kSimHz,
+        [this] {
+          stepSim();
+          stepped = true;
+          return true;
+        },
+        8, &simAlpha);
 
-    ctx.composer.render(describe());
-    ctx.composer.renderSlot("censusLive", liveRow());
-    ctx.composer.renderSlot("fieldStat", fieldStat(ctx));
+    headerEl = header();
+    belowEl = stageBelow();
+    aboveEl = stageAbove();
+    genEl = generationPanel();
+    rampEl = rampPanel();
+    benchEl = renderModelPanel();
+    prodEl = productionPanel();
+
+    ctx.pen.noStroke();
+    ctx.pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
   }
 
-  /** The field readout carries a number this sketch measured about its own
-   *  execution, and the pin for such a number lives on the context — which
-   *  a ticker steppable does not have. So the slot is re-rendered here,
-   *  latched by the simulation. */
-  void update(double, sketch::SketchContext& ctx) override {
-    if (!statDirty) return;
-    statDirty = false;
-    ctx.composer.renderSlot("fieldStat", fieldStat(ctx));
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
+    // The renderers follow the SIM clock: the streak lists, the two pools
+    // and the census row are rebuilt when — and only when — a film frame
+    // has passed.
+    if (stepped) {
+      stepped = false;
+      const auto t0 = std::chrono::steady_clock::now();
+      buildStreaks(parts, fieldChunks);
+      const auto t1 = std::chrono::steady_clock::now();
+      const double us =
+          std::chrono::duration<double, std::micro>(t1 - t0).count();
+      buildUs = buildUs > 0 ? buildUs * 0.85 + us * 0.15 : us;
+      vertCount = parts.size() * 8;
+      buildStreaks(abParts, abChunks);
+      writeBenchPool();
+      writePlanPool();
+    }
+
+    // ONE phase Output, carrying the fixed step's leftover fraction so the
+    // sweep is smooth at any draw rate. bind() derives the wavefront in
+    // px, the plan ring's unit scale, and two piecewise alphas from it;
+    // without that shaping each consumer would need an Output of its own,
+    // kept in step by hand.
+    const double phaseT = loopT + (double)simAlpha.value() * kSimStep;
+    loopU = (float)(std::fmod(phaseT, kLoopSeconds) / kLoopSeconds);
+    liveFrac = std::clamp(
+        (float)(std::log10(std::max(1.0, (double)liveCount)) - 3.8) / 2.2f,
+        0.0f, 1.0f);
+
+    pen.background(kInk);
+    pen.element(headerEl,
+                SkRect::MakeXYWH(kPad, kPad, kCanvasW - 2 * kPad, kHeaderH));
+
+    // --- the stage: two guests with the field drawn between them --------
+    const SkRect stageBox = SkRect::MakeXYWH(kStageX, kBodyY, kStageW, kStageH);
+    pen.element(belowEl, stageBox);
+    {
+      const float t = loopU.value() * 10.0f;
+      const float a = std::clamp(t / 0.30f, 0.0f, 1.0f) *
+                      std::clamp((9.55f - t) / 0.5f, 0.0f, 1.0f);
+      // The stage is the mask and ADD is the colour model, both the
+      // pen's and both held by this push: the field is drawn BETWEEN two
+      // guests, into the box the stage declares.
+      pen.push();
+      pen.clip([&] {
+        pen.rect(stageBox.x(), stageBox.y(), stageBox.width(),
+                 stageBox.height());
+      });
+      pen.blendMode(sigil::draw::ADD);
+      pen.translate(kStageX, kBodyY);
+      paintField(pen, fieldChunks, a);
+      pen.pop();
+    }
+    pen.element(aboveEl, stageBox);
+    blurCallout(pen, kStageX + 24, kBodyY + kStageH - 24 - 142, 268, 142,
+                cue(pen.millis(), 1150, 340));
+    // the bezel
+    pen.noFill();
+    pen.stroke(
+        hexColor(0x242A36, cue(pen.millis(), 260, 520, &ch::easeOutCubic)));
+    pen.strokeWeight(1.5f);
+    pen.rect(kStageX + 0.75f, kBodyY + 0.75f, kStageW - 1.5f, kStageH - 1.5f);
+    pen.noStroke();
+
+    // --- the caption band, declared OUTSIDE the artefact ----------------
+    stageCaption(ctx);
+
+    // --- the sidebar: five panels, each its own guest --------------------
+    pen.element(genEl,
+                SkRect::MakeXYWH(kSideX, panelTop(0), kSideW, kPanelH[0]));
+    pen.element(censusPanel(),
+                SkRect::MakeXYWH(kSideX, panelTop(1), kSideW, kPanelH[1]));
+    pen.element(rampEl,
+                SkRect::MakeXYWH(kSideX, panelTop(2), kSideW, kPanelH[2]));
+    pen.element(benchEl,
+                SkRect::MakeXYWH(kSideX, panelTop(3), kSideW, kPanelH[3]));
+    pen.element(prodEl,
+                SkRect::MakeXYWH(kSideX, panelTop(4), kSideW, kPanelH[4]));
+
+    // The bench's third cell: the SAME particles as the two instanced
+    // cells, through the field's own quads.
+    {
+      const float cellX = kSideX + 12 + 2 * (130 + 15);
+      const float cellY = panelTop(3) + 12 + 13 + 4;
+      pen.push();
+      pen.clip([&] { pen.rect(cellX, cellY, 130, 52); });
+      pen.blendMode(sigil::draw::ADD);
+      pen.translate(cellX, cellY);
+      paintField(pen, abChunks, 1.0f);
+      pen.pop();
+    }
+  }
+
+  /** THE CAPTION BAND. It states what the study proves — how many streaks
+   *  are alive, the raster the demo was computed for, and which light in
+   *  the picture is hand-placed — and it is drawn OUTSIDE the stage,
+   *  because a plate of an artefact is a plate of the artefact. Nothing
+   *  here is a mark on the frame; it is a band under it. */
+  void stageCaption(sketch::DrawContext& ctx) {
+    Pen& pen = ctx.pen;
+    const float a = cue(pen.millis(), 1250, 300);
+    if (a <= 0.001f) return;
+    char buf[160];
+    std::snprintf(buf, sizeof buf,
+                  "FIELD: %zu,%03zu STREAKS \xc2\xb7 %zu,%03zu VERTS "
+                  "\xc2\xb7 %zu drawVertices \xc2\xb7 BUILD %.2f ms / SIM "
+                  "FRAME",
+                  liveCount / 1000, liveCount % 1000, vertCount / 1000,
+                  vertCount % 1000, fieldChunks.size(),
+                  // The one number on this canvas that measures the host
+                  // rather than the artefact, so it differs between two
+                  // renders of the same frame. `measured` reads zero
+                  // where the host is capturing for a diff, which is what
+                  // makes a captured still comparable byte for byte.
+                  ctx.measured(buildUs / 1000.0));
+    const float right = kStageX + kStageW;
+    pen.textAlign(sigil::draw::RIGHT, sigil::draw::TOP);
+    penMono(pen, 8.5f, fadeTo(hexColor(0xFFB672, 0.85f), a), 0.5f);
+    pen.text(buf, right, kCaptionY);
+    penMono(pen, 8.5f, fadeTo(kSteel, a), 0.5f);
+    pen.text(
+        "888\xc3\x97"
+        "666 = 4:3 \xe2\x80\x94 THE 500-LINE VIDEO RASTER THE DEMO WAS "
+        "COMPUTED FOR",
+        right, kCaptionY + 12);
+    penMono(pen, 8.5f, fadeTo(hexColor(0xFF8A3A, 0.75f), a), 0.5f);
+    pen.text(
+        "WARM GROUND LIGHT RIDING THE FRONT = TOM DUFF'S LOCAL LIGHT, "
+        "THE ONLY HAND-PLACED LIGHT IN THE SHOT",
+        right, kCaptionY + 24);
+    pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
+  }
+
+  /** A part's entrance as time arithmetic: what a described tree spells
+   *  as `animate(from(0).to(1), {duration, delay})`, in a loop that has
+   *  the clock in its hand. */
+  static float cue(double ms, float delayMs, float durationMs,
+                   const ch::EaseFn& ease = nullptr) {
+    const float u = std::clamp(
+        (float)((ms - (double)delayMs) / (double)durationMs), 0.0f, 1.0f);
+    return ease ? ease(u) : u;
   }
 };
 

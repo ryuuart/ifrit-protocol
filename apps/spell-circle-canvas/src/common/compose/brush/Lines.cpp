@@ -13,6 +13,7 @@
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
+#include <sigilgeometry/path/Numeric.h>
 
 #include <algorithm>
 #include <cmath>
@@ -24,64 +25,17 @@
 
 namespace sigil::compose::lines {
 
-SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength) {
-  SkPathBuilder out;
-  SkContourMeasureIter iter(src, false);
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    const float len = contour->length();
-    const float lambdaMax = std::max(wavelength, 2.0f);
-    const float lambda = len / std::max(1.0f, std::round(len / lambdaMax));
-    auto plot = [&](float d, float disp, bool first) {
-      SkPoint pos;
-      SkVector tan;
-      if (!contour->getPosTan(std::min(d, len), &pos, &tan)) return;
-      const SkPoint p{pos.x() - tan.y() * disp, pos.y() + tan.x() * disp};
-      if (first)
-        out.moveTo(p);
-      else
-        out.lineTo(p);
-    };
-    plot(0, 0, true);
-    float cur = amplitude;
-    plot(0, cur, false);
-    // the loop walks a distance; the accumulated float is the position
-    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
-    for (float d = lambda * 0.5f; d < len - 0.25f; d += lambda * 0.5f) {
-      plot(d, cur, false);
-      cur = -cur;
-      plot(d, cur, false);
-    }
-    plot(len, cur, false);
-    plot(len, 0, false);
-    if (contour->isClosed()) out.close();
-  }
-  return out.detach();
-}
-
 SkPath dashGeometry(const SkPath& src, SkSpan<const SkScalar> intervals,
                     float phase) {
   if (intervals.empty() || src.isEmpty()) return src;
   sk_sp<SkPathEffect> fx = SkDashPathEffect::Make(intervals, phase);
   if (!fx) return src;
   SkPathBuilder dashed;
-  SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);  // NOT kFill — see above
+  // Hairline, not kFill: a fill rec hands the dash effect the solid path
+  // back and the pattern never appears.
+  SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
   if (!fx->filterPath(&dashed, src, &rec)) return src;
   return dashed.detach();
-}
-
-SkPath insetOutline(const SkPath& outline, float px) {
-  if (px == 0 || outline.isEmpty()) return outline;
-  SkPaint offset;
-  offset.setStyle(SkPaint::kStroke_Style);
-  offset.setStrokeWidth(std::abs(px) * 2.0f);
-  offset.setStrokeJoin(SkPaint::kMiter_Join);
-  const SkPath ring = skpathutils::FillPathWithPaint(outline, offset);
-  SkPath result;
-  if (Op(outline, ring,
-         px > 0 ? SkPathOp::kDifference_SkPathOp : SkPathOp::kUnion_SkPathOp,
-         &result))
-    return result;
-  return outline;
 }
 
 SkPath cornerBrackets(const SkPath& src, float arm, float angleDeg) {
@@ -353,63 +307,6 @@ void Line::drawCap(SkCanvas& canvas, const SkPaint& head, Cap cap, SkPoint pos,
   }
 }
 
-Line cased(float width, Fill fill, float gap) {
-  Line l;
-  l.width = width;
-  l.fill = std::move(fill);
-  l.parallels = 2;
-  l.gap = gap;
-  return l;
-}
-
-Line triple(float width, Fill fill, float gap, float coreFactor) {
-  Line l;
-  l.width = width;
-  l.fill = std::move(fill);
-  l.parallels = 3;
-  l.gap = gap;
-  l.coreWidthFactor = coreFactor;
-  return l;
-}
-
-Line arrow(float width, Fill fill, float headSize) {
-  Line l;
-  l.width = width;
-  l.fill = std::move(fill);
-  l.endCap = Cap::Arrow;
-  l.capSize = headSize;
-  return l;
-}
-
-Line railway(float width, Fill fill, float tieSpacing, float tieLength) {
-  Line l;
-  l.width = width;
-  l.fill = std::move(fill);
-  l.tickSpacing = tieSpacing;
-  l.tickLength = tieLength;
-  return l;
-}
-
-LayerStyle railwayCarto(float scale, SkColor4f dark, SkColor4f light) {
-  Line base;
-  base.width = 3.0f * scale;
-  base.fill = Fill::color(dark);
-  Line dashes;
-  dashes.width = 1.0f * scale;
-  dashes.fill = Fill::color(light);
-  dashes.dashIntervals = {8.0f * scale, 8.0f * scale};
-  return LayerStyle{{}, {Decoration(base), Decoration(dashes)}};
-}
-
-Line wavy(float width, Fill fill, float amplitude, float wavelength) {
-  Line l;
-  l.width = width;
-  l.fill = std::move(fill);
-  l.waveAmplitude = amplitude;
-  l.waveLength = wavelength;
-  return l;
-}
-
 float Rails::bleed() const {
   float worst = 0.0f;
   for (const Rail& r : rails)
@@ -462,41 +359,10 @@ void Rails::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   }
 }
 
-Rails rails(int count, float width, const Fill& fill, float gap) {
-  Rails r;
-  const int n = std::max(count, 1);
-  for (int i = 0; i < n; ++i)
-    r.rails.push_back(Rail{.across = gap * ((float)i - (float)(n - 1) * 0.5f),
-                           .width = width,
-                           .fill = fill});
-  return r;
-}
-
 Rails rails(std::vector<Rail> set) {
   Rails r;
   r.rails = std::move(set);
   return r;
-}
-
-Rails quad(float width, const Fill& fill, float gap) {
-  return rails(4, width, fill, gap);
-}
-
-Rails heavyHairHeavy(float heavy, float hair, const Fill& fill, float gap) {
-  return rails({{.across = -gap, .width = heavy, .fill = fill},
-                {.across = 0, .width = hair, .fill = fill},
-                {.across = gap, .width = heavy, .fill = fill}});
-}
-
-Rails dottedCore(float outer, float core, const Fill& fill, float gap,
-                 float dotGap) {
-  return rails({{.across = -gap, .width = outer, .fill = fill},
-                {.across = 0,
-                 .width = core,
-                 .fill = fill,
-                 .dash = {0.01f, dotGap},
-                 .cap = SkPaint::kRound_Cap},
-                {.across = gap, .width = outer, .fill = fill}});
 }
 
 void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
@@ -520,21 +386,6 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   pass(baseDeg);
   if (cross) pass(baseDeg + 90.0f);
   c.restore();
-}
-
-Hatch hatch(Fill fill, float spacing, float width, float angleDeg) {
-  Hatch h;
-  h.strokeFill = std::move(fill);
-  h.spacing = spacing;
-  h.width = width;
-  h.angleDeg = angleDeg;
-  return h;
-}
-
-Hatch crosshatch(Fill fill, float spacing, float width, float angleDeg) {
-  Hatch h = hatch(std::move(fill), spacing, width, angleDeg);
-  h.cross = true;
-  return h;
 }
 
 void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
@@ -562,8 +413,8 @@ void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.clipPath(ctx.outline, true);
   if (spokes > 0) {
     SkPathBuilder b;
-    const float step = 2.0f * SK_FloatPI / (float)spokes;
-    const float base = rotateDeg * SK_FloatPI / 180.0f;
+    const float step = geometry::path::kTau / (float)spokes;
+    const float base = geometry::path::radians(rotateDeg);
     for (int i = 0; i < spokes; ++i) {
       const float a = base + (float)i * step;
       const float cs = std::cos(a), sn = std::sin(a);
@@ -586,37 +437,6 @@ void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
     c.drawPath(b.detach(), p);
   }
   c.restore();
-}
-
-RadialHatch radialHatch(Fill fill, int spokes, float width, SkPoint centre) {
-  RadialHatch h;
-  h.strokeFill = std::move(fill);
-  h.spokes = spokes;
-  h.width = width;
-  h.centre = centre;
-  return h;
-}
-
-RadialHatch concentric(Fill fill, int rings, float width, SkPoint centre) {
-  RadialHatch h;
-  h.strokeFill = std::move(fill);
-  h.spokes = 0;
-  h.rings = rings;
-  h.width = width;
-  h.centre = centre;
-  return h;
-}
-
-RadialHatch concentric(Fill fill, std::vector<float> radiiPx, float width,
-                       SkPoint centre) {
-  RadialHatch h;
-  h.strokeFill = std::move(fill);
-  h.spokes = 0;
-  h.rings = 0;
-  h.radiiPx = std::move(radiiPx);
-  h.width = width;
-  h.centre = centre;
-  return h;
 }
 
 }  // namespace sigil::compose::lines

@@ -12,6 +12,9 @@
 #include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+// The fenced canvas the surface hands out: a constructor here must be able
+// to destroy one.
+#include <sigilskia/graphite/PaintOrder.h>
 
 namespace sigil::skia {
 

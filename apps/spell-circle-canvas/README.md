@@ -107,38 +107,49 @@ thread.
 
 The Mac app is a separate executable rather than a Qt build. Its
 `SpellCircleMacBridge` is a shared library that absorbs the entire C++
-side, because Swift's linker rejects the raw `-Wl,-framework,CoreFoundation`
-flag that Abseil's package config carries in its link interface; keeping
-that on the clang++ side of a dylib boundary is what makes the Swift target
-link at all.
+side — scene core, Skia, SigilWeave, ICU, HarfBuzz, Syphon — so the whole
+of it links through the clang++ driver and the Swift executable links one
+dylib.
 
 ## Libraries
 
-The app is thin. Most of the code is in libraries under `src/common/` and
-`src/sigilweave/`, each of which has its own README:
+The app is thin. Most of the code is in libraries under `src/common/`,
+`src/sigilweave/` and `src/sketch/`, each of which has its own README:
 
 | Library | What it does |
 | --- | --- |
-| [SigilWeave](src/sigilweave/README.md) | Text shaping and layout on HarfBuzz, ICU and Skia |
-| [SigilCompose](src/common/compose/README.md) | Data-driven drawable components — layout, caching, animation |
-| [SigilGeometry](src/common/geometry/README.md) | Higher-level drawing over Skia: geometry, curves, materials |
-| [SigilWorld](src/common/world/README.md) | 3D surfaces on Diligent Engine |
-| [SigilMotion](src/common/motion/README.md) | Animation clock and animatable values |
-| [SigilImage](src/common/image/README.md) | Image decoding and probing |
-| [SigilLoader](src/common/loader/README.md) | Resource access: URIs, mounts, caching, hot reload |
+| [SigilCore](src/common/core/README.md) | The kernels a retained runtime hosts: the reconciler, the caching proof, the hardware device seam, and the compute values a drawing is drawn from |
+| [SigilSkia](src/common/skia/README.md) | Skia Graphite on a device someone else owns |
+| [Ifrit.Ui](src/common/ui/README.md) | Reusable Qt Quick controls |
+| [SigilImage](src/common/image/README.md) | Still-image and animated-image decoding and encoding, and signed distance fields over a coverage mask |
+| [SigilVideo](src/common/video/README.md) | Streaming video decoding, GPU composition, and MP4 encoding |
+| [SigilIO](src/common/io/README.md) | Resource access and export: URIs, mounts, caching, hot reload, byte sinks |
+| [SigilData](src/common/data/README.md) | Tabular data and scales: typed columns, and the one value that maps a domain onto a range |
 | [SigilScry](src/common/scry/README.md) | HTML and CSS rendered to Skia images |
+| [SigilMeasure](src/common/measure/README.md) | Timing, statistics and check reporting |
+| [SigilMotion](src/common/motion/README.md) | Animation: the clock, animatable values, bindings, and the physics steppers |
+| [SigilGeometry](src/common/geometry/README.md) | Higher-level drawing over Skia: paths, contours, meshes, splines, point operators |
+| [SigilMaterial](src/common/material/README.md) | Recipes, textures, environment maps, and colour: ramps, palettes, harmonies, dithering |
+| [SigilDraw](src/common/draw/README.md) | An immediate-mode pen with p5's verbs |
+| [SigilWorld](src/common/world/README.md) | 3D surfaces on Diligent Engine |
+| [SigilSubstance](src/common/substance/README.md) | Adobe Substance 3D materials rendered to images, where the SDK is installed |
+| [SigilUsd](src/common/usd/README.md) | OpenUSD read and write, where the package is installed |
+| [SigilCompose](src/common/compose/README.md) | Data-driven drawable components — layout, caching, animation |
+| [SigilSketch](src/sketch/README.md) | Every renderable thing as one sketch, with Sketchbook over them |
+| [SigilWeave](src/sigilweave/README.md) | Text shaping and layout on HarfBuzz, ICU and Skia |
 
 ## Build and test
 
 ```sh
 cd apps/spell-circle-canvas
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug
-ctest --test-dir build -C Debug --output-on-failure
+python3 scripts/sigil.py setup --config Release
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
 ```
 
-`setup.py` finds Qt and vcpkg and writes the uncommitted
-`CMakeUserPresets.json`.
+`sigil.py setup` finds Qt and vcpkg and writes the uncommitted
+`CMakeUserPresets.json`. It is one of nine verbs over the build's
+administration; `scripts/README.md` is the canon for all of them.
 
 The test suite covers the libraries and the shared scene core —
 `spellcircle_test` builds wire payloads with the FlatBuffers API and runs
@@ -150,7 +161,7 @@ Use a Release build for any performance work. Several library
 benchmarks and sketches are deliberately stressful and Debug
 timings say nothing useful. The benchmarks are not tests: `cmake --build
 build --config Release --target benches` builds every `*_bench` binary,
-and `scripts/bench_ledger.py` runs them one at a time on a quiet machine
+and `scripts/sigil.py bench` runs them one at a time on a quiet machine
 and judges each benchmark's median real time against the committed
 `bench/baseline_<config>.json` (`--rebase` writes it, `--benches` picks a
 subset; `mise run bench` wraps both steps).
@@ -166,30 +177,54 @@ own — there is nothing to run and nothing to commit.
 
 The **Python modules** are committed, because `apps/python` is installed
 and imported without a CMake build in reach. Run
-`scripts/regen_flatbuffers.sh` from anywhere and commit what it writes:
+`scripts/sigil.py flatbuffers` and commit what it writes:
 
 - `apps/python/SpellCircle/{Vec2,Circle,Point,Edge,Box,Scene}.py`
+
+### The SDKs that are not in vcpkg
+
+Two dependencies are downloads behind an account, so no port can fetch
+them: the Ultralight SDK (SigilScry) and the Adobe Substance 3D SDK
+(SigilSubstance). Both libraries, and everything that links them, leave
+the build when their SDK is absent.
+
+An archive that cannot be fetched is put into the vcpkg asset cache
+once per machine, and every configure after that resolves it locally:
+
+```sh
+scripts/sigil.py assets --stage <downloaded-archive>
+```
+
+The verb copies the archive into `~/.local/opt/vcpkg-assets/` under
+the SHA-512 of its contents — the name vcpkg looks it up by — and prints
+that hash. `sigil.py setup` writes the cache into the `vcpkg` preset's
+environment as the one asset source, consulted before the network and
+written back to, so every other dependency still downloads normally.
+
+Where each SDK has to go until its port exists is in
+[SigilScry's README](src/common/scry/README.md) and
+[SigilSubstance's](src/common/substance/README.md).
 
 ### Demo assets
 
 Several library examples reproduce real reference designs, and a
 reference typeset in whatever face the host happens to ship is only half
-a reference. One script fetches the open-licensed ones, and the build reaches the
-same script through an opt-in target:
+a reference. One verb fetches the open-licensed ones, and the build reaches
+the same verb through an opt-in target:
 
 ```sh
-scripts/fetch_assets.py
+scripts/sigil.py assets
 cmake --build build --config Release --target fetch_assets
 ```
 
 They land in `build/assets/` (gitignored), reach code as the
 `SIGIL_ASSET_DIR` compile definition, and are also accepted directly by
 tools that take `--assets <dir>`. Nothing here runs during a normal
-build, and configuring the project never touches the network. The script
+build, and configuring the project never touches the network. The verb
 writes files and nothing else, so it runs on a fresh checkout with no
 build tree.
 
-The manifest is `scripts/fetch_assets.py`.
+The manifest is `scripts/sigil/assets.py`.
 Anything added to it carries an open licence with its licence file
 fetched alongside, is pinned to an immutable commit rather than a branch,
 and declares a sha256 so a changed byte is a hard failure.

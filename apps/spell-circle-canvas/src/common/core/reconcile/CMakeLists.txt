@@ -3,51 +3,28 @@
 # captured environment, the identity prune and the counts are here; what a
 # node retains beyond that, and what a patch does to it, is the host's,
 # reached through the ReconcileHost operations. Links SigilCoreComparable
-# (the erased seam value a description carries and the field pin its
-# comparators sit under), SigilMotion (the animatable values and the
-# ticker the lanes ramp on) and SigilMeasure (the published counts), and
-# nothing that draws or lays out.
-add_library(SigilCoreReconcile STATIC
-  Compare.cpp
-  Env.cpp
-  Lanes.cpp
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Compare.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Env.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Erased.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Host.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Lanes.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Memo.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Node.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Phases.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Reconcile.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Reconciler.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Stats.h
-)
-target_compile_features(SigilCoreReconcile PUBLIC cxx_std_20)
-target_include_directories(SigilCoreReconcile PUBLIC ${SIGIL_CORE_INCLUDE_DIR})
-target_link_libraries(SigilCoreReconcile PUBLIC
-  SigilCoreComparable SigilMeasure SigilMotionClock SigilMotionValues)
+# (the erased seam value a description carries) and SigilMeasure (the
+# published counts), and nothing that draws or lays out — and nothing
+# that animates either: the lanes a patch retargets and the comparators
+# over the values they carry are SigilMotion's, and a host reaches them
+# there.
+find_package(boost_container_hash CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
+sigil_library(SigilCoreReconcile
+  SOURCES Env.cpp Reads.cpp
+  HEADERS Env.h Host.h Memo.h Node.h Phases.h Reads.h Reconcile.h
+          Reconciler.h Stats.h
+  PUBLIC SigilCoreComparable SigilMeasure Boost::container_hash
+         Boost::unordered)
 
-# Links only the library it exercises, over a fake host, so a link edge
-# that pulled a drawing or layout library in would show up as a build
-# failure here.
-add_executable(sigilcore_reconcile_test
-  test/FakeHost.h
-  test/ReconcilerTest.cpp
-  test/EnvTest.cpp
-  test/LanesTest.cpp
-  test/PhasesTest.cpp
-)
-target_link_libraries(sigilcore_reconcile_test PRIVATE
-  SigilCoreReconcile GTest::gtest_main)
-add_test(NAME sigilcore_reconcile_test COMMAND sigilcore_reconcile_test)
+# Over a fake host, so a link edge that pulled a drawing or layout
+# library in would show up as a build failure here.
+sigil_test(core_test
+  SOURCES test/FakeHost.h test/ReconcilerTest.cpp test/EnvTest.cpp
+          test/PhasesTest.cpp test/ReadsTest.cpp
+  LIBRARIES SigilCoreReconcile)
 
-# Google Benchmark (use a Release build), linking only what it measures.
-# Not a test: it builds through the `benches` target and runs through
-# scripts/bench_ledger.py.
-add_executable(sigilcore_reconcile_bench bench/ReconcileBench.cpp)
-target_include_directories(sigilcore_reconcile_bench PRIVATE
-  ${CMAKE_CURRENT_LIST_DIR}/test)
-target_link_libraries(sigilcore_reconcile_bench PRIVATE
-  SigilCoreReconcile benchmark::benchmark)
-add_dependencies(benches sigilcore_reconcile_bench)
+sigil_bench(core_bench
+  SOURCES bench/ReconcileBench.cpp
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test
+  LIBRARIES SigilCoreReconcile)

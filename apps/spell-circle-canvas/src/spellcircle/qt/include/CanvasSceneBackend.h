@@ -8,10 +8,8 @@ class SpellCircleRenderer;
  * registers the result with `painter` (via QCanvasPainter::addImage()),
  * returning the resulting image.
  *
- * SkiaSceneBackend (Skia's GPU Graphite canvas, compiled in when
- * SPELLCIRCLE_ENABLE_SKIA_CANVAS is ON) is the one implementation; the
- * interface stays so SpellCircleRenderer never depends on Skia types and a
- * stub build simply yields no backend.
+ * SkiaSceneBackend (Skia's GPU Graphite canvas) is the one implementation;
+ * the interface stays so SpellCircleRenderer never depends on Skia types.
  */
 class CanvasSceneBackend {
  public:

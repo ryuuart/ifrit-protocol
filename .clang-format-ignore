@@ -4,5 +4,9 @@
 # reformat). The tree holds neither today — nothing is vendored, and
 # every generated source is written into the build tree, which is not
 # checked — so this file carries no patterns and is the place a new one
-# goes. clang-format 18+ honors this file; scripts/check.py applies the
-# same exclusions in its own file selection.
+# goes. clang-format 18+ honors this file.
+#
+# A path under the build tree can still be named on the command line, so
+# the check verb keeps its own list for that: EXCLUDED_FRAGMENTS in
+# scripts/sigil/check.py, which drops the FlatBuffers-generated sources
+# and vcpkg_installed/ out of any selection whatever named them.

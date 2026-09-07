@@ -22,9 +22,11 @@
 //               from the count rather than a size being chosen and the
 //               cards fitted into it.
 
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilsubstance/Substance.h>
 
 #include <cstdio>
@@ -35,6 +37,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 namespace substance = sigil::substance;
 
 using namespace sigil::compose;
@@ -52,8 +55,25 @@ constexpr float kHeaderHeight = 104;
 constexpr float kCaptionHeight = 46;
 constexpr int kPerRow = 4;
 
-constexpr SkColor4f kInk = hex(0xf0ece4);
-constexpr SkColor4f kDim = hex(0xb4a894);
+constexpr SkColor4f kInk = hexColor(0xf0ece4);
+constexpr SkColor4f kDim = hexColor(0xb4a894);
+
+/** The archive's own look: warm ink on a cooled ground, and the card's
+ *  two lines under its picture rather than around it. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ink = kInk;
+  look.palette.ash = kDim;
+  look.type.title = {.size = 15, .track = 2.4f};
+  look.type.subtitle = {.size = 12};
+  look.type.captionLabel = {.size = 14};
+  look.type.captionNote = {.size = 11.5f};
+  look.captionWhere = kit::Caption::Where::Below;
+  look.spacing.captionGap = 7;
+  look.spacing.captionNoteGap = 7;
+  look.spacing.cellGap = kGap;
+  return look;
+}
 
 std::filesystem::path archive() {
   return std::filesystem::path(SIGIL_SUBSTANCE_SDK_DIR) / "assets" /
@@ -70,21 +90,18 @@ struct Swatch {
 };
 
 Element card(const Swatch& swatch) {
-  char size[32];
-  std::snprintf(size, sizeof size, "%d \xc3\x97 %d", swatch.width,
-                swatch.height);
-  return box()
-      .width(kCard)
-      .column()
-      .gap(7)
-      .child(image(swatch.asset)
+  const std::string size =
+      kit::formatted("%d \xc3\x97 %d", swatch.width, swatch.height);
+  return sketch::kit::caption(
+             kCard, toU8(swatch.usage), toU8(size),
+             image(swatch.asset)
                  .width(kCard)
                  .height(kCard)
                  .corners({10})
                  .clip()
-                 .foreground(stroke(1.0f, Fill::color(hex(0xffffff, 0.16f)))))
-      .child(text(toU8(swatch.usage), type({.size = 14, .color = kInk})))
-      .child(text(toU8(size), type({.size = 11.5f, .color = kDim})));
+                 .foreground(
+                     stroke(1.0f, Fill::color(hexColor(0xffffff, 0.16f)))))
+      .width(kCard);
 }
 
 Element notice(std::u8string heading, const std::string& detail) {
@@ -92,12 +109,13 @@ Element notice(std::u8string heading, const std::string& detail) {
       .inset(kMargin, kMargin, kMargin, kMargin)
       .corners({16})
       .padding(28)
-      .fill(Fill::color(hex(0x241c14, 0.9f)))
-      .foreground(stroke(1.0f, Fill::color(hex(0xffb46b, 0.24f))))
+      .fill(Fill::color(hexColor(0x241c14, 0.9f)))
+      .foreground(stroke(1.0f, Fill::color(hexColor(0xffb46b, 0.24f))))
       .column()
       .gap(10)
-      .child(text(std::move(heading), type({.size = 22, .color = kInk})))
-      .child(text(toU8(detail), type({.size = 13, .color = kDim})));
+      .child(text(std::move(heading),
+                  weave::textStyle({.size = 22, .color = kInk})))
+      .child(text(toU8(detail), weave::textStyle({.size = 13, .color = kDim})));
 }
 
 }  // namespace
@@ -117,7 +135,7 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.background(hex(0x140f0a));
+    ctx.background(hexColor(0x140f0a));
     ctx.captureAt(0.5);
 
     std::string error;
@@ -127,7 +145,7 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
       ctx.canvas(940, 320);
       ctx.composer.render(
           stack()
-              .fill(Fill::color(hex(0x140f0a)))
+              .fill(Fill::color(hexColor(0x140f0a)))
               .child(notice(u8"the archive did not load",
                             error.empty() ? archive().string() : error)));
       return;
@@ -139,11 +157,12 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
       ctx.canvas(940, 320);
       ctx.composer.render(
           stack()
-              .fill(Fill::color(hex(0x140f0a)))
+              .fill(Fill::color(hexColor(0x140f0a)))
               .child(notice(u8"the graph did not cook", archive().string())));
       return;
     }
 
+    const sketch::kit::Provide look(sheetTheme());
     std::vector<Swatch> swatches;
     for (const auto& [usage, cooked] : graph.outputsByUsage()) {
       if (!cooked) continue;
@@ -155,42 +174,54 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
     // The canvas follows the archive: a piece whose content is a cooked
     // package cannot declare a size before it knows how many channels
     // came back.
+    // Not arrange::moduleSize: this measures the CONTAINER back from a
+    // fixed module and its gaps, which is that function run backwards.
     const int rows = ((int)swatches.size() + kPerRow - 1) / kPerRow;
     const float cardHeight = kCard + 7 + 18 + 7 + 16;
     ctx.canvas(kMargin * 2 + kPerRow * kCard + (kPerRow - 1) * kGap,
                kHeaderHeight + (float)rows * cardHeight +
                    (float)(rows - 1) * kGap + kCaptionHeight);
 
-    char caption[192];
-    std::snprintf(caption, sizeof caption,
-                  "%s \xc2\xb7 %zu parameters \xc2\xb7 %zu channels "
-                  "\xc2\xb7 engine %s",
-                  graph.label().c_str(), graph.parameters().size(),
-                  swatches.size(), substance::Package::engineVersion().c_str());
+    // THE ENGINE'S VERSION GOES TO stderr, NOT ONTO THE PLATE. It is a
+    // number this machine's SDK decides, so a plate carrying it would
+    // change under an SDK upgrade that changed no pixel anyone authored,
+    // and a byte-identity sweep would report that as a mover.
+    std::fprintf(stderr, "[substance] engine %s \xc2\xb7 %s\n",
+                 substance::Package::engineVersion().c_str(),
+                 graph.label().c_str());
 
-    Element grid = box().left(kMargin).top(kHeaderHeight).column().gap(kGap);
-    for (int start = 0; start < (int)swatches.size(); start += kPerRow) {
-      Element row = box().row().gap(kGap);
-      for (int i = start; i < start + kPerRow && i < (int)swatches.size(); ++i)
-        row.child(card(swatches[i]));
-      grid.child(std::move(row));
-    }
+    const std::string caption = kit::formatted(
+        "%s \xc2\xb7 %zu parameters \xc2\xb7 %zu channels",
+        graph.label().c_str(), graph.parameters().size(), swatches.size());
+
+    std::vector<Element> cards;
+    cards.reserve(swatches.size());
+    for (const Swatch& swatch : swatches) cards.push_back(card(swatch));
+    // The grid is as wide as its own cards, so a share IS a card: the
+    // canvas above was sized from the same arithmetic.
+    Element grid = box()
+                       .left(kMargin)
+                       .top(kHeaderHeight)
+                       .width(kPerRow * kCard + (kPerRow - 1) * kGap)
+                       .child(sketch::kit::panelGrid(
+                           {.cells = std::move(cards), .columns = kPerRow}));
 
     ctx.composer.render(
         stack()
-            .fill(linearGradient({0, 0}, {0, ctx.size.height()},
-                                 {hex(0x1a120b), hex(0x0f0d10)}))
-            .child(text(u8"A PROCEDURAL ARCHIVE, COOKED",
-                        type({.size = 15, .color = kInk, .track = 2.4f}))
+            .child(sketch::kit::backdrop(
+                {.over = ctx.size,
+                 .ground =
+                     linearGradient({0, 0}, {0, ctx.size.height()},
+                                    {hexColor(0x1a120b), hexColor(0x0f0d10)})}))
+            .child(sketch::kit::titleCard(
+                       {.title = {u8"A PROCEDURAL ARCHIVE, COOKED"},
+                        .subtitle = {toU8(caption)}})
                        .left(kMargin)
                        .top(34))
-            .child(text(toU8(caption), type({.size = 12, .color = kDim}))
-                       .left(kMargin)
-                       .top(62))
             .child(std::move(grid)));
   }
 };
 
-SIGIL_SKETCH(SubstanceSwatchesSketch, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(SubstanceSwatchesSketch, "Start & fixtures",
              "A .sbsar cooked through the Substance engine, one card per "
              "channel it declares")

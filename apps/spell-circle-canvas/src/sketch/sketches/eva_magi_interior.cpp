@@ -14,16 +14,9 @@
 //    agreed about it." — 20 sec … 15 … 10 … 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 —
 //   Ritsuko: "We are 1 sec. ahead."  "Self-destruction cancelled by AIs."
 //
-// THIS IS A RECONSTRUCTION AND IT SAYS SO. One canvas assembled from four
-// documented plates, the way lain_navi was: (1) the Ep 13 deliberation frame,
-// THE ANCHOR — but see THE REFERENCE IS IN PERSPECTIVE below, because that
-// sentence is the whole methodological point of this study; (2) the Khara
-// design art "MAGI SYSTEM V2.3762.123b — Conceptual Diagram", 2000x1397, the
-// machine's own portrait, living BEHIND the plate and showing through the hole
-// the three panels leave; (3) the Ep 13 cross-section of CASPER's bolted hatch
-// — a human brain strapped behind glass — as the study's plate number in the
-// corner; (4) the Ep 13 transcript, for every timing. No frame of the episode
-// contains all four.
+// THIS IS A RECONSTRUCTION AND IT SAYS SO. The canvas isolates the Ep 13
+// deliberation frame: its three panels, infection, labels, rails and verdict.
+// The frame is the visual authority; the transcript supplies only the timing.
 //
 // -----------------------------------------------------------------------------
 // THE REFERENCE IS IN PERSPECTIVE, SO NO NUMBER CAN BE READ STRAIGHT OFF IT
@@ -94,7 +87,7 @@
 //     (there is no partially-shaded cell anywhere in the frame), which is a
 //     step function of position against one advancing value, i.e. exactly a
 //     shader and exactly not a growing set of rectangles. Built as one
-//     `Material::sksl` overlay per panel with a single bound `uFront`; the
+//     `Paint::sksl` overlay per panel with a single bound `uFront`; the
 //     panel's own azure is underneath and shows through where the field is
 //     off. Built instead as ~110 animated rects per panel it would re-describe
 //     the tree on every step; this is one draw and one uniform.
@@ -142,38 +135,25 @@
 //  * github.com/TheGreatGildo/nerv-ui — components/crt-effects.css. Transcribed
 //    unchanged, so this study and eva_magi_defense.cpp share one tube.
 //  * fontsinuse.com/uses/28760 — NERV panels are Helvetica / Helvetica
-//    Condensed. Anno picked Matisse EB (Fontworks) for the Japanese; the free
-//    stand-in installed here is Songti SC Black, a heavy Ming.
+//    Condensed. Anno picked Matisse EB (Fontworks) for the Japanese; the
+//    system stand-in is Hiragino Mincho W6 with a restrained emboldening
+//    stroke so the glyph forms stay Japanese and approach the extra-black cut.
 //
 // -----------------------------------------------------------------------------
 // BUILT FROM (the library, not by hand)
-//   Element::outline               every panel: an axis-aligned box with ONE
-//                                  corner cut — the cut is not square, so it
-//                                  is cutBox() below and not shapes::chamfered
+//   Element::outline               every panel: an axis-aligned box with an
+//                                  independently sized cut on selected corners
 //   decorations::border            the pale edge-light rim, on those outlines,
 //                                  following the cut untold
 //   decorations::doubleBorder      the 審議中 box (itorr's triple box-shadow)
-//   Material::sksl + one uniform   THE INFECTION. One shader, one bound
+//   Paint::sksl + one uniform   THE INFECTION. One shader, one bound
 //                                  Output, zero nodes per cell
 //   rail() + routers::polyline(0)  the three orange stubs, anchored on the
 //                                  panels' own keys at normalized points
-//   lines::Rails                   BALTHASAR's own doubled circuitry (two
-//                                  rails at UNEQUAL offsets) and the
-//                                  portrait's bead arc
+//   lines::Rails                   BALTHASAR's own doubled circuitry, with two
+//                                  rails at UNEQUAL offsets
 //   lines::crosshatch              the serration inside the four green bands
-//   lines::Line{.midCap = Arrow}   the portrait's chartreuse flow ladder —
-//                                  the one place mid-caps are correct
-//   brush::Pattern          the portrait's hollow-ring bead runs and
-//                                  arrowhead chevron runs; built ONCE as
-//                                  members (the bake cache lives in the value)
-//   brush::Ribbon (no width Profile) the neuron dendrites, tapered
-//   shapes::polygon / chamfered    the hex lattice (cornerAngleDeg passed
-//                                  EXPLICITLY everywhere); the hatch plate
-//   shapes::parametric             the portrait's boundary conics
-//   TextPath{orient = Tangent}     `CASPER` stencilled round the hatch arc
-//   Material::linearUnit/radialUnit the portrait ONLY — the plate's panels are
-//                                  flat (measured p5->p95 spans 10 luma)
-//   Cache::Texture                 the portrait, the furniture, the type, CRT
+//   Cache::Texture                 the furniture, the type and the CRT overlay
 //   hard steps                     every blink; nothing here fades
 //
 // -----------------------------------------------------------------------------
@@ -191,25 +171,14 @@
 //     .midSpacing = n}` is a tick ladder — a dot every n px of ARC — which is
 //     the opposite of a via, whose definition is "where two runs meet", so
 //     nothing on this plate wears one.
-//  D. **`shapes::chamfered(cut, mask)` TAKES ONE SCALAR AND THEREFORE ONLY
-//     CUTS AT 45 DEGREES.** Measured in the flat plate, this artefact's cuts
-//     are 155x135, 136x142 and 66x68 px — 41.0, 46.2 and 45.9 deg. Two of the
-//     three are 45 to within a degree and CASPER's is not, and there is no
-//     spelling for it: `chamfered(155)` and `chamfered(135)` are both wrong.
-//     `cutBox()` below takes an independent x and y cut per corner instead.
-//  E. NO PERSPECTIVE TRANSFORM. `Element` is affine-only, and `outline()` can
-//     apply a homography to GEOMETRY but not to text or to a subtree. So the
-//     plate cannot be drawn flat and then projected back into the reference's
-//     own perspective; the rectification has to happen in the measurement
-//     instead of in the render, which is why every coordinate here is a flat
-//     one.
+//  D. `shapes::chamfered(cut, mask)` takes one scalar. The panel grammar needs
+//     independent horizontal and vertical cuts, plus a mask that can select
+//     more than one corner, so the shared panel generator carries both axes.
 //
-// What is NOT a limitation, checked against the headers:
-// `brush::Pattern::cornerLength`/`cornerAlign` place and orient corner art;
+// Checked against the headers:
 // `lines::Rails` really does dash in CENTRELINE arc-space so unequal-offset
 // rails stay in register; `decorations::border` really does follow a cut
-// outline untold. `Border::cornerAngleDeg` defaults to 30 and finds ZERO
-// corners above 12 sides — passed explicitly on every hex here.
+// outline untold.
 //
 // -----------------------------------------------------------------------------
 // Run:
@@ -231,34 +200,59 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
-#include <include/core/SkFontStyle.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <shared/EvangelionUi.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Routers.h>
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Specimen.h>
+#include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilcore/compute/Chance.h>
+#include <sigilgeometry/kit/Corners.h>
+#include <sigilgeometry/kit/Curves.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Time.h>
+#include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace chance = sigil::core::chance;
+namespace mskia = sigil::material::skia;
+namespace motion = sigil::motion;
+namespace arrange = sigil::geometry::arrange;
+namespace path = sigil::geometry::path;
+namespace shapes = sigil::geometry::shapes;
+namespace measure = sigil::measure;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -269,181 +263,117 @@ namespace magi {
 
 constexpr float kW = 1440.0f, kH = 1052.0f;
 
-inline SkColor4f hex(uint32_t v, float a = 1.0f) noexcept {
-  return {(float)((v >> 16u) & 255u) / 255.0f,
-          (float)((v >> 8u) & 255u) / 255.0f, (float)(v & 255u) / 255.0f, a};
-}
-
 // ---------------------------------------------------------------------------
 // PALETTE — HSV-class percentiles over the anchor. There is NO WHITE.
 
-const SkColor4f kGround = hex(0x040001);  // dark p50 — a RED-cast black
+const SkColor4f kGround = hexColor(0x040001);  // dark p50 — a RED-cast black
 // THE PANEL BLUE IS A CEL BLUE. Sampled off the frame it is a deep,
 // low-chroma blue that sits UNDER the red rather than beside it; the
 // brighter reading is a flat-UI sky blue, which on a black ground makes
 // the two blue panels the loudest thing in the picture and MELCHIOR's red
 // a third colour rather than the subject.
-const SkColor4f kAzure = hex(0x2E6E96);   // measured p50 inside CASPER; FLAT
-const SkColor4f kRed = hex(0xAA0506);     // MELCHIOR p50 — and the traces, to
-const SkColor4f kRedHot = hex(0xB0090A);  // within 1 LSB: ONE colour, TWO
-                                          // coverages, which is the whole idea
-const SkColor4f kTraceDark = hex(0x080102);  // the pour's own keyline
-const SkColor4f kInk = hex(0x00093C);        // label on a panel: dark NAVY
-const SkColor4f kInkRed = hex(0x3A0A18);     // the same ink over MELCHIOR's red
-const SkColor4f kOrange = hex(0xE56C1A);     // rails, rims, the MAGI mark
-const SkColor4f kOrangeDim = hex(0xB4571A);
-const SkColor4f kKanji = hex(0xE16417);  // very slightly redder than the rails
-const SkColor4f kKanjiHot = hex(0xFFA050);  // 提訴 mid-pulse
-const SkColor4f kGold = hex(0xC4AC50);
-const SkColor4f kGoldHot = hex(0xE8D371);
-const SkColor4f kGoldPeak = hex(0xF4DD8C);
-const SkColor4f kGreen = hex(0x175746);    // 0.16% of the frame and it carries
-const SkColor4f kGreenHi = hex(0x2A6B58);  // the whole top band
-const SkColor4f kEdgeLight = hex(0xA88CAF);  // the cel's own edge light
-const SkColor4f kBgRule = hex(0x6E3228);  // the plate's dim diagonal furniture
+const SkColor4f kAzure = hexColor(0x60E0B9);
+const SkColor4f kRed = hexColor(0xAA0506);  // MELCHIOR p50 — and the traces, to
+const SkColor4f kRedHot =
+    hexColor(0xB0090A);  // within 1 LSB: ONE colour, TWO
+                         // coverages, which is the whole idea
+const SkColor4f kTraceDark = hexColor(0x080102);  // the pour's own keyline
+const SkColor4f kInk = hexColor(0x00093C);        // label on a panel: dark NAVY
+const SkColor4f kInkRed =
+    hexColor(0x3A0A18);  // the same ink over MELCHIOR's red
+const SkColor4f kOrange = hexColor(0xE56C1A);  // rails, rims, the MAGI mark
+const SkColor4f kOrangeDim = hexColor(0xB4571A);
+const SkColor4f kKanji =
+    hexColor(0xE16417);  // very slightly redder than the rails
+const SkColor4f kKanjiHot = hexColor(0xFFA050);  // 提訴 mid-pulse
+const SkColor4f kGold = hexColor(0xC4AC50);
+const SkColor4f kGoldHot = hexColor(0xE8D371);
+const SkColor4f kGoldPeak = hexColor(0xF4DD8C);
+const SkColor4f kGreen =
+    hexColor(0x175746);  // 0.16% of the frame and it carries
+const SkColor4f kGreenHi = hexColor(0x2A6B58);    // the whole top band
+const SkColor4f kEdgeLight = hexColor(0xA88CAF);  // the cel's own edge light
+const SkColor4f kBgRule =
+    hexColor(0x6E3228);  // the plate's dim diagonal furniture
 
 // The portrait's warm palette — a DIFFERENT plate, kept different on purpose.
 // Two palettes, one canvas; they share the orange, so the orange is the seam.
 constexpr float kBack = 0.42f;
-const SkColor4f kPBody = mul(hex(0x711B0F), kBack);
-const SkColor4f kPBodyHi = mul(hex(0xB63014), kBack);
-const SkColor4f kPRail = mul(hex(0x703912), kBack);
-const SkColor4f kPRailHi = mul(hex(0xE17B33), kBack);
-const SkColor4f kPRailDim = mul(hex(0xB05A20), kBack);
-const SkColor4f kPChart = mul(hex(0xB1CE3C), kBack);
-const SkColor4f kPPin = mul(hex(0xEFE033), kBack);
-const SkColor4f kPMagenta = mul(hex(0xAD5196), kBack);
-const SkColor4f kPViolet = mul(hex(0x4A3283), kBack);
+const SkColor4f kPBody = mskia::scale(hexColor(0x711B0F), kBack);
+const SkColor4f kPBodyHi = mskia::scale(hexColor(0xB63014), kBack);
+const SkColor4f kPRail = mskia::scale(hexColor(0x703912), kBack);
+const SkColor4f kPRailHi = mskia::scale(hexColor(0xE17B33), kBack);
+const SkColor4f kPRailDim = mskia::scale(hexColor(0xB05A20), kBack);
+const SkColor4f kPChart = mskia::scale(hexColor(0xB1CE3C), kBack);
+const SkColor4f kPPin = mskia::scale(hexColor(0xEFE033), kBack);
+const SkColor4f kPMagenta = mskia::scale(hexColor(0xAD5196), kBack);
+const SkColor4f kPViolet = mskia::scale(hexColor(0x4A3283), kBack);
 
 // ---------------------------------------------------------------------------
 // TYPE
 
-inline sk_sp<SkTypeface> face(const char* family, int weight,
-                              const char* fallback) {
-  auto mgr = weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      family, SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                          SkFontStyle::kUpright_Slant));
-  if (!f && fallback)
-    f = mgr->matchFamilyStyle(fallback,
-                              SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                                          SkFontStyle::kUpright_Slant));
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Bold());
-  return f;
-}
-inline const sk_sp<SkTypeface>& latin() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica", SkFontStyle::kBold_Weight, "Arial");
-  return f;
-}
-inline const sk_sp<SkTypeface>& latinPlain() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica", SkFontStyle::kNormal_Weight, "Arial");
-  return f;
-}
-inline const sk_sp<SkTypeface>& han() {
-  static sk_sp<SkTypeface> f =
-      face("Songti SC", SkFontStyle::kBlack_Weight, "Hiragino Mincho ProN");
-  return f;
-}
+inline sk_sp<SkTypeface> latin() { return evangelion::condensedBold(); }
+inline sk_sp<SkTypeface> latinPlain() { return evangelion::condensedRegular(); }
+inline sk_sp<SkTypeface> han() { return evangelion::minchoHeavy(); }
 
 inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                              SkColor4f color, float condense = 1.0f,
                              float track = 0.0f) {
-  return sigil::compose::type({.face = tf,
-                               .size = size,
-                               .color = color,
-                               .track = track,
-                               .condense = condense});
+  return evangelion::type(tf, size, color, condense, track);
 }
 
 // ---------------------------------------------------------------------------
-// THE PLATE, measured in the RECTIFIED frame. Axis-aligned boxes with one
-// corner cut — which is the generating rule, stated as a construction now
-// that the projection is out of the way.
-
-/** A box with an INDEPENDENT x and y cut per corner. `shapes::chamfered` takes
- *  one scalar and therefore only cuts at 45 deg; this plate's three cuts
- *  measure 41.0, 45.9 and 46.2, so none of them is expressible that way. */
-enum CutCorner : unsigned { CutTL = 1, CutTR = 2, CutBR = 4, CutBL = 8 };
-inline shapes::OutlineFn cutBox(float cx, float cy, unsigned mask) {
-  return [cx, cy, mask](SkSize s) {
-    const float w = s.width(), h = s.height();
-    const float x = std::min(cx, w * 0.5f), y = std::min(cy, h * 0.5f);
-    SkPathBuilder b;
-    b.moveTo((mask & CutTL) ? x : 0.0f, 0);
-    if (mask & CutTR) {
-      b.lineTo(w - x, 0);
-      b.lineTo(w, y);
-    } else {
-      b.lineTo(w, 0);
-    }
-    if (mask & CutBR) {
-      b.lineTo(w, h - y);
-      b.lineTo(w - x, h);
-    } else {
-      b.lineTo(w, h);
-    }
-    if (mask & CutBL) {
-      b.lineTo(x, h);
-      b.lineTo(0, h - y);
-    } else {
-      b.lineTo(0, h);
-    }
-    if (mask & CutTL) b.lineTo(0, y);
-    b.close();
-    return b.detach();
-  };
-}
+// THE PLATE, in a rectified coordinate system. The side panels are one module
+// mirrored around the central axis; the upper panel presents a matching flat.
 
 struct Panel {
   const char* key;
   const char* label;
-  SkRect box;    // the axis-aligned rectangle, measured in the flat plate
-  SkVector cut;  // the corner cut, x and y independently
-  unsigned cutMask;
-  SkPoint labelInk;  // measured ink top-left of the label run
-  float labelCap;    // measured cap height
-  float labelInkW;   // measured ink span — the condensation solves off it
-  int circuitRuns;   // how much of its own circuitry the frame shows
-  SkPoint seed;      // where Ireul enters, in cell units
+  const char* number;
+  SkRect box;
+  float rotation;
+  int circuitRuns;
+  SkPoint seed;
 };
 
+struct InfectionTiming {
+  double seedAt;
+  double fullAt;
+  double levels;
+  double phase;
+};
+
+// Whole cells still switch as steps, but each panel advances through enough
+// levels that adjacent traces turn over instead of large regions jumping.
+inline constexpr std::array<InfectionTiming, 3> kInfection = {{
+    {12.0, 22.0, 64.0, 0.0},
+    {0.48, 6.0, 96.0, 0.0},
+    {-0.5, 2.0, 48.0, 0.37},
+}};
+
 inline std::vector<Panel> panels() {
+  const evangelion::MagiVoteLayout layout;
+
   return {
-      // CASPER·3 — the biggest, and the one that survives. Cuts its TOP-RIGHT.
-      // ink x 222..508 -> span 286, cap 38.
       {"casper",
-       "CASPER·3",
-       SkRect::MakeLTRB(158, 562, 548, 856),
-       {155, 135},
-       CutTR,
-       {221, 698},
-       44.0f,
-       278.0f,
+       "CASPER",
+       "3",
+       layout.moduleRect(3),
+       layout.rotationFor(3),
        0,
        {11.5f, 1.5f}},
-      // BALTHASAR·2 — above the centre, so it cuts BOTH bottom corners and
-      // presents a flat.
       {"balthasar",
-       "BALTHASAR·2",
-       SkRect::MakeLTRB(455, 198, 785, 612),
-       {66, 68},
-       CutBL | CutBR,
-       {452, 449},
-       44.0f,
-       330.0f,
+       "BALTHASAR",
+       "2",
+       layout.moduleRect(2),
+       layout.rotationFor(2),
        13,
        {6.5f, 5.0f}},
-      // MELCHIOR·1 — taken. Cuts its TOP-LEFT.
       {"melchior",
-       "MELCHIOR·1",
-       SkRect::MakeLTRB(682, 548, 1050, 846),
-       {136, 142},
-       CutTL,
-       {700, 691},
-       43.0f,
-       328.0f,
+       "MELCHIOR",
+       "1",
+       layout.moduleRect(1),
+       layout.rotationFor(1),
        6,
        {10.5f, 0.5f}},
   };
@@ -548,14 +478,15 @@ half4 main(float2 xy) {
 }
 )SKSL";
 
+/** THE PROGRAM, compiled once and held by whoever paints with it: an effect
+ *  is compared by POINTER, so a fresh compile per panel would make the three
+ *  panels' paints unequal and re-record all three on every describe. Held on
+ *  the sketch rather than in a static, since this file is a dylib a reload
+ *  unloads. */
 inline sk_sp<SkRuntimeEffect> infectionEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] =
-        SkRuntimeEffect::MakeForShader(SkString(kInfectionSrc));
-    if (!effect) SkDebugf("magi infection shader: %s\n", err.c_str());
-    return effect;
-  }();
-  return fx;
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(kInfectionSrc));
+  if (!effect) SkDebugf("magi infection shader: %s\n", err.c_str());
+  return effect;
 }
 
 /** THE CPU MIRROR of the shader's arrival(), float for float, so the front
@@ -639,19 +570,14 @@ inline float frontFor(const Arrivals& A, float frac) {
 // generated as point runs and fed to lines::Rails, because the frame shows
 // DOUBLED runs and a single hairline is not the honest spelling.
 
-inline uint32_t hash32(uint32_t x) {
-  x ^= x >> 16u;
-  x *= 0x7feb352du;
-  x ^= x >> 15u;
-  x *= 0x846ca68bu;
-  x ^= x >> 16u;
-  return x;
-}
+/** One number in [0, 1) for a run, a step in it and a salt — the three
+ *  folded into one seed and read off the library's stream, so nothing
+ *  here carries a mixer. */
 inline float hashF(int a, int b, int salt) {
-  return (float)(hash32((uint32_t)(a * 73856093) ^ (uint32_t)(b * 19349663) ^
-                        (uint32_t)(salt * 83492791)) &
-                 0xffffffu) /
-         16777215.0f;
+  return chance::Stream::mix64((uint32_t)(a * 73856093) ^
+                               (uint32_t)(b * 19349663) ^
+                               (uint32_t)(salt * 83492791))
+      .unit();
 }
 // THE CELL IS THE TRACE'S WIDTH. At thirty-two pixels a finger is a slab
 // and the pour reads as a mask over the panel; the epigraph the whole
@@ -716,6 +642,7 @@ inline SkPath ownPads(SkSize s, int salt, int count) {
 // =============================================================================
 
 struct EvaMagiInterior : sketch::Sketch {
+  sk_sp<SkRuntimeEffect> infectionFx = magi::infectionEffect();
   std::vector<magi::Panel> panels = magi::panels();
   std::vector<magi::Arrivals> arrivals;  // per panel, sorted by arrival
   SkPoint centre{613, 602};
@@ -723,7 +650,7 @@ struct EvaMagiInterior : sketch::Sketch {
 
   // measured off the FLAT plate, inside the measured polygons
   static constexpr double kRefT = 2.5;
-  static constexpr float kWant[3] = {0.000f, 0.302f, 0.952f};
+  static constexpr float kWant[3] = {0.000f, 0.302f, 1.000f};
 
   // --- animation: everything is a bound Output; nothing re-describes ------
   ch::Output<float> front0{0}, front1{0}, front2{0};
@@ -731,8 +658,6 @@ struct EvaMagiInterior : sketch::Sketch {
   ch::Output<float> goldOn{1};
   ch::Output<float> creep{0};
   ch::Output<float> flicker{0};
-  ch::Output<float> spinRotor{0};
-  ch::Output<float> rotorGlow{1};
   double clock = 0;
 
   std::array<bool, 3> taken{false, false, false};
@@ -747,14 +672,16 @@ struct EvaMagiInterior : sketch::Sketch {
 
   brush::Pattern beadBrush;
   brush::Pattern chevronBrush;
-  bool auditOk = true;
+
+  /** THE VERIFICATION, as one table. Every row's verdict is COMPUTED from
+   *  the two values it reports, so a line that reads PASS cannot disagree
+   *  with the arithmetic beside it, and `failures()` is what decides
+   *  whether the plate carries a warning. */
+  measure::Table verdict;
 
   // ==========================================================================
-  // THE AUDIT — the generating rule, asserted and printed on every load.
-  // In the flat plate the panels ARE axis-aligned rectangles, so the rule can
-  // be tested where it lives: intersect the two edges each cut interrupts and
-  // compare that virtual corner's bearing from the panel's centroid with the
-  // bearing to the plate's centre.
+  // THE AUDIT — three copies of one square, equally spaced on a radial
+  // register.
   void audit() {
     SkPoint c{0, 0};
     for (const auto& p : panels) {
@@ -762,43 +689,72 @@ struct EvaMagiInterior : sketch::Sketch {
       c.fY += p.box.centerY();
     }
     centre = {c.fX / (float)panels.size(), c.fY / (float)panels.size()};
-    auditOk = true;
-    std::printf("MAGI INTERIOR — the chamfer rule, in the RECTIFIED plate\n");
-    std::printf("  plate centre (centroid of the three) = (%.0f, %.0f)\n",
-                centre.fX, centre.fY);
-    for (const auto& p : panels) {
-      const SkPoint g{p.box.centerX(), p.box.centerY()};
-      SkPoint corner;
-      const char* what = "cut";
-      if (p.cutMask == (magi::CutBL | magi::CutBR)) {
-        corner = {p.box.centerX(), p.box.bottom()};  // the presented flat
-        what = "flat";
-      } else if (p.cutMask == magi::CutTR) {
-        corner = {p.box.right(), p.box.top()};
-      } else if (p.cutMask == magi::CutTL) {
-        corner = {p.box.left(), p.box.top()};
-      } else if (p.cutMask == magi::CutBR) {
-        corner = {p.box.right(), p.box.bottom()};
-      } else {
-        corner = {p.box.left(), p.box.bottom()};
-      }
-      const float bearing =
-          std::atan2(corner.fY - g.fY, corner.fX - g.fX) * 57.29578f;
-      const float toC =
-          std::atan2(centre.fY - g.fY, centre.fX - g.fX) * 57.29578f;
-      float diff = std::fmod(std::fabs(bearing - toC), 360.0f);
-      if (diff > 180.0f) diff = 360.0f - diff;
-      const bool ok = diff <= 25.0f;
-      auditOk = auditOk && ok;
-      const float cutDeg = std::atan2(p.cut.fY, p.cut.fX) * 57.29578f;
-      std::printf(
-          "  %-10s %s bearing %+7.1f  centre %+7.1f  |d| %5.1f   "
-          "cut %3.0fx%3.0f = %4.1f deg   %s\n",
-          p.key, what, bearing, toC, diff, p.cut.fX, p.cut.fY, cutDeg,
-          ok ? "OK" : "FAIL");
+    verdict = {};
+    verdict.add(measure::heading("MODULE RULE"));
+    verdict.add(measure::reading(
+        "module centroid",
+        kit::formatted("(%.0f, %.0f)", (double)centre.fX, (double)centre.fY)));
+    const auto distance = [](SkPoint a, SkPoint b) {
+      return std::hypot(a.fX - b.fX, a.fY - b.fY);
+    };
+    const SkPoint p0{panels[0].box.centerX(), panels[0].box.centerY()};
+    const SkPoint p1{panels[1].box.centerX(), panels[1].box.centerY()};
+    const SkPoint p2{panels[2].box.centerX(), panels[2].box.centerY()};
+    const float sides[3] = {distance(p0, p1), distance(p1, p2),
+                            distance(p2, p0)};
+    const float expectedRotation[3] = {60.0f, 0.0f, -60.0f};
+    for (size_t i = 0; i < panels.size(); ++i) {
+      const auto& p = panels[i];
+      verdict.add(measure::check(
+          kit::formatted("%s  square, w \xe2\x88\x92 h px", p.key),
+          (double)p.box.width(), (double)p.box.height(), 0.1));
+      verdict.add(measure::check(
+          kit::formatted("%s  edge to the next module, px", p.key),
+          (double)sides[(i + 1) % 3], (double)sides[i], 0.5));
+      verdict.add(measure::check(kit::formatted("%s  rotation, deg", p.key),
+                                 (double)expectedRotation[i],
+                                 (double)p.rotation, 0.1));
     }
-    if (!auditOk)
-      std::printf("  *** CHAMFER RULE VIOLATED — this plate is not one rule\n");
+  }
+
+  /** THE VERIFICATION, PAINTED — and only when it fails. The reference
+   *  carries no drafting chrome, so a plate whose construction holds shows
+   *  the construction and nothing else; a violated module rule is dealt
+   *  across it in magenta where nobody can miss it. */
+  Element failureCard() const {
+    sketch::kit::Theme look;
+    look.palette.ash = {0, 0, 0, 1};
+    look.palette.figure = {0.32f, 0, 0, 1};
+    look.type.sans = magi::latin();
+    look.type.mono = magi::latin();
+    look.type.captionNote = {19.0f, 0.2f};
+    look.type.captionLabel = {19.0f, 0.2f, true};
+    look.spacing.rowGap = 6;
+    std::vector<sketch::kit::Row> rows;
+    for (const measure::Check& c : verdict.rows) {
+      if (!c.judged()) continue;
+      rows.push_back(
+          {{toU8(c.label), toU8(c.actual),
+            toU8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
+           Fill::color(c.pass ? SkColor4f{0, 0.30f, 0.14f, 1}
+                              : SkColor4f{0.62f, 0, 0, 1})});
+    }
+    sketch::kit::Provide bound(look);
+    return box()
+        .left(0)
+        .top(360)
+        .width(magi::kW)
+        .height(140.0f + 25.0f * (float)rows.size())
+        .fill(Fill::color({1, 0, 1, 0.94f}))
+        .column()
+        .padding(30)
+        .gap(14)
+        .child(text(u8"MODULE RULE VIOLATED",
+                    magi::type(magi::latin(), 52.0f, {0, 0, 0, 1})))
+        .child(sketch::kit::table(std::move(rows),
+                                  {.columns = {{560}, {150, true}, {}},
+                                   .gap = 16,
+                                   .swatchSide = 13}));
   }
 
   // ==========================================================================
@@ -825,10 +781,21 @@ struct EvaMagiInterior : sketch::Sketch {
                           float* slack = nullptr) const {
     weave::TextStyle st = fitCap(tf, cap, c, slack);
     if (fonts && inkW > 1.0f) {
-      const SkSize m = sigil::compose::measure(text(s, st), *fonts);
+      const SkSize m = sigil::compose::intrinsicSize(text(s, st), *fonts);
       if (m.width() > 1.0f)
         st.shaping.scaleX = std::clamp(inkW / m.width(), 0.40f, 1.8f);
     }
+    return st;
+  }
+
+  weave::TextStyle fitWithin(const sk_sp<SkTypeface>& tf,
+                             const std::u8string& s, float cap, float maxWidth,
+                             SkColor4f c) const {
+    weave::TextStyle st = fitCap(tf, cap, c);
+    if (!fonts) return st;
+    const SkSize measured = sigil::compose::intrinsicSize(text(s, st), *fonts);
+    if (measured.width() > maxWidth && measured.width() > 1.0f)
+      st.shaping.scaleX = std::min(maxWidth / measured.width(), 1.0f);
     return st;
   }
 
@@ -842,13 +809,11 @@ struct EvaMagiInterior : sketch::Sketch {
     constexpr float kStretch = 1.12f;
     float em = advanceSpan * 0.5f;
     if (fonts) {
-      weave::TextStyle probe = magi::type(magi::han(), 100.0f, c);
-      probe.shaping.scaleX = kStretch;
-      const SkSize m = sigil::compose::measure(text(s, probe), *fonts);
+      weave::TextStyle probe = evangelion::minchoDisplay(100.0f, c, kStretch);
+      const SkSize m = sigil::compose::intrinsicSize(text(s, probe), *fonts);
       if (m.width() > 1.0f) em = 100.0f * advanceSpan / m.width();
     }
-    weave::TextStyle st = magi::type(magi::han(), em, c);
-    st.shaping.scaleX = kStretch;
+    weave::TextStyle st = evangelion::minchoDisplay(em, c, kStretch);
     if (slack) *slack = fonts ? metrics(st, *fonts).capSlack() : em * 0.10f;
     return st;
   }
@@ -866,6 +831,8 @@ struct EvaMagiInterior : sketch::Sketch {
 
   Element panelNode(int i) {
     const magi::Panel& p = panels[(size_t)i];
+    const evangelion::MagiVoteLayout layout;
+    const int number = 3 - i;
     const SkSize sz{p.box.width(), p.box.height()};
     const bool red = taken[(size_t)i];
     const SkPath circuit = magi::ownCircuitry(sz, 17 + i * 13, p.circuitRuns);
@@ -873,8 +840,8 @@ struct EvaMagiInterior : sketch::Sketch {
     const ch::Output<float>* fr =
         i == 0 ? &front0 : (i == 1 ? &front1 : &front2);
 
-    Material infection =
-        Material::sksl(magi::infectionEffect())
+    mskia::Paint infection =
+        mskia::Paint::sksl(infectionFx)
             .uniform("uSeed", std::array<float, 2>{p.seed.fX, p.seed.fY})
             .uniform("uCells",
                      std::array<float, 2>{std::ceil(sz.width() / magi::kCell),
@@ -883,18 +850,22 @@ struct EvaMagiInterior : sketch::Sketch {
             .uniform("uKey", magi::kTraceDark)
             .uniform("uFront", fr);
 
-    Element node = box()
-                       .left(p.box.left())
-                       .top(p.box.top())
-                       .width(sz.width())
-                       .height(sz.height())
-                       .key(p.key)
-                       .shape(magi::cutBox(p.cut.fX, p.cut.fY, p.cutMask))
-                       .fill(Material::solid(red ? magi::kRed : magi::kAzure))
-                       .clip(true)
-                       // the cel's own edge light — measured, not itorr's rule
-                       .foreground(decorations::border(
-                           2.0f, Fill::color(magi::kEdgeLight), 1.0f));
+    Element node =
+        box()
+            .left(p.box.left())
+            .top(p.box.top())
+            .width(sz.width())
+            .height(sz.height())
+            .rotate(p.rotation)
+            .transformOrigin(0.5f, 0.5f)
+            .key(p.key)
+            .shape(evangelion::panel({}))
+            .fill(mskia::Paint::solid(red ? magi::kRed : magi::kAzure))
+            .clip(true)
+            .style(decorations::doubleBorder(
+                decorations::border(5.0f, Fill::color(magi::kOrange), 0.0f),
+                decorations::border(3.0f, Fill::color(magi::kTraceDark),
+                                    8.0f)));
 
     if (!red && p.circuitRuns > 0) {
       // UNEQUAL offsets, unequal widths: a heavy run with a hairline beside it
@@ -904,10 +875,7 @@ struct EvaMagiInterior : sketch::Sketch {
           box()
               .inset(0)
               .fill(Fill::none())
-              // the callable is invoked on every layout, so its capture must
-              // survive each return
-              // NOLINTNEXTLINE(performance-no-automatic-move)
-              .shape([circuit](SkSize) { return circuit; })
+              .shape(heldPath(circuit))
               .stroke(lines::Rails{.rails = {{.across = 6.0f,
                                               .width = 3.0f,
                                               .fill = Fill::color(magi::kInk),
@@ -922,110 +890,87 @@ struct EvaMagiInterior : sketch::Sketch {
       node.child(box()
                      .inset(0)
                      .fill(Fill::none())
-                     // the callable is invoked on every layout, so its capture
-                     // must survive each return
-                     // NOLINTNEXTLINE(performance-no-automatic-move)
-                     .shape([pads](SkSize) { return pads; })
+                     .shape(heldPath(pads))
                      .stroke(PathFormat{.width = 2.0f,
                                         .strokeFill = Fill::color(magi::kInk),
                                         .join = SkPaint::kMiter_Join}));
     }
     if (!red && seeded[(size_t)i]) node.child(box().inset(0).fill(infection));
+    const SkColor4f labelInk = red ? magi::kInkRed : magi::kInk;
+    node.child(text(toU8(p.number), fitCap(magi::latin(), 86.0f, labelInk))
+                   .centerAt({sz.width() * 0.5f,
+                              sz.height() * layout.numberSlotY(number)}));
+    node.child(
+        text(toU8(p.label), fitWithin(magi::latin(), toU8(p.label), 31.0f,
+                                      sz.width() - 44.0f, labelInk))
+            .centerAt(
+                {sz.width() * 0.5f, sz.height() * layout.nameSlotY(number)}));
     return node;
   }
 
-  /** A green band: a horizontal bar, dark sea-green, SERRATED by a crosshatch.
-   *  ~19 px thick, and there are four independent ones — not a Rails pair —
-   *  with no lean, because the rectified plate is level. */
+  /** The headings are bracketed by three parallel green rules. */
   Element greenBand(float x0, float x1, float y) {
-    return box()
-        .left(x0)
-        .top(y - 9.0f)
-        .width(x1 - x0)
-        .height(19.0f)
-        .fill(Material::solid(magi::kGreen))
-        .overlay(
-            lines::crosshatch(Fill::color(magi::kGreenHi), 8.0f, 1.6f, 45.0f));
+    Element band = box().inset(0);
+    for (int i = -1; i <= 1; ++i)
+      band.child(box()
+                     .left(x0)
+                     .top(y + (float)i * 7.0f)
+                     .width(x1 - x0)
+                     .height(2.5f)
+                     .fill(mskia::Paint::solid(i == 0 ? magi::kGreenHi
+                                                      : magi::kGreen)));
+    return band;
   }
 
   Element plateFurniture() {
     Element g = box().inset(0);
-    // The plate's own dim diagonal furniture, still diagonal AFTER
-    // rectification — so it is drawn that way and not a residue of the camera.
-    for (int k = 0; k < 3; ++k)
-      g.child(box()
-                  .left(140.0f)
-                  .top(898.0f + (float)k * 26.0f)
-                  .width(600.0f)
-                  .height(4.0f)
-                  .rotate(-2.6f)
-                  .transformOrigin(0.0f, 0.5f)
-                  .fill(Material::solid(magi::kBgRule)));
-    for (int k = 0; k < 2; ++k)
-      g.child(box()
-                  .left(520.0f)
-                  .top(126.0f + (float)k * 34.0f)
-                  .width(580.0f)
-                  .height(4.0f)
-                  .rotate(-3.2f)
-                  .transformOrigin(0.0f, 0.5f)
-                  .fill(Material::solid(magi::kBgRule)));
-    for (int k = 0; k < 2; ++k)
-      g.child(box()
-                  .left(100.0f + (float)k * 22.0f)
-                  .top(250.0f)
-                  .width(4.0f)
-                  .height(400.0f)
-                  .fill(Material::solid(magi::kBgRule)));
-    // the four green rules — measured horizontal to within 1.3 deg
-    g.child(greenBand(128, 455, 209));   // over 提訴
-    g.child(greenBand(128, 455, 332));   // under it
-    g.child(greenBand(785, 1080, 209));  // over 決議
-    g.child(greenBand(785, 1080, 339));  // under it
+    const evangelion::MagiVoteLayout layout;
+    const SkRect frame = layout.frame();
+    g.child(
+        box()
+            .left(frame.left())
+            .top(frame.top())
+            .width(frame.width())
+            .height(frame.height())
+            .fill(Fill::none())
+            .foreground(decorations::border(7.0f, Fill::color(magi::kOrange))));
+    g.child(kit::disc(layout.busCentre, layout.busRadius)
+                .shape(shapes::circle())
+                .fill(Fill::none())
+                .foreground(decorations::border(
+                    5.0f, Fill::color(magi::kOrangeDim), 0.0f)));
+    g.child(greenBand(145.0f, 520.0f, 116.0f));
+    g.child(greenBand(145.0f, 520.0f, 251.0f));
+    g.child(greenBand(920.0f, 1295.0f, 116.0f));
+    g.child(greenBand(920.0f, 1295.0f, 251.0f));
     return g;
   }
 
   Element plateType() {
     Element g = box().inset(0);
-    float sCode = 0, sFile = 0, sMagi = 0, sK1 = 0, sK2 = 0;
-    // CODE : 263 — ink x 148..400, cap 40.
-    g.child(inked(u8"CODE : 263",
-                  fitRun(magi::latin(), u8"CODE : 263", 47.0f, 249.0f,
+    float sCode = 0, sFile = 0;
+    g.child(inked(u8"CODE : 132",
+                  fitRun(magi::latin(), u8"CODE : 132", 45.0f, 270.0f,
                          magi::kOrange, &sCode),
-                  {151, 343}, sCode));
-    // The FILE block — cap 18, LEADING 24: nearly solid, a machine dump.
-    const auto file = fitRun(magi::latin(), u8"EXTENTION:2004", 18.0f, 257.0f,
+                  {151.0f, 294.0f}, sCode));
+    const auto file = fitRun(magi::latin(), u8"EXTENTION:2048", 22.0f, 286.0f,
                              magi::kOrange, &sFile);
-    static const char* kBlock[5] = {"FILE:MAGI_SYS", "EXTENTION:2004",
-                                    "EX_MODE:OFF", "PRIORITY:AAA", nullptr};
-    // Verbatim, EXTENTION and all — the plate's own error, reproduced.
+    static const char* kBlock[5] = {"FILE:MAGI_SYS", "EXTENTION:2048",
+                                    "EX_MODE:ON", "PRIORITY:A__", nullptr};
     for (int i = 0; kBlock[i]; ++i)
-      g.child(inked(toU8(kBlock[i]), file, {196.0f, 406.0f + (float)i * 30.5f},
+      g.child(inked(toU8(kBlock[i]), file, {151.0f, 350.0f + (float)i * 32.0f},
                     sFile));
 
-    // 提訴 — a proposal is FILED. Two runs stacked: an opaque core and a hot
-    // copy whose bound opacity steps 0/1, so the pulse costs one saveLayer the
-    // size of the KANJI rather than one the size of the canvas.
-    const auto k1 = fitEmSpan(u8"提訴", 266.0f, magi::kKanji, &sK1);
-    const auto k1h = fitEmSpan(u8"提訴", 266.0f, magi::kKanjiHot);
-    g.child(inked(u8"提訴", k1, {152, 234}, sK1));
-    g.child(box()
-                .left(152)
-                .top(234.0f - sK1)
-                .opacity(&kanjiHot)
-                .child(text(u8"提訴", k1h)));
-    // 決議 — RESOLUTION.
-    const auto k2 = fitEmSpan(u8"決議", 244.0f, magi::kKanji, &sK2);
-    g.child(inked(u8"決議", k2, {810, 246}, sK2));
+    const auto k1 = fitEmSpan(u8"提訴", 300.0f, magi::kKanji);
+    const auto k1h = fitEmSpan(u8"提訴", 300.0f, magi::kKanjiHot);
+    g.child(text(u8"提訴", k1).centerAt({332.5f, 184.0f}));
+    g.child(box().inset(0).opacity(&kanjiHot).child(
+        text(u8"提訴", k1h).centerAt({332.5f, 184.0f})));
+    const auto k2 = fitEmSpan(u8"決議", 300.0f, magi::kKanji);
+    g.child(text(u8"決議", k2).centerAt({1107.5f, 184.0f}));
 
-    // MAGI, in the hole the three panels leave — cap 37, ink span 118. The
-    // flat plate's own runs are M 559-592, A 595-622, G 627-655, I 664-673:
-    // ink 559..673 over rows 648..683. MELCHIOR's chamfer reaches x 684 at
-    // that baseline, so anything wider than 138 has its I cut by it.
-    g.child(inked(
-        u8"MAGI",
-        fitRun(magi::latin(), u8"MAGI", 37.0f, 118.0f, magi::kOrange, &sMagi),
-        {558, 646}, sMagi));
+    g.child(text(u8"MAGI", fitCap(magi::latin(), 54.0f, magi::kOrange))
+                .centerAt({720.0f, 535.0f}));
     return g;
   }
 
@@ -1033,19 +978,18 @@ struct EvaMagiInterior : sketch::Sketch {
    *  thin inner rule. Measured 200 x 90; itorr builds the same object as a
    *  triple box-shadow at .03em / .07em / .1em. */
   Element verdictBox() {
-    float sl = 0;
-    const auto st = fitEmSpan(u8"審議中", 156.0f, magi::kGoldPeak, &sl);
+    const auto st = fitEmSpan(u8"審議中", 188.0f, magi::kGoldPeak);
     return box()
-        .left(868)
-        .top(424)
-        .width(174)
-        .height(94)
+        .left(995)
+        .top(295)
+        .width(275)
+        .height(130)
         .opacity(&goldOn)
-        .fill(Material::solid(hex(0x140A02)))
+        .fill(mskia::Paint::solid(hexColor(0x140A02)))
         .style(decorations::doubleBorder(
             decorations::border(5.0f, Fill::color(magi::kGold), 0.0f),
             decorations::border(2.0f, Fill::color(magi::kGoldHot), 10.0f)))
-        .child(text(u8"審議中", st).left(22).top(20.0f - sl + 14.0f));
+        .child(text(u8"審議中", st).centerAt({137.5f, 65.0f}));
   }
 
   /** The verdict card — 否決 x4, then 可決, then the struck-through 否決 of
@@ -1055,26 +999,24 @@ struct EvaMagiInterior : sketch::Sketch {
     if (verdictStep < 0) return box().absolute().width(0).height(0);
     const bool carried = verdictStep == 4;
     const SkColor4f ink = carried ? magi::kGoldPeak : magi::kRedHot;
-    float sl = 0;
-    const auto st = fitEmSpan(carried ? u8"可決" : u8"否決", 150.0f, ink, &sl);
+    const auto st = fitEmSpan(carried ? u8"可決" : u8"否決", 150.0f, ink);
     // 430 is the gap the right margin leaves, between the countdown numeral
     // and the first portrait leader line. Below it the card crosses
     // portrait labels 1-3.
     Element card =
         box()
-            .left(1130)
-            .top(430)
-            .width(220)
-            .height(120)
+            .left(995)
+            .top(295)
+            .width(275)
+            .height(130)
             .shape(shapes::chamfered(22.0f, shapes::Corner::Diagonal))
-            .fill(Material::solid(hex(0x0A0102)))
+            .fill(mskia::Paint::solid(hexColor(0x0A0102)))
             .foreground(decorations::border(4.0f, Fill::color(ink), 3.0f))
             .child(text(carried ? u8"可決" : u8"否決", st)
-                       .left(28)
-                       .top(24.0f - sl + 16.0f));
+                       .centerAt({137.5f, 65.0f}));
     if (verdictStep == 5)
-      card.child(box().left(18).top(58).width(184).height(7).fill(
-          Material::solid(magi::kOrange)));
+      card.child(box().left(24).top(62).width(227).height(7).fill(
+          mskia::Paint::solid(magi::kOrange)));
     return card;
   }
 
@@ -1083,8 +1025,7 @@ struct EvaMagiInterior : sketch::Sketch {
    *  will be executed 02 sec. after all three agree". */
   Element countdownNumeral() {
     if (countdown < 0) return box().absolute().width(0).height(0);
-    char buf[8];
-    std::snprintf(buf, sizeof buf, "%d", countdown);
+    const std::string buf = kit::formatted("%d", countdown);
     return box().left(1096).top(96).child(text(
         toU8(buf), magi::type(magi::latin(), 260.0f, magi::kRedHot, 1.2f)));
   }
@@ -1101,8 +1042,7 @@ struct EvaMagiInterior : sketch::Sketch {
   static constexpr float kPCX = 616.0f, kPCY = 640.0f;
 
   static SkPoint polar(float r, float deg) {
-    const float a = deg * 0.017453293f;
-    return {std::cos(a) * r, std::sin(a) * r};
+    return arrange::onEllipse({0, 0}, {r, r}, deg * 0.017453293f);
   }
 
   Element hexAt(SkPoint p, float across, SkColor4f rim, float rimW,
@@ -1114,7 +1054,7 @@ struct EvaMagiInterior : sketch::Sketch {
                     .width(across)
                     .height(across)
                     .shape(shapes::polygon(6, 0.0f))
-                    .fill(Material::solid(fill))
+                    .fill(mskia::Paint::solid(fill))
                     // Border::cornerAngleDeg defaults to 30 and finds ZERO
                     // corners above 12 sides. Passed explicitly everywhere.
                     .foreground(Border{.width = rimW,
@@ -1151,19 +1091,19 @@ struct EvaMagiInterior : sketch::Sketch {
                        // No corner art on this brush, so there is nothing for a
                        // corner alignment to align.
                        .stretchToFit = true,
-                       .reach = 12.0f};
+                       .bleedPx = 12.0f};
     chevronBrush =
         brush::Pattern{.side = box()
                                    .width(9.0f)
                                    .height(8.0f)
                                    .shape(shapes::arrow(0.10f, 0.90f))
-                                   .fill(Material::solid(magi::kPBodyHi)),
+                                   .fill(mskia::Paint::solid(magi::kPBodyHi)),
                        .advance = 10.0f,
                        .cornerAngleDeg = 34.0f,
                        .cornerLength = 0.0f,
                        // Likewise: no corner art on this brush either.
                        .stretchToFit = true,
-                       .reach = 11.0f};
+                       .bleedPx = 11.0f};
   }
 
   Element portraitStatic() {
@@ -1172,20 +1112,21 @@ struct EvaMagiInterior : sketch::Sketch {
 
     // two faint boundary conics — shapes::parametric, real curves
     for (float r : {780.0f * S, 860.0f * S})
-      g.child(box()
-                  .left(kPCX - r)
-                  .top(kPCY - r * 0.985f)
-                  .width(r * 2)
-                  .height(r * 1.97f)
-                  .shape(shapes::parametric(
-                      [](float t) {
-                        return SkPoint{0.5f + 0.5f * std::cos(t),
-                                       0.5f + 0.5f * std::sin(t)};
-                      },
-                      0.0f, 6.2831853f, 240, true))
-                  .fill(Fill::none())
-                  .foreground(decorations::border(
-                      2.0f, Fill::color(mul(hex(0x5A1A0C), magi::kBack)))));
+      g.child(
+          box()
+              .left(kPCX - r)
+              .top(kPCY - r * 0.985f)
+              .width(r * 2)
+              .height(r * 1.97f)
+              .shape(shapes::parametric(
+                  [](float t) {
+                    return arrange::onEllipse({0.5f, 0.5f}, {0.5f, 0.5f}, t);
+                  },
+                  0.0f, 6.2831853f, 240, true))
+              .fill(Fill::none())
+              .foreground(decorations::border(
+                  2.0f,
+                  Fill::color(mskia::scale(hexColor(0x5A1A0C), magi::kBack)))));
 
     // 12 neuron somas at r 690..790, each trailing dendrites BACK toward the
     // centre — brush::Ribbon, tapered.
@@ -1206,28 +1147,27 @@ struct EvaMagiInterior : sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  // the callable is invoked on every layout, so its capture
-                  // must survive each return
-                  // NOLINTNEXTLINE(performance-no-automatic-move)
-                  .shape([dend](SkSize) { return dend; })
-                  .stroke(brush::Ribbon{
-                      .fill = Fill::color(mul(hex(0x8A2412), magi::kBack)),
-                      .widthStart = 8.0f,
-                      .widthEnd = 1.0f,
-                      .step = 6.0f}));
-      g.child(box()
-                  .left(kPCX + p.fX - d * 0.5f)
-                  .top(kPCY + p.fY - d * 0.5f)
-                  .width(d)
-                  .height(d)
-                  .shape(shapes::circle())
-                  .fill(Material::radialUnit(
-                      {0.5f, 0.5f}, 1.0f,
-                      {{0.0f, magi::kPBodyHi},
-                       {0.55f, magi::kPBody},
-                       {1.0f, mul(hex(0x3A0E06), magi::kBack)}}))
-                  .foreground(lines::concentric(
-                      Fill::color(mul(hex(0xC03C18), magi::kBack)), 4, 1.2f)));
+                  .shape(heldPath(dend))
+                  .stroke(brush::Ribbon{.fill = Fill::color(mskia::scale(
+                                            hexColor(0x8A2412), magi::kBack)),
+                                        .widthStart = 8.0f,
+                                        .widthEnd = 1.0f,
+                                        .step = 6.0f}));
+      g.child(
+          box()
+              .left(kPCX + p.fX - d * 0.5f)
+              .top(kPCY + p.fY - d * 0.5f)
+              .width(d)
+              .height(d)
+              .shape(shapes::circle())
+              .fill(mskia::Paint::radialUnit(
+                  {0.5f, 0.5f}, 1.0f,
+                  {{0.0f, magi::kPBodyHi},
+                   {0.55f, magi::kPBody},
+                   {1.0f, mskia::scale(hexColor(0x3A0E06), magi::kBack)}}))
+              .foreground(lines::presets::concentric(
+                  Fill::color(mskia::scale(hexColor(0xC03C18), magi::kBack)), 4,
+                  1.2f)));
     }
 
     // 24 small hexagons at r 555..665, two lines of tiny text each
@@ -1236,7 +1176,8 @@ struct EvaMagiInterior : sketch::Sketch {
       const float r = ((k % 2) ? 610.0f : 560.0f) * S;
       const SkPoint p = polar(r, a);
       g.child(hexAt({kPCX + p.fX, kPCY + p.fY}, 48.0f * S, magi::kPRailHi, 1.4f,
-                    mul(hex(0x2A0C05), magi::kBack), "TYPE", "M-04", 4.6f));
+                    mskia::scale(hexColor(0x2A0C05), magi::kBack), "TYPE",
+                    "M-04", 4.6f));
     }
 
     // the heavy arc the 12 big hexagons sit on, dressed with the bead and
@@ -1253,12 +1194,7 @@ struct EvaMagiInterior : sketch::Sketch {
           ab.lineTo(kPCX + p.fX, kPCY + p.fY);
       }
       const SkPath arcp = ab.detach();
-      Element run = box().inset(0).fill(Fill::none()).shape([arcp](SkSize) {
-        // the callable is invoked on every layout, so its capture must survive
-        // each return
-        // NOLINTNEXTLINE(performance-no-automatic-move)
-        return arcp;
-      });
+      Element run = box().inset(0).fill(Fill::none()).shape(heldPath(arcp));
       if (seg % 2)
         run.stroke(beadBrush);
       else
@@ -1279,10 +1215,7 @@ struct EvaMagiInterior : sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  // the callable is invoked on every layout, so its capture
-                  // must survive each return
-                  // NOLINTNEXTLINE(performance-no-automatic-move)
-                  .shape([arcp](SkSize) { return arcp; })
+                  .shape(heldPath(arcp))
                   .stroke(lines::Rails{
                       .rails = {{.across = 6.0f,
                                  .width = 4.0f,
@@ -1301,7 +1234,8 @@ struct EvaMagiInterior : sketch::Sketch {
       const float a = (float)k * 30.0f - 90.0f;
       const SkPoint p = polar(490.0f * S, a);
       g.child(hexAt({kPCX + p.fX, kPCY + p.fY}, 74.0f * S, magi::kPRailHi, 2.2f,
-                    mul(hex(0x351107), magi::kBack), "APS", "17", 5.4f));
+                    mskia::scale(hexColor(0x351107), magi::kBack), "APS", "17",
+                    5.4f));
     }
 
     // 12 pin combs at r ~300, plus the fan of fine hairlines out to the
@@ -1319,13 +1253,10 @@ struct EvaMagiInterior : sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  // the callable is invoked on every layout, so its capture
-                  // must survive each return
-                  // NOLINTNEXTLINE(performance-no-automatic-move)
-                  .shape([fan](SkSize) { return fan; })
+                  .shape(heldPath(fan))
                   .stroke(PathFormat{.width = 0.8f,
-                                     .strokeFill = Fill::color(
-                                         mul(hex(0xD08A9A), magi::kBack))}));
+                                     .strokeFill = Fill::color(mskia::scale(
+                                         hexColor(0xD08A9A), magi::kBack))}));
       SkPathBuilder cb;
       const SkPoint base = polar(296.0f * S, a);
       const float m = std::hypot(base.fX, base.fY);
@@ -1341,10 +1272,7 @@ struct EvaMagiInterior : sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  // the callable is invoked on every layout, so its capture
-                  // must survive each return
-                  // NOLINTNEXTLINE(performance-no-automatic-move)
-                  .shape([comb](SkSize) { return comb; })
+                  .shape(heldPath(comb))
                   .stroke(lines::Line{.width = 1.8f,
                                       .fill = Fill::color(magi::kPPin)}));
       SkPathBuilder rb;
@@ -1356,10 +1284,7 @@ struct EvaMagiInterior : sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  // the callable is invoked on every layout, so its capture
-                  // must survive each return
-                  // NOLINTNEXTLINE(performance-no-automatic-move)
-                  .shape([ladder](SkSize) { return ladder; })
+                  .shape(heldPath(ladder))
                   .stroke(lines::Line{.width = 0.8f,
                                       .fill = Fill::color(magi::kPChart),
                                       .midCap = lines::Cap::Arrow,
@@ -1369,12 +1294,14 @@ struct EvaMagiInterior : sketch::Sketch {
     // the 6-fold core: seven flat-top hexagons in a honeycomb
     const float hexA = 88.0f * S;
     g.child(hexAt({kPCX, kPCY}, hexA, magi::kPRailHi, 2.0f,
-                  mul(hex(0x4A140A), magi::kBack), "MAGI", "SYS", 5.6f));
+                  mskia::scale(hexColor(0x4A140A), magi::kBack), "MAGI", "SYS",
+                  5.6f));
     for (int k = 0; k < 6; ++k) {
       const float a = (float)k * 60.0f - 90.0f;
       const SkPoint p = polar(hexA * 0.90f, a);
       g.child(hexAt({kPCX + p.fX, kPCY + p.fY}, hexA, magi::kPRailHi, 1.8f,
-                    mul(hex(0x3E1108), magi::kBack), "TYPE", "0417", 5.2f));
+                    mskia::scale(hexColor(0x3E1108), magi::kBack), "TYPE",
+                    "0417", 5.2f));
     }
     return g;
   }
@@ -1410,11 +1337,12 @@ struct EvaMagiInterior : sketch::Sketch {
                     .height(lh)
                     .rotate(a)
                     .corners(Corners{lh * 0.5f})
-                    .fill(Material::linearUnit(
+                    .fill(mskia::Paint::linearUnit(
                         {0, 0}, {1, 0},
                         {{0.0f, mag ? magi::kPMagenta : magi::kPViolet},
-                         {0.5f, mul(mag ? hex(0xC464A5) : hex(0x643D93),
-                                    magi::kBack)},
+                         {0.5f, mskia::scale(mag ? hexColor(0xC464A5)
+                                                 : hexColor(0x643D93),
+                                             magi::kBack)},
                          {1.0f, mag ? magi::kPMagenta : magi::kPViolet}})));
       }
     }
@@ -1450,7 +1378,7 @@ struct EvaMagiInterior : sketch::Sketch {
     for (int i = 0; i < 8; ++i) {
       const float y = kPCY + kDy[i];
       g.child(box().left(1078.0f).top(y).width(74.0f).height(1.1f).fill(
-          Material::solid(magi::kPRail)));
+          mskia::Paint::solid(magi::kPRail)));
       g.child(box()
                   .left(1160.0f)
                   .top(y - 7.0f)
@@ -1486,8 +1414,8 @@ struct EvaMagiInterior : sketch::Sketch {
     for (int s = 0; s <= 40; ++s) {
       const float t = (float)s / 40.0f;
       const float ang = (-168.0f + t * 104.0f) * 0.017453293f;
-      const SkPoint p{Wd * 0.52f + std::cos(ang) * 82.0f,
-                      Ht * 0.60f + std::sin(ang) * 70.0f};
+      const SkPoint p =
+          arrange::onEllipse({Wd * 0.52f, Ht * 0.60f}, {82.0f, 70.0f}, ang);
       if (s == 0)
         arcb.moveTo(p);
       else
@@ -1501,20 +1429,21 @@ struct EvaMagiInterior : sketch::Sketch {
                     .width(Wd)
                     .height(Ht)
                     .shape(shapes::chamfered(22.0f, shapes::Corner::All))
-                    .fill(Material::solid(hex(0x322A36)))
+                    .fill(mskia::Paint::solid(hexColor(0x322A36)))
                     .clip(true)
                     .foreground(Border{.width = 13.0f,
-                                       .fill = Fill::color(hex(0x090509)),
+                                       .fill = Fill::color(hexColor(0x090509)),
                                        .inset = 6.5f,
                                        .cornerAngleDeg = 20.0f});
     for (int k = 0; k < 4; ++k) {
       const float bx = ((unsigned)k & 1u) ? Wd - 25.0f : 25.0f;
       const float by = ((unsigned)k & 2u) ? Ht - 23.0f : 23.0f;
-      g.child(kit::disc({bx, by}, 8.5f).fill(Material::solid(hex(0x120A12))));
-      g.child(kit::disc({bx - 2.0f, by - 2.0f}, 5.0f)
+      g.child(kit::disc(SkPoint{bx, by}, 8.5f)
+                  .fill(mskia::Paint::solid(hexColor(0x120A12))));
+      g.child(kit::disc(SkPoint{bx - 2.0f, by - 2.0f}, 5.0f)
                   .fill(Fill::none())
-                  .foreground(
-                      decorations::border(1.8f, Fill::color(hex(0x6E5E70)))));
+                  .foreground(decorations::border(
+                      1.8f, Fill::color(hexColor(0x6E5E70)))));
     }
     Element tissue =
         box()
@@ -1530,51 +1459,58 @@ struct EvaMagiInterior : sketch::Sketch {
             // shape this small needs to be.
             .corners({Ht * 0.30f})
             .rotate(-9.0f)
-            .fill(Material::radialUnit({0.44f, 0.40f}, 1.05f,
-                                       {{0.0f, hex(0xDBC49A)},
-                                        {0.62f, hex(0xC0A277)},
-                                        {1.0f, hex(0x97785D)}}))
+            .fill(mskia::Paint::radialUnit({0.44f, 0.40f}, 1.05f,
+                                           {{0.0f, hexColor(0xDBC49A)},
+                                            {0.62f, hexColor(0xC0A277)},
+                                            {1.0f, hexColor(0x97785D)}}))
             .overlay(lines::Line{.width = 2.0f,
-                                 .fill = Fill::color(hex(0x4A2E1E)),
+                                 .fill = Fill::color(hexColor(0x4A2E1E)),
                                  .waveAmplitude = 3.2f,
                                  .waveLength = 16.0f})
-            .foreground(decorations::border(1.8f, Fill::color(hex(0x1A0F14))));
+            .foreground(
+                decorations::border(1.8f, Fill::color(hexColor(0x1A0F14))));
     // THE SULCI. `overlay()` dresses a node's OUTLINE, and this node's
     // outline is its rectangle — so the wavy Line above deckles the tissue's
     // EDGE and lays nothing across it. The folds need geometry of their own
     // or the hatch shows a blank card instead of a brain; the ink and the
     // wave are the ones already chosen above.
-    tissue.child(box()
-                     .inset(0)
-                     .shape([](SkSize s) {
-                       const float w = s.width(), h = s.height();
-                       SkPathBuilder b;
-                       // the longitudinal fissure
-                       b.moveTo(w * 0.54f, h * 0.03f);
-                       b.quadTo(w * 0.39f, h * 0.30f, w * 0.55f, h * 0.53f);
-                       b.quadTo(w * 0.71f, h * 0.77f, w * 0.49f, h * 0.97f);
-                       // gyri, each stopping short of the fissure and of the
-                       // rim
-                       const float ys[3] = {0.24f, 0.52f, 0.79f};
-                       for (float y : ys) {
-                         b.moveTo(w * 0.06f, h * y);
-                         b.quadTo(w * 0.24f, h * (y - 0.10f), w * 0.42f, h * y);
-                         b.moveTo(w * 0.62f, h * (y + 0.05f));
-                         b.quadTo(w * 0.80f, h * (y - 0.04f), w * 0.94f,
-                                  h * (y + 0.07f));
-                       }
-                       return b.detach();
-                     })
-                     .stroke(lines::Line{.width = 1.6f,
-                                         .fill = Fill::color(hex(0x4A2E1E)),
-                                         .waveAmplitude = 1.5f,
-                                         .waveLength = 10.0f}));
+    tissue.child(
+        box()
+            .inset(0)
+            // The folds are a function of the card's size and of
+            // nothing else, so the drawing has one identity and the
+            // node settles on it.
+            .shape(keyedShape(
+                std::string_view("sulci"),
+                [](SkSize s) {
+                  const float w = s.width(), h = s.height();
+                  SkPathBuilder b;
+                  // the longitudinal fissure
+                  b.moveTo(w * 0.54f, h * 0.03f);
+                  b.quadTo(w * 0.39f, h * 0.30f, w * 0.55f, h * 0.53f);
+                  b.quadTo(w * 0.71f, h * 0.77f, w * 0.49f, h * 0.97f);
+                  // gyri, each stopping short of the fissure and of
+                  // the rim
+                  const float ys[3] = {0.24f, 0.52f, 0.79f};
+                  for (float y : ys) {
+                    b.moveTo(w * 0.06f, h * y);
+                    b.quadTo(w * 0.24f, h * (y - 0.10f), w * 0.42f, h * y);
+                    b.moveTo(w * 0.62f, h * (y + 0.05f));
+                    b.quadTo(w * 0.80f, h * (y - 0.04f), w * 0.94f,
+                             h * (y + 0.07f));
+                  }
+                  return b.detach();
+                }))
+            .stroke(lines::Line{.width = 1.6f,
+                                .fill = Fill::color(hexColor(0x4A2E1E)),
+                                .waveAmplitude = 1.5f,
+                                .waveLength = 10.0f}));
     g.child(std::move(tissue));
     g.child(box()
                 .left(Wd * 0.31f)
                 .top(Ht * 0.63f)
                 .child(text(u8"MAGI", magi::type(magi::latin(), 28.0f,
-                                                 hex(0x8C2A1E), 0.86f))));
+                                                 hexColor(0x8C2A1E), 0.86f))));
     // THE STRAPS. "A human brain strapped behind glass" — two steel bands
     // bolted corner to corner, and they have to READ as steel: two flat
     // black bars of five pixels across a small card are a cancellation
@@ -1593,40 +1529,37 @@ struct EvaMagiInterior : sketch::Sketch {
                   .height(14.0f)
                   .rotate(ang)
                   .transformOrigin(0.0f, 0.5f)
-                  .fill(Material::linear({0, 0}, {0, 14},
-                                         {{0.00f, hex(0x6A6470)},
-                                          {0.22f, hex(0x8E8896)},
-                                          {0.55f, hex(0x413B48)},
-                                          {1.00f, hex(0x14101A)}}))
-                  .foreground(
-                      decorations::border(1.2f, Fill::color(hex(0x08050A)))));
+                  .fill(mskia::Paint::linear({0, 0}, {0, 14},
+                                             {{0.00f, hexColor(0x6A6470)},
+                                              {0.22f, hexColor(0x8E8896)},
+                                              {0.55f, hexColor(0x413B48)},
+                                              {1.00f, hexColor(0x14101A)}}))
+                  .foreground(decorations::border(
+                      1.2f, Fill::color(hexColor(0x08050A)))));
     }
     // …and the glass they are behind: one diagonal sheen over the whole
     // plate, which is the difference between a card and a window.
-    g.child(box()
-                .inset(0)
-                .fill(Material::linear({0, Ht}, {Wd, 0},
+    g.child(
+        box()
+            .inset(0)
+            .fill(mskia::Paint::linear({0, Ht}, {Wd, 0},
                                        {{0.00f, {1, 1, 1, 0.00f}},
                                         {0.44f, {1, 1, 1, 0.00f}},
                                         {0.52f, {0.82f, 0.90f, 1.0f, 0.16f}},
                                         {0.60f, {1, 1, 1, 0.00f}},
                                         {1.00f, {1, 1, 1, 0.00f}}}))
-                .blend(SkBlendMode::kPlus));
+            .blend(SkBlendMode::kPlus));
     g.child(
         box()
             .inset(0)
             .fill(Fill::none())
             .child(text(u8"CASPER", magi::type(magi::latin(), 32.0f,
-                                               hex(0x0B060B), 0.88f, 3.0f))
+                                               hexColor(0x0B060B), 0.88f, 3.0f))
                        .inset(0)
-                       .onPath(TextPath{
-                           // the callable is invoked on every layout, so its
-                           // capture must survive each return
-                           // NOLINTNEXTLINE(performance-no-automatic-move)
-                           .path = [stencilArc](SkSize) { return stencilArc; },
-                           .at = 0.5f,
-                           .align = TextPath::Align::Center,
-                           .orient = TextPath::Orient::Tangent})));
+                       .onPath(TextPath{.path = heldPath(stencilArc),
+                                        .at = 0.5f,
+                                        .align = TextPath::Align::Center,
+                                        .orient = TextPath::Orient::Tangent})));
     return g;
   }
 
@@ -1642,102 +1575,39 @@ struct EvaMagiInterior : sketch::Sketch {
 
   Element describe() {
     Element root = box().inset(0);
+    Element picture = box().inset(0);
 
-    // --- the portrait, behind everything, bleeding off all four edges ------
-    root.child(portraitStatic().cache(Cache::Texture).key("portrait"));
-    root.child(box()
-                   .left(kPCX - kRotorR)
-                   .top(kPCY - kRotorR)
-                   .width(kRotorR * 2)
-                   .height(kRotorR * 2)
-                   .rotate(&spinRotor)
-                   // The capsules' glow pulse rides here, OUTSIDE the bake:
-                   // a bound opacity on the wrapper costs one composite per
-                   // frame, where the same binding inside the Texture cache
-                   // would re-bake the whole disc every frame.
-                   .opacity(&rotorGlow)
-                   .child(portraitRotor()
-                              .left(0)
-                              .top(0)
-                              .cache(Cache::Texture)
-                              .key("rotor")));
-    root.child(portraitLabels().cache(Cache::Texture).key("plabels"));
-
-    // --- the plate ----------------------------------------------------------
-    root.child(plateFurniture().cache(Cache::Texture).key("furniture"));
-    for (int i = 0; i < 3; ++i) root.child(panelNode(i));
-    // The labels ride OVER the infection: the frame shows BALTHASAR·2 knocked
-    // straight through the pour, still in its own navy.
-    for (int i = 0; i < 3; ++i) {
-      const magi::Panel& p = panels[(size_t)i];
-      float slack = 0;
-      const auto st =
-          fitRun(magi::latin(), toU8(p.label), p.labelCap, p.labelInkW,
-                 taken[(size_t)i] ? magi::kInkRed : magi::kInk, &slack);
-      root.child(inked(toU8(p.label), st, p.labelInk, slack));
-    }
-
-    // --- the three orange rails, as rail() on the panels' own keys ---------
-    // Anchors are NORMALIZED points on the panels' resolved bounds, so the
-    // stubs are a relationship and not three hand-placed rectangles.
-    struct RailSpec {
-      const char* a;
-      SkPoint na;
-      const char* b;
-      SkPoint nb;
-    };
-    static const RailSpec kRails[3] = {
-        {"casper", {0.826f, 0.129f}, "balthasar", {0.197f, 1.048f}},
-        {"balthasar", {0.791f, 0.971f}, "melchior", {0.190f, 0.275f}},
-        {"casper", {1.000f, 0.599f}, "melchior", {0.011f, 0.652f}},
-    };
-    for (const auto& spec : kRails)
-      root.child(
-          rail({{spec.a, spec.na}, {spec.b, spec.nb}}, routers::polyline(0.0f))
-              .inset(0)
-              .stroke(
-                  lines::Rails{.rails = {{.across = 0.0f,
-                                          .width = 13.0f,
-                                          .fill = Fill::color(magi::kOrange),
-                                          .cap = SkPaint::kButt_Cap},
-                                         {.across = 7.5f,
-                                          .width = 2.0f,
-                                          .fill = Fill::color(magi::kOrangeDim),
-                                          .cap = SkPaint::kButt_Cap}}}));
-
-    // --- the plate's type, gold box, verdict card, countdown ---------------
-    root.child(plateType().cache(Cache::Texture).key("ptype"));
-    root.child(verdictBox());
-    root.child(slot("hud"));
-    root.child(hatchPlate().cache(Cache::Texture).key("hatch"));
+    // The bus is drawn first. The square modules are masks over it, and their
+    // labels live inside their rotated local coordinate systems.
+    picture.child(plateFurniture().cache(Cache::Texture).key("furniture"));
+    for (int i = 0; i < 3; ++i) picture.child(panelNode(i));
+    // Headings and state cards occupy the frontmost UI layer.
+    picture.child(plateType().cache(Cache::Texture).key("ptype"));
+    picture.child(verdictBox());
+    picture.child(slot("hud"));
+    root.child(
+        std::move(picture)
+            .effect(mskia::Effect::phosphorBloom(10.0f, 0.46f, 0.44f, 0.84f))
+            .key("phosphor"));
 
     // --- the tube ----------------------------------------------------------
-    root.child(box()
-                   .left(0)
-                   .top(-8)
-                   .width(magi::kW)
-                   .height(magi::kH + 16)
-                   .fill(Material::recipe(sigil::material::field::crtOverlay()))
-                   .translateY(&creep)
-                   .cache(Cache::Texture)
-                   .key("crt"));
+    root.child(
+        box()
+            .left(0)
+            .top(-8)
+            .width(magi::kW)
+            .height(magi::kH + 16)
+            .fill(mskia::Paint::recipe(sigil::material::field::crtOverlay()))
+            .translateY(&creep)
+            .cache(Cache::Texture)
+            .key("crt"));
     root.child(box()
                    .inset(0)
                    .fill(Fill::color({0, 0, 0, 1}))
                    .opacity(&flicker)
                    .key("flicker"));
 
-    if (!auditOk)
-      root.child(box()
-                     .left(0)
-                     .top(420)
-                     .width(magi::kW)
-                     .height(96)
-                     .fill(Fill::color({1, 0, 1, 0.94f}))
-                     .child(text(u8"CHAMFER RULE VIOLATED",
-                                 magi::type(magi::latin(), 56.0f, {0, 0, 0, 1}))
-                                .left(30)
-                                .top(20)));
+    if (verdict.failures() > 0) root.child(failureCard());
     return root;
   }
 
@@ -1747,77 +1617,65 @@ struct EvaMagiInterior : sketch::Sketch {
   // front, so asking for "30.2% of BALTHASAR at t = 2.5" is an array index.
 
   float frontAt(int i, double t) const {
-    // per-panel schedule, in seconds: (seed, full)
-    static const double kSeed[3] = {12.0, 0.34, -0.5};
-    static const double kFull[3] = {22.0, 6.0, 2.0};
-    const double s = kSeed[i], f = kFull[i];
-    double k = (t - s) / (f - s);
+    const magi::InfectionTiming timing = magi::kInfection[(size_t)i];
+    double k = (t - timing.seedAt) / (timing.fullAt - timing.seedAt);
     k = std::clamp(k, 0.0, 1.0);
     // ease so the front decelerates as the panel fills, which is what the
     // episode's dialogue describes ("Balthazar is now taken over" lands late)
     double frac = k * k * (3.0 - 2.0 * k);
-    // QUANTIZED to kSteps levels — a cost decision as much as an aesthetic
-    // one. A continuously bound uniform makes the material live forever, so
-    // every pixel of the panel re-runs the shader every frame to show a field
-    // that only changes when the front crosses a cell. Held still between
-    // steps, the automatic promoter bakes it and the frame is a blit. The step
-    // is invisible because the field is already a per-cell step function.
-    // PER PANEL, and staggered. Each step costs one re-bake of that panel, so
-    // the step RATE is the cost, and the panels that fall fastest need the
-    // fewest steps: MELCHIOR's whole schedule is 2.5 s, where eight steps is a
-    // few re-bakes a second and indistinguishable from forty. The
-    // 0.37-of-a-step offset keeps two panels from stepping on the same frame.
-    static const double kSteps[3] = {20.0, 32.0, 8.0};
-    static const double kPhase[3] = {0.0, 0.0, 0.37};
-    const double n = kSteps[i];
-    // NOT motion::quantizeTime(frac, n): the kPhase de-syncs the three
-    // panels' step boundaries (0.37 of a step, argued above) and the 1e-6
-    // absorbs the eased frac landing a hair under a boundary. Both are
-    // deliberate departures from the canonical floor(t*n)/n.
-    frac = std::floor(frac * n + kPhase[i] + 1e-6) / n;
+    // The material only changes when the front reaches another trace cell.
+    // A small phase separates the panels' transition boundaries.
+    frac =
+        std::floor(frac * timing.levels + timing.phase + 1e-6) / timing.levels;
     frac = std::clamp(frac, 0.0, 1.0);
     return magi::frontFor(arrivals[(size_t)i], (float)frac);
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(magi::kW, magi::kH);
-    ctx.background(magi::kGround);
     // The reference moment the arrival field is SOLVED to land on — MELCHIOR
     // taken, BALTHASAR at the measured 30.2% with a ragged front; exact by
     // construction. By 6.0 s both MAGI are flat red and the verdict card is
     // still unfiled — nothing of the arrival field is left to see.
-    ctx.captureAt(2.5);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(magi::kW, magi::kH),
+                             .captureAt = 2.5,
+                             .background = magi::kGround});
     fonts = ctx.fonts;
     audit();
-    buildBrushes();
 
     arrivals.clear();
-    std::printf("MAGI INTERIOR — the front, SOLVED (cell %.0f px)\n",
-                magi::kCell);
+    verdict.add(measure::heading("THE FRONT, SOLVED"));
+    verdict.add(measure::reading("arrival cell, px", (double)magi::kCell));
     for (int i = 0; i < 3; ++i) {
       seeded[(size_t)i] = false;
       const magi::Panel& pp = panels[(size_t)i];
       arrivals.push_back(magi::arrivalTable(
           pp.box, magi::kCell, pp.seed,
-          magi::cutBox(pp.cut.fX, pp.cut.fY,
-                       pp.cutMask)({pp.box.width(), pp.box.height()})));
+          evangelion::panel({})({pp.box.width(), pp.box.height()})));
       // report what the schedule actually lands on at the reference moment
       double k = 0;
       {
-        static const double kSeed[3] = {12.0, 0.34, -0.5};
-        static const double kFull[3] = {22.0, 6.0, 2.0};
-        k = std::clamp((kRefT - kSeed[i]) / (kFull[i] - kSeed[i]), 0.0, 1.0);
-        k = std::floor(k * k * (3.0 - 2.0 * k) * 32.0 + 1e-6) / 32.0;
+        const magi::InfectionTiming timing = magi::kInfection[(size_t)i];
+        k = std::clamp(
+            (kRefT - timing.seedAt) / (timing.fullAt - timing.seedAt), 0.0,
+            1.0);
+        k = k * k * (3.0 - 2.0 * k);
+        k = std::floor(k * timing.levels + timing.phase + 1e-6) / timing.levels;
       }
       const auto& tab = arrivals.back();
       float reach = 0;
       for (const auto& c : tab.cells)
         if (c.first < 1e3f) reach += c.second;
-      std::printf(
-          "  %-10s cells %3d  area %6.1f  reachable %.0f%%  "
-          "coverage(2.5) = %5.1f%%  (measured %4.1f%%)\n",
-          panels[(size_t)i].key, (int)tab.cells.size(), (double)tab.total,
-          100.0 * reach / (double)tab.total, 100.0 * k, 100.0 * kWant[i]);
+      const char* key = panels[(size_t)i].key;
+      verdict.add(measure::reading(kit::formatted("%s  cells", key),
+                                   (long)tab.cells.size()));
+      verdict.add(measure::reading(kit::formatted("%s  reachable, %%", key),
+                                   100.0 * reach / (double)tab.total));
+      // The schedule has to land on the coverage measured off the flat
+      // plate at the reference moment; that is what makes the still a
+      // reconstruction rather than an impression of one.
+      verdict.add(measure::check(
+          kit::formatted("%s  coverage at %.1f s, %%", key, kRefT),
+          100.0 * (double)kWant[i], 100.0 * k, 0.05));
     }
 
     ctx.ticker.add([this](double dt) {
@@ -1835,8 +1693,6 @@ struct EvaMagiInterior : sketch::Sketch {
       goldOn = std::fmod(t, flash * 2.0) < flash ? 1.0f : 0.34f;
       creep = (float)((int)std::floor(clock * 0.5) % 4);
       flicker = std::fmod(clock, 4.0) < 0.04 ? 0.045f : 0.0f;
-      spinRotor = (float)(3.0 * clock);
-      rotorGlow = 0.72f + 0.28f * (float)std::sin(clock * 1.047);
       return true;
     });
 
@@ -1849,13 +1705,12 @@ struct EvaMagiInterior : sketch::Sketch {
     // the verdict card steps (6x), the countdown ticks (13x). The infection
     // itself never re-describes — it is one uniform.
     const double t = std::fmod(elapsed, 26.0);
-    static const double kFull[3] = {22.0, 6.0, 2.0};
-    static const double kSeedT[3] = {12.0, 0.34, -0.5};
     std::array<bool, 3> now{false, false, false};
     std::array<bool, 3> sow{false, false, false};
     for (int i = 0; i < 3; ++i) {
-      now[(size_t)i] = t >= kFull[i] && t < 24.0;
-      sow[(size_t)i] = t >= kSeedT[i] && t < 24.0;
+      const magi::InfectionTiming timing = magi::kInfection[(size_t)i];
+      now[(size_t)i] = t >= timing.fullAt && t < 24.0;
+      sow[(size_t)i] = t >= timing.seedAt && t < 24.0;
     }
     if (t < 12.0) now[0] = false;
 

@@ -1,341 +1,69 @@
-cmake_minimum_required(VERSION 3.16)
-
-# workaround: vcpkg configs each flatten the same libraries into their own
-# link interface.
-#
-# Our third-party interfaces overlap heavily: freetype (via harfbuzz),
-# OpenImageIO and OpenColorIO each flatten libpng/libz/Imath into their own
-# link interface, so every executable named several archives twice and ld64
-# answered with `ignoring duplicate libraries` on each. Under
-# cmake_minimum_required(3.16) both de-duplication policies default to OLD,
-# which is what kept the repeats. ld64 records symbols as it scans and
-# re-visits earlier archives, so one occurrence is enough.
-#
-# These must be set BEFORE project(): CMP0156's NEW behavior is carried by
-# CMAKE_<LANG>_LINK_LIBRARIES_PROCESSING, which the platform modules
-# initialize while enabling the language.
-if(POLICY CMP0156)
-  cmake_policy(SET CMP0156 NEW) # de-duplicate by linker capability
-endif()
-if(POLICY CMP0179)
-  cmake_policy(SET CMP0179 NEW) # ...keeping the first occurrence, everywhere
-endif()
-
-# The wire schema's C++ header is generated in one directory and compiled
-# in others. Under the OLD behavior the GENERATED source property is
-# visible only in the directory that sets it, so a consumer elsewhere
-# treats the not-yet-written header as a missing source file and the
-# generate step fails. NEW makes the property global, which is what lets
-# the schema target carry its own build ordering instead of every
-# consumer having to name the generator.
-if(POLICY CMP0118)
-  cmake_policy(SET CMP0118 NEW) # GENERATED is visible in every directory
-endif()
+# The floor is set by the policies this build depends on being NEW: link
+# de-duplication by linker capability, and a GENERATED source property
+# visible in every directory.
+cmake_minimum_required(VERSION 3.31)
 
 project(SpellCircleCanvas VERSION 0.1 LANGUAGES CXX)
 
-set(QT_QML_GENERATE_QMLLS_INI ON) # QMLLS Language Server config
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(QT_QML_GENERATE_QMLLS_INI ON) # the QMLLS language server's config
 
-# A package found in two directories otherwise defines its imported
-# targets twice — once per directory scope — and the same archive reaches
-# ld64 under both names, since CMake collapses two link items only when
-# they are one item. Promoting them makes the second find_package() see
-# the targets the first defined.
+# Off by default and turned on per target by sigil_qt_target(), which
+# says why. qt_standard_project_setup() leaves an answer already given.
+set(CMAKE_AUTOMOC OFF)
+set(CMAKE_AUTOUIC OFF)
+
+# Every directory searches for what it links, so one package is found
+# several times. Promoting the imported targets makes the second search
+# see what the first defined, instead of naming the same archive twice.
 set(CMAKE_FIND_PACKAGE_TARGETS_GLOBAL ON)
 
-# Redirects final executables (.exe, ELF binaries)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-
-# Redirects dynamically linked libraries (.so, .dll)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-
-# Redirects static libraries / archive files (.a, .lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-
-# Redirects QT modules
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 
-# Compiles the Skia Graphite CanvasSceneBackend (Metal on Apple platforms,
-# Vulkan elsewhere) and the SigilSkia bring-up library under
-# src/common/skia. At runtime the renderer uses it when a compatible
-# Graphite context can be created; without it the canvas renders no scene
-# content. Turning this off removes the Graphite implementation and
-# leaves the same renderer-facing factory backed by its always-null stub.
-option(SPELLCIRCLE_ENABLE_SKIA_CANVAS "Build the Skia Graphite (Metal/Vulkan) offscreen-canvas backend" ON)
-
-# Builds SigilScry (src/common/scry): HTML/CSS layout rendered by the
-# Ultralight SDK onto SkImage frames for the scene canvases. Auto-disables
-# with a warning when the SDK isn't installed (see cmake/FindUltralight.cmake).
-option(SPELLCIRCLE_ENABLE_ULTRALIGHT "Build the SigilScry Ultralight HTML-layout backend" ON)
-
-# Builds SigilSubstance (src/common/substance): Adobe Substance 3D
-# archives (.sbsar) rendered to texture sets through the Substance
-# Engine, for SigilWorld materials. The SDK is a licensed download and is
-# never vendored; scripts/setup.py finds an installed copy and writes
-# SUBSTANCE_SDK_DIR into CMakeUserPresets.json. Auto-disables with a
-# warning when the SDK is not there.
-option(SPELLCIRCLE_ENABLE_SUBSTANCE "Build the SigilSubstance .sbsar material renderer" ON)
-# Builds SigilUsd (src/common/usd): the world's data written to and read
-# from USD (OpenUSD core from vcpkg — tbb and zlib only). Auto-disables
-# with a warning when the pxr package is not found.
-option(SPELLCIRCLE_ENABLE_USD "Build the SigilUsd writer/reader over OpenUSD" ON)
-set(SUBSTANCE_SDK_DIR "" CACHE PATH "Adobe Substance 3D SDK directory (holds substance-config.cmake)")
+# workaround: vcpkg configs name some dependencies as imported targets and
+# others as archive paths, so one archive reaches ld64 under both names.
+if(APPLE)
+  add_link_options("LINKER:-no_warn_duplicate_libraries")
+endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+include(Sigil) # the calls every library under src/ is built from
 
-find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts CanvasPainter Network GuiPrivate)
-find_package(gtest CONFIG REQUIRED)
-find_package(spdlog CONFIG REQUIRED)
-find_package(flatbuffers CONFIG REQUIRED)
-find_package(entt CONFIG REQUIRED)
-find_package(benchmark CONFIG REQUIRED)
-find_package(absl CONFIG REQUIRED)
-# Skia is needed unconditionally now: the SigilWeave text-layout library
-# (src/sigilweave) builds on it even when the Skia scene backend is disabled.
-find_package(unofficial-skia CONFIG REQUIRED)
-find_package(ICU REQUIRED COMPONENTS i18n uc data)
-find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
-find_package(yoga CONFIG REQUIRED)
-find_package(choreograph CONFIG REQUIRED)
+enable_testing()
 
-# The administrative steps around the build — extracting the sketch
-# compile flags, fetching assets, generating the API documentation — are
-# Python scripts under scripts/, and the build calls them rather than
-# re-implementing text and file work in CMake.
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
+# One build command produces the set the bench verb runs.
+# Benchmarks are not tests: none is registered with ctest.
+add_custom_target(benches)
 
-if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
-  find_package(Ultralight)
-  if(NOT Ultralight_FOUND)
-    message(WARNING "Ultralight SDK not found; disabling the SigilScry backend")
-    set(SPELLCIRCLE_ENABLE_ULTRALIGHT OFF)
-  endif()
-endif()
-
-if(SPELLCIRCLE_ENABLE_USD)
-  find_package(pxr CONFIG QUIET)
-  if(NOT pxr_FOUND)
-    message(WARNING "OpenUSD (pxr) not found; disabling SigilUsd")
-    set(SPELLCIRCLE_ENABLE_USD OFF)
-  endif()
-endif()
-
-if(SPELLCIRCLE_ENABLE_SUBSTANCE)
-  if(SUBSTANCE_SDK_DIR AND EXISTS "${SUBSTANCE_SDK_DIR}/substance-config.cmake")
-    # The CPU engine ("blend": results in system memory), matched to the
-    # host: NEON on Apple Silicon, SSE2 on x86-64. Headless, no GPU
-    # context to own, and its outputs land as bytes SigilWorld uploads
-    # like any other image.
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
-      set(SUBSTANCE_FRAMEWORK_ENGINE_VARIANT neon_blend)
-    else()
-      set(SUBSTANCE_FRAMEWORK_ENGINE_VARIANT sse2_blend)
-    endif()
-    include("${SUBSTANCE_SDK_DIR}/substance-config.cmake")
-    message(STATUS "Substance SDK: ${SUBSTANCE_SDK_DIR} (${SUBSTANCE_FRAMEWORK_ENGINE_VARIANT})")
-  else()
-    message(WARNING "Substance SDK not found (SUBSTANCE_SDK_DIR unset or invalid); disabling SigilSubstance")
-    set(SPELLCIRCLE_ENABLE_SUBSTANCE OFF)
-  endif()
-endif()
-
-# Instruments this project's objects for LLVM source-based coverage
-# (llvm-profdata / llvm-cov). Meant for a dedicated build tree — configure a
-# separate binary dir with this ON (scripts/coverage.py does exactly that)
-# rather than toggling it inside a primary tree, because flipping the flag
-# recompiles every object file. vcpkg dependencies arrive as prebuilt
-# archives and are never instrumented; reports therefore cover this
-# repository's sources, which is the point.
-option(SPELLCIRCLE_COVERAGE "Instrument C/C++/ObjC++ targets for llvm-cov source-based coverage" OFF)
-if(SPELLCIRCLE_COVERAGE)
-  # The instrumentation flags are Clang's; this gate covers AppleClang and
-  # clang-cl too (both carry Clang in their compiler id, and clang-cl
-  # accepts these flags even with its MSVC-style frontend).
-  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    message(FATAL_ERROR
-      "SPELLCIRCLE_COVERAGE requires a Clang toolchain: "
-      "-fprofile-instr-generate/-fcoverage-mapping are Clang's source-based "
-      "coverage and ${CMAKE_CXX_COMPILER_ID} does not implement them. Under "
-      "MSVC cl.exe the alternative is OpenCppCoverage — PDB-based binary "
-      "instrumentation of an ordinary build, no recompile, a standalone "
-      "tool rather than a library — not integrated here because the "
-      "Windows port is not yet buildable.")
-  endif()
-  # Compile flags are gated on language because SpellCircleMac's Swift
-  # sources go through swiftc, which rejects these clang flags. The link
-  # flag is gated the same way via LINK_LANGUAGE: a C++/ObjC++ link runs
-  # through the clang++ driver, which embeds the profile runtime, while the
-  # Swift executable's swift-driver link must not see the flag. The Swift
-  # app still links the instrumented SpellCircleMacBridge dylib, which
-  # carries its own runtime reference.
-  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fprofile-instr-generate;-fcoverage-mapping>")
-  add_link_options("$<$<LINK_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fprofile-instr-generate>")
-endif()
-
-# Builds this project's objects under Clang's runtime sanitizers. The value
-# is a CMake list of -fsanitize= names — "address;undefined" for the
-# ASan+UBSan lane, "thread" for TSan. Meant for a dedicated build tree —
-# configure a separate binary dir with this set (scripts/sanitize.py does
-# exactly that) rather than toggling it inside a primary tree, because
-# changing the value recompiles every object file, and a sanitized binary
-# is not a binary anyone ships. vcpkg dependencies arrive as prebuilt,
-# uninstrumented archives; ASan's interceptors still see every allocation
-# and libc call those archives make, so bugs in this repository's use of
-# them are caught — but checks that need both sides instrumented (container
-# overflow) misfire across the boundary, which is why sanitize.py disables
-# that one check at runtime.
-set(SPELLCIRCLE_SANITIZE "" CACHE STRING
-  "Sanitizers to compile and link with (e.g. address;undefined or thread); empty builds none")
-if(SPELLCIRCLE_SANITIZE)
-  # The flag spellings and runtime libraries are Clang's; this gate covers
-  # AppleClang and clang-cl too (both carry Clang in their compiler id).
-  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    message(FATAL_ERROR
-      "SPELLCIRCLE_SANITIZE requires a Clang toolchain: the -fsanitize= "
-      "runtimes configured here ship with Clang and "
-      "${CMAKE_CXX_COMPILER_ID} does not provide them.")
-  endif()
-  if("thread" IN_LIST SPELLCIRCLE_SANITIZE AND "address" IN_LIST SPELLCIRCLE_SANITIZE)
-    message(FATAL_ERROR
-      "SPELLCIRCLE_SANITIZE cannot combine thread with address: each "
-      "runtime interposes the allocator and shadows the address space its "
-      "own way, and a process can only host one. Build separate trees.")
-  endif()
-  list(JOIN SPELLCIRCLE_SANITIZE "," spellcircle_sanitize_names)
-  set(spellcircle_sanitize_compile_flags
-    "-fsanitize=${spellcircle_sanitize_names}"
-    # Sanitizer reports unwind through frame pointers; without them the
-    # stacks in a report degrade to unusable fragments.
-    "-fno-omit-frame-pointer")
-  if("undefined" IN_LIST SPELLCIRCLE_SANITIZE)
-    # UBSan's default is print-and-continue, which lets a finding scroll
-    # past inside a passing test. Non-recoverable checks abort instead, so
-    # a UBSan finding fails the test that triggered it.
-    list(APPEND spellcircle_sanitize_compile_flags
-      "-fno-sanitize-recover=undefined")
-  endif()
-  if("address" IN_LIST SPELLCIRCLE_SANITIZE)
-    # workaround: instrumented Abseil headers meeting an uninstrumented
-    # archive.
-    #
-    # Abseil's swisstable headers turn on iterator-generation bookkeeping
-    # in any translation unit compiled under ASan, which changes the
-    # table layout and makes generation pointers load-bearing. The
-    # function that supplies the empty-table generation pointer lives in
-    # the prebuilt (unsanitized) vcpkg archive, where that bookkeeping
-    # compiled out — it returns null, and the first find() on an absl map
-    # dereferences it. NDEBUG_SANITIZER is Abseil's own switch for
-    # keeping generations off under sanitizers; defining it makes our
-    # sanitized objects agree with the archive about the layout. The cost
-    # is Abseil's iterator-invalidation checking, which cannot work
-    # against a prebuilt archive anyway.
-    add_compile_definitions(NDEBUG_SANITIZER)
-    # workaround: instrumented Skia headers meeting an uninstrumented
-    # archive.
-    #
-    # Skia's TArray grows a poisoning flag in any translation unit compiled
-    # under ASan, which moves every member that follows an array inside a
-    # header type — SkPathBuilder's fill type among them. Half of such an
-    # object's accessors are inline (this layout) and half live in the
-    # prebuilt archive (the other layout), so values written through one
-    # are read back from the wrong offset and quietly revert. Forcing this
-    # header ahead of every Skia include leaves Skia's feature macro
-    # undefined here, pinning our objects to the archive's layout; the
-    # header itself states what that costs.
-    add_compile_options(
-      "$<$<COMPILE_LANGUAGE:CXX,OBJCXX>:-include;${CMAKE_CURRENT_SOURCE_DIR}/cmake/SkiaSanitizerAbi.h>")
-  endif()
-  # Compile flags are gated on language because SpellCircleMac's Swift
-  # sources go through swiftc, which rejects these clang flags. The link
-  # flag is gated the same way via LINK_LANGUAGE: a C++/ObjC++ link runs
-  # through the clang++ driver, which links the sanitizer runtime dylib,
-  # while the Swift executable's swift-driver link must not see the flag.
-  # The Swift app still links the sanitized SpellCircleMacBridge dylib,
-  # which carries its own runtime reference.
-  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:${spellcircle_sanitize_compile_flags}>")
-  add_link_options("$<$<LINK_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fsanitize=${spellcircle_sanitize_names}>")
-endif()
-
-# Opt-in network fetch of open-licensed demo assets into the build tree;
-# nothing here runs during a normal build, and configuring the project
-# never touches the network. The manifest and the downloader are
-# scripts/fetch_assets.py, which needs no build tree of its own — this
-# target is the same fetch reached through the build.
+# Opt-in network fetch of open-licensed demo assets; nothing here runs
+# during a normal build, and configuring never touches the network.
 set(SIGIL_ASSET_DIR "${CMAKE_BINARY_DIR}/assets" CACHE PATH
     "Where fetch_assets writes downloaded demo assets")
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_custom_target(fetch_assets
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/fetch_assets.py
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/sigil.py assets
           --out ${SIGIL_ASSET_DIR}
   COMMENT "Fetching demo assets into ${SIGIL_ASSET_DIR}"
   VERBATIM)
 
-# Per-library Doxygen sites (`--target docs`); nothing here runs during a
-# normal build, and the target is simply absent when Doxygen is not
-# installed. Each library registers itself with sigil_add_docs(); the
-# sigil_finalize_docs() call after add_subdirectory(src) writes the rules.
-include("${CMAKE_CURRENT_LIST_DIR}/docs/Docs.cmake")
-
-enable_testing()
-
-# workaround: vcpkg configs name some dependencies as imported targets and
-# others as archive paths.
-#
-# What the policies above cannot reach: CMake collapses two link items only
-# when they are the same item — two targets, or two identical paths — never a
-# target against a path. freetype names ZLIB/BZip2/PNG as targets and brotli
-# as archive paths, minizip-ng names bz2 and lzma as paths where others name
-# the targets, and OpenImageIO names libpng16 and libz both ways inside a
-# single interface. Those archives therefore still reach ld64 twice. The
-# second copy is ignored by the linker, which is correct but noisy — this
-# silences the note without pretending the link line is minimal.
-if(APPLE AND NOT CMAKE_VERSION VERSION_LESS 3.18) # CheckLinkerFlag
-  include(CheckLinkerFlag)
-  check_linker_flag(CXX "-Wl,-no_warn_duplicate_libraries"
-    HAVE_NO_WARN_DUPLICATE_LIBRARIES) # ld64 from Xcode 15 on
-  if(HAVE_NO_WARN_DUPLICATE_LIBRARIES)
-    add_link_options("LINKER:-no_warn_duplicate_libraries")
-  endif()
-endif()
-
-# MacOS Frameworks
-if(APPLE)
-  find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
-  find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
-  find_library(CORE_GRAPHICS_FRAMEWORK CoreGraphics)
-  # workaround: Syphon has no vcpkg port, so the framework is probed by
-  # hand and its absence skips the target that needs it.
-  find_library(SYPHON_FRAMEWORK Syphon)
-endif()
-
-# Qt's source scanning is decided here rather than left to
-# qt_standard_project_setup(), which turns moc on for every target in the
-# tree unless the answer is already set. Almost nothing here is a Qt
-# target, and moc costs a scan of every source plus an autogen build step
-# on each target it is enabled on, found Q_OBJECT or not. So: off by
-# default, on per target through sigil_qt_target(). Everything else the
-# call arranges — the Qt policy level, GNUInstallDirs, IDE folders, the
-# generated-source groups — is still wanted.
-set(CMAKE_AUTOMOC OFF)
-set(CMAKE_AUTOUIC OFF)
-include(QtTarget)
-
-qt_standard_project_setup(REQUIRES 6.11)
-
-# Every benchmark binary hangs off this target, so one build command
-# produces the set scripts/bench_ledger.py runs. Benchmarks are not
-# tests: none is registered with ctest, and each library adds its own
-# with add_dependencies(benches <name>).
-add_custom_target(benches)
-
 add_subdirectory(src)
 
-# Every sigil_add_docs() has run by now, which is what lets each library's
-# Doxyfile name all the others in TAGFILES.
+# Every library root, every test binary and every hot-reload host has
+# registered by now: the first lets each Doxyfile name all the others,
+# the second lets a binary's ctest entries be written over its whole set
+# of cases, the third lets a host's force-load list be read off targets
+# defined after its own directory.
 sigil_finalize_docs()
+sigil_finalize_tests()
+if(COMMAND sigil_finalize_sketch_link_surfaces)
+  sigil_finalize_sketch_link_surfaces()
+endif()
 
 include(GNUInstallDirs)
 install(TARGETS SpellCircle

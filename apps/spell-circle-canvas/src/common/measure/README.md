@@ -1,28 +1,40 @@
 # SigilMeasure
 
-Timing, statistics and check reporting, on the standard library alone. The
-library gives you a stopwatch, a lap timer that names the phases of one
+Timing, statistics and check reporting, on the standard library plus
+Boost.Container for the compact ordered counter table. The library gives you
+a stopwatch, a lap timer that names the phases of one
 span, a frame timer whose four marks feed the three lanes a render loop
 is judged by, a rolling ring of samples with the summaries a HUD prints,
-named counters, the frame sample a headless timing sweep snapshots, and
+named counters, the frame sample a headless timing sweep snapshots, the
+running moments a run of any length is summarised by, the histogram that
+says what shape its spread has, the straight-line map that puts two runs
+of different units on a common footing, the least-squares line, and
 `Check` — a claim whose printed verdict is computed from the values it
-reports. It links nothing, so every
-other library can measure itself with it without acquiring a dependency.
+reports. It has no domain-library dependency, so every other library can
+measure itself without pulling in another Sigil layer.
 
-Namespace `sigil::measure`. One static target, `SigilMeasure`; every
-public header lives under `include/sigilmeasure/<subject>/` and is spelled
-`<sigilmeasure/<subject>/X.h>`, and `<sigilmeasure/Measure.h>` includes
+Namespace `sigil::measure`. One target per feature —
+`SigilMeasureStats` and `SigilMeasureTime`, both header-only, and
+`SigilMeasureCheck`, which carries the one source file the table
+formatting lives in — with `SigilMeasure` the umbrella over all three,
+so a consumer of the whole library links one name. Every public header
+lives under `include/sigilmeasure/<feature>/` and is spelled
+`<sigilmeasure/<feature>/X.h>`, and `<sigilmeasure/Measure.h>` includes
 them all:
 
 | header | holds |
 |--------|-------|
-| `time/Stopwatch.h`    | `Stopwatch` (`elapsedMs()`, `reset()`) and `ScopedMs`, which writes a block's milliseconds into a double at scope exit |
-| `time/Laps.h`         | `Laps` — `mark(name)` returns the milliseconds since the previous mark and records the lap; `each()` reads them back |
-| `time/FrameTimer.h`   | `FrameTimer` — `begin()`, `composed()`, `finished()`, `presented()` feeding the `frame()`, `work()` and `present()` rings, with `headroomFps()` and `presentedFps()` read off them |
-| `stats/Samples.h`     | `Samples`, a rolling ring (`add`, `mean`, `percentile`, `min`, `max`, `last`, `size`, `samples`), and the free `quantile()` it and everything else shares |
-| `stats/Counters.h`    | `Counters` — named `int64_t` counters (`add`, `get`, `reset`, `each`) |
-| `stats/FrameSample.h` | `FrameSample` — the plain numbers a frame-budget gate judges a scene by |
-| `check/Check.h`       | `Check`, the `check()` overloads, `failures()` and `Table` |
+| `time/Stopwatch.h`    | `Stopwatch` (`elapsedMs()`, `elapsedUs()`, `reset()`), `toMicroseconds()` for a caller holding two clock readings, and `ScopedMs`, which writes a block's milliseconds into a double at scope exit |
+| `time/Laps.h`         | `Laps` — `mark(name)` returns the milliseconds since the previous mark and records the lap; `each()` reads them back, `size()` and `totalMs()` summarise them, `reset()` forgets them and starts the next phase there |
+| `time/FrameTimer.h`   | `FrameTimer` — `begin()`, `composed()`, `finished()`, `presented()` feeding the `frame()`, `work()` and `present()` rings, with `headroomFps()` and `presentedFps()` read off them; `addFrame()`, `addWork()` and `addPresent()` put a duration measured elsewhere into a lane, and `reset()` and `resetPresentation()` empty them |
+| `stats/Samples.h`     | `Samples`, a rolling ring (`add`, `clear`, `mean`, `percentile`, `min`, `max`, `last`, `size`, `capacity`, `empty`, `samples`), the free `quantile()` it and everything else shares, `quantiles()` for several fractions off one sort, and `median()` |
+| `stats/Moments.h`     | `Moments` — a run of any length summarised in six words: `add`, `of`, `merge`, `clear`, `count`, `empty`, `mean`, `sum`, `variance`, `sampleVariance`, `sd`, `sampleSd`, `skewness`, `min`, `max`, `range` |
+| `stats/Histogram.h`   | `Histogram` — equal bins across a range: `add` (weighted), `over`, `clear`, `binOf`, `bins`, `low`, `high`, `edge`, `centre`, `binWidth`, `counts`, `count`, `fraction`, `density`, `total`, `below`, `above`, `mode`, `peak` |
+| `stats/Rescale.h`     | `Rescale` — an invertible straight-line map (`centre`, `scale`, `origin`, applied with `operator()` and undone with `invert()`), with `zScore()` and `unitRange()` deriving one from a run |
+| `stats/Fit.h`         | `lineFit(xs, ys)` and the `LineFit` it answers — `slope`, `intercept`, `r2`, `correlation()`, `maxResidual`, `rmsResidual` and the `samples` they were read off, with `at()` and `residual()` |
+| `stats/Counters.h`    | `Counters` — named `int64_t` counters (`add`, `get`, `reset`, `clear`, `size`, `each`) |
+| `stats/FrameSample.h` | `FrameSample` — the plain numbers a frame-budget gate judges a scene by: `frameMs`, `workMs`, `p99Ms`, `headroomFps` |
+| `check/Check.h`       | `Check` (`label`, `expected`, `actual`, `pass`, a `Standing`, with `line()` and `judged()`), the `check()` overloads that build one, `finding()`, `reading()` and `heading()` for the other standings, the free `failures()` and `findings()` over a span, and `Table` — `add`, `lines`, `checks`, `failures`, `findings`, `pass` |
 
 ## Using it
 
@@ -80,6 +92,62 @@ linearly between the two ranks `p` falls between, so the median of
 `p`, and `p` is clamped to [0, 1]. `Samples::percentile` is that function
 over the ring's contents; nothing else in the tree defines its own.
 
+**One line fit, in the caller's own precision.** `lineFit(xs, ys)` is
+ordinary least squares, and it answers the residuals with the slope
+because a study that quotes a slope without one has stated a preference
+rather than a measurement: `r2` says how much of the ordinate the line
+explains, `maxResidual` says how far the worst point stands off it, and
+`at()`/`residual()` are the line evaluated so a drawing and its caption
+go through one arithmetic. It is a template on the scalar and the sums
+accumulate in that scalar — a caller that has always fitted in `float`
+gets the `float` answer it had rather than a `double` one rounded back,
+which is the difference between a drawing that holds and one that moves
+by a sub-pixel. Fewer than two points, or every point at one abscissa,
+is not a line: the answer is a zero slope through the mean with `r2` at
+0, never a divide by zero.
+
+**A spread is accumulated, never subtracted.** The obvious variance —
+the mean of the squares less the square of the mean — is two large
+numbers differing in their last digits, and for values that are large
+and close together (a run of timestamps, a run of coordinates on a wide
+sheet) the difference is nearly all rounding and can come out NEGATIVE.
+Clamping that at zero hides the loss and reports no spread where there
+was a real one. `Moments` folds each value's deviation from the mean so
+far in as it arrives, so the sum is of small numbers and cannot go
+negative, and shifting a whole run leaves its variance where it was.
+That is also what makes it MERGEABLE: two halves summarised separately
+amount to the same numbers as one pass over the whole, so a sweep can be
+divided across workers and put back together.
+
+**Which spread is being claimed is the caller's to say.** `variance()`
+divides by the count and describes the values in hand as the whole of
+what there is — every frame of a recording, every point of a drawing.
+`sampleVariance()` divides by one less and claims something about what
+those values were DRAWN FROM. Neither is a default that suits both, so
+both are spelled out and neither is named `variance` alone by accident.
+
+**`Moments` keeps no values, `Samples` keeps the last few, a `Histogram`
+keeps a shape.** Three summaries, and the choice between them is what
+has to be answered later. `Moments` costs six words whatever the run's
+length and can never give a quantile back. `Samples` keeps a fixed
+window and can, at the cost of a sort. `Histogram` keeps the shape of a
+run of any length — one hump or two, a tail on one side, a wall at a
+limit — and is the only one a drawing can be made of directly. What
+falls outside its range is COUNTED, in `below()` and `above()`, rather
+than clamped into an end bin (which would draw a wall that is not in the
+data) or dropped (which would leave a total that does not add up).
+
+**A derived rescaling is a statistic, not a drawing's scale.** `zScore`
+and `unitRange` answer a `Rescale` computed FROM a run of numbers —
+where its centre is, how wide it is — so that runs in different units
+can be compared: a frame time and a byte count both become "how unusual
+is this, for its own run". A drawing's scale is AUTHORED — a domain
+someone chose, a range in pixels, a transform, a tick ladder — and
+deriving one from the data is what makes an axis move every time a point
+arrives. The value is three numbers rather than a lambda, so it is
+storable, comparable and invertible: a reading taken back off a drawing
+goes through the same arithmetic the other way.
+
 **`Samples` is a ring.** `Samples(capacity)` keeps the last `capacity`
 samples, oldest dropping first, and computes every summary on read — no
 running sums, so `clear()` is exact and a sample that fell out of the
@@ -99,6 +167,23 @@ silently loses the qualifier at the end of a claim. `failures(checks)`
 counts the misses, and `Table::lines()` prints the rows at one width
 followed by a summary line.
 
+**A verification is not only claims, and each row says what it is.**
+`Check::standing` is a `Standing`: a `Claim` about the construction,
+whose FAIL fails the run; a `Finding`, a claim about the SUBJECT — a
+published formula that does not hold, a plate whose engraving
+contradicts its legend — whose verdict is computed and printed exactly
+as a claim's is and never counted against the run (`finding(check(…))`
+restates one, `findings()` counts the ones that did not hold, and the
+summary line says `, 1 finding`); a `Reading`, a measurement reported
+beside the claims and judged by nobody, printed with no verdict
+(`reading(label, value)` for a number, a count or a string); and a
+`Heading`, a title over the rows under it, printed as its label alone
+(`heading(title)`). `Table::checks()` counts the rows that carry a
+verdict, and `Check::judged()` says whether one does. The standing is a
+value on the row rather than a word in its text, so the sentence a
+reader sees and the count a build reads cannot disagree about which
+failures are the run's.
+
 **A sample is plain numbers.** `FrameSample` holds `frameMs`, `workMs`,
 `p99Ms` and `headroomFps` as values, so a snapshot taken when a sample
 window closes survives the ring being cleared or refilled behind it.
@@ -117,9 +202,42 @@ the writer's, not this one's.
 
 ## Testing and benchmarks
 
-`measure_test` covers the quantile's edges (empty, one sample,
-interpolation, clamping), the ring's wrap-around, the counters, the
-stopwatch, lap timer and frame timer, check formatting including the
-tolerance clause. `measure_bench` times `Samples::add`,
-`Samples::percentile` and `Samples::mean` per sample count; it builds
-through the `benches` target and runs through `scripts/bench_ledger.py`.
+One `measure_test`, contributed to by every feature's own `test/`
+directory: `stats/test/` holds `SamplesTest.cpp`, `StatsTest.cpp`,
+`FitTest.cpp` and `CountersTest.cpp`, `time/test/TimeTest.cpp` holds the
+instruments and `check/test/CheckTest.cpp` the claims. Every statistical
+claim is asserted against an arithmetic answer that can be written down
+— the variance of the first n whole numbers, the skewness of three zeros
+and a one, the density of a flat run, the mean and deviation a z-score
+leaves behind — rather than against a number this code once produced.
+One case is of a different kind and is the reason the accumulation is
+shaped as it is: a run of large, close values, where the naive formula is
+shown missing the answer the shifted run gives exactly. Between them the
+cases cover the quantile's edges (empty, one sample, interpolation,
+clamping), several fractions off one sort agreeing with the
+single-fraction call, the line fit (an exact line found exactly, a lifted
+point read off the residual rather than off the slope, a vertical run
+answering no slope and still reporting the spread of its ordinates, and
+the float sums matching a hand-written accumulation term for term), the
+ring's wrap-around, the counters, the lap timer's naming and totals, the
+names a lap may be given — a literal, a view, a string the caller keeps —
+and the temporary it refuses, asserted as a compile-time refusal rather
+than as a value, `ScopedMs` leaving its target alone until scope exit,
+the frame timer's lanes, and `Check::line` formatting as one
+parameterised case per kind of claim — integral, tolerance, text, bare
+condition, and a label longer than its column. Exactly one case reads the
+wall clock, and it owns every claim that needs one: that the stopwatch,
+the lap timer and `ScopedMs` advance with real time, and that a reset
+sends the reading back — asserted against the span already measured,
+since a stopwatch that ignored reset could only ever read higher, and
+not against a ceiling a busy scheduler could cross. Every other timing
+case is deterministic, because sleeping and then asserting on a duration
+asserts the operating system's scheduler rather than anything this
+library promises. One `measure_bench`, out of `stats/bench/`:
+`SamplesBench.cpp` times `Samples::add`, `Samples::percentile` and
+`Samples::mean` per sample count, and `StatsBench.cpp` the per-value cost
+of `Moments::add` and `Histogram::add`, the per-run cost of
+`Moments::of`, `Histogram::over` and `zScore`, and the two quantile arms
+side by side, where the whole point is that one sorts once and the other
+sorts per fraction; it builds through the `benches` target and runs
+through `scripts/sigil.py bench`.

@@ -1,0 +1,3 @@
+half4 main(half4 src, half4 dst) {
+  return half4(max(dst.rgb - src.rgb, half3(0.0)), dst.a);
+}

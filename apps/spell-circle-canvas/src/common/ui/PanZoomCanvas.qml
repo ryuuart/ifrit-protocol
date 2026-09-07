@@ -22,6 +22,17 @@ Item {
     property real minimumScale: 0.04
     property real maximumScale: 16.0
     property bool checkerboardVisible: true
+    /** Which mouse buttons drag the pasteboard. Hosts with interactive
+     *  canvas content can reserve the left button for that content and
+     *  leave panning on the middle button. */
+    property alias panButtons: panArea.acceptedButtons
+    /** Whether an unmodified mouse wheel changes the canvas scale. A host
+     *  that gives the wheel another meaning can turn this off and call
+     *  zoomAt() itself for its modified-wheel gesture. */
+    property bool mouseWheelZoomEnabled: true
+    /** The open-hand cursor is useful when every ordinary drag pans, but
+     *  misleading over interactive content whose left drag does not. */
+    property bool showPanCursor: true
     /** Hides the built-in zoom and canvas-size badges for hosts that show
      *  that information in their own chrome (e.g. the app's activity
      *  panel), keeping the viewport itself unobstructed. */
@@ -78,20 +89,28 @@ Item {
         anchors.fill: parent
         opacity: 0.25
 
-        Repeater {
-            model: Math.max(0, Math.ceil(root.width / 32)) * Math.max(0, Math.ceil(root.height / 32))
+        // The pan moves the whole lattice, not each dot in it: bound
+        // per dot, a gesture would re-evaluate one binding per pip on the
+        // viewport on every step of it. The dots themselves stand still.
+        Item {
+            x: root.horizontalPan % 32
+            y: root.verticalPan % 32
 
-            Rectangle {
-                required property int index
+            Repeater {
+                model: Math.max(0, Math.ceil(root.width / 32)) * Math.max(0, Math.ceil(root.height / 32))
 
-                readonly property int columnCount: Math.max(1, Math.ceil(root.width / 32))
-                readonly property int columnIndex: index % columnCount
-                readonly property int rowIndex: Math.floor(index / columnCount)
-                x: columnIndex * 32 + (root.horizontalPan % 32)
-                y: rowIndex * 32 + (root.verticalPan % 32)
-                width: 2
-                height: 2
-                color: Theme.secondaryText
+                Rectangle {
+                    required property int index
+
+                    readonly property int columnCount: Math.max(1, Math.ceil(root.width / 32))
+                    readonly property int columnIndex: index % columnCount
+                    readonly property int rowIndex: Math.floor(index / columnCount)
+                    x: columnIndex * 32
+                    y: rowIndex * 32
+                    width: 2
+                    height: 2
+                    color: Theme.secondaryText
+                }
             }
         }
     }
@@ -181,9 +200,13 @@ Item {
     }
 
     MouseArea {
+        id: panArea
+
         anchors.fill: parent
         acceptedButtons: Qt.MiddleButton | Qt.LeftButton
-        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+        cursorShape: root.showPanCursor
+            ? (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor)
+            : Qt.ArrowCursor
 
         property point previousPointerPosition
 
@@ -211,6 +234,7 @@ Item {
     WheelHandler {
         target: null
         acceptedDevices: PointerDevice.Mouse
+        enabled: root.mouseWheelZoomEnabled
         onWheel: wheelEvent => {
             const zoomFactor = Math.pow(1.4, wheelEvent.angleDelta.y / 120.0);
             root.zoomAt(zoomFactor, wheelEvent.x, wheelEvent.y);

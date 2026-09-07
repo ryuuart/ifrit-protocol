@@ -135,6 +135,39 @@ BENCHMARK(BM_Construct)
     ->DenseRange(kPlain, kMixed)
     ->Unit(benchmark::kMicrosecond);
 
-}  // namespace
+/** The repeating signal read at a time, per wave: the fold plus one
+ *  shape, which is what a value driven off a clock costs per frame. */
+void OscillatorAt(benchmark::State& state) {
+  const Oscillator wave{.wave = (Wave)state.range(0),
+                        .hertz = 3.0f,
+                        .amplitude = 40.0f,
+                        .centre = 100.0f};
+  double seconds = 0.0;
+  for ([[maybe_unused]] auto iteration : state) {
+    seconds += 1.0 / 60.0;
+    benchmark::DoNotOptimize(wave.at(seconds));
+  }
+}
+BENCHMARK(OscillatorAt)
+    ->Arg((int)Wave::Sine)
+    ->Arg((int)Wave::Triangle)
+    ->Arg((int)Wave::Square);
 
-BENCHMARK_MAIN();
+/** The keyed track read at a time. The argument is the key count, since
+ *  the segment is found by walking the keys — a scan a track long
+ *  enough to matter would bisect instead. */
+void SequenceAt(benchmark::State& state) {
+  Sequence track;
+  const int keys = (int)state.range(0);
+  for (int i = 0; i < keys; ++i)
+    track.steps.push_back({(float)i, (float)((i * 37) % 11)});
+  track.interpolation = Interpolation::CatmullRom;
+  float when = 0.0f;
+  for ([[maybe_unused]] auto iteration : state) {
+    when = when < (float)keys ? when + 0.01f : 0.0f;
+    benchmark::DoNotOptimize(track.at(when));
+  }
+}
+BENCHMARK(SequenceAt)->Arg(4)->Arg(64);
+
+}  // namespace

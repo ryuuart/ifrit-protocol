@@ -19,7 +19,7 @@ over two subjects; every public header lives under
 | subject | headers | holds |
 |---------|---------|-------|
 | `graph`   | `graph/Parameter.h`, `graph/Output.h`, `graph/Graph.h` | `Parameter` and `Output`, the described inputs and outputs; `Graph`, one graph described, changed, cooked and read |
-| `package` | `package/Package.h` | `Package`, the loaded archive that owns its graphs and the engine renderer they share |
+| `package` | `package/Package.h` | `Package`, the loaded archive that owns its graphs and the engine renderer they share, and `Package::engineVersion()`, the engine's own version string for a diagnostic |
 
 `<sigilsubstance/Substance.h>` is the umbrella header over both. The two
 subjects are one target because neither exists without the other: a
@@ -50,7 +50,7 @@ graph.set("Season", 0.8f);
 graph.render();
 
 sk_sp<SkImage> normal = graph.output("normal");  // by usage or identifier
-material::Material leaves = material::kit::surface(material::textures::
+material::Material leaves = material::kit::surface(material::texture::
     fromUsageMap(graph.outputsByUsage(), graph.normalsAreDirectX()));
 ```
 
@@ -72,14 +72,14 @@ touching the SDK's types.
 
 **Usage is the key.** Every output the graph tagged with a channel is
 returned under that channel's canonical name — the vocabulary
-`material::textures::roleForUsage()` reads. Untagged outputs are keyed by
+`material::texture::roleForUsage()` reads. Untagged outputs are keyed by
 identifier. Both spellings a graph may use for the same slot
 (`diffuse` and `baseColor`) land on the same `Material` slot downstream.
 
 **Two inputs every graph has.** `$outputsize` (an Int2, log2 per axis)
 is what `setResolution()` sets. `$normalformat` (0 DirectX, 1 OpenGL)
 selects the normal map's green convention; the engine's default is
-DirectX, which is why `material::textures::fromUsageMap()` defaults
+DirectX, which is why `material::texture::fromUsageMap()` defaults
 `normalDirectX` to true. `Graph::normalsAreDirectX()` reads the
 input back, so the material builder can be handed the graph's own
 answer rather than a remembered one.
@@ -98,8 +98,10 @@ the package's instance list and renderer; move the package, not the
 graph.
 
 **`render()` is synchronous and per graph.** It pushes that one graph
-and runs the engine to completion. Rendering the same graph twice
-recomputes only what its changed parameters dirtied.
+and runs the engine to completion, and answers what the engine says
+rather than counting pictures: rendering the same graph twice recomputes
+only what its changed parameters dirtied, and a cook that had nothing to
+compute is true with the outputs it already stands with.
 
 **The engine is the CPU one.** The build links the `neon_blend` (Apple
 Silicon) or `sse2_blend` engine — results in system memory, headless, no
@@ -112,7 +114,8 @@ switch.
 
 ## Boundary
 
-Public dependency: Skia (`SkImage` out). Private: the Substance 3D SDK's
+Public dependencies: Skia (`SkImage` out) and Boost.Container (the keyed output
+map). Private: the Substance 3D SDK's
 framework library and one engine dylib — no public header names an SDK
 type; the SDK is included only by the sources and the internal headers
 beside them. Deliberately absent: any GPU device, any material or
@@ -123,34 +126,59 @@ SDK is vendored into this repository.
 ## The SDK
 
 The Substance 3D SDK is a licensed Adobe download. Unpack it under a
-versioned directory in one of the roots `scripts/setup.py` searches —
-`~/.local/opt/substance/<version>/` is the one the development machines
-use — or point `SUBSTANCE_SDK_DIR` at the directory holding
-`substance-config.cmake`. `setup.py` writes the location into
-`CMakeUserPresets.json`; without an SDK the top-level configure warns and
-leaves this library, `substance_test` and `substance_bench` out of the
-build, and the sketch that draws a package is left out of the sketch
-registry. Executables that link SigilSubstance
+versioned directory in one of the roots `cmake/FindSubstance.cmake`
+beside this file searches — `~/.local/opt/substance/<version>/` is the
+one the development machines use — or point `SUBSTANCE_SDK_DIR` at the
+directory holding `substance-config.cmake`, on the command line or in
+the environment. The highest version found wins; without an SDK the
+configure says so and leaves this library, `substance_test` and
+`substance_bench` out of the build, and the sketch that draws a package
+is left out of the sketch registry. Executables that link SigilSubstance
 carry the SDK's `bin/release` in their runtime search path, which is
 where the engine dylib lives.
+
+The download needs an Adobe account, so nothing can fetch it. Keeping
+the archive itself, rather than only the unpacked tree, is what lets a
+port install the SDK the way every other dependency is installed:
+`scripts/sigil.py assets --stage <archive>` copies it into the vcpkg
+asset cache under the SHA-512 that a port declares for it, and prints
+that hash.
 
 ## Build and test
 
 Targets: `SigilSubstance`, `substance_test` (ctest) and `substance_bench`
 (Google Benchmark, through the `benches` target and
-`scripts/bench_ledger.py`).
+`scripts/sigil.py bench`).
 
 ```sh
-ctest --test-dir build -C Release -R substance_test --output-on-failure
+ctest --test-dir build -C Release -R '^Substance' --output-on-failure
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
     --sketch substance_swatches
 ```
 
 The test and the benchmark render the SDK's own sample archives
 (`assets/Autumn_Leaves.sbsar`, and `assets/Post_Illumination.sbsar` for
-the composition test), found through the SDK directory the build was
-configured from. When a sample is not there, the test skips with a
-message naming the file and the benchmark registers nothing, so an SDK
-installed without its samples reports the fact rather than failing. The
-engine dylib itself is a link-time dependency: a binary built against
-the SDK does not start without it.
+the composition cases), found through the SDK directory the build was
+configured from. Without the SDK there is no `substance_test` at all —
+the target is left out of the build with the library.
+
+One case per promise: the engine reports its version, a package finds
+every graph by the url and the label it reports, a graph describes its
+parameters with their kinds and arities and tags its outputs with the
+channels they feed, it answers no image before the first render, it
+renders every output at the resolution it was set to and again at the
+next one, the normal-format input selects the green convention it
+reports back, a parameter it has is set and one it does not have is
+refused, `reset()` returns every parameter to its authored value, an
+image input takes an image whose size is not the graph's own, and two
+graphs compose through image inputs. What is not a package is one
+parameterised case over the two doors a package is loaded through —
+bytes that are not an archive, and a file that is not there — each
+answering no package and saying why. When a sample is not
+there the case skips with a message naming the file and the benchmark
+registers nothing, so an SDK installed without its samples reports the
+fact rather than failing; the binary carries the `substance` ctest
+label for exactly that reason. The refusal rows and the engine
+version need no sample and run either way. The engine dylib itself is a
+link-time dependency: a binary built against the SDK does not start
+without it.

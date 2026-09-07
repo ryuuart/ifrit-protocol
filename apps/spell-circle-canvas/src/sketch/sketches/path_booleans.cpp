@@ -30,11 +30,13 @@
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Ops.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
 namespace ops = sigil::geometry::path::ops;
@@ -139,12 +141,16 @@ struct PathBooleans final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1240, 720);
-    ctx.background({0.063f, 0.063f, 0.078f, 1});
-    ctx.captureAt(1.0);
-    ctx.composer.render(custom([this](SkCanvas& canvas, const PaintContext&) {
-                          draw(canvas);
-                        }).inset(0));
+    sketch::kit::stage(ctx,
+                       {.size = {1240, 720},
+                        .captureAt = 1.0,
+                        .background = SkColor4f{0.063f, 0.063f, 0.078f, 1}});
+    // Keyed on the sink's own name: everything `draw` reads is cooked
+    // above, in this setup, and nothing after it moves.
+    ctx.composer.render(
+        custom("path.booleans", [this](SkCanvas& canvas, const PaintContext&) {
+          draw(canvas);
+        }).inset(0));
   }
 };
 

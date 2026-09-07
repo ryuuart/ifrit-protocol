@@ -1,7 +1,7 @@
 #pragma once
 
-// One entry point per scene file in src/text/demo/. weave_demo.cpp's
-// main() calls these in the order the README describes them.
+// One entry point per `Scene*.cpp` beside this header, in the order
+// weave_demo.cpp's main() draws them.
 
 #include <sigilweave/fonts/FontContext.h>
 
@@ -36,7 +36,7 @@ void sceneShapes(sigil::weave::FontContext& fontContext,
 void sceneFallback(sigil::weave::FontContext& fontContext,
                    const std::filesystem::path& outputDirectory);
 
-// Scene K — the standalone-pass features panel: decorations,
-// text-transform, word spacing, variable axes, tab stops, and line clamp.
-void sceneNewFeatures(sigil::weave::FontContext& fontContext,
+// Scene K — the dressing a run carries: decorations, text-transform, word
+// spacing, variable axes, tab stops, and line clamp.
+void sceneDecorations(sigil::weave::FontContext& fontContext,
                       const std::filesystem::path& outputDirectory);

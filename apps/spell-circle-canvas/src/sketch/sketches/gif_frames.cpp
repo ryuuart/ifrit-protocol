@@ -1,0 +1,237 @@
+/** @file
+ * gif_frames — an animated document, one frame at a time.
+ *
+ * `ImageAsset` decodes a GIF (or an animated WebP or AVIF) into a list of
+ * `Frame`s, each a premultiplied SkImage with the milliseconds it stays
+ * on screen. EVERY FRAME IS FULLY COMPOSITED AT DECODE TIME: the source
+ * format's disposal and blend rules are already applied, so drawing frame
+ * N never depends on having drawn frame N-1, and a sheet may lay them out
+ * in any order at all — which is what the top shelf does.
+ *
+ * `frameAt(milliseconds)` is the playback: the frame showing at that many
+ * milliseconds since the animation started, looped according to
+ * `repetitionCount()` — a finite animation that has finished holds its
+ * last frame, and a still image answers its one frame at any time. The
+ * lower shelf asks for one moment per cell across two loop periods, so
+ * the same frames come round again with the moment printed under each.
+ *
+ * A probe reads the metadata WITHOUT decoding pixels. `Hub::probe()`
+ * answers the bytes — how many there are, and where they came from;
+ * `Hub::probe<image::ImageProbe>()` answers what they MEAN, through the
+ * prober SigilImage registers: the format, the dimensions and the frame
+ * count. The readout at the foot is that pair beside what the decode
+ * actually produced.
+ *
+ * THE SUBJECT IS THE REAL FILE. `fastbreak.gif` is the one thing that
+ * ever moved on the 1996 Space Jam site, fetched here over https through
+ * SigilIO's own cache; `sketch::requireCached` is the availability
+ * door, so a machine that has fetched it once renders this sheet forever
+ * after and offline, and one that never has stands the sketch down by
+ * name rather than drawing a stand-in under it.
+ *
+ * EDIT THESE FIRST
+ *   kSource  — the animated file. Any format the codecs carry.
+ *   kSamples — the moments the lower shelf reads frameAt at, ms.
+ *   kScale   — how many sheet pixels one source pixel covers.
+ */
+
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkSamplingOptions.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Specimen.h>
+#include <sigilimage/asset/ImageAsset.h>
+#include <sigilio/hub/Hub.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
+#include <sigilweave/style/Type.h>
+
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
+namespace image = sigil::image;
+namespace io = sigil::io;
+
+using namespace sigil::compose;
+using sigil::compose::toU8;
+
+namespace {
+
+constexpr const char* kSource =
+    "https://www.spacejam.com/1996/img/fastbreak.gif";
+constexpr SkSize kCanvas = {1120, 560};
+constexpr float kScale = 3.0f;  // sheet pixels per source pixel
+/** The moments the lower shelf reads. The file's own loop is 600 ms, so
+ *  these run across two of them and the frames come round again. */
+constexpr double kSamples[] = {0, 150, 320, 480, 640, 900, 1150, 1420};
+
+constexpr SkColor4f kCellGround{0.12f, 0.12f, 0.14f, 1};
+
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 11, .track = 0.3f};
+  look.type.captionLabel = {.size = 11, .track = 0.4f};
+  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
+  look.spacing.captionGap = 6;
+  return look;
+}
+
+weave::TextStyle label(float size, SkColor4f color, float track = 0) {
+  return weave::textStyle({.size = size, .color = color, .track = track});
+}
+
+/** One frame, drawn at kScale with the texels kept hard: this file is
+ *  forty pixels across and a smooth resample would invent everything the
+ *  sheet is about. */
+Element cell(std::string key, sk_sp<SkImage> frame, float w, float h,
+             const char* call, std::string note) {
+  return sketch::kit::caption(
+      0, toU8(call), toU8(note),
+      custom(std::move(key),
+             [frame, w, h](SkCanvas& canvas, const PaintContext&) {
+               if (!frame) return;
+               SkPaint paint;
+               canvas.drawImageRect(frame, SkRect::MakeWH(w, h),
+                                    SkSamplingOptions(SkFilterMode::kNearest),
+                                    &paint);
+             })
+          .width(w)
+          .height(h)
+          .fill(Fill::color(kCellGround)));
+}
+
+}  // namespace
+
+struct GifFrames final : sketch::Sketch {
+  /** WHAT THIS MACHINE MUST HAVE. The sheet is about one real file, and a
+   *  cold cache would render a different picture under the same name. */
+  static bool available(std::string* why) {
+    return sketch::requireCached({kSource}, why);
+  }
+
+  void setup(sketch::SketchContext& ctx) override {
+    const sketch::kit::Provide look(sheetTheme());
+    // every frame is on the sheet; nothing moves
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+
+    io::Hub& hub = ctx.assets.hub();
+    const std::optional<io::ResourceInfo> bytes = hub.probe(kSource);
+    const std::optional<image::ImageProbe> meaning =
+        hub.probe<image::ImageProbe>(kSource);
+    const std::shared_ptr<const image::ImageAsset> gif = hub.image(kSource);
+
+    ctx.composer.render(gif ? sheet(*gif, bytes, meaning) : missing());
+  }
+
+  /** The shelf of decoded frames, in file order, each with its own
+   *  duration. */
+  Element decoded(const image::ImageAsset& gif) const {
+    const float w = (float)gif.width() * kScale;
+    const float h = (float)gif.height() * kScale;
+    kit::Cells shelf{.gap = 12};
+    for (size_t i = 0; i < gif.frames().size(); ++i)
+      shelf.cells.push_back(cell(
+          "frame" + std::to_string(i), gif.frames()[i].image, w, h, "frames()",
+          kit::formatted("%.0f ms", (double)gif.frames()[i].durationMs)));
+    return kit::cells(std::move(shelf));
+  }
+
+  /** The shelf of PLAYBACK: one moment per cell, read back through the
+   *  loop. */
+  Element sampled(const image::ImageAsset& gif) const {
+    const float w = (float)gif.width() * kScale;
+    const float h = (float)gif.height() * kScale;
+    kit::Cells shelf{.gap = 12};
+    for (double at : kSamples)
+      shelf.cells.push_back(cell("at" + std::to_string((int)at),
+                                 gif.frameAt(at).image, w, h, "frameAt(ms)",
+                                 kit::formatted("%.0f ms", at)));
+    return kit::cells(std::move(shelf));
+  }
+
+  Element sheet(const image::ImageAsset& gif,
+                const std::optional<io::ResourceInfo>& bytes,
+                const std::optional<image::ImageProbe>& meaning) const {
+    std::string foot = "Hub::probe() \xe2\x80\x94 ";
+    if (meaning && bytes)
+      foot += meaning->format + ", " + std::to_string(bytes->byteSize) +
+              " bytes, " + std::to_string(meaning->width) + "\xc3\x97" +
+              std::to_string(meaning->height) + ", " +
+              std::to_string(meaning->frames) +
+              " frames, no pixels "
+              "decoded";
+    else
+      foot += "nothing (the hub could not sniff this resource)";
+    foot += "   \xc2\xb7   decoded \xe2\x80\x94 " +
+            std::to_string(gif.frames().size()) + " frames, " +
+            kit::formatted("%.0f ms", (double)gif.totalDurationMs()) +
+            " a loop, " +
+            (gif.repetitionCount() == image::ImageAsset::kInfinite
+                 ? std::string("repeating forever")
+                 : std::to_string(gif.repetitionCount()) + " repetitions");
+
+    return sketch::kit::page(
+        {.title = toU8("ANIMATED FRAMES \xc2\xb7 ImageAsset::frames() "
+                       "+ frameAt(ms)"),
+         .subtitle = toU8(std::string("dials \xc2\xb7 the file (") + kSource +
+                          ") \xc2\xb7 the moments the lower "
+                          "shelf reads"),
+         .footer = toU8(foot)},
+        kit::cells(
+            {.cells = {kit::cell(header(), toU8("DECODED"),
+                                 toU8("every frame, composited "
+                                      "at decode \xe2\x80\x94 "
+                                      "drawing one never needs "
+                                      "the one before it"),
+                                 decoded(gif)),
+                       kit::cell(header(), toU8("PLAYED"),
+                                 toU8("frameAt looks the moment "
+                                      "up in the durations and "
+                                      "loops past the last one"),
+                                 sampled(gif))},
+             .column = true,
+             .gap = 26,
+             .divider = Fill::color(sketch::kit::theme().palette.rule)}));
+  }
+
+  /** The voice the two shelves are titled in — a heading over the run
+   *  rather than a caption under a picture. */
+  static kit::Caption header() {
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
+    return {.where = kit::Caption::Where::Above,
+            .label = label(11.5f, sheet.palette.ink, 2.0f),
+            .note = label(10.5f, sheet.palette.ash, 0.2f),
+            .gap = 12,
+            .noteGap = 5};
+  }
+
+  /** What stands here when the file decoded to nothing. The availability
+   *  probe keeps a sweep away from this; the app opens whatever is
+   *  selected, so it is drawn rather than left blank. */
+  static Element missing() {
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
+    return box()
+        .absolute()
+        .inset(0)
+        .fill(Fill::color(sheet.palette.ground))
+        .column()
+        .gap(10)
+        .padding(40)
+        .child(text(toU8("no animated document here"),
+                    label(20, sheet.palette.ink)))
+        .child(text(toU8(std::string(kSource) +
+                         " did not decode: the hub reached neither the "
+                         "network nor a cached copy of it"),
+                    label(12, sheet.palette.ash))
+                   .width(Dim(620.0f)));
+  }
+};
+
+SIGIL_SKETCH(GifFrames, "Kit \xc2\xb7 API",
+             "every frame of a real GIF beside the moments frameAt reads "
+             "them back at, with the probe that never decoded a pixel")

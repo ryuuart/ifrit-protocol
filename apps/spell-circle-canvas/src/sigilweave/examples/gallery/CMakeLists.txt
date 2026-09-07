@@ -1,7 +1,11 @@
 # WeaveGallery — a standalone Qt Quick executable that exercises the
 # SigilWeave engine interactively: scene switcher, live text editing, font and
-# style controls. Its QQuickRhiItem renderer supports a Skia CPU raster path
-# everywhere and adds the shared Metal/Graphite plumbing when enabled.
+# style controls. Its QQuickRhiItem renderer draws through the shared
+# Metal/Graphite plumbing, with a Skia CPU raster path beside it.
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 GuiPrivate)
+qt_standard_project_setup(REQUIRES 6.11)
+find_package(boost_container CONFIG REQUIRED)
+
 qt_add_executable(WeaveGallery
   src/gallery_main.cpp
 )
@@ -41,6 +45,8 @@ qt_add_qml_module(WeaveGallery
     qml/SceneParameterControl.qml
     qml/EffectsControls.qml
   SOURCES
+    src/GalleryFallback.cpp src/GalleryFallback.h
+    src/GalleryRenderer.cpp src/GalleryRenderer.h
     src/GalleryView.cpp include/GalleryView.h
     include/GalleryScenes.h
     src/SceneRegistry.cpp include/SceneRegistry.h
@@ -62,7 +68,8 @@ qt_add_qml_module(WeaveGallery
     src/scenes/OverflowScene.cpp
 )
 
-target_include_directories(WeaveGallery PRIVATE include)
+target_include_directories(WeaveGallery PRIVATE include
+                                                 ${CMAKE_CURRENT_LIST_DIR}/../shared)
 
 target_link_libraries(WeaveGallery
   PRIVATE
@@ -71,15 +78,17 @@ target_link_libraries(WeaveGallery
     Qt6::GuiPrivate # QRhi API (rhi/qrhi.h) used by the QQuickRhiItem renderer
     SigilWeave   # the whole engine: layout, choreography, the label cache
     SigilWeaveQt # QFont/QString bridging
-    SigilWeaveKit # rebuild/layout guards, glyph buckets, labels (kit/README.md)
-    SigilWeaveShaders # PaintShaders presets used by the effect scenes
+    SigilWeaveKit # rebuild/layout guards, glyph buckets, labels
+    SigilMaterialKit  # the text-paint presets the effect scenes shade
+    SigilMaterialSkia # and the Skia backend that shades them
     SigilWeavePorts # systemFontManager()
+    SigilMeasure # the stopwatch each scene times its layout with
+    SigilCoreCache # the rebuild guard each scene keys its derived values on
+    Boost::container
 )
 
-# The Graphite GPU path reuses the generic Skia/Metal plumbing under
-# src/common/skia (SigilSkia); without it
-# the gallery still runs on Skia's CPU raster backend with a texture upload.
-if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  target_link_libraries(WeaveGallery PRIVATE SigilSkiaQt)
-  target_compile_definitions(WeaveGallery PRIVATE TEXTFLOW_GALLERY_GPU)
-endif()
+# The Graphite GPU path draws through the shared Skia/Metal plumbing under
+# src/common/skia; the CPU raster path with a texture upload stands beside
+# it.
+target_link_libraries(WeaveGallery PRIVATE SigilSkiaQt)
+target_compile_definitions(WeaveGallery PRIVATE TEXTFLOW_GALLERY_GPU)

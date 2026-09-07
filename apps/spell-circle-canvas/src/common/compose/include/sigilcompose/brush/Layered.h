@@ -12,7 +12,6 @@
 #include <include/core/SkPicture.h>
 #include <sigilcompose/brush/Decorations.h>  // PathSample
 #include <sigilcompose/brush/Lines.h>        // lines::displace (the wave op)
-#include <sigilcompose/shape/Shapes.h>
 
 #include <any>
 #include <functional>
@@ -43,6 +42,15 @@ struct LayeredBrush {
 
   bool operator==(const LayeredBrush&) const = default;
 
+  /** An additive or otherwise blended pass reads the picture under the
+   *  outline, which is what an additive halo is FOR — and what stops the
+   *  node being baked into a layer of its own. */
+  bool blends() const {
+    for (const StrokeLayer& layer : layers)
+      if (layer.blend != SkBlendMode::kSrcOver) return true;
+    return false;
+  }
+
   /** Extra paint reach past the outline, so a cached recording's cull does
    *  not truncate the halo — the point of an additive stack is that it
    *  paints WIDE of the path, and a node culling at its own bounds loses
@@ -70,7 +78,7 @@ struct LayeredBrush {
 };
 
 // Ready-made stroke stacks — an additive filament glow, circuit traces, a
-// counter-dashed rope — are `kit::brush::presets::`, in
+// counter-dashed rope — are `brush::presets::`, in
 // <sigilcompose/kit/Strokes.h>. They are compositions of the values here
 // and need nothing this header does not already expose.
 

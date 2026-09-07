@@ -1,20 +1,21 @@
 #pragma once
 
 /** @file
- * The KIT's stroke-grammar values: shapers, profiles, strand sets, spans
- * and shapes, under the concept scopes they belong to.
+ * The KIT's stroke-grammar values, each under the catalog it is a member
+ * of: `lines::presets::`, finished lines, rails and hatches;
+ * `kit::braid`, a strand set; `spans::brackets`, a span composition
+ * standing beside the kernel's own span terms; and `brush::presets::`,
+ * finished brushes with craft names.
  *
  * **This header is NOT reached by `sigilcompose/kit/Kit.h`.** The umbrella
  * include does not pull it in, so none of the names below exist unless you
  * include this file directly.
  *
  * These are VALUES, not machinery: each is a peer of something a caller
- * could write against the same public seam. That is enforced by the build
- * rather than by convention — the kit is its own CMake library whose only
- * include path is SigilCompose's public headers, so nothing here can reach
- * a library internal even by accident.
+ * could write against the same public seam, and every one of them is
+ * spelled over SigilCompose's public headers alone.
  *
- * PRESETS live at the bottom, under `kit::brush::presets::`, and they are a
+ * PRESETS live at the bottom, under `brush::presets::`, and they are a
  * different KIND from everything above them: a shaper is a word of
  * vocabulary, a preset is a finished drawing with a craft name. They are
  * scoped apart so the difference is visible at the call site. A preset
@@ -22,232 +23,174 @@
  * plain compositions instead.
  */
 
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkStrokeRec.h>
-#include <include/effects/SkCornerPathEffect.h>
-#include <include/effects/SkDiscretePathEffect.h>
+#include <include/core/SkBlendMode.h>
+#include <include/core/SkColor.h>
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Derive.h>
+#include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/core/Stroke.h>
-#include <sigilcompose/shape/Routers.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilgeometry/kit/Shapers.h>
+#include <sigilmaterial/skia/Paint.h>
 
-#include <cmath>
+#include <algorithm>
 #include <vector>
 
-#include "sigilgeometry/path/Contour.h"
-
-namespace sigil::compose::kit {
+namespace sigil::compose {
 
 // ---------------------------------------------------------------------------
-// kit::brush::shapers — stock values for the ONE geometry seam
+// lines::presets — FINISHED LINES, RAILS AND HATCHES
 //
-// A shaper bends the one continuous mark. Each of these is a comparable
-// struct with the seam's required `shape()` member; user-written shapers
-// are indistinguishable from them at the call site, which is the point.
+// Each is a value of the line tier with its constants chosen: a casing
+// pair, a weighted triple, an arrowhead, a railway's ties, a squiggle,
+// four parallel rules, a lattice at forty-five degrees, a fan out of a
+// point. Everything they set, a caller could set on the same value, which
+// is what makes them stock and puts them a namespace apart from the
+// vocabulary they are written in.
 
-namespace brush {
-namespace shapers {
+namespace lines::presets {
 
-/** A smooth oscillation across the mark — the wave every wavy rule,
- *  scalloped frame and ribbon edge is made of. Also the BRAID primitive:
- *  strands that oscillate trade sides, and where they trade sides they
- *  cross (see strands::braid).
- *
- *  **As a PROFILE it is ZERO-MEAN**, which makes it a CENTRELINE — a strand
- *  path that swings either side of the boundary. It is NOT a band width: a
- *  band asks its profile for a width and this one goes negative half the
- *  time, which inverts the rails wherever it does. An undulating band is
- *  the composition — a positive offset PLUS an oscillation:
- *
- *      struct Undulating {                     // width 20, wobbling by 6
- *        kit::brush::shapers::Wave wobble{6, 40};
- *        bool operator==(const Undulating &) const = default;
- *        float max() const { return 20.0f + wobble.max(); }
- *        float across(float along) const { return 20.0f + wobble.across(along);
- * }
- *      };
- *      band(spine, across(Profile(Undulating{}))).centered();
- *
- *  `wavelength` is PX, and the profile seam is asked in FRACTIONS of arc
- *  length. There is no contour length available at that seam to convert
- *  with, so the PROFILE reading treats `wavelength` as px-per-cycle on a
- *  nominal 1000 px contour: on a spine much shorter or much longer than
- *  that, the wavelength you get is not the one you asked for. That is also
- *  why `strands::braid` takes its own phase count instead of deriving one.
- *  The SHAPER reading (`shape()`) has a real path and is exact.
- *
- *  The third member is `phase`, not a zigzag flag — the cornered
- *  oscillation is `Zigzag` below, a separate value. */
-struct Wave {
-  float amplitude = 4.0f, wavelength = 24.0f, phase = 0.0f;
-  bool operator==(const Wave&) const = default;
-  float bleed() const { return std::abs(amplitude); }
-  float max() const { return std::abs(amplitude); }
-  /** As a PROFILE: the same value read as a width across a spine, which
-   *  is what makes a braid strand and a wavy band one vocabulary. */
-  float across(float along) const {
-    return amplitude * std::sin(2.0f * 3.14159265f *
-                                (along / wavelengthFraction() + phase));
-  }
-  /** As a SHAPER: displace the path itself. */
-  SkPath shape(const SkPath& p) const {
-    return geometry::path::displace(p, amplitude, wavelength, false);
-  }
-
- private:
-  /** See the note on the struct: px per cycle on a nominal 1000 px contour. */
-  float wavelengthFraction() const {
-    return wavelength > 0 ? wavelength / 1000.0f : 0.024f;
-  }
-};
-
-/** A hand-drawn wobble: the mark resampled into short segments, each
- *  pushed off true by a seeded amount (the rough.js line).
- *
- *  ONE pass of SkDiscretePathEffect. The sketchy double-line those tools
- *  draw is TWO passes — full and half deviation at different seeds — so it
- *  is two brush layers or two restyles here, never one call. */
-struct Jitter {
-  float segLength = 8.0f, deviation = 2.0f;
-  uint32_t seed = 7;
-  bool operator==(const Jitter&) const = default;
-  float bleed() const { return deviation * 2.0f; }
-  SkPath shape(const SkPath& p) const {
-    SkPathBuilder out;
-    // HAIRLINE rec is required: under a fill rec SkDiscretePathEffect
-    // force-CLOSES open contours, so an open mark gains a return chord
-    // from its end back to its start — which then jitters away from the
-    // real run and draws as a second, phantom line.
-    SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
-    if (sk_sp<SkPathEffect> fx =
-            SkDiscretePathEffect::Make(segLength, deviation, seed);
-        fx && fx->filterPath(&out, p, &rec))
-      return out.detach();
-    return p;
-  }
-};
-
-/** A parallel displacement — the rail. Parallels never cross, which is
- *  why `layers` plus this is the double or triple line and a braid needs
- *  Wave instead.
- *
- *  **Positive is LEFT of travel.** That is the library-wide sign
- *  convention for an across-the-path offset, and it agrees exactly with
- *  `strand::offset(px)`; anything added here must match it, because a
- *  disagreement mirrors a drawing rather than erroring. */
-struct Offset {
-  float px = 0.0f;
-  float step = 4.0f;
-  bool operator==(const Offset&) const = default;
-  float bleed() const { return std::abs(px); }
-  SkPath shape(const SkPath& p) const {
-    return geometry::path::parallel(p, px, step);
-  }
-};
-
-/** ROUND EVERY CORNER of the mark (SkCornerPathEffect). Not
- *  `shapes::rounded()`, which rounds an OUTLINE GENERATOR's result: this
- *  rounds whatever path the brush pipeline is carrying, so it softens a
- *  displaced zigzag or an offset rail, not just a silhouette. */
-struct Rounded {
-  float radius = 6.0f;
-  bool operator==(const Rounded&) const = default;
-  SkPath shape(const SkPath& p) const {
-    SkPathBuilder out;
-    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
-    if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
-        fx && fx->filterPath(&out, p, &rec))
-      return out.detach();
-    return p;
-  }
-};
-
-/** CUT EVERY CORNER of the mark at 45° (`routers::chamfer`) — Rounded's
- *  machined sibling, and the treatment SkCornerPathEffect cannot give you
- *  because it only rounds. Not `shapes::chamfered()`, which cuts an
- *  OUTLINE GENERATOR's box: this cuts whatever polyline the brush pipeline
- *  is carrying — a routed wire, a displaced zigzag, an offset rail.
- *
- *  A contour containing any curve segment passes through COMPLETELY
- *  UNTOUCHED, so this is a silent no-op over a curved mark. */
-struct Chamfer {
-  float cut = 6.0f;
-  bool operator==(const Chamfer&) const = default;
-  SkPath shape(const SkPath& p) const { return routers::chamfer(p, cut); }
-};
-
-/** THE BOXY DISPLACEMENT: a square wave across the mark — battlements,
- *  the Greek meander key, a stepped circuit trace. Wave's sibling; it has
- *  no profile reading, only a shaper one. */
-struct Square {
-  float amplitude = 5.0f, wavelength = 32.0f;
-  bool operator==(const Square&) const = default;
-  float bleed() const { return std::abs(amplitude); }
-  SkPath shape(const SkPath& p) const {
-    return lines::displaceSquare(p, amplitude, wavelength);
-  }
-};
-
-/** THE SAME OSCILLATION WITH CORNERS: `Wave` sampled as straight runs
- *  between its extremes rather than a curve — the drawn zigzag, the
- *  saw edge, the seismograph line.
- *
- *  Its own value rather than a `zigzag` flag on `Wave`, because `Wave` is
- *  ALSO read as a profile through `across()`, and a flag the profile
- *  reading had to ignore would be a silent asymmetry between the two
- *  readings of one value. */
-struct Zigzag {
-  float amplitude = 4.0f, wavelength = 24.0f;
-  bool operator==(const Zigzag&) const = default;
-  float bleed() const { return std::abs(amplitude); }
-  SkPath shape(const SkPath& p) const {
-    return geometry::path::displace(p, amplitude, wavelength, true);
-  }
-};
-
-inline Wave wave(float amplitude, float wavelength, float phase = 0.0f) {
-  return Wave{amplitude, wavelength, phase};
+/** The transit pair: two rails following the route. */
+inline Line cased(float width, Fill fill, float gap = 5.0f) {
+  Line l;
+  l.width = width;
+  l.fill = std::move(fill);
+  l.parallels = 2;
+  l.gap = gap;
+  return l;
 }
-inline Zigzag zigzag(float amplitude = 4.0f, float wavelength = 24.0f) {
-  return Zigzag{amplitude, wavelength};
-}
-inline Rounded rounded(float radius = 6.0f) { return Rounded{radius}; }
-inline Chamfer chamfered(float cut = 6.0f) { return Chamfer{cut}; }
-inline Square square(float amplitude = 5.0f, float wavelength = 32.0f) {
-  return Square{amplitude, wavelength};
-}
-inline Jitter jitter(float segLength = 8.0f, float deviation = 2.0f,
-                     uint32_t seed = 7) {
-  return Jitter{segLength, deviation, seed};
-}
-inline Offset offset(float px, float step = 4.0f) { return Offset{px, step}; }
 
-}  // namespace shapers
-}  // namespace brush
+/** Triple rail with a weighted spine (bold center, light outriders). */
+inline Line triple(float width, Fill fill, float gap = 5.0f,
+                   float coreFactor = 1.8f) {
+  Line l;
+  l.width = width;
+  l.fill = std::move(fill);
+  l.parallels = 3;
+  l.gap = gap;
+  l.coreWidthFactor = coreFactor;
+  return l;
+}
+
+/** Directed edge: plain body, filled arrowhead at the end. */
+inline Line arrow(float width, Fill fill, float headSize = 10.0f) {
+  Line l;
+  l.width = width;
+  l.fill = std::move(fill);
+  l.endCap = Cap::Arrow;
+  l.capSize = headSize;
+  return l;
+}
+
+/** Railway: body + perpendicular ties. */
+inline Line railway(float width, Fill fill, float tieSpacing = 12.0f,
+                    float tieLength = 10.0f) {
+  Line l;
+  l.width = width;
+  l.fill = std::move(fill);
+  l.tickSpacing = tieSpacing;
+  l.tickLength = tieLength;
+  return l;
+}
+
+/** The squiggle (sine) — set `zigzag` on the returned value for vertices. */
+inline Line wavy(float width, Fill fill, float amplitude = 4.0f,
+                 float wavelength = 18.0f) {
+  Line l;
+  l.width = width;
+  l.fill = std::move(fill);
+  l.waveAmplitude = amplitude;
+  l.waveLength = wavelength;
+  return l;
+}
+
+/** N identical rails, symmetric about the route — the general form of
+ *  `Line::parallels`, where 2 is `cased` and 3 is `triple` with a flat
+ *  spine. `gap` is centre-to-centre between neighbours. */
+inline lines::Rails rails(int count, float width, const Fill& fill,
+                          float gap = 5.0f) {
+  lines::Rails r;
+  const int n = std::max(count, 1);
+  for (int i = 0; i < n; ++i)
+    r.rails.push_back(
+        lines::Rail{.across = gap * ((float)i - (float)(n - 1) * 0.5f),
+                    .width = width,
+                    .fill = fill});
+  return r;
+}
+
+/** The four-rail rule, symmetric — `rails(4, …)` under a name that shows
+ *  up in a completion list. */
+inline lines::Rails quad(float width, const Fill& fill, float gap = 4.0f) {
+  return rails(4, width, fill, gap);
+}
+
+/** A parallel lattice at one fixed angle. */
+inline Hatch hatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
+                   float angleDeg = 45.0f) {
+  Hatch h;
+  h.strokeFill = std::move(fill);
+  h.spacing = spacing;
+  h.width = width;
+  h.angleDeg = angleDeg;
+  return h;
+}
+
+/** …and the same lattice crossed with its perpendicular. */
+inline Hatch crosshatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
+                        float angleDeg = 45.0f) {
+  Hatch h = hatch(std::move(fill), spacing, width, angleDeg);
+  h.cross = true;
+  return h;
+}
+
+/** Rules that fan out of a point, `spokes` of them. */
+inline RadialHatch radialHatch(Fill fill, int spokes = 48, float width = 1.2f,
+                               SkPoint centre = {0.5f, 0.5f}) {
+  RadialHatch h;
+  h.strokeFill = std::move(fill);
+  h.spokes = spokes;
+  h.width = width;
+  h.centre = centre;
+  return h;
+}
+
+/** The other half of the pair: rings only, no spokes. */
+inline RadialHatch concentric(Fill fill, int rings = 12, float width = 1.2f,
+                              SkPoint centre = {0.5f, 0.5f}) {
+  RadialHatch h;
+  h.strokeFill = std::move(fill);
+  h.spokes = 0;
+  h.rings = rings;
+  h.width = width;
+  h.centre = centre;
+  return h;
+}
+
+/** Rings at STATED radii, px from the centre — `concentric(ink, {60, 64})`
+ *  is a two-circle band exactly where it says. The evenly-spaced form
+ *  above runs out to the bounding box's half-diagonal, which on a circular
+ *  node clips its outermost ring away. */
+inline RadialHatch concentric(Fill fill, std::vector<float> radiiPx,
+                              float width = 1.2f,
+                              SkPoint centre = {0.5f, 0.5f}) {
+  RadialHatch h;
+  h.strokeFill = std::move(fill);
+  h.spokes = 0;
+  h.rings = 0;
+  h.radiiPx = std::move(radiiPx);
+  h.width = width;
+  h.centre = centre;
+  return h;
+}
+
+}  // namespace lines::presets
 
 // ---------------------------------------------------------------------------
-// kit::profile — the oscillating profile
+// kit::braid — a strand SET
 
-namespace profile {
-/** The wave as a PROFILE value (`across`/`max`): a strand that trades
- *  sides. The library itself ships only `strand::self()` and
- *  `strand::offset()`; everything that oscillates lives here.
- *
- *  ZERO-MEAN, so this is a strand CENTRELINE and not a band width — as a
- *  width it goes negative half the time and inverts the band's rails. See
- *  `brush::shapers::Wave` for the composition an undulating band wants
- *  instead. */
-inline Profile wave(float amplitude, float wavelength, float phase = 0.0f) {
-  return Profile(brush::shapers::Wave{amplitude, wavelength, phase});
-}
-}  // namespace profile
-
-// ---------------------------------------------------------------------------
-// kit::strands — strand SETS
-
-namespace strands {
+namespace kit {
 
 /** A BRAID: `n` wave strands at phase k/n, all sharing one brush.
  *
@@ -260,60 +203,84 @@ namespace strands {
  *  Pair it with a crossing rule to say who passes over whom:
  *  `crossing::alternate()` for a plain weave, `crossing::pairs(...)` with
  *  a cycle for an impossible braid. */
-inline std::vector<sigil::compose::brush::Strand> braid(int n, float amplitude,
-                                                        float wavelength,
-                                                        const Decoration& ink) {
-  // Fully qualified on purpose. Inside `sigil::compose::kit`, an
-  // unqualified `brush::` resolves to kit::brush — the shapers scope
-  // above — and NOT to the library's own brush namespace, so any name
-  // from the latter has to be spelled out in full here. The parameter is
-  // named `ink` rather than `brush` for the same reason.
-  std::vector<sigil::compose::brush::Strand> out;
+inline std::vector<brush::Strand> braid(int n, float amplitude,
+                                        float wavelength,
+                                        const Decoration& ink) {
+  std::vector<brush::Strand> out;
   const int count = std::max(1, n);
   out.reserve((size_t)count);
   for (int k = 0; k < count; ++k)
-    out.push_back(sigil::compose::brush::Strand{
-        profile::wave(amplitude, wavelength, (float)k / (float)count), ink});
+    out.push_back(
+        brush::Strand{geometry::path::Profile(geometry::shapers::wave(
+                          amplitude, wavelength, (float)k / (float)count)),
+                      ink});
   return out;
 }
 
-}  // namespace strands
+/** THE ENGRAVED GROOVE across a circle's stroke, as the ramp it is
+ *  painted with: a radial ramp centred on the circle's own centre, dark
+ *  on the inner wall and lit on the outer, so the mark reads as a cut
+ *  with a shadowed wall and a lit wall — a CROSS-SECTION, which is the
+ *  one paint a stroke's own colour cannot carry. It is constant along the
+ *  groove and varies across it for one reason: the ramp is concentric
+ *  with the circle. On any path that is not a circle about the ramp's
+ *  centre the trick falls apart.
+ *
+ *  NODE-LOCAL, in px: the centre is `{radius, radius}`, which is where
+ *  `kit::disc(centre, radius)` puts the circle in its box, so the ramp is
+ *  right on a disc and on nothing else. `shoulder` is how much of the
+ *  width the two walls take to meet, as a fraction of it — 0 a hard step
+ *  at the floor, 0.5 a ramp the whole width across. The tones carry their
+ *  own alpha, which is what sets how deep the cut reads over the surface
+ *  beneath. A comparable paint, so a plate of seventy grooves prunes;
+ *  `toFill` turns it into the `Fill` a `lines::Rail` takes. */
+inline material::skia::Paint grooveRamp(float radius, float width,
+                                        SkColor4f dark, SkColor4f lite,
+                                        float shoulder = 0.22f) {
+  const float reach = radius + width;
+  const float inner = (radius - width * 0.5f) / reach;
+  const float outer = (radius + width * 0.5f) / reach;
+  const float mid = (inner + outer) * 0.5f;
+  const float half = (outer - inner) * std::clamp(shoulder, 0.0f, 0.5f);
+  return material::skia::Paint::radial(
+      {radius, radius}, reach,
+      {{0.0f, dark}, {mid - half, dark}, {mid + half, lite}, {1.0f, lite}});
+}
+
+/** The groove as the stroke a disc's outline wears: @p width px centred
+ *  on the outline, painted with `grooveRamp`. */
+inline PathFormat groove(float radius, float width, SkColor4f dark,
+                         SkColor4f lite, float shoulder = 0.22f) {
+  PathFormat cut;
+  cut.width = width;
+  cut.strokeMaterial = grooveRamp(radius, width, dark, lite, shoulder);
+  return cut;
+}
+
+}  // namespace kit
 
 // ---------------------------------------------------------------------------
-// kit::spans — span values
+// spans::brackets — a span composition, beside the kernel's own terms
 
 namespace spans {
 /** The reticle: a window of `arm` px at every corner and nothing else.
  *  A composition of existing span terms rather than a new kind — `Spans`
  *  is a closed value, so a kit span can only ever be a composition. */
 inline Spans brackets(float arm = 18.0f, float angleDeg = 30.0f) {
-  return sigil::compose::spans::corners(arm, angleDeg);
+  return corners(arm, angleDeg);
 }
 }  // namespace spans
 
 // ---------------------------------------------------------------------------
-// kit::shapes — silhouette values
-
-namespace shapes {
-/** A RING: the area between two concentric circles, under the plain name.
- *  Returns the annulus value itself, so it is comparable and a ring node
- *  prunes like any other shaped node. */
-inline sigil::compose::shapes::Annulus ring(float innerRatio = 0.6f) {
-  return sigil::compose::shapes::annulus(innerRatio);
-}
-}  // namespace shapes
-
-// ---------------------------------------------------------------------------
-// kit::brush::presets — finished compositions with craft names
+// brush::presets — finished compositions with craft names
 //
 // Peers of the shapers in MECHANICS — free functions over the public API,
 // nothing reaching inside — and not peers of them in kind: a shaper is
 // vocabulary, a preset is a finished drawing. They are scoped apart so the
-// difference is visible at every call site: `kit::brush::shapers::wave` is
-// a word, `kit::brush::presets::rope` is a picture.
+// difference is visible at every call site: `geometry::shapers::wave` is
+// a word, `brush::presets::rope` is a picture.
 
-namespace brush {
-namespace presets {
+namespace brush::presets {
 
 /** An organic glowing filament: four strokes bottom-up — wide additive
  *  glow, mid glow, bright core, white centre. `scale` sets the envelope;
@@ -409,7 +376,89 @@ inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
   }};
 }
 
-}  // namespace presets
-}  // namespace brush
+/** The cartographic railway: a dark line under a white dash overlay at
+ *  about a third of its width, on a 50% duty cycle — the map convention,
+ *  which uses no ties at all. Two decorations as one LayerStyle, so attach
+ *  with `Element::style()`. */
+inline LayerStyle railwayCarto(float scale = 1.0f,
+                               SkColor4f dark = {0.439f, 0.439f, 0.439f, 1},
+                               SkColor4f light = {1, 1, 1, 1}) {
+  lines::Line base;
+  base.width = 3.0f * scale;
+  base.fill = Fill::color(dark);
+  lines::Line dashes;
+  dashes.width = 1.0f * scale;
+  dashes.fill = Fill::color(light);
+  dashes.dashIntervals = {8.0f * scale, 8.0f * scale};
+  return LayerStyle{{}, {Decoration(base), Decoration(dashes)}};
+}
 
-}  // namespace sigil::compose::kit
+/** The engraver's asymmetric parallel rule: HEAVY / hair / HEAVY — the
+ *  commonest printed rule after the plain one. */
+inline lines::Rails heavyHairHeavy(float heavy, float hair, const Fill& fill,
+                                   float gap = 5.0f) {
+  return lines::rails({{.across = -gap, .width = heavy, .fill = fill},
+                       {.across = 0, .width = hair, .fill = fill},
+                       {.across = gap, .width = heavy, .fill = fill}});
+}
+
+/** Solid casing with a DOTTED core — the map convention for a road under
+ *  construction, a proposed route, a disused rail. `dotGap` is the spacing
+ *  of the core's dots; the casing stays continuous. */
+inline lines::Rails dottedCore(float outer, float core, const Fill& fill,
+                               float gap = 5.0f, float dotGap = 6.0f) {
+  return lines::rails({{.across = -gap, .width = outer, .fill = fill},
+                       {.across = 0,
+                        .width = core,
+                        .fill = fill,
+                        .dash = {0.01f, dotGap},
+                        .cap = SkPaint::kRound_Cap},
+                       {.across = gap, .width = outer, .fill = fill}});
+}
+
+/** Linear taper (comet body, ink pull-away). */
+inline brush::Ribbon taper(float widthStart, float widthEnd, Fill fill) {
+  brush::Ribbon r;
+  r.widthStart = widthStart;
+  r.widthEnd = widthEnd;
+  r.fill = std::move(fill);
+  return r;
+}
+
+/** …painted by a recipe, which is the same taper with `fillMaterial`
+ *  set: a band is a surface, and a surface a material can dress. */
+inline brush::Ribbon taper(float widthStart, float widthEnd,
+                           material::skia::Paint paint) {
+  brush::Ribbon r;
+  r.widthStart = widthStart;
+  r.widthEnd = widthEnd;
+  r.fillMaterial = std::move(paint);
+  return r;
+}
+
+/** The calligraphic nib: full width perpendicular to `nibAngleDeg`,
+ *  `contrast` fraction when the path runs along the nib. */
+inline brush::Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
+                                  float contrast = 0.15f) {
+  brush::Ribbon r;
+  r.widthStart = width;
+  r.nibAngleDeg = nibAngleDeg;
+  r.nibContrast = contrast;
+  r.fill = std::move(fill);
+  return r;
+}
+
+inline brush::Ribbon calligraphic(float nibAngleDeg, float width,
+                                  material::skia::Paint paint,
+                                  float contrast = 0.15f) {
+  brush::Ribbon r;
+  r.widthStart = width;
+  r.nibAngleDeg = nibAngleDeg;
+  r.nibContrast = contrast;
+  r.fillMaterial = std::move(paint);
+  return r;
+}
+
+}  // namespace brush::presets
+
+}  // namespace sigil::compose

@@ -13,6 +13,23 @@ constexpr FrameInput kFrameInputs[] = {FrameInput::Time, FrameInput::Resolution,
                                        FrameInput::ContentScale,
                                        FrameInput::WorldTransform};
 
+/** Whether @p body spells @p name as a WHOLE IDENTIFIER, so a `low`
+ *  inside `lowEdge` is a different name. */
+bool spells(const std::string& body, std::string_view name) {
+  const auto part = [](char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= '0' && c <= '9') || c == '_';
+  };
+  for (size_t at = body.find(name); at != std::string::npos;
+       at = body.find(name, at + 1)) {
+    if (at > 0 && part(body[at - 1])) continue;
+    const size_t end = at + name.size();
+    if (end < body.size() && part(body[end])) continue;
+    return true;
+  }
+  return false;
+}
+
 Field frameField(FrameInput input) {
   switch (input) {
     case FrameInput::Time:
@@ -54,6 +71,7 @@ Recipe Recipe::of(std::string name, const Schema& params) {
 
 Recipe& Recipe::body(Target target, std::string source) {
   m_bodies[target] = std::move(source);
+  rescan();
   return *this;
 }
 
@@ -61,6 +79,11 @@ Recipe& Recipe::child(std::string slot) {
   for (const std::string& s : m_children)
     if (s == slot) return *this;
   m_children.push_back(std::move(slot));
+  return *this;
+}
+
+Recipe& Recipe::channelwise(std::string slot) {
+  m_channelwise = std::move(slot);
   return *this;
 }
 
@@ -86,6 +109,42 @@ const std::string* Recipe::body(Target target) const {
   return it == m_bodies.end() ? nullptr : &it->second;
 }
 
+bool Recipe::readsField(std::string_view name) const {
+  if (m_bodies.empty() || name.empty()) return true;
+  const std::vector<Field>& fields = m_params.fields;
+  for (size_t i = 0; i < fields.size() && i < m_read.size(); ++i)
+    if (fields[i].name == name) return m_read[i] != 0;
+  return spelled(name);
+}
+
+bool Recipe::readsField(const Field& field) const {
+  const std::vector<Field>& fields = m_params.fields;
+  if (m_bodies.empty()) return true;
+  if (&field >= fields.data() && &field < fields.data() + fields.size()) {
+    const size_t index = size_t(&field - fields.data());
+    if (index < m_read.size()) return m_read[index] != 0;
+  }
+  return readsField(field.name);
+}
+
+void Recipe::rescan() {
+  m_read.resize(m_params.fields.size());
+  for (size_t i = 0; i < m_params.fields.size(); ++i)
+    m_read[i] = spelled(m_params.fields[i].name) ? 1 : 0;
+}
+
+bool Recipe::spelled(std::string_view name) const {
+  for (const auto& [target, body] : m_bodies)
+    if (spells(body, name)) return true;
+  return false;
+}
+
+bool Recipe::samples(Target target, std::string_view slot) const {
+  const std::string* b = body(target);
+  if (!b || slot.empty()) return true;
+  return spells(*b, slot);
+}
+
 std::vector<Target> Recipe::targets() const {
   std::vector<Target> out;
   out.reserve(m_bodies.size());
@@ -96,6 +155,14 @@ std::vector<Target> Recipe::targets() const {
 std::string Recipe::declarations(Target target) const {
   std::string out = declare(m_layout, target);
   for (const std::string& slot : m_children) {
+    // A SLOT THIS TARGET'S BODY NEVER SAMPLES IS NOT DECLARED TO IT. A
+    // declared slot is an image sampler in the compiled program whether
+    // or not anything reads it, and a device has few — Metal binds
+    // fragment textures at sixteen indices — so a stack composed for a
+    // language handed one body per material would spend a program's
+    // whole budget on the operand slots the language that samples its
+    // operands does not use.
+    if (!samples(target, slot)) continue;
     switch (target) {
       case Target::SkSL:
         out += "uniform shader " + slot + ";\n";

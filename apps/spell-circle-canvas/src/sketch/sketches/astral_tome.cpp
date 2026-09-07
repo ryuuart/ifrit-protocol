@@ -61,9 +61,9 @@
 //     GUI x = 82.7 + one ulength of quad = 85.8, five px past the 80-wide hit
 //     box that decides whether you clicked it. The four cells are pitched 80
 //     apart with 95-wide charts in them: they interleave by 15 px, with no
-//     gutter between neighbours at all. Both are drawn here — the cell plate
-//     is the 80 x 110 hit box, the chart is the 95 x 95 render, and the
-//     difference is visible as furniture rather than asserted in a caption.
+//     gutter between neighbours at all. The canvas draws the 95 x 95 render
+//     and nothing of the hit box, exactly as the mod does; the overhang is
+//     the reason ARMARA's chart runs into VICIO's on the spread.
 //
 //  2. THE LABEL IS OFF-CENTRE, BY 7.5 GUI PX, FOREVER.  :252 is
 //         float fullLength = (width / 2) - (fr.getStringWidth(trName) / 2F);
@@ -93,8 +93,10 @@
 //     beats between two periods instead of doubling one. That is reproduced
 //     exactly here: every link is TWO sibling elements at two divisors,
 //     alpha-composited, which is the source's own construction.
-//     The one place kPlus appears on this canvas is the star cores, where it
-//     is a declared departure and is labelled as one on the plate.
+//     kPlus appears twice on this canvas and neither is the mod's: the star
+//     cores, a declared departure; and the two nebula lobes inside the page
+//     plate's own fill, where it stacks a ground the sprite's UV crop
+//     produced by overdraw.
 //
 //  5. THERE IS NO MAJOR-TIER PAGE.  getConstellationScreen() (:82) is
 //         return new GuiJournalConstellationCluster(20, "no.title",
@@ -195,12 +197,6 @@
 //     full 32 px of its cell, and the waist parameter is what draws that.
 //     Radius varies by LINK DEGREE (armara's hub has 4, discidia's leaves 1),
 //     which is real data off the link list.
-//   * the cell plates are spans::corners claims + a gapped Border on the top
-//     edge only (shapes::onEdges(Edge::Top, …)); the mod draws no cell border
-//     at all, so the plate is entirely the study's apparatus and is drawn on
-//     the 80 x 110 HIT box so you can see the chart overflow it.
-//   * the spread frame is doubleBorder + weightedCorners over a chamfered
-//     inner, and the 31-tick declination ladder runs the key cell's flanks.
 //
 // -----------------------------------------------------------------------------
 // STROKE WIDTH IS MEASURED IN LOCAL SPACE, AND A CHART PAYS FOR THAT
@@ -236,8 +232,8 @@
 // 93 live bindings. It is not, and the reason is in the source: brightness is a
 // pure function of (divisor, t), and the divisor is `12 + rand.nextInt(10)` —
 // TEN values. So the sketch allocates ten ch::Output<float> and every star and
-// every link pass binds to the one for ITS divisor. The plate, the field, the
-// frame and the marginalia are two Cache::Texture bakes.
+// every link pass binds to the one for ITS divisor. The leather and the page
+// plate with its star field are two Cache::Texture bakes.
 //
 // WHERE those ten bindings sit is the whole cost of the page:
 //
@@ -272,12 +268,16 @@
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -287,10 +287,15 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace field = sigil::material::field;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
-namespace weave = sigil::weave;
+using sigil::material::skia::Paint;
 namespace ch = choreograph;
 
 namespace at {
@@ -320,20 +325,21 @@ constexpr float kCellW = 80.0f, kCellH = 110.0f;    // Cluster:59 — the HIT bo
 constexpr float kUlen = kRenderBox / (float)kGrid;  // 3.0645 GUI px
 constexpr float kLineBreadth = 2.0f;                // Cluster:240
 
-using sigil::compose::hex;  // 0xRRGGBB -> SkColor4f
-using sigil::compose::mul;  // scale RGB by k, optionally replacing alpha
-inline Decoration prog(PaintProgram p) { return Decoration(std::move(p)); }
+using sigil::compose::hexColor;  // 0xRRGGBB -> SkColor4f
 
 // Palette, sampled out of the mod's own PNGs (see the header).
-const SkColor4f kLeatherDark = hex(0x0A0800);  // guijspacebook, darkest bulk
-const SkColor4f kLeatherMid = hex(0x2C1602);   // its commonest opaque colour
-const SkColor4f kLeatherWarm = hex(0x634913);
-const SkColor4f kGilt = hex(0x9B7A2D);   // its brightest
-const SkColor4f kOlive = hex(0x7D6C00);  // guijarrow
-const SkColor4f kOliveDim = hex(0x574E25);
-const SkColor4f kNebula = hex(0x0B080B);     // guiresbgcst mean * (.8,.8,1)*.7
-const SkColor4f kFieldStar = hex(0x8F8FB3);  // its white points, same tint
-const SkColor4f kInk = hex(0xDDDDDD);        // Cluster:253 text 0xBBDDDDDD
+const SkColor4f kLeatherDark =
+    hexColor(0x0A0800);  // guijspacebook, darkest bulk
+const SkColor4f kLeatherMid =
+    hexColor(0x2C1602);  // its commonest opaque colour
+const SkColor4f kLeatherWarm = hexColor(0x634913);
+const SkColor4f kGilt = hexColor(0x9B7A2D);   // its brightest
+const SkColor4f kOlive = hexColor(0x7D6C00);  // guijarrow
+const SkColor4f kOliveDim = hexColor(0x574E25);
+const SkColor4f kNebula =
+    hexColor(0x0B080B);  // guiresbgcst mean * (.8,.8,1)*.7
+const SkColor4f kFieldStar = hexColor(0x8F8FB3);  // its white points, same tint
+const SkColor4f kInk = hexColor(0xDDDDDD);        // Cluster:253 text 0xBBDDDDDD
 constexpr float kInkAlpha = 0xBB / 255.0f;
 
 // ---------------------------------------------------------------------------
@@ -523,7 +529,10 @@ inline int degreeOf(const Con& c, int index1) {
 }
 
 /** THE LINK'S WIDTH LAW, as a comparable Profile: full in the middle, 40%
- *  at both endpoints, so a link reads as drawn FROM star TO star.
+ *  at both endpoints, so a link reads as drawn FROM star TO star. It is
+ *  not `profile::taper`, which ramps LINEARLY from one stated width to
+ *  another: this one is symmetric about the midpoint and square-rooted,
+ *  which is the shoulder an engraved rule has and a ramp does not.
  *
  *  Fraction-keyed, and correctly so — the link's ribbons sit under an
  *  UNQUALIFIED stroke with no reveal on the node, so `along` is a fraction
@@ -556,7 +565,9 @@ struct LinkTaper {
 // =============================================================================
 
 struct AstralTome : sketch::Sketch {
-  // TEN Outputs for 93 twinkling primitives — see the perf story.
+  // TEN Outputs for 93 twinkling primitives: an Output per primitive is
+  // a write per primitive per frame, and the twinkle reads the same at a
+  // tenth of them shared round.
   std::array<ch::Output<float>, at::kDivCount> bright;
   ch::Output<float> arrowScale{1.0f};
 
@@ -567,13 +578,12 @@ struct AstralTome : sketch::Sketch {
   // ------------------------------------------------------------------ type
   Element label(const char* s, float x, float y, float size, SkColor4f col,
                 float track = 0.0f, bool useMono = false) const {
-    weave::TextStyle st;
-    st.shaping.typeface = useMono ? mono : serif;
-    st.shaping.fontSize = size;
-    st.shaping.letterSpacing = track;
-    st.shaping.aliased = useMono;
-    st.paint.foreground.setColor4f(col, nullptr);
-    return box().at({x, y}).child(text(toU8(s), st));
+    return box().at({x, y}).child(
+        text(toU8(s), weave::textStyle({.face = useMono ? mono : serif,
+                                        .size = size,
+                                        .color = col,
+                                        .track = track,
+                                        .aliased = useMono})));
   }
   Element label(const std::string& s, float x, float y, float size,
                 SkColor4f col, float track = 0.0f, bool useMono = false) const {
@@ -601,13 +611,13 @@ struct AstralTome : sketch::Sketch {
             .inset(0, 0, 0, at::kBandH)
             .key("leather")
             .cache(Cache::Texture)
-            .fill(Material::blend(
-                {{Material::radialUnit({0.5f, 0.5f}, 0.95f,
-                                       {{0.0f, at::kLeatherWarm},
-                                        {0.55f, at::kLeatherMid},
-                                        {1.0f, at::kLeatherDark}}),
-                  SkBlendMode::kSrcOver},
-                 {patterns::grain(2.6f, 4, 21), SkBlendMode::kOverlay}}));
+            .fill(Paint::blend({{Paint::radialUnit({0.5f, 0.5f}, 0.95f,
+                                                   {{0.0f, at::kLeatherWarm},
+                                                    {0.55f, at::kLeatherMid},
+                                                    {1.0f, at::kLeatherDark}}),
+                                 SkBlendMode::kSrcOver},
+                                {Paint::recipe(field::grain(2.6f, 4, 21.0f)),
+                                 SkBlendMode::kOverlay}}));
     return e;
   }
 
@@ -625,16 +635,16 @@ struct AstralTome : sketch::Sketch {
             .rect(SkRect::MakeXYWH(x, y, w, h))
             .key("page")
             .cache(Cache::Texture)
-            .fill(Material::blend(
-                {{Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
-                 {Material::radialUnit({0.42f, 0.38f}, 0.85f,
-                                       {{0.0f, at::mul(at::kNebula, 2.2f)},
-                                        {0.5f, at::kNebula},
-                                        {1.0f, {0, 0, 0, 1}}}),
+            .fill(Paint::blend(
+                {{Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
+                 {Paint::radialUnit({0.42f, 0.38f}, 0.85f,
+                                    {{0.0f, mskia::scale(at::kNebula, 2.2f)},
+                                     {0.5f, at::kNebula},
+                                     {1.0f, {0, 0, 0, 1}}}),
                   SkBlendMode::kPlus},
-                 {Material::radialUnit({0.78f, 0.74f}, 0.55f,
-                                       {{0.0f, at::mul(at::kNebula, 1.6f)},
-                                        {1.0f, {0, 0, 0, 0}}}),
+                 {Paint::radialUnit({0.78f, 0.74f}, 0.55f,
+                                    {{0.0f, mskia::scale(at::kNebula, 1.6f)},
+                                     {1.0f, {0, 0, 0, 0}}}),
                   SkBlendMode::kPlus}}));
     // The field. Six scatter runs on lissajous routes with a wide normal
     // jitter — a brush, seeded, not a table of hand-placed dots. The measured
@@ -658,7 +668,7 @@ struct AstralTome : sketch::Sketch {
               .width(1.5f * r.mag)
               .height(1.5f * r.mag)
               .shape(shapes::star(4, 0.26f, 0.14f))
-              .fill(Fill::color(at::mul(at::kFieldStar, 1.0f, r.alpha)));
+              .fill(Fill::color(mskia::scale(at::kFieldStar, 1.0f, r.alpha)));
       p.child(box()
                   .inset(-60)
                   .key(std::string("field") + std::to_string(i))
@@ -670,7 +680,7 @@ struct AstralTome : sketch::Sketch {
                                          .jitterNormal = 300.0f,
                                          .jitterScale = 0.85f,
                                          .alignToPath = false,
-                                         .reach = 330.0f}));
+                                         .bleedPx = 330.0f}));
     }
     return p;
   }
@@ -698,7 +708,7 @@ struct AstralTome : sketch::Sketch {
   Element linkPass(const at::Con& c, int li, int pass, int key) const {
     const SkPoint a = at::starAt(c, c.links[(size_t)li].first);
     const SkPoint b = at::starAt(c, c.links[(size_t)li].second);
-    const SkColor4f col = paled(at::hex(c.color));
+    const SkColor4f col = paled(at::hexColor(c.color));
     const float half = at::g(at::kLineBreadth);  // 6 canvas px
     const float band = half * 2.0f;              // 12 canvas px
 
@@ -710,10 +720,10 @@ struct AstralTome : sketch::Sketch {
     rails.rails = {
         {.across = 0,
          .width = band * (25.0f / 64.0f),
-         .fill = Fill::color(at::mul(col, 1.0f, 0.309f))},
+         .fill = Fill::color(mskia::scale(col, 1.0f, 0.309f))},
         {.across = 0,
          .width = band * (9.0f / 64.0f),
-         .fill = Fill::color(at::mul(col, 1.45f, 0.580f))},
+         .fill = Fill::color(mskia::scale(col, 1.45f, 0.580f))},
         // the two dotted flanks — the departure, and the per-rail phase test:
         // same width, same fill, same dash, HALF A PERIOD apart, so the two
         // rows of dots interleave down the link the way a plate's register
@@ -731,12 +741,12 @@ struct AstralTome : sketch::Sketch {
         // dash is exactly that near-zero kind.
         {.across = -half * 1.9f,
          .width = 1.4f,
-         .fill = Fill::color(at::mul(col, 1.35f, 0.52f)),
+         .fill = Fill::color(mskia::scale(col, 1.35f, 0.52f)),
          .dash = {2.2f, 9.4f},
          .cap = SkPaint::kRound_Cap},
         {.across = half * 1.9f,
          .width = 1.4f,
-         .fill = Fill::color(at::mul(col, 1.35f, 0.52f)),
+         .fill = Fill::color(mskia::scale(col, 1.35f, 0.52f)),
          .dash = {2.2f, 9.4f},
          .dashPhase = 5.8f,
          .cap = SkPaint::kRound_Cap},
@@ -746,32 +756,29 @@ struct AstralTome : sketch::Sketch {
     // reads as drawn FROM star TO star. Two Ribbons: a wide bloom and the
     // sprite's own 12-px body.
     brush::Ribbon bloom;
-    bloom.fill = Fill::color(at::mul(col, 1.0f, 0.055f));
+    bloom.fill = Fill::color(mskia::scale(col, 1.0f, 0.055f));
     bloom.step = 6.0f;
     bloom.width = at::LinkTaper{band * 2.1f};
 
     brush::Ribbon body;
-    body.fill = Fill::color(at::mul(col, 1.0f, 0.135f));
+    body.fill = Fill::color(mskia::scale(col, 1.0f, 0.135f));
     body.step = 4.0f;
     body.width = at::LinkTaper{band};
 
     const SkRect box2 =
         SkRect::MakeLTRB(std::min(a.fX, b.fX), std::min(a.fY, b.fY),
                          std::max(a.fX, b.fX), std::max(a.fY, b.fY));
-    const SkPoint p0{a.fX - box2.left(), a.fY - box2.top()};
-    const SkPoint p1{b.fX - box2.left(), b.fY - box2.top()};
+    SkPathBuilder spineBuilder;
+    spineBuilder.moveTo(a.fX - box2.left(), a.fY - box2.top());
+    spineBuilder.lineTo(b.fX - box2.left(), b.fY - box2.top());
+    const SkPath spine = spineBuilder.detach();
     return box()
         .rect(SkRect::MakeXYWH(box2.left(), box2.top(),
                                std::max(box2.width(), 1.0f),
                                std::max(box2.height(), 1.0f)))
         .key(std::string("lk") + std::to_string(key) + "_" +
              std::to_string(pass))
-        .shape([p0, p1](SkSize) {
-          SkPathBuilder p;
-          p.moveTo(p0);
-          p.lineTo(p1);
-          return p.detach();
-        })
+        .shape(heldPath(spine))
         .stroke(std::move(bloom))
         .stroke(std::move(body))
         .stroke(std::move(rails));
@@ -784,7 +791,7 @@ struct AstralTome : sketch::Sketch {
    *  the one piece of magnitude information the graph actually carries. */
   Element starEl(const at::Con& c, int si, int key) const {
     const SkPoint p = at::starAt(c, si);
-    const SkColor4f col = paled(at::hex(c.color));
+    const SkColor4f col = paled(at::hexColor(c.color));
     const int deg = at::degreeOf(c, si);
     const float base = at::g(at::kUlen * 2.0f);  // 18.39 canvas px
     const float r = base * (0.74f + 0.15f * (float)std::min(deg, 4));
@@ -802,17 +809,17 @@ struct AstralTome : sketch::Sketch {
     // a chart read as a sky rather than as a dot diagram: the halo carries
     // further and holds more of the light than the glyph does.
     grp.child(box().inset(0).fill(
-        Material::glowUnit({0.5f, 0.5f}, 0.62f,
-                           {{0.0f, at::mul(col, 1.0f, 0.60f)},
-                            {0.22f, at::mul(col, 1.0f, 0.30f)},
-                            {0.55f, at::mul(col, 1.0f, 0.09f)},
-                            {1.0f, at::mul(col, 1.0f, 0.0f)}})));
+        Paint::glowUnit({0.5f, 0.5f}, 0.62f,
+                        {{0.0f, mskia::scale(col, 1.0f, 0.60f)},
+                         {0.22f, mskia::scale(col, 1.0f, 0.30f)},
+                         {0.55f, mskia::scale(col, 1.0f, 0.09f)},
+                         {1.0f, mskia::scale(col, 1.0f, 0.0f)}})));
     // the glyph
     grp.child(
         box()
             .rect(SkRect::MakeXYWH((side - r) * 0.5f, (side - r) * 0.5f, r, r))
             .shape(shapes::star(4, 0.24f, 0.16f))
-            .fill(Fill::color(at::mul(col, 1.15f, 0.74f))));
+            .fill(Fill::color(mskia::scale(col, 1.15f, 0.74f))));
     // the white-hot core. The one kPlus on this canvas, declared as a
     // departure on the plate: the source is GL_SRC_ALPHA/ONE_MINUS_SRC_ALPHA
     // throughout (Blending.java:23).
@@ -840,10 +847,10 @@ struct AstralTome : sketch::Sketch {
             .transformOrigin(0.5f, 0.5f)
             .shape(shapes::arrow(0.34f, 0.42f))
             .rotate(flip ? 180.0f : 0.0f)
-            .fill(Material::linearUnit(
+            .fill(Paint::linearUnit(
                 {0, 0}, {0, 1}, {{0.0f, at::kOlive}, {1.0f, at::kOliveDim}}))
             .foreground(decorations::border(
-                1.2f, Fill::color(at::mul(at::kGilt, 1.0f, 0.7f))));
+                1.2f, Fill::color(mskia::scale(at::kGilt, 1.0f, 0.7f))));
     if (hovered)
       e.scale(1.1f);
     else
@@ -873,19 +880,19 @@ struct AstralTome : sketch::Sketch {
                        .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}));
     band.child(text(toU8("ASTRAL SORCERY \xc2\xb7 "
                          "GuiJournalConstellationCluster, PAGE 1 OF 4"),
-                    sigil::compose::type({.face = mono,
-                                          .size = 13.0f,
-                                          .color = {0.72f, 0.66f, 0.50f, 1.0f},
-                                          .track = 2.6f})));
+                    weave::textStyle({.face = mono,
+                                      .size = 13.0f,
+                                      .color = {0.72f, 0.66f, 0.50f, 1.0f},
+                                      .track = 2.6f})));
     band.child(text(
         toU8("Four charts on one page at the mod's own numbers: a 95x95 "
              "SQUARE render box hung on an 80x110 hit cell, the offsetMap's "
              "zig-zag placing them, and every star's twinkle on its own "
              "divisor between 12 and 21."),
-        sigil::compose::type({.face = mono,
-                              .size = 11.0f,
-                              .color = {0.50f, 0.46f, 0.38f, 1.0f},
-                              .track = 0.4f})));
+        weave::textStyle({.face = mono,
+                          .size = 11.0f,
+                          .color = {0.50f, 0.46f, 0.38f, 1.0f},
+                          .track = 0.4f})));
     return band;
   }
 
@@ -897,23 +904,23 @@ struct AstralTome : sketch::Sketch {
       const bool sel = i == 1;  // bookmarkIndex 20 = Constellations
       const float w = 67.0f + (sel ? 0.0f : 5.0f);
       const float y = 20.0f + 18.0f * (float)i;
-      rail.child(
-          box()
-              .rect(SkRect::MakeXYWH(at::gx(at::kGuiW - 17.25f), at::gy(y),
-                                     at::g(w), at::g(15)))
-              .key(std::string("bmk") + std::to_string(i))
-              .shape(shapes::notched(
-                  at::g(9.0f), at::g(4.0f),
-                  shapes::Corner::TopRight | shapes::Corner::BottomRight))
-              .fill(Material::linearUnit(
-                  {0, 0}, {1, 0},
-                  {{0.0f, sel ? at::kLeatherWarm : at::kLeatherMid},
-                   {0.6f, at::mul(at::kLeatherMid, 0.8f)},
-                   {1.0f, at::kLeatherDark}}))
-              .foreground(decorations::border(
-                  1.2f,
-                  Fill::color(at::mul(at::kGilt, 1.25f, sel ? 1.0f : 0.6f)),
-                  1.0f)));
+      rail.child(box()
+                     .rect(SkRect::MakeXYWH(at::gx(at::kGuiW - 17.25f),
+                                            at::gy(y), at::g(w), at::g(15)))
+                     .key(std::string("bmk") + std::to_string(i))
+                     .shape(shapes::notched(at::g(9.0f), at::g(4.0f),
+                                            shapes::Corner::TopRight |
+                                                shapes::Corner::BottomRight))
+                     .fill(Paint::linearUnit(
+                         {0, 0}, {1, 0},
+                         {{0.0f, sel ? at::kLeatherWarm : at::kLeatherMid},
+                          {0.6f, mskia::scale(at::kLeatherMid, 0.8f)},
+                          {1.0f, at::kLeatherDark}}))
+                     .foreground(decorations::border(
+                         1.2f,
+                         Fill::color(
+                             mskia::scale(at::kGilt, 1.25f, sel ? 1.0f : 0.6f)),
+                         1.0f)));
       (void)kNames;  // the label rides 15 GUI px into a tab that starts
                      // 2.75 px from the tome's right edge: at 3x it is
                      // entirely off-canvas, so the tab bleeds and the name
@@ -925,14 +932,13 @@ struct AstralTome : sketch::Sketch {
   // --------------------------------------------------------------- setup
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(6.0);
-    ctx.canvas(at::kCanvasW, at::kCanvasH);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = SkSize::Make(at::kCanvasW, at::kCanvasH),
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
 
-    serif =
-        sigil::compose::pickFace({"Baskerville", "Charter", "Palatino",
-                                  "Times New Roman", "Georgia", "Helvetica"});
-    mono = sigil::compose::pickFace(
+    serif = weave::ports::face({"Baskerville", "Charter", "Palatino",
+                                "Times New Roman", "Georgia", "Helvetica"});
+    mono = weave::ports::face(
         {"Menlo", "SF Mono", "Monaco", "Courier New", "Helvetica"});
     divisors = at::divisorSequence(64);
 
@@ -1037,7 +1043,7 @@ struct AstralTome : sketch::Sketch {
       const float w = (float)std::char_traits<char>::length(c.name) * 8.6f;
       root.child(label(c.name, at::gx(o.fX + at::kCellW * 0.5f) - w * 0.5f,
                        at::gy(o.fY + 90.0f), 19.0f,
-                       at::mul(at::kInk, 1.0f, kInkAlphaOf()), 2.4f)
+                       mskia::scale(at::kInk, 1.0f, kInkAlphaOf()), 2.4f)
                      .key(std::string("nm") + std::to_string(ci))
                      .zIndex(6));
     }

@@ -10,6 +10,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
 
+#include <cassert>
 #include <cstddef>
 #include <string>
 #include <string_view>
@@ -39,7 +40,12 @@ struct ChannelData {
   /** Index of a channel by exact name; -1 when absent. */
   int index(std::string_view name) const;
 
+  /** One channel of one texel. The caller states a texel inside the
+   *  raster and a channel this data carries; anything else is a
+   *  programming error and is caught in a debug build. */
   float at(int x, int y, int channel) const {
+    assert(x >= 0 && x < width && y >= 0 && y < height);
+    assert(channel >= 0 && (size_t)channel < names.size());
     return data[((size_t)y * width + x) * names.size() + channel];
   }
 
@@ -49,8 +55,9 @@ struct ChannelData {
    *  RGBA_F32, LDR as N32. Null when the layer names nothing. */
   sk_sp<SkImage> makeImage(std::string_view layer = {}) const;
 
-  /** Composites explicit channel indices (-1 = missing: alpha fills
-   *  with 1, g/b repeat r). */
+  /** Composites explicit channel indices. An index this data does not
+   *  carry — negative, or past the channels it holds — is missing:
+   *  alpha fills with 1, g and b repeat r. */
   sk_sp<SkImage> makeImage(int r, int g, int b, int a) const;
 };
 

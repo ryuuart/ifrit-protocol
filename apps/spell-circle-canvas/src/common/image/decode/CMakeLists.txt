@@ -1,20 +1,14 @@
 # The decode surface: format-routing decodeImage()/probeImage()/
-# decodeChannels() over pluggable backends — the Skia codecs, OpenImageIO
-# and the Skia SVG module — and the raw channel planes. The backends are
-# PRIVATE to it; a consumer sees bytes in and images out.
-add_library(SigilImageDecode STATIC
-  ChannelData.cpp
-  Decode.cpp
-  Oiio.cpp
-  SkiaCodec.cpp
-  Svg.cpp
-  Backends.h
-  ${SIGIL_IMAGE_INCLUDE_DIR}/sigilimage/decode/ChannelData.h
-  ${SIGIL_IMAGE_INCLUDE_DIR}/sigilimage/decode/Decode.h
-)
-target_compile_features(SigilImageDecode PUBLIC cxx_std_20)
-target_include_directories(SigilImageDecode PUBLIC ${SIGIL_IMAGE_INCLUDE_DIR})
-target_link_libraries(SigilImageDecode PUBLIC SigilImageAsset)
+# decodeChannels() over pluggable backends — the Skia codecs, the KTX
+# reader, OpenImageIO and the Skia SVG module — and the raw channel
+# planes. The backends are PRIVATE to it; a consumer sees bytes in and
+# images out.
+find_package(unofficial-skia CONFIG REQUIRED)
+sigil_library(SigilImageDecode
+  SOURCES ChannelData.cpp Decode.cpp Ktx.cpp Oiio.cpp SkiaCodec.cpp Svg.cpp
+          Backends.h
+  HEADERS ChannelData.h Decode.h
+  PUBLIC SigilImageAsset)
 
 # OpenImageIO extends decode/probe beyond the Skia codecs: EXR (with
 # layer/channel selection), PSD (composited), TIFF, HDR, and the rest
@@ -43,25 +37,19 @@ else()
     "SigilImageDecode: skia svg module not found — SVG decoding disabled")
 endif()
 
-# Links only the library it exercises.
-add_executable(image_decode_test test/DecodeTest.cpp)
-target_link_libraries(image_decode_test PRIVATE SigilImageDecode GTest::gtest_main)
-if(TARGET unofficial::skia::modules::svg)
-  target_compile_definitions(image_decode_test PRIVATE SIGILIMAGE_HAS_SVG)
-endif()
-target_compile_definitions(image_decode_test PRIVATE
-  IFRIT_IMAGE_TEST_ASSET_DIR="${SIGIL_IMAGE_TEST_ASSET_DIR}"
-)
-add_test(NAME image_decode_test COMMAND image_decode_test)
+# The optional-backend cases compile whatever this build has and skip
+# with the backend they wanted named, so the labels say what a run on a
+# box without them is missing.
+sigil_test(image_test
+  SOURCES test/DecodeTest.cpp
+  LIBRARIES SigilImageDecode
+  DEFINITIONS $<$<TARGET_EXISTS:unofficial::skia::modules::svg>:SIGILIMAGE_HAS_SVG>
+              $<$<BOOL:${OpenImageIO_FOUND}>:SIGILIMAGE_HAS_OIIO>)
+sigil_test(image_test SUITES SvgDecode LABELS svg)
+sigil_test(image_test SUITES OiioDecode LABELS oiio)
 
-# The decode benchmark (Google Benchmark; use a Release build) encodes
-# its own fixtures in memory and reads the committed 4 x 4 ones for the
-# per-call floor. Not a test: it builds through the `benches` target and
-# runs through scripts/bench_ledger.py.
-add_executable(image_decode_bench bench/DecodeBench.cpp)
-target_link_libraries(image_decode_bench PRIVATE SigilImageDecode
-  benchmark::benchmark)
-target_compile_definitions(image_decode_bench PRIVATE
-  IFRIT_IMAGE_TEST_ASSET_DIR="${SIGIL_IMAGE_TEST_ASSET_DIR}"
-)
-add_dependencies(benches image_decode_bench)
+# Encodes its own fixtures in memory through the encode feature and reads
+# the committed ones for the per-call floor.
+sigil_bench(image_bench
+  SOURCES bench/DecodeBench.cpp
+  LIBRARIES SigilImageDecode SigilImageEncode)

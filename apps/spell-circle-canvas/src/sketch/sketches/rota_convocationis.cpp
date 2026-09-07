@@ -108,7 +108,7 @@
 //     which is why a seal's ring is written to a MARK COUNT: on a circle
 //     that small the number of marks is the only handle on their size.
 //   * THE SCHEDULE IS DECLARED, THEN READ BACK, never restated: every
-//     stage's window is computed from `Stagger::spanMs` at declare time —
+//     stage's window is computed from `Spread::spanMs` at declare time —
 //     the seals chain each start off the span of the cascade before it —
 //     and the scribe point that leads the invocation is placed every
 //     frame from `Composer::beatsOf`, so the dot and the letters cannot
@@ -197,20 +197,31 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Sdf.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Instances.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Kit.h>
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/kit/Divisions.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Ops.h>
 #include <sigilgeometry/path/Polyline.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/sdf/Sdf.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Theme.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Style.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <cmath>
@@ -219,10 +230,17 @@
 #include <string>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
 namespace ch = choreograph;
+namespace motion = sigil::motion;
+namespace mskia = sigil::material::skia;
+namespace sdf = sigil::material::sdf;
+namespace arrange = sigil::geometry::arrange;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 namespace {
 
@@ -232,24 +250,24 @@ constexpr float kW = 1280.0f;
 constexpr float kH = 1280.0f;
 
 // ---- palette: chalk by candlelight, then one hue of light -----------------
-constexpr SkColor4f kNight = hex(0x0A0812);
-constexpr SkColor4f kNightLift = hex(0x141021);
-constexpr SkColor4f kGold = hex(0xD8A94E);
-constexpr SkColor4f kBone = hex(0xE9DFC8);
-constexpr SkColor4f kEmber = hex(0x8A4A26);
-constexpr SkColor4f kIron = hex(0x3B3554);     // construction lines
-constexpr SkColor4f kIronDim = hex(0x262238);  // faint construction
-constexpr SkColor4f kAsh = hex(0x8A8299);      // secondary type
-constexpr SkColor4f kAshDim = hex(0x8A8299, 0.62f);
-constexpr SkColor4f kRuneInk = hex(0x9C8FB8);  // the register's ink
+constexpr SkColor4f kNight = hexColor(0x0A0812);
+constexpr SkColor4f kNightLift = hexColor(0x141021);
+constexpr SkColor4f kGold = hexColor(0xD8A94E);
+constexpr SkColor4f kBone = hexColor(0xE9DFC8);
+constexpr SkColor4f kEmber = hexColor(0x8A4A26);
+constexpr SkColor4f kIron = hexColor(0x3B3554);     // construction lines
+constexpr SkColor4f kIronDim = hexColor(0x262238);  // faint construction
+constexpr SkColor4f kAsh = hexColor(0x8A8299);      // secondary type
+constexpr SkColor4f kAshDim = hexColor(0x8A8299, 0.62f);
+constexpr SkColor4f kRuneInk = hexColor(0x9C8FB8);  // the register's ink
 
 // ---- the ignited palette: ONE hue family, value doing the drawing --------
 // Not a second scheme beside the candlelit one. It is the state the circle
 // changes INTO: chalk is pigment on a surface and reflects what the room
 // gives it, light is emitted and collapses to one hue with a white core.
-constexpr SkColor4f kCore = hex(0xFFF6E2);   // the white-hot core
-constexpr SkColor4f kHalo = hex(0xFFC152);   // the saturated halo
-constexpr SkColor4f kBloom = hex(0xC96F1E);  // the wide dim bloom
+constexpr SkColor4f kCore = hexColor(0xFFF6E2);   // the white-hot core
+constexpr SkColor4f kHalo = hexColor(0xFFC152);   // the saturated halo
+constexpr SkColor4f kBloom = hexColor(0xC96F1E);  // the wide dim bloom
 
 // ---- the circle's frame ---------------------------------------------------
 constexpr SkPoint kEye{640.0f, 640.0f};  // centre in canvas px
@@ -440,11 +458,10 @@ constexpr Seal kSealTable[kSeals] = {
 };
 
 /** THE THRESHOLDS, named on the outer compound's chords: six of the
- *  twelve, the odd ones. A caption no longer stands beside the seal it
- *  names — the seals ride the rim and the chords are bands deeper in —
- *  so the correspondence is carried by the numbering alone, which is how
- *  a plate says two things belong together without drawing a line between
- *  them. */
+ *  twelve, the odd ones. The seals ride the rim and the chords are bands
+ *  deeper in, so no caption can stand beside the seal it names: the
+ *  correspondence is carried by the numbering alone, which is how a plate
+ *  says two things belong together without drawing a line between them. */
 constexpr const char* kLimina[kLimens] = {
     "LIMEN PRIMVM",   "LIMEN TERTIVM", "LIMEN QVINTVM",
     "LIMEN SEPTIMVM", "LIMEN NONVM",   "LIMEN VNDECIMVM",
@@ -488,15 +505,15 @@ struct ChargeParams {
   sigil::material::Color uGold;
 };
 
-/** The definition, made once for the process — a recipe's identity is the
- *  object, so a fresh one per describe would compile a fresh program and
- *  never compare equal to itself. */
+/** The definition, made where it is asked for — which is ONCE: a recipe's
+ *  identity is the object, so a second one of this body compiles a second
+ *  program and never compares equal to the first. Asking for one per
+ *  describe would be that mistake; a static holding one would hold it in a
+ *  dylib a hot reload unloads. */
 std::shared_ptr<const sigil::material::Recipe> chargeRecipe() {
-  static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      std::make_shared<const sigil::material::Recipe>(
-          sigil::material::Recipe::of<ChargeParams>("rota.charge")
-              .body(sigil::material::Target::SkSL, kChargeSksl));
-  return recipe;
+  return std::make_shared<const sigil::material::Recipe>(
+      sigil::material::Recipe::of<ChargeParams>("rota.charge")
+          .body(sigil::material::Target::SkSL, kChargeSksl));
 }
 
 // ---- helpers --------------------------------------------------------------
@@ -504,9 +521,11 @@ std::shared_ptr<const sigil::material::Recipe> chargeRecipe() {
 /** Circle-frame polar → canvas px. θ clockwise from 12 o'clock, the
  *  direction every band here is written in. */
 SkPoint P(float thDeg, float rNorm) {
-  const float a = thDeg * kDeg;
-  return {kEye.x() + rNorm * kR * std::sin(a),
-          kEye.y() - rNorm * kR * std::cos(a)};
+  // Twelve o'clock is where the ellipse's own angle starts a quarter turn
+  // back, which is what makes this wheel's clockwise-from-twelve reading
+  // the ordinary ring arithmetic.
+  return arrange::onEllipse({kEye.x(), kEye.y()}, {rNorm * kR, rNorm * kR},
+                            thDeg * kDeg - 1.5707963f);
 }
 
 /** The pitch of the twelve stations, and the angle of station k. */
@@ -558,16 +577,6 @@ enum : int {
   kGlowCount,
 };
 
-/** A path baked once at setup, wrapped as a comparable silhouette: the
- *  ADDRESS is the identity, so the node prunes and its recording caches
- *  exactly as a `shapes::` generator's would. The sketch owns the storage
- *  and fills it before the first describe; nothing moves it afterwards. */
-struct Baked {
-  const SkPath* held = nullptr;
-  bool operator==(const Baked&) const = default;
-  SkPath path(SkSize) const { return held ? *held : SkPath(); }
-};
-
 /** THE EMISSIVE OUTLINE of one lighting group, as four nested regions.
  *  Every line of the group is expanded to a region and the regions are
  *  UNIONED, so a place where two lines cross is covered ONCE; the four
@@ -577,8 +586,20 @@ struct Baked {
  *  the lines running through it, and a figure this dense is mostly
  *  junctions — it would light as a constellation of bright knots instead
  *  of one circuit of even light. */
+/** ONE GRADE of a glow, cooked once: the union re-based to its own bounds'
+ *  origin, and the box that origin sits in. A node is a box with a local
+ *  shape, and a region worked out in the sheet's frame is neither — split
+ *  here rather than at describe time, because a path re-based every frame
+ *  is a new path every frame and the node it dresses re-records forever.
+ *  The box is the region's own extent, so a grade covers the light it
+ *  paints and not the whole sheet. */
+struct Grade {
+  SkPath local;
+  SkRect box = SkRect::MakeEmpty();
+};
+
 struct Glow {
-  SkPath core, halo, mid, bloom;
+  Grade core, halo, mid, bloom;
 };
 
 /** A circle of the figure as a path in canvas px. */
@@ -599,11 +620,12 @@ SkPath arcRing(float rNorm, int count, float spanDeg, float fromDeg) {
   const float rad = rNorm * kR;
   const SkRect oval = SkRect::MakeLTRB(kEye.x() - rad, kEye.y() - rad,
                                        kEye.x() + rad, kEye.y() + rad);
-  const float pitch = 360.0f / (float)count;
   for (int k = 0; k < count; ++k) {
     // Skia measures from due east; the table above is measured from
     // twelve o'clock, which is the whole difference.
-    const float mid = fromDeg + pitch * (float)k - 90.0f;
+    const float mid = arrange::along(fromDeg, 360.0f, (size_t)k, (size_t)count,
+                                     arrange::Turn::Closed) -
+                      90.0f;
     b.addArc(oval, mid - spanDeg * 0.5f, spanDeg);
   }
   return b.detach();
@@ -614,9 +636,9 @@ SkPath arcRing(float rNorm, int count, float spanDeg, float fromDeg) {
  *  spoke never runs from one turning layer into another. */
 SkPath spokeRing(int count, float r0, float r1, float fromDeg) {
   SkPathBuilder b;
-  const float pitch = 360.0f / (float)count;
   for (int k = 0; k < count; ++k) {
-    const float th = fromDeg + pitch * (float)k;
+    const float th = arrange::along(fromDeg, 360.0f, (size_t)k, (size_t)count,
+                                    arrange::Turn::Closed);
     b.moveTo(P(th, r0));
     b.lineTo(P(th, r1));
   }
@@ -633,7 +655,6 @@ SkPath spokeRing(int count, float r0, float r1, float fromDeg) {
 SkPath crescentRing(float rOut, float rIn, int count, float spanDeg,
                     float fromDeg, int rungs) {
   SkPathBuilder b;
-  const float pitch = 360.0f / (float)count;
   const float ro = rOut * kR;
   const float ri = rIn * kR;
   const SkRect ovalOut = SkRect::MakeLTRB(kEye.x() - ro, kEye.y() - ro,
@@ -641,12 +662,14 @@ SkPath crescentRing(float rOut, float rIn, int count, float spanDeg,
   const SkRect ovalIn = SkRect::MakeLTRB(kEye.x() - ri, kEye.y() - ri,
                                          kEye.x() + ri, kEye.y() + ri);
   for (int k = 0; k < count; ++k) {
-    const float mid = fromDeg + pitch * (float)k;
+    const float mid = arrange::along(fromDeg, 360.0f, (size_t)k, (size_t)count,
+                                     arrange::Turn::Closed);
     const float lo = mid - spanDeg * 0.5f;
     b.addArc(ovalOut, lo - 90.0f, spanDeg);
     b.addArc(ovalIn, lo - 90.0f, spanDeg);
     for (int r = 0; r <= rungs; ++r) {
-      const float th = lo + spanDeg * (float)r / (float)rungs;
+      const float th = arrange::along(lo, spanDeg, (size_t)r, (size_t)rungs + 1,
+                                      arrange::Turn::Open);
       // The two ends are full ties; the rungs between them are stubs off
       // the inner arc, so the mark reads as a bracket and not as a grid.
       const bool end = r == 0 || r == rungs;
@@ -662,9 +685,10 @@ SkPath crescentRing(float rOut, float rIn, int count, float spanDeg,
  *  twelve nodes cost one node. */
 SkPath nodeRing(int count, float rNorm, float px, float fromDeg) {
   SkPathBuilder b;
-  const float pitch = 360.0f / (float)count;
   for (int k = 0; k < count; ++k) {
-    const SkPoint c = P(fromDeg + pitch * (float)k, rNorm);
+    const SkPoint c = P(arrange::along(fromDeg, 360.0f, (size_t)k,
+                                       (size_t)count, arrange::Turn::Closed),
+                        rNorm);
     b.addOval(SkRect::MakeLTRB(c.fX - px, c.fY - px, c.fX + px, c.fY + px));
   }
   return b.detach();
@@ -704,7 +728,11 @@ Glow bakeGlow(const std::vector<SkPath>& lines, float coreHalf) {
     regions.reserve(lines.size());
     for (const SkPath& line : lines)
       regions.push_back(expand(line, coreHalf * k));
-    return ops::unite(regions);
+    const SkPath united = ops::unite(regions);
+    const SkRect box = united.getBounds();
+    return Grade{
+        united.makeTransform(SkMatrix::Translate(-box.left(), -box.top())),
+        box};
   };
   return Glow{at(1.0f), at(2.8f), at(7.0f), at(18.0f)};
 }
@@ -735,12 +763,10 @@ struct RaysParams {
 };
 
 std::shared_ptr<const sigil::material::Recipe> raysRecipe() {
-  static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      std::make_shared<const sigil::material::Recipe>(
-          sigil::material::Recipe::of<RaysParams>("rota.rays")
-              .frame(sigil::material::FrameInput::Resolution)
-              .body(sigil::material::Target::SkSL, kRaysSksl));
-  return recipe;
+  return std::make_shared<const sigil::material::Recipe>(
+      sigil::material::Recipe::of<RaysParams>("rota.rays")
+          .frame(sigil::material::FrameInput::Resolution)
+          .body(sigil::material::Target::SkSL, kRaysSksl));
 }
 
 /** THE CREST'S COLOUR FRINGE: the picture beneath re-sampled with its red
@@ -764,14 +790,14 @@ half4 main(float2 xy) {
   return half4(lo.r, mid.g, hi.b, mid.a);
 })";
 
-/** The fringe compiled once for the process. */
+/** The fringe, compiled where it is asked for. The caller holds it for
+ *  the length of a declaration: a `static` here would outlive the dylib
+ *  a hot-reloaded sketch is compiled into, and an effect compared by
+ *  pointer after that reload points into code that is gone. */
 sk_sp<SkRuntimeEffect> fringeEffect() {
-  static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(kFringeSksl));
-    if (!effect) std::fprintf(stderr, "[rota] fringe: %s\n", err.c_str());
-    return effect;
-  }();
-  return fx;
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(kFringeSksl));
+  if (!effect) std::fprintf(stderr, "[rota] fringe: %s\n", err.c_str());
+  return effect;
 }
 
 int glyphsOf(const std::string& s) {
@@ -840,6 +866,8 @@ struct RotaConvocationis : sketch::Sketch {
   // exactly zero outside the crest, which is what keeps the effect from
   // being paid for on any frame that does not want it.
   ch::Output<float> fringeK{0}, fringeA{0};
+  /** The fringe shader, compiled once per declaration and held here. */
+  sk_sp<SkRuntimeEffect> fringeFx;
 
   sk_sp<SkTypeface> faceRing, faceRingBold, faceMono;
 
@@ -881,14 +909,15 @@ struct RotaConvocationis : sketch::Sketch {
   /** A beat on the circle's timeline, in seconds of the loop: clamped
    *  outside its range, so an unstarted track reads 0 and a finished one
    *  reads 1, and the whole assembly re-performs on the wrap. */
-  [[nodiscard]] Animatable<float> beat(double from, double to) {
-    return bind(&cycle).window((float)from, (float)to);
+  [[nodiscard]] motion::Animatable<float> beat(double from, double to) {
+    return motion::bind(&cycle).window((float)from, (float)to);
   }
   /** A one-shot swell inside the loop — up, held, gone — for the flashes
    *  ignition throws on things that are not text. */
-  [[nodiscard]] Animatable<float> pulse(double from, double to, double edge) {
+  [[nodiscard]] motion::Animatable<float> pulse(double from, double to,
+                                                double edge) {
     const float l = (float)loopSecs;
-    return bind(&cycle)
+    return motion::bind(&cycle)
         .source(0.0f, l)
         .trapezoid((float)from / l, (float)(from + edge) / l,
                    (float)(to - edge * 1.6) / l, (float)to / l)
@@ -896,9 +925,9 @@ struct RotaConvocationis : sketch::Sketch {
   }
   /** The sheet's own envelope: up at the head, out before the wrap, so
    *  the loop cuts on a dark sheet. */
-  [[nodiscard]] Animatable<float> envelope() {
+  [[nodiscard]] motion::Animatable<float> envelope() {
     const float l = (float)loopSecs;
-    return bind(&cycle)
+    return motion::bind(&cycle)
         .source(0.0f, l)
         .trapezoid(0.05f / l, 0.55f / l, (l - 1.9f) / l, (l - 0.55f) / l)
         .map(&ch::easeInOutQuad);
@@ -909,7 +938,7 @@ struct RotaConvocationis : sketch::Sketch {
 
   [[nodiscard]] sigil::weave::TextStyle ring(float size, SkColor4f color,
                                              float track = 3.0f) const {
-    return type(
+    return weave::textStyle(
         {.face = faceRingBold, .size = size, .color = color, .track = track});
   }
   /** THE REGISTER'S TYPE takes no face. The invented alphabet is not in
@@ -918,16 +947,16 @@ struct RotaConvocationis : sketch::Sketch {
    *  letterforms, which is the mechanism that puts them on the plate. */
   [[nodiscard]] static sigil::weave::TextStyle rune(float size, SkColor4f color,
                                                     float track) {
-    return type({.size = size, .color = color, .track = track});
+    return weave::textStyle({.size = size, .color = color, .track = track});
   }
   [[nodiscard]] sigil::weave::TextStyle mono(float size, SkColor4f color,
                                              float track = 1.0f) const {
-    return type(
+    return weave::textStyle(
         {.face = faceMono, .size = size, .color = color, .track = track});
   }
   [[nodiscard]] sigil::weave::TextStyle label(float size, SkColor4f color,
                                               float track = 2.6f) const {
-    return type(
+    return weave::textStyle(
         {.face = faceRing, .size = size, .color = color, .track = track});
   }
 
@@ -963,7 +992,7 @@ struct RotaConvocationis : sketch::Sketch {
         .absolute()
         .inset(0)
         .hitTestable(false)
-        .shape(Baked{&chalk[(size_t)chalkIndex]})
+        .shape(heldPath(chalk[(size_t)chalkIndex]))
         .fill(Fill::none())
         .stroke(spans::upTo(beat(from, from + dur)),
                 stroke(width, Fill::color(color)));
@@ -979,30 +1008,10 @@ struct RotaConvocationis : sketch::Sketch {
         .absolute()
         .inset(0)
         .hitTestable(false)
-        .shape(Baked{&path})
+        .shape(heldPath(path))
         .fill(Fill::none())
         .stroke(spans::upTo(beat(from, from + dur)),
                 stroke(width, Fill::color(color)));
-  }
-
-  /** ONE GRADE of a lighting group's emissive stack. Each grade is a flat
-   *  fill of an already-unioned region and carries the group's own gain,
-   *  so a fill-only leaf takes the blend and the opacity straight onto its
-   *  paint: no layer opens, and the four grades add onto the sheet
-   *  directly, which is what makes the pile read as light rather than as
-   *  four translucent rings. */
-  [[nodiscard]] Element grade(const std::string& key, const SkPath& region,
-                              SkColor4f ink, float alpha,
-                              const ch::Output<float>* gain) {
-    return box()
-        .key(key)
-        .absolute()
-        .inset(0)
-        .hitTestable(false)
-        .shape(Baked{&region})
-        .fill(Fill::color({ink.fR, ink.fG, ink.fB, alpha}))
-        .blend(SkBlendMode::kPlus)
-        .opacity(gain);
   }
 
   /** THE IGNITED LINE — white-hot core, saturated halo, two grades of
@@ -1010,15 +1019,47 @@ struct RotaConvocationis : sketch::Sketch {
    *  shape, the halo carries the hue, the bloom carries the reach. */
   [[nodiscard]] Element emissive(const std::string& key, const Glow& g,
                                  const ch::Output<float>* gain) {
+    // ONE BAKE FOR THE WHOLE STACK, and the gain rides its blit. Four
+    // grades painted live are four additive fills of four complex unions
+    // over the sheet, every frame, for a stack whose shape never changes —
+    // the gain is the only thing that moves, and it moves OUTSIDE the
+    // pixels. Baked once at full strength and blitted at the gain, the
+    // stack costs one image add. Each grade is bounded by its own region
+    // too, so the bake is the light's own box and not the sheet's.
+    //
+    // THE ONE THING THAT MOVES WITH IT: the grades add inside the bake, so
+    // where all four overlap they saturate there rather than against the
+    // sheet, and a gain part way up prints that saturated sum scaled down
+    // instead of four scaled terms summed. The difference is confined to
+    // the hottest core of a group while its gain is between 0 and 1 — the
+    // grades are nested, so the outer three never reach it — and it reads
+    // as the core coming up a shade later, which is what a filament does.
+    const SkRect groupBox = g.bloom.box;
+    const auto inside = [&](const std::string& name, const Grade& r,
+                            SkColor4f ink, float alpha) {
+      return box()
+          .key(name)
+          .absolute()
+          .rect(SkRect::MakeXYWH(r.box.left() - groupBox.left(),
+                                 r.box.top() - groupBox.top(), r.box.width(),
+                                 r.box.height()))
+          .hitTestable(false)
+          .shape(heldPath(r.local))
+          .fill(Fill::color({ink.fR, ink.fG, ink.fB, alpha}))
+          .blend(SkBlendMode::kPlus);
+    };
     return box()
         .key(key)
         .absolute()
-        .inset(0)
+        .rect(groupBox)
         .hitTestable(false)
-        .child(grade(key + "-bloom", g.bloom, kBloom, 0.085f, gain))
-        .child(grade(key + "-mid", g.mid, kBloom, 0.16f, gain))
-        .child(grade(key + "-halo", g.halo, kHalo, 0.42f, gain))
-        .child(grade(key + "-core", g.core, kCore, 0.96f, gain));
+        .cache(Cache::Texture)
+        .blend(SkBlendMode::kPlus)
+        .opacity(gain)
+        .child(inside(key + "-bloom", g.bloom, kBloom, 0.085f))
+        .child(inside(key + "-mid", g.mid, kBloom, 0.16f))
+        .child(inside(key + "-halo", g.halo, kHalo, 0.42f))
+        .child(inside(key + "-core", g.core, kCore, 0.96f));
   }
 
   /** A DIVISION LADDER at one length class. `skipEvery` leaves a hole
@@ -1028,17 +1069,17 @@ struct RotaConvocationis : sketch::Sketch {
                                float outer, float inner, float width,
                                SkColor4f color, double from, double dur,
                                float fromDeg = 0.0f) {
-    kit::Ticks t{.divisions = divisions,
-                 .from = fromDeg,
-                 .mark = {inner / outer, 1.0f},
-                 .longEvery = skipEvery,
-                 .longMark = {1.0f, 1.0f}};
+    shapes::Ticks t{.divisions = divisions,
+                    .from = fromDeg,
+                    .mark = {inner / outer, 1.0f},
+                    .longEvery = skipEvery,
+                    .longMark = {1.0f, 1.0f}};
     return box()
         .key(key)
         .absolute()
         .inset((1.0f - outer) * kR + (kEye.x() - kR))
         .hitTestable(false)
-        .shape(kit::ticks(t))
+        .shape(shapes::ticks(t))
         .fill(Fill::none())
         .stroke(spans::upTo(beat(from, from + dur)),
                 stroke(width, Fill::color(color)));
@@ -1051,9 +1092,9 @@ struct RotaConvocationis : sketch::Sketch {
    *  pen resting at every cross — and the letters of each word beating
    *  inside its cue. Built as a named value because `then` mutates in
    *  place. */
-  [[nodiscard]] Stagger voxCascade() const {
-    Stagger cascade = stagger(unit::Word, cues(voxCues));
-    cascade.then(unit::Cluster, {.eachMs = 22, .durationMs = 300});
+  [[nodiscard]] motion::Spread voxCascade() const {
+    motion::Spread cascade = motion::Spread{}.cues(voxCues);
+    cascade.then({.eachMs = 22, .durationMs = 300});
     return cascade;
   }
 
@@ -1077,9 +1118,13 @@ struct RotaConvocationis : sketch::Sketch {
                  .autoFlip = false})
         .fx({.effect = fx::hold(fx::rise(voxSize * 1.1f)),
              .stagger = voxCascade(),
+             .unit = weave::Unit::Word,
+             .innerUnit = weave::Unit::Cluster,
              .progress = beat(tVox, tVox + voxSpanS)})
         .fx({.effect = fx::tint(kEmber, kBone),
              .stagger = voxCascade(),
+             .unit = weave::Unit::Word,
+             .innerUnit = weave::Unit::Cluster,
              .progress = beat(tVox, tVox + voxSpanS)})
         // THE STRIKE, per word: a letter does not fade up, it arrives lit
         // and cools. The screen term lifts each channel by the headroom it
@@ -1091,17 +1136,19 @@ struct RotaConvocationis : sketch::Sketch {
                                  {1.00f, {}}},
                                 &ch::easeOutQuad),
              .stagger = voxCascade(),
+             .unit = weave::Unit::Word,
+             .innerUnit = weave::Unit::Cluster,
              .progress = beat(tVox, tVox + voxSpanS)});
   }
 
   /** THE SHIMMER — a crest of light that re-opens on every glyph of the
-   *  register forever. `Stagger::loopMs` folds each glyph's beat onto its
+   *  register forever. `Spread::loopMs` folds each glyph's beat onto its
    *  own cycle of one period, phase-offset by the glyph's start, so one
    *  sweep of the master IS one cycle and a wrapping phase drives it
    *  seamlessly with no seam to hide. It is the reading that the circle
    *  is not a finished picture: something is still running round it. */
-  [[nodiscard]] Stagger shimmerCascade() const {
-    Stagger s = stagger(unit::Cluster, {.eachMs = 26, .durationMs = 620});
+  [[nodiscard]] motion::Spread shimmerCascade() const {
+    motion::Spread s = {.eachMs = 26, .durationMs = 620};
     s.loopMs = (uint32_t)(shimmerS * 1000.0f);
     return s;
   }
@@ -1123,10 +1170,10 @@ struct RotaConvocationis : sketch::Sketch {
                  .offset = -runeSize * 0.34f,
                  .autoFlip = false})
         .fx({.effect = fx::hold(fx::pop(0.55f)),
-             .stagger = stagger(unit::Cluster, {.eachMs = 7,
-                                                .durationMs = 420,
-                                                .from = Stagger::From::Random,
-                                                .seed = 17}),
+             .stagger = {.eachMs = 7,
+                         .durationMs = 420,
+                         .from = motion::Spread::From::Random,
+                         .seed = 17},
              .progress = beat(tRune, tRune + runeSpanS)})
         .fx({.effect = fx::keys(
                  {{0.00f, {}}, {0.35f, {.colorScreen = kHalo}}, {1.00f, {}}}),
@@ -1151,8 +1198,8 @@ struct RotaConvocationis : sketch::Sketch {
    *  skip makes; both ends therefore engage, where under a looping
    *  cascade only the settled end would. */
   [[nodiscard]] Element nomina() {
-    Stagger form = stagger(unit::Word, {.amountMs = 1900});
-    form.then(unit::Cluster, {.eachMs = 24, .durationMs = 420});
+    motion::Spread form = {.amountMs = 1900};
+    form.then({.eachMs = 24, .durationMs = 420});
 
     TextEffect swell = fx::seq(
         fx::variableAxisSweep("GRAD", 400.0f, 860.0f).until(0.45f).xfade(0.25f),
@@ -1172,17 +1219,28 @@ struct RotaConvocationis : sketch::Sketch {
             .width(2 * rNom * kR)
             .height(2 * rNom * kR)
             .hitTestable(false)
+            // TURNED AS A BODY, not advanced along its path — the same
+            // rule the seals are built on, and for the same reason: a
+            // circular baseline rotated about its own centre is the same
+            // picture as the run advanced along it, so the ring is
+            // recorded once and blitted under a bound rotation where a
+            // driven phase re-places every glyph, re-runs the glow and
+            // re-rasterizes the whole band on every frame.
+            .rotate(motion::bind(&nomDrift).target(0.0f, 360.0f))
+            .cache(Cache::Texture)
             .onPath({.path = shapes::circle(),
-                     .at = &nomDrift,
+                     .at = 0.0f,
                      .align = TextPath::Align::Start,
                      .offset = -nomSize * 0.34f,
                      .autoFlip = false})
             .fx({.effect = fx::hold(fx::rise(nomSize * 0.8f)),
                  .stagger = form,
+                 .unit = weave::Unit::Word,
+                 .innerUnit = weave::Unit::Cluster,
                  .progress = beat(tNames, tNames + nomSpanS)})
             .fx({.effect = std::move(swell),
-                 .stagger =
-                     stagger(unit::Word, {.eachMs = 130, .durationMs = 900}),
+                 .stagger = {.eachMs = 130, .durationMs = 900},
+                 .unit = weave::Unit::Word,
                  .progress = beat(tIgnite, tIgnite + 2.6)})
             // The charge reaching a name flashes it, on the pass's own
             // cascade so the letters and the shader open together.
@@ -1190,17 +1248,17 @@ struct RotaConvocationis : sketch::Sketch {
                                      {0.30f, {.colorScreen = kCore}},
                                      {1.00f, {}}},
                                     &ch::easeInOutQuad),
-                 .stagger =
-                     stagger(unit::Word, {.eachMs = 170, .durationMs = 820}),
+                 .stagger = {.eachMs = 170, .durationMs = 820},
+                 .unit = weave::Unit::Word,
                  .progress = beat(tIgnite, tIgnite + 2.6)});
-    names.fx(
-        {.effect = fx::pass(Material::recipe(
-                                sigil::material::Material(chargeRecipe()))
-                                .uniform("uGold", kGold))
-                       .restsAt(0.0f, 1.0f),
-         .stagger = stagger(unit::Word, {.eachMs = 170, .durationMs = 820}),
-         .progress = beat(tIgnite, tIgnite + 2.6),
-         .reach = kReach});
+    names.fx({.effect = fx::pass(mskia::Paint::recipe(
+                                     sigil::material::Material(chargeRecipe()))
+                                     .uniform("uGold", kGold))
+                            .restsAt(0.0f, 1.0f),
+              .stagger = {.eachMs = 170, .durationMs = 820},
+              .unit = weave::Unit::Word,
+              .progress = beat(tIgnite, tIgnite + 2.6),
+              .reach = kReach});
     return names;
   }
 
@@ -1224,10 +1282,10 @@ struct RotaConvocationis : sketch::Sketch {
                  .offset = -texSize * 0.30f,
                  .autoFlip = false})
         .fx({.effect = fx::hold(fx::rise(texSize * 0.9f)),
-             .stagger = stagger(unit::Cluster, {.eachMs = 4,
-                                                .durationMs = 300,
-                                                .from = Stagger::From::Random,
-                                                .seed = 61}),
+             .stagger = {.eachMs = 4,
+                         .durationMs = 300,
+                         .from = motion::Spread::From::Random,
+                         .seed = 61},
              .progress = beat(tTex, tTex + texSpanS)});
   }
 
@@ -1242,7 +1300,7 @@ struct RotaConvocationis : sketch::Sketch {
   [[nodiscard]] Element arcus() {
     Element turn =
         box().key("arcus").absolute().inset(0).hitTestable(false).rotate(
-            bind(&arcSpin).target(0.0f, 360.0f));
+            motion::bind(&arcSpin).target(0.0f, 360.0f));
     turn.child(rule("arc-chalk", kChalkArcs, 1.7f, kIron, tArc, 1.1));
     turn.child(rule("arc-dash", kChalkDash, 1.0f, kIron, tArc - 0.3, 1.0));
     turn.child(line("arc-spokes", arcSpokes, 0.9f, kIron, tArc + 0.2, 0.9));
@@ -1266,7 +1324,7 @@ struct RotaConvocationis : sketch::Sketch {
         .child(kit::disc(c, kSpurR)
                    .key("spur-ground")
                    .hitTestable(false)
-                   .fill(Fill::color(hex(0x0D0A16, 0.92f)))
+                   .fill(Fill::color(hexColor(0x0D0A16, 0.92f)))
                    .opacity(beat(0.9, 1.4)))
         .child(line("spur-rules", spurRules, 1.2f, kIron, 1.0, 0.9))
         .child(text(toU8(spurText), rune(19.0f, kBone, 0.0f))
@@ -1274,7 +1332,7 @@ struct RotaConvocationis : sketch::Sketch {
                    .centerAt(c)
                    .hitTestable(false)
                    .fx({.effect = fx::hold(fx::pop(0.5f)),
-                        .stagger = stagger(unit::Cluster, {.durationMs = 360}),
+                        .stagger = {.durationMs = 360},
                         .progress = beat(1.3, 1.8)}))
         .child(emissive("spur-lit", glows[kGlowSpur], &litSpur));
   }
@@ -1297,7 +1355,7 @@ struct RotaConvocationis : sketch::Sketch {
   [[nodiscard]] Element stella() {
     Element turn =
         box().key("stella").absolute().inset(0).hitTestable(false).rotate(
-            bind(&starSpin).target(0.0f, 360.0f));
+            motion::bind(&starSpin).target(0.0f, 360.0f));
     turn.child(rule("star-chalk", kChalkStar, 1.5f, kIron, tStar, 1.3));
     // THE CRESCENTS: three double-arcs laid ACROSS the compound, 120°
     // apart, each closed at both ends by a radial tie and carrying its
@@ -1320,11 +1378,11 @@ struct RotaConvocationis : sketch::Sketch {
                      .absolute()
                      .inset(0)
                      .hitTestable(false)
-                     .shape(Baked{&starSteps[(size_t)i]})
+                     .shape(heldPath(starSteps[(size_t)i]))
                      .fill(Fill::none())
                      .stroke(stroke(1.6f, Fill::color(kCore)))
                      .blend(SkBlendMode::kPlus)
-                     .opacity(bind(&morphStep)
+                     .opacity(motion::bind(&morphStep)
                                   .window((float)i - 1.0f, (float)i + 1.0f)
                                   .pingPong()));
     turn.child(emissive("star-lit", glows[kGlowStar], &litStar));
@@ -1342,7 +1400,7 @@ struct RotaConvocationis : sketch::Sketch {
                        .absolute()
                        .inset(0)
                        .hitTestable(false)
-                       .rotate(bind(&innerSpin).target(0.0f, 360.0f));
+                       .rotate(motion::bind(&innerSpin).target(0.0f, 360.0f));
     turn.child(rule("inner-chalk", kChalkInner, 1.2f, kIron, tInner, 1.2));
     turn.child(
         line("inner-spokes", innerSpokes, 0.7f, kIronDim, tInner + 0.2, 1.0));
@@ -1361,7 +1419,7 @@ struct RotaConvocationis : sketch::Sketch {
   [[nodiscard]] Element limina() {
     Element fig = kit::disc(kEye, rStar * kR).key("limina").hitTestable(false);
     const Shape chordPath =
-        kit::chords({.sides = kStations, .step = 3, .inset = 74.0f});
+        shapes::chords({.sides = kStations, .step = 3, .inset = 74.0f});
     for (int k = 0; k < kLimens; ++k) {
       fig.child(
           text(toU8(kLimina[k]), label(11.0f, kAsh, 2.0f))
@@ -1375,8 +1433,7 @@ struct RotaConvocationis : sketch::Sketch {
                        .offset = 5.0f,
                        .autoFlip = true})
               .fx({.effect = fx::typeOn(),
-                   .stagger = stagger(unit::Cluster,
-                                      {.eachMs = 30, .durationMs = 120}),
+                   .stagger = {.eachMs = 30, .durationMs = 120},
                    .progress = beat(limenAt[k], limenAt[k] + limenSpanS)}));
     }
     return fig;
@@ -1413,13 +1470,13 @@ struct RotaConvocationis : sketch::Sketch {
                    .inset(0)
                    .corners({kSealR})
                    .hitTestable(false)
-                   .fill(Fill::color(hex(0x0D0A16, 0.94f)))
+                   .fill(Fill::color(hexColor(0x0D0A16, 0.94f)))
                    // The ground is dressed rather than shaded: an inner glow is
                    // a blurred band hugging its own edge, a value decoration
                    // that records once with the disc it sits on. It gives the
                    // seal a lip of light without a second node and without a
                    // shader.
-                   .overlay(styles::innerGlow(hex(0xE79A32, 0.30f), 8.0f))
+                   .overlay(styles::innerGlow(hexColor(0xE79A32, 0.30f), 8.0f))
                    .opacity(beat(at, at + 0.4)));
     // The seal's own emissive rule. A seal is a small magic circle, so it
     // lights like one — but its two rules are concentric and cross
@@ -1427,19 +1484,26 @@ struct RotaConvocationis : sketch::Sketch {
     // core and halo are three uniforms of one shader rather than a union
     // and four fills.
     {
-      const sdf::Style lit{.borderWidth = 1.1f,
-                           .borderColor = kCore,
-                           .glowRadius = 6.0f,
-                           .glowColor = hex(0xFFC152, 0.42f)};
+      const sdf::Style lit{
+          .borderWidth = 1.1f,
+          .borderColor = {kCore.fR, kCore.fG, kCore.fB, kCore.fA},
+          .glowRadius = 6.0f,
+          .glowColor = sigil::material::rgb(0xFFC152, 0.42f)};
       const float side = sdf::minBoxFor(lit, 2.0f * kSealR);
-      seal.child(box()
-                     .key(id + "-lit")
-                     .absolute()
-                     .inset(kSealR - side * 0.5f)
-                     .hitTestable(false)
-                     .fill(sdf::material(sdf::circle(), lit))
-                     .blend(SkBlendMode::kPlus)
-                     .opacity(&litSeal[k]));
+      // BAKED, because the seal count is the whole point of the rim: the
+      // figure is one static shader and only its gain moves, so twelve of
+      // them evaluating the field every frame is twelve times a cost that
+      // is paid once. The blend and the gain ride the blit.
+      seal.child(
+          box()
+              .key(id + "-lit")
+              .absolute()
+              .inset(kSealR - side * 0.5f)
+              .hitTestable(false)
+              .cache(Cache::Texture)
+              .fill(mskia::Paint::recipe(sdf::material(sdf::circle(), lit)))
+              .blend(SkBlendMode::kPlus)
+              .opacity(&litSeal[k]));
     }
     // The rules, struck as sweeps.
     seal.child(box()
@@ -1469,7 +1533,7 @@ struct RotaConvocationis : sketch::Sketch {
                        .absolute()
                        .inset(0)
                        .hitTestable(false)
-                       .rotate(bind(&sealSpin[k]).target(0.0f, 360.0f));
+                       .rotate(motion::bind(&sealSpin[k]).target(0.0f, 360.0f));
     // The order-sided polygon, turning AGAINST its own seal once lit, so
     // the figure inside a seal and the seal around it are visibly two
     // mechanisms and not one drawing.
@@ -1481,7 +1545,7 @@ struct RotaConvocationis : sketch::Sketch {
                    .shape(shapes::polygon(s.order))
                    .fill(Fill::none())
                    .stroke(stroke(0.9f, Fill::color(kIron)))
-                   .rotate(bind(&sealCog[k]).target(0.0f, 360.0f))
+                   .rotate(motion::bind(&sealCog[k]).target(0.0f, 360.0f))
                    .opacity(beat(at + 0.3, at + 0.9)));
     // The ring: two words of the register, tumbling onto the circle and
     // then carried round by the body it belongs to. Its phase is a plain
@@ -1494,14 +1558,18 @@ struct RotaConvocationis : sketch::Sketch {
                    .absolute()
                    .inset(kSealR - kSealRing)
                    .hitTestable(false)
+                   // …and baked for the same reason: once its cascade has
+                   // landed the run is a settled picture that the body
+                   // turns, and a replay would re-draw every glyph of every
+                   // seal on every frame.
+                   .cache(Cache::Texture)
                    .onPath({.path = shapes::circle(),
                             .at = (float)k / (float)kSeals,
                             .align = TextPath::Align::Start,
                             .offset = -sealSize[k] * 0.34f,
                             .autoFlip = false})
                    .fx({.effect = fx::hold(fx::spinIn(70.0f, 9.0f)),
-                        .stagger = stagger(unit::Cluster,
-                                           {.eachMs = 30, .durationMs = 480}),
+                        .stagger = {.eachMs = 30, .durationMs = 480},
                         .progress = beat(at + 0.25, at + 0.25 + sealSpanS)}));
     seal.child(std::move(body));
     // THE ORDINAL at the centre, decoding — held, so a numeral waiting
@@ -1514,18 +1582,16 @@ struct RotaConvocationis : sketch::Sketch {
             .key(id + "-ordo")
             .centerAt({kSealR, kSealR})
             .hitTestable(false)
-            .rotate(bind(&sealUpright).target(0.0f, 360.0f))
+            .rotate(motion::bind(&sealUpright).target(0.0f, 360.0f))
             .effect(styles::textGlow(kHalo, 3.0f))
             .fx({.effect = fx::hold(fx::scramble(U"IVXLC", 12)),
-                 .stagger =
-                     stagger(unit::Cluster, {.eachMs = 90, .durationMs = 620}),
+                 .stagger = {.eachMs = 90, .durationMs = 620},
                  .progress = beat(at + 0.55, at + 0.55 + sealSpanS * 0.9)})
             .fx({.effect = fx::keys({{0.00f, {}},
                                      {0.80f, {}},
                                      {0.90f, {.colorAdd = kCore}},
                                      {1.00f, {}}}),
-                 .stagger =
-                     stagger(unit::Cluster, {.eachMs = 90, .durationMs = 620}),
+                 .stagger = {.eachMs = 90, .durationMs = 620},
                  .progress = beat(at + 0.55, at + 0.55 + sealSpanS * 0.9)}));
     return seal;
   }
@@ -1537,14 +1603,14 @@ struct RotaConvocationis : sketch::Sketch {
    *  glow together, sized by the reserve the style declares so the box
    *  cannot crop its own falloff. */
   [[nodiscard]] Element emblemDisc() {
-    const sdf::Style emblem{.fill = hex(0x1A1008, 0.66f),
+    const sdf::Style emblem{.fill = sigil::material::rgb(0x1A1008, 0.66f),
                             .glowRadius = 34.0f,
-                            .glowColor = hex(0xFFB13A, 0.5f)};
+                            .glowColor = sigil::material::rgb(0xFFB13A, 0.5f)};
     const float side = sdf::minBoxFor(emblem, 2.0f * rEmblem * kR);
     return kit::disc(kEye, side * 0.5f)
         .key("emblem-disc")
         .hitTestable(false)
-        .fill(sdf::material(sdf::circle(), emblem))
+        .fill(mskia::Paint::recipe(sdf::material(sdf::circle(), emblem)))
         .blend(SkBlendMode::kPlus)
         .opacity(&litHub);
   }
@@ -1567,7 +1633,7 @@ struct RotaConvocationis : sketch::Sketch {
   [[nodiscard]] Element emblema() {
     Element hub =
         box().key("emblem").absolute().inset(0).hitTestable(false).rotate(
-            bind(&hexSpin).target(0.0f, 360.0f));
+            motion::bind(&hexSpin).target(0.0f, 360.0f));
     hub.child(rule("hex-chalk", kChalkHexagram, 1.1f, kIron, tInner, 0.8));
     hub.child(line("hub-dots", hubDots, 1.0f, kIron, tInner + 0.3, 0.7));
     hub.child(line("hub-motes", hubMotes, 0.9f, kIronDim, tInner + 0.5, 0.7));
@@ -1578,7 +1644,7 @@ struct RotaConvocationis : sketch::Sketch {
             .absolute()
             .inset(0)
             .hitTestable(false)
-            .onPath({.path = kit::chords(
+            .onPath({.path = shapes::chords(
                          {.sides = 6,
                           .step = 2,
                           .radius = rHexagram * kR / (std::min(kW, kH) * 0.5f),
@@ -1588,8 +1654,7 @@ struct RotaConvocationis : sketch::Sketch {
                      .offset = 4.0f,
                      .autoFlip = true})
             .fx({.effect = fx::hold(fx::typeOn()),
-                 .stagger =
-                     stagger(unit::Cluster, {.eachMs = 26, .durationMs = 260}),
+                 .stagger = {.eachMs = 26, .durationMs = 260},
                  .progress = beat(tHub - 0.3, tHub + 0.9)}));
     return hub;
   }
@@ -1606,8 +1671,7 @@ struct RotaConvocationis : sketch::Sketch {
    *  and the glyphs draw at rest. A decode belongs on an equal-advance
    *  charset, which is where the seals' numerals put it. */
   [[nodiscard]] Element monogramma() {
-    Stagger letters =
-        stagger(unit::Cluster, {.eachMs = 240, .durationMs = 760});
+    motion::Spread letters = {.eachMs = 240, .durationMs = 760};
     return text(toU8(emblemText), rune(52.0f, kBone, 6.0f))
         .key("monogramma")
         .centerAt(kEye)
@@ -1630,31 +1694,32 @@ struct RotaConvocationis : sketch::Sketch {
     Element panel = box().key("rota").absolute().inset(0).hitTestable(false);
 
     // The ground wash under the figure.
-    panel.child(
-        box()
-            .key("rota-wash")
-            .absolute()
-            .inset(0)
-            .hitTestable(false)
-            .fill(Material::glowUnit(
-                {0.5f, 0.5f}, 0.62f,
-                {{0.0f, kNightLift}, {0.66f, hex(0x0D0A18)}, {1.0f, kNight}})));
+    panel.child(box()
+                    .key("rota-wash")
+                    .absolute()
+                    .inset(0)
+                    .hitTestable(false)
+                    .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.62f,
+                                                 {{0.0f, kNightLift},
+                                                  {0.66f, hexColor(0x0D0A18)},
+                                                  {1.0f, kNight}})));
 
     // THE FLOOD: light thrown at the whole sheet from behind the figure.
     // It screens, so it lifts what is already there toward white instead
     // of laying a wash over it, and it is worth its full-panel gradient
     // only while it is on — at gain zero the node is not painted at all.
-    panel.child(box()
-                    .key("flood")
-                    .absolute()
-                    .inset(-120)
-                    .hitTestable(false)
-                    .fill(Material::glowUnit({0.5f, 0.5f}, 0.86f,
-                                             {{0.0f, hex(0xFFD98A, 0.55f)},
-                                              {0.42f, hex(0xE79A32, 0.30f)},
-                                              {1.0f, hex(0xC96F1E, 0.0f)}}))
-                    .blend(SkBlendMode::kScreen)
-                    .opacity(&floodA));
+    panel.child(
+        box()
+            .key("flood")
+            .absolute()
+            .inset(-120)
+            .hitTestable(false)
+            .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.86f,
+                                         {{0.0f, hexColor(0xFFD98A, 0.55f)},
+                                          {0.42f, hexColor(0xE79A32, 0.30f)},
+                                          {1.0f, hexColor(0xC96F1E, 0.0f)}}))
+            .blend(SkBlendMode::kScreen)
+            .opacity(&floodA));
 
     // THE RAYS, thrown past the figure at ignition — the reading that
     // makes an ignition a whole-frame event and not a brighter drawing.
@@ -1667,7 +1732,7 @@ struct RotaConvocationis : sketch::Sketch {
             .absolute()
             .inset(-170)
             .hitTestable(false)
-            .fill(Material::recipe(sigil::material::Material(raysRecipe()))
+            .fill(mskia::Paint::recipe(sigil::material::Material(raysRecipe()))
                       .uniform("uInk", kHalo))
             .blend(SkBlendMode::kPlus)
             .opacity(&raysA));
@@ -1716,7 +1781,7 @@ struct RotaConvocationis : sketch::Sketch {
                     .absolute()
                     .inset(0)
                     .hitTestable(false)
-                    .rotate(bind(&tickSpin).target(0.0f, 360.0f))
+                    .rotate(motion::bind(&tickSpin).target(0.0f, 360.0f))
                     .child(ladder("ticks-fine", 288, 6, rTickMid - 0.003f,
                                   rTickIn, 0.6f, kIron, 1.1, 2.3)));
 
@@ -1780,7 +1845,7 @@ struct RotaConvocationis : sketch::Sketch {
     // which is at the rim and does not travel — the seals pass behind it.
     Element ferrum =
         box().key("ferrum").absolute().inset(0).hitTestable(false).rotate(
-            bind(&sealOrbit).target(0.0f, 360.0f));
+            motion::bind(&sealOrbit).target(0.0f, 360.0f));
     for (int k = 0; k < kSeals; ++k) ferrum.child(sigillum(k));
     panel.child(std::move(ferrum));
 
@@ -1806,28 +1871,29 @@ struct RotaConvocationis : sketch::Sketch {
             .absolute()
             .inset(0)
             .hitTestable(false)
-            .backdrop(Effect::shader(fringeEffect(),
-                                     {{"uCx", kEye.x()}, {"uCy", kEye.y()}})
+            .backdrop(mskia::Effect::shader(
+                          fringeFx, {{"uCx", kEye.x()}, {"uCy", kEye.y()}})
                           .uniform("uSpread", &fringeK))
             .opacity(&fringeA));
 
     // The scribe: the point of the pen, led round the band by the writing
     // cascade — placed every frame from the schedule read back, so it
     // cannot drift from the letters it appears to write.
-    panel.child(box()
-                    .key("scribe")
-                    .left(-9)
-                    .top(-9)
-                    .width(18)
-                    .height(18)
-                    .hitTestable(false)
-                    .fill(Material::glowUnit({0.5f, 0.5f}, 0.5f,
-                                             {{0.0f, hex(0xFFE9B0)},
-                                              {0.35f, hex(0xD8A94E, 0.55f)},
-                                              {1.0f, hex(0xD8A94E, 0.0f)}}))
-                    .translateX(&scribeX)
-                    .translateY(&scribeY)
-                    .opacity(&scribeA));
+    panel.child(
+        box()
+            .key("scribe")
+            .left(-9)
+            .top(-9)
+            .width(18)
+            .height(18)
+            .hitTestable(false)
+            .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.5f,
+                                         {{0.0f, hexColor(0xFFE9B0)},
+                                          {0.35f, hexColor(0xD8A94E, 0.55f)},
+                                          {1.0f, hexColor(0xD8A94E, 0.0f)}}))
+            .translateX(&scribeX)
+            .translateY(&scribeY)
+            .opacity(&scribeA));
     return panel;
   }
 
@@ -1850,7 +1916,7 @@ struct RotaConvocationis : sketch::Sketch {
                    // A lozenge stands at the word the whole figure
                    // converges on, anchored to the rect the selector
                    // resolves rather than to a number a caller measured.
-                   .mark(sel::text(u8"ROTA"),
+                   .mark(weave::sel::text(u8"ROTA"),
                          box()
                              .key("m-rota")
                              .left(pct(50))
@@ -1869,15 +1935,15 @@ struct RotaConvocationis : sketch::Sketch {
                          " GLYPHS \xc2\xb7 23 CVRVED BASELINES \xc2\xb7 10 "
                          "TVRNING LAYERS \xc2\xb7 EVERY START CHAINED FROM A "
                          "SPAN, NONE FITTED BY HAND"),
-                    label(8.5f, hex(0x8A8299, 0.42f), 2.4f))
+                    label(8.5f, hexColor(0x8A8299, 0.42f), 2.4f))
                    .key("colophon-2")
                    .opacity(beat(tIgnite + 0.4, tIgnite + 1.2)));
   }
 
   [[nodiscard]] Element describe() {
     return stack()
-        .fill(Material::glowUnit({0.5f, 0.5f}, 0.9f,
-                                 {{0.0f, kNightLift}, {1.0f, kNight}}))
+        .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.9f,
+                                     {{0.0f, kNightLift}, {1.0f, kNight}}))
         .child(box()
                    .absolute()
                    .inset(0)
@@ -1896,9 +1962,11 @@ struct RotaConvocationis : sketch::Sketch {
     ctx.canvas(kW, kH);
     ctx.background(kNight);
 
-    faceRing = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
-    faceRingBold = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
-    faceMono = pickFace({"Menlo", "SF Mono", "Courier New"}, 500);
+    fringeFx = fringeEffect();
+
+    faceRing = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
+    faceRingBold = sketch::kit::houseFace(sketch::kit::Voice::Interface, 600);
+    faceMono = weave::ports::face({"Menlo", "SF Mono", "Courier New"}, 500);
 
     // ---- content, fitted to its own bands --------------------------------
     voxText = "+ ";
@@ -1965,38 +2033,36 @@ struct RotaConvocationis : sketch::Sketch {
     // ---- the timeline, every window chained from a span ------------------
     voxSpanS =
         voxCascade().spanMs((uint32_t)voxWords, (uint32_t)voxMaxWord) / 1000.0f;
-    runeSpanS = stagger(unit::Cluster, {.eachMs = 7,
-                                        .durationMs = 420,
-                                        .from = Stagger::From::Random,
-                                        .seed = 17})
+    runeSpanS = motion::Spread{.eachMs = 7,
+                               .durationMs = 420,
+                               .from = motion::Spread::From::Random,
+                               .seed = 17}
                     .spanMs((uint32_t)glyphsOf(runeText)) /
                 1000.0f;
     {
-      Stagger form = stagger(unit::Word, {.amountMs = 1900});
-      form.then(unit::Cluster, {.eachMs = 24, .durationMs = 420});
+      motion::Spread form = {.amountMs = 1900};
+      form.then({.eachMs = 24, .durationMs = 420});
       nomSpanS = form.spanMs(18, 14) / 1000.0f;
     }
-    texSpanS = stagger(unit::Cluster, {.eachMs = 4,
-                                       .durationMs = 300,
-                                       .from = Stagger::From::Random,
-                                       .seed = 61})
+    texSpanS = motion::Spread{.eachMs = 4,
+                              .durationMs = 300,
+                              .from = motion::Spread::From::Random,
+                              .seed = 61}
                    .spanMs((uint32_t)glyphsOf(texText)) /
                1000.0f;
     limenSpanS =
-        stagger(unit::Cluster, {.eachMs = 30, .durationMs = 120}).spanMs(15) /
-        1000.0f;
-    sealSpanS = stagger(unit::Cluster, {.eachMs = 30, .durationMs = 480})
-                    .spanMs((uint32_t)glyphsOf(sealText[0])) /
+        motion::Spread{.eachMs = 30, .durationMs = 120}.spanMs(15) / 1000.0f;
+    sealSpanS = motion::Spread{.eachMs = 30, .durationMs = 480}.spanMs(
+                    (uint32_t)glyphsOf(sealText[0])) /
                 1000.0f;
     hubSpanS =
-        stagger(unit::Cluster, {.eachMs = 240, .durationMs = 760}).spanMs(3) /
-        1000.0f;
+        motion::Spread{.eachMs = 240, .durationMs = 760}.spanMs(3) / 1000.0f;
     // THE SHIMMER'S PERIOD is the span the same ladder would take as a
     // one-shot — read off a NON-looping copy, because a looping cascade
     // answers its own period when asked for its span and would only tell
     // this back what it was already given.
-    shimmerS = stagger(unit::Cluster, {.eachMs = 26, .durationMs = 620})
-                   .spanMs((uint32_t)glyphsOf(runeText)) /
+    shimmerS = motion::Spread{.eachMs = 26, .durationMs = 620}.spanMs(
+                   (uint32_t)glyphsOf(runeText)) /
                1000.0f;
 
     tVox = 1.2;
@@ -2020,18 +2086,6 @@ struct RotaConvocationis : sketch::Sketch {
     // one forming, the rest dark, and the carrier far enough round that
     // the ring is visibly off its stations.
     ctx.captureAt(tSeal[7] + sealSpanS * 0.55);
-
-    // The chained timeline, printed: every number below came out of a
-    // span, and this is where to read what the chaining resolved to.
-    std::fprintf(stderr,
-                 "[rota] vox %.2f+%.2fs  register %.2f+%.2fs (shimmer %.2fs)  "
-                 "nomina %.2f+%.2fs  textura %.2f+%.2fs  arcs %.2f  stars "
-                 "%.2f/%.2f  seals %.2f..%.2f (+%.2fs each)  emblem %.2f+%.2fs "
-                 " ignition %.2f  loop %.2fs\n",
-                 tVox, voxSpanS, tRune, runeSpanS, shimmerS, tNames, nomSpanS,
-                 tTex, texSpanS, tArc, tStar, tInner, tSeal[0],
-                 tSeal[kSeals - 1], sealSpanS, tHub, hubSpanS, tIgnite,
-                 loopSecs);
 
     totalGlyphs = glyphsOf(voxText) + glyphsOf(runeText) + glyphsOf(nomText) +
                   glyphsOf(texText) + glyphsOf(hubRuneText) +
@@ -2084,14 +2138,14 @@ struct RotaConvocationis : sketch::Sketch {
     // stations stepped by three is three squares, stepped by four is four
     // triangles, and the library returns exactly gcd(sides, step) closed
     // rings rather than treating the non-coprime case as an error.
-    const kit::Frame frame{.centre = kEye, .radius = kR};
-    const SkPath star = kit::chords(
+    const sigil::geometry::path::Frame frame{.centre = kEye, .radius = kR};
+    const SkPath star = shapes::chords(
         frame,
         {.sides = kStations, .step = 3, .radius = rStar, .closed = true});
-    const SkPath inner = kit::chords(
+    const SkPath inner = shapes::chords(
         frame,
         {.sides = kStations, .step = 4, .radius = rInner, .closed = true});
-    const SkPath hexagram = kit::chords(
+    const SkPath hexagram = shapes::chords(
         frame, {.sides = 6, .step = 2, .radius = rHexagram, .closed = true});
     // The arcs: two rings of twelve, each arc short of its own pitch, the
     // inner ring turned half a pitch so the pair reads as a mechanism and
@@ -2198,11 +2252,11 @@ struct RotaConvocationis : sketch::Sketch {
     // the drizzle keep running for the whole charged idle.
     emberAtlas = std::make_shared<instancing::Atlas>(2.0f);
     emberFrame = emberAtlas->cell(
-        box().fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
-                                      {{0.0f, hex(0xFFF3D2)},
-                                       {0.22f, hex(0xFFD277, 0.85f)},
-                                       {0.55f, hex(0xE79A32, 0.30f)},
-                                       {1.0f, hex(0xC96F1E, 0.0f)}})),
+        box().fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                          {{0.0f, hexColor(0xFFF3D2)},
+                                           {0.22f, hexColor(0xFFD277, 0.85f)},
+                                           {0.55f, hexColor(0xE79A32, 0.30f)},
+                                           {1.0f, hexColor(0xC96F1E, 0.0f)}})),
         {22, 22});
     embers = std::make_shared<instancing::Pool>();
     embers->resize(kEmbers);
@@ -2228,12 +2282,11 @@ struct RotaConvocationis : sketch::Sketch {
   }
 
   /** The ignition's own envelope: a fast rise to the crest and a long
-   *  decay, so what follows the crest is an AFTERGLOW and not a cut. */
+   *  decay, so what follows the crest is an AFTERGLOW and not a cut.
+   *  `motion::flash` is that shape at its origin — a linear rise to
+   *  exactly 1 at the crest and an exponential fall from it. */
   static float burst(double tc, double at, double rise, double fall) {
-    if (tc < at) return 0.0f;
-    const double since = tc - at;
-    if (since < rise) return (float)(since / rise);
-    return (float)std::exp(-(since - rise) / fall);
+    return motion::flash((float)(tc - at), (float)rise, (float)fall);
   }
 
   /** Every gain the fire drives, plus the ember pool. */

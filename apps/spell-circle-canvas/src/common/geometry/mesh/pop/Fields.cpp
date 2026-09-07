@@ -62,9 +62,22 @@ void eachField(OpRef& op, F&& f) {
         } else if constexpr (std::is_same_v<T, pop::Math>) {
           vec4("mul", o.mul);
           vec4("add", o.add);
-        } else if constexpr (std::is_same_v<T, pop::Relax>) {
+        } else if constexpr (std::is_same_v<T, pop::Smooth>) {
           f("strength", o.strength);
           f("iterations", o.iterations);
+        } else if constexpr (std::is_same_v<T, pop::Relax>) {
+          f("radius", o.radius);
+          f("iterations", o.iterations);
+          f("strength", o.strength);
+        } else if constexpr (std::is_same_v<T, pop::Cluster>) {
+          vec4("weights", o.weights);
+          f("count", o.count);
+          f("seed", o.seed);
+          f("iterations", o.iterations);
+        } else if constexpr (std::is_same_v<T, pop::Transfer>) {
+          f("radius", o.radius);
+          f("maxSamples", o.maxSamples);
+          f("blendWidth", o.blendWidth);
         } else if constexpr (std::is_same_v<T, pop::MeshScatter>) {
           f("count", o.count);
           f("seed", o.seed);
@@ -102,6 +115,13 @@ void eachField(OpRef& op, F&& f) {
           f("high", o.high);
         } else if constexpr (std::is_same_v<T, pop::Mix>) {
           f("factor", o.factor);
+        } else if constexpr (std::is_same_v<T, pop::Delete>) {
+          f("threshold", o.threshold);
+          f("keep", o.keep);
+        } else if constexpr (std::is_same_v<T, pop::Normal>) {
+          vec3("center", o.center);
+          f("sense", o.sense);
+          vec3("fallback", o.fallback);
         }
         // Promote and PointSet have no numeric fields.
       },
@@ -152,7 +172,8 @@ std::optional<float> pop::getField(const pop::Op& op, std::string_view field) {
 std::string_view pop::opName(const pop::Op& op) {
   // One arm per alternative, spelled as the operator's own type name, so
   // a chain printed on a control surface and a runtime's complaint about
-  // an operator it cannot run say the same word.
+  // an operator it cannot run say the same word. An alternative with no
+  // arm fails to compile rather than borrowing another's name.
   return std::visit(
       [](const auto& o) -> std::string_view {
         using T = std::decay_t<decltype(o)>;
@@ -170,8 +191,14 @@ std::string_view pop::opName(const pop::Op& op) {
           return "LookAt";
         else if constexpr (std::is_same_v<T, pop::Math>)
           return "Math";
+        else if constexpr (std::is_same_v<T, pop::Smooth>)
+          return "Smooth";
         else if constexpr (std::is_same_v<T, pop::Relax>)
           return "Relax";
+        else if constexpr (std::is_same_v<T, pop::Cluster>)
+          return "Cluster";
+        else if constexpr (std::is_same_v<T, pop::Transfer>)
+          return "Transfer";
         else if constexpr (std::is_same_v<T, pop::MeshScatter>)
           return "MeshScatter";
         else if constexpr (std::is_same_v<T, pop::Fill>)
@@ -194,8 +221,19 @@ std::string_view pop::opName(const pop::Op& op) {
           return "Deform";
         else if constexpr (std::is_same_v<T, pop::Mix>)
           return "Mix";
-        else
+        else if constexpr (std::is_same_v<T, pop::Delete>)
+          return "Delete";
+        else if constexpr (std::is_same_v<T, pop::Normal>)
+          return "Normal";
+        else if constexpr (std::is_same_v<T, pop::PointSet>)
           return "PointSet";
+        else
+          // NO CATCH-ALL. An alternative added to `Op` without an arm
+          // here would otherwise be reported under whichever name the
+          // last arm carried, in the one message a runtime writes when
+          // it cannot run an operator.
+          static_assert(sizeof(T) == 0,
+                        "pop::opName has no arm for this operator");
       },
       op);
 }

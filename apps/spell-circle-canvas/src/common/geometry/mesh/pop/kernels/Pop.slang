@@ -28,9 +28,10 @@
 // for the other would change what a chain cooks rather than where it
 // cooks.
 //
-// The float model is set downstream: `-ffp-contract=off` on the
-// generated C++, and nothing in the SPIR-V forbids a driver to fuse a
-// multiply-add, so nothing here may depend on the unfused answer.
+// The float model is set where this is compiled: `-ffp-contract=off` on
+// the generated C++, and `-fp-mode precise` on the SPIR-V, which puts a
+// `NoContraction` decoration on every arithmetic result so a driver
+// cannot fuse a multiply-add and round once where this rounds twice.
 
 /** ONE DISPATCH'S PARAMETERS. Every member is a four-component vector,
  *  so the block's bytes stand at the same offsets in a uniform buffer as
@@ -123,6 +124,7 @@ static const uint kSelect = 14u;
 static const uint kAffine = 15u;
 static const uint kPeak = 16u;
 static const uint kMix = 18u;
+static const uint kNormal = 21u;
 
 /** lane += a stable random cube offset per point. */
 void opJitter(uint i) {
@@ -172,7 +174,6 @@ void opAtlas(uint i) {
   float du = 1.0 / float(cols);
   float dv = 1.0 / float(rows);
   int cells = cols * rows;
-  if (cells < 1) cells = 1;
   int drawn = int(pcgUnit(i * 13u + args.code.z) * float(cells));
   int cell = drawn < cells - 1 ? drawn : cells - 1;
   int cellRow = cell / cols;
@@ -287,6 +288,25 @@ void opMix(uint i) {
   storeMasked(i, va + (vb - va) * f);
 }
 
+/** A direction lane made unit length, and — with a sense — turned to
+ *  face out of a centre or into it. The fallback arrives already unit
+ *  length, so a direction too short to have one costs no second
+ *  division. */
+void opNormal(uint i) {
+  float4 v = srcA[i];
+  float len = lengthP(float3(v.x, v.y, v.z));
+  float3 n = len > 1e-6 ? float3(v.x / len, v.y / len, v.z / len)
+                        : float3(args.b.x, args.b.y, args.b.z);
+  float sense = args.a.w;
+  if (sense != 0.0) {
+    float4 p = srcB[i];
+    float3 d = float3(p.x - args.a.x, p.y - args.a.y, p.z - args.a.z);
+    float facing = (n.x * d.x + n.y * d.y + n.z * d.z) * sense;
+    if (facing < 0.0) n = float3(-n.x, -n.y, -n.z);
+  }
+  storeMasked(i, float4(n.x, n.y, n.z, v.w));
+}
+
 void popPoint(uint i) {
   if (i >= args.code.y) return;
   uint op = args.code.x;
@@ -314,6 +334,8 @@ void popPoint(uint i) {
     opPeak(i);
   } else if (op == kMix) {
     opMix(i);
+  } else if (op == kNormal) {
+    opNormal(i);
   }
 }
 

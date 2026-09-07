@@ -26,8 +26,8 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
-#include <sigilcompose/core/Material.h>
 #include <sigilmaterial/pattern/Tile.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <memory>
 #include <optional>
@@ -36,10 +36,6 @@
 #include "sigilcompose/Compose.h"
 
 namespace sigil::compose {
-
-/** Draw ONE tile into [0,0 .. size); `seed` is the pattern's current seed —
- *  same seed, same tile (determinism is what makes regeneration a choice). */
-using PatternProgram = sigil::material::pattern::Program;
 
 /** A repeating fill built from one tile. The tile is regenerated on
  *  demand from the pattern's seed, so restyling every use of a pattern is
@@ -54,7 +50,7 @@ class Pattern {
       : m_tile(std::move(tile)) {}
 
   /** A generator tile (the procedural route). */
-  static Pattern tile(SkSize size, PatternProgram draw) {
+  static Pattern tile(SkSize size, sigil::material::pattern::Program draw) {
     return Pattern(sigil::material::pattern::Tile::of(size, std::move(draw)));
   }
 
@@ -119,10 +115,10 @@ class Pattern {
    *  content volatility while the values move; once they hold still the
    *  library's stability detection releases it back to the cached tier,
    *  and it re-declares volatile on the frame the pan resumes. */
-  Pattern& offset(const choreograph::Output<float>* x,
-                  const choreograph::Output<float>* y) {
-    m_boundX = x;
-    m_boundY = y;
+  Pattern& offset(std::optional<motion::Animatable<float>> x,
+                  std::optional<motion::Animatable<float>> y) {
+    m_boundX = std::move(x);
+    m_boundY = std::move(y);
     return *this;
   }
   /** How the baked tile samples. Defaults to linear, which is right for
@@ -136,18 +132,18 @@ class Pattern {
   /** The tile beneath: its bake, its mapping. */
   const sigil::material::pattern::Tile& tile() const { return m_tile; }
 
-  /** Bake-once + wrap as a repeating Material. PROGRAM TILES ONLY: an
+  /** Bake-once + wrap as a repeating paint. PROGRAM TILES ONLY: an
    *  element-tile Pattern has no font context here, so it draws nothing
-   *  and returns an EMPTY material — use the overload below. */
-  Material material() const { return bake(nullptr); }
+   *  and returns an EMPTY paint — use the overload below. */
+  material::skia::Paint material() const { return bake(nullptr); }
   /** Element-tile overload, and the required one for element tiles: the
    *  tree is laid out and shaped during the bake, which needs the fonts. */
-  Material material(sigil::weave::FontContext& fonts) const {
+  material::skia::Paint material(sigil::weave::FontContext& fonts) const {
     return bake(&fonts);
   }
 
  private:
-  Material bake(sigil::weave::FontContext* fonts) const {
+  material::skia::Paint bake(sigil::weave::FontContext* fonts) const {
     if (!m_tile.valid()) return {};
     if (m_tree && !m_tile.baked()) {
       if (!fonts) {
@@ -156,24 +152,27 @@ class Pattern {
             "material(FontContext&) overload\n");
         return {};
       }
-      // The element tile is the program, given the fonts it needs now;
-      // set only when there is no bake so a settled tile is never
-      // invalidated by asking for it again.
-      std::shared_ptr<const Element> tree = m_tree;
-      m_tile.program([tree, fonts](SkCanvas& canvas, SkSize, uint32_t) {
-        // Wrap so the intrinsic-size root adopts the tile's forced dims.
-        if (sk_sp<SkPicture> pic = snapshot(box().child(*tree), *fonts))
-          canvas.drawPicture(pic);
+      // The element tile is SHAPED HERE, while the fonts are in hand, and
+      // the program is the recording it produced. The tile's state
+      // outlives this call — a later seed() or invalidate() re-runs the
+      // program — so a program holding the borrowed context would shape
+      // against a font context that may be gone. A picture holds
+      // everything it draws. (Wrapped so the intrinsic-size root adopts
+      // the tile's forced dims.)
+      sk_sp<SkPicture> pic = snapshot(box().child(*m_tree), *fonts);
+      m_tile.program([pic](SkCanvas& canvas, SkSize, uint32_t) {
+        if (pic) canvas.drawPicture(pic);
       });
     }
     sk_sp<SkImage> baked = m_tile.image();
     if (!baked) return {};
-    Material m =
-        Material::image(std::move(baked), SkTileMode::kRepeat,
-                        SkTileMode::kRepeat, m_tile.mapping(), m_sampling);
+    material::skia::Paint m = material::skia::Paint::image(
+        std::move(baked), SkTileMode::kRepeat, SkTileMode::kRepeat,
+        m_tile.mapping(), m_sampling);
     if (m_boundX || m_boundY)
-      m.offset(m_boundX, m_boundY);  // the live pan rides Material's
-                                     // bound-matrix channel
+      m.offset(m_boundX,
+               m_boundY);  // the live pan rides material::skia::Paint's
+                           // bound-matrix channel
     return m;
   }
 
@@ -182,8 +181,8 @@ class Pattern {
   // the bake's home, and setting its program there is the bake beginning.
   mutable sigil::material::pattern::Tile m_tile;
   std::shared_ptr<const Element> m_tree;
-  const choreograph::Output<float>* m_boundX = nullptr;
-  const choreograph::Output<float>* m_boundY = nullptr;
+  std::optional<motion::Animatable<float>> m_boundX;
+  std::optional<motion::Animatable<float>> m_boundY;
   SkSamplingOptions m_sampling{SkFilterMode::kLinear};
 };
 

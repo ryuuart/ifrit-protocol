@@ -12,6 +12,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/gtc/matrix_inverse.hpp>
+#include <glm/mat3x3.hpp>
 #include <numeric>
 
 #include "sigilgeometry/mesh/Vec.h"
@@ -26,51 +28,28 @@ using camera::toSkM44;
 
 namespace {
 
-/** Upper-left 3x3 of @p m, inverse-transposed — the normal matrix. */
-struct Mat3 {
-  float m[9];
-
-  glm::vec3 apply(glm::vec3 v) const {
-    return {m[0] * v.x + m[1] * v.y + m[2] * v.z,
-            m[3] * v.x + m[4] * v.y + m[5] * v.z,
-            m[6] * v.x + m[7] * v.y + m[8] * v.z};
-  }
-};
-
-Mat3 normalMatrix(const SkM44& src) {
-  const float a00 = src.rc(0, 0), a01 = src.rc(0, 1), a02 = src.rc(0, 2);
-  const float a10 = src.rc(1, 0), a11 = src.rc(1, 1), a12 = src.rc(1, 2);
-  const float a20 = src.rc(2, 0), a21 = src.rc(2, 1), a22 = src.rc(2, 2);
-  const float det = a00 * (a11 * a22 - a12 * a21) -
-                    a01 * (a10 * a22 - a12 * a20) +
-                    a02 * (a10 * a21 - a11 * a20);
-  Mat3 out{{1, 0, 0, 0, 1, 0, 0, 0, 1}};
-  if (std::abs(det) < 1e-12f) return out;
-  const float inv = 1.0f / det;
-  // rows of the inverse transpose = columns of the inverse
-  out.m[0] = (a11 * a22 - a12 * a21) * inv;
-  out.m[1] = (a12 * a20 - a10 * a22) * inv;
-  out.m[2] = (a10 * a21 - a11 * a20) * inv;
-  out.m[3] = (a02 * a21 - a01 * a22) * inv;
-  out.m[4] = (a00 * a22 - a02 * a20) * inv;
-  out.m[5] = (a01 * a20 - a00 * a21) * inv;
-  out.m[6] = (a01 * a12 - a02 * a11) * inv;
-  out.m[7] = (a02 * a10 - a00 * a12) * inv;
-  out.m[8] = (a00 * a11 - a01 * a10) * inv;
-  return out;
+/** Upper-left 3x3 of @p m, inverse-transposed — the normal matrix. A
+ *  non-uniform scale tilts a surface and its normal the opposite way, so
+ *  the plain matrix would leave every normal off the surface it
+ *  describes.
+ *
+ *  The determinant is tested before the inverse is taken: glm's ends
+ *  with an unguarded divide by it, so a placement that collapsed an axis
+ *  would come back as infinities. A basis with no volume has no normal
+ *  transform, and the identity is what leaves a normal alone. */
+glm::mat3 normalMatrix(const glm::mat4& m) {
+  const glm::mat3 basis(m);
+  if (std::abs(glm::determinant(basis)) < 1e-12f) return glm::mat3(1.0f);
+  return glm::inverseTranspose(basis);
 }
 
-/** Multiply a shaded vertex colour by a primitive lane value. The
- *  shaded colour is already sRGB-encoded bytes, so this is a plain
- *  byte-domain modulate — the same posture SkBlendMode::kModulate has
- *  for the texture path. */
-SkColor modulate(SkColor c, glm::vec4 m) {
-  const auto scale = [](U8CPU channel, float k) -> U8CPU {
-    return (U8CPU)std::clamp((float)channel * k + 0.5f, 0.0f, 255.0f);
-  };
-  return SkColorSetARGB(scale(SkColorGetA(c), m.a), scale(SkColorGetR(c), m.r),
-                        scale(SkColorGetG(c), m.g), scale(SkColorGetB(c), m.b));
-}
+/** A shaded colour as this executor carries it between shading and
+ *  emission: STRAIGHT FLOAT, so a primitive lane multiplies into it in
+ *  the same domain the device painter multiplies in and the mesh's own
+ *  `bakePrimColor` folds in. Quantising first and multiplying bytes
+ *  afterwards is a different answer, and one lane must not mean two
+ *  colours. */
+glm::vec4 rgba(glm::vec3 rgb, float a) { return {rgb.x, rgb.y, rgb.z, a}; }
 
 SkColor toColor(glm::vec3 rgb, float a) {
   const SkColor4f c = {
@@ -98,13 +77,22 @@ struct CpuExecutor : Executor {
     viewModel.preConcat(toSkM44(model));
     SkM44 full = toSkM44(camera.viewProjection(viewport));
     full.preConcat(toSkM44(model));
-    const Mat3 normalM = normalMatrix(viewModel);
-    const Mat3 lightM = normalMatrix(toSkM44(camera.view()));
+    const glm::mat3 normalM = normalMatrix(camera.view() * model);
+    const glm::mat3 lightM = normalMatrix(camera.view());
+    // The shading is written in view space and an environment map is a
+    // panorama of the WORLD, so a direction goes back out through the
+    // inverse of the rotation that brought it in — which, for the
+    // rotation part of a rigid placement, is its transpose.
+    const glm::mat3 worldM = glm::transpose(lightM);
+    const Environment& environment = style.environment;
+    const bool sky = environment.valid();
+    const float metal = std::clamp(style.metallic, 0.0f, 1.0f);
+    const float rough = std::clamp(style.roughness, 0.0f, 1.0f);
 
     // Project + shade every vertex once.
     std::vector<SkPoint> screen(n);
     std::vector<float> viewZ(n);
-    std::vector<SkColor> shaded(n);
+    std::vector<glm::vec4> shaded(n);
     std::vector<bool> valid(n, true);
     const bool hasNormals = mesh.normals.size() == n;
     const bool hasUvs = mesh.uvs.size() == n;
@@ -125,26 +113,25 @@ struct CpuExecutor : Executor {
       switch (style.mode) {
         case MeshStyle::Mode::Normals: {
           const glm::vec3 nrm = hasNormals
-                                    ? normalized(normalM.apply(mesh.normals[i]))
+                                    ? normalized(normalM * mesh.normals[i])
                                     : glm::vec3{0, 0, 1};
-          // Materials.h G-buffer convention: DEVICE-space normals, +y down.
-          shaded[i] = toColor(
+          // The G-buffer convention: DEVICE-space normals, +y down.
+          shaded[i] = rgba(
               {nrm.x * 0.5f + 0.5f, -nrm.y * 0.5f + 0.5f, nrm.z * 0.5f + 0.5f},
               1);
           break;
         }
         case MeshStyle::Mode::Uv: {
           const glm::vec2 uv = hasUvs ? mesh.uvs[i] : glm::vec2{0, 0};
-          shaded[i] = toColor({uv.x, uv.y, 0.5f}, 1);
+          shaded[i] = rgba({uv.x, uv.y, 0.5f}, 1);
           break;
         }
         case MeshStyle::Mode::Lit:
         default: {
           const SkV4 vp4 = viewModel * SkV4{p.x, p.y, p.z, 1};
           const glm::vec3 posView = {vp4.x, vp4.y, vp4.z};
-          const glm::vec3 N = hasNormals
-                                  ? normalized(normalM.apply(mesh.normals[i]))
-                                  : glm::vec3{0, 0, 1};
+          const glm::vec3 N = hasNormals ? normalized(normalM * mesh.normals[i])
+                                         : glm::vec3{0, 0, 1};
           const glm::vec3 V = normalized(posView * -1.0f);
           glm::vec3 base = {style.baseColor.fR, style.baseColor.fG,
                             style.baseColor.fB};
@@ -158,28 +145,48 @@ struct CpuExecutor : Executor {
           // what it shows, with no ambient under it and no emitter,
           // specular or rim over it.
           if (!style.lit) {
-            shaded[i] = toColor(base, alpha);
+            shaded[i] = rgba(base, alpha);
             break;
           }
-          glm::vec3 accum = {style.ambient.fR * base.x,
-                             style.ambient.fG * base.y,
-                             style.ambient.fB * base.z};
+          // WHAT A METAL IS: the light stops reaching the diffuse and
+          // the highlight takes the surface's own colour. At metal zero
+          // — every surface that says nothing — this is the arithmetic
+          // that was already here, term for term.
+          const glm::vec3 albedo = base * (1.0f - metal);
+          const glm::vec3 f0 = specularColor(base, metal);
+          const glm::vec3 highlight =
+              glm::vec3(1.0f) + (base - glm::vec3(1.0f)) * metal;
+          // THE AMBIENT TERM IS THE ENVIRONMENT where there is one: what
+          // actually falls on a surface facing this way from every
+          // direction, rather than one constant for the whole set.
+          const glm::vec3 ambient =
+              sky ? environmentIrradiance(environment, worldM * N)
+                  : glm::vec3{style.ambient.fR, style.ambient.fG,
+                              style.ambient.fB};
+          glm::vec3 accum = albedo * ambient;
           for (const Light& light : style.lights) {
-            const glm::vec3 L =
-                normalized(lightM.apply(light.direction * -1.0f));
+            const glm::vec3 L = normalized(lightM * (light.direction * -1.0f));
             const float diff = std::max(glm::dot(N, L), 0.0f);
             const glm::vec3 lc = {light.color.fR * light.intensity,
                                   light.color.fG * light.intensity,
                                   light.color.fB * light.intensity};
-            accum += glm::vec3{base.x * lc.x * diff, base.y * lc.y * diff,
-                               base.z * lc.z * diff};
+            accum += albedo * lc * diff;
             if (style.specular > 0 && diff > 0) {
               const glm::vec3 H = normalized(L + V);
               const float spec =
                   std::pow(std::max(glm::dot(N, H), 0.0f), style.shininess) *
                   style.specular;
-              accum += lc * spec;
+              accum += lc * spec * highlight;
             }
+          }
+          // …and what the surface MIRRORS, off the reflected view
+          // vector, at the level its roughness picks.
+          if (sky) {
+            const float nDotV = std::max(glm::dot(N, V), 0.0f);
+            const glm::vec3 R = N * (2.0f * nDotV) - V;
+            accum += environmentSpecular(
+                environmentRadiance(environment, worldM * R, rough), f0, rough,
+                nDotV);
           }
           if (style.rim > 0) {
             const float rim =
@@ -187,7 +194,12 @@ struct CpuExecutor : Executor {
                 style.rim;
             accum += glm::vec3{rim, rim, rim};
           }
-          shaded[i] = toColor(accum, alpha);
+          // WHERE THE LIT SUM ENDS: a radiance, read at the set's
+          // exposure and compressed onto what a display can hold. Only
+          // here — a surface that is its own light returned above with
+          // an authored colour, and the two buffer modes are not
+          // pictures at all.
+          shaded[i] = rgba(toneMap(accum, style.environment.exposure), alpha);
           break;
         }
       }
@@ -214,6 +226,11 @@ struct CpuExecutor : Executor {
     for (size_t t = 0; t + 2 < mesh.indices.size(); t += 3) {
       const uint32_t i0 = mesh.indices[t], i1 = mesh.indices[t + 1],
                      i2 = mesh.indices[t + 2];
+      // A triangle naming a vertex the mesh does not have is dropped
+      // before anything is read through it. The indices are whatever the
+      // caller built or an importer read, and the arrays below are sized
+      // to the vertex count alone.
+      if (i0 >= n || i1 >= n || i2 >= n) continue;
       if (!valid[i0] || !valid[i1] || !valid[i2]) continue;
       if (style.backfaceCull) {
         const SkPoint a = screen[i0], b = screen[i1], c = screen[i2];
@@ -265,7 +282,8 @@ struct CpuExecutor : Executor {
             primColor ? (*primColor)[tri.index] : glm::vec4{1, 1, 1, 1};
         for (uint32_t idx : {tri.i0, tri.i1, tri.i2}) {
           pos.push_back(screen[idx]);
-          col.push_back(primColor ? modulate(shaded[idx], flat) : shaded[idx]);
+          const glm::vec4 c = primColor ? shaded[idx] * flat : shaded[idx];
+          col.push_back(toColor({c.x, c.y, c.z}, c.w));
           if (textured) {
             const SkPoint uv =
                 style.uvTransform.mapPoint({mesh.uvs[idx].x, mesh.uvs[idx].y});

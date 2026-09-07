@@ -6,33 +6,35 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <include/core/SkStream.h>
+#include <include/core/SkData.h>
+#include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
-#include <include/encode/SkPngEncoder.h>
-#include <sigilsketch/core/Assets.h>
-#include <sigilsketch/core/Registry.h>
-#include <sigilsketch/core/Session.h>
-#include <sigilsketch/plate/FrameStats.h>
-
-#ifdef SIGILSKETCH_HEADLESS_GPU
 #include <include/gpu/GpuTypes.h>  // skgpu::GpuStatsFlags
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
+#include <include/utils/SkNoDrawCanvas.h>
+#include <sigilimage/encode/Encode.h>
+#include <sigilio/source/Sink.h>
+#include <sigilmeasure/time/Stopwatch.h>
+#include <sigilsketch/core/Assets.h>
+#include <sigilsketch/core/Crash.h>
+#include <sigilsketch/core/Registry.h>
+#include <sigilsketch/core/Session.h>
+#include <sigilsketch/plate/FrameStats.h>
+#include <sigilsketch/plate/Graphite.h>
 #include <sigilskia/graphite/GraphiteContext.h>
-
-#include "sigilsketch/plate/Graphite.h"
-#endif
+#include <sigilskia/graphite/PaintOrder.h>
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace sigil::sketch {
@@ -56,37 +58,24 @@ constexpr int kMaxWarmFrames = 240 - kProbeFrames;
 constexpr int kMaxSampleFrames = 120;
 constexpr int kCaptureFrame = kProbeFrames + kMaxWarmFrames + kMaxSampleFrames;
 
-/** How wide a plate may be before the oversample gives way rather than
- *  the pixel count. It bounds what a HOST chose; a sketch that declares
- *  an oversample of its own is rendered at exactly that, because the
- *  reason to declare one is a grid a fractional scale would destroy. */
-constexpr float kPlateWidthCeiling = 2400.0f;
-
-double millisSince(std::chrono::steady_clock::time_point from,
-                   std::chrono::steady_clock::time_point to) {
-  return std::chrono::duration<double, std::milli>(to - from).count();
-}
-
-/** The entries this run walks. */
-std::vector<int> selection(const SweepOptions& options) {
-  std::vector<int> chosen;
-  const auto& entries = registry();
-  const int first = options.only >= 0 ? options.only : 0;
-  const int last = options.only >= 0 ? options.only + 1 : (int)entries.size();
-  for (int i = first; i < last && i < (int)entries.size(); ++i) {
-    if (!options.kind.empty()) {
-      const Kind kind = entries[i].kind();
-      if (!kind || kind->runtime() != options.kind) continue;
-    }
-    chosen.push_back(i);
-  }
-  return chosen;
+/** A plate on disk: encoded once, written once. The plate ledger hashes
+ *  what lands here, so the encode is the picture's identity and a
+ *  half-written file must read as a failure rather than as a plate. */
+bool writePlate(const SkPixmap& pixels, const std::filesystem::path& path) {
+  const sk_sp<SkData> png = image::encodeImage(pixels, image::Format::Png);
+  return png && io::writeBytes(path, png->data(), png->size());
 }
 
 }  // namespace
 
 int sweep(const SweepOptions& options, weave::FontContext& fonts,
           Assets& assets) {
+  if (options.promotion && options.noPromotion) {
+    std::fprintf(stderr,
+                 "--promotion and --no-promotion ask for opposite runs; "
+                 "name one\n");
+    return 1;
+  }
   if (!options.timingJson.empty() && options.ledger) {
     std::fprintf(stderr,
                  "--timing-json is refused under --ledger: ledger mode "
@@ -104,12 +93,22 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     }
   }
 
-#ifdef SIGILSKETCH_HEADLESS_GPU
-  std::unique_ptr<skia::GraphiteContext> graphite;
+  // THE DEVICE'S OWN CONTEXT, and never one of this sweep's making: a
+  // set is rendered by the runtime the host installed on the device it
+  // brought up, and a canvas is photographed on a surface allocated
+  // here. Two devices would mean the second could not read what the
+  // first painted, so both stand on the one the host installed.
+  skia::GraphiteContext* graphite = nullptr;
   if (options.gpu) {
-    graphite = headlessGraphite();
+    graphite = deviceGraphite();
     if (!graphite) {
-      std::fprintf(stderr, "Graphite context creation failed; no GPU sweep\n");
+      // Named the way a device that could not be created is named, so a
+      // caller telling "this machine has no device" from "this is a
+      // defect" reads one answer for both: a device whose Graphite
+      // adoption failed has no 2D device runtime either.
+      std::fprintf(stderr,
+                   "no device runtime (the device carries no Graphite "
+                   "context)\n");
       if (timingJson) std::fclose(timingJson);
       return 1;
     }
@@ -135,13 +134,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
             : "unsupported on this backend",
         (unsigned)caps);
   }
-#else
-  if (options.gpu) {
-    std::fprintf(stderr, "this build has no headless GPU backend\n");
-    if (timingJson) std::fclose(timingJson);
-    return 1;
-  }
-#endif
 
   std::filesystem::create_directories(options.outDir);
   // TWO TIMING COLUMNS, and the difference between them is the point.
@@ -156,10 +148,14 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
   std::printf("%-22s %10s %8s %8s %9s  %s\n", "sketch", "canvas", "frame ms",
               "p99 ms", "headroom", "lanes");
 
-  const std::vector<int> chosen = selection(options);
+  const std::vector<int> chosen = selection(options.only, options.kind);
   const std::vector<Entry>& entries = registry();
   bool anyShortened = false;
   size_t skipped = 0;
+  // How far the run got, for the crash reporter: a fault at plate 3 and a
+  // fault at plate 130 are different problems, and only one of them can
+  // be narrowed with --sketch on the next run.
+  size_t plates = 0;
   for (int index : chosen) {
     const Entry& entry = entries[index];
     // A SKETCH THIS MACHINE CANNOT DRAW IS SKIPPED RATHER THAN FAILED,
@@ -188,8 +184,20 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // flag because the two modes must photograph the same picture: the
     // benchmark phases decide how a machine spends its time, never what
     // the capture contains.
-    std::unique_ptr<Session> session = kind->open(fonts, assets, true);
-    if (options.noPromotion) session->setAutoPromotion(false);
+    // NAME THE ENTRY BEFORE ANYTHING RUNS IN IT. A sweep opens a hundred
+    // sketches in one process, so a fault inside one is a fault inside
+    // this process, and the only thing that says which sketch it was is
+    // this — the last line on stderr is whatever the sketch BEFORE it
+    // printed, and a run of a hundred is where that costs the most.
+    noteSketch(entry.name);
+    notePlates((int)plates);
+    std::unique_ptr<Session> session;
+    {
+      PhaseMark mark(Phase::Setup);
+      session = kind->open(fonts, assets, true);
+    }
+    if (options.noPromotion) session->setAutoPromotion(Session::Promotion::Off);
+    if (options.promotion) session->setAutoPromotion(Session::Promotion::Eager);
     SkDebugf("=== sketch %s\n", entry.name);
 
     // Every size below comes off the session: a sketch declares its own
@@ -200,8 +208,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         SkImageInfo::MakeN32Premul((int)size.width(), (int)size.height());
     sk_sp<SkSurface> surface;
     std::function<void()> flushHook;
-#ifdef SIGILSKETCH_HEADLESS_GPU
-    if (options.gpu) {
+    if (graphite) {
       surface = SkSurfaces::RenderTarget(graphite->recorder(), info);
       // Serialize each frame to completion so a frame's cost cannot hide
       // in queue depth. Real hosts pipeline — this is the honest
@@ -215,19 +222,41 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         graphite->context()->submit(skgpu::graphite::SyncToCpu::kYes);
       };
     }
-#endif
     if (!surface) surface = SkSurfaces::Raster(info);
+    // On a device the frame is described through the canvas that keeps
+    // painting order, which is the canvas a running host draws through,
+    // so what is measured here is what that host pays.
+    std::optional<skia::PaintOrderCanvas> ordered;
+    if (graphite) ordered.emplace(*graphite, surface->getCanvas());
+    SkCanvas* const frameCanvas =
+        ordered ? static_cast<SkCanvas*>(&*ordered) : surface->getCanvas();
+
+    // REACHING THE CAPTURE MOMENT COSTS THE SKETCH'S OWN WORK, NOT THE
+    // RASTERISER'S. Every frame before the captured one is thrown away, so
+    // those are described onto a canvas that keeps the size and the clip
+    // and rasterises nothing: the body runs, the tree is reconciled, laid
+    // out and painted exactly as it would be, and only the fill of pixels
+    // nobody will read is skipped. A scene whose declared moment is many
+    // seconds out spends its whole render there.
+    SkNoDrawCanvas discarded((int)size.width(), (int)size.height());
 
     FrameStats stats;
-    const auto stepOne = [&](SkSurface& target) {
-      const auto start = std::chrono::steady_clock::now();
-      target.getCanvas()->clear(clearColor);
-      session->frame(*target.getCanvas(), kStep);
-      const auto composed = std::chrono::steady_clock::now();
+    const auto stepOne = [&](SkSurface&) {
+      // One watch, read twice: the two lanes both start at the top of the
+      // frame and differ only in whether the backend drain is inside.
+      const measure::Stopwatch watch;
+      frameCanvas->clear(clearColor);
+      PhaseMark mark(Phase::Update);
+      session->frame(*frameCanvas, kStep);
+      stats.addWork(watch.elapsedMs());
       if (flushHook) flushHook();
-      const auto finished = std::chrono::steady_clock::now();
-      stats.addWork(millisSince(start, composed));
-      stats.add(millisSince(start, finished));
+      stats.add(watch.elapsedMs());
+    };
+    /** One stepped frame whose pixels are thrown away. */
+    const auto advanceOne = [&] {
+      discarded.clear(clearColor);
+      PhaseMark mark(Phase::Update);
+      session->frame(discarded, kStep);
     };
 
     // Warm past the entrance choreography so the table reports STEADY
@@ -299,7 +328,10 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     if (options.ledger && declared <= 0) declared = kCaptureFrame / kRate;
     if (declared > 0) {
       session = kind->open(fonts, assets, true);
-      if (options.noPromotion) session->setAutoPromotion(false);
+      if (options.noPromotion)
+        session->setAutoPromotion(Session::Promotion::Off);
+      if (options.promotion)
+        session->setAutoPromotion(Session::Promotion::Eager);
       if (session->canvas().size != size) {
         std::fprintf(stderr,
                      "sketch %s declared a different canvas on reopen\n",
@@ -308,10 +340,10 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         return 1;
       }
       const int captureFrame = (int)std::lround(declared * kRate);
-      for (int f = 0; f < captureFrame; ++f) stepOne(*surface);
+      for (int f = 0; f < captureFrame; ++f) advanceOne();
     } else {
       const int stepped = kProbeFrames + warmFrames + sampleFrames;
-      for (int f = stepped; f < kCaptureFrame; ++f) stepOne(*surface);
+      for (int f = stepped; f < kCaptureFrame; ++f) advanceOne();
     }
 
     char canvasLabel[24];
@@ -360,12 +392,12 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
                                       kPlateWidthCeiling / size.width()));
     const SkImageInfo plateInfo = SkImageInfo::MakeN32Premul(
         (int)(size.width() * scale), (int)(size.height() * scale));
-    const std::string path = options.outDir + "/plate_" + entry.name + ".png";
+    const std::string path =
+        options.outDir + "/" + std::string(kPlatePrefix) + entry.name + ".png";
     SkBitmap bitmap;
     bitmap.allocPixels(plateInfo);
 
-#ifdef SIGILSKETCH_HEADLESS_GPU
-    if (options.gpu) {
+    if (graphite) {
       // A Graphite surface cannot readPixels synchronously, so the still
       // comes back through the async path — and these are the pixels the
       // interactive host actually shows, so visual review runs here.
@@ -377,9 +409,10 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         if (timingJson) std::fclose(timingJson);
         return 1;
       }
-      plate->getCanvas()->clear(clearColor);
-      plate->getCanvas()->scale(scale, scale);
-      session->still(*plate->getCanvas());
+      skia::PaintOrderCanvas orderedPlate(*graphite, plate->getCanvas());
+      orderedPlate.clear(clearColor);
+      orderedPlate.scale(scale, scale);
+      session->still(orderedPlate);
       if (auto recording = graphite->recorder()->snap()) {
         skgpu::graphite::InsertRecordingInfo insert;
         insert.fRecording = recording.get();
@@ -405,29 +438,36 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       graphite->context()->submit(submitInfo);
       for (int spin = 0; spin < 5000 && !read.called; ++spin)
         graphite->context()->checkAsyncWorkCompletion();
-      if (!read.result) continue;
+      if (!read.result) {
+        // A PLATE THAT WAS NOT READ BACK IS A PLATE THAT WAS NOT WRITTEN,
+        // and the run's answer is that every selected sketch rendered:
+        // carrying on would leave the name with no picture under it and
+        // still exit as though it had one.
+        std::fprintf(stderr, "could not read back the device plate for %s\n",
+                     entry.name);
+        if (timingJson) std::fclose(timingJson);
+        return 1;
+      }
       const auto* src = static_cast<const uint8_t*>(read.result->data(0));
       const size_t srcRowBytes = read.result->rowBytes(0);
       for (int y = 0; y < plateInfo.height(); ++y)
         std::memcpy(bitmap.pixmap().writable_addr(0, y),
                     src + (size_t)y * srcRowBytes,
                     std::min(srcRowBytes, bitmap.rowBytes()));
-      SkFILEWStream stream(path.c_str());
-      if (stream.isValid()) SkPngEncoder::Encode(&stream, bitmap.pixmap(), {});
+      writePlate(bitmap.pixmap(), path);
+      ++plates;
       continue;
     }
-#endif
     sk_sp<SkSurface> plate = SkSurfaces::Raster(plateInfo);
     plate->getCanvas()->clear(clearColor);
     plate->getCanvas()->scale(scale, scale);
     session->still(*plate->getCanvas());
     plate->readPixels(bitmap.pixmap(), 0, 0);
-    SkFILEWStream stream(path.c_str());
-    if (!stream.isValid() ||
-        !SkPngEncoder::Encode(&stream, bitmap.pixmap(), {})) {
+    if (!writePlate(bitmap.pixmap(), path)) {
       if (timingJson) std::fclose(timingJson);
       return 1;
     }
+    ++plates;
   }
 
   if (anyShortened)

@@ -1,0 +1,19 @@
+half4 main(float2 xy) {
+  float3 n = readNormal(xy);
+  // The bevel bends the view ray; the flat interior passes straight
+  // through, so refraction reads at the rim — the lens look.
+  float2 offset = n.xy * refractPx;
+  float3 bg = float3(backdrop.eval(xy + offset).rgb);
+
+  float3 V = float3(0.0, 0.0, 1.0);
+  float3 R = reflect(-V, n);
+  float3 e3 = envSample(R);
+  float ndv = clamp(dot(n, V), 0.0, 1.0);
+  float fres = pow(1.0 - ndv, 5.0);
+
+  float3 trans = bg * tint.rgb;
+  float mixv = clamp(reflection * (0.06 + 0.94 * fres), 0.0, 1.0);
+  float3 col = mix(trans, e3, mixv);
+  col += edgeGlow * pow(1.0 - ndv, 2.5) * float3(1.0);
+  return half4(half3(col), 1.0) * opacity;
+}

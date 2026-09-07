@@ -1,50 +1,77 @@
 /** @file
- * manuscript — an illuminated page in the Florentine humanist manner:
- * a bianchi girari margin, a versal on a cobalt ground, and a text that
- * flows around both.
+ * manuscript — one named codex's mise-en-page, reconstructed: the leaf's
+ * own rectangle, a written space ruled on it, a versal dropped six lines
+ * into the text, and a bianchi girari frieze in the margins.
  */
 
-// THE BOOK THIS IS SET AFTER
+// THE CODEX. Firenze, Biblioteca Medicea Laurenziana, Plut. 63.10 — Livy's
+// first decade, written at Florence in 1458 by PIERO STROZZI for Piero de'
+// Medici through the stationer Vespasiano da Bisticci, and illuminated by
+// Filippo di Matteo Torelli. Its leaf is 259 x 360 mm. Its preface page
+// carries a frieze of BIANCHI GIRARI — white interlaced vine-stems
+// reserved out of a blue ground, with green and pink lacunae between the
+// stems, gilded bezants and floral sprays over them — and the title above
+// the preface is set in gold capitals inside a rectangular frame of
+// lozenges drawn in perspective.
 //
-// The bianchi girari ("white vine-stem") book of the Florentine humanist
-// workshops, c. 1450–1480 — Vespasiano da Bisticci's among them: white
-// interlaced vine-stems reserved out of a blue, green and vermilion
-// ground, running the margin and knotting at the corners; a gold versal
-// on a cobalt panel; a vermilion incipit above the text; and the body in
-// HUMANIST MINUSCULE, the hand those scribes cut from Carolingian models
-// and the hand every roman typeface since is descended from.
+// WHAT IS THE CODEX'S AND WHAT IS THIS PAGE'S. The shelfmark, the hand,
+// the date, the leaf's 259 x 360 mm and the decoration above are the
+// codex's, and this page is drawn to them: the CANVAS IS THE LEAF, three
+// canvas pixels to the millimetre, so every number below is a millimetre
+// of the real object.
 //
-// That descent is why the face here is a humanist old-style rather than
-// a blackletter: the page is a fifteenth-century Florentine book and not
-// a thirteenth-century northern one, and the letterform the scribes used
-// is the one this line of type still carries. A grotesque is the one
-// thing it cannot be — a book hand is the first thing a reader of an
-// illuminated page sees.
+// The written space and the line count are NOT published within reach, so
+// they are a reconstruction and are stated as one: the block is ruled on
+// the NINTHS CANON the Florentine humanist folio takes — one ninth of the
+// leaf at the spine and at the head, two ninths at the fore-edge and at
+// the foot — which leaves a written space of 172.7 x 240.0 mm, and it is
+// ruled to 38 long lines, a 6.32 mm pitch. Both fall where a Livy of this
+// format falls; neither is a measurement of Plut. 63.10.
 //
-// A TRUE DROP CAP, and where its geometry comes from: there is no
-// dedicated drop-cap facility. The verse's first grapheme is split off
-// as its own element and the remainder is a paragraph that FLOWS AROUND
-// it, through the same exclusion machinery the sprigs and the rubric
-// panel use — so the initial's box is the only thing that decides where
-// the first lines start, and moving it re-runs the flow.
+// THE VERSAL is an ORNAMENT and not a letter: a cobalt panel with the
+// initial reserved in gold inside it. So it is a keyed element the prose
+// FLOWS AROUND — the same exclusion the marginal note and the vine sprig
+// get, resolved in the same pass — and its depth is the panel's own, six
+// times the pitch. (A bare initial needs none of that: `initialLetter`
+// sizes and seats one from the block's own pitch.) `kit::NestedStyle`
+// carries the paragraph out of the initial: the opening words run on in
+// the rubricator's red small capitals through the first full stop, stated
+// as a DELIMITER so an edit to the copy moves the run with it.
+//
+// The body is set in a humanist old-style, because the hand of the codex
+// is HUMANIST MINUSCULE — the letter the Florentine scribes cut from
+// Carolingian models, and the letter every roman face since descends from.
+// A blackletter would be a northern book two centuries earlier.
 //
 // EDIT THESE FIRST
-//   kBookFaces  — the humanist old-style the body is set in, in order of
-//                 preference; the first one installed wins.
-//   kTurnSecs   — how long a verse holds before the page turns.
-//   azurePalette() / crimsonPalette() — the page's two colour sets, one
-//                 for the margin and versal and one for the rubric.
-//   the flowAround margins below — the white a line keeps from each
-//                 exclusion it meets.
+//   kLeafW / kLeafH — the codex's leaf in millimetres. Every distance on
+//                     the page is a fraction of these two.
+//   kLines          — how many lines the block is ruled to; the pitch, the
+//                     body size and the versal's depth all follow it.
+//   kCapLines       — how deep the versal is dropped, in lines.
+//   kTurnSecs       — how long a page holds before it is turned.
 
 #include <include/core/SkMaskFilter.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Ornament.h>
+#include <sigilcompose/kit/Specimen.h>
+#include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Passage.h>
+#include <sigilweave/kit/Features.h>
+#include <sigilweave/kit/Hyphenation.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
+#include <cmath>
 #include <initializer_list>
+#include <string>
+#include <utility>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -52,257 +79,296 @@ using namespace std::chrono_literals;
 using namespace sigil::compose::kit::ornament;
 
 namespace {
+
+const sigil::weave::kit::PatternHyphenator& hyphenator() {
+  static const sigil::weave::kit::PatternHyphenator table(
+      "en", sigil::weave::kit::englishHyphenationPatterns());
+  return table;
+}
+
 /** The humanist old-styles this page is set in, best first. Every one of
- *  them descends from the minuscule the Florentine scribes wrote, which
- *  is the whole reason a roman face is right here at all. */
+ *  them descends from the minuscule the Florentine scribes wrote, which is
+ *  the whole reason a roman face is right here at all. */
 constexpr std::initializer_list<const char*> kBookFaces = {
     "Hoefler Text", "Palatino", "Baskerville", "Iowan Old Style",
     "Times New Roman"};
 
-/// How long one verse holds before the page turns.
+/// How long one page holds before it is turned.
 constexpr double kTurnSecs = 7.0;
 
-/** The canvas this piece was drawn against, which is also the default a
- *  sketch gets when it declares none. */
-constexpr SkSize kSceneSize = {900, 640};
+// ── The leaf, in millimetres, and the canvas that IS it ────────────────
+constexpr float kMm = 3.0f;  ///< canvas pixels to the millimetre
+constexpr float kLeafW = 259.0f;
+constexpr float kLeafH = 360.0f;
+constexpr SkSize kSceneSize = {kLeafW * kMm, kLeafH* kMm};
+
+// ── The ninths canon, in millimetres ───────────────────────────────────
+constexpr float kSpine = kLeafW / 9.0f;                  // 28.78
+constexpr float kHead = kLeafH / 9.0f;                   // 40.00
+constexpr float kForeEdge = kLeafW * 2 / 9.0f;           // 57.56
+constexpr float kFoot = kLeafH * 2 / 9.0f;               // 80.00
+constexpr float kMeasure = kLeafW - kSpine - kForeEdge;  // 172.67
+constexpr float kDepth = kLeafH - kHead - kFoot;         // 240.00
+
+/// The ruling: how many lines the block holds, and the pitch that gives.
+constexpr int kLines = 38;
+constexpr float kPitch = kDepth / (float)kLines;  // 6.316 mm
+/// The incipit's own band, in lines, and the versal's depth in lines.
+constexpr int kIncipitLines = 3;
+constexpr int kCapLines = 6;
+
+/// The body's size: the pitch less the leading a humanist page opens.
+constexpr float kBodySize = kPitch / 1.35f;  // 4.68 mm
+
+constexpr float px(float mm) { return mm * kMm; }
+
+/** THE TWO PAGES the codex is opened at. Each is written to run the
+ *  block to its foot: a page that stops two thirds of the way down is a
+ *  setting abandoned, not a mise-en-page. */
 
 struct Manuscript final : sketch::Sketch {
-  int verse = 0;
+  /** The two leaves the book turns between, read from beside the sketch:
+   *  the prose is what the page SETS and not what sets it. */
+  std::u8string pages[2];
+  int page = 0;
   double nextTurn = 0.0;
-
-  // The page turns between two verses on a cycle, so the still names its
-  // moment. This sits mid-hold on verse 0, which is the incipit the fixed
-  // rubric in the margin announces — the only verse the rest of the page
-  // agrees with.
-
-  static constexpr const char8_t* kVerses[2] = {
-      u8"Here begins the book of the ember gate, set down in the year "
-      u8"of the long tide by the wardens of the flooded causeway. Let "
-      u8"every reader carry the coal with a steady hand, for the water "
-      u8"remembers what the fire forgets, and the reeds keep time "
-      u8"against the slow current where the ferry rope hums. The old "
-      u8"paths bend around the salt gardens and meet again beneath the "
-      u8"bell, where the keepers pour the last light into copper bowls "
-      u8"and wait for the morning wind to carry the ash home. Twelve "
-      u8"nights the vine was fed, twelve nights the lanterns answered, "
-      u8"and on the last the gate stood open wide enough for one small "
-      u8"boat, one warden, and the weight of everything they chose to "
-      u8"leave behind on the far shore of the salt gardens. Of the "
-      u8"twelve, four were kept by the ferry and four by the bell, and "
-      u8"the last four were carried down to the water line and set in "
-      u8"the reeds, where the tide could read them. It is written that "
-      u8"the wardens did not speak on the crossing, and that the rope "
-      u8"was warm under their hands from the hands before them. Whoever "
-      u8"comes after, let them find the margin kept, the coal banked, "
-      u8"and the gate answering to a steady hand alone.",
-      u8"In the second season the wardens counted the lanterns twice, "
-      u8"once for the living channel and once for the drowned road "
-      u8"beneath it. The gate takes no coin but memory, says the "
-      u8"rubric, and gives back the shape of every hand that held the "
-      u8"rope. Draw the circle wide, feed the vine its silver hour, "
-      u8"and the causeway will hold one crossing more. So it is "
-      u8"written at the water line, and so the tide reads it back to "
-      u8"us each night. Keep the margin wide for the vine, keep the "
-      u8"corner free for the fox, and let no page close on a coal "
-      u8"still warm; the book is a causeway too, and every reader "
-      u8"crosses it holding somebody's light. Here ends the second "
-      u8"verse of the ember gate, and the water keeps the rest. What "
-      u8"the second season took, the third gave back doubled, and the "
-      u8"keepers wrote it down twice for fear of the tide. Read slowly, "
-      u8"and keep the lantern low; the ink is young and the water is "
-      u8"patient, and a page turned in haste is a crossing missed."};
-
   sk_sp<SkTypeface> book;
+
+  // The page turns on a cycle, so the still names its moment. This sits
+  // mid-hold on the first page, the one the incipit above the block and
+  // the marginal note beside it both belong to.
+
+  weave::TextStyle body(float size, SkColor4f colour) {
+    weave::TextStyle style =
+        weave::textStyle({.face = book, .size = px(size), .color = colour});
+    style.shaping.languageTag = "la";
+    return style;
+  }
+
+  /** The bianchi girari frieze: eight half-edge bands, each corner
+   *  sending a flourish along both of its edges, running the margins the
+   *  canon left. The head band is one ninth deep, the foot two, which is
+   *  the asymmetry the canon is. */
+  Element frieze(const Palette& pal) {
+    const auto band = [&](int quadrant, bool vertical, float l, float t,
+                          float w, float h) {
+      return box()
+          .width(px(w))
+          .height(px(h))
+          .inset(px(l), px(t), kSceneSize.width() - px(l + w),
+                 kSceneSize.height() - px(t + h))
+          .zIndex(2)
+          // Keyed on the two numbers that tell the eight bands apart; the
+          // palette is the leaf's one palette and does not vary.
+          .child(custom(kit::formatted("flourish %d %d", quadrant,
+                                       vertical ? 1 : 0),
+                        edgeFlourish(pal, quadrant, vertical))
+                     .inset(0));
+    };
+    const float halfW = kLeafW * 0.5f;
+    const float halfH = kLeafH * 0.5f;
+    // The bands sit INSIDE the margin they run, standing off the leaf's
+    // trimmed edge by a third of the spine margin.
+    const float edge = kSpine / 3.0f;
+    const float headBand = kHead - edge * 2.0f;
+    const float footBand = kFoot * 0.5f;
+    const float sideBand = kSpine - edge;
+    return stack()
+        .inset(0)
+        .child(band(0, false, edge, edge, halfW - edge, headBand))
+        .child(band(1, false, halfW, edge, halfW - edge, headBand))
+        .child(band(3, false, edge, kLeafH - edge - footBand, halfW - edge,
+                    footBand))
+        .child(band(2, false, halfW, kLeafH - edge - footBand, halfW - edge,
+                    footBand))
+        .child(
+            band(0, true, edge, kHead * 0.6f, sideBand, halfH - kHead * 0.6f))
+        .child(band(3, true, edge, halfH, sideBand, halfH - kFoot * 0.6f))
+        .child(band(1, true, kLeafW - edge - sideBand, kHead * 0.6f, sideBand,
+                    halfH - kHead * 0.6f))
+        .child(band(2, true, kLeafW - edge - sideBand, halfH, sideBand,
+                    halfH - kFoot * 0.6f));
+  }
+
+  /** The title above the preface: gold capitals inside a rectangle of
+   *  lozenges drawn in perspective, which is what stands there in the
+   *  codex. It occupies the block's first `kIncipitLines` lines. */
+  Element incipit(const Palette& pal) {
+    PathFormat gilt;
+    gilt.width = px(0.55f);
+    gilt.strokeFill = Fill::color(pal.gold);
+    return box()
+        .absolute()
+        .left(Dim(px(kSpine)))
+        .top(Dim(px(kHead)))
+        .width(Dim(px(kMeasure)))
+        .height(Dim(px(kPitch * (float)kIncipitLines)))
+        .zIndex(1)
+        .fill(Fill::color(pal.stem))
+        .foreground(gilt)
+        .alignItems(Align::Center)
+        .justify(Justify::Center)
+        // The perspective lozenges: one row of gilded diamonds across the
+        // frame, drawn on the frame itself rather than mounted on it.
+        .background(SwirlCorners{pal, px(kPitch * 1.4f), px(0.5f)})
+        .child(text(u8"T \xc2\xb7 LIVII \xc2\xb7 PATAVINI \xc2\xb7 AB \xc2\xb7 "
+                    u8"VRBE \xc2\xb7 CONDITA \xc2\xb7 LIBER \xc2\xb7 PRIMVS",
+                    weave::textStyle({.face = book,
+                                      .size = px(kBodySize * 0.86f),
+                                      .color = pal.gold,
+                                      .track = px(0.5f)})));
+  }
 
   Element describe() {
     const Palette pal = azurePalette();
     const Palette rubric = crimsonPalette();
 
-    // A TRUE drop cap: the verse's first grapheme becomes the illuminated
-    // initial and the body text is the REMAINDER, with the paragraph flowing
-    // around the initial through the derive phase. There is no dedicated
-    // drop-cap facility; the geometry comes from SigilWeave's exclusion flow,
-    // which is why the split is done here on the string.
-    const std::u8string letter(1, kVerses[verse][0]);
-    const std::u8string body(kVerses[verse] + 1);
+    // THE VERSAL, six lines deep, and the paragraph it opens. The initial
+    // is one grapheme in its own type; the body is the remainder, flowing
+    // around the box that type occupies. The nested run carries the
+    // paragraph out of the initial in the rubricator's small capitals,
+    // stated as a delimiter so an edit moves it.
+    const std::u8string letter(1, pages[page][0]);
+    const std::u8string rest = pages[page].substr(1);
+    weave::TextStyle capitals = body(kBodySize * 0.92f, rubric.stem);
+    capitals.shaping.fontFeatures = {weave::features::smallCaps,
+                                     weave::features::capitalsToSmallCaps};
 
-    PathFormat goldDash;
-    goldDash.width = 1.3f;
-    goldDash.strokeFill = Fill::color(pal.gold);
-    goldDash.dashIntervals = {16, 8};
+    const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Delimiter,
+                                   .delimiter = u8".",
+                                   .style = capitals};
+    Element initial =
+        text(letter,
+             weave::textStyle({.face = book,
+                               .size = px(kPitch * (float)kCapLines * 0.74f),
+                               .color = pal.gold}))
+            .key("versal")
+            .absolute()
+            .left(Dim(0.0f))
+            .top(Dim(0.0f));
+    Element prose = text(rest, body(kBodySize, pal.ink))
+                        .flowAround("versal", px(2.4f))
+                        .spanStyle(kit::nestedRun(opening), opening.style);
 
-    // The scrollwork border: eight half-edge bands (each corner sends
-    // a flourish along both adjacent edges), facing spiral eyes near
-    // every edge midpoint.
-    auto band = [&](int quadrant, bool vertical, float l, float t, float w,
-                    float h) {
-      return box()
-          .width(w)
-          .height(h)
-          .inset(l, t, kSceneSize.width() - l - w, kSceneSize.height() - t - h)
-          .zIndex(2)
-          .child(custom(edgeFlourish(pal, quadrant, vertical)).inset(0));
-    };
-    // A keyed sprig the body text flows around.
-    auto weaveSprig = [&](const char* key, float l, float t, float rot) {
-      return box()
-          .key(key)
-          .width(54)
-          .height(64)
-          .inset(l, t, kSceneSize.width() - l - 54,
-                 kSceneSize.height() - t - 64)
-          .zIndex(2)
-          .rotate(rot)
-          .child(custom(sprig(pal)).inset(0));
-    };
+    // The versal is a PANEL: a square field of cobalt with the letter
+    // reserved in gold and a gold fillet round it. Six lines deep by
+    // construction — the box is six times the pitch.
+    PathFormat fillet;
+    fillet.width = px(0.7f);
+    fillet.strokeFill = Fill::color(pal.gold);
+    initial.width(Dim(px(kPitch * (float)kCapLines)))
+        .height(Dim(px(kPitch * (float)kCapLines)))
+        .fill(Fill::color(pal.stem))
+        .foreground(fillet)
+        .alignItems(Align::Center)
+        .justify(Justify::Center)
+        .zIndex(3);
 
-    // Everything static lives in one texture-baked stack. The page is dense
-    // — noise fills, hundreds of vine stamps, text flowed around exclusions —
-    // so replaying it as a picture would re-rasterize all of that every
-    // frame; baked, the per-frame cost is one image blit. The bake is dropped
-    // and retaken only on a verse turn.
-    auto pageStack =
-        stack()
-            .inset(0)
-            .cache(Cache::Texture)
-            // The page: parchment ground, stem-colored rule, vine border.
-            .child(box()
-                       .inset(26, 22, 26, 22)
-                       .corners({6})
-                       .background(
-                           sigil::compose::shadow({0, 0, 0, 0.55f}, {5, 7}, 16))
-                       .fill(parchmentFill(pal.parchment))
-                       .foreground(
-                           sigil::compose::stroke(2.2f, Fill::color(pal.stem)))
-                       // Inner gilded dashed rule (the broken hairline the
-                       // corner flourishes dance around).
-                       .child(box().inset(14).foreground(goldDash)))
-            // Title rubric line.
-            .child(text(u8"INCIPIT LIBER PORTAE CINERUM",
-                        type({.face = book, .size = 24, .color = rubric.stem}))
-                       .inset(200, 88, 200, kSceneSize.height() - 126)
-                       .zIndex(1))
-            // The illuminated initial: first grapheme on a cobalt block
-            // with gilded trim (the watercolor-manuscript treatment).
-            .child(box()
-                       .key("dropcap")
-                       .width(92)
-                       .height(98)
-                       .inset(84, 146, kSceneSize.width() - 84 - 92,
-                              kSceneSize.height() - 146 - 98)
-                       .zIndex(3)
-                       // A versal is a PANEL: a square field of colour
-                       // with a gold letter reserved in it and a gold
-                       // fillet round the edge. The rounded corners and
-                       // the dashed inner rule it carried are a modern
-                       // callout's furniture and read as one.
-                       .background(
-                           sigil::compose::shadow({0, 0, 0, 0.35f}, {2, 3}, 7))
-                       .fill(Fill::color(pal.stem))
-                       .foreground(
-                           sigil::compose::stroke(2.2f, Fill::color(pal.gold)))
-                       .alignItems(Align::Center)
-                       .justify(Justify::Center)
-                       .child(text(letter, type({.face = book,
-                                                 .size = 66,
-                                                 .color = pal.gold}))))
-            // Rubric side panel: the same component, crimson palette.
-            .child(
-                illuminatedPanel(rubric)
-                    .key("rubric")
-                    .width(200)
-                    .height(148)
-                    .inset(600, 270, kSceneSize.width() - 600 - 200,
-                           kSceneSize.height() - 270 - 148)
-                    .zIndex(3)
-                    .padding(18)
-                    .gap(8)
-                    .child(text(
-                        u8"nota bene",
-                        type({.face = book, .size = 15, .color = rubric.stem})))
-                    .child(text(
-                        u8"the gate takes no coin but memory",
-                        type({.face = book, .size = 16, .color = rubric.ink}))))
-            // Body text weaving between drop cap, rubric, and all four
-            // corner flourishes.
-            .child(box()
-                       .inset(100, 132, 100, 82)
-                       .child(text(body, type({.face = book,
-                                               .size = 19.5f,
-                                               .color = pal.ink}))
-                                  .key("body")
-                                  .flowAround("dropcap", 14)
-                                  .flowAround("rubric", 14)
-                                  .flowAround("sprigL", 10)
-                                  .flowAround("sprigR", 10)
-                                  .flowAround("sprigB", 10))
-                       .zIndex(1))
-            .child(band(0, false, 40, 34, 400, 52))
-            .child(band(1, false, 460, 34, 400, 52))
-            .child(band(3, false, 40, 554, 400, 52))
-            .child(band(2, false, 460, 554, 400, 52))
-            .child(band(0, true, 34, 40, 52, 260))
-            .child(band(3, true, 34, 340, 52, 260))
-            .child(band(1, true, 814, 40, 52, 260))
-            .child(band(2, true, 814, 340, 52, 260))
-            // Keyed sprigs the body text weaves around (with the drop cap
-            // and rubric, the multi-exclusion flow demo).
-            // Seated against the foot of the versal. Left lower, it opened
-            // exactly one line of full measure between the two
-            // exclusions, and a single line jutting five ems past its
-            // neighbours reads as a broken column rather than as a flow.
-            .child(weaveSprig("sprigL", 96, 246, 90.0f))
-            .child(weaveSprig("sprigR", 748, 210, -90.0f))
-            .child(weaveSprig("sprigB", 424, 486, 0.0f));
+    weave::ParagraphStyle block;
+    block.leading = weave::Leading::absolute(px(kPitch));
+    block.alignment = weave::TextAlignment::kJustify;
 
+    // The block: the written space the canon ruled, less the incipit's own
+    // band at its head.
+    const float blockTop = kHead + kPitch * (float)kIncipitLines;
+    Element written =
+        box()
+            .absolute()
+            .left(Dim(px(kSpine)))
+            .top(Dim(px(blockTop)))
+            .width(Dim(px(kMeasure)))
+            .height(Dim(px(kDepth - kPitch * (float)kIncipitLines)))
+            .zIndex(1)
+            .child(std::move(initial))
+            .child(prose.key("block")
+                       .width(Dim(px(kMeasure)))
+                       .paragraph(block)
+                       .lineBreak(weave::LineBreakStrategy::kKnuthPlass)
+                       .hyphenation({.patterns = &hyphenator()})
+                       .flowAround("note", px(3.0f))
+                       .flowAround("sprig", px(2.4f)));
+
+    // The marginal note the fore-edge margin is for, reaching a little
+    // into the block so the text parts around it.
+    Element note =
+        illuminatedPanel(rubric)
+            .key("note")
+            .absolute()
+            .left(Dim(px(kMeasure - kForeEdge * 0.30f)))
+            .top(Dim(px(kPitch * 12.0f)))
+            .width(Dim(px(kForeEdge * 0.78f)))
+            .height(Dim(px(kPitch * 6.0f)))
+            .zIndex(3)
+            .padding(px(3.0f))
+            .gap(px(1.6f))
+            .child(text(u8"nota bene", body(kBodySize * 0.82f, rubric.stem)))
+            .child(text(u8"the gate takes no coin but memory",
+                        body(kBodySize * 0.78f, rubric.ink)));
+    written.child(std::move(note));
+
+    // One vine stem breaking out of the frieze into the block, which is
+    // what a bianchi girari border does when it will not stay in the
+    // margin. The text parts around it like any other exclusion.
+    written.child(box()
+                      .key("sprig")
+                      .absolute()
+                      .left(Dim(px(-kSpine * 0.2f)))
+                      .top(Dim(px(kPitch * 22.0f)))
+                      .width(Dim(px(kSpine * 0.9f)))
+                      .height(Dim(px(kPitch * 5.0f)))
+                      .zIndex(3)
+                      .rotate(90.0f)
+                      .child(custom("sprig", sprig(pal)).inset(0)));
+
+    // Everything static lives in one texture-baked stack: the page is
+    // dense — a noise ground, hundreds of vine stamps, prose flowed around
+    // three exclusions — so replaying it as a picture would re-rasterize
+    // all of that every frame. Baked, a frame costs one blit, and the bake
+    // is dropped only when the page turns.
+    PathFormat rule;
+    rule.width = px(0.4f);
+    rule.strokeFill =
+        Fill::color({pal.gold.fR, pal.gold.fG, pal.gold.fB, 0.45f});
     return stack()
-        .fill(Fill::color({0.11f, 0.09f, 0.075f, 1}))  // scriptorium desk
-        .child(std::move(pageStack))
-        // Drifting gold dust: the only per-frame repaint.
-        .child(
-            custom([](SkCanvas& c, const PaintContext& ctx) {
-              SkPaint p;
-              p.setAntiAlias(true);
-              const double t = ctx.elapsedSeconds;
-              for (int i = 0; i < 26; ++i) {
-                const float fx = (float)i * 137.5f;
-                const float x = std::fmod(
-                    fx + (float)t * (6.0f + (float)(i % 5)), ctx.size.width());
-                const float y = 60.0f + std::fmod(fx * 0.61f, 500.0f) +
-                                12.0f * std::sin((float)t * 0.8f + (float)i);
-                const float a =
-                    0.10f + 0.16f * (0.5f + 0.5f * std::sin((float)t * 1.7f +
-                                                            (float)i * 2.1f));
-                p.setColor4f({0.9f, 0.75f, 0.3f, a}, nullptr);
-                c.drawCircle(x, y, 1.6f + (float)(i % 3) * 0.7f, p);
-              }
-            })
-                .inset(0)
-                .zIndex(4)
-                .cache(Cache::None));
+        .inset(0)
+        .cache(Cache::Texture)
+        .fill(parchmentFill(pal.parchment))
+        // The pricking-and-ruling the block was written to, kept faint the
+        // way a scribe's frame ruling is.
+        .child(box()
+                   .absolute()
+                   .left(Dim(px(kSpine)))
+                   .top(Dim(px(kHead)))
+                   .width(Dim(px(kMeasure)))
+                   .height(Dim(px(kDepth)))
+                   .foreground(rule))
+        .child(frieze(pal))
+        .child(incipit(pal))
+        .child(std::move(written));
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background({0, 0, 0, 1});
-    ctx.captureAt(3.5);
-    Composer& composer = ctx.composer;
-    book = pickFace(kBookFaces, 400);
-    verse = 0;
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 3.5,
+                             .background = SkColor4f{0.11f, 0.09f, 0.075f, 1}});
+    book = weave::ports::face(kBookFaces, 400);
+    pages[0] = sketch::kit::passage(ctx, "manuscript_1.txt");
+    pages[1] = sketch::kit::passage(ctx, "manuscript_2.txt");
+    page = 0;
     nextTurn = kTurnSecs;
-    composer.render(describe());
+    ctx.composer.render(describe());
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {
-    Composer& composer = ctx.composer;
     if (elapsed < nextTurn) return;
     nextTurn = elapsed + kTurnSecs;
-    verse = (verse + 1) % 2;
-    composer.render(describe());  // reflow weaves through the exclusions
+    page = (page + 1) % 2;
+    ctx.composer.render(describe());  // the flow re-runs on the new text
   }
 };
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Manuscript, "manuscript", "Catalog \xc2\xb7 Type & grid",
-                "text flowing around the flourishes, and a true drop cap")
+SIGIL_SKETCH_AS(Manuscript, "manuscript", "Catalog \xc2\xb7 Type",
+                "Laur. Plut. 63.10's leaf, ruled \xe2\x80\x94 a versal six "
+                "lines deep and a vine in the margin")

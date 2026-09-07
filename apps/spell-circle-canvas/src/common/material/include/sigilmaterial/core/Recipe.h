@@ -10,8 +10,8 @@
 #include <sigilmaterial/core/Params.h>
 #include <sigilmaterial/core/Target.h>
 
+#include <boost/container/map.hpp>
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <span>
 #include <string>
@@ -62,6 +62,18 @@ class Recipe {
   /** Declares that the body reads @p input; its uniform is generated and
    *  its value uploaded each resolve. */
   Recipe& frame(FrameInput input);
+  /** DECLARES THE BODY CHANNELWISE over the child slot @p slot: each
+   *  output channel depends on the same input channel of the sampled
+   *  content and on nothing else, and @p slot holds ONE ROW of samples
+   *  that is the response of red, green and blue in the row's own
+   *  channels. A renderer that knows its surface carries eight bits per
+   *  channel may then run this recipe as a 256-entry per-channel table —
+   *  the same picture, without a program over every pixel — and a
+   *  renderer that does not know, or whose surface carries more, runs the
+   *  body as written. The claim is the author's and is not checked: a
+   *  body that mixes channels and declares this paints two different
+   *  pictures. */
+  Recipe& channelwise(std::string slot);
 
   const std::string& name() const { return m_name; }
   /** The params struct's layout — the author-set uniforms alone. */
@@ -72,16 +84,52 @@ class Recipe {
   const Schema& layout() const { return m_layout; }
   /** The body for @p target, or null when none was given. */
   const std::string* body(Target target) const;
+  /** WHETHER ANY BODY OF THIS RECIPE READS THE FIELD @p name.
+   *
+   *  A field no body spells is a dial that does nothing: the bytes are
+   *  uploaded and the picture does not change, which at a call site is
+   *  indistinguishable from a wrong value. Asking the bodies is the only
+   *  way to know — a shading compiler's reflection reports what the
+   *  source DECLARED, and the declarations are generated from the params
+   *  whether the body reads them or not.
+   *
+   *  Spelled means as a WHOLE IDENTIFIER, so a `low` inside `lowEdge` is
+   *  a different name; a recipe with no body at all answers yes, having
+   *  nothing to say. */
+  bool readsField(std::string_view name) const;
+  /** `readsField(name)` for a field of `params()`, answered without
+   *  looking the name up again. */
+  bool readsField(const Field& field) const;
+  /** WHETHER THE BODY FOR @p target SAMPLES THE CHILD SLOT @p slot.
+   *
+   *  A slot is declared on the recipe and sampled by whichever bodies
+   *  name it, and the two need not agree. A stack composed for a
+   *  language that is handed one body per material declares a slot per
+   *  operand's own slot, because that language cannot reach a child
+   *  material at all; a language whose child slot is a shader samples
+   *  the operands themselves and names none of those. A slot generated
+   *  into a program that never reads it still costs that program an
+   *  image sampler, and a device has few — Metal binds fragment
+   *  textures at sixteen indices — so a target's declarations carry the
+   *  slots its own body spells and no others.
+   *
+   *  Spelled means as a WHOLE IDENTIFIER, the reading `readsField`
+   *  takes; a target with no body answers yes, having nothing to say. */
+  bool samples(Target target, std::string_view slot) const;
   bool has(Target target) const { return body(target) != nullptr; }
   /** The targets that have a body, in Target order. */
   std::vector<Target> targets() const;
   std::span<const std::string> children() const { return m_children; }
+  /** The child slot holding the per-channel response, or EMPTY when the
+   *  recipe made no channelwise claim. */
+  const std::string& channelwiseSlot() const { return m_channelwise; }
   bool reads(FrameInput input) const { return (m_frame & (uint8_t)input) != 0; }
   /** The declared frame inputs as one bit set. */
   uint8_t frameInputs() const { return m_frame; }
 
   /** The generated head of the program: the params' uniforms, the frame
-   *  uniforms, then the child slots, in @p target's syntax. */
+   *  uniforms, then the child slots this target's body samples, in
+   *  @p target's syntax. */
   std::string declarations(Target target) const;
   /** declarations() followed by the body — the complete text a compiler
    *  is handed. Empty when there is no body for @p target. */
@@ -95,18 +143,27 @@ class Recipe {
   };
   Id id() const { return {m_name, this}; }
 
-  /** Definition equality: name, layout, bodies, children, frame inputs. */
+  /** Definition equality: name, layout, bodies, children, frame inputs,
+   *  the channelwise declaration. */
   bool operator==(const Recipe&) const = default;
 
  private:
   Recipe(std::string name, const Schema& params);
   void relayout();
+  void rescan();
+  bool spelled(std::string_view name) const;
 
   std::string m_name;
   Schema m_params;
   Schema m_layout;
-  std::map<Target, std::string> m_bodies;
+  boost::container::map<Target, std::string> m_bodies;
   std::vector<std::string> m_children;
+  /** channelwise()'s slot; empty means the body is not channelwise. */
+  std::string m_channelwise;
+  /** Per params field, whether a body spells it — settled once when a
+   *  body is set, because a material writes every field of every
+   *  instance it builds and each write asks. */
+  std::vector<uint8_t> m_read;
   uint8_t m_frame = 0;
 };
 

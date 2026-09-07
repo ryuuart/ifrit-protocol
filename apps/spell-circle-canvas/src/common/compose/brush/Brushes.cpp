@@ -16,6 +16,7 @@
 #include <include/pathops/SkPathOps.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/path/Numeric.h>
 
 #include <algorithm>
 #include <cmath>
@@ -45,38 +46,11 @@ void LayeredBrush::paint(SkCanvas& c, const PaintContext& ctx) const {
   }
 }
 
-namespace ops {
-
-PathOp debug(const char* tag) {
-  std::string t = tag;
-  return [t](const SkPath& p) {
-    const SkRect b = p.getBounds();
-    SkDebugf("[ops::debug %s] bounds (%.1f,%.1f %.1fx%.1f)\n", t.c_str(),
-             b.left(), b.top(), b.width(), b.height());
-    SkContourMeasureIter iter(p, false);
-    int i = 0;
-    while (sk_sp<SkContourMeasure> c = iter.next())
-      SkDebugf("  contour %d: len %.1f %s\n", i++, c->length(),
-               c->isClosed() ? "CLOSED" : "open");
-    return p;
-  };
-}
-
-PathOp chain(std::vector<PathOp> steps) {
-  return [steps = std::move(steps)](const SkPath& p) {
-    SkPath r = p;
-    for (const PathOp& op : steps)
-      if (op) r = op(r);
-    return r;
-  };
-}
-
-}  // namespace ops
-
-GeometryOp::GeometryOp(Shaper s) : m_bleed(s.bleed()) {
+GeometryOp::GeometryOp(geometry::path::Shaper s) : m_bleed(s.bleed()) {
   m_held = s;
   m_equals = [](const std::any& a, const std::any& b) {
-    return std::any_cast<const Shaper&>(a) == std::any_cast<const Shaper&>(b);
+    return std::any_cast<const geometry::path::Shaper&>(a) ==
+           std::any_cast<const geometry::path::Shaper&>(b);
   };
   m_apply = [held = std::move(s)](const SkPath& p) { return held.shape(p); };
 }
@@ -102,9 +76,10 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
   for (const Strand& s : strands) {
     switch (s.path.source()) {
       case StrandPath::Source::Relative:
-        paths.push_back(s.path.profile().max() == 0.0f
-                            ? ctx.outline
-                            : profileOffset(ctx.outline, s.path.profile()));
+        paths.push_back(
+            s.path.profile().max() == 0.0f
+                ? ctx.outline
+                : geometry::path::profileOffset(ctx.outline, s.path.profile()));
         break;
       case StrandPath::Source::Borrowed:
         paths.push_back(ctx.borrowedPath(s.path.key()));
@@ -116,9 +91,13 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
   }
 
   const auto paintStrand = [&](size_t i) {
-    const PaintContext sub{ctx.size,         paths[i],      ctx.elapsedSeconds,
-                           ctx.contentScale, ctx.animating, ctx.fonts,
-                           ctx.borrowed};
+    // The context is the enclosing one with a different outline: every
+    // other member — the stamp cache, the matrix to the root, the root's
+    // size — is what the node was painted with, and a strand that lost
+    // them would re-rasterise its stamps every frame and anchor a
+    // world-space material to itself.
+    PaintContext sub = ctx;
+    sub.outline = paths[i];
     strands[i].brush.paint(c, sub);
   };
 
@@ -132,13 +111,19 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
   //    comparison instead of the flatten-and-test. The cache changes
   //    WHEN discovery runs and never what is drawn.
   if (!crossingCache->valid || crossingCache->key != paths) {
-    crossingCache->found = discoverCrossings(paths);
+    crossingCache->found = geometry::path::discoverCrossings(paths);
     crossingCache->key = paths;
     crossingCache->valid = true;
     ++crossingCache->computes;
   }
-  const std::vector<Crossing>& crossings = crossingCache->found;
+  const std::vector<geometry::path::Crossing>& crossings = crossingCache->found;
   if (crossings.empty()) return;
+  // WHAT THE WHOLE SET SAYS, before anything is asked of one of it: a
+  // rule about the WALK — over, under, over along each strand — cannot
+  // be answered crossing by crossing, because nothing in a Crossing says
+  // how many crossings on its strand come before it. A rule about one
+  // meeting ignores this.
+  crossing.prepare(crossings);
   const auto reachOf = [&](size_t i) {
     // The MARK's full width, not the cull's bleed(): an Align::Inner
     // stroke bleeds zero while painting a mark `width` wide, so a region
@@ -171,14 +156,15 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
   // lenses of an ordinary braid touch, pathops merges them into ONE
   // contour, and crossing 0's patch owns the whole run — the weave then
   // reads as a single strand laid on top of the others.
-  const auto positionOn = [](const Crossing& x, size_t strandIndex) {
+  const auto positionOn = [](const geometry::path::Crossing& x,
+                             size_t strandIndex) {
     return x.a == strandIndex ? x.alongA : x.alongB;
   };
-  const auto territoryOf = [&](const Crossing& x) {
+  const auto territoryOf = [&](const geometry::path::Crossing& x) {
     float limit = std::numeric_limits<float>::max();
     for (const size_t s : {x.a, x.b}) {
       const float mine = positionOn(x, s);
-      for (const Crossing& other : crossings) {
+      for (const geometry::path::Crossing& other : crossings) {
         if (&other == &x || (other.a != s && other.b != s)) continue;
         float delta = std::abs(positionOn(other, s) - mine);
         // On a CYCLE the seam is not a boundary: two knots at 0.02 and
@@ -201,15 +187,16 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
     return limit;
   };
 
-  for (const Crossing& x : crossings) {
-    const Order order = crossing.decide(x);
-    const size_t top = order == Order::Over ? x.a : x.b;
+  for (const geometry::path::Crossing& x : crossings) {
+    const geometry::path::Order order = crossing.decide(x);
+    const size_t top = order == geometry::path::Order::Over ? x.a : x.b;
     // `b` painted later, so it is already on top. Nothing to do.
     if (top == x.b) continue;
     c.save();
-    c.clipPath(crossingPatch(paths[x.a], reachOf(x.a), paths[x.b], reachOf(x.b),
-                             x.at, territoryOf(x)),
-               true);
+    c.clipPath(
+        geometry::path::crossingPatch(paths[x.a], reachOf(x.a), paths[x.b],
+                                      reachOf(x.b), x.at, territoryOf(x)),
+        true);
     paintStrand(top);
     c.restore();
   }
@@ -219,11 +206,11 @@ Weave layers(std::vector<Decoration> stack) {
   Weave w;
   w.strands.reserve(stack.size());
   for (Decoration& d : stack)
-    w.strands.push_back(Strand{strand::self(), std::move(d)});
+    w.strands.push_back(Strand{geometry::path::profile::self(), std::move(d)});
   return w;
 }
 
-Weave weave(std::vector<Strand> strands, CrossingRule rule) {
+Weave weave(std::vector<Strand> strands, geometry::path::CrossingRule rule) {
   Weave w;
   w.strands = std::move(strands);
   w.crossing = std::move(rule);
@@ -234,14 +221,13 @@ Weave weave(std::vector<Strand> strands, CrossingRule rule) {
 
 void Brush::paint(SkCanvas& c, const PaintContext& ctx) const {
   SkPath styled = ctx.outline;
-  for (const Shaper& g : pipeline) styled = g.shape(styled);
+  for (const geometry::path::Shaper& g : pipeline) styled = g.shape(styled);
   for (const Layer& l : layers) {
     SkPath layerPath = styled;
-    for (const Shaper& g : l.shapers) layerPath = g.shape(layerPath);
-    const PaintContext restyled{ctx.size,           std::move(layerPath),
-                                ctx.elapsedSeconds, ctx.contentScale,
-                                ctx.animating,      ctx.fonts,
-                                ctx.borrowed};
+    for (const geometry::path::Shaper& g : l.shapers)
+      layerPath = g.shape(layerPath);
+    PaintContext restyled = ctx;
+    restyled.outline = std::move(layerPath);
     l.dec.paint(c, restyled);
   }
 }
@@ -251,10 +237,8 @@ namespace brush {
 void Restyled::paint(SkCanvas& c, const PaintContext& ctx) const {
   // No null check: GeometryOp::apply passes the path through unchanged
   // when it holds nothing.
-  PaintContext restyled{ctx.size,           op.apply(ctx.outline),
-                        ctx.elapsedSeconds, ctx.contentScale,
-                        ctx.animating,      ctx.fonts,
-                        ctx.borrowed};
+  PaintContext restyled = ctx;
+  restyled.outline = op.apply(ctx.outline);
   inner.paint(c, restyled);
 }
 
@@ -275,6 +259,10 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
       const float len = contour->length();
       const float step =
           interval <= 1.0f ? len * std::max(interval, 0.001f) : interval;
+      // A zero-length contour, or a fractional interval on one, gives a
+      // step that never advances: the walk below would stand still
+      // forever on any offset that starts before the end.
+      if (step <= 0 || len <= 0) continue;
       const float phase = p.offset <= 1.0f && p.offset >= -1.0f &&
                                   p.mode == Mode::Interval && interval <= 1.0f
                               ? len * p.offset
@@ -374,7 +362,8 @@ void drawStamp(SkCanvas& c, const SkPicture& pic, const PathSample& sample,
   c.save();
   c.translate(sample.position.x(), sample.position.y());
   if (align)
-    c.rotate(std::atan2(sample.tangent.y(), sample.tangent.x()) * 57.29578f);
+    c.rotate(geometry::path::degrees(
+        std::atan2(sample.tangent.y(), sample.tangent.x())));
   c.translate(m.dAlong, m.dNormal);  // tangent frame (post-align)
   c.rotate(rotateDeg + m.rotateDeg);
   c.scale(scaleX * m.scale, scaleY * m.scale);
@@ -387,6 +376,21 @@ void drawStamp(SkCanvas& c, const SkPicture& pic, const PathSample& sample,
     c.drawPicture(&pic);
   }
   c.restore();
+}
+
+}  // namespace
+
+namespace {
+
+/** Is `held` the node `now`, by IDENTITY rather than by address? A cache
+ *  that remembers a bare pointer cannot tell a destroyed art node from a
+ *  new one handed the same address by the allocator, and would stamp the
+ *  old bake for the new art. A weak handle expires with the node it
+ *  names, so the two can never be confused. Two empty handles are the
+ *  same nothing, which is what "no art here" means. */
+bool bakedFromNode(const std::weak_ptr<detail::ElementNode>& held,
+                   const std::shared_ptr<detail::ElementNode>& now) {
+  return !held.owner_before(now) && !now.owner_before(held);
 }
 
 }  // namespace
@@ -406,9 +410,9 @@ void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
       ctx.stamps->put(art.node(), {pic, nullptr, {0, 0}});
     }
   } else {
-    if (!cache->pic || cache->bakedFor != art.node().get()) {
+    if (!cache->pic || !bakedFromNode(cache->bakedFor, art.node())) {
       cache->pic = snapshot(box().child(art), *ctx.fonts);
-      cache->bakedFor = art.node().get();
+      cache->bakedFor = art.node();
     }
     pic = cache->pic;
   }
@@ -435,15 +439,20 @@ void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
 
 void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (!ctx.fonts) return;
-  auto node = [](const std::optional<Element>& e) -> const void* {
-    return e ? e->node().get() : nullptr;
+  static const std::shared_ptr<detail::ElementNode> kNoArt;
+  auto node = [](const std::optional<Element>& e)
+      -> const std::shared_ptr<detail::ElementNode>& {
+    return e ? e->node() : kNoArt;
   };
-  const void* sideNode = side.node().get();
-  const void* startNode = node(start);
-  const void* endNode = node(end);
-  const void* cornerNode = corner ? corner->art.node().get() : nullptr;
-  if (cache->bakedSide != sideNode || cache->bakedStart != startNode ||
-      cache->bakedEnd != endNode || cache->bakedCorner != cornerNode) {
+  const std::shared_ptr<detail::ElementNode>& sideNode = side.node();
+  const std::shared_ptr<detail::ElementNode>& startNode = node(start);
+  const std::shared_ptr<detail::ElementNode>& endNode = node(end);
+  const std::shared_ptr<detail::ElementNode>& cornerNode =
+      corner ? corner->art.node() : kNoArt;
+  if (!bakedFromNode(cache->bakedSide, sideNode) ||
+      !bakedFromNode(cache->bakedStart, startNode) ||
+      !bakedFromNode(cache->bakedEnd, endNode) ||
+      !bakedFromNode(cache->bakedCorner, cornerNode)) {
     *cache = Cache{};
     cache->bakedSide = sideNode;
     cache->bakedStart = startNode;
@@ -469,8 +478,12 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (end) bake(*end, cache->end);
   if (corner) bake(corner->art, cache->corner);
   if (!cache->side) return;
+  // An AUTHORED advance is floored at a pixel exactly as the intrinsic
+  // one is: a tile a fraction of a pixel long is millions of tiles on any
+  // run long enough to see.
+  const float authored = advance > 0 ? std::max(advance, 1.0f) : 0.0f;
   const float tileLen =
-      advance > 0 ? advance : std::max(cache->side->cullRect().width(), 1.0f);
+      authored > 0 ? authored : std::max(cache->side->cullRect().width(), 1.0f);
 
   size_t placed = 0;
   // Two passes: count side tiles first so mod sees the true total.
@@ -502,9 +515,9 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
     // Open-contour caps reserve their slots at the ends.
     float head = 0, tail = 0;
     if (!closed && cache->start)
-      head = advance > 0 ? advance : cache->start->cullRect().width();
+      head = authored > 0 ? authored : cache->start->cullRect().width();
     if (!closed && cache->end)
-      tail = advance > 0 ? advance : cache->end->cullRect().width();
+      tail = authored > 0 ? authored : cache->end->cullRect().width();
 
     // Runs between corners (and cap margins). Each corner RESERVES half
     // its own length at each end of its two adjacent runs, so the side
@@ -583,79 +596,169 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
     drawStamp(c, *pic, sample, true, 0, 1, 1, {});
 }
 
-void Ribbon::paint(SkCanvas& c, const PaintContext& ctx) const {
-  SkPaint p;
-  p.setAntiAlias(true);
-  if (fill.kind == Fill::Kind::Color)
-    p.setColor4f(fill.colorValue, nullptr);
-  else if (fill.kind == Fill::Kind::Shader)
-    p.setShader(fill.shaderValue);
+namespace {
 
-  if (hasProfile()) {
-    // One geometry with band(): the region between the two profile
-    // rails, per contour, with proper joins.
-    const SkPath region =
-        bandRegion(ctx.outline, Across{width}, Formation::Centered);
-    if (!region.isEmpty()) c.drawPath(region, p);
-    return;
+/** Twice the signed area of the polygon — the sign is its winding. */
+float turnedArea(const SkPoint* pts, size_t n) {
+  float twice = 0;
+  for (size_t i = 0; i < n; ++i) {
+    const SkPoint& a = pts[i];
+    const SkPoint& b = pts[(i + 1) % n];
+    twice += a.x() * b.y() - b.x() * a.y();
   }
+  return twice;
+}
 
+/** Add one convex piece of the band, wound the way every other piece is.
+ *
+ *  EVERY sub-polygon of a band must wind the same way. Under the winding
+ *  fill a reversed piece laid over another cancels to 0 and punches a
+ *  hole where the two overlap, which is precisely the overlap the inside
+ *  of a bend is made of. Cheap to enforce here, and impossible to see
+ *  coming from the picture. */
+void addBandPiece(SkPathBuilder& b, const SkPoint* pts, size_t n) {
+  if (n < 3) return;
+  b.moveTo(pts[0]);
+  if (turnedArea(pts, n) > 0)
+    for (size_t i = n; i-- > 1;) b.lineTo(pts[i]);
+  else
+    for (size_t i = 1; i < n; ++i) b.lineTo(pts[i]);
+  b.close();
+}
+
+}  // namespace
+
+SkPath Ribbon::band(const SkPath& spine) const {
+  SkPathBuilder band;
   const float stride = std::max(step, 0.5f);
-  SkContourMeasureIter iter(ctx.outline, false);
+  const float limit = std::max(miterLimit, 1.0f);
+  SkContourMeasureIter iter(spine, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
     const float len = contour->length();
-    std::vector<SkPoint> left, right;
+    // The stations: where the spine is, and how wide the band is there.
+    std::vector<SkPoint> pos;
+    std::vector<float> half;
     for (float d = 0;; d += stride) {
       const float at = std::min(d, len);
-      SkPoint pos;
+      SkPoint here;
       SkVector tan;
-      if (!contour->getPosTan(at, &pos, &tan)) break;
-      const PathSample s{pos, tan, at, len > 0 ? at / len : 0};
+      if (!contour->getPosTan(at, &here, &tan)) break;
+      const PathSample s{here, tan, at, len > 0 ? at / len : 0};
       float w;
-      if (nibAngleDeg >= 0) {
+      if (hasProfile()) {
+        w = width.acrossAt(s.fraction, len);
+      } else if (nibAngleDeg >= 0) {
         const float a =
-            std::atan2(tan.y(), tan.x()) - nibAngleDeg * 0.017453293f;
+            std::atan2(tan.y(), tan.x()) - geometry::path::radians(nibAngleDeg);
         w = widthStart *
             (nibContrast + (1 - nibContrast) * std::abs(std::sin(a)));
       } else {
         w = widthStart + (widthEnd - widthStart) * s.fraction;
       }
-      const SkVector n{-tan.y(), tan.x()};
-      left.push_back({pos.x() + n.x() * w / 2, pos.y() + n.y() * w / 2});
-      right.push_back({pos.x() - n.x() * w / 2, pos.y() - n.y() * w / 2});
+      // A NON-FINITE WIDTH PINCHES TO THE SPINE rather than poisoning the
+      // band. Skia draws NONE of a path holding one non-finite vertex, so
+      // a law that returns NaN at a single sample would delete the whole
+      // mark, silently and with nothing on screen to say why; a local
+      // pinch fails where the law failed.
+      if (!std::isfinite(w)) w = 0.0f;
+      pos.push_back(here);
+      half.push_back(w * 0.5f);
       if (at >= len) break;
     }
-    if (left.size() < 2) continue;
-    SkPathBuilder band;
-    band.moveTo(left.front());
-    for (size_t i = 1; i < left.size(); ++i) band.lineTo(left[i]);
-    for (size_t i = right.size(); i-- > 0;) band.lineTo(right[i]);
-    band.close();
-    c.drawPath(band.detach(), p);
+    if (pos.size() < 2) continue;
+
+    // One quadrilateral per step, each wound the same way, so the band is
+    // the UNION of its cross-sections rather than one contour that
+    // crosses itself where the spine turns hard.
+    std::vector<SkVector> normal(pos.size() - 1);
+    for (size_t i = 0; i + 1 < pos.size(); ++i) {
+      const SkVector e{pos[i + 1].x() - pos[i].x(),
+                       pos[i + 1].y() - pos[i].y()};
+      const float L = std::hypot(e.x(), e.y());
+      if (L < 1e-4f) {
+        normal[i] = {0, 0};
+        continue;
+      }
+      const SkVector n{-e.y() / L, e.x() / L};
+      normal[i] = n;
+      const SkPoint quad[4]{
+          {pos[i].x() + n.x() * half[i], pos[i].y() + n.y() * half[i]},
+          {pos[i + 1].x() + n.x() * half[i + 1],
+           pos[i + 1].y() + n.y() * half[i + 1]},
+          {pos[i + 1].x() - n.x() * half[i + 1],
+           pos[i + 1].y() - n.y() * half[i + 1]},
+          {pos[i].x() - n.x() * half[i], pos[i].y() - n.y() * half[i]}};
+      addBandPiece(band, quad, 4);
+    }
+
+    // The joins, at every station two steps meet on. Both sides are
+    // emitted and the winding fill absorbs the one on the inside of the
+    // turn, which is cheaper and steadier than deciding which side is
+    // outside from a cross product that vanishes on a straight run.
+    for (size_t i = 1; i + 1 < pos.size(); ++i) {
+      const SkVector& n0 = normal[i - 1];
+      const SkVector& n1 = normal[i];
+      const float turn = n0.x() * n1.y() - n0.y() * n1.x();
+      const float h = half[i];
+      // Below about a tenth of a pixel of opening there is nothing to
+      // close, which is every station of a smoothly sampled curve.
+      if (h <= 0 || std::abs(turn) * h < 0.1f) continue;
+      if (join == SkPaint::kRound_Join) {
+        band.addCircle(pos[i].x(), pos[i].y(), h, SkPathDirection::kCCW);
+        continue;
+      }
+      for (int side = -1; side <= 1; side += 2) {
+        const float s = (float)side;
+        const SkPoint a{pos[i].x() + n0.x() * h * s,
+                        pos[i].y() + n0.y() * h * s};
+        const SkPoint b{pos[i].x() + n1.x() * h * s,
+                        pos[i].y() + n1.y() * h * s};
+        if (join == SkPaint::kMiter_Join) {
+          // The rails meet where the bisector carries them. `cos` is the
+          // half-angle's cosine, and 1/cos is the reach in half-widths —
+          // Skia's miter limit, in the same units Skia states it in.
+          SkVector m{n0.x() + n1.x(), n0.y() + n1.y()};
+          const float mag = std::hypot(m.x(), m.y());
+          const float cosHalf = mag * 0.5f;
+          if (mag > 1e-4f && cosHalf > 1e-3f && 1.0f / cosHalf <= limit) {
+            const float reach = h / cosHalf;
+            const SkPoint tip{pos[i].x() + m.x() / mag * reach * s,
+                              pos[i].y() + m.y() / mag * reach * s};
+            const SkPoint wedge[4]{pos[i], a, tip, b};
+            addBandPiece(band, wedge, 4);
+            continue;
+          }
+        }
+        const SkPoint wedge[3]{pos[i], a, b};
+        addBandPiece(band, wedge, 3);
+      }
+    }
   }
+  SkPath path = band.detach();
+  path.setFillType(SkPathFillType::kWinding);
+  return path;
 }
 
-Ribbon taper(float widthStart, float widthEnd, Fill fill) {
-  Ribbon r;
-  r.widthStart = widthStart;
-  r.widthEnd = widthEnd;
-  r.fill = std::move(fill);
-  return r;
-}
-
-Ribbon calligraphic(float nibAngleDeg, float width, Fill fill, float contrast) {
-  Ribbon r;
-  r.widthStart = width;
-  r.nibAngleDeg = nibAngleDeg;
-  r.nibContrast = contrast;
-  r.fill = std::move(fill);
-  return r;
+void Ribbon::paint(SkCanvas& c, const PaintContext& ctx) const {
+  const SkPath region = band(ctx.outline);
+  if (region.isEmpty()) return;
+  SkPaint p;
+  p.setAntiAlias(true);
+  // A material supersedes the fill, and it is resolved through the same
+  // body a stroke's does, so a recipe means the same thing on a band as
+  // on the outline beside it — unit square, node's box, one clock.
+  const Fill band = fillMaterial ? resolveFill(*fillMaterial, ctx) : fill;
+  if (band.kind == Fill::Kind::Color)
+    p.setColor4f(band.colorValue, nullptr);
+  else if (band.kind == Fill::Kind::Shader)
+    p.setShader(band.shaderValue);
+  c.drawPath(region, p);
 }
 
 void Art::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (!ctx.fonts) return;
-  if (!cache->image || cache->bakedFor != art.node().get()) {
-    cache->bakedFor = art.node().get();
+  if (!cache->image || !bakedFromNode(cache->bakedFor, art.node())) {
+    cache->bakedFor = art.node();
     cache->image = nullptr;
     // Consult the instance-side store before doing any raster work.
     if (ctx.stamps) {
@@ -667,9 +770,9 @@ void Art::paint(SkCanvas& c, const PaintContext& ctx) const {
     }
   }
   if (!cache->image) {
-    // Shell box: snapshot() and measure() size by the root's CHILDREN
+    // Shell box: snapshot() and intrinsicSize() size by the root's CHILDREN
     // and ignore the root's own dimensions.
-    const SkSize sz = measure(box().child(art), *ctx.fonts);
+    const SkSize sz = intrinsicSize(box().child(art), *ctx.fonts);
     if (sz.isEmpty()) return;
     sk_sp<SkPicture> pic = snapshot(box().child(art), *ctx.fonts);
     sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
@@ -730,11 +833,11 @@ Art artAlong(Element art, float height, float stationPx) {
   b.art = std::move(art);
   b.height = height;
   b.stationPx = stationPx;
-  b.reach = std::max(32.0f, height);
+  b.bleedPx = std::max(32.0f, height);
   return b;
 }
 
-Ribbon ribbon(Profile width, Fill fill) {
+Ribbon ribbon(geometry::path::Profile width, Fill fill) {
   Ribbon r;
   r.width = std::move(width);
   r.fill = std::move(fill);
@@ -742,274 +845,5 @@ Ribbon ribbon(Profile width, Fill fill) {
 }
 
 }  // namespace brush
-
-// ---------------------------------------------------------------------------
-// Crossing discovery
-//
-// Crossings are DISCOVERED, never authored: the strands are flattened and
-// every pair of segments is tested for a PROPER crossing. "Proper" is
-// load-bearing — coincident strands (which is what layers() is) and
-// endpoint touches (a shared polygon vertex) are meetings, not crossings,
-// and reporting them would put a knot at every corner of every rectangle.
-
-namespace {
-
-struct Flat {
-  std::vector<SkPoint> points;
-  std::vector<float> at;  // cumulative arc length at each point
-  float length = 0;
-  SkRect bounds = SkRect::MakeEmpty();  // of `points` — the pair rejection
-};
-
-Flat flatten(const SkPath& path) {
-  Flat f;
-  SkContourMeasureIter iter(path, false);
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    const float len = contour->length();
-    if (len <= 0) continue;
-    const int steps = std::max(2, (int)std::ceil(len / 2.0f));
-    for (int k = 0; k <= steps; ++k) {
-      const float d = len * (float)k / (float)steps;
-      SkPoint pos;
-      if (!contour->getPosTan(d, &pos, nullptr)) continue;
-      f.points.push_back(pos);
-      f.at.push_back(f.length + d);
-    }
-    f.length += len;
-    // A break between contours: repeat the last point so the segment loop
-    // below can skip the join (a chord between two contours is not a
-    // strand and must not manufacture crossings). Guarded because a
-    // contour whose every getPosTan failed appends nothing at all.
-    if (!f.points.empty()) {
-      f.points.push_back(f.points.back());
-      f.at.push_back(f.length);
-    }
-  }
-  if (!f.points.empty()) f.bounds.setBounds({f.points.data(), f.points.size()});
-  return f;
-}
-
-/** The point on a flattened strand at arc length `s`. */
-SkPoint pointAtArc(const Flat& f, float s) {
-  if (f.points.empty()) return {0, 0};
-  s = std::clamp(s, 0.0f, f.length);
-  for (size_t k = 0; k + 1 < f.at.size(); ++k) {
-    if (s > f.at[k + 1]) continue;
-    const float span = f.at[k + 1] - f.at[k];
-    const float w = span > 1e-6f ? (s - f.at[k]) / span : 0.0f;
-    return {f.points[k].fX + (f.points[k + 1].fX - f.points[k].fX) * w,
-            f.points[k].fY + (f.points[k + 1].fY - f.points[k].fY) * w};
-  }
-  return f.points.back();
-}
-
-/** Does one strand change sides of the other's local direction at `hit`? */
-bool changesSides(const Flat& other, float sOther, SkPoint hit, SkVector dir) {
-  const float delta = 3.0f;
-  const SkPoint before = pointAtArc(other, sOther - delta);
-  const SkPoint after = pointAtArc(other, sOther + delta);
-  const auto side = [&](SkPoint q) {
-    return dir.x() * (q.fY - hit.fY) - dir.y() * (q.fX - hit.fX);
-  };
-  return side(before) * side(after) < 0.0f;
-}
-
-/** Do these two strands genuinely CROSS at `hit`, or only meet there?
- *
- *  BOTH directions are tested, and that is the point: asking only "does B
- *  change sides of A" is order-asymmetric, so an A endpoint landing on B's
- *  interior answered yes while the mirror case answered no — the same
- *  meeting classified two ways depending on which strand happened to be
- *  indexed first. A crossing is a symmetric property and is tested as one.
- *
- *  This is also what keeps a rectangle's corners from each becoming a knot:
- *  at a shared vertex the neighbours sit on one side (or collinear), so at
- *  least one of the two tests fails. */
-bool crossesTransversally(const Flat& fa, float sA, const Flat& fb, float sB,
-                          SkPoint hit, SkVector aDir, SkVector bDir) {
-  return changesSides(fb, sB, hit, aDir) && changesSides(fa, sA, hit, bDir);
-}
-
-}  // namespace
-
-std::vector<Crossing> discoverCrossings(const std::vector<SkPath>& strands) {
-  std::vector<Crossing> found;
-  if (strands.size() < 2) return found;
-  std::vector<Flat> flats;
-  flats.reserve(strands.size());
-  for (const SkPath& p : strands) flats.push_back(flatten(p));
-
-  for (size_t a = 0; a < strands.size(); ++a)
-    for (size_t b = a + 1; b < strands.size(); ++b) {
-      // COINCIDENT strands never cross. This is the layers() case, and
-      // testing it by path identity is exact where it matters most.
-      if (strands[a] == strands[b]) continue;
-      const Flat& fa = flats[a];
-      const Flat& fb = flats[b];
-      // Bounds rejection before the segment-by-segment loop, which is
-      // quadratic in the flattened point counts. A reported crossing's hit
-      // point lies on a segment of EACH strand, up to the parametric eps
-      // overshoot below — a fraction of the flattening step, so far under a
-      // pixel — which means two strands whose bounds stay half a pixel
-      // apart provably cannot cross. The 0.5 px outset is orders of
-      // magnitude larger than that overshoot, so this skips only provably
-      // empty work and cannot change an answer.
-      SkRect nearA = fa.bounds, nearB = fb.bounds;
-      nearA.outset(0.5f, 0.5f);
-      nearB.outset(0.5f, 0.5f);
-      if (!SkRect::Intersects(nearA, nearB)) continue;
-      for (size_t i = 0; i + 1 < fa.points.size(); ++i) {
-        const SkPoint p0 = fa.points[i], p1 = fa.points[i + 1];
-        const SkVector r{p1.fX - p0.fX, p1.fY - p0.fY};
-        if (r.length() <= 1e-6f) continue;  // the contour join
-        for (size_t j = 0; j + 1 < fb.points.size(); ++j) {
-          const SkPoint q0 = fb.points[j], q1 = fb.points[j + 1];
-          const SkVector sv{q1.fX - q0.fX, q1.fY - q0.fY};
-          if (sv.length() <= 1e-6f) continue;
-          const float denom = r.x() * sv.y() - r.y() * sv.x();
-          // Parallel or collinear: no transversal crossing. Two copies of
-          // one path land here for every corresponding segment.
-          if (std::abs(denom) < 1e-9f) continue;
-          const SkVector d{q0.fX - p0.fX, q0.fY - p0.fY};
-          const float t = (d.x() * sv.y() - d.y() * sv.x()) / denom;
-          const float u = (d.x() * r.y() - d.y() * r.x()) / denom;
-          // CLOSED intervals, then a transversality test.
-          //
-          // Strict interiors cannot be used here. Symmetric geometry — two
-          // diagonals of a square, a horizontal met by verticals on a
-          // regular sampling grid — puts a genuine crossing EXACTLY on a
-          // sample boundary, and a strict test discards all of them. So the
-          // endpoints are accepted, and the question that actually
-          // separates the two cases is asked afterwards: does the other
-          // strand pass THROUGH here, or does it merely touch?
-          const float eps = 1e-3f;
-          if (t < -eps || t > 1.0f + eps || u < -eps || u > 1.0f + eps)
-            continue;
-          const SkPoint hit{p0.fX + r.x() * t, p0.fY + r.y() * t};
-          const float sA = fa.at[i] + (fa.at[i + 1] - fa.at[i]) * t;
-          const float sB = fb.at[j] + (fb.at[j + 1] - fb.at[j]) * u;
-          if (!crossesTransversally(fa, sA, fb, sB, hit, r, sv)) continue;
-          Crossing x;
-          x.a = a;
-          x.b = b;
-          x.at = hit;
-          x.alongA = fa.length > 0 ? sA / fa.length : 0.0f;
-          x.alongB = fb.length > 0 ? sB / fb.length : 0.0f;
-          // Sampling can report one meeting from two adjacent segment
-          // pairs; keep the first and drop its neighbours.
-          bool duplicate = false;
-          for (const Crossing& seen : found)
-            if (seen.a == x.a && seen.b == x.b &&
-                std::abs(seen.at.fX - x.at.fX) < 1.5f &&
-                std::abs(seen.at.fY - x.at.fY) < 1.5f) {
-              duplicate = true;
-              break;
-            }
-          if (!duplicate) found.push_back(x);
-        }
-      }
-    }
-
-  // Numbered ALONG THE BOUNDARY: ascending by position on the lower-indexed
-  // strand, then by strand pair, so the order is deterministic and a
-  // positional pin means the same knot on every frame the geometry holds.
-  std::sort(found.begin(), found.end(),
-            [](const Crossing& l, const Crossing& r) {
-              if (l.alongA != r.alongA) return l.alongA < r.alongA;
-              if (l.a != r.a) return l.a < r.a;
-              return l.b < r.b;
-            });
-  for (size_t i = 0; i < found.size(); ++i) found[i].index = i;
-  return found;
-}
-
-SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
-                     float reachB, SkPoint at, float maxRadius) {
-  const auto tube = [](const SkPath& path, float reach) {
-    SkPaint p;
-    p.setStyle(SkPaint::kStroke_Style);
-    // `reach` is the mark's FULL width, and the tube is twice it. That is
-    // deliberately conservative: alignment can put the whole mark on ONE
-    // side of the path (Align::Inner/Outer), so a tube of exactly the mark
-    // width, centred on the path, would miss half of it. The cost is a
-    // lens up to 2x larger than the true overlap — harmless with opaque
-    // inks, and bounded by maxRadius either way.
-    p.setStrokeWidth(std::max(reach, 0.5f) * 2.0f);
-    p.setStrokeCap(SkPaint::kRound_Cap);
-    p.setStrokeJoin(SkPaint::kRound_Join);
-    return skpathutils::FillPathWithPaint(path, p);
-  };
-  // The knot's OWN territory. Without this the neighbouring lenses of an
-  // ordinary braid touch, pathops merges them into one contour, and the
-  // first crossing's patch claims the entire run.
-  SkPathBuilder territoryBuilder;
-  territoryBuilder.addCircle(at.fX, at.fY, std::max(maxRadius, 1.0f));
-  const SkPath territory = territoryBuilder.detach();
-
-  SkPath overlap, lens;
-  if (Op(tube(a, reachA), tube(b, reachB), kIntersect_SkPathOp, &overlap) &&
-      !overlap.isEmpty() &&
-      Op(overlap, territory, kIntersect_SkPathOp, &lens) && !lens.isEmpty()) {
-    // The intersection holds EVERY overlap of the two strands, which is one
-    // component per crossing. Keep the component this crossing is in, so a
-    // strand pair that meets several times repairs each meeting on its own
-    // terms rather than repainting all of them at the first.
-    SkPathBuilder mine;
-    bool found = false;
-    SkPath::Iter iter(lens, false);
-    SkPathBuilder run;
-    bool runOpen = false;
-    const auto flushRun = [&] {
-      if (!runOpen) return;
-      SkPath contour = run.detach();
-      SkRect bounds = contour.getBounds();
-      bounds.outset(0.5f, 0.5f);
-      if (bounds.contains(at.fX, at.fY)) {
-        mine.addPath(contour);
-        found = true;
-      }
-      runOpen = false;
-    };
-    SkPoint pts[4];
-    for (SkPath::Verb verb = iter.next(pts); verb != SkPath::kDone_Verb;
-         verb = iter.next(pts)) {
-      switch (verb) {
-        case SkPath::kMove_Verb:
-          flushRun();
-          run.moveTo(pts[0]);
-          runOpen = true;
-          break;
-        case SkPath::kLine_Verb:
-          run.lineTo(pts[1]);
-          break;
-        case SkPath::kQuad_Verb:
-          run.quadTo(pts[1], pts[2]);
-          break;
-        case SkPath::kConic_Verb:
-          run.conicTo(pts[1], pts[2], iter.conicWeight());
-          break;
-        case SkPath::kCubic_Verb:
-          run.cubicTo(pts[1], pts[2], pts[3]);
-          break;
-        case SkPath::kClose_Verb:
-          run.close();
-          break;
-        default:
-          break;
-      }
-    }
-    flushRun();
-    if (found) return mine.detach();
-    return lens;  // the point missed every component's box — repair it all
-  }
-  // Degenerate or non-overlapping: a disc sized for the perpendicular case
-  // is the best available answer and is what the exact form replaced. Still
-  // bounded by the knot's own territory.
-  SkPathBuilder disc;
-  disc.addCircle(at.fX, at.fY,
-                 std::min(std::max({reachA, reachB, 3.0f}) + 1.0f,
-                          std::max(maxRadius, 1.0f)));
-  return disc.detach();
-}
 
 }  // namespace sigil::compose

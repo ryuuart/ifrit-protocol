@@ -4,22 +4,62 @@
  */
 
 #include <sigilcompose/core/Composer.h>
+#include <sigilcompose/texture/Texture.h>
+#include <sigilgeometry/mesh/render/Runtime.h>
+#include <sigilmeasure/time/Laps.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/core/Crash.h>
 
 #include <array>
-#include <chrono>
 #include <cstdio>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace sigil::sketch {
 
 namespace {
 
-double millisSince(std::chrono::steady_clock::time_point from,
-                   std::chrono::steady_clock::time_point to) {
-  return std::chrono::duration<double, std::milli>(to - from).count();
+namespace {
+
+/** The process's mesh painter. It starts as the CPU executor rather than
+ *  as nothing, so a sketch that hands it to a style draws on a machine
+ *  where no host ever installed one — an empty runtime draws no mesh at
+ *  all, which would read as a bug in the sketch. */
+geometry::mesh::render::Runtime& processPainter() {
+  static geometry::mesh::render::Runtime painter =
+      geometry::mesh::render::Runtime::cpu();
+  return painter;
 }
+
+/** The painter the calling thread is drawing a session through, or null
+ *  where no session is drawing on it. */
+const geometry::mesh::render::Runtime*& threadPainter() {
+  thread_local const geometry::mesh::render::Runtime* painter = nullptr;
+  return painter;
+}
+
+/** THE SESSION'S PAINTER, FOR AS LONG AS THIS STANDS. A sketch body asks
+ *  for the painter from inside its own describe, so the answer has to be
+ *  the one the session opened with rather than whatever the process last
+ *  installed — a still drawn on a worker beside a window that is
+ *  presenting is the case that makes the difference. */
+class PainterScope {
+ public:
+  explicit PainterScope(const geometry::mesh::render::Runtime& painter)
+      : m_was(std::exchange(threadPainter(), &painter)) {}
+  ~PainterScope() { threadPainter() = m_was; }
+  PainterScope(const PainterScope&) = delete;
+  PainterScope& operator=(const PainterScope&) = delete;
+
+ private:
+  const geometry::mesh::render::Runtime* m_was;
+};
+
+}  // namespace
 
 /** ONE 2D SKETCH, RUNNING.
  *
@@ -30,13 +70,36 @@ double millisSince(std::chrono::steady_clock::time_point from,
 class CanvasSession final : public Session {
  public:
   CanvasSession(Sketch* sketch, weave::FontContext& fonts, Assets& assets,
-                bool deterministic)
+                bool deterministic,
+                const geometry::mesh::render::Runtime& painter)
       : m_fonts(fonts),
         m_assets(assets),
         m_sketch(sketch),
+        m_painter(painter ? painter : geometry::mesh::render::Runtime::cpu()),
         m_deterministic(deterministic) {
+    // Setup declares too, so the painter is the session's from the first
+    // line of the body onward.
+    const PainterScope on(m_painter);
     m_composer = std::make_unique<compose::Composer>(m_ticker, m_fonts);
     m_composer->setClock(&m_clock);
+    // A deterministic session is one whose picture will be diffed, and the
+    // composer's automatic texture promotion decides by a STOPWATCH: a node
+    // whose paint measures over a millisecond for eight frames is baked and
+    // blitted thereafter, and its antialiased edges then land one code
+    // value away from the live paint. Whether the threshold is crossed
+    // depends on how busy the machine is, so with it on the same binary
+    // draws two different plates. The sketch's own measurements are pinned
+    // by ctx.measured(); this pins the runtime's.
+    //
+    // It is the session's DEFAULT rather than a property of determinism:
+    // setAutoPromotion() lifts it afterwards, which is how a run that
+    // means to exercise the promoter keeps every other pin in place. Such
+    // a run is judged by distance from a plate, never by hash — and it
+    // asks for the EAGER policy, which has no stopwatch in it, so the set
+    // of nodes it exercises is the scene's and not the machine's.
+    if (deterministic)
+      m_composer->setAutoTexturePromotion(
+          compose::Composer::PromotionPolicy::Off);
     // TWO SIZINGS, deliberately: a sketch may lay out during setup, so
     // it needs a canvas before it runs, and it declares its own from
     // inside setup. The second call is a no-op when they agree.
@@ -56,19 +119,21 @@ class CanvasSession final : public Session {
   [[nodiscard]] const CanvasSpec& canvas() const override { return m_spec; }
 
   void frame(SkCanvas& canvas, double dt) override {
-    const auto start = std::chrono::steady_clock::now();
+    const PainterScope on(m_painter);
+    m_laps.reset();
+    // A STATED step and a wall-clock one are the same clock: `advance`
+    // takes the caller's delta through the same pause, time scale and
+    // stall clamp `tick` puts a wall reading through, so a stepped run
+    // and a live one differ in where the number came from and in nothing
+    // else. Coming back to wall time, the clock's raw reading is rebased
+    // without advancing elapsed, or the first live frame after a sweep
+    // injects one whole maxDelta.
     double step = 0.0;
     if (dt >= 0.0) {
-      if (!m_stepping) {
-        m_clock.tick(0.0);  // seed, so the first synthetic step advances
-        m_stepping = true;
-      }
-      m_now += dt;
-      step = m_clock.tick(m_now);
+      m_stepping = true;
+      step = m_clock.advance(dt);
     } else {
       if (m_stepping) {
-        // Rebase the clock's raw time without advancing elapsed, or a
-        // stepped run followed by a live frame injects one maxDelta.
         const bool wasPaused = m_clock.paused();
         m_clock.setPaused(true);
         m_clock.tick();
@@ -83,18 +148,25 @@ class CanvasSession final : public Session {
       m_sketch->update(m_clock.elapsed(), ctx);
     }
     applySize();  // a sketch may resize itself mid-run, p5 style
-    const auto described = std::chrono::steady_clock::now();
-    m_composer->draw(canvas);
-    const auto drawn = std::chrono::steady_clock::now();
-    m_timing.updateMs = millisSince(start, described);
-    m_timing.drawMs = millisSince(described, drawn);
-    m_timing.totalMs = millisSince(start, drawn);
+    m_timing.updateMs = m_laps.mark("update");
+    // The phase turns over where the sketch's own body ends and its
+    // runtime's painting begins, so a fault reads the same whichever
+    // host drove the frame: one call in, two phases.
+    {
+      PhaseMark mark(Phase::Draw);
+      m_composer->draw(canvas);
+    }
+    m_timing.drawMs = m_laps.mark("draw");
+    m_timing.totalMs = m_laps.totalMs();
     const compose::Composer::Stats& stats = m_composer->stats();
     m_lanes = {Lane{"recon", stats.reconcileMs}, Lane{"layout", stats.layoutMs},
                Lane{"volat", stats.volatileMs}, Lane{"paint", stats.paintMs}};
   }
 
-  void repaint(SkCanvas& canvas) override { m_composer->draw(canvas); }
+  void repaint(SkCanvas& canvas) override {
+    const PainterScope on(m_painter);
+    m_composer->draw(canvas);
+  }
 
   /** One more stepped frame, at the capture's own scale: a bake re-runs
    *  at that scale instead of being upsampled. */
@@ -103,6 +175,10 @@ class CanvasSession final : public Session {
   [[nodiscard]] float oversample() const override { return 2.0f; }
 
   void redeclare() override {
+    const PainterScope on(m_painter);
+    // The body declares everything again, its texture scenes included,
+    // so the ones it asked for last time are let go before it asks.
+    m_scenes.clear();
     SketchContext ctx = context();
     m_sketch->setup(ctx);
     applySize();
@@ -126,14 +202,29 @@ class CanvasSession final : public Session {
                   stats.picturesRecorded - stats.texturesBaked,
                   stats.texturesBaked, stats.picturesLive, stats.texturesLive,
                   stats.instances);
-    return line;
+    // …and what the BODY is holding through the context, which the
+    // composer's own counters cannot see: a scene it asked for once is a
+    // fixture, and a count that climbs frame by frame is a body asking
+    // for one every frame.
+    if (m_scenes.empty()) return line;
+    char held[48];
+    std::snprintf(held, sizeof held, "   scenes %zu", m_scenes.size());
+    return std::string(line) + held;
   }
 
-  void setAutoPromotion(bool on) override {
-    m_composer->setAutoTexturePromotion(on);
+  void setAutoPromotion(Promotion policy) override {
+    using Policy = compose::Composer::PromotionPolicy;
+    m_composer->setAutoTexturePromotion(policy == Promotion::Off ? Policy::Off
+                                        : policy == Promotion::Eager
+                                            ? Policy::Eager
+                                            : Policy::ByCost);
   }
 
   void setProfiling(bool on) override { m_composer->setProfiling(on); }
+
+  void setBakeDensity(float devicePixelsPerUnit) override {
+    m_composer->setBakeDensity(devicePixelsPerUnit);
+  }
 
   /** The per-node attribution, written out. An expensive node reported
    *  as live paint with nothing beside it gives an author no next move:
@@ -197,8 +288,8 @@ class CanvasSession final : public Session {
   SketchContext context() {
     // A prvalue: SketchContext is non-copyable, so guaranteed elision is
     // the only way it travels.
-    return SketchContext{*m_composer, m_ticker, m_assets,       m_spec.size,
-                         &m_spec,     &m_fonts, m_deterministic};
+    return SketchContext{*m_composer, m_ticker, m_assets,        m_spec.size,
+                         &m_spec,     &m_fonts, m_deterministic, &m_scenes};
   }
 
   weave::FontContext& m_fonts;
@@ -206,15 +297,23 @@ class CanvasSession final : public Session {
   motion::FrameClock m_clock;
   motion::Ticker m_ticker;
   CanvasSpec m_spec;
+  /** The texture scenes the context handed out. Before the sketch and
+   *  the composer, so they outlive both: an image a sketch took from one
+   *  and a texture a retained tree holds are still standing when their
+   *  owners go. */
+  std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
   std::unique_ptr<Sketch> m_sketch;
   // After the sketch: reverse destruction releases retained descriptions
   // (which may point at sketch-owned Outputs) before their owner.
   std::unique_ptr<compose::Composer> m_composer;
   Timing m_timing;
+  // Reset per frame rather than built per frame, so the laps a frame
+  // lays cost no allocation inside the span they are timing.
+  measure::Laps m_laps;
   std::array<Lane, 4> m_lanes{};
   SkSize m_applied = m_spec.size;  // what the composer was last told
-  double m_now = 0.0;              // the stepped timeline, when stepped
-  bool m_stepping = false;
+  bool m_stepping = false;         // the last frame took a stated step
+  geometry::mesh::render::Runtime m_painter;
   bool m_deterministic;
 };
 
@@ -223,8 +322,27 @@ class CanvasSession final : public Session {
 std::unique_ptr<Session> CanvasKind::open(weave::FontContext& fonts,
                                           Assets& assets,
                                           bool deterministic) const {
-  return std::make_unique<CanvasSession>(m_factory(), fonts, assets,
-                                         deterministic);
+  return std::make_unique<CanvasSession>(
+      m_factory(), fonts, assets, deterministic,
+      m_painter ? *m_painter : painterRuntime());
+}
+
+Kind onPainterRuntime(const Kind& kind,
+                      const geometry::mesh::render::Runtime& painter) {
+  // The painter is a 2D kind's own vocabulary, so only a 2D kind answers
+  // to it and everything else comes back as it went in.
+  if (const auto* canvas = dynamic_cast<const CanvasKind*>(kind.get()))
+    return canvas->on(painter);
+  return kind;
+}
+
+void usePainterRuntime(const geometry::mesh::render::Runtime& runtime) {
+  processPainter() = runtime ? runtime : geometry::mesh::render::Runtime::cpu();
+}
+
+const geometry::mesh::render::Runtime& painterRuntime() {
+  const geometry::mesh::render::Runtime* const session = threadPainter();
+  return session ? *session : processPainter();
 }
 
 }  // namespace sigil::sketch

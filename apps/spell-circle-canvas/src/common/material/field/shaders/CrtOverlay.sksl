@@ -1,0 +1,10 @@
+half4 main(float2 xy) {
+  float line = mod(xy.y, uScanPitch) < uScanPitch * 0.5
+                   ? uScanStrength
+                   : 0.0;
+  float2 p = (xy / max(uResolution, float2(1.0)) - 0.5) * 2.0;
+  float r = length(p / uSqueeze);
+  float vig = smoothstep(uVigInner, uVigOuter, r) * uVigStrength;
+  float a = clamp(line + vig, 0.0, 1.0);
+  return half4(0.0, 0.0, 0.0, half(a));
+}

@@ -11,13 +11,11 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkSurfaceProps.h>
 #include <sigilcompose/core/Composer.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
-#ifdef SIGILCOMPOSE_TEXTURE_DEVICE
-#include <sigilskia/device/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
-#endif
 
 #include <algorithm>
 #include <utility>
@@ -25,11 +23,9 @@
 namespace sigil::compose {
 
 struct TextureScene::Impl {
-#ifdef SIGILCOMPOSE_TEXTURE_DEVICE
   ~Impl() {
     if (device && handle) device->destroy(handle);
   }
-#endif
 
   SkISize size{0, 0};
   SkColor4f background{0, 0, 0, 0};
@@ -41,13 +37,11 @@ struct TextureScene::Impl {
    *  took over. */
   sk_sp<SkSurface> raster;
 
-#ifdef SIGILCOMPOSE_TEXTURE_DEVICE
   /** The device side: the texture the scene paints into and the context
    *  that wraps it. Both null on the raster path. */
-  skia::GpuDevice* device = nullptr;
+  core::hardware::GpuDevice* device = nullptr;
   skia::GraphiteContext* context = nullptr;
-  skia::TextureHandle handle;
-#endif
+  core::hardware::TextureHandle handle;
 
   sk_sp<SkImage> image;
   uint64_t version = 0;
@@ -62,7 +56,6 @@ struct TextureScene::Impl {
   /** Paints the tree into whichever surface the scene stands on, and
    *  leaves what it painted in `image`. */
   void paint() {
-#ifdef SIGILCOMPOSE_TEXTURE_DEVICE
     if (device && context) {
       // Wrapped fresh for each paint: the wrap is a thin, cheap handle
       // over a texture the device owns, and the Graphite context it is
@@ -77,7 +70,6 @@ struct TextureScene::Impl {
       surface.submit();
       return;
     }
-#endif
     if (!raster) return;
     SkCanvas* canvas = raster->getCanvas();
     canvas->clear(background);
@@ -104,18 +96,17 @@ std::shared_ptr<TextureScene> TextureScene::make(SkISize size,
   return scene;
 }
 
-#ifdef SIGILCOMPOSE_TEXTURE_DEVICE
-bool TextureScene::useDevice(skia::GpuDevice& device,
+bool TextureScene::useDevice(core::hardware::GpuDevice& device,
                              skia::GraphiteContext& context) {
   Impl& impl = *m_impl;
   // The usage left at its default is the one a scene needs: a shader
   // reads the texture and a canvas paints into it.
-  skia::TextureDesc desc;
+  core::hardware::TextureDesc desc;
   desc.width = impl.size.width();
   desc.height = impl.size.height();
-  desc.format = skia::TextureFormat::RGBA8Unorm;
+  desc.format = core::hardware::TextureFormat::RGBA8Unorm;
   desc.label = "compose scene";
-  const skia::TextureHandle handle = device.createTexture(desc);
+  const core::hardware::TextureHandle handle = device.createTexture(desc);
   if (!handle) return false;
   {
     const skia::OffscreenSurface probe(context, device, handle);
@@ -138,13 +129,6 @@ bool TextureScene::useDevice(skia::GpuDevice& device,
   impl.composer->purgeCaches();
   return true;
 }
-#else
-bool TextureScene::useDevice(skia::GpuDevice&, skia::GraphiteContext&) {
-  // This build carries no device feature, so there is no device to paint
-  // on and the raster surface stands.
-  return false;
-}
-#endif
 
 void TextureScene::render(const Element& root, double seconds) {
   Impl& impl = *m_impl;
@@ -157,7 +141,7 @@ void TextureScene::render(const Element& root, double seconds) {
   // and no transition in flight means the pixels standing in the surface
   // are already the answer, and a consumer must be able to tell that
   // from the value alone.
-  if (impl.painted && !impl.composer->dirty() && !impl.ticker.active()) return;
+  if (impl.painted && !impl.composer->active()) return;
   impl.paint();
   impl.painted = true;
   ++impl.version;
@@ -172,10 +156,10 @@ SkISize TextureScene::size() const { return m_impl->size; }
 sk_sp<SkImage> TextureScene::image() const { return m_impl->image; }
 
 material::DeviceImage TextureScene::deviceImage() const {
-#ifdef SIGILCOMPOSE_TEXTURE_DEVICE
   const Impl& impl = *m_impl;
   if (!impl.device || !impl.handle) return {};
-  const skia::NativeTexture native = impl.device->exportNative(impl.handle);
+  const core::hardware::NativeTexture native =
+      impl.device->exportNative(impl.handle);
   if (!native) return {};
   material::DeviceImage out;
   out.device = impl.device;
@@ -186,14 +170,9 @@ material::DeviceImage TextureScene::deviceImage() const {
   out.width = native.width;
   out.height = native.height;
   return out;
-#else
-  return {};
-#endif
 }
 
-bool TextureScene::active() const {
-  return m_impl->composer->dirty() || m_impl->ticker.active();
-}
+bool TextureScene::active() const { return m_impl->composer->active(); }
 
 const Composer& TextureScene::composer() const { return *m_impl->composer; }
 

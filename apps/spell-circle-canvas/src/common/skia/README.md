@@ -3,18 +3,24 @@
 SigilSkia brings Skia's Graphite GPU backend up on a device someone else
 already owns. Given a native device and command queue — Metal or Vulkan —
 it builds a Graphite `Context` and `Recorder`, and given a texture — the
-API's own object, or the name a device gave one — it wraps that texture
-as an `SkSurface`, so ordinary `SkCanvas` draw calls land directly in the
-texture with no copy. It also offers the device itself as an object:
-created or adopted, with textures and fences named by handles that go
-stale rather than dangle, and destruction that waits out the frames still
-in flight. A host that holds one of those devices never spells a graphics
-API: it hands over handles and reads back fences. A Qt host reaches the same bring-up
-through an adapter over its `QRhi`. There is no scene, product, or
-drawing logic here: nothing in this library knows what is being drawn.
+API's own object, or the name a `GpuDevice` gave one — it wraps that
+texture as an `SkSurface`, so ordinary `SkCanvas` draw calls land
+directly in the texture with no copy, or as an `SkImage`, so a draw
+samples it where it stands. Beside those it reads an image out
+at the width a device texture takes it. A Qt host reaches the same
+bring-up through an adapter over its `QRhi`. There is no scene, product,
+or drawing logic here: nothing in this library knows what is being drawn.
+
+**The device is not here.** `GpuDevice`, its handles and its fences are
+SigilCoreHardware's — `<sigilcore/hardware/GpuDevice.h>`, namespace
+`sigil::core::hardware` — because a device knows nothing about what draws
+on it, and a Diligent renderer adopts the same one. This library stands
+Graphite on whatever device it is handed and reads it through the entry
+points below.
 
 Namespace `sigil::skia`. Headers live under `<sigilskia/<feature>/...>`;
-`<sigilskia/Skia.h>` is the umbrella over the Qt-free features.
+`<sigilskia/Skia.h>` is the umbrella over the graphite feature; the draw
+feature is included by its own header, `<sigilskia/draw/Direct.h>`.
 
 ## Features
 
@@ -23,21 +29,18 @@ directory, and links only what it needs.
 
 | Feature | Target | Headers | What it holds |
 |---|---|---|---|
-| graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>` | the context over a native device and queue, the surface over a texture; Metal and Vulkan as parallel paths |
-| device | `SigilSkiaDevice` | `<sigilskia/device/GpuDevice.h>`, `<sigilskia/device/Handle.h>`, `<sigilskia/device/Fence.h>` | the device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction; and the entry points the graphite headers declare over a device — `GraphiteContext::create(GpuDevice&)`, the `OffscreenSurface` wrap over a `TextureHandle`, the submit that signals a `FenceHandle` |
+| graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>`, `<sigilskia/graphite/PaintOrder.h>`, `<sigilskia/graphite/TextureImage.h>`, `<sigilskia/graphite/Pixels.h>` | the context over a native device and queue, the surface over a texture, the image over one, the canvas that keeps a scene's painting order, and the pixel reads a device upload takes; Metal and Vulkan as parallel paths, and the entry points that read a `GpuDevice` — `GraphiteContext::create`, the `OffscreenSurface` wrap over a `TextureHandle`, the submit that signals a `FenceHandle` |
 | qt | `SigilSkiaQt` | `<sigilskia/qt/QtInterop.h>` | the adapters that unwrap a `QRhi`'s native handles and forward to graphite |
+| draw | `SigilSkiaDraw` | `<sigilskia/draw/Direct.h>` | the two `SkCanvas` ops Graphite leaves unimplemented, decomposed into ones every backend performs |
 
-`SigilSkia` is the umbrella over the Qt-free features — graphite and
-device. Dependencies point one way: device links graphite, never the
-reverse, which is why every entry point that reads a `GpuDevice` is
-declared in a graphite header and defined by the device feature. The
-graphite headers do include `<sigilskia/device/Handle.h>` and
-`<sigilskia/device/Fence.h>` to spell those declarations, but those two
-headers are names and values with no device code behind them; a caller of
-the entry points links `SigilSkiaDevice`. A Qt host links `SigilSkiaQt`, which carries the umbrella with it. A
-consumer that owns its own Metal device (the native macOS app, the
-headless gallery, the GPU tests and benchmarks) links `SigilSkia` and
-never sees Qt.
+`SigilSkia` is the umbrella over the Qt-free features. Dependencies point
+one way: Graphite stands on the hardware device, so the graphite feature
+links `SigilCoreHardware` — the qt feature links graphite — and nothing
+there knows Skia exists.
+The draw feature is header-only over Skia and links neither. A Qt host links `SigilSkiaQt`, which carries the
+umbrella with it. A consumer that owns its own Metal device (the native
+macOS app, the GPU tests and benchmarks) links `SigilSkia` and never
+sees Qt.
 
 ## Using it
 
@@ -53,7 +56,7 @@ std::unique_ptr<sigil::skia::GraphiteContext> graphite =
     sigil::skia::GraphiteContext::createMetal(device, queue);
 
 // …or from Vulkan handles, every one an opaque value:
-sigil::skia::VulkanHandles handles;
+sigil::core::hardware::VulkanHandles handles;
 handles.instance = instance;
 handles.physicalDevice = physicalDevice;
 handles.device = device;
@@ -94,98 +97,90 @@ construct it fresh each time rather than caching it. If you need the
 underlying objects, `graphite->context()`, `graphite->recorder()` and
 `surface.surface()` hand them out.
 
-### Owning the device
+### Sampling a texture someone else painted
 
-A host that has no device of its own, or wants its textures and fences
-named rather than held as raw API objects, goes through `GpuDevice`:
+The other direction: `wrapImage` reads a texture as an `SkImage` a draw
+samples, with nothing copied.
 
 ```cpp
-#include <sigilskia/Skia.h>
-using namespace sigil::skia;
+#include <sigilskia/graphite/TextureImage.h>
 
-// The system default device and a fresh queue — or adopt the host's:
-std::unique_ptr<GpuDevice> device = GpuDevice::createOwned(Backend::Metal);
-// NativeDevice native{Backend::Metal, mtlDevice, mtlCommandQueue};
-// device = GpuDevice::adopt(native);      // never frees them
+sk_sp<SkImage> image = sigil::skia::wrapImage(
+    *graphite->recorder(), mtlTexture, width, height);
+if (image)
+  canvas->drawImageRect(image, destination, sampling, &paint);
+```
+
+It takes the RECORDER rather than the context, because that is what a
+wrap is recorded on, and a thread with a recorder of its own — a web
+renderer, a decoder — hands that one over. The texels are read as the
+format the texture itself declares; the alpha type and the colour space
+are the two things a texture cannot say for itself.
+
+**The image holds the texture.** A wrap retains it and releases it when
+the last image naming it is gone, so an image outliving the view or the
+frame that owned its texture still samples pixels rather than whatever
+now holds the slot.
+
+**Several planes are one image.** `wrapPlanarImage`, taking a span of
+`TexturePlane` and an `SkYUVAInfo`, wraps a frame that arrived as
+separate luma and chroma textures, so the shader that samples it does
+the colour arithmetic and nothing is converted on the way in. It carries
+its own name because the ownership is the other way round: it retains
+nothing, the planes live as long as the release context the caller hands
+over — one buffer every plane was made from, rather than each plane in
+turn — and the release runs on every path out, including a wrap that
+never happened.
+
+Only the Metal arm is built: it is what every caller of these wraps
+holds. A Vulkan arm stands beside it the day something asks for one, the
+same way the surface wrap has both.
+
+### Drawing into a texture a device named
+
+A host whose textures and fences are named by a `GpuDevice` hands the
+handle over and names no API at all. The wrap, the submit and the fence
+signal are the same three calls whichever backend the device is:
+
+```cpp
+#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilskia/Skia.h>
+using namespace sigil::core::hardware;
+using sigil::skia::GraphiteContext;
+using sigil::skia::OffscreenSurface;
 
 std::unique_ptr<GraphiteContext> graphite = GraphiteContext::create(*device);
-
-TextureDesc desc;
-desc.width = 1920;
-desc.height = 1080;
-desc.format = TextureFormat::BGRA8Unorm;
-TextureHandle target = device->createTexture(desc);
 
 FenceHandle fence = device->createFence();
 for (;;) {
-  device->beginFrame();                     // retires destroys three frames old
+  device->beginFrame();
   OffscreenSurface surface(*graphite, *device, target);
   drawMyScene(*surface.canvas());
-  FenceValue done = surface.submit(*device, fence);   // signal behind the draw
+  FenceValue done = surface.submit(*device, fence);  // signal behind the draw
   // …later: device->waitCpu(fence, done) blocks; device->waitGpu(fence, done)
   // holds later queue work instead.
 }
-device->destroy(target);                    // stale at once, released at frame + 3
 ```
 
-`device->exportNative(target)` still hands the API's own object out, for
-a host that draws with the API directly or publishes the texture
-onwards.
+`GraphiteContext::create(device)` is the one factory that reads a device
+rather than raw handles: it takes whichever API the device is and calls
+the matching bring-up. A stale handle wraps nothing — `canvas()` stays
+null — so a texture destroyed under a host's feet stops it drawing
+rather than reaching whatever now holds the slot. What a device is, how a
+handle goes stale and what a fence promises are SigilCoreHardware's;
+what is here is only what Graphite does over one.
 
-A texture the host made enters the same table through
-`importNative(nativeTexture)` — borrowed, so destroy only forgets it —
-or `importNative(nativeTexture, /*takeOwnership=*/true)`, after which the
-device releases it like one of its own.
-
-### Adopting a device an engine created
-
-Some 3D engines create the Vulkan device themselves and cannot attach to
-one that already exists — Diligent Engine is one of them. There the
-device is theirs and Graphite joins it, rather than the other way round.
-What `adopt` wants is exactly what such an engine exposes:
-
-```cpp
-NativeDevice native;
-native.backend = Backend::Vulkan;
-// Off Diligent's IRenderDeviceVk:
-native.vulkan.instance       = deviceVk->GetVkInstance();
-native.vulkan.physicalDevice = deviceVk->GetVkPhysicalDevice();
-native.vulkan.device         = deviceVk->GetVkDevice();
-native.vulkan.apiVersion     = deviceVk->GetVkVersion();
-// The queue sits behind the engine's own lock: take the handle, drop the
-// lock. (Diligent: context->LockCommandQueue(), narrowed to
-// ICommandQueueVk, then UnlockCommandQueue().)
-native.vulkan.queue            = queueVk->GetVkQueue();
-native.vulkan.queueFamilyIndex = queueVk->GetQueueFamilyIndex();
-// The engine already opened a loader; hand over its vkGetInstanceProcAddr
-// rather than letting this library open a second one.
-native.vulkan.getInstanceProcAddr = engineGetInstanceProcAddr;
-
-std::unique_ptr<GpuDevice> device = GpuDevice::adopt(native, &error);
-std::unique_ptr<GraphiteContext> graphite = GraphiteContext::create(*device);
-```
-
-Three conditions come with it:
-
-- **Timeline semaphores must be enabled on that device.** A fence here is
-  one, and a device created without them cannot make one. Ask the engine
-  for the feature before it creates the device — Diligent spells it
-  `NativeFence` — because it cannot be turned on afterwards.
-- **The loader should be the engine's.** Leaving `getInstanceProcAddr`
-  null is legal and this library finds a loader itself, but then the two
-  APIs dispatch through separately opened copies of it.
-- **The queue is now shared, and sharing has a rule.** Graphite's
-  submissions and the engine's passes go into the one queue in submission
-  order — that is what makes `submit()` asynchronous and still correct —
-  but only while the two streams never interleave. Hold whatever lock the
-  engine guards its queue with around every Graphite submit and around
-  every `signal`, `waitGpu` and `waitCpu` on this device. Diligent's is
-  `LockCommandQueue()` / `UnlockCommandQueue()` on the immediate context,
-  and it does not nest, so no engine call may be made while it is held.
-
-Nothing here is freed by the device: an adopted instance, device and
-queue stay the engine's, and keeping them alive for as long as the
-`GpuDevice` and its Graphite context live is the caller's business.
+**A float image needs a half-float copy to be sampled.** A decoded HDR
+panorama lands as 32-bit float RGBA, which keeps the range a sun needs
+and is not filterable on Apple GPUs — a sampler asked to interpolate
+between two F32 texels there answers nothing. `halfFloatPixels(image)`
+is the copy that makes it drawable, tightly packed four halves a texel,
+with `bytePixels(image)` beside it for the ordinary path and
+`isFloatImage(image)` to choose between them. The conversion lives here
+rather than beside the decoder because it is a property of the hardware
+the pixels are going to and not of the file they came from — and here
+rather than in the hardware feature because reading an `SkImage` is
+Skia's business.
 
 ## The mental model
 
@@ -194,9 +189,10 @@ one factory and one wrapping constructor each, both Qt-free, both in the
 graphite feature. The Metal translation units exist on Apple alone; the
 Vulkan ones compile on every platform and are live only where the linked
 Skia carries the backend (`SK_VULKAN`) — elsewhere the factory returns
-null and the wrap leaves `canvas()` null. The Vulkan path has no host
-that exercises it yet: it builds, and the first consumer with a Vulkan
-device is its test.
+null and the wrap leaves `canvas()` null. Its consumer is the renderer
+that creates the Vulkan device: SigilGeometry's `device` feature adopts
+what Diligent made and stands Graphite on it, and its test is where the
+Vulkan arms of this one live.
 
 **The Qt adapter serves one API per build.** `createGraphiteContext(QRhi
 *)` unwraps Metal handles on Apple and Vulkan handles elsewhere, and
@@ -204,36 +200,11 @@ returns null for any other `QRhi` backend. Null is a normal, expected
 outcome — it means "this build cannot serve that backend" — and a caller
 handles it by drawing another way, never by assuming an API.
 
-**Handles are names, not pointers.** A `TextureHandle` or `FenceHandle`
-is a slot index plus the generation the slot had when the name was
-issued. Destroying a resource frees its slot and bumps the generation,
-so a handle kept past the destroy compares unequal to whatever later
-lives in that slot: `isValid` says no, `exportNative` returns empty,
-`signal` returns the initial value, and nothing reaches the wrong
-resource. The typed handles (`TextureHandle`, `BufferHandle`,
-`FenceHandle`) do not convert into each other. `HandleTable` in
-`<sigilskia/device/Handle.h>` is the store behind them and can name
-anything a host wants named the same way.
-
-**Destruction waits out the frames in flight.** `destroy(texture)` makes
-the handle stale at once but releases the native texture only when
-`beginFrame()` has advanced `kFramesInFlight` (three) frames past the one
-it was destroyed in — a frame that was recording when the destroy came in
-may still reference it on the GPU. A host that never calls `beginFrame()`
-never releases anything until the device is torn down, which releases
-everything.
-
-**A fence is a timeline.** Its value only ever grows; `signal` queues a
-raise to the next value behind everything submitted so far and returns
-that value, `waitGpu` holds every later submission until the value is
-reached, and `waitCpu` blocks for it with a timeout. On Metal a fence is
-an `MTLSharedEvent` and every wait and signal is a command buffer on the
-device's queue. Because Graphite shares that queue, a fence signalled
-after `submit()` is reached only once the drawing has landed. A queue
-executes in order, so `waitGpu` is for a value that is already signalled
-or will be signalled from *another* queue — `exportNative(fence)` hands
-the event to one — and a signal queued on the same queue behind the wait
-can never run.
+**A fence signalled after a submit means the drawing has landed.**
+Graphite shares the device's one command queue, so a signal queued behind
+`submit()` is reached only once the work has run. What a fence is, how a
+handle goes stale and when a destroyed texture is actually released are
+SigilCoreHardware's.
 
 **One recorder per thread, one context under a lock.** A Graphite
 `Recorder` belongs to the thread that records on it; the `Context` may be
@@ -292,27 +263,15 @@ queue for the context's lifetime (that translation unit compiles without
 ARC, so the retain is explicit); `createVulkan` retains nothing and the
 handles must outlive the context. Either way the caller keeps its own
 references and stays the owner, and a wrapped texture's memory is never
-freed by Skia. A `GpuDevice` from `createOwned` releases its device and
-queue when it dies; one from `adopt` never does. Every device call is
-safe from any thread except `beginFrame()`, which belongs to the one
-thread that counts frames.
+freed by Skia. Who frees a `GpuDevice`'s own device and queue is the
+device's business, not this library's.
 
-**Two device backends, one contract.** What each supports:
-
-| | Metal | Vulkan |
-|---|---|---|
-| `createOwned` | the system default device and a fresh queue | the loader (platform search, or `SIGILSKIA_VULKAN_LIBRARY`), an instance with portability enumeration where offered, the first physical device with a graphics queue, a device with timeline semaphores enabled and the portability subset where required, that queue |
-| `adopt` | `mtlDevice` + `mtlCommandQueue` | instance, physical device, device, queue and family index; `getInstanceProcAddr` optional (the loader is found otherwise); the device must have timeline semaphores enabled |
-| texture | `id<MTLTexture>`; `cpuAccessible` is shared storage | `VkImage` + `VkDeviceMemory`, optimal tiling, sampled, colour-attachment, input-attachment and transfer usage (+ storage for `ShaderWrite`) — input attachment because Graphite reads a render target back through one; `cpuAccessible` prefers host-visible coherent memory and falls back to device-local; formats map to `R8G8B8A8_UNORM`, `B8G8R8A8_UNORM`, `R16G16B16A16_SFLOAT` |
-| import with ownership | retains the texture | destroys the `VkImage` and frees `vkMemory` when given |
-| fence | `MTLSharedEvent` | timeline `VkSemaphore`; `waitCpu` is `vkWaitSemaphores`, queue signal and wait are empty submissions |
-| loading | the framework | every entry point resolved from `vkGetInstanceProcAddr` at run time; nothing links Vulkan, and a machine without a loader or driver gets the reason from `createOwned` |
-| the Skia path | `createMetal` | `createVulkan` on the adopted handles |
-
-Without a Vulkan runtime, `createOwned(Backend::Vulkan)` returns null and
-names the reason; on macOS the runtime is `brew install molten-vk
-vulkan-loader`, and the tests and benchmarks on that backend skip with
-the same message.
+**Two backends, one bring-up each.** `createMetal` on Apple,
+`createVulkan` on the adopted Vulkan handles; `GraphiteContext::create`
+picks between them off the device it is handed. The Vulkan path is live
+only where the linked Skia carries the backend, and a device with no
+Vulkan runtime behind it never reaches this library at all — what each
+backend a device can be actually supports is SigilCoreHardware's.
 
 **A null canvas means the wrap failed.** `OffscreenSurface::canvas()`
 returns null in that case — check it before drawing. A wrap by handle
@@ -330,35 +289,135 @@ host that needs a particular layout afterwards transitions it itself.
 budget from the environment. Unset leaves Skia's default in place; it
 exists so the budget can be varied while measuring.
 
+**A shader that will not compile is a log line, not an error.** Graphite
+builds the fragment program for a draw at record time and compiles it on
+the device. A program that fails there is dropped, the draw paints
+nothing, and the next frame tries again — so a runtime effect that is
+valid as its own SkSL program and invalid once Graphite has inlined it
+into a pipeline scrolls past forever rather than failing anything.
+`GraphiteContext::reportShaderErrorsTo` puts a `skgpu::ShaderErrorHandler`
+in Skia's place so a caller can act on it; it is read when the context is
+created, so install it first. Unset, Skia prints the generated shader and
+the compiler's errors to stderr. SigilMaterial's device sweep is built on
+this.
+
+## The two draws Graphite does not implement
+
+`graphite::Device` overrides `drawImageLattice` and `drawAtlas` with
+empty bodies, so every such call on a Graphite canvas silently vanishes —
+a nine-slice frame or a sheet of instance stamps simply does not appear,
+with no error anywhere. `<sigilskia/draw/Direct.h>` is the way round it:
+`draw::drawLattice` emits per-cell `drawImageRect`s over the alternating
+fixed and stretchable bands `draw::detail::latticeEdges` computes, and
+`draw::drawSpriteAtlas` emits one `drawVertices` quad list sampling the
+sheet.
+
+**They decompose on EVERY backend and never call the native op.** A
+picture recorded on a raster canvas must be able to replay on a Graphite
+one, and a recorded native lattice or atlas op vanishes there. The
+canvas's recorder gates only TEXTURE PROMOTION — `draw::ready` uploads a
+raster source through a per-owner `draw::Promoted` cache, because
+Graphite performs no implicit upload for direct image use.
+
+This feature is unconditional where the rest of the library is gated:
+the ops vanish on a Graphite canvas whether or not this repository is the
+one that stood that canvas up.
+
+## Painting order, and the fence that keeps it
+
+Graphite paints out of order on purpose. Every draw carries a depth
+value, the backend executes draws in whatever order suits it, and the
+depth test rejects what the original order buried. A draw that BLENDS
+with what is already on the canvas cannot be reordered that freely, so
+Graphite makes it depend on the draws it overlaps and still leans on the
+depth test to reject it where a later draw has already landed.
+
+On the Vulkan backend such a blend reads the destination as an input
+attachment, guarded by a barrier inside the render pass. **MoltenVK
+serves that barrier by restarting the pass, and the depth attachment does
+not survive the restart**: every draw the pass had already executed loses
+its depth, and the blending draw paints over content described after it.
+A solid box over a dense window comes back with holes in it, each hole
+the shape of something drawn earlier.
+
+`PaintOrderCanvas` (`<sigilskia/graphite/PaintOrder.h>`) is the fence.
+Draw a scene through one and it forwards every op to the canvas beneath
+it, closing the recording after any draw whose blend the hardware cannot
+express — so that draw is the last of its render pass and the ones
+described after it begin a pass of their own. The picture is then the
+CPU's, pixel for pixel; the cost is one render pass per blending draw,
+which for a dense scene is a handful. `PaintOrderCanvas::needed()` says
+whether the backend needs it at all; a canvas over one that does not
+forwards everything and closes nothing, so a host wraps unconditionally.
+
+`OffscreenSurface::canvas()` already answers a fenced canvas, so a host
+that draws through a wrapped texture pays nothing to be right. A host
+that makes its own `SkSurfaces::RenderTarget` wraps it itself.
+
+Ending a pass has a price the same backend charges: it cannot bring a
+colour attachment's pixels back into a multisample attachment, so a pass
+that begins where another ended starts from undefined samples and
+resolves them over everything the pass before it drew — the ground and
+the whole top of a sheet come back as garbage. Since the fence ends
+passes mid-scene by design, the Vulkan context is built with Graphite's
+internal multisampling off (`fInternalMultisampleCount` of one), and a
+path is antialiased through the atlas instead, which survives the cut.
+The two belong together: turn the fence on for a backend and this goes
+with it.
+
 ## Boundary
 
-Public dependency: Skia. `SigilSkiaQt` adds `Qt6::Core` publicly and uses
-`Qt6::GuiPrivate` for the `QRhi` API; on Apple, `SigilSkiaGraphite` links
-Foundation and `SigilSkiaDevice` links Metal, both privately. The graphite
-and device features never link Qt, and nothing here links a renderer, a
-text engine, or a scene.
+Public dependencies: Skia and, for the two features that bring Graphite
+up, SigilCoreHardware — the device this stands Graphite on, which knows
+nothing of Skia in return. `SigilSkiaQt` adds
+`Qt6::Core` publicly and uses `Qt6::GuiPrivate` for the `QRhi` API; on
+Apple, `SigilSkiaGraphite` links Foundation privately. The graphite
+feature never links Qt, and nothing here links a renderer, a text engine,
+or a scene.
 
 ## Building
 
-Added only when `SPELLCIRCLE_ENABLE_SKIA_CANVAS` is on. Targets:
-`SigilSkiaGraphite`, `SigilSkiaDevice`, `SigilSkiaQt`, the `SigilSkia`
-umbrella, and on Apple `sigilskia_graphite_test` and
-`sigilskia_device_test` (ctest) plus `sigilskia_graphite_bench` and
-`sigilskia_device_bench` (Google Benchmark, through the `benches` target
-and `scripts/bench_ledger.py`). The graphite test takes the Metal path
-end to end on the system device: a context, a wrapped texture, a clear,
-and the pixels read back through the queue the context shares. It then
-takes the same wrap through a device — a texture the device made, the
-surface built from its handle, a stale handle that wraps nothing, and a
-fence the submit signals — on Metal, and again on Vulkan where a runtime
-is installed; both it and the benchmark link the device feature, since
-that is where those entry points are defined. The benchmark weighs the
-handle wrap against the native one on the same texture. The device test
-proves the handles go stale,
-destruction retires at frame + 3, a texture round-trips through import and
-export, a fence signals and holds, and Graphite stands up on an adopted
-device. The Qt adapters and the products are exercised through
-`compose_gpu_test`, `scry_gpu_test` and the applications.
+`SigilSkiaDraw`, `SigilSkiaGraphite`, `SigilSkiaQt` and the `SigilSkia`
+umbrella are always built, with one test binary `skia_test` over
+`draw/test/` and `graphite/test/` and one benchmark binary `skia_bench`
+(Google Benchmark, through the `benches` target and
+`scripts/sigil.py bench`). Three suites are arithmetic — no device, no
+context, no bring-up — which is why they carry no label and run on every
+machine: `LatticeEdges` over the band split, `SkiaPixels` over an
+`SkImage`'s pixels, and `SkiaGraphiteOptions` over the options every
+context and recorder is built with, which is where the recorder's two
+silent preconditions, the glyph-atlas budget the environment may cap and
+the shader-error handler are pinned. The `SigilSkiaGraphite` suite takes
+the Metal path end to end on
+the system device: a context, a wrapped texture, a clear, and the pixels
+read back through the queue the context shares. It reads the same
+texture back the other way as an image a draw samples, and refuses to
+wrap one that is not there. A second thread there draws on a recorder of
+its own and inserts what it snaps under the context's lock, which is what
+`makeRecorder()` and `lockContext()` promise together. It then takes the same
+wrap through a device — a texture the device made, the surface built
+from its handle, a stale handle that wraps nothing, a surface moved out
+of that submits nothing, a fence the submit signals, and the factory that
+reads a device the host adopted — on Metal. The same wrap on a Vulkan device is SigilGeometry's
+`AdoptedGraphite` suite's,
+since that is where a Vulkan device is made. The half-float read is
+checked in the `SkiaPixels` case, since its whole reason is a sampler
+that refuses F32.
+Every case in it that needs a device says so — the `SigilSkiaGraphite`
+suite carries the ctest label `gpu` and each such case skips, naming what it
+wanted, rather than failing on a machine with no Metal device. A case
+here asserts one thing a header promises and is named that promise as a
+sentence; it pins only what editing this library could falsify — a band
+split's arithmetic, a clear read back, a stale handle refused — never a
+size a rasteriser chose. The snap-insert-read-submit-spin readback those
+cases turn stands in `graphite/test/support/`, beside the context it
+turns and on the include path of any other library's test binary that
+draws on a device, so SigilGeometry's and SigilScry's device cases read a
+surface back the one way rather than each writing their own. The
+benchmark weighs the handle wrap against the native one on the same
+texture. The Qt adapters and the products are exercised
+through SigilCompose's `ComposeGpu` suite, SigilScry's GPU suites and
+the applications.
 
 At run time the Metal path needs a Metal device — on macOS, everything.
 The Vulkan path needs a Skia built with its Vulkan backend (the `vulkan`

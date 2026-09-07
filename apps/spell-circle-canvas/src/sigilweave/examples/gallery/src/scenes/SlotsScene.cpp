@@ -3,6 +3,8 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <cmath>
 
@@ -170,7 +172,7 @@ class SlotsScene final : public Scene {
   std::vector<float> m_pillWidths;
   sk_sp<SkTypeface> m_serif;
   sk_sp<SkTypeface> m_sansTypeface;
-  kit::RebuildGuard<float> m_built;
+  sigil::core::RebuildGuard<float> m_built;
 };
 
 SceneDescriptor makeSlotsDescriptor() {

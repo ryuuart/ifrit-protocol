@@ -8,7 +8,7 @@
 
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
-#include <sigilskia/device/Handle.h>
+#include <sigilcore/hardware/Handle.h>
 
 #include <functional>
 #include <memory>
@@ -93,13 +93,13 @@ class WebImage {
    * texture must stay alive until this returns. False on CPU engines or
    * for a stale handle.
    */
-  bool updateTexture(sigil::skia::TextureHandle texture);
+  bool updateTexture(sigil::core::hardware::TextureHandle texture);
 
   /** GPU engines: the texture backing this image, named on the engine's
    *  GpuDevice and valid for the WebImage's lifetime; `exportNative`
    *  there hands the native object out. Null on CPU engines. After
    *  rendering into it, call invalidate(). */
-  sigil::skia::TextureHandle texture() const;
+  sigil::core::hardware::TextureHandle texture() const;
 
   /** Notifies pages displaying this image that it changed and should be
    *  redrawn (update() does this automatically). */

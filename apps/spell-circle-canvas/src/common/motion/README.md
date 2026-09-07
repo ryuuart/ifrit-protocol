@@ -5,9 +5,11 @@ library gives you a monotonic frame clock that turns wall-clock time into
 well-behaved per-frame deltas, a ticker that steps a
 [Choreograph](https://github.com/sansumbrella/Choreograph) timeline plus
 any callbacks you register and tells you whether anything is still
-moving, and a small set of value types describing how a property changes
-over time. It links Choreograph and nothing else, so anything can use it
-without dragging in a graphics stack.
+moving, a small set of value types describing how a property changes
+over time, a schedule saying how a run of units shares one progress, and
+a point set that is stepped rather than read. It links Choreograph and
+two header-only SigilCore leaves, so anything can use it without
+dragging in a graphics stack.
 
 Namespace `sigil::motion`. One feature library per directory, linked by
 what a consumer uses; every public header lives under
@@ -15,226 +17,181 @@ what a consumer uses; every public header lives under
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all three | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; the wiggle noise field |
-| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Time.h`; `values/Values.h` includes all four | `Transition`, `ease::` and `ramp()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>`; `quantizeTime()` and `phase()` |
+| `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/Curve.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all four | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; `ease::`, the animation's name for SigilCore's shaped curve value and its house shapes; the wiggle noise field; `easeEqual()` and `boundMapEqual()` |
+| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Oscillator.h`, `values/Sequence.h`, `values/Spring.h`, `values/Time.h`; `values/Values.h` includes all nine | `Transition`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()`; `Oscillator` and `Wave`, the repeating signal; `Sequence`, `Step` and `Interpolation`, the keyed track |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
+| `SigilMotionSchedule` | `schedule/Spread.h`, `schedule/Order.h`, `schedule/Cascade.h`; `schedule/Schedule.h` includes all three | `Spread`, the spec; `cascadeOrder()`, the five orderings; `Cascade` and `Beat`, a spread resolved against a frame's counts |
+| `SigilMotionPhysics` | `physics/Points.h`, `physics/Forces.h`, `physics/Constraints.h`, `physics/Verlet.h`; `physics/Physics.h` includes all four | `Vec2` and `Points`, the lanes a simulation is; `Force` with `gravity()`, `drag()`, `attract()`/`repel()`, `wind()` and `boids()`; `Constraint` with `distance()`, `stick()`, `spring()`, `range()` and `pin()`; `Verlet`, the stepper |
 
-`SigilMotion` is the umbrella target over all three, and
+`SigilMotion` is the umbrella target over all five, and
 `<sigilmotion/Animation.h>` is the umbrella header over every values and
 bind header, so a consumer that includes `Animation.h` and links
-`SigilMotion` sees every value and binding (the clock headers are
-included on their own). Bind is the leaf: Values links it because
-`Animatable<T>` can hold a shaped binding, and Clock links it because
-`Ticker::derive` runs one.
+`SigilMotion` sees every value and binding. Bind is the leaf: Values
+links it because `Animatable<T>` can hold a shaped binding, Clock links
+it because `Ticker::derive` runs one, and Schedule links it because a
+spread's distribution curve compares under the same rule every other
+curve does. Values links Clock in turn, because an animatable that is
+MOVING is moving on a ticker — the values feature ships both the slot and
+the motion the slot runs as. Schedule links NEITHER the clock nor the
+values: see below. Physics links neither, and does not link Choreograph
+either — a step is a number of seconds the caller states.
 
-## Using it
+## The chapters
 
-```cpp
-#include <sigilmotion/Animation.h>
-#include <sigilmotion/clock/FrameClock.h>
-#include <sigilmotion/clock/Ticker.h>
+One chapter per feature, beside this page. Each is the canon for the
+feature it names, and everything below is the library as a whole.
 
-using namespace sigil::motion;
-using namespace std::chrono_literals;
+| chapter | what it covers |
+|---------|----------------|
+| **[CLOCK.md](CLOCK.md)** | `FrameClock` and `Ticker`: deltas, the two phases of a tick, derivations, the fixed-rate lane, and the signal a host sleeps on |
+| **[VALUES.md](VALUES.md)** | `Transition`, `Animatable<T>` and its four forms, the held `AnimatedFloat` a ticker runs, `Oscillator` and `Sequence`, `Spring`, the lanes a host retargets through, and the three words for stillness |
+| **[BIND.md](BIND.md)** | `bind()`, the `Bound` chain and the fixed order `BoundFloat::apply` runs its stages in, the envelopes that are the waveform vocabulary, and the wiggle field |
+| **[PHYSICS.md](PHYSICS.md)** | `Points`, `Force`, `Constraint` and `Verlet`: the one feature here that is stepped rather than read |
+| **[SCHEDULE.md](SCHEDULE.md)** | `Spread`, `cascadeOrder()` and `Cascade`: how N units share one progress, from a master float and nothing else |
 
-FrameClock clock;
-Ticker ticker;
+## Comparing two descriptions
 
-// A live value cell, ramped to 1 over 0.4 s by the master timeline.
-ch::Output<float> opacity = 0.0f;
-ticker.timeline().apply(&opacity).then<ch::RampTo>(1.0f, 0.4f);
+An identity prune asks whether two descriptions are provably the same,
+and the animation values are the part of that question this library
+answers. Four comparators, each beside the value it compares and each
+under a field pin that fails the build when that value gains a member:
 
-// A second cell computed from the first every tick, shaped on the way.
-ch::Output<float> trail;
-ticker.derive(&trail, bind(&opacity).offset(-0.1f).clamp(0.0f, 1.0f));
+| comparator | rule |
+|---|---|
+| `easeEqual` | two curves are equal when both are the same plain function pointer, or both are the same `core::curve::Curve` shape at the same settings; a capturing lambda is unequal to everything |
+| `transitionEqual` | same duration, same delay, same curve — the curve read through `easing()`, so `{360ms, {}, 220ms}` compares as the default it behaves as |
+| `boundMapEqual` | every one of `BoundFloat`'s fields, by hand, under the pin |
+| `propEqual` | same form, then that form's contents; a bare binding by the Output's IDENTITY, never by the number behind it |
 
-// A fixed-rate simulation, stepped 27 times a second whatever the draw rate.
-ch::Output<float> alpha;
-Ticker::FixedStatus status;
-ticker.addFixed(27.0, [&] { stepFire(); return true; }, 8, &alpha, &status);
-
-while (running) {
-  const bool animating = ticker.tick(clock.tick());
-  draw(opacity.value(), trail.value(), alpha.value());
-  if (!animating)
-    blockUntilNextEvent();   // nothing is moving; stop burning frames
-}
-```
-
-`Animatable<T>` is the property slot a consumer stores. It accepts a
-constant, a transition spec, a bare `Output<T>*`, or a shaped `bind()`:
-
-```cpp
-Animatable<float> a = 1.0f;                                  // constant
-Animatable<float> b = animate(from(0.0f).to(1.0f), {400ms}); // entrance
-Animatable<float> c = &opacity;                              // live cell
-Animatable<float> d = bind(&phase).window(0.2f, 0.6f)
-                          .map(ease::outBack()).target(-70, 170);
-```
-
-## Mental model
-
-Choreograph supplies the vocabulary — `Timeline`, `Motion`, `Phrase`,
-`Output<T>`, `EaseFn`. This library only drives it. `Output<T>` is the
-live value cell: your code owns it, the ticker writes it, and everything
-downstream reads it through a pointer.
-
-`FrameClock` produces deltas; `Ticker` consumes them. `Ticker::active()`
-is the event-driven-redraw signal — true while the timeline holds motions
-or any steppable remains registered, so a host can render when it is true
-and sleep when it is not.
-
-`Ticker::tick` runs two phases. First the timeline and every steppable, in
-registration order; then the derivations. Because derivations run second,
-a derived cell never reads a source that has not been stepped this frame,
-whatever order things were registered in.
-
-`Animatable<T>` holds one of four forms, discriminated by `index()`: `0`
-plain constant, `1` `Transitioned<T>`, `2` bare `Output<T>*`, `3` shaped
-binding. `Bound` is the builder and `BoundFloat::apply` runs a fixed
-pipeline: pre-normalise (`source`/`window`), optional input clamp, the
-envelope (`pingPong`/`cosine`/`trapezoid`/`square`/`wave`), ease curve
-(`map`), `quantize`, the affine chain (`scale`/`offset`/`target`/`invert`,
-composed in call order), `wrap`, `wiggle` noise, output `clamp`. The
-wiggle phase is read from the *normalised* value, before the envelope and
-the curve, so easing or folding the signal does not ease or fold the
-shake.
-
-The envelope is the shape a one-way phase takes across its span, and it is
-the answer to the loop signals every study otherwise hand-steps into its
-ticker:
-
-```cpp
-bind(&secs).source(0, 7.2f).cosine()                  // the breath
-bind(&secs).source(0, 4.0f).pingPong().target(0, 240) // there and back
-bind(&cycle).source(0, 15.f).trapezoid(0, .03f, .84f, .95f)  // hold, cut
-bind(&secs).source(0, 1.06f).square(0.58f).target(0.1f, 1.f) // the blink
-bind(&secs).wave([](float u) { return u * u; })       // your own period
-```
-
-Together the stages are the library's **waveform vocabulary** — each verb
-is one of the classic signal shapes, spoken where its output lands:
-
-| verb        | classic waveform | what it says |
-|-------------|------------------|--------------|
-| `pingPong`  | triangle         | there and back across the span, repeating |
-| `cosine`    | sine             | the swell — 0, up to 1 at mid-span, back, eased |
-| `square`    | pulse            | ON for the first `duty` of each period, OFF after; phase 0 is ON |
-| `trapezoid` | gate             | ramp, hold at 1, ramp, dark — positions inside one pass |
-| `wrap`      | sawtooth         | folds the **output** into [0, period) |
-| `wiggle`    | noise            | smooth value noise, added in output units |
-| `wave`      | custom           | your function on the folded phase u ∈ [0,1) |
-
-The first four are envelopes and share one slot; `wrap` and `wiggle` are
-their own later stages and compose with any of them. The distinction that
-keeps `wrap` out of the envelope row: an envelope shapes the *normalised
-phase* before the curve and the affine chain, while `wrap` folds the
-value *after* the affine chain — a sawtooth over the schedule is an
-unfolded phase driving `wrap`, not an envelope.
-
-`cosine`, `pingPong` and `square` are periodic in the normalised phase, so
-a monotonic seconds Output keeps breathing, bouncing or pulsing;
-`trapezoid` names positions inside one pass and stays dark past its last
-corner, so a repeating sheet rides a phase that already wraps. `wave` is
-periodic by the same fold the others use: the function is evaluated on
-u ∈ [0,1) and repeats whatever it drew there. Because the envelope runs
-*before* `map`, any curve through (0,0) and (1,1) rounds a trapezoid's
-shoulders while leaving its hold at exactly 1 and its dark at exactly 0 —
-where the corners are and what shape the shoulders take are separate
-decisions. `square` has no shoulders to round, and its phase 0 is ON —
-a caret born at the start of its cycle is born visible.
-
-## Gotchas
-
-`Ticker` is not thread-safe. Use one per animation domain and touch it
-only from that domain's thread.
-
-`FrameClock::tick` returns `0.0` on its first call and while paused, but
-it still advances its internal timestamp. That is deliberate: unpausing
-produces no catch-up spike, because the paused span was consumed as it
-went. A single tick reports at most `FrameClockOptions::maxDelta` (0.25 s
-by default), so a suspended app or a debugger break yields a clamped step
-rather than a giant one.
-
-A binding carries ONE envelope. `pingPong`, `cosine`, `trapezoid`,
-`square` and `wave` write the same slot, so naming a second replaces the
-first exactly as a second `map()` replaces the first curve — there is no
-raised cosine of a trapezoid. `trapezoid`'s four corners are held
-non-decreasing, so a zero-length shoulder is an instant cut rather than a
-division by zero and corners given out of order collapse onto the one
-before them.
-
-`wave`'s function is part of the binding's identity, compared the way
-`map()`'s curve is: a consumer that prunes on equality can compare a plain
-function pointer, while a capturing lambda compares unequal to everything
-and re-patches on every describe. Name the shape as a free function where
-that cost matters.
-
-`Ticker::elapsed()` accumulates the deltas handed to `tick()`. It is not
-wall time — a paused or time-scaled clock changes it accordingly.
-
-`derive()` allows exactly one level. Self-derivation, deriving from
-another derivation's destination, and two derivations writing the same
-cell are all refused: the call returns `false` and writes a message to
-stderr. The chain is also applied once at registration, so the destination
-holds a correct value before the first tick.
-
-`addFixed` *discards* simulated time when the backlog exceeds
-`maxCatchUp` — running slow for one frame instead of spiralling. When
-that happens the frame's `FixedStatus::clamped` is the only signal, and
-anything measured on that frame (a residual, a convergence rate) is
-meaningless.
-
-`active()` stays true while any steppable is registered, and a steppable
-is only dropped when it returns `false`. A steppable that always returns
-`true` pins the host awake forever. Derivations never contribute to
-`active()` — they are pure in their source, so if nothing else moves,
-neither can they.
-
-`Transition` is an aggregate, so `{360ms, {}, 220ms}` value-initialises
-`ease` to an *empty* `std::function`, which compiles and then throws
-`bad_function_call` when called. Read the curve through
-`Transition::easing()`, which substitutes the default; never read `ease`
-directly.
+The last rule is the load-bearing one: a live binding stays connected for
+the whole life of the value it drives, so comparing the sampled number
+would let a moving value prune into a still one.
 
 ## Boundary
 
-Each of the three libraries links `choreograph::choreograph` publicly and
-nothing else outside this directory.
-That is the point: consumers that also draw — a compositor, a 3D
-renderer — link it without inheriting a drawing library, and can
-re-export its types into their own namespaces.
+Every feature but physics links `choreograph::choreograph` publicly. The
+only other edges out of this directory reach the two header-only leaves
+under SigilCore that depend on the standard library and nothing else:
+`SigilCoreComparable` for `kFieldCount`, the pin each comparator above
+sits under — so that a `static_assert` about `BoundFloat`'s field count
+lives in the same file as `BoundFloat` — and `SigilCoreCompute` for the
+seeded mixer the scattered ordering ranks with, so that a
+`Spread::From::Random` permutation is the same permutation wherever in
+the tree it is dealt,
+for the noise field a wind reads, so that a flow a simulation drifts
+along and the same flow drawn as a picture are the same field, and for
+the SHAPED CURVE itself: `core::curve::Curve` and every house shape are
+that leaf's, because a colour ramp and a keyed track reshape a unit
+position exactly as an easing does and the colour leaf links no
+animation runtime. `ease::` here is the animation's word for those, and
+nothing more — a curve gets its arithmetic and its equality from the
+leaf, and reads the same wherever it is held.
+Both carry no kernel, no device and nothing that draws. Boost is
+private, in one place: the scheduler's own table — a Boost unordered map
+on `SigilMotionSchedule` — which no public header names.
 
-The library ships the values and the clock. It does not resolve them.
-Turning an `Animatable<T>` into a concrete value for a given frame, in a
-given paint or render context, belongs to whoever owns that context.
+`SigilMotionSchedule` links neither the clock nor the values. A cascade
+is a pure function of a master float in [0, 1] and two integer counts,
+and keeping it that way is what lets a text engine drive it from a
+track's progress, a set from a lane and a study from a bare `phase()`.
+
+That is the point: consumers that also draw — a compositor, a 3D
+renderer — link this library without inheriting a drawing library, and
+spell `sigil::motion` at the call site rather than re-exporting it.
+
+The library ships the values, the clock, and the motion a value runs as
+— everything answerable from the animatable and the ticker alone.
+Resolving an animatable against a CONTEXT is the consumer's: which of a
+node's properties are animated at all, where their held motions live, and
+what a resolved number then means to a paint, a layout or a render pass.
 Anything that would pull a graphics, layout, or scene-graph dependency in
-here does not belong here.
+here does not belong here — the physics feature included: it holds
+positions and velocities and no colour, no size and no age, because what
+a point looks like is the drawing's business.
 
 ## Build and test
 
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug \
-  --target motion_clock_test motion_values_test motion_bind_test
-ctest --test-dir build -C Debug -R motion_ --output-on-failure
+python3 scripts/sigil.py setup --config Release
+cmake --build build --config Release --target motion_test
+ctest --test-dir build -C Release --output-on-failure
 ```
 
-Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`
-(the libraries, one per feature directory — `bind/`, `values/`, `clock/`
-— each holding its sources, its `test/` and its `bench/`), `SigilMotion`
-(the umbrella), and one test per library:
-`motion_bind_test`, `motion_values_test` and `motion_clock_test`, plus two
-Google Benchmark binaries built by the `benches` target and run from a
-Release build through `scripts/bench_ledger.py`: `motion_bind_bench`
-(`BoundFloat::apply` per call under each envelope and the full chain, and
-the wiggle field by octave) and `motion_values_bench` (the consumer's read
-of an `Animatable` lane per slot for each kind it can hold, and copying
-and constructing such a lane). No GPU,
-no assets, no runtime requirements. Each test links only the library it
-exercises (plus the clock where a value is driven by the ticker) and
-GoogleTest, and fails the build if a compositing header becomes
-reachable from it — that is how the dependency boundary above stays
-honest.
+Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`,
+`SigilMotionPhysics` and `SigilMotionSchedule` — the libraries, one per
+feature directory (`bind/`, `values/`, `clock/`, `physics/`,
+`schedule/`), each holding its sources, its
+`test/` and its `bench/` — plus `SigilMotion`, the umbrella.
+
+One test binary, `motion_test`, built from every feature's `test/`
+directory; ctest discovers one entry per CASE out of it, so a suite or a
+case is selected by name with no target behind it — `-R '^Physics\.'`
+for the stepper's cases, `-R '^Cascade\.'` for the schedule's:
+
+| directory | suites | what they prove | what the feature must not be able to link |
+|---|---|---|---|
+| `bind/test/` | `Bind`, `Stages`, `StagePairs`, `Envelopes`, `PeriodicEnvelopes`, `BindNoise` | the `bind()` chain: every stage against the arithmetic it stands in for, the place each stage owns, the envelopes, `wrap`, the wiggle field, and the two comparators field by field | anything above the leaf — the record that carries a curve is the lowest thing here |
+| `clock/test/` | `FrameClock`, `Ticker` | one reading after another, pause, time scale and the stall ceiling; the Ticker stepping motions, steppables and derivations, and the fixed step that keeps its own rate whatever the host draws at | a renderer |
+| `values/test/` | `Values`, `Forms`, `Animated`, `Lanes`, `Oscillator`, `Sequence`, `Spring` | `Transition`, the `animate()` builders, `quantizeTime`, the four forms an `Animatable<T>` holds, the two signals read from a time alone, springs, the held motion of an animatable, and the lanes a host retargets through | a renderer |
+| `physics/test/` | `Physics` | the lanes a point set is and what `remove` does to their numbering, each force against the arithmetic it stands in for, a distance band read as a stick, a spring and a rope, the velocity a constraint pass gives back, the same run reproduced from the same `dt`, and the degenerate settings a caller can hand in | **the clock** — a step is a number of seconds the caller states, and a link edge to a timeline would be the first step to something in here reading time for itself |
+| `schedule/test/` | `Spread`, `Order`, `Cascade`, `CascadeOrdering` | the orderings, the ladder, cue tables, the nested and looping cascade, and the field walk over a spread's equality | **the clock** — a cascade is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
+
+No binary needs a GPU, a font, an asset or a network, so none of them
+carries a ctest label and none of them skips. No test in any of them reads
+a wall clock either: every frame length, every phase and every progress is
+a number the case hands in, so a slow machine changes nothing about what
+they assert.
+
+A case asserts one thing a public header promises and is named that
+promise as a sentence, so a failure line reads as the claim that broke. It
+pins only what editing this library could falsify — the numbers a stage
+computes, the order the stages take, the discriminant of a slot, the
+fields a comparator reads — never elapsed time, which is the bench
+ledger's. A claim made N times with one thing varying is one `TEST_P`
+whose parameter is that thing and whose rows are named: the chain's stages
+against the arithmetic they stand in for, the pairs of stages written
+either way round, the envelopes that stay inside [0,1] and the ones that
+repeat every period, the four forms an `Animatable<float>` holds, and the
+orderings a cascade deals its ranks in.
+
+One file per subject, named for what it asserts. In `bind/test/`,
+`BindTest` (the chain builder), `BoundFloatTest` (the evaluation, the
+envelopes and the wrap), `WiggleNoiseTest` (the noise stage and the field
+under it) and `CurveComparatorTest` (the two comparators); then
+`clock/test/ClockTest.cpp`; `physics/test/PhysicsTest.cpp`;
+`schedule/test/ScheduleTest.cpp`; and, in `values/test/`, `ValuesTest`
+(the values themselves), `AnimatedTest` (the held motion), `LanesTest`
+(the lane list), `OscillatorTest` and `SequenceTest` (the two signals
+read from a time alone) and `SpringTest` (the one value that carries its
+own velocity).
+
+Fixtures more than one test binary needs live in `test/support/` at the
+library root, and every motion test includes `"support/<Name>.h"`. Two
+headers sit there. `StandsAlone.h` fails the build if a drawing library's
+headers become reachable from a motion test — the positive control under
+every "SigilMotion alone" claim, without which those tests would pass for
+the wrong reason on a machine where a compositing header happened to be on
+the include path; every motion test opens with it. `Ramps.h` is the
+transitioned value a test that drives a motion starts from: a linear ramp
+to a target over a stated number of milliseconds, linear so the
+assertions can read the value halfway through and name the number without
+evaluating a curve. Otherwise each test links only the library it
+exercises, plus the clock where a value is driven by the ticker, and
+GoogleTest.
+
+One Google Benchmark binary, `motion_bench`, is built by the `benches`
+target and run from a Release build through `scripts/sigil.py bench`,
+which is where any number about this library belongs. Its arms:
+`bind/bench/` (`BoundFloat::apply`
+per call under each envelope and the full chain, and the wiggle field by
+octave), `values/bench/` (the consumer's read of an `Animatable`
+lane per slot for each kind it can hold, copying and constructing such
+a lane, and the two time-only signals read one call at a time),
+`clock/bench/` (the frame clock's own step, the timeline
+stepped with N motions on it, and the derivation pass at N derived
+cells), `physics/bench/` (a field of free particles, the same field
+flocking — which is where comparing every pair shows — and a chain of
+sticks under its constraint passes) and `schedule/bench/` (resolving a
+cascade for a frame's counts, and the per-unit local-time read).

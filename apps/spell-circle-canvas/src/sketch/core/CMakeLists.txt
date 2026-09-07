@@ -1,32 +1,14 @@
-# The core feature: what a sketch is, what it declares about its canvas,
-# what it reaches for, and the seam that says which runtime draws it.
-#
-# It links the resource hub (a sketch reaches for files) and the
-# comparable erasure the kind seam is built on, and nothing that draws:
-# a consumer that only wants to know what sketches exist links this
-# alone.
-add_library(SigilSketchCore STATIC
-  Assets.cpp
-  Registry.cpp
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Assets.h
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/CanvasSpec.h
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Kind.h
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Registry.h
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Session.h
-)
-target_compile_features(SigilSketchCore PUBLIC cxx_std_20)
-target_include_directories(SigilSketchCore PUBLIC ${SIGIL_SKETCH_INCLUDE_DIR})
-target_link_libraries(SigilSketchCore PUBLIC SigilLoader SigilCoreComparable)
-set_target_properties(SigilSketchCore PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# The registry, the kind seam, the crash reporter and where a sketch
+# stands on disk: the part of SigilSketch that draws nothing. The
+# reporter is covered here rather than beside either host because BOTH
+# have a guest — the live host calls into a dylib it just loaded, the
+# sweep into a hundred sketches in one process — and a fault inside one
+# is a fault inside the host either way.
+sigil_test(sketch_test
+  SOURCES test/AssetsTest.cpp test/CrashTest.cpp test/DeviceTest.cpp
+          test/RegistryTest.cpp test/SourcesTest.cpp
+  LIBRARIES SigilSketch SigilVideoEncode)
 
-add_executable(sketch_core_test test/RegistryTest.cpp)
-target_link_libraries(sketch_core_test PRIVATE SigilSketchCore
-  GTest::gtest_main)
-add_test(NAME sketch_core_test COMMAND sketch_core_test)
-
-# Google Benchmark (use a Release build). Not a test: it builds through
-# the `benches` target and runs through scripts/bench_ledger.py.
-add_executable(sketch_core_bench bench/RegistryBench.cpp)
-target_link_libraries(sketch_core_bench PRIVATE SigilSketchCore
-  benchmark::benchmark)
-add_dependencies(benches sketch_core_bench)
+sigil_bench(sketch_bench
+  SOURCES bench/RegistryBench.cpp
+  LIBRARIES SigilSketch)

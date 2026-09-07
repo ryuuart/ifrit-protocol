@@ -78,53 +78,75 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Layouts.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/testing/Checks.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/kit/Grained.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdarg>
-#include <cstdio>
 #include <memory>
 #include <string>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 
+namespace field = sigil::material::field;
+namespace matkit = sigil::material::kit;
+namespace measure = sigil::measure;
+namespace patterns = sigil::material::pattern;
+namespace shapes = sigil::geometry::shapes;
+namespace skia = sigil::material::skia;
+namespace weave = sigil::weave;
+
 using namespace sigil::compose;
+using namespace sigil::motion;
+using sigil::material::skia::Paint;
 // The whole composition is pinned — there is no layout in a pattern
 // card — so every panel is a box at absolute card coordinates.
 using sigil::compose::kit::at;
-using sigil::compose::kit::centred;
+using sigil::geometry::path::centred;
 using namespace std::chrono_literals;
-namespace weave = sigil::weave;
 
 namespace {
 
 // ---------------------------------------------------------------------------
 // The card it is mounted on. Black Watch is a dark cloth, and it sits on
 // manila board, so this whole plate is light-on-dark inverted: pale ground,
-// dark ink. patterns::grain is built for exactly that — an opaque board with
-// tooth — rather than for glow over a dark field.
+// dark ink. `material::kit::board` is that board: one paint under a fine
+// tooth and a slow wear, generated per pixel from its parameters — the
+// ground and its grain as ONE node rather than a flat fill with a
+// multiplied noise laid over it.
 
-constexpr SkColor4f kCard = hex(0xE8E2D6);
-constexpr SkColor4f kWell = hex(0xDCD4C4);
-constexpr SkColor4f kRule = hex(0x8A8478);
-constexpr SkColor4f kInk = hex(0x1A1815);
-constexpr SkColor4f kInk2 = hex(0x5A554C);
-constexpr SkColor4f kRed = hex(0x9A3324);
+constexpr SkColor4f kCard = hexColor(0xE8E2D6);
+constexpr SkColor4f kWell = hexColor(0xDCD4C4);
+constexpr SkColor4f kRule = hexColor(0x8A8478);
+constexpr SkColor4f kInk = hexColor(0x1A1815);
+constexpr SkColor4f kInk2 = hexColor(0x5A554C);
+constexpr SkColor4f kRed = hexColor(0x9A3324);
 
 // ---------------------------------------------------------------------------
 // The colours. Codes are the register's: K black, B blue, G green, Y yellow,
@@ -152,7 +174,8 @@ constexpr uint32_t kHexW = 0xE5DDD1;  // "White"
 
 using Shades = std::array<SkColor4f, 5>;
 inline Shades shadesOf(const Palette& p) {
-  return {hex(p.k), hex(p.b), hex(p.g), hex(kHexY), hex(kHexW)};
+  return {hexColor(p.k), hexColor(p.b), hexColor(p.g), hexColor(kHexY),
+          hexColor(kHexW)};
 }
 
 // ---------------------------------------------------------------------------
@@ -456,10 +479,10 @@ sk_sp<SkImage> bakeBlend(SkColor4f a, SkColor4f b, int threads) {
   return bm.asImage();
 }
 
-inline Material imageMat(const sk_sp<SkImage>& img, float px,
-                         SkTileMode tile = SkTileMode::kRepeat) {
-  return Material::image(img, tile, tile, SkMatrix::Scale(px, px),
-                         SkSamplingOptions(SkFilterMode::kNearest));
+inline Paint imageMat(const sk_sp<SkImage>& img, float px,
+                      SkTileMode tile = SkTileMode::kRepeat) {
+  return Paint::image(img, tile, tile, SkMatrix::Scale(px, px),
+                      SkSamplingOptions(SkFilterMode::kNearest));
 }
 
 // ---------------------------------------------------------------------------
@@ -467,69 +490,74 @@ inline Material imageMat(const sk_sp<SkImage>& img, float px,
 // small enough to sit under a 4 px band, and one genuinely justified
 // paragraph at a real measure.
 
-inline sk_sp<SkTypeface> face(const char* family, int weight,
-                              SkFontStyle::Slant slant,
-                              const char* fallback = nullptr) {
-  auto mgr = weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      family, SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
-  if (!f && fallback)
-    f = mgr->matchFamilyStyle(
-        fallback, SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-  return f;
+inline sk_sp<SkTypeface> sans() {
+  return weave::ports::face({"Helvetica Neue", "Arial"},
+                            SkFontStyle::kNormal_Weight);
 }
-inline const sk_sp<SkTypeface>& sans() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica Neue", SkFontStyle::kNormal_Weight,
-           SkFontStyle::kUpright_Slant, "Arial");
-  return f;
+inline sk_sp<SkTypeface> sansB() {
+  return weave::ports::face({"Helvetica Neue", "Arial"},
+                            SkFontStyle::kBold_Weight);
 }
-inline const sk_sp<SkTypeface>& sansB() {
-  static sk_sp<SkTypeface> f = face("Helvetica Neue", SkFontStyle::kBold_Weight,
-                                    SkFontStyle::kUpright_Slant, "Arial");
-  return f;
+inline sk_sp<SkTypeface> mono() {
+  return sketch::kit::houseFace(sketch::kit::Voice::Terminal);
 }
-inline const sk_sp<SkTypeface>& mono() {
-  static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::kNormal_Weight,
-                                    SkFontStyle::kUpright_Slant, "Courier New");
-  return f;
+inline sk_sp<SkTypeface> serif() {
+  return weave::ports::face({"Baskerville", "Times New Roman"},
+                            SkFontStyle::kNormal_Weight);
 }
-inline const sk_sp<SkTypeface>& serif() {
-  static sk_sp<SkTypeface> f =
-      face("Baskerville", SkFontStyle::kNormal_Weight,
-           SkFontStyle::kUpright_Slant, "Times New Roman");
-  return f;
+inline sk_sp<SkTypeface> serifIt() {
+  return weave::ports::face({"Baskerville", "Times New Roman"},
+                            SkFontStyle::kNormal_Weight,
+                            SkFontStyle::kItalic_Slant);
 }
-inline const sk_sp<SkTypeface>& serifIt() {
-  static sk_sp<SkTypeface> f =
-      face("Baskerville", SkFontStyle::kNormal_Weight,
-           SkFontStyle::kItalic_Slant, "Times New Roman");
-  return f;
+
+// THE CARD'S OWN SHEET. Every kit component reads the theme in scope, and
+// this card is dark ink on manila rather than the house sheet's pale ink on
+// black, so the study binds its own: the card's two faces, the card's ink,
+// and the tight row it sets a machine-read table at. The faces are resolved
+// once and held, because a style is compared by face POINTER.
+inline const sketch::kit::Theme& sheet() {
+  static const sketch::kit::Theme look = [] {
+    sketch::kit::Theme t;
+    t.palette.ground = kCard;
+    t.palette.cellGround = kWell;
+    t.palette.ink = kInk;
+    t.palette.ash = kInk2;
+    t.palette.rule = kRule;
+    t.palette.figure = kInk;
+    t.type.sans = sans();
+    t.type.mono = mono();
+    t.type.captionLabel = {9.5f, 0.1f, true};
+    t.type.captionNote = {9.5f, 0.1f, true};
+    t.spacing.rowGap = 2.4f;
+    t.spacing.labelGap = 6;
+    t.spacing.swatchSide = 5;
+    return t;
+  }();
+  return look;
 }
 
 // A positional shorthand over the library's designated-init `type()`, for
 // the paragraph registers that name their own face at the call.
 inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
                            SkColor4f color, float track = 0) {
-  return type({.face = tf, .size = size, .color = color, .track = track});
+  return weave::textStyle(
+      {.face = tf, .size = size, .color = color, .track = track});
 }
+// The mono register reads the card's own sheet rather than resolving a face
+// of its own, so every line a machine wrote on this card is set in the one
+// face the sheet names. It reads `sheet()` and not the theme in scope
+// because a register is also asked for while a paragraph is being built,
+// which is before anything binds one.
 inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
-  return type({.face = mono(), .size = sz, .color = c, .track = tr});
+  return sheet().mono(sz, c, tr);
 }
 inline weave::TextStyle sb(float sz, SkColor4f c, float tr = 0) {
-  return type({.face = sansB(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle(
+      {.face = sansB(), .size = sz, .color = c, .track = tr});
 }
 
 inline std::u8string U(const std::string& s) { return toU8(s); }
-inline std::string fmt(const char* f, ...) {
-  char buf[512];
-  va_list ap;
-  va_start(ap, f);
-  vsnprintf(buf, sizeof buf, f, ap);
-  va_end(ap);
-  return std::string(buf);
-}
 
 inline Element label(const std::string& s, const weave::TextStyle& st, float x,
                      float y, float w) {
@@ -548,21 +576,29 @@ inline Element rule(float x, float y, float w, float h, SkColor4f c) {
 
 // The curves. bind()'s map() runs after from() normalises, and from() lets the
 // value out of [0,1] on both sides, so every shaping function here has to be
-// total on the reals.
-inline choreograph::EaseFn plateau(float edge) {
-  return [edge](float t) {
-    if (t <= 0.0f || t >= 1.0f) return 0.0f;
-    if (t < edge) return t / edge;
-    if (t > 1.0f - edge) return (1.0f - t) / edge;
-    return 1.0f;
-  };
+// total on the reals — which is why the overshoot below is CLAMPED and the
+// library's own unbounded `ease::outBack` is not used raw: a beat that has
+// not started yet would read a scale of thousands.
+//
+// Both are `ease::Curve` — a captureless shape beside the numbers it reads —
+// rather than a capturing lambda, because a curve that cannot be compared
+// makes the whole binding holding it incomparable, and a node whose binding
+// re-patches on every describe never prunes.
+inline sigil::motion::ease::Curve plateau(float edge) {
+  return {[](float t, const float* p) {
+            const float e = p[0];
+            if (t <= 0.0f || t >= 1.0f) return 0.0f;
+            if (t < e) return t / e;
+            if (t > 1.0f - e) return (1.0f - t) / e;
+            return 1.0f;
+          },
+          {edge}};
 }
-inline choreograph::EaseFn backOut() {
-  return [](float t) {
-    t = std::clamp(t, 0.0f, 1.0f);
-    const float s = 1.70158f, u = t - 1.0f;
-    return u * u * ((s + 1.0f) * u + s) + 1.0f;
-  };
+inline sigil::motion::ease::Curve backOut() {
+  return {[](float t, const float* p) {
+            return choreograph::easeOutBack(std::clamp(t, 0.0f, 1.0f), p[0]);
+          },
+          sigil::motion::ease::outBack().parameters[0]};
 }
 
 // The timeline, in one place: one Output, five beats.
@@ -595,7 +631,6 @@ struct BlackWatch : sketch::Sketch {
   // --- the loom -----------------------------------------------------------
   choreograph::Output<float> loom{0};
   double clock = 0;
-  bool reported = false;
 
   // --- baked material ------------------------------------------------------
   // Held as members: the shared bake IS the identity (Pattern.h), and a fresh
@@ -603,13 +638,15 @@ struct BlackWatch : sketch::Sketch {
   Pattern warpPattern;                  // the 1-D sequence, 252 bands
   std::array<Pattern, 12> pickPattern;  // (colour, twill phase)
   Pattern threadGrid;                   // the interlacement grooves
-  Material warpMat, gridMat, cardGrain, yarnGrain, drawGrid, swatchMat;
-  std::vector<Material> pickMat;   // 12, resolved once
-  std::vector<Material> clothMat;  // 5 palettes, whole cloth
-  Material argyllMat;
-  std::array<Material, 9> blendMat;
+  Paint warpMat, gridMat, boardMat, yarnGrain, drawGrid, swatchMat;
+  std::vector<Paint> pickMat;  // 12, resolved once
+  std::shared_ptr<instancing::Atlas> pickAtlas;
+  std::shared_ptr<instancing::Pool> pickPool;
+  std::vector<Paint> clothMat;  // 5 palettes, whole cloth
+  Paint argyllMat;
+  std::array<Paint, 9> blendMat;
   std::shared_ptr<const sigil::image::ImageAsset> drawdownAsset;
-  std::vector<std::string> verifyLines;
+  measure::Table verdict;
   std::shared_ptr<weave::Paragraph> quote;
 
   // The drawdown window: threads 60..91 of the sett. The 18-thread black of
@@ -685,6 +722,37 @@ struct BlackWatch : sketch::Sketch {
     pickMat.clear();
     for (Pattern& p : pickPattern) pickMat.push_back(p.material());
 
+    // The twelve pick tiles as an ATLAS of twelve cells, each one full-width
+    // strip of cloth, and a POOL of one frame per pick. kNearest, because a
+    // thread is a whole number of pixels and any filtering across a stripe
+    // boundary is a blur of the interlacement this card exists to show.
+    pickAtlas = std::make_shared<instancing::Atlas>(2.0f);
+    pickAtlas->filter(SkFilterMode::kNearest);
+    std::array<int, 12> frame{};
+    for (int c = 0; c < 3; ++c)
+      for (int ph = 0; ph < 4; ++ph) {
+        const size_t k = (size_t)c * 4 + (size_t)ph;
+        frame[k] = pickAtlas->cell(box().fill(pickMat[k]), {kClothW, kPx});
+      }
+    auto pool = std::make_shared<instancing::Pool>();
+    pool->resize((size_t)kPicks);
+    {
+      // A stamp is anchored at the sprite's CENTRE, so pick i sits half a
+      // thread below its own top edge.
+      auto pos = pool->positions();
+      auto fr = pool->frames();
+      auto alpha = pool->alphas();  // the opt-in fade lane
+      for (int i = 0; i < kPicks; ++i) {
+        const int col = (int)S[(size_t)(i % (int)S.size())];
+        const int phase = (i + 2) % 4;
+        pos[(size_t)i] = {kClothW * 0.5f, ((float)i + 0.5f) * kPx};
+        fr[(size_t)i] = frame[(size_t)col * 4 + (size_t)phase];
+        alpha[(size_t)i] = 0.0f;
+      }
+      pool->commit();
+    }
+    pickPool = pool;
+
     // 3. THE INTERLACEMENT SHADOW — in real cloth the thread that is UNDER at
     //    a cell is shaded by the one on top, and that is why the twill rib is
     //    legible even inside a block of ONE colour. Read it off the register's
@@ -711,7 +779,9 @@ struct BlackWatch : sketch::Sketch {
     });
     gridMat = threadGrid.material();
     drawGrid =
-        patterns::gridLines(kDrawCell, 0.7f, hex(0x8A8478, 0.6f)).material();
+        Pattern(patterns::gridLines(kDrawCell, 0.7f,
+                                    skia::toColor(hexColor(0x8A8478, 0.6f))))
+            .material();
 
     // 4. WHOLE-CLOTH BAKES — one per palette family, 252 x 252 at one pixel
     //    per thread, magnified x2 with kNearest. Same 252 threads, same
@@ -747,45 +817,71 @@ struct BlackWatch : sketch::Sketch {
     //    opaque manila board is where its header says it belongs. Both keep
     //    frequency * stretch * 2^(octaves-1) under 0.4, or the y axis aliases
     //    into hash noise with no diagnostic.
-    cardGrain = patterns::grain(0.045f, 4, 7.0f, 0.60f);
-    yarnGrain = patterns::grain(0.09f, 3, 3.0f, 0.75f);
+    boardMat = Paint::recipe(matkit::board({.paint = skia::toColor(kCard),
+                                            .tooth = 0.10f,
+                                            .toothScale = 0.045f,
+                                            .wear = 0.05f,
+                                            .wearScale = 0.004f,
+                                            .seed = 7.0f}));
+    yarnGrain = Paint::recipe(field::grain(0.09f, 3, 3.0f, 0.75f));
 
-    buildVerifyLines();
+    buildVerifyTable();
     buildQuote();
   }
 
-  void buildVerifyLines() {
-    auto ok = [](bool b) { return b ? "OK" : "**"; };
-    verifyLines = {
-        fmt("SETT CLOSES      %d + %d + %d + %d = %d ends  (printed: %d)%s",
-            v.unitA, v.unitB, v.unitC, v.unitB, v.total, kPublishedEnds,
-            ok(v.closes)),
-        fmt("REFLECTIVE       mirrors at thread %d, %d   gap %d = %d/2%s",
-            !v.mirrors.empty() ? v.mirrors[0] : -1,
-            v.mirrors.size() > 1 ? v.mirrors[1] : -1, v.mirrorGap, v.total,
-            ok(v.reflective)),
-        fmt("2/2 BALANCE      max warp float %d   max weft float %d   "
-            "%d x %d%s",
-            v.maxWarpFloat, v.maxWeftFloat, v.total, v.total, ok(v.balanced)),
-        fmt("THREAD RATIO     K %d : B %d : G %d  =  %d : %d : %d%s",
-            v.counts[K], v.counts[B], v.counts[G], v.counts[K] / v.gcd3,
-            v.counts[B] / v.gcd3, v.counts[G] / v.gcd3, ok(v.blueIsThird)),
-        fmt("COLOUR LAW       n = %d  ->  %d solid + %d blend = %d = "
-            "n(n+1)/2%s",
-            v.solids, v.solids, v.blends, v.perceived, ok(v.colourLaw)),
-        fmt("EXACT COVER      %d uncovered / %d doubled of %d samples%s",
-            v.uncovered, v.doubled, v.samples, ok(v.exactCover)),
-        fmt("CAMPBELL ARGYLL  %d ends   n = %d -> %d perceived   "
-            "%d mirrors%s",
-            v.argyllTotal, v.argyllSolids, v.argyllPerceived, v.argyllMirrors,
-            ok(v.argyllLaw && v.argyllTotal == kPublishedArgyll)),
-        fmt("UNIT DRIFT       max |BW - CA| over units A B C D = %.2f %%",
-            v.unitDrift * 100.0f),
-        fmt("TWILL ANGLE      42 ends/in = 42 picks/in  ->  %.2f deg",
-            std::atan2(1.0, 1.0) * 180.0 / 3.14159265358979),
-        fmt("SETT WIDTH       %d ends / 42 epi = %.2f in = %.1f mm", v.total,
-            (float)v.total / 42.0f, (float)v.total / 42.0f * 25.4f),
-    };
+  /** THE VERIFICATION, as one table. Every row's verdict is COMPUTED from
+   *  the two values it reports, so a row that reads PASS cannot disagree
+   *  with the arithmetic beside it, and the panel reads the verdict as a
+   *  value rather than sniffing it out of a formatted string. The two rows
+   *  that are measurements with nothing to judge are
+   *  readings; the one that is a statement about the SETTS rather than
+   *  about this reconstruction — that Black Watch and Campbell of Argyll
+   *  agree unit for unit — is a finding. */
+  void buildVerifyTable() {
+    verdict = {};
+    verdict
+        .add(measure::check(
+            kit::formatted("SETT CLOSES      %d + %d + %d + %d ends", v.unitA,
+                           v.unitB, v.unitC, v.unitB),
+            kPublishedEnds, v.total))
+        .add(measure::check(
+            kit::formatted("REFLECTIVE       mirrors at thread %d, %d, gap",
+                           !v.mirrors.empty() ? v.mirrors[0] : -1,
+                           v.mirrors.size() > 1 ? v.mirrors[1] : -1),
+            v.total / 2, v.mirrorGap))
+        .add(measure::check(
+            kit::formatted("2/2 BALANCE      max warp float %d, max weft float",
+                           v.maxWarpFloat),
+            2, v.maxWeftFloat))
+        .add(measure::check(
+            kit::formatted(
+                "THREAD RATIO     K %d : B %d : G %d, blue is the third",
+                v.counts[K], v.counts[B], v.counts[G]),
+            v.blueIsThird))
+        .add(measure::check(
+            kit::formatted(
+                "COLOUR LAW       n = %d \xe2\x86\x92 n(n+1)/2 perceived",
+                v.solids),
+            v.solids * (v.solids + 1) / 2, v.perceived))
+        .add(measure::check("EXACT COVER      uncovered", 0, v.uncovered))
+        .add(measure::check("                 doubled", 0, v.doubled))
+        .add(measure::reading("                 samples", v.samples))
+        .add(measure::check(
+            kit::formatted(
+                "CAMPBELL ARGYLL  n = %d \xe2\x86\x92 %d perceived, ends",
+                v.argyllSolids, v.argyllPerceived),
+            kPublishedArgyll, v.argyllTotal))
+        // The two setts are the same design at two scales — a claim about
+        // the CLOTH, not about this file, so its verdict is printed and
+        // never counted against the run.
+        .add(measure::finding(measure::check(
+            "UNIT DRIFT       max |BW \xe2\x88\x92 CA| over A B C D, %", 0.0,
+            (double)(v.unitDrift * 100.0f), 1.0)))
+        .add(measure::reading("TWILL ANGLE      42 epi = 42 ppi, degrees",
+                              std::atan2(1.0, 1.0) * 180.0 / 3.14159265358979))
+        .add(measure::reading(
+            kit::formatted("SETT WIDTH       %d ends / 42 epi, mm", v.total),
+            (double)((float)v.total / 42.0f * 25.4f)));
   }
 
   void buildQuote() {
@@ -816,29 +912,24 @@ struct BlackWatch : sketch::Sketch {
   // The cloth. One striped ground, 378 phase-shifted picks, and nothing else.
 
   Element theCloth() {
-    Element panel =
-        at(kClothX, kClothY, kClothW, kClothH)
-            .clip(true)
-            .background(styles::dropShadow(hex(0x3E3A33, 0.55f), {3, 4}, 10))
-            .fill(kWell);
+    Element panel = at(kClothX, kClothY, kClothW, kClothH)
+                        .clip(true)
+                        .background(styles::dropShadow(
+                            hexColor(0x3E3A33, 0.55f), {3, 4}, 10))
+                        .fill(kWell);
 
     // the warp on the beam: the whole design, in one dimension
     panel.child(at(0, 0, kClothW, kClothH).fill(warpMat));
 
-    // the picks. Every one is an absolutely-placed leaf with a computed rect
-    // and its own progress window — 378 Yoga nodes in a panel that has no
-    // layout in it at all, because there is no way to declare a set of
-    // positioned leaves that differ only in rect and fill.
-    const float span = kWeaveEnd - kBeamEnd;
-    for (int i = 0; i < kPicks; ++i) {
-      const int col = (int)S[(size_t)(i % (int)S.size())];
-      const int phase = (i + 2) % 4;
-      const float w0 = kBeamEnd + span * ((float)i / (float)kPicks);
-      panel.child(
-          at(0, (float)i * kPx, kClothW, kPx)
-              .fill(pickMat[(size_t)col * 4 + (size_t)phase])
-              .opacity(bind(&loom).source(w0, w0 + 0.0035f).clamp(0.0f, 1.0f)));
-    }
+    // the picks. 378 strips that differ only in WHICH of twelve pick
+    // materials they wear and how far along the beat they have beaten in —
+    // which is one instanced leaf: an Atlas of the twelve (colour, phase)
+    // tiles, and a Pool of 378 frames whose per-instance ALPHA lane is
+    // written from the loom. One draw, no layout, and a fade that rewrites
+    // one float per pick instead of running 378 bindings.
+    panel.child(at(0, 0, kClothW, kClothH)
+                    .child(instancing::instances(pickAtlas, pickPool,
+                                                 instancing::Mode::Live)));
 
     // the shutter: the warp beams on left-to-right. There is no wipe verb, and
     // scaleX on the ground itself would squash the bands rather than reveal
@@ -961,7 +1052,8 @@ struct BlackWatch : sketch::Sketch {
     // the count itself, set as one mono run
     std::string count;
     static const char kCode[] = "KBGYW";
-    for (const auto& run : bwRuns) count += fmt("%c%d ", kCode[run.c], run.n);
+    for (const auto& run : bwRuns)
+      count += kit::formatted("%c%d ", kCode[run.c], run.n);
     g.child(label(count, mn(11.5f, kInk, 0.3f), kClothX, kBarY + kBarH + 27,
                   kClothW));
     g.child(
@@ -1015,7 +1107,7 @@ struct BlackWatch : sketch::Sketch {
       const float b =
           kBeamEnd + (kWeaveEnd - kBeamEnd) * (float)(i + 1) / (float)kDrawN;
       g.child(at(tieX - 3, bodyY + (float)i * c, 4 * c + 6, c)
-                  .fill(hex(0x9A3324, 0.30f))
+                  .fill(hexColor(0x9A3324, 0.30f))
                   .opacity(bind(&loom).source(a, b).map(plateau(0.35f))));
     }
     // drawdown — the cloth itself, at kDrawCell px per thread, kNearest
@@ -1029,11 +1121,11 @@ struct BlackWatch : sketch::Sketch {
             .foreground(
                 stroke(1, Fill::color(kInk), PathFormat::Align::Outer)));
 
-    g.child(label(fmt("ENDS %d-%d OF THE SETT (K2 B6 K18 G6), SQUARED AGAINST "
-                      "THEMSELVES  ·  %d PX / THREAD",
-                      kDrawOrigin + 1, kDrawOrigin + kDrawN, (int)c),
-                  mn(8, kInk2, 0.4f), x0, bodyY + (float)kDrawN * c + 6,
-                  kColW + 40));
+    g.child(label(
+        kit::formatted("ENDS %d-%d OF THE SETT (K2 B6 K18 G6), SQUARED AGAINST "
+                       "THEMSELVES  ·  %d PX / THREAD",
+                       kDrawOrigin + 1, kDrawOrigin + kDrawN, (int)c),
+        mn(8, kInk2, 0.4f), x0, bodyY + (float)kDrawN * c + 6, kColW + 40));
     // shaft numbers down the left of the threading block
     for (int s = 0; s < 4; ++s)
       g.child(centred(std::to_string(s + 1), mn(7, kInk2), x0 - 15,
@@ -1054,27 +1146,32 @@ struct BlackWatch : sketch::Sketch {
     g.child(label("THE THIRD COLOURS  ·  WARP ACROSS, WEFT DOWN",
                   mn(9, kInk, 0.5f), kColX, 556, kColW));
     static const char* kName[3] = {"K", "B", "G"};
+    const SkSize module{cell, cell};
+    const SkSize gaps{gap, gap};
     for (int i = 0; i < 3; ++i) {
-      g.child(centred(kName[i], mn(9, kInk2, 0.8f),
-                      gx + (float)i * (cell + gap), y0 - 14, cell));
+      const SkRect head = arrange::cellRect({i, i}, module, gaps, {gx, y0});
+      g.child(centred(kName[i], mn(9, kInk2, 0.8f), head.fLeft, y0 - 14, cell));
       g.child(centred(kName[i], mn(9, kInk2, 0.8f), kColX,
-                      y0 + (float)i * (cell + gap) + cell / 2 - 7, 16));
+                      head.fTop + cell / 2 - 7, 16));
     }
     for (int wf = 0; wf < 3; ++wf)
-      for (int wp = 0; wp < 3; ++wp)
-        g.child(at(gx + (float)wp * (cell + gap), y0 + (float)wf * (cell + gap),
-                   cell, cell)
+      for (int wp = 0; wp < 3; ++wp) {
+        const SkRect box = arrange::cellRect({wp, wf}, module, gaps, {gx, y0});
+        g.child(at(box.fLeft, box.fTop, cell, cell)
                     .fill(blendMat[(size_t)wf * 3 + (size_t)wp])
                     .foreground(stroke(1, Fill::color(wp == wf ? kRule : kInk),
                                        PathFormat::Align::Outer)));
-    const float tx = gx + 3 * (cell + gap) + 12;
+      }
+    const float tx =
+        arrange::cellRect({3, 0}, module, gaps, {gx, y0}).fLeft + 12;
     g.child(label("EACH CELL IS 6 × 6 THREADS AT 8 PX.", mn(8, kInk2, 0.3f), tx,
                   y0 - 2, 200));
     g.child(label("THE BLENDS ARE WOVEN, NOT MIXED.", mn(8, kInk2, 0.3f), tx,
                   y0 + 10, 200));
-    g.child(label(fmt("n = %d  →  %d solid + %d blend  =  %d  =  n(n+1)/2",
-                      v.solids, v.solids, v.blends, v.perceived),
-                  mn(8.5f, kRed, 0.2f), tx, y0 + 30, 210));
+    g.child(label(
+        kit::formatted("n = %d  →  %d solid + %d blend  =  %d  =  n(n+1)/2",
+                       v.solids, v.solids, v.blends, v.perceived),
+        mn(8.5f, kRed, 0.2f), tx, y0 + 30, 210));
     g.child(
         label("A tartan has six colours from\nthree threads because the "
               "blend\nis spatial: at 42 ends per inch\nthe eye does the "
@@ -1106,9 +1203,9 @@ struct BlackWatch : sketch::Sketch {
       const uint32_t shade[3] = {p.k, p.b, p.g};
       for (int i = 0; i < 3; ++i) {
         const float x = kColX + 150 + (float)i * 94;
-        g.child(at(x, y, 86, 14).fill(hex(shade[i])));
-        g.child(label(fmt("%s #%06X", code[i], shade[i]), mn(7, kInk2, 0.2f), x,
-                      y + 16, 86));
+        g.child(at(x, y, 86, 14).fill(hexColor(shade[i])));
+        g.child(label(kit::formatted("%s #%06X", code[i], shade[i]),
+                      mn(7, kInk2, 0.2f), x, y + 16, 86));
       }
       auto mark = [&](float a, float b) {
         return at(kColX, y - 2, 5, 22)
@@ -1137,19 +1234,20 @@ struct BlackWatch : sketch::Sketch {
               "LABELS",
               mn(9, kInk, 0.5f), kClothX, 1030, 700));
     for (int i = 0; i < 4; ++i) {
-      const float x = kClothX + (float)i * (sw + gap);
+      const float x =
+          arrange::cellRect({i, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft;
       // the SAME crop of the SAME cloth, four times over
-      g.child(
-          at(x, y0, sw, sh)
-              .clip(true)
-              .background(styles::dropShadow(hex(0x3E3A33, 0.45f), {2, 3}, 7))
-              .fill(swatchMat)
-              .foreground(
-                  stroke(1, Fill::color(kRule), PathFormat::Align::Outer))
-              .child(at(0, 0, sw, sh)
-                         .fill(gridMat)
-                         .blend(SkBlendMode::kMultiply)
-                         .opacity(0.85f)));
+      g.child(at(x, y0, sw, sh)
+                  .clip(true)
+                  .background(
+                      styles::dropShadow(hexColor(0x3E3A33, 0.45f), {2, 3}, 7))
+                  .fill(swatchMat)
+                  .foreground(
+                      stroke(1, Fill::color(kRule), PathFormat::Align::Outer))
+                  .child(at(0, 0, sw, sh)
+                             .fill(gridMat)
+                             .blend(SkBlendMode::kMultiply)
+                             .opacity(0.85f)));
       g.child(centred(kNames[i], ty(serifIt(), 13, kInk), x, y0 + sh + 6, sw)
                   .opacity(bind(&loom)
                                .source(0.63f + (float)i * 0.022f,
@@ -1166,10 +1264,12 @@ struct BlackWatch : sketch::Sketch {
               ty(serif(), 10.5f, kInk2), kClothX, y0 + sh + 43, 800));
 
     // ...and the cloth that carries one of those names honestly
-    const float ax = kClothX + 4 * (sw + gap) + 12;
+    const float ax =
+        arrange::cellRect({4, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft + 12;
     g.child(at(ax, y0, sw, sh)
                 .clip(true)
-                .background(styles::dropShadow(hex(0x3E3A33, 0.45f), {2, 3}, 7))
+                .background(
+                    styles::dropShadow(hexColor(0x3E3A33, 0.45f), {2, 3}, 7))
                 .fill(argyllMat)
                 .foreground(
                     stroke(1.5f, Fill::color(kRed), PathFormat::Align::Outer))
@@ -1239,13 +1339,14 @@ struct BlackWatch : sketch::Sketch {
       if (u < 3)
         g.child(at(x0 + barW * cum / (float)v.total - 0.5f, y0 - 3, 1,
                    2 * barH + 14)
-                    .fill(hex(0x9A3324, 0.8f)));
+                    .fill(hexColor(0x9A3324, 0.8f)));
     }
-    g.child(label(fmt("UNIT FRACTIONS AGREE TO %.2f %%  ·  IDENTICAL "
-                      "STRUCTURE, RUN FOR RUN  ·  DIFFERENT NUMBERS  ·  "
-                      "THE OVERCHECKS ARE RINGED",
-                      v.unitDrift * 100.0f),
-                  mn(8.5f, kRed, 0.3f), x0, y0 + 2 * barH + 14, 900));
+    g.child(
+        label(kit::formatted("UNIT FRACTIONS AGREE TO %.2f %%  ·  IDENTICAL "
+                             "STRUCTURE, RUN FOR RUN  ·  DIFFERENT NUMBERS  ·  "
+                             "THE OVERCHECKS ARE RINGED",
+                             v.unitDrift * 100.0f),
+              mn(8.5f, kRed, 0.3f), x0, y0 + 2 * barH + 14, 900));
     return g;
   }
 
@@ -1253,27 +1354,36 @@ struct BlackWatch : sketch::Sketch {
 
   Element theVerification() {
     const float x0 = 1060, y0 = 1052, lh = 13.6f;
+    const size_t rows = verdict.rows.size();
     Element g = box();
     g.child(label("VERIFIED AT STARTUP, NOT ASSERTED", mn(9, kInk, 0.5f), x0,
                   1030, kColW));
-    g.child(at(x0 - 12, y0 - 8, 472, (float)verifyLines.size() * lh + 14)
-                .fill(hex(0xDCD4C4, 0.8f))
+    g.child(at(x0 - 12, y0 - 8, 472, (float)rows * lh + 14)
+                .fill(hexColor(0xDCD4C4, 0.8f))
                 .foreground(
                     stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
-    for (size_t i = 0; i < verifyLines.size(); ++i) {
-      const float w0 = kWeaveEnd + (float)i * 0.0092f;
-      const std::string& s = verifyLines[i];
-      const bool okLine = s.size() > 2 && s.compare(s.size() - 2, 2, "OK") == 0;
-      Element row =
-          at(x0, y0 + (float)i * lh, 450, 13)
-              .opacity(bind(&loom).source(w0, w0 + 0.011f).clamp(0.0f, 1.0f));
-      row.child(text(U(okLine ? s.substr(0, s.size() - 2) : s),
-                     mn(9.5f, kInk, 0.1f)));
-      if (okLine)
-        row.child(
-            at(414, 0, 24, 13).child(text(U("OK"), mn(9.5f, kRed, 0.6f))));
-      g.child(std::move(row));
+    // The words are the run's own — the label it was made under, the figure
+    // it came to, and the verdict computed from the two. The mark before
+    // each row carries that verdict as colour, so a row that failed is
+    // legible before it is read. A finding that fails is the two setts'
+    // agreement drifting rather than a defect here, and it is marked in the
+    // same red because the run counts it apart, not the card.
+    std::vector<sketch::kit::Row> lines;
+    lines.reserve(rows);
+    for (const measure::Check& c : verdict.rows) {
+      std::string verdictWord;
+      if (c.judged()) verdictWord = c.pass ? "PASS" : "FAIL want " + c.expected;
+      lines.push_back({.cells = {U(c.label), U(c.actual), U(verdictWord)},
+                       .swatch = Fill::color(
+                           !c.judged() ? kRule : (c.pass ? kInk : kRed))});
     }
+    g.child(at(x0, y0, 450, (float)rows * lh)
+                .opacity(bind(&loom)
+                             .source(kWeaveEnd,
+                                     kWeaveEnd + (float)rows * 0.0092f + 0.011f)
+                             .clamp(0.0f, 1.0f))
+                .child(sketch::kit::table(
+                    std::move(lines), {.columns = {{322}, {58, true}, {}}})));
     return g;
   }
 
@@ -1281,15 +1391,15 @@ struct BlackWatch : sketch::Sketch {
 
   Element describe(sketch::SketchContext& ctx) {
     (void)ctx;
+    // The card's sheet stands for everything described below it, so a kit
+    // component four levels down is set in the card's ink without being
+    // handed it.
+    sketch::kit::Provide look(sheet());
     Element root = stack().width(Dim(kCanvasW)).height(Dim(kCanvasH));
 
-    // the board, with its tooth
-    root.child(at(0, 0, kCanvasW, kCanvasH).fill(kCard));
-    root.child(at(0, 0, kCanvasW, kCanvasH)
-                   .fill(cardGrain)
-                   .blend(SkBlendMode::kMultiply)
-                   .cache(Cache::Texture)
-                   .opacity(0.13f));
+    // the board: one recipe, paint and tooth together
+    root.child(
+        at(0, 0, kCanvasW, kCanvasH).fill(boardMat).cache(Cache::Texture));
     root.child(at(24, 24, kCanvasW - 48, kCanvasH - 48)
                    .foreground(stroke(1, Fill::color(kRule),
                                       PathFormat::Align::Inner)));
@@ -1356,8 +1466,6 @@ struct BlackWatch : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     build();
-    ctx.canvas(kCanvasW, kCanvasH);
-    ctx.background(kCard);
     // The still belongs to the MODERN hold, and has to be declared, because
     // an undeclared capture lands mid-cycle. The loop weaves, proves, then
     // turns the five shade families over one another (see `turns`), so most
@@ -1365,39 +1473,25 @@ struct BlackWatch : sketch::Sketch {
     // registered palette — brown and olive under a title reading GOVERNMENT,
     // which reads as a broken blend layer and is not one. 7.2 s is loom 0.90,
     // inside the final Modern hold (0.85 -> 1.0).
-    ctx.captureAt(7.2);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
+                             .captureAt = 7.2,
+                             .background = kCard});
     ctx.ticker.add([this](double dt) {
       clock += dt;
       loom = (float)(std::fmod(clock, (double)kCycle) / (double)kCycle);
+      // THE BEAT-IN, one float per pick: pick i comes up over its own
+      // 0.0035 of the cycle, the same window each of the 378 leaves used to
+      // hold its own binding for.
+      const float span = kWeaveEnd - kBeamEnd;
+      auto alpha = pickPool->alphas();
+      for (int i = 0; i < kPicks; ++i) {
+        const float w0 = kBeamEnd + span * ((float)i / (float)kPicks);
+        alpha[(size_t)i] =
+            std::clamp((loom.value() - w0) / 0.0035f, 0.0f, 1.0f);
+      }
       return true;
     });
     ctx.composer.render(describe(ctx));
-
-    std::fprintf(stderr,
-                 "[black watch] %d ends  mirrors %zu (gap %d)  floats %d/%d  "
-                 "perceived %d  cover %d uncovered / %d doubled of %d  "
-                 "argyll %d ends, %d mirrors, %d perceived  "
-                 "unit drift %.3f%%\n",
-                 v.total, v.mirrors.size(), v.mirrorGap, v.maxWarpFloat,
-                 v.maxWeftFloat, v.perceived, v.uncovered, v.doubled, v.samples,
-                 v.argyllTotal, v.argyllMirrors, v.argyllPerceived,
-                 v.unitDrift * 100.0f);
-  }
-
-  void update(double elapsed, sketch::SketchContext& ctx) override {
-    // Read after the card has come to rest, and after the host has actually
-    // drawn: the headless path steps the clock without drawing until it
-    // captures, so an early read reports a frame that never happened.
-    if (!reported && elapsed > 7.42) {
-      reported = true;
-      const Composer::Stats& s = ctx.composer.stats();
-      std::fprintf(stderr,
-                   "[black watch] instances %zu  pictures %zu  recorded %zu  "
-                   "painted-live %zu  layout %.2f ms  volatile %.2f ms  "
-                   "paint %.2f ms\n",
-                   s.instances, s.picturesLive, s.picturesRecorded,
-                   s.nodesPainted, s.layoutMs, s.volatileMs, s.paintMs);
-    }
   }
 };
 

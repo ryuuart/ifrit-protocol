@@ -2,9 +2,10 @@
 
 /** @file
  * Shader fields — surfaces evaluated per pixel rather than baked as a
- * tile: the halftone ramp, Perlin noise, luminance grain, and the ripple
- * that resamples a layer through a sine displacement. Every parameter is
- * a uniform; each returns a Material.
+ * tile: the halftone ramp, Perlin noise, luminance grain, the tube
+ * overlay of a scanline, a mask and a bloom, and the ripple that
+ * resamples a layer through a sine displacement. Every parameter is a
+ * uniform; each returns a Material.
  */
 
 #include <sigilmaterial/color/Color.h>
@@ -125,5 +126,13 @@ Material ripple(float amplitudePx, float wavelengthPx, float phase = 0.0f,
 /** ripple()'s recipe, defined once. Declares the `content` slot the warp
  *  resamples. */
 const std::shared_ptr<const Recipe>& rippleRecipe();
+
+/** An instance of every recipe this feature ships, one apiece, with the
+ *  ripple's `content` slot dressed — a slot left empty and a slot
+ *  holding an image are not the same program. The grain is one recipe
+ *  per octave count, so the list carries the counts from one up to the
+ *  default. For a caller that has to compile every program the feature
+ *  can ask a backend for without knowing what it holds. */
+std::vector<Material> everyRecipe();
 
 }  // namespace sigil::material::field

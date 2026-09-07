@@ -1,7 +1,7 @@
 /** @file
- * The runtime seam: the built-in value is one value however it is
+ * The draw's runtime seam: the built-in value is one value however it is
  * reached, a style carries it by default, and a substituted executor
- * receives the draw instead.
+ * receives the draw instead of the canvas.
  */
 
 #include <gtest/gtest.h>
@@ -9,11 +9,14 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 
+#include <functional>
 #include <glm/glm.hpp>
 #include <string>
 #include <utility>
 
+#include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/render/Painter.h"
+#include "support/RuntimeSeam.h"
 
 using namespace sigil::geometry::mesh;
 
@@ -41,22 +44,22 @@ struct Recorder : render::Executor {
   }
 };
 
+struct DrawSeam {
+  using Seam = render::Runtime;
+  static Seam builtIn() { return render::Runtime::cpu(); }
+  static Seam holding(const char* label) {
+    return render::Runtime{Recorder{label}};
+  }
+};
+
 }  // namespace
 
-TEST(Runtime, BuiltInIsOneValue) {
-  EXPECT_TRUE((bool)render::Runtime::cpu());
-  EXPECT_EQ(render::Runtime::cpu(), render::Runtime::cpu());
-  EXPECT_EQ(render::MeshStyle{}.runtime, render::Runtime::cpu());
-}
+INSTANTIATE_TYPED_TEST_SUITE_P(TheDrawsRuntimeSeam, RuntimeSeam, DrawSeam);
 
-TEST(Runtime, ComparesByModelValue) {
-  const render::Runtime a{Recorder{"a"}};
-  const render::Runtime b{Recorder{"a"}};
-  const render::Runtime c{Recorder{"c"}};
-  EXPECT_EQ(a, b);
-  EXPECT_NE(a, c);
-  EXPECT_NE(a, render::Runtime::cpu());
-  EXPECT_NE(render::Runtime(), a);
+namespace {
+
+TEST(Runtime, TheDefaultStyleCarriesTheBuiltInRuntime) {
+  EXPECT_EQ(render::MeshStyle{}.runtime, render::Runtime::cpu());
 }
 
 // The style is the whole of the switch: the same call, the same
@@ -93,3 +96,5 @@ TEST(Runtime, PanelRoutesToTheRuntimeItIsGiven) {
   EXPECT_EQ(drawn, 0);
   EXPECT_EQ(static_cast<const Recorder*>(runtime.get())->panels, 1);
 }
+
+}  // namespace

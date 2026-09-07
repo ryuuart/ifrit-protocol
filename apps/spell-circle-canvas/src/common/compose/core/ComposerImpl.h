@@ -7,10 +7,15 @@
  */
 
 #include <include/core/SkBlendMode.h>
+#include <include/core/SkImageInfo.h>
 #include <sigilcore/cache/Bake.h>
 #include <sigilcore/cache/Volatility.h>
 #include <sigilcore/reconcile/Phases.h>
 #include <sigilcore/reconcile/Reconciler.h>
+#include <sigilgeometry/path/Numeric.h>
+
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <optional>
 
 #include "Instance.h"
 #include "Lanes.h"
@@ -31,6 +36,21 @@ struct PictureBakeTarget {
   SkBlendMode leafBlend = SkBlendMode::kSrcOver;
   float leafOpacity = 1;
   detail::Instance::ContentScalars* scalars = nullptr;
+  /** The matrix the recording's ops reach the DEVICE through when it is
+   *  replayed this frame — the canvas's own matrix composed out through
+   *  every enclosing recording. A recording holding a device-space bake is
+   *  exact under this one matrix and is remade when it differs. */
+  SkMatrix deviceMatrix = SkMatrix::I();
+  /** Whether that matrix is the one the node was drawn under last frame.
+   *  The outermost recording hands it to every device bake inside it as
+   *  the "holding still" verdict those bakes cannot observe for themselves,
+   *  being painted only when the recording is. */
+  bool matrixStable = true;
+  /** The device clip the recording's ops were cut to. An ink clip inside
+   *  one names whole device pixels, so a recording holding a device bake
+   *  is exact for the clip it was made under and is remade under
+   *  another. */
+  SkIRect deviceClip = SkIRect::MakeEmpty();
 };
 
 /** THE RECORDED-COMMAND-LIST TIER, behind the kernel's bake seam. Taking
@@ -77,23 +97,38 @@ struct Composer::Impl {
   // indexed after its parent, so in a single shared map the content would
   // overwrite the slot's entry and every later renderSlot() would silently
   // find the wrong instance. Two namespaces, no collision.
-  std::unordered_map<std::string, detail::Instance*> bySlot;
+  boost::unordered_flat_map<std::string, detail::Instance*, core::KeyHash,
+                            std::equal_to<>>
+      bySlot;
   // The EDGE STORE, rebuilt with the key index each render: routed nodes
   // (connector()/rail()) as a flat list in tree order, plus the back-index
   // anchor-key → routes-anchored-there. The derive pass iterates these flat
   // lists instead of recursing the whole tree, and routesAt() answers graph
   // queries ("which edges touch this node") in O(routes-at-node).
   std::vector<detail::Instance*> routedInstances;
-  std::vector<detail::Instance*> flowInstances;  // flowAround() text nodes
+  std::vector<detail::Instance*> flowInstances;      // flowAround() text nodes
+  std::vector<detail::Instance*> tetheredInstances;  // tether() nodes
   // Text nodes carrying mark() on a path-laid run. Their curve resolves
   // against the node's FINAL box, which measurement never sees, so their
   // marks resolve in a post-layout pass over this flat list instead of
   // inside measure like a flow run's.
   std::vector<detail::Instance*> pathMarkInstances;
-  std::unordered_map<std::string, std::vector<detail::Instance*>>
+  // Text nodes that thread INTO another frame. The chain is walked in the
+  // derive pass, because frame b's fill begins where frame a's RESULT ended
+  // and the phase order has no edge for that.
+  std::vector<detail::Instance*> threadedInstances;
+  // …and the frames THEY thread into, kept from the last walk so a frame
+  // that stops being a target is unbounded again the moment it does.
+  std::vector<detail::Instance*> threadTargets;
+  boost::unordered_flat_map<std::string, std::vector<detail::Instance*>,
+                            core::KeyHash, std::equal_to<>>
       routesByAnchor;
   bool volatileDirty = true;  // recompute needed (render or animation)
   bool tickerWasActive = false;
+  // The root verdict's volatileAbove bit: unlike Instance::subtreeVolatile,
+  // this includes the root's own opacity and transform, which can change the
+  // composited pixels without invalidating any content cache below it.
+  bool rootVolatile = false;
   // Instances whose scalar volatility is RELEASED (settled bound gates,
   // glyph progress and the other memoized scalar lanes). Rebuilt by every
   // computeVolatile walk, and scanned once per draw so an EXTERNALLY-driven
@@ -111,7 +146,17 @@ struct Composer::Impl {
   bool hasCustomLayout = false;
   bool hasCenterPins = false;  // any centerAt() in the tree
   bool liveOnly = false;       // snapshot(): skip per-node caches
-  Effect view;  // output view transform (null filter = pass-through)
+  material::skia::Effect
+      view;  // output view transform (no filter = pass-through)
+  // The view as its author described it, when they described a Material.
+  // Kept because how a Material LOWERS depends on the surface it lands
+  // on, which is known only at draw: a view whose channels are
+  // independent runs as a table on an eight-bit surface and as its
+  // program anywhere else. `viewColorType` is the surface `view` was
+  // lowered for, so a stable surface lowers once and every later frame
+  // compares one enum.
+  std::optional<material::Material> viewMaterial;
+  SkColorType viewColorType = kUnknown_SkColorType;
   // What the AUTHOR declared their colour values to be. Read by
   // declaredInputSpace() and by nothing else: compositing happens in
   // encoded sRGB regardless, with no linear stage and no conversion, so
@@ -130,7 +175,12 @@ struct Composer::Impl {
   // own total upward. That gives selfMs = totalMs - children without a
   // second traversal.
   bool profileEnabled = false;
-  bool autoPromote = true;  // Composer::setAutoTexturePromotion (the INTENT)
+  // Composer::setAutoTexturePromotion (the INTENT).
+  Composer::PromotionPolicy autoPromote = Composer::PromotionPolicy::ByCost;
+  /** Composer::setBakeDensity: device pixels per layout unit every pixel
+   *  bake is taken at, whatever the frame's matrix says. Zero is the
+   *  coarse ladder read off that matrix. */
+  float bakeDensity = 0.0f;
   bool promotionExplicit = false;  // did the host call the setter?
   // The value paint() actually reads, recomputed each draw(). Differs from
   // `autoPromote` only under the backend-aware default: automatic promotion
@@ -143,7 +193,8 @@ struct Composer::Impl {
   // than the recording it replaces. Re-enabling it there needs a cost model
   // built on GPU timestamps. The global switch still overrides in both
   // directions.
-  bool autoPromoteEffective = true;
+  Composer::PromotionPolicy autoPromoteEffective =
+      Composer::PromotionPolicy::ByCost;
   // Promoted bakes are pixels, and a dense scene can carry many
   // full-canvas nodes at several megabytes each. A budget, carried from the
   // previous frame (paint order is stable, so the previous frame's total is
@@ -151,10 +202,38 @@ struct Composer::Impl {
   // win from becoming an automatic out-of-memory.
   size_t promotedBytes = 0;      // accumulated during the current paint
   size_t promotedBytesLast = 0;  // what the previous frame ended up holding
-  // >0 while painting INTO an SkPicture. Device-space bakes are pinned to
-  // a device rect and must not be recorded into a picture that can replay
-  // under a different matrix.
+  // >0 while painting INTO an SkPicture, or into the coverage trace's
+  // offscreen raster. A node painted here is painted only when the
+  // recording is taken, so nothing it observes frame over frame is a
+  // history.
   int recordingDepth = 0;
+  // …and of those, how many may be REPLAYED UNDER A DIFFERENT MATRIX than
+  // they were made under: a recording made at, or beneath, a node whose
+  // transform is declared live replays under the motion, and the coverage
+  // trace rasterizes at a scale of its own. A device-space bake is blitted
+  // with the matrix reset at an absolute device rect, so it may be taken
+  // only while this is zero — at the root, or inside recordings that are
+  // all PINNED to the matrix they were made under (Instance::pictureMatrix)
+  // and remade when it changes.
+  int unpinnedRecordingDepth = 0;
+  // The matrix the innermost open recording's ops reach the device through
+  // when it is replayed — identity outside any recording. A node inside a
+  // recording composes its canvas matrix through this to find the device
+  // grid it is drawn on; the inverse is what a device blit concatenates so
+  // the replay lands it at the device rect it was baked for.
+  SkMatrix recordingReplay = SkMatrix::I();
+  SkMatrix recordingReplayInverse = SkMatrix::I();
+  // Whether the outermost open recording's device matrix is the one it
+  // was drawn under last frame. Inside a recording this stands in for the
+  // per-frame device-rect history a device bake needs and cannot keep.
+  bool recordingMatrixStable = true;
+  // Accumulated over the recording being taken: how many device-space
+  // blits it holds — its own nodes' and those of every held picture
+  // replayed inside it — and whether a node inside was refused a device
+  // bake for matrix motion alone, so the picture is retaken once the
+  // matrix holds still. Stamped onto the instance when the recording ends.
+  uint32_t recordingDeviceBakes = 0;
+  bool recordingDeviceDeferred = false;
   // The node→root matrix accumulated by paint()'s own recursion — the same
   // walk Query.cpp inverts for hit testing, run forwards. Saved and
   // restored around each paint() frame (RAII, because paint() returns from
@@ -189,23 +268,27 @@ struct Composer::Impl {
   // ---- the reconciler's host (ReconcileHost.cpp) ----
   // The ReconcileHost operations, in the reconciler's terms. Reading a
   // description:
-  using Desc = std::shared_ptr<detail::ElementNode>;
-  static const std::string& keyOf(const Desc& desc) { return desc->key; }
-  static bool equal(const Desc& a, const Desc& b) {
+  using Description = std::shared_ptr<detail::ElementNode>;
+  static const std::string& keyOf(const Description& description) {
+    return description->key;
+  }
+  static bool equal(const Description& a, const Description& b) {
     return detail::propsEqual(*a, *b);
   }
   /** Slot content is owned by renderSlot(), not the description. */
-  static bool reconcilesChildren(const Desc& desc) {
-    return desc->kind != detail::Kind::Slot;
+  static bool reconcilesChildren(const Description& description) {
+    return description->kind != detail::Kind::Slot;
   }
-  static const std::vector<Element>& children(const Desc& desc) {
-    return desc->children;
+  static const std::vector<Element>& children(const Description& description) {
+    return description->children;
   }
-  static const Desc& descOf(const Element& child) { return child.node(); }
-  static const detail::MemoData* memoOf(const Desc& desc) {
-    return desc->memoData ? &*desc->memoData : nullptr;
+  static const Description& descriptionOf(const Element& child) {
+    return child.node();
   }
-  static Desc produce(const detail::MemoData& memo) {
+  static const detail::MemoData* memoOf(const Description& description) {
+    return description->memoData ? &*description->memoData : nullptr;
+  }
+  static Description produce(const detail::MemoData& memo) {
     return memo.invoke(memo.props).node();
   }
   // Acting on an instance:
@@ -213,7 +296,7 @@ struct Composer::Impl {
    *  is its order among the children created in the same patch and @p count
    *  the parent's child count, which is what staggerChildren() cascades
    *  over; the carry that cascade accumulates is host state. */
-  std::unique_ptr<detail::Instance> create(const Desc& node,
+  std::unique_ptr<detail::Instance> create(const Description& node,
                                            detail::Instance* parent,
                                            size_t ordinal, size_t count);
   /** Everything the composer does to an instance whose description changed:
@@ -238,12 +321,12 @@ struct Composer::Impl {
   void rebuildKeyIndex();
   void applyLayoutProps(detail::Instance& inst);
   /** Builds the instance's Paragraph from whichever content form its
-   *  description carries — plain utf8, `rich()` runs, or a copy of a
+   *  description carries — plain utf8, `weave::rich()` runs, or a copy of a
    *  supplied Paragraph — and then applies the span restyles in
    *  declaration order. @p lines is the geometry a previous layout
-   *  produced, which is what a `sel::line` restyle addresses; empty leaves
-   *  those selectors unresolved. @p columns carries the same geometry for a
-   *  vertical passage, where a line IS a column. */
+   *  produced, which is what a `weave::sel::line` restyle addresses; empty
+   *  leaves those selectors unresolved. @p columns carries the same
+   *  geometry for a vertical passage, where a line IS a column. */
   void materializeText(
       detail::Instance& inst,
       std::span<const sigil::weave::LineMetrics> lines = {},
@@ -266,15 +349,30 @@ struct Composer::Impl {
                              const detail::ElementNode& node);
 
   // ---- volatility & caching (Volatility.cpp) ----
-  /** @p movingAbove: a bound or transitioning transform is connected on
-   *  some ancestor. A node carrying a world-space material below one has
-   *  its node→root matrix changing off the describe clock, which is CONTENT
-   *  volatility for that node — and it joins the memoized scalar lane,
-   *  because that matrix is six floats, so the recording survives between
-   *  ticks and the flag releases when the motion settles. Threaded down the
-   *  existing recursion; everything else ignores it. */
-  core::SubtreeVerdict computeVolatile(detail::Instance& inst,
-                                       bool movingAbove = false);
+  /** What the walk threads down to a child about the planes above it:
+   *  whether a bound or transitioning transform is connected on some
+   *  ancestor, whether the shared space it stands in is moving (its
+   *  host's transform, or the host's own space), whether the view its
+   *  parent declares is live, and whether it stands in a space at all — a
+   *  node whose projection moves for any of those reasons is moving
+   *  exactly as one whose own lane is.
+   *
+   *  A node carrying a world-space material under a moving ancestor has
+   *  its node→root matrix changing off the describe clock, which is
+   *  CONTENT volatility for that node — and it joins the memoized scalar
+   *  lane, because that matrix is six floats, so the recording survives
+   *  between ticks and the flag releases when the motion settles. */
+  struct Above {
+    bool moving = false;           ///< a connected transform on an ancestor
+    bool spaceMoving = false;      ///< the space this node stands in moves
+    bool perspectiveLive = false;  ///< the parent's perspective lane is live
+    bool inSpace = false;          ///< the parent hosts a shared space
+  };
+  core::SubtreeVerdict computeVolatile(detail::Instance& inst, Above above);
+  /** The root's walk: nothing stands above it. */
+  core::SubtreeVerdict computeVolatile(detail::Instance& inst) {
+    return computeVolatile(inst, Above{});
+  }
   /** The node→root matrix, recomputed OUTSIDE paint by walking the ancestor
    *  chain root-down through the same ops paint() accumulates —
    *  translate(rect), then NodeTransform::matrix. The result must be
@@ -294,12 +392,14 @@ struct Composer::Impl {
   /** Record the node's own paint into a replayable picture, freezing the
    *  leaf blend and opacity into it and stamping the values it was
    *  recorded from. The bake half of the picture tier. */
-  void recordPicture(detail::Instance& inst, float hostScale,
-                     SkBlendMode leafBlend, float leafOpacity,
+  void recordPicture(detail::Instance& inst, const SkMatrix& deviceMatrix,
+                     const SkIRect& deviceClip, bool matrixStable,
+                     float hostScale, SkBlendMode leafBlend, float leafOpacity,
                      detail::Instance::ContentScalars&& scalars);
 
   // ---- layout (Layout.cpp) ----
   bool applyCustomLayouts(detail::Instance& inst);
+  SkSize minimumSizeOf(detail::Instance& child);
   bool applyCenterPins(detail::Instance& inst);
   /** The passes, as the runner sees them. Each returns whether it changed
    *  geometry; the non-converging ones answer false. */
@@ -353,6 +453,28 @@ struct Composer::Impl {
    *  pass needed). */
   bool resolveDerived();
   bool deriveFlow(detail::Instance& inst);
+  /** Walks every frame chain in order, handing each frame the cursor the
+   *  one before it left. True when a cursor moved. */
+  bool resolveThreads();
+  bool resolveTethers();
+  /** What a run of a chain came to when it was filled at one depth: the
+   *  lines it placed, whether the last of them still had something over,
+   *  and the word the run stopped at. */
+  struct ChainFill {
+    uint32_t lines = 0;
+    uint32_t cursor = 0;
+    bool overflowed = false;
+  };
+  ChainFill fillRun(const std::vector<detail::Instance*>& run, size_t first,
+                    size_t last, float depth, uint32_t cursor);
+  bool balanceRuns(const std::vector<detail::Instance*>& chain);
+  /** How many times a balanced run's depth is halved. A fixed count leaves
+   *  the answer a hair deeper than the tightest depth and costs the same
+   *  whatever the story is. */
+  static constexpr int kBalanceSteps = 8;
+  /** Sorts the derive lists into the order their declared reads imply —
+   *  stable, so a list whose members read none of each other is untouched. */
+  void orderDerivedByReads();
   void deriveRoute(detail::Instance& inst);
 
   // ---- the node's paint transform, resolved once (Bounds.cpp) ----
@@ -366,6 +488,10 @@ struct Composer::Impl {
    *  hand-written copies could disagree. */
   struct NodeTransform {
     float tx = 0, ty = 0, rot = 0, scl = 1, sx = 1, sy = 1, skx = 0, sky = 0;
+    // The depth lanes: the plane's turn about x and y, its depth, and its
+    // depth scale. At rest they are exactly the identity, and a node at
+    // rest in all four is a 2D node in every consumer.
+    float rx = 0, ry = 0, tz = 0, sz = 1;
     /** Does anything past the translate need the origin pivot at all?
      *
      *  THE ONE DEFINITION, and every consumer asks it rather than writing
@@ -377,6 +503,12 @@ struct Composer::Impl {
     bool pivoted() const {
       return rot != 0 || scl != 1 || sx != 1 || sy != 1 || skx != 0 || sky != 0;
     }
+    /** Has a depth lane left rest? Then the node is a PLANE turned or moved
+     *  in depth, its matrix is the 4x4 of matrix44() flattened, and the
+     *  2D producers below are not asked. THE ONE DEFINITION, for the same
+     *  reason pivoted() is: a consumer that spells its own and omits a lane
+     *  draws a plane where it cannot be hit. */
+    bool spatial() const { return rx != 0 || ry != 0 || tz != 0 || sz != 1; }
     /** The matrix these lanes describe, prepended with `anchor` (the
      *  layout offset — pass {0, 0} for node-local): the translate lanes,
      *  then — gated on pivoted(), NOT a copy of it — the origin-pivoted
@@ -384,7 +516,10 @@ struct Composer::Impl {
      *  child union and hitInstance()'s inverse. The anchor folds into the
      *  FIRST translate rather than being post-concatenated, because the two
      *  associate their float multiplies differently and recordBounds()'s
-     *  results must stay bitwise stable. */
+     *  results must stay bitwise stable.
+     *
+     *  The 2D producer: a node whose depth lanes have left rest is placed
+     *  by matrix44() instead, and every consumer asks spatial() first. */
     SkMatrix matrix(SkPoint anchor, const detail::PaintProps& p, float w,
                     float h) const {
       SkMatrix m = SkMatrix::Translate(anchor.x() + tx, anchor.y() + ty);
@@ -394,8 +529,40 @@ struct Composer::Impl {
         if (rot != 0) m.preRotate(rot);
         if (scl != 1 || sx != 1 || sy != 1) m.preScale(scl * sx, scl * sy);
         if (skx != 0 || sky != 0)
-          m.preSkew(std::tan(skx * 0.017453293f), std::tan(sky * 0.017453293f));
+          m.preSkew(std::tan(geometry::path::radians(skx)),
+                    std::tan(geometry::path::radians(sky)));
         m.preTranslate(-origin.x(), -origin.y());
+      }
+      return m;
+    }
+    /** The SAME stack as a 4x4, with the depth lanes in it: the translate
+     *  lanes (z included), then about the 3D origin the CSS rotation list
+     *  `rotateX · rotateY · rotateZ`, the scale with its depth factor, and
+     *  the skew. The 2D lanes sit in this product exactly where matrix()
+     *  puts them, so a node that turns about y keeps the rotate, scale and
+     *  skew it had while flat. THE ONE 4x4 PRODUCER: paint's flattening,
+     *  the bounds union, the hit test's inverse, the depth sort and the
+     *  node→root accumulation all read this, in this order of operations,
+     *  and the settle compare between two of them needs the products to
+     *  agree bit for bit. `depth` is the node's block, null on a node
+     *  without one (then the origin has no z). */
+    SkM44 matrix44(SkPoint anchor, const detail::PaintProps& p,
+                   const detail::DepthData* depth, float w, float h) const {
+      SkM44 m = SkM44::Translate(anchor.x() + tx, anchor.y() + ty, tz);
+      if (pivoted() || spatial()) {
+        const SkPoint origin = detail::resolveOrigin(p, w, h);
+        const float oz = depth ? depth->originZ : 0.0f;
+        m.preTranslate(origin.x(), origin.y(), oz);
+        if (rx != 0) m.preConcat(detail::rotateXMatrix(rx));
+        if (ry != 0) m.preConcat(detail::rotateYMatrix(ry));
+        if (rot != 0) m.preConcat(detail::rotateZMatrix(rot));
+        if (scl != 1 || sx != 1 || sy != 1 || sz != 1)
+          m.preScale(scl * sx, scl * sy, sz);
+        if (skx != 0 || sky != 0)
+          m.preConcat(
+              detail::skewMatrix(std::tan(geometry::path::radians(skx)),
+                                 std::tan(geometry::path::radians(sky))));
+        m.preTranslate(-origin.x(), -origin.y(), -oz);
       }
       return m;
     }
@@ -408,8 +575,10 @@ struct Composer::Impl {
      *  lands a few ulps away, and antialiased coverage along every edge
      *  changes with it. Replacing this with a single concat of matrix()
      *  therefore moves pixels across the whole scene. The op list below and
-     *  matrix()'s are THE SAME LIST in the same order; a lane added to the
-     *  struct goes in both (the fieldPin below counts it). */
+     *  matrix()'s are the same list in the same order for every flat
+     *  lane; the four depth lanes are matrix44()'s alone, since a canvas
+     *  has no elementary op for them. A flat lane added to the struct goes
+     *  in both (the fieldPin below counts it). */
     void concatTo(SkCanvas& canvas, const detail::PaintProps& p, float w,
                   float h) const {
       if (tx != 0 || ty != 0) canvas.translate(tx, ty);
@@ -419,8 +588,8 @@ struct Composer::Impl {
         if (rot != 0) canvas.rotate(rot);
         if (scl != 1 || sx != 1 || sy != 1) canvas.scale(scl * sx, scl * sy);
         if (skx != 0 || sky != 0)
-          canvas.skew(std::tan(skx * 0.017453293f),
-                      std::tan(sky * 0.017453293f));
+          canvas.skew(std::tan(geometry::path::radians(skx)),
+                      std::tan(geometry::path::radians(sky)));
         canvas.translate(-origin.x(), -origin.y());
       }
     }
@@ -428,16 +597,69 @@ struct Composer::Impl {
      *  is a hand-written exhaustive list over these members, exactly like
      *  a comparator, and fails the same way: silently, by not noticing. */
     static void fieldPin(NodeTransform& v) {
-      auto& [tx, ty, rot, scl, sx, sy, skx, sky] = v;
-      static_assert(std::tuple_size_v<decltype(std::tie(tx, ty, rot, scl, sx,
-                                                        sy, skx, sky))> == 8,
-                    "NodeTransform gained or lost a lane — put it in "
-                    "pivoted() above (unless it is a pure translate), in "
-                    "matrix()'s build, and in transformOf()'s resolve, "
-                    "then bump this count.");
+      auto& [tx, ty, rot, scl, sx, sy, skx, sky, rx, ry, tz, sz] = v;
+      static_assert(
+          std::tuple_size_v<decltype(std::tie(tx, ty, rot, scl, sx, sy, skx,
+                                              sky, rx, ry, tz, sz))> == 12,
+          "NodeTransform gained or lost a lane — put it in pivoted() or "
+          "spatial() above (unless it is a pure translate), in matrix()'s "
+          "and matrix44()'s builds, and in transformOf()'s resolve, then "
+          "bump this count.");
     }
   };
   NodeTransform transformOf(detail::Instance& inst);
+
+  // ---- depth (Depth.cpp): the plane a node is, and the space it hosts ----
+  /** The node's 4x4 in the plane its PARENT paints on: the parent's
+   *  perspective, then the layout offset, then the node's own lanes about
+   *  its origin — `Persp(parent) · T(rect) · matrix44`. The parent's
+   *  perspective is the child's business and is folded here, once, so no
+   *  consumer composes it on its own. A node inside a shared space
+   *  prepends that space's accumulation to this. */
+  SkM44 depthMatrixOf(detail::Instance& inst, const NodeTransform& tf,
+                      const SkRect& rect);
+  /** Do this node's children share its space — preserve3d(), and none of
+   *  the grouping properties that flatten it (a clip, an opacity below 1,
+   *  a blend, an effect, a backdrop, a mask, a coverage boundary, an
+   *  explicit bake)? Asked by paint, the hit test, the bounds walk and the
+   *  volatility walk, and answered by ONE body, because the four must
+   *  agree about which plane a child is drawn on. */
+  bool hostsSpace(detail::Instance& inst);
+  /** THE DEPTH ORDER of a hosting node's children: its paint order (zIndex,
+   *  then declaration) stable-sorted by the depth of each child's centre
+   *  in the space — farthest first, so a nearer plane covers a farther
+   *  one wherever the two overlap. `space` is the host's own 4x4 in the
+   *  plane the space is drawn on, which every child's matrix begins with.
+   *  Planes are never intersected: a child crossing another is drawn
+   *  whole, in this order. */
+  void depthOrder(detail::Instance& host, const SkM44& space,
+                  std::vector<size_t>& out);
+  /** A SHARED SPACE, open while a hosting node's children are painted or
+   *  hit. The canvas stays at the plane the space is drawn on — the
+   *  hosting node concatenates nothing for its children — and every node
+   *  in the space places itself with `accum · depthMatrixOf` flattened,
+   *  relative to that plane. That is what makes the space free of any
+   *  inverse: a host turned edge-on has a singular plane of its own and
+   *  its children still stand where the space puts them. `rootToPlane` is
+   *  the node→root matrix of that plane, which a node in the space builds
+   *  its own node→root from. */
+  struct Space {
+    SkM44 accum;           ///< the plane the space is drawn on → the host
+    SkMatrix rootToPlane;  ///< …and that plane's own node→root
+  };
+  /** The space the node being painted stands in — set by its parent while
+   *  that parent hosts one, null otherwise. Saved and restored around each
+   *  paint() frame. */
+  const Space* curSpace = nullptr;
+  /** The plane a HOSTING node's own paint concatenates inside paintContent:
+   *  paint() leaves the canvas at the plane the space is drawn on, so the
+   *  children can place themselves, and the host's own marks, fill and
+   *  content are drawn under this instead. Absent for every other node. */
+  std::optional<SkMatrix> curOwnPlane;
+  /** …and whether that own plane is drawn at all: a host facing away with
+   *  its backface hidden, or turned edge-on, paints nothing of its own and
+   *  still paints the children its space holds. */
+  bool curOwnHidden = false;
   /** Where on its motion path this node sits, in its PARENT's space, and
    *  the auto-orient angle in degrees. Nullopt when no path is engaged
    *  (absent, empty, or resolving to no measurable length) — the
@@ -450,7 +672,7 @@ struct Composer::Impl {
   /** The engine a text description installed, or null for text the kernel
    *  draws at rest by itself. */
   static const TextPainterOps* textPainterOf(const detail::Instance& inst) {
-    const detail::ElementNode* node = inst.desc.get();
+    const detail::ElementNode* node = inst.description.get();
     return node && node->textData ? node->textData->painter.get() : nullptr;
   }
   /** Resolves the node's mark() rects through its painter; a node with no
@@ -460,6 +682,19 @@ struct Composer::Impl {
       painter->marks(inst);
     else
       inst.textMarkRects.clear();
+  }
+  /** Lays out the node's annotate() readings against the layout its letters
+   *  are drawn from. The engine answers even for a passage that dresses
+   *  nothing else, because a reading IS the dressing and the base may
+   *  carry no other. */
+  void resolveTextAnnotations(detail::Instance& inst) {
+    inst.textAnnotations.clear();
+    if (!inst.description || !inst.description->textData ||
+        inst.description->textData->annotations.empty())
+      return;
+    const TextPainterOps* painter = textPainterOf(inst);
+    if (!painter) painter = detail::registeredTextEngine();
+    if (painter) painter->annotations(inst);
   }
 
   // ---- paint (StackingPainter.cpp and the paint-phase files beside it) ----
@@ -485,11 +720,46 @@ struct Composer::Impl {
     OwnOnly,       ///< the prefix: no children, no foregrounds
     ChildrenOnly,  ///< the children and the foregrounds over them
   };
+  /** @p deferLayerEffect leaves the node's own layer effect OUT of what is
+   *  emitted, for a bake that is going to be filtered at its blit instead.
+   *  Everything else is unchanged, so the bake holds exactly the pixels the
+   *  effect's saveLayer would have been handed. */
   void paintContent(detail::Instance& inst, SkCanvas& canvas,
                     float contentScale,
                     SkBlendMode leafBlend = SkBlendMode::kSrcOver,
-                    float leafOpacity = 1.0f, Phase phase = Phase::All);
+                    float leafOpacity = 1.0f, Phase phase = Phase::All,
+                    bool deferLayerEffect = false);
   const SkPath& resolveOutline(detail::Instance& inst, SkSize size) const;
+  /** THE COVERAGE BOUNDARY (Coverage.cpp): the silhouette of what this
+   *  node's layer drew, in the node's own space.
+   *
+   *  The node's fill, content and children are rasterised into an alpha
+   *  surface of their own and the covered pixels are traced back into a
+   *  path, so the answer is the visible extent of an image with a cut-out,
+   *  of a clipped or masked subtree, of anything a shape and a glyph run
+   *  cannot describe. Cached on the instance and re-traced only when the
+   *  layer that produced it is invalidated. */
+  const SkPath& coverageOutline(detail::Instance& inst, SkSize size,
+                                float contentScale);
+  /** WHAT A NODE SAYS ITS EDGE IS, in its own space — its glyph outlines
+   *  under `Boundary::Glyphs`, the silhouette of what it drew under
+   *  `Boundary::Coverage`, its declared shape otherwise. Empty when the
+   *  node declares no silhouette at all and its box is the whole answer.
+   *
+   *  One reading, for the node's own decorations and for anything that
+   *  borrows its edge, so a node cannot be dressed along one outline and
+   *  flowed around along another. */
+  SkPath boundaryOutlineOf(detail::Instance& target, float width, float height);
+  /** The node whose coverage is being traced RIGHT NOW, if any.
+   *
+   *  A coverage boundary is what the node drew, and the node's own marks
+   *  are what dress that boundary: drawing them into the trace would make
+   *  the boundary a function of itself. So paintContent emits no marks for
+   *  this one node while it is set, and asks it for no coverage boundary
+   *  either — which is also what keeps the trace from re-entering itself.
+   *  Its children, and their marks, are drawn: they are part of what the
+   *  node drew, and none of them reads this node's boundary. */
+  const detail::Instance* coverageTrace = nullptr;
   /** What the node paints BY ITSELF, in its own local space: its box grown
    *  by every decoration's declared bleed and any routed path, and NOTHING
    *  from its children. The split bake sizes its layer with this — and the
@@ -498,13 +768,30 @@ struct Composer::Impl {
    *  every frame a child moves, and a bake rect that changes every frame is
    *  a bake remade every frame. */
   SkRect ownPaintBounds(detail::Instance& inst);
-  SkRect recordBounds(detail::Instance& inst);
+  /** The rect a node's recording must cover — in its own local plane, or,
+   *  for a node hosting a shared space, in the plane that space is drawn
+   *  on, which is where its children stand. `space` is the accumulation of
+   *  the space the node itself stands in, null under a flat parent; a
+   *  hosting node nested in a space needs it to place its own plane. */
+  SkRect recordBounds(detail::Instance& inst, const SkM44* space = nullptr);
 
   // ---- hit testing / queries (Query.cpp) ----
   bool shapeContains(detail::Instance& inst, SkPoint local, SkSize size) const;
+  /** The hit test's view of a shared space: the host's accumulation, and
+   *  the point being tested in the plane the space is drawn on — a node
+   *  in the space maps THAT point back through its own full projection,
+   *  since its parent's local plane is not the plane it stands on. */
+  struct HitSpace {
+    SkM44 accum;
+    SkPoint planePt;
+  };
+  /** @p parentPt is the point in the parent's local plane, read when the
+   *  node stands on it; @p space is the shared space the parent hosts,
+   *  null under a flat parent. */
   std::optional<std::string> hitInstance(detail::Instance& inst,
                                          SkPoint parentPt,
-                                         const std::string* inheritedKey);
+                                         const std::string* inheritedKey,
+                                         const HitSpace* space);
 };
 
 }  // namespace sigil::compose

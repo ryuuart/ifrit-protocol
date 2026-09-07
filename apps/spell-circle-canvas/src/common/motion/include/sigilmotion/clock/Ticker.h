@@ -147,7 +147,14 @@ class Ticker {
   bool tick(double deltaSeconds);
 
   /** True while the timeline holds motions or any steppable remains
-   *  registered. Derivations never contribute. */
+   *  registered. Derivations never contribute.
+   *
+   *  THE DOMAIN-WIDE form of "is anything moving", and a DECLARATION like
+   *  every other: it says machinery is registered, never that the numbers
+   *  are changing — a wave held at one phase is active and moves nothing.
+   *  `isLive()` is the same question about one value; whether values have
+   *  provably held still is a fact about the values themselves and is
+   *  answered by whatever caches them. */
   bool active() const;
 
   /**

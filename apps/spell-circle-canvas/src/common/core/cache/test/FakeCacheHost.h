@@ -14,7 +14,10 @@
 #include <utility>
 #include <vector>
 
-namespace sigil::core::test {
+// Every feature's fake host lives in its own `sigil::core::test::<feature>`
+// namespace. That is what lets each of them use the plainest name for what
+// it is — FakeHost, FakeNode — without one redefining another.
+namespace sigil::core::test::cache {
 
 /** The values this host's nodes hold still on: one lane per node, which is
  *  as much structure as the release protocol needs. */
@@ -183,4 +186,4 @@ struct FakeHost {
   }
 };
 
-}  // namespace sigil::core::test
+}  // namespace sigil::core::test::cache

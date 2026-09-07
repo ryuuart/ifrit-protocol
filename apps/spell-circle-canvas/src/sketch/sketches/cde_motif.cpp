@@ -131,7 +131,7 @@
 //  · A WIDGET DOES NOT CHOOSE ITS OWN COLOUR SET, so it should not be
 //    handed one. The set is a property of the window a widget was
 //    composed inside, which is what an inherited value is:
-//    `env::Provide<ColorSet>` opens the scope and every bevel, label,
+//    `core::env::Provide<ColorSet>` opens the scope and every bevel, label,
 //    stipple and icon four levels down reads the same one. Threading a
 //    set by argument is how a window ends up drawn in three of them, and
 //    a study of this derivation cannot afford that mistake.
@@ -139,7 +139,7 @@
 //    1 with integer rects and AA off, every sampled band above is one
 //    flat colour with no 254/255 edge anywhere. Yoga's resolved rects
 //    are integers when the inputs are, `.padding(6)` is exact, and
-//    shapes::inset(5, …)'s path-op offset survives it.
+//    inset(5, …)'s path-op offset survives it.
 //  · EDGING IS ASKED FOR. `ShapingStyle::aliased` (compose spells it
 //    `Type::aliased`) selects hard-edged rasterisation and is part of the
 //    shape-cache key, so every one of the ~80 UI runs on this canvas goes
@@ -152,6 +152,14 @@
 //    shaped node can never prune costs this artefact exactly nothing.
 //    The only three corners() in the file are inside the clock icon,
 //    which is artwork, not chrome.
+//  · THE BEVEL IS NOT `styles::BevelPair`, deliberately. That one
+//    classifies an outline's edges by sampling it every `step` px and
+//    lays a light and a dark stroke along the two families, which is the
+//    right shape for a bevel on any silhouette. Motif's is not a stroke
+//    on an outline: `XmeDrawShadows` draws two MITRED L paths on the
+//    integer pixel lattice, and `XmSHADOW_ETCHED_IN` is a second pass at
+//    half thickness with the two colours swapped. `MotifShadow` below is
+//    that, and it is a comparable value like any other decoration.
 //  · `.background()` IS NOT WHERE A BEVEL GOES. It paints BENEATH the
 //    fill (the CSS box-shadow ordering), so a bevel put there is drawn
 //    and then covered by the surface it was meant to sit on, leaving a
@@ -180,20 +188,28 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/core/Env.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/brush/PixelStyles.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/testing/Checks.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilcore/reconcile/Env.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/kit/Patterns.h>
+#include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Scrollbar.h>
+#include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -202,6 +218,12 @@
 namespace sketch = sigil::sketch;
 namespace measure = sigil::measure;
 namespace test = sigil::compose::test;
+namespace env = sigil::core::env;
+namespace motion = sigil::motion;
+namespace arrange = sigil::geometry::arrange;
+namespace shapes = sigil::geometry::shapes;
+namespace pattern = sigil::material::pattern;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -441,7 +463,7 @@ constexpr std::array<uint32_t, 8> kIconColor = {0x000000, 0xFFFFFF, 0xFF0000,
 //
 //    A CDE widget is drawn in whatever set the window around it was
 //    assigned, and no widget picks its own. That is an ambient value, so
-//    it is one: `env::Provide<ColorSet>` opens the scope a piece of
+//    it is one: `core::env::Provide<ColorSet>` opens the scope a piece of
 //    chrome is drawn in, and every bevel, label, stipple and icon under
 //    it reads the same set without being handed it. Threading a set by
 //    argument through six levels is how a window ends up drawn in three
@@ -569,35 +591,19 @@ inline MotifShadow bevelFg(float T) {
   return MotifShadow{T, false, false, s.fg, s.fg};
 }
 
-/** XmeDrawHighlight: four plain rectangles, a square ring of
- *  `highlightThickness`. No mitre, no shading — it is not a shadow. */
-struct MotifHighlight {
-  float thickness = 2;
-  SkColor4f color{0, 0, 0, 1};
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
-    const SkRect b = ctx.outline.getBounds();
-    const float t = thickness;
-    SkPaint p;
-    p.setAntiAlias(false);
-    p.setColor(color, nullptr);
-    canvas.drawRect(SkRect::MakeLTRB(b.left(), b.top(), b.right(), b.top() + t),
-                    p);
-    canvas.drawRect(
-        SkRect::MakeLTRB(b.left(), b.bottom() - t, b.right(), b.bottom()), p);
-    canvas.drawRect(
-        SkRect::MakeLTRB(b.left(), b.top() + t, b.left() + t, b.bottom() - t),
-        p);
-    canvas.drawRect(
-        SkRect::MakeLTRB(b.right() - t, b.top() + t, b.right(), b.bottom() - t),
-        p);
-  }
-  bool operator==(const MotifHighlight&) const = default;
-};
-
-/** highlightThickness 2 [MEAS], in the widget's foreground — Motif's
- *  default highlightColor. Only the focused widget shows one. */
-inline MotifHighlight highlight(float T) {
-  return MotifHighlight{T, ambient().fg};
+/** XmeDrawHighlight: a square ring of `highlightThickness` inside the
+ *  widget's own edge. No mitre, no shading — it is not a shadow, which is
+ *  why it is a plain stroke where `MotifShadow` below is a paint program.
+ *
+ *  highlightThickness 2 [MEAS], in the widget's foreground — Motif's
+ *  default highlightColor. Only the focused widget shows one. The ring is
+ *  drawn UNSMOOTHED, which the general stroke carries: a smoothed edge on
+ *  an axis-aligned 2 px ring reads as a blur rather than as a line. */
+inline PathFormat highlight(float T) {
+  return PathFormat{.width = T,
+                    .strokeFill = Fill::color(ambient().fg),
+                    .align = PathFormat::Align::Inner,
+                    .antiAlias = false};
 }
 
 /** Motif's insensitive treatment: the label is painted through a 50%
@@ -611,26 +617,38 @@ inline MotifHighlight highlight(float T) {
  *  image plus SkColorFilters::Blend(colour, kSrcIn) is one tile for all
  *  of them, tinted where it is drawn. */
 inline sk_sp<SkImage> checkerMask() {
-  static sk_sp<SkImage> mask = [] {
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(2, 2));
-    bm.eraseColor(SK_ColorTRANSPARENT);
-    *bm.getAddr32(0, 0) = 0xFFFFFFFFu;
-    *bm.getAddr32(1, 1) = 0xFFFFFFFFu;
-    bm.setImmutable();
-    return bm.asImage();
-  }();
-  return mask;
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(2, 2));
+  bm.eraseColor(SK_ColorTRANSPARENT);
+  *bm.getAddr32(0, 0) = 0xFFFFFFFFu;
+  *bm.getAddr32(1, 1) = 0xFFFFFFFFu;
+  bm.setImmutable();
+  return bm.asImage();
 }
 
+/** THE ONE TILE the whole desktop is stippled through, reached the same way
+ *  a colour set is. A paint program is compared BY VALUE and an image inside
+ *  one by POINTER, so every insensitive label has to carry the same tile or
+ *  none of them compares equal to itself on the next describe — and the
+ *  palette snaps every three seconds, so there is a next describe. Whoever
+ *  describes holds one and binds it; unbound, a tile is cut where it is
+ *  asked for, which draws the same picture and merely does not prune. Not a
+ *  static: a static in this dylib is held for the process, past the reload
+ *  that unloads the code which cut it. */
+struct Stipple {
+  sk_sp<SkImage> tile;
+  bool operator==(const Stipple&) const = default;
+};
+
 struct MotifStipple {
+  sk_sp<SkImage> tile;
   SkColor4f color{1, 1, 1, 1};
   void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+    if (!tile) return;
     SkPaint p;
     p.setAntiAlias(false);
-    p.setShader(
-        checkerMask()->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
-                                  SkSamplingOptions(SkFilterMode::kNearest)));
+    p.setShader(tile->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
+                                 SkSamplingOptions(SkFilterMode::kNearest)));
     p.setColorFilter(
         SkColorFilters::Blend(color.toSkColor(), SkBlendMode::kSrcIn));
     canvas.drawRect(ctx.outline.getBounds(), p);
@@ -638,7 +656,10 @@ struct MotifStipple {
   bool operator==(const MotifStipple&) const = default;
 };
 
-inline MotifStipple stipple() { return MotifStipple{ambient().bg}; }
+inline MotifStipple stipple() {
+  const Stipple* bound = env::inherited<Stipple>();
+  return MotifStipple{bound ? bound->tile : checkerMask(), ambient().bg};
+}
 
 // ===========================================================================
 // 5. THE BACKDROP — cde/programs/backdrops/PinStripe.pm, 28 x 52, 2 colours.
@@ -652,7 +673,7 @@ inline MotifStipple stipple() { return MotifStipple{ambient().bg}; }
  *  each, on a staggered half-drop. Period 14 in x, 13 in y. In 1993 a
  *  texture was a pixmap and a gradient was a dither, and this is why the
  *  CDE root window is a faintly-structured mid-tone rather than flat. */
-inline PatternProgram pinStripeTile(SkColor4f light, SkColor4f dark) {
+inline pattern::Program pinStripeTile(SkColor4f light, SkColor4f dark) {
   return [light, dark](SkCanvas& c, SkSize, uint32_t) {
     SkPaint p;
     p.setAntiAlias(false);
@@ -681,8 +702,7 @@ inline PatternProgram pinStripeTile(SkColor4f light, SkColor4f dark) {
 // ===========================================================================
 
 inline sk_sp<SkTypeface> uiFace() {
-  static sk_sp<SkTypeface> f = sigil::compose::pickFace({"Helvetica", "Arial"});
-  return f;
+  return weave::ports::face({"Helvetica", "Arial"});
 }
 
 constexpr float kType = 13.0f;  // [MEAS] ink boxes: cap height 9-10 px
@@ -702,12 +722,12 @@ constexpr float kTrack = 0.95f;
  *  desktop's type looks like, and the one property this reconstruction
  *  cannot approximate. */
 inline sigil::weave::TextStyle type(SkColor4f c, float size = kType) {
-  return sigil::compose::type({.face = uiFace(),
-                               .size = size,
-                               .color = c,
-                               .track = kTrack,
-                               .aliased = true,
-                               .antiAlias = false});
+  return weave::textStyle({.face = uiFace(),
+                           .size = size,
+                           .color = c,
+                           .track = kTrack,
+                           .aliased = true,
+                           .antiAlias = false});
 }
 
 /** One run of UI type, with Motif's mnemonic underline on exactly one
@@ -726,7 +746,7 @@ inline Element label(std::string_view t, SkColor4f c, float size = kType,
   d.thickness = 1;
   d.color = c.toSkColor();
   under.paint.addDecoration(d);
-  return text(rich(plain)
+  return text(weave::rich(plain)
                   .add(toU8(t.substr(0, (size_t)mnemonic)))
                   .add(toU8(t.substr((size_t)mnemonic, 1)), under)
                   .add(toU8(t.substr((size_t)mnemonic + 1))))
@@ -734,10 +754,13 @@ inline Element label(std::string_view t, SkColor4f c, float size = kType,
 }
 
 // ===========================================================================
-// 7. WIDGETS.  Every one takes its colour set(s) as an argument, because
-//    a widget has no other channel for one. A File
-//    Manager window needs THREE at once: set 1 chrome, set 6 menus,
-//    set 5 client area.
+// 7. WIDGETS.  Not one takes a colour set as an argument: each reads
+//    `ambient()` — the set the window it was composed inside opened with
+//    `env::Provide<ColorSet>` — so a bevel, a label, a stipple and an
+//    icon four levels down are all in the same set without anyone
+//    passing it down. A window that wants two puts the second scope
+//    around the subtree that wears it, which is how the File Manager
+//    below has set 1 on its frame and set 5 on its body.
 // ===========================================================================
 
 /** XmPushButton. Armed is XmSHADOW_IN *and* the background swapped to the
@@ -779,7 +802,7 @@ inline Element textField(std::string_view t, float w, bool caret = false,
                       .child(label(t, s.fg));
   if (caret && caretOut)
     inner.child(box().width(Dim(1)).height(Dim(13)).fill(s.fg).opacity(
-        bind(caretOut).quantize(2)));
+        motion::bind(caretOut).quantize(2)));
   Element field = box()
                       .fill(s.bg)
                       .overlay(bevel(2, true, false))
@@ -1059,6 +1082,9 @@ inline std::vector<std::string> icoFolder() {
 struct CdeMotifSketch : sketch::Sketch {
   using Set = cde::ColorSet;
 
+  /** The one 2x2 tile every insensitive label on the desktop is painted
+   *  through, cut once and bound over the whole description. */
+  sk_sp<SkImage> stippleTile = cde::checkerMask();
   cde::Theme theme;
   int paletteIndex = 0;
   double nextSwitch = 0.0;
@@ -1094,25 +1120,23 @@ struct CdeMotifSketch : sketch::Sketch {
         {"switch btn", 0x63639C, 0xB7B7D1, 0x2F2F4A},
     };
     auto hexOf = [](cde::Rgb c) {
-      char buf[16];
-      std::snprintf(buf, sizeof buf, "#%06X", cde::toHex(c));
-      return std::string(buf);
+      return kit::formatted("#%06X", cde::toHex(c));
     };
     measure::Table t;
     for (const Case& c : cases) {
       const cde::Derived d = cde::calculate(cde::from8(c.bg));
-      char want[16];
-      std::snprintf(want, sizeof want, "#%06X", c.ts);
-      t.add(test::check(std::string(c.what) + " ts", want, hexOf(d.ts)));
-      std::snprintf(want, sizeof want, "#%06X", c.bs);
-      t.add(test::check(std::string(c.what) + " bs", want, hexOf(d.bs)));
+      t.add(measure::check(std::string(c.what) + " ts",
+                           kit::formatted("#%06X", c.ts), hexOf(d.ts)));
+      t.add(measure::check(std::string(c.what) + " bs",
+                           kit::formatted("#%06X", c.bs), hexOf(d.bs)));
     }
     // The five LITE colours CDE ships are all colour-set 4, and the top
     // shadow comes out DARKER than the background on every one — which is
     // the branch a reimplementation gets backwards.
     const cde::Derived lite = cde::calculate(cde::from8(0xFFF7E9));
-    t.add(test::check("#FFF7E9 takes LITE", lite.branch == cde::Branch::Lite));
-    t.add(test::check("LITE ts darker than bg", lite.ts.r < lite.bg.r));
+    t.add(
+        measure::check("#FFF7E9 takes LITE", lite.branch == cde::Branch::Lite));
+    t.add(measure::check("LITE ts darker than bg", lite.ts.r < lite.bg.r));
     return t;
   }
 
@@ -1122,14 +1146,14 @@ struct CdeMotifSketch : sketch::Sketch {
   /** The 6 px Motif window frame [MEAS]: a raised outer bevel of 2, a 3 px
    *  band, and a 1 px INNER bevel that is inverted — you are looking at
    *  the inside face of a ridge. The inner one goes through
-   *  shapes::inset(5, …), which is that helper's exact use case ("the
+   *  inset(5, …), which is that helper's exact use case ("the
    *  same bevel again, five pixels in"). */
   Element windowFrame(Element content) {
     const Set s = cde::ambient();
     return box()
         .fill(s.bg)
         .overlay(cde::bevel(2, false, false))
-        .overlay(shapes::inset(5, cde::bevel(1, true, false)))
+        .overlay(inset(5, cde::bevel(1, true, false)))
         .padding(6)
         .column()
         .child(std::move(content));
@@ -1193,9 +1217,10 @@ struct CdeMotifSketch : sketch::Sketch {
   }
 
   // -------------------------------------------------------------------------
-  // The File Manager. Frame + title in set 1, menu bar in set 6, client
-  // area in set 5 — three colour sets in one window, each threaded in by
-  // hand.
+  // The File Manager. Frame and title in set 1, menu bar and client area
+  // in set 5, the path field in set 4 and the scrollbar in set 3 — four
+  // scopes opened around four subtrees, and no widget below them told
+  // which it is in.
 
   Element fileManager() {
     // THE WINDOW'S COLOUR SETS, and the scope each one covers. The frame
@@ -1236,7 +1261,10 @@ struct CdeMotifSketch : sketch::Sketch {
 
       // The scrollbar: a sunken trough with a raised slider, and a
       // STEPPER at each end — CDE puts an arrow box top and bottom, and
-      // without them the trough reads as a plain groove.
+      // without them the trough reads as a plain groove. The slider's
+      // length is the ONE number here measured off the screenshot rather
+      // than read off what the pane holds: the reference shows a file
+      // view whose icon count nothing in this sketch stands for.
       Element scrollbar;
       {
         env::Provide<cde::ColorSet> bar(theme[3]);
@@ -1256,18 +1284,17 @@ struct CdeMotifSketch : sketch::Sketch {
                          .shape(shapes::polygon(3, up ? 0.0f : 180.0f))
                          .fill(c3.fg));
         };
-        scrollbar = box()
+        scrollbar = sketch::kit::scrollbar({.leading = stepper(true),
+                                            .trailing = stepper(false),
+                                            .thumb = box().fill(c3.bg).overlay(
+                                                cde::bevel(2, false, false)),
+                                            .thumbLength = Dim(150),
+                                            .track = Fill::none()})
                         .width(Dim(19))
-                        .column()
                         .padding(2)
                         .gap(2)
                         .fill(c3.bg)
-                        .overlay(cde::bevel(2, true, false))
-                        .child(stepper(true))
-                        .child(box().grow(1).column().child(
-                            box().height(Dim(150)).fill(c3.bg).overlay(
-                                cde::bevel(2, false, false))))
-                        .child(stepper(false));
+                        .overlay(cde::bevel(2, true, false));
       }
 
       Element pathRow = box()
@@ -1355,25 +1382,22 @@ struct CdeMotifSketch : sketch::Sketch {
 
     // XmScrollBar: a sunken trough in the workspace set with a raised
     // slider, 15 px of trough plus 2 px of shadow either side [MEAS].
-    auto scrollBar = [&](const Set& t, float sliderFrac, float sliderTop) {
-      return box()
+    auto scrollBar = [&](const Set& t, float sliderFrac) {
+      return sketch::kit::scrollbar({.thumb = box().fill(t.bg).overlay(
+                                         cde::bevel(2, false, false)),
+                                     .thumbLength = pct(sliderFrac),
+                                     .track = Fill::none()})
           .width(Dim(19))
           .fill(t.bg)
           .overlay(cde::bevel(2, true, false))
-          .padding(2)
-          .column()
-          .child(box().height(Dim(sliderTop)))
-          .child(box()
-                     .height(pct(sliderFrac))
-                     .fill(t.bg)
-                     .overlay(cde::bevel(2, false, false)));
+          .padding(2);
     };
 
     Element listPane = box()
                            .row()
                            .width(Dim(170))
                            .child(std::move(list))
-                           .child(scrollBar(theme[3], 34, 0));
+                           .child(scrollBar(theme[3], 34));
 
     // The eight colour-set swatches, 4 x 2. This IS the palette file.
     Element swatches = box().column().gap(6);
@@ -1491,8 +1515,7 @@ struct CdeMotifSketch : sketch::Sketch {
     const cde::Derived d = cde::calculate(bgv);
 
     auto swatch = [&](const char* name, cde::Rgb c) {
-      char hex[16];
-      std::snprintf(hex, sizeof(hex), "#%06X", cde::toHex(c));
+      const std::string hex = kit::formatted("#%06X", cde::toHex(c));
       return box()
           .column()
           .gap(3)
@@ -1509,10 +1532,9 @@ struct CdeMotifSketch : sketch::Sketch {
     const char* branch = d.branch == cde::Branch::Dark   ? "DARK"
                          : d.branch == cde::Branch::Lite ? "LITE"
                                                          : "MEDIUM";
-    char line[128];
-    std::snprintf(line, sizeof(line),
-                  "B = %5d      branch %-6s      f = (%d, %d, %d)",
-                  d.brightness, branch, d.fSel, d.fBs, d.fTs);
+    const std::string line =
+        kit::formatted("B = %5d      branch %-6s      f = (%d, %d, %d)",
+                       d.brightness, branch, d.fSel, d.fBs, d.fTs);
 
     Element proof = box().column().gap(1).justify(Justify::Center);
     for (const measure::Check& c : derivation().rows)
@@ -1550,17 +1572,19 @@ struct CdeMotifSketch : sketch::Sketch {
 
   /** The end handles: a 1-px alternating bottomShadow/topShadow texture,
    *  period 2 in y [MEAS at x = 60, y = 700..761, perfect alternation].
-   *  The only texture on the panel. */
+   *  The only texture on the panel.
+   *
+   *  A BAND EVERY OTHER ROW IS `styles::Scanlines`, which is one fill over
+   *  the bottom-shadow ground rather than thirty-one boxes a flexbox has
+   *  to lay out — the phase puts the light rows on the odd ones. */
   Element handle() {
     const Set s = cde::ambient();
-    Element h = box().width(Dim(18)).column();
-    for (int i = 0; i < 31; ++i)
-      h.child(box().height(Dim(1)).fill(((unsigned)i & 1u) ? s.ts : s.bs));
     return box()
         .width(Dim(18))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(std::move(h));
+        .child(box().width(Dim(18)).height(Dim(31)).fill(s.bs).overlay(
+            styles::Scanlines{s.ts, 2, 1, 1}));
   }
 
   Element panelSeparator() {
@@ -1570,7 +1594,13 @@ struct CdeMotifSketch : sketch::Sketch {
 
   /** A Front Panel control: a 48 x 48 icon, 4 px either side, with the
    *  small chevron above it that marks a subpanel [SRC: Text Editor,
-   *  Printer, Applications and Help have subpanels]. */
+   *  Printer, Applications and Help have subpanels].
+   *
+   *  THE CHEVRON IS NOT `shapes::polygon(3)`, which the scrollbar stepper
+   *  below is. A stepper arrow is one smoothed triangle inscribed in its
+   *  box; this is four stacked rows of 1, 3, 5 and 7 px, and the steps
+   *  are what a 1993 pixmap arrow is made of. An inscribed triangle would
+   *  draw a smaller shape with a smoothed hypotenuse. */
   Element control(Element icon, float w, bool subpanelArrow) {
     const Set s = cde::ambient();
     Element chev = box()
@@ -1605,12 +1635,14 @@ struct CdeMotifSketch : sketch::Sketch {
                    .strokeFill = Fill::color(cde::C(cde::kIconGray[6])),
                    .align = PathFormat::Align::Inner}));
     face.child(box().inset(4).corners({20}).fill(cde::C(cde::kIconGray[0])));
-    // Twelve ticks, placed by arithmetic.
+    // Twelve ticks, entered at twelve o'clock and swept the whole way
+    // round. `arrange::onRing` is the ring arithmetic's origin; a sketch
+    // that respells it with its own sin and cos rounds differently.
     for (int i = 0; i < 12; ++i) {
-      const float a = (float)i * 30.0f * (float)M_PI / 180.0f;
-      const float r = 18.0f;
-      const float cx = 24.0f + std::sin(a) * r;
-      const float cy = 24.0f - std::cos(a) * r;
+      const SkPoint c = arrange::onRing(
+          (size_t)i, 12, {24.0f, 24.0f}, {18.0f, 18.0f}, -(float)M_PI * 0.5f,
+          2.0f * (float)M_PI, arrange::Turn::Closed);
+      const float cx = c.fX, cy = c.fY;
       const float sz = (i % 3 == 0) ? 4.0f : 2.0f;
       face.child(box()
                      .left(Dim(cx - sz * 0.5f))
@@ -1621,14 +1653,15 @@ struct CdeMotifSketch : sketch::Sketch {
     }
     // Hour hand, ~60% radius; minute hand, full radius. Both quantised to
     // the minute: 61 levels across [0,1] is a 6-degree step.
-    face.child(box()
-                   .left(Dim(23))
-                   .top(Dim(13))
-                   .width(Dim(3))
-                   .height(Dim(11))
-                   .fill(cde::C(cde::kIconColor[0]))
-                   .transformOrigin(0.5f, 1.0f)
-                   .rotate(bind(&clockT).quantize(61).scale(30).offset(300)));
+    face.child(
+        box()
+            .left(Dim(23))
+            .top(Dim(13))
+            .width(Dim(3))
+            .height(Dim(11))
+            .fill(cde::C(cde::kIconColor[0]))
+            .transformOrigin(0.5f, 1.0f)
+            .rotate(motion::bind(&clockT).quantize(61).scale(30).offset(300)));
     face.child(box()
                    .left(Dim(23))
                    .top(Dim(6))
@@ -1636,7 +1669,7 @@ struct CdeMotifSketch : sketch::Sketch {
                    .height(Dim(18))
                    .fill(cde::C(cde::kIconColor[0]))
                    .transformOrigin(0.5f, 1.0f)
-                   .rotate(bind(&clockT).quantize(61).scale(360)));
+                   .rotate(motion::bind(&clockT).quantize(61).scale(360)));
     face.child(box()
                    .left(Dim(22))
                    .top(Dim(22))
@@ -1713,7 +1746,7 @@ struct CdeMotifSketch : sketch::Sketch {
                                   .height(Dim(10))
                                   .fill(cde::C(0x00C000))
                                   .overlay(cde::bevel(1, true, false))
-                                  .opacity(bind(&busy).quantize(2)));
+                                  .opacity(motion::bind(&busy).quantize(2)));
     Element right = box()
                         .width(Dim(26))
                         .alignItems(Align::Center)
@@ -1829,6 +1862,7 @@ struct CdeMotifSketch : sketch::Sketch {
   }
 
   Element describe(sketch::SketchContext& ctx) {
+    const env::Provide<cde::Stipple> stipple(cde::Stipple{stippleTile});
     Element root = stack().width(Dim(1152)).height(Dim(900));
 
     // 1. The root window: PinStripe, tiled, in colour set 3's shadows.
@@ -1882,14 +1916,14 @@ struct CdeMotifSketch : sketch::Sketch {
   // -------------------------------------------------------------------------
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1152, 900);
-    ctx.background(cde::C(0x000000));
     // The still has to name its moment: palettes snap every 3 s over
     // {Default, Crimson, Black, Summer}, and an undeclared capture can land
     // on a snap or on Black, the all-black degenerate palette. Default —
     // the shipped canonical, loaded at setup — holds [12, 15); 13.5 s is
     // dead centre, with the derivation strip visibly mid-sweep.
-    ctx.captureAt(13.5);
+    sketch::kit::stage(ctx, {.size = {1152, 900},
+                             .captureAt = 13.5,
+                             .background = cde::C(0x000000)});
 
     theme.load(*cde::kPalettes[0]);
 
@@ -1912,8 +1946,8 @@ struct CdeMotifSketch : sketch::Sketch {
 
     // The clock: 60x, so a minute passes every second and the hand
     // visibly steps.
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       clockT = (float)std::fmod(t / 60.0 + 0.42, 1.0);
       busy = (std::fmod(t, 0.5) < 0.25) ? 1.0f : 0.0f;
       caret = (std::fmod(t, 1.0) < 0.5) ? 1.0f : 0.0f;

@@ -12,10 +12,11 @@
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/mesh.h>
 
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <filesystem>
-#include <map>
+#include <glm/vec3.hpp>
 #include <optional>
-#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -30,11 +31,17 @@ namespace sigil::usd {
  *  is empty or starts with a digit gains a leading underscore. */
 std::string identifier(std::string_view name);
 
+/** @p direction as a unit vector, or nothing when it has no direction to
+ *  speak of. A rotation taken from a zero vector is a NaN, which USD
+ *  authors as the prim's orientation and every reader then carries;
+ *  nothing stated instead leaves the prim facing its default way. */
+std::optional<glm::vec3> aimedAlong(const glm::vec3& direction);
+
 struct Writer::Impl {
   std::filesystem::path file;
   WriteOptions options;
   pxr::UsdStageRefPtr stage;
-  std::set<std::string> usedPaths;
+  boost::unordered_flat_set<std::string> usedPaths;
   /** Materials already authored, by pointer identity of their images and
    *  value of their scalars — the same material placed twice binds one
    *  prim. */
@@ -42,7 +49,7 @@ struct Writer::Impl {
   int textureCounter = 0;
   bool texturesDirReady = false;
   /** One file per image, however many materials share it. */
-  std::map<const SkImage*, std::string> writtenImages;
+  boost::unordered_flat_map<const SkImage*, std::string> writtenImages;
 
   /** "<parent>/<identifier(name)>", suffixed "_2", "_3", ... until it is
    *  one the stage has not used. */
@@ -65,6 +72,11 @@ struct Writer::Impl {
   /** The mesh's lanes onto a UsdGeomMesh (positions, normals, st,
    *  displayColor, prim lanes as uniform primvars). */
   void fillMesh(pxr::UsdGeomMesh& usdMesh, const geometry::mesh::Mesh& mesh);
+
+  /** Delete the image files this writer wrote beside the stage, and the
+   *  directory they stand in if nothing else is in it — what a package
+   *  does once it has taken copies of them inside itself. */
+  void removeWrittenImages();
 
   /** Bind @p slots: one material over the whole mesh, or GeomSubsets by
    *  the "Material" lane. */

@@ -1,9 +1,11 @@
 /** @file
  * The stock surfaces: every recipe compiles and shades through the Skia
  * backend, a fill stays inside its path, and the builders fill the slots
- * the recipes declare. The girih panel is the real star and cross, the
- * chrome ramps put their hard stop on the horizon, and every text paint
- * compiles and moves with the clock.
+ * the recipes declare. The girih panel is the real star and cross and
+ * sharpens with its contact angle, the chrome ramps put their hard stop
+ * on the horizon, every text paint compiles and moves with the clock,
+ * the dressed surface takes a decoded set, and a stack asks for its
+ * operands' samplers and no more.
  */
 
 #include <gtest/gtest.h>
@@ -11,23 +13,39 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/core/Terms.h>
+#include <sigilmaterial/kit/Environments.h>
+#include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/kit/LayerStyles.h>
-#include <sigilmaterial/kit/Mask.h>
 #include <sigilmaterial/kit/Patterns.h>
+#include <sigilmaterial/kit/Recipes.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/kit/TextPaint.h>
+#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
+#include <sigilmaterial/texture/Texture.h>
+#include <sigilshaders/MaterialKit.h>
 
 #include <cmath>
+#include <memory>
+#include <string>
+
+#include "ShaderTable.h"
+#include "support/Shade.h"
 
 using namespace sigil::material;
+using sigil::material::test::differing;
+using sigil::material::test::luminance;
+using sigil::material::test::shade;
 
 TEST(Surfaces, RecipesCompileAndShade) {
   skia::install();
-  const Environment env = Environment::studio(128);
+  const EnvironmentMap env = kit::studioEnvironment(128);
   ASSERT_TRUE(env.valid());
   const SkPath shape = SkPath::Circle(40, 40, 30);
   const Texture normals = bevelNormals(shape, SkIRect::MakeWH(80, 80), 6);
@@ -45,7 +63,7 @@ TEST(Surfaces, RecipesCompileAndShade) {
 }
 
 TEST(Surfaces, BuildersFillTheDeclaredSlots) {
-  const Environment env = Environment::studio(64);
+  const EnvironmentMap env = kit::studioEnvironment(64);
   const Texture normals = bevelNormals(SkPath::Circle(30, 30, 20), 5);
   kit::ChromeParams params;
   params.roughness = 0.5f;
@@ -69,7 +87,7 @@ TEST(Surfaces, FillShadesInsideTheShapeOnly) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 120));
   surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-  const Environment env = Environment::studio(128);
+  const EnvironmentMap env = kit::studioEnvironment(128);
   const SkPath shape = SkPath::Circle(60, 60, 40);
   skia::fill(*surface->getCanvas(), shape,
              kit::chrome(bevelNormals(shape, 8), env));
@@ -107,10 +125,58 @@ TEST(Patterns, Girih8IsTheRealStarAndCross) {
   EXPECT_FALSE(kit::girih8(16) == kit::girih8(16));  // fresh bakes
 }
 
+TEST(Patterns, Girih8ContactAngleSharpensTheStar) {
+  // How far the star reaches along the bisector between two arms: the
+  // last pixel out from the centre, at 22.5°, in the star's own colour.
+  const kit::GirihPalette pal = kit::fezPalette();
+  const auto reach = [&](float contactDeg, float strapWidth = 0,
+                         float edge = 40) {
+    const pattern::Tile tile = kit::girih8(edge, pal, strapWidth, contactDeg);
+    sk_sp<SkImage> img = tile.image();
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(img->width(), img->height()));
+    img->readPixels(nullptr, bm.pixmap(), 0, 0);
+    const float R = tile.size().width() / 2;
+    const auto isStar = [&](SkColor c) {
+      return std::abs((int)SkColorGetR(c) -
+                      (int)std::lround(pal.star.r * 255)) < 8 &&
+             std::abs((int)SkColorGetB(c) -
+                      (int)std::lround(pal.star.b * 255)) < 8;
+    };
+    float last = 0;
+    for (float r = 0; r < R; r += 0.5f) {
+      const int x = (int)std::lround(R + r * std::cos(0.39269908f));
+      const int y = (int)std::lround(R + r * std::sin(0.39269908f));
+      if (isStar(bm.getColor(x, y))) last = r;
+    }
+    return std::pair{last / R, bm};
+  };
+  const auto [shallow, shallowTile] = reach(30);
+  const auto [classic, classicTile] = reach(45);
+  const auto [steep, steepTile] = reach(60);
+  // The rays meet further out the shallower the angle.
+  EXPECT_GT(shallow, classic);
+  EXPECT_GT(classic, steep);
+  // Measured on a large tile under a hairline strap — a stock strap is
+  // drawn along the star's own edge and covers the vertex — the 45° inner
+  // vertex stands at cos 45° / cos 22.5° of the apothem, which is the
+  // closed form the rays answer.
+  EXPECT_NEAR(reach(45, 1.0f, 200).first, 0.7654f, 0.02f);
+  // The default IS the classic panel, pixel for pixel.
+  const pattern::Tile plain = kit::girih8(40, pal);
+  sk_sp<SkImage> img = plain.image();
+  SkBitmap defaulted;
+  defaulted.allocPixels(
+      SkImageInfo::MakeN32Premul(img->width(), img->height()));
+  img->readPixels(nullptr, defaulted.pixmap(), 0, 0);
+  EXPECT_EQ(differing(defaulted, classicTile), 0);
+  EXPECT_GT(differing(defaulted, steepTile), 100);
+}
+
 TEST(LayerStyles, ChromeRampsStopOnTheHorizon) {
-  const std::vector<kit::RampStop> steel =
+  const std::vector<RampStop> steel =
       kit::chromeRamp(kit::ChromePalette::Steel);
-  const std::vector<kit::RampStop> silver =
+  const std::vector<RampStop> silver =
       kit::chromeRamp(kit::ChromePalette::Silver);
   // Both ramps straddle the horizon with a hard stop at it.
   EXPECT_LT(steel[2].pos, kit::kChromeHorizonFrac);
@@ -164,11 +230,11 @@ TEST(Surface, DressesADecodedSet) {
     s->getCanvas()->clear(SK_ColorGRAY);
     return s->makeImageSnapshot();
   }();
-  textures::TextureMaps maps;
+  texture::TextureMaps maps;
   maps.normalDirectX = true;
-  maps.maps[textures::Role::BaseColor] = Texture::of(image);
-  maps.maps[textures::Role::Packed] = Texture::of(image);
-  maps.maps[textures::Role::Emissive] = Texture::of(image);
+  maps.maps[texture::Role::BaseColor] = Texture::of(image);
+  maps.maps[texture::Role::Packed] = Texture::of(image);
+  maps.maps[texture::Role::Emissive] = Texture::of(image);
   const Material m = kit::surface(maps);
   // The packed image stands in for all three channel maps, at glTF's
   // order, and the scalars a map multiplies come up off zero.
@@ -185,25 +251,6 @@ TEST(Surface, DressesADecodedSet) {
   EXPECT_NE(m.leaf(kit::kNormalSlot), nullptr);
 }
 
-TEST(Mask, ShapesWhatItReads) {
-  skia::install();
-  const Material half = kit::maskConstant(0.5f);
-  EXPECT_TRUE(skia::shader(half, {}));
-  EXPECT_FLOAT_EQ(kit::invert(half).get<float>("inverted"), 1.0f);
-  EXPECT_FLOAT_EQ(kit::invert(kit::invert(half)).get<float>("inverted"), 0.0f);
-  const Material fitted = kit::fit(half, 0.25f, 0.75f);
-  EXPECT_FLOAT_EQ(fitted.get<float>("low"), 0.25f);
-  EXPECT_FLOAT_EQ(fitted.get<float>("high"), 0.75f);
-
-  sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
-  s->getCanvas()->clear(SK_ColorWHITE);
-  const Texture map = Texture::of(s->makeImageSnapshot());
-  for (const Material& m :
-       {kit::maskMap(map), kit::maskVertexColor(map, 1),
-        kit::maskSlope(map, {0, 1, 0}), kit::maskHeight(map, 0, 1)})
-    EXPECT_TRUE(skia::shader(m, {}));
-}
-
 TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
   skia::install();
   kit::SurfaceParams red;
@@ -212,7 +259,7 @@ TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
   blue.baseColor = {0, 0, 1, 1};
   const auto shade = [&](float coverage) {
     const Material m =
-        over(kit::unlit(red), kit::unlit(blue), kit::maskConstant(coverage));
+        over(kit::unlit(red), kit::unlit(blue), maskConstant(coverage));
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1, 1));
     skia::fill(*s->getCanvas(), SkPath::Rect(SkRect::MakeWH(1, 1)), m);
     SkBitmap bm;
@@ -224,10 +271,124 @@ TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
   EXPECT_EQ(SkColorGetB(shade(1.0f)), 255u);
   // The stack is one material: the operands are its children.
   const Material stack = over(kit::unlit(red), kit::unlit(blue),
-                              kit::maskConstant(1.0f), Blend::Multiply);
+                              maskConstant(1.0f), Blend::Multiply);
   EXPECT_EQ(stackDepth(stack), 1);
-  EXPECT_EQ(stackDepth(over(stack, kit::unlit(red), kit::maskConstant(1.0f))),
-            2);
+  EXPECT_EQ(stackDepth(over(stack, kit::unlit(red), maskConstant(1.0f))), 2);
   EXPECT_EQ(*under(stack), kit::unlit(red));
   EXPECT_TRUE(skia::shader(stack, {}));
+}
+
+namespace {
+
+/** A recipe whose params are one number nothing reads: what a case that
+ *  is about slots or bodies rather than values stands a material on. */
+struct NoParams {
+  float unused = 0;
+};
+
+/** A stand-in Slang compiler, so `over()` builds the COMPOSED recipe.
+ *  Composition is asked for only where a compiler that needs it is
+ *  installed — a language handed one body per material cannot reach a
+ *  child material — and a stack built without one carries the plain
+ *  three-slot recipe, which never asks what the case below asks. */
+std::shared_ptr<Program> slangStandIn(std::shared_ptr<const Recipe> recipe,
+                                      Variant variant, std::string&) {
+  return std::make_shared<Program>(std::move(recipe), Target::Slang, variant);
+}
+
+/** The child slots the compiled SkSL program declares, which is one
+ *  image sampler each once a GPU backend has inlined it. */
+size_t declaredSlots(const Material& m) {
+  const Material::Resolved r = m.resolve(Target::SkSL, {});
+  const auto* program =
+      r.program ? r.program->as<skia::SkiaProgram>() : nullptr;
+  return program ? program->effect()->children().size() : 0u;
+}
+
+/** A one-texel texture under its own producer key, so @p key images are
+ *  @p key distinct leaves. */
+Texture texel(int key) {
+  return Texture::produce("material.kit.test.texel." + std::to_string(key), [] {
+    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1, 1));
+    s->getCanvas()->clear(SK_ColorWHITE);
+    return s->makeImageSnapshot();
+  });
+}
+
+}  // namespace
+
+TEST(Over, AStackAsksForItsOperandsSamplersAndNoMore) {
+  skia::install();
+  registerCompiler(Target::Slang, slangStandIn);
+
+  // An undressed surface fills all seven of its slots so no body ever
+  // evaluates an unbound child, and the SkSL body samples two of them.
+  // The five it never reads are not declared to that program and so cost
+  // it no sampler.
+  const Material unlit = kit::unlit();
+  EXPECT_EQ(unlit.children().size(), 7u);
+  EXPECT_EQ(declaredSlots(unlit), 2u);
+  EXPECT_EQ(skia::samplerCount(unlit), 2);
+
+  const Material stack =
+      over(kit::unlit(), kit::unlit(), maskConstant(0.5f), Blend::Mix);
+  // The composed recipe declares a slot per operand's own slot, because
+  // the language it was composed for reaches no child material.
+  EXPECT_GT(stack.recipe().children().size(), 3u);
+  // SkSL samples the operands themselves, so its program declares those
+  // three slots and none of the composed ones.
+  EXPECT_EQ(declaredSlots(stack), 3u);
+  EXPECT_EQ(skia::samplerCount(stack), 2 * skia::samplerCount(unlit));
+  EXPECT_LE(skia::samplerCount(stack), skia::kSamplerLimit);
+
+  // The deepest stack anything here builds: a surface under two.
+  Material deep = kit::surface();
+  for (int i = 0; i < 2; ++i)
+    deep = over(std::move(deep), kit::unlit(), maskConstant(0.5f));
+  EXPECT_EQ(stackDepth(deep), 2);
+  EXPECT_EQ(declaredSlots(deep), 3u);
+  EXPECT_EQ(skia::samplerCount(deep),
+            skia::samplerCount(kit::surface()) + 2 * skia::samplerCount(unlit));
+  EXPECT_LE(skia::samplerCount(deep), skia::kSamplerLimit);
+  EXPECT_TRUE(skia::shader(deep, {}));
+}
+
+TEST(Over, ATreeOverTheSamplerBudgetIsRefusedRatherThanDrawn) {
+  skia::install();
+  // A device rejects a fragment program past its sampler indices after
+  // Skia has accepted it, so the draw paints nothing and names nobody.
+  // Refused here, the material that asked is the one reported.
+  const int tooMany = skia::kSamplerLimit + 1;
+  Recipe recipe = Recipe::of<NoParams>("kit.test.overBudget");
+  std::string body = "half4 main(float2 p) { return ";
+  for (int i = 0; i < tooMany; ++i) {
+    const std::string slot = "uMap" + std::to_string(i);
+    recipe.child(slot);
+    body += (i ? " + " : "");
+    body += slot + ".eval(p)";
+  }
+  recipe.body(Target::SkSL, body + "; }");
+  Material m(std::make_shared<const Recipe>(std::move(recipe)), NoParams{});
+  for (int i = 0; i < tooMany; ++i)
+    m.child("uMap" + std::to_string(i), texel(i));
+  EXPECT_EQ(skia::samplerCount(m), tooMany);
+  EXPECT_FALSE(skia::shader(m, {}));
+}
+
+// ---------------------------------------------------------------------------
+// The grained surfaces and the bank that bounds a field of them.
+
+// ---- the embedded shader table --------------------------------------------
+
+TEST(KitShaderTable, EveryStockBodyCompiles) {
+  skia::install();
+  for (const Material& m : kit::everyRecipe()) {
+    if (!m.recipe().has(Target::SkSL)) continue;
+    EXPECT_TRUE(skia::shader(m, {.resolution = {64, 64}})) << m.recipe().name();
+  }
+}
+
+TEST(KitShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
+  sigil::test::expectShaderTableIsWholeDirectory(kit::shaderSources(),
+                                                 SIGIL_MATERIAL_KIT_SHADER_DIR);
 }

@@ -1,0 +1,30 @@
+float4 overOp(float4 dst, float4 srcStraight, float cov) {
+  float a = clamp(srcStraight.a * cov, 0.0, 1.0);
+  float4 src = float4(srcStraight.rgb * a, a);
+  return src + dst * (1.0 - a);
+}
+
+half4 main(float2 xy) {
+  float2 c = uResolution * 0.5;
+  float2 b = max(c - uPad, float2(0.5));
+  float2 p = xy - c;
+  float aa = 0.75;
+  float d = sd(p, b);
+  float4 acc = float4(0.0);
+  if (uShadow.a > 0.0) {
+    float ds = sd(p - float2(uShadowOffX, uShadowOffY), b);
+    float sb = max(uShadowBlur, aa);
+    acc = overOp(acc, uShadow, 1.0 - smoothstep(-sb, sb, ds));
+  }
+  if (uGlowR > 0.0) {
+    float g = exp(-max(d, 0.0) / uGlowR) *
+              max(0.0, 1.0 - max(d, 0.0) / max(uPad - 1.0, 1.0));
+    acc = overOp(acc, uGlow, g);
+  }
+  acc = overOp(acc, uFill, 1.0 - smoothstep(-aa, aa, d));
+  if (uBorderW > 0.0) {
+    float hw = uBorderW * 0.5;
+    acc = overOp(acc, uBorder, 1.0 - smoothstep(hw - aa, hw + aa, abs(d)));
+  }
+  return half4(acc);
+}

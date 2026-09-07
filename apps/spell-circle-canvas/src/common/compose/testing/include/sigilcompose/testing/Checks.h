@@ -14,11 +14,13 @@
  * separates them, because it asks each point how many pieces claim it.
  *
  * This header is for tests, sketches and verification passes, not for the
- * paint loop: coverage() costs O(samples × candidate pieces) and the
- * rasterizing helpers allocate a surface per call. It is the one header of
- * a separate target, SigilComposeTesting, so that a shipping paint loop
- * cannot reach it by accident and so that `report()` may speak to a feed
- * without the library itself depending on one. The namespace is `checks`
+ * paint loop: a check indexes the figure it is given and then samples it
+ * hundreds of thousands of times, and the rasterizing helpers allocate a
+ * surface per call. Its target, SigilComposeTesting, is a separate one —
+ * the checks here over the two indexes in Index.h beside them — so that a
+ * shipping paint loop cannot reach a point-sampled coverage scan by
+ * accident and so that `report()` may speak to a feed without the library
+ * itself depending on one. The namespace is `checks`
  * rather than the target's name because GoogleTest owns `::testing`, and
  * a test that brings `sigil::compose` in with a using-directive must be
  * able to spell both without qualifying either.
@@ -27,17 +29,22 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
+#include <include/core/SkContourMeasure.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
+#include <include/pathops/SkPathOps.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Feed.h>
+#include <sigilcompose/testing/Index.h>
+#include <sigilgeometry/path/Profile.h>
 #include <sigilmeasure/check/Check.h>
 
 #include <algorithm>
+#include <cmath>
 #include <span>
 #include <string>
 #include <string_view>
@@ -70,38 +77,45 @@ struct Coverage {
   }
 };
 
-/** Samples @p region on a `grid × grid` lattice and counts how many
- *  pieces contain each point.
+namespace detail {
+
+/** The lattice walk both `coverage()` overloads are: every sample of @p box
+ *  asked of every piece, with @p region — where there is one — deciding
+ *  which samples are inside the figure at all.
  *
- *  Points are taken at CELL CENTRES, deliberately off the lattice a
- *  tiling is likely to be built on — sampling exactly on shared edges
- *  makes every boundary look doubled and tells you nothing. For the same
- *  reason a piece boundary passing exactly through a sample is a coin
- *  flip; raise `grid` rather than trusting a single small run.
- *
- *  @p grid of 128 is 16384 samples, which resolves a defect about
- *  1/128 of the region across. */
-inline Coverage coverage(std::span<const SkPath> pieces, const SkRect& region,
-                         int grid = 128, size_t witnesses = 8) {
+ *  Each piece is indexed by lattice row once, so a sample is asked of the
+ *  segments that span its own row rather than of every verb of the path.
+ *  The index answers what the path answers, and hands any point it cannot
+ *  decide back to the path. */
+inline Coverage lattice(std::span<const SkPath> pieces, const SkRect& box,
+                        const SkPath* region, int grid, size_t witnesses) {
   Coverage out;
-  if (region.isEmpty() || grid < 2) return out;
+  if (box.isEmpty() || grid < 2) return out;
 
-  // Bounds first: SkPath::contains is not cheap, and most pieces are
-  // nowhere near most samples.
+  // Bounds first: a point outside a piece's bounds is outside the piece,
+  // and most pieces are nowhere near most samples.
   std::vector<SkRect> bounds;
+  std::vector<RowIndex> index;
   bounds.reserve(pieces.size());
-  for (const SkPath& p : pieces) bounds.push_back(p.getBounds());
+  index.reserve(pieces.size());
+  for (const SkPath& p : pieces) {
+    bounds.push_back(p.getBounds());
+    index.emplace_back(p, box, grid);
+  }
+  const RowIndex within = region ? RowIndex(*region, box, grid) : RowIndex();
 
-  const float dx = region.width() / (float)grid;
-  const float dy = region.height() / (float)grid;
+  const float dx = box.width() / (float)grid;
+  const float dy = box.height() / (float)grid;
   for (int gy = 0; gy < grid; ++gy) {
-    const float y = region.top() + ((float)gy + 0.5f) * dy;
+    const float y = box.top() + ((float)gy + 0.5f) * dy;
     for (int gx = 0; gx < grid; ++gx) {
-      const float x = region.left() + ((float)gx + 0.5f) * dx;
+      const float x = box.left() + ((float)gx + 0.5f) * dx;
+      if (region && !within.contains(x, y, gy))
+        continue;  // outside the region entirely — not a gap
       int hits = 0;
       for (size_t i = 0; i < pieces.size() && hits < 2; ++i) {
         if (!bounds[i].contains(x, y)) continue;
-        if (pieces[i].contains(x, y)) ++hits;
+        if (index[i].contains(x, y, gy)) ++hits;
       }
       ++out.samples;
       if (hits == 0) {
@@ -117,6 +131,24 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkRect& region,
   return out;
 }
 
+}  // namespace detail
+
+/** Samples @p region on a `grid × grid` lattice and counts how many
+ *  pieces contain each point.
+ *
+ *  Points are taken at CELL CENTRES, deliberately off the lattice a
+ *  tiling is likely to be built on — sampling exactly on shared edges
+ *  makes every boundary look doubled and tells you nothing. For the same
+ *  reason a piece boundary passing exactly through a sample is a coin
+ *  flip; raise `grid` rather than trusting a single small run.
+ *
+ *  @p grid of 128 is 16384 samples, which resolves a defect about
+ *  1/128 of the region across. */
+inline Coverage coverage(std::span<const SkPath> pieces, const SkRect& region,
+                         int grid = 128, size_t witnesses = 8) {
+  return detail::lattice(pieces, region, nullptr, grid, witnesses);
+}
+
 /** Coverage over an arbitrary REGION rather than a rect.
  *
  *  An annulus, a sector, a plate — anything whose outline is not a box —
@@ -129,38 +161,267 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkRect& region,
  *  exactly like a real defect. */
 inline Coverage coverage(std::span<const SkPath> pieces, const SkPath& region,
                          int grid = 128, size_t witnesses = 8) {
-  Coverage out;
-  const SkRect box = region.getBounds();
-  if (box.isEmpty() || grid < 2) return out;
+  return detail::lattice(pieces, region.getBounds(), &region, grid, witnesses);
+}
 
-  std::vector<SkRect> bounds;
-  bounds.reserve(pieces.size());
-  for (const SkPath& p : pieces) bounds.push_back(p.getBounds());
+// ---------------------------------------------------------------------------
+// Is a band the width it claims?
 
-  const float dx = box.width() / (float)grid;
-  const float dy = box.height() / (float)grid;
-  for (int gy = 0; gy < grid; ++gy) {
-    const float y = box.top() + ((float)gy + 0.5f) * dy;
-    for (int gx = 0; gx < grid; ++gx) {
-      const float x = box.left() + ((float)gx + 0.5f) * dx;
-      if (!region.contains(x, y))
-        continue;  // outside the region entirely — not a gap
-      int hits = 0;
-      for (size_t i = 0; i < pieces.size() && hits < 2; ++i) {
-        if (!bounds[i].contains(x, y)) continue;
-        if (pieces[i].contains(x, y)) ++hits;
+/** One station of a width audit: where on the spine, what the band
+ *  actually measured there, and what the law asked for. */
+struct WidthStation {
+  float along = 0;     ///< px of arc length from the spine's start
+  SkPoint at{0, 0};    ///< the spine point the chord was taken through
+  float measured = 0;  ///< the shortest chord of the band through it
+  float intended = 0;  ///< the profile's width there
+  float error() const { return std::abs(measured - intended); }
+};
+
+/** What a width-along audit found. A band that is the width it claims has
+ *  `maxError` under whatever the caller's ink can show. */
+struct WidthAlong {
+  int samples = 0;     ///< stations measured
+  float maxError = 0;  ///< the worst |measured − intended|, px
+  float rmsError = 0;  ///< the same error over the whole run
+  /** The worst stations, most wrong first, so a caller can print or draw
+   *  WHERE the band went wrong instead of only how far. */
+  std::vector<WidthStation> worst;
+
+  bool within(float tolerance) const {
+    return samples > 0 && maxError <= tolerance;
+  }
+};
+
+/** Measures the width of a drawn @p band along its @p spine and compares
+ *  it with what @p profile asked for.
+ *
+ *  **Why a min-chord raycast and not an area check.** Total ink is the
+ *  cheap test and it cannot see a corner defect at all: a band that loses
+ *  the inside of a bend and gains an outer chord loses and gains almost
+ *  the same area, so the two errors cancel and the area agrees to a
+ *  fraction of a percent while the picture is visibly torn. The width is
+ *  a LOCAL property and only a local measurement finds it. At each
+ *  station the shortest chord of the band through the spine point is
+ *  taken, over `directions` evenly spaced headings across a half turn —
+ *  shortest, because through any interior point the shortest chord is the
+ *  one across the band, whatever the spine's tangent is doing.
+ *
+ *  **The chord is of the FILLED REGION, and that is the whole of the
+ *  measurement.** A band is built as overlapping pieces — one
+ *  quadrilateral per sampled step, or one per leg — so every shared edge
+ *  between two of them is a line standing INSIDE the ink. A cast that
+ *  stopped at the first edge it met would stop at the first interior
+ *  seam and report a band one sampling step wide whatever the band
+ *  actually is. Resolving the union into an outline first does not fix
+ *  it either: an outline of a run of hundreds of overlapping steps walks
+ *  in and out along the interior seams, and those excursions enclose no
+ *  area but are edges all the same — a seven-hundred-step trunk resolves
+ *  to a boundary walking eight times its own perimeter, and the shortest
+ *  chord lands on one of the excursions.
+ *
+ *  So every crossing along the ray is kept and the ray is read the way
+ *  the rasterizer reads it: the crossings are sorted along the ray, the
+ *  fill rule is accumulated through them, and the chord is the run of
+ *  FILLED ray either side of the station. Two coincident edges of
+ *  opposite sense — which is exactly what a shared seam is — contribute
+ *  two crossings that cancel, so a seam is not a boundary and an
+ *  excursion enclosing no area is not one either. Nothing needs to be
+ *  unioned, and no outline is trusted.
+ *
+ *  A HALF-WIDTH MARGIN AT EACH END IS SKIPPED, and it has to be: within
+ *  about half a width of a cap the shortest chord through a point runs
+ *  diagonally out through the END of the band rather than across it, so
+ *  it reads well under the true width and swamps every real error. The
+ *  cap is the one place where the shortest chord through a point is not
+ *  the width.
+ *
+ *  A verification pass, not a paint loop, like `coverage` — but linear in
+ *  the band: the edges are filed into cells once and a ray reads the
+ *  cells along its own line, so a station's cost follows the ink under it
+ *  rather than the length of the whole band. */
+inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
+                             const geometry::path::Profile& profile,
+                             float step = 4.0f, int directions = 90,
+                             size_t witnesses = 8) {
+  WidthAlong out;
+  const float reach = profile.max() * 4.0f + 40.0f;
+  if (directions < 2 || !(step > 0) || band.isEmpty()) return out;
+
+  // Flatten by MEASURING rather than by reading verbs: a band built from
+  // a profile carries curves, and a line-only walk would see none of them
+  // and report a band it never touched as infinitely wide. The edges keep
+  // their DIRECTION, because the fill rule is read off the sense in which
+  // each one is crossed.
+  std::vector<SkPoint> edges;
+  {
+    SkContourMeasureIter it(band, false);
+    while (sk_sp<SkContourMeasure> contour = it.next()) {
+      const float len = contour->length();
+      SkPoint prev;
+      SkVector tan;
+      if (len <= 0 || !contour->getPosTan(0, &prev, &tan)) continue;
+      const SkPoint first = prev;
+      for (float d = 1.0f;; d += 1.0f) {
+        const float at = std::min(d, len);
+        SkPoint here;
+        if (!contour->getPosTan(at, &here, &tan)) break;
+        edges.push_back(prev);
+        edges.push_back(here);
+        prev = here;
+        if (at >= len) break;
       }
-      ++out.samples;
-      if (hits == 0) {
-        ++out.uncovered;
-        if (out.uncoveredAt.size() < witnesses)
-          out.uncoveredAt.push_back({x, y});
-      } else if (hits > 1) {
-        ++out.doubled;
-        if (out.doubledAt.size() < witnesses) out.doubledAt.push_back({x, y});
+      // CLOSED WHETHER IT SAYS SO OR NOT. A fill rule is only defined on
+      // closed contours, and a band's pieces are filled shapes; an open
+      // one left open would leak the winding along the whole ray.
+      if (prev != first) {
+        edges.push_back(prev);
+        edges.push_back(first);
       }
     }
   }
+  if (edges.empty()) return out;
+
+  const bool evenOdd = band.getFillType() == SkPathFillType::kEvenOdd ||
+                       band.getFillType() == SkPathFillType::kInverseEvenOdd;
+
+  // A cast reads the edges NEAR ITS OWN LINE. A band is thousands of unit
+  // edges and a station casts a ray in every heading, so asking each ray
+  // about every edge is the whole cost of the audit and almost all of it
+  // is edges the ray passes nowhere near.
+  const CellIndex cells(edges);
+  std::vector<uint32_t> near;
+  std::vector<std::pair<float, int>> crossings;
+
+  const auto filled = [&](int accumulated) {
+    return evenOdd ? (accumulated & 1) != 0 : accumulated != 0;
+  };
+
+  // Where the ray through `p` along `u` meets the named edges, sorted
+  // along the ray and read the way the rasterizer reads it: every
+  // crossing kept, with the sense it was crossed in.
+  const auto meet = [&](SkPoint p, SkVector u,
+                        std::span<const uint32_t> which) {
+    crossings.clear();
+    for (uint32_t e : which) {
+      const SkPoint a = edges[(size_t)e * 2], b = edges[(size_t)e * 2 + 1];
+      const SkVector d{b.x() - a.x(), b.y() - a.y()};
+      const float den = u.x() * d.y() - u.y() * d.x();
+      if (std::abs(den) < 1e-9f) continue;
+      const SkVector w{a.x() - p.x(), a.y() - p.y()};
+      const float t = (w.x() * d.y() - w.y() * d.x()) / den;
+      const float s = (w.x() * u.y() - w.y() * u.x()) / den;
+      // Half-open in s, so a vertex shared by two edges is one crossing
+      // and not two — the difference between a filled run and a run with
+      // a hole one crossing wide at every vertex.
+      if (s < 0.0f || s >= 1.0f) continue;
+      crossings.push_back({t, den > 0 ? 1 : -1});
+    }
+    std::sort(crossings.begin(), crossings.end(),
+              [](const auto& x, const auto& y) { return x.first < y.first; });
+    // COINCIDENT CROSSINGS ARE ONE CROSSING. A shared seam is two edges
+    // over the same line, and the ray meets both at the same point — but
+    // it meets them through two different flattenings, so the two
+    // parameters differ in the last bits. Left apart they bracket an
+    // interval a millionth of a pixel wide in which the fill rule reads
+    // empty, and the run of ink stops at the first seam it meets. Summed
+    // into one crossing they cancel, which is what a seam is: a line
+    // inside the ink with no boundary on it.
+    size_t kept = 0;
+    for (size_t i = 0; i < crossings.size();) {
+      size_t j = i;
+      int sum = 0;
+      while (j < crossings.size() &&
+             crossings[j].first - crossings[i].first < 1e-3f) {
+        sum += crossings[j].second;
+        ++j;
+      }
+      if (sum != 0) crossings[kept++] = {crossings[i].first, sum};
+      i = j;
+    }
+    crossings.resize(kept);
+  };
+
+  // The run of FILLED ray through `p` along `u`, both ways — the chord
+  // the eye would measure across the ink. Negative where this ray found
+  // no ink at the station at all, which is a different answer from a
+  // chord of zero and must not join the minimum.
+  const auto chord = [&](SkPoint p, SkVector u) {
+    cells.across(p, u, near);
+    meet(p, u, near);
+    if (crossings.empty()) return -1.0f;
+    // Far along the ray is outside, so the fill at any point is the sum
+    // of what is crossed BEYOND it — read from the far end back.
+    size_t at = crossings.size();  // the interval past the last crossing
+    int accumulated = 0;
+    // Walk back to the interval holding t = 0, keeping the fill state.
+    while (at > 0 && crossings[at - 1].first > 0.0f) {
+      accumulated += crossings[at - 1].second;
+      --at;
+    }
+    if (!filled(accumulated)) return -1.0f;  // no ink on this ray
+    // Forward to where the fill ends, and back the same way.
+    float hi = reach;
+    {
+      int forward = accumulated;
+      for (size_t i = at; i < crossings.size(); ++i) {
+        forward -= crossings[i].second;
+        if (!filled(forward)) {
+          hi = crossings[i].first;
+          break;
+        }
+      }
+    }
+    float lo = -reach;
+    {
+      int backward = accumulated;
+      for (size_t i = at; i-- > 0;) {
+        backward += crossings[i].second;
+        if (!filled(backward)) {
+          lo = crossings[i].first;
+          break;
+        }
+      }
+    }
+    return std::min(hi, reach) - std::max(lo, -reach);
+  };
+
+  double squared = 0;
+  SkContourMeasureIter it(spine, false);
+  while (sk_sp<SkContourMeasure> contour = it.next()) {
+    const float len = contour->length();
+    const float margin = profile.max() * 0.55f + step;
+    for (float d = std::max(step, margin); d < len - margin; d += step) {
+      SkPoint here;
+      SkVector tan;
+      if (!contour->getPosTan(d, &here, &tan)) continue;
+      // The shortest chord over the rays that FOUND ink. A station with
+      // no ink under it at all measures zero, which is what a hole in the
+      // band is; one ray missing where others hit is the fill rule read
+      // through a vertex and is not a hole.
+      float shortest = reach;
+      bool onInk = false;
+      for (int k = 0; k < directions; ++k) {
+        const float a = 3.14159265f * (float)k / (float)directions;
+        const float across = chord(here, {std::cos(a), std::sin(a)});
+        if (across < 0.0f) continue;
+        onInk = true;
+        shortest = std::min(shortest, across);
+      }
+      if (!onInk) shortest = 0.0f;
+      const WidthStation station{d, here, shortest,
+                                 profile.acrossAt(len > 0 ? d / len : 0, len)};
+      ++out.samples;
+      squared += (double)station.error() * station.error();
+      out.maxError = std::max(out.maxError, station.error());
+      out.worst.push_back(station);
+    }
+  }
+  if (out.samples > 0) out.rmsError = (float)std::sqrt(squared / out.samples);
+  std::sort(out.worst.begin(), out.worst.end(),
+            [](const WidthStation& a, const WidthStation& b) {
+              return a.error() > b.error();
+            });
+  if (out.worst.size() > witnesses) out.worst.resize(witnesses);
   return out;
 }
 
@@ -344,29 +605,79 @@ inline Raster rasterize(Element root, sigil::weave::FontContext& fonts,
 // ---------------------------------------------------------------------------
 // Saying whether it was right
 
-/** A claim and its verdict are `sigil::measure`'s: `Check`, the `check()`
- *  overloads and `failures()` are those, brought into this namespace so a
- *  test spells `test::check` beside `test::coverage`. What this header adds
- *  is the one thing the measure library cannot know — how a check is
- *  written into a feed. */
-using measure::Check;
-using measure::check;
-using measure::failures;
+/** A claim and its verdict are `sigil::measure`'s — `measure::Check`, the
+ *  `measure::check()` overloads and `measure::failures()`, from
+ *  `<sigilmeasure/check/Check.h>`, spelled under that name. What this
+ *  header adds is the one thing the measure library cannot know — how a
+ *  check is written into a feed. */
 
-/** Append a check to a feed of text rows, the row's style name chosen by the
- *  verdict.
+/** THE INKS A TABLE IS REPORTED IN: the style name a feed's row takes, by
+ *  the row's standing and its verdict, and the two column widths the
+ *  rows are set at.
  *
- *  The two names are parameters because the style set a plate reads is the
- *  caller's — nothing here knows what a given study calls its passing ink.
- *  The defaults are a convention; a set that registers neither name sets
- *  both rows in its base style, which is legible but says nothing. */
-inline void report(feed::TextRing& ring, const Check& c,
+ *  The names are parameters because the style set a plate reads is the
+ *  caller's — nothing here knows what a given study calls its passing
+ *  ink. The defaults are the convention the kit's tinted sets are usually
+ *  built with; a set that registers none of them sets every row in its
+ *  base style, which is legible but says nothing. */
+struct ReportStyles {
+  std::string pass = "pass";
+  std::string fail = "fail";
+  /** A finding that did not hold — the subject's failing, in its own ink
+   *  on a plate that tells the two apart. */
+  std::string finding = "fail";
+  std::string reading = "number";
+  std::string heading = "heading";
+  int labelWidth = 44;
+  int valueWidth = 8;
+};
+
+/** The style name @p c takes under @p styles. */
+inline const std::string& styleOf(const measure::Check& c,
+                                  const ReportStyles& styles) {
+  switch (c.standing) {
+    case measure::Standing::Heading:
+      return styles.heading;
+    case measure::Standing::Reading:
+      return styles.reading;
+    case measure::Standing::Finding:
+      return c.pass ? styles.pass : styles.finding;
+    case measure::Standing::Claim:
+      break;
+  }
+  return c.pass ? styles.pass : styles.fail;
+}
+
+/** Append a check to a feed of text rows, the row's style name chosen by
+ *  its standing and its verdict. The text is `Check::line()` at the
+ *  styles' widths, so what the plate shows is what the table would
+ *  print. */
+inline void report(feed::TextRing& ring, const measure::Check& c,
+                   const ReportStyles& styles) {
+  const std::string text = c.line(styles.labelWidth, styles.valueWidth);
+  ring.append({std::u8string(text.begin(), text.end()), styleOf(c, styles)});
+}
+
+/** The same, with only the two verdict inks named — a claim's pass and
+ *  fail — and every other standing in the default ink for it. */
+inline void report(feed::TextRing& ring, const measure::Check& c,
                    std::string passStyle = "pass",
                    std::string failStyle = "fail", int labelWidth = 44,
                    int valueWidth = 8) {
-  const std::string text = c.line(labelWidth, valueWidth);
-  ring.append({std::u8string(text.begin(), text.end()),
-               c.pass ? std::move(passStyle) : std::move(failStyle)});
+  report(ring, c,
+         ReportStyles{.pass = std::move(passStyle),
+                      .fail = std::move(failStyle),
+                      .labelWidth = labelWidth,
+                      .valueWidth = valueWidth});
+}
+
+/** A whole table into the feed, row by row, in the order it was made —
+ *  the verification block of a study, printed as it runs. The summary
+ *  line is not written: a plate is not where a run's exit status is read,
+ *  and `Table::failures()` is what a build asks. */
+inline void report(feed::TextRing& ring, const measure::Table& table,
+                   const ReportStyles& styles = {}) {
+  for (const measure::Check& c : table.rows) report(ring, c, styles);
 }
 
 }  // namespace sigil::compose::test

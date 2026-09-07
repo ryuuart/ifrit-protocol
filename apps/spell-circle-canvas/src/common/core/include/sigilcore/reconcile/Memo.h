@@ -31,7 +31,7 @@ struct Memo {
    *  inherited value could go stale: the snapshot rides in the memo's
    *  key and is re-established around the invoke. Empty — hence free —
    *  when nothing is bound. */
-  detail::EnvSnapshot env;
+  env::Snapshot env;
 };
 
 }  // namespace sigil::core

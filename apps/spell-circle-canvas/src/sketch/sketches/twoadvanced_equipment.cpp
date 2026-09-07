@@ -26,10 +26,13 @@
 //   · bottomframe.htm: ecom-bottombar.gif 790×11.
 //
 // Every bitmap above is fetched from the restoration host over
-// SigilLoader's https path (disk-cached after the first run); a missing
+// SigilIO's https path (disk-cached after the first run); a missing
 // fetch leaves a flat #7C252C or white stand-in so the sketch still
-// renders offline. The type is Verdana at HTML size=1 — 10 px — which
-// macOS ships.
+// renders offline. But a stand-in page is not the page this header
+// describes, so `available()` asks SigilIO's cache first and stands
+// the sketch down BY NAME on a machine that has never fetched, rather
+// than publishing a second picture under the same one. The type is
+// Verdana at HTML size=1 — 10 px — which macOS ships.
 //
 // The page is STATIC; its only behaviours are the JS rollovers and the
 // frame's scrollbar, so those are the only motion here: a simulated
@@ -49,21 +52,29 @@
 //                       laid out from them.
 //   the palette block   — the page's own attribute colours.
 
+#include <shared/TwoAdvanced.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Scrollbar.h>
 
 #include <algorithm>
 #include <array>
+#include <boost/container/flat_map.hpp>
 #include <cmath>
-#include <map>
 #include <string>
 
-#include "twoadvanced.h"
-
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace motion = sigil::motion;
+namespace path = sigil::geometry::path;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 // Absolute placement: this composition is pinned, so a node says
@@ -75,18 +86,18 @@ namespace teq {
 using namespace twoadvanced;
 
 // The page's entire palette, straight from its attributes.
-constexpr SkColor4f kMaroon = hex(0x7C252C);   // header rows, copy, links
-constexpr SkColor4f kRose = hex(0xF0E7E8);     // description cells
-constexpr SkColor4f kWhite = hex(0xFFFFFF);    // BODY bgColor
-constexpr SkColor4f kSbFace = hex(0xBBC0C9);   // SCROLLBAR-FACE-COLOR
-constexpr SkColor4f kSbTrack = hex(0xE4E6EA);  // SCROLLBAR-TRACK-COLOR
-constexpr SkColor4f kSbArrow = hex(0x666666);  // SCROLLBAR-ARROW-COLOR
+constexpr SkColor4f kMaroon = hexColor(0x7C252C);   // header rows, copy, links
+constexpr SkColor4f kRose = hexColor(0xF0E7E8);     // description cells
+constexpr SkColor4f kWhite = hexColor(0xFFFFFF);    // BODY bgColor
+constexpr SkColor4f kSbFace = hexColor(0xBBC0C9);   // SCROLLBAR-FACE-COLOR
+constexpr SkColor4f kSbTrack = hexColor(0xE4E6EA);  // SCROLLBAR-TRACK-COLOR
+constexpr SkColor4f kSbArrow = hexColor(0x666666);  // SCROLLBAR-ARROW-COLOR
 
 /** Verdana at HTML size=1: 10 px — the one register the whole store is
  *  set in, bold only in the product headers. Untracked, because an HTML
  *  table cell had no way to say otherwise. */
 inline sigil::weave::TextStyle verdana(SkColor4f color, bool bold = false) {
-  return tracked(verdanaFace(bold), 10, color);
+  return sigil::weave::kit::tracked(verdanaFace(bold), 10, color);
 }
 
 // Frameset geometry, in the page's own CSS pixels.
@@ -142,10 +153,36 @@ constexpr Product kProducts[7] = {
 // ===========================================================================
 
 struct TwoAdvancedEquipment : sketch::Sketch {
+  /** THE STORE'S BITMAPS ARE RUNTIME DATA, and a sketch over runtime data
+   *  a machine may not have says so rather than drawing a second picture
+   *  under the same name. Every GIF and JPEG on this frameset comes off
+   *  the restoration host through SigilIO's https path, which caches
+   *  on disk; `img()` keeps a flat maroon-or-white stand-in at every use
+   *  site, so a cold cache still renders — but it renders the STAND-IN
+   *  page, and the plate this sketch is judged on is then not the picture
+   *  the header describes.
+   *
+   *  Four files stand for the sixteen: the top bar and the logo carry the
+   *  masthead, the product-selection image is the whole left frame, and
+   *  the first thumbnail is the row art. A cache holding those was
+   *  written by a run that fetched them all. */
+  static bool available(std::string* why) {
+    return sketch::requireCached(
+        {"https://v4prophecy.2advanced.com/equipment/index_files/"
+         "topframe_files/ecom-topbar.gif",
+         "https://v4prophecy.2advanced.com/equipment/index_files/"
+         "topframe_files/ecom-logo.gif",
+         "https://v4prophecy.2advanced.com/equipment/index_files/"
+         "leftframe-productselection_files/ecom-productselectimage.jpg",
+         "https://v4prophecy.2advanced.com/equipment/index_files/"
+         "productselect_files/ecom-sm_phiberglassshirt.gif"},
+        why);
+  }
+
   using ImagePtr = std::shared_ptr<const sigil::image::ImageAsset>;
 
   // Keyed by file name under equipment/index_files/.
-  std::map<std::string, ImagePtr, std::less<>> art;
+  boost::container::flat_map<std::string, ImagePtr, std::less<>> art;
 
   /** THE ONLY THING THE CLOCK WRITES. Both of the page's behaviours are
    *  periodic shapes of the elapsed seconds, so each is declared as a
@@ -155,9 +192,6 @@ struct TwoAdvancedEquipment : sketch::Sketch {
 
   float contentOverflow = 0;
 
-  /** THE THUMB'S LENGTH, which is the frame's share of what it scrolls —
-   *  stated once, because the scrollbar draws it and the clock places it
-   *  and the two disagreeing is a thumb that slides off its own track. */
   /** THE PAGE'S SCROLL, as one envelope: flat at the top, a glide down
    *  over five seconds, a beat at the bottom, and four seconds back. The
    *  corners are positions in the cycle; the quadratic ease rounds both
@@ -171,10 +205,19 @@ struct TwoAdvancedEquipment : sketch::Sketch {
         .map(ch::easeInOutQuad);
   }
 
-  float thumbHeight() const {
+  /** WHAT THE CONTENT FRAME SCROLLS, which is what the thumb's length and
+   *  its travel are read off — stated once, because the scrollbar draws
+   *  the thumb and the clock places it and the two disagreeing is a thumb
+   *  that slides off its own track. The frame is the window, the whole
+   *  list is the window plus what hangs below it, and the track is the
+   *  bar less its two arrow buttons. A list that fits keeps a pixel of
+   *  overflow, so the thumb is short of the track by a hair rather than
+   *  filling it: this frame is one the page always scrolls. */
+  sketch::kit::Scrolled scrolled() const {
     using namespace teq;
-    return (kContentH - 2 * kSbW) * kContentH /
-           (kContentH + std::max(contentOverflow, 1.0f));
+    return {.view = kContentH,
+            .content = kContentH + std::max(contentOverflow, 1.0f),
+            .track = kContentH - 2 * kSbW};
   }
 
   /** The bitmap at its own HTML display size, or a flat stand-in. An
@@ -211,7 +254,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
       // The dwell: one second lit out of every eight, the four starting
       // 1.2 s apart, so the pointer walks the row.
       const float on0 = teq::kHoverFirst + (float)i * teq::kHoverStep;
-      f.child(at(box().fill(alpha(kWhite, 0.4f)), x, 82, w, 11)
+      f.child(at(box().fill(mskia::withAlpha(kWhite, 0.4f)), x, 82, w, 11)
                   .opacity(motion::bind(&clock)
                                .source(on0, on0 + teq::kHoverCycle)
                                .square(teq::kHoverDwell / teq::kHoverCycle)));
@@ -260,7 +303,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
         box()
             .row()
             .child(box().width(13))
-            .child(img(p.thumb, 69, 52, hex(0xD8D0D0)))
+            .child(img(p.thumb, 69, 52, hexColor(0xD8D0D0)))
             .child(box().width(3))
             .child(
                 box()
@@ -308,33 +351,29 @@ struct TwoAdvancedEquipment : sketch::Sketch {
           .width(Dim(kSbW))
           .height(Dim(kSbW))
           .fill(kSbFace)
-          .foreground(shapes::onEdges(
-              shapes::Edge::Top | shapes::Edge::Left,
-              stroke(1, Fill::color(kWhite), PathFormat::Align::Inner)))
-          .foreground(shapes::onEdges(
-              shapes::Edge::Bottom | shapes::Edge::Right,
-              stroke(1, Fill::color(hex(0x000000)), PathFormat::Align::Inner)))
+          .foreground(
+              onEdges(path::Edge::Top | path::Edge::Left,
+                      stroke(1, Fill::color(kWhite), PathFormat::Align::Inner)))
+          .foreground(onEdges(path::Edge::Bottom | path::Edge::Right,
+                              stroke(1, Fill::color(hexColor(0x000000)),
+                                     PathFormat::Align::Inner)))
           .justify(Justify::Center)
           .alignItems(Align::Center)
           .child(
               t(up ? "\xe2\x96\xb4" : "\xe2\x96\xbe", verdana(kSbArrow, true)));
     };
-    const float trackH = kContentH - 2 * kSbW;
-    const float thumbH = thumbHeight();
+    const sketch::kit::Scrolled frame = scrolled();
     Element scrollbar =
-        box()
-            .width(Dim(kSbW))
-            .column()
-            .child(sbButton(true))
-            .child(box().grow(1).fill(kSbTrack).child(
-                at(box().fill(kSbFace).foreground(
-                       shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
-                                       stroke(1, Fill::color(kWhite),
-                                              PathFormat::Align::Inner))),
-                   0, 0, kSbW, thumbH)
-                    .translateY(
-                        scrollEnvelope().target(0.0f, trackH - thumbH))))
-            .child(sbButton(false));
+        sketch::kit::scrollbar(
+            {.leading = sbButton(true),
+             .trailing = sbButton(false),
+             .thumb = box().fill(kSbFace).foreground(onEdges(
+                 path::Edge::Top | path::Edge::Left,
+                 stroke(1, Fill::color(kWhite), PathFormat::Align::Inner))),
+             .scrolled = frame,
+             .position = scrollEnvelope().target(0.0f, frame.thumb().travel),
+             .track = Fill::color(kSbTrack)})
+            .width(Dim(kSbW));
 
     return at(box().fill(kWhite), kLeftW, kTopH, kPageW - kLeftW, kContentH)
         .clip()
@@ -368,18 +407,18 @@ struct TwoAdvancedEquipment : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     using namespace teq;
-    ctx.canvas(kPageW * 2, kPageH * 2);
     // The plate at exactly 2x. One page pixel is two canvas px and four
     // device px, so the 10 px Verdana and every GIF edge land whole.
-    ctx.oversample(2);
-    ctx.background(kWhite);
     // Before the auto-scroll leaves the top and while the first button
     // shows its rollover lift.
-    ctx.captureAt(2.5);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kPageW * 2, kPageH * 2),
+                             .captureAt = 2.5,
+                             .background = kWhite,
+                             .oversample = 2});
 
     // --- every bitmap the frameset names, from the restoration host ------
     {
-      sigil::loader::Hub& hub = ctx.assets.hub();
+      sigil::io::Hub& hub = ctx.assets.hub();
       const std::string base =
           "https://v4prophecy.2advanced.com/equipment/index_files/";
       auto fetch = [&](const char* dir, const char* name) {
@@ -406,8 +445,8 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     // --- the clock ---------------------------------------------------
     // Both behaviours are shapes of it, declared where they are drawn, so
     // this is the whole per-frame side of the page.
-    ctx.ticker.add([this, tt = 0.0](double dt) mutable {
-      tt += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double tt = ticker.elapsed();
       clock = (float)tt;
       return true;
     });

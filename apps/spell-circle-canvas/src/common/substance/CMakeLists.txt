@@ -1,80 +1,62 @@
 # SigilSubstance — .sbsar procedural materials rendered to SkImages
-# through the Adobe Substance 3D SDK's framework and CPU engine. Only
-# configured when the SDK was found (see the top-level CMakeLists.txt);
-# nothing here is vendored from the SDK.
-#
+# through the Adobe Substance 3D SDK's framework and CPU engine. The SDK
+# is a licensed download that is never vendored and has no vcpkg port, so
+# the find module beside this file is what locates an installed copy.
+# Without one the whole library is left out of the build.
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
+find_package(Substance)
+if(NOT Substance_FOUND)
+  message(STATUS "Substance SDK not found -- SigilSubstance is left out")
+  return()
+endif()
+# The CPU engine ("blend": results in system memory), matched to the host:
+# NEON on Apple Silicon, SSE2 on x86-64. Headless, no GPU context to own,
+# and its outputs land as bytes a consumer uploads like any other image.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+  set(SUBSTANCE_FRAMEWORK_ENGINE_VARIANT neon_blend)
+else()
+  set(SUBSTANCE_FRAMEWORK_ENGINE_VARIANT sse2_blend)
+endif()
+include("${SUBSTANCE_SDK_DIR}/substance-config.cmake")
+
 # One static target over two subjects: graph/ (a graph described,
 # changed, cooked and read) and package/ (the archive that owns its
 # graphs and the engine renderer they share). They are one feature
 # because neither exists without the other — a Graph is only ever
 # constructed by its Package, and a Package is nothing but its graphs —
-# so a test of one is a test of both. Every public header lives under
-# include/sigilsubstance/<subject>/, and <sigilsubstance/Substance.h> is
-# the umbrella over them.
+# so a test of one is a test of both. <sigilsubstance/Substance.h> is
+# the umbrella over them. The package subject fills a Graph through
+# graph/GraphImpl.h, an internal header spelled by its subject directory,
+# which is why this directory is on the private include path.
+sigil_library_root(SigilSubstance
+  BRIEF "Adobe Substance 3D archives rendered to channel-tagged texture sets")
 
-set(SIGIL_SUBSTANCE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
-
-add_library(SigilSubstance STATIC
-  graph/Describe.cpp
-  graph/Graph.cpp
-  graph/GraphImpl.h
-  graph/Inputs.cpp
-  graph/Numeric.h
-  graph/Render.cpp
-  package/Package.cpp
-  ${SIGIL_SUBSTANCE_INCLUDE_DIR}/sigilsubstance/Substance.h
-  ${SIGIL_SUBSTANCE_INCLUDE_DIR}/sigilsubstance/graph/Graph.h
-  ${SIGIL_SUBSTANCE_INCLUDE_DIR}/sigilsubstance/graph/Output.h
-  ${SIGIL_SUBSTANCE_INCLUDE_DIR}/sigilsubstance/graph/Parameter.h
-  ${SIGIL_SUBSTANCE_INCLUDE_DIR}/sigilsubstance/package/Package.h
-)
-
-target_compile_features(SigilSubstance PUBLIC cxx_std_20)
-target_include_directories(SigilSubstance
-  PUBLIC ${SIGIL_SUBSTANCE_INCLUDE_DIR}
-  # The package subject fills a Graph through graph/GraphImpl.h, an
-  # internal header spelled by its subject directory.
-  PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-
-# workaround: the Substance engine dylib's install name is @rpath-relative.
-#
-# The framework is a static archive over one engine dylib; the dylib's
-# install name is @rpath-relative, so every executable linking this
-# library carries the SDK's bin/release in its runtime search path.
-target_link_libraries(SigilSubstance
-  PUBLIC unofficial::skia::skia
-  PRIVATE Substance::Framework
-)
-get_filename_component(_substance_bin "${SUBSTANCE_SDK_DIR}/bin/release" ABSOLUTE)
-set_property(TARGET SigilSubstance PROPERTY INTERFACE_LINK_OPTIONS
-  "LINKER:-rpath,${_substance_bin}")
+# The framework is a static archive over one engine dylib whose install
+# name is @rpath-relative; the dylib is linked by its full path, which is
+# what puts the SDK's bin/release in every linking executable's runtime
+# search path.
+find_package(boost_container CONFIG REQUIRED)
+find_package(unofficial-skia CONFIG REQUIRED)
+sigil_library(SigilSubstance
+  SOURCES graph/Describe.cpp graph/Graph.cpp graph/GraphImpl.h
+          graph/Inputs.cpp graph/Numeric.h graph/Render.cpp
+          package/Package.cpp
+  HEADERS Substance.h graph/Graph.h graph/Output.h graph/Parameter.h
+          package/Package.h
+  INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
+  PUBLIC unofficial::skia::skia Boost::container
+  PRIVATE SigilIOSource Substance::Framework)
 
 # The test and the benchmark render the SDK's own sample archives, found
 # through this definition; both skip, rather than fail, when the samples
 # are not where the SDK was configured from.
-add_executable(substance_test test/SubstanceTest.cpp)
-target_link_libraries(substance_test PRIVATE SigilSubstance GTest::gtest_main)
-target_compile_definitions(substance_test PRIVATE
-  SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
-add_test(NAME substance_test COMMAND substance_test)
+sigil_test(substance_test
+  SOURCES test/SubstanceTest.cpp
+  LIBRARIES SigilSubstance
+  LABELS substance
+  DEFINITIONS SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
 
-# Google Benchmark (use a Release build). Not a test: it builds through the
-# `benches` target and runs through scripts/bench_ledger.py.
-add_executable(substance_bench bench/SubstanceBench.cpp)
-target_link_libraries(substance_bench PRIVATE SigilSubstance benchmark::benchmark)
-target_compile_definitions(substance_bench PRIVATE
-  SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
-add_dependencies(benches substance_bench)
-
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
-sigil_add_docs(
-  NAME SigilSubstance
-  BRIEF "Adobe Substance 3D archives rendered to channel-tagged texture sets"
-  INPUT
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  STRIP
-        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+sigil_bench(substance_bench
+  SOURCES bench/SubstanceBench.cpp
+  LIBRARIES SigilSubstance
+  DEFINITIONS SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")

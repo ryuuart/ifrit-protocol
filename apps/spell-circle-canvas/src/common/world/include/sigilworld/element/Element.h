@@ -11,8 +11,10 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
+#include <sigilworld/element/Environment.h>
 #include <sigilworld/element/Geometry.h>
 #include <sigilworld/light/Light.h>
 
@@ -32,20 +34,10 @@ namespace sigil::world {
 
 struct ElementNode;
 
-// The rest of the currency, under the names a tree spells it — the same
-// entities their own libraries define, reached by a shorter word.
-/** The geometry library's camera value, unchanged — a viewpoint node
- *  carries one of these and not a world-side copy of it. */
-using Camera = geometry::mesh::camera::Camera;
-/** The geometry library's 3D spline, unchanged — what a node rides when
- *  it is placed along a curve. */
-using Spline3 = geometry::mesh::curve::Spline3;
-/** The emitter value, unchanged — `point`, `spot` and `sun` build one. */
-using Light = light::Light;
-/** The stock emitters, reached by the word a tree is written in. */
-using light::point;
-using light::spot;
-using light::sun;
+/** WHICH SIDES OF A BODY'S TRIANGLES ARE DRAWN. Hidden is the default for
+ *  closed solids; Visible keeps the reverse side of a sheet or panel when
+ *  the viewpoint passes behind it. */
+enum class Backface { Hidden, Visible };
 
 /** ONE NODE OF A 3D SCENE, as a value.
  *
@@ -111,7 +103,8 @@ class Element {
    *  It replaces the translation lanes and the axis turn, and composes
    *  with the rest: the three rotation lanes, the scales and the origin
    *  still apply, inside the frame the curve put the node in. */
-  Element& along(Spline3 spline, motion::Animatable<float> distance);
+  Element& along(geometry::mesh::curve::Spline3 spline,
+                 motion::Animatable<float> distance);
 
   // ---- what it is made of ----
   /** The surface. */
@@ -121,15 +114,21 @@ class Element {
 
   // ---- geometry ----
   /** A formed mesh. */
-  Element& mesh(Mesh m);
+  Element& mesh(geometry::mesh::Mesh m);
+  /** Whether reverse-wound faces are culled or drawn. A flat panel that
+   *  must survive an orbit uses `backface(Backface::Visible)`; a closed
+   *  solid normally keeps the default `Hidden`. */
+  Element& backface(Backface facing);
   /** Points, with `stamp()` standing at each of them. */
-  Element& cloud(Cloud c);
+  Element& cloud(geometry::mesh::Cloud c);
   /** A point chain and the runtime that cooks it, with `stamp()`
    *  standing at each cooked point. */
-  Element& chain(Chain c, PopRuntime runtime = PopRuntime::cpu());
+  Element& chain(geometry::mesh::pop::Chain c,
+                 geometry::mesh::pop::Runtime runtime =
+                     geometry::mesh::pop::Runtime::cpu());
   /** The body standing at every point of a `cloud()` or a `chain()`. On
    *  a node whose slot holds neither, it is ignored. */
-  Element& stamp(Mesh s);
+  Element& stamp(geometry::mesh::Mesh s);
   /** A value that builds its own mesh. */
   Element& generate(Generator g);
   /** A WINDOW INTO A LOOP: the leading edge and the length trailing it,
@@ -150,27 +149,69 @@ class Element {
   /** An emitter standing where this node stands: the light's position
    *  and direction are carried by the node's transform, so `at()` and
    *  `along()` move it. */
-  Element& light(Light l);
+  Element& light(light::Light l);
   /** THE EMITTER'S STRENGTH, as a lane: it scales what `light()`
    *  declared, so binding it dims and lifts a lamp without describing a
    *  new one. A node with no emitter ignores it. */
   Element& intensity(motion::Animatable<float> v);
   /** …and its COLOUR, one lane per channel, on the same terms. The
-   *  emitter's own colour stands on every channel the tree leaves out. */
+   *  emitter's own colour stands on every channel the tree leaves out.
+   *  On a node carrying an environment map these are its tint. */
   Element& emission(motion::Animatable<float> red,
                     motion::Animatable<float> green,
                     motion::Animatable<float> blue);
 
+  /** THE ENVIRONMENT MAP THIS SET STANDS IN: the panorama every lit body
+   *  samples by its normal for what falls on it from all around, and by
+   *  its reflected view vector for what it mirrors. The node's transform
+   *  ORIENTS it, the way a dome light is placed in every authoring tool,
+   *  so `rotateY()` turns the sky.
+   *
+   *  A frame holds ONE. A second one described is a warning naming both
+   *  keys, and the first in tree order is the one that shades — a silent
+   *  no-op would be a set lit by whichever node happened to come last. */
+  Element& environmentMap(Environment e);
+  /** How much of the map reaches a surface as the light falling on it
+   *  from everywhere, and how much of it a surface mirrors. Pushing one
+   *  and not the other is a look, not a physical claim. */
+  Element& diffuse(motion::Animatable<float> v);
+  Element& specular(motion::Animatable<float> v);
+  /** Added to every surface's roughness before it picks a prefiltered
+   *  level, so a whole set softens without a material being edited. */
+  Element& roughnessBias(motion::Animatable<float> v);
+  /** Between the map and the second one: 0 is all of the first, 1 all of
+   *  the second. Both are sampled and mixed, which is what lets a sky
+   *  change while the frame is running. */
+  Element& crossfade(motion::Animatable<float> v);
+  /** THE EXPOSURE THE SET IS READ AT: what every radiance is multiplied
+   *  by before the tone curve compresses it onto what a display can
+   *  hold. Doubling it is one stop. It is the one dial here that means
+   *  something in a set carrying no panorama at all, because a lit sum
+   *  ends at the curve either way. */
+  Element& exposure(motion::Animatable<float> v);
+  /** THE SKY SHOWN behind the set, at this strength — zero draws none of
+   *  it, so the dial is also the switch — blurred by @p blur in the same
+   *  roughness units a reflection reads. */
+  Element& backdrop(motion::Animatable<float> intensity);
+  Element& backdropBlur(motion::Animatable<float> v);
+
   /** A viewpoint standing where this node stands, on the same terms as
    *  `light()`: the camera's eye and target are carried by the node's
    *  transform. */
-  Element& camera(Camera c);
+  Element& camera(geometry::mesh::camera::Camera c);
 
   // ---- caching and transitions ----
   /** What the author asked of this node's cache. */
   Element& cache(core::Cache c);
   /** The node's default transition, for the plain constants on it. */
   Element& transition(const motion::Transition& t);
+  /** CASCADES THE ENTRANCES of this node's children as they mount, on the
+   *  schedule SigilMotion speaks — an even ladder, a fixed total divided
+   *  across however many children there are, a cue table, an origin and a
+   *  distribution curve. The delay compounds down the subtree, so a
+   *  grandchild enters after its parent did. Only children that actually
+   *  mount are delayed. */
+  Element& staggerChildren(motion::Spread spread);
 
   // ---- integer-literal sugar --------------------------------------------
   // `rotateY(-8)` — an int does not convert into the Animatable variant on

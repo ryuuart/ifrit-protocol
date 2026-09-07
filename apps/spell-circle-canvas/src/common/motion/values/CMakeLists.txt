@@ -1,35 +1,38 @@
-# The animation values: Transition and the ease:: house curves, the
+# The animation values: Transition, the
 # animate()/from()/to()/through() keyframe builders, ramp(), phase(),
-# quantizeTime() and Animatable<T>, the property slot that holds any one
-# of them or a shaped binding (hence it links the bind leaf). Header
-# only; <sigilmotion/Animation.h> rides here as the umbrella over this
-# feature and bind.
-add_library(SigilMotionValues INTERFACE
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/Animation.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Animatable.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Keyframes.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Time.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Transition.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Values.h
-)
-target_compile_features(SigilMotionValues INTERFACE cxx_std_20)
-target_include_directories(SigilMotionValues INTERFACE
-  ${SIGIL_MOTION_INCLUDE_DIR})
-target_link_libraries(SigilMotionValues INTERFACE
-  SigilMotionBind choreograph::choreograph)
+# quantizeTime(), the Oscillator and the keyed Sequence — the two values
+# that are functions of a time and of nothing else, so they read the
+# same in a describe, in a bake and in a test — and Animatable<T>, the
+# property slot that holds any one
+# of them or a shaped binding (hence it links the bind leaf) — the held
+# motion an animatable runs as, which is why this feature links the
+# clock: a value that is MOVING is moving on a ticker — and the lanes a
+# host retargets those motions through, which name a host's storage
+# enumeration and nothing else about it.
+#
+# It links SigilCoreComparable for the field pin the comparators over
+# these values sit under, and SigilCoreCompute for the shaped curve a
+# keyed step's segment is drawn with. Those are edges OUT of this
+# library, and both targets are header-only leaves over the standard
+# library (Boost.PFR aside): no kernel, no device, nothing that draws.
+# <sigilmotion/Animation.h> rides here as the umbrella over this feature
+# and bind.
+find_package(choreograph CONFIG REQUIRED)
+sigil_library(SigilMotionValues
+  SOURCES Animated.cpp Transition.cpp
+  HEADERS ../Animation.h Animatable.h Animated.h Keyframes.h Lanes.h
+          Oscillator.h Sequence.h Spring.h Time.h Transition.h Values.h
+  PUBLIC SigilMotionBind SigilMotionClock SigilCoreComparable
+         SigilCoreCompute choreograph::choreograph)
 
 # Links the values and the clock that drives them, and nothing that
 # draws, so a link edge that pulled a drawing library in would show up
 # as a build failure here.
-add_executable(motion_values_test test/ValuesTest.cpp)
-target_link_libraries(motion_values_test PRIVATE
-  SigilMotionValues SigilMotionClock GTest::gtest_main)
-add_test(NAME motion_values_test COMMAND motion_values_test)
+sigil_test(motion_test
+  SOURCES test/ValuesTest.cpp test/AnimatedTest.cpp test/LanesTest.cpp
+          test/OscillatorTest.cpp test/SequenceTest.cpp test/SpringTest.cpp
+  LIBRARIES SigilMotionValues SigilMotionClock)
 
-# Google Benchmark (use a Release build), linking only what it measures.
-# Not a test: it builds through the `benches` target and runs through
-# scripts/bench_ledger.py.
-add_executable(motion_values_bench bench/ValuesBench.cpp)
-target_link_libraries(motion_values_bench PRIVATE SigilMotionValues
-  benchmark::benchmark)
-add_dependencies(benches motion_values_bench)
+sigil_bench(motion_bench
+  SOURCES bench/ValuesBench.cpp
+  LIBRARIES SigilMotionValues)

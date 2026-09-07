@@ -47,15 +47,15 @@ void countWords(benchmark::State& state, int64_t words) {
 void BM_ShapeWord_Cold(benchmark::State& state) {
   const Corpus words = corpus(state.range(0) != 0);
   state.SetLabel(state.range(0) ? "cjk" : "latin");
-  const ShapingStyle style = style16().shaping;
-  const sk_sp<SkTypeface> typeface = fontContext().defaultTypeface();
+  const ShapingStyle style = basicStyle().shaping;
+  const sk_sp<SkTypeface> typeface = sigil::test::fonts().defaultTypeface();
   for ([[maybe_unused]] auto iteration : state) {
     state.PauseTiming();
-    fontContext().purgeShapeCache();
+    sigil::test::fonts().purgeShapeCache();
     state.ResumeTiming();
     for (const std::u16string& word : words.words) {
-      ShapedWordRef shaped =
-          shapeWord(fontContext(), style, typeface, word, words.script, false);
+      ShapedWordRef shaped = shapeWord(sigil::test::fonts(), style, typeface,
+                                       word, words.script, false);
       benchmark::DoNotOptimize(shaped.get());
     }
   }
@@ -68,14 +68,15 @@ BENCHMARK(BM_ShapeWord_Cold)->Arg(0)->Arg(1)->Unit(benchmark::kMicrosecond);
 void BM_ShapeWord_Warm(benchmark::State& state) {
   const Corpus words = corpus(state.range(0) != 0);
   state.SetLabel(state.range(0) ? "cjk" : "latin");
-  const ShapingStyle style = style16().shaping;
-  const sk_sp<SkTypeface> typeface = fontContext().defaultTypeface();
+  const ShapingStyle style = basicStyle().shaping;
+  const sk_sp<SkTypeface> typeface = sigil::test::fonts().defaultTypeface();
   for (const std::u16string& word : words.words)
-    (void)shapeWord(fontContext(), style, typeface, word, words.script, false);
+    (void)shapeWord(sigil::test::fonts(), style, typeface, word, words.script,
+                    false);
   for ([[maybe_unused]] auto iteration : state) {
     for (const std::u16string& word : words.words) {
-      ShapedWordRef shaped =
-          shapeWord(fontContext(), style, typeface, word, words.script, false);
+      ShapedWordRef shaped = shapeWord(sigil::test::fonts(), style, typeface,
+                                       word, words.script, false);
       benchmark::DoNotOptimize(shaped.get());
     }
   }
@@ -84,5 +85,3 @@ void BM_ShapeWord_Warm(benchmark::State& state) {
 BENCHMARK(BM_ShapeWord_Warm)->Arg(0)->Arg(1)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

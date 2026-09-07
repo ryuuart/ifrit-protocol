@@ -80,11 +80,15 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Instruments.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <string>
@@ -93,6 +97,9 @@
 
 namespace sketch = sigil::sketch;
 
+namespace motion = sigil::motion;
+namespace weave = sigil::weave;
+
 using namespace sigil::compose;
 
 namespace {
@@ -100,13 +107,13 @@ namespace {
 constexpr float kW = 1080.0f;
 constexpr float kH = 620.0f;
 
-constexpr SkColor4f kPaper = hex(0x101014);
-constexpr SkColor4f kInk = hex(0xF6F2E9);
-constexpr SkColor4f kLabel = hex(0x848B99);
-constexpr SkColor4f kFaint = hex(0x2E3440);
-constexpr SkColor4f kX = hex(0xFF7A59);  // scaleX / skewX
-constexpr SkColor4f kY = hex(0x5AC8F5);  // scaleY
-constexpr SkColor4f kRest = hex(0x4A5262);
+constexpr SkColor4f kPaper = hexColor(0x101014);
+constexpr SkColor4f kInk = hexColor(0xF6F2E9);
+constexpr SkColor4f kLabel = hexColor(0x848B99);
+constexpr SkColor4f kFaint = hexColor(0x2E3440);
+constexpr SkColor4f kX = hexColor(0xFF7A59);  // scaleX / skewX
+constexpr SkColor4f kY = hexColor(0x5AC8F5);  // scaleY
+constexpr SkColor4f kRest = hexColor(0x4A5262);
 
 constexpr float kWordSize = 68.0f;
 constexpr float kEachMs = 62.0f;
@@ -176,7 +183,7 @@ Table jelloTable() {
  *  value the glyphs are drawn from. */
 GlyphMod at(const TextEffect& effect, float t) {
   GlyphInfo glyph;
-  Rng rng(1);
+  sigil::core::noise::Mix64Stream rng(1);
   return effect(glyph, t, rng);
 }
 
@@ -288,7 +295,7 @@ struct ElasticType : sketch::Sketch {
   [[nodiscard]] sigil::weave::TextStyle small(SkColor4f color,
                                               float size = 11.5f,
                                               float track = 2.4f) const {
-    return type(
+    return weave::textStyle(
         {.face = faceLabel, .size = size, .color = color, .track = track});
   }
 
@@ -299,8 +306,8 @@ struct ElasticType : sketch::Sketch {
    *  and its marks are one body and squash together. */
   [[nodiscard]] Element row(const char* word, const char* caption,
                             TextEffect effect) {
-    const sigil::weave::TextStyle set =
-        type({.face = face, .size = kWordSize, .color = kInk, .track = 3.0f});
+    const sigil::weave::TextStyle set = weave::textStyle(
+        {.face = face, .size = kWordSize, .color = kInk, .track = 3.0f});
 
     // THE GHOST: the same word, same style, no track — the rest position
     // the deviation is measured against. A track's deviation is per glyph
@@ -352,9 +359,9 @@ struct ElasticType : sketch::Sketch {
         .column()
         .padding(48, 42)
         .gap(26)
-        .fill(Material::linear(
-            {0, 0}, {0, kH},
-            {{0.0f, kPaper}, {0.55f, hex(0x15151B)}, {1.0f, kPaper}}))
+        .fill(linearGradient({0, 0}, {0, kH},
+                             {kPaper, hexColor(0x15151B), kPaper},
+                             {0.0f, 0.55f, 1.0f}))
         .child(box()
                    .row()
                    .alignItems(Align::End)
@@ -410,18 +417,18 @@ struct ElasticType : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kPaper);
     // Early in the pass: the head of each word is past its overshoot and
     // settling while the tail is still at rest, so one frame shows the whole
     // table laid out along the line.
-    ctx.captureAt(1.15);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = 1.15,
+                             .background = kPaper});
 
-    face = pickFace({"Avenir Next", "Futura", "Helvetica Neue"}, 700);
-    faceLabel = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
+    face = weave::ports::face({"Avenir Next", "Futura", "Helvetica Neue"}, 700);
+    faceLabel = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
 
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       pass = motion::phase(t, kLoop);
       return true;
     });

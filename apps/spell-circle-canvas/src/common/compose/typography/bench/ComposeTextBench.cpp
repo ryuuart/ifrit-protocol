@@ -6,7 +6,8 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkM44.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Typography.h>
 
 #include <cmath>
 #include <memory>
@@ -104,7 +105,7 @@ static void BM_Draw_KineticText(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_KineticText)->Arg(14)->Arg(56)->Unit(benchmark::kMicrosecond);
 
-/** The same looping reveal set DOWN COLUMNS, beating over `unit::Line` —
+/** The same looping reveal set DOWN COLUMNS, beating over `weave::Unit::Line` —
  *  which in a vertical passage is a column. Read against
  *  BM_Draw_KineticText: the deviation is applied in the frame the layout
  *  placed each glyph in, and a column places every glyph as its own
@@ -124,7 +125,8 @@ static void BM_Draw_KineticColumns(benchmark::State& state) {
             .height(1100)
             .writingMode(sigil::weave::WritingMode::kVerticalRL)
             .fx({.effect = fx::rise(24),
-                 .stagger = stagger(unit::Line, {.eachMs = 120}),
+                 .stagger = {.eachMs = 120},
+                 .unit = sigil::weave::Unit::Line,
                  .progress = &progress}));
   host.composer.render(block);
   host.draw();
@@ -141,7 +143,7 @@ BENCHMARK(BM_Draw_KineticColumns)
     ->Arg(4)
     ->Unit(benchmark::kMicrosecond);
 
-#ifdef COMPOSE_BENCH_GRAPHITE
+#ifdef SIGIL_BENCH_GPU
 
 // ---- Dense static text on Graphite ---------------------------------------
 // Automatic texture promotion is off on the GPU path, so a dense static text
@@ -311,6 +313,4 @@ static void BM_Draw_DenseText_Persp_Perspective_Graphite(
 BENCHMARK(BM_Draw_DenseText_Persp_Perspective_Graphite)
     ->Unit(benchmark::kMillisecond);
 
-#endif  // COMPOSE_BENCH_GRAPHITE
-
-BENCHMARK_MAIN();
+#endif  // SIGIL_BENCH_GPU

@@ -4,41 +4,53 @@
 // context shares, which is the ordering the asynchronous submit relies on.
 // Then the same wrap without naming an API: a GpuDevice over those very
 // objects, a texture it created, the surface built from the handle, and a
-// fence signalled by the submit. The Vulkan arms take that second path on
-// a device of their own and skip when the machine has no Vulkan runtime.
+// fence signalled by the submit. The same three arms on a Vulkan device
+// live beside the feature that creates one — a Vulkan device is only ever
+// adopted, never made here.
 
 #import <Metal/Metal.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkYUVAInfo.h>
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilskia/graphite/TextureImage.h>
 
+#include <array>
 #include <cstring>
+#include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
 
-using sigil::skia::Backend;
-using sigil::skia::FenceHandle;
-using sigil::skia::FenceValue;
-using sigil::skia::FenceWait;
-using sigil::skia::GpuDevice;
+#include "GraphiteReadback.h"
+
+using sigil::core::hardware::Backend;
+using sigil::core::hardware::FenceHandle;
+using sigil::core::hardware::FenceValue;
+using sigil::core::hardware::FenceWait;
+using sigil::core::hardware::GpuDevice;
+using sigil::core::hardware::kFenceInitialValue;
+using sigil::core::hardware::NativeDevice;
+using sigil::core::hardware::TextureDesc;
+using sigil::core::hardware::TextureFormat;
+using sigil::core::hardware::TextureHandle;
 using sigil::skia::GraphiteContext;
-using sigil::skia::kFenceInitialValue;
-using sigil::skia::NativeDevice;
 using sigil::skia::OffscreenSurface;
-using sigil::skia::TextureDesc;
-using sigil::skia::TextureFormat;
-using sigil::skia::TextureHandle;
+using sigil::skia::test::readGraphiteSurface;
 
 namespace {
 
@@ -58,6 +70,15 @@ GraphiteContext *graphite() {
   return ctx.get();
 }
 
+/** A machine with no Metal device cannot answer anything this file
+ *  asks, so a case there reports that it was not run rather than
+ *  reporting that the library is broken. The binary carries the `gpu`
+ *  label for the same reason. */
+#define SKIP_WITHOUT_METAL()                                      \
+  do {                                                            \
+    if (graphite() == nullptr) GTEST_SKIP() << "no Metal device"; \
+  } while (0)
+
 /** A GpuDevice over the very device and queue the context above was
  *  stood up on, so a texture it names is drawn into by that context and
  *  ordered by that one queue. Adopted, so it frees neither. */
@@ -72,25 +93,6 @@ GpuDevice *adoptedDevice() {
   return d.get();
 }
 
-/** A device of this library's own on the Vulkan backend, or null with the
- *  reason — every Vulkan arm skips on that. */
-GpuDevice *vulkanDevice(std::string *why) {
-  static std::string error;
-  static std::unique_ptr<GpuDevice> d = GpuDevice::createOwned(Backend::Vulkan, &error);
-  if (why) *why = error;
-  return d.get();
-}
-
-/** Graphite on that Vulkan device; null when this Skia carries no Vulkan
- *  backend. */
-GraphiteContext *vulkanGraphite() {
-  static std::unique_ptr<GraphiteContext> ctx = [] {
-    GpuDevice *dev = vulkanDevice(nullptr);
-    return dev ? GraphiteContext::create(*dev) : nullptr;
-  }();
-  return ctx.get();
-}
-
 /** An 8x8 BGRA render target the device owns, readable by the CPU so the
  *  Metal arms can check the bytes without a copy. */
 TextureDesc smallTarget() {
@@ -99,6 +101,32 @@ TextureDesc smallTarget() {
   desc.height = 8;
   desc.format = TextureFormat::BGRA8Unorm;
   desc.cpuAccessible = true;
+  return desc;
+}
+
+/** An 8x8 BGRA texture no shader may sample: a render target and nothing
+ *  else, which is what a wrap refuses after it has taken the release on. */
+MTLTextureDescriptor *sampleFreeDescriptor() {
+  MTLTextureDescriptor *desc =
+      [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                         width:8
+                                                        height:8
+                                                     mipmapped:NO];
+  desc.usage = MTLTextureUsageRenderTarget;
+  desc.storageMode = MTLStorageModePrivate;
+  return desc;
+}
+
+/** The chroma plane beside it: half the size, two channels, and equally
+ *  unsampleable. */
+MTLTextureDescriptor *sampleFreeChromaDescriptor() {
+  MTLTextureDescriptor *desc =
+      [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRG8Unorm
+                                                         width:4
+                                                        height:4
+                                                     mipmapped:NO];
+  desc.usage = MTLTextureUsageRenderTarget;
+  desc.storageMode = MTLStorageModePrivate;
   return desc;
 }
 
@@ -119,48 +147,11 @@ std::vector<uint8_t> readMetalBytes(GpuDevice &dev, TextureHandle handle, int si
   return bytes;
 }
 
-/** Reads a Graphite surface back to CPU pixels: snap, insert, async read,
- *  then a synchronous submit and a spin until the callback lands. */
-SkBitmap readback(GraphiteContext &ctx, SkSurface *surface) {
-  SkBitmap bm;
-  const SkImageInfo info = surface->imageInfo();
-  if (auto recording = ctx.recorder()->snap()) {
-    skgpu::graphite::InsertRecordingInfo insert;
-    insert.fRecording = recording.get();
-    ctx.context()->insertRecording(insert);
-  }
-  struct Read {
-    std::unique_ptr<const SkImage::AsyncReadResult> result;
-    bool called = false;
-  } read;
-  ctx.context()->asyncRescaleAndReadPixels(
-      surface, info, SkIRect::MakeWH(info.width(), info.height()), SkImage::RescaleGamma::kSrc,
-      SkImage::RescaleMode::kNearest,
-      [](SkImage::ReadPixelsContext c, std::unique_ptr<const SkImage::AsyncReadResult> r) {
-        auto *out = static_cast<Read *>(c);
-        out->result = std::move(r);
-        out->called = true;
-      },
-      &read);
-  skgpu::graphite::SubmitInfo submitInfo;
-  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
-  ctx.context()->submit(submitInfo);
-  for (int spin = 0; spin < 5000 && !read.called; ++spin) ctx.context()->checkAsyncWorkCompletion();
-  if (!read.result) return bm;
-  bm.allocPixels(info);
-  const auto *src = static_cast<const uint8_t *>(read.result->data(0));
-  const size_t srcRowBytes = read.result->rowBytes(0);
-  for (int y = 0; y < info.height(); ++y)
-    std::memcpy(bm.pixmap().writable_addr(0, y), src + (size_t)y * srcRowBytes,
-                std::min(srcRowBytes, bm.rowBytes()));
-  return bm;
-}
-
 }  // namespace
 
 TEST(SigilSkiaGraphite, CreatesOnTheSystemDevice) {
+  SKIP_WITHOUT_METAL();
   GraphiteContext *ctx = graphite();
-  ASSERT_NE(ctx, nullptr) << "no Metal device";
   EXPECT_NE(ctx->context(), nullptr);
   EXPECT_NE(ctx->recorder(), nullptr);
 }
@@ -171,21 +162,21 @@ TEST(SigilSkiaGraphite, NullHandlesMakeNoContext) {
 }
 
 TEST(SigilSkiaGraphite, RenderTargetClearsAndReadsBack) {
+  SKIP_WITHOUT_METAL();
   GraphiteContext *ctx = graphite();
-  ASSERT_NE(ctx, nullptr);
   const SkImageInfo info = SkImageInfo::MakeN32Premul(8, 8);
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(ctx->recorder(), info);
   ASSERT_NE(surface, nullptr);
   surface->getCanvas()->clear(SkColorSetARGB(255, 0, 255, 0));
-  const SkBitmap pixels = readback(*ctx, surface.get());
+  const SkBitmap pixels = readGraphiteSurface(*ctx, surface.get());
   ASSERT_FALSE(pixels.empty());
   EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 255, 0));
   EXPECT_EQ(pixels.getColor(7, 7), SkColorSetARGB(255, 0, 255, 0));
 }
 
 TEST(SigilSkiaGraphite, WrappedTextureIsVisibleToTheSharedQueue) {
+  SKIP_WITHOUT_METAL();
   GraphiteContext *ctx = graphite();
-  ASSERT_NE(ctx, nullptr);
   const int size = 8;
   MTLTextureDescriptor *desc =
       [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
@@ -223,17 +214,162 @@ TEST(SigilSkiaGraphite, WrappedTextureIsVisibleToTheSharedQueue) {
   EXPECT_EQ(bytes[last + 2], 255);
 }
 
-TEST(SigilSkiaGraphite, NullTextureWrapsNothing) {
+// THE OTHER DIRECTION of the same texture: painted through the surface
+// wrap, then read back as an image and drawn onto a second surface. The
+// pixels arrive without a copy, and the image outlives every reference
+// the test still holds to the texture, because the wrap retains it.
+TEST(SigilSkiaGraphite, WrapsATexturePaintedOnItAsAnImage) {
+  SKIP_WITHOUT_METAL();
   GraphiteContext *ctx = graphite();
-  ASSERT_NE(ctx, nullptr);
+  const int size = 8;
+  MTLTextureDescriptor *desc =
+      [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                         width:size
+                                                        height:size
+                                                     mipmapped:NO];
+  desc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
+  desc.storageMode = MTLStorageModeShared;
+  id<MTLTexture> texture = [device() newTextureWithDescriptor:desc];
+  ASSERT_NE(texture, nil);
+  {
+    OffscreenSurface painted(*ctx, (__bridge void *)texture, size, size);
+    ASSERT_NE(painted.canvas(), nullptr);
+    painted.canvas()->clear(SkColorSetARGB(255, 0, 0, 255));
+    painted.submit();
+  }
+
+  sk_sp<SkImage> image =
+      sigil::skia::wrapImage(*ctx->recorder(), (__bridge void *)texture, size, size);
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->width(), size);
+  EXPECT_EQ(image->height(), size);
+
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(size, size);
+  sk_sp<SkSurface> target = SkSurfaces::RenderTarget(ctx->recorder(), info);
+  ASSERT_NE(target, nullptr);
+  target->getCanvas()->drawImage(image, 0, 0);
+  const SkBitmap pixels = readGraphiteSurface(*ctx, target.get());
+  ASSERT_FALSE(pixels.empty());
+  EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 0, 255));
+  EXPECT_EQ(pixels.getColor(size - 1, size - 1), SkColorSetARGB(255, 0, 0, 255));
+}
+
+TEST(SigilSkiaGraphite, WrapsNoImageWithoutATexture) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), nullptr, 8, 8), nullptr);
+  EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), (__bridge void *)device(), 0, 8), nullptr);
+}
+
+// A REFUSED WRAP OWES THE TEXTURE NOTHING: the wrap binds its release to
+// the retained texture before it validates anything, and runs it itself
+// on the way out, so a texture a refusal touched is left exactly as
+// retained as it was handed over. The guard retain keeps a second release
+// from freeing the texture under the case.
+TEST(SigilSkiaGraphite, ARefusedWrapLeavesTheRetainCountWhereItWas) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  id<MTLTexture> texture = [device() newTextureWithDescriptor:sampleFreeDescriptor()];
+  ASSERT_NE(texture, nil);
+  CFTypeRef guard = CFRetain((__bridge CFTypeRef)texture);
+  const CFIndex before = CFGetRetainCount(guard);
+
+  // Not sampleable, so the wrap refuses after it has taken the release on.
+  EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), (__bridge void *)texture, 8, 8), nullptr);
+
+  EXPECT_EQ(CFGetRetainCount(guard), before);
+  CFRelease(guard);
+}
+
+// THE PLANAR WRAP HANDS ITS PLANES OVER EXACTLY ONCE, whichever way it
+// ends: a refusal it makes itself, a refusal the wrap makes, and a wrap
+// that succeeds and holds them until the image is gone.
+TEST(SigilSkiaGraphite, PlanarWrapReleasesThePlanesOnce) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  const auto count = [](void *context) { ++*static_cast<int *>(context); };
+
+  int released = 0;
+  const SkYUVAInfo info({8, 8}, SkYUVAInfo::PlaneConfig::kY_UV, SkYUVAInfo::Subsampling::k420,
+                        kRec709_Limited_SkYUVColorSpace);
+  EXPECT_EQ(sigil::skia::wrapPlanarImage(*ctx->recorder(), {}, info, nullptr, count, &released),
+            nullptr);
+  EXPECT_EQ(released, 1);
+
+  int missing = 0;
+  const std::array<sigil::skia::TexturePlane, 2> noTexture{
+      sigil::skia::TexturePlane{nullptr, 8, 8}, sigil::skia::TexturePlane{nullptr, 4, 4}};
+  EXPECT_EQ(
+      sigil::skia::wrapPlanarImage(*ctx->recorder(), noTexture, info, nullptr, count, &missing),
+      nullptr);
+  EXPECT_EQ(missing, 1);
+
+  // Planes of the right shape that no shader may sample: the refusal is
+  // the wrap's own, and it runs the release on its way out.
+  int unsampleable = 0;
+  id<MTLTexture> luma = [device() newTextureWithDescriptor:sampleFreeDescriptor()];
+  id<MTLTexture> chroma = [device() newTextureWithDescriptor:sampleFreeChromaDescriptor()];
+  ASSERT_NE(luma, nil);
+  ASSERT_NE(chroma, nil);
+  const std::array<sigil::skia::TexturePlane, 2> planes{
+      sigil::skia::TexturePlane{(__bridge void *)luma, 8, 8},
+      sigil::skia::TexturePlane{(__bridge void *)chroma, 4, 4}};
+  EXPECT_EQ(
+      sigil::skia::wrapPlanarImage(*ctx->recorder(), planes, info, nullptr, count, &unsampleable),
+      nullptr);
+  EXPECT_EQ(unsampleable, 1);
+}
+
+TEST(SigilSkiaGraphite, WrapsPlanesAsOneImage) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  const auto count = [](void *context) { ++*static_cast<int *>(context); };
+
+  MTLTextureDescriptor *lumaDesc =
+      [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR8Unorm
+                                                         width:8
+                                                        height:8
+                                                     mipmapped:NO];
+  lumaDesc.usage = MTLTextureUsageShaderRead;
+  lumaDesc.storageMode = MTLStorageModeShared;
+  MTLTextureDescriptor *chromaDesc =
+      [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRG8Unorm
+                                                         width:4
+                                                        height:4
+                                                     mipmapped:NO];
+  chromaDesc.usage = MTLTextureUsageShaderRead;
+  chromaDesc.storageMode = MTLStorageModeShared;
+  id<MTLTexture> luma = [device() newTextureWithDescriptor:lumaDesc];
+  id<MTLTexture> chroma = [device() newTextureWithDescriptor:chromaDesc];
+  ASSERT_NE(luma, nil);
+  ASSERT_NE(chroma, nil);
+
+  const SkYUVAInfo info({8, 8}, SkYUVAInfo::PlaneConfig::kY_UV, SkYUVAInfo::Subsampling::k420,
+                        kRec709_Limited_SkYUVColorSpace);
+  const std::array<sigil::skia::TexturePlane, 2> planes{
+      sigil::skia::TexturePlane{(__bridge void *)luma, 8, 8},
+      sigil::skia::TexturePlane{(__bridge void *)chroma, 4, 4}};
+  int released = 0;
+  sk_sp<SkImage> image =
+      sigil::skia::wrapPlanarImage(*ctx->recorder(), planes, info, nullptr, count, &released);
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->width(), 8);
+  EXPECT_EQ(image->height(), 8);
+  // The planes are the image's for as long as it lives.
+  EXPECT_EQ(released, 0);
+}
+
+TEST(SigilSkiaGraphite, NullTextureWrapsNothing) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
   OffscreenSurface surface(*ctx, nullptr, 8, 8);
   EXPECT_EQ(surface.canvas(), nullptr);
   EXPECT_EQ(surface.surface(), nullptr);
 }
 
 TEST(SigilSkiaGraphite, WrapsATextureNamedByHandle) {
+  SKIP_WITHOUT_METAL();
   GraphiteContext *ctx = graphite();
-  ASSERT_NE(ctx, nullptr) << "no Metal device";
   GpuDevice *dev = adoptedDevice();
   ASSERT_NE(dev, nullptr);
 
@@ -255,8 +391,8 @@ TEST(SigilSkiaGraphite, WrapsATextureNamedByHandle) {
 }
 
 TEST(SigilSkiaGraphite, SubmitSignalsAFence) {
+  SKIP_WITHOUT_METAL();
   GraphiteContext *ctx = graphite();
-  ASSERT_NE(ctx, nullptr) << "no Metal device";
   GpuDevice *dev = adoptedDevice();
   ASSERT_NE(dev, nullptr);
 
@@ -281,8 +417,8 @@ TEST(SigilSkiaGraphite, SubmitSignalsAFence) {
 }
 
 TEST(SigilSkiaGraphite, StaleHandleWrapsNothing) {
+  SKIP_WITHOUT_METAL();
   GraphiteContext *ctx = graphite();
-  ASSERT_NE(ctx, nullptr) << "no Metal device";
   GpuDevice *dev = adoptedDevice();
   ASSERT_NE(dev, nullptr);
 
@@ -295,48 +431,102 @@ TEST(SigilSkiaGraphite, StaleHandleWrapsNothing) {
   EXPECT_EQ(surface.submit(*dev, FenceHandle{}), kFenceInitialValue);
 }
 
-TEST(SigilSkiaGraphiteVulkan, WrapsATextureNamedByHandle) {
-  std::string why;
-  GpuDevice *dev = vulkanDevice(&why);
-  if (!dev) GTEST_SKIP() << "no Vulkan device: " << why;
-  GraphiteContext *ctx = vulkanGraphite();
-  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
+TEST(SigilSkiaGraphite, AThreadOfItsOwnRecordsOnARecorderOfItsOwn) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  std::unique_ptr<skgpu::graphite::Recorder> recorder = ctx->makeRecorder();
+  ASSERT_NE(recorder, nullptr);
 
-  TextureDesc desc = smallTarget();
-  // Host-visible memory is not what a render target wants on this path;
-  // the pixels come back through Skia rather than a map.
-  desc.cpuAccessible = false;
-  const TextureHandle handle = dev->createTexture(desc);
-  ASSERT_TRUE(dev->isValid(handle));
-  OffscreenSurface surface(*ctx, *dev, handle);
-  ASSERT_NE(surface.canvas(), nullptr);
-  surface.canvas()->clear(SkColorSetARGB(255, 0, 255, 0));
+  // The whole contract in one pass: a second thread draws on a recorder
+  // of its own and inserts what it snaps under the context's lock, which
+  // is the only thing keeping the two threads off the context at once.
+  sk_sp<SkSurface> surface;
+  bool inserted = false;
+  std::thread([&] {
+    surface = SkSurfaces::RenderTarget(recorder.get(), SkImageInfo::MakeN32Premul(8, 8));
+    if (!surface) return;
+    surface->getCanvas()->clear(SkColorSetARGB(255, 0, 0, 255));
+    std::unique_ptr<skgpu::graphite::Recording> recording = recorder->snap();
+    if (!recording) return;
+    const std::unique_lock<std::mutex> lock = ctx->lockContext();
+    skgpu::graphite::InsertRecordingInfo insert;
+    insert.fRecording = recording.get();
+    inserted = bool(ctx->context()->insertRecording(insert));
+    ctx->context()->submit(skgpu::graphite::SubmitInfo(skgpu::graphite::SyncToCpu::kYes));
+  }).join();
 
-  const SkBitmap pixels = readback(*ctx, surface.surface());
+  ASSERT_NE(surface, nullptr);
+  EXPECT_TRUE(inserted);
+  const SkBitmap pixels = readGraphiteSurface(*ctx, surface.get());
   ASSERT_FALSE(pixels.empty());
-  EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 255, 0));
-  EXPECT_EQ(pixels.getColor(7, 7), SkColorSetARGB(255, 0, 255, 0));
+  EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 0, 255));
+}
+
+TEST(SigilSkiaGraphite, AMovedFromSurfaceHoldsNothingAndSubmitsNothing) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  GpuDevice *dev = adoptedDevice();
+  ASSERT_NE(dev, nullptr);
+
+  const TextureHandle handle = dev->createTexture(smallTarget());
+  ASSERT_TRUE(dev->isValid(handle));
+  OffscreenSurface source(*ctx, *dev, handle);
+  ASSERT_NE(source.canvas(), nullptr);
+
+  OffscreenSurface moved(std::move(source));
+  EXPECT_NE(moved.canvas(), nullptr);
+  EXPECT_EQ(source.canvas(), nullptr);
+  EXPECT_EQ(source.surface(), nullptr);
+
+  // The wrap that was moved out of submits nothing: it holds no context,
+  // so there is no recording of anyone else's work for it to insert and
+  // no submission for a fence to stand behind.
+  const FenceHandle fence = dev->createFence();
+  EXPECT_EQ(source.submit(*dev, fence), kFenceInitialValue);
+  EXPECT_EQ(dev->completedValue(fence), kFenceInitialValue);
+  source.submit();
+
+  // The wrap that was moved into is the whole surface, and draws.
+  moved.canvas()->clear(SkColorSetARGB(255, 0, 255, 0));
+  const FenceValue value = moved.submit(*dev, fence);
+  EXPECT_GT(value, kFenceInitialValue);
+  ASSERT_EQ(dev->waitCpu(fence, value), FenceWait::Reached);
+  const std::vector<uint8_t> bytes = readMetalBytes(*dev, handle, 8);
+  EXPECT_EQ(bytes[1], 255);
+
+  dev->destroyFence(fence);
   dev->destroy(handle);
 }
 
-TEST(SigilSkiaGraphiteVulkan, SubmitSignalsAFence) {
-  std::string why;
-  GpuDevice *dev = vulkanDevice(&why);
-  if (!dev) GTEST_SKIP() << "no Vulkan device: " << why;
-  GraphiteContext *ctx = vulkanGraphite();
-  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
+TEST(SigilSkiaGraphite, StandsOnADeviceAdoptedFromTheHost) {
+  // The factory that reads a device rather than raw handles: the one
+  // entry point a host holding a hardware device needs, and the same one
+  // the Vulkan arms take.
+  GpuDevice *dev = adoptedDevice();
+  ASSERT_NE(dev, nullptr) << "no Metal device";
+  SKIP_WITHOUT_METAL();
+  std::unique_ptr<GraphiteContext> ctx = GraphiteContext::create(*dev);
+  ASSERT_NE(ctx, nullptr);
+  EXPECT_EQ(dev->native().mtlDevice, (__bridge void *)device());
 
-  TextureDesc desc = smallTarget();
-  desc.cpuAccessible = false;
-  const TextureHandle handle = dev->createTexture(desc);
-  const FenceHandle fence = dev->createFence();
+  const TextureHandle handle = dev->createTexture(smallTarget());
+  ASSERT_TRUE(dev->isValid(handle));
   OffscreenSurface surface(*ctx, *dev, handle);
   ASSERT_NE(surface.canvas(), nullptr);
   surface.canvas()->clear(SkColorSetARGB(255, 0, 0, 255));
 
-  const FenceValue value = surface.submit(*dev, fence);
-  EXPECT_GT(value, kFenceInitialValue);
-  EXPECT_EQ(dev->waitCpu(fence, value), FenceWait::Reached);
+  // The fence is on the same queue as Graphite's submission, so reaching
+  // it means the clear has landed.
+  const FenceHandle fence = dev->createFence();
+  const FenceValue done = surface.submit(*dev, fence);
+  ASSERT_EQ(dev->waitCpu(fence, done), FenceWait::Reached);
+
+  // BGRA, opaque blue.
+  const std::vector<uint8_t> bytes = readMetalBytes(*dev, handle, 8);
+  EXPECT_EQ(bytes[0], 255);
+  EXPECT_EQ(bytes[1], 0);
+  EXPECT_EQ(bytes[2], 0);
+  EXPECT_EQ(bytes[3], 255);
 
   dev->destroyFence(fence);
   dev->destroy(handle);

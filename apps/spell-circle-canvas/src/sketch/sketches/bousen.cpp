@@ -23,7 +23,7 @@
 //     vertical alternates and kana forms, so what those tags do on the
 //     installed face is on the page rather than in a comment.
 //
-// The cascade is on a strip of its own, beating over unit::Line — one
+// The cascade is on a strip of its own, beating over weave::Unit::Line — one
 // COLUMN a beat — because a band and a track do not share a node: a track
 // draws its own glyphs in batched buckets and a bucket carries glyphs
 // alone. The plate is the settled page.
@@ -37,16 +37,24 @@
 //   kAka / kAi           — the two band inks: vermilion for the right-hand
 //                          sideline, indigo for the left-hand one.
 
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <shared/VerticalSpecimen.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/style/Features.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/kit/Features.h>
+#include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/query/Selector.h>
 
-#include "VerticalSpecimen.h"
+#include <utility>
 
 namespace sketch = sigil::sketch;
 
+namespace motion = sigil::motion;
+
 using namespace sigil::compose;
+namespace weave = sigil::weave;
 using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
@@ -72,9 +80,9 @@ constexpr float kBlockRight = 60;
  *  installed face answers is what the plate shows. */
 inline sigil::weave::TextStyle columnFitted(float size, SkColor4f color) {
   sigil::weave::TextStyle s = body(size, color);
-  s.shaping.fontFeatures = {sigil::weave::Features::verticalAlternates,
-                            sigil::weave::Features::proportionalVerticalMetrics,
-                            sigil::weave::Features::verticalKana};
+  s.shaping.fontFeatures = {sigil::weave::features::verticalAlternates,
+                            sigil::weave::features::proportionalVerticalMetrics,
+                            sigil::weave::features::verticalKana};
   return s;
 }
 
@@ -106,15 +114,20 @@ inline sigil::weave::PaintStyle banded(SkColor4f ink,
   return p;
 }
 
+/** The strip's entrance, and the ms its master must span to run at those
+ *  numbers: one beat a COLUMN, and the strip sets four of them. */
+const sigil::motion::Spread kColumnEntrance{.eachMs = 210, .durationMs = 520};
+const float kColumnEntranceSpan = kColumnEntrance.spanMs(4);
+
 }  // namespace bousen
 
 struct Bousen final : sketch::Sketch {
   /// After the columns have assembled: the plate is the finished page.
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background({1, 1, 1, 1});
-    ctx.captureAt(2.6);
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 2.6,
+                             .background = SkColor4f{1, 1, 1, 1}});
     ctx.composer.render(describe());
   }
 
@@ -153,11 +166,11 @@ struct Bousen final : sketch::Sketch {
     namespace bs = bousen;
     namespace ch = choreograph;
 
-    Material ground = Material::linear(
-        {0, 0}, {0, bs::kH}, {{0.0f, bs::kKinariLift}, {1.0f, bs::kKinari}});
+    Fill ground =
+        linearGradient({0, 0}, {0, bs::kH}, {bs::kKinariLift, bs::kKinari});
 
     auto passage =
-        rich(bs::body(bs::kBodySize, bs::kSumi))
+        weave::rich(bs::body(bs::kBodySize, bs::kSumi))
             .add(u8"縦組みの本文にも、")
             .add(u8"傍線")
             .add(u8"を引くことができる。線は列の右に立ち、")
@@ -179,19 +192,19 @@ struct Bousen final : sketch::Sketch {
                 // The band the plate is named for: down the RIGHT of the
                 // column, the length of the phrase it dresses.
                 .spanPaint(
-                    sel::text(u8"傍線"),
+                    weave::sel::text(u8"傍線"),
                     bs::banded(bs::kSumi,
                                sigil::weave::Decoration::Kind::kUnderline,
                                bs::kAka, 2.5f))
                 // Its opposite, down the left.
-                .spanPaint(sel::text(u8"約物"),
+                .spanPaint(weave::sel::text(u8"約物"),
                            bs::banded(bs::kSumi,
                                       sigil::weave::Decoration::Kind::kOverline,
                                       bs::kAi, 2.0f))
                 // A highlight covers the column PITCH — there is no cap
                 // band across a column to hang one on.
                 .spanPaint(
-                    sel::text(u8"小書きの仮名"),
+                    weave::sel::text(u8"小書きの仮名"),
                     bs::banded(bs::kSumi,
                                sigil::weave::Decoration::Kind::kHighlight,
                                {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f}, 0))
@@ -199,7 +212,7 @@ struct Bousen final : sketch::Sketch {
                 // the rect it anchors to is the union of that phrase's
                 // advance boxes, and in a column those stack downward, so
                 // the note it carries runs down the page beside them.
-                .mark(sel::text(u8"列は右から左へ"),
+                .mark(weave::sel::text(u8"列は右から左へ"),
                       box()
                           .key("callout")
                           .left(Dim(-168.0f))
@@ -220,7 +233,7 @@ struct Bousen final : sketch::Sketch {
                                      .width(Dim(168.0f))
                                      .height(Dim(1.0f))
                                      .fill(Fill::color(bs::kAka)))
-                          .child(text(rich(bs::label(10, bs::kUsu))
+                          .child(text(weave::rich(bs::label(10, bs::kUsu))
                                           .add(toU8("mark() "),
                                                bs::label(11, bs::kAka, 1))
                                           .add(toU8("\xe2\x80\x94 anchored to "
@@ -274,18 +287,19 @@ struct Bousen final : sketch::Sketch {
                 .height(Dim(300.0f))
                 .writingMode(sigil::weave::WritingMode::kVerticalRL)
                 .spanPaint(
-                    sel::text(u8"右から左へ"),
+                    weave::sel::text(u8"右から左へ"),
                     bs::banded(bs::kAi,
                                sigil::weave::Decoration::Kind::kUnderline,
                                bs::kAka, 2.0f))
                 .fx({.effect = fx::rise(18),
-                     .stagger = {.eachMs = 210,
-                                 .durationMs = 520,
-                                 .over = unit::Line},
-                     .progress = animate(from(0.0f).to(1.0f),
-                                         {1400ms, &ch::easeNone, 220ms})}))
+                     .stagger = bs::kColumnEntrance,
+                     .unit = weave::Unit::Line,
+                     .progress = animate(motion::from(0.0f).to(1.0f),
+                                         {std::chrono::milliseconds(
+                                              (int)bs::kColumnEntranceSpan),
+                                          &ch::easeNone, 220ms})}))
         .child(text(toU8("\xe2\x86\x91 this strip's entrance beats over\n"
-                         "unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
+                         "weave::Unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
                          "and its band stands at rest"),
                     bs::label(10, bs::kUsu))
                    .absolute()
@@ -319,5 +333,5 @@ struct Bousen final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Bousen, "bousen", "Catalog \xc2\xb7 Type & grid",
+SIGIL_SKETCH_AS(Bousen, "bousen", "Catalog \xc2\xb7 Type",
                 "vertical columns \xe2\x80\x94 sidelines, alternates, marks")

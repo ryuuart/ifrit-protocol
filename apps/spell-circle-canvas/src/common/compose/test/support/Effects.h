@@ -4,7 +4,7 @@
 
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include "Host.h"
 

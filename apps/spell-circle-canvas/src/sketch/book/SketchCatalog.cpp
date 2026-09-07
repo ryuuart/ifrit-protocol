@@ -1,15 +1,20 @@
 /** @file
- * The registry, the files behind it and the plates beside it, read once
- * into the rows a browser shows.
+ * The registry, the files behind it and the thumbnails beside it, read
+ * once into the rows a browser shows — and the background worker that
+ * fills a row's thumbnail on demand.
  */
 
 #include "SketchCatalog.h"
 
 #include <sigilsketch/core/Registry.h>
+#include <sigilsketch/core/Sources.h>
+#include <sigilsketch/plate/ThumbnailQueue.h>
+#include <sigilsketch/plate/Thumbnails.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
+#include <QtCore/QStandardPaths>
 #include <QtCore/QStringList>
 #include <QtCore/QUrl>
 #include <algorithm>
@@ -18,14 +23,20 @@
 #include <utility>
 #include <vector>
 
-#include "SketchbookView.h"
-
 namespace fs = std::filesystem;
 namespace sketch = sigil::sketch;
 
-// Set by main() before QML loads: the build's own quick-tier baseline,
-// or whatever `--plates` named instead.
-fs::path SketchCatalog::platesDir;
+// Set by main() before QML loads, and before the rows are printed.
+fs::path SketchCatalog::sketchDir;
+std::vector<fs::path> SketchCatalog::externals;
+fs::path SketchCatalog::thumbnailDir;
+std::chrono::milliseconds SketchCatalog::thumbnailBudget =
+    sketch::kThumbnailBudget;
+bool SketchCatalog::thumbnailHeavy = false;
+int SketchCatalog::opensAt = 0;
+bool SketchCatalog::opensWithoutFill = false;
+sigil::weave::FontContext* SketchCatalog::thumbnailFonts = nullptr;
+sigil::sketch::Assets* SketchCatalog::thumbnailAssets = nullptr;
 
 namespace {
 
@@ -191,19 +202,9 @@ Header readHeader(const fs::path& file) {
   return header;
 }
 
-/** The plate the quick tier photographed this sketch as, or nothing
- *  where no sweep has run on this machine. A plate is named the way the
- *  sketch is FILED, which is what the baseline holds it under. */
-QString plateFor(const std::string& name) {
-  if (SketchCatalog::platesDir.empty()) return {};
-  const fs::path plate = SketchCatalog::platesDir / ("plate_" + name + ".png");
-  std::error_code code;
-  if (!fs::exists(plate, code)) return {};
-  return QUrl::fromLocalFile(QString::fromStdString(plate.string())).toString();
-}
-
-/** One row, with everything the file and the plate can say filled in and
- *  the canvas left for a session to answer. */
+/** One row, with everything the file can say filled in and the canvas
+ *  left for a session to answer. The plate is filled from the store
+ *  afterward, and re-filled as the worker renders one. */
 QVariantMap rowFor(int index, const std::string& name, const std::string& key,
                    const QString& folder, const QString& blurb,
                    const fs::path& file) {
@@ -220,21 +221,22 @@ QVariantMap rowFor(int index, const std::string& name, const std::string& key,
   row.insert(QStringLiteral("subject"), QString::fromStdString(header.subject));
   row.insert(QStringLiteral("editFirst"),
              QString::fromStdString(header.editFirst));
-  row.insert(QStringLiteral("plate"), plateFor(name));
+  row.insert(QStringLiteral("plate"), QString());
   // Answered by a running session, and empty until one has run.
   row.insert(QStringLiteral("canvas"), QString());
   row.insert(QStringLiteral("background"), QString());
   row.insert(QStringLiteral("moment"), -1.0);
+  row.insert(QStringLiteral("videoExportable"), true);
   return row;
 }
 
 }  // namespace
 
 SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
-  // ONE LINE OUT OF A RUN THAT PRINTS MANY. Both flags answer on a line
-  // of their own — `--frame` names the file it wrote, `--bench` prefixes
-  // its verdict so a collector can find it — so the panel keeps the
-  // marked line and drops the rest rather than growing a log pane.
+  // ONE LINE OUT OF A RUN THAT PRINTS MANY. Each action answers on a line
+  // of its own — `--frame` and `--video` name the file they wrote, and
+  // `--bench` prefixes its verdict so a collector can find it — so the panel
+  // keeps the marked line and drops the rest rather than growing a log pane.
   connect(&m_task, &QProcess::finished, this, [this](int code) {
     const QStringList output =
         QString::fromUtf8(m_task.readAll()).split(QLatin1Char('\n'));
@@ -246,14 +248,17 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
                      : found;
     emit taskChanged();
   });
+  connect(&m_task, &QProcess::stateChanged, this,
+          [this] { emit taskChanged(); });
 
   const auto& entries = sketch::registry();
   m_rows.reserve((qsizetype)entries.size() +
-                 (qsizetype)SketchbookView::externals.size());
+                 (qsizetype)SketchCatalog::externals.size());
   for (int i = 0; i < (int)entries.size(); ++i) {
     const sketch::Entry& entry = entries[i];
-    const fs::path file =
-        SketchbookView::sketchDir / (std::string(entry.key) + ".cpp");
+    // The bare file, or the entry of a directory sketch: what the row
+    // reads its header and its line count from, and what a click opens.
+    const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
     QVariantMap row =
         rowFor(i, entry.name, entry.key, QString::fromUtf8(entry.category),
                QString::fromUtf8(entry.blurb), file);
@@ -270,13 +275,24 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
     std::string why;
     row.insert(QStringLiteral("available"), entry.available(&why));
     row.insert(QStringLiteral("reason"), QString::fromStdString(why));
+    // A fresh thumbnail already in the store shows at once, without a
+    // render — a warm command or an earlier look left it behind.
+    if (!SketchCatalog::thumbnailDir.empty()) {
+      const std::string k = sketch::thumbnailKey(file);
+      const fs::path fresh =
+          sketch::freshThumbnail(SketchCatalog::thumbnailDir, entry.name, k);
+      if (!fresh.empty())
+        row.insert(QStringLiteral("plate"),
+                   QUrl::fromLocalFile(QString::fromStdString(fresh.string()))
+                       .toString());
+    }
     m_rows.push_back(row);
   }
   // …and the files this session was pointed at, under their own stems.
   // Their directory stands in for a folder: two drafts may share a stem,
   // and where they stand is the only thing that tells them apart.
-  for (int i = 0; i < (int)SketchbookView::externals.size(); ++i) {
-    const fs::path& file = SketchbookView::externals[i];
+  for (int i = 0; i < (int)SketchCatalog::externals.size(); ++i) {
+    const fs::path& file = SketchCatalog::externals[i];
     const std::string stem = file.stem().string();
     QVariantMap row =
         rowFor((int)entries.size() + i, stem, stem, QStringLiteral("Workspace"),
@@ -286,22 +302,211 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
     row.insert(QStringLiteral("kind"), QString());
     row.insert(QStringLiteral("available"), true);
     row.insert(QStringLiteral("reason"), QString());
+    row.insert(QStringLiteral("videoExportable"), false);
     m_rows.push_back(row);
   }
+
+  // THE RENDER IS THIS CLASS'S and the ORDER is the library's: the queue
+  // knows nothing about a registry, a store or a window, and this lambda
+  // is the whole of what a still costs to draw.
+  m_thumbnails = std::make_unique<sketch::ThumbnailQueue>(
+      [](int index, const std::atomic_bool& stop) {
+        const sketch::Entry& entry = sketch::registry()[index];
+        const fs::path file =
+            sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+        sketch::ThumbnailRun run;
+        run.out = sketch::thumbnailFile(SketchCatalog::thumbnailDir, entry.name,
+                                        sketch::thumbnailKey(file));
+        run.stem = entry.name;
+        run.maxDimension = sketch::kThumbnailWidth;
+        run.budget = SketchCatalog::thumbnailBudget;
+        run.heavy = SketchCatalog::thumbnailHeavy;
+        run.stop = &stop;
+        return sketch::renderThumbnail(entry, *SketchCatalog::thumbnailFonts,
+                                       *SketchCatalog::thumbnailAssets, run);
+      },
+      [this](int index, sketch::ThumbnailOutcome outcome, int remaining) {
+        reportThumbnail(index, outcome, remaining);
+      });
 }
 
-void SketchCatalog::learn(int index, const QString& canvas, double moment,
-                          const QString& background) {
-  if (index < 0 || index >= m_rows.size()) return;
+SketchCatalog::~SketchCatalog() {
+  // The child render is this window's too: started from a button here,
+  // it has nothing to report to once the window is gone, so it is ended
+  // rather than left for QProcess to kill with a warning.
+  if (m_task.state() != QProcess::NotRunning) {
+    m_task.kill();
+    m_task.waitForFinished();
+  }
+  stopThumbnails();
+}
+
+void SketchCatalog::stopThumbnails() {
+  if (m_thumbnails) m_thumbnails->stop();
+  m_filling = false;
+}
+
+QVariantMap SketchCatalog::learn(int index, const QString& canvas,
+                                 double moment, const QString& background,
+                                 const QString& runtime) {
+  if (index < 0 || index >= m_rows.size()) return {};
   QVariantMap row = m_rows[index].toMap();
-  if (row.value(QStringLiteral("canvas")).toString() == canvas &&
-      row.value(QStringLiteral("moment")).toDouble() == moment)
-    return;
+  const bool kindKnown =
+      !row.value(QStringLiteral("kind")).toString().isEmpty();
+  const bool learnKind = !kindKnown && !runtime.isEmpty();
+  if (!learnKind && row.value(QStringLiteral("canvas")).toString() == canvas &&
+      row.value(QStringLiteral("moment")).toDouble() == moment &&
+      row.value(QStringLiteral("background")).toString() == background)
+    return {};
   row.insert(QStringLiteral("canvas"), canvas);
   row.insert(QStringLiteral("moment"), moment);
   row.insert(QStringLiteral("background"), background);
+  // A file opened by path first learns its runtime here: the row could
+  // not read it off a file that had not been built.
+  if (learnKind) row.insert(QStringLiteral("kind"), runtime);
   m_rows[index] = row;
-  emit sketchesChanged();
+  return row;
+}
+
+bool SketchCatalog::fillFromDisk(int index) {
+  if (index < 0 || index >= (int)sketch::registry().size()) return false;
+  if (SketchCatalog::thumbnailDir.empty()) return false;
+  const sketch::Entry& entry = sketch::registry()[index];
+  const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+  const std::string key = sketch::thumbnailKey(file);
+  const fs::path fresh =
+      sketch::freshThumbnail(SketchCatalog::thumbnailDir, entry.name, key);
+  if (fresh.empty()) return false;
+  const QString url =
+      QUrl::fromLocalFile(QString::fromStdString(fresh.string())).toString();
+  QVariantMap row = m_rows[index].toMap();
+  if (row.value(QStringLiteral("plate")).toString() == url) return true;
+  row.insert(QStringLiteral("plate"), url);
+  m_rows[index] = row;
+  emit thumbnailReady(index, row);
+  return true;
+}
+
+namespace {
+
+/** True when the sketch at @p index still owes the store a still: it is
+ *  a registry sketch this machine can run, nothing fresh is on disk for
+ *  it, and no note says why there never will be. */
+bool wantsThumbnail(int index) {
+  const auto& entries = sketch::registry();
+  if (index < 0 || index >= (int)entries.size()) return false;
+  if (!entries[index].available()) return false;
+  if (SketchCatalog::thumbnailDir.empty()) return false;
+  const sketch::Entry& entry = entries[index];
+  const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+  const std::string key = sketch::thumbnailKey(file);
+  if (!sketch::freshThumbnail(SketchCatalog::thumbnailDir, entry.name, key)
+           .empty())
+    return false;
+  return sketch::thumbnailNote(SketchCatalog::thumbnailDir, entry.name, key)
+      .empty();
+}
+
+}  // namespace
+
+void SketchCatalog::fillThumbnails() {
+  if (m_filling || !m_thumbnails || m_thumbnails->ended()) return;
+  if (SketchCatalog::thumbnailDir.empty() ||
+      SketchCatalog::thumbnailFonts == nullptr ||
+      SketchCatalog::thumbnailAssets == nullptr)
+    return;
+  std::vector<int> wanted;
+  for (int i = 0; i < (int)sketch::registry().size(); ++i)
+    if (wantsThumbnail(i)) wanted.push_back(i);
+  if (wanted.empty()) return;
+  m_fillTotal = (int)wanted.size();
+  m_fillDone = 0;
+  m_fillNote.clear();
+  m_filling = true;
+  m_thumbnails->fill(std::move(wanted));
+  emit fillChanged();
+}
+
+void SketchCatalog::endFill() {
+  // The stop stands whether or not a fill was running: what it says is
+  // that this worker will not be asked for another still, and opening a
+  // sketch says that whenever it happens.
+  if (m_thumbnails) m_thumbnails->endFill();
+  if (!m_filling) return;
+  m_filling = false;
+  emit fillChanged();
+}
+
+void SketchCatalog::requestThumbnail(int index) {
+  const auto& entries = sketch::registry();
+  // A file opened by path would have to be built to be rendered; the row
+  // keeps its runtime glyph until it is presented.
+  if (index < 0 || index >= (int)entries.size()) return;
+  if (!entries[index].available()) return;
+  if (fillFromDisk(index)) return;  // already on disk
+  // OUTSIDE THE FILL NOTHING IS QUEUED AT ALL: the canvas is presenting,
+  // and a second renderer beside it is what makes opening a sketch feel
+  // slow. Inside it, the queue puts an asked-for row at the front.
+  if (!m_filling || !m_thumbnails) return;
+  m_thumbnails->request(index);
+}
+
+void SketchCatalog::cancelThumbnail(int index) {
+  if (m_thumbnails) m_thumbnails->cancel(index);
+}
+
+void SketchCatalog::adoptThumbnail(int index) { fillFromDisk(index); }
+
+void SketchCatalog::reportThumbnail(int index, sketch::ThumbnailOutcome outcome,
+                                    int remaining) {
+  const sketch::Entry& entry = sketch::registry()[index];
+  // ONE LINE PER SKETCH THAT HAS NO STILL, written beside where the still
+  // would have gone so the next launch does not spend the budget finding
+  // out again. A failure is the exception: it says nothing about how long
+  // the sketch takes, only that this host could not draw it, and it is
+  // remembered for this run alone.
+  std::string note;
+  switch (outcome) {
+    case sketch::ThumbnailOutcome::Heavy:
+      note = "declared a plate";
+      break;
+    case sketch::ThumbnailOutcome::OverBudget:
+      note = "still ran past its budget";
+      break;
+    case sketch::ThumbnailOutcome::Failed:
+      note = "could not be drawn";
+      break;
+    case sketch::ThumbnailOutcome::Wrote:
+    case sketch::ThumbnailOutcome::Stopped:
+      break;
+  }
+  if (!note.empty() && outcome != sketch::ThumbnailOutcome::Failed) {
+    const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+    sketch::noteThumbnail(SketchCatalog::thumbnailDir, entry.name,
+                          sketch::thumbnailKey(file), note);
+  }
+  const QString name = QString::fromUtf8(entry.name);
+  const QString why = QString::fromStdString(note);
+  // Back to the GUI thread to touch the model.
+  QMetaObject::invokeMethod(
+      this,
+      [this, index, name, why, remaining] {
+        finished(index, name, why, remaining);
+      },
+      Qt::QueuedConnection);
+}
+
+void SketchCatalog::finished(int index, const QString& name,
+                             const QString& note, int remaining) {
+  if (note.isEmpty())
+    fillFromDisk(index);
+  else
+    emit thumbnailNoted(name, note);
+  if (!m_filling) return;
+  m_fillDone = std::max(m_fillDone + 1, m_fillTotal - remaining);
+  if (!note.isEmpty()) m_fillNote = name + QStringLiteral(" — ") + note;
+  if (remaining <= 0) m_filling = false;
+  emit fillChanged();
 }
 
 void SketchCatalog::frame(int index) {
@@ -315,17 +520,58 @@ void SketchCatalog::frame(int index) {
       file.parent_path() / "captures" / (file.stem().string() + ".png");
   std::error_code code;
   fs::create_directories(out.parent_path(), code);
-  run(index,
+  run(m_rows[index].toMap().value(QStringLiteral("name")).toString(),
       {QString::fromStdString(file.string()), QStringLiteral("--frame"),
        QString::fromStdString(out.string())},
       QStringLiteral("wrote "));
+}
+
+QUrl SketchCatalog::videoDefault(int index) const {
+  if (index >= 0 && index < m_rows.size()) {
+    const fs::path file = m_rows[index]
+                              .toMap()
+                              .value(QStringLiteral("path"))
+                              .toString()
+                              .toStdString();
+    return QUrl::fromLocalFile(QString::fromStdString(
+        (file.parent_path() / "captures" / (file.stem().string() + ".mp4"))
+            .string()));
+  }
+  const fs::path movies =
+      QStandardPaths::writableLocation(QStandardPaths::MoviesLocation)
+          .toStdString();
+  return QUrl::fromLocalFile(
+      QString::fromStdString((movies / "sigil-sketchbook.mp4").string()));
+}
+
+void SketchCatalog::video(int index, const QUrl& output) {
+  if (m_task.state() != QProcess::NotRunning || !output.isLocalFile()) return;
+  if (index < -1 || index >= m_rows.size()) return;
+
+  fs::path out = output.toLocalFile().toStdString();
+  if (out.extension() != ".mp4") out += ".mp4";
+  std::error_code code;
+  fs::create_directories(out.parent_path(), code);
+
+  QString label = QStringLiteral("All sketches");
+  QStringList arguments{QStringLiteral("--video"),
+                        QString::fromStdString(out.string())};
+  if (index >= 0) {
+    const QVariantMap row = m_rows[index].toMap();
+    if (!row.value(QStringLiteral("videoExportable")).toBool()) return;
+    label = row.value(QStringLiteral("name")).toString();
+    arguments << QStringLiteral("--sketch")
+              << row.value(QStringLiteral("key")).toString();
+  }
+  run(label, arguments, QStringLiteral("wrote "));
 }
 
 void SketchCatalog::bench(int index) {
   if (index < 0 || index >= m_rows.size()) return;
   const QString file =
       m_rows[index].toMap().value(QStringLiteral("path")).toString();
-  run(index, {file, QStringLiteral("--bench")}, QStringLiteral("BENCH"));
+  run(m_rows[index].toMap().value(QStringLiteral("name")).toString(),
+      {file, QStringLiteral("--bench")}, QStringLiteral("BENCH"));
 }
 
 void SketchCatalog::reveal(int index) {
@@ -335,12 +581,11 @@ void SketchCatalog::reveal(int index) {
   QProcess::startDetached(QStringLiteral("open"), {QStringLiteral("-R"), file});
 }
 
-void SketchCatalog::run(int index, const QStringList& arguments,
+void SketchCatalog::run(const QString& label, const QStringList& arguments,
                         const QString& prefix) {
   if (m_task.state() != QProcess::NotRunning) return;
   m_taskPrefix = prefix;
-  m_taskLine = m_rows[index].toMap().value(QStringLiteral("name")).toString() +
-               QStringLiteral(" — running…");
+  m_taskLine = label + QStringLiteral(" — running…");
   emit taskChanged();
   // THE SAME BINARY, on the same file. A run through the app's own
   // headless flags is the one that answers for what the app is showing:

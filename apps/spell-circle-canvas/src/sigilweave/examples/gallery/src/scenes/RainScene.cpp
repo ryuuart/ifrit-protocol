@@ -1,6 +1,7 @@
 // Scene: letter rain on an umbrella (full-paragraph relayout).
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <cmath>
 #include <random>

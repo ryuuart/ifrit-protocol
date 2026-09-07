@@ -34,15 +34,20 @@
 //                               moment stands after it, so raising it
 //                               past 2.4 s puts the plate mid-entrance.
 
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <shared/VerticalSpecimen.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
-
-#include "VerticalSpecimen.h"
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/query/Selector.h>
 
 namespace sketch = sigil::sketch;
 
+namespace motion = sigil::motion;
+
 using namespace sigil::compose;
+namespace weave = sigil::weave;
 using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
@@ -62,6 +67,12 @@ constexpr float kColumnBlockW = 420;
 constexpr float kColumnBlockH = 436;
 constexpr float kColumnBlockRight = 56;
 
+/** The settling entrance: an AMOUNT-mode cascade, so the whole spread is
+ *  1100 ms however many clusters the passage breaks into, and its span is
+ *  the same number for every count past one. */
+const sigil::motion::Spread kSettle{.amountMs = 1100, .durationMs = 520};
+const float kSettleSpan = kSettle.spanMs(2);
+
 }  // namespace tategaki
 
 struct Tategaki final : sketch::Sketch {
@@ -69,9 +80,9 @@ struct Tategaki final : sketch::Sketch {
   /// a frame of its entrance.
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background({0, 0, 0, 1});
-    ctx.captureAt(2.4);
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 2.4,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     composer.render(describe());
   }
@@ -79,7 +90,7 @@ struct Tategaki final : sketch::Sketch {
   /** One form, named and shown: a Latin caption over a short column set
    *  the way the caption says. The three together are the whole per-span
    *  vocabulary, side by side at a size where the difference reads. */
-  Element specimen(const char* caption, RichText run) {
+  Element specimen(const char* caption, weave::RichText run) {
     namespace tg = tategaki;
     return tg::specimen(
         caption, tg::label(12, tg::kAi, 2),
@@ -94,15 +105,15 @@ struct Tategaki final : sketch::Sketch {
     namespace tg = tategaki;
     namespace ch = choreograph;
 
-    Material ground = Material::linear(
-        {0, 0}, {0, tg::kH}, {{0.0f, tg::kSumiLift}, {1.0f, tg::kSumi}});
+    Fill ground =
+        linearGradient({0, 0}, {0, tg::kH}, {tg::kSumiLift, tg::kSumi});
 
     // All three vertical forms in one passage. Only the two numbers and the
     // Latin word name a form; everything else takes UTR#50's, which is what
     // stands the ideographs upright and turns the Latin on its side by
     // itself.
     auto passage =
-        rich(tg::body(tg::kBodySize, tg::kGofun))
+        weave::rich(tg::body(tg::kBodySize, tg::kGofun))
             .add(u8"縦組みの文章は、上から下へ、右から左へと流れる。平成")
             .add(u8"31", tg::body(tg::kBodySize, tg::kGofun,
                                   sigil::weave::VerticalForm::kTateChuYoko))
@@ -127,14 +138,16 @@ struct Tategaki final : sketch::Sketch {
                    .writingMode(sigil::weave::WritingMode::kVerticalRL)
                    // The phrase the plate is about, in vermilion — paint only,
                    // so the glyphs are exactly the glyphs the passage shaped.
-                   .spanPaint(sel::text(u8"縦組み"),
+                   .spanPaint(weave::sel::text(u8"縦組み"),
                               sigil::weave::PaintStyle(tg::kAka.toSkColor()))
                    // One settling entrance, beating cluster by cluster in
                    // READING ORDER: down each column, then right to left.
                    .fx({.effect = fx::rise(30),
-                        .stagger = {.amountMs = 1100, .durationMs = 520},
-                        .progress = animate(from(0.0f).to(1.0f),
-                                            {1500ms, &ch::easeNone, 180ms})}))
+                        .stagger = tg::kSettle,
+                        .progress = animate(
+                            motion::from(0.0f).to(1.0f),
+                            {std::chrono::milliseconds((int)tg::kSettleSpan),
+                             &ch::easeNone, 180ms})}))
         .child(
             box()
                 .absolute()
@@ -159,17 +172,19 @@ struct Tategaki final : sketch::Sketch {
                         .gap(34)
                         .child(specimen(
                             "UPRIGHT",
-                            rich(tg::body(28, tg::kGofun,
-                                          sigil::weave::VerticalForm::kUpright))
+                            weave::rich(
+                                tg::body(28, tg::kGofun,
+                                         sigil::weave::VerticalForm::kUpright))
                                 .add(u8"字は立つ")))
                         .child(specimen(
                             "ROTATED",
-                            rich(tg::body(24, tg::kAi,
-                                          sigil::weave::VerticalForm::kRotated))
+                            weave::rich(
+                                tg::body(24, tg::kAi,
+                                         sigil::weave::VerticalForm::kRotated))
                                 .add(u8"Latin lies")))
                         .child(specimen(
                             "TATE-CHU-YOKO",
-                            rich(tg::body(28, tg::kGofun))
+                            weave::rich(tg::body(28, tg::kGofun))
                                 .add(u8"令和")
                                 .add(u8"07",
                                      tg::body(28, tg::kAka,
@@ -191,5 +206,5 @@ struct Tategaki final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Tategaki, "tategaki", "Catalog \xc2\xb7 Type & grid",
+SIGIL_SKETCH_AS(Tategaki, "tategaki", "Catalog \xc2\xb7 Type",
                 "vertical-rl CJK \xe2\x80\x94 three forms, one paragraph")

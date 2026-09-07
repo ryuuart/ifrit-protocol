@@ -4,12 +4,14 @@
 // and Tibetan clusters, rare-script fallback, bidi reordering, emoji ZWJ
 // sequences, and supplementary-plane symbols in one cached layout.
 #include <include/core/SkPaint.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
 
 #include <algorithm>
 #include <array>
+#include <boost/container/flat_set.hpp>
 #include <cmath>
-#include <set>
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
@@ -23,7 +25,7 @@ namespace {
 struct Coverage {
   int glyphCount = 0;
   int missingGlyphCount = 0;
-  std::set<uint32_t> typefaceIds;
+  boost::container::flat_set<uint32_t> typefaceIds;
 };
 
 void includeCoverage(const ParagraphLayout& layout, Coverage& coverage) {
@@ -227,7 +229,7 @@ class HyperScriptsScene final : public Scene {
 
   std::array<Paragraph, 7> m_paragraphs;
   std::array<float, 7> m_lineHeights{};
-  kit::RebuildGuard<float, const SkTypeface*> m_built;
+  sigil::core::RebuildGuard<float, const SkTypeface*> m_built;
 };
 
 SceneDescriptor makeHyperScriptsDescriptor() {

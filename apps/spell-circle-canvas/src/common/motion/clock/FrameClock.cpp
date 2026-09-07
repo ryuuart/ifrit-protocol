@@ -1,6 +1,7 @@
 /** @file
- * The frame clock's tick: the first delta and any stall clamped, the
- * pause honoured, the time scale applied.
+ * The frame clock's step, from a wall-clock reading or from a delta the
+ * caller states: the first delta and any stall clamped, the pause
+ * honoured, the time scale applied.
  */
 
 #include "sigilmotion/clock/FrameClock.h"
@@ -15,10 +16,15 @@ double FrameClock::tick(double nowSeconds) {
     m_lastNow = nowSeconds;
     return 0.0;
   }
-  double delta = nowSeconds - m_lastNow;
+  const double delta = nowSeconds - m_lastNow;
   m_lastNow = nowSeconds;
+  return advance(delta);
+}
+
+double FrameClock::advance(double deltaSeconds) {
   if (m_paused) return 0.0;
-  delta = std::clamp(delta, 0.0, m_options.maxDelta) * m_timeScale;
+  const double delta =
+      std::clamp(deltaSeconds, 0.0, m_options.maxDelta) * m_timeScale;
   m_elapsed += delta;
   return delta;
 }

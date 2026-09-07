@@ -22,10 +22,16 @@
  * a display, so the same texture read through a lit body is the third
  * reading and the shelf beside them is the fourth.
  *
- * Each surface keeps a scene ACROSS frames and remakes it when the clock
- * goes backwards, which is what starts a sweep: a plate is a function of
- * the declared moment and of the number of steps taken to reach it, so a
- * second sweep in one process must not begin where the first left off.
+ * THE CARDS AND BANDS ARE OPEN SURFACES. Each keeps its backface visible,
+ * so the turntable can pass behind it without the geometry disappearing;
+ * a closed shelf keeps the ordinary hidden-backface default.
+ *
+ * EACH SURFACE'S SCENE IS ASKED FOR ONCE, while the study is declaring
+ * itself: `ctx.textureScene(size)` hands back a scene the session keeps,
+ * and `describe` only renders the tree of the moment into it and reads
+ * its texture. A scene asked for per frame would be a scene held per
+ * frame, which the session's counters would report as a number that
+ * climbs.
  *
  * EDIT THESE FIRST
  * kArcSpreadDeg — how far round the arc the three flat cards spread
@@ -36,12 +42,14 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/texture/Texture.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilgeometry/kit/Sections.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/style/Type.h>
 #include <sigilworld/kit/Kit.h>
 
 #include <array>
@@ -51,17 +59,16 @@
 #include <string>
 #include <utility>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
 namespace compose = sigil::compose;
 namespace weave = sigil::weave;
-
-using namespace sigil::world;
+namespace gm = sigil::geometry::mesh;
+namespace sections = sigil::geometry::sections;
 
 namespace {
-
-namespace gm = ::sigil::geometry::mesh;
 
 constexpr float kTwoPi = 6.283185307179586f;
 /** The console's own geometry: how wide a card stands, how far out the
@@ -87,11 +94,11 @@ compose::Element levels(float seconds, SkColor4f accent) {
                               .column()
                               .gap(8.0f)
                               .padding(16.0f)
-                              .fill(compose::hex(0x12171f));
-  root.child(
-      compose::text(u8"LEVELS", compose::type({.size = 22.0f,
-                                               .color = compose::hex(0xbfd4ef),
-                                               .antiAlias = false})));
+                              .fill(compose::hexColor(0x12171f));
+  root.child(compose::text(
+      u8"LEVELS", weave::textStyle({.size = 22.0f,
+                                    .color = compose::hexColor(0xbfd4ef),
+                                    .antiAlias = false})));
   compose::Element row =
       compose::box().row().gap(7.0f).height(compose::pct(100));
   for (int i = 0; i < 9; ++i) {
@@ -117,11 +124,11 @@ compose::Element trace(float seconds, SkColor4f accent) {
                               .column()
                               .gap(10.0f)
                               .padding(16.0f)
-                              .fill(compose::hex(0x0f141c));
-  root.child(
-      compose::text(u8"TRACE", compose::type({.size = 22.0f,
-                                              .color = compose::hex(0xbfd4ef),
-                                              .antiAlias = false})));
+                              .fill(compose::hexColor(0x0f141c));
+  root.child(compose::text(
+      u8"TRACE", weave::textStyle({.size = 22.0f,
+                                   .color = compose::hexColor(0xbfd4ef),
+                                   .antiAlias = false})));
   constexpr int kCells = 14;
   compose::Element row = compose::box().row().gap(5.0f).height(44.0f);
   for (int i = 0; i < kCells; ++i) {
@@ -135,10 +142,11 @@ compose::Element trace(float seconds, SkColor4f accent) {
                                   accent.fB * lit, 1.0f}));
   }
   root.child(std::move(row));
-  root.child(compose::text(u8"one wave, fourteen cells",
-                           compose::type({.size = 19.0f,
-                                          .color = compose::hex(0x7e93b4),
-                                          .antiAlias = false})));
+  root.child(
+      compose::text(u8"one wave, fourteen cells",
+                    weave::textStyle({.size = 19.0f,
+                                      .color = compose::hexColor(0x7e93b4),
+                                      .antiAlias = false})));
   return root;
 }
 
@@ -152,16 +160,16 @@ compose::Element dial(float seconds, SkColor4f accent) {
                               .column()
                               .gap(10.0f)
                               .padding(16.0f)
-                              .fill(compose::hex(0x14121f));
-  root.child(
-      compose::text(u8"DIAL", compose::type({.size = 22.0f,
-                                             .color = compose::hex(0xbfd4ef),
-                                             .antiAlias = false})));
+                              .fill(compose::hexColor(0x14121f));
+  root.child(compose::text(
+      u8"DIAL", weave::textStyle({.size = 22.0f,
+                                  .color = compose::hexColor(0xbfd4ef),
+                                  .antiAlias = false})));
   const float reading = 0.5f + 0.5f * std::sin(seconds * 1.15f);
   compose::Element track = compose::box()
                                .width(compose::pct(100))
                                .height(26.0f)
-                               .fill(compose::hex(0x242938));
+                               .fill(compose::hexColor(0x242938));
   compose::Element needle =
       compose::box().width(10.0f).height(26.0f).fill(accent);
   needle.absolute().left(6.0f + reading * 150.0f).top(0.0f);
@@ -184,7 +192,7 @@ compose::Element band(float seconds) {
                               .row()
                               .gap(6.0f)
                               .padding(12.0f)
-                              .fill(compose::hex(0x0d121a));
+                              .fill(compose::hexColor(0x0d121a));
   constexpr int kCells = 26;
   for (int i = 0; i < kCells; ++i) {
     const float phase = seconds * 1.4f - (float)i * 0.34f;
@@ -209,23 +217,24 @@ compose::Element tape(float seconds) {
                               .column()
                               .gap(6.0f)
                               .padding(14.0f)
-                              .fill(compose::hex(0x1f2430));
+                              .fill(compose::hexColor(0x1f2430));
+  root.child(compose::text(
+      u8"WOVEN", weave::textStyle({.size = 46.0f,
+                                   .color = compose::hexColor(0xf2ebdc),
+                                   .antiAlias = false})));
   root.child(
-      compose::text(u8"WOVEN", compose::type({.size = 46.0f,
-                                              .color = compose::hex(0xf2ebdc),
-                                              .antiAlias = false})));
-  root.child(compose::text(u8"a scene, sampled",
-                           compose::type({.size = 20.0f,
-                                          .color = compose::hex(0x9eb8d9),
-                                          .antiAlias = false})));
+      compose::text(u8"a scene, sampled",
+                    weave::textStyle({.size = 20.0f,
+                                      .color = compose::hexColor(0x9eb8d9),
+                                      .antiAlias = false})));
   compose::Element marks =
       compose::box().row().gap(10.0f).height(18.0f).absolute();
   marks.left(16.0f).bottom(14.0f);
   for (int i = 0; i < 3; ++i) {
     const float phase = seconds * 1.7f + (float)i * 0.7f;
     const float length = 46.0f + 34.0f * (0.5f + 0.5f * std::sin(phase));
-    marks.child(
-        compose::box().width(length).height(6.0f).fill(compose::hex(0xeb8c40)));
+    marks.child(compose::box().width(length).height(6.0f).fill(
+        compose::hexColor(0xeb8c40)));
   }
   root.child(std::move(marks));
   return root;
@@ -246,34 +255,24 @@ SkMatrix alongTheBand(SkISize card, float repeats) {
                            1.0f);
 }
 
-/** The ribbon the tape rides: a closed loop that rises and falls, so
- *  the band reads as a curve in space rather than as a ring. */
-Spline3 ribbon() {
-  Spline3 spline;
-  for (int i = 0; i < 6; ++i) {
-    const float angle = (float)i * kTwoPi / 6.0f;
-    const float radius = (i % 2 == 0) ? kRibbonRadius : kRibbonRadius * 0.64f;
-    const float height = (i % 2 == 0) ? 34.0f : -30.0f;
-    spline.points.emplace_back(radius * std::cos(angle), kRibbonDrop + height,
-                               radius * std::sin(angle));
-  }
-  spline.closed = true;
-  return spline;
+/** The ribbon the tape rides: the world kit's wave, a closed loop
+ *  standing high and low by turns, so the band reads as a curve in space
+ *  rather than as a ring. */
+gm::curve::Spline3 ribbon() {
+  return world::kit::wave({.at = {0.0f, kRibbonDrop, 0.0f},
+                           .radius = kRibbonRadius,
+                           .inner = kRibbonRadius * 0.64f,
+                           .high = 34.0f,
+                           .low = -30.0f});
 }
 
-/** ONE SURFACE'S SCENE, kept across the frames of one sweep and remade
- *  when the clock goes backwards. The tree it paints is handed in, so
- *  one type serves every surface in the room. */
+/** ONE SURFACE'S SCENE: the session's, asked for once and held. The
+ *  tree it paints is handed in at the moment, so one type serves every
+ *  surface in the room. */
 struct Screen {
-  SkISize size{256, 160};
-  weave::FontContext* fonts = nullptr;
   std::shared_ptr<compose::TextureScene> scene;
-  float lastSeconds = -1.0f;
 
   material::Texture at(float seconds, const compose::Element& content) {
-    if (!scene || seconds <= lastSeconds)
-      scene = compose::TextureScene::make(size, *fonts);
-    lastSeconds = seconds;
     scene->render(content, (double)seconds);
     return scene->texture();
   }
@@ -304,19 +303,13 @@ struct SceneSurfaces final : sketch::Set {
     ctx.canvas(960, 620);
     ctx.background({0.025f, 0.028f, 0.038f, 1.0f});
     ctx.captureAt(1.35);
-    for (Screen& card : cards) {
-      card.fonts = &ctx.fonts;
-      card.size = {320, 214};
-    }
-    strip.fonts = &ctx.fonts;
-    strip.size = {1024, 128};
-    loop.fonts = &ctx.fonts;
-    loop.size = {kTapeWidth, kTapeHeight};
-    rail =
-        gm::curve::sweep(ribbon(), gm::curve::profile::line(),
-                         {.segments = 240,
-                          .scale = 46.0f,
-                          .normals = gm::curve::SweepOptions::Normals::Frame});
+    for (Screen& card : cards) card.scene = ctx.textureScene({320, 214});
+    strip.scene = ctx.textureScene({1024, 128});
+    loop.scene = ctx.textureScene({kTapeWidth, kTapeHeight});
+    rail = gm::pop::sweep(ribbon(), sections::line(),
+                          {.segments = 240,
+                           .scale = 46.0f,
+                           .normals = gm::pop::SweepOptions::Normals::Frame});
   }
 
   world::Frame describe(float seconds) override {
@@ -332,28 +325,33 @@ struct SceneSurfaces final : sketch::Set {
     // the +x axis: a set whose subject is a screen has to be built
     // toward where the camera starts, or the plate is a picture of its
     // edge.
-    Element console = Element().key("console").rotateY(90.0f);
+    world::Element console = world::Element().key("console").rotateY(90.0f);
     for (int i = 0; i < 3; ++i) {
       // The arc: each card stands one radius out along its own bearing
       // and is turned to face the middle, which is two numbers rather
       // than a matrix.
       const float bearingDeg = ((float)i - 1.0f) * kArcSpreadDeg;
       const float bearing = bearingDeg * kTwoPi / 360.0f;
+      // A bearing is measured from +z and turns toward +x, so the
+      // ellipse's two components land on z and on x in that order.
+      const SkPoint on =
+          arrange::onEllipse({0, 0}, {kArcRadius, kArcRadius}, bearing);
       console.child(
-          Element()
+          world::Element()
               .key("card" + std::to_string(i))
-              .at({kArcRadius * std::sin(bearing), 78.0f,
-                   kArcRadius * std::cos(bearing) - kArcRadius})
+              .at({on.fY, 78.0f, on.fX - kArcRadius})
               .mesh(gm::quad(kCardWidth, kCardHeight))
+              .backface(world::Backface::Visible)
               .fill(screenOf(cards[(size_t)i].at(seconds, content[(size_t)i])))
               .tag("flat"));
     }
 
     // CURVED: the same kind of content on a panel that is not flat.
-    console.child(Element()
+    console.child(world::Element()
                       .key("band")
                       .at({0.0f, -40.0f, 0.0f})
                       .mesh(gm::cylinderPanel(560.0f, 76.0f, kArcRadius, 72, 6))
+                      .backface(world::Backface::Visible)
                       .fill(screenOf(strip.at(seconds, band(seconds))))
                       .tag("curved"));
 
@@ -361,7 +359,7 @@ struct SceneSurfaces final : sketch::Set {
     // readings at once: a surface the emitters reach, and screens they
     // do not.
     console.child(
-        Element()
+        world::Element()
             .key("shelf")
             .at({0.0f, -96.0f, 96.0f})
             .mesh(gm::superellipsoid({330.0f, 9.0f, 74.0f}, 6.0f, 48, 16))
@@ -380,15 +378,16 @@ struct SceneSurfaces final : sketch::Set {
         material::kit::surface({.baseColor = {1, 1, 1, 1}, .roughness = 0.4f});
     printedTape.child(material::kit::kBaseColorSlot, std::move(printed));
 
-    Element room = Element().key("room");
+    world::Element room = world::Element().key("room");
     room.child(std::move(console));
-    room.child(Element()
+    room.child(world::Element()
                    .key("ribbon")
                    .mesh(rail)
+                   .backface(world::Backface::Visible)
                    .fill(std::move(printedTape))
                    .tag("tiled"));
 
-    kit::Set set;
+    world::kit::Set set;
     set.rig.extent = 300.0f;
     set.rig.bearing = -22.0f;
     set.rig.elevation = 26.0f;
@@ -399,7 +398,7 @@ struct SceneSurfaces final : sketch::Set {
     set.table.height = 345.0f;
     set.table.period = 40.0f;
     set.table.fovYDeg = 40.0f;
-    return Frame(kit::litSet(std::move(room), set, seconds));
+    return world::Frame(world::kit::litSet(std::move(room), set, seconds));
   }
 };
 

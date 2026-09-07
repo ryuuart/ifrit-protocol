@@ -1,59 +1,58 @@
-# The path leaf: polylines, contours addressed by arc length, noise and
-# the numeric routines under them, and the path operators. Skia, glm and
-# the standard-library mixers under SigilCoreCompute — no mesh, no
-# import, no material — so a text engine or a drawable-component library
-# can walk an outline without linking the 3D half of geometry or its
-# importers.
-add_library(SigilGeometryPath STATIC
-  Contour.cpp
-  Noise.cpp
-  Ops.cpp
-  Polyline.cpp
-  Pose.cpp
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Contour.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Noise.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Numeric.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Ops.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Polyline.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Pose.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Skia.h
-)
-target_compile_features(SigilGeometryPath PUBLIC cxx_std_20)
-target_include_directories(SigilGeometryPath PUBLIC
-  $<BUILD_INTERFACE:${SIGIL_GEOMETRY_INCLUDE_DIR}>
-  $<INSTALL_INTERFACE:include>
-)
+# The path leaf: polylines, contours addressed by arc length, the walk
+# that spaces marks along one and the scanline lattice that fills it,
+# noise, the numeric routines under them, where a run of n items falls on
+# a ring or in a grid, the path operators, the two comparable seams a mark is
+# deviated and widened through (Shaper and Profile) with the band those
+# rails cut, where a set of paths cross, and the two coordinate systems a
+# figure is measured in (the polar Frame and the unit-map Grid). Skia, glm and the
+# standard-library mixers under SigilCoreCompute — no mesh, no import, no
+# material — so a text engine or a drawable-component library can walk an
+# outline, or place a run of things, without linking the 3D half of
+# geometry or its importers. Noise.h names the seeded mixers, which live
+# one library down so that a shader's CPU twin and a resource key reach
+# the same bodies. The uniform grid every proximity question is answered
+# by, the scatter that fills a shape, and the triangulation, its dual and
+# the outline at a tightness stand here too, because each of them answers
+# in points and rings.
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(CDT CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
-# Noise.h names the seeded mixers, which live one library down so that a
-# shader's CPU twin and a resource key reach the same bodies.
-target_link_libraries(SigilGeometryPath PUBLIC unofficial::skia::skia glm::glm
-  SigilCoreCompute)
+find_package(unofficial-skia CONFIG REQUIRED)
+sigil_library(SigilGeometryPath
+  SOURCES Band.cpp Contour.cpp Crossings.cpp Direction.cpp Edges.cpp
+          Extremes.cpp Fit.cpp Hull.cpp Interpolate.cpp Lattice.cpp
+          Neighbours.cpp Noise.cpp Ops.cpp Polyline.cpp Pose.cpp Scatter.cpp
+          Segments.cpp Symmetry.cpp Tidy.cpp Trace.cpp Triangulate.cpp
+  HEADERS Arrange.h Band.h Cells.h Contour.h Crossings.h Direction.h Edges.h
+          Extremes.h Fit.h Frame.h Hull.h Interpolate.h Lattice.h Neighbours.h
+          Noise.h Numeric.h Ops.h Polyline.h Pose.h Profile.h Scatter.h
+          Segments.h Shaper.h Skia.h Stride.h Symmetry.h Tidy.h Trace.h
+          Triangulate.h
+  PUBLIC unofficial::skia::skia glm::glm SigilCoreCompute Boost::unordered
+  # CDT is the Delaunay triangulator, read in Triangulate.cpp alone: the
+  # answer crosses the boundary in this library's own points, indices and
+  # rings, so no consumer of a triangulation ever names it.
+  PRIVATE CDT::CDT)
 
-# The leaf is a public dependency of the text engine, whose install rules
-# export it; an exported target's dependencies must themselves sit in an
-# export set, so the leaf ships under its own.
-install(TARGETS SigilGeometryPath
-  EXPORT SigilGeometryPathTargets
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
-)
-install(EXPORT SigilGeometryPathTargets
-  NAMESPACE sigil::geometry::
-  DESTINATION share/sigilgeometry
-)
+# ONE BINARY over the leaf and the shape interpolation that stands on it.
+# Blend is not a boundary anyone reads: no consumer links it without Path,
+# and its every claim is about the contours this leaf resamples. One file
+# per subject inside it — contours, polylines, marks, operators, seams,
+# crossings, frames, blend.
+sigil_test(geometry_test
+  SOURCES test/ContoursTest.cpp test/PolylinesTest.cpp test/MarksTest.cpp
+          test/SegmentsTest.cpp test/NodesTest.cpp
+          test/NeighboursTest.cpp test/ScatterTest.cpp
+          test/TriangulateTest.cpp test/FieldsTest.cpp
+          test/OpsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp
+          test/FramesTest.cpp test/BlendTest.cpp
+  LIBRARIES SigilGeometryPath SigilGeometryPathBlend)
 
-add_executable(geometry_path_test test/PathTest.cpp)
-target_link_libraries(geometry_path_test PRIVATE SigilGeometryPath
-  GTest::gtest_main)
-add_test(NAME geometry_path_test COMMAND geometry_path_test)
-
-# Google Benchmark, one binary per feature so each links only what it
-# measures; built through the `benches` target and run through
-# scripts/bench_ledger.py from a Release build.
-add_executable(geometry_path_bench bench/PathBench.cpp)
-target_link_libraries(geometry_path_bench PRIVATE SigilGeometryPath
-  benchmark::benchmark)
-add_dependencies(benches geometry_path_bench)
+# One file per subject, over the one figure in bench/Figures.h.
+sigil_bench(geometry_bench
+  SOURCES bench/PolylinesBench.cpp bench/NeighboursBench.cpp
+          bench/ScatterBench.cpp bench/TriangulateBench.cpp
+          bench/FieldsBench.cpp bench/NodesBench.cpp
+  LIBRARIES SigilGeometryPath)
 
 add_subdirectory(blend)

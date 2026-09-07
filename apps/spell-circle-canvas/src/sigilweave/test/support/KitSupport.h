@@ -8,5 +8,5 @@
 #include <sigilweave/kit/SigilWeaveKit.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 
-#include "Fonts.h"
+#include "Faces.h"
 #include "Paragraphs.h"

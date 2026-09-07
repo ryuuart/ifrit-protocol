@@ -10,9 +10,11 @@
 #include <cstdint>
 #include <string>
 
-namespace sigil::world::diligent {
-
+namespace sigil::geometry::device {
 class Device;
+}  // namespace sigil::geometry::device
+
+namespace sigil::world::diligent {
 
 /**
  * The executor that performs a frame's passes on @p device.
@@ -36,7 +38,7 @@ class Device;
  * Every value made from one device shares its queue, and every
  * submission this makes is taken under `Device::QueueLock`.
  */
-Runtime runtime(Device& device);
+Runtime runtime(::sigil::geometry::device::Device& device);
 
 /**
  * Registers the compiler that turns a recipe's `Target::Slang` body into

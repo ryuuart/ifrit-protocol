@@ -5,7 +5,7 @@
  */
 
 #include <sigilcore/comparable/Fields.h>
-#include <sigilcore/reconcile/Compare.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilworld/element/Node.h>
 
 #include <optional>
@@ -14,7 +14,7 @@ namespace sigil::world {
 
 namespace {
 
-using core::propEqual;
+using motion::propEqual;
 
 static_assert(core::kFieldCount<Transform> == 15,
               "Transform gained or lost a field — rule on it in "
@@ -34,10 +34,11 @@ bool transformEqual(const Transform& a, const Transform& b) {
          propEqual(a.axisDegrees, b.axisDegrees);
 }
 
-static_assert(core::kFieldCount<Spline3> == 3,
+static_assert(core::kFieldCount<geometry::mesh::curve::Spline3> == 3,
               "Spline3 gained or lost a field — rule on it in "
               "splineEqual() below, then bump this count.");
-bool splineEqual(const Spline3& a, const Spline3& b) {
+bool splineEqual(const geometry::mesh::curve::Spline3& a,
+                 const geometry::mesh::curve::Spline3& b) {
   return a.points == b.points && a.type == b.type && a.closed == b.closed;
 }
 
@@ -77,15 +78,36 @@ bool emissionEqual(const std::optional<Emission>& a,
          dialEqual(a->green, b->green) && dialEqual(a->blue, b->blue);
 }
 
-static_assert(core::kFieldCount<Camera> == 6,
+static_assert(core::kFieldCount<geometry::mesh::camera::Camera> == 6,
               "Camera gained or lost a field — rule on it in "
               "cameraEqual() below, then bump this count.");
-bool cameraEqual(const std::optional<Camera>& a,
-                 const std::optional<Camera>& b) {
+bool cameraEqual(const std::optional<geometry::mesh::camera::Camera>& a,
+                 const std::optional<geometry::mesh::camera::Camera>& b) {
   if (a.has_value() != b.has_value()) return false;
   if (!a) return true;
   return a->eye == b->eye && a->target == b->target && a->up == b->up &&
          a->fovYDeg == b->fovYDeg && a->zNear == b->zNear && a->zFar == b->zFar;
+}
+
+static_assert(core::kFieldCount<SkyDials> == 7,
+              "SkyDials gained or lost a field — rule on it in "
+              "skyEqual() below, then bump this count.");
+bool skyEqual(const std::optional<SkyDials>& a,
+              const std::optional<SkyDials>& b) {
+  if (a.has_value() != b.has_value()) return false;
+  if (!a) return true;
+  const auto dialEqual = [](const std::optional<motion::Animatable<float>>& x,
+                            const std::optional<motion::Animatable<float>>& y) {
+    if (x.has_value() != y.has_value()) return false;
+    return !x || propEqual(*x, *y);
+  };
+  return dialEqual(a->diffuse, b->diffuse) &&
+         dialEqual(a->specular, b->specular) &&
+         dialEqual(a->roughnessBias, b->roughnessBias) &&
+         dialEqual(a->exposure, b->exposure) &&
+         dialEqual(a->crossfade, b->crossfade) &&
+         dialEqual(a->backdrop, b->backdrop) &&
+         dialEqual(a->backdropBlur, b->backdropBlur);
 }
 
 bool materialsEqual(const ElementNode& a, const ElementNode& b) {
@@ -99,7 +121,7 @@ bool materialsEqual(const ElementNode& a, const ElementNode& b) {
 
 }  // namespace
 
-static_assert(core::kFieldCount<ElementNode> == 15,
+static_assert(core::kFieldCount<ElementNode> == 19,
               "A field of ElementNode appeared or vanished. Rule on it in "
               "propsEqual() below — participate, or a stated reason not to "
               "— then bump this count. A miss is silent: the node prunes, "
@@ -117,17 +139,27 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
   // generator with no `==` compares equal only to its own copies, so a
   // node carrying one re-patches rather than pruning into a stale cook.
   if (!(a.geometry == b.geometry)) return false;
+  if (a.backface != b.backface) return false;
   if (!materialsEqual(a, b)) return false;
   if (a.tags != b.tags) return false;
   if (a.light != b.light) return false;
   if (!emissionEqual(a.emission, b.emission)) return false;
+  // An environment is a plain value all the way down — the panorama
+  // behind it is a shared handle, so comparing two is comparing two
+  // pointers and a handful of floats.
+  if (a.environment != b.environment) return false;
+  if (!skyEqual(a.sky, b.sky)) return false;
   if (!cameraEqual(a.camera, b.camera)) return false;
   if (a.cachePolicy != b.cachePolicy) return false;
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
     return false;
   if (a.nodeTransition &&
-      !core::transitionEqual(*a.nodeTransition, *b.nodeTransition))
+      !motion::transitionEqual(*a.nodeTransition, *b.nodeTransition))
     return false;
+  // A cascade that changed is a different mount order for whatever
+  // arrives next, so the node must be told rather than pruned.
+  if (a.childStagger.has_value() != b.childStagger.has_value()) return false;
+  if (a.childStagger && !(*a.childStagger == *b.childStagger)) return false;
   // `memo` is compared earlier and more strictly by the reconciler, and
   // `children` are reconciled by key rather than compared.
   return true;

@@ -101,7 +101,8 @@ Element& Element::transform(const glm::mat4& matrix) {
   m_node->transform.matrix = matrix;
   return *this;
 }
-Element& Element::along(Spline3 spline, motion::Animatable<float> distance) {
+Element& Element::along(geometry::mesh::curve::Spline3 spline,
+                        motion::Animatable<float> distance) {
   m_node->along = Along{std::move(spline), std::move(distance)};
   return *this;
 }
@@ -129,7 +130,7 @@ namespace {
 /** The stamp a slot is carrying, taken out of it — so `cloud()` and
  *  `chain()` can replace what holds it without dropping the body that
  *  was already declared. */
-Mesh takeStamp(Geometry& geometry) {
+geometry::mesh::Mesh takeStamp(Geometry& geometry) {
   if (auto* stamped = std::get_if<Stamped>(&geometry))
     return std::move(stamped->stamp);
   if (auto* chained = std::get_if<Chained>(&geometry))
@@ -139,26 +140,32 @@ Mesh takeStamp(Geometry& geometry) {
 
 }  // namespace
 
-Element& Element::mesh(Mesh m) {
+Element& Element::mesh(geometry::mesh::Mesh m) {
   m_node->geometry = std::move(m);
   return *this;
 }
 
-Element& Element::cloud(Cloud c) {
+Element& Element::backface(Backface facing) {
+  m_node->backface = facing;
+  return *this;
+}
+
+Element& Element::cloud(geometry::mesh::Cloud c) {
   ElementNode* node = m_node.operator->();
-  Mesh stamp = takeStamp(node->geometry);
+  geometry::mesh::Mesh stamp = takeStamp(node->geometry);
   node->geometry = Stamped{std::move(c), std::move(stamp)};
   return *this;
 }
 
-Element& Element::chain(Chain c, PopRuntime runtime) {
+Element& Element::chain(geometry::mesh::pop::Chain c,
+                        geometry::mesh::pop::Runtime runtime) {
   ElementNode* node = m_node.operator->();
-  Mesh stamp = takeStamp(node->geometry);
+  geometry::mesh::Mesh stamp = takeStamp(node->geometry);
   node->geometry = Chained{std::move(c), std::move(runtime), std::move(stamp)};
   return *this;
 }
 
-Element& Element::stamp(Mesh s) {
+Element& Element::stamp(geometry::mesh::Mesh s) {
   ElementNode* node = m_node.operator->();
   Geometry& geometry = node->geometry;
   if (auto* stamped = std::get_if<Stamped>(&geometry))
@@ -190,7 +197,7 @@ Element& Element::tag(std::string word) {
   return *this;
 }
 
-Element& Element::light(Light l) {
+Element& Element::light(light::Light l) {
   m_node->light = l;
   return *this;
 }
@@ -213,7 +220,59 @@ Element& Element::emission(motion::Animatable<float> red,
   return *this;
 }
 
-Element& Element::camera(Camera c) {
+Element& Element::environmentMap(Environment e) {
+  m_node->environment = std::move(e);
+  return *this;
+}
+
+namespace {
+
+/** One of the environment's own dials, filled in place. */
+template <class Member>
+void setSky(std::optional<SkyDials>& sky, Member member,
+            motion::Animatable<float> v) {
+  if (!sky) sky.emplace();
+  (*sky).*member = std::move(v);
+}
+
+}  // namespace
+
+Element& Element::diffuse(motion::Animatable<float> v) {
+  setSky(m_node->sky, &SkyDials::diffuse, std::move(v));
+  return *this;
+}
+
+Element& Element::specular(motion::Animatable<float> v) {
+  setSky(m_node->sky, &SkyDials::specular, std::move(v));
+  return *this;
+}
+
+Element& Element::roughnessBias(motion::Animatable<float> v) {
+  setSky(m_node->sky, &SkyDials::roughnessBias, std::move(v));
+  return *this;
+}
+
+Element& Element::crossfade(motion::Animatable<float> v) {
+  setSky(m_node->sky, &SkyDials::crossfade, std::move(v));
+  return *this;
+}
+
+Element& Element::exposure(motion::Animatable<float> v) {
+  setSky(m_node->sky, &SkyDials::exposure, std::move(v));
+  return *this;
+}
+
+Element& Element::backdrop(motion::Animatable<float> intensity) {
+  setSky(m_node->sky, &SkyDials::backdrop, std::move(intensity));
+  return *this;
+}
+
+Element& Element::backdropBlur(motion::Animatable<float> v) {
+  setSky(m_node->sky, &SkyDials::backdropBlur, std::move(v));
+  return *this;
+}
+
+Element& Element::camera(geometry::mesh::camera::Camera c) {
   m_node->camera = c;
   return *this;
 }
@@ -230,6 +289,11 @@ Element& Element::transition(const motion::Transition& t) {
   return *this;
 }
 
+Element& Element::staggerChildren(motion::Spread spread) {
+  m_node->childStagger = std::move(spread);
+  return *this;
+}
+
 // ---- the memo --------------------------------------------------------------
 
 Element detail::makeMemo(
@@ -237,7 +301,7 @@ Element detail::makeMemo(
     std::function<Element(const std::any&)> invoke) {
   Element element;
   element.node()->memo = Memo{std::move(props), std::move(equal),
-                              std::move(invoke), core::detail::envStack()};
+                              std::move(invoke), core::env::capture()};
   return element;
 }
 

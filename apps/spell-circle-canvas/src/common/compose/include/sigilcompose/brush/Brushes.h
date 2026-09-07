@@ -19,10 +19,10 @@
  *
  * EQUALITY IS THE THING TO WATCH. A brush assembled from comparable parts
  * is itself a comparable value, so a styled connector prunes and caches as
- * one value. Any raw callable in it — a `StampModFn`, an `ops::PathOp` —
- * makes it conservatively unequal forever, so its node re-patches on every
- * describe; memo the host node, or keep the value itself alive rather than
- * rebuilding it.
+ * one value. Any raw callable in it — a `StampModFn`, a
+ * `geometry::path::ops::PathOp` — makes it conservatively unequal forever,
+ * so its node re-patches on every describe; memo the host node, or keep the
+ * value itself alive rather than rebuilding it.
  *
  * Two numbers every brush declares, and they are not the same: `bleed()` is
  * how far paint escapes the outline, which grows a cached recording's cull;
@@ -36,7 +36,7 @@
 #include <include/core/SkPicture.h>
 #include <sigilcompose/brush/Decorations.h>  // PathSample
 #include <sigilcompose/brush/Lines.h>        // lines::displace (the wave op)
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilgeometry/kit/Shapers.h>
 
 #include <any>
 #include <functional>
@@ -102,7 +102,7 @@ struct Weave {
   /** How discovered crossings resolve. Default is list order — see
    *  CrossingRule. There is ONE of these; pins go on it via
    *  `.except(i, order)`, never as stacked entries. */
-  CrossingRule crossing;
+  geometry::path::CrossingRule crossing;
   /** Override the mark half-width the repair region is built from, in px.
    *  0 (the default) asks each strand's brush — `Decoration::reach()` —
    *  which is the right answer for everything that reports one.
@@ -154,7 +154,7 @@ struct Weave {
    *  costs time and never correctness. */
   struct CrossingCache {
     std::vector<SkPath> key;  ///< the resolved paths the answer belongs to
-    std::vector<Crossing> found;
+    std::vector<geometry::path::Crossing> found;
     bool valid = false;
     int computes = 0;  ///< how many discoveries actually ran; for tests to
                        ///< observe, never read by the paint itself
@@ -168,6 +168,14 @@ struct Weave {
   bool isAnimated() const {
     for (const Strand& s : strands)
       if (s.brush.isAnimated()) return true;
+    return false;
+  }
+  /** A strand that blends makes the whole weave blend: forwarded, or the
+   *  node is baked into a layer of its own and the strand's mark resolves
+   *  against transparent black instead of the page (BlendingDecoration). */
+  bool blends() const {
+    for (const Strand& s : strands)
+      if (s.brush.blends()) return true;
     return false;
   }
   float bleed() const {
@@ -206,8 +214,9 @@ struct Weave {
 Weave layers(std::vector<Decoration> stack);
 /** PER-CROSSING order: strands that may trade sides, and a rule for who
  *  passes over whom where they meet. */
-Weave weave(std::vector<Strand> strands,
-            CrossingRule rule = crossing::alternate());
+Weave weave(
+    std::vector<Strand> strands,
+    geometry::path::CrossingRule rule = geometry::path::crossing::alternate());
 
 }  // namespace brush
 
@@ -218,9 +227,9 @@ Weave weave(std::vector<Strand> strands,
  *  composition:
  *
  *    element.stroke(Brush{}
- *        .shaped(kit::brush::shapers::Rounded{6})
- *        .shaped(kit::brush::shapers::Wave{.amplitude = 3, .wavelength = 30})
- *        .layer(lines::cased(3, ink, 5))
+ *        .shaped(geometry::shapers::Rounded{6})
+ *        .shaped(geometry::shapers::Wave{.amplitude = 3, .wavelength = 30})
+ *        .layer(lines::presets::cased(3, ink, 5))
  *        .layer(brush::Scatter{.art = spark(), .spacing = 40}));
  *
  *  A Brush of comparable shapers and layers is itself comparable, so the
@@ -234,20 +243,20 @@ struct Brush {
    *  riding its own offset shaper — instead of three stacked elements. */
   struct Layer {
     Decoration dec;
-    std::vector<Shaper> shapers;
+    std::vector<geometry::path::Shaper> shapers;
     bool operator==(const Layer& o) const {
       return dec == o.dec && shapers == o.shapers;
     }
   };
 
-  std::vector<Shaper> pipeline;
+  std::vector<geometry::path::Shaper> pipeline;
   std::vector<Layer> layers;
 
   /** Append to the shared geometry pipeline. A `Shaper` is any comparable
    *  value with `SkPath shape(const SkPath &) const`; the stock ones
-   *  (`kit::brush::shapers::wave/jitter/offset`) are peers of anything you
+   *  (`geometry::shapes::wave/jitter/offset`) are peers of anything you
    *  write, which is why there is no shorthand for them here. */
-  Brush& shaped(Shaper s) {
+  Brush& shaped(geometry::path::Shaper s) {
     pipeline.push_back(std::move(s));
     return *this;
   }
@@ -258,7 +267,7 @@ struct Brush {
    *  For a raw incomparable lambda, wrap this layer's decoration in
    *  `brush::restyle(op, dec)` instead — the one mechanism door, at the
    *  cost of pruning. */
-  Brush& layer(Decoration d, std::vector<Shaper> suffix = {}) {
+  Brush& layer(Decoration d, std::vector<geometry::path::Shaper> suffix = {}) {
     layers.push_back(Layer{std::move(d), std::move(suffix)});
     return *this;
   }
@@ -271,14 +280,20 @@ struct Brush {
       if (l.dec.isAnimated()) return true;
     return false;
   }
+  /** Forwarded, for the reason a weave forwards it. */
+  bool blends() const {
+    for (const Layer& l : layers)
+      if (l.dec.blends()) return true;
+    return false;
+  }
   /** The widest mark any layer paints, plus the pipeline's own reach. */
   float reach() const {
     float shared = 0;
-    for (const Shaper& g : pipeline) shared += g.bleed();
+    for (const geometry::path::Shaper& g : pipeline) shared += g.bleed();
     float worst = 0;
     for (const Layer& l : layers) {
       float layerReach = l.dec.reach();
-      for (const Shaper& g : l.shapers) layerReach += g.bleed();
+      for (const geometry::path::Shaper& g : l.shapers) layerReach += g.bleed();
       worst = std::max(worst, layerReach);
     }
     return shared + worst;
@@ -293,12 +308,12 @@ struct Brush {
   }
   float bleed() const {
     float shared = 0;
-    for (const Shaper& g : pipeline)
+    for (const geometry::path::Shaper& g : pipeline)
       shared += g.bleed();  // pipeline reaches compound (offset THEN wave)
     float worst = 0;
     for (const Layer& l : layers) {
       float layerReach = l.dec.bleed();
-      for (const Shaper& g : l.shapers) layerReach += g.bleed();
+      for (const geometry::path::Shaper& g : l.shapers) layerReach += g.bleed();
       worst = std::max(worst, layerReach);
     }
     return shared + worst;
@@ -314,8 +329,8 @@ namespace brush {
  *  jitter, rounding without knowing.
  *
  *  THE ONE MECHANISM DOOR. It takes a `GeometryOp`, which a comparable
- *  shaper value and a raw `ops::PathOp` lambda both convert to — and the
- *  lambda has nowhere else to go.
+ *  shaper value and a raw `geometry::path::ops::PathOp` lambda both
+ *  convert to — and the lambda has nowhere else to go.
  *
  *  The WRAPPER is incomparable either way, because it has no operator== at
  *  all, so a node wearing one never prunes whichever op it was handed:
@@ -327,6 +342,8 @@ struct Restyled {
   float extraBleed = 8.0f;  // the op's own overhang (wave amplitude…)
 
   bool isAnimated() const { return inner.isAnimated(); }
+  /** Forwarded, for the reason a weave forwards it. */
+  bool blends() const { return inner.blends(); }
   float bleed() const { return inner.bleed() + extraBleed; }
   float reach() const { return inner.reach(); }
   /** Forwarded, or a wrapped weave's strand::from(key) would never be
@@ -405,19 +422,25 @@ struct Scatter {
   float jitterScale = 0;                    ///< ±fraction of 1
   float jitterRotateDeg = 0;                ///< ±deg
   bool alignToPath = true;
-  float reach = 32.0f;  ///< cull reserve: half the art's extent + jitter
+  /** How far a stamp escapes the outline: half the art's extent plus the
+   *  jitter. The CULL's number, measured from the path outwards — the
+   *  mark's own width is `reach()`, twice this. */
+  float bleedPx = 32.0f;
   StampModFn mod;
   bool animatedMod = false;  ///< mod reads time → repaint per frame
 
   bool isAnimated() const { return animatedMod; }
-  float bleed() const { return reach; }
+  float bleed() const { return bleedPx; }
+  /** The mark's full width: a stamp is centred on the path, so it spans
+   *  the reserve on both sides of it. */
+  float reach() const { return bleedPx * 2.0f; }
   bool operator==(const Scatter& o) const {
     return art.node() == o.art.node() && spacing == o.spacing &&
            place == o.place && seed == o.seed && jitterAlong == o.jitterAlong &&
            jitterNormal == o.jitterNormal && jitterScale == o.jitterScale &&
            jitterRotateDeg == o.jitterRotateDeg &&
-           alignToPath == o.alignToPath && reach == o.reach && !mod && !o.mod &&
-           animatedMod == o.animatedMod;
+           alignToPath == o.alignToPath && bleedPx == o.bleedPx && !mod &&
+           !o.mod && animatedMod == o.animatedMod;
   }
 
   /** The scatter's baked stamp, shared by every copy of the brush
@@ -425,8 +448,8 @@ struct Scatter {
    *  copy that swaps art re-bakes instead of stamping the old one. */
   struct Cache {
     sk_sp<SkPicture> pic;
-    const void* bakedFor = nullptr;  // the art node the bake belongs to —
-                                     // copies that swap art re-bake
+    // The art node the bake belongs to — copies that swap art re-bake.
+    std::weak_ptr<detail::ElementNode> bakedFor;
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
@@ -522,12 +545,17 @@ struct Pattern {
    *  runs are shorter. */
   float cornerLength = 0.0f;
   bool stretchToFit = true;  ///< false: natural size, slack spread evenly
-  float reach = 32.0f;       ///< cull reserve
-  StampModFn mod;            ///< side tiles only
+  /** How far a tile escapes the outline: half a tile's extent across the
+   *  path. The CULL's number — the mark's own width is `reach()`. */
+  float bleedPx = 32.0f;
+  StampModFn mod;  ///< side tiles only
   bool animatedMod = false;
 
   bool isAnimated() const { return animatedMod; }
-  float bleed() const { return reach; }
+  float bleed() const { return bleedPx; }
+  /** The mark's full width: a tile is centred on the path, so it spans
+   *  the reserve on both sides of it. */
+  float reach() const { return bleedPx * 2.0f; }
   bool operator==(const Pattern& o) const {
     auto node = [](const std::optional<Element>& e) {
       return e ? e->node().get() : nullptr;
@@ -536,11 +564,12 @@ struct Pattern {
            node(end) == node(o.end) && corner == o.corner &&
            advance == o.advance && cornerAngleDeg == o.cornerAngleDeg &&
            cornerLength == o.cornerLength && stretchToFit == o.stretchToFit &&
-           reach == o.reach && !mod && !o.mod && animatedMod == o.animatedMod;
+           bleedPx == o.bleedPx && !mod && !o.mod &&
+           animatedMod == o.animatedMod;
   }
 
-  /** The baked tile art, keyed on each art Element's node POINTER — which
-   *  is what makes the rule below matter.
+  /** The baked tile art, keyed on each art Element's NODE — which is what
+   *  makes the rule below matter.
    *
    *  THE CACHE IN THIS VALUE IS THE FALLBACK. Inside a composer the bakes
    *  live in the INSTANCE's stamp cache, handed in through
@@ -553,10 +582,8 @@ struct Pattern {
    *  value starts empty. */
   struct Cache {
     sk_sp<SkPicture> side, start, end, corner;
-    const void* bakedSide = nullptr;
-    const void* bakedStart = nullptr;
-    const void* bakedEnd = nullptr;
-    const void* bakedCorner = nullptr;
+    std::weak_ptr<detail::ElementNode> bakedSide, bakedStart, bakedEnd,
+        bakedCorner;
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
@@ -566,9 +593,21 @@ struct Pattern {
 /** The variable-width RIBBON: a filled band whose width follows a law —
  *  a linear taper by default, a calligraphic nib when `nibAngleDeg` ≥ 0
  *  (the width peaks where the path runs perpendicular to the nib), or any
- *  `Profile` on the shared width seam. */
+ *  `Profile` on the shared width seam — joined at the corners, and handed
+ *  back as geometry by `band()` for anything that has to measure it. */
 struct Ribbon {
   Fill fill = Fill::color({1, 1, 1, 1});
+  /** A Material for the band, superseding `fill` when set — the same
+   *  door `Decoration::strokeMaterial` opens on a stroke, so a recipe
+   *  that dresses an outline can dress the ribbon beside it without
+   *  being written twice.
+   *
+   *  Prefer it to `fill` when the same paint also fills something else:
+   *  a Material is authored in the unit square, compares structurally,
+   *  and can carry live uniforms, where a `Fill` is node-local pixels
+   *  compared by shader pointer. A live material makes the ribbon
+   *  animated, so the node repaints without a re-describe. */
+  std::optional<material::skia::Paint> fillMaterial;
   float widthStart = 10.0f, widthEnd = 2.0f;
   float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
   float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents
@@ -598,42 +637,68 @@ struct Ribbon {
    *  start. A window whose BEGIN moves, or one that wraps, measures px
    *  from the revealed piece's own start. See `PxKeyedProfileScheme`.
    *
-   *  GEOMETRY: a profiled ribbon is `bandRegion()`, so its rails go
-   *  through `profileOffset` — a CONSTANT profile picks up
-   *  `geometry::path::parallel`'s real-vertex corner repair (arc outside a
-   *  turn, miter inside) instead of the spur the sample-and-displace walk
-   *  below leaves on the inside of every rectangle corner; a VARYING one
-   *  is sampled per rail at a uniform 2 px and zipped by arc length.
-   *
    *  Default-constructed means ABSENT: the nib, then the
    *  widthStart→widthEnd taper apply. */
-  Profile width;
+  geometry::path::Profile width;
+
+  /** THE CORNER, on the OUTSIDE of a turn — bevel by default, the chord
+   *  the sampled rails already cut; round adds the disc the turn sweeps
+   *  out; miter carries the two rails to their meeting point, or bevels
+   *  when that point is further than `miterLimit` widths away, which is
+   *  Skia's own rule for a stroke.
+   *
+   *  It shapes the outside only, because the inside of a turn is not a
+   *  choice: a band is the UNION of its cross-sections, and this one is
+   *  built as one quadrilateral per sampled step, all wound the same way,
+   *  so the overlap on the inside of a bend fills. A band zipped into a
+   *  single left-forward, right-back contour cannot do that — its inner
+   *  rail crosses itself, the crossing winds the wrong way, and the
+   *  winding fill DROPS the inside of the bend. The hole opens once the
+   *  band is wider than about half the leg it turns on, and it is then
+   *  wider than the band itself.
+   *
+   *  `SkPaint::Join` rather than a word of our own, because this is the
+   *  same decision a stroke makes and a caller should not have to learn a
+   *  second spelling of it. */
+  SkPaint::Join join = SkPaint::kBevel_Join;
+  /** How far a miter may reach, in widths, before it bevels instead —
+   *  Skia's default of 4, and the reason `bleed()` grows under a miter:
+   *  a mitered corner is the one join that reaches past the width. */
+  float miterLimit = 4.0f;
 
   /** Is the profile seam in use? (A default-constructed Profile compares
    *  equal to itself — see Profile::operator== — so this is the honest
    *  presence test, and a zero-width profile paints nothing either way.) */
-  bool hasProfile() const { return !(width == Profile{}); }
+  bool hasProfile() const { return !(width == geometry::path::Profile{}); }
 
   float bleed() const {
-    if (hasProfile()) return width.max();
-    return std::max(widthStart, widthEnd);
+    const float w = hasProfile() ? width.max() : std::max(widthStart, widthEnd);
+    // A bevel and a round join stay inside the width; a miter is allowed
+    // to reach `miterLimit` of them, and a bleed that did not say so
+    // would clip the one corner the caller asked to be sharp.
+    return join == SkPaint::kMiter_Join ? w * std::max(miterLimit, 1.0f) : w;
   }
+  bool isAnimated() const { return fillMaterial && fillMaterial->isAnimated(); }
   bool operator==(const Ribbon& o) const {
-    return fill == o.fill && widthStart == o.widthStart &&
-           widthEnd == o.widthEnd && nibAngleDeg == o.nibAngleDeg &&
-           nibContrast == o.nibContrast && step == o.step && width == o.width;
+    return fill == o.fill && fillMaterial == o.fillMaterial &&
+           widthStart == o.widthStart && widthEnd == o.widthEnd &&
+           nibAngleDeg == o.nibAngleDeg && nibContrast == o.nibContrast &&
+           step == o.step && width == o.width && join == o.join &&
+           miterLimit == o.miterLimit;
   }
+
+  /** THE BAND THIS RIBBON FILLS over @p spine — the same geometry `paint`
+   *  draws, handed back.
+   *
+   *  Without it a study that wants to MEASURE what a ribbon drew has to
+   *  transcribe the construction, and a transcription goes stale the
+   *  moment the sampling changes, with the audit then measuring a band
+   *  nobody draws. Pair it with `compose::test::widthAlong` to ask
+   *  whether the band is the width its profile claims. */
+  SkPath band(const SkPath& spine) const;
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
-
-/** Linear taper (comet body, ink pull-away). */
-Ribbon taper(float widthStart, float widthEnd, Fill fill);
-
-/** The calligraphic nib: full width perpendicular to `nibAngleDeg`,
- *  `contrast` fraction when the path runs along the nib. */
-Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
-                    float contrast = 0.15f);
 
 /** The ART brush: ONE art cell stretched and continuously BENT along each
  *  contour. This is what the stamp and tile brushes cannot do — they break
@@ -659,13 +724,19 @@ struct Art {
   Element art;
   float height = 0;        ///< ribbon height (0 → the art's intrinsic)
   float stationPx = 6.0f;  ///< arc-length between strip stations
-  float reach = 32.0f;     ///< cull reserve: half height + art overhang
+  /** How far the ribbon escapes the outline: half its height plus what
+   *  the art hangs over. The CULL's number — the mark's own width is
+   *  `reach()`. */
+  float bleedPx = 32.0f;
 
   bool isAnimated() const { return false; }
-  float bleed() const { return reach; }
+  float bleed() const { return bleedPx; }
+  /** The mark's full width: the ribbon is centred on the path, so it
+   *  spans the reserve on both sides of it. */
+  float reach() const { return bleedPx * 2.0f; }
   bool operator==(const Art& o) const {
     return art.node() == o.art.node() && height == o.height &&
-           stationPx == o.stationPx && reach == o.reach;
+           stationPx == o.stationPx && bleedPx == o.bleedPx;
   }
 
   /** The art's rastered strip, shared by every copy of the brush value
@@ -673,7 +744,7 @@ struct Art {
   struct Cache {
     sk_sp<SkImage> image;  // the 2x bake
     SkSize artSize{0, 0};  // logical art size
-    const void* bakedFor = nullptr;
+    std::weak_ptr<detail::ElementNode> bakedFor;
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
@@ -690,7 +761,7 @@ namespace brush {
 /** A Ribbon built on the PROFILE seam — the constructor to prefer, since
  *  the profile is the half of a ribbon that shares a vocabulary with
  *  bands and strands. */
-Ribbon ribbon(Profile width, Fill fill);
+Ribbon ribbon(geometry::path::Profile width, Fill fill);
 }  // namespace brush
 
 }  // namespace sigil::compose

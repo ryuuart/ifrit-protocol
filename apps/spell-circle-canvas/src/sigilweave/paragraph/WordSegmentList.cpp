@@ -1,12 +1,11 @@
 /** @file
  * The segment storage behind a Word. The bytes in the public header hold
  * an inline vector of one segment; the container type stays here so no
- * abseil header reaches a consumer, and the size and alignment of the
+ * Boost header reaches a consumer, and the size and alignment of the
  * public bytes are checked against it where it is instantiated.
  */
 
-#include <absl/container/inlined_vector.h>
-
+#include <boost/container/small_vector.hpp>
 #include <new>
 #include <utility>
 
@@ -16,7 +15,7 @@ namespace sigil::weave {
 
 namespace {
 
-using SegmentStorage = absl::InlinedVector<WordSegment, 1>;
+using SegmentStorage = boost::container::small_vector<WordSegment, 1>;
 static_assert(sizeof(SegmentStorage) <= sizeof(WordSegmentList),
               "WordSegmentList's storage is too small for the container");
 static_assert(alignof(SegmentStorage) <= alignof(WordSegmentList),

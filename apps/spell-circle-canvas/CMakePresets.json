@@ -8,14 +8,6 @@
       "cacheVariables": {
         "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/triplets"
       }
-    },
-    {
-      "name": "xcode",
-      "binaryDir": "${sourceDir}/build-xcode",
-      "generator": "Xcode",
-      "cacheVariables": {
-        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/triplets"
-      }
     }
   ]
 }

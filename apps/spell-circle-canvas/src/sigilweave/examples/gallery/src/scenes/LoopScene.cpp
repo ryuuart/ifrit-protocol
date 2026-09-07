@@ -1,6 +1,8 @@
 // Scene: infinite loop marquee on a closed figure-eight.
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <cmath>
 #include <numbers>
@@ -93,7 +95,7 @@ class LoopScene final : public Scene {
   };
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;
-  kit::CachedValue<Rail, SkISize> m_rail;
+  sigil::core::CachedValue<Rail, SkISize> m_rail;
 };
 
 SceneDescriptor makeLoopDescriptor() {

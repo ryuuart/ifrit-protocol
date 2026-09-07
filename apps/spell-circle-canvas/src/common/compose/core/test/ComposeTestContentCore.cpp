@@ -9,6 +9,7 @@
 
 #include <numeric>
 
+#include "BakeInk.h"  // the ink grid a local bake is blitted through
 #include "support/CoreTestSupport.h"
 
 namespace {
@@ -54,9 +55,14 @@ TEST(ComposeFeed, AnAppendCostsOneMountAndNeverRerecordsTheRowsAboveIt) {
   host.composer.render(describe());
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u);  // the new tail only
   host.frame();
-  // Ancestor chain re-records + the tail's own picture; the nine surviving
-  // rows replay their cached pictures untouched.
-  EXPECT_LE(host.composer.stats().picturesRecorded, 4u);
+  // Ancestor chain re-records plus the tail's own picture; the nine
+  // surviving rows replay their cached pictures untouched. Stated against
+  // the window size rather than against a number: re-recording the window
+  // would cost at least one picture per row in it.
+  const unsigned recordedForOneAppend = host.composer.stats().picturesRecorded;
+  EXPECT_GT(recordedForOneAppend, 0u) << "the append recorded nothing at all";
+  EXPECT_LT(recordedForOneAppend, 10u)
+      << "the whole ten-row window re-recorded for one appended line";
 
   // The price is CONSTANT, which is the whole claim: a second append costs
   // exactly what the first did, and the retained tree does not grow.
@@ -65,7 +71,8 @@ TEST(ComposeFeed, AnAppendCostsOneMountAndNeverRerecordsTheRowsAboveIt) {
   host.composer.render(describe());
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
   host.frame();
-  EXPECT_LE(host.composer.stats().picturesRecorded, 4u);
+  EXPECT_EQ(host.composer.stats().picturesRecorded, recordedForOneAppend)
+      << "the second append cost more than the first";
   EXPECT_EQ(host.composer.stats().instances, liveAfterFirst)
       << "the window is bounded: one mount in, one unmount out";
 }
@@ -80,7 +87,8 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
   const feed::TextOptions options = feedOptions(6, 16.0f);
   auto lit = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
-        .opacity(animate(from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}));
+        .opacity(animate(motion::from(0.0f).to(1.0f),
+                         {200ms, &choreograph::easeNone}));
   };
   Host host(160, 200);
   auto describe = [&] {
@@ -139,10 +147,10 @@ TEST(ComposeFeed, TheWindowNeverMountsTheRowsOutsideIt) {
 }
 
 TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
-  // Options::entrance is a Stagger — the same value the glyph engine and
-  // staggerChildren speak — with a ROW as the beat. The initial describe
-  // cascades the window; an append is the only new mount in its patch, so
-  // it enters AT ONCE instead of inheriting a full window's worth of steps,
+  // Options::entrance is a motion::Spread — the same value the glyph
+  // engine and staggerChildren speak — with a ROW as the beat. The initial
+  // describe cascades the window; an append is the only new mount in its patch,
+  // so it enters AT ONCE instead of inheriting a full window's worth of steps,
   // and no row already on screen re-enters.
   feed::TextRing ring;
   for (int i = 0; i < 3; ++i) ring.append({toU8("row")});
@@ -150,7 +158,8 @@ TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
   options.window.entrance = {.eachMs = 400};
   auto lit = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
-        .opacity(animate(from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}));
+        .opacity(animate(motion::from(0.0f).to(1.0f),
+                         {200ms, &choreograph::easeNone}));
   };
   Host host(160, 200);
   auto describe = [&] {
@@ -184,7 +193,8 @@ TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
   // A typo'd uniform name must never abort (SkDEBUGFAIL kills the sketch
   // host in debug): unknown names are warned and dropped, at sksl() and at
   // uniform(), constant and bound alike.
-  Material m = Material::sksl(ukEffect(), {{"uTypo", 1.0f}});
+  material::skia::Paint m =
+      material::skia::Paint::sksl(ukEffect(), {{"uTypo", 1.0f}});
   choreograph::Output<float> o{1.0f};
   m.uniform("uAlsoMissing", &o);  // dropped → still not live
   EXPECT_FALSE(m.isAnimated());
@@ -378,6 +388,209 @@ TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
   }
 }
 
+namespace {
+
+/** The largest channel difference between two hosts' canvases. */
+int maxChannelDifference(Host& a, Host& b, int w, int h) {
+  SkBitmap ba, bb;
+  ba.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  bb.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  a.surface->readPixels(ba.pixmap(), 0, 0);
+  b.surface->readPixels(bb.pixmap(), 0, 0);
+  int worst = 0;
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) {
+      const SkColor p = ba.getColor(x, y), q = bb.getColor(x, y);
+      worst =
+          std::max({worst, std::abs((int)SkColorGetR(p) - (int)SkColorGetR(q)),
+                    std::abs((int)SkColorGetG(p) - (int)SkColorGetG(q)),
+                    std::abs((int)SkColorGetB(p) - (int)SkColorGetB(q))});
+    }
+  return worst;
+}
+
+/** A pill of type turned by @p degrees, NESTED ONE LEVEL UNDER A STATIC
+ *  CONTAINER — the container carries a second child, so it takes the
+ *  automatic picture and the pill is painted into that recording. */
+Element turnedPill(float degrees, Cache mode) {
+  return box()
+      .cache(Cache::None)
+      .child(
+          box()
+              .inset(0)
+              .child(box().absolute().left(2).top(2).width(4).height(4).fill(
+                  Fill::color({0, 0.3f, 0, 1})))
+              .child(box()
+                         .absolute()
+                         .left(60)
+                         .top(100)
+                         .width(140)
+                         .height(28)
+                         .key("pill")
+                         .cache(mode)
+                         .rotate(degrees)
+                         .transformOrigin(0.5f, 0.5f)
+                         .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))
+                         .child(text(u8"LEFT SIDE BARRIER", whiteStyle(15)))));
+}
+
+}  // namespace
+
+TEST(ComposeCaching, ADeviceBakeUnderAStaticContainerIsExactAtEveryAngle) {
+  // A texture bake held in local space is blitted through the node's
+  // rotation and resampled by it; at a quarter turn the texel grid lands
+  // half a texel off the device grid on the axis carrying the type's
+  // detail. The device-space bake has nothing to resample — and it is
+  // reachable under a static container, whose recording is then pinned
+  // to the matrix it was made under. So the cached pill must agree with
+  // the uncached draw to the same tolerance at every angle, the quarter
+  // turns included; a root-level pill would pass this at any angle and
+  // prove nothing.
+  const int w = 260, h = 260;
+  int worstOnAxis = 0, worstOffAxis = 0;
+  for (float degrees : {0.0f, 45.0f, 90.0f, 180.0f, -90.0f}) {
+    Host cached(w, h), plain(w, h);
+    cached.composer.render(turnedPill(degrees, Cache::Texture));
+    cached.frame();
+    cached.frame();  // the second frame replays the pinned recording
+    EXPECT_EQ(cached.composer.stats().picturesRecorded, 0u) << degrees;
+    plain.composer.render(turnedPill(degrees, Cache::None));
+    plain.frame();
+    const int worst = maxChannelDifference(cached, plain, w, h);
+    if (degrees == 0.0f || degrees == 180.0f)
+      worstOnAxis = std::max(worstOnAxis, worst);
+    else
+      worstOffAxis = std::max(worstOffAxis, worst);
+    EXPECT_LE(worst, 2) << "at " << degrees << " degrees";
+  }
+  EXPECT_LE(worstOffAxis, worstOnAxis + 1)
+      << "the turned pill was resampled where the upright one was not";
+}
+
+TEST(ComposeCaching, ARecordingHoldingADeviceBakeIsRemadeWhenItsMatrixMoves) {
+  // The pin. A device blit inside a recording is exact under the matrix
+  // the recording was made under and nowhere else, so the recording is
+  // remade — and the bake with it — the frame the host's matrix changes,
+  // and replays untouched while it holds.
+  Host host(260, 260);
+  host.composer.render(turnedPill(-90.0f, Cache::Texture));
+  auto drawAt = [&](float s) {
+    SkCanvas& canvas = *host.surface->getCanvas();
+    canvas.clear(SK_ColorBLACK);
+    canvas.save();
+    canvas.scale(s, s);
+    host.composer.draw(canvas);
+    canvas.restore();
+  };
+  drawAt(1.0f);
+  EXPECT_GE(host.composer.stats().texturesBaked, 1u);
+  drawAt(1.0f);
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  drawAt(0.5f);  // the pinned recording is stale under any other matrix
+  EXPECT_GE(host.composer.stats().picturesRecorded, 1u);
+  // Under CONTINUOUS motion the pill falls back to the local bake, the
+  // recording holds no device blit, and it replays under every matrix
+  // the way any recording does.
+  drawAt(0.6f);
+  drawAt(0.7f);
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  // …and once the matrix has held still for a frame the deferred device
+  // bake is taken: one remake, then replays.
+  drawAt(0.7f);
+  EXPECT_GE(host.composer.stats().texturesBaked, 1u);
+  drawAt(0.7f);
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+}
+
+TEST(ComposeCaching, ANodeUnderALiveTransformKeepsTheLocalBakeInItsRecording) {
+  // The restriction that stays. A recording made under a declared motion
+  // replays under that motion, so it may hold nothing pinned to a device
+  // rect: the texture node inside it takes the quantized local bake, the
+  // recording stays matrix-independent, and neither is remade while the
+  // ancestor slides — the same guarantee the moving-ancestor case gives
+  // through a Cache::None parent, here through a recording.
+  Host host(300, 300);
+  choreograph::Output<float> slide{0.0f};
+  host.composer.render(
+      box()
+          .cache(Cache::None)
+          .child(
+              box()
+                  .absolute()
+                  .translateX(&slide)
+                  .child(
+                      box().absolute().left(2).top(2).width(4).height(4).fill(
+                          Fill::color({0, 0.3f, 0, 1})))
+                  .child(
+                      box()
+                          .absolute()
+                          .left(60)
+                          .top(100)
+                          .width(60)
+                          .height(60)
+                          .cache(Cache::Texture)
+                          .rotate(-90.0f)
+                          .transformOrigin(0.5f, 0.5f)
+                          .fill(red())
+                          .child(box().width(20).height(20).fill(green())))));
+  host.frame();
+  EXPECT_GE(host.composer.stats().texturesBaked, 1u);
+  // The still -> moving transition costs one remake, as it does through a
+  // Cache::None parent; from there the guarantee is absolute.
+  slide = 7.0f;
+  host.frame();
+  for (int i = 2; i <= 5; ++i) {
+    slide = (float)i * 7.0f;
+    host.frame();
+    EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+        << "frame " << i
+        << ": a recording under a live transform was remade, or the bake "
+           "inside it was pinned to a device rect";
+  }
+}
+
+TEST(ComposeCaching, AMemoShellsCacheIsCarriedOntoItsProduce) {
+  // memo(...).cache(Cache::Picture) is written on the SHELL, and the
+  // reconciler retains the PRODUCE as the node's description — so the
+  // explicit cache reaches the painter only if the shell's say is carried
+  // across. The produce here is a childless box, which records nothing
+  // under Cache::Auto (one draw beats a nested recording) and exactly one
+  // picture under Cache::Picture; the parent is Cache::None so no
+  // recording above it can stand in for the memo's own.
+  struct Props {
+    int tick = 0;
+    bool operator==(const Props&) const = default;
+  };
+  Host host;
+  const auto describe = [](int tick) {
+    return box()
+        .cache(Cache::None)
+        .child(memo(Props{tick},
+                    [](const Props& p) {
+                      return box().width(40).height(40).fill(
+                          p.tick % 2 ? red() : green());
+                    })
+                   .key("cell")
+                   .cache(Cache::Picture));
+  };
+  host.composer.render(describe(0));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 1u);
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorGREEN);
+  // Props change → the memo re-describes → its shell's cache still holds,
+  // and the fresh produce is recorded once more.
+  host.composer.render(describe(1));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 1u);
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorRED);
+  // Equal props → a memo hit reuses the retained produce, and its
+  // recording replays untouched.
+  host.composer.render(describe(1));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorRED);
+}
+
 // ---------------------------------------------------------------------------
 // Layout and leaf surface: wrap, per-edge spacing, per-corner radii,
 // Dim literals, atlas regions, the Paragraph overload, contentScale.
@@ -467,7 +680,7 @@ TEST(ComposePaint, AnimatingReportsTheTickersState) {
   host.composer.render(
       box()
           .child(box().width(40).height(40).fill(red()).opacity(
-              animate(from(0.0f).to(1.0f), {400ms})))
+              animate(motion::from(0.0f).to(1.0f), {400ms})))
           .child(custom([&seen](SkCanvas&, const PaintContext& ctx) {
                    seen = ctx.animating;
                  })
@@ -600,22 +813,24 @@ TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
 // stroke align, measure(), presets, marquee.
 
 // ---------------------------------------------------------------------------
-// The authoring grammar: animate(from(a).to(b)) / animate(through({…})).
-// What is pinned is the VALUE each argument shape builds, because that value
-// is the only thing the engine ever sees — the argument spellings are pure
-// sugar over it.
+// The authoring grammar: animate(motion::from(a).to(b)) /
+// animate(through({…})). What is pinned is the VALUE each argument shape
+// builds, because that value is the only thing the engine ever sees — the
+// argument spellings are pure sugar over it.
 
 TEST(ComposeMotion, EachArgumentShapeBuildsItsOwnTransitioned) {
-  const Transition spec{200ms, &choreograph::easeNone, 40ms};
+  const sigil::motion::Transition spec{200ms, &choreograph::easeNone, 40ms};
 
-  const Transitioned<float> ramp = animate(to(1.0f), spec);
+  const sigil::motion::Transitioned<float> ramp =
+      animate(sigil::motion::to(1.0f), spec);
   EXPECT_EQ(ramp.value, 1.0f);
   EXPECT_FALSE(ramp.from.has_value()) << "to() alone is not an entrance";
   EXPECT_TRUE(ramp.waypoints.empty());
   EXPECT_EQ(ramp.spec.duration, 200ms);
   EXPECT_EQ(ramp.spec.delay, 40ms);
 
-  const Transitioned<float> entrance = animate(from(0.0f).to(1.0f), spec);
+  const sigil::motion::Transitioned<float> entrance =
+      animate(motion::from(0.0f).to(1.0f), spec);
   EXPECT_EQ(entrance.value, 1.0f);
   ASSERT_TRUE(entrance.from.has_value());
   EXPECT_EQ(*entrance.from, 0.0f);
@@ -626,8 +841,8 @@ TEST(ComposeMotion, EachArgumentShapeBuildsItsOwnTransitioned) {
 
   const std::vector<std::pair<std::chrono::milliseconds, float>> path{
       {0ms, 40.0f}, {200ms, -20.0f}, {400ms, 0.0f}};
-  const Transitioned<float> phrasedPath =
-      animate(through(path), &choreograph::easeNone);
+  const sigil::motion::Transitioned<float> phrasedPath =
+      animate(sigil::motion::through(path), &choreograph::easeNone);
   EXPECT_EQ(phrasedPath.value, 0.0f);
   ASSERT_TRUE(phrasedPath.from.has_value());
   EXPECT_EQ(*phrasedPath.from, 40.0f);
@@ -648,20 +863,23 @@ TEST(ComposeMotion, AnEmptyKeyframePathIsDETERMINATE) {
   // default-initialized, `animate(through({}))` would leave a float property
   // reading whatever was on the stack — once, silently, with no failure to
   // observe anywhere. Zero is the answer.
-  const Transitioned<float> empty = animate(through({}));
+  const sigil::motion::Transitioned<float> empty =
+      animate(sigil::motion::through({}));
   EXPECT_EQ(empty.value, 0.0f);
   EXPECT_FALSE(empty.from.has_value());
   EXPECT_TRUE(empty.waypoints.empty());
 
   const std::vector<std::pair<std::chrono::milliseconds, float>> none;
-  const Transitioned<float> phrased = animate(through(none));
+  const sigil::motion::Transitioned<float> phrased =
+      animate(sigil::motion::through(none));
   EXPECT_EQ(phrased.value, 0.0f);
 
   // And through the property slot: the node paints AT that determinate
   // value rather than at a number nobody chose.
   Host host;
-  host.composer.render(box().child(
-      box().width(80).height(80).fill(red()).opacity(animate(through({})))));
+  host.composer.render(
+      box().child(box().width(80).height(80).fill(red()).opacity(
+          animate(sigil::motion::through({})))));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorBLACK);  // opacity 0, not garbage
 }
@@ -671,7 +889,8 @@ TEST(ComposeMotion, AnimateThroughDeducesAFloatPath) {
   // normally has to be told `<float>`. This overload exists so it does not.
   // Compiling with no explicit template argument IS the test — the
   // assertions below only confirm it deduced the right thing.
-  const Transitioned<float> t = animate(through({{0ms, 0.0f}, {100ms, 1.0f}}));
+  const sigil::motion::Transitioned<float> t =
+      animate(sigil::motion::through({{0ms, 0.0f}, {100ms, 1.0f}}));
   ASSERT_EQ(t.waypoints.size(), 2u);
   EXPECT_EQ(t.waypoints.front().second, 0.0f);
   EXPECT_EQ(t.waypoints.back().second, 1.0f);
@@ -685,7 +904,7 @@ TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
   Host host;
   auto tree = [] {
     return box().child(box().width(80).height(80).fill(red()).opacity(
-        animate(from(0.0f).to(1.0f), {200ms, &choreograph::easeNone})));
+        animate(motion::from(0.0f).to(1.0f), {200ms, &choreograph::easeNone})));
   };
   host.composer.render(tree());
   host.frame();
@@ -706,104 +925,14 @@ TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
 
 TEST(ComposeMotion, AnimateColorSweepsOnMount) {
   Host host;
-  host.composer.render(box().child(box().width(80).height(80).fill(
-      Animatable<Fill>(animate(from(Fill::color({1, 1, 1, 1})).to(red()),
-                               {200ms, &choreograph::easeNone})))));
+  host.composer.render(
+      box().child(box().width(80).height(80).fill(motion::Animatable<Fill>(
+          animate(motion::from(Fill::color({1, 1, 1, 1})).to(red()),
+                  {200ms, &choreograph::easeNone})))));
   host.frame();
   EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE);  // the declared "from"
   host.frame(0.3);
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
-}
-
-namespace {
-
-/** A red 40x40 rect at x=150 recorded into a picture whose cull rect is
- *  the 100x100 box it escapes; replayed onto a 300x200 white surface.
- *  Returns the pixel the escaped rect would paint. */
-sk_sp<SkPicture> escapingPicture(const SkRect& cull, SkBBHFactory* bbh) {
-  SkPictureRecorder rec;
-  SkCanvas* c = rec.beginRecording(cull, bbh);
-  SkPaint p;
-  p.setColor(SK_ColorRED);
-  c->drawRect(SkRect::MakeXYWH(150, 10, 40, 40), p);
-  return rec.finishRecordingAsPicture();
-}
-
-SkColor replayPixel(const sk_sp<SkPicture>& pic, int x, int y) {
-  auto surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(300, 200));
-  surf->getCanvas()->clear(SK_ColorWHITE);
-  surf->getCanvas()->drawPicture(pic);
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
-  surf->readPixels(bm.pixmap(), x, y);
-  return bm.getColor(0, 0);
-}
-
-}  // namespace
-
-/** What a picture's cull rect actually does, established by experiment
- *  rather than assumed — because the intuitive reading ("ops outside the
- *  cull rect are dropped") is wrong, and `ownPaintBounds` is sized on the
- *  basis of the real behaviour.
- *
- *  An op outside the cull rect is NOT rejected at record time and NOT culled
- *  at plain playback. The cull rect only bites through a bounding-box
- *  hierarchy. What does clip in the compose paint path is saveLayer bounds
- *  and bake surfaces. Every arm below is asserted against its opposite, so
- *  the test cannot pass by agreeing with itself. */
-TEST(ComposeCullRect, PictureCullDoesNotCullWithoutABbh) {
-  // (1) recorded: the op survives RECORDING despite sitting wholly
-  // outside the cull rect, and the picture keeps the rect it was given.
-  sk_sp<SkPicture> pic = escapingPicture(SkRect::MakeWH(100, 100), nullptr);
-  EXPECT_EQ(pic->approximateOpCount(true), 1);
-  EXPECT_EQ(pic->cullRect(), SkRect::MakeWH(100, 100));
-  // (2) and it survives PLAYBACK: the pixels land outside the cull rect.
-  EXPECT_EQ(replayPixel(pic, 170, 20), SK_ColorRED);
-
-  // (3) an EMPTY cull rect does not reject either — the zero-size-node
-  // guard in StackingPainter.cpp is justified by promotion, not by op
-  // rejection.
-  sk_sp<SkPicture> empty = escapingPicture(SkRect::MakeWH(0, 0), nullptr);
-  EXPECT_EQ(empty->approximateOpCount(true), 1);
-  EXPECT_EQ(replayPixel(empty, 170, 20), SK_ColorRED);
-
-  // (4) nor is the whole picture quick-rejected when its cull rect misses
-  // the device entirely: an op inside the device still paints.
-  {
-    SkPictureRecorder rec;
-    SkPaint p;
-    p.setColor(SK_ColorRED);
-    rec.beginRecording(SkRect::MakeXYWH(1000, 1000, 100, 100))
-        ->drawRect(SkRect::MakeXYWH(20, 20, 40, 40), p);
-    EXPECT_EQ(replayPixel(rec.finishRecordingAsPicture(), 30, 30), SK_ColorRED);
-  }
-
-  // (5) WITH a bbh the cull rect finally bites — still recorded, dropped
-  // at playback, because the RTree clips op bounds to the cull rect. This
-  // is the arm that makes (2) meaningful: same input, opposite outcome.
-  SkRTreeFactory bbh;
-  sk_sp<SkPicture> tree = escapingPicture(SkRect::MakeWH(100, 100), &bbh);
-  EXPECT_EQ(tree->approximateOpCount(true), 1);
-  EXPECT_EQ(replayPixel(tree, 170, 20), SK_ColorWHITE);
-
-  // (6) saveLayer bounds, by contrast, are a genuine clip — this is the
-  // mechanism recordBounds' child union is actually defending against.
-  {
-    auto surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(300, 200));
-    surf->getCanvas()->clear(SK_ColorWHITE);
-    const SkRect box = SkRect::MakeWH(100, 100);
-    SkPaint layer;
-    layer.setAlphaf(0.5f);
-    SkPaint p;
-    p.setColor(SK_ColorRED);
-    surf->getCanvas()->saveLayer(&box, &layer);
-    surf->getCanvas()->drawRect(SkRect::MakeXYWH(150, 10, 40, 40), p);
-    surf->getCanvas()->restore();
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
-    surf->readPixels(bm.pixmap(), 170, 20);
-    EXPECT_EQ(bm.getColor(0, 0), SK_ColorWHITE);
-  }
 }
 
 TEST(ComposeCache, OverflowingChildSurvivesPictureCaching) {
@@ -850,4 +979,465 @@ TEST(ComposeCache, OverflowingChildSurvivesTextureBake) {
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
   host.frame();  // cached blit path
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
+}
+
+// Value semantics and cache invalidation around Element itself.
+
+TEST(ComposeElement, MutatingRenderedValueDetachesDescription) {
+  Host host;
+  Element panel = box().width(100).height(100).fill(red());
+
+  host.composer.render(box().child(panel));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+
+  // Composer retains the first description. Mutating the caller's value must
+  // create a new description so pointer-identity pruning cannot preserve the
+  // old cached picture.
+  panel.fill(blue());
+  host.composer.render(box().child(panel));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);
+}
+
+TEST(ComposeElement, CopiedValuesMutateIndependently) {
+  Host host;
+  Element left = box().width(100).height(100).fill(red());
+  Element right = left;
+  right.fill(blue());
+
+  host.composer.render(box().row().child(left).child(right));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+  EXPECT_EQ(host.pixel(150, 50), SK_ColorBLUE);
+}
+
+// ---------------------------------------------------------------------------
+// The edge store: node→routes back-index + flat derive lists
+
+TEST(ComposeEdgeStore, RoutesAtReturnsAnchoredRoutesInTreeOrder) {
+  Host host;
+  auto describe = [] {
+    return box()
+        .child(box().key("a").width(30).height(30).absolute().inset(10, 10, 160,
+                                                                    160))
+        .child(box().key("b").width(30).height(30).absolute().inset(160, 160,
+                                                                    10, 10))
+        .child(connector("a", "b").key("edge1"))
+        .child(rail({{"a", {0.5f, 0.5f}}, {"b", {0.5f, 0.5f}}}).key("edge2"))
+        .child(connector("a", "b"));  // keyless: anchored but unaddressable
+  };
+  host.composer.render(describe());
+  host.frame();
+  const std::vector<std::string> atA = host.composer.routesAt("a");
+  ASSERT_EQ(atA.size(), 2u);  // the keyless route is omitted
+  EXPECT_EQ(atA[0], "edge1");
+  EXPECT_EQ(atA[1], "edge2");
+  EXPECT_EQ(host.composer.routesAt("b").size(), 2u);
+  EXPECT_TRUE(host.composer.routesAt("nowhere").empty());
+}
+
+TEST(ComposeRail, AFreePointAnchorsToNothingAndIsStillOnTheRoute) {
+  // A route through a PLACE rather than through a thing: the bend that
+  // clears a corner is a real waypoint, and standing an invisible box up
+  // to carry its coordinates mounts and lays out a node per bend for a
+  // number the caller already had.
+  Host host;
+  host.composer.render(
+      box()
+          .child(
+              box().key("a").absolute().rect(SkRect::MakeXYWH(10, 10, 20, 20)))
+          .child(box().key("b").absolute().rect(
+              SkRect::MakeXYWH(150, 150, 20, 20)))
+          .child(rail({Anchor{.nodeKey = "a"}, Anchor{.point = {20.0f, 160.0f}},
+                       Anchor{.nodeKey = "b"}})
+                     .key("elbow")
+                     .absolute()
+                     .inset(0)));
+  host.frame();
+  // The route turns at the free point: a hit at the elbow lands on the
+  // rail, and the straight line between the two nodes does not pass
+  // anywhere near it.
+  EXPECT_EQ(host.composer.hitTest({20, 160}), "elbow");
+  EXPECT_EQ(host.composer.hitTest({20, 100}), "elbow");  // down the first leg
+  EXPECT_NE(host.composer.hitTest({90, 90}), "elbow");   // the chord it is not
+  // It is still a route AT the nodes it does bind.
+  EXPECT_EQ(host.composer.routesAt("a").size(), 1u);
+  EXPECT_EQ(host.composer.routesAt("b").size(), 1u);
+  // A rail of free points alone binds nothing and still draws.
+  host.composer.render(box().child(
+      rail({Anchor{.point = {10.0f, 10.0f}}, Anchor{.point = {10.0f, 180.0f}}})
+          .key("free")
+          .absolute()
+          .inset(0)));
+  host.frame();
+  EXPECT_EQ(host.composer.hitTest({10, 100}), "free");
+}
+
+TEST(ComposeEdgeStore, IndexClearsWhenRoutesUnmount) {
+  Host host;
+  bool withRoute = true;
+  auto describe = [&] {
+    auto tree = box()
+                    .child(box().key("a").width(30).height(30).absolute().inset(
+                        10, 10, 160, 160))
+                    .child(box().key("b").width(30).height(30).absolute().inset(
+                        160, 160, 10, 10));
+    if (withRoute) tree.child(connector("a", "b").key("edge"));
+    return tree;
+  };
+  host.composer.render(describe());
+  host.frame();
+  ASSERT_EQ(host.composer.routesAt("a").size(), 1u);
+  withRoute = false;
+  host.composer.render(describe());
+  host.frame();
+  EXPECT_TRUE(host.composer.routesAt("a").empty());
+}
+
+namespace {
+
+/** A RING OF TYPE turned about its own centre by a bound rotation: the
+ *  shape a bake is most worth taking for, and the shape whose bake is
+ *  mostly transparent. The letters ride a circle inscribed in the node's
+ *  box, so the ink is a band and the corners are empty. */
+Element ringOfType(Cache mode, const choreograph::Output<float>* turn) {
+  const float side = 640.0f, radius = 270.0f;
+  Element ring = box()
+                     .key("ring")
+                     .absolute()
+                     .left(10)
+                     .top(10)
+                     .width(side)
+                     .height(side)
+                     .cache(mode)
+                     .transformOrigin(0.5f, 0.5f);
+  const char8_t* letters[] = {u8"ANIMA", u8"LUMEN", u8"ORDO",  u8"SIGNUM",
+                              u8"VOX",   u8"NOMEN", u8"CIRCU", u8"TERRA",
+                              u8"AQUA",  u8"IGNIS", u8"AER",   u8"SAL"};
+  for (int i = 0; i < 12; ++i) {
+    const float a = (float)i * (float)(2 * M_PI) / 12.0f;
+    ring.child(text(letters[i], whiteStyle(18))
+                   .absolute()
+                   .left(side * 0.5f + radius * std::cos(a) - 40.0f)
+                   .top(side * 0.5f + radius * std::sin(a) - 12.0f)
+                   .width(80));
+  }
+  if (turn) ring.rotate(motion::bind(turn).target(0.0f, 360.0f));
+  return ring;
+}
+
+/** …painted every frame, so the cases below watch the ring itself rather
+ *  than an ancestor's recording of it. */
+Element turnedRing(Cache mode, const choreograph::Output<float>* turn) {
+  return profiledUnder(ringOfType(mode, turn));
+}
+
+/** …and the other placement every scene has: the same ring inside a PAGE
+ *  that records and SLIDES. The page's declared motion is what keeps its
+ *  recording matrix-independent, which is what keeps the ring on the local
+ *  bake — the tier the ink grid describes — and the recording is replayed
+ *  under a matrix of its own, which is not the page's own space. */
+Element ringInASlidingPage(const choreograph::Output<float>* slide,
+                           Cache mode) {
+  return profiledUnder(box()
+                           .key("page")
+                           .absolute()
+                           .left(30)
+                           .top(24)
+                           .width(700)
+                           .height(700)
+                           .translateX(slide)
+                           .child(ringOfType(mode, nullptr)));
+}
+
+}  // namespace
+
+TEST(ComposeCaching, ARingUnderABoundRotationBakesOnceAndBlitsEveryFrame) {
+  // A rotation about a node's own centre moves no pixel of its content —
+  // it moves where the content lands. So the bake is taken ONCE, in the
+  // node's own space, and every frame after is a blit through the turn;
+  // the ladder the local bake is quantized on cannot be moved by a
+  // rotation, so no rung is ever crossed and nothing is re-rasterized.
+  Host host(680, 680);
+  choreograph::Output<float> turn{0.0f};
+  host.composer.render(turnedRing(Cache::Texture, &turn));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u) << "the one bake";
+  for (int i = 1; i <= 12; ++i) {
+    turn = (float)i * 0.011f;  // a few degrees a frame, past every quadrant
+    host.frame(1.0 / 60.0);
+    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+        << "frame " << i << ": the ring was re-rasterized while it turned";
+    EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+        << "frame " << i << ": the ring re-recorded while it turned";
+  }
+}
+
+namespace {
+
+/** The brightest channel in each @p block-sized block of a host's canvas. */
+std::vector<int> blockPeaks(Host& host, int w, int h, int block) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  host.surface->readPixels(bm.pixmap(), 0, 0);
+  std::vector<int> peaks((size_t)((w + block - 1) / block) *
+                         (size_t)((h + block - 1) / block));
+  const int cols = (w + block - 1) / block;
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) {
+      const SkColor c = bm.getColor(x, y);
+      int& peak =
+          peaks[(size_t)(y / block) * (size_t)cols + (size_t)(x / block)];
+      peak = std::max({peak, (int)SkColorGetR(c), (int)SkColorGetG(c),
+                       (int)SkColorGetB(c)});
+    }
+  return peaks;
+}
+
+}  // namespace
+
+TEST(ComposeCaching, ATurnedRingsBlitLosesNoneOfWhatItBaked) {
+  // The blit skips the parts of the canvas no ink of the bake can reach,
+  // and "no ink can reach" has to be exactly true: the failure mode is not
+  // a softened edge — a bake blitted through a rotation is resampled and
+  // its glyph edges land a fraction of a texel off the live paint's, which
+  // is what the local bake IS — it is a block of the ring going missing.
+  // So the claim tested here is the one the skipping makes: wherever the
+  // live paint is lit, the blit is lit too, at every angle, including the
+  // ones that put the bake's own grid across the device grid at 45
+  // degrees. Delete the ink test in BakeInk.h's scan and a band of the
+  // ring vanishes here.
+  const int w = 680, h = 680, block = 16;
+  for (float degrees : {0.0f, 7.0f, 45.0f, 90.0f, 137.0f, -60.0f}) {
+    choreograph::Output<float> turn{degrees / 360.0f};
+    Host cached(w, h), plain(w, h);
+    cached.composer.render(turnedRing(Cache::Texture, &turn));
+    cached.frame();
+    cached.frame();  // the second frame is the blit, not the bake
+    EXPECT_EQ(cached.composer.stats().texturesBaked, 0u) << degrees;
+    plain.composer.render(turnedRing(Cache::None, &turn));
+    plain.frame();
+    const std::vector<int> was = blockPeaks(plain, w, h, block);
+    const std::vector<int> is = blockPeaks(cached, w, h, block);
+    ASSERT_EQ(was.size(), is.size());
+    int lit = 0, lost = 0;
+    for (size_t i = 0; i < was.size(); ++i) {
+      if (was[i] < 200) continue;  // a glyph's solid interior, not its edge
+      ++lit;
+      if (is[i] < 40) ++lost;
+    }
+    EXPECT_GT(lit, 40) << "at " << degrees << ": the ring drew nothing";
+    EXPECT_EQ(lost, 0) << "at " << degrees << " degrees, " << lost << " of "
+                       << lit << " lit blocks came back empty";
+  }
+}
+
+TEST(ComposeCaching, ARecordedBakesBlitLosesNoneOfWhatItBaked) {
+  // The same claim, for the placement that makes the blit's clip a
+  // different space: the bake sits inside a PAGE that records.
+  //
+  // The blit is admitted by a clip on whole DEVICE pixels, and a region
+  // clip ignores the matrix — that is what makes it a set of pixels rather
+  // than an outline. Inside a recording the canvas's own pixels are not the
+  // device's: the ops are replayed under a matrix of their own, and a
+  // region computed in the page's space is applied unchanged in the space
+  // the page is replayed into. Wrong units, wrong place, and blocks of the
+  // ring go missing — which is what a plate is, a page drawn at a view
+  // scale.
+  const int w = 1200, h = 1200, block = 16;
+  const float view = 1.6667f;  // the scale a plate is photographed at
+  const auto drawAt = [&](Host& host) {
+    SkCanvas* canvas = host.surface->getCanvas();
+    canvas->clear(SK_ColorBLACK);
+    canvas->save();
+    canvas->scale(view, view);
+    host.composer.draw(*canvas);
+    canvas->restore();
+  };
+  Host cached(w, h), plain(w, h);
+  choreograph::Output<float> cachedSlide{0.0f}, plainSlide{0.0f};
+  for (Host* host : {&cached, &plain})
+    host->composer.setSize({(float)w / view, (float)h / view});
+  cached.composer.render(ringInASlidingPage(&cachedSlide, Cache::Texture));
+  plain.composer.render(ringInASlidingPage(&plainSlide, Cache::None));
+  drawAt(cached);
+  // The page slides, its recording holds, and the blit inside it is replayed
+  // somewhere else — which is the whole point of a recording, and the state
+  // the region has to be right in.
+  cachedSlide = 26.0f;
+  plainSlide = 26.0f;
+  drawAt(cached);
+  drawAt(plain);
+  const std::vector<int> was = blockPeaks(plain, w, h, block);
+  const std::vector<int> is = blockPeaks(cached, w, h, block);
+  ASSERT_EQ(was.size(), is.size());
+  int lit = 0, lost = 0;
+  for (size_t i = 0; i < was.size(); ++i) {
+    if (was[i] < 200) continue;  // a glyph's solid interior, not its edge
+    ++lit;
+    if (is[i] < 40) ++lost;
+  }
+  EXPECT_GT(lit, 40) << "the ring drew nothing";
+  EXPECT_EQ(lost, 0) << lost << " of " << lit
+                     << " lit blocks came back empty from inside the page";
+}
+
+TEST(ComposeCaching, TheInkGridSkipsAnEmptyTileAndKeepsEveryLitOne) {
+  // The grid's two halves, read off the values rather than off a picture.
+  // A band through a square leaves most tiles empty; a solid square leaves
+  // none, and is refused a grid so it does not pay for one.
+  const auto scan = [](const std::function<void(SkCanvas&)>& draw, int side) {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
+    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+    draw(*surface->getCanvas());
+    SkPixmap px;
+    EXPECT_TRUE(surface->peekPixels(&px));
+    return detail::inkGridOf(px);
+  };
+  const detail::InkGrid ring = scan(
+      [](SkCanvas& c) {
+        SkPaint p;
+        p.setAntiAlias(true);
+        p.setStyle(SkPaint::kStroke_Style);
+        p.setStrokeWidth(12);
+        p.setColor(SK_ColorWHITE);
+        c.drawCircle(200, 200, 150, p);
+      },
+      400);
+  ASSERT_FALSE(ring.empty()) << "a band through a square has tiles to skip";
+  const size_t lit =
+      (size_t)std::count(ring.covered.begin(), ring.covered.end(), (uint8_t)1);
+  EXPECT_LT(lit, ring.covered.size() / 2) << "most of a ring's square is empty";
+  EXPECT_GT(lit, 0u);
+
+  EXPECT_TRUE(scan([](SkCanvas& c) { c.clear(SK_ColorWHITE); }, 400).empty())
+      << "a solid bake has nothing to skip";
+  EXPECT_TRUE(scan([](SkCanvas& c) { c.clear(SK_ColorWHITE); }, 48).empty())
+      << "a small bake is blitted in less time than the scan would take";
+}
+
+namespace {
+
+/** A bake with tiles to skip: a thin ring on a transparent square, and the
+ *  grid read off its own pixels — the value `drawInkedImage` is handed. */
+struct InkedBake {
+  sk_sp<SkImage> image;
+  detail::InkGrid grid;
+};
+
+InkedBake ringBake(int side) {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
+  SkCanvas& canvas = *surface->getCanvas();
+  canvas.clear(SK_ColorTRANSPARENT);
+  SkPaint p;
+  p.setAntiAlias(true);
+  p.setStyle(SkPaint::kStroke_Style);
+  p.setStrokeWidth(10);
+  p.setColor(SK_ColorWHITE);
+  canvas.drawCircle((float)side * 0.5f, (float)side * 0.5f, (float)side * 0.35f,
+                    p);
+  SkPixmap px;
+  EXPECT_TRUE(surface->peekPixels(&px));
+  InkedBake out;
+  out.grid = detail::inkGridOf(px);
+  out.image = surface->makeImageSnapshot();
+  return out;
+}
+
+/** The surface's pixels, row-major, so two draws can be compared byte for
+ *  byte. */
+std::vector<SkColor> pixelsOf(SkSurface& surface, int w, int h) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  surface.readPixels(bm.pixmap(), 0, 0);
+  std::vector<SkColor> out;
+  out.reserve((size_t)w * (size_t)h);
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) out.push_back(bm.getColor(x, y));
+  return out;
+}
+
+}  // namespace
+
+TEST(ComposeCaching, AnInkedBlitInsideARecordingLandsWhereThePlainBlitDoes) {
+  // THE REGION IS DEVICE PIXELS AND A RECORDING IS NOT THE DEVICE. A blit
+  // recorded into a picture is replayed under a matrix of its own, and a
+  // region computed in the recording's own space would be applied unchanged
+  // in the space it is replayed into — the wrong units in the wrong place,
+  // cutting the bake to pieces. So the caller hands over the matrix the
+  // picture is replayed under, and the recorded blit must land exactly
+  // where the single blit lands.
+  const int side = 400, canvasSide = 700;
+  const InkedBake bake = ringBake(side);
+  ASSERT_FALSE(bake.grid.empty()) << "a ring has tiles to skip";
+  const SkRect dst = SkRect::MakeXYWH(10, 10, (float)side, (float)side);
+  const SkMatrix replay = SkMatrix::Translate(180, 130);
+  const auto record = [&](bool inked) {
+    SkPictureRecorder recorder;
+    SkCanvas* rec =
+        recorder.beginRecording(SkRect::MakeIWH(canvasSide, canvasSide));
+    if (inked)
+      detail::drawInkedImage(*rec, bake.image, bake.grid, dst, replay,
+                             SkIRect::MakeWH(canvasSide, canvasSide),
+                             SkSamplingOptions(), nullptr);
+    else
+      rec->drawImageRect(bake.image, dst, SkSamplingOptions(), nullptr);
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(canvasSide, canvasSide));
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    surface->getCanvas()->concat(replay);
+    surface->getCanvas()->drawPicture(recorder.finishRecordingAsPicture());
+    return pixelsOf(*surface, canvasSide, canvasSide);
+  };
+  const std::vector<SkColor> plain = record(false);
+  const std::vector<SkColor> skipped = record(true);
+  ASSERT_EQ(plain.size(), skipped.size());
+  size_t differing = 0;
+  for (size_t i = 0; i < plain.size(); ++i)
+    if (plain[i] != skipped[i]) ++differing;
+  EXPECT_EQ(differing, 0u)
+      << differing
+      << " pixels of a recorded blit moved when its empty tiles were skipped";
+}
+
+TEST(ComposeCaching, AnInkedBlitWithNoInverseIsTheWholeBlit) {
+  // The skip is arithmetic through the INVERSE of the device matrix — a
+  // patch of the canvas is carried back into the image to ask which tiles
+  // lie under it. A matrix with no inverse (a collapsed axis, a zero scale
+  // arriving from a settling transform) answers no such question, and the
+  // only sound reading is the whole blit rather than a guess or an empty
+  // canvas.
+  const int side = 400, canvasSide = 460;
+  const InkedBake bake = ringBake(side);
+  ASSERT_FALSE(bake.grid.empty());
+  const SkRect dst = SkRect::MakeXYWH(10, 10, (float)side, (float)side);
+  const auto draw = [&](const SkMatrix& toDevice, bool inked) {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(canvasSide, canvasSide));
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    if (inked)
+      detail::drawInkedImage(*surface->getCanvas(), bake.image, bake.grid, dst,
+                             toDevice, SkIRect::MakeWH(canvasSide, canvasSide),
+                             SkSamplingOptions(), nullptr);
+    else
+      surface->getCanvas()->drawImageRect(bake.image, dst, SkSamplingOptions(),
+                                          nullptr);
+    return pixelsOf(*surface, canvasSide, canvasSide);
+  };
+  SkMatrix collapsed = SkMatrix::I();
+  collapsed.setScaleX(0);
+  ASSERT_FALSE(collapsed.invert(nullptr));
+  const std::vector<SkColor> plain = draw(SkMatrix::I(), false);
+  const std::vector<SkColor> noInverse = draw(collapsed, true);
+  ASSERT_EQ(plain.size(), noInverse.size());
+  size_t differing = 0;
+  for (size_t i = 0; i < plain.size(); ++i)
+    if (plain[i] != noInverse[i]) ++differing;
+  EXPECT_EQ(differing, 0u)
+      << differing
+      << " pixels differ: a blit whose device matrix has no "
+         "inverse must be the plain blit";
 }

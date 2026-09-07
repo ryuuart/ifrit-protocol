@@ -8,12 +8,16 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilworld/graph/Plan.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "TestMaterial.h"
+
 using namespace sigil;
 using namespace sigil::world;
+using namespace sigil::world::test;
 
 namespace {
 
@@ -62,9 +66,77 @@ TEST(WorldGraph, AWriteRunsAfterTheWriteBeforeItAndAfterThatVersionsReaders) {
   const Frame frame = framed()
                           .pass(geometryPass("first").writes("colour"))
                           .pass(postPass("read").reads("colour").writes("copy"))
-                          .pass(geometryPass("again").writes("colour"));
+                          .pass(postPass("again").writes("colour"));
   const std::vector<std::string> expected = {"first", "read", "again"};
   EXPECT_EQ(namesOf(graph::build(frame)), expected);
+}
+
+TEST(WorldGraph, AReaderDeclaredFirstStillRunsBeforeTheSecondWrite) {
+  // "read" was written down before either writer, so the version it
+  // sees is the first one; the second write replaces that version and
+  // must therefore wait for the read. Its other dependency ("mist")
+  // is what makes an ordering that ignores the hazard schedulable.
+  const Frame frame =
+      framed()
+          .pass(postPass("read").reads("colour", "mist").writes("copy"))
+          .pass(geometryPass("first").writes("colour"))
+          .pass(postPass("again").writes("colour"))
+          .pass(geometryPass("mist").writes("mist"));
+  const graph::Plan plan = graph::build(frame);
+  ASSERT_TRUE((bool)plan) << plan.error();
+  const std::vector<std::string> names = namesOf(plan);
+  const auto at = [&](const std::string& name) {
+    return std::find(names.begin(), names.end(), name) - names.begin();
+  };
+  EXPECT_LT(at("first"), at("read"));
+  EXPECT_LT(at("read"), at("again"));
+}
+
+TEST(WorldGraph, ASecondGeometryPassOverAWrittenTargetIsAnErrorNamingBoth) {
+  // A geometry pass CLEARS its target, so this one does not stand over
+  // the picture "main" painted — it throws it away and keeps its own
+  // bodies. Refused while the plan is read, because looking at the
+  // result shows a plausible picture and says nothing about the one
+  // that is missing.
+  const Frame frame =
+      framed()
+          .pass(geometryPass("main").writes("colour"))
+          .pass(geometryPass("motes").reads("motes").writes("colour"));
+  const graph::Plan plan = graph::build(frame);
+  EXPECT_FALSE((bool)plan);
+  EXPECT_TRUE(plan.steps().empty());
+  EXPECT_NE(plan.error().find("main"), std::string::npos);
+  EXPECT_NE(plan.error().find("motes"), std::string::npos);
+  EXPECT_NE(plan.error().find("colour"), std::string::npos);
+  EXPECT_EQ(plan.error(), graph::build(frame).error());
+}
+
+TEST(WorldGraph, APostPassMayWriteWhatAGeometryPassWrote) {
+  // Laying one picture over another is what a post pass is: it writes
+  // the result of reading its layers rather than clearing and painting,
+  // so nothing is lost and the plan stands.
+  const Frame frame =
+      framed()
+          .pass(geometryPass("main").writes("colour"))
+          .pass(postPass("grade").reads("colour").writes("colour"));
+  const graph::Plan plan = graph::build(frame);
+  ASSERT_TRUE((bool)plan) << plan.error();
+  const std::vector<std::string> expected = {"main", "grade"};
+  EXPECT_EQ(namesOf(plan), expected);
+}
+
+TEST(WorldGraph, AGeometryPassCarryingABodyMayWriteWhatWasWritten) {
+  // A body runs INSTEAD of the stage and keeps only its declarations, so
+  // it clears nothing: what it makes of what already stands in the
+  // target is the body's own business and the rule does not reach it.
+  const Frame frame = framed()
+                          .pass(geometryPass("main").writes("colour"))
+                          .pass(geometryPass("hand").writes("colour").body(
+                              [](const View&, Targets&) {}));
+  const graph::Plan plan = graph::build(frame);
+  ASSERT_TRUE((bool)plan) << plan.error();
+  const std::vector<std::string> expected = {"main", "hand"};
+  EXPECT_EQ(namesOf(plan), expected);
 }
 
 TEST(WorldGraph, ACycleIsAnErrorNamingThePassesOnIt) {
@@ -177,23 +249,79 @@ TEST(WorldGraph, TwoReadsOfOneResourceAreNoHazard) {
   EXPECT_EQ(onColour, 1);
 }
 
-TEST(WorldGraph, ANarrowedGeometryPassIsCulled) {
-  const Frame frame = framed().pass(
-      geometryPass("glow").only(sel::tag("glow")).writes("colour"));
-  const graph::Plan plan = graph::build(frame);
-  ASSERT_TRUE((bool)plan);
-  ASSERT_EQ(plan.steps().size(), 1u);
-  EXPECT_EQ(plan.steps().front().realisation, Selection::Cull);
+namespace {
+
+/** WHAT DECIDES A REALISATION: one frame, one pass in it named, and what
+ *  the ordering derived that pass's selection has to be realised as. The
+ *  declaration is the parameter because the rule is the library's, not
+ *  the caller's — every row here is a frame that says nothing about how
+ *  its narrowing should be drawn. */
+struct Realisation {
+  const char* what;
+  Frame (*declare)();
+  const char* step;
+  Selection expected;
+};
+
+class DerivedRealisation : public testing::TestWithParam<Realisation> {};
+
+std::string realisationName(const testing::TestParamInfo<Realisation>& info) {
+  return info.param.what;
 }
 
-TEST(WorldGraph, APassThatNarrowsNothingAddressesEveryBody) {
-  const Frame frame = framed().pass(geometryPass("main").writes("colour"));
+const Realisation kRealisations[] = {
+    {"ANarrowedGeometryPassIsCulled",
+     [] {
+       return framed().pass(
+           geometryPass("glow").only(sel::tag("glow")).writes("colour"));
+     },
+     "glow", Selection::Cull},
+    {"APassThatNarrowsNothingAddressesEveryBody",
+     [] { return framed().pass(geometryPass("main").writes("colour")); },
+     "main", Selection::None},
+    {"ANarrowedPostPassIsMasked",
+     [] {
+       return framed()
+           .pass(geometryPass("main").writes("colour"))
+           .pass(postPass("bloom").reads("colour").writes("lit").only(
+               sel::tag("glow")));
+     },
+     "bloom", Selection::Mask},
+    {"ANarrowedGeometryPassCarryingASurfaceIsRedrawnInIt",
+     [] {
+       return framed().pass(geometryPass("main")
+                                .writes("colour")
+                                .only(sel::tag("glow"))
+                                .variant(paint({1, 1, 1, 1})));
+     },
+     "main", Selection::Variant},
+    {"APassThatSaysHowItWantsToBeRealisedOverridesTheRule",
+     [] {
+       return framed().pass(geometryPass("cover")
+                                .writes("mask")
+                                .only(sel::tag("glow"))
+                                .realise(Selection::Mask));
+     },
+     "cover", Selection::Mask},
+};
+
+}  // namespace
+
+TEST_P(DerivedRealisation, IsWhatTheOrderingDerivesFromTheDeclaration) {
+  // The plan names the passes of the frame it was built from, so the
+  // frame outlives it here.
+  const Frame frame = GetParam().declare();
   const graph::Plan plan = graph::build(frame);
-  ASSERT_TRUE((bool)plan);
-  EXPECT_EQ(plan.steps().front().realisation, Selection::None);
+  ASSERT_TRUE((bool)plan) << plan.error();
+  const PassWork* step = stepNamed(plan, GetParam().step);
+  ASSERT_NE(step, nullptr);
+  EXPECT_EQ(step->realisation, GetParam().expected);
 }
 
-TEST(WorldGraph, ANarrowedPostPassIsMaskedAndTheGeometryPassWritesItsCoverage) {
+INSTANTIATE_TEST_SUITE_P(EverySelection, DerivedRealisation,
+                         testing::ValuesIn(kRealisations), realisationName);
+
+TEST(WorldGraph, AMaskedPassReadsTheCoverageThePassAheadOfItWrites) {
   const Frame frame =
       framed()
           .pass(geometryPass("main").writes("colour"))
@@ -205,12 +333,63 @@ TEST(WorldGraph, ANarrowedPostPassIsMaskedAndTheGeometryPassWritesItsCoverage) {
   const PassWork* main = stepNamed(plan, "main");
   ASSERT_NE(bloom, nullptr);
   ASSERT_NE(main, nullptr);
-  EXPECT_EQ(bloom->realisation, Selection::Mask);
   EXPECT_FALSE(bloom->coverageIn.empty());
-  EXPECT_EQ(main->coverageOut, bloom->coverageIn);
-  EXPECT_EQ(main->coverageOf, sel::tag("glow"));
+  ASSERT_EQ(main->coverageOut.size(), 1u);
+  EXPECT_EQ(main->coverageOut.front().name, bloom->coverageIn);
+  EXPECT_EQ(main->coverageOut.front().of, sel::tag("glow"));
   // …and the coverage is a resource of the frame like any other.
   EXPECT_NE(plan.resource(bloom->coverageIn), nullptr);
+}
+
+TEST(WorldGraph, TwoMaskedPassesEachReadTheirOwnCoverage) {
+  const Frame frame =
+      framed()
+          .pass(geometryPass("main").writes("colour"))
+          .pass(postPass("bloom").reads("colour").writes("lit").only(
+              sel::tag("glow")))
+          .pass(postPass("blur").reads("lit").writes("final").only(
+              sel::tag("soft")));
+  const graph::Plan plan = graph::build(frame);
+  ASSERT_TRUE((bool)plan) << plan.error();
+  const PassWork* main = stepNamed(plan, "main");
+  const PassWork* bloom = stepNamed(plan, "bloom");
+  const PassWork* blur = stepNamed(plan, "blur");
+  ASSERT_NE(main, nullptr);
+  ASSERT_NE(bloom, nullptr);
+  ASSERT_NE(blur, nullptr);
+  // Two selections asked of one producer are two coverages: neither
+  // reads a resource the other's selector painted.
+  ASSERT_EQ(main->coverageOut.size(), 2u);
+  EXPECT_NE(bloom->coverageIn, blur->coverageIn);
+  for (const Coverage& painted : main->coverageOut) {
+    EXPECT_NE(plan.resource(painted.name), nullptr);
+    if (painted.name == bloom->coverageIn)
+      EXPECT_EQ(painted.of, sel::tag("glow"));
+    else if (painted.name == blur->coverageIn)
+      EXPECT_EQ(painted.of, sel::tag("soft"));
+    else
+      ADD_FAILURE() << "a coverage no masked pass reads: " << painted.name;
+  }
+}
+
+TEST(WorldGraph, TwoMasksOfTheSameSelectionShareOneCoverage) {
+  const Frame frame =
+      framed()
+          .pass(geometryPass("main").writes("colour"))
+          .pass(postPass("bloom").reads("colour").writes("lit").only(
+              sel::tag("glow")))
+          .pass(postPass("blur").reads("lit").writes("final").only(
+              sel::tag("glow")));
+  const graph::Plan plan = graph::build(frame);
+  ASSERT_TRUE((bool)plan) << plan.error();
+  const PassWork* main = stepNamed(plan, "main");
+  const PassWork* bloom = stepNamed(plan, "bloom");
+  const PassWork* blur = stepNamed(plan, "blur");
+  ASSERT_NE(main, nullptr);
+  ASSERT_NE(bloom, nullptr);
+  ASSERT_NE(blur, nullptr);
+  ASSERT_EQ(main->coverageOut.size(), 1u);
+  EXPECT_EQ(bloom->coverageIn, blur->coverageIn);
 }
 
 TEST(WorldGraph, AMaskWithNothingPaintingBodiesAheadOfItIsAnError) {
@@ -219,32 +398,6 @@ TEST(WorldGraph, AMaskWithNothingPaintingBodiesAheadOfItIsAnError) {
   const graph::Plan plan = graph::build(frame);
   EXPECT_FALSE((bool)plan);
   EXPECT_NE(plan.error().find("bloom"), std::string::npos);
-}
-
-TEST(WorldGraph, AVariantSurfaceIsRedrawn) {
-  struct Paint {
-    glm::vec4 baseColor{1, 1, 1, 1};
-  };
-  const auto recipe = std::make_shared<const material::Recipe>(
-      material::Recipe::of<Paint>("world.test.paint"));
-  const material::Material white(recipe, Paint{{1, 1, 1, 1}});
-  const Frame frame = framed().pass(geometryPass("main")
-                                        .writes("colour")
-                                        .only(sel::tag("glow"))
-                                        .variant(white));
-  const graph::Plan plan = graph::build(frame);
-  ASSERT_TRUE((bool)plan);
-  EXPECT_EQ(plan.steps().front().realisation, Selection::Variant);
-}
-
-TEST(WorldGraph, APassThatKnowsBetterOverridesTheRule) {
-  const Frame frame = framed().pass(geometryPass("cover")
-                                        .writes("mask")
-                                        .only(sel::tag("glow"))
-                                        .realise(Selection::Mask));
-  const graph::Plan plan = graph::build(frame);
-  ASSERT_TRUE((bool)plan);
-  EXPECT_EQ(plan.steps().front().realisation, Selection::Mask);
 }
 
 TEST(WorldGraph, AComputePassWritesPointsAndEverythingElseWritesPixels) {

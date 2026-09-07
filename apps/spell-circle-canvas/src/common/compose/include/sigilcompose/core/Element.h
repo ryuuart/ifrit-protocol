@@ -16,11 +16,14 @@
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Mask.h>
-#include <sigilcompose/core/Motion.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
-#include <sigilcompose/core/Text.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
+#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Animated.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/style/Style.h>
 
@@ -29,6 +32,7 @@
 #include <functional>
 #include <memory>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -41,6 +45,17 @@ class ImageAsset;
 
 namespace sigil::weave {
 class FontContext;
+// Which glyphs a text verb addresses, and the granularity it addresses
+// them by — the paragraph engine's, in <sigilweave/query/Selector.h> and
+// <sigilweave/paragraph/Unit.h>.
+class Selector;
+class RichText;
+class Story;
+enum class Unit : uint8_t;
+}  // namespace sigil::weave
+
+namespace sigil::material::pattern {
+class Tile;
 }
 
 namespace sigil::compose {
@@ -51,7 +66,17 @@ struct Instance;
 }  // namespace detail
 
 class Composer;
-class Material;
+class Pattern;
+// The typography vocabulary the text verbs take, defined under
+// <sigilcompose/typography/>: a call site that dresses its type includes
+// the header that spells the value it passes. Which glyphs a verb
+// addresses is SigilWeave's `Selector`, declared above.
+struct Track;
+struct Annotation;
+struct TextPath;
+// <sigilcompose/core/Derive.h>: the positioning value, declared beside the
+// rest of the derive family because it is resolved by the same pass.
+struct Tether;
 
 // ---------------------------------------------------------------------------
 // Element — a cheap value description
@@ -112,11 +137,56 @@ class Element {
   Element& top(Dim d);
   Element& right(Dim d);
   Element& bottom(Dim d);
+  /** HANG THIS NODE OFF A KEYED ONE, at a stated pair of points, with a
+   *  list of places to try when the first will not fit (implies
+   *  absolute()).
+   *
+   *      tooltip().tether({.key = "port",
+   *                        .on = {0.5f, 0.0f}, .at = {0.5f, 1.0f},
+   *                        .offset = {0, -6},
+   *                        .fallbacks = {{.key = "port",
+   *                                       .on = {0.5f, 1.0f},
+   *                                       .at = {0.5f, 0.0f},
+   *                                       .offset = {0, 6}}}})
+   *
+   *  Resolved after layout, against the geometry the anchor resolved to,
+   *  and re-resolved whenever it moves. The value states the rule; see
+   *  `Tether` for what fits means and what an unknown key does. */
+  Element& tether(Tether t);
   /** Center this absolute node ON a parent-space point — the dominant
    *  placement in node-graph scenes (sockets on orbit positions, badges
    *  on markers). Resolved after measurement, so intrinsic-size nodes
    *  center correctly; implies absolute(). */
   Element& centerAt(SkPoint p);
+  /** WHICH CELLS this child claims of the `layout()` scheme above it, and
+   *  how many it covers — read by grid-shaped schemes (`Table`,
+   *  `layouts::Grid`, `layouts::ModularGrid`) and by nothing else.
+   *
+   *  Said HERE, on the child, rather than in a list the scheme carries
+   *  beside it: a parallel list has nothing to check itself against, and
+   *  an inserted or reordered child silently shifts every entry after it
+   *  onto the wrong cell. */
+  Element& cells(int column, int row, int columns = 1, int rows = 1);
+  /** The same claim as one value — the shape a scheme reads it back as,
+   *  so a caller computing a span passes what it computed. */
+  Element& cells(CellSpan span);
+  /** WHICH NAMED REGION of the `layout()` scheme above it this child
+   *  claims — the same statement as `cells()` with the numbers left to the
+   *  scheme's own picture of itself (`layouts::Grid::areas`).
+   *
+   *      layout(layouts::Grid{.areas = {"head head", "nav  main"}})
+   *          .child(masthead().area("head"))
+   *          .child(sidebar().area("nav"))
+   *
+   *  A name survives what four integers do not: insert a row into the
+   *  picture and every child stays in the region it named, where every
+   *  numbered child after the insertion would have moved one cell up. A
+   *  name the picture does not carry is silent, and the child flows into
+   *  the next free cell like any child that claimed nothing. */
+  Element& area(std::string_view name);
+  /** Where this child sits INSIDE the cell box its span makes.
+   *  `Align::Stretch` sizes it to the box instead of placing it in one. */
+  Element& cellAlign(Align across, Align down);
   /** Place an absolute node on a parent-space RECT — the peer of
    *  centerAt(), for when you already know the box.
    *
@@ -136,8 +206,8 @@ class Element {
    *
    *  Does not cover right()/bottom() pinning, percentage insets, or
    *  autoDim() sides — those are different intents and keep the longhand.
-   *  `kit::centred()` (kit/Frame.h) builds the rect for the centre-and-size
-   *  case. */
+   *  `geometry::path::centred()` (kit/Frame.h) builds the rect for the
+   * centre-and-size case. */
   Element& rect(const SkRect& r);
   /** Pin an absolute node's top-left to a parent-space POINT, leaving the
    *  node to size itself from its content — `left(p.fX).top(p.fY)`. The
@@ -162,6 +232,15 @@ class Element {
    *  node re-patches and re-records on every describe — memo() such a
    *  node, or hold the Shape value stable, to get pruning back. */
   Element& shape(Shape path);
+  /** THE KEYED SPELLING: the generator plus the value it closes over, so
+   *  the node settles. Sugar for `shape(keyedShape(key, fn))` — see
+   *  KeyedShape for the one-key-one-drawing contract the author takes on.
+   *  A path already cooked wants `shape(heldPath(p))` instead. */
+  template <typename K, typename F>
+    requires std::is_invocable_r_v<SkPath, const F&, SkSize>
+  Element& shape(K key, F fn) {
+    return shape(Shape(keyedShape(std::move(key), std::move(fn))));
+  }
   /** BAND FORMATION: which side of the spine the band occupies.
    *  `.centered()` is the default and straddles it; `.outward()` and
    *  `.inward()` take one side (the offset-path lineage). No effect on a
@@ -241,14 +320,29 @@ class Element {
    *  site: `fill(bind(&level).map(ramp))` does not compile, because the
    *  shaping chain maps floats to floats. Compute the Fill in the
    *  steppable, as above. */
-  Element& fill(Animatable<Fill> f);
-  /** Fill with a Material (gradient ramp, blend stack, sprite, SkSL) — the
-   *  richer authoring value. A static Material collapses to a Fill, so it
-   *  caches and prunes on the same path. See <sigilcompose/Material.h>. */
-  Element& fill(Material m);
+  Element& fill(motion::Animatable<Fill> f);
+  /** Fill with a paint (gradient ramp, blend stack, sprite, SkSL) — the
+   *  richer authoring value, `material::skia::Paint` from
+   *  <sigilmaterial/skia/Paint.h>. A static paint collapses to a Fill, so
+   *  it caches and prunes on the same path. */
+  Element& fill(material::skia::Paint m);
+  /** NEITHER A TILE NOR A PATTERN IS A FILL, and the reason is where they
+   *  have to be STORED. A Pattern's bake is its identity: it renders its
+   *  tile once, on the shared state that Pattern holds, so a Pattern minted
+   *  inside a describe is a fresh state with no bake in it and re-renders
+   *  the tile on every render. Hold the Pattern where assets are held — a
+   *  sketch member, a model field — and fill with what it bakes:
+   *
+   *      Pattern m_grain = pattern::stripes(6, 6, kInk);  // once
+   *      box().fill(m_grain.material());                  // every describe
+   *
+   *  Deleted rather than absent so the error names the rule instead of
+   *  naming an overload set. */
+  Element& fill(material::pattern::Tile tile) = delete;
+  Element& fill(const Pattern& pattern) = delete;
   /** Solid-color sugar: fill({r,g,b,a}) without the Fill:: ceremony. */
   Element& fill(SkColor4f color) {
-    return fill(Animatable<Fill>{Fill::color(color)});
+    return fill(motion::Animatable<Fill>{Fill::color(color)});
   }
   /** How an image() leaf samples its source. Defaults to linear, which is
    *  right for photographs and wrong for every pixel grid: art, tilemaps,
@@ -377,6 +471,46 @@ class Element {
    *  a sweep reaches them. The ONE thing the pass form does that the mask
    *  spelling does not: it CLAIMS its run and joins the overlap check. */
   Element& stroke(Spans where, Decoration what, std::string name = {});
+  /** WHAT THIS NODE'S DECORATIONS DRESS — its own shape (the default), the
+   *  OUTLINE OF ITS GLYPHS on a text leaf, or the silhouette of WHAT IT
+   *  DREW.
+   *
+   *      text(u8"CHROME",
+   * heavy).boundary(Boundary::Glyphs).style(styles::chrome())
+   *      image(cutOut).boundary(Boundary::Coverage).style(styles::chrome())
+   *
+   *  A decoration was never about a box: it is drawn across an outline, and
+   *  which outline it gets is this. So every layer style already written —
+   *  bevel, inner shadow, outer glow, gloss, the aqua and chrome presets —
+   *  works on letters, or around a cut-out, the moment that is the outline,
+   *  with no new preset and no second code path.
+   *
+   *  The glyph outline is the placement's own: it follows a wrapped line, a
+   *  mixed-style run's size, a path run's curve and a vertical column's
+   *  axis, because it is read off the placed glyphs rather than measured
+   *  again. On a node that is not text it means the node's shape, which is
+   *  what every node means by default.
+   *
+   *  The coverage outline is read off the node's rendered layer instead of
+   *  off any description of it, which is why it is the answer for a
+   *  cut-out, a clip or a mask — and why it is a staircase at the raster's
+   *  resolution, and costs a raster and a trace whenever the node's layer
+   *  is invalidated. Boundary states the whole bargain. */
+  Element& boundary(Boundary source);
+  /** HOW MUCH PAINT COUNTS AS INK under `Boundary::Coverage` — the
+   *  tolerance the silhouette is cut at, as a fraction of full opacity.
+   *
+   *      image(photo).key("fig").boundary(Boundary::Coverage).threshold(0.35f)
+   *      text(body, bodyStyle).flowAround("fig", 12)
+   *
+   *  The default is the rule an unantialiased rasteriser uses — the paint
+   *  reached at least half the pixel — so the traced edge is where the
+   *  drawn edge is. It is the dial a soft edge needs: lower it and a wash,
+   *  a feathered cut-out or a glow becomes silhouette; raise it and only
+   *  the solid core does. Read by everything that asks this node for its
+   *  coverage — its own decorations, and any text flowing around it. */
+  Element& threshold(float coverage);
+
   /** Apply a whole LayerStyle (preset or hand-built): its `under` layers
    *  append as backgrounds, `over` as foregrounds — one call dresses the
    *  node in aqua gel / y2k chrome / any bundled treatment. Composable
@@ -389,16 +523,16 @@ class Element {
   Element& echo(SkVector offset, SkColor4f color);
   /** Post-processes this node's rendered layer (forces a stacking
    *  context). Baked once under Cache::Texture. */
-  Element& effect(Effect e);
+  Element& effect(material::skia::Effect e);
   /** Filters what is already painted beneath this node's bounds before
    *  the node paints (CSS backdrop-filter). Incompatible with
    *  Cache::Texture (the backdrop depends on the live destination);
    *  such nodes fall back to picture caching. */
-  Element& backdrop(Effect e);
-  Element& opacity(Animatable<float> o);
+  Element& backdrop(material::skia::Effect e);
+  Element& opacity(motion::Animatable<float> o);
   Element& blend(SkBlendMode mode);
-  Element& translateX(Animatable<float> v);
-  Element& translateY(Animatable<float> v);
+  Element& translateX(motion::Animatable<float> v);
+  Element& translateY(motion::Animatable<float> v);
   /** Ride a CURVE instead of two lanes — the motion path (see MotionPath
    *  for the six rules). Paint-only like the lanes it outranks; the
    *  node's transform origin is the point that lands on the curve, and
@@ -409,8 +543,8 @@ class Element {
    *               .lookAhead = 0.02f})   // auto-orient along the tangent
    */
   Element& travel(MotionPath along);
-  Element& rotate(Animatable<float> degrees);
-  Element& scale(Animatable<float> factor);
+  Element& rotate(motion::Animatable<float> degrees);
+  Element& scale(motion::Animatable<float> factor);
   /** Per-axis scale about the transform origin, multiplied INTO scale().
    *  Paint-only like scale(): animating one never relayouts, and the
    *  content picture replays under the new transform.
@@ -423,8 +557,8 @@ class Element {
    *  the OTHER axis. Set transformOrigin() to pin the growing edge —
    *  `transformOrigin(0, 0.5f).scaleX(&fraction)` grows a bar rightward
    *  from its left edge. */
-  Element& scaleX(Animatable<float> factor);
-  Element& scaleY(Animatable<float> factor);
+  Element& scaleX(motion::Animatable<float> factor);
+  Element& scaleY(motion::Animatable<float> factor);
   /** Shear, in degrees, about the transform origin. Paint-only like
    *  rotate/scale: animating a skew never relayouts, and content pictures
    *  replay under the new transform.
@@ -433,48 +567,49 @@ class Element {
    *  screen-space, y down: a POSITIVE skewX shifts points further down the
    *  node further right, so the shape's top leans LEFT — the italic
    *  forward lean is a NEGATIVE skewX. */
-  Element& skewX(Animatable<float> degrees);
-  Element& skewY(Animatable<float> degrees);
+  Element& skewX(motion::Animatable<float> degrees);
+  Element& skewY(motion::Animatable<float> degrees);
   // Integer-literal sugar (rotate(-8) etc. — int doesn't convert into the
   // Animatable variant on its own, and the resulting error is unreadable).
   // std::integral-constrained so FLOAT calls can never land here (a plain
   // int overload would capture them via the standard float→int conversion
-  // and recurse); Animatable is constructed explicitly for the same reason.
+  // and recurse); the Animatable is constructed explicitly for the same
+  // reason.
   template <std::integral T>
   Element& opacity(T v) {
-    return opacity(Animatable<float>((float)v));
+    return opacity(motion::Animatable<float>((float)v));
   }
   template <std::integral T>
   Element& translateX(T v) {
-    return translateX(Animatable<float>((float)v));
+    return translateX(motion::Animatable<float>((float)v));
   }
   template <std::integral T>
   Element& translateY(T v) {
-    return translateY(Animatable<float>((float)v));
+    return translateY(motion::Animatable<float>((float)v));
   }
   template <std::integral T>
   Element& rotate(T deg) {
-    return rotate(Animatable<float>((float)deg));
+    return rotate(motion::Animatable<float>((float)deg));
   }
   template <std::integral T>
   Element& scale(T f) {
-    return scale(Animatable<float>((float)f));
+    return scale(motion::Animatable<float>((float)f));
   }
   template <std::integral T>
   Element& scaleX(T f) {
-    return scaleX(Animatable<float>((float)f));
+    return scaleX(motion::Animatable<float>((float)f));
   }
   template <std::integral T>
   Element& scaleY(T f) {
-    return scaleY(Animatable<float>((float)f));
+    return scaleY(motion::Animatable<float>((float)f));
   }
   template <std::integral T>
   Element& skewX(T deg) {
-    return skewX(Animatable<float>((float)deg));
+    return skewX(motion::Animatable<float>((float)deg));
   }
   template <std::integral T>
   Element& skewY(T deg) {
-    return skewY(Animatable<float>((float)deg));
+    return skewY(motion::Animatable<float>((float)deg));
   }
   Element& transformOrigin(float fx, float fy);
   /** Pixel-valued transform origin (node-local px) — for pivots that
@@ -482,6 +617,109 @@ class Element {
    *  lives inside a full-canvas overlay around its own center. */
   Element& transformOriginPx(SkPoint p);
   Element& zIndex(int z);
+
+  // ---- depth: the CSS 3D model over the 2D tree ----
+  //
+  // A node is a PLANE. These lanes turn it and move it in depth, and the
+  // node projects its plane onto the one its parent paints on — one 4x4
+  // per node, flattened at paint, so tree order stays draw order and
+  // everything the node holds (its fill, its text, its children, its
+  // caches) lives in the plane exactly as it did before. Paint-only like
+  // the 2D lanes: animating one never relayouts, and a settled node's
+  // recording is taken in its own plane and replayed through the
+  // projection. The frame is CSS's: x right, y down, and +z TOWARD the
+  // viewer, so a positive `translateZ` under a `perspective` comes closer
+  // and grows.
+  //
+  // The three rotations compose as CSS's `rotateX() rotateY() rotateZ()`
+  // list — X outermost — and then scale and skew, about the transform
+  // origin, exactly where the 2D `rotate → scale → skew` stack stands.
+  // What none of this is: a scene. Two planes never intersect, nothing is
+  // lit, and a depth is not a position in a world — a set (SigilWorld) is
+  // where that lives.
+
+  /** Turn the plane about its horizontal axis, in degrees: positive tips
+   *  the bottom edge toward the viewer. */
+  Element& rotateX(motion::Animatable<float> degrees);
+  /** Turn the plane about its vertical axis, in degrees: positive tips the
+   *  left edge toward the viewer — the card-flip lane. */
+  Element& rotateY(motion::Animatable<float> degrees);
+  /** The rotation `rotate()` already is, under its 3D name — the SAME lane,
+   *  so `rotate(30).rotateZ(45)` is one setting made twice, not two turns. */
+  Element& rotateZ(motion::Animatable<float> degrees);
+  /** Move the plane along the viewing axis, in px: positive is toward the
+   *  viewer. Invisible without a `perspective` above it — an orthographic
+   *  projection drops z — and inside a shared space it is what puts a face
+   *  in front of another. */
+  Element& translateZ(motion::Animatable<float> px);
+  /** Scale along the viewing axis, about the transform origin. Nothing in
+   *  the node's own plane moves (its z is zero); what it scales is the
+   *  depth of the children it hosts in a shared space. */
+  Element& scaleZ(motion::Animatable<float> factor);
+  /** THE VIEW, declared on an ancestor: this node's children are seen from
+   *  a viewer `distancePx` in front of the plane, so a child turned or
+   *  moved in depth converges toward the perspective origin as it recedes.
+   *  Applies to the children, never to this node itself, as CSS's
+   *  `perspective` property does; 0 is no perspective — an orthographic
+   *  projection where a turned plane only narrows. A shared space carries
+   *  the view of the ancestor that declared it down to every plane in the
+   *  space. Bindable, so a dolly is a bound distance. */
+  Element& perspective(motion::Animatable<float> distancePx);
+  /** Where the viewer stands over the plane, as fractions of this node's
+   *  box — the vanishing point of the view `perspective()` declares. The
+   *  centre by default. */
+  Element& perspectiveOrigin(float fx, float fy);
+  /** The pivot the lanes turn about, with a depth: `fx, fy` are the
+   *  fractions `transformOrigin()` takes and `zPx` is a distance in front
+   *  of the plane (positive toward the viewer). A card that swings on a
+   *  hinge behind it turns about a negative z. */
+  Element& transformOrigin3d(float fx, float fy, float zPx);
+  /** THE SHARED SPACE: this node's children keep the depth their own
+   *  lanes give them — their planes compose with this node's rather than
+   *  flattening into it — and are painted back to front by the depth of
+   *  each child's centre, whatever order they were declared in. A cube is
+   *  six children of one such node. Nested `preserve3d()` compounds the
+   *  space; a child that does not declare it ends the space at its own
+   *  plane, and its children are flat inside it.
+   *
+   *  Two rules, both stated so they are not discovered: PLANES DO NOT
+   *  INTERSECT — a child crossing another is drawn whole, in the order
+   *  their centres sort — and a node that composites as a group cannot
+   *  host a space. A `clip()`, an opacity below 1, a blend that is not
+   *  source-over, an `effect()`, a `backdrop()`, a `mask()`, a coverage
+   *  boundary or an explicit `cache(Cache::Texture)` / `Cache::Group`
+   *  flattens the node exactly as CSS's grouping properties do: its
+   *  children are then projected one by one onto its plane, in tree
+   *  order, with no depth between them. The node's own paint stands at the
+   *  front of its own plane and is drawn before its children. */
+  Element& preserve3d(bool on = true);
+  /** Whether the back of this node's plane is drawn when a depth lane has
+   *  turned it away — see `Backface`. Visible by default. */
+  Element& backface(Backface facing);
+  template <std::integral T>
+  Element& rotateX(T deg) {
+    return rotateX(motion::Animatable<float>((float)deg));
+  }
+  template <std::integral T>
+  Element& rotateY(T deg) {
+    return rotateY(motion::Animatable<float>((float)deg));
+  }
+  template <std::integral T>
+  Element& rotateZ(T deg) {
+    return rotateZ(motion::Animatable<float>((float)deg));
+  }
+  template <std::integral T>
+  Element& translateZ(T px) {
+    return translateZ(motion::Animatable<float>((float)px));
+  }
+  template <std::integral T>
+  Element& scaleZ(T f) {
+    return scaleZ(motion::Animatable<float>((float)f));
+  }
+  template <std::integral T>
+  Element& perspective(T px) {
+    return perspective(motion::Animatable<float>((float)px));
+  }
 
   // ---- derive phase (inputs are resolved geometry) ----
   /** Text leaves only: flow this paragraph around the keyed node, with
@@ -527,7 +765,12 @@ class Element {
    *  `GlyphMod::axis`, so a driven axis composes with entrances, loops and
    *  every other track instead of being a second text path they would hide.
    *  Being a track, it also draws through the batched glyph path, so a
-   *  span's band stands at its rest placement while the letters move. */
+   *  span's band stands at its rest placement while the letters move.
+   *
+   *  A BARE OUTPUT and not an animatable, deliberately: a drive IS a live
+   *  binding — a constant axis coordinate is `style.variations`, not this
+   *  — and the effect's identity is keyed on WHICH Output feeds it, so two
+   *  drives of one axis from two Outputs cannot prune onto each other. */
   Element& variationDrive(const char (&tag)[5],
                           const choreograph::Output<float>* value);
 
@@ -539,7 +782,7 @@ class Element {
    *  inside that rect, and free to sit outside it:
    *
    *      text(line, style)
-   *          .mark(sel::word(3), box().left(0).top(pct(100))
+   *          .mark(weave::sel::word(3), box().left(0).top(pct(100))
    *                                   .width(pct(100)).height(2)
    *                                   .fill(Fill::color(ink)))
    *
@@ -548,8 +791,8 @@ class Element {
    *  carries one keeps it, and that key is what `Composer::bounds` and
    *  `hitTest` answer for.
    *
-   *  A MARK IS NOT A `rich().slot()`. A slot reserves space INSIDE the flow
-   *  — the line breaks around it, it moves the line's height, and the type
+   *  A MARK IS NOT A `weave::rich().slot()`. A slot reserves space INSIDE the
+   * flow — the line breaks around it, it moves the line's height, and the type
    *  after it starts further along. A mark reserves nothing: the text is
    *  laid out as though the mark were not there and the mark is placed on
    *  the result, so it may overlap the letters, straddle several, or hang
@@ -557,10 +800,10 @@ class Element {
    *  part of the sentence; mark the type that is already there.
    *
    *  A SELECTOR RESOLVING SEVERAL UNITS GIVES ONE RECT, the union of every
-   *  glyph it addressed — `sel::each(unit::Word)` therefore anchors a mark
-   *  to the whole paragraph, which is a rect and rarely the intent. One
-   *  mark is one element with one identity and one box; to mark each of
-   *  several units, write one mark per unit. A selector resolving NOTHING —
+   *  glyph it addressed — `weave::sel::each(weave::Unit::Word)` therefore
+   * anchors a mark to the whole paragraph, which is a rect and rarely the
+   * intent. One mark is one element with one identity and one box; to mark each
+   * of several units, write one mark per unit. A selector resolving NOTHING —
    *  including a name no run carries and a pattern that does not compile —
    *  places nothing and warns once, on the silent-no-op family's terms.
    *
@@ -585,13 +828,216 @@ class Element {
    *  RESTS on the curve — a run driven along its baseline (`at` bound) is
    *  a paint-time deviation like any track's, and the same rule applies:
    *  read `beatsOf` to ride it. */
-  Element& mark(Selector where, Element what);
+  Element& mark(sigil::weave::Selector where, Element what);
 
   /** Text leaves only: how lines sit inside the node's width (SigilWeave
    *  TextAlignment — kStart/kCenter/kEnd/kJustify). Meaningful when the
    *  node is WIDER than its text (explicit width, grow, stack stretch);
    *  intrinsic-width text has nothing to align within. */
   Element& textAlign(sigil::weave::TextAlignment a);
+
+  /** Text leaves only: THE FRAME THIS ONE FILLS INTO — the next link of a
+   *  chain over one `weave::Story`.
+   *
+   *      root.child(frame(article).key("a").thread("b").width(Dim(280)))
+   *          .child(frame(article).key("b").thread("c").width(Dim(280)))
+   *          .child(frame(article).key("c").width(Dim(280)));
+   *
+   *  Each frame fills from where the one before it stopped, so the cut
+   *  moves as any frame's measure moves. A frame that threads somewhere
+   *  has a remainder BY DESIGN: overflow is the normal case there and
+   *  draws no marker, whatever ellipsis the leaf asked for. The last frame
+   *  of a chain is the one that threads nowhere, and it keeps its.
+   *
+   *  A frame nothing threads into is a chain's head and starts at the
+   *  story's first word. A chain that closes on itself stops where it
+   *  closes, as a cyclic borrow does. */
+  Element& thread(std::string_view key);
+
+  /** Text leaves only: THIS FRAME OPENS A BALANCED RUN of its chain —
+   *  itself and every frame after it up to the next frame that opens one,
+   *  or the chain's end.
+   *
+   *      frame(article).key("a").thread("b").balanceChain()
+   *
+   *  The run is filled to the SHALLOWEST DEPTH that still holds what it
+   *  was asked to hold, found by halving the depth the frames declare;
+   *  every frame of the run resolves to that one depth, which is what
+   *  makes three columns of one story three columns of the same length
+   *  instead of two full ones and a stub.
+   *
+   *  `throughLine` is what the run must hold, as a story-relative line
+   *  number: the default holds ALL of the story, and a number holds the
+   *  story down to that line and leaves the rest to the frames after the
+   *  run. That is how a run of columns stops at a spanning element — the
+   *  content above it is balanced and shortened to fit, and what is left
+   *  resumes below.
+   *
+   *  THE FRAMES MUST DECLARE A DEPTH IN PIXELS: that depth is the ceiling
+   *  the halving starts from, and a run whose frames are sized by anything
+   *  else is left alone. */
+  Element& balanceChain(uint32_t throughLine = ~0u);
+
+  /** Text leaves only: A READING SET BESIDE THE TYPE — furigana over a
+   *  compound, emphasis dots down a column, a gloss under a phrase.
+   *
+   *      text(passage, body)
+   *          .writingMode(WritingMode::kVerticalRL)
+   *          .annotate({.where = weave::sel::text(u8"漢字"),
+   *                     .unit = weave::Unit::Word,          // group ruby
+   *                     .readings = {u8"かんじ"},
+   *                     .style = furigana})
+   *
+   *  A reading is PART OF THE TEXT rather than a thing standing next to
+   *  it: where it reserves, the band it occupies goes into the base's
+   *  strut BEFORE the base is broken, so the base is laid out once with the
+   *  room already there and the readings are then placed on the result.
+   *  `kit::annotate` is the other half of the idea, and marginalia, word
+   *  labels and callouts belong there — a sibling that reserves nothing
+   *  and reads the finished text.
+   *
+   *  Mono, group and jukugo ruby are the `unit` choice, and a base that
+   *  breaks across a line or a column splits its reading with it, in
+   *  proportion to the base's advance either side. See `Annotation`. */
+  Element& annotate(Annotation reading);
+
+  /** Text leaves only: how each BLOCK of this passage is set — one entry
+   *  per block, in block order, a block being the text between two hard
+   *  breaks.
+   *
+   *      text(rich(body).add(u8"A heading\nand its body text\nand more"))
+   *          .paragraphs({headingStyle, bodyStyle})
+   *
+   *  A block past the end of the list is set by this leaf's own alignment,
+   *  justification, hyphenation and tab stops alone, so one entry styles
+   *  the first block and leaves the rest plain — which is what a heading
+   *  over a body wants. `sigil::weave::ParagraphStyle` carries the leading,
+   *  the air before and after, the four indents, the keeps, and whichever
+   *  of the four layout-wide settings the block overrides — the alignment,
+   *  the justification, the hyphenation and the tab stops — each of which
+   *  falls back to this leaf's own where the block leaves it unset. */
+  Element& paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks);
+  /** The same, by NAME, resolved through the `ParagraphStyleSet` the
+   *  environment offers (`env::Provide<sigil::weave::ParagraphStyleSet>`).
+   *
+   *  Resolution happens where this is written, inside the author's describe
+   *  scope, so the finished description holds real styles and depends on no
+   *  scope that has since ended — the same discipline `weave::rich().add(text,
+   *  name)` follows for character styles. A name the set does not carry
+   *  resolves to the set's base entry, and with no set in scope every name
+   *  resolves to a plain block. */
+  Element& paragraphs(std::span<const std::string_view> names);
+  /** Every block of this passage set alike. */
+  Element& paragraph(sigil::weave::ParagraphStyle style);
+  /** Text leaves only: THIS PASSAGE'S OPENING SET LARGE — a versal sized so
+   *  its cap height spans the lines it is given, seated on the baseline it
+   *  sinks to, with the lines under it wrapping the notch it cuts.
+   *
+   *      text(body, bodyStyle).initialLetter({.lines = 3})
+   *      text(body, bodyStyle).initialLetter({.lines = 3, .sink = 1})
+   *
+   *  No key, no second element and no split string: the letter is part of
+   *  the passage, and the two numbers it is made of — the size that makes a
+   *  cap span three lines, and the baseline it lands on — are answered
+   *  where the block's pitch and the face's own metrics are, which is
+   *  inside the layout. `sigil::weave::InitialLetter` carries how many
+   *  letters, which metric the alignment is made on, whether the following
+   *  lines wrap the box or the glyph, the standoff, and the style it is set
+   *  in. It applies to the FIRST block of this passage. */
+  Element& initialLetter(sigil::weave::InitialLetter initial);
+
+  /** Text leaves only: WHERE THE FIRST BASELINE SITS below the top of this
+   *  leaf's box — the first line's own ascent (the default), its cap
+   *  height, its x-height, its whole pitch, or `offset` outright. Every
+   *  later baseline follows at its own block's pitch, so this moves the
+   *  whole passage rather than its first line. Two leaves of different type
+   *  seated on cap height start their text at the same height, which is
+   *  what a page ruled against a grid needs and an ascent cannot give. */
+  Element& firstBaseline(sigil::weave::FrameOptions::FirstBaseline rule,
+                         float offset = 0);
+  /** Text leaves only: what becomes of the room left over down this leaf's
+   *  box — nothing (the default), half above and half below, all above, or
+   *  spread BETWEEN the lines as extra leading, at most
+   *  `maximumInterlineSpacing` per gap. It reads the leaf's resolved
+   *  height, so a leaf sized by its own content has nothing left over and
+   *  nothing to spend. */
+  Element& distribute(sigil::weave::FrameOptions::Distribute rule,
+                      float maximumInterlineSpacing = 0);
+  /** Text leaves only: how a justified line spends what it has — the word
+   *  spacing it aims at and its elasticity, then letter spacing, then a
+   *  horizontal scale on the glyphs, each bounded by its own two limits.
+   *  Inert unless the passage justifies. */
+  Element& justification(sigil::weave::JustificationOptions spec);
+  /** Text leaves only: where a tab takes the pen, what the stop pins there
+   *  — the start of its cell, its end, its centre, or a named character —
+   *  and the leader set across the gap it opened. */
+  Element& tabStops(sigil::weave::TabStopOptions stops);
+
+  /** Text leaves only: AN INPUT OF THIS PASSAGE IS MOVING — a measure that
+   *  animates, a frame that grows, content that changes from one frame to
+   *  the next — so this layout is one of a run of them rather than an
+   *  answer somebody asked for once.
+   *
+   *      text(caption, body).width(Dim(slider)).live(true, 2000.0f)
+   *
+   *  It buys two things. The break decisions of a block set in a uniform
+   *  measure are kept and reused, keyed on the words and on the measure
+   *  taken to the whole pixel below it, so a measure already crossed costs
+   *  no break decision at all. And the block is broken against the measure
+   *  alone rather than against the frame's supply of lines, so a frame
+   *  that only changes in DEPTH changes which lines it holds and never
+   *  where they break. `Composer::settling` reports what a frame actually
+   *  got for it.
+   *
+   *  `budgetMicroseconds` is the floor under a frame the optimizing
+   *  breaker cannot finish in time: a block past it is filled greedily for
+   *  that frame and counted as a degrade, and everything is back the next
+   *  frame the budget is met. 0 is no floor.
+   *
+   *  NOTHING INFERS THIS. A live layout answers the overflow tail
+   *  differently from a settled one — it is broken against the measure
+   *  rather than against the lines the frame has left — so a guess would
+   *  change the setting of a page that never moves. A passage that moves
+   *  says so. */
+  Element& live(bool on = true, float budgetMicroseconds = 0);
+
+  /** Text leaves only: WHICH CHARACTERS MAY NOT STAND AT A LINE'S EDGE —
+   *  kinsoku shori, as a house's own table over whatever the line-break
+   *  locale already prohibits. The prohibition is settled during
+   *  segmentation, so both breakers obey it and neither learns a rule.
+   *  `sigil::weave::kit::kinsoku()` is the stock table and a caller's own
+   *  is its peer. */
+  Element& kinsoku(sigil::weave::KinsokuTable table);
+  /** Text leaves only: HOW FAR A CHARACTER MAY STAND OUTSIDE THE MEASURE,
+   *  as a fraction of its own advance — optical margin alignment along a
+   *  line, burasagari down a column. It is the LINE EDGE and has nothing
+   *  to do with the hanging indent, which is a negative
+   *  `ParagraphStyle::indent.firstLine`. `sigil::weave::kit::hanging()` is
+   *  the stock table. */
+  Element& hanging(sigil::weave::HangingTable table);
+  /** Text leaves only: HOW MUCH ROOM STANDS BETWEEN TWO ADJACENT
+   *  FULL-WIDTH CHARACTERS, by the class of each, as a fraction of the em
+   *  — negative closes the gap up, which is what nearly every entry of a
+   *  real table does. `tsume` closes the gap after every full-width
+   *  character the table gives no class of its own, on top of that. Both
+   *  apply where two characters meet across a break opportunity; two
+   *  characters shaped inside one word are the face's and the shaper's. */
+  Element& mojikumi(sigil::weave::MojikumiTable table, float tsume = 0);
+  /** Text leaves only: ROOM BESIDE EVERY LINE of this passage, over and
+   *  above the leading — `before` above a line and right of a column,
+   *  `after` below one and left. It is a layout input: the room is in the
+   *  strut before anything is broken. `annotate` reserves its own band on
+   *  top of this, so a passage that only carries readings needs none of
+   *  this. */
+  Element& reserve(sigil::weave::ReservedBand band);
+  /** Text leaves only: THE TAILORING THE LINE-BREAK ANALYSIS RUNS UNDER —
+   *  `"ja@lb=strict"` is the strict Japanese rule set a printed page is
+   *  set under, `"zh@lb=loose"` the loose Chinese one. A tailored
+   *  prohibition is a boundary that never opens, so nothing downstream
+   *  learns a rule. It belongs to the Paragraph rather than to the layout
+   *  options, so it is a field-masked override like `writingMode`: a
+   *  locale nobody names leaves a passed-in paragraph's own standing. */
+  Element& lineBreakLocale(std::string_view locale);
 
   /** Text leaves only: lay this passage out in VERTICAL-RL CJK columns
    *  (`sigil::weave::WritingMode::kVerticalRL`) instead of horizontal
@@ -602,7 +1048,7 @@ class Element {
    *  Per character the mode is UTR#50's: ideographs stand upright and take
    *  their `vert` forms, Latin lies on its side. A run that wants
    *  otherwise says so in its own style — `TextStyle::shaping.verticalForm`
-   *  is `kUpright`, `kRotated` or `kTateChuYoko` — on a `rich()` run or
+   *  is `kUpright`, `kRotated` or `kTateChuYoko` — on a `weave::rich()` run or
    *  through `spanStyle`.
    *
    *  A vertical leaf MEASURES ON THE OTHER AXIS: its main extent is its
@@ -624,8 +1070,8 @@ class Element {
   // rule followed by a narrow exception reads in the order it is written.
   //
   // They apply to every content form alike: plain `text(utf8, style)`,
-  // `rich()` spans, and the `shared_ptr<Paragraph>` overload, because all
-  // three are one materialized paragraph by the time a restyle runs.
+  // `weave::rich()` spans, and the `shared_ptr<Paragraph>` overload, because
+  // all three are one materialized paragraph by the time a restyle runs.
   //
   // The two are ordered by WHAT THEY ARE ALLOWED TO DISTURB. `spanPaint`
   // repaints and nothing else. `spanStyle` may change anything, and
@@ -641,15 +1087,15 @@ class Element {
   // paints with the style it is given, as ever.
   //
   // Both run on the PARAGRAPH and resolve their selection as TEXT RANGES,
-  // not glyphs: `sel::text` and
-  // `sel::regex` go through weave's query layer, `sel::word`, `sel::words`,
-  // `sel::sentence` and `sel::range` through the paragraph's own structure,
-  // and `sel::line` through the layout. `Selector::take` and
-  // `Selector::drop` slice GLYPHS inside a unit, which a text range cannot
-  // express — an `sel::each` selector restyles its whole units here, and
-  // the slice is ignored with a warning.
+  // not glyphs: `weave::sel::text` and
+  // `weave::sel::regex` go through weave's query layer, `weave::sel::word`,
+  // `weave::sel::words`, `weave::sel::sentence` and `weave::sel::range` through
+  // the paragraph's own structure, and `weave::sel::line` through the layout.
+  // `weave::Selector::take` and `weave::Selector::drop` slice GLYPHS inside a
+  // unit, which a text range cannot express — an `weave::sel::each` selector
+  // restyles its whole units here, and the slice is ignored with a warning.
   //
-  // A `sel::line` restyle addresses THE LAYOUT OF THE TEXT BEFORE THE
+  // A `weave::sel::line` restyle addresses THE LAYOUT OF THE TEXT BEFORE THE
   // RESTYLE, and costs a second layout pass. It does not chase its own
   // result: a `spanStyle` on a line that moves the line breaks leaves the
   // selection where the first breaking put it.
@@ -660,7 +1106,8 @@ class Element {
    *  unrestyled text shaped, drawn differently. The paint it declares is
    *  the one the range keeps: a `spanStyle` on the same text after it
    *  restyles everything else and leaves this colour alone. */
-  Element& spanPaint(Selector where, sigil::weave::PaintStyle paint);
+  Element& spanPaint(sigil::weave::Selector where,
+                     sigil::weave::PaintStyle paint);
   /** Text leaves only: restyle the range this selector finds with a
    *  complete TextStyle — a different face, size, weight or tracking as
    *  well as paint. Re-shapes, and only the words the range covers: the
@@ -682,7 +1129,8 @@ class Element {
    *  reshape too, so the later one is the one that stands. A `spanPaint`
    *  declared EARLIER over the same text keeps its colour: this style's own
    *  paint stands only where none reached. */
-  Element& spanStyle(Selector where, sigil::weave::TextStyle style);
+  Element& spanStyle(sigil::weave::Selector where,
+                     sigil::weave::TextStyle style);
 
   // ---- layout options, fluently ----------------------------------------
   //
@@ -729,7 +1177,7 @@ class Element {
    *  per frame. COMBINES with `fx()`: a letter in flight is painted with
    *  the metric material exactly as a resting one is, so a chrome
    *  wordmark can also be a staggered entrance. */
-  Element& textFill(Material m);
+  Element& textFill(material::skia::Paint m);
 
   /** Strokes the GLYPHS, under the fill — engraved display type, an
    *  outlined label, a caption that has to survive over an image.
@@ -752,6 +1200,22 @@ class Element {
    *  `fx()` wins if both are set (a track draws its own batched buckets
    *  along the flow, not along the curve). */
   Element& onPath(TextPath spec);
+  /** Text leaves only: THIS LEAF AS IT STANDS AT REST, as a second element
+   *  that can stand beside it in one tree — the same content, style,
+   *  measure and layout, carrying nothing that deviates or restyles a
+   *  glyph at paint time: no `fx()` tracks, no span restyles, and no
+   *  children, since a text node's children are its marks and its slot
+   *  mounts and both are already on screen once. A slot's reserved RUN
+   *  stays — it is content, and it holds the same space in the copy's
+   *  paragraph, which is what keeps the two copies' letters in the same
+   *  places. The key takes `-rest` after it (a keyless original leaves the
+   *  copy keyless), so both are addressable and both prune; the ink is
+   *  left to the caller, which is what `textFill` is for.
+   *
+   *  A rest pose is what a track's per-glyph deviation is measured
+   *  against, and `kit::restGhost` draws it under the moving copy.
+   *  Anything but text warns once and comes back as a plain copy. */
+  [[nodiscard]] Element atRest() const;
 
   // ---- identity, caching, transitions ----
   /** The author-owned identity: what the reconciler matches a child by
@@ -778,16 +1242,19 @@ class Element {
    *  resample. Sharp text and 1 px hairlines never belong under a reduced
    *  bake. */
   Element& bakeScale(float factor);
-  Element& transition(Transition t);  // node default for plain constants
+  Element& transition(
+      motion::Transition t);  // node default for plain constants
   /** Container stagger: child i's subtree enters with an EXTRA
    *  order·each delay on all its animate() mount transitions, compounding
    *  through nested staggered containers. `from` picks the origin — Start
    *  (declaration order), End (last child first, a bottom-up cascade
    *  without reordering paint), Center (ripple outward). One call, no
    *  per-child delay arithmetic:
-   *  `column().staggerChildren(33ms, Stagger::From::End).children(rows)`. */
-  Element& staggerChildren(std::chrono::milliseconds each,
-                           Stagger::From from = Stagger::From::Start);
+   *  `column().staggerChildren(33ms, motion::Spread::From::End)
+   *  .children(rows)`. */
+  Element& staggerChildren(
+      std::chrono::milliseconds each,
+      motion::Spread::From from = motion::Spread::From::Start);
 
   // ---- composition ----
   Element& child(Element e);

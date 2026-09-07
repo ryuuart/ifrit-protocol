@@ -22,7 +22,7 @@ using sigil::weave::qt::toSkColor;
 // silently forward-declare an unrelated, inaccessible ::SkiaSceneBackendImpl.
 //
 // The scene drawing itself lives in the shared Qt-free
-// spellcircle::SceneRenderer (src/scene/SceneRenderer.cpp) — this class is
+// spellcircle::SceneRenderer — this class is
 // the Qt frame around it: wrapping the QCanvasOffscreenCanvas texture as an
 // SkSurface, translating the renderer's Qt-typed style fields, and
 // registering the finished image with QCanvasPainter.
@@ -95,9 +95,10 @@ class SkiaSceneBackendImpl final : public CanvasSceneBackend {
  private:
   std::unique_ptr<sigil::skia::GraphiteContext> m_context;
 
-  // Shared Qt-free scene drawing (FontContext + label caches inside).
-  // Lives on the render thread with this backend — see SceneRenderer's
-  // threading rule.
+  // Shared Qt-free scene drawing (FontContext + label caches inside). It
+  // builds its font context on the first draw and every later draw must
+  // come from that same thread, so it lives on the render thread with this
+  // backend.
   spellcircle::SceneRenderer m_sceneRenderer;
   uint64_t m_sceneFrame = 0;
   sigil::measure::FrameTimer m_frames;  // record = work lane, submit = the rest

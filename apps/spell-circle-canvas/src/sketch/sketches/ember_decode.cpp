@@ -14,7 +14,7 @@
 //
 //     text(u8"EMBER DECODE", display)
 //         .fx({.effect = fx::pass(burn),
-//              .stagger = stagger(unit::Cluster, {.eachMs = 260})});
+//              .stagger = stagger(weave::Unit::Cluster, {.eachMs = 260})});
 //
 // `fx::pass` makes the track's effect a PASS rather than a per-glyph
 // deviation. The runtime renders the track's units into a layer, hands it to
@@ -33,7 +33,7 @@
 //    resolved from the SAME cascade `Composer::beatsOf` reports — the meter
 //    bars under the display line are drawn from that query, so the bars and
 //    the burn read one schedule by construction;
-//  - the material is `Material::recipe(...)` over a SigilMaterial recipe,
+//  - the material is `mskia::Paint::recipe(...)` over a SigilMaterial recipe,
 //    and the runtime owns the per-count specialization and its cache;
 //  - the layer is sampled at the device's resolution, so a 2x host stays
 //    sharp with no supersampled bake;
@@ -62,12 +62,17 @@
 //       src/sketch/sketches/ember_decode.cpp \
 //       --frame /tmp/ember_decode.png
 
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/choreograph/Choreograph.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <array>
@@ -77,6 +82,8 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 
@@ -164,19 +171,19 @@ struct BurnParams {
   std::array<float, 3> uWeights;  // sweep, speckle, patch
 };
 
-/** The definition, made once for the process: a recipe's identity is the
- *  object, so a fresh one per describe would compile a fresh program and
- *  never compare equal to itself. */
+/** THE DEFINITION, made once and held by whoever draws with it: a recipe's
+ *  identity IS the object, so a fresh one per describe compiles a fresh
+ *  program and never compares equal to itself. The sketch holds it, rather
+ *  than a static in this dylib, which a reload unloads. */
 std::shared_ptr<const sigil::material::Recipe> burnRecipe() {
-  static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      std::make_shared<const sigil::material::Recipe>(
-          sigil::material::Recipe::of<BurnParams>("ember.burn")
-              .body(sigil::material::Target::SkSL, kBurnSksl));
-  return recipe;
+  return std::make_shared<const sigil::material::Recipe>(
+      sigil::material::Recipe::of<BurnParams>("ember.burn")
+          .body(sigil::material::Target::SkSL, kBurnSksl));
 }
 
-Material burnMaterial() {
-  return Material::recipe(sigil::material::Material(burnRecipe()))
+mskia::Paint burnMaterial(
+    const std::shared_ptr<const sigil::material::Recipe>& recipe) {
+  return mskia::Paint::recipe(sigil::material::Material(recipe))
       .uniform("uInk", kInk)
       .uniform("uEmber", kEmber)
       .uniform("uWeights", std::vector<float>{kSweep, kSpeckle, kPatch});
@@ -198,37 +205,37 @@ float masterAt(double t, double startAt, float totalMs) {
 // ===========================================================================
 
 struct EmberDecode : sketch::Sketch {
+  std::shared_ptr<const sigil::material::Recipe> recipe = burnRecipe();
   choreograph::Output<float> display{0.0f}, words{0.0f};
   float displayTotalMs = 1;  // the cascades' spans, read back from beatsOf
   float wordsTotalMs = 1;
 
   Element describe(sketch::SketchContext& ctx) {
     const sigil::weave::TextStyle label =
-        type({.size = 11.5f, .color = kLabel, .track = 1.6f});
+        weave::textStyle({.size = 11.5f, .color = kLabel, .track = 1.6f});
     const sigil::weave::TextStyle faint =
-        type({.size = 10.5f, .color = kFaint, .track = 0.8f});
+        weave::textStyle({.size = 10.5f, .color = kFaint, .track = 0.8f});
     const sk_sp<SkTypeface> face =
-        pickFace({"Helvetica Neue", "Arial", "Inter"}, 700);
+        weave::ports::face({"Helvetica Neue", "Arial", "Inter"}, 700);
     // The letters are set WHITE: the pass reads the layer's coverage and
     // supplies every colour itself, so the type's own colour never lands.
-    const sigil::weave::TextStyle big =
-        type({.face = face, .size = 78, .color = {1, 1, 1, 1}, .track = 5.0f});
-    const sigil::weave::TextStyle small =
-        type({.face = face, .size = 27, .color = {1, 1, 1, 1}, .track = 3.0f});
+    const sigil::weave::TextStyle big = weave::textStyle(
+        {.face = face, .size = 78, .color = {1, 1, 1, 1}, .track = 5.0f});
+    const sigil::weave::TextStyle small = weave::textStyle(
+        {.face = face, .size = 27, .color = {1, 1, 1, 1}, .track = 3.0f});
 
-    const Material burn = burnMaterial();
+    const mskia::Paint burn = burnMaterial(recipe);
     Element root =
-        box().column().padding(44).gap(20).fill(Material::solid(kPlate));
+        box().column().padding(44).gap(20).fill(mskia::Paint::solid(kPlate));
     root.child(text(toU8("TEXT AS A SAMPLER \xc2\xb7 ONE SkSL PASS OVER ONE "
                          "RENDERED LINE"),
                     label));
-    root.child(
-        text(u8"EMBER DECODE", big)
-            .key("burn-display")
-            .fx({.effect = fx::pass(burn),
-                 .stagger = stagger(unit::Cluster,
-                                    {.eachMs = kEachMs, .durationMs = kUnitMs}),
-                 .progress = &display}));
+    root.child(text(u8"EMBER DECODE", big)
+                   .key("burn-display")
+                   .fx({.effect = fx::pass(burn),
+                        .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
+                        .unit = weave::Unit::Cluster,
+                        .progress = &display}));
     root.child(
         text(toU8("uUnitRect[N] \xc2\xb7 uUnitPhase[N] \xe2\x80\x94 a LETTER "
                   "is a unit; the bar under each one is the progress that "
@@ -238,8 +245,8 @@ struct EmberDecode : sketch::Sketch {
     root.child(text(u8"ONE PASS PER WORD PHASE", small)
                    .key("burn-words")
                    .fx({.effect = fx::pass(burn),
-                        .stagger = stagger(unit::Word, {.eachMs = kEachMs,
-                                                        .durationMs = kUnitMs}),
+                        .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
+                        .unit = weave::Unit::Word,
                         .progress = &words}));
     root.child(text(toU8("the same pass, the same source at another count "
                          "\xe2\x80\x94 a WORD is a unit here, and the "
@@ -283,9 +290,11 @@ struct EmberDecode : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kPlate);
-    ctx.captureAt(2.4);  // mid-decode: resolved, burning and unlit at once
+    sketch::kit::stage(
+        ctx, {.size = SkSize::Make(kW, kH),
+              .captureAt = 2.4,
+              .background =
+                  kPlate});  // mid-decode: resolved, burning and unlit at once
     ctx.composer.render(describe(ctx));
   }
 
@@ -302,7 +311,7 @@ struct EmberDecode : sketch::Sketch {
     };
     if (displayTotalMs <= 1.0f) displayTotalMs = span("burn-display");
     if (wordsTotalMs <= 1.0f) wordsTotalMs = span("burn-words");
-    const double t = motion::phase(elapsed, kLoop) * kLoop;
+    const double t = sigil::motion::phase(elapsed, kLoop) * kLoop;
     display = masterAt(t, kInAt, displayTotalMs);
     words = masterAt(t, kWordsAt, wordsTotalMs);
     // Re-described per frame for the meter, which reads beatsOf at

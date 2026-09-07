@@ -5,11 +5,14 @@
  * through.
  */
 
+#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilsketch/core/CanvasSpec.h>
 
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 class SkCanvas;
@@ -30,20 +33,6 @@ struct Timing {
   double totalMs = 0;
   double updateMs = 0;
   double drawMs = 0;
-};
-
-/** A VIEWPOINT AS A HOST STATES IT: yaw and pitch in degrees about the
- *  point being looked at, and how far out from it the eye stands. It is
- *  the whole of what a pointer can say about where to stand, and it says
- *  nothing about the lens — a runtime turning one of these back into a
- *  viewpoint keeps its own aim, its own up axis and its own field of
- *  view, so a host may take hold of a set's camera without inventing
- *  one. Yaw runs about the up axis from the direction the eye looks
- *  along; pitch is positive above the target. */
-struct Orbit {
-  float yawDeg = 0;
-  float pitchDeg = 0;
-  float distance = 0;
 };
 
 /** ONE RUNNING SKETCH — a body, the runtime it draws through, and the
@@ -113,17 +102,41 @@ class Session {
    *  runtime with none. */
   [[nodiscard]] virtual std::string counters() const { return {}; }
 
-  /** Hold off (or restore) any re-baking the runtime does BY MEASURED
-   *  COST rather than by declaration. It is the one behaviour a
-   *  byte-identity sweep must turn off: load can tip a measured cost
-   *  either way, so with it on a plate's bytes depend on how busy the
-   *  machine was. A runtime that promotes nothing ignores this. */
-  virtual void setAutoPromotion(bool on) { (void)on; }
+  /** WHEN THE RUNTIME MAY RE-BAKE A NODE IT WAS NOT ASKED TO.
+   *
+   *  `Off` is what a byte-identity sweep asks for: a cost-driven re-bake
+   *  is the one behaviour whose outcome depends on how busy the machine
+   *  is, so with it on a plate's bytes do too.
+   *
+   *  `ByCost` is the runtime's own judgement — it bakes what its
+   *  stopwatch says is expensive, and therefore a different set of nodes
+   *  on a loaded machine than on an idle one.
+   *
+   *  `Eager` bakes everything the runtime is ALLOWED to bake, whatever it
+   *  costs. Nothing about what a bake may do changes; only the question
+   *  of whether the node was worth one. That is what a run TESTING the
+   *  re-baking wants: the same nodes on every machine, and all of them.
+   *
+   *  A runtime that promotes nothing ignores this. */
+  enum class Promotion : uint8_t { Off, ByCost, Eager };
+  virtual void setAutoPromotion(Promotion policy) { (void)policy; }
 
   /** Attribute per-node cost on the frames that follow. It costs
    *  something to collect, so a host turns it on for one frame rather
    *  than for a measured run. */
   virtual void setProfiling(bool on) { (void)on; }
+
+  /** HOW MANY DEVICE PIXELS A CANVAS UNIT IS WORTH, for the rasters this
+   *  runtime bakes. Declared, a cached raster is taken at this density
+   *  once and drawn through whatever transform the host applies after,
+   *  the way an image is — which is what lets a host magnify a frame
+   *  without every generated texture in it being rasterized again at the
+   *  new size. Zero, the default, lets the runtime read the resolution
+   *  off the matrix it is handed. A runtime that bakes nothing ignores
+   *  this. */
+  virtual void setBakeDensity(float devicePixelsPerUnit) {
+    (void)devicePixelsPerUnit;
+  }
 
   /** The most expensive things the last profiled frame did, at most
    *  @p limit of them, already written out in the runtime's own words —
@@ -147,7 +160,8 @@ class Session {
    *  a number the host chose — a sketch that put its lens somewhere
    *  particular keeps that framing until a drag actually moves it.
    *  Nothing for a runtime with no viewpoint. */
-  [[nodiscard]] virtual std::optional<Orbit> orbit() const {
+  [[nodiscard]] virtual std::optional<geometry::mesh::camera::Orbit> orbit()
+      const {
     return std::nullopt;
   }
 
@@ -157,6 +171,27 @@ class Session {
     (void)yawDeg;
     (void)pitchDeg;
     (void)distance;
+  }
+
+  /** WHERE A POINTER STANDS over the sketch, in the sketch's own canvas
+   *  units — whatever a host scaled or letterboxed the canvas by, this is
+   *  the point on the canvas the sketch declared — and whether its
+   *  button is down. A host feeds it as the pointer moves and as the
+   *  button changes; a runtime with nothing for a pointer to do ignores
+   *  it. */
+  virtual void pointer(float x, float y, bool pressed) {
+    (void)x;
+    (void)y;
+    (void)pressed;
+  }
+
+  /** A KEY GOING DOWN OR UP: its name as a keyboard spells it — "a",
+   *  "ArrowLeft", "Enter" — and its code beside it. A runtime with
+   *  nothing for a key to do ignores it. */
+  virtual void key(std::string_view name, int code, bool pressed) {
+    (void)name;
+    (void)code;
+    (void)pressed;
   }
 };
 

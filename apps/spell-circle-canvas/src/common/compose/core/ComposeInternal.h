@@ -5,17 +5,26 @@
  * the element builders (Element.cpp and its siblings) and the reconciler.
  */
 
-#include <sigilcompose/core/Material.h>
 #include <sigilcore/compute/Noise.h>
-#include <sigilcore/reconcile/Compare.h>
-#include <sigilcore/reconcile/Lanes.h>
 #include <sigilcore/reconcile/Memo.h>
+#include <sigilcore/reconcile/Reads.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/values/Animated.h>
+#include <sigilweave/layout/Story.h>
 #include <sigilweave/paragraph/Paragraph.h>
+#include <sigilweave/paragraph/RichText.h>
 
 #include <array>
 #include <vector>
 
 #include "sigilcompose/Compose.h"
+// The text leaf's description is spelled in the typography vocabulary —
+// its tracks, its runs, its readings, its restyles' selectors, its
+// baseline path — which the kernel stores, compares and lays out without
+// linking the engine that dresses it: every member the kernel reaches is
+// defined in these headers.
+#include "sigilcompose/typography/Typography.h"
 
 namespace sigil::compose::detail {
 
@@ -52,20 +61,25 @@ struct LayoutProps {
   EdgeDims insets;
   std::optional<SkPoint> centerAt;  // absolute: center ON this point
                                     // (resolved post-measure)
+  /** The cells this child claims of a layout() container's scheme, read
+   *  by nothing else. Default means unspoken, and a scheme flows it.
+   *  `CellSpan::area` is NOT set here — a named claim is rare and its
+   *  string is in DeriveData; the layout pass merges the two. */
+  CellSpan cells;
   bool operator==(const LayoutProps&) const = default;
 };
 
 struct PaintProps {
-  std::optional<Animatable<Fill>> fill;
-  Animatable<float> opacity = 1.0f;
+  std::optional<motion::Animatable<Fill>> fill;
+  motion::Animatable<float> opacity = 1.0f;
   SkBlendMode blendMode = SkBlendMode::kSrcOver;
-  Animatable<float> translateX = 0.0f, translateY = 0.0f;
-  Animatable<float> rotate = 0.0f, scale = 1.0f;
+  motion::Animatable<float> translateX = 0.0f, translateY = 0.0f;
+  motion::Animatable<float> rotate = 0.0f, scale = 1.0f;
   // Per-axis scale, multiplied INTO `scale`. Bars, wipes, meters,
   // cooldown sweeps and drain rings are the most common animated
   // primitive in a UI and none of them are uniform.
-  Animatable<float> scaleX = 1.0f, scaleY = 1.0f;
-  Animatable<float> skewX = 0.0f, skewY = 0.0f;  // degrees (shear)
+  motion::Animatable<float> scaleX = 1.0f, scaleY = 1.0f;
+  motion::Animatable<float> skewX = 0.0f, skewY = 0.0f;  // degrees (shear)
   float originX = 0.5f, originY = 0.5f;
   bool originPx = false;  // origin in node-local px instead of fractions
   int zIndex = 0;
@@ -113,7 +127,7 @@ class Box {
  *  and what it does to the range it finds. Ordered — later declarations win
  *  on overlap — and comparable, so a re-described list prunes. */
 struct SpanRestyle {
-  Selector where;
+  sigil::weave::Selector where;
   sigil::weave::TextStyle style;  ///< paintOnly reads `style.paint` alone
   /** setPaint (never re-shapes) rather than setStyle. */
   bool paintOnly = false;
@@ -130,7 +144,7 @@ struct SpanRestyle {
  *  learn which rect that child's box is. Comparable, so a re-described mark
  *  list prunes. */
 struct MarkAnchor {
-  Selector where;
+  sigil::weave::Selector where;
   std::string key;
   bool operator==(const MarkAnchor&) const = default;
 };
@@ -143,7 +157,7 @@ struct MarkAnchor {
  *  the caller passed alone, and there is no way to tell "never asked for"
  *  from "asked for the default value" without it. */
 struct TextOptions {
-  enum Field : uint8_t {
+  enum Field : uint16_t {
     kAlignment = 1u << 0u,
     kLineBreak = 1u << 1u,
     kHyphenation = 1u << 2u,
@@ -151,8 +165,16 @@ struct TextOptions {
     kMaxLines = 1u << 4u,
     kLastLine = 1u << 5u,
     kWritingMode = 1u << 6u,
+    kBlocks = 1u << 7u,
+    kFrame = 1u << 8u,
+    kJustification = 1u << 9u,
+    kTabStops = 1u << 10u,
+    kLive = 1u << 11u,
+    kLineTables = 1u << 12u,
+    kReserved = 1u << 13u,
+    kLineBreakLocale = 1u << 14u,
   };
-  uint8_t set = 0;  ///< which fields below were written
+  uint16_t set = 0;  ///< which fields below were written
 
   sigil::weave::TextAlignment alignment = sigil::weave::TextAlignment::kStart;
   /// Not a ParagraphLayoutOptions field — the writing mode belongs to the
@@ -169,6 +191,34 @@ struct TextOptions {
   sigil::weave::TextAlignment lastLineAlignment =
       sigil::weave::TextAlignment::kStart;
   bool justifyLastLine = false;
+  /// paragraphs(): one entry per BLOCK — the text between two hard breaks
+  /// — in block order. A block past the end of the list is set by the
+  /// layout-wide fields alone, so one style here sets the first block and
+  /// leaves the rest plain, which is what a heading over a body wants.
+  std::vector<sigil::weave::ParagraphStyle> blocks;
+  sigil::weave::FrameOptions frame;
+  sigil::weave::JustificationOptions justification;
+  sigil::weave::TabStopOptions tabStops;
+  /// live(): this layout is one of a run of them. The budget rides with it
+  /// because they are one statement — a text that says it is moving is the
+  /// only one for which running out of time is a normal event.
+  bool live = false;
+  float budgetMicroseconds = 0;
+  /// The three tables a house's own setting is stated in, and the fraction
+  /// beside the third. One mask bit for all four: they are the same
+  /// declaration made in four places, and a caller who sets one and expects
+  /// a full-control overload's others to survive has no way to say so.
+  sigil::weave::KinsokuTable kinsoku;
+  sigil::weave::HangingTable hanging;
+  sigil::weave::MojikumiTable mojikumi;
+  float tsume = 0;
+  /// reserve(): room beside every line of this passage, on top of whatever
+  /// an annotation reserves.
+  sigil::weave::ReservedBand reserved;
+  /// Not a ParagraphLayoutOptions field either — the line-break tailoring
+  /// belongs to the Paragraph, for the same reason the writing mode does,
+  /// and materializeText writes it there under the same mask rule.
+  std::string lineBreakLocale;
 
   /** Writes every SET field over @p options, leaving the rest alone. */
   void applyTo(sigil::weave::ParagraphLayoutOptions& options) const;
@@ -176,11 +226,17 @@ struct TextOptions {
   bool operator==(const TextOptions& other) const {
     return set == other.set && alignment == other.alignment &&
            writingMode == other.writingMode && lineBreak == other.lineBreak &&
-           hyphenation.enabled == other.hyphenation.enabled &&
-           hyphenation.penalty == other.hyphenation.penalty &&
-           ellipsis == other.ellipsis && maxLines == other.maxLines &&
+           hyphenation == other.hyphenation && ellipsis == other.ellipsis &&
+           maxLines == other.maxLines &&
            lastLineAlignment == other.lastLineAlignment &&
-           justifyLastLine == other.justifyLastLine;
+           justifyLastLine == other.justifyLastLine && blocks == other.blocks &&
+           frame == other.frame && justification == other.justification &&
+           tabStops == other.tabStops && live == other.live &&
+           budgetMicroseconds == other.budgetMicroseconds &&
+           kinsoku == other.kinsoku && hanging == other.hanging &&
+           mojikumi == other.mojikumi && tsume == other.tsume &&
+           reserved == other.reserved &&
+           lineBreakLocale == other.lineBreakLocale;
   }
 };
 
@@ -191,9 +247,9 @@ struct TextData {
   Fill textStrokeFill;
   std::u8string utf8;
   sigil::weave::TextStyle style;
-  // text(RichText): several runs, several styles, one comparable value. Empty
-  // on every other content form.
-  RichText rich;
+  // text(weave::RichText): several runs, several styles, one comparable value.
+  // Empty on every other content form.
+  sigil::weave::RichText rich;
   // Full-control overload: identity (the pointer) is the change signal.
   std::shared_ptr<sigil::weave::Paragraph> paragraphOverride;
   sigil::weave::ParagraphLayoutOptions layoutOptions;
@@ -210,7 +266,7 @@ struct TextData {
   // textFill(): glyph paint in text-metric space (unit square → cap band).
   // Resolved at paint from the line metrics; live materials re-resolve per
   // frame; static ones compare by recipe for the prune.
-  std::optional<Material> metricFill;
+  std::optional<material::skia::Paint> metricFill;
   // onPath(): the run's baseline IS a path. Resolved at paint against the
   // node's box, walked with SkContourMeasure, one RSXform per glyph.
   std::optional<TextPath> onPath;
@@ -218,6 +274,22 @@ struct TextData {
   // resolves to, in declaration order. The rects themselves live on the
   // Instance (textMarkRects) because they are an answer of the layout.
   std::vector<MarkAnchor> marks;
+  // annotate(): readings set beside the type, in declaration order. A
+  // reserving one is a LAYOUT INPUT — its band reaches the strut before the
+  // text is broken — and the placed readings live on the Instance, because
+  // where each one landed is an answer of the layout.
+  std::vector<Annotation> annotations;
+  // thread(): the key of the frame this one fills INTO. A chain of frames
+  // over one story; the cursor each frame starts at lives on the Instance,
+  // because where a fill stopped is an answer of the layout.
+  std::string threadTo;
+  // balanceChain(): this frame OPENS a balanced run of the chain — itself
+  // and every frame after it up to the next frame that opens one, or the
+  // chain's end. The run is filled to the shallowest depth that still
+  // holds what it was asked to hold, which is `balanceThroughLine` lines
+  // of the story, or all of it when that is ~0u.
+  bool balanceChain = false;
+  uint32_t balanceThroughLine = ~0u;
   // THE TEXT ENGINE, as the description carries it: installed by the verbs
   // that dress type (fx, onPath, mark, spanStyle, spanPaint,
   // variationDrive), read by the kernel wherever it needs more than the
@@ -232,6 +304,22 @@ struct TextData {
   sigil::weave::TextAlignment alignment() const {
     return (options.set & TextOptions::kAlignment) ? options.alignment
                                                    : layoutOptions.alignment;
+  }
+
+  /** WHETHER THIS LEAF SPENDS THE ROOM LEFT OVER DOWN ITS BOX — the rule
+   *  `distribute()` wrote, otherwise whatever the full-control overload's
+   *  options carry.
+   *
+   *  Only the resolved box knows how much room there is, so a leaf that
+   *  answers true must be laid out at its RESOLVED DEPTH and not at an
+   *  open one, exactly as an aligned leaf must be laid out at its resolved
+   *  width. A leaf that answers false never reads the depth and is free to
+   *  grow down the page. */
+  bool distributesRoom() const {
+    const sigil::weave::FrameOptions& frame =
+        (options.set & TextOptions::kFrame) ? options.frame
+                                            : layoutOptions.frame;
+    return frame.distribute != sigil::weave::FrameOptions::Distribute::kStart;
   }
 };
 
@@ -255,6 +343,18 @@ struct CustomData {
 struct DeriveData {
   // Custom layout (layout() containers)
   std::function<std::vector<SkRect>(const LayoutInput&)> placeFn;
+  /** Whether the scheme behind `placeFn` reads `LayoutInput::childMinSizes`,
+   *  which costs one extra text measure per text child of the container. */
+  bool placeReadsMinSizes = false;
+  /** Element::tether(): where this node hangs off a keyed one, resolved
+   *  by the derive pass against the anchor's finished geometry. */
+  std::optional<Tether> tether;
+  /** Element::area(): the name of the region this child claims of the
+   *  scheme above it, merged into the CellSpan the layout pass hands that
+   *  scheme. It lives in this block rather than beside the cell numbers in
+   *  LayoutProps because a string on every node in the tree is what the
+   *  node size assertion exists to prevent, and a named region is rare. */
+  std::string cellArea;
   std::vector<std::string> flowAroundKeys;
   float flowAroundMargin = 0;
   std::string connectFrom, connectTo;
@@ -272,7 +372,7 @@ struct DeriveData {
   Shape bandSpine;
   std::string bandAround;
   std::optional<Across> bandWidth;
-  Formation bandFormation = Formation::Centered;
+  geometry::path::Formation bandFormation = geometry::path::Formation::Centered;
   // spans::fit(key): the keyed boxes a stroke pass sizes its gap from,
   // resolved to this node's local space per frame (the flowAround
   // pattern applied to a boundary). Declared here rather than beside the
@@ -285,6 +385,28 @@ struct DeriveData {
   // path borrow re-evaluates the target's shape generator, so the two
   // costs are not paid for each other.
   std::vector<std::string> borrowedPathKeys;
+  /** WHAT THIS NODE READS OFF ANOTHER, declared where the derivation is
+   *  WRITTEN — one entry per keyed node this one's answer is a function
+   *  of, and which facet of that node it needs.
+   *
+   *  Every field above says what a pass will RESOLVE; this says what the
+   *  node DEPENDS ON, and the two are different questions with different
+   *  readers. The resolve pass reads the fields, because it needs the
+   *  margin, the gap, the router and the formation beside each key. The
+   *  ordering reads this, because all it needs is the edges — and reading
+   *  them here rather than reconstructing them from which fields happen to
+   *  be non-empty is what keeps a new derivation from being ordered a pass
+   *  behind by a chain that never heard of it. A verb that borrows a key
+   *  adds its read in the same statement that stores the key.
+   *
+   *  A frame chain declares its read here too, though its key lives in
+   *  TextData: a node has ONE list of what it reads, whatever block holds
+   *  the data behind it.
+   *
+   *  Excluded from structural equality on purpose — every entry is a
+   *  function of fields the comparator already compares, so a description
+   *  that differs in a read differs in the field that produced it. */
+  std::vector<sigil::core::Read> reads;
 };
 
 /** One span-qualified pass — Element::stroke(where, what, name) or
@@ -332,12 +454,12 @@ struct MarkLabel {
 };
 
 struct FxData {
-  std::optional<Effect> layerEffect;
-  std::optional<Effect> backdropEffect;
+  std::optional<material::skia::Effect> layerEffect;
+  std::optional<material::skia::Effect> backdropEffect;
   // Misprint echoes (offset flat-color re-stamps under fill/text)
   std::vector<Echo> echoes;
   float staggerChildrenMs = 0;  // extra order·each mount delay per subtree
-  Stagger::From staggerFrom = Stagger::From::Start;
+  motion::Spread::From staggerFrom = motion::Spread::From::Start;
   // Element::overlay(): decorations painted OVER the fill and UNDER the
   // content and children. Lives in this block rather than beside
   // backgrounds/foregrounds so sizeof(ElementNode) does not grow — the
@@ -362,11 +484,39 @@ struct MaterialData {
   // Live material fill: a Material with a ch::Output-bound uniform, resolved
   // per frame. Supersedes paint.fill when present (a static Material
   // collapses to paint.fill instead). Declares the node volatile.
-  std::optional<Material> live;
+  std::optional<material::skia::Paint> live;
   // The comparable recipe behind paint.fill when it was set via
   // fill(Material): propsEqual compares this structurally, so a re-described
   // material fill prunes even though each describe minted a fresh shader.
-  std::optional<Material> recipe;
+  std::optional<material::skia::Paint> recipe;
+};
+
+/** THE DEPTH LANES — Element::rotateX/rotateY/translateZ/scaleZ, the view
+ *  a node declares for its children (Element::perspective and its origin),
+ *  the depth of the transform origin, and the two modes: whether this
+ *  node's children share its space (Element::preserve3d) and whether the
+ *  back of its plane is drawn (Element::backface). A block rather than
+ *  five more PaintProps lanes because a plane that never turns is what
+ *  nearly every node in a tree is, and Composer.cpp's size assertion is
+ *  the rule that keeps that plane paying one null pointer for the lanes.
+ *
+ *  The animatable lanes here are Instance::Slot rows exactly as the 2D
+ *  lanes are (kSlotSpecs reaches them through this block, answering null
+ *  on a node that has none), so they transition, mount, memoize and
+ *  declare volatility through the same four consumers. The frame is
+ *  CSS's: +z toward the viewer. */
+struct DepthData {
+  motion::Animatable<float> rotateX = 0.0f, rotateY = 0.0f;  // degrees
+  motion::Animatable<float> translateZ = 0.0f;               // px, +toward
+  motion::Animatable<float> scaleZ = 1.0f;
+  /// The viewer's distance in front of THIS node's plane, for its
+  /// children. 0 is no perspective: an orthographic projection.
+  motion::Animatable<float> perspective = 0.0f;
+  float perspectiveOriginX = 0.5f, perspectiveOriginY = 0.5f;  // fractions
+  /// The transform origin's depth, beside PaintProps::originX/originY.
+  float originZ = 0.0f;
+  bool preserve3d = false;
+  Backface backface = Backface::Visible;
 };
 
 /** The memo shell's payload: SigilCore's Memo, producing an Element. The
@@ -377,6 +527,17 @@ using MemoData = core::Memo<Element>;
 
 struct ElementNode {
   Kind kind = Kind::Box;
+  // Element::boundary(): what this node's decorations dress — its own
+  // shape, the outline of its glyphs on a text leaf, or the silhouette of
+  // what it DREW — and, under Coverage, how much paint counts as ink:
+  // Element::threshold() as a fraction of full opacity, defaulting to the
+  // rule an unantialiased rasteriser uses, the paint reaching at least
+  // half the pixel. Anything that borrows this node's edge reads the same
+  // pair. Both stand at the head of the struct because the kind enum
+  // leaves room for them there and this struct is allocated once per node
+  // per frame.
+  Boundary boundary = Boundary::Auto;
+  float coverageThreshold = 0.5f;
   std::string key;
   LayoutProps layout;
   PaintProps paint;
@@ -392,7 +553,7 @@ struct ElementNode {
   bool hitTestable = true;
   Cache cacheMode = Cache::Auto;
   float bakeScale = 1.0f;  // Texture-bake resolution multiplier (see Element)
-  std::optional<Transition> nodeTransition;
+  std::optional<motion::Transition> nodeTransition;
 
   // Decoration layers (kernel seam; primitives live in Decorations.h)
   std::vector<Decoration> backgrounds;
@@ -412,6 +573,9 @@ struct ElementNode {
   // much on EVERY node in the tree for a property a handful of them use,
   // which is what Composer.cpp's size assertion exists to prevent.
   Box<MotionPath> motionData;
+  // The depth lanes (see DepthData): a plane that never turns carries
+  // none, for the same reason travel() is a block.
+  Box<DepthData> depthData;
 
   std::vector<Element> children;
 
@@ -462,11 +626,11 @@ struct ElementNode {
 // wrote by hand — and the honest way to retire a pin is to give the struct
 // a defaulted `operator==`.
 //
-// CLASSES WITH PRIVATE STATE (Material, Effect, Region, Animatable, Shape,
-// Decoration, Profile) CANNOT be pinned — reading a field count needs an
-// aggregate. Their hand-written comparators sit in the same header or
-// translation unit as their members, so a field and its comparison are
-// read together; PaintProps (here) and propsEqual (Reconcile.cpp) are the
+// CLASSES WITH PRIVATE STATE (material::skia::Paint and Effect, Region,
+// Animatable, Shape, Decoration, Profile) CANNOT be pinned — reading a field
+// count needs an aggregate. Their hand-written comparators sit in the same
+// header or translation unit as their members, so a field and its comparison
+// are read together; PaintProps (here) and propsEqual (Reconcile.cpp) are the
 // pair that can drift apart unseen.
 
 using ::sigil::core::kFieldCount;
@@ -479,62 +643,53 @@ using ::sigil::core::kFieldCount;
  *  compares two different nodes will report a difference whatever the
  *  comparator does, and so passes even when the field is unread. */
 bool propsEqual(const ElementNode& a, const ElementNode& b);
-/** The shaped-binding half of the same comparator, SigilCore's: every
+/** The shaped-binding half of the same comparator, SigilMotion's: every
  *  field of BoundFloat participates, under the pin beside its body. */
-using ::sigil::core::boundMapEqual;
-/** An Animatable compared where every other animated slot is: SigilCore's
- *  form-by-form comparator. */
-using ::sigil::core::propEqual;
+using ::sigil::motion::boundMapEqual;
+/** An Animatable compared where every other animated slot is:
+ *  SigilMotion's form-by-form comparator. */
+using ::sigil::motion::propEqual;
 
-/** Constant, binding, or transitioned — flattened for the reconciler. */
-using ::sigil::core::ResolvedProp;
-using ::sigil::core::resolveProp;
+/** Constant, binding, or transitioned — one animatable flattened. */
+using ::sigil::motion::ResolvedProp;
+using ::sigil::motion::resolveProp;
 
 // ---------------------------------------------------------------------------
 // TEXT FX — the runtime side of the fx() seam (TextFx.cpp)
 
 /** Equal only when PROVABLY identical: two easing curves compare equal when
  *  both are the same plain function pointer, and a lambda-valued curve
- *  compares unequal, conservatively. SigilCore's one body, so no second
+ *  compares unequal, conservatively. SigilMotion's one body, so no second
  *  spelling of the rule can let two comparators disagree about whether a
  *  node may prune. */
-using ::sigil::core::easeEqual;
+using ::sigil::motion::easeEqual;
 /** Same duration, same delay, same curve under easeEqual. */
-using ::sigil::core::transitionEqual;
+using ::sigil::motion::transitionEqual;
 /** Did the DESCRIBED transform change between two descriptions? The lanes
  *  mirror propsEqual's transform block plus travel(). Defined in
  *  Reconcile.cpp beside the comparators it is built from. */
 bool describedTransformEqual(const ElementNode& a, const ElementNode& b);
 
-/** UTF-8 to the UTF-16 the weave layer speaks. */
-std::u16string toUtf16(std::u8string_view utf8);
-
-/** WHERE INDEX `i` OF `count` SITS IN A CASCADE, in multiples of the
- *  per-step delay — 0,1,2… from Start, reversed from End, the two
- *  symmetric V shapes for Center and Edges, and a seeded permutation for
- *  Random. `seed` is `Stagger::seed` — read only by Random, where 0 keys
- *  the ranking hash on the count alone and a nonzero value deals an
- *  independent permutation.
- *
- *  ONE BODY for two callers: an fx() track's units and a container's
- *  staggered children. A second spelling would let `Stagger::From` mean
- *  two different orders depending on what it was attached to. */
 /** The stateless splitmix64 of one key — the avalanche over the key
- *  offset by the gamma, which is the same mixer `Rng` steps, used to
+ *  offset by the gamma, which is the same mixer an effect's stream
+ *  steps, used to
  *  order units rather than to shape a glyph. */
 inline uint64_t mix64Value(uint64_t z) {
   return core::noise::mix64(z + core::noise::kMix64Gamma);
 }
-void cascadeOrder(Stagger::From from, uint32_t count, uint32_t seed,
-                  std::vector<float>& out);
-
 /** The once-per-process diagnostic behind `onPath` plus a vertical
  *  `writingMode`: a path run's baseline is its own geometry, so there are
  *  no columns to advance and the path wins. */
 void warnWritingModeOnPath();
 
+/** The once-per-name diagnostic behind a paragraph style name that
+ *  resolves to nothing — no set in scope, or a set that does not carry it.
+ *  A block set in a default nobody asked for is the silent no-op this
+ *  library refuses to ship. */
+void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope);
+
 /** Does this selector reach for a LINE, and therefore need a layout to
  *  resolve against? The question the second layout pass is gated on. */
-bool selectorNeedsLayout(const Selector& selector);
+bool selectorNeedsLayout(const sigil::weave::Selector& selector);
 
 }  // namespace sigil::compose::detail

@@ -14,7 +14,8 @@
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilcompose/core/Text.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 
@@ -29,7 +30,12 @@ class SkCanvas;
 
 namespace sigil::weave {
 class FontContext;
-}
+// What a text query addresses and at which granularity — the paragraph
+// engine's, in <sigilweave/query/Selector.h> and
+// <sigilweave/paragraph/Unit.h>.
+class Selector;
+enum class Unit : uint8_t;
+}  // namespace sigil::weave
 
 namespace sigil::compose {
 
@@ -37,7 +43,37 @@ namespace detail {
 struct Instance;
 }  // namespace detail
 
-class Material;
+// The typography vocabulary the text queries answer in, defined under
+// <sigilcompose/typography/>: a caller of `beatsOf` or `units` includes
+// the header that spells the value it reads back. What it addresses and
+// at which granularity are SigilWeave's, declared above.
+struct TextUnit;
+struct Beat;
+
+/** WHAT A LIVE PASSAGE'S LAST LAYOUT COST — `Composer::settling`'s answer.
+ *
+ *  A text told its input is moving keeps its break decisions and reuses
+ *  them, and this is what a frame actually got for that: how many blocks
+ *  came out of the store, and how many the composer's budget forced to the
+ *  greedy breaker. It is a REPORT about one input, not a verdict about the
+ *  node — the runtime holds one proof that a node has settled, and folds
+ *  this into it beside everything else the node reads. */
+struct TextSettling {
+  /// The leaf declared its input moving (`Element::live`). A settled
+  /// passage reports nothing here and answers `reused == 0`: it decided
+  /// its breaks once, and no later frame asks it again.
+  bool live = false;
+  /// Blocks answered from break decisions this thread already had. Under
+  /// `live`, a frame that reused every block of its passage did no
+  /// composing at all.
+  int reused = 0;
+  /// Blocks the budget forced to the greedy breaker. A degrade drops the
+  /// whole setting — the hyphens, the justification passes past the word
+  /// gaps, the widow rule — for that frame alone, and the leaf lays out
+  /// again so the setting comes back the frame the budget is met.
+  int degraded = 0;
+  bool operator==(const TextSettling&) const = default;
+};
 
 // ---------------------------------------------------------------------------
 // Composer — the retained side; a guest in the host's canvas
@@ -64,7 +100,7 @@ class Composer {
    *  are ignored, like the CSS root) — size content via children.
    *  An EMPTY size means INTRINSIC instead: the root sizes to its content
    *  and its own dims ARE respected. That is the rule the
-   *  snapshot()/measure() path runs under. */
+   *  snapshot()/intrinsicSize() path runs under. */
   void setSize(SkSize size);
 
   /** Feeds PaintContext::elapsedSeconds (one clock everywhere). Null
@@ -74,12 +110,18 @@ class Composer {
   /** Output view transform (color management): applied to the composer's
    *  whole output as the final stage — one saveLayer while set, zero cost
    *  when cleared (a default Effect{}). The intended source is an OCIO
-   *  display/view baked to a 3D LUT (SigilMaterial's colour transforms),
-   *  but any Effect works. Per-node caches are unaffected (this is
-   *  post-cache, at composite). */
-  void setView(Effect view);
+   *  display/view baked from a colour config (SigilMaterial's colour
+   *  transforms), but any Effect works. Per-node caches are unaffected
+   *  (this is post-cache, at composite). */
+  void setView(material::skia::Effect view);
   /** The view as a SigilMaterial recipe whose `content` slot is the
-   *  output — `Effect::recipe(view)`. */
+   *  output. The Material is KEPT rather than built once, because a
+   *  recipe that maps each channel independently — an exponent, a gamma,
+   *  a per-channel display curve — is a per-channel table on an eight-bit
+   *  surface and a full-canvas program on any other, and which surface
+   *  this is only the canvas of a draw can say. Every draw onto the same
+   *  colour type therefore reuses one lowering; a view handed in already
+   *  built, as an Effect, is taken as it stands. */
   void setView(const sigil::material::Material& view);
 
   /** THE DECLARED INPUT SPACE — a declaration, NOT a conversion.
@@ -131,6 +173,12 @@ class Composer {
    *  dirty() || ticker.active(). */
   bool dirty() const;
 
+  /** Whether another draw can produce different pixels: a description or
+   *  layout is dirty, a ticker motion is running, or a retained binding can
+   *  change without another render(). Unlike dirty(), this also polls
+   *  externally-driven bindings that previously settled. */
+  bool active() const;
+
   /** Lays out if needed and paints at the canvas's current matrix/clip.
    *  Provably-static subtrees replay their auto-recorded pictures. */
   void draw(SkCanvas& canvas);
@@ -150,6 +198,28 @@ class Composer {
    *  layout; for glyph choreography and queries). */
   const sigil::weave::ParagraphLayout* paragraphLayout(
       std::string_view key) const;
+  /** WHAT A LIVE PASSAGE'S LAST LAYOUT COST — the report a host folds into
+   *  its own proof that a node is holding still.
+   *
+   *  A text told its input is moving (`Element::live`) keeps its break
+   *  decisions and reuses them: `reused` is how many blocks this frame
+   *  answered from decisions it already had, and `degraded` how many the
+   *  budget forced to the greedy breaker. A frame that reused every block
+   *  and degraded none is set exactly as the frame before it. A frame that
+   *  degraded is set PROVISIONALLY — the setting the author asked for
+   *  comes back the frame the budget is met, and the leaf lays out again
+   *  to get it.
+   *
+   *  There is one proof in a runtime that a node has settled and this is
+   *  not it: this is a fact about one input, reported so the proof can
+   *  fold it beside every other input the node has. A layout reporting
+   *  degrades every frame is asking for a longer budget or a shorter
+   *  block.
+   *
+   *  Valid after a draw(). An unknown key, and a node that is not text,
+   *  resolve to a zeroed value, as the rest of the query family does. */
+  [[nodiscard]] TextSettling settling(std::string_view key) const;
+
   /** THE SCHEDULE ONE fx() TRACK IS RUNNING: a `Beat` per beat of track
    *  @p trackIndex on the keyed text node, in draw order. Valid after a
    *  draw() (or any other call that runs layout), and computed on demand —
@@ -173,6 +243,30 @@ class Composer {
    *  query family. Check your key first. */
   [[nodiscard]] std::vector<Beat> beatsOf(std::string_view key,
                                           size_t trackIndex) const;
+  /** WHERE THE UNITS A SELECTOR ADDRESSES LANDED on the keyed text node —
+   *  one `TextUnit` per addressed unit, in draw order, in the composer's
+   *  coordinate space. Valid after a draw() (or any other call that runs
+   *  layout), and computed on demand.
+   *
+   *  This is what anything BESIDE a text is placed from: a label per word,
+   *  a note per line, a reading over a compound, a dot beside a character.
+   *  `beatsOf` answers the same rects under a schedule and needs an `fx()`
+   *  track to do it; this needs none, and reports the baseline (or the
+   *  column's axis), the pitch, the face's own band, the writing mode, the
+   *  vertical form, the text range and the style beside each rect —
+   *  everything a thing standing next to a unit has to know about it.
+   *
+   *  It is read off the placement rather than measured again, so it follows
+   *  a wrapped line, a mixed-style run's own size, a path run's curve and a
+   *  vertical column's axis by construction; a unit whose base broke across
+   *  two lines reports two entries, on the two lines.
+   *
+   *  An unknown key, a node that is not text, and a selector that addresses
+   *  nothing all resolve to an EMPTY vector, silently, exactly as an
+   *  unknown key resolves everywhere else in the query family. */
+  [[nodiscard]] std::vector<TextUnit> units(
+      std::string_view key, const sigil::weave::Selector& selector,
+      sigil::weave::Unit unit) const;
   /** THE CASCADE'S WHOLE VIRTUAL SPAN, in ms — what track @p trackIndex's
    *  master progress [0,1] maps onto: the moment its last beat closes,
    *  compounded under a nested cascade and read off the table under a cue
@@ -183,12 +277,12 @@ class Composer {
    *  computed by the same resolved cascade `beatsOf` and the glyphs read,
    *  so the three cannot disagree about the schedule.
    *
-   *  A LOOPING track (`Stagger::loopMs`) answers its PERIOD: the master
+   *  A LOOPING track (`motion::Spread::loopMs`) answers its PERIOD: the master
    *  maps onto one cycle rather than a one-shot span, so the period is
    *  what a wrapping phase's wall time must span for the schedule to run
    *  at its authored ms.
    *
-   *  Valid after a draw(), like `beatsOf`. `Stagger::spanMs` is the
+   *  Valid after a draw(), like `beatsOf`. `Track::spanMs` is the
    *  DECLARE-TIME form of the same number, for the site that needs it
    *  before any layout exists — handed its unit count, where this reads
    *  the count off the laid-out text. An unknown key, a node that is not
@@ -321,6 +415,11 @@ class Composer {
      *  static self was being re-rasterized every frame to redraw a moving
      *  child on top of it. */
     SplitBaked,
+    /** The node hosts a shared 3D space (`Element::preserve3d`): its
+     *  children stand on planes of their own, drawn on the plane beneath
+     *  it, so it has no layer of its own to bake. It paints live and the
+     *  children keep their own caches. */
+    HostsSpace,
   };
   /** One node's share of the last frame, with the reason it was or was
    *  not promoted to a cached bake. This is the per-node companion to
@@ -357,6 +456,29 @@ class Composer {
    *  profiling is off. */
   const std::vector<NodeCost>& profile() const;
 
+  /** WHAT DECIDES A PROMOTION — never what a promotion is allowed to do.
+   *
+   *  `ByCost` is the library's own judgement and the default: a node is
+   *  baked once its paint has measured over the threshold for several
+   *  consecutive frames. That decision is a STOPWATCH, so which nodes are
+   *  promoted depends on how busy the machine is: one binary drawing one
+   *  scene promotes a different set of nodes on a loaded machine than on
+   *  an idle one, and on an idle one it may promote nothing at all.
+   *
+   *  `Eager` bakes every node the promoter is ALLOWED to bake, from its
+   *  first frame, whatever the node costs. Every eligibility rule stands
+   *  unchanged — a node whose bake would paint different pixels is
+   *  refused here exactly as it is under `ByCost`, and reports the same
+   *  reason — and only the cost question is skipped. A run that means to
+   *  TEST promotion asks for this: the promoted set is then a property of
+   *  the scene, identical on every machine, and it is the whole
+   *  promotable set rather than the few nodes that happened to be slow.
+   *  It is not a performance mode: a bake nobody needed costs the bake. */
+  enum class PromotionPolicy : uint8_t {
+    Off,     ///< nothing is promoted, and standing bakes are dropped
+    ByCost,  ///< baked after several consecutive expensive frames
+    Eager,   ///< every eligible node, from its first frame
+  };
   /** AUTOMATIC TEXTURE PROMOTION. On by default on CPU raster; OFF by
    *  default on a Graphite/GPU surface, because the cost model driving it
    *  measures op-RECORDING time, which describes raster work and not GPU
@@ -391,14 +513,23 @@ class Composer {
    *  actually stable: a bake per frame would cost more than the replay it
    *  replaced.
    *
-   *  IT MUST NOT CHANGE A PIXEL, and that is enforced structurally rather
+   *  IT MUST NOT MOVE A PIXEL, and that is enforced structurally rather
    *  than hoped for: promotion is refused unless the node maps to device
    *  space with no rotation, mirroring or skew, and the bake is then taken
    *  in DEVICE space at an integer-snapped rect and blitted back with the
    *  matrix reset and no resampling. An integer device-space translation
-   *  cannot alter rasterisation, so the blit is a literal copy of the
-   *  pixels the live paint would have produced. Anything outside that
-   *  envelope keeps painting as it did.
+   *  cannot alter rasterisation, so every fully covered pixel of the blit
+   *  is the pixel the live paint would have produced. Anything outside
+   *  that envelope keeps painting as it did.
+   *
+   *  It is exact to the pixel and not to the code value: an antialiased
+   *  edge is stored in the bake as 8-bit premultiplied coverage and
+   *  composited from there, where the live draw blends its coverage
+   *  against the backdrop in one step, and the two agree only to within
+   *  1 LSB along the edge. Because promotion is decided by a measured
+   *  cost, which load can tip either way, a capture that will be diffed
+   *  turns it off here rather than accept an edge that depends on how busy
+   *  the machine was.
    *
    *  The refusals that look most like missed wins are the honest ones. A
    *  leaf at `opacity(0.13).blend(kSoftLight)` — the paper-grain idiom,
@@ -415,8 +546,38 @@ class Composer {
    *  Opting out: globally here, or per node with `.cache(Cache::Picture)`,
    *  which means "record, and never promote". `Cache::Texture` is the
    *  opposite opt-in and is unaffected. */
+  void setAutoTexturePromotion(PromotionPolicy policy);
+  /** The two-state form: false is `Off`, true is `ByCost`. */
   void setAutoTexturePromotion(bool on);
+  PromotionPolicy autoTexturePromotionPolicy() const;
+  /** Whether anything may be promoted at all — the policy is not `Off`. */
   bool autoTexturePromotion() const;
+
+  /** A PIXEL BAKE IS A PICTURE OF THE CANVAS, NOT OF THE VIEW.
+   *
+   *  Left alone, a `Cache::Texture` bake is rasterized at the scale the
+   *  frame's matrix carries, quantized up to a coarse ladder, and it is
+   *  re-baked at every rung a changing scale passes. That is right for a
+   *  host that draws its canvas at one scale and wants the sharpest
+   *  raster for it, and wrong for a host whose reader can zoom: a wheel
+   *  spin walks the ladder, and each rung re-rasterizes every generated
+   *  material in the scene at the new resolution while the reader waits.
+   *
+   *  Declared here, @p devicePixelsPerUnit is the density every pixel
+   *  bake is taken at, whatever matrix the frame is drawn under. The
+   *  bake is then taken ONCE and blitted through the view's transform
+   *  ever after, exactly as an image node's pixels are — sharp at the
+   *  density it was baked for, magnified beyond it, and never re-taken
+   *  for a change of view scale. Content that changes still re-bakes,
+   *  because that is a change of what the picture IS.
+   *
+   *  A node that needs more resolution than the canvas carries says so
+   *  with `Element::bakeScale`, which multiplies this density as it
+   *  multiplies the ladder's rung.
+   *
+   *  Zero, the default, is the ladder. */
+  void setBakeDensity(float devicePixelsPerUnit);
+  float bakeDensity() const;
 
   /** @private */
   struct Impl;
@@ -425,7 +586,8 @@ class Composer {
   friend struct detail::Instance;
   friend sk_sp<SkPicture> snapshot(const Element&, sigil::weave::FontContext&,
                                    SkSize);
-  friend SkSize measure(const Element&, sigil::weave::FontContext&, SkSize);
+  friend SkSize intrinsicSize(const Element&, sigil::weave::FontContext&,
+                              SkSize);
   std::unique_ptr<Impl> m_impl;
 };
 

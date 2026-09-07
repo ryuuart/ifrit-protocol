@@ -1,0 +1,231 @@
+#pragma once
+
+/** @file
+ * The immediate-mode sketch surface: p5's setup and draw over a pen.
+ * Include this and SIGIL_SKETCH registers a sketch that draws with a
+ * `draw::Pen` every frame onto a canvas that persists between frames.
+ */
+
+#include <include/core/SkColor.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkRefCnt.h>
+#include <sigildraw/Draw.h>
+#include <sigilmotion/clock/Ticker.h>
+#include <sigilsketch/core/Assets.h>
+#include <sigilsketch/core/CanvasSpec.h>
+#include <sigilsketch/core/Registry.h>
+#include <sigilsketch/core/Session.h>
+
+#include <algorithm>
+#include <concepts>
+#include <memory>
+#include <string_view>
+
+namespace sigil::weave {
+class FontContext;
+}
+
+namespace sigil::sketch {
+
+/** WHAT A DRAW SKETCH IS HANDED, at setup and again every frame: the
+ *  pen, the session's ticker, the files it reaches for, the canvas it
+ *  declares and what is behind it, the moment a still is taken — and
+ *  `measured`, for a number the sketch took off its own execution.
+ *
+ *  At setup the pen is there for whatever a p5 setup would have set on
+ *  the canvas: a style, a font, a first background, a drawing that is
+ *  never redrawn. What the pen draws during setup lands on the first
+ *  frame's canvas. In `draw` it is the pen of the frame being drawn,
+ *  and the rest of the context is the same session's, so a frame
+ *  reaches the ticker and `measured` without keeping either on the
+ *  sketch.
+ *
+ *  Built for the call it is handed to and non-copyable: it holds
+ *  references to session state and points at the session's own spec, so
+ *  one kept past the call would write into nothing. Keep plain data on
+ *  the sketch instead. */
+struct DrawContext {
+  draw::Pen& pen;
+  /** THE SESSION'S TICKER, stepped by the session's own clock every
+   *  frame — whether or not `draw` ran that frame, since time passes
+   *  either way. What it is for in a pen program is the FIXED STEP:
+   *
+   *      ctx.ticker.addFixed(60.0, [this] { step(); return true; },
+   *                          8, &alpha);
+   *
+   *  A simulation stepped from the frame delta is a different
+   *  simulation at every draw rate, and a capture of it is a claim
+   *  about the machine that took it. `addFixed` runs the body at
+   *  exactly @p hz from accumulated time, and publishes the leftover
+   *  fraction of a step into the Output handed last — the render
+   *  interpolant, so `lerp(previous, current, alpha)` is what the pen
+   *  draws and the judder between rates is gone. Its own words are
+   *  SigilMotion's, from `<sigilmotion/clock/Ticker.h>`.
+   *
+   *  Register in `setup` and keep the Outputs on the sketch: a
+   *  registration made in `draw` is made again every frame, and an
+   *  Output that lives no longer than the call is read by nobody. A
+   *  fresh setup gets a fresh ticker, so a sketch set up twice is
+   *  stepped once. */
+  motion::Ticker& ticker;
+  Assets& assets;
+  weave::FontContext& fonts;
+  CanvasSpec* spec = nullptr;  ///< host-owned; written via the calls below
+
+  DrawContext(draw::Pen& penIn, motion::Ticker& tickerIn, Assets& assetsIn,
+              weave::FontContext& fontsIn, CanvasSpec* specIn,
+              bool deterministicIn)
+      : pen(penIn),
+        ticker(tickerIn),
+        assets(assetsIn),
+        fonts(fontsIn),
+        spec(specIn),
+        deterministic(deterministicIn) {}
+  DrawContext(const DrawContext&) = delete;
+  DrawContext& operator=(const DrawContext&) = delete;
+
+  /** The host is taking a capture that will be DIFFED, so anything the
+   *  sketch measured about its own execution must be pinned. */
+  bool deterministic = false;
+
+  /** A number the sketch measured about ITS OWN EXECUTION — a build
+   *  time, a step rate, a live count. Returns @p value normally and
+   *  @p pinned when the host is capturing for a diff, since a plate that
+   *  carries a number no two runs agree on is a plate that differs from
+   *  itself, and a pixel sweep reports that as a change nothing made.
+   *  Route the figure through here where it is drawn:
+   *
+   *      pen.text(fmt("BUILD %.2f ms", ctx.measured(buildMs)), x, y); */
+  [[nodiscard]] double measured(double value, double pinned = 0.0) const {
+    return deterministic ? pinned : value;
+  }
+
+  /** p5's createCanvas: the canvas in its own pixels. The pen's width
+   *  and height follow at once, so a setup that draws after declaring
+   *  draws at the right size. */
+  void canvas(float width, float height) {
+    if (spec) spec->size = {width, height};
+    pen.width = width;
+    pen.height = height;
+  }
+  /** THE GROUND the canvas starts on — what the first frame finds
+   *  before anything is drawn, and what stands behind the canvas where
+   *  a host letterboxes it. Read in the pen's colour mode, as p5 reads
+   *  a background. */
+  void background(SkColor4f color) {
+    if (spec) spec->background = color;
+  }
+  void background(float gray) { background(pen.color(gray)); }
+  void background(float gray, float alpha) {
+    background(pen.color(gray, alpha));
+  }
+  void background(float v1, float v2, float v3) {
+    background(pen.color(v1, v2, v3));
+  }
+  void background(float v1, float v2, float v3, float alpha) {
+    background(pen.color(v1, v2, v3, alpha));
+  }
+  void background(std::string_view css) { background(pen.color(css)); }
+  /** The scene time a STILL of this sketch is taken at — the moment the
+   *  piece is most itself. */
+  void captureAt(double seconds) {
+    if (spec) spec->captureSeconds = seconds;
+  }
+  /** How many device pixels per canvas pixel this sketch is DRAWN at —
+   *  a whole number, at least one. The canvas a pen program keeps is
+   *  the plate, so the number cannot be applied when the still is
+   *  taken: it is a floor on the pixels the kept canvas is formed with,
+   *  and every frame is drawn at them from the first. A still is then
+   *  the frame just finished at those pixels, sharpened rather than
+   *  magnified.
+   *
+   *  Declare it on a pixel-exact reconstruction: one whose subject's
+   *  pixel is a whole number of canvas pixels, so that downsampling the
+   *  plate by that whole number lays it over the reference. A
+   *  fractional scale spreads one source pixel over seven device pixels
+   *  in one column and eight in the next, and no downsample recovers
+   *  the reference from that.
+   *
+   *      ctx.oversample(2); // one source pixel is 3 canvas px, so 6 here */
+  void oversample(int perCanvasPixel) {
+    if (spec) spec->oversample = std::max(1, perCanvasPixel);
+  }
+  /** p5's loadImage: the image at "res://<name>" — the sketch's assets
+   *  directory — as something `pen.image` draws. A file not there yet
+   *  yields the placeholder, and the sketch is set up again the moment
+   *  it appears. Null only for an asset with no frames. */
+  [[nodiscard]] sk_sp<SkImage> loadImage(std::string_view name);
+};
+
+/** A SKETCH THAT DRAWS WITH A PEN, p5's way: `setup` once, `draw` every
+ *  frame, onto a canvas that KEEPS what earlier frames drew — a
+ *  `background` each frame clears it, a translucent one leaves a trail,
+ *  none at all accumulates.
+ *
+ *  The clock is the runtime's: `millis`, `deltaTime` and `frameCount`
+ *  on the pen are stepped when a host steps and read off the wall when
+ *  a window runs, and `random` starts from the same seed in every
+ *  session, so a plate stepped from zero is the same picture every
+ *  time. Keep state in members; every reload constructs a fresh
+ *  instance and the piece starts over. */
+class DrawSketch {
+ public:
+  virtual ~DrawSketch() = default;
+  /** Once per (re)load, and again when an asset file changes. */
+  virtual void setup(DrawContext& ctx) = 0;
+  /** Every frame, while the loop runs. The pen of the frame is
+   *  `ctx.pen`; the rest of the context is the session's, so a figure
+   *  the frame measured about itself goes through `ctx.measured`. */
+  virtual void draw(DrawContext& ctx) = 0;
+
+  /** p5's pointer and key events, called between frames with the pen
+   *  ready to draw; the pen's variables already say where the pointer
+   *  is and which key it was. */
+  virtual void mousePressed(draw::Pen& pen) { (void)pen; }
+  virtual void mouseReleased(draw::Pen& pen) { (void)pen; }
+  virtual void mouseMoved(draw::Pen& pen) { (void)pen; }
+  virtual void mouseDragged(draw::Pen& pen) { (void)pen; }
+  virtual void keyPressed(draw::Pen& pen) { (void)pen; }
+  virtual void keyReleased(draw::Pen& pen) { (void)pen; }
+};
+
+/** THE IMMEDIATE-MODE KIND: a pen over a surface the session keeps,
+ *  stepped by a clock the session owns. */
+class DrawKind final : public KindOps {
+ public:
+  using Factory = DrawSketch* (*)();
+  explicit DrawKind(Factory factory) : m_factory(factory) {}
+  /** What identifies a kind is the body it opens; see the 2D kind. */
+  bool operator==(const DrawKind& other) const {
+    return m_factory == other.m_factory;
+  }
+
+  [[nodiscard]] std::string_view runtime() const override { return "draw"; }
+
+  /** The pen paints onto the session's own surface and the surface is
+   *  never cleared between frames, so every frame stands on the last. */
+  [[nodiscard]] bool retainsPixels() const override { return true; }
+
+  [[nodiscard]] std::unique_ptr<Session> open(
+      weave::FontContext& fonts, Assets& assets,
+      bool deterministic) const override;
+
+ private:
+  Factory m_factory;
+};
+
+/** The factory SIGIL_SKETCH takes the ADDRESS of; see the 2D one for why
+ *  it is a named template rather than a lambda. */
+template <class SketchType>
+[[nodiscard]] DrawSketch* makeDrawSketch() {
+  return new SketchType();
+}
+
+/** The kind a draw sketch draws through. */
+template <class SketchType>
+  requires std::derived_from<SketchType, DrawSketch>
+[[nodiscard]] Kind kindOf() {
+  return DrawKind{&makeDrawSketch<SketchType>};
+}
+
+}  // namespace sigil::sketch

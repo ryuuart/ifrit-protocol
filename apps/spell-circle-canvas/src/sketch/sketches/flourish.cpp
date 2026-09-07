@@ -24,12 +24,17 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/kit/Flourish.h>
+#include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Ornament.h>
-#include <sigilcompose/shape/Layouts.h>
-#include <sigilcompose/shape/Routers.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Routers.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/skia/Effect.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <cmath>
@@ -37,6 +42,10 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
+namespace shapes = sigil::geometry::shapes;
+namespace path = sigil::geometry::path;
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -82,12 +91,7 @@ struct Flourish final : sketch::Sketch {
 
   static sigil::weave::TextStyle glyphs(float size, SkColor4f color,
                                         float tracking = 0.0f) {
-    sigil::weave::TextStyle s;
-    s.shaping.fontSize = size;
-    s.shaping.letterSpacing = tracking;
-    s.paint.foreground.setColor(toSk(color));
-    s.paint.foreground.setAntiAlias(true);
-    return s;
+    return weave::textStyle({.size = size, .color = color, .track = tracking});
   }
 
   static sk_sp<SkRuntimeEffect> makeHatch() {
@@ -163,8 +167,8 @@ struct Flourish final : sketch::Sketch {
         .background(sigil::compose::shadow({0, 0, 0, 0.55f}, {0, 5}, 16))
         .foreground(sigil::compose::stroke(2.6f, Fill::color(st.gold)))
         .foreground(flourishVine(st, 17.0f, 24.0f, 17.0f))
-        .foreground(shapes::onEdges(shapes::Edge::Top | shapes::Edge::Bottom,
-                                    Decoration(crestWalk)))
+        .foreground(onEdges(path::Edge::Top | path::Edge::Bottom,
+                            Decoration(crestWalk)))
         .cache(Cache::Texture)
         .child(box()
                    .inset(13)
@@ -331,7 +335,8 @@ struct Flourish final : sketch::Sketch {
                    .key(bloom ? "titleBloom" : "title")
                    .opacity(&titleFade);
       if (bloom)
-        t.effect(Effect::filter(SkImageFilters::Blur(6, 6, nullptr)))
+        t.effect(sigil::material::skia::Effect::filter(
+                     SkImageFilters::Blur(6, 6, nullptr)))
             .blend(SkBlendMode::kPlus);
       else
         t.translateY(&titleDrop);
@@ -349,7 +354,8 @@ struct Flourish final : sketch::Sketch {
         .corners({16})
         .zIndex(3)
         .clip()
-        .backdrop(Effect::filter(SkImageFilters::Blur(8, 8, nullptr)))
+        .backdrop(sigil::material::skia::Effect::filter(
+            SkImageFilters::Blur(8, 8, nullptr)))
         .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 6}, 16))
         .fill(flourishParchment(st))
         .background(hatchDeco)
@@ -358,7 +364,7 @@ struct Flourish final : sketch::Sketch {
         .padding(30, 26)
         .gap(9)
         .alignItems(Align::Center)
-        .child(layout(layouts::Scatter{7, 0.7f})
+        .child(layout(layouts::Jittered{7, 0.7f})
                    .inset(22)
                    .children(std::move(sparks)))
         .child(
@@ -372,18 +378,18 @@ struct Flourish final : sketch::Sketch {
                 .foreground(sigil::compose::stroke(1.3f, Fill::color(st.gold)))
                 .child(titleLayer(st.goldBright, true))
                 .child(titleLayer({0.34f, 0.20f, 0.09f, 1}, false)))
-        .child(
-            box()
-                .key("seal")
-                .width(42)
-                .height(42)
-                .transformOrigin(0.5f, 0.5f)
-                .scale(&sealBreathe)
-                .shape(shapes::star(12, 0.66f))
-                .fill(animate(to(Fill::color(accent ? st.rubric : st.bronze)),
-                              {600ms}))
-                .foreground(
-                    sigil::compose::stroke(1.4f, Fill::color(st.goldBright))))
+        .child(box()
+                   .key("seal")
+                   .width(42)
+                   .height(42)
+                   .transformOrigin(0.5f, 0.5f)
+                   .scale(&sealBreathe)
+                   .shape(shapes::star(12, 0.66f))
+                   .fill(animate(
+                       motion::to(Fill::color(accent ? st.rubric : st.bronze)),
+                       {600ms}))
+                   .foreground(sigil::compose::stroke(
+                       1.4f, Fill::color(st.goldBright))))
         .child(text(u8"Framed by a vine that draws itself on, corner by "
                     u8"corner, while the medallions turn and the rules hold "
                     u8"their three weights of gold — every ornament a "
@@ -404,6 +410,7 @@ struct Flourish final : sketch::Sketch {
   // ---- draw-on scrollwork sweeps (Cache::None, read reveal live) ----------
 
   Element scrollworkCorner(int q) const {
+    // KEYLESS: the sweep reads the reveal live, at Cache::None.
     return custom([this, q](SkCanvas& c, const PaintContext& ctx) {
              const float rev = reveal.value();
              const float local =
@@ -481,6 +488,8 @@ struct Flourish final : sketch::Sketch {
 
   Element goldDust() const {
     const SkColor4f g = st.goldBright;
+    // KEYLESS: every mote's place and alpha is a function of the paint's own
+    // clock, which no key can name.
     return custom([g](SkCanvas& c, const PaintContext& ctx) {
              SkPaint p;
              p.setAntiAlias(true);
@@ -507,6 +516,7 @@ struct Flourish final : sketch::Sketch {
 
   Element shimmer() const {
     const SkColor4f g = st.goldBright;
+    // KEYLESS: the sweep's position is the paint's own clock.
     return custom([g](SkCanvas& c, const PaintContext& ctx) {
              const float w = ctx.size.width(), h = ctx.size.height();
              const float t = (float)ctx.elapsedSeconds;
@@ -558,9 +568,9 @@ struct Flourish final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.captureAt(6.0);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     sceneTicker = &ticker;
@@ -590,8 +600,8 @@ struct Flourish final : sketch::Sketch {
     ticker.timeline().apply(&titleFade).then<ch::RampTo>(1.0f, 1.2f);
     ticker.timeline().apply(&flare).then<ch::RampTo>(1.0f, 1.3f);
 
-    ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ticker.add([this, &ticker](double) {
+      const double t = ticker.elapsed();
       for (int q = 0; q < 4; ++q) {
         const float dir = (q == 0 || q == 2) ? 1.0f : -1.0f;
         spin[q] = (float)(t * 7.0) * dir;
@@ -626,4 +636,5 @@ struct Flourish final : sketch::Sketch {
 
 SIGIL_SKETCH_AS(
     Flourish, "flourish", "Catalog \xc2\xb7 Generative",
-    "an ornamental border reaching across the whole compose surface")
+    "the integration piece \xe2\x80\x94 one ornamental border reaching "
+    "across the whole compose surface")

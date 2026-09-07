@@ -12,11 +12,10 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Instances.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <cmath>
 #include <entt/entt.hpp>
@@ -193,7 +192,8 @@ Element bloomBlock(Cache mode) {
   return box()
       .padding(24)
       .cache(mode)
-      .effect(Effect::filter(SkImageFilters::Blur(12, 12, nullptr)))
+      .effect(sigil::material::skia::Effect::filter(
+          SkImageFilters::Blur(12, 12, nullptr)))
       .child(text(u8"BLOOM PIPELINE", style));
 }
 
@@ -247,7 +247,7 @@ constexpr int kVaryPanelRaster = 96;  // the naive kernel is O(σ²) on the CPU
 constexpr int kVaryPanelGpu = 256;
 
 /** Hard 8px stripes in node-local space — detail for the blur to destroy. */
-Material stripeTarget() {
+sigil::material::skia::Paint stripeTarget() {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, error] = SkRuntimeEffect::MakeForShader(
         SkString("half4 main(float2 p) {"
@@ -256,13 +256,13 @@ Material stripeTarget() {
                  "}"));
     return effect;
   }();
-  return Material::sksl(fx);
+  return sigil::material::skia::Paint::sksl(fx);
 }
 
 /** The parameter: 0 at the node's left edge, 1 at its right. */
-Material sigmaRamp() {
-  return Material::linearUnit({0, 0}, {1, 0},
-                              {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
+sigil::material::skia::Paint sigmaRamp() {
+  return sigil::material::skia::Paint::linearUnit(
+      {0, 0}, {1, 0}, {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
 
 /** THE WORKAROUND, written the way an author has to write it: the loop
@@ -304,7 +304,7 @@ sk_sp<SkRuntimeEffect> naiveVaryingBlur(int radius) {
   return effect;
 }
 
-Element varyingPanel(int side, Effect e) {
+Element varyingPanel(int side, sigil::material::skia::Effect e) {
   return box()
       .width((float)side)
       .height((float)side)
@@ -314,20 +314,22 @@ Element varyingPanel(int side, Effect e) {
 
 enum class BlurArm { Pyramid, Naive, ConstantMax };
 
-Effect blurEffect(BlurArm arm, float sigma) {
+sigil::material::skia::Effect blurEffect(BlurArm arm, float sigma) {
   switch (arm) {
     case BlurArm::Pyramid:
-      return Effect::blur(sigmaRamp(), sigma);
+      return sigil::material::skia::Effect::blur(sigmaRamp(), sigma);
     case BlurArm::Naive: {
       // A Gaussian is negligible past three standard deviations, so R = 3σ
       // is the radius the worst pixel in the node needs — and every pixel
       // pays it.
       const int radius = (int)std::lround(3.0f * sigma);
-      return Effect::shader(naiveVaryingBlur(radius), {{"uMaxSigma", sigma}})
+      return sigil::material::skia::Effect::shader(naiveVaryingBlur(radius),
+                                                   {{"uMaxSigma", sigma}})
           .child("param", sigmaRamp());
     }
     case BlurArm::ConstantMax:
-      return Effect::filter(SkImageFilters::Blur(sigma, sigma, nullptr));
+      return sigil::material::skia::Effect::filter(
+          SkImageFilters::Blur(sigma, sigma, nullptr));
   }
   return {};
 }
@@ -562,10 +564,8 @@ std::shared_ptr<sigil::image::ImageAsset> benchAtlas() {
     for (int i = 0; i < 4; ++i)
       src.erase(SkColorSetRGB((U8CPU)(60 + i * 40), 40, 90),
                 SkIRect::MakeXYWH(i * 16, 0, 16, 16));
-    SkDynamicMemoryWStream stream;
-    SkPngEncoder::Encode(&stream, src.pixmap(), {});
     return std::make_shared<sigil::image::ImageAsset>(
-        *sigil::image::ImageAsset::decode(stream.detachAsData()));
+        sigil::image::ImageAsset::wrap(src.asImage()));
   }();
   return asset;
 }
@@ -679,7 +679,80 @@ static void BM_Draw_TileGrid_SkSLFill(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_TileGrid_SkSLFill);
 
-#ifdef COMPOSE_BENCH_GRAPHITE
+// ---- A CHARGED DISC: N emissive stacks over one shape ---------------------
+//
+// The shape a lit diagram takes: every lit band, seal and star is a stack of
+// additive fills laid over the whole disc, each stack gated by a beat of its
+// own. What the arms below separate is the cost of the LIGHT from the cost
+// of the NODES — a stack that composites through a layer of its own pays a
+// bounded intermediate per stack, where one that rides its blit pays a blit.
+
+namespace {
+
+/** One grade of a glow: a disc filled at a low alpha through kPlus, which
+ *  is how a bloom is built out of nested discs. */
+Element grade(float radius, float alpha) {
+  return box()
+      .absolute()
+      .left(200 - radius)
+      .top(200 - radius)
+      .width(radius * 2)
+      .height(radius * 2)
+      .shape([](SkSize s) {
+        return SkPath::Oval(SkRect::MakeWH(s.fWidth, s.fHeight));
+      })
+      .fill(Fill::color({1.0f, 0.72f, 0.31f, alpha}))
+      .blend(SkBlendMode::kPlus);
+}
+
+/** One lit element: four grades over the same disc, held as one bake and
+ *  composited at its own gain — the form a lit diagram repeats. */
+Element emissiveStack(int index, Cache mode) {
+  const float radius = 60.0f + (float)(index % 8) * 14.0f;
+  return box()
+      .key("lit" + std::to_string(index))
+      .absolute()
+      .left(0)
+      .top(0)
+      .width(400)
+      .height(400)
+      .cache(mode)
+      .blend(SkBlendMode::kPlus)
+      .opacity(0.55f + 0.04f * (float)(index % 8))
+      .child(grade(radius, 0.085f))
+      .child(grade(radius * 0.72f, 0.16f))
+      .child(grade(radius * 0.5f, 0.42f))
+      .child(grade(radius * 0.3f, 0.96f));
+}
+
+void chargedDiscArm(benchmark::State& state, Cache mode) {
+  const int count = (int)state.range(0);
+  Host host(400, 400);
+  Element disc =
+      box().width(400).height(400).fill(Fill::color({0.05f, 0.04f, 0.06f, 1}));
+  for (int i = 0; i < count; ++i) disc.child(emissiveStack(i, mode));
+  host.composer.render(disc);
+  host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
+  sigil::compose::bench::reportNodes(state, count);
+}
+
+}  // namespace
+
+/** Each stack held as its own bake: the draw is one blit per stack. */
+static void BM_Draw_ChargedDisc_Baked(benchmark::State& state) {
+  chargedDiscArm(state, Cache::Texture);
+}
+BENCHMARK(BM_Draw_ChargedDisc_Baked)->Arg(1)->Arg(4)->Arg(16)->Arg(64);
+
+/** The same picture with nothing held: every grade is rasterized again on
+ *  every frame, which is what the cost of the light alone looks like. */
+static void BM_Draw_ChargedDisc_Live(benchmark::State& state) {
+  chargedDiscArm(state, Cache::None);
+}
+BENCHMARK(BM_Draw_ChargedDisc_Live)->Arg(1)->Arg(4)->Arg(16)->Arg(64);
+
+#ifdef SIGIL_BENCH_GPU
 // ---- The same arms against a Graphite Metal surface ----
 // Cache tiers trade re-recording against re-rasterizing, and which side wins
 // depends on the target. These arms repeat the raster measurements above
@@ -823,4 +896,4 @@ static void BM_Particles_EnttAtlasLeaf_Graphite(benchmark::State& state) {
 }
 BENCHMARK(BM_Particles_EnttAtlasLeaf_Graphite)->Arg(100000)->Arg(1000000);
 
-#endif  // COMPOSE_BENCH_GRAPHITE
+#endif  // SIGIL_BENCH_GPU

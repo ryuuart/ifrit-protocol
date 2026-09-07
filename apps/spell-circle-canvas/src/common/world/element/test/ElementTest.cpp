@@ -10,29 +10,21 @@
 
 #include <glm/vec4.hpp>
 #include <memory>
+#include <string>
+
+#include "TestMaterial.h"
 
 using namespace sigil;
 using namespace sigil::world;
+using namespace sigil::world::test;
 
 namespace {
 
-struct Paint {
-  glm::vec4 baseColor{1, 1, 1, 1};
-};
-
-std::shared_ptr<const material::Recipe> paintRecipe() {
-  static const std::shared_ptr<const material::Recipe> recipe =
-      std::make_shared<const material::Recipe>(
-          material::Recipe::of<Paint>("world.test.paint"));
-  return recipe;
-}
-
-material::Material paint(glm::vec4 colour) {
-  return material::Material(paintRecipe(), Paint{colour});
-}
-
-Mesh triangle(float size) {
-  Mesh m;
+/** ONE TRIANGLE, and it has to stay one: a stamp is stood at every point
+ *  of a cloud, so the triangle count of what that cooked to is the
+ *  cloud's size times this. */
+geometry::mesh::Mesh triangle(float size) {
+  geometry::mesh::Mesh m;
   m.positions = {{0, 0, 0}, {size, 0, 0}, {0, size, 0}};
   m.normals = {{0, 0, 1}, {0, 0, 1}, {0, 0, 1}};
   m.uvs = {{0, 0}, {1, 0}, {0, 1}};
@@ -66,36 +58,129 @@ TEST(WorldElement, TwoDescribesOfTheSameNodePrune) {
   EXPECT_TRUE(propsEqual(*a.node(), *b.node()));
 }
 
-TEST(WorldElement, EveryTransformLaneParticipatesInThePrune) {
+namespace {
+
+/** ONE FIELD, SAID TWO WAYS. A description carrying the first differs
+ *  from one carrying neither and from one carrying the second, and
+ *  compares equal to a second description of itself — which is what a
+ *  field being IN the comparison means, as against being left out of it
+ *  and never patching again. */
+struct Field {
+  const char* what;
+  Element (*one)(Element);
+  Element (*other)(Element);
+};
+
+class DescribedField : public testing::TestWithParam<Field> {};
+
+std::string fieldName(const testing::TestParamInfo<Field>& info) {
+  return info.param.what;
+}
+
+const Field kFields[] = {
+    {"TranslateX", [](Element e) { return e.translateX(1.0f); },
+     [](Element e) { return e.translateX(2.0f); }},
+    {"TranslateY", [](Element e) { return e.translateY(1.0f); },
+     [](Element e) { return e.translateY(2.0f); }},
+    {"TranslateZ", [](Element e) { return e.translateZ(1.0f); },
+     [](Element e) { return e.translateZ(2.0f); }},
+    {"RotateX", [](Element e) { return e.rotateX(1.0f); },
+     [](Element e) { return e.rotateX(2.0f); }},
+    {"RotateY", [](Element e) { return e.rotateY(1.0f); },
+     [](Element e) { return e.rotateY(2.0f); }},
+    {"RotateZ", [](Element e) { return e.rotateZ(1.0f); },
+     [](Element e) { return e.rotateZ(2.0f); }},
+    {"ScaleX", [](Element e) { return e.scaleX(2.0f); },
+     [](Element e) { return e.scaleX(3.0f); }},
+    {"ScaleY", [](Element e) { return e.scaleY(2.0f); },
+     [](Element e) { return e.scaleY(3.0f); }},
+    {"ScaleZ", [](Element e) { return e.scaleZ(2.0f); },
+     [](Element e) { return e.scaleZ(3.0f); }},
+    {"TransformOrigin", [](Element e) { return e.transformOrigin({1, 1, 1}); },
+     [](Element e) { return e.transformOrigin({2, 2, 2}); }},
+    {"AnAxisAndAnAngle", [](Element e) { return e.rotate({1, 0, 0}, 15.0f); },
+     [](Element e) { return e.rotate({0, 1, 0}, 15.0f); }},
+    {"AWholeMatrix", [](Element e) { return e.transform(glm::mat4(2.0f)); },
+     [](Element e) { return e.transform(glm::mat4(3.0f)); }},
+    {"ATag", [](Element e) { return e.tag("glow"); },
+     [](Element e) { return e.tag("dim"); }},
+    {"AnEmitter", [](Element e) { return e.light(light::sun({0, -1, 0})); },
+     [](Element e) { return e.light(light::sun({0, 1, 0})); }},
+    {"AViewpoint",
+     [](Element e) { return e.camera(geometry::mesh::camera::Camera{}); },
+     [](Element e) {
+       geometry::mesh::camera::Camera lens;
+       lens.eye = {0, 0, 10};
+       return e.camera(lens);
+     }},
+    {"TheCacheWord", [](Element e) { return e.cache(core::Cache::Never); },
+     [](Element e) { return e.cache(core::Cache::Always); }},
+    {"ARailAndADistanceAlongIt",
+     [](Element e) {
+       geometry::mesh::curve::Spline3 spline;
+       spline.points = {{0, 0, 0}, {100, 0, 0}, {100, 100, 0}};
+       return e.along(spline, 10.0f);
+     },
+     [](Element e) {
+       geometry::mesh::curve::Spline3 spline;
+       spline.points = {{0, 0, 0}, {100, 0, 0}, {100, 100, 0}};
+       return e.along(spline, 20.0f);
+     }},
+    {"AWindowOnTheRail", [](Element e) { return e.window(0.5f, 0.2f); },
+     [](Element e) { return e.window(0.5f, 0.4f); }},
+    {"AnIntensityDial",
+     [](Element e) { return e.light(light::point({0, 0, 0})).intensity(2.0f); },
+     [](Element e) {
+       return e.light(light::point({0, 0, 0})).intensity(1.0f);
+     }},
+    {"AnEmissionDial",
+     [](Element e) {
+       return e.light(light::point({0, 0, 0})).emission(1.0f, 1.0f, 1.0f);
+     },
+     [](Element e) {
+       return e.light(light::point({0, 0, 0})).emission(1.0f, 1.0f, 0.5f);
+     }},
+    // A dial that is there and one that is not are different
+    // descriptions, because the emitter's own field stands where the
+    // dial is absent.
+    {"ADialAtAllAgainstNone",
+     [](Element e) { return e.light(light::point({0, 0, 0})).intensity(1.0f); },
+     [](Element e) { return e.light(light::point({0, 0, 0})); }},
+};
+
+}  // namespace
+
+TEST_P(DescribedField, ReachesThePruneAndTellsItsTwoValuesApart) {
   const auto base = [] { return Element().key("body"); };
-  struct Case {
-    const char* what;
-    Element (*apply)(Element);
-  };
-  const Case cases[] = {
-      {"translateX", [](Element e) { return e.translateX(1.0f); }},
-      {"translateY", [](Element e) { return e.translateY(1.0f); }},
-      {"translateZ", [](Element e) { return e.translateZ(1.0f); }},
-      {"rotateX", [](Element e) { return e.rotateX(1.0f); }},
-      {"rotateY", [](Element e) { return e.rotateY(1.0f); }},
-      {"rotateZ", [](Element e) { return e.rotateZ(1.0f); }},
-      {"scaleX", [](Element e) { return e.scaleX(2.0f); }},
-      {"scaleY", [](Element e) { return e.scaleY(2.0f); }},
-      {"scaleZ", [](Element e) { return e.scaleZ(2.0f); }},
-      {"origin", [](Element e) { return e.transformOrigin({1, 1, 1}); }},
-      {"axis", [](Element e) { return e.rotate({1, 0, 0}, 15.0f); }},
-      {"matrix", [](Element e) { return e.transform(glm::mat4(2.0f)); }},
-  };
-  for (const Case& c : cases) {
-    Element moved = c.apply(base());
-    EXPECT_FALSE(propsEqual(*base().node(), *moved.node()))
-        << c.what << " does not reach the prune";
-  }
+  const Field& field = GetParam();
+  const Element one = field.one(base());
+  const Element other = field.other(base());
+  EXPECT_FALSE(propsEqual(*base().node(), *one.node()))
+      << "does not reach the prune";
+  EXPECT_FALSE(propsEqual(*base().node(), *other.node()))
+      << "does not reach the prune";
+  EXPECT_FALSE(propsEqual(*one.node(), *other.node()))
+      << "compares equal at two different values";
+  EXPECT_TRUE(propsEqual(*one.node(), *field.one(base()).node()))
+      << "compares unequal to a second description of itself";
+}
+
+INSTANTIATE_TEST_SUITE_P(EveryFieldADescriptionCarries, DescribedField,
+                         testing::ValuesIn(kFields), fieldName);
+
+TEST(WorldElement, BackfaceVisibilityReachesThePrune) {
+  const Element hidden = Element().key("body");
+  const Element visible = Element().key("body").backface(Backface::Visible);
+  EXPECT_FALSE(propsEqual(*hidden.node(), *visible.node()));
+  EXPECT_TRUE(
+      propsEqual(*visible.node(),
+                 *Element().key("body").backface(Backface::Visible).node()));
 }
 
 TEST(WorldElement, TheGeometrySlotsValueTypeIsTheKind) {
   Element mesh = Element().key("g").mesh(triangle(10));
-  Element cloud = Element().key("g").cloud(Cloud{}).stamp(triangle(10));
+  Element cloud =
+      Element().key("g").cloud(geometry::mesh::Cloud{}).stamp(triangle(10));
   EXPECT_FALSE(propsEqual(*mesh.node(), *cloud.node()));
 
   Element sameMesh = Element().key("g").mesh(triangle(10));
@@ -106,7 +191,7 @@ TEST(WorldElement, TheGeometrySlotsValueTypeIsTheKind) {
 }
 
 TEST(WorldElement, StampAndCloudReadInEitherOrder) {
-  Cloud points;
+  geometry::mesh::Cloud points;
   points.positions = {{0, 0, 0}, {5, 0, 0}};
   Element first = Element().stamp(triangle(2)).cloud(points);
   Element second = Element().cloud(points).stamp(triangle(2));
@@ -131,33 +216,6 @@ TEST(WorldElement, MaterialsCompareByValue) {
   EXPECT_FALSE(perFace.node()->material.has_value());
 }
 
-TEST(WorldElement, TagsLightsCamerasAndCacheReachThePrune) {
-  Element base = Element().key("n");
-  EXPECT_FALSE(
-      propsEqual(*base.node(), *Element().key("n").tag("glow").node()));
-  EXPECT_FALSE(propsEqual(*base.node(),
-                          *Element().key("n").light(sun({0, -1, 0})).node()));
-  EXPECT_FALSE(
-      propsEqual(*base.node(), *Element().key("n").camera(Camera{}).node()));
-  EXPECT_FALSE(propsEqual(
-      *base.node(), *Element().key("n").cache(core::Cache::Never).node()));
-}
-
-TEST(WorldElement, AlongAndWindowReachThePrune) {
-  Spline3 spline;
-  spline.points = {{0, 0, 0}, {100, 0, 0}, {100, 100, 0}};
-  Element base = Element().key("n");
-  Element rides = Element().key("n").along(spline, 10.0f);
-  Element further = Element().key("n").along(spline, 20.0f);
-  EXPECT_FALSE(propsEqual(*base.node(), *rides.node()));
-  EXPECT_FALSE(propsEqual(*rides.node(), *further.node()));
-
-  Element windowed = Element().key("n").window(0.5f, 0.2f);
-  Element widened = Element().key("n").window(0.5f, 0.4f);
-  EXPECT_FALSE(propsEqual(*base.node(), *windowed.node()));
-  EXPECT_FALSE(propsEqual(*windowed.node(), *widened.node()));
-}
-
 TEST(WorldElement, LanesAreOneFixedRowPerSlot) {
   std::vector<Lane> lanes;
   lanesOf(*Element().node(), lanes);
@@ -169,7 +227,7 @@ TEST(WorldElement, LanesAreOneFixedRowPerSlot) {
   EXPECT_FLOAT_EQ(lanes[kScaleX].standing, 1.0f);
   EXPECT_FLOAT_EQ(lanes[kTranslateX].standing, 0.0f);
 
-  Spline3 spline;
+  geometry::mesh::curve::Spline3 spline;
   spline.points = {{0, 0, 0}, {10, 0, 0}};
   lanesOf(*Element().along(spline, 3.0f).window(0.5f, 0.25f).node(), lanes);
   EXPECT_NE(lanes[kAlongDistance].value, nullptr);
@@ -187,7 +245,8 @@ TEST(WorldElement, AnEmitterLaneStandsWhereTheEmitterStands) {
 
   // An emitter with no dials: each row stands at the emitter's own
   // field, so a dropped dial ramps back to the light rather than to one.
-  const Light lamp = point({0, 0, 0}, {0.2f, 0.4f, 0.8f, 1.0f}, 0.6f);
+  const light::Light lamp =
+      light::point({0, 0, 0}, {0.2f, 0.4f, 0.8f, 1.0f}, 0.6f);
   lanesOf(*Element().light(lamp).node(), lanes);
   EXPECT_EQ(lanes[kIntensity].value, nullptr);
   EXPECT_FLOAT_EQ(lanes[kIntensity].standing, 0.6f);
@@ -201,21 +260,6 @@ TEST(WorldElement, AnEmitterLaneStandsWhereTheEmitterStands) {
   lanesOf(*Element().light(lamp).emission(1.0f, 0.5f, 0.25f).node(), lanes);
   EXPECT_NE(lanes[kEmissionGreen].value, nullptr);
   EXPECT_EQ(lanes[kIntensity].value, nullptr);
-}
-
-TEST(WorldElement, TheEmitterDialsTakePartInTheStructuralPrune) {
-  const Light lamp = point({0, 0, 0});
-  EXPECT_TRUE(propsEqual(*Element().light(lamp).intensity(2.0f).node(),
-                         *Element().light(lamp).intensity(2.0f).node()));
-  EXPECT_FALSE(propsEqual(*Element().light(lamp).intensity(2.0f).node(),
-                          *Element().light(lamp).intensity(1.0f).node()));
-  // A dial that is there and one that is not are different descriptions,
-  // because the emitter's own field stands where the dial is absent.
-  EXPECT_FALSE(propsEqual(*Element().light(lamp).intensity(1.0f).node(),
-                          *Element().light(lamp).node()));
-  EXPECT_FALSE(
-      propsEqual(*Element().light(lamp).emission(1.0f, 1.0f, 1.0f).node(),
-                 *Element().light(lamp).emission(1.0f, 1.0f, 0.5f).node()));
 }
 
 TEST(WorldElement, LocalMatrixPlacesScalesAndTurns) {

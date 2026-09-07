@@ -3,11 +3,8 @@
 // ordinary texture with every dial on it.
 
 #include <sigilcompose/texture/Texture.h>
-
-#ifdef SIGILCOMPOSE_TEXTURE_DEVICE
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
-#endif
 
 #include "support/Host.h"
 
@@ -50,6 +47,27 @@ TEST(ComposeTexture, ADescriptionThatChangedPaintsAgain) {
   const uint64_t painted = scene->version();
   scene->render(plate(SkColors::kGreen));
   EXPECT_EQ(scene->version(), painted + 1);
+}
+
+TEST(ComposeTexture, ARetainedBindingPaintsWhenItsOutputMoves) {
+  choreograph::Output<float> alpha{1.0f};
+  const std::shared_ptr<TextureScene> scene =
+      TextureScene::make({32, 32}, fonts());
+  const Element retained = plate(SkColors::kRed).opacity(&alpha);
+
+  scene->render(retained);
+  const uint64_t painted = scene->version();
+  ASSERT_TRUE(scene->active());
+
+  alpha = 0.0f;
+  scene->render(retained, 1.0 / 60.0);
+  EXPECT_EQ(scene->version(), painted + 1)
+      << "the unchanged description hid its moved binding";
+
+  SkBitmap read;
+  read.allocPixels(SkImageInfo::MakeN32Premul(32, 32));
+  ASSERT_TRUE(scene->image()->readPixels(nullptr, read.pixmap(), 0, 0));
+  EXPECT_EQ(read.getColor(16, 16), SK_ColorTRANSPARENT);
 }
 
 TEST(ComposeTexture, TheMaterialComparesEqualAcrossAStillFrame) {
@@ -114,13 +132,12 @@ TEST(ComposeTexture, NoDeviceMeansNoDeviceImage) {
   EXPECT_FALSE((bool)scene->texture().deviceImage());
 }
 
-#ifdef SIGILCOMPOSE_TEXTURE_DEVICE
-
 TEST(ComposeTexture, ADeviceTakesTheSceneAndSaysWhereItStands) {
   namespace skia = sigil::skia;
+  namespace core = sigil::core;
   std::string error;
-  const std::unique_ptr<skia::GpuDevice> device =
-      skia::GpuDevice::createOwned(skia::Backend::Metal, &error);
+  const std::unique_ptr<core::hardware::GpuDevice> device =
+      core::hardware::GpuDevice::createOwned(&error);
   if (!device) GTEST_SKIP() << error;
   const std::unique_ptr<skia::GraphiteContext> context =
       skia::GraphiteContext::create(*device);
@@ -149,7 +166,5 @@ TEST(ComposeTexture, ADeviceTakesTheSceneAndSaysWhereItStands) {
   scene->render(plate(SkColors::kRed), 1.0 / 60.0);
   EXPECT_EQ(scene->version(), painted);
 }
-
-#endif
 
 }  // namespace

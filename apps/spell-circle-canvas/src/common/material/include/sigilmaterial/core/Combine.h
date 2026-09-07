@@ -65,9 +65,18 @@ const std::shared_ptr<const Recipe>& overRecipe(Blend blend);
  *  not: what says a material is a stack. */
 std::string stackName(Blend blend);
 
-/** @p top stacked over @p base where @p mask says, by @p blend. The
- *  three operands become the result's children, so the result compares,
- *  animates and resolves as one material.
+/** @p top stacked over @p base where @p mask says, by @p blend, at
+ *  @p amount. The three operands become the result's children, so the
+ *  result compares, animates and resolves as one material.
+ *
+ *  @p amount is how strongly the top shows where the mask is fully on —
+ *  the stack's own strength, which is a different question from where it
+ *  applies and is why it is here rather than folded into the mask. It is
+ *  ON THE SIGNATURE because a stack composed from its operands has no
+ *  params struct to write afterwards: its ABI is its operands' fields,
+ *  so `set("amount", …)` on the result is a per-field write a caller has
+ *  to know to make, and a caller who does not make it gets a stack at
+ *  full strength that reads as a wrong mask.
  *
  *  Where the stack is COMPOSED the operands' parameter values and their
  *  sampled slots are copied into the result at the moment of the call,
@@ -75,7 +84,7 @@ std::string stackName(Blend blend);
  *  of them does not reach the composed body — the operand still rides
  *  every query as a child, so the stack still reports itself animated. */
 Material over(Material base, Material top, Material mask,
-              Blend blend = Blend::Mix);
+              Blend blend = Blend::Mix, float amount = 1.0f);
 
 /** The material @p m stacks on: the `base` child when @p m is an
  *  `over()` result, else @p m itself. Applied until the answer is not a

@@ -49,14 +49,20 @@ sk_sp<SkImage> ChannelData::makeImage(int r, int g, int b, int a) const {
   const size_t stride = names.size();
   const size_t pixels = (size_t)width * height;
   std::vector<float> rgba(pixels * 4);
+  // A channel this data does not carry reads as missing, whether the
+  // caller said so with -1 or named an index past the channels there
+  // are: a picture with a hole in it beats a read past the end.
+  const auto held = [stride](int channel) {
+    return channel >= 0 && (size_t)channel < stride;
+  };
   for (size_t px = 0; px < pixels; ++px) {
     const float* src = data.data() + px * stride;
     float* dst = rgba.data() + px * 4;
-    const float red = r >= 0 ? src[r] : 0.0f;
+    const float red = held(r) ? src[r] : 0.0f;
     dst[0] = red;
-    dst[1] = g >= 0 ? src[g] : red;  // luminance repeats
-    dst[2] = b >= 0 ? src[b] : red;
-    dst[3] = a >= 0 ? src[a] : 1.0f;
+    dst[1] = held(g) ? src[g] : red;  // luminance repeats
+    dst[2] = held(b) ? src[b] : red;
+    dst[3] = held(a) ? src[a] : 1.0f;
   }
   const SkImageInfo info = SkImageInfo::Make(
       width, height, floatingPoint ? kRGBA_F32_SkColorType : kN32_SkColorType,

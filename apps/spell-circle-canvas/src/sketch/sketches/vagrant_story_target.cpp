@@ -95,12 +95,15 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/texture/Texture.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Surface.h>
+#include <sigilsketch/kit/Meter.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/style/Type.h>
 #include <sigilworld/kit/Kit.h>
 
 #include <algorithm>
@@ -116,8 +119,10 @@
 #include <string_view>
 #include <utility>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
+namespace geometry = sigil::geometry;
 namespace material = sigil::material;
 namespace compose = sigil::compose;
 namespace weave = sigil::weave;
@@ -396,13 +401,16 @@ Element reachSphere(float seconds) {
   constexpr int kLatitudes = 5;
   for (int i = 0; i < kLatitudes; ++i) {
     const float lat = ((float)i - 2.0f) * 26.0f * kDeg;
-    sphere.child(
-        Element()
-            .key("latitude" + std::to_string(i))
-            .at({0.0f, kSphereRadius * std::sin(lat), 0.0f})
-            .mesh(gm::torus(kSphereRadius * std::cos(lat), 1.1f, 64, 5))
-            .fill(wire(i == 2 ? 0.62f : 0.30f, i == 2 ? 2.4f : 1.5f))
-            .tag("wire"));
+    // One point on the meridian: its height up the sphere and the radius
+    // of the ring cut there are the two components of the same place.
+    const SkPoint on =
+        arrange::onEllipse({0, 0}, {kSphereRadius, kSphereRadius}, lat);
+    sphere.child(Element()
+                     .key("latitude" + std::to_string(i))
+                     .at({0.0f, on.fY, 0.0f})
+                     .mesh(gm::torus(on.fX, 1.1f, 64, 5))
+                     .fill(wire(i == 2 ? 0.62f : 0.30f, i == 2 ? 2.4f : 1.5f))
+                     .tag("wire"));
   }
   return sphere;
 }
@@ -420,10 +428,13 @@ Element attackLadder() {
     const float a = (float)i * kAngleStep * kDeg;
     const bool inWedge = i < kAttackShapeAngle;
     const float len = inWedge ? 34.0f : 15.0f;
+    // The ticks turn the other way round the floor than they do on
+    // screen, so the ellipse's second component is negated onto z.
+    const SkPoint on =
+        arrange::onEllipse({0, 0}, {kSphereRadius, kSphereRadius}, a);
     Element bearing = Element()
                           .key("tick" + std::to_string(i))
-                          .at({std::cos(a) * kSphereRadius, 0.0f,
-                               -std::sin(a) * kSphereRadius})
+                          .at({on.fX, 0.0f, -on.fY})
                           .rotateY(-(float)i * kAngleStep);
     bearing.child(
         Element()
@@ -477,27 +488,24 @@ compose::Element plate(float x, float y, float w, float h, float alpha) {
   return e;
 }
 
-/** A gauge: a frame, a filled bar and nothing else. The reference's are
- *  heavy and sit hard in the corner. */
+/** A gauge: a bezel, a filled bar and nothing else. The reference's are
+ *  heavy and sit hard in the corner, which is the kit's meter with its
+ *  keyline set and its bar held off the frame. */
 compose::Element gauge(float x, float y, float w, float h, float fraction,
                        SkColor4f colour) {
-  compose::Element frame =
-      compose::box()
-          .width(w)
-          .height(h)
-          .fill(SkColor4f{0.031f, 0.039f, 0.071f, 0.86f})
-          .stroke(compose::decorations::border(
-              2.0f,
-              compose::Fill::color({kBone.fR, kBone.fG, kBone.fB, 0.72f})));
-  compose::Element fill =
-      compose::box()
-          .width(std::max(0.0f, std::min(1.0f, fraction)) * (w - 8.0f))
-          .height(h - 8.0f)
-          .fill(colour);
-  fill.absolute().left(4.0f).top(4.0f);
-  frame.child(std::move(fill));
-  frame.absolute().left(x).top(y);
-  return frame;
+  return sketch::kit::meter(
+             {.fraction = fraction,
+              .width = compose::Dim(w),
+              .height = compose::Dim(h),
+              .track = compose::Fill::color({0.031f, 0.039f, 0.071f, 0.86f}),
+              .bar = compose::Fill::color(colour),
+              .keyline =
+                  compose::Fill::color({kBone.fR, kBone.fG, kBone.fB, 0.72f}),
+              .keylineWidth = 2.0f,
+              .inset = 4.0f})
+      .absolute()
+      .left(x)
+      .top(y);
 }
 
 }  // namespace vs
@@ -505,20 +513,24 @@ compose::Element gauge(float x, float y, float w, float h, float fraction,
 namespace {
 
 struct VagrantStoryTarget final : sketch::Set {
-  weave::FontContext* fonts = nullptr;
+  /** THE SESSION KEEPS THE SCENE. Asked for once while the set declares
+   *  itself, so the texture the overlay quad wears outlives every frame
+   *  that wears it; asked for per frame it would be one scene per frame,
+   *  each holding a texture the last one's body was pointing at. */
   std::shared_ptr<compose::TextureScene> overlay;
+  weave::FontContext* fonts = nullptr;
   compose::Element retained;
-  float lastSeconds = -1.0f;
   /** The camera. It is a member because the overlay's quad has to be put
    *  where the frustum is, and a set whose camera is declared once is a
    *  set whose overlay is a fixed rectangle rather than a guess. */
-  world::Camera lens;
+  geometry::mesh::camera::Camera lens;
 
   void setup(sketch::SetContext& ctx) override {
     ctx.canvas(vs::kHudW, vs::kHudH);
     ctx.background({0.016f, 0.019f, 0.031f, 1.0f});
     ctx.captureAt(2.2);
     fonts = &ctx.fonts;
+    overlay = ctx.textureScene({vs::kHudW, vs::kHudH});
 
     lens.eye = {-108.0f, 334.0f, 988.0f};
     lens.target = {-24.0f, 104.0f, 0.0f};
@@ -540,18 +552,18 @@ struct VagrantStoryTarget final : sketch::Set {
   compose::Element hud() {
     using namespace vs;
     const Limb& L = kLimbs[kSelected];
-    const weave::TextStyle title = compose::type({.size = 13.0f,
-                                                  .color = {1, 1, 1, 1},
-                                                  .track = 0.0f,
-                                                  .condense = 0.92f,
-                                                  .aliased = true,
-                                                  .antiAlias = false});
-    const weave::TextStyle body = compose::type({.size = 9.0f,
-                                                 .color = {1, 1, 1, 1},
-                                                 .track = 0.0f,
-                                                 .condense = 0.95f,
-                                                 .aliased = true,
-                                                 .antiAlias = false});
+    const weave::TextStyle title = weave::textStyle({.size = 13.0f,
+                                                     .color = {1, 1, 1, 1},
+                                                     .track = 0.0f,
+                                                     .condense = 0.92f,
+                                                     .aliased = true,
+                                                     .antiAlias = false});
+    const weave::TextStyle body = weave::textStyle({.size = 9.0f,
+                                                    .color = {1, 1, 1, 1},
+                                                    .track = 0.0f,
+                                                    .condense = 0.95f,
+                                                    .aliased = true,
+                                                    .antiAlias = false});
 
     compose::Element root =
         compose::box().width((float)kHudW).height((float)kHudH);
@@ -705,9 +717,6 @@ struct VagrantStoryTarget final : sketch::Set {
     scene.child(reachSphere(seconds));
     scene.child(attackLadder());
 
-    if (!overlay || seconds <= lastSeconds)
-      overlay = compose::TextureScene::make({kHudW, kHudH}, *fonts);
-    lastSeconds = seconds;
     overlay->render(retained, (double)seconds);
     scene.child(overlayQuad(overlay->texture()));
 

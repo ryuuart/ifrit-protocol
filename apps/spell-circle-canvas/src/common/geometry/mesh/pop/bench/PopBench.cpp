@@ -1,6 +1,8 @@
 /** @file
- * Benchmarks of the pop cook: each operator over a thousand points, and
- * whole chains by count and operator mix.
+ * Benchmarks of the point operators: the cook, each operator over a
+ * thousand points, whole chains by count and operator mix, and the swept
+ * operator by tessellation and by profile — plus the ring seam a device
+ * executor replaces on its own.
  */
 
 // geometry_pop_bench — the CPU pop executor under load: what each
@@ -10,8 +12,11 @@
 // Release build; Debug numbers say nothing.
 
 #include <benchmark/benchmark.h>
+#include <sigilgeometry/kit/Sections.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilgeometry/mesh/pop/Sweep.h>
 
 #include <cmath>
 #include <functional>
@@ -206,6 +211,210 @@ BENCHMARK(BM_PopRuntime_Direct)
     ->Arg(1000)
     ->Unit(benchmark::kMicrosecond);
 
-}  // namespace
+/** A closed trefoil: curvature that turns in all three axes, so a rail
+ *  read off it has inflections to carry through rather than a planar
+ *  arc. */
+curve::Spline3 knot(int knots) {
+  curve::Spline3 spline;
+  spline.closed = true;
+  for (int i = 0; i < knots; ++i) {
+    const float t = 2.0f * std::numbers::pi_v<float> * (float)i / (float)knots;
+    spline.points.emplace_back((std::sin(t) + 2.0f * std::sin(2 * t)) * 60.0f,
+                               (std::cos(t) - 2.0f * std::cos(2 * t)) * 60.0f,
+                               -std::sin(3 * t) * 60.0f);
+  }
+  return spline;
+}
 
-BENCHMARK_MAIN();
+void countVertices(benchmark::State& state, const Mesh& m) {
+  state.counters["vertices/s"] = benchmark::Counter(
+      (double)m.vertexCount(), benchmark::Counter::kIsIterationInvariantRate);
+  state.counters["triangles"] = (double)m.triangleCount();
+}
+
+void BM_Sweep_Circle(benchmark::State& state) {
+  const curve::Spline3 spline = knot(9);
+  const path::Polyline profile = sections::circle((int)state.range(1));
+  const pop::SweepOptions options{.segments = (int)state.range(0), .scale = 6};
+  Mesh last;
+  for ([[maybe_unused]] auto iteration : state) {
+    last = pop::sweep(spline, profile, options);
+    benchmark::DoNotOptimize(last.positions.data());
+  }
+  countVertices(state, last);
+}
+BENCHMARK(BM_Sweep_Circle)
+    ->ArgsProduct({{32, 256, 1024}, {6, 24}})
+    ->ArgNames({"segments", "sides"})
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+/** THE RING SEAM ALONE: what a rail and a profile become as a dispatch,
+ *  and the executor's own call over it, without the topology, the caps or
+ *  the pour into a mesh's lanes. It is the half a device replaces, so a
+ *  device executor's arm has a host number to stand beside. */
+void BM_Sweep_Rings(benchmark::State& state) {
+  const curve::Spline3 spline = knot(9);
+  const path::Polyline profile = sections::circle(24);
+  const pop::SweepOptions options{.segments = (int)state.range(0), .scale = 6};
+  const std::vector<curve::Frame3> rail =
+      curve::frames(spline, options.segments, options.up);
+  mesh::kernel::SweepDispatch work;
+  pop::describe(rail, profile, options, &work);
+  std::vector<glm::vec4> positions(work.vertices());
+  std::vector<glm::vec4> normals(work.vertices());
+  for ([[maybe_unused]] auto iteration : state) {
+    options.runtime->rings(work, positions.data(), normals.data());
+    benchmark::DoNotOptimize(positions.data());
+  }
+  state.counters["vertices/s"] =
+      benchmark::Counter((double)state.iterations() * (double)work.vertices(),
+                         benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Sweep_Rings)
+    ->Arg(32)
+    ->Arg(256)
+    ->Arg(1024)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+void BM_Sweep_Line(benchmark::State& state) {
+  const curve::Spline3 spline = knot(9);
+  const path::Polyline profile = sections::line();
+  const pop::SweepOptions options{.segments = (int)state.range(0),
+                                  .scale = 24,
+                                  .normals = pop::SweepOptions::Normals::Frame};
+  Mesh last;
+  for ([[maybe_unused]] auto iteration : state) {
+    last = pop::sweep(spline, profile, options);
+    benchmark::DoNotOptimize(last.positions.data());
+  }
+  countVertices(state, last);
+}
+BENCHMARK(BM_Sweep_Line)
+    ->RangeMultiplier(4)
+    ->Range(32, 2048)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+// The hung rail, which walks the loop in parameter rather than by arc
+// length and re-derives its own tangents: a different cost per section
+// from the transported rail above.
+void BM_Sweep_Hang(benchmark::State& state) {
+  const curve::Spline3 spline = knot(9);
+  const path::Polyline profile = sections::line();
+  const pop::SweepOptions options{.scale = 24,
+                                  .normals = pop::SweepOptions::Normals::Frame};
+  const int sections = (int)state.range(0);
+  Mesh last;
+  for ([[maybe_unused]] auto iteration : state) {
+    last = pop::sweep(curve::hangFrames(spline, sections, 1, 0.4f), profile,
+                      options);
+    benchmark::DoNotOptimize(last.positions.data());
+  }
+  countVertices(state, last);
+}
+BENCHMARK(BM_Sweep_Hang)
+    ->RangeMultiplier(4)
+    ->Range(32, 2048)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+// ---------------------------------------------------------------------------
+// The neighbourhood operators
+
+/** A cloud of `count` points in a box whose edge grows with the cube root
+ *  of the count, so the density and therefore the neighbour count per
+ *  point stay put and the arms measure the operator rather than the
+ *  crowding. */
+Cloud neighbourhoodCloud(int count) {
+  const float edge = 40.0f * std::cbrt((float)count);
+  return points::scatterBox({0, 0, 0}, {edge, edge, edge}, count);
+}
+
+/** SPATIAL RELAXATION: one grid build and one gather per pass. */
+void BM_Relax(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  const Cloud cloud = neighbourhoodCloud(count);
+  const pop::Chain chain = pop::on(cloud).relax(60.0f, 4).chain();
+  for ([[maybe_unused]] auto iteration : state) {
+    Cloud out = pop::cook(chain);
+    benchmark::DoNotOptimize(out.positions.data());
+  }
+  state.counters["points/s"] =
+      benchmark::Counter(count, benchmark::Counter::kIsIterationInvariantRate);
+  state.SetComplexityN(count);
+}
+BENCHMARK(BM_Relax)
+    ->RangeMultiplier(10)
+    ->Range(1000, 100000)
+    ->Unit(benchmark::kMillisecond)
+    ->Complexity(benchmark::oN);
+
+/** K-MEANS: every point measured against every centre, each pass. */
+void BM_Cluster(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  const Cloud cloud = neighbourhoodCloud(count);
+  const pop::Chain chain = pop::on(cloud).cluster(16).chain();
+  for ([[maybe_unused]] auto iteration : state) {
+    Cloud out = pop::cook(chain);
+    benchmark::DoNotOptimize(out.positions.data());
+  }
+  state.counters["points/s"] =
+      benchmark::Counter(count, benchmark::Counter::kIsIterationInvariantRate);
+  state.SetComplexityN(count);
+}
+BENCHMARK(BM_Cluster)
+    ->RangeMultiplier(10)
+    ->Range(1000, 100000)
+    ->Unit(benchmark::kMillisecond)
+    ->Complexity(benchmark::oN);
+
+/** ATTRIBUTE TRANSFER: one index over the source, one gather per
+ *  destination point. */
+void BM_Transfer(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  // The source covers the SAME box as the destination, at a quarter the
+  // density: a source huddled in a corner would measure how far the
+  // search has to reach rather than what a gather costs.
+  const float edge = 40.0f * std::cbrt((float)count);
+  Cloud source =
+      points::scatterBox({0, 0, 0}, {edge, edge, edge}, count / 4 + 1, 9);
+  source.scalar("heat", 1.0f);
+  const pop::Chain chain = pop::on(neighbourhoodCloud(count))
+                               .transfer(source, "heat", 80.0f)
+                               .chain();
+  for ([[maybe_unused]] auto iteration : state) {
+    Cloud out = pop::cook(chain);
+    benchmark::DoNotOptimize(out.positions.data());
+  }
+  state.counters["points/s"] =
+      benchmark::Counter(count, benchmark::Counter::kIsIterationInvariantRate);
+  state.SetComplexityN(count);
+}
+BENCHMARK(BM_Transfer)
+    ->RangeMultiplier(10)
+    ->Range(1000, 100000)
+    ->Unit(benchmark::kMillisecond)
+    ->Complexity(benchmark::oN);
+
+/** THE CONNECTION SINK: one index, one radius query per point. */
+void BM_ConnectAdjacent(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  const Cloud cloud = neighbourhoodCloud(count);
+  for ([[maybe_unused]] auto iteration : state) {
+    std::vector<glm::uvec2> pairs =
+        pop::connectAdjacent(cloud, pop::Connect{80.0f});
+    benchmark::DoNotOptimize(pairs.data());
+  }
+  state.counters["points/s"] =
+      benchmark::Counter(count, benchmark::Counter::kIsIterationInvariantRate);
+  state.SetComplexityN(count);
+}
+BENCHMARK(BM_ConnectAdjacent)
+    ->RangeMultiplier(10)
+    ->Range(1000, 100000)
+    ->Unit(benchmark::kMillisecond)
+    ->Complexity(benchmark::oN);
+
+}  // namespace

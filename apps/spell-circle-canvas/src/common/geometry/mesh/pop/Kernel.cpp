@@ -11,10 +11,15 @@
 
 #include "sigilgeometry/mesh/pop/Kernel.h"
 
+#include <sigilcore/schedule/Parallel.h>
+#include <sigilslang/Pop.spv.h>
+
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <variant>
+#include <vector>
 
 /** THE KERNEL ITSELF, as the build's C++ emitter names it. Its two
  *  opaque parameters are the group range and the global bindings, whose
@@ -46,7 +51,7 @@ struct Buffer {
 /** The kernel's global parameters, member for member as it declares
  *  them: the argument block first, then one binding per role. */
 struct Globals {
-  Args args;
+  OpArgs args;
   Buffer dst;
   Buffer a;
   Buffer b;
@@ -60,6 +65,10 @@ struct Globals {
  *  dispatches them — the kernel drops the lanes past the count itself,
  *  so both ends run the same number of invocations. */
 constexpr uint32_t kGroupSize = 64;
+/** How many kernel groups one worker takes at a time. A group is already
+ *  a run of lanes, so the run of groups only has to be long enough that
+ *  entering the generated kernel is the small part of it. */
+constexpr uint32_t kGroupsPerTask = 32;
 
 /** A colour or a vector field as four floats. */
 glm::vec4 asVec4(const glm::vec3& v, float w) { return {v.x, v.y, v.z, w}; }
@@ -77,14 +86,14 @@ bool has(const pop::Op& op) {
                std::is_same_v<T, pop::Lookup> ||
                std::is_same_v<T, pop::Select> ||
                std::is_same_v<T, pop::Affine> || std::is_same_v<T, pop::Peak> ||
-               std::is_same_v<T, pop::Mix>;
+               std::is_same_v<T, pop::Mix> || std::is_same_v<T, pop::Normal>;
       },
       op);
 }
 
-bool describe(const pop::Op& op, size_t count, Dispatch* out) {
+bool describe(const pop::Op& op, size_t count, OpDispatch* out) {
   if (!has(op) || !out) return false;
-  Dispatch work;
+  OpDispatch work;
   work.args.code.x = (uint32_t)op.index();
   work.args.code.y = (uint32_t)count;
 
@@ -164,6 +173,20 @@ bool describe(const pop::Op& op, size_t count, Dispatch* out) {
           work.a = value.along.name;
           work.mask = value.mask;
           work.args.a = {value.distance, 0, 0, 0};
+        } else if constexpr (std::is_same_v<T, pop::Normal>) {
+          work.dst = work.a = value.lane.name;
+          work.b = value.from.name;
+          work.mask = value.mask;
+          // NORMALIZED HERE and nowhere else, so the kernel divides by a
+          // length it never has to check and a degenerate fallback lands
+          // on one answer rather than on whatever the caller wrote.
+          glm::vec3 fallback = value.fallback;
+          const float length =
+              std::sqrt(fallback.x * fallback.x + fallback.y * fallback.y +
+                        fallback.z * fallback.z);
+          fallback = length > 1e-6f ? fallback / length : glm::vec3{0, 0, 1};
+          work.args.a = asVec4(value.center, value.sense);
+          work.args.b = asVec4(fallback, 0);
         } else if constexpr (std::is_same_v<T, pop::Mix>) {
           work.dst = value.to.name;
           work.a = value.a.name;
@@ -181,7 +204,7 @@ bool describe(const pop::Op& op, size_t count, Dispatch* out) {
   return true;
 }
 
-void run(const Dispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
+void run(const OpDispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
          glm::vec4* c, glm::vec4* mask) {
   const size_t count = dispatch.args.code.y;
   if (count == 0 || !dst) return;
@@ -197,9 +220,17 @@ void run(const Dispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
   globals.table = {const_cast<glm::vec4*>(dispatch.table.data()),
                    dispatch.table.size()};
 
-  VaryingInput varying{
-      {0, 0, 0}, {(uint32_t)((count + kGroupSize - 1) / kGroupSize), 1, 1}};
-  sigilPopKernel(&varying, nullptr, &globals);
+  const uint32_t groupCount = (uint32_t)((count + kGroupSize - 1) / kGroupSize);
+  // A worker takes a run of groups rather than one, so it enters the
+  // generated kernel once per run; the kernel owns the group size and
+  // clips its last group against the lane count either way.
+  core::schedule::parallelFor(
+      groupCount, kGroupsPerTask, [&](uint32_t first, uint32_t last) {
+        VaryingInput varying{{first, 0, 0}, {last, 1, 1}};
+        sigilPopKernel(&varying, nullptr, &globals);
+      });
 }
+
+std::span<const uint32_t> opSpirv() { return slangmodule::Pop::kSpirv; }
 
 }  // namespace sigil::geometry::mesh::kernel

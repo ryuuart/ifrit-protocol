@@ -1,3 +1,10 @@
+# Ifrit.Ui — the Qt Quick controls the desktop tools share, with the
+# native window dressing beside them. A Qt module rather than a Sigil
+# library: its public surface is QML, and its one header is the window
+# chrome the module registers.
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts)
+qt_standard_project_setup(REQUIRES 6.11)
+
 set_source_files_properties(
   Theme.qml
   PROPERTIES QT_QML_SINGLETON_TYPE TRUE
@@ -22,8 +29,9 @@ qt_add_qml_module(IfritUi
 )
 
 if(APPLE)
+  sigil_frameworks(appkit AppKit)
   target_sources(IfritUi PRIVATE WindowChrome.mm)
-  target_link_libraries(IfritUi PRIVATE ${APPKIT_FRAMEWORK})
+  target_link_libraries(IfritUi PRIVATE ${appkit})
 else()
   target_sources(IfritUi PRIVATE WindowChromeStub.cpp)
 endif()
@@ -35,9 +43,8 @@ target_link_libraries(IfritUi
     Qt6::QuickLayouts
 )
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# The documentation site, over the QML and the one header in this
+# directory rather than an include/ root.
 sigil_add_docs(
   NAME IfritUi
   BRIEF "Reusable Qt Quick components shared by the desktop tools, plus native window dressing"

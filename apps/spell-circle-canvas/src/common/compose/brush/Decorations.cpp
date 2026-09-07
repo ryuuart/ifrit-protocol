@@ -9,6 +9,8 @@
 #include <include/effects/Sk1DPathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilgeometry/path/Numeric.h>
 
 #include <cmath>
 
@@ -16,7 +18,7 @@ namespace sigil::compose {
 
 void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   SkPaint p;
-  p.setAntiAlias(true);
+  p.setAntiAlias(antiAlias);
   p.setStyle(SkPaint::kStroke_Style);
   // Inner/Outer: clip to the shape's side and stroke DOUBLE width — the
   // visible half lands entirely on the kept side (the standard trick).
@@ -25,7 +27,7 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   p.setStrokeCap(cap);
   p.setStrokeJoin(join);
   const Fill stroke =
-      strokeMaterial ? strokeMaterial->resolve(ctx) : strokeFill;
+      strokeMaterial ? resolveFill(*strokeMaterial, ctx) : strokeFill;
   if (stroke.kind == Fill::Kind::Color)
     p.setColor4f(stroke.colorValue, nullptr);
   else if (stroke.kind == Fill::Kind::Shader)
@@ -43,7 +45,8 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   // The decoration's own trim window (wrapping; the marching sliver).
   const SkPath* drawn = &ctx.outline;
   SkPath windowed;
-  const float off = trimPhase ? trimPhase->value() : trimOffset;
+  const float off =
+      trimPhase ? motion::resolveFloatAt(nullptr, *trimPhase) : trimOffset;
   const float s0 = trimStart + off, e0 = trimEnd + off;
   const float span = e0 - s0;
   if (span > 0.0f && span < 1.0f) {
@@ -87,8 +90,8 @@ void Slice::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   sk_sp<SkImage> img = asset->frames().front().image;
   if (!img) return;
   const SkRect dst = SkRect::MakeWH(ctx.size.width(), ctx.size.height());
-  gpuimg::drawLattice(canvas, *gpuCache, std::move(img), xDivs, yDivs, dst,
-                      filter, density);
+  skia::draw::drawLattice(canvas, *gpuCache, std::move(img), xDivs, yDivs, dst,
+                          filter, density);
 }
 
 void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
@@ -126,7 +129,7 @@ void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
       const sk_sp<SkPicture>& art = own ? own : stampPicture;
       canvas.save();
       canvas.translate(pos.x(), pos.y());
-      canvas.rotate(std::atan2(tan.y(), tan.x()) * 180.0f / 3.14159265f);
+      canvas.rotate(geometry::path::degrees(std::atan2(tan.y(), tan.x())));
       if (art) {
         const SkRect cull = art->cullRect();
         canvas.save();
@@ -144,7 +147,7 @@ void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
 void Wash::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   const float a = amount < 0.0f ? 0.0f : (amount > 1.0f ? 1.0f : amount);
   if (a <= 0.0f) return;
-  const Fill fill = material.resolve(ctx);
+  const Fill fill = resolveFill(material, ctx);
   SkPaint p;
   p.setAntiAlias(true);
   p.setBlendMode(blend);
@@ -170,8 +173,9 @@ void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   const float heaviest =
       mode == Mode::Weighted ? std::max(width, cornerWidth) : width;
   if (ctx.outline.isEmpty() || heaviest <= 0) return;
-  const SkPath base =
-      inset != 0 ? lines::insetOutline(ctx.outline, inset) : ctx.outline;
+  const SkPath base = inset != 0
+                          ? geometry::path::insetOutline(ctx.outline, inset)
+                          : ctx.outline;
 
   auto strokeWith = [&](const SkPath& path, float w) {
     if (path.isEmpty() || w <= 0) return;

@@ -85,7 +85,7 @@ void BM_LineBreaks(benchmark::State& state) {
   const std::u16string text =
       makeText((int)state.range(0), (int)state.range(1));
   state.SetLabel(corpusName((int)state.range(0)));
-  std::vector<uint32_t> breaks;
+  std::vector<LineBreak> breaks;
   for ([[maybe_unused]] auto iteration : state) {
     lineBreaks(text, breaks);
     benchmark::DoNotOptimize(breaks.data());
@@ -131,5 +131,3 @@ BENCHMARK(BM_ToUtf16)
     ->Complexity(benchmark::oN);
 
 }  // namespace
-
-BENCHMARK_MAIN();

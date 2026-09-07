@@ -14,13 +14,13 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <chrono>
 #include <cstring>
 #include <optional>
 #include <stdexcept>
+
+#include "Fonts.h"
 
 // Everything here draws into a raster surface at a fixed size and reads
 // pixels back, so the tests are deterministic and need no GPU.
@@ -28,13 +28,22 @@
 using namespace sigil::compose;
 using namespace std::chrono_literals;
 
+// The libraries compose hands values from, each spelled at its own
+// origin: a schedule and an animatable are SigilMotion's, a silhouette
+// SigilGeometry's, a colour or a pattern SigilMaterial's, a style
+// SigilWeave's, an erased value or an env binding SigilCore's. Aliases
+// rather than using-directives, because `sigil::image` and
+// `sigil::measure` are namespaces that collide with compose's own
+// `image()` and `measure()` verbs.
+namespace core = sigil::core;
+namespace geometry = sigil::geometry;
+namespace material = sigil::material;
+namespace motion = sigil::motion;
+namespace weave = sigil::weave;
+
 namespace {
 
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
+using sigil::test::fonts;
 
 /** The optional's value; an empty optional is a test failure, not a crash. */
 template <class T>
@@ -43,7 +52,22 @@ const T& require(const std::optional<T>& maybe) {
   return maybe.value();
 }
 
+/** A style at `size` in the instrument that puts every letter on one known
+ *  advance, so a width or a line count read off it is the same on every
+ *  machine. A case whose claim is the machine's own face asks for
+ *  `machineStyleAt` instead. */
 sigil::weave::TextStyle styleAt(float size) {
+  sigil::weave::TextStyle s;
+  s.shaping.typeface = sigil::test::instrument::sans();
+  s.shaping.fontSize = size;
+  return s;
+}
+
+/** A style at `size` that names no face, so the font context resolves the
+ *  machine's default and falls back through the machine's families: the
+ *  style for a case whose claim IS that resolution, which carries the
+ *  `fonts` label because a runner without faces fails it. */
+sigil::weave::TextStyle machineStyleAt(float size) {
   sigil::weave::TextStyle s;
   s.shaping.fontSize = size;
   return s;

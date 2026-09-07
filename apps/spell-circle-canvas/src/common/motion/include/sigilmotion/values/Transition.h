@@ -2,14 +2,18 @@
 
 /** @file
  * How a property change moves: the Transition spec (duration, curve,
- * delay), the house easing curves as EaseFn values, and `ramp()`, the
- * transition spelled in float milliseconds.
+ * delay), `ramp()`, the transition spelled in float milliseconds, and the
+ * comparator an identity prune reads two specs through.
  */
 
 #include <choreograph/Choreograph.h>
+#include <sigilmotion/bind/Curve.h>
 
 #include <chrono>
+#include <tuple>
 #include <utility>
+
+#include "sigilmotion/bind/BoundFloat.h"
 
 namespace sigil::motion {
 
@@ -37,41 +41,24 @@ struct Transition {
   }
 };
 
-/** The house curves, as EaseFn VALUES.
+/** THE HOUSE CURVES live in `bind/Curve.h`, included above, because a
+ *  binding, a keyed step and this spec all shape a unit position with the
+ *  same value. `Transition::ease` holds a `choreograph::EaseFn`, a plain
+ *  float→float function, and every one of them converts to it:
  *
- *  `Transition::ease` holds a `choreograph::EaseFn`, a plain float→float
- *  function. Choreograph's most expressive curves — back, elastic,
- *  bounce — take an extra shape parameter, so `&choreograph::easeOutBack`
- *  does not convert to an EaseFn at all and the compiler answers with a
- *  wall of overload-resolution noise. These wrappers bind the shape
- *  parameter and hand back something a Transition can hold:
- *
- *      .scale(animate(from(0.86f).to(1.0f), {520ms, ease::outBack()}))
+ *      {520ms, ease::outBack()}
+ *      {360ms, ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f)}
+ *      {200ms, &ease::smoothstep}
  */
-namespace ease {
-/** Overshoot and settle. `s` is the overshoot amount (Penner's 1.70158
- *  overshoots by ~10%); larger exaggerates the anticipation. */
-inline choreograph::EaseFn outBack(float s = 1.70158f) {
-  return [s](float t) { return choreograph::easeOutBack(t, s); };
+
+/** A value held inside [0, 1] — the range every house curve is defined
+ *  on, and the one a caller computing its own progress out of two times
+ *  or two distances keeps stepping outside of. One body, because the
+ *  three-way `std::clamp` spelled by hand is where a NaN quietly becomes
+ *  the low end. */
+inline float clamp01(float v) {
+  return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
 }
-inline choreograph::EaseFn inBack(float s = 1.70158f) {
-  return [s](float t) { return choreograph::easeInBack(t, s); };
-}
-inline choreograph::EaseFn inOutBack(float s = 1.70158f) {
-  return [s](float t) { return choreograph::easeInOutBack(t, s); };
-}
-/** Ring down to rest. `a` is amplitude, `p` the period. */
-inline choreograph::EaseFn outElastic(float a = 1.0f, float p = 0.3f) {
-  return [a, p](float t) { return choreograph::easeOutElastic(t, a, p); };
-}
-inline choreograph::EaseFn inElastic(float a = 1.0f, float p = 0.3f) {
-  return [a, p](float t) { return choreograph::easeInElastic(t, a, p); };
-}
-/** Land and bounce. */
-inline choreograph::EaseFn outBounce(float a = 1.70158f) {
-  return [a](float t) { return choreograph::easeOutBounce(t, a); };
-}
-}  // namespace ease
 
 /** A delayed ramp, in MILLISECONDS as floats.
  *
@@ -88,5 +75,17 @@ inline Transition ramp(float delayMs, float durationMs,
   t.ease = std::move(ease);
   return t;
 }
+
+/** Same duration, same delay, same curve under `easeEqual`'s rule. */
+bool transitionEqual(const Transition& a, const Transition& b);
+
+namespace detail {
+/** The spec decomposed member by member, for a comparator that wants to
+ *  WALK it rather than name each field one at a time. */
+inline auto fields(Transition& v) {
+  auto& [duration, ease, delay] = v;
+  return std::tie(duration, ease, delay);
+}
+}  // namespace detail
 
 }  // namespace sigil::motion

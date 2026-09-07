@@ -16,6 +16,8 @@ Rectangle {
 
     /** The selected row, or an empty one when nothing is selected. */
     property var sketch
+    /** The catalog the inspector's own thumbnail is requested from. */
+    property var catalog: null
     /** Whether the canvas is presenting this one — which is what decides
      *  whether the live frame numbers below belong to it. */
     property bool presented: false
@@ -25,6 +27,7 @@ Rectangle {
 
     signal openRequested
     signal frameRequested
+    signal videoRequested
     signal benchRequested
     signal revealRequested
 
@@ -99,6 +102,8 @@ Rectangle {
                 radius: 7
                 plate: rail.sketch.plate
                 kind: rail.sketch.kind
+                catalog: rail.catalog
+                sketchIndex: rail.sketch.sketchIndex
                 decodeWidth: 720
             }
 
@@ -124,7 +129,7 @@ Rectangle {
             }
 
             // Open is the one that moves the canvas, so it stands alone
-            // on its own line; the three under it leave the window where
+            // on its own line; the actions under it leave the window where
             // it is and answer in the line below them.
             ColumnLayout {
                 Layout.fillWidth: true
@@ -160,6 +165,18 @@ Rectangle {
                     }
                     Button {
                         Layout.fillWidth: true
+                        text: "Video"
+                        enabled: !rail.taskRunning
+                            && rail.sketch.videoExportable
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 700
+                        ToolTip.text: rail.sketch.videoExportable
+                            ? "Export this sketch as a vertical MP4"
+                            : "Video export requires a registry sketch"
+                        onClicked: rail.videoRequested()
+                    }
+                    Button {
+                        Layout.fillWidth: true
                         text: "Reveal"
                         ToolTip.visible: hovered
                         ToolTip.delay: 700
@@ -169,7 +186,7 @@ Rectangle {
                 }
             }
 
-            // What the last Frame or Bench run answered. Both answer on
+            // What the last Frame, Video or Bench run answered. Each answers on
             // one line by design, so one line is what is kept.
             Label {
                 Layout.fillWidth: true

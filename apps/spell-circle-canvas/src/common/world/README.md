@@ -7,13 +7,25 @@ nothing else: the 3D scene description, the frame graph that orders
 passes from their declared inputs and outputs, and the execution of that
 graph. It holds no window, no swapchain, no clock, and no second
 copy of anything a library beneath it already defines: meshes, point
-operators, splines, cameras and the CPU mesh executor are SigilGeometry's;
+operators, splines, cameras — including the clip-space view a device
+draws with, which is `camera::Camera::clipProjection()` — the CPU
+mesh executor, and the residency that puts a mesh's buffers and a map's
+texture on a device are SigilGeometry's;
 materials, recipes and programs are SigilMaterial's; the reconciler, its
 phases and the caching proof are SigilCore's, as are the erased value a
 `Generator` and a `PassBody` take, the field pin every hand-written
 comparator here sits under, and the fold a geometry signature accumulates
-with; the device, its handles and Graphite are SigilSkia's; animation is
-SigilMotion's; counters and timers are SigilMeasure's.
+with; the device and its handles are SigilCoreHardware's, and Graphite is
+SigilSkia's; animation is SigilMotion's; counters and timers are
+SigilMeasure's.
+
+Two dependencies reach a consumer through the public headers rather than
+staying behind them: **Skia**, which is genuine vocabulary here — a frame
+hands back an `SkImage`, a pass draws into an `SkSurface`, and a target's
+size is an `SkISize` — and **Boost.Container**, which is not: the frame
+targets keep six ordered tables of their surfaces, points and stampings
+as private members, and a private member in a header is still an include
+every consumer pays for.
 
 Namespace `sigil::world`, headers under `include/sigilworld/`. Each
 feature is its own static archive with its own tests and benchmark, and
@@ -31,8 +43,8 @@ library that is not here.
 | `graph/` | `SigilWorldGraph` | `sigil::world::graph` | the `Plan`: the order the passes run in, the surfaces they share, the barriers between them, and how each selection is realised. It reads declarations and draws nothing. |
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
-| `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane. Nothing here decides a look. |
-| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the one GPU device 2D and 3D share, the Slang compiler the program cache runs, and the four seam values that stand on that device: the `Runtime` that performs a frame's passes, the `pop::Runtime` that cooks a chain, the `curve::SweepRuntime` that forms a sweep's rings, and the `render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. |
+| `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane; and the rails a body rides — the turntable's ring, a loop that rises and falls, a winding round a shell. Nothing here decides a look. |
+| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky and the post stages, compiled through SigilMaterial's Slang backend — the `Runtime` that performs a frame's passes on that device, and `importNative`, the door a foreign texture reaches a material slot by. What stands on the device beneath all of it is SigilGeometry's: `geometry::device::MeshResidency` and `TextureResidency` put a mesh and a map there, `PipelineCache` builds a pipeline out of a compiled program, and this feature asks them. So are the device executors of every seam it is not — the chain cook, the swept rings and the mesh painter each stand beside the CPU executor of their own seam. |
 | — | `SigilWorld` | — | the umbrella: an interface target over every feature above, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
 
 ## Writing a scene
@@ -54,11 +66,11 @@ choreograph::Output<float> spin = 0.0f;   // written by whatever drives it
 scene.render(
     Element()
         .key("set")
-        .child(Element().key("sun").light(sun({-0.4f, -0.8f, -0.4f})))
+        .child(Element().key("sun").light(light::sun({-0.4f, -0.8f, -0.4f})))
         .child(Element().key("eye").along(rail, travelled).camera(lens))
         .child(Element()
                    .key("tube")
-                   .mesh(geometry::mesh::curve::sweep(loop, profile))
+                   .mesh(geometry::mesh::pop::sweep(loop, profile))
                    .fill(surface)
                    .rotateY(bind(&spin))
                    .tag("lit"))
@@ -117,6 +129,19 @@ subject's own extents so one rig serves a thumbnail and a room;
 looking inward, with `kit::rail(table)` the curve itself; `kit::litSet`
 is both over a ground plane, with the subject under it.
 
+Two more rails stand beside the turntable's, each a plain `Spline3` a
+tree rides with `along()`, scatters a comet on or sweeps a band over.
+`kit::wave(w)` is a closed loop that RISES AND FALLS: its stations
+alternate between an outer radius standing high and an inner one
+standing low, so a tube swept along it or a comet riding it reads as a
+curve in space rather than as a ring seen at an angle. `kit::winding(w)`
+is a closed loop that WINDS A SHELL: on the ellipsoid its half-extents
+name, it climbs and dives `wraps` times a lap while the plane it winds in
+turns `turns` times — two counts with no common factor, so no wrap
+retraces another and the loop crosses in front of and behind itself. A
+sketch that draws one of these names its own radii, heights and shell,
+and the preset states nothing but the arrangement.
+
 **Nothing here decides a look.** Each returns an ordinary `Element` whose
 every field the caller can read, replace or ignore, and the only
 constants in one are the geometry of the arrangement plus a single
@@ -134,6 +159,11 @@ plane does not have: `translateZ`/`rotateX`/`rotateY`/`rotateZ`/`scaleZ`
 and `rotate(axis, degrees)`, the geometry slot (`mesh`, `cloud`, `chain`,
 `stamp`, `generate`), `window`, `along`, `tag`, `light`, the emitter's
 dials `intensity` and `emission`, and `camera`.
+
+A closed solid keeps its reverse-wound triangles hidden by default. A sheet,
+screen or other open surface that must remain visible as the viewpoint passes
+behind it declares `backface(Backface::Visible)`; the choice reaches both the
+CPU rasterizer and the device pipeline.
 
 ## Mental model
 
@@ -166,13 +196,16 @@ it once.
 
 **Lanes are addressed by where the motion lives.** One fixed row per lane
 per node — the nine placement lanes, the three origin lanes, the axis
-turn, the along-distance, the window's head and span, and the emitter's
-strength and three colour channels — so a ramp survives a patch that
-changed what the node holds. The four EMITTER rows stand at the
-emitter's own fields rather than at a fixed default: a light whose
-strength lane is dropped ramps back to the strength `light()` declared,
-which is what makes the lanes dials on a value rather than a second copy
-of it, and why `light::Light` itself carries no animation.
+turn, the along-distance, the window's head and span, the emitter's
+strength and three colour channels, and the environment's seven
+(`diffuse`, `specular`, `roughnessBias`, `crossfade`, `exposure`,
+`backdrop` and its blur) — so a ramp survives a patch that changed what
+the node holds. The four EMITTER rows and the seven ENVIRONMENT rows
+stand at their own value's fields rather than at a fixed default: a
+light whose strength lane is dropped ramps back to the strength
+`light()` declared, which is what makes the lanes dials on a value
+rather than a second copy of it, and why `light::Light` itself carries
+no animation.
 
 **There are exactly two write paths**: `Scene::render`, and the live
 values a description's lanes are bound to. Nothing writes onto a retained
@@ -214,8 +247,8 @@ a tree prunes on a node.
 | `variant(Material)` | …drawn again in that surface |
 | `realise(Selection)` | override how the selection reaches the pixels |
 | `clear(SkColor4f)` | what a geometry pass clears its target to |
-| `chain(Chain, PopRuntime)` | the points a compute pass cooks, into the point set it writes |
-| `stamp(Mesh)` | the body a geometry pass stands at every point of every point set it reads |
+| `chain(geometry::mesh::pop::Chain, geometry::mesh::pop::Runtime)` | the points a compute pass cooks, into the point set it writes |
+| `stamp(geometry::mesh::Mesh)` | the body a geometry pass stands at every point of every point set it reads |
 | `blur(sigma)` / `levels(gain, lift, tint)` / `composite(mode, opacity)` | what a post pass does to what it reads |
 | `body(…)` | THE ESCAPE: a callable handed the extracted `View` and the frame's `Targets`, which runs instead of the stage's own work and keeps its declarations |
 
@@ -228,6 +261,16 @@ runs first, so an order is a function of the declarations and never of
 the machine — and a pass written down before its producer still runs
 after it. A cycle is an error naming the passes on it, and no plan is
 produced.
+
+**A target has ONE geometry pass.** A geometry pass clears its target
+and then paints, so a second one over a resource that has already been
+written does not stand over that picture — it throws it away and keeps
+its own bodies. That is refused while the plan is read, naming both
+passes and the target, because the result of allowing it is a plausible
+picture that says nothing about the one that went missing. Laying one
+picture over another is what a post pass is, and a post pass may write
+what a geometry pass wrote; a geometry pass carrying a `body` is outside
+the rule, since a body runs instead of the stage and clears nothing.
 
 **Two resources whose lives do not overlap share a surface.** A resource
 lives from the step that first writes it to the last step that touches
@@ -250,14 +293,47 @@ where a device is present states them where they cannot be tested.
 | nothing narrowed | `Selection::None` — every body | there is no selection |
 | a geometry pass with `only` | `Cull` — only the selected bodies are drawn | a pass that paints bodies can simply paint fewer |
 | a post pass with `only` | `Mask` — the picture stands everywhere and the op reaches it through coverage, which the graph makes the last geometry pass before it also write | a post pass has no bodies; it has pixels, and the selection has to arrive as pixels too |
+
 | `variant(surface)` | `Variant` — the selection is drawn again in that surface | it is a re-draw by definition |
 | `realise(…)` | exactly that | a pass that knows better says so |
+
+A coverage answers for ONE selector, so a producer paints one per
+selection asked of it: two masked passes behind one geometry pass each
+read their own, and two asking the same question share the one already
+there. `PassWork::coverageOut` is therefore a list of `Coverage`, each a
+resource name and the selector it holds, and `PassWork::coverageIn` is
+the one resource a masked pass reads.
 
 A narrowed post pass with nothing painting bodies ahead of it is an error
 naming the pass, because the coverage it needs cannot be taken.
 
 `Scene::plan()` is the whole reading — the steps, the barriers, the
 resources and their surfaces — and `Scene::error()` is what stopped it.
+
+### For an executor author
+
+An executor sees a frame through `View` and `Targets` and nothing else,
+and these are the names it reads them with:
+
+- `subjectOf(draw)` is a body as a `Selector` asks about it, which is
+  how a pass realises a `Cull` or paints a coverage;
+- `samplingOf(texture)` answers a `Sampling` — the image, where it is
+  read at over the mesh's own uvs, whether it repeats and how it is
+  filtered — and `surfaceTermsOf(material)` answers a `SurfaceTerms`,
+  the metallic, roughness and glass terms behind a body's colour;
+- `paintedEnvironment(environment, orientation)` is the set's panorama
+  as a mesh painter takes it, and `painterLight(light)` one emitter the
+  same way; `dress(style, body)` puts a body's map and its lighting on
+  a style a whole list is drawn with;
+- `Scene::stats()` answers a `SceneStats`: what the last frame
+  described, cooked, drew and let go;
+- `lanesOf(node, out)` reads a node's fixed lanes in `Slot` order and
+  `standingValue(slot)` is what a lane holds when nothing animates it;
+  `localMatrix(values)` is a placement's own matrix;
+- `GeneratorOps` is the seam a geometry that cooks itself implements,
+  and `PassBodyOps` the seam a pass that does its own work implements —
+  both carried as comparable values, so a frame holding one prunes on
+  it like any other field.
 
 ## What an executor performs
 
@@ -296,6 +372,18 @@ around it are unchanged.
 
 ### The device executor
 
+**No header of this library names a Diligent type.** The executor holds
+plenty of them — targets, pipelines, bindings, the buffers and textures
+a residency put on the device — and every one of them is spelled in
+`diligent/Gpu.h`, which is this feature's own header and not the
+library's. The words for them come from SigilGeometry's device feature,
+whose headers likewise sit beside its sources rather than under its
+include tree; this target puts that directory on its PRIVATE include
+path, which is the one door onto those interfaces, and walks through it
+because a frame's passes ARE engine calls. `Import.h` and `Runtime.h`,
+the two headers a consumer reads, spell a device, a scene and a runtime
+and nothing of the engine.
+
 `diligent::runtime(device)` performs the same passes on the device the
 `diligent/` feature brought up. What it does with each:
 
@@ -310,7 +398,7 @@ around it are unchanged.
 - a **compute pass** cooks its chain on the DEVICE when the whole of it
   can be, and on the host when it cannot. A pass carries the host runtime
   until it is given another, so a pass that named one of its own keeps
-  it; otherwise `diligent::popRuntime(device)` takes the cook, and only
+  it; otherwise `pop::deviceRuntime(device)` takes the cook, and only
   when EVERY operator in the chain has a kernel — a chain that would stop
   partway through is cooked on the host instead, whole, rather than
   declined. Either way the points are uploaded like any other geometry
@@ -333,8 +421,24 @@ renderer holding buffers per geometry keys on `Draw::geometry`, which the
 resource store counts up once for the process. An address cannot serve:
 an artefact that is dropped frees its memory and the next one cooked can
 land on it, and a count per store would hand two scenes' artefacts one
-number. A frame that cooks a mesh of its OWN — the stamps of a point set
-— has no artefact to name and takes a number this frame alone uses.
+number.
+
+**A STAMPED POINT SET IS AN ARTEFACT LIKE ANY OTHER.** A geometry pass
+draws the stamps of every point set it reads, every frame, and forming
+one costs the whole cloud times the stamp's vertices — so it is formed
+ONCE per distinct (cloud, stamp) and uploaded once, and a set that has
+not moved between two frames is neither instanced again nor re-uploaded.
+`Targets::stamped()` is where it is formed and held;
+`world::stampKey()` is the number the two values fold to, read from
+their CONTENT because that is what "the same stamping" means — an
+address cannot say it and a shape cannot — and the device tier keys its
+upload by that same number. The fold BUCKETS the lookup and the pair
+itself decides it: an entry holds the cloud and the stamp it was formed
+from, so two pairs that happen to fold together are two stampings under
+two numbers and neither is ever served the other's mesh. `Targets::stampings()` counts what has
+actually been formed, which is what the test asserts does not move
+across three frames of a still set. A stamping no pass asked for in a
+frame is let go at the end of it.
 
 **The pixels stay on the device.** The frame's resources are device
 textures for as long as the runtime lives, and nothing crosses back until
@@ -362,6 +466,17 @@ its own light takes the unlit one whatever the pass asked for. The mesh vertex l
 variant axis, because there is one — position, normal, uv and tint, with
 the lanes a mesh does not carry filled in on upload; nor is the blended
 build, which is the blend and depth state a pipeline is created with.
+
+A pipeline is assembled through the engine's own create-info builder,
+and its blend and rasterizer states are the engine's named ones — a
+premultiplied-alpha blend, an additive one, and blending off for a draw
+that replaces what stands; solid fill culling back faces at the
+counter-clockwise winding, or culling none. Two things stay written out.
+The mapping from an `SkBlendMode` to one of those states is ours because
+`SkBlendMode` is Skia's word and no Diligent type names it. And the depth
+comparison is LESS-OR-EQUAL where both named depth states compare
+strictly, so that a body redrawn over itself does not lose to the depth
+it wrote the first time.
 
 A material whose recipe has no Slang body is painted in the colour the
 frame extracted — the same reading the CPU tier makes — and the program
@@ -398,14 +513,22 @@ reaches one. So white IS "no map here", exactly and with no threshold to
 pick — which is what lets a body tell a dressed slot from an undressed
 one, and what keeps a surface nobody dressed the picture it already was.
 
+**A body states what its surface IS.** The scaffold declares a set of
+variables a body writes and it reads: `gSurfaceNormal` in tangent space,
+`gSurfaceGloss` as a Blinn exponent, `gSurfaceMetal`, `gSurfaceRoughness`,
+the three glass terms `gSurfaceTransmission`, `gSurfaceIor` and
+`gSurfaceThickness` with `gSurfaceAbsorption` beside them, and
+`gSurfaceReflection` for how an environment reaches the surface. Those
+are the surface's standing whether or not a map varies them — a mirror
+carrying no maps still has to reflect, and only the surface knows how
+rough it is.
+
 **A body may ask to be shaded again, per pixel.** The scaffold shades
 per VERTEX, and one thing cannot survive that: a MAP that varies the
-surface across a face. So the scaffold declares four variables a body may
-write — `gSurfaceNormal` in tangent space, `gSurfaceGloss` as a Blinn
-exponent, `gSurfaceMetal`, and `gSurfacePerPixel` to say it wrote any of
-them — and runs the emitter loop again where those values can be seen. A
-body that writes nothing keeps the terms the vertex stage interpolated,
-down to the bit. The tangent frame a normal map is authored against is
+surface across a face. A body dressed with one raises
+`gSurfacePerPixel`, and the emitter loop runs again where those values
+can be seen. A body that raises nothing keeps the terms the vertex stage
+interpolated, down to the bit. The tangent frame a normal map is authored against is
 read off the screen derivatives of the view position and the uv, because
 a mesh carries no tangent lane and every generator would have to fill
 one.
@@ -449,14 +572,32 @@ itself. Operation by operation:
 | `keyOf` | the description's `key` |
 | `equal` | `propsEqual` — every field of `ElementNode`, with the geometry slot's variant equality standing in for a kind comparison |
 | `reconcilesChildren` | true: children are described, never filled by another path |
-| `children` / `descOf` | the description's `children`, and the node handle off each `Element` |
+| `children` / `descriptionOf` | the description's `children`, and the node handle off each `Element` |
 | `memoOf` / `produce` | the description's `Memo`, and the deferred describe run under the environment its author had |
-| `create` | a node, an entity with a `Placement`, and the first patch |
-| `onPatched` | retargets the lanes (mounting entrances on the first patch), marks the geometry slot for resolution when it or its window changed, and stales every bake above |
+| `create` | a node, an entity with a `Placement`, and the first patch — with the child's ordinal read through the parent's `staggerChildren()` schedule, so the entrance the patch mounts is delayed by where this child sits in the cascade |
+| `onPatched` | retargets the lanes (mounting entrances on the first patch, at whatever the enclosing cascade delayed this branch by), marks the geometry slot for resolution when it or its window changed, and stales every bake above |
 | `reorder` | stales every bake above when a child mounted, unmounted or moved |
 | `remountRequired` | **false, always** — nothing a node retains is welded to what its slots hold |
 | `invalidate` | stales every bake above |
 | `destroy` | destroys the subtree's entities and releases its resource references |
+
+**Entrances cascade.** `Element::staggerChildren(motion::Spread)` puts a
+schedule on a node, and each child that MOUNTS enters at the start time
+that schedule gives its ordinal — an even ladder, a fixed total divided
+across however many children turn up, an irregular cue table, one of five
+orderings, a distribution curve. It is SigilMotion's schedule, the same
+body a paragraph's glyphs cascade through, so `From::Center` means one
+thing in a set and in a line of type. The delay compounds down the
+subtree and only children that actually mount are delayed: appending one
+node to a live list enters it at once rather than making it wait out the
+whole list.
+
+**Lanes and the values on them are SigilMotion's.** `Lane`,
+`retargetSlots`, `mountEntrance`, `isLive` and the comparators that decide
+two animatable slots are the same live in `<sigilmotion/values/…>`; this
+library names the FAMILY (`LaneFamily::Slot`), the 27 rows, and what each
+row's standing value is when a description does not carry the block that
+holds it.
 
 **Phases** are declared through `core::Phase` and run by `core::runPhases`:
 `describe` → `lanes` → `derive` (converging) → `extract` → `graph` →
@@ -478,6 +619,14 @@ floats is what separates "a binding is connected" from "the value is
 moving": once a placement resolves identically for three frames the node
 stops declaring the motion, and the frame it moves again it re-declares
 before anything holding its old reading replays.
+
+That re-declaration is the hold's rescan side, and it runs in the phase
+runner's settle hook — between the converging rounds, so derive has
+written the new placements and extract has not yet read an artefact. It
+visits every node rather than only the ones the proof released, because
+a bake here is decided on declarations alone: a node with no lane of its
+own declares no placement motion and takes an artefact whether or not
+its hold has warmed up, and an ancestor's lane can move it afterwards.
 
 **The bake's one tier is a draw order**: the entities a settled subtree
 contributes, recorded once and replayed until something in it moves. The
@@ -515,6 +664,29 @@ per vertex, so:
   it. Nearest keeps a texel's edge hard and takes no mip level with it,
   because blending two levels is the same bleed arriving by the other
   door; linear reads between texels and between levels.
+- the lit sum ends at the same TONE CURVE the device's does, at the same
+  exposure, and so does the sky this tier paints. The curve is
+  transcribed here rather than shared, on the same terms as every other
+  shading term — one arithmetic, two spellings, each pinned by its own
+  test.
+- an ENVIRONMENT MAP reaches this tier in full, and its terms are the
+  same arithmetic the device evaluates: the panorama's cosine
+  convolution replaces the flat ambient, the split sum adds what the
+  surface mirrors off the reflected view vector, a metal takes the light
+  out of its diffuse, and a crossfade samples both maps and mixes. What
+  differs is the RATE. This tier evaluates them once per vertex and Skia
+  interpolates between, so a coarse mesh under a bright sky reads as
+  facets where a device reads as a curve, and the two tiers' plates are
+  compared within a ceiling that says so. The surface's metallic and
+  roughness are read off the material's params by name, one number over
+  the whole body: there is no per-pixel half here and no map is sampled
+  for either.
+- GLASS is where the two tiers part company most. `transmission`, `ior`
+  and `thickness` reach the device and not this tier, because a
+  refracted ray is a per-pixel question — a per-vertex one would bend
+  the sky at four corners and interpolate a colour across the middle,
+  which is not a picture of anything. A glass body here is its diffuse
+  and its reflection.
 
 That is what a machine with no Vulkan runtime can honestly answer, and it
 is what the plate ledger's 3D tier is judged on. It is not a substitute
@@ -548,11 +720,12 @@ study about the scene must be able to say what it looks like on a device
 too. The flag answers with the device or with nothing: on a machine with
 no Vulkan runtime it reports that and fails, rather than quietly putting
 the CPU's plate under a name that asked for the device's. The device is
-brought up by the BINARY and installed once for the process, so this
-library links none and a machine with no GPU still renders the CPU tier.
+brought up by the BINARY and installed once for the process, so no
+feature here but `diligent/` links one, and a machine with no GPU still
+renders the CPU tier.
 
-Ten of them, and between them they exercise every feature this library
-has:
+Fifteen sketches draw through the Set runtime, and between them they
+exercise every feature this library has:
 
 - **`first_light`** — the scene: a tube swept along a closed loop, a
   comet of stamps riding a moving window of that same loop, a plate under
@@ -577,16 +750,29 @@ has:
   on a flat card is one value over the whole face and a card meant to
   show a highlight narrowing has to present a range of normals to the
   key. The turntable is PARKED: a lab is read rather than watched, so the
-  live picture and the plate are the same picture. There is no glass card
-  — with no environment to sample it would be a tinted rectangle labelled
-  glass. The texture set is GENERATED in the study rather than read off
-  the disk, through the same `textures::` door a scanned folder arrives
+  live picture and the plate are the same picture. The texture set is
+  GENERATED in the study rather than read off
+  the disk, through the same `texture::` door a scanned folder arrives
   by: a plate is a function of the declaration, and what a machine
   happens to have under `build/assets` is not.
-- **`woven_card`** — a live 2D scene riding a 3D ribbon. A compose tree
-  is rendered into a texture by a composer of its own, and a band swept
-  over a two-point profile is made of it; the card repeats along the
-  band's length, which is the ordinary uv placement every texture has.
+- **`scene_surfaces`** — a compose scene as an ordinary texture, and
+  every sampling dial applied to it. Three flat cards on an arc, one
+  curved band under them and one swept ribbon whose card repeats along
+  the band's length each wear a compose tree rendered by a composer of
+  its own; the screens are unlit, so what they show is what the trees
+  painted, and the ribbon is a lit surface, so the same texture is read
+  through shading beside them.
+- **`reflection_lab`** — what a body sees when it looks past the lights.
+  Four spheres in a row under a sky — chrome, a rough metal, a
+  dielectric and glass — each legible only because of the environment
+  map; the sky is a node whose `rotateY` turns the reflections while the
+  lights and bodies stand still, and the row stands under a held
+  crossfade of two panoramas.
+- **`set_stagger`** — the entrances of a set's children, cascaded, and
+  the two selectors that address a subtree afterwards. Two rows differ
+  only in their spread's origin, so at one moment they hold different
+  shapes of the same cascade; `sel::under` and `sel::material` narrow a
+  pass to one of them.
 - **`key_light`** — the emitter's dials. One still set under the kit's
   three-point rig, with the key light's strength and colour bound to live
   values: nothing about the description changes from frame to frame, and
@@ -609,15 +795,16 @@ has:
   it are pushed out along their own normals, and inverting the same
   region turns everything outside it about the up axis. The chain is a
   value the node carries and the frame's runtime cooks it.
-- **`panel_console`** — 2D content on bodies that are not flat. Four
-  compose trees painted into textures and worn by three cards on an arc
-  and one curved band, each an unlit surface, so what the plate shows is
-  what the trees painted.
 - **`lantern_room`** — the three emitters together. Four unlit lantern
   shells each carrying a coloured point light, a spot opening downward
   onto the cluster between them, and a sun faint enough to be an
   outline. An emitter stands where its node stands and carries no
   geometry, so a lantern here is two siblings sharing a placement.
+- **`compute_variant`**, **`import_native`**, **`vagrant_story_target`**
+  and **`world_hud`** — the pass verbs that draw nothing by themselves
+  (cooking points, re-drawing a selection, asking for a resource back),
+  the zero-copy import door, and two studies that hang a compose overlay
+  on an unlit quad filling the frustum over a lit set.
 
 Most of them are built out of `kit/`: `kit::threePoint` puts three
 emitters round a subject in its own extents, `kit::turntable` rides a
@@ -633,22 +820,28 @@ A study returns a `Frame`, and an `Element` is one with no passes, so a
 study about the scene says nothing about passes at all. The host writes
 the plate's size and its viewpoint into whichever it was handed.
 
-## The plate ledger's 3D tiers
+## The plate ledger over the studies
 
-`scripts/plate_ledger.py --tier world` renders every study to its
-declared moment on the CPU and hashes the bytes against its own baseline,
-`build/plate_baseline_world_<config>.sha256`. It is the same question the
-2D tiers ask — did any byte move that I did not mean to move — of a
-different registry, and it needs no device:
+A study is a sketch of the `set` kind, so it is judged by the one plate
+ledger over the one registry, narrowed to that kind. The CPU tier
+renders every study to its declared moment and hashes the bytes against
+the manifest, `build/plate_baseline_<config>.sha256`. It is the same
+question asked of a canvas sketch — did any byte move that I did not
+mean to move — and it needs no device:
 
 ```sh
-python3 scripts/plate_ledger.py --tier world --rebase   # adopt a baseline
-python3 scripts/plate_ledger.py --tier world            # sweep and judge
-python3 scripts/plate_ledger.py --tier world --stability 2
-python3 scripts/plate_ledger.py --tier world-gpu        # the device tier
+python3 scripts/sigil.py plates --kind set --rebase   # adopt a baseline
+python3 scripts/sigil.py plates --kind set            # sweep and judge
+python3 scripts/sigil.py plates --kind set --stability 2
+python3 scripts/sigil.py plates --kind set --tier device
+python3 scripts/sigil.py plates --kind set --tier promotion
 ```
 
-`--tier world-gpu` renders the same studies through the device runtime
+A sweep narrowed to one kind merges into the manifest rather than
+truncating it, so adopting a study's changed plate keeps every canvas
+sketch's baseline.
+
+`--tier device` renders the same studies through the device runtime
 and is the ONE TIER NOT JUDGED ON BYTE IDENTITY. It has no baseline: each
 plate is compared against the CPU tier's plate of the same study, and the
 same sweep renders both. Two rasterisers are not asked to agree bit for
@@ -665,47 +858,38 @@ ceilings in the script, set from what the two tiers do rather than from a
 wish. With no device the tier reports that and exits green, because a
 machine with no Vulkan runtime has nothing to disagree about.
 
+`--tier promotion` is the third. Every render a hash judges is made with
+automatic texture promotion held off, because a re-bake decided by a
+measured per-frame cost is a thing load can tip either way and a
+byte-identity gate has to be load-immune — so no other tier exercises
+the promoter at all. This one renders each sketch twice on the CPU, once
+with it off and once with it on, and differences the two: the held-off
+plate is the reference, there is no baseline, and the bar is ONE CODE
+VALUE anywhere. That bar is a consequence rather than a tolerance
+somebody picked — a promoted node is baked under the live matrix
+post-translated by an integer, and inverting that matrix to find a
+shader's local coordinates does not cancel the integer to the last bit at
+a scale whose reciprocal is inexact. A worst channel over one is a
+picture that MOVED, and a defect to file rather than a plate to adopt.
+**Its subject is not the studies.** Promotion is a 2D runtime's
+re-baking, and the runtime a study draws through promotes nothing — so
+each study renders the same bytes with the promoter on and off, and
+`--tier promotion --kind set` asks a question this library does not
+answer.
+
 ### The mesh painter on the device
 
-`diligent::painterRuntime(device)` is a `geometry::mesh::render::Runtime`
-whose executor draws on the device: one pipeline over the mesh's
-vertices, the style's three modes as a uniform rather than three
-programs, the shading per vertex in view space exactly as the host
-executor's is, the primitive lane multiplying the shaded colour, and the
-texture read through the sampler its placement, its wrap and its filter
-ask for. The pixels are then READ BACK and drawn onto the canvas the
-caller passed, premultiplied and under whatever transform that canvas
-carries.
-
-**It is a readback, and this page says so rather than implying
-otherwise.** A canvas does not name the texture behind it, so there is
-nothing to compare against this device to decide that the pixels could be
-bound where they stand — the zero-copy path SigilSkia offers needs a
-caller holding both the surface and the device, and a `render::Executor`
-is handed neither.
-
-**Each mesh draw is a device frame of its own**, because the heap a
-draw's uniforms are written into is refilled once a frame. The command
-context is shared with every other runtime on the device, so a draw taken
-from inside a frame's pass body would close that frame early; a canvas
-draw stands between frames, which is where this belongs.
-
-**A PANEL draw is the canvas's own.** Both executors concat the same
-perspective transform and hand the canvas to the caller, because that
-content is Skia's to rasterise and a panel on a GPU-backed canvas is
-already on the GPU. The two are therefore the same BYTES for a panel, and
-the test says exactly that rather than measuring a distance.
-
-The two mesh draws are measured apart the way the plate ledger's device
-tier measures a scene, over a lit body and over the normal buffer: the
-host sorts triangles back to front and antialiases their edges, this
-depth-tests them and does not. Each is held to a mean channel distance
-under 1 in 0..255 and a 99th percentile at or under 4; the worst channel
-is a silhouette edge and is reported rather than judged.
+It is not here. `geometry::mesh::render::deviceRuntime(device)` draws a
+mesh onto a canvas on the device, and it stands beside the CPU executor
+of that seam, in SigilGeometry — a mesh draw has no pass, no named
+resources and no material, so nothing about it is a frame. SigilGeometry's
+README is canon for what it does and how far it stands from its host
+twin. A host that brought a device up installs it beside the frame
+runtime below, from the same device.
 
 ### The swept rings on the device
 
-`diligent::sweepRuntime(device)` is a `curve::SweepRuntime` whose
+`pop::sweepDeviceRuntime(device)` is a `pop::SweepRuntime` whose
 executor forms a sweep's ring vertices on the device: the rail and the
 profile uploaded, one compute dispatch, both output lanes read back in
 one crossing. Everything else a sweep is made of stays on the host and is
@@ -717,7 +901,7 @@ ring scales by.
 
 **The two tiers are held to BIT IDENTITY**, on the same three pins the
 point operators stand on, and for the same reason: the ring vertex is one
-piece of Slang compiled twice. `diligent/test/SweepTest.cpp` is the
+piece of Slang compiled twice. SigilGeometry's `mesh/pop/test/DeviceSweepTest.cpp` is the
 conformance — every normal rule, on a closed loop and on an open arc,
 with a round profile and a flat one, swept both ways and compared bit for
 bit.
@@ -730,13 +914,13 @@ caller holding a runtime must not have to check for.
 **World's own geometry slot has no swept kind**, so nothing in `scene/`
 reaches for this: a sweep is formed by whoever describes the geometry,
 and a host that holds the device puts the runtime in the `SweepOptions`
-it sweeps with. A `Chained` slot is the one that carries a runtime today,
+it sweeps with. A `Chained` slot is the one that carries a runtime,
 and the device executor swaps the host pop runtime into it when the whole
 chain has kernels.
 
 ### The point operators on the device
 
-`diligent::popRuntime(device)` is a `pop::Runtime` whose executor cooks a
+`pop::deviceRuntime(device)` is a `pop::Runtime` whose executor cooks a
 chain on the device: the chain's generator is run on the HOST and its
 lanes uploaded — a generator makes the points rather than mapping over
 them, and a seed that differed would make every comparison after it
@@ -749,29 +933,33 @@ transitioned from its state to itself, which is the barrier: nothing else
 about the bindings tells the driver that the next operator reads what the
 last one wrote.
 
-Twelve operators have kernels — `Jitter`, `Ramp`, `Vary`, `LookAt`,
-`Math`, `Fill`, `Atlas`, `Lookup`, `Select`, `Affine`, `Peak` and `Mix` —
+Thirteen operators have kernels — `Jitter`, `Ramp`, `Vary`, `LookAt`,
+`Math`, `Fill`, `Atlas`, `Lookup`, `Select`, `Affine`, `Peak`, `Mix` and
+`Normal` —
 and the runtime's `supports()` answers from `kernel::has()` rather than
 from a list of its own. What it declines it declines by name, the way any
-unsupported operator stops a cook: `Relax` reads points it does not own,
-`Sort` is a permutation, `Promote` addresses primitives no sink has
-formed yet, and `Noise` and `Deform` are defined in terms of a library
-sine, which is a different function from the polynomial a portable kernel
-would have to use.
+unsupported operator stops a cook: `Smooth`, `Relax`, `Cluster` and
+`Transfer` each read points they do not own — the two beside a point in
+the chain, the points near it in space, the whole set at once, or another
+cloud's points entirely — `Sort` is a permutation, `Delete` changes the
+count a per-point map cannot change, `Promote` addresses primitives no
+sink has formed yet, and `Noise` and `Deform` are defined in terms of a
+library sine, which is a different function from the polynomial a
+portable kernel would have to use.
 
 **The two tiers are held to BIT IDENTITY, not to a distance.** That is
 the one place in this library where two backends are, and it is possible
 only because the operators are one piece of arithmetic compiled twice
 under a float model pinned at both ends. Three things pin it, and each of
 them is load-bearing: the generated C++ is compiled with
-`-ffp-contract=off`; the SPIR-V carries one `NoContraction` decoration per
-arithmetic result, which the emitter does not put there; and
+`-ffp-contract=off`; the SPIR-V is compiled under `-fp-mode precise`, so
+it carries one `NoContraction` decoration per arithmetic result; and
 `MVK_CONFIG_FAST_MATH_ENABLED` is set to 0 before the Vulkan instance
 exists, because this driver otherwise takes a square root as an
 approximation and a divide as a reciprocal and a multiply. Remove any one
-and the conformance test in `diligent/test/PopTest.cpp` — every supported
-chain cooked both ways and compared bit for bit — fails on the first
-expression of the shape `a + b * c`.
+and SigilGeometry's conformance test — every supported chain cooked both
+ways and compared bit for bit — fails on the first expression of the
+shape `a + b * c`.
 
 The last of the three is DEVICE-WIDE and it is not free: the graphics
 pipelines pay it too, and a frame that leans on the post stages is
@@ -813,102 +1001,129 @@ and a rim term that nothing scales. So:
   is added at its own colour and strength, and `alphaCutoff` turns the
   opacity map into a CUTOUT — below the threshold the surface is absent
   rather than translucent.
-- the normal map perturbs the shading, and roughness and metallic reach
-  it **only where a map varies one of them across the surface**. That is
-  not a shortcut: a surface whose roughness is one number over the whole
-  of it is already what a per-vertex shading says it is, and asking for
-  the shading again would cost a per-pixel evaluation to answer the same
-  question. Where the shading IS evaluated again, roughness sets the
-  Blinn exponent — the mirror end of the range a narrow highlight, the
-  rough end a wide one — and metallic takes the light out of the diffuse
-  term and puts the surface's own colour into the highlight.
-- **that is not a metallic-roughness BRDF and this page does not call it
-  one.** There is no Fresnel, no energy conservation, no environment and
-  no importance sampling; `transmission`, `ior` and `thickness` reach
-  nothing at all. What is implemented is the mapping above, and a
-  metallic-roughness texture set therefore reads as a plausible surface
-  rather than as the one a path tracer would produce from the same
-  params.
+- the normal map perturbs the shading, and the shading is evaluated again
+  per pixel **where a map varies the surface across a face, or where the
+  set carries an ENVIRONMENT MAP**. The first is not a shortcut: a
+  surface whose roughness is one number over the whole of it is already
+  what a per-vertex shading says it is. The second is not optional: a
+  reflection is a function of the view vector, which turns under every
+  pixel of a curved body, and a per-vertex one reads as facets. Where the
+  shading is evaluated again, roughness sets the Blinn exponent — the
+  mirror end of the range a narrow highlight, the rough end a wide one —
+  and metallic takes the light out of the diffuse term and puts the
+  surface's own colour into the highlight.
+- **with an environment map the model has a Fresnel and an environment
+  term**, composed from the material kit's shading terms: the flat
+  ambient constant is replaced by the panorama's cosine convolution
+  sampled by the normal, and the split sum — prefiltered radiance times
+  the surface's own reflectance and its Fresnel — is added for what the
+  surface mirrors, off the reflected view vector at the level its
+  roughness picks. `transmission`, `ior`, `thickness` and the medium's
+  absorption reach the shading too: the refracted ray reads the same
+  panorama, attenuated by Beer-Lambert over the thickness it crossed,
+  and Fresnel decides how much of the light went that way. That is glass
+  against the WORLD; what stands behind a body ON SCREEN is a backdrop
+  pass and not a shading term, and there is none.
+- **the lit sum ends at a TONE CURVE, at the set's exposure.** A
+  panorama holds values far above one — that is what makes a sun a sun
+  rather than a white disc — and every lit sum carries them through, so
+  cutting it off at one would flatten every highlight to the same white
+  and lose exactly the range the map is kept in floating point to hold.
+  `material::termsSource`'s `toneMap` is what runs instead, on both tiers and on the
+  sky pass alike: the radiance times the environment's `exposure`,
+  divided by one plus its own luminance. A surface that is its own light
+  and a coverage mask are drawn with the unlit build and are not curved:
+  their colour is authored, not integrated.
+- **it is still not a path tracer's answer and this page does not call it
+  one.** There is no importance sampling, no multiple scattering and no
+  shadowing between bodies; the prefilter is nine box-blurred levels
+  rather than a GGX convolution, and the split sum is an analytic fit of
+  the integral rather than a lookup table. What is implemented is the
+  arithmetic above, and a metallic-roughness texture set therefore reads
+  as a plausible surface rather than as the one a renderer with those
+  three would produce from the same params.
 - a foreign texture — one another engine, a decoder or a capture painted
   with the graphics API — reaches a slot through
   `diligent::importNative`, and is bound where it stands. It answers no
   host image at all, so a renderer on another device draws the body
   undressed rather than something it invented.
 
-## What is coming
+- **the sky SHOWN behind the set is `Backdrop`**, drawn on both tiers as
+  one triangle over the target with each pixel reading the panorama
+  along the ray the eye looks through it, at the backdrop's strength and
+  blur. Past a `groundRadius` of zero the panorama is projected onto a
+  sphere of that radius centred at `projectionCenter`: the pixel reads
+  where its ray leaves the sphere, along the direction from the centre
+  to that point, so an eye moving through the set sees the horizon shift
+  the way it would outdoors. An eye at the centre, or on or outside the
+  sphere, reads by direction — the sky at infinity, which is what a
+  radius of zero means. The projection reaches the backdrop alone: what a
+  surface mirrors stays at infinity.
 
-Every feature the layout declares is built, and `diligent/` owes nothing
-the layout promised. What it does not have is an ENVIRONMENT: no slot a
-lit body can sample by the reflected view vector, so `transmission`,
-`ior` and `thickness` reach nothing and a glass surface cannot be shaded
-here as anything but a tinted one.
+## What the environment map does not reach
+
+- **Glass refracts the world and not what is behind it.** A refracted
+  ray reads the panorama and never the colour target, which is right for
+  a body with sky behind it and wrong for one with another body behind
+  it. Screen-space refraction wants the colour target as it stood before
+  the body was drawn, which is a pass that reads what another pass wrote
+  — an order the frame graph can express.
 
 ### Where the shaders come from
 
 The shader modules under `diligent/shaders/` are compiled TWICE. `slangc`
 compiles each when this library is built — which is what makes a mistake
 in one a build failure rather than a first-frame surprise — and the build
-also generates a header carrying each module's text, because the source a
-material's body is appended to cannot be finished until the material
-exists. At run time the scaffold's text, a recipe's generated
+also embeds each module's text in this library's archive, because the
+source a material's body is appended to cannot be finished until the
+material exists, and a shader that had to be found on disk at run time
+would be a second way for a build to be incomplete.
+`<sigilshaders/WorldDiligent.h>` is how this backend reads its own text
+back. At run time the scaffold's text, a recipe's generated
 declarations, its body and one fragment entry point are assembled into
-one module and compiled through the Slang library, which is also what
-reports every uniform's offset.
+one module and compiled through `material::slang::compileModule`, which
+is also what reports every uniform's offset. `Programs.h` is where this
+backend's own programs live — the scaffold in its lit and unlit
+builds, the sky and the post stages — each compiled
+once for the process; `installSlangCompiler()` registers the one that
+appends a recipe's body to the scaffold, because only this backend knows
+what that scaffold is.
 
-`Portable.slang` is the subset one source can be compiled twice from and
-still answer once: arithmetic plus the operations IEEE 754 pins exactly,
-with `sqrt`, `dot`, `length`, `mix`, `smoothstep` and the trigonometric
-functions written out, because a library intrinsic is two different
-pieces of code on two targets. Slang emits no contraction decoration in
-its SPIR-V, so a driver is free to fuse a multiply-add inside a module
-compiled here; a kernel that needs the unfused answer has to reach the
-same result without depending on it.
+Neither `Portable` nor `Shading` is this library's module. `Portable` is
+SigilMaterial's Slang backend's — the subset one source can be compiled
+twice from and still answer once: arithmetic plus the operations IEEE 754
+pins exactly, with `sqrt`, `dot`, `length`, `mix`, `smoothstep` and the
+trigonometric functions written out, because a library intrinsic is two
+different pieces of code on two targets. `Shading` is the material kit's
+shading TERMS. Both are loaded into every compiler session by name — out of the
+archives that own them, never out of a directory — so the scaffold's
+shading and every material body compiled beside it call one definition of
+a term rather than a copy apiece; the build-time compile reads the same
+files on disk, which is why `slangc` is pointed at both directories. Slang emits no contraction decoration in its SPIR-V, so
+a driver is free to fuse a multiply-add inside a module compiled here; a
+kernel that needs the unfused answer has to reach the same result without
+depending on it.
 
 ### The one device
 
-Diligent creates the Vulkan device and SigilSkia adopts it. That
-direction is forced: this build of Diligent cannot attach to a device
-that already exists and has no Metal backend, so standing a second device
-up beside it would mean two queues, two handle tables and a CPU round
-trip between 2D and 3D.
+**The device is not made here.** Diligent creates the Vulkan device and
+cannot attach to one that already exists, so the single point where a
+device is made has to sit at or below every consumer of one — which is
+SigilGeometry's `device` feature, and its README is canon for what a
+device is, how it is adopted and what the shared queue's lock rules are.
+This library takes one and executes a frame's passes on it:
+
+Bringing the device up — `DeviceConfig`, `Device::create` and the
+`error` it fills when there is no Vulkan runtime, the Diligent side that
+is never null on a created device and the adopted Graphite side that is
+null when adoption failed — is SigilGeometry's, and its README's device
+section shows it. What this library adds is one line over that device:
 
 ```cpp
-#include <sigilworld/diligent/Device.h>
+#include <sigilworld/diligent/Runtime.h>
 
-using namespace sigil;
-
-world::diligent::DeviceConfig config;
-std::string error;
-std::unique_ptr<world::diligent::Device> device =
-    world::diligent::Device::create(config, &error);
-if (!device) return;  // no Vulkan runtime, for instance; `error` says why
-
-skia::GpuDevice& gpu = *device->gpu();
-skia::TextureDesc desc;
-desc.width = desc.height = 512;
-desc.format = skia::TextureFormat::RGBA8Unorm;
-const skia::TextureHandle texture = gpu.createTexture(desc);
-const skia::FenceHandle fence = gpu.createFence();
-
-// Paint 2D into a texture a 3D pass will sample. Everything that submits
-// on the shared queue happens under the lock.
-world::diligent::Device::QueueLock lock(*device);
-skia::OffscreenSurface surface(*device->graphite(), gpu, texture);
-surface.canvas()->clear(SK_ColorBLUE);
-surface.submit(gpu, fence);
+world::Scene scene(world::diligent::runtime(*device));
 ```
-
-`renderDevice()` and `context()` are the Diligent side, and are never
-null on a device that was created. `gpu()` and `graphite()` are the
-adopted side and are null together when the adoption failed — a driver
-without timeline semaphores, for instance, since that is what a SigilSkia
-fence is. A failed adoption costs the shared 2D path and nothing else.
-
-The Vulkan loader is opened once, by the volk shim in
-`diligent/VolkShim.c`, and the `vkGetInstanceProcAddr` it resolves is
-handed to SigilSkia, so both APIs dispatch through the same entry
-points. `SIGILWORLD_VULKAN_LIBRARY` names a Vulkan library to open ahead
-of the built-in candidates.
 
 There is no Metal path here, because Diligent has no Metal backend:
 `create` fails on a machine with no Vulkan runtime, and the answer for
@@ -917,80 +1132,174 @@ such a machine is the CPU executor, not a second GPU path.
 ## Testing and benchmarks
 
 ```sh
-ctest --test-dir build -C Debug -R world_
+ctest --test-dir build -C Release --output-on-failure
 ```
 
-`world_element_test` covers the description: copy-on-write, the
-structural prune field by field, the geometry slot's value type standing
-in for a kind, the lane list — including the emitter rows standing where
-the emitter stands — the cook, and the selectors. `world_kit_test`
-covers the presets: what tree each returns, that the rig is stated in the
-subject's own extents, that a whole turn of the turntable is where it
-started, and that the one colour this library states is the ground's.
-`world_scene_test` covers the retained side: an emitter dial reaching the
+A case here asserts one thing this library promises through its public
+headers and is named that promise as a sentence, so a failure line reads
+as the claim that broke. It pins only what editing this library could
+falsify — a comparator's field walk, a derived ordering, a closed form,
+one description drawn two ways — never an anti-aliased byte, a fitted
+tolerance or elapsed time: how close two rasterisers stand is the plate
+ledger's to judge and how long anything takes is the bench ledger's. A
+claim made N times with one thing varying is one `TEST_P` whose
+parameter is that thing, with a name per row. **A binary exists where it
+links a strictly smaller set of targets than its neighbours and that
+boundary is a promise somebody could read**; two binaries over one
+closure are one binary.
+
+**The fixtures every one of these binaries shares live in `test/`**, and
+there is one: `test/TestMaterial.h` — the throwaway comparable surface a
+test paints with, in a plain build and a Slang-bodied one, the camera
+square on to the origin at whatever distance the case wants, and the
+half-plate ink count a selection is read by. A test target adds that one
+directory and includes the header by name; no library's include path
+carries it, so nothing shipped can reach a fixture. A body that needs a
+shape takes SigilGeometry's `quad()` rather than building one, and the
+one hand-built mesh left is a single TRIANGLE, kept because a stamp
+standing at every point of a cloud is counted in triangles.
+
+The library has one test binary, `world_test`, built from every feature's
+`test/` directory; ctest discovers one entry per CASE out of it, so a
+suite or a case is selected by name with no target behind it.
+
+| suites | what they prove | label |
+|---|---|---|
+| `element/test/` | the description and the emitters it carries | — |
+| `frame/test/` | the declarations and the CPU executor | — |
+| `graph/test/` | the ordering derived from the declarations | — |
+| `scene/test/` | the retained side | — |
+| `kit/test/` | the presets | — |
+| `diligent/test/` | the device executor | `gpu` |
+
+The element suites cover the description: copy-on-write, the
+structural prune **field by field as one `TEST_P` whose parameter is the
+field**, each said two ways, so every row shows a field to tell two
+values apart as well as to be in the comparison at all — the geometry
+slot's value type standing in for a kind, the lane list including the
+emitter rows standing where the emitter stands, the cook, the selectors,
+and the emitter values themselves: what each factory fixes, the windowed
+falloff reaching exactly zero at the range, and the spot's cone. The
+emitters are here rather than in a binary of their own because this
+target links the light feature — every target that reaches the emitters
+reaches the description too, so there is no boundary for a second binary
+to draw.
+
+The kit suites cover the presets: what tree each returns, that the rig
+is stated in the subject's own extents and puts every lamp at the subject
+when there are none, that a whole turn of the turntable is where it
+started and a rail asked for fewer than three stations is still a closed
+loop, that the wave alternates between its two radii and two heights
+round its centre and the winding stays on its shell while crossing its
+own plane twice a wrap and turning the laps it was asked for, and that
+the one colour this library states is the ground's.
+
+The scene suites cover the retained side, every case over one fixture
+holding a clock and a scene reading it: an emitter dial reaching the
 light it scales while the tree stands still, identity across a keyed
 reorder, the three lifetimes pulling apart under a geometry-slot change,
 the store sharing one cooked artefact, a lane ramping a placement, the
-bake taken once and lost to a driven lane below it, and a draw that is a
-function of the description alone. `world_light_test` runs anywhere.
-`world_diligent_test` covers the device side. `test/PainterTest.cpp` is
-the mesh painter — the runtime as a value, a lit mesh and the normal
-buffer each measured against the host executor's plate, a surface that is
-its own light standing brighter than a lit one on both executors, and a
-panel that is the same bytes on either. `test/SurfaceTest.cpp` is the
-sampled slots and the import door — an occlusion map darkening only where
-it is dark, an emissive map carrying its own colour, a cutout dropping
-texels outright, a normal map tilting the two halves of one flat card
-apart, a surface dressed with white in every slot being the same picture
-as one dressed with nothing, and a texture painted with the graphics API
-on this device coming in through `importNative` and landing where a
-raster one of the same colour would — with no host image at all, so a
-picture carrying its colour cannot have come from a copy.
-`test/SweepTest.cpp` is the sweep's conformance, bit for bit.
-`test/RuntimeTest.cpp` covers the frame: a pipeline off a recipe's
-Slang body with its parameter at a reflected offset and the lit build
-carrying shading the unlit one does not, one scene rendered on both tiers
-and measured apart, a cooked chain that matches the host's cook exactly,
-a readback that arrives the frame after, a masked pass that lifts the
-selection and leaves the ground where it stood, the map a body is dressed
-with reaching both tiers to the same picture, a map whose pixels already
-stand on this device being bound where they are — proven by a source that
-answers no host image at all, so a picture carrying its colour cannot
-have come from a copy — a texture's filter honoured on both tiers, where
-nearest shows two colours and one edge and linear shows the gradient
-between them, and a surface that is its own light standing at its base
-colour on both tiers while a lit one of the same colour, under a sun
-aimed away, stands darker. `diligent/test/PopTest.cpp` is the point
-operators' CONFORMANCE: every chain the device runtime says it can cook,
-cooked both ways and compared BIT FOR BIT — not a distance and not a
-tolerance, because the operators are one piece of arithmetic compiled
-twice; plus each declined operator refused by name while the host still
-answers it. The program tests run anywhere; the ones that need a Vulkan
-runtime (`brew install molten-vk vulkan-loader`) *skip* rather than fail
-without one, so a machine with no GPU stays green.
+bake taken once and lost to a driven lane below it, a culled pass and a
+narrowed post pass each reaching only their selection — read off the
+pixels, since which realisation the ordering DERIVED is the graph
+binary's claim rather than this one's — and a draw that is a function of
+the description alone.
 
-`world_frame_test` covers the declarations and the CPU executor without
-anything retained: a pass compares field by field, each realisation
-lands the pixels it promises, a post pass reads what stands and what
-stood last frame, a compute pass cooks, two names on one slot share the
-surface, and a declared body is handed the extracted view.
-`world_graph_test` covers the ordering: the order from the declarations
+The frame suites cover the declarations and the CPU executor without
+anything retained: a pass compares field by field, a mask realisation
+writes the coverage and a variant realisation redraws the selection in
+its surface, a post pass reads what stands and what stood last frame, a
+compute pass cooks, a still point set is stamped once however many frames
+draw it, two names on one slot share the surface, and a declared body is
+handed the extracted view. It is handed the realisation rather than
+deriving one.
+
+The graph suites cover the ordering: the order from the declarations
 and its independence from the order they were written in, a cycle named,
-`previous()` breaking one, the surfaces counted, the hazards stated, and
-each selection realisation ruled on.
+`previous()` breaking one, the surfaces counted and shared, the hazards
+stated, and **every selection realisation as one `TEST_P` whose parameter
+is the declaration** — a narrowed geometry pass culled, a pass that
+narrows nothing addressing every body, a narrowed post pass masked, a
+narrowed pass carrying a surface redrawn in it, and a pass that says how
+it wants to be realised overriding the rule. The coverage a masked pass
+reads and the pass ahead of it writes is its own case beside them, with
+two more for two masked passes behind one producer: different selections
+are two coverages and the same selection is one.
 
-`world_kit_boundary_probe` is the kit boundary's NEGATIVE CONTROL: a
-target that must fail to build, run as a test that builds it and requires
-`'SceneImpl.h' file not found` in the output. Nothing puts a world source
-directory on the kit's include path, so the retained side's own header is
-unreachable from kit code — which is what makes "the kit sees public
-headers only" a property of the build rather than a convention. Demanding
-that one message, and not merely a non-zero exit, is what keeps an
-unrelated breakage from reading as the boundary holding.
+The device suites cover the device side. Every case reads this
+feature through its public headers alone — the source directory is not on
+the binary's include path — so a claim about a compiled program or a
+sampled map is a claim somebody outside can make. What it takes to put a
+mesh or a map on the device at all is judged where that code lives, in
+SigilGeometry's `Device` suite. `diligent/test/DeviceSeams.h` holds the two
+seam values that stand on a device, the two cameras every case looks
+through, the card it photographs, the texture the 2D path paints on the
+device, and the worst channel two plates differ by; **the device itself
+is SigilGeometryDevice's**, whose `test/support/OnDevice.h` brings up ONE
+for the process, because that library is the one point in the tree where
+a device can be created at all.
 
-`world_element_bench`, `world_frame_bench`, `world_graph_bench`,
-`world_scene_bench`, `world_light_bench`, `world_kit_bench` and
-`world_diligent_bench` build through the `benches` target and run through `scripts/bench_ledger.py`;
+`diligent/test/SurfaceTest.cpp` is the sampled slots and the import door —
+an occlusion map darkening only where it is dark, an emissive map
+carrying its own colour, a cutout dropping texels outright, a normal map
+tilting the two halves of one flat card apart, a surface dressed with
+white in every slot being the same picture as one dressed with nothing, a
+texture painted with the graphics API on this device coming in through
+`importNative` with no host image at all — so a picture carrying its
+colour cannot have come from a copy — standing where a raster one of the
+same colour would, and an import of nothing answering no texture rather
+than one that lies. `diligent/test/StackTest.cpp` is what `material::over`
+composes for this target: that the composed recipe compiles, and that
+what it shades where the mask is half is a picture neither operand alone
+produces. `diligent/test/RuntimeTest.cpp` covers the frame: a pipeline
+off a recipe's Slang body with its parameter at a reflected offset and
+the lit build carrying shading the unlit one does not, a cooked chain
+that matches the host's cook exactly, a readback that arrives the frame
+after, a masked pass that lifts the selection and leaves the ground where
+it stood, the mip rule, and a map whose pixels already stand on this
+device being bound where they are. **A claim a picture has to make
+whichever rasteriser drew it is written once with the TIER as a
+parameter** and answered on both: the map a body is dressed with reaching
+the pixels, a nearest-filtered map being two colours and one edge, a
+linear one being a gradient, a map asked to repeat being as many of
+itself as it was asked for, and a surface that is its own light standing
+at its base colour while a lit one of the same colour under a sun aimed
+away stands darker.
+
+That every recipe this repository ships compiles is not asked here:
+SigilMaterial's Slang suite compiles the kit's own surfaces through the same
+backend and its `MaterialGpu` suite draws every recipe the material library
+ships on a device, so a sweep here would be a third reading of one fact.
+
+**How far the two tiers stand apart is asked nowhere in these binaries.**
+Two rasterisers are not the same bytes, the distance between them is a
+different number per subject, and it moves with the scene rather than
+with this code — so it is judged over the whole registry, each device
+plate against the CPU plate of the same run, by `sigil.py plates --tier
+device`, and the only
+distance a test here reads is the worst channel, as an INEQUALITY saying
+an operation reached the pixels at all. The conformance of the chain cook
+and the swept rings is not here either: those executors are
+SigilGeometry's, and its point-operator suites are where every chain and
+every sweep the device says it can do is done both ways and compared bit
+for bit.
+
+**What the device suites check on a machine with no Vulkan runtime**,
+which is why it carries the ctest label `gpu`: the Slang compile of a
+recipe's own body, the mip rule, and the host half of every claim written
+over the tier parameter. Every other case skips, and a skip is not
+coverage: `ctest -L gpu` is the run a device verdict may be read out of,
+and a run that excludes the label has asked the device nothing. A device
+wants `brew install molten-vk vulkan-loader`. No other binary here skips
+or vanishes, and none of them needs a font or a network.
+
+Nothing puts a world source directory on the kit's include path, so the
+retained side's own header is unreachable from kit code — which is what
+makes "the kit sees public headers only" a property of the build rather
+than a convention.
+
+`world_bench` — every feature's `bench/` in one binary — builds through
+the `benches` target and runs through `scripts/sigil.py bench`;
 use a Release build. The device bench measures the four costs a device
 has that the host does not: turning the device Diligent made into a
 device both APIs draw on, turning a recipe's Slang body into a program, a

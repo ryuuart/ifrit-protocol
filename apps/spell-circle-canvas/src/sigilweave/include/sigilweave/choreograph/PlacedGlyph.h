@@ -113,10 +113,10 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
     uint32_t& segmentCursor = segmentCounters[run.wordIndex];
     const WordSegment* segment = nullptr;
     if (segmentCursor < word.segments().size() &&
-        word.segments()[segmentCursor].shaped.get() == run.shaped.get())
+        word.segments()[segmentCursor].shaped.get() == run.shaped)
       segment = &word.segments()[segmentCursor++];
 
-    placed.shaped = run.shaped.get();
+    placed.shaped = run.shaped;
     placed.paint = run.styleIndex < spans.size()
                        ? &spans[run.styleIndex].style.paint
                        : &kUnstyled;
@@ -143,7 +143,14 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
     for (size_t glyphIndex = 0; glyphIndex < placed.shaped->glyphs.size();
          ++glyphIndex) {
       placed.glyph = placed.shaped->glyphs[glyphIndex];
-      placed.advance = placed.shaped->advances[glyphIndex];
+      // THE ADVANCE THE LINE SET THIS GLYPH AT, which is the face's own
+      // except on a justified line that spent letter spacing or a glyph
+      // scale past its word gaps. Those are baked into the run's blob, so
+      // a walk that read the shaped advance alone would report the glyphs
+      // somewhere the reader cannot see them.
+      placed.advance =
+          placed.shaped->advances[glyphIndex] * run.fit.glyphScale +
+          run.fit.letterSpacing;
       placed.pen = run.penOffset + penLocal + placed.advance * 0.5f;
       if (run.transformed && interval) {
         SkPoint centre;
@@ -163,7 +170,12 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
                                      placed.tangent.x() * centreY)};
       } else {
         placed.tangent = {1, 0};
-        placed.rest = run.origin + placed.shaped->positions[glyphIndex];
+        placed.rest =
+            run.origin +
+            SkVector{
+                placed.shaped->positions[glyphIndex].x() * run.fit.glyphScale +
+                    run.fit.letterSpacing * static_cast<float>(glyphIndex),
+                placed.shaped->positions[glyphIndex].y()};
       }
       penLocal += placed.advance;
       placed.glyphIndex = static_cast<uint32_t>(glyphIndex);

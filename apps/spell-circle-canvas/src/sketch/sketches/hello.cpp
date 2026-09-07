@@ -9,12 +9,14 @@
 // exists; editing the file on disk hot-swaps it too).
 
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/style/Type.h>
 
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -44,8 +46,9 @@ struct HelloSketch : sketch::Sketch {
           .background(shadow({0, 0, 0, 0.4f}, {3, 4}, 10))
           .alignItems(Align::Center)
           .justify(Justify::Center)
-          .child(text(std::move(label),
-                      type({.size = 20, .color = hex(0xffffff)})));
+          .child(text(
+              std::move(label),
+              weave::textStyle({.size = 20, .color = hexColor(0xffffff)})));
     };
 
     return stack()
@@ -70,6 +73,7 @@ struct HelloSketch : sketch::Sketch {
                    .clip()
                    .inset(90, 280, 690, 240))
         // A custom leaf riding the bound Output.
+        // KEYLESS: the wave reads the paint's clock and a bound Output.
         .child(custom([this](SkCanvas& canvas, const PaintContext& paint) {
                  SkPaint brush;
                  brush.setAntiAlias(true);
@@ -95,24 +99,24 @@ struct HelloSketch : sketch::Sketch {
         // Re-rendered by update() whenever the score changes —
         // the keyed text keeps its identity across renders.
         .child(text(toU8("score " + std::to_string(score)),
-                    type({.size = 24, .color = hex(0xffd9a0)}))
+                    weave::textStyle({.size = 24, .color = hexColor(0xffd9a0)}))
                    .key("score")
                    .inset(650, 120, 90, 480))
         .child(text(u8"Sketchbook — edit hello.cpp and save",
-                    type({.size = 17, .color = hex(0x9aa4bb)}))
+                    weave::textStyle({.size = 17, .color = hexColor(0x9aa4bb)}))
                    .inset(90, 560, 90, 40));
   }
 
   void setup(sketch::SketchContext& ctx) override {
     // p5's createCanvas/background: declare the canvas you want —
     // the window letterboxes to it, headless captures honor it.
-    ctx.canvas(1000, 700);
-    ctx.background({0.05f, 0.04f, 0.10f, 1});
+    sketch::kit::stage(ctx, {.size = {1000, 700},
+                             .background = SkColor4f{0.05f, 0.04f, 0.10f, 1}});
 
     // Declared motion: a steppable drives the bound Output every
     // frame from here on — no per-frame describes needed.
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       wave = (float)std::sin(t * 1.6);
       return true;
     });
@@ -128,4 +132,4 @@ struct HelloSketch : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(HelloSketch, "Kit", "The starter sketch. Copy it.")
+SIGIL_SKETCH(HelloSketch, "Start & fixtures", "The starter sketch. Copy it.")

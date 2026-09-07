@@ -5,6 +5,7 @@
 
 #include "sigilgeometry/mesh/camera/Camera.h"
 
+#include <algorithm>
 #include <cmath>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -48,6 +49,65 @@ glm::mat4 Camera::viewProjection(SkSize viewport) const {
   out.preConcat(toSkM44(projection(aspect)));
   out.preConcat(toSkM44(view()));
   return toGlm(out);
+}
+
+glm::mat4 Camera::clipProjection(SkISize extent) const {
+  const float aspect = extent.height() > 0
+                           ? (float)extent.width() / (float)extent.height()
+                           : 1.0f;
+  glm::mat4 depth(1.0f);
+  depth[2][2] = -0.5f;
+  depth[3][2] = 0.5f;
+  return depth * projection(aspect) * view();
+}
+
+SkSize Camera::extentAt(float distance, float aspect) const {
+  // Asked of the projection rather than of the field of view, because
+  // the frustum is what the projection opens and the two do not quite
+  // agree: this one's centre of projection stands a unit behind the eye,
+  // so the frame at a distance is a shade wider than the angle alone
+  // would make it. Solving the matrix for the point that lands on the
+  // frame edge keeps the answer exact whatever the projection is.
+  const glm::mat4 clip = projection(aspect);
+  const float w = (clip * glm::vec4{0, 0, -distance, 1}).w;
+  if (!(w > 0)) return {0, 0};
+  const float height = clip[1][1] != 0 ? 2.0f * w / clip[1][1] : 0.0f;
+  const float width = clip[0][0] != 0 ? 2.0f * w / clip[0][0] : 0.0f;
+  return {width, height};
+}
+
+std::optional<SkPoint> Camera::project(glm::vec3 point, SkSize viewport) const {
+  // In front of the eye is negative z in a right-handed view. The
+  // perspective divide answers for a little way behind the eye plane as
+  // well, and the answer is the point mirrored through the middle of the
+  // frame, so the eye plane is the boundary rather than whatever w
+  // happens to reach zero at.
+  if (!((view() * glm::vec4{point, 1.0f}).z < 0.0f)) return std::nullopt;
+  const glm::vec4 clip = viewProjection(viewport) * glm::vec4{point, 1.0f};
+  if (!(clip.w > 0)) return std::nullopt;
+  return SkPoint{clip.x / clip.w, clip.y / clip.w};
+}
+
+Orbit orbitOf(const Camera& camera) {
+  const glm::vec3 out = camera.eye - camera.target;
+  const float distance = glm::length(out);
+  if (!(distance > 0.0f)) return {};
+  // Yaw from the +z axis toward +x and pitch off the ground plane, which
+  // is the pair `cameraAt` puts the eye back at.
+  return {std::atan2(out.x, out.z) / kDegToRad,
+          std::asin(std::clamp(out.y / distance, -1.0f, 1.0f)) / kDegToRad,
+          distance};
+}
+
+Camera cameraAt(const Camera& pivot, Orbit orbit) {
+  const float yaw = orbit.yawDeg * kDegToRad;
+  const float pitch = orbit.pitchDeg * kDegToRad;
+  Camera out = pivot;
+  out.eye = pivot.target +
+            glm::vec3{orbit.distance * std::cos(pitch) * std::sin(yaw),
+                      orbit.distance * std::sin(pitch),
+                      orbit.distance * std::cos(pitch) * std::cos(yaw)};
+  return out;
 }
 
 glm::mat4 place(glm::vec3 position, float yawDeg, float pitchDeg, float rollDeg,

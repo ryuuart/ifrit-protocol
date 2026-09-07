@@ -8,10 +8,11 @@
  */
 
 #include <sigilcore/cache/Settle.h>
-#include <sigilcore/reconcile/Lanes.h>
 #include <sigilcore/reconcile/Node.h>
+#include <sigilmotion/values/Lanes.h>
 #include <yoga/Yoga.h>
 
+#include "BakeInk.h"
 #include "ComposeInternal.h"
 
 // markPaintDirtyUp() calls sk_sp::reset() inline, so the ref-counted payload
@@ -29,11 +30,9 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>  // std::size, for the kSlotSpecs asserts
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace sigil::compose::detail {
@@ -49,15 +48,15 @@ struct Instance;
  *  their rects in their own descriptions instead of in the flex engine. And
  *  a TEXT node's children never can: Yoga forbids children under a node
  *  that has a measure function, and the measure function is how text sizes
- *  to its container. So text keeps measuring, and a `rich().slot()` pill
+ *  to its container. So text keeps measuring, and a `weave::rich().slot()` pill
  *  takes its box from the paragraph — which is the only thing that knows
  *  where the reserved run landed. */
 inline bool childrenCarryYoga(const Instance& inst);
 
 /** One float property that can transition: the Choreograph output is the
- *  source of truth while a motion is connected. SigilCore's, because the
- *  reconciler's lane operations ramp it. */
-using AnimatedFloat = core::AnimatedFloat;
+ *  source of truth while a motion is connected. SigilMotion's, because a
+ *  moving animatable is the motion library's business. */
+using AnimatedFloat = motion::AnimatedFloat;
 
 /** ONE RESOLVED `flowAround` TARGET, in the text node's own space.
  *
@@ -113,10 +112,14 @@ struct TextState {
   // not a per-frame one: the masks below are rebuilt when the text changes,
   // when the layout reflows (a line selector moves with the break), or when
   // the description's selectors themselves change.
-  std::vector<Selector> selectionKeys;
+  std::vector<sigil::weave::Selector> selectionKeys;
   std::vector<std::vector<uint8_t>> selectionMasks;
   uint32_t selectionRev = ~0u;
+  // BOTH MEASURES LAYOUT KEYS ON: a line selector moves with the break,
+  // and a vertical or depth-bounded passage breaks on its height exactly
+  // as a horizontal one breaks on its width.
   float selectionWidth = -1.0f;
+  float selectionHeight = -1.0f;
   // spanStyle() restyles that differ from the text they cover ONLY in
   // advance-invariant variable-font axes, carried as tracks instead of
   // re-shaping: the paragraph keeps the glyphs and pen positions it shaped,
@@ -128,8 +131,8 @@ struct TextState {
   std::vector<Track> spanAxisTracks;
 };
 
-/** The retained node. The tree skeleton — `parent`, `desc` (the resolved,
- *  post-memo description), `memoShell` (the memo element, if any) and
+/** The retained node. The tree skeleton — `parent`, `description` (the
+ * resolved, post-memo description), `memoShell` (the memo element, if any) and
  *  `children` — is SigilCore's Node, which is what the reconciler walks;
  *  everything below it is what this kernel retains per node. */
 // fields are grouped by what they belong to, not by size
@@ -151,10 +154,41 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   float measuredForHeight = -1.0f;
   YGSize measuredSize{0, 0};
   float measuredBaseline = 0.0f;  // first character's baseline, from the top
-  uint32_t contentRev = 0;        // bumped on text/exclusion change
-  uint32_t measuredRev = ~0u;     // rev the cached measurement belongs to
-  // rich().slot(): the slot names in the order the content declares them —
-  // which is the order weave matches its placeholder records in — and where
+  // thread(): the word this frame's fill begins at — 0 for the head of a
+  // chain, and whatever the frame before it left unplaced for every other.
+  uint32_t threadCursor = 0;
+  // …and the LINE this frame's first line is, counted from the story's
+  // start. A story numbers its own lines: weave::sel::line(40) is the fortieth
+  // line of the story wherever it landed, so a chain that reflows moves
+  // the selection with the text instead of addressing a different line in
+  // every frame. 0 for the head, and for every text that is not a frame.
+  uint32_t threadLineOffset = 0;
+  // …and the MEASURE THE NEXT FRAME SETS IN, which the widow rule needs
+  // because the lines it counts are the ones this frame will not hold.
+  // Only the chain knows it; 0 says it is not known yet, which is the
+  // first pass over a chain nobody has laid out.
+  float threadNextMeasure = 0;
+  // …and the lines the WHOLE chain placed, written to every frame once the
+  // walk knows it. A cascade numbered over the story needs the story's own
+  // count, and no single fill has it.
+  uint32_t threadStoryLines = 0;
+  // Whether some frame threads INTO this one, which is what makes the last
+  // link of a chain a frame rather than an ordinary text leaf. A leaf's
+  // height is an answer and it grows down the page; a FRAME is bounded by
+  // its own depth. The links before the last are known by their own
+  // thread(), and the last is known only by this.
+  bool threadedInto = false;
+  // Which axes a layout SCHEME sized on this container, so that it keeps
+  // sizing an axis it once sized. Remembered rather than read back off
+  // Yoga: a scheme writes a point size on every child it places, so the
+  // style alone cannot tell a container's own answer from its parent's
+  // placement of it.
+  bool schemeSizedWidth = false;
+  bool schemeSizedHeight = false;
+  uint32_t contentRev = 0;     // bumped on text/exclusion change
+  uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
+  // weave::rich().slot(): the slot names in the order the content declares them
+  // — which is the order weave matches its placeholder records in — and where
   // the finished layout put each one, in this node's own space. A child
   // keyed by one of these names takes that rect as its box.
   std::vector<std::string> textSlotKeys;
@@ -164,9 +198,26 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // produced. A key that resolved no glyphs is absent, and its child places
   // nothing.
   std::vector<std::pair<std::string, SkRect>> textMarkRects;
-  // rich().add(text, styleName): each named run and the text it occupies, in
-  // declaration order — what sel::style resolves against. Cleared and
-  // rebuilt with the paragraph, so the names a node answers for are exactly
+  // annotate(): every reading, laid out where the base's units put it, in
+  // this node's own space. Each is a small paragraph of its own with its own
+  // placement, so the kernel draws it exactly as it draws the base.
+  struct PlacedAnnotation {
+    std::shared_ptr<sigil::weave::Paragraph> paragraph;
+    sigil::weave::ParagraphLayout layout;
+  };
+  std::vector<PlacedAnnotation> textAnnotations;
+  // WHERE THE GLYPHS THEMSELVES REACH, in this node's own space: the union
+  // of the placed blobs' bounds, base and readings alike. A line's band is
+  // its ascent over its descent, and the outlines a face draws are not
+  // held to it — a comma's tail, a swash, an accent on a capital all stand
+  // outside the box the layout measured. Anything that sizes a surface
+  // from a text leaf reads this beside the box, because a surface cut to
+  // the box alone loses the pixel that hangs past it, whole. Empty until a
+  // layout has run, and rewritten by every layout after.
+  SkRect textInk = SkRect::MakeEmpty();
+  // weave::rich().add(text, styleName): each named run and the text it
+  // occupies, in declaration order — what sel::style resolves against. Cleared
+  // and rebuilt with the paragraph, so the names a node answers for are exactly
   // the ones its current content declares.
   std::vector<detail::NamedRun> textNamedRuns;
   // The engine's state (TextState) — null until dressed type first asks
@@ -195,6 +246,14 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     kScaleY,
     kMotionT,
     kTextPathAt,
+    // The depth lanes (DepthData): the plane's turn about its two in-plane
+    // axes, its depth, its depth scale, and the view it declares for its
+    // children.
+    kRotateX,
+    kRotateY,
+    kTranslateZ,
+    kScaleZ,
+    kPerspective,
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
@@ -239,6 +298,28 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
 
   // Caching
   sk_sp<SkPicture> picture;
+  // What the held recording is pinned to. A recording is a list of draw
+  // calls and replays under whatever matrix it meets — EXCEPT where it
+  // holds a device-space bake, which is a blit at an absolute device rect
+  // and is exact only under the device matrix it was recorded under. So
+  // the recording counts the device blits inside it (its own nodes' and
+  // those of every held picture replayed into it) and keeps that matrix;
+  // a count above zero and a different matrix at replay remake it. A
+  // recording holding none stays matrix-independent, which is what lets a
+  // picture under a live transform replay under the motion.
+  //
+  // `pictureDeviceDeferred`: a node inside was refused the device bake
+  // for matrix motion alone. The recording is retaken once the matrix has
+  // held still for a frame, so the node takes the device bake then rather
+  // than keeping the resampled local one until its content next changes.
+  SkMatrix pictureMatrix = SkMatrix::I();
+  // …and the device clip the blits inside it were cut to. An ink clip is
+  // a set of device pixels, so a recording holding one is exact for the
+  // clip it was made under and stale under a wider one: a window that
+  // grew would replay the region it held when it was smaller.
+  SkIRect pictureDeviceClip = SkIRect::MakeEmpty();
+  uint32_t pictureDeviceBakes = 0;
+  bool pictureDeviceDeferred = false;
   sk_sp<SkImage> textureImage;
   float textureScale = 1.0f;
   SkRect textureBakeRect = SkRect::MakeEmpty();  // bake covers paint bounds
@@ -249,6 +330,12 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // flag exists so a bake taken in one mode is never blitted in the other
   // — the two store different rectangles in textureBakeRect.
   bool textureDeviceSpace = false;
+  /** Which tiles of a LOCAL bake carry ink (BakeInk.h). A local bake is
+   *  blitted through the node's own transform and resampled by it, so its
+   *  whole rect runs the sampler however little of it is ink; the grid is
+   *  what lets the blit skip the empty tiles. Empty for a device-space
+   *  bake, which blits as a literal copy and has nothing to skip. */
+  InkGrid textureInk;
   // Is this node's OWN transform animating? (Geometric slots only — opacity
   // does not move the device rect.) A device-space bake is exact but is
   // pinned to one device rect, so it re-bakes whenever the node moves;
@@ -268,6 +355,19 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // a declaration, so a run that stops keeps the placement it was moving
   // with instead of taking one last shift as it settles.
   bool placementUnderMotion = false;
+  // …and is the COMPOSER still working on this passage? A text told its
+  // input is moving (Element::live) has its break decisions kept and
+  // reused, and a frame that answered every block from that store did no
+  // work at all: the passage is set exactly as the frame before it. So the
+  // leaf reports what its last layout cost — how many blocks came from the
+  // store, how many the budget forced to the greedy breaker — and this is
+  // the one bit the caching proof reads off that report: a live passage
+  // whose layout is not yet stable can change without any number this node
+  // carries changing, which is what "opaque to a value memo" means.
+  // Written in layoutText, beside the layout it describes.
+  bool textComposing = false;
+  /// What the last layout of this leaf cost, for `Composer::settling`.
+  int textReusedBlocks = 0, textDegradedBlocks = 0;
   // …and is the device rect it actually LANDS on holding still? These are
   // NOT the same predicate: a node with no animated property of its own
   // still moves every frame under a resizing window or a pinch zoom, and a
@@ -275,17 +375,17 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // one-bake-per-quantized-step reuse the local bake exists to provide.
   //
   // AN INVARIANT OF THIS PAIR, NOT OF ANY ONE CALL SITE: it is written only
-  // at recordingDepth == 0. A picture can replay under a different matrix
-  // than it records at, so a rect observed inside a recording is not this
-  // node's device rect — writing it would poison the stability compare and
-  // force a spurious re-bake on the node's next live frame. The guard is
-  // also what makes the history meaningful at all: every node that can
-  // reach a device bake is painted every frame, so it actually accumulates
-  // frame-over-frame history; a node painted once into an ancestor's
-  // recording accumulates none. The writers, each behind that guard: the
+  // at recordingDepth == 0, where the node is painted every frame and so
+  // actually accumulates frame-over-frame history. A node painted into an
+  // ancestor's recording is painted once per recording and accumulates
+  // none; a rect it observed there would poison the compare and force a
+  // spurious re-bake on its next live frame. Inside a recording the
+  // "holding still" verdict is the outermost recording's instead
+  // (`lastDeviceMatrix` below, read through the painter's
+  // recordingMatrixStable), which that recording's node keeps every frame
+  // for the same reason. The writers, each behind the guard: the
   // Cache::Group device bake and the Cache::Texture device bake, both in
-  // paint(). Automatic promotion shares the recordingDepth == 0 refusal but
-  // keeps no rect history. Any new writer must sit behind the same check.
+  // paint(). Any new writer must sit behind the same check.
   //
   // The first sighting counts as stable: a node's first frame is otherwise
   // forced down the local path and then re-bakes on its second, which is a
@@ -293,6 +393,13 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // pay.
   SkIRect lastDeviceRect = SkIRect::MakeEmpty();
   bool deviceRectSeen = false;
+  // The matrix this node's draws reached the device through last frame,
+  // under the same invariant: written only at recordingDepth == 0. Read by
+  // the node's own recording, to know whether the device bakes it holds
+  // are still at the rects they were baked for and whether a node inside
+  // it may take one.
+  SkMatrix lastDeviceMatrix = SkMatrix::I();
+  bool deviceMatrixSeen = false;
   float bakedLeafOpacity = 1.0f;  // frozen into the recording
   SkBlendMode bakedLeafBlend = SkBlendMode::kSrcOver;
   bool paintDirty = true;
@@ -314,6 +421,15 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // — a shader pointer versus a list of floats — so a node can qualify for
   // one and not the other.
   bool scalarMemo = false;
+  // Set when the node's ONLY volatility is its own LAYER effect's bound
+  // parameters: the content under the effect is static (no live child, no
+  // live material, no animated scalar, no live decoration), so it can be
+  // rasterized once and the effect run over that one image at every blit.
+  // The image's identity holds from frame to frame, which is what lets an
+  // effect built over held passes find them already filtered instead of
+  // filtering a fresh layer again. A BACKDROP effect is never this: it
+  // reads what is already on the canvas, which a bake cannot hold.
+  bool effectOnly = false;
   /** The content scalars a recording was baked with. A node that has none
    *  compares equal to itself forever.
    *
@@ -505,11 +621,34 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   SkRect lastLayoutRect = SkRect::MakeLTRB(-1, -1, -1, -1);
 
   // Resolved custom-outline cache: generators (blobs, rounded stars) can be
-  // arbitrarily expensive — resolve once per (description, size). Desc pointer
-  // identity keys invalidation: every patch swaps the description.
+  // arbitrarily expensive — resolve once per (description, size). Description
+  // pointer identity keys invalidation: every patch swaps the description.
+  // Element::boundary(Boundary::Glyphs): the union of this text's glyph
+  // outlines at the placement its layout produced, resolved once per
+  // layout because a decoration asked for it and never otherwise.
+  SkPath glyphOutline;
+  uint32_t glyphOutlineRev = ~0u;
+  // Element::boundary(Boundary::Coverage): the silhouette of what this
+  // node's layer drew, traced off that layer's alpha, in the node's own
+  // space. Re-traced when the layer that produced it is invalidated —
+  // `paintDirty`, which every content, prop and layout change raises on
+  // the node and on every ancestor — and on every frame of a subtree whose
+  // volatility means nothing about it is cached. The size it was traced at
+  // is kept beside it because a resized box is a different silhouette and
+  // is the one invalidation that must not depend on a flag.
+  SkPath coverageOutline;
+  SkSize coverageOutlineSize = {-1.0f, -1.0f};
+  float coverageOutlineScale = -1.0f;  ///< the device scale it was traced at
+  float coverageOutlineThreshold = -1.0f;  ///< the tolerance it was cut at
+  // The silhouette a custom shape resolved to, and the shape VALUE it came
+  // from. The description it was read off is not an identity: a
+  // description freed and rebuilt can land on the address the old one
+  // had, and the drawing behind it is a different one. A shape that
+  // prunes compares equal to itself and hits; a lambda compares equal to
+  // nothing and re-resolves, which is what a lambda already costs.
   SkPath outlineCache;
   SkSize outlineCacheSize = {-1.0f, -1.0f};
-  const ElementNode* outlineCacheDesc = nullptr;
+  Shape outlineCacheShape;
 
   // Stamped-brush bakes live with the NODE (handed to decorations via
   // PaintContext::stamps), so a brush value rebuilt every describe reuses
@@ -534,12 +673,13 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   std::unique_ptr<MotionCache> motion;
 
   ~Instance();
-  float resolveFloat(Instance::Slot slot, const Animatable<float>& v) const;
+  float resolveFloat(Instance::Slot slot,
+                     const motion::Animatable<float>& v) const;
   /** The same resolution over an explicitly-held motion — the span
    *  endpoints, whose count the description decides. One body: a bound
    *  Output wins, then a running ramp, then the plain value. */
   float resolveFloatAt(const AnimatedFloat* anim,
-                       const Animatable<float>& v) const;
+                       const motion::Animatable<float>& v) const;
   /** Resolve every mask gate's animatable floats for this frame, in the
    *  order maskAnims indexes them (and ContentScalars::gates stores
    *  them) — every value, live or settled, because the memo compares what
@@ -603,8 +743,22 @@ inline TextState& textStateOf(Instance& inst) {
 }
 
 inline bool childrenCarryYoga(const Instance& inst) {
-  return inst.yoga != nullptr && inst.desc && !inst.desc->layout.positioned &&
-         inst.desc->kind != Kind::Text;
+  return inst.yoga != nullptr && inst.description &&
+         !inst.description->layout.positioned &&
+         inst.description->kind != Kind::Text;
+}
+
+/** WHERE A LEAF STANDS IN ITS STORY, read off the retained instance: the
+ *  line offset the frame chain gave it, and its own key for the frame-local
+ *  address. A leaf that is not a frame of a chain answers a zero offset and
+ *  its own key, so the ordinary text is the general case with nothing
+ *  subtracted. */
+[[nodiscard]] inline TextScope scopeOf(const Instance& inst) {
+  const bool threads = inst.description && inst.description->textData &&
+                       !inst.description->textData->threadTo.empty();
+  return {inst.threadLineOffset, inst.threadStoryLines,
+          threads || inst.threadLineOffset > 0,
+          inst.description ? inst.description->key : std::string{}};
 }
 
 }  // namespace sigil::compose::detail

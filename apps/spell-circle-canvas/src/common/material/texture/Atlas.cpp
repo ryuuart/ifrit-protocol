@@ -11,6 +11,7 @@
 #include <simdjson.h>
 
 #include <algorithm>
+#include <boost/container/flat_map.hpp>
 #include <cctype>
 #include <cstdlib>
 #include <vector>
@@ -162,7 +163,8 @@ bool readFrames(simdjson::dom::element doc, std::vector<AtlasRegion>* out) {
 /** Sequences from the regions' names: frames sharing a stem, ordered by
  *  their trailing number. A name with no number is a sequence of one. */
 void sequencesFromNames(Atlas* atlas) {
-  std::map<std::string, std::vector<std::pair<long, size_t>>> groups;
+  boost::container::flat_map<std::string, std::vector<std::pair<long, size_t>>>
+      groups;
   const std::span<const AtlasRegion> regions = atlas->regions();
   for (size_t i = 0; i < regions.size(); ++i) {
     auto [name, number] = split(regions[i].name);
@@ -209,9 +211,15 @@ std::optional<Atlas> Atlas::fromAseprite(Texture sheet, std::string_view json) {
       int64_t from, to;
       if (tag["name"].get(name) || tag["from"].get(from) || tag["to"].get(to))
         continue;
+      // A tag whose range names no frame this sheet has is not a
+      // sequence: registering it empty would answer nothing under a name
+      // the caller can see, AND count as a tag, which is what stops the
+      // "all" fallback below from being registered at all.
+      if (to < from || from >= (int64_t)count || to < 0) continue;
+      const int64_t first = std::max<int64_t>(from, 0);
+      const int64_t last = std::min<int64_t>(to, (int64_t)count - 1);
       std::vector<size_t> frames;
-      for (int64_t i = from; i <= to && i >= 0 && (size_t)i < count; ++i)
-        frames.push_back((size_t)i);
+      for (int64_t i = first; i <= last; ++i) frames.push_back((size_t)i);
       atlas.sequence(std::string(name), std::move(frames));
       tagged = true;
     }

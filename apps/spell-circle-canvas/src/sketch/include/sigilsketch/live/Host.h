@@ -1,15 +1,19 @@
 #pragma once
 
 /** @file
- * The live-reload host: a sketch file watched, rebuilt into a dylib on
- * save, and hot-swapped into the running session.
+ * The live-reload host: a sketch watched, rebuilt into a dylib on save,
+ * and hot-swapped into the running session.
  */
 
 #include <include/core/SkRefCnt.h>
+#include <sigilmeasure/stats/Samples.h>
+#include <sigilmeasure/time/Stopwatch.h>
+#include <sigilmotion/clock/FrameClock.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 
+#include <boost/container/flat_map.hpp>
 #include <chrono>
 #include <filesystem>
 #include <functional>
@@ -29,16 +33,34 @@ class FontContext;
 
 namespace sigil::sketch {
 
-/** THE LIVE HOST, and it is Qt-free on purpose: it watches the sketch
- *  source, rebuilds it into a versioned dylib with the compiler flags
+/** THE BUILD IDENTITY OF THE IMAGE THAT IS RUNNING: the last-write time
+ *  the executable carried when this process first asked.
+ *
+ *  It is what the reload skew guard compares framework headers against —
+ *  a dylib compiled against headers newer than this stamp would load into
+ *  a host whose structs have the old layout.
+ *
+ *  READ ONCE AND KEPT. The file on disk is replaced while the process
+ *  that mapped it keeps running, and a stamp re-read after that rebuild
+ *  postdates every header — which is exactly the moment the guard exists
+ *  for, and exactly the moment a fresh stat would let pass. A zero stamp
+ *  means the image could not be located. */
+[[nodiscard]] std::filesystem::file_time_type hostBinaryTime();
+
+/** THE LIVE HOST, and it is Qt-free on purpose: it watches the sketch's
+ *  sources, rebuilds them into a versioned dylib with the compiler flags
  *  the build captured, dlopens the result and swaps the running session
  *  — keeping the previous one alive on a compile error, which is the
  *  behaviour that makes live coding usable.
  *
  *  The host executable exports the framework's symbols, so a sketch
  *  dylib links with `-undefined dynamic_lookup` and builds in a couple
- *  of seconds: one small translation unit, nothing linked against the
- *  static libraries.
+ *  of seconds: a few small translation units, nothing linked against
+ *  the static libraries. A sketch that is a directory is the entry and
+ *  every source beside it, compiled apart and linked once — and a unit
+ *  whose source and headers are the ones it was last compiled from is
+ *  not compiled again, so a table standing in its own unit costs a
+ *  reload of the entry nothing but the link.
  *
  *  Old libraries are never dlclosed. Their statics stay valid — a
  *  running session may hold a vtable, a string literal or a function
@@ -47,7 +69,11 @@ namespace sigil::sketch {
 class Host {
  public:
   struct Options {
-    /** The file to watch. */
+    /** The sketch's ENTRY: the file to watch, and the one whose
+     *  directory says what else is built with it. A file standing in a
+     *  directory of its own name is the entry of a directory sketch,
+     *  and every other `.cpp` in that directory is a unit of it; any
+     *  other file is a sketch of one unit. */
     std::filesystem::path sketchPath;
     /** Where the sketch looks for what it did not generate. Defaults to
      *  `assets` beside the sketch file. */
@@ -55,6 +81,11 @@ class Host {
     /** The compiler line the build captured, beside the executable. */
     std::filesystem::path flagsFile;
     std::string compiler = "clang++";
+    /** THE SHARED LAYER: a directory whose sources are units of every
+     *  sketch this host builds, and whose headers a sketch spells as
+     *  `<shared/Name.h>`. Watched with the sketch's own files. Empty
+     *  for none. */
+    std::filesystem::path sharedDir;
     /** Pin anything a sketch measured about its own execution, so a
      *  capture can be diffed. */
     bool deterministic = false;
@@ -62,10 +93,59 @@ class Host {
      *  than by building the file, and compile only once the file
      *  changes. Null means always build. */
     const Entry* compiledIn = nullptr;
+    /** THE IMAGE THIS HOST IS PART OF, as the skew guard's reference
+     *  point: a dylib built against a framework header newer than this
+     *  is refused. It defaults to the stamp the process read of its own
+     *  executable at first ask, and is a field so that a test can state
+     *  one. */
+    std::filesystem::file_time_type hostStamp = hostBinaryTime();
+    /** How long between re-reads of the directories the sketch is
+     *  built from — the one beside the entry and the shared layer. The
+     *  entry itself is stamped every poll; the directories around it
+     *  are not, because reading a directory is cheap but not free and
+     *  a header is saved by hand a moment before the sketch is. Zero
+     *  re-reads them on every poll. */
+    std::chrono::milliseconds siblingScanInterval{250};
   };
 
   Host(Options options, weave::FontContext& fonts);
   ~Host();
+
+  /** WHERE THIS HOST BUILDS: one object per unit and one dylib per
+   *  build, under a directory named for the running process.
+   *
+   *  Every host in a process shares it — a window keeps three sketches
+   *  resident, each with a host of its own — so it is made with the
+   *  first of them and removed with the last, and again on normal exit
+   *  for a process that ends without unwinding that far. Nothing on
+   *  disk survives usefully past the run: the freshness table that
+   *  decides a rebuild is in memory, so no later process reads a byte
+   *  of it. */
+  [[nodiscard]] const std::filesystem::path& buildDir() const {
+    return m_buildDir;
+  }
+
+  /** Removes the build directories of processes that are no longer
+   *  running, beside the one this process builds in.
+   *
+   *  A run that was killed or that faulted never reached the removal
+   *  above, and its directory carries a pid no later run can reuse, so
+   *  nothing would ever clear it. The pid in the name is asked of the
+   *  system directly, and only the answer that says NOBODY HOLDS IT
+   *  removes anything: a directory whose process is alive — this
+   *  process's own included — is left standing. Calling it walks, every
+   *  time and from any thread. */
+  static void sweepAbandonedBuildDirs();
+
+  /** TAKES THIS PROCESS'S ONE WALK, answering true to whoever took it
+   *  and false to everyone after.
+   *
+   *  The walk is worth doing once per run and it reads a whole temporary
+   *  directory, so an owner that wants it OFF the thread its first host
+   *  is built on claims it here — synchronously, before launching the
+   *  walk — and the first host then finds it claimed and walks nothing.
+   *  A host that finds it unclaimed walks itself. */
+  [[nodiscard]] static bool claimSweep();
 
   /** Drives the reload machinery: source mtime, finished compiles, asset
    *  changes. Call once per frame. */
@@ -78,10 +158,32 @@ class Host {
   [[nodiscard]] bool compiling() const { return m_compile.valid(); }
   [[nodiscard]] bool live() const { return m_session != nullptr; }
   [[nodiscard]] int generation() const { return m_generation; }
+  /** Reopens the current kind as a fresh runtime session without compiling
+   *  it again. The host's watched source, loaded libraries and asset cache
+   *  stay warm, while setup, clocks, Outputs and mount transitions all start
+   *  over. Returns false when no kind has loaded yet. */
+  bool restartSession();
   /** The running session, for a host that needs more than a frame from
    *  it — its counters, its viewpoint, its per-node costs. Null until
    *  something has loaded. */
   [[nodiscard]] Session* session() { return m_session.get(); }
+
+  /** WHICH RUNTIME THE LOADED SKETCH DRAWS THROUGH — "canvas", "set" or
+   *  "draw" — read off the kind the host is holding, or empty before one
+   *  has loaded. A file opened by path is not known to draw through any
+   *  runtime until it has been built, so this is what fills in the row a
+   *  browser could not read off the file. */
+  [[nodiscard]] std::string_view kind() const {
+    return m_kind ? m_kind->runtime() : std::string_view{};
+  }
+
+  /** WHETHER THE LOADED SKETCH DECLARED ITSELF A PLATE rather than a live
+   *  scene — a sheet whose subject is its own size, judged on the cost of
+   *  the still it is photographed as and not on holding 60 FPS. Read off
+   *  the running session's declared canvas; false before one has loaded. */
+  [[nodiscard]] bool plateOnly() const {
+    return m_session && m_session->canvas().plateOnly;
+  }
 
   /** The lifecycle a status display reads: Compiling wins even while a
    *  previous build keeps rendering underneath. */
@@ -104,12 +206,26 @@ class Host {
   [[nodiscard]] double drawMsAverage() const;
   [[nodiscard]] double presentedFps() const;
   void markPresented();
+  /** HOW MANY FRAMES OF THIS SESSION HAVE REACHED THE SCREEN, counted
+   *  from the moment it started running. A reader outside the render
+   *  thread has no other way to tell a session that is merely selected
+   *  from one that is being presented: the pointer to it is published
+   *  when it opens, and its first frame can be seconds behind that. */
+  [[nodiscard]] unsigned long long presentedFrames() const {
+    return m_presentedFrames;
+  }
+  /** EMPTIES THE ROLLING WINDOWS, so that what is read after this
+   *  describes what happened after this. A stretch a caller means to
+   *  measure begins with the frames before it thrown away — the first
+   *  frames of a session cost what a session costs once, and averaged in
+   *  they are the sketch's steady cost misreported. */
+  void resetMetrics();
   /** BEGINS PRESENTING AGAIN after a stretch in which something else
    *  held the window. That stretch is not a frame interval, so the next
    *  presentation starts one rather than extending the one this session
    *  was paused in the middle of — the rolling windows themselves stay,
    *  which is the point of a session outliving the look away from it. */
-  void resume() { m_lastPresent = {}; }
+  void resume() { m_presentSince.reset(); }
 
   /** Renders the CURRENT state (clock untouched) into a PNG at @p scale
    *  times the sketch's canvas. The capture path for both the windowed
@@ -125,6 +241,12 @@ class Host {
   struct CaptureBackend {
     std::function<sk_sp<SkSurface>(const SkImageInfo&)> makeSurface;
     std::function<bool(SkSurface&, const SkPixmap&)> readback;
+    /** The canvas the still is described through, given the surface
+     *  makeSurface just built. A backend whose device needs the draws
+     *  kept in order answers a canvas that keeps them; unset, and null,
+     *  leave the surface's own canvas in place. The canvas belongs to
+     *  the backend and must outlive the capture. */
+    std::function<SkCanvas*(SkSurface&)> canvasOf;
   };
   void setCaptureBackend(CaptureBackend backend) {
     m_captureBackend = std::move(backend);
@@ -143,30 +265,78 @@ class Host {
    *  size and clear with this colour. */
   [[nodiscard]] SkSize canvasSize() const;
   [[nodiscard]] SkColor4f background() const;
+  /** THE SCENE TIME THE RUNNING SKETCH DECLARED a still of itself should
+   *  be taken at, or a negative number where it declared none — the
+   *  moment a capture steps to unless the caller names another.
+   *
+   *  A body declares it from inside its own setup, so it is only
+   *  truthful once something has loaded; before that it is negative,
+   *  which reads as "no preference" exactly as an undeclaring sketch
+   *  does. */
+  [[nodiscard]] double captureSeconds() const;
 
  private:
+  /** One translation unit on a build's compile line, and where its
+   *  object goes. */
+  struct Unit {
+    std::filesystem::path source;
+    std::filesystem::path object;
+    std::filesystem::file_time_type sourceTime;
+  };
   struct CompileResult {
     bool ok = false;
     std::filesystem::path library;
     std::string output;
+    /** The units this build compiled — recorded as built once the
+     *  build is adopted, under the header stamp they were compiled
+     *  against — and how many the sketch has in all. */
+    std::vector<Unit> compiled;
+    std::filesystem::file_time_type headers;
+    int units = 0;
+  };
+  /** WHAT A UNIT WAS LAST COMPILED FROM. Its object is reused while its
+   *  source and the headers around the sketch are the ones it was
+   *  compiled against. The headers are ONE stamp for every unit rather
+   *  than a dependency list per unit: any header beside the sketch or
+   *  in the shared layer may be included by any unit, and re-reading
+   *  two small directories is cheaper than asking the compiler which
+   *  unit includes what. */
+  struct Built {
+    std::filesystem::path object;
+    std::filesystem::file_time_type source;
+    std::filesystem::file_time_type headers;
   };
 
   void startCompile();
   void adopt(const std::filesystem::path& library);
   void openSession(const Kind& kind);
   /** THE NEWEST WRITE ACROSS EVERYTHING THE SKETCH IS BUILT FROM, or
-   *  nothing when the sketch file itself is not there.
+   *  nothing when the entry itself is not there.
    *
-   *  A sketch is one translation unit and more than one file: a helper
-   *  beside it is reached by a quoted include, which resolves relative
-   *  to the including file and needs no include path — so an edit to one
-   *  has to rebuild the sketch, or what stays on screen is the code that
-   *  stood before it. */
+   *  A sketch is more than one file: a helper beside it is reached by a
+   *  quoted include, which resolves relative to the including file and
+   *  needs no include path; a directory sketch has units beside its
+   *  entry; the shared layer has both. An edit to any of them has to
+   *  rebuild the sketch, or what stays on screen is the code that stood
+   *  before it. */
   [[nodiscard]] std::optional<std::filesystem::file_time_type> sourceStamp();
+  /** Re-reads the directories the sketch is built from into the two
+   *  stamps below. */
+  void scanBeside();
+  /** Every unit the next build compiles or reuses, in compile order:
+   *  the entry, the sources beside it when it is a directory sketch,
+   *  then the shared layer's. */
+  [[nodiscard]] std::vector<std::filesystem::path> units() const;
 
   Options m_options;
   weave::FontContext& m_fonts;
   std::filesystem::path m_buildDir;
+  /** WHICH HOST IN THIS PROCESS THIS IS, counted from one. Every host in
+   *  a process links into one build directory, so the id is in the name
+   *  of every dylib this one builds: without it two hosts building at
+   *  once would write one path, and the file standing there when one of
+   *  them dlopens would be whichever link finished last. */
+  int m_hostId = 0;
 
   Assets m_assets;
   Kind m_kind;
@@ -175,21 +345,35 @@ class Host {
 
   std::future<CompileResult> m_compile;
   std::filesystem::file_time_type m_compiledMtime;
-  // The sibling headers' newest write, re-read on a slower cadence than
-  // the sketch itself: reading a directory is not per-frame work, and
-  // the file being typed into is where responsiveness is wanted.
-  std::filesystem::file_time_type m_siblingStamp;
+  // The directories around the sketch, re-read on the cadence the
+  // options name rather than every poll: reading a directory is not
+  // per-frame work, and the file being typed into is where
+  // responsiveness is wanted. One stamp for the headers, which decide
+  // whether a cached object is still good, and one for the other
+  // sources, which only ever mean a rebuild.
+  std::filesystem::file_time_type m_headerStamp;
+  std::filesystem::file_time_type m_unitStamp;
   std::chrono::steady_clock::time_point m_lastSiblingScan;
+  boost::container::flat_map<std::filesystem::path, Built> m_built;
+  int m_unitsCompiled = 0;  // of the last adopted build, for its status line
+  int m_unitsTotal = 0;
   bool m_everCompiled = false;
   int m_generation = 0;
   int m_frameIndex = -1;  // for the crash reporter's phase line
-  double m_elapsed = 0.0;
+  /** How long this host has been running, in its own time — stated
+   *  deltas under a fixed step, wall time when it is free-running. The
+   *  asset poll and the crash reporter's frame line read it, and both
+   *  want the same clock the session is stepped by. */
+  motion::FrameClock m_clock;
   double m_lastAssetPoll = 0.0;
   std::chrono::steady_clock::time_point m_compileStart;
-  std::chrono::steady_clock::time_point m_lastPresent;
-  std::vector<double> m_workMs;     // rolling frame-body cost window
-  std::vector<double> m_drawMs;     // …and the paint phase inside it
-  std::vector<double> m_presentMs;  // rolling present-interval window
+  // Absent until the first presentation: there is no interval to measure
+  // from before one, and resume() empties it for the same reason.
+  std::optional<measure::Stopwatch> m_presentSince;
+  unsigned long long m_presentedFrames = 0;
+  measure::Samples m_workMs{120};    // rolling frame-body cost window
+  measure::Samples m_drawMs{120};    // …and the paint phase inside it
+  measure::Samples m_presentMs{60};  // rolling present-interval window
   std::string m_status = "waiting for first build";
   std::string m_errorLog;
   CaptureBackend m_captureBackend;

@@ -16,7 +16,9 @@ namespace sigil::usd {
 /** One value per face-vertex from @p values under @p interp: constant
  *  repeats the first, uniform indexes by face, faceVarying by
  *  face-vertex, vertex and varying by point; @p primvarIndices, when
- *  present, indirect the lookup. Out-of-range lookups yield T(). */
+ *  present, indirect the lookup. Out-of-range lookups yield T(), and a
+ *  face-vertex past what the counts account for is one more of the last
+ *  face — the values still line up with the face-vertices there are. */
 template <class T>
 std::vector<T> perFaceVertex(const pxr::VtArray<T>& values,
                              const pxr::TfToken& interp,
@@ -39,6 +41,7 @@ std::vector<T> perFaceVertex(const pxr::VtArray<T>& values,
     if (!primvarIndices.empty() && at < primvarIndices.size())
       at = (size_t)primvarIndices[at];
     out.push_back(at < values.size() ? values[at] : T());
+    if ((size_t)face >= counts.size()) continue;
     if (++inFace >= counts[(size_t)face]) {
       inFace = 0;
       ++face;

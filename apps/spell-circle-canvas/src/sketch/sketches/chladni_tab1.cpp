@@ -80,12 +80,14 @@
 //                        written as maths, not as a path-builder loop
 //   shapes::circle()     the twelve rims and the bow's contact track
 //   shapes::sector()     the 120 sub-wedges the engraved fan is built from
-//   lines::hatch()       their tone, rotated per sub-wedge into a fan
+//   lines::presets::hatch()       their tone, rotated per sub-wedge into a fan
 //   kit::disc()         placement for every circle on the plate
-//   instancing::Pool     9,580 sand grains, ONE atlas stamp, Mode::Live
+//   instancing::Pool     9,580 sand grains, ONE atlas stamp, Mode::Live;
+//                        Pool::fly() flies every grain from its scatter to
+//                        its nodal line on its own start and duration
 //   bind()               one settle Output per figure, shaped three ways
 //   PathFormat::trim*    the bow's travelling contact arc
-//   patterns::grain/speckle  plate tone and foxing
+//   field::grain / patterns::speckle  plate tone and foxing
 //   spans::upTo/animate  the frame, the rims, the reading order
 //
 // Run:
@@ -104,15 +106,26 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/TextFx.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -120,9 +133,19 @@
 #include <string>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace patterns = sigil::material::pattern;
+namespace path = sigil::geometry::path;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
+
+namespace skia = sigil::material::skia;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -134,12 +157,12 @@ namespace {
 // dense star fills #181511). Rag paper this age reads lighter in the hand,
 // so the base is lifted and the sampled tone becomes the vignette end.
 
-constexpr SkColor4f kPaper = hex(0xe3d7b6);
-constexpr SkColor4f kPaperEdge = hex(0xa08757);
-constexpr SkColor4f kInk = hex(0x211c14);      // the dense star fills
-constexpr SkColor4f kInkLine = hex(0x362e23);  // hairline rims and rules
-constexpr SkColor4f kInkSoft = hex(0x3a3125, 0.72f);
-constexpr SkColor4f kFox = hex(0x9c7f57, 0.10f);
+constexpr SkColor4f kPaper = hexColor(0xe3d7b6);
+constexpr SkColor4f kPaperEdge = hexColor(0xa08757);
+constexpr SkColor4f kInk = hexColor(0x211c14);      // the dense star fills
+constexpr SkColor4f kInkLine = hexColor(0x362e23);  // hairline rims and rules
+constexpr SkColor4f kInkSoft = hexColor(0x3a3125, 0.72f);
+constexpr SkColor4f kFox = hexColor(0x9c7f57, 0.10f);
 
 // ---------------------------------------------------------------------------
 // geometry — canvas = the 1600x2072 scan x 0.975, so every measured pixel
@@ -162,10 +185,10 @@ constexpr float kRuleGap = 11 * kScale;
 // run clockwise, which is how every one of Chladni's twelve figures gives
 // the bearing of its Linien. `kUnit` has radius 1, so `at()` takes a
 // FRACTION of the disc and `about(c).px()` takes canvas px.
-constexpr kit::Frame kUnit{.centre = {0, 0},
-                           .radius = 1.0f,
-                           .zero = kit::Zero::North,
-                           .sense = kit::Sense::CW};
+constexpr path::Frame kUnit{.centre = {0, 0},
+                            .radius = 1.0f,
+                            .zero = path::Zero::North,
+                            .sense = path::Sense::CW};
 
 SkPoint polar(SkPoint c, float radius, float bearingDeg) {
   return kUnit.about(c).px(bearingDeg, radius);
@@ -285,9 +308,7 @@ shapes::OutlineFn linieOutline(Linie l) {
   while (sweep <= -SK_FloatPI) sweep += 2 * SK_FloatPI;
   while (sweep > SK_FloatPI) sweep -= 2 * SK_FloatPI;
   const float rho = l.arcRadius;
-  auto at = [o, rho](float a) {
-    return SkPoint{o.fX + rho * std::cos(a), o.fY + rho * std::sin(a)};
-  };
+  auto at = [o, rho](float a) { return arrange::onEllipse(o, {rho, rho}, a); };
   const SkPoint mid = at(a0 + sweep * 0.5f);
   if (mid.fX * mid.fX + mid.fY * mid.fY > 1.0f)
     sweep += sweep > 0 ? -2 * SK_FloatPI : 2 * SK_FloatPI;
@@ -367,16 +388,14 @@ const std::vector<Label>& labelsOf(int num) {
 
 // ---------------------------------------------------------------------------
 
+/** THE FIGURE'S OWN SEEDED STREAM: one 64-bit state stepped through the
+ *  origin's xorshift, and the two draws this plate asks of it. The seed
+ *  is spread once so two figures a row apart do not begin correlated. */
 struct Xorshift {
   uint64_t s;
   explicit Xorshift(uint64_t seed)
       : s(seed * 0x9e3779b97f4a7c15ull + 0xda3e39cbu) {}
-  float next() {
-    s ^= s << 13u;
-    s ^= s >> 7u;
-    s ^= s << 17u;
-    return (float)((s >> 11u) & 0xffffffu) / (float)0x1000000u;
-  }
+  float next() { return sigil::core::noise::xorshift64UnitNext(s); }
   float range(float a, float b) { return a + (b - a) * next(); }
 };
 
@@ -384,10 +403,10 @@ struct Xorshift {
 // plate has one type signature and names its own four parameters over it.
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
                              SkColor4f color, float tracking = 0) {
-  return sigil::compose::type({.face = std::move(face),
-                               .size = size,
-                               .color = color,
-                               .track = tracking});
+  return weave::textStyle({.face = std::move(face),
+                           .size = size,
+                           .color = color,
+                           .track = tracking});
 }
 
 // --- the reading order, in seconds -----------------------------------------
@@ -415,18 +434,19 @@ struct ChladniTab1 : sketch::Sketch {
   double now = 0;
   std::array<float, 12> bowShake{};
 
-  struct Grain {
-    SkPoint from, to;
-    float rotFrom, rotTo;
-    float t0, dur, scale, alpha, phase;
-    int fig, frame;
-  };
-  std::vector<Grain> grains;
+  // The one thing about a grain that is not a flight: the phase of its
+  // shiver. Sand does not slide into a line, it hops there, and the hop
+  // depends on the clock and on the bow rather than on this grain's own
+  // progress.
+  std::vector<float> shiverPhase;
+  // Where each figure's grains begin, plus the end — so the bow's nudge is
+  // read once per figure instead of stored once per grain.
+  std::array<size_t, kFigures.size() + 1> figureFirst{};
   std::shared_ptr<instancing::Atlas> atlas;
   std::shared_ptr<instancing::Pool> pool;
 
   Pattern foxing, foxingLL;
-  Material inkMat, paperMat;
+  Paint inkMat, paperMat;
   sk_sp<SkTypeface> faceNumeral, faceLabel, faceSwash;
   ch::EaseFn settleEase;
 
@@ -438,10 +458,17 @@ struct ChladniTab1 : sketch::Sketch {
   // pool, one atlas stamp
 
   void seedGrains() {
-    grains.clear();
     pool = std::make_shared<instancing::Pool>();
+    size_t total = 0;
+    for (const FigSpec& f : kFigures) total += (size_t)f.grains;
+    pool->resize(total);
+    auto flights = pool->flights();
+    auto frames = pool->frames();
+    shiverPhase.assign(total, 0.0f);
+    size_t at = 0;
 
     for (size_t fi = 0; fi < kFigures.size(); ++fi) {
+      figureFirst[fi] = at;
       const FigSpec& f = kFigures[fi];
       const SkPoint c = centreOf(f);
       Xorshift rng(1787u + f.num * 61u);
@@ -474,14 +501,13 @@ struct ChladniTab1 : sketch::Sketch {
         }
       }
 
-      for (int g = 0; g < f.grains; ++g) {
-        Grain grain;
-        grain.fig = (int)fi;
+      for (int g = 0; g < f.grains; ++g, ++at) {
+        instancing::Pool::Flight grain;
         // scattered start: uniform over the disc
         const float sa = rng.range(0, 360.0f);
         const float sr = kR * 0.965f * std::sqrt(rng.next());
         grain.from = polar(c, sr, sa);
-        grain.rotFrom = rng.range(0, 2 * SK_FloatPI);
+        grain.rotateFrom = rng.range(0, 2 * SK_FloatPI);
 
         if (f.kind == Kind::Star) {
           const float half = kR * kTip;
@@ -491,9 +517,9 @@ struct ChladniTab1 : sketch::Sketch {
             if (starPath.contains(p.fX, p.fY)) break;
           }
           grain.to = {c.fX - half + p.fX, c.fY - half + p.fY};
-          grain.rotTo = rng.range(0, 2 * SK_FloatPI);
-          grain.frame = rng.next() < 0.55f ? 0 : 2;
-          grain.scale = rng.range(0.55f, 0.94f);
+          grain.rotateTo = rng.range(0, 2 * SK_FloatPI);
+          frames[at] = rng.next() < 0.55f ? 0 : 2;
+          grain.scaleFrom = grain.scaleTo = rng.range(0.55f, 0.94f);
         } else if (f.kind == Kind::Petals) {
           // the valleys BETWEEN the star's arms, density biased outward
           // the way the engraved fan is
@@ -506,10 +532,10 @@ struct ChladniTab1 : sketch::Sketch {
           }
           grain.to = {c.fX - kR + p.fX, c.fY - kR + p.fY};
           // the fan: every stroke points radially out of the centre
-          grain.rotTo = std::atan2(grain.to.fY - c.fY, grain.to.fX - c.fX) +
-                        rng.range(-0.09f, 0.09f);
-          grain.frame = 3;
-          grain.scale = rng.range(0.44f, 0.88f);
+          grain.rotateTo = std::atan2(grain.to.fY - c.fY, grain.to.fX - c.fX) +
+                           rng.range(-0.09f, 0.09f);
+          frames[at] = 3;
+          grain.scaleFrom = grain.scaleTo = rng.range(0.44f, 0.88f);
         } else {
           float pick = rng.next() * totalLen;
           size_t ci = 0;
@@ -523,22 +549,22 @@ struct ChladniTab1 : sketch::Sketch {
           const float off = (rng.next() + rng.next() - 1.0f) * 1.9f;
           grain.to = {c.fX - kR + pos.fX - tan.fY * off,
                       c.fY - kR + pos.fY + tan.fX * off};
-          grain.rotTo = std::atan2(tan.fY, tan.fX) + rng.range(-0.10f, 0.10f);
-          grain.frame = rng.next() < 0.7f ? 1 : 2;
-          grain.scale = rng.range(0.45f, 0.78f);
+          grain.rotateTo =
+              std::atan2(tan.fY, tan.fX) + rng.range(-0.10f, 0.10f);
+          frames[at] = rng.next() < 0.7f ? 1 : 2;
+          grain.scaleFrom = grain.scaleTo = rng.range(0.45f, 0.78f);
         }
 
-        grain.t0 = bowAt + rng.range(0.0f, 0.24f);
-        grain.dur = (0.80f + rng.range(0.0f, 0.42f)) * speed;
-        grain.alpha = rng.range(0.62f, 1.0f);
-        grain.phase = rng.range(0, 6.28f);
-        grains.push_back(grain);
+        grain.start = bowAt + rng.range(0.0f, 0.24f);
+        grain.duration = (0.80f + rng.range(0.0f, 0.42f)) * speed;
+        // The grain's own ink weight rides the pool's opacity lane, so the
+        // tint stays free for the gate that fades the whole field in.
+        grain.alphaFrom = grain.alphaTo = rng.range(0.62f, 1.0f);
+        shiverPhase[at] = rng.range(0, 6.28f);
+        flights[at] = grain;
       }
     }
-
-    pool->resize(grains.size());
-    auto frames = pool->frames();
-    for (size_t i = 0; i < grains.size(); ++i) frames[i] = grains[i].frame;
+    figureFirst[kFigures.size()] = at;
   }
 
   // ------------------------------------------------------------------
@@ -589,8 +615,8 @@ struct ChladniTab1 : sketch::Sketch {
       // The hole is the star's own trough radius, which is where the
       // blank channel these two figures are measured by begins.
       {
-        lines::RadialHatch fan = lines::radialHatch(
-            Fill::color(hex(0x211c14, 0.62f)), (int)f.points * 60, 0.85f);
+        lines::RadialHatch fan = lines::presets::radialHatch(
+            Fill::color(hexColor(0x211c14, 0.62f)), (int)f.points * 60, 0.85f);
         fan.holeFraction = f.inner;
         root.child(
             kit::disc(c, kR)
@@ -623,7 +649,7 @@ struct ChladniTab1 : sketch::Sketch {
 
     // ---- the bow's contact arc: a travelling window on the rim, as a
     // per-decoration trim (one node, its own window) ----
-    PathFormat bow = stroke(3.0f, Fill::color(hex(0x211c14, 0.75f)));
+    PathFormat bow = stroke(3.0f, Fill::color(hexColor(0x211c14, 0.75f)));
     bow.align = PathFormat::Align::Inner;
     bow.trimStart = 0.0f;
     bow.trimEnd = 0.065f;
@@ -704,7 +730,7 @@ struct ChladniTab1 : sketch::Sketch {
                        .fill(foxingLL.material()))
             .child(box().inset(0).fill(radialGradient(
                 {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
-                {hex(0x000000, 0.0f), hex(0x000000, 0.0f),
+                {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
                  SkColor4f{kPaperEdge.fR, kPaperEdge.fG, kPaperEdge.fB, 0.26f}},
                 {0.0f, 0.62f, 1.0f})))
             .cache(Cache::Texture));
@@ -756,13 +782,13 @@ struct ChladniTab1 : sketch::Sketch {
 
   // ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kPaper);
     // The still has to name its moment: the settled plate, with all twelve
     // figures inked (6.47 s), the credit in (8.3 s) and the idle bow at
     // maximum on figure 8's rim. An undeclared capture catches figure 12's
     // sand still migrating and the Capieux credit absent.
-    ctx.captureAt(10.6);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = 10.6,
+                             .background = kPaper});
 
     // The plate's numerals are a modern face with hairline serifs; the
     // reference letters are its italic; "Tab. I." and the credit are a
@@ -771,45 +797,49 @@ struct ChladniTab1 : sketch::Sketch {
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceNumeral = pickFace({"Didot", "Bodoni 72"});
-    faceLabel = pickFace({"Didot", "Baskerville"}, SkFontStyle::Italic());
-    faceSwash = pickFace({"Apple Chancery", "Snell Roundhand", "Baskerville"});
+    faceNumeral = weave::ports::face({"Didot", "Bodoni 72"});
+    faceLabel =
+        weave::ports::face({"Didot", "Baskerville"}, SkFontStyle::Italic());
+    faceSwash = weave::ports::face(
+        {"Apple Chancery", "Snell Roundhand", "Baskerville"});
 
-    paperMat = patterns::grain(0.013f, 4, 9.0f);
+    paperMat = Paint::recipe(field::grain(0.013f, 4, 9.0f));
     // Sparse, and NOT on a grid you can see: the tile has to be big
     // enough that its repeat is not the strongest mark on the page.
-    foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {kFox});
+    foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {skia::toColor(kFox)});
     foxing.seed(17);
-    foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f, {hex(0x94764c, 0.09f)});
+    foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f,
+                                 {skia::toColor(hexColor(0x94764c, 0.09f))});
     foxingLL.seed(53);
     // Ink on rag paper is never flat: luminance noise, so it shades the
     // fill rather than hue-shifting it.
-    inkMat = Material::blend(
-        {{Material::solid(kInk), SkBlendMode::kSrc},
-         {patterns::grain(0.09f, 3, 4.0f, 0.35f), SkBlendMode::kSoftLight}});
+    inkMat = Paint::blend({{Paint::solid(kInk), SkBlendMode::kSrc},
+                           {Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f)),
+                            SkBlendMode::kSoftLight}});
 
     settleEase = ease::outBounce();
 
     // The grain atlas: three engraved marks, baked once, stamped ~5900x.
     atlas = std::make_shared<instancing::Atlas>(3.0f);
     atlas->cell(box().width(8.6f).height(2.3f).corners({1.15f}).fill(
-                    Fill::color(hex(0x211c14, 0.94f))),
+                    Fill::color(hexColor(0x211c14, 0.94f))),
                 {10, 4});
     atlas->cell(box().width(6.0f).height(1.7f).corners({0.85f}).fill(
-                    Fill::color(hex(0x2c2519, 0.88f))),
+                    Fill::color(hexColor(0x2c2519, 0.88f))),
                 {8, 3});
     atlas->cell(box().width(3.1f).height(3.1f).corners({1.55f}).fill(
-                    Fill::color(hex(0x211c14, 0.9f))),
+                    Fill::color(hexColor(0x211c14, 0.9f))),
                 {5, 5});
     atlas->cell(box().width(15.0f).height(1.35f).corners({0.68f}).fill(
-                    Fill::color(hex(0x211c14, 0.82f))),
+                    Fill::color(hexColor(0x211c14, 0.82f))),
                 {17, 3});
     seedGrains();
 
     // ---- the simulation ------------------------------------------------
-    // instancing::Pool has no per-instance tween, so one little timeline per
-    // grain (start, target, delay, duration, ease) is bookkept here and
-    // stepped by hand — which is why the pool has to stay Mode::Live.
+    // Every grain's trip is a Pool::Flight the pool steps itself; one bounce
+    // curve serves all 9,580 of them, because the variation between grains
+    // is in their start times and not in their curves. The pool stays
+    // Mode::Live: it is rewritten every frame.
     ctx.ticker.add([this](double dt) {
       now += dt;
       const float t = (float)now;
@@ -841,29 +871,32 @@ struct ChladniTab1 : sketch::Sketch {
         }
       }
 
+      // the flights, then the two motions that are not flights: the shiver,
+      // which reads the clock and the bow, and the gate that fades the whole
+      // field in at once.
+      pool->fly(t, settleEase);
+      const std::span<const instancing::Pool::Flight> flights = pool->flights();
       auto pos = pool->positions();
-      auto rot = pool->rotations();
-      auto scl = pool->scales();
       auto tint = pool->tints();
-      for (size_t i = 0; i < grains.size(); ++i) {
-        const Grain& g = grains[i];
-        float u = (t - g.t0) / g.dur;
-        float appear = 0.0f;
-        if (t >= tScatter) appear = std::min(1.0f, (t - tScatter) / 0.40f);
-        if (u < 0.0f) u = 0.0f;
-        const bool moving = u > 0.0f && u < 1.0f;
-        u = std::min(u, 1.0f);
-        const float e = settleEase ? settleEase(u) : u;
-        // sand does not slide, it hops: a decaying shiver across the walk,
-        // plus a nudge whenever the bow is on this figure's rim
-        const float amp = (1.0f - u) * (moving ? 5.6f : 1.5f) + bowShake[g.fig];
-        const float sx = std::sin(t * 21.0f + g.phase) * amp;
-        const float sy = std::cos(t * 17.0f + g.phase * 1.7f) * amp * 0.8f;
-        pos[i] = {g.from.fX + (g.to.fX - g.from.fX) * e + sx,
-                  g.from.fY + (g.to.fY - g.from.fY) * e + sy};
-        rot[i] = g.rotFrom + (g.rotTo - g.rotFrom) * e;
-        scl[i] = g.scale;
-        tint[i] = {1, 1, 1, appear * g.alpha};
+      const float appear =
+          t >= tScatter ? std::min(1.0f, (t - tScatter) / 0.40f) : 0.0f;
+      for (size_t fi = 0; fi < kFigures.size(); ++fi) {
+        const float nudge = bowShake[fi];
+        for (size_t i = figureFirst[fi]; i < figureFirst[fi + 1]; ++i) {
+          const instancing::Pool::Flight& f = flights[i];
+          const float u =
+              f.duration > 0.0f
+                  ? std::clamp((t - f.start) / f.duration, 0.0f, 1.0f)
+                  : 1.0f;
+          // sand does not slide, it hops: a decaying shiver across the walk,
+          // plus a nudge whenever the bow is on this figure's rim
+          const bool moving = u > 0.0f && u < 1.0f;
+          const float amp = (1.0f - u) * (moving ? 5.6f : 1.5f) + nudge;
+          const float ph = shiverPhase[i];
+          pos[i].offset(std::sin(t * 21.0f + ph) * amp,
+                        std::cos(t * 17.0f + ph * 1.7f) * amp * 0.8f);
+          tint[i] = {1, 1, 1, appear};
+        }
       }
       return true;
     });

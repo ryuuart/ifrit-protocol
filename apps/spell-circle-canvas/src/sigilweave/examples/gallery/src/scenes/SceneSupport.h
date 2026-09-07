@@ -1,8 +1,8 @@
 #pragma once
 
-// Shared helpers used by every gallery scene (src/gallery/scenes/*.cpp).
+// Shared helpers used by every gallery scene.
 // The reusable machinery — rebuild/layout guards, glyph buckets, label and
-// filler helpers, timing — lives in SigilWeaveKit (src/text/kit); this header
+// filler helpers, timing — lives in SigilWeaveKit; this header
 // keeps only the gallery's specializations of it: the palette, the
 // SceneParams-aware body cache, the palette-colored caption, and a morphing
 // ring path shared by more than one scene. Scene-specific state lives in
@@ -10,6 +10,8 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/SigilWeave.h>
 #include <sigilweave/kit/SigilWeaveKit.h>
 
@@ -18,6 +20,7 @@
 #include <string_view>
 
 #include "../include/GalleryScenes.h"
+#include "Palette.h"
 
 namespace gallery {
 
@@ -26,19 +29,20 @@ namespace gallery {
 namespace kit = sigil::weave::kit;
 
 using Clock = std::chrono::steady_clock;
-using kit::toMicroseconds;
+using sigil::measure::toMicroseconds;
 
-inline constexpr SkColor kInk = kit::palette::kInk;
-inline constexpr SkColor kAccent = kit::palette::kAccent;
-inline constexpr SkColor kBlue = kit::palette::kBlue;
-inline constexpr SkColor kShape = kit::palette::kShape;
-inline constexpr SkColor kPaper = kit::palette::kPaper;
+inline constexpr SkColor kInk = sigil::weave::examples::palette::kInk;
+inline constexpr SkColor kAccent = sigil::weave::examples::palette::kAccent;
+inline constexpr SkColor kBlue = sigil::weave::examples::palette::kBlue;
+inline constexpr SkColor kShape = sigil::weave::examples::palette::kShape;
+inline constexpr SkColor kPaper = sigil::weave::examples::palette::kPaper;
 
 using kit::makeStyle;
 
 /// Caches a scene body paragraph until one of its shaping inputs changes:
-/// the gallery's SceneParams front-end to a kit::RebuildGuard, resolving
-/// empty panel values to the scene's defaults before they enter the key.
+/// the gallery's SceneParams front-end to a sigil::core::RebuildGuard,
+/// resolving empty panel values to the scene's defaults before they enter the
+/// key.
 struct BodyCache {
   sigil::weave::Paragraph paragraph;
 
@@ -48,7 +52,7 @@ struct BodyCache {
               const sk_sp<SkTypeface>& fallbackTypeface);
 
  private:
-  kit::RebuildGuard<QString, const SkTypeface*, float> m_guard;
+  sigil::core::RebuildGuard<QString, const SkTypeface*, float> m_guard;
 };
 
 /// Resolves the preferred body serif, falling back to the context default.

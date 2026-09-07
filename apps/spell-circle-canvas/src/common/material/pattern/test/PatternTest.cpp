@@ -76,7 +76,7 @@ TEST(Tile, MappingIsPerObjectAndNeverRebakes) {
   EXPECT_EQ(t.texture(), pattern::Tile(t).texture());
 }
 
-TEST(Patterns, CheckerTilesSeamlessly) {
+TEST(StockTiles, CheckerTilesSeamlessly) {
   const pattern::Tile checker = pattern::checker(4, {1, 0, 0, 1}, {0, 0, 1, 1});
   const SkBitmap bm =
       fill(checker.texture().filter(SkFilterMode::kNearest), 16, 16);
@@ -86,7 +86,7 @@ TEST(Patterns, CheckerTilesSeamlessly) {
   EXPECT_EQ(bm.getColor(13, 5), SK_ColorRED);
 }
 
-TEST(Patterns, SequencePaintsRunsInOrderAndPhaseSlides) {
+TEST(StockTiles, SequencePaintsRunsInOrderAndPhaseSlides) {
   const pattern::Tile runs = pattern::sequence(
       {{2, {1, 0, 0, 1}}, {3, {0, 1, 0, 1}}, {1, {0, 0, 1, 1}}});
   EXPECT_EQ(runs.size(), SkSize::Make(6, 8));
@@ -101,13 +101,30 @@ TEST(Patterns, SequencePaintsRunsInOrderAndPhaseSlides) {
   EXPECT_EQ(
       fill(slid.texture().filter(SkFilterMode::kNearest), 6, 2).getColor(0, 0),
       SK_ColorGREEN);
+  // DOWN THE TILE is the same sett turned, and it is the same run order
+  // read along y — a sett is woven both ways, and the tile has to carry
+  // the second one rather than leave it to a rotation of the first.
+  const pattern::Tile down = pattern::sequence(
+      {{2, {1, 0, 0, 1}}, {3, {0, 1, 0, 1}}, {1, {0, 0, 1, 1}}}, 0,
+      pattern::Axis::V);
+  EXPECT_EQ(down.size(), SkSize::Make(8, 6));
+  const SkBitmap vertical =
+      fill(down.texture().filter(SkFilterMode::kNearest), 2, 12);
+  EXPECT_EQ(vertical.getColor(0, 0), SK_ColorRED);
+  EXPECT_EQ(vertical.getColor(0, 2), SK_ColorGREEN);
+  EXPECT_EQ(vertical.getColor(0, 5), SK_ColorBLUE);
+  EXPECT_EQ(vertical.getColor(0, 6), SK_ColorRED);
+  // …and nothing varies across it, which is what makes it a sett and not
+  // a diagonal.
+  EXPECT_EQ(vertical.getColor(1, 2), SK_ColorGREEN);
+
   // No positive run: draws nothing.
   EXPECT_EQ(fill(pattern::sequence({{0, {1, 0, 0, 1}}}).texture(), 4, 4)
                 .getColor(1, 1),
             0u);
 }
 
-TEST(Patterns, GridLinesTakeATwoAxisPitchAndSpeckleReseeds) {
+TEST(StockTiles, GridLinesTakeATwoAxisPitchAndSpeckleReseeds) {
   const pattern::Tile grid = pattern::gridLines(8, 4, 1, {1, 1, 1, 1});
   EXPECT_EQ(grid.size(), SkSize::Make(8, 4));
   const SkBitmap bm =

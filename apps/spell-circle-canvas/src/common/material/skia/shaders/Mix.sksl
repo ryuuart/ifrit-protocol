@@ -1,0 +1,7 @@
+uniform shader a;
+uniform shader b;
+uniform half uAmt;
+
+half4 main(float2 p) {
+  return mix(a.eval(p), b.eval(p), uAmt);
+}

@@ -4,30 +4,33 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <sigilcompose/texture/Texture.h>
+#include <sigilmeasure/time/Laps.h>
+#include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilsketch/core/Crash.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/frame/Pass.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <glm/geometric.hpp>
+#include <memory>
 #include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace sigil::sketch {
 
 namespace {
 
-double millisSince(std::chrono::steady_clock::time_point from,
-                   std::chrono::steady_clock::time_point to) {
-  return std::chrono::duration<double, std::milli>(to - from).count();
-}
-
-/** The process's runtime. A device is one device and one queue for the
- *  whole run; an empty value is the CPU mesh executor. */
+/** The runtime a session opens on when its kind states none. A device
+ *  is one device and one queue for the whole run; an empty value is the
+ *  CPU mesh executor. */
 world::Runtime& processRuntime() {
   static world::Runtime runtime;
   return runtime;
@@ -61,12 +64,13 @@ void throughPasses(world::Frame& frame, const SkColor4f& background) {
 /** ONE 3D SKETCH, RUNNING. */
 class SetSession final : public Session {
  public:
-  SetSession(Set* set, weave::FontContext& fonts, Assets& assets)
-      : m_set(set), m_scene(m_ticker) {
+  SetSession(Set* set, weave::FontContext& fonts, Assets& assets,
+             world::Runtime runtime)
+      : m_set(set), m_scene(m_ticker), m_runtime(std::move(runtime)) {
     m_spec.size = {900, 640};
     m_spec.background = {0.04f, 0.045f, 0.06f, 1.0f};
     m_spec.captureSeconds = 1.0;
-    SetContext ctx{assets, fonts, &m_spec, &m_camera};
+    SetContext ctx{assets, fonts, &m_spec, &m_camera, &m_scenes};
     m_set->setup(ctx);
     m_declared = m_camera;
     m_extent = {(int)m_spec.size.width(), (int)m_spec.size.height()};
@@ -75,11 +79,15 @@ class SetSession final : public Session {
   [[nodiscard]] const CanvasSpec& canvas() const override { return m_spec; }
 
   void frame(SkCanvas& canvas, double dt) override {
-    const auto start = std::chrono::steady_clock::now();
-    const double step = dt >= 0.0 ? dt : 1.0 / 60.0;
+    m_laps.reset();
+    // ONE CLOCK, whether the step is stated or read off the wall: a
+    // stated delta goes through `advance`, a live frame through `tick`,
+    // and both take the same pause, time scale and stall clamp. A host
+    // that kept its own accumulator here would drift from the ticker the
+    // first time either was paused.
+    const double step = dt >= 0.0 ? m_clock.advance(dt) : m_clock.tick();
     m_ticker.tick(step);
-    m_seconds += step;
-    world::Frame frame = m_set->describe((float)m_seconds);
+    world::Frame frame = m_set->describe((float)m_clock.elapsed());
     // The plate's size and its viewpoint are the host's to state: a set
     // says what it is of, not where it lands. The size is the declared
     // canvas in the pixels this canvas actually has, so the frame is
@@ -95,8 +103,8 @@ class SetSession final : public Session {
       // camera — which stands before whatever the set declared.
       frame.scene(world::Element().camera(m_orbit).child(frame.scene()));
     }
-    if (processRuntime()) {
-      frame.runtime(processRuntime());
+    if (m_runtime) {
+      frame.runtime(m_runtime);
       throughPasses(frame, m_spec.background);
     }
     m_scene.render(frame);
@@ -106,15 +114,20 @@ class SetSession final : public Session {
     // only read while the host has NOT taken hold: once it has, the
     // camera the tree carries is the host's own.
     if (!m_orbiting) {
-      const std::optional<world::Camera> declared = m_scene.camera();
+      const std::optional<geometry::mesh::camera::Camera> declared =
+          m_scene.camera();
       m_declared = declared ? *declared : m_camera;
     }
-    const auto described = std::chrono::steady_clock::now();
-    paint(canvas);
-    const auto drawn = std::chrono::steady_clock::now();
-    m_timing.updateMs = millisSince(start, described);
-    m_timing.drawMs = millisSince(described, drawn);
-    m_timing.totalMs = millisSince(start, drawn);
+    m_timing.updateMs = m_laps.mark("update");
+    // The phase turns over where the sketch's own body ends and its
+    // runtime's painting begins, so a fault reads the same whichever
+    // host drove the frame: one call in, two phases.
+    {
+      PhaseMark mark(Phase::Draw);
+      paint(canvas);
+    }
+    m_timing.drawMs = m_laps.mark("draw");
+    m_timing.totalMs = m_laps.totalMs();
     const world::SceneStats& stats = m_scene.stats();
     m_lanes = {Lane{"nodes", (double)stats.nodes},
                Lane{"drawn", (double)stats.drawn},
@@ -142,7 +155,12 @@ class SetSession final : public Session {
                   "nodes %lld   drawn %lld   resources %lld   passes %lld",
                   (long long)stats.nodes, (long long)stats.drawn,
                   (long long)stats.resources, (long long)stats.passes);
-    return line;
+    // …and the screens the set asked for at setup, which no counter of
+    // the retained scene's can see.
+    if (m_scenes.empty()) return line;
+    char held[48];
+    std::snprintf(held, sizeof held, "   screens %zu", m_scenes.size());
+    return std::string(line) + held;
   }
 
   /** ORBIT: yaw and pitch about the viewpoint's own target, at a
@@ -155,18 +173,20 @@ class SetSession final : public Session {
    *  picture. */
   [[nodiscard]] bool hasViewpoint() const override { return true; }
 
-  [[nodiscard]] std::optional<Orbit> orbit() const override {
-    return orbitOf(viewing());
+  [[nodiscard]] std::optional<geometry::mesh::camera::Orbit> orbit()
+      const override {
+    return geometry::mesh::camera::orbitOf(viewing());
   }
 
   void viewpoint(float yawDeg, float pitchDeg, float distance) override {
-    m_orbit = cameraAt(m_declared, {yawDeg, pitchDeg, distance});
+    m_orbit = geometry::mesh::camera::cameraAt(m_declared,
+                                               {yawDeg, pitchDeg, distance});
     m_orbiting = true;
   }
 
  private:
   /** The viewpoint a frame is described with. */
-  [[nodiscard]] const world::Camera& viewing() const {
+  [[nodiscard]] const geometry::mesh::camera::Camera& viewing() const {
     return m_orbiting ? m_orbit : m_declared;
   }
 
@@ -193,55 +213,52 @@ class SetSession final : public Session {
     m_scene.draw(canvas, viewing());
   }
 
+  /** The texture scenes the context handed out. Before the set and the
+   *  retained scene, so they outlive both: a texture a body wears is
+   *  still standing when its wearer goes. */
+  std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
   std::unique_ptr<Set> m_set;
+  /** Taken once, when this session opened: every frame it draws goes
+   *  through this one, whatever the process installed after. */
+  world::Runtime m_runtime;
   motion::Ticker m_ticker;
   world::Scene m_scene;
   CanvasSpec m_spec;
   /** The fallback the set was handed at setup, for a tree declaring no
    *  camera of its own. */
-  world::Camera m_camera;
+  geometry::mesh::camera::Camera m_camera;
   /** The viewpoint the last describe put the set at — the tree's own, or
    *  the fallback where it declared none. */
-  world::Camera m_declared;
-  world::Camera m_orbit;
+  geometry::mesh::camera::Camera m_declared;
+  geometry::mesh::camera::Camera m_orbit;
   bool m_orbiting = false;
   SkISize m_extent{1, 1};  // the pixels the frame standing was formed at
   Timing m_timing;
+  // Reset per frame rather than built per frame, so the laps a frame
+  // lays cost no allocation inside the span they are timing.
+  measure::Laps m_laps;
   std::array<Lane, 4> m_lanes{};
-  double m_seconds = 0.0;
+  motion::FrameClock m_clock;
 };
 
 }  // namespace
-
-Orbit orbitOf(const world::Camera& camera) {
-  constexpr float kToDegrees = 180.0f / 3.14159265358979f;
-  const glm::vec3 out = camera.eye - camera.target;
-  const float distance = glm::length(out);
-  if (!(distance > 0.0f)) return {};
-  // Yaw from the +z axis toward +x and pitch off the ground plane, which
-  // is the pair `cameraAt` puts the eye back at.
-  return {std::atan2(out.x, out.z) * kToDegrees,
-          std::asin(std::clamp(out.y / distance, -1.0f, 1.0f)) * kToDegrees,
-          distance};
-}
-
-world::Camera cameraAt(const world::Camera& pivot, Orbit orbit) {
-  constexpr float kToRadians = 3.14159265358979f / 180.0f;
-  const float yaw = orbit.yawDeg * kToRadians;
-  const float pitch = orbit.pitchDeg * kToRadians;
-  world::Camera out = pivot;
-  out.eye = pivot.target +
-            glm::vec3{orbit.distance * std::cos(pitch) * std::sin(yaw),
-                      orbit.distance * std::sin(pitch),
-                      orbit.distance * std::cos(pitch) * std::cos(yaw)};
-  return out;
-}
 
 std::unique_ptr<Session> SetKind::open(weave::FontContext& fonts,
                                        Assets& assets,
                                        bool deterministic) const {
   (void)deterministic;
-  return std::make_unique<SetSession>(m_factory(), fonts, assets);
+  return std::make_unique<SetSession>(
+      m_factory(), fonts, assets, m_runtime ? *m_runtime : processRuntime());
+}
+
+Kind onRuntime(const Kind& kind, const world::Runtime& runtime) {
+  // The concrete kind is asked for by type because the runtime is a set's
+  // own vocabulary: a canvas and a pen have no frame to run through one,
+  // and a host holding a mixed selection says this about every kind it
+  // holds rather than sorting them first.
+  if (const auto* set = dynamic_cast<const SetKind*>(kind.get()))
+    return set->on(runtime);
+  return kind;
 }
 
 void useRuntime(const world::Runtime& runtime) { processRuntime() = runtime; }

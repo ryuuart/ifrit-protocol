@@ -1,36 +1,21 @@
-# The colour feature: the colour value and the OKLab round trip are the
-# header-only Color.h, which the core includes and which is listed here as
-# the feature's own; the OpenColorIO view transforms bake to LUT materials
-# over the texture feature. OpenColorIO is already in the dependency
-# closure (transitively via OpenImageIO), so this adds no new vcpkg
-# dependency — the transforms simply disable with a warning if the package
-# is absent. The definition is PUBLIC so a consumer can #ifdef around them.
-add_library(SigilMaterialColor STATIC
-  Color.cpp
-  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/color/Color.h
-)
-target_compile_features(SigilMaterialColor PUBLIC cxx_std_20)
-target_include_directories(SigilMaterialColor PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
-target_link_libraries(SigilMaterialColor PUBLIC SigilMaterialTexture)
+# The colour feature: the colour value that uploads as one float4, its
+# packed spelling, the OKLab and OKLCH round trips, the ramp as a value,
+# the harmonies read around a hue, the dither threshold and the table a
+# run of pixels is made of. The leaf of this library — the core's
+# Params.h includes it, so it carries no renderer and nothing that draws.
+# Its one link is SigilCoreCompute, header-only over the standard library,
+# for the shaped curve a ramp walks its position through: the same value
+# an easing and a keyed track read, so a look chosen once reads the same
+# everywhere. That is why the extraction takes PIXELS rather than an
+# image: the crossing from a decoded picture needs a renderer, and it
+# lives with the one that owns the picture.
+sigil_library(SigilMaterialColor
+  SOURCES Color.cpp Dither.cpp Extract.cpp Harmony.cpp Ramp.cpp
+  HEADERS Color.h Dither.h Extract.h Harmony.h Ramp.h
+  PUBLIC SigilCoreCompute)
 
-find_package(OpenColorIO CONFIG QUIET)
-if(TARGET OpenColorIO::OpenColorIO)
-  target_sources(SigilMaterialColor PRIVATE Ocio.cpp
-    ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/color/Ocio.h)
-  target_link_libraries(SigilMaterialColor PRIVATE OpenColorIO::OpenColorIO)
-  target_compile_definitions(SigilMaterialColor PUBLIC SIGILMATERIAL_ENABLE_OCIO)
-else()
-  message(WARNING "OpenColorIO not found — <sigilmaterial/color/Ocio.h> disabled")
-endif()
+# test/ColorTest.cpp is compiled into material_test, at the library root.
 
-add_executable(material_color_test test/ColorTest.cpp)
-target_link_libraries(material_color_test PRIVATE SigilMaterialColor
-  SigilMaterialSkia GTest::gtest_main)
-add_test(NAME material_color_test COMMAND material_color_test)
-
-# Google Benchmark (use a Release build). Not a test: it builds through
-# the `benches` target and runs through scripts/bench_ledger.py.
-add_executable(material_color_bench bench/ColorBench.cpp)
-target_link_libraries(material_color_bench PRIVATE SigilMaterialColor
-  SigilMaterialSkia benchmark::benchmark)
-add_dependencies(benches material_color_bench)
+sigil_bench(material_bench
+  SOURCES bench/ColorBench.cpp
+  LIBRARIES SigilMaterialColor)

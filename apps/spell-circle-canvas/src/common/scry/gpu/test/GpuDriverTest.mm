@@ -17,41 +17,23 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkSurface.h>
-#include <include/core/SkUnPreMultiply.h>
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
-#include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
-#include <chrono>
 #include <memory>
-#include <mutex>
-#include <thread>
 #include <vector>
 
+#include "GraphiteReadback.h"
+#include "SharedGraphite.h"
 #include "metal/MetalDriver.h"
 
 using namespace sigil::scry;
+using namespace sigil::scry::test;
 
 namespace {
-
-/** The device this process owns, shared by the driver and every test. */
-sigil::skia::GpuDevice *sharedDevice() {
-  static std::unique_ptr<sigil::skia::GpuDevice> device =
-      sigil::skia::GpuDevice::createOwned(sigil::skia::Backend::Metal);
-  return device.get();
-}
-
-/** The Graphite context the tests draw with and the driver shares: the
- *  driver's paint path records on its own recorder over it, so every
- *  context call here holds lockContext(). */
-sigil::skia::GraphiteContext *sharedGraphite() {
-  static std::unique_ptr<sigil::skia::GraphiteContext> graphite =
-      sharedDevice() ? sigil::skia::GraphiteContext::create(*sharedDevice()) : nullptr;
-  return graphite.get();
-}
 
 MetalDriver &sharedDriver() {
   // This binary is built only where a Metal device is guaranteed, so the
@@ -64,52 +46,9 @@ MetalDriver &sharedDriver() {
   return *driver;
 }
 
-/** Renders the Graphite surface's pending work and reads back the pixel
- *  at (x, y) as an unpremultiplied SkColor. */
-SkColor readbackPixel(sigil::skia::GraphiteContext &graphite, SkSurface *surface, int x, int y) {
-  std::unique_ptr<skgpu::graphite::Recording> recording = graphite.recorder()->snap();
-  const std::unique_lock<std::mutex> lock = graphite.lockContext();
-  if (recording) {
-    skgpu::graphite::InsertRecordingInfo info;
-    info.fRecording = recording.get();
-    graphite.context()->insertRecording(info);
-  }
-
-  struct ReadContext {
-    std::unique_ptr<const SkImage::AsyncReadResult> result;
-    bool called = false;
-  } readContext;
-
-  graphite.context()->asyncRescaleAndReadPixels(
-      surface, SkImageInfo::MakeN32Premul(1, 1), SkIRect::MakeXYWH(x, y, 1, 1),
-      SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
-      [](SkImage::ReadPixelsContext context,
-         std::unique_ptr<const SkImage::AsyncReadResult> result) {
-        auto *read = static_cast<ReadContext *>(context);
-        read->result = std::move(result);
-        read->called = true;
-      },
-      &readContext);
-
-  skgpu::graphite::SubmitInfo submitInfo;
-  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
-  graphite.context()->submit(submitInfo);
-
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-  while (!readContext.called && std::chrono::steady_clock::now() < deadline) {
-    graphite.context()->checkAsyncWorkCompletion();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
-  if (!readContext.result) return SK_ColorTRANSPARENT;
-
-  const uint32_t *pixels = static_cast<const uint32_t *>(readContext.result->data(0));
-  SkPMColor pm = pixels[0];
-  return SkUnPreMultiply::PMColorToColor(pm);
-}
-
 /** Draws the wrap of @p texture full-size into a fresh Graphite surface
  *  and reads back its centre. */
-SkColor centreOf(sigil::skia::TextureHandle texture, int width, int height) {
+SkColor centreOf(sigil::core::hardware::TextureHandle texture, int width, int height) {
   sigil::skia::GraphiteContext &graphite = *sharedGraphite();
   sk_sp<SkImage> image = sharedDriver().wrapTexture(graphite.recorder(), texture, width, height);
   EXPECT_NE(image, nullptr);
@@ -118,7 +57,7 @@ SkColor centreOf(sigil::skia::TextureHandle texture, int width, int height) {
       SkSurfaces::RenderTarget(graphite.recorder(), SkImageInfo::MakeN32Premul(width, height));
   surface->getCanvas()->clear(SK_ColorTRANSPARENT);
   surface->getCanvas()->drawImage(image, 0, 0);
-  return readbackPixel(graphite, surface.get(), width / 2, height / 2);
+  return sigil::skia::test::readGraphitePixel(graphite, surface.get(), width / 2, height / 2);
 }
 
 /** Premultiplied BGRA pixels of one colour. */
@@ -136,7 +75,7 @@ TEST(ScryGpuDriver, UploadsAndWrapsASlotTexture) {
   ASSERT_NE(sharedDevice(), nullptr);
   ASSERT_NE(sharedGraphite(), nullptr);
   MetalDriver &driver = sharedDriver();
-  const sigil::skia::TextureHandle slot = driver.createImageTexture(32, 32);
+  const sigil::core::hardware::TextureHandle slot = driver.createImageTexture(32, 32);
   ASSERT_TRUE(slot);
   const std::vector<uint32_t> pixels = solid(32, 32, kOpaqueRedBgra);
   driver.uploadToTexture(slot, pixels.data(), 32, 32, (size_t)32 * 4);
@@ -146,7 +85,7 @@ TEST(ScryGpuDriver, UploadsAndWrapsASlotTexture) {
 
 TEST(ScryGpuDriver, PaintsASlotThroughTheWebRecorder) {
   MetalDriver &driver = sharedDriver();
-  const sigil::skia::TextureHandle slot = driver.createImageTexture(48, 24);
+  const sigil::core::hardware::TextureHandle slot = driver.createImageTexture(48, 24);
   ASSERT_TRUE(slot);
   ASSERT_TRUE(
       driver.paintTexture(slot, 48, 24, [](SkCanvas &canvas) { canvas.clear(SK_ColorGREEN); }));
@@ -156,8 +95,8 @@ TEST(ScryGpuDriver, PaintsASlotThroughTheWebRecorder) {
 
 TEST(ScryGpuDriver, CopiesBetweenDeviceTexturesClampedToTheSmaller) {
   MetalDriver &driver = sharedDriver();
-  const sigil::skia::TextureHandle src = driver.createImageTexture(64, 64);
-  const sigil::skia::TextureHandle dst = driver.createImageTexture(16, 16);
+  const sigil::core::hardware::TextureHandle src = driver.createImageTexture(64, 64);
+  const sigil::core::hardware::TextureHandle dst = driver.createImageTexture(16, 16);
   const std::vector<uint32_t> pixels = solid(64, 64, kOpaqueGreenBgra);
   driver.uploadToTexture(src, pixels.data(), 64, 64, (size_t)64 * 4);
   EXPECT_TRUE(driver.copyDeviceTexture(src, dst, 64, 64));
@@ -184,7 +123,7 @@ TEST(ScryGpuDriver, PublishesAnUltralightTextureByBlit) {
   }
   const uint32_t id = driver.NextTextureId();
   driver.CreateTexture(id, bitmap);
-  const sigil::skia::TextureHandle publish = driver.createPublishTexture(20, 10);
+  const sigil::core::hardware::TextureHandle publish = driver.createPublishTexture(20, 10);
   ASSERT_TRUE(publish);
   driver.copyTexture(id, publish, 20, 10);
   EXPECT_EQ(centreOf(publish, 20, 10), SK_ColorRED);
@@ -194,7 +133,7 @@ TEST(ScryGpuDriver, PublishesAnUltralightTextureByBlit) {
 
 TEST(ScryGpuDriver, RegistersExternalTexturesUnderFreshIds) {
   MetalDriver &driver = sharedDriver();
-  const sigil::skia::TextureHandle slot = driver.createImageTexture(8, 8);
+  const sigil::core::hardware::TextureHandle slot = driver.createImageTexture(8, 8);
   const uint32_t a = driver.registerExternalTexture(slot);
   const uint32_t b = driver.NextTextureId();
   EXPECT_NE(a, 0u);
@@ -202,7 +141,7 @@ TEST(ScryGpuDriver, RegistersExternalTexturesUnderFreshIds) {
   // Registered textures blit like Ultralight's own.
   const std::vector<uint32_t> pixels = solid(8, 8, kOpaqueGreenBgra);
   driver.uploadToTexture(slot, pixels.data(), 8, 8, (size_t)8 * 4);
-  const sigil::skia::TextureHandle publish = driver.createPublishTexture(8, 8);
+  const sigil::core::hardware::TextureHandle publish = driver.createPublishTexture(8, 8);
   driver.copyTexture(a, publish, 8, 8);
   EXPECT_EQ(centreOf(publish, 8, 8), SK_ColorGREEN);
   driver.unregisterExternalTexture(a);
@@ -213,7 +152,7 @@ TEST(ScryGpuDriver, RegistersExternalTexturesUnderFreshIds) {
 TEST(ScryGpuDriver, AReleasedHandleGoesStaleWhileItsWrapStillDraws) {
   MetalDriver &driver = sharedDriver();
   sigil::skia::GraphiteContext &graphite = *sharedGraphite();
-  const sigil::skia::TextureHandle slot = driver.createImageTexture(16, 16);
+  const sigil::core::hardware::TextureHandle slot = driver.createImageTexture(16, 16);
   const std::vector<uint32_t> pixels = solid(16, 16, kOpaqueRedBgra);
   driver.uploadToTexture(slot, pixels.data(), 16, 16, (size_t)16 * 4);
   sk_sp<SkImage> wrap = driver.wrapTexture(graphite.recorder(), slot, 16, 16);
@@ -225,7 +164,7 @@ TEST(ScryGpuDriver, AReleasedHandleGoesStaleWhileItsWrapStillDraws) {
   sk_sp<SkSurface> surface =
       SkSurfaces::RenderTarget(graphite.recorder(), SkImageInfo::MakeN32Premul(16, 16));
   surface->getCanvas()->drawImage(wrap, 0, 0);
-  EXPECT_EQ(readbackPixel(graphite, surface.get(), 8, 8), SK_ColorRED);
+  EXPECT_EQ(sigil::skia::test::readGraphitePixel(graphite, surface.get(), 8, 8), SK_ColorRED);
 }
 
 TEST(ScryGpuDriver, AnEmptyFlushPublishesNothing) { EXPECT_TRUE(sharedDriver().flush().empty()); }

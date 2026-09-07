@@ -10,9 +10,24 @@
 #include <include/core/SkPath.h>
 #include <sigilcompose/core/Mask.h>
 #include <sigilcompose/core/Stroke.h>
+#include <sigilcore/compute/Intervals.h>
 
 #include <optional>
 #include <vector>
+
+namespace sigil::core {
+
+/** A span's endpoints, for the interval algebra one library up. */
+template <>
+struct IntervalEnds<sigil::compose::Span> {
+  using Value = float;
+  static float& low(sigil::compose::Span& s) { return s.begin; }
+  static float& high(sigil::compose::Span& s) { return s.end; }
+  static const float& low(const sigil::compose::Span& s) { return s.begin; }
+  static const float& high(const sigil::compose::Span& s) { return s.end; }
+};
+
+}  // namespace sigil::core
 
 namespace sigil::compose::detail {
 
@@ -37,11 +52,6 @@ std::optional<Span> spansOverlap(const std::vector<Span>& a,
  *  TOTAL arc length — SkTrimPathEffect's coordinate, so a span reveal and
  *  a trim of the same numbers describe the same run). */
 SkPath spanPath(const SkPath& src, const std::vector<Span>& spans);
-/** The region a spine sweeps at `width` across it, on `formation`'s side.
- *  Empty when the profile is zero everywhere. */
-SkPath bandRegion(const SkPath& spine, const Across& width,
-                  Formation formation);
-
 /** THE ONE STROKE ENGINE VALUE — what `stroke(spans, …)`,
  *  `background(spans, …)` and `across()` install on a description. */
 const StrokeResolver& strokeResolver();

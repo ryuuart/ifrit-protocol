@@ -22,12 +22,17 @@
 // through their spans, and the first-class layer does the baking (2x
 // oversample built in) and the drawAtlas stamping.
 
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Instances.h>
 #include <sigilcompose/kit/Flourish.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/style/Type.h>
 
 #include <cmath>
 #include <entt/entt.hpp>
@@ -35,6 +40,8 @@
 #include <random>
 
 namespace sketch = sigil::sketch;
+namespace material = sigil::material;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -58,12 +65,27 @@ struct UiParticles final : sketch::Sketch {
   static constexpr float kPostW = 232.0f, kPostH = 148.0f;
   static constexpr int kPostVariants = 12;
 
+  /** THE SIMULATION'S OWN RATE. It is stated here rather than taken from
+   *  the host, because a simulation stepped at whatever rate the machine
+   *  drew at is a different simulation on every machine. */
+  static constexpr double kStepHz = 60.0;
+  static constexpr float kStepSeconds = 1.0f / (float)kStepHz;
+
   entt::registry chips;
   entt::registry posts;
+  /** The leftover fraction of a step after the frame's stepping — the
+   *  Ticker writes it, the pool fill reads it. */
+  choreograph::Output<float> stepAlpha;
   std::shared_ptr<instancing::Atlas> chipAtlas, postAtlas;
   std::shared_ptr<instancing::Pool> chipPool, postPool;
 
   struct Pos {
+    float x, y;
+  };
+  /** WHERE THE STAMP STOOD AT THE PREVIOUS FIXED STEP. The pool is filled
+   *  from `lerp(Prev, Pos, alpha)`, so what is drawn is the simulation
+   *  read at the frame's own moment rather than at the last step's. */
+  struct Prev {
     float x, y;
   };
   struct Vel {
@@ -80,35 +102,16 @@ struct UiParticles final : sketch::Sketch {
   struct ChipTheme {
     SkColor4f fill, edge, ink;
   };
-  static SkColor4f hsv(float h, float s, float v) {
-    const float c = v * s;
-    const float x = c * (1 - std::fabs(std::fmod(h / 60.0f, 2.0f) - 1));
-    const float m = v - c;
-    float r = 0, g = 0, b = 0;
-    if (h < 60) {
-      r = c;
-      g = x;
-    } else if (h < 120) {
-      r = x;
-      g = c;
-    } else if (h < 180) {
-      g = c;
-      b = x;
-    } else if (h < 240) {
-      g = x;
-      b = c;
-    } else if (h < 300) {
-      r = x;
-      b = c;
-    } else {
-      r = c;
-      b = x;
-    }
-    return {r + m, g + m, b + m, 1};
-  }
+  /** One chip's skin, read off the wheel: the hue is walked rather than
+   *  authored, so the fill, the edge and the ink are one hue at three
+   *  points of its own tone ladder. */
   static ChipTheme chipTheme(float hueDegrees, bool darkInk) {
-    return {hsv(hueDegrees, 0.62f, 0.94f), hsv(hueDegrees, 0.80f, 0.45f),
-            darkInk ? hsv(hueDegrees, 0.85f, 0.22f) : SkColor4f{1, 1, 1, 1}};
+    const auto tone = [hueDegrees](float saturation, float value) {
+      return material::skia::toSkColor(
+          material::hsv(hueDegrees, saturation, value));
+    };
+    return {tone(0.62f, 0.94f), tone(0.80f, 0.45f),
+            darkInk ? tone(0.85f, 0.22f) : SkColor4f{1, 1, 1, 1}};
   }
 
   Element pill(const ChipTheme& t, std::u8string label) {
@@ -120,7 +123,8 @@ struct UiParticles final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label), type({.size = 15, .color = t.ink})));
+        .child(text(std::move(label),
+                    weave::textStyle({.size = 15, .color = t.ink})));
   }
   Element shout(const ChipTheme& t, std::u8string label, int spikes) {
     return box()
@@ -133,7 +137,8 @@ struct UiParticles final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label), type({.size = 13, .color = t.ink})));
+        .child(text(std::move(label),
+                    weave::textStyle({.size = 13, .color = t.ink})));
   }
   Element seal(const ChipTheme& t, std::u8string label, float lobe) {
     return box()
@@ -144,7 +149,8 @@ struct UiParticles final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label), type({.size = 13, .color = t.ink})));
+        .child(text(std::move(label),
+                    weave::textStyle({.size = 13, .color = t.ink})));
   }
   Element framed(const Palette& pal, std::u8string label) {
     return box()
@@ -154,7 +160,8 @@ struct UiParticles final : sketch::Sketch {
             sigil::image::ImageAsset::wrap(makeCarvedFrame(pal, 96)))))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label), type({.size = 15, .color = pal.ink})));
+        .child(text(std::move(label),
+                    weave::textStyle({.size = 15, .color = pal.ink})));
   }
   Element note(const ChipTheme& t, std::u8string line1, std::u8string line2) {
     PathFormat dashed;
@@ -174,8 +181,10 @@ struct UiParticles final : sketch::Sketch {
         .column()
         .gap(2)
         .padding(6)
-        .child(text(std::move(line1), type({.size = 12, .color = t.ink})))
-        .child(text(std::move(line2), type({.size = 10, .color = t.edge})));
+        .child(text(std::move(line1),
+                    weave::textStyle({.size = 12, .color = t.ink})))
+        .child(text(std::move(line2),
+                    weave::textStyle({.size = 10, .color = t.edge})));
   }
 
   void buildChipAtlas() {
@@ -202,7 +211,8 @@ struct UiParticles final : sketch::Sketch {
     // NOLINTNEXTLINE(bugprone-random-generator-seed)
     std::mt19937 rng{23};
     for (int i = 0; i < kVariants; ++i) {
-      const float hue = std::fmod((float)i * 137.5f, 360.0f);
+      // the golden-angle walk, unfolded: hsv() wraps the hue itself
+      const float hue = (float)i * 137.5f;
       const ChipTheme theme = chipTheme(hue, (i % 3) != 0);
       Element content = [&]() -> Element {
         switch (i % 5) {
@@ -243,12 +253,13 @@ struct UiParticles final : sketch::Sketch {
   Element flourishPost(const PostConfig& cfg) {
     FlourishStyle s;  // gilt-on-parchment
     return flourishCard(s, kPostW - 6, kPostH - 6)
-        .child(text(cfg.title, type({.size = 15, .color = s.ink})))
-        .child(text(cfg.body1, type({.size = 10.5f, .color = s.ink})))
+        .child(text(cfg.title, weave::textStyle({.size = 15, .color = s.ink})))
         .child(
-            text(cfg.body2, type({.size = 10.5f,
-                                  .color = SkColor4f{s.bronze.fR, s.bronze.fG,
-                                                     s.bronze.fB, 1}})));
+            text(cfg.body1, weave::textStyle({.size = 10.5f, .color = s.ink})))
+        .child(text(cfg.body2, weave::textStyle(
+                                   {.size = 10.5f,
+                                    .color = SkColor4f{s.bronze.fR, s.bronze.fG,
+                                                       s.bronze.fB, 1}})));
   }
   Element carvedPost(const PostConfig& cfg) {
     const Palette pals[4] = {oakPalette(), azurePalette(), crimsonPalette(),
@@ -262,9 +273,12 @@ struct UiParticles final : sketch::Sketch {
         .column()
         .padding(30, 26)
         .gap(5)
-        .child(text(cfg.title, type({.size = 15, .color = pal.stem})))
-        .child(text(cfg.body1, type({.size = 10.5f, .color = pal.ink})))
-        .child(text(cfg.body2, type({.size = 10.5f, .color = pal.ink})));
+        .child(
+            text(cfg.title, weave::textStyle({.size = 15, .color = pal.stem})))
+        .child(text(cfg.body1,
+                    weave::textStyle({.size = 10.5f, .color = pal.ink})))
+        .child(text(cfg.body2,
+                    weave::textStyle({.size = 10.5f, .color = pal.ink})));
   }
   Element plainPost(const PostConfig& cfg) {
     // A modern dark UI card — the counterpoint to the ornate borders.
@@ -280,11 +294,14 @@ struct UiParticles final : sketch::Sketch {
         .column()
         .padding(16, 14)
         .gap(6)
-        .child(text(cfg.title, type({.size = 15, .color = accent})))
+        .child(text(cfg.title, weave::textStyle({.size = 15, .color = accent})))
         .child(box().width(pct(38)).height(2).corners({1}).fill(
             Fill::color(accent)))
-        .child(text(cfg.body1, type({.size = 10.5f, .color = hex(0xcdd3df)})))
-        .child(text(cfg.body2, type({.size = 10.5f, .color = hex(0x9aa3b4)})));
+        .child(text(cfg.body1, weave::textStyle({.size = 10.5f,
+                                                 .color = hexColor(0xcdd3df)})))
+        .child(text(
+            cfg.body2,
+            weave::textStyle({.size = 10.5f, .color = hexColor(0x9aa3b4)})));
   }
 
   Element postVariant(const PostConfig& cfg) {
@@ -375,8 +392,10 @@ struct UiParticles final : sketch::Sketch {
     auto unit = [&] { return (float)(rng() % 10000) / 10000.0f; };
     for (size_t i = 0; i < count; ++i) {
       entt::entity e = reg.create();
-      reg.emplace<Pos>(e, unit() * kSceneSize.width(),
-                       unit() * kSceneSize.height());
+      const float x = unit() * kSceneSize.width();
+      const float y = unit() * kSceneSize.height();
+      reg.emplace<Pos>(e, x, y);
+      reg.emplace<Prev>(e, x, y);
       reg.emplace<Vel>(e, unit() * 40 - 20, -velUp * (0.4f + unit()));
       reg.emplace<Look>(e, (uint8_t)(rng() % variants),
                         scaleLo + unit() * (scaleHi - scaleLo),
@@ -384,44 +403,62 @@ struct UiParticles final : sketch::Sketch {
     }
   }
 
-  static void step(entt::registry& reg, double dt, float margin) {
-    reg.view<Pos, const Vel>().each([dt, margin](Pos& p, const Vel& v) {
-      p.x += v.dx * (float)dt;
-      p.y += v.dy * (float)dt;
-      if (p.y < -margin) p.y += kSceneSize.height() + margin;
-      if (p.x < -margin)
-        p.x += kSceneSize.width() + margin;
-      else if (p.x > kSceneSize.width())
-        p.x -= kSceneSize.width() + margin;
-    });
+  /** ONE FIXED STEP. A WRAP MOVES BOTH ENDS of the interpolation by the
+   *  same offset: leaving the previous position behind would draw one
+   *  frame of a stamp smeared the width of the canvas. */
+  static void step(entt::registry& reg, float margin) {
+    reg.view<Pos, Prev, const Vel>().each(
+        [margin](Pos& p, Prev& was, const Vel& v) {
+          was = {p.x, p.y};
+          p.x += v.dx * kStepSeconds;
+          p.y += v.dy * kStepSeconds;
+          if (p.y < -margin) {
+            const float wrap = kSceneSize.height() + margin;
+            p.y += wrap;
+            was.y += wrap;
+          }
+          if (p.x < -margin) {
+            const float wrap = kSceneSize.width() + margin;
+            p.x += wrap;
+            was.x += wrap;
+          } else if (p.x > kSceneSize.width()) {
+            const float wrap = kSceneSize.width() + margin;
+            p.x -= wrap;
+            was.x -= wrap;
+          }
+        });
   }
 
   // The EnTT → Pool copy-in: the registry stays the sim, the pool spans
   // are the seam the instances() leaf reads (Mode::Live, every frame).
-  static void syncPool(entt::registry& reg, instancing::Pool& pool, double t) {
+  static void syncPool(entt::registry& reg, instancing::Pool& pool, double t,
+                       float alpha) {
     auto positions = pool.positions();
     auto rotations = pool.rotations();
     auto scales = pool.scales();
     auto frames = pool.frames();
     size_t i = 0;
-    reg.view<const Pos, const Look>().each([&](const Pos& p, const Look& l) {
-      positions[i] = {p.x, p.y};
-      rotations[i] = l.spin * (float)std::sin(t * 1.6 + p.x * 0.01);
-      scales[i] = l.scale;
-      frames[i] = l.sprite;
-      ++i;
-    });
+    reg.view<const Pos, const Prev, const Look>().each(
+        [&](const Pos& p, const Prev& was, const Look& l) {
+          const float x = was.x + (p.x - was.x) * alpha;
+          const float y = was.y + (p.y - was.y) * alpha;
+          positions[i] = {x, y};
+          rotations[i] = l.spin * (float)std::sin(t * 1.6 + x * 0.01);
+          scales[i] = l.scale;
+          frames[i] = l.sprite;
+          ++i;
+        });
   }
 
   void update(double t, sketch::SketchContext& ctx) override {
-    syncPool(chips, *chipPool, t);
-    syncPool(posts, *postPool, t);
+    syncPool(chips, *chipPool, t, stepAlpha);
+    syncPool(posts, *postPool, t, stepAlpha);
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.captureAt(6.0);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     buildChipAtlas();
@@ -434,14 +471,22 @@ struct UiParticles final : sketch::Sketch {
     postPool = std::make_shared<instancing::Pool>();
     chipPool->resize(kChipCount);
     postPool->resize(kPostCount);
-    syncPool(chips, *chipPool, 0.0);
-    syncPool(posts, *postPool, 0.0);
+    syncPool(chips, *chipPool, 0.0, 0.0f);
+    syncPool(posts, *postPool, 0.0, 0.0f);
 
-    ticker.add([this](double dt) {
-      step(chips, dt, kSprite);
-      step(posts, dt, kPostW);
-      return true;
-    });
+    // A FIXED STEP, and the leftover fraction of one as the render
+    // interpolant. Integrating by the frame delta would make the window,
+    // `--video` and `--bench` run a different simulation from the sweep,
+    // so what a plate shows would be a claim about the machine that took
+    // it rather than about the declaration.
+    ticker.addFixed(
+        kStepHz,
+        [this] {
+          step(chips, kSprite);
+          step(posts, kPostW);
+          return true;
+        },
+        8, &stepAlpha);
 
     // instances() fills its parent; each tier gets a full-canvas box so
     // pool positions are canvas pixels. Chips behind, posts in front.
@@ -462,7 +507,8 @@ struct UiParticles final : sketch::Sketch {
             .child(
                 kit::scrim(text(u8"UI as particles \u2014 820 chips over "
                                 u8"30 posts, one instances() stamp a tier",
-                                type({.size = 17, .color = hex(0xf2f5fb)})),
+                                weave::textStyle(
+                                    {.size = 17, .color = hexColor(0xf2f5fb)})),
                            {.fill = Fill::color({0.03f, 0.025f, 0.06f, 0.92f}),
                             .paddingX = 14,
                             .paddingY = 9})
@@ -475,5 +521,6 @@ struct UiParticles final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(UiParticles, "ui particles", "Catalog \xc2\xb7 Scale",
-                "SoA scale \xc2\xb7 instances()")
+SIGIL_SKETCH_AS(UiParticles, "ui particles", "Specimen",
+                "instances() at scale \xe2\x80\x94 two atlases over a "
+                "structure-of-arrays simulation")

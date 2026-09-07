@@ -44,7 +44,7 @@
  *
  * Veloren's own art is hand-painted wood and bone. Nothing here is an
  * image: the frames are ramps under noise inside a bevel, the minimap's
- * terrain is patterns::noise thresholded into bands, the item glyphs are
+ * terrain is mpattern::noise thresholded into bands, the item glyphs are
  * paths, and the valley behind is one merged mesh of voxel columns whose
  * colour is a vertex lane.
  *
@@ -60,19 +60,25 @@
  */
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/brush/PixelStyles.h>
+#include <sigilcompose/core/Instances.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/texture/Texture.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/style/Type.h>
 #include <sigilworld/kit/Kit.h>
 
 #include <cmath>
@@ -86,14 +92,22 @@
 #include <utility>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
+namespace mpattern = sigil::material::pattern;
+namespace field = sigil::material::field;
 namespace world = sigil::world;
 namespace material = sigil::material;
 namespace compose = sigil::compose;
 namespace weave = sigil::weave;
+namespace mskia = sigil::material::skia;
+namespace path = sigil::geometry::path;
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -106,33 +120,33 @@ namespace worldhud {
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
 // voxygen/src/hud/mod.rs, verbatim.
-constexpr SkColor4f kHp = hex(0x54A100);
-constexpr SkColor4f kLowHp = hex(0xED9608);
-constexpr SkColor4f kCritHp = hex(0xC9302B);
-constexpr SkColor4f kStamina = hex(0x4A9EBF);
-constexpr SkColor4f kXp = hex(0x9669AB);
-constexpr SkColor4f kPoise = hex(0xB30099);
-constexpr SkColor4f kPoiseTick = hex(0xB3E600);
-constexpr SkColor4f kEnemyHp = hex(0xED1A4A);
-constexpr SkColor4f kBuff = hex(0x10B01F);
-constexpr SkColor4f kDebuff = hex(0xC9302B);
-constexpr SkColor4f kQualityLow = hex(0x999999);
-constexpr SkColor4f kQualityCommon = hex(0xC9FFFF);
-constexpr SkColor4f kQualityModerate = hex(0x10B01F);
-constexpr SkColor4f kQualityHigh = hex(0x2E52E6);
-constexpr SkColor4f kQualityEpic = hex(0x944AED);
-constexpr SkColor4f kQualityLegendary = hex(0xEBC200);
-constexpr SkColor4f kQualityArtifact = hex(0xBD3D1C);
+constexpr SkColor4f kHp = hexColor(0x54A100);
+constexpr SkColor4f kLowHp = hexColor(0xED9608);
+constexpr SkColor4f kCritHp = hexColor(0xC9302B);
+constexpr SkColor4f kStamina = hexColor(0x4A9EBF);
+constexpr SkColor4f kXp = hexColor(0x9669AB);
+constexpr SkColor4f kPoise = hexColor(0xB30099);
+constexpr SkColor4f kPoiseTick = hexColor(0xB3E600);
+constexpr SkColor4f kEnemyHp = hexColor(0xED1A4A);
+constexpr SkColor4f kBuff = hexColor(0x10B01F);
+constexpr SkColor4f kDebuff = hexColor(0xC9302B);
+constexpr SkColor4f kQualityLow = hexColor(0x999999);
+constexpr SkColor4f kQualityCommon = hexColor(0xC9FFFF);
+constexpr SkColor4f kQualityModerate = hexColor(0x10B01F);
+constexpr SkColor4f kQualityHigh = hexColor(0x2E52E6);
+constexpr SkColor4f kQualityEpic = hexColor(0x944AED);
+constexpr SkColor4f kQualityLegendary = hexColor(0xEBC200);
+constexpr SkColor4f kQualityArtifact = hexColor(0xBD3D1C);
 
 // The frame material: Veloren's UI is carved bone over dark wood.
-constexpr SkColor4f kBoneHi = hex(0xD8CBA8);
-constexpr SkColor4f kBone = hex(0xA2947A);
-constexpr SkColor4f kBoneLo = hex(0x584E3D);
-constexpr SkColor4f kWood = hex(0x2A2118);
-constexpr SkColor4f kWoodLo = hex(0x160F0A);
-constexpr SkColor4f kTrack = hex(0x0B0906);
-constexpr SkColor4f kInk = hex(0xEDE6D4);
-constexpr SkColor4f kInkDim = hex(0x8C8271);
+constexpr SkColor4f kBoneHi = hexColor(0xD8CBA8);
+constexpr SkColor4f kBone = hexColor(0xA2947A);
+constexpr SkColor4f kBoneLo = hexColor(0x584E3D);
+constexpr SkColor4f kWood = hexColor(0x2A2118);
+constexpr SkColor4f kWoodLo = hexColor(0x160F0A);
+constexpr SkColor4f kTrack = hexColor(0x0B0906);
+constexpr SkColor4f kInk = hexColor(0xEDE6D4);
+constexpr SkColor4f kInkDim = hexColor(0x8C8271);
 
 // skillbar.rs dimensions, unscaled — the stage is wide enough to take
 // them, and scaling them would be the one thing that loses the study.
@@ -152,7 +166,7 @@ constexpr float kSlotsX = (kW - kSlotsW) * 0.5f;
 
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0, float weight = 0) {
-  sigil::weave::TextStyle s = sigil::compose::type(
+  sigil::weave::TextStyle s = sigil::weave::textStyle(
       {.size = size, .color = color, .track = tracking, .weight = weight});
   // Veloren draws every HUD string twice: black underneath, then the
   // colour on top. At 10px over terrain that is the whole legibility
@@ -170,7 +184,7 @@ inline Element track(float w, float h) {
   return box()
       .width(Dim(w))
       .height(Dim(h))
-      .fill(Material::solid(kTrack))
+      .fill(Paint::solid(kTrack))
       .foreground(styles::InnerShadow{{0, 0, 0, 0.85f}, {0, 2}, 3});
 }
 
@@ -180,15 +194,15 @@ inline Element boneFrame(float w, float h, float radius = 3) {
       .width(Dim(w))
       .height(Dim(h))
       .corners({radius})
-      .fill(Material::linear(
-          {0, 0}, {0, h}, {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}}))
+      .fill(Paint::linear({0, 0}, {0, h},
+                          {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}}))
       // The grain: Veloren's frames are carved, and a ramp with no noise
       // in it is a plastic one. It rides UNDER the bevel, so the carve
       // reads through the highlight rather than over it.
       .child(box()
                  .inset(0)
                  .corners({radius})
-                 .fill(patterns::noise(0.36f, 3, 1.0f))
+                 .fill(Paint::recipe(field::noise(0.36f, 3, 1.0f)))
                  .opacity(0.38f)
                  .blend(SkBlendMode::kMultiply))
       .foreground(styles::BevelEmboss{
@@ -211,15 +225,15 @@ inline Element bar(float frameW, float frameH, float innerW, float innerH,
                 .top(padY)
                 .width(Dim(innerW * decay))
                 .height(Dim(innerH))
-                .fill(Material::solid({kQualityEpic.fR, kQualityEpic.fG,
-                                       kQualityEpic.fB, 0.55f})));
+                .fill(Paint::solid({kQualityEpic.fR, kQualityEpic.fG,
+                                    kQualityEpic.fB, 0.55f})));
   e.child(
       box()
           .left(padX)
           .top(padY)
           .width(Dim(innerW * fraction))
           .height(Dim(innerH))
-          .fill(Material::linear(
+          .fill(Paint::linear(
               {0, 0}, {0, innerH},
               {{0.0f,
                 {std::min(1.0f, color.fR * 1.45f + 0.06f),
@@ -268,9 +282,10 @@ inline std::function<SkPath(SkSize)> glyphPath(Glyph g) {
         break;
       case Glyph::Frost:
         for (int i = 0; i < 3; ++i) {
-          const float a = (float)i * 1.0471976f;
-          const float dx = std::cos(a) * w * 0.36f,
-                      dy = std::sin(a) * h * 0.36f;
+          const SkPoint arm =
+              arrange::onRing((size_t)i, 6, {0, 0}, {w * 0.36f, h * 0.36f},
+                              0.0f, 6.2831853f, arrange::Turn::Closed);
+          const float dx = arm.fX, dy = arm.fY;
           b.moveTo(cx - dx, h * 0.5f - dy);
           b.lineTo(cx + dx, h * 0.5f + dy);
         }
@@ -331,8 +346,15 @@ inline float hash2(int x, int z) {
   return (float)((h ^ (h >> 16U)) & 0xFFFFFFu) / 16777216.0f;
 }
 
-/** One axis-aligned box, 24 vertices and 12 triangles with flat normals
- *  and one colour in the vertex lane. */
+/** One axis-aligned column: FIVE faces, not six, each carrying its own
+ *  fraction of the colour.
+ *
+ *  It is not a box primitive and does not want to be one. The camera
+ *  stands above the valley, so the underside is a tenth of the triangles
+ *  for nothing, and the top face at full colour against the sides at
+ *  0.72 is what makes a voxel field read as blocks rather than as a
+ *  surface. A generic six-faced box would draw a different picture at a
+ *  higher cost. */
 inline void addBox(gm::Mesh& out, glm::vec3 lo, glm::vec3 hi, glm::vec4 tint) {
   static const glm::vec3 kNormals[6] = {{0, 0, 1},  {0, 0, -1}, {1, 0, 0},
                                         {-1, 0, 0}, {0, 1, 0},  {0, -1, 0}};
@@ -443,18 +465,29 @@ struct WorldHud final : sketch::Set {
   std::shared_ptr<instancing::Atlas> slotAtlas;
   std::shared_ptr<instancing::Pool> slotPool;
 
-  weave::FontContext* fonts = nullptr;
+  /** The HUD's own scene, asked of the session once and held by it: a
+   *  scene standing on a device destroys the texture it painted into
+   *  when it goes, and one asked for per frame would be one held per
+   *  frame. */
   std::shared_ptr<compose::TextureScene> overlay;
   Element retained;
-  float lastSeconds = -1.0f;
-  world::Camera lens;
+  worldhud::gm::camera::Camera lens;
+
+  /** The terrain, cooked once and held for the sketch's life: it is a
+   *  function of nothing, and rebuilding twenty thousand triangles per
+   *  frame would be a statement about the terrain rather than about the
+   *  HUD. Held here and not in a static inside `describe`, since this file
+   *  is a dylib a reload unloads and a static outlives the code that
+   *  filled it. */
+  worldhud::gm::Mesh valley = worldhud::valley();
 
   void setup(sketch::SetContext& ctx) override {
     namespace wh = worldhud;
     ctx.canvas((int)kSceneSize.fWidth, (int)kSceneSize.fHeight);
     ctx.captureAt(6.0);
     ctx.background({0.086f, 0.118f, 0.165f, 1.0f});
-    fonts = &ctx.fonts;
+    overlay =
+        ctx.textureScene({(int)kSceneSize.fWidth, (int)kSceneSize.fHeight});
 
     lens.eye = wh::kEye;
     lens.target = wh::kLook;
@@ -472,9 +505,11 @@ struct WorldHud final : sketch::Set {
         {wh::kSlotFrame, wh::kSlotFrame});
     slotPool = std::make_shared<instancing::Pool>();
     for (int i = 0; i < wh::kSlotCount; ++i)
-      slotPool->add(
-          {i * (wh::kSlotFrame + wh::kSlotGap) + wh::kSlotFrame * 0.5f,
-           wh::kSlotFrame * 0.5f});
+      slotPool->add({arrange::cellRect({i, 0}, {wh::kSlotFrame, wh::kSlotFrame},
+                                       {wh::kSlotGap, 0})
+                             .fLeft +
+                         wh::kSlotFrame * 0.5f,
+                     wh::kSlotFrame * 0.5f});
     retained = hud();
   }
 
@@ -512,13 +547,20 @@ struct WorldHud final : sketch::Set {
 
   /** The overlay's quad: it stands a fixed distance in front of the eye
    *  and is exactly as wide and as tall as the frustum is there, so a
-   *  texture pixel and a plate pixel are the same pixel. */
+   *  texture pixel and a plate pixel are the same pixel.
+   *
+   *  THE EXTENT IS ASKED OF THE CAMERA, not of the field of view. The two
+   *  do not agree: this projection's centre stands a unit behind the eye,
+   *  so the frame at a distance is wider than the angle alone makes it,
+   *  and a quad sized from `2 d tan(fov/2)` is short of the frustum by
+   *  that unit — which is a resample of the whole overlay, the one thing
+   *  this quad exists to avoid. */
   world::Element overlayQuad(material::Texture texture) {
     const glm::vec3 forward = glm::normalize(lens.target - lens.eye);
     constexpr float kAt = 60.0f;
-    const float h =
-        2.0f * kAt * std::tan(lens.fovYDeg * 0.5f * 3.14159265358979f / 180.0f);
-    const float w = h * kSceneSize.fWidth / kSceneSize.fHeight;
+    const SkSize frame =
+        lens.extentAt(kAt, kSceneSize.fWidth / kSceneSize.fHeight);
+    const float h = frame.height(), w = frame.width();
     const glm::vec3 at = lens.eye + forward * kAt;
     material::Material surface =
         material::kit::unlit({.baseColor = {1, 1, 1, 1}});
@@ -537,9 +579,9 @@ struct WorldHud final : sketch::Set {
     driveTo((double)seconds);
 
     world::Element scene = world::Element().key("vale");
-    scene.child(world::Element().key("sun").light(world::sun(
+    scene.child(world::Element().key("sun").light(world::light::sun(
         {-0.44f, -0.78f, -0.44f}, {1.00f, 0.94f, 0.80f, 1.0f}, 1.05f)));
-    scene.child(world::Element().key("sky").light(world::sun(
+    scene.child(world::Element().key("sky").light(world::light::sun(
         {
             0.26f,
             0.52f,
@@ -547,21 +589,13 @@ struct WorldHud final : sketch::Set {
         },
         {0.42f, 0.56f, 0.78f, 1.0f}, 0.42f)));
 
-    // The valley is cooked once and held: it is a function of nothing,
-    // and rebuilding twenty thousand triangles per frame would be a
-    // statement about the terrain rather than about the HUD.
-    static const wh::gm::Mesh kValley = wh::valley();
     scene.child(world::Element()
                     .key("terrain")
-                    .mesh(kValley)
+                    .mesh(valley)
                     .fill(material::kit::surface(
                         {.baseColor = {1, 1, 1, 1}, .roughness = 0.92f}))
                     .tag("terrain"));
 
-    if (!overlay || seconds <= lastSeconds)
-      overlay = compose::TextureScene::make(
-          {(int)kSceneSize.fWidth, (int)kSceneSize.fHeight}, *fonts);
-    lastSeconds = seconds;
     // THE HUD IS DESCRIBED ONCE. Every bar on it is a bound Output on a
     // retained node, so the frames after the first cost a reconcile
     // against a tree that did not change — re-describing a hundred nodes
@@ -590,18 +624,18 @@ struct WorldHud final : sketch::Set {
                       .height(Dim(wh::kHealthInnerH))
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&hp)
-                      .fill(Material::linear({0, 0}, {0, wh::kHealthInnerH},
-                                             {{0.0f, hex(0x7FE000)},
-                                              {0.5f, wh::kHp},
-                                              {1.0f, hex(0x2F5C00)}})));
+                      .fill(Paint::linear({0, 0}, {0, wh::kHealthInnerH},
+                                          {{0.0f, hexColor(0x7FE000)},
+                                           {0.5f, wh::kHp},
+                                           {1.0f, hexColor(0x2F5C00)}})));
     stackEl.child(box()
                       .left(wh::kBarX)
                       .top(wh::kBarY)
                       .width(Dim(wh::kHealthW))
                       .height(Dim(wh::kHealthH))
                       .corners({2})
-                      .fill(Material::solid({wh::kCritHp.fR, wh::kCritHp.fG,
-                                             wh::kCritHp.fB, 0.55f}))
+                      .fill(Paint::solid({wh::kCritHp.fR, wh::kCritHp.fG,
+                                          wh::kCritHp.fB, 0.55f}))
                       .opacity(&lowPulse)
                       .blend(SkBlendMode::kPlus));
     stackEl.child(text(toU8("640 / 1030"), wh::type(11, wh::kInk, 0.8f))
@@ -623,7 +657,7 @@ struct WorldHud final : sketch::Set {
                       .height(Dim(wh::kEnergyInnerH))
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&energy)
-                      .fill(Material::solid(wh::kStamina)));
+                      .fill(Paint::solid(wh::kStamina)));
 
     // poise, with skillbar.rs's 3x10 ticks along it
     stackEl.child(
@@ -639,14 +673,23 @@ struct WorldHud final : sketch::Set {
                       .height(Dim(wh::kEnergyInnerH))
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&poise)
-                      .fill(Material::solid(wh::kPoise)));
-    for (int i = 1; i < 6; ++i)
-      stackEl.child(box()
-                        .left(ex + 2 + wh::kEnergyInnerW * (float)i / 6.0f)
-                        .top(wh::kPoiseY + 3)
-                        .width(Dim(3.0f))
-                        .height(Dim(10.0f))
-                        .fill(Material::solid(wh::kPoiseTick)));
+                      .fill(Paint::solid(wh::kPoise)));
+    // The ticks are a RAIL, not five boxes: one mark every sixth of the
+    // bar, three wide and ten tall, declared once as the ladder it is.
+    stackEl.child(
+        box()
+            .left(ex + 2)
+            .top(wh::kPoiseY + 3)
+            .width(Dim(wh::kEnergyInnerW))
+            .height(Dim(wh::kEnergyInnerH))
+            .foreground(styles::TickRail{.color = wh::kPoiseTick,
+                                         .pitch = wh::kEnergyInnerW / 6.0f,
+                                         .minor = 10.0f,
+                                         .major = 10.0f,
+                                         .width = 3.0f,
+                                         .majorEvery = 0,
+                                         .phase = 1.0f,
+                                         .edge = path::Edge::Top}));
     return stackEl;
   }
 
@@ -672,7 +715,10 @@ struct WorldHud final : sketch::Set {
                        .height(Dim(wh::kSlotFrame));
     rail.child(instances(slotAtlas, slotPool));
     for (int i = 0; i < wh::kSlotCount; ++i) {
-      const float x = i * (wh::kSlotFrame + wh::kSlotGap);
+      const float x =
+          arrange::cellRect({i, 0}, {wh::kSlotFrame, wh::kSlotFrame},
+                            {wh::kSlotGap, 0})
+              .fLeft;
       if (kSlots[i].filled)
         rail.child(
             box()
@@ -681,8 +727,8 @@ struct WorldHud final : sketch::Set {
                 .width(Dim(24.0f))
                 .height(Dim(24.0f))
                 .shape(wh::glyphPath(kSlots[i].glyph))
-                .fill(Material::linear(
-                    {0, 0}, {0, 24}, {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
+                .fill(Paint::linear({0, 0}, {0, 24},
+                                    {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
                 // several glyphs are line-only (frost, dash, bow):
                 // a fill alone leaves them invisible
                 .stroke(stroke(2.2f, Fill::color(wh::kBoneHi)))
@@ -691,17 +737,17 @@ struct WorldHud final : sketch::Set {
       // four of them are cooling down: the sweep Veloren draws as a dark
       // wipe over the icon
       if (i >= 1 && i <= 4)
-        rail.child(box()
-                       .left(x + 3)
-                       .top(3)
-                       .width(Dim(wh::kSlot - 4))
-                       .height(Dim(wh::kSlot - 4))
-                       .transformOrigin(0.5f, 0.0f)
-                       .scaleY(&cooldown[(size_t)i - 1])
-                       .fill(Material::linear(
-                           {0, 0}, {0, wh::kSlot - 4},
-                           {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
-                            {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}})));
+        rail.child(
+            box()
+                .left(x + 3)
+                .top(3)
+                .width(Dim(wh::kSlot - 4))
+                .height(Dim(wh::kSlot - 4))
+                .transformOrigin(0.5f, 0.0f)
+                .scaleY(&cooldown[(size_t)i - 1])
+                .fill(Paint::linear({0, 0}, {0, wh::kSlot - 4},
+                                    {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
+                                     {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}})));
       rail.child(text(toU8(kSlots[i].key), wh::type(9, wh::kInkDim, 0.6f))
                      .left(x + 4)
                      .top(wh::kSlotFrame - 13));
@@ -718,7 +764,7 @@ struct WorldHud final : sketch::Set {
                               .top(20)
                               .width(Dim(28.0f))
                               .height(Dim(6.0f))
-                              .fill(Material::solid(worldhud::kTrack))
+                              .fill(Paint::solid(worldhud::kTrack))
                               .child(box()
                                          .left(0)
                                          .top(0)
@@ -726,7 +772,7 @@ struct WorldHud final : sketch::Set {
                                          .height(Dim(6.0f))
                                          .transformOrigin(0.0f, 0.5f)
                                          .scaleX(&xp)
-                                         .fill(Material::solid(worldhud::kXp))))
+                                         .fill(Paint::solid(worldhud::kXp))))
                    .child(text(toU8("34"), wh::type(13, wh::kInk, 0.4f, 640))
                               .left(9)
                               .top(3)));
@@ -745,16 +791,16 @@ struct WorldHud final : sketch::Set {
         .top(28)
         .width(Dim(d))
         .height(Dim(d))
-        .opacity(animate(from(0.0f).to(1.0f), {420ms}))
+        .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
         .child(
             box()
                 .inset(0)
                 .corners({d * 0.5f})
                 .clip()
-                .fill(Material::solid(hex(0x2E4A2A)))
+                .fill(Paint::solid(hexColor(0x2E4A2A)))
                 .child(box()
                            .inset(0)
-                           .fill(patterns::noise(0.014f, 5, 3.0f))
+                           .fill(Paint::recipe(field::noise(0.014f, 5, 3.0f)))
                            .opacity(0.85f)
                            .blend(SkBlendMode::kMultiply))
                 // the height BANDS: three thresholds of one noise field,
@@ -762,68 +808,70 @@ struct WorldHud final : sketch::Set {
                 // as a texture
                 .child(box()
                            .inset(0)
-                           .fill(patterns::noise(0.030f, 4, 2.0f))
+                           .fill(Paint::recipe(field::noise(0.030f, 4, 2.0f)))
                            .opacity(0.55f)
                            .blend(SkBlendMode::kOverlay))
                 .child(box()
                            .inset(0)
-                           .fill(patterns::noise(0.070f, 2, 5.0f))
+                           .fill(Paint::recipe(field::noise(0.070f, 2, 5.0f)))
                            .opacity(0.30f)
                            .blend(SkBlendMode::kMultiply))
                 .child(box().inset(0).fill(
-                    Material::radial({d * 0.5f, d * 0.5f}, d * 0.55f,
-                                     {{0.0f, {0, 0, 0, 0}},
-                                      {0.72f, {0, 0, 0, 0.25f}},
-                                      {1.0f, {0, 0, 0, 0.75f}}})))
+                    Paint::radial({d * 0.5f, d * 0.5f}, d * 0.55f,
+                                  {{0.0f, {0, 0, 0, 0}},
+                                   {0.72f, {0, 0, 0, 0.25f}},
+                                   {1.0f, {0, 0, 0, 0.75f}}})))
                 // the rivers Veloren's world always has
-                .child(box()
-                           .inset(0)
-                           .fill(patterns::stripes(2, 47, hex(0x2F6FA8, 0.30f))
-                                     .material())
-                           .rotate(24.0f)
-                           .opacity(0.7f)))
+                .child(
+                    box()
+                        .inset(0)
+                        .fill(Pattern(mpattern::stripes(2, 47,
+                                                        mskia::toColor(hexColor(
+                                                            0x2F6FA8, 0.30f))))
+                                  .material())
+                        .rotate(24.0f)
+                        .opacity(0.7f)))
         // THE COMPASS ROSE, turning under the frame. It is a rose and not
         // a cross: small, at the middle, eight points, with the four
         // cardinal arms longer than the four between them.
-        .child(box()
-                   .left(d * 0.5f - 23)
-                   .top(d * 0.5f - 23)
-                   .width(Dim(46.0f))
-                   .height(Dim(46.0f))
-                   .rotate(&compass)
-                   .child(box()
-                              .inset(0)
-                              .shape(shapes::star(8, 0.34f))
-                              .fill(Material::solid({wh::kBoneHi.fR,
-                                                     wh::kBoneHi.fG,
-                                                     wh::kBoneHi.fB, 0.30f})))
-                   .child(box()
-                              .inset(9)
-                              .shape(shapes::star(4, 0.22f))
-                              .fill(Material::solid({wh::kBoneHi.fR,
-                                                     wh::kBoneHi.fG,
-                                                     wh::kBoneHi.fB, 0.62f}))))
+        .child(
+            box()
+                .left(d * 0.5f - 23)
+                .top(d * 0.5f - 23)
+                .width(Dim(46.0f))
+                .height(Dim(46.0f))
+                .rotate(&compass)
+                .child(box()
+                           .inset(0)
+                           .shape(shapes::star(8, 0.34f))
+                           .fill(Paint::solid({wh::kBoneHi.fR, wh::kBoneHi.fG,
+                                               wh::kBoneHi.fB, 0.30f})))
+                .child(box()
+                           .inset(9)
+                           .shape(shapes::star(4, 0.22f))
+                           .fill(Paint::solid({wh::kBoneHi.fR, wh::kBoneHi.fG,
+                                               wh::kBoneHi.fB, 0.62f}))))
         .child(box()
                    .left(d * 0.5f - 4)
                    .top(d * 0.5f - 4)
                    .width(Dim(8.0f))
                    .height(Dim(8.0f))
                    .shape(shapes::polygon(3))
-                   .fill(Material::solid(hex(0xFFE9A8))))
+                   .fill(Paint::solid(hexColor(0xFFE9A8))))
         .child(box()
                    .left(d * 0.30f)
                    .top(d * 0.36f)
                    .width(Dim(6.0f))
                    .height(Dim(6.0f))
                    .corners({3})
-                   .fill(Material::solid(wh::kQualityLegendary)))
+                   .fill(Paint::solid(wh::kQualityLegendary)))
         .child(box()
                    .left(d * 0.68f)
                    .top(d * 0.62f)
                    .width(Dim(6.0f))
                    .height(Dim(6.0f))
                    .corners({3})
-                   .fill(Material::solid(wh::kEnemyHp)))
+                   .fill(Paint::solid(wh::kEnemyHp)))
         // the ring
         .child(box()
                    .inset(0)
@@ -885,11 +933,11 @@ struct WorldHud final : sketch::Set {
               .width(Dim(30.0f))
               .height(Dim(30.0f))
               .corners({4})
-              .opacity(animate(from(0.0f).to(1.0f), {320ms}))
-              .translateY(animate(from(-10.0f).to(0.0f), {380ms}))
-              .fill(Material::linear(
+              .opacity(animate(motion::from(0.0f).to(1.0f), {320ms}))
+              .translateY(animate(motion::from(-10.0f).to(0.0f), {380ms}))
+              .fill(Paint::linear(
                   {0, 0}, {0, 30},
-                  {{0.0f, hex(0x2A2118)}, {1.0f, hex(0x120C08)}}))
+                  {{0.0f, hexColor(0x2A2118)}, {1.0f, hexColor(0x120C08)}}))
               .foreground(stroke(1.4f, Fill::color({p.color.fR, p.color.fG,
                                                     p.color.fB, 0.28f})))
               // THE DRAIN RING: the same outline stroked again, trimmed
@@ -905,7 +953,7 @@ struct WorldHud final : sketch::Set {
                          .bottom(0)
                          .width(Dim(30.0f))
                          .height(Dim(30.0f * (1.0f - p.left)))
-                         .fill(Material::solid({0, 0, 0, 0.62f}))
+                         .fill(Paint::solid({0, 0, 0, 0.62f}))
                          .zIndex(1))
               .child(text(toU8(p.label), wh::type(9, p.color, 0.6f, 640))
                          .zIndex(2)));
@@ -936,21 +984,22 @@ struct WorldHud final : sketch::Set {
                        .zIndex(6)
                        .staggerChildren(90ms);
     for (const Line& l : kLines)
-      feed.child(box()
-                     .row()
-                     .alignItems(Align::Center)
-                     .gap(7)
-                     .opacity(animate(from(0.0f).to(1.0f), {420ms}))
-                     .translateX(animate(from(-24.0f).to(0.0f), {480ms}))
-                     .child(box()
-                                .width(Dim(16.0f))
-                                .height(Dim(16.0f))
-                                .corners({2})
-                                .fill(Material::solid({l.color.fR * 0.28f,
-                                                       l.color.fG * 0.28f,
-                                                       l.color.fB * 0.28f, 1}))
-                                .foreground(stroke(1.0f, Fill::color(l.color))))
-                     .child(text(toU8(l.text), wh::type(11, l.color, 0.4f))));
+      feed.child(
+          box()
+              .row()
+              .alignItems(Align::Center)
+              .gap(7)
+              .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
+              .translateX(animate(motion::from(-24.0f).to(0.0f), {480ms}))
+              .child(box()
+                         .width(Dim(16.0f))
+                         .height(Dim(16.0f))
+                         .corners({2})
+                         .fill(Paint::solid({l.color.fR * 0.28f,
+                                             l.color.fG * 0.28f,
+                                             l.color.fB * 0.28f, 1}))
+                         .foreground(stroke(1.0f, Fill::color(l.color))))
+              .child(text(toU8(l.text), wh::type(11, l.color, 0.4f))));
     return feed;
   }
 
@@ -966,7 +1015,7 @@ struct WorldHud final : sketch::Set {
         .right(0)
         .top(96)
         .zIndex(6)
-        .opacity(animate(from(0.0f).to(1.0f),
+        .opacity(animate(motion::from(0.0f).to(1.0f),
                          {360ms, &choreograph::easeOutQuad, 220ms}))
         .child(text(toU8("CAVE TROLL"), wh::type(15, wh::kInk, 1.6f, 640)))
         .child(text(toU8("Lv 27"), wh::type(10, wh::kInkDim, 1.4f))
@@ -974,7 +1023,7 @@ struct WorldHud final : sketch::Set {
         .child(box()
                    .width(Dim(168.0f))
                    .height(Dim(9.0f))
-                   .fill(Material::solid(worldhud::kTrack))
+                   .fill(Paint::solid(worldhud::kTrack))
                    .foreground(
                        stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f})))
                    .child(box()
@@ -984,7 +1033,7 @@ struct WorldHud final : sketch::Set {
                               .height(Dim(7.0f))
                               .transformOrigin(0.0f, 0.5f)
                               .scaleX(&enemyHp)
-                              .fill(Material::solid(wh::kEnemyHp))));
+                              .fill(Paint::solid(wh::kEnemyHp))));
   }
 
   /** The HUD itself: everything Veloren draws over the world. */

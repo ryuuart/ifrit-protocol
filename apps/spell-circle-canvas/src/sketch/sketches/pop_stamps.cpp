@@ -32,26 +32,30 @@
 //   .smooth(strength, iterations) — drop it and the star sweep kinks.
 
 #include <include/core/SkMatrix.h>
-#include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilgeometry/kit/Sections.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 #include <memory>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
+namespace sections = sigil::geometry::sections;
 
 using namespace sigil::compose;
 namespace mesh = sigil::geometry::mesh;
 namespace camera = sigil::geometry::mesh::camera;
-namespace curve = sigil::geometry::mesh::curve;
-using sigil::geometry::mesh::pop;
+namespace pop = sigil::geometry::mesh::pop;
 namespace render = sigil::geometry::mesh::render;
 
 namespace {
@@ -96,16 +100,16 @@ struct PopStamps final : sketch::Sketch {
   mesh::Mesh tube, plates, crown, glints, ribbon;
   glm::mat4 crownPlace{1.0f};
 
-  /** The scene behind the sheet. A texture scene owns the surface its
-   *  image was taken from, so it is held for as long as the image is. */
-  std::shared_ptr<TextureScene> sheet;
-
-  /** An element tree painted to pixels, square, at a stated side. */
-  sk_sp<SkImage> bake(const Element& tree, sigil::weave::FontContext& f,
-                      int side) {
-    sheet = TextureScene::make({side, side}, f);
-    sheet->render(tree);
-    return sheet->image();
+  /** An element tree painted to pixels, square, at a stated side. The
+   *  session owns the scene the picture was taken from and lets it go
+   *  when the body declares again, so the sketch holds an image and
+   *  nothing else. */
+  static sk_sp<SkImage> bake(sketch::SketchContext& ctx, const Element& tree,
+                             int side) {
+    const std::shared_ptr<TextureScene> scene = ctx.textureScene({side, side});
+    if (!scene) return nullptr;
+    scene->render(tree);
+    return scene->image();
   }
 
   void draw(SkCanvas& canvas) const {
@@ -147,20 +151,21 @@ struct PopStamps final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background({0.051f, 0.051f, 0.075f, 1});
-    ctx.captureAt(1.0);
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                        .captureAt = 1.0,
+                        .background = SkColor4f{0.051f, 0.051f, 0.075f, 1}});
 
-    if (ctx.fonts) atlas = bake(atlasSheet(128), *ctx.fonts, 256);
+    atlas = bake(ctx, atlasSheet(128), 256);
 
     const std::vector<glm::vec3> ring = ringPoints();
     const glm::vec3 eye = {0, 260, 980};
 
-    tube = pop::on(ring)
-               .count(220)
-               .noise(26, 0.004f)
-               .sweep(curve::profile::circle(14), true,
-                      {.segments = 160, .scale = 11});
+    tube =
+        pop::on(ring)
+            .count(220)
+            .noise(26, 0.004f)
+            .sweep(sections::circle(14), true, {.segments = 160, .scale = 11});
 
     plates = pop::on(ring)
                  .count(900)
@@ -175,13 +180,13 @@ struct PopStamps final : sketch::Sketch {
                 .count(140)
                 .noise(20, 0.004f)
                 .smooth(0.5f, 2)
-                .sweep(curve::profile::fromPath(
+                .sweep(pop::profile::fromPath(
                            shapes::star(5, 14.0f / 30.0f)
                                .path({60, 60})
                                .makeTransform(SkMatrix::Translate(-30, -30))),
                        true,
                        {.segments = 160,
-                        .normals = curve::SweepOptions::Normals::Geometric});
+                        .normals = pop::SweepOptions::Normals::Geometric});
     crownPlace = camera::place({0, 255, -140}, 14, -10, 0, 0.85f);
     glints = pop::on(crown, 600).jitter(1.5f).stamps(mesh::quad(3, 3));
 
@@ -190,14 +195,17 @@ struct PopStamps final : sketch::Sketch {
                                 .window(0.5f, 0.5f)
                                 .noise(16, 0.004f)
                                 .smooth(0.6f, 3),
-                            curve::profile::line(), false,
+                            sections::line(), false,
                             {.segments = 120,
                              .scale = 42,
-                             .normals = curve::SweepOptions::Normals::Frame});
+                             .normals = pop::SweepOptions::Normals::Frame});
 
-    ctx.composer.render(custom([this](SkCanvas& canvas, const PaintContext&) {
-                          draw(canvas);
-                        }).inset(0));
+    // Keyed on the sink's own name: everything `draw` reads is cooked
+    // above, in this setup, and nothing after it moves.
+    ctx.composer.render(
+        custom("pop.stamps", [this](SkCanvas& canvas, const PaintContext&) {
+          draw(canvas);
+        }).inset(0));
   }
 };
 

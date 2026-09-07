@@ -9,7 +9,8 @@
 //   EMBER LINE ...... Brush{ .shaped(shapers::Rounded) } + a cased layer --
 //                     the classic two-rail metro pair (rounding from the
 //                     PIPELINE, the router stays sharp)
-//   STEEL SPUR ...... lines::railwayCarto LayerStyle -- osm-carto's verified
+//   STEEL SPUR ...... brush::presets::railwayCarto LayerStyle -- osm-carto's
+//   verified
 //                     dark line + white 50%-duty dash overlay (NOT ties)
 //   CURRENT LINE .... lines::Line with midCap chevrons + terminal arrow --
 //                     the polylinedecorator repeat pattern
@@ -39,23 +40,36 @@
 //   the palette block — one colour per line, and the legend reads them.
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Sdf.h>
+#include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/shape/Routers.h>
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilgeometry/kit/Shapers.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Shaper.h>
+#include <sigilmaterial/sdf/Sdf.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/style/Type.h>
 
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace path = sigil::geometry::path;
+namespace mskia = sigil::material::skia;
+namespace shapes = sigil::geometry::shapes;
+namespace shapers = sigil::geometry::shapers;
+namespace sdf = sigil::material::sdf;
+namespace weave = sigil::weave;
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -85,7 +99,7 @@ constexpr SkColor4f kAsphalt{0.23f, 0.25f, 0.32f, 1};
  *  raster resolves the two differently. */
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0) {
-  return sigil::compose::type(
+  return sigil::weave::textStyle(
       {.size = size, .color = color, .track = tracking, .color8 = true});
 }
 
@@ -103,9 +117,10 @@ inline Element station(const char* key, float x, float y, float size = 16) {
       .width(size)
       .height(size)
       .centerAt({x, y})
-      .fill(sdf::material(
-          sdf::circle(),
-          {.fill = kBone, .borderWidth = 2.5f, .borderColor = kInk}))
+      .fill(Paint::recipe(
+          sdf::material(sdf::circle(), {.fill = mskia::toColor(kBone),
+                                        .borderWidth = 2.5f,
+                                        .borderColor = mskia::toColor(kInk)})))
       .zIndex(6);
 }
 
@@ -159,9 +174,9 @@ struct NightNetwork final : sketch::Sketch {
   choreograph::Output<float> hubGlow{0};
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.captureAt(6.0);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     namespace ch = choreograph;
@@ -180,8 +195,8 @@ struct NightNetwork final : sketch::Sketch {
     drawOn(cyanReveal, 0.55f);
     drawOn(ringReveal, 0.70f);
 
-    ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ticker.add([this, &ticker](double) {
+      const double t = ticker.elapsed();
       hubGlow = 4.0f + 2.0f * (float)std::sin(t * 2.1);
       return true;
     });
@@ -196,8 +211,9 @@ struct NightNetwork final : sketch::Sketch {
     //    the Brush pipeline rounds, then the layer lays two rails whose
     //    dashes/params share one centerline (Lines.h keeps them in phase).
     Brush emberBrush;
-    emberBrush.shaped(kit::brush::shapers::Rounded{12.0f});
-    emberBrush.layer(lines::cased(2.6f, Fill::color(nn::kEmber), 7.0f));
+    emberBrush.shaped(shapers::Rounded{12.0f});
+    emberBrush.layer(
+        lines::presets::cased(2.6f, Fill::color(nn::kEmber), 7.0f));
 
     // -- 3. CURRENT LINE: the decorator pattern -- repeated
     //    mid-path chevrons + terminal arrow, tip AT the endpoint, body
@@ -221,10 +237,10 @@ struct NightNetwork final : sketch::Sketch {
                             .fill = Fill::color({0.13f, 0.27f, 0.40f, 0.9f})});
     river.layer(lines::Line{.width = routeW * 0.3f,
                             .fill = Fill::color({0.36f, 0.66f, 0.86f, 0.8f})},
-                {kit::brush::shapers::Offset{.px = -routeW * 1.95f}});
+                {shapers::Offset{.px = -routeW * 1.95f}});
     river.layer(lines::Line{.width = routeW * 0.3f,
                             .fill = Fill::color({0.36f, 0.66f, 0.86f, 0.8f})},
-                {kit::brush::shapers::Offset{.px = routeW * 1.95f}});
+                {shapers::Offset{.px = routeW * 1.95f}});
 
     // -- 5. NIGHT BUS: asymmetric casing from shapers::Offset. Positive
     //    offset = LEFT of travel, which is the engine's one convention: amber
@@ -233,28 +249,29 @@ struct NightNetwork final : sketch::Sketch {
     //    are separate strokes.
     lines::Line roadbed{.width = 13.0f, .fill = Fill::color(nn::kAsphalt)};
     Brush busLane;
-    busLane.shaped(kit::brush::shapers::Offset{.px = -9.5f});
+    busLane.shaped(shapers::Offset{.px = -9.5f});
     busLane.layer(lines::Line{.width = 3.0f,
                               .fill = Fill::color(nn::kAmber),
                               .dashIntervals = {13, 9}});
     Brush curb;
-    curb.shaped(kit::brush::shapers::Offset{.px = 8.5f});
+    curb.shaped(shapers::Offset{.px = 8.5f});
     curb.layer(lines::Line{.width = 1.3f,
                            .fill = Fill::color({0.85f, 0.86f, 0.90f, 0.75f})});
 
     // -- 6. ORBITAL: line layer + brush::Scatter layer -- real components
     //    INSTANCED along the route (snapshot-baked once, replayed per
     //    slot). dia. 190 circle -> circumference ~597 -> 8 stamps at 74.6.
-    Element ringStamp = box().width(11).height(11).fill(sdf::material(
-        sdf::circle(), {.fill = nn::kBone,
-                        .borderWidth = 2.0f,
-                        .borderColor = {0.30f, 0.18f, 0.48f, 1}}));
+    Element ringStamp =
+        box().width(11).height(11).fill(Paint::recipe(sdf::material(
+            sdf::circle(), {.fill = mskia::toColor(nn::kBone),
+                            .borderWidth = 2.0f,
+                            .borderColor = {0.30f, 0.18f, 0.48f, 1}})));
     Brush orbital;
     orbital.layer(lines::Line{.width = 3.2f, .fill = Fill::color(nn::kViolet)});
     orbital.layer(brush::Scatter{.art = ringStamp,
                                  .spacing = 74.6f,
                                  .alignToPath = false,
-                                 .reach = 12.0f});
+                                 .bleedPx = 12.0f});
 
     // -- 7. TWIN SERVICE: shared running as ALTERNATING two-color dashes
     //    (the network-map convention for two services on one track): two
@@ -288,13 +305,13 @@ struct NightNetwork final : sketch::Sketch {
     //    (drawn mouth->source, wide->narrow), in the map's own octilinear
     //    grammar per the Thames rule.
     Brush creek;
-    creek.layer(
-        brush::taper(2.2f, 9.0f, Fill::color({0.13f, 0.27f, 0.40f, 0.9f})));
+    creek.layer(brush::presets::taper(
+        2.2f, 9.0f, Fill::color({0.13f, 0.27f, 0.40f, 0.9f})));
 
     // -- 10. THE PIPELINE TRIO: three runs over IDENTICAL path points --
     //    only the geometry op differs (squiggly / zigzag / boxy). The
     //    whole point of the pipeline: restyle the line, never the route.
-    auto demoRun = [](Shaper op, SkColor4f c) {
+    auto demoRun = [](path::Shaper op, SkColor4f c) {
       Brush b;
       b.shaped(std::move(op));
       b.layer(lines::Line{.width = 2.2f, .fill = Fill::color(c)});
@@ -316,16 +333,18 @@ struct NightNetwork final : sketch::Sketch {
             .width(72)
             .height(72)
             .centerAt({436, 320})
-            .fill(sdf::material(sdf::star(8, 3.2f), {.fill = nn::kBone,
-                                                     .borderWidth = 2,
-                                                     .borderColor = nn::kInk,
-                                                     .glowRadius = 6,
-                                                     .glowColor = nn::kEmber})
+            .fill(Paint::recipe(
+                      sdf::material(sdf::star(8, 3.2f),
+                                    {.fill = mskia::toColor(nn::kBone),
+                                     .borderWidth = 2,
+                                     .borderColor = mskia::toColor(nn::kInk),
+                                     .glowRadius = 6,
+                                     .glowColor = mskia::toColor(nn::kEmber)}))
                       .uniform("uGlowR", &hubGlow))
             .zIndex(7);
 
     return stack()
-        .fill(Material::linear(
+        .fill(Paint::linear(
             {0, 0}, {0, nn::kH},
             {{0.0f, nn::kInkHigh}, {0.5f, nn::kInk}, {1.0f, nn::kInk}}))
         // ---- the waterway, beneath everything ----
@@ -349,8 +368,8 @@ struct NightNetwork final : sketch::Sketch {
                     routers::octilinear(14))
                    .inset(0)
                    .mask(by::spans(spans::upTo(&railReveal)))
-                   .style(lines::railwayCarto(1.6f, nn::kSteel,
-                                              {0.95f, 0.94f, 0.90f, 1}))
+                   .style(brush::presets::railwayCarto(
+                       1.6f, nn::kSteel, {0.95f, 0.94f, 0.90f, 1}))
                    .zIndex(3))
         // ---- the cased metro pair ----
         .child(rail({{"em_w"}, {"em1"}, {"hub"}, {"em2"}, {"em_e"}},
@@ -393,17 +412,19 @@ struct NightNetwork final : sketch::Sketch {
         // stamps can't follow this curvature continuously ----
         .child(box()
                    .inset(58, 452, nn::kW - 430, nn::kH - 548)
-                   .shape([](SkSize sz) {
-                     SkPathBuilder b;
-                     b.moveTo(0, sz.height() * 0.72f);
-                     b.cubicTo(sz.width() * 0.24f, sz.height() * -0.25f,
-                               sz.width() * 0.40f, sz.height() * 1.30f,
-                               sz.width() * 0.64f, sz.height() * 0.42f);
-                     b.cubicTo(sz.width() * 0.80f, sz.height() * -0.15f,
-                               sz.width() * 0.90f, sz.height() * 0.75f,
-                               sz.width() * 1.0f, sz.height() * 0.35f);
-                     return b.detach();
-                   })
+                   .shape(keyedShape(
+                       std::string_view("vine"),
+                       [](SkSize sz) {
+                         SkPathBuilder b;
+                         b.moveTo(0, sz.height() * 0.72f);
+                         b.cubicTo(sz.width() * 0.24f, sz.height() * -0.25f,
+                                   sz.width() * 0.40f, sz.height() * 1.30f,
+                                   sz.width() * 0.64f, sz.height() * 0.42f);
+                         b.cubicTo(sz.width() * 0.80f, sz.height() * -0.15f,
+                                   sz.width() * 0.90f, sz.height() * 0.75f,
+                                   sz.width() * 1.0f, sz.height() * 0.35f);
+                         return b.detach();
+                       }))
                    .foreground(brush::artAlong(nn::vineArt(), 14, 5))
                    .zIndex(3))
         // ---- the saltmarsh: Sk2D lattice hatch on a blob field ----
@@ -413,33 +434,31 @@ struct NightNetwork final : sketch::Sketch {
                    .centerAt({760, 524})
                    .shape(shapes::blob(7, 0.16f))
                    .fill(Fill::color({0.10f, 0.20f, 0.20f, 0.55f}))
-                   .background(lines::hatch(
+                   .background(lines::presets::hatch(
                        Fill::color({0.36f, 0.72f, 0.62f, 0.5f}), 7, 1.1f, -32))
                    .zIndex(1))
         // ---- the pipeline trio: identical points, different ops ----
+        .child(
+            box()
+                .inset(49, 554, nn::kW - 232, nn::kH - 581)
+                .shape(demoPath)
+                .stroke(demoRun(shapers::Wave{.amplitude = 4, .wavelength = 28},
+                                nn::kCyan))
+                .zIndex(3))
         .child(box()
-                   .inset(49, 554, nn::kW - 232, nn::kH - 581)
+                   .inset(49, 580, nn::kW - 232, nn::kH - 607)
                    .shape(demoPath)
-                   .stroke(demoRun(kit::brush::shapers::Wave{.amplitude = 4,
-                                                             .wavelength = 28},
-                                   nn::kCyan))
+                   .stroke(demoRun(
+                       shapers::Zigzag{.amplitude = 4, .wavelength = 28},
+                       nn::kAmber))
                    .zIndex(3))
-        .child(
-            box()
-                .inset(49, 580, nn::kW - 232, nn::kH - 607)
-                .shape(demoPath)
-                .stroke(demoRun(kit::brush::shapers::Zigzag{.amplitude = 4,
-                                                            .wavelength = 28},
-                                nn::kAmber))
-                .zIndex(3))
-        .child(
-            box()
-                .inset(49, 606, nn::kW - 232, nn::kH - 633)
-                .shape(demoPath)
-                .stroke(demoRun(kit::brush::shapers::Square{.amplitude = 4,
-                                                            .wavelength = 28},
-                                nn::kViolet))
-                .zIndex(3))
+        .child(box()
+                   .inset(49, 606, nn::kW - 232, nn::kH - 633)
+                   .shape(demoPath)
+                   .stroke(demoRun(
+                       shapers::Square{.amplitude = 4, .wavelength = 28},
+                       nn::kViolet))
+                   .zIndex(3))
         // ---- waypoint pins (invisible) ----
         .child(nn::pin("rv0", 692, 4))
         .child(nn::pin("rv1", 654, 144))

@@ -1,5 +1,7 @@
 // Scene: Knuth-Plass vs greedy, hyphenation, last-line modes.
 #include <include/core/SkPaint.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <array>
 #include <cmath>
@@ -42,7 +44,7 @@ class KnuthPlassScene final : public Scene {
     // frame, so most frames pose the *same* problem as the last — quantize
     // and reuse the cached layouts instead of re-breaking 2× per frame.
     // Sub-pixel measure changes are invisible anyway.
-    const float measure = kit::quantize(
+    const float measure = sigil::core::quantizeKey(
         canvasWidth * 0.36f *
         (1.0f + 0.10f * std::sin(static_cast<float>(elapsedSeconds) * 0.5f)));
 
@@ -56,7 +58,7 @@ class KnuthPlassScene final : public Scene {
           options.knuthPlass.minimumIntervalWidth = fontSize * 3;
           options.overflow.ellipsis = u"…";
 
-          const kit::Stopwatch layoutTime;
+          const sigil::measure::Stopwatch layoutTime;
           for (int pass = 0; pass < 2; ++pass) {
             options.lineBreakStrategy = pass == 0
                                             ? LineBreakStrategy::kGreedy
@@ -68,7 +70,7 @@ class KnuthPlassScene final : public Scene {
             m_layouts[pass] =
                 layoutParagraph(fontContext, m_body.paragraph, flow, options);
           }
-          layoutMicroseconds = layoutTime.microseconds();
+          layoutMicroseconds = layoutTime.elapsedUs();
         });
 
     canvas->clear(kPaper);

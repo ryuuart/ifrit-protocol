@@ -6,12 +6,15 @@
  * sibling references against its directory.
  */
 
+#include <sigilio/source/Source.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cstring>
-#include <fstream>
 #include <glm/gtc/matrix_transform.hpp>
+#include <optional>
 #include <string>
+#include <utility>
 
 #include "Internal.h"
 #include "sigilgeometry/mesh/codec/Decode.h"
@@ -158,8 +161,13 @@ std::optional<Model> model(const void* bytes, size_t size,
   if (ext == "abc") return alembic(bytes, size);
   if (ext == "geo") return importHoudiniGeo(asText(bytes, size));
 
-  // No useful extension: sniff. GLB and Ogawa magics and JSON are
-  // unambiguous; binary STL is identified by its size arithmetic.
+  // No useful extension: sniff, and the table above is the list to cover —
+  // a format the dispatcher names by extension but cannot recognise by
+  // sight is unreachable for every blob that arrives over a wire, out of
+  // a cache, or from a URL path ending in nothing. GLB and Ogawa magics
+  // and JSON are unambiguous; a .geo and a PLY are known by their opening
+  // line; binary STL is identified by its size arithmetic. OBJ is the one
+  // that is not here, having no signature to be known by.
   if (size >= 4 && std::memcmp(bytes, "glTF", 4) == 0)
     return importGltf(bytes, size, pathHint, resolve);
   if (size >= 5 && std::memcmp(bytes, "Ogawa", 5) == 0)
@@ -176,26 +184,18 @@ std::optional<Model> model(const void* bytes, size_t size,
 }
 
 std::optional<Model> model(const std::filesystem::path& file) {
-  std::ifstream stream(file, std::ios::binary | std::ios::ate);
-  if (!stream) return std::nullopt;
-  const std::streamsize size = stream.tellg();
-  stream.seekg(0);
-  std::vector<std::byte> bytes((size_t)size);
-  if (!stream.read(reinterpret_cast<char*>(bytes.data()), size))
-    return std::nullopt;
+  // Resource ACCESS is SigilIO's; what the bytes MEAN is this library's.
+  const std::optional<io::Bytes> read = io::readBytes(file);
+  if (!read) return std::nullopt;
+  const std::vector<std::byte>& bytes = read->bytes;
   const std::filesystem::path dir = file.parent_path();
   const Resolver siblings =
       [dir =
            dir](std::string_view uri) -> std::optional<std::vector<std::byte>> {
-    std::ifstream ref(dir / std::filesystem::path(std::string(uri)),
-                      std::ios::binary | std::ios::ate);
-    if (!ref) return std::nullopt;
-    const std::streamsize refSize = ref.tellg();
-    ref.seekg(0);
-    std::vector<std::byte> refBytes((size_t)refSize);
-    if (!ref.read(reinterpret_cast<char*>(refBytes.data()), refSize))
-      return std::nullopt;
-    return refBytes;
+    std::optional<io::Bytes> beside =
+        io::readBytes(dir / std::filesystem::path(std::string(uri)));
+    if (!beside) return std::nullopt;
+    return std::move(beside->bytes);
   };
   return model(bytes.data(), bytes.size(), file.filename().string(), siblings);
 }

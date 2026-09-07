@@ -1,64 +1,129 @@
-// blend_options.cpp — WHAT `blend::Options` DECIDES about a run between
-// two outlines.
-// =============================================================================
-// The blend tool interpolates OUTLINES, not pixels: two paths are
-// resampled by arc length, their contours aligned cyclically, and every
-// intermediate is a real path that could be stroked, filled or handed to
-// any other operator. What the options struct settles is how many of
-// them there are, what rides along with them, and what a third key does
-// to the run. Four bands, one question each.
-//
-//   1. HOW MANY, STATED. `Spacing::Steps` is a count the author picks —
-//      eight intermediates between a five-point star and a circle. The
-//      correspondence is what makes the run readable: arms shorten and
-//      the hub swells rather than points wandering across each other.
-//   2. A THIRD KEY. `make()` takes a span, and the spine is split into
-//      one span per key PAIR, so a waypoint bends the run without
-//      changing how it is spaced. Colour rides the same parameter.
-//   3. WHAT ELSE INTERPOLATES. A Key with no fill and a `stroke` carries
-//      its stroke WIDTH across too, so the run thins as it goes.
-//   4. HOW MANY, DERIVED. `Spacing::SmoothColor` is not a count: the
-//      blend chooses one such that adjacent steps differ by less than
-//      the eye resolves, so the run reads as a continuous field rather
-//      than a stack of shapes. Nothing on the left names a step count;
-//      the colour distance does. Beside it, two OPEN waves blended
-//      stroke to stroke at a stated count — an open path has no inside,
-//      so the whole figure is the interpolated outline, and the count is
-//      what decides whether it reads as a ribbon or as rails.
-//
-// Which spacing is right is a question about the PICTURE, which is why
-// both spellings stand on one sheet.
-//
-// EDIT THESE FIRST
-//   Options::steps        — intermediates per key pair.
-//   Options::samples      — arc-length samples per contour while
-//                           interpolating; low values show the polygon.
-//   Options::smoothOutlines — fit each step with cubics instead.
-//   the ribbon's steps    — under about twenty it separates into rails.
+/** @file
+ * blend_options — what `blend::Options` decides about a run between two
+ * outlines.
+ *
+ * The blend tool interpolates OUTLINES, not pixels: two paths are
+ * resampled by arc length, their contours aligned cyclically, and every
+ * intermediate is a real path that could be stroked, filled or handed to
+ * any other operator. What the options struct settles is how many
+ * intermediates there are, what rides along with them, what a third key
+ * does to the run, and — the last two bands — where the run travels at
+ * all. Six bands, one question each.
+ *
+ *   1. HOW MANY, STATED. `Spacing::Steps` is a count the author picks —
+ *      eight intermediates between a five-point star and a circle. The
+ *      correspondence is what makes the run readable: arms shorten and
+ *      the hub swells rather than points wandering across each other.
+ *   2. A THIRD KEY. `make()` takes a span, and the spine is split into
+ *      one span per key PAIR, so a waypoint bends the run without
+ *      changing how it is spaced. Colour rides the same parameter.
+ *   3. WHAT ELSE INTERPOLATES. A Key with no fill and a `stroke` carries
+ *      its stroke WIDTH across too, so the run thins as it goes.
+ *   4. HOW MANY, DERIVED. `Spacing::SmoothColor` is not a count: the
+ *      blend chooses one such that adjacent steps differ by less than the
+ *      eye resolves, so the run reads as a continuous field rather than a
+ *      stack of shapes. Nothing names a step count; the colour distance
+ *      does. Beside it, two OPEN waves blended stroke to stroke at a
+ *      stated count — an open path has no inside, so the whole figure is
+ *      the interpolated outline, and the count is what decides whether it
+ *      reads as a ribbon or as rails.
+ *   5. WHERE IT TRAVELS. Without a spine the steps walk the straight line
+ *      between the keys' centroids. `options.spine` replaces that line,
+ *      and `Spacing::Distance` measures the walk in px OF SPINE rather
+ *      than as a count — so the density stays even wherever the curve
+ *      doubles back, which a count cannot do.
+ *   6. WHICH WAY THEY FACE. `Orientation::AlignToPath` turns each step to
+ *      the spine's tangent. Against band 5's `AlignToPage` — the same
+ *      spine, the same spacing, the steps upright — this is the
+ *      difference between beads on a wire and confetti on a line.
+ *
+ * The spine both spine bands walk is an Archimedean spiral, the shape
+ * that makes those two dials visible at once: the tangent turns through
+ * more than two full revolutions, and the arc length per revolution
+ * grows, so a count would crowd the middle and starve the rim.
+ *
+ * Which spacing is right is a question about the PICTURE, which is why
+ * every spelling stands on one sheet.
+ *
+ * EDIT THESE FIRST
+ *   Options::steps          — intermediates per key pair.
+ *   Options::samples        — arc-length samples per contour while
+ *                             interpolating; low values show the polygon.
+ *   Options::smoothOutlines — fit each step with cubics instead.
+ *   Options::distance       — px of spine between steps, in bands 5 and 6.
+ *   the ribbon's steps      — under about twenty it separates into rails.
+ */
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/blend/Blend.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <cmath>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace sketch = sigil::sketch;
+namespace arrange = sigil::geometry::arrange;
+namespace blend = sigil::geometry::path::blend;
+namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-namespace blend = sigil::geometry::path::blend;
+using sigil::compose::toU8;
 
 namespace {
 
-/** A shape generator's outline at a diameter, centred on a point. The
- *  shape kit inscribes its figures in a box at the origin; every figure
- *  on this sheet is placed by its centre instead. */
+constexpr float kBand = 1140;      // a full-width band's drawn width, px
+constexpr float kRun = 150;        // the height of a run band
+constexpr float kWide = 210;       // the height of the derived-count band
+constexpr float kSpine = 300;      // one spine cell, square-ish
+constexpr float kSpineCell = 561;  // (kBand - the gap between the two) / 2
+
+constexpr SkColor4f kCellGround{0.085f, 0.085f, 0.105f, 1};
+
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.055f, 0.055f, 0.075f, 1};
+  look.palette.ink = {0.90f, 0.91f, 0.94f, 1};
+  look.palette.ash = {0.56f, 0.58f, 0.66f, 1};
+  look.palette.rule = {0.19f, 0.20f, 0.24f, 1};
+  look.type.title = {.size = 15, .track = 2.2f};
+  look.type.subtitle = {.size = 11, .track = 0.7f};
+  look.type.footer = {.size = 10, .track = 0.3f};
+  look.type.captionLabel = {.size = 12, .track = 0.6f};
+  look.type.captionNote = {.size = 11, .track = 0.3f};
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 24;
+  look.spacing.marginBottom = 18;
+  return look;
+}
+
+/** The caption voice, measured to the cell it sits under: a note wider
+ *  than its own picture would widen the cell and push its neighbour off
+ *  the sheet. */
+/** A generator's outline at a diameter, centred on a point. The shape
+ *  kit inscribes its figures in a box at the origin; every figure on
+ *  this sheet is placed by its centre instead. */
 template <class Shape>
 SkPath at(const Shape& shape, float radius, SkPoint center) {
   return shape.path({radius * 2, radius * 2})
       .makeTransform(
           SkMatrix::Translate(center.fX - radius, center.fY - radius));
+}
+
+/** A generator's outline centred on the ORIGIN — a spined blend places
+ *  its own steps, so its keys carry no position of their own. */
+template <class Shape>
+SkPath centred(const Shape& shape, float radius) {
+  return shape.path({radius * 2, radius * 2})
+      .makeTransform(SkMatrix::Translate(-radius, -radius));
 }
 
 /** An OPEN sine run from one point to another. Open on purpose: it is
@@ -68,7 +133,8 @@ SkPath wave(SkPoint from, SkPoint to, float amplitude, int cycles) {
   SkPathBuilder b;
   const int n = 96;
   for (int i = 0; i <= n; ++i) {
-    const float t = (float)i / (float)n;
+    const float t = arrange::along(0.0f, 1.0f, (size_t)i, (size_t)n + 1,
+                                   arrange::Turn::Open);
     const float x = from.fX + (to.fX - from.fX) * t;
     const float y = from.fY + (to.fY - from.fY) * t +
                     amplitude * std::sin(t * (float)cycles * 6.2831853f);
@@ -77,83 +143,178 @@ SkPath wave(SkPoint from, SkPoint to, float amplitude, int cycles) {
   return b.detach();
 }
 
+using Painter = void (*)(SkCanvas&);
+
+Element band(std::string key, float width, float height, const char* call,
+             const char* note, Painter paint) {
+  return sketch::kit::caption(
+      width, toU8(call), toU8(note),
+      custom(std::move(key),
+             [paint](SkCanvas& canvas, const PaintContext&) { paint(canvas); })
+          .width(width)
+          .height(height)
+          .fill(Fill::color(kCellGround)));
+}
+
+// 1 — the two-key run at a stated count.
+void statedCount(SkCanvas& canvas) {
+  blend::Key from{at(shapes::star(5, 30.0f / 70.0f), 62, {80, kRun / 2}),
+                  {1.0f, 0.42f, 0.30f, 1}};
+  blend::Key to{at(shapes::circle(), 56, {kBand - 80, kRun / 2}),
+                {0.30f, 0.62f, 1.0f, 1}};
+  blend::Options options;
+  options.steps = 8;
+  blend::draw(canvas, blend::make(from, to, options));
+}
+
+// 2 — a waypoint between the ends.
+void waypoint(SkCanvas& canvas) {
+  const blend::Key keys[3] = {
+      {at(shapes::star(4, 28.0f / 70.0f), 62, {80, kRun / 2}),
+       {1.0f, 0.85f, 0.25f, 1}},
+      {at(shapes::squircle(3.6f), 54, {kBand / 2, kRun / 2 - 28}),
+       {0.35f, 1.0f, 0.65f, 1}},
+      {at(shapes::star(12, 52.0f / 66.0f), 58, {kBand - 80, kRun / 2}),
+       {0.75f, 0.4f, 1.0f, 1}}};
+  blend::Options options;
+  options.steps = 5;
+  options.smoothOutlines = true;
+  blend::draw(canvas, blend::make(keys, options));
+}
+
+// 3 — stroke width and stroke colour interpolate as well.
+void strokes(SkCanvas& canvas) {
+  blend::Key from{at(shapes::star(6, 40.0f / 72.0f), 62, {80, kRun / 2}),
+                  {0, 0, 0, 0}};
+  from.stroke = SkColor4f{0.2f, 0.9f, 1.0f, 1};
+  from.strokeWidth = 6;
+  blend::Key to{at(shapes::circle(), 56, {kBand - 80, kRun / 2}), {0, 0, 0, 0}};
+  to.stroke = SkColor4f{1.0f, 0.35f, 0.75f, 1};
+  to.strokeWidth = 1;
+  blend::Options options;
+  options.steps = 14;
+  options.smoothOutlines = true;
+  blend::draw(canvas, blend::make(from, to, options));
+}
+
+// 4 — the count is a consequence of the colours, not an input; and the
+// same question asked of two open runs at a stated count.
+void derivedCount(SkCanvas& canvas) {
+  {
+    blend::Key from{at(shapes::squircle(3.2f), 96, {200, kWide / 2}),
+                    {0.08f, 0.10f, 0.35f, 1}};
+    blend::Key to{at(shapes::circle(), 16, {222, kWide / 2 - 18}),
+                  {1.0f, 0.95f, 0.55f, 1}};
+    blend::Options options;
+    options.spacing = blend::Spacing::SmoothColor;
+    options.smoothOutlines = true;
+    blend::draw(canvas, blend::make(from, to, options));
+  }
+  {
+    blend::Key from{wave({470, 40}, {kBand - 40, 52}, 24, 3), {0, 0, 0, 0}};
+    from.stroke = SkColor4f{0.15f, 0.85f, 1.0f, 0.9f};
+    from.strokeWidth = 2.5f;
+    blend::Key to{wave({450, kWide - 40}, {kBand - 60, kWide - 30}, 38, 2),
+                  {0, 0, 0, 0}};
+    to.stroke = SkColor4f{1.0f, 0.3f, 0.75f, 0.9f};
+    to.strokeWidth = 2.5f;
+    blend::Options options;
+    options.steps = 42;
+    blend::draw(canvas, blend::make(from, to, options));
+  }
+}
+
+/** Bands 5 and 6: the same run over the same spiral, spaced by distance,
+ *  differing only in what `orientation` says. */
+void spined(SkCanvas& canvas, blend::Orientation orientation) {
+  blend::Key from{centred(shapes::star(3, 16.0f / 34.0f), 30),
+                  {1.0f, 0.9f, 0.3f, 0.95f}};
+  blend::Key to{centred(shapes::star(7, 12.0f / 30.0f), 26),
+                {0.4f, 0.5f, 1.0f, 0.95f}};
+  blend::Options options;
+  options.spacing = blend::Spacing::Distance;
+  options.distance = 30;
+  // The spiral is inscribed in a square inside the cell, so both cells
+  // walk one spine and only the orientation differs.
+  const float side = kSpine - 40;
+  options.spine =
+      shapes::spiral(2.2f)
+          .path({side, side})
+          .makeTransform(SkMatrix::Translate((kSpineCell - side) / 2, 20));
+  options.orientation = orientation;
+  options.smoothOutlines = true;
+  blend::draw(canvas, blend::make(from, to, options));
+}
+
+void spineUpright(SkCanvas& canvas) {
+  spined(canvas, blend::Orientation::AlignToPage);
+}
+void spineTurned(SkCanvas& canvas) {
+  spined(canvas, blend::Orientation::AlignToPath);
+}
+
 }  // namespace
 
 struct BlendOptions final : sketch::Sketch {
-  void draw(SkCanvas& canvas) const {
-    // 1 — the two-key run at a stated count.
-    {
-      blend::Key from{at(shapes::star(5, 30.0f / 70.0f), 70, {110, 120}),
-                      {1.0f, 0.42f, 0.30f, 1}};
-      blend::Key to{at(shapes::circle(), 64, {1090, 120}),
-                    {0.30f, 0.62f, 1.0f, 1}};
-      blend::Options options;
-      options.steps = 8;
-      blend::draw(canvas, blend::make(from, to, options));
-    }
-    // 2 — a waypoint between the ends.
-    {
-      const blend::Key keys[3] = {
-          {at(shapes::star(4, 28.0f / 70.0f), 70, {110, 320}),
-           {1.0f, 0.85f, 0.25f, 1}},
-          {at(shapes::squircle(3.6f), 60, {600, 320}), {0.35f, 1.0f, 0.65f, 1}},
-          {at(shapes::star(12, 52.0f / 66.0f), 66, {1090, 320}),
-           {0.75f, 0.4f, 1.0f, 1}}};
-      blend::Options options;
-      options.steps = 5;
-      options.smoothOutlines = true;
-      blend::draw(canvas, blend::make(keys, options));
-    }
-    // 3 — stroke width and stroke colour interpolate as well.
-    {
-      blend::Key from{at(shapes::star(6, 40.0f / 72.0f), 72, {110, 520}),
-                      {0, 0, 0, 0}};
-      from.stroke = SkColor4f{0.2f, 0.9f, 1.0f, 1};
-      from.strokeWidth = 6;
-      blend::Key to{at(shapes::circle(), 64, {1090, 520}), {0, 0, 0, 0}};
-      to.stroke = SkColor4f{1.0f, 0.35f, 0.75f, 1};
-      to.strokeWidth = 1;
-      blend::Options options;
-      options.steps = 14;
-      options.smoothOutlines = true;
-      blend::draw(canvas, blend::make(from, to, options));
-    }
-    // 4a — the count is a consequence of the colours, not an input.
-    {
-      blend::Key from{at(shapes::squircle(3.2f), 160, {280, 790}),
-                      {0.08f, 0.10f, 0.35f, 1}};
-      blend::Key to{at(shapes::circle(), 26, {305, 760}),
-                    {1.0f, 0.95f, 0.55f, 1}};
-      blend::Options options;
-      options.spacing = blend::Spacing::SmoothColor;
-      options.smoothOutlines = true;
-      blend::draw(canvas, blend::make(from, to, options));
-    }
-    // 4b — two open runs, blended stroke to stroke at a stated count.
-    {
-      blend::Key from{wave({640, 680}, {1180, 700}, 30, 3), {0, 0, 0, 0}};
-      from.stroke = SkColor4f{0.15f, 0.85f, 1.0f, 0.9f};
-      from.strokeWidth = 2.5f;
-      blend::Key to{wave({620, 880}, {1160, 900}, 48, 2), {0, 0, 0, 0}};
-      to.stroke = SkColor4f{1.0f, 0.3f, 0.75f, 0.9f};
-      to.strokeWidth = 2.5f;
-      blend::Options options;
-      options.steps = 42;
-      blend::draw(canvas, blend::make(from, to, options));
-    }
-  }
-
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1240, 980);
-    ctx.background({0.055f, 0.055f, 0.075f, 1});
-    ctx.captureAt(1.0);
-    ctx.composer.render(custom([this](SkCanvas& canvas, const PaintContext&) {
-                          draw(canvas);
-                        }).inset(0));
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = {1200, 1330}});
+    // Every step is computed from the keys and the options; nothing here
+    // reads the clock.
+    ctx.captureAt(0.05);
+
+    std::vector<Element> bands;
+    bands.push_back(band("steps", kBand, kRun, "Options{.steps = 8}",
+                         "a count the author picks \xe2\x80\x94 the arms "
+                         "shorten and the hub swells, because the contours "
+                         "are aligned before anything is interpolated",
+                         statedCount));
+    bands.push_back(band("waypoint", kBand, kRun,
+                         "make({a, b, c}, {.steps = 5, .smoothOutlines})",
+                         "a third key splits the spine into one span per "
+                         "PAIR: the run bends without its spacing changing",
+                         waypoint));
+    bands.push_back(band("stroke", kBand, kRun,
+                         "Key{.stroke, .strokeWidth} \xc2\xb7 steps = 14",
+                         "a key with no fill carries its stroke WIDTH "
+                         "across too, so the run thins from 6 px to 1",
+                         strokes));
+    bands.push_back(
+        band("derived", kBand, kWide,
+             "Spacing::SmoothColor \xc2\xb7 and two OPEN keys at steps = 42",
+             "left: no count is named \xe2\x80\x94 the blend picks one so "
+             "adjacent steps differ by less than the eye resolves. right: "
+             "an open path has no inside, so the count decides between a "
+             "ribbon and rails",
+             derivedCount));
+
+    Element spineRow = kit::cells(
+        {.cells = {band("spine.page", kSpineCell, kSpine,
+                        "Spacing::Distance{30} \xc2\xb7 spine = spiral(2.2) "
+                        "\xc2\xb7 AlignToPage",
+                        "the walk is measured in px of SPINE, so the "
+                        "density holds where a count would crowd the middle "
+                        "and starve the rim; the beads stay upright",
+                        spineUpright),
+                   band("spine.path", kSpineCell, kSpine,
+                        "the same run \xc2\xb7 AlignToPath",
+                        "each step turns to the tangent \xe2\x80\x94 beads "
+                        "on a wire, against confetti on a line beside it",
+                        spineTurned)},
+         .gap = 18});
+    bands.push_back(std::move(spineRow));
+
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("BLEND OPTIONS \xc2\xb7 how many steps, "
+                       "what rides along, and where they walk"),
+         .subtitle = toU8("path::blend interpolates OUTLINES: "
+                          "every intermediate is a real path"),
+         .footer = toU8("Sketchbook \xc2\xb7 blend_options")},
+        kit::cells({.cells = std::move(bands), .column = true, .gap = 18})));
   }
 };
 
-SIGIL_SKETCH(BlendOptions, "Kit · API",
-             "blend::Options — a stated step count, a third key, the "
-             "stroke width carried across, and SmoothColor picking its "
-             "own count")
+SIGIL_SKETCH(BlendOptions, "Kit \xc2\xb7 API",
+             "blend::Options \xe2\x80\x94 a stated step count, a third key, "
+             "the stroke width carried across, SmoothColor picking its own "
+             "count, and a spiral spine walked upright and turned")

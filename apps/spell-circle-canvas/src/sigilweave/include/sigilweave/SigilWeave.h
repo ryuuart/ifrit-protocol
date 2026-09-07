@@ -5,11 +5,10 @@
  *
  * Umbrella header for the SigilWeave engine — a cache-first Skia text
  * layout library built directly on HarfBuzz and ICU (no
- * SkParagraph/SkShaper). Transitional: it pulls in every engine feature so
- * a consumer written against one flat header keeps compiling, and it links
+ * SkParagraph/SkShaper). It pulls in every engine feature and links
  * against the `SigilWeave` interface target, which is every engine
- * archive. New code includes the feature headers it uses, spelled
- * `<sigilweave/<feature>/Name.h>`; README.md in this directory is the map.
+ * archive. A consumer of one feature includes that feature's header,
+ * spelled `<sigilweave/<feature>/Name.h>`.
  *
  * The features, dependencies pointing down:
  *   - unicode/      the text analysis leaf: transcoding, scripts, case,
@@ -20,23 +19,27 @@
  *   - fonts/        `FontContext`, the per-thread service object (caches,
  *                   HarfBuzz, fallback, varied faces), and `shapeWord()`.
  *   - paragraph/    the document: UTF-16 text + style spans + placeholders,
- *                   analysed into `Word`s and shaped lazily.
+ *                   analysed into `Word`s and shaped lazily; `RichText`,
+ *                   the same content as one comparable value; `Unit`, the
+ *                   granularity a passage is addressed by.
  *   - layout/       the geometry text flows into (`BlockFlow`,
  *                   `ExclusionFlow`, `VerticalBlockFlow`, `LineSetFlow`,
  *                   `PathFlow`, or your own `FlowGeometry`), the options,
- *                   `layoutParagraph()` and its positioned runs.
+ *                   `layoutParagraph()` and its positioned runs, and
+ *                   `Story`, a text and its block styles filled into as
+ *                   many frames as it is given.
  *   - decoration/   underline, strikethrough, overline and highlight bands
  *                   resolved against the placed runs.
  *   - paint/        `ParagraphLayout::draw()` and `drawBatched()`.
  *   - choreograph/  per-glyph animation: `forEachPlacedGlyph`,
  *                   `GlyphDress`, `GlyphRSXformBatches`.
- *   - query/        find / select / annotate ranges and edit-following
- *                   `MarkerSet`s.
+ *   - query/        find / select / annotate ranges, `Selector` and the
+ *                   `sel::` vocabulary, and edit-following `MarkerSet`s.
  *   - cache/        `SingleLineParagraphCache` for high-frequency labels.
  *
- * Separate targets, never pulled in here: shaders/ (animated SkSL presets
- * for PaintStyle layers), ports/ (the OS font manager), kit/ (consumer
- * discipline: guards, buckets, labels) and qt/ (the Qt bridge).
+ * Separate targets, never pulled in here: ports/ (the OS font manager),
+ * kit/ (consumer discipline: guards, buckets, labels) and qt/ (the Qt
+ * bridge).
  */
 
 /** @defgroup unicode Unicode analysis
@@ -45,11 +48,12 @@
 /** @defgroup shaping Shaping & fonts
  *  Word shaping, the shape cache, font management, fallback, and the style
  *  vocabulary that keys it all (style/Style.h, fonts/FontContext.h,
- *  fonts/Shaper.h, style/Features.h). */
+ *  fonts/Shaper.h, kit/Features.h). */
 /** @defgroup document Document model
  *  Styled UTF-16 text with incremental analysis: Paragraph, spans,
- *  placeholders, words, and the edit history (paragraph/Paragraph.h,
- *  paragraph/Word.h). */
+ *  placeholders, words, and the edit history, with the same content as a
+ *  comparable value (paragraph/Paragraph.h, paragraph/Word.h,
+ *  paragraph/RichText.h). */
 /** @defgroup geometry Flow geometry
  *  The shapes text flows into: blocks, exclusions, vertical columns,
  *  explicit line sets, and paths (layout/Flow.h). */
@@ -59,11 +63,11 @@
  *  layout/LayoutOptions.h, layout/PositionedRun.h,
  *  cache/SingleLineParagraphCache.h). */
 /** @defgroup paint Painting & effects
- *  Draw-time appearance: paint layers, decoration bands, and the preset
- *  shader library (the PaintStyle half of style/Style.h;
- *  decoration/Decoration.h; shaders/PaintShaders.h). */
+ *  Draw-time appearance: paint layers and decoration bands (the
+ *  PaintStyle half of style/Style.h; decoration/Decoration.h). */
 /** @defgroup query Query & markers
- *  Range search and edit-following marker sets (query/Query.h). */
+ *  Range search, selection as a value, and edit-following marker sets
+ *  (query/Query.h, query/Selector.h). */
 /** @defgroup animation Animation
  *  Per-glyph choreography over finished layouts (choreograph/). */
 
@@ -72,11 +76,15 @@
 #include "sigilweave/decoration/Decoration.h"
 #include "sigilweave/fonts/FontContext.h"
 #include "sigilweave/fonts/Shaper.h"
+#include "sigilweave/layout/Beside.h"
 #include "sigilweave/layout/Flow.h"
 #include "sigilweave/layout/ParagraphLayout.h"
+#include "sigilweave/layout/Story.h"
 #include "sigilweave/paint/Paint.h"
 #include "sigilweave/paragraph/Paragraph.h"
+#include "sigilweave/paragraph/RichText.h"
+#include "sigilweave/paragraph/Unit.h"
 #include "sigilweave/query/Query.h"
-#include "sigilweave/style/Features.h"
+#include "sigilweave/query/Selector.h"
 #include "sigilweave/style/Style.h"
 #include "sigilweave/unicode/Unicode.h"

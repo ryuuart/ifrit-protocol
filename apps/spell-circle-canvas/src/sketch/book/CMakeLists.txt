@@ -2,7 +2,16 @@
 #
 # The app lists every sketch, live-edits any of them, and draws a set
 # sketch through an orbitable viewport. `--headless` is the renderer
-# every plate-ledger tier drives.
+# every plate-ledger tier drives. The browser's rows (SketchCatalog, a
+# QObject model over the registry and the files a run was pointed at)
+# are the executable's own; the thumbnail store they fill is the
+# library's, under plate/.
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickDialogs2
+                                     GuiPrivate)
+qt_standard_project_setup(REQUIRES 6.11)
+find_package(unofficial-skia CONFIG REQUIRED)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
 qt_add_executable(Sketchbook
   main.cpp
 )
@@ -52,88 +61,47 @@ qt_add_qml_module(Sketchbook
     SketchbookView.cpp SketchbookView.h
     SketchCatalog.cpp SketchCatalog.h
 )
-# WHERE THE BROWSER LOOKS FOR THE STILLS IT SHOWS: the quick tier's
-# baseline, which a plate sweep writes beside its manifest. A machine
-# that has never run one simply has no thumbnails, and `--plates <dir>`
-# names another directory.
-target_compile_definitions(Sketchbook PRIVATE
-  SIGILSKETCH_PLATES_DIR="${CMAKE_BINARY_DIR}/plate_baseline_quick_$<CONFIG>.plates")
+# The browser's thumbnails are THIS APP'S OWN, kept under the platform
+# cache location and filled on demand — nothing else writes them, so
+# there are no compiled-in store directories. `--thumbnails-dir`
+# and the SIGIL_SKETCHBOOK_THUMBNAILS environment variable name another.
 target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Sketchbook PRIVATE
-  SigilSketchLive SigilSketchPlate SigilSketches SigilMeasure SigilWeavePorts
-  Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2)
+  SigilSketch SigilSketches SigilMeasure SigilWeavePorts SigilMaterial
+  IfritUiplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
+  Qt6::QuickDialogs2)
 
-# The device lane for set sketches. Without it the binary reports rather
-# than falling back: a flag that asked for the device answers with the
-# device or with nothing.
-if(TARGET SigilWorldDiligent)
-  target_link_libraries(Sketchbook PRIVATE SigilWorldDiligent)
-else()
-  target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_NO_DEVICE=1)
+# Sharing the sole Ultralight renderer is an opt-in property of this host,
+# separate from SigilScry's ordinary explicitly owned WebEngine path.
+if(TARGET SigilScry)
+  target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_SCRY)
 endif()
+
+# The device lane for set sketches: a flag that asked for the device
+# answers with the device or with nothing, never with a fallback. The
+# frame runtime is the world's; the mesh painter's device executor
+# stands beside its CPU twin in SigilGeometry, so both are named.
+target_link_libraries(Sketchbook PRIVATE SigilWorldDiligent
+                                         SigilGeometryMeshRenderDevice)
 
 # Draw straight into QQuickRhiItem's texture through the shared Skia
-# Graphite context when the active QRhi backend supports it. Other builds
-# keep the explicit CPU-raster/upload fallback in SketchbookView.cpp.
-if(TARGET SigilSkiaQt)
-  target_link_libraries(Sketchbook PRIVATE SigilSkiaQt)
-  target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_GPU)
-endif()
+# Graphite context when the active QRhi backend supports it; the
+# CPU-raster/upload path in SketchbookView.cpp stands beside it for the
+# backends that do not.
+target_link_libraries(Sketchbook PRIVATE SigilSkiaQt)
+target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_GPU)
 
-# ---------------------------------------------------------------------------
-# THE HOT-RELOAD LINK SURFACE.
-#
-# A sketch dylib links with `-undefined dynamic_lookup` and resolves the
-# framework's symbols out of this executable, so the host must EXPORT
-# them — and it must contain them, which for a static archive means
-# force-loading it whether or not the host's own translation units
-# reference anything inside.
-#
-# The list below and SigilSketches' PUBLIC dependencies are one fact
-# stated twice: the latter decides what a sketch may #include, this
-# decides what it may LINK. When they disagree, every sketch still
-# compiles and every compiled-in sketch still runs — and the hot-reloaded
-# one fails at dlopen with a symbol not found in flat namespace. So
-# anything added there belongs here too, as the ARCHIVES it resolves to:
-# an interface target has no file to force-load, which is why the tiers
-# are named archive by archive.
+# THE HOT-RELOAD LINK SURFACE. A sketch dylib links with `-undefined
+# dynamic_lookup` and resolves the framework's symbols out of this
+# executable, so the host exports them and force-loads every archive of
+# this repository's in its own and SigilSketches' link closure, read off
+# the targets rather than listed a second time. Skia is the one vendored
+# archive a sketch calls directly, and it is named.
+include("${CMAKE_SOURCE_DIR}/src/sketch/cmake/SketchLinkSurface.cmake")
 if(APPLE)
   target_link_options(Sketchbook PRIVATE "LINKER:-export_dynamic")
-  foreach(sketch_dep IN ITEMS
-      SigilSketchCore SigilSketchCanvas SigilSketchSet SigilSketchLive
-      SigilComposeCore SigilComposeShape SigilComposeBrush
-      SigilComposeTypography SigilComposeInstances SigilComposeKit
-      SigilComposeTexture
-      SigilImageAsset SigilImageDecode SigilLoaderHub
-      SigilMotionClock SigilMotionBind
-      SigilCoreCache SigilCoreReconcile
-      SigilGeometryPath SigilGeometryPathBlend SigilGeometryMesh
-      SigilGeometryMeshCamera SigilGeometryMeshRender SigilGeometryMeshCurve
-      SigilGeometryMeshPop SigilGeometryMeshCodec
-      SigilMaterialCore SigilMaterialTexture SigilMaterialColor
-      SigilMaterialSdf SigilMaterialPattern SigilMaterialField
-      SigilMaterialSkia SigilMaterialKit
-      SigilWorldElement SigilWorldFrame SigilWorldGraph SigilWorldScene
-      SigilWorldLight SigilWorldKit
-      SigilWeaveUnicode SigilWeaveFonts SigilWeaveParagraph SigilWeaveLayout
-      SigilWeaveDecoration SigilWeavePaint SigilWeaveChoreograph
-      SigilWeaveQuery SigilWeaveCache SigilWeavePorts
-      unofficial::skia::skia)
-    target_link_options(Sketchbook PRIVATE
-      "LINKER:-force_load,$<TARGET_FILE:${sketch_dep}>")
-  endforeach()
-  # …and the archives an optional SDK produced, on the machines where it
-  # did. A sketch over one of those is only in the registry where its
-  # target exists, so its symbols are only wanted here on the same
-  # machines — and where it IS compiled in, a hot-reload of it needs them
-  # exactly as much as any other sketch needs the list above.
-  foreach(sketch_sdk_dep IN ITEMS
-      SigilScryPlatform SigilScryGpu SigilScryEngine SigilSubstance)
-    if(TARGET ${sketch_sdk_dep})
-      target_link_options(Sketchbook PRIVATE
-        "LINKER:-force_load,$<TARGET_FILE:${sketch_sdk_dep}>")
-    endif()
-  endforeach()
+  sigil_sketch_link_surface(Sketchbook SigilSketches
+    EXTRA unofficial::skia::skia)
 else()
   target_link_options(Sketchbook PRIVATE "LINKER:--export-dynamic")
 endif()
@@ -150,7 +118,7 @@ endif()
 add_custom_command(
   OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp
   COMMAND ${Python3_EXECUTABLE}
-    ${CMAKE_SOURCE_DIR}/scripts/extract_sketch_flags.py
+    ${CMAKE_SOURCE_DIR}/src/sketch/cmake/SketchFlags.py
     --compdb ${CMAKE_BINARY_DIR}/compile_commands.json
     --anchor ${SIGIL_SKETCH_DIR}/Anchor.cpp
     --config $<CONFIG>
@@ -161,19 +129,36 @@ add_custom_command(
     # put two Skia images in one process, whose objects cannot be
     # exchanged.
   DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
-          ${CMAKE_SOURCE_DIR}/scripts/extract_sketch_flags.py
+          ${CMAKE_SOURCE_DIR}/src/sketch/cmake/SketchFlags.py
   COMMENT "Extracting sketch compile flags from compile_commands.json"
   VERBATIM)
 add_custom_target(sketch_flags
   DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp)
 add_dependencies(Sketchbook sketch_flags)
 
-# End-to-end smoke test of the reload pipeline: compile the starter
-# sketch through the same flags, dlopen it, render a frame.
-add_test(NAME sketch_reload_smoke
-  COMMAND Sketchbook
-    ${SIGIL_SKETCH_DIR}/hello.cpp
-    --frame ${CMAKE_BINARY_DIR}/sketch_reload_smoke.png)
+# THE ONE TEST THAT LOOKS AT WHOSE CODE RAN, and the reason every other
+# reload test below can pass while the live host is dead.
+#
+# A registry sketch is compiled into this executable as well as into the
+# dylib an edit produces, so both images carry the same weak symbols for
+# it — the sketch's vtable and typeinfo when its virtuals are all inline,
+# and the function templates the registration macro takes the address of.
+# Weak definitions coalesce across a flat namespace onto whichever image
+# came first, and the executable is always first, so a guest compiled at
+# default visibility hands back an Entry whose factory is the HOST'S. The
+# build reports, the dlopen succeeds, the picture comes out — and it is
+# the picture of the file as it stood when the host was built.
+#
+# So this drives a difference through: a copy of a registry sketch with
+# its ground colour replaced, and the corner pixel of what `--frame`
+# writes must be that colour, with the registry's own copy of the same
+# sketch drawn as the control.
+add_test(NAME sketch_reload_runs_the_file
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/reload_runs_the_file.py
+    --sketchbook $<TARGET_FILE:Sketchbook>
+    --source ${SIGIL_SKETCH_DIR}/crossing_rule.cpp
+    --work ${CMAKE_BINARY_DIR}/sketch_reload_runs_the_file)
 
 # Paints one of every stock material, so a material that cannot compile
 # or draw fails here rather than in someone's sketch.
@@ -201,6 +186,15 @@ add_test(NAME sketch_reload_surface
     ${SIGIL_SKETCH_DIR}/shapeworks_lab.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface.png)
 
+# The video leaf reaches both an adapter header and codec archives that no
+# geometry-heavy sketch names. Its dynamic run proves the generated compile
+# surface carries SigilVideo's include root and the host exports decode and
+# encode for the guest after a Release configure as well as a Debug one.
+add_test(NAME sketch_reload_surface_video
+  COMMAND Sketchbook
+    ${SIGIL_SKETCH_DIR}/video_compose.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_video.png)
+
 # …and the same guard for the other runtime: a set sketch names world
 # symbols no canvas sketch does, so a world archive missing from the list
 # above shows up here and nowhere else.
@@ -209,12 +203,24 @@ add_test(NAME sketch_reload_surface_set
     ${SIGIL_SKETCH_DIR}/first_light.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_set.png)
 
+# …and for the archives only the HOST links. A device backend is not in
+# the sketch target's closure — a bare consumer of that target must not
+# be made to link a renderer — so its symbols reach a compiled-in sketch
+# through the host's own link line and reach a reloaded one only if the
+# force-load list covers that line too. Nothing in the registry names
+# one, so the case is a probe file beside this list rather than a sketch:
+# what it asserts is a dlopen, not a picture.
+add_test(NAME sketch_reload_surface_device
+  COMMAND Sketchbook
+    ${CMAKE_CURRENT_LIST_DIR}/test/device_import_probe.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_device.png)
+
 # …and once more for each optional SDK, on the machines that have one.
 # These name symbols nothing else in the registry names, so an SDK
 # archive missing from the force-load list shows up here alone. A machine
 # whose SDK is installed but whose runtime data is not still passes: the
 # sketch draws what it is missing rather than failing to load.
-if(TARGET SigilComposeWeb)
+if(TARGET SigilComposeWeb AND TARGET SigilScry)
   add_test(NAME sketch_reload_surface_web
     COMMAND Sketchbook
       ${SIGIL_SKETCH_DIR}/web_panel.cpp
@@ -236,3 +242,26 @@ add_test(NAME sketch_reload_named
   COMMAND Sketchbook
     ${SIGIL_SKETCH_DIR}/world_hud.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_named.png)
+
+# THE DIRECTORY FORM. A sketch that is a directory goes through the host
+# as several translation units compiled apart and linked once, which
+# nothing above exercises: every entry there is one file. This one is
+# the entry of a directory sketch whose catalogue stands in a unit
+# beside it, so a break in the unit list, the object cache or the link
+# line shows up here and nowhere else.
+add_test(NAME sketch_reload_directory
+  COMMAND Sketchbook
+    ${SIGIL_SKETCH_DIR}/dunhuang_star_chart/dunhuang_star_chart.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_directory.png)
+
+# THE CATALOG SEAM, without a window. `--catalog` prints the browser's
+# rows as the model would hand them to QML, and the script asserts what
+# a row says before anything is opened: a compiled-in sketch names the
+# runtime it draws through, and a file opened by path — which has no
+# runtime until it is built — says so rather than guessing one.
+add_test(NAME sketch_catalog_rows
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/catalog_rows.py
+    --sketchbook $<TARGET_FILE:Sketchbook>
+    --canvas crossing_rule
+    --work ${CMAKE_BINARY_DIR}/sketch_catalog_rows)

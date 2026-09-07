@@ -8,14 +8,20 @@ std::vector<std::string> Table::lines(int labelWidth, int valueWidth) const {
   out.reserve(rows.size() + 1);
   for (const Check& c : rows) out.push_back(c.line(labelWidth, valueWidth));
   const int failed = failures();
-  char summary[96];
+  const int found = findings();
+  char summary[128];
   if (failed == 0)
-    std::snprintf(summary, sizeof summary, "  %zu checks, all passed",
-                  rows.size());
+    std::snprintf(summary, sizeof summary, "  %d checks, all passed", checks());
   else
-    std::snprintf(summary, sizeof summary, "  %zu checks, %d failed",
-                  rows.size(), failed);
-  out.emplace_back(summary);
+    std::snprintf(summary, sizeof summary, "  %d checks, %d failed", checks(),
+                  failed);
+  std::string line = summary;
+  if (found > 0) {
+    std::snprintf(summary, sizeof summary, ", %d finding%s", found,
+                  found == 1 ? "" : "s");
+    line += summary;
+  }
+  out.push_back(std::move(line));
   return out;
 }
 

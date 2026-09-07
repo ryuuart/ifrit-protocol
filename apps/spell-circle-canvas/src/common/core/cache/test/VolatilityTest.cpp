@@ -9,7 +9,7 @@
 #include "FakeCacheHost.h"
 
 using namespace sigil::core;
-using namespace sigil::core::test;
+using namespace sigil::core::test::cache;
 
 namespace {
 
@@ -150,6 +150,23 @@ TEST(CacheProof, TheFoldIsOrderIndependent) {
   const SubtreeVerdict vb = foldSubtree(self, b);
   EXPECT_EQ(va.subtreeVolatile, vb.subtreeVolatile);
   EXPECT_EQ(va.memoSafe, vb.memoSafe);
+}
+
+TEST(Volatility, SamplingTheDestinationIsReadingTheBackdrop) {
+  // The header says the stronger declaration implies the weaker one, so
+  // a node that declares only `samplesDestination` is not memo-safe and
+  // its subtree is not blind to the canvas.
+  const NodeVolatility filter{.samplesDestination = true};
+  const SubtreeVerdict v = foldSubtree(filter, ChildVolatility{});
+  EXPECT_TRUE(v.subtreeReadsBackdrop);
+  EXPECT_FALSE(v.memoSafe);
+  EXPECT_FALSE(v.holdRootOK);
+  // Declaring both is the same verdict as declaring the stronger alone.
+  const NodeVolatility both{.readsBackdrop = true, .samplesDestination = true};
+  const SubtreeVerdict w = foldSubtree(both, ChildVolatility{});
+  EXPECT_EQ(v.subtreeReadsBackdrop, w.subtreeReadsBackdrop);
+  EXPECT_EQ(v.memoSafe, w.memoSafe);
+  EXPECT_EQ(v.holdRootOK, w.holdRootOK);
 }
 
 }  // namespace

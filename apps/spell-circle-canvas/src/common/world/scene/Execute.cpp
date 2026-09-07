@@ -24,11 +24,11 @@ constexpr std::span<const std::string> kNoWords;
 
 }  // namespace
 
-Camera Scene::Impl::viewpoint() const {
+geometry::mesh::camera::Camera Scene::Impl::viewpoint() const {
   return camera ? *camera : frame.camera();
 }
 
-void Scene::Impl::collectBodies(const Camera& eye,
+void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
                                 std::vector<Draw>& into) const {
   into.clear();
   // Back to front by view depth, so a nearer body covers a farther one
@@ -61,6 +61,7 @@ void Scene::Impl::collectBodies(const Camera& eye,
     into.push_back(Draw{
         .world = registry.get<component::Placement>(entity).world,
         .mesh = body.mesh,
+        .backface = body.backface,
         .geometry = body.id,
         .baseColor = surface.baseColor,
         .key = named.key,
@@ -110,6 +111,8 @@ bool Scene::Impl::phaseGraph() {
   collectBodies(viewpoint(), draws);
   view.draws = draws;
   view.lights = lights;
+  view.environment = environment;
+  view.orientation = environmentOrientation;
   view.camera = viewpoint();
   view.extent = frame.extent();
 

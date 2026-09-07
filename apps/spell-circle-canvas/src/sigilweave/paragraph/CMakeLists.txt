@@ -1,53 +1,45 @@
 # The document model: styled UTF-16 text analysed into words through the
 # Unicode leaf and shaped lazily through the font service, with the edit
 # log external range trackers follow. The Unicode leaf is private — no
-# public header names one of its types — and the one abseil container
-# inside a Word hides behind opaque bytes in WordSegmentList.
-add_library(SigilWeaveParagraph STATIC
-  Paragraph.cpp
-  WordSegmentList.cpp
-  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/paragraph/Paragraph.h
-  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/paragraph/Word.h
-)
-target_compile_features(SigilWeaveParagraph PUBLIC cxx_std_20)
-target_include_directories(SigilWeaveParagraph PUBLIC
-  $<BUILD_INTERFACE:${SIGIL_WEAVE_INCLUDE_DIR}>
-  $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(SigilWeaveParagraph
-  PUBLIC
-    SigilWeaveFonts
-  PRIVATE
-    SigilWeaveUnicode
-    harfbuzz::harfbuzz
-    absl::inlined_vector
-)
+# public header names one of its types — and it is also where the tag a
+# shaper is told a run's script in comes from, so nothing here names a
+# HarfBuzz type. The one Boost container inside a Word hides behind opaque
+# bytes in WordSegmentList. Beside the document: RichText, the same content
+# said as runs and styles in one comparable value, and Unit, the
+# granularity a passage is addressed by.
+find_package(boost_container CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
+sigil_library(SigilWeaveParagraph
+  SOURCES ParagraphAnalysis.cpp ParagraphEdits.cpp
+          ParagraphShaping.cpp WordSegmentList.cpp RichText.cpp
+  HEADERS Paragraph.h Word.h RichText.h Unit.h
+  PUBLIC SigilWeaveFonts
+  PRIVATE SigilWeaveUnicode Boost::container)
 
 # Shaping as the paragraph drives it, the document model, the typographic
 # correctness a shaping engine must hold, and the options that reach
-# shaping. Nothing here lays a line out.
-add_executable(weave_paragraph_test
-  test/ShapingTest.cpp
-  test/ParagraphTest.cpp
-  test/CorrectnessTest.cpp
-  test/TypographyTest.cpp
-)
-target_include_directories(weave_paragraph_test PRIVATE ${SIGIL_WEAVE_TEST_SUPPORT_DIR})
-target_link_libraries(weave_paragraph_test PRIVATE
-  SigilWeaveParagraph
-  SigilWeavePorts
-  absl::flat_hash_set
-  GTest::gtest_main
-)
-add_test(NAME weave_paragraph_test COMMAND weave_paragraph_test)
+# shaping. Nothing here lays a line out. Every case shapes the instrument
+# faces from src/test/assets/ and needs nothing of the machine, except the
+# ones named below, whose claim is the MACHINE'S OWN fallback — that a
+# paragraph of mixed scripts, Hebrew, an accent or emoji set in no named
+# face resolves to real glyphs at all — which cannot be asked without the
+# machine having faces for them, so they alone carry the label.
+sigil_test(weave_test
+  SOURCES test/ShapingTest.cpp test/ParagraphTest.cpp test/CorrectnessTest.cpp
+          test/TypographyTest.cpp test/RichTextTest.cpp
+  LIBRARIES SigilWeaveParagraph SigilWeavePorts Boost::container
+            Boost::unordered
+  LABELS fonts
+  SUITES Itemization.MixedLatinCjkSplitsIntoWords
+         Itemization.CjkGetsPerCharacterBreakOpportunities
+         Itemization.FallbackResolvesCjkGlyphs
+         Itemization.ARightToLeftWordIsShapedRightToLeft
+         EmojiClusters Correctness.ClusterCoverageIsComplete
+         Correctness.ZwnjBlocksArabicJoining
+         Correctness.CombiningMarkAttachesToBase
+         Shaper.PurgeAllCachesRefillsIdentically)
 
-# A whole paragraph analysed and shaped, cold and warm. Built through
-# `benches`, run through scripts/bench_ledger.py from a Release build.
-add_executable(weave_paragraph_bench bench/ParagraphBench.cpp)
-target_include_directories(weave_paragraph_bench PRIVATE ${SIGIL_WEAVE_BENCH_SUPPORT_DIR})
-target_link_libraries(weave_paragraph_bench PRIVATE
-  SigilWeaveParagraph
-  SigilWeavePorts
-  benchmark::benchmark
-)
-add_dependencies(benches weave_paragraph_bench)
+# A whole paragraph analysed and shaped, cold and warm.
+sigil_bench(weave_bench
+  SOURCES bench/ParagraphBench.cpp
+  LIBRARIES SigilWeaveParagraph SigilWeavePorts)

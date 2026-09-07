@@ -61,16 +61,36 @@ class Residency {
      *  A caller holding per-session state of its own starts that state
      *  over on the first and keeps it on the second. */
     bool opened = false;
+    /** THE SESSION THIS ONE MADE ROOM FOR, handed to the caller rather
+     *  than destroyed here.
+     *
+     *  Letting a host go WAITS for the build it may be in the middle of,
+     *  which is a compiler run; a caller that presents under a lock its
+     *  drawing also takes would spend that wait holding it. So the set
+     *  gives the evicted session back and the caller drops it where it
+     *  can afford to. Ignoring it destroys it on the spot, which is what
+     *  a caller with no such lock wants. */
+    std::unique_ptr<Host> evicted;
   };
 
   /** Presents the session for @p key, opening one through @p open when
-   *  none is resident and evicting the least recently presented once
-   *  the set is over capacity. */
+   *  none is resident. THE SET MAKES ROOM FIRST: the least recently
+   *  presented leaves before the new one is built, so the memory the
+   *  capacity states is what the set costs at its widest rather than one
+   *  whole session more. */
   Presented present(const std::string& key, const Open& open);
 
   /** The session being presented; null before the first present and
    *  after clear(). */
   [[nodiscard]] Host* presented() const;
+
+  /** DROPS THE PRESENTED SESSION and keeps the rest of the set warm. What
+   *  a window does when the frame the presented session drew failed: that
+   *  one host's failure is not the others', so it goes and they stay,
+   *  ready to be presented again without a rebuild. Hands the dropped
+   *  session back for the same reason `present` hands back the evicted
+   *  one; null when the set was empty. */
+  std::unique_ptr<Host> dropPresented();
 
   [[nodiscard]] std::size_t size() const { return m_sessions.size(); }
   [[nodiscard]] std::size_t capacity() const { return m_capacity; }

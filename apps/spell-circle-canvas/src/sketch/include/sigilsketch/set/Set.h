@@ -8,6 +8,7 @@
 
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpec.h>
+#include <sigilsketch/core/Device.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilworld/element/Element.h>
@@ -16,22 +17,51 @@
 
 #include <concepts>
 #include <memory>
+#include <optional>
+#include <vector>
 
 namespace sigil::weave {
 class FontContext;
+}
+namespace sigil::compose {
+class TextureScene;
 }
 
 namespace sigil::sketch {
 
 /** WHAT A SET IS HANDED when it declares itself: the plate it will be
- *  photographed onto, the viewpoint it is seen from, and what it may
- *  reach for. Handed once, at setup — a set's every frame is a function
- *  of the scene time and of nothing else. */
+ *  photographed onto, the viewpoint it is seen from, what it may reach
+ *  for, and the one door a 2D picture comes in by. Handed once, at
+ *  setup — a set's every frame is a function of the scene time and of
+ *  nothing else. */
 struct SetContext {
   Assets& assets;
   weave::FontContext& fonts;
-  CanvasSpec* spec = nullptr;    ///< host-owned; written via the calls below
-  world::Camera* eye = nullptr;  ///< host-owned; the fallback viewpoint
+  CanvasSpec* spec = nullptr;  ///< host-owned; written via the calls below
+  geometry::mesh::camera::Camera* eye =
+      nullptr;  ///< host-owned; the fallback viewpoint
+  /** Host-owned: the texture scenes `textureScene()` handed out, kept
+   *  for the session's life. */
+  std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
+
+  /** A COMPOSE SCENE PAINTED INTO A TEXTURE, @p size pixels across and
+   *  cleared to @p background — a 2D screen a body wears. Ask for it
+   *  here, hold the pointer, and in `describe` hand it the tree at the
+   *  scene time with `render()` and put `texture()` in a material's
+   *  slot. Its own words are SigilCompose's, from
+   *  `<sigilcompose/texture/Texture.h>`.
+   *
+   *  THE SESSION KEEPS IT for as long as it runs, which is what a body
+   *  wearing it needs: a scene standing on a device destroys the texture
+   *  it painted into when it goes, so a surface whose scene had been let
+   *  go would be sampling a texture that is not there.
+   *
+   *  Nothing has to be remade when time moves. A session's clock only
+   *  goes forward — a sweep that must photograph an earlier moment opens
+   *  a second session rather than rewinding this one — so no run of the
+   *  piece begins where an earlier one left off. */
+  [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
+      SkISize size, SkColor4f background = {0, 0, 0, 0});
 
   /** Declare the plate's size in pixels. */
   void canvas(int width, int height) {
@@ -49,7 +79,7 @@ struct SetContext {
   /** The viewpoint, unless the tree declares one of its own — a set that
    *  puts a camera on a rail says so in its description and leaves this
    *  alone. */
-  void camera(const world::Camera& lens) {
+  void camera(const geometry::mesh::camera::Camera& lens) {
     if (eye) *eye = lens;
   }
 };
@@ -81,12 +111,33 @@ class SetKind final : public KindOps {
  public:
   using Factory = Set* (*)();
   explicit SetKind(Factory factory) : m_factory(factory) {}
-  /** What identifies a kind is the body it opens; see the 2D kind. */
+  /** What identifies a kind is the body it opens and where it opens it;
+   *  see the 2D kind for the first half. */
   bool operator==(const SetKind& other) const {
-    return m_factory == other.m_factory;
+    return m_factory == other.m_factory && m_runtime == other.m_runtime;
+  }
+
+  /** THIS KIND, OPENING ITS SESSIONS ON @p runtime — an empty one being
+   *  the CPU mesh executor.
+   *
+   *  A session takes its runtime once, when it opens, and draws every
+   *  frame through that one: what a host installed on the process is the
+   *  DEFAULT a session takes, not a value it re-reads. So a host that
+   *  must draw a set somewhere other than where the process's device
+   *  stands — a background still on a thread that shares no queue with
+   *  the one presenting — says so here and the sessions it opens are
+   *  unaffected by what any other thread installed. */
+  [[nodiscard]] SetKind on(const world::Runtime& runtime) const {
+    SetKind stated = *this;
+    stated.m_runtime = runtime;
+    return stated;
   }
 
   [[nodiscard]] std::string_view runtime() const override { return "set"; }
+
+  /** A set is lit by the device renderer: its materials run their own
+   *  bodies there, and there is no CPU tier that draws the same picture. */
+  [[nodiscard]] bool needsDevice() const override { return true; }
 
   /** A set's every frame is a pure function of the scene time, so there
    *  is nothing a set could have measured about its own execution and
@@ -97,7 +148,18 @@ class SetKind final : public KindOps {
 
  private:
   Factory m_factory;
+  /** Unset is the process's own — the runtime a host installed once. */
+  std::optional<world::Runtime> m_runtime;
 };
+
+/** @p kind WITH THE RUNTIME ITS SESSIONS DRAW THROUGH STATED, rather
+ *  than read off the process when each opens.
+ *
+ *  A kind that draws through no such runtime — a 2D canvas, a pen — is
+ *  returned unchanged, so a host may say this about whatever it is
+ *  holding. An empty runtime is the CPU mesh executor, which is what a
+ *  caller that must not reach the process's device asks for. */
+[[nodiscard]] Kind onRuntime(const Kind& kind, const world::Runtime& runtime);
 
 /** The factory SIGIL_SKETCH takes the ADDRESS of; see the 2D one for why
  *  it is a named template rather than a lambda. */
@@ -113,27 +175,20 @@ template <class SetType>
   return SetKind{&makeSet<SetType>};
 }
 
-/** THE ORBIT @p camera ALREADY STANDS AT: yaw and pitch in degrees about
- *  its target, and the distance from it. */
-[[nodiscard]] Orbit orbitOf(const world::Camera& camera);
-
-/** @p pivot moved onto @p orbit — the same target, the same up axis and
- *  the same lens, with the eye put where the yaw, the pitch and the
- *  distance say.
- *
- *  It is the exact inverse of `orbitOf`, which is what lets a host take
- *  hold of a set's own viewpoint rather than replacing it with one of
- *  its own: seeding a control from the set's camera and moving it by
- *  nothing gives back that camera. */
-[[nodiscard]] world::Camera cameraAt(const world::Camera& pivot, Orbit orbit);
-
-/** THE RUNTIME EVERY SET SESSION DRAWS THROUGH, for this process.
+/** THE RUNTIME A SET SESSION DRAWS THROUGH UNLESS ITS KIND STATED ONE,
+ *  for this process.
  *
  *  An empty runtime is the CPU mesh executor: it needs no device, it is
  *  what a machine with no Vulkan runtime renders on, and it is what a
  *  byte-identity plate is hashed from. A host that brought a device up
- *  says so ONCE — one device, one queue, every session — because a
- *  device is a property of the process and not of a sketch. */
+ *  says so ONCE — one device, one queue — because a device is a property
+ *  of the process and not of a sketch. It is READ AT OPEN: a session
+ *  keeps the runtime it opened with, so installing another does not
+ *  reach into a session already running, and `onRuntime` above is how a
+ *  host opens one somewhere else.
+ *
+ *  A call that takes the DEVICE itself rather than a runtime over it
+ *  reaches `sketch::device()`, from `<sigilsketch/core/Device.h>`. */
 void useRuntime(const world::Runtime& runtime);
 [[nodiscard]] const world::Runtime& runtime();
 

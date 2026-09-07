@@ -4,11 +4,14 @@
 
 #include "SketchbookView.h"
 
+#include "SketchCatalog.h"
+
 #ifdef SIGILSKETCH_BOOK_GPU
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
+#include <sigilskia/graphite/PaintOrder.h>
 #include <sigilskia/qt/QtInterop.h>
 #endif
 
@@ -18,15 +21,22 @@
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
 #include <rhi/qrhi.h>
+#include <sigilmeasure/time/Stopwatch.h>
+#include <sigilmotion/clock/FrameClock.h>
+#include <sigilsketch/core/Fit.h>
 #include <sigilsketch/core/Registry.h>
+#include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
+#include <sigilsketch/plate/Thumbnails.h>
 #include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <QtCore/QByteArray>
 #include <QtCore/QMetaObject>
 #include <QtCore/QMutexLocker>
 #include <QtCore/QSize>
+#include <QtCore/QSizeF>
+#include <QtGui/QKeySequence>
+#include <QtQuick/QQuickWindow>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -35,17 +45,22 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <string>
+#include <system_error>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace motion = sigil::motion;
 
-std::filesystem::path SketchbookView::sketchDir;
 std::filesystem::path SketchbookView::assetsDir;
 std::filesystem::path SketchbookView::flagsFile;
-std::vector<std::filesystem::path> SketchbookView::externals;
+std::filesystem::path SketchbookView::sharedDir;
 sketch::Host* SketchbookView::host = nullptr;
+sigil::weave::FontContext* SketchbookView::fonts = nullptr;
 sketch::Residency SketchbookView::sessions;
+bool SketchbookView::oneSessionAtATime = false;
 // QMutex's constructor does not throw
 // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 QMutex SketchbookView::hostMutex;
@@ -59,14 +74,11 @@ namespace {
  *  thread, read on the GUI thread's poll. */
 std::atomic<int> g_backend{0};  // 0 unknown, 1 Graphite GPU, 2 CPU raster
 
-sigil::weave::FontContext& fonts() {
-  // Leaked deliberately: it owns Skia-backed state, and a static
-  // destructor racing Skia teardown is a class of crash worth not
-  // having.
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
+/** How long a resize gesture must be quiet before the render target
+ *  follows it. Long enough that consecutive steps of one wheel spin or
+ *  one drag fall inside it, short enough that letting go and looking is
+ *  not a wait. */
+constexpr int kResizeSettleMs = 180;
 
 /** ONE INDEX OVER TWO LISTS: the registry first, the files this session
  *  was pointed at after it. An index below the registry's size selects a
@@ -80,9 +92,85 @@ std::string nameOf(int index) {
   const auto& entries = sketch::registry();
   if (index >= 0 && index < (int)entries.size()) return entries[index].name;
   const int external = externalAt(index);
-  if (external >= 0 && external < (int)SketchbookView::externals.size())
-    return SketchbookView::externals[external].stem().string();
+  if (external >= 0 && external < (int)SketchCatalog::externals.size())
+    return SketchCatalog::externals[external].stem().string();
   return {};
+}
+
+/** THE KEY AS A SKETCH READS IT: the name a keyboard spells it by, and
+ *  the code p5 gives it. The keys p5 names get p5's numbers — the
+ *  arrows, Enter, Escape, Backspace, Delete, Tab, the modifiers, the
+ *  function keys — a key that types a character is that character, with
+ *  a letter's code its upper-case ASCII the way p5 reports it, and any
+ *  other key keeps Qt's name and number.
+ *
+ *  The modifiers are Qt's, which on macOS reports the Command key as
+ *  Control: the key a shortcut is SPELLED with rather than the one the
+ *  keyboard is engraved with. A sketch comparing against p5's numbers is
+ *  comparing against the same key it would press to save a file. */
+std::pair<std::string, int> keyAs(int qtKey, const QString& text) {
+  switch (qtKey) {
+    case Qt::Key_Left:
+      return {"ArrowLeft", 37};
+    case Qt::Key_Up:
+      return {"ArrowUp", 38};
+    case Qt::Key_Right:
+      return {"ArrowRight", 39};
+    case Qt::Key_Down:
+      return {"ArrowDown", 40};
+    case Qt::Key_Return:
+    case Qt::Key_Enter:
+      return {"Enter", 13};
+    case Qt::Key_Escape:
+      return {"Escape", 27};
+    case Qt::Key_Backspace:
+      return {"Backspace", 8};
+    case Qt::Key_Delete:
+      return {"Delete", 46};
+    case Qt::Key_Tab:
+      return {"Tab", 9};
+    case Qt::Key_Space:
+      return {" ", 32};
+    case Qt::Key_Shift:
+      return {"Shift", 16};
+    case Qt::Key_Control:
+      return {"Control", 17};
+    case Qt::Key_Alt:
+      return {"Alt", 18};
+    case Qt::Key_Meta:
+      return {"Meta", 91};
+    case Qt::Key_Home:
+      return {"Home", 36};
+    case Qt::Key_End:
+      return {"End", 35};
+    case Qt::Key_PageUp:
+      return {"PageUp", 33};
+    case Qt::Key_PageDown:
+      return {"PageDown", 34};
+    case Qt::Key_Insert:
+      return {"Insert", 45};
+    default:
+      break;
+  }
+  if (qtKey >= Qt::Key_F1 && qtKey <= Qt::Key_F12)
+    return {"F" + std::to_string(qtKey - Qt::Key_F1 + 1),
+            112 + (qtKey - Qt::Key_F1)};
+  // The character it types — but only when it typed one a reader would
+  // recognise: a chord over a letter types a control character, and a
+  // sketch asked to compare against \x01 has been told which key was
+  // pressed in a way it cannot use. Qt's own key is that letter.
+  if (!text.isEmpty() && text.at(0).unicode() >= 0x20) {
+    const QChar first = text.at(0);
+    const int code =
+        first.isLetter() ? first.toUpper().unicode() : (int)first.unicode();
+    return {text.toStdString(), code};
+  }
+  if (qtKey >= 0x20 && qtKey <= 0x7e) {
+    const QChar typed = QChar(qtKey);
+    return {QString(typed.toLower()).toStdString(),
+            (int)typed.toUpper().unicode()};
+  }
+  return {QKeySequence(qtKey).toString().toStdString(), qtKey};
 }
 
 }  // namespace
@@ -95,9 +183,13 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
 
  private:
   void drawSketch(SkCanvas& canvas, QSize pixelSize);
-  void runPendingCaptures();   // hostMutex must be held
-  void openSketch(int index);  // hostMutex must be held
-  void publishMetrics();       // hostMutex must be held
+  void runPendingCaptures();  // hostMutex must be held
+  void refreshThumbnail();    // hostMutex must be held
+  /** hostMutex must be held. Hands back the session evicted to make
+   *  room, for the caller to let go of once the lock is released:
+   *  ~Host waits on the build it may be in the middle of. */
+  [[nodiscard]] std::unique_ptr<sketch::Host> openSketch(int index);
+  void publishMetrics();  // hostMutex must be held
   /** Routes a session's captures through this renderer's own context.
    *  Once live frames render on the device, the runtime's caches hold
    *  device-backed images that cannot replay onto a raster canvas, so
@@ -106,24 +198,46 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
 
 #ifdef SIGILSKETCH_BOOK_GPU
   bool readbackGraphite(SkSurface& surface, const SkPixmap& out);
-  // Declared before everything Skia so reverse destruction releases any
-  // Graphite-backed images before the context goes.
   std::unique_ptr<sigil::skia::GraphiteContext> m_graphiteContext;
+  /** Kept alive for the length of a capture: the fence the still on a
+   *  device is described through. */
+  std::unique_ptr<sigil::skia::PaintOrderCanvas> m_captureCanvas;
 #endif
   SketchbookView* m_view = nullptr;
   QRhi* m_rhi = nullptr;
   bool m_initialized = false;
   std::vector<uint32_t> m_rasterPixels;
-  QSize m_logicalSize;
+  /** THE ITEM'S OWN RECTANGLE, in its own units and not rounded to
+   *  them: what the texture will be stretched over, which is only the
+   *  same shape as the texture while the render size is settled on it. */
+  QSizeF m_logicalSize;
+  /** THE DENSITY A SKETCH'S CACHED RASTERS ARE BAKED AT: the screen's,
+   *  and not the viewport's. A sketch declares a canvas and this window
+   *  magnifies it, so a raster taken at the screen's density is the
+   *  picture of that canvas — taken once, and blitted through the zoom
+   *  the way a bitmap the sketch loaded would be. Read off the window
+   *  rather than off the frame's own scale, which is what a zoom moves. */
+  float m_deviceRatio = 1.0f;
   int m_requestedIndex = 0;
   int m_index = -1;
   int m_pendingCaptures = 0;
   int m_frameCount = 0;
+  /** How far into its own clock the presented session has run, and
+   *  whether it has already been photographed for the thumbnail store.
+   *  Both start over when a sketch is opened. */
+  double m_sceneSeconds = 0.0;
+  bool m_thumbnailTaken = false;
   bool m_paused = false;
   bool m_metricsDirty = true;
   double m_timeScale = 1.0;
   double m_submitMsAverage = 0.0;
-  std::chrono::steady_clock::time_point m_lastFrame;
+  /** The clock the presented frame advances by. The pause and the time
+   *  scale are the view's published properties, pushed into it on every
+   *  synchronize; what the clock adds on top is the stall clamp, so
+   *  dragging the window or stopping in a debugger resumes at the next
+   *  frame instead of jumping every animation forward by the length of
+   *  the pause. */
+  motion::FrameClock m_clock;
 };
 
 void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
@@ -165,11 +279,15 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
   const bool pauseStarted = !m_paused && view->m_paused;
   m_paused = view->m_paused;
   m_timeScale = view->m_timeScale;
+  m_clock.setPaused(m_paused);
+  m_clock.setTimeScale(m_timeScale);
   m_requestedIndex = view->m_sketchIndex;
   m_pendingCaptures += view->m_captureRequests;
   view->m_captureRequests = 0;
-  m_logicalSize = QSize(std::max(1, (int)std::lround(view->width())),
-                        std::max(1, (int)std::lround(view->height())));
+  m_logicalSize = QSizeF(view->width(), view->height());
+  m_deviceRatio = view->window()
+                      ? (float)view->window()->effectiveDevicePixelRatio()
+                      : 1.0f;
   if (pauseStarted) m_metricsDirty = true;
   if (view->m_orbitDirty) {
     view->m_orbitDirty = false;
@@ -180,7 +298,7 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
   }
 }
 
-void SketchbookRenderer::openSketch(int index) {
+std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
   const auto& entries = sketch::registry();
   sketch::Host::Options options;
   if (index >= 0 && index < (int)entries.size()) {
@@ -188,59 +306,80 @@ void SketchbookRenderer::openSketch(int index) {
     // the compiled-in entry and builds only once the file changes.
     options.compiledIn = &entries[index];
     options.sketchPath =
-        SketchbookView::sketchDir / (std::string(entries[index].key) + ".cpp");
+        sketch::sourceOf(SketchCatalog::sketchDir, entries[index].key);
   } else if (const int external = externalAt(index);
-             external >= 0 &&
-             external < (int)SketchbookView::externals.size()) {
+             external >= 0 && external < (int)SketchCatalog::externals.size()) {
     // A file this binary does not carry has to be built to be seen, so
     // it opens on the compiler rather than on an entry.
-    options.sketchPath = SketchbookView::externals[external];
+    options.sketchPath = SketchCatalog::externals[external];
   } else {
-    return;
+    return nullptr;
   }
+  if (!SketchbookView::fonts) return nullptr;  // nothing shapes text yet
   options.assetsDir = SketchbookView::assetsDir;
   options.flagsFile = SketchbookView::flagsFile;
+  options.sharedDir = SketchbookView::sharedDir;
   // The file is the session's name: it is what distinguishes a registry
   // entry from every other, and a file opened by path from every other.
   const std::string key = options.sketchPath.string();
-  const sketch::Residency::Presented presented =
+  sketch::Residency::Presented presented =
       SketchbookView::sessions.present(key, [this, &options] {
-        auto host = std::make_unique<sketch::Host>(std::move(options), fonts());
+        auto host = std::make_unique<sketch::Host>(std::move(options),
+                                                   *SketchbookView::fonts);
         installCaptureBackend(*host);
         return host;
       });
   SketchbookView::host = presented.host;
-  if (!SketchbookView::host) return;
-  // The window's own rolling numbers start over for a session that has
-  // just been built and carry on for one that was already running —
-  // which is what a resident set is for: the readout on return is the
-  // sketch's own history, not a ring filling from zero.
-  if (presented.opened) {
-    m_frameCount = 0;
-    m_submitMsAverage = 0.0;
-  }
+  if (!SketchbookView::host) return std::move(presented.evicted);
+  // Residency keeps the expensive host/compiler warm, but PRESENTATION is
+  // a fresh run. In particular, a retained Composer's mount transitions have
+  // already finished; merely resuming it makes entrance-heavy sketches look
+  // inert when revisited.
+  if (!presented.opened) SketchbookView::host->restartSession();
+  m_frameCount = 0;
+  m_sceneSeconds = 0.0;
+  m_thumbnailTaken = false;
+  m_submitMsAverage = 0.0;
   m_metricsDirty = true;
-  m_lastFrame = {};
+  m_clock = motion::FrameClock{};  // a new sketch starts at its own zero
+  // synchronize() applied these before openSketch(). Replacing the clock
+  // above must not silently unpause it or return it to normal speed.
+  m_clock.setPaused(m_paused);
+  m_clock.setTimeScale(m_timeScale);
   const bool orbits = SketchbookView::host->session() &&
                       SketchbookView::host->session()->hasViewpoint();
-  if (m_view) {
-    m_view->m_orbitable = orbits;
-    QMetaObject::invokeMethod(m_view, &SketchbookView::sketchIndexChanged,
-                              Qt::QueuedConnection);
-  }
+  // THE ITEM'S OWN STATE IS WRITTEN ON THE GUI THREAD. This runs on the
+  // render thread, outside synchronize(), while the GUI thread reads the
+  // same members through the property getters — so the value travels in
+  // the queued call rather than being assigned here and announced after.
+  if (SketchbookView* view = m_view)
+    QMetaObject::invokeMethod(
+        view,
+        [view, orbits] {
+          view->m_orbitable = orbits;
+          emit view->sketchIndexChanged();
+        },
+        Qt::QueuedConnection);
+  return std::move(presented.evicted);
 }
 
 void SketchbookRenderer::installCaptureBackend(sketch::Host& host) {
 #ifdef SIGILSKETCH_BOOK_GPU
   if (!m_graphiteContext) return;
-  host.setCaptureBackend({[this](const SkImageInfo& info) -> sk_sp<SkSurface> {
-                            if (!m_graphiteContext) return nullptr;
-                            return SkSurfaces::RenderTarget(
-                                m_graphiteContext->recorder(), info);
-                          },
-                          [this](SkSurface& surface, const SkPixmap& out) {
-                            return readbackGraphite(surface, out);
-                          }});
+  host.setCaptureBackend(
+      {[this](const SkImageInfo& info) -> sk_sp<SkSurface> {
+         if (!m_graphiteContext) return nullptr;
+         return SkSurfaces::RenderTarget(m_graphiteContext->recorder(), info);
+       },
+       [this](SkSurface& surface, const SkPixmap& out) {
+         return readbackGraphite(surface, out);
+       },
+       [this](SkSurface& surface) -> SkCanvas* {
+         if (!m_graphiteContext) return nullptr;
+         m_captureCanvas = std::make_unique<sigil::skia::PaintOrderCanvas>(
+             *m_graphiteContext, surface.getCanvas());
+         return m_captureCanvas.get();
+       }});
 #else
   (void)host;
 #endif
@@ -255,6 +394,14 @@ void SketchbookRenderer::publishMetrics() {
   metrics.insert(QStringLiteral("backend"), QLatin1String(backend));
   if (const std::string name = nameOf(m_index); !name.empty())
     metrics.insert(QStringLiteral("sketch"), QString::fromStdString(name));
+  // WHICH RUNTIME THIS SKETCH DREW THROUGH, known only once it has been
+  // built: a file opened by path learns its kind here, so the row in the
+  // browser stops reading "not yet compiled" under a sketch that is live.
+  if (const std::string_view runtime = SketchbookView::host->kind();
+      !runtime.empty())
+    metrics.insert(
+        QStringLiteral("runtime"),
+        QString::fromUtf8(runtime.data(), (qsizetype)runtime.size()));
   // WHAT THE BODY DECLARED, which is only knowable once it has run: a
   // sketch states its size, its ground and the moment it is worth
   // photographing from inside its own setup. The browser keeps what it
@@ -289,25 +436,54 @@ void SketchbookRenderer::publishMetrics() {
     lanes.push_back(row);
   }
   metrics.insert(QStringLiteral("lanes"), lanes);
-  m_view->m_metrics = std::move(metrics);
-  QMetaObject::invokeMethod(m_view, &SketchbookView::metricsChanged,
-                            Qt::QueuedConnection);
+  // THE MAP TRAVELS IN THE CALL. It is implicitly shared, and this is the
+  // render thread: assigning it here and announcing it after would let
+  // the GUI thread copy a map while its buckets were being replaced.
+  SketchbookView* view = m_view;
+  QMetaObject::invokeMethod(
+      view,
+      [view, metrics = std::move(metrics)]() mutable {
+        view->m_metrics = std::move(metrics);
+        emit view->metricsChanged();
+      },
+      Qt::QueuedConnection);
 
   // WHERE THE SKETCH IS SEEN FROM, published whether or not a pointer
   // has moved it: a drag reads this at the moment it starts, so the
   // first one continues the sketch's own framing and every one after it
   // continues where the last left off.
-  if (const std::optional<sketch::Orbit> orbit = session->orbit()) {
-    m_view->m_orbit = *orbit;
-    QMetaObject::invokeMethod(m_view, &SketchbookView::orbitChanged,
-                              Qt::QueuedConnection);
-  }
+  if (const std::optional<sigil::geometry::mesh::camera::Orbit> orbit =
+          session->orbit())
+    QMetaObject::invokeMethod(
+        view,
+        [view, seen = *orbit] {
+          view->m_orbit = seen;
+          emit view->orbitChanged();
+        },
+        Qt::QueuedConnection);
 }
 
 void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
   sketch::Host* host = SketchbookView::host;
-  const int width = pixelSize.width();
-  const int height = pixelSize.height();
+  // WHAT THE SCENE GRAPH WILL DO TO THIS TEXTURE, UNDONE IN ADVANCE. The
+  // texture is stretched over the item whatever resolution it stands at,
+  // so the frame is composed into a rectangle of the ITEM'S SHAPE and
+  // that rectangle is scaled to fill the texture. A zoom grows the item
+  // without changing its shape, so the two rectangles are the same one
+  // and the matrix below is bit for bit the matrix of the frame before —
+  // which is what lets every cached raster in the scene stand while the
+  // gesture runs, since a cache asks whether its node is exactly where it
+  // was. Only a shape that has really changed is compensated, and only
+  // until the resolution settles on it.
+  float width = (float)pixelSize.width();
+  float height = (float)pixelSize.height();
+  const double itemAspect = m_logicalSize.height() > 0
+                                ? m_logicalSize.width() / m_logicalSize.height()
+                                : 0.0;
+  const double heldAspect =
+      (double)pixelSize.width() / (double)pixelSize.height();
+  if (itemAspect > 0 && std::abs(itemAspect - heldAspect) > 0.002 * heldAspect)
+    height = (float)((double)width / itemAspect);
   // Letterbox to the SKETCH's own canvas rather than to the item: a
   // sketch declares its own dimensions and they do not share an aspect
   // ratio, so stretching one to fill would distort what it shows. The
@@ -316,25 +492,76 @@ void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
   canvas.clear(SkColorSetRGB(0x0b, 0x0a, 0x14));
   if (!host || !host->live()) return;
   const SkSize size = host->canvasSize();
-  const float scale =
-      std::min((float)width / size.width(), (float)height / size.height());
+  const sketch::Fit fit = sketch::fitInto(size, SkRect::MakeWH(width, height));
   canvas.save();
-  canvas.translate((width - size.width() * scale) / 2,
-                   (height - size.height() * scale) / 2);
-  canvas.scale(scale, scale);
+  // The compensation above, applied. It is the identity whenever the item
+  // and the texture agree in shape, which is every frame of a zoom.
+  canvas.scale((float)pixelSize.width() / width,
+               (float)pixelSize.height() / height);
+  canvas.translate(fit.x, fit.y);
+  canvas.scale(fit.scale, fit.scale);
   canvas.clipRect(SkRect::MakeWH(size.width(), size.height()));
   canvas.clear(host->background().toSkColor());
-  // Wall time, scaled and pausable: the frame the reader sees advances
-  // by what actually elapsed, not by a nominal step.
-  const auto now = std::chrono::steady_clock::now();
-  double dt = 0.0;
-  if (m_lastFrame.time_since_epoch().count() != 0 && !m_paused)
-    dt = std::chrono::duration<double>(now - m_lastFrame).count() * m_timeScale;
-  m_lastFrame = now;
-  host->frame(canvas, dt);
+  // Wall time, scaled, pausable and stall-clamped: the frame the reader
+  // sees advances by what actually elapsed, not by a nominal step.
+  // Bakes belong to the canvas the sketch declared, not to how far this
+  // window has magnified it: taken at the screen's density, once.
+  if (sketch::Session* session = host->session())
+    session->setBakeDensity(m_deviceRatio);
+  const double step = m_clock.tick();
+  host->frame(canvas, step);
+  m_sceneSeconds += step;
   canvas.restore();
   host->markPresented();
   if (++m_frameCount % 15 == 0) m_metricsDirty = true;
+}
+
+void SketchbookRenderer::refreshThumbnail() {
+  // ONCE PER SKETCH OPENED, AT THE MOMENT THE SKETCH NAMED. A sketch
+  // states from inside its own setup when a still of it is worth taking;
+  // a sketch that names none is photographed after a second, by which
+  // time whatever it mounts with has arrived. What the store then holds
+  // is the frame the reader was looking at, which is why nothing needs
+  // to be re-rendered in the background to keep it current.
+  constexpr double kSettledSeconds = 1.0;
+  if (m_thumbnailTaken || SketchCatalog::thumbnailDir.empty()) return;
+  const auto& entries = sketch::registry();
+  // A file opened by path has no row in the store: the store is keyed by
+  // a registry sketch's filed name, and two drafts may share a stem.
+  if (m_index < 0 || m_index >= (int)entries.size()) return;
+  sketch::Host* host = SketchbookView::host;
+  if (!host || !host->live()) return;
+  sketch::Session* session = host->session();
+  if (!session) return;
+  const sketch::CanvasSpec& spec = session->canvas();
+  const double moment =
+      spec.captureSeconds > 0 ? spec.captureSeconds : kSettledSeconds;
+  if (m_sceneSeconds < moment) return;
+  // Taken whether or not it lands: a sketch whose still cannot be
+  // written is not one to try again on every frame after its moment.
+  m_thumbnailTaken = true;
+
+  const sketch::Entry& entry = entries[m_index];
+  const std::filesystem::path source =
+      sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+  const std::string key = sketch::thumbnailKey(source);
+  const std::filesystem::path out =
+      sketch::thumbnailFile(SketchCatalog::thumbnailDir, entry.name, key);
+  const SkSize size = spec.size;
+  const float longest = std::max(size.width(), size.height());
+  if (!(longest > 0)) return;
+  const float scale = std::min(1.0f, (float)sketch::kThumbnailWidth / longest);
+  std::error_code code;
+  std::filesystem::create_directories(out.parent_path(), code);
+  if (!host->capture(out, scale)) return;
+  sketch::pruneThumbnails(SketchCatalog::thumbnailDir, entry.name, out);
+  if (m_view)
+    QMetaObject::invokeMethod(
+        m_view,
+        [view = m_view, index = m_index] {
+          emit view->thumbnailCaptured(index);
+        },
+        Qt::QueuedConnection);
 }
 
 void SketchbookRenderer::runPendingCaptures() {
@@ -353,8 +580,17 @@ void SketchbookRenderer::runPendingCaptures() {
         out = dir / name;
         if (!fs::exists(out)) break;
       }
-      if (host->capture(out, 2.0f))
-        result = QString::fromStdString(out.string());
+      // A CAPTURE IS PHOTOGRAPHED AT ITS OWN DENSITY. The live frame's
+      // bakes are taken at the screen's, which is the resolution the
+      // reader is looking at; a still written at twice that would blit
+      // them up. So the density is raised for the photograph and put
+      // back after, which costs the scene one re-bake each way — a price
+      // an explicitly asked-for still can pay and a frame cannot.
+      sketch::Session* session = host->session();
+      if (session) session->setBakeDensity(2.0f * m_deviceRatio);
+      const bool wrote = host->capture(out, 2.0f);
+      if (session) session->setBakeDensity(m_deviceRatio);
+      if (wrote) result = QString::fromStdString(out.string());
     }
     if (m_view)
       QMetaObject::invokeMethod(
@@ -407,16 +643,41 @@ bool SketchbookRenderer::readbackGraphite(SkSurface& surface,
 #endif
 
 void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
-  using Clock = std::chrono::steady_clock;
   QRhiTexture* texture = colorTexture();
-  if (!texture || m_logicalSize.width() < 1 || m_logicalSize.height() < 1)
+  if (!texture || !(m_logicalSize.width() > 0) ||
+      !(m_logicalSize.height() > 0)) {
+    update();  // keep asking for frames until there is something to draw into
     return;
+  }
   const QSize pixelSize = texture->pixelSize();
-  if (pixelSize.width() < 1 || pixelSize.height() < 1) return;
+  if (pixelSize.width() < 1 || pixelSize.height() < 1) {
+    update();
+    return;
+  }
+
+  // ONE SESSION AT A TIME: the outgoing one goes BEFORE the next opens,
+  // so that letting it go is not work inside the frames of the sketch
+  // that follows it. Outside the lock for the reason every release of a
+  // host is: ~Host waits on the build it may be in the middle of. The
+  // requested index is written on this thread, so reading it here needs
+  // nothing held.
+  if (SketchbookView::oneSessionAtATime && m_index != m_requestedIndex) {
+    std::unique_ptr<sketch::Host> leaving;
+    {
+      QMutexLocker lock(&SketchbookView::hostMutex);
+      leaving = SketchbookView::sessions.dropPresented();
+      SketchbookView::host = SketchbookView::sessions.presented();
+    }
+    leaving.reset();
+  }
 
 #ifdef SIGILSKETCH_BOOK_GPU
   if (m_graphiteContext) {
     bool rendered = false;
+    // LET GO OF AN EVICTED SESSION OUTSIDE THE LOCK: ~Host waits on the
+    // build it may be in the middle of, which is a compiler run, and
+    // this lock is the one every frame and every poll takes.
+    std::unique_ptr<sketch::Host> evicted;
     {
       sigil::skia::OffscreenSurface surface =
           sigil::skia::wrapTexture(*m_graphiteContext, texture, pixelSize);
@@ -424,17 +685,16 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
         QMutexLocker lock(&SketchbookView::hostMutex);
         if (m_index != m_requestedIndex) {
           m_index = m_requestedIndex;
-          openSketch(m_index);
+          evicted = openSketch(m_index);
         }
         drawSketch(*canvas, pixelSize);
-        const auto submitStart = Clock::now();
+        const sigil::measure::Stopwatch submitWatch;
         surface.submit();
-        const double submitMs = std::chrono::duration<double, std::milli>(
-                                    Clock::now() - submitStart)
-                                    .count();
+        const double submitMs = submitWatch.elapsedMs();
         m_submitMsAverage = m_submitMsAverage == 0.0
                                 ? submitMs
                                 : m_submitMsAverage * 0.95 + submitMs * 0.05;
+        refreshThumbnail();
         runPendingCaptures();
         if (m_metricsDirty) {
           m_metricsDirty = false;
@@ -443,23 +703,33 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
         rendered = true;
       }
     }
+    evicted.reset();
     if (rendered) {
       update();
       return;
     }
-    // Latch the CPU fallback until Qt supplies a new QRhi: images minted
-    // by this context cannot replay onto a raster canvas, so every
-    // resident session goes rather than being replayed — and goes before
-    // the context that made its images does.
+    // A FAILED FRAME IS ONE SESSION'S FAILURE, not the context's. The
+    // texture could not be wrapped for the sketch on screen — which a bad
+    // pipeline in that one sketch can cause — so drop THAT session and
+    // keep the shared Graphite context and every other resident warm,
+    // rather than tearing the context down and making one sketch's bad
+    // frame cost every other its state. m_index falls behind the request
+    // so the next selection reopens, and update() is re-requested so the
+    // window keeps asking for frames instead of going dark. A genuine QRhi
+    // replacement is a different event, handled in initialize().
     std::fprintf(stderr,
-                 "[sketchbook] Graphite texture wrap failed; switching to "
-                 "CPU raster\n");
-    QMutexLocker lock(&SketchbookView::hostMutex);
-    SketchbookView::sessions.clear();
-    SketchbookView::host = nullptr;
-    m_graphiteContext.reset();
-    g_backend.store(2);
-    m_index = -1;
+                 "[sketchbook] Graphite frame failed for the current sketch; "
+                 "dropping its session and keeping the context\n");
+    std::unique_ptr<sketch::Host> dropped;
+    {
+      QMutexLocker lock(&SketchbookView::hostMutex);
+      dropped = SketchbookView::sessions.dropPresented();
+      SketchbookView::host = SketchbookView::sessions.presented();
+      m_index = -1;
+    }
+    dropped.reset();  // outside the lock, for the reason above
+    update();
+    return;
   }
 #endif
 
@@ -470,22 +740,28 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
       SkImageInfo::Make(pixelSize.width(), pixelSize.height(),
                         kRGBA_8888_SkColorType, kPremul_SkAlphaType),
       m_rasterPixels.data(), (size_t)pixelSize.width() * sizeof(uint32_t));
-  if (!surface) return;
+  if (!surface) {
+    update();
+    return;
+  }
+  std::unique_ptr<sketch::Host> evicted;
   {
     QMutexLocker lock(&SketchbookView::hostMutex);
     if (m_index != m_requestedIndex) {
       m_index = m_requestedIndex;
-      openSketch(m_index);
+      evicted = openSketch(m_index);
     }
     drawSketch(*surface->getCanvas(), pixelSize);
+    refreshThumbnail();
     runPendingCaptures();
     if (m_metricsDirty) {
       m_metricsDirty = false;
       publishMetrics();
     }
   }
+  evicted.reset();  // outside the lock: ~Host waits on its build
 
-  const auto submitStart = Clock::now();
+  const sigil::measure::Stopwatch submitWatch;
   QRhiResourceUpdateBatch* batch = rhi()->nextResourceUpdateBatch();
   // fromRawData keeps this upload view non-owning; the render-thread
   // buffer stays stable through QRhi's endFrame.
@@ -495,9 +771,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
   QRhiTextureSubresourceUploadDescription sub(uploadBytes);
   batch->uploadTexture(texture, QRhiTextureUploadDescription({0, 0, sub}));
   commandBuffer->resourceUpdate(batch);
-  const double submitMs =
-      std::chrono::duration<double, std::milli>(Clock::now() - submitStart)
-          .count();
+  const double submitMs = submitWatch.elapsedMs();
   m_submitMsAverage = m_submitMsAverage == 0.0
                           ? submitMs
                           : m_submitMsAverage * 0.95 + submitMs * 0.05;
@@ -509,22 +783,33 @@ SketchbookView::SketchbookView(QQuickItem* parent) : QQuickRhiItem(parent) {
   // buffer is needed for this item.
   setAutoRenderTarget(false);
   setAlphaBlending(false);
+  m_settle.setSingleShot(true);
+  m_settle.setInterval(kResizeSettleMs);
+  QObject::connect(&m_settle, &QTimer::timeout, this,
+                   [this] { settleRenderSize(); });
   m_timer.setInterval(16);
   QObject::connect(&m_timer, &QTimer::timeout, this, [this] {
-    QMutexLocker lock(&hostMutex);
-    if (!host) return;
-    host->poll();
-    const QString status = QString::fromStdString(host->status());
-    const QString error = QString::fromStdString(host->errorLog());
-    static const char* kStateNames[] = {"waiting", "compiling", "live",
-                                        "failed"};
-    const QString state = kStateNames[(int)host->state()];
-    if (status != m_status || error != m_errorLog || state != m_state) {
-      m_status = status;
-      m_errorLog = error;
-      m_state = state;
-      emit stateChanged();
+    {
+      QMutexLocker lock(&hostMutex);
+      if (host) {
+        host->poll();
+        const QString status = QString::fromStdString(host->status());
+        const QString error = QString::fromStdString(host->errorLog());
+        static const char* kStateNames[] = {"waiting", "compiling", "live",
+                                            "failed"};
+        const QString state = kStateNames[(int)host->state()];
+        if (status != m_status || error != m_errorLog || state != m_state) {
+          m_status = status;
+          m_errorLog = error;
+          m_state = state;
+          emit stateChanged();
+        }
+      }
     }
+    // Ask for a frame WHETHER OR NOT a host is loaded. A sketch that
+    // failed to load leaves no host; if the tick returned here without
+    // this, render() would never be called again and selecting another
+    // sketch could not reopen — the window would be stuck on the failure.
     update();
   });
   m_timer.start();
@@ -536,9 +821,49 @@ QQuickRhiItemRenderer* SketchbookView::createRenderer() {
   return new SketchbookRenderer;
 }
 
+void SketchbookView::settleRenderSize() {
+  m_settle.stop();
+  // Nothing to pin to before the item has been laid out; the first real
+  // geometry brings one.
+  if (!(width() > 0) || !(height() > 0)) return;
+  const qreal ratio = window() ? window()->effectiveDevicePixelRatio() : 1.0;
+  // Truncate then multiply, which is how the item's own automatic sizing
+  // reaches the same number, so a settle that lands on the size already
+  // held is a no-op rather than a rebuild by one pixel.
+  const int pixelWidth = std::max(1, (int)std::lround((int)width() * ratio));
+  const int pixelHeight = std::max(1, (int)std::lround((int)height() * ratio));
+  if (pixelWidth == fixedColorBufferWidth() &&
+      pixelHeight == fixedColorBufferHeight())
+    return;
+  setFixedColorBufferWidth(pixelWidth);
+  setFixedColorBufferHeight(pixelHeight);
+}
+
+void SketchbookView::geometryChange(const QRectF& newGeometry,
+                                    const QRectF& oldGeometry) {
+  QQuickRhiItem::geometryChange(newGeometry, oldGeometry);
+  // A PURE TRANSLATION COSTS NOTHING: the frame on the texture is the
+  // same frame wherever the item stands, so panning never reaches here.
+  if (newGeometry.size() == oldGeometry.size()) return;
+  // Every step defers, the first one included: a width and a height
+  // arrive as two changes, so a gesture is never one event to recognise,
+  // and the first frame of a resize is exactly the one worth not paying
+  // for. Restarting the same single-shot timer is what keeps at most one
+  // resize pending, with the last size the one that is taken.
+  m_settle.start();
+}
+
+void SketchbookView::itemChange(ItemChange change, const ItemChangeData& data) {
+  QQuickRhiItem::itemChange(change, data);
+  if (change == ItemDevicePixelRatioHasChanged ||
+      (change == ItemSceneChange && data.window))
+    settleRenderSize();
+}
+
 void SketchbookView::setSketchIndex(int index) {
   if (index == m_sketchIndex || index < 0 ||
-      index >= (int)(sketch::registry().size() + externals.size()))
+      index >=
+          (int)(sketch::registry().size() + SketchCatalog::externals.size()))
     return;
   m_sketchIndex = index;
   emit sketchIndexChanged();
@@ -576,4 +901,30 @@ void SketchbookView::orbit(float yawDeg, float pitchDeg, float distance) {
   m_distance = distance;
   m_orbitDirty = true;
   update();
+}
+
+void SketchbookView::pointer(qreal x, qreal y, bool pressed) {
+  // Under the same lock the render thread draws under, the way the poll
+  // is: the session is one object, and the frame it is drawing is not
+  // interrupted by a point arriving.
+  QMutexLocker lock(&hostMutex);
+  if (!host || !host->live()) return;
+  sketch::Session* session = host->session();
+  if (!session) return;
+  // THE SAME FIT THE FRAME IS DRAWN WITH, in this item's own units: the
+  // canvas letterboxed into the item, so a point on the item is a point
+  // on the declared canvas by the inverse of that fit.
+  const SkSize size = host->canvasSize();
+  const sketch::Fit fit =
+      sketch::fitInto(size, SkRect::MakeWH((float)width(), (float)height()));
+  session->pointer(((float)x - fit.x) / fit.scale,
+                   ((float)y - fit.y) / fit.scale, pressed);
+}
+
+void SketchbookView::key(int qtKey, const QString& text, bool pressed) {
+  const auto [name, code] = keyAs(qtKey, text);
+  QMutexLocker lock(&hostMutex);
+  if (!host || !host->live()) return;
+  if (sketch::Session* session = host->session())
+    session->key(name, code, pressed);
 }

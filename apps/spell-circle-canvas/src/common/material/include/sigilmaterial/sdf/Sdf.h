@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <glm/vec2.hpp>
 #include <memory>
+#include <vector>
 
 namespace sigil::material::sdf {
 
@@ -68,8 +69,17 @@ inline Shape circle() {
   return s;
 }
 
-/** N-pointed star. `pointiness` is m in [2, points]: m = points is the
- *  regular polygon, and values toward 2 sharpen the arms. */
+/** N-pointed star. `pointiness` is m in [2, points], and it runs from
+ *  blunt to sharp: m = 2 IS THE REGULAR POLYGON — `star(6, 2)` is the
+ *  hexagon — and values toward `points` narrow the arms until, at m =
+ *  points exactly, they close to nothing and the shape is empty.
+ *
+ *  The dial is the edge half-angle behind it: the body sets the arm's
+ *  flank normal at pi/m, so at m = 2 the flank is square to the vertex
+ *  ray and the flanks meet as a polygon's sides do. It is the convention
+ *  of the distance operator this shape is, and the reason it is not
+ *  turned round here is that a caller reading any other source of the
+ *  same operator would then be reading a different dial. */
 Shape star(int points, float pointiness);
 
 /** How the silhouette is dressed. Layer order (back to front): shadow,
@@ -128,5 +138,12 @@ const std::shared_ptr<const Recipe>& recipe(Kind kind);
 /** The material: @p shape dressed by @p style. Bind `uGlowR`, `uBorderW`
  *  and the rest to animate within the reserve the style computed. */
 Material material(const Shape& shape, const Style& style);
+
+/** An instance of every recipe this feature ships, one per Kind, each
+ *  dressed by a style that lights every layer — so what the list reaches
+ *  is the whole of each body and not the part a bare fill runs. For a
+ *  caller that has to compile every program the feature can ask a
+ *  backend for without knowing which shapes it holds. */
+std::vector<Material> everyRecipe();
 
 }  // namespace sigil::material::sdf

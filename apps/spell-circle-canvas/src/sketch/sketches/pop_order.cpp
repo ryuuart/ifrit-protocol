@@ -34,11 +34,13 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <cmath>
 #include <utility>
@@ -57,8 +59,28 @@ constexpr glm::vec3 kOrderAxis{0, 0, 1};  // the sort key: dot(P, axis)
 constexpr bool kDescending = false;       // false = ascending = farthest first
 constexpr float kPanel = 340.0f;
 
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
+  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
+  look.palette.ash = {0.55f, 0.60f, 0.70f, 1};
+  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
+  look.type.title = {.size = 15, .track = 2};
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 10.5f, .track = 0.2f};
+  look.type.captionLabel = {.size = 13, .track = 0.4f};
+  look.type.captionNote = {.size = 11, .track = 0.2f};
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 22;
+  look.spacing.captionGap = 5;
+  return look;
+}
+
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
+const SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
+const SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
 const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** A CROWN: a closed ring in the XZ plane with a threefold vertical wave.
@@ -87,8 +109,8 @@ mesh::camera::Camera lookAtCrown() {
  *  semi-transparent, so a mis-ordered sprite reads as haze rather than as
  *  occlusion. The rim is BLACK because the tint is applied by kModulate —
  *  0 * anything is 0, so a black outline survives every tint. */
-const sk_sp<SkImage>& disc() {
-  static const sk_sp<SkImage> img = [] {
+sk_sp<SkImage> disc() {
+  return [] {
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 64));
     SkCanvas* c = s->getCanvas();
     c->clear(SK_ColorTRANSPARENT);
@@ -102,17 +124,22 @@ const sk_sp<SkImage>& disc() {
     c->drawCircle(32, 32, 28, p);
     return s->makeImageSnapshot();
   }();
-  return img;
 }
 
 /** The sink: NO depth sort and NO additive blending, because both of those
  *  hide what `order()` does. kSrcOver means the last sprite drawn wins, and
  *  chain order decides who is last. */
 Element splat(mesh::Cloud cloud, float spriteSize) {
-  return custom([cloud = std::move(cloud), spriteSize](
+  // KEYLESS: what the program closes over is a whole point cloud, which no
+  // key spells — and the sink paints live at `Cache::None`, so its node was
+  // never going to prune.
+  // The stamp is baked into the program BY VALUE, once per describe: asked
+  // for inside the body it is a 64 px surface rasterised on every paint,
+  // which at `Cache::None` is every frame.
+  return custom([cloud = std::move(cloud), spriteSize, sprite = disc()](
                     SkCanvas& canvas, const PaintContext& paint) {
            mesh::points::BillboardStyle style;
-           style.sprite = disc();
+           style.sprite = sprite;
            style.size = spriteSize;
            style.sizeLane = "size";
            style.tintLane = "tint";
@@ -126,18 +153,14 @@ Element splat(mesh::Cloud cloud, float spriteSize) {
 }
 
 Element panel(const char* title, const char* note, Element inner) {
-  return box()
-      .width(kPanel)
-      .column()
-      .gap(5)
-      .child(text(toU8(title), type({.size = 13.0f, .color = kInk})))
-      .child(box()
-                 .width(kPanel)
-                 .height(kPanel)
-                 .clip()  // the projection is wider than the frame
-                 .stroke(stroke(1.0f, Fill::color(kFrame)))
-                 .child(std::move(inner)))
-      .child(text(toU8(note), type({.size = 11.0f, .color = kDim})));
+  // The well clips: the projection is wider than the frame.
+  return sketch::kit::caption(
+      kPanel, toU8(title), toU8(note),
+      sketch::kit::well({.width = Dim(kPanel),
+                         .height = Dim(kPanel),
+                         .ground = Fill::none(),
+                         .keyline = Fill::color(kFrame)})
+          .child(std::move(inner)));
 }
 
 }  // namespace
@@ -146,9 +169,10 @@ struct PopOrder : sketch::Sketch {
   mesh::Cloud unsorted, sorted;
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(760, 470);
-    ctx.background({0.055f, 0.06f, 0.085f, 1});
-    ctx.captureAt(1.0);
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = {760, 500}});
+    // Both clouds are cooked in setup; nothing reads the clock.
+    ctx.captureAt(0.05);
 
     const std::vector<glm::vec3> loop = crown(215, 190, 72);
 
@@ -169,30 +193,23 @@ struct PopOrder : sketch::Sketch {
     unsorted = depthChain().cloud();
     sorted = depthChain().order(kOrderAxis, kDescending).cloud();
 
-    ctx.composer.render(
-        stack()
-            .child(text(toU8("geometry::pop \xc2\xb7 order() is a "
-                             "PERMUTATION, and the point sink draws in it"),
-                        type({.size = 15.0f, .color = kInk}))
-                       .left(30)
-                       .top(16))
-            .child(box()
-                       .row()
-                       .left(30)
-                       .top(50)
-                       .gap(20)
-                       .child(panel("no order() \xc2\xb7 WRONG",
-                                    "scatter order = painter order",
-                                    splat(unsorted, 34)))
-                       .child(panel("order({0,0,1}) \xc2\xb7 right",
-                                    "farthest first, one call",
-                                    splat(sorted, 34))))
-            .child(text(toU8("Sort is CPU-only and stated as a boundary: a "
-                             "permutation is not a per-point map, so "
-                             "SigilWorld declines a chain holding one"),
-                        type({.size = 11.0f, .color = kDim}))
-                       .left(30)
-                       .bottom(14)));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("POP ORDER \xc2\xb7 order() is a PERMUTATION, "
+                       "and the point sink draws in it"),
+         .subtitle = toU8("colour is driven from P.z over the ring's own "
+                          "depth range, so colour IS depth and a "
+                          "mis-ordered sprite is a dark dot sitting on "
+                          "a bright one"),
+         .footer = toU8("Sort is CPU-only and stated as a boundary: a "
+                        "permutation is not a per-point map, so "
+                        "SigilWorld declines a chain holding one")},
+        kit::cells(
+            {.cells = {panel("no order() \xc2\xb7 WRONG",
+                             "scatter order = painter order",
+                             splat(unsorted, 34)),
+                       panel("order({0,0,1}) \xc2\xb7 right",
+                             "farthest first, one call", splat(sorted, 34))},
+             .gap = 20})));
   }
 };
 

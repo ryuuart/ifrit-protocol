@@ -22,7 +22,9 @@
  * the bodies are the honest reading of where the light is.
  */
 
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
@@ -33,15 +35,13 @@
 #include <glm/vec4.hpp>
 #include <string>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
-
-using namespace sigil::world;
+namespace gm = sigil::geometry::mesh;
 
 namespace {
-
-namespace gm = ::sigil::geometry::mesh;
 
 constexpr float kTwoPi = 6.283185307179586f;
 /** The room: where the plinth's top stands, how wide it is, and how far
@@ -112,10 +112,10 @@ struct LanternRoom final : sketch::Set {
   }
 
   world::Frame describe(float seconds) override {
-    Element room = Element().key("room");
+    world::Element room = world::Element().key("room");
 
     room.child(
-        Element()
+        world::Element()
             .key("plinth")
             .at({0.0f, kFloor, 0.0f})
             .mesh(plinth())
@@ -125,15 +125,15 @@ struct LanternRoom final : sketch::Set {
 
     // A sun so faint it is an outline rather than a light: what keeps
     // the far side of every body from being nothing at all.
-    room.child(Element().key("sun").light(
-        sun({-0.35f, -0.85f, -0.4f}, {0.52f, 0.60f, 0.86f, 1.0f}, 0.22f)));
+    room.child(world::Element().key("sun").light(world::light::sun(
+        {-0.35f, -0.85f, -0.4f}, {0.52f, 0.60f, 0.86f, 1.0f}, 0.22f)));
 
     // The spot: opening downward onto the middle of the cluster, so the
     // tallest body is picked out from above while the lanterns reach it
     // from the sides.
-    room.child(Element().key("spot").light(
-        spot({0.0f, 520.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 22.0f, 8.0f,
-             {1.0f, 0.96f, 0.88f, 1.0f}, 0.9f, 900.0f)));
+    room.child(world::Element().key("spot").light(
+        world::light::spot({0.0f, 520.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 22.0f,
+                           8.0f, {1.0f, 0.96f, 0.88f, 1.0f}, 0.9f, 900.0f)));
 
     for (const Lantern& lantern : kLanterns) {
       // Each lantern rides a slow bob of its own, so what it reaches
@@ -141,11 +141,12 @@ struct LanternRoom final : sketch::Set {
       // way to say so is to move one lamp and leave the rest.
       const float bearing = lantern.bearingDeg * kTwoPi / 360.0f;
       const float bob = std::sin(seconds * 0.75f + lantern.bearingDeg * 0.03f);
-      const glm::vec3 at{kRing * std::sin(bearing),
-                         kFloor + lantern.height + 42.0f * bob,
-                         kRing * std::cos(bearing)};
+      // A bearing is measured from +z and turns toward +x, so the
+      // ellipse's two components land on z and on x in that order.
+      const SkPoint on = arrange::onEllipse({0, 0}, {kRing, kRing}, bearing);
+      const glm::vec3 at{on.fY, kFloor + lantern.height + 42.0f * bob, on.fX};
       room.child(
-          Element()
+          world::Element()
               .key(std::string(lantern.key) + "-shell")
               .at(at)
               .mesh(gm::superellipsoid({19.0f, 26.0f, 19.0f}, 1.4f, 24, 16))
@@ -154,17 +155,18 @@ struct LanternRoom final : sketch::Set {
       // …and the emitter at the same place, a sibling rather than a
       // child: a node that is only an emitter carries no geometry, and
       // nothing about a light is welded to a body.
-      room.child(Element()
+      room.child(world::Element()
                      .key(std::string(lantern.key) + "-lamp")
                      .at(at)
-                     .light(point({0, 0, 0}, lantern.color, 1.25f, kReach))
+                     .light(world::light::point({0, 0, 0}, lantern.color, 1.25f,
+                                                kReach))
                      .tag("lamp"));
     }
 
     for (size_t i = 0; i < kBodies.size(); ++i) {
       const Body& body = kBodies[i];
       room.child(
-          Element()
+          world::Element()
               .key("body" + std::to_string(i))
               .at({body.at.x, kFloor + body.at.y, body.at.z})
               .mesh(gm::superellipsoid(body.radii, body.exponent, 40, 26))
@@ -177,13 +179,13 @@ struct LanternRoom final : sketch::Set {
     // The camera is the kit's turntable and nothing else is: this study
     // lights its own room, so the preset that puts three lamps over a
     // ground plane would be describing a second room on top of it.
-    room.child(kit::turntable({.at = {0.0f, 0.0f, 0.0f},
-                               .radius = 760.0f,
-                               .height = 260.0f,
-                               .period = 24.0f,
-                               .fovYDeg = 44.0f},
-                              seconds));
-    return Frame(std::move(room));
+    room.child(world::kit::turntable({.at = {0.0f, 0.0f, 0.0f},
+                                      .radius = 760.0f,
+                                      .height = 260.0f,
+                                      .period = 24.0f,
+                                      .fovYDeg = 44.0f},
+                                     seconds));
+    return world::Frame(std::move(room));
   }
 };
 

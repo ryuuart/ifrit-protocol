@@ -22,11 +22,15 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
+#include <sigilcore/comparable/Erased.h>
 
+#include <concepts>
 #include <functional>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 namespace sigil::compose {
@@ -44,7 +48,115 @@ namespace sigil::compose {
  *  be much larger than its visible shape — under `sdf::` chrome, for
  *  instance — so the gap is how a wire stops at the glow instead of
  *  piercing it. */
-using Router = std::function<SkPath(const SkRect& from, const SkRect& to)>;
+/** A route scheme: `SkPath route(const SkRect& from, const SkRect& to)
+ *  const`, plus equality — the same seam-value convention a `Shape`
+ *  takes, and for the same reason. A routed node can only prune if the
+ *  reconciler can prove the route is the same one, so a router is a
+ *  VALUE whose equality is its parameters (the rails it bends at, the
+ *  radii, the phases) and never a callable's identity. A scheme's
+ *  equality is a contract on the author: equal values must route
+ *  identical paths between every pair of rects. */
+template <typename R>
+concept RouteScheme =
+    std::equality_comparable<R> &&
+    requires(const R& r, const SkRect& from, const SkRect& to) {
+      { r.route(from, to) } -> std::convertible_to<SkPath>;
+    };
+
+/** THE ROUTE BETWEEN TWO RECTS, type-erased: what `connector()` holds.
+ *
+ *  Two constructions, one value:
+ *
+ *  - a COMPARABLE scheme (any `routers::` value, or your own value with
+ *    `route(from, to)` + `==`) — the node prunes while the value and the
+ *    rects are unchanged;
+ *  - a raw callable (`[](const SkRect&, const SkRect&) -> SkPath`) — the
+ *    escape hatch. It never compares equal to a separately-constructed
+ *    Router, so the node re-patches on every describe and can never
+ *    prune. Copies of ONE Router do compare equal (they share state), so
+ *    holding the Router and re-using it — rather than re-minting the
+ *    lambda each describe — restores pruning.
+ *
+ *  Held as one shared immutable pointer, so a node carrying a router
+ *  costs a pointer and a copy-on-write node copy is a refcount bump. */
+namespace detail {
+
+/** WHAT A ROUTE SEAM DOES: answer the path between two endpoint rects.
+ *  The operations behind `Router`, so the erasure itself is SigilCore's
+ *  one mechanism and this header holds only the vocabulary. */
+struct RouteOps {
+  virtual ~RouteOps() = default;
+  virtual SkPath route(const SkRect& from, const SkRect& to) const = 0;
+};
+
+/** A comparable scheme as those operations. Its equality is the scheme's,
+ *  which is what makes two separately-built routers of one kind prune. */
+template <RouteScheme R>
+struct RouteModel : RouteOps {
+  R scheme;
+  explicit RouteModel(R s) : scheme(std::move(s)) {}
+  bool operator==(const RouteModel& o) const { return scheme == o.scheme; }
+  SkPath route(const SkRect& from, const SkRect& to) const override {
+    return scheme.route(from, to);
+  }
+};
+
+/** The callable escape hatch, which carries no equality at all. */
+struct RouteFn : RouteOps {
+  std::function<SkPath(const SkRect&, const SkRect&)> fn;
+  explicit RouteFn(std::function<SkPath(const SkRect&, const SkRect&)> f)
+      : fn(std::move(f)) {}
+  SkPath route(const SkRect& from, const SkRect& to) const override {
+    return fn ? fn(from, to) : SkPath();
+  }
+};
+
+}  // namespace detail
+
+class Router {
+ public:
+  Router() = default;
+
+  template <RouteScheme R>
+    requires(!std::same_as<std::remove_cvref_t<R>, Router>)
+  Router(R scheme)  // NOLINT: implicit by design (connector(a, b, arc()))
+      : m_held(detail::RouteModel<R>(std::move(scheme))) {}
+
+  /** The escape hatch: any callable over the two endpoint rects. Never
+   *  compares equal to a separately-constructed Router. */
+  template <typename F>
+    requires(!RouteScheme<std::remove_cvref_t<F>> &&
+             !std::same_as<std::remove_cvref_t<F>, Router> &&
+             std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F>&,
+                                   const SkRect&, const SkRect&>)
+  Router(F fn)  // NOLINT: implicit by design (connector(a, b, [](…){…}))
+      : m_held(core::Erased<detail::RouteOps>(detail::RouteFn(std::move(fn)))) {
+  }
+
+  explicit operator bool() const { return (bool)m_held; }
+  SkPath operator()(const SkRect& from, const SkRect& to) const {
+    return m_held ? m_held->route(from, to) : SkPath();
+  }
+  /** A Router is itself a scheme, so it NESTS: a wrapper that asks for a
+   *  scheme takes one, and the equality it then uses is the one below —
+   *  which refuses a callable, where a compiler-written equality over an
+   *  empty closure type would vacuously accept it. */
+  SkPath route(const SkRect& from, const SkRect& to) const {
+    return (*this)(from, to);
+  }
+  /** Does this value participate in structural equality? (False for the
+   *  callable escape hatch.) */
+  bool comparable() const { return m_held.comparable(); }
+
+  /** Shared state (copies of one Router) is equal; comparable schemes of
+   *  one type compare their values; anything else is conservative — the
+   *  erased value's own rule. */
+  bool operator==(const Router& o) const { return m_held == o.m_held; }
+
+ private:
+  core::Erased<detail::RouteOps> m_held;
+};
+
 Element connector(std::string_view fromKey, std::string_view toKey,
                   Router router = {}, float gap = 0.0f);
 
@@ -52,18 +164,170 @@ Element connector(std::string_view fromKey, std::string_view toKey,
  *  bounds ((0,0)=top-left, (1,1)=bottom-right — the binding form tldraw and
  *  Excalidraw both converged on; never absolute coordinates, so rails
  *  survive layout, drag, and reflow). `gap` pulls a TERMINAL anchor back
- *  along its segment (breathing room at the ends; ignored on waypoints). */
+ *  along its segment (breathing room at the ends; ignored on waypoints).
+ *
+ *  A FREE POINT is the other half: leave `nodeKey` empty and the anchor is
+ *  `point`, in the RAIL'S OWN coordinates, bound to nothing. A route
+ *  through a place rather than through a thing — the bend that clears a
+ *  corner, the fan-out a diagram's own drawing puts at a fixed offset —
+ *  is a real waypoint and not a node, and standing invisible boxes up to
+ *  carry those coordinates mounts, lays out and reconciles a node per
+ *  bend for a number the caller already had.
+ *
+ *  A rail whose anchors are ALL free points is a polyline the router
+ *  draws and nothing binds; one that mixes them is the ordinary case —
+ *  a wire that leaves a port, turns in the gutter, and arrives at
+ *  another. */
 struct Anchor {
   std::string nodeKey;
   SkPoint norm = {0.5f, 0.5f};
   float gap = 0.0f;
+  /** Read only when `nodeKey` is empty: the point, in the rail's own
+   *  coordinates (the rail is normally `absolute().inset(0)` over the
+   *  nodes it threads, so those are the coordinates the nodes are placed
+   *  in). Last, so the positional `{key, norm, gap}` spelling stands. */
+  SkPoint point = {0.0f, 0.0f};
   bool operator==(const Anchor&) const = default;
 };
 
-/** Routes an ordered run of resolved anchor points into the rail's path —
- *  stock ones in <sigilcompose/Routers.h> (polyline, octilinear); write your
- *  own for anything else. Straight polyline when omitted. */
-using RailRouter = std::function<SkPath(std::span<const SkPoint>)>;
+/** WHERE A BOX HANGS OFF ANOTHER ONE — the positioning value, stated as a
+ *  pair of normalized points and a list of places to try.
+ *
+ *  `on` is the point of the ANCHOR's resolved rect the box hangs from;
+ *  `at` is the point of the BOX that lands there; `offset` is how far
+ *  from there, in px, in the composition's axes. The pair covers every
+ *  arrangement of two boxes there is — `{on = {0.5, 0}, at = {0.5, 1}}`
+ *  is "centred above", `{on = {1, 0.5}, at = {0, 0.5}}` is "to the right,
+ *  middles level" — and it is normalized rather than absolute for the
+ *  same reason an Anchor is: it survives layout, drag and reflow, where
+ *  coordinates lifted off one frame do not.
+ *
+ *  `fallbacks` is what makes it a position rather than an offset. The
+ *  stated tether is tried first; if the box it places leaves `within`,
+ *  each fallback is tried in the order given, and the first that FITS is
+ *  taken. When none fits, the first one that RESOLVED stands — the stated
+ *  tether wherever it names a node that is there, and otherwise the first
+ *  fallback that does — so a box that cannot be placed anywhere is still
+ *  placed. A fallback's own `fallbacks` are not read — the list is the
+ *  list.
+ *
+ *  `within` empty is the composer's own bounds, which is what "on screen"
+ *  means when nothing narrower is stated.
+ *
+ *  AN UNKNOWN KEY IS SILENT, the family's rule: a tether naming a node
+ *  that is not there places nothing and the box stays where layout left
+ *  it. So is a key naming this node or one of its descendants, which
+ *  would derive the box from itself. */
+struct Tether {
+  std::string key;
+  SkPoint on = {0.5f, 0.5f};
+  SkPoint at = {0.5f, 0.5f};
+  SkVector offset = {0.0f, 0.0f};
+  SkRect within = SkRect::MakeEmpty();
+  std::vector<Tether> fallbacks;
+  bool operator==(const Tether&) const = default;
+
+  /** Where a box of @p size lands when this tether ties it to @p anchor.
+   *  Both rects are in ONE space and the answer is in that space; which
+   *  space that is belongs to the caller. */
+  SkRect place(const SkRect& anchor, SkSize size) const {
+    return SkRect::MakeXYWH(anchor.left() + anchor.width() * on.x() +
+                                offset.x() - size.width() * at.x(),
+                            anchor.top() + anchor.height() * on.y() +
+                                offset.y() - size.height() * at.y(),
+                            size.width(), size.height());
+  }
+};
+
+/** A rail-route scheme: `SkPath route(std::span<const SkPoint>) const`,
+ *  plus equality — the pointwise seam's half of the same convention
+ *  `RouteScheme` states. Equal values must route identical paths through
+ *  every anchor run. */
+template <typename R>
+concept RailScheme = std::equality_comparable<R> &&
+                     requires(const R& r, std::span<const SkPoint> anchors) {
+                       { r.route(anchors) } -> std::convertible_to<SkPath>;
+                     };
+
+/** THE PATH THROUGH AN ORDERED RUN OF ANCHORS, type-erased: what
+ *  `rail()` holds. Stock values in <sigilcompose/kit/Routers.h>
+ *  (polyline, octilinear, orbit, manhattan); write your own for anything
+ *  else, and a straight polyline is what an empty one draws.
+ *
+ *  Comparable exactly as `Router` is: a `routers::` value or your own
+ *  value with `route(anchors)` + `==` prunes; a raw callable
+ *  (`[](std::span<const SkPoint>) -> SkPath`) is the escape hatch that
+ *  compares equal to nothing but its own copies. */
+namespace detail {
+
+/** WHAT A RAIL SEAM DOES: answer the path through an ordered anchor run.
+ *  The rail's half of the same one mechanism the route seam uses. */
+struct RailOps {
+  virtual ~RailOps() = default;
+  virtual SkPath route(std::span<const SkPoint> anchors) const = 0;
+};
+
+template <RailScheme R>
+struct RailModel : RailOps {
+  R scheme;
+  explicit RailModel(R s) : scheme(std::move(s)) {}
+  bool operator==(const RailModel& o) const { return scheme == o.scheme; }
+  SkPath route(std::span<const SkPoint> anchors) const override {
+    return scheme.route(anchors);
+  }
+};
+
+/** The callable escape hatch, which carries no equality at all. */
+struct RailFn : RailOps {
+  std::function<SkPath(std::span<const SkPoint>)> fn;
+  explicit RailFn(std::function<SkPath(std::span<const SkPoint>)> f)
+      : fn(std::move(f)) {}
+  SkPath route(std::span<const SkPoint> anchors) const override {
+    return fn ? fn(anchors) : SkPath();
+  }
+};
+
+}  // namespace detail
+
+class RailRouter {
+ public:
+  RailRouter() = default;
+
+  template <RailScheme R>
+    requires(!std::same_as<std::remove_cvref_t<R>, RailRouter>)
+  RailRouter(R scheme)  // NOLINT: implicit by design (rail(a, polyline()))
+      : m_held(detail::RailModel<R>(std::move(scheme))) {}
+
+  /** The escape hatch: any callable over the resolved anchor run. Never
+   *  compares equal to a separately-constructed RailRouter. */
+  template <typename F>
+    requires(!RailScheme<std::remove_cvref_t<F>> &&
+             !std::same_as<std::remove_cvref_t<F>, RailRouter> &&
+             std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F>&,
+                                   std::span<const SkPoint>>)
+  RailRouter(F fn)  // NOLINT: implicit by design (rail(a, [](auto p){…}))
+      : m_held(core::Erased<detail::RailOps>(detail::RailFn(std::move(fn)))) {}
+
+  explicit operator bool() const { return (bool)m_held; }
+  SkPath operator()(std::span<const SkPoint> anchors) const {
+    return m_held ? m_held->route(anchors) : SkPath();
+  }
+  /** A RailRouter is itself a scheme, so it NESTS — same reason a Router
+   *  and a Shape do. */
+  SkPath route(std::span<const SkPoint> anchors) const {
+    return (*this)(anchors);
+  }
+  /** Does this value participate in structural equality? (False for the
+   *  callable escape hatch.) */
+  bool comparable() const { return m_held.comparable(); }
+
+  /** Shared state (copies of one RailRouter) is equal; comparable schemes
+   *  of one type compare their values; anything else is conservative. */
+  bool operator==(const RailRouter& o) const { return m_held == o.m_held; }
+
+ private:
+  core::Erased<detail::RailOps> m_held;
+};
 
 /** The component that IS a line: a path threaded through an ordered span of
  *  anchors (a transit line through its stations, a wire through ports),
@@ -119,7 +383,7 @@ Element band(Around spine, Across width);
  *
  *  THIS IS THE ONE STATEMENT OF THAT CONVENTION for the whole library.
  *  `Profile::across`, `strand::offset`, `geometry::parallel`,
- *  `lines::Rail::across`, `kit::brush::shapers::offset` and
+ *  `lines::Rail::across`, `geometry::shapes::offset` and
  *  `TextPath::offset` all mean this same side. Anything placing content on
  *  a band reads it here, so the placement and the band's own geometry
  *  cannot disagree. */

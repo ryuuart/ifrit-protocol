@@ -8,28 +8,20 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilshaders/MaterialSdf.h>
+
+#include <cmath>
+
+#include "ShaderTable.h"
+#include "support/Shade.h"
 
 using namespace sigil::material;
+using sigil::material::test::render;
 
-namespace {
-
-SkBitmap render(const Material& m, int w, int h) {
-  skia::install();
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  SkCanvas canvas(bm);
-  canvas.clear(SK_ColorTRANSPARENT);
-  SkPaint paint;
-  paint.setShader(skia::shader(m, {.resolution = {(float)w, (float)h}}));
-  canvas.drawPaint(paint);
-  return bm;
-}
-
-}  // namespace
-
-TEST(Sdf, StarFillsCenterMissesCorners) {
+TEST(Sdf, AStarFillsItsCentreAndMissesTheCornersOfItsBox) {
   sdf::Style style;
   style.fill = {1, 1, 1, 1};
   const SkBitmap bm = render(sdf::material(sdf::star(5, 2.5f), style), 64, 64);
@@ -43,7 +35,39 @@ TEST(Sdf, StarFillsCenterMissesCorners) {
       0u);
 }
 
-TEST(Sdf, PadReservesTheStylesReach) {
+TEST(Sdf, ThePointinessDialRunsFromTheRegularPolygonToClosedArms) {
+  // The dial's ends are what a caller reads off the comment and gets
+  // wrong in silence: 2 is the REGULAR POLYGON, and the point count
+  // itself closes the arms to nothing. What is asserted is the ordering
+  // and both ends, so a body that turned the dial round would fail here
+  // rather than in a plate nobody rebased.
+  sdf::Style style;
+  style.fill = {1, 1, 1, 1};
+  const auto covered = [&](float pointiness) {
+    const SkBitmap bm =
+        render(sdf::material(sdf::star(6, pointiness), style), 64, 64);
+    int on = 0;
+    for (int y = 0; y < 64; ++y)
+      for (int x = 0; x < 64; ++x)
+        if ((bm.getColor(x, y) >> 24) > 127) ++on;
+    return on;
+  };
+  const int hexagon = covered(2.0f);
+  EXPECT_GT(hexagon, covered(3.5f));
+  EXPECT_GT(covered(3.5f), covered(5.0f));
+  EXPECT_EQ(covered(6.0f), 0) << "the arms close at the point count";
+  // …and 2 really is the polygon: a hexagon covers 3·sqrt(3)/2 of its
+  // circumradius squared against the pi the circle of that radius covers.
+  const SkBitmap round = render(sdf::material(sdf::circle(), style), 64, 64);
+  int disc = 0;
+  for (int y = 0; y < 64; ++y)
+    for (int x = 0; x < 64; ++x)
+      if ((round.getColor(x, y) >> 24) > 127) ++disc;
+  EXPECT_NEAR((double)hexagon / disc, 3.0 * std::sqrt(3.0) / (2.0 * M_PI),
+              0.03);
+}
+
+TEST(Sdf, ThePadReservesWhateverTheStyleReachesPastitsShape) {
   sdf::Style plain;
   EXPECT_FLOAT_EQ(sdf::pad(plain), 1.0f);
   sdf::Style glow;
@@ -73,4 +97,19 @@ TEST(Sdf, StyleIsTheRecipeAndAGlowBindingIsLive) {
   EXPECT_TRUE(bound.isAnimated());
   // Star's pointiness clamps into [2, points].
   EXPECT_EQ(sdf::star(5, 9.0f), sdf::star(5, 5.0f));
+}
+
+// ---- the embedded shader table --------------------------------------------
+
+TEST(Sdf, EveryStockBodyCompiles) {
+  skia::install();
+  for (const Material& m : sdf::everyRecipe()) {
+    if (!m.recipe().has(Target::SkSL)) continue;
+    EXPECT_TRUE(skia::shader(m, {.resolution = {64, 64}})) << m.recipe().name();
+  }
+}
+
+TEST(Sdf, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
+  sigil::test::expectShaderTableIsWholeDirectory(sdf::shaderSources(),
+                                                 SIGIL_MATERIAL_SDF_SHADER_DIR);
 }

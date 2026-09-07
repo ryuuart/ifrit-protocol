@@ -1,22 +1,20 @@
 # The signed-distance surfaces: three recipes, every style dial a uniform.
 # Links the core alone.
-add_library(SigilMaterialSdf STATIC
-  Sdf.cpp
-  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/sdf/Sdf.h
-)
-target_compile_features(SigilMaterialSdf PUBLIC cxx_std_20)
-target_include_directories(SigilMaterialSdf PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
-target_link_libraries(SigilMaterialSdf PUBLIC SigilMaterialCore)
+set(SIGIL_MATERIAL_SDF_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
+    CACHE INTERNAL "the sdf feature's shader modules")
+set(_shaders ${SIGIL_MATERIAL_SDF_SHADER_DIR})
+sigil_library(SigilMaterialSdf
+  SOURCES Sdf.cpp
+  HEADERS Sdf.h
+  PUBLIC SigilMaterialCore SigilMaterialColor)
+sigil_shader_sources(SigilMaterialSdf
+  DIR ${_shaders} NAMESPACE sigil::material::sdf)
 
-# The test shades, so it links the Skia backend beside the feature.
-add_executable(material_sdf_test test/SdfTest.cpp)
-target_link_libraries(material_sdf_test PRIVATE SigilMaterialSdf
-  SigilMaterialSkia GTest::gtest_main)
-add_test(NAME material_sdf_test COMMAND material_sdf_test)
+# test/SdfTest.cpp is compiled into material_test, at the library root:
+# the primitives, the colour leaf and the view transforms all shade
+# through the Skia backend, so a binary per feature would be five
+# binaries over one link closure.
 
-# Google Benchmark (use a Release build). Not a test: it builds through
-# the `benches` target and runs through scripts/bench_ledger.py.
-add_executable(material_sdf_bench bench/SdfBench.cpp)
-target_link_libraries(material_sdf_bench PRIVATE SigilMaterialSdf
-  SigilMaterialSkia benchmark::benchmark)
-add_dependencies(benches material_sdf_bench)
+sigil_bench(material_bench
+  SOURCES bench/SdfBench.cpp
+  LIBRARIES SigilMaterialSdf SigilMaterialSkia)

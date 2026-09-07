@@ -12,6 +12,7 @@
  */
 
 #include <sigilcore/cache/Policy.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilworld/element/Element.h>
@@ -27,7 +28,7 @@ namespace sigil::world {
 /** A node's ride along a curve: the spline, and how far along it the
  *  node stands. */
 struct Along {
-  Spline3 spline;
+  geometry::mesh::curve::Spline3 spline;
   motion::Animatable<float> distance{0.0f};
 };
 
@@ -51,6 +52,22 @@ struct Emission {
   std::optional<motion::Animatable<float>> blue;
 };
 
+/** AN ENVIRONMENT MAP'S LIVE DIALS, on the same terms as an emitter's:
+ *  each present only where the tree said something about it, so a dial
+ *  the description drops leaves the environment's own field standing.
+ *  Its strength and its tint are the emitter rows above, because a
+ *  panorama placed in a set is an emitter of a kind and a node carries
+ *  one or the other. */
+struct SkyDials {
+  std::optional<motion::Animatable<float>> diffuse;
+  std::optional<motion::Animatable<float>> specular;
+  std::optional<motion::Animatable<float>> roughnessBias;
+  std::optional<motion::Animatable<float>> crossfade;
+  std::optional<motion::Animatable<float>> exposure;
+  std::optional<motion::Animatable<float>> backdrop;
+  std::optional<motion::Animatable<float>> backdropBlur;
+};
+
 /** ONE NODE'S DESCRIPTION, field by field. */
 struct ElementNode {
   /** What children are matched on; empty means positional. */
@@ -59,18 +76,32 @@ struct ElementNode {
   std::optional<Along> along;
   std::optional<Window> window;
   Geometry geometry;
+  Backface backface = Backface::Hidden;
   /** The one surface. */
   std::optional<::sigil::material::Material> material;
   /** …or the per-face slots, in slot order. A node carries one form or
    *  the other, never both. */
   std::vector<::sigil::material::Material> slots;
   std::vector<std::string> tags;
-  std::optional<Light> light;
+  std::optional<light::Light> light;
   /** …and the dials on it, when the tree put any there. */
   std::optional<Emission> emission;
-  std::optional<Camera> camera;
+  /** The panorama this node places, and its own dials. */
+  std::optional<Environment> environment;
+  std::optional<SkyDials> sky;
+  std::optional<geometry::mesh::camera::Camera> camera;
   core::Cache cachePolicy = core::Cache::Auto;
   std::optional<motion::Transition> nodeTransition;
+  /** THE CASCADE OVER THIS NODE'S CHILDREN AS THEY MOUNT: each child's
+   *  entrance is delayed by the start time the schedule gives its
+   *  ordinal, and that delay compounds down the subtree, so a set that
+   *  arrives arrives in an order rather than all at once.
+   *
+   *  It delays only children that actually MOUNT. The first describe
+   *  cascades the whole list; a child appended to a live list is the only
+   *  new mount in its patch and enters at once, and children already
+   *  standing never re-enter. */
+  std::optional<motion::Spread> childStagger;
   std::vector<Element> children;
   std::optional<Memo> memo;
 };

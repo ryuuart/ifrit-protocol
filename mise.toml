@@ -6,73 +6,17 @@
 # workflows that get repeated are one word instead of a path and a set
 # of flags to remember.
 #
-# Two conventions run through the file, and they are in tension:
+# The build's administration is one script behind one verb per task
+# (`apps/spell-circle-canvas/scripts/sigil.py <verb>`; its README is the
+# canon and `--help` on a verb is the canon for its flags), so anything
+# after `--` is forwarded to the verb:
 #
-#  * Anything after `--` is forwarded to the last command a task runs,
-#    which is what lets `mise run test -- -R compose` work.
-#  * A task that declares its own arguments in `usage` CANNOT forward.
+#     mise run check -- --fix
+#     mise run sanitize -- --lane thread
+#     mise run plates -- --tier device
 #
-# So each task picks one. Tasks wrapping a script with a considered
-# interface of its own (gate.py, check.py, coverage.py, sanitize.py,
-# plate_ledger.py, ctest, Sketchbook) forward and declare nothing;
-# tasks that need to choose a build configuration or a target declare
-# `usage` and do not forward.
-
-[tasks."docs:build"]
-description = "Generate the per-library API documentation into build/docs"
-dir = "apps/spell-circle-canvas"
-run = """
-set -e
-# Documentation is parsed from headers, so the build tree only has to be
-# CONFIGURED, never compiled. A first run on a fresh checkout therefore
-# stops after configure rather than building the whole application.
-if [ ! -f build/CMakeCache.txt ]; then
-  echo "No build tree yet — configuring (this does not compile the app)."
-  python3 scripts/setup.py --config Debug --configure-only
-fi
-cmake --build build --config Debug --target docs
-"""
-
-[tasks.docs]
-description = "Build the API documentation and open it"
-depends = ["docs:build"]
-dir = "apps/spell-circle-canvas"
-run = """
-set -e
-page="$PWD/build/docs/index.html"
-echo "$page"
-open "$page" 2>/dev/null || xdg-open "$page" 2>/dev/null || true
-"""
-
-[tasks."docs:serve"]
-description = "Build the API documentation and serve it from a container"
-depends = ["docs:build"]
-dir = "apps/spell-circle-canvas"
-run = """
-set -e
-name=spellcircle-docs
-port="${DOCS_PORT:-8080}"
-
-# The generated tree is a complete build context: the docs target stages
-# the Dockerfile and nginx config into it alongside the HTML.
-docker build -t "$name" build/docs
-
-docker rm -f "$name" >/dev/null 2>&1 || true
-docker run -d --name "$name" -p "$port:80" "$name" >/dev/null
-
-# Opening the page before nginx is listening shows a connection error
-# that a reload would have fixed, so wait for it to actually answer.
-i=0
-while [ "$i" -lt 40 ]; do
-  if curl -fsS -o /dev/null "http://localhost:$port/"; then break; fi
-  i=$((i + 1))
-  sleep 0.25
-done
-
-echo "Serving on http://localhost:$port"
-echo "Stop it with: docker rm -f $name"
-open "http://localhost:$port" 2>/dev/null || xdg-open "http://localhost:$port" 2>/dev/null || true
-"""
+# The two tasks that pick a build configuration declare it in `usage`
+# instead, and a task that declares its own arguments CANNOT forward.
 
 # ---------------------------------------------------------------------------
 # Build and run
@@ -82,27 +26,27 @@ open "http://localhost:$port" 2>/dev/null || xdg-open "http://localhost:$port" 2
 # its own directory. Binaries land in build/bin/<config>/.
 
 [tasks.build]
-description = "Configure and build the application (--config Debug|Release|RelWithDebInfo)"
+description = "Configure and build the application (--config Release|Debug|RelWithDebInfo)"
 dir = "apps/spell-circle-canvas"
 usage = '''
-flag "--config <config>" help="build configuration" default="Debug" {
+flag "--config <config>" help="build configuration" default="Release" {
   choices "Debug" "Release" "RelWithDebInfo"
 }
 '''
-run = 'python3 scripts/setup.py --config "${usage_config:-Debug}"'
+run = 'python3 scripts/sigil.py setup --config "${usage_config:-Release}"'
 
 [tasks.app]
-description = "Build and launch SpellCircle (--config Debug|Release|RelWithDebInfo)"
+description = "Build and launch SpellCircle (--config Release|Debug|RelWithDebInfo)"
 dir = "apps/spell-circle-canvas"
 usage = '''
-flag "--config <config>" help="build configuration" default="Debug" {
+flag "--config <config>" help="build configuration" default="Release" {
   choices "Debug" "Release" "RelWithDebInfo"
 }
 '''
 run = '''
 set -e
-config="${usage_config:-Debug}"
-python3 scripts/setup.py --config "$config"
+config="${usage_config:-Release}"
+python3 scripts/sigil.py setup --config "$config"
 # A macOS bundle: `open` gives it a proper application activation rather
 # than the console-app treatment the bare binary gets.
 open "build/bin/$config/SpellCircle.app"
@@ -119,79 +63,72 @@ open "build/bin/$config/SpellCircle.app"
 #     mise run test -- --rerun-failed
 
 [tasks.test]
-description = "Run the Debug test suite (extra args go to ctest, after --)"
-dir = "apps/spell-circle-canvas"
-depends = ["build"]
-run = "ctest --test-dir build -C Debug --output-on-failure"
-
-[tasks."test:release"]
 description = "Run the Release test suite (extra args go to ctest, after --)"
 dir = "apps/spell-circle-canvas"
 depends = ["build --config Release"]
 run = "ctest --test-dir build -C Release --output-on-failure"
 
-# ---------------------------------------------------------------------------
-# Gates
-#
-# Each of these wraps a script that already has a considered interface,
-# so none of them declare flags of their own — everything after `--` is
-# forwarded:
-#
-#     mise run gate -- --tidy
-#     mise run check -- --fix
-#     mise run sanitize -- --thread
-#     mise run coverage -- --filter compose --open
-
-[tasks.gate]
-description = "The fast gate before a commit, in parallel lanes (args go to gate.py)"
+[tasks."test:debug"]
+description = "Run the Debug test suite (extra args go to ctest, after --)"
 dir = "apps/spell-circle-canvas"
-# Release, and the whole build: the lanes read binaries rather than
-# building them, and a verdict about the last build is a verdict about
-# code nobody has any more.
-depends = ["build --config Release"]
-run = "python3 scripts/gate.py"
+depends = ["build --config Debug"]
+run = "ctest --test-dir build -C Debug --output-on-failure"
+
+# ---------------------------------------------------------------------------
+# Checks
 
 [tasks.check]
-description = "Format and lint the changed files (args after -- go to check.py)"
+description = "Format and lint the branch's work (args go to the check verb)"
 dir = "apps/spell-circle-canvas"
-run = "python3 scripts/check.py"
-
-[tasks.coverage]
-description = "Instrumented build, test run and llvm-cov report (args go to coverage.py)"
-dir = "apps/spell-circle-canvas"
-run = "python3 scripts/coverage.py"
+run = "python3 scripts/sigil.py check"
 
 [tasks.sanitize]
-description = "ASan+UBSan build and test run; --thread for the TSan lane"
+description = "ASan+UBSan build and test run; --lane thread for TSan"
 dir = "apps/spell-circle-canvas"
-run = "python3 scripts/sanitize.py"
+run = "python3 scripts/sigil.py sanitize"
+
+[tasks.coverage]
+description = "Instrumented build, test run and llvm-cov report"
+dir = "apps/spell-circle-canvas"
+run = "python3 scripts/sigil.py sanitize --lane coverage"
 
 # ---------------------------------------------------------------------------
 # Visual and performance work
 #
 # Release throughout: Debug timings say nothing about this code, and the
-# ledger compares rendered bytes from a build whose optimisation settings
-# have to be the ones the baseline was taken with.
+# plate ledger compares rendered bytes from a build whose optimisation
+# settings have to be the ones the baseline was taken with. Each of these
+# runs a binary the build produces without building it, so the target
+# comes first.
 
 [tasks.plates]
-description = "Render sketch plates headlessly (args go to Sketchbook, after --)"
+description = "Plate sweep over the sketch registry in Release (args go to the plates verb)"
 dir = "apps/spell-circle-canvas"
-# Debug, and no --config flag: a task that declares its own flags cannot
-# forward extra arguments, and `--sketch <substring>` is the whole point
-# of running this by hand.
-#
-#     mise run plates -- --sketch astrolabe
-#     mise run plates -- --gpu
 run = '''
 set -e
 cmake --build build --config Release --target Sketchbook
-out="build/plates-out"
-mkdir -p "$out"
-echo "Rendering into $out"
-# Sketchbook is an app bundle, so a headless run goes through the binary
-# inside it rather than the bundle.
-exec "build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook" \
-  --headless "$out"
+python3 scripts/sigil.py plates
+'''
+
+[tasks.bench]
+description = "Timing sweep over the benchmark binaries (args go to the bench verb)"
+dir = "apps/spell-circle-canvas"
+run = '''
+set -e
+cmake --build build --config Release --target benches
+python3 scripts/sigil.py bench
+'''
+
+[tasks.fps]
+description = "Presented-frame-rate sweep in the real window (args go to the bench verb)"
+dir = "apps/spell-circle-canvas"
+# It opens a real window and presents each sketch in it, so the machine
+# has to be quiet AND the window has to be able to present — a compositor
+# busy with something else is measured along with the sketch.
+run = '''
+set -e
+cmake --build build --config Release --target Sketchbook
+python3 scripts/sigil.py bench --lane fps
 '''
 
 [tasks.sketch]
@@ -203,62 +140,13 @@ cmake --build build --config Release --target Sketchbook
 exec build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook
 '''
 
-[tasks.ledger]
-description = "Plate sweep over the sketch registry (args go to plate_ledger.py)"
-dir = "apps/spell-circle-canvas"
-run = '''
-set -e
-# The ledger renders through Sketchbook and refuses to run without it,
-# but does not build it itself.
-cmake --build build --config Release --target Sketchbook
-python3 scripts/plate_ledger.py
-'''
-
-[tasks.fps]
-description = "Presented-frame-rate sweep in the real window (args go to app_fps_ledger.py)"
-dir = "apps/spell-circle-canvas"
-# Forwards like `ledger` does: `mise run fps -- --rebase`,
-# `mise run fps -- --kind set`. It opens a real window and presents each
-# sketch in it, so the machine has to be quiet AND the window has to be
-# able to present — a compositor busy with something else is measured
-# along with the sketch.
-run = '''
-set -e
-cmake --build build --config Release --target Sketchbook
-python3 scripts/app_fps_ledger.py
-'''
-
-[tasks.bench]
-description = "Timing sweep over the benchmark binaries (args go to bench_ledger.py)"
-dir = "apps/spell-circle-canvas"
-# Forwards like `test` does: `mise run bench -- --rebase`,
-# `mise run bench -- --benches weave_layout_bench`. The ledger runs the
-# binaries but does not build them, so the `benches` target comes first.
-run = '''
-set -e
-cmake --build build --config Release --target benches
-python3 scripts/bench_ledger.py
-'''
-
-[tasks."bench:one"]
-description = "Build and run one benchmark binary in Release, with its own reporter"
-dir = "apps/spell-circle-canvas"
-usage = '''
-arg "<benchmark>" help="which benchmark to run" default="compose_core_bench"
-'''
-run = '''
-set -e
-name="${usage_benchmark:-compose_core_bench}"
-cmake --build build --config Release --target "$name"
-binary="build/bin/Release/$name"
-# Printed so a run with the benchmark library's own filters and repeat
-# options is a copy-paste away.
-echo "$binary"
-exec "$binary"
-'''
-
 # ---------------------------------------------------------------------------
-# Generated files and assets
+# Documentation, generated files and assets
+
+[tasks.docs]
+description = "Build the API documentation and open it (--serve serves it instead)"
+dir = "apps/spell-circle-canvas"
+run = "python3 scripts/sigil.py docs"
 
 [tasks.flatbuffers]
 description = "Regenerate the committed Python schema modules from SpellCircle.fbs"
@@ -267,11 +155,22 @@ dir = "apps/spell-circle-canvas"
 # neither an input nor an output here.
 sources = ["src/spellcircle/shared/schema/SpellCircle.fbs"]
 outputs = ["../python/SpellCircle/Scene.py"]
-run = "sh scripts/regen_flatbuffers.sh"
+run = "python3 scripts/sigil.py flatbuffers"
+
+[tasks.flags]
+description = "Lift the sketch compile line into a response file (args after --)"
+dir = "apps/spell-circle-canvas"
+# The build runs this step itself; the task is the door for running it by
+# hand, and every path it works on is named on the command line:
+#
+#     mise run flags -- --compdb build/compile_commands.json \
+#         --anchor src/sketch/sketches/Anchor.cpp --config Release \
+#         --out build/bin/Release/sketch_flags.rsp
+run = "python3 scripts/sigil.py flags"
 
 [tasks.assets]
-description = "Fetch the open-licensed demo assets into build/assets"
+description = "Fetch the demo assets into build/assets (--stage <archive> stages an SDK instead)"
 dir = "apps/spell-circle-canvas"
 # The fetcher only writes files, so this works on a fresh checkout with
 # no configured build tree.
-run = "python3 scripts/fetch_assets.py"
+run = "python3 scripts/sigil.py assets"

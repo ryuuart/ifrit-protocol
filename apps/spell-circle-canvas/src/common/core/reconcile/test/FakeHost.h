@@ -3,26 +3,37 @@
 /** @file
  * A host with nothing behind it: a description that is a key, a kind and
  * one integer; a node that records the lane it carried; and every
- * ReconcileHost operation written into a log, so a test reads what the
- * reconciler asked of its host and in what order.
+ * ReconcileHost operation recorded as a structured event, so a test reads
+ * what the reconciler asked of its host and in what order.
+ *
+ * The events carry fields rather than sentences on purpose: a claim like
+ * "the reorder that changed the structure came before the destroy" then
+ * asks about the operation and its subject, and survives any rewording of
+ * what the host would print.
  */
 
 #include <sigilcore/reconcile/Reconcile.h>
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
-namespace sigil::core::test {
+// Every feature's fake host lives in its own `sigil::core::test::<feature>`
+// namespace. That is what lets each of them use the plainest name for what
+// it is — FakeHost, FakeNode — without one redefining another.
+namespace sigil::core::test::reconcile {
 
-struct FakeDesc;
-using Desc = std::shared_ptr<FakeDesc>;
+struct FakeDescription;
+using Description = std::shared_ptr<FakeDescription>;
 
 /** The description: comparable in `key`, `kind` and `value`. */
-struct FakeDesc {
+struct FakeDescription {
   std::string key;
   std::string kind = "box";
   int value = 0;
@@ -31,14 +42,14 @@ struct FakeDesc {
   bool positioned = false;
   /** A slot: its children are filled by replaceContent(), never walked. */
   bool slot = false;
-  std::vector<Desc> children;
-  std::optional<Memo<Desc>> memo;
+  std::vector<Description> children;
+  std::optional<Memo<Description>> memo;
 };
 
 /** One description, keyed or not, with children. */
-inline Desc desc(std::string key, int value = 0,
-                 std::vector<Desc> children = {}) {
-  auto d = std::make_shared<FakeDesc>();
+inline Description description(std::string key, int value = 0,
+                               std::vector<Description> children = {}) {
+  auto d = std::make_shared<FakeDescription>();
   d->key = std::move(key);
   d->value = value;
   d->children = std::move(children);
@@ -46,30 +57,67 @@ inline Desc desc(std::string key, int value = 0,
 }
 
 /** The retained node: the skeleton plus what this host keeps per node. */
-struct FakeNode : Node<FakeNode, Desc> {
+struct FakeNode : Node<FakeNode, Description> {
   int id = 0;
   std::string kind;
   bool positionedMode = false;  ///< fixed at mount
   int lane = 0;                 ///< retained across patches, like a motion
 };
 
+/** The operations a ReconcileHost is asked to perform. */
+enum class Op { Create, Patch, Reorder, Invalidate, Destroy };
+
+/** One operation as it was asked for: which operation, on whose key, and
+ *  the arguments that operation carries. A field nobody set stays at its
+ *  default, so a query names only what it cares about. */
+struct Event {
+  Op op;
+  std::string key;
+  int id = 0;                     ///< Create, Destroy
+  size_t ordinal = 0, count = 0;  ///< Create
+  bool mount = false;             ///< Patch: the first one on a node
+  bool structureChanged = false;  ///< Reorder
+};
+
 struct FakeHost {
   using Node = FakeNode;
-  using Reconciler = core::Reconciler<FakeHost, FakeNode, Desc>;
+  using Reconciler = core::Reconciler<FakeHost, FakeNode, Description>;
 
   Reconciler reconciler{*this};
   std::unique_ptr<FakeNode> root;
-  std::vector<std::string> log;
+  std::vector<Event> log;
   std::vector<std::pair<int, uint64_t>> retired;  ///< (id, frame)
   int nextId = 1;
 
+  // ---- reading the log ----
+  /** Where the first @p op on @p key sits in the log, or log.size(). */
+  size_t indexOf(Op op, std::string_view key) const {
+    const auto it = std::find_if(log.begin(), log.end(), [&](const Event& e) {
+      return e.op == op && e.key == key;
+    });
+    return (size_t)(it - log.begin());
+  }
+  bool asked(Op op, std::string_view key) const {
+    return indexOf(op, key) != log.size();
+  }
+  /** The first @p op on @p key, or nullptr — for reading its arguments. */
+  const Event* first(Op op, std::string_view key) const {
+    const size_t at = indexOf(op, key);
+    return at == log.size() ? nullptr : &log[at];
+  }
+  size_t timesAsked(Op op, std::string_view key) const {
+    return (size_t)std::count_if(log.begin(), log.end(), [&](const Event& e) {
+      return e.op == op && e.key == key;
+    });
+  }
+
   // ---- reading a description ----
-  static const std::string& keyOf(const Desc& d) { return d->key; }
-  static bool equal(const Desc& a, const Desc& b) {
+  static const std::string& keyOf(const Description& d) { return d->key; }
+  static bool equal(const Description& a, const Description& b) {
     return a->key == b->key && a->kind == b->kind && a->value == b->value;
   }
-  static bool reconcilesChildren(const Desc& d) { return !d->slot; }
-  static const std::vector<Desc>& children(const Desc& d) {
+  static bool reconcilesChildren(const Description& d) { return !d->slot; }
+  static const std::vector<Description>& children(const Description& d) {
     return d->children;
   }
   // A fake element IS its description, so the handle read off it is the
@@ -77,54 +125,69 @@ struct FakeHost {
   // vector, which outlives the reconciler pass; a temporary never reaches
   // here.
   // NOLINTNEXTLINE(bugprone-return-const-ref-from-parameter)
-  static const Desc& descOf(const Desc& child) { return child; }
-  static const Memo<Desc>* memoOf(const Desc& d) {
+  static const Description& descriptionOf(const Description& child) {
+    return child;
+  }
+  static const Memo<Description>* memoOf(const Description& d) {
     return d->memo ? &*d->memo : nullptr;
   }
-  static Desc produce(const Memo<Desc>& memo) {
+  static Description produce(const Memo<Description>& memo) {
     return memo.invoke(memo.props);
   }
 
   // ---- acting on a node ----
-  std::unique_ptr<FakeNode> create(const Desc& d, FakeNode* parent,
+  std::unique_ptr<FakeNode> create(const Description& d, FakeNode* parent,
                                    size_t ordinal, size_t count) {
     auto node = std::make_unique<FakeNode>();
     node->id = nextId++;
     node->parent = parent;
-    node->positionedMode = parent && parent->desc && parent->desc->positioned;
-    log.push_back("create " + d->key + " #" + std::to_string(node->id) + " " +
-                  std::to_string(ordinal) + "/" + std::to_string(count));
+    node->positionedMode =
+        parent && parent->description && parent->description->positioned;
+    log.push_back({.op = Op::Create,
+                   .key = d->key,
+                   .id = node->id,
+                   .ordinal = ordinal,
+                   .count = count});
     reconciler.patch(*node, d);
     return node;
   }
-  void onPatched(FakeNode& node, const FakeDesc* prev, const FakeDesc& next) {
-    log.push_back(std::string("patch ") + next.key + (prev ? "" : " (mount)"));
+  void onPatched(FakeNode& node, const FakeDescription* prev,
+                 const FakeDescription& next) {
+    log.push_back({.op = Op::Patch, .key = next.key, .mount = prev == nullptr});
     // An identity change rebuilds what the kind decides and keeps the rest.
     node.kind = next.kind;
   }
   void reorder(FakeNode& parent, bool structureChanged) {
-    log.push_back("reorder " + (parent.desc ? parent.desc->key : "?") +
-                  (structureChanged ? " changed" : ""));
+    log.push_back(
+        {.op = Op::Reorder,
+         .key = parent.description ? parent.description->key : std::string{},
+         .structureChanged = structureChanged});
   }
   bool remountRequired(const FakeNode& match, const FakeNode& parent) const {
-    return match.positionedMode != (parent.desc && parent.desc->positioned);
+    return match.positionedMode !=
+           (parent.description && parent.description->positioned);
   }
   void invalidate(FakeNode& node) {
-    log.push_back("invalidate " + (node.desc ? node.desc->key : "?"));
+    log.push_back(
+        {.op = Op::Invalidate,
+         .key = node.description ? node.description->key : std::string{}});
   }
   void destroy(std::unique_ptr<FakeNode> node, uint64_t frame) {
     retired.emplace_back(node->id, frame);
-    log.push_back("destroy #" + std::to_string(node->id));
+    log.push_back(
+        {.op = Op::Destroy,
+         .key = node->description ? node->description->key : std::string{},
+         .id = node->id});
   }
 
   // ---- conveniences ----
-  void render(const Desc& d) { reconciler.render(root, d); }
+  void render(const Description& d) { reconciler.render(root, d); }
   FakeNode* child(size_t i) { return root->children.at(i).get(); }
   std::vector<std::string> childKeys() const {
     std::vector<std::string> keys;
-    for (const auto& c : root->children) keys.push_back(c->desc->key);
+    for (const auto& c : root->children) keys.push_back(c->description->key);
     return keys;
   }
 };
 
-}  // namespace sigil::core::test
+}  // namespace sigil::core::test::reconcile

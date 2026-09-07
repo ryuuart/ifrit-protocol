@@ -3,7 +3,6 @@
  * and sentence starts follow the text and survive paint edits.
  */
 
-#include <absl/container/flat_hash_set.h>
 #include <gtest/gtest.h>
 
 #include <string>
@@ -13,7 +12,7 @@ using namespace sigil::weave;
 using namespace sigil::weave::test;
 
 TEST(Paragraph, ReplaceTextPreservesSurroundingStyles) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   TextStyle red = basicStyle();
   red.paint.foreground.setColor(SK_ColorRED);

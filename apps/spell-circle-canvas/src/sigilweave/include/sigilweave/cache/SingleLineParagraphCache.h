@@ -32,13 +32,15 @@ concept CacheableTextView =
  * Caches single-style paragraphs by text, typeface, and quantized font size.
  *
  * Returned references remain valid while other entries are inserted because
- * the cache uses a node-based map. They become invalid after clear() or when
- * the bounded cache clears itself before inserting a new generation.
+ * the cache uses a node-based map. They become invalid after clear(), and
+ * one of them becomes invalid whenever a full cache makes room: the entry
+ * that goes is the one nothing has asked for in the longest time, which is
+ * never the paragraph a caller just took.
  */
 class SingleLineParagraphCache {
  public:
-  /** Creates a cache that empties itself rather than exceed
-   *  `maximumEntries`, invalidating previously returned references. */
+  /** Creates a cache holding at most `maximumEntries` paragraphs, dropping
+   *  the least recently used one to make room. */
   explicit SingleLineParagraphCache(size_t maximumEntries = 1024);
   ~SingleLineParagraphCache();
 

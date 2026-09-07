@@ -42,7 +42,7 @@ namespace sigil::weave {
  * A decoration separates two concerns: *band geometry* (kind, span, side,
  * thickness, offset, skipInk) and *band fill*. The fill has two spellings:
  * `color` is the lightweight one, and `paint` is the full SkPaint
- * vocabulary — shaders (PaintShaders.h presets animate per frame through
+ * vocabulary — shaders (a shader swapped per frame goes through
  * Paragraph::setPaint() without relayout, exactly like glyph paint), blend
  * modes, mask filters. Glyphs and decorations resolve their fills
  * independently, so a shaded highlight under plain-colored text — or the

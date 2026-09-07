@@ -7,10 +7,14 @@
  * index read back off the result.
  */
 
+#include <boost/container_hash/hash.hpp>
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -20,10 +24,22 @@
 
 namespace sigil::core {
 
+/** The hash of an addressable key, taking the key as the view a caller
+ *  holds it in: a table hashed with this and compared with
+ *  `std::equal_to<>` answers a `std::string_view` without first copying it
+ *  into a `std::string`. */
+struct KeyHash {
+  using is_transparent = void;
+  using is_avalanching = void;
+  size_t operator()(std::string_view key) const noexcept {
+    return boost::hash<std::string_view>{}(key);
+  }
+};
+
 /** Drives a host's retained tree from descriptions.
  *
  *  `Host` implements the ReconcileHost operations on itself; `Node` is
- *  its retained node type, derived from core::Node; `Desc` is its
+ *  its retained node type, derived from core::Node; `Description` is its
  *  description handle. The three are named separately so a host can hold
  *  a Reconciler as a member before it is complete — the host is only
  *  reached inside the member functions, which are instantiated where they
@@ -32,45 +48,46 @@ namespace sigil::core {
  *  One pass is one `render()` (the whole tree from the root) or one
  *  `replaceContent()` (one node's single child); each advances `frame()`,
  *  which is what a retired node is stamped with. */
-template <class Host, class NodeT, class DescT>
+template <class Host, class NodeT, class DescriptionT>
 class Reconciler {
  public:
   using Node = NodeT;
-  using Desc = DescT;
-  using Value = DescValue<Desc>;
+  using Description = DescriptionT;
+  using Value = DescriptionValue<Description>;
   /** Addressable key → node, rebuilt by indexKeys(). */
-  using KeyIndex = std::unordered_map<std::string, Node*>;
+  using KeyIndex =
+      boost::unordered_flat_map<std::string, Node*, KeyHash, std::equal_to<>>;
 
   explicit Reconciler(Host& host) : m_host(host) {}
 
-  /** The whole tree: mounts `root` from `desc` when there is none, else
+  /** The whole tree: mounts `root` from `description` when there is none, else
    *  patches it. Zeroes the per-pass counts first. */
-  void render(std::unique_ptr<Node>& root, const Desc& desc) {
-    static_assert(ReconcileHost<Host, Node, Desc>);
+  void render(std::unique_ptr<Node>& root, const Description& description) {
+    static_assert(ReconcileHost<Host, Node, Description>);
     ++m_frame;
     m_stats.reset();
     if (!root) {
-      root = m_host.create(desc, nullptr, 0, 1);
+      root = m_host.create(description, nullptr, 0, 1);
       m_stats.mounted++;
     } else {
-      patch(*root, desc);
+      patch(*root, description);
     }
   }
 
   /** One node's single content child: patched when it stands, mounted
    *  when it does not (retiring whatever else was there). The parent is
    *  invalidated either way. */
-  void replaceContent(Node& parent, const Desc& desc) {
-    static_assert(ReconcileHost<Host, Node, Desc>);
+  void replaceContent(Node& parent, const Description& description) {
+    static_assert(ReconcileHost<Host, Node, Description>);
     ++m_frame;
     if (parent.children.size() == 1) {
-      patch(*parent.children.front(), desc);
+      patch(*parent.children.front(), description);
     } else {
       for (auto& child : parent.children)
         m_host.destroy(std::move(child), m_frame);
       m_stats.retired += (int64_t)parent.children.size();
       parent.children.clear();
-      parent.children.push_back(m_host.create(desc, &parent, 0, 1));
+      parent.children.push_back(m_host.create(description, &parent, 0, 1));
       m_stats.mounted++;
       m_host.reorder(parent, /*structureChanged=*/true);
     }
@@ -80,21 +97,25 @@ class Reconciler {
   /** Reconciles `node` onto `inst`: resolves a memo, swaps the description
    *  in, prunes on structural equality, and calls the host's onPatched()
    *  when the description changed, before reconciling the children. */
-  void patch(Node& inst, const Desc& node) {
-    static_assert(ReconcileHost<Host, Node, Desc>);
-    m_stats.describedNodes++;
+  void patch(Node& inst, const Description& node) {
+    static_assert(ReconcileHost<Host, Node, Description>);
     bool described = true;
-    Desc resolved = resolveMemo(inst.desc ? &inst : nullptr, node, described);
+    Description resolved =
+        resolveMemo(inst.description ? &inst : nullptr, node, described);
+    // What a memo hit skips is the DESCRIBE, so a hit is not counted as
+    // one; the count and `memoHits` beside it then add up to the nodes
+    // the pass visited.
+    if (described) m_stats.describedNodes++;
     if (m_host.memoOf(node))
       inst.memoShell = node;
     else
-      inst.memoShell = Desc{};
+      inst.memoShell = Description{};
 
-    if (resolved == inst.desc)
+    if (resolved == inst.description)
       return;  // payload identity: untouched subtree (memo hit)
 
-    Desc prev = std::move(inst.desc);
-    inst.desc = resolved;
+    Description prev = std::move(inst.description);
+    inst.description = resolved;
 
     // Structural prune (the no-memo path): a fresh description that is
     // provably identical to the retained one patches nothing and — key
@@ -115,18 +136,24 @@ class Reconciler {
    *  is retired. */
   template <class Range>
   void patchChildren(Node& inst, const Range& newChildren) {
-    static_assert(ReconcileHost<Host, Node, Desc>);
+    static_assert(ReconcileHost<Host, Node, Description>);
     // Match by key when present, else by position among unkeyed children.
     std::vector<const Node*> oldOrder;
     oldOrder.reserve(inst.children.size());
-    std::unordered_map<std::string, std::unique_ptr<Node>> keyed;
+    boost::unordered_flat_map<std::string, std::unique_ptr<Node>> keyed;
     std::vector<std::unique_ptr<Node>> unkeyed;
     for (auto& child : inst.children) {
       if (child) {
         oldOrder.push_back(child.get());
         const std::string& key = matchKeyOf(*child);
-        if (!key.empty())
-          keyed.emplace(key, std::move(child));
+        // A key names ONE child. A second sibling under the same key
+        // matches nothing by key, but it is still a retained child, so
+        // it joins the unkeyed ones — where it is either matched by
+        // position or retired through the host below. Dropping it here
+        // would destroy it without the host ever hearing of it.
+        auto slot = key.empty() ? keyed.end() : keyed.try_emplace(key).first;
+        if (slot != keyed.end() && !slot->second)
+          slot->second = std::move(child);
         else
           unkeyed.push_back(std::move(child));
       }
@@ -136,7 +163,7 @@ class Reconciler {
     size_t unkeyedCursor = 0;
     size_t mountOrdinal = 0;  // order among children mounted THIS patch
     for (const auto& childElement : newChildren) {
-      const Desc& node = m_host.descOf(childElement);
+      const Description& node = m_host.descriptionOf(childElement);
       std::unique_ptr<Node> match;
       const std::string& key = m_host.keyOf(node);
       if (!key.empty()) {
@@ -195,7 +222,8 @@ class Reconciler {
    *  (env equal, then props equal — both compared because both are read
    *  by the deferred describe), else the memo's produce under the
    *  environment its author had. A non-memo resolves to itself. */
-  Desc resolveMemo(Node* existing, const Desc& node, bool& described) {
+  Description resolveMemo(Node* existing, const Description& node,
+                          bool& described) {
     const auto* memo = m_host.memoOf(node);
     if (!memo) {
       described = true;
@@ -208,31 +236,31 @@ class Reconciler {
     // described under.
     if (existing && existing->memoShell) {
       const auto* previous = m_host.memoOf(existing->memoShell);
-      if (previous && detail::envEqual(previous->env, memo->env) &&
+      if (previous && previous->env == memo->env &&
           previous->equal(previous->props, memo->props)) {
         m_stats.memoHits++;
         described = false;
-        return existing->desc;  // reuse the previously described payload
+        return existing->description;  // reuse the previously described payload
       }
     }
     described = true;
     // …and the deferred call runs under the bindings its AUTHOR had, not
     // whatever scope this reconcile happens to sit inside (usually none).
-    detail::EnvRestore restore(memo->env);
+    env::Restore restore(memo->env);
     return m_host.produce(*memo);
   }
 
   /** The key a node is MATCHED by: its memo shell's when it has one, else
    *  its description's. */
   const std::string& matchKeyOf(const Node& node) const {
-    return m_host.keyOf(node.memoShell ? node.memoShell : node.desc);
+    return m_host.keyOf(node.memoShell ? node.memoShell : node.description);
   }
   /** The key a node is ADDRESSED by — the shell's when the shell carries
    *  one, else the description's. A memo shell with no key over a keyed
    *  payload answers to the payload's key. */
   const std::string& keyOf(const Node& node) const {
     const std::string& shell = matchKeyOf(node);
-    return !shell.empty() ? shell : m_host.keyOf(node.desc);
+    return !shell.empty() ? shell : m_host.keyOf(node.description);
   }
 
   /** Rebuilds `byKey` over the subtree at `inst` and calls `visit` on
@@ -244,7 +272,8 @@ class Reconciler {
     const std::string& key = keyOf(inst);
     if (!key.empty()) byKey[key] = &inst;
     visit(inst);
-    for (auto& child : inst.children) indexKeys(*child, byKey, visit);
+    for (auto& child : inst.children)
+      if (child) indexKeys(*child, byKey, visit);
   }
 
   const ReconcileStats& stats() const { return m_stats; }

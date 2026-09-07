@@ -29,7 +29,7 @@
 //    scene is described once and never again.
 //
 // EDIT THESE FIRST
-//   runs()        — the measured arc table: inner and outer radius as a
+//   kRuns         — the measured arc table: inner and outer radius as a
 //                   fraction of the poster width, and the two math-convention
 //                   angles. Everything the plate draws is in it.
 //   kRingBaseMs   — the innermost ring's reveal, which every ring outward
@@ -39,16 +39,22 @@
 //                   fraction below rides it.
 
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/shape/Generators.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <string>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+
+namespace motion = sigil::motion;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -90,36 +96,30 @@ struct Run {
   float rInner, rOuter;    // × poster W
   float startDeg, endDeg;  // math convention
 };
-inline const std::vector<Run>& runs() {
-  static const std::vector<Run> table = {
-      {0.3480f, 0.3607f, -33.75f, 22.50f},
-      {0.3480f, 0.3607f, -146.25f, -135.00f},
-      {0.3640f, 0.3913f, -22.50f, 45.00f},
-      {0.3640f, 0.3913f, -157.50f, -90.00f},
-      {0.3940f, 0.4473f, 0.00f, 78.75f},
-      {0.3940f, 0.4473f, -135.00f, -45.00f},
-      {0.4500f, 0.5560f, -150.00f, 90.00f},
-      {0.5600f, 0.7770f, -150.00f, 45.00f},
-      {0.7820f, 1.2070f, -150.00f, 101.25f},
-  };
-  return table;
-}
+inline constexpr auto kRuns = std::to_array<Run>({
+    {0.3480f, 0.3607f, -33.75f, 22.50f},
+    {0.3480f, 0.3607f, -146.25f, -135.00f},
+    {0.3640f, 0.3913f, -22.50f, 45.00f},
+    {0.3640f, 0.3913f, -157.50f, -90.00f},
+    {0.3940f, 0.4473f, 0.00f, 78.75f},
+    {0.3940f, 0.4473f, -135.00f, -45.00f},
+    {0.4500f, 0.5560f, -150.00f, 90.00f},
+    {0.5600f, 0.7770f, -150.00f, 45.00f},
+    {0.7820f, 1.2070f, -150.00f, 101.25f},
+});
 // Ring index per run (for the doubling reveal durations).
-inline const std::vector<int>& rings() {
-  static const std::vector<int> table = {0, 0, 1, 1, 2, 2, 3, 4, 5};
-  return table;
-}
+inline constexpr auto kRings = std::to_array<int>({0, 0, 1, 1, 2, 2, 3, 4, 5});
 
 }  // namespace beethoven_plate
 
 struct Beethoven final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
     // The whole table is revealed: the outermost ring runs 120 ms doubled
     // five times, so the last sweep lands before four seconds and the plate
     // is the poster rather than a frame of its assembly.
-    ctx.captureAt(6.0);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
     ctx.composer.render(describe());
   }
 
@@ -161,7 +161,7 @@ struct Beethoven final : sketch::Sketch {
     const auto duration = std::chrono::milliseconds(
         bp::kRingBaseMs << (unsigned)std::min(ring, 5));
     e.mask(by::spans(spans::upTo(
-        animate(from(0.0001f).to(span),
+        animate(motion::from(0.0001f).to(span),
                 {duration, &choreograph::easeNone, bp::kRevealDelay}))));
     return e;
   }
@@ -173,10 +173,10 @@ struct Beethoven final : sketch::Sketch {
   Element imprint() {
     namespace bp = beethoven_plate;
     const auto small = [](float size) {
-      return sigil::compose::type({.size = size * bp::kScale,
-                                   .color = bp::kInk,
-                                   .track = 0.2f * bp::kScale,
-                                   .color8 = true});
+      return weave::textStyle({.size = size * bp::kScale,
+                               .color = bp::kInk,
+                               .track = 0.2f * bp::kScale,
+                               .color8 = true});
     };
     struct Group {
       const char* label;
@@ -225,8 +225,8 @@ struct Beethoven final : sketch::Sketch {
             .fill(Fill::color(bp::kPaper))
             .background(styles::dropShadow({0, 0, 0, 0.45f}, {0, 8}, 22))
             .clip();
-    const auto& table = bp::runs();
-    const auto& ringOf = bp::rings();
+    const auto& table = bp::kRuns;
+    const auto& ringOf = bp::kRings;
     for (size_t i = 0; i < table.size(); ++i)
       poster.child(arcRun(table[i], ringOf[i]).key("arc" + std::to_string(i)));
 
@@ -236,15 +236,15 @@ struct Beethoven final : sketch::Sketch {
     // narrow column against their entries flush left. That table is the
     // poster's most characteristic detail and the reason its lower half
     // reads as setting rather than as caption.
-    poster.child(text(toU8("beethoven"),
-                      sigil::compose::type({.size = 38 * bp::kScale,
-                                            .color = bp::kInk,
-                                            .track = 0.2f * bp::kScale,
-                                            .color8 = true}))
-                     .key("title")
-                     .absolute()
-                     .left(0.055f * bp::kPlateW)
-                     .top(0.600f * bp::kPlateH));
+    poster.child(
+        text(toU8("beethoven"), weave::textStyle({.size = 38 * bp::kScale,
+                                                  .color = bp::kInk,
+                                                  .track = 0.2f * bp::kScale,
+                                                  .color8 = true}))
+            .key("title")
+            .absolute()
+            .left(0.055f * bp::kPlateW)
+            .top(0.600f * bp::kPlateH));
     poster.child(imprint()
                      .key("imprint")
                      .absolute()
@@ -270,27 +270,27 @@ struct Beethoven final : sketch::Sketch {
                    .gap(4)
                    .inset(bp::kPlateX + bp::kPlateW + 32, bp::kH - 150, 24, 64)
                    .child(text(toU8("josef m\xc3\xbcller-brockmann"),
-                               sigil::compose::type({.size = 14.0f,
-                                                     .color = bp::kLabel,
-                                                     .track = 0.6f,
-                                                     .color8 = true})))
+                               weave::textStyle({.size = 14.0f,
+                                                 .color = bp::kLabel,
+                                                 .track = 0.6f,
+                                                 .color8 = true})))
                    .child(text(toU8("beethoven \xe2\x80\x94 tonhalle "
                                     "z\xc3\xbcrich, 1955"),
-                               sigil::compose::type({.size = 12.0f,
-                                                     .color = bp::kLabel,
-                                                     .track = 0.4f,
-                                                     .color8 = true})))
+                               weave::textStyle({.size = 12.0f,
+                                                 .color = bp::kLabel,
+                                                 .track = 0.4f,
+                                                 .color8 = true})))
                    .child(text(toU8("measured arc table \xc2\xb7 rings "
                                     "double 1:2:4:8:16"),
-                               sigil::compose::type({.size = 12.0f,
-                                                     .color = bp::kLabel,
-                                                     .track = 0.4f,
-                                                     .color8 = true})))
+                               weave::textStyle({.size = 12.0f,
+                                                 .color = bp::kLabel,
+                                                 .track = 0.4f,
+                                                 .color8 = true})))
                    .key("label"));
   }
 };
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Beethoven, "beethoven", "Catalog \xc2\xb7 Type & grid",
+SIGIL_SKETCH_AS(Beethoven, "beethoven", "Catalog \xc2\xb7 Type",
                 "Brockmann arc table, span reveal")

@@ -13,13 +13,13 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
-#include <sigilskia/device/Handle.h>
+#include <sigilcore/hardware/Handle.h>
 
 #include <atomic>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <unordered_set>
 #include <vector>
 
 #include "sigilscry/engine/WebEngine.h"
@@ -48,8 +48,8 @@ class WebView::Impl final : public ultralight::LoadListener,
   // expose publishedGpuTexture.
   mutable std::mutex frameMutex;
   sk_sp<SkImage> latestImage;
-  sigil::skia::TextureHandle publishedGpuTexture;
-  sigil::skia::TextureHandle spareGpuTexture;
+  sigil::core::hardware::TextureHandle publishedGpuTexture;
+  sigil::core::hardware::TextureHandle spareGpuTexture;
   int gpuTextureWidth = 0;
   int gpuTextureHeight = 0;
   SkIRect lastDirtyBounds = SkIRect::MakeEmpty();
@@ -80,7 +80,7 @@ class WebView::Impl final : public ultralight::LoadListener,
    *  in @p dirtyRenderBuffers. Returns true on publish. */
   bool publishGpuIfDirty(
       GpuDriver& driver,
-      const std::unordered_set<uint32_t>& dirtyRenderBuffers);
+      const boost::unordered_flat_set<uint32_t>& dirtyRenderBuffers);
 
   /** Web thread: releases the ping-pong publish textures. */
   void releaseGpuTextures();

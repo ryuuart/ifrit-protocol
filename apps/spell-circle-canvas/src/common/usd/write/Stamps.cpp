@@ -16,6 +16,7 @@
 #include <pxr/usd/usdGeom/tokens.h>
 
 #include <glm/geometric.hpp>
+#include <optional>
 
 #include "GfMatrix.h"
 #include "WriterImpl.h"
@@ -59,10 +60,13 @@ std::string Writer::stamps(std::string_view name,
     const float s = size && i < size->size() ? (*size)[i] : 1.0f;
     scales.push_back({s, s, s});
     if (dir && i < dir->size()) {
-      // The stamp's +z along dir: the rotation taking (0,0,1) to dir.
-      const glm::vec3 d = glm::normalize((*dir)[i]);
-      const GfRotation rot(GfVec3d(0, 0, 1), GfVec3d(d.x, d.y, d.z));
-      const GfQuatd q = rot.GetQuat();
+      // The stamp's +z along dir: the rotation taking (0,0,1) to dir. A
+      // point whose lane holds no direction stands the stamp the way it
+      // was modelled rather than turning it by a NaN.
+      const std::optional<glm::vec3> d = aimedAlong((*dir)[i]);
+      const GfQuatd q =
+          d ? GfRotation(GfVec3d(0, 0, 1), GfVec3d(d->x, d->y, d->z)).GetQuat()
+            : GfQuatd(1.0, GfVec3d(0, 0, 0));
       orientations.push_back(
           GfQuath((GfHalf)q.GetReal(), (GfHalf)q.GetImaginary()[0],
                   (GfHalf)q.GetImaginary()[1], (GfHalf)q.GetImaginary()[2]));

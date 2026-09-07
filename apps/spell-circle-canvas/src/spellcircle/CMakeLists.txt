@@ -13,9 +13,7 @@ if(APPLE)
   add_subdirectory(mac)
 endif()
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SpellCircle
   BRIEF "The receiver product: scenes arriving over UDP, drawn with Skia, published over Syphon"

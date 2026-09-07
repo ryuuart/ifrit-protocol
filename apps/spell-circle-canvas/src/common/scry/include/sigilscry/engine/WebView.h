@@ -10,7 +10,7 @@
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
-#include <sigilskia/device/Handle.h>
+#include <sigilcore/hardware/Handle.h>
 
 #include <cstdint>
 #include <functional>
@@ -67,7 +67,7 @@ class WebView {
      *  GpuDevice; `exportNative` there hands the native object out.
      *  Stale once the view republishes at a new size — the wrap in
      *  `image` is what keeps a frame's texture alive. */
-    sigil::skia::TextureHandle texture;
+    sigil::core::hardware::TextureHandle texture;
     int width = 0;
     int height = 0;
     SkIRect dirtyBounds = SkIRect::MakeEmpty();
@@ -154,7 +154,15 @@ class WebView {
   /** The release that completes a press. */
   void mouseUp(int x, int y, MouseButton button = MouseButton::Left);
 
-  /** Scrolls by @p dx / @p dy pixels. */
+  /** A wheel of @p dx / @p dy pixels, exactly as an input device
+   *  delivers one.
+   *
+   *  THE DELTA IS WHAT THE CONTENT MOVES BY, not where the viewport goes
+   *  — so WALKING DOWN A PAGE IS NEGATIVE: `scroll(0, -120)` lifts the
+   *  content 120 pixels and shows what stood below it, the way a wheel
+   *  rolled away from the reader does. Positive brings the page back
+   *  down toward its top. `dx` is the same statement sideways: negative
+   *  reveals what stood to the right. */
   void scroll(int dx, int dy);
 
   class Impl;

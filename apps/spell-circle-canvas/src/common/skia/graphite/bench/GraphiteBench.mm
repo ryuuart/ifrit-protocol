@@ -15,7 +15,7 @@
 
 #include <benchmark/benchmark.h>
 #include <include/core/SkCanvas.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 
@@ -23,19 +23,12 @@
 #include <string>
 
 using namespace sigil::skia;
+using namespace sigil::core::hardware;
 
 namespace {
 
 GpuDevice *device() {
-  static std::unique_ptr<GpuDevice> d = GpuDevice::createOwned(Backend::Metal);
-  return d.get();
-}
-
-/** The Vulkan device, or null with the reason — an arm on it skips. */
-GpuDevice *vulkanDevice(std::string *why) {
-  static std::string error;
-  static std::unique_ptr<GpuDevice> d = GpuDevice::createOwned(Backend::Vulkan, &error);
-  if (why) *why = error;
+  static std::unique_ptr<GpuDevice> d = GpuDevice::createOwned();
   return d.get();
 }
 
@@ -89,25 +82,4 @@ void BM_Wrap_Handle(benchmark::State &state) {
 }
 BENCHMARK(BM_Wrap_Handle);
 
-/** Vulkan: the handle wrap on a device of this library's own. */
-void BM_Vulkan_Wrap_Handle(benchmark::State &state) {
-  std::string why;
-  GpuDevice *dev = vulkanDevice(&why);
-  std::unique_ptr<GraphiteContext> ctx = dev ? GraphiteContext::create(*dev) : nullptr;
-  if (!ctx) {
-    state.SkipWithMessage("no Vulkan Graphite context: " + why);
-    return;
-  }
-  const TextureHandle handle = target(*dev);
-  for ([[maybe_unused]] auto iteration : state) {
-    OffscreenSurface surface(*ctx, *dev, handle);
-    benchmark::DoNotOptimize(surface.canvas());
-  }
-  state.SetItemsProcessed(state.iterations());
-  dev->destroy(handle);
-}
-BENCHMARK(BM_Vulkan_Wrap_Handle);
-
 }  // namespace
-
-BENCHMARK_MAIN();

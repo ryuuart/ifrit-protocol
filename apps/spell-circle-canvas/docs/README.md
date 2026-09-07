@@ -17,17 +17,19 @@ optional and adds inheritance graphs.
 
 | File | What it is |
 | --- | --- |
-| `Docs.cmake` | Registration: `sigil_add_docs()`, and the targets. Included by the root `CMakeLists.txt`. |
 | `Doxyfile.in` | The settings every library's site shares. |
 | `custom.css` | Project overrides, loaded after the theme. |
 | `Dockerfile`, `nginx.conf`, `dockerignore` | Serving the generated site. |
 
-The generation itself is `scripts/build_docs.py`: the two passes, the
+The generation itself is `scripts/sigil.py docs`: the two passes, the
 theme download, the HTML header, the rendered Doxyfiles, the landing
 page and the container staging. CMake keeps what only CMake knows —
 whether Doxygen is installed, where it is, and which libraries
 registered themselves — and writes that to `build/docs-manifest.txt`,
-which is what the script reads.
+which is what the script reads. Registration is `sigil_add_docs()` in
+`cmake/Docs.cmake`, which `sigil_library_root()` calls for a library;
+the whole tree's CMake modules live in `cmake/`, and the manifest points
+the verb back here for the templates above.
 
 Nothing here is generated, and nothing here is vendored. The theme is
 downloaded at build time.
@@ -41,7 +43,12 @@ missing.
 
 ## Adding a library
 
-Call `sigil_add_docs()` in the library's own `CMakeLists.txt`:
+A Sigil library registers through `sigil_library_root()` in its root
+`CMakeLists.txt`, which passes its `include/` tree and `README.md` on to
+`sigil_add_docs()` with the README as the site's front page, so the
+generated pages open on the document that is already canon for that
+library; `DOCS` names further pages. Anything that is not a library root
+calls `sigil_add_docs()` itself:
 
 ```cmake
 sigil_add_docs(
@@ -53,10 +60,8 @@ sigil_add_docs(
   STRIP ${CMAKE_CURRENT_SOURCE_DIR}/include)
 ```
 
-`MAINPAGE` makes the library's README the site's front page, so the
-generated pages open on the document that is already canon for that
-library. The call must run before `sigil_finalize_docs()`, which the
-root `CMakeLists.txt` invokes after `add_subdirectory(src)`.
+Either call must run before `sigil_finalize_docs()`, which the root
+`CMakeLists.txt` invokes after `add_subdirectory(src)`.
 
 ## How it is generated
 
@@ -103,7 +108,7 @@ the stylesheet without changing the generated HTML structure, so the
 markup Doxygen emits stays the markup the theme expects.
 
 It is pinned to a commit and hash-checked per file in
-`scripts/build_docs.py`, fetched into `build/docs-build/theme/` through
+`scripts/sigil.py docs`, fetched into `build/docs-build/theme/` through
 the same downloader as the demo assets, and never vendored. A file whose
 bytes already match is not re-fetched, so only the first `docs` build
 touches the network.

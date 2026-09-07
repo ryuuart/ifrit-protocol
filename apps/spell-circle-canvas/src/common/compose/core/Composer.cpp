@@ -23,9 +23,9 @@
 #include <sigilweave/layout/ParagraphLayout.h>
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
 #include <functional>
-#include <set>
 
 #include "ComposeRuntime.h"
 
@@ -138,6 +138,15 @@ TextMetrics metrics(const sigil::weave::TextStyle& style,
   return out;
 }
 
+sigil::weave::TextStyle atCapHeight(sigil::weave::TextStyle style, float capPx,
+                                    sigil::weave::FontContext& fonts) {
+  if (!(capPx > 0.0f) || !(style.shaping.fontSize > 0.0f)) return style;
+  const TextMetrics m = metrics(style, fonts);
+  if (!(m.capHeight > 0.0f)) return style;
+  style.shaping.fontSize *= capPx / m.capHeight;
+  return style;
+}
+
 std::vector<float> measureRun(std::u8string_view utf8,
                               const sigil::weave::TextStyle& style,
                               sigil::weave::FontContext& fonts) {
@@ -205,8 +214,58 @@ std::vector<float> runPens(std::u8string_view utf8,
   return pens;
 }
 
-SkSize measure(const Element& root, sigil::weave::FontContext& fonts,
-               SkSize maxSize) {
+sigil::weave::TextStyle fitRun(std::u8string_view utf8,
+                               sigil::weave::TextStyle style, float widthPx,
+                               sigil::weave::FontContext& fonts,
+                               const RunFit& fit) {
+  if (utf8.empty() || !(widthPx > 0.0f)) return style;
+  const float ceiling =
+      fit.maxSize > 0.0f ? fit.maxSize : style.shaping.fontSize;
+  if (!(ceiling > 0.0f)) return style;
+  const float floorSize = std::clamp(fit.minSize, 0.01f, ceiling);
+  const float widest =
+      style.shaping.scaleX > 0.0f ? style.shaping.scaleX : 1.0f;
+  style.shaping.scaleX = widest;
+
+  auto widthAt = [&](float size) {
+    style.shaping.fontSize = size;
+    const std::vector<float> pens = runPens(utf8, style, fonts);
+    return pens.empty() ? 0.0f : pens.back();
+  };
+
+  const float wide = widthAt(ceiling);
+  if (!(wide > 0.0f)) return style;
+  if (wide <= widthPx) return style;  // it already fits; nothing is resized
+
+  // The width is AFFINE in the size, not proportional: the ink scales and
+  // the tracking does not, because tracking is stated in px. So two
+  // measurements identify the line and the size is read straight off it,
+  // where a single ratio assumes the line passes through the origin and
+  // overshoots by exactly the tracking the run carries.
+  const float half = ceiling * 0.5f;
+  const float narrow = widthAt(half);
+  const float perSize = (wide - narrow) / (ceiling - half);
+  const float fixed = wide - perSize * ceiling;
+  float size = perSize > 0.0f ? (widthPx - fixed) / perSize : floorSize;
+  float width = widthAt(std::clamp(size, floorSize, ceiling));
+  if (width > widthPx) {
+    // The line is the model, and a face whose advances do not scale
+    // perfectly leaves a remainder. One correction closes it.
+    size = std::clamp(style.shaping.fontSize * widthPx / width, floorSize,
+                      ceiling);
+    width = widthAt(size);
+  }
+
+  // The condense closes what the size floor left over, and only that: a
+  // run that fitted by shrinking is never also squeezed.
+  if (width > widthPx && fit.minCondense < widest)
+    style.shaping.scaleX =
+        std::clamp(widest * widthPx / width, fit.minCondense, widest);
+  return style;
+}
+
+SkSize intrinsicSize(const Element& root, sigil::weave::FontContext& fonts,
+                     SkSize maxSize) {
   motion::Ticker ticker;  // inert — same sampling rules as snapshot()
   Composer composer(ticker, fonts);
   Composer::Impl& impl = *composer.m_impl;
@@ -235,13 +294,18 @@ void Composer::setClock(const motion::FrameClock* clock) {
   m_impl->clock = clock;
 }
 
-void Composer::setView(Effect view) {
+void Composer::setView(material::skia::Effect view) {
+  m_impl->viewMaterial.reset();  // an Effect is already lowered
   m_impl->view = std::move(view);
   m_impl->contentDirty = true;  // the composite changes even if no node did
 }
 
 void Composer::setView(const sigil::material::Material& view) {
-  setView(Effect::recipe(view));
+  // The program is the answer for a surface nothing is known about, and
+  // is what stands until draw meets a canvas that says otherwise.
+  setView(material::skia::Effect::recipe(view));
+  m_impl->viewMaterial = view;
+  m_impl->viewColorType = kUnknown_SkColorType;
 }
 
 void Composer::declareInputSpace(InputSpace space) {
@@ -257,7 +321,7 @@ void Composer::declareInputSpace(InputSpace space) {
   // Warned once per process, not once per composer: the mismatch is a fact
   // about the program's colour handling, and a line per composer would bury
   // the one sentence that matters.
-  static bool warned = false;
+  static thread_local bool warned = false;
   if (warned) return;
   warned = true;
   const char* name =
@@ -281,7 +345,10 @@ void Composer::render(const Element& root) {
   Impl& impl = *m_impl;
   const sigil::measure::Stopwatch reconcile;
   impl.reconciler.render(impl.root, root.node());
-  impl.volatileDirty = true;  // transitions may have started
+  // A patch may have started or stopped a transition, so its volatility
+  // must be recomputed. An identical retained description does not: keeping
+  // this false lets active() poll a released external binding before draw.
+  if (impl.contentDirty || impl.needsLayout) impl.volatileDirty = true;
   impl.rebuildKeyIndex();
   impl.reconcileAccumMs += reconcile.elapsedMs();
 }
@@ -289,7 +356,7 @@ void Composer::render(const Element& root) {
 void Composer::renderSlot(std::string_view name, const Element& content) {
   Impl& impl = *m_impl;
   const sigil::measure::Stopwatch reconcile;
-  auto it = impl.bySlot.find(std::string(name));
+  auto it = impl.bySlot.find(name);
   if (it == impl.bySlot.end()) {
     // A miss must be loud, because the SYMPTOM points somewhere else: an
     // empty slot lays out W x 0, which reads as a layout bug and sends the
@@ -299,7 +366,7 @@ void Composer::renderSlot(std::string_view name, const Element& content) {
     // name in `key`, so any later `.key(...)` on that element renames the
     // slot with no type error and no second field to disagree with itself.
     // Listing the names that DO exist turns the diagnosis into one read.
-    static std::set<std::string> warned;  // once per name, not per frame
+    static thread_local boost::unordered_flat_set<std::string> warned;
     if (warned.insert(std::string(name)).second) {
       std::string have;
       for (const auto& [key, inst] : impl.bySlot)
@@ -329,6 +396,16 @@ bool Composer::dirty() const {
   return m_impl->contentDirty || m_impl->needsLayout;
 }
 
+bool Composer::active() const {
+  Impl& impl = *m_impl;
+  // A settled external binding has no reconciliation event to wake the
+  // composer. Poll its retained value here, before a texture scene decides
+  // that drawing can be skipped.
+  impl.scanReleasedScalars();
+  return impl.contentDirty || impl.needsLayout || impl.volatileDirty ||
+         impl.ticker.active() || impl.rootVolatile;
+}
+
 void Composer::draw(SkCanvas& canvas) {
   Impl& impl = *m_impl;
   if (!impl.root) return;
@@ -349,20 +426,20 @@ void Composer::draw(SkCanvas& canvas) {
   // not blit a stale texture.
   const bool gpuBacked =
       canvas.recorder() != nullptr || canvas.recordingContext() != nullptr;
-  const bool effective = impl.promotionExplicit
-                             ? impl.autoPromote
-                             : impl.autoPromote && !gpuBacked;
+  const Composer::PromotionPolicy effective =
+      (impl.promotionExplicit || !gpuBacked) ? impl.autoPromote
+                                             : Composer::PromotionPolicy::Off;
   if (effective != impl.autoPromoteEffective) {
     impl.autoPromoteEffective = effective;
-    if (!effective && impl.root) {
+    if (effective == Composer::PromotionPolicy::Off && impl.root) {
       const auto clear = [](auto&& self, detail::Instance& inst) -> void {
         inst.autoTexture = false;
         inst.hotFrames = 0;
         // Cache::Group is the author's bake too, and it is not promotion:
         // dropping it here would cost a re-bake for a switch that has
         // nothing to say about it.
-        if (inst.desc && inst.desc->cacheMode != Cache::Texture &&
-            inst.desc->cacheMode != Cache::Group)
+        if (inst.description && inst.description->cacheMode != Cache::Texture &&
+            inst.description->cacheMode != Cache::Group)
           inst.textureImage.reset();
         for (auto& child : inst.children) self(self, *child);
       };
@@ -406,7 +483,7 @@ void Composer::draw(SkCanvas& canvas) {
   const bool active = impl.ticker.active();
   if (impl.volatileDirty || active || impl.tickerWasActive) {
     impl.releasedScalars.clear();  // the walk re-registers what stays released
-    impl.computeVolatile(*impl.root);
+    impl.rootVolatile = impl.computeVolatile(*impl.root).volatileAbove;
     impl.volatileDirty = false;
   }
   impl.tickerWasActive = active;
@@ -414,22 +491,46 @@ void Composer::draw(SkCanvas& canvas) {
 
   // Output view transform: the composer's whole output renders into one
   // layer and composites through the view filter (an OCIO display/view baked
-  // to a LUT, typically). Post-cache: per-node pictures replay unchanged.
-  const bool hasView = (bool)impl.view.imageFilter();
+  // from a colour config, typically). Post-cache: per-node pictures replay
+  // unchanged.
+  //
+  // A view described as a Material is lowered HERE, because how cheaply it
+  // can run is a fact about the surface: a transform whose channels are
+  // independent is a per-channel table on an eight-bit surface and a
+  // full-canvas program on any other, and only the canvas knows which this
+  // is. Lowered once per colour type — a host whose surface never changes
+  // pays one enum comparison a frame.
+  if (impl.viewMaterial) {
+    const SkColorType surface = canvas.imageInfo().colorType();
+    if (surface != impl.viewColorType) {
+      impl.viewColorType = surface;
+      impl.view = material::skia::Effect::recipe(*impl.viewMaterial, surface);
+    }
+  }
+  const bool hasView = impl.view.imageFilter() || impl.view.colorFilter();
   if (hasView) {
     SkPaint viewPaint;
     viewPaint.setImageFilter(impl.view.imageFilter());
+    viewPaint.setColorFilter(impl.view.colorFilter());
     canvas.saveLayer(nullptr, &viewPaint);
   }
   impl.paint(*impl.root, canvas);
   if (hasView) canvas.restore();
   impl.stats.paintMs = laps.mark("paint");
   impl.contentDirty = false;
+  // Costliest first, AND THE LABEL BREAKS EVERY TIE. Two nodes that cost
+  // the same — which most of a tree does, at or near zero — would
+  // otherwise be left in whatever order an unstable sort happened to
+  // produce, so a reader that prints this table draws a different table
+  // on two runs of one binary and a byte-identity sweep reports it as
+  // moved by a change that moved nothing. A label is the node's key, so
+  // the tie-break is a fact of the description.
   if (impl.profileEnabled)
-    std::sort(impl.profileRows.begin(), impl.profileRows.end(),
-              [](const NodeCost& a, const NodeCost& b) {
-                return a.selfMs > b.selfMs;
-              });
+    std::stable_sort(impl.profileRows.begin(), impl.profileRows.end(),
+                     [](const NodeCost& a, const NodeCost& b) {
+                       if (a.selfMs != b.selfMs) return a.selfMs > b.selfMs;
+                       return a.label < b.label;
+                     });
 }
 
 void Composer::setProfiling(bool on) {
@@ -440,10 +541,14 @@ void Composer::setProfiling(bool on) {
 bool Composer::profiling() const { return m_impl->profileEnabled; }
 
 void Composer::setAutoTexturePromotion(bool on) {
-  m_impl->autoPromote = on;
+  setAutoTexturePromotion(on ? PromotionPolicy::ByCost : PromotionPolicy::Off);
+}
+
+void Composer::setAutoTexturePromotion(PromotionPolicy policy) {
+  m_impl->autoPromote = policy;
   m_impl->promotionExplicit = true;  // the host has an opinion; honour it on
                                      // every backend, overriding the default.
-  if (!on && m_impl->root) {
+  if (policy == PromotionPolicy::Off && m_impl->root) {
     // Drop every promoted bake, and the counters that would re-promote from
     // where they left off, so turning promotion off actually exercises the
     // unpromoted path instead of blitting textures baked before the switch.
@@ -452,8 +557,8 @@ void Composer::setAutoTexturePromotion(bool on) {
       inst.hotFrames = 0;
       inst.replayMs = 0;
       inst.liveStableRate = 0;
-      if (inst.desc && inst.desc->cacheMode != Cache::Texture &&
-          inst.desc->cacheMode != Cache::Group)
+      if (inst.description && inst.description->cacheMode != Cache::Texture &&
+          inst.description->cacheMode != Cache::Group)
         inst.textureImage.reset();
       for (auto& child : inst.children) self(self, *child);
     };
@@ -461,7 +566,37 @@ void Composer::setAutoTexturePromotion(bool on) {
   }
 }
 
-bool Composer::autoTexturePromotion() const { return m_impl->autoPromote; }
+Composer::PromotionPolicy Composer::autoTexturePromotionPolicy() const {
+  return m_impl->autoPromote;
+}
+
+bool Composer::autoTexturePromotion() const {
+  return m_impl->autoPromote != PromotionPolicy::Off;
+}
+
+void Composer::setBakeDensity(float devicePixelsPerUnit) {
+  const float density = devicePixelsPerUnit > 0 ? devicePixelsPerUnit : 0.0f;
+  if (density == m_impl->bakeDensity) return;
+  m_impl->bakeDensity = density;
+  // The next draw has work to do, and a host that gates its draw on
+  // dirty() reads exactly this flag: without it the scene keeps showing
+  // rasters taken at the old density until something else moves.
+  m_impl->contentDirty = true;
+  // Every bake standing was taken at the old density, and none of them
+  // will be re-taken by a scale change any more — so they go now, or the
+  // scene keeps rasters nothing will ever revise.
+  if (!m_impl->root) return;
+  const auto clear = [](auto&& self, detail::Instance& inst) -> void {
+    inst.textureImage.reset();
+    inst.ownImage.reset();
+    inst.paintDirty = true;
+    inst.ownPaintDirty = true;
+    for (auto& child : inst.children) self(self, *child);
+  };
+  clear(clear, *m_impl->root);
+}
+
+float Composer::bakeDensity() const { return m_impl->bakeDensity; }
 
 const char* Composer::promotionReason(Promotion p) {
   switch (p) {
@@ -502,6 +637,9 @@ const char* Composer::promotionReason(Promotion p) {
       return "too large to bake, or over the bake budget";
     case Promotion::SplitBaked:
       return "own paint baked, volatile children painted live over the blit";
+    case Promotion::HostsSpace:
+      return "hosts a shared 3D space: its children are drawn on the plane "
+             "beneath it, so it has no layer of its own to bake";
   }
   return "";
 }
@@ -529,7 +667,7 @@ void Composer::purgeCaches() {
 }
 
 std::optional<SkRect> Composer::bounds(std::string_view key) const {
-  auto it = m_impl->byKey.find(std::string(key));
+  auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return std::nullopt;
   // Accumulate offsets up the yoga tree.
   SkRect rect = m_impl->instanceRect(*it->second);
@@ -548,18 +686,32 @@ std::optional<SkRect> Composer::bounds(std::string_view key) const {
 
 const sigil::weave::ParagraphLayout* Composer::paragraphLayout(
     std::string_view key) const {
-  auto it = m_impl->byKey.find(std::string(key));
+  auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end() || !it->second->paragraph) return nullptr;
   return &it->second->textLayout;
 }
 
+TextSettling Composer::settling(std::string_view key) const {
+  auto it = m_impl->byKey.find(key);
+  if (it == m_impl->byKey.end() || !it->second->paragraph) return {};
+  const detail::Instance& inst = *it->second;
+  return {.live = inst.description && inst.description->textData &&
+                  (inst.description->textData->options.set &
+                   detail::TextOptions::kLive) != 0 &&
+                  inst.description->textData->options.live,
+          .reused = inst.textReusedBlocks,
+          .degraded = inst.textDegradedBlocks};
+}
+
 std::vector<Beat> Composer::beatsOf(std::string_view key,
                                     size_t trackIndex) const {
-  auto it = m_impl->byKey.find(std::string(key));
+  auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return {};
   // Logically const: resolving a schedule fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.
-  Impl& impl = const_cast<Impl&>(*m_impl);
+  // The handle is a unique_ptr, so a const method still reaches a
+  // non-const Impl through it.
+  Impl& impl = *m_impl;
   const TextPainterOps* painter = Impl::textPainterOf(*it->second);
   if (!painter) return {};  // text at rest runs no schedule
   std::vector<Beat> beats = painter->beats(*it->second, trackIndex);
@@ -578,12 +730,46 @@ std::vector<Beat> Composer::beatsOf(std::string_view key,
   return beats;
 }
 
+std::vector<TextUnit> Composer::units(std::string_view key,
+                                      const sigil::weave::Selector& selector,
+                                      sigil::weave::Unit unit) const {
+  auto it = m_impl->byKey.find(key);
+  if (it == m_impl->byKey.end()) return {};
+  // Logically const: resolving the units fills the same per-instance
+  // scratch the painter does and changes nothing the next draw can see.
+  Impl& impl = *m_impl;
+  // A passage that dresses nothing carries no painter, and it still has
+  // units to report — so the engine the typography tier registered answers
+  // for it.
+  const TextPainterOps* painter = Impl::textPainterOf(*it->second);
+  if (!painter) painter = detail::registeredTextEngine();
+  if (!painter) return {};
+  std::vector<TextUnit> units = painter->units(*it->second, selector, unit);
+  if (units.empty()) return units;
+  // Rects come out in the node's own space; the same walk up the tree the
+  // bounds and beat queries take lifts them into the composer's, so a
+  // sibling reading them stands where the glyphs do.
+  SkPoint origin{0, 0};
+  for (Instance* node = it->second; node; node = node->parent) {
+    const SkRect rect = impl.instanceRect(*node);
+    if (!rect.isFinite()) return {};  // laid out by nothing yet
+    origin.offset(rect.left(), rect.top());
+  }
+  for (TextUnit& entry : units) {
+    entry.rect.offset(origin.x(), origin.y());
+    entry.axis += entry.writingMode == sigil::weave::WritingMode::kVerticalRL
+                      ? origin.x()
+                      : origin.y();
+  }
+  return units;
+}
+
 float Composer::cascadeSpanMs(std::string_view key, size_t trackIndex) const {
-  auto it = m_impl->byKey.find(std::string(key));
+  auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return 0.0f;
   // Logically const: resolving a schedule fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.
-  Impl& impl = const_cast<Impl&>(*m_impl);
+  Impl& impl = *m_impl;
   const TextPainterOps* painter = Impl::textPainterOf(*it->second);
   return painter ? painter->cascadeSpanMs(*it->second, trackIndex) : 0.0f;
 }
@@ -591,9 +777,9 @@ float Composer::cascadeSpanMs(std::string_view key, size_t trackIndex) const {
 std::optional<std::string> Composer::hitTest(SkPoint canvasPoint) const {
   // Logically const; fills the same per-instance outline caches paint does
   // (memoization, not mutation of observable state).
-  Impl& impl = const_cast<Impl&>(*m_impl);
+  Impl& impl = *m_impl;
   if (!impl.root) return std::nullopt;
-  return impl.hitInstance(*impl.root, canvasPoint, nullptr);
+  return impl.hitInstance(*impl.root, canvasPoint, nullptr, nullptr);
 }
 
 const Composer::Stats& Composer::stats() const {

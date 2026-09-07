@@ -8,40 +8,29 @@
 # the umbrella: an interface over every feature, for a consumer of the
 # whole library. Skia-only by contract: no compose kernel, no motion,
 # no Qt.
-#
-# Every public header lives under one include root,
-# include/sigilgeometry/, and the directories under it nest the way the
-# targets do, so a feature adds the root and spells its own directory.
-
-set(SIGIL_GEOMETRY_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+sigil_library_root(SigilGeometry
+  BRIEF "2D and 3D drawing over Skia: path operators, meshes, splines, point clouds")
 
 add_subdirectory(path)
+# The device feature stands both APIs on one GPU device; it comes BEFORE
+# the tiers whose device executors stand on it.
+add_subdirectory(device)
 add_subdirectory(mesh)
+add_subdirectory(kit)
 
-add_library(SigilGeometry INTERFACE)
-target_link_libraries(SigilGeometry INTERFACE
-  SigilGeometryPath
-  SigilGeometryPathBlend
-  SigilGeometryMesh
-  SigilGeometryMeshCamera
-  SigilGeometryMeshRender
-  SigilGeometryMeshCurve
-  SigilGeometryMeshPop
-  SigilGeometryMeshCodec
-)
+sigil_library(SigilGeometry
+  INTERFACE SigilGeometryPath SigilGeometryPathBlend SigilGeometryMesh
+            SigilGeometryMeshCamera SigilGeometryMeshRender
+            SigilGeometryMeshRenderDevice
+            SigilGeometryMeshCurve SigilGeometryMeshPop
+            SigilGeometryMeshPopDevice
+            SigilGeometryMeshCodec SigilGeometryKit SigilGeometryDevice
+            SigilGeometryDeviceResidency)
 
-# The header tree installs as one unit beside the exported path leaf.
-install(DIRECTORY include/sigilgeometry DESTINATION include)
-
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
-sigil_add_docs(
-  NAME SigilGeometry
-  BRIEF "2D and 3D drawing over Skia: path operators, meshes, splines, point clouds"
-  INPUT
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  STRIP
-        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+# The umbrella's own case: it links the whole interface and includes
+# Geometry.h, so a public header that stops compiling beside its
+# siblings — a name two features spell the same way — is a build failure
+# here rather than in whichever consumer took both.
+sigil_test(geometry_test
+  SOURCES test/UmbrellaTest.cpp
+  LIBRARIES SigilGeometry)

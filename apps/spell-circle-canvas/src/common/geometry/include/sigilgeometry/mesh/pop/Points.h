@@ -9,7 +9,7 @@
  *
  *  - instance()/quads(): stamp a Mesh (or a quad) onto every point —
  *    scale/tint/orientation read from lanes — producing ONE merged
- *    Mesh for render::drawMesh or world::World. "Instance planes
+ *    Mesh for render::drawMesh or for a 3D set. "Instance planes
  *    across points" is quads() + a normal lane (or leave normals off
  *    and let billboarding face the camera at draw time).
  *  - drawBillboards(): the UI-particle path — camera-facing sprites
@@ -28,14 +28,15 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
 
+#include <boost/container/map.hpp>
 #include <glm/glm.hpp>
-#include <map>
 #include <string>
 #include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/curve/Curve.h"
+#include "sigilgeometry/mesh/pop/Stamp.h"
 
 namespace sigil::geometry::mesh {
 
@@ -47,9 +48,11 @@ namespace sigil::geometry::mesh {
  *  first touch, sized to the cloud and filled with a default. */
 struct Cloud {
   std::vector<glm::vec3> positions;
-  std::map<std::string, std::vector<float>, std::less<>> scalars;
-  std::map<std::string, std::vector<glm::vec3>, std::less<>> vectors;
-  std::map<std::string, std::vector<glm::vec4>, std::less<>> colors;
+  boost::container::map<std::string, std::vector<float>, std::less<>> scalars;
+  boost::container::map<std::string, std::vector<glm::vec3>, std::less<>>
+      vectors;
+  boost::container::map<std::string, std::vector<glm::vec4>, std::less<>>
+      colors;
 
   size_t size() const { return positions.size(); }
 
@@ -98,12 +101,20 @@ Cloud scatterBox(glm::vec3 lo, glm::vec3 hi, int count, uint32_t seed = 1);
  *  (interpolated) and "t". */
 Cloud onMesh(const Mesh& mesh, int count, uint32_t seed = 1);
 
-/** Seeded uniform jitter of every position, +-amplitude per axis. */
+/** Seeded uniform jitter of every position, +-amplitude per axis — the
+ *  `pop::Jitter` operator reached for without a chain, and the same
+ *  offsets: it runs that operator's own kernel over the positions, so
+ *  the two spellings of the verb cannot answer differently. */
 void jitter(Cloud& cloud, float amplitude, uint32_t seed = 7);
 
-/** Smooth value-noise displacement (the organic drift). */
+/** Smooth sin-field displacement (the organic drift) — the `pop::Noise`
+ *  operator reached for without a chain, reading the same field through
+ *  `pop::noiseField`. The seed is a FLOAT, as the operator's is: the
+ *  field reads it as one, and a modifier that could not reach a
+ *  fractional seed would be a narrower verb than the operator it is the
+ *  same verb as. */
 void displaceNoise(Cloud& cloud, float amplitude, float frequency,
-                   uint32_t seed = 7);
+                   float seed = 7);
 
 // ---------------------------------------------------------------------------
 // Consumers
@@ -121,9 +132,39 @@ struct InstanceOptions {
    *  keep the stamp's own orientation. */
   std::string orientLane;
   glm::vec3 up = {0, 1, 0};
+  /** Who forms the stamped vertices. The default is the built-in host
+   *  executor; assigning another one is the whole of switching runtimes,
+   *  and the indices and the lanes the result carries are the same
+   *  either way. */
+  StampRuntime runtime = StampRuntime::cpu();
 };
 
-/** Stamp @p stamp at every point into one merged Mesh. */
+/** HOW A STAMP RIDES A CLOUD'S CONVENTIONAL LANES, as one table.
+ *
+ *  The orient lane is "dir" where a chain produced one and "normal"
+ *  where a generator or an importer did, so a cloud from either source
+ *  stands its stamps up without the author naming a lane; "size" scales
+ *  and "tint" colours. A lane the cloud does not carry is left empty
+ *  rather than named, so nothing is looked for that is not there.
+ *
+ *  Every stamping path takes its options from here. Two tables would
+ *  mean one cloud standing its stamps up through one caller and lying
+ *  them flat through another, which is what a single convention is for.
+ */
+InstanceOptions stampOptions(const Cloud& cloud);
+
+/** @p cloud stamped with @p stamp under @p options, as a dispatch.
+ *  False — leaving @p out untouched — when there is nothing to stamp:
+ *  no points, or a stamp with no vertices. A lane the cloud or the stamp
+ *  does not carry is filled here with what it would have been read as,
+ *  once, rather than asked about per vertex. */
+bool describe(const Cloud& cloud, const Mesh& stamp,
+              const InstanceOptions& options, kernel::StampDispatch* out);
+
+/** Stamp @p stamp at every point into one merged Mesh — dir orients,
+ *  size scales, tint colours, and the cloud's "Tex" window remaps each
+ *  stamped vertex's uv. The vertices are formed on `options.runtime`;
+ *  every executor writes exactly these vertices from the same cloud. */
 Mesh instance(const Cloud& cloud, const Mesh& stamp,
               const InstanceOptions& options = {});
 
@@ -157,6 +198,19 @@ struct BillboardStyle {
   float size = 10;       ///< world units at scale 1
   std::string sizeLane;  ///< scalar multiplier per point
   std::string tintLane;  ///< color per point
+  /** THE ATLAS WINDOW LANE: a colour lane holding {uOffset, vOffset,
+   *  uScale, vScale} per point, in the unit square — which is exactly
+   *  what a `pop::Atlas` op writes into "Tex". Each splat then draws
+   *  THAT CELL of the sprite instead of the whole image, so one sheet of
+   *  sprites splats as a field of different ones and a cloud carries
+   *  which is which.
+   *
+   *  Named rather than assumed, because a cloud may carry "Tex" for the
+   *  stamping path while these splats are meant to be one sprite; say
+   *  `"Tex"` to read what the atlas op wrote. A point whose window is
+   *  degenerate, or which the lane does not reach, takes the whole
+   *  image. */
+  std::string texLane;
   glm::vec4 tint = {1, 1, 1, 1};
   bool additive = true;  ///< kPlus glow vs kSrcOver
   bool depthSort = true;

@@ -13,8 +13,8 @@ header lives under `include/sigilscry/<feature>/` and is spelled
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilScryPlatform` | `platform/LogLevel.h`, `platform/Runtime.h` | `LogLevel`, the severity every engine message carries; `runtime::available(why)`, whether the resource directory an engine would boot with holds the runtime data it needs. The rest of the feature — the `SkBitmap`-backed surface, the two-root file system, the logger bridge, the resource directory — is what Ultralight's `Platform` singleton is handed, and stays internal |
-| `SigilScryGpu`      | — | Ultralight's GPU command lists executed on a SigilSkia `GpuDevice`, and the texture interop the engine needs beyond that; the graphics-API-neutral contract and its Metal implementation are internal |
+| `SigilScryPlatform` | `platform/LogLevel.h`, `platform/Runtime.h` | `LogLevel`, the severity every engine message carries; `available(why)`, whether the resource directory an engine would boot with holds the runtime data it needs. The rest of the feature — the `SkBitmap`-backed surface, the two-root file system, the logger bridge, the resource directory — is what Ultralight's `Platform` singleton is handed, and stays internal |
+| `SigilScryGpu`      | — | Ultralight's GPU command lists executed on a SigilCoreHardware `GpuDevice`, and the texture interop the engine needs beyond that; the graphics-API-neutral contract and its Metal implementation are internal |
 | `SigilScryEngine`   | `engine/WebEngine.h`, `engine/WebView.h`, `engine/WebImage.h` | `WebEngineConfig`, `ViewOptions` and `WebEngine`; `WebView` and its `Frame`; `WebImage` |
 
 `SigilScry` is the umbrella target over all three, and
@@ -81,7 +81,10 @@ gauge->paint([](SkCanvas &canvas) { /* draw with Skia */ });
 
 Pages also take input (`mouseMove`, `mouseDown`, `mouseUp`, `scroll`, all in
 view pixels) and script (`evaluateScript`, with an optional callback
-receiving the stringified result).
+receiving the stringified result). A scroll delta is what the CONTENT
+moves by, the way a wheel event states it, so walking down a page is
+negative: `scroll(0, -120)` lifts the content and shows what stood below
+it.
 
 ## The mental model
 
@@ -107,7 +110,9 @@ executable, and the SDK location found at configure time. The gpu
 feature is the driver Ultralight renders through when a device is
 given: `GpuDriver` is the graphics-API-neutral contract (command
 execution plus publish blits, slot textures, uploads, painting through
-a Graphite recorder and wrapping a texture as an `SkImage`), and
+a Graphite recorder and reading a texture as an `SkImage` — which is
+SigilSkia's `wrapImage`, so nothing here spells a Graphite backend
+texture for it), and
 `MetalDriver` its one implementation; a Vulkan driver joins beside it
 and the engine picks it by the device's backend. The engine feature is
 the web thread, the views and the slots — the only feature with a
@@ -115,7 +120,7 @@ public API beyond `LogLevel`.
 
 **Two backends behind one API.** Leave `WebEngineConfig::gpuDevice` null
 and the CPU renderer paints straight into the `SkBitmap`-backed surface
-per view. Set it to the `sigil::skia::GpuDevice` your renderer draws with —
+per view. Set it to the `sigil::core::hardware::GpuDevice` your renderer draws with —
 owned or adopted, it is the one queue every draw rides — and Ultralight
 renders through its GPU pipeline instead: the Metal driver executes its
 command lists, blits each repaint into ping-pong publish textures named
@@ -150,8 +155,16 @@ one frame and Skia's caches keyed on it stay warm.
 
 **One renderer per process.** Ultralight allows exactly one, for the
 program's lifetime. `WebEngine::create()` returns null on a second call
-— which is why the CPU-mode and GPU-mode engines are tested and
-benchmarked in separate binaries.
+— which is why the CPU-mode and GPU-mode engines are tested in separate
+processes and benchmarked in separate runs.
+
+**Ownership is explicit by default.** A consumer chooses a
+`WebEngineConfig`, calls `WebEngine::create(config)` and owns the result.
+SigilScry does not silently cache it or make later configurations aliases of
+the first. A host above this library may deliberately offer one configured
+engine to several of its own consumers; SigilSketch does that through its
+opt-in shared engine because live sketch dylibs must all reach the same
+process-owned renderer.
 
 ## Conventions that will bite you
 
@@ -171,6 +184,15 @@ GPU destroys still reach a live driver and WebCore's thread-local font
 cache does not carry GPU glyph textures into thread-local cleanup. The
 driver must outlive the renderer it was given.
 
+**A page that is gone publishes nothing and calls nobody back.**
+Releasing the last `WebView` handle tears the page down on the web
+thread — where the render pass also runs — so the same step forgets the
+page on the engine and drops its frame and load callbacks. A callback
+can be running while that happens, because a `WebView` released inside
+one is torn down inline on that thread; callbacks are therefore invoked
+through a copy and finish normally, and the pass holds the pages it is
+about to publish rather than walking the registry a callback may move.
+
 **Smaller edges.** `loadHTML` forces a `file:///` base URL so relative
 resources and image slots resolve. GPU bring-up failure is not fatal — the
 engine falls back to CPU and logs a warning. A page naming a slot with no
@@ -181,12 +203,13 @@ and pass the handle to `updateTexture()`, or use `paint()`.
 
 ## Boundary
 
-Public dependencies: Skia and SigilSkia — every texture the engine hands
-out is a `sigil::skia::TextureHandle` on the host's `GpuDevice`, and the
+Public dependencies: Skia, SigilCoreHardware, SigilSkia's graphite
+feature and Boost.Unordered — every texture the engine hands
+out is a `sigil::core::hardware::TextureHandle` on the host's `GpuDevice`, and the
 GPU driver draws over the host's `GraphiteContext`. Private:
 `Ultralight::Ultralight`, `Ultralight::AppCore` (the engine feature
-only), and Metal on Apple. No public header includes an Ultralight
-header.
+only), `SigilIOSource` (the platform feature only), and Metal on Apple.
+No public header includes an Ultralight header.
 
 SigilScry brings up no device and no context of its own unless the host
 shares none. It has no window, no event loop of its own beyond the web
@@ -198,24 +221,55 @@ compositing model, in both directions.
 
 ## Building
 
-The library is gated on `SPELLCIRCLE_ENABLE_ULTRALIGHT`, which turns itself
-off with a warning when the SDK is not found (see
-`cmake/FindUltralight.cmake`), and needs the `SigilSkia` target — that is,
-`SPELLCIRCLE_ENABLE_SKIA_CANVAS` on — or it is skipped with a message.
+The library's root `CMakeLists.txt` searches for the SDK through
+`src/common/scry/cmake/FindUltralight.cmake` and leaves every target here
+out of the build, with a status line, when it is not installed.
 
 Targets: `SigilScryPlatform`, `SigilScryGpu`, `SigilScryEngine` and the
-`SigilScry` umbrella. Tests (ctest): `scry_platform_test` exercises the
+`SigilScry` umbrella. Tests (ctest, one binary `scry_test` over every
+feature's `test/`, one entry per case): `platform/test/` exercises the
 handlers without a renderer — the surface's format and alignment, the
 file system's roots, MIME table and synthesized slot files, the logger's
-routing, the staged resource directory and the runtime probe over it; `scry_gpu_test` (Apple) drives
-the Metal driver directly, with no renderer and no page, and proves
-every upload, paint, blit and wrap by reading pixels back through
-Graphite; `scry_engine_test` runs the CPU-mode engine end to end and
-`scry_engine_gpu_test` (Apple) the GPU-mode one. Benchmarks (Google
-Benchmark, through the `benches` target and `scripts/bench_ledger.py`):
-`scry_platform_bench`, `scry_gpu_bench` (Apple), and `scry_engine_bench`
-— `--gpu` runs the latter's GPU-mode arms, a separate run because of the
-one-renderer rule; the ledger runs the CPU mode.
+routing, and the staged resource directory with the runtime probe that
+answers over it; `gpu/test/` drives the Metal driver directly, with
+no renderer and no page, and proves every upload, paint, blit and wrap
+by reading pixels back through Graphite; `engine/test/` runs the
+CPU-mode engine end to end and the GPU-mode one beside it,
+one case per door a page-visible slot can be filled through.
+
+The GPU suites exist only on Apple and every case in them needs a
+device, so they carry the ctest label `gpu`: a machine without one shows
+them as a lane not run rather than as a lane that passed. Both take the
+one device and Graphite context a process may own from
+`test/SharedGraphite.h`, and read a surface back through SigilSkia's
+`readGraphiteSurface` / `readGraphitePixel`, which stand beside the
+context they turn — the read is turned rather than timed, because the
+submit before it is synchronous and what is left is Skia handing the
+result back, so the loop is bounded by turns of
+`checkAsyncWorkCompletion` and not by a clock. The engine suites
+take the page waits from `engine/test/Wait.h`, where a wait that expires
+says so and names what it was waiting for, rather than reporting the
+colour a page never painted; each of the two files boots the one engine
+its mode needs, for itself. A claim that is about the engine and
+not about how a frame is carried is written once, in
+`engine/test/EngineContract.h`, and asked of each. A process gets one
+renderer, and ctest runs every discovered case in a process of its own,
+which is what keeps the two modes apart in one binary.
+
+The platform cases reach the handlers through the source directory,
+which is a stated exception: the handlers' headers name Ultralight
+types, so they cannot be public, and a test that could reach only
+`LogLevel.h` and `Runtime.h` could assert nothing about the surface, the
+file system or the logger. A case here asserts one thing a header
+promises and is named that promise as a sentence; it pins only what
+editing this library could falsify — a colour a document declares, a
+MIME type, a row stride's alignment and the bytes a buffer must hold —
+never the exact padding an allocator chose. Benchmarks (Google
+Benchmark, through the `benches` target and `scripts/sigil.py bench`):
+one binary, `scry_bench`, with arms in `platform/bench/`, `gpu/bench/`
+(Apple) and `engine/bench/` — `--gpu` runs the engine's GPU-mode arms, a
+separate run because of the one-renderer rule; the ledger runs the CPU
+mode.
 
 New executables that link `SigilScry` must also call
 `ultralight_copy_resources(<target>)` in their `CMakeLists.txt`.
@@ -224,38 +278,51 @@ New executables that link `SigilScry` must also call
 
 1. Download the Free SDK 1.4.x for your architecture from
    <https://ultralig.ht> (e.g. `ultralight-free-sdk-1.4.0-mac-arm64.7z`)
-   and extract it.
+   and extract it. The download needs an account, so nothing can fetch
+   it; keep the archive. `scripts/sigil.py assets --stage <archive>`
+   puts it into the vcpkg asset cache under the SHA-512 a port declares
+   for it, and prints that hash — which is what a port for this SDK needs to exist,
+   and until one does the steps below install it by hand.
 
-2. Install headers and dylibs to `/usr/local`, the prefix
-   `cmake/FindUltralight.cmake` searches:
+2. Install it under `~/.local/opt/ultralight/<version>/`, the per-user
+   prefix this tree keeps licensed SDKs in and the first place
+   `src/common/scry/cmake/FindUltralight.cmake` looks. One directory per
+   version, and the highest version wins:
 
    ```sh
-   sudo cp -R <sdk>/include/Ultralight /usr/local/include/
-   sudo cp -R <sdk>/include/AppCore /usr/local/include/Ultralight/
-   sudo cp -R <sdk>/include/JavaScriptCore /usr/local/include/Ultralight/
-   sudo cp <sdk>/bin/libUltralight.dylib <sdk>/bin/libUltralightCore.dylib \
-           <sdk>/bin/libWebCore.dylib <sdk>/bin/libAppCore.dylib /usr/local/lib/
+   sdkroot=~/.local/opt/ultralight/1.4.0
+   mkdir -p "$sdkroot/include"
+   cp -R <sdk>/include/Ultralight "$sdkroot/include/"
+   cp -R <sdk>/include/AppCore "$sdkroot/include/Ultralight/"
+   cp -R <sdk>/include/JavaScriptCore "$sdkroot/include/Ultralight/"
+   cp -R <sdk>/bin <sdk>/resources "$sdkroot/"
    ```
 
    Note the nesting: `AppCore/` and `JavaScriptCore/` go *inside*
-   `/usr/local/include/Ultralight/`, because includes are spelled
-   `<Ultralight/AppCore/...>`.
+   `include/Ultralight/`, because includes are spelled
+   `<Ultralight/AppCore/...>`. `-DULTRALIGHT_SDK_DIR=<dir>` names a root
+   outright — an extracted archive with the nesting done, say — and
+   `/usr/local` is searched after both, for a machine-global copy whose
+   headers go in `/usr/local/include/Ultralight` and whose dylibs go in
+   `/usr/local/lib`.
 
-3. Re-sign the dylibs. They ship with quarantine attributes that make dyld
-   refuse to load them ("code signature not valid for use in process"):
+3. Re-sign the dylibs, wherever they now stand. They ship with quarantine
+   attributes that make dyld refuse to load them ("code signature not
+   valid for use in process"):
 
    ```sh
-   sudo xattr -d com.apple.quarantine /usr/local/lib/lib{Ultralight,UltralightCore,WebCore,AppCore}.dylib
-   sudo codesign --force --sign - /usr/local/lib/lib{Ultralight,UltralightCore,WebCore,AppCore}.dylib
+   xattr -d com.apple.quarantine "$sdkroot"/bin/lib{Ultralight,UltralightCore,WebCore,AppCore}.dylib
+   codesign --force --sign - "$sdkroot"/bin/lib{Ultralight,UltralightCore,WebCore,AppCore}.dylib
    ```
 
    `codesign` may print "internal error in Code Signing subsystem" and still
    succeed — check with `codesign -v`.
 
-4. Install the runtime resources (`icudt67l.dat` and `cacert.pem`).
-   Ultralight distributes these with the application rather than with the
-   dylibs, so put the SDK archive's `resources/` folder somewhere
-   `FindUltralight` looks:
+4. The runtime resources (`icudt67l.dat` and `cacert.pem`) came with the
+   SDK in step 2, and that is where `FindUltralight` reads them from.
+   Ultralight distributes them with the application rather than with the
+   dylibs, so a copy installed apart from an SDK root goes to one of the
+   two locations searched after it:
 
    ```sh
    # machine-global…
@@ -266,9 +333,6 @@ New executables that link `SigilScry` must also call
    mkdir -p "$HOME/Library/Application Support/Ultralight"
    cp -R <sdk>/resources "$HOME/Library/Application Support/Ultralight/"
    ```
-
-   Alternatively, skip this and point CMake at the extracted SDK with
-   `-DULTRALIGHT_SDK_DIR=<sdk>`.
 
 ### Resources at run time
 
@@ -282,7 +346,7 @@ them. At startup the engine resolves the resource directory in this order:
 3. the SDK location found at configure time, compiled in as a fallback.
 
 Missing resources are what an engine failing to boot usually means, and
-`runtime::available(&why)` in `<sigilscry/platform/Runtime.h>` answers
+`available(&why)` in `<sigilscry/platform/Runtime.h>` answers
 whether they are there BEFORE an engine exists — a process is allowed
 exactly one renderer, so a caller that wants to ask first must be able to
 ask without spending it.

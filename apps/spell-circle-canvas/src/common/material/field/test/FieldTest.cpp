@@ -8,25 +8,19 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilshaders/MaterialField.h>
+
+#include "ShaderTable.h"
+#include "support/Shade.h"
 
 using namespace sigil::material;
+using sigil::material::test::render;
 
 namespace {
-
-SkBitmap render(const Material& m, int w, int h) {
-  skia::install();
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  SkCanvas canvas(bm);
-  canvas.clear(SK_ColorTRANSPARENT);
-  SkPaint paint;
-  paint.setShader(skia::shader(m, {.resolution = {(float)w, (float)h}}));
-  canvas.drawPaint(paint);
-  return bm;
-}
 
 int coverage(const SkBitmap& bm, int y) {
   int n = 0;
@@ -128,4 +122,19 @@ TEST(Field, CrtOverlayScanStrengthAndVignetteAreTheCallersNumbers) {
       render(field::crtOverlay(4.0f, 0.5f, 1.45f, 2.15f, 0.0f), 64, 64);
   EXPECT_GT(SkColorGetA(strong.getColor(32, 0)), 100u);
   EXPECT_EQ(SkColorGetA(strong.getColor(32, 2)), 0u);
+}
+
+// ---- the embedded shader table --------------------------------------------
+
+TEST(Field, EveryStockBodyCompiles) {
+  skia::install();
+  for (const Material& m : field::everyRecipe()) {
+    if (!m.recipe().has(Target::SkSL)) continue;
+    EXPECT_TRUE(skia::shader(m, {.resolution = {64, 64}})) << m.recipe().name();
+  }
+}
+
+TEST(Field, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
+  sigil::test::expectShaderTableIsWholeDirectory(
+      field::shaderSources(), SIGIL_MATERIAL_FIELD_SHADER_DIR);
 }

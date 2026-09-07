@@ -1,6 +1,8 @@
 // Scene: vertical CJK with ruby, kenten, tate-chu-yoko.
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/query/Query.h>
 
 #include <algorithm>
@@ -225,7 +227,7 @@ class VerticalScene final : public Scene {
 
   Paragraph m_verticalParagraph;
   Paragraph m_horizontalParagraph;
-  kit::RebuildGuard<float> m_paragraphsBuilt;
+  sigil::core::RebuildGuard<float> m_paragraphsBuilt;
   sk_sp<SkTypeface> m_mincho;
   float m_fontSize = 0;  // display size the ruby/kenten helpers scale from
 };

@@ -47,20 +47,24 @@ void Scene::render(const Frame& frame) {
   impl.pending = frame.scene();
   impl.stats.rounds = core::runPhases(
       impl, std::span<const core::Phase<Impl>>(kPhases), kConvergeRounds,
-      // Nothing settles between rounds: derive is the only converging
-      // pass, it is idempotent, and it reads only its own output and its
-      // parent's.
-      [] {});
+      // What settles between rounds is the stability hold: `derive` has
+      // just written new placements, and a node whose placement moved
+      // must re-declare here, while the phase list is still ahead of
+      // `extract`. A round that changed nothing moved no placement, so
+      // the runner not calling this is the same answer as calling it.
+      [&impl] { impl.rescanMoved(); });
   impl.stats.resources = (int64_t)impl.store.size();
   ++impl.frameIndex;
 }
 
-std::optional<Camera> Scene::camera() const { return m_impl->camera; }
+std::optional<geometry::mesh::camera::Camera> Scene::camera() const {
+  return m_impl->camera;
+}
 
-std::vector<Light> Scene::lights() const { return m_impl->lights; }
+std::vector<light::Light> Scene::lights() const { return m_impl->lights; }
 
 uint64_t Scene::handleOf(std::string_view key) const {
-  const auto it = m_impl->byKey.find(std::string(key));
+  const auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return 0;
   // Offset by one so that zero can mean "no such node" without
   // colliding with the first entity EnTT hands out.
@@ -68,13 +72,13 @@ uint64_t Scene::handleOf(std::string_view key) const {
 }
 
 std::optional<glm::mat4> Scene::transformOf(std::string_view key) const {
-  const auto it = m_impl->byKey.find(std::string(key));
+  const auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return std::nullopt;
   return it->second->world;
 }
 
 int Scene::referencesOf(std::string_view key) const {
-  const auto it = m_impl->byKey.find(std::string(key));
+  const auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end() || !it->second->resource) return 0;
   return it->second->resource->references;
 }

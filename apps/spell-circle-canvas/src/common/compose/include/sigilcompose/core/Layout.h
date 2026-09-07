@@ -2,9 +2,10 @@
 
 /** @file
  * SigilCompose layout values — Dim and its literals, Align, Justify, Echo,
- * Cache, the LayoutInput a custom LayoutScheme places children from, and
- * the ComponentProps and ComponentFn concepts the generic entry points are
- * constrained by.
+ * Cache with the `cachePolicy` that reads it as the kernel's own, the
+ * CellSpan a child claims and the LayoutInput a custom LayoutScheme
+ * places children from, and the ComponentProps and ComponentFn concepts
+ * the generic entry points are constrained by.
  */
 
 #include <include/core/SkColor.h>
@@ -14,6 +15,7 @@
 
 #include <concepts>
 #include <cstdint>
+#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -82,6 +84,12 @@ struct Echo {
  *  - **Texture** rasterizes the subtree once into an image. Best for dense
  *    or effect-heavy content; wasteful for sparse regions, where the blit
  *    of a mostly-empty image costs more than the few draws it replaced.
+ *    While the node holds still the bake is taken in DEVICE space and
+ *    blitted without resampling, exact at any angle — under static
+ *    ancestors too, whose recordings are then pinned to the matrix they
+ *    were made under and remade when it changes. Under a live transform,
+ *    its own or an ancestor's, the bake is held in local space and rides
+ *    the motion through the blit.
  *  - **Group** is Texture for a subtree whose children ANIMATE — see
  *    below.
  *  - **None** opts a node out entirely. A per-frame paint program that
@@ -143,14 +151,92 @@ constexpr core::Cache cachePolicy(Cache c) {
 // ---------------------------------------------------------------------------
 // Custom layout (the SwiftUI Layout-protocol shape, C++20-ified)
 
+/** WHICH CELLS OF A GRID A CHILD CLAIMS, and where it sits inside them —
+ *  the one thing about a child that a placement scheme needs and cannot
+ *  measure.
+ *
+ *  It is on the CHILD rather than in a list the scheme carries, and that
+ *  is the whole point. A scheme holding a vector parallel to the children
+ *  has nothing to check it against: insert or reorder one child and every
+ *  entry after it silently addresses the wrong one, taking another cell's
+ *  span, alignment and origin, with no error and a picture that still
+ *  looks plausible.
+ *
+ *  `across` and `down` place the child INSIDE the cell box its span makes;
+ *  `Align::Stretch` sizes it to that box instead. `Auto` and `Baseline`
+ *  read as `Start` — a cell has no run of siblings to share a baseline
+ *  with.
+ *
+ *  `declared` is false on a child that said nothing, so a scheme can tell
+ *  "cell (0,0)" from "wherever you like" and flow the rest. */
+struct CellSpan {
+  int column = 0, row = 0;
+  int columns = 1, rows = 1;
+  Align across = Align::Start;
+  Align down = Align::Start;
+  bool declared = false;
+  /** Whether `across` and `down` were STATED. A scheme that carries its
+   *  own default alignment — a grid's place-items — must be able to tell
+   *  "start, because that is the default" from "start, because the child
+   *  asked for it", or its default could never apply to any child that
+   *  named a cell. */
+  bool alignDeclared = false;
+  bool operator==(const CellSpan&) const = default;
+};
+
+/** WHERE THE CHILDREN THAT CLAIMED NOTHING LAND, in @p spans, over a grid
+ *  @p columns wide: the ONE flow every cell-shaped scheme uses.
+ *
+ *  The spans a scheme resolved are its own — a name looked up in a picture
+ *  of areas, or the numbers a child stated — and every one whose
+ *  `declared` is true is taken as it stands. What is left flows into the
+ *  cells nothing claimed, left to right and then down, each child at the
+ *  span it asked for (clamped to the grid: there is no cell a child wider
+ *  than the grid could ever be free at). A flowed child's resolved
+ *  `column`, `row`, `columns` and `rows` are written back.
+ *
+ *  @p dense is the one difference between the two orders CSS names. Sparse
+ *  never looks back past the last cell it filled, so the run stays in
+ *  declaration order; dense starts every search at cell zero, which fills
+ *  the holes a wide span left beside it and lets a later child land before
+ *  an earlier one. */
+void flowCells(std::vector<CellSpan>& spans, int columns, bool dense = false);
+
 /** What a custom layout sees: the container's resolved size, each child's
- *  measured size (text children measured by SigilWeave), and each child's
+ *  measured size (text children measured by SigilWeave), each child's
  *  first-baseline offset from its own top (NaN for children without one) —
- *  what baseline-rhythm schemes (layouts::BaselineGrid) snap by. */
+ *  what baseline-rhythm schemes (layouts::BaselineGrid) snap by — and the
+ *  cells each child claimed with `Element::cells`. */
 struct LayoutInput {
   SkSize container = SkSize::MakeEmpty();
   std::vector<SkSize> childSizes;
   std::vector<float> childBaselines;  // NaN = no baseline (non-text)
+  std::vector<CellSpan> childCells;   // .declared = false when unspoken
+  /** THE NAME OF THE REGION each child claims, when the scheme draws a
+   *  picture of itself out of names (`layouts::Grid::areas`) — empty for a
+   *  child that named none, which is the numeric spelling in `childCells`
+   *  and what a name resolves to. A name no picture carries is silent and
+   *  the child flows.
+   *
+   *  Beside `childCells` rather than in it because a string on the props
+   *  of every node in the tree is what the node size assertion forbids,
+   *  and a named region is rare. */
+  std::vector<std::string> childAreas;
+  /** THE SMALLEST EACH CHILD CAN BE without its content spilling out of
+   *  it — the second of the two intrinsic contributions a track-sizing
+   *  rule needs, where `childSizes` is the first.
+   *
+   *  A text leaf's is its longest unbreakable run, measured at a nil
+   *  width; its height is left at the measured one, because the height of
+   *  a paragraph set one word to a line is not a minimum anybody wants.
+   *  Everything else answers with its measured size, which is the
+   *  honest floor for a box compose cannot ask to be narrower: layout
+   *  measures once and never re-describes a child at a proposed width.
+   *
+   *  EMPTY unless the scheme asked for it, since the text minimum costs a
+   *  measure per text child. A scheme asks by declaring
+   *  `static constexpr bool readsChildMinSizes = true;`. */
+  std::vector<SkSize> childMinSizes;
 };
 
 /** A custom layout places children: one rect per child (position and
@@ -159,6 +245,15 @@ template <typename L>
 concept LayoutScheme = requires(const L& l, const LayoutInput& in) {
   { l.place(in) } -> std::convertible_to<std::vector<SkRect>>;
 };
+
+/** A scheme that sizes tracks from the content and therefore needs
+ *  `LayoutInput::childMinSizes` filled. Opt in, because the minimum costs
+ *  a measure per text child and most schemes place from the container and
+ *  a formula. */
+template <typename L>
+concept SizesFromContentMinima = LayoutScheme<L> && requires {
+  { L::readsChildMinSizes } -> std::convertible_to<bool>;
+} && L::readsChildMinSizes;
 
 // ---------------------------------------------------------------------------
 // Concepts (readable errors at the generic entry points)

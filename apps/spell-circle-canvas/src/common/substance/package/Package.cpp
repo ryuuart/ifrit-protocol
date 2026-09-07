@@ -7,10 +7,10 @@
 
 #include "sigilsubstance/package/Package.h"
 
+#include <sigilio/source/Source.h>
 #include <substance/framework/framework.h>
 
-#include <fstream>
-#include <iterator>
+#include <optional>
 #include <vector>
 
 #include "graph/GraphImpl.h"
@@ -70,14 +70,14 @@ std::unique_ptr<Package> Package::load(const void* bytes, size_t size,
 
 std::unique_ptr<Package> Package::load(const std::filesystem::path& file,
                                        std::string* error) {
-  std::ifstream in(file, std::ios::binary);
-  if (!in) {
+  // Resource ACCESS is SigilIO's; what the bytes MEAN is this
+  // library's.
+  const std::optional<io::Bytes> bytes = io::readBytes(file);
+  if (!bytes) {
     if (error) *error = "cannot read " + file.string();
     return nullptr;
   }
-  std::vector<char> bytes((std::istreambuf_iterator<char>(in)),
-                          std::istreambuf_iterator<char>());
-  return load(bytes.data(), bytes.size(), error);
+  return load(bytes->bytes.data(), bytes->bytes.size(), error);
 }
 
 size_t Package::graphCount() const { return m_impl->graphs.size(); }

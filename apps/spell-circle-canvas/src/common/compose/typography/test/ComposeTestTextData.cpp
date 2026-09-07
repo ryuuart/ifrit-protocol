@@ -1,34 +1,5 @@
 #include "support/TextTestSupport.h"
 
-TEST(ComposeBindings, TheAffineChainComposesInCallOrder) {
-  // Reading order IS evaluation order for the affine ops, so the two
-  // spellings below are genuinely different and each does what it looks
-  // like. (An "order doesn't matter" accumulate would collapse them.)
-  EXPECT_FLOAT_EQ(bind(nullptr).scale(240).offset(-70).value().apply(0.5f),
-                  0.5f * 240 - 70);
-  EXPECT_FLOAT_EQ(bind(nullptr).offset(-70).scale(240).value().apply(0.5f),
-                  (0.5f - 70) * 240);
-  // to(lo,hi) is the [0,1] → range spelling…
-  EXPECT_FLOAT_EQ(bind(nullptr).target(20, 60).value().apply(0.25f), 30.0f);
-  // …from(lo,hi) the other direction, and they compose.
-  EXPECT_FLOAT_EQ(
-      bind(nullptr).source(0, 200).target(0, 1).value().apply(50.0f), 0.25f);
-  // invert composes with what came before rather than resetting it.
-  EXPECT_FLOAT_EQ(bind(nullptr).invert().value().apply(0.25f), 0.75f);
-  EXPECT_FLOAT_EQ(bind(nullptr).target(0, 2).invert().value().apply(0.25f),
-                  1.0f - 0.5f);
-  // the curve runs BEFORE the affine, on the normalised value…
-  EXPECT_FLOAT_EQ(bind(nullptr)
-                      .map(&choreograph::easeNone)
-                      .target(0, 10)
-                      .value()
-                      .apply(0.4f),
-                  4.0f);
-  // …and the clamp always runs last, whenever it is written.
-  EXPECT_FLOAT_EQ(bind(nullptr).clamp(0, 1).target(0, 4).value().apply(0.5f),
-                  1.0f);
-}
-
 TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
   // One Output, two units. A phase in [0,1] is what a reveal or an opacity
   // wants; a translation wants PIXELS. Without a shaping map on the binding,
@@ -44,7 +15,7 @@ TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
                       .left(0)
                       .top(90)
                       .fill(red())
-                      .translateX(bind(&phase).target(0, 160))));
+                      .translateX(motion::bind(&phase).target(0, 160))));
   auto redAt = [&](int x) { return SkColorGetR(host.pixel(x, 100)) > 180; };
 
   host.frame();
@@ -75,7 +46,7 @@ TEST(ComposeBindings, AChangedShapeRepatchesRatherThanPruning) {
                            .left(0)
                            .top(90)
                            .fill(red())
-                           .translateX(bind(&phase).target(0, far)));
+                           .translateX(motion::bind(&phase).target(0, far)));
   };
   host.composer.render(tree(40.0f));
   host.frame();
@@ -95,16 +66,17 @@ TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
   // deleted, so the omission produces no error anywhere.
   Host host(240, 240);
   auto ring = [](float at) {
-    return box().child(text(u8"HHHHHHHHHH", whiteStyle(22))
-                           .key("ring")
-                           .width(240)
-                           .height(240)
-                           .absolute()
-                           .left(0)
-                           .top(0)
-                           .onPath({.path = shapes::arc(180.0f, 359.9f),
-                                    .at = at,
-                                    .align = TextPath::Align::Center}));
+    return box().child(
+        text(u8"HHHHHHHHHH", whiteStyle(22))
+            .key("ring")
+            .width(240)
+            .height(240)
+            .absolute()
+            .left(0)
+            .top(0)
+            .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
+                     .at = at,
+                     .align = TextPath::Align::Center}));
   };
   auto lit = [&](int y0, int y1) {
     int count = 0;
@@ -124,88 +96,25 @@ TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
 }
 
 TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
-  // Transition is an aggregate, so `{360ms, {}, 220ms}` — the obvious way to
-  // write "default curve, but I need to name the delay" — initialises `ease`
-  // to an EMPTY std::function. It compiles, so the only options are throwing
-  // bad_function_call on the first frame or treating empty as "the default
-  // curve". It is the latter.
+  // motion::Transition is an aggregate, so `{360ms, {}, 220ms}` — the obvious
+  // way to write "default curve, but I need to name the delay" — initialises
+  // `ease` to an EMPTY std::function. It compiles, so the only options are
+  // throwing bad_function_call on the first frame or treating empty as "the
+  // default curve". It is the latter.
   Host host(200, 200);
-  host.composer.render(box().child(
-      box()
-          .width(40)
-          .height(40)
-          .absolute()
-          .left(0)
-          .top(80)
-          .fill(red())
-          .translateX(animate(from(0.0f).to(120.0f), {200ms, {}, 0ms}))));
+  host.composer.render(
+      box().child(box()
+                      .width(40)
+                      .height(40)
+                      .absolute()
+                      .left(0)
+                      .top(80)
+                      .fill(red())
+                      .translateX(animate(motion::from(0.0f).to(120.0f),
+                                          {200ms, {}, 0ms}))));
   host.frame();     // would throw here
   host.frame(0.4);  // land the entrance
   EXPECT_TRUE(SkColorGetR(host.pixel(130, 100)) > 180);
-
-  // and it still prunes against an explicitly-defaulted curve
-  Transition blank{200ms, {}, 0ms};
-  Transition spelled{200ms, &choreograph::easeOutQuad, 0ms};
-  EXPECT_EQ(blank.easing().target<float (*)(float)>() != nullptr,
-            spelled.easing().target<float (*)(float)>() != nullptr);
-}
-
-TEST(ComposeShapes, ParametricCurvesEvaluateInTheUnitFrame) {
-  // Shapes.h generated closed shapes from parameters; a curve DEFINED by
-  // a parameter had no generator, so every study that needed one wrote
-  // the same SkPathBuilder loop inside its own outline lambda.
-  const SkSize box{200, 100};  // deliberately non-square: unit → half-extents
-
-  // A 1:1 Lissajous with a quarter-turn phase IS the inscribed ellipse.
-  const SkPath ellipse = shapes::lissajous(1, 1, 90.0f)(box);
-  const SkRect bounds = ellipse.getBounds();
-  EXPECT_NEAR(bounds.width(), 200.0f, 1.5f);
-  EXPECT_NEAR(bounds.height(), 100.0f, 1.5f);
-  EXPECT_NEAR(bounds.centerX(), 100.0f, 0.5f);
-  EXPECT_NEAR(bounds.centerY(), 50.0f, 0.5f);
-
-  // Damping shrinks the figure AS IT DRAWS — the whole visual difference
-  // between a harmonograph and a Lissajous, and why a real pen-and-
-  // pendulum figure spirals inward instead of retracing one rosette. Both
-  // ends sit AT the centre (sin 0 = 0), so the honest measurement is the
-  // reach of each half.
-  const SkPath damped = shapes::harmonograph(3, 2, 0, 0.25f, 0, 6.0f)(box);
-  const SkPoint centre = SkPoint{100, 50};
-  const int pts = damped.countPoints();
-  ASSERT_GT(pts, 100);
-  auto reach = [&](int from, int to) {
-    float most = 0;
-    for (int i = from; i < to; ++i)
-      most = std::max(most, SkPoint::Distance(damped.getPoint(i), centre));
-    return most;
-  };
-  EXPECT_GT(reach(0, pts / 2), reach(pts / 2, pts) * 1.5f);
-
-  // A rose with odd k has k petals, each reaching the rim. It is NOT
-  // centred on the box — r = cos(5θ) puts tips at θ = 0, 2π/5, … so the
-  // bounds sit off to one side, and asserting otherwise would be
-  // asserting a bug into existence.
-  const SkPath five = shapes::rose(5)(box);
-  EXPECT_GT(five.countPoints(), 100);
-  int tips = 0;
-  for (int i = 0; i < five.countPoints(); ++i)
-    if (SkPoint::Distance(five.getPoint(i), centre) > 49.0f) ++tips;
-  EXPECT_GT(tips, 5);
-
-  // Spirals start at the centre and end at the rim.
-  const SkPath coil = shapes::spiral(3)(box);
-  EXPECT_NEAR(SkPoint::Distance(coil.getPoint(0), centre), 0.0f, 1.0f);
-  EXPECT_GT(SkPoint::Distance(coil.getPoint(coil.countPoints() - 1), centre),
-            40.0f);
-
-  // Everything stays inside the box it was inscribed in.
-  for (const SkPath* p : {&ellipse, &damped, &five, &coil}) {
-    const SkRect r = p->getBounds();
-    EXPECT_GE(r.left(), -1.0f);
-    EXPECT_GE(r.top(), -1.0f);
-    EXPECT_LE(r.right(), 201.0f);
-    EXPECT_LE(r.bottom(), 101.0f);
-  }
 }
 
 TEST(ComposeText, OnPathFillsEveryContourNotJustTheFirst) {
@@ -278,8 +187,7 @@ TEST(ComposeText, OnPathBreaksAtWordsBetweenContours) {
 }
 
 TEST(ComposeDebug, CoverageCatchesWhatAreaAndContainmentMiss) {
-  // The Penrose study's sharpest finding, made into library code: a
-  // subdivision that OVERLAPS in one place and GAPS in another passes
+  // A subdivision that OVERLAPS in one place and GAPS in another passes
   // both cheap checks. Area conservation passes because the two errors
   // cancel exactly; containment passes because every piece really is
   // inside the parent. Only point sampling sees it.
@@ -358,7 +266,7 @@ TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
                            .absolute()
                            .left(0)
                            .top(0)
-                           .onPath({.path = shapes::circle(),
+                           .onPath({.path = geometry::shapes::circle(),
                                     .at = at,
                                     .align = TextPath::Align::Center,
                                     .offset = 4.0f,
@@ -395,32 +303,10 @@ TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
   EXPECT_EQ(differs(snap(topPlain), snap(topFlipped)), 0);
 }
 
-TEST(ComposeBindings, QuantizeSnapsBeforeTheAffineChain) {
-  // A stepped readout — a slider with N sprite frames, a gauge with N
-  // notches — is a different widget from a smooth one sampled at draw time.
-  // The quantisation is part of the design, so it belongs in the binding,
-  // where it composes with the rest of the shaping map.
-  auto q = [](float v) {
-    return bind(nullptr).quantize(5).value().apply(v);  // levels 0,.25,.5,.75,1
-  };
-  EXPECT_FLOAT_EQ(q(0.0f), 0.00f);
-  EXPECT_FLOAT_EQ(q(0.10f), 0.00f);
-  EXPECT_FLOAT_EQ(q(0.20f), 0.25f);
-  EXPECT_FLOAT_EQ(q(0.60f), 0.50f);
-  EXPECT_FLOAT_EQ(q(1.0f), 1.00f);
-  // It runs BEFORE the affine chain, so the steps land on round pixels.
-  EXPECT_FLOAT_EQ(bind(nullptr).quantize(5).target(0, 80).value().apply(0.6f),
-                  40.0f);
-  // …and after the curve, so an eased value still lands on a step.
-  EXPECT_FLOAT_EQ(
-      bind(nullptr).map(&choreograph::easeNone).quantize(5).value().apply(0.9f),
-      1.0f);
-}
-
 TEST(ComposeBindings, AFillCanBeBoundLive) {
-  // Pinned because a study concluded there was no bound Fill at all and
-  // rebuilt its most period-authentic widget on renderSlot() instead.
-  // There is one: the Output holds a Fill, and you write it from the
+  // A Fill can be bound, which is easy to miss and expensive to work
+  // around — the alternative is rebuilding the widget on renderSlot().
+  // The Output holds a Fill, and you write it from the
   // same steppable that computes the number driving everything else.
   Host host(200, 200);
   choreograph::Output<Fill> bar{Fill::color({1, 0, 0, 1})};
@@ -434,35 +320,6 @@ TEST(ComposeBindings, AFillCanBeBoundLive) {
   host.frame();
   EXPECT_LT(SkColorGetR(host.pixel(100, 100)), 80);
   EXPECT_GT(SkColorGetG(host.pixel(100, 100)), 180);
-}
-
-TEST(ComposeShapes, StarArmsCanBeWaisted) {
-  // Engraved stars are almost never straight-chorded: Chladni's 1787
-  // sound-figures narrow fast off the hub and then run as needles, and
-  // nine figures on that one plate wanted exactly this parameter.
-  const SkSize box{200, 200};
-  const SkRect region = SkRect::MakeWH(200, 200);
-  // Measure the covered area by sampling, not by a shoelace over the
-  // endpoints — the waist lives in the QUAD CONTROL POINTS, so a polygon
-  // area sees no difference at all and would pass on a no-op.
-  auto covered = [&](const SkPath& p) {
-    const SkPath pieces[] = {p};
-    const auto c = test::coverage(pieces, region, 128);
-    return c.samples - c.uncovered;
-  };
-
-  const SkPath straight = shapes::star(6, 0.35f, 0.0f)(box);
-  const SkPath waisted = shapes::star(6, 0.35f, 0.22f)(box);
-  const SkPath bulged = shapes::star(6, 0.35f, -0.22f)(box);
-
-  // The tips are unmoved — the waist pinches the EDGES, not the points.
-  EXPECT_NEAR(straight.getBounds().height(), waisted.getBounds().height(),
-              1.0f);
-  // The figure loses ink, because every edge bows toward the centre…
-  EXPECT_LT(covered(waisted), covered(straight));
-  // …and a negative waist bulges instead, which is the compass-rose
-  // direction.
-  EXPECT_GT(covered(bulged), covered(straight));
 }
 
 TEST(ComposeContent, SamplingReachesTheImageLeaf) {
@@ -497,104 +354,16 @@ TEST(ComposeContent, SamplingReachesTheImageLeaf) {
   EXPECT_LE(magnified(SkSamplingOptions(SkFilterMode::kNearest)), 1);
 }
 
-TEST(ComposeMotion, AddFixedRunsAtItsOwnRateWhateverTheHostDraws) {
-  // Every simulation-shaped study reinvented the accumulator and its
-  // spiral-of-death clamp — a cellular automaton at 27 Hz behind the DOOM
-  // PlayStation titles, particles at 24. The library had declared
-  // choppiness for shaders (Material::quantizeTime) and nothing for logic.
-  auto stepsOverOneSecond = [](double fps) {
-    sigil::motion::Ticker ticker;
-    int steps = 0;
-    ticker.addFixed(27.0, [&] {
-      ++steps;
-      return true;
-    });
-    const double dt = 1.0 / fps;
-    for (int i = 0; i < (int)std::lround(fps); ++i) ticker.tick(dt);
-    return steps;
-  };
-  EXPECT_EQ(stepsOverOneSecond(60.0), 27);
-  EXPECT_EQ(stepsOverOneSecond(144.0), 27);
-  // Below the sim rate it still lands on 27 — several steps per frame.
-  EXPECT_EQ(stepsOverOneSecond(24.0), 27);
-
-  // The clamp: one enormous hitch must not run an unbounded backlog —
-  // and it must SAY it clamped, because a frame that dropped simulated
-  // time makes anything measured on it meaningless.
-  {
-    sigil::motion::Ticker ticker;
-    int steps = 0;
-    sigil::motion::Ticker::FixedStatus status;
-    ticker.addFixed(
-        60.0,
-        [&] {
-          ++steps;
-          return true;
-        },
-        /*maxCatchUp=*/4, nullptr, &status);
-    ticker.tick(10.0);  // ten seconds in one frame = 600 steps of backlog
-    EXPECT_EQ(steps, 4);
-    EXPECT_EQ(status.stepsRun, 4);
-    EXPECT_TRUE(status.clamped);
-    // …and the backlog is DISCARDED, not carried into the next frame.
-    steps = 0;
-    ticker.tick(1.0 / 60.0);
-    EXPECT_EQ(steps, 1);
-    EXPECT_FALSE(status.clamped);
-  }
-
-  // Reproducibility: the step count is derived from TOTAL elapsed time, so
-  // the same instant lands on the same step whatever the draw rate. An
-  // accumulator compared against a step size instead slips by one comparison
-  // over a long pre-roll, and only at some frame rates — which reads as a
-  // clamp bug rather than as float accumulation.
-  {
-    // Each rate advances to the SAME total time — otherwise the counts
-    // differ for the honest reason that the clocks differ.
-    auto stepsAt = [](double fps, double untilSeconds) {
-      sigil::motion::Ticker ticker;
-      int steps = 0;
-      ticker.addFixed(
-          60.0,
-          [&] {
-            ++steps;
-            return true;
-          },
-          64);
-      const int frames = (int)std::lround(untilSeconds * fps);
-      const double dt = untilSeconds / (double)frames;
-      for (int i = 0; i < frames; ++i) ticker.tick(dt);
-      return steps;
-    };
-    const int reference = stepsAt(60.0, 3.1);
-    EXPECT_EQ(stepsAt(30.0, 3.1), reference);
-    EXPECT_EQ(stepsAt(20.0, 3.1), reference);
-    EXPECT_EQ(stepsAt(15.0, 3.1), reference);
-    EXPECT_EQ(stepsAt(10.0, 3.1), reference);
-    EXPECT_EQ(stepsAt(120.0, 3.1), reference);
-  }
-
-  // Returning false drops it, like add().
-  {
-    sigil::motion::Ticker ticker;
-    int steps = 0;
-    ticker.addFixed(60.0, [&] { return ++steps < 3; });
-    ticker.tick(1.0);
-    const int after = steps;
-    ticker.tick(1.0);
-    EXPECT_EQ(steps, after);
-  }
-}
-
 TEST(ComposeMaterials, GlowUnitReachesTheInscribedCircleNotTheCorners) {
   // radialUnit's radius is a fraction of the box's HALF-DIAGONAL, so a soft
   // round light authored at radius 1 has not finished falling off where the
-  // INSCRIBED circle is — and on a node also carrying shapes::circle() the
-  // remaining alpha becomes a visible hard rim. glowUnit is radialUnit
-  // scaled to the inscribed circle instead, so radius 1 reaches zero exactly
-  // at the edge that gets clipped.
-  const std::vector<Stop> ramp = {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}};
-  auto edgeValue = [&](Material m) {
+  // INSCRIBED circle is — and on a node also carrying
+  // geometry::shapes::circle() the remaining alpha becomes a visible hard rim.
+  // glowUnit is radialUnit scaled to the inscribed circle instead, so radius 1
+  // reaches zero exactly at the edge that gets clipped.
+  const std::vector<material::skia::Stop> ramp = {{0.0f, {1, 1, 1, 1}},
+                                                  {1.0f, {0, 0, 0, 1}}};
+  auto edgeValue = [&](material::skia::Paint m) {
     Host host(200, 200);
     host.composer.render(
         box().child(box().absolute().inset(0).fill(std::move(m))));
@@ -606,12 +375,17 @@ TEST(ComposeMaterials, GlowUnitReachesTheInscribedCircleNotTheCorners) {
 
   // radialUnit(…, 1.0) is still bright at the inscribed circle, because
   // its ramp does not reach black until the corners.
-  EXPECT_GT(edgeValue(Material::radialUnit({0.5f, 0.5f}, 1.0f, ramp)), 40);
+  EXPECT_GT(
+      edgeValue(material::skia::Paint::radialUnit({0.5f, 0.5f}, 1.0f, ramp)),
+      40);
   // glowUnit(…, 1.0) has landed by then. That is the whole difference.
-  EXPECT_LT(edgeValue(Material::glowUnit({0.5f, 0.5f}, 1.0f, ramp)), 8);
+  EXPECT_LT(
+      edgeValue(material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f, ramp)), 8);
   // And the old spelling of the same thing still works, which is what
   // makes this a convenience rather than a behaviour change.
-  EXPECT_LT(edgeValue(Material::radialUnit({0.5f, 0.5f}, 0.7071f, ramp)), 8);
+  EXPECT_LT(
+      edgeValue(material::skia::Paint::radialUnit({0.5f, 0.5f}, 0.7071f, ramp)),
+      8);
 }
 
 TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
@@ -629,7 +403,7 @@ TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
   // exactly where fraction 0.25 is: t runs from 3 o'clock, and with y
   // down a quarter turn lands at the BOTTOM.
   auto ring = [](TextPath::Orient orient) {
-    auto circle = shapes::parametric(
+    auto circle = geometry::shapes::parametric(
         [](float t) { return SkPoint{std::cos(t), std::sin(t)}; }, 0.0f,
         2.0f * SK_FloatPI, 360, true);
     // ONE tall glyph: a run spread along the arc keeps a wide footprint
@@ -676,70 +450,64 @@ TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
   EXPECT_GT(r.width(), r.height());
 }
 
-TEST(ComposeMotion, AddFixedPublishesTheRenderInterpolant) {
-  // A fixed-rate sim drawn at an unrelated rate judders unless you draw
-  // lerp(previous, current, alpha). The accumulator lived inside the
-  // steppable with no way to read it — and a verlet body's state is
-  // literally the pair (x*, x), so the integrator was already holding
-  // both ends of the interpolation while the library hid the one scalar
-  // that was missing.
-  sigil::motion::Ticker ticker;
-  choreograph::Output<float> alpha{-1.0f};
-  int steps = 0;
-  ticker.addFixed(
-      10.0,
-      [&] {
-        ++steps;
-        return true;
-      },
-      8, &alpha);
+TEST(ComposeText, OnPathCanLeaveEveryGlyphLevelForACalendarRing) {
+  // The third orientation, and the one neither of the others can reach: a
+  // calendar ring's dates and a modern gauge's numerals stand LEVEL at
+  // every division, however the baseline is running under them. Read where
+  // the tangent is VERTICAL — a quarter turn from the bottom — because
+  // that is where a tangent-oriented glyph lies on its side and an upright
+  // one still stands.
+  auto ring = [](TextPath::Orient orient) {
+    auto circle = geometry::shapes::parametric(
+        [](float t) { return SkPoint{std::cos(t), std::sin(t)}; }, 0.0f,
+        2.0f * SK_FloatPI, 360, true);
+    return box().child(text(u8"I", whiteStyle(64))
+                           .width(240)
+                           .height(240)
+                           .absolute()
+                           .left(0)
+                           .top(0)
+                           .onPath({.path = circle,
+                                    .at = 0.5f,  // 9 o'clock: tangent upward
+                                    .align = TextPath::Align::Center,
+                                    .offset = -50.0f,
+                                    .orient = orient}));
+  };
+  auto footprint = [](Host& host) {
+    int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
+    for (int y = 0; y < 240; ++y)
+      for (int x = 0; x < 240; ++x)
+        if (host.pixel(x, y) != SK_ColorBLACK) {
+          minX = std::min(minX, x);
+          maxX = std::max(maxX, x);
+          minY = std::min(minY, y);
+          maxY = std::max(maxY, y);
+        }
+    return SkISize{maxX - minX, maxY - minY};
+  };
 
-  // Half a step in: no step taken, and alpha says exactly how far.
-  ticker.tick(0.05);
-  EXPECT_EQ(steps, 0);
-  EXPECT_NEAR(alpha.value(), 0.5f, 1e-4f);
+  Host tangent(240, 240), upright(240, 240);
+  tangent.composer.render(ring(TextPath::Orient::Tangent));
+  tangent.frame();
+  upright.composer.render(ring(TextPath::Orient::Upright));
+  upright.frame();
 
-  // Cross the step: one step, and the leftover is what remains.
-  ticker.tick(0.07);
-  EXPECT_EQ(steps, 1);
-  EXPECT_NEAR(alpha.value(), 0.2f, 1e-4f);
-
-  // Landing exactly on a boundary leaves nothing over.
-  ticker.tick(0.08);
-  EXPECT_EQ(steps, 2);
-  EXPECT_NEAR(alpha.value(), 0.0f, 1e-4f);
-}
-
-TEST(ComposeBindings, WindowClampsBeforeTheCurveSoEasingsStayInDomain) {
-  // from(lo,hi) normalises and the curve runs after it, so on a
-  // multi-beat timeline an Output outside the window feeds the easing a
-  // value outside its domain — and none of ease:: is total. Every curve
-  // in the tartan study had to clamp its own input first.
-  auto plain = bind(nullptr).source(0.4f, 0.6f);
-  auto windowed = bind(nullptr).window(0.4f, 0.6f);
-
-  // Inside the window they agree exactly.
-  EXPECT_FLOAT_EQ(plain.value().apply(0.5f), windowed.value().apply(0.5f));
-  // Outside it, from() keeps running past the ends…
-  EXPECT_LT(plain.value().apply(0.0f), -1.0f);
-  EXPECT_GT(plain.value().apply(1.0f), 2.0f);
-  // …and window() holds at the ends, which is what "this beat" means.
-  EXPECT_FLOAT_EQ(windowed.value().apply(0.0f), 0.0f);
-  EXPECT_FLOAT_EQ(windowed.value().apply(1.0f), 1.0f);
-
-  // And the clamp lands BEFORE the curve: an overshoot easing evaluated
-  // at 1 returns exactly 1, rather than being run far past its domain.
-  const float overshoot =
-      bind(nullptr).window(0.4f, 0.6f).map(ease::outBack()).value().apply(5.0f);
-  EXPECT_NEAR(overshoot, 1.0f, 1e-4f);
+  const SkISize t = footprint(tangent), u = footprint(upright);
+  ASSERT_GT(t.width(), 0);
+  ASSERT_GT(u.width(), 0);
+  EXPECT_GT(t.width(), t.height())
+      << "a tangent-oriented glyph where the tangent runs up the page "
+         "should lie on its side";
+  EXPECT_GT(u.height(), u.width())
+      << "an upright glyph stands wherever it sits on the baseline";
 }
 
 TEST(ComposeText, MetricsExposeTheCapSlackThatPlacementNeeds) {
   // A text node's top is the LINE BOX top, while type is usually positioned
   // by its CAP TOP, so aligning a layout against a reference needs the SLACK
-  // between the two. measure() returns only an SkSize, which leaves a caller
-  // guessing a fraction of the line height — a constant that changes with
-  // every face.
+  // between the two. intrinsicSize() returns only an SkSize, which leaves a
+  // caller guessing a fraction of the line height — a constant that changes
+  // with every face.
   const auto m = metrics(whiteStyle(40), fonts());
   EXPECT_GT(m.ascent, 0.0f);   // reported as a positive distance, not
   EXPECT_GT(m.descent, 0.0f);  // Skia's signed convention
@@ -759,15 +527,15 @@ TEST(ComposeText, MetricsExposeTheCapSlackThatPlacementNeeds) {
 }
 
 TEST(ComposeText, TextFillWorksWithTheUnitRamps) {
-  // textFill and the Unit ramps must compose, and they very nearly do not:
-  // the metric band already maps the shader's [0,1]² onto the text, so a
-  // Unit ramp dividing by the NODE's size a second time collapses the whole
-  // gradient to a sliver near zero. Every glyph then paints the first stop,
-  // flat — a wrong picture that looks like a deliberate solid fill.
+  // textFill and the weave::Unit ramps must compose, and they very nearly do
+  // not: the metric band already maps the shader's [0,1]² onto the text, so a
+  // weave::Unit ramp dividing by the NODE's size a second time collapses the
+  // whole gradient to a sliver near zero. Every glyph then paints the first
+  // stop, flat — a wrong picture that looks like a deliberate solid fill.
   Host host(320, 160);
   host.composer.render(box().padding(20).child(
       text(u8"HH", whiteStyle(96))
-          .textFill(Material::linearUnit(
+          .textFill(material::skia::Paint::linearUnit(
               {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))));
   host.frame();
 
@@ -836,7 +604,7 @@ TEST(ComposeText, TextStrokeComposesWithTextFill) {
   host.composer.render(box().padding(20).child(
       text(u8"HH", whiteStyle(96))
           .textStroke(9.0f, Fill::color({0, 1, 0, 1}))
-          .textFill(Material::linearUnit(
+          .textFill(material::skia::Paint::linearUnit(
               {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))));
   host.frame();
   int green = 0, ramp = 0;
@@ -855,9 +623,8 @@ TEST(ComposeText, TextStrokeComposesWithTextFill) {
 TEST(ComposeDebug, CoverageOverAnArbitraryRegionAndComponentCounting) {
   // An annulus, a sector, a plate — anything whose outline is not a box
   // cannot be tested against its bounds without counting the parts
-  // outside it as gaps. The astrolabe study's zodiac ring needed exactly
-  // this, and got 62 phantom gaps first try from chord error against a
-  // true circle.
+  // outside it as gaps. A ring of segments compared against a true circle
+  // reports chord error as gaps, dozens of them, none of them real.
   auto rect = [](float l, float t, float r, float b) {
     SkPathBuilder p;
     p.addRect(SkRect::MakeLTRB(l, t, r, b));
@@ -941,7 +708,7 @@ TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
   // shader source instead, with one effect cached per count, which is the
   // same rule the noise generators follow for octaves.
   auto sweep = [](int n) {
-    std::vector<Stop> stops;
+    std::vector<material::skia::Stop> stops;
     for (int i = 0; i < n; ++i) {
       const float t = (float)i / (float)(n - 1);
       // A sawtooth the six-stop version could not have represented:
@@ -951,7 +718,7 @@ TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
     }
     Host host(256, 32);
     host.composer.render(box().child(box().absolute().inset(0).fill(
-        Material::linearUnit({0, 0}, {1, 0}, stops))));
+        material::skia::Paint::linearUnit({0, 0}, {1, 0}, stops))));
     host.frame();
     // Count the light/dark transitions across the middle scanline.
     int flips = 0;
@@ -972,14 +739,15 @@ TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
 
   // Degenerate counts still behave.
   Host one(64, 64);
-  one.composer.render(box().child(box().absolute().inset(0).fill(
-      Material::linearUnit({0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}}))));
+  one.composer.render(box().child(
+      box().absolute().inset(0).fill(material::skia::Paint::linearUnit(
+          {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}}))));
   one.frame();
   EXPECT_GT(SkColorGetR(one.pixel(32, 32)), 200);
 }
 
 TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {
-  // measure() is per-Element, so hand-placing N glyphs costs N layouts.
+  // intrinsicSize() is per-Element, so hand-placing N glyphs costs N layouts.
   // measureRun() is ONE layout through the same shaping path a text() leaf
   // takes — which is only useful if it agrees with that leaf, so the
   // assertion is that its advances reproduce what the Element machinery
@@ -994,9 +762,10 @@ TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {
     sum += a;
   }
   // The independent arm: the full Element path (reconcile + Yoga + text
-  // measure) sizes the same run. measure() ceils the shaped width, so
+  // measure) sizes the same run. intrinsicSize() ceils the shaped width, so
   // agreement is to the ceil.
-  const SkSize laidOut = measure(text(u8"HAMBURGEFONTSIV", style), fonts());
+  const SkSize laidOut =
+      intrinsicSize(text(u8"HAMBURGEFONTSIV", style), fonts());
   EXPECT_NEAR(std::ceil(sum), laidOut.width(), 1.01f)
       << "measureRun's advances disagree with the laid-out element";
   // Controls: a doubled face doubles the run (shaping is live, not a
@@ -1006,9 +775,19 @@ TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {
     sumBig += a;
   EXPECT_NEAR(sumBig, sum * 2.0f, sum * 0.1f);
   // …an empty run shapes to nothing, and the count is the GLYPH count —
-  // one per character here, no ligatures in play.
+  // read off the layout's own walk rather than off the character count,
+  // which a ligature in the machine's face would part company with.
   EXPECT_TRUE(measureRun(u8"", style, fonts()).empty());
-  EXPECT_EQ(advances.size(), 15u);
+  size_t placedGlyphs = 0;
+  {
+    sigil::weave::Paragraph paragraph;
+    paragraph.appendText(u8"HAMBURGEFONTSIV", style);
+    sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
+    sigil::weave::forEachPlacedGlyph(
+        sigil::weave::layoutParagraph(fonts(), paragraph, flow), paragraph,
+        [&](const sigil::weave::PlacedGlyph&) { ++placedGlyphs; });
+  }
+  EXPECT_EQ(advances.size(), placedGlyphs);
 }
 
 TEST(ComposeText, MeasureRunPrefixSumsAreThePenPositionsAcrossWords) {
@@ -1052,8 +831,11 @@ TEST(ComposeText, MeasureRunPrefixSumsAreThePenPositionsAcrossWords) {
         << "\"";
   }
   // The glyph count is untouched: a space still contributes no entry, it
-  // only lends its advance to the glyph before it.
+  // only lends its advance to the glyph before it. Stated against the same
+  // two letters with no space between them, so the claim does not turn on
+  // how many glyphs the machine's face makes of them.
   const std::vector<float> spaced = measureRun(u8"A B", style, fonts());
+  ASSERT_EQ(spaced.size(), measureRun(u8"AB", style, fonts()).size());
   ASSERT_EQ(spaced.size(), 2u);
   EXPECT_GT(spaced[0], measureRun(u8"A", style, fonts())[0])
       << "the gap must ride the advance of the glyph it follows";
@@ -1113,4 +895,108 @@ TEST(ComposeText, RunPensAreThePenPositionsWithOnePastTheEnd) {
   const std::vector<float> nothing = runPens(u8"", style, fonts());
   ASSERT_EQ(nothing.size(), 1u);
   EXPECT_FLOAT_EQ(nothing[0], 0.0f);
+}
+
+TEST(ComposeText, EveryCascadeFieldOfATrackParticipatesInEquality) {
+  // A cascade over text is two values: the SCHEDULE, which is
+  // SigilMotion's and pinned there, and the three fields that say what a
+  // unit IS, which are this library's. Miss one and a re-described track
+  // keeps the OLD schedule with no diagnostic — a granularity that never
+  // takes, or a `beatsOver` flipped to Text on a paragraph that goes on
+  // beating over each half's own selection. Both are silent, and both look
+  // exactly like the engine ignoring the author.
+  //
+  // The pin beside `Track::sameShape()` makes a NEW field a build failure;
+  // this makes the decision about it mechanical.
+  const Track base{.stagger = {.eachMs = 30}};
+  Track over = base;
+  over.unit = sigil::weave::Unit::Line;
+  EXPECT_FALSE(base.sameShape(over)) << "over";
+  Track innerUnit = base;
+  innerUnit.innerUnit = sigil::weave::Unit::Line;
+  EXPECT_FALSE(base.sameShape(innerUnit)) << "innerUnit";
+  Track beatsOver = base;
+  beatsOver.beatsOver = Beats::Text;
+  EXPECT_FALSE(base.sameShape(beatsOver)) << "beatsOver";
+  Track schedule = base;
+  schedule.stagger.eachMs = 31;
+  EXPECT_FALSE(base.sameShape(schedule)) << "the schedule itself";
+  EXPECT_TRUE(base.sameShape(base));
+}
+
+TEST(ComposeText, ACapHeightIsSolvedFromTheFaceAndNotFromARatio) {
+  // A reference states how tall a capital stands, never the font size, and
+  // the ratio between them is one face's rather than every face's.
+  const sigil::weave::TextStyle fitted =
+      atCapHeight(whiteStyle(12), 40.0f, fonts());
+  EXPECT_NEAR(metrics(fitted, fonts()).capHeight, 40.0f, 0.5f);
+  // It is a property of the face, so it lands on the same size whatever
+  // size it started at.
+  const sigil::weave::TextStyle other =
+      atCapHeight(whiteStyle(96), 40.0f, fonts());
+  EXPECT_NEAR(other.shaping.fontSize, fitted.shaping.fontSize, 0.1f);
+  // Nothing to solve for leaves the style as it was.
+  EXPECT_EQ(atCapHeight(whiteStyle(20), 0.0f, fonts()).shaping.fontSize, 20.0f);
+}
+
+TEST(ComposeText, FittingARunToAWidthSolvesPastTheTrackingThatDoesNotScale) {
+  const auto widthOf = [](const sigil::weave::TextStyle& style) {
+    return runPens(u8"CONDENSED TO FIT", style, fonts()).back();
+  };
+  const sigil::weave::TextStyle big = whiteStyle(64);
+  ASSERT_GT(widthOf(big), 300.0f);
+
+  const sigil::weave::TextStyle fitted =
+      fitRun(u8"CONDENSED TO FIT", big, 300.0f, fonts());
+  EXPECT_LE(widthOf(fitted), 300.5f);
+  EXPECT_GT(widthOf(fitted), 285.0f);  // it fits, it does not merely shrink
+  EXPECT_LT(fitted.shaping.fontSize, big.shaping.fontSize);
+  EXPECT_FLOAT_EQ(fitted.shaping.scaleX, 1.0f);  // no squeeze was needed
+
+  // A run that already fits is left exactly as it was: the fit is a
+  // ceiling, not a resize onto the width.
+  const sigil::weave::TextStyle small = whiteStyle(10);
+  EXPECT_EQ(
+      fitRun(u8"CONDENSED TO FIT", small, 4000.0f, fonts()).shaping.fontSize,
+      10.0f);
+
+  // TRACKING IS PX, so it does not shrink with the size and one division
+  // overshoots by exactly it. A heavily tracked run is where a fit
+  // written as a single ratio is visibly wrong; this one still lands.
+  sigil::weave::TextStyle tracked = big;
+  tracked.shaping.letterSpacing = 8.0f;
+  const sigil::weave::TextStyle fittedTracked =
+      fitRun(u8"CONDENSED TO FIT", tracked, 300.0f, fonts());
+  EXPECT_LE(widthOf(fittedTracked), 300.5f);
+  EXPECT_GT(widthOf(fittedTracked), 270.0f);
+}
+
+TEST(ComposeText, TheCondenseClosesOnlyWhatTheSizeFloorLeftOver) {
+  const auto widthOf = [](const sigil::weave::TextStyle& style) {
+    return runPens(u8"CONDENSED TO FIT", style, fonts()).back();
+  };
+  // Held at a size floor, the fit has nowhere left to shrink and squeezes
+  // instead — and only by what the floor left over.
+  const sigil::weave::TextStyle squeezed =
+      fitRun(u8"CONDENSED TO FIT", whiteStyle(64), 300.0f, fonts(),
+             {.minSize = 48.0f, .minCondense = 0.5f});
+  EXPECT_FLOAT_EQ(squeezed.shaping.fontSize, 48.0f);
+  EXPECT_LT(squeezed.shaping.scaleX, 1.0f);
+  EXPECT_GE(squeezed.shaping.scaleX, 0.5f);
+  EXPECT_LE(widthOf(squeezed), 301.0f);
+
+  // A run that fits by shrinking alone is never also squeezed, even when
+  // it was allowed to be.
+  const sigil::weave::TextStyle shrunk =
+      fitRun(u8"CONDENSED TO FIT", whiteStyle(64), 300.0f, fonts(),
+             {.minCondense = 0.5f});
+  EXPECT_FLOAT_EQ(shrunk.shaping.scaleX, 1.0f);
+
+  // Neither floor is a promise to fit: a run that cannot reach the width
+  // comes back at the floors, over-wide, rather than at a size nothing
+  // could read.
+  const sigil::weave::TextStyle refused = fitRun(
+      u8"CONDENSED TO FIT", whiteStyle(64), 10.0f, fonts(), {.minSize = 48.0f});
+  EXPECT_FLOAT_EQ(refused.shaping.fontSize, 48.0f);
+  EXPECT_GT(widthOf(refused), 10.0f);
 }

@@ -6,21 +6,11 @@
  * Region value and the `parts::` selections are the kernel's.
  */
 
-#include <include/core/SkContourMeasure.h>
-#include <include/core/SkImageFilter.h>
-#include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathUtils.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkTypes.h>  // SkDebugf — the slot-rename diagnostic
-#include <include/effects/SkImageFilters.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <include/pathops/SkPathOps.h>
 
-#include <algorithm>
-#include <cmath>   // std::isfinite — the profileOffset non-finite guard
-#include <cstdio>  // std::snprintf — variationDrive's effect key
-#include <set>
+#include <memory>
+#include <utility>
+#include <vector>
 
 #include "ComposeInternal.h"
 #include "SpanArithmetic.h"
@@ -61,7 +51,7 @@ Gate spans(Spans where) {
   g.where = std::move(where);
   return g;
 }
-Gate edge(float angleDeg, Animatable<float> fraction) {
+Gate edge(float angleDeg, motion::Animatable<float> fraction) {
   Gate g;
   g.resolver = detail::maskResolver();
   g.kind = Gate::Kind::Edge;
@@ -81,24 +71,25 @@ Gate outside(Region r) {
   g.outside = true;
   return g;
 }
-Gate alpha(Material coverage) {
+Gate alpha(material::skia::Paint coverage) {
   Gate g;
   g.resolver = detail::maskResolver();
   g.kind = Gate::Kind::Coverage;
-  g.coverage = std::make_shared<const Material>(std::move(coverage));
+  g.coverage =
+      std::make_shared<const material::skia::Paint>(std::move(coverage));
   return g;
 }
-Gate alphaOut(Material coverage) {
+Gate alphaOut(material::skia::Paint coverage) {
   Gate g = alpha(std::move(coverage));
   g.outside = true;
   return g;
 }
-Gate luma(Material coverage) {
+Gate luma(material::skia::Paint coverage) {
   Gate g = alpha(std::move(coverage));
   g.channel = Gate::Channel::Luma;
   return g;
 }
-Gate lumaOut(Material coverage) {
+Gate lumaOut(material::skia::Paint coverage) {
   Gate g = luma(std::move(coverage));
   g.outside = true;
   return g;
@@ -135,9 +126,9 @@ struct MaskEngine final : MaskResolverOps {
   }
   Fill coverage(const Gate& gate, const PaintContext& ctx) const override {
     if (!gate.coverage) return {};
-    const Material& mat = *gate.coverage;
-    return (mat.isAnimated() || mat.geometryDependent()) ? mat.resolve(ctx)
-                                                         : mat.toFill();
+    const material::skia::Paint& mat = *gate.coverage;
+    return (mat.isAnimated() || mat.geometryDependent()) ? resolveFill(mat, ctx)
+                                                         : toFill(mat);
   }
 };
 

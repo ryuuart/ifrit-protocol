@@ -5,7 +5,7 @@
  * kernel's, and the artefact it decides about is the host's.
  */
 
-#include <sigilcore/reconcile/Erased.h>
+#include <sigilcore/comparable/Erased.h>
 
 #include <cstdint>
 

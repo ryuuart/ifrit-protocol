@@ -10,7 +10,8 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcore/reconcile/Env.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
 #include <cmath>
@@ -22,6 +23,8 @@
 #include "BenchSupport.h"
 
 using namespace sigil::compose;
+
+namespace core = sigil::core;
 using sigil::compose::bench::cellFill;
 using sigil::compose::bench::fonts;
 using sigil::compose::bench::Host;
@@ -88,7 +91,7 @@ Element groupScene(int count, Cache mode) {
                     .width(64)
                     .height(13)
                     .rotate((float)(id % 7) * 6.0f - 18.0f)
-                    .fill(Material::sksl(groupShader())));
+                    .fill(sigil::material::skia::Paint::sksl(groupShader())));
   }
   // Keep the parent live so it calls into the group every frame. An Auto
   // parent would cache one picture containing the first-frame traversal and
@@ -246,11 +249,11 @@ struct MemoCellProps {
 };
 
 Element memoGridUnder(int count, const BenchPalette& palette) {
-  env::Provide<BenchPalette> theme(palette);
+  core::env::Provide<BenchPalette> theme(palette);
   auto root = box().row().wrapLines().gap(1);
   for (int id = 0; id < count; ++id)
     root.child(memo(MemoCellProps{id}, [](const MemoCellProps& props) {
-                 // Deliberately never reads env::inherited: this memo
+                 // Deliberately never reads core::env::inherited: this memo
                  // has no reason to miss when the theme changes.
                  return box().width(19).height(19).fill(cellFill(props.id));
                }).key("m" + std::to_string(id)));
@@ -545,5 +548,3 @@ static void BM_Bake_TiledStrip_SurfacesOnly(benchmark::State& state) {
   state.counters["tiles"] = (double)bake.tiles;
 }
 BENCHMARK(BM_Bake_TiledStrip_SurfacesOnly)->Apply(tileLadder);
-
-BENCHMARK_MAIN();

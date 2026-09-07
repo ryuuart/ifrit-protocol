@@ -20,27 +20,30 @@ struct Hatch {
   float width = 1.2f;
   float angleDeg = 45.0f;
   bool cross = false;
-  /** Live pitch and live angle: a raw `Output<float>*`, the same
-   *  convention `PathFormat::dashPhaseBinding`, `PathFormat::trimPhase`,
-   *  `Line::dashPhaseBinding` and `Rails::dashPhaseBinding` already use.
+  /** Live pitch and live angle, on the same terms as
+   *  `PathFormat::dashPhaseBinding`: an animatable, so a moiré that
+   *  breathes, a tightening engraving or a rotating shade pass is one
+   *  `bind()` chain rather than a second Output somebody steps by hand.
+   *  Either one live makes `isAnimated()` true, which is what declares
+   *  the node volatile and keeps it repainting.
    *
-   *  A raw Output pointer and NOT an `Animatable`, because a decoration
-   *  paints with only a `PaintContext` and has no instance against which a
-   *  transition could be resolved. Binding either one makes
-   *  `isAnimated()` true, which is what declares the node volatile and
-   *  keeps a moiré, a tightening engraving or a rotating shade pass
-   *  repainting. */
-  const choreograph::Output<float>* spacingBinding = nullptr;
-  const choreograph::Output<float>* angleBinding = nullptr;
+   *  A decoration paints with only a `PaintContext` and has no instance
+   *  holding a motion, so a value carrying its own TRANSITION has nothing
+   *  to run it and reads as its target. */
+  std::optional<motion::Animatable<float>> spacingBinding;
+  std::optional<motion::Animatable<float>> angleBinding;
 
   bool isAnimated() const {
-    return spacingBinding != nullptr || angleBinding != nullptr;
+    return (spacingBinding && motion::isLive(nullptr, *spacingBinding)) ||
+           (angleBinding && motion::isLive(nullptr, *angleBinding));
   }
   float pitch() const {
-    return spacingBinding ? spacingBinding->value() : spacing;
+    return spacingBinding ? motion::resolveFloatAt(nullptr, *spacingBinding)
+                          : spacing;
   }
   float angle() const {
-    return angleBinding ? angleBinding->value() : angleDeg;
+    return angleBinding ? motion::resolveFloatAt(nullptr, *angleBinding)
+                        : angleDeg;
   }
 
   bool operator==(const Hatch& o) const {
@@ -51,12 +54,6 @@ struct Hatch {
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
-
-Hatch hatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
-            float angleDeg = 45.0f);
-
-Hatch crosshatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
-                 float angleDeg = 45.0f);
 
 /** RADIAL hatching: rules that fan out of a centre, rings concentric with
  *  it, or both, clipped to the node's outline.
@@ -96,19 +93,5 @@ struct RadialHatch {
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
-
-RadialHatch radialHatch(Fill fill, int spokes = 48, float width = 1.2f,
-                        SkPoint centre = {0.5f, 0.5f});
-
-/** The other half of the pair: rings only, no spokes. */
-RadialHatch concentric(Fill fill, int rings = 12, float width = 1.2f,
-                       SkPoint centre = {0.5f, 0.5f});
-
-/** Rings at STATED radii, px from the centre — `concentric(ink, {60, 64})`
- *  is a two-circle band exactly where it says. The evenly-spaced form
- *  above runs out to the bounding box's half-diagonal, which on a circular
- *  node clips its outermost ring away. */
-RadialHatch concentric(Fill fill, std::vector<float> radiiPx,
-                       float width = 1.2f, SkPoint centre = {0.5f, 0.5f});
 
 }  // namespace sigil::compose::lines

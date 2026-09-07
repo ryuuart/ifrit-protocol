@@ -1,21 +1,20 @@
 /** @file
- * layoutParagraph() placement: the line-width invariant both breakers
- * uphold, alignment, justification, mandatory breaks, exclusion, line-set
- * and path flows, justified shrink limits, bidi visual order, an edit at a
- * surrogate boundary, and the per-line metrics derived from the runs.
+ * layoutParagraph() placement into a block: the line-width invariant both
+ * breakers uphold, alignment, mandatory breaks, exclusion, word spacing, a
+ * span restyle that follows its words, bidi visual order, an edit at a
+ * surrogate boundary, and the per-line metrics derived from the runs. How
+ * a justified line is fitted is its own subject and its own file.
  */
 
-#include <absl/container/flat_hash_set.h>
 #include <gtest/gtest.h>
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
 
 #include <algorithm>
-#include <cmath>
+#include <cstdint>
 #include <memory>
-#include <numbers>
-#include <set>
+#include <string>
 #include <vector>
 
 #include "support/LayoutSupport.h"
@@ -28,16 +27,15 @@ namespace {
 
 /// The one width invariant every breaker must uphold: no placed run may
 /// stick out past the measure — overfull lines are infeasible unless there
-/// is truly no alternative. Parameterized over both strategies so greedy
-/// and Knuth-Plass are held to the identical standard on the same
-/// hyphen-laden text across a sweep of measures.
-class LineWidthInvariant : public ::testing::TestWithParam<LineBreakStrategy> {
-};
+/// is truly no alternative. Greedy and Knuth-Plass are held to the
+/// identical standard on the same hyphen-laden text across a sweep of
+/// measures.
+class LineWidthInvariant : public BrokenBothWays {};
 
 }  // namespace
 
 TEST_P(LineWidthInvariant, LinesNeverExceedTheMeasure) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(
       u8"The para­graph breaker con­sid­ers every way to break "
@@ -50,7 +48,7 @@ TEST_P(LineWidthInvariant, LinesNeverExceedTheMeasure) {
 
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
-  options.lineBreakStrategy = GetParam();
+  options.lineBreakStrategy = breaker();
   options.lineMetrics.height = 27;
 
   for (int measureStep = 150; measureStep <= 430; measureStep += 7) {
@@ -69,16 +67,11 @@ TEST_P(LineWidthInvariant, LinesNeverExceedTheMeasure) {
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    Breakers, LineWidthInvariant,
-    ::testing::Values(LineBreakStrategy::kGreedy,
-                      LineBreakStrategy::kKnuthPlass),
-    [](const ::testing::TestParamInfo<LineBreakStrategy>& info) {
-      return info.param == LineBreakStrategy::kGreedy ? "Greedy" : "KnuthPlass";
-    });
+INSTANTIATE_TEST_SUITE_P(Breakers, LineWidthInvariant, bothBreakers(),
+                         breakerName);
 
 TEST(ParagraphLayout, MandatoryBreakStartsNewLine) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"alpha\nbeta");
   BlockFlow flow(SkRect::MakeWH(500, 300));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
@@ -87,8 +80,8 @@ TEST(ParagraphLayout, MandatoryBreakStartsNewLine) {
   EXPECT_LT(layout.runs[0].origin.y(), layout.runs[1].origin.y());
 }
 
-TEST(ParagraphLayout, CenterAndEndAlignment) {
-  FontContext& fontContext = sharedContext();
+TEST(ParagraphLayout, CentringHalvesTheSlackAndEndAlignmentTakesItAll) {
+  FontContext& fontContext = sigil::test::fonts();
   ParagraphLayoutOptions options;
 
   Paragraph paragraph = makeParagraph(u8"word");
@@ -111,7 +104,7 @@ TEST(ParagraphLayout, CenterAndEndAlignment) {
 }
 
 TEST(ParagraphLayout, JustifiedLinesFillTheMeasure) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"justification stretches the spaces between words so every full line "
       "extends to the right edge of the measure exactly");
@@ -123,25 +116,22 @@ TEST(ParagraphLayout, JustifiedLinesFillTheMeasure) {
   ASSERT_GT(layout.lineCount, 2);
 
   // Every line except the last must reach (near) the right edge.
-  std::vector<float> lineEnds(static_cast<size_t>(layout.lineCount), 0.0f);
-  for (const PositionedRun& run : layout.runs)
-    lineEnds[static_cast<size_t>(run.lineIndex)] = std::max(
-        lineEnds[static_cast<size_t>(run.lineIndex)], runEnd(paragraph, run));
+  const std::vector<float> ends = lineEnds(layout, paragraph);
   for (int line = 0; line + 1 < layout.lineCount; ++line)
-    EXPECT_NEAR(lineEnds[static_cast<size_t>(line)], 260.0f, 3.0f)
+    EXPECT_NEAR(ends[static_cast<size_t>(line)], 260.0f, 3.0f)
         << "line " << line << " not justified";
-  EXPECT_LT(lineEnds.back(), 260.0f);  // ragged last line
+  EXPECT_LT(ends.back(), 260.0f);  // ragged last line
 }
 
 TEST(ParagraphLayout, ExclusionShapeSplitsText) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"text flows around the shape and continues on the far side of it, "
       "filling both fragments of every interrupted line with words");
   ExclusionFlow flow(SkRect::MakeWH(400, 300));
-  flow.shapes().push_back(
-      {ExclusionFlow::Shape::kCircle, SkRect::MakeXYWH(140, 40, 120, 120), 6});
-  flow.setMinIntervalWidth(40);
+  flow.exclusions().push_back(
+      {silhouette::circle(SkRect::MakeXYWH(140, 40, 120, 120)), 6});
+  flow.setMinimumIntervalWidth(40);
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   // Some line must have runs both left and right of the circle.
@@ -158,133 +148,62 @@ TEST(ParagraphLayout, ExclusionShapeSplitsText) {
   EXPECT_TRUE(split);
 }
 
-TEST(ParagraphLayout, LineSetFlowPlacesTextOnArbitrarySegments) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"words on custom lines flow freely");
+TEST(ParagraphLayout, WordSpacingReachesTheBreakerAndTheNaturalWidth) {
+  FontContext& fontContext = sigil::test::fonts();
+  TextStyle spaced = basicStyle();
+  spaced.shaping.wordSpacing = 40.0f;
+  Paragraph wide;
+  wide.appendText(u8"one two three four five", spaced);
+  Paragraph normal = makeParagraph(u8"one two three four five");
+  // Natural width grows by exactly four gaps of forty pixels.
+  EXPECT_NEAR(wide.naturalWidth(fontContext),
+              normal.naturalWidth(fontContext) + 4 * 40.0f, 0.01f);
+  // A measure that fits the normal text on one line wraps the spaced one,
+  // so the breaker fitted against the same widths placement spends.
+  const float measure = normal.naturalWidth(fontContext) + 20.0f;
+  BlockFlow flowNormal(SkRect::MakeWH(measure, 400));
+  BlockFlow flowWide(SkRect::MakeWH(measure, 400));
+  EXPECT_EQ(layoutParagraph(fontContext, normal, flowNormal).lineCount, 1);
+  EXPECT_GT(layoutParagraph(fontContext, wide, flowWide).lineCount, 1);
+}
 
-  LineSetFlow flow;
-  flow.lines().push_back({LineInterval{{50, 40}, {1, 0}, 150}});
-  flow.lines().push_back({LineInterval{{200, 90}, {1, 0}, 150}});
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+TEST(ParagraphLayout, AContinuousSpanOfEmphasisFollowsItsWordsOntoEveryLine) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(
+      u8"a long sentence that will certainly wrap across several lines gets "
+      "one continuous span of emphasis applied to its middle third and the "
+      "styling must follow the words wherever the line breaker puts them");
+  BlockFlow flow(SkRect::MakeWH(220, 600));
+  ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
+  ASSERT_GT(before.lineCount, 3);
 
-  ASSERT_FALSE(layout.runs.empty());
-  for (const PositionedRun& run : layout.runs) {
-    if (run.lineIndex == 0) {
-      EXPECT_FLOAT_EQ(run.origin.y(), 40);
-      EXPECT_GE(run.origin.x(), 50);
-    } else {
-      EXPECT_FLOAT_EQ(run.origin.y(), 90);
-      EXPECT_GE(run.origin.x(), 200);
+  // Style the middle third, snapped to word boundaries.
+  const std::u16string& text = paragraph.text();
+  uint32_t from = static_cast<uint32_t>(text.find(u' ', text.size() / 3)) + 1;
+  const uint32_t rangeEnd =
+      static_cast<uint32_t>(text.find(u' ', 2 * text.size() / 3));
+  paragraph.setPaint(from, rangeEnd, PaintStyle{SK_ColorRED});
+  ParagraphLayout after = layoutParagraph(fontContext, paragraph, flow);
+
+  const auto& spans = paragraph.spans();
+  int firstRedLine = -1, lastRedLine = -1;
+  for (const PositionedRun& run : after.runs) {
+    if (run.styleIndex < spans.size() &&
+        spans[run.styleIndex].style.paint.foreground.getColor() ==
+            SK_ColorRED) {
+      if (firstRedLine < 0) firstRedLine = run.lineIndex;
+      lastRedLine = run.lineIndex;
     }
   }
+  ASSERT_GE(firstRedLine, 0);
+  EXPECT_GT(lastRedLine, firstRedLine);
 }
 
-TEST(ParagraphLayout, RotatedLineBakesTransformedBlob) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"diagonal");
-  const float inv = 1.0f / std::sqrt(2.0f);
-  LineSetFlow flow;
-  flow.lines().push_back({LineInterval{{0, 0}, {inv, inv}, 400}});
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
-  ASSERT_EQ(layout.runs.size(), 1u);
-  // Transformed runs bake positions into the blob (origin stays at 0,0)
-  // and the glyphs march diagonally.
-  EXPECT_EQ(layout.runs[0].origin, (SkPoint{0, 0}));
-  const SkRect bounds = layout.runs[0].blob->bounds();
-  EXPECT_GT(bounds.right(), 40.0f);
-  EXPECT_GT(bounds.bottom(), 40.0f);
-}
+// ── Bidi order, and an edit at a surrogate boundary ─────────────────────
 
-TEST(ParagraphLayout, PathFlowLaysGlyphsAlongCircle) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"around and around and around it goes");
-  SkPath circle = SkPath::Circle(200, 200, 120);
-  PathFlow flow(circle);
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
-
-  ASSERT_FALSE(layout.runs.empty());
-  for (const PositionedRun& run : layout.runs) {
-    const SkRect bounds = run.blob->bounds();
-    const float horizontalOffset = bounds.centerX() - 200.0f;
-    const float verticalOffset = bounds.centerY() - 200.0f;
-    const float distanceFromCenter = std::sqrt(
-        horizontalOffset * horizontalOffset + verticalOffset * verticalOffset);
-    EXPECT_NEAR(distanceFromCenter, 120.0f, 40.0f)
-        << "glyphs strayed off the circle";
-  }
-}
-
-TEST(ParagraphLayout, AdvanceScaleTightensContourSpacing) {
-  FontContext& fontContext = sharedContext();
-  const std::vector<sigil::geometry::path::Contour> rings =
-      sigil::geometry::path::Contour::of(SkPath::Circle(0, 0, 200));
-  ASSERT_EQ(rings.size(), 1u);
-  const sigil::geometry::path::Contour& ring = rings.front();
-
-  // Same text on the same ring, once at natural arc consumption and once at
-  // half — the half-scale layout's final word must sit at roughly half the
-  // angle around the ring (pen starts at (200, 0) and marches clockwise).
-  auto lastRunAngle = [&](float scale) {
-    Paragraph paragraph = makeParagraph(u8"curvature compensation", 40.0f);
-    LineInterval interval;
-    interval.contour = ring;
-    interval.length = ring.length() / scale;
-    interval.advanceScale = scale;
-    LineSetFlow flow;
-    flow.lines().push_back({interval});
-    ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
-    EXPECT_FALSE(layout.runs.empty());
-    const SkRect bounds = layout.runs.back().blob->bounds();
-    float angle = std::atan2(bounds.centerY(), bounds.centerX());
-    if (angle < 0) angle += 2.0f * std::numbers::pi_v<float>;
-    return angle;
-  };
-
-  const float full = lastRunAngle(1.0f);
-  const float half = lastRunAngle(0.5f);
-  EXPECT_GT(full, half * 1.5f)
-      << "advanceScale should compress the arc the text subtends";
-  EXPECT_NEAR(full, half * 2.0f, full * 0.25f);
-}
-// ── Typographic correctness ──────────────────────────────────────────────
-// Script- and font-level invariants that hold regardless of layout options:
-// variable axes reach the shaper, clusters cover the text, joining and
-// combining behave, kinsoku holds for CJK, non-breaking space does not
-// break. They are stated over this engine's word model, so each one is a
-// statement about Word / WordSegment rather than about raw shaper output.
-
-TEST(Correctness, JustifiedShrinkNeverCollapsesSpaces) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(
-      u8"several reasonably long words keep justification honest here", 18.0f);
-  paragraph.ensureShaped(fontContext);
-  // A measure a hair narrower than a natural line forces shrink.
-  ParagraphLayoutOptions options;
-  options.alignment = TextAlignment::kJustify;
-  BlockFlow flow(SkRect::MakeWH(200, 400));
-  ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options);
-
-  ASSERT_GT(layout.lineCount, 1);
-  for (size_t runIndex = 0; runIndex + 1 < layout.runs.size(); ++runIndex) {
-    const PositionedRun& firstRun = layout.runs[runIndex];
-    const PositionedRun& secondRun = layout.runs[runIndex + 1];
-    if (firstRun.lineIndex != secondRun.lineIndex) continue;
-    const float gapWidth = secondRun.origin.x() - runEnd(paragraph, firstRun);
-    const float naturalSpaceWidth =
-        paragraph.words()[firstRun.wordIndex].spaceWidth;
-    if (naturalSpaceWidth <= 0) continue;
-    // Shrink is clamped at JustificationOptions::spaceShrink, a fraction of
-    // the natural space width, which defaults to one third.
-    EXPECT_GT(gapWidth, naturalSpaceWidth * (1.0f - 0.34f) - 0.25f)
-        << "space collapsed past the shrink limit on line "
-        << firstRun.lineIndex;
-  }
-}
-
-TEST(Correctness, BidiVisualOrderForMixedDirections) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"aaa בבב גגג zzz", 16.0f);
+TEST(BidiOrder, AReorderedPairRendersInVisualOrderBetweenItsNeighbours) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = machineParagraph(u8"aaa בבב גגג zzz", 16.0f);
   BlockFlow flow(SkRect::MakeWH(600, 60));  // one wide line
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
@@ -299,9 +218,10 @@ TEST(Correctness, BidiVisualOrderForMixedDirections) {
   EXPECT_LT(runOrigins[1], runOrigins[3]);
 }
 
-TEST(Correctness, EditAtSurrogateBoundaryIsSafe) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"ab 𝕏𝕐 cd");  // 𝕏/𝕐 are surrogate pairs
+TEST(EditSafety, ACutThroughASurrogatePairLeavesEveryWordInsideTheText) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph =
+      machineParagraph(u8"ab 𝕏𝕐 cd");  // 𝕏/𝕐 are surrogate pairs
   paragraph.ensureShaped(fontContext);
   // Cut straight through the middle of the first surrogate pair.
   const size_t textOffset = paragraph.text().find(u"ab");
@@ -319,7 +239,7 @@ TEST(Correctness, EditAtSurrogateBoundaryIsSafe) {
 // ── Line metrics (ParagraphLayout::lineMetrics) ──────────────────────────
 
 TEST(LineMetricsQuery, DescribesEveryPlacedLine) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"enough words to wrap this paragraph across a handful of lines in "
       "a narrow measure so every line has real geometry to report");
@@ -367,7 +287,7 @@ TEST(LineMetricsQuery, DescribesEveryPlacedLine) {
 }
 
 TEST(LineMetricsQuery, MixedFontsGrowTheLineBand) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"small ", basicStyle(14.0f));
   paragraph.appendText(u8"HUGE", basicStyle(40.0f));
@@ -384,4 +304,44 @@ TEST(LineMetricsQuery, MixedFontsGrowTheLineBand) {
   ASSERT_EQ(smallLines.size(), 1u);
   EXPECT_GT(lines[0].ascent, smallLines[0].ascent)
       << "the 40px span must raise the mixed line's ascent";
+}
+
+TEST(ParagraphLayout, EveryRunBorrowsFromTheParagraphOrFromTheLayoutItself) {
+  // A run points at a ShapedWord it does not own. The words a pass shapes
+  // for itself — a tab leader, an overflow marker, an initial and the
+  // remainder of the word it split — are held in `shapedByTheLayout`, and
+  // that list is the only thing keeping those pointers alive: a run
+  // pointing at neither would be reading a freed word.
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(
+      u8"Whale\troads open under a sky the colour of pewter and the boats "
+      "go out before the light does, one after another, until the harbour "
+      "is empty and the gulls have the quay to themselves once more.",
+      16.0f);
+  BlockFlow flow(SkRect::MakeWH(320, 90));
+  ParagraphLayoutOptions options;
+  ParagraphStyle style;
+  style.initial = {.lines = 2, .margin = 4.0f};
+  options.blocks = {style};
+  options.tabStops.stops = {TabStop{.position = 120.0f, .leader = u"."}};
+  options.overflow.ellipsis = u"…";
+
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  ASSERT_TRUE(layout.initial.placed);
+  ASSERT_FALSE(layout.shapedByTheLayout.empty());
+
+  // Moved, because a layout is handed on by value and the runs must keep
+  // pointing at what the moved-to layout holds.
+  const ParagraphLayout moved = std::move(layout);
+  for (const PositionedRun& run : moved.runs) {
+    if (!run.shaped) continue;
+    bool held = false;
+    for (const ShapedWordRef& kept : moved.shapedByTheLayout)
+      if (kept.get() == run.shaped) held = true;
+    for (const Word& word : paragraph.words())
+      for (const WordSegment& segment : word.segments())
+        if (segment.shaped.get() == run.shaped) held = true;
+    EXPECT_TRUE(held) << "a run points at a word nobody holds";
+  }
 }

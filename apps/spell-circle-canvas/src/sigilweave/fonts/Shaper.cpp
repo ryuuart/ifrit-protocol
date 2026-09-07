@@ -10,9 +10,11 @@
 #include <include/core/SkFont.h>
 #include <include/core/SkTextBlob.h>
 
+#include <algorithm>
 #include <cstring>
 
 #include "FontContextImpl.h"
+#include "OpticalKerning.h"
 
 namespace sigil::weave {
 
@@ -24,15 +26,97 @@ SkFont makeFont(const sk_sp<SkTypeface>& typeface, float fontSize, float scaleX,
   // the only place a caller can ask for hard edges — an X11 core font, a
   // console face, any 1-bit era reconstruction.
   font.setEdging(aliased ? SkFont::Edging::kAlias : SkFont::Edging::kAntiAlias);
-  // Subpixel positioning only where it's visible (small text). At large
-  // sizes it multiplies every glyph into per-phase atlas entries, and
-  // animated layouts then re-rasterize thousands of big masks every frame
-  // — whole-pixel snapping at 48px+ is imperceptible (<2% of an em).
+  // Subpixel positioning below 48px and whole-pixel snapping at and above
+  // it: a subpixel position multiplies every glyph into one atlas strike
+  // per phase, and an animated layout then re-rasterizes thousands of big
+  // masks every frame, while the phase a large glyph loses is a fraction of
+  // an em too small to see.
   font.setSubpixel(fontSize < 48.0f);
   font.setHinting(SkFontHinting::kNone);
   font.setLinearMetrics(true);
   return font;
 }
+
+namespace {
+
+// The glyph's edges, measured once per face and kept.
+const detail::GlyphProfile& profileOf(FontContext::Impl& implementation,
+                                      const sk_sp<SkTypeface>& typeface,
+                                      uint16_t glyph) {
+  const uint64_t key =
+      (static_cast<uint64_t>(typeface ? typeface->uniqueID() : 0) << 16u) |
+      glyph;
+  auto entry = implementation.glyphProfiles.find(key);
+  if (entry == implementation.glyphProfiles.end())
+    entry =
+        implementation.glyphProfiles
+            .emplace(key, typeface ? detail::measureProfile(*typeface, glyph)
+                                   : detail::GlyphProfile{})
+            .first;
+  return entry->second;
+}
+
+// WHAT THIS FACE CALLS AN EVEN PAIR, in ems: the distance its own 'n n'
+// leaves. It is the reference every other pair is closed to, which is how
+// optical kerning tightens a face without deciding how tight type should
+// be. A face with no 'n' — a symbol font, an icon set — has no reference
+// and is left alone.
+float referenceGap(FontContext::Impl& implementation,
+                   const sk_sp<SkTypeface>& typeface) {
+  const uint32_t faceId = typeface ? typeface->uniqueID() : 0;
+  auto entry = implementation.referenceGaps.find(faceId);
+  if (entry != implementation.referenceGaps.end()) return entry->second;
+  float gap = detail::GlyphProfile::kNoInk;
+  if (typeface) {
+    const SkUnichar reference = U'n';
+    SkGlyphID glyph = 0;
+    typeface->unicharsToGlyphs(SkSpan<const SkUnichar>(&reference, 1),
+                               SkSpan<SkGlyphID>(&glyph, 1));
+    if (glyph != 0) {
+      const detail::GlyphProfile& profile =
+          profileOf(implementation, typeface, glyph);
+      gap = detail::gapBetween(profile, profile);
+    }
+  }
+  implementation.referenceGaps.emplace(faceId, gap);
+  return gap;
+}
+
+// Closes (or opens) every adjacent pair of a shaped word until the two
+// outlines stand the face's own reference distance apart. The adjustment is
+// bounded: a pair whose ink never meets across the baseline has no distance
+// to measure and is left as the face set it, and no pair moves further than
+// the bound, so a measurement that means nothing cannot throw a line.
+void applyOpticalKerning(FontContext::Impl& implementation,
+                         const sk_sp<SkTypeface>& typeface, float fontSize,
+                         ShapedWord& word) {
+  if (word.glyphs.size() < 2 || fontSize <= 0) return;
+  const float reference = referenceGap(implementation, typeface);
+  if (reference >= detail::GlyphProfile::kNoInk) return;
+  // No pair moves by more than this fraction of the em. Two letters whose
+  // outlines nearly touch, and two whose white is a whole counter wide,
+  // are both real; the bound is what keeps a mismeasurement from being
+  // worse than no kerning at all.
+  constexpr float kMaximumShift = 0.2f;
+  float shift = 0;
+  for (size_t index = 0; index + 1 < word.glyphs.size(); ++index) {
+    word.positions[index].offset(shift, 0);
+    const detail::GlyphProfile& left =
+        profileOf(implementation, typeface, word.glyphs[index]);
+    const detail::GlyphProfile& right =
+        profileOf(implementation, typeface, word.glyphs[index + 1]);
+    const float gap = detail::gapBetween(left, right);
+    if (gap >= detail::GlyphProfile::kNoInk) continue;
+    const float adjustment =
+        std::clamp(reference - gap, -kMaximumShift, kMaximumShift) * fontSize;
+    word.advances[index] += adjustment;
+    shift += adjustment;
+  }
+  word.positions.back().offset(shift, 0);
+  word.advance += shift;
+}
+
+}  // namespace
 
 ShapedWordRef shapeWord(FontContext& fontContext, const ShapingStyle& style,
                         const sk_sp<SkTypeface>& typeface,
@@ -47,6 +131,7 @@ ShapedWordRef shapeWord(FontContext& fontContext, const ShapingStyle& style,
   std::memcpy(&view.letterSpacingBits, &style.letterSpacing, sizeof(float));
   std::memcpy(&view.scaleXBits, &style.scaleX, sizeof(float));
   view.aliased = style.aliased;
+  view.opticalKerning = style.opticalKerning;
   view.script = script;
   view.rightToLeft = rightToLeft;
   view.vertical = vertical;
@@ -67,6 +152,7 @@ ShapedWordRef shapeWord(FontContext& fontContext, const ShapingStyle& style,
   key.letterSpacingBits = view.letterSpacingBits;
   key.scaleXBits = view.scaleXBits;
   key.aliased = view.aliased;
+  key.opticalKerning = view.opticalKerning;
   key.script = script;
   key.rightToLeft = rightToLeft;
   key.vertical = vertical;
@@ -119,6 +205,18 @@ ShapedWordRef shapeWord(FontContext& fontContext, const ShapingStyle& style,
     harfBuzzFeature.start = 0;
     harfBuzzFeature.end = static_cast<unsigned>(-1);
     harfBuzzFeatures.push_back(harfBuzzFeature);
+  }
+  if (style.opticalKerning) {
+    // The face's kerning table and the measurement below are two answers
+    // to one question, and a page takes one of them: the table is switched
+    // off so the pairs arrive at their unkerned advances and are then set
+    // by what the outlines actually leave.
+    hb_feature_t noKerning;
+    noKerning.tag = HB_TAG('k', 'e', 'r', 'n');
+    noKerning.value = 0;
+    noKerning.start = 0;
+    noKerning.end = static_cast<unsigned>(-1);
+    harfBuzzFeatures.push_back(noKerning);
   }
 
   hb_shape(typefaceRecord.harfBuzzFont, shapingBuffer,
@@ -176,6 +274,9 @@ ShapedWordRef shapeWord(FontContext& fontContext, const ShapingStyle& style,
     penPosition += glyphAdvance;
   }
   shapedWord->advance = penPosition;
+
+  if (style.opticalKerning && !vertical)
+    applyOpticalKerning(implementation, typeface, style.fontSize, *shapedWord);
 
   if (implementation.shapeCache.size() >= FontContext::Impl::kMaxShapeEntries)
     implementation.shapeCache.clear();

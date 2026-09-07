@@ -6,6 +6,7 @@
 #include <benchmark/benchmark.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
@@ -35,14 +36,14 @@ Assets& assets() {
 struct Ring : Set {
   void setup(SetContext& ctx) override {
     ctx.canvas(480, 320);
-    world::Camera lens;
+    sigil::geometry::mesh::camera::Camera lens;
     lens.eye = {0, 200, 520};
     ctx.camera(lens);
   }
   world::Frame describe(float seconds) override {
     world::Element root =
         world::Element().key("set").child(world::Element().key("sun").light(
-            world::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)));
+            world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)));
     for (int i = 0; i < 24; ++i) {
       const float angle = (float)i * 15.0f + seconds * 30.0f;
       root =
@@ -57,7 +58,7 @@ struct Ring : Set {
   }
 };
 
-void Frame(benchmark::State& state) {
+void SetFrame(benchmark::State& state) {
   std::unique_ptr<Session> session = kindOf<Ring>()->open(fonts(), assets());
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(480, 320));
@@ -65,8 +66,6 @@ void Frame(benchmark::State& state) {
   for (int i = 0; i < 8; ++i) session->frame(canvas, 1.0 / 60.0);
   for (auto&& _ : state) session->frame(canvas, 1.0 / 60.0);
 }
-BENCHMARK(Frame)->Unit(benchmark::kMicrosecond);
+BENCHMARK(SetFrame)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

@@ -10,8 +10,8 @@
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
 
+#include <boost/container/flat_set.hpp>
 #include <cstdio>
-#include <set>
 #include <string>
 
 #include "DemoScenes.h"
@@ -36,7 +36,7 @@ const Row kRows[] = {
 struct CoverageCheck {
   bool sawFallback = false;
   bool allGlyphsResolved = true;
-  std::set<std::string> fallbackFamilies;
+  boost::container::flat_set<std::string> fallbackFamilies;
 };
 
 CoverageCheck checkFallbackCoverage(const Paragraph& paragraph,
@@ -58,7 +58,8 @@ CoverageCheck checkFallbackCoverage(const Paragraph& paragraph,
   return result;
 }
 
-std::string joinedFamilies(const std::set<std::string>& families) {
+std::string joinedFamilies(
+    const boost::container::flat_set<std::string>& families) {
   std::string joined;
   for (const std::string& family : families) {
     if (!joined.empty()) joined += ", ";

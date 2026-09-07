@@ -2,16 +2,16 @@
 
 /** @file
  * SigilCompose factories — the functions that start an Element: `box`,
- * `stack`, `positioned`, `text` in its three content forms, `image`,
- * `custom`, `layout`, `slot` and `memo`, with the kernel's `textAtRest`
- * copy of a text leaf.
+ * `stack`, `positioned`, `text` in its three content forms and `frame`
+ * over a story, `image`, `picture`, `pathFigure`, `custom`, `layout`,
+ * `slot` and `memo`.
  */
 
 #include <include/core/SkColor.h>
+#include <include/core/SkPicture.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
-#include <sigilcompose/core/Text.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/style/Style.h>
@@ -23,7 +23,19 @@
 #include <string_view>
 #include <vector>
 
+namespace sigil::weave {
+// The two composed text values the text factories take, defined in
+// <sigilweave/paragraph/RichText.h> and <sigilweave/layout/Story.h>.
+class RichText;
+class Story;
+}  // namespace sigil::weave
+
 namespace sigil::compose {
+
+/** UTF-8 std::string → std::u8string for text() call sites. */
+inline std::u8string toU8(std::string_view s) {
+  return std::u8string(s.begin(), s.end());
+}
 
 // ---- factories -----------------------------------------------------------
 
@@ -59,10 +71,18 @@ Element stack();
  *  world. */
 Element positioned();
 Element text(std::u8string utf8, sigil::weave::TextStyle style);
-/** Mixed-style text as a COMPARABLE VALUE — see RichText. A re-described
+/** Mixed-style text as a COMPARABLE VALUE — see weave::RichText. A re-described
  *  identical value prunes, which is the whole difference between this and
  *  the pointer overload below. */
-Element text(RichText spans);
+Element text(sigil::weave::RichText spans);
+/** ONE FRAME OF A STORY — a text leaf over `story`'s content and block
+ *  styles, which `key()` names and `thread()` links to the next.
+ *
+ *  Every frame of a chain declares the same story, and the chain decides
+ *  which part of it each one holds. See `weave::Story` and `Element::thread`.
+ */
+Element frame(sigil::weave::Story story);
+
 /** Full-control text: a prebuilt Paragraph (spans, mixed styles) plus
  *  ParagraphLayoutOptions (justification, hyphenation, Knuth–Plass,
  *  overflow…). The paragraph is shared by reference: reuse one
@@ -99,6 +119,50 @@ Element custom(PaintProgram program);
  *  prunes; the unkeyed form above re-records every render(). */
 Element custom(std::string_view key, PaintProgram program);
 
+/** A RECORDED PICTURE AS A LEAF — the door out of a bake.
+ *
+ *  `snapshot()` hands back an `SkPicture` and `image()` takes an
+ *  `ImageAsset`, so a caller who has baked a subtree has, until now, had
+ *  to draw it back through `custom()`. That forfeits exactly what the
+ *  bake was taken for: an unkeyed program is incomparable, so its node
+ *  re-records every describe, and a caller who reaches for
+ *  `Cache::None` to be safe gives up the caching too.
+ *
+ *  This is that leaf, and it prunes: a picture's identity is its own,
+ *  and two describes handing over the same picture compare equal. A
+ *  recorded picture cannot change, so the node is static by
+ *  construction and caches like any other static subtree.
+ *
+ *  @p native is the size the picture was recorded at, and it becomes the
+ *  node's own size, so a snapshot drops into a layout without being
+ *  measured again. Give the node other dims and the picture is SCALED to
+ *  them — stretched, both axes independently, since a picture has no
+ *  aspect to preserve on the caller's behalf. A null picture is an empty
+ *  box. */
+Element picture(sk_sp<SkPicture> recorded, SkSize native);
+
+/** A LEAF THE SHAPE OF A PATH ALREADY IN CANVAS COORDINATES.
+ *
+ *  A figure worked out in the drawing's own frame — a projected ray, a
+ *  traced region, a swept arc — is an absolute path, and a node is a box
+ *  with a local shape. Placing one by hand is the same four lines every
+ *  time: take the bounds, grow them by whatever the mark will spend
+ *  outside the line, set the node's rect to that, and re-base the path so
+ *  its origin is the box's corner.
+ *
+ *  This is those four lines. @p bleed grows the box on all sides, in px,
+ *  and must cover half the stroke width the caller is about to dress it
+ *  with plus anything the mark spends beyond that — an under-grown box
+ *  clips the mark. The node is `absolute`, so its rect is read against
+ *  whatever it hangs under rather than joining a flex flow, and it
+ *  carries a `heldPath` shape, so
+ *  it prunes as long as the path handed in is one the caller holds rather
+ *  than one rebuilt each describe.
+ *
+ *  It has NO FILL and no mark of its own: dress it with `.fill()`, a
+ *  `.stroke()` or a `foreground(PathFormat{…})` as the drawing wants. */
+Element pathFigure(SkPath absolute, float bleed = 0.0f);
+
 /** A container whose children are placed by @p scheme instead of
  *  flexbox (nests freely inside flex and vice versa). The container
  *  itself is sized by its own dims/flex; children are measured by
@@ -108,14 +172,18 @@ template <LayoutScheme L>
 Element layout(L scheme);
 
 namespace detail {
-Element makeLayout(
-    std::function<std::vector<SkRect>(const LayoutInput&)> place);
+Element makeLayout(std::function<std::vector<SkRect>(const LayoutInput&)> place,
+                   bool readsChildMinSizes);
 }  // namespace detail
 
 template <LayoutScheme L>
 Element layout(L scheme) {
+  // Whether the scheme wants the content minima is asked of the TYPE, so a
+  // scheme that never reads them never pays for the measure that fills
+  // them — and a scheme that does cannot forget to ask.
   return detail::makeLayout(
-      [s = std::move(scheme)](const LayoutInput& in) { return s.place(in); });
+      [s = std::move(scheme)](const LayoutInput& in) { return s.place(in); },
+      SizesFromContentMinima<L>);
 }
 
 /** A named mount point whose content is supplied independently via
@@ -130,17 +198,6 @@ Element layout(L scheme) {
 Element slot(std::string_view name);
 
 namespace detail {
-/** A copy of a TEXT element carrying no tracks, no marks and no children,
- *  set in one ink — the rest pose an fx() track's per-glyph deviation is
- *  measured against. Everything that could make the two copies disagree
- *  about where a letter belongs is left alone: same content, same style,
- *  same width, same layout; only the tracks and the ink differ. The key
- *  takes `-rest` after it (a keyless original leaves the copy keyless).
- *  Anything but text warns once and comes back unchanged. Building the
- *  copy means reading the description, which is why this is the kernel's
- *  and not an instrument's. */
-Element textAtRest(Element moving, SkColor4f colour);
-
 Element makeMemo(std::any props,
                  std::function<bool(const std::any&, const std::any&)> equal,
                  std::function<Element(const std::any&)> invoke);
@@ -152,7 +209,20 @@ Element makeMemo(std::any props,
  *  function of (props, environment) and would otherwise serve the theme
  *  it first described under forever. The captured stack is re-established
  *  around the deferred call, so `env::inherited<T>()` inside `fn` reads
- *  what was bound where the memo was WRITTEN, not where it runs. */
+ *  what was bound where the memo was WRITTEN, not where it runs.
+ *
+ *  THE SHELL. The element this returns is a shell; the element `fn`
+ *  produces is the node's whole look. Three calls on the shell speak for
+ *  the node: `.key()` names it (the reconciler matches memos by the
+ *  shell's key), and `.cache()` and `.bakeScale()` say how the produced
+ *  subtree is held — both are carried onto the produce, and an explicit
+ *  choice on the shell wins over one made inside `fn`. Every other
+ *  property set on the shell (a fill, a transform, a layout dimension, a
+ *  child, a decoration) describes nothing, is warned about once and
+ *  ignored: set it on the element produced inside `fn`. A `.cache()`
+ *  changed while the props and the environment compare equal does not
+ *  take, because a hit reuses the retained produce untouched — change a
+ *  prop to re-describe. */
 template <ComponentProps P, ComponentFn<P> F>
 Element memo(P props, F fn) {
   return detail::makeMemo(

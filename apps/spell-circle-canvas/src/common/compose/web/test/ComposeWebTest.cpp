@@ -1,7 +1,6 @@
-// SigilCompose × SigilScry integration (stress item 19): a live WebView
-// frame as a compose leaf, and a Composer drawn into a page-facing
-// canvas. Runs only when the Ultralight SDK is present (this target is
-// gated on TARGET SigilScry).
+// A live WebView frame as a compose leaf, and a Composer drawn into a
+// page-facing canvas. Built only where the Ultralight SDK produced
+// SigilScry, which is what this target is gated on.
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
@@ -11,21 +10,17 @@
 #include <sigilcompose/web/Web.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebView.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <chrono>
 #include <thread>
+
+#include "Fonts.h"
 
 using namespace sigil::compose;
 
 namespace {
 
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
+using sigil::test::fonts;
 
 sigil::scry::WebEngine& sharedEngine() {
   static std::shared_ptr<sigil::scry::WebEngine> engine =

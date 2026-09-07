@@ -11,10 +11,16 @@
 #            (CAMetalLayer + pan/zoom). Pure-ObjC headers exported to Swift
 #            via module.modulemap.
 #   app/     SwiftUI executable importing that Clang module.
-if(NOT SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  message(STATUS "SpellCircleMac skipped: needs SPELLCIRCLE_ENABLE_SKIA_CANVAS")
-  return()
-endif()
+# workaround: swift-driver rejects the clang instrumentation flags an
+# instrumented tree carries in CMAKE_EXE_LINKER_FLAGS, and SpellCircleMac
+# is the one executable in this tree it links rather than clang++. They
+# are taken back off in this directory's scope — before the Swift
+# compiler is probed with them — and the instrumented C++ still reaches
+# the app through SpellCircleMacBridge, which is a C++ link and carries
+# the runtime with it.
+string(REGEX REPLACE
+  "-f(sanitize|no-sanitize-recover|no-omit-frame-pointer|profile-instr-generate|coverage-mapping)[^ ]*"
+  "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
 
 include(CheckLanguage)
 check_language(Swift)
@@ -24,31 +30,23 @@ if(NOT CMAKE_Swift_COMPILER)
 endif()
 enable_language(Swift)
 
-find_library(METAL_FRAMEWORK Metal REQUIRED)
-find_library(QUARTZCORE_FRAMEWORK QuartzCore REQUIRED)
+sigil_frameworks(frameworks Foundation AppKit Metal QuartzCore)
 
-if(NOT SYPHON_FRAMEWORK)
+find_package(unofficial-syphon CONFIG)
+if(NOT TARGET unofficial::syphon::syphon)
   message(STATUS "SpellCircleMac skipped: Syphon.framework not found")
   return()
 endif()
 
-# workaround: Abseil's link interface carries a raw -Wl,-framework flag.
-#
-# SHARED, deliberately: the Swift link runs through swift-driver, which
-# takes a framework named as a path or as `-Xlinker -framework` but rejects
-# `-Wl,-framework,CoreFoundation` — the spelling abseil's exported config
-# puts in its link interface on Apple platforms, and one CMake passes
-# through untouched as an opaque flag. Absorbing the whole C++ world (scene
-# core, Skia, SigilWeave, ICU, HarfBuzz, Abseil, Syphon) into one dylib
-# keeps that flag on the clang++ side; the Swift executable links only this
-# library.
+# SHARED deliberately: the Swift executable crosses one ObjC module boundary,
+# while the bridge owns and links the complete C++ rendering runtime.
 add_library(SpellCircleMacBridge SHARED
   bridge/SCKEngine.mm bridge/SCKEngine.h
   bridge/SCKCanvasView.mm bridge/SCKCanvasView.h
 )
 
-# ARC for the ObjC++ engine/view (the shared Skia .mm TUs stay non-ARC and
-# manage CoreFoundation refs explicitly — see GraphiteContextMetal.mm).
+# ARC for the ObjC++ engine/view; the shared Skia .mm translation units
+# stay non-ARC and manage CoreFoundation refs explicitly.
 target_compile_options(SpellCircleMacBridge PRIVATE -fobjc-arc)
 
 target_include_directories(SpellCircleMacBridge PUBLIC
@@ -57,14 +55,11 @@ target_include_directories(SpellCircleMacBridge PUBLIC
 
 target_link_libraries(SpellCircleMacBridge
   PRIVATE
-    ${FOUNDATION_FRAMEWORK}
-    ${APPKIT_FRAMEWORK}
-    ${METAL_FRAMEWORK}
-    ${QUARTZCORE_FRAMEWORK}
+    ${frameworks}
     SpellCircleScene
     SigilSkia
     SpellCircleNet
-    ${SYPHON_FRAMEWORK}
+    unofficial::syphon::syphon
 )
 
 add_executable(SpellCircleMac MACOSX_BUNDLE
@@ -96,12 +91,12 @@ set_target_properties(SpellCircleMac PROPERTIES
 target_compile_options(SpellCircleMac PRIVATE
   # @main app entry point in a multi-file module.
   "$<$<COMPILE_LANGUAGE:Swift>:-parse-as-library>"
-  # CMAKE_Swift_FLAGS_DEBUG carries -incremental. On an up-to-date tree
-  # swift-driver skips every compile job but still schedules merge-module,
-  # which then looks for a temporary swiftmodule those skipped jobs never
-  # wrote — so the second and every later build dies with
-  # `cannotResolveTempPath(SpellCircleMac-1.swiftmodule)`. Naming the module
-  # gives that job a real file and keeps incremental builds working.
+  # workaround: under the -incremental CMAKE_Swift_FLAGS_DEBUG carries,
+  # swift-driver on an up-to-date tree skips every compile job but still
+  # schedules merge-module, which then looks for a temporary swiftmodule
+  # those skipped jobs never wrote, and the build dies with
+  # `cannotResolveTempPath(SpellCircleMac-1.swiftmodule)`. Naming the
+  # module gives that job a real file.
   "$<$<COMPILE_LANGUAGE:Swift>:-emit-module-path>"
   "$<$<COMPILE_LANGUAGE:Swift>:${CMAKE_CURRENT_BINARY_DIR}/SpellCircleMac-$<CONFIG>.swiftmodule>"
 )

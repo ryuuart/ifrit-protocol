@@ -4,11 +4,13 @@
  * The Writer: a USD stage built from the values a scene is made of —
  * meshes with their placements and material slots, stamps as point
  * instancers, lights, a camera — and saved as binary crate (`.usdc`, the
- * default), ASCII (`.usda`) or a `.usdz` package.
+ * default), ASCII (`.usda`) or a `.usdz` package, which is an archive of
+ * the crate and everything it refers to.
  *
  * Materials go out as UsdPreviewSurface with UsdUVTexture inputs — the
  * metallic-roughness model, slot for slot — and their images are written
- * as PNG files beside the stage. A stacked material exports the material
+ * as PNG files beside the stage, or inside the archive when the stage is
+ * a package. A stacked material exports the material
  * at the bottom of the stack; stacking is a live composition, not a thing
  * UsdPreviewSurface can hold, and the depth is noted on the prim as
  * custom metadata rather than baked.
@@ -18,6 +20,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilworld/element/Environment.h>
 #include <sigilworld/light/Light.h>
 
 #include <filesystem>
@@ -79,6 +82,22 @@ class Writer {
    *  which UsdLux has no word for, rides as `sigil:range`. */
   std::string light(std::string_view name, const world::light::Light& light,
                     std::string_view parent = "/World");
+  /** THE SET'S ENVIRONMENT MAP, as a UsdLuxDomeLight: the panorama
+   *  written beside the stage and declared lat-long, the strength and
+   *  the tint on the light's own attributes, and @p orientation — the
+   *  matrix a frame carries, taking a world direction into the
+   *  panorama's frame — inverted back into the prim's transform.
+   *
+   *  A panorama holds values above one and no encoder in this tree
+   *  writes a floating-point image, so it is divided by its peak,
+   *  written as a sixteen-bit PNG, and the peak multiplied into the
+   *  light's intensity: the ratios survive, the brightness is right, and
+   *  it is right through the standard attribute. The dials UsdLux has no
+   *  word for ride as `sigil:` custom data. */
+  std::string environmentMap(std::string_view name,
+                             const world::Environment& environment,
+                             const glm::mat3& orientation = glm::mat3(1.0f),
+                             std::string_view parent = "/World");
   /** The camera, as UsdGeomCamera: camera-to-world, the focal length
    *  that gives its vertical field of view against a 24 mm vertical
    *  aperture, the clipping range, and the distance to what it looks at
@@ -87,7 +106,17 @@ class Writer {
                      const geometry::mesh::camera::Camera& camera,
                      std::string_view parent = "/World");
 
-  /** Write the stage; false (with @p error) when USD refuses. */
+  /** Write the stage in the form the path's extension asks for; false
+   *  (with @p error) when USD refuses.
+   *
+   *  `.usdc`, `.usd` and `.usda` are LAYERS, exported onto the path.
+   *  `.usdz` is a PACKAGE: a zip archive of a layer and every file that
+   *  layer refers to. A root layer cannot be exported onto one, so the
+   *  crate is written beside where the package will stand — where the
+   *  images this writer already wrote are, and where the stage's
+   *  relative asset paths therefore resolve — packaged, and then the
+   *  staged crate and the images it took copies of are deleted. What is
+   *  left is the one file. */
   bool save(std::string* error = nullptr);
 
   struct Impl;

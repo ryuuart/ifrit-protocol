@@ -106,24 +106,46 @@
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/core/Bank.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/kit/Grained.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmotion/Animation.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <cmath>
-#include <cstdio>
-#include <map>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace matkit = sigil::material::kit;
+namespace mat = sigil::material;
+namespace path = sigil::geometry::path;
+namespace shapes = sigil::geometry::shapes;
+namespace measure = sigil::measure;
+namespace skia = sigil::material::skia;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+namespace motion = sigil::motion;
+using namespace sigil::motion;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -135,21 +157,25 @@ namespace {
 // setts under an overcast sky, and because a φ²-weighted majority of the field
 // is fat rhombs: at the catalogue value the plaza blows out to paper.
 
-const SkColor4f kWhiteBase = hex(0xBFBCB2);  // Royal White, weathered
-const SkColor4f kWhiteLit = hex(0xD4D0C6);   // Royal White, sun side
-const SkColor4f kWhiteVein = hex(0x2B2A28);  // black feather-vein inclusions
-const SkColor4f kGreyBase = hex(0x82858A);   // Kobra grey
-const SkColor4f kGreyLit = hex(0x969A9E);    // Kobra grey, sun side
-const SkColor4f kGreyVein = hex(0x3E4042);   // Kobra's tighter speckle
+const SkColor4f kWhiteBase = hexColor(0xBFBCB2);  // Royal White, weathered
+const SkColor4f kWhiteLit = hexColor(0xD4D0C6);   // Royal White, sun side
+const SkColor4f kWhiteVein =
+    hexColor(0x2B2A28);  // black feather-vein inclusions
+const SkColor4f kGreyBase = hexColor(0x82858A);  // Kobra grey
+const SkColor4f kGreyLit = hexColor(0x969A9E);   // Kobra grey, sun side
+const SkColor4f kGreyVein = hexColor(0x3E4042);  // Kobra's tighter speckle
 
-const SkColor4f kSteelBase = hex(0xEEF1F2);      // polished stainless, overcast
-const SkColor4f kSteelSpec = hex(0xFEFEFE);      // direct catch-light
-const SkColor4f kSteelEdge = hex(0xC9CED1);      // the insert's chamfered lip
-const SkColor4f kGroove = hex(0x5A5F63, 0.38f);  // occlusion in the milled slot
+const SkColor4f kSteelBase =
+    hexColor(0xEEF1F2);  // polished stainless, overcast
+const SkColor4f kSteelSpec = hexColor(0xFEFEFE);  // direct catch-light
+const SkColor4f kSteelEdge = hexColor(0xC9CED1);  // the insert's chamfered lip
+const SkColor4f kGroove =
+    hexColor(0x5A5F63, 0.38f);  // occlusion in the milled slot
 
-const SkColor4f kJointBed = hex(0x33363A);  // saw-cut joint / bedding mortar
-const SkColor4f kNight = hex(0x101112);
-const SkColor4f kCaption = hex(0x9CA0A2);
+const SkColor4f kJointBed =
+    hexColor(0x33363A);  // saw-cut joint / bedding mortar
+const SkColor4f kNight = hexColor(0x101112);
+const SkColor4f kCaption = hexColor(0x9CA0A2);
 
 // ---------------------------------------------------------------------------
 // Composition. The artefact is a PLAZA, so the paving runs full bleed: the
@@ -174,7 +200,11 @@ const SkVector kSunTo{0.48f, 0.877f};  // the light's direction of travel
 // ---------------------------------------------------------------------------
 // Timeline. Every delay is a continuous function of a tile's own centre
 // distance from the pentagrid origin, so the radial stagger falls out of the
-// geometry and no tile carries a schedule of its own.
+// geometry and no tile carries a schedule of its own. It is NOT
+// `Spread::rankBy`: a rank ladder spaces its units evenly in rank order,
+// where a ring twice as far out here waits twice as long — which is what
+// makes the sweep read as one wave crossing the paving rather than as a
+// queue of tiles.
 
 constexpr double kPeriod = 9.2;
 constexpr double kTileT0 = 0.05, kTileSweep = 1.35, kTileDur = 0.52;
@@ -182,7 +212,6 @@ constexpr double kArcT0 = 1.20, kArcSweep = 1.05, kArcDur = 0.58;
 constexpr double kSheen0 = 2.55, kSheenDur = 1.10;
 const double kGenAt[4] = {0.70, 1.55, 2.45, 3.35};
 
-inline float clamp01(double v) { return (float)std::clamp(v, 0.0, 1.0); }
 // ---------------------------------------------------------------------------
 // de Bruijn's pentagrid
 
@@ -193,16 +222,19 @@ inline V2 operator+(V2 a, V2 b) { return {a.x + b.x, a.y + b.y}; }
 inline V2 operator*(V2 a, double k) { return {a.x * k, a.y * k}; }
 inline double dot(V2 a, V2 b) { return a.x * b.x + a.y * b.y; }
 
-const std::array<V2, 5>& zeta() {
-  static const std::array<V2, 5> z = [] {
-    std::array<V2, 5> out{};
-    for (int j = 0; j < 5; ++j) {
-      const double a = 2.0 * 3.14159265358979323846 * (double)j / 5.0;
-      out[(size_t)j] = {std::cos(a), std::sin(a)};
-    }
-    return out;
-  }();
-  return z;
+/** THE FIVE FAMILY DIRECTIONS — unit vectors 72° apart, which is what
+ *  makes the grid a PENTAgrid. Built where it is asked for, which is once
+ *  per field: this file is a dylib a reload unloads, and a table held in a
+ *  static outlives the code that computed it. */
+std::array<V2, 5> zeta() {
+  std::array<V2, 5> out{};
+  // Not arrange::onRing: the pentagrid is solved in DOUBLE, and a ring
+  // rounded to float here moves every rhomb in the tiling.
+  for (int j = 0; j < 5; ++j) {
+    const double a = 2.0 * 3.14159265358979323846 * (double)j / 5.0;
+    out[(size_t)j] = {std::cos(a), std::sin(a)};
+  }
+  return out;
 }
 
 // γ_j — the SAME offset in every family, so Σγ = 1 ≡ 0 (mod 1) (de Bruijn's
@@ -244,10 +276,11 @@ std::vector<Tile> buildField(float module, float padPx) {
   const float reach = std::hypot(kW * 0.5f, kH * 0.5f) + padPx;
   const int K = (int)std::ceil(reach / (module * 2.5f)) + 3;
   const SkRect keep = SkRect::MakeWH(kW, kH).makeOutset(padPx, padPx);
+  const std::array<V2, 5> z5 = zeta();
 
   for (int r = 0; r < 5; ++r) {
     for (int s = r + 1; s < 5; ++s) {
-      const V2 zr = zeta()[(size_t)r], zs = zeta()[(size_t)s];
+      const V2 zr = z5[(size_t)r], zs = z5[(size_t)s];
       const double det = zr.x * zs.y - zr.y * zs.x;
       if (std::abs(det) < 1e-9)
         continue;  // never happens: five distinct 72° directions
@@ -265,11 +298,10 @@ std::vector<Tile> buildField(float module, float padPx) {
           V2 z{0, 0};
           for (int j = 0; j < 5; ++j) {
             const int Kj =
-                (j == r) ? kr
-                : (j == s)
-                    ? ks
-                    : (int)std::ceil(dot(zeta()[(size_t)j], x) + kOffset);
-            z = z + zeta()[(size_t)j] * (double)Kj;
+                (j == r)   ? kr
+                : (j == s) ? ks
+                           : (int)std::ceil(dot(z5[(size_t)j], x) + kOffset);
+            z = z + z5[(size_t)j] * (double)Kj;
           }
 
           Tile t;
@@ -388,7 +420,7 @@ Audit verify(const std::vector<Tile>& tiles, float module) {
 
   // 1. Angle sums. Every interior vertex of a genuine tiling closes at 360°;
   //    a gap or an overlap in the dualization shows up here first.
-  std::unordered_map<int64_t, std::pair<double, SkPoint>> vsum;
+  boost::unordered_flat_map<int64_t, std::pair<double, SkPoint>> vsum;
   for (const Tile& t : tiles) {
     (t.fat ? a.fat : a.thin)++;
     for (int i = 0; i < 4; ++i) {
@@ -425,8 +457,8 @@ Audit verify(const std::vector<Tile>& tiles, float module) {
   //    module/2 from its own arc centre is what makes two arcs of radius
   //    module/2, centred on the two ends of a shared edge, meet tangentially
   //    at its midpoint.
-  std::unordered_map<int64_t, std::pair<int, SkPoint>> ends;
-  std::unordered_map<int64_t, int> mids;
+  boost::unordered_flat_map<int64_t, std::pair<int, SkPoint>> ends;
+  boost::unordered_flat_map<int64_t, int> mids;
   for (const Tile& t : tiles) {
     for (int i = 0; i < 4; ++i) {
       const SkPoint p = t.v[i], q = t.v[(i + 1) % 4];
@@ -508,60 +540,63 @@ const Granite kKobraGrey{kGreyBase, kGreyLit, kGreyVein, 1.00f,
 
 // A bank keyed by (species, seed bucket). A tile's seed is folded into one of
 // 40 buckets per granite, which is more variety than a field of two prototiles
-// at ten orientations can expose, and it caps the number of live shaders at
-// 80 instead of one per sett.
+// at ten orientations can expose, and it caps the number of live materials at
+// 80 instead of one per sett. Because the instance is HELD rather than
+// re-minted per describe, its identity is stable and a re-describe prunes.
+//
+// The stone itself is `material::kit::stone`: a quarry's two tones on a
+// diagonal bed, veined with grain and flecked with a speckle in its own
+// colours, generated per pixel from its parameters and a seed. The BUCKET is
+// what varies a piece — a seed the recipe reads, and a jitter on the tone,
+// both applied in the maker.
 class GraniteBank {
  public:
-  Material get(const Granite& g, uint32_t seed, bool fat) {
-    const uint32_t bucket = seed % 40u;
-    const uint64_t key = ((uint64_t)(fat ? 1 : 0) << 32u) | bucket;
-    auto it = m_bank.find(key);
-    if (it != m_bank.end()) return it->second;
-
-    const float jitter = ((float)(bucket % 13) / 12.0f - 0.5f) * 0.115f;
-    auto tone = [&](SkColor4f c, float k) {
-      return SkColor4f{std::clamp(c.fR * (1 + k), 0.f, 1.f),
-                       std::clamp(c.fG * (1 + k), 0.f, 1.f),
-                       std::clamp(c.fB * (1 + k), 0.f, 1.f), 1};
-    };
-    // The slab body: a shallow ramp across the slab from its sun-facing
-    // corner to its shaded one. linearUnit, not linear() — the ramp is stated
-    // in unit-box coordinates because a sett's bounding box is whatever its
-    // rotation makes it, and the ramp has to land the same way on all ten
-    // orientations.
-    auto mixc = [](SkColor4f a, SkColor4f b, float u) {
-      return SkColor4f{a.fR + (b.fR - a.fR) * u, a.fG + (b.fG - a.fG) * u,
-                       a.fB + (b.fB - a.fB) * u, 1};
-    };
-    Material body =
-        Material::linearUnit({0.10f, 0.0f}, {0.90f, 1.0f},
-                             {{0.00f, tone(mixc(g.base, g.lit, 0.40f), jitter)},
-                              {0.55f, tone(g.base, jitter)},
-                              {1.00f, tone(g.base, jitter - 0.030f)}});
-
-    Material m = Material::blend(
-        {{body, SkBlendMode::kSrcOver},
-         // mineral aggregate — luminance noise, so soft-light reads as LIGHT
-         // rather than hue (patterns::noise would rainbow the stone into
-         // terrazzo). Two octaves at ~2 px cells IS the crystal size at this
-         // scale: a 600 mm sett drawn 78 px wide is 7.7 mm per pixel.
-         {patterns::grain(g.speckleFreq, 2, (float)(bucket * 7 + 3),
-                          g.speckleAmp, 1.0f),
-          SkBlendMode::kSoftLight},
-         // sub-crystal grit — one octave under a pixel, which is what stops
-         // the aggregate reading as a printed pattern
-         {patterns::grain(2.1f, 1, (float)(bucket * 13 + 5), 0.62f, 1.0f),
-          SkBlendMode::kSoftLight},
-         // the slow blotch that makes one slab differ from the next
-         {patterns::grain(g.blotchFreq, 1, (float)(bucket * 31 + 11),
-                          g.veinContrast, 1.25f),
-          SkBlendMode::kSoftLight}});
-    m_bank.emplace(key, m);
-    return m;
+  Paint get(const Granite& g, uint32_t seed, bool fat) {
+    // The species is the params' bytes and the bucket is the seed, so the
+    // two rhombs of one granite at one bucket are ONE material.
+    const matkit::StoneParams species{
+        .hi = skia::toColor(g.lit),
+        .lo = skia::toColor(g.base),
+        // The bed runs across the sett rather than along it, so a rotated
+        // prototile does not read as a stripe following its own long axis,
+        // and it is LONG compared with a 78 px sett: a shallow ramp from the
+        // sun-facing corner to the shaded one, not a stripe.
+        .bedAngle = fat ? 24.0f : 62.0f,
+        .bedLength = 260.0f,
+        .bedDepth = 0.30f,
+        // FEATURES PER PIXEL, and this is the number that decides whether
+        // the stone reads as granite or as cloud: at ~1 per px the veining
+        // is at the crystal size — a 600 mm sett drawn 78 px wide is 7.7 mm
+        // per pixel — and an order of magnitude lower is weather.
+        .grainScale = g.speckleFreq,
+        .grainContrast = g.speckleAmp * 0.42f,
+        .stretch = 1.0f,
+        // The dark inclusions: what separates the two granites at this
+        // distance is their SIZE, not the pitch of the field.
+        .speckle = 0.34f,
+        .speckleCell = g.blotchFreq > 0.05f ? 6.5f : 4.0f,
+        .speckleAlpha = 0.26f};
+    return Paint::recipe(
+        m_bank.get(matkit::stoneRecipe(), species, seed, [&](uint32_t bucket) {
+          // The per-bucket tone jitter: one slab lighter than the next, out
+          // of the same quarry.
+          const float jitter = ((float)(bucket % 13) / 12.0f - 0.5f) * 0.115f;
+          auto tone = [&](sigil::material::Color c) {
+            return sigil::material::Color{
+                std::clamp(c.r * (1 + jitter), 0.f, 1.f),
+                std::clamp(c.g * (1 + jitter), 0.f, 1.f),
+                std::clamp(c.b * (1 + jitter), 0.f, 1.f), 1};
+          };
+          matkit::StoneParams p = species;
+          p.hi = tone(species.hi);
+          p.lo = tone(species.lo);
+          p.seed = (float)bucket;
+          return sigil::material::Material(matkit::stoneRecipe(), p);
+        }));
   }
 
  private:
-  std::map<uint64_t, Material> m_bank;
+  mat::Bank m_bank{40};
 };
 
 // ---------------------------------------------------------------------------
@@ -572,28 +607,21 @@ SkVector normv(SkVector v) {
   return l > 1e-6f ? SkVector{v.x() / l, v.y() / l} : SkVector{1, 0};
 }
 
-// Offset every edge of a convex quad inward by d. At a vertex whose interior
-// angle is θ, the point d from BOTH incident edges sits at
-// p + (u_prev + u_next)·d/sin θ — exact, and it is what gives the thin rhomb's
-// 36° corners their correspondingly deep pull-back.
+// THE SETT'S TWO INSET RINGS — the joint pull-back and the chamfer band.
+// `path::insetPolygon` moves every vertex one for one, so each source corner
+// keeps its partner in the moved ring, which is what a chamfer band between
+// the two needs and an outline offset cannot give. The mitre is the price: a
+// corner of interior angle θ moves distance/sin(θ/2), and at the thin rhomb's
+// 36° corners that is 3.24 distances — geometrically right for a silhouette
+// and, for a BAND, a wedge that swallows the corner. The miter limit blunts
+// it instead, which is what a stonemason's arris does anyway.
 void insetQuad(const SkPoint in[4], float d, SkPoint out[4],
                float miterLimit = 1e6f) {
-  for (int i = 0; i < 4; ++i) {
-    const SkPoint p = in[i], pv = in[(i + 3) % 4], nx = in[(i + 1) % 4];
-    const SkVector u1 = normv({pv.x() - p.x(), pv.y() - p.y()});
-    const SkVector u2 = normv({nx.x() - p.x(), nx.y() - p.y()});
-    const SkVector bis = normv({u1.x() + u2.x(), u1.y() + u2.y()});
-    // |u1+u2| = 2cos(θ/2) exactly, so the half-angle sine comes for free.
-    const float halfCos = std::clamp(
-        0.5f * std::hypot(u1.x() + u2.x(), u1.y() + u2.y()), 0.02f, 0.999f);
-    const float halfSin = std::sqrt(1 - halfCos * halfCos);
-    // |offset| = d/sin(θ/2); at the thin rhomb's 36° corners that is 3.24·d,
-    // which is geometrically right for the silhouette but turns a chamfer
-    // BAND into a wedge that swallows the corner. Clamping bevels the corner
-    // instead — which is what a stonemason's arris does anyway.
-    const float len = std::min(d / std::max(halfSin, 0.02f), d * miterLimit);
-    out[i] = {p.x() + bis.x() * len, p.y() + bis.y() * len};
-  }
+  std::array<glm::vec2, 4> poly{};
+  for (int i = 0; i < 4; ++i) poly[(size_t)i] = {in[i].x(), in[i].y()};
+  const std::vector<glm::vec2> moved = path::insetPolygon(poly, d, miterLimit);
+  for (int i = 0; i < 4 && i < (int)moved.size(); ++i)
+    out[i] = {moved[(size_t)i].x, moved[(size_t)i].y};
 }
 
 SkPath quadPath(const SkPoint q[4], SkPoint origin) {
@@ -687,6 +715,12 @@ struct PenrosePaving : sketch::Sketch {
   double genArea0 = 0;
   int genAreaFails = 0;
 
+  /** THE VERIFICATION, as one table. `Audit` holds what was measured; this
+   *  holds the CLAIMS made about it, and every row's verdict is computed
+   *  from the two values it reports — so a line that reads PASS cannot
+   *  disagree with the arithmetic printed beside it. */
+  measure::Table verdict;
+
   // -------------------------------------------------------------------------
   // One sett: an absolutely-placed box whose OUTLINE is the rhomb, inset by
   // half the saw-cut joint. No rotate() anywhere — the shape carries its own
@@ -752,12 +786,12 @@ struct PenrosePaving : sketch::Sketch {
             .top(bb.top())
             .width(bb.width())
             .height(bb.height())
-            .shape([shape](SkSize) { return shape; })
+            .shape(heldPath(shape))
             .fill(bank.get(t.fat ? kRoyalWhite : kKobraGrey, t.seed, t.fat))
             .foreground(Decoration(PaintProgram(chamfer)))
             // the saw cut: a hairline of the joint's own colour just
             // inside the silhouette, so neighbouring setts never fuse
-            .stroke(stroke(0.7f, Fill::color(hex(0x3D4043, 0.34f)),
+            .stroke(stroke(0.7f, Fill::color(hexColor(0x3D4043, 0.34f)),
                            PathFormat::Align::Inner))
             // one Output, two curves: the fade eases out cubic, the
             // seating overshoots — shaped at the property, not in
@@ -810,10 +844,7 @@ struct PenrosePaving : sketch::Sketch {
         .top(bb.top() - parentOrg.y())
         .width(bb.width())
         .height(bb.height())
-        // the callable is invoked on every layout, so its capture must survive
-        // each return
-        // NOLINTNEXTLINE(performance-no-automatic-move)
-        .shape([local](SkSize) { return local; })
+        .shape(heldPath(local))
         .stroke(spans::upTo(&arcT[i]),
                 Brush{}  // the milled slot the insert sits in — a hairline of
                          // occlusion either side, not an outline
@@ -834,7 +865,7 @@ struct PenrosePaving : sketch::Sketch {
     auto group = positioned()
                      .inset(0, 0, 0, 0)
                      .key("gen" + std::to_string(gen))
-                     .staggerChildren(9ms, Stagger::From::Center)
+                     .staggerChildren(9ms, motion::Spread::From::Center)
                      .transformOrigin(0.5f, 0.5f)
                      .scale(animate(from(0.94f).to(1.0f),
                                     Transition{320ms, ease::outBack(1.1f)}));
@@ -871,8 +902,9 @@ struct PenrosePaving : sketch::Sketch {
               .top(bb.top())
               .width(bb.width())
               .height(bb.height())
-              .shape([p](SkSize) { return p; })
-              .fill(Fill::color(g.type == 1 ? hex(0xB6B2A7) : hex(0x76797E)))
+              .shape(heldPath(p))
+              .fill(Fill::color(g.type == 1 ? hexColor(0xB6B2A7)
+                                            : hexColor(0x76797E)))
               // NO per-piece scale: scaling each half about its own
               // centre pulls a subdivision apart, and a deflation
               // diagram that shows gaps is saying the opposite of
@@ -887,24 +919,86 @@ struct PenrosePaving : sketch::Sketch {
     // shares, so a Robinson triangle's two real rhomb edges are exactly the
     // two this run does draw. Close the path and the diagram claims a tiling
     // by triangles, which is the one thing it must not say.
+    // The generation names the drawing: a generation's triangles are
+    // settled before it is described, so the program is a value the
+    // node can compare rather than a callable that never matches.
     auto edges = tri;
-    group.child(custom([edges](SkCanvas& c, const PaintContext&) {
-                  SkPaint p;
-                  p.setAntiAlias(true);
-                  p.setStyle(SkPaint::kStroke_Style);
-                  p.setStrokeWidth(1.0f);
-                  p.setColor4f(hex(0x1B1D1E, 0.85f), nullptr);
-                  for (const Tri& g : edges) {
-                    SkPathBuilder b;
-                    b.moveTo(g.b);
-                    b.lineTo(g.a);
-                    b.lineTo(g.c);
-                    c.drawPath(b.detach(), p);
-                  }
-                })
+    group.child(custom(kit::formatted("rhomb-edges-%d", gen),
+                       [edges](SkCanvas& c, const PaintContext&) {
+                         SkPaint p;
+                         p.setAntiAlias(true);
+                         p.setStyle(SkPaint::kStroke_Style);
+                         p.setStrokeWidth(1.0f);
+                         p.setColor4f(hexColor(0x1B1D1E, 0.85f), nullptr);
+                         for (const Tri& g : edges) {
+                           SkPathBuilder b;
+                           b.moveTo(g.b);
+                           b.lineTo(g.a);
+                           b.lineTo(g.c);
+                           c.drawPath(b.detach(), p);
+                         }
+                       })
                     .inset(0, 0, 0, 0)
                     .cache(Cache::None));
     return group;
+  }
+
+  /** THE VERIFICATION, ENGRAVED BESIDE THE PLAQUE. A dualization that is
+   *  subtly wrong still renders a plausible field of rhombs, so the tiling
+   *  is checked numerically before any of the surface treatment is worth
+   *  looking at — and a check nobody can see is a check nobody reads. Each
+   *  row's verdict is computed from the two values it reports; the ratio of
+   *  the two prototiles is a statement about the PAVING and stands apart
+   *  from the claims about the construction. */
+  Element verificationCard() const {
+    sketch::kit::Theme look;
+    look.palette.ash = kCaption;
+    look.palette.figure = hexColor(0xDCE0E2);
+    look.type.captionNote = {9.5f, 0.3f};
+    look.type.captionLabel = {9.5f, 0.3f, true};
+    look.spacing.rowGap = 4;
+    const SkColor4f held = hexColor(0x7FA87F), broken = hexColor(0xC0564B);
+    std::vector<sketch::kit::Row> rows;
+    for (const measure::Check& c : verdict.rows) {
+      if (c.standing == measure::Standing::Heading) {
+        rows.push_back({{toU8(c.label)}, {}});
+        continue;
+      }
+      // A reading has no verdict to mark, but it keeps the mark's WIDTH:
+      // an unmarked row that also loses the indent reads as a heading.
+      if (!c.judged()) {
+        rows.push_back(
+            {{toU8(c.label), toU8(c.actual), u8""}, Fill::color({0, 0, 0, 0})});
+        continue;
+      }
+      rows.push_back(
+          {{toU8(c.label), toU8(c.actual),
+            toU8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
+           Fill::color(c.pass ? held : broken)});
+    }
+    const std::string summary = kit::formatted(
+        "VERIFIED AT STARTUP \xc2\xb7 %d CHECKS, %s", verdict.checks(),
+        verdict.pass() ? "ALL PASSED" : "ONE OR MORE FAILED");
+    sketch::kit::Provide bound(look);
+    return box()
+        .left(1096)
+        .top(944)
+        .width(448)
+        .height(236)
+        .fill(Fill::color(hexColor(0x121517, 0.84f)))
+        .stroke(stroke(1.0f, Fill::color(hexColor(0x5E6163, 0.55f)),
+                       PathFormat::Align::Inner))
+        .background(styles::dropShadow(hexColor(0x000000, 0.55f), {0, 6}, 22))
+        .column()
+        .padding(14)
+        .gap(9)
+        .child(text(
+            toU8(summary),
+            weave::textStyle(
+                {.size = 10.5f, .color = hexColor(0x8E9295), .track = 1.0f})))
+        .child(sketch::kit::table(
+            std::move(rows),
+            {.columns = {{202}, {92, true}, {}}, .gap = 8, .swatchSide = 7}));
   }
 
   Element inset() {
@@ -914,17 +1008,18 @@ struct PenrosePaving : sketch::Sketch {
         .top(r.top())
         .width(r.width())
         .height(r.height())
-        .fill(Fill::color(hex(0x121517, 0.84f)))
-        .stroke(stroke(1.0f, Fill::color(hex(0x5E6163, 0.55f)),
+        .fill(Fill::color(hexColor(0x121517, 0.84f)))
+        .stroke(stroke(1.0f, Fill::color(hexColor(0x5E6163, 0.55f)),
                        PathFormat::Align::Inner))
-        .background(styles::dropShadow(hex(0x000000, 0.55f), {0, 6}, 22))
-        .child(
-            text(toU8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
-                      "\xc3\x97"
-                      "1/\xcf\x86"),
-                 type({.size = 10.5f, .color = hex(0x8E9295), .track = 1.0f}))
-                .left(14)
-                .top(12))
+        .background(styles::dropShadow(hexColor(0x000000, 0.55f), {0, 6}, 22))
+        .child(text(toU8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
+                         "\xc3\x97"
+                         "1/\xcf\x86"),
+                    weave::textStyle({.size = 10.5f,
+                                      .color = hexColor(0x8E9295),
+                                      .track = 1.0f}))
+                   .left(14)
+                   .top(12))
         .child(box().left(10).top(34).width(kDiagW).height(kDiagH).child(
             slot("deflate")));
   }
@@ -940,11 +1035,10 @@ struct PenrosePaving : sketch::Sketch {
     auto field = positioned().inset(0, 0, 0, 0);
     for (size_t i = 0; i < tiles.size(); ++i) field.child(sett(tiles[i], i));
 
-    char spec[220];
-    std::snprintf(spec, sizeof(spec),
-                  "DE BRUIJN PENTAGRID  \xce\xb3=1/5 (\xce\x93=0)  s=%.0f px  "
-                  "%d SETTS  FAT:THIN = %.3f  (\xcf\x86 = 1.618)",
-                  kModule, audit.tiles, audit.ratio);
+    const std::string spec = kit::formatted(
+        "DE BRUIJN PENTAGRID  \xce\xb3=1/5 (\xce\x93=0)  s=%.0f px  "
+        "%d SETTS  FAT:THIN = %.3f  (\xcf\x86 = 1.618)",
+        kModule, audit.tiles, audit.ratio);
 
     return stack()
         .fill(Fill::color(kJointBed))
@@ -954,11 +1048,12 @@ struct PenrosePaving : sketch::Sketch {
         // depends on animates, so Cache::Texture bakes it once and the cache
         // never invalidates; the node's opacity is what keeps it out of the
         // automatic bake, so the cache has to be asked for by hand.
-        .child(box()
-                   .inset(0, 0, 0, 0)
-                   .fill(patterns::grain(0.9f, 1, 12.0f, 0.55f, 1.0f))
-                   .opacity(0.20f)
-                   .cache(Cache::Texture))
+        .child(
+            box()
+                .inset(0, 0, 0, 0)
+                .fill(Paint::recipe(field::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)))
+                .opacity(0.20f)
+                .cache(Cache::Texture))
         .child(field)
         // Weathering at PLAZA scale — cells a couple of hundred px across,
         // i.e. metres of traffic staining that crosses joints because dirt
@@ -970,10 +1065,11 @@ struct PenrosePaving : sketch::Sketch {
                    .blend(SkBlendMode::kMultiply)
                    .opacity(0.42f)
                    .cache(Cache::Texture)
-                   .fill(Material::blend(
-                       {{Material::solid(hex(0xFFFFFF)), SkBlendMode::kSrcOver},
-                        {patterns::grain(0.0042f, 2, 91.0f, 0.62f, 1.15f),
-                         SkBlendMode::kSoftLight}})))
+                   .fill(Paint::blend({{Paint::solid(hexColor(0xFFFFFF)),
+                                        SkBlendMode::kSrcOver},
+                                       {Paint::recipe(field::grain(
+                                            0.0042f, 2, 91.0f, 0.62f, 1.15f)),
+                                        SkBlendMode::kSoftLight}})))
         // ---- daylight. One multiply pass carries the sun's falloff across
         // the plaza. It is SHALLOW: the header calls this a plan view and
         // the forecourt is photographed in flat daylight, so a key bright
@@ -985,11 +1081,11 @@ struct PenrosePaving : sketch::Sketch {
                    .inset(0, 0, 0, 0)
                    .blend(SkBlendMode::kMultiply)
                    .cache(Cache::Texture)
-                   .fill(radialGradient(
-                       {470, 280}, 1280,
-                       {hex(0xFAFAF8), hex(0xE6E6E4), hex(0xB2B4B8),
-                        hex(0x74777C), hex(0x42454A)},
-                       {0.0f, 0.22f, 0.50f, 0.78f, 1.0f})))
+                   .fill(radialGradient({470, 280}, 1280,
+                                        {hexColor(0xFAFAF8), hexColor(0xE6E6E4),
+                                         hexColor(0xB2B4B8), hexColor(0x74777C),
+                                         hexColor(0x42454A)},
+                                        {0.0f, 0.22f, 0.50f, 0.78f, 1.0f})))
         // the sun pool itself, added back — also static, baked for the same
         // reason as the pass above
         .child(box()
@@ -999,61 +1095,64 @@ struct PenrosePaving : sketch::Sketch {
                    .cache(Cache::Texture)
                    .fill(radialGradient(
                        {470, 280}, 1100,
-                       {hex(0xFFF8E8, 0.13f), hex(0xFFF3DA, 0.075f),
-                        hex(0xFFF0D0, 0.025f), hex(0x000000, 0.0f)},
+                       {hexColor(0xFFF8E8, 0.13f), hexColor(0xFFF3DA, 0.075f),
+                        hexColor(0xFFF0D0, 0.025f), hexColor(0x000000, 0.0f)},
                        {0.0f, 0.34f, 0.68f, 1.0f})))
         // wet-stone sheen — a broad, low raking band that sweeps once per
         // loop as the arcs finish, so the field reads as a wet surface
         // catching the sky rather than as flat fill
-        .child(
-            box()
-                .inset(0, 0, 0, 0)
-                .blend(SkBlendMode::kScreen)
-                .opacity(&sheen)
-                .fill(linearGradient({180, 0}, {1500, 1200},
-                                     {hex(0x000000, 0.0f), hex(0xBFD2E0, 0.09f),
-                                      hex(0x000000, 0.0f)},
-                                     {0.30f, 0.50f, 0.72f})))
+        .child(box()
+                   .inset(0, 0, 0, 0)
+                   .blend(SkBlendMode::kScreen)
+                   .opacity(&sheen)
+                   .fill(linearGradient(
+                       {180, 0}, {1500, 1200},
+                       {hexColor(0x000000, 0.0f), hexColor(0xBFD2E0, 0.09f),
+                        hexColor(0x000000, 0.0f)},
+                       {0.30f, 0.50f, 0.72f})))
         .child(inset())
         // ---- the site plaque. A civic plaque sits on the paving, so give
         // it a shadowed band to sit in rather than dropping 10 px type onto
         // speckled granite where it cannot be read at any exposure.
         .child(box().left(0).top(kH - 190).width(kW).height(190).fill(
             linearGradient({0, kH - 190}, {0, kH},
-                           {hex(0x000000, 0.0f), hex(0x08090A, 0.42f),
-                            hex(0x08090A, 0.72f)},
+                           {hexColor(0x000000, 0.0f), hexColor(0x08090A, 0.42f),
+                            hexColor(0x08090A, 0.72f)},
                            {0.0f, 0.5f, 1.0f})))
         .child(box()
                    .left(56)
                    .top(1084)
                    .width(1010)
                    .height(96)
-                   .fill(Fill::color(hex(0x101314, 0.90f)))
-                   .stroke(stroke(1.0f, Fill::color(hex(0x676B6D, 0.45f)),
+                   .fill(Fill::color(hexColor(0x101314, 0.90f)))
+                   .stroke(stroke(1.0f, Fill::color(hexColor(0x676B6D, 0.45f)),
                                   PathFormat::Align::Inner))
-                   .background(
-                       styles::dropShadow(hex(0x000000, 0.5f), {0, 5}, 18)))
-        .child(
-            text(toU8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
-                      "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
-                      "STAINLESS INSERTS"),
-                 type({.size = 13.0f, .color = hex(0xDCE0E2), .track = 1.9f}))
-                .left(76)
-                .top(1100)
-                .opacity(1.0f))
-        .child(
-            text(toU8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
-                      "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
-                 type({.size = 11.5f, .color = hex(0xA9AEB1), .track = 1.5f}))
-                .left(76)
-                .top(1126)
-                .opacity(1.0f))
-        .child(
-            text(toU8(spec),
-                 type({.size = 10.5f, .color = hex(0x8E9598), .track = 1.3f}))
-                .left(76)
-                .top(1152)
-                .opacity(1.0f));
+                   .background(styles::dropShadow(hexColor(0x000000, 0.5f),
+                                                  {0, 5}, 18)))
+        .child(text(toU8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
+                         "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
+                         "STAINLESS INSERTS"),
+                    weave::textStyle({.size = 13.0f,
+                                      .color = hexColor(0xDCE0E2),
+                                      .track = 1.9f}))
+                   .left(76)
+                   .top(1100)
+                   .opacity(1.0f))
+        .child(text(toU8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
+                         "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
+                    weave::textStyle({.size = 11.5f,
+                                      .color = hexColor(0xA9AEB1),
+                                      .track = 1.5f}))
+                   .left(76)
+                   .top(1126)
+                   .opacity(1.0f))
+        .child(text(toU8(spec), weave::textStyle({.size = 10.5f,
+                                                  .color = hexColor(0x8E9598),
+                                                  .track = 1.3f}))
+                   .left(76)
+                   .top(1152)
+                   .opacity(1.0f))
+        .child(verificationCard());
   }
 
   // -------------------------------------------------------------------------
@@ -1061,25 +1160,36 @@ struct PenrosePaving : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // The finished plaza. 0.75 catches the crystal front mid-growth over the
     // exact five-fold centre, 1.45 the inlay chaining on.
-    ctx.captureAt(4.6);
-    ctx.canvas(kW, kH);
-    ctx.background(kNight);
+    sketch::kit::stage(
+        ctx,
+        {.size = SkSize::Make(kW, kH), .captureAt = 4.6, .background = kNight});
 
     tiles = buildField(kModule, kModule * 1.2f);
     audit = verify(tiles, kModule);
 
-    std::printf(
-        "\n[penrose] pentagrid gamma=%.3f  module=%.1f px\n"
-        "[penrose] tiles=%d  fat=%d  thin=%d  fat:thin=%.4f  (phi=1.6180)\n"
-        "[penrose] interior vertices=%d  angle-sum failures=%d  worst err=%.4f "
-        "deg\n"
-        "[penrose] arc nodes=%d  chained(deg 2)=%d  dangling interior=%d\n"
-        "[penrose] worst |endpoint-midpoint| = %.6f px   worst tangent dot = "
-        "%.2e\n",
-        kOffset, kModule, audit.tiles, audit.fat, audit.thin, audit.ratio,
-        audit.interiorVerts, audit.badVerts, audit.worstVertErr, audit.arcNodes,
-        audit.chained, audit.danglingInterior, audit.worstMidErr,
-        audit.worstTangentErr);
+    verdict = {};
+    verdict.add(measure::heading("THE PAVING"));
+    verdict.add(measure::reading(
+        kit::formatted("setts  %d fat + %d thin", audit.fat, audit.thin),
+        (long)audit.tiles));
+    // The ratio of the two prototiles tends to phi over the WHOLE tiling; a
+    // finite patch of a few hundred setts only approaches it, so this is a
+    // statement about the paving rather than about the dualization that
+    // drew it, and its verdict is never counted against the run.
+    verdict.add(measure::finding(measure::check("fat : thin, tends to \xcf\x86",
+                                                1.6180, audit.ratio, 0.02)));
+    verdict.add(
+        measure::reading("interior vertices", (long)audit.interiorVerts));
+    verdict.add(measure::check("vertices not closing at 360\xc2\xb0", 0,
+                               audit.badVerts));
+    verdict.add(measure::check("worst angle-sum error, deg", 0.0,
+                               audit.worstVertErr, 0.5));
+    verdict.add(measure::check("arc endpoints left unchained", 0,
+                               audit.danglingInterior));
+    verdict.add(measure::check("worst endpoint off its midpoint, px", 0.0,
+                               audit.worstMidErr, 1e-3));
+    verdict.add(measure::check("worst arc tangent \xc2\xb7 its edge", 0.0,
+                               audit.worstTangentErr, 1e-4));
 
     // --- the deflation vignette's own construction + area audit ------------
     {
@@ -1162,17 +1272,21 @@ struct PenrosePaving : sketch::Sketch {
             else if (n > 1)
               doubled++;
           }
-        std::printf(
-            "[penrose] deflation coverage @gen3: %d samples in the seed,"
-            " %d uncovered, %d double-covered\n",
-            inside, uncovered, doubled);
+        verdict.add(measure::heading("THE DEFLATION"));
+        verdict.add(measure::reading(
+            "rhombs, seed \xe2\x86\x92 gen 3",
+            kit::formatted("%zu \xe2\x86\x92 %zu \xe2\x86\x92 %zu "
+                           "\xe2\x86\x92 %zu",
+                           gens[0].size() / 2, gens[1].size() / 2,
+                           gens[2].size() / 2, gens[3].size() / 2)));
+        verdict.add(
+            measure::check("generations off the seed's area", 0, genAreaFails));
+        verdict.add(
+            measure::check("children outside their parent", 0, genOutside));
+        verdict.add(measure::reading("seed samples", (long)inside));
+        verdict.add(measure::check("of them uncovered at gen 3", 0, uncovered));
+        verdict.add(measure::check("of them double-covered", 0, doubled));
       }
-      std::printf(
-          "[penrose] deflation rhombs: %zu -> %zu -> %zu -> %zu   "
-          "area failures=%d  children outside their parent=%d\n",
-          gens[0].size() / 2, gens[1].size() / 2, gens[2].size() / 2,
-          gens[3].size() / 2, genAreaFails, genOutside);
-      std::fflush(stdout);
     }
 
     grow = std::vector<choreograph::Output<float>>(tiles.size());
@@ -1190,11 +1304,12 @@ struct PenrosePaving : sketch::Sketch {
       for (size_t i = 0; i < tiles.size(); ++i) {
         const double u = (double)tiles[i].radius / (double)kCorner;
         // the ripple front: a raw linear progress, nothing shaped here
-        grow[i] = clamp01((now - (kTileT0 + kTileSweep * u)) / kTileDur);
-        arcT[i] = choreograph::easeOutCubic(
-            clamp01((now - (kArcT0 + kArcSweep * u)) / kArcDur));
+        grow[i] = (float)std::clamp(
+            (now - (kTileT0 + kTileSweep * u)) / kTileDur, 0.0, 1.0);
+        arcT[i] = choreograph::easeOutCubic((float)std::clamp(
+            (now - (kArcT0 + kArcSweep * u)) / kArcDur, 0.0, 1.0));
       }
-      const float sp = clamp01((now - kSheen0) / kSheenDur);
+      const float sp = (float)std::clamp((now - kSheen0) / kSheenDur, 0.0, 1.0);
       sheen = std::sin(sp * 3.14159265f);  // one pass, then gone
       return true;
     });

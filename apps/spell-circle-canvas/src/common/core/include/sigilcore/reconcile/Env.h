@@ -2,15 +2,19 @@
 
 /** @file
  * An inherited value, read where a component is described: env::Provide
- * binds a value for a describe scope, env::inherited reads it, and the
- * detail:: snapshot types are what a memo captures so that its environment
- * is part of its key.
+ * binds a value for a describe scope, env::inherited reads it, and
+ * env::capture is what a memo takes where it is written, so that its
+ * environment is part of its key and env::Restore can re-establish it
+ * around the deferred describe.
  */
 
-#include <cassert>
+#include <sigilcore/compute/Hash.h>
+
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -67,51 +71,79 @@ namespace sigil::core {
 // than a design-token vocabulary: the key a component uses is its own
 // props type.
 
-namespace detail {
+namespace env {
 
-/** One ambient binding, type-erased. `type` is a per-T address so no RTTI
- *  is needed and the type test is a pointer compare. */
-struct EnvEntry {
-  const void* type = nullptr;
+/** One ambient binding, type-erased. `type` is a per-T number so no RTTI
+ *  is needed and the type test is an integer compare. Two entries are
+ *  equal when they bind the same type to values equal by that type's
+ *  own `operator==`; the same holder short-circuits. */
+struct Entry {
+  std::uint64_t type = 0;
   std::shared_ptr<const void> value;
   bool (*equal)(const void*, const void*) = nullptr;
+
+  bool operator==(const Entry& o) const {
+    if (type != o.type) return false;
+    if (value == o.value) return true;  // the same binding object
+    return equal && value && o.value && equal(value.get(), o.value.get());
+  }
 };
 
-/** A captured ambient stack, innermost LAST. Empty is the overwhelmingly
- *  common case and costs one empty vector — the feature is free unused. */
-using EnvSnapshot = std::vector<EnvEntry>;
+/** A captured ambient stack, innermost LAST. Compares by value — the same
+ *  bindings, in the same order, each equal by its own `operator==` —
+ *  which is what makes a memo's environment part of its key. Empty is
+ *  the overwhelmingly common case and costs one empty vector: the
+ *  feature is free unused. */
+using Snapshot = std::vector<Entry>;
+
+}  // namespace env
+
+namespace detail {
 
 /** The live describe-time stack. Thread-local: a describe runs on whatever
  *  thread the host calls on. */
-EnvSnapshot& envStack();
+env::Snapshot& envStack();
 
-/** Value equality over two captured stacks: same bindings, in the same
- *  order, each equal by its own `operator==`. Identical holders short-
- *  circuit. This is what makes a memo's environment part of its key. */
-bool envEqual(const EnvSnapshot& a, const EnvSnapshot& b);
+/** THE IDENTITY OF AN INHERITED TYPE, as a number the compiler derives
+ *  from the type's own spelling.
+ *
+ *  IT CANNOT BE AN ADDRESS. A dynamically loaded image compiled with
+ *  hidden visibility gets its own copy of every inline the loader of it
+ *  also has, including the static inside one — so a value bound in the
+ *  loaded image and read in the loader would carry two different
+ *  addresses for one type and never match. The compiler's own spelling
+ *  of the type is the same string in both images, so it is hashed at
+ *  compile time and the number is the key. */
+template <class T>
+constexpr std::uint64_t envTypeTag() {
+  return hash::fnv1a(hash::kFnvOffset, std::string_view{__PRETTY_FUNCTION__});
+}
+
+}  // namespace detail
+
+namespace env {
+
+/** The bindings in scope right now, copied — what a memo captures where
+ *  it is WRITTEN, because by the time the reconciler decides whether to
+ *  run the deferred describe the author's scope is gone. */
+Snapshot capture();
 
 /** Re-establishes a captured stack around a DEFERRED describe (the memo
  *  invoke). Swaps rather than pushes: a deferred call must see exactly
  *  what its author's scope had, not that stack plus whatever the current
  *  reconcile walk happens to sit inside. */
-class EnvRestore {
+class Restore {
  public:
-  explicit EnvRestore(const EnvSnapshot& snapshot);
-  ~EnvRestore();
-  EnvRestore(const EnvRestore&) = delete;
-  EnvRestore& operator=(const EnvRestore&) = delete;
+  explicit Restore(const Snapshot& snapshot);
+  ~Restore();
+  Restore(const Restore&) = delete;
+  Restore& operator=(const Restore&) = delete;
 
  private:
-  EnvSnapshot m_saved;
+  Snapshot m_saved;
 };
 
-template <class T>
-const void* envTypeTag() {
-  static const char tag = 0;
-  return &tag;
-}
-
-}  // namespace detail
+}  // namespace env
 
 namespace env {
 
@@ -126,7 +158,7 @@ class Provide {
                   "an inherited value is a value");
     auto held = std::make_shared<const T>(std::move(value));
     m_self = held.get();
-    detail::envStack().push_back(detail::EnvEntry{
+    detail::envStack().push_back(Entry{
         detail::envTypeTag<T>(), std::shared_ptr<const void>(std::move(held)),
         [](const void* a, const void* b) {
           return *static_cast<const T*>(a) == *static_cast<const T*>(b);
@@ -137,10 +169,14 @@ class Provide {
    *  of LIFO order is misuse; when it happens, the destructor locates its
    *  own entry by the held value's identity and removes exactly that one
    *  — an unconditional pop would unbind a SIBLING that is still alive.
-   *  The misuse warns; the well-nested path stays a compare and a
+   *  The misuse warns, unconditionally and with no switch: a scope
+   *  unbound out of order leaves the stack holding a binding nobody can
+   *  name, so the one line it prints is the only sign a sweep gets that
+   *  the process is wrong; a run that prints nothing is a run where the
+   *  scopes nested. The well-nested path stays a compare and a
    *  pop_back, allocation-free. */
   ~Provide() {
-    detail::EnvSnapshot& stack = detail::envStack();
+    Snapshot& stack = detail::envStack();
     if (stack.size() == m_depth && stack.back().value.get() == m_self) {
       stack.pop_back();
       return;
@@ -169,8 +205,8 @@ class Provide {
  *  read it). */
 template <class T>
 const T* inherited() {
-  const detail::EnvSnapshot& stack = detail::envStack();
-  const void* tag = detail::envTypeTag<T>();
+  const Snapshot& stack = detail::envStack();
+  const std::uint64_t tag = detail::envTypeTag<T>();
   for (size_t i = stack.size(); i-- > 0;)
     if (stack[i].type == tag)
       return static_cast<const T*>(stack[i].value.get());
@@ -182,7 +218,7 @@ const T* inherited() {
 template <class T>
 T inheritedOr(const T& fallback) {
   const T* found = inherited<T>();
-  return found ? *found : std::move(fallback);
+  return found ? *found : fallback;
 }
 
 /** Is a binding of `T` in scope? For a component that must behave

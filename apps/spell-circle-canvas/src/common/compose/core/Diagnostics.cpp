@@ -1,23 +1,17 @@
 /** @file
- * The corner-scan diagnostics: what the library says, once, when a corner
- * treatment finds no corners on a shape that plainly has vertices.
+ * What the library says, once, when a declaration resolves to nothing: a
+ * corner treatment that finds no corners on a shape that plainly has
+ * vertices, a writing mode a path run cannot honour, a paragraph style
+ * name no set in scope carries.
  */
 
-#include <include/core/SkContourMeasure.h>
-#include <include/core/SkImageFilter.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathUtils.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkTypes.h>  // SkDebugf — the slot-rename diagnostic
-#include <include/effects/SkImageFilters.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <include/pathops/SkPathOps.h>
+#include <include/core/SkTypes.h>  // SkDebugf
 
-#include <algorithm>
-#include <cmath>   // std::isfinite — the profileOffset non-finite guard
-#include <cstdio>  // std::snprintf — variationDrive's effect key
-#include <set>
+#include <boost/unordered/unordered_flat_set.hpp>
+#include <cmath>  // std::lround, on the angle a diagnostic reports
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include "ComposeInternal.h"
 #include "sigilgeometry/path/Contour.h"
@@ -44,7 +38,7 @@ void warnNoCornersFound(float sharpestDeg, float angleDeg) {
   // frame forever — a diagnostic that floods is a diagnostic people turn
   // off. Capped so a procedurally varied scene cannot grow it without
   // bound.
-  static std::vector<int> seen;
+  static thread_local std::vector<int> seen;
   const int key = (int)std::lround(sharpestDeg);
   for (int k : seen)
     if (k == key) return;
@@ -91,10 +85,25 @@ void warnWritingModeOnPath() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  std::fprintf(stderr,
-               "SigilCompose: onPath() and writingMode() on one text leaf — "
-               "a path run's baseline IS its geometry and has no columns to "
-               "advance, so the path stands and the writing mode is dropped\n");
+  SkDebugf(
+      "compose: onPath() and writingMode() on one text leaf — a path run's "
+      "baseline IS its geometry and has no columns to advance, so the path "
+      "stands and the writing mode is dropped\n");
+}
+
+void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope) {
+  // Once per distinct name: a description re-runs every frame and a name
+  // that is wrong is wrong every time.
+  static thread_local boost::unordered_flat_set<std::string> seen;
+  if (!seen.insert(std::string(name)).second) return;
+  SkDebugf(
+      "compose: paragraphs(\"%.*s\") — %s, so this block is set in a plain "
+      "default. Register it with ParagraphStyleSet::set() and provide the "
+      "set above this element (env::Provide<weave::ParagraphStyleSet>), or "
+      "pass the style itself.\n",
+      (int)name.size(), name.data(),
+      anySetInScope ? "the paragraph style set in scope carries no such name"
+                    : "no paragraph style set is in scope");
 }
 
 }  // namespace detail

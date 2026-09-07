@@ -102,5 +102,3 @@ void BM_Combine(benchmark::State& state) {
 BENCHMARK(BM_Combine);
 
 }  // namespace
-
-BENCHMARK_MAIN();

@@ -68,5 +68,3 @@ void BM_FaceCamera(benchmark::State& state) {
 BENCHMARK(BM_FaceCamera)->Unit(benchmark::kNanosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

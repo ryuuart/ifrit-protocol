@@ -213,8 +213,8 @@ constexpr double kFitMarginPoints = 20.0;
 }
 
 // The inset setters are auto-synthesized and deliberately passive: insets
-// participate in the next fit (see the header) but never trigger one — a
-// pane reveal updating them must not move the canvas.
+// participate in the next fit but never trigger one — a pane reveal
+// updating them must not move the canvas.
 
 // ── Transform ─────────────────────────────────────────────────────────────
 

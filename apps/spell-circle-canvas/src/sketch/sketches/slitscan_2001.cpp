@@ -198,25 +198,34 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <shared/Instrument.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Legibility.h>
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/TextFx.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/kit/Specimen.h>
+#include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/stats/Fit.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
-#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -225,9 +234,18 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace measure = sigil::measure;
+namespace patterns = sigil::material::pattern;
+namespace arrange = sigil::geometry::arrange;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
+using sigil::material::skia::Effect;
+using sigil::material::skia::Paint;
+using sigil::material::skia::toColor;
 namespace ch = choreograph;
 
 namespace slit {
@@ -330,61 +348,22 @@ constexpr float kPanelStripW = 432;  // 144 in at 3.0 px/in, exact
 // ---------------------------------------------------------------------------
 // Type
 
-sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  return sigil::compose::pickFace({family}, style);
-}
-sk_sp<SkTypeface> uiFace() {
-  static sk_sp<SkTypeface> f = face("Helvetica Neue", SkFontStyle::Normal());
-  return f;
-}
-sk_sp<SkTypeface> uiBoldFace() {
-  static sk_sp<SkTypeface> f = face("Helvetica Neue", SkFontStyle::Bold());
-  return f;
-}
-sk_sp<SkTypeface> monoFace() {
-  static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Normal());
-  return f;
-}
-sk_sp<SkTypeface> monoBoldFace() {
-  static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Bold());
-  return f;
-}
+using instrument::faced;
+using instrument::mono;
+using instrument::monoB;
+using instrument::monoBoldFace;
+using instrument::monoFace;
+using instrument::t;
+using instrument::ui;
+using instrument::uiB;
+using instrument::uiBoldFace;
+using instrument::uiFace;
 
-sigil::weave::TextStyle type(sk_sp<SkTypeface> tf, float size, SkColor4f color,
-                             float track = 0.0f) {
-  return sigil::compose::type(
-      {.face = std::move(tf), .size = size, .color = color, .track = track});
-}
-sigil::weave::TextStyle ui(float s, SkColor4f c, float tr = 0) {
-  return type(uiFace(), s, c, tr);
-}
-sigil::weave::TextStyle uiB(float s, SkColor4f c, float tr = 0) {
-  return type(uiBoldFace(), s, c, tr);
-}
-sigil::weave::TextStyle mono(float s, SkColor4f c, float tr = 0) {
-  return type(monoFace(), s, c, tr);
-}
-sigil::weave::TextStyle monoB(float s, SkColor4f c, float tr = 0) {
-  return type(monoBoldFace(), s, c, tr);
-}
 /** The quotation register: condensed 0.94 with 0.4 of tracking. */
-sigil::weave::TextStyle quo(float s, SkColor4f c) {
-  sigil::weave::TextStyle st = type(uiFace(), s, c, 0.4f);
+weave::TextStyle quo(float s, SkColor4f c) {
+  weave::TextStyle st = faced(uiFace(), s, c, 0.4f);
   st.condense(0.94f);
   return st;
-}
-
-Element t(const std::string& s, sigil::weave::TextStyle st) {
-  return text(toU8(s), std::move(st));
-}
-
-std::string fmt(const char* f, ...) {
-  char buf[640];
-  va_list ap;
-  va_start(ap, f);
-  std::vsnprintf(buf, sizeof buf, f, ap);
-  va_end(ap);
-  return std::string(buf);
 }
 
 Element rule(float w, SkColor4f c, float h = 1.0f) {
@@ -400,8 +379,7 @@ Element rule(float w, SkColor4f c, float h = 1.0f) {
 // Mode::Live instancing leaf.
 
 sk_sp<SkRuntimeEffect> transferCurve() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    const char* src = R"(
+  const char* src = R"(
 uniform shader content;
 uniform float k;
 half4 main(float2 xy) {
@@ -415,11 +393,9 @@ half4 main(float2 xy) {
   return half4(half3(d), half(da));
 }
 )";
-    auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
-    if (!e) std::fprintf(stderr, "[slitscan] transfer sksl: %s\n", err.c_str());
-    return e;
-  }();
-  return fx;
+  auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
+  if (!e) std::fprintf(stderr, "[slitscan] transfer sksl: %s\n", err.c_str());
+  return e;
 }
 
 // ---------------------------------------------------------------------------
@@ -498,8 +474,8 @@ Element artOpArt() {
                 .width(340)
                 .height(340)
                 .shape(shapes::circle())
-                .foreground(lines::concentric(Fill::color(kWhite),
-                                              9 + (i % 5) * 4, 6.0f)));
+                .foreground(lines::presets::concentric(Fill::color(kWhite),
+                                                       9 + (i % 5) * 4, 6.0f)));
   }
   return g;
 }
@@ -509,7 +485,7 @@ Element artOpArt() {
 Element artArch() {
   Element g = box().width(Dim(kCellW)).height(Dim(kCellH));
   g.child(box().inset(0).foreground(
-      lines::hatch(Fill::color(kWhite), 9.0f, 2.6f, 58.0f)));
+      lines::presets::hatch(Fill::color(kWhite), 9.0f, 2.6f, 58.0f)));
   for (int i = 0; i < 8; ++i) {
     const float x = 20.0f + (float)i * 182.0f;
     g.child(box()
@@ -661,6 +637,11 @@ struct SlitScan2001 : sketch::Sketch {
   double tau = 0.0, elapsed = 0.0;
 
   // ---- the machine -------------------------------------------------------
+  /** THE TRANSFER CURVE, COMPILED ONCE AND HELD. describe() runs again on
+   *  every shot cut, and a program compiled inside it is a compile per
+   *  cut; a function-local static would be worse still, since it outlives
+   *  the dylib a hot-reloaded sketch is unloaded with. */
+  sk_sp<SkRuntimeEffect> transfer;
   std::shared_ptr<instancing::Atlas> atlas, flatAtlas;
   std::shared_ptr<instancing::Pool> wallA, wallB, monA, monB;
   std::array<std::shared_ptr<instancing::Pool>, 6> s4;
@@ -679,12 +660,14 @@ struct SlitScan2001 : sketch::Sketch {
   float rtMaxErr = -1, rtCorr = 0, rtMismatch = 0;
   int rtCols = 0;
   int sheetW = 0, sheetH = 0;
-  double bakeMs = 0, measMs = 0, rtMs = 0;
+  /** The bake's cost, pinned through `ctx.measured` at setup: a plate is
+   *  a function of the declaration, and a number the sketch measured
+   *  about its own execution is not. */
+  double bakeMs = 0;
   // Set from the host's --deterministic flag: suppress any number this
   // study timed about its own execution, so two headless renders of the
   // same code are byte-identical. Left in, a wall-clock digit changes the
   // plate by itself and a pixel comparison blames the code under test.
-  bool deterministic_ = false;
 
   struct Shot {
     const char* name;
@@ -863,8 +846,8 @@ struct SlitScan2001 : sketch::Sketch {
         std::array<int, 120> bin{};
         for (int i = 0; i < 120; ++i) {
           const float u = u0 * std::pow(u1 / u0, (float)i / 119.0f);
-          const float v =
-              lumAt(c.fX + std::cos(ang) * u, c.fY + std::sin(ang) * u);
+          const SkPoint at = arrange::onEllipse(c, {u, u}, ang);
+          const float v = lumAt(at.fX, at.fY);
           bin[(size_t)i] = -1;
           if (v > 1e-6f) {
             bin[(size_t)i] = (int)lx.size();
@@ -874,36 +857,25 @@ struct SlitScan2001 : sketch::Sketch {
         }
         if (lx.size() < 40) continue;
         const size_t n = lx.size();
-        double mx = 0, my = 0;
-        for (size_t i = 0; i < n; ++i) {
-          mx += lx[i];
-          my += ly[i];
-        }
-        mx /= (double)n;
-        my /= (double)n;
-        double sxy = 0, sxx = 0, syy = 0;
-        for (size_t i = 0; i < n; ++i) {
-          sxy += (lx[i] - mx) * (ly[i] - my);
-          sxx += (lx[i] - mx) * (lx[i] - mx);
-          syy += (ly[i] - my) * (ly[i] - my);
-        }
-        const double slope = sxx > 0 ? sxy / sxx : 0;
-        const double inter = my - slope * mx;
-        double ss = 0;
-        for (size_t i = 0; i < n; ++i) {
-          const double e = ly[i] - (slope * lx[i] + inter);
-          ss += e * e;
-          resid.push_back((float)std::fabs(std::exp(e) - 1.0));
-        }
+        // log v against log u: the exponent this ray falls off with is the
+        // slope, and the fit reports the residuals that say whether the
+        // exponent is worth quoting. Fitted in DOUBLE because the exponent
+        // IS the finding here rather than a number a drawing rides on.
+        const measure::LineFit<double> fit = measure::lineFit<double>(lx, ly);
+        // A residual in the exponent is unreadable; the same distance as a
+        // FRACTION of the measured luminance is the reading the card wants.
+        for (size_t i = 0; i < n; ++i)
+          resid.push_back(
+              (float)std::fabs(std::exp(fit.residual(lx[i], ly[i])) - 1.0));
         // Keep the profile itself, each ray levelled by its own intercept,
         // so the plot shows MEASURED samples rather than a replay of the fit.
         for (int i = 0; i < 120; ++i)
           if (bin[(size_t)i] >= 0) {
-            out.sum[(size_t)i] += ly[(size_t)bin[(size_t)i]] - inter;
+            out.sum[(size_t)i] += ly[(size_t)bin[(size_t)i]] - fit.intercept;
             out.cnt[(size_t)i] += 1;
           }
-        sp += -slope;
-        sr2 += syy > 0 ? 1.0 - ss / syy : 0.0;
+        sp += -fit.slope;
+        sr2 += fit.r2;
         ++out.rays;
         out.pts += (int)n;
       }
@@ -919,7 +891,6 @@ struct SlitScan2001 : sketch::Sketch {
   }
 
   void measureExposure(sigil::weave::FontContext& fonts) {
-    const double t0 = (double)std::clock() / CLOCKS_PER_SEC;
     const Fit big = fitAtK(fonts, slit::kKDisplay);
     const Fit small = fitAtK(fonts, slit::kK);
     fitP = big.p;
@@ -952,7 +923,6 @@ struct SlitScan2001 : sketch::Sketch {
       profY[(size_t)profN] = (float)((anchor - le) / span);
       ++profN;
     }
-    measMs = ((double)std::clock() / CLOCKS_PER_SEC - t0) * 1000.0;
   }
 
   // ==================================================================== 12-E
@@ -967,7 +937,6 @@ struct SlitScan2001 : sketch::Sketch {
   // this one it measures TRANSPORT, which is the claim under test.
   void roundTrip(sigil::weave::FontContext& fonts) {
     using namespace slit;
-    const double t0 = (double)std::clock() / CLOCKS_PER_SEC;
     const Strip& S = strips[0];
     if (!S.image || S.lum.empty()) return;
     constexpr int kFrames = 96;
@@ -978,7 +947,7 @@ struct SlitScan2001 : sketch::Sketch {
 
     auto one = std::make_shared<instancing::Atlas>(1.0f);
     one->filter(SkFilterMode::kNearest);
-    one->cell(box().fill(Material::image(
+    one->cell(box().fill(Paint::image(
                   S.image, SkTileMode::kClamp, SkTileMode::kClamp,
                   SkMatrix::Scale(kCellW / (float)S.w, kCellH / (float)S.h),
                   SkSamplingOptions())),
@@ -1046,7 +1015,6 @@ struct SlitScan2001 : sketch::Sketch {
     rtCorr = (cgg > 0 && cww > 0) ? (float)(cgw / std::sqrt(cgg * cww)) : 0.0f;
     rtMismatch = (float)bad / (float)n;
     rtCols = kFrames * cw;
-    rtMs = ((double)std::clock() / CLOCKS_PER_SEC - t0) * 1000.0;
   }
 
   // =====================================================================
@@ -1097,7 +1065,7 @@ struct SlitScan2001 : sketch::Sketch {
                                        SkBlendMode::kPlus));
     };
     Element accumulation =
-        raw().effect(Effect::shader(transferCurve(), {{"k", transferK()}}));
+        raw().effect(Effect::shader(transfer, {{"k", transferK()}}));
     // THE CORE. Where the two planes converge the camera is looking
     // straight down the corridor, and every stamp in both exposures has
     // been laid on top of every other: on the Star Gate frame the
@@ -1123,21 +1091,20 @@ struct SlitScan2001 : sketch::Sketch {
             // full-canvas kPlus radial re-evaluated per frame costs this
             // scene more than the two exposures do.
             .cache(Cache::Texture)
-            .fill(Material::glowUnit({0.5f, 0.5f}, 0.5f,
-                                     {{0.00f, {1.0f, 0.98f, 0.92f, 0.92f}},
-                                      {0.12f, {1.0f, 0.94f, 0.80f, 0.42f}},
-                                      {0.42f, {0.90f, 0.80f, 0.60f, 0.10f}},
-                                      {1.00f, {0.6f, 0.5f, 0.4f, 0.0f}}}))
+            .fill(Paint::glowUnit({0.5f, 0.5f}, 0.5f,
+                                  {{0.00f, {1.0f, 0.98f, 0.92f, 0.92f}},
+                                   {0.12f, {1.0f, 0.94f, 0.80f, 0.42f}},
+                                   {0.42f, {0.90f, 0.80f, 0.60f, 0.10f}},
+                                   {1.00f, {0.6f, 0.5f, 0.4f, 0.0f}}}))
             .blend(SkBlendMode::kPlus);
     // HALATION. Film's own bloom: light scattering back off the base. The
     // SAME two pools read a second time, tone-curved softer, blurred and
     // added -- so it is still the accumulation, not a painted glow.
     Element halation =
         raw()
-            .effect(
-                Effect::shader(transferCurve(), {{"k", transferK() * 0.55f}})
-                    .then(Effect::filter(
-                        SkImageFilters::Blur(9.0f, 9.0f, nullptr))))
+            .effect(Effect::shader(transfer, {{"k", transferK() * 0.55f}})
+                        .then(Effect::filter(
+                            SkImageFilters::Blur(9.0f, 9.0f, nullptr))))
             .blend(SkBlendMode::kPlus)
             .opacity(0.55f);
 
@@ -1178,9 +1145,10 @@ struct SlitScan2001 : sketch::Sketch {
                    .fill(al(kCold, 0.4f))
                    .mask(by::edge(0.0f, bind(&frameAlpha))))
         .child(hud(s.name, 10, 10, -1, -1, al(kCold, 0.75f)))
-        .child(hud(fmt("FRAME %06lld · 24 fps · %d STAMPS/WALL · kPLUS", filmNo,
-                       kKDisplay),
-                   -1, 10, 10, -1, al(kTick, 0.9f)))
+        .child(
+            hud(kit::formatted("FRAME %06lld · 24 fps · %d STAMPS/WALL · kPLUS",
+                               filmNo, kKDisplay),
+                -1, 10, 10, -1, al(kTick, 0.9f)))
         // The footer is ONE bottom-anchored column, not four absolute rows.
         // Two of these lines are long enough to wrap at this measure, and a
         // row placed by its own bottom offset grows upward into the row above
@@ -1195,7 +1163,8 @@ struct SlitScan2001 : sketch::Sketch {
                    .child(box()
                               .row()
                               .justify(Justify::SpaceBetween)
-                              .child(t(fmt("MACHINE TIME %lld h %02lld m  @ "
+                              .child(t(kit::formatted(
+                                           "MACHINE TIME %lld h %02lld m  @ "
                                            "2880 : 1%s",
                                            mh, mm, everClamped ? "  *" : ""),
                                        mono(8, al(kTick, 0.95f), 0.6f)))
@@ -1225,6 +1194,10 @@ struct SlitScan2001 : sketch::Sketch {
         .height(Dim(kRigH))
         .shrink(0)
         .key("rig")
+        // BOTH PROGRAMS BELOW ARE KEYLESS ON PURPOSE. They read the
+        // carriage's live position and the artwork's live offset as they
+        // paint, at Cache::None, so their picture is different every
+        // frame; a key would name one drawing and replay it.
         .child(custom([this](SkCanvas& c, const PaintContext& p) {
                  drawRig(c, p);
                })
@@ -1262,8 +1235,7 @@ struct SlitScan2001 : sketch::Sketch {
                               .child(instancing::instances(
                                   atlas, monB, instancing::Mode::Live,
                                   SkBlendMode::kPlus))
-                              .effect(Effect::shader(transferCurve(),
-                                                     {{"k", 2.4f}})))
+                              .effect(Effect::shader(transfer, {{"k", 2.4f}})))
                    .child(t("THIS EXPOSURE", mono(8, al(kCold, 0.85f), 1.4f))
                               .left(Dim(8))
                               .top(Dim(5)))
@@ -1281,7 +1253,7 @@ struct SlitScan2001 : sketch::Sketch {
    *  otherwise squash a text leaf below its measured height and the run
    *  silently overlaps its neighbour. This is the height-axis form of the
    *  same rule that lets a fixed width() flex child still shrink. */
-  Element pl(const std::string& str, sigil::weave::TextStyle st) {
+  Element pl(const std::string& str, weave::TextStyle st) {
     return slit::t(str, std::move(st)).shrink(0);
   }
 
@@ -1297,7 +1269,7 @@ struct SlitScan2001 : sketch::Sketch {
         .fill(kPanelBg)
         .stroke(stroke(1.0f, Fill::color(kRule)))
         .clip()
-        .key(fmt("panel%d", order))
+        .key(kit::formatted("panel%d", order))
         .opacity(animate(from(0.0f).to(1.0f), {300ms, ch::easeOutQuad}))
         .translateX(animate(from(14.0f).to(0.0f), {300ms, ch::easeOutQuad}))
         .child(pl(heading, ui(9.5f, kType2, 2.2f)))
@@ -1426,19 +1398,19 @@ struct SlitScan2001 : sketch::Sketch {
       row.child(pl(rowName[r], mono(7.0f, kType2)).width(80));
       for (int k = 0; k < 3; ++k) {
         const int idx = r * 3 + k;
-        row.child(box()
-                      .width(98)
-                      .height(18)
-                      .shrink(0)
-                      .fill(kBlack)
-                      .clip()
-                      .key(fmt("s4_%d", idx))
-                      .scaleX(animate(from(0.0f).to(1.0f),
-                                      {220ms, ease::outBack(1.70158f)}))
-                      .transformOrigin(0.0f, 0.5f)
-                      .child(instancing::instances(flatAtlas, s4[(size_t)idx],
-                                                   instancing::Mode::Data,
-                                                   SkBlendMode::kPlus)));
+        row.child(
+            box()
+                .width(98)
+                .height(18)
+                .shrink(0)
+                .fill(kBlack)
+                .clip()
+                .key(kit::formatted("s4_%d", idx))
+                .scaleX(animate(from(0.0f).to(1.0f), {220ms, ease::outBack()}))
+                .transformOrigin(0.0f, 0.5f)
+                .child(instancing::instances(flatAtlas, s4[(size_t)idx],
+                                             instancing::Mode::Data,
+                                             SkBlendMode::kPlus)));
       }
       p.child(row.shrink(0));
     }
@@ -1502,29 +1474,34 @@ struct SlitScan2001 : sketch::Sketch {
         .column()
         .gap(2)
         .width(Dim(262))
-        .child(box()
-                   .row()
-                   .gap(12)
-                   .child(t(fmt("z = %06.2f in", z), monoB(9, kAmber)))
-                   .child(t(fmt("m = ×%0.3f", kZ0In / std::max(z, 1e-3f)),
-                            mono(9, kType2))))
-        .child(box()
-                   .row()
-                   .gap(12)
-                   .child(t(fmt("stamp %04d / %d", stampIdx, kKDisplay),
-                            mono(9, kType2)))
-                   .child(t(fmt("ω = %0.4f", omega), mono(9, al(kCold, 0.9f)))))
-        .child(t(fmt("ONE ATLAS · %d×%d SHEET · ONE BAKE %.0f ms · "
-                     "texWindows()",
-                     sheetW, sheetH, deterministic_ ? 0.0 : bakeMs),
+        .child(
+            box()
+                .row()
+                .gap(12)
+                .child(t(kit::formatted("z = %06.2f in", z), monoB(9, kAmber)))
+                .child(
+                    t(kit::formatted("m = ×%0.3f", kZ0In / std::max(z, 1e-3f)),
+                      mono(9, kType2))))
+        .child(
+            box()
+                .row()
+                .gap(12)
+                .child(t(kit::formatted("stamp %04d / %d", stampIdx, kKDisplay),
+                         mono(9, kType2)))
+                .child(t(kit::formatted("ω = %0.4f", omega),
+                         mono(9, al(kCold, 0.9f)))))
+        .child(t(kit::formatted("ONE ATLAS · %d×%d SHEET · ONE BAKE %.0f ms · "
+                                "texWindows()",
+                                sheetW, sheetH, bakeMs),
                  mono(6.8f, kTick)));
   }
   Element expoEl() {
     using namespace slit;
-    return t(fmt("SWEEP %3d%%  ·  z %06.2f in  ·  %d / %d STAMPS LAID",
-                 (int)(tau * 100.0), kZ0In * std::pow(kR, -(float)tau),
-                 (int)(tau * (double)kK), kK),
-             mono(7.2f, al(kCold, 0.8f)));
+    return t(
+        kit::formatted("SWEEP %3d%%  ·  z %06.2f in  ·  %d / %d STAMPS LAID",
+                       (int)(tau * 100.0), kZ0In * std::pow(kR, -(float)tau),
+                       (int)(tau * (double)kK), kK),
+        mono(7.2f, al(kCold, 0.8f)));
   }
   Element fitEl() {
     using namespace slit;
@@ -1534,10 +1511,12 @@ struct SlitScan2001 : sketch::Sketch {
     return box()
         .column()
         .gap(1)
-        .child(t(fmt("FIT  E(u) = C / u^p     p = %0.4f     R² = %0.5f", fitP,
-                     fitR2),
-                 monoB(8.2f, al(kCold, 0.95f))))
-        .child(t(fmt("RESIDUAL u ∈ [8, 520] px  p95 %0.2f%%  max %0.2f%%  "
+        .child(
+            t(kit::formatted("FIT  E(u) = C / u^p     p = %0.4f     R² = %0.5f",
+                             fitP, fitR2),
+              monoB(8.2f, al(kCold, 0.95f))))
+        .child(t(kit::formatted(
+                     "RESIDUAL u ∈ [8, 520] px  p95 %0.2f%%  max %0.2f%%  "
                      "(%d rays, %d pts)",
                      fitP95 * 100.0f, fitResid * 100.0f, fitRays, fitPts),
                  mono(7.2f, kType2)));
@@ -1547,11 +1526,13 @@ struct SlitScan2001 : sketch::Sketch {
     return box()
         .column()
         .gap(1)
-        .child(t(fmt("AND K_min REMOVES GAPS, NOT RIPPLE: AT K = 406 THE "
-                     "MEASURED MAX RESIDUAL IS %0.0f%%,",
-                     fitResidMin * 100.0f),
-                 mono(7.0f, al(kCold, 0.85f))))
-        .child(t(fmt("AT 4× IT IS %0.0f%% — AND p MOVES ONLY %0.4f → %0.4f. "
+        .child(t(
+            kit::formatted("AND K_min REMOVES GAPS, NOT RIPPLE: AT K = 406 THE "
+                           "MEASURED MAX RESIDUAL IS %0.0f%%,",
+                           fitResidMin * 100.0f),
+            mono(7.0f, al(kCold, 0.85f))))
+        .child(t(kit::formatted(
+                     "AT 4× IT IS %0.0f%% — AND p MOVES ONLY %0.4f → %0.4f. "
                      "THE LAW SURVIVES ITS OWN QUANTISATION.",
                      fitResid * 100.0f, fitPMin, fitP),
                  mono(7.0f, al(kCold, 0.85f))));
@@ -1614,7 +1595,7 @@ void SlitScan2001::drawRig(SkCanvas& c, const PaintContext& ctx) {
   c.drawPath(benchPath, p);
   decorations::paintOn(
       c, ctx, benchPath,
-      lines::hatch(Fill::color(al(kAmber, 0.20f)), 6.0f, 1.0f, 45.0f));
+      lines::presets::hatch(Fill::color(al(kAmber, 0.20f)), 6.0f, 1.0f, 45.0f));
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(1.0f);
   p.setColor4f(al(kAmber, 0.55f));
@@ -1688,7 +1669,7 @@ void SlitScan2001::drawRig(SkCanvas& c, const PaintContext& ctx) {
       q.setColor4f(al(kAmber, a2));
       c.drawLine(x, trackY - 8, x, trackY - 2, q);
       qt.setColor4f(al(kAmber, a2));
-      const std::string lab = fmt("%.4g", zz);
+      const std::string lab = kit::formatted("%.4g", zz);
       const float tw =
           f7.measureText(lab.c_str(), lab.size(), SkTextEncoding::kUTF8);
       const float left = x - tw * 0.5f;
@@ -1880,8 +1861,9 @@ void SlitScan2001::drawArtworkPanel(SkCanvas& c, const PaintContext& ctx) {
   lb.moveTo(sx, top + ph + 8);
   lb.lineTo(sx, top + ph + 16);
   lb.lineTo(-38, top + ph + 16);
-  decorations::paintOn(c, ctx, lb.detach(),
-                       lines::cased(1.2f, Fill::color(al(kCold, 0.5f)), 3.0f));
+  decorations::paintOn(
+      c, ctx, lb.detach(),
+      lines::presets::cased(1.2f, Fill::color(al(kCold, 0.5f)), 3.0f));
 
   SkFont f76(monoFace(), 7.6f);
   SkPaint tp;
@@ -1908,11 +1890,12 @@ void SlitScan2001::drawArtworkPanel(SkCanvas& c, const PaintContext& ctx) {
   c.drawString("NOT CHOSEN: MORE WOULD GAP, LESS WOULD REPEAT.", 0,
                top + ph + 66, f76, tp);
   tp.setColor4f(al(kCold, 0.8f));
-  c.drawString(fmt("ROUND TRIP OVER 96 FRAMES: %d COLUMNS BACK, r = %0.5f, "
-                   "%0.3f%% OF PIXELS WRONG",
-                   rtCols, rtCorr, rtMismatch * 100.0f)
-                   .c_str(),
-               0, top + ph + 84, f76, tp);
+  c.drawString(
+      kit::formatted("ROUND TRIP OVER 96 FRAMES: %d COLUMNS BACK, r = %0.5f, "
+                     "%0.3f%% OF PIXELS WRONG",
+                     rtCols, rtCorr, rtMismatch * 100.0f)
+          .c_str(),
+      0, top + ph + 84, f76, tp);
   if (s.cell == 2) {
     tp.setColor4f(kRed);
     c.drawString(
@@ -1955,22 +1938,22 @@ void SlitScan2001::drawMeasuredPoints(SkCanvas& c, const PaintContext& ctx) {
 // ===========================================================================
 
 void SlitScan2001::setup(sketch::SketchContext& ctx) {
-  deterministic_ = ctx.deterministic;
   using namespace slit;
-  ctx.canvas(kCanvasW, kCanvasH);
-  ctx.background(kInk);
   // tau lands on 0.60 here, which is the carriage two thirds down its
   // fourteen feet, mid-exposure — what the +0.60 phase offset is for.
-  ctx.captureAt(6.0);
+  sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
+                           .captureAt = 6.0,
+                           .background = kInk});
+  transfer = transferCurve();
 
   // ---- bake the artwork ONCE. These are static images made at setup and
   // never mutated afterwards, so they are plain baked SkImages; a live
   // pixel buffer would only be needed if something wrote into them later.
   const double b0 = (double)std::clock() / CLOCKS_PER_SEC;
-  gridPat = patterns::gridLines(37.0f, 23.0f, 2.0f, kWhite);
+  gridPat = patterns::gridLines(37.0f, 23.0f, 2.0f, toColor(kWhite));
   // patterns::speckle's tile IS the repeat, so it has to be large or the
   // speckle reads as a visibly repeating stamp.
-  spekPat = patterns::speckle(492.0f, 84, 5.0f, 21.0f, {kWhite});
+  spekPat = patterns::speckle(492.0f, 84, 5.0f, 21.0f, {toColor(kWhite)});
   if (ctx.fonts) {
     strips[0] =
         bakeStrip(artOpArt(), *ctx.fonts, (int)kCellW, (int)kCellH, 0.30f, -1);
@@ -1979,7 +1962,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
     strips[2] = bakeStrip(artCircuit(gridPat, spekPat), *ctx.fonts, (int)kCellW,
                           (int)kCellH, 0.42f, 903);
   }
-  bakeMs = ((double)std::clock() / CLOCKS_PER_SEC - b0) * 1000.0;
+  bakeMs = ctx.measured(((double)std::clock() / CLOCKS_PER_SEC - b0) * 1000.0);
 
   // ---- ONE atlas, THREE cells, ONE bake: one cell per artwork strip, and
   // nothing else. The crawl across a strip is addressed per stamp through
@@ -1988,7 +1971,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   atlas->filter(SkFilterMode::kNearest);  // 1-bit artwork
   for (int i = 0; i < 3; ++i) {
     const Strip& S = strips[(size_t)i];
-    atlas->cell(box().fill(Material::image(
+    atlas->cell(box().fill(Paint::image(
                     S.image, SkTileMode::kClamp, SkTileMode::kClamp,
                     SkMatrix::Scale(kCellW / (float)std::max(S.w, 1),
                                     kCellH / (float)std::max(S.h, 1)),
@@ -2035,17 +2018,6 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
     measureExposure(*ctx.fonts);
     roundTrip(*ctx.fonts);
   }
-  std::fprintf(
-      stderr,
-      "[slitscan] sheet %d x %d px, bake %.1f ms\n"
-      "[slitscan] 12-D  K=%d: p = %.4f  R2 = %.5f  p95 %.2f%%  max %.2f%%"
-      "   |  K=%d: p = %.4f  max %.2f%%   (%d rays, %d pts, %.0f ms)\n"
-      "[slitscan] 12-E  round trip: %d columns, corr %.6f, %.4f%% of pixels "
-      "wrong, max abs err %.3f (%.0f ms)\n",
-      sheetW, sheetH, bakeMs, slit::kKDisplay, fitP, fitR2, fitP95 * 100.0f,
-      fitResid * 100.0f, slit::kK, fitPMin, fitResidMin * 100.0f, fitRays,
-      fitPts, measMs, rtCols, rtCorr, rtMismatch * 100.0f, rtMaxErr, rtMs);
-
   // ---- THE FILM CLOCK. 24 Hz because the film runs at 24 fps. The
   // interpolant drives the shutter bar and the sub-frame readout and
   // NOTHING in the picture: a projector holds a frame for its whole 1/24 s
@@ -2071,10 +2043,10 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   });
 
   if (ctx.fonts) {
-    const SkSize a1 = measure(s1Quote(), *ctx.fonts, {kSideW, 4000});
-    const SkSize a2 = measure(s2Lens(), *ctx.fonts, {kSideW, 4000});
-    const SkSize a3 = measure(s3Law(), *ctx.fonts, {kSideW, 4000});
-    const SkSize a4 = measure(s4Sampling(), *ctx.fonts, {kSideW, 4000});
+    const SkSize a1 = intrinsicSize(s1Quote(), *ctx.fonts, {kSideW, 4000});
+    const SkSize a2 = intrinsicSize(s2Lens(), *ctx.fonts, {kSideW, 4000});
+    const SkSize a3 = intrinsicSize(s3Law(), *ctx.fonts, {kSideW, 4000});
+    const SkSize a4 = intrinsicSize(s4Sampling(), *ctx.fonts, {kSideW, 4000});
     // A layout self-check, because a flex column silently overlaps its
     // children rather than complaining when they do not fit.
     const float total = a1.height() + a2.height() + a3.height() + a4.height();

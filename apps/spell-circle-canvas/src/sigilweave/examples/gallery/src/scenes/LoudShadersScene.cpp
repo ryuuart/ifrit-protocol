@@ -1,8 +1,10 @@
 // Scene: extreme, "seen from across the room" SkSL shaders as glyph
 // foregrounds, alongside the brighter, twinkling sparkle overlay.
 #include <include/core/SkBlendMode.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmaterial/kit/TextPaint.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
-#include <sigilweave/shaders/PaintShaders.h>
 
 #include <algorithm>
 #include <array>
@@ -47,7 +49,7 @@ class LoudShadersPart final : public Scene {
       sparkleOverlay.setBlendMode(SkBlendMode::kScreen);
       m_paints[3].addOverlay(PaintLayer(std::move(sparkleOverlay)));
 
-      const kit::Stopwatch layoutTime;
+      const sigil::measure::Stopwatch layoutTime;
       const float top = 60.0f;
       const float rowHeight =
           std::max(80.0f, (static_cast<float>(size.height()) - top - 30.0f) /
@@ -64,7 +66,7 @@ class LoudShadersPart final : public Scene {
             {std::max(220.0f, static_cast<float>(size.width()) * 0.32f),
              top + rowHeight * (static_cast<float>(row) + 0.68f)});
       }
-      layoutMicroseconds = layoutTime.microseconds();
+      layoutMicroseconds = layoutTime.elapsedUs();
     });
 
     // Bound to the whole canvas so every row's shader shares one coordinate
@@ -73,12 +75,13 @@ class LoudShadersPart final : public Scene {
     const SkRect shaderBounds =
         SkRect::MakeWH(canvasWidth, static_cast<float>(size.height()));
     const float time = static_cast<float>(elapsedSeconds);
+    namespace kit = sigil::material::kit;
     m_paints[0].foreground.setShader(
-        PaintShaders::starNest(shaderBounds, time * 0.005));
-    m_paints[1].foreground.setShader(PaintShaders::clouds(shaderBounds, time));
-    m_paints[2].foreground.setShader(PaintShaders::tunnel(shaderBounds, time));
+        shade(kit::starNest(shaderBounds, time * 0.005)));
+    m_paints[1].foreground.setShader(shade(kit::clouds(shaderBounds, time)));
+    m_paints[2].foreground.setShader(shade(kit::tunnel(shaderBounds, time)));
     m_paints[3].overlays[0].paint.setShader(
-        PaintShaders::sparkle(shaderBounds, time));
+        shade(kit::sparkle(shaderBounds, time)));
 
     for (size_t row = 0; row < m_paragraphs.size(); ++row)
       m_paragraphs[row].setPaint(0, m_textLengths[row], m_paints[row]);
@@ -118,7 +121,8 @@ class LoudShadersPart final : public Scene {
   std::array<ParagraphLayout, 4> m_layouts;
   std::array<PaintStyle, 4> m_paints;
   std::array<uint32_t, 4> m_textLengths{};
-  kit::RebuildGuard<QString, const SkTypeface*, float, SkISize> m_rebuild;
+  sigil::core::RebuildGuard<QString, const SkTypeface*, float, SkISize>
+      m_rebuild;
   sk_sp<SkTypeface> m_serif;
 };
 

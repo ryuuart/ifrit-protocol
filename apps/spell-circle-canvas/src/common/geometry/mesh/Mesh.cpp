@@ -8,6 +8,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/gtc/matrix_inverse.hpp>
+#include <glm/mat3x3.hpp>
 #include <limits>
 
 #include "sigilgeometry/mesh/Vec.h"
@@ -89,7 +91,7 @@ void Mesh::append(const Mesh& other) {
     // `other` lane holding fewer entries than other.triangleCount()
     // leaves `mine` under newTris after the insert, and this resize
     // tops it up by name. (A too-LONG lane is truncated by the same
-    // call.) Verified by Mesh.AppendRepairsShortIncomingLanes.
+    // call.)
     for (auto& [name, lane] : prims) lane.resize(newTris, primDefault(name));
   }
   // Color lanes get the same coherence dance as normals and uvs below,
@@ -131,38 +133,30 @@ void Mesh::append(const Mesh& other) {
 
 void Mesh::transform(const glm::mat4& m) {
   for (glm::vec3& p : positions) p = glm::vec3(m * glm::vec4(p, 1));
-  // Normals move by the inverse transpose of the upper-left 3x3.
-  const float a00 = m[0][0], a01 = m[1][0], a02 = m[2][0];
-  const float a10 = m[0][1], a11 = m[1][1], a12 = m[2][1];
-  const float a20 = m[0][2], a21 = m[1][2], a22 = m[2][2];
-  const float det = a00 * (a11 * a22 - a12 * a21) -
-                    a01 * (a10 * a22 - a12 * a20) +
-                    a02 * (a10 * a21 - a11 * a20);
-  if (std::abs(det) < 1e-12f) return;
-  const float inv = 1.0f / det;
-  // inverse transpose, spelled directly from the adjugate
-  const float n00 = (a11 * a22 - a12 * a21) * inv;
-  const float n01 = (a12 * a20 - a10 * a22) * inv;
-  const float n02 = (a10 * a21 - a11 * a20) * inv;
-  const float n10 = (a02 * a21 - a01 * a22) * inv;
-  const float n11 = (a00 * a22 - a02 * a20) * inv;
-  const float n12 = (a01 * a20 - a00 * a21) * inv;
-  const float n20 = (a01 * a12 - a02 * a11) * inv;
-  const float n21 = (a02 * a10 - a00 * a12) * inv;
-  const float n22 = (a00 * a11 - a01 * a10) * inv;
-  // n00..n22 is row-major, so each component dots a ROW; dotting
-  // columns would apply the plain inverse and rotate normals backwards.
-  for (glm::vec3& n : normals) {
-    n = normalized(
-        {n00 * n.x + n01 * n.y + n02 * n.z, n10 * n.x + n11 * n.y + n12 * n.z,
-         n20 * n.x + n21 * n.y + n22 * n.z},
-        n);
-  }
+  // Normals move by the inverse transpose of the upper-left 3x3 — a
+  // non-uniform scale tilts a surface and its normal the opposite way,
+  // so the plain matrix would leave every normal off the surface it
+  // describes.
+  const glm::mat3 basis(m);
+  // The determinant is tested before the inverse is taken: glm's ends
+  // with an unguarded divide by it, so a placement that collapsed an
+  // axis would come back as infinities. A basis with no volume has no
+  // normal transform, and leaving the normals alone is the answer.
+  if (std::abs(glm::determinant(basis)) < 1e-12f) return;
+  const glm::mat3 normalTransform = glm::inverseTranspose(basis);
+  for (glm::vec3& n : normals) n = normalized(normalTransform * n, n);
 }
 
 void Mesh::computeNormals() {
   normals.assign(positions.size(), {0, 0, 0});
+  const uint32_t count = (uint32_t)positions.size();
   for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+    // A triangle naming a vertex this mesh does not have is skipped
+    // rather than accumulated: the index arrives from whatever built the
+    // mesh, an importer included, and the accumulation below is a WRITE.
+    if (indices[i] >= count || indices[i + 1] >= count ||
+        indices[i + 2] >= count)
+      continue;
     const glm::vec3& p0 = positions[indices[i]];
     const glm::vec3& p1 = positions[indices[i + 1]];
     const glm::vec3& p2 = positions[indices[i + 2]];

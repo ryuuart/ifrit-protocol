@@ -2,9 +2,11 @@
 
 /** @file
  * What the GPU executor holds between one pass and the next: the frame's
- * resources as device textures, the meshes uploaded from the extracted
- * view, the pipelines built from compiled programs, and the one buffer
- * every draw's uniforms are written into.
+ * resources as device textures, the pipelines built from compiled
+ * programs, and the device's own shared resources and residencies — the
+ * uniform buffer every draw is written into, and the meshes and maps a
+ * view names, which the device feature puts there and this one only asks
+ * for.
  *
  * Diligent's types appear here and in this feature's sources alone; the
  * public header names none of them.
@@ -14,43 +16,64 @@
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/PipelineState.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
-#include <Graphics/GraphicsEngine/interface/Sampler.h>
 #include <Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
 #include <Graphics/GraphicsEngine/interface/Texture.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilworld/diligent/Device.h>
 #include <sigilworld/frame/Pass.h>
 #include <sigilworld/frame/Targets.h>
 #include <sigilworld/frame/View.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
+#include <boost/container/map.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <glm/mat4x4.hpp>
-#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
-#include "Compile.h"
+#include "Meshes.h"
+#include "Pipelines.h"
+#include "Programs.h"
+#include "Resources.h"
+#include "Textures.h"
 
 namespace sigil::world::diligent {
 
+/** How many emitters one draw carries: the array every program here
+ *  declares, the same number for the scaffold and the mesh painter, so a
+ *  mesh drawn through the painter and the same mesh drawn as a body are
+ *  lit by the same emitters and the host tier honours the same count. A
+ *  description naming more is drawn with the first eight. */
+constexpr size_t kLights = 8;
+
+// The device every executor here stands on is SigilGeometry's — it is
+// the one point in the tree that can create a Diligent device — and this
+// is the name it is spelled by in this feature's own sources.
+using ::sigil::geometry::device::Device;
+
 namespace dg = Diligent;
 
-/** THE COLOUR FORMAT every target here holds. One format for every
- *  resource is what lets two resources whose lives do not overlap be
- *  handed one texture, exactly as the ordering hands two names one
- *  surface. */
-inline constexpr dg::TEXTURE_FORMAT kColorFormat = dg::TEX_FORMAT_RGBA8_UNORM;
-inline constexpr dg::TEXTURE_FORMAT kDepthFormat = dg::TEX_FORMAT_D32_FLOAT;
+// …and the device feature's own scope, whose residencies, pipelines and
+// shared resources this executor stands on. Spelled short here because
+// every draw below reaches into it; nothing is re-exported.
+namespace device = ::sigil::geometry::device;
+
+/** The formats every target here holds are the device's own — one format
+ *  for every resource is what lets two resources whose lives do not
+ *  overlap be handed one texture, exactly as the ordering hands two
+ *  names one surface. */
+using ::sigil::geometry::device::kColorFormat;
+using ::sigil::geometry::device::kDepthFormat;
 
 /** ONE NAMED IMAGE on the device: what this frame wrote, and what the
  *  frame before it wrote. `previous()` is answered from the second, and
@@ -62,69 +85,37 @@ struct DeviceImage {
   bool written = false;
 };
 
-/** A MAP ON THE DEVICE: either an image uploaded from host memory, or a
- *  texture someone else painted on THIS device, wrapped without a copy.
- *  `used` is the frame it was last drawn with, so a map no view names
- *  any more is let go. */
-struct SampledImage {
-  dg::RefCntAutoPtr<dg::ITexture> texture;
-  uint64_t used = 0;
-};
+/** What a mesh is once it stands on the device. The residency that puts
+ *  it there is the device feature's, and this is the name a draw here
+ *  reads it by. */
+using ::sigil::geometry::device::MeshBuffers;
 
-/** A MESH UPLOADED, held under the number the frame gave the artefact it
- *  came from. NOT under its address: an artefact that is dropped frees
- *  its memory and the next one cooked can land on it, so an address
- *  cannot say whether two frames are looking at the same triangles. */
-struct MeshBuffers {
-  dg::RefCntAutoPtr<dg::IBuffer> vertices;
-  dg::RefCntAutoPtr<dg::IBuffer> indices;
-  size_t vertexCount = 0;
-  uint32_t indexCount = 0;
-  /** The frame this was last drawn in, so a mesh no view names any more
-   *  is let go. */
-  uint64_t used = 0;
-};
-
-/** HOW A PIPELINE DIFFERS from another built out of the same program:
- *  how it blends, and whether it writes depth. Two draws that agree on
- *  both share one pipeline. */
-struct PipelineKey {
-  const Compiled* program = nullptr;
-  /** kSrcOver for a body, kPlus for a composite that adds, and kSrc for
-   *  a draw that replaces what stands. */
-  SkBlendMode blend = SkBlendMode::kSrcOver;
-  bool depth = false;
-  bool depthWrite = false;
-  /** No vertex layout and no index buffer: a triangle covering the
-   *  target, which is what every post stage draws. */
-  bool fullscreen = false;
-  /** Does the vertex layout declare the PRIMITIVE lane? Every vertex
-   *  carries one either way — it is the same buffer — but a program that
-   *  does not read it is not given an attribute it never declared. */
-  bool prim = false;
-  /** Are back faces dropped? A draw the caller asked to keep them for
-   *  is a different pipeline and not a different program. */
-  bool cull = true;
-  auto operator<=>(const PipelineKey&) const = default;
-};
-
-/** A PIPELINE AND ITS BINDING, made once per key. */
-struct Pipeline {
-  dg::RefCntAutoPtr<dg::IPipelineState> state;
-  dg::RefCntAutoPtr<dg::IShaderResourceBinding> binding;
-};
+/** What a draw on this device is made of, once its program is compiled.
+ *  The cache, the key and the binding are the device feature's; these
+ *  are the names this feature reads them by. */
+using ::sigil::geometry::device::Pipeline;
+using ::sigil::geometry::device::PipelineKey;
 
 /** THE EXECUTOR'S STATE, shared by every copy of the runtime value one
  *  call made. */
 struct Gpu {
-  explicit Gpu(Device& d) : device(&d) {}
+  explicit Gpu(Device& d)
+      : device(&d), shared(d), meshes(d), maps(d), pipelines(d) {}
   ~Gpu();
 
   Device* device = nullptr;
+  /** What every executor on this device stands on — the uniform buffer,
+   *  the samplers, the white texel and the readback — which this one
+   *  holds rather than owns a second copy of. */
+  ::sigil::geometry::device::Resources shared;
+  /** …and, on the same terms, the meshes and the maps standing on that
+   *  device. A frame names what it wants drawn; putting it there is the
+   *  device's own business and is not spelled again here. */
+  ::sigil::geometry::device::MeshResidency meshes;
+  ::sigil::geometry::device::TextureResidency maps;
   SkISize extent{0, 0};
-  uint64_t frame = 0;
 
-  std::map<std::string, DeviceImage, std::less<>> images;
+  boost::container::map<std::string, DeviceImage, std::less<>> images;
   dg::RefCntAutoPtr<dg::ITexture> depth;
   /** TARGETS NO RESOURCE NAMES, made on the first ask and kept for the
    *  extent's life. A device cannot sample an image it is drawing into,
@@ -133,41 +124,7 @@ struct Gpu {
    *  these, and they are addressed by index so that two such stages in
    *  one pass cannot be handed the same one. */
   std::vector<dg::RefCntAutoPtr<dg::ITexture>> scratch;
-  /** Every draw's uniforms, discarded and rewritten per draw. */
-  dg::RefCntAutoPtr<dg::IBuffer> uniforms;
-  size_t uniformCapacity = 0;
-  /** HOW A MAP IS READ BETWEEN TEXELS, one sampler per answer. A
-   *  texture states which it wants and a body's draw picks; everything
-   *  with no texture to ask — a target a post stage reads, the one white
-   *  texel — takes the linear one. */
-  dg::RefCntAutoPtr<dg::ISampler> linearSampler;
-  dg::RefCntAutoPtr<dg::ISampler> nearestSampler;
-  /** …and the same two for a map that repeats outside its coordinates,
-   *  because wrapping is the sampler's answer and not the lookup's. */
-  dg::RefCntAutoPtr<dg::ISampler> linearTiled;
-  dg::RefCntAutoPtr<dg::ISampler> nearestTiled;
-  /** What an unfilled sampled slot reads: one white texel, so a body
-   *  multiplied by a map it was not given is the body. */
-  dg::RefCntAutoPtr<dg::ITexture> white;
-
-  std::map<uint64_t, MeshBuffers> meshes;
-  /** THE ONE PAIR OF BUFFERS a mesh nobody can name is written into,
-   *  grown to fit and overwritten by the next draw. A draw whose seam
-   *  carries no artefact number is told nothing that says two of them
-   *  are the same triangles, so there is nothing to key a cache on and
-   *  nothing kept between them. */
-  MeshBuffers streamed;
-  /** …and how large those two buffers actually are. Held apart from the
-   *  counts in `streamed`, which are THIS draw's and not the buffers'. */
-  size_t streamedVertices = 0;
-  size_t streamedIndices = 0;
-  std::map<PipelineKey, Pipeline> pipelines;
-  /** Maps whose pixels already stand on this device, under the name the
-   *  API gave them. Nothing is copied for one of these. */
-  std::map<uint64_t, SampledImage> wrapped;
-  /** …and maps that had to be brought over, under the id of the image
-   *  they were brought from. */
-  std::map<uint32_t, SampledImage> uploaded;
+  ::sigil::geometry::device::PipelineCache pipelines;
 
   // ---- what the whole of it is made of (Gpu.cpp) ----
   /** Sizes the frame's targets to @p size, dropping everything made at
@@ -182,109 +139,31 @@ struct Gpu {
    *  before; null when nothing has written it. */
   dg::ITexture* current(std::string_view name);
   dg::ITexture* previous(std::string_view name);
-  /** @p mesh's buffers, uploaded the first time @p artefact is asked
-   *  for. A frame cooking a mesh of its own — the stamps of a point set
-   *  — has no artefact to name, and passes an id of its own that no
-   *  frame after it repeats. */
-  const MeshBuffers* upload(uint64_t artefact, const Mesh& mesh,
-                            std::string_view primColorLane = {});
-  /** @p mesh in the streaming buffers, overwriting whatever draw wrote
-   *  them last. For a caller whose seam carries no artefact number. */
-  const MeshBuffers* stream(const Mesh& mesh,
-                            std::string_view primColorLane = {});
-  /** The pipeline for @p key, built on the first ask. Null when the
-   *  program is empty or the device refused it. */
-  const Pipeline* pipeline(const PipelineKey& key);
-  /** The uniform buffer, grown to hold at least @p bytes. */
-  dg::IBuffer* uniformBuffer(size_t bytes);
   /** Opens a frame: what the frame before wrote becomes what this one's
    *  `previous()` names, and the texture that held the frame before THAT
    *  is what this one writes into — so a resource costs two textures for
    *  its whole life, no copy, and no allocation per frame. */
   void beginFrame();
-  /** Closes it: lets go of the meshes no view has named lately. */
+  /** Closes it: the device's frame is finished and the residencies let
+   *  go of what no view has named lately. */
   void endFrame();
   /** @p name's pixels, read back through a staging texture. Null when
    *  nothing has written it. */
   sk_sp<SkImage> read(std::string_view name);
-  /** @p texture's pixels, read back through a staging texture of this
-   *  frame's size. Null when there is nothing to read. */
-  sk_sp<SkImage> readTexture(dg::ITexture* texture);
-
-  /** THE MAP @p map IS, on this device.
-   *
-   *  A texture whose source says its pixels already stand on THIS device
-   *  is wrapped where it is — nothing is copied, and a scene painted by
-   *  another library into a texture on the shared device is sampled as
-   *  it was painted. Anything else is brought over from host memory once
-   *  and held under the image it came from. Null when the texture yields
-   *  no image. */
-  dg::ITexture* sample(const material::Texture& map);
-
-  /** The sampler @p filter asks for, wrapping outside the image when
-   *  @p tile. */
-  dg::ISampler* samplerFor(SkFilterMode filter, bool tile = false) const;
 
   /** A texture of this frame's size and format. */
   dg::RefCntAutoPtr<dg::ITexture> makeColor(const char* label);
 };
 
-/** ONE DRAW'S UNIFORMS, written at the offsets the program reported. */
-class Uniforms {
- public:
-  explicit Uniforms(const Compiled& program)
-      : m_program(&program), m_bytes(program.uniformBytes, std::byte{0}) {}
-
-  /** @p count floats into @p name, spread over the member's rows or
-   *  elements where the layout put them apart. A name the program does
-   *  not carry is skipped: an optimiser that dropped an unused uniform
-   *  is not a mistake to report. */
-  void set(std::string_view name, const float* values, size_t count);
-  void set(std::string_view name, const glm::mat4& m);
-  void set(std::string_view name, float x, float y, float z, float w);
-  /** Element @p index of an array member. */
-  void setElement(std::string_view name, size_t index, const float* values,
-                  size_t count);
-
-  [[nodiscard]] const std::vector<std::byte>& bytes() const { return m_bytes; }
-
- private:
-  const Compiled* m_program;
-  std::vector<std::byte> m_bytes;
-};
-
-/** Binds @p pipeline's uniform buffer to @p values and its sampled slots
- *  to @p textures, in the program's declared order, read through
- *  @p filter, then commits. A slot with no texture reads the one white
- *  texel. */
-void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
-                   const Uniforms& values,
-                   const std::vector<dg::ITexture*>& textures,
-                   SkFilterMode filter = SkFilterMode::kLinear,
-                   bool tile = false);
-
-/** THE DEVICE STATE every runtime here stands on: the samplers, the one
- *  white texel an unfilled slot reads, and the buffers a draw's uniforms
- *  go in. Every runtime makes one of these and shares it among the
+/** THE FRAME STATE every runtime here stands on, over the device's own
+ *  resources. Every runtime makes one of these and shares it among the
  *  copies of the value it hands back. */
 std::shared_ptr<Gpu> makeGpu(Device& device);
 
-/** Binds @p colour as a stage's target, with the depth buffer when one
- *  is wanted, and clears both. */
+/** Binds @p colour as this frame's target, with the frame's depth buffer
+ *  when one is wanted, and clears both. */
 void openTarget(Gpu& gpu, dg::ITexture* colour, const float* clear,
                 bool withDepth);
-
-/** THE CAMERA AS THE DEVICE WANTS IT.
- *
- *  A camera's `viewProjection` lands in PIXELS, because that is what a
- *  canvas concat needs; a device wants clip space, so the projection and
- *  the view are composed without the viewport step. What is left to
- *  correct is depth: the projection runs z from one at the near plane to
- *  minus one at the far one, and the device wants zero to one the other
- *  way about. The x and y of that clip space already agree — both count
- *  y upward — so nothing turns them over. */
-glm::mat4 clipFor(const ::sigil::geometry::mesh::camera::Camera& camera,
-                  SkISize extent);
 
 /** A texture's placement as a shader reads it: the same matrix a host
  *  tier puts on its style, in the four-by-four the uniform is. */

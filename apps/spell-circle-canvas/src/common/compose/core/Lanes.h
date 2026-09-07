@@ -8,10 +8,10 @@
  * positional families — span endpoints, mask gates, fx() tracks — follow
  * in declaration order, and how many of each a node has is a property of
  * its description. The lane itself, and everything done with one, is
- * SigilCore's; this names the families.
+ * SigilMotion's; this names the families.
  */
 
-#include <sigilcore/reconcile/Lanes.h>
+#include <sigilmotion/values/Lanes.h>
 
 #include "Instance.h"
 
@@ -25,7 +25,7 @@ enum class LaneFamily : uint8_t {
   Track,  ///< `Instance::trackAnims`: one per fx() track's progress
 };
 
-using LaneSlot = core::LaneSlot<LaneFamily>;
-using Lane = core::Lane<LaneFamily>;
+using LaneSlot = motion::LaneSlot<LaneFamily>;
+using Lane = motion::Lane<LaneFamily>;
 
 }  // namespace sigil::compose::detail

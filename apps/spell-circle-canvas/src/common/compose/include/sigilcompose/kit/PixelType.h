@@ -19,7 +19,7 @@
  *
  * ## The four traps
  *
- * 1. **`measure()` returns the ADVANCE, and glyph ink escapes it.** Ink
+ * 1. **`intrinsicSize()` returns the ADVANCE, and glyph ink escapes it.** Ink
  *    overhanging the advance is normal — an italic's exit stroke, a
  *    negative left side-bearing, a swash — and a scratch surface sized to
  *    the advance clips it. The tell is that a clipped bake looks the same
@@ -60,6 +60,8 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Measure.h>
 #include <sigilcompose/typography/Typography.h>
 
 #include <algorithm>
@@ -99,9 +101,11 @@ inline SkBitmap rasterize(Element root, sigil::weave::FontContext& fonts,
 }
 }  // namespace detail
 
-/** Slack around the measured run, in px **on each side**. See trap 1: the
- *  defaults are a starting point, not a guarantee — `coverage()` grows
- *  them, up to a limit, until no ink touches an edge. */
+/** Slack around the measured run, in px **on each side** — ink overhangs
+ *  the advance a measurement reports, and it overhangs on the left as
+ *  readily as on the right. The defaults are a starting point, not a
+ *  guarantee: `coverage()` grows them, up to a limit, until no ink
+ *  touches an edge. */
 struct Pad {
   int x = 8;
   int y = 4;
@@ -125,9 +129,14 @@ struct Coverage {
   /** The bbox of pixels with any coverage at all. Empty when nothing lit
    *  (a space, an unmapped codepoint). */
   SkIRect ink = SkIRect::MakeEmpty();
-  /** What `measure()` reported — the ADVANCE, which is what a layout
+  /** What `intrinsicSize()` reported — the ADVANCE, which is what a layout
    *  wants and is NOT the ink extent. */
   SkSize advance = {0, 0};
+  /** The slack the bake actually used, which is NOT the slack asked for:
+   *  a run whose ink touched an edge was baked again with the pad doubled.
+   *  It is the origin of the run's own line box inside the plane, so it is
+   *  what turns a plane coordinate into a typographic one. */
+  Pad pad;
 
   bool valid() const { return !plane.isNull(); }
   int width() const { return plane.width(); }
@@ -147,18 +156,18 @@ struct Coverage {
  *  overhangs further than that comes back cropped and looks like a
  *  rasterisation bug rather than a sizing one.
  *
- *  Built on `snapshot()`, which carries the neighbouring trap: it sizes by
- *  the root's CHILDREN, so the wrapper must carry explicit dimensions or an
- *  absolutely-placed child resolves against nothing. */
+ *  Built on `snapshot()`, which sizes by the root's CHILDREN, so the
+ *  wrapper must carry explicit dimensions or an absolutely-placed child
+ *  resolves against nothing. */
 inline Coverage coverage(std::u8string_view run,
                          sigil::weave::FontContext& fonts,
                          const sigil::weave::TextStyle& style, Pad pad = {}) {
   Coverage out;
   const std::u8string text8(run);
-  const SkSize sz = measure(box().child(text(text8, style)), fonts);
+  const SkSize sz = intrinsicSize(box().child(text(text8, style)), fonts);
   out.advance = sz;
   // SLACK ON THE ADVANCE, because the scratch surface CONSTRAINS the run.
-  // `measure()` answers an unconstrained layout; laid out again inside
+  // `intrinsicSize()` answers an unconstrained layout; laid out again inside
   // exactly that width, a run can wrap its last word. A wrapped bake is
   // not a clipped glyph — it is a second LINE — and the pad retry below
   // cannot see it, because nothing touches an edge. The mask is cropped to
@@ -181,6 +190,7 @@ inline Coverage coverage(std::u8string_view run,
         fonts, {w, h});
     if (plane.isNull()) return out;
     out.plane = std::move(plane);
+    out.pad = pad;
     int x0 = w, y0 = h, x1 = -1, y1 = -1;
     for (int y = 0; y < h; ++y)
       for (int x = 0; x < w; ++x)
@@ -220,9 +230,11 @@ struct Mask {
 /** Threshold a `Coverage` to 1-bit A8 and (by default) crop to its ink.
  *
  *  @p threshold is in coverage units [0, 1] and is **inert under aliased
- *  shaping**, where the coverage is already binary — see trap 2. It
- *  becomes a real control only when the run was deliberately shaped
- *  antialiased and is being quantised afterwards. */
+ *  shaping**: there Skia lights a pixel iff its centre is inside the
+ *  outline, so the coverage is already 0 or 1 and every threshold in
+ *  (0, 1] classifies it identically. It becomes a real control only when
+ *  the run was deliberately shaped antialiased and is being quantised
+ *  afterwards. */
 inline Mask threshold(const Coverage& cov, float threshold = 0.5f,
                       bool cropToInk = true) {
   Mask m;
@@ -256,8 +268,7 @@ inline Mask bakeRun(std::u8string_view run, sigil::weave::FontContext& fonts,
 /** How a baked mask is presented. */
 struct Present {
   SkColor4f colour = {1, 1, 1, 1};
-  /** INTEGER, please — trap 4. A bitmap face at 1.5× is a blurry bitmap
-   *  face. */
+  /** INTEGER, please: a bitmap face at 1.5× is a blurry bitmap face. */
   float scale = 1.0f;
   /** A second pass underneath, offset by this many DESTINATION px, with
    *  the colour's RGB multiplied by `shadowMul`. The defaults follow
@@ -312,20 +323,31 @@ inline Element masked(const Mask& m, const Present& p = {}) {
 // ---------------------------------------------------------------------------
 // The 96-cell font — what a LIVE readout needs.
 
-/** One baked cell. */
+/** One baked cell.
+ *
+ *  The mask is cropped to its ink, so where that ink sat inside the cell's
+ *  own LINE BOX is the cell's to carry: a `T` and a `p` cropped flush to
+ *  their ink and drawn at one y would stand on no common line at all.
+ *  `inkX` is the left side bearing and `inkY` the drop from the top of the
+ *  line box, both in px, and `blit` adds them back. */
 struct Cell {
   sk_sp<SkImage> mask;
   int w = 0, h = 0;
   /** The shaped advance, rounded — NOT the ink width. */
   int advance = 0;
+  /** Where this cell's ink sits inside its line box. */
+  int inkX = 0, inkY = 0;
 };
 
 /** ASCII 32..127, baked once. */
 struct PixFont {
   std::array<Cell, 96> cells{};
-  /** The tallest cell — a line box for the caller. */
+  /** How deep the cells reach below the top of their shared line box —
+   *  a line box for the caller. It is NOT the tallest cell: a cell is
+   *  cropped to its ink and sits at its own drop inside the box. */
   int lineHeight = 0;
-  /** The widest DIGIT advance, shared by all ten — see trap 3. */
+  /** The widest DIGIT advance, shared by all ten, so a rolling readout
+   *  does not shiver as a `1` narrows the string. */
   int digitAdvance = 0;
 
   const Cell& cell(char c) const {
@@ -364,7 +386,13 @@ inline PixFont bakeFont(sigil::weave::FontContext& fonts,
     cell.w = m.w;
     cell.h = m.h;
     cell.advance = std::max(1, (int)std::lround(cov.advance.width()));
-    f.lineHeight = std::max(f.lineHeight, cell.h);
+    // Plane coordinates back to line-box ones: the run was drawn inset by
+    // the pad the bake settled on, and that pad is not the same for every
+    // cell — one whose ink touched an edge was baked again with a larger
+    // one.
+    cell.inkX = m.inkX - cov.pad.x;
+    cell.inkY = m.inkY - cov.pad.y;
+    f.lineHeight = std::max(f.lineHeight, cell.inkY + cell.h);
   }
   for (int d = 0; d < 10; ++d)
     f.digitAdvance =
@@ -376,8 +404,8 @@ inline PixFont bakeFont(sigil::weave::FontContext& fonts,
 struct Blit {
   /** px added after every cell. */
   float track = 1.0f;
-  /** Digits take `PixFont::digitAdvance` instead of their own — trap 3.
-   *  On for a readout, off for prose. */
+  /** Digits take `PixFont::digitAdvance` instead of their own, so a
+   *  rolling readout does not shiver. On for a readout, off for prose. */
   bool tabularDigits = true;
   /** Round every pen position to a multiple of this many px (0 = off).
    *  A bitmap face that lands off the device grid is a resampled bitmap
@@ -390,20 +418,40 @@ namespace detail {
 inline float snapTo(float v, float grid) {
   return grid > 0 ? std::round(v / grid) * grid : v;
 }
-}  // namespace detail
 
-/** Advance width of @p s without drawing it. */
-inline float widthOf(const PixFont& f, std::string_view s, const Blit& b = {}) {
-  float w = 0;
+/** THE PEN WALK, and the only one. Measuring and drawing must accumulate
+ *  the same way or a snapped run is laid out to one width and drawn at
+ *  another: `snap` rounds every pen step, so it changes the advance and
+ *  not merely where the cells land. @p emit is handed each cell and the
+ *  pen position it occupies, relative to a pen that started at 0; the
+ *  return is the run's advance.
+ *
+ *  Starting at 0 loses nothing: a caller's own origin is snapped before
+ *  the walk, and a snapped origin plus a snapped offset is already on the
+ *  grid, so adding it back per cell rounds to the same place. */
+template <typename Emit>
+inline float walkRun(const PixFont& f, std::string_view s, const Blit& b,
+                     Emit&& emit) {
+  float x = 0;
   for (char raw : s) {
     const int i = (int)(unsigned char)raw - 32;
     if (i < 0 || i >= 96) continue;
+    const Cell& cell = f.cells[(size_t)i];
     const bool digit = raw >= '0' && raw <= '9';
-    w += (float)(digit && b.tabularDigits ? f.digitAdvance
-                                          : f.cells[(size_t)i].advance) +
-         b.track;
+    emit(cell, x);
+    x = snapTo(
+        x + (float)(digit && b.tabularDigits ? f.digitAdvance : cell.advance) +
+            b.track,
+        b.snap);
   }
-  return w;
+  return x;
+}
+}  // namespace detail
+
+/** Advance width of @p s without drawing it — the width `blit` returns for
+ *  the same run and the same options, snapping included. */
+inline float widthOf(const PixFont& f, std::string_view s, const Blit& b = {}) {
+  return detail::walkRun(f, s, b, [](const Cell&, float) {});
 }
 
 /** Draw @p s at @p at (top-left of the line box) and return the advance.
@@ -418,23 +466,15 @@ inline float blit(SkCanvas& canvas, const PixFont& f, SkPoint at,
   p.setColor4f(colour, nullptr);
   const SkSamplingOptions nearest(SkFilterMode::kNearest);
   const float x0 = detail::snapTo(at.fX, b.snap);
-  float x = x0;
   const float y = detail::snapTo(at.fY, b.snap);
-  for (char raw : s) {
-    const int i = (int)(unsigned char)raw - 32;
-    if (i < 0 || i >= 96) continue;
-    const Cell& cell = f.cells[(size_t)i];
-    const bool digit = raw >= '0' && raw <= '9';
+  return detail::walkRun(f, s, b, [&](const Cell& cell, float x) {
     if (cell.mask)
-      canvas.drawImageRect(cell.mask,
-                           SkRect::MakeXYWH(x, y, (float)cell.w, (float)cell.h),
-                           nearest, &p);
-    x = detail::snapTo(
-        x + (float)(digit && b.tabularDigits ? f.digitAdvance : cell.advance) +
-            b.track,
-        b.snap);
-  }
-  return x - x0;
+      canvas.drawImageRect(
+          cell.mask,
+          SkRect::MakeXYWH(x0 + x + (float)cell.inkX, y + (float)cell.inkY,
+                           (float)cell.w, (float)cell.h),
+          nearest, &p);
+  });
 }
 
 }  // namespace sigil::compose::kit

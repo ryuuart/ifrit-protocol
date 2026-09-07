@@ -6,16 +6,32 @@
  * compose Element tree.
  */
 
+#include <include/core/SkImage.h>
+#include <include/core/SkRefCnt.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpec.h>
+#include <sigilsketch/core/Device.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 
 #include <algorithm>
 #include <concepts>
 #include <memory>
+#include <optional>
+#include <vector>
+
+namespace sigil::compose {
+class TextureScene;
+}
+namespace sigil::world {
+class Frame;
+}
+namespace sigil::geometry::mesh::camera {
+struct Camera;
+}
 
 namespace sigil::sketch {
 
@@ -33,25 +49,94 @@ struct SketchContext {
   SkSize size;                    // the current logical canvas size
   CanvasSpec* spec = nullptr;     // host-owned; written via the calls below
   sigil::weave::FontContext* fonts = nullptr;  // measure()/snapshot() fuel
+  /** Host-owned: the texture scenes `textureScene()` handed out, kept
+   *  for the session's life. */
+  std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
 
-  SketchContext(compose::Composer& composerIn, sigil::motion::Ticker& tickerIn,
-                Assets& assetsIn, SkSize sizeIn, CanvasSpec* specIn = nullptr,
-                sigil::weave::FontContext* fontsIn = nullptr,
-                bool deterministicIn = false)
+  SketchContext(
+      compose::Composer& composerIn, sigil::motion::Ticker& tickerIn,
+      Assets& assetsIn, SkSize sizeIn, CanvasSpec* specIn = nullptr,
+      sigil::weave::FontContext* fontsIn = nullptr,
+      bool deterministicIn = false,
+      std::vector<std::shared_ptr<compose::TextureScene>>* scenesIn = nullptr)
       : composer(composerIn),
         ticker(tickerIn),
         assets(assetsIn),
         size(sizeIn),
         spec(specIn),
         fonts(fontsIn),
+        scenes(scenesIn),
         deterministic(deterministicIn) {}
   SketchContext(const SketchContext&) = delete;
   SketchContext& operator=(const SketchContext&) = delete;
 
+  /** A COMPOSE SCENE PAINTED INTO A TEXTURE, @p size pixels across and
+   *  cleared to @p background: hand it a tree with `render()` and read
+   *  `image()` or `texture()` back. Its own words are SigilCompose's,
+   *  from `<sigilcompose/texture/Texture.h>`.
+   *
+   *  THE SESSION KEEPS IT and lets go of everything it kept when the
+   *  body declares again, so a sketch may take the image and drop the
+   *  scene — which it could not do on its own, because a scene standing
+   *  on a device destroys the texture its image names when it goes, and
+   *  only the raster path leaves a picture behind that outlives it.
+   *
+   *  ASK WHILE DECLARING. A body that asks every frame holds every
+   *  frame's scene until the next declaration, the way cooking a mesh
+   *  every frame holds every frame's mesh; the session's counters say
+   *  how many it is holding, so that costs what it costs in the open.
+   *  Nothing has to be remade when time moves — a session's clock only
+   *  goes forward, and a run that starts over is a new session with new
+   *  scenes.
+   *
+   *  Null only where the host lent no fonts. */
+  [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
+      SkISize size, SkColor4f background = {0, 0, 0, 0});
+
+  /** A LIT SET RENDERED ONCE INTO AN IMAGE @p size pixels across, over
+   *  @p background — the picture INSIDE a page. A canvas plate is
+   *  re-rendered at the capture scale, so a document that wanted a set
+   *  in one of its panels cannot wear it as a texture the way a body
+   *  does: it bakes the set at the pixels the panel will have and paints
+   *  the image. The frame's own words are SigilWorld's, from
+   *  `<sigilworld/frame/Frame.h>`.
+   *
+   *  SEEN FROM @p camera — unless the tree carries a viewpoint of its
+   *  own, which wins here exactly as it wins in the set runtime, so a
+   *  set that put its camera on a rail is photographed from that rail
+   *  wherever it is photographed. The frame is formed and presented
+   *  through the one viewpoint, so the two cannot disagree.
+   *
+   *  It draws on the CPU mesh executor whatever device the process
+   *  holds, and declares no passes: the picture is a function of the
+   *  frame, the viewpoint, the size and @p seconds, and of nothing the
+   *  machine it ran on decides. The scene it stands the frame in lives
+   *  for this call alone, so what comes back is an image and not a view
+   *  onto something still standing.
+   *
+   *  @p seconds IS THE MOMENT OF THE BAKE, on the baked scene's own
+   *  clock, which starts when the scene mounts. It is what a set with an
+   *  ENTRANCE is photographed at: a `staggerChildren` cascade is a
+   *  schedule of transitions that begin at the mount, so at zero every
+   *  one of them is still at its start pose and the picture is the set
+   *  before it arrived — which is a still no author ever wanted.
+   *
+   *  The clock is the BAKE'S, not the sketch's. Reaching the moment on
+   *  the sketch's own ticker would step the sketch, and a document that
+   *  photographed a set in one of its panels would move everything else
+   *  on the page to do it. The moment is reached in one step, so a set
+   *  whose motion is a fixed-rate steppable rather than a transition is
+   *  not what this is for. */
+  [[nodiscard]] sk_sp<SkImage> bakeSet(
+      const world::Frame& frame, const geometry::mesh::camera::Camera& camera,
+      SkISize size, SkColor4f background = {0, 0, 0, 0}, double seconds = 0.0);
+
   /** The host is taking a capture that will be DIFFED, so anything the
    *  sketch measured about its own execution must be pinned. See
    *  `measured()`; read the flag directly only when you need to suppress
-   *  a whole panel rather than one number. */
+   *  a whole panel rather than one number. The runtime's own measured
+   *  decision — the composer's stopwatch-driven texture promotion — is
+   *  already held off under this flag by the session that opened it. */
   bool deterministic = false;
 
   /** A number the sketch measured about ITS OWN EXECUTION — a build
@@ -81,10 +166,27 @@ struct SketchContext {
    *  strips, tooltips and badges from their content. */
   SkSize measure(const compose::Element& element,
                  SkSize maxSize = SkSize::MakeEmpty()) {
-    return fonts ? compose::measure(element, *fonts, maxSize)
+    return fonts ? compose::intrinsicSize(element, *fonts, maxSize)
                  : SkSize::MakeEmpty();
   }
 
+  /** DECLARE THE WHOLE CANVAS AT ONCE, from the one value a host reads
+   *  back afterwards. The setters below write that value a field at a
+   *  time, so a sketch that declares more than its size says the same
+   *  thing in three or four calls; this says it in one, and a caller
+   *  that already holds a `CanvasSpec` — a kit component handed a stage,
+   *  a host replaying a declaration — hands it over rather than taking
+   *  it apart.
+   *
+   *      ctx.canvas({.size = {1080, 430}, .background = ground,
+   *                  .captureSeconds = 2.78});
+   *
+   *  Every field is declared, defaults included: this is the value, not
+   *  a patch over the one already there. */
+  void canvas(const CanvasSpec& declared) {
+    if (spec) *spec = declared;
+    size = declared.size;  // visible immediately
+  }
   /** Declare the logical canvas size. Usually in setup(); calling later
    *  resizes live, applied on the next frame. */
   void canvas(float width, float height) {
@@ -118,6 +220,16 @@ struct SketchContext {
    *      ctx.oversample(2); // one 1994 pixel is 4 canvas px, so 8 here */
   void oversample(int perCanvasPixel) {
     if (spec) spec->oversample = std::max(1, perCanvasPixel);
+  }
+  /** DECLARE THIS SKETCH A PLATE, not a live scene. Its subject is the
+   *  size of the sheet it draws, so `--bench` judges it on the cost of
+   *  the still it is photographed as rather than on holding 60 FPS at
+   *  that size. Nothing else changes: the plate sweep steps and captures
+   *  it exactly as before, and this is never a timeout override.
+   *
+   *      ctx.plate(); // a 2400×1600 sheet, judged on its capture */
+  void plate() {
+    if (spec) spec->plateOnly = true;
   }
 };
 
@@ -159,9 +271,27 @@ class CanvasKind final : public KindOps {
   explicit CanvasKind(Factory factory) : m_factory(factory) {}
   /** Written out rather than defaulted: the operations a kind answers
    *  are an abstract base, and a defaulted comparison would try to
-   *  compare that. What identifies a kind is the body it opens. */
+   *  compare that. What identifies a kind is the body it opens and the
+   *  painter it opens it on. */
   bool operator==(const CanvasKind& other) const {
-    return m_factory == other.m_factory;
+    return m_factory == other.m_factory && m_painter == other.m_painter;
+  }
+
+  /** THIS KIND, OPENING ITS SESSIONS ON @p painter — an empty one being
+   *  the CPU mesh executor.
+   *
+   *  A session takes its painter once, when it opens, and every mesh its
+   *  body stands up goes through that one: what a host installed on the
+   *  process is the DEFAULT a session takes, not a value it re-reads.
+   *  So a host that must draw somewhere other than where the process's
+   *  device stands — a background still on a thread that shares no queue
+   *  with the one presenting — says so here, and the sessions it opens
+   *  are unaffected by what any other thread installed. */
+  [[nodiscard]] CanvasKind on(
+      const geometry::mesh::render::Runtime& painter) const {
+    CanvasKind stated = *this;
+    stated.m_painter = painter;
+    return stated;
   }
 
   [[nodiscard]] std::string_view runtime() const override { return "canvas"; }
@@ -172,7 +302,53 @@ class CanvasKind final : public KindOps {
 
  private:
   Factory m_factory;
+  /** Unset is the process's own — the painter a host installed once. */
+  std::optional<geometry::mesh::render::Runtime> m_painter;
 };
+
+/** @p kind WITH THE MESH PAINTER ITS SESSIONS DRAW THROUGH STATED,
+ *  rather than read off the process when each opens.
+ *
+ *  A kind that stands no mesh up of its own — a set, a pen — is returned
+ *  unchanged, so a host may say this about whatever it is holding. An
+ *  empty painter is the CPU mesh executor, which is what a caller that
+ *  must not reach the process's device asks for. */
+[[nodiscard]] Kind onPainterRuntime(
+    const Kind& kind, const geometry::mesh::render::Runtime& painter);
+
+/** THE MESH PAINTER EVERY 2D SKETCH DRAWS THROUGH, for this process.
+ *
+ *  A canvas sketch that stands geometry up in space hands this to a
+ *  `MeshStyle`, and the mesh is then rasterised on whatever device the
+ *  host brought up:
+ *
+ *      style.runtime = sketch::painterRuntime();
+ *
+ *  Without a device it is the CPU mesh executor, which is what a machine
+ *  with no device renders on and what a byte-identity plate is hashed
+ *  from — so the line above is written once and is correct on both, and
+ *  a sketch never asks whether a device is here.
+ *
+ *  A host that brought one up says so ONCE, because a device is a
+ *  property of the process and not of a sketch. It is the 2D twin of the
+ *  runtime a set draws through: a set's is a whole frame's, this one is
+ *  a single mesh draw's, and a process on a device installs both.
+ *  Installing an empty runtime — what a host does when it lets its
+ *  device go — puts the CPU executor back rather than leaving a value
+ *  that draws nothing.
+ *
+ *  IT IS READ AT OPEN, not at every draw: a session keeps the painter it
+ *  opened with and answers that one while it is drawing, so installing
+ *  another does not reach into a session already running, and
+ *  `onPainterRuntime` above is how a host opens one somewhere else.
+ *
+ *  Its own words are SigilGeometry's, from
+ *  `<sigilgeometry/mesh/render/Runtime.h>`.
+ *
+ *  A call that takes the DEVICE itself rather than a runtime over it
+ *  reaches `sketch::device()`, from `<sigilsketch/core/Device.h>`. */
+void usePainterRuntime(const geometry::mesh::render::Runtime& runtime);
+[[nodiscard]] const geometry::mesh::render::Runtime& painterRuntime();
 
 /** The factory SIGIL_SKETCH takes the ADDRESS of, rather than a lambda
  *  whose body it would carry: taking a function's address cannot throw,

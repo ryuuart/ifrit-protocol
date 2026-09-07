@@ -10,8 +10,12 @@
  * is done here; these are the ReconcileHost operations it drives.
  */
 
+#include <include/core/SkTypes.h>  // SkDebugf — the ignored-shell warning
+
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <numeric>
+#include <string>
 
 #include "ComposeRuntime.h"
 
@@ -61,6 +65,73 @@ void staleWorldSpaceBelow(Instance& inst) {
   }
 }
 
+/** A property set on a memo's SHELL — the element memo() returned, after
+ *  `.key()`, `.cache()` and `.bakeScale()` — that describes nothing: the
+ *  produced element is the node's whole look, and the reconciler retains
+ *  the produce as the description. Said once per property, because a
+ *  description is rebuilt every frame and a call that silently takes no
+ *  effect must not be silent. Each group is judged by the structural
+ *  compare itself, over a node carrying only that group, so a lane the
+ *  compare rules on is a lane this warning sees. */
+void warnIgnoredMemoShellProps(const ElementNode& shell) {
+  const ElementNode blank;
+  const auto only = [&](auto&& copy) {
+    ElementNode probe;
+    copy(probe);
+    return !propsEqual(probe, blank);
+  };
+  struct Probe {
+    const char* what;
+    bool set;
+  };
+  const Probe probes[] = {
+      {"a layout property",
+       only([&](ElementNode& n) { n.layout = shell.layout; })},
+      {"a fill, opacity, blend, transform or zIndex", only([&](ElementNode& n) {
+         n.paint = shell.paint;
+         n.materialData = shell.materialData;
+       })},
+      {"corners or a shape", only([&](ElementNode& n) {
+         n.corners = shell.corners;
+         n.shapeFn = shell.shapeFn;
+       })},
+      {"a decoration",
+       !shell.backgrounds.empty() || !shell.foregrounds.empty()},
+      {"a transition", shell.nodeTransition.has_value()},
+      {"a child", !shell.children.empty()},
+      {"a mask, overlay, effect or stagger", (bool)shell.fxData},
+      {"a stroke pass", (bool)shell.strokeData},
+      {"travel()", (bool)shell.motionData},
+      {"a depth lane", (bool)shell.depthData},
+      {"clipContent", shell.clipContent},
+      {"hitTestable(false)", !shell.hitTestable},
+      {"a boundary", shell.boundary != Boundary::Auto},
+  };
+  static thread_local boost::unordered_flat_set<std::string> warned;
+  for (const Probe& probe : probes) {
+    if (!probe.set || !warned.insert(probe.what).second) continue;
+    SkDebugf(
+        "[compose] memo(...) shell carries %s — ignored. A memo shell "
+        "takes .key(), .cache() and .bakeScale() only; its look is what "
+        "the deferred describe produces, so set this on the element "
+        "produced inside it. (warned once)\n",
+        probe.what);
+  }
+}
+
+/** What a memo's shell says about the node it stands for, carried onto
+ *  the produced description the reconciler retains: which node it is
+ *  (the key, which the reconciler matches on itself) and how its
+ *  recording is held. The painter reads cacheMode and bakeScale off the
+ *  description alone, so an explicit choice on the shell would otherwise
+ *  never reach it. The shell's Cache::Auto and unit bakeScale are its
+ *  silence, and the produce's own values stand. */
+void mergeMemoShell(ElementNode& produced, const ElementNode& shell) {
+  if (shell.cacheMode != Cache::Auto) produced.cacheMode = shell.cacheMode;
+  if (shell.bakeScale != 1.0f) produced.bakeScale = shell.bakeScale;
+  warnIgnoredMemoShellProps(shell);
+}
+
 }  // namespace
 
 void Composer::Impl::invalidate(Instance& inst) {
@@ -81,7 +152,7 @@ bool Composer::Impl::remountRequired(const Instance& match,
   return (match.yoga != nullptr) != childrenCarryYoga(parent);
 }
 
-std::unique_ptr<Instance> Composer::Impl::create(const Desc& node,
+std::unique_ptr<Instance> Composer::Impl::create(const Description& node,
                                                  Instance* parent,
                                                  size_t ordinal, size_t count) {
   // staggerChildren(): the child's whole subtree mounts with
@@ -90,8 +161,8 @@ std::unique_ptr<Instance> Composer::Impl::create(const Desc& node,
   // order — End counts from the last child (the bottom-up cascade),
   // Center ripples outward.
   const float saved = mountDelayCarryMs;
-  const float staggerMs = parent && parent->desc->fxData
-                              ? parent->desc->fxData->staggerChildrenMs
+  const float staggerMs = parent && parent->description->fxData
+                              ? parent->description->fxData->staggerChildrenMs
                               : 0.0f;
   if (staggerMs > 0) {
     // Order among NEWLY MOUNTED children: the initial cascade staggers
@@ -103,10 +174,11 @@ std::unique_ptr<Instance> Composer::Impl::create(const Desc& node,
     static thread_local std::vector<float> order;
     // Child stagger has no seed knob: a Random child order is the
     // count-keyed deal, as it always was.
-    // staggerMs > 0 only when parent->desc->fxData exists: the ternary
+    // staggerMs > 0 only when parent->description->fxData exists: the ternary
     // above yields 0 for a null parent, so this dereference is guarded.
     // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
-    cascadeOrder(parent->desc->fxData->staggerFrom, (uint32_t)count, 0u, order);
+    motion::cascadeOrder(parent->description->fxData->staggerFrom,
+                         (uint32_t)count, 0u, order);
     if (ordinal < order.size()) mountDelayCarryMs += staggerMs * order[ordinal];
   }
   auto inst = std::make_unique<Instance>();
@@ -130,6 +202,12 @@ std::unique_ptr<Instance> Composer::Impl::create(const Desc& node,
 void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
                                const ElementNode& next) {
   invalidate(inst);
+  // `next` IS `*inst.description`: on a memo that is the produce, and the
+  // shell's say over it is applied here, before anything reads the node.
+  // A memo hit returns before this runs and keeps the payload it merged
+  // on the patch that produced it, so a `.cache()` changed while props and
+  // environment compare equal does not take — the memo's own contract.
+  if (inst.memoShell) mergeMemoShell(*inst.description, *inst.memoShell);
 
   // Recompute the world-space flag once per patch. A pruned node keeps
   // its existing flag, which is correct: equal props mean equal
@@ -173,7 +251,7 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
         prevText->spanRestyles != text.spanRestyles;
     if (textChanged) {
       inst.contentRev++;
-      // No layout yet at describe time, so a sel::line restyle resolves
+      // No layout yet at describe time, so a weave::sel::line restyle resolves
       // against nothing here; layoutText() re-materializes against the
       // fresh line geometry when one is asked for.
       materializeText(inst);
@@ -228,7 +306,8 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
       prev->textData &&
       prev->textData->paragraphOverride == next.textData->paragraphOverride) {
     inst.contentRev++;
-    YGNodeMarkDirty(inst.yoga);
+    // A text node placed absolutely by a scheme has no Yoga node to dirty.
+    if (inst.yoga) YGNodeMarkDirty(inst.yoga);
     needsLayout = true;
   }
 
@@ -263,8 +342,8 @@ void Composer::Impl::reorder(Instance& parent, bool structureChanged) {
   std::iota(parent.paintOrder.begin(), parent.paintOrder.end(), size_t{0});
   std::stable_sort(parent.paintOrder.begin(), parent.paintOrder.end(),
                    [&](size_t a, size_t b) {
-                     return parent.children[a]->desc->paint.zIndex <
-                            parent.children[b]->desc->paint.zIndex;
+                     return parent.children[a]->description->paint.zIndex <
+                            parent.children[b]->description->paint.zIndex;
                    });
 
   // Yoga sees the children in the order they now stand: every child is
@@ -281,7 +360,7 @@ void Composer::Impl::reorder(Instance& parent, bool structureChanged) {
       // child DOES keep is its insets — `.top(12).right(12)` inside a stack
       // pins that corner, because absolute is exactly the mode insets need.
       if (child->yoga) {
-        if (parent.desc->kind == Kind::Stack)
+        if (parent.description->kind == Kind::Stack)
           YGNodeStyleSetPositionType(child->yoga, YGPositionTypeAbsolute);
         YGNodeInsertChild(parent.yoga, child->yoga,
                           YGNodeGetChildCount(parent.yoga));

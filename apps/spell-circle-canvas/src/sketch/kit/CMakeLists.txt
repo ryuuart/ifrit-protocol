@@ -1,0 +1,33 @@
+# SigilSketchKit — the sheet a sketch stands on: the furniture every
+# specimen sheet would otherwise retype, and one theme value that carries
+# the look down the tree.
+#
+# IT COMPOSES AND DECIDES NOTHING. Every component is plain composition
+# over the compose kit's arrangement with the theme's values put in, and
+# the theme is a SEAM — a comparable struct a scope binds — over which
+# `houseTheme()` is one stock value among peers. A sketch's own theme is
+# indistinguishable from it at every call site, and a component with no
+# theme bound behaves correctly.
+#
+# It stands above the canvas runtime because `stage()` writes a
+# CanvasSpec through a SketchContext, which is why SigilSketch is PUBLIC
+# here; it links no device backend, no window and no sketch.
+sigil_library(SigilSketchKit
+  SOURCES Cells.cpp Console.cpp Heading.cpp Legend.cpp Meter.cpp Page.cpp
+          Panel.cpp Passage.cpp Rows.cpp Scrollbar.cpp Theme.cpp Ticker.cpp
+  HEADERS Cells.h Console.h Ground.h Heading.h Kit.h Legend.h Meter.h Page.h
+          Panel.h Passage.h Rows.h Scrollbar.h Theme.h Ticker.h
+  PUBLIC SigilSketch SigilComposeCore SigilComposeKit SigilCoreReconcile
+         SigilGeometryKit SigilMaterial SigilWeave
+  PRIVATE SigilWeavePorts SigilIO)
+
+# The kit's own claim: the theme is a comparable value a scope binds, and
+# every component draws exactly what the compose kit spelled by hand with
+# the same values draws — asserted in pixels, because that is the claim a
+# migrated sketch's plate rests on.
+sigil_test(sketch_test
+  SOURCES test/CellsTest.cpp test/ConsoleTest.cpp test/HeadingTest.cpp
+          test/LegendTest.cpp test/MeterTest.cpp test/PageTest.cpp
+          test/PanelTest.cpp test/PassageTest.cpp test/RowsTest.cpp
+          test/ScrollbarTest.cpp test/ThemeTest.cpp test/TickerTest.cpp
+  LIBRARIES SigilSketchKit SigilMaterialKit SigilMotionClock)

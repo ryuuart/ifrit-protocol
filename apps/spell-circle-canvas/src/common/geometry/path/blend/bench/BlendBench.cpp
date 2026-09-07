@@ -114,5 +114,3 @@ BENCHMARK(BM_BlendAlongSpine)
     ->Complexity(benchmark::oN);
 
 }  // namespace
-
-BENCHMARK_MAIN();

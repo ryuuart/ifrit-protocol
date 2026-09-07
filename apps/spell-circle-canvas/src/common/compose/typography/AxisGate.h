@@ -6,6 +6,8 @@
  * with a single warning by the draw-time verbs.
  */
 
+#include <boost/container/map.hpp>
+
 #include "Instance.h"
 
 namespace sigil::compose::detail {
@@ -38,7 +40,9 @@ struct AxisGate {
 inline AxisGate& axisGateProbe(sigil::weave::FontContext& fonts,
                                const sk_sp<SkTypeface>& face,
                                const char (&tag)[5]) {
-  static thread_local std::map<std::pair<uint32_t, uint32_t>, AxisGate> table;
+  static thread_local boost::container::map<std::pair<uint32_t, uint32_t>,
+                                            AxisGate>
+      table;
   const uint32_t axisTag = SkSetFourByteTag(tag[0], tag[1], tag[2], tag[3]);
   auto [entry, fresh] =
       table.try_emplace({face ? face->uniqueID() : 0u, axisTag}, AxisGate{});

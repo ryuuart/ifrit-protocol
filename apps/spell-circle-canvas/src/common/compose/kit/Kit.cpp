@@ -7,18 +7,36 @@
  * compose's `include/` tree. ComposeInternal.h and ComposeRuntime.h live in
  * core/, which is on no other target's include path, so a kit header
  * that reached for the kernel's internals would fail to compile here.
- *
- * See kit/BoundaryProbe.cpp for the negative control, and CMakeLists.txt
- * for how to run it.
  */
 
-#include <sigilcompose/kit/Divisions.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Grid.h>
 #include <sigilcompose/kit/Kit.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/kit/PixelType.h>
+#include <sigilgeometry/kit/Divisions.h>
 
 #include <concepts>
+#include <cstdio>
+#include <string>
+
+namespace sigil::compose::layouts::detail {
+
+void warnAreaNotRectangular(const std::string& name) {
+  // Once per process, not once per name: a picture with one scattered name
+  // usually has several, and a diagnostic that floods is a diagnostic
+  // people turn off.
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  std::fprintf(stderr,
+               "SigilCompose: grid area \"%s\" does not cover a rectangle, "
+               "so it is placed at the rectangle that bounds it. A name must "
+               "claim one block of cells to be addressable as one box.\n",
+               name.c_str());
+}
+
+}  // namespace sigil::compose::layouts::detail
 
 namespace sigil::compose::kit {
 
@@ -28,10 +46,10 @@ namespace sigil::compose::kit {
  *  value ever stops being a peer of a hand-written one, this stops
  *  compiling. */
 bool kitLinked() {
-  static_assert(std::equality_comparable<Frame>);
-  static_assert(std::equality_comparable<Grid>);
-  static_assert(std::equality_comparable<Ticks>);
-  static_assert(std::equality_comparable<TicksShape>);
+  static_assert(std::equality_comparable<geometry::path::Frame>);
+  static_assert(std::equality_comparable<geometry::path::Grid>);
+  static_assert(std::equality_comparable<geometry::shapes::Ticks>);
+  static_assert(std::equality_comparable<geometry::shapes::TicksShape>);
   return true;
 }
 

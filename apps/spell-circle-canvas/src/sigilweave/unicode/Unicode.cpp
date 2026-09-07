@@ -2,18 +2,23 @@
  * Every Unicode question the engine asks, answered through ICU: transcoding,
  * character properties, script itemization, case mapping, the line, word
  * and sentence segmenters, and bidirectional levels, over thread-local
- * scratch objects reused across calls.
+ * scratch objects reused across calls. The one question ICU does not
+ * answer alone is the shaper's script tag, which HarfBuzz's own bridge
+ * translates an ICU script code into.
  */
 
 #include "sigilweave/unicode/Unicode.h"
 
+#include <hb-icu.h>
 #include <unicode/ubidi.h>
 #include <unicode/ubrk.h>
 #include <unicode/uchar.h>
 #include <unicode/uscript.h>
+#include <unicode/uset.h>
 #include <unicode/ustring.h>
 #include <unicode/utf16.h>
 
+#include <initializer_list>
 #include <memory>
 
 namespace sigil::weave::unicode {
@@ -28,18 +33,27 @@ struct BreakIteratorCloser {
 };
 using BreakIteratorPtr = std::unique_ptr<UBreakIterator, BreakIteratorCloser>;
 
-// Points `iterator` at `text`, opening it (root locale) on first use.
-// Returns nullptr when ICU refuses.
+// Points `iterator` at `text`, opening it on first use under `locale` (a
+// BCP 47 tag, optionally with ICU's line-break keyword; empty is the
+// untailored root). An iterator carries its locale's rules, so a change of
+// locale opens a new one and the old one is dropped. Returns nullptr when
+// ICU refuses.
 UBreakIterator* targetIterator(BreakIteratorPtr& iterator,
+                               std::string& iteratorLocale,
                                UBreakIteratorType type,
-                               std::u16string_view text) {
+                               std::u16string_view text,
+                               std::string_view locale = {}) {
   const UChar* units = reinterpret_cast<const UChar*>(text.data());
   const int32_t length = static_cast<int32_t>(text.size());
   UErrorCode status = U_ZERO_ERROR;
-  if (!iterator)
-    iterator.reset(ubrk_open(type, "", units, length, &status));
-  else
+  if (iterator && iteratorLocale != locale) iterator.reset();
+  if (!iterator) {
+    iteratorLocale.assign(locale);
+    iterator.reset(
+        ubrk_open(type, iteratorLocale.c_str(), units, length, &status));
+  } else {
     ubrk_setText(iterator.get(), units, length, &status);
+  }
   if (U_FAILURE(status)) return nullptr;
   return iterator.get();
 }
@@ -75,6 +89,41 @@ bool mapInto(std::u16string_view source, MapFunction&& mapFunction,
   if (U_FAILURE(status)) return false;
   out.resize(outOffset + static_cast<size_t>(written));
   return true;
+}
+
+// Every code point ICU gives one of `classes` as its UAX#14 line-break
+// class, ascending. ICU resolves each class into a set of its own, so the
+// listing is the property data rather than a transcription of it, and a
+// class Unicode adds a character to next year is covered without an edit.
+// A class ICU refuses yields nothing rather than a partial listing.
+std::vector<char32_t> codePointsInLineBreakClasses(
+    std::initializer_list<int32_t> classes) {
+  std::vector<char32_t> codePoints;
+  USet* everyClass = uset_openEmpty();
+  USet* one = uset_openEmpty();
+  UErrorCode status = U_ZERO_ERROR;
+  for (const int32_t lineBreakClass : classes) {
+    uset_applyIntPropertyValue(one, UCHAR_LINE_BREAK, lineBreakClass, &status);
+    if (U_FAILURE(status)) break;
+    uset_addAll(everyClass, one);
+  }
+  if (U_SUCCESS(status)) {
+    const int32_t rangeCount = uset_getRangeCount(everyClass);
+    for (int32_t range = 0; range < rangeCount; ++range) {
+      UChar32 first = 0;
+      UChar32 last = 0;
+      UErrorCode rangeStatus = U_ZERO_ERROR;
+      if (uset_getItem(everyClass, range, &first, &last, nullptr, 0,
+                       &rangeStatus) != 0 ||
+          U_FAILURE(rangeStatus))
+        continue;
+      for (UChar32 codePoint = first; codePoint <= last; ++codePoint)
+        codePoints.push_back(static_cast<char32_t>(codePoint));
+    }
+  }
+  uset_close(one);
+  uset_close(everyClass);
+  return codePoints;
 }
 
 }  // namespace
@@ -126,8 +175,15 @@ bool isWhitespace(char32_t codePoint) {
 }
 
 bool isHardLineBreak(char16_t unit) {
-  return unit == u'\n' || unit == u'\r' || unit == 0x0085 || unit == 0x2028 ||
-         unit == 0x2029;
+  switch (u_getIntPropertyValue(static_cast<UChar32>(unit), UCHAR_LINE_BREAK)) {
+    case U_LB_MANDATORY_BREAK:  // VT, FF, LINE and PARAGRAPH SEPARATOR
+    case U_LB_CARRIAGE_RETURN:
+    case U_LB_LINE_FEED:
+    case U_LB_NEXT_LINE:
+      return true;
+    default:
+      return false;
+  }
 }
 
 bool inheritsTypeface(char32_t codePoint) {
@@ -142,16 +198,35 @@ bool inheritsTypeface(char32_t codePoint) {
 }
 
 bool mayRequireBidi(char32_t codePoint) {
+  // ASCII is the overwhelming majority of the text this is asked about and
+  // holds no right-to-left character at all, so it answers without a
+  // lookup; everything else is one trie read of the character's own
+  // bidirectional class.
   if (codePoint < 0x0590) return false;
-  if (codePoint <= 0x08FF)  // Hebrew, Arabic, Syriac, Thaana, NKo, ...
-    return true;
-  if (codePoint == 0x200F || codePoint == 0x202B || codePoint == 0x202E ||
-      codePoint == 0x2067)
-    return true;  // RLM / RLE / RLO / RLI
-  return (codePoint >= 0xFB1D && codePoint <= 0xFDFF) ||
-         (codePoint >= 0xFE70 && codePoint <= 0xFEFF) ||
-         (codePoint >= 0x10800 && codePoint <= 0x10FFF) ||
-         (codePoint >= 0x1E800 && codePoint <= 0x1EFFF);
+  switch (u_charDirection(static_cast<UChar32>(codePoint))) {
+    case U_RIGHT_TO_LEFT:
+    case U_RIGHT_TO_LEFT_ARABIC:
+    case U_RIGHT_TO_LEFT_EMBEDDING:
+    case U_RIGHT_TO_LEFT_OVERRIDE:
+    case U_RIGHT_TO_LEFT_ISOLATE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool isLetter(char32_t codePoint) {
+  return u_isalpha(static_cast<UChar32>(codePoint));
+}
+
+bool isUpperCase(char32_t codePoint) {
+  return u_isupper(static_cast<UChar32>(codePoint));
+}
+
+bool isFullWidth(char32_t codePoint) {
+  const int32_t width = u_getIntPropertyValue(static_cast<UChar32>(codePoint),
+                                              UCHAR_EAST_ASIAN_WIDTH);
+  return width == U_EA_WIDE || width == U_EA_FULLWIDTH;
 }
 
 VerticalOrientation verticalOrientation(char32_t codePoint) {
@@ -186,19 +261,14 @@ const char* scriptShortName(Script script) noexcept {
   return uscript_getShortName(static_cast<UScriptCode>(script));
 }
 
-bool isIdeographicScript(Script script) noexcept {
-  switch (static_cast<UScriptCode>(script)) {
-    case USCRIPT_HAN:
-    case USCRIPT_HIRAGANA:
-    case USCRIPT_KATAKANA:
-    case USCRIPT_KATAKANA_OR_HIRAGANA:
-    case USCRIPT_HANGUL:
-    case USCRIPT_BOPOMOFO:
-    case USCRIPT_YI:
-      return true;
-    default:
-      return false;
-  }
+ShaperScript shaperScript(Script script) noexcept {
+  // A run of Common or Inherited text belongs to no script of its own, and
+  // HB_SCRIPT_COMMON is the tag a shaper reads as "apply the default
+  // rules".
+  if (!isSpecificScript(script) || script >= scriptLimit())
+    return static_cast<ShaperScript>(HB_SCRIPT_COMMON);
+  return static_cast<ShaperScript>(
+      hb_icu_script_to_script(static_cast<UScriptCode>(script)));
 }
 
 std::vector<ScriptRun> itemize(std::u16string_view text) {
@@ -229,6 +299,19 @@ void itemize(std::u16string_view text, std::vector<ScriptRun>& runs) {
   runs.push_back({static_cast<uint32_t>(textLength), currentScript});
 }
 
+// ── Line-break classes ─────────────────────────────────────────────────
+
+std::vector<char32_t> lineStartProhibited() {
+  return codePointsInLineBreakClasses({U_LB_CLOSE_PUNCTUATION,
+                                       U_LB_CLOSE_PARENTHESIS, U_LB_NONSTARTER,
+                                       U_LB_CONDITIONAL_JAPANESE_STARTER,
+                                       U_LB_EXCLAMATION, U_LB_INFIX_NUMERIC});
+}
+
+std::vector<char32_t> lineEndProhibited() {
+  return codePointsInLineBreakClasses({U_LB_OPEN_PUNCTUATION});
+}
+
 // ── Case mapping ───────────────────────────────────────────────────────
 
 bool caseMap(std::u16string_view text, Case mapping, std::string_view locale,
@@ -253,10 +336,9 @@ bool caseMap(std::u16string_view text, Case mapping, std::string_view locale,
       // Titlecase exactly the first code point; the remainder is untouched
       // (u_strToTitle over the whole text would lowercase it).
       int32_t firstEnd = 0;
-      UChar32 firstCodePoint;
+      [[maybe_unused]] UChar32 firstCodePoint;
       U16_NEXT(text.data(), firstEnd, static_cast<int32_t>(text.size()),
                firstCodePoint);
-      static_cast<void>(firstCodePoint);
       auto titleFirst = [](UChar* dest, int32_t destCapacity, const UChar* src,
                            int32_t srcLength, const char* mapLocale,
                            UErrorCode* status) {
@@ -280,29 +362,68 @@ std::u16string caseMapped(std::u16string_view text, Case mapping,
   return out;
 }
 
+char32_t lowerCased(char32_t codePoint) {
+  return static_cast<char32_t>(u_tolower(static_cast<UChar32>(codePoint)));
+}
+
 // ── Segmentation ───────────────────────────────────────────────────────
 
-std::vector<uint32_t> lineBreaks(std::u16string_view text) {
-  std::vector<uint32_t> breaks;
-  lineBreaks(text, breaks);
+std::vector<LineBreak> lineBreaks(std::u16string_view text,
+                                  std::string_view locale) {
+  std::vector<LineBreak> breaks;
+  lineBreaks(text, breaks, locale);
   return breaks;
 }
 
-void lineBreaks(std::u16string_view text, std::vector<uint32_t>& breaks) {
+void lineBreaks(std::u16string_view text, std::vector<LineBreak>& breaks,
+                std::string_view locale) {
   breaks.clear();
   static thread_local BreakIteratorPtr lineIterator;
-  if (UBreakIterator* iterator = targetIterator(lineIterator, UBRK_LINE, text))
-    collectBoundaries(iterator, breaks);
+  static thread_local std::string lineIteratorLocale;
+  if (UBreakIterator* iterator = targetIterator(
+          lineIterator, lineIteratorLocale, UBRK_LINE, text, locale)) {
+    // WHETHER A BREAK IS MANDATORY IS THE ITERATOR'S OWN ANSWER: the rule
+    // that opened the boundary is reported beside it, and the mandatory
+    // rules occupy their own status range. Deriving it from the character
+    // before the boundary instead cannot see a CR LF pair as one break.
+    for (int32_t boundary = ubrk_next(iterator); boundary != UBRK_DONE;
+         boundary = ubrk_next(iterator)) {
+      const int32_t rule = ubrk_getRuleStatus(iterator);
+      breaks.push_back({static_cast<uint32_t>(boundary),
+                        rule >= UBRK_LINE_HARD && rule < UBRK_LINE_HARD_LIMIT});
+    }
+  }
   const uint32_t textLength = static_cast<uint32_t>(text.size());
-  if (breaks.empty() || breaks.back() != textLength)
-    breaks.push_back(textLength);
+  if (breaks.empty() || breaks.back().offset != textLength)
+    breaks.push_back({textLength, false});
+}
+
+std::vector<uint32_t> graphemeBoundaries(std::u16string_view text) {
+  std::vector<uint32_t> boundaries;
+  graphemeBoundaries(text, boundaries);
+  return boundaries;
+}
+
+void graphemeBoundaries(std::u16string_view text,
+                        std::vector<uint32_t>& boundaries) {
+  boundaries.clear();
+  boundaries.push_back(0);
+  static thread_local BreakIteratorPtr graphemeIterator;
+  static thread_local std::string graphemeIteratorLocale;
+  if (UBreakIterator* iterator = targetIterator(
+          graphemeIterator, graphemeIteratorLocale, UBRK_CHARACTER, text))
+    collectBoundaries(iterator, boundaries);
+  const uint32_t textLength = static_cast<uint32_t>(text.size());
+  if (boundaries.back() != textLength) boundaries.push_back(textLength);
 }
 
 std::vector<uint32_t> wordBoundaries(std::u16string_view text) {
   std::vector<uint32_t> boundaries;
   boundaries.push_back(0);
   static thread_local BreakIteratorPtr wordIterator;
-  if (UBreakIterator* iterator = targetIterator(wordIterator, UBRK_WORD, text))
+  static thread_local std::string wordIteratorLocale;
+  if (UBreakIterator* iterator =
+          targetIterator(wordIterator, wordIteratorLocale, UBRK_WORD, text))
     collectBoundaries(iterator, boundaries);
   const uint32_t textLength = static_cast<uint32_t>(text.size());
   if (boundaries.back() != textLength) boundaries.push_back(textLength);
@@ -313,8 +434,9 @@ std::vector<uint32_t> sentenceStarts(std::u16string_view text) {
   std::vector<uint32_t> starts;
   if (text.empty()) return starts;
   static thread_local BreakIteratorPtr sentenceIterator;
-  UBreakIterator* iterator =
-      targetIterator(sentenceIterator, UBRK_SENTENCE, text);
+  static thread_local std::string sentenceIteratorLocale;
+  UBreakIterator* iterator = targetIterator(
+      sentenceIterator, sentenceIteratorLocale, UBRK_SENTENCE, text);
   if (!iterator) return starts;
   const int32_t textLength = static_cast<int32_t>(text.size());
   starts.push_back(0);

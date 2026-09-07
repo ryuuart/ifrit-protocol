@@ -52,7 +52,7 @@
 //   RECONSTRUCTED — (1) ALL chrome art. The plate, plaques, wells, rivets,
 //     tabs, buttons and parchment are raster FRMs (intrface art id 177); their
 //     layout is documented, their pixels are not recoverable, so they are
-//     generated here from Material::blend / patterns::grain / shapes::inset.
+//     generated here from Paint::blend / patterns::grain / shapes::inset.
 //     (2) The typeface: Fallout draws with bitmap fonts (font101/102/103.aaf).
 //     SigilWeave has no bitmap-font path, so the sheet is RE-SET in real faces
 //     at 2x with real kerning. This is a typographic restoration, not a pixel
@@ -108,15 +108,16 @@
 // line pitch (LineMetricsOptions.height = 22) and greedy breaking;
 // flowAround(), the derive phase's only user-facing feature; renderSlot() as
 // the counter/content idiom; measure() for the leader rules and the card's
-// title advance; patterns::grain, Material::blend,
-// Material::linearUnit/radialUnit, shapes::inset, shapes::circle, kit::disc,
+// title advance; patterns::grain, Paint::blend,
+// Paint::linearUnit/radialUnit, shapes::inset, shapes::circle, kit::disc,
 // styles::BevelEmboss, PathFormat hairlines, Element::overlay(), bind().
 //
 // THE HARD THING: every row here is a two-column table and the library has no
 // table. Five regimes on one screen. The kills folder is the dense case — it
 // measures the name, measures the count, and draws a hairline between them at
-// y + lineHeight/2. TabStopOptions carries `positions` and `interval` and NO
-// LEADER, so that is hand-built from two measure() calls per row.
+// y + lineHeight/2. `TabStop::leader` fills a stop's gap with a repeated
+// STRING, which is a run of dots; what stands here is a 1 px rule on the
+// row's own midline, so the gap is hand-built from two measure() calls.
 //
 // -----------------------------------------------------------------------------
 // SIX RULES THIS RECONSTRUCTION TURNS ON
@@ -160,41 +161,64 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+
+namespace field = sigil::material::field;
+namespace path = sigil::geometry::path;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
+using sigil::material::skia::Paint;
 namespace ch = choreograph;
-namespace weave = sigil::weave;
 
 namespace fo {
 
 // ---------------------------------------------------------------------------
-// Scale. ORIGINAL 640x480 px -> canvas px. Nothing else scales anything.
+// THE UNIT MAP. ORIGINAL 640x480 px -> canvas px. Nothing else scales
+// anything, and every number below the palette is in the artefact's own
+// pixels: divide any canvas number by the scale to recover the 1998 pixel.
+//
+// A LENGTH IS NOT A POSITION. `s()` takes no origin and `x()`/`y()` do, so
+// a width run through a position map is the one arithmetic error this
+// sheet's 200 placements cannot make.
 
-constexpr float kScale = 2.0f;
-constexpr float n(float v) { return v * kScale; }
+constexpr path::Grid kUnits{.scale = 2.0f};
+constexpr float kScale = kUnits.scale;
+constexpr float n(float v) { return kUnits.s(v); }
 constexpr float kScreenW = n(640), kScreenH = n(480);
 constexpr float kCaptionH = 128.0f;
 
@@ -203,32 +227,34 @@ constexpr float kCaptionH = 128.0f;
 // what the 6-bit VGA palette actually delivered, sampled off the lossless PNG.
 // The gap is the finding (see header).
 
-constexpr SkColor4f kGreen = hex(0x3CF800);  // _colorTable[992],  req #00FF00
+constexpr SkColor4f kGreen =
+    hexColor(0x3CF800);  // _colorTable[992],  req #00FF00
 constexpr SkColor4f kSelected =
-    hex(0xFCFC7C);  // _colorTable[32747], req #F8F858
+    hexColor(0xFCFC7C);  // _colorTable[32747], req #F8F858
 constexpr SkColor4f kInactive =
-    hex(0x183018);                            // _colorTable[1313],  req #084808
-constexpr SkColor4f kTagged = hex(0xA0A0A0);  // _colorTable[21140], exact
-constexpr SkColor4f kGold = hex(0x907824);    // _colorTable[18979], req #908818
-constexpr SkColor4f kGoldDim = hex(0x7C6818);  // engraving shadow
-constexpr SkColor4f kInk = hex(0x000000);      // ALL card text and its rule
+    hexColor(0x183018);  // _colorTable[1313],  req #084808
+constexpr SkColor4f kTagged = hexColor(0xA0A0A0);  // _colorTable[21140], exact
+constexpr SkColor4f kGold =
+    hexColor(0x907824);  // _colorTable[18979], req #908818
+constexpr SkColor4f kGoldDim = hexColor(0x7C6818);  // engraving shadow
+constexpr SkColor4f kInk = hexColor(0x000000);  // ALL card text and its rule
 
-constexpr SkColor4f kWell = hex(0x040C00);       // inset interior: near-black,
-                                                 // GREEN-cast, not pure black
-constexpr SkColor4f kPlate = hex(0x383020);      // metal plate, base olive
-constexpr SkColor4f kPlateLit = hex(0x483828);   // lit facet
-constexpr SkColor4f kPlateDark = hex(0x302820);  // shadowed facet
-constexpr SkColor4f kRust = hex(0x7C581C);
-constexpr SkColor4f kParch = hex(0x9C7434);  // parchment base ochre
-constexpr SkColor4f kParchLit = hex(0xAC8044);
-constexpr SkColor4f kParchLit2 = hex(0xBC9054);
-constexpr SkColor4f kParchDark = hex(0x8C6428);
-constexpr SkColor4f kParchScuff = hex(0x947C60);
-constexpr SkColor4f kLampOff = hex(0x580000);
-constexpr SkColor4f kLampOn = hex(0xF80000);  // _colorTable[31744]
-constexpr SkColor4f kDigit = hex(0xFFFFFF);   // the odometer sprite sheet's
-                                              // first half (the second half is
-                                              // red, for stats above 10)
+constexpr SkColor4f kWell = hexColor(0x040C00);   // inset interior: near-black,
+                                                  // GREEN-cast, not pure black
+constexpr SkColor4f kPlate = hexColor(0x383020);  // metal plate, base olive
+constexpr SkColor4f kPlateLit = hexColor(0x483828);   // lit facet
+constexpr SkColor4f kPlateDark = hexColor(0x302820);  // shadowed facet
+constexpr SkColor4f kRust = hexColor(0x7C581C);
+constexpr SkColor4f kParch = hexColor(0x9C7434);  // parchment base ochre
+constexpr SkColor4f kParchLit = hexColor(0xAC8044);
+constexpr SkColor4f kParchLit2 = hexColor(0xBC9054);
+constexpr SkColor4f kParchDark = hexColor(0x8C6428);
+constexpr SkColor4f kParchScuff = hexColor(0x947C60);
+constexpr SkColor4f kLampOff = hexColor(0x580000);
+constexpr SkColor4f kLampOn = hexColor(0xF80000);  // _colorTable[31744]
+constexpr SkColor4f kDigit = hexColor(0xFFFFFF);  // the odometer sprite sheet's
+                                                  // first half (the second half
+                                                  // is red, for stats above 10)
 
 // ---------------------------------------------------------------------------
 // GEOMETRY. Source tag: (code) = character_editor.cc; (measured) = scanned off
@@ -264,17 +290,12 @@ constexpr float kRowPitch11 = 11;  // fontGetLineHeight(101) + 1
 // because the whole reason the game's fixed value columns work is that its
 // small font is near-monospaced.
 
-inline sk_sp<SkTypeface> face(const char* family, int weight,
-                              SkFontStyle::Width width,
-                              const char* fb1 = nullptr,
-                              const char* fb2 = nullptr) {
-  auto mgr = weave::ports::systemFontManager();
-  const SkFontStyle style(weight, width, SkFontStyle::kUpright_Slant);
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(family, style);
-  if (!f && fb1) f = mgr->matchFamilyStyle(fb1, style);
-  if (!f && fb2) f = mgr->matchFamilyStyle(fb2, style);
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-  return f;
+/** The one shape this sheet asks a face in: a family list at a weight and
+ *  a width, held for the process by the port that answers it. */
+inline sk_sp<SkTypeface> sheetFace(std::initializer_list<const char*> families,
+                                   int weight, SkFontStyle::Width width) {
+  return weave::ports::face(
+      families, SkFontStyle(weight, width, SkFontStyle::kUpright_Slant));
 }
 /** font 101 substitute — a squarish PROPORTIONAL face.
  *
@@ -287,73 +308,42 @@ inline sk_sp<SkTypeface> face(const char* family, int weight,
  *  reconstruction of a LAYOUT cannot afford. It costs nothing in geometry:
  *  every value column is at an absolute x, so a shorter label simply ends
  *  sooner. */
-inline const sk_sp<SkTypeface>& bodyFace() {
-  static sk_sp<SkTypeface> f =
-      face("Verdana", SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
-           "DejaVu Sans", "Helvetica");
-  return f;
+inline sk_sp<SkTypeface> bodyFace() {
+  return sheetFace({"Verdana", "DejaVu Sans", "Helvetica"},
+                   SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width);
 }
-inline const sk_sp<SkTypeface>& bodyBold() {
-  static sk_sp<SkTypeface> f =
-      face("Verdana", SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width,
-           "DejaVu Sans", "Helvetica");
-  return f;
+inline sk_sp<SkTypeface> bodyBold() {
+  return sheetFace({"Verdana", "DejaVu Sans", "Helvetica"},
+                   SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width);
 }
 /** The engraved gold: plaques, tabs, buttons, S.P.E.C.I.A.L. caps. */
-inline const sk_sp<SkTypeface>& engraved() {
-  static sk_sp<SkTypeface> f =
-      face("Impact", SkFontStyle::kNormal_Weight, SkFontStyle::kCondensed_Width,
-           "Haettenschweiler", "Copperplate");
-  return f;
+inline sk_sp<SkTypeface> engraved() {
+  return sheetFace({"Impact", "Haettenschweiler", "Copperplate"},
+                   SkFontStyle::kNormal_Weight, SkFontStyle::kCondensed_Width);
 }
 /** font 102 substitute — the card title, a condensed heavy grotesque. */
-inline const sk_sp<SkTypeface>& titleFace() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica Neue", SkFontStyle::kBlack_Weight,
-           SkFontStyle::kCondensed_Width, "Impact", "Helvetica");
-  return f;
+inline sk_sp<SkTypeface> titleFace() {
+  return sheetFace({"Helvetica Neue", "Impact", "Helvetica"},
+                   SkFontStyle::kBlack_Weight, SkFontStyle::kCondensed_Width);
 }
 /** The odometer digits — tabular figures on a hard 14 px cell. */
-inline const sk_sp<SkTypeface>& digitFace() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica Neue", SkFontStyle::kBold_Weight,
-           SkFontStyle::kCondensed_Width, "Menlo", "Helvetica");
-  return f;
+inline sk_sp<SkTypeface> digitFace() {
+  return sheetFace({"Helvetica Neue", "Menlo", "Helvetica"},
+                   SkFontStyle::kBold_Weight, SkFontStyle::kCondensed_Width);
 }
 
-// A positional shorthand over the library's designated-init `type()`: the
+// A positional shorthand over weave's designated-init `textStyle()`: the
 // sheet has one type signature and names its own five parameters over it.
-inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
-                             SkColor4f color, float track = 0,
-                             float condense = 1.0f) {
-  return sigil::compose::type({.face = tf,
-                               .size = size,
-                               .color = color,
-                               .track = track,
-                               .condense = condense});
+inline weave::TextStyle sheetType(const sk_sp<SkTypeface>& tf, float size,
+                                  SkColor4f color, float track = 0,
+                                  float condense = 1.0f) {
+  return weave::textStyle({.face = tf,
+                           .size = size,
+                           .color = color,
+                           .track = track,
+                           .condense = condense});
 }
 
-/** Probed once in setup(): px of advance per em for the body face, and the
- *  scaleX that condenses the card-title face onto its measured original
- *  advance. */
-inline float& bodyEm() {
-  static float v = 0.6f;
-  return v;
-}
-inline float& titleCondense() {
-  static float v = 0.6f;
-  return v;
-}
-/** The engraved face's condense for the S.P.E.C.I.A.L. abbreviations, the
- *  top plaques and the folder tabs, probed in setup(): "ST-" measures 36
- *  original px of ink on the capture, so the substitute is squeezed until
- *  its own advance lands there. scaleX is a ratio of the face's
- *  proportions, not of a size, so the one probe serves all three sites'
- *  sizes. */
-inline float& engravedCondense() {
-  static float v = 0.84f;
-  return v;
-}
 /** Original px the body face advances per character, ON AVERAGE.
  *
  *  Measured off the capture's ten derived-stat labels: 752 px of ink over
@@ -366,28 +356,6 @@ inline float& engravedCondense() {
  *  skill rows clear the +/- buttons, which is the constraint the
  *  measurement has to survive. */
 constexpr float kBodyAdvance = 5.80f;
-inline float bodySize() { return n(kBodyAdvance) / bodyEm(); }
-
-/** The distance from a laid-out line's TOP to the top of its capitals, in
- *  ORIGINAL px — Fallout's draw y is the glyph cell's top, SigilWeave's node
- *  top is the line box's top, and the two differ by the ascent slack. Derived
- *  from the substituted face's own metrics in setup(). */
-inline float& bodyRise() {
-  static float v = 2.0f;
-  return v;
-}
-inline float& titleRise() {
-  static float v = 5.0f;
-  return v;
-}
-/** The engraved face's line-top -> cap-top slack as a FRACTION of its font
- *  size, so one probe serves the five sizes the plaques, tabs, headings,
- *  buttons and S.P.E.C.I.A.L. caps are set in. */
-inline float& engravedRiseFrac() {
-  static float v = 0.20f;
-  return v;
-}
-inline float engravedRise(float size) { return engravedRiseFrac() * size; }
 
 inline Element t(const std::string& s, weave::TextStyle st) {
   return text(toU8(s), std::move(st));
@@ -395,13 +363,14 @@ inline Element t(const std::string& s, weave::TextStyle st) {
 /** Place at a DOCUMENTED (x, y) in original screen px. `y` is Fallout's draw
  *  y — the top of the glyph cell — so the rise correction lands here, once. */
 inline Element ink(Element e, float x, float y, float rise) {
-  e.left(Dim(n(x))).top(Dim(n(y) - rise));
+  e.left(Dim(kUnits.x(x))).top(Dim(kUnits.y(y) - rise));
   return e;
 }
 /** Absolute placement in the SHEET'S OWN pixels — the numbers read off
- *  the capture — scaled to canvas px on the way through. */
+ *  the capture — through the unit map on the way to the canvas. */
 inline Element at(Element e, float x, float y, float w, float h) {
-  return kit::at(std::move(e), n(x), n(y), n(w), n(h));
+  return kit::at(std::move(e), kUnits.x(x), kUnits.y(y), kUnits.s(w),
+                 kUnits.s(h));
 }
 inline Element atR(Element e, Rect r) {
   return at(std::move(e), r.x, r.y, r.w, r.h);
@@ -565,16 +534,15 @@ inline std::string thousands(int v) {
 // ---------------------------------------------------------------------------
 // THE AUDIT. The same derive()/skillValue() run against the three shipped
 // premades, whose sheets the character-selection screens print. 21 independent
-// numbers. If a formula above is wrong, the caption band says so.
+// numbers, each row's verdict COMPUTED from the shipped value and the one this
+// file derives, so the fraction on the caption band cannot disagree with the
+// arithmetic behind it. If a formula above is wrong, the caption band says so.
 
-struct Audit {
-  int passed = 0, total = 0;
-};
-inline Audit audit() {
-  Audit a;
-  auto chk = [&](int got, int want) {
-    a.total++;
-    if (got == want) a.passed++;
+inline sigil::measure::Table audit() {
+  namespace measure = sigil::measure;
+  measure::Table t;
+  auto chk = [&](const char* premade, const char* what, int got, int want) {
+    t.add(measure::check(kit::formatted("%s  %s", premade, what), want, got));
   };
   // Narg — Heavy Handed, Gifted.
   {
@@ -582,13 +550,14 @@ inline Audit audit() {
     Traits tr;
     tr.heavyHanded = tr.gifted = true;
     Derived d = derive(s, tr, 1, 0);
-    chk(d.hitPoints, 44);
-    chk(d.armorClass, 8);
-    chk(d.actionPoints, 9);
-    chk(d.meleeDamage, 8);
-    chk(skillValue(4, s, tr, true, 0), 64);  // Melee Weapons
-    chk(skillValue(0, s, tr, true, 0), 47);  // Small Guns
-    chk(skillValue(5, s, tr, true, 0), 42);  // Throwing
+    t.add(measure::heading("NARG  Heavy Handed, Gifted"));
+    chk("Narg", "hit points", d.hitPoints, 44);
+    chk("Narg", "armor class", d.armorClass, 8);
+    chk("Narg", "action points", d.actionPoints, 9);
+    chk("Narg", "melee damage", d.meleeDamage, 8);
+    chk("Narg", "Melee Weapons %", skillValue(4, s, tr, true, 0), 64);
+    chk("Narg", "Small Guns %", skillValue(0, s, tr, true, 0), 47);
+    chk("Narg", "Throwing %", skillValue(5, s, tr, true, 0), 42);
   }
   // Mingan — Skilled, Small Frame.
   {
@@ -596,28 +565,30 @@ inline Audit audit() {
     Traits tr;
     tr.skilled = tr.smallFrame = true;
     Derived d = derive(s, tr, 1, 0);
-    chk(d.hitPoints, 28);
-    chk(d.armorClass, 10);
-    chk(d.actionPoints, 10);
-    chk(d.meleeDamage, 1);
-    chk(skillValue(8, s, tr, true, 0), 55);   // Sneak
-    chk(skillValue(9, s, tr, true, 0), 48);   // Lockpick
-    chk(skillValue(10, s, tr, true, 0), 50);  // Steal
+    t.add(measure::heading("MINGAN  Skilled, Small Frame"));
+    chk("Mingan", "hit points", d.hitPoints, 28);
+    chk("Mingan", "armor class", d.armorClass, 10);
+    chk("Mingan", "action points", d.actionPoints, 10);
+    chk("Mingan", "melee damage", d.meleeDamage, 1);
+    chk("Mingan", "Sneak %", skillValue(8, s, tr, true, 0), 55);
+    chk("Mingan", "Lockpick %", skillValue(9, s, tr, true, 0), 48);
+    chk("Mingan", "Steal %", skillValue(10, s, tr, true, 0), 50);
   }
   // Chitsa — One Hander, Sex Appeal (neither touches these numbers).
   {
     Special s{{4, 5, 4, 10, 7, 6, 4}};
     Traits tr;
     Derived d = derive(s, tr, 1, 0);
-    chk(d.hitPoints, 27);
-    chk(d.armorClass, 6);
-    chk(d.actionPoints, 8);
-    chk(d.meleeDamage, 1);
-    chk(skillValue(14, s, tr, true, 0), 70);  // Speech
-    chk(skillValue(15, s, tr, true, 0), 60);  // Barter
-    chk(skillValue(6, s, tr, true, 0), 44);   // First Aid
+    t.add(measure::heading("CHITSA  One Hander, Sex Appeal"));
+    chk("Chitsa", "hit points", d.hitPoints, 27);
+    chk("Chitsa", "armor class", d.armorClass, 6);
+    chk("Chitsa", "action points", d.actionPoints, 8);
+    chk("Chitsa", "melee damage", d.meleeDamage, 1);
+    chk("Chitsa", "Speech %", skillValue(14, s, tr, true, 0), 70);
+    chk("Chitsa", "Barter %", skillValue(15, s, tr, true, 0), 60);
+    chk("Chitsa", "First Aid %", skillValue(6, s, tr, true, 0), 44);
   }
-  return a;
+  return t;
 }
 
 // ---------------------------------------------------------------------------
@@ -633,6 +604,7 @@ struct Pose {
   float armSwing;  // radians of arm splay
   float legSpread;
   int prop;  // 0 none, 1 rifle across the body, 2 raised arm
+  bool operator==(const Pose&) const = default;
 };
 
 /** The figure, drawn in the INK box's own [0,w]x[0,h].
@@ -770,7 +742,7 @@ struct Fallout2CharSheet : sketch::Sketch {
   std::array<bool, 18> tagged{};
   std::array<int, 18> invested{};
   int pointsEarned = 0, pointsSpent = 0;
-  fo::Audit sheetAudit;
+  sigil::measure::Table sheetAudit;
 
   // ---- interaction state (the only motion this screen has) ---------------
   static constexpr std::array<int, 3> kWalk{0, 7, 4};  // Small Guns, Doctor,
@@ -788,8 +760,8 @@ struct Fallout2CharSheet : sketch::Sketch {
   double now = 0;
 
   // ---- generated surfaces, held so their identity prunes ------------------
-  Material plateMat, plateTooth, rustMat, wellMat, parchMat, parchTooth,
-      wheelMat, rivetMat, tabMat, canvasGrain;
+  Paint plateMat, plateTooth, rustMat, wellMat, parchMat, parchTooth, wheelMat,
+      rivetMat, tabMat, canvasGrain;
 
   // ---- measured advances for the kills leaders (setup-time) ---------------
   struct Kill {
@@ -817,6 +789,40 @@ struct Fallout2CharSheet : sketch::Sketch {
   // paragraph identity for the card body, held so shaping caches stay warm
   std::shared_ptr<weave::Paragraph> cardPara;
 
+  // ---- the measured type, probed once per instance in setup() ------------
+  // Each is a property of the faces THIS instance resolved, so it lives on
+  // the instance: two live sessions of this sketch measure independently and
+  // neither may see the other's numbers. The values below are the fallbacks
+  // a probe that measures nothing leaves in place.
+
+  /** Px of advance per em for the body face. */
+  float bodyEm = 0.6f;
+  /** The scaleX that condenses the card-title face onto its measured
+   *  original advance. */
+  float titleCondense = 0.6f;
+  /** The engraved face's condense for the S.P.E.C.I.A.L. abbreviations, the
+   *  top plaques and the folder tabs: "ST-" measures 36 original px of ink
+   *  on the capture, so the substitute is squeezed until its own advance
+   *  lands there. scaleX is a ratio of the face's proportions, not of a
+   *  size, so the one probe serves all three sites' sizes. */
+  float engravedCondense = 0.84f;
+  /** The distance from a laid-out line's TOP to the top of its capitals, in
+   *  ORIGINAL px — Fallout's draw y is the glyph cell's top, SigilWeave's
+   *  node top is the line box's top, and the two differ by the ascent slack.
+   *  Derived from the substituted face's own metrics. */
+  float bodyRise = 2.0f;
+  float titleRise = 5.0f;
+  /** The engraved face's line-top -> cap-top slack as a FRACTION of its font
+   *  size, so one probe serves the five sizes the plaques, tabs, headings,
+   *  buttons and S.P.E.C.I.A.L. caps are set in. */
+  float engravedRiseFrac = 0.20f;
+
+  /** The body size that lands the substitute on kBodyAdvance original px per
+   *  character, given this instance's measured em. */
+  float bodySize() const { return fo::n(fo::kBodyAdvance) / bodyEm; }
+  /** The engraved slack at @p size. */
+  float engravedRise(float size) const { return engravedRiseFrac * size; }
+
   // =========================================================================
   // Type helpers, once the probes have run.
 
@@ -825,24 +831,24 @@ struct Fallout2CharSheet : sketch::Sketch {
    *  substitute runs BOLD — and because Andale Mono is monospaced, bold has
    *  identical advances and every column stays where the game put it. */
   weave::TextStyle body(SkColor4f c) const {
-    return sigil::compose::type(
-        {.face = fo::bodyBold(), .size = fo::bodySize(), .color = c});
+    return weave::textStyle(
+        {.face = fo::bodyBold(), .size = bodySize(), .color = c});
   }
   /** The engraved gold. Sizes are DERIVED from measured ink on the capture:
    *  "ST-" is 36x21 original px, "SKILLS" 51x18, "PRINT" 47x16, "LUKE" 58x20.
    *  Those cap-to-advance ratios (0.40-0.47) are narrower than any stock face,
    *  so the substitute is condensed to land on them. The S.P.E.C.I.A.L.
    *  abbreviations, the top plaques and the folder tabs take
-   *  engravedCondense(), probed in setup() from "ST-"'s measured ink — the
+   *  engravedCondense, probed in setup() from "ST-"'s measured ink — the
    *  same discipline the body advance and the card title use; the headings
    *  and buttons state their factors at the call, tuned to their own runs. */
   weave::TextStyle plaqueType(float size, SkColor4f c, float condense = 0.95f,
                               float track = 0.5f) const {
-    return sigil::compose::type({.face = fo::engraved(),
-                                 .size = size,
-                                 .color = c,
-                                 .track = fo::n(track),
-                                 .condense = condense});
+    return weave::textStyle({.face = fo::engraved(),
+                             .size = size,
+                             .color = c,
+                             .track = fo::n(track),
+                             .condense = condense});
   }
   /** font 102: cap height 17 original px, advance ~6.8 — a heavily condensed
    *  heavy grotesque (measured off the reference: "Strength" is 55 px wide
@@ -850,18 +856,18 @@ struct Fallout2CharSheet : sketch::Sketch {
    *  condense factor is derived in setup() from the substitute's own advance
    *  rather than guessed. */
   weave::TextStyle titleStyle() const {
-    return sigil::compose::type({.face = fo::titleFace(),
-                                 .size = fo::n(23.8f),
-                                 .color = fo::kInk,
-                                 .track = fo::n(-0.1f),
-                                 .condense = fo::titleCondense()});
+    return weave::textStyle({.face = fo::titleFace(),
+                             .size = fo::n(23.8f),
+                             .color = fo::kInk,
+                             .track = fo::n(-0.1f),
+                             .condense = titleCondense});
   }
 
   Element bodyAt(const std::string& s, SkColor4f c, float x, float y,
                  float condense = 1.0f) {
     return fo::ink(
-        fo::t(s, fo::type(fo::bodyBold(), fo::bodySize(), c, 0, condense)), x,
-        y, fo::bodyRise());
+        fo::t(s, fo::sheetType(fo::bodyBold(), bodySize(), c, 0, condense)), x,
+        y, bodyRise);
   }
 
   // =========================================================================
@@ -872,7 +878,7 @@ struct Fallout2CharSheet : sketch::Sketch {
     using namespace fo;
     // The plate: an olive ramp, a cast-metal tooth, and rust blotches. The
     // tooth and rust ride as separate LAYER ELEMENTS with node opacity.
-    // `Material::amount` thins a blend layer's own alpha before the mode
+    // `Paint::amount` thins a blend layer's own alpha before the mode
     // sees it, which is a different picture from compositing a whole
     // element at an opacity.
     // Sampled off the capture: the plate sits between #302820 and #383020 with
@@ -882,28 +888,32 @@ struct Fallout2CharSheet : sketch::Sketch {
     // olive-steel on the capture and a fifth of a stop lighter turns it
     // into painted card, which is most of what made this sheet read warm
     // and flat beside the reference.
-    plateMat = Material::linearUnit(
-        {0, 0}, {0.15f, 1},
-        {{0.0f, hex(0x483828)}, {0.40f, hex(0x383020)}, {1.0f, hex(0x302820)}});
-    plateTooth = patterns::grain(0.22f, 3, 11.0f, 0.65f, 1.0f);
-    rustMat = Material::blend({{Material::solid(kRust), SkBlendMode::kSrcOver},
-                               {patterns::grain(0.0075f, 3, 5.0f, 1.35f, 1.0f),
-                                SkBlendMode::kMultiply}});
-    wellMat = Material::blend(
-        {{Material::solid(kWell), SkBlendMode::kSrcOver},
-         {patterns::grain(0.35f, 2, 17.0f, 0.10f), SkBlendMode::kOverlay}});
+    plateMat = Paint::linearUnit({0, 0}, {0.15f, 1},
+                                 {{0.0f, hexColor(0x483828)},
+                                  {0.40f, hexColor(0x383020)},
+                                  {1.0f, hexColor(0x302820)}});
+    plateTooth = Paint::recipe(field::grain(0.22f, 3, 11.0f, 0.65f, 1.0f));
+    rustMat = Paint::blend(
+        {{Paint::solid(kRust), SkBlendMode::kSrcOver},
+         {Paint::recipe(field::grain(0.0075f, 3, 5.0f, 1.35f, 1.0f)),
+          SkBlendMode::kMultiply}});
+    wellMat =
+        Paint::blend({{Paint::solid(kWell), SkBlendMode::kSrcOver},
+                      {Paint::recipe(field::grain(0.35f, 2, 17.0f, 0.10f)),
+                       SkBlendMode::kOverlay}});
     // The odometer drum: a cylinder, bright just above centre, dark below,
     // lifting again at the bottom lip. Sampled off the capture at x=61.
-    wheelMat = Material::linearUnit({0, 0}, {0, 1},
-                                    {{0.0f, hex(0x3C3C3C)},
-                                     {0.22f, hex(0x545454)},
-                                     {0.58f, hex(0x282828)},
-                                     {0.80f, hex(0x1C1C1C)},
-                                     {1.0f, hex(0x383838)}});
-    rivetMat = Material::radialUnit(
-        {0.34f, 0.30f}, 1.15f,
-        {{0.0f, hex(0x6A5838)}, {0.55f, hex(0x3A3020)}, {1.0f, hex(0x140F08)}});
-    tabMat = Material::linearUnit(
+    wheelMat = Paint::linearUnit({0, 0}, {0, 1},
+                                 {{0.0f, hexColor(0x3C3C3C)},
+                                  {0.22f, hexColor(0x545454)},
+                                  {0.58f, hexColor(0x282828)},
+                                  {0.80f, hexColor(0x1C1C1C)},
+                                  {1.0f, hexColor(0x383838)}});
+    rivetMat = Paint::radialUnit({0.34f, 0.30f}, 1.15f,
+                                 {{0.0f, hexColor(0x6A5838)},
+                                  {0.55f, hexColor(0x3A3020)},
+                                  {1.0f, hexColor(0x140F08)}});
+    tabMat = Paint::linearUnit(
         {0, 0}, {0, 1},
         {{0.0f, kPlateLit}, {0.55f, kPlate}, {1.0f, kPlateDark}});
     // The parchment card: the richest surface here. Base ochre, a large-scale
@@ -911,16 +921,17 @@ struct Fallout2CharSheet : sketch::Sketch {
     // Sampled across the reference card on a 44x32 grid: it sits between
     // #9C7434 and #BC9054 almost everywhere, with #8C6428 creases. Bright, not
     // moody — a vignette here turns the scrap into leather.
-    parchMat = Material::blend({{Material::linearUnit({0.10f, 0}, {0.90f, 1},
-                                                      {{0.0f, kParchLit2},
-                                                       {0.30f, kParchLit},
-                                                       {0.66f, kParch},
-                                                       {1.0f, kParchDark}}),
-                                 SkBlendMode::kSrcOver},
-                                {patterns::grain(0.013f, 4, 21.0f, 0.62f, 1.4f),
-                                 SkBlendMode::kOverlay}});
-    parchTooth = patterns::grain(0.40f, 2, 7.0f, 0.42f, 1.0f);
-    canvasGrain = patterns::grain(0.9f, 1, 31.0f, 0.55f, 1.0f);
+    parchMat = Paint::blend(
+        {{Paint::linearUnit({0.10f, 0}, {0.90f, 1},
+                            {{0.0f, kParchLit2},
+                             {0.30f, kParchLit},
+                             {0.66f, kParch},
+                             {1.0f, kParchDark}}),
+          SkBlendMode::kSrcOver},
+         {Paint::recipe(field::grain(0.013f, 4, 21.0f, 0.62f, 1.4f)),
+          SkBlendMode::kOverlay}});
+    parchTooth = Paint::recipe(field::grain(0.40f, 2, 7.0f, 0.42f, 1.0f));
+    canvasGrain = Paint::recipe(field::grain(0.9f, 1, 31.0f, 0.55f, 1.0f));
   }
 
   /** A recessed well: the black interior, a hard inner keyline, a warm outer
@@ -935,24 +946,26 @@ struct Fallout2CharSheet : sketch::Sketch {
   Element well(fo::Rect r, float radius = 3.0f, bool rivets = false) {
     using namespace fo;
     Element e = atR(box(), r).corners(Corners{n(radius)}).fill(wellMat);
-    e.background(styles::dropShadow(hex(0x000000, 0.55f), {0, n(1)}, n(2)));
-    e.stroke(
-        stroke(n(1), Fill::color(hex(0x0A0E06)), PathFormat::Align::Inner));
-    e.foreground(shapes::inset(
-        n(-1.5f), stroke(n(1.5f), Fill::color(hex(0x5C4C30, 0.85f)),
-                         PathFormat::Align::Center)));
-    e.foreground(styles::BevelEmboss{
-        n(1.2f), n(1.6f), 118, hex(0x8A7448, 0.55f), hex(0x000000, 0.60f)});
+    e.background(
+        styles::dropShadow(hexColor(0x000000, 0.55f), {0, n(1)}, n(2)));
+    e.stroke(stroke(n(1), Fill::color(hexColor(0x0A0E06)),
+                    PathFormat::Align::Inner));
+    e.foreground(
+        inset(n(-1.5f), stroke(n(1.5f), Fill::color(hexColor(0x5C4C30, 0.85f)),
+                               PathFormat::Align::Center)));
+    e.foreground(styles::BevelEmboss{n(1.2f), n(1.6f), 118,
+                                     hexColor(0x8A7448, 0.55f),
+                                     hexColor(0x000000, 0.60f)});
     if (rivets) {
       const float inset = 5.0f;
       for (int i = 0; i < 4; ++i) {
         const float rx = ((unsigned)i & 1u) ? r.w - inset : inset;
         const float ry = ((unsigned)i & 2u) ? r.h - inset : inset;
-        e.child(
-            kit::disc({n(rx), n(ry)}, n(2.4f))
-                .fill(rivetMat)
-                .foreground(stroke(n(0.6f), Fill::color(hex(0x000000, 0.7f)),
-                                   PathFormat::Align::Outer)));
+        e.child(sigil::compose::kit::disc(SkPoint{n(rx), n(ry)}, n(2.4f))
+                    .fill(rivetMat)
+                    .foreground(stroke(n(0.6f),
+                                       Fill::color(hexColor(0x000000, 0.7f)),
+                                       PathFormat::Align::Outer)));
       }
     }
     return e;
@@ -963,9 +976,10 @@ struct Fallout2CharSheet : sketch::Sketch {
   Element raised(fo::Rect r, float radius = 2.0f) {
     using namespace fo;
     Element e = atR(box(), r).corners(Corners{n(radius)}).fill(tabMat);
-    e.foreground(styles::BevelEmboss{
-        n(1.4f), n(1.8f), 118, hex(0xA08858, 0.60f), hex(0x0C0906, 0.65f)});
-    e.stroke(stroke(n(1), Fill::color(hex(0x1A1610, 0.9f)),
+    e.foreground(styles::BevelEmboss{n(1.4f), n(1.8f), 118,
+                                     hexColor(0xA08858, 0.60f),
+                                     hexColor(0x0C0906, 0.65f)});
+    e.stroke(stroke(n(1), Fill::color(hexColor(0x1A1610, 0.9f)),
                     PathFormat::Align::Inner));
     return e;
   }
@@ -1000,7 +1014,7 @@ struct Fallout2CharSheet : sketch::Sketch {
       // The two-letter gold abbreviation and its dash: measured ink 20..55,
       // 21 px tall, i.e. 2 px below the row's y. A worn engraved stencil.
       g.child(ink(engravedText(std::string(abbr[(size_t)i]) + "-", n(29.0f),
-                               kGold, engravedCondense(), 0.2f)
+                               kGold, engravedCondense, 0.2f)
                       .opacity(0.94f),
                   kAbbrX, y + 2.0f, engravedRise(n(29.0f))));
 
@@ -1016,20 +1030,20 @@ struct Fallout2CharSheet : sketch::Sketch {
                            .fill(Fill::color(kWell))
                            .corners(Corners{n(1.5f)});
       plaque.background(
-          styles::dropShadow(hex(0x000000, 0.6f), {0, n(1)}, n(2)));
-      plaque.foreground(
-          styles::InnerShadow{hex(0x000000, 0.75f), {0, n(1.2f)}, n(2.0f)});
-      plaque.stroke(
-          stroke(n(1), Fill::color(hex(0x14100A)), PathFormat::Align::Inner));
+          styles::dropShadow(hexColor(0x000000, 0.6f), {0, n(1)}, n(2)));
+      plaque.foreground(styles::InnerShadow{
+          hexColor(0x000000, 0.75f), {0, n(1.2f)}, n(2.0f)});
+      plaque.stroke(stroke(n(1), Fill::color(hexColor(0x14100A)),
+                           PathFormat::Align::Inner));
       g.child(plaque);
       // the gold L: a bar under the plaque running 4 px past its left edge,
       // and a short riser (sampled at y = 59..60, x from 96)
       g.child(at(box(), kPlaqueX - 4, y + 22, kPlaqueW + 6, 2)
-                  .fill(Material::linearUnit(
+                  .fill(Paint::linearUnit(
                       {0, 0}, {0, 1},
-                      {{0.0f, kParchLit2}, {1.0f, hex(0x8C6428)}})));
-      g.child(
-          at(box(), kPlaqueX - 4, y + 15, 2, 7).fill(alpha(kParchLit, 0.85f)));
+                      {{0.0f, kParchLit2}, {1.0f, hexColor(0x8C6428)}})));
+      g.child(at(box(), kPlaqueX - 4, y + 15, 2, 7)
+                  .fill(mskia::withAlpha(kParchLit, 0.85f)));
       g.child(bodyAt(descriptor(value), kGreen, kDescX, y + 8));
     }
     return g;
@@ -1042,10 +1056,10 @@ struct Fallout2CharSheet : sketch::Sketch {
                    const std::string& onesOverride) {
     using namespace fo;
     Element g = at(box(), x - 1, y - 1, kOdoW * 2 + 2, kOdoH + 2)
-                    .fill(Fill::color(hex(0x000000)))
+                    .fill(Fill::color(hexColor(0x000000)))
                     .corners(Corners{n(2)});
-    g.foreground(
-        stroke(n(1), Fill::color(hex(0x0A0A0A)), PathFormat::Align::Inner));
+    g.foreground(stroke(n(1), Fill::color(hexColor(0x0A0A0A)),
+                        PathFormat::Align::Inner));
     const std::string digits =
         (value < 10 ? "0" : "") + std::to_string(std::clamp(value, 0, 99));
     for (int c = 0; c < 2; ++c) {
@@ -1063,8 +1077,8 @@ struct Fallout2CharSheet : sketch::Sketch {
                         .inset(0)
                         .justify(Justify::Center)
                         .alignItems(Align::Center)
-                        .child(t(glyph, fo::type(digitFace(), n(20.0f), kDigit,
-                                                 0, 0.98f))
+                        .child(t(glyph, fo::sheetType(digitFace(), n(20.0f),
+                                                      kDigit, 0, 0.98f))
                                    .translateY(n(0.7f))));
       // NO SEAM ACROSS THE DIGIT. The wheels are the mechanism and the
       // 123 ms blank is how it reads on screen, but the capture's BIG_NUM
@@ -1072,9 +1086,10 @@ struct Fallout2CharSheet : sketch::Sketch {
       // them — a rule through the middle turns a 14x24 numeral into a
       // flip-clock digit at this size. What stays is the well's own inner
       // keyline, which the sprite sheet does have.
-      wheel.foreground(shapes::onEdges(
-          shapes::Edge::All, stroke(n(0.7f), Fill::color(hex(0x000000, 0.75f)),
-                                    PathFormat::Align::Inner)));
+      wheel.foreground(
+          onEdges(path::Edge::All,
+                  stroke(n(0.7f), Fill::color(hexColor(0x000000, 0.75f)),
+                         PathFormat::Align::Inner)));
       g.child(wheel);
     }
     return g;
@@ -1088,10 +1103,9 @@ struct Fallout2CharSheet : sketch::Sketch {
   Element statusBlock() {
     using namespace fo;
     Element g = box().inset(0);
-    char buf[32];
-    std::snprintf(buf, sizeof buf, "%d/%d", stats.hitPoints, stats.hitPoints);
     g.child(bodyAt("Hit Points", kGreen, 194, 46));
-    g.child(bodyAt(buf, kGreen, 263, 46));
+    g.child(bodyAt(kit::formatted("%d/%d", stats.hitPoints, stats.hitPoints),
+                   kGreen, 263, 46));
     static const char* cond[7] = {"Poisoned",          "Radiated",
                                   "Eye Damage",        "Crippled Right Arm",
                                   "Crippled Left Arm", "Crippled Right Leg",
@@ -1166,8 +1180,8 @@ struct Fallout2CharSheet : sketch::Sketch {
   //           to 314 - width(count) - gap       a 1 px hairline
   //         at  y + lineHeight/2                the row's vertical midline
   //
-  // Three nodes and two setup-time measure() calls per row, because
-  // TabStopOptions has no leader.
+  // Three nodes and two setup-time measure() calls per row: a tab stop's
+  // leader is a repeated string, and this gap holds a rule.
 
   Element folder() {
     using namespace fo;
@@ -1182,10 +1196,10 @@ struct Fallout2CharSheet : sketch::Sketch {
       const float x0 = tabX[i], x1 = tabX[i + 1];
       Element tab = raised(
           {x0, sel ? 327.0f : 330.0f, x1 - x0, sel ? 33.0f : 29.0f}, 2.5f);
-      if (!sel) tab.overlay(styles::colorOverlay(hex(0x000000, 0.30f)));
+      if (!sel) tab.overlay(styles::colorOverlay(hexColor(0x000000, 0.30f)));
       tab.justify(Justify::Center).alignItems(Align::Center);
       tab.child(engravedText(tabs[(size_t)i], n(23.0f),
-                             sel ? kGold : hex(0x6E5A20), engravedCondense(),
+                             sel ? kGold : hexColor(0x6E5A20), engravedCondense,
                              0.3f)
                     .translateY(sel ? n(-1.0f) : n(0.0f)));
       g.child(tab);
@@ -1205,22 +1219,25 @@ struct Fallout2CharSheet : sketch::Sketch {
       const float x1 = 314 - countW - gap * 2;
       if (x1 > x0)
         g.child(at(box(), x0, y + kRowPitch11 * 0.5f - 1.0f, x1 - x0, 1)
-                    .fill(Fill::color(alpha(kGreen, 0.85f))));
+                    .fill(Fill::color(mskia::withAlpha(kGreen, 0.85f))));
     }
 
     // The scroll arrows at x = 317 (characterEditorFolderViewClear).
     for (int i = 0; i < 2; ++i) {
       const bool up = i == 0;
       Element a = at(box(), 317, up ? 361.0f : 456.0f, 11, 12)
-                      .fill(Material::linearUnit(
-                          {0, 0}, {0, 1},
-                          {{0.0f, hex(0x50432E)}, {1.0f, hex(0x2C2418)}}))
+                      .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                              {{0.0f, hexColor(0x50432E)},
+                                               {1.0f, hexColor(0x2C2418)}}))
                       .corners(Corners{n(1)});
-      a.foreground(stroke(n(0.8f), Fill::color(hex(0x1A1610)),
+      a.foreground(stroke(n(0.8f), Fill::color(hexColor(0x1A1610)),
                           PathFormat::Align::Inner));
+      // The arrowhead spans the whole cell, so it is not the inscribed
+      // `shapes::polygon(3)` — it is a triangle keyed on the one thing it
+      // is a function of, which is the direction it points.
       a.child(at(box(), 2, 3, 7, 6)
-                  .fill(Fill::color(alpha(kGold, 0.9f)))
-                  .shape([up](SkSize s) {
+                  .fill(Fill::color(mskia::withAlpha(kGold, 0.9f)))
+                  .shape(keyedShape(up, [up](SkSize s) {
                     SkPathBuilder b;
                     if (up) {
                       b.moveTo(s.width() * 0.5f, 0);
@@ -1233,7 +1250,7 @@ struct Fallout2CharSheet : sketch::Sketch {
                     }
                     b.close();
                     return b.detach();
-                  }));
+                  })));
       g.child(a);
     }
     return g;
@@ -1266,14 +1283,15 @@ struct Fallout2CharSheet : sketch::Sketch {
     const float sy = (float)selected * kRowPitch11 + 27 + 16;
     Element slider =
         at(box(), 592, sy - 12, 36, 24).fill(tabMat).corners(Corners{n(2)});
-    slider.foreground(styles::BevelEmboss{
-        n(1.2f), n(1.4f), 118, hex(0xA08858, 0.5f), hex(0x0C0906, 0.6f)});
+    slider.foreground(styles::BevelEmboss{n(1.2f), n(1.4f), 118,
+                                          hexColor(0xA08858, 0.5f),
+                                          hexColor(0x0C0906, 0.6f)});
     for (int k = 0; k < 2; ++k) {
-      Element btn =
-          at(box(), 22, 2 + 11.0f * (float)k, 12, 9)
-              .fill(Fill::color(k == 0 ? hex(0x3A3020) : hex(0x2A2418)))
-              .corners(Corners{n(1.5f)});
-      btn.foreground(stroke(n(0.8f), Fill::color(hex(0x8A7448, 0.7f)),
+      Element btn = at(box(), 22, 2 + 11.0f * (float)k, 12, 9)
+                        .fill(Fill::color(k == 0 ? hexColor(0x3A3020)
+                                                 : hexColor(0x2A2418)))
+                        .corners(Corners{n(1.5f)});
+      btn.foreground(stroke(n(0.8f), Fill::color(hexColor(0x8A7448, 0.7f)),
                             PathFormat::Align::Inner));
       if (k == 0)  // the `+` lamp flashes on each spend
         btn.child(box()
@@ -1286,11 +1304,11 @@ struct Fallout2CharSheet : sketch::Sketch {
                     .justify(Justify::Center)
                     .alignItems(Align::Center)
                     .child(t(k == 0 ? "+" : "-",
-                             fo::type(bodyBold(), n(7.0f), kGold))));
+                             fo::sheetType(bodyBold(), n(7.0f), kGold))));
       slider.child(btn);
     }
     slider.child(at(box(), 2, 6, 16, 12)
-                     .fill(Fill::color(hex(0x141008)))
+                     .fill(Fill::color(hexColor(0x141008)))
                      .corners(Corners{n(1)}));
     g.child(slider);
     return g;
@@ -1341,7 +1359,7 @@ struct Fallout2CharSheet : sketch::Sketch {
     // arithmetic here, over the substituted faces' own measured metrics —
     // alignItems(Align::Baseline) would be the kernel spelling, but the two
     // runs are absolutely positioned at documented x/y, not laid out in a row.
-    g.child(ink(t(d.name, titleStyle()), 348 - 345, 272 - 267, titleRise()));
+    g.child(ink(t(d.name, titleStyle()), 348 - 345, 272 - 267, titleRise));
     const int walkIdx = skill == 0 ? 0 : (skill == 7 ? 1 : 2);
     const float advance = titleAdvance[walkIdx] / kScale;
     g.child(bodyAt(d.formula, kInk, 348 - 345 + advance + 8, 286 - 267));
@@ -1364,7 +1382,10 @@ struct Fallout2CharSheet : sketch::Sketch {
     g.child(
         at(box(), inkX, 309 - 267, (613 - 345) - inkX, 128).key("card-ink"));
     Element figNode = at(box(), inkX, 309 - 267, pose.inkWidth, 128);
-    figNode.shape(figure(pose));
+    // The silhouette is a function of the pose and of nothing else, so the
+    // pose is what tells one drawing from another: keyed, the node settles
+    // between describes where a bare callable compares equal to nothing.
+    figNode.shape(keyedShape(pose, figure(pose)));
     // PathFormat exposes no cap or join, so these open contours end square and
     // mitre at the joints — fine for a 1998 blit.
     figNode.stroke(
@@ -1401,44 +1422,45 @@ struct Fallout2CharSheet : sketch::Sketch {
     c.overlay(styles::Overlay{parchTooth, SkBlendMode::kSoftLight, 0.55f});
     // creases: two diagonal slivers and one bottom-right scuff. The creases
     // are what sell the card as a stuck-on scrap.
-    c.child(at(box(), -40, -20, 60, 260)
-                .rotate(-16.0f)
-                .translateX(n(120))
-                .fill(Material::linearUnit({0, 0}, {1, 0},
-                                           {{0.0f, alpha(kRust, 0.0f)},
-                                            {0.5f, alpha(kRust, 0.16f)},
-                                            {1.0f, alpha(kRust, 0.0f)}})));
     c.child(
-        at(box(), -40, -20, 34, 260)
-            .rotate(9.0f)
-            .translateX(n(232))
-            .fill(Material::linearUnit({0, 0}, {1, 0},
-                                       {{0.0f, alpha(hex(0x7C581C), 0.0f)},
-                                        {0.5f, alpha(hex(0x6A4A18), 0.20f)},
-                                        {1.0f, alpha(hex(0x7C581C), 0.0f)}})));
-    c.child(
-        at(box(), 150, 120, 130, 55)
-            .fill(Material::radialUnit({0.55f, 0.75f}, 1.0f,
-                                       {{0.0f, alpha(kParchScuff, 0.30f)},
-                                        {1.0f, alpha(kParchScuff, 0.0f)}})));
-    c.child(
-        at(box(), -6, -10, 60, 190)
-            .fill(Material::linearUnit({0, 0}, {1, 0},
-                                       {{0.0f, alpha(hex(0x5A3C10), 0.28f)},
-                                        {1.0f, alpha(hex(0x5A3C10), 0.0f)}})));
+        at(box(), -40, -20, 60, 260)
+            .rotate(-16.0f)
+            .translateX(n(120))
+            .fill(Paint::linearUnit({0, 0}, {1, 0},
+                                    {{0.0f, mskia::withAlpha(kRust, 0.0f)},
+                                     {0.5f, mskia::withAlpha(kRust, 0.16f)},
+                                     {1.0f, mskia::withAlpha(kRust, 0.0f)}})));
+    c.child(at(box(), -40, -20, 34, 260)
+                .rotate(9.0f)
+                .translateX(n(232))
+                .fill(Paint::linearUnit(
+                    {0, 0}, {1, 0},
+                    {{0.0f, mskia::withAlpha(hexColor(0x7C581C), 0.0f)},
+                     {0.5f, mskia::withAlpha(hexColor(0x6A4A18), 0.20f)},
+                     {1.0f, mskia::withAlpha(hexColor(0x7C581C), 0.0f)}})));
+    c.child(at(box(), 150, 120, 130, 55)
+                .fill(Paint::radialUnit(
+                    {0.55f, 0.75f}, 1.0f,
+                    {{0.0f, mskia::withAlpha(kParchScuff, 0.30f)},
+                     {1.0f, mskia::withAlpha(kParchScuff, 0.0f)}})));
+    c.child(at(box(), -6, -10, 60, 190)
+                .fill(Paint::linearUnit(
+                    {0, 0}, {1, 0},
+                    {{0.0f, mskia::withAlpha(hexColor(0x5A3C10), 0.28f)},
+                     {1.0f, mskia::withAlpha(hexColor(0x5A3C10), 0.0f)}})));
     // the scrap's own soiling — kept light: the reference card is bright ochre
     // right into its corners
-    c.child(box().inset(0).fill(
-        Material::radialUnit({0.46f, 0.42f}, 1.35f,
-                             {{0.0f, alpha(hex(0x2A1C08), 0.0f)},
-                              {0.70f, alpha(hex(0x2A1C08), 0.04f)},
-                              {1.0f, alpha(hex(0x2A1C08), 0.22f)}})));
-    c.child(
-        at(box(), 178, 118, 110, 60)
-            .fill(Material::radialUnit({0.60f, 0.85f}, 1.0f,
-                                       {{0.0f, alpha(hex(0x3A2A12), 0.18f)},
-                                        {1.0f, alpha(hex(0x3A2A12), 0.0f)}})));
-    c.stroke(stroke(n(1.5f), Fill::color(hex(0x2A1C08, 0.75f)),
+    c.child(box().inset(0).fill(Paint::radialUnit(
+        {0.46f, 0.42f}, 1.35f,
+        {{0.0f, mskia::withAlpha(hexColor(0x2A1C08), 0.0f)},
+         {0.70f, mskia::withAlpha(hexColor(0x2A1C08), 0.04f)},
+         {1.0f, mskia::withAlpha(hexColor(0x2A1C08), 0.22f)}})));
+    c.child(at(box(), 178, 118, 110, 60)
+                .fill(Paint::radialUnit(
+                    {0.60f, 0.85f}, 1.0f,
+                    {{0.0f, mskia::withAlpha(hexColor(0x3A2A12), 0.18f)},
+                     {1.0f, mskia::withAlpha(hexColor(0x3A2A12), 0.0f)}})));
+    c.stroke(stroke(n(1.5f), Fill::color(hexColor(0x2A1C08, 0.75f)),
                     PathFormat::Align::Inner));
     c.child(box().inset(0).child(slot("card")));
     return c;
@@ -1454,25 +1476,25 @@ struct Fallout2CharSheet : sketch::Sketch {
     // The outer frame and the dividers between the five panels — raised
     // facets lit from the top-left.
     g.child(at(box(), 0, 0, 640, 480)
-                .foreground(stroke(n(3), Fill::color(hex(0x1E1810)),
+                .foreground(stroke(n(3), Fill::color(hexColor(0x1E1810)),
                                    PathFormat::Align::Inner))
-                .foreground(shapes::inset(
+                .foreground(inset(
                     n(3), styles::BevelEmboss{n(2.0f), n(2.5f), 118,
-                                              hex(0xA08858, 0.45f),
-                                              hex(0x0C0906, 0.55f)})));
+                                              hexColor(0xA08858, 0.45f),
+                                              hexColor(0x0C0906, 0.55f)})));
     // vertical divider between the left/middle block and the skills column
     g.child(at(box(), 328, 0, 4, 480)
-                .fill(Material::linearUnit(
+                .fill(Paint::linearUnit(
                     {0, 0}, {1, 0},
-                    {{0.0f, hex(0x554430)}, {1.0f, hex(0x241D12)}})));
+                    {{0.0f, hexColor(0x554430)}, {1.0f, hexColor(0x241D12)}})));
     g.child(at(box(), 165, 30, 3, 240)
-                .fill(Material::linearUnit(
+                .fill(Paint::linearUnit(
                     {0, 0}, {1, 0},
-                    {{0.0f, hex(0x4E4030)}, {1.0f, hex(0x241D12)}})));
+                    {{0.0f, hexColor(0x4E4030)}, {1.0f, hexColor(0x241D12)}})));
     g.child(at(box(), 5, 318, 320, 3)
-                .fill(Material::linearUnit(
+                .fill(Paint::linearUnit(
                     {0, 0}, {0, 1},
-                    {{0.0f, hex(0x554430)}, {1.0f, hex(0x241D12)}})));
+                    {{0.0f, hexColor(0x554430)}, {1.0f, hexColor(0x241D12)}})));
 
     // Top plaques (measured bright runs at y = 1: 15..153, 155..236, 238..312).
     const char* plaqueText[3] = {"NARG", "AGE 20", "MALE"};
@@ -1488,7 +1510,7 @@ struct Fallout2CharSheet : sketch::Sketch {
       // that rise puts the CAPS' own band in the middle of the plaque, which
       // is the only band on a run of capitals anyone reads as centred.
       p.child(
-          engravedText(plaqueText[i], n(26.0f), kGold, engravedCondense(), 0.6f)
+          engravedText(plaqueText[i], n(26.0f), kGold, engravedCondense, 0.6f)
               .margin(0, -engravedRise(n(26.0f)) / 3.0f, 0, 0));
       g.child(p);
     }
@@ -1503,11 +1525,11 @@ struct Fallout2CharSheet : sketch::Sketch {
     g.child(ink(engravedText("SKILL POINTS", n(24.0f), kGold, 0.78f, 0.5f), 400,
                 232, engravedRise(n(24.0f))));
     g.child(at(box(), 520, 226, 34, 28)
-                .fill(Fill::color(hex(0x120E08)))
+                .fill(Fill::color(hexColor(0x120E08)))
                 .corners(Corners{n(2)})
                 .foreground(styles::BevelEmboss{n(1.0f), n(1.4f), 300,
-                                                hex(0x8A7448, 0.45f),
-                                                hex(0x000000, 0.6f)}));
+                                                hexColor(0x8A7448, 0.45f),
+                                                hexColor(0x000000, 0.6f)}));
     g.child(box().left(Dim(0)).top(Dim(0)).child(slot("points")));
 
     // PRINT / DONE / CANCEL at y = 454, each with a red button light. Lamp
@@ -1518,11 +1540,11 @@ struct Fallout2CharSheet : sketch::Sketch {
     for (int i = 0; i < 3; ++i) {
       Element lamp = at(box(), lampX[i], 455, 12, 12)
                          .corners(Corners{n(6)})
-                         .fill(Material::radialUnit({0.35f, 0.30f}, 1.1f,
-                                                    {{0.0f, hex(0xFF6A4A)},
-                                                     {0.45f, kLampOn},
-                                                     {1.0f, hex(0x600000)}}));
-      lamp.foreground(stroke(n(1.2f), Fill::color(hex(0x1A1208)),
+                         .fill(Paint::radialUnit({0.35f, 0.30f}, 1.1f,
+                                                 {{0.0f, hexColor(0xFF6A4A)},
+                                                  {0.45f, kLampOn},
+                                                  {1.0f, hexColor(0x600000)}}));
+      lamp.foreground(stroke(n(1.2f), Fill::color(hexColor(0x1A1208)),
                              PathFormat::Align::Outer));
       if (i == 1)  // DONE dims and returns as the `+` is pressed
         lamp.child(box()
@@ -1576,10 +1598,10 @@ struct Fallout2CharSheet : sketch::Sketch {
     {
       Element sp = atR(box(), kWellSpecial)
                        .corners(Corners{n(4)})
-                       .fill(Material::linearUnit({0, 0}, {0.2f, 1},
-                                                  {{0.0f, hex(0x54462E)},
-                                                   {0.35f, kPlateLit},
-                                                   {1.0f, hex(0x3A3020)}}));
+                       .fill(Paint::linearUnit({0, 0}, {0.2f, 1},
+                                               {{0.0f, hexColor(0x54462E)},
+                                                {0.35f, kPlateLit},
+                                                {1.0f, hexColor(0x3A3020)}}));
       sp.child(box()
                    .inset(0)
                    .fill(plateTooth)
@@ -1592,18 +1614,20 @@ struct Fallout2CharSheet : sketch::Sketch {
                    .blend(SkBlendMode::kSoftLight)
                    .opacity(0.70f)
                    .cache(Cache::Texture));
-      sp.foreground(styles::BevelEmboss{
-          n(1.6f), n(2.0f), 118, hex(0xB09868, 0.55f), hex(0x080604, 0.70f)});
-      sp.stroke(
-          stroke(n(1), Fill::color(hex(0x1A1610)), PathFormat::Align::Inner));
+      sp.foreground(styles::BevelEmboss{n(1.6f), n(2.0f), 118,
+                                        hexColor(0xB09868, 0.55f),
+                                        hexColor(0x080604, 0.70f)});
+      sp.stroke(stroke(n(1), Fill::color(hexColor(0x1A1610)),
+                       PathFormat::Align::Inner));
       for (int i = 0; i < 4; ++i)
-        sp.child(
-            kit::disc({n(((unsigned)i & 1u) ? kWellSpecial.w - 6 : 6.0f),
-                       n(((unsigned)i & 2u) ? kWellSpecial.h - 6 : 6.0f)},
-                      n(2.6f))
-                .fill(rivetMat)
-                .foreground(stroke(n(0.6f), Fill::color(hex(0x000000, 0.7f)),
-                                   PathFormat::Align::Outer)));
+        sp.child(sigil::compose::kit::disc(
+                     SkPoint{n(((unsigned)i & 1u) ? kWellSpecial.w - 6 : 6.0f),
+                             n(((unsigned)i & 2u) ? kWellSpecial.h - 6 : 6.0f)},
+                     n(2.6f))
+                     .fill(rivetMat)
+                     .foreground(stroke(n(0.6f),
+                                        Fill::color(hexColor(0x000000, 0.7f)),
+                                        PathFormat::Align::Outer)));
       screen.child(sp);
     }
     screen.child(well(kWellStatus));
@@ -1634,7 +1658,50 @@ struct Fallout2CharSheet : sketch::Sketch {
     // ---- the plate caption. NOT part of the artefact: the screen above is
     // exactly 1280x960 and this band sits below it, carrying the audit.
     root.child(captionBand());
+    if (sheetAudit.failures() > 0) root.child(failureCard());
     return root;
+  }
+
+  /** THE FAILING CLAIMS, PAINTED — and only when there are any. The screen
+   *  above is the artefact and carries no drafting chrome, so a sheet whose
+   *  arithmetic holds shows the arithmetic and nothing else; a formula that
+   *  disagrees with the shipped premades is dealt over the card where
+   *  nobody can miss it. */
+  Element failureCard() const {
+    using namespace fo;
+    sketch::kit::Theme look;
+    look.palette.ash = kGreen;
+    look.palette.figure = hexColor(0xE04020);
+    look.type.sans = bodyFace();
+    look.type.mono = bodyFace();
+    look.type.captionNote = {17.0f, 0.1f};
+    look.type.captionLabel = {17.0f, 0.1f, true};
+    look.spacing.rowGap = 6;
+    std::vector<sketch::kit::Row> rows;
+    for (const sigil::measure::Check& c : sheetAudit.rows) {
+      if (c.pass || !c.judged()) continue;
+      rows.push_back({{toU8(c.label), toU8(c.actual),
+                       toU8("shipped sheet says " + c.expected)},
+                      Fill::color(hexColor(0xE04020))});
+    }
+    sketch::kit::Provide bound(look);
+    return box()
+        .left(Dim(120))
+        .top(Dim(160))
+        .width(Dim(kScreenW - 240))
+        .height(Dim(120.0f + 24.0f * (float)rows.size()))
+        .fill(Fill::color(hexColor(0x0B0D08, 0.96f)))
+        .foreground(stroke(3.0f, Fill::color(hexColor(0xE04020)),
+                           PathFormat::Align::Inner))
+        .column()
+        .padding(28)
+        .gap(14)
+        .child(text(toU8("THE ARITHMETIC DOES NOT MATCH THE SHIPPED "
+                         "PREMADES"),
+                    sheetType(bodyBold(), 22.0f, hexColor(0xE04020), 1.2f)))
+        .child(sketch::kit::table(
+            std::move(rows),
+            {.columns = {{420}, {90, true}, {}}, .gap = 16, .swatchSide = 11}));
   }
 
   Element captionBand() {
@@ -1644,21 +1711,20 @@ struct Fallout2CharSheet : sketch::Sketch {
                        .top(Dim(kScreenH))
                        .width(Dim(kScreenW))
                        .height(Dim(kCaptionH))
-                       .fill(Material::linearUnit(
-                           {0, 0}, {0, 1},
-                           {{0.0f, hex(0x0B0D08)}, {1.0f, hex(0x050604)}}));
-    band.foreground(shapes::onEdges(
-        shapes::Edge::Top,
-        stroke(2.0f, Fill::color(hex(0x3A3020)), PathFormat::Align::Inner)));
-    char buf[192];
-    std::snprintf(buf, sizeof buf,
-                  "SEVEN NUMBERS BECOME SIXTY \xc2\xb7 %d/%d derived values "
-                  "match the shipped sheets (Narg, Mingan, Chitsa), trait "
-                  "corrections included",
-                  sheetAudit.passed, sheetAudit.total);
+                       .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                               {{0.0f, hexColor(0x0B0D08)},
+                                                {1.0f, hexColor(0x050604)}}));
+    band.foreground(
+        onEdges(path::Edge::Top, stroke(2.0f, Fill::color(hexColor(0x3A3020)),
+                                        PathFormat::Align::Inner)));
+    const std::string audited = kit::formatted(
+        "SEVEN NUMBERS BECOME SIXTY \xc2\xb7 %d/%d derived values "
+        "match the shipped sheets (Narg, Mingan, Chitsa), trait "
+        "corrections included",
+        sheetAudit.checks() - sheetAudit.failures(), sheetAudit.checks());
     auto line = [&](const char* s, float size, SkColor4f c, float y,
                     float track) {
-      return text(toU8(s), fo::type(bodyFace(), size, c, track))
+      return text(toU8(s), fo::sheetType(bodyFace(), size, c, track))
           .left(Dim(30))
           .top(Dim(y));
     };
@@ -1666,40 +1732,41 @@ struct Fallout2CharSheet : sketch::Sketch {
                          "ISLE STUDIOS, 1998 \xc2\xb7 640\xc3\x97"
                          "480 8-BIT "
                          "INDEXED, REBUILT AT 2\xc3\x97"),
-                    fo::type(bodyBold(), 17.0f, kGold, 1.8f))
+                    fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
                    .left(Dim(30))
                    .top(Dim(14)));
-    band.child(line(buf, 14.5f, kGreen, 41, 0.2f));
+    band.child(line(audited.c_str(), 14.5f, kGreen, 41, 0.2f));
     band.child(
         line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "
              "palette has no pure green, so what reached the CRT is "
              "#3CF800.",
-             13.0f, hex(0x8A8A78), 64, 0.1f));
+             13.0f, hexColor(0x8A8A78), 64, 0.1f));
     band.child(
         line("Chrome, plaques, rivets, tabs and parchment are "
              "procedural; the originals are raster FRMs (intrface art "
              "id 177). The sheet is RE-SET in real faces.",
-             13.0f, hex(0x6A6A5A), 84, 0.1f));
+             13.0f, hexColor(0x6A6A5A), 84, 0.1f));
     band.child(
         line("The screen above is exactly 1280\xc3\x97"
              "960 \xe2\x80\x94 "
              "halve it and it overlays the 1998 capture. This band is "
              "not part of the artefact.",
-             13.0f, hex(0x55554A), 104, 0.1f));
+             13.0f, hexColor(0x55554A), 104, 0.1f));
     return band;
   }
 
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(6.0);
     using namespace fo;
-    ctx.canvas(kScreenW, kScreenH + kCaptionH);
     // The plate at exactly 2x. One 1998 pixel is two canvas px and four
     // device px, so quartering the capture recovers the 640x480 screen and
     // it overlays the reference.
-    ctx.oversample(2);
-    ctx.background(hex(0x050604));
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kScreenW, kScreenH + kCaptionH),
+                        .captureAt = 6.0,
+                        .background = hexColor(0x050604),
+                        .oversample = 2});
 
     nargTraits.gifted = true;
     nargTraits.heavyHanded = true;
@@ -1740,23 +1807,24 @@ struct Fallout2CharSheet : sketch::Sketch {
           "Poison Res.Radiation Res.Sequence Healing RateCritical Chance";
       const float probeChars = (float)std::strlen(kProbe);
       const float w =
-          ctx.measure(t(kProbe, fo::type(bodyFace(), 100.0f, kGreen))).width();
-      if (w > 1.0f) bodyEm() = w / (probeChars * 100.0f);
+          ctx.measure(t(kProbe, fo::sheetType(bodyFace(), 100.0f, kGreen)))
+              .width();
+      if (w > 1.0f) bodyEm = w / (probeChars * 100.0f);
       // The line-top -> cap-top slack. Fallout's draw y is the top of the
       // glyph cell; SigilWeave's node top is the line box's top, and the two
       // differ by (ascent - capHeight). Taken as a fraction of the measured
       // line height, which lands every row on the reference's own y.
-      bodyRise() =
+      bodyRise =
           std::max(0.0f, ctx.measure(t("H", body(kGreen))).height() * 0.20f);
       // font 102: squeeze the substitute until "Melee Weapons" lands on the
       // reference's ~6.8 original px per character.
       const float raw =
           ctx.measure(t("Melee Weapons",
-                        fo::type(titleFace(), n(23.8f), kInk, n(-0.1f))))
+                        fo::sheetType(titleFace(), n(23.8f), kInk, n(-0.1f))))
               .width();
       if (raw > 1.0f)
-        titleCondense() = std::clamp(n(6.8f * 13.0f) / raw, 0.30f, 1.0f);
-      titleRise() =
+        titleCondense = std::clamp(n(6.8f * 13.0f) / raw, 0.30f, 1.0f);
+      titleRise =
           std::max(0.0f, ctx.measure(t("H", titleStyle())).height() * 0.20f);
       // The engraved condense, same discipline: "ST-" is 36 original px of
       // ink on the capture, so squeeze the substitute onto that measured
@@ -1765,10 +1833,10 @@ struct Fallout2CharSheet : sketch::Sketch {
           ctx.measure(t("ST-", plaqueType(fo::n(29.0f), kGold, 1.0f, 0.2f)))
               .width();
       if (rawSt > 1.0f)
-        fo::engravedCondense() = std::clamp(fo::n(36.0f) / rawSt, 0.30f, 1.0f);
+        engravedCondense = std::clamp(fo::n(36.0f) / rawSt, 0.30f, 1.0f);
       const float eh = ctx.measure(t("H", plaqueType(100.0f, kGold))).height();
       if (eh > 1.0f)
-        engravedRiseFrac() = std::clamp(eh * 0.20f / 100.0f, 0.05f, 0.40f);
+        engravedRiseFrac = std::clamp(eh * 0.20f / 100.0f, 0.05f, 0.40f);
     }
 
     // the leader-row advances: two measures per row, nine rows.

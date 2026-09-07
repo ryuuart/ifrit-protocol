@@ -45,6 +45,7 @@
 // picture it already was.
 
 import Portable;
+import Shading;
 
 // ---- what one draw supplies ----------------------------------------
 // Every one of these is a global `uniform`, so they land in one uniform
@@ -81,12 +82,57 @@ uniform float4x4 uLightMatrix;
 uniform float4 uAmbient;
 /** Per emitter: the direction it TRAVELS in world space, and its colour
  *  already scaled by its intensity. `uShading.w` says how many of the
- *  four are lit. */
-uniform float4 uLightDir[4];
-uniform float4 uLightColor[4];
+ *  eight are lit. */
+uniform float4 uLightDir[8];
+uniform float4 uLightColor[8];
 /** x: specular strength; y: specular exponent; z: rim strength;
  *  w: how many emitters. */
 uniform float4 uShading;
+
+/** THE SET'S ENVIRONMENT MAP, and the second one it is crossfading to.
+ *  Both are equirect panoramas whose mip levels are the prefiltered
+ *  chain a roughness picks among — not a filtering aid, a different
+ *  image per level — so they are read with `SampleLevel` and bound with
+ *  a sampler of their own, wrapping in azimuth and clamping at the
+ *  poles.
+ *
+ *  Beside them the cosine convolution each was reduced to, which is what
+ *  a surface facing a direction receives from everywhere. A frame with
+ *  no environment binds one white texel to all four and says so in
+ *  `uEnvDials.w`, so nothing below runs. */
+uniform Sampler2D uEnvironment;
+uniform Sampler2D uEnvironmentNext;
+uniform Sampler2D uIrradiance;
+uniform Sampler2D uIrradianceNext;
+/** Carries a direction in the space the shading is written in into the
+ *  panorama's own frame: the placement of the node that put the sky
+ *  there, times the view's inverse. */
+uniform float4x4 uEnvMatrix;
+/** rgb: the strength and tint every sample is multiplied by;
+ *  a: how far along the crossfade to the second map. */
+uniform float4 uEnvTint;
+/** THE BACKDROP'S OWN DIALS, for the pass that DRAWS the sky rather than
+ *  shades a body with it. x: its strength, which is also its switch —
+ *  at zero nothing is drawn, so there is no flag that can disagree with
+ *  a number. y: how blurred it is shown, in the same roughness units a
+ *  reflection reads, so racking a sky out of focus costs nothing. */
+uniform float4 uBackdrop;
+/** GROUND PROJECTION, for the same pass. xyz: where the sphere the sky
+ *  is projected onto is centred, in the space the shading is written in
+ *  — where the eye is the origin; w: its radius, and zero is a sky at
+ *  infinity. */
+uniform float4 uGround;
+/** The projection's inverse, which turns a point on the near plane into
+ *  the direction the eye is looking through it. */
+uniform float4x4 uInvProj;
+/** x: the diffuse side's own scale; y: the specular side's;
+ *  z: added to every surface's roughness; w: how many levels the chain
+ *  has — and zero, which is a frame with no environment at all. */
+uniform float4 uEnvDials;
+/** x: THE EXPOSURE the whole picture is read at — what every radiance is
+ *  multiplied by before the tone curve. It stands whether or not the set
+ *  carries a panorama, because a lit sum ends at the curve either way. */
+uniform float4 uTone;
 #endif
 
 struct VSIn {
@@ -128,9 +174,26 @@ static float gSurfaceGloss = -1.0;
 /** How much of a metal this pixel is: it takes the light out of the
  *  diffuse term and puts the surface's own colour into the highlight. */
 static float gSurfaceMetal = 0.0;
-/** Did the body write any of the three? Nothing is re-evaluated until
- *  one is, so a body that asks for nothing costs nothing and changes
- *  nothing. */
+/** How rough, in [0, 1]; below zero is a body that did not say, and the
+ *  scaffold shades it as the mirror-less default. */
+static float gSurfaceRoughness = -1.0;
+/** How much of what is behind the surface comes through it, at what
+ *  index of refraction, through what thickness of a medium that takes
+ *  `gSurfaceAbsorption` out of the light per unit of it. */
+static float gSurfaceTransmission = 0.0;
+static float gSurfaceIor = 1.5;
+static float gSurfaceThickness = 0.0;
+static float3 gSurfaceAbsorption = float3(0.0, 0.0, 0.0);
+/** How the environment reaches this surface: below zero the split sum,
+ *  where the surface's own reflectance and its Fresnel decide; at or
+ *  above zero, that much environment added with neither. */
+static float gSurfaceReflection = -1.0;
+/** Did the body find a MAP that varies the surface across the face?
+ *  Nothing is re-evaluated until one does, so a body dressed with no
+ *  such map costs nothing and changes nothing. The values above are
+ *  stated either way: they are what the surface IS, and a renderer with
+ *  an environment to sample needs them from a body carrying no maps at
+ *  all. */
 static bool gSurfacePerPixel = false;
 
 [shader("vertex")]
@@ -152,7 +215,7 @@ VSOut vsMain(VSIn input) {
   float3 factor = uAmbient.rgb;
   float3 term = float3(0.0, 0.0, 0.0);
   let count = int(uShading.w);
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < 8; ++i) {
     if (i >= count) break;
     let l = normalizeP(mul(uLightMatrix, float4(-uLightDir[i].xyz, 0.0)).xyz);
     let lambert = max(dotP(n, l), 0.0);
@@ -203,6 +266,27 @@ void tangentAxes(float3 n, float3 p, float2 uv, out float3 t, out float3 b) {
   b = b * inv;
 }
 
+/** THE PANORAMA, at a direction in the space the shading is written in
+ *  and at a roughness. The two maps are sampled and mixed rather than
+ *  one being rebuilt, which is what lets a sky change while the frame is
+ *  running. */
+float3 environmentAt(float3 direction, float roughness) {
+  let d = normalizeP(mul(uEnvMatrix, float4(direction, 0.0)).xyz);
+  let uv = equirectUv(d);
+  let level = roughnessLevel(roughness + uEnvDials.z, uEnvDials.w);
+  let a = uEnvironment.SampleLevel(uv, level).rgb;
+  let b = uEnvironmentNext.SampleLevel(uv, level).rgb;
+  return mixP(a, b, uEnvTint.a) * uEnvTint.rgb * uEnvDials.y;
+}
+
+/** …and what falls on a surface facing that way from everywhere. */
+float3 irradianceAt(float3 normal) {
+  let d = normalizeP(mul(uEnvMatrix, float4(normal, 0.0)).xyz);
+  let uv = equirectUv(d);
+  let a = uIrradiance.SampleLevel(uv, 0.0).rgb;
+  let b = uIrradianceNext.SampleLevel(uv, 0.0).rgb;
+  return mixP(a, b, uEnvTint.a) * uEnvTint.rgb * uEnvDials.x;
+}
 /** The two shading halves again, where the body's per-pixel surface can
  *  be seen. @p albedo is what a metal tints its highlight with. */
 void shadeAgain(VSOut input, float3 albedo, out float3 outMul,
@@ -225,10 +309,19 @@ void shadeAgain(VSOut input, float3 albedo, out float3 outMul,
   // BRDF and there is no Fresnel here to make one.
   let tint = mixP(float3(1.0, 1.0, 1.0), albedo, metal);
 
-  float3 factor = uAmbient.rgb;
+  let sky = uEnvDials.w > 0.0;
+  let nDotV = max(dotP(n, v), 0.0);
+  let rough = gSurfaceRoughness < 0.0 ? 0.5 : saturateP(gSurfaceRoughness);
+
+  // WHAT REACHES THE SURFACE FROM EVERYWHERE. With a panorama that is
+  // what the panorama says, direction by direction; without one it is
+  // the single constant both tiers hold. Either way a metal takes no
+  // light into its diffuse.
+  float3 ambient = sky ? irradianceAt(n) : uAmbient.rgb;
+  float3 factor = ambient * (1.0 - metal);
   float3 term = float3(0.0, 0.0, 0.0);
   let count = int(uShading.w);
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < 8; ++i) {
     if (i >= count) break;
     let l = normalizeP(mul(uLightMatrix, float4(-uLightDir[i].xyz, 0.0)).xyz);
     let lambert = max(dotP(n, l), 0.0);
@@ -239,8 +332,35 @@ void shadeAgain(VSOut input, float3 albedo, out float3 outMul,
       term = term + uLightColor[i].rgb * blinn * tint;
     }
   }
+
+  if (sky) {
+    // WHAT THE SURFACE MIRRORS, off the reflected view vector at the
+    // level its roughness picks, weighted by the split sum so a metal
+    // keeps its colour and a dielectric picks the sky up at its rim.
+    let f0 = specularColor(albedo, metal);
+    let r = n * (2.0 * nDotV) - v;
+    term = term + environmentSpecular(environmentAt(r, rough), f0, rough,
+                                      nDotV);
+
+    // …AND WHAT PASSES THROUGH IT. The refracted ray reads the same
+    // panorama, attenuated by what the medium takes out of it over the
+    // thickness it crossed, and Fresnel decides how much of the light
+    // went that way rather than bouncing. This is glass against the
+    // WORLD; what stands behind a body on screen is a backdrop pass and
+    // not a shading term.
+    let transmit = saturateP(gSurfaceTransmission);
+    if (transmit > 0.0) {
+      let bent = refraction(-v, n, 1.0 / max(gSurfaceIor, 1.0));
+      let through = attenuate(environmentAt(bent, rough),
+                              gSurfaceAbsorption, gSurfaceThickness);
+      let f = fresnel(f0, nDotV);
+      factor = factor * (1.0 - transmit);
+      term = term + through * (float3(1.0, 1.0, 1.0) - f) * transmit;
+    }
+  }
+
   if (uShading.z > 0.0) {
-    let facing = 1.0 - max(dotP(n, v), 0.0);
+    let facing = 1.0 - nDotV;
     let rim = facing * facing * facing * uShading.z;
     term = term + float3(rim, rim, rim);
   }
@@ -257,9 +377,26 @@ float4 shade(float4 surface, VSOut input) {
   float3 shadeMul = input.shadeMul;
   float3 shadeAdd = input.shadeAdd;
 #ifdef SIGIL_LIT
-  if (gSurfacePerPixel) shadeAgain(input, straight.rgb, shadeMul, shadeAdd);
+  // A SET WITH A SKY SHADES PER PIXEL, whether or not a map varies the
+  // surface: a reflection is a function of the view vector, which turns
+  // under every pixel of a curved body, and a per-vertex one would read
+  // as facets. A set with no sky keeps the rule it had — nothing is
+  // re-evaluated until a map asks for it — so its picture is what it
+  // was, down to the bit.
+  if (gSurfacePerPixel || uEnvDials.w > 0.0)
+    shadeAgain(input, straight.rgb, shadeMul, shadeAdd);
 #endif
+  // WHERE THE LIT SUM ENDS: a radiance, read at the set's exposure and
+  // compressed onto what a display can hold, rather than cut off at one.
+  // A panorama carries values far above one and a highlight is made of
+  // them; clipping would flatten every one of them to the same white.
+  // The unlit build has no radiance to compress — its colour is
+  // authored, not integrated — so it is clipped and not curved.
+#ifdef SIGIL_LIT
+  let shaded = toneMap(straight.rgb * shadeMul + shadeAdd, uTone.x);
+#else
   let shaded = saturateP(straight.rgb * shadeMul + shadeAdd);
+#endif
   let mapUv = mul(uBaseColorMapUv, float4(input.uv, 0.0, 1.0)).xy;
   let map = uBaseColorMap.Sample(mapUv);
   let rgb = shaded * map.rgb;
@@ -271,3 +408,67 @@ float4 shade(float4 surface, VSOut input) {
 float4 fsFlat(VSOut input) : SV_Target {
   return shade(surfaceFlat(input.uv), input);
 }
+
+#ifdef SIGIL_LIT
+// ---- THE SKY ITSELF ------------------------------------------------
+// One triangle over the whole target, drawn before every body in the
+// frame, with each pixel reading the panorama along the ray the eye
+// looks through it. It is a separate pass and not a body because a body
+// would need a mesh, a placement and a depth, and a sky has none of the
+// three: it is what is there when nothing else is.
+
+struct BackdropOut {
+  float4 position : SV_Position;
+  /** Where on the near plane this pixel stands, in clip coordinates. */
+  float2 ndc : TEXCOORD0;
+};
+
+[shader("vertex")]
+BackdropOut vsBackdrop(uint vertex : SV_VertexID) {
+  // One oversized triangle rather than two: no shared edge to seam and
+  // no vertex buffer to bind.
+  BackdropOut out;
+  out.ndc = float2((vertex == 2) ? 3.0 : -1.0, (vertex == 1) ? 3.0 : -1.0);
+  out.position = float4(out.ndc, 0.0, 1.0);
+  return out;
+}
+
+[shader("fragment")]
+float4 fsBackdrop(BackdropOut input) : SV_Target {
+  if (uBackdrop.x <= 0.0 || uEnvDials.w <= 0.0) discard;
+  // The direction the eye looks through this pixel, in the space the
+  // shading is written in — which is the space `environmentAt` takes.
+  // THE RAY THROUGH THIS PIXEL, in the space the shading is written in.
+  // The depth this renderer clips in runs from zero at the near plane to
+  // one at the far one, so the point named here stands on the FAR plane
+  // — which is the same ray every point along it stands on, and is what
+  // this pass wants.
+  let onRay = mul(uInvProj, float4(input.ndc, 1.0, 1.0));
+  var ray = normalizeP(onRay.xyz / onRay.w);
+  // A view-space point in front of the eye has a negative z; a
+  // homogeneous divide by a negative w would answer the ray behind it.
+  if (ray.z > 0.0) ray = -ray;
+  // A SKY PROJECTED ONTO A GROUND SPHERE is read where the ray leaves
+  // the sphere, along the direction from its centre to that point, so
+  // an eye moving through the set sees the horizon shift. The eye is
+  // this space's origin, so it stands at minus the centre relative to
+  // it; inside the sphere the quadratic has one positive root, the
+  // exit. An eye on or outside the sphere, or a radius of zero, reads
+  // by direction: the sky at infinity.
+  if (uGround.w > 0.0) {
+    let o = -uGround.xyz;
+    let b = dotP(o, ray);
+    let c = dotP(o, o) - uGround.w * uGround.w;
+    if (c < 0.0) ray = normalizeP(o + ray * (sqrtP(b * b - c) - b));
+  }
+  let sky = environmentAt(ray, uBackdrop.y) * uBackdrop.x;
+  // The specular dial belongs to what a surface mirrors and not to what
+  // the sky IS, so it is divided back out here.
+  let scale = uEnvDials.y > 0.0 ? 1.0 / uEnvDials.y : 0.0;
+  // …and the sky ends at the same curve at the same exposure a surface
+  // does, so a sun in the backdrop and the same sun reflected in a body
+  // standing in front of it are the same brightness.
+  let rgb = toneMap(sky * scale, uTone.x);
+  return float4(rgb, 1.0);
+}
+#endif

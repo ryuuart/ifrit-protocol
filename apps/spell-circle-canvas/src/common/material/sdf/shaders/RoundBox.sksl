@@ -1,0 +1,5 @@
+float sd(float2 p, float2 b) {
+  float r = min(uP0, min(b.x, b.y));
+  float2 q = abs(p) - b + r;
+  return min(max(q.x, q.y), 0.0) + length(max(q, float2(0.0))) - r;
+}

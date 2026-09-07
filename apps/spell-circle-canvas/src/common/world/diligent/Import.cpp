@@ -5,12 +5,14 @@
 
 #include "sigilworld/diligent/Import.h"
 
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
 
 #include <memory>
 #include <utility>
 
 namespace sigil::world::diligent {
+
+using ::sigil::geometry::device::Device;
 
 namespace {
 
@@ -18,8 +20,8 @@ namespace {
  *  owns the handle is shared state behind it: the last copy to go is
  *  what tells the device to let go. */
 struct Held {
-  skia::GpuDevice* device = nullptr;
-  skia::TextureHandle handle;
+  core::hardware::GpuDevice* device = nullptr;
+  core::hardware::TextureHandle handle;
 
   ~Held() {
     if (device && handle) device->destroy(handle);
@@ -39,7 +41,7 @@ class NativeSource {
 
   material::DeviceImage deviceImage() const {
     if (!m_held || !m_held->device || !m_held->handle) return {};
-    const skia::NativeTexture native =
+    const core::hardware::NativeTexture native =
         m_held->device->exportNative(m_held->handle);
     if (!native) return {};
     material::DeviceImage out;
@@ -67,11 +69,12 @@ class NativeSource {
 }  // namespace
 
 material::Texture importNative(Device& device,
-                               const skia::NativeTexture& native,
+                               const core::hardware::NativeTexture& native,
                                bool takeOwnership) {
-  skia::GpuDevice* gpu = device.gpu();
+  core::hardware::GpuDevice* gpu = device.gpu();
   if (!gpu) return {};
-  const skia::TextureHandle handle = gpu->importNative(native, takeOwnership);
+  const core::hardware::TextureHandle handle =
+      gpu->importNative(native, takeOwnership);
   if (!handle) return {};
   auto held = std::make_shared<Held>();
   held->device = gpu;

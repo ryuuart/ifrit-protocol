@@ -1,0 +1,66 @@
+/** @file
+ * The Procreate `.brush` reader: the two images out of the archive.
+ */
+
+#include <sigildraw/brush/format/Procreate.h>
+#include <sigilio/source/Archive.h>
+
+#include <algorithm>
+#include <cctype>
+#include <string>
+#include <utility>
+
+#include "Import.h"
+
+namespace sigil::draw::brush::format {
+
+namespace {
+
+std::string lowered(std::string_view text) {
+  std::string out(text);
+  std::transform(out.begin(), out.end(), out.begin(), [](unsigned char letter) {
+    return (char)std::tolower(letter);
+  });
+  return out;
+}
+
+/** Whether a path inside the archive names one of the two pictures. A
+ *  brush writes them at the root or one directory down, and has done so
+ *  under more than one capitalisation, so the name is matched rather
+ *  than the exact path. */
+bool namesPart(std::string_view path, std::string_view part) {
+  const std::string name = lowered(path);
+  return name.find(part) != std::string::npos;
+}
+
+bool isPicture(std::string_view path) {
+  const std::string name = lowered(path);
+  return name.ends_with(".png") || name.ends_with(".jpg") ||
+         name.ends_with(".jpeg");
+}
+
+}  // namespace
+
+std::optional<Tool> decodeProcreateBrush(std::span<const std::byte> bytes) {
+  const io::ArchiveSource archive(bytes);
+  if (archive.empty()) return std::nullopt;
+
+  sk_sp<SkImage> shape;
+  sk_sp<SkImage> grain;
+  for (const io::ArchiveEntry& entry : archive.entries()) {
+    if (!isPicture(entry.name)) continue;
+    if (!shape && namesPart(entry.name, "shape"))
+      shape = decodeArtwork(entry.bytes->bytes);
+    else if (!grain && namesPart(entry.name, "grain"))
+      grain = decodeArtwork(entry.bytes->bytes);
+  }
+  if (!shape && !grain) return std::nullopt;
+
+  Tool tool = importedTool();
+  if (!shape) tool.tip = Tip::Nib;
+  if (shape) tool.shape = Shape{.image = std::move(shape)};
+  if (grain) tool.grain = Grain{.image = std::move(grain)};
+  return tool;
+}
+
+}  // namespace sigil::draw::brush::format

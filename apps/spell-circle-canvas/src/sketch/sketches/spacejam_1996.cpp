@@ -34,14 +34,16 @@
 // not a panel: no chrome, no bevel, no border, not one stroked rectangle.
 // Three things carry it instead.
 //
-//  1. THE LAYOUT IS PRODUCED BY AN ALGORITHM. `TableScheme` below is CSS
-//     2.1 §17.5.2.2 transcribed into a `LayoutScheme`. Nothing is
-//     hand-placed inside the table: five columns, five rows, a colspan=2, a
-//     colspan=3 rowspan=2 and a rowspan=2, per-cell align/valign, and the
-//     proportional surplus distribution that is why every planet lands on a
-//     FRACTIONAL pixel. `reportGrid()` prints the resolved columns, rows and
-//     image rects next to the numbers headless Chrome measures, so the
-//     agreement is checkable on every run rather than asserted here.
+//  1. THE LAYOUT IS PRODUCED BY AN ALGORITHM. `Table` is the HTML
+//     auto table, and this page is set with it: five columns, five rows, a
+//     colspan=2, a colspan=3 rowspan=2 and a rowspan=2, per-cell
+//     align/valign, and the proportional surplus distribution that is why
+//     every planet lands on a FRACTIONAL pixel. Nothing is hand-placed —
+//     each <TD> names the cells it claims on the child that fills it, with
+//     `.cells()` and `.cellAlign()`. `checkGrid()` claims the columns,
+//     rows and image rects the table resolves against the numbers headless
+//     Chrome measures, so the agreement is verified on every run rather
+//     than asserted here, and a page that stops agreeing says so on itself.
 //
 //  2. THE DISPLAY CONSTRAINT IS APPLIED TO THE FINISHED FRAME. Two
 //     quantisations, in the two places they actually happened. Nothing on
@@ -51,8 +53,8 @@
 //     The art was authored at 15 bit and reduced to GIF; the web-safe cube
 //     was a property of the USER'S SCREEN. So `C5()` snaps every authored
 //     colour to the 5-bit grid at describe time, and `Composer::setView()`
-//     carries a 216-colour + Bayer-4×4 ordered dither over the whole
-//     output.
+//     rounds the whole finished frame to the 216-colour cube — a snap and
+//     not a dither, for the reason stated at `viewEffect()`.
 //
 //  3. TIME IS A TRANSPORT PROPERTY. The sixteen files total 59,689 bytes,
 //     fed through four connections at 3.0 KB/s effective — a schedule
@@ -76,7 +78,7 @@
 //     where instancing is the wrong answer — the stars are not scattered
 //     over the page, they are one `Pattern::tile` bake shown many times.
 //   · Only ONE thing on this page ever moves: fastbreak.gif, 40×40, six
-//     frames, `duration=100` on every one. `Material::quantizeTime(10.0f)`
+//     frames, `duration=100` on every one. `Paint::quantizeTime(10.0f)`
 //     is that GIF's frame rate, exactly. Nothing else drifts, twinkles or
 //     parallaxes, and the restraint is the reference.
 //   · The page has NO DOCTYPE, so it renders in quirks mode — which is why
@@ -87,21 +89,20 @@
 //     with none, all twelve images land. (Netscape 3 had no standards mode
 //     at all, so quirks IS the 1996 behaviour.)
 //
-// TWO PROPERTIES OF THE FINISHED FRAME, which are what make it a study of
-// this page and not a moving picture of it:
-//   · the view transform's dither cell is quantised by `uScale`, so it is
-//     locked to the 1996 pixel grid and does not swim when anything under
-//     it moves;
-//   · exactly one thing moves after the load: the basketball, stepping at
-//     10 Hz. The rest of the tree settles to cached pictures, so the page
-//     really does go static once loaded, the way the artefact does.
+// ONE PROPERTY OF THE FINISHED FRAME, which is what makes it a study of
+// this page and not a moving picture of it: exactly one thing moves after
+// the load — the basketball, stepping at 10 Hz. The rest of the tree
+// settles to cached pictures, so the page really does go static once
+// loaded, the way the artefact does. The view transform is a pure
+// per-pixel round with no lattice and no time in it, so it adds nothing
+// that moves either.
 //
 // AND ONE THING THE TABLE ALGORITHM ITSELF ASKS FOR: column surplus is
 // distributed PROPORTIONALLY across the columns, but a rowspan's height
 // deficit is NOT. Chrome gives the whole of the logotype's overflow to the
 // LAST row it spans and leaves the first untouched; distributing it
 // proportionally instead makes the second row far too tall and drags every
-// image below it down. Both branches are in `TableScheme::solve()`.
+// image below it down. Both branches are in `Table::solve()`.
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
@@ -109,22 +110,38 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Layouts.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/kit/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <string>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace motion = sigil::motion;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
+namespace measure = sigil::measure;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -161,8 +178,8 @@ inline SkColor4f C5(uint32_t rgb, float a = 1.0f) noexcept {
 
 // Straight out of the shipped HTML:
 // <body bgcolor="#000000" text="#ff0000" link="#ff4c4c" ...>
-constexpr SkColor4f kPageBlack = hex(0x000000);
-constexpr SkColor4f kBodyText = hex(0xFF0000);
+constexpr SkColor4f kPageBlack = hexColor(0x000000);
+constexpr SkColor4f kBodyText = hexColor(0xFF0000);
 
 // The label treatment, pixel-sampled and identical on all twelve GIFs
 // THE LABELS ARE NOT ALL YELLOW. The shipped art sets STELLAR SOUVENIRS,
@@ -177,28 +194,13 @@ const SkColor4f kLabelInk = C5(0x080800);
 // Type. Two live pieces of text on this page (the © line, and nothing else);
 // twelve pieces of BAKED lettering, approximated with Impact.
 
-inline sk_sp<SkTypeface> face(const char* family, int weight,
-                              const char* fallback = nullptr) {
-  auto mgr = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      family, SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                          SkFontStyle::kUpright_Slant));
-  if (!f && fallback)
-    f = mgr->matchFamilyStyle(fallback,
-                              SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                                          SkFontStyle::kUpright_Slant));
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-  return f;
+inline sk_sp<SkTypeface> display() {
+  return weave::ports::face({"Impact", "Arial Black"},
+                            SkFontStyle::kNormal_Weight);
 }
-inline const sk_sp<SkTypeface>& display() {  // the baked-label approximation
-  static sk_sp<SkTypeface> f =
-      face("Impact", SkFontStyle::kNormal_Weight, "Arial Black");
-  return f;
-}
-inline const sk_sp<SkTypeface>& serif() {  // the browser default, Times
-  static sk_sp<SkTypeface> f =
-      face("Times New Roman", SkFontStyle::kNormal_Weight, "Times");
-  return f;
+inline sk_sp<SkTypeface> serif() {
+  return weave::ports::face({"Times New Roman", "Times"},
+                            SkFontStyle::kNormal_Weight);
 }
 
 inline sigil::weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
@@ -236,7 +238,7 @@ inline Element rect(float x, float y, float w, float h) {
 
 /** A shaded sphere: a circle-outlined box of 2r centred on c. Every planet
  *  here is flat-shaded with a hard limb — two stops and a dark edge. */
-inline Element sphere(SkPoint c, float r, Material m) {
+inline Element sphere(SkPoint c, float r, mskia::Paint m) {
   return kit::disc(c, r).shape(shapes::circle()).fill(std::move(m));
 }
 
@@ -253,9 +255,6 @@ inline Element sphere(SkPoint c, float r, Material m) {
 // GIF's own 100 ms frame delay).
 
 inline sk_sp<SkRuntimeEffect> ballEffect(bool live) {
-  static sk_sp<SkRuntimeEffect> cached[2];
-  const int idx = live ? 1 : 0;
-  if (cached[idx]) return cached[idx];
   const std::string decl =
       live ? "uniform float uTime;\n" : "uniform float uSpin;\n";
   const std::string var = live ? "uTime" : "uSpin";
@@ -299,15 +298,14 @@ half4 main(float2 xy) {
 )";
   auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
   if (!effect) SkDebugf("spacejam ballEffect: %s\n", error.c_str());
-  cached[idx] = effect;
   return effect;
 }
 
-inline Material ballMaterial(bool live, SkColor4f hi, SkColor4f lo,
-                             SkColor4f seam, float seamW) {
+inline mskia::Paint ballMaterial(bool live, SkColor4f hi, SkColor4f lo,
+                                 SkColor4f seam, float seamW) {
   sk_sp<SkRuntimeEffect> fx = ballEffect(live);
-  if (!fx) return Material::solid(hi);
-  Material m = Material::sksl(fx, {{"uSeamW", seamW}});
+  if (!fx) return mskia::Paint::solid(hi);
+  mskia::Paint m = mskia::Paint::sksl(fx, {{"uSeamW", seamW}});
   m.uniform("uHi", hi);
   m.uniform("uLo", lo);
   m.uniform("uSeam", seam);
@@ -410,19 +408,20 @@ struct Bands {
 struct Star {
   int x, y, peak;
 };
-inline const std::vector<Star>& starData() {
-  static const std::vector<Star> k = {
-      {96, 64, 253}, {69, 9, 244},  {59, 101, 238},  {44, 43, 235},
-      {9, 104, 233}, {3, 66, 222},  {89, 79, 219},   {40, 105, 209},
-      {14, 48, 205}, {16, 12, 194}, {50, 65, 188},   {52, 30, 161},
-      {15, 85, 153}, {28, 52, 150}, {102, 102, 145}, {73, 87, 143},
-      {38, 24, 140}, {94, 22, 138}, {107, 64, 133},  {43, 13, 130},
-      {11, 32, 129}, {85, 45, 128}, {32, 84, 127},   {61, 36, 125},
-      {13, 5, 120},  {107, 1, 112}, {98, 46, 112},   {22, 70, 110},
-      {86, 21, 109}, {68, 68, 97},  {48, 80, 97},    {40, 0, 72},
-      {107, 110, 68}};
-  return k;
-}
+/** THE FIELD, AS A CONSTANT. Not a function-local static holding a
+ *  vector: such a static has a dynamic initialiser and registers its
+ *  destructor with the process, and a hot-reloaded sketch's dylib is
+ *  unloaded out from under both. */
+inline constexpr auto kStarField = std::to_array<Star>(
+    {{96, 64, 253}, {69, 9, 244},  {59, 101, 238},  {44, 43, 235},
+     {9, 104, 233}, {3, 66, 222},  {89, 79, 219},   {40, 105, 209},
+     {14, 48, 205}, {16, 12, 194}, {50, 65, 188},   {52, 30, 161},
+     {15, 85, 153}, {28, 52, 150}, {102, 102, 145}, {73, 87, 143},
+     {38, 24, 140}, {94, 22, 138}, {107, 64, 133},  {43, 13, 130},
+     {11, 32, 129}, {85, 45, 128}, {32, 84, 127},   {61, 36, 125},
+     {13, 5, 120},  {107, 1, 112}, {98, 46, 112},   {22, 70, 110},
+     {86, 21, 109}, {68, 68, 97},  {48, 80, 97},    {40, 0, 72},
+     {107, 110, 68}});
 /** Anisotropy test at r = 7 said these carry axial (+) diffraction spikes. */
 inline bool axialSpike(int x, int y) {
   return (x == 94 && y == 22) || (x == 107 && y == 64) ||
@@ -439,20 +438,20 @@ inline Element starTile() {
 
   // Three very faint lens-flare ghosts, at the sampled centres and radii
   // (page px, 15-26). They are what stops the field reading as pure noise.
-  // At this luminance the view transform's dither turns them into sparse
-  // single-level dots, which is exactly what an 8-bit screen did to them.
+  // At this luminance the view transform's round collapses them to one or
+  // two levels, which is exactly what an 8-bit screen did to them.
   const float ring[3][3] = {{14, 16, 26}, {17, 52, 19}, {80, 74, 15}};
   for (auto& g : ring)
-    tile.child(kit::disc({S(g[0]), S(g[1])}, S(g[2]))
-                   .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
-                                            {{0.0f, {1, 1, 1, 0.0f}},
-                                             {0.74f, {1, 1, 1, 0.0f}},
-                                             {0.89f, {1, 1, 1, 0.030f}},
-                                             {1.0f, {1, 1, 1, 0.0f}}}))
+    tile.child(kit::disc(SkPoint{S(g[0]), S(g[1])}, S(g[2]))
+                   .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                                {{0.0f, {1, 1, 1, 0.0f}},
+                                                 {0.74f, {1, 1, 1, 0.0f}},
+                                                 {0.89f, {1, 1, 1, 0.030f}},
+                                                 {1.0f, {1, 1, 1, 0.0f}}}))
                    .blend(SkBlendMode::kPlus));
 
   int bright = 0;
-  for (const Star& s : starData()) {
+  for (const Star& s : kStarField) {
     const float L = (float)s.peak / 255.0f;
     // Sampled off the tile: half-intensity radius 2-4 px for the brightest
     // stars, visible extent about 3x that. Most of the tile sits below L16
@@ -463,13 +462,13 @@ inline Element starTile() {
     // into a grey haze the artefact does not have.
     const float hr = 0.85f + 2.6f * L * L;
     const float R = S(2.7f * hr);
-    tile.child(kit::disc({S((float)s.x), S((float)s.y)}, R)
-                   .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
-                                            {{0.0f, {L, L, L, 1.0f}},
-                                             {0.24f, {L, L, L, 0.66f}},
-                                             {0.44f, {L, L, L, 0.26f}},
-                                             {0.70f, {L, L, L, 0.055f}},
-                                             {1.0f, {L, L, L, 0.0f}}}))
+    tile.child(kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, R)
+                   .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                                {{0.0f, {L, L, L, 1.0f}},
+                                                 {0.24f, {L, L, L, 0.66f}},
+                                                 {0.44f, {L, L, L, 0.26f}},
+                                                 {0.70f, {L, L, L, 0.055f}},
+                                                 {1.0f, {L, L, L, 0.0f}}}))
                    .blend(SkBlendMode::kPlus));
 
     // Spikes: thin tapered lobes, and on this tile they are the dominant
@@ -482,7 +481,7 @@ inline Element starTile() {
       const int pts = eight ? 8 : 4;
       const float waist = eight ? 0.15f : 0.12f;
       const float len = S(eight ? 4.8f + 6.6f * L : 4.2f + 6.0f * L);
-      Element sp = kit::disc({S((float)s.x), S((float)s.y)}, len)
+      Element sp = kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, len)
                        .shape(shapes::star(pts, 0.035f, waist))
                        .fill(Fill::color({1, 1, 1, 0.38f + 0.42f * L}))
                        .blend(SkBlendMode::kPlus);
@@ -502,7 +501,7 @@ inline Element starTile() {
  *  cap (0.46 advance-to-cap, against Impact's 0.62). So this sizes by the
  *  measured cap band first, condenses with scaleX down to a 0.70 floor —
  *  which is what a 1996 art director did by hand — and only then gives up
- *  cap height. `measure()` is doing the work `<img width=>` did for the
+ *  cap height. `intrinsicSize()` is doing the work `<img width=>` did for the
  *  browser: the run has to fit its box before the table sees it. */
 inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
                         float x, float y, float w, float capPx,
@@ -510,13 +509,13 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
   const float track = 0.4f * kScale;
   auto styleAt = [&](float sz) { return ty(display(), sz, ink, track); };
   float size = capPx / 0.72f;  // Impact cap height ~0.72 em
-  SkSize m = measure(text(U(s), styleAt(size)), fonts);
+  SkSize m = intrinsicSize(text(U(s), styleAt(size)), fonts);
   float sx = 1.0f;
   if (m.width() > w && m.width() > 1) {
     sx = w / m.width();
     if (sx < 0.70f) {  // past the condensing floor, give up cap height
       size *= sx / 0.70f;
-      m = measure(text(U(s), styleAt(size)), fonts);
+      m = intrinsicSize(text(U(s), styleAt(size)), fonts);
       sx = (m.width() > w && m.width() > 1) ? w / m.width() : 1.0f;
     }
   }
@@ -533,7 +532,7 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
 
 /** A ring seen edge-on: an annulus on a squashed, rotated box. */
 inline Element ring(SkPoint c, float rx, float ry, float rotDeg,
-                    float innerRatio, Material m) {
+                    float innerRatio, mskia::Paint m) {
   return rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2)
       .shape(shapes::annulus(innerRatio))
       .fill(std::move(m))
@@ -550,12 +549,12 @@ inline Element artSouvenirs(sigil::weave::FontContext& f) {
   const float W = S(83), H = S(83);
   return artBox(W, H)
       .child(sphere({S(41.5f), S(47.5f)}, S(35),
-                    Material::glowUnit({0.5f, 0.5f}, 1.0f,
-                                       {{0.0f, C5(0xEFEFEF)},
-                                        {0.16f, C5(0xDEEFEF)},
-                                        {0.52f, C5(0x29EFEF)},
-                                        {0.80f, C5(0x08C6C6)},
-                                        {1.0f, C5(0x006363)}}))
+                    mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                           {{0.0f, C5(0xEFEFEF)},
+                                            {0.16f, C5(0xDEEFEF)},
+                                            {0.52f, C5(0x29EFEF)},
+                                            {0.80f, C5(0x08C6C6)},
+                                            {1.0f, C5(0x006363)}}))
                  .stroke(stroke(S(1.5f), Fill::color(C5(0x005252)),
                                 PathFormat::Align::Inner)))
       .child(navLabel(f, "STELLAR SOUVENIRS", 0, S(-1), W, S(10), kLabelWhite));
@@ -566,12 +565,12 @@ inline Element artJump(sigil::weave::FontContext& f) {
   const float W = S(58), H = S(52);
   return artBox(W, H)
       .child(sphere({S(28.5f), S(30.0f)}, S(21),
-                    Material::glowUnit({0.46f, 0.60f}, 1.0f,
-                                       {{0.0f, C5(0xFFFFFF)},
-                                        {0.22f, C5(0xADF7A5)},
-                                        {0.52f, C5(0x39D631)},
-                                        {0.86f, C5(0x009400)},
-                                        {1.0f, C5(0x006B00)}}))
+                    mskia::Paint::glowUnit({0.46f, 0.60f}, 1.0f,
+                                           {{0.0f, C5(0xFFFFFF)},
+                                            {0.22f, C5(0xADF7A5)},
+                                            {0.52f, C5(0x39D631)},
+                                            {0.86f, C5(0x009400)},
+                                            {1.0f, C5(0x006B00)}}))
                  .stroke(stroke(S(1.5f), Fill::color(C5(0x005A00)),
                                 PathFormat::Align::Inner)))
       .child(navLabel(f, "JUMP STATION", 0, S(0), W, S(10)));
@@ -581,7 +580,7 @@ inline Element artJump(sigil::weave::FontContext& f) {
 inline Element artBball(sigil::weave::FontContext& f) {
   const float W = S(62), H = S(62);
   return artBox(W, H)
-      .child(kit::disc({S(31), S(37.5f)}, S(25.5f))
+      .child(kit::disc(SkPoint{S(31), S(37.5f)}, S(25.5f))
                  .shape(shapes::circle())
                  .fill(ballMaterial(false, C5(0xFF9C10), C5(0xC66300),
                                     C5(0x843900), 0.055f))
@@ -596,11 +595,11 @@ inline Element artJamCentral(sigil::weave::FontContext& f) {
   const SkPoint c{S(27.5f), S(40)};
   const float r = S(26);
   Element globe = sphere(c, r,
-                         Material::glowUnit({0.34f, 0.28f}, 1.32f,
-                                            {{0.0f, C5(0xA542DE)},
-                                             {0.30f, C5(0x8418CE)},
-                                             {0.62f, C5(0x7B10C6)},
-                                             {1.0f, C5(0x630894)}}))
+                         mskia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
+                                                {{0.0f, C5(0xA542DE)},
+                                                 {0.30f, C5(0x8418CE)},
+                                                 {0.62f, C5(0x7B10C6)},
+                                                 {1.0f, C5(0x630894)}}))
                       .clip(true)
                       .stroke(stroke(S(1.5f), Fill::color(C5(0x9400DE)),
                                      PathFormat::Align::Inner));
@@ -632,16 +631,17 @@ inline Element artJamCentral(sigil::weave::FontContext& f) {
 inline Element gasGiant(SkPoint c, float r, SkColor4f body, SkColor4f limb,
                         SkColor4f hi, Bands bands) {
   Element d =
-      sphere(c, r, Material::solid(body))
+      sphere(c, r, mskia::Paint::solid(body))
           .clip(true)
           .overlay(std::move(bands))
           .stroke(stroke(S(1.5f), Fill::color(limb), PathFormat::Align::Inner));
-  d.child(box().inset(0).fill(Material::glowUnit({0.34f, 0.28f}, 1.35f,
-                                                 {{0.0f, alpha(hi, 0.42f)},
-                                                  {0.34f, alpha(hi, 0.10f)},
-                                                  {0.62f, {0, 0, 0, 0}},
-                                                  {0.90f, {0, 0, 0, 0.30f}},
-                                                  {1.0f, {0, 0, 0, 0.62f}}})));
+  d.child(box().inset(0).fill(
+      mskia::Paint::glowUnit({0.34f, 0.28f}, 1.35f,
+                             {{0.0f, mskia::withAlpha(hi, 0.42f)},
+                              {0.34f, mskia::withAlpha(hi, 0.10f)},
+                              {0.62f, {0, 0, 0, 0}},
+                              {0.90f, {0, 0, 0, 0.30f}},
+                              {1.0f, {0, 0, 0, 0.62f}}})));
   return d;
 }
 
@@ -704,20 +704,20 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
   const float W = S(95), H = S(77);
   const SkPoint c{S(48), S(46)};
   auto ringMat = [] {
-    return Material::linearUnit({0, 0}, {0, 1},
-                                {{0.0f, C5(0xF71018)},
-                                 {0.38f, C5(0xF773A5)},
-                                 {0.62f, C5(0xF71818)},
-                                 {1.0f, C5(0xAD0810)}});
+    return mskia::Paint::linearUnit({0, 0}, {0, 1},
+                                    {{0.0f, C5(0xF71018)},
+                                     {0.38f, C5(0xF773A5)},
+                                     {0.62f, C5(0xF71818)},
+                                     {1.0f, C5(0xAD0810)}});
   };
   return artBox(W, H)
       .child(ring(c, S(47), S(16), -20, 0.62f, ringMat()).zIndex(0))
       .child(sphere(c, S(30),
-                    Material::glowUnit({0.34f, 0.28f}, 1.32f,
-                                       {{0.0f, C5(0x0073E7)},
-                                        {0.30f, C5(0x006BD6)},
-                                        {0.66f, C5(0x0052AD)},
-                                        {1.0f, C5(0x00317B)}}))
+                    mskia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
+                                           {{0.0f, C5(0x0073E7)},
+                                            {0.30f, C5(0x006BD6)},
+                                            {0.66f, C5(0x0052AD)},
+                                            {1.0f, C5(0x00317B)}}))
                  .stroke(stroke(S(1.5f), Fill::color(C5(0x00397B)),
                                 PathFormat::Align::Inner))
                  .zIndex(1))
@@ -735,20 +735,20 @@ inline Element artLineup(sigil::weave::FontContext& f) {
   const float W = S(63), H = S(52);
   const SkPoint c{S(33), S(31)};
   auto ringMat = [] {
-    return Material::linearUnit({0, 0}, {0, 1},
-                                {{0.0f, C5(0x21FFFF)},
-                                 {0.45f, C5(0x9CFFFF)},
-                                 {0.75f, C5(0x21FFFF)},
-                                 {1.0f, C5(0x089494)}});
+    return mskia::Paint::linearUnit({0, 0}, {0, 1},
+                                    {{0.0f, C5(0x21FFFF)},
+                                     {0.45f, C5(0x9CFFFF)},
+                                     {0.75f, C5(0x21FFFF)},
+                                     {1.0f, C5(0x089494)}});
   };
   return artBox(W, H)
       .child(ring(c, S(29), S(15), -22, 0.60f, ringMat()).zIndex(0))
       .child(sphere({S(38), S(32)}, S(17),
-                    Material::glowUnit({0.34f, 0.30f}, 1.30f,
-                                       {{0.0f, C5(0xFF4A6B)},
-                                        {0.28f, C5(0xFF425A)},
-                                        {0.62f, C5(0xF71818)},
-                                        {1.0f, C5(0xBD0810)}}))
+                    mskia::Paint::glowUnit({0.34f, 0.30f}, 1.30f,
+                                           {{0.0f, C5(0xFF4A6B)},
+                                            {0.28f, C5(0xFF425A)},
+                                            {0.62f, C5(0xF71818)},
+                                            {1.0f, C5(0xBD0810)}}))
                  .stroke(stroke(S(1.4f), Fill::color(C5(0xA50008)),
                                 PathFormat::Align::Inner))
                  .zIndex(1))
@@ -784,13 +784,13 @@ inline Element artSitemap(sigil::weave::FontContext& f) {
   // they were authored.
   Element vortex = rect(c.fX - S(35), c.fY - S(17), S(70), S(34))
                        .shape(shapes::annulus(0.30f))
-                       .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
-                                                {{0.0f, C5(0xFFFF00)},
-                                                 {0.34f, C5(0xFFEF00)},
-                                                 {0.52f, C5(0xFFAD42)},
-                                                 {0.68f, C5(0xFF5A00)},
-                                                 {0.86f, C5(0xF70000)},
-                                                 {1.0f, C5(0x8C0000)}}))
+                       .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                                    {{0.0f, C5(0xFFFF00)},
+                                                     {0.34f, C5(0xFFEF00)},
+                                                     {0.52f, C5(0xFFAD42)},
+                                                     {0.68f, C5(0xFF5A00)},
+                                                     {0.86f, C5(0xF70000)},
+                                                     {1.0f, C5(0x8C0000)}}))
                        .rotate(-33);
   Element out = artBox(W, H).child(std::move(vortex));
   // four darts, outside the vortex on its two axes
@@ -838,7 +838,7 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
   // dorsal fin, swept back from mid-body
   ship.child(rect(S(38), S(6), S(52), S(20))
                  .shape(tri(1.0f, 1.0f, 0.86f, 0.0f, 0.0f, 1.0f))
-                 .fill(Material::linearUnit(
+                 .fill(mskia::Paint::linearUnit(
                      {0, 0}, {0, 1}, {{0.0f, C5(0xF71039)}, {1.0f, hullLo}})));
   // ventral fin
   ship.child(rect(S(58), S(36), S(40), S(15))
@@ -847,21 +847,21 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
   // rear nacelle
   ship.child(rect(S(4), S(25), S(36), S(14))
                  .shape(shapes::squircle(2.6f))
-                 .fill(Material::linearUnit(
+                 .fill(mskia::Paint::linearUnit(
                      {0, 0}, {0, 1},
                      {{0.0f, C5(0x8CDE73)}, {0.42f, grn}, {1.0f, grnLo}})));
   // fuselage
   ship.child(rect(S(16), S(23), S(100), S(17))
                  .shape(shapes::squircle(2.2f))
-                 .fill(Material::linearUnit({0, 0}, {0, 1},
-                                            {{0.0f, hullHi},
-                                             {0.26f, hull},
-                                             {0.68f, hullLo},
-                                             {1.0f, C5(0x8C0021)}})));
+                 .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+                                                {{0.0f, hullHi},
+                                                 {0.26f, hull},
+                                                 {0.68f, hullLo},
+                                                 {1.0f, C5(0x8C0021)}})));
   // dorsal ridge highlight
   ship.child(rect(S(28), S(25), S(72), S(3))
                  .shape(shapes::squircle(2.0f))
-                 .fill(Fill::color(alpha(C5(0xFFC6D6), 0.85f))));
+                 .fill(Fill::color(mskia::withAlpha(C5(0xFFC6D6), 0.85f))));
   // nose spike
   ship.child(rect(S(108), S(27), S(24), S(8))
                  .shape(shapes::arrow(0.28f, 0.90f))
@@ -891,13 +891,13 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
     // glowUnit again, for the reason artSitemap() gives: on this 1.4:1 box
     // radialUnit would put the whole rainbow inside t < 0.71 and the outer
     // band would never draw.
-    return Material::glowUnit({0.5f, 0.5f}, 1.0f,
-                              {{0.0f, C5(0x101831)},
-                               {0.44f, C5(0x21103A)},
-                               {0.56f, C5(0xFFEF00)},
-                               {0.70f, C5(0xFFAD42)},
-                               {0.86f, C5(0xF70000)},
-                               {1.0f, C5(0x7310C6)}});
+    return mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                  {{0.0f, C5(0x101831)},
+                                   {0.44f, C5(0x21103A)},
+                                   {0.56f, C5(0xFFEF00)},
+                                   {0.70f, C5(0xFFAD42)},
+                                   {0.86f, C5(0xF70000)},
+                                   {1.0f, C5(0x7310C6)}});
   };
   auto swirl = [&] {
     return rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2)
@@ -924,17 +924,18 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
                      float capTopY, float lean) {
     const float size = capPx / 0.72f;
     Element t = text(U(s), ty(display(), size, C5(0x2FA9A0), 0));
-    t.textFill(Material::linear({0, 0}, {0, 1},
-                                {{0.0f, C5(0x006BA5)},
-                                 {0.22f, C5(0x007BAD)},
-                                 {0.52f, C5(0x00A584)},
-                                 {0.78f, C5(0x9CCE84)},
-                                 {1.0f, C5(0xCEDE73)}}));
+    t.textFill(mskia::Paint::linear({0, 0}, {0, 1},
+                                    {{0.0f, C5(0x006BA5)},
+                                     {0.22f, C5(0x007BAD)},
+                                     {0.52f, C5(0x00A584)},
+                                     {0.78f, C5(0x9CCE84)},
+                                     {1.0f, C5(0xCEDE73)}}));
     const float r = S(2.2f);
     const float d[8][2] = {{-1, 0},  {1, 0},  {0, -1}, {0, 1},
                            {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
     for (auto& v : d) t.echo({v[0] * r, v[1] * r}, C5(0x101831));
-    const SkSize m = measure(text(U(s), ty(display(), size, kLabel, 0)), fonts);
+    const SkSize m =
+        intrinsicSize(text(U(s), ty(display(), size, kLabel, 0)), fonts);
     const float sx = m.width() > 1 ? targetW / m.width() : 1.0f;
     return t.left(Dim(x))
         .top(Dim(capTopY - 0.20f * size))
@@ -984,7 +985,7 @@ inline Element wordmark(sigil::weave::FontContext& fonts, const char* s,
     return ty(display(), sz, C5(0xFF0000), track);
   };
   float size = h * 1.16f;
-  SkSize m = measure(text(U(s), styleAt(size)), fonts);
+  SkSize m = intrinsicSize(text(U(s), styleAt(size)), fonts);
   float sx = 1.0f;
   if (m.width() > target && m.width() > 1) sx = target / m.width();
   Element t = text(U(s), styleAt(size));
@@ -1004,16 +1005,24 @@ struct Asset {
   const char* name;
   int bytes;
 };
-inline const std::vector<Asset>& manifest() {
-  static const std::vector<Asset> k = {
-      {"bg_stars", 8452},    {"fast", 189},        {"fastbreak", 6756},
-      {"break", 229},        {"pressbox", 4422},   {"jamcentral", 1908},
-      {"bball", 1368},       {"lunartunes", 3538}, {"lineup", 1929},
-      {"jamlogo", 15410},    {"jump", 2593},       {"junior", 1253},
-      {"studiostore", 2745}, {"souvenirs", 3594},  {"sitemap", 3401},
-      {"behind", 1902}};
-  return k;
-}
+/** THE SIXTEEN REQUESTS AND THEIR BYTE COUNTS, as a constant for the same
+ *  reason the star field above is one. */
+inline constexpr auto kManifest = std::to_array<Asset>({{"bg_stars", 8452},
+                                                        {"fast", 189},
+                                                        {"fastbreak", 6756},
+                                                        {"break", 229},
+                                                        {"pressbox", 4422},
+                                                        {"jamcentral", 1908},
+                                                        {"bball", 1368},
+                                                        {"lunartunes", 3538},
+                                                        {"lineup", 1929},
+                                                        {"jamlogo", 15410},
+                                                        {"jump", 2593},
+                                                        {"junior", 1253},
+                                                        {"studiostore", 2745},
+                                                        {"souvenirs", 3594},
+                                                        {"sitemap", 3401},
+                                                        {"behind", 1902}});
 enum Ix {
   kStars = 0,
   kFast,
@@ -1044,158 +1053,65 @@ constexpr double kReloadAt = 11.5;     // length of one cycle in sketch
                                        // from empty
 
 // ---------------------------------------------------------------------------
-// The table — CSS 2.1 §17.5.2.2 as a LayoutScheme.
+// The table — the page's <TABLE>, cell by cell.
 
-struct Cell {
-  int row = 0, col = 0, colspan = 1, rowspan = 1;
-  int halign = 1;  // 0 left, 1 center, 2 right
-  int valign = 0;  // 0 top, 1 middle, 2 bottom
+/** One <TD> in document order: which asset fills it, how many <br> stand
+ *  above the image inside it, the cells it claims and the alignment the
+ *  HTML gives it.
+ *
+ *  The children are BUILT from this list and each one carries its own claim
+ *  through `Element::cells`, so there is nothing running parallel to them
+ *  that an inserted row could knock out of step. */
+struct Slot {
+  int asset = -1;  ///< -1 for the two cells the page leaves empty
+  int brs = 0;
+  int col = 0, row = 0, colspan = 1, rowspan = 1;
+  Align across = Align::Center;
+  Align down = Align::Start;
 };
 
-/** HTML automatic table layout. `cells` is indexed by CHILD ORDER, which is
- *  the one thing this seam cannot express: `LayoutInput` carries the
- *  container size, each child's measured size and each child's baseline —
- *  and no per-child user data. So the span/align table has to be a member
- *  of the scheme, parallel to the children. Nothing checks the two against
- *  each other: insert or reorder a child of the table without editing
- *  `cells` in the same order and every cell after it takes the wrong span,
- *  alignment and origin, silently. */
-struct TableScheme {
-  std::vector<Cell> cells;
-  int cols = 5, rows = 5;
-  float tableWidth = S(500);
-  float spacing = S(2);  // the table's cellspacing, measured off the page
-  float padding = S(1);  // ... and its cellpadding
-
-  /** Exposed so the sketch can print the resolved grid and diff it against
-   *  the browser's. */
-  void solve(const std::vector<SkSize>& sz, std::vector<float>& colW,
-             std::vector<float>& rowH, std::vector<float>& x,
-             std::vector<float>& y) const {
-    const float Sp = spacing, P = padding;
-    colW.assign((size_t)cols, 0.0f);
-    rowH.assign((size_t)rows, 0.0f);
-    const size_t n = std::min(cells.size(), sz.size());
-
-    // 1. columns from the non-spanning cells
-    for (size_t i = 0; i < n; ++i)
-      if (cells[i].colspan == 1)
-        colW[(size_t)cells[i].col] =
-            std::max(colW[(size_t)cells[i].col], sz[i].width());
-
-    // 2. spanning cells top up their columns, in increasing span
-    for (int k = 2; k <= cols; ++k)
-      for (size_t i = 0; i < n; ++i) {
-        if (cells[i].colspan != k) continue;
-        float avail = (float)(k - 1) * (2 * P + Sp);
-        float span = 0;
-        for (int j = 0; j < k; ++j)
-          span += colW[(size_t)cells[i].col + (size_t)j];
-        avail += span;
-        const float deficit = sz[i].width() - avail;
-        if (deficit <= 0) continue;
-        for (int j = 0; j < k; ++j) {
-          float& cw = colW[(size_t)cells[i].col + (size_t)j];
-          cw += span > 0 ? deficit * cw / span : deficit / (float)k;
-        }
-      }
-
-    // 3. the surplus, distributed PROPORTIONALLY. This is what pushes every
-    //    column off an integer pixel, and it is why the twelve images land
-    //    on fractional x.
-    float total = 0;
-    for (float w : colW) total += w;
-    const float used = total + (float)cols * 2 * P + (float)(cols + 1) * Sp;
-    const float surplus = tableWidth - used;
-    if (surplus > 0 && total > 0)
-      for (float& w : colW) w += surplus * w / total;
-
-    // 4. column origins: the left edge of each cell's content box.
-    x.assign((size_t)cols, 0.0f);
-    x[0] = Sp + P;
-    for (int j = 1; j < cols; ++j)
-      x[(size_t)j] = x[(size_t)(j - 1)] + colW[(size_t)(j - 1)] + 2 * P + Sp;
-
-    // 5. rows, same first step
-    for (size_t i = 0; i < n; ++i)
-      if (cells[i].rowspan == 1)
-        rowH[(size_t)cells[i].row] =
-            std::max(rowH[(size_t)cells[i].row], sz[i].height());
-
-    // 6. and NOT the same second step: a rowspan's deficit goes entirely to
-    //    the LAST row it spans, leaving the rows above it at their own
-    //    content height. Spreading it proportionally, the way step 2 spreads
-    //    a colspan's, over-inflates the first row of the span and pushes
-    //    every row beneath the logotype down.
-    for (int k = 2; k <= rows; ++k)
-      for (size_t i = 0; i < n; ++i) {
-        if (cells[i].rowspan != k) continue;
-        float avail = (float)(k - 1) * (2 * P + Sp);
-        for (int j = 0; j < k; ++j)
-          avail += rowH[(size_t)cells[i].row + (size_t)j];
-        const float deficit = sz[i].height() - avail;
-        if (deficit > 0) rowH[(size_t)(cells[i].row + k - 1)] += deficit;
-      }
-
-    y.assign((size_t)rows, 0.0f);
-    y[0] = Sp + P;
-    for (int i = 1; i < rows; ++i)
-      y[(size_t)i] = y[(size_t)(i - 1)] + rowH[(size_t)(i - 1)] + 2 * P + Sp;
-  }
-
-  float resolvedHeight(const std::vector<SkSize>& sz) const {
-    std::vector<float> cw, rh, xs, ys;
-    solve(sz, cw, rh, xs, ys);
-    return ys.back() + rh.back() + padding + spacing;
-  }
-
-  std::vector<SkRect> place(const LayoutInput& in) const {
-    std::vector<float> colW, rowH, x, y;
-    solve(in.childSizes, colW, rowH, x, y);
-    const size_t n = std::min(cells.size(), in.childSizes.size());
-    std::vector<SkRect> out(in.childSizes.size());
-    for (size_t i = 0; i < n; ++i) {
-      const Cell& c = cells[i];
-      float boxW = (float)(c.colspan - 1) * (2 * padding + spacing);
-      for (int j = 0; j < c.colspan; ++j)
-        boxW += colW[(size_t)c.col + (size_t)j];
-      float boxH = (float)(c.rowspan - 1) * (2 * padding + spacing);
-      for (int j = 0; j < c.rowspan; ++j)
-        boxH += rowH[(size_t)c.row + (size_t)j];
-      const SkSize s = in.childSizes[i];
-      const float cx = x[(size_t)c.col], cy = y[(size_t)c.row];
-      const float px = c.halign == 0   ? cx
-                       : c.halign == 2 ? cx + boxW - s.width()
-                                       : cx + (boxW - s.width()) * 0.5f;
-      const float py = c.valign == 0   ? cy
-                       : c.valign == 2 ? cy + boxH - s.height()
-                                       : cy + (boxH - s.height()) * 0.5f;
-      out[i] = SkRect::MakeXYWH(px, py, s.width(), s.height());
-    }
-    return out;
-  }
+/** The occupancy straight out of the HTML: <TABLE WIDTH=500 CELLSPACING=2
+ *  CELLPADDING=1>, five columns by five rows. */
+constexpr Slot kSlotTable[] = {
+    // <TD colspan=5 align=right valign=top>, empty
+    {-1, 0, 0, 0, 5, 1, Align::End, Align::Start},
+    {kPressbox, 3, 0, 1, 2, 1, Align::End, Align::Center},
+    {kJamcentral, 0, 2, 1, 1, 1, Align::Center, Align::Center},
+    {kBball, 0, 3, 1, 1, 1, Align::Center, Align::Start},
+    {kLunartunes, 2, 4, 1, 1, 1, Align::Center, Align::End},
+    // align=middle on the image reads as centre
+    {kLineup, 2, 0, 2, 1, 1, Align::Center, Align::Start},
+    {kJamlogo, 0, 1, 2, 3, 2, Align::End, Align::Center},
+    {kJump, 0, 4, 2, 1, 1, Align::End, Align::End},
+    {kJunior, 0, 0, 3, 1, 1, Align::Center, Align::End},
+    {kStudiostore, 2, 4, 3, 1, 2, Align::Center, Align::Start},
+    {-1, 0, 0, 4, 1, 1, Align::Center, Align::Start},
+    {kSouvenirs, 0, 1, 4, 1, 1, Align::Center, Align::Start},
+    {kSitemap, 4, 2, 4, 1, 1, Align::Center, Align::End},
+    {kBehind, 0, 3, 4, 1, 1, Align::Center, Align::Center},
 };
 
 // ---------------------------------------------------------------------------
-// The display quantisation — 216 colours + Bayer 4x4, in setView().
+// The display quantisation — the 216-colour web cube, in setView().
 //
-// Monolithic, one expression for the Bayer index (the recursive matrix's
-// closed form), because a shader authored in a sketch and compiled by the
-// host's Skia cannot carry user-defined functions. `pos` is quantised by
-// THE SNAP CARRIES NO SCREEN. The page's palette is the 216-colour web
-// cube and the view transform quantises to it, but an ORDERED dither over
-// the whole frame lays a regular 4x4 lattice across every disc — and the
-// shipped GIFs carry no lattice at all: p-souvenirs.gif is a smooth cyan
-// radial with a white core, p-lunartunes.gif is flat blue with a hard
-// pink ring. A 1996 encoder that dithered at all dithered by error
+// THE SNAP CARRIES NO SCREEN, and that is a finding rather than a saving.
+// The page's palette is the 216-colour cube and the view transform rounds
+// to it; an ORDERED dither would lay a regular 4x4 lattice across every
+// disc, and the shipped GIFs carry no lattice at all — p-souvenirs.gif is
+// a smooth cyan radial with a white core, p-lunartunes.gif flat blue with
+// a hard pink ring. A 1996 encoder that dithered at all dithered by error
 // diffusion, which is scattered; a lattice is the one thing the reference
-// definitely does not have. So the quantisation rounds.
+// definitely does not have. So the shader ROUNDS: each component to the
+// nearest sixth, with no position, no cell and no time in it.
+//
+// One expression and no helper function, because a shader authored in a
+// sketch and compiled by the host's Skia cannot carry user-defined ones.
+// Unpremultiply, round, re-premultiply — rounding premultiplied colour
+// would quantise each channel against a different scale.
 
-inline sk_sp<SkRuntimeEffect> ditherEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    static constexpr char kSrc[] = R"(
+inline sk_sp<SkRuntimeEffect> viewEffect() {
+  static constexpr char kSrc[] = R"(
 uniform shader content;
-uniform float uScale;
 
 half4 main(float2 pos) {
   half4 src = content.eval(pos);
@@ -1206,11 +1122,9 @@ half4 main(float2 pos) {
   return half4(half3(q * al), src.a);
 }
 )";
-    auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(kSrc));
-    if (!effect) SkDebugf("spacejam dither: %s\n", error.c_str());
-    return effect;
-  }();
-  return fx;
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(kSrc));
+  if (!effect) SkDebugf("spacejam view: %s\n", error.c_str());
+  return effect;
 }
 
 }  // namespace sj
@@ -1227,6 +1141,11 @@ struct SpaceJam1996 : sketch::Sketch {
   uint32_t arrivedMask = 0;
   bool needRender = true;
 
+  /** THE LAYOUT'S VERDICT against the browser's own numbers. Every row is
+   *  COMPUTED from the two it reports, so a page that stops resolving the
+   *  grid cannot keep claiming it does. */
+  measure::Table verdict;
+
   // Everything the browser would have cached as a decoded GIF: each nav
   // image baked ONCE from its element tree via snapshot(), then replayed
   // under a hard scanline clip. Baking is what makes the reveal affordable —
@@ -1238,14 +1157,30 @@ struct SpaceJam1996 : sketch::Sketch {
   float artH[sj::kAssetCount] = {};
 
   Pattern stars;
-  Material starsMat;
-  sj::TableScheme table;
+  mskia::Paint starsMat;
+  /** THE LIVE BALL'S MATERIAL, built once and held. Its shader steps its
+   *  own uTime at the GIF's frame rate, so the value is the same one every
+   *  describe — and describe runs again on every arrival. */
+  mskia::Paint fastballMat;
+  // <TABLE WIDTH=500 CELLSPACING=2 CELLPADDING=1>, at this sketch's scale.
+  // The columns and rows are the ones the children claim.
+  Table table{.columns = 5,
+              .rows = 5,
+              .width = sj::S(500),
+              .spacing = sj::S(2),
+              .padding = sj::S(1)};
 
   // ---- the reveal --------------------------------------------------------
   Element revealed(int i, bool inFlight) const {
     const sk_sp<SkPicture> p = pic[i];
     const float h = artH[i];
     const ch::Output<float>* g = &got[i];
+    // ARRIVED IS THE PICTURE ITSELF. A recorded picture's identity is its
+    // own, so the leaf compares equal between describes and the node goes
+    // static; the program below exists only for the hard scanline edge of
+    // a partial image, which nothing in the picture can express.
+    if (!inFlight) return picture(p, SkSize::Make(artW[i], artH[i]));
+    // KEYLESS: the scanline edge is read off the arrival's live fraction.
     Element e = custom([p, h, g](SkCanvas& canvas, const PaintContext& ctx) {
                   const float frac = g->value();
                   if (frac <= 0.0f || !p) return;
@@ -1270,17 +1205,19 @@ struct SpaceJam1996 : sketch::Sketch {
   /** A table cell: the `<br>` blocks as an 18 px line box each, then the
    *  image. Its MEASURED size is what the table algorithm reads, so the
    *  br-count reaches the layout the same way it does in a browser. */
-  Element cell(int assetIx, int brs) const {
+  /** One <TD>: the <br> block above the image inside the cell, the image
+   *  itself, and the claim on the grid — said on the child, so a cell and
+   *  its occupancy cannot drift apart. */
+  Element cell(const sj::Slot& s) const {
     const bool inFlight =
-        assetIx >= 0 && (arrivedMask & (1u << (unsigned)assetIx)) == 0;
+        s.asset >= 0 && (arrivedMask & (1u << (unsigned)s.asset)) == 0;
     Element c = box().column().alignSelf(Align::Start).shrink(0);
-    if (brs > 0)
-      c.child(box().width(Dim(0)).height(Dim(sj::S(18) * (float)brs)));
-    if (assetIx >= 0) c.child(revealed(assetIx, inFlight));
+    if (s.asset < 0) c.width(Dim(0)).height(Dim(0));
+    if (s.brs > 0)
+      c.child(box().width(Dim(0)).height(Dim(sj::S(18) * (float)s.brs)));
+    if (s.asset >= 0) c.child(revealed(s.asset, inFlight));
+    c.cells(s.col, s.row, s.colspan, s.rowspan).cellAlign(s.across, s.down);
     return c;
-  }
-  Element emptyCell() const {
-    return box().width(Dim(0)).height(Dim(0)).alignSelf(Align::Start).shrink(0);
   }
 
   // ---- the page ----------------------------------------------------------
@@ -1301,7 +1238,7 @@ struct SpaceJam1996 : sketch::Sketch {
     Element field = box()
                         .inset(0)
                         .fill(starsMat)
-                        .opacity(bind(&got[kStars])
+                        .opacity(motion::bind(&got[kStars])
                                      .scale(1000.0f)
                                      .offset(-999.0f)
                                      .clamp(0.0f, 1.0f))
@@ -1328,8 +1265,7 @@ struct SpaceJam1996 : sketch::Sketch {
       // 10 Hz — the GIF's own frame rate, six frames, forever.
       fastRow.child(rect(S(53), S(3), S(40), S(40))
                         .shape(shapes::circle())
-                        .fill(ballMaterial(true, C5(0xFF6B29), C5(0xC64210),
-                                           C5(0x521800), 0.050f))
+                        .fill(fastballMat)
                         .key("fastbreak"));
     } else {
       // Still arriving: a partially-downloaded animated GIF shows its first
@@ -1337,28 +1273,16 @@ struct SpaceJam1996 : sketch::Sketch {
       fastRow.child(revealed(kFastbreak, true).left(Dim(S(53))).top(Dim(S(3))));
     }
 
-    // 3. the planet table. Nothing below is hand-placed: `TableScheme` runs
-    //    the auto-layout rule over the children's measured sizes.
+    // 3. the planet table. Nothing below is hand-placed: `Table`
+    //    runs the auto-layout rule over the children's measured sizes and
+    //    the cells they claim.
     Element grid = layout(table)
                        .left(Dim(S(70)))
                        .top(Dim(S(168)))
                        .width(Dim(S(500)))
                        .height(Dim(S(435)))
                        .key("table");
-    grid.child(emptyCell());         // row 0, colspan 5, empty
-    grid.child(cell(kPressbox, 3));  // row 1
-    grid.child(cell(kJamcentral, 0));
-    grid.child(cell(kBball, 0));
-    grid.child(cell(kLunartunes, 2));
-    grid.child(cell(kLineup, 2));  // row 2
-    grid.child(cell(kJamlogo, 0));
-    grid.child(cell(kJump, 0));
-    grid.child(cell(kJunior, 0));  // row 3
-    grid.child(cell(kStudiostore, 2));
-    grid.child(emptyCell());  // row 4
-    grid.child(cell(kSouvenirs, 0));
-    grid.child(cell(kSitemap, 4));
-    grid.child(cell(kBehind, 0));
+    for (const Slot& slot : kSlotTable) grid.child(cell(slot));
 
     // 4. the © line — the ONLY live text on the page. <font size="-1"> is
     //    HTML size 2 of 7 -> 13.33 px computed, hard-wrapped by the author's
@@ -1385,7 +1309,8 @@ struct SpaceJam1996 : sketch::Sketch {
         // the page has a bald strip at the top.
         .child(std::move(fastRow))
         .child(std::move(grid))
-        .child(std::move(colophon));
+        .child(std::move(colophon))
+        .child(verdict.failures() > 0 ? failureCard() : box());
   }
 
   // ---- setup -------------------------------------------------------------
@@ -1434,65 +1359,47 @@ struct SpaceJam1996 : sketch::Sketch {
     artW[kStars] = artH[kStars] = 0;
   }
 
-  void buildTable() {
-    using namespace sj;
-    // Occupancy straight out of the HTML, in document order. This vector is
-    // parallel to describe()'s child() calls and nothing in the library can
-    // check that.
-    table.cells = {
-        {0, 0, 5, 1, 2, 0},  // <TD colspan=5 align=right valign=top> (empty)
-        {1, 0, 2, 1, 2, 1},  // Press Box Shuttle, 3 <br>
-        {1, 2, 1, 1, 1, 1},  // Jam Central
-        {1, 3, 1, 1, 1, 0},  // Planet B-Ball
-        {1, 4, 1, 1, 1, 2},  // Lunar Tunes, 2 <br>
-        {2, 0, 1, 1, 1, 0},  // The Lineup, 2 <br>   (align=middle -> center)
-        {2, 1, 3, 2, 2, 1},  // Space Jam logotype
-        {2, 4, 1, 1, 2, 2},  // Jump Station
-        {3, 0, 1, 1, 1, 2},  // Junior Jam
-        {3, 4, 1, 2, 1, 0},  // Warner Studio Store, 2 <br>
-        {4, 0, 1, 1, 1, 0},  // (empty)
-        {4, 1, 1, 1, 1, 0},  // Stellar Souvenirs
-        {4, 2, 1, 1, 1, 2},  // Site Map, 4 <br>
-        {4, 3, 1, 1, 1, 1},  // Behind the Jam
-    };
-    table.cols = 5;
-    table.rows = 5;
-    table.tableWidth = S(500);
-    table.spacing = S(2);
-    table.padding = S(1);
-  }
-
-  /** Print the resolved grid next to the browser's, once at startup, so the
-   *  table algorithm is checkable against the reference render instead of
-   *  taken on trust. The literals it prints are the numbers headless Chrome
-   *  reports for the same page.
+  /** CLAIM the grid the table resolved against the browser's, once at
+   *  startup, so the layout is verified against the reference render
+   *  instead of taken on trust. The literals are what headless Chrome
+   *  reports for the same page, and every row's verdict is COMPUTED from
+   *  the two numbers it carries.
    *
-   *  The `br` and `ix` arrays below repeat describe()'s cell() arguments in
-   *  the same child order; edit one and the other stops describing the
-   *  layout being printed. */
-  void reportGrid() const {
+   *  The input is built from the same `kSlotTable` the children are, so
+   *  what is claimed is the layout that was drawn. */
+  void checkGrid() {
     using namespace sj;
-    std::vector<SkSize> sz;
-    const int br[14] = {0, 3, 0, 0, 2, 2, 0, 0, 0, 2, 0, 0, 4, 0};
-    const int ix[14] = {-1,      kPressbox,  kJamcentral, kBball,  kLunartunes,
-                        kLineup, kJamlogo,   kJump,       kJunior, kStudiostore,
-                        -1,      kSouvenirs, kSitemap,    kBehind};
-    for (int i = 0; i < 14; ++i) {
-      if (ix[i] < 0) {
-        sz.push_back({0, 0});
-        continue;
-      }
-      sz.push_back({artW[ix[i]], artH[ix[i]] + S(18) * (float)br[i]});
+    LayoutInput in;
+    in.container = {S(500), S(435)};
+    for (const Slot& s : kSlotTable) {
+      in.childSizes.push_back(
+          s.asset < 0
+              ? SkSize{0, 0}
+              : SkSize{artW[s.asset], artH[s.asset] + S(18) * (float)s.brs});
+      in.childCells.push_back({.column = s.col,
+                               .row = s.row,
+                               .columns = s.colspan,
+                               .rows = s.rowspan,
+                               .across = s.across,
+                               .down = s.down,
+                               .declared = true});
     }
-    std::vector<float> cw, rh, x, y;
-    table.solve(sz, cw, rh, x, y);
-    SkDebugf("[spacejam] resolved columns (content px, 1x):");
-    for (float w : cw) SkDebugf(" %.2f", w / kScale);
-    SkDebugf(
-        "\n[spacejam]  chrome measured:  71.42 97.70 122.33 78.95 107.59\n");
-    SkDebugf("[spacejam] resolved rows (px, 1x):");
-    for (float h : rh) SkDebugf(" %.2f", h / kScale);
-    SkDebugf("\n[spacejam]  chrome measured:  0 113 88 73 139\n");
+    const Table::Grid grid = table.solve(in);
+    verdict = {};
+    verdict.add(measure::heading("TABLE-AUTO AGAINST HEADLESS CHROME"));
+    // The surplus a table-auto scheme distributes lands on fractional
+    // pixels, so the columns agree to a hundredth and the rows — which are
+    // whole content heights — agree exactly.
+    const double chromeCols[5] = {71.42, 97.70, 122.33, 78.95, 107.59};
+    for (size_t i = 0; i < grid.columnWidths.size() && i < 5; ++i)
+      verdict.add(measure::check(
+          kit::formatted("column %zu content width, page px", i), chromeCols[i],
+          (double)grid.columnWidths[i] / kScale, 0.15));
+    const double chromeRows[5] = {0, 113, 88, 73, 139};
+    for (size_t i = 0; i < grid.rowHeights.size() && i < 5; ++i)
+      verdict.add(measure::check(kit::formatted("row %zu height, page px", i),
+                                 chromeRows[i],
+                                 (double)grid.rowHeights[i] / kScale, 0.01));
 
     // ...and the twelve images, which is what actually has to land. The
     // table origin is (70, 168) on the page; each row prints the
@@ -1504,49 +1411,92 @@ struct SpaceJam1996 : sketch::Sketch {
     const float refY[14] = {0,       230.50f, 198.00f, 175.00f, 211.00f,
                             328.00f, 292.00f, 328.00f, 400.00f, 420.00f,
                             0,       461.00f, 533.00f, 499.00f};
-    LayoutInput in;
-    in.container = {S(500), S(435)};
-    in.childSizes = sz;
     const std::vector<SkRect> rects = table.place(in);
-    float worst = 0;
-    SkDebugf("[spacejam] image rects vs Chrome (page px):\n");
-    for (int i = 0; i < 14; ++i) {
-      if (ix[i] < 0) continue;
-      const float px = 70.0f + rects[(size_t)i].left() / kScale;
+    verdict.add(measure::heading("THE TWELVE IMAGES, PLACED"));
+    for (size_t i = 0; i < std::size(kSlotTable); ++i) {
+      const Slot& s = kSlotTable[i];
+      if (s.asset < 0) continue;
+      const float px = 70.0f + rects[i].left() / kScale;
       // the <br> block sits above the image inside the cell
-      const float py =
-          168.0f + rects[(size_t)i].top() / kScale + 18.0f * (float)br[i];
+      const float py = 168.0f + rects[i].top() / kScale + 18.0f * (float)s.brs;
       const float dx = px - refX[i], dy = py - refY[i];
-      worst = std::max({worst, std::abs(dx), std::abs(dy)});
-      SkDebugf("  %-14s %8.2f %8.2f   d %+.2f %+.2f\n",
-               manifest()[(size_t)ix[i]].name, px, py, dx, dy);
+      // One claim per image on the FARTHER of its two axes: an x that
+      // agrees and a y that is thirty pixels out must not average into a
+      // verdict that reads well.
+      verdict.add(measure::check(
+          kit::formatted("%s  at (%.2f, %.2f), px from the browser",
+                         kManifest[(size_t)s.asset].name, (double)px,
+                         (double)py),
+          0.0, (double)std::max(std::abs(dx), std::abs(dy)), 0.15));
     }
-    SkDebugf("[spacejam] worst deviation from the browser: %.2f px\n", worst);
+  }
+
+  /** THE CLAIMS THAT DID NOT HOLD, painted over the page — and only when
+   *  there are any. The page is the artefact and carries no drafting
+   *  chrome, so a layout that agrees with the browser shows the page and
+   *  nothing else. */
+  Element failureCard() const {
+    using namespace sj;
+    sketch::kit::Theme look;
+    look.palette.ash = C5(0xFFFFFF);
+    look.palette.figure = C5(0xFFFF00);
+    look.type.captionNote = {S(7.5f), 0.1f};
+    look.type.captionLabel = {S(7.5f), 0.1f, true};
+    look.spacing.rowGap = S(3);
+    std::vector<sketch::kit::Row> rows;
+    for (const measure::Check& c : verdict.rows) {
+      if (!c.judged() || c.pass) continue;
+      rows.push_back(
+          {{toU8(c.label), toU8(c.actual), toU8("want " + c.expected)},
+           Fill::color(C5(0xFF0000))});
+    }
+    sketch::kit::Provide bound(look);
+    return box()
+        .left(S(40))
+        .top(S(120))
+        .width(S(560))
+        .height(S(30) + S(13) * (float)rows.size())
+        .fill(Fill::color(C5(0x000080)))
+        .foreground(
+            stroke(S(2), Fill::color(C5(0xFF0000)), PathFormat::Align::Inner))
+        .column()
+        .padding(S(12))
+        .gap(S(8))
+        .child(text(
+            toU8("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID"),
+            weave::textStyle(
+                {.face = display(), .size = S(11), .color = C5(0xFFFF00)})))
+        .child(sketch::kit::table(std::move(rows),
+                                  {.columns = {{S(230)}, {S(46), true}, {}},
+                                   .gap = S(6),
+                                   .swatchSide = S(5)}));
   }
 
   void setup(sketch::SketchContext& ctx) override {
     using namespace sj;
-    ctx.canvas(S(640), S(800));
-    ctx.background(kPageBlack);  // <body bgcolor="#000000">, literally
+    // <body bgcolor="#000000">, literally
     // The still is taken mid-hold: the load finishes around 7.96 s of sketch
     // time and the reload wipes the page around 11.46 s, so 9.5 s is the one
     // window where every asset is present. Anything earlier catches the page
     // mid-load and misses the logotype, which is dead last in the byte
     // schedule — and the reference this study is diffed against is the
     // FINISHED page.
-    ctx.captureAt(9.5);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(S(640), S(800)),
+                             .captureAt = 9.5,
+                             .background = kPageBlack});
 
-    buildTable();
     bakeArt(ctx);
-    reportGrid();
+    checkGrid();
 
     stars = Pattern::tile({S(111), S(111)}, starTile());
     starsMat = stars.material(*ctx.fonts);
+    fastballMat =
+        ballMaterial(true, C5(0xFF6B29), C5(0xC64210), C5(0x521800), 0.050f);
 
-    // The 216-colour ordered dither, over the finished frame. It is a
-    // property of the SCREEN, not of the artwork — which is exactly why it
-    // lives here and the RGB555 snap lives in the materials.
-    ctx.composer.setView(Effect::shader(ditherEffect(), {{"uScale", kScale}}));
+    // The 216-colour round, over the finished frame. It is a property of
+    // the SCREEN, not of the artwork — which is exactly why it lives here
+    // and the RGB555 snap lives in the materials.
+    ctx.composer.setView(mskia::Effect::shader(viewEffect()));
 
     for (int i = 0; i < kAssetCount; ++i) {
       gotBytes[i] = 0;
@@ -1571,7 +1521,7 @@ struct SpaceJam1996 : sketch::Sketch {
 
   void stepLoad(double dt) {
     using namespace sj;
-    const auto& m = manifest();
+    const auto& m = kManifest;
     dt *= kSpeedup;
 
     uint32_t done = 0;
@@ -1613,24 +1563,13 @@ struct SpaceJam1996 : sketch::Sketch {
     }
   }
 
-  int reported = 0;
-  void update(double elapsed, sketch::SketchContext& ctx) override {
-    if (reported < 4 && elapsed > 8.5) {
-      ++reported;
-      const Composer::Stats& st = ctx.composer.stats();
-      SkDebugf(
-          "[spacejam] settled: instances %zu  pictures %zu  recorded %zu  "
-          "painted-live %zu  layout %.2fms  paint %.2fms\n",
-          st.instances, st.picturesLive, st.picturesRecorded, st.nodesPainted,
-          st.layoutMs, st.paintMs);
-    }
+  void update(double, sketch::SketchContext& ctx) override {
     if (!needRender) return;
     needRender = false;
     ctx.composer.render(describe(ctx));
   }
 };
 
-SIGIL_SKETCH(
-    SpaceJam1996, "Study \xc2\xb7 Screens",
-    "spacejam.com, still live \xe2\x80\x94 HTML auto table layout as a "
-    "LayoutScheme")
+SIGIL_SKETCH(SpaceJam1996, "Study \xc2\xb7 Screens",
+             "spacejam.com, still live \xe2\x80\x94 the page set by Table, "
+             "each <TD> naming its own cells")

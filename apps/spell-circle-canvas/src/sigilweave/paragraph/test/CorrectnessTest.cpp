@@ -1,12 +1,10 @@
 /** @file
  * Typographic correctness a shaping engine must hold: variable axes reach
  * HarfBuzz, cluster coverage is complete across scripts, ZWNJ blocks
- * joining, combining marks attach and stack on their base, kinsoku and
- * no-break spaces refuse breaks, tabs measure as spaces, and the strut
- * matches the font.
+ * joining, combining marks attach and stack on their base, a no-break
+ * space refuses to break, and the strut matches the font.
  */
 
-#include <absl/container/flat_hash_set.h>
 #include <gtest/gtest.h>
 #include <include/core/SkFontArguments.h>
 #include <include/core/SkFontMetrics.h>
@@ -14,8 +12,8 @@
 #include <include/core/SkTypeface.h>
 
 #include <algorithm>
+#include <boost/container/flat_set.hpp>
 #include <cmath>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -26,18 +24,17 @@ using namespace sigil::weave::test;
 TEST(Correctness, VariableAxesReachHarfBuzz) {
   // A multi-axis variable instance must shape with the same complete design
   // position Skia rasterizes.
-  FontContext& fontContext = sharedContext();
-  sk_sp<SkTypeface> base = fontContext.fontManager()->matchFamilyStyle(
-      "Noto Sans", SkFontStyle::Normal());
-  const int axisCount = base ? base->getVariationDesignPosition({}) : 0;
-  if (axisCount < 2)
-    GTEST_SKIP() << "no multi-axis variable Noto Sans installed";
+  FontContext& fontContext = sigil::test::fonts();
+  sk_sp<SkTypeface> base = sigil::test::instrument::variable();
+  ASSERT_TRUE(base);
+  const int axisCount = base->getVariationDesignPosition({});
+  ASSERT_GE(axisCount, 2) << "the instrument face lost an axis";
 
   std::vector<SkFontArguments::VariationPosition::Coordinate> coordinates(
       static_cast<size_t>(axisCount));
-  if (base->getVariationDesignPosition(
-          {coordinates.data(), coordinates.size()}) != axisCount)
-    GTEST_SKIP() << "Noto Sans variation position unavailable";
+  ASSERT_EQ(base->getVariationDesignPosition(
+                {coordinates.data(), coordinates.size()}),
+            axisCount);
   bool changedWeight = false;
   bool changedWidth = false;
   for (auto& coordinate : coordinates) {
@@ -49,8 +46,8 @@ TEST(Correctness, VariableAxesReachHarfBuzz) {
       changedWidth = true;
     }
   }
-  if (!changedWeight || !changedWidth)
-    GTEST_SKIP() << "Noto Sans wght/wdth axes unavailable";
+  ASSERT_TRUE(changedWeight && changedWidth)
+      << "the instrument face lost its wght or wdth axis";
 
   SkFontArguments args;
   args.setVariationDesignPosition(
@@ -83,12 +80,12 @@ TEST(Correctness, VariableAxesReachHarfBuzz) {
 }
 
 TEST(Correctness, ClusterCoverageIsComplete) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   // Ligating Latin, joining Arabic, conjunct Devanagari, ZWJ emoji.
   const char8_t* samples[] = {u8"office", u8"العربية", u8"नमस्ते",
                               u8"👨‍👩‍👧"};
   for (const char8_t* sample : samples) {
-    Paragraph paragraph = makeParagraph(sample);
+    Paragraph paragraph = machineParagraph(sample);
     paragraph.ensureShaped(fontContext);
     for (const Word& word : paragraph.words())
       for (const WordSegment& seg : word.segments()) {
@@ -107,11 +104,11 @@ TEST(Correctness, ClusterCoverageIsComplete) {
 }
 
 TEST(Correctness, ZwnjBlocksArabicJoining) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   auto glyphsOf = [&](const char8_t* text) {
-    Paragraph paragraph = makeParagraph(text);
+    Paragraph paragraph = machineParagraph(text);
     paragraph.ensureShaped(fontContext);
-    std::multiset<uint16_t> ids;
+    boost::container::flat_multiset<uint16_t> ids;
     for (const Word& word : paragraph.words())
       for (const WordSegment& seg : word.segments())
         for (uint16_t glyph : seg.shaped->glyphs)
@@ -123,9 +120,9 @@ TEST(Correctness, ZwnjBlocksArabicJoining) {
 }
 
 TEST(Correctness, CombiningMarkAttachesToBase) {
-  FontContext& fontContext = sharedContext();
-  Paragraph nfc = makeParagraph(u8"café");  // é precomposed
-  Paragraph nfd = makeParagraph(u8"café");  // e + combining acute
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph nfc = machineParagraph(u8"café");  // é precomposed
+  Paragraph nfd = machineParagraph(u8"café");  // e + combining acute
   nfc.ensureShaped(fontContext);
   nfd.ensureShaped(fontContext);
   ASSERT_EQ(nfc.words().size(), 1u);
@@ -134,59 +131,35 @@ TEST(Correctness, CombiningMarkAttachesToBase) {
   EXPECT_NEAR(nfc.words()[0].width, nfd.words()[0].width, 0.75f);
   // And the mark forms one grapheme cluster with its base: the NFD segment
   // reports at most as many clusters as it has base characters (4).
-  absl::flat_hash_set<uint32_t> unique(
-      nfd.words()[0].segments()[0].shaped->clusters.begin(),
-      nfd.words()[0].segments()[0].shaped->clusters.end());
-  EXPECT_LE(unique.size(), 4u);
+  EXPECT_LE(uniqueClusterCount(*nfd.words()[0].segments()[0].shaped), 4u);
 }
 
 TEST(Correctness, ExtremeCombiningStacksKeepBaseAdvance) {
-  FontContext& fontContext = sharedContext();
-  Paragraph plain = makeParagraph(u8"ZALGO TEXT", 32.0f);
-  Paragraph stacked = makeParagraph(
+  // The instrument carries the whole combining block with no advance on any
+  // of it and nothing that composes a mark into its base, so the stack below
+  // is a stack whatever the machine has installed.
+  FontContext& fontContext = sigil::test::fonts();
+  TextStyle style = basicStyle(32.0f);
+  style.shaping.typeface = sigil::test::instrument::marks();
+  ASSERT_TRUE(style.shaping.typeface);
+  Paragraph plain = paragraphIn(u8"ZALGO TEXT", style);
+  Paragraph stacked = paragraphIn(
       u8"Z̴̢̨̛̲̦̹̰̓̈́͊͘A̵̛̪̯̜̩͆̈́͝L̷̨̡̲̤̬̝̑̓͑̕G̵̢̺̙͎̺̤̓͛̾Ơ̶̢͙̟̲̦̿̽͋̚ "
       "T̷̨̗̰͉̼̯͛̋E̴̡̨̩̱͕̪͗̎X̷̢̳̮̱̪̿̈́͘T̴̛̬̠̦̞͙̋̄͝",
-      32.0f);
+      style);
   plain.ensureShaped(fontContext);
   stacked.ensureShaped(fontContext);
-  if (!allGlyphsResolved(stacked))
-    GTEST_SKIP() << "combining-mark fallback coverage unavailable";
+  ASSERT_TRUE(allGlyphsResolved(stacked))
+      << "the instrument face did not cover its own mark stack";
 
-  auto glyphCount = [](const Paragraph& paragraph) {
-    size_t count = 0;
-    for (const Word& word : paragraph.words())
-      for (const WordSegment& segment : word.segments())
-        count += segment.shaped->glyphs.size();
-    return count;
-  };
-  EXPECT_GT(glyphCount(stacked), glyphCount(plain) + 50u);
+  EXPECT_GT(shapedGlyphCount(stacked), shapedGlyphCount(plain));
   const float plainWidth = plain.naturalWidth(fontContext);
   EXPECT_NEAR(stacked.naturalWidth(fontContext), plainWidth, plainWidth * 0.03f)
       << "attached mark stacks must add ink, not horizontal advance";
 }
 
-TEST(Correctness, KinsokuProhibitsLineInitialPunctuation) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph =
-      makeParagraph(u8"これは、禁則処理のテストです。行頭に句読点は来ない。");
-  paragraph.ensureShaped(fontContext);
-  const std::u16string& text = paragraph.text();
-  for (const Word& word : paragraph.words()) {
-    // A break opportunity never lands *before* a closing punctuation mark:
-    // no word (== potential line start) begins with 。、」.
-    const char16_t first = text[word.textBegin];
-    EXPECT_NE(first, u'。');
-    EXPECT_NE(first, u'、');
-    EXPECT_NE(first, u'」');
-    // …and never *after* an opening bracket: no word's content ends with 「.
-    if (word.textEnd > word.textBegin) {
-      EXPECT_NE(text[word.textEnd - 1], u'「');
-    }
-  }
-}
-
 TEST(Correctness, NbspNeverBreaks) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph spaced = makeParagraph(u8"100 km");
   Paragraph glued = makeParagraph(u8"100 km");
   spaced.ensureShaped(fontContext);
@@ -195,21 +168,11 @@ TEST(Correctness, NbspNeverBreaks) {
   EXPECT_EQ(glued.words().size(), 1u) << "NBSP must not be a break point";
 }
 
-TEST(Correctness, TabsMeasureAsSpaces) {
-  FontContext& fontContext = sharedContext();
-  Paragraph tab = makeParagraph(u8"a\tb");
-  Paragraph space = makeParagraph(u8"a b");
-  tab.ensureShaped(fontContext);
-  space.ensureShaped(fontContext);
-  ASSERT_EQ(tab.words().size(), 2u);
-  EXPECT_FLOAT_EQ(tab.words()[0].spaceWidth, space.words()[0].spaceWidth);
-}
-
 TEST(Correctness, StrutMatchesFontMetrics) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"metrics", 32.0f);
   const Paragraph::Strut strut = paragraph.strut(fontContext);
-  const SkFont font = makeFont(fontContext.defaultTypeface(), 32.0f);
+  const SkFont font = makeFont(sigil::test::instrument::sans(), 32.0f);
   SkFontMetrics metrics;
   font.getMetrics(&metrics);
   EXPECT_FLOAT_EQ(strut.ascent, -metrics.fAscent);

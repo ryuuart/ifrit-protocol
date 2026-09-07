@@ -9,37 +9,30 @@
  * cache like any static chrome; attach with `.stroke()` to dress any
  * outline, rail, or connector route.
  *
- * Extension-point note: Skia's own seam here would be a custom
- * SkPathEffect, but the public API seals subclassing (onFilterPath lives
- * in src/). This header mirrors that contract at OUR seam instead — the
- * geometry ops run on the outline before stroking, as comparable values —
- * and PathFormat::effect stays the raw sk_sp<SkPathEffect> escape hatch
- * for effects Skia does ship (dash, corner, discrete, 1D, trim).
+ * Skia's own seam here would be a custom SkPathEffect, but its public API
+ * seals subclassing. This header mirrors that contract at OUR seam
+ * instead — the geometry ops run on the outline before stroking, as
+ * comparable values — and PathFormat::effect stays the raw
+ * sk_sp<SkPathEffect> escape hatch for the effects Skia does ship (dash,
+ * corner, discrete, 1D, trim).
  *
  *   rail(stops, routers::octilinear())
  *       .stroke(lines::Line{.width = 3, .fill = ink,
  *                           .parallels = 2, .gap = 5});      // transit pair
- *   connector("a", "b").stroke(lines::arrow(2, wire, 12));   // directed edge
+ *   connector("a", "b").stroke(lines::presets::arrow(2, wire, 12));   //
+ * directed edge
  */
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
-#include <sigilcompose/core/Material.h>  // Stop — the along-arc gradient ramp
+#include <sigilmaterial/skia/Paint.h>  // material::skia::Stop — the along-arc gradient ramp
 
+#include <optional>
 #include <vector>
 
 #include "sigilcompose/Compose.h"
 
 namespace sigil::compose::lines {
-
-/** Square-wave (battlement) displacement: the run holds at +amp for half a
- *  wavelength then drops to −amp for the next, with the verticals coming
- *  from doubled points at each step. Zero at both endpoints and snapped to
- *  fit, exactly like `geometry::path::displace` — the boxy member of the same
- *  family. */
-SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength);
-
-namespace detail {}  // namespace detail
 
 /** Convert a path into its DASHED GEOMETRY — the dash segments as real
  *  contours, rather than a paint-time effect. The building block for any
@@ -64,16 +57,6 @@ namespace detail {}  // namespace detail
  *  pattern is empty or Skia declines. */
 SkPath dashGeometry(const SkPath& src, SkSpan<const SkScalar> intervals,
                     float phase);
-
-/** Offset a CLOSED outline inward (positive @p px) or outward (negative),
- *  following any silhouette — a chamfered panel, a star, a blob — not just
- *  rectangles.
- *
- *  How it works: stroking the outline at width 2|px| gives the RING
- *  straddling it, so subtracting that ring shrinks the shape and unioning
- *  it grows the shape by the same amount. Returns the input unchanged if
- *  the boolean op fails. */
-SkPath insetOutline(const SkPath& outline, float px);
 
 /** CORNER BRACKETS as GEOMETRY: keep only the arc within @p arm px of each
  *  corner, so a rectangle becomes four L-shaped marks and nothing else —
@@ -145,7 +128,7 @@ struct Line {
   /** One-sided displacement of the whole run, **positive LEFT of travel**
    *  (the one convention — see `geometry::path::parallel`) — bus lanes beside
    * the road, half-side hachures. Same semantics as
-   *  `kit::brush::shapers::Offset` in a Brush pipeline: reach for the
+   *  `geometry::shapers::Offset` in a Brush pipeline: reach for the
    *  shaper when several layers share one displacement, this field for a
    *  single Line. */
   float across = 0.0f;
@@ -170,7 +153,7 @@ struct Line {
   std::vector<SkScalar> dashIntervals;
   float dashPhase = 0.0f;
   /** Bind it and the dashes march (see PathFormat::dashPhaseBinding). */
-  const choreograph::Output<float>* dashPhaseBinding = nullptr;
+  std::optional<motion::Animatable<float>> dashPhaseBinding;
 
   /** Along-arc gradient: colour as a ramp over the run's arc fraction — an
    *  energy fade, an elevation-coloured trail. Drawn as up to 48 arc chunks
@@ -179,15 +162,18 @@ struct Line {
    *
    *  **It applies to a single run only.** With `parallels > 1` or a dash
    *  pattern set, this list is IGNORED and the casings paint flat. */
-  std::vector<Stop> alongStops;
+  std::vector<material::skia::Stop> alongStops;
 
   bool operator==(const Line&) const = default;
 
   /** A bound dash phase makes the node volatile, the same declared-
    *  volatility contract PathFormat::trimPhase uses. */
-  bool isAnimated() const { return dashPhaseBinding != nullptr; }
+  bool isAnimated() const {
+    return dashPhaseBinding && motion::isLive(nullptr, *dashPhaseBinding);
+  }
   float phase() const {
-    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
+    return dashPhaseBinding ? motion::resolveFloatAt(nullptr, *dashPhaseBinding)
+                            : dashPhase;
   }
 
   /** Paint reach beyond the outline (cull growth): outer parallels, tie
@@ -205,32 +191,5 @@ struct Line {
   void drawCap(SkCanvas& canvas, const SkPaint& head, Cap cap, SkPoint pos,
                SkVector tan) const;
 };
-
-// ---- factory sugar ---------------------------------------------------------
-
-/** The transit pair: two rails following the route. */
-Line cased(float width, Fill fill, float gap = 5.0f);
-
-/** Triple rail with a weighted spine (bold center, light outriders). */
-Line triple(float width, Fill fill, float gap = 5.0f, float coreFactor = 1.8f);
-
-/** Directed edge: plain body, filled arrowhead at the end. */
-Line arrow(float width, Fill fill, float headSize = 10.0f);
-
-/** Railway: body + perpendicular ties. */
-Line railway(float width, Fill fill, float tieSpacing = 12.0f,
-             float tieLength = 10.0f);
-
-/** The cartographic railway: a dark line under a white dash overlay at
- *  about a third of its width, on a 50% duty cycle — the map convention,
- *  which uses no ties at all. Two decorations as one LayerStyle, so attach
- *  with `Element::style()`. */
-LayerStyle railwayCarto(float scale = 1.0f,
-                        SkColor4f dark = {0.439f, 0.439f, 0.439f, 1},
-                        SkColor4f light = {1, 1, 1, 1});
-
-/** The squiggle (sine) — set `zigzag` on the returned value for vertices. */
-Line wavy(float width, Fill fill, float amplitude = 4.0f,
-          float wavelength = 18.0f);
 
 }  // namespace sigil::compose::lines

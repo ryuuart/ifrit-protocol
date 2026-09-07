@@ -123,9 +123,17 @@
 //                        HAMMERING, not by a radius
 //   shapers::Jitter      the beaten iron edge: low frequency, high deviation
 //   shapes::chamfered / circle / star / parametric
-//   Material::linear + patterns::grain + speckle   the iron, under
+//   Paint::linear + field::grain + speckle   the iron, under
 //                        Cache::Texture
-//   feed::TextRing       four panels of checks, printed as they run
+//   path::resample       the classifier's own measure: 33 stations spaced
+//                        evenly by ARC LENGTH along a median, which is what
+//                        hanzi-writer and animCJK do before animating
+//   path::smoothThrough  every centreline: a smooth path the median's
+//                        sparse points STEER — three to fourteen points for
+//                        a whole stroke, so the smoothing is not decoration
+//                        but what makes the centreline a centreline
+//   kit::console         the four check panels on one plate
+//   feed::TextRing       their rows, printed as they run
 //
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
@@ -153,41 +161,58 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Feed.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Plate.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigildata/table/Table.h>
+#include <sigilgeometry/kit/Shapers.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Polyline.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <cmath>
-#include <cstdio>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace patterns = sigil::material::pattern;
+namespace path = sigil::geometry::path;
+namespace data = sigil::data;
+namespace shapers = sigil::geometry::shapers;
+namespace shapes = sigil::geometry::shapes;
+namespace skia = sigil::material::skia;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
+using sigil::material::skia::Paint;
 namespace geometry = sigil::geometry;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
 namespace {
-
-template <typename... A>
-std::string fmt(const char* f, A... args) {
-  char buf[512];
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wformat-security"
-  std::snprintf(buf, sizeof(buf), f, args...);
-#pragma clang diagnostic pop
-  return buf;
-}
 
 // ---------------------------------------------------------------------------
 // palette — cinnabar on beaten iron under an altar lamp. 朱砂 is mercury
@@ -195,20 +220,20 @@ std::string fmt(const char* f, A... args) {
 // only bright thing here, and where the brush runs dry the IRON shows through
 // rather than a paler red.
 
-constexpr SkColor4f kNight = hex(0x08070a);
-constexpr SkColor4f kIronDeep = hex(0x232120);
-constexpr SkColor4f kIronMid = hex(0x35312c);
-constexpr SkColor4f kIronLit = hex(0x4c453b);
-constexpr SkColor4f kIronEdge = hex(0x6c6354);
-constexpr SkColor4f kCinnabar = hex(0xcf3018);
-constexpr SkColor4f kCinnaWet = hex(0xf2542a);
-constexpr SkColor4f kCinnaDry = hex(0x8f2313);
-constexpr SkColor4f kGold = hex(0xb2914f);
-constexpr SkColor4f kGoldDim = hex(0x6d5a33);
-constexpr SkColor4f kChalk = hex(0xd8cdb6);
-constexpr SkColor4f kVoidBlue = hex(0x4f92d8);
-constexpr SkColor4f kVoidRed = hex(0xd8422a);
-constexpr SkColor4f kVoidWhite = hex(0xe7e2d6);
+constexpr SkColor4f kNight = hexColor(0x08070a);
+constexpr SkColor4f kIronDeep = hexColor(0x232120);
+constexpr SkColor4f kIronMid = hexColor(0x35312c);
+constexpr SkColor4f kIronLit = hexColor(0x4c453b);
+constexpr SkColor4f kIronEdge = hexColor(0x6c6354);
+constexpr SkColor4f kCinnabar = hexColor(0xcf3018);
+constexpr SkColor4f kCinnaWet = hexColor(0xf2542a);
+constexpr SkColor4f kCinnaDry = hexColor(0x8f2313);
+constexpr SkColor4f kGold = hexColor(0xb2914f);
+constexpr SkColor4f kGoldDim = hexColor(0x6d5a33);
+constexpr SkColor4f kChalk = hexColor(0xd8cdb6);
+constexpr SkColor4f kVoidBlue = hexColor(0x4f92d8);
+constexpr SkColor4f kVoidRed = hexColor(0xd8422a);
+constexpr SkColor4f kVoidWhite = hexColor(0xe7e2d6);
 
 // ---------------------------------------------------------------------------
 // canvas & the plate. 五寸 × 三寸 — the ratio is the specification, so it is
@@ -229,144 +254,12 @@ constexpr float kCol = 306.0f;             // the spine: every part is strung
 // ORDER and DRAWING DIRECTION — which is the whole point of the file.
 
 struct Glyph {
-  const char* id;  // romanised: every caption on this canvas is Latin
-  const int16_t* data;
-  int strokes;
-};
-
-// 罡  U+7F61 — 10 strokes, 50 median points
-const int16_t k_gang[] = {
-    3,   228, 155, 262, 181, 315, 389, 10,  296, 162, 312, 173, 577, 126,
-    660, 115, 715, 115, 730, 123, 752, 152, 710, 287, 692, 324, 692, 350,
-    4,   401, 183, 424, 283, 432, 307, 444, 320, 4,   543, 154, 570, 176,
-    541, 292, 527, 298, 3,   335, 366, 354, 356, 661, 305, 6,   320, 461,
-    350, 469, 404, 470, 610, 438, 640, 436, 665, 444, 6,   471, 490, 499,
-    507, 510, 522, 501, 749, 503, 763, 520, 779, 4,   540, 636, 559, 625,
-    657, 607, 711, 605, 4,   281, 606, 325, 652, 340, 783, 327, 795, 6,
-    108, 839, 179, 860, 402, 816, 610, 803, 785, 806, 894, 849,
-};
-// 急  U+6025 — 9 strokes, 56 median points
-const int16_t k_ji[] = {
-    7,   466, 54,  485, 79,  492, 104, 467, 143, 378, 251, 319, 307, 268,
-    343, 9,   458, 209, 483, 196, 562, 177, 605, 176, 624, 184, 621, 206,
-    555, 291, 513, 338, 494, 348, 8,   297, 396, 351, 399, 534, 363, 620,
-    339, 663, 340, 702, 376, 645, 538, 618, 554, 4,   306, 508, 339, 510,
-    552, 478, 585, 485, 5,   290, 618, 321, 625, 608, 585, 654, 586, 682,
-    595, 3,   229, 704, 210, 777, 164, 874, 13,  330, 702, 343, 720, 366,
-    783, 389, 817, 418, 844, 460, 871, 505, 889, 584, 905, 714, 906, 750,
-    893, 767, 880, 741, 826, 686, 749, 3,   477, 674, 536, 722, 563, 761,
-    4,   725, 645, 833, 689, 860, 709, 892, 752,
-};
-// 如  U+5982 — 6 strokes, 41 median points
-const int16_t k_ru[] = {
-    9,   338, 103, 362, 123, 383, 160, 325, 408, 261, 612, 278, 631, 475, 757,
-    494, 782, 504, 811, 9,   450, 365, 468, 379, 486, 410, 442, 569, 392, 675,
-    354, 727, 300, 776, 241, 815, 164, 846, 5,   78,  472, 133, 495, 217, 469,
-    424, 423, 441, 406, 4,   558, 443, 582, 464, 595, 487, 636, 720, 9,   613,
-    446, 624, 454, 640, 455, 793, 412, 822, 418, 844, 434, 854, 446, 820, 592,
-    792, 617, 5,   656, 687, 674, 670, 779, 650, 830, 648, 858, 656,
-};
-// 律  U+5F8B — 9 strokes, 49 median points
-const int16_t k_lv[] = {
-    6,   317, 113, 335, 138, 340, 160, 299, 220, 203, 319, 145, 359, 7,
-    306, 296, 335, 335, 337, 345, 325, 368, 220, 518, 110, 634, 68,  667,
-    4,   268, 498, 290, 560, 278, 805, 282, 866, 7,   441, 228, 503, 230,
-    719, 181, 752, 187, 780, 215, 731, 374, 704, 394, 5,   404, 344, 449,
-    351, 833, 289, 872, 288, 930, 302, 5,   432, 463, 469, 466, 695, 423,
-    738, 422, 762, 429, 5,   447, 579, 469, 584, 516, 581, 718, 538, 768,
-    543, 5,   370, 708, 425, 714, 676, 671, 839, 652, 920, 669, 5,   548,
-    64,  573, 70,  609, 104, 600, 286, 595, 942,
-};
-// 令  U+4EE4 — 5 strokes, 34 median points
-const int16_t k_ling[] = {
-    9,   461, 67,  484, 88,  494, 118, 456, 198, 388, 302, 302, 407, 231, 476,
-    142, 547, 76,  586, 6,   510, 181, 509, 194, 608, 304, 733, 426, 783, 464,
-    975, 496, 3,   411, 408, 486, 460, 508, 491, 12,  261, 613, 286, 626, 323,
-    631, 540, 572, 579, 567, 604, 571, 632, 595, 637, 603, 634, 612, 515, 772,
-    512, 784, 502, 783, 4,   397, 743, 505, 842, 530, 884, 537, 922,
-};
-// 雨  U+96E8 — 8 strokes, 44 median points
-const int16_t k_yu[] = {
-    6,   312, 205, 343, 213, 396, 214, 520, 199, 698, 166, 747, 170, 6,
-    162, 394, 196, 429, 209, 475, 217, 597, 218, 754, 232, 811, 14,  232,
-    443, 246, 425, 259, 421, 510, 377, 813, 343, 845, 360, 855, 370, 858,
-    389, 840, 629, 826, 726, 808, 796, 780, 831, 679, 791, 661, 777, 6,
-    465, 230, 498, 249, 511, 275, 507, 588, 499, 690, 502, 764, 3,   318,
-    500, 372, 519, 405, 543, 3,   310, 631, 373, 661, 396, 682, 3,   598,
-    466, 670, 485, 697, 502, 3,   598, 608, 663, 634, 687, 654,
-};
-// 五  U+4E94 — 4 strokes, 26 median points
-const int16_t k_wu[] = {
-    5,   304, 206, 343, 215, 400, 214, 704, 165, 753, 167, 6,   460, 237,
-    489, 267, 483, 313, 391, 705, 375, 726, 362, 732, 8,   273, 465, 308,
-    472, 345, 470, 616, 424, 654, 433, 685, 466, 619, 700, 592, 721, 7,
-    63,  782, 138, 803, 419, 751, 654, 739, 855, 747, 905, 762, 966, 790,
-};
-// 鬼  U+9B3C — 9 strokes, 60 median points
-const int16_t k_gui[] = {
-    5,   434, 51,  447, 59,  467, 90,  373, 219, 350, 228, 4,   242, 254, 271,
-    276, 286, 305, 343, 537, 8,   296, 255, 329, 263, 617, 205, 680, 202, 702,
-    208, 735, 248, 699, 340, 658, 481, 4,   387, 381, 534, 346, 578, 340, 600,
-    345, 4,   364, 514, 380, 503, 613, 465, 635, 455, 10,  456, 258, 494, 282,
-    497, 296, 472, 445, 453, 520, 407, 629, 348, 719, 274, 791, 214, 832, 139,
-    870, 14,  506, 539, 529, 561, 546, 591, 536, 658, 533, 740, 541, 809, 559,
-    840, 598, 863, 674, 876, 762, 876, 835, 869, 912, 846, 932, 832, 924, 674,
-    8,   696, 521, 721, 551, 695, 617, 652, 686, 643, 720, 676, 720, 794, 686,
-    807, 690, 3,   774, 603, 832, 675, 844, 720,
-};
-// 雲  U+96F2 — 12 strokes, 62 median points
-const int16_t k_yun[] = {
-    5,   387, 133, 409, 139, 475, 138, 623, 105, 684, 106, 5,   224, 251,
-    233, 269, 235, 299, 188, 397, 183, 450, 10,  266, 286, 286, 295, 312,
-    294, 442, 268, 747, 225, 806, 223, 821, 228, 845, 243, 857, 267, 769,
-    358, 4,   480, 162, 512, 184, 518, 202, 509, 497, 3,   343, 345, 385,
-    361, 417, 385, 3,   328, 452, 385, 472, 410, 490, 3,   618, 319, 679,
-    337, 702, 353, 3,   613, 424, 676, 446, 702, 464, 4,   358, 576, 394,
-    576, 612, 536, 657, 542, 5,   213, 683, 263, 692, 498, 655, 725, 631,
-    807, 650, 13,  485, 695, 439, 713, 407, 760, 356, 812, 351, 820, 367,
-    830, 363, 867, 580, 816, 597, 817, 607, 809, 619, 813, 636, 803, 657,
-    808, 4,   623, 723, 726, 844, 747, 886, 753, 925,
-};
-// 雷  U+96F7 — 13 strokes, 63 median points
-const int16_t k_lei[] = {
-    4,   363, 125, 429, 132, 641, 96,  683, 98,  5,   204, 248, 216, 277,
-    214, 299, 176, 377, 168, 436, 8,   248, 280, 260, 290, 282, 290, 446,
-    260, 783, 219, 824, 235, 842, 261, 766, 345, 5,   479, 152, 513, 181,
-    513, 346, 502, 482, 505, 532, 3,   313, 371, 365, 383, 400, 403, 3,
-    306, 497, 363, 507, 382, 519, 3,   593, 325, 663, 343, 699, 370, 3,
-    589, 444, 667, 465, 694, 494, 5,   250, 602, 274, 619, 299, 655, 325,
-    832, 347, 907, 12,  296, 602, 307, 611, 346, 619, 527, 596, 660, 570,
-    698, 570, 717, 579, 741, 607, 740, 618, 707, 833, 684, 875, 683, 934,
-    4,   401, 723, 460, 729, 574, 703, 620, 704, 5,   476, 620, 503, 640,
-    510, 663, 508, 803, 493, 821, 3,   364, 870, 375, 857, 639, 831,
-};
-// 號  U+865F — 13 strokes, 92 median points
-const int16_t k_hao[] = {
-    4,   167, 150, 192, 168, 201, 183, 236, 313, 9,   224, 150, 234, 157, 326,
-    130, 343, 128, 357, 134, 377, 155, 375, 163, 356, 219, 330, 236, 4,   253,
-    290, 263, 279, 325, 261, 381, 264, 6,   70,  447, 87,  452, 131, 449, 317,
-    388, 344, 382, 376, 384, 12,  186, 463, 200, 470, 207, 486, 185, 563, 221,
-    565, 276, 551, 306, 558, 324, 578, 294, 723, 261, 794, 227, 819, 155, 772,
-    4,   601, 54,  641, 91,  637, 231, 620, 246, 3,   677, 138, 749, 116, 801,
-    112, 7,   476, 293, 498, 303, 750, 237, 810, 227, 827, 235, 842, 253, 787,
-    321, 9,   414, 280, 443, 309, 449, 339, 441, 491, 424, 600, 407, 672, 382,
-    742, 343, 820, 287, 899, 4,   511, 426, 573, 425, 702, 384, 733, 383, 10,
-    582, 316, 604, 342, 605, 463, 613, 486, 636, 508, 694, 521, 739, 515, 767,
-    503, 785, 486, 779, 409, 8,   532, 608, 550, 621, 563, 641, 554, 701, 537,
-    760, 517, 795, 481, 836, 409, 881, 12,  660, 587, 688, 623, 679, 749, 686,
-    824, 694, 844, 723, 867, 767, 880, 826, 883, 881, 875, 921, 854, 933, 838,
-    944, 712,
+  std::string id;  // romanised: every caption on this canvas is Latin
+  std::vector<int16_t> data;
+  int strokes = 0;
 };
 
 enum G { GANG, JI, RU, LV, LING, YU, WU, GUI, YUN, LEI, HAO, GCOUNT };
-const Glyph kGlyphs[GCOUNT] = {
-    {"GANG U+7F61", k_gang, 10}, {"JI   U+6025", k_ji, 9},
-    {"RU   U+5982", k_ru, 6},    {"LU   U+5F8B", k_lv, 9},
-    {"LING U+4EE4", k_ling, 5},  {"YU   U+96E8", k_yu, 8},
-    {"WU   U+4E94", k_wu, 4},    {"GUI  U+9B3C", k_gui, 9},
-    {"YUN  U+96F2", k_yun, 12},  {"LEI  U+96F7", k_lei, 13},
-    {"HAO  U+865F", k_hao, 13},
-};
 
 // KanjiVG kvg:type, mapped to the six classes, in KanjiVG's stroke order.
 // 罡 is ABSENT from KanjiVG entirely (kanji/07f61.svg → 404). That absence
@@ -374,25 +267,75 @@ const Glyph kGlyphs[GCOUNT] = {
 enum Cls { HENG, SHU, PIE, NA, DIAN, TURN, CLSN };
 const char* kClsName[CLSN] = {"HENG", "SHU ", "PIE ", "NA  ", "DIAN", "TURN"};
 
-const int8_t kKvg_ji[] = {2, 5, 5, 0, 0, 4, 5, 4, 4};
-const int8_t kKvg_ru[] = {5, 2, 0, 1, 5, 0};
-const int8_t kKvg_lv[] = {2, 2, 1, 5, 0, 0, 0, 0, 1};
-const int8_t kKvg_ling[] = {2, 3, 4, 5, 4};
-const int8_t kKvg_yu[] = {0, 1, 5, 1, 4, 4, 4, 4};
-const int8_t kKvg_wu[] = {0, 1, 5, 0};
-const int8_t kKvg_lei[] = {0, 4, 5, 1, 4, 4, 4, 4, 1, 5, 1, 0, 0};
-const int8_t kKvg_gui[] = {2, 1, 5, 1, 0, 0, 2, 5, 5, 4};
 // fields are grouped by what they belong to, not by size
 // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 struct KvgRow {
   int glyph;
-  const int8_t* cls;
+  std::vector<int8_t> cls;
   int n;
 };
-const KvgRow kKvg[] = {{JI, kKvg_ji, 9},    {RU, kKvg_ru, 6},
-                       {LV, kKvg_lv, 9},    {LING, kKvg_ling, 5},
-                       {YU, kKvg_yu, 8},    {WU, kKvg_wu, 4},
-                       {LEI, kKvg_lei, 13}, {GUI, kKvg_gui, 10}};
+
+/** THE TWO FILES THIS CANVAS IS WRITTEN FROM, as one value: the eleven
+ *  characters' medians in drawing order, and the eight of them KanjiVG
+ *  also classifies. */
+struct Font {
+  std::vector<Glyph> glyphs;
+  std::vector<KvgRow> kvg;
+
+  /** Which of the eleven carries @p id, or -1. */
+  int find(std::string_view id) const {
+    for (size_t i = 0; i < glyphs.size(); ++i)
+      if (glyphs[i].id == id) return (int)i;
+    return -1;
+  }
+};
+
+/** The whitespace-separated numbers of one field. */
+template <typename T>
+std::vector<T> words(std::string_view run) {
+  std::vector<T> out;
+  for (size_t at = 0; at < run.size();) {
+    if (run[at] == ' ') {
+      ++at;
+      continue;
+    }
+    int value = 0;
+    const auto read =
+        std::from_chars(run.data() + at, run.data() + run.size(), value);
+    if (read.ec != std::errc{}) break;
+    out.push_back((T)value);
+    at = (size_t)(read.ptr - run.data());
+  }
+  return out;
+}
+
+Font readFont(sketch::Assets& assets) {
+  Font font;
+  const auto file = [&assets](const char* name) {
+    return assets.table("data/thunder_fulu/" + std::string(name));
+  };
+
+  if (const auto t = file("strokes.csv")) {
+    const auto id = t->column<std::string>("id");
+    const auto strokes = t->column<double>("strokes");
+    const auto medians = t->column<std::string>("medians");
+    for (size_t i = 0; i < id.size(); ++i)
+      font.glyphs.push_back(
+          {id[i], words<int16_t>(medians[i]), (int)strokes[i]});
+  }
+
+  if (const auto t = file("kanjivg.csv")) {
+    const auto id = t->column<std::string>("id");
+    const auto classes = t->column<std::string>("classes");
+    for (size_t i = 0; i < id.size(); ++i) {
+      std::vector<int8_t> cls = words<int8_t>(classes[i]);
+      const int n = (int)cls.size();
+      font.kvg.push_back({font.find(id[i]), std::move(cls), n});
+    }
+  }
+
+  return font;
+}
 
 // ---------------------------------------------------------------------------
 // MEDIANS → GEOMETRY.
@@ -400,10 +343,10 @@ const KvgRow kKvg[] = {{JI, kKvg_ji, 9},    {RU, kKvg_ru, 6},
 using Poly = std::vector<SkPoint>;
 
 /** One character's medians, in em units [0,1]², y down, drawing order. */
-std::vector<Poly> medians(int glyph) {
-  const Glyph& g = kGlyphs[glyph];
+std::vector<Poly> medians(const Font& font, int glyph) {
+  const Glyph& g = font.glyphs[(size_t)glyph];
   std::vector<Poly> out;
-  const int16_t* p = g.data;
+  const int16_t* p = g.data.data();
   for (int s = 0; s < g.strokes; ++s) {
     const int n = *p++;
     Poly poly;
@@ -415,31 +358,20 @@ std::vector<Poly> medians(int glyph) {
   return out;
 }
 
-/** Resample a polyline to n stations by arc length — the classifier's own
- *  measure, and hanzi-writer/animCJK do exactly this before animating. */
+/** N stations spaced evenly by ARC LENGTH along a median — the
+ *  classifier's own measure, and what hanzi-writer and animCJK do before
+ *  animating. `path::resample` is that walk; what is here is only the
+ *  conversion between this file's SkPoint medians and the library's
+ *  glm points. */
 Poly resample(const Poly& p, int n) {
-  Poly out;
   if (p.size() < 2) return p;
-  std::vector<float> seg(p.size() - 1);
-  float total = 0;
-  for (size_t i = 0; i + 1 < p.size(); ++i) {
-    seg[i] = std::hypot(p[i + 1].fX - p[i].fX, p[i + 1].fY - p[i].fY);
-    total += seg[i];
-  }
-  if (total < 1e-6f) return Poly((size_t)n, p.front());
-  for (int k = 0; k < n; ++k) {
-    const float d = total * (float)k / (float)(n - 1);
-    float acc = 0;
-    for (size_t i = 0; i < seg.size(); ++i) {
-      if (acc + seg[i] >= d || i + 1 == seg.size()) {
-        const float t = seg[i] > 0 ? (d - acc) / seg[i] : 0;
-        out.push_back({p[i].fX + (p[i + 1].fX - p[i].fX) * t,
-                       p[i].fY + (p[i + 1].fY - p[i].fY) * t});
-        break;
-      }
-      acc += seg[i];
-    }
-  }
+  path::Polyline line;
+  line.points.reserve(p.size());
+  for (const SkPoint& q : p) line.points.push_back({q.fX, q.fY});
+  const path::Sampled r = path::resample(line, n);
+  Poly out;
+  out.reserve(r.points.size());
+  for (const glm::vec2& q : r.points) out.push_back({q.x, q.y});
   return out;
 }
 
@@ -586,18 +518,10 @@ struct LawBand {
  *  the smoothing is not decoration, it is what makes the centreline a
  *  centreline rather than a chain of chords. */
 SkPath smoothPath(const Poly& p) {
-  SkPathBuilder b;
-  if (p.size() < 2) return b.detach();
-  b.moveTo(p[0]);
-  if (p.size() == 2) {
-    b.lineTo(p[1]);
-    return b.detach();
-  }
-  for (size_t i = 1; i + 1 < p.size(); ++i)
-    b.quadTo(p[i],
-             {(p[i].fX + p[i + 1].fX) * 0.5f, (p[i].fY + p[i + 1].fY) * 0.5f});
-  b.lineTo(p.back());
-  return b.detach();
+  std::vector<glm::vec2> pts;
+  pts.reserve(p.size());
+  for (const SkPoint& q : p) pts.push_back({q.fX, q.fY});
+  return path::smoothThrough(pts);
 }
 
 float pathLength(const SkPath& p) {
@@ -675,9 +599,9 @@ constexpr float tSeal = 21.45f;
 constexpr float tStars = 13.10f;
 constexpr float kLoop = 27.0f;
 
-sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
-                             float tracking = 0) {
-  return sigil::compose::type(
+weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
+                      float tracking = 0) {
+  return weave::textStyle(
       {.face = std::move(face), .size = size, .color = c, .track = tracking});
 }
 
@@ -709,7 +633,21 @@ struct ThunderFulu : sketch::Sketch {
 
   feed::TextRing logA{64}, logB{64}, logC{64}, logD{64};
 
-  Material ironGrain;
+  /** WHAT THE CONSOLE'S PASS AND FAIL MARKS ARE READ OFF. A row's verdict
+   *  is COMPUTED from the two values it reports — the stroke count the
+   *  doctrine publishes and the one the median data carries — so a line
+   *  marked pass cannot disagree with the number printed in it, and
+   *  `failures()` is the run's verdict away from the screen. */
+  sigil::measure::Table verdict;
+
+  /** @p want against @p got, added to the table, and the console tag its
+   *  verdict spells. */
+  const char* claim(std::string label, long want, long got) {
+    verdict.add(sigil::measure::check(std::move(label), want, got));
+    return verdict.rows.back().pass ? "pass" : "fail";
+  }
+
+  Paint ironGrain;
   Pattern ironSpeck;
   Element footPrint;  // brush::Scatter art, held for pointer stability
   Element hammerTile, hammerCorner;
@@ -772,17 +710,17 @@ struct ThunderFulu : sketch::Sketch {
       hair.cap = SkPaint::kButt_Cap;
       hair.dashIntervals = {7.0f, 3.0f};
       hair.dashPhase = 2.0f;
-      brush.layer(hair, {kit::brush::shapers::Offset{-2.6f, 3.0f}});
+      brush.layer(hair, {shapers::Offset{-2.6f, 3.0f}});
       PathFormat hair2 = hair;
       hair2.width = 1.8f;
       hair2.dashIntervals = {5.0f, 4.2f};
       hair2.dashPhase = 5.5f;
-      brush.layer(hair2, {kit::brush::shapers::Offset{2.8f, 3.0f}});
+      brush.layer(hair2, {shapers::Offset{2.8f, 3.0f}});
       PathFormat hair3 = hair;
       hair3.width = 1.2f;
       hair3.dashIntervals = {4.0f, 6.0f};
       hair3.dashPhase = 9.0f;
-      brush.layer(hair3, {kit::brush::shapers::Offset{0.2f, 3.0f}});
+      brush.layer(hair3, {shapers::Offset{0.2f, 3.0f}});
     }
 
     const SkRect f = s.frame;
@@ -792,10 +730,7 @@ struct ThunderFulu : sketch::Sketch {
                     .top(f.top())
                     .width(Dim(f.width()))
                     .height(Dim(f.height()))
-                    // the callable is invoked on every layout, so its capture
-                    // must survive each return
-                    // NOLINTNEXTLINE(performance-no-automatic-move)
-                    .shape([local](SkSize) { return local; })
+                    .shape(heldPath(local))
                     .fill(Fill::none())
                     .stroke(std::move(brush))
                     .key(s.key);
@@ -852,7 +787,7 @@ struct ThunderFulu : sketch::Sketch {
     for (const auto& [g, h] : parts) total += h;
     int idx = 0;
     for (const auto& [g, share] : parts) {
-      const std::vector<Poly> ms = medians(g);
+      const std::vector<Poly> ms = medians(font, g);
       const float bh = size * share / total;
       for (const auto& m : ms) {
         const int cls = classify(m);
@@ -860,7 +795,7 @@ struct ThunderFulu : sketch::Sketch {
         SkPath sp = cloud(smoothPath(q), amp, size * 0.42f);
         push(sp, w0ForClass(cls) * size * 0.92f, cls, t + (float)idx * each,
              t + (float)(idx + 1) * each - 0.03f, kCinnabar,
-             fmt("body%d_%d", tag, (int)idx));
+             kit::formatted("body%d_%d", tag, (int)idx));
         ++idx;
       }
       y += bh;
@@ -880,41 +815,40 @@ struct ThunderFulu : sketch::Sketch {
                 .width(Dim(kPW + 46))
                 .height(Dim(kPH + 44))
                 .shape(shapes::chamfered(26.0f))
-                .fill(Material::radialUnit({0.5f, 0.5f}, 0.78f,
-                                           {{0.0f, hex(0x000000, 0.66f)},
-                                            {0.72f, hex(0x000000, 0.40f)},
-                                            {1.0f, hex(0x000000, 0.0f)}}))
+                .fill(Paint::radialUnit({0.5f, 0.5f}, 0.78f,
+                                        {{0.0f, hexColor(0x000000, 0.66f)},
+                                         {0.72f, hexColor(0x000000, 0.40f)},
+                                         {1.0f, hexColor(0x000000, 0.0f)}}))
                 .key("ironshadow"));
 
     // the plate itself: hammered iron, warm under an altar lamp. The edge is
     // NOT a radius — it is what a hammer leaves.
-    g.child(box()
-                .inset(0)
-                .shape([](SkSize s) {
-                  return kit::brush::shapers::Jitter{46.0f, 2.6f, 1356}.shape(
-                      shapes::chamfered(17.0f)(s));
-                })
-                // linearUnit, not linear: linear() is in NODE PIXELS, so
-                // a {0.1,0} -> {0.9,1} ramp is one pixel wide at the corner
-                // and clamps the whole plate to its last stop.
-                .fill(Material::linearUnit({0.10f, -0.06f}, {0.96f, 1.0f},
-                                           {{0.0f, hex(0x736a5b)},
-                                            {0.18f, hex(0x4f4840)},
-                                            {0.46f, kIronMid},
-                                            {0.78f, hex(0x201e1d)},
-                                            {1.0f, hex(0x161514)}}))
-                .foreground(lines::hatch(Fill::color(hex(0xa79a83, 0.075f)),
-                                         13.0f, 1.6f, -18.0f))
-                .foreground(lines::hatch(Fill::color(hex(0x000000, 0.13f)),
-                                         31.0f, 3.4f, 24.0f))
-                .foreground(Wash{.material = ironGrain,
-                                 .blend = SkBlendMode::kOverlay,
-                                 .amount = 0.30f})
-                .foreground(Wash{.material = ironSpeck.material(),
-                                 .blend = SkBlendMode::kMultiply,
-                                 .amount = 0.85f})
-                .cache(Cache::Texture)
-                .key("iron"));
+    g.child(
+        box()
+            .inset(0)
+            .shape(shapes::shaped(shapes::chamfered(17.0f),
+                                  shapers::Jitter{46.0f, 2.6f, 1356}))
+            // linearUnit, not linear: linear() is in NODE PIXELS, so
+            // a {0.1,0} -> {0.9,1} ramp is one pixel wide at the corner
+            // and clamps the whole plate to its last stop.
+            .fill(Paint::linearUnit({0.10f, -0.06f}, {0.96f, 1.0f},
+                                    {{0.0f, hexColor(0x736a5b)},
+                                     {0.18f, hexColor(0x4f4840)},
+                                     {0.46f, kIronMid},
+                                     {0.78f, hexColor(0x201e1d)},
+                                     {1.0f, hexColor(0x161514)}}))
+            .foreground(lines::presets::hatch(
+                Fill::color(hexColor(0xa79a83, 0.075f)), 13.0f, 1.6f, -18.0f))
+            .foreground(lines::presets::hatch(
+                Fill::color(hexColor(0x000000, 0.13f)), 31.0f, 3.4f, 24.0f))
+            .foreground(Wash{.material = ironGrain,
+                             .blend = SkBlendMode::kOverlay,
+                             .amount = 0.30f})
+            .foreground(Wash{.material = ironSpeck.material(),
+                             .blend = SkBlendMode::kMultiply,
+                             .amount = 0.85f})
+            .cache(Cache::Texture)
+            .key("iron"));
 
     // the beaten edge, and the corners rounded BY HAMMERING. brush::Pattern
     // corner tiles: a facet, not a fillet.
@@ -932,19 +866,17 @@ struct ThunderFulu : sketch::Sketch {
     g.child(
         box()
             .inset(0)
-            .shape([](SkSize s) {
-              return kit::brush::shapers::Jitter{38.0f, 3.1f, 46}.shape(
-                  shapes::chamfered(17.0f)(s));
-            })
+            .shape(shapes::shaped(shapes::chamfered(17.0f),
+                                  shapers::Jitter{38.0f, 3.1f, 46}))
             .fill(Fill::none())
             .stroke(Brush{}
                         .layer(lines::rails(
                             {{.across = 0.0f,
                               .width = 3.0f,
-                              .fill = Fill::color(hex(0x5d564a, 0.85f))},
+                              .fill = Fill::color(hexColor(0x5d564a, 0.85f))},
                              {.across = -5.5f,
                               .width = 1.1f,
-                              .fill = Fill::color(hex(0x0a0909, 0.75f))}}))
+                              .fill = Fill::color(hexColor(0x0a0909, 0.75f))}}))
                         .layer(brush::Pattern{
                             .side = hammerTile,
                             .corner =
@@ -953,7 +885,7 @@ struct ThunderFulu : sketch::Sketch {
                             .advance = 26.0f,
                             .cornerAngleDeg = 30.0f,
                             .cornerLength = 34.0f,
-                            .reach = 22.0f}))
+                            .bleedPx = 22.0f}))
             .cache(Cache::Texture)
             .key("ironedge"));
     return g;
@@ -1017,7 +949,7 @@ struct ThunderFulu : sketch::Sketch {
       b.quadTo(x + dir * 4.0f, y1 + 12.0f, x - dir * 8.0f, y1 - 4.0f);
       push(b.detach(), 9.5f, SHU, tLoad + (float)side * 0.30f,
            tLoad + 0.62f + (float)side * 0.30f, kCinnabar,
-           fmt("bound%d", side));
+           kit::formatted("bound%d", side));
     }
 
     // --- 符頭 三勾 ------------------------------------------------------
@@ -1037,7 +969,7 @@ struct ThunderFulu : sketch::Sketch {
                 {sx + 0.56f * w, sy + 0.88f * h}};
       const float t0 = tHead + (float)k * (tHeadEach + tHeadGap);
       push(smoothPath(p), 9.6f - (float)k * 0.6f, TURN, t0, t0 + tHeadEach,
-           kCinnabar, fmt("hook%d", k));
+           kCinnabar, kit::formatted("hook%d", k));
     }
     nHead = (int)strokes.size();
 
@@ -1051,9 +983,9 @@ struct ThunderFulu : sketch::Sketch {
       SkPathBuilder b;
       const int n = 72;
       for (int i = 0; i <= n; ++i) {
-        const float a = -1.35f + 6.02f * (float)i / (float)n;
-        const SkPoint q{kCol + r * std::cos(a) * 1.02f,
-                        242.0f + r * std::sin(a) * 0.96f};
+        const SkPoint q = arrange::onRing(
+            (size_t)i, (size_t)n + 1, {kCol, 242.0f}, {r * 1.02f, r * 0.96f},
+            -1.35f, 6.02f, arrange::Turn::Open);
         i == 0 ? b.moveTo(q) : b.lineTo(q);
       }
       push(b.detach(), 7.4f, TURN, tRing, tRing + tRingDur, kCinnabar, "ring");
@@ -1082,7 +1014,7 @@ struct ThunderFulu : sketch::Sketch {
     // the plate. NOT wandered: its ten strokes are the argument, so it has
     // to stay countable.
     {
-      const std::vector<Poly> ms = medians(GANG);
+      const std::vector<Poly> ms = medians(font, GANG);
       const float size = 196.0f;
       for (size_t i = 0; i < ms.size(); ++i) {
         const int cls = classify(ms[i]);
@@ -1090,7 +1022,8 @@ struct ThunderFulu : sketch::Sketch {
         Poly q = place(ms[i], {kCol - size * 0.5f, 574.0f}, size, size);
         const float t0 = tGall + (float)i * tGallEach;
         push(smoothPath(q), w0ForClass(cls) * size, cls, t0,
-             t0 + tGallEach - 0.04f, kCinnabar, fmt("gang%d", (int)i));
+             t0 + tGallEach - 0.04f, kCinnabar,
+             kit::formatted("gang%d", (int)i));
       }
       nGall = 10;
     }
@@ -1122,7 +1055,7 @@ struct ThunderFulu : sketch::Sketch {
       std::vector<std::pair<size_t, size_t>> strokeRanges;
       std::vector<float> strokeW;
       for (int c = 0; c < 5; ++c) {
-        const std::vector<Poly> ms = medians(seq[c]);
+        const std::vector<Poly> ms = medians(font, seq[c]);
         for (const Poly& m : ms) {
           Poly q = place(m, {xs[c] - sizes[c] * 0.5f, ys[c] - sizes[c] * 0.5f},
                          sizes[c], sizes[c]);
@@ -1181,7 +1114,7 @@ struct ThunderFulu : sketch::Sketch {
     const SkPoint at[3] = {{kCol - 116, 214}, {kCol + 116, 214}, {kCol, 330}};
     const int src[3] = {WU, GANG, LING};
     for (int k = 0; k < 3; ++k) {
-      const std::vector<Poly> ms = medians(src[k]);
+      const std::vector<Poly> ms = medians(font, src[k]);
       SkPathBuilder b;
       for (const auto& m : ms) {
         Poly q = place(m, {at[k].fX - 30.0f, at[k].fY - 30.0f}, 60.0f, 60.0f);
@@ -1189,28 +1122,27 @@ struct ThunderFulu : sketch::Sketch {
         b.addPath(sp);
       }
       auto hump = [](float t) { return std::sin(t * SK_ScalarPI); };
-      g.child(box()
-                  .left(at[k].fX - 46)
-                  .top(at[k].fY - 46)
-                  .width(92)
-                  .height(92)
-                  .shape([p = b.detach().makeOffset(-(at[k].fX - 46),
-                                                    -(at[k].fY - 46))](SkSize) {
-                    return p;
-                  })
-                  .fill(Fill::none())
-                  .stroke(brush::taper(3.6f, 1.0f, Fill::color(cols[k])))
-                  .foreground(PathFormat{
-                      .width = 7.0f,
-                      .strokeFill = Fill::color(
-                          {cols[k].fR, cols[k].fG, cols[k].fB, 0.20f})})
-                  .opacity(bind(&scribe)
-                               .window(tVoid + (float)k * 0.16f,
-                                       tVoid + tVoidDur + (float)k * 0.16f)
-                               .map(hump)
-                               .scale(0.92f))
-                  .key(fmt("void%d", k)));
-      g.child(text(toU8(fmt("%s  \xe2\x80\x94  no mark", how[k])),
+      g.child(
+          box()
+              .left(at[k].fX - 46)
+              .top(at[k].fY - 46)
+              .width(92)
+              .height(92)
+              .shape(heldPath(
+                  b.detach().makeOffset(-(at[k].fX - 46), -(at[k].fY - 46))))
+              .fill(Fill::none())
+              .stroke(brush::presets::taper(3.6f, 1.0f, Fill::color(cols[k])))
+              .foreground(PathFormat{
+                  .width = 7.0f,
+                  .strokeFill =
+                      Fill::color({cols[k].fR, cols[k].fG, cols[k].fB, 0.20f})})
+              .opacity(bind(&scribe)
+                           .window(tVoid + (float)k * 0.16f,
+                                   tVoid + tVoidDur + (float)k * 0.16f)
+                           .map(hump)
+                           .scale(0.92f))
+              .key(kit::formatted("void%d", k)));
+      g.child(text(toU8(kit::formatted("%s  \xe2\x80\x94  no mark", how[k])),
                    type(faceMono, 10.0f,
                         {cols[k].fR, cols[k].fG, cols[k].fB, 0.85f}))
                   .left(at[k].fX - 72)
@@ -1220,7 +1152,7 @@ struct ThunderFulu : sketch::Sketch {
                                .window(tVoid + (float)k * 0.16f,
                                        tVoid + tVoidDur + (float)k * 0.16f)
                                .map(hump))
-                  .key(fmt("voidlbl%d", k)));
+                  .key(kit::formatted("voidlbl%d", k)));
     }
     return g;
   }
@@ -1245,22 +1177,22 @@ struct ThunderFulu : sketch::Sketch {
             .scale(
                 bind(&scribe).window(tSeal, tSeal + 0.45f).target(1.5f, 1.0f))
             .key("seal");
-    g.child(
-        box()
-            .inset(0)
-            .shape(shapes::chamfered(6.0f))
-            .fill(Fill::color(hex(0xb52a17, 0.90f)))
-            .foreground(lines::crosshatch(Fill::color(hex(0x6d1409, 0.25f)),
-                                          5.0f, 0.8f, 18.0f))
-            .stroke(PathFormat{.width = 5.0f,
-                               .strokeFill = Fill::color(hex(0xc23520, 1.0f)),
-                               .align = PathFormat::Align::Inner})
-            .key("sealground"));
+    g.child(box()
+                .inset(0)
+                .shape(shapes::chamfered(6.0f))
+                .fill(Fill::color(hexColor(0xb52a17, 0.90f)))
+                .foreground(lines::presets::crosshatch(
+                    Fill::color(hexColor(0x6d1409, 0.25f)), 5.0f, 0.8f, 18.0f))
+                .stroke(PathFormat{
+                    .width = 5.0f,
+                    .strokeFill = Fill::color(hexColor(0xc23520, 1.0f)),
+                    .align = PathFormat::Align::Inner})
+                .key("sealground"));
     // 五 above, 雷 below — each STRETCHED to fill its half cell, which is
     // what 篆書 does inside a seal.
     const int half[2] = {WU, LEI};
     for (int k = 0; k < 2; ++k) {
-      const std::vector<Poly> ms = medians(half[k]);
+      const std::vector<Poly> ms = medians(font, half[k]);
       SkPathBuilder b;
       for (const Poly& m : ms) {
         Poly q = place(m, {12.0f, 11.0f + (float)k * 41.0f}, S - 24.0f, 40.0f);
@@ -1268,14 +1200,14 @@ struct ThunderFulu : sketch::Sketch {
       }
       g.child(box()
                   .inset(0)
-                  .shape([p = b.detach()](SkSize) { return p; })
+                  .shape(heldPath(b.detach()))
                   .fill(Fill::none())
                   .stroke(PathFormat{
                       .width = 4.4f,
-                      .strokeFill = Fill::color(hex(0xf2e2cf, 0.95f)),
+                      .strokeFill = Fill::color(hexColor(0xf2e2cf, 0.95f)),
                       .cap = SkPaint::kSquare_Cap,
                       .join = SkPaint::kMiter_Join})
-                  .key(fmt("sealglyph%d", k)));
+                  .key(kit::formatted("sealglyph%d", k)));
     }
     return g;
   }
@@ -1294,20 +1226,21 @@ struct ThunderFulu : sketch::Sketch {
     g.child(ironGround());
 
     // the spine every component is strung on — a fu is a COLUMN
-    g.child(
-        box()
-            .inset(0)
-            .shape([](SkSize) {
-              SkPathBuilder b;
-              b.moveTo(kCol, 28);
-              b.lineTo(kCol, kPH - 24);
-              return b.detach();
-            })
-            .fill(Fill::none())
-            .stroke(PathFormat{.width = 0.8f,
-                               .strokeFill = Fill::color(hex(0x0e0d0c, 0.26f)),
-                               .dashIntervals = {2.0f, 9.0f}})
-            .key("spine"));
+    g.child(box()
+                .inset(0)
+                .shape(keyedShape(std::string_view("plate-spine"),
+                                  [](SkSize) {
+                                    SkPathBuilder b;
+                                    b.moveTo(kCol, 28);
+                                    b.lineTo(kCol, kPH - 24);
+                                    return b.detach();
+                                  }))
+                .fill(Fill::none())
+                .stroke(PathFormat{
+                    .width = 0.8f,
+                    .strokeFill = Fill::color(hexColor(0x0e0d0c, 0.26f)),
+                    .dashIntervals = {2.0f, 9.0f}})
+                .key("spine"));
 
     // the four registers, ruled faintly in the margin the way a plate is
     // laid out before it is written
@@ -1327,24 +1260,25 @@ struct ThunderFulu : sketch::Sketch {
                   .top(regs[i].y)
                   .width(Dim(kPW - 36))
                   .height(1)
-                  .shape([w = kPW - 36](SkSize) {
-                    SkPathBuilder b;
-                    b.moveTo(0, 0.5f);
-                    b.lineTo(w, 0.5f);
-                    return b.detach();
-                  })
+                  .shape(keyedShape(kPW - 36,
+                                    [w = kPW - 36](SkSize) {
+                                      SkPathBuilder b;
+                                      b.moveTo(0, 0.5f);
+                                      b.lineTo(w, 0.5f);
+                                      return b.detach();
+                                    }))
                   .fill(Fill::none())
                   .stroke(PathFormat{
                       .width = 0.7f,
-                      .strokeFill = Fill::color(hex(0x0e0d0c, 0.28f)),
+                      .strokeFill = Fill::color(hexColor(0x0e0d0c, 0.28f)),
                       .dashIntervals = {1.5f, 6.0f}})
-                  .key(fmt("reg%d", i)));
-      g.child(
-          text(toU8(regs[i].label), type(faceMono, 8.5f, hex(0x0b0a09, 0.60f)))
-              .left(20)
-              .top(regs[i].y + 3)
-              .width(360)
-              .key(fmt("reglbl%d", i)));
+                  .key(kit::formatted("reg%d", i)));
+      g.child(text(toU8(regs[i].label),
+                   type(faceMono, 8.5f, hexColor(0x0b0a09, 0.60f)))
+                  .left(20)
+                  .top(regs[i].y + 3)
+                  .width(360)
+                  .key(kit::formatted("reglbl%d", i)));
     }
 
     g.child(inkLayer());
@@ -1383,27 +1317,24 @@ struct ThunderFulu : sketch::Sketch {
     walk.lineTo(S(8));
     const SkPath walkPath = walk.detach();
 
-    g.child(
-        box()
-            .inset(0)
-            // the callable is invoked on every layout, so its capture must
-            // survive each return
-            // NOLINTNEXTLINE(performance-no-automatic-move)
-            .shape([walkPath](SkSize) { return walkPath; })
-            .fill(Fill::none())
-            .stroke(lines::rails({{.across = 0.0f,
-                                   .width = 2.6f,
-                                   .fill = Fill::color(hex(0x8b6f36, 0.50f))},
-                                  {.across = 0.0f,
-                                   .width = 1.0f,
-                                   .fill = Fill::color(hex(0xd8bd7c, 0.75f)),
-                                   .dash = {2.0f, 7.0f}}}))
-            .foreground(brush::Scatter{.art = footPrint,
-                                       .spacing = 46.0f,
-                                       .alignToPath = true,
-                                       .reach = 18.0f})
-            .opacity(bind(&scribe).window(tStars - 0.4f, tStars + 0.5f))
-            .key("walkpath"));
+    g.child(box()
+                .inset(0)
+                .shape(heldPath(walkPath))
+                .fill(Fill::none())
+                .stroke(lines::rails(
+                    {{.across = 0.0f,
+                      .width = 2.6f,
+                      .fill = Fill::color(hexColor(0x8b6f36, 0.50f))},
+                     {.across = 0.0f,
+                      .width = 1.0f,
+                      .fill = Fill::color(hexColor(0xd8bd7c, 0.75f)),
+                      .dash = {2.0f, 7.0f}}}))
+                .foreground(brush::Scatter{.art = footPrint,
+                                           .spacing = 46.0f,
+                                           .alignToPath = true,
+                                           .bleedPx = 18.0f})
+                .opacity(bind(&scribe).window(tStars - 0.4f, tStars + 0.5f))
+                .key("walkpath"));
 
     // the nine stations
     for (int i = 0; i < 9; ++i) {
@@ -1416,17 +1347,17 @@ struct ThunderFulu : sketch::Sketch {
                     .width(26)
                     .height(26)
                     .opacity(bind(&scribe).window(t, t + 0.45f))
-                    .key(fmt("star%d", i));
+                    .key(kit::formatted("star%d", i));
       st.child(
           box()
               .inset(0)
               .shape(shapes::star(6, 0.30f))
               .fill(invisible ? Fill::none()
-                              : Fill::color(hex(0xe4c98a, 0.92f)))
+                              : Fill::color(hexColor(0xe4c98a, 0.92f)))
               .stroke(PathFormat{
                   .width = 1.0f,
                   .strokeFill =
-                      Fill::color(hex(0xe4c98a, invisible ? 0.7f : 0.4f)),
+                      Fill::color(hexColor(0xe4c98a, invisible ? 0.7f : 0.4f)),
                   .dashIntervals = invisible ? std::vector<SkScalar>{2.0f, 2.6f}
                                              : std::vector<SkScalar>{}}));
       g.child(std::move(st));
@@ -1437,13 +1368,13 @@ struct ThunderFulu : sketch::Sketch {
       // has already stopped. Every other ritual name clears its own
       // segments, which is why the rest of the table is 0.
       static const float kRitualDodge[9] = {0, 54, 0, 0, 0, 0, 0, 0, 0};
-      g.child(text(toU8(fmt("%d %s", i + 1, kDipper[i].ritual)),
-                   type(faceMono, 9.5f, hex(0xa48c5c, 0.9f)))
+      g.child(text(toU8(kit::formatted("%d %s", i + 1, kDipper[i].ritual)),
+                   type(faceMono, 9.5f, hexColor(0xa48c5c, 0.9f)))
                   .left(p.fX - 44 + kRitualDodge[i])
                   .top(p.fY - 34)
                   .width(140)
                   .opacity(bind(&scribe).window(t, t + 0.45f))
-                  .key(fmt("starlbl%d", i)));
+                  .key(kit::formatted("starlbl%d", i)));
       // THE BAYER NAME DODGES THE WALK. It hangs 12 px under its own star,
       // which is clear for the stations the tread leaves sideways and not
       // for the three it leaves downward — at 天樞, 開陽 and 左輔 the walk
@@ -1456,12 +1387,12 @@ struct ThunderFulu : sketch::Sketch {
       // over the margin's own rules.
       static const float kNameDodge[9] = {-34, 0, 0, 0, 0, 30, 0, -30, 0};
       g.child(text(toU8(kDipper[i].name),
-                   type(faceItalic, 9.0f, hex(0x6f6047, 0.85f)))
+                   type(faceItalic, 9.0f, hexColor(0x6f6047, 0.85f)))
                   .left(p.fX - 22 + kNameDodge[i])
                   .top(p.fY + 12)
                   .width(140)
                   .opacity(bind(&scribe).window(t, t + 0.45f))
-                  .key(fmt("starnm%d", i)));
+                  .key(kit::formatted("starnm%d", i)));
     }
 
     // The eleven other plates. Nine stand on stations; the last two bleed
@@ -1486,25 +1417,23 @@ struct ThunderFulu : sketch::Sketch {
                     .rotate(((i * 37) % 11 - 5) * 0.62f)
                     .transformOrigin(0.5f, 0.0f)
                     .opacity(bind(&scribe).window(t, t + 0.5f))
-                    .key(fmt("mini%d", i));
+                    .key(kit::formatted("mini%d", i));
       mp.child(box()
                    .inset(0)
-                   .shape([](SkSize s) {
-                     return kit::brush::shapers::Jitter{14.0f, 1.4f, 7}.shape(
-                         shapes::chamfered(5.0f)(s));
-                   })
-                   .fill(Material::linearUnit({0.18f, 0.0f}, {0.88f, 1.0f},
-                                              {{0.0f, hex(0x4a443b)},
-                                               {0.55f, hex(0x272522)},
-                                               {1.0f, hex(0x161514)}}))
+                   .shape(shapes::shaped(shapes::chamfered(5.0f),
+                                         shapers::Jitter{14.0f, 1.4f, 7}))
+                   .fill(Paint::linearUnit({0.18f, 0.0f}, {0.88f, 1.0f},
+                                           {{0.0f, hexColor(0x4a443b)},
+                                            {0.55f, hexColor(0x272522)},
+                                            {1.0f, hexColor(0x161514)}}))
                    .stroke(PathFormat{
                        .width = 1.2f,
-                       .strokeFill = Fill::color(hex(0x5b5449, 0.85f)),
+                       .strokeFill = Fill::color(hexColor(0x5b5449, 0.85f)),
                        .align = PathFormat::Align::Inner}));
       // a miniature fu: the same grammar, four marks, generated
       SkPathBuilder b;
       const int srcs[4] = {YU, WU, LEI, YUN};
-      const std::vector<Poly> ms = medians(srcs[i % 4]);
+      const std::vector<Poly> ms = medians(font, srcs[i % 4]);
       const int take = 3 + (i % 3);
       // The rows must FIT the plate for every `take`, and `take` varies from
       // 3 to 5 with i % 3. A fixed pitch cannot do that: at five rows the
@@ -1528,17 +1457,18 @@ struct ThunderFulu : sketch::Sketch {
       b.quadTo(pw * 0.5f, ph - 8, pw * 0.72f, ph - 18);
       mp.child(box()
                    .inset(0)
-                   .shape([p = b.detach()](SkSize) { return p; })
+                   .shape(heldPath(b.detach()))
                    .fill(Fill::none())
-                   .stroke(brush::taper(3.6f, 1.4f, Fill::color(kCinnaWet))));
+                   .stroke(brush::presets::taper(3.6f, 1.4f,
+                                                 Fill::color(kCinnaWet))));
       if (i < 9) {
         mp.child(text(toU8(kOthers[i].pinyin),
-                      type(faceMono, 8.0f, hex(0xa89264, 0.95f)))
+                      type(faceMono, 8.0f, hexColor(0xa89264, 0.95f)))
                      .left(-16)
                      .top(ph + 10)
                      .width(124));
         mp.child(text(toU8(kOthers[i].gloss),
-                      type(faceItalic, 8.0f, hex(0x776953, 0.9f)))
+                      type(faceItalic, 8.0f, hexColor(0x776953, 0.9f)))
                      .left(-16)
                      .top(ph + 22)
                      .width(124));
@@ -1558,26 +1488,27 @@ struct ThunderFulu : sketch::Sketch {
                 .left(0)
                 .top(0)
                 .width(468));
-    g.child(
-        box()
-            .left(0)
-            .top(24)
-            .width(468)
-            .height(3)
-            .shape([](SkSize) {
-              SkPathBuilder b;
-              b.moveTo(0, 1.5f);
-              b.lineTo(468, 1.5f);
-              return b.detach();
-            })
-            .fill(Fill::none())
-            .stroke(lines::rails({{.across = 0.0f,
-                                   .width = 1.6f,
-                                   .fill = Fill::color(hex(0xb2914f, 0.55f))},
-                                  {.across = -4.0f,
-                                   .width = 0.7f,
-                                   .fill = Fill::color(hex(0xb2914f, 0.30f)),
-                                   .dash = {1.4f, 4.6f}}})));
+    g.child(box()
+                .left(0)
+                .top(24)
+                .width(468)
+                .height(3)
+                .shape(keyedShape(std::string_view("rule-468"),
+                                  [](SkSize) {
+                                    SkPathBuilder b;
+                                    b.moveTo(0, 1.5f);
+                                    b.lineTo(468, 1.5f);
+                                    return b.detach();
+                                  }))
+                .fill(Fill::none())
+                .stroke(lines::rails(
+                    {{.across = 0.0f,
+                      .width = 1.6f,
+                      .fill = Fill::color(hexColor(0xb2914f, 0.55f))},
+                     {.across = -4.0f,
+                      .width = 0.7f,
+                      .fill = Fill::color(hexColor(0xb2914f, 0.30f)),
+                      .dash = {1.4f, 4.6f}}})));
     const char* lines_[6] = {
         "SHANG DI YOU LING      The High Emperor has commanded:",
         "YAO NI MIE XING        demon-rainbow, annihilate its form.",
@@ -1594,18 +1525,18 @@ struct ThunderFulu : sketch::Sketch {
               .top(36 + (float)i * 19)
               .width(468)
               .opacity(bind(&scribe).window(t, t + 0.4f).target(0.22f, 1.0f))
-              .key(fmt("chant%d", i)));
+              .key(kit::formatted("chant%d", i)));
     }
     g.child(
         text(toU8("\xe2\x80\x9c\xe6\x80\xa5\xe6\x80\xa5\xe5\xa6\x82\xe5\xbe"
                   "\x8b\xe4\xbb\xa4\xe2\x80\x9d is the Han imperial-document "
                   "closing formula, borrowed whole. It ends"),
-             type(faceItalic, 10.5f, hex(0x7d6f52)))
+             type(faceItalic, 10.5f, hexColor(0x7d6f52)))
             .left(0)
             .top(136)
             .width(468));
     g.child(text(toU8("almost every fu, and it goes at the FOOT."),
-                 type(faceItalic, 10.5f, hex(0x7d6f52)))
+                 type(faceItalic, 10.5f, hexColor(0x7d6f52)))
                 .left(0)
                 .top(150)
                 .width(468));
@@ -1614,12 +1545,12 @@ struct ThunderFulu : sketch::Sketch {
 
   feed::TextOptions logStyle() {
     feed::TextOptions s;
-    s.styles.base(type(faceMono, 9.6f, hex(0x9a8a68)))
-        .set("dim", type(faceMono, 9.6f, hex(0x6d6249)))
+    s.styles.base(type(faceMono, 9.6f, hexColor(0x9a8a68)))
+        .set("dim", type(faceMono, 9.6f, hexColor(0x6d6249)))
         .set("heading", type(faceMono, 9.6f, kGold))
-        .set("pass", type(faceMono, 9.6f, hex(0x5fae7f)))
-        .set("number", type(faceMono, 9.6f, hex(0xcf6a4a)))
-        .set("fail", type(faceMono, 9.6f, hex(0xc4483a)));
+        .set("pass", type(faceMono, 9.6f, hexColor(0x5fae7f)))
+        .set("number", type(faceMono, 9.6f, hexColor(0xcf6a4a)))
+        .set("fail", type(faceMono, 9.6f, hexColor(0xc4483a)));
     s.window.gap = 1.0f;
     s.window.visible = 13;
     return s;
@@ -1627,16 +1558,16 @@ struct ThunderFulu : sketch::Sketch {
 
   Element consolePanel() {
     const feed::TextOptions style = logStyle();
-    return kit::plate(
-               {.columns = {feed::feed(logA, style), feed::feed(logB, style),
-                            feed::feed(logC, style)},
-                .column = true,
-                .paddingX = 11,
-                .paddingY = 8,
-                .gap = 7,
-                .fill = Fill::color(hex(0x131215, 0.88f)),
-                .border = Fill::color(hex(0xb2914f, 0.20f)),
-                .divider = Fill::color(hex(0xb2914f, 0.14f))})
+    return kit::console(
+               {.feeds = {&logA, &logB, &logC},
+                .style = style,
+                .plate = {.column = true,
+                          .paddingX = 11,
+                          .paddingY = 8,
+                          .gap = 7,
+                          .fill = Fill::color(hexColor(0x131215, 0.88f)),
+                          .border = Fill::color(hexColor(0xb2914f, 0.20f)),
+                          .divider = Fill::color(hexColor(0xb2914f, 0.14f))}})
         .rect(SkRect::MakeXYWH(1228, 768, 638, 420))
         .key("console");
   }
@@ -1656,26 +1587,27 @@ struct ThunderFulu : sketch::Sketch {
         "FU JIAO  foot       38 str   0.034 s/stroke   NO LIFT, FLYING WHITE",
     };
     for (int i = 0; i < 5; ++i)
-      g.child(text(toU8(rows[i]), type(faceMono, 10.5f,
-                                       i == 4 ? hex(0xcf6a4a) : hex(0x9a8a68)))
+      g.child(text(toU8(rows[i]),
+                   type(faceMono, 10.5f,
+                        i == 4 ? hexColor(0xcf6a4a) : hexColor(0x9a8a68)))
                   .left(0)
                   .top(20 + (float)i * 15)
                   .width(468));
     g.child(
         text(toU8("the foot is 7.1x the body \xe2\x80\x94 doctrine, measured: "
                   "\"the foot is the last"),
-             type(faceItalic, 10.5f, hex(0x7d6f52)))
+             type(faceItalic, 10.5f, hexColor(0x7d6f52)))
             .left(0)
             .top(100)
             .width(468));
     g.child(text(toU8("step; total concentration, cut off in a single breath, "
                       "no slowing"),
-                 type(faceItalic, 10.5f, hex(0x7d6f52)))
+                 type(faceItalic, 10.5f, hexColor(0x7d6f52)))
                 .left(0)
                 .top(114)
                 .width(468));
     g.child(text(toU8("or dragging.\"  A fu written at one tempo is not a fu."),
-                 type(faceItalic, 10.5f, hex(0x7d6f52)))
+                 type(faceItalic, 10.5f, hexColor(0x7d6f52)))
                 .left(0)
                 .top(128)
                 .width(468));
@@ -1699,20 +1631,22 @@ struct ThunderFulu : sketch::Sketch {
           .top(y)
           .width(Dim(w))
           .height(3)
-          .shape([w](SkSize) {
-            SkPathBuilder b;
-            b.moveTo(0, 1.5f);
-            b.lineTo(w, 1.5f);
-            return b.detach();
-          })
+          .shape(keyedShape(w,
+                            [w](SkSize) {
+                              SkPathBuilder b;
+                              b.moveTo(0, 1.5f);
+                              b.lineTo(w, 1.5f);
+                              return b.detach();
+                            }))
           .fill(Fill::none())
-          .stroke(lines::rails({{.across = 0.0f,
-                                 .width = 1.3f,
-                                 .fill = Fill::color(hex(0xb2914f, 0.48f))},
-                                {.across = -3.4f,
-                                 .width = 0.6f,
-                                 .fill = Fill::color(hex(0xb2914f, 0.26f)),
-                                 .dash = {1.3f, 4.2f}}}));
+          .stroke(
+              lines::rails({{.across = 0.0f,
+                             .width = 1.3f,
+                             .fill = Fill::color(hexColor(0xb2914f, 0.48f))},
+                            {.across = -3.4f,
+                             .width = 0.6f,
+                             .fill = Fill::color(hexColor(0xb2914f, 0.26f)),
+                             .dash = {1.3f, 4.2f}}}));
     };
 
     // --- 踏符頭: one chant line per hook, as the hook goes down -----------
@@ -1730,7 +1664,7 @@ struct ThunderFulu : sketch::Sketch {
               .top(154 + (float)k * 26)
               .width(Dim(Wc))
               .opacity(bind(&scribe).window(t, t + 0.3f).target(0.14f, 0.98f))
-              .key(fmt("hc%d", k)));
+              .key(kit::formatted("hc%d", k)));
     }
 
     // --- the width law, PLOTTED. 起 · 行 · 收 as one curve ---------------
@@ -1748,40 +1682,41 @@ struct ThunderFulu : sketch::Sketch {
       SkPathBuilder axis;
       axis.moveTo(2, bh * 0.5f);
       axis.lineTo(pw - 2, bh * 0.5f);
-      g.child(
-          box()
-              .left(0)
-              .top(py + 6)
-              .width(Dim(pw))
-              .height(Dim(bh))
-              .shape([p = axis.detach()](SkSize) { return p; })
-              .fill(Fill::none())
-              .stroke(brush::Ribbon{.fill = Fill::color(hex(0xcf3018, 0.92f)),
-                                    .step = 1.5f,
-                                    .width = LawBand{21.0f}})
-              .key("lawband"));
+      g.child(box()
+                  .left(0)
+                  .top(py + 6)
+                  .width(Dim(pw))
+                  .height(Dim(bh))
+                  .shape(heldPath(axis.detach()))
+                  .fill(Fill::none())
+                  .stroke(brush::Ribbon{
+                      .fill = Fill::color(hexColor(0xcf3018, 0.92f)),
+                      .step = 1.5f,
+                      .width = LawBand{21.0f}})
+                  .key("lawband"));
       // STRIP 2 — w(s) plotted from a baseline, with the 1.0 reference
       const float cy = py + 6 + bh + 12, chh = ph - bh - 18;
       const float sc = chh / 2.0f;
-      g.child(
-          box()
-              .left(0)
-              .top(cy)
-              .width(Dim(pw))
-              .height(Dim(chh))
-              .shape([pw, chh, sc](SkSize) {
-                SkPathBuilder b;
-                b.moveTo(0, chh - sc);
-                b.lineTo(pw, chh - sc);
-                b.moveTo(0, chh);
-                b.lineTo(pw, chh);
-                return b.detach();
-              })
-              .fill(Fill::none())
-              .stroke(PathFormat{.width = 0.7f,
-                                 .strokeFill = Fill::color(hex(0x8b7f66, 0.5f)),
-                                 .dashIntervals = {1.6f, 4.4f}})
-              .key("lawaxis"));
+      g.child(box()
+                  .left(0)
+                  .top(cy)
+                  .width(Dim(pw))
+                  .height(Dim(chh))
+                  .shape(keyedShape(std::tuple{pw, chh, sc},
+                                    [pw, chh, sc](SkSize) {
+                                      SkPathBuilder b;
+                                      b.moveTo(0, chh - sc);
+                                      b.lineTo(pw, chh - sc);
+                                      b.moveTo(0, chh);
+                                      b.lineTo(pw, chh);
+                                      return b.detach();
+                                    }))
+                  .fill(Fill::none())
+                  .stroke(PathFormat{
+                      .width = 0.7f,
+                      .strokeFill = Fill::color(hexColor(0x8b7f66, 0.5f)),
+                      .dashIntervals = {1.6f, 4.4f}})
+                  .key("lawaxis"));
       g.child(box()
                   .left(0)
                   .top(cy)
@@ -1801,22 +1736,22 @@ struct ThunderFulu : sketch::Sketch {
                   .stroke(lines::rails(
                       {{.across = 0.0f,
                         .width = 1.5f,
-                        .fill = Fill::color(hex(0xe6d7ae, 0.95f))},
+                        .fill = Fill::color(hexColor(0xe6d7ae, 0.95f))},
                        {.across = -3.0f,
                         .width = 0.6f,
-                        .fill = Fill::color(hex(0xcf3018, 0.55f))}}))
+                        .fill = Fill::color(hexColor(0xcf3018, 0.55f))}}))
                   .key("lawcurve"));
       const char* marks[3] = {"ni feng 1.77", "belly 0.73", "dun 1.42"};
       const float mx[3] = {0.0f, 0.28f, 0.88f};
       const float off[3] = {2, -18, -52};
       for (int i = 0; i < 3; ++i)
-        g.child(text(toU8(marks[i]), type(faceMono, 8.5f, hex(0xa89778)))
+        g.child(text(toU8(marks[i]), type(faceMono, 8.5f, hexColor(0xa89778)))
                     .left(mx[i] * pw + off[i])
                     .top(cy + chh - widthLaw(mx[i]) * sc + (i == 1 ? 4 : -13))
                     .width(120)
-                    .key(fmt("lawmk%d", i)));
+                    .key(kit::formatted("lawmk%d", i)));
       g.child(text(toU8("s = distance / fullLength, NOT PathSample::fraction"),
-                   type(faceMono, 8.5f, hex(0x6f6047)))
+                   type(faceMono, 8.5f, hexColor(0x6f6047)))
                   .left(0)
                   .top(cy + chh + 4)
                   .width(Dim(pw)));
@@ -1850,27 +1785,28 @@ struct ThunderFulu : sketch::Sketch {
         {{6, 8}, {96, 5}, {106, 16}, {100, 52}},  // TURN
     };
     for (int c = 0; c < CLSN; ++c) {
-      const float cx = (c % 2 == 0) ? 0.0f : 148.0f;
-      const int row = c / 2;
-      const float y = ky + 28 + (float)row * 62;
+      const arrange::Cell at = arrange::cellAt((size_t)c, 2);
+      const float cx = (at.column == 0) ? 0.0f : 148.0f;
+      const float y = ky + 28 + arrange::cellRect(at, {0, 62}).fTop;
       const float w0 = w0ForClass(c) * 128.0f;
       g.child(box()
                   .left(cx + 4)
                   .top(y)
                   .width(126)
                   .height(56)
-                  .shape([p = smoothPath(kSpec[c])](SkSize) { return p; })
+                  .shape(heldPath(smoothPath(kSpec[c])))
                   .fill(Fill::none())
                   .stroke(brush::Ribbon{.fill = Fill::color(kCinnabar),
                                         .step = 1.2f,
                                         .width = LawBand{w0}})
-                  .key(fmt("spec%d", c)));
-      g.child(text(toU8(fmt("%s  %.3f em", kClsName[c], (double)w0ForClass(c))),
-                   type(faceMono, 9.0f, hex(0xa48c5c)))
+                  .key(kit::formatted("spec%d", c)));
+      g.child(text(toU8(kit::formatted("%s  %.3f em", kClsName[c],
+                                       (double)w0ForClass(c))),
+                   type(faceMono, 9.0f, hexColor(0xa48c5c)))
                   .left(cx)
                   .top(y + 56)
                   .width(140)
-                  .key(fmt("speclbl%d", c)));
+                  .key(kit::formatted("speclbl%d", c)));
     }
 
     // --- the six phrases sung while 罡 is drawn ---------------------------
@@ -1885,16 +1821,16 @@ struct ThunderFulu : sketch::Sketch {
       // the chant must finish exactly as the tenth stroke lands
       const float t = tGall + (float)k * (10.0f * tGallEach / 6.0f);
       g.child(
-          text(toU8(fmt("%d/6  %s", k + 1, kGallChant[k])),
-               type(faceItalic, 11.0f, k == 5 ? hex(0xe07a52) : kChalk))
+          text(toU8(kit::formatted("%d/6  %s", k + 1, kGallChant[k])),
+               type(faceItalic, 11.0f, k == 5 ? hexColor(0xe07a52) : kChalk))
               .left(0)
               .top(gy + 28 + (float)k * 18)
               .width(Dim(Wc))
               .opacity(bind(&scribe).window(t, t + 0.28f).target(0.14f, 0.98f))
-              .key(fmt("gc%d", k)));
+              .key(kit::formatted("gc%d", k)));
     }
     g.child(text(toU8("the sixth phrase lands on the tenth stroke"),
-                 type(faceMono, 9.0f, hex(0x6f6047)))
+                 type(faceMono, 9.0f, hexColor(0x6f6047)))
                 .left(0)
                 .top(gy + 132)
                 .width(Dim(Wc)));
@@ -1929,51 +1865,56 @@ struct ThunderFulu : sketch::Sketch {
                   .top(ry - 11)
                   .width(22)
                   .height(22)
-                  .shape([](SkSize s) {
-                    SkPathBuilder b;
-                    b.moveTo(s.width() * 0.5f, 0);
-                    b.lineTo(s.width() * 0.5f, s.height());
-                    b.moveTo(0, s.height() * 0.5f);
-                    b.lineTo(s.width(), s.height() * 0.5f);
-                    b.addCircle(s.width() * 0.5f, s.height() * 0.5f,
-                                s.width() * 0.30f);
-                    return b.detach();
-                  })
+                  .shape(keyedShape(std::string_view("register-mark"),
+                                    [](SkSize s) {
+                                      SkPathBuilder b;
+                                      b.moveTo(s.width() * 0.5f, 0);
+                                      b.lineTo(s.width() * 0.5f, s.height());
+                                      b.moveTo(0, s.height() * 0.5f);
+                                      b.lineTo(s.width(), s.height() * 0.5f);
+                                      b.addCircle(s.width() * 0.5f,
+                                                  s.height() * 0.5f,
+                                                  s.width() * 0.30f);
+                                      return b.detach();
+                                    }))
                   .fill(Fill::none())
                   .stroke(PathFormat{
                       .width = 0.8f,
-                      .strokeFill = Fill::color(hex(0xb2914f, 0.42f))})
-                  .key(fmt("reg%d", i + 10)));
+                      .strokeFill = Fill::color(hexColor(0xb2914f, 0.42f))})
+                  .key(kit::formatted("reg%d", i + 10)));
     }
     // tick ladder down the plate's left margin — cun and fen
-    g.child(
-        box()
-            .left(kPL - 26)
-            .top(kPT)
-            .width(20)
-            .height(Dim(kPH))
-            .shape([](SkSize s) {
-              SkPathBuilder b;
-              for (int i = 0; i <= 50; ++i) {
-                const float y = s.height() * (float)i / 50.0f;
-                const float len =
-                    (i % 10 == 0) ? 17.0f : (i % 5 == 0 ? 10.0f : 5.0f);
-                b.moveTo(s.width(), y);
-                b.lineTo(s.width() - len, y);
-              }
-              return b.detach();
-            })
-            .fill(Fill::none())
-            .stroke(PathFormat{.width = 0.9f,
-                               .strokeFill = Fill::color(hex(0xb2914f, 0.40f))})
-            .key("ladder"));
+    g.child(box()
+                .left(kPL - 26)
+                .top(kPT)
+                .width(20)
+                .height(Dim(kPH))
+                .shape(keyedShape(
+                    std::string_view("tick-ladder"),
+                    [](SkSize s) {
+                      SkPathBuilder b;
+                      for (int i = 0; i <= 50; ++i) {
+                        const float y = s.height() * (float)i / 50.0f;
+                        const float len =
+                            (i % 10 == 0) ? 17.0f : (i % 5 == 0 ? 10.0f : 5.0f);
+                        b.moveTo(s.width(), y);
+                        b.lineTo(s.width() - len, y);
+                      }
+                      return b.detach();
+                    }))
+                .fill(Fill::none())
+                .stroke(PathFormat{
+                    .width = 0.9f,
+                    .strokeFill = Fill::color(hexColor(0xb2914f, 0.40f))})
+                .key("ladder"));
     for (int i = 0; i <= 5; ++i)
-      g.child(text(toU8(fmt("%d", i)), type(faceMono, 8.5f, hex(0x8b7644)))
+      g.child(text(toU8(kit::formatted("%d", i)),
+                   type(faceMono, 8.5f, hexColor(0x8b7644)))
                   .left(kPL - 46)
                   .top(kPT + kPH * (float)i / 5.0f - 5)
                   .width(16)
-                  .key(fmt("ladlbl%d", i)));
-    g.child(text(toU8("CUN"), type(faceMono, 8.0f, hex(0x8b7644)))
+                  .key(kit::formatted("ladlbl%d", i)));
+    g.child(text(toU8("CUN"), type(faceMono, 8.0f, hexColor(0x8b7644)))
                 .left(kPL - 52)
                 .top(kPT + kPH + 8)
                 .width(40));
@@ -1983,30 +1924,31 @@ struct ThunderFulu : sketch::Sketch {
                 .left(1046)
                 .top(706)
                 .width(830));
-    g.child(
-        box()
-            .left(1046)
-            .top(724)
-            .width(830)
-            .height(3)
-            .shape([](SkSize) {
-              SkPathBuilder b;
-              b.moveTo(0, 1.5f);
-              b.lineTo(830, 1.5f);
-              return b.detach();
-            })
-            .fill(Fill::none())
-            .stroke(lines::rails({{.across = 0.0f,
-                                   .width = 1.3f,
-                                   .fill = Fill::color(hex(0xb2914f, 0.48f))},
-                                  {.across = -3.4f,
-                                   .width = 0.6f,
-                                   .fill = Fill::color(hex(0xb2914f, 0.26f)),
-                                   .dash = {1.3f, 4.2f}}})));
+    g.child(box()
+                .left(1046)
+                .top(724)
+                .width(830)
+                .height(3)
+                .shape(keyedShape(std::string_view("rule-830"),
+                                  [](SkSize) {
+                                    SkPathBuilder b;
+                                    b.moveTo(0, 1.5f);
+                                    b.lineTo(830, 1.5f);
+                                    return b.detach();
+                                  }))
+                .fill(Fill::none())
+                .stroke(lines::rails(
+                    {{.across = 0.0f,
+                      .width = 1.3f,
+                      .fill = Fill::color(hexColor(0xb2914f, 0.48f))},
+                     {.across = -3.4f,
+                      .width = 0.6f,
+                      .fill = Fill::color(hexColor(0xb2914f, 0.26f)),
+                      .dash = {1.3f, 4.2f}}})));
     g.child(text(toU8("Nine stations: J2000 right ascension and declination, "
                       "gnomonically projected about the asterism's own "
                       "centroid. Yu bu is \"three steps, nine prints\"."),
-                 type(faceItalic, 10.0f, hex(0x8d7f60)))
+                 type(faceItalic, 10.0f, hexColor(0x8d7f60)))
                 .left(1046)
                 .top(734)
                 .width(830));
@@ -2015,7 +1957,7 @@ struct ThunderFulu : sketch::Sketch {
                       "gang plate separates the pair by hand, and so does this "
                       "one. You Bi is invisible: its station is doctrine, and "
                       "it is drawn open."),
-                 type(faceItalic, 10.0f, hex(0x6d6047)))
+                 type(faceItalic, 10.0f, hexColor(0x6d6047)))
                 .left(1046)
                 .top(752)
                 .width(830));
@@ -2023,7 +1965,7 @@ struct ThunderFulu : sketch::Sketch {
                       "a patient with eye disease. \xc2\xb7 SigilCompose study "
                       "\xc2\xb7 no CJK font is loaded: every Han glyph here is "
                       "stroke geometry"),
-                 type(faceMono, 9.5f, hex(0x5d5341)))
+                 type(faceMono, 9.5f, hexColor(0x5d5341)))
                 .left(76)
                 .top(kH - 34)
                 .width(1600));
@@ -2048,52 +1990,62 @@ struct ThunderFulu : sketch::Sketch {
   // THE CHECKS
 
   void runChecks() {
+    verdict = {};
     // --- panel A: the stroke data -----------------------------------------
     logA.append(
         {toU8("makemeahanzi graphics.txt \xe2\x80\x94 MEDIANS, 1024 em, "
               "DRAWING ORDER"),
          "heading"});
     int totalPts = 0, totalStrokes = 0;
-    for (const Glyph& g : kGlyphs) {
-      const int16_t* p = g.data;
+    for (const Glyph& g : font.glyphs) {
+      const int16_t* p = g.data.data();
       for (int s = 0; s < g.strokes; ++s) {
         totalPts += *p;
         p += 1 + 2 * (*p);
       }
       totalStrokes += g.strokes;
     }
-    logA.append({toU8(fmt("  11 characters, %d strokes, %d median points, "
-                          "verbatim",
-                          totalStrokes, totalPts)),
-                 "dim"});
     logA.append(
-        {toU8(fmt("  GANG U+7F61 has %d strokes", kGlyphs[GANG].strokes)),
-         kGlyphs[GANG].strokes == 10 ? "pass" : "fail"});
+        {toU8(kit::formatted("  11 characters, %d strokes, %d median points, "
+                             "verbatim",
+                             totalStrokes, totalPts)),
+         "dim"});
+    const char* stems = claim("GANG U+7F61 strokes, the ten Heavenly Stems", 10,
+                              font.glyphs[GANG].strokes);
+    logA.append({toU8(kit::formatted("  GANG U+7F61 has %d strokes",
+                                     font.glyphs[GANG].strokes)),
+                 stems});
     logA.append(
         {toU8("  doctrine: 10 strokes = the ten Heavenly Stems"), "dim"});
     logA.append({toU8("  JIA YI BING DING WU JI GENG XIN REN GUI \xe2\x80\x94 "
                       "the count MATCHES"),
-                 kGlyphs[GANG].strokes == 10 ? "pass" : "fail"});
+                 stems});
+    logA.append({toU8(kit::formatted(
+                     "  foot JI+JI+RU+LU+LING = %d+%d+%d+%d+%d = %d strokes",
+                     font.glyphs[JI].strokes, font.glyphs[JI].strokes,
+                     font.glyphs[RU].strokes, font.glyphs[LV].strokes,
+                     font.glyphs[LING].strokes, nFootStrokes)),
+                 claim("foot JI+JI+RU+LU+LING strokes", 38, nFootStrokes)});
+    logA.append({toU8(kit::formatted(
+                     "    drawn as ONE contour: %d spans = %d strokes + "
+                     "%d ligatures",
+                     2 * nFootStrokes - 1, nFootStrokes, nFootStrokes - 1)),
+                 "pass"});
     logA.append(
-        {toU8(fmt("  foot JI+JI+RU+LU+LING = %d+%d+%d+%d+%d = %d strokes",
-                  kGlyphs[JI].strokes, kGlyphs[JI].strokes, kGlyphs[RU].strokes,
-                  kGlyphs[LV].strokes, kGlyphs[LING].strokes, nFootStrokes)),
-         nFootStrokes == 38 ? "pass" : "fail"});
-    logA.append(
-        {toU8(fmt("    drawn as ONE contour: %d spans = %d strokes + "
-                  "%d ligatures",
-                  2 * nFootStrokes - 1, nFootStrokes, nFootStrokes - 1)),
-         "pass"});
-    logA.append(
-        {toU8(fmt("  body YU+WU / YUN / GUI = %d cloud-seal strokes", nBody)),
-         nBody == 33 ? "pass" : "fail"});
-    logA.append(
-        {toU8(fmt("  ink strokes on the plate: %d nodes", (int)strokes.size())),
-         "number"});
+        {toU8(kit::formatted("  body YU+WU / YUN / GUI = %d cloud-seal strokes",
+                             nBody)),
+         claim("body YU+WU / YUN / GUI cloud-seal strokes", 33, nBody)});
+    logA.append({toU8(kit::formatted("  ink strokes on the plate: %d nodes",
+                                     (int)strokes.size())),
+                 "number"});
 
     // --- panel B: the taxonomy --------------------------------------------
     logB.append({toU8("KanjiVG kvg:type \xe2\x80\x94 THE STROKE CLASS, FOR w0"),
                  "heading"});
+    // A statement about the SOURCE, not about this reconstruction: its
+    // verdict is printed as any claim's is and never counted against the run.
+    verdict.add(sigil::measure::finding(
+        sigil::measure::check("KanjiVG carries GANG U+7F61", false)));
     logB.append(
         {toU8("  kanji/07f61.svg (GANG) is a 14-byte 404. NOT A KANJI."),
          "fail"});
@@ -2101,10 +2053,17 @@ struct ThunderFulu : sketch::Sketch {
         {toU8("  recovered instead from the median geometry: length,"), "dim"});
     logB.append(
         {toU8("  body chord angle over 14-86%, peak turn from entry"), "dim"});
-    logB.append(
-        {toU8(fmt("  vs KanjiVG over the %d strokes it does carry: %d/%d",
-                  kvgTotal, kvgAgree, kvgTotal)),
-         kvgAgree * 10 >= kvgTotal * 8 ? "pass" : "fail"});
+    logB.append({toU8(kit::formatted(
+                     "  vs KanjiVG over the %d strokes it does carry: %d/%d",
+                     kvgTotal, kvgAgree, kvgTotal)),
+                 [&] {
+                   verdict.add(sigil::measure::check(
+                       kit::formatted("classifier agrees with KanjiVG on %d "
+                                      "of %d strokes, at least 80%%",
+                                      kvgAgree, kvgTotal),
+                       kvgAgree * 10 >= kvgTotal * 8));
+                   return verdict.rows.back().pass ? "pass" : "fail";
+                 }()});
     for (size_t i = 0; i < kvgMiss.size() && i < 3; ++i)
       logB.append({toU8("    " + kvgMiss[i]), "dim"});
     logB.append(
@@ -2132,9 +2091,10 @@ struct ThunderFulu : sketch::Sketch {
     logC.append(
         {toU8("  w(s)/w0 = 1.15e^-12s + 0.62 + 0.28s + 0.55e^-90(s-.88)^2"),
          "dim"});
-    logC.append({toU8(fmt("    ni feng (reverse entry) w(0)    = %.2f w0",
-                          (double)widthLaw(0.0f))),
-                 "number"});
+    logC.append(
+        {toU8(kit::formatted("    ni feng (reverse entry) w(0)    = %.2f w0",
+                             (double)widthLaw(0.0f))),
+         "number"});
     {
       float minS = 0, minW = 1e9f;
       for (int i = 0; i <= 100; ++i) {
@@ -2144,15 +2104,16 @@ struct ThunderFulu : sketch::Sketch {
           minS = s;
         }
       }
-      logC.append({toU8(fmt("    zhong feng belly  min %.2f w0 at s = %.2f",
-                            (double)minW, (double)minS)),
-                   "number"});
+      logC.append(
+          {toU8(kit::formatted("    zhong feng belly  min %.2f w0 at s = %.2f",
+                               (double)minW, (double)minS)),
+           "number"});
     }
-    logC.append({toU8(fmt("    dun (the press)   w(0.88) = %.2f w0",
-                          (double)widthLaw(0.88f))),
+    logC.append({toU8(kit::formatted("    dun (the press)   w(0.88) = %.2f w0",
+                                     (double)widthLaw(0.88f))),
                  "number"});
-    logC.append({toU8(fmt("    shou (the cut)    w(1)    = %.2f w0",
-                          (double)widthLaw(1.0f))),
+    logC.append({toU8(kit::formatted("    shou (the cut)    w(1)    = %.2f w0",
+                                     (double)widthLaw(1.0f))),
                  "number"});
     logC.append(
         {toU8("  brush::Ribbon::width takes exactly this law, as a"), "dim"});
@@ -2167,17 +2128,18 @@ struct ThunderFulu : sketch::Sketch {
     logC.append(
         {toU8("  or the dun press SLIDES down the stroke as it writes."),
          "pass"});
-    logC.append({toU8(fmt("  tempo: foot %.3f s/stroke vs body %.3f = %.1fx",
-                          (double)tFootEach, (double)tBodyEach,
-                          (double)(tBodyEach / tFootEach))),
-                 "number"});
+    logC.append(
+        {toU8(kit::formatted("  tempo: foot %.3f s/stroke vs body %.3f = %.1fx",
+                             (double)tFootEach, (double)tBodyEach,
+                             (double)(tBodyEach / tFootEach))),
+         "number"});
   }
 
   void validateClassifier() {
     kvgAgree = kvgTotal = 0;
     kvgMiss.clear();
-    for (const KvgRow& row : kKvg) {
-      const std::vector<Poly> ms = medians(row.glyph);
+    for (const KvgRow& row : font.kvg) {
+      const std::vector<Poly> ms = medians(font, row.glyph);
       if ((int)ms.size() != row.n)  // GUI: 9 vs 10 — reported, not compared
         continue;
       for (size_t i = 0; i < ms.size(); ++i) {
@@ -2186,40 +2148,48 @@ struct ThunderFulu : sketch::Sketch {
         if (got == row.cls[i])
           ++kvgAgree;
         else
-          kvgMiss.push_back(fmt("%s #%d  kvg %s  geo %s", kGlyphs[row.glyph].id,
-                                (int)i + 1, kClsName[row.cls[i]],
-                                kClsName[got]));
+          kvgMiss.push_back(
+              kit::formatted("%s #%d  kvg %s  geo %s",
+                             font.glyphs[(size_t)row.glyph].id.c_str(),
+                             (int)i + 1, kClsName[row.cls[i]], kClsName[got]));
       }
     }
   }
 
   // =========================================================================
 
+  Font font;
+
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kNight);
+    font = readFont(ctx.assets);
+
     // The single frame this sketch is photographed at, chosen on the 27 s
     // score: everything through the 19.65 s tap is complete and the foot is
     // about half way through its flying-white sweep, so one still shows both
     // a finished talisman and a stroke being written. Anything before ~8 s
     // catches an almost blank plate; 26.0 gives the fully settled plate with
     // nothing in motion.
-    ctx.captureAt(20.6);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = 20.6,
+                             .background = kNight});
 
     // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
-    // rather than silently at Normal.
-    faceSerif = pickFace({"Hoefler Text", "Baskerville"});
-    faceItalic =
-        pickFace({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
-    faceMono = pickFace({"Menlo", "Courier New"});
-    faceDisplay =
-        pickFace({"Optima", "Baskerville"}, SkFontStyle::kBold_Weight);
+    // rather than silently at Normal. The three runs the house sheets share
+    // are named by VOICE rather than spelled again here, so two plates
+    // cannot end up in different faces by a typo.
+    faceSerif = sketch::kit::houseFace(sketch::kit::Voice::Book);
+    faceItalic = sketch::kit::houseFace(sketch::kit::Voice::Book, 400,
+                                        SkFontStyle::kItalic_Slant);
+    faceMono = sketch::kit::houseFace(sketch::kit::Voice::Terminal);
+    faceDisplay = weave::ports::face({"Optima", "Baskerville"},
+                                     SkFontStyle::kBold_Weight);
 
-    ironGrain = patterns::grain(2.2f, 4, 1356.0f, 0.55f, 2.6f);
+    ironGrain = Paint::recipe(field::grain(2.2f, 4, 1356.0f, 0.55f, 2.6f));
     ironSpeck = patterns::speckle(420, 26, 0.7f, 2.6f,
-                                  {hex(0x7c7263, 0.10f), hex(0x000000, 0.16f)});
+                                  {skia::toColor(hexColor(0x7c7263, 0.10f)),
+                                   skia::toColor(hexColor(0x000000, 0.16f))});
     ironSpeck.seed(1220);
 
     // brush::Scatter / brush::Pattern art: held as MEMBERS. Built inside a
@@ -2229,25 +2199,27 @@ struct ThunderFulu : sketch::Sketch {
                     .width(7)
                     .height(11)
                     .shape(shapes::squircle(2.6f))
-                    .fill(Fill::color(hex(0xb2914f, 0.42f)));
+                    .fill(Fill::color(hexColor(0xb2914f, 0.42f)));
     hammerTile = box().width(22).height(3).fill(Fill::none());
     hammerCorner =
         box()
             .width(19)
             .height(19)
-            .shape([](SkSize s) {
-              SkPathBuilder b;
-              const float w = s.width(), h = s.height();
-              b.moveTo(0, h * 0.5f);
-              b.lineTo(w * 0.42f, h * 0.16f);
-              b.lineTo(w, h * 0.44f);
-              b.lineTo(w * 0.58f, h * 0.88f);
-              b.close();
-              return b.detach();
-            })
-            .fill(Fill::color(hex(0x6b6355, 0.55f)))
-            .stroke(PathFormat{.width = 0.9f,
-                               .strokeFill = Fill::color(hex(0x100f0f, 0.7f))});
+            .shape(keyedShape(std::string_view("hammer-corner"),
+                              [](SkSize s) {
+                                SkPathBuilder b;
+                                const float w = s.width(), h = s.height();
+                                b.moveTo(0, h * 0.5f);
+                                b.lineTo(w * 0.42f, h * 0.16f);
+                                b.lineTo(w, h * 0.44f);
+                                b.lineTo(w * 0.58f, h * 0.88f);
+                                b.close();
+                                return b.detach();
+                              }))
+            .fill(Fill::color(hexColor(0x6b6355, 0.55f)))
+            .stroke(PathFormat{
+                .width = 0.9f,
+                .strokeFill = Fill::color(hexColor(0x100f0f, 0.7f))});
 
     validateClassifier();
     buildStrokes();

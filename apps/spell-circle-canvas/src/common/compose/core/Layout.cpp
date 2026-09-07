@@ -10,12 +10,12 @@
 #include <sigilweave/layout/Flow.h>
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
 #include <iterator>
 #include <limits>
 #include <optional>
 #include <ranges>
-#include <set>
 #include <span>
 
 #include "ComposeRuntime.h"
@@ -79,6 +79,25 @@ float detail::baselineOfTextNode(YGNodeConstRef node, float, float) {
   return inst->measuredBaseline;
 }
 
+namespace {
+
+/** Whether @p inst is a FRAME rather than an ordinary text leaf — a link
+ *  of a chain over one story, which is bounded by its own depth where a
+ *  leaf grows down the page.
+ *
+ *  A link is one either because it threads onward, which its own
+ *  description says, or because something threads into it, which only the
+ *  chain walk knows. The LAST link is the second case alone, and it has to
+ *  be bounded too: unbounded it holds the whole remainder and draws it
+ *  past its box, and the marker it asked for never lands because it never
+ *  runs out. */
+bool isFrameOfAChain(const Instance& inst) {
+  return inst.threadedInto || (inst.description && inst.description->textData &&
+                               !inst.description->textData->threadTo.empty());
+}
+
+}  // namespace
+
 void Composer::Impl::layoutText(Instance& inst, float constraint,
                                 float downConstraint) {
   // onPath: the PATH is the measure, not the box. Laying the run out to
@@ -86,13 +105,22 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // then be placed along the path from the start again — the glyphs pile
   // up on each other. The box still sizes the path; it does not bound the
   // run.
-  if (inst.desc && inst.desc->textData && inst.desc->textData->onPath)
+  if (inst.description && inst.description->textData &&
+      inst.description->textData->onPath)
     constraint = 1.0e6f;
   if (constraint == inst.measuredForWidth &&
       downConstraint == inst.measuredForHeight &&
       inst.measuredRev == inst.contentRev)
     return;  // layout is already valid for this content and measure
-  const sigil::weave::ParagraphLayoutOptions options = textLayoutOptions(inst);
+  sigil::weave::ParagraphLayoutOptions options = textLayoutOptions(inst);
+  // HOW DEEP THE FRAME IS is a fact only this side knows: weave is handed a
+  // geometry, not a box, and its vertical distribution and first-baseline
+  // rule need the depth the node resolved to. A leaf sized by its own
+  // content has no room left over, which is what an unconstrained measure
+  // reports here.
+  if (options.frame.distribute !=
+      sigil::weave::FrameOptions::Distribute::kStart)
+    options.frame.extent = downConstraint < 1.0e6f ? downConstraint : 0.0f;
   // Vertical-RL: the geometry is columns, not bands, and they hang off the
   // RIGHT edge of the measure — so the constraint is not just a wrap width
   // here, it is where the first column stands. That is why a vertical leaf
@@ -101,26 +129,28 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   const bool vertical =
       inst.paragraph &&
       inst.paragraph->writingMode() == sigil::weave::WritingMode::kVerticalRL;
-  // One weave shape per resolved target, in the form the derive pass
-  // resolved it to: an outline for a target that declared a silhouette, an
-  // analytic circle for a round one, its box for a target that declared
-  // none. The margin is the same standoff in all three, and the shapes are
-  // the same in both writing modes — an exclusion cuts a column exactly as
-  // it cuts a line, so only the flow's axis differs.
+  // One weave silhouette per resolved target, in the form the derive pass
+  // resolved it to: an outline for a target whose boundary answered one, an
+  // analytic circle for a round one, its box for a target that answered
+  // none. The margin is the same DISC standoff in all three, and the
+  // silhouettes are the same in both writing modes — an exclusion cuts a
+  // column exactly as it cuts a line, so only the flow's axis differs.
   const auto addExclusions = [&](sigil::weave::ExclusionFlow& flow) {
     const float flowMargin =
-        inst.desc->deriveData ? inst.desc->deriveData->flowAroundMargin : 0.0f;
+        inst.description->deriveData
+            ? inst.description->deriveData->flowAroundMargin
+            : 0.0f;
     for (const detail::Exclusion& exclusion : inst.exclusionsLocal) {
       if (exclusion.circle)
-        flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromCircle(
-            exclusion.bounds, flowMargin));
+        flow.exclusions().push_back(
+            {sigil::weave::silhouette::circle(exclusion.bounds), flowMargin});
       else if (!exclusion.path.isEmpty())
-        flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromPath(
-            exclusion.path, flowMargin));
+        flow.exclusions().push_back(
+            {sigil::weave::silhouette::path(exclusion.path), flowMargin});
       else
-        flow.shapes().push_back(
-            sigil::weave::ExclusionFlow::Shape::fromRectangle(exclusion.bounds,
-                                                              flowMargin));
+        flow.exclusions().push_back(
+            {sigil::weave::silhouette::rectangle(exclusion.bounds),
+             flowMargin});
     }
   };
   const auto layOut = [&] {
@@ -129,22 +159,30 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
           SkRect::MakeWH(constraint, downConstraint),
           sigil::weave::FlowAxis::kColumns);
       addExclusions(flow);
-      inst.textLayout =
-          sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+      inst.textLayout = sigil::weave::layoutParagraph(
+          fonts, *inst.paragraph, flow, options, inst.threadCursor);
     } else if (vertical) {
       sigil::weave::VerticalBlockFlow flow(
           SkRect::MakeWH(constraint, downConstraint));
-      inst.textLayout =
-          sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+      inst.textLayout = sigil::weave::layoutParagraph(
+          fonts, *inst.paragraph, flow, options, inst.threadCursor);
     } else if (!inst.exclusionsLocal.empty()) {
-      sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
+      const float depth = isFrameOfAChain(inst) ? downConstraint : 1.0e6f;
+      sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, depth));
       addExclusions(flow);
-      inst.textLayout =
-          sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+      inst.textLayout = sigil::weave::layoutParagraph(
+          fonts, *inst.paragraph, flow, options, inst.threadCursor);
     } else {
-      sigil::weave::BlockFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
-      inst.textLayout =
-          sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+      // A HORIZONTAL LEAF GROWS: its height is an answer, not a measure,
+      // so its flow is unbounded down the page and the box clips whatever
+      // does not fit. A FRAME IS THE EXCEPTION, and it is what makes a
+      // frame a frame: a leaf that threads into another is bounded by its
+      // own depth, so it runs out of room and the remainder is what the
+      // next frame begins at.
+      const float depth = isFrameOfAChain(inst) ? downConstraint : 1.0e6f;
+      sigil::weave::BlockFlow flow(SkRect::MakeWH(constraint, depth));
+      inst.textLayout = sigil::weave::layoutParagraph(
+          fonts, *inst.paragraph, flow, options, inst.threadCursor);
     }
   };
   // ONE of the two is populated, and which one is the writing mode: a
@@ -161,8 +199,8 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   };
   layOut();
   readGeometry();
-  // A sel::line span restyle needs line geometry to name a line at all, and
-  // the materialization that ran at describe time had none. Re-materialize
+  // A weave::sel::line span restyle needs line geometry to name a line at all,
+  // and the materialization that ran at describe time had none. Re-materialize
   // against the lines just produced — plain values, so the paragraph they
   // came from is free to go — and lay out once more. The WHOLE restyle list
   // runs again in declaration order, so the "later wins" rule holds across
@@ -172,8 +210,8 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // spanStyle that moves the line breaks does not chase its own result,
   // which is what keeps this two passes rather than a fixed-point search
   // that may not have a fixed point.
-  if (inst.desc->textData &&
-      std::ranges::any_of(inst.desc->textData->spanRestyles,
+  if (inst.description->textData &&
+      std::ranges::any_of(inst.description->textData->spanRestyles,
                           [](const detail::SpanRestyle& restyle) {
                             return detail::selectorNeedsLayout(restyle.where);
                           })) {
@@ -181,10 +219,10 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
     layOut();
     readGeometry();
   }
-  // rich().slot(): where the finished layout put each reserved box. Resolved
-  // once per layout rather than per read, and by NAME rather than by index,
-  // because a slot the geometry could not place is simply absent from the
-  // report and every later slot would otherwise shift up onto its rect.
+  // weave::rich().slot(): where the finished layout put each reserved box.
+  // Resolved once per layout rather than per read, and by NAME rather than by
+  // index, because a slot the geometry could not place is simply absent from
+  // the report and every later slot would otherwise shift up onto its rect.
   if (inst.paragraph && !inst.textSlotKeys.empty()) {
     inst.textSlotRects.clear();
     for (const sigil::weave::ParagraphLayout::PlacedPlaceholder& placed :
@@ -201,9 +239,27 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // run's marks are the one exception: their curve resolves against the
   // node's final box, which this measure does not know, so they resolve in
   // ensureLayout's post-layout pass instead.
-  if (!inst.desc->textData || !inst.desc->textData->onPath)
+  if (!inst.description->textData || !inst.description->textData->onPath)
     resolveTextMarks(inst);
-  inst.measuredForWidth = constraint;
+  // The readings, laid out on the placement the base just reached. Their
+  // band was already in the base's strut, so nothing here moves the base.
+  resolveTextAnnotations(inst);
+  // WHAT THIS LAYOUT COST, reported for the proof that the node is holding
+  // still. A live passage answered entirely from break decisions it already
+  // had is set exactly as the frame before it and did no work; one that
+  // still decided a break, or degraded because the budget ran out, may be
+  // set differently the next frame with no number on this node changing.
+  //
+  // A DEGRADE IS PROVISIONAL. The block was filled greedily for this frame
+  // alone and the setting the author asked for is still what the passage
+  // wants, so the layout is NOT held as valid for this measure: the next
+  // frame asks again, and everything is back the frame the budget is met.
+  inst.textReusedBlocks = inst.textLayout.reusedBlocks;
+  inst.textDegradedBlocks = inst.textLayout.degradedBlocks;
+  inst.textComposing = options.live && (inst.textLayout.reusedBlocks == 0 ||
+                                        inst.textLayout.degradedBlocks > 0);
+  inst.measuredForWidth =
+      inst.textLayout.degradedBlocks > 0 ? -1.0f : constraint;
   inst.measuredForHeight = downConstraint;
   SkRect bounds = SkRect::MakeEmpty();
   for (const sigil::weave::LineMetrics& line : inst.lines)
@@ -216,14 +272,52 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   inst.measuredSize = {std::ceil(bounds.width()), std::ceil(bounds.height())};
   inst.measuredBaseline = textBaseline(inst, bounds);
   inst.measuredRev = inst.contentRev;
+  // WHERE THE GLYPHS REACH, which is not where the lines do. The union
+  // above is the band of every line — its tallest ascent over its deepest
+  // descent — and a face is free to draw outside it: a comma's tail sits
+  // below the descent, an accent on a capital above the ascent. The band
+  // is what the box is measured to, so the ink that hangs past it is
+  // painted outside the node's box and anything that sizes a SURFACE from
+  // that box cuts it. Taken from the placed blobs, whose bounds a shaped
+  // word already carries, so the walk costs no rasterisation. The
+  // readings count too: they are drawn in this node's space, from
+  // placements this pass has just resolved.
+  const auto inkOf = [](const sigil::weave::ParagraphLayout& layout) {
+    SkRect ink = SkRect::MakeEmpty();
+    for (const sigil::weave::PositionedRun& run : layout.runs) {
+      if (!run.blob) continue;  // a placeholder run draws no glyph
+      SkRect box = run.blob->bounds();
+      // A transformed run's placement is baked into its blob and it draws
+      // at the origin; an ordinary one is a shared word blob translated.
+      if (!run.transformed) box.offset(run.origin.fX, run.origin.fY);
+      ink.join(box);
+    }
+    return ink;
+  };
+  SkRect ink = inkOf(inst.textLayout);
+  for (const Instance::PlacedAnnotation& reading : inst.textAnnotations)
+    ink.join(inkOf(reading.layout));
+  if (ink != inst.textInk) {
+    // A LEAF OF A STATED SIZE IS LAID OUT AT PAINT, because a box that
+    // never reaches the measure callback learns its depth nowhere else —
+    // and the bounds a surface was sized from were read before that. So
+    // the first ink a leaf reports is news to every recording and bake
+    // above it, and they are staled the way any other change to what a
+    // node paints stales them. A leaf laid out during the layout phase
+    // reports the same rect it reported last time and stales nothing.
+    inst.textInk = ink;
+    inst.markPaintDirtyUp();
+  }
 }
 
-bool detail::selectorNeedsLayout(const Selector& selector) {
-  const Selector::State* s = selector.state();
+bool detail::selectorNeedsLayout(const sigil::weave::Selector& selector) {
+  const sigil::weave::Selector::State* s = selector.state();
   if (!s) return false;
-  if (s->kind == Selector::Kind::Line) return true;
-  if (s->kind == Selector::Kind::Each && s->each == Unit::Line) return true;
-  for (const Selector& operand : s->operands)
+  if (s->kind == sigil::weave::Selector::Kind::Line) return true;
+  if (s->kind == sigil::weave::Selector::Kind::Each &&
+      s->each == sigil::weave::Unit::Line)
+    return true;
+  for (const sigil::weave::Selector& operand : s->operands)
     if (selectorNeedsLayout(operand)) return true;
   return false;
 }
@@ -345,8 +439,8 @@ void Composer::Impl::syncLayoutRects(Instance& inst, bool movedAbove) {
  *  quiet round and would burn its full round count every frame. */
 bool Composer::Impl::applyCenterPins(Instance& inst) {
   bool applied = false;
-  if (inst.desc->layout.centerAt && inst.yoga) {
-    const SkPoint p = *inst.desc->layout.centerAt;
+  if (inst.description->layout.centerAt && inst.yoga) {
+    const SkPoint p = *inst.description->layout.centerAt;
     // Correct by the observed layout delta rather than writing the target
     // into the style directly — converges whatever reference box Yoga
     // resolves absolute positions against (padding, borders).
@@ -369,13 +463,47 @@ bool Composer::Impl::applyCenterPins(Instance& inst) {
   return applied;
 }
 
+/** THE SMALLEST @p child CAN BE without its content spilling — what a
+ *  track-sizing rule floors a content-sized track at.
+ *
+ *  A text leaf is asked: laid out at a nil measure it wraps at every
+ *  opportunity, so what it reports back is the widest run it cannot break,
+ *  which is exactly the minimum. The measure it was standing at is then
+ *  restored, because the layout the rest of the pass reads must be the one
+ *  the node's own box produced and not this probe.
+ *
+ *  Everything else answers with what it measured. Layout measures once and
+ *  never re-describes a child at a proposed width, so there is no honest
+ *  smaller number to give for a box: reporting zero would let a content
+ *  track collapse under content that cannot in fact shrink. */
+SkSize Composer::Impl::minimumSizeOf(Instance& child) {
+  const SkSize box{YGNodeLayoutGetWidth(child.yoga),
+                   YGNodeLayoutGetHeight(child.yoga)};
+  SkSize least = box;
+  if (!child.paragraph) return least;
+  const float wasWidth = child.measuredForWidth;
+  const float wasHeight = child.measuredForHeight;
+  layoutText(child, 0.0f, 1.0e6f);
+  least.fWidth = child.measuredSize.width;
+  // THE PROBE IS PUT BACK WHATEVER IT ANSWERED. A child that carries no
+  // previous measure — the first pass, or a layout that degraded — is
+  // laid out at the box it resolved to, because the alternative is
+  // leaving it wrapped at nil width for the frame the probe ran in.
+  if (wasWidth >= 0)
+    layoutText(child, wasWidth, wasHeight);
+  else
+    layoutText(child, box.width(), box.height());
+  return least;
+}
+
 bool Composer::Impl::applyCustomLayouts(Instance& inst) {
   bool applied = false;
   // layout() schemes are a flex-world feature; inside a positioned
   // subtree (no Yoga nodes) — or ON a positioned() container, whose
   // children have none — the placeFn is documented-unsupported.
-  if (inst.yoga && !inst.desc->layout.positioned && inst.desc->deriveData &&
-      inst.desc->deriveData->placeFn && !inst.children.empty()) {
+  if (inst.yoga && !inst.description->layout.positioned &&
+      inst.description->deriveData && inst.description->deriveData->placeFn &&
+      !inst.children.empty()) {
     LayoutInput input;
     input.container = {YGNodeLayoutGetWidth(inst.yoga),
                        YGNodeLayoutGetHeight(inst.yoga)};
@@ -390,14 +518,23 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
         baseline = first.baseline - first.rect().top();
       }
       input.childBaselines.push_back(baseline);
+      input.childCells.push_back(child->description->layout.cells);
+      // The region name is a rare field and lives in the child's derive
+      // block; the scheme reads it beside the cell numbers.
+      input.childAreas.push_back(child->description->deriveData
+                                     ? child->description->deriveData->cellArea
+                                     : std::string());
     }
-    std::vector<SkRect> rects = inst.desc->deriveData->placeFn(input);
+    if (inst.description->deriveData->placeReadsMinSizes)
+      for (const auto& child : inst.children)
+        input.childMinSizes.push_back(minimumSizeOf(*child));
+    std::vector<SkRect> rects = inst.description->deriveData->placeFn(input);
     const size_t count = std::min(rects.size(), inst.children.size());
     for (size_t i = 0; i < count; ++i) {
       // A centerAt() child opts OUT of the scheme's placement — the pin
       // wins (otherwise place() and the pin fight in a period-2
       // oscillation that never settles).
-      if (inst.children[i]->desc->layout.centerAt) continue;
+      if (inst.children[i]->description->layout.centerAt) continue;
       YGNodeRef child = inst.children[i]->yoga;
       // Count a change only on an actual delta: the convergence loop in
       // ensureLayout keys off this (idempotent writes are free).
@@ -419,29 +556,46 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
     // parent to size it, so without this it would collapse and the scheme
     // would place its children outside a zero box. Flex-embedded layout()
     // containers are left alone: their flex/stretch sizing already holds.
-    const LayoutProps& l = inst.desc->layout;
-    if (l.absolute) {
-      SkRect extent = SkRect::MakeEmpty();
-      for (size_t i = 0; i < count; ++i) extent.join(rects[i]);
-      const bool widthPinned = l.hasInsets &&
-                               l.insets.left.unit != Dim::Unit::Auto &&
-                               l.insets.right.unit != Dim::Unit::Auto;
-      const bool heightPinned = l.hasInsets &&
-                                l.insets.top.unit != Dim::Unit::Auto &&
-                                l.insets.bottom.unit != Dim::Unit::Auto;
-      if (l.width.unit == Dim::Unit::Auto && !widthPinned &&
-          extent.right() > 0 &&
-          std::abs(YGNodeLayoutGetWidth(inst.yoga) - extent.right()) > 0.25f) {
-        YGNodeStyleSetWidth(inst.yoga, extent.right());
-        applied = true;
-      }
-      if (l.height.unit == Dim::Unit::Auto && !heightPinned &&
-          extent.bottom() > 0 &&
-          std::abs(YGNodeLayoutGetHeight(inst.yoga) - extent.bottom()) >
-              0.25f) {
-        YGNodeStyleSetHeight(inst.yoga, extent.bottom());
-        applied = true;
-      }
+    //
+    // A FLEX-EMBEDDED container is left alone on any axis its flex parent
+    // already gave a size, and sized from the extent on an axis that
+    // resolved to NOTHING — which is what a container whose children are
+    // all absolutely placed collapses to, since none of them contributes
+    // to it. Only the collapse is caught: a container that resolved to a
+    // size has one for a reason, and overriding it here would fight
+    // whatever gave it.
+    const LayoutProps& l = inst.description->layout;
+    SkRect extent = SkRect::MakeEmpty();
+    for (size_t i = 0; i < count; ++i) extent.join(rects[i]);
+    const bool widthPinned = l.hasInsets &&
+                             l.insets.left.unit != Dim::Unit::Auto &&
+                             l.insets.right.unit != Dim::Unit::Auto;
+    const bool heightPinned = l.hasInsets &&
+                              l.insets.top.unit != Dim::Unit::Auto &&
+                              l.insets.bottom.unit != Dim::Unit::Auto;
+    // …and it keeps sizing an axis it once sized. WHICH IT REMEMBERS: the
+    // point width in the style is not evidence, because the placement loop
+    // above writes point widths on every child, so a scheme nested in a
+    // scheme would read its parent's placement as its own and override it.
+    const bool sizesWidth = l.absolute ||
+                            YGNodeLayoutGetWidth(inst.yoga) <= 0.25f ||
+                            inst.schemeSizedWidth;
+    const bool sizesHeight = l.absolute ||
+                             YGNodeLayoutGetHeight(inst.yoga) <= 0.25f ||
+                             inst.schemeSizedHeight;
+    if (l.width.unit == Dim::Unit::Auto && !widthPinned && sizesWidth &&
+        extent.right() > 0 &&
+        std::abs(YGNodeLayoutGetWidth(inst.yoga) - extent.right()) > 0.25f) {
+      YGNodeStyleSetWidth(inst.yoga, extent.right());
+      inst.schemeSizedWidth = true;
+      applied = true;
+    }
+    if (l.height.unit == Dim::Unit::Auto && !heightPinned && sizesHeight &&
+        extent.bottom() > 0 &&
+        std::abs(YGNodeLayoutGetHeight(inst.yoga) - extent.bottom()) > 0.25f) {
+      YGNodeStyleSetHeight(inst.yoga, extent.bottom());
+      inst.schemeSizedHeight = true;
+      applied = true;
     }
   }
   for (const auto& child : inst.children) applied |= applyCustomLayouts(*child);
@@ -473,7 +627,7 @@ void warnUnknownTextSlot(const Instance& text, const std::string& key) {
   for (const std::string& declared : text.textSlotKeys)
     if (declared == key)
       return;  // declared; the layout just could not place it
-  static std::set<std::string> warned;  // once per name, not once per frame
+  static thread_local boost::unordered_flat_set<std::string> warned;
   if (!warned.insert(key).second) return;
   std::string have;
   for (const std::string& declared : text.textSlotKeys)
@@ -503,14 +657,14 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
   // whose child cannot argue with it. Looked up first for the same reason:
   // a text node may carry both, and a mark is not an unknown slot.
   const SkRect* anchor = nullptr;
-  if (inst.parent && inst.parent->desc->kind == Kind::Text &&
-      inst.parent->desc->textData && !inst.desc->key.empty() &&
-      std::ranges::any_of(inst.parent->desc->textData->marks,
+  if (inst.parent && inst.parent->description->kind == Kind::Text &&
+      inst.parent->description->textData && !inst.description->key.empty() &&
+      std::ranges::any_of(inst.parent->description->textData->marks,
                           [&](const detail::MarkAnchor& mark) {
-                            return mark.key == inst.desc->key;
+                            return mark.key == inst.description->key;
                           })) {
     for (const auto& [key, rect] : inst.parent->textMarkRects)
-      if (key == inst.desc->key) {
+      if (key == inst.description->key) {
         anchor = &rect;
         break;
       }
@@ -526,14 +680,14 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
   // slot child has no Yoga node to write to — the paragraph IS its layout,
   // so a reflow that moves the placeholder moves the child with no second
   // pass and no convergence round.
-  if (!anchor && inst.parent && inst.parent->desc->kind == Kind::Text &&
-      !inst.parent->textSlotKeys.empty() && !inst.desc->key.empty()) {
+  if (!anchor && inst.parent && inst.parent->description->kind == Kind::Text &&
+      !inst.parent->textSlotKeys.empty() && !inst.description->key.empty()) {
     for (const auto& [key, rect] : inst.parent->textSlotRects)
-      if (key == inst.desc->key) return rect;
-    warnUnknownTextSlot(*inst.parent, inst.desc->key);
+      if (key == inst.description->key) return rect;
+    warnUnknownTextSlot(*inst.parent, inst.description->key);
     return SkRect::MakeEmpty();
   }
-  const LayoutProps& l = inst.desc->layout;
+  const LayoutProps& l = inst.description->layout;
   float parentW = 0, parentH = 0;
   if (anchor) {
     parentW = anchor->width();
@@ -569,7 +723,8 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
   // Text with an open extent: measure now, against the width we have.
   // The measure caches are logically mutable (measuredForWidth guards),
   // hence the casts.
-  if (inst.desc->kind == Kind::Text && inst.paragraph && (!width || !height)) {
+  if (inst.description->kind == Kind::Text && inst.paragraph &&
+      (!width || !height)) {
     const_cast<Composer::Impl*>(this)->layoutText(const_cast<Instance&>(inst),
                                                   width ? *width : parentW,
                                                   height ? *height : 1.0e6f);

@@ -79,7 +79,7 @@ struct Rails {
   /** Shared phase, added to every rail's own `dashPhase`. Bind it and the
    *  whole set marches in register (PathFormat::dashPhaseBinding). */
   float dashPhase = 0.0f;
-  const choreograph::Output<float>* dashPhaseBinding = nullptr;
+  std::optional<motion::Animatable<float>> dashPhaseBinding;
 
   /** Resample stride for the offset construction, px. 2 follows tight
    *  metro curves; loosen on long gentle routes. */
@@ -87,9 +87,12 @@ struct Rails {
 
   bool operator==(const Rails&) const = default;
 
-  bool isAnimated() const { return dashPhaseBinding != nullptr; }
+  bool isAnimated() const {
+    return dashPhaseBinding && motion::isLive(nullptr, *dashPhaseBinding);
+  }
   float phase() const {
-    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
+    return dashPhaseBinding ? motion::resolveFloatAt(nullptr, *dashPhaseBinding)
+                            : dashPhase;
   }
 
   float bleed() const;
@@ -101,27 +104,7 @@ struct Rails {
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
 };
 
-/** N identical rails, symmetric about the route — the general form of
- *  `Line::parallels`, where 2 is `cased` and 3 is `triple` with a flat
- *  spine. `gap` is centre-to-centre between neighbours. */
-Rails rails(int count, float width, const Fill& fill, float gap = 5.0f);
-
 /** Explicit rails, displacements and all. */
 Rails rails(std::vector<Rail> set);
-
-/** The four-rail rule, symmetric — `rails(4, …)` under a name that shows
- *  up in a completion list. */
-Rails quad(float width, const Fill& fill, float gap = 4.0f);
-
-/** The engraver's asymmetric parallel rule: HEAVY / hair / HEAVY — the
- *  commonest printed rule after the plain one. */
-Rails heavyHairHeavy(float heavy, float hair, const Fill& fill,
-                     float gap = 5.0f);
-
-/** Solid casing with a DOTTED core — the map convention for a road under
- *  construction, a proposed route, a disused rail. `dotGap` is the spacing
- *  of the core's dots; the casing stays continuous. */
-Rails dottedCore(float outer, float core, const Fill& fill, float gap = 5.0f,
-                 float dotGap = 6.0f);
 
 }  // namespace sigil::compose::lines

@@ -3,142 +3,118 @@
 /** @file
  * @ingroup layout
  *
- * What a caller tells the layout stage, grouped by the stage that reads it:
- * alignment and the choice of breaker, the line metrics that override the
- * font's, soft-hyphen handling, justification elasticity, the Knuth-Plass
- * tolerances, the overflow ellipsis and line clamp, tab stops, and the
- * tangent snapping text on a path draws with. Every field is defaulted and
- * every nested group is inert unless its stage runs. Settings that belong
- * to the geometry stay on the geometry (ExclusionFlow::setMinIntervalWidth,
- * for instance).
+ * WHAT A CALLER TELLS THE LAYOUT STAGE, in one value: the settings grouped
+ * by the stage that reads them, and the blocks that override them one
+ * paragraph at a time. Every group is a header of its own beside this one
+ * — breaking, justification, overflow, tab stops, the frame, mojikumi and
+ * the paragraph style — and this file is what a caller hands to
+ * `layoutParagraph`.
+ *
+ * Every field is defaulted and every nested group is inert unless its
+ * stage runs. Settings that belong to the geometry stay on the geometry
+ * (`ExclusionFlow::setMinimumIntervalWidth`, for instance).
  */
 
 #include <cstdint>
+#include <optional>
+#include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "sigilweave/layout/Breaking.h"
+#include "sigilweave/layout/Frame.h"
+#include "sigilweave/layout/InitialLetter.h"
+#include "sigilweave/layout/Justification.h"
+#include "sigilweave/layout/Mojikumi.h"
+#include "sigilweave/layout/Overflow.h"
+#include "sigilweave/layout/ParagraphStyle.h"
+#include "sigilweave/layout/TabStops.h"
+
 namespace sigil::weave {
-
-/** Specifies how text is aligned inside each available line interval. */
-enum class TextAlignment : uint8_t { kStart, kCenter, kEnd, kJustify };
-
-/** Selects the fast greedy breaker or optimal Knuth-Plass line breaking. */
-enum class LineBreakStrategy : uint8_t { kGreedy, kKnuthPlass };
-
-/** Overrides the paragraph's font-derived line metrics when non-zero. */
-struct LineMetricsOptions {
-  float height = 0;  ///< line height, px; 0 keeps the font-derived value
-  float ascent = 0;  ///< baseline offset below the line top, px; 0 keeps
-                     ///< the font-derived value
-};
-
-/** Controls soft-hyphen handling independently from the break strategy. */
-struct HyphenationOptions {
-  /// False removes the break opportunity, not just the hyphen glyph: the
-  /// halves either side of a soft hyphen fuse into one unbreakable word
-  /// during segmentation, so the word wraps or overflows whole. Reaching
-  /// the paragraph is what makes that happen — see
-  /// Paragraph::setSoftHyphenBreaks, which layoutParagraph sets from here.
-  bool enabled = true;
-  /// Added as squared demerits by Knuth-Plass to discourage repeated
-  /// discretionary hyphen breaks.
-  float penalty = 50.0f;
-};
-
-/** Controls spacing when TextAlignment::kJustify is selected. */
-struct JustificationOptions {
-  /// Paragraph-final and hard-break-final lines use this alignment unless
-  /// `justifyLastLine` requests full justification.
-  TextAlignment lastLineAlignment = TextAlignment::kStart;
-  bool justifyLastLine = false;  ///< stretch final lines to full measure too
-
-  /// CJK text has no spaces, so eligible zero-width ideographic gaps may be
-  /// expanded up to `maxIdeographicExpansion * fontSize` per gap.
-  bool expandIdeographicGaps = true;
-  float maxIdeographicExpansion = 0.5f;  ///< per-gap cap, fraction of fontSize
-
-  /// Space elasticity, expressed as fractions of the natural space width.
-  float spaceStretch = 0.5f;
-  float spaceShrink = 0.333f;  ///< maximum shrink per space, as a fraction
-};
-
-/** Advanced tuning used only by LineBreakStrategy::kKnuthPlass. */
-struct KnuthPlassOptions {
-  /// Maximum TeX-style badness before the breaker uses its forced-fit path.
-  float tolerance = 4000.0f;
-  /// Intervals narrower than this are ignored so the algorithm never has to
-  /// force a word into exclusion-shape slivers.
-  float minimumIntervalWidth = 0.0f;
-};
-
-/** Controls how overflowing text is represented. */
-struct OverflowOptions {
-  /// Empty disables the marker. Straight flows render it — at a line's end
-  /// or at a column's foot, set the way the text it cut was set — while a
-  /// contour flow reports its overflow without one, having no end to put a
-  /// marker at.
-  std::u16string ellipsis;
-  /// > 0: the layout uses at most this many of the geometry's lines
-  /// (CSS line-clamp — COLUMNS in a vertical flow); remaining text reports
-  /// as overflow and `ellipsis` (when set) lands on the clamped line.
-  /// Works with every breaker and geometry — the limit wraps the
-  /// FlowGeometry, so exclusion flows and Knuth-Plass need no special
-  /// handling.
-  int maxLines = 0;
-};
-
-/** Tab-character handling for straight horizontal flows.
- *
- * A word whose trailing whitespace contains a tab advances the pen to the
- * next stop instead of its measured glue: first through `positions`
- * (ascending, px from each line interval's start), then repeating every
- * `interval` px past the last explicit stop. With no stop ahead (or no
- * configuration at all — the default) tabs keep their shaped
- * space-equivalent width.
- *
- * Both breakers resolve stops identically: greedy fits against tab-resolved
- * widths as it goes, and Knuth-Plass scores every candidate line at its
- * tab-resolved width. Stops are line-local — alignment other than kStart
- * shifts the resolved line as a whole. Tab gaps are rigid under
- * justification, and gaps at or before a line's last tab never stretch or
- * shrink (the following stop would swallow the adjustment and unpin the
- * column); only the gaps past the last tab absorb slack.
- * Scope: straight horizontal intervals, LTR lines.
- */
-struct TabStopOptions {
-  std::vector<float> positions;  ///< explicit stops, ascending px from the
-                                 ///< interval start
-  float interval = 0;            ///< repeat spacing past the last explicit
-                                 ///< stop; 0 disables repetition
-};
-
-/** Rendering-only controls that do not affect line breaking. */
-struct PathTextOptions {
-  /// Animated path tangents snap to this many directions to avoid creating
-  /// a fresh glyph-atlas strike for every tiny rotation change. Zero
-  /// preserves exact rotations for static artwork.
-  int tangentRotationSteps = 512;
-};
 
 /**
  * Groups the settings of paragraph layout by the stage that reads them.
  *
- * Every member is defaulted, and the common path sets only `alignment`. Each
- * nested group is inert unless its stage runs: `justification` applies under
- * kJustify, `knuthPlass` under kKnuthPlass, `tabStops` only when a word
- * carries a tab, `pathText` only when runs are transformed.
+ * Every member is defaulted, and the common path sets only `alignment`.
+ * Each nested group is inert unless its stage runs: `justification`
+ * applies under kJustify, `knuthPlass` under kKnuthPlass, `tabStops` only
+ * when a word carries a tab, `pathText` only when runs are transformed.
+ *
+ * The top-level `alignment`, `justification`, `hyphenation` and `tabStops`
+ * are the WHOLE LAYOUT'S answer, and a block that states none of its own
+ * is set by them. `blocks` overrides them block by block.
  */
 struct ParagraphLayoutOptions {
+  /// AN INPUT OF THIS LAYOUT IS MOVING — a bound measure, an animating
+  /// frame, a text whose content changes frame to frame — so this layout
+  /// is one of a run of them rather than an answer someone asked for once.
+  ///
+  /// It changes two things and nothing else. The break decisions of a
+  /// block set in a UNIFORM measure are kept and reused, keyed on the words
+  /// and on the measure taken to the whole pixel below it, so a measure
+  /// already seen costs no break decision at all and a measure between two
+  /// seen ones is set in the narrower of them. And the block is broken
+  /// against the measure alone rather than against the frame's supply of
+  /// lines, so a frame that only grows or shrinks in DEPTH changes which
+  /// lines it holds and never where they break.
+  ///
+  /// A settled layout sets nothing here and is answered exactly as it has
+  /// always been answered.
+  bool live = false;
   TextAlignment alignment = TextAlignment::kStart;  ///< per-interval placement
   /// Greedy is the fast default; Knuth-Plass trades speed for even spacing.
   LineBreakStrategy lineBreakStrategy = LineBreakStrategy::kGreedy;
   LineMetricsOptions lineMetrics;  ///< non-zero fields override font metrics
-  HyphenationOptions hyphenation;  ///< soft-hyphen breaks and their penalty
+  HyphenationOptions hyphenation;  ///< where words may break, and which take
   JustificationOptions justification;  ///< only used under kJustify
   KnuthPlassOptions knuthPlass;        ///< only used under kKnuthPlass
   OverflowOptions overflow;            ///< ellipsis marker and line clamping
   TabStopOptions tabStops;   ///< empty/zero → tabs measure as shaped spaces
   PathTextOptions pathText;  ///< draw-time only, never affects breaking
+  FrameOptions frame;        ///< first baseline and vertical distribution
+  /// Room beside every line for what is set alongside the type; a block
+  /// may reserve more.
+  ReservedBand reserved;
+
+  /// THE MEASURE THE NEXT FRAME OF THE CHAIN SETS IN, for the one keep
+  /// that has to count lines this frame will not hold. The widow rule asks
+  /// how many lines the remainder takes, and the remainder is set in the
+  /// NEXT frame's measure, which this fill has no other way to learn: only
+  /// whoever holds the chain knows what comes after. 0 says nothing is
+  /// known and the count is taken at the measure this frame's last line
+  /// was set in, which is exact for a chain of equal frames and off by the
+  /// difference for one that changes width. Every other keep is settled
+  /// from lines this frame placed and never reads it.
+  float nextMeasure = 0;
+
+  /// Which characters may not stand at a line's edge (kinsoku shori). A
+  /// prohibition is settled during SEGMENTATION — the boundary is simply
+  /// not opened — so no breaker knows the rule and both of them obey it.
+  KinsokuTable kinsoku;
+  /// How far a character may hang past the measure (optical margin
+  /// alignment; burasagari down a column). Empty leaves every line squared
+  /// on its advances, which is what a text that says nothing gets.
+  HangingTable hanging;
+  /// How much room stands between two adjacent full-width characters, by
+  /// the class of each. Empty leaves every gap the width the shaper gave
+  /// it, which is what a text that says nothing gets — and costs nothing,
+  /// since a layout with no table asks no question about any gap.
+  MojikumiTable mojikumi;
+  /// How much of its own advance a full-width character gives up so it
+  /// sets closer to its neighbours — tsume, as a fraction of the em,
+  /// removed from the gap after every full-width character the mojikumi
+  /// table gives no class of its own. 0 leaves the face's own setting.
+  /// It is applied where mojikumi is applied and stops where that stops:
+  /// at the gaps between words.
+  float tsume = 0;
+
+  /// One entry per BLOCK — the text between two mandatory breaks — in
+  /// block order. A block past the end of this list, and every block when
+  /// it is empty, is set by the fields above alone.
+  std::vector<ParagraphStyle> blocks;
+
+  bool operator==(const ParagraphLayoutOptions&) const = default;
 };
 
 }  // namespace sigil::weave

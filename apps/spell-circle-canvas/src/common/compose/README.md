@@ -21,6 +21,13 @@ baseline alignment, layered with explicit z-order and blending, cached
 like a display list, animated at scene rate, and refreshed from data
 without rebuilding the world.
 
+**`TYPOGRAPHY.md` is the type chapter.** Everything a passage of type can
+be told past `text(utf8, style)` — the per-glyph fx tracks, a run on a
+path, span restyling, the paragraph controls, threaded frames over a
+`weave::Story`, readings beside the type, a passage whose measure moves, and
+vertical CJK — lives there, and is checked against the headers by the
+same probe this page is.
+
 ---
 
 ## Writing a component
@@ -33,12 +40,19 @@ the argument.
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmotion/Animation.h>
 
 #include <ranges>
 #include <vector>
 
+// Compose re-exports nothing: the motion words (`animate`, `to`,
+// `Transition`, `bind`) are SigilMotion's and the text style is
+// SigilWeave's, each spelled from its own library.
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
+namespace motion = sigil::motion;
+namespace weave = sigil::weave;
 
 /// Your data. Copyable and equality-comparable — that is the whole contract.
 struct Channel {
@@ -51,17 +65,17 @@ struct Channel {
 
 Element meter(const Channel &c) {
   const SkColor4f ink =
-      c.alarm ? hex(0xff5252) : hex(0x8fd0ff);
+      c.alarm ? hexColor(0xff5252) : hexColor(0x8fd0ff);
   return box()
       .row()
       .gap(10)
       .padding(12)
       .corners({6})
-      .fill(hex(0x0e1218))
+      .fill(hexColor(0x0e1218))
       .alignItems(Align::Center)
       // A mark on part of the boundary: L-brackets at every tangent break.
       .stroke(spans::corners(12), stroke(1.5f, Fill::color(ink)))
-      .child(text(c.label, type({.size = 13, .color = ink})))
+      .child(text(c.label, weave::textStyle({.size = 13, .color = ink})))
       .child(box()
                  .grow()
                  .height(6)
@@ -78,7 +92,7 @@ Element dashboard(const std::vector<Channel> &channels) {
       .column()
       .gap(8)
       .padding(24)
-      .fill(hex(0x05070a))
+      .fill(hexColor(0x05070a))
       .children(channels | std::views::transform([](const Channel &c) {
                   // memo() skips the describe call entirely while the props
                   // compare equal. key() is what the reconciler matches on
@@ -103,8 +117,14 @@ composer.render(dashboard(model));
 const double dt = clock.tick();
 const bool moving = ticker.tick(dt);
 composer.draw(canvas);
-const bool again = moving || composer.dirty() || ticker.active();
+const bool again = moving || composer.active();
 ```
+
+`Composer::active()` is the whole gate: it answers `dirty()` — a
+description or a layout that changed — and, beyond it, whether a motion
+is running or a retained binding can still move without another
+`render()`, which is the one thing a host polling `dirty()` alone would
+miss on a scene driven from outside.
 
 SigilSketch bundles exactly those three lines behind its own session, so
 a sketch declares a scene and never a loop. That is a convenience of a
@@ -182,12 +202,37 @@ then up to three convergence rounds of custom `layout()` schemes,
 `centerAt` pins, and the derive phase, each of which may re-run Yoga.
 Recordings whose baked geometry moved are invalidated. Derive resolves text
 exclusions and connector/rail routing over flat edge lists, cycle-guarded.
-`Element::flowAround` subtracts the target's SILHOUETTE when it declares one
-— a `shape()`, a routed connector or rail — so text runs into a star's
-notches and through an annulus, and its BOX when it declares none. A round
-silhouette is subtracted analytically. The margin means the same standoff in
-every case, and so does the writing mode: a column a target crosses is cut
-into a head and a foot exactly as a line is shortened beside it.
+`Element::flowAround` subtracts WHAT THE TARGET SAYS ITS EDGE IS, which is
+the one property the target already carries for its own decorations:
+`Element::boundary`. Its glyph outlines under `Boundary::Glyphs`, so text
+flows around a word; the silhouette of what it DREW under
+`Boundary::Coverage`, at the tolerance `Element::threshold` set, so text
+flows around a photograph's alpha, a clipped subtree or a masked node; its
+`shape()`, routed connector or rail otherwise, so text runs into a star's
+notches and through an annulus; and its BOX when it declares none. One
+reading serves both, so a node cannot be dressed along one outline and
+flowed around along another. A round silhouette is subtracted analytically.
+
+The margin is a DISC — the set of points within that distance of the edge —
+so a diagonal stands the text off by exactly what was asked and a corner
+comes out round; it means the same in every case, and so does the writing
+mode: a column a target crosses is cut into a head and a foot exactly as a
+line is shortened beside it.
+
+Every derivation DECLARES WHAT IT READS, in the same statement that stores
+the key: `flowAround`, `spans::fit`, `strand::from`, `band` around a key,
+`connector`, `rail` and `thread` each record a `sigil::core::Read` — the
+node waited for, and which `sigil::core::Facet` of it is needed (a box, an
+outline, or the units a text produces). `sigil::core::orderByReads` turns
+those declarations into the order the derived nodes are resolved in, so a
+rail anchored on a connector written after it, or a frame threaded from a
+frame written later, settles in the same pass instead of one behind. It is
+stable: derivations that read none of each other are resolved in exactly
+the order they were written in, which is nearly every tree. Nothing infers
+an edge from which fields a node carries, so a derivation added later is
+ordered by its own declaration and by no list that has to be found and
+extended.
+
 Released scalars are scanned and volatility computed in one walk. Then
 paint runs, selecting a cache tier per node.
 
@@ -204,784 +249,182 @@ Decorations dress the node's *outline*, so `clip()` does not clip them —
 it bounds the fill, the content leaf and the children. A stacking context
 forms on `zIndex`, opacity below 1, a blend mode, a transform, a clip, or a
 layer effect, and children cannot interleave outside it: a component cannot
-escape the z-order of the site it was composed into.
+escape the z-order of the site it was composed into. The one order that is not
+tree order is a shared space's: the children of a node that opens one
+are painted back to front by depth, whatever order they are declared
+in.
 
-### Text fx
+### Type
 
-Motion inside a text leaf is a list of **tracks**. One `Track` is four
-values — *which* glyphs (`Selector`), *what* deviation from rest
-(`TextEffect`), *how* the beats spread (`Stagger`), and the master
-`Animatable<float>` progress that drives it. `Element::fx` appends one;
-several compose per glyph, with `GlyphMod` offsets and rotations adding
-and scale and alpha multiplying.
+`text(utf8, style)` and `text(weave::rich(base).add(…))` are the two content
+forms, and everything a passage can be told past that — the per-glyph fx
+tracks and their selectors, a run riding a path, span restyling, the
+paragraph controls, threaded frames over a `weave::Story`, readings set beside
+the type, a passage whose measure moves, and vertical CJK columns — is in
+**`TYPOGRAPHY.md`**, one file over. It is checked against the headers by
+the same probe this page is.
 
-```cpp
-text(u8"ONE LINE, TWO MOVES", display)
-    .fx({.effect = fx::rise(20), .stagger = stagger(unit::Word)})
-    .fx({.where = sel::text(u8"TWO"),
-         .effect = fx::waveLoop(),
-         .progress = &phase});
-```
+The shape of it in one paragraph: a text leaf holds an ordered list of
+`fx()` TRACKS, each `(selector, effect, stagger, progress)` — which
+glyphs, what deviation from rest, how their start times spread, what
+drives it — and the same `sel::` vocabulary addresses glyphs for a track,
+characters for a `spanStyle`, and units for anything standing beside the
+passage. What a passage is SET like is `Element::paragraphs` and the
+layout setters beside it, which map onto
+`sigil::weave::ParagraphLayoutOptions` field by field.
 
-**Units.** `Unit` is the granularity a selector slices and a cascade beats
-over: `unit::Glyph`, `unit::Cluster`, `unit::Word`, `unit::Line`,
-`unit::Sentence`. `unit::Cluster` is the default, and it is the one that
-keeps text correct — a base letter and its combining marks are one unit
-and never separate under a stagger.
+### What a decoration dresses
 
-**Selectors.** `sel::word`, `sel::words`, `sel::line`, `sel::sentence`,
-`sel::range`, `sel::text` and `sel::regex` name a position in the text;
-`sel::each` slices every unit of one granularity the same way, with
-`Selector::take` and `Selector::drop` partitioning each unit exactly.
-Combine with `|`, `&` and `!`. A default-constructed `Selector` addresses
-everything. Selection is resolved once per (content, layout, selector) and
-cached on the element; a pattern that does not compile selects nothing and
-warns once.
-
-`sel::style` is the odd one out and addresses the TREATMENT rather than a
-position: every run a `rich()` value added under a style name
-(`RichText::add` with a name resolved through a `sigil::weave::StyleSet`).
+Every decoration is drawn ACROSS AN OUTLINE, and the outline a node hands
+its decorations has always been its own shape — which on a text leaf is a
+rectangle, and is why a chrome style on a word bevelled a slab behind the
+word. `Element::boundary` says otherwise:
 
 ```cpp
-text(rich(base).styles(set)
-         .add(u8"gusting ").add(u8"soon", "term").add(u8", then rain"))
-    .fx({.where = !sel::style("term"), .effect = TextEffect::variableAxis("GRAD", 900)});
+text(u8"CHROME", display).boundary(Boundary::Glyphs).style(kit::y2kChrome());
 ```
 
-A glossary set in one registered style stays addressable when the copy
-changes, where naming the literal words means editing the selector every
-time an author edits a sentence. It resolves through the run's TEXT, so
-re-registering the name against a different style — or a `spanPaint` or
-`spanStyle` cutting across the run — leaves the same runs selected. Only a
-named `rich()` run carries a name: plain text, a run given a style
-directly, and the paragraph overload have none, so there it selects nothing
-and warns once per name, as does a name no run was written with.
+`Boundary::Glyphs` hands them the glyph contours the placement produced,
+so every layer style already written works on letters with no new preset
+and no second code path. The outline follows a wrapped line, a mixed-style
+run's size, a path run's curve and a vertical column's axis, because it is
+read off the placed glyphs.
 
-**Cascades.** `Stagger` keeps the GSAP model — `eachMs` or `amountMs`,
-`durationMs`, and a `Stagger::From` origin: `Start`, `Center`, `End`, a
-seeded `Random` and a two-ended `Edges`. `Random` deals a scrambled EVEN
-ladder — every unit takes a distinct rank, so no two units open together —
-and it is deterministic: the ranking hash is keyed on the unit count and
-`Stagger::seed`, so the same text scatters the same way on every frame and
-after every relayout. At the default seed of 0 the key is the count alone,
-which makes two same-count cascades scatter identically; give each field
-its own nonzero seed for independent scatters. `Stagger::distribution`
-shapes the start times across the cascade, and `Stagger::then` nests a
-second cascade inside every beat of the first (`stagger(unit::Word,
-{…}).then(unit::Glyph, {…})`).
-
-**Irregular timing.** `cues` replaces the even spread with a TABLE — one
-start time per unit, in ms — which is what caption, lyric and lip-sync
-timing actually is:
+The three answers are three MECHANISMS, and the third one is the only one
+that looks at a pixel. `Boundary::Outline` is the node's SHAPE — its box,
+its `shape()`, a routed path, a band's swept region. `Boundary::Glyphs` is
+the PLACEMENT's contours. `Boundary::Coverage` is WHAT THE NODE DREW: its
+rendered layer is rasterised into an alpha surface of its own and the
+covered pixels are traced back into a path, which is the only answer that
+knows about an image's alpha cut-out, a clipped or masked subtree, or
+anything else whose visible silhouette is neither a shape nor a glyph run.
 
 ```cpp
-text(lyric).fx({.effect = fx::rise(12),
-                .stagger = stagger(unit::Word,
-                                   cues({0, 340, 720, 1180},
-                                        {.durationMs = 180}))});
+image(logo).boundary(Boundary::Coverage).style(kit::y2kChrome());
+image(photo).key("fig").boundary(Boundary::Coverage).threshold(0.35f);
+text(body, bodyStyle).flowAround("fig", 12);
 ```
 
-It returns a `Stagger`, so it goes anywhere one goes and compares like one.
-A table says only *when unit k starts*; `over`, `durationMs` and `then` are
-untouched by it, while `eachMs`, `amountMs`, `from` and `distribution` have
-nothing left to say and are ignored. A unit past the end of `Stagger::cueMs`
-starts at the last entry (the tail piles, visibly, rather than being given
-times nobody wrote), entries past the last unit go unread, and either
-mismatch warns once.
+Tracing a raster has three consequences and all three show:
 
-**Which list the beats are numbered against.** `Stagger::beatsOver` takes
-`beats::Selection` — the default, numbering only the units the track's own
-selector resolved — or `beats::Text`, numbering every unit of that
-granularity in the paragraph, addressed or not. Two tracks that partition
-one paragraph share a clock *by construction* only under `beats::Text`;
-under the default they line up while their selections happen to resolve
-lists of the same length and silently drift apart when they stop. A nested
-cascade takes the outer one's answer, as it already takes the outer
-`durationMs`.
+- **The boundary is a staircase.** It is built from whole pixels, so its
+  edges are axis-aligned steps and a decoration that dresses it dresses
+  that staircase.
+- **The step is one device pixel.** The trace rasterises at the node's own
+  device scale, so the staircase is as fine as the edge the viewer is
+  looking at — which is the whole reason to trace pixels rather than a
+  shape — and a node that moves to a denser display is traced again. A
+  ceiling on the raster's longer side bounds what a very large node asks
+  for: past it the raster is scaled down to fit and the steps grow.
+- **How much paint counts as ink is a dial.** A pixel joins the boundary
+  when the node's paint reached `Element::threshold` of it, a fraction of
+  full opacity. The default is half — the rule an unantialiased rasteriser
+  uses, which puts the traced edge where the drawn edge is — so a 30% wash
+  traces to nothing and its decorations have nothing to dress. Lower it and
+  the wash becomes silhouette; raise it and only the solid core does. It is
+  what a soft-edged photograph needs, and text flowing around that node
+  reads the same number.
 
-**Reading the schedule back.** `Composer::beatsOf` reports the cascade one
-track is actually running, after layout:
+The node's OWN marks are not in the trace — they are what dresses it, and
+a mark that dressed itself would have no fixed point — while its fill, its
+content, its children and their marks are. A node that traced to nothing
+keeps its shape, exactly as a text leaf with no glyph outline does. The
+trace is re-run when the node's rendered layer is invalidated, which for a
+volatile subtree is every frame.
+
+`Boundary::Auto` is what a node that says nothing gets and means its own
+shape: a caption with a drop shadow means the caption's box, and neither a
+text leaf nor an image silently changes what it has always meant.
+
+## 3D, the CSS way
+
+A node is a **plane**. Five lanes turn it and move it in depth —
+`rotateX`, `rotateY`, `translateZ`, `scaleZ`, and `rotateZ`, which is
+`rotate` under its 3D name — and `perspective` on an ancestor is the
+view that ancestor's children are seen through: a viewer standing that
+many pixels in front of the ancestor's plane, over the point
+`Element::perspectiveOrigin` names (its centre by default). Every one of
+them is a `motion::Animatable` lane exactly like the 2D lanes: it
+transitions, mounts, binds and prunes the same way, animating it never
+relayouts, and `Element::transformOrigin3d` gives the pivot a depth. The
+frame is CSS's — x right, y down, **+z toward the viewer** — so a
+positive `translateZ` under a `perspective` comes closer and grows. The
+three rotations compose as the CSS list `rotateX() rotateY() rotateZ()`,
+x outermost, then the scale and the skew about the transform origin, with
+the translate outermost of all.
 
 ```cpp
-for (const Beat& b : composer.beatsOf("lyric", 0))
-  if (b.active) markTheWordAt(b.rect, b.localT);
+box().perspective(800)  // the view, for the children
+    .child(box().rect(card).fill(paper).rotateY(bind(&turn).target(0, 360)));
 ```
 
-`Beat::rect` is the unit's laid-out rect in the composer's coordinate space
-— read off the placement, so it follows a wrapped line, a mixed-style run's
-own size, a path baseline and a vertical column; `Beat::unitIndex` is the
-outer unit the beat belongs to (a nested cascade reports several beats
-sharing one, one per inner unit); `Beat::startMs` is the compounded delay;
-`Beat::localT` and `Beat::active` are that beat's own progress right now.
-This is what anything travelling WITH a cascade and made of something other
-than glyphs — a bouncing ball, a playhead, an underline, a caret, a
-per-unit meter — reads instead of restating `i * eachMs`, which stops
-agreeing with the engine the moment the cascade nests or takes a table.
-An unknown key or track index resolves to an empty vector, silently, like
-the rest of the query family. For a run that is *not* in the tree,
-`measureRun` and `runPens` are the static answer instead: `runPens` returns
-one pen position per glyph plus a past-the-end entry, so `.back()` is the
-run's laid-out width. A space between two words is a gap the flow leaves
-rather than a glyph, so it rides the advance of the glyph before it — which
-is what makes those sums reproduce the pen positions the layout used across
-a whole sentence.
+**One 4x4 per node, flattened at paint.** A node composes its parent's
+perspective, its layout offset and its own lanes about its origin into one
+4x4 and projects its plane onto the plane its parent paints on — the 3x3
+with a perspective row that Skia draws, one concat. Tree order stays draw
+order; the node's fill, its text, its children and its caches all live in
+its plane as they did before; a settled plane's recording is taken in
+that plane and replayed through the projection, and a `Cache::Texture` on
+a turned plane bakes in the plane at the projection's largest local
+scale. A node with no depth lane is placed by the byte-exact elementary
+ops it always was. A plane turned a quarter turn has no width and draws
+nothing; a flattening with no inverse draws nothing and answers no hit.
 
-**The whole span.** A beat says when it *opens*; `Composer::cascadeSpanMs`
-says when the whole schedule is *over* — the ms of virtual time the track's
-master progress [0,1] maps onto: `durationMs + eachMs·(N−1)` for the flat
-even ladder, `durationMs + amountMs` in amount mode, the compounded extent
-under `Stagger::then`, and the latest time any unit reads plus `durationMs`
-under a cue table. It is the number a progress duration must equal for a
-cascade to run at its authored ms — a table's times are absolute only when
-the window driving the track spans exactly the span — and the number
-anything sequenced *after* the cascade offsets from. It is computed by the
-same resolved cascade the glyphs and `beatsOf` read, so the three cannot
-disagree; an unknown key or track index resolves to 0, silently.
-`Stagger::spanMs` is the same number at *declare* time, computed from unit
-counts alone for the site that needs it before any node exists — above all
-the progress transition written right next to the stagger:
+**`Element::preserve3d` opens a shared space.** The children of such a
+node keep the depth their lanes give them — their 4x4s compose with the
+host's instead of flattening into it — and are painted **back to front by
+the depth of their centres**, whatever order they were declared in. A
+cube is six children of one host, each turned about its own centre and
+then moved half an edge along the cube's axis in the host's frame, since
+the translate is outermost:
 
 ```cpp
-const Stagger cascade{.eachMs = 28, .durationMs = 480};
-const float span = cascade.spanMs(13);  // 480 + 28·12, before any layout
-// Drive the track's progress over exactly `span` ms and the last glyph
-// lands as the master arrives at 1. After a draw,
-// composer.cascadeSpanMs("title", 0) reads the same number off the
-// mounted track — with the unit count the laid-out text supplies.
+box().preserve3d().rotateY(bind(&yaw).target(0, 360))
+    .child(face().translateZ(half))                 // front
+    .child(face().rotateY(90).translateX(half))     // right
+    .child(face().rotateX(90).translateY(-half))    // top
+    .child(face().rotateY(-90).translateX(-half))   // left
+    .child(face().rotateX(-90).translateY(half))    // bottom
+    .child(face().rotateY(180).translateZ(-half));  // back
 ```
 
-For a nested cascade the second argument is how many inner units one beat
-holds (the widest beat's count, where they vary), and an amount-mode span
-is the same for every count past one, because the amount *is* the spread.
-
-**The looping cascade.** `Stagger::loopMs` makes the schedule wrap: above 0,
-every unit's beat re-opens on its own cycle of that period, phase-offset by
-the unit's start time — even ladder and cue table alike — so steady
-continuous motion (rain re-dropping column by column, arrivals that never
-stop) is *declared* rather than faked by re-running a one-shot. The master
-stays the one clock, and one sweep 0→1 is exactly one cycle: unit *i* reads
-`clamp(((master·loopMs − startᵢ) mod loopMs) / durationMs)`, so master 0
-and master 1 name the same instant of the cycle and a **wrapping bound
-phase** — an `Output` stepped mod 1, the clock `fx::waveLoop` already reads
-— drives it seamlessly forever:
-
-```cpp
-Stagger cascade = stagger(unit::Line, cues(columnStartsMs));
-cascade.then(unit::Cluster, {.eachMs = 80, .durationMs = 1400});
-cascade.loopMs = 5000;  // every column re-drops on its own cue, forever
-text(field, rain).fx({.effect = streak, .stagger = cascade,
-                      .progress = &phase});  // phase wraps every 5 s
-```
-
-Between its beat's close and its next opening a unit rests at local 1 — its
-landed deviation — and returns to 0 the instant the beat re-opens, so an
-effect that loops cleanly ends where nothing shows. Start offsets fold mod
-the period (a start past `loopMs` lands at start mod `loopMs`), and the
-fold means every unit is *always* somewhere in its cycle: there is no
-"before the first beat", which leaves `fx::hold` nothing to veto (local
-time touches 0 only at the instant of re-opening) — an effect on a looping
-cascade gates its own arrival instead, the way a streak table's head is its
-own entrance. `Composer::cascadeSpanMs` and `Stagger::spanMs` answer the
-**period** — still the ms the master maps onto, and the number a driver's
-wrap must span for the schedule to run at its authored ms. One loop governs
-the whole cascade, read off the outer spec under `Stagger::then` as
-`Stagger::beatsOver` is; `Beat::localT` reports the wrapped local time (the
-same number the effect is handed) and no cycle index rides beside it — the
-master is a phase mod 1, so cycle identity lives with whoever steps the
-phase. Driving that phase is also what keeps the element live: a looping
-cascade at a *constant* master is one still frame of its cycle, exactly as
-a wave at one phase is, so permanent volatility is declared by the wrapping
-binding, never by the field, and `loopMs = 0` — the default — is the
-one-shot cascade.
-
-**Marking the type.** `Element::mark` anchors a child to the rect a selector
-resolves — a caret, a callout, a tick, a rule standing at a word's edge:
-
-```cpp
-text(line, style)
-    .mark(sel::word(3), box().left(0).top(pct(100))
-                             .width(pct(100)).height(2).fill(ink));
-```
-
-The child's box is that rect, and its own placement longhand is read
-*inside* it, exactly as a `positioned()` child reads it against its parent —
-so a mark with no dims at all simply is the unit's rect, and one with them
-is free to hang outside it. That is the difference from `RichText::slot`,
-which reserves space *in the flow*: the line breaks around a slot and the
-type after it starts further along, where a mark is placed on a line laid
-out as though it were not there. A selector resolving several units gives
-one rect, the union of all of them; one resolving nothing places nothing and
-warns once. The rect is the **rest** rect — where the layout put those
-glyphs, not where a track has thrown them this frame — so a mark follows a
-reflow and stands still under a cascade; read `Composer::beatsOf` and drive
-the mark's own transform for one that must ride the motion. On a path run
-(`onPath`) the rect is on the curve, at the run's *resting* placement — a
-run driven along its baseline is a paint-time deviation like any track's.
-A mark needs no
-`reach`, being a child: the recording cull already grows by the union of a
-node's children.
-
-**Effects are comparable values**, which is what lets text carrying tracks
-prune like any other static leaf. A preset compares by its name and its
-parameters; an ad-hoc body goes through `fx::effect`, which takes the key
-its author gives it — two different bodies under one key compare equal and
-one of them silently never draws. The one declaration an ad-hoc body
-carries, `TextEffect::displacing`, joins those parameters rather than
-sitting beside them, so two bodies under one key that disagree about
-placement do not prune onto each other. `fx::seq` remaps local time so each
-phase sees a renormalised 0→1 (`TextEffect::until` sets the joint,
-`Phase::xfade` lerps across it), and `fx::mix` evaluates several effects at
-one time and composes them by the same algebra stacked tracks use.
-
-**Keyframe tables.** Every published web or motion reference is a list of
-(position, value) entries, and `fx::keys` is that list as an effect. A
-`fx::Key` is a moment in local time, a `GlyphMod` at it, and optionally a
-curve of its own:
-
-```cpp
-const TextEffect rubberBand = fx::keys({
-    {0.00f, {}},
-    {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
-    {0.50f, {.scaleX = 1.15f, .scaleY = 0.85f}},
-    {1.00f, {}},
-}, &choreograph::easeInOutCubic);
-```
-
-The curve applies **per segment** — every pair of entries runs the whole
-curve over its own span, which is what a keyframe list means and what one
-curve stretched across the table would not be. `fx::Key::ease` overrides it
-for the segment that *opens* at that entry; unset segments are linear.
-Interpolation is componentwise through the same arithmetic a `fx::seq`
-crossfade uses, so `codepoint` cuts at the middle of a segment and `axis`
-lerps only between entries naming the same tag. The table is the identity:
-two `fx::keys` over the same numbers and the same named curves compare equal
-and prune, and a table declares its own reach from the offsets, growths and
-leans it publishes. A sequence is not a table over effects and neither is the
-other's special case — a `Phase` is an effect re-clocked over its window, a
-`fx::Key` is one deviation standing still.
-
-**Holding a beat.** `fx::hold` wraps an effect so a unit whose beat has not
-opened paints *nothing*: a cascade hands a waiting unit a local time clamped
-to 0, and an effect that deviates at 0 is already performing out of turn.
-`fx::scramble` is the case that shows — it substitutes from local 0, so an
-unheld glyph still waiting shows a *wrong* letter rather than no letter. The
-hold is alpha 0 and not the identity, because the identity is a glyph sitting
-at rest, which for a substitution is exactly the answer the effect exists to
-withhold. Alpha multiplies, so a hold is a **veto**: a glyph whose held track
-has not opened paints nothing however many other tracks have opened on it.
-Put it on the track that owns the glyph's arrival. A *looping* cascade
-leaves it nothing to veto — every unit is always somewhere in its cycle —
-so there an effect gates its own arrival instead (the looping-cascade
-passage above).
-
-**Effects get an `Rng`**, seeded from the glyph's identity, so a scatter is
-the same scatter on every frame and after every relayout — which is what
-lets it settle and cache instead of jittering forever.
-
-**A shader per letter is one pass.** `fx::pass` makes a track's effect a
-PASS rather than a per-glyph deviation: the runtime renders the units the
-track addresses into a layer and runs the material ONCE over it, handing
-the track's own schedule in as uniform data — `uContent` (the layer),
-`uUnitRect[]` (each unit's box, node-local px) and `uUnitPhase[]` (each
-unit's cascade-local 0→1, then a stable per-unit seed) — so per-letter
-treatment is data rather than scene structure, and the cost is one draw
-plus one pass whatever the unit count is:
-
-```cpp
-// emberDissolve is a SigilMaterial recipe over the params struct Burn,
-// carrying the pass body as its SkSL.
-auto burn = Material::recipe(sigil::material::Material(emberDissolve,
-                                                       Burn{ink}));
-text(u8"EMBER DECODE", display)
-    .fx({.effect = fx::pass(burn),
-         .stagger = stagger(unit::Cluster, {.eachMs = 260})});
-```
-
-The material must be RECIPE-BACKED — `Material::recipe` over a recipe
-carrying an SkSL body — because the unit count is baked into the compiled
-shader: a runtime effect's array size is fixed at compile and SkSL has no
-uniform-bounded loop, so the runtime holds a specialization of that recipe
-per distinct count, its body the declarations above plus `const int
-kUnitCount = N` ahead of the author's. Write the body against those names
-and do not declare them, and declare every uniform of your own as a params
-field rather than in the body's text; any other material warns once and
-the track draws its glyphs at rest. `main(xy)` runs in the node's own px, the layer is sampled at the
-device's resolution (a 2x host stays sharp with no supersampled bake), and
-the pass is BOUNDED: it paints the node's box grown by the track's `reach`
-and nothing outside it, unlike an `Element::effect` shader pass. The
-per-unit rects and times are resolved from the SAME cascade
-`Composer::beatsOf` reports, so a pass, a mark and the glyphs cannot
-disagree about the schedule.
-
-**A pass can declare where it rests.** `fx::pass(m).restsAt(0)`,
-`.restsAt(1)` and `.restsAt(0, 1)` promise the SkSL is an EXACT
-pass-through at those unit phases. When every addressed unit's resolved
-local time sits on a declared phase the runtime skips the layer and the
-shader and draws the glyphs directly — so a settled pass on a node that
-repaints for unrelated reasons (an orbiting `onPath` ring) stops paying
-for a shader that changes nothing. The promise is unverifiable, in the
-family of `reach` and `bleed()`: declare a phase where the shader is not
-a pass-through and the picture pops at the seam, with no diagnostic. The
-test is exact — a one-shot cascade clamps a unit to exactly 0 before its
-beat and exactly 1 after. A looping cascade touches 0 only at the instant
-a beat re-opens, so `restsAt(0)` effectively never engages there
-(correctly — the cycle is always mid-flight somewhere), while units rest
-at exactly 1 between beats, so `restsAt(1)` engages whenever no beat is
-mid-cycle. Undeclared, a pass always runs.
-
-Order against everything else: deviation tracks apply FIRST, and the pass
-reads the deviated pixels — a pass is post-processing, and pixels are what
-it processes. A glyph a pass addresses draws only inside that pass's
-layer, never directly as well; several pass tracks run in declaration
-order, each over its own selection's layer, and a glyph two passes address
-renders in both. A path baseline and a vertical column place glyphs before
-any of this, so a pass rides both. A pass is a whole-track statement:
-inside `fx::seq`, `fx::mix` and `fx::hold` its material is not consulted —
-sequence a pass by driving its progress, and gate its onset in its own
-SkSL, which holds the whole schedule.
-
-**Colour as a cascade.** `fx::tint(from, to)` is the colour reveal — a
-karaoke wipe, a highlight sweeping a word — and it carries one inversion
-worth stating once. `GlyphMod::colorMul` MULTIPLIES, and a multiplier only
-takes a colour toward black, so **the element is set in `to` and the effect
-multiplies down toward `from`**. The arguments still read in time order and
-the division is done inside: `fx::tint(pale, sung)` on a line set in `sung`
-wipes pale to sung, while setting the line in `pale` draws pale throughout
-with no diagnostic. Multiplying is also what lets it tint a gradient-filled
-line without knowing what fills it, and why a destination channel of zero
-cannot be departed from.
-
-The way *up* is the other two colour terms. `GlyphMod::colorAdd` is the
-**hard flash**: added to whatever the style paints — after the multiply,
-clamped at the draw — it brightens where a multiplier can only darken, and
-it *adds across tracks*, the sum clamping once, so two half flashes make one
-full one. `GlyphMod::colorScreen` is the **phosphor glow that never clips**:
-the painted colour c becomes 1 − (1 − c)(1 − s), lifting each channel in
-proportion to its headroom, and screens combine *commutatively* across
-tracks — stacked glows compose order-free. Both are RGB-only (coverage
-stays the multiplicative lane's — `alpha` and the multiplier's own alpha),
-both lerp componentwise in a `fx::keys` table like every other continuous
-field, and both are usually spoken through one: a keys table that opens
-bright and decays to zero is the flash-then-settle an entrance wants.
-Because screening against a constant is affine per channel, multiply, add
-and screen ride *one* memoized colour-matrix filter on a shader-filled
-pass — no second filter form — and a flat pass takes the same arithmetic in
-its colour. Neutral values (all zero) cost nothing: the untouched-paint
-fast path is byte-identical to a deviation that never mentions them.
-
-**What a `GlyphMod` can say.** Beyond `dx`, `dy`, `scale`, `rotateDeg` and
-`alpha`: `colorMul` multiplies every pass the glyph's style draws (a flat
-pass multiplies its colour, a shader pass takes an equivalent modulation,
-so a gradient keeps its ramp and wears the tint over it); `colorAdd` and
-`colorScreen` brighten over every pass the same way — the flash and the
-glow of the tint section above; `scaleX`,
-`scaleY`, `skewXDeg` and `skewYDeg` place the glyph with a full matrix,
-because an RSXform carries a rotation and one scale and no shear at all —
-the two shear angles read as `Element::skewX` and `Element::skewY` do, and a
-glyph naming both takes one shear pair rather than one shear after the
-other; `axis` drives a variable-font axis at draw time; and `codepoint`
-draws a different letter in this one's place. The last two are SUBSTITUTIONS and compose
-last-one-wins — a `fx::seq` crossfade cuts them at the middle of its window
-rather than lerping, because there is no half-way glyph between two
-outlines. (Two phases driving the *same* axis are the exception, and lerp.)
-
-Both substitutions are GATED, because both keep the pen positions shaping
-computed. `axis` is honoured only for an advance-invariant axis — the
-runtime probes the face once per axis and refuses one that moves advances,
-drawing at the shaped face and warning once. `codepoint` is honoured only
-where the replacement has the original's advance ALONG THE AXIS ITS RUN
-ADVANCES ON — the width along a line, the height down an upright column; a
-swap that differs there would move every letter after it, which is a
-reshape and not a redraw.
-`TextEffect::variableAxis` holds a coordinate and `fx::variableAxisSweep` sweeps between
-two across local progress
-and `fx::scramble` is the decoding-text preset built on the substitution:
-each glyph churns through a charset and resolves to the true letter by
-`t = 1`, seeded per glyph so it is the same churn on every frame.
-
-`Element::variationDrive` is sugar over a whole-text `axis` track, so a
-driven axis composes with entrances and loops instead of being a second
-text path they would hide.
-
-**Snapping, and `Track::continuous`.** Rotation, alpha, the colour terms
-(`colorMul`, `colorAdd`, `colorScreen`) and the axis coordinate are
-quantized before they reach the
-draw: each distinct value is a distinct batch bucket *and* a distinct
-glyph-atlas strike. The axis ladder is cut per RENDERED SIZE — one step is
-a fixed distance in the axis's design units, a design unit displaces an
-outline by a fixed fraction of the em, and that fraction is more pixels the
-larger the glyph is drawn — so a headline gets a proportionally finer
-ladder than a caption and does not have to reach for the opt-out to look
-smooth. Set `Track::continuous` where the steps still show and pay for it:
-a continuous coordinate has no bounded set of faces, so its clone is built
-fresh and its glyphs rasterized fresh every frame, and nothing retains it.
-A glyph any addressing track declares continuous is continuous.
-
-**Every track declares its `Track::reach`** — how far past the element's
-box it may throw a glyph — or takes the number its effect declares. The
-recording cull grows by it, on the same over-reporting-is-safe contract a
-decoration's `bleed()` carries. Under-report and cached output is
-truncated with no diagnostic.
-
-`Element::textFill` and `Element::textStroke` combine with tracks and with a
-path baseline alike: a letter in flight, and a letter on a curve, are painted
-with the same glyph paint a resting one is. `Element::echo` skips fx text by
-contract.
-
-### Text on a path
-
-`Element::onPath` makes a `TextPath` the run's BASELINE. The run is shaped
-once — real kerning, real ligatures, real advances — and then laid out
-through SigilWeave's own contour geometry: every contour of the resolved
-`TextPath::path` is one interval of the run's one line, and the words fill
-them in order.
-
-```cpp
-text(u8"SIGILLVM · DEI · AEMETH", inscription)
-    .width(320).height(320)
-    .onPath({.path = shapes::circle(),
-             .at = &phase,                       // the marquee
-             .align = TextPath::Align::Center,
-             .orient = TextPath::Orient::Tangent})
-    .fx({.effect = fx::rise(18), .stagger = stagger(unit::Cluster)});
-```
-
-**`at` is where along the baseline the run sits**, as a fraction of the whole
-path's length with the contours chained end to end — which is what lets seven
-chords of a heptagon carry seven captions addressed by fraction alone.
-`TextPath::align` measures the run against that point: `Start` begins there,
-`Center` centres on it, `End` finishes there. It is an `Animatable<float>`,
-so every `bind()` and `animate()` verb applies, and on a CLOSED baseline the
-fraction WRAPS — a phase output running 0→1 forever is the infinite marquee,
-with no seam. Moving it is PAINT-ONLY: the run is shaped and broken across
-the contours once, and the phase re-places glyphs that were already placed,
-so a marquee costs a repaint and never a reflow. It declares content
-volatility while it runs and releases once it provably holds still.
-
-**A CONTOUR BOUNDARY IS A BREAK.** A word that does not fit the contour it
-reached starts the next one, rather than bending across the gap between two
-disconnected curves. A run that outlasts the last contour simply stops, and a
-run pushed off the end of an open baseline by its phase drops the glyphs that
-ran off rather than piling them on the last point.
-
-**`fx()` and `onPath()` compose; neither wins.** THE BASELINE PLACES THE
-GLYPH, THEN THE TRACKS DEVIATE FROM THAT PLACEMENT, IN THE FRAME THE BASELINE
-PUT IT IN. On a curve that means `fx::rise` lifts a letter off the CURVE
-along its own local perpendicular rather than straight up the canvas, a
-stagger's shove stays tangential to the lettering it belongs to, and a
-track's rotation adds to the tangent the glyph was already turned to. Scale,
-alpha, the colour multiplier and both substitutions are per-glyph dressings
-and are untouched by the frame — so `variationDrive` and `fx::scramble` reach
-curved lettering exactly as they reach straight lettering.
-
-`Element::textFill` and `Element::textStroke` reach a path run like any
-other, with one caveat: a metric-mapped material maps its unit square to the
-run's STRAIGHT metric band, which is not where the type ended up. A flat
-colour and a stroke are exact; a gradient across a ring is not what it
-looks like.
-
-`TextPath::orient` is `Tangent` (running lettering), `Radial` (the baseline
-along the radius, for an astrolabe limb or a compass rose) or `Upright`
-(level everywhere, for a calendar ring). `autoFlip` turns the RUN over once
-so lettering on the lower half of a ring reads right way up — never each
-glyph, which would reverse the reading order. `TextPath::offset` rides the
-type off the baseline, positive to the LEFT of travel. Tangents snap to a
-ladder of directions because each distinct rotation is a glyph-atlas
-strike, and the ladder is cut per RENDERED SIZE — one angular step sweeps
-a bigger glyph's extremity through more pixels, so display lettering on a
-turning ring gets a proportionally finer ladder and does not tick letter
-by letter as a marquee turns; `TextPath::exactTangent` is the opt-out,
-for artwork that must hold the exact angle.
-
-**A RUN IN MOTION PLACES ITS GLYPHS ON THE SUBPIXEL GRID; a run at rest
-keeps whole-pixel origins.** A glyph mask is rasterized for a quantized
-origin, so a ring creeping along by a fraction of a pixel per frame does
-not creep at all on whole pixels: every letter stands still until its own
-origin crosses a pixel boundary and then hops a whole one, at its own
-moment. Nothing about the placement arithmetic causes it and no ladder
-fixes it. Three declarations put a run on the finer grid, all of them the
-question "does what this run draws land somewhere else next frame": a
-BOUND or animated `TextPath::at`; a bound or animated `rotate()` (or
-any other geometric transform) at or above the text node; and a live
-`fx()` track whose effect moves glyphs. A phase written
-as a plain number, or a figure turned by re-describing a literal angle,
-declares nothing and is treated as type at rest. The grid is read off the
-declaration and never off a frame-to-frame difference, so a marquee parked
-at a phase keeps the placement it was turning with rather than taking one
-last quarter-pixel shift the moment it settles.
-
-**A track declares through two facts, and needs both.** Its progress must
-be live — bound, or mid-transition — and its effect must actually move
-glyphs, which is what `TextEffect::displaces` answers. That answer is
-*inferred* almost everywhere: a preset knows its own deviation (`fx::rise`,
-`fx::slide`, `fx::pop`, `fx::spinIn`, `fx::scatter` and `fx::waveLoop`
-move glyphs; `fx::typeOn`, `fx::variableAxisSweep`, `fx::tint` and `fx::scramble` touch
-coverage, colour or the outline and leave every pen position alone),
-`fx::keys` reads its own table (any entry publishing an offset, a lean, a
-shear or a growth), and `fx::seq`, `fx::mix` and `fx::hold` derive from
-their operands. `fx::pass` does not displace — its shader runs over pixels
-already rasterized at the resting origins, so refining those origins says
-nothing about where the pass puts its output. Only `fx::effect` has to be
-told, because a lambda is opaque until it runs: it assumes the moving
-answer, and `.displacing(false)` is the author's promise otherwise. A
-karaoke wipe, a decoding scramble and a staggered fade therefore keep
-whole-pixel origins and their bytes however hard they run, and a settled
-displacing track goes back to them — its glyphs are standing somewhere
-else and standing still.
-
-**The baseline declares its own reach.** A resolved path is not bounded by
-the node's box — a custom `Shape` may return a curve well outside it, and
-`offset` rides the type further off again — so the cull grows by the curve's
-bounds plus the glyph band and whatever the tracks reach, the same
-over-reporting-is-safe contract `bleed()` and `reach()` carry. Nothing to
-declare by hand; it follows from the baseline you gave it.
-
-### Mixed text
-
-**There is no markup language.** Text that is not all set the same way is a
-`RichText` value plus selector styling, and the two cover different halves
-of the problem: `rich()` says what the CONTENT is, and `spanPaint` /
-`spanStyle` say what a RANGE of it looks like.
-
-```cpp
-auto p = rich(base)
-             .add(u8"Signal ")
-             .add(u8"woven", accent)
-             .add(u8" through ")
-             .add(u8"noise", mono);
-
-text(p)
-    .spanPaint(sel::regex(u8"[0-9]+"), sigil::weave::PaintStyle(SK_ColorRED))
-    .maxLines(3)
-    .ellipsis(u8"…");
-```
-
-`RichText::slot` reserves an INLINE SLOT in the run stream — a box of blank
-space the flow weaves in, and the name a child of this text node is laid out
-into:
-
-```cpp
-text(rich(body).add(u8"press ").slot("key", {28, 18}).add(u8" to continue"))
-    .child(box().key("key").fill(ink).corners({4}));
-```
-
-The reserved box is one UNBREAKABLE word: no line breaks inside it, and it
-opens its line when it is taller than the type. The child is an ordinary
-subtree — it animates, caches and hit-tests like any other element — and it
-re-lands wherever the placeholder lands when the text reflows. It is a
-POSITIONED subtree: the placeholder rect is its box, so flex layout does not
-run inside it and its own children take explicit rects, exactly as under
-`positioned()`.
-
-**A TEXT SLOT IS NOT A MOUNT SLOT.** `slot()` and `Composer::renderSlot` name
-a hole a HOST fills from outside the description, and those names live in one
-registry for the whole composition. These names live in the rich-text value
-alone and are matched against the `key()` of that text node's own children —
-so two captions may both reserve a slot called `"icon"` without colliding,
-and neither is reachable by `renderSlot`. A child keyed for a slot the
-content does not declare draws nothing and says so once; a slot the geometry
-could not place is silent, like every other word that did not fit.
-
-`RichText::add` takes a run in the base style, a run in its own
-`sigil::weave::TextStyle`, or a run under a NAME resolved through a
-`sigil::weave::StyleSet` — supplied by `RichText::styles` or inherited
-through `env::Provide`. An explicit set beats the inherited one whichever
-order the two are written in, and a name the set does not register resolves
-to the base `rich()` was given, so a misspelling shows as content set in
-the default rather than as content that did not draw. `RichText::runs` and
-`RichText::base` read the finished value back.
-
-**It is a comparable value, and that is the point.** Two rich texts with
-the same base and the same runs in the same styles are equal, so a
-component that rebuilds its spans every describe prunes exactly like a
-static leaf. The `text(std::shared_ptr<sigil::weave::Paragraph>, options)`
-overload cannot answer that question — a fresh pointer is a fresh identity
-and reads as changed content every time — which is why it stays the escape
-hatch for the passage too custom for either verb, not the way to set two
-colours in a sentence.
-
-**Selector styling.** `Element::spanPaint` and `Element::spanStyle`
-restyle whatever the SAME `sel::` selectors the tracks use address, on
-every content form alike — plain text, `rich()` spans and the paragraph
-overload. They are ordered by **what they are allowed to disturb**:
-
-| verb | changes | re-shapes |
-| --- | --- | --- |
-| `spanPaint` | paint alone — a colour, a shader, an underline, a glow pass | never |
-| `spanStyle` | anything a `sigil::weave::TextStyle` holds | the words its range covers — unless the only change is advance-invariant axes |
-
-Both are ordered lists — a LATER DECLARATION WINS on overlap, so a broad
-rule followed by a narrow exception reads in the order it is written — and
-both are comparable values, so a re-described list prunes and only a
-changed one re-resolves.
-
-That rule holds **per dimension** where the two verbs meet. The paint of a
-range is `spanPaint`'s to say, so a `spanStyle` over text an earlier
-`spanPaint` coloured applies its other dimensions and leaves that colour
-standing: either declaration order draws the same passage, and neither
-verb has to know what the other declared. A `spanStyle` with no
-`spanPaint` under it paints with the style it is given, as ever.
-
-The middle ground is `spanStyle`'s own. A style that differs from the text
-it covers only in variable-font axes the face carries advance-invariantly
-does not re-shape: a grade is advance-invariant *by construction* — it
-thickens a letter without moving the letter after it — so it is exactly
-the restyle that can keep the layout the paragraph already has, and the
-restyle keeps it:
-
-```cpp
-sigil::weave::TextStyle graded = base;
-graded.variation("GRAD", 780);
-text(copy, base).spanStyle(sel::regex(u8"[0-9]+"), graded);
-```
-
-Such a restyle is carried as a track holding `TextEffect::variableAxis`,
-and inherits what that means. The coordinate is a `GlyphMod::axis`, so it
-goes through the same size-scaled ladder a driven axis does and composes
-with entrances and loops instead of being hidden by them; and the leaf
-then draws through the batched glyph path, where a span style's band
-stands at its rest placement while the letters move. Anything else the
-style changes — another face or size, an axis the face moves advances on,
-an axis the text was shaped with and the restyle drops — is a reshape; and
-an earlier axis-only restyle under a later reshaping one over the same text
-re-shapes too, so the later declaration is the one that stands.
-
-`spanPaint` and `spanStyle` resolve their selection as TEXT RANGES rather
-than glyphs, because a restyle runs on the paragraph before there are
-glyphs to point at: `sel::text` and `sel::regex` through weave's query
-layer, `sel::word`, `sel::words`, `sel::sentence` and `sel::range` through
-the paragraph's own structure, `sel::style` through the named runs the
-content declared, and `sel::line` through the layout. Two consequences
-follow. `Selector::take` and `Selector::drop` slice glyphs inside a unit,
-which no text range can express — an `sel::each` selector restyles its
-whole units and the slice warns once. And a `sel::line` restyle costs a
-second layout pass and addresses the layout of the text BEFORE the restyle:
-it does not chase its own result, so a `spanStyle` that moves the line
-breaks leaves the selection where the first breaking put it.
-
-**Layout options, fluently.** `Element::textAlign`, `Element::lineBreak`
-(greedy or Knuth-Plass), `Element::hyphenation`, `Element::ellipsis`,
-`Element::maxLines` and `Element::lastLine` set the general knobs of
-`sigil::weave::ParagraphLayoutOptions` on any content form. The rest of
-that struct — justification elasticity, Knuth-Plass tolerance, tab stops,
-line-metric overrides — stays behind the paragraph overload, which takes
-the whole options value. **On that overload the setters override FIELD BY
-FIELD**, and only the fields actually set: everything a setter did not name
-keeps the value that was passed in.
-
-### Vertical CJK
-
-`Element::writingMode` sets the passage running down the page.
-`sigil::weave::WritingMode::kVerticalRL` is the CJK book layout: characters
-top to bottom, columns advancing RIGHT TO LEFT from the node's right edge.
-It is a field-masked override like every other layout setter, so it works on
-plain text, on `rich()` spans, and on the paragraph overload — where a mode
-nobody names leaves the paragraph's own mode standing.
-
-```cpp
-text(rich(mincho)
-         .add(u8"平成")
-         .add(u8"31", tateChuYoko)
-         .add(u8"年、縦組みに対応した。"))
-    .width(260).height(300)
-    .writingMode(sigil::weave::WritingMode::kVerticalRL)
-    .fx({.effect = fx::rise(24), .stagger = stagger(unit::Cluster)});
-```
-
-**BOTH AXES ARE MEASURES.** A horizontal passage reads its width as the
-measure and grows down; a vertical one reads its HEIGHT as how far a column
-runs before the next one starts, and grows LEFT. So a vertical leaf's
-intrinsic size swaps: one column of type measures tall and one column pitch
-wide, and giving the node no height gives it one endless column. It has no
-baseline — the reading axis is y and a column's glyphs centre themselves
-across the axis rather than standing on one — so `Align::Baseline` gets its
-first character's own baseline, which lines a column's opening character up
-with a horizontal neighbour's first line.
-
-**Per character the orientation is UTR#50's**: ideographs stand upright and
-take their `vert` forms, Latin lies on its side. A run that wants otherwise
-says so in its own style — `sigil::weave::VerticalForm` is `kAuto`,
-`kUpright`, `kRotated` or `kTateChuYoko` — set on a `rich()` run's
-`sigil::weave::TextStyle` or through `spanStyle`. It is a SHAPING field, so
-it re-shapes the words it covers and nothing else; there is no separate verb
-because there is no separate concept. 縦中横 is the one to know: a short run
-shaped horizontally and set upright across the column, which is how two-digit
-numbers read in vertical prose.
-
-**What else the face keeps for a column it hands over only when asked.**
-Setting a run down the page applies the `vert` forms by itself; the wider
-`vrt2` rotation set, punctuation recentred (`valt`) or fitted to its ink
-(`vpal`, `vhal`), kana cut for a column (`vkna`) and vertical kerning
-(`vkrn`) are named features, spelled as
-`sigil::weave::Features::verticalRotatedForms` and its siblings and set on
-`shaping.fontFeatures` like any other. They are part of shaping identity, so
-naming one re-shapes the runs it covers — and they are NOT gated on the
-writing direction, so a style carrying them and set along a line takes them
-there too.
-
-**The engine runs in columns.** `unit::Line` IS A COLUMN here, so a
-`stagger(unit::Line)` beats column by column and `sel::line(0)` addresses
-the rightmost one; `unit::Cluster` runs down a column in reading order.
-`spanPaint`, `spanStyle`, `textAlign` (start is the top of the column),
-`maxLines` (which clamps COLUMNS) with `ellipsis` at the clamped column's
-foot, `flowAround`, `lastLine`, `lineBreak`, `textStroke`,
-`variationDrive` and `feed()`'s text tier all work as they do across a line.
-`mark()` anchors as it does anywhere — its rect is the union of the advance
-boxes its selector addressed, and in a column those stack downward, so a
-phrase's mark is a tall box standing in that phrase's column.
-`Element::textFill` maps its unit square onto the COLUMN BLOCK rather than
-onto a cap band — a column's glyphs centre across its axis instead of
-standing on a baseline, so there is no cap band to hang a ramp on — which
-means a gradient authored in [0,1]² crosses the type reading DOWN the page.
-
-**Track deviations apply in the frame the layout placed the glyph in**, the
-same rule a path baseline follows — and in a column the placed frame is the
-glyph's own vertical pose. An UPRIGHT glyph is not turned, so its frame is
-the canvas frame: `fx::rise` lifts it up the page. A ROTATED one is turned
-to the column, so its frame is turned with it and a rise lifts it off its own
-baseline, across the column. A glyph's pivot moves too: an upright glyph
-turns and scales about the point on the COLUMN AXIS its pen reached, not
-about a point half a column pitch to its right.
-
-**`flowAround` and `ellipsis` follow the type down the page.** An exclusion
-cuts a COLUMN exactly as it cuts a line: the column a target crosses hands
-back a head above it and a foot below it, and the same silhouette is
-subtracted — a `shape()` outline, an analytic circle, or the box a target
-that declared none stands in — with the margin the same standoff in all
-three. And a clamped column ends in its marker, at the column's FOOT,
-measured against the column's length so the cut moves up to make room for
-it. The marker stands for the text it cut and is set the way that text was
-set: upright after upright glyphs, in the face's own vertical form when it
-has one, and turned with the column after a rotated Latin run.
-
-**What does not follow the type down the page.** `onPath` ignores
-`writingMode` entirely — a path run's baseline is its own geometry and has
-no columns to advance — and setting both warns once and keeps the path. A
-decoration on a span DOES follow the type down the page — an underline runs beside the
-column on its right, an overline on its left, a strikethrough down the
-column axis and a highlight across the whole column pitch — but it never
-skips ink there, because ink intercepts are cut out of a horizontal band
-window that a column's band is not. Which side an underline or an overline
-takes is `side` on the decoration: the default puts a column's underline on
-the right, the side a vertical setting reads its emphasis line on, and
-`Decoration::Side::kOpposite` is the other placement (left of the column,
-above the line).
-
-**A BAND UNDER A TRACK STANDS AT REST**, in either writing mode. A track
-draws its own glyphs in batched buckets and a bucket carries glyphs alone,
-so the band is drawn beside them from the layout the letters left at rest:
-the letters travel on their schedule and the band does not travel with
-them. That is the same stand `mark()` takes — a rect resolved from the
-layout cannot chase a paint-time pose — and it is the honest one for a
-band, which dresses a whole run rather than one letter. Type on a path
-carries no band either way: a turned run's band would have to follow the
-curve it rides.
-
-**Ruby and kenten are not library features**, deliberately. Each is a few
-lines over the placed runs of a finished layout — read
-`Composer::paragraphLayout` and draw beside what it reports — and the shapes
-that annotation takes differ enough per passage that a verb would fit none of
-them. The SigilWeave gallery's vertical scene shows both.
+The view reaches into the space: the perspective declared on the host's
+parent projects every face, a nested `preserve3d()` compounds the space,
+and a child that does not declare it ends the space at its own plane, its
+children flat inside it. The host's own paint stands at the front of its
+own plane and is drawn before its children. An edge-on host still shows
+the planes its space holds, because the space is drawn on the plane
+beneath the host and takes no inverse of it. A host paints live — it
+never records or bakes an artefact of its own, which is what keeps every
+recording above the matrices it bakes — while its children keep theirs;
+`Composer::profile` reports the refusal as `HostsSpace`.
+
+**A grouping property flattens.** A node that composites as one layer — a
+`clip()`, an opacity below 1, a blend that is not source-over, an
+`effect()`, a `backdrop()`, a `mask()`, a `Boundary::Coverage` or an
+explicit `Cache::Texture` or `Cache::Group` — cannot host a space, exactly
+as CSS's grouping properties force a flat transform style: its children
+are projected one by one onto its plane, in tree order, with no depth
+between them.
+
+**`Element::backface`** with `Backface::Hidden` draws nothing and answers
+no hit while the plane's back faces the viewer — decided by the
+inverse-transposed normal of the node's whole projection, so a half turn
+about x or y hides it and a `scaleX(-1)` mirror does not. A flipping card
+is a host turning on `rotateY` with a front and a back pre-turned half
+round, both hidden.
+
+**Hit testing goes back through the projection.** `Composer::hitTest`
+inverts the flattened 4x4 the plane was drawn with — from the plane the
+space is drawn on, for a node in a space — and a point whose pre-image is
+at or behind the viewer, or off the plane's projection, misses; a host's
+children are tested nearest first.
+
+**What this is not.** Planes never intersect: a child that crosses
+another is drawn whole, in the order their centres sort. Nothing is lit,
+nothing casts, and a depth is not a position in a world. A scene with
+those is a set — SigilWorld — and this stays the retained 2D tree with
+CSS's model over it.
 
 ---
 
@@ -990,59 +433,117 @@ them. The SigilWeave gallery's vertical scene shows both.
 Everything lives in `namespace sigil::compose` under
 `include/sigilcompose/<feature>/`, one directory per feature target, and
 the include spelling is the feature's: `<sigilcompose/core/Element.h>`,
-`<sigilcompose/shape/Shapes.h>`. The public include root is `include/`
-and nothing else — the internal headers beside each feature's sources are
-not reachable from outside it. Each feature has an umbrella named after
-it (`core/Core.h`, `shape/Shape.h`, `brush/Brush.h`, `paint/Paint.h`,
-`typography/Typography.h`) over its public headers, and
-`<sigilcompose/Compose.h>` at the root is the transitional umbrella over
-the kernel — exactly `core/Core.h`. Each header stands on its own; include
+`<sigilcompose/kit/Layouts.h>`. There are two public include roots and
+no others: `include/`, and `testing/include/`, which the testing target
+adds and which carries the harness a consumer's own tests reach for. The
+internal headers beside each feature's sources are not reachable from
+outside it. Each feature has an umbrella named after it (`core/Core.h`,
+`kit/Kit.h`, `brush/Brush.h`, `typography/Typography.h`) over its public
+headers — over MOST of them: an umbrella is a convenience and not an
+index, so `core/Feed.h` and `core/Pattern.h`, and the kit's `Grid.h`,
+`Ground.h`, `Layouts.h`, `Placers.h` and `Routers.h`, are included by
+name. `<sigilcompose/Compose.h>` at the root is the umbrella over the
+kernel — exactly `core/Core.h`. Each header stands on its own; include
 the one a translation unit needs, from the feature whose target the
 translation unit links.
 
 **Kernel — `core/`.** A user who reads these headers has a complete and
 sound model; nothing below them changes kernel semantics.
 
-- `core/Motion.h` — the re-exports of SigilMotion's animation vocabulary
-  (`Animatable`, `Transition`, `animate`, `bind`, `ease::`,
-  `quantizeTime`), so authoring never has to name a second library.
-- `core/Paint.h` — the paint values: `Fill`, `Corners`, `PaintContext`,
-  `StampCache`, `UniformBlock`, `Effect`, and the colour spellings `hex`,
-  `alpha`, `mul`, `mix`.
-- `core/Text.h` — the text model: `Unit`, `Selector` and `sel::`,
-  `TextEffect`, `Stagger`, `Track`, `Beat`, the mixed-text value `rich` /
-  `RichText`, and `toU8`.
+- `core/Paint.h` — the paint values: `Fill`, `Corners`, `Backface`,
+  `PaintContext`,
+  `StampCache`, and `hexColor`, the one colour spelling here: a source
+  palette's hex integer as an `SkColor4f`. What a colour BECOMES is
+  SigilMaterial's vocabulary, spelled from it — `material::skia::withAlpha`,
+  `scale`, `lighten` and `mixLinear`.
+- `core/TextPainter.h` — the seam the kernel draws dressed type through:
+  `TextPainterOps`, the operations the composer asks of text that is not
+  resting on its own straight baseline, and `TextPainter`, that engine
+  as the value a text verb installs on a description. It is spelled in
+  the typography feature's vocabulary and only names it; the kernel
+  holds the paragraph, lays it out and draws it at rest by itself.
 - `core/Shape.h` — the comparable seam values `Shape` (with
-  `ShapeScheme`), `MotionPath`, `TextPath`, `Decoration` and its
-  declared-volatility concepts, and `LayerStyle`.
-- `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`, `Profile`
-  and `strand::`, `Across`, `Around`, `Formation`, `Shaper`, `StrandPath`,
-  `Crossing`, `CrossingRule` and `crossing::`.
+  `ShapeScheme`), `MotionPath`, `Decoration` and its declared-volatility
+  concepts, and `LayerStyle`; and `Boundary`, which outline a node hands
+  its decorations.
+- `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`, `Across`,
+  `Around`, `StrandPath` and `strand::`. The path arithmetic under it is
+  SigilGeometry's — the width law `geometry::path::Profile` with
+  `geometry::path::profile::self` / `offset`, the deviation
+  `geometry::path::Shaper`, the band `geometry::path::bandRegion` on a
+  `geometry::path::Formation`, and `geometry::path::CrossingRule` with
+  `geometry::path::crossing::` deciding who passes over whom.
 - `core/Mask.h` — the masking family: `Region`, `parts::`, `by::`, `Gate`,
   `Mask`.
 - `core/Layout.h` — `Dim` and its literals, `Align`, `Justify`, `Echo`,
-  `Cache`, `LayoutInput` / `LayoutScheme`, and the `ComponentProps` /
-  `ComponentFn` concepts.
+  `Cache`, `LayoutInput` / `LayoutScheme`, `CellSpan`, and the
+  `ComponentProps` / `ComponentFn` concepts.
 - `core/Element.h` — `Element` and its builders, the class alone.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
-  `positioned`, `text`, `image`, `custom`, `slot`, `layout`, `memo`.
+  `positioned`, `text`, `frame`, `image`, `picture` (a recorded
+  `SkPicture` as a leaf, sized at what it was recorded at — the door out
+  of a `snapshot()` that keeps the pruning and the caching the bake was
+  taken for), `pathFigure` (a path already in canvas coordinates,
+  re-based into its own bounds), `custom`, `slot`, `layout`, `memo`,
+  with `toU8` for a call site holding a `std::string`.
 - `core/Measure.h` — the one-shot verbs that take a tree without a live
-  composer: `snapshot`, `measure`, `metrics`, `measureRun`, `runPens`.
+  composer: `snapshot`, `intrinsicSize`, `metrics`, `measureRun`,
+  `runPens`, and the two that solve a style BACKWARDS from a size the
+  drawing states — `atCapHeight` (the number a reference actually quotes
+  about lettering) and `fitRun` (a run solved onto a width).
 - `core/Tiles.h` — `tiles::`, the slicing of one baked picture into a run
   of tile-sized rasters.
-- `core/Derive.h` — `connector`, `rail`, `Anchor`, `band`, `bandPointAt`,
-  and the `derive::` namespace that gathers the family.
-- `core/Env.h` — the `env::` inherited-value channel, SigilCore's under
-  the compose name.
-- `core/Composer.h` — `Composer`.
-- `core/Material.h` — the polymorphic paint value that supersedes a flat
-  `Fill` — gradients, images, raw SkSL with live uniforms (float, float2,
-  float4 and whole arrays, constant or live: a scalar binds an `Output`,
-  an array binds a caller-owned `UniformBlock` whose `commit()` publishes
-  an edit), SkSL as source compiled and cached by the library, blend
-  stacks that compile to one shader, world-space anchoring — and the
-  one-line gradient `Fill`s, `linearGradient` and `radialGradient`.
-  `Effect::uniform` takes the same shapes on the post-processing seam.
+- `core/Instances.h` — the instanced sprite leaf: `instancing::Pool`,
+  the struct-of-arrays store on your side of the seam; `instancing::Atlas`,
+  the cells baked once from element trees; `instancing::instances`, the
+  leaf that stamps the pool in one draw; and `instancing::pick`, the
+  inverse of the stamp. The fillers that arrange a pool are the kit's
+  (`kit/Placers.h`).
+
+  A pool can also carry ONE FLIGHT PER INSTANCE — `Pool::Flight`, an
+  opt-in lane like `sizes()` and `alphas()`, holding where a sprite starts
+  and lands in position, rotation, scale and opacity, and the second it
+  leaves and how long it takes. `Pool::fly(seconds, ease)` steps them all
+  and writes the lanes the stamp reads. The times are per instance because
+  the STAGGER is what a field of thousands is: `motion::Spread` and
+  `motion::Cascade` divide one progress between N units and are the right
+  thing when the units are a run, while a field seeded from a distribution
+  has its times already. One ease serves the whole pool, since the
+  variation between sprites belongs in their times and not in their
+  curves. It sits on the pool rather than among the placers because it is
+  not an arrangement: a placer says WHERE the instances of a grid or a
+  ring go, this says when each gets to where it is already going, and it
+  reads state the pool itself holds. Motion that is not a flight stays the
+  caller's — a per-frame shiver, a gate that fades a whole field at once,
+  anything whose value depends on something besides this instance's own
+  progress — and steps after `fly()`, over the lanes it wrote.
+- `core/Derive.h` — `connector`, `rail`, `Anchor` (a normalised point on
+  a keyed node's bounds, or — with an empty `nodeKey` — a free waypoint
+  at a point in the rail's own coordinates, so a bend that clears a
+  corner costs no node), `Tether` (where a box hangs off a keyed one:
+  `on`, the point of the anchor it hangs from, `at`, the point of itself
+  that lands there, an `offset`, and `fallbacks`, the places tried in
+  order when the first will not fit `within` — written with
+  `Element::tether`), `band`, `bandPointAt`, and the `derive::` namespace
+  that gathers the family. A tether resolves in the derive pass before the
+  routes, so a connector that ends on a tethered box routes to where it
+  came to rest; when no place fits, the stated one stands, and a key that
+  names nothing places nothing. The two ROUTE seam values are here too —
+  `Router` over a pair of rects (with `RouteScheme`) and `RailRouter`
+  over an ordered anchor run (with `RailScheme`) — each a comparable
+  value, with `Router::comparable` and `RailRouter::comparable` reporting
+  whether the one a node holds can prune.
+- `core/Composer.h` — `Composer`, and `TextSettling`, what
+  `Composer::settling` reports about a live passage's last layout.
+- `core/Paint.h` — beside `Fill` and `PaintContext`: `frameOf`, `toFill`
+  and `resolveFill`, the three lines that put SigilMaterial's
+  `material::skia::Paint` on a node. The paint model itself is that
+  library's — gradients, images, raw SkSL with live uniforms, blend
+  stacks, world-space anchoring — and what is compose's is the routing: a
+  static paint collapses to a `Fill` and rides the caching and prune path,
+  a live or geometry-dependent one is kept whole on the node so the
+  painter resolves it against the frame it is drawn at. The one-line
+  gradient `Fill`s, `linearGradient` and `radialGradient`, are here too.
 - `core/Feed.h` — the streaming collection: a `feed::Ring` of rows,
   windowed to the newest `feed::Options::visible` and keyed by sequence
   id, so an append costs one mount and every surviving row keeps its
@@ -1050,117 +551,438 @@ sound model; nothing below them changes kernel semantics.
   `sigil::weave::StyleSet` (`feed::TextRow`, `feed::TextOptions`). Built
   purely by composing the kernel; the bordered strip several feeds sit on
   is the kit's `kit::plate` (`kit/Plate.h`), with `kit::tinted` building
-  the one-face style set its rows name.
-- `core/GpuImage.h` — `gpuimg::drawLattice` and `gpuimg::drawSpriteAtlas`,
-  which are mandatory rather than convenient (see the traps).
+  the one-face style set its rows name, and `kit::console` is that plate
+  over N feeds of one voice — each in its own column, or `Console::stacked`
+  to a column — which is the verification plate a study prints its checks
+  into.
 
-The two time helpers a scene reaches for — `motion::ramp`, a delayed
-eased `Transition` in float milliseconds, and `motion::phase`, a wrapping
-`[0, 1)` over a period — are SigilMotion's, in
-`<sigilmotion/Animation.h>`.
+**The animation vocabulary is SigilMotion's and is spelled that way.**
+`motion::Animatable` is the property slot every setter here takes,
+`motion::Transition` the eased change, `motion::animate` the keyframe
+builder, `motion::bind` the shaped binding of a live `Output`, and
+`motion::ease::` the curves — all from `<sigilmotion/Animation.h>`. The
+SCHEDULE is the same value wherever it runs: a cascade over glyphs, over
+a set's children or over a feed's rows is one `motion::Spread`, and what
+compose adds to it — what a unit IS — sits beside it on the track. The
+time helpers a scene reaches for are there too: `motion::ramp`, a delayed
+eased transition in float milliseconds; `motion::phase`, a wrapping
+`[0, 1)` over a period; `motion::quantizeTime` and its integer
+counterpart `motion::stepIndex`; `motion::decay`, the open-ended settle a
+duration-based curve cannot be. So is the whole of "is this value
+moving": `motion::isLive`, declared in
+`<sigilmotion/values/Animated.h>`, is the one body every volatility walk
+in this library asks, and what it can and cannot say is stated in that
+library's README.
 
-**Geometry — `shape/`.** `shape/Shapes.h` is the silhouette and curve
-library, one include over four catalogs — every generator is a comparable
-value, so a shaped node prunes like an unshaped one: `shape/Generators.h`
-(the closed silhouettes: an SVG path, polygon, star, circle, annulus,
-squircle, blob, arc, sector, parallelogram), `shape/Curves.h` (the
-parametric curves in the unit frame: `parametric`, Lissajous,
-harmonograph, rose, spiral, trochoid), `shape/Corners.h` (`rounded` over
-any shape, `chamfered`, `notched`) and `shape/Edges.h` (`edges`,
-`onEdges`, `inset`, `arrow`). `shape/Layouts.h` holds the placement
-schemes for the `layout()` seam (`layouts::Radial`, `AlongPath`,
-`ModularGrid`, `Diagonal`, `BaselineGrid`, `Scatter`). `shape/Routers.h`
-holds the stock connector and rail routers (`routers::straight`,
-`orthogonal`, `polyline`, `octilinear`, `orbit`).
+What compose OWNS is resolution, not the value. An `Animatable` is
+resolved against a `PaintContext`, taking node transitions, stagger,
+mount entrances and the per-frame composer state into account; SigilMotion
+supplies the value and compose decides what a described change means to a
+node. That is also why a bound `Output<T>*` compares BY IDENTITY — the
+pointer, not the number behind it — so a node holding one is declared
+volatile and does not cache, and handing back a freshly constructed
+Output at a new address breaks pruning even when the value is unchanged.
+
+**Geometry — `kit/`.** The silhouette and curve catalog is
+SigilGeometry's, spelled `geometry::shapes::` from
+`<sigilgeometry/kit/Silhouettes.h>`: a comparable `path(SkSize)` value
+needs nothing of a component tree, and every one of them prunes a shaped
+node exactly as an unshaped one prunes. `kit/Layouts.h` holds the placement schemes for the `layout()`
+seam (`layouts::Radial`, `AlongPath`, `ModularGrid`, `Diagonal`,
+`BaselineGrid`, `Jittered`) — each one a placement FUNCTION an author
+could have written out. `core/Table.h` stands beside the seam instead,
+because the auto table is an algorithm and not a formula, and so does
+`kit/Grid.h`.
+
+`layouts::Grid` is the one arrangement a page divides into — equal
+shares, unequal columns sized by what is in them, a fixed rail beside a
+flexible body — because a `layouts::Track` carries a SIZING FUNCTION
+rather than a width. There are four of them: `layouts::px`, a length
+that neither grows nor shrinks; `layouts::content`, as wide as the widest
+thing in the track and no wider; `layouts::fr`, a weighted share of what
+is left over and no floor of its own; and `layouts::minmax`, one under
+the other. `layouts::repeatTrack` is n copies of one track, which is how "four
+equal columns" is spelled.
+
+The rule, per axis, is initialize from the floors, resolve the content
+narrowest-span-first, maximize toward the ceilings, and divide the
+remainder among the shares. What makes a share behave is that weights
+summing under one take only their own share and a share that would fall
+under its floor freezes there and leaves the division, so a squeezed
+container never resolves negative widths. What is still free after that
+stays free, which is why a row of `layouts::content` tracks packs at the
+start of its container instead of stretching to fill it. Both axes run
+that one rule — a row span's deficit is shared across its rows in
+proportion exactly as a column span's is, where the auto table beside it
+drops a rowspan's whole deficit on its last row — and what differs
+between them is only the DEFAULT track: an unstated column is a share of
+the width and an unstated row is as tall as what is in it, so a grid
+fills its container across and grows down the page. A track past the end
+of a list that was given is content-sized.
+
+`Grid::areas` is a picture of the grid drawn out of names, one string per
+row and one token per cell, and `Element::area` is how a child claims one
+of those regions. A name survives what four integers do not: insert a row
+into the picture and every child stays in the region it named, where
+every numbered child after the insertion would have moved a cell. A name
+the picture does not carry is silent, as an unknown key is everywhere
+here, and the child flows instead: into the next free cell, never
+backtracking past the cursor unless `Grid::dense` is set, in which case
+it fills the earliest hole that will take it. A name scattered over cells
+that do not form a rectangle is reported once and placed at the rectangle
+that bounds it: a picture the author can see is wrong is worth saying so
+about, and refusing to lay the page out at all is not.
+`Grid::across` and `Grid::down` say how a child sits in the box its cells
+make when the child itself said nothing with `Element::cellAlign`.
+`Grid::solve` hands back a `Grid::Resolved` — the track sizes and origins
+the rule arrived at — for the same reason the auto table exposes its own:
+a track nothing fills leaves no trace in the placed rects, so a study
+reproducing a printed page cannot read the grid back off them.
+
+A content floor is the second intrinsic contribution, and it is
+`LayoutInput::childMinSizes`: a text leaf's longest unbreakable run,
+measured at a nil width, and everything else's measured size, since layout
+measures once and never re-describes a child at a proposed width. It is
+filled only for a scheme that declares `readsChildMinSizes` — the concept
+`SizesFromContentMinima` — because the text minimum costs a measure per
+child. THE ONE THING A CONTENT TRACK NEEDS FROM ITS CONTAINER is that the
+container range its children at their own size: a container that stretches
+them measures every one at its own width, so the track would be sized by
+the container the content is about to be fitted into and the two would
+chase each other.
+
+**A scheme sees one thing about a child it could not measure: what the
+child CLAIMED of it.** `LayoutInput` carries the container's size, every
+child's measured size and every child's first baseline — all facts a
+layout pass established — plus `LayoutInput::childCells`, one `CellSpan`
+per child, written by `Element::cells` and `Element::cellAlign`, and
+`LayoutInput::childAreas`, the region name `Element::area` wrote, empty
+for a child that named none. The name sits beside the span rather than in
+it because a string on the props of every node in the tree is what the
+node's size budget forbids, and a named region is rare. Both are on the
+CHILD and not in a list the scheme carries beside it, because a parallel list
+has nothing to check itself against: insert or reorder one child and
+every entry after it silently addresses the wrong one, taking another
+cell's span, alignment and origin, with no error and a picture that still
+looks plausible. `CellSpan::declared` is what a scheme reads to tell
+"cell (0,0)" from "wherever you like", so a table can flow the children
+that said nothing into the cells no child claimed. `Table` and
+`layouts::Grid` are placed entirely by it — the grid resolving a name to
+one first; `ModularGrid` reads it too and falls back to its own parallel
+`spans` list for a child that named no cells.
+
+`Table` is the HTML automatic table layout: unequal columns
+sized by what is in them, spans, and a surplus shared out in proportion.
+It is not a modular grid under another name and it goes through none of
+`geometry::arrange` — a module is one size repeated, and no column of a
+table is the width of the next. Columns start at the widest child that
+sits in one alone; spanning children then top their columns up, narrowest
+span first, sharing a deficit in proportion to the widths already found;
+and whatever the table is wider than its content is shared the same way,
+which is what puts every column of a real page on a fractional pixel.
+Rows take the first of those steps and deliberately not the second: the
+whole of a rowspan's height deficit lands on the LAST row it covers,
+because sharing it in proportion inflates the first row of every span and
+drags everything below it down the page. `Table::solve` hands the
+resolved column widths, row heights and origins back, so a study
+reproducing a published table can print what it resolved and diff it
+against what the original measured — numbers no placed rect carries,
+since a column nothing fills leaves no trace in the rects at all.
+
+`kit/Routers.h` holds the stock routers. `routers::straight`,
+`routers::orthogonal` (with `routers::Bend` saying whether the leg turns
+at the midpoint or at either end) and `routers::arc` are `Router`s,
+between one pair of rects; `routers::manhattan`, `routers::polyline`,
+`routers::octilinear` and `routers::orbit` are `RailRouter`s, over a
+whole run of anchors, and `routers::fromPairwise` adapts a `Router` into
+one by stitching its legs into a single contour, so terminal caps and
+casings fire at the run's ends rather than at every waypoint. Every one
+of them is a comparable VALUE, the same seam a `Shape` rides: a `Router`
+or a `RailRouter` holds either a scheme — a value with `route(…)` and
+`==`, which is what each stock factory answers — or a raw callable. Two
+routers built from the same parameters are equal, so a connector or rail
+re-described with an unchanged route SETTLES: it prunes and replays the
+recording it already made. A raw callable compares equal to nothing but
+its own copies and re-patches every describe, which is what the escape
+hatch costs; holding one Router and re-using it — rather than re-minting
+the lambda each describe — restores the prune, since copies of one value
+share their state.
+
+Neither the schemes nor the pool fillers of `kit/Placers.h` derive a ring
+or a grid for themselves. Where item i of n falls on a ring, and which
+cell of a grid of modules it occupies, are functions of numbers alone —
+they belong to SigilGeometry, in `<sigilgeometry/path/Arrange.h>`, and
+both shelves step through those bodies. **One arithmetic, one place**: a
+ring is one ring whether its items are measured children or sprite
+positions in a buffer, and a second spelling would round its own way and
+put the same ring a pixel off itself with nothing in either file to say
+why. What the shelves keep is the decision on top — which radius per
+child, where the anchor of a box is, what closes a run, which pool lanes
+a parameter speaks to.
 
 **Marks — `brush/`.** `brush/Decorations.h` has the concrete primitives
-that plug the `Decoration` seam — `PathFormat` (stroke formatting) and
+that plug the `Decoration` seam — `PathFormat` (stroke formatting, whose
+`antiAlias` is how a hard 1 px rule stands beside the equally hard
+`styles::BevelPair`, `Brackets` and `TickRail`) and
 `stroke`, its one-line spelling; `Shadow` / `shadow`, the soft drop
 shadow; `Slice` (lattice image mapping — its `density` is the source's pixels per
 layout unit in the fixed bands, so a frame generated oversized to stay
 sharp still draws its corners at the width it was designed for);
 `ContourWalk` (walk the outline
-and run a program at each sample); `Wash`; `Border`. The brush engine is
+and run a program at each sample); `Wash`; `Border`. `brush/Adaptors.h`
+runs any of them on another outline than the node's own: `onEdges`,
+against only the sub-contours facing chosen box edges, and `inset`,
+against a concentric copy of the outline. The brush engine is
 three headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
 `LayeredBrush`); `brush/GeometryOps.h`, the one mechanism door for
 deviating an outline (`ops::`, `GeometryOp`); and `brush/Brushes.h`, the
 brush kinds over them — `brush::solid`, the composites `brush::layers`
 and `brush::weave`, and the archetypes `brush::Scatter`, `brush::Pattern`,
-`brush::Ribbon`, `brush::Art`. The line vocabulary is three more:
+`brush::Ribbon`, `brush::Art`. A ribbon is the variable-width band, built
+as one quadrilateral per sampled step rather than as one long contour,
+because a band is the UNION of its cross-sections: zipped into a single
+left-forward, right-back outline the inner rail crosses itself where the
+spine turns hard, the crossing winds the wrong way, and the winding fill
+DROPS the inside of the bend — a hole that opens once the band is wider
+than about half the leg it turns on, and is then wider than the band.
+`Ribbon::join` is what happens on the OUTSIDE of that corner, an
+`SkPaint::Join` because it is the same decision a stroke makes: the
+chord, the arc, or the point (bevelling past `Ribbon::miterLimit`, which
+is also the one join whose bleed reaches past the width). `Ribbon::band`
+hands that geometry back, so a study that MEASURES what was drawn does
+not have to transcribe how it is built. `Ribbon::fillMaterial` paints the
+band with a recipe instead of a `Fill` — the door `strokeMaterial` opens
+on a stroke, mirrored here, so a ribbon beside a stroked outline does not
+have to have the same paint written twice; `brush::presets::taper` and
+`brush::presets::calligraphic` each take a `material::skia::Paint` beside a
+`Fill`, and a live material declares the ribbon animated. The line vocabulary is three
+more:
 `brush/Lines.h`, the cartography and diagram stroke (`lines::Line` —
 parallel casings, terminal caps, ties, waves); `brush/Rails.h`, N-rail
 strokes where every rail is its own line; and `brush/Hatches.h`, the
-parallel, radial and concentric hatches. `kit/Strokes.h` and
-`kit/Plate.h` ship with this tier because they are spelled in its types.
+parallel, radial and concentric hatches — each of the three a MECHANISM
+with every field open. The finished ones over them, whose constants are
+chosen (`cased`, `triple`, `arrow`, `railway`, `wavy`, `rails(n, …)`,
+`quad`, `hatch`, `crosshatch`, `radialHatch`, `concentric`), stand a
+namespace apart as `lines::presets::` in `kit/Strokes.h`, which — with
+`kit/Plate.h`, `kit/Ornament.h` and `kit/Flourish.h` — ships with this
+tier because each is spelled in its types.
 
-**Fills.** The paint vocabulary is SigilMaterial's, spelled as compose
-values. `brush/LayerStyles.h` is the Photoshop route to rich surfaces:
-bevels, sheens, inner shadows built from gradients and blurs rather than
-shaders, and the gel and chrome bundles over the kit's colour tables.
-`core/Sdf.h` gets shape, border, glow and soft shadow out of a single
-shader pass. `core/Pattern.h` and `core/Patterns.h` bake tile recipes
-once into repeating materials, plus stock generators. A material recipe
-is a `Material` through `Material::recipe`, an effect through
-`Effect::recipe`, and an output-stage view transform for
+**Fills.** The paint vocabulary is SigilMaterial's and is spelled there:
+`material::skia::Paint` is what `Element::fill` takes, and
+`material::sdf`, `material::pattern` and `material::field` are where the
+signed-distance surfaces, the tiles and the fields come from.
+`brush/LayerStyles.h` is the Photoshop route to rich surfaces — the
+MECHANISMS: bevels, sheens, inner shadows, outer glows and overlays built
+from gradients and blurs rather than shaders. The LOOKS they are bundled
+into are the kit's, one era per header: `kit/Gel.h`, `kit/Chrome.h`,
+`kit/Gloss.h`, each over SigilMaterial's colour tables.
+`brush/PixelStyles.h` is the other route, the bitmap era's — strokes and
+rectangles on the pixel lattice, never a blur: `styles::BevelPair`, a
+light edge and a dark edge kept inside the silhouette, raised or sunken
+as one value (`styles::bevelPair` states the two tones or derives them
+from the face); `styles::Brackets`, the reticle's L's standing off a box
+at the corners asked for; `styles::TickRail`, a ruler of marks along one
+edge with every n-th one long; and `styles::Scanlines`, hard rows over
+the outline through a blend mode.
+`core/Pattern.h` adds the one thing a tile cannot do for itself — an
+element tree AS the tile, baked through `snapshot()`. A recipe instance
+becomes a paint through `material::skia::Paint::recipe`, an effect
+through `material::skia::Effect::recipe`, and an output-stage view
+transform for
 `Composer::setView` is SigilMaterial's colour transform, compiled only
-when the build finds OpenColorIO.
+when the build finds OpenColorIO. A view handed over as a Material is
+KEPT rather than built once: how cheaply a colour transform can run is a
+fact about the surface — one whose channels are independent is a
+per-channel table on an eight-bit surface and a full-canvas program on
+any other — so `draw` lowers it against `canvas.imageInfo().colorType()`,
+once per colour type, and a host whose surface never changes pays one
+comparison a frame. A view handed over as an `Effect` is already built
+and is taken as it stands.
 
-**Type — `typography/`.** `typography/TextFx.h` supplies the stock preset
-effects (`fx::rise`, `fx::slide`, `fx::pop`, `fx::spinIn`, `fx::typeOn`,
-`fx::waveLoop`, `fx::scatter`, `fx::variableAxisSweep`, `fx::tint`) for
-the kernel's `Element::fx` seam — and `marquee`, the seamless ticker
-built from a clipped strip and a wrapping phase. The effects the runtime
-evaluates by structure are declared with the kernel in `core/Text.h`:
+**Type — `typography/`.** The DRESSING is this feature's, one header per
+value family: `typography/TextUnit.h` — `TextUnit`, one unit as the layout
+placed it; `typography/Selector.h` — `sel::style` and `sel::inFrame`, the
+two selector forms whose subject is a description of this library;
+`typography/TextEffect.h` — `GlyphInfo`, `GlyphMod`, `TextEffect`,
+`Phase`, and the effects the runtime evaluates by structure:
 `fx::scramble`, the `fx::keys` keyframe table, the `fx::pass` shader pass,
 the `fx::seq`, `fx::mix` and `fx::hold` combinators, and the `fx::effect`
-door. `typography/Type.h` is the compose-side spelling of a text style:
-`type` builds a `sigil::weave::TextStyle` from a designated-init `Type`,
-and `pickFace` resolves the first installed family of a fallback chain.
-`kit/Legibility.h` ships with this tier.
+door; `typography/Track.h` — `Track`, `Beats` and `Beat`;
+`typography/Annotation.h` — `Annotation`; `typography/TextPath.h` —
+`TextPath`; and `typography/Typography.h`, the umbrella over them. The
+TEXT ITSELF is SigilWeave's and is included from there: `weave::rich` /
+`weave::RichText` and `weave::Story` for the content, `weave::Unit` for
+the granularity, `weave::Selector` and `weave::sel::` for what a track
+addresses.
 
-**Leaves with their own targets.** `instances/Instances.h` renders
-thousands of sprites as one leaf, with the pool on your side of the seam;
-it is its own target, `SigilComposeInstances`, linked only by what stamps
-with it, and the kit's `kit/Placers.h` (the `place::grid`, `place::ring`
-and `place::repeat` pool fillers) ships with it. `web/Web.h` makes a live
+The kernel describes its text leaf in that vocabulary — a description
+stores tracks, runs and readings — and every member it stores, compares or
+evaluates is defined in the header that declares it, so the kernel links
+no engine to do so; what the feature's archive holds is the members that
+carry a diagnostic and the engine behind dressed type. The stock effects
+over the seam are stock values, and so the kit's — `kit/Kinetic.h`, below.
+A text verb takes this vocabulary and a text query answers in it, and the
+kernel's own headers only name it: a call site that dresses its type, or
+reads a beat or a unit back, includes the header that spells the value —
+this feature's for the dressing, SigilWeave's for the text. A
+style's own numbers are SigilWeave's: `weave::textStyle` builds a
+`weave::TextStyle` from the designated-init `weave::Type`
+(`<sigilweave/style/Type.h>`), and `weave::ports::pickTypeface` resolves the
+first installed family of a fallback chain
+(`<sigilweave/ports/SystemFontManager.h>`). `kit/Legibility.h` ships with
+this tier.
+
+**Leaves with their own targets.** `video/Video.h` makes a streaming
+`SigilVideo` clip a live leaf. `video(clip)` takes its intrinsic dimensions
+from the encoded frame, samples presentation time from the composer's motion
+clock, and disables picture caching while the clip's own decoded-frame cache
+stays active. On a Graphite canvas the leaf passes its recorder to the video
+device executor, so a native YUV frame remains on the GPU through composition;
+the compose kernel links no codec. `VideoFit::Cover`, `VideoFit::Contain` and
+`VideoFit::Stretch` state how the decoded frame meets its box. The leaf's
+`VideoOptions` also carries opacity and blend mode into its single image draw,
+so an additive black-backed effect does not need a grouping layer.
+`video(clip, playback)` is the many-video form: share one playback scheduler
+across the scene so decode work is coalesced on a bounded worker pool and no
+leaf waits for its decoder during paint; the clip registers with the
+scheduler once, so describing the scene again reuses its handle. Passing that
+handle explicitly to several video leaves fans one decoded frame out to
+several compositions. `web/Web.h` makes a live
 Ultralight page a leaf; it is a header-only adapter and the library does
 not link SigilScry, so include it only in targets that do.
 `texture/Texture.h` is the door OUT of this library: a scene painted into
 a surface and handed over as a SigilMaterial texture value, in its own
-target `SigilComposeTexture` — see Boundaries.
+target `SigilComposeTexture`, which links the Graphite context and the
+hardware device its GPU path stands on. `draw/Draw.h` is the door
+to the imperative pen, both ways, in its own target `SigilComposeDraw`:
+`compose::pen` takes a `PenProgram` — a function of a `draw::Pen` — and
+makes the node `custom()` would, at `Cache::None`, with the pen's width
+and height the node's box and its transform starting at the box's
+corner, so a declarative scene drops into p5's verbs for one node; and
+`compose::paintRetained` is where the pen's `element(...)` lands, an
+`Element` painted inside an imperative loop and RETAINED — reconciled
+against what the composer kept for that call site, so its layout, its
+shaping, its caches and its bindings carry from frame to frame.
 
 **Testing — `testing/Checks.h`.** A separate target, `SigilComposeTesting`,
-whose one header verifies generated geometry and reads back what was
-drawn, in `namespace test` (GoogleTest owns `::testing`): `test::coverage`, `test::endpointDegrees`,
-`test::rasterize`, `test::check`, `test::report`,
-`test::failures`. The checks themselves — `test::check` and
-`test::failures` — are SigilMeasure's, brought into `test`; only the
-geometry readers and the feed `test::report` are this library's. Test
+which verifies generated geometry and reads back what was
+drawn, in `namespace test` (GoogleTest owns `::testing`): `test::coverage`, `test::widthAlong`, `test::endpointDegrees`,
+`test::rasterize` and the feed `test::report`. Both geometry checks ask
+one question of a figure hundreds of thousands of times, so both resolve
+the figure ONCE into an index beside them in `testing/Index.h` and read
+their answers out of it: `test::RowIndex` turns each row of a sampling
+lattice into the crossings the path makes with it, so a sample is a
+binary search rather than a walk of every verb, and `test::CellIndex`
+files a flattened figure's edges into square cells, so a cast tests the
+edges along its own line rather than every edge of a band. Both answer
+what the long way answers — the row index counts crossings under the
+rule the path's own containment test counts them by, and asks the path
+itself about any point lying ON one; the cell walk leaves out only edges
+the ray's line misses. The checks a plate
+reports — `measure::check` and `measure::failures`, with
+`measure::finding`, `measure::reading` and `measure::heading` for the
+rows that stand beside claims, and `measure::Table` for the run of them
+— are SigilMeasure's, spelled under its own name from
+`<sigilmeasure/check/Check.h>`; only the geometry readers and
+`test::report` are this library's. `test::widthAlong` is the width
+question `test::coverage` cannot answer: the shortest chord of a drawn
+band through each station of its spine, against the
+`geometry::path::Profile` the band claims. Total ink is the cheap version
+and is blind to a corner defect — a band that loses the inside of a bend
+and gains an outer chord loses and gains nearly the same area, so the sum
+agrees while the picture is torn — and a width is a LOCAL property only a
+local measurement finds. The chord it takes is of the band's FILLED
+REGION: every crossing along the ray is kept, sorted, and the fill rule
+accumulated through them, so a shared seam — two coincident edges of
+opposite sense — cancels and is not a boundary. Resolving the union into
+an outline first would not do: the outline of a run of hundreds of
+overlapping steps walks in and out along the interior seams, enclosing no
+area and carrying edges all the same, and the shortest chord lands on one
+of those excursions. It skips half a width at each end,
+where the shortest chord through a point runs out through the cap rather
+than across the band. `test::report` writes one check or a
+whole `measure::Table` into a `feed::TextRing`, each row in the ink its
+standing and verdict choose from a `test::ReportStyles` — the pass, fail,
+finding, reading and heading names a plate's tinted set registers — so
+the verification block of a study is one table, printed as it runs, and
+no verdict is ever typed into a row's text. Test
 binaries link it, and so does the sketch library, so a sketch can report
 its own checks; nothing that ships does, which is what keeps a
 point-sampled coverage scan out of a paint loop.
 
 **Kit — `kit/Kit.h`.** A tier above the library that adds no kernel state
-and no new equality: `kit::Frame` and `kit::Grid` (figure-local polar and
-unit coordinates) with `kit::disc` and `kit::centred` (a box about a
-centre) and `kit::at` (a box pinned at absolute coordinates, for the
-plate that has no layout at all), `kit::dotSprite` (the round stamp a
-point sink draws each point with), `kit::ticks` and `kit::chords`
-(division ladders as one path),
-`kit::PixFont` (aliased bitmap-font bakes), `kit::Scrim` and the
-halo/shade legibility helpers, the two instruments for text in motion —
+and no new equality: `kit::disc` (a node about a centre, at a radius or
+at a `geometry::path::Frame`'s — a braced pair is the centre, and a
+frame is spelled as one) and `kit::at` (a box pinned at absolute
+coordinates, for the plate that has no layout at all), `kit::dotSprite`
+(the round stamp a point sink draws each point with),
+`kit::PixFont` (aliased bitmap-font bakes, in `kit/PixelType.h`, with
+`kit/Sprites.h`'s sprite sheets and `kit/Frame.h`'s nine-slice frame
+beside it), `kit::Scrim` and the
+halo/shade legibility helpers, the stock text effects over the
+`Element::fx` seam in `kit/Kinetic.h` — `fx::enter`, the one entrance
+every unit-offset reveal is a setting of, with `fx::rise`, `fx::slide`,
+`fx::pop`, `fx::spinIn` and `fx::scatter` over it, and `fx::typeOn`,
+`fx::waveLoop`, `fx::variableAxisSweep` and `fx::tint` beside them, each
+a comparable `TextEffect` built from the constructor any caller may use —
+with `kit/Marquee.h`'s `kit::marquee`, the seamless ticker built from a
+clipped strip and a wrapping phase, whose every dial is one options
+struct,
+`kit/Placers.h`'s `place::grid`, `place::ring` and `place::repeat`, the
+fillers of an instanced leaf's pool — the first two over the same ring
+and grid arithmetic the layout schemes use, which is SigilGeometry's —
+the three instruments in `kit/Instruments.h` —
 `kit::trackMeter` (a cascade's schedule drawn, one cell per beat at its
 rect, filled by its local time — `MeterPlacement` stands the cells over
 the beats or under them as a rule, for a track whose own letters are
-what is being watched) and `kit::restGhost` (the same word
-undeformed under the moving one) — and, shipped with the tiers whose
-types they are spelled in, `kit/Strokes.h`'s shapers, profiles and span
-compositions and `kit/Plate.h`'s bordered feed plate (Brush),
-`kit/Legibility.h` (Typography) and `kit/Placers.h` (Instances). The kit
+what is being watched), `kit::restGhost` (the same word
+undeformed under the moving one) and `kit::curvePlot` (a function of one
+variable walked over its own domain, ruled at values stated in that
+domain's units and dotted at the samples a reference quotes, so a curve
+can be checked against one; its `Plot::at` is the mapping the drawing
+uses, which is how a caller's own label lands ON the curve rather than
+near it) — the furniture of a specimen sheet in
+`kit/Specimen.h` — `kit::cell`, a body with a label and a note set
+beside it as a `kit::Caption` says (`Caption::Where` puts the note under
+the body, or both lines above it, or both below, and `labelMeasure` and
+`noteMeasure` wrap either line at a stated width so a long one does not
+widen the cell it captions), `kit::well`, the fixed, clipped surface a
+specimen is drawn into with every size, fill and padding supplied by the
+caller, `kit::formatted`, the dynamically sized printf-style reading those
+captions use, `kit::cells`, a run of
+them along one axis with a hairline between neighbours, and
+`kit::sheet`, the titled and footed page that rules its header and
+footer off from the content between them; every face, size and distance
+is the `Caption`'s and the `Sheet`'s, so the kit decides no look;
+`kit/Ground.h`'s two dressings for a flat ground — `kit::vignette`, a
+radial ramp measured to the CORNER so it meets all four at one value on
+a surface that is not square, and `kit::grained`, value noise collapsed
+to one channel and soft-lit so a coloured ground takes a grain as light
+rather than as speckled hue, with mid grey soft light's identity and so
+the strength linear and zero exact — the furniture a page of set text
+carries in `kit/Typeset.h` (`kit::ruby` and `kit::kenten`, the two stock
+`Annotation`s; `kit::bullets`, whose markers hang in the indent;
+`kit::rules`, cut to the extent a block's lines occupy;
+`kit::NestedStyle` with `kit::nestedRun`, where a block's opening words
+stop; and `kit::columns` over a `kit::ColumnSet`, N frames of one story
+threaded in order, with the `kit::Spanner`s that break the chain),
+what stands BESIDE that text in `kit/Annotations.h` (`kit::annotate`
+under `kit::Beside`, which does the arithmetic of the reading direction,
+or `kit::Anchored`, which takes the offset the author states) — and,
+shipped with the tiers whose
+types they are spelled in, `kit/Strokes.h`'s finished lines, braid,
+bracket spans, brush presets and `kit::groove` — the engraved cut across a disc's stroke, a
+radial ramp concentric with the circle so it is dark on the inner wall
+and lit on the outer, as the comparable `kit::grooveRamp` paint or the
+`PathFormat` that wears it — with `kit/Plate.h`'s bordered feed plate and
+`kit/Ornament.h` and `kit/Flourish.h`, the pieces a manuscript border is
+made of (Brush), and
+`kit/Legibility.h` (Typography). The kit
 is a **separate CMake library** (`SigilComposeKit`) whose only include
 path is compose's public headers, which is how the public/internal
 boundary is proven rather than asserted. Note that `kit/Kit.h` does not
-pull in the four headers shipped with other tiers; include them directly.
+pull in the headers shipped with other tiers; include them directly.
 
 ---
 
@@ -1183,11 +1005,11 @@ find out.
   library cannot see) must declare `.cache(Cache::None)`. It is the
   immediate-mode floor and it costs a repaint per frame, which is the
   point.
-- A `Material` that reads `uTime` or carries a uniform bound to an
-  `Output` is live by construction and declares itself; so is an `Effect`
-  with a bound uniform or a live child. Tier inheritance is real: a live
-  child makes the parent effect live, so no cache can freeze the
-  parameter.
+- A `material::skia::Paint` that reads `uTime` or carries a uniform bound
+  to an `Output` is live by construction and declares itself; so is a
+  `material::skia::Effect` with a bound uniform or a live child. Tier
+  inheritance is real: a live child makes the parent effect live, so no
+  cache can freeze the parameter.
 - A decoration that paints beyond the node's box declares `bleed()`, and
   one that needs to say how wide the *mark* is declares `reach()`. These
   are different numbers — an inner-aligned stroke bleeds zero while
@@ -1203,6 +1025,143 @@ reads a stale value forever. The conservative fallback is built in:
 anything holding an incomparable callable compares *unequal* and never
 prunes.
 
+**A LIVE LAYER EFFECT OVER STATIC CONTENT IS APPLIED TO A BAKE.** A node
+whose only volatility is its own `effect()`'s bound parameters — nothing
+live in its children, its material, its scalars or its decorations —
+still declares itself volatile, because the pixels it composites do
+change. But the volatility is applied *outside* the content, so the
+content is rasterized ONCE with the effect left out and the effect runs
+over that one image at every blit. The image's identity holds, and the
+bake is held across every value the parameter takes. `backdrop()` is the
+exception and always paints live: it reads what is already on the canvas,
+and a bake holds none of that. A masked node is refused too, since the
+blit-side resolve hands the effect's child materials the node's box and
+clock rather than a gated outline.
+
+**AN EFFECT DECLARES ITS REACH, OR IT COSTS THE CANVAS.** A filter built
+from a runtime shader may write any pixel, so Skia gives it a layer the
+size of the whole clip and a small node's effect then evaluates over the
+entire canvas — the same node twice as expensive on a canvas twice the
+size. `Effect::blur(map, maxSigma)` declares its reach (the box the map
+is defined over, grown by the range's Gaussian support) and costs its own
+node. An author writing a runtime-shader effect of their own owes the
+same declaration.
+
+**A SCALE MOTION THAT NAMES ITS DESTINATION IS BAKED THERE, ONCE.** A
+`Cache::Texture` bake taken while the node is moving is held in local
+space at a coarse scale ladder, so a scale nobody declared — a resize, a
+pinch zoom — reuses one bake per step. An entrance is the opposite case:
+a `from(a).to(b)` on `scale`, `scaleX` or `scaleY` names where it is
+going, so the bake is taken there once and the blit minifies through the
+entrance, which is the sharp direction. A scale driven by a binding names
+nothing and keeps the ladder.
+
+**A DECLARED DENSITY MAKES A BAKE A PICTURE OF THE CANVAS.** The ladder
+above is right for a host that draws its canvas at one scale and wants
+the sharpest raster for it, and wrong for a host whose reader can zoom:
+a wheel spin walks the rungs, and each one re-rasterizes every generated
+material in the scene at a new resolution while the reader waits.
+`Composer::setBakeDensity(devicePixelsPerUnit)` names the density every
+pixel bake is taken at instead, whatever matrix the frame is drawn
+under. The bake is then taken ONCE and blitted through the view's
+transform ever after — exactly as an image node's pixels are: sharp at
+the density it was baked for, magnified beyond it, and never re-taken
+for a change of view scale. `Element::bakeScale` still multiplies it, so
+a node that needs more resolution than the canvas carries asks for it and
+gets it once. Content that changes still re-bakes, because that is a
+change of what the picture IS, not of how big it is being shown.
+`Composer::bakeDensity()` reads it back, and zero — the default — is the
+ladder.
+
+**A BAKE IS BLITTED WHERE ITS INK IS.** A bake held in local space is
+drawn through the node's own transform, and a transform that is not an
+integer translation resamples: the sampler runs over every pixel of the
+bake's rect whether the texel it reads is ink or transparent black. The
+shapes a bake is most worth taking for are the ones that waste the most
+of that — a ring of type, a turning arc layer, a glow round a figure is a
+thin band inside a square. So a bake records which coarse tiles of it
+hold any non-transparent texel, and the blit is admitted only on the
+whole device pixels those tiles can reach. Nothing about the picture
+changes: the draw is the same draw under the same matrix, the region is a
+set of whole pixels so no pixel falls between its parts, and a tile is
+kept if any texel in it or beside it is ink, so a skipped tile is one no
+sample could have read. A solid bake is refused a grid and blitted whole,
+as is a small one and a bake carrying a deferred effect — a filter
+spreads content outside the pixels that carry it, which is the one thing
+the grid does not describe.
+
+The region is device pixels, so it is bound to a device. A blit made
+inside a recording is replayed under a matrix of its own, and a region
+ignores that matrix the way it ignores every other — so the region is
+computed through the replay, and a recording that holds one is pinned to
+the matrix it was made under, remade when that matrix moves, exactly as a
+recording holding a device-space bake is. A recording that cannot be
+pinned — one under a declared motion, which replays under a matrix nobody
+knows yet — blits the bake whole.
+
+**A PROMOTED NODE PAINTS THE PICTURE ITS LIVE PAINT PAINTS**, within one
+code value per channel, and that is the whole of what automatic promotion
+may cost. The one value is not slack for a bake to be approximately
+right: a device bake is taken under the live matrix post-translated by an
+integer, and inverting that matrix at a scale whose reciprocal is inexact
+does not cancel the integer to the last bit, so a shaded pixel may land
+one code value from the live paint and nothing may land further. Every
+condition the promoter is held to follows from that — the bake carries
+the canvas's own clip, so an edge that leaves the canvas is cut the same
+way in both; the node must be upright, since off-axis the same inversion
+does not cancel; and nothing live may be inside the bake. A scene whose
+promoted frame differs from its unpromoted one by more than a value is a
+defect in this library, never a plate to rebase.
+
+The one value is the bake **over transparent black**. A bake that lands
+on CONTENT carries a second, and it is a rounding rather than a move: the
+node's own coverage is composited twice where the live paint composited
+once — into the bake, and again when the bake is blitted — and Skia's
+blit of a raster image is not the arithmetic of its direct shader draw.
+So a texel whose alpha is between none and all can settle one value
+further out over a bright backdrop, and taking the bake at higher
+precision does not remove it. It appears only where the node's own alpha
+is partial; an opaque node over anything is exact. Anything beyond that
+second value is a picture that changed.
+
+**A PAINT PROGRAM OF ONE'S OWN READS THE BACKDROP.** A `custom()` leaf is
+handed the canvas and may draw with any blend mode — and a picture
+recorded elsewhere and replayed through one may hold any blend inside it.
+Nothing in this library can look inside a callable, so the refusal
+analysis counts such a node as compositing with the canvas: it and every
+ancestor are refused the automatic bake and the memo hold, and the row
+says `ReadsBackdrop`. The cost of the other reading is not a rounding — a
+plus-blended wash baked against transparent black lands a hundred code
+values from its live paint. An author who knows their program only draws
+over what it covers asks for the bake with `.cache(Cache::Texture)`.
+
+**WHAT DECIDES A PROMOTION IS A POLICY, AND ONE OF ITS VALUES HAS NO
+STOPWATCH IN IT.** `Composer::setAutoTexturePromotion` takes
+`PromotionPolicy::Off`, `ByCost` or `Eager`. `ByCost` is the default and
+the library's own judgement: a node is baked once its paint has measured
+over the threshold for several consecutive frames, which means the set of
+nodes promoted is a fact about how busy the machine was — on an idle one
+it can be empty. `Eager` bakes every node the rules above admit, from its
+first frame, whatever it costs. Not one eligibility rule moves: a node
+whose bake would paint different pixels is refused under `Eager` exactly
+as under `ByCost` and reports the same reason. It is not a performance
+mode — a bake nobody needed costs the bake — it is how a run that means
+to TEST the promoter gets the same node set on every machine, and gets
+all of it rather than the few nodes that happened to be slow.
+
+**THE LANE THAT HOLDS THE PROMOTER TO THAT.** Every scene in the sketch
+registry is rendered twice on the CPU — once with the policy `Off` and
+once `Eager`, everything else about the two runs pinned to the same
+clock, the same fixed step and the same capture moment — and the two
+pictures are differenced channel by channel. The pair is judged by the
+one code value above: a scene whose worst channel exceeds it is a
+promoted node painting a different picture, and it is filed against this
+library. Because the on half is eager rather than measured, that sweep
+covers every promotable node in the registry and reports the same numbers
+on any machine. It is `sigil.py plates --tier promotion`, and it
+is the only run in the repository that photographs this library with
+promotion switched on.
+
 ---
 
 ## Traps
@@ -1213,11 +1172,11 @@ Several correct behaviours produce nothing, with no diagnostic, and look
 exactly like a layout bug.
 
 - **An unknown key resolves to nothing, everywhere in the derive family.**
-  `flowAround("typo")`, `spans::fit("typo")`, `around("typo")`, a
-  `connector` to a node not in the tree, a `strand::from` on a missing key
-  — every one draws nothing and says nothing. Check your keys first. (A
-  `rich().slot()` name is the one that is LOUD, once: it names a mount point
-  the author typed, not a geometry source.)
+`flowAround("typo")`, `spans::fit("typo")`, `around("typo")`, a `connector`
+to a node not in the tree, a `strand::from` on a missing key — every one
+draws nothing and says nothing. Check your keys first. (A
+`weave::rich().slot()` name is the one that is LOUD, once: it names a mount
+point the author typed, not a geometry source.)
 - **Hit testing returns any keyed node whose box contains the point,
   painted or not.** A keyed full-bleed layout shell with no fill therefore
   swallows every hit in the frame, and the failure is total and silent.
@@ -1226,10 +1185,11 @@ exactly like a layout bug.
 - **Skia's native lattice and atlas draws are not implemented on
   Graphite** in this Skia — they draw nothing. Worse, one recorded on a
   raster canvas still vanishes when the recording replays on Graphite, so
-  a raster test cannot see it. Use `gpuimg::drawLattice` and
-  `gpuimg::drawSpriteAtlas`, which decompose on every backend and never
-  emit the native op. This is not an optimisation layer; it is the only
-  correct path.
+  a raster test cannot see it. Use SigilSkia's `skia::draw::drawLattice`
+  and `skia::draw::drawSpriteAtlas`
+  (`<sigilskia/draw/Direct.h>`), which decompose on every backend and
+  never emit the native op. This is not an optimisation layer; it is the
+  only correct path.
 - **A `custom()` leaf sizes like an empty box.** It is literally a box with
   one background program, so it has no intrinsic size: dropped into an
   `absolute().inset(0)` parent it measures zero on the main axis and the
@@ -1253,13 +1213,33 @@ your outputs where you hold your model.
 The raw-callable escape hatches — a `Shape` built from a lambda, an
 unkeyed `custom()` program, a bare `PaintProgram` decoration — can never
 compare equal to a separately constructed one, so their nodes re-patch on
-every describe. The fix is to hold the value rather than re-minting it,
-or to wrap the node in `memo()`. Two spellings avoid the problem outright:
-`custom(key, program)` makes the key the program's identity, and every
-`shapes::` generator is a comparable value.
+every describe. They stay in the grammar and they stay always-live: a
+node carrying one is re-patched and re-recorded for as long as it exists,
+which is the price of handing over something the library cannot read.
+
+**A callable becomes comparable by declaring what tells it apart**, and
+there are three spellings for that, one per kind of identity:
+
+- **the path is the identity** — `.shape(heldPath(p))` over
+  `.shape([p](SkSize) { return p; })`. A path cooked once and held
+  compares by its own generation, which every copy carries. Rebuilding the
+  path each describe is a new generation and stays conservative: cook it,
+  hold it, hand it here. `pathFigure(p, bleed)` is the leaf that also
+  gives the node the path's own bounds.
+- **a value the body closes over is the identity** —
+  `.shape(key, fn)` (or `keyedShape(key, fn)` for the value form) and
+  `custom(key, program)`.
+- **the whole drawing is a value** — every `geometry::shapes::` generator,
+  including the keyed `shapes::parametric(key, …)`.
+
+The keyed forms all take one author contract: **one key names one
+drawing**. Anything the body reads that is not in the key is invisible to
+the prune, and a pruned node replays the picture it recorded — so a
+number left out of the key freezes at whatever it was on the frame that
+recorded, with no error and no warning.
 
 This matters more than it sounds. An inherited value carried through
-`env::` that holds a `std::function` is incomparable, and that turns every
+`core::env::` that holds a `std::function` is incomparable, and that turns every
 `memo` below it into a permanent miss. Materialise derived values *into*
 the type: run the function, store the result.
 
@@ -1283,9 +1263,10 @@ gate value by combining spans with `|`, never across masks.
 
 One coordinate convention, stated once and obeyed everywhere: **positive
 `across` is to the LEFT of travel**, which in screen space (y down) is
-outside a clockwise path. `bandPointAt`, `Profile::across`,
-`strand::offset`, `TextPath::offset` and the `lines::` family all mean the
-same side. Relatedly, **fraction 0 on a boundary is the bottom-left
+outside a clockwise path. `bandPointAt`, `TextPath::offset`, the
+`lines::` family and every signed distance in `geometry::path` — a
+`Profile`'s `across`, `geometry::path::profile::offset`,
+`geometry::path::parallel` — all mean the same side. Relatedly, **fraction 0 on a boundary is the bottom-left
 corner**, running up the left edge — so `spans::upTo(0.25f)` on a square is
 the left edge, not the top one.
 
@@ -1293,11 +1274,31 @@ the left edge, not the top one.
 
 ## Boundaries
 
-The library links `SigilCoreReconcile`, `SigilCoreCache`,
-`SigilGeometryPath`, `SigilImage`, `SigilMotion`, `SigilWeave` and Skia
-publicly, and Yoga privately. `SigilCoreReconcile` is the reconciler: the
-keyed and positional match, the memo, the identity prune, the `env::`
-channel and the animation lane operations are its, and `Composer` is its
+The kernel links `SigilCoreReconcile`, `SigilCoreCache`,
+`SigilCoreComparable`, `SigilCoreCompute`, `SigilGeometryPath`,
+`SigilImage`, `SigilMaterial`, `SigilMeasure`, `SigilMotion`,
+`SigilSkiaDraw` (the direct draws the instanced leaf stamps through),
+`SigilWeave` and Skia publicly, and Yoga and Boost's container and
+unordered targets privately. The brush tier adds `SigilGeometryKit`, the
+silhouette shelf a brush is applied to, and the typography tier, whose
+vocabulary its text decorations are spelled in; the kit tier links the
+brush tier — the arrow between those two points one way. Each tier also names, on its own link line,
+every library its headers include, so no tier reaches a library through
+the kernel's.
+
+**What compose IS, after all of those: the element runtime.** It
+reconciles a description against a retained tree, lays it out, paints it
+in a stated stacking order, caches what it can prove is still, and holds
+the text element and the marks that dress an outline. What it does not
+hold is any of the four vocabularies it draws with. A silhouette, a width
+law, a deviation, a band, a crossing and a figure's coordinate frame are
+`geometry::`; a paint, a post-processing effect, a signed-distance
+surface, a tile and a field are `material::`; a style, a face and a
+paragraph are `weave::`; an animatable, a transition and a cascade are
+`motion::`. Each is spelled at its own origin here — compose re-exports
+none of them. `SigilCoreReconcile` is the reconciler: the
+keyed and positional match, the memo, the identity prune, the
+`core::env::` channel and the animation lane operations are its, and `Composer` is its
 host — the description comparators, Yoga, text and paint stay here.
 `SigilCoreCache` is the caching kernel, and `Composer` is its host too:
 the three-valued cache policy (`cachePolicy` maps this library's
@@ -1308,10 +1309,9 @@ release that proves a node declaring volatility is holding still, and the
 three-way bake decision are its. What every term MEANS is compose's: which
 Skia paint moves pixels off the describe clock, which of its lanes a value
 memo can compare, what a recording is and when it may be replayed.
-OpenColorIO is optional and gates `paint/Ocio.h` alone.
-`SigilGeometryPath` supplies the contours, polylines, poses and seeded
-noise that every outline walker here reads through, and compose adds no
-path geometry of its own. `travel()`'s motion path is the worked example:
+`SigilGeometryPath` supplies the contours, polylines, poses, seeded
+noise, width laws, shapers, bands and crossings that every outline walker
+here reads through, and compose adds no path geometry of its own. `travel()`'s motion path is the worked example:
 the curve is measured into that library's contours once per shape and
 size, and each frame's position is one pose read along them, walked as a
 single arc-length coordinate. What stays here is the
@@ -1331,13 +1331,27 @@ value equal to the frame before's, which is what lets a consumer prune on
 it. The surface is a raster one by default and a texture on a GPU device
 when a host hands the scene one, so a renderer standing on that same
 device binds the pixels where they were painted rather than copying them.
-The arrow points one way: this feature links SigilSkia and SigilMaterial's
-texture feature, and nothing that samples the value links compose.
+The arrow points one way: this feature links SigilMaterial's texture
+feature, SigilSkia's graphite feature and SigilCore's hardware device,
+and nothing that samples the value links compose.
 
-Deliberately *not* linked: SigilScry (the web leaf is a header-only
-adapter, exercised by its own test target), EnTT (the instancing header
-keeps the registry on your side), the mesh-and-material `SigilGeometry`
-above the path leaf, Diligent, and Qt — Qt identifiers are banned
+`SigilComposeDraw` is the feature that meets SigilDraw's pen, and the
+arrow between the two libraries points one way: this feature links
+SigilDraw, and SigilDraw names nothing of compose — the pen reaches a
+retained `Element` through a seam it declares for any guest,
+`paintRetained`, which this feature defines for `Element` in compose's
+own namespace. The clock is whoever steps the pen: a `compose::pen`
+node's pen reads the composer's clock through the paint context, and a
+retained element's composer runs on a clock stepped by the pen's frame
+delta, advancing on the frames it is painted and standing still on the
+frames it is not. Neither side reads the wall, which is what keeps a
+plate with a pen in it reproducible.
+
+Deliberately *not* linked: SigilVideo and SigilScry (their live leaves are
+header-only adapters with their own targets), EnTT (the instancing header
+keeps the registry on your side), SigilGeometry beyond the path leaf and
+the mesh its silhouette shelf rests on (no camera, curve, point operator,
+renderer, codec or device), Diligent, and Qt — Qt identifiers are banned
 outright in exported headers.
 
 What it refuses to be:
@@ -1355,12 +1369,14 @@ What it refuses to be:
   place a surface is owned, because a picture another library samples has
   to live somewhere and the alternative is every such consumer writing
   the same three lines.
-- **No depth and no perspective in the model.** There is no z, no
-  `rotateX`, no projection. A camera, if you want one, is the host's
-  matrix on the canvas — a recording is matrix-independent by
-  construction, so a moving camera invalidates nothing the library holds.
-  The places that pin pixels to a device rect refuse a perspective matrix
-  explicitly.
+- **No scene.** The depth lanes are CSS's model over the retained 2D
+  tree — a node is a plane, projected onto its parent's — and nothing
+  more: planes never intersect, nothing is lit or cast, and a depth is
+  not a position in a world. A camera over the whole picture is still
+  the host's matrix on the canvas — a recording is matrix-independent
+  by construction, so a moving camera invalidates nothing the library
+  holds — and the places that pin pixels to a device rect refuse a
+  perspective matrix explicitly, the host's or a plane's own.
 - **Compositing happens in encoded sRGB, with no linear stage.** Every
   surface compose paints into is `N32Premul` with no colour space
   attached, so the `SkColor4f` you write is the display-encoded number
@@ -1377,19 +1393,23 @@ What it refuses to be:
 
 The library is one feature target per directory, and a consumer links the
 tier it draws with: `SigilComposeCore` (`core/` — the kernel: elements,
-layout, paint, transitions, text and the feed, as the host of
-SigilCore's reconciler),
-`SigilComposeShape` (`shape/` — silhouettes, layouts, routers),
-`SigilComposeTypography` (`typography/` — the text engine behind dressed
-type, with the type styles and the text-fx presets), `SigilComposeBrush`
+layout, paint, transitions, text, the feed and the instanced leaf, as
+the host of SigilCore's reconciler),
+`SigilComposeTypography` (`typography/` — the text vocabulary and the
+engine behind dressed type), `SigilComposeBrush`
 (`brush/` — decorations, lines, brushes, the stroke grammar's engine and
-the mask gates, with `kit/Strokes.h` and `kit/Plate.h`), `SigilComposePaint`
-(`paint/` — patterns, SDF materials, layer styles, OCIO),
-`SigilComposeInstances` (`instances/` — the instanced sprite leaf and the
-kit's placers, over Core), `SigilComposeTexture` (`texture/` — a scene
+the mask gates, with `kit/Flourish.h`, `kit/Ornament.h`, `kit/Plate.h`
+and `kit/Strokes.h`),
+`SigilComposeTexture` (`texture/` — a scene
 painted into a surface and handed out as a texture value),
+`SigilComposeVideo` (`video/` — a streaming SigilVideo clip sampled from the
+motion clock),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
-`SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/`). Each directory holds the target's sources,
+`SigilComposeDraw` (`draw/` — the door to SigilDraw's pen, both ways),
+`SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the
+shelves: the silhouette catalog spelled for a node, the layout schemes
+and the grid, the routers, the placers, the typesetting furniture and the
+kinetic type presets). Each directory holds the target's sources,
 its internal headers, its `test/` and its `bench/`; the public headers
 sit under `include/sigilcompose/<feature>/`. A harness several features
 compose against belongs to none of them, so the shared ones sit at the
@@ -1399,44 +1419,93 @@ feature targets it draws with by name, so a dependency on a tier is a
 stated fact.
 `SigilCompose` remains as the whole-library name for a consumer outside
 this tree, the way `SigilWeave`, `SigilMotion` and `SigilGeometry` each
-keep one: it is Paint (which reaches Brush, Shape and Core) plus
-Typography, never the instanced leaf or the web leaf, and nothing here
-links it. From `apps/spell-circle-canvas`:
+keep one: it is Kit, Brush and Typography, which between them reach
+Core, never the web leaf. The sketch library links it — a sketch draws
+with the whole vocabulary and names no tier — and every other consumer
+here names the feature targets it draws with. From
+`apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug
-ctest --test-dir build -C Debug --output-on-failure
+python3 scripts/sigil.py setup --config Release
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
 ```
 
-Registered tests, one binary per feature target so that each links only
-the target it exercises and a test reaching past its tier fails to link:
-`compose_core_test` (the kernel — elements, the reconciler, layout, paint,
-transitions, text, the feed, masks and the field walks; links
-`SigilComposeCore` alone), `compose_shape_test` (silhouettes, layouts,
-routers, rails, travel), `compose_text_test` (text data, the text pass,
-vertical writing, motion along paths, the text-fx presets, rich spans),
-`compose_brush_test` (decorations, lines, brushes, the stroke grammar,
-the kit's stroke presets), `compose_paint_test` (patterns, SDF materials,
-layer styles, colour management), `compose_instances_test` (the pool,
-the atlas, the stamp, the pick and the placers), `compose_kit_test` and
-`compose_studio_test` (the kit, and the queries, the studio and the
-instruments over it), `compose_spike_test` (the Yoga+SigilWeave
-measurement contract, with `core/`), and the library's own:
-`compose_docs_test` (the engine walkthroughs and the generated README
-probes) and `compose_api_doc_probes_self_test`,
-plus `compose_gpu_test` (Apple only, needs the Graphite plumbing) and
-`compose_web_test` (needs the Ultralight SDK). Each binary's translation
-units share `test/support/Host.h` — the composer-in-a-raster-surface
-harness — through a support header of their own that includes only what
-they use. The benchmarks are executables, not tests.
-There is one benchmark binary per tier — `compose_core_bench`,
-`compose_shape_bench`, `compose_brush_bench`, `compose_paint_bench`,
-`compose_text_bench` — each in its feature's `bench/` over the shared
-`bench/BenchSupport.h`, linking only the library it measures, all built
-by the `benches` target and run by `scripts/bench_ledger.py`; anything
-resembling a performance claim belongs to them and to the plate ledger,
-never to prose.
+Registered tests. The library has ONE test binary, `compose_test`, built
+from every feature's `test/` directory; ctest discovers one entry per
+CASE out of it, so `ctest -R 'KitGrid\.'` selects a suite and
+`ctest -R 'ComposeContent.AKeyedShapeSettlesOnTheValueItClosesOver'` one
+case, with no target behind either. What locates a case is that a suite
+is named for the feature it covers and its file sits in that feature's
+directory. The kernel's suites are in `core/test/` (elements, the
+reconciler, layout, paint, transitions, text at rest, the feed, the
+instanced leaf, masks, the depth lanes and the shared space, tethers and
+the field walks), the text engine's in `typography/test/` (text data, the
+text pass, vertical writing, motion along paths, the paragraph controls,
+rich spans, the variation drive), the stroke and decoration engine's in
+`brush/test/` (decorations on shapes and on type, lines, the brush kinds
+and the engine under them, the stroke grammar, stamps and strips, the
+mask gates, the paint values this tier spells over SigilMaterial, the
+pixel styles and the kit's stroke presets), the kit's in `kit/test/` (the
+kit's own values, the grid, columns of one story, silhouettes and layout
+schemes, routers, placers, travel, and the queries, studio and
+instruments over them), and one apiece in `texture/test/` (textures as
+element content), `draw/test/` (a pen program hosted in a node),
+`video/test/` (video frames as element content) and `web/test/` (the
+Ultralight leaf, present only where the SDK was found). The library's own
+sit at the root: the generated probes over this page and `TYPOGRAPHY.md`,
+the GPU read-backs, and `compose_api_doc_probes_self_test`, which is a
+Python run rather than a case. `compose_header_self_test` is the other
+one: every public header compiled first and alone, which is what makes
+"each header stands on its own" a build fact rather than a claim.
+
+One file per subject, named for what it asserts — a case is found by
+opening the file its subject names, not by searching for its case name.
+The translation units share `test/support/Host.h` — the
+composer-in-a-raster-surface harness — through a support header of their
+own that includes only what they use, and the font context that harness
+holds is the tree-wide `src/test/Fonts.h`. A case that skips or vanishes
+without something says so with a ctest label, and the label is attached
+to the cases that need it rather than to the binary: `gpu` on
+`ComposeGpu`, `DirectImageDraw` and `ComposeTexture`, `ultralight` on
+`ComposeWeb`, and `fonts` on the two that ask the MACHINE for a face —
+the vertical suite, whose Japanese prose needs a whole CJK family, and
+the one case that asks the installed italics whether their ink overhangs
+the advance. Every other case sets its faces from the instruments this
+repository ships, so it answers the same on any machine.
+
+A case here asserts one thing a header promises and is named that
+promise as a sentence. It pins only what editing this library could
+falsify — a caching count, a closed form, a field walk, one description
+drawn two ways — never an anti-aliased byte, a fitted tolerance, a count
+the machine's fonts could move, or elapsed time: pixel identity is the
+plate ledger's to judge and timing is the bench ledger's. A claim made N
+times with one thing varying is one `TEST_P` whose parameter is that
+thing. Committed test assets sit in `test/assets/`, and the faces more than one
+library asks of — a ligature, an advance-moving axis beside an
+advance-holding one, zero-advance combining marks — in the tree's own
+`src/test/assets/`, reached as `sigil::test::instrument::variable()` and
+its siblings, so a claim about a face is a claim about a face this
+repository ships. The benchmarks are
+executables, not tests.
+There is one benchmark binary, `compose_bench`, and a claim about how a
+cost GROWS lives in it rather than in a ctest wall-clock ceiling, because
+a single size cannot show a rate. Its arms sit in each feature's `bench/`
+over the shared `bench/BenchSupport.h`; it is built by the `benches`
+target, lands in `bin/<config>/benches/` and is run by
+`sigil.py bench`. Anything resembling a performance claim
+belongs to it and to the plate ledger, never to prose.
+
+**Which node in a scene is slow** is a different question, and the
+painter answers it two ways. `Composer::setProfiling` fills
+`Composer::profile` with one row per node — its label, its total and self
+milliseconds, the cache tier it took and the promotion verdict — for a
+host that wants the table. `COMPOSE_PROF=<ms>` in the environment needs
+no host at all: every draw over that many milliseconds prints as it
+happens (a blit, a picture replay, a live paint, and the bakes those are
+bought with), which is how a headless run says where its time went. Any
+unparsable value means four milliseconds; unset, neither costs a clock
+read.
 
 **Looking at any of it** goes through SigilSketch, which is where every
 renderable thing in this repository lives: one file per scene, one
@@ -1448,15 +1517,26 @@ its own.
 
 ### The generated doc-probe translation unit
 
-`compose_docs_test` builds a C++ file that does not exist in the source tree.
-`test/docs/api_doc_probes.py` reads this document, extracts every qualified
-name an author could copy out of it — from fenced code blocks **and** from
+The doc-probe translation unit is a C++ file that does not exist in the
+source tree.
+`test/docs/api_doc_probes.py` reads this document AND `TYPOGRAPHY.md` —
+both are the library's canon, and prose nobody compiles is prose that goes
+stale — extracts every qualified name an author could copy out of them — from fenced code blocks **and** from
 inline `code` spans, because the prose carries as many names as the
 examples do — and emits probes that only compile if the headers still spell
 those names that way. A member is probed through a `requires` expression, a
 namespace-scope entity through a using-declaration, and a designated
 initialiser through the initialiser itself, which is a stricter question
 than whether the name resolves.
+
+A BARE name is checked too wherever the document says which header owns
+it: every backticked name in a bullet that opens with a header path — the
+header map above is nothing else — is looked up in that header's own text,
+and a name no header of the library spells fails the run exactly as a
+qualified one does. A name some other header spells is reported as
+misfiled rather than missing. Outside such a bullet an unqualified name is
+still invisible to the guard, because resolving one would mean resolving
+it the way a compiler does.
 
 The consequence is the point: a name written here that drifts out from
 under the prose is a build break, not a confident wrong answer. Names the

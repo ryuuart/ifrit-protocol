@@ -1,10 +1,12 @@
 /** @file
  * The text-fx seam's resolution against a laid-out paragraph: the per-walk
  * glyph structure every track shares, selection as glyphs and as text
- * ranges, the cascade arithmetic that turns one master progress into a
- * local time per glyph, the composition algebra, and the stock combinators.
- * The comparable values themselves — `TextEffect`, `Selector`, `Stagger` —
- * are the kernel's and are built in Element.cpp.
+ * ranges, the walk that decides which beat each glyph falls in at each
+ * level, the composition algebra, and the effects the runtime evaluates
+ * by structure — the sequence, the keyframe table, the hold, the
+ * scramble and the mix. The arithmetic over those beat numbers is
+ * SigilMotion's cascade; the comparable values themselves — `TextEffect`,
+ * `weave::Selector` — are defined with their headers.
  *
  * Nothing here touches an Instance or a canvas. TextFxPainting.cpp drives it:
  * build the structure once per frame, resolve each track's selection (cached on
@@ -12,29 +14,23 @@
  * time and composing the deviations.
  */
 
-#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/TextEffect.h>
+#include <sigilcore/compute/Intervals.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/query/Query.h>
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <numeric>
-#include <unordered_set>
 #include <utility>
 
 #include "TextEngine.h"
 
 namespace sigil::compose {
-
-float Stagger::spanMs(uint32_t unitCount, uint32_t innerUnitCount) const {
-  // The one arithmetic: the same resolved-cascade body the painter and the
-  // mounted queries run, handed its counts directly instead of a layout.
-  detail::Cascade cascade;
-  cascade.build(*this, unitCount, innerUnitCount);
-  return cascade.totalMs;
-}
 
 // ---------------------------------------------------------------------------
 // The per-walk structure every track shares
@@ -46,24 +42,25 @@ namespace {
  *  order forEachPlacedGlyph guarantees, so "changed since the previous
  *  glyph" is the whole test — no map, no sort, and a cluster's glyphs stay
  *  together because a cluster's glyphs are adjacent by construction. */
-bool startsUnit(Unit granularity, const sigil::weave::PlacedGlyph& glyph,
+bool startsUnit(sigil::weave::Unit granularity,
+                const sigil::weave::PlacedGlyph& glyph,
                 const sigil::weave::PlacedGlyph& previous, bool first) {
   if (first) return true;
   switch (granularity) {
-    case Unit::Glyph:
+    case sigil::weave::Unit::Glyph:
       return true;
-    case Unit::Cluster:
+    case sigil::weave::Unit::Cluster:
       // The text offset, not the shaped-run-local cluster: a base and a
       // combining mark that fell back to a second font are two runs and one
       // cluster, and a stagger that separated them would leave the accent
       // behind in mid-air.
       return glyph.wordIndex != previous.wordIndex ||
              glyph.textIndex != previous.textIndex;
-    case Unit::Word:
+    case sigil::weave::Unit::Word:
       return glyph.wordIndex != previous.wordIndex;
-    case Unit::Line:
+    case sigil::weave::Unit::Line:
       return glyph.lineIndex != previous.lineIndex;
-    case Unit::Sentence:
+    case sigil::weave::Unit::Sentence:
       return glyph.sentenceIndex != previous.sentenceIndex;
   }
   return true;
@@ -71,10 +68,14 @@ bool startsUnit(Unit granularity, const sigil::weave::PlacedGlyph& glyph,
 }  // namespace
 
 void GlyphStructure::build(const sigil::weave::ParagraphLayout& layout,
-                           const sigil::weave::Paragraph& paragraph) {
+                           const sigil::weave::Paragraph& paragraph,
+                           TextScope textScope) {
+  scope = textScope;
   glyphs.clear();
   for (auto& lane : unitOf) lane.clear();
+  for (auto& lane : storyUnitOf) lane.clear();
   unitCounts = {};
+  storyUnitCounts = {};
 
   sigil::weave::PlacedGlyph previous;
   bool first = true;
@@ -88,25 +89,56 @@ void GlyphStructure::build(const sigil::weave::ParagraphLayout& layout,
         info.cluster = placed.cluster;
         info.textIndex = placed.textIndex;
         info.wordIndex = placed.wordIndex;
-        info.lineIndex = (uint32_t)std::max(placed.lineIndex, 0);
+        // THE STORY'S LINE, not this frame's: a frame of a chain is told
+        // where its first line stands in the story's numbering, and every
+        // line it placed is that many further on.
+        info.lineIndex =
+            (uint32_t)std::max(placed.lineIndex, 0) + textScope.lineOffset;
         info.styleIndex = placed.styleIndex;
         info.sentenceIndex = placed.sentenceIndex;
         glyphs.push_back(info);
 
         for (size_t lane = 0; lane < kUnits; ++lane) {
-          if (startsUnit((Unit)lane, placed, previous, first))
+          if (startsUnit((sigil::weave::Unit)lane, placed, previous, first))
             ++unitCounts[lane];
           unitOf[lane].push_back(unitCounts[lane] - 1);
+        }
+        if (textScope.inChain) {
+          // The three lanes the placed glyph carries a STORY ordinal for.
+          // A cluster and a glyph are walk positions and the walk is this
+          // frame's, so they keep the frame's numbering.
+          storyUnitOf[(size_t)sigil::weave::Unit::Word].push_back(
+              placed.wordIndex);
+          storyUnitOf[(size_t)sigil::weave::Unit::Sentence].push_back(
+              placed.sentenceIndex);
+          storyUnitOf[(size_t)sigil::weave::Unit::Line].push_back(
+              info.lineIndex);
+          storyUnitOf[(size_t)sigil::weave::Unit::Cluster].push_back(
+              unitOf[(size_t)sigil::weave::Unit::Cluster].back());
+          storyUnitOf[(size_t)sigil::weave::Unit::Glyph].push_back(
+              unitOf[(size_t)sigil::weave::Unit::Glyph].back());
         }
         previous = placed;
         first = false;
       });
 
+  if (textScope.inChain) {
+    storyUnitCounts = unitCounts;
+    storyUnitCounts[(size_t)sigil::weave::Unit::Word] =
+        (uint32_t)paragraph.words().size();
+    storyUnitCounts[(size_t)sigil::weave::Unit::Sentence] =
+        (uint32_t)paragraph.sentenceStarts().size();
+    storyUnitCounts[(size_t)sigil::weave::Unit::Line] =
+        textScope.storyLines ? textScope.storyLines
+                             : unitCounts[(size_t)sigil::weave::Unit::Line];
+  }
+
   // The two per-word facts an effect reads (which letter of its word, of
   // how many) need the word's size, which is only known once the word has
   // been walked — so they are a second pass over the finished runs.
   const uint32_t total = (uint32_t)glyphs.size();
-  const std::vector<uint32_t>& wordUnits = unitOf[(size_t)Unit::Word];
+  const std::vector<uint32_t>& wordUnits =
+      unitOf[(size_t)sigil::weave::Unit::Word];
   for (uint32_t begin = 0; begin < total;) {
     uint32_t end = begin + 1;
     while (end < total && wordUnits[end] == wordUnits[begin]) ++end;
@@ -146,12 +178,13 @@ std::vector<sigil::weave::CharRange> namedRunRanges(
   return out;
 }
 
-void resolveInto(const Selector& selector, const GlyphStructure& structure,
+void resolveInto(const sigil::weave::Selector& selector,
+                 const GlyphStructure& structure,
                  const sigil::weave::Paragraph& paragraph,
                  std::span<const NamedRun> named, std::vector<uint8_t>& out) {
   const size_t count = structure.glyphs.size();
   out.assign(count, 0);
-  const Selector::State* s = selector.state();
+  const sigil::weave::Selector::State* s = selector.state();
   if (!s) {  // default-constructed: everything
     std::fill(out.begin(), out.end(), (uint8_t)1);
     return;
@@ -163,27 +196,26 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
     }
   };
   switch (s->kind) {
-    case Selector::Kind::All:
+    case sigil::weave::Selector::Kind::All:
       std::fill(out.begin(), out.end(), (uint8_t)1);
       break;
-    case Selector::Kind::Word:
-    case Selector::Kind::Words:
+    case sigil::weave::Selector::Kind::Word:
       byIndex([](const GlyphInfo& g) { return g.wordIndex; }, s->lo, s->hi);
       break;
-    case Selector::Kind::Line:
+    case sigil::weave::Selector::Kind::Line:
       byIndex([](const GlyphInfo& g) { return g.lineIndex; }, s->lo, s->hi);
       break;
-    case Selector::Kind::Sentence:
+    case sigil::weave::Selector::Kind::Sentence:
       byIndex([](const GlyphInfo& g) { return g.sentenceIndex; }, s->lo, s->hi);
       break;
-    case Selector::Kind::Range:
+    case sigil::weave::Selector::Kind::Range:
       byIndex([](const GlyphInfo& g) { return g.textIndex; }, s->lo, s->hi);
       break;
-    case Selector::Kind::Text:
+    case sigil::weave::Selector::Kind::Text:
       markRanges(sigil::weave::findAllOccurrences(paragraph, s->pattern),
                  structure, out);
       break;
-    case Selector::Kind::Regex: {
+    case sigil::weave::Selector::Kind::Regex: {
       std::optional<std::vector<sigil::weave::CharRange>> matches =
           sigil::weave::findRegexMatches(paragraph, s->pattern);
       if (!matches) {
@@ -193,7 +225,7 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
       markRanges(*matches, structure, out);
       break;
     }
-    case Selector::Kind::Style: {
+    case sigil::weave::Selector::Kind::Named: {
       const std::vector<sigil::weave::CharRange> runs =
           namedRunRanges(named, s->pattern);
       if (runs.empty()) {
@@ -203,7 +235,19 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
       markRanges(runs, structure, out);
       break;
     }
-    case Selector::Kind::Each: {
+    case sigil::weave::Selector::Kind::Scope: {
+      // The frame-local address, resolved on the leaf being addressed: it
+      // is everything on the frame it names and nothing anywhere else, so
+      // intersecting it with a story-wide form cuts that form to one frame.
+      const std::u8string_view key(
+          (const char8_t*)structure.scope.frameKey.data(),
+          structure.scope.frameKey.size());
+      if (key.empty()) warnNoSuchFrameKey(s->pattern);
+      if (!key.empty() && key == s->pattern)
+        std::fill(out.begin(), out.end(), (uint8_t)1);
+      break;
+    }
+    case sigil::weave::Selector::Kind::Each: {
       // Every unit sliced the same way, at GLYPH granularity inside it.
       // `drop(n)` and `take(n)` partition a unit exactly: the two answer
       // opposite sides of the same cut, so no glyph is in both and none is
@@ -221,17 +265,18 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
       }
       break;
     }
-    case Selector::Kind::Union:
-    case Selector::Kind::Intersect: {
+    case sigil::weave::Selector::Kind::Union:
+    case sigil::weave::Selector::Kind::Intersect: {
       std::vector<uint8_t> lhs, rhs;
       resolveInto(s->operands[0], structure, paragraph, named, lhs);
       resolveInto(s->operands[1], structure, paragraph, named, rhs);
       for (size_t i = 0; i < count; ++i)
-        out[i] = s->kind == Selector::Kind::Union ? (lhs[i] | rhs[i])
-                                                  : (lhs[i] & rhs[i]);
+        out[i] = s->kind == sigil::weave::Selector::Kind::Union
+                     ? (lhs[i] | rhs[i])
+                     : (lhs[i] & rhs[i]);
       break;
     }
-    case Selector::Kind::Complement: {
+    case sigil::weave::Selector::Kind::Complement: {
       std::vector<uint8_t> inner;
       resolveInto(s->operands[0], structure, paragraph, named, inner);
       for (size_t i = 0; i < count; ++i) out[i] = inner[i] ? 0 : 1;
@@ -245,29 +290,43 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
 void warnBadSelectorPattern(const std::u8string& pattern) {
   // Once per distinct pattern: a selector resolved every reflow would
   // otherwise scroll the same line past the author forever.
-  static thread_local std::unordered_set<std::string> seen;
+  static thread_local boost::unordered_flat_set<std::string> seen;
   std::string key((const char*)pattern.data(), pattern.size());
   if (!seen.insert(key).second) return;
-  std::fprintf(stderr,
-               "SigilCompose: sel::regex(\"%s\") does not compile — this "
-               "track selects no glyphs\n",
-               key.c_str());
+  std::fprintf(
+      stderr,
+      "SigilCompose: weave::sel::regex(\"%s\") does not compile — this "
+      "track selects no glyphs\n",
+      key.c_str());
 }
 
 void warnNoSuchStyleName(const std::u8string& name) {
   // Once per distinct name, for the reason the pattern warning is: this
   // resolves on every reflow, and a name that is wrong is wrong every time.
-  static thread_local std::unordered_set<std::string> seen;
+  static thread_local boost::unordered_flat_set<std::string> seen;
   std::string key((const char*)name.data(), name.size());
   if (!seen.insert(key).second) return;
-  std::fprintf(stderr,
-               "SigilCompose: sel::style(\"%s\") — no run of this text was "
-               "written under that name, so it addresses nothing (only a "
-               "rich() run added with add(text, styleName) carries one)\n",
-               key.c_str());
+  std::fprintf(
+      stderr,
+      "SigilCompose: sel::style(\"%s\") — no run of this text was "
+      "written under that name, so it addresses nothing (only a "
+      "weave::rich() run added with add(text, styleName) carries one)\n",
+      key.c_str());
 }
 
-std::vector<uint8_t> resolveSelection(const Selector& selector,
+void warnNoSuchFrameKey(const std::u8string& key) {
+  static thread_local boost::unordered_flat_set<std::string> seen;
+  std::string name((const char*)key.data(), key.size());
+  if (!seen.insert(name).second) return;
+  std::fprintf(stderr,
+               "SigilCompose: sel::inFrame(\"%s\") on a text leaf with no "
+               "key() of its own — a frame-local address is matched against "
+               "the leaf's own key, so this one can never match and "
+               "addresses nothing\n",
+               name.c_str());
+}
+
+std::vector<uint8_t> resolveSelection(const sigil::weave::Selector& selector,
                                       const GlyphStructure& structure,
                                       const sigil::weave::Paragraph& paragraph,
                                       std::span<const NamedRun> named) {
@@ -290,102 +349,83 @@ namespace {
 using Ranges = std::vector<sigil::weave::CharRange>;
 
 /** Sorted, merged, empties dropped — the one normal form every answer is
- *  in, so union, intersection and complement are honest interval
- *  arithmetic and not a pile of special cases. */
-Ranges normalize(Ranges ranges) {
-  std::erase_if(ranges,
-                [](const sigil::weave::CharRange& r) { return r.empty(); });
-  std::sort(
-      ranges.begin(), ranges.end(),
-      [](const sigil::weave::CharRange& a, const sigil::weave::CharRange& b) {
-        return a.start != b.start ? a.start < b.start : a.end < b.end;
-      });
-  Ranges merged;
-  for (const sigil::weave::CharRange& r : ranges) {
-    if (!merged.empty() && r.start <= merged.back().end)
-      merged.back().end = std::max(merged.back().end, r.end);
-    else
-      merged.push_back(r);
-  }
-  return merged;
+ *  in. A code-unit index is exact, so the interval algebra runs with no
+ *  epsilon and no clamp beyond the paragraph's own length. */
+Ranges normalize(Ranges ranges, uint32_t length = UINT32_MAX) {
+  return core::normalizeIntervals<sigil::weave::CharRange>(std::move(ranges),
+                                                           0u, length);
 }
 
 Ranges intersectRanges(const Ranges& a, const Ranges& b) {
-  Ranges out;
-  size_t i = 0, j = 0;
-  while (i < a.size() && j < b.size()) {
-    const uint32_t start = std::max(a[i].start, b[j].start);
-    const uint32_t end = std::min(a[i].end, b[j].end);
-    if (start < end) out.push_back({start, end});
-    if (a[i].end < b[j].end)
-      ++i;
-    else
-      ++j;
-  }
-  return out;
+  return core::intersectIntervals<sigil::weave::CharRange>(a, b);
 }
 
 Ranges complementRanges(const Ranges& ranges, uint32_t length) {
-  Ranges out;
-  uint32_t cursor = 0;
-  for (const sigil::weave::CharRange& r : ranges) {
-    if (r.start > cursor) out.push_back({cursor, r.start});
-    cursor = std::max(cursor, r.end);
-  }
-  if (cursor < length) out.push_back({cursor, length});
-  return out;
+  return core::complementIntervals<sigil::weave::CharRange>(ranges, 0u, length);
 }
 
 }  // namespace
 
 namespace {
 
-/** Once per process: an `sel::each` slice asked of a text range. */
+/** Once per process: an `weave::sel::each` slice asked of a text range. */
 void warnSliceIgnored() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
   std::fprintf(stderr,
-               "SigilCompose: Selector::take/drop slice GLYPHS inside a "
+               "SigilCompose: weave::Selector::take/drop slice GLYPHS inside a "
                "unit, which a text range cannot express — this span restyle "
                "covers whole units\n");
 }
 
 Ranges resolveTextRangesInto(
-    const Selector& selector, sigil::weave::Paragraph& paragraph,
+    const sigil::weave::Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
     std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns,
-    std::span<const NamedRun> named) {
+    std::span<const NamedRun> named, const TextScope& scope) {
   const auto length = (uint32_t)paragraph.text().size();
-  const Selector::State* s = selector.state();
+  const sigil::weave::Selector::State* s = selector.state();
   if (!s) return {{0, length}};  // default-constructed: everything
   switch (s->kind) {
-    case Selector::Kind::All:
+    case sigil::weave::Selector::Kind::All:
       return {{0, length}};
-    case Selector::Kind::Word:
-    case Selector::Kind::Words: {
+    case sigil::weave::Selector::Kind::Word: {
       Ranges words = sigil::weave::wordRanges(paragraph, fonts);
       Ranges out;
       for (uint32_t i = s->lo; i < s->hi && i < words.size(); ++i)
         out.push_back(words[i]);
       return normalize(std::move(out));
     }
-    case Selector::Kind::Line: {
+    case sigil::weave::Selector::Kind::Line: {
       // A vertical passage numbers COLUMNS where a horizontal one numbers
-      // lines, and only one of the two lists is ever populated.
+      // lines, and only one of the two lists is ever populated. The index
+      // asked for is the STORY's, so it is brought back to this frame's
+      // numbering before it is compared — the geometry knows only the lines
+      // this frame placed.
       Ranges out;
+      const uint32_t offset = scope.lineOffset;
+      const auto within = [&](int index) {
+        const auto story = (uint32_t)index + offset;
+        return story >= s->lo && story < s->hi;
+      };
       for (const sigil::weave::LineMetrics& line : lines)
-        if ((uint32_t)line.lineIndex >= s->lo &&
-            (uint32_t)line.lineIndex < s->hi)
+        if (within(line.lineIndex))
           out.push_back({line.textBegin, line.textEnd});
       for (const sigil::weave::ColumnMetrics& column : columns)
-        if ((uint32_t)column.lineIndex >= s->lo &&
-            (uint32_t)column.lineIndex < s->hi)
+        if (within(column.lineIndex))
           out.push_back({column.textBegin, column.textEnd});
       return normalize(std::move(out));
     }
-    case Selector::Kind::Sentence: {
+    case sigil::weave::Selector::Kind::Scope: {
+      const std::u8string_view key((const char8_t*)scope.frameKey.data(),
+                                   scope.frameKey.size());
+      if (key.empty()) warnNoSuchFrameKey(s->pattern);
+      if (!key.empty() && key == s->pattern) return {{0, length}};
+      return {};
+    }
+    case sigil::weave::Selector::Kind::Sentence: {
       const std::span<const uint32_t> starts = paragraph.sentenceStarts();
       Ranges out;
       for (uint32_t i = s->lo; i < s->hi && i < starts.size(); ++i)
@@ -393,11 +433,11 @@ Ranges resolveTextRangesInto(
             {starts[i], i + 1 < starts.size() ? starts[i + 1] : length});
       return normalize(std::move(out));
     }
-    case Selector::Kind::Range:
+    case sigil::weave::Selector::Kind::Range:
       return normalize({{std::min(s->lo, length), std::min(s->hi, length)}});
-    case Selector::Kind::Text:
+    case sigil::weave::Selector::Kind::Text:
       return normalize(sigil::weave::findAllOccurrences(paragraph, s->pattern));
-    case Selector::Kind::Regex: {
+    case sigil::weave::Selector::Kind::Regex: {
       std::optional<Ranges> matches =
           sigil::weave::findRegexMatches(paragraph, s->pattern);
       if (!matches) {
@@ -406,20 +446,20 @@ Ranges resolveTextRangesInto(
       }
       return normalize(*std::move(matches));
     }
-    case Selector::Kind::Style: {
+    case sigil::weave::Selector::Kind::Named: {
       Ranges runs = namedRunRanges(named, s->pattern);
       if (runs.empty()) warnNoSuchStyleName(s->pattern);
       return normalize(std::move(runs));
     }
-    case Selector::Kind::Each: {
+    case sigil::weave::Selector::Kind::Each: {
       // A unit's whole extent. The glyph slice has no text-range meaning;
       // saying so once beats a restyle that silently covers more than the
       // author asked for.
       if (s->take >= 0 || s->drop > 0) warnSliceIgnored();
       switch (s->each) {
-        case Unit::Word:
+        case sigil::weave::Unit::Word:
           return normalize(sigil::weave::wordRanges(paragraph, fonts));
-        case Unit::Line: {
+        case sigil::weave::Unit::Line: {
           Ranges out;
           for (const sigil::weave::LineMetrics& line : lines)
             out.push_back({line.textBegin, line.textEnd});
@@ -431,24 +471,24 @@ Ranges resolveTextRangesInto(
           return {{0, length}};
       }
     }
-    case Selector::Kind::Union: {
+    case sigil::weave::Selector::Kind::Union: {
       Ranges out = resolveTextRangesInto(s->operands[0], paragraph, fonts,
-                                         lines, columns, named);
+                                         lines, columns, named, scope);
       Ranges rhs = resolveTextRangesInto(s->operands[1], paragraph, fonts,
-                                         lines, columns, named);
+                                         lines, columns, named, scope);
       out.insert(out.end(), rhs.begin(), rhs.end());
       return normalize(std::move(out));
     }
-    case Selector::Kind::Intersect:
+    case sigil::weave::Selector::Kind::Intersect:
       return intersectRanges(
           resolveTextRangesInto(s->operands[0], paragraph, fonts, lines,
-                                columns, named),
+                                columns, named, scope),
           resolveTextRangesInto(s->operands[1], paragraph, fonts, lines,
-                                columns, named));
-    case Selector::Kind::Complement:
+                                columns, named, scope));
+    case sigil::weave::Selector::Kind::Complement:
       return complementRanges(
           resolveTextRangesInto(s->operands[0], paragraph, fonts, lines,
-                                columns, named),
+                                columns, named, scope),
           length);
   }
   return {};
@@ -457,159 +497,39 @@ Ranges resolveTextRangesInto(
 }  // namespace
 
 std::vector<sigil::weave::CharRange> resolveTextRanges(
-    const Selector& selector, sigil::weave::Paragraph& paragraph,
+    const sigil::weave::Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
     std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns,
-    std::span<const NamedRun> named) {
+    std::span<const NamedRun> named, TextScope scope) {
   return resolveTextRangesInto(selector, paragraph, fonts, lines, columns,
-                               named);
+                               named, scope);
 }
 
-namespace {
-/** The per-unit spacing this cascade asks for, in ms. Amount-mode divides
- *  a fixed total across however many units there are; otherwise the
- *  spacing is fixed and the total grows. */
-float spacingMs(const Stagger& spec, uint32_t count) {
-  if (spec.amountMs > 0 && count > 1) return spec.amountMs / (float)(count - 1);
-  return std::max(spec.eachMs, 0.0f);
-}
-
-/** The table entry unit `index` reads. Past the end it is the LAST entry:
- *  a short table piles its tail on one beat, which is visible, rather than
- *  extrapolating times its author never wrote. */
-float cueAt(const std::vector<float>& table, uint32_t index) {
-  return table[std::min<size_t>(index, table.size() - 1)];
-}
-
-/** The latest start any of `count` units reads out of `table` — what the
- *  master progress has to span for the last beat to open. A table is not
- *  required to ascend, so this is a max and not the final entry. */
-float lastCueMs(const std::vector<float>& table, uint32_t count) {
-  float latest = 0.0f;
-  const size_t read = std::min<size_t>(count, table.size());
-  for (size_t i = 0; i < read; ++i) latest = std::max(latest, table[i]);
-  return latest;
-}
-}  // namespace
-
-void warnCueTableMismatch(size_t cueCount, size_t unitCount) {
-  // Once per distinct shape: a cascade is rebuilt every frame, and one
-  // mistyped table would otherwise scroll the same line past its author
-  // forever. Distinct shapes still each get their say, because two tracks
-  // can be wrong in two different ways.
-  static thread_local std::unordered_set<uint64_t> seen;
-  const uint64_t key = ((uint64_t)cueCount << 32u) | (uint32_t)unitCount;
-  if (!seen.insert(key).second) return;
-  std::fprintf(stderr,
-               "SigilCompose: a cue table of %zu times against %zu units — "
-               "%s\n",
-               cueCount, unitCount,
-               cueCount < unitCount
-                   ? "every unit past the table's end starts at its last time"
-                   : "the times past the last unit are never read");
-}
-
-void Cascade::build(const Stagger& spec, uint32_t outerCount,
-                    uint32_t innerCount) {
-  duration = std::max(spec.durationMs, 1.0f);
-  const uint32_t outer = std::max(outerCount, 1u);
-  cascadeOrder(spec.from, outer, spec.seed, outerOrder);
-  outerEach = spacingMs(spec, outer);
-  outerCue = spec.cueMs;
-  if (!outerCue.empty() && outerCue.size() != outer)
-    warnCueTableMismatch(outerCue.size(), outer);
-
-  if (spec.inner) {
-    const uint32_t inner = std::max(innerCount, 1u);
-    cascadeOrder(spec.inner->from, inner, spec.inner->seed, innerOrder);
-    innerEach = spacingMs(*spec.inner, inner);
-    innerCue = spec.inner->cueMs;
-    if (!innerCue.empty() && innerCue.size() != inner)
-      warnCueTableMismatch(innerCue.size(), inner);
-    // A NESTED cascade owns the beat: its own duration is what one unit's
-    // motion lasts, and a beat is exactly as long as the inner ladder
-    // needs. The outer durationMs would otherwise be a second, conflicting
-    // statement about the same span.
-    duration = std::max(spec.inner->durationMs, 1.0f);
-    beatMs = duration + (innerCue.empty() ? innerEach * (float)(inner - 1)
-                                          : lastCueMs(innerCue, inner));
-    innerDistribution = spec.inner->distribution;
-  } else {
-    innerOrder.clear();
-    innerCue.clear();
-    innerEach = 0.0f;
-    beatMs = duration;
-    innerDistribution = nullptr;
-  }
-  outerDistribution = spec.distribution;
-  totalMs = beatMs + (outerCue.empty() ? outerEach * (float)(outer - 1)
-                                       : lastCueMs(outerCue, outer));
-  // ONE loop for the whole cascade, read off the OUTER spec as beatsOver
-  // is: a nested loopMs would be a second, conflicting period over the same
-  // clock. Looping, the master maps onto the PERIOD rather than the
-  // one-shot closing span — one sweep 0→1 is one cycle — so totalMs IS the
-  // period and localTime() folds each unit's elapsed time mod it.
-  loopMs = std::max(spec.loopMs, 0.0f);
-  if (loopMs > 0) totalMs = loopMs;
-}
-
-float Cascade::startMs(uint32_t outerUnit, uint32_t innerUnit) const {
-  // Without a distribution curve the delay is the plain product the flat
-  // cascade has always been — NOT the same product routed through a
-  // normalise-and-rescale, which would differ in the last bit and move
-  // every pixel of a settled reveal.
-  const auto delayOf = [](const std::vector<float>& order, uint32_t index,
-                          float each, const choreograph::EaseFn& shape) {
-    if (order.empty()) return 0.0f;
-    const uint32_t clamped = std::min<uint32_t>(index, order.size() - 1);
-    if (!shape) return order[clamped] * each;
-    const float last = order.size() > 1 ? (float)(order.size() - 1) : 1.0f;
-    return shape(order[clamped] / last) * (each * last);
-  };
-  // A table states the delay; the ladder computes one. Nothing else about
-  // the cascade changes between the two.
-  return (outerCue.empty()
-              ? delayOf(outerOrder, outerUnit, outerEach, outerDistribution)
-              : cueAt(outerCue, outerUnit)) +
-         (innerCue.empty()
-              ? delayOf(innerOrder, innerUnit, innerEach, innerDistribution)
-              : cueAt(innerCue, innerUnit));
-}
-
-float Cascade::localTime(float master, uint32_t outerUnit,
-                         uint32_t innerUnit) const {
-  if (loopMs > 0) {
-    // The wrapping beat: elapsed time since this unit's start, folded into
-    // [0, loopMs). The fold is what re-opens the beat once per cycle, keeps
-    // master 0 and master 1 the same instant (so a wrapping bound phase
-    // crosses its own seam with no jump), and puts every unit somewhere in
-    // its cycle from the first frame — a start past the period lands at
-    // start mod period rather than waiting. Past its duration a beat rests
-    // at 1 until the fold brings it back to 0.
-    float elapsed =
-        std::fmod(master * totalMs - startMs(outerUnit, innerUnit), loopMs);
-    if (elapsed < 0) elapsed += loopMs;
-    return std::clamp(elapsed / duration, 0.0f, 1.0f);
-  }
-  return std::clamp(
-      (master * totalMs - startMs(outerUnit, innerUnit)) / duration, 0.0f,
-      1.0f);
-}
-
-void TrackCascade::build(const Stagger& spec, const GlyphStructure& structure,
+void TrackCascade::build(const Track& track, const GlyphStructure& structure,
                          const std::vector<uint8_t>& selected) {
+  const motion::Spread& spec = track.stagger;
   const auto count = (uint32_t)structure.glyphs.size();
-  const std::vector<uint32_t>& outerLane = structure.unitOf[(size_t)spec.over];
+  // THE STORY'S NUMBERING where this leaf is one frame of a chain, the
+  // leaf's own everywhere else. A cascade over a threaded story runs one
+  // clock across the whole of it: the fortieth word is beat forty wherever
+  // it landed, so a stagger does not restart at each frame. The lanes are
+  // empty for an ordinary leaf, which is then numbered exactly as it always
+  // was.
+  const bool story = !structure.storyUnitOf[(size_t)track.unit].empty();
+  const std::vector<uint32_t>& outerLane =
+      story ? structure.storyUnitOf[(size_t)track.unit]
+            : structure.unitOf[(size_t)track.unit];
   outerUnit.assign(count, 0);
   uint32_t outerCount = 0;
-  if (spec.beatsOver == Beats::Text) {
+  if (track.beatsOver == Beats::Text) {
     // THE PARAGRAPH'S OWN NUMBERING, which is the whole point of the
     // setting: a unit's beat does not depend on which of its glyphs this
     // track happens to address, so two tracks that split one paragraph run
     // one clock however differently their selections resolve.
     for (uint32_t g = 0; g < count; ++g) outerUnit[g] = outerLane[g];
-    outerCount = structure.unitCounts[(size_t)spec.over];
+    outerCount = story ? structure.storyUnitCounts[(size_t)track.unit]
+                       : structure.unitCounts[(size_t)track.unit];
   } else {
     // Renumber the units the SELECTION covers, from 0, in draw order — then
     // a stagger's From, its amount-mode division and its distribution all
@@ -630,9 +550,9 @@ void TrackCascade::build(const Stagger& spec, const GlyphStructure& structure,
     // The nested level is numbered against the same list as the outer one:
     // one setting governs the cascade, so a nested beat cannot be counted
     // one way at the top and another underneath.
-    const bool overText = spec.beatsOver == Beats::Text;
+    const bool overText = track.beatsOver == Beats::Text;
     const std::vector<uint32_t>& innerLane =
-        structure.unitOf[(size_t)spec.inner->over];
+        structure.unitOf[(size_t)track.innerUnit];
     innerUnit.assign(count, 0);
     uint32_t within = 0, previousOuter = ~0u, previousInner = ~0u;
     for (uint32_t g = 0; g < count; ++g) {
@@ -802,7 +722,7 @@ TextEffect seq(std::vector<Phase> phases) {
   const bool displaces = anyDisplaces(operands);
   return TextEffect::composite(
       "seq", params, operands,
-      [phases](const GlyphInfo& g, float t, Rng&) {
+      [phases](const GlyphInfo& g, float t, core::noise::Mix64Stream&) {
         // Which window `t` falls in, and where inside it.
         const auto windowAt = [&](size_t i) {
           const float begin = i == 0 ? 0.0f : phases[i - 1].endsAt();
@@ -819,7 +739,8 @@ TextEffect seq(std::vector<Phase> phases) {
         const float width = end - begin;
         const float local =
             width > 0 ? std::clamp((t - begin) / width, 0.0f, 1.0f) : 1.0f;
-        Rng own(compose::detail::glyphSeed(g, (uint32_t)index));
+        core::noise::Mix64Stream own(
+            compose::detail::glyphSeed(g, (uint32_t)index));
         GlyphMod mod = phases[index].effect()(g, local, own);
         // The crossfade window sits at the END of this phase, so at the
         // joint the blend has already reached the next phase's own start.
@@ -827,7 +748,8 @@ TextEffect seq(std::vector<Phase> phases) {
         if (overlap > 0 && index + 1 < phases.size() && t > end - overlap) {
           const float w =
               std::clamp((t - (end - overlap)) / overlap, 0.0f, 1.0f);
-          Rng nextRng(compose::detail::glyphSeed(g, (uint32_t)index + 1));
+          core::noise::Mix64Stream nextRng(
+              compose::detail::glyphSeed(g, (uint32_t)index + 1));
           const GlyphMod next = phases[index + 1].effect()(g, 0.0f, nextRng);
           mod = compose::detail::lerpMod(mod, next, w);
         }
@@ -888,9 +810,9 @@ float keysReach(const std::vector<Key>& table) {
                                   std::abs(m.scale * m.scaleY), 1.0f}) -
                         1.0f;
     const bool leans = m.rotateDeg != 0 || m.skewXDeg != 0 || m.skewYDeg != 0;
-    reach = std::max(reach, std::abs(m.dx) + std::abs(m.dy) +
-                                (grown + (leans ? 0.5f : 0.0f)) *
-                                    fx::detail::kNominalSizePx);
+    reach = std::max(reach,
+                     std::abs(m.dx) + std::abs(m.dy) +
+                         (grown + (leans ? 0.5f : 0.0f)) * fx::kNominalSizePx);
   }
   return reach;
 }
@@ -932,8 +854,8 @@ TextEffect keys(std::vector<Key> table, choreograph::EaseFn ease) {
   const bool displaces = keysDisplace(table);
   return TextEffect(
       "keys", std::move(params),
-      [table = std::move(table), ease = std::move(ease)](const GlyphInfo&,
-                                                         float t, Rng&) {
+      [table = std::move(table), ease = std::move(ease)](
+          const GlyphInfo&, float t, core::noise::Mix64Stream&) {
         t = std::clamp(t, 0.0f, 1.0f);
         if (t <= table.front().at) return table.front().mod;
         for (size_t i = 1; i < table.size(); ++i) {
@@ -963,7 +885,8 @@ TextEffect hold(TextEffect effect) {
   std::vector<TextEffect> operands{effect};
   return TextEffect::composite(
       "hold", {}, std::move(operands),
-      [effect = std::move(effect)](const GlyphInfo& g, float t, Rng& rng) {
+      [effect = std::move(effect)](const GlyphInfo& g, float t,
+                                   core::noise::Mix64Stream& rng) {
         // Local time is CLAMPED at both ends, so a unit whose beat has not
         // opened is handed 0 and one whose beat is over is handed 1 — which
         // makes t at its floor the whole signal there is that a beat is
@@ -997,7 +920,7 @@ TextEffect scramble(std::u32string charset, int steps) {
   return TextEffect(
       "scramble", std::move(params),
       [charset = std::move(charset), ticks](const GlyphInfo&, float t,
-                                            Rng& rng) {
+                                            core::noise::Mix64Stream& rng) {
         GlyphMod mod;
         if (charset.empty()) return mod;
         // ONE draw from the glyph's own stream, and everything below is
@@ -1032,10 +955,12 @@ TextEffect mix(std::vector<TextEffect> effects) {
   std::vector<TextEffect> operands = effects;
   return TextEffect::composite(
       "mix", {}, std::move(operands),
-      [effects = std::move(effects)](const GlyphInfo& g, float t, Rng&) {
+      [effects = std::move(effects)](const GlyphInfo& g, float t,
+                                     core::noise::Mix64Stream&) {
         GlyphMod out;
         for (size_t i = 0; i < effects.size(); ++i) {
-          Rng own(compose::detail::glyphSeed(g, (uint32_t)i));
+          core::noise::Mix64Stream own(
+              compose::detail::glyphSeed(g, (uint32_t)i));
           compose::detail::compose(out, effects[i](g, t, own));
         }
         return out;
@@ -1043,7 +968,7 @@ TextEffect mix(std::vector<TextEffect> effects) {
       reach, displaces);
 }
 
-TextEffect pass(Material material) {
+TextEffect pass(material::skia::Paint material) {
   return TextEffect::pass(std::move(material));
 }
 

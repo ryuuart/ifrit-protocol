@@ -18,18 +18,27 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <cstdio>
+#include <cstdlib>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
 
+#include "EngineContract.h"
+#include "Wait.h"
+
 using namespace sigil::scry;
+using namespace sigil::scry::test;
 
 namespace {
 
 std::mutex g_logMutex;
 std::vector<std::string> g_logMessages;
 
-WebEngine& sharedEngine() {
+/** The one CPU-mode engine this process boots. Ultralight allows one
+ *  Renderer per process, so every case here shares it. */
+WebEngine& cpuEngine() {
   static std::shared_ptr<WebEngine> engine = [] {
     WebEngineConfig config;
     config.logCallback = [](LogLevel level, const std::string& message) {
@@ -40,7 +49,13 @@ WebEngine& sharedEngine() {
     };
     return WebEngine::create(config);
   }();
-  EXPECT_NE(engine, nullptr);
+  // Every case here is about a running engine, and there is no engine to
+  // dereference when the boot failed: stop the process saying so, rather
+  // than record an expectation and fault on the next line.
+  if (!engine) {
+    std::fprintf(stderr, "the CPU-mode engine did not boot\n");
+    std::abort();
+  }
   return *engine;
 }
 
@@ -51,50 +66,34 @@ bool logContains(const std::string& needle) {
   return false;
 }
 
-/** Polls until the view has published a frame newer than @p sinceVersion,
- *  or fails after @p timeout. */
-bool waitForFrame(
-    WebView& view, uint64_t sinceVersion,
-    std::chrono::milliseconds timeout = std::chrono::milliseconds(10000)) {
-  auto deadline = std::chrono::steady_clock::now() + timeout;
-  while (std::chrono::steady_clock::now() < deadline) {
-    if (view.frameVersion() > sinceVersion) return true;
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-  return false;
+/** A view showing @p slot at 64 x 64 on black, so the slot's own colour
+ *  is what the centre of the page reads. */
+std::shared_ptr<WebView> viewShowingSlot(const char* slot) {
+  auto view = cpuEngine().createView(64, 64, {.transparent = false});
+  if (!view) return view;
+  view->loadHTML(std::string("<html><body style='margin:0;background:#000'>"
+                             "<img src='") +
+                 slot +
+                 ".imgsrc' style='display:block;width:64px;height:64px'>"
+                 "</body></html>");
+  return view;
 }
 
 }  // namespace
 
-TEST(WebViewTest, RendersSolidColorHtml) {
-  auto view = sharedEngine().createView(160, 120, {.transparent = false});
+TEST(WebViewTest, PublishesTheColourTheDocumentDeclares) {
+  auto view = cpuEngine().createView(160, 120, {.transparent = false});
   ASSERT_NE(view, nullptr);
 
   view->loadHTML(
       "<html><body style='background:#ff0000;margin:0'>"
       "</body></html>");
   ASSERT_TRUE(waitForFrame(*view, 0));
-
-  // The page may publish an intermediate blank frame before the styled
-  // document paints; wait until the pixels actually turn red.
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-  SkColor center = 0;
-  while (std::chrono::steady_clock::now() < deadline) {
-    WebView::Frame frame = view->frame();
-    ASSERT_NE(frame.image, nullptr);
-    SkBitmap readback;
-    ASSERT_TRUE(readback.tryAllocPixels(SkImageInfo::MakeN32Premul(
-        frame.image->width(), frame.image->height())));
-    ASSERT_TRUE(frame.image->readPixels(nullptr, readback.pixmap(), 0, 0));
-    center = readback.getColor(80, 60);
-    if (center == SK_ColorRED) break;
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  }
-  EXPECT_EQ(center, SK_ColorRED);
+  EXPECT_TRUE(waitForCentre(*view, SK_ColorRED));
 }
 
-TEST(WebViewTest, DrawsOntoSkCanvas) {
-  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+TEST(WebViewTest, DrawsThePageIntoTheRectItIsGiven) {
+  auto view = cpuEngine().createView(64, 64, {.transparent = false});
   ASSERT_NE(view, nullptr);
 
   view->loadHTML(
@@ -105,25 +104,49 @@ TEST(WebViewTest, DrawsOntoSkCanvas) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 128));
   ASSERT_NE(surface, nullptr);
+  SkBitmap composite;
+  ASSERT_TRUE(composite.tryAllocPixels(SkImageInfo::MakeN32Premul(128, 128)));
 
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-  SkColor sampled = 0;
-  while (std::chrono::steady_clock::now() < deadline) {
+  // The page lands inside the rect it was given and nowhere else, so the
+  // canvas's own colour still stands outside it.
+  ASSERT_TRUE(waitForColour("the page inside its rect", SK_ColorBLUE, [&] {
     surface->getCanvas()->clear(SK_ColorGREEN);
     view->draw(*surface->getCanvas(), SkRect::MakeXYWH(32, 32, 64, 64));
-    SkBitmap readback;
-    ASSERT_TRUE(readback.tryAllocPixels(SkImageInfo::MakeN32Premul(128, 128)));
-    ASSERT_TRUE(surface->readPixels(readback.pixmap(), 0, 0));
-    sampled = readback.getColor(64, 64);
-    if (sampled == SK_ColorBLUE && readback.getColor(8, 8) == SK_ColorGREEN)
-      break;
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  }
-  EXPECT_EQ(sampled, SK_ColorBLUE);
+    if (!surface->readPixels(composite.pixmap(), 0, 0))
+      return SK_ColorTRANSPARENT;
+    return composite.getColor(64, 64);
+  }));
+  EXPECT_EQ(composite.getColor(8, 8), SK_ColorGREEN);
 }
 
-TEST(WebViewTest, EvaluatesScript) {
-  auto view = sharedEngine().createView(32, 32);
+TEST(WebViewTest, TheScrollDeltaIsWhatTheContentMovesBy) {
+  auto view = cpuEngine().createView(64, 64, {.transparent = false});
+  ASSERT_NE(view, nullptr);
+
+  // Two bands, each the height of the view: red standing where the view
+  // is, blue waiting below it. Which band the centre reads says which
+  // way the page went.
+  view->loadHTML(
+      "<html><body style='margin:0'>"
+      "<div style='height:64px;background:#ff0000'></div>"
+      "<div style='height:64px;background:#0000ff'></div>"
+      "</body></html>");
+  ASSERT_TRUE(waitForFrame(*view, 0));
+  ASSERT_TRUE(waitForCentre(*view, SK_ColorRED));
+
+  // NEGATIVE WALKS DOWN THE PAGE. The delta is what the CONTENT moves
+  // by, the way a wheel event states it, so reaching the band below
+  // means moving the content up.
+  view->scroll(0, -64);
+  EXPECT_TRUE(waitForCentre(*view, SK_ColorBLUE));
+
+  // …and back, which is the same statement from the other side.
+  view->scroll(0, 64);
+  EXPECT_TRUE(waitForCentre(*view, SK_ColorRED));
+}
+
+TEST(WebViewTest, AnswersTheValueAScriptEvaluatesTo) {
+  auto view = cpuEngine().createView(32, 32);
   ASSERT_NE(view, nullptr);
 
   std::mutex mutex;
@@ -139,8 +162,8 @@ TEST(WebViewTest, EvaluatesScript) {
   });
 
   std::unique_lock<std::mutex> lock(mutex);
-  ASSERT_TRUE(
-      cv.wait_for(lock, std::chrono::seconds(10), [&] { return done; }));
+  ASSERT_TRUE(cv.wait_for(lock, std::chrono::seconds(10), [&] { return done; }))
+      << "the wait expired: the script never answered";
   EXPECT_EQ(result, "42");
 }
 
@@ -148,7 +171,7 @@ TEST(WebViewTest, EvaluatesScript) {
 // inside the page (WebImage), then the page composited back onto an
 // SkCanvas — a full Skia -> Ultralight -> Skia round trip.
 TEST(WebViewTest, CompositesSkiaContentIntoPage) {
-  auto image = sharedEngine().createImage("cpu_swatch", 32, 32);
+  auto image = cpuEngine().createImage("cpu_swatch", 32, 32);
   ASSERT_NE(image, nullptr);
 
   SkBitmap swatch;
@@ -157,68 +180,30 @@ TEST(WebViewTest, CompositesSkiaContentIntoPage) {
   swatchCanvas.clear(SK_ColorMAGENTA);
   image->update(swatch.pixmap());
 
-  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+  auto view = viewShowingSlot("cpu_swatch");
   ASSERT_NE(view, nullptr);
-  view->loadHTML(
-      "<html><body style='margin:0;background:#000'>"
-      "<img src='cpu_swatch.imgsrc' "
-      "style='display:block;width:64px;height:64px'>"
-      "</body></html>");
   ASSERT_TRUE(waitForFrame(*view, 0));
-
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-  SkColor center = 0;
-  while (std::chrono::steady_clock::now() < deadline) {
-    WebView::Frame frame = view->frame();
-    ASSERT_NE(frame.image, nullptr);
-    SkBitmap readback;
-    ASSERT_TRUE(readback.tryAllocPixels(SkImageInfo::MakeN32Premul(
-        frame.image->width(), frame.image->height())));
-    ASSERT_TRUE(frame.image->readPixels(nullptr, readback.pixmap(), 0, 0));
-    center = readback.getColor(32, 32);
-    if (center == SK_ColorMAGENTA) break;
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  }
-  EXPECT_EQ(center, SK_ColorMAGENTA);
+  EXPECT_TRUE(waitForCentre(*view, SK_ColorMAGENTA));
 }
 
 // Same round trip through the one-call paint() API, which wraps the
 // backing store, flushes, and invalidates in a single step.
 TEST(WebViewTest, PaintsSlotWithCallback) {
-  auto image = sharedEngine().createImage("cpu_paint_swatch", 32, 32);
+  auto image = cpuEngine().createImage("cpu_paint_swatch", 32, 32);
   ASSERT_NE(image, nullptr);
   ASSERT_TRUE(
       image->paint([](SkCanvas& canvas) { canvas.clear(SK_ColorYELLOW); }));
 
-  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+  auto view = viewShowingSlot("cpu_paint_swatch");
   ASSERT_NE(view, nullptr);
-  view->loadHTML(
-      "<html><body style='margin:0;background:#000'>"
-      "<img src='cpu_paint_swatch.imgsrc' "
-      "style='display:block;width:64px;height:64px'>"
-      "</body></html>");
   ASSERT_TRUE(waitForFrame(*view, 0));
-
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-  SkColor center = 0;
-  while (std::chrono::steady_clock::now() < deadline) {
-    WebView::Frame frame = view->frame();
-    ASSERT_NE(frame.image, nullptr);
-    SkBitmap readback;
-    ASSERT_TRUE(readback.tryAllocPixels(SkImageInfo::MakeN32Premul(
-        frame.image->width(), frame.image->height())));
-    ASSERT_TRUE(frame.image->readPixels(nullptr, readback.pixmap(), 0, 0));
-    center = readback.getColor(32, 32);
-    if (center == SK_ColorYELLOW) break;
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  }
-  EXPECT_EQ(center, SK_ColorYELLOW);
+  EXPECT_TRUE(waitForCentre(*view, SK_ColorYELLOW));
 }
 
 // Referencing a slot no WebImage is registered under must be loud, not a
 // silent broken image.
 TEST(WebViewTest, WarnsOnUnregisteredSlot) {
-  auto view = sharedEngine().createView(32, 32);
+  auto view = cpuEngine().createView(32, 32);
   ASSERT_NE(view, nullptr);
   view->loadHTML(
       "<html><body><img src='definitely_missing.imgsrc'>"
@@ -228,11 +213,12 @@ TEST(WebViewTest, WarnsOnUnregisteredSlot) {
   while (!logContains("definitely_missing") &&
          std::chrono::steady_clock::now() < deadline)
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  EXPECT_TRUE(logContains("definitely_missing"));
+  EXPECT_TRUE(logContains("definitely_missing"))
+      << "the wait expired: no message ever named the slot";
 }
 
-TEST(WebViewTest, FrameCallbackFires) {
-  auto view = sharedEngine().createView(48, 48, {.transparent = false});
+TEST(WebViewTest, CallsBackWithEachFrameItPublishes) {
+  auto view = cpuEngine().createView(48, 48, {.transparent = false});
   ASSERT_NE(view, nullptr);
 
   std::mutex mutex;
@@ -247,6 +233,105 @@ TEST(WebViewTest, FrameCallbackFires) {
   view->loadHTML("<html><body style='background:#123456'></body></html>");
 
   std::unique_lock<std::mutex> lock(mutex);
-  EXPECT_TRUE(cv.wait_for(lock, std::chrono::seconds(10),
-                          [&] { return callbackVersion > 0; }));
+  EXPECT_TRUE(cv.wait_for(lock, std::chrono::seconds(10), [&] {
+    return callbackVersion > 0;
+  })) << "the wait expired: no frame was ever handed to the callback";
+}
+
+// ── A page that is gone is not a page the engine publishes ────────────
+//
+// A view's teardown crosses to the web thread, and so does the pass that
+// publishes repaints. Everything the teardown leaves behind — a registry
+// entry naming a page that no longer exists, an iterator into a registry
+// a callback has just moved — is dereferenced by that pass, on a machine
+// fast enough to interleave them.
+
+// Pages up and down while the engine renders.
+TEST(WebViewTest, PagesComeAndGoUnderTheRenderLoop) {
+  expectPagesComeAndGo(cpuEngine());
+}
+
+namespace {
+
+/** What a frame callback running on the web thread writes and the test
+ *  thread waits on. Held by shared_ptr so the callback outliving the
+ *  case cannot reach a local that is gone. */
+struct CallbackState {
+  std::mutex mutex;
+  std::condition_variable changed;
+  std::shared_ptr<WebView> held;
+  std::shared_ptr<WebView> opened;
+  bool acted = false;
+};
+
+/** Waits for the callback to have acted, or says the wait expired. */
+::testing::AssertionResult waitForCallback(CallbackState& state) {
+  std::unique_lock<std::mutex> lock(state.mutex);
+  if (state.changed.wait_for(lock, kPageWait, [&state] { return state.acted; }))
+    return ::testing::AssertionSuccess();
+  return ::testing::AssertionFailure()
+         << "the wait expired: no frame ever reached the callback";
+}
+
+}  // namespace
+
+// A WebView released inside a frame callback is torn down inline, on the
+// web thread, in the middle of the pass that is publishing — so the page
+// the pass is standing on is one that has just stopped existing.
+TEST(WebViewTest, APageReleasedFromAFrameCallbackStopsPublishing) {
+  auto state = std::make_shared<CallbackState>();
+  state->held = cpuEngine().createView(48, 48, {.transparent = false});
+  ASSERT_NE(state->held, nullptr);
+  auto driver = cpuEngine().createView(48, 48, {.transparent = false});
+  ASSERT_NE(driver, nullptr);
+
+  driver->setFrameCallback([state](const WebView::Frame&) {
+    std::lock_guard<std::mutex> lock(state->mutex);
+    if (!state->held) return;
+    state->held.reset();  // the other page's teardown runs right here
+    state->acted = true;
+    state->changed.notify_all();
+  });
+
+  state->held->loadHTML(
+      "<html><body style='background:#ff0000'></body></html>");
+  driver->loadHTML("<html><body style='background:#0000ff'></body></html>");
+  ASSERT_TRUE(waitForCallback(*state));
+
+  // The engine is still publishing afterwards, which is the whole claim:
+  // dropping one page mid-pass does not take the pass with it.
+  const uint64_t before = driver->frameVersion();
+  driver->setFrameCallback({});
+  driver->loadHTML("<html><body style='background:#00ff00'></body></html>");
+  EXPECT_TRUE(waitForFrame(*driver, before));
+}
+
+// The same seam from the other side: a page OPENED inside a frame
+// callback joins the registry while the pass is walking it.
+TEST(WebViewTest, APageOpenedFromAFrameCallbackJoinsTheEngine) {
+  auto state = std::make_shared<CallbackState>();
+  auto driver = cpuEngine().createView(48, 48, {.transparent = false});
+  ASSERT_NE(driver, nullptr);
+
+  std::shared_ptr<WebEngine> engine = cpuEngine().shared_from_this();
+  driver->setFrameCallback([state, engine](const WebView::Frame&) {
+    std::lock_guard<std::mutex> lock(state->mutex);
+    if (state->acted) return;
+    state->acted = true;
+    state->opened = engine->createView(32, 32, {.transparent = false});
+    state->changed.notify_all();
+  });
+
+  driver->loadHTML("<html><body style='background:#0000ff'></body></html>");
+  ASSERT_TRUE(waitForCallback(*state));
+  driver->setFrameCallback({});
+
+  std::shared_ptr<WebView> opened;
+  {
+    std::lock_guard<std::mutex> lock(state->mutex);
+    opened = state->opened;
+  }
+  ASSERT_NE(opened, nullptr);
+  opened->loadHTML("<html><body style='background:#00ff00'></body></html>");
+  EXPECT_TRUE(waitForFrame(*opened, 0));
 }

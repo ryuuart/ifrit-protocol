@@ -2,6 +2,8 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <cmath>
 
@@ -59,11 +61,11 @@ class ExclusionsScene final : public Scene {
         canvasHeight * 0.38f +
             canvasHeight * 0.24f *
                 std::sin(static_cast<float>(elapsedSeconds) * 0.53f)};
-    flow.shapes().push_back(ExclusionFlow::Shape::fromCircle(
-        SkRect::MakeXYWH(circleCenter.x() - circleRadius,
-                         circleCenter.y() - circleRadius, 2 * circleRadius,
-                         2 * circleRadius),
-        fontSize * 0.5f));
+    flow.exclusions().push_back(
+        {silhouette::circle(SkRect::MakeXYWH(
+             circleCenter.x() - circleRadius, circleCenter.y() - circleRadius,
+             2 * circleRadius, 2 * circleRadius)),
+         fontSize * 0.5f});
 
     const SkPath& donutPath = m_donut.ensure({size}, [&] {
       SkPathBuilder donut;
@@ -79,27 +81,26 @@ class ExclusionsScene final : public Scene {
     const SkPath spiky =
         spikyRingPath(static_cast<float>(elapsedSeconds),
                       std::min(canvasWidth, canvasHeight) * 0.19f);
-    ExclusionFlow::Shape star =
-        ExclusionFlow::Shape::fromPath(spiky, fontSize * 0.4f);
-    star.pathOffset = {
+    const SkPoint starOffset{
         canvasWidth * 0.6f +
             canvasWidth * 0.18f *
                 std::cos(static_cast<float>(elapsedSeconds) * 0.4f),
         canvasHeight * 0.3f +
             canvasHeight * 0.1f *
                 std::sin(static_cast<float>(elapsedSeconds) * 0.7f)};
-    flow.shapes().push_back(star);
-    // The donut drifts too: moving a path via pathOffset reuses its cached
-    // flattening, and every frame is a full live relayout around it.
-    ExclusionFlow::Shape donut =
-        ExclusionFlow::Shape::fromPath(donutPath, fontSize * 0.4f);
-    donut.pathOffset = {
+    flow.exclusions().push_back(
+        {silhouette::path(spiky), fontSize * 0.4f, starOffset});
+    // The donut drifts too: an exclusion's offset is rigid motion, so its
+    // silhouette answers from what it already measured and every frame is
+    // still a full live relayout around it.
+    const SkPoint donutOffset{
         canvasWidth * 0.05f *
             std::sin(static_cast<float>(elapsedSeconds) * 0.6f),
         canvasHeight * 0.06f *
             std::cos(static_cast<float>(elapsedSeconds) * 0.45f)};
-    flow.shapes().push_back(donut);
-    flow.setMinIntervalWidth(fontSize * 3);
+    flow.exclusions().push_back(
+        {silhouette::path(donutPath), fontSize * 0.4f, donutOffset});
+    flow.setMinimumIntervalWidth(fontSize * 3);
 
     ParagraphLayoutOptions options;
     options.alignment = params.alignment;
@@ -120,11 +121,11 @@ class ExclusionsScene final : public Scene {
     ghost.setColor(kShape);
     canvas->drawCircle(circleCenter.x(), circleCenter.y(), circleRadius, ghost);
     canvas->save();
-    canvas->translate(star.pathOffset.x(), star.pathOffset.y());
+    canvas->translate(starOffset.x(), starOffset.y());
     canvas->drawPath(spiky, ghost);
     canvas->restore();
     canvas->save();
-    canvas->translate(donut.pathOffset.x(), donut.pathOffset.y());
+    canvas->translate(donutOffset.x(), donutOffset.y());
     canvas->drawPath(donutPath, ghost);
     canvas->restore();
     layout.drawBatched(canvas, m_body.paragraph);
@@ -136,7 +137,7 @@ class ExclusionsScene final : public Scene {
  private:
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;
-  kit::CachedValue<SkPath, SkISize> m_donut;
+  sigil::core::CachedValue<SkPath, SkISize> m_donut;
 };
 
 SceneDescriptor makeExclusionsDescriptor() {

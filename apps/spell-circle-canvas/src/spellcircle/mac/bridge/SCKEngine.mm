@@ -5,6 +5,7 @@
 
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilskia/graphite/TextureImage.h>
 #include "SceneGeometry.h"
 #include "SceneModel.h"
 #include "SceneRenderer.h"
@@ -122,9 +123,9 @@ SkColor toSkColor(NSColor *color) {
 
   SyphonMetalServer *_syphon;
 
-  // Shared transport (src/net): the same ASIO receiver the Qt app's
-  // NetworkManager wraps. Datagrams arrive on its I/O thread and are
-  // marshalled onto the main queue here.
+  // The same ASIO receiver the Qt app's NetworkManager wraps, so both
+  // frontends have one transport. Datagrams arrive on its I/O thread and
+  // are marshalled onto the main queue here.
   std::unique_ptr<spellcircle::UdpReceiver> _receiver;
   NSDateFormatter *_timestampFormatter;
   CFTimeInterval _lastPacketTime;
@@ -296,7 +297,8 @@ SkColor toSkColor(NSColor *color) {
 
   const spellcircle::SceneStats stats = _document.decode(payload, size);
   _hasScene = stats.hasGeometry();
-  // Rendering happens through the paced governor (see drainSocket).
+  // Decoding never draws: a packet only marks the scene pending, and the
+  // render clock draws it at the configured rate.
 
   SCKFeedEntry *entry = [[SCKFeedEntry alloc]
       initWithTimestamp:[_timestampFormatter stringFromDate:[NSDate date]]
@@ -407,8 +409,9 @@ SkColor toSkColor(NSColor *color) {
                                     kCheckerCellPixels),
                    light);
     bitmap.setImmutable();
-    // Graphite does not auto-upload raster-backed shader images the way
-    // Ganesh did — a raster tile silently draws nothing. Upload explicitly.
+    // workaround: Graphite draws nothing, and reports nothing, from a
+    // shader over a raster-backed image; the tile has to reach the GPU as a
+    // texture before it becomes a shader.
     sk_sp<SkImage> tile = bitmap.asImage();
     if (sk_sp<SkImage> uploaded = SkImages::TextureFromImage(_graphite->recorder(), tile.get(), {}))
       tile = std::move(uploaded);
@@ -589,15 +592,10 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
   platePaint.setShader([self checkerShader]);
   canvas->drawRect(destination, platePaint);
 
-  if (_sceneTexture) {
-    const skgpu::graphite::BackendTexture backendTexture =
-        skgpu::graphite::BackendTextures::MakeMetal(
-            SkISize::Make(static_cast<int>(_sceneTexture.width),
-                          static_cast<int>(_sceneTexture.height)),
-            (__bridge CFTypeRef)_sceneTexture);
-    sk_sp<SkImage> sceneImage =
-        SkImages::WrapTexture(_graphite->recorder(), backendTexture, kBGRA_8888_SkColorType,
-                              kPremul_SkAlphaType, /*colorSpace=*/nullptr);
+  if (_sceneTexture && _graphite->recorder()) {
+    sk_sp<SkImage> sceneImage = sigil::skia::wrapImage(
+        *_graphite->recorder(), (__bridge void *)_sceneTexture,
+        static_cast<int>(_sceneTexture.width), static_cast<int>(_sceneTexture.height));
     if (sceneImage) {
       SkPaint imagePaint;
       imagePaint.setAntiAlias(true);

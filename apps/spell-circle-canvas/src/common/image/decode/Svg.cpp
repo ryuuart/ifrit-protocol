@@ -16,7 +16,9 @@
 #include <modules/svg/include/SkSVGSVG.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <string>
 #include <string_view>
 
 #include "Backends.h"
@@ -71,7 +73,9 @@ SkISize svgRasterSize(const SkSize& intrinsic, const DecodeOptions& options) {
  *  or "<svg" (a .svg pathHint extension counts as a hint too). */
 bool looksLikeSvg(const std::byte* bytes, size_t size,
                   const std::filesystem::path& pathHint) {
-  if (pathHint.extension() == ".svg") return true;
+  std::string extension = pathHint.extension().string();
+  for (char& c : extension) c = (char)std::tolower((unsigned char)c);
+  if (extension == ".svg") return true;
   std::string_view text(reinterpret_cast<const char*>(bytes), size);
   if (text.starts_with("\xEF\xBB\xBF")) text.remove_prefix(3);
   while (!text.empty() && (text.front() == ' ' || text.front() == '\t' ||

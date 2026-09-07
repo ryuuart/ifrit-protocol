@@ -20,6 +20,10 @@ namespace sigil::sketch {
 class Host;
 }
 
+namespace sigil::weave {
+class FontContext;
+}
+
 /** THE LIVE CANVAS. Frames render on the render thread, through the
  *  shared Skia Graphite context straight into the item's texture when the
  *  QRhi backend supports it, with an explicit raster-and-upload fallback
@@ -64,6 +68,19 @@ class SketchbookView : public QQuickRhiItem {
   Q_INVOKABLE void capture();
   /** Moves the viewpoint of a sketch that has one. */
   Q_INVOKABLE void orbit(float yawDeg, float pitchDeg, float distance);
+  /** WHERE THE POINTER STANDS over this item, in its own coordinates,
+   *  and whether its button is down. The item puts the point into the
+   *  sketch's canvas units through the same fit the frame is drawn
+   *  with, so a sketch reads the pointer on the canvas it declared
+   *  whatever the window did to that canvas. */
+  Q_INVOKABLE void pointer(qreal x, qreal y, bool pressed);
+  /** A KEY GOING DOWN OR UP, as Qt reports it: its key and the text it
+   *  types. The sketch is handed the name a keyboard spells it by —
+   *  "a", "ArrowLeft", "Enter" — and the code p5 gives it, so a sketch
+   *  pasted from p5 compares against the numbers it already knows. A
+   *  key held down repeats, which the runtimes coalesce: a key already
+   *  down stays down and the press is one event a frame. */
+  Q_INVOKABLE void key(int qtKey, const QString& text, bool pressed);
 
   [[nodiscard]] int sketchIndex() const { return m_sketchIndex; }
   void setSketchIndex(int index);
@@ -83,33 +100,38 @@ class SketchbookView : public QQuickRhiItem {
   [[nodiscard]] qreal orbitPitch() const { return m_orbit.pitchDeg; }
   [[nodiscard]] qreal orbitDistance() const { return m_orbit.distance; }
 
-  /** Where the live host finds the file behind a registry entry, and the
-   *  compiler line the build captured. Set by main() before QML loads. */
-  static std::filesystem::path sketchDir;
   /** Where a sketch looks for what it did not generate. Empty means
    *  `assets/` beside whichever file is open, which is what makes a
    *  directory of sketches outside this repository a place to work. */
   static std::filesystem::path assetsDir;
   static std::filesystem::path flagsFile;
-  /** SKETCHES THIS BINARY DOES NOT CARRY, opened from a path.
-   *
-   *  The registry is the compiled-in table and settles the first time it
-   *  is read, so a file opened by path cannot join it. It joins this
-   *  list instead, which the listing reads after the registry — the two
-   *  cannot disagree, because an entry here is a file this binary was
-   *  never built with. Its name is the file's stem: the dylib a
-   *  hot-loaded sketch exports carries neither key nor name. */
-  static std::vector<std::filesystem::path> externals;
+  /** The shared layer: the directory whose sources are units of every
+   *  sketch and whose headers a sketch spells as `<shared/Name.h>`. */
+  static std::filesystem::path sharedDir;
+  /** WHAT EVERY SESSION THIS WINDOW OPENS SHAPES TEXT WITH — the
+   *  process's one font context, handed over by main() before QML loads.
+   *  One owner: a context of this window's own would pay for the shaping
+   *  and glyph caches a second time, beside the one the stills and the
+   *  headless lanes already fill. Nothing opens until it is here. */
+  static sigil::weave::FontContext* fonts;
   /** The host the render thread draws and the GUI thread polls — every
    *  access on either side takes the mutex beside it. It is the resident
    *  set's presented session, held as a pointer because that is what
    *  every frame, poll and capture already reaches for. */
   static sigil::sketch::Host* host;
-  /** THE SESSIONS THIS WINDOW HAS OPENED. Selecting a sketch swaps which
-   *  one is presented rather than building it again, so a switch does
-   *  not re-run setup and the frame windows behind the readout survive a
-   *  look at something else. Under the same mutex as `host`. */
+  /** THE HOSTS THIS WINDOW HAS OPENED. Selecting a sketch swaps which host
+   *  is presented rather than compiling it again. A returning host opens a
+   *  fresh runtime session so setup and entrance animations replay, while its
+   *  compiler, watched source and loaded libraries stay warm. Under the same
+   *  mutex as `host`. */
   static sigil::sketch::Residency sessions;
+  /** ONE SESSION AT A TIME. The session on screen is let go before the
+   *  next one opens, rather than kept warm behind it. What a frame-rate
+   *  sweep is asked for is one sketch's own rate, and a set of sessions
+   *  standing behind it — holding their scenes, their images and their
+   *  pipelines, and let go inside a later sketch's frames — is a cost
+   *  that belongs to the window and not to the sketch being read. */
+  static bool oneSessionAtATime;
   static QMutex hostMutex;
 
  signals:
@@ -120,12 +142,51 @@ class SketchbookView : public QQuickRhiItem {
   void orbitChanged();
   void stateChanged();
   void captureReady(const QString& path);
+  /** THE SKETCH ON SCREEN HAS BEEN PHOTOGRAPHED for the thumbnail store,
+   *  at @p index, under the key its source stands at now. Emitted once
+   *  per sketch opened, as the presented session reaches the moment it
+   *  declared, so the browser's stills refresh as sketches are looked at
+   *  and nothing renders in the background to keep them current. */
+  void thumbnailCaptured(int index);
+
+ protected:
+  /** A RESIZE IS NOT A RESOLUTION CHANGE UNTIL IT HAS STOPPED. The
+   *  item's texture is sized from its geometry, so a host that animates
+   *  that geometry — a pan-zoom viewport under the wheel, a splitter
+   *  under the mouse — would otherwise reallocate the render target and
+   *  re-render the whole scene at a new resolution, re-baking every
+   *  cached raster in it, on every step of the gesture. This defers the
+   *  resolution instead: the frame is composed for the item's rectangle
+   *  and the texture holding it is stretched over the growing item, so
+   *  the picture follows the gesture at once and pays only in
+   *  sharpness. */
+  void geometryChange(const QRectF& newGeometry,
+                      const QRectF& oldGeometry) override;
+  /** A window dragged onto a screen of another density changes the pixels
+   *  behind an unchanged geometry, which no resize reports. */
+  void itemChange(ItemChange change, const ItemChangeData& data) override;
 
  private:
   friend class SketchbookRenderer;
 
+  /** Pins the render target to the item's geometry as it stands now,
+   *  in device pixels, and cancels any deferral waiting to do so. */
+  void settleRenderSize();
+
   QTimer m_timer;
-  int m_sketchIndex = 0;
+  /** HOW LONG A GESTURE MUST BE QUIET before the frame is re-rendered at
+   *  the scale it settled on. Wall clock rather than a frame count: it is
+   *  the frames themselves that stall while the resolution is wrong, so
+   *  counting them would stretch the wait exactly for the sketches that
+   *  can least afford it. Single-shot and restarted by each step, so a
+   *  burst of wheel steps leaves one resize pending and the last scale
+   *  wins. */
+  QTimer m_settle;
+  /** NOTHING IS PRESENTED UNTIL SOMETHING IS OPENED. The window comes up
+   *  on the browser, and the canvas stays dark until a sketch is chosen —
+   *  which is what leaves the machine to the thumbnail fill while the
+   *  reader is still reading rows. */
+  int m_sketchIndex = -1;
   bool m_paused = false;
   bool m_orbitable = false;
   double m_timeScale = 1.0;
@@ -135,7 +196,7 @@ class SketchbookView : public QQuickRhiItem {
   bool m_orbitDirty = false;
   /** Published by the renderer from the running session: where the
    *  sketch is seen from, whether or not a pointer has moved it. */
-  sigil::sketch::Orbit m_orbit;
+  sigil::geometry::mesh::camera::Orbit m_orbit;
   QVariantMap m_metrics = {{QStringLiteral("backend"),
                             QStringLiteral("hardware QRhi renderer required")}};
   QString m_status;

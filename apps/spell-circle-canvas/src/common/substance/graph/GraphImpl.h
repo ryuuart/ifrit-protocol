@@ -11,7 +11,7 @@
 #include <include/core/SkRefCnt.h>
 #include <substance/framework/framework.h>
 
-#include <map>
+#include <boost/container/map.hpp>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -25,9 +25,15 @@ struct Graph::Impl {
   SubstanceAir::Renderer* renderer = nullptr;       // owned by the package
   std::string label;
   std::string url;
-  std::map<std::string, sk_sp<SkImage>> byIdentifier;
-  std::map<std::string, sk_sp<SkImage>> byUsage;
-  std::vector<SubstanceAir::InputImage::SPtr> heldImages;  // keep inputs alive
+  boost::container::map<std::string, sk_sp<SkImage>> byIdentifier;
+  boost::container::map<std::string, sk_sp<SkImage>> byUsage;
+  /** The image behind each image input, held while the input names it:
+   *  the framework takes a reference to the buffer rather than a copy,
+   *  so letting go of one while it is set would hand the engine freed
+   *  pixels. One per input identifier, replaced when that input is set
+   *  again, so a graph fed a new image every cook holds one image per
+   *  input and not one per cook. */
+  boost::container::map<std::string, SubstanceAir::InputImage::SPtr> heldImages;
 
   /** The input instance named @p identifier, or null. */
   SubstanceAir::InputInstanceBase* input(std::string_view identifier) const {

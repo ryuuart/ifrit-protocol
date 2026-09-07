@@ -100,18 +100,20 @@
 // amplitude R is the node's own half-extent, because the curve is sampled
 // in a unit frame that the box scales.
 //
-// Revealed by Element::trim(0, &growth) at a CONSTANT rate (easeNone — a
-// motor does not ease); spun forever by one shaped binding on the clock.
+// Revealed by a stroke pass over `spans::upTo(&growth)` at a CONSTANT
+// rate (a motor does not ease); spun forever by one shaped binding on the
+// clock.
 //
 // ---------------------------------------------------------------------
-// THE ONE CONSTRAINT WORTH STATING
+// TWO WINDOWS OVER ONE CURVE VALUE
 // ---------------------------------------------------------------------
-// ONE TRIM WINDOW PER NODE. trim() is an Element property and decorations
-// receive the already-trimmed outline, so the bright pen-tip highlight
-// riding just behind the drawing edge cannot be a second stroke on the
-// same node. It is a sibling holding the same curve value with its own
-// window — and because the curve IS a value, the two siblings compare
-// equal and the second one costs a window rather than a second figure.
+// A SPAN IS PER STROKE PASS, so the pen tip riding just behind the
+// drawing edge is a second pass over `spans::range(growth - nib, growth)`
+// and needs no node of its own. It is still drawn as a sibling here, for
+// the ordering the plus-blended nib wants over the filament under it —
+// and because the curve IS a comparable value, the two nodes hold the
+// same Harmonograph, compare equal, and the second costs a window rather
+// than a second figure.
 //
 // EDIT THESE FIRST
 //   kTurns   — how many pendulum periods each card draws. Three is a
@@ -126,17 +128,26 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Brushes.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/TextFx.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Cells.h>
+#include <sigilsketch/kit/Heading.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/kit/PaintLayers.h>
+#include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -144,11 +155,18 @@
 #include <string>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 namespace noise = sigil::core::noise;
 using namespace std::chrono_literals;
+using sigil::material::skia::Paint;
+using sigil::material::skia::Stop;
 namespace ch = choreograph;
 
 namespace {
@@ -160,13 +178,13 @@ constexpr float kDeg = kPi / 180.0f;
 // chrome palette — this study's own (film-base warm black, deliberately
 // warmer than a neutral UI near-black)
 
-constexpr SkColor4f kInk = hex(0x0A0806);    // canvas
-constexpr SkColor4f kPlate = hex(0x110D0A);  // sidebar plates
-constexpr SkColor4f kBone = hex(0xEDE6D8);   // primary type
-constexpr SkColor4f kSteel = hex(0x8A7D68);  // secondary type
-constexpr SkColor4f kSteelDim = hex(0x8A7D68, 0.62f);
-constexpr SkColor4f kKeyline = hex(0x3A342C);   // panel keylines
-constexpr SkColor4f kSolidInk = hex(0x050403);  // "solid black capitals"
+constexpr SkColor4f kInk = hexColor(0x0A0806);    // canvas
+constexpr SkColor4f kPlate = hexColor(0x110D0A);  // sidebar plates
+constexpr SkColor4f kBone = hexColor(0xEDE6D8);   // primary type
+constexpr SkColor4f kSteel = hexColor(0x8A7D68);  // secondary type
+constexpr SkColor4f kSteelDim = hexColor(0x8A7D68, 0.62f);
+constexpr SkColor4f kKeyline = hexColor(0x3A342C);   // panel keylines
+constexpr SkColor4f kSolidInk = hexColor(0x050403);  // "solid black capitals"
 
 // ---------------------------------------------------------------------------
 // canvas / panel geometry — 1480x800 is the film's own 1.85:1
@@ -207,16 +225,16 @@ constexpr int kSamples = 1100;
 constexpr float kNib = 0.008f;
 
 constexpr std::array<Card, 4> kCards = {{
-    {"A", 3, 2, 90.0f, 0.15f, 200.0f, 0.035f, hex(0xE0601A),
+    {"A", 3, 2, 90.0f, 0.15f, 200.0f, 0.035f, hexColor(0xE0601A),
      "A — WARM / ORANGE · a:b = 3:2 · δ 90°",
      "k 0.15 · R 176 px · 3-petal rosette, slow precession"},
-    {"B", 5, 4, 0.0f, 0.10f, 195.0f, 0.020f, hex(0xC81E2C),
+    {"B", 5, 4, 0.0f, 0.10f, 195.0f, 0.020f, hexColor(0xC81E2C),
      "B — RED · a:b = 5:4 · δ 0°",
      "k 0.10 · R 172 px · tight weave, near-static precession"},
-    {"C", 2, 1, 45.0f, 0.22f, 205.0f, 0.045f, hex(0x1C4F9C),
+    {"C", 2, 1, 45.0f, 0.22f, 205.0f, 0.045f, hexColor(0x1C4F9C),
      "C — COOL / BLUE · a:b = 2:1 · δ 45°",
      "k 0.22 · R 180 px · figure-eight base, fast precession"},
-    {"D", 5, 3, 60.0f, 0.12f, 190.0f, 0.030f, hex(0x5A2E82),
+    {"D", 5, 3, 60.0f, 0.12f, 190.0f, 0.030f, hexColor(0x5A2E82),
      "D — PURPLE · a:b = 5:3 · δ 60°", "k 0.12 · R 167 px · 5-lobe flower"},
 }};
 
@@ -244,26 +262,24 @@ Element figureBox(SkPoint centre, float radius) {
 // ---------------------------------------------------------------------------
 // type
 
-sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
-                             SkColor4f color, float tracking = 0,
-                             float condense = 1.0f) {
-  return sigil::compose::type({.face = std::move(face),
-                               .size = size,
-                               .color = color,
-                               .track = tracking,
-                               .condense = condense});
+weave::TextStyle faced(sk_sp<SkTypeface> face, float size, SkColor4f color,
+                       float tracking = 0, float condense = 1.0f) {
+  return weave::textStyle({.face = std::move(face),
+                           .size = size,
+                           .color = color,
+                           .track = tracking,
+                           .condense = condense});
 }
 
-/** The OUTLINE register: PaintLayer::outline()'s stroked paint installed
+/** The OUTLINE register: sigil::weave::kit::outline()'s stroked paint installed
  *  as the node's ENTIRE foreground pass — no fill underneath, so the
  *  spiral is visible straight through the counters. Typotheque: "outline
  *  type through which the image beneath can be seen." */
-sigil::weave::TextStyle hollow(sk_sp<SkTypeface> face, float size,
-                               SkColor4f color, float width,
-                               float tracking = 0) {
-  sigil::weave::TextStyle s = type(std::move(face), size, color, tracking);
+weave::TextStyle hollow(sk_sp<SkTypeface> face, float size, SkColor4f color,
+                        float width, float tracking = 0) {
+  weave::TextStyle s = faced(std::move(face), size, color, tracking);
   s.paint.foreground =
-      sigil::weave::PaintLayer::outline(color.toSkColor(), width).paint;
+      sigil::weave::kit::outline(color.toSkColor(), width).paint;
   s.paint.foreground.setAntiAlias(true);
   return s;
 }
@@ -280,7 +296,7 @@ sigil::weave::TextStyle hollow(sk_sp<SkTypeface> face, float size,
 shapes::KeyedParametric ringPath() {
   return shapes::parametric(
       "vertigo-limbus",
-      [](float a) { return SkPoint{std::cos(a), std::sin(a)}; }, kPi,
+      [](float a) { return arrange::onEllipse({0, 0}, {1, 1}, a); }, kPi,
       kPi + 2.0f * kPi, 361);
 }
 
@@ -294,14 +310,12 @@ Element ring(float r, SkColor4f color, float width) {
 }
 
 Element plate(float height) {
-  return box()
-      .height(height)
-      .corners({8})
-      .padding(16)
-      .column()
-      .clip(true)
-      .fill(Fill::color(kPlate))
-      .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner));
+  return sketch::kit::well({.height = Dim(height),
+                            .ground = Fill::color(kPlate),
+                            .padding = 16,
+                            .corners = 8,
+                            .keyline = Fill::color(kKeyline)})
+      .column();
 }
 
 }  // namespace
@@ -310,10 +324,10 @@ Element plate(float height) {
 
 struct VertigoTitles : sketch::Sketch {
   // --- the perpetual loop's live cells ---------------------------------
-  // One clock and three cells per card. What used to be a fourth cell —
-  // the nib's trailing edge — is a shaped binding on `growth`, and what
-  // used to be a fifth is the turntable, which is a shaped binding on the
-  // clock. A value derived from another one is not its own state.
+  // One clock and three cells per card. The nib's trailing edge is a
+  // shaped binding on `growth` and the turntable is a shaped binding on
+  // the clock, so neither is a cell: a value derived from another one is
+  // not its own state.
   ch::Output<float> secs{0};
   std::array<ch::Output<float>, 4> growth{};  // trim end   — the pen
   std::array<ch::Output<float>, 4> cardA{};   // card opacity
@@ -327,15 +341,14 @@ struct VertigoTitles : sketch::Sketch {
   Bound turntable() const { return bind(&secs).scale(18.0f).wrap(360.0f); }
 
   sk_sp<SkTypeface> faceDisplay, faceGothic, faceGothicBold;
-  Material irisMat, filmGrain, paperGrain;
+  Paint irisMat, filmGrain, paperGrain;
 
   // ------------------------------------------------------------------
-  // one spiral card = TWO nodes over the same curve. There is one trim
-  // window per NODE (trim() is an Element property; decorations receive
-  // the already-trimmed outline as PaintContext::outline), so a pen-tip
-  // highlight riding just behind the drawing edge cannot be a second
-  // stroke on the same node — it is a sibling with an identical outline
-  // and its own window, whose trailing edge is `growth` shaped.
+  // one spiral card = TWO nodes over the same curve value. A span rides
+  // the stroke PASS, so both windows could sit on one node; they are
+  // siblings for the draw order the plus-blended nib wants over the
+  // filament, and the second node costs a window rather than a second
+  // figure because the Harmonograph compares equal.
   void spiralCard(Element& into, int i) {
     const Card& c = kCards[i];
     const float R = c.amp * kFit;
@@ -346,7 +359,7 @@ struct VertigoTitles : sketch::Sketch {
             .key("curve" + tag)
             .shape(figure(c))
             .stroke(spans::upTo(&growth[i]),
-                    kit::brush::presets::filament(c.core, hex(0xFFE9CF), 0.48f))
+                    brush::presets::filament(c.core, hexColor(0xFFE9CF), 0.48f))
             .rotate(turntable())
             .opacity(&cardA[i]));
 
@@ -360,8 +373,8 @@ struct VertigoTitles : sketch::Sketch {
             .shape(figure(c))
             .stroke(spans::range(bind(&growth[i]).offset(-kNib).clamp(0, 1),
                                  &growth[i]),
-                    kit::brush::presets::pulse({1.0f, 0.90f, 0.72f, 0.42f},
-                                               {1, 1, 1, 0.95f}, 0.7f))
+                    brush::presets::pulse({1.0f, 0.90f, 0.72f, 0.42f},
+                                          {1, 1, 1, 0.95f}, 0.7f))
             .rotate(turntable())
             .opacity(&penA[i]));
   }
@@ -386,23 +399,22 @@ struct VertigoTitles : sketch::Sketch {
                      .key("screen")
                      .fill(irisMat);
 
-    panel.child(ring(61.0f, hex(0x090604, 0.85f), 3.0f)
+    panel.child(ring(61.0f, hexColor(0x090604, 0.85f), 3.0f)
                     .key("pupil-edge")
                     .opacity(animate(from(0.0f).to(1.0f), ramp(300, 420))));
-    panel.child(ring(146.0f, hex(0x2A1D10, 0.40f), 1.2f).key("iris-mid"));
-    panel.child(ring(262.0f, hex(0x120C07, 0.24f), 10.0f).key("limbus"));
+    panel.child(ring(146.0f, hexColor(0x2A1D10, 0.40f), 1.2f).key("iris-mid"));
+    panel.child(ring(262.0f, hexColor(0x120C07, 0.24f), 10.0f).key("limbus"));
 
     // "the screen is suddenly stained red" — kColor keeps the iris's
     // luminance and swaps its hue/saturation, so it TINTS rather than
     // covers. Sudden onset: easeInQuad.
-    panel.child(
-        box()
-            .key("stain")
-            .inset(0)
-            .blend(SkBlendMode::kColor)
-            .fill(animate(
-                from(Fill::color(hex(0x3A2A1C))).to(Fill::color(hex(0xC81E2C))),
-                ramp(700, 500, ch::easeInQuad))));
+    panel.child(box()
+                    .key("stain")
+                    .inset(0)
+                    .blend(SkBlendMode::kColor)
+                    .fill(animate(from(Fill::color(hexColor(0x3A2A1C)))
+                                      .to(Fill::color(hexColor(0xC81E2C))),
+                                  ramp(700, 500, ch::easeInQuad))));
 
     for (int i = 0; i < 4; ++i) spiralCard(panel, i);
 
@@ -429,12 +441,11 @@ struct VertigoTitles : sketch::Sketch {
         // image is seen through.
         halo.setStrokeWidth(4.0f);
         halo.setColor(0x59000000);
-        face.paint.underlays.push_back(
-            sigil::weave::PaintLayer::blurred(halo, 2.4f));
+        face.paint.underlays.push_back(weave::PaintLayer::blurred(halo, 2.4f));
       }
       // The entrance ramp covers the cascade's own span, so the last
       // capital lands exactly when the master progress does.
-      const sigil::compose::Stagger cascade{.eachMs = 30, .durationMs = 480};
+      const Spread cascade{.eachMs = 30, .durationMs = 480};
       panel.child(text(toU8("VERTIGO"), face)
                       .key("vertigo")
                       .centerAt(kEye)
@@ -451,7 +462,7 @@ struct VertigoTitles : sketch::Sketch {
     // its body credits too.
     panel.child(
         text(toU8("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY"),
-             type(faceDisplay, 15, kSolidInk, 2.6f))
+             faced(faceDisplay, 15, kSolidInk, 2.6f))
             .key("credit")
             .centerAt({kEye.x(), kEye.y() + 152.0f})
             .opacity(animate(from(0.0f).to(1.0f), ramp(1550, 300)))
@@ -462,7 +473,7 @@ struct VertigoTitles : sketch::Sketch {
     // lettering would have been one leaf and one measure() per glyph.
     panel.child(
         text(toU8("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE"),
-             type(faceGothic, 11, hex(0xEDE6D8, 0.42f), 3.4f))
+             faced(faceGothic, 11, hexColor(0xEDE6D8, 0.42f), 3.4f))
             .key("ring-top")
             .width(544)
             .height(544)
@@ -475,7 +486,7 @@ struct VertigoTitles : sketch::Sketch {
             .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500))));
     panel.child(
         text(toU8("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR"),
-             type(faceGothic, 11, hex(0xEDE6D8, 0.42f), 3.4f))
+             faced(faceGothic, 11, hexColor(0xEDE6D8, 0.42f), 3.4f))
             .key("ring-bottom")
             .width(544)
             .height(544)
@@ -501,13 +512,13 @@ struct VertigoTitles : sketch::Sketch {
         "CARD D · a:b 5:3 · δ 60° · k 0.12 · R 167 px",
     };
     for (int i = 0; i < 4; ++i)
-      panel.child(text(toU8(kSlug[i]), type(faceGothic, 10, kBone, 1.8f))
+      panel.child(text(toU8(kSlug[i]), faced(faceGothic, 10, kBone, 1.8f))
                       .key(std::string("slug") + kCards[i].tag)
                       .left(22)
                       .top(20)
                       .opacity(&cardA[i]));
     panel.child(text(toU8("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone"),
-                     type(faceGothic, 10, hex(0xEDE6D8, 0.50f), 1.8f))
+                     faced(faceGothic, 10, hexColor(0xEDE6D8, 0.50f), 1.8f))
                     .key("slug-rig")
                     .left(22)
                     .bottom(20)
@@ -546,16 +557,16 @@ struct VertigoTitles : sketch::Sketch {
     p.child(figureBox({130.0f, 70.0f}, 74.0f)
                 .key("spec-bed")
                 .shape(figure(kCards[2], 700))
-                .stroke(stroke(0.8f, Fill::color(hex(0x2E5C9E, 0.55f))))
+                .stroke(stroke(0.8f, Fill::color(hexColor(0x2E5C9E, 0.55f))))
                 .rotate(turntable()));
     p.child(text(toU8("VERTIGO"), hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
                 .key("spec-outline"));
     p.child(text(toU8("SAUL BASS · JOHN WHITNEY"),
-                 type(faceDisplay, 14, kBone, 2.0f))
+                 faced(faceDisplay, 14, kBone, 2.0f))
                 .key("spec-solid"));
     p.child(text(toU8("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
                       "— BOTH CLARENDON."),
-                 type(faceGothic, 10, kSteel, 0.6f))
+                 faced(faceGothic, 10, kSteel, 0.6f))
                 .key("spec-cap"));
     return p;
   }
@@ -577,20 +588,20 @@ struct VertigoTitles : sketch::Sketch {
                     .height(38)
                     .shrink(0)
                     .corners({3})
-                    .fill(Fill::color(hex(0x080605)))
+                    .fill(Fill::color(hexColor(0x080605)))
                     .stroke(stroke(1.0f, Fill::color(kKeyline),
                                    PathFormat::Align::Inner))
                     .child(figureBox({19.0f, 19.0f}, 13.0f)
                                .shape(figure(c, 360))
                                .stroke(stroke(0.9f, Fill::color(c.core)))
                                .rotate(turntable())));
-      row.child(
-          box()
-              .column()
-              .grow(1)
-              .gap(2)
-              .child(text(toU8(c.line1), type(faceGothicBold, 11, kBone, 0.7f)))
-              .child(text(toU8(c.line2), type(faceGothic, 9, kSteel))));
+      row.child(box()
+                    .column()
+                    .grow(1)
+                    .gap(2)
+                    .child(text(toU8(c.line1),
+                                faced(faceGothicBold, 11, kBone, 0.7f)))
+                    .child(text(toU8(c.line2), faced(faceGothic, 9, kSteel))));
       p.child(std::move(row));
     }
     return p;
@@ -607,19 +618,37 @@ struct VertigoTitles : sketch::Sketch {
     };
     auto p = plate(176).gap(5);
     p.child(text(toU8("THE M-5 GUN DIRECTOR"),
-                 type(faceGothicBold, 13, kBone, 1.6f))
+                 faced(faceGothicBold, 13, kBone, 1.6f))
                 .key("rig-h"));
     for (int i = 0; i < 4; ++i)
-      p.child(text(toU8(kFacts[i]), type(faceGothic, 10.5f, kSteel, 0.3f))
+      p.child(text(toU8(kFacts[i]), faced(faceGothic, 10.5f, kSteel, 0.3f))
                   .key("rig" + std::to_string(i))
                   .opacity(animate(from(0.0f).to(1.0f),
                                    ramp(900.0f + (float)i * 90.0f, 300))));
     p.child(box().grow(1));
     p.child(text(toU8("hitchcocksvertigo.substack.com · rhizome.org "
                       "· diyphotography.net"),
-                 type(faceGothic, 9, kSteelDim))
+                 faced(faceGothic, 9, kSteelDim))
                 .key("rig-cite"));
     return p;
+  }
+
+  /** THE MASTHEAD'S OWN LOOK: the three registers its lines are set in,
+   *  each naming its own face, and the inks the four of them are set in.
+   *  The sources ranged at the far edge are a step quieter than the
+   *  subtitle beside them, which is the one thing a palette's single ash
+   *  cannot say — so each of those names its own. */
+  [[nodiscard]] sketch::kit::Theme mastheadTheme() const {
+    sketch::kit::Theme paper;
+    paper.palette.ink = kBone;
+    paper.palette.ash = kSteel;
+    paper.type.eyebrow = {11.0f, 3.0f, false, faceGothicBold};
+    paper.type.title = {42.0f, 1.0f, false, faceDisplay};
+    paper.type.subtitle = {12.0f, 0.4f, false, faceGothic};
+    paper.type.captionNote = {9.5f, 0.0f, false, faceGothic};
+    paper.spacing.subtitleGap = 7;
+    paper.spacing.rowGap = 4;
+    return paper;
   }
 
   // ------------------------------------------------------------------
@@ -627,48 +656,48 @@ struct VertigoTitles : sketch::Sketch {
     auto root = box().column().padding(kPad).gap(28).fill(Fill::color(kInk));
 
     // ---- header ---------------------------------------------------
-    auto head = box().row().height(104).alignItems(Align::End);
-
-    Track rise{.effect = fx::rise(18.0f),
-               .stagger = {.eachMs = 26, .amountMs = 0, .durationMs = 420},
-               .progress = animate(from(0.0f).to(1.0f),
-                                   ramp(140, 900, ch::easeOutExpo))};
-
-    head.child(
-        box()
-            .column()
-            .grow(1)
-            .gap(7)
-            .child(text(toU8("PRECESSING LISSAJOUS FIGURES"),
-                        type(faceGothicBold, 11, kSteel, 3.0f))
-                       .key("eyebrow")
-                       .opacity(animate(from(0.0f).to(1.0f), ramp(0, 260)))
-                       .translateY(animate(from(8.0f).to(0.0f), ramp(0, 260))))
-            .child(
-                text(toU8("VERTIGO, 1958"), type(faceDisplay, 42, kBone, 1.0f))
-                    .key("heading")
-                    .fx(std::move(rise)))
-            .child(text(toU8("Saul Bass, title design — John Whitney, "
-                             "spirals — Paramount, dir. Alfred Hitchcock"),
-                        type(faceGothic, 12, kSteel, 0.4f))
-                       .key("cite")
-                       .opacity(animate(from(0.0f).to(1.0f), ramp(420, 240)))));
-
-    auto sources = box().column().gap(4).alignItems(Align::End);
     static constexpr const char* kSrc[] = {
         "artofthetitle.com/title/vertigo",
         "typotheque.com — Emily King, “Taking Credit” (5)",
         "patrycerichter.wordpress.com — shot breakdown, 2016",
         "fontsinuse.com — Clarendon / News Gothic",
     };
+    std::vector<sketch::kit::Line> sources;
     for (int i = 0; i < 4; ++i)
-      sources.child(
-          text(toU8(kSrc[i]), type(faceGothic, 9.5f, kSteelDim))
-              .key("src" + std::to_string(i))
-              .opacity(animate(from(0.0f).to(1.0f),
-                               ramp(520.0f + (float)i * 70.0f, 260))));
-    head.child(std::move(sources));
-    root.child(std::move(head));
+      sources.push_back(
+          {.words = toU8(kSrc[i]),
+           .ink = Fill::color(kSteelDim),
+           .opacity = animate(from(0.0f).to(1.0f),
+                              ramp(520.0f + (float)i * 70.0f, 260))});
+
+    {
+      // Bound round the masthead only: everything under it is set in the
+      // sequence's own registers rather than in a sheet's.
+      const sketch::kit::Provide look(mastheadTheme());
+      root.child(
+          sketch::kit::titleCard(
+              {.eyebrow = {.words = toU8("PRECESSING LISSAJOUS FIGURES"),
+                           .opacity =
+                               animate(from(0.0f).to(1.0f), ramp(0, 260)),
+                           .lift = animate(from(8.0f).to(0.0f), ramp(0, 260))},
+               .title = {.words = toU8("VERTIGO, 1958"),
+                         .fx = Track{.effect = fx::rise(18.0f),
+                                     .stagger = {.eachMs = 26,
+                                                 .amountMs = 0,
+                                                 .durationMs = 420},
+                                     .progress = animate(
+                                         from(0.0f).to(1.0f),
+                                         ramp(140, 900, ch::easeOutExpo))}},
+               .subtitle = {.words = toU8("Saul Bass, title design — John "
+                                          "Whitney, spirals — Paramount, "
+                                          "dir. Alfred Hitchcock"),
+                            .opacity =
+                                animate(from(0.0f).to(1.0f), ramp(420, 240))},
+               .notes = std::move(sources),
+               .align = Align::Stretch,
+               .key = "head"})
+              .height(104));
+    }
 
     // hairline under the header
     root.child(box()
@@ -710,20 +739,20 @@ struct VertigoTitles : sketch::Sketch {
 
   // ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(5.2);
-    ctx.canvas(kW, kH);
-    ctx.background(kInk);
+    sketch::kit::stage(
+        ctx,
+        {.size = SkSize::Make(kW, kH), .captureAt = 5.2, .background = kInk});
 
     // Clarendon is REAL here: macOS ships Apple's SuperClarendon. The
     // rest of the list is what this plate will accept instead of it, in
     // order — which is the whole reason the face verb takes a chain.
-    faceDisplay =
-        pickFace({"SuperClarendon", "Super Clarendon", "Rockwell", "Bodoni 72"},
-                 SkFontStyle::Bold());
+    faceDisplay = weave::ports::face(
+        {"SuperClarendon", "Super Clarendon", "Rockwell", "Bodoni 72"},
+        SkFontStyle::Bold());
     // News Gothic is NOT installed — Helvetica Neue stands in, condensed.
-    faceGothic = pickFace({"Helvetica Neue", "Helvetica"});
-    faceGothicBold =
-        pickFace({"Helvetica Neue", "Helvetica"}, SkFontStyle::kBold_Weight);
+    faceGothic = weave::ports::face({"Helvetica Neue", "Helvetica"});
+    faceGothicBold = weave::ports::face({"Helvetica Neue", "Helvetica"},
+                                        SkFontStyle::kBold_Weight);
 
     // ---- the iris: TWO gradient kinds flattened into one shader ----
     // radial sepia ramp (pupil → bright inner iris → limbus → dark) with
@@ -734,28 +763,27 @@ struct VertigoTitles : sketch::Sketch {
       const float j = 0.012f * noise::hash(17u, (uint32_t)i);
       fibres.push_back({(float)i / 96.0f, {v + j, v + j, v + j, 1}});
     }
-    irisMat = Material::blend(
-        {{Material::radial(kEye, 360.0f,
-                           {{0.00f, hex(0x100C09)},  // pupil
-                            {0.11f, hex(0x17110B)},
-                            {0.17f, hex(0x8A6A44)},  // bright inner iris
-                            {0.40f, hex(0x6E5230)},
-                            {0.72f, hex(0x6A5030)},
-                            {1.00f, hex(0x36271A)}}),
+    irisMat = Paint::blend(
+        {{Paint::radial(kEye, 360.0f,
+                        {{0.00f, hexColor(0x100C09)},  // pupil
+                         {0.11f, hexColor(0x17110B)},
+                         {0.17f, hexColor(0x8A6A44)},  // bright inner iris
+                         {0.40f, hexColor(0x6E5230)},
+                         {0.72f, hexColor(0x6A5030)},
+                         {1.00f, hexColor(0x36271A)}}),
           SkBlendMode::kSrc},
-         {Material::sweep(kEye, fibres, 0.0f, 360.0f),
-          SkBlendMode::kSoftLight}});
+         {Paint::sweep(kEye, fibres, 0.0f, 360.0f), SkBlendMode::kSoftLight}});
 
     // LUMINANCE noise — the `contrast` knob is the difference between
     // film grain and concrete.
-    filmGrain = patterns::grain(0.62f, 3, 4.0f, 0.34f, 1.0f);
-    paperGrain = patterns::grain(0.42f, 2, 11.0f, 0.28f, 1.0f);
+    filmGrain = Paint::recipe(field::grain(0.62f, 3, 4.0f, 0.34f, 1.0f));
+    paperGrain = Paint::recipe(field::grain(0.42f, 2, 11.0f, 0.28f, 1.0f));
 
     // ---- the perpetual loop --------------------------------------
     // One clock, and the card cycle's own three cells. Everything the
     // turntable and the nib need is derived from these where it is used.
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       secs = (float)t;
       const double cycle = std::fmod(t, 16.0);
       for (int i = 0; i < 4; ++i) {

@@ -15,9 +15,9 @@
  * with points:: here.
  */
 
+#include <boost/container/map.hpp>
 #include <cstddef>
 #include <functional>
-#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -60,7 +60,7 @@ struct Part {
     std::string uri;
     std::vector<std::byte> bytes;
   };
-  std::map<std::string, TextureRef> textures;
+  boost::container::map<std::string, TextureRef> textures;
   float metallic = 1;   ///< glTF's factor default; multiplies the map
   float roughness = 1;  ///< likewise
   glm::vec4 emissive = {0, 0, 0, 1};
@@ -89,9 +89,12 @@ struct Part {
    *  These three are the POINT class, one value per VERTEX. Per-face
    *  attributes are a different cardinality and live in a different
    *  container: `mesh.prims` (see below). */
-  std::map<std::string, std::vector<float>, std::less<>> scalarLanes;
-  std::map<std::string, std::vector<glm::vec3>, std::less<>> vectorLanes;
-  std::map<std::string, std::vector<glm::vec4>, std::less<>> colorLanes;
+  boost::container::map<std::string, std::vector<float>, std::less<>>
+      scalarLanes;
+  boost::container::map<std::string, std::vector<glm::vec3>, std::less<>>
+      vectorLanes;
+  boost::container::map<std::string, std::vector<glm::vec4>, std::less<>>
+      colorLanes;
 
   /** Per-PRIMITIVE attributes need no member of their own: they land
    *  in `mesh.prims`, the Mesh currency's primitive-lane container,
@@ -125,8 +128,8 @@ struct Model {
   void bounds(glm::vec3* lo, glm::vec3* hi) const;
 
   /** Everything as one mesh: parts appended, any non-white baseColor
-   *  baked into the per-vertex color lane (Space's Lit mode and
-   *  SigilWorld both multiply it). */
+   *  baked into the per-vertex color lane, which every lit renderer
+   *  multiplies through. */
   Mesh merged() const;
 
   /** The transform that centers the model on the origin and uniformly

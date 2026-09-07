@@ -10,12 +10,12 @@
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkTextBlob.h>
-#include <sigilcore/compute/Hash.h>
 
 #include <algorithm>
+#include <boost/container_hash/hash.hpp>
+#include <boost/unordered/unordered_node_map.hpp>
 #include <cstdint>
 #include <cstring>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -49,17 +49,21 @@ const std::vector<SkScalar>& cachedIntercepts(const SkTextBlob& blob,
     size_t operator()(const Key& key) const {
       // The two band bounds are folded as their BIT PATTERNS: they are
       // window coordinates, and two that differ in the last bit are two
-      // different windows.
-      const uint32_t seeded = key.blobId * 0x9E3779B9u;
-      size_t h = seeded;
+      // different windows. Boost's fold rather than the pinned one: this
+      // table lives inside one run and nothing outside the process ever
+      // sees a bucket of it.
       uint32_t lo, hi;
       memcpy(&lo, &key.lo, sizeof lo);
       memcpy(&hi, &key.hi, sizeof hi);
-      h = ::sigil::core::hash::combine(h, lo);
-      return ::sigil::core::hash::combine(h, hi);
+      size_t h = 0;
+      boost::hash_combine(h, key.blobId);
+      boost::hash_combine(h, lo);
+      boost::hash_combine(h, hi);
+      return h;
     }
   };
-  static thread_local std::unordered_map<Key, std::vector<SkScalar>, KeyHash>
+  static thread_local boost::unordered_node_map<Key, std::vector<SkScalar>,
+                                                KeyHash>
       cache;
   constexpr size_t kMaxInterceptEntries = size_t{1} << 12u;
   const Key key{blob.uniqueID(), bounds[0], bounds[1]};
@@ -199,7 +203,7 @@ std::vector<std::pair<float, float>> decorationSegments(
     return segments;
   const bool alongColumn = run.shaped->vertical;
   const float startX = alongColumn ? run.origin.y() : run.origin.x();
-  const float endX = startX + run.shaped->advance;
+  const float endX = startX + run.advance;
   if (endX <= startX) return segments;
 
   // Intercepts come out of a HORIZONTAL band window, which a column's band

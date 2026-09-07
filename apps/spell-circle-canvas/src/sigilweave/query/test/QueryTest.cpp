@@ -15,25 +15,8 @@ using namespace sigil::weave::test;
 // ── Query layer (query/Query.h — optional, built on the Paragraph edit log)
 // ────
 
-TEST(Query, FindAllAndRegex) {
-  Paragraph paragraph = makeParagraph(u8"the cat sat on the mat, the end");
-  const std::vector<CharRange> occurrences =
-      findAllOccurrences(paragraph, u8"the");
-  ASSERT_EQ(occurrences.size(), 3u);
-  EXPECT_EQ(occurrences[0], (CharRange{0, 3}));
-  EXPECT_EQ(occurrences[2], (CharRange{24, 27}));
-
-  const auto matches = findRegexMatches(paragraph, u8"[cms]at");
-  ASSERT_TRUE(matches.has_value());
-  ASSERT_EQ(matches->size(), 3u);
-  EXPECT_EQ((*matches)[0], (CharRange{4, 7}));    // cat
-  EXPECT_EQ((*matches)[2], (CharRange{19, 22}));  // mat
-
-  EXPECT_FALSE(findRegexMatches(paragraph, u8"[unclosed").has_value());
-}
-
 TEST(Query, WordRangesMatchSegmentation) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three");
   const std::vector<CharRange> words = wordRanges(paragraph, fontContext);
   ASSERT_EQ(words.size(), 3u);
@@ -67,7 +50,7 @@ TEST(Query, MarkerSetFollowsEdits) {
 }
 
 TEST(Query, MarkerSetStylesAcrossEdits) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"keep the flame lit forever");
   MarkerSet marks(paragraph);
   marks.setRanges("flame", findAllOccurrences(paragraph, u8"flame"));
@@ -102,45 +85,71 @@ TEST(Query, MarkerSetReportsHistoryLoss) {
   EXPECT_TRUE(marks.rangesFor("w")->empty());  // cleared, caller must re-query
 }
 
-TEST(Query, ScopedSearchesStayInsideTheWindow) {
-  //                            0123456789012345678901234567890
+TEST(Query, ASearchReportsOffsetsIntoTheWholeTextHoweverItWasScoped) {
+  //                                  0123456789012345678901234567890
   Paragraph paragraph = makeParagraph(u8"the cat sat on the mat, the end");
+  const std::vector<CharRange> everywhere =
+      findAllOccurrences(paragraph, u8"the");
+  ASSERT_EQ(everywhere.size(), 3u);
+  EXPECT_EQ(everywhere[0], (CharRange{0, 3}));
+  EXPECT_EQ(everywhere[2], (CharRange{24, 27}));
 
-  // Substring search: offsets are absolute, matches before the window
-  // drop out ("the" at 0), matches ending exactly at the edge stay.
-  const std::vector<CharRange> occurrences =
+  const auto everyMatch = findRegexMatches(paragraph, u8"[cms]at");
+  ASSERT_TRUE(everyMatch.has_value());
+  ASSERT_EQ(everyMatch->size(), 3u);
+  EXPECT_EQ((*everyMatch)[0], (CharRange{4, 7}));    // cat
+  EXPECT_EQ((*everyMatch)[2], (CharRange{19, 22}));  // mat
+
+  // Scoped, the offsets are still the whole text's: the window narrows
+  // which matches come back, never how they are numbered.
+  const auto scoped = findRegexMatches(paragraph, u8"[cms]at", {8, 22});
+  ASSERT_TRUE(scoped.has_value());
+  ASSERT_EQ(scoped->size(), 2u);  // sat, mat — cat starts at 4, outside
+  EXPECT_EQ((*scoped)[0], (CharRange{8, 11}));
+  EXPECT_EQ((*scoped)[1], (CharRange{19, 22}));
+}
+
+TEST(Query, APatternThatDoesNotParseIsNoAnswerRatherThanAnEmptyOne) {
+  Paragraph paragraph = makeParagraph(u8"the cat sat on the mat, the end");
+  EXPECT_FALSE(findRegexMatches(paragraph, u8"[unclosed").has_value());
+}
+
+TEST(Query, AWindowKeepsOnlyTheMatchesThatFitWhollyInsideIt) {
+  //                                  0123456789012345678901234567890
+  Paragraph paragraph = makeParagraph(u8"the cat sat on the mat, the end");
+  // A match starting before the window drops out; one ending exactly at
+  // its edge stays.
+  const std::vector<CharRange> inside =
       findAllOccurrences(paragraph, u8"the", {4, 27});
-  ASSERT_EQ(occurrences.size(), 2u);
-  EXPECT_EQ(occurrences[0], (CharRange{15, 18}));
-  EXPECT_EQ(occurrences[1], (CharRange{24, 27}));
-  // A match straddling the edge is not a match: "the" at 24 ends at 27,
-  // one unit past end=26.
+  ASSERT_EQ(inside.size(), 2u);
+  EXPECT_EQ(inside[0], (CharRange{15, 18}));
+  EXPECT_EQ(inside[1], (CharRange{24, 27}));
+  // …and one straddling the edge does not: "the" at 24 ends at 27, one
+  // unit past a window that closes at 26.
   const std::vector<CharRange> clipped =
       findAllOccurrences(paragraph, u8"the", {4, 26});
   ASSERT_EQ(clipped.size(), 1u);
   EXPECT_EQ(clipped[0], (CharRange{15, 18}));
+}
 
-  // Regex: same substring semantics, offsets absolute.
-  const auto matches = findRegexMatches(paragraph, u8"[cms]at", {8, 22});
-  ASSERT_TRUE(matches.has_value());
-  ASSERT_EQ(matches->size(), 2u);  // sat, mat — cat starts at 4, outside
-  EXPECT_EQ((*matches)[0], (CharRange{8, 11}));
-  EXPECT_EQ((*matches)[1], (CharRange{19, 22}));
-
-  // The window's edges are text boundaries: ^ and $ anchor to them.
+TEST(Query, TheWindowsEdgesAreWhereARegexAnchorAnchors) {
+  //                                  0123456789012345678901234567890
+  Paragraph paragraph = makeParagraph(u8"the cat sat on the mat, the end");
   const auto anchored = findRegexMatches(paragraph, u8"^sat", {8, 22});
   ASSERT_TRUE(anchored.has_value());
   ASSERT_EQ(anchored->size(), 1u);
   EXPECT_EQ((*anchored)[0], (CharRange{8, 11}));
+}
 
-  // Degenerate scopes clamp instead of tripping.
+TEST(Query, AWindowOutsideTheTextClampsInsteadOfTripping) {
+  Paragraph paragraph = makeParagraph(u8"the cat sat on the mat, the end");
   EXPECT_TRUE(findAllOccurrences(paragraph, u8"the", {40, 90}).empty());
-  const auto clamped = findRegexMatches(paragraph, u8"the", {27, 9000});
-  ASSERT_TRUE(clamped.has_value());
-  EXPECT_TRUE(clamped->empty());
-  const auto full = findRegexMatches(paragraph, u8"the", {0, 9000});
-  ASSERT_TRUE(full.has_value());
-  EXPECT_EQ(full->size(), 3u);
+  const auto past = findRegexMatches(paragraph, u8"the", {27, 9000});
+  ASSERT_TRUE(past.has_value());
+  EXPECT_TRUE(past->empty());
+  const auto whole = findRegexMatches(paragraph, u8"the", {0, 9000});
+  ASSERT_TRUE(whole.has_value());
+  EXPECT_EQ(whole->size(), 3u);
 }
 
 TEST(Query, BatchPaintMatchesSequentialPaint) {
@@ -179,16 +188,16 @@ TEST(Query, BatchPaintMatchesSequentialPaint) {
 }
 
 TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"the quick brown fox jumps over the lazy dog again and again");
   BlockFlow flow(SkRect::MakeWH(300, 200));
   ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
   const uint32_t shapedBefore = paragraph.shapedWordCount();
 
-  // Repaint word-aligned ranges. (That this reshapes nothing is asserted
-  // canonically by Shaper.PaintOnlyRestyleNeverReshapes; here the unique
-  // claims are geometry identity and steady-state paint resolution.)
+  // Repaint word-aligned ranges. What the shape cache does about a paint
+  // edit is the shaper's own contract and is asserted where the shaper is;
+  // the claims here are geometry identity and paint resolution.
   const std::vector<CharRange> marks = findAllOccurrences(paragraph, u8"again");
   ASSERT_EQ(marks.size(), 2u);
   PaintStyle red(0xFFCC0000);
@@ -227,7 +236,7 @@ TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
 }
 
 TEST(Query, PaintBoundaryMidWordSplitsSegments) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"highlight");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
@@ -251,8 +260,8 @@ TEST(Query, PaintBoundaryMidWordSplitsSegments) {
   EXPECT_NEAR(word.width, whole, whole * 0.05f);
 }
 
-TEST(TextTransformTest, ToggleReshapesButQueriesStayUntransformed) {
-  FontContext& fontContext = sharedContext();
+TEST(TextTransformAndQuery, ToggleReshapesButQueriesStayUntransformed) {
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"query my text");
   paragraph.ensureShaped(fontContext);
 

@@ -57,7 +57,7 @@ struct NoParams {};
  *  definition compare equal, which is what the equality assertions below
  *  rest on, and a fresh definition per call would compile a fresh program
  *  every time. */
-Material passOver(const char* source) {
+material::skia::Paint passOver(const char* source) {
   struct Held {
     const char* source;
     std::shared_ptr<const sigil::material::Recipe> recipe;
@@ -65,12 +65,12 @@ Material passOver(const char* source) {
   static std::vector<Held> held;
   for (const Held& h : held)
     if (h.source == source)
-      return Material::recipe(sigil::material::Material(h.recipe));
+      return material::skia::Paint::recipe(sigil::material::Material(h.recipe));
   auto recipe = std::make_shared<const sigil::material::Recipe>(
       sigil::material::Recipe::of<NoParams>("test.pass")
           .body(sigil::material::Target::SkSL, source));
   held.push_back({source, recipe});
-  return Material::recipe(sigil::material::Material(recipe));
+  return material::skia::Paint::recipe(sigil::material::Material(recipe));
 }
 
 }  // namespace
@@ -79,7 +79,7 @@ TEST(TextPass, SpecializationIsOneRecipePerUnitCount) {
   const std::shared_ptr<const sigil::material::Recipe> authored =
       passOver(kFloodSksl).recipeMaterial()->recipePtr();
   const std::shared_ptr<const sigil::material::Recipe> three =
-      detail::passRecipeFor(authored, 3);
+      material::skia::detail::passRecipeFor(authored, 3);
   ASSERT_TRUE(three);
   // The specialization keeps the author's ABI and prepends the runtime's
   // declarations at the count asked for.
@@ -88,20 +88,20 @@ TEST(TextPass, SpecializationIsOneRecipePerUnitCount) {
             std::string::npos);
   // One definition per (recipe, count): asking again returns the SAME one,
   // so the program cache holds one program for it however many draws ask.
-  EXPECT_EQ(three, detail::passRecipeFor(authored, 3));
+  EXPECT_EQ(three, material::skia::detail::passRecipeFor(authored, 3));
   // Another count is another definition, compiled and cached apart.
   const std::shared_ptr<const sigil::material::Recipe> five =
-      detail::passRecipeFor(authored, 5);
+      material::skia::detail::passRecipeFor(authored, 5);
   ASSERT_TRUE(five);
   EXPECT_NE(three, five);
-  EXPECT_EQ(five, detail::passRecipeFor(authored, 5));
+  EXPECT_EQ(five, material::skia::detail::passRecipeFor(authored, 5));
 }
 
 TEST(TextPass, RecipeMaterialsCompareByDefinition) {
   // Two materials over one recipe compare EQUAL — a helper may rebuild its
   // material every describe and still prune.
-  const Material a = passOver(kFloodSksl);
-  const Material b = passOver(kFloodSksl);
+  const material::skia::Paint a = passOver(kFloodSksl);
+  const material::skia::Paint b = passOver(kFloodSksl);
   EXPECT_TRUE(a == b);
   EXPECT_FALSE(a == passOver(kIdentitySksl));
   // And so do the pass effects wrapping them.
@@ -114,7 +114,7 @@ TEST(TextPass, NonRecipeMaterialRefusedAndGlyphsSurvive) {
   // recipe per unit count). A compiled-effect material is refused: the
   // effect is EMPTY, the track is skipped, and the text draws at rest
   // rather than vanishing.
-  const TextEffect refused = fx::pass(Material::sksl(ukEffect()));
+  const TextEffect refused = fx::pass(material::skia::Paint::sksl(ukEffect()));
   EXPECT_FALSE(refused);
 
   Host host;
@@ -130,8 +130,8 @@ TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
       text(u8"ABC DEF", whiteStyle(30))
           .key("probe")
           .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
-               .stagger =
-                   stagger(unit::Cluster, {.eachMs = 90, .durationMs = 200}),
+               .stagger = {.eachMs = 90, .durationMs = 200},
+               .unit = sigil::weave::Unit::Cluster,
                .progress = 0.55f})));
   host.frame();
 
@@ -154,7 +154,7 @@ TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
                               "never reached the uniforms";
 }
 
-TEST(TextPass, TwoUnitCountsInOneSession) {
+TEST(TextPass, TwoUnitCountsInOneSessionEachDrawTheirOwn) {
   // Two nodes, two unit counts, one source: each track compiles (or finds)
   // its own specialization and both draw.
   Host host;
@@ -179,7 +179,7 @@ TEST(TextPass, TwoUnitCountsInOneSession) {
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 50, 180, 60)));
 }
 
-TEST(TextPass, BoundedByBoxPlusReach) {
+TEST(TextPass, ThePassFillsTheBoxGrownByItsReachAndNothingBeyond) {
   // The flood pass returns opaque green at EVERY coordinate — so wherever
   // green lands is exactly the pass's footprint. It must fill the node's
   // box grown by the track's reach and nothing beyond it.
@@ -214,11 +214,12 @@ TEST(TextPass, ReachGrowsBoundsWithoutMovingContent) {
   // deviation stands each glyph's top proud of the box, so the box edge
   // separates the two assertions cleanly.
   const TextEffect lift =
-      fx::effect("test-lift", [](const GlyphInfo&, float, Rng&) {
-        GlyphMod m;
-        m.dy = -14.0f;
-        return m;
-      });
+      fx::effect("test-lift",
+                 [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+                   GlyphMod m;
+                   m.dy = -14.0f;
+                   return m;
+                 });
   const auto describe = [&](float reach) {
     return box().padding(60).child(
         text(u8"HOIST", whiteStyle(34))
@@ -275,10 +276,10 @@ TEST(TextPass, ProgressAdvancesWithCascadeAndSettles) {
         text(u8"ABCD", whiteStyle(30))
             .key("run")
             .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
-                 .stagger =
-                     stagger(unit::Cluster, {.eachMs = 60, .durationMs = 200}),
-                 .progress =
-                     animate(to(target), Transition{.duration = 200ms})}));
+                 .stagger = {.eachMs = 60, .durationMs = 200},
+                 .unit = sigil::weave::Unit::Cluster,
+                 .progress = animate(sigil::motion::to(target),
+                                     motion::Transition{.duration = 200ms})}));
   };
   host.composer.render(describe(0.0f));
   host.frame();
@@ -301,11 +302,12 @@ TEST(TextPass, ComposesDownstreamOfDeviationTracks) {
   // alpha-zero deviation empties the layer, so the identity pass shows
   // nothing — where without the deviation it shows the letters.
   const TextEffect hide =
-      fx::effect("test-hide", [](const GlyphInfo&, float, Rng&) {
-        GlyphMod m;
-        m.alpha = 0.0f;
-        return m;
-      });
+      fx::effect("test-hide",
+                 [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+                   GlyphMod m;
+                   m.alpha = 0.0f;
+                   return m;
+                 });
   Host hidden;
   hidden.composer.render(box().padding(30).child(
       text(u8"GONE", whiteStyle(40))
@@ -341,7 +343,7 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   // what makes the skip observable: at a phase covered by the declaration
   // the batches draw directly and the letters show, while any phase off
   // the declaration still runs the shader and erases them.
-  const auto lettersShow = [](TextEffect effect, Stagger cascade,
+  const auto lettersShow = [](TextEffect effect, sigil::motion::Spread cascade,
                               float master) {
     Host host;
     host.composer.render(
@@ -349,12 +351,12 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
                                     .key("t")
                                     .fx({.effect = std::move(effect),
                                          .stagger = std::move(cascade),
+                                         .unit = sigil::weave::Unit::Cluster,
                                          .progress = master})));
     host.frame();
     return anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180));
   };
-  const Stagger oneShot =
-      stagger(unit::Cluster, {.eachMs = 60, .durationMs = 200});
+  const sigil::motion::Spread oneShot{.eachMs = 60, .durationMs = 200};
   const TextEffect erase = fx::pass(passOver(kEraseSksl));
 
   // Undeclared: the pass runs at every phase, both ends included.
@@ -376,7 +378,7 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   // A LOOPING cascade: units genuinely rest at exactly 1 between beats, so
   // restsAt(1) engages whenever no beat is mid-cycle — and does not while
   // any unit is mid-beat.
-  Stagger loop = stagger(unit::Cluster, {.eachMs = 60, .durationMs = 100});
+  sigil::motion::Spread loop{.eachMs = 60, .durationMs = 100};
   loop.loopMs = 1000;
   EXPECT_TRUE(lettersShow(erase.restsAt(1.0f), loop, 0.5f));
   EXPECT_FALSE(lettersShow(erase.restsAt(1.0f), loop, 0.05f));
@@ -387,7 +389,7 @@ TEST(TextPass, RestDeclarationRidesEqualityAndNeedsAPass) {
   // only in their rests must compare unequal, or a re-described track
   // would prune onto the old declaration and keep (or keep skipping) a
   // shader the author changed their mind about.
-  const Material m = passOver(kEraseSksl);
+  const material::skia::Paint m = passOver(kEraseSksl);
   EXPECT_FALSE(fx::pass(m).restsAt(0.0f) == fx::pass(m));
   EXPECT_TRUE(fx::pass(m).restsAt(0.0f, 1.0f) ==
               fx::pass(m).restsAt(0.0f, 1.0f));
@@ -405,14 +407,14 @@ TEST(TextPass, RestDeclarationRidesEqualityAndNeedsAPass) {
   EXPECT_TRUE(plain.restsAt(0.0f).restPhases().empty());
 }
 
-TEST(TextPass, RidesAPathBaseline) {
+TEST(TextPass, ThePassFollowsAPathBaseline) {
   Host host;
   host.composer.render(box().padding(10).child(
       text(u8"AROUND THE RING", whiteStyle(22))
           .key("ring")
           .width(180)
           .height(180)
-          .onPath({.path = shapes::circle()})
+          .onPath({.path = geometry::shapes::circle()})
           .fx({.effect = fx::pass(passOver(kIdentitySksl))})));
   host.frame();
   // The identity pass hands back the curved lettering it was given.
@@ -421,7 +423,7 @@ TEST(TextPass, RidesAPathBaseline) {
   EXPECT_FALSE(host.composer.beatsOf("ring", 0).empty());
 }
 
-TEST(TextPass, RidesAVerticalColumn) {
+TEST(TextPass, ThePassFollowsAVerticalColumn) {
   Host host;
   host.composer.render(box().padding(10).child(
       text(u8"VERTICAL", whiteStyle(22))
@@ -460,7 +462,7 @@ sk_sp<SkRuntimeEffect> wideUniformEffect() {
 TEST(TextPass, WideAndArrayUniformsBindByDeclaredSize) {
   Host host;
   host.composer.render(box().child(box().width(60).height(60).fill(
-      Material::sksl(wideUniformEffect())
+      material::skia::Paint::sksl(wideUniformEffect())
           .uniform("uPair", std::array<float, 2>{1, 0})
           .uniform("uQuad", std::array<float, 4>{0, 1, 0, 0})
           .uniform("uVals", std::vector<float>{0, 0, 1, 0}))));
@@ -472,25 +474,31 @@ TEST(TextPass, MisSizedUniformsWarnOnceAndAreIgnored) {
   // An undeclared name, and a declared one at the wrong TOTAL size, are
   // both dropped at the door — so the material still equals one that never
   // made the call, and nothing was stored for the builder to refuse.
-  const Material base = Material::sksl(wideUniformEffect());
-  Material wrong = Material::sksl(wideUniformEffect());
+  const material::skia::Paint base =
+      material::skia::Paint::sksl(wideUniformEffect());
+  material::skia::Paint wrong =
+      material::skia::Paint::sksl(wideUniformEffect());
   wrong.uniform("uVals", std::vector<float>{1, 2, 3});       // [4] wants 4
   wrong.uniform("uNothing", std::vector<float>{1, 2, 3});    // undeclared
   wrong.uniform("uPair", std::array<float, 4>{1, 2, 3, 4});  // float2 slot
   EXPECT_TRUE(base == wrong);
 
-  Effect effect = Effect::shader(wideUniformEffect());
-  Effect wrongEffect = Effect::shader(wideUniformEffect());
+  material::skia::Effect effect =
+      material::skia::Effect::shader(wideUniformEffect());
+  material::skia::Effect wrongEffect =
+      material::skia::Effect::shader(wideUniformEffect());
   wrongEffect.uniform("uVals", std::vector<float>{1, 2, 3});
   wrongEffect.uniform("uNothing", 1.0f);
   EXPECT_TRUE(effect == wrongEffect);
 }
 
 TEST(TextPass, EffectConstantLanesParticipateInEquality) {
-  Effect a = Effect::shader(wideUniformEffect());
+  material::skia::Effect a =
+      material::skia::Effect::shader(wideUniformEffect());
   a.uniform("uPair", std::array<float, 2>{1, 0});
   a.uniform("uVals", std::vector<float>{1, 2, 3, 4});
-  Effect b = Effect::shader(wideUniformEffect());
+  material::skia::Effect b =
+      material::skia::Effect::shader(wideUniformEffect());
   b.uniform("uPair", std::array<float, 2>{1, 0});
   b.uniform("uVals", std::vector<float>{1, 2, 3, 4});
   EXPECT_TRUE(a == b);
@@ -499,15 +507,17 @@ TEST(TextPass, EffectConstantLanesParticipateInEquality) {
 }
 
 TEST(TextPass, UniformBlockIsLiveAndReadsOnCommit) {
-  auto block = std::make_shared<UniformBlock>(4);
-  Material live = Material::sksl(wideUniformEffect()).uniform("uVals", block);
+  auto block = std::make_shared<sigil::material::UniformBlock>(4);
+  material::skia::Paint live =
+      material::skia::Paint::sksl(wideUniformEffect()).uniform("uVals", block);
   // The binding declares volatility — the node paints live, no cache can
   // freeze the table — exactly as a bound scalar Output does.
   EXPECT_TRUE(live.isAnimated());
   // A block at the wrong size is refused and declares nothing.
-  auto wrong = std::make_shared<UniformBlock>(3);
-  EXPECT_FALSE(
-      Material::sksl(wideUniformEffect()).uniform("uVals", wrong).isAnimated());
+  auto wrong = std::make_shared<sigil::material::UniformBlock>(3);
+  EXPECT_FALSE(material::skia::Paint::sksl(wideUniformEffect())
+                   .uniform("uVals", wrong)
+                   .isAnimated());
 
   Host host;
   host.composer.render(

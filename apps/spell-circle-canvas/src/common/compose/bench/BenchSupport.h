@@ -3,7 +3,7 @@
 /** @file
  * What every compose benchmark binary shares: the font context, a composer
  * over a raster surface, the node-count ladder the scaling arms walk, and —
- * when the binary is built with COMPOSE_BENCH_GRAPHITE — one Graphite
+ * when the binary is built with SIGIL_BENCH_GPU — one Graphite
  * context over a GPU device of the process's own, with a render target
  * acquired per arm.
  *
@@ -23,12 +23,12 @@
 #include <cstdint>
 #include <memory>
 
-#ifdef COMPOSE_BENCH_GRAPHITE
+#ifdef SIGIL_BENCH_GPU
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #endif
 
@@ -80,13 +80,13 @@ inline Fill cellFill(int id, int changed = -1, int phase = 0) {
   return Fill::color({tint, 0.45f, 0.68f, 1.0f});
 }
 
-#ifdef COMPOSE_BENCH_GRAPHITE
+#ifdef SIGIL_BENCH_GPU
 
 /** The process's GPU device, created on first use; null where there is
  *  none. */
-inline sigil::skia::GpuDevice* gpuDevice() {
-  static std::unique_ptr<sigil::skia::GpuDevice> device =
-      sigil::skia::GpuDevice::createOwned(sigil::skia::Backend::Metal);
+inline sigil::core::hardware::GpuDevice* gpuDevice() {
+  static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
+      sigil::core::hardware::GpuDevice::createOwned();
   return device.get();
 }
 
@@ -95,7 +95,7 @@ inline sigil::skia::GpuDevice* gpuDevice() {
  *  skip. */
 inline sigil::skia::GraphiteContext* graphite() {
   static std::unique_ptr<sigil::skia::GraphiteContext> ctx = [] {
-    sigil::skia::GpuDevice* device = gpuDevice();
+    sigil::core::hardware::GpuDevice* device = gpuDevice();
     return device ? sigil::skia::GraphiteContext::create(*device) : nullptr;
   }();
   return ctx.get();
@@ -156,6 +156,6 @@ struct GraphiteTarget {
   void submitSynced() { submitGraphiteSynced(*context); }
 };
 
-#endif  // COMPOSE_BENCH_GRAPHITE
+#endif  // SIGIL_BENCH_GPU
 
 }  // namespace sigil::compose::bench

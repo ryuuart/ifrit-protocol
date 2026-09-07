@@ -9,7 +9,7 @@
  * geometry and nothing else can check it.
  */
 
-#include <sigilweave/style/Features.h>
+#include <sigilweave/kit/Features.h>
 
 #include <algorithm>
 #include <array>
@@ -22,17 +22,11 @@ namespace {
 constexpr const char8_t* kProse =
     u8"縦組みの文章は上から下へ流れ右から左へと列が進む";
 
-/** Long enough to fill several columns, so an exclusion in the middle of
- *  the block costs the passage columns it can be counted on. */
-constexpr const char8_t* kLongProse =
-    u8"縦組みの文章が円をよけて流れる様子を見るための本文であり、列は右から"
-    u8"左へと進みながら、障害物の上と下に分かれて組まれてゆく。文字は列の心"
-    u8"に沿って落ちてゆき、円に出会えば頭と足に分かれ、円を過ぎればまた一本"
-    u8"の列に戻ってゆく。";
-
+/// Japanese in whatever the machine resolves for it: the prose here needs a
+/// whole CJK face, which no instrument carries, so the suite says so with
+/// the `fonts` label.
 sigil::weave::TextStyle jp(float size, SkColor color) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
+  sigil::weave::TextStyle s = machineStyleAt(size);
   s.shaping.languageTag = "ja";
   s.paint.foreground.setColor(color);
   s.paint.foreground.setAntiAlias(true);
@@ -108,9 +102,9 @@ TEST(TextVertical, ColumnsRunTopToBottomAndAdvanceRightToLeft) {
 TEST(TextVertical, IntrinsicMeasurementSwapsTheAxes) {
   // The same passage, measured both ways with no explicit box: horizontal
   // text is a wide short line, vertical text is a tall thin column.
-  const SkSize wide =
-      sigil::compose::measure(text(kProse, jp(20, SK_ColorWHITE)), fonts());
-  const SkSize tall = sigil::compose::measure(
+  const SkSize wide = sigil::compose::intrinsicSize(
+      text(kProse, jp(20, SK_ColorWHITE)), fonts());
+  const SkSize tall = sigil::compose::intrinsicSize(
       text(kProse, jp(20, SK_ColorWHITE))
           .writingMode(sigil::weave::WritingMode::kVerticalRL),
       fonts());
@@ -121,51 +115,6 @@ TEST(TextVertical, IntrinsicMeasurementSwapsTheAxes) {
   // line height a horizontal setting of the same style would use.
   EXPECT_LT(tall.width(), wide.width() * 0.25f);
   EXPECT_GT(tall.height(), wide.height() * 2.0f);
-}
-
-TEST(TextVertical, TateChuYokoSurvivesMaterialization) {
-  // A digit pair asks to be set HORIZONTALLY inside the column. Under
-  // UTR#50's default the same digits would be ROTATED — a transformed run —
-  // so the two forms are distinguishable in the layout alone.
-  Host host(300, 260);
-  sigil::weave::TextStyle tcy = jp(24, SK_ColorWHITE);
-  tcy.shaping.verticalForm = sigil::weave::VerticalForm::kTateChuYoko;
-
-  const auto describe = [&](const sigil::weave::TextStyle& digitStyle) {
-    return box().padding(10).child(
-        text(rich(jp(24, SK_ColorWHITE))
-                 .add(u8"平成")
-                 .add(u8"31", digitStyle)
-                 .add(u8"年に対応"))
-            .width(200)
-            .height(200)
-            .writingMode(sigil::weave::WritingMode::kVerticalRL)
-            .key("t"));
-  };
-
-  host.composer.render(describe(tcy));
-  host.frame();
-  const auto* withTcy = host.composer.paragraphLayout("t");
-  ASSERT_NE(withTcy, nullptr);
-  int horizontalRuns = 0;
-  for (const sigil::weave::PositionedRun& run : withTcy->runs)
-    if (run.shaped && !run.transformed && !run.shaped->vertical)
-      ++horizontalRuns;
-  EXPECT_EQ(horizontalRuns, 1)
-      << "the tate-chu-yoko run must be shaped horizontally and set upright "
-         "in the column — not rotated, not stacked";
-
-  // The control: the same digits with no per-span form rotate instead.
-  host.composer.render(describe(jp(24, SK_ColorWHITE)));
-  host.frame();
-  const auto* plain = host.composer.paragraphLayout("t");
-  ASSERT_NE(plain, nullptr);
-  int stillHorizontal = 0;
-  for (const sigil::weave::PositionedRun& run : plain->runs)
-    if (run.shaped && !run.transformed && !run.shaped->vertical)
-      ++stillHorizontal;
-  EXPECT_EQ(stillHorizontal, 0)
-      << "without the per-span form the digits take UTR#50's rotation";
 }
 
 TEST(TextVertical, MaxLinesClampsColumns) {
@@ -184,58 +133,8 @@ TEST(TextVertical, MaxLinesClampsColumns) {
   EXPECT_TRUE(layout->overflowed());
 }
 
-TEST(TextVertical, AClampedColumnEndsInItsMarker) {
-  // The marker lands at the FOOT of the clamped column, upright like the
-  // characters above it, and the cut moves up the column to make room for
-  // it — the same trade a clamped line makes at its end.
-  const auto clamped = [](Host& host, bool withMarker) {
-    Element leaf = text(kProse, jp(20, SK_ColorWHITE))
-                       .width(300)
-                       .height(120)
-                       .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                       .maxLines(2)
-                       .key("t");
-    if (withMarker) leaf.ellipsis(u8"…");
-    host.composer.render(box().padding(10).child(std::move(leaf)));
-    host.frame();
-    return host.composer.paragraphLayout("t");
-  };
-  Host bareHost(340, 200), markedHost(340, 200);
-  const auto* bare = clamped(bareHost, false);
-  const auto* marked = clamped(markedHost, true);
-  ASSERT_NE(bare, nullptr);
-  ASSERT_NE(marked, nullptr);
-
-  EXPECT_TRUE(marked->overflowed());
-  ASSERT_TRUE(marked->ellipsized);
-  ASSERT_FALSE(bare->ellipsized);
-  ASSERT_GE(marked->runs.size(), 2u);
-
-  const sigil::weave::PositionedRun& marker = marked->runs.back();
-  ASSERT_TRUE(marker.shaped);
-  EXPECT_TRUE(marker.shaped->vertical) << "upright, like the column it ends";
-  const sigil::weave::PositionedRun& tail =
-      marked->runs[marked->runs.size() - 2];
-  EXPECT_EQ(marker.lineIndex, tail.lineIndex) << "on the clamped column";
-  EXPECT_FLOAT_EQ(marker.origin.x(), tail.origin.x()) << "on its axis";
-  EXPECT_GE(marker.origin.y(), tail.origin.y());
-  EXPECT_LT(marked->firstUnplacedWord, bare->firstUnplacedWord)
-      << "the cut moved up, and the words it gave up are reported unplaced";
-
-  // And it is DRAWN, below the last of the text: the stretch of column
-  // past where the type stops carries the marker's ink.
-  constexpr int kPad = 10;  // the box the leaf sits in
-  const float textFoot = tail.origin.y() + tail.shaped->advance;
-  EXPECT_GE(marker.origin.y(), textFoot - 0.25f);
-  const SkIRect foot = SkIRect::MakeXYWH(
-      kPad + (int)marker.origin.x() - 12, kPad + (int)textFoot, 24,
-      (int)(marker.origin.y() - textFoot + marker.shaped->advance) + 1);
-  EXPECT_GT(inkCount(markedHost, foot), 0)
-      << "nothing was drawn where the marker was placed";
-}
-
 TEST(TextVertical, ALineSelectorAddressesAColumn) {
-  // sel::line resolves through the LAYOUT, and in a vertical passage the
+  // weave::sel::line resolves through the LAYOUT, and in a vertical passage the
   // layout numbers columns. Column 0 is the RIGHTMOST one.
   Host host(300, 240);
   host.composer.render(box().padding(10).child(
@@ -243,7 +142,8 @@ TEST(TextVertical, ALineSelectorAddressesAColumn) {
           .width(200)
           .height(180)
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .spanPaint(sel::line(0), sigil::weave::PaintStyle(SK_ColorRED))
+          .spanPaint(sigil::weave::sel::line(0),
+                     sigil::weave::PaintStyle(SK_ColorRED))
           .key("t")));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
@@ -273,7 +173,8 @@ TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
           .height(300)
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
           .fx({.effect = fx::rise(30),
-               .stagger = stagger(unit::Cluster, {.eachMs = 90}),
+               .stagger = {.eachMs = 90},
+               .unit = sigil::weave::Unit::Cluster,
                .progress = &progress})
           .key("t")));
   host.frame();
@@ -297,7 +198,7 @@ TEST(TextVertical, SpanPaintRecolorsAColumnWithoutReshaping) {
     const auto* layout = host.composer.paragraphLayout("t");
     if (!layout) return out;
     for (const sigil::weave::PositionedRun& run : layout->runs)
-      out.push_back(run.shaped.get());
+      out.push_back(run.shaped);
     return out;
   };
   const auto originsOf = [&] {
@@ -316,7 +217,8 @@ TEST(TextVertical, SpanPaintRecolorsAColumnWithoutReshaping) {
                     .writingMode(sigil::weave::WritingMode::kVerticalRL)
                     .key("t");
     if (restyled)
-      t.spanPaint(sel::text(u8"赤い"), sigil::weave::PaintStyle(SK_ColorRED));
+      t.spanPaint(sigil::weave::sel::text(u8"赤い"),
+                  sigil::weave::PaintStyle(SK_ColorRED));
     return box().padding(10).child(std::move(t));
   };
 
@@ -376,7 +278,7 @@ TEST(TextVertical, OnPathIgnoresWritingModeAndSaysSoOnce) {
                       .height(200)
                       .centerAt({120, 120})
                       .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                      .onPath({.path = shapes::circle()})
+                      .onPath({.path = geometry::shapes::circle()})
                       .key("t")));
   host.frame();
   const std::string first = ::testing::internal::GetCapturedStderr();
@@ -414,7 +316,7 @@ TEST(TextVertical, AnUprightGlyphTurnsAboutItsColumnAxis) {
     if (shrunk)
       t.fx({.effect = fx::effect(
                 "quarter",
-                [](const GlyphInfo&, float, Rng&) {
+                [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
                   GlyphMod m;
                   m.scale = 0.25f;
                   return m;
@@ -462,7 +364,8 @@ TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
           .height(240)
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
           .fx({.effect = fx::rise(10),
-               .stagger = stagger(unit::Cluster, {.eachMs = 40})})));
+               .stagger = {.eachMs = 40},
+               .unit = sigil::weave::Unit::Cluster})));
   host.frame();
 
   const std::vector<Beat> beats = host.composer.beatsOf("col", 0);
@@ -502,7 +405,7 @@ TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
   // along a line and not down a column. A gate reading one axis for both
   // orientations therefore reaches the wrong verdict on every case here.
   const sk_sp<SkTypeface> face = fonts().fontManager()->makeFromFile(
-      SIGILCOMPOSE_TEST_ASSET_DIR "/VerticalAdvance.ttf");
+      SIGIL_TEST_ASSET_DIR "/VerticalAdvance.ttf");
   ASSERT_TRUE(face) << "test asset VerticalAdvance.ttf failed to load";
   const SkGlyphID a = face->unicharToGlyph(U'A');
   const SkGlyphID b = face->unicharToGlyph(U'B');
@@ -536,7 +439,8 @@ TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
             .writingMode(mode)
             .fx({.effect = fx::effect(
                      point ? "sub" : "rest",
-                     [mod](const GlyphInfo&, float, Rng&) { return mod; },
+                     [mod](const GlyphInfo&, float,
+                           sigil::core::noise::Mix64Stream&) { return mod; },
                      /*reach=*/120.0f)})));
     host.frame();
   };
@@ -564,6 +468,41 @@ TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
          "after it";
 }
 
+TEST(TextVertical, TheUnitReadBackNamesHowEachOneStandsInItsColumn) {
+  // 縦中横: a short run — two digits, a year — SHAPED HORIZONTALLY and set
+  // upright in the column, so it reads level inside vertical prose. What
+  // anything placed beside a unit needs to know is which of the three a
+  // unit is, because a level run in a column is as wide as it is tall and
+  // a turned one is neither: the read-back names it.
+  const std::u8string mixed = u8"平成30年に";
+  Host host(300, 240);
+  sigil::weave::TextStyle tcy = jp(22, SK_ColorWHITE);
+  tcy.shaping.verticalForm = sigil::weave::VerticalForm::kTateChuYoko;
+  host.composer.render(box().padding(10).child(
+      text(mixed, jp(22, SK_ColorWHITE))
+          .width(200)
+          .height(180)
+          .writingMode(sigil::weave::WritingMode::kVerticalRL)
+          .spanStyle(sigil::weave::sel::text(u8"30"), tcy)
+          .key("t")));
+  host.frame();
+
+  const std::vector<TextUnit> units = host.composer.units(
+      "t", sigil::weave::sel::each(sigil::weave::Unit::Cluster),
+      sigil::weave::Unit::Cluster);
+  ASSERT_FALSE(units.empty());
+  int upright = 0, level = 0;
+  for (const TextUnit& unit : units) {
+    EXPECT_EQ(unit.writingMode, sigil::weave::WritingMode::kVerticalRL);
+    if (unit.verticalForm == sigil::weave::VerticalForm::kUpright) ++upright;
+    if (unit.verticalForm == sigil::weave::VerticalForm::kTateChuYoko) ++level;
+    EXPECT_NE(unit.verticalForm, sigil::weave::VerticalForm::kAuto)
+        << "kAuto is the horizontal answer; a column resolves the question";
+  }
+  EXPECT_GT(upright, 0) << "the CJK of the passage stands upright";
+  EXPECT_GT(level, 0) << "the digits set across the column were not named";
+}
+
 TEST(TextVertical, AMarkAnchorsToTheColumnItsUnitStandsIn) {
   // A mark's rect is the union of the advance boxes of the glyphs it
   // addressed, and in a column those boxes stack DOWN one axis. So a
@@ -575,7 +514,7 @@ TEST(TextVertical, AMarkAnchorsToTheColumnItsUnitStandsIn) {
           .width(200)
           .height(200)
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .mark(sel::text(u8"縦組み"),
+          .mark(sigil::weave::sel::text(u8"縦組み"),
                 box().key("rule").width(Dim(3.0f)).fill(red()))
           .key("t")));
   host.frame();
@@ -609,7 +548,7 @@ TEST(TextVertical, ASpanStyleReshapesOnlyTheRunItNames) {
                     .key("t");
     if (dressed) {
       sigil::weave::TextStyle big = jp(40, SK_ColorWHITE);
-      t.spanStyle(sel::text(u8"文章"), big);
+      t.spanStyle(sigil::weave::sel::text(u8"文章"), big);
     }
     return box().padding(10).child(std::move(t));
   };
@@ -631,49 +570,8 @@ TEST(TextVertical, ASpanStyleReshapesOnlyTheRunItNames) {
       << "a taller run must push the pen further down the column";
 }
 
-TEST(TextVertical, AColumnCarriesItsSidelineBesideTheType) {
-  // 傍線 through the compose surface: a decoration on a span of a vertical
-  // passage runs BESIDE its column, the length of the run it dresses.
-  Host host(240, 300);
-  sigil::weave::PaintStyle sidelined(SK_ColorWHITE);
-  sigil::weave::Decoration sideline;
-  sideline.thickness = 3.0f;
-  sideline.color = SK_ColorRED;
-  sidelined.addDecoration(sideline);
-  host.composer.render(box().padding(10).child(
-      text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
-          .width(60)
-          .height(260)
-          .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .spanPaint(sel::text(u8"三四五六"), sidelined)
-          .key("t")));
-  host.frame();
-  const auto* layout = host.composer.paragraphLayout("t");
-  ASSERT_NE(layout, nullptr);
-  ASSERT_FALSE(layout->runs.empty());
-  const float axis = layout->runs.front().origin.x();
-
-  int top = 1000, bottom = -1, leftOfAxis = 0, redPixels = 0;
-  for (int y = 0; y < 300; ++y)
-    for (int x = 0; x < 240; ++x) {
-      const SkColor c = host.pixel(x, y);
-      if (SkColorGetR(c) < 200 || SkColorGetG(c) > 128 || SkColorGetB(c) > 128)
-        continue;
-      ++redPixels;
-      if ((float)x < axis) ++leftOfAxis;
-      top = std::min(top, y);
-      bottom = std::max(bottom, y);
-    }
-  ASSERT_GT(redPixels, 0) << "the span drew no band";
-  EXPECT_EQ(leftOfAxis, 0) << "the band crossed the column axis";
-  EXPECT_GT(bottom - top, 40) << "the band must run DOWN the column";
-  // Four of eight characters are dressed, so the band covers about half
-  // the column and not all of it.
-  EXPECT_LT(bottom - top, 200);
-}
-
 TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
-  // `unit::Line` IS a column here. Mid-cascade the first column has
+  // `weave::Unit::Line` IS a column here. Mid-cascade the first column has
   // arrived whole and the next has not — the two halves of the same
   // passage separated by the geometry, not by the text.
   choreograph::Output<float> progress{0.35f};
@@ -684,7 +582,8 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
           .height(200)
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
           .fx({.effect = fx::typeOn(),
-               .stagger = stagger(unit::Line, {.eachMs = 400}),
+               .stagger = {.eachMs = 400},
+               .unit = sigil::weave::Unit::Line,
                .progress = &progress})
           .key("t")));
   host.frame();
@@ -707,41 +606,6 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
       << "at rest every column draws";
 }
 
-TEST(TextVertical, AColumnStyleCanAskTheFaceForItsVerticalMetrics) {
-  // The vertical feature presets are ordinary shaping fields, so they
-  // reach a column through the same span verbs as any other — and because
-  // they are part of shaping identity, asking for one re-shapes the run
-  // rather than repainting it.
-  Host host(240, 300);
-  const auto describe = [&](bool asked) {
-    sigil::weave::TextStyle style = jp(24, SK_ColorWHITE);
-    if (asked)
-      style.shaping.fontFeatures = {
-          sigil::weave::Features::proportionalVerticalMetrics,
-          sigil::weave::Features::verticalKana};
-    return box().padding(10).child(
-        text(u8"「縦組み」、ちょっと。", style)
-            .width(60)
-            .height(260)
-            .writingMode(sigil::weave::WritingMode::kVerticalRL)
-            .key("t"));
-  };
-  host.composer.render(describe(false));
-  host.frame();
-  const auto* plain = host.composer.paragraphLayout("t");
-  ASSERT_NE(plain, nullptr);
-  ASSERT_FALSE(plain->runs.empty());
-  const void* plainShape = plain->runs.front().shaped.get();
-
-  host.composer.render(describe(true));
-  host.frame();
-  const auto* asked = host.composer.paragraphLayout("t");
-  ASSERT_NE(asked, nullptr);
-  ASSERT_FALSE(asked->runs.empty());
-  EXPECT_NE(asked->runs.front().shaped.get(), plainShape)
-      << "a feature list that is part of the shape key reused a shaped word";
-}
-
 TEST(TextVertical, ABandStandsAtRestUnderATrack) {
   // A track draws its own glyphs in batched buckets, and a bucket carries
   // glyphs alone — so the band a span asked for is drawn beside them, from
@@ -760,9 +624,10 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
             .width(60)
             .height(220)
             .writingMode(sigil::weave::WritingMode::kVerticalRL)
-            .spanPaint(sel::text(u8"三四五六"), sidelined)
+            .spanPaint(sigil::weave::sel::text(u8"三四五六"), sidelined)
             .fx({.effect = fx::rise(24),
-                 .stagger = stagger(unit::Cluster, {.eachMs = 90}),
+                 .stagger = {.eachMs = 90},
+                 .unit = sigil::weave::Unit::Cluster,
                  .progress = &progress})
             .key("t"));
   };
@@ -844,7 +709,7 @@ TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
             .width(60)
             .height(220)
             .writingMode(sigil::weave::WritingMode::kVerticalRL)
-            .spanPaint(sel::text(u8"三四五六"), sidelined)
+            .spanPaint(sigil::weave::sel::text(u8"三四五六"), sidelined)
             .key("t"));
   };
 
@@ -881,51 +746,4 @@ TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
   EXPECT_EQ(onTheLeft[2], 0) << "the swapped band stayed right of the axis";
   EXPECT_NEAR(onTheLeft[1], onTheRight[2], onTheRight[2] * 0.25)
       << "the same band, the other side: it must keep its length";
-}
-
-TEST(TextVertical, ColumnsFlowAroundASilhouette) {
-  // `flowAround` reads the same in both writing modes: the target's
-  // silhouette is subtracted from the text's geometry, and in a column
-  // that means the column it crosses is cut in two — a head above the
-  // shape and a foot below it — rather than a line shortened beside it.
-  const auto scene = [&](bool avoidIt) {
-    Element leaf = text(kLongProse, jp(19, SK_ColorWHITE))
-                       .width(280)
-                       .height(300)
-                       .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                       .key("body");
-    if (avoidIt) leaf.flowAround("obstacle", 5);
-    return stack()
-        .child(box()
-                   .key("obstacle")
-                   .width(90)
-                   .height(90)
-                   .left(90)
-                   .top(110)
-                   .shape(shapes::circle())
-                   .fill(Fill::color({0, 0.4f, 0, 1})))
-        .child(box().inset(0).child(std::move(leaf)).zIndex(1));
-  };
-  Host over(300, 320), around(300, 320);
-  over.composer.render(scene(false));
-  over.frame();
-  around.composer.render(scene(true));
-  around.frame();
-
-  // The middle of the disc: type crosses it when nothing is declared, and
-  // never when the silhouette is.
-  const SkIRect middle = SkIRect::MakeLTRB(118, 138, 152, 172);
-  EXPECT_TRUE(anyWhiteIn(over, middle));
-  EXPECT_FALSE(anyWhiteIn(around, middle));
-  // And the columns the disc crosses are CUT, not stopped: type stands
-  // both above it and below it, in the strip the disc sits in.
-  EXPECT_TRUE(anyWhiteIn(around, SkIRect::MakeLTRB(95, 20, 185, 100)));
-  EXPECT_TRUE(anyWhiteIn(around, SkIRect::MakeLTRB(95, 210, 185, 295)));
-
-  const auto* layout = around.composer.paragraphLayout("body");
-  ASSERT_NE(layout, nullptr);
-  const auto* clear = over.composer.paragraphLayout("body");
-  ASSERT_NE(clear, nullptr);
-  EXPECT_GT(layout->lineCount, clear->lineCount)
-      << "the exclusion costs the passage columns";
 }

@@ -1,0 +1,8 @@
+half4 main(float2 p) {
+  float2 q = p;
+  if (uVertical > 0.5)
+    q.x += sin(p.y * uFreq + uPhase) * uAmp;
+  else
+    q.y += sin(p.x * uFreq + uPhase) * uAmp;
+  return content.eval(q);
+}

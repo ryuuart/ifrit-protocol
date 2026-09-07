@@ -8,6 +8,7 @@
 #include <include/core/SkCanvas.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/style/Style.h>
+#include <sigilweave/style/Type.h>
 
 #include <string_view>
 
@@ -18,6 +19,30 @@ namespace sigil::weave::kit {
 [[nodiscard]] sigil::weave::TextStyle makeStyle(
     float fontSize, SkColor color, const char* language = "",
     sk_sp<SkTypeface> typeface = nullptr);
+
+/** A STYLE WHOSE TRACKING IS QUOTED IN 1/1000 EM — the unit a reference
+ *  from Illustrator, Flash or a type specimen states it in, converted to
+ *  the px a text style takes.
+ *
+ *  The conversion needs the em size, which is why it belongs beside the
+ *  style rather than in the number: `30` at 18 px and `30` at 60 px are
+ *  different distances, and a reconstruction that copied the px would be
+ *  wrong at every other size.
+ *
+ *      kit::tracked(grotBold(), 18, kNear, 30, 0.96f)
+ *
+ *  @p condense is horizontal scale, for a face with no `wdth` axis to
+ *  ask instead. */
+[[nodiscard]] inline TextStyle tracked(const sk_sp<SkTypeface>& face,
+                                       float size, SkColor4f color,
+                                       float trackPerMille = 0,
+                                       float condense = 1.0f) {
+  return textStyle({.face = face,
+                    .size = size,
+                    .color = color,
+                    .track = size * trackPerMille / 1000.0f,
+                    .condense = condense});
+}
 
 /** Appearance of a drawLabel() caption; the defaults suit a small
  *  single-line annotation under a scene. */

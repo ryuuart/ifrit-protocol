@@ -2,7 +2,7 @@
 
 #include <flatbuffers/flatbuffers.h>
 
-#include <unordered_map>
+#include <boost/unordered/unordered_flat_map.hpp>
 
 #include "SpellCircle_generated.h"
 
@@ -36,7 +36,8 @@ CircleComponent toCircleComponent(const SpellCircle::Circle* circle) {
  */
 entt::entity getOrCreatePointEntity(
     entt::registry& registry,
-    std::unordered_map<const SpellCircle::Point*, entt::entity>& pointCache,
+    boost::unordered_flat_map<const SpellCircle::Point*, entt::entity>&
+        pointCache,
     const SpellCircle::Point* point) {
   if (!point) return entt::null;
 
@@ -58,6 +59,11 @@ entt::entity getOrCreatePointEntity(
 }  // namespace
 
 bool verifyScenePayload(const void* payload, size_t size) {
+  // Refused before a Verifier is built: the Verifier's own bounds arithmetic
+  // is written for a buffer it can address, and nothing this decoder is fed
+  // legitimately exceeds one datagram.
+  if (!payload || size == 0 || size > kMaximumScenePayload) return false;
+
   flatbuffers::Verifier verifier(static_cast<const uint8_t*>(payload), size);
   return SpellCircle::VerifySceneBuffer(verifier);
 }
@@ -75,7 +81,7 @@ SceneStats SceneDocument::decode(const void* payload, size_t size) {
 
   // Shared across edges/boxes so a Point referenced by more than one of them
   // resolves to a single entity rather than being duplicated per reference.
-  std::unordered_map<const SpellCircle::Point*, entt::entity> pointCache;
+  boost::unordered_flat_map<const SpellCircle::Point*, entt::entity> pointCache;
 
   if (scene->circles()) {
     for (const auto* circle : *scene->circles()) {

@@ -13,12 +13,13 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
-#include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/core/Feed.h>
-#include <sigilcompose/core/Material.h>
 #include <sigilcompose/testing/Checks.h>
+#include <sigilgeometry/kit/Shapers.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/choreograph/Choreograph.h>
 
 #include <algorithm>

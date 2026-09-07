@@ -36,12 +36,13 @@ struct TextEngine final : TextPainterOps {
     resolveTextMarks(*inst.owner, inst);
   }
   std::vector<sigil::weave::CharRange> ranges(
-      const Selector& selector, sigil::weave::Paragraph& paragraph,
-      sigil::weave::FontContext& fonts,
+      const sigil::weave::Selector& selector,
+      sigil::weave::Paragraph& paragraph, sigil::weave::FontContext& fonts,
       std::span<const sigil::weave::LineMetrics> lines,
       std::span<const sigil::weave::ColumnMetrics> columns,
-      std::span<const NamedRun> named) const override {
-    return resolveTextRanges(selector, paragraph, fonts, lines, columns, named);
+      std::span<const NamedRun> named, TextScope scope) const override {
+    return resolveTextRanges(selector, paragraph, fonts, lines, columns, named,
+                             scope);
   }
   bool foldable(
       Instance& inst, const sigil::weave::TextStyle& style,
@@ -52,11 +53,23 @@ struct TextEngine final : TextPainterOps {
     return foldableAsAxes(*inst.owner, style, ranges, paragraph, paintCarried,
                           axes);
   }
+  std::vector<TextUnit> units(Instance& inst,
+                              const sigil::weave::Selector& selector,
+                              sigil::weave::Unit unit) const override {
+    return unitsOfText(*inst.owner, inst, selector, unit);
+  }
+  void annotations(Instance& inst) const override {
+    resolveTextAnnotations(*inst.owner, inst);
+  }
+  sigil::weave::ReservedBand reservedBand(
+      Instance& inst, std::span<const Annotation> annotations) const override {
+    return reservedBandOf(*inst.owner, annotations);
+  }
   std::vector<Beat> beats(Instance& inst, size_t trackIndex) const override {
-    return beatsOfTrack(*inst.owner, inst, trackIndex);
+    return beatsOfTrack(inst, trackIndex);
   }
   float cascadeSpanMs(Instance& inst, size_t trackIndex) const override {
-    return cascadeSpanOfTrack(*inst.owner, inst, trackIndex);
+    return cascadeSpanOfTrack(inst, trackIndex);
   }
 };
 
@@ -66,6 +79,17 @@ const TextPainter& enginePainter() {
   static const TextPainter kPainter{TextEngine{}};
   return kPainter;
 }
+
+/** THE ENGINE, ANNOUNCED. A text leaf that dresses nothing carries no
+ *  painter, and the read-back queries would then have to answer empty
+ *  about a passage that is perfectly well laid out. Linking this tier is
+ *  what makes them answer; the registration happens as the process starts
+ *  and nothing depends on the order it happens in, because the queries run
+ *  long after. */
+const bool kEngineRegistered = [] {
+  detail::registerTextEngine(enginePainter().get());
+  return true;
+}();
 
 /** The node's text block with the engine installed — what every verb that
  *  dresses type writes into. */
@@ -89,7 +113,13 @@ Element& Element::fx(Track track) {
   return *this;
 }
 
-Element& Element::mark(Selector where, Element what) {
+Element& Element::annotate(Annotation reading) {
+  detail::TextData& text = dressedText(m_node->textData.ensure());
+  text.annotations.push_back(std::move(reading));
+  return *this;
+}
+
+Element& Element::mark(sigil::weave::Selector where, Element what) {
   detail::TextData& text = dressedText(m_node->textData.ensure());
   // A KEY IS THE ANCHOR'S HANDLE, so a mark that carries none is given one
   // from its declaration order: the layout looks its rect up by key, and
@@ -107,7 +137,8 @@ Element& Element::variationDrive(const char (&tag)[5],
   // SUGAR over fx(): an axis coordinate is a per-glyph deviation like a
   // shove or a fade, so the drive is a whole-text track and composes with
   // whatever other tracks the element carries. A second, parallel text path
-  // is what it used to be, and a track drawn over it hid it completely.
+  // would be hidden by any track drawn over it, which is why the drive is
+  // a track.
   //
   // The effect reads the Output DIRECTLY rather than through the track's
   // progress, because an axis coordinate is a design-space number (GRAD
@@ -116,17 +147,21 @@ Element& Element::variationDrive(const char (&tag)[5],
   // one thing it is good for here: declaring the paint volatility, so the
   // node repaints while the drive moves and settles when it stops.
   const sigil::weave::FontVariation coordinate(tag, 0.0f);
+  detail::TextData& text = dressedText(m_node->textData.ensure());
   // The effect's key IS its identity, and a drive is identified by its axis
-  // and by WHICH Output feeds it — the binding identity every bound value
-  // in the tree is compared by. Two drives of one axis from two Outputs
-  // must not prune onto each other.
-  char key[64];
-  std::snprintf(key, sizeof(key), "variationDrive:%.4s@%p", tag,
-                (const void*)value);
+  // and by its place among the element's tracks — declaration order, the
+  // handle a keyless mark takes for the same reason. WHICH Output feeds it
+  // is carried by the track's own progress, compared where every bound
+  // value in the tree is; the Output's ADDRESS is not identity, because a
+  // destroyed Output's address comes back on the next one allocated and a
+  // key holding it would prune a live drive onto the dead body.
+  char key[32];
+  std::snprintf(key, sizeof(key), "variationDrive:%.4s#%zu", tag,
+                text.tracks.size());
   Track track;
   track.effect = TextEffect(
       key, {},
-      [coordinate, value](const GlyphInfo&, float, Rng&) {
+      [coordinate, value](const GlyphInfo&, float, core::noise::Mix64Stream&) {
         GlyphMod mod;
         if (!value) return mod;
         sigil::weave::FontVariation driven = coordinate;
@@ -140,11 +175,12 @@ Element& Element::variationDrive(const char (&tag)[5],
       // sweeping grade is type at rest and keeps its whole-pixel origins.
       /*reach=*/0.0f, /*curves=*/{}, /*displaces=*/false);
   track.progress = value;
-  dressedText(m_node->textData.ensure()).tracks.push_back(std::move(track));
+  text.tracks.push_back(std::move(track));
   return *this;
 }
 
-Element& Element::spanPaint(Selector where, sigil::weave::PaintStyle paint) {
+Element& Element::spanPaint(sigil::weave::Selector where,
+                            sigil::weave::PaintStyle paint) {
   detail::SpanRestyle restyle;
   restyle.where = std::move(where);
   restyle.style.paint = std::move(paint);
@@ -154,7 +190,8 @@ Element& Element::spanPaint(Selector where, sigil::weave::PaintStyle paint) {
   return *this;
 }
 
-Element& Element::spanStyle(Selector where, sigil::weave::TextStyle style) {
+Element& Element::spanStyle(sigil::weave::Selector where,
+                            sigil::weave::TextStyle style) {
   detail::SpanRestyle restyle;
   restyle.where = std::move(where);
   restyle.style = std::move(style);

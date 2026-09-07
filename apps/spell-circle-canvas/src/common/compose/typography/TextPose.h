@@ -11,6 +11,8 @@
 #include <include/core/SkRect.h>
 #include <sigilweave/fonts/Shaper.h>
 
+#include <algorithm>
+#include <cmath>
 #include <optional>
 #include <span>
 #include <utility>
@@ -20,15 +22,13 @@
 
 namespace sigil::compose {
 
-using namespace detail;
-
 /** The tracks a node's text draws with: the description's fx() tracks,
  *  then the axis tracks its span restyles folded into. Indexed as one
  *  list by the painter's selection cache; a folded track sits past the
  *  end of trackAnims and so reads its progress at rest. */
-inline std::span<const Track> paintedTracksOf(const Instance& inst,
+inline std::span<const Track> paintedTracksOf(const detail::Instance& inst,
                                               std::vector<Track>& joined) {
-  const std::span<const Track> declared = tracksOf(*inst.desc);
+  const std::span<const Track> declared = tracksOf(*inst.description);
   if (!inst.textState || inst.textState->spanAxisTracks.empty())
     return declared;
   joined.assign(declared.begin(), declared.end());
@@ -36,13 +36,33 @@ inline std::span<const Track> paintedTracksOf(const Instance& inst,
                 inst.textState->spanAxisTracks.end());
   return joined;
 }
-/** How many steps the tangent ladder offers a glyph rendered at
+/** HOW MANY STEPS A SIZE-CUT LADDER OFFERS a glyph rendered at @p pixelSize:
+ *  @p perPixel steps for each pixel of em, clamped to
+ *  [@p minSteps, @p maxSteps].
+ *
+ *  Every distinct value a driven quantity takes is a distinct batch bucket
+ *  AND a distinct glyph-atlas strike, so a smooth sweep left unsnapped
+ *  rasterizes every addressed letter afresh on every frame. What ONE STEP
+ *  displaces grows with the size the glyph is drawn at — a variation design
+ *  unit and a rotation both move a fixed fraction of the em — so a ladder
+ *  that does not grow with the size disappears on a caption and shows on a
+ *  headline; it rises in proportion instead. The floor is where a finer
+ *  ladder buys nothing the eye can use at a legible size, and the ceiling is
+ *  what bounds the retained population at all, which is the only reason a
+ *  ladder exists rather than the raw value. How fine each ladder is, and
+ *  where its ends sit, is the caller's — the two questions differ. */
+inline int ladderSteps(float pixelSize, float perPixel, int minSteps,
+                       int maxSteps) {
+  return std::clamp((int)std::lround(pixelSize * perPixel), minSteps, maxSteps);
+}
+
+/** How many directions the tangent ladder offers a glyph rendered at
  *  @p pixelSize. */
 int tangentLadderSteps(float pixelSize);
 
 /** Everything the pose depends on beyond the glyph itself. */
 struct PoseContext {
-  const Instance* inst = nullptr;
+  const detail::Instance* inst = nullptr;
   const sigil::weave::ParagraphLayout* layout = nullptr;
   const TextPath* onPath = nullptr;
   bool ridesPath = false;
@@ -79,5 +99,21 @@ GlyphBand bandOf(const sigil::weave::ShapedWord* shaped,
                  std::vector<std::pair<BandKey, GlyphBand>>& memo);
 SkRect glyphBox(const sigil::weave::PlacedGlyph& placed, const RestPose& pose,
                 const GlyphBand& band);
+
+/** WHERE @p key WAS LAST FILED in @p keys, or `keys.size()` for one that is
+ *  not filed yet — the join-or-append every per-unit walk does, in one
+ *  place, so the unit lists a mark, a beat and an annotation are numbered
+ *  against cannot be built two different ways.
+ *
+ *  Glyphs arrive in draw order and a unit's glyphs are contiguous in it, so
+ *  the entry a glyph joins is the one appended last: the scan runs backwards
+ *  and stops on the first hit, which is one comparison for every glyph but
+ *  the first of its unit. */
+template <class Key>
+size_t indexOfKey(const std::vector<Key>& keys, const Key& key) {
+  for (size_t i = keys.size(); i-- > 0;)
+    if (keys[i] == key) return i;
+  return keys.size();
+}
 
 }  // namespace sigil::compose

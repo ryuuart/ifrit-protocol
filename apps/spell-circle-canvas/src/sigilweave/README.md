@@ -22,6 +22,13 @@ arbitrary excluded shapes, runs down vertical CJK columns, or rides the
 tangent of a Bezier curve — and none of those is a special mode inside the
 breaker.
 
+**`FEATURES.md` is the catalogue.** This page is what the library is, its
+seams, how to reach it, and what it will not do. Everything it covers —
+the pipeline stage by stage, the header map, the paragraph controls, the
+parity table in `PARITY.md` with the compose path for every row, what a
+frame of the live composer costs, and the conventions to read before
+writing against it — is one file over.
+
 ## Getting started
 
 ```cpp
@@ -50,17 +57,23 @@ builder.addText(u8"Glyphs flow ")
     .addText(u8" obstacles… 日本語も 한국어도 中文也");
 Paragraph paragraph = builder.build();
 
-// A rectangle with shapes punched out of it. Shapes are cheap to move:
-// geometry is re-queried on every layout pass.
+// A rectangle with silhouettes punched out of it. They are cheap to move:
+// geometry is re-queried on every layout pass, and an offset costs a
+// silhouette nothing.
 ExclusionFlow flow(SkRect::MakeWH(900, 700));
-flow.shapes().push_back(ExclusionFlow::Shape::fromCircle(circleBounds, 8));
-flow.shapes().push_back(ExclusionFlow::Shape::fromPath(anyPath, 8));
+flow.exclusions().push_back({silhouette::circle(circleBounds), 8});
+flow.exclusions().push_back({silhouette::path(anyPath), 8});
+flow.exclusions().push_back({silhouette::coverage(photo, photoBox, 0.35f), 8});
 
 ParagraphLayoutOptions options;
 options.alignment = TextAlignment::kJustify;
 options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
 options.overflow.maxLines = 4;      // CSS line-clamp, over any geometry
 options.overflow.ellipsis = u"…";
+
+ParagraphStyle opening;
+opening.initial = {.lines = 3, .margin = 6};   // the versal, sized by rule
+options.blocks = {opening};
 
 ParagraphLayout layout = layoutParagraph(fonts, paragraph, flow, options);
 layout.drawBatched(canvas, paragraph);
@@ -77,7 +90,11 @@ paragraph.setPaint(0, 6, {SK_ColorRED});    // no re-shape, no relayout —
 
 `layout.runs` is a plain vector of `PositionedRun`, so walking the output
 yourself is a first-class option; `draw()` and `drawBatched()` are
-conveniences over it.
+conveniences over it. A run borrows: `run.shaped` is a `const ShapedWord*`
+into the paragraph, and the word, interval and style indices beside it are
+indices into that same paragraph and layout. Keep the paragraph and the
+layout alive for as long as you read runs off it — a run copied out of a
+layout keeps nothing alive on its own.
 
 ### Writing your own geometry
 
@@ -90,9 +107,10 @@ public:
   SingleContourFlow(geometry::path::Contour contour, float start)
       : m_contour(std::move(contour)), m_start(start) {}
 
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  using FlowGeometry::lineIntervals;
+  bool lineIntervals(const LineRequest &request,
                      std::vector<LineInterval> &intervals) override {
-    if (index > 0)
+    if (request.index > 0)
       return false;              // one line only; false = geometry exhausted
     LineInterval interval;
     interval.contour = m_contour;
@@ -108,232 +126,149 @@ private:
 };
 ```
 
-A contour interval carries a `geometry::path::Contour` from SigilGeometryPath —
-one sub-path addressed by arc length, built with `geometry::path::Contour::of(path)`.
-The layout reads position and tangent through it, so "distance along" and
-"closed wraps around" mean the same thing for text as for every other thing
-that walks a path.
+Ready-made geometries cover the common cases: `BlockFlow`,
+`ExclusionFlow`, `VerticalBlockFlow`, `LineSetFlow` and `PathFlow`. What
+each one is, what a `LineRequest` carries, what a contour interval means,
+and what a column costs `ExclusionFlow` are in `FEATURES.md` under the
+flow geometries.
 
-Ready-made geometries cover the common cases: `BlockFlow` (a rectangle),
-`ExclusionFlow` (a rectangle minus moving circles, rects, or arbitrary
-`SkPath`s with their fill rule honored), `VerticalBlockFlow` (top-to-bottom
-columns advancing right to left), `LineSetFlow` (explicit intervals — any
-origin, direction, and count per line), and `PathFlow` (each contour of a
-path becomes a line).
+### Silhouettes
 
-`ExclusionFlow` takes a `FlowAxis`, and that is the whole of what a column
-costs it: `FlowAxis::kColumns` makes each band a top-to-bottom column
-advancing right to left from the bounds' right edge, and reads every
-shape's extent DOWN the column instead of across the line. A column is a
-line turned a quarter turn — a shape shortens one, or splits it in two,
-exactly as it shortens or splits the other — so the band scan, the fill
-rule, the flattening cache and the sliver threshold are one implementation
-read through two coordinates. Pair `kColumns` with
-`Paragraph::setWritingMode(WritingMode::kVerticalRL)`, exactly as
-`VerticalBlockFlow` is paired.
+`ExclusionFlow` subtracts `Exclusion` values — a `Silhouette`, a margin,
+and an offset — and the silhouette is one virtual with one question:
+which stretches of a band, along the flow axis, does this shape occupy.
+There is no kind to switch on, so `silhouette::rectangle`,
+`silhouette::circle`, `silhouette::ellipse`, `silhouette::path`,
+`silhouette::coverage` and one a caller writes are peers. A rectangle and
+a circle are answered analytically; a path is read off its own flattened
+outline, fill rule honoured, so holes and concavities stay open to text;
+coverage is read off an image's alpha wherever it exceeds a threshold,
+which is the answer for a photograph, a video frame or a rendered node.
 
-## The pipeline
+**The margin is a disc.** It asks for the set of points within that
+distance of the shape, which is what makes a diagonal edge stand the text
+off by exactly the margin and a corner come out round. A rectangle and a
+circle answer it in closed form; a path answers it exactly through Skia's
+path ops, as the union of its fill with its own outline stroked at twice
+the margin, round join and round cap — which is what a disc rolled around
+the shape sweeps — and the band scan then reads that outline as it reads
+any other. Coverage is the one silhouette with no outline to grow, so it
+measures an exact Euclidean distance field over its pixels and reads the
+answer off that — `image::distanceField`, in SigilImage, because a
+distance transform is a question about pixels and belongs where image
+meaning lives.
 
-`layoutParagraph()` is the entry point and runs these stages in order.
+**Motion is the offset.** `Exclusion::offset` is rigid motion: the band
+arrives moved back by it and the spans come out moved forward by it, so
+nothing the silhouette measured is thrown away. A shape that is rebuilt —
+a morphing path, a new video frame — re-measures, which is the honest
+per-frame cost of text reflowing around live pixels.
 
-1. **Line clamp.** When `overflow.maxLines` is set, the caller's geometry is
-   wrapped by one that stops handing out lines at the limit. Every geometry
-   and both breakers get clamping for free.
-2. **Segmentation only.** `Paragraph::ensureAnalyzed()` runs the ICU passes —
-   UAX#14 break opportunities, script itemization, bidi, per-codepoint
-   fallback resolution — and builds the `Word` list. No glyphs yet. The bidi
-   pass is skipped entirely unless the codepoint walk saw something that can
-   force right-to-left, which is the overwhelmingly common case.
-3. **Strut and line metrics.** Line height and ascent come from the first
-   span's font unless `lineMetrics` overrides them.
-4. **Geometry flattening.** Every line's intervals are flattened, lazily,
-   into a single indexed `IntervalSequence`. Both breakers consume geometry
-   *only* through it, so a break decision and the placement that follows can
-   never disagree about which interval is which.
-5. **Line breaking.** Greedy or Knuth-Plass (see below).
-6. **Lazy shaping.** Breakers call `ensureShapedTo()` just ahead of their own
-   frontier, so a paragraph far larger than its geometry only ever sends the
-   words that can actually land through HarfBuzz. Words past the last
-   interval are never shaped at all.
-7. **Shaping.** `shapeWord()` goes through the content-addressed shape cache.
-   The cache is probed with a borrowed view of the key, so a warm
-   re-analysis allocates nothing; an owning key is materialized only on a
-   miss.
-8. **Placement.** Words are reordered per UAX#9 rule L2 (reverse maximal runs
-   of each level, highest first), then positioned inside their interval with
-   the requested alignment.
-9. **Blob emission.** One of four shapes per run: a straight horizontal run
-   reuses the word's shared origin-relative blob translated to its origin; an
-   upright vertical run does the same down a column; tate-chu-yoko reuses it
-   centred across the column axis; anything rotated or on a contour bakes
-   per-glyph `SkRSXform`s into a fresh blob.
-10. **Ellipsis.** When set and the layout overflowed, the final placed line
-    is trimmed until a shaped marker fits.
-11. **Draw.** `draw()` emits one blob per word; `drawBatched()` merges
-    horizontal runs into one `drawGlyphs` call per (font, paint) bucket.
-    Both resolve paint per span at draw time.
+### The initial letter
 
-## The features and their headers
+A block's opening set large is a property of the block —
+`ParagraphStyle::initial` — and not a second element someone places. The
+size is DERIVED: the initial's top reference point aligns with the first
+line's, and its baseline with the baseline of the line it sinks to, so
+its reference metric must span `(lines - 1) · pitch + the first line's
+own`, and `initialLetterSize` answers what font size gives the face that
+span. A letter chosen by eye is wrong per typeface; a letter sized by the
+rule is right in every face.
 
-Each feature is a directory holding its sources, its `CMakeLists.txt`, its
-`test/` and (where it has one) its `bench/`; its public headers sit under
-`include/sigilweave/<feature>/`. A fixture several features shape with
-belongs to none of them, so the shared ones sit at the library root:
-`test/support/`, `test/assets/` and `bench/support/`. Internal headers never leave the feature
-directory. The features form a dependency chain — each links those it
-needs, and each header includes those it needs, so including a later one
-pulls the earlier ones in. `<sigilweave/SigilWeave.h>` is a transitional
-umbrella over every engine feature, for code written against the flat
-header tree; new code includes the feature headers it uses.
+The notch the following lines wrap is cut by WRAPPING THE GEOMETRY, the
+way `OverflowOptions::maxLines` is imposed: an initial is stated in pen
+travel taken off the head of a band, which is the one thing every
+geometry answers in. So a block minus exclusions, a column and a line
+riding a contour all wrap an initial with nothing written for any of
+them. `InitialLetter::wrap` reads the notch off the letter's own contours
+instead of its box, so a line tucks under the diagonal of an A;
+`InitialLetter::sink` drops the baseline further, and 0 is as high as it
+goes; `InitialLetter::align` picks the reference metric — the cap
+height, the em box, or the ascent a script hangs from. A block with fewer lines
+than the initial sinks hands the rest of the cut to the block after it,
+so nothing runs under the cap; a column's initial is set down the column
+and hangs from its head. The initial's glyphs are runs of the layout and
+draw with the rest; `ParagraphLayout::initial` reports where they
+landed.
 
-**`unicode`** — `SigilWeaveUnicode`, the leaf: `unicode/Unicode.h`, every
-Unicode question the engine asks answered as plain values over UTF-16
-text, on ICU alone (its own section below).
+## The seams
 
-**`style`** — `SigilWeaveStyle`, header-only over Skia's paint types:
+Five decisions, each owned in one place. Everything else this library
+offers is a value handed to one of them, and `FEATURES.md` is the whole
+catalogue of those values.
 
-- **`style/Style.h`** — the umbrella over the vocabulary every other
-  header speaks, one header per subject beneath it: `style/ShapingStyle.h`
-  (`ShapingStyle`, the shape-cache key, with `FontFeature`,
-  `FontVariation`, `TextTransform`, `VerticalForm`), `style/PaintLayer.h`
-  (`PaintLayer` — a pass's `SkPaint`, its offset, and optionally a
-  SigilMaterial instance it shades with, held by pointer and resolved at
-  draw time through `paint/Paint.h`'s resolver), `style/Decoration.h`
-  (`Decoration`), `style/PaintStyle.h` (`PaintStyle`, draw-time),
-  `style/TextStyle.h` (`TextStyle` = the two halves) and
-  `style/StyleSet.h` (`StyleSet`, a small ordered registry of named
-  styles, comparable by value, whose lookup always answers — an
-  unregistered name resolves to the set's base entry).
-- **`style/Features.h`** — named OpenType presets
-  (`Features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so
-  styles need not hand-spell four-cc tags, including the ones a COLUMN
-  asks for: `verticalRotatedForms`, `verticalAlternates`,
-  `proportionalVerticalMetrics`, `halfWidthVerticalMetrics`,
-  `verticalKana`, `verticalKerning`, and `verticalFormsOff` to decline
-  the vertical forms shaping takes by itself.
+| Seam | What it decides | Reached through |
+|---|---|---|
+| **Break decision** | where lines end — the breaker, its demerits, which hyphenation points it takes, how far it may spend on justification, and the budget past which it gives up for a frame | `LineBreakStrategy`, `KnuthPlassOptions`, `HyphenationOptions`, `JustificationOptions` |
+| **Line placement** | where a line's words sit — the intervals a geometry hands back for a band, the indents that inset them, the tab stops inside them, the edge a character may hang past, and where a frame seats its first baseline | `FlowGeometry`, `IndentOptions`, `TabStop`, `HangingTable`, `FrameOptions` |
+| **Strut** | a block's pitch — its leading mode, and every band something set beside the type reserved | `Leading`, `ReservedBand` |
+| **Story** | the shaped-once text and where a fill stopped, so the next frame begins there | `Story`, `Paragraph`, `layoutParagraph`'s resume word, `ParagraphLayout::firstUnplacedWord` |
+| **Segmentation** | where a break may happen at all — the language's own tailoring, and a house's prohibitions on top of it | `Paragraph::setLineBreakLocale`, `KinsokuTable`, `Hyphenator` |
 
-**`fonts`** — `SigilWeaveFonts`, HarfBuzz and abseil private:
+Two rules run through all five and are worth stating once.
 
-- **`fonts/FontContext.h`** — the per-thread service object: HarfBuzz
-  faces, fallback memos, varied-typeface clones (retained, or transient for
-  a continuously varying coordinate), the shape cache, observable `Stats`.
-- **`fonts/Shaper.h`** — `ShapedWord`, `shapeWord()`, `wordBlob()`,
-  `makeFont()`. Reach for it to inspect or reuse individual glyph runs.
+**The library decides nothing typographic.** No fraction of a base's size
+is written anywhere in it: a reading's size is its own style's, a
+prohibition set is data, a mojikumi table is data, a hyphenation pattern
+table is data. `kit/` ships stock tables and a caller's own is their peer.
 
-**`paragraph`** — `SigilWeaveParagraph`, the Unicode leaf private:
+**Settled text is the special case.** A page laid out once and then read
+is the easy end of what this engine is for; the ordinary end is text
+whose measure animates, whose frame grows, whose content changes between
+frames. `ParagraphLayoutOptions::live` is how a caller says an input is
+moving, and the layout REPORTS what it did about it rather than deciding
+whether anything has settled — there is one such proof in a runtime and
+this is not it.
 
-- **`paragraph/Word.h`** — the atomic layout unit: `Word`, its
-  `WordSegment`s in a `WordSegmentList`, and the `SegmentForm` a vertical
-  column places a segment in.
-- **`paragraph/Paragraph.h`** — the document: UTF-16 text, normalized
-  `StyleSpan`s, `CharRange`, inline `Placeholder`s, writing mode, the edit
-  log, sentence boundaries, and the analysis entry points;
-  `ParagraphBuilder` for the push/pop idiom.
+## What it covers
 
-**`layout`** — `SigilWeaveLayout`, with `SigilGeometryPath` public because
-a contour interval carries a `geometry::path::Contour`:
+`FEATURES.md` is the catalogue, and the parity table in `PARITY.md` is
+the fastest answer to "can it do X": one row per control a page-layout
+application's panels present, what its status is here, and — for a SigilCompose author
+— the verb or field that reaches it. Read it before assuming something
+is missing.
 
-- **`layout/Flow.h`** — `LineInterval`, the `FlowGeometry` interface, and
-  the ready-made geometries.
-- **`layout/LayoutOptions.h`** — `ParagraphLayoutOptions` and every
-  options struct it groups: alignment, break strategy, line metrics,
-  hyphenation, justification, Knuth-Plass, overflow, tab stops, path text.
-- **`layout/PositionedRun.h`** — `PositionedRun`, one draw call, and the
-  `LineMetrics` and `ColumnMetrics` bands derived from placed runs.
-- **`layout/ParagraphLayout.h`** — `ParagraphLayout`, `layoutParagraph()`
-  and `layoutSingleLine()`. Includes the three above.
+The short version: both breakers with the whole setting around them
+(hyphenation with per-language pattern tables, three passes of
+justification, balanced rag, the keeps enforced at a frame boundary),
+paragraph styles per block with four indents and four leading kinds,
+threaded frames, tabs with leaders, vertical CJK with the line-edge and
+full-width tables a printed page is set under, readings beside the type,
+per-glyph choreography over any of it, and a live composer built to run
+every frame.
 
-**`decoration`** — `SigilWeaveDecoration`:
-
-- **`decoration/Decoration.h`** — a decoration resolved against a run's
-  metrics: `detail::resolveDecorationBand()`, `decorationBandPaint()`,
-  `decorationSegments()`. Skip-ink intercepts are memoized on the blob's
-  id and the band window, folded into a key with SigilCoreCompute's stir
-  so a hash is one body wherever it is accumulated.
-- **`decoration/DecorationRects.h`** — the walk that turns a layout's
-  decorations into rectangles with their paint, `detail::forEachDecorationRect()`,
-  run by both draws.
-
-**`paint`** — `SigilWeavePaint`: `ParagraphLayout::draw()` and
-`drawBatched()`. They are declared on `ParagraphLayout` in
-`layout/ParagraphLayout.h` and defined here, so a program that draws links
-this archive.
-
-- **`paint/Paint.h`** — the feature's face: `paint::draw()` and
-  `paint::drawBatched()`, the same draws as free functions over a layout,
-  and `paint::setMaterialResolver()`, the seam a pass carrying a
-  SigilMaterial instance is shaded through. The archive links no renderer;
-  the shaders feature's `PaintShaders::installMaterialResolver()` installs
-  SigilMaterial's Skia backend there.
-
-**`choreograph`** — `SigilWeaveChoreograph`, optional:
-
-- **`choreograph/PlacedGlyph.h`** — `PlacedGlyph` and
-  `forEachPlacedGlyph()`, which walks a layout's glyphs as rest pose, span
-  paint, and where each sits in the text.
-- **`choreograph/GlyphDress.h`** — `GlyphDress` (placement, fade, tint,
-  face, matrix), `quantizeAngle()` and the memoized `tintFilter()`.
-- **`choreograph/GlyphBatches.h`** — `GlyphRSXformBatches`, which
-  collapses thousands of animated letters into a few `drawGlyphsRSXform`
-  calls.
-- **`choreograph/Choreograph.h`** — the three above.
-
-**`query`** — `SigilWeaveQuery`, optional: `query/Query.h` finds ranges by
-substring, word, or ICU regex; `MarkerSet` tracks named ranges across
-edits, DOM-Range style.
-
-**`cache`** — `SigilWeaveCache`, optional:
-`cache/SingleLineParagraphCache.h` caches single-style paragraphs by text,
-typeface, and quantized size, for high-frequency labels.
-
-Separate from the engine: **`shaders`** (`shaders/PaintShaders.h`,
-animated paint presets — SigilMaterial's text paint recipes shaded for a
-run's bounds and the clock), **`ports`** (`ports/SystemFontManager.h`, the OS
-font manager), **`kit`** (`kit/`, the companion utilities, with its own
-README) and **`qt`** (`qt/SigilWeaveQt.h`, the Qt bridge).
-
-### The Unicode leaf
-
-`<sigilweave/unicode/Unicode.h>` (target `SigilWeaveUnicode`, namespace
-`sigil::weave::unicode`) is every Unicode question the engine asks,
-answered as plain values over UTF-16 text and depending on ICU alone — no
-Skia, no other header of this library:
-
-| Function | Answer |
-|---|---|
-| `toUtf16` / `toUtf8` / `decodeAt` | transcoding and code-point decoding |
-| `isWhitespace`, `isHardLineBreak`, `inheritsTypeface`, `mayRequireBidi`, `verticalOrientation` | per-character properties: what separates words, what forces a line end, what takes its neighbour's typeface, what can turn a paragraph bidirectional, how a character stands in a vertical column (UTR#50) |
-| `scriptOf`, `scriptShortName`, `isIdeographicScript`, `itemize` | scripts, and the text split into `ScriptRun`s with Common and Inherited characters attached to their neighbours |
-| `caseMap` / `caseMapped` | locale-aware upper, lower and first-code-point title case |
-| `lineBreaks`, `wordBoundaries`, `sentenceStarts` | UAX#14 break opportunities and UAX#29 word and sentence segmentation, as ascending offsets |
-| `bidi` | UAX#9 embedding levels as `BidiRun`s against a chosen `BaseDirection` |
-
-The engine consumes it privately: `Paragraph` runs `lineBreaks`, `itemize`
-and `bidi` when it analyzes, `caseMap` just before it shapes a transformed
-segment, and `sentenceStarts` on the first walk after an edit. Nothing in
-the engine's public headers names one of its types, so a consumer that
-wants the analysis without the fonts links the leaf alone. The scratch
-objects the analyses reuse (ICU break iterators, the bidi analyzer) are
-thread-local, so every function is safe from any thread.
+Three of the values are worth naming here because they are what a caller
+writes rather than what the engine produces. **`RichText`** says a mixed
+passage as runs and the styles — or the style NAMES — they are set in, and
+two of them describing the same runs are EQUAL, which is how a caller that
+rebuilds its text every frame shapes nothing when nothing changed.
+**`Story`** is one of those plus the block styles its paragraphs are set
+under, and a chain of frames fills from it. **`Selector`** is a selection
+written down and not yet asked: `sel::word(3)`, `sel::regex(u8"[0-9]+")`,
+`sel::each(Unit::Cluster).take(1)`, combined with `|`, `&` and `!`. What a
+selector means as glyphs depends on a layout, so RESOLVING one is the
+caller's — this library hands its layout out rather than owning a
+canonical one — and the two kinds a caller defines for itself,
+`Kind::Named` and `Kind::Scope`, ride the same value and compose with the
+rest.
 
 ## Targets and dependencies
 
 | Target | Contents | Beyond Skia |
 |---|---|---|
-| `SigilWeaveUnicode` | the Unicode leaf | ICU, private; no Skia |
-| `SigilWeaveStyle` | the style vocabulary, header-only | — |
-| `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, abseil — private |
-| `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, HarfBuzz, abseil — private |
-| `SigilWeaveLayout` | flows, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); ICU, abseil — private |
-| `SigilWeaveDecoration` | decoration bands | SigilCoreCompute (the stir the skip-ink cache keys with) — private |
+| `SigilWeaveUnicode` | the Unicode leaf | ICU and HarfBuzz's ICU bridge, private; no Skia |
+| `SigilWeaveStyle` | the style vocabulary, header-only, with `Type` and `textStyle()` — the designated-init aggregate a call site names a style's numbers in | — |
+| `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, Boost.Unordered and Boost.ContainerHash — private |
+| `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, Boost.Container — private |
+| `SigilWeaveLayout` | flows and silhouettes, the initial letter, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); SigilImageField (the distance field a silhouette measures its standoff off), the Unicode leaf, HarfBuzz, ICU and Boost.Unordered — private |
+| `SigilWeaveDecoration` | decoration bands | Boost.Unordered (the stir the skip-ink cache keys with) — private |
 | `SigilWeavePaint` | `draw()` and `drawBatched()`, `paint/Paint.h` | — |
 | `SigilWeaveChoreograph` | per-glyph choreography | — |
 | `SigilWeaveQuery` | range search and markers | ICU, private |
-| `SigilWeaveCache` | the label cache | abseil, ICU — private |
+| `SigilWeaveCache` | the label cache | Boost.Unordered, ICU — private |
 | `SigilWeave` | interface over every target above | — |
-| `SigilWeaveShaders` | `shaders/PaintShaders.h` — water, mesh gradient, sparkle, star nest, clouds, tunnel | SigilMaterialKit, SigilMaterialSkia — private; not in the export set |
-| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText today; DirectWrite/Fontconfig slot into the same call | Skia platform ports |
-| `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content (see `kit/README.md`) | — |
+| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal | Skia platform ports |
+| `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the named OpenType feature presets, the three arrangements of a paint layer everyone writes, and the line-edge and hyphenation tables | SigilWeaveUnicode — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 
 Each feature links only the features beneath it — style, then fonts, then
@@ -341,11 +276,11 @@ paragraph, then layout, with decoration, paint, choreograph, query and
 cache each resting on the one they need — so a consumer of one tier links
 that tier alone; `SigilWeave` is for a consumer of the whole engine. Skia
 and SigilGeometryPath are PUBLIC dependencies — the path a line of text
-follows is a geometry contour, and `ExclusionFlow` flattens its shapes
-through the same library; the Unicode leaf, HarfBuzz, ICU and abseil are
-PRIVATE and appear in no public header. Pimpls hide the hash maps, and
+follows is a geometry contour, and a path silhouette flattens through the
+same library; the Unicode leaf, SigilImageField, HarfBuzz, ICU and Boost
+are PRIVATE and appear in no public header. Pimpls hide the hash maps, and
 `Word::segments()` hands out a `std::span` over storage whose container
-type only the paragraph feature sees, so the one abseil container inside
+type only the paragraph feature sees, so the one Boost container inside
 a value type never reaches a consumer. The engine is Qt-free and carries
 no SkSL: shader presets are content, not engine.
 
@@ -363,350 +298,6 @@ Everything compiles as standard C++20 with extensions disabled. Public APIs
 use `std::span` views, concept-constrained callbacks, and
 `[[nodiscard("reason")]]` where ignoring a return silently corrupts caller
 state.
-
-## What the engine covers
-
-- **Decorations** — underline, strikethrough, overline, highlight, on
-  `PaintStyle::decorations`. Thickness and position default to the font's own
-  metrics; underlines skip ink around descenders. Span is per-decoration:
-  `kDecoratedRange` merges contiguous same-style runs on a line into one band
-  that covers the gaps between words (CSS behavior), `kPerWord` draws one
-  band per word (squiggles, chips). `Decoration::paint` takes a full `SkPaint`
-  applied verbatim, resolved independently of the glyph paint, so a shaded
-  band can sit under plain ink. **Down a column the band turns with the
-  type**: an underline runs beside the column on its right — the side a
-  vertical setting reads its emphasis line on — an overline on its left, a
-  strikethrough down the column axis, and a highlight across the whole em
-  box; `Decoration::offset` is then a signed distance ACROSS the column.
-  Ink skipping is a line's alone: intercepts are cut out of a horizontal
-  band window, so a column's band is continuous. `Decoration::side` picks
-  which side of the run's own axis an underline or an overline anchors on
-  — `Side::kOpposite` is the other one's anchor, so a column's underline
-  moves to the left and a line's above the type. A strikethrough and a
-  highlight cross the type rather than standing beside it and have no
-  second side; nor does a decoration with an explicit `offset`, which
-  names the near edge outright.
-- **Paint layers** — ordered underlays and overlays around the foreground,
-  each a complete `SkPaint` plus an offset; `PaintLayer::dropShadow`, `glow`,
-  and `outline` are presets over that. Each layer costs one more draw per
-  bucket.
-- **Variable fonts** — `shaping.variations = {{"wght", 700}}`, or the fluent
-  `style.weight(650)`. `FontContext` memoizes the varied clone, so HarfBuzz
-  and Skia agree on the design position and the varied face has a stable
-  cache identity. An advance-invariant axis can instead be driven at *draw*
-  time through `ParagraphLayout::LiveVariations`, with no re-shape.
-- **OpenType features and text transform** — per-span features (part of the
-  cache key) and locale-aware ICU case mapping applied just before shaping.
-  The stored text, edit ranges, and query results stay untransformed.
-- **Spacing** — `letterSpacing` (tracking, JIS aki in vertical text),
-  `wordSpacing` (added to inter-word glue after measurement), `scaleX`
-  (horizontal condensation of glyph shapes *and* advances, for faces with no
-  `wdth` axis).
-- **Vertical CJK** — `WritingMode::kVerticalRL` with per-character UTR#50
-  orientation, `vert` forms, and per-span `VerticalForm` overrides (upright,
-  rotated, tate-chu-yoko). Shaping a run top-to-bottom applies the face's
-  `vert` substitutions and reads its vertical metrics on its own; everything
-  else a column may want from the face — the wider `vrt2` rotation set,
-  punctuation recentred (`valt`) or fitted (`vpal`, `vhal`), kana cut for a
-  column (`vkna`), vertical kerning (`vkrn`) — is a feature a style names,
-  spelled in `style/Features.h`. A named feature is not gated on the
-  direction: it runs whichever way the run is set, so those belong on the
-  styles a passage sets vertically. `columnMetrics()` measures the result, and a
-  dressed glyph in a column sets `GlyphDress::centreOffset` because half its
-  advance is a step down the page rather than across it.
-  `FontContext::glyphAdvanceEm()` reports either axis's advance in ems, for a
-  caller asking whether two glyphs step the pen alike — the vertical advance
-  is a fact Skia's glyph metrics do not carry at all. A column takes the
-  furniture a line takes: an exclusion cuts it (`FlowAxis::kColumns`), and
-  a clamp ends it in the overflow marker, at the column's foot.
-- **Font fallback** — per-codepoint, per-language, memoized, with an ASCII
-  direct-mapped fast table. The default resolver uses the `SkFontMgr`'s
-  platform cascade; supply a `FontContext::FallbackResolver` to encode your
-  own family list or script policy.
-- **Inline placeholders** — pills, icons, and images woven into the flow. The
-  breakers treat each as an unbreakable word; `placeholderRects()` reports
-  where they landed.
-- **Per-glyph choreography** — `forEachPlacedGlyph()` (`choreograph/PlacedGlyph.h`) hands
-  every glyph of a finished layout to a visitor as one `PlacedGlyph`: the
-  shaped run it came from, its glyph ID and advance, the absolute rest
-  position the layout placed it at, its span's whole `PaintStyle`, and the
-  identity an effect selects on — position in the walk, index within the
-  shaped run, UTF-16 cluster, the same cluster as a text offset, and word,
-  line, style-span and sentence indices. A glyph the layout TURNED — one on
-  a contour, one on a rotated interval — carries the tangent it faces and
-  the interval and pen coordinate it was placed at, so it can be re-placed
-  at draw time from the same geometry. Displace, rotate and fade from there,
-  accumulate into `GlyphRSXformBatches`, and draw.
-- **Line metrics** — `lineMetrics()` derives per-line baseline, ascent and
-  descent band, advance extent, and character range from the placed runs.
-  Selection bands and point-to-line hit-testing are `lineMetrics()[i].rect()`
-  plus ordinary canvas drawing; nothing is stored during layout and callers
-  who never ask pay nothing. `columnMetrics()` is the same query for the
-  other writing mode: a column has no baseline, so it reports the axis, the
-  flow's pitch (also carried on `ParagraphLayout::linePitch`) and how far
-  down the axis the runs reached. Exactly one of the two answers in any
-  given layout.
-- **Tab stops, overflow ellipsis, line clamp** — see the options structs.
-  The clamp counts COLUMNS in a vertical flow, and the marker stands for
-  the text that was cut, so it is set the way that text was set: upright
-  after upright glyphs — the face's own `vert` form when it has one — and
-  turned with the column after a rotated run.
-
-## The hard parts
-
-These are the places where the implementation is not the obvious one, and
-where a change is most likely to break something quietly.
-
-**Breaking against a list of intervals, not a width.** Classical line
-breaking asks "does the next word fit in the measure?". Here each line may
-offer several intervals of different lengths — the gaps a set of exclusion
-shapes leaves behind — and the answer depends on which one the pen is in.
-The greedy breaker therefore has to survive a word that fits in *no*
-interval: it records the widest interval it skipped over, and when the
-geometry runs out (or it has skipped too many) it backs up to that interval
-and forces the word there. Without that, a long word either drops the rest
-of the paragraph or jams itself into whatever narrow sliver the skip run
-happened to stop on, visibly overflowing into an exclusion shape.
-
-**Knuth-Plass, made to always terminate.** Three departures from the
-textbook algorithm:
-
-- *Badness saturates.* A stretch-free underfull line is terrible but must
-  stay finite. Let badness reach infinity and the squared demerits overflow
-  and poison every surviving path, which loses whole paragraphs on narrow,
-  hyphen-heavy measures.
-- *A lifeline break.* When no feasible break survives at some boundary, the
-  least-bad candidate is force-accepted, uniformly penalized so any feasible
-  path still beats it. A loose line is preferred to an overfull one
-  regardless of demerits: loose merely looks bad, overfull leaks past the
-  measure.
-- *An emergency rerun.* If that lifeline ever had to accept an overfull
-  line, the entire pass is redone with each line's own width added to its
-  stretchability (TeX's `\emergencystretch`), which turns loose lines into
-  real break nodes. Overfull is then forced only when a single box is wider
-  than its line.
-
-On uniform geometry the breaker also merges paths that reached the same
-breakpoint on different line numbers — their futures are identical — which
-is what keeps the active list bounded by the measure instead of growing with
-the paragraph.
-
-**Justification has three kinds of gap.** Rigid, space, and ideographic.
-CJK has no spaces at all, so zero-width ideographic break opportunities are
-the only thing that can absorb slack, and they expand up to a per-gap cap
-expressed as a fraction of the font size. Shrink is clamped at the glue's
-shrink limit. Gaps at or before a line's last tab are rigid: stretching them
-would move the following tab stop and unpin the column, so only the gaps
-past the last tab absorb slack.
-
-**Hyphenation is discretionary only.** There is no dictionary and no Liang
-patterns in this library. Soft hyphens (U+00AD) must already be in the text;
-feed it through any hyphenator that inserts them. Both breakers then treat
-them as break opportunities that are invisible unless a line actually breaks
-there, in which case a styled hyphen is rendered, and Knuth-Plass charges the
-configured penalty per hyphenated line. `hyphenation.enabled = false` removes
-the opportunity rather than just the glyph: the two halves fuse into one
-unbreakable word during segmentation — `Paragraph::setSoftHyphenBreaks` is
-that switch, and `layoutParagraph` throws it from the option — so the word
-wraps or overflows whole, the way `hyphens: none` does. It changes the word
-list, so it re-runs the analysis, and the fused word is its own
-content-addressed shaping entry.
-
-**Text on a path.** Each glyph is anchored by its *advance center* on the
-baseline point, not by its origin — with the offsets HarfBuzz applied on top
-of the pen position backed out first, or accented glyphs drift off the curve.
-Closed contours wrap their arc positions, so animating an interval's
-`contourStart` gives an infinite marquee around the loop; an interval that is
-closed in geometry without being *flagged* closed says so with
-`LineInterval::wrapContour`, and a negative `advanceScale` walks the contour
-backwards so a run can read right way up along the lower half of a ring.
-Tangents are quantized to a fixed number of directions by default, because
-every distinct rotation mints a fresh glyph-atlas strike, and continuously
-varying per-glyph rotations turn animated curved text into a per-frame
-mask-rasterization storm. Set `pathText.tangentRotationSteps = 0` for exact
-rotations on static artwork.
-
-`LineInterval::placeAt` is that mapping, and it is public: a pen coordinate
-on the interval, plus a phase, gives the baseline point and the unit tangent.
-The layout bakes its blobs through it, so a caller that re-places those
-glyphs at draw time — to run a marquee, or to compose per-glyph effects on
-top of curved lettering — reads the same function the blob was built from and
-the two cannot disagree. It reports whether the pen fell outside an open
-contour, so a caller may drop a glyph that ran off the end rather than pile
-it on the last point.
-
-**A transformed run is not opaque to choreography.** The layout keeps
-the intervals it consumed (`ParagraphLayout::intervals`) and each run reports
-which one it landed on and where its pen started, so `forEachPlacedGlyph`
-gives a glyph on a curve its true `rest` position, the `tangent` it was
-turned to, and the `pen`/`intervalIndex` pair that re-places it. Every
-per-glyph dressing — a fade, a tint, a driven variable-font axis, a
-substituted code point — therefore reaches curved lettering exactly as it
-reaches straight lettering. What still draws from baked blobs, and still
-ignores the override, is `ParagraphLayout::LiveVariations`.
-
-## Conventions and gotchas
-
-Read this section before writing against the library. Most of it is not
-discoverable from a signature.
-
-**Threading.** A `FontContext` is single-threaded by contract and contains no
-locks. The shape cache and the HarfBuzz buffer are reused scratch, not
-per-call state. Create one per layout thread; parallelism belongs above the
-library, one paragraph per task with zero shared state. Several hot paths
-also use `thread_local` scratch (the ICU break iterators and bidi analyzer
-among them), so a context must not migrate between threads mid-use.
-
-**Typeface lifetime.** Every cache keys off `SkTypeface::uniqueID()`.
-Typefaces must outlive the context, or be consistently owned by it.
-
-**Shape-cache eviction is a wholesale clear**, not LRU: past its cap the
-shape cache empties in one go and re-fills, costing one cold frame. The
-per-typeface, fallback, and varied-typeface maps are never pruned at all —
-`purgeAllCaches()` is the manual reset for a long-lived process whose
-typeface population churns. It is safe to call while shaped-word references
-are outstanding, because a `ShapedWord` owns its own data. (The tint-filter
-table behind `GlyphRSXformBatches` is the one LRU: past its cap it drops
-its coldest entry rather than everything, so a working set sitting at the
-cap keeps the filter identities its batching depends on.)
-
-**A varied clone from `variedTypeface()` is retained forever.** The memo is
-keyed on the coordinate's exact bytes, has no cap and no eviction, and
-`purgeAllCaches()` is the only thing that empties it. That is right for a
-coordinate drawn from a bounded set and wrong for one that varies
-continuously, which would add a permanently held clone per frame for the
-life of the process. `variedTypefaceTransient()` is the entry point for the
-latter: it builds the clone and retains nothing, so the cost is constant
-per frame instead of growing, and the face has no stable identity — which
-rules it out of `ShapingStyle::variations` and suits a draw-time drive,
-where the identity is only a batch key inside one frame.
-
-**All range APIs are UTF-16 code-unit offsets, end-exclusive.** UTF-8 entry
-points take `std::u8string_view` specifically, so the encoding contract rides
-the type — use `u8` literals or `std::u8string`.
-
-**Coordinates are Skia's: y grows down.** A decoration's `offset` is the
-band's *top edge relative to the baseline*, positive meaning below it. Ascent
-and descent are reported as positive magnitudes. The horizontal fast path
-tests for a direction of exactly (1, 0) and the vertical one for exactly
-(0, 1); anything else takes the transformed path.
-
-**On contour intervals, length, fitting and alignment stay in unscaled
-advance units.** Only the pen-to-arc mapping is scaled by `advanceScale`. To
-offer a whole contour, set `length = arcLength / advanceScale`.
-
-**Rendering must match shaping.** Build draw fonts with `makeFont()` — it
-sets the unhinted, linear-metrics, size-gated-subpixel configuration the
-shaper measured against — or glyphs drift off their shaped positions. Related:
-Skia takes glyph edging from the *font*, never the paint, so
-`paint.setAntiAlias(false)` is silently ignored for text. Ask for hard edges
-with `ShapingStyle::aliased` instead.
-
-**A per-glyph walk is stable, and its batches are keyed by paint.**
-`forEachPlacedGlyph()` enumerates in draw order, and that order does not
-change across relayouts while the text is unchanged — which is what lets an
-effect key particle state on a glyph's position in the walk. Sentence indices
-come from an ICU pass over the text that runs on the first walk after an edit
-and is reused by every walk after it; a paint edit does not invalidate it.
-`GlyphRSXformBatches` buckets on (typeface, size, condensation, edging,
-resolved paint pass, pass band), and a glyph is added once per pass of its
-`PaintStyle` — each underlay in order, then the foreground, then each
-overlay — so an animated letter keeps its gradients, strokes and mask
-filters, and each pass costs one more `drawGlyphsRSXform` call. Buckets
-draw band by band — every underlay bucket, then every foreground bucket,
-then every overlay bucket, each band in creation order — so every underlay
-lands beneath every foreground even when per-glyph fades split one style
-into several buckets; a blurred halo reaches past its own glyph, so
-creation order alone would lay a late-fading letter's halo over its
-neighbour's stroke. A per-glyph fade rides `alphaScale` instead of a
-per-glyph style; quantize it when an effect drives it continuously, because
-distinct alphas are distinct buckets.
-Batched glyphs draw with their rotations quantized: a continuous per-letter
-angle mints a fresh glyph-atlas strike per letter per frame.
-
-**`GlyphRSXformBatches::subpixel` is the caller's declaration that the
-glyphs it is adding MOVE between frames**, and it decides whether their
-origins land on Skia's subpixel phase grid or on whole pixels. It is off by
-default, because the phases are the second factor in a product: every mask
-is a (glyph, rotation, phase) triple, and the phases multiply what a
-rotation ladder has already multiplied, on both axes for an off-axis run. A
-run at REST gains nothing — its letters are not creeping anywhere — and
-would pay that multiplied population for a placement no one can see move. A
-MOVING run's arithmetic runs the other way: its masks were never going to be
-re-used, since the rotation it needs this frame is a different rotation next
-frame, so the phase grid only refines a mask it was going to rasterize
-regardless. Left on whole pixels, a run creeping by a fraction of a pixel
-per frame does not creep at all — each letter stands still until its own
-origin crosses a pixel boundary and then hops a whole one. This is the same
-trade the rotation ladder makes and not a competing one: the ladder still
-bounds the rotations, and dropping it in exchange costs several times what
-the grid does.
-
-**A `GlyphDress` carries what varies per glyph** rather than per pass — the
-placement, the fade, three colour terms (a `colorMul` tint, a `colorAdd`
-flash added after it, and a `colorScreen` glow screened over both — the two
-brightening terms a multiplier cannot say), a `face` override for a glyph
-drawn through a varied clone, and a `matrix` for the placements an RSXform
-cannot express (a shear, a non-uniform scale). The face joins the bucket
-key; the fade and the colour terms change only each pass's resolved paint,
-and on a shader pass all three terms fold into one memoized modulating
-colour filter — screening against a constant is affine per channel — because
-a batch's key is a whole `SkPaint` and `SkPaint` compares its colour filter
-by pointer. A
-matrix glyph draws in its own bucket's lane, after that bucket's RSXform
-glyphs — same font, same paint, same place in the pass order, at the cost of
-one canvas concat and one draw each.
-
-**Shaping style versus paint style.** Any change to a shaping field re-shapes
-the words it covers. Paint changes never re-shape and never relayout, and
-they are visible to an *already-computed* `ParagraphLayout`, because `draw()`
-resolves paint per span at draw time. `wordSpacing` is the odd one out: it
-lives in the shaping style and is compared for restyle detection, but it is
-not part of the shape-cache key — it is applied to whitespace after
-measurement, so changing it re-derives words at pure cache-hit cost.
-
-**Variable-font variation lists are order-sensitive for memo identity.** A
-permuted list resolves to an equivalent face but occupies a second memo
-entry, so keep the order stable across call sites. For draw-time animation
-only advance-invariant axes are safe; ask
-`FontContext::axisIsAdvanceInvariant()` before driving one through
-`LiveVariations`. An axis that fails that test belongs in
-`ShapingStyle::variations`, which re-shapes.
-
-**Placeholders match records by occurrence order** of the object-replacement
-character (U+FFFC) in the text, so a direct text edit must not add or remove
-one.
-
-**Two `[[nodiscard]]` returns mean "rebuild your ranges".**
-`Paragraph::editsSince()` and `MarkerSet::synchronize()` both return false
-when the bounded edit log no longer reaches back to the caller's revision.
-Ignoring that silently corrupts tracked ranges. The log is halved when it
-fills rather than trimmed one entry at a time, so the lookback you can count
-on is half the cap, not the cap.
-
-**The `languageTag` handed to a custom fallback resolver is a borrowed view**,
-valid only for that call, and it is *not* guaranteed to be NUL-terminated.
-Copy it before handing it to any C API; never pass its `.data()` through
-directly.
-
-**Several things silently no-op outside their scope.** Decorations render on
-straight runs, set either way; a TRANSFORMED run (on a path, on a rotated
-interval) skips them, and a column's band never skips ink. The
-ellipsis marker requires the final interval to be straight and not a
-contour — a line takes it at its end and a column at its foot, but a loop
-has no end to put one at. `lineMetrics()` skips transformed and vertical runs, and omits
-lines whose geometry placed nothing — `columnMetrics()` is what answers
-there. Tab stops are line-local and scoped to
-straight horizontal left-to-right intervals.
-
-**Geometry is re-queried on every layout pass and never cached between
-passes**, so an implementation may depend freely on animated state. For
-exclusion flows, animate through a shape's `pathOffset`: path flattening is
-cached by the path's generation ID, so translating is free while assigning a
-rebuilt `SkPath` changes the ID and re-flattens.
-
-**Lazy shaping is ascending and idempotent only.** `ensureShapedTo()` with a
-decreasing word count is not supported.
 
 ## Boundaries
 
@@ -728,8 +319,18 @@ decreasing word count is not supported.
 - **Paragraph-wide shaders need no library support.** Skia shaders are
   canvas-space, so one shader set as a span's foreground already flows
   seamlessly across every line.
-- **Ruby and kenten are not core features.** They are a few lines each over
-  the layout's placed runs; the CJK demo and gallery scenes show how.
+- **Drawing a reading is not the engine's.** `layout/Beside.h` answers the
+  three questions setting one is made of — the band a reading of a given
+  type needs beside a line, where it stands against the base it reads, and
+  how a base broken across two lines shares it — and knows nothing about
+  what a ruby IS, which unit somebody annotated, or how big a reading
+  should be. Turning those answers into glyphs is the caller's.
+- **A layout owns its placement and nothing else.** A `PositionedRun` points
+  at the paragraph's shaped words rather than sharing ownership of them, so
+  reading a layout means holding the paragraph it was set from. The few
+  words a layout shapes for itself — a tab leader, an overflow marker, an
+  initial letter and the remainder of the word it split — it retains, so no
+  run ever points at something nobody holds.
 - **Bidi is per-word.** Levels are computed and UAX#9 L2 visual reordering is
   applied per word; glue between reordered runs is approximated, and
   multi-segment RTL words keep logical segment order.
@@ -739,68 +340,148 @@ decreasing word count is not supported.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug
-ctest --test-dir build -C Debug -R weave_ --output-on-failure
+python3 scripts/sigil.py setup --config Release
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
 ```
 
-The tests are one binary per feature, each under its feature's `test/`
-and linking that feature and what it rests on, so a test binary is also a
-statement of what its feature reaches:
+The library has ONE test binary, `weave_test`, built from every feature's
+own `test/` directory, and ctest discovers one entry per CASE out of it —
+so `ctest -R '^Flow\.'` selects a suite and `-R 'Flow.Case'` one case, with
+no target behind either. A feature's `test/` still states what that feature
+reaches: it names the targets its cases link, and a case that needs
+something a machine may not have carries a label on its suite.
 
-- `weave_unicode_test` — the Unicode leaf, with no fonts at all.
-- `weave_style_test` — styles as plain values: fluent sugar, paint-layer
-  presets, feature preset tags, the `StyleSet` registry. No fonts either.
-- `weave_fonts_test` — the font service on its own: the fallback memo, the
-  transient varied clone, and which vertical OpenType features a column
-  takes by itself against which a style must name.
-- `weave_paragraph_test` — shaping as the paragraph drives it (the shape
+A case asserts one behaviour the library promises through its public
+headers to a caller who has read only this page, and its name is that
+promise written as a sentence, so a failure reads as the claim that broke.
+It pins only what editing this library could falsify — never an
+anti-aliased byte, a fitted tolerance, a count a font or a locale could
+move, or elapsed time. Nothing here reads a clock: what a thing costs is
+the benchmarks' to judge, and what a page looks like is the plate
+ledger's. A claim made N times with one thing varying is one `TEST_P`
+whose parameter is that thing, with its rows named — both breakers over
+one breaking claim, every anchor of a decoration band, every preset text
+paint. One subject to a file, named for the subject: a case is found by
+opening the file its subject names.
+
+What each feature's `test/` holds:
+
+- `unicode/test/` — the Unicode leaf, with no fonts at all.
+- `style/test/` — styles as plain values: fluent sugar, paint-layer
+  presets, the `StyleSet` registry. No fonts either, and no run-time case
+  for the feature preset tags: they are `static_assert`ed beside their own
+  declarations, where only editing them can falsify them.
+- `fonts/test/` — the font service asked about faces this machine
+  happens to have: the fallback memo keyed by language, the transient
+  varied clone, and the pair a shaper sets by measuring outlines.
+  `VerticalFeaturesTest.cpp` beside it asks which vertical OpenType
+  features a column takes by itself and which a style must name, of the
+  constructed face committed under `test/assets/` rather than of the
+  machine.
+- `paragraph/test/` — shaping as the paragraph drives it (the shape
   cache under edits and restyles, itemization, complex scripts), the
-  document model, and typographic correctness: cluster coverage across
+  document model, the same content said as a comparable value
+  (`RichTextTest`), and typographic correctness: cluster coverage across
   scripts, ZWNJ joining control, combining-mark attachment (NFC and NFD
-  must measure alike), kinsoku prohibitions, NBSP no-break, strut metrics,
-  and the options that reach shaping.
-- `weave_layout_test` — both breakers, flows and exclusions, overflow and
-  clamp, vertical writing, placeholders, relayout locality, the options
-  the breakers read, text on a path, justification shrink limits, UAX#9
-  visual reordering, edit safety at surrogate boundaries, line metrics,
-  and the large-paragraph stress cases.
-- `weave_decoration_test` — bands resolved as geometry, without drawing.
-- `weave_paint_test` — everything that puts pixels on a surface: paint
-  layers and shaders without a relayout, decorations as drawn, selection
-  bands, and a large paragraph through the runtime shaders.
-- `weave_choreograph_test` — the walk, the batches, and a glyph on a
-  contour re-placed from its pen.
-- `weave_query_test` — the optional Query layer.
-- `weave_kit_test` — the SigilWeaveKit convenience layer.
+  must measure alike), NBSP no-break, strut metrics, and the options that
+  reach shaping.
+- `layout/test/` — everything that places runs and reads where they
+  landed, one subject to a file: both breakers (`LayoutTest`,
+  `KnuthPlassTest`) and the live composer over them
+  (`LiveComposerTest`), the flows (`FlowTest`) and the shapes text stands
+  off inside them (`SilhouetteTest`), overflow and clamp
+  (`OverflowTest`), vertical writing (`VerticalTest`), placeholders
+  (`PlaceholderTest`), relayout locality (`IncrementalTest`), text set on a
+  geometry of its own (`PathTextTest`), how a justified line is fitted
+  (`JustificationTest`), a chain of frames filled from one text
+  (`StoryTest`), and each paragraph control — `LeadingTest`,
+  `TabStopTest`, `FrameTest`, `HyphenationTest`, `LineEdgesTest`,
+  `BesideTest`, `MojikumiTest`, `BalanceTest`, `InitialLetterTest`.
+- `decoration/test/` — bands resolved as geometry, without drawing:
+  what a face's metrics fill in, where each kind and side anchors its
+  band, and the walk both draws run over turning a paragraph's
+  decorations into rectangles.
+- `cache/test/` — the single-line paragraph cache: what its key
+  discriminates, the size step two nearby sizes fall inside, and the two
+  promises its node-based storage makes about a reference it handed out.
+- `paint/test/` — what reaches the canvas: paint layers and shaders
+  without a relayout, selection bands, a pass shaded through the material
+  resolver a host installs, the preset text paints resolving, and the
+  decoration ink. Where a band LANDS is geometry and belongs to the
+  decoration feature; only whether its ink arrives is asked here.
+- `choreograph/test/` — the walk over a finished layout with the
+  glyph on a contour it re-places from its pen (`ChoreographTest`), and
+  the buckets a paint-complete batched draw collapses into
+  (`GlyphBatchesTest`).
+- `query/test/` — the optional Query layer (`QueryTest`), and the same
+  question written down rather than asked (`SelectorTest`).
+- `kit/test/` — the SigilWeaveKit convenience layer, including the
+  pattern hyphenator every table question is asked of.
+- `ports/test/` — the platform port on its own: one font manager for
+  the process, a fallback chain that runs out onto the default family at
+  the style it was asked for, and the face the port holds once per ask so
+  that everything keyed on a face by pointer keys on one value.
 
-Fixtures live in `test/support/`: `Fonts.h` holds the one process-wide
-`FontContext` every binary shapes with, `Paragraphs.h` and `Layouts.h` the
-paragraph and layout fixtures, and each binary that needs more has a
-support header that includes exactly the headers its translation units
-use. `test/assets/` holds the constructed faces a question needs that no
-installed font can answer — `VerticalFeatures.ttf`, where every vertical
-feature has its own visible consequence and none share one — each with
-the script that generates it beside it; `SIGILWEAVE_TEST_ASSET_DIR` names
-the directory to the binaries that read them.
+| label | on | what a runner must supply |
+|---|---|---|
+| `fonts` | every case in the binary | installed faces broad enough for an unstyled paragraph of mixed scripts and emoji to resolve — the machine's own fallback is what those cases are about, and the port's whole subject is the list it resolves against |
+The label sits on the binary rather than on a suite: most of what it
+holds shapes text, and a suite that needs nothing — the Unicode leaf,
+plain values, a committed instrument — is not worth a second label to
+say so.
+
+
+A case that skips is not coverage on the machine it skipped on, so a case
+whose claim is about a script, an axis or a feature names the instrument
+that carries it and skips on nothing; what is left behind the label is the
+handful whose claim IS the machine's font set. `ctest -L fonts` selects
+them, so a runner that knows its own font set can require what the rest of
+the tree lets pass.
+
+Fixtures live in `test/support/`, and nothing is written twice: `Faces.h`
+holds this library's own committed face, `Paragraphs.h` builds paragraphs
+and the deterministic texts drawn from a word pool, `Layouts.h` takes the
+readings off a finished layout — which runs placed glyphs, where each line
+ended, how wide it is, how many glyphs it placed, whether every run stayed
+inside an interval its band offered, and the two-word setting a decoration
+band is read across — `LayoutSupport.h` carries the breaker parameter a
+breaking claim is held to both ways, `Paints.h` a shader whose colour says
+where it was sampled, `Pixels.h` scans a rendered surface, and
+`Readings.h` the spread of a set of measurements. The font context itself
+is the whole test tree's, `sigil::test::fonts()` from `src/test/Fonts.h`,
+so one process shapes through one cache. `Layouts.h` calls no GoogleTest
+assertion, so the benchmarks include it and count what the tests count.
+Each binary that needs more has a support header that includes exactly
+the headers its translation units use. `test/assets/` holds the face only
+this library asks for — `VerticalFeatures.ttf`, where every vertical
+feature has its own visible consequence and none share one — with the
+script that generates it beside it, reached through
+`SIGIL_TEST_ASSET_DIR`. The faces more than one library asks for are the
+tree's, under `src/test/assets/` and reached as
+`sigil::test::instrument::sans()` and its siblings: a ligature, an
+advance-moving axis beside an advance-holding one, an A/V pair for an
+optical kerner, zero-advance combining marks, and the coverage for
+Arabic, Devanagari and a supplementary-plane script.
 
 The benchmarks own every performance claim about this library — one
-binary per feature, under its feature's `bench/`, so each links only what
-it measures: `weave_unicode_bench` (itemize, line breaks and bidi per code
-point, on the Unicode leaf alone), `weave_fonts_bench` (`shapeWord` per
-word cold and warm), `weave_paragraph_bench` (whole paragraphs shaped cold
-against warm), `weave_layout_bench` (`layoutParagraph` per word, greedy
-and Knuth-Plass by length, and each kind of per-frame update against the
-same warm relayout) and `weave_paint_bench` (`draw` and `drawBatched` per
-glyph on a raster surface, with arms that differ in one paint feature).
-The corpus and font context they share sit in `bench/support/`. Build
+binary, `weave_bench`, with its arms under each feature's `bench/`:
+`unicode/` (itemize, line breaks and bidi per code point, on the Unicode
+leaf alone), `fonts/` (`shapeWord` per word cold and warm), `paragraph/`
+(whole paragraphs shaped cold against warm), `layout/`
+(`layoutParagraph` per word, greedy and Knuth-Plass by length, and each
+kind of per-frame update against the same warm relayout) and `paint/`
+(`draw` and `drawBatched` per glyph on a raster surface, with arms that
+differ in one paint feature).
+The corpus they share sits in `bench/support/`, over the same font
+context and the same layout readings the tests use. Build
 them Release through the `benches` target and run them through
-`scripts/bench_ledger.py` rather than trusting a number written down
+`scripts/sigil.py bench` rather than trusting a number written down
 anywhere:
 
 ```sh
 cmake --build build --config Release --target benches weave_demo
-python3 scripts/bench_ledger.py --benches weave_layout_bench
+python3 scripts/sigil.py bench --benches weave_bench
 ./build/bin/Release/weave_demo   # writes weave_demo_out/*.png in the cwd
 ```
 
@@ -820,5 +501,4 @@ parameters, so the sidebar builds their controls automatically. It renders
 through a `QQuickRhiItem` — Skia Graphite on Qt's own Metal queue, with a CPU
 raster fallback and a live GPU/CPU switch — and displays a
 reshaped-words-per-frame counter, which sits at zero while everything moves
-when the shape cache is doing its job. Judge any of it on a Release build;
-Skia's Debug recording path is dramatically slower on glyph-heavy scenes.
+when the shape cache is doing its job. Judge any of it on a Release build.

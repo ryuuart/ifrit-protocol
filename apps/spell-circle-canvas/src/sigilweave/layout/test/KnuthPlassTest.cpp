@@ -1,19 +1,17 @@
 /** @file
- * Knuth-Plass optimal line breaking: validity, raggedness
- * versus greedy, and CJK justification.
+ * Knuth-Plass optimal line breaking: every word placed once in reading
+ * order, raggedness no worse than greedy's, and a justified CJK block.
  */
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <string>
 #include <vector>
 
 #include "support/LayoutSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
-
-// ── ParagraphLayout: Knuth-Plass
-// ───────────────────────────────────────────────────
 
 namespace {
 
@@ -22,13 +20,10 @@ namespace {
 float raggedness(const Paragraph& paragraph, const ParagraphLayout& layout,
                  float measure) {
   if (layout.lineCount <= 1) return 0;
-  std::vector<float> lineEnds(static_cast<size_t>(layout.lineCount), 0.0f);
-  for (const PositionedRun& run : layout.runs)
-    lineEnds[static_cast<size_t>(run.lineIndex)] = std::max(
-        lineEnds[static_cast<size_t>(run.lineIndex)], runEnd(paragraph, run));
+  const std::vector<float> ends = lineEnds(layout, paragraph);
   float total = 0;
   for (int line = 0; line + 1 < layout.lineCount; ++line) {
-    const float slack = measure - lineEnds[static_cast<size_t>(line)];
+    const float slack = measure - ends[static_cast<size_t>(line)];
     total += slack * slack;
   }
   return total;
@@ -36,8 +31,8 @@ float raggedness(const Paragraph& paragraph, const ParagraphLayout& layout,
 
 }  // namespace
 
-TEST(KnuthPlass, ProducesValidLines) {
-  FontContext& fontContext = sharedContext();
+TEST(KnuthPlass, EveryWordIsPlacedOnceAndInReadingOrder) {
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"In olden times when wishing still helped one, there lived a king "
       "whose daughters were all beautiful; and the youngest was so beautiful "
@@ -52,8 +47,6 @@ TEST(KnuthPlass, ProducesValidLines) {
 
   EXPECT_FALSE(layout.overflowed());
   EXPECT_GT(layout.lineCount, 3);
-  // Width containment is covered by LineWidthInvariant (LayoutTest.cpp)
-  // for both breakers; this test owns the ordering/validity assertions.
   // Words appear in order (logical == visual for pure-LTR text).
   std::vector<uint32_t> seen;
   seen.reserve(layout.runs.size());
@@ -62,7 +55,7 @@ TEST(KnuthPlass, ProducesValidLines) {
 }
 
 TEST(KnuthPlass, NoWorseRaggednessThanGreedy) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   const char8_t* tale =
       u8"It was the best of times, it was the worst of times, it was the age "
       "of wisdom, it was the age of foolishness, it was the epoch of belief, "
@@ -87,9 +80,9 @@ TEST(KnuthPlass, NoWorseRaggednessThanGreedy) {
             raggedness(paragraph, greedyLayout, measure) * 1.05f);
 }
 
-TEST(KnuthPlass, JustifiedCjkParagraph) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(
+TEST(KnuthPlass, AJustifiedCjkBlockKeepsEveryColumnInsideTheMeasure) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = machineParagraph(
       u8"吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。"
       "何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している"
       "。");

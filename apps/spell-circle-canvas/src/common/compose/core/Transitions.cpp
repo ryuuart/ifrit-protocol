@@ -7,10 +7,7 @@
  * cascade order a stagger deals its units in.
  */
 
-#include <algorithm>
 #include <chrono>
-#include <numeric>
-#include <span>
 
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
@@ -20,13 +17,13 @@ namespace sigil::compose {
 using namespace detail;
 
 float detail::Instance::resolveFloat(Slot slot,
-                                     const Animatable<float>& v) const {
-  return core::resolveFloatAt(anims[slot].get(), v);
+                                     const motion::Animatable<float>& v) const {
+  return motion::resolveFloatAt(anims[slot].get(), v);
 }
 
-float detail::Instance::resolveFloatAt(const AnimatedFloat* anim,
-                                       const Animatable<float>& v) const {
-  return core::resolveFloatAt(anim, v);
+float detail::Instance::resolveFloatAt(
+    const AnimatedFloat* anim, const motion::Animatable<float>& v) const {
+  return motion::resolveFloatAt(anim, v);
 }
 
 namespace {
@@ -51,7 +48,7 @@ std::vector<std::unique_ptr<AnimatedFloat>>& familyAnims(Instance& inst,
 /** Core's run-of-a-family read, over the lane list lanes() filled. */
 std::span<const Lane> familyLanes(const std::vector<Lane>& lanes,
                                   LaneFamily family) {
-  return core::familyLanes(std::span<const Lane>(lanes), family);
+  return motion::familyLanes(std::span<const Lane>(lanes), family);
 }
 
 constexpr LaneFamily kPositionalFamilies[] = {
@@ -132,8 +129,8 @@ void Composer::Impl::applyMountTransitions(Instance& inst,
   // node holds for, in seconds.
   const float carrySeconds = mountDelayCarryMs / 1000.0f;
   auto entranceAt = [&](std::unique_ptr<AnimatedFloat>& slotAnim,
-                        const Animatable<float>& v) {
-    core::mountEntrance(ticker, slotAnim, v, carrySeconds);
+                        const motion::Animatable<float>& v) {
+    motion::mountEntrance(ticker, slotAnim, v, carrySeconds);
   };
   // Every lane the node carries. A mount entrance asks nothing of a slot's
   // ROLE: the description either declared a `from` or it did not.
@@ -163,23 +160,13 @@ void Composer::Impl::applyMountTransitions(Instance& inst,
   // 0→1 progress, because the description holds an Animatable<Fill> and no
   // float for the table to point at.
   if (node.paint.fill) {
-    const Transitioned<Fill>* tr = node.paint.fill->transitioned();
+    const motion::Transitioned<Fill>* tr = node.paint.fill->transitioned();
     if (tr && tr->from && tr->from->kind == Fill::Kind::Color &&
         tr->value.kind == Fill::Kind::Color && !(*tr->from == tr->value)) {
       inst.fillFrom = *tr->from;
       inst.fillTo = tr->value;
-      auto& anim = inst.anims[Instance::kFillLerp];
-      if (!anim) anim = std::make_unique<AnimatedFloat>();
-      anim->value = 0.0f;
-      anim->started = true;
-      auto motion = ticker.timeline().apply(&anim->value);
-      const float delay =
-          std::chrono::duration<float>(tr->spec.delay).count() +
-          mountDelayCarryMs / 1000.0f;  // staggerChildren() carry
-      if (delay > 0) motion.then<choreograph::Hold>(0.0f, delay);
-      motion.then<choreograph::RampTo>(
-          1.0f, std::chrono::duration<float>(tr->spec.duration).count(),
-          tr->spec.easing());
+      motion::progressRamp(ticker, inst.anims[Instance::kFillLerp], tr->spec,
+                           mountDelayCarryMs / 1000.0f);  // stagger carry
     }
   }
 }
@@ -197,10 +184,10 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
   static thread_local std::vector<Lane> prevLanes, nextLanes;
   lanes(prev, prevLanes);
   lanes(next, nextLanes);
-  core::retargetSlots(ticker,
-                      std::span<std::unique_ptr<AnimatedFloat>>(inst.anims),
-                      familyLanes(prevLanes, LaneFamily::Slot),
-                      familyLanes(nextLanes, LaneFamily::Slot), nd);
+  motion::retargetSlots(ticker,
+                        std::span<std::unique_ptr<AnimatedFloat>>(inst.anims),
+                        familyLanes(prevLanes, LaneFamily::Slot),
+                        familyLanes(nextLanes, LaneFamily::Slot), nd);
 
   // The positional families, each by the same rule. The lane list is
   // positional, so a description that changes the SHAPE of a family (a
@@ -225,9 +212,9 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
   // Add or remove a track and the shape changed — the motions drop rather
   // than carrying onto a progress that now drives a different effect.
   for (const LaneFamily family : kPositionalFamilies)
-    core::retargetFamily(ticker, familyAnims(inst, family),
-                         familyLanes(prevLanes, family),
-                         familyLanes(nextLanes, family), nd);
+    motion::retargetFamily(ticker, familyAnims(inst, family),
+                           familyLanes(prevLanes, family),
+                           familyLanes(nextLanes, family), nd);
 
   // The kFillLerp row (SlotRole::Bespoke): color→color lerp via a
   // synthesized progress output. A next fill with NO transition is a plain
@@ -269,17 +256,7 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
       }
       inst.fillFrom = std::move(from);
       inst.fillTo = nextFill.target;
-      if (!anim) anim = std::make_unique<AnimatedFloat>();
-      anim->value = 0.0f;
-      anim->started = true;
-      auto motion = ticker.timeline().apply(&anim->value);
-      const float delay =
-          std::chrono::duration<float>(nextFill.transition->delay).count();
-      if (delay > 0) motion.then<choreograph::Hold>(0.0f, delay);
-      motion.then<choreograph::RampTo>(
-          1.0f,
-          std::chrono::duration<float>(nextFill.transition->duration).count(),
-          nextFill.transition->easing());
+      motion::progressRamp(ticker, anim, *nextFill.transition, 0.0f);
     }
   }
 }
@@ -292,10 +269,10 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
 
 std::vector<float> detail::Instance::resolveGateValues() const {
   std::vector<float> values;
-  const ElementNode& node = *desc;
+  const ElementNode& node = *description;
   if (!node.hasMasks()) return values;
   size_t slot = 0;
-  const auto push = [&](const Animatable<float>& v) {
+  const auto push = [&](const motion::Animatable<float>& v) {
     const AnimatedFloat* a =
         slot < maskAnims.size() ? maskAnims[slot].get() : nullptr;
     values.push_back(resolveFloatAt(a, v));
@@ -315,8 +292,8 @@ std::vector<float> detail::Instance::resolveGateValues() const {
 }
 
 float detail::Instance::resolvePathAt() const {
-  if (!desc || !desc->textData) return 0.0f;
-  const std::optional<TextPath>& baseline = desc->textData->onPath;
+  if (!description || !description->textData) return 0.0f;
+  const std::optional<TextPath>& baseline = description->textData->onPath;
   if (!baseline) return 0.0f;
   return resolveFloat(kTextPathAt, baseline->at);
 }
@@ -324,8 +301,9 @@ float detail::Instance::resolvePathAt() const {
 std::vector<float> detail::Instance::resolveTrackValues() const {
   std::vector<float> values;
   const std::span<const Track> tracks =
-      desc->textData ? std::span<const Track>(desc->textData->tracks)
-                     : std::span<const Track>();
+      description->textData
+          ? std::span<const Track>(description->textData->tracks)
+          : std::span<const Track>();
   values.reserve(tracks.size());
   for (size_t i = 0; i < tracks.size(); ++i) {
     const AnimatedFloat* a =
@@ -336,7 +314,7 @@ std::vector<float> detail::Instance::resolveTrackValues() const {
 }
 
 Fill detail::Instance::resolveBoundFill() const {
-  const ElementNode& node = *desc;
+  const ElementNode& node = *description;
   if (node.paint.fill)
     if (const choreograph::Output<Fill>* binding = node.paint.fill->binding())
       return binding->value();
@@ -350,56 +328,10 @@ std::array<float, 2> detail::Instance::resolvePatternOffset() const {
   // animatedBeyondBoundOffset — and never reaches this lane. All-zero when
   // unbound, matching the ContentScalars guard, so a node without the
   // channel compares equal to itself forever.
-  const Material* m = liveMaterialOf(*desc);
+  const material::skia::Paint* m = liveMaterialOf(*description);
   if (!m || !m->hasBoundOffset()) return {};
   const SkPoint pan = m->boundOffsetValue();
   return {pan.x(), pan.y()};
-}
-
-// ---------------------------------------------------------------------------
-// The cascade
-
-void detail::cascadeOrder(Stagger::From from, uint32_t count, uint32_t seed,
-                          std::vector<float>& order) {
-  order.assign(count, 0.0f);
-  // A cascade of ONE is a cascade with no spread, whichever end it claims
-  // to start from: every shape below must put that single member at 0.
-  const float last = count > 1 ? (float)(count - 1) : 0.0f;
-  switch (from) {
-    case Stagger::From::Start:
-      for (uint32_t i = 0; i < count; ++i) order[i] = (float)i;
-      break;
-    case Stagger::From::End:
-      for (uint32_t i = 0; i < count; ++i) order[i] = (float)(count - 1 - i);
-      break;
-    case Stagger::From::Center:
-      for (uint32_t i = 0; i < count; ++i)
-        order[i] = std::abs((float)i - last * 0.5f) * 2.0f;
-      break;
-    case Stagger::From::Edges:
-      for (uint32_t i = 0; i < count; ++i)
-        order[i] = last - std::abs((float)i - last * 0.5f) * 2.0f;
-      break;
-    case Stagger::From::Random: {
-      // Rank each unit by a hash of its index: deterministic, so the same
-      // text scatters the same way on every frame and after a relayout.
-      // The seed salts that key AFTER a mix of its own, so seeds 1 and 2
-      // deal permutations as independent as any two; seed 0 contributes
-      // NOTHING to the key, which is what keeps the default scatter the
-      // count-keyed one, bit for bit.
-      const uint64_t salt = seed ? mix64Value(seed) : 0ull;
-      std::vector<uint32_t> indices(count);
-      std::iota(indices.begin(), indices.end(), 0u);
-      std::stable_sort(indices.begin(), indices.end(),
-                       [count, salt](uint32_t a, uint32_t b) {
-                         return mix64Value(a * 2654435761ull + count + salt) <
-                                mix64Value(b * 2654435761ull + count + salt);
-                       });
-      for (uint32_t rank = 0; rank < count; ++rank)
-        order[indices[rank]] = (float)rank;
-      break;
-    }
-  }
 }
 
 }  // namespace sigil::compose

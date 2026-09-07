@@ -1,0 +1,4 @@
+half4 main(float2 xy) {
+  half v = shape(value);
+  return half4(v, v, v, 1.0);
+}

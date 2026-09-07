@@ -6,6 +6,7 @@
  */
 
 #include <string>
+#include <string_view>
 
 namespace sigil::weave {
 class FontContext;
@@ -14,6 +15,21 @@ class FontContext;
 namespace sigil::sketch {
 
 class Assets;
+
+/** How a plate file is named: this, the sketch's filed name, `.png`. The
+ *  name is what a baseline manifest holds, so it is spelled once. */
+inline constexpr std::string_view kPlatePrefix = "plate_";
+
+/** HOW WIDE A PLATE MAY BE before the oversample gives way rather than
+ *  the pixel count. It bounds what a HOST chose; a sketch that declares
+ *  an oversample of its own is rendered at exactly that, because the
+ *  reason to declare one is a grid a fractional scale would destroy.
+ *
+ *  Out here because it is the width a plate on disk comes out at, which
+ *  is a fact about the file rather than about the sweep's arithmetic:
+ *  anything that reads a plate and expects the ceiling reads it from
+ *  here rather than typing the number again. */
+inline constexpr float kPlateWidthCeiling = 2400.0f;
 
 /** WHAT ONE HEADLESS RUN DOES.
  *
@@ -41,6 +57,30 @@ struct SweepOptions {
    *  default already holds it off; naming it makes the comparison
    *  reproducible on either backend rather than a behaviour it adds. */
   bool noPromotion = false;
+  /** Turn automatic re-baking ON — EAGERLY — leaving every other pin of a
+   *  headless run in place.
+   *
+   *  A headless session is opened deterministic, and a deterministic
+   *  session holds automatic texture promotion off — so nothing a sweep
+   *  renders exercises the promoter, and the one renderer feature a
+   *  plate is deliberately blind to is also the one nothing photographs.
+   *  This is the door: the clock, the step, the capture moment and the
+   *  sketch's own `measured()` pins all stand, and only the promoter is
+   *  let go.
+   *
+   *  IT IS THE EAGER POLICY, not the runtime's own cost judgement. The
+   *  cost judgement is a stopwatch, so the set of nodes it bakes depends
+   *  on how busy the machine is — on an idle one it can bake nothing at
+   *  all, and a sweep that promotes nothing proves nothing. Eager bakes
+   *  every node the rules admit, from its first frame, so one scene
+   *  exercises the same nodes on every machine and all of them.
+   *
+   *  What comes out is NOT byte-comparable with a plate — a bake lands
+   *  under a matrix post-translated by an integer, so a shaded pixel may
+   *  sit one code value from the live paint — so it is judged by distance
+   *  from the plate rather than by hash. Refused together with
+   *  `noPromotion`, which asks for the opposite. */
+  bool promotion = false;
   /** Take every still at this scene time, overriding both the derived
    *  frame and any sketch's declared moment. Sweeping at two different
    *  times and diffing tells you which sketches are still in motion at

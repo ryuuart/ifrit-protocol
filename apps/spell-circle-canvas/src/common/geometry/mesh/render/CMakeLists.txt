@@ -1,30 +1,23 @@
 # Drawing meshes and panels, and the Runtime seam a draw executes
 # through. One executor ships here — everything on the CPU, emitting
 # onto a Skia canvas — and a feature that owns a GPU device supplies its
-# own as a value, so this target never learns about a device.
-add_library(SigilGeometryMeshRender STATIC
-  Painter.cpp
-  Runtime.cpp
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/render/Painter.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/render/Runtime.h
-)
-target_compile_features(SigilGeometryMeshRender PUBLIC cxx_std_20)
-target_include_directories(SigilGeometryMeshRender PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR})
-# The Runtime seam is a comparable erased value, which is
-# SigilCoreComparable's shape.
-target_link_libraries(SigilGeometryMeshRender PUBLIC SigilGeometryMesh
-  SigilGeometryMeshCamera SigilCoreComparable)
+# own as a value, so this target never learns about a device. The Runtime
+# seam is a comparable erased value, which is SigilCoreComparable's shape.
+find_package(boost_unordered CONFIG REQUIRED)
+sigil_library(SigilGeometryMeshRender
+  SOURCES Painter.cpp Runtime.cpp Shading.cpp
+  HEADERS Painter.h Runtime.h Shading.h
+  PUBLIC SigilGeometryMesh SigilGeometryMeshCamera SigilCoreComparable
+  PRIVATE Boost::unordered)
 
-add_executable(geometry_mesh_render_test
-  test/PainterTest.cpp
-  test/RuntimeTest.cpp
-)
-target_include_directories(geometry_mesh_render_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../../test)
-target_link_libraries(geometry_mesh_render_test PRIVATE SigilGeometryMeshRender
-  GTest::gtest_main)
-add_test(NAME geometry_mesh_render_test COMMAND geometry_mesh_render_test)
+sigil_test(geometry_test
+  SOURCES test/PainterTest.cpp test/RuntimeTest.cpp test/ShadingTest.cpp
+  LIBRARIES SigilGeometryMeshRender)
 
-add_executable(geometry_mesh_render_bench bench/RenderBench.cpp)
-target_link_libraries(geometry_mesh_render_bench PRIVATE SigilGeometryMeshRender
-  benchmark::benchmark)
-add_dependencies(benches geometry_mesh_render_bench)
+sigil_bench(geometry_bench
+  SOURCES bench/RenderBench.cpp
+  LIBRARIES SigilGeometryMeshRender SigilGeometryKit)
+
+# …and the device executor of the same seam, its own target so that this
+# one keeps its promise to know nothing about a device.
+add_subdirectory(device)

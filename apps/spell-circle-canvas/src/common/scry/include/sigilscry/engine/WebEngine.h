@@ -13,8 +13,11 @@
 #include <memory>
 #include <string>
 
-namespace sigil::skia {
+namespace sigil::core::hardware {
 class GpuDevice;
+}  // namespace sigil::core::hardware
+
+namespace sigil::skia {
 class GraphiteContext;
 }  // namespace sigil::skia
 
@@ -80,7 +83,7 @@ struct WebEngineConfig {
    * The engine internals are backend-neutral: a Vulkan driver joins
    * here without touching the rest of the library.
    */
-  sigil::skia::GpuDevice* gpuDevice = nullptr;
+  sigil::core::hardware::GpuDevice* gpuDevice = nullptr;
 
   /**
    * The Graphite context the engine's own drawing shares with the host —
@@ -111,7 +114,7 @@ struct ViewOptions {
  * grid, custom fonts, SVG, canvas, animations) into offscreen pixel
  * buffers on the CPU. This engine wraps it so each WebView's output is a
  * premultiplied-BGRA SkImage, ready to draw onto any SkCanvas — raster or
- * Graphite-backed — exactly like an sigil::image::ImageAsset frame.
+ * Graphite-backed.
  *
  * Integration paths, from least to most coupled:
  *  1. Pull: draw WebView::frame().image whenever you repaint, using

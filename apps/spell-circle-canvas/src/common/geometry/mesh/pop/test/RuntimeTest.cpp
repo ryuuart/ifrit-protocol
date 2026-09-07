@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "sigilgeometry/mesh/pop/Pop.h"
+#include "support/RuntimeSeam.h"
 
 using namespace sigil::geometry::mesh;
 
@@ -52,22 +53,17 @@ struct Recorder : pop::Executor {
   }
 };
 
+struct CookSeam {
+  using Seam = pop::Runtime;
+  static Seam builtIn() { return pop::Runtime::cpu(); }
+  static Seam holding(const char* label) {
+    return pop::Runtime{Recorder{label}};
+  }
+};
+
 }  // namespace
 
-TEST(PopRuntime, BuiltInIsOneValue) {
-  EXPECT_TRUE((bool)pop::Runtime::cpu());
-  EXPECT_EQ(pop::Runtime::cpu(), pop::Runtime::cpu());
-}
-
-TEST(PopRuntime, ComparesByModelValue) {
-  const pop::Runtime a{Recorder{"a"}};
-  const pop::Runtime b{Recorder{"a"}};
-  const pop::Runtime c{Recorder{"c"}};
-  EXPECT_EQ(a, b);
-  EXPECT_NE(a, c);
-  EXPECT_NE(a, pop::Runtime::cpu());
-  EXPECT_NE(pop::Runtime(), a);
-}
+INSTANTIATE_TYPED_TEST_SUITE_P(TheCooksRuntimeSeam, RuntimeSeam, CookSeam);
 
 // The runtime is the whole of the switch: the same chain, the same
 // sinks, a different executor.
@@ -94,6 +90,57 @@ TEST(PopRuntime, TheDefaultRuntimeIsTheBuiltInOne) {
   const Cloud explicitly = pop::cook(chain, pop::Runtime::cpu());
   ASSERT_EQ(implicit.size(), explicitly.size());
   EXPECT_EQ(implicit.positions, explicitly.positions);
+}
+
+// THE DIVIDED PASSES. The built-in executor keeps a range no larger than
+// one grain on the calling thread, so a cook of a few hundred points runs
+// every pass whole and the divided arm of each one goes unexercised. The
+// grain is the caller's, so the same chain is cooked at a grain of one —
+// which divides even this many points — and compared against the stock
+// cook. Every pass a chunk boundary could fall inside is in the chain:
+// the seed, the kernel operators, the neighbourhood smooth, the
+// permutation, the delete that moves the count, the deformers and the
+// export.
+TEST(PopRuntime, TheSameChainCooksIdenticallyHoweverItIsDivided) {
+  const pop::Chain chain = pop::on(ring())
+                               .count(2048)
+                               .jitter(4)
+                               .noise(6, 0.02f)
+                               .vary(0.5f)
+                               .fade({1, 0, 0, 1}, {0, 0, 1, 1})
+                               .smooth(0.4f, 3)
+                               .select("east", {200, 0, 0}, 120)
+                               .move({0, 50, 0})
+                               .masked("east")
+                               .twist(35)
+                               .taper(0.6f)
+                               .order()
+                               .drop("east", 0.9f);
+
+  const Cloud whole = pop::cook(chain);
+  const Cloud divided = pop::cook(chain, pop::Runtime::cpu(1));
+
+  ASSERT_EQ(whole.size(), divided.size());
+  ASSERT_GT(whole.size(), 0u);
+  // Bit for bit: a grain decides where the arithmetic runs and nothing
+  // else, so a chunk boundary that read a neighbour's value or wrote
+  // past its own range shows up here as a point that differs.
+  EXPECT_EQ(whole.positions, divided.positions);
+  for (const auto& [name, values] : whole.scalars)
+    EXPECT_EQ(values, divided.scalars.at(name)) << "scalar " << name;
+  for (const auto& [name, values] : whole.vectors)
+    EXPECT_EQ(values, divided.vectors.at(name)) << "vector " << name;
+  for (const auto& [name, values] : whole.colors)
+    EXPECT_EQ(values, divided.colors.at(name)) << "color " << name;
+}
+
+TEST(PopRuntime, TheGrainIsPartOfTheRuntimeValue) {
+  // A description that changed the grain re-cooks rather than standing on
+  // the cloud it already has, which is only true if the grain participates
+  // in the comparison a caching consumer prunes with.
+  EXPECT_EQ(pop::Runtime::cpu(1), pop::Runtime::cpu(1));
+  EXPECT_NE(pop::Runtime::cpu(1), pop::Runtime::cpu(64));
+  EXPECT_NE(pop::Runtime::cpu(1), pop::Runtime::cpu());
 }
 
 TEST(PopRuntime, AnUnsupportedOperatorStopsTheCookByName) {

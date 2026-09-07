@@ -1,0 +1,49 @@
+group,lon,lat,men,note
+advance trunk,23.85,54.85,422000,the Niemen crossing
+advance trunk,24.50,55.00,400000,the northern column has peeled off
+advance trunk,25.50,54.50,340000,the Polotzk column has peeled off (Wilna)
+advance trunk,26.00,54.70,320000,
+advance trunk,27.00,54.80,300000,
+advance trunk,28.00,54.90,280000,
+advance trunk,28.50,55.00,240000,
+advance trunk,29.00,55.10,210000,
+advance trunk,30.00,55.20,180000,
+advance trunk,30.30,55.30,175000,
+advance trunk,32.00,54.80,145000,
+advance trunk,33.20,54.90,140000,
+advance trunk,34.40,55.50,127100,
+advance trunk,35.50,55.40,100000,
+advance trunk,36.00,55.50,100000,
+advance trunk,37.60,55.80,100000,
+advance north,24.50,55.00,22000,
+advance north,24.50,55.30,22000,
+advance north,24.60,55.80,6000,
+advance polotzk,25.50,54.50,60000,
+advance polotzk,26.60,55.70,40000,
+advance polotzk,27.40,55.60,33000,
+advance polotzk,28.70,55.50,33000,
+retreat east,37.70,55.70,100000,
+retreat east,37.50,55.70,98000,
+retreat east,37.00,55.00,97000,
+retreat east,36.80,55.00,96000,
+retreat east,35.40,55.30,87000,
+retreat east,34.30,55.20,55000,
+retreat east,33.30,54.80,37000,
+retreat east,32.00,54.60,24000,
+retreat east,30.40,54.40,20000,
+retreat east,29.20,54.30,20000,Bobr
+retreat west,29.20,54.30,50000,"+ the Polotzk column's 30,000 = 50,000"
+retreat west,28.50,54.20,50000,Studienska — the Berezina
+retreat west,28.30,54.30,28000,
+retreat west,27.50,54.50,20000,
+retreat west,26.80,54.30,12000,<- the anomaly
+retreat west,26.40,54.40,14000,<- the anomaly
+retreat west,25.00,54.40,8000,
+retreat west,24.40,54.40,4000,
+retreat west,24.20,54.40,4000,
+retreat west,24.10,54.40,4000,
+retreat polotzk,28.70,55.50,33000,
+retreat polotzk,29.20,54.30,30000,
+retreat north,24.60,55.80,6000,
+retreat north,24.20,54.42,6000,
+retreat north,24.10,54.40,6000,

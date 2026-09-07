@@ -2,17 +2,20 @@
 
 /** @file
  * SigilCompose shape and decoration seams — Shape, the comparable
- * silhouette value, and the ShapeScheme concept behind it; MotionPath and
- * TextPath, a node or a run of type carried along a curve; Decoration, the
- * type-erased mark, with the concepts that read a scheme's declared
- * volatility, bleed, reach and borrows; and LayerStyle, a bundle of
- * decorations applied together.
+ * silhouette value, with HeldPath and KeyedShape, the two ways a
+ * silhouette is carried already cooked, and the ShapeScheme concept
+ * behind them; Boundary, which of a node's outlines a mark dresses;
+ * MotionPath, a node carried along a curve; Decoration, the type-erased
+ * mark, with the concepts that read a scheme's declared volatility,
+ * bleed, reach, blending and borrows; and LayerStyle, a bundle of
+ * decorations applied together. A run of type carried along a curve is
+ * `TextPath`, in <sigilcompose/typography/TextPath.h>.
  */
 
 #include <include/core/SkPath.h>
 #include <include/core/SkSize.h>
-#include <sigilcompose/core/Motion.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilmotion/values/Animatable.h>
 
 #include <any>
 #include <concepts>
@@ -100,6 +103,11 @@ class Shape {
   SkPath operator()(SkSize size) const {
     return m_state && m_state->generate ? m_state->generate(size) : SkPath();
   }
+  /** A Shape is itself a scheme, so it NESTS: a wrapper that asks for a
+   *  scheme takes one, and the equality it then uses is the one below —
+   *  which refuses a callable, where a compiler-written equality over an
+   *  empty closure type would vacuously accept it. */
+  SkPath path(SkSize size) const { return (*this)(size); }
   /** Does this value participate in structural equality? (False for the
    *  callable escape hatch.) */
   bool comparable() const { return m_state && (bool)m_state->equals; }
@@ -122,6 +130,88 @@ class Shape {
   };
   std::shared_ptr<const State> m_state;
 };
+
+/** A PATH COOKED ONCE, held as a comparable Shape.
+ *
+ *  The commonest escape hatch in the tree is `.shape([p](SkSize) { return
+ *  p; })` — a path already built in the author's own coordinates, handed
+ *  to the node through a lambda. That lambda compares equal to nothing,
+ *  so the node re-patches and re-records on every describe however static
+ *  the drawing is. This is the same handover as a value: the path is the
+ *  identity.
+ *
+ *  Equality is the path's own generation, which a COPY carries and a
+ *  rebuild does not. So `heldPath(m_ring)` re-minted every describe off a
+ *  path the caller holds prunes, and a path rebuilt from its parts each
+ *  describe does not — cook it once, hold it, hand it here.
+ *
+ *  The path is used AS IT WAS COOKED, in the node's local coordinates. It
+ *  is not fitted to the box (`shapes::svg()` is the fitting one), so a
+ *  node whose box is not the path's own bounds shows the path where the
+ *  path is. `pathFigure()` is the factory that gives a node exactly those
+ *  bounds. */
+class HeldPath {
+ public:
+  HeldPath() = default;
+  explicit HeldPath(SkPath cooked) : m_cooked(std::move(cooked)) {}
+  SkPath path(SkSize) const { return m_cooked; }
+  const SkPath& cooked() const { return m_cooked; }
+  /** The generation id changes on every edit and rides every copy, so
+   *  this is exact for a held path and conservative for a rebuilt one.
+   *  Fill type joins it because the id does not answer for it. */
+  bool operator==(const HeldPath& o) const {
+    return m_cooked.getGenerationID() == o.m_cooked.getGenerationID() &&
+           m_cooked.getFillType() == o.m_cooked.getFillType();
+  }
+
+ private:
+  SkPath m_cooked;
+};
+
+inline HeldPath heldPath(SkPath cooked) { return HeldPath(std::move(cooked)); }
+
+/** A CALLABLE MADE COMPARABLE BY THE VALUE IT CLOSES OVER.
+ *
+ *  A generator that is genuinely a function of a few numbers — a radius,
+ *  a corner mask, a pair of angles — is a value wearing a lambda's
+ *  clothes, and the numbers are what tells one from another. Hand them
+ *  over as @p key and the node settles: equal keys mean equal drawings,
+ *  which is the same author contract `shapes::parametric(key, …)` and
+ *  `custom(key, …)` take.
+ *
+ *      .shape(keyedShape(std::tuple(radius, cut, mask),
+ *                        [=](SkSize s) { return panel(radius, cut, mask)(s);
+ * }))
+ *
+ *  ONE KEY MUST NAME ONE DRAWING. Anything the callable reads that is not
+ *  in the key is invisible to the prune, and a node that prunes replays
+ *  the picture it recorded — so a number left out of the key freezes at
+ *  whatever it was on the frame that recorded. Fold everything the body
+ *  reads into the key, or use the keyless form and pay per describe.
+ *
+ *  The key's type is part of the identity, as it is for every scheme: two
+ *  keyed shapes compare only when both the key type and the callable's
+ *  own type match, which is what makes a `std::tuple` of the closed-over
+ *  numbers the natural spelling. */
+template <std::equality_comparable K, typename F>
+  requires std::is_invocable_r_v<SkPath, const F&, SkSize>
+class KeyedShape {
+ public:
+  KeyedShape(K key, F fn) : m_key(std::move(key)), m_fn(std::move(fn)) {}
+  SkPath path(SkSize size) const { return m_fn(size); }
+  const K& key() const { return m_key; }
+  bool operator==(const KeyedShape& o) const { return m_key == o.m_key; }
+
+ private:
+  K m_key;
+  F m_fn;
+};
+
+template <std::equality_comparable K, typename F>
+  requires std::is_invocable_r_v<SkPath, const F&, SkSize>
+KeyedShape<K, F> keyedShape(K key, F fn) {
+  return KeyedShape<K, F>(std::move(key), std::move(fn));
+}
 
 /** A SPATIAL PATH for a node to ride — After Effects' motion model.
  *
@@ -189,7 +279,7 @@ struct MotionPath {
   Shape path;
   /** WHERE along it, as a fraction of total arc length. One float, so
    *  every `bind()`/`animate()` verb still applies. */
-  Animatable<float> t = 0.0f;
+  motion::Animatable<float> t = 0.0f;
   /** Auto-orient: how far ahead the node looks, in the same units as
    *  @ref t. Non-zero adds `atan2` of the chord `position(t + lookAhead)
    *  - position(t)` to `rotate()`, so a negative value faces BACK down
@@ -200,92 +290,58 @@ struct MotionPath {
   float lookAhead = 0.0f;
 };
 
-/** Text whose BASELINE is a path (`Element::onPath`).
+/** WHAT A NODE'S DECORATIONS DRESS.
  *
- *  The run is shaped once — real kerning, real ligatures, real advances —
- *  and then every glyph is placed by arc length along the resolved path
- *  and rotated to its tangent, through the same batched RSXform draw
- *  kinetic text uses (one draw per font+colour, never one per glyph).
+ *  Every decoration — a bevel, an inner shadow, a glow, a gloss, a
+ *  keyline, a whole layer style — is drawn ACROSS AN OUTLINE, and this
+ *  says which outline it is handed. The three answers are three different
+ *  MECHANISMS, not three shapes:
  *
- *  The alternative, placing curved lettering by hand, costs one Element
- *  and one layout PER GLYPH and loses kerning, because each glyph is laid
- *  out alone. Ring labels, dial faces, seals, compass roses, mottoes and
- *  map lettering all want this instead. */
-struct TextPath {
-  /** The baseline, resolved against the node's laid-out box — any
-   *  `shapes::` generator, or your own. EVERY contour is walked, in order,
-   *  as one continuous arc-length coordinate, so a trajectory that the
-   *  frame cut into several contours still carries its whole run.
-   *
-   *  "The node's box" means the TEXT NODE'S OWN box, not a parent's. The
-   *  tempting `disc(c, R).child(text(...).onPath(...))` resolves the ring
-   *  against the text's intrinsic size and silently collapses every label
-   *  into a blob. Give the TEXT node the disc's width and height instead
-   *  — the text leaf is the disc. */
-  Shape path;
-  /** WHERE ALONG the path the run sits, as a fraction of its length. With
-   *  Align::Center this is the run's midpoint.
-   *
-   *  One float, so every `bind()`/`animate()` verb applies — and on a
-   *  CLOSED baseline the fraction WRAPS, which is the infinite marquee: a
-   *  phase output running 0→1 forever walks the whole run round the loop
-   *  and back to where it started, with no seam and no relayout. On an
-   *  open one the run simply slides, and glyphs pushed off either end are
-   *  dropped rather than piled on the last point.
-   *
-   *  Moving it is PAINT-ONLY. The run is shaped and broken across the
-   *  path's contours once; the phase re-places the glyphs it already
-   *  placed, so a marquee costs a repaint and never a reflow. It is
-   *  content volatility all the same — the glyphs move inside the node's
-   *  own box — so the node's recording is refused while the phase runs and
-   *  taken again once it provably holds still. */
-  Animatable<float> at = 0.0f;
-  enum class Align { Start, Center, End };
-  Align align = Align::Start;
-  /** Perpendicular offset in px, positive to the LEFT of travel — which on
-   *  a clockwise circle is outward. The path is the baseline, so this is
-   *  how far off it the type rides. */
-  float offset = 0.0f;
-  /** Flip glyphs that would come out upside down, so lettering on the
-   *  lower half of a ring reads right way up.
-   *
-   *  Default OFF, which is the engraver's convention: glyph-up points
-   *  radially outward everywhere, so the bottom of a ring genuinely reads
-   *  upside down. Modern signage flips; historical plates do not. */
-  bool autoFlip = false;
-  /** Which way a glyph faces.
-   *
-   *  `Tangent` is running lettering: the baseline lies ALONG the path,
-   *  which is what a ring inscription or a motto wants. Note this already
-   *  gives you "up points outward" on a circle — that is why a clock
-   *  face's 6 comes out upside down, and why `autoFlip` exists.
-   *
-   *  `Radial` runs the baseline along the RADIUS instead, so the type
-   *  radiates like a spoke — which is how an astrolabe limb, a compass
-   *  rose and a radial axis label their divisions: you turn the
-   *  instrument to read them. Without it each numeral costs one rotated
-   *  Element, which is the same per-element cost onPath exists to avoid.
-   *
-   *  `Upright` leaves every glyph level regardless of where it sits —
-   *  the convention a calendar ring or a modern gauge uses, and the one
-   *  case neither of the others can reach.
-   *
-   *  The centre `Radial` radiates from is the resolved baseline's
-   *  BOUNDING-BOX centre. That is the true centre for a full ring and
-   *  silently wrong for an arc that does not span one — a quarter-arc's
-   *  bbox centre is not its circle's centre — so give a partial arc a
-   *  full-circle baseline and place the run on it with `at`. */
-  enum class Orient { Tangent, Radial, Upright } orient = Orient::Tangent;
-  /** Turn every glyph to its EXACT tangent instead of snapping the angle.
-   *
-   *  Snapping is the default because each distinct rotation is a distinct
-   *  glyph-atlas strike: a curve whose glyphs turn continuously would
-   *  re-rasterize every letter on every frame. The steps are far under a
-   *  pixel of lean at label sizes on a ring whose letters sit further apart
-   *  than that. Set it for STATIC artwork set large, where the steps show
-   *  and nothing is paying per frame. */
-  bool exactTangent = false;
-};
+ *  `Outline` is THE NODE'S SHAPE — its rounded box, its `shape()`
+ *  generator, a routed connector's path, a band's swept region. On a text
+ *  leaf that shape is a rectangle, which is why a chrome style on a word
+ *  bevels a slab behind it rather than the word.
+ *
+ *  `Glyphs` is THE PLACEMENT'S CONTOURS: the union of a text leaf's glyph
+ *  outlines exactly where its layout put them. Every decoration already
+ *  written then works on letters with no new preset, because a decoration
+ *  was never about a box — it was about whatever outline it was handed.
+ *  On a node that is not text it means the node's shape.
+ *
+ *  `Coverage` is WHAT THE NODE ACTUALLY DREW: its rendered layer's alpha,
+ *  traced back into a path. Neither of the other two looks at a pixel, so
+ *  neither can answer for an image with an alpha cut-out, a clipped or
+ *  masked subtree, or anything else whose visible silhouette is not its
+ *  shape and not a glyph run. This one can, and it is the only one that
+ *  can. Three things follow from tracing a raster, and all three are
+ *  visible in the result:
+ *
+ *  - THE BOUNDARY IS A STAIRCASE. It is built from whole pixels of a
+ *    bounded raster, so its edges are axis-aligned steps, and a
+ *    decoration that dresses it dresses that staircase. A keyline around
+ *    a cut-out reads as a keyline around a stepped cut-out.
+ *  - A STEP IS A DEVICE PIXEL. The trace rasterises the node at the scale
+ *    the node is being drawn at, so the boundary is as fine as the edge
+ *    the viewer is looking at, and a node that moves to a denser display
+ *    is traced again and traces finer. A node too large to raster at that
+ *    scale is traced smaller, and its steps grow to whatever that took.
+ *  - PAINT UNDER THE THRESHOLD IS NOT A SILHOUETTE. A pixel joins the
+ *    boundary when the node's paint reaches `Element::threshold` of full
+ *    opacity there, which defaults to half — the rule an unantialiased
+ *    rasteriser uses — so a 30% wash over the whole box traces to nothing
+ *    and its decorations have nothing to dress. Lowering the threshold is
+ *    what makes a wash, a feathered cut-out or a glow a silhouette.
+ *
+ *  The node's OWN decorations are not in the trace — they are what dresses
+ *  it, and a mark that dressed itself would have no fixed point. Its fill,
+ *  its content, its children and their marks are.
+ *
+ *  `Auto` is what a node that says nothing gets, and it means the node's
+ *  own shape. A text leaf does NOT default to its glyphs and nothing
+ *  defaults to its coverage: a caption with a drop shadow means the
+ *  caption's box, and changing that under every existing passage would
+ *  repaint pages nobody asked to repaint. */
+enum class Boundary : uint8_t { Auto, Outline, Glyphs, Coverage };
 
 /** Anything with paint(canvas, PaintContext) — decorations, effect
  *  bodies. An optional `bool isAnimated() const` declares per-frame
@@ -345,6 +401,26 @@ concept ReachingDecoration = requires(const D& d) {
   { d.reach() } -> std::convertible_to<float>;
 };
 
+/** Optional on a DecorationScheme: does the mark composite with what is
+ *  ALREADY ON THE CANVAS?
+ *
+ *  A decoration that paints through a blend mode of its own — a soft-light
+ *  wash, an additive halo, a multiply scanline — resolves against whatever
+ *  lies beneath the node. That is exactly what it is for, and it is also
+ *  the one thing a cached bake cannot offer it: inside a layer the same
+ *  draw resolves against transparent black, and the difference is the
+ *  whole mark rather than a rounding. Declaring it refuses that node, and
+ *  every ancestor, the automatic bake and the memo hold.
+ *
+ *  Declared rather than introspected, for the same reason isAnimated() is:
+ *  a type-erased value cannot be looked inside. Say nothing and the mark
+ *  is taken to draw only over what it covers. A bare PaintProgram declares
+ *  nothing and can draw anything, so it is counted as blending. */
+template <typename D>
+concept BlendingDecoration = requires(const D& d) {
+  { d.blends() } -> std::convertible_to<bool>;
+};
+
 /** Optional on a DecorationScheme: element keys whose resolved PATHS this
  *  decoration needs (a weave's `strand::from(key)`). The element collects
  *  them at build time and the derive pass answers them into
@@ -371,6 +447,12 @@ class Decoration {
       : m_animated([&] {
           if constexpr (AnimatedDecoration<D>)
             return scheme.isAnimated();
+          else
+            return false;
+        }()),
+        m_blends([&] {
+          if constexpr (BlendingDecoration<D>)
+            return scheme.blends();
           else
             return false;
         }()),
@@ -408,8 +490,13 @@ class Decoration {
       s.paint(c, ctx);
     };
   }
-  Decoration(PaintProgram program)  // NOLINT: implicit by design
-      : m_paint(std::move(program)) {}
+  Decoration(
+      PaintProgram program)  // NOLINT: implicit by design
+                             // A callable declares nothing and may draw through
+                             // any blend mode, so it is counted as compositing
+                             // with the canvas — the same reading a custom()
+                             // leaf's program gets, and for the same reason.
+      : m_blends(true), m_paint(std::move(program)) {}
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     if (m_paint) m_paint(canvas, ctx);
@@ -420,6 +507,10 @@ class Decoration {
   /** FULL width of the mark this decoration paints, across the outline it
    *  dresses (see ReachingDecoration). Falls back to bleed(), then to 0. */
   float reach() const { return m_reach; }
+  /** Whether the mark composites with what is already on the canvas (see
+   *  BlendingDecoration). True for a bare PaintProgram, which declares
+   *  nothing. */
+  bool blends() const { return m_blends; }
   /** Keyed elements whose resolved paths this decoration reads (see
    *  BorrowingDecoration). Empty for everything that borrows nothing. */
   const std::vector<std::string>& borrows() const { return m_borrows; }
@@ -440,6 +531,7 @@ class Decoration {
 
  private:
   bool m_animated = false;
+  bool m_blends = false;
   float m_bleed = 0.0f;
   float m_reach = 0.0f;
   std::vector<std::string> m_borrows;
@@ -449,7 +541,7 @@ class Decoration {
 };
 
 /** A named bundle of decorations applied together — the Photoshop "layer
- *  style" as a value. Presets (styles::aquaGel(), styles::y2kChrome())
+ *  style" as a value. Presets (kit::aquaGel(), kit::y2kChrome())
  *  return one; Element::style() splices it in: `under` layers paint below
  *  the fill/content (drop shadows, body ramps), `over` layers above
  *  (gloss lenses, bevels, keylines). One call dresses the node. */

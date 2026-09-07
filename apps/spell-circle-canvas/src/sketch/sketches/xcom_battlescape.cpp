@@ -100,16 +100,26 @@
 // THE ONE HARD THING: THE LIBRARY HAS NO NOTION OF A FIXED PALETTE, AND THIS
 // SCREEN HAS NOTHING ELSE.
 //
-// Three routes exist and all three are wrong differently: quantise at authoring
-// time (exact, turns the library into a rectangle-placer); quantise at paint
-// time with an SkSL post pass (right shape, unreachable — Material::sksl() has
-// no child-shader and no array-uniform lane, so a 256-entry LUT cannot get in);
-// or quantise BY DISCIPLINE and test afterwards. This file ships the third.
-// Every colour comes from PAL[] and there is not one hex literal below the
-// table. Every edge lands on a multiple of PX = 4. Verification #5 is the test.
+// Two routes, and the file ships both where each belongs. The SPRITE ART goes
+// through the palette in the SHADER: every atlas cell is authored once as an
+// index raster and read through a 256 x 1 strip in a `Paint::sksl` child slot,
+// with StandardShade and ColorReplace as the body — see paletteEffect() below.
+// A shaded cell is then a lookup, not a re-rasterisation, and no colour it can
+// emit is outside the table, by construction rather than by care.
+//
+// EVERYTHING ELSE — the panel, the bars, the pixel type, the unit elements —
+// is quantised BY DISCIPLINE and tested afterwards: every colour comes from
+// PAL[] and there is not one hex literal below the table, every edge lands on
+// a multiple of PX = 4, and the colour census off the written plate is the
+// test. Discipline is what governs a drawing whose colours are AUTHORED; the
+// shader is what governs a drawing whose colours are DERIVED, and the shade
+// ramp is the only derivation on this screen.
 //
 // -----------------------------------------------------------------------------
-// VERIFICATION — what printAudit() asserts, and what a pass looks like
+// VERIFICATION — the four checks runAudit() makes, and what a pass looks
+// like. Two more belong to the plate rather than to the sketch: they read the
+// WRITTEN PNG, which a sketch describing a tree never sees, so they are stated
+// under them as what a plate check has to assert.
 //
 //   #1 projection round-trip     200 pseudo-random screen points through
 //                                screenToMap then mapToScreen: every point
@@ -131,16 +141,18 @@
 //                                maximum — applied to the RESOLVED rects the
 //                                four bars drew (bounds() on the keyed fill
 //                                and outline rows), so a bar drawn at the
-//                                wrong length prints a MISMATCH.
-//   #5 the colour census         every distinct colour in the written PNG must
-//                                be one of the 256 table entries. Any
-//                                off-palette pixel means antialiasing, or a
-//                                generator left unquantised, somewhere.
-//   #6 the 4-px lattice          nearest 4x down then 4x up must be
+//                                wrong length fails its row.
+// Off the written plate, not from here:
+//   the colour census            every distinct colour in the PNG must be one
+//                                of the 256 table entries. Any off-palette
+//                                pixel means antialiasing, or a generator
+//                                left unquantised, somewhere.
+//   the 4-px lattice             nearest 4x down then 4x up must be
 //                                byte-identical to the frame, which is true
 //                                only if every edge is on the 1994 grid.
 //
-// #5 is the check that earns its keep, because the failure it catches is
+// The census is the check that earns its keep, because the failure it catches
+// is
 // invisible: Pool::tints() MULTIPLIES, so the font atlas's mask cell has to be
 // pure white. Fill it with the palette's own white — PAL[1] #FCFCFC, the
 // obvious choice — and every tinted glyph is scaled by 252/255, which puts
@@ -149,13 +161,21 @@
 // -----------------------------------------------------------------------------
 // WHAT THE FIXED PALETTE COSTS, IN CELLS
 //
-// `tints()` cannot shade a tile — a 16-step ramp is not a scalar multiple of
-// its top entry (block 3 at shade 8 needs R 0.17 / G 0.54 / B 0.42, and the
-// best single scalar renders red far too red), so the faithful flyweight is
-// `frames = types x shades`. Three floors x two dither variants, plus bush,
-// tree, hull wall and hull deck, all at nine shade levels, plus six recoloured
-// arrows and a cursor: 97 cells at 128x160, sixteen to a sheet row, where a
-// palette LUT in the shader would have been ONE cell and a uniform.
+// THIRTEEN DRAWINGS, NINETY-SEVEN FRAMES, and the gap between those two
+// numbers is the whole cost. The art is thirteen index rasters — three floors
+// x two dither variants, bush, tree, hull wall, hull deck, two arrow
+// directions, the cursor — each drawn once and never again. The sheet still
+// holds 97 frames at 128x160, sixteen to a row, because the frames are
+// LOOKUPS of those thirteen at nine shades and three marker blocks.
+//
+// The 97 is the POOL's number, not the paint model's. `tints()` cannot shade a
+// tile — a 16-step ramp is not a scalar multiple of its top entry (block 3 at
+// shade 8 needs R 0.17 / G 0.54 / B 0.42, and the best single scalar renders
+// red far too red) — and an instance carries a position, a rotation, a scale,
+// a tint and a FRAME and nothing else, so a per-instance shade has nowhere to
+// ride but the frame index. Give the instanced leaf a per-instance uniform
+// lane and this becomes thirteen cells and one float; until then the shader
+// saves the RASTERISATION, which is the part that was ever the sketch's.
 //
 // What it buys is the whole map in four instanced leaves. Described as
 // ordinary Elements the same scene would be well over a thousand nodes, every
@@ -180,33 +200,55 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkTileMode.h>
+#include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/PixelType.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/Ramp.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace path = sigil::geometry::path;
+namespace patterns = sigil::material::pattern;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
+namespace measure = sigil::measure;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
-namespace weave = sigil::weave;
+using sigil::material::skia::Paint;
+using sigil::material::skia::toColor;
 
 namespace xcom {
 
@@ -218,7 +260,7 @@ constexpr float PX = 4.0f;
 // an origin and a snap. It is constexpr, which is why it rounds by hand
 // instead of calling std::round — that would make n() unusable in the
 // constant expressions below.
-constexpr kit::Grid kGrid{.scale = PX};
+constexpr path::Grid kGrid{.scale = PX};
 constexpr float n(float v) { return kGrid.s(v); }
 constexpr float kCanvasW = n(320), kCanvasH = n(200);
 constexpr float kPanelY = n(144), kPanelH = n(56);  // 200 - iconsHeight
@@ -272,7 +314,7 @@ constexpr uint32_t kPal[256] = {
 
 /** Palette index -> colour. Index 0 is the chroma key and returns alpha 0. */
 inline SkColor4f C(int idx) noexcept {
-  return hex(kPal[(unsigned)idx & 255u], idx == 0 ? 0.0f : 1.0f);
+  return hexColor(kPal[(unsigned)idx & 255u], idx == 0 ? 0.0f : 1.0f);
 }
 constexpr int blk(int block, int step) { return block * 16 + step; }
 
@@ -365,11 +407,19 @@ constexpr uint8_t kDigit[10][5] = {
 
 struct Ink {
   SkCanvas& c;
+  /** INDEX MODE: write the palette INDEX itself into the red channel rather
+   *  than the colour that index names. One drawing then serves every shade
+   *  and every marker block, because the table and the two index arithmetics
+   *  are applied afterwards, in the shader — which is what an 8-bit sprite
+   *  sheet always was. */
+  bool indexed = false;
   void rect(float x, float y, float w, float h, int idx) const {
     if (idx == 0) return;
     SkPaint p;
     p.setAntiAlias(false);
-    p.setColor4f(C(idx), nullptr);
+    p.setColor4f(
+        indexed ? SkColor4f{(float)idx / 255.0f, 0.0f, 0.0f, 1.0f} : C(idx),
+        nullptr);
     c.drawRect(SkRect::MakeXYWH(x * PX, y * PX, w * PX, h * PX), p);
   }
   void px(float x, float y, int idx) const { rect(x, y, 1, 1, idx); }
@@ -378,6 +428,85 @@ struct Ink {
     rect(x0, y, w, 1, idx);
   }
 };
+
+// ---------------------------------------------------------------------------
+// THE PALETTE, IN THE SHADER. Every atlas cell's art is authored ONCE, in
+// indices, and the 256-entry table reaches SkSL as a 256 x 1 CHILD IMAGE:
+// `Paint::sksl(...).child("uPalette", Paint::image(strip, ..., kNearest))`.
+// The lookup has to be a child rather than a uniform array because the index
+// is a PIXEL VALUE — SkSL indexes a uniform array only by a constant — and it
+// has to be kNearest because the sampled value is data, not colour: a linear
+// tap between two palette entries is a blend of two unrelated hues.
+//
+// The body below is shd() and replaceBlock() transcribed, and like them it
+// does not multiply: one add, one compare, one snap to absolute black.
+// `uShade` is StandardShade's addend and `uBlock1` is ColorReplace's 1-based
+// block, zero meaning keep the index's own.
+
+inline sk_sp<SkRuntimeEffect> paletteEffect() {
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform shader uIndex;\n"
+               "uniform shader uPalette;\n"
+               "uniform float uShade;\n"
+               "uniform float uBlock1;\n"
+               "half4 main(float2 p) {\n"
+               "  half4 s = uIndex.eval(p);\n"
+               "  if (s.a < 0.5) { return half4(0); }\n"
+               "  float i = floor(float(s.r) * 255.0 + 0.5);\n"
+               "  float ns = mod(i, 16.0) + uShade;\n"
+               "  float base = uBlock1 > 0.0 ? (uBlock1 - 1.0) * 16.0\n"
+               "                             : floor(i / 16.0) * 16.0;\n"
+               "  float dst = ns > 15.0 ? 15.0 : base + ns;\n"
+               "  return uPalette.eval(float2(dst + 0.5, 0.5));\n"
+               "}"));
+  if (!effect) std::fprintf(stderr, "palette effect: %s\n", error.c_str());
+  return effect;
+}
+
+/** The 256 entries as the table a shader samples.
+ *
+ *  `material::Palette` is the seam and `skia::paletteLookup` is its
+ *  crossing: a palette says there is nothing BETWEEN its entries, so the
+ *  tap is nearest at texel centres and index n is index n. Index 0 keeps
+ *  its alpha 0, so the chroma key stays the hole `C(0)` leaves. */
+inline sigil::material::Palette palette() {
+  sigil::material::Palette table;
+  table.entries.reserve(256);
+  for (int i = 0; i < 256; ++i) table.entries.emplace_back(C(i));
+  return table;
+}
+
+/** One cell's art, drawn once into a 128 x 160 index raster. */
+inline sk_sp<SkImage> indexCell(const std::function<void(const Ink&)>& art) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul((int)kCellW, (int)kCellH));
+  bm.eraseColor(SK_ColorTRANSPARENT);
+  SkCanvas canvas(bm);
+  art(Ink{canvas, true});
+  bm.setImmutable();
+  return bm.asImage();
+}
+
+/** @p indices read through @p table at @p shade, optionally with the block
+ *  replaced by the 1-based @p block1. Identity local matrix on the index
+ *  child: the cell is baked at 1:1, so a fragment centre lands on a texel
+ *  centre and the sample is the authored byte.
+ *
+ *  THE EFFECT AND THE TABLE ARE THE CALLER'S, held on the sketch for the
+ *  length of a declaration. A `static` here would outlive the dylib a
+ *  hot-reloaded sketch is compiled into. */
+inline Paint paletteLut(const sk_sp<SkRuntimeEffect>& effect,
+                        const Paint& table, const sk_sp<SkImage>& indices,
+                        int shade, int block1 = 0) {
+  Paint p = Paint::sksl(effect);
+  p.uniform("uShade", (float)shade);
+  p.uniform("uBlock1", (float)block1);
+  p.child("uIndex", Paint::image(indices, SkTileMode::kClamp,
+                                 SkTileMode::kClamp, SkMatrix::I(),
+                                 SkSamplingOptions{SkFilterMode::kNearest}));
+  p.child("uPalette", table);
+  return p;
+}
 
 /** A deterministic 32-bit hash. Tile dither, speckle placement, the terrain
  *  scenario — everything random in this file comes through here, so the map is
@@ -521,14 +650,17 @@ inline std::array<TileData, (size_t)kMapSize * kMapSize> buildMap() {
 }
 
 // ---------------------------------------------------------------------------
-// THE CELL ART. Every cell is a custom() paint program inside an
-// instancing::Atlas at oversample 1.0 — authored at FINAL scale so the stamp is
-// 1:1 and no magnification happens. Cells are 128 x 160, addressed as
-// (type, shade): the flyweight is `frames = types x shades`, because a 16-step
-// palette ramp is NOT a scalar multiple of its top entry and Pool::tints()
-// therefore cannot shade a tile (block 3 at shade 8 needs per-channel
-// multipliers R 0.17 / G 0.54 / B 0.42, and no single scalar comes close —
-// matching green leaves red far too bright).
+// THE CELL ART. Each drawing below is authored ONCE, in indices, into a
+// 128 x 160 raster at FINAL scale, so the stamp is 1:1 and no magnification
+// happens. It carries no shade and no marker colour: those are the LUT's two
+// uniforms, and the atlas frame for (type, shade) is that one drawing read
+// through the table.
+//
+// The frames are still `types x shades`, because a 16-step palette ramp is NOT
+// a scalar multiple of its top entry and Pool::tints() therefore cannot shade a
+// tile (block 3 at shade 8 needs per-channel multipliers R 0.17 / G 0.54 /
+// B 0.42, and no single scalar comes close — matching green leaves red far too
+// bright). What the LUT removes is the RE-RASTERISATION behind each frame.
 
 /** Floor: the diamond, dithered two palette steps apart with a scatter of a
  *  third. X-COM's terrain has no smooth shading inside a tile — two steps in a
@@ -538,8 +670,7 @@ inline std::array<TileData, (size_t)kMapSize * kMapSize> buildMap() {
  *  variant the dither repeats identically under the (+-16, +8) lattice and a
  *  coherent moire appears across the whole map — the flyweight's own failure
  *  mode, and one that only shows up in the picture, never in the arithmetic. */
-inline void paintFloor(SkCanvas& canvas, Floor kind, int shade, int variant) {
-  const Ink ink{canvas};
+inline void paintFloor(const Ink& ink, Floor kind, int variant) {
   int base = blk(3, 5), alt = blk(3, 7), speck = blk(3, 9), rare = blk(2, 4);
   if (kind == kDirt) {
     base = blk(6, 7);
@@ -562,15 +693,14 @@ inline void paintFloor(SkCanvas& canvas, Floor kind, int shade, int variant) {
         idx = speck;
       else if ((h % 61u) == 0u)
         idx = rare;
-      ink.px((float)x, (float)(kDiamondTop + r), shd(idx, shade));
+      ink.px((float)x, (float)(kDiamondTop + r), idx);
     }
   }
   if (kind == kHull)  // plate seams
     for (int r = 3; r < 16; r += 6) {
       int x0, w;
       diamondRow(r, x0, w);
-      ink.run((float)x0, (float)(kDiamondTop + r), (float)w,
-              shd(blk(14, 9), shade));
+      ink.run((float)x0, (float)(kDiamondTop + r), (float)w, blk(14, 9));
     }
 }
 
@@ -588,8 +718,7 @@ inline void diamondColumn(int x, int& rTop, int& rBot) {
  *  which is what makes the crash site the only two-level structure here — the
  *  wall face blits at z = 0 and the deck plate at z = 1, exactly the
  *  O_OBJECT / O_FLOOR split Map::drawTerrain walks. */
-inline void paintHullWall(SkCanvas& canvas, int shade) {
-  const Ink ink{canvas};
+inline void paintHullWall(const Ink& ink) {
   for (int x = 0; x < 32; ++x) {
     int rTop, rBot;
     diamondColumn(x, rTop, rBot);
@@ -600,20 +729,18 @@ inline void paintHullWall(SkCanvas& canvas, int shade) {
       int step = (lit ? 6 : 9) + (int)(h % 2u);
       if ((h % 23u) == 0u) step += 3;      // rivets and scoring
       if (((y - y0) % 7) == 0) step += 2;  // hull plate seams, one per 7 rows
-      ink.px((float)x, (float)y, shd(blk(14, step), shade));
+      ink.px((float)x, (float)y, blk(14, step));
     }
-    ink.px((float)x, (float)y0, shd(blk(14, 4), shade));  // top lip
+    ink.px((float)x, (float)y0, blk(14, 4));  // top lip
   }
 }
-inline void paintHullDeck(SkCanvas& canvas, int shade) {
-  paintFloor(canvas, kHull, shade, 0);
-  const Ink ink{canvas};
+inline void paintHullDeck(const Ink& ink) {
+  paintFloor(ink, kHull, 0);
   for (int r = 0; r < 16; ++r) {  // a bright rim so the deck reads as raised
     int x0, w;
     diamondRow(r, x0, w);
-    ink.px((float)x0, (float)(kDiamondTop + r), shd(blk(14, 1), shade));
-    ink.px((float)(x0 + w - 1), (float)(kDiamondTop + r),
-           shd(blk(14, 6), shade));
+    ink.px((float)x0, (float)(kDiamondTop + r), blk(14, 1));
+    ink.px((float)(x0 + w - 1), (float)(kDiamondTop + r), blk(14, 6));
   }
 }
 
@@ -624,7 +751,7 @@ inline void paintHullDeck(SkCanvas& canvas, int shade) {
  *  PAL[15] #000000, not the ramp's darkest green. That is the overflow branch
  *  in shd(), and it is why X-COM's night terrain looks the way it does. */
 inline void paintCanopy(const Ink& ink, float cx, float cy, float rx, float ry,
-                        int shade, int litStep, uint32_t seed) {
+                        int litStep, uint32_t seed) {
   const int r0 = (int)std::floor(cy - ry), r1 = (int)std::ceil(cy + ry);
   for (int r = r0; r <= r1; ++r) {
     const float t = ((float)r + 0.5f - cy) / ry;
@@ -639,7 +766,7 @@ inline void paintCanopy(const Ink& ink, float cx, float cy, float rx, float ry,
       int idx = blk(3, litStep + (flank ? 3 : 0) + (int)(h % 3u));
       if (!flank && (h % 89u) == 0u)
         idx = blk(2, 2);  // fruit — block 2 red, one pixel
-      ink.px((float)x, (float)r, shd(idx, shade));
+      ink.px((float)x, (float)r, idx);
     }
   }
 }
@@ -648,27 +775,23 @@ inline void paintCanopy(const Ink& ink, float cx, float cy, float rx, float ry,
  *  diamond's centre (row 32). 28 original px tall, which is what the reference
  *  measures. It has to fit in ONE cell: a tree drawn across two levels comes
  *  out around 48 px and reads as a column rather than as a tree. */
-inline void paintTree(SkCanvas& canvas, int shade) {
-  const Ink ink{canvas};
+inline void paintTree(const Ink& ink) {
   for (int r = 23; r <= 32; ++r)
-    ink.run(15.0f, (float)r, r > 29 ? 3.0f : 2.0f, shd(blk(10, 6), shade));
-  ink.run(13.0f, 32.0f, 6.0f, shd(blk(10, 8), shade));
-  paintCanopy(ink, 16.0f, 16.0f, 9.5f, 8.5f, shade, 6, 5u);
+    ink.run(15.0f, (float)r, r > 29 ? 3.0f : 2.0f, blk(10, 6));
+  ink.run(13.0f, 32.0f, 6.0f, blk(10, 8));
+  paintCanopy(ink, 16.0f, 16.0f, 9.5f, 8.5f, 6, 5u);
 }
-inline void paintBush(SkCanvas& canvas, int shade) {
-  const Ink ink{canvas};
-  paintCanopy(ink, 16.0f, 27.0f, 8.0f, 5.5f, shade, 7, 17u);
+inline void paintBush(const Ink& ink) {
+  paintCanopy(ink, 16.0f, 27.0f, 8.0f, 5.5f, 7, 17u);
 }
 
 /** The path arrow. ColorReplace recolours ONE sprite three ways, so the art is
- *  authored in block 1 and the cell bakes with the block replaced — which is
+ *  authored in block 0 and the LUT replaces the block per cell — which is
  *  exactly what blitNShade(..., newBaseColor) does at runtime.
  *  dir: 0 = down-left (map +y), 1 = down-right (map +x). */
-inline void paintArrow(SkCanvas& canvas, int dir, int block1) {
-  const Ink ink{canvas};
+inline void paintArrow(const Ink& ink, int dir) {
   const auto put = [&](int x, int y, int step) {
-    ink.px((float)(dir == 0 ? x : 31 - x), (float)y,
-           replaceBlock(blk(0, step), 0, block1));
+    ink.px((float)(dir == 0 ? x : 31 - x), (float)y, blk(0, step));
   };
   // A left-pointing arrow, 11 x 7 original px: head then shaft. Sized off
   // the reference, and the size is the point — a 32-px tile is only 32 px,
@@ -688,10 +811,9 @@ inline void paintArrow(SkCanvas& canvas, int dir, int block1) {
 
 /** The 3D box selector — a 32x40 wireframe cube, one tile, block 2. Drawn at
  *  the tile the HONEST inverse returns; the game's own picker biases the mouse
- *  ten pixels down first (Map.cpp:1314), and printAudit reports both answers so
+ *  ten pixels down first (Map.cpp:1314), and runAudit reports both answers so
  *  the difference is visible. */
-inline void paintCursor(SkCanvas& canvas) {
-  const Ink ink{canvas};
+inline void paintCursor(const Ink& ink) {
   const int lit = blk(2, 0), dim = blk(2, 2);
   const int lift = 12;  // the box is half a level tall
   for (int r = 0; r < 16; ++r) {
@@ -806,7 +928,7 @@ inline PixelText pixelText(const std::u8string& s, weave::TextStyle style,
 }
 
 /** The pixel-text element: an image fill at exactly 4x, nearest-sampled, on a
- *  box whose size is the ink. Material::image takes the sampling options, which
+ *  box whose size is the ink. Paint::image takes the sampling options, which
  *  is what keeps the 4x magnification from filtering. */
 inline Element pixelTextEl(const PixelText& t, float x, float y) {
   if (!t.image) return box().width(0).height(0);
@@ -815,9 +937,9 @@ inline Element pixelTextEl(const PixelText& t, float x, float y) {
       .top(y)
       .width((float)t.w * PX)
       .height((float)t.h * PX)
-      .fill(Material::image(t.image, SkTileMode::kDecal, SkTileMode::kDecal,
-                            SkMatrix::Scale(PX, PX),
-                            SkSamplingOptions(SkFilterMode::kNearest)));
+      .fill(Paint::image(t.image, SkTileMode::kDecal, SkTileMode::kDecal,
+                         SkMatrix::Scale(PX, PX),
+                         SkSamplingOptions(SkFilterMode::kNearest)));
 }
 
 // ---------------------------------------------------------------------------
@@ -974,14 +1096,15 @@ inline void paintButtonGlyph(SkCanvas& canvas, int id) {
 inline Element statBar(float x, float y, int value, int maxValue, int colorIdx,
                        const char* key) {
   const int outline = colorIdx + 4;
-  // A transparent full-canvas shell, so the four rects keep SCREEN coordinates.
-  // The KEY goes on the fill rect, never on the shell: a keyed full-bleed shell
-  // answers hitTest whether or not it has a fill, so four keyed shells stacked
-  // over the whole frame would make every probe return the topmost one. There
-  // is no way to opt an element out of hit testing.
+  // A transparent full-canvas shell, so the four rects keep SCREEN
+  // coordinates. The shell answers hitTest whether or not it has a fill, so
+  // four of them stacked over the whole frame would make every probe return
+  // the topmost one: `hitTestable(false)` excludes the shell's own box and
+  // leaves its children tested, which is exactly what a coordinate carrier
+  // wants. The KEY still goes on the fill rect rather than the shell.
   // The top outline row carries "<key>-max" so the audit can measure the
   // DRAWN outline length the same way it measures the drawn fill.
-  Element g = box().inset(0);
+  Element g = box().inset(0).hitTestable(false);
   g.child(at(x, y, (float)(maxValue + 1), 1)
               .fill(C(outline))
               .key(std::string(key) + "-max"));
@@ -997,7 +1120,7 @@ inline Element statBar(float x, float y, int value, int maxValue, int colorIdx,
  *  GREEN block rather than its own yellow-green, at +7..+13. Copy that — it is
  *  what the screen looks like. */
 inline Element recess(float x, float y, int firstIdx) {
-  Element g = box().inset(0);
+  Element g = box().inset(0).hitTestable(false);
   for (int r = 0; r < 7; ++r)
     g.child(at(x, y + (float)r, 17, 1).fill(C(firstIdx + r)));
   return g;
@@ -1061,14 +1184,26 @@ struct XcomBattlescape : sketch::Sketch {
   } phase, lastPhase{-1};
 
   Pattern metalPattern, latticePattern;
-  bool auditPrinted = false;
-  int reportedFrames = 0;
+  /** The palette shader and its 256-entry table, resolved once per
+   *  declaration and held HERE. A function-local static inside a sketch's
+   *  dylib outlives the reload that replaced the code around it. */
+  sk_sp<SkRuntimeEffect> paletteFx;
+  Paint paletteTable;
+  bool audited = false;
+
+  /** THE VERIFICATION, as one table. Every row's verdict is COMPUTED from
+   *  the two values it reports, so a row that reads PASS cannot disagree
+   *  with the measurement beside it, and `failures()` is what puts the
+   *  warning on the screen. */
+  measure::Table verdict;
 
   // =========================================================================
   // BAKE
 
   void bakeAtlas() {
     using namespace xcom;
+    paletteFx = paletteEffect();
+    paletteTable = sigil::material::skia::paletteLookup(palette());
     tiles = std::make_shared<Atlas>(1.0f);
     // Atlas::filter, and it is the palette's guard rail.
     //
@@ -1086,49 +1221,61 @@ struct XcomBattlescape : sketch::Sketch {
     tiles->filter(SkFilterMode::kNearest);
     const SkSize cell{kCellW, kCellH};
 
+    // THE ART, AUTHORED ONCE EACH, IN INDICES. Thirteen 128 x 160 index
+    // rasters — three floors at two dither variants, bush, tree, hull wall,
+    // hull deck, two arrow directions and the cursor. Nothing about a shade
+    // or a marker colour is committed here.
+    sk_sp<SkImage> idxFloor[3][2];
+    for (int f = 0; f < 3; ++f)
+      for (int v = 0; v < 2; ++v) {
+        const Floor kind = (Floor)f;
+        idxFloor[f][v] =
+            indexCell([kind, v](const Ink& ink) { paintFloor(ink, kind, v); });
+      }
+    const sk_sp<SkImage> idxBush = indexCell(paintBush);
+    const sk_sp<SkImage> idxTree = indexCell(paintTree);
+    const sk_sp<SkImage> idxWall = indexCell(paintHullWall);
+    const sk_sp<SkImage> idxDeck = indexCell(paintHullDeck);
+    sk_sp<SkImage> idxArrow[2];
+    for (int d = 0; d < 2; ++d)
+      idxArrow[d] = indexCell([d](const Ink& ink) { paintArrow(ink, d); });
+    const sk_sp<SkImage> idxCursor = indexCell(paintCursor);
+
+    // THE CELLS, DERIVED. Ninety-seven sheet frames, every one of them the
+    // same handful of drawings read through the table at a different shade
+    // or a different marker block. The count is the POOL's, not the paint
+    // model's: an instance carries a position, a rotation, a scale, a tint
+    // and a FRAME, so a per-instance shade has nowhere to ride but the frame
+    // index, and the sheet has to hold what the frame selects.
     for (int shade = 0; shade <= 8; ++shade) {
       for (int f = 0; f < 3; ++f)
-        for (int v = 0; v < 2; ++v) {
-          const Floor kind = (Floor)f;
-          cellFloor[f][v][shade] = tiles->cell(
-              custom([kind, shade, v](SkCanvas& c, const PaintContext&) {
-                paintFloor(c, kind, shade, v);
-              }),
-              cell);
-        }
-      cellObj[kBush][shade] =
-          tiles->cell(custom([shade](SkCanvas& c, const PaintContext&) {
-                        paintBush(c, shade);
-                      }),
-                      cell);
-      cellObj[kTree][shade] =
-          tiles->cell(custom([shade](SkCanvas& c, const PaintContext&) {
-                        paintTree(c, shade);
-                      }),
-                      cell);
-      cellObj[kHullWall][shade] =
-          tiles->cell(custom([shade](SkCanvas& c, const PaintContext&) {
-                        paintHullWall(c, shade);
-                      }),
-                      cell);
-      cellHullDeck[shade] =
-          tiles->cell(custom([shade](SkCanvas& c, const PaintContext&) {
-                        paintHullDeck(c, shade);
-                      }),
-                      cell);
+        for (int v = 0; v < 2; ++v)
+          cellFloor[f][v][shade] =
+              tiles->cell(box().fill(paletteLut(paletteFx, paletteTable,
+                                                idxFloor[f][v], shade)),
+                          cell);
+      cellObj[kBush][shade] = tiles->cell(
+          box().fill(paletteLut(paletteFx, paletteTable, idxBush, shade)),
+          cell);
+      cellObj[kTree][shade] = tiles->cell(
+          box().fill(paletteLut(paletteFx, paletteTable, idxTree, shade)),
+          cell);
+      cellObj[kHullWall][shade] = tiles->cell(
+          box().fill(paletteLut(paletteFx, paletteTable, idxWall, shade)),
+          cell);
+      cellHullDeck[shade] = tiles->cell(
+          box().fill(paletteLut(paletteFx, paletteTable, idxDeck, shade)),
+          cell);
     }
     const int kBlocks[3] = {4, 10, 3};  // Pathfinding green / yellow / red
     for (int d = 0; d < 2; ++d)
-      for (int m = 0; m < 3; ++m) {
-        const int b = kBlocks[m];
+      for (int m = 0; m < 3; ++m)
         cellArrow[d][m] =
-            tiles->cell(custom([d, b](SkCanvas& c, const PaintContext&) {
-                          paintArrow(c, d, b);
-                        }),
+            tiles->cell(box().fill(paletteLut(paletteFx, paletteTable,
+                                              idxArrow[d], 0, kBlocks[m])),
                         cell);
-      }
     cellCursor = tiles->cell(
-        custom([](SkCanvas& c, const PaintContext&) { paintCursor(c); }), cell);
+        box().fill(paletteLut(paletteFx, paletteTable, idxCursor, 0)), cell);
     atlasCells = tiles->frameCount();
 
     fontAtlas = std::make_shared<Atlas>(1.0f);
@@ -1330,9 +1477,11 @@ struct XcomBattlescape : sketch::Sketch {
               .width(kCellW)
               .height(kCellH)
               .key(key)
-              .child(custom([sh, alien](SkCanvas& c, const PaintContext&) {
-                paintUnit(c, sh, alien);
-              })));
+              .child(custom(kit::formatted("unit s%d %s", sh,
+                                           alien ? "alien" : "soldier"),
+                            [sh, alien](SkCanvas& c, const PaintContext&) {
+                              paintUnit(c, sh, alien);
+                            })));
     }
     {
       const SkPoint tl = mapToScreen(kSoldierA.mx, kSoldierA.my, 0);
@@ -1342,9 +1491,10 @@ struct XcomBattlescape : sketch::Sketch {
                      .top(tl.fY - n(4))
                      .width(kCellW)
                      .height(kCellH)
-                     .child(custom([frame](SkCanvas& c, const PaintContext&) {
-                       paintBobArrow(c, frame);
-                     })));
+                     .child(custom(kit::formatted("bob arrow f%d", frame),
+                                   [frame](SkCanvas& c, const PaintContext&) {
+                                     paintBobArrow(c, frame);
+                                   })));
     }
 
     // ---- z3/z4 path arrows, TU numbers, the box selector -------------------
@@ -1371,6 +1521,7 @@ struct XcomBattlescape : sketch::Sketch {
     // ---- z7 the fire-mode popup, snapped open, never tweened ---------------
     if (phase.popup) root.child(popupEl());
 
+    if (verdict.failures() > 0) root.child(failureCard());
     return root;
   }
 
@@ -1395,12 +1546,16 @@ struct XcomBattlescape : sketch::Sketch {
         const int id = col * 2 + row;
         p.child(at(bx[col], 144 + 16 * row, 32, 16)
                     .key("btn" + std::to_string(id))
-                    .child(custom([](SkCanvas& c, const PaintContext&) {
-                             paintPlate(c, 32, 16);
-                           }).inset(0))
-                    .child(custom([id](SkCanvas& c, const PaintContext&) {
-                             paintButtonGlyph(c, id);
-                           }).inset(0)));
+                    .child(custom("plate 32x16",
+                                  [](SkCanvas& c, const PaintContext&) {
+                                    paintPlate(c, 32, 16);
+                                  })
+                               .inset(0))
+                    .child(custom(kit::formatted("button glyph %d", id),
+                                  [id](SkCanvas& c, const PaintContext&) {
+                                    paintButtonGlyph(c, id);
+                                  })
+                               .inset(0)));
       }
 
     // The six reserve buttons. buttonReserveNone declares 67, the other three
@@ -1421,37 +1576,39 @@ struct XcomBattlescape : sketch::Sketch {
          {std::pair{60.0f, 177.0f}, std::pair{78.0f, 177.0f},
           std::pair{60.0f, 189.0f}, std::pair{78.0f, 189.0f}})
       p.child(at(x + 3, y + 3, 11, 5)
-                  .child(custom([](SkCanvas& c, const PaintContext&) {
-                    const Ink ink{c};
-                    ink.rect(0, 0, 2, 5, blk(0, 15));
-                    ink.rect(2, 2, 5, 1, blk(0, 15));
-                    ink.rect(8, 1, 1, 3, blk(0, 15));
-                    ink.rect(10, 0, 1, 5, blk(0, 15));
-                  })));
+                  .child(custom("reserve glyph",
+                                [](SkCanvas& c, const PaintContext&) {
+                                  const Ink ink{c};
+                                  ink.rect(0, 0, 2, 5, blk(0, 15));
+                                  ink.rect(2, 2, 5, 1, blk(0, 15));
+                                  ink.rect(8, 1, 1, 3, blk(0, 15));
+                                  ink.rect(10, 0, 1, 5, blk(0, 15));
+                                })));
 
     // The rank badge, 26x23 — a gold plate, block 9 over block 10.
-    p.child(at(107, 177, 26, 23)
-                .key("rank")
-                .child(custom([](SkCanvas& c, const PaintContext&) {
-                  const Ink ink{c};
-                  for (int r = 0; r < 23; ++r)
-                    ink.run(0, (float)r, 26, blk(9, 2 + r / 6));
-                  ink.run(0, 0, 26, blk(9, 0));
-                  ink.run(0, 22, 26, blk(10, 6));
-                  for (int r = 0; r < 23; ++r) {
-                    ink.px(0, (float)r, blk(9, 1));
-                    ink.px(25, (float)r, blk(10, 5));
-                  }
-                  // A chevron — STR_SQUADDIE.
-                  for (int k = 0; k < 7; ++k) {
-                    ink.run((float)(13 - k - 1), (float)(6 + k), 3, blk(10, 8));
-                    ink.run((float)(13 + k - 1), (float)(6 + k), 3, blk(10, 8));
-                  }
-                  for (int k = 0; k < 7; ++k) {
-                    ink.run((float)(13 - k - 1), (float)(5 + k), 3, blk(9, 0));
-                    ink.run((float)(13 + k - 1), (float)(5 + k), 3, blk(9, 0));
-                  }
-                })));
+    p.child(
+        at(107, 177, 26, 23)
+            .key("rank")
+            .child(custom("rank badge", [](SkCanvas& c, const PaintContext&) {
+              const Ink ink{c};
+              for (int r = 0; r < 23; ++r)
+                ink.run(0, (float)r, 26, blk(9, 2 + r / 6));
+              ink.run(0, 0, 26, blk(9, 0));
+              ink.run(0, 22, 26, blk(10, 6));
+              for (int r = 0; r < 23; ++r) {
+                ink.px(0, (float)r, blk(9, 1));
+                ink.px(25, (float)r, blk(10, 5));
+              }
+              // A chevron — STR_SQUADDIE.
+              for (int k = 0; k < 7; ++k) {
+                ink.run((float)(13 - k - 1), (float)(6 + k), 3, blk(10, 8));
+                ink.run((float)(13 + k - 1), (float)(6 + k), 3, blk(10, 8));
+              }
+              for (int k = 0; k < 7; ++k) {
+                ink.run((float)(13 - k - 1), (float)(5 + k), 3, blk(9, 0));
+                ink.run((float)(13 + k - 1), (float)(5 + k), 3, blk(9, 0));
+              }
+            })));
 
     // The stat block sits in a BLACK WELL, not on the metal — measured off the
     // reference, x 132..320, y 175..200. Without it the bars' transparent
@@ -1486,31 +1643,33 @@ struct XcomBattlescape : sketch::Sketch {
     for (const auto& [x, right] :
          {std::pair{8.0f, false}, std::pair{280.0f, true}}) {
       const bool holdsRifle = right;
-      p.child(at(x, 148, 32, 48)
-                  .key(right ? "handR" : "handL")
-                  .child(custom([holdsRifle](SkCanvas& c, const PaintContext&) {
-                    const Ink ink{c};
-                    for (int r = 0; r < 48; ++r)
-                      ink.run(0, (float)r, 32, blk(0, 15));
-                    for (int r = 0; r < 48; ++r) {
-                      ink.px(0, (float)r, blk(14, 8));
-                      ink.px(31, (float)r, blk(14, 11));
-                    }
-                    ink.run(0, 0, 32, blk(14, 8));
-                    ink.run(0, 47, 32, blk(14, 11));
-                    if (!holdsRifle) return;
-                    // STR_RIFLE, a 32x48 BIGOB reconstruction.
-                    ink.rect(14, 5, 4, 26, blk(15, 2));
-                    ink.rect(15, 5, 2, 26, blk(15, 0));
-                    ink.rect(12, 11, 8, 4, blk(5, 8));
-                    ink.rect(13, 12, 6, 2, blk(5, 5));
-                    ink.rect(13, 20, 6, 9, blk(2, 6));
-                    ink.rect(14, 21, 4, 7, blk(2, 3));
-                    ink.rect(11, 30, 10, 4, blk(15, 4));
-                    ink.rect(13, 34, 6, 9, blk(5, 9));
-                    ink.rect(14, 35, 4, 7, blk(5, 6));
-                    ink.rect(12, 43, 8, 2, blk(15, 6));
-                  })));
+      p.child(
+          at(x, 148, 32, 48)
+              .key(right ? "handR" : "handL")
+              .child(custom(holdsRifle ? "hand well rifle" : "hand well empty",
+                            [holdsRifle](SkCanvas& c, const PaintContext&) {
+                              const Ink ink{c};
+                              for (int r = 0; r < 48; ++r)
+                                ink.run(0, (float)r, 32, blk(0, 15));
+                              for (int r = 0; r < 48; ++r) {
+                                ink.px(0, (float)r, blk(14, 8));
+                                ink.px(31, (float)r, blk(14, 11));
+                              }
+                              ink.run(0, 0, 32, blk(14, 8));
+                              ink.run(0, 47, 32, blk(14, 11));
+                              if (!holdsRifle) return;
+                              // STR_RIFLE, a 32x48 BIGOB reconstruction.
+                              ink.rect(14, 5, 4, 26, blk(15, 2));
+                              ink.rect(15, 5, 2, 26, blk(15, 0));
+                              ink.rect(12, 11, 8, 4, blk(5, 8));
+                              ink.rect(13, 12, 6, 2, blk(5, 5));
+                              ink.rect(13, 20, 6, 9, blk(2, 6));
+                              ink.rect(14, 21, 4, 7, blk(2, 3));
+                              ink.rect(11, 30, 10, 4, blk(15, 4));
+                              ink.rect(13, 34, 6, 9, blk(5, 9));
+                              ink.rect(14, 35, 4, 7, blk(5, 6));
+                              ink.rect(12, 43, 8, 2, blk(15, 6));
+                            })));
     }
     return p;
   }
@@ -1536,25 +1695,24 @@ struct XcomBattlescape : sketch::Sketch {
   }
 
   // =========================================================================
-  // AUDIT — the verification protocol, printed once
+  // AUDIT — the verification protocol, run once
 
-  void printAudit(sketch::SketchContext& ctx) {
+  void runAudit(sketch::SketchContext& ctx) {
     using namespace xcom;
-    std::printf("\n=== X-COM BATTLESCAPE — verification ===\n");
-    std::printf(
-        "atlas: %d cells at %.0fx%.0f, oversample 1.0, kNearest; "
-        "sheet %.0fx%.0f = %.2f MB\n",
-        atlasCells, kCellW, kCellH, 2048.0f,
-        std::ceil((float)atlasCells / 16.0f) * kCellH,
-        2048.0f * std::ceil((float)atlasCells / 16.0f) * kCellH * 4.0f /
-            1048576.0f);
-    std::printf(
-        "stamps: terrain z0 %d + z1 %d = %d, overlay %zu, map glyphs "
-        "%zu, panel glyphs %zu  (total %zu)\n",
-        terrainZ0, terrainZ1, terrainZ0 + terrainZ1, overlay->size(),
-        mapGlyphs->size(), panelGlyphs->size(),
-        terrain->size() + overlay->size() + mapGlyphs->size() +
-            panelGlyphs->size());
+    verdict = {};
+    verdict.add(measure::heading("THE SHEET"));
+    verdict.add(measure::reading(
+        kit::formatted(
+            "atlas cells at %.0f\xc3\x97%.0f, sheet 2048\xc3\x97%.0f", kCellW,
+            kCellH, (double)(std::ceil((float)atlasCells / 16.0f) * kCellH)),
+        (long)atlasCells));
+    verdict.add(measure::reading(
+        kit::formatted("stamps: terrain %d + overlay %zu + glyphs %zu",
+                       terrainZ0 + terrainZ1, overlay->size(),
+                       mapGlyphs->size() + panelGlyphs->size()),
+        (long)(terrain->size() + overlay->size() + mapGlyphs->size() +
+               panelGlyphs->size())));
+    verdict.add(measure::heading("THE PROJECTION AND ITS INVERSE"));
 
     // #1 projection round-trip.
     uint32_t seed = 12345u;
@@ -1575,10 +1733,10 @@ struct XcomBattlescape : sketch::Sketch {
       // is the 128-wide cell, and the y band is the 32-px screen diagonal.
       if (sx < tl.fX || sx >= tl.fX + kCellW) ++fails;
     }
-    std::printf(
-        "#1 projection round-trip: %d/200 failures (%d at the "
-        "Clamp(-1,size) boundary)\n",
-        fails, boundary);
+    verdict.add(measure::check(
+        "#1  of 200 screen points, round-trips that missed", 0, fails));
+    verdict.add(measure::reading("     clamped at the Clamp(-1, size) boundary",
+                                 (long)boundary));
 
     {  // panel widgets: bounds() -> hitTest() -> the same key, round-trip
       int ok = 0, total = 0;
@@ -1589,8 +1747,9 @@ struct XcomBattlescape : sketch::Sketch {
         const auto h = b ? ctx.composer.hitTest(b->center()) : std::nullopt;
         if (h && *h == k) ++ok;
       }
-      std::printf("#2a panel widgets bounds()->hitTest() round-trip: %d/%d\n",
-                  ok, total);
+      verdict.add(measure::check(
+          "#2a panel widgets surviving bounds() \xe2\x86\x92 hitTest()", total,
+          ok));
     }
     // #2 hitTest against the same inverse.
     int agree = 0, checked = 0;
@@ -1605,27 +1764,38 @@ struct XcomBattlescape : sketch::Sketch {
       screenToMap(probe.fX, probe.fY, 0, &qx, &qy);
       ++checked;
       if (hit && *hit == key && qx == mx && qy == my) ++agree;
-      const auto bnd = ctx.composer.bounds(key);
-      std::printf(
-          "   hitTest(%s) -> %-12s  screenToMap -> (%d,%d) want (%d,%d)"
-          "  bounds [%.0f %.0f %.0f %.0f] probe (%.0f,%.0f)\n",
-          key, hit ? hit->c_str() : "(none)", qx, qy, mx, my,
-          bnd ? bnd->left() : -1.0f, bnd ? bnd->top() : -1.0f,
-          bnd ? bnd->width() : -1.0f, bnd ? bnd->height() : -1.0f, probe.fX,
-          probe.fY);
+      verdict.add(measure::check(
+          kit::formatted("     hitTest(%s) names it, and the inverse "
+                         "answers (%d,%d)",
+                         key, mx, my),
+          std::string_view(key),
+          std::string_view(hit && qx == mx && qy == my ? hit->c_str()
+                                                       : "(no)")));
     }
-    std::printf(
-        "#2 hitTest agrees with the inverse: %d/%d  "
-        "(pool tiles are unreachable — instances() is one custom() "
-        "leaf, so hits land on the pool node, not a tile)\n",
-        agree, checked);
+    // Pool tiles are unreachable on purpose — instances() is one custom()
+    // leaf, so a hit lands on the pool node rather than on a tile.
+    verdict.add(measure::check("#2  keyed units agreeing with the inverse",
+                               checked, agree));
 
-    // #3 the light radius is exactly 8.
-    std::printf("#3 shade walking -x from the selected soldier: ");
-    for (int k = 0; k <= 11; ++k)
-      std::printf("%d%s", tileShade(kSoldierA.mx - k, kSoldierA.my),
-                  k == 11 ? "" : ",");
-    std::printf("  (first constant at tile 8 == correct)\n");
+    // #3 the light radius is exactly 8. Off by one means floor() where
+    // addLight uses Round().
+    {
+      std::string walk;
+      int firstConstant = -1;
+      for (int k = 0; k <= 11; ++k) {
+        const int shade = tileShade(kSoldierA.mx - k, kSoldierA.my);
+        if (firstConstant < 0 && k > 0 &&
+            shade == tileShade(kSoldierA.mx - k + 1, kSoldierA.my))
+          firstConstant = k - 1;
+        walk += (k ? "," : "") + std::to_string(shade);
+      }
+      verdict.add(
+          measure::reading("#3  shade walking \xe2\x88\x92x from "
+                           "the selected soldier",
+                           walk));
+      verdict.add(
+          measure::check("     first constant at tile", 8, firstConstant));
+    }
 
     // #4 the bars read back — from the RESOLVED geometry, the same
     // measurement that recovered the maxima off the reference capture:
@@ -1638,17 +1808,20 @@ struct XcomBattlescape : sketch::Sketch {
       const int wantMax[4] = {kMaxTU, kMaxEnergy, kMaxHealth, kMaxMorale};
       const char* nm[4] = {"TU", "Energy", "Health", "Morale"};
       const char* keys[4] = {"barTU", "barEnergy", "barHealth", "barMorale"};
+      verdict.add(measure::heading("THE BARS, READ BACK OFF THE DRAWN RECTS"));
       for (int i = 0; i < 4; ++i) {
         const auto fill = ctx.composer.bounds(keys[i]);
         const auto line = ctx.composer.bounds(std::string(keys[i]) + "-max");
         const int value = fill ? (int)std::lround(fill->width() / PX) : -1;
         const int maxv = line ? (int)std::lround(line->width() / PX) - 1 : -1;
-        std::printf(
-            "#4 %-6s fill %4.0f px / 4 = %3d (want %3d)   outline "
-            "%4.0f px / 4 - 1 = %3d (want %3d)%s\n",
-            nm[i], fill ? fill->width() : -1.0f, value, wantVal[i],
-            line ? line->width() : -1.0f, maxv, wantMax[i],
-            value == wantVal[i] && maxv == wantMax[i] ? "" : "  MISMATCH");
+        verdict.add(measure::check(
+            kit::formatted("#4 %-6s fill %.0f px / %.0f", nm[i],
+                           fill ? (double)fill->width() : -1.0, (double)PX),
+            wantVal[i], value));
+        verdict.add(measure::check(
+            kit::formatted("       outline %.0f px / %.0f \xe2\x88\x92 1",
+                           line ? (double)line->width() : -1.0, (double)PX),
+            wantMax[i], maxv));
       }
     }
 
@@ -1658,28 +1831,65 @@ struct XcomBattlescape : sketch::Sketch {
     int hx = 0, hy = 0, bx = 0, by = 0;
     screenToMap(probe.fX, probe.fY, 0, &hx, &hy);
     screenToMap(probe.fX, probe.fY + n(10), 0, &bx, &by);  // spriteHeight/4
-    std::printf(
-        "   selector: honest inverse (%d,%d); Map::setSelectorPosition's "
-        "+10 px bias (%d,%d) — the game ships the biased one\n",
-        hx, hy, bx, by);
-    std::printf("=======================================\n\n");
+    verdict.add(measure::reading(
+        kit::formatted("     selector: honest inverse (%d,%d); the shipped "
+                       "+10 px bias",
+                       hx, hy),
+        kit::formatted("(%d,%d)", bx, by)));
+  }
+
+  /** THE FAILING CLAIMS, PAINTED — and only when there are any. The screen
+   *  is the artefact and carries no drafting chrome, so a reconstruction
+   *  whose projection, queries and bars all read back shows the screen and
+   *  nothing else. */
+  Element failureCard() const {
+    using namespace xcom;
+    sketch::kit::Theme look;
+    look.palette.ash = C(blk(0, 1));
+    look.palette.figure = C(blk(2, 3));
+    look.type.captionNote = {n(4.5f), 0.1f};
+    look.type.captionLabel = {n(4.5f), 0.1f, true};
+    look.spacing.rowGap = n(2);
+    std::vector<sketch::kit::Row> rows;
+    for (const measure::Check& c : verdict.rows) {
+      if (!c.judged() || c.pass) continue;
+      rows.push_back(
+          {{toU8(c.label), toU8(c.actual), toU8("want " + c.expected)},
+           Fill::color(C(blk(2, 3)))});
+    }
+    sketch::kit::Provide bound(look);
+    return box()
+        .left(n(12))
+        .top(n(18))
+        .width(n(296))
+        .height(n(12) + n(8) * (float)rows.size())
+        .fill(Fill::color(C(blk(2, 12))))
+        .foreground(
+            stroke(PX, Fill::color(C(blk(2, 3))), PathFormat::Align::Inner))
+        .column()
+        .padding(n(6))
+        .gap(n(4))
+        .child(sketch::kit::table(std::move(rows),
+                                  {.columns = {{n(150)}, {n(24), true}, {}},
+                                   .gap = n(4),
+                                   .swatchSide = n(3)}));
   }
 
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) override {
     using namespace xcom;
-    ctx.canvas(kCanvasW, kCanvasH);
-    ctx.background(C(blk(0, 15)));
     // The still is captured inside the 9.6 s state cycle below, at the phase
     // that matches the reference screen: the 14-tile path preview with TU 58
     // intact, which runs [3.2, 4.8). 4.0 s is its midpoint. Later phases open
     // the fire-mode popup, which covers most of the battlescape.
-    ctx.captureAt(4.0);
     // The plate at exactly 2x. One 1994 pixel is four canvas px, so eight
     // device px in every column and every row, and an integer downsample of
     // the capture lays it over the reference.
-    ctx.oversample(2);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
+                             .captureAt = 4.0,
+                             .background = C(blk(0, 15)),
+                             .oversample = 2});
 
     bakeAtlas();
     terrain = std::make_shared<Pool>();
@@ -1711,20 +1921,13 @@ struct XcomBattlescape : sketch::Sketch {
     // patterns::gridLines(spacingX, spacingY, width, colour) — the 5 x 2 pitch,
     // exactly. It takes ONE colour, so the capture's 136/137 verticals and its
     // 138 horizontals collapse to a single palette step here.
-    latticePattern = patterns::gridLines(n(5), n(2), PX, C(137));
+    latticePattern = patterns::gridLines(n(5), n(2), PX, toColor(C(137)));
     latticePattern.sampling(SkSamplingOptions(SkFilterMode::kNearest));
 
     // Type. FONT_BIG substitute at 1x, quantised into block 8 by coverage.
-    auto mgr = weave::ports::systemFontManager();
-    const auto face = [&](const char* fam, int weight) {
-      sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-          fam, SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                           SkFontStyle::kUpright_Slant));
-      if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Bold());
-      return f;
-    };
     weave::TextStyle big;
-    big.shaping.typeface = face("Arial Narrow", SkFontStyle::kBold_Weight);
+    big.shaping.typeface =
+        weave::ports::face({"Arial Narrow"}, SkFontStyle::kBold_Weight);
     big.shaping.fontSize = 12.0f;
     big.shaping.letterSpacing = 0.6f;
     if (ctx.fonts) {
@@ -1790,9 +1993,12 @@ struct XcomBattlescape : sketch::Sketch {
     // update sees a dirtied tree and every rect comes back nan. There is no
     // way to ask the composer to lay out without painting, so the queries have
     // to be one frame behind the description they are asking about.
-    if (!auditPrinted && elapsed > 0.25) {
-      auditPrinted = true;
-      printAudit(ctx);
+    if (!audited && elapsed > 0.25) {
+      audited = true;
+      runAudit(ctx);
+      // A claim that did not hold has to reach the screen, and the phase
+      // below may not change for seconds.
+      if (verdict.failures() > 0) ctx.composer.render(describe(ctx));
     }
     // The documented 9.6 s loop, twelve 800 ms cycles. Every transition below
     // is INSTANT — the path recomputes in one frame, the popup snaps open, the
@@ -1818,18 +2024,6 @@ struct XcomBattlescape : sketch::Sketch {
     if (panelChanged || lastPhase.frame < 0) buildPanelGlyphs(p);
     lastPhase = p;
     ctx.composer.render(describe(ctx));
-
-    if (auditPrinted && reportedFrames < 3) {
-      ++reportedFrames;
-      const auto& s = ctx.composer.stats();
-      std::printf(
-          "stats @%.2fs: instances %zu  painted %zu  pictures %zu  "
-          "reconcile %.2f  layout %.2f  volatile %.2f  paint %.2f ms"
-          "%s\n",
-          elapsed, s.instances, s.nodesPainted, s.picturesLive, s.reconcileMs,
-          s.layoutMs, s.volatileMs, s.paintMs,
-          fixedStatus.clamped ? "  [FIXED-STEP CLAMPED]" : "");
-    }
   }
 };
 

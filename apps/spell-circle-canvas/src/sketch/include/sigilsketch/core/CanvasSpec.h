@@ -48,6 +48,17 @@ struct CanvasSpec {
   SkColor4f background = {0.043f, 0.039f, 0.078f, 1};
   double captureSeconds = -1.0;
   int oversample = 0;
+
+  /** A PLATE, NOT A LIVE SCENE. A sketch whose subject is the size of the
+   *  sheet it draws — a large document over an expensive material stack —
+   *  is judged on the cost of the still it is photographed as, not on
+   *  holding 60 FPS at that size, because a canvas the sketch cannot
+   *  present at is a different statement from a live sketch that drops
+   *  frames. `--bench`'s verdict reads this: a marked sketch reports its
+   *  capture cost and passes the frame-time gate by declaration rather
+   *  than by measurement. It is not a timeout override — nothing about
+   *  the plate sweep changes — only what the interactive gate asserts. */
+  bool plateOnly = false;
 };
 
 }  // namespace sigil::sketch

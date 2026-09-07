@@ -75,10 +75,15 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkTypeface.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/query/Selector.h>
+#include <sigilweave/style/Type.h>
 
 #include <cmath>
 #include <memory>
@@ -87,6 +92,9 @@
 
 namespace sketch = sigil::sketch;
 
+namespace motion = sigil::motion;
+namespace weave = sigil::weave;
+
 using namespace sigil::compose;
 
 namespace {
@@ -94,12 +102,12 @@ namespace {
 constexpr float kW = 1120.0f;
 constexpr float kH = 620.0f;
 
-constexpr SkColor4f kPaper = hex(0x0C0C0E);
-constexpr SkColor4f kInk = hex(0xF4F1EA);
-constexpr SkColor4f kLabel = hex(0x7E8492);
-constexpr SkColor4f kFaint = hex(0x3A3F4B);
-constexpr SkColor4f kMark = hex(0xE2504B);  // the overhang
-constexpr SkColor4f kAxis = hex(0x63B8FF);  // the driven coordinate
+constexpr SkColor4f kPaper = hexColor(0x0C0C0E);
+constexpr SkColor4f kInk = hexColor(0xF4F1EA);
+constexpr SkColor4f kLabel = hexColor(0x7E8492);
+constexpr SkColor4f kFaint = hexColor(0x3A3F4B);
+constexpr SkColor4f kMark = hexColor(0xE2504B);  // the overhang
+constexpr SkColor4f kAxis = hexColor(0x63B8FF);  // the driven coordinate
 
 const char* kProof = "HAMBURGEFONTSIV";
 
@@ -132,7 +140,8 @@ constexpr float kProofRowSize = 34.0f;
  *  never ends. */
 TextEffect gradWave(float lo, float hi, float radPerGlyph) {
   return fx::effect("gradWave",
-                    [lo, hi, radPerGlyph](const GlyphInfo& g, float t, Rng&) {
+                    [lo, hi, radPerGlyph](const GlyphInfo& g, float t,
+                                          sigil::core::noise::Mix64Stream&) {
                       const float s =
                           0.5f + 0.5f * std::sin(t * 6.2831853f -
                                                  (float)g.index * radPerGlyph);
@@ -172,7 +181,7 @@ struct AxisRipple : sketch::Sketch {
   [[nodiscard]] sigil::weave::TextStyle small(SkColor4f color,
                                               float size = 11.5f,
                                               float track = 2.4f) const {
-    return type(
+    return weave::textStyle(
         {.face = faceLabel, .size = size, .color = color, .track = track});
   }
 
@@ -264,10 +273,11 @@ struct AxisRipple : sketch::Sketch {
    *  where the run stopped. */
   [[nodiscard]] Element proofRow(const char (&tag)[5], float value,
                                  const char* label, bool marked) {
-    sigil::weave::TextStyle style = type({.face = face,
-                                          .size = kProofRowSize,
-                                          .color = kInk,
-                                          .track = kProofTrack * 0.6f});
+    sigil::weave::TextStyle style =
+        weave::textStyle({.face = face,
+                          .size = kProofRowSize,
+                          .color = kInk,
+                          .track = kProofTrack * 0.6f});
     style.variation(tag, value);
     Element run = text(toU8(kProof), style);
     // THE RULE IS ANCHORED TO THE RUN, not fitted to it. An unsliced
@@ -276,7 +286,7 @@ struct AxisRipple : sketch::Sketch {
     // label column, the gap and the tracking, none of which the mark has
     // to be told about.
     if (marked)
-      run.mark(Selector{},
+      run.mark(weave::Selector{},
                box().key("rule").left(pct(100)).top(0).width(1).height(96).fill(
                    Fill::color(kMark)));
     return box()
@@ -352,9 +362,9 @@ struct AxisRipple : sketch::Sketch {
         .column()
         .padding(kPadX, kPadY)
         .gap(30)
-        .fill(Material::linear(
-            {0, 0}, {0, kH},
-            {{0.0f, kPaper}, {0.6f, hex(0x111116)}, {1.0f, kPaper}}))
+        .fill(linearGradient({0, 0}, {0, kH},
+                             {kPaper, hexColor(0x111116), kPaper},
+                             {0.0f, 0.6f, 1.0f}))
         .child(
             box()
                 .row()
@@ -376,30 +386,30 @@ struct AxisRipple : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kPaper);
     // A quarter-pass in: the wave's crest is inside the word rather than at
     // either end, so both the ramp up and the ramp down are on the page.
-    ctx.captureAt(kPeriod * 0.79);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = kPeriod * 0.79,
+                             .background = kPaper});
     if (!ctx.fonts) return;
 
     // The system grotesque is the face here because it is the one installed
     // face that carries BOTH axes this sheet needs — a grade to drive and a
     // weight to measure against it.
-    face = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
-    faceLabel = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
+    face = sketch::kit::houseFace(sketch::kit::Voice::Interface, 700);
+    faceLabel = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
     const float measure = kW - 2.0f * kPadX;
     const auto runAt = [&](float size) {
       return runPens(toU8(kProof),
-                     type({.face = face,
-                           .size = size,
-                           .color = kInk,
-                           .track = kProofTrack}),
+                     weave::textStyle({.face = face,
+                                       .size = size,
+                                       .color = kInk,
+                                       .track = kProofTrack}),
                      *ctx.fonts)
           .back();
     };
     proofSize = kRefSize * measure / runAt(kRefSize);
-    proof = type(
+    proof = weave::textStyle(
         {.face = face, .size = proofSize, .color = kInk, .track = kProofTrack});
     pens = runPens(toU8(kProof), proof, *ctx.fonts);
     glyphs = (int)pens.size() - 1;
@@ -428,11 +438,11 @@ struct AxisRipple : sketch::Sketch {
     // takes. Both pairs are shaped at the ROW size, so the printed px are
     // the px on the page.
     const auto widthAt = [&](const char (&tag)[5], float value, float size) {
-      sigil::weave::TextStyle s =
-          type({.face = face,
-                .size = size,
-                .color = kInk,
-                .track = kProofTrack * (size == proofSize ? 1.0f : 0.6f)});
+      sigil::weave::TextStyle s = weave::textStyle(
+          {.face = face,
+           .size = size,
+           .color = kInk,
+           .track = kProofTrack * (size == proofSize ? 1.0f : 0.6f)});
       s.variation(tag, value);
       return runPens(toU8(kProof), s, *ctx.fonts).back();
     };
@@ -443,8 +453,8 @@ struct AxisRipple : sketch::Sketch {
     gradRowLo = widthAt("GRAD", kGradLo, kProofRowSize);
     gradRowHi = widthAt("GRAD", kGradHi, kProofRowSize);
 
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       phase = motion::phase(t, kPeriod);
       return true;
     });

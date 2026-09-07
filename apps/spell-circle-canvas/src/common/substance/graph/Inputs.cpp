@@ -8,6 +8,7 @@
 #include <include/core/SkImageInfo.h>
 
 #include <cstring>
+#include <string>
 
 #include "GraphImpl.h"
 #include "Numeric.h"
@@ -37,6 +38,7 @@ bool Graph::setImage(std::string_view identifier, const sk_sp<SkImage>& image) {
   auto* imageInput = static_cast<air::InputInstanceImage*>(in);
   if (!image) {
     imageInput->reset();
+    m_impl->heldImages.erase(std::string(identifier));
     return true;
   }
   const int w = image->width(), h = image->height();
@@ -60,7 +62,7 @@ bool Graph::setImage(std::string_view identifier, const sk_sp<SkImage>& image) {
                   bm.getAddr(0, y), (size_t)w * 4);
   }
   imageInput->setImage(held);
-  m_impl->heldImages.push_back(held);
+  m_impl->heldImages[std::string(identifier)] = held;
   return true;
 }
 
@@ -92,6 +94,9 @@ bool Graph::normalsAreDirectX() const {
 
 void Graph::reset() {
   for (air::InputInstanceBase* in : m_impl->instance->getInputs()) in->reset();
+  // Every input is back to what it was authored with, so nothing names
+  // the images that were fed in.
+  m_impl->heldImages.clear();
 }
 
 }  // namespace sigil::substance

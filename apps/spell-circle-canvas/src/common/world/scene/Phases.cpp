@@ -10,10 +10,15 @@
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/values/Animated.h>
 
+#include <boost/unordered/unordered_flat_set.hpp>
+#include <cstdio>
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
+#include <mutex>
 #include <optional>
+#include <string>
 #include <utility>
 #include <variant>
 
@@ -24,6 +29,17 @@ namespace sigil::world {
 namespace {
 
 namespace gm = ::sigil::geometry::mesh;
+
+/** Says @p message the first time it is said and never again. The walk
+ *  this is called from visits every node of every frame, so a mistake
+ *  standing in a scene would otherwise be reported at frame rate. */
+void reportOnce(const std::string& message) {
+  static std::mutex mutex;
+  static boost::unordered_flat_set<std::string> said;
+  const std::lock_guard lock(mutex);
+  if (!said.insert(message).second) return;
+  std::fprintf(stderr, "[sigil::world] %s\n", message.c_str());
+}
 
 /** The surface a node wears: its own, or the first of its per-face
  *  slots. */
@@ -58,9 +74,12 @@ glm::vec4 baseColorOf(const material::Material* material) {
   return material->get<glm::vec4>("baseColor");
 }
 
-/** The emitter, carried by the placement of the node that declared it. */
-Light placeLight(Light light, const glm::mat4& world) {
-  const glm::mat3 basis(world);
+/** The emitter, carried by the placement of the node that declared it.
+ *  A direction is not carried the way a point is: under a non-uniform
+ *  scale the basis tilts it off the surfaces it was aimed at, and the
+ *  normal transform is what keeps the angle. */
+light::Light placeLight(light::Light light, const glm::mat4& world) {
+  const glm::mat3 basis = glm::inverseTranspose(glm::mat3(world));
   light.direction = basis * light.direction;
   if (glm::dot(light.direction, light.direction) > 0.0f)
     light.direction = glm::normalize(light.direction);
@@ -70,7 +89,8 @@ Light placeLight(Light light, const glm::mat4& world) {
 }
 
 /** The viewpoint, carried the same way. */
-Camera placeCamera(Camera camera, const glm::mat4& world) {
+geometry::mesh::camera::Camera placeCamera(
+    geometry::mesh::camera::Camera camera, const glm::mat4& world) {
   camera.eye = glm::vec3(world * glm::vec4(camera.eye, 1.0f));
   camera.target = glm::vec3(world * glm::vec4(camera.target, 1.0f));
   camera.up = glm::mat3(world) * camera.up;
@@ -130,12 +150,12 @@ bool Scene::Impl::phaseDescribe() {
 // ---- lanes -----------------------------------------------------------------
 
 void Scene::Impl::sampleLanes(Instance& inst) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   lanesOf(node, laneScratch);
   const auto read = [this, &inst](Slot slot) {
     const Lane& lane = laneScratch[slot];
     return lane.value
-               ? core::resolveFloatAt(inst.anims[slot].get(), *lane.value)
+               ? motion::resolveFloatAt(inst.anims[slot].get(), *lane.value)
                : lane.standing;
   };
   inst.values.translate = {read(kTranslateX), read(kTranslateY),
@@ -151,6 +171,13 @@ void Scene::Impl::sampleLanes(Instance& inst) {
   inst.intensity = read(kIntensity);
   inst.emission = {read(kEmissionRed), read(kEmissionGreen),
                    read(kEmissionBlue)};
+  inst.envDiffuse = read(kEnvironmentDiffuse);
+  inst.envSpecular = read(kEnvironmentSpecular);
+  inst.envRoughness = read(kEnvironmentRoughness);
+  inst.envCrossfade = read(kEnvironmentCrossfade);
+  inst.envExposure = read(kEnvironmentExposure);
+  inst.backdrop = read(kBackdrop);
+  inst.backdropBlur = read(kBackdropBlur);
   for (std::unique_ptr<Instance>& child : inst.children) sampleLanes(*child);
 }
 
@@ -163,7 +190,7 @@ bool Scene::Impl::phaseLanes() {
 
 void Scene::Impl::deriveInto(Instance& inst, const glm::mat4& parentWorld,
                              bool* changed) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   glm::mat4 local(1.0f);
   if (node.transform.matrix) {
     local = *node.transform.matrix;
@@ -188,14 +215,6 @@ void Scene::Impl::deriveInto(Instance& inst, const glm::mat4& parentWorld,
 
   const glm::mat4 world = parentWorld * local;
   if (world != inst.world) {
-    // THE RESCAN SIDE of the settle: a node the proof released has
-    // promised to re-declare the frame it moves, before anything holding
-    // its old reading replays.
-    if (inst.released) {
-      inst.released = false;
-      inst.settle.restart();
-      staleBakesUp(&inst);
-    }
     inst.world = world;
     *changed = true;
   }
@@ -209,10 +228,27 @@ bool Scene::Impl::phaseDerive() {
   return changed;
 }
 
+void Scene::Impl::rescanMoved() {
+  if (root) rescanMoved(*root);
+}
+
+void Scene::Impl::rescanMoved(Instance& inst) {
+  // The hold's own answer to "is this still the reading I am holding
+  // against": it restarts the warmup from the new placement and says
+  // whether the node must re-declare. Asking the SETTLE rather than
+  // comparing against the previous frame's matrix is what keeps the
+  // release and the re-declaration reading the same value.
+  if (inst.settle.moved(scalarsOf(inst.world))) {
+    inst.released = false;
+    staleBakesUp(&inst);
+  }
+  for (std::unique_ptr<Instance>& child : inst.children) rescanMoved(*child);
+}
+
 // ---- the geometry slot's resource -------------------------------------------
 
 Geometry Scene::Impl::effectiveGeometry(const Instance& inst) const {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   if (!node.window) return node.geometry;
   const Chained* chained = std::get_if<Chained>(&node.geometry);
   if (!chained || chained->chain.empty()) return node.geometry;
@@ -240,8 +276,8 @@ void Scene::Impl::ensureResource(Instance& inst) {
   // slot the window cannot address would compare its whole contents
   // against the store on every frame of a motion that does not touch it.
   const bool windowMoved =
-      inst.desc->window &&
-      std::holds_alternative<Chained>(inst.desc->geometry) &&
+      inst.description->window &&
+      std::holds_alternative<Chained>(inst.description->geometry) &&
       (inst.resolvedHead != inst.windowHead ||
        inst.resolvedSpan != inst.windowSpan);
   if (!inst.geometryDirty && !windowMoved) return;
@@ -255,7 +291,7 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
   for (std::unique_ptr<Instance>& child : inst.children)
     childVolatility.add(foldVolatility(*child));
 
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   lanesOf(node, laneScratch);
   bool movingPlacement = false;
   bool movingContent = false;
@@ -263,16 +299,22 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
   for (size_t i = 0; i < laneScratch.size(); ++i) {
     const Lane& lane = laneScratch[i];
     if (!lane.value) continue;
-    const bool live = lane.value->binding() != nullptr ||
-                      (inst.anims[i] && inst.anims[i]->started);
-    if (!live) continue;
+    // Whether this lane is MOVING, in SigilMotion's one spelling. It asks
+    // whether the held motion is CONNECTED, not whether one was ever
+    // started: a lane whose entrance has landed is still, and a lane that
+    // could never be told so would hold the whole subtree volatile for
+    // the rest of the scene's life.
+    if (!motion::isLive(inst.anims[i].get(), *lane.value)) continue;
     // A window drives what the node IS MADE OF; the emitter's dials
     // drive what the frame is LIT BY and nothing about any node; every
     // other lane drives only where the node stands.
     if (i == kWindowHead || i == kWindowSpan) {
       movingContent = true;
     } else if (i == kIntensity || i == kEmissionRed || i == kEmissionGreen ||
-               i == kEmissionBlue) {
+               i == kEmissionBlue || i == kEnvironmentDiffuse ||
+               i == kEnvironmentSpecular || i == kEnvironmentRoughness ||
+               i == kEnvironmentCrossfade || i == kEnvironmentExposure ||
+               i == kBackdrop || i == kBackdropBlur) {
       // The emitters are gathered on the walk below, which visits every
       // node every frame, and a bake holds a draw order and no light —
       // so a lamp that ramps stales nothing.
@@ -316,26 +358,53 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
   // every node every frame — a bake replays a draw order, and a light
   // inside one must not go missing with it.
   if (node.light) {
-    Light emitter = *node.light;
+    light::Light emitter = *node.light;
     emitter.intensity = inst.intensity;
     emitter.color = {inst.emission.r, inst.emission.g, inst.emission.b,
                      emitter.color.a};
     lights.push_back(placeLight(emitter, inst.world));
+  }
+  if (node.environment) {
+    if (environment.valid()) {
+      // A SECOND SKY IS NOT A CHOICE THE FRAME CAN MAKE. The first in
+      // tree order shades, and both keys are named, because a silent
+      // no-op would be a set lit by whichever node happened to come
+      // last and no way to see which.
+      reportOnce("two environment maps in one frame: \"" + environmentKey +
+                 "\" shades and \"" + inst.description->key + "\" is ignored");
+    } else {
+      environment = *node.environment;
+      environment.intensity = inst.intensity;
+      environment.tint = inst.emission;
+      environment.diffuse = inst.envDiffuse;
+      environment.specular = inst.envSpecular;
+      environment.roughnessBias = inst.envRoughness;
+      environment.crossfade = inst.envCrossfade;
+      environment.exposure = inst.envExposure;
+      environment.backdrop.intensity = inst.backdrop;
+      environment.backdrop.blur = inst.backdropBlur;
+      // THE NODE'S TRANSFORM ORIENTS THE SKY. A panorama is sampled by
+      // a direction, so only the rotation of the placement means
+      // anything to it; the inverse of that rotation is what carries a
+      // world-space direction into the panorama's own frame.
+      environmentOrientation = glm::inverse(glm::mat3(inst.world));
+      environmentKey = inst.description->key;
+    }
   }
   if (node.camera && !camera) camera = placeCamera(*node.camera, inst.world);
   return inst.verdict;
 }
 
 void Scene::Impl::writeComponents(Instance& inst) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   registry.get<component::Placement>(inst.entity).world = inst.world;
-  const Mesh* mesh =
+  const geometry::mesh::Mesh* mesh =
       inst.resource && !inst.resource->cooked.mesh.indices.empty()
           ? &inst.resource->cooked.mesh
           : nullptr;
   if (mesh)
-    registry.emplace_or_replace<component::Body>(inst.entity, mesh,
-                                                 inst.resource->id);
+    registry.emplace_or_replace<component::Body>(
+        inst.entity, mesh, inst.resource->id, node.backface);
   else
     registry.remove<component::Body>(inst.entity);
   const material::Material* worn = surfaceOf(node);
@@ -372,7 +441,7 @@ void Scene::Impl::extractInto(Instance& inst, std::vector<entt::entity>& into,
 
   // The ancestry a selector reads is the keys standing above the node,
   // which is exactly this walk's own stack.
-  ancestry.push_back(inst.desc->key);
+  ancestry.push_back(inst.description->key);
   for (std::unique_ptr<Instance>& child : inst.children) {
     if (recording) {
       // A bake is one order for the whole settled subtree. Asking a
@@ -409,6 +478,9 @@ void Scene::Impl::extractInto(Instance& inst, std::vector<entt::entity>& into,
 bool Scene::Impl::phaseExtract() {
   order.clear();
   lights.clear();
+  environment = {};
+  environmentOrientation = glm::mat3(1.0f);
+  environmentKey.clear();
   camera.reset();
   ancestry.clear();
   if (!root) return false;

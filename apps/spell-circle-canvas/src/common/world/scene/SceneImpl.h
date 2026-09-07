@@ -25,7 +25,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -52,8 +51,9 @@ struct Placement {
  *  their whole life; the id names the artefact across its life and is
  *  never given to another, which an address cannot promise. */
 struct Body {
-  const Mesh* mesh = nullptr;
+  const geometry::mesh::Mesh* mesh = nullptr;
   uint64_t id = 0;
+  Backface backface = Backface::Hidden;
 };
 
 /** What the surface is: the colour a tier with no compiler to run a
@@ -94,7 +94,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   entt::entity entity = entt::null;
   /** One motion slot per fixed lane row, so a lane keeps its meaning
    *  across a patch that changed what the node holds. */
-  std::array<std::unique_ptr<core::AnimatedFloat>, kLaneCount> anims;
+  std::array<std::unique_ptr<motion::AnimatedFloat>, kLaneCount> anims;
 
   /** What the lanes resolved to this frame. */
   TransformValues values;
@@ -105,6 +105,16 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
    *  the strength it shines at and the colour it shines in. */
   float intensity = 1.0f;
   glm::vec3 emission{1.0f, 1.0f, 1.0f};
+  /** …and what an environment map's own dials resolved to, for a node
+   *  placing one. Its strength and tint are the two rows above: a
+   *  panorama placed in a set is an emitter of a kind. */
+  float envDiffuse = 1.0f;
+  float envSpecular = 1.0f;
+  float envRoughness = 0.0f;
+  float envCrossfade = 0.0f;
+  float envExposure = 1.0f;
+  float backdrop = 0.0f;
+  float backdropBlur = 0.0f;
 
   /** The artefact this node's geometry slot resolved, and the window
    *  values it was resolved at — a moving window is moving geometry, so
@@ -147,7 +157,7 @@ inline constexpr int kConvergeRounds = 8;
 /** THE HOST. It implements the ReconcileHost operations on itself and
  *  holds the reconciler over its own node and description types. */
 struct Scene::Impl {
-  using Desc = std::shared_ptr<ElementNode>;
+  using Description = std::shared_ptr<ElementNode>;
 
   /** What one bake decision acts on: the node whose subtree is being
    *  decided, the host that walks it, and the order the result lands
@@ -161,7 +171,7 @@ struct Scene::Impl {
   explicit Impl(motion::Ticker& t);
 
   motion::Ticker& ticker;
-  core::Reconciler<Impl, Instance, Desc> reconciler;
+  core::Reconciler<Impl, Instance, Description> reconciler;
   std::unique_ptr<Instance> root;
   entt::registry registry;
   ResourceStore store;
@@ -172,11 +182,17 @@ struct Scene::Impl {
    *  argument describe needs. */
   Element pending;
 
-  std::unordered_map<std::string, Instance*> byKey;
+  core::Reconciler<Impl, Instance, Description>::KeyIndex byKey;
   /** The extracted draw order, in tree order. */
   std::vector<entt::entity> order;
-  std::vector<Light> lights;
-  std::optional<Camera> camera;
+  std::vector<light::Light> lights;
+  /** The one environment map the frame described, with its dials
+   *  resolved and the node's placement folded into its orientation. A
+   *  frame holds one; a second is a warning naming both keys. */
+  Environment environment;
+  glm::mat3 environmentOrientation{1.0f};
+  std::string environmentKey;
+  std::optional<geometry::mesh::camera::Camera> camera;
 
   std::vector<Lane> laneScratch;
   std::vector<Lane> prevLaneScratch;
@@ -205,22 +221,33 @@ struct Scene::Impl {
   core::Bake<BakeTarget> bake;
 
   // ---- the reconciler's host (Host.cpp) ----
-  static const std::string& keyOf(const Desc& desc) { return desc->key; }
-  static bool equal(const Desc& a, const Desc& b) { return propsEqual(*a, *b); }
-  static bool reconcilesChildren(const Desc&) { return true; }
-  static const std::vector<Element>& children(const Desc& desc) {
-    return desc->children;
+  static const std::string& keyOf(const Description& description) {
+    return description->key;
   }
-  static const Desc& descOf(const Element& child) { return child.node(); }
-  static const Memo* memoOf(const Desc& desc) {
-    return desc->memo ? &*desc->memo : nullptr;
+  static bool equal(const Description& a, const Description& b) {
+    return propsEqual(*a, *b);
   }
-  static Desc produce(const Memo& memo) {
+  static bool reconcilesChildren(const Description&) { return true; }
+  static const std::vector<Element>& children(const Description& description) {
+    return description->children;
+  }
+  static const Description& descriptionOf(const Element& child) {
+    return child.node();
+  }
+  static const Memo* memoOf(const Description& description) {
+    return description->memo ? &*description->memo : nullptr;
+  }
+  static Description produce(const Memo& memo) {
     return memo.invoke(memo.props).node();
   }
 
-  std::unique_ptr<Instance> create(const Desc& desc, Instance* parent,
-                                   size_t ordinal, size_t count);
+  std::unique_ptr<Instance> create(const Description& description,
+                                   Instance* parent, size_t ordinal,
+                                   size_t count);
+  /** The entrance delay this subtree's mount inherits, in seconds: the
+   *  sum of every ancestor cascade's start time for the branch being
+   *  walked. Live only for the depth of one create(); zero elsewhere. */
+  float mountDelayCarrySeconds = 0.0f;
   void onPatched(Instance& inst, const ElementNode* prev,
                  const ElementNode& next);
   void reorder(Instance& parent, bool structureChanged);
@@ -243,6 +270,20 @@ struct Scene::Impl {
   bool phaseExtract();
   bool phaseGraph();
   bool phaseExecute();
+
+  /** THE HOLD'S RESCAN SIDE, run between the converging rounds: every
+   *  node whose placement now differs from the reading its hold is
+   *  against re-declares, before extract reads a single artefact.
+   *
+   *  It visits EVERY node, not only the ones the proof released, because
+   *  a bake here is decided on declarations alone: a node with no lane of
+   *  its own declares no placement motion and takes an artefact whether
+   *  or not its hold has warmed up, and an ancestor's lane can move it
+   *  afterwards. Skipping it would replay that artefact — the entities
+   *  AND the placement recorded with them — where the node used to
+   *  stand. */
+  void rescanMoved();
+  void rescanMoved(Instance& inst);
 
   /** Resolves @p inst's geometry slot against the store, dropping
    *  whatever it held. @p geometry is the slot with this frame's window
@@ -268,11 +309,12 @@ struct Scene::Impl {
 
   /** The viewpoint the passes execute from: the tree's, or the frame's
    *  where the tree declared none. */
-  [[nodiscard]] Camera viewpoint() const;
+  [[nodiscard]] geometry::mesh::camera::Camera viewpoint() const;
   /** The extracted bodies, sorted back to front by view depth from
    *  @p camera — stably, so two at one depth stand in tree order. It is
    *  the one place components become the values a draw reads. */
-  void collectBodies(const Camera& camera, std::vector<Draw>& into) const;
+  void collectBodies(const geometry::mesh::camera::Camera& camera,
+                     std::vector<Draw>& into) const;
   /** Hands over what the frame before read back. */
   void deliverReadbacks();
 };

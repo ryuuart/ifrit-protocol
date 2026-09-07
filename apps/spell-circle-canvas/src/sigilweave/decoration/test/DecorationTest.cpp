@@ -1,8 +1,9 @@
 /** @file
- * Decoration bands resolved without drawing: metrics fill in what the
- * style left at zero, skip-ink cuts a band around descenders, a paint
- * override is applied verbatim, and a highlight defaults to a translucent
- * foreground.
+ * Decoration bands resolved without drawing: what a face's metrics fill in
+ * and what an explicit number overrides, where every kind and side anchors
+ * its band, skip-ink cutting a band around descenders, a paint override
+ * applied verbatim, a highlight's translucent default, and the walk both
+ * draws run over turning a paragraph's decorations into rectangles.
  */
 
 #include <gtest/gtest.h>
@@ -12,61 +13,77 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkShader.h>
 #include <sigilweave/decoration/Decoration.h>
+#include <sigilweave/decoration/DecorationRects.h>
 
-#include "support/Fonts.h"
+#include <string>
+#include <vector>
+
+#include "support/Faces.h"
 #include "support/Layouts.h"
 #include "support/Paragraphs.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
-TEST(DecorationTest, BandResolvesFromMetricsWithFloors) {
+namespace {
+
+/// A face that reports no band metrics at all: a band resolved against it
+/// has nothing but the floors and the style's own numbers to go on.
+SkFontMetrics silentMetrics() {
   SkFontMetrics metrics = {};
-  metrics.fFlags = 0;  // face reports no underline/strikeout metrics
+  metrics.fFlags = 0;
   metrics.fAscent = -20.0f;
   metrics.fXHeight = 10.0f;
+  return metrics;
+}
 
+}  // namespace
+
+TEST(DecorationBand, AFaceThatReportsNoBandMetricsGetsAOnePixelFloor) {
   const detail::ResolvedDecorationBand underline =
-      detail::resolveDecorationBand({}, metrics, SK_ColorRED);
-  EXPECT_FLOAT_EQ(underline.thickness, 1.0f) << "1px floor without metrics";
-  EXPECT_GT(underline.position, 0.0f) << "underline sits below the baseline";
-  EXPECT_EQ(underline.color, SK_ColorRED) << "transparent → foreground color";
+      detail::resolveDecorationBand({}, silentMetrics(), SK_ColorRED);
+  EXPECT_FLOAT_EQ(underline.thickness, 1.0f);
+}
 
-  Decoration strike;
-  strike.kind = Decoration::Kind::kStrikethrough;
-  const detail::ResolvedDecorationBand strikeBand =
-      detail::resolveDecorationBand(strike, metrics, SK_ColorRED);
-  EXPECT_LT(strikeBand.position, 0.0f) << "strikethrough sits above baseline";
-
-  Decoration overline;
-  overline.kind = Decoration::Kind::kOverline;
-  overline.color = SK_ColorBLUE;
-  const detail::ResolvedDecorationBand overBand =
-      detail::resolveDecorationBand(overline, metrics, SK_ColorRED);
-  EXPECT_FLOAT_EQ(overBand.position, -20.0f) << "overline rides the ascent";
-  EXPECT_EQ(overBand.color, SK_ColorBLUE) << "explicit color wins";
-
-  // Explicit thickness/offset override the metrics entirely.
-  Decoration custom;
-  custom.thickness = 3.5f;
-  custom.offset = 7.0f;
-  const detail::ResolvedDecorationBand customBand =
-      detail::resolveDecorationBand(custom, metrics, SK_ColorRED);
-  EXPECT_FLOAT_EQ(customBand.thickness, 3.5f);
-  EXPECT_FLOAT_EQ(customBand.position, 7.0f);
-
-  // When the face DOES report metrics, they win over the floor.
+TEST(DecorationBand, AFacesOwnBandMetricsWinOverTheFloor) {
+  SkFontMetrics metrics = silentMetrics();
   metrics.fFlags = SkFontMetrics::kUnderlineThicknessIsValid_Flag |
                    SkFontMetrics::kUnderlinePositionIsValid_Flag;
   metrics.fUnderlineThickness = 2.25f;
   metrics.fUnderlinePosition = 4.0f;
-  const detail::ResolvedDecorationBand metricBand =
+  const detail::ResolvedDecorationBand band =
       detail::resolveDecorationBand({}, metrics, SK_ColorRED);
-  EXPECT_FLOAT_EQ(metricBand.thickness, 2.25f);
-  EXPECT_FLOAT_EQ(metricBand.position, 4.0f);
+  EXPECT_FLOAT_EQ(band.thickness, 2.25f);
+  EXPECT_FLOAT_EQ(band.position, 4.0f);
 }
 
-TEST(DecorationTest, SkipInkBreaksAroundDescenders) {
-  FontContext& fontContext = sharedContext();
+TEST(DecorationBand, AnExplicitThicknessAndOffsetOverrideTheMetricsEntirely) {
+  SkFontMetrics metrics = silentMetrics();
+  metrics.fFlags = SkFontMetrics::kUnderlineThicknessIsValid_Flag |
+                   SkFontMetrics::kUnderlinePositionIsValid_Flag;
+  metrics.fUnderlineThickness = 2.25f;
+  metrics.fUnderlinePosition = 4.0f;
+  Decoration custom;
+  custom.thickness = 3.5f;
+  custom.offset = 7.0f;
+  const detail::ResolvedDecorationBand band =
+      detail::resolveDecorationBand(custom, metrics, SK_ColorRED);
+  EXPECT_FLOAT_EQ(band.thickness, 3.5f);
+  EXPECT_FLOAT_EQ(band.position, 7.0f);
+}
+
+TEST(DecorationBand, AnUnsetColourIsTheForegroundAndAnExplicitOneWins) {
+  EXPECT_EQ(
+      detail::resolveDecorationBand({}, silentMetrics(), SK_ColorRED).color,
+      SK_ColorRED);
+  Decoration blue;
+  blue.color = SK_ColorBLUE;
+  EXPECT_EQ(
+      detail::resolveDecorationBand(blue, silentMetrics(), SK_ColorRED).color,
+      SK_ColorBLUE);
+}
+
+TEST(DecorationBand, SkipInkBreaksAroundDescenders) {
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"gjpqy", 48.0f);
   ParagraphLayout layout = layoutSingleLine(fontContext, paragraph, {10, 100});
   ASSERT_FALSE(layout.runs.empty());
@@ -97,7 +114,7 @@ TEST(DecorationTest, SkipInkBreaksAroundDescenders) {
   EXPECT_LT(skippedLength, solidSegments[0].second - solidSegments[0].first);
 }
 
-TEST(DecorationTest, BandPaintOverrideAppliesVerbatim) {
+TEST(DecorationBand, BandPaintOverrideAppliesVerbatim) {
   SkFontMetrics metrics = {};
   metrics.fAscent = -20.0f;
   metrics.fDescent = 6.0f;
@@ -126,7 +143,7 @@ TEST(DecorationTest, BandPaintOverrideAppliesVerbatim) {
       bandPaint);
 }
 
-TEST(DecorationTest, HighlightDefaultColorIsTranslucentForeground) {
+TEST(DecorationBand, HighlightDefaultColorIsTranslucentForeground) {
   SkFontMetrics metrics = {};
   metrics.fAscent = -20.0f;
   metrics.fDescent = 6.0f;
@@ -141,62 +158,9 @@ TEST(DecorationTest, HighlightDefaultColorIsTranslucentForeground) {
   EXPECT_FLOAT_EQ(band.thickness, 26.0f) << "ascent + descent tall";
 }
 
-TEST(DecorationTest, AColumnBandIsMeasuredFromTheColumnAxis) {
-  // Down a column there is no baseline: the band is placed from the axis
-  // the glyphs centre on, and the em box's half-depth is what puts it
-  // clear of them. Ascent 20 and descent 6 make that half-depth 13.
-  SkFontMetrics metrics = {};
-  metrics.fFlags = SkFontMetrics::kUnderlineThicknessIsValid_Flag |
-                   SkFontMetrics::kUnderlinePositionIsValid_Flag;
-  metrics.fAscent = -20.0f;
-  metrics.fDescent = 6.0f;
-  metrics.fUnderlineThickness = 2.0f;
-  metrics.fUnderlinePosition = 4.0f;
-  constexpr float kHalfEm = 13.0f;
-
-  const detail::ResolvedDecorationBand underline =
-      detail::resolveDecorationBand({}, metrics, SK_ColorRED,
-                                    /*alongColumn=*/true);
-  EXPECT_FLOAT_EQ(underline.thickness, 2.0f) << "the face's own thickness";
-  EXPECT_FLOAT_EQ(underline.position, kHalfEm)
-      << "an emphasis line stands clear of the em box on the column's RIGHT";
-
-  Decoration overline;
-  overline.kind = Decoration::Kind::kOverline;
-  const detail::ResolvedDecorationBand overBand = detail::resolveDecorationBand(
-      overline, metrics, SK_ColorRED, /*alongColumn=*/true);
-  EXPECT_FLOAT_EQ(overBand.position, -kHalfEm - overBand.thickness)
-      << "and its opposite stands clear on the LEFT";
-
-  Decoration strike;
-  strike.kind = Decoration::Kind::kStrikethrough;
-  const detail::ResolvedDecorationBand strikeBand =
-      detail::resolveDecorationBand(strike, metrics, SK_ColorRED,
-                                    /*alongColumn=*/true);
-  EXPECT_FLOAT_EQ(strikeBand.position, -strikeBand.thickness * 0.5f)
-      << "a strikethrough runs DOWN the axis it crosses out";
-
-  Decoration highlight;
-  highlight.kind = Decoration::Kind::kHighlight;
-  const detail::ResolvedDecorationBand highlightBand =
-      detail::resolveDecorationBand(highlight, metrics, SK_ColorRED,
-                                    /*alongColumn=*/true);
-  EXPECT_FLOAT_EQ(highlightBand.position, -kHalfEm);
-  EXPECT_FLOAT_EQ(highlightBand.thickness, 2 * kHalfEm)
-      << "a highlight covers the whole column pitch";
-
-  // An explicit offset still wins, and is then read across the column.
-  Decoration nudged;
-  nudged.offset = -9.0f;
-  EXPECT_FLOAT_EQ(detail::resolveDecorationBand(nudged, metrics, SK_ColorRED,
-                                                /*alongColumn=*/true)
-                      .position,
-                  -9.0f);
-}
-
-TEST(DecorationTest, AColumnBandRunsUncutDownItsRun) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"縦書きの傍線", 32.0f);
+TEST(DecorationBand, AColumnBandRunsUncutDownItsRun) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = machineParagraph(u8"縦書きの傍線", 32.0f);
   paragraph.setWritingMode(WritingMode::kVerticalRL);
   VerticalBlockFlow flow(SkRect::MakeWH(120, 400));
   ParagraphLayoutOptions options;
@@ -221,12 +185,14 @@ TEST(DecorationTest, AColumnBandRunsUncutDownItsRun) {
   EXPECT_FLOAT_EQ(segments[0].second, run.origin.y() + run.shaped->advance);
 }
 
-TEST(DecorationTest, TheOppositeSideTakesTheOtherAnchor) {
-  // An underline and an overline are one band on the two sides of the same
-  // axis, so asking for the opposite side is reading the other's metric —
-  // below the baseline becomes the ascent line, and right of the column
-  // becomes left of it. Ascent 20 and descent 6 make the column's half-em
-  // 13; the face's underline sits 4 below the baseline, 2 thick.
+// ── Where a band's kind and side anchor it ───────────────────────────────
+
+namespace {
+
+/// A face that reports its own underline: ascent 20 and descent 6 make the
+/// em box 26 deep, so a column's half-em is 13, and the underline sits 4
+/// below the baseline and is 2 thick.
+SkFontMetrics instrumentMetrics() {
   SkFontMetrics metrics = {};
   metrics.fFlags = SkFontMetrics::kUnderlineThicknessIsValid_Flag |
                    SkFontMetrics::kUnderlinePositionIsValid_Flag;
@@ -235,86 +201,164 @@ TEST(DecorationTest, TheOppositeSideTakesTheOtherAnchor) {
   metrics.fXHeight = 10.0f;
   metrics.fUnderlineThickness = 2.0f;
   metrics.fUnderlinePosition = 4.0f;
-  constexpr float kHalfEm = 13.0f;
+  return metrics;
+}
 
-  const auto band = [&](Decoration::Kind kind, Decoration::Side side,
-                        bool alongColumn) {
-    Decoration decoration;
-    decoration.kind = kind;
-    decoration.side = side;
-    return detail::resolveDecorationBand(decoration, metrics, SK_ColorRED,
-                                         alongColumn);
-  };
+detail::ResolvedDecorationBand bandFor(Decoration::Kind kind,
+                                       Decoration::Side side,
+                                       bool alongColumn) {
+  Decoration decoration;
+  decoration.kind = kind;
+  decoration.side = side;
+  return detail::resolveDecorationBand(decoration, instrumentMetrics(),
+                                       SK_ColorRED, alongColumn);
+}
 
-  // Along a line the swap is below ↔ above: the flipped underline rides the
-  // ascent line an overline rides, and the flipped overline drops to the
-  // face's underline metric.
-  EXPECT_FLOAT_EQ(
-      band(Decoration::Kind::kUnderline, Decoration::Side::kDefault, false)
-          .position,
-      4.0f);
-  EXPECT_FLOAT_EQ(
-      band(Decoration::Kind::kUnderline, Decoration::Side::kOpposite, false)
-          .position,
-      -20.0f)
-      << "an underline on the opposite side stands ABOVE the line";
-  EXPECT_FLOAT_EQ(
-      band(Decoration::Kind::kOverline, Decoration::Side::kDefault, false)
-          .position,
-      -20.0f);
-  EXPECT_FLOAT_EQ(
-      band(Decoration::Kind::kOverline, Decoration::Side::kOpposite, false)
-          .position,
-      4.0f)
-      << "and an overline on it drops BELOW";
-  // The thickness is the decoration's own either way: it borrows a
-  // position, not a whole band.
-  EXPECT_FLOAT_EQ(
-      band(Decoration::Kind::kUnderline, Decoration::Side::kOpposite, false)
-          .thickness,
-      2.0f);
+/// One row of the anchor table: the near edge and the depth a band of this
+/// kind, on this side, in this writing mode resolves to.
+struct BandAnchor {
+  const char* name;
+  Decoration::Kind kind;
+  Decoration::Side side;
+  bool alongColumn;
+  float position;
+  float thickness;
+};
 
-  // Down a column the same swap is right ↔ left.
-  EXPECT_FLOAT_EQ(
-      band(Decoration::Kind::kUnderline, Decoration::Side::kDefault, true)
-          .position,
-      kHalfEm);
-  EXPECT_FLOAT_EQ(
-      band(Decoration::Kind::kUnderline, Decoration::Side::kOpposite, true)
-          .position,
-      -kHalfEm - 2.0f)
-      << "the column's emphasis line moved to the LEFT of the type";
-  EXPECT_FLOAT_EQ(
-      band(Decoration::Kind::kOverline, Decoration::Side::kDefault, true)
-          .position,
-      -kHalfEm - 2.0f);
-  EXPECT_FLOAT_EQ(
-      band(Decoration::Kind::kOverline, Decoration::Side::kOpposite, true)
-          .position,
-      kHalfEm)
-      << "and the overline to the RIGHT";
+class DecorationAnchor : public ::testing::TestWithParam<BandAnchor> {};
 
+}  // namespace
+
+TEST_P(DecorationAnchor, ABandLandsOnTheAnchorItsKindAndSideName) {
+  // An underline and an overline are one band on the two sides of the same
+  // axis, so asking for the opposite side is reading the other's metric —
+  // below the baseline becomes the ascent line along a line, and right of
+  // the column becomes left of it down a column. The thickness is the
+  // decoration's own either way: it borrows a position, not a whole band.
+  const BandAnchor& row = GetParam();
+  const detail::ResolvedDecorationBand band =
+      bandFor(row.kind, row.side, row.alongColumn);
+  EXPECT_FLOAT_EQ(band.position, row.position);
+  EXPECT_FLOAT_EQ(band.thickness, row.thickness);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Anchors, DecorationAnchor,
+    ::testing::Values(
+        BandAnchor{"UnderlineOnALine", Decoration::Kind::kUnderline,
+                   Decoration::Side::kDefault, false, 4.0f, 2.0f},
+        BandAnchor{"UnderlineFlippedOnALine", Decoration::Kind::kUnderline,
+                   Decoration::Side::kOpposite, false, -20.0f, 2.0f},
+        BandAnchor{"OverlineOnALine", Decoration::Kind::kOverline,
+                   Decoration::Side::kDefault, false, -20.0f, 2.0f},
+        BandAnchor{"OverlineFlippedOnALine", Decoration::Kind::kOverline,
+                   Decoration::Side::kOpposite, false, 4.0f, 2.0f},
+        BandAnchor{"UnderlineDownAColumn", Decoration::Kind::kUnderline,
+                   Decoration::Side::kDefault, true, 13.0f, 2.0f},
+        BandAnchor{"UnderlineFlippedDownAColumn", Decoration::Kind::kUnderline,
+                   Decoration::Side::kOpposite, true, -15.0f, 2.0f},
+        BandAnchor{"OverlineDownAColumn", Decoration::Kind::kOverline,
+                   Decoration::Side::kDefault, true, -15.0f, 2.0f},
+        BandAnchor{"OverlineFlippedDownAColumn", Decoration::Kind::kOverline,
+                   Decoration::Side::kOpposite, true, 13.0f, 2.0f},
+        BandAnchor{"HighlightDownAColumn", Decoration::Kind::kHighlight,
+                   Decoration::Side::kDefault, true, -13.0f, 26.0f}),
+    [](const ::testing::TestParamInfo<BandAnchor>& info) {
+      return std::string(info.param.name);
+    });
+
+TEST(DecorationBand, ABandThatCrossesTheTypeHasNoSecondSideToTakeUp) {
   // A strikethrough and a highlight cross the type rather than standing
-  // beside it: they have no second side, in either writing mode.
+  // beside it, in either writing mode.
   for (const bool alongColumn : {false, true})
     for (const Decoration::Kind kind :
-         {Decoration::Kind::kStrikethrough, Decoration::Kind::kHighlight}) {
+         {Decoration::Kind::kStrikethrough, Decoration::Kind::kHighlight})
       EXPECT_FLOAT_EQ(
-          band(kind, Decoration::Side::kOpposite, alongColumn).position,
-          band(kind, Decoration::Side::kDefault, alongColumn).position)
-          << "a band anchored across the type has no side to swap";
-    }
+          bandFor(kind, Decoration::Side::kOpposite, alongColumn).position,
+          bandFor(kind, Decoration::Side::kDefault, alongColumn).position);
 
-  // An explicit offset names the near edge outright, so there is nothing
-  // left for a side to choose.
+  // Along a line a strikethrough rides above the baseline; down a column it
+  // runs ON the axis it crosses out, half its own depth to either side.
+  EXPECT_LT(bandFor(Decoration::Kind::kStrikethrough,
+                    Decoration::Side::kDefault, false)
+                .position,
+            0.0f);
+  const detail::ResolvedDecorationBand crossing = bandFor(
+      Decoration::Kind::kStrikethrough, Decoration::Side::kDefault, true);
+  EXPECT_FLOAT_EQ(crossing.position, -crossing.thickness * 0.5f);
+}
+
+TEST(DecorationBand, AnExplicitOffsetNamesTheNearEdgeAndNoSideMovesIt) {
   Decoration nudged;
   nudged.offset = -9.0f;
   nudged.side = Decoration::Side::kOpposite;
-  EXPECT_FLOAT_EQ(
-      detail::resolveDecorationBand(nudged, metrics, SK_ColorRED).position,
-      -9.0f);
-  EXPECT_FLOAT_EQ(detail::resolveDecorationBand(nudged, metrics, SK_ColorRED,
-                                                /*alongColumn=*/true)
-                      .position,
-                  -9.0f);
+  for (const bool alongColumn : {false, true})
+    EXPECT_FLOAT_EQ(detail::resolveDecorationBand(nudged, instrumentMetrics(),
+                                                  SK_ColorRED, alongColumn)
+                        .position,
+                    -9.0f);
+}
+
+// ── The walk both draws run over ─────────────────────────────────────────
+
+TEST(DecorationRects, ASpanningBandIsOneRectangleAcrossEveryRunItCovers) {
+  // The walk merges contiguous runs of one style on one line into a single
+  // band that also covers the glue between them, and emits it in the pass
+  // its kind belongs to.
+  auto [paragraph, layout] = twoWordsOnOneLine();
+  const std::vector<const PositionedRun*> placed = wordRuns(layout);
+  ASSERT_GE(placed.size(), 2u);
+
+  PaintStyle underlined(SK_ColorBLACK);
+  Decoration underline;
+  underline.thickness = 3.0f;
+  underline.offset = 6.0f;
+  underline.skipInk = false;
+  underlined.addDecoration(underline);
+  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
+                     underlined);
+
+  const auto rectsInPhase = [&](detail::DecorationPhase phase) {
+    std::vector<SkRect> rects;
+    detail::forEachDecorationRect(
+        layout.runs, paragraph.spans(), nullptr, phase,
+        [&](const SkRect& rect, const SkPaint&) { rects.push_back(rect); });
+    return rects;
+  };
+
+  const std::vector<SkRect> above =
+      rectsInPhase(detail::DecorationPhase::kAboveGlyphs);
+  ASSERT_EQ(above.size(), 1u) << "two words under one style are one band";
+  EXPECT_FLOAT_EQ(above.front().left(), placed.front()->origin.x());
+  EXPECT_FLOAT_EQ(above.front().right(),
+                  placed.back()->origin.x() + placed.back()->shaped->advance)
+      << "the band must reach across the glue to the last run";
+  EXPECT_FLOAT_EQ(above.front().height(), 3.0f);
+  EXPECT_FLOAT_EQ(above.front().top(), placed.front()->origin.y() + 6.0f);
+
+  EXPECT_TRUE(rectsInPhase(detail::DecorationPhase::kBelowGlyphs).empty())
+      << "only a highlight draws beneath the glyphs";
+}
+
+TEST(DecorationRects, APerWordBandIsOneRectanglePerRunWithTheGapLeftOpen) {
+  auto [paragraph, layout] = twoWordsOnOneLine();
+
+  PaintStyle underlined(SK_ColorBLACK);
+  Decoration perWord;
+  perWord.span = Decoration::Span::kPerWord;
+  perWord.thickness = 3.0f;
+  perWord.offset = 6.0f;
+  perWord.skipInk = false;
+  underlined.addDecoration(perWord);
+  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
+                     underlined);
+
+  std::vector<SkRect> rects;
+  detail::forEachDecorationRect(
+      layout.runs, paragraph.spans(), nullptr,
+      detail::DecorationPhase::kAboveGlyphs,
+      [&](const SkRect& rect, const SkPaint&) { rects.push_back(rect); });
+  ASSERT_EQ(rects.size(), 2u) << "one band per word run";
+  EXPECT_LT(rects[0].right(), rects[1].left())
+      << "the glue between the words stays open";
 }

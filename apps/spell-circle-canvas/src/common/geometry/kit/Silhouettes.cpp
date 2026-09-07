@@ -1,0 +1,362 @@
+/** @file
+ * The silhouette catalog's bodies: every generator's `path(SkSize)` and
+ * the corner shapes.
+ */
+
+#include "sigilgeometry/kit/Silhouettes.h"
+
+#include <include/core/SkMatrix.h>
+#include <include/utils/SkParsePath.h>
+#include <sigilcore/compute/Noise.h>
+
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
+namespace sigil::geometry::shapes {
+
+Svg svg(const char* d, bool preserveAspect) {
+  SkPath parsed;
+  if (auto result = SkParsePath::FromSVGString(d)) parsed = std::move(*result);
+  return Svg{std::move(parsed), preserveAspect};
+}
+
+SkPath Polygon::path(SkSize s) const {
+  const int n = std::max(sides, 3);
+  const float cx = s.width() / 2, cy = s.height() / 2;
+  const float base = rotationDeg * SK_FloatPI / 180 - SK_FloatPI / 2;
+  SkPathBuilder b;
+  for (int i = 0; i < n; ++i) {
+    const float a = base + i * (2 * SK_FloatPI / n);
+    const SkPoint p{cx + cx * std::cos(a), cy + cy * std::sin(a)};
+    if (i == 0)
+      b.moveTo(p);
+    else
+      b.lineTo(p);
+  }
+  b.close();
+  return b.detach();
+}
+
+SkPath Star::path(SkSize s) const {
+  const int n = std::max(points, 2) * 2;
+  const float cx = s.width() / 2, cy = s.height() / 2;
+  auto vertex = [&](int i) {
+    const float r = (i % 2 == 0) ? 1.0f : innerRatio;
+    const float a = -SK_FloatPI / 2 + i * (2 * SK_FloatPI / n);
+    return SkPoint{cx + cx * r * std::cos(a), cy + cy * r * std::sin(a)};
+  };
+  SkPathBuilder b;
+  b.moveTo(vertex(0));
+  for (int i = 0; i < n; ++i) {
+    const SkPoint from = vertex(i), to = vertex((i + 1) % n);
+    if (waist == 0.0f) {
+      b.lineTo(to);
+      continue;
+    }
+    // Pull the edge's midpoint toward the centre along its own radius,
+    // so both edges of an arm pinch symmetrically and the tip stays put.
+    const SkPoint mid{(from.fX + to.fX) * 0.5f, (from.fY + to.fY) * 0.5f};
+    const float dx = mid.fX - cx, dy = mid.fY - cy;
+    b.quadTo({mid.fX - dx * waist, mid.fY - dy * waist}, to);
+  }
+  b.close();
+  return b.detach();
+}
+
+SkPath Circle::path(SkSize s) const {
+  SkRect r = SkRect::MakeWH(s.width(), s.height());
+  r.inset(inset, inset);
+  SkPathBuilder b;
+  b.addOval(r, direction, startIndex);
+  return b.detach();
+}
+
+SkPath Annulus::path(SkSize s) const {
+  const float r = std::clamp(innerRatio, 0.0f, 0.999f);
+  const SkRect outer = SkRect::MakeWH(s.width(), s.height());
+  SkRect inner = outer;
+  inner.inset(outer.width() * 0.5f * (1 - r), outer.height() * 0.5f * (1 - r));
+  SkPathBuilder b;
+  b.setFillType(SkPathFillType::kEvenOdd);
+  b.addOval(outer);
+  b.addOval(inner);
+  return b.detach();
+}
+
+SkPath Squircle::path(SkSize s) const {
+  const float e = std::max(exponent, 0.5f);
+  const float cx = s.width() / 2, cy = s.height() / 2;
+  constexpr int kSegments = 96;
+  SkPathBuilder b;
+  for (int i = 0; i < kSegments; ++i) {
+    const float t = i * (2 * SK_FloatPI / kSegments);
+    const float c = std::cos(t), si = std::sin(t);
+    const float x = std::copysign(std::pow(std::abs(c), 2.0f / e), c);
+    const float y = std::copysign(std::pow(std::abs(si), 2.0f / e), si);
+    const SkPoint p{cx + cx * x, cy + cy * y};
+    if (i == 0)
+      b.moveTo(p);
+    else
+      b.lineTo(p);
+  }
+  b.close();
+  return b.detach();
+}
+
+SkPath Blob::path(SkSize s) const {
+  const int n = std::max(lobes, 3);
+  const float cx = s.width() / 2, cy = s.height() / 2;
+  std::vector<SkPoint> pts((size_t)n);
+  for (int i = 0; i < n; ++i) {
+    const float a = -SK_FloatPI / 2 + i * (2 * SK_FloatPI / n);
+    const float r =
+        1.0f - amplitude * (0.5f + 0.5f * core::noise::hash(seed, (uint32_t)i));
+    pts[(size_t)i] = {cx + cx * r * std::cos(a), cy + cy * r * std::sin(a)};
+  }
+  // Catmull-Rom → cubic Béziers around the loop.
+  SkPathBuilder b;
+  b.moveTo(pts[0]);
+  for (int i = 0; i < n; ++i) {
+    const SkPoint& p0 = pts[(size_t)((i - 1 + n) % n)];
+    const SkPoint& p1 = pts[(size_t)(i % n)];
+    const SkPoint& p2 = pts[(size_t)((i + 1) % n)];
+    const SkPoint& p3 = pts[(size_t)((i + 2) % n)];
+    const SkPoint c1{p1.x() + (p2.x() - p0.x()) / 6.0f,
+                     p1.y() + (p2.y() - p0.y()) / 6.0f};
+    const SkPoint c2{p2.x() - (p3.x() - p1.x()) / 6.0f,
+                     p2.y() - (p3.y() - p1.y()) / 6.0f};
+    b.cubicTo(c1, c2, p2);
+  }
+  b.close();
+  return b.detach();
+}
+
+SkPath Arc::path(SkSize s) const {
+  SkPathBuilder b;
+  b.addArc(SkRect::MakeWH(s.width(), s.height()), startDeg,
+           std::min(sweepDeg, 359.9f));
+  return b.detach();
+}
+
+SkPath Sector::path(SkSize s) const {
+  const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
+  // arcTo swallows a full turn, so an unclamped sector(start, 360,
+  // inner) — a gauge's annular TRACK, the most obvious call there is —
+  // draws nothing at all. Clamped here rather than at every call site.
+  const float sweep = std::clamp(sweepDeg, -359.99f, 359.99f);
+  const float inner = std::clamp(innerRatio, 0.0f, 0.999f);
+  const SkRect outerBox = SkRect::MakeWH(s.width(), s.height());
+  SkPathBuilder b;
+  if (inner <= 0.0f) {
+    b.moveTo(cx, cy);
+    b.arcTo(outerBox, startDeg, sweep, false);
+    b.close();
+    return b.detach();
+  }
+  const SkRect innerBox = SkRect::MakeXYWH(
+      cx - cx * inner, cy - cy * inner, s.width() * inner, s.height() * inner);
+  b.arcTo(outerBox, startDeg, sweep, true);
+  b.arcTo(innerBox, startDeg + sweep, -sweep, false);
+  b.close();
+  return b.detach();
+}
+
+SkPath Parallelogram::path(SkSize s) const {
+  // One signed lean drives both ends: the top edge slides right by it and
+  // the bottom left by it, or the reverse when the skew is negative. So
+  // either sign inscribes a parallelogram of width w - |lean| in the box
+  // rather than running one edge past it.
+  const float lean = std::tan(skewDeg * 0.017453293f) * s.height();
+  const float top = std::max(0.0f, lean), bottom = std::max(0.0f, -lean);
+  SkPathBuilder b;
+  b.moveTo(top, 0);
+  b.lineTo(s.width() - bottom, 0);
+  b.lineTo(s.width() - top, s.height());
+  b.lineTo(bottom, s.height());
+  b.close();
+  return b.detach();
+}
+
+SkPath Lissajous::path(SkSize s) const {
+  const float delta = deltaDeg * SK_FloatPI / 180.0f;
+  return detail::samplePolyline(
+      [fa = a, fb = b, delta](float t) {
+        return SkPoint{std::sin(fa * t + delta), std::sin(fb * t)};
+      },
+      0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
+}
+
+SkPath Harmonograph::path(SkSize s) const {
+  const float delta = deltaDeg * SK_FloatPI / 180.0f;
+  return detail::samplePolyline(
+      [fa = a, fb = b, delta, fdamping = damping,
+       fprecession = precession](float t) {
+        const float env = std::exp(-fdamping * t);
+        const float x = env * std::sin(fa * t + delta);
+        const float y = env * std::sin(fb * t);
+        if (fprecession == 0.0f) return SkPoint{x, y};
+        const float th = fprecession * t;
+        const float c = std::cos(th), sn = std::sin(th);
+        return SkPoint{x * c - y * sn, x * sn + y * c};
+      },
+      0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
+}
+
+SkPath Rose::path(SkSize s) const {
+  return detail::samplePolyline(
+      [fk = k](float th) {
+        const float r = std::cos(fk * th);
+        return SkPoint{r * std::cos(th), r * std::sin(th)};
+      },
+      0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
+}
+
+SkPath Spiral::path(SkSize s) const {
+  const float total = turns * 2.0f * SK_FloatPI;
+  return detail::samplePolyline(
+      [flog = logarithmic, fgrowth = growth, total](float th) {
+        const float r = flog
+                            ? std::exp(fgrowth * th) / std::exp(fgrowth * total)
+                            : th / total;
+        return SkPoint{r * std::cos(th), r * std::sin(th)};
+      },
+      0.0f, total, samples, false, s);
+}
+
+SkPath Trochoid::path(SkSize s) const {
+  const float sign = inside ? -1.0f : 1.0f;
+  const float sum = R + sign * r;
+  const float extent = std::max(std::abs(sum) + std::abs(d), 1e-3f);
+  return detail::samplePolyline(
+      [fR = R, fr = r, fd = d, sign, sum, extent](float t) {
+        const float k = sum / std::max(fr, 1e-3f);
+        return SkPoint{
+            (sum * std::cos(t) - sign * fd * std::cos(k * t)) / extent,
+            (sum * std::sin(t) - fd * std::sin(k * t)) / extent};
+      },
+      0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
+}
+
+SkPath Chamfered::path(SkSize s) const {
+  const float w = s.width(), h = s.height();
+  // A 45 degree cut clamps to the SHORT side so it stays at 45 degrees;
+  // an anisotropic one was never at 45 and clamps each leg to its own
+  // half-side. A cut of no rise is a square corner and needs no spelling
+  // of its own, which is what lets zero mean "the rise is the run".
+  const bool square = cutRise <= 0.0f;
+  const float run = square ? std::clamp(cut, 0.0f, std::min(w, h) * 0.5f)
+                           : std::clamp(cut, 0.0f, w * 0.5f);
+  const float rise = square ? run : std::clamp(cutRise, 0.0f, h * 0.5f);
+  const float r = std::clamp(radius, 0.0f, std::min(w, h) * 0.5f);
+  const float d = r * 2.0f;
+  // A CUT OF ZERO IS A SQUARE CORNER, not a cut of no length. Emitting the
+  // two vertices anyway puts a duplicate point at each corner, and every
+  // treatment that reads the vertices afterwards — rounding among them —
+  // sees a degenerate segment there and rounds nothing.
+  const auto cutting = [&](Corner corner) {
+    return run > 0.0f && rise > 0.0f && has(mask, corner);
+  };
+  SkPathBuilder b;
+  if (cutting(Corner::TopLeft)) {
+    b.moveTo(run, 0);
+  } else if (r > 0.0f) {
+    b.moveTo(0, r);
+    b.arcTo(SkRect::MakeXYWH(0, 0, d, d), 180, 90, false);
+  } else {
+    b.moveTo(0, 0);
+  }
+  if (cutting(Corner::TopRight)) {
+    b.lineTo(w - run, 0);
+    b.lineTo(w, rise);
+  } else if (r > 0.0f) {
+    b.lineTo(w - r, 0);
+    b.arcTo(SkRect::MakeXYWH(w - d, 0, d, d), 270, 90, false);
+  } else {
+    b.lineTo(w, 0);
+  }
+  if (cutting(Corner::BottomRight)) {
+    b.lineTo(w, h - rise);
+    b.lineTo(w - run, h);
+  } else if (r > 0.0f) {
+    b.lineTo(w, h - r);
+    b.arcTo(SkRect::MakeXYWH(w - d, h - d, d, d), 0, 90, false);
+  } else {
+    b.lineTo(w, h);
+  }
+  if (cutting(Corner::BottomLeft)) {
+    b.lineTo(run, h);
+    b.lineTo(0, h - rise);
+  } else if (r > 0.0f) {
+    b.lineTo(r, h);
+    b.arcTo(SkRect::MakeXYWH(0, h - d, d, d), 90, 90, false);
+  } else {
+    b.lineTo(0, h);
+  }
+  if (cutting(Corner::TopLeft)) b.lineTo(0, rise);
+  b.close();
+  return b.detach();
+}
+
+SkPath Notched::path(SkSize s) const {
+  const float w = s.width(), h = s.height();
+  const float n = std::clamp(notchWidth, 0.0f, std::min(w, h) * 0.45f);
+  const float d = std::clamp(depth, 0.0f, std::min(w, h) * 0.45f);
+  // A bite with no width or no depth is a SQUARE CORNER, for the same
+  // reason a chamfer of zero is: the vertices it would emit stand on top
+  // of each other and every later treatment reads them as a segment.
+  const auto biting = [&](Corner corner) {
+    return n > 0.0f && d > 0.0f && has(mask, corner);
+  };
+  SkPathBuilder b;
+  if (biting(Corner::TopLeft))
+    b.moveTo(n, 0);
+  else
+    b.moveTo(0, 0);
+  if (biting(Corner::TopRight)) {
+    b.lineTo(w - n, 0);
+    b.lineTo(w - n, d);
+    b.lineTo(w, d);
+  } else {
+    b.lineTo(w, 0);
+  }
+  if (biting(Corner::BottomRight)) {
+    b.lineTo(w, h - d);
+    b.lineTo(w - n, h - d);
+    b.lineTo(w - n, h);
+  } else {
+    b.lineTo(w, h);
+  }
+  if (biting(Corner::BottomLeft)) {
+    b.lineTo(n, h);
+    b.lineTo(n, h - d);
+    b.lineTo(0, h - d);
+  } else {
+    b.lineTo(0, h);
+  }
+  if (biting(Corner::TopLeft)) {
+    b.lineTo(0, d);
+    b.lineTo(n, d);
+  }
+  b.close();
+  return b.detach();
+}
+
+SkPath Arrow::path(SkSize s) const {
+  const float w = s.width(), h = s.height();
+  const float half = std::clamp(shaftFrac, 0.02f, 1.0f) * h * 0.5f;
+  const float head = std::clamp(headFrac, 0.05f, 1.0f) * w;
+  const float cy = h * 0.5f;
+  SkPathBuilder b;
+  b.moveTo(0, cy - half);
+  b.lineTo(w - head, cy - half);
+  b.lineTo(w - head, 0);
+  b.lineTo(w, cy);
+  b.lineTo(w - head, h);
+  b.lineTo(w - head, cy + half);
+  b.lineTo(0, cy + half);
+  b.close();
+  return b.detach();
+}
+
+}  // namespace sigil::geometry::shapes

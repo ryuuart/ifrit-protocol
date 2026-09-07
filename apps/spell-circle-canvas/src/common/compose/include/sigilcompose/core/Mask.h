@@ -9,11 +9,14 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
-#include <sigilcompose/core/Erased.h>
-#include <sigilcompose/core/Motion.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
+#include <sigilcore/comparable/Erased.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
+#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Animated.h>
 
 #include <cassert>
 #include <cstdint>
@@ -28,8 +31,6 @@ namespace sigil::compose {
 namespace detail {
 struct Instance;
 }  // namespace detail
-
-class Material;
 
 // ---------------------------------------------------------------------------
 // THE MASKING FAMILY — `mask(by::…)` and `mask(parts::…, by::…)`
@@ -214,7 +215,7 @@ Gate spans(Spans where);
  *  that reveals a filled surface by EXTENDING it — an arc-length window
  *  walks the perimeter instead, and scaleX/scaleY squash rather than
  *  reveal. */
-Gate edge(float angleDeg, Animatable<float> fraction);
+Gate edge(float angleDeg, motion::Animatable<float> fraction);
 /** A REGION of the node's local space, kept. `by::shape(Region::own())` is
  *  what `clip()` does. */
 Gate shape(Region r);
@@ -222,20 +223,20 @@ Gate shape(Region r);
  *  intersect, so a set difference is `by::shape(a)` and `by::outside(b)`
  *  on one node. */
 Gate outside(Region r);
-/** A COVERAGE SOURCE: the selected paint keeps the Material's ALPHA — the
+/** A COVERAGE SOURCE: the selected paint keeps the coverage paint's ALPHA — the
  *  soft-edged mask (a gradient fade, a noise dissolve, a stencil sprite).
  *
  *  Costs a `saveLayer` per masked group, so it is the expensive member of
  *  the family; `spans`, `edge` and `shape` ride path effects and clips. */
-Gate alpha(Material coverage);
+Gate alpha(material::skia::Paint coverage);
 /** …and its complement, a term of its own exactly as `outside` is: the
- *  selected paint keeps what the Material does NOT cover. After Effects'
+ *  selected paint keeps what the coverage paint does NOT cover. After Effects'
  *  Alpha Inverted Matte. Costs nothing beyond `alpha` — the coverage layer
  *  composites with `kDstOut` instead of `kDstIn`, which is `1 - a` exactly
  *  and needs no shader. */
-Gate alphaOut(Material coverage);
-/** The other coverage source: the selected paint keeps the Material's
- *  LUMA. After Effects' Luma Matte — paint a matte in greys (or in
+Gate alphaOut(material::skia::Paint coverage);
+/** The other coverage source: the selected paint keeps the coverage
+ *  paint's LUMA. After Effects' Luma Matte — paint a matte in greys (or in
  *  anything) and its brightness is the coverage.
  *
  *  **The luma law**: `Y' = 0.299 R' + 0.587 G' + 0.114 B'` — Rec. 601
@@ -250,12 +251,12 @@ Gate alphaOut(Material coverage);
  *  grey are the same matte.
  *
  *  Same cost as `alpha` plus one SkSL pass over the coverage layer, and
- *  none at all when the Material resolves to a colour, where the
+ *  none at all when the coverage paint resolves to a colour, where the
  *  weighting is one dot product in C++. */
-Gate luma(Material coverage);
-/** …and ITS complement: the selected paint keeps what the Material's luma
- *  leaves DARK. After Effects' Luma Inverted Matte. */
-Gate lumaOut(Material coverage);
+Gate luma(material::skia::Paint coverage);
+/** …and ITS complement: the selected paint keeps what the coverage
+ *  paint's luma leaves DARK. After Effects' Luma Inverted Matte. */
+Gate lumaOut(material::skia::Paint coverage);
 }  // namespace by
 
 /** HOW paint arrives past a mask — a comparable value built by the `by::`
@@ -264,24 +265,24 @@ Gate lumaOut(Material coverage);
 class Gate {
  public:
   enum class Kind : uint8_t { Spans, Edge, Shape, Coverage };
-  /** Coverage: WHICH channel of the Material becomes coverage. The two
+  /** Coverage: WHICH channel of the coverage paint becomes coverage. The two
    *  members are one mechanism — the same `saveLayer` and the same
    *  compositing pass — so they are a field of one Kind and not two Kinds.
    *  See `by::alpha` / `by::luma` for the law each names. */
   enum class Channel : uint8_t { Alpha, Luma };
   Kind kind = Kind::Spans;
-  Spans where;                        ///< Spans
-  float angleDeg = 0.0f;              ///< Edge
-  Animatable<float> fraction = 1.0f;  ///< Edge
-  Region region;                      ///< Shape
+  Spans where;                                ///< Spans
+  float angleDeg = 0.0f;                      ///< Edge
+  motion::Animatable<float> fraction = 1.0f;  ///< Edge
+  Region region;                              ///< Shape
   /** Shape AND Coverage: keep the COMPLEMENT of what this gate names —
    *  `by::outside`, `by::alphaOut`, `by::lumaOut`. One field because it is
    *  one question ("which side of the show set?"), asked of two kinds. */
   bool outside = false;
   Channel channel = Channel::Alpha;  ///< Coverage
-  /** Coverage. Held out of line because Material is declared in its own
-   *  header, which includes this one. */
-  std::shared_ptr<const Material> coverage;
+  /** Coverage. Held by pointer so a gate stays copyable and comparable
+   *  whatever the paint carries. */
+  std::shared_ptr<const material::skia::Paint> coverage;
 
   /** Structural equality. Declared here and defined beside the
    *  reconciler's own property comparator, so an animated fraction
@@ -290,10 +291,10 @@ class Gate {
   /** How many animatable floats this gate contributes, in the order
    *  `Instance::maskAnims` indexes them: three per Spans term (begin, end,
    *  offset), one for an Edge fraction, none for Shape or Coverage (a
-   *  Region is static and a Material animates itself). */
+   *  Region is static and a paint animates itself). */
   /** The brush engine that reads this gate — installed by every `by::`
    *  constructor, excluded from equality. */
-  Erased<MaskResolverOps> resolver;
+  core::Erased<MaskResolverOps> resolver;
 
   /** How many animatable floats this gate carries, in the order the
    *  instance's mask slots index them: three per Spans term, one per Edge
@@ -345,6 +346,6 @@ class MaskResolverOps : public SpanArithmeticOps {
 };
 
 /** The resolver as a gate carries it, excluded from structural equality. */
-using MaskResolver = Erased<MaskResolverOps>;
+using MaskResolver = core::Erased<MaskResolverOps>;
 
 }  // namespace sigil::compose

@@ -27,6 +27,8 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <algorithm>
 #include <cmath>
@@ -111,9 +113,9 @@ class TerminalScene final : public Scene {
           options.lineBreakStrategy = params.lineBreakStrategy;
           options.lineMetrics.height = params.fontSize * 1.55f;
 
-          const kit::Stopwatch layoutTime;
+          const sigil::measure::Stopwatch layoutTime;
           m_layout = layoutParagraph(fontContext, paragraph, flow, options);
-          layoutMicroseconds = layoutTime.microseconds();
+          layoutMicroseconds = layoutTime.elapsedUs();
           rebuildGlyphPools(paragraph);
         });
 
@@ -446,9 +448,9 @@ class TerminalScene final : public Scene {
   kit::GlyphBuckets<const ShapedWord*> m_splitBuckets;  // RGB-split glitches
   std::vector<uint32_t> m_segmentCounters;
   Paragraph m_footer;
-  kit::CachedValue<sk_sp<SkShader>, SkISize> m_background;
-  kit::CachedValue<sk_sp<SkShader>> m_scanlines;
-  kit::CachedValue<sk_sp<SkShader>, SkISize> m_vignette;
+  sigil::core::CachedValue<sk_sp<SkShader>, SkISize> m_background;
+  sigil::core::CachedValue<sk_sp<SkShader>> m_scanlines;
+  sigil::core::CachedValue<sk_sp<SkShader>, SkISize> m_vignette;
 };
 
 SceneDescriptor makeTerminalDescriptor() {

@@ -1,8 +1,9 @@
-# SigilSketch — everything renderable, as one file each
+# SigilSketch — everything renderable, as one sketch each
 
-A **sketch** is a single `.cpp` file that declares a scene. It is real
-C++ over the full drawing API — no scripting layer, no markup — and it is
-three things at once:
+A **sketch** is a `.cpp` file that declares a scene — or a directory
+named for that file, with the file as its entry and the rest of the
+directory built with it. It is real C++ over the full drawing API — no
+scripting layer, no markup — and it is three things at once:
 
 * an entry in **one registry**, addressed by its own file stem;
 * a **live-coding** subject: save the file and the running canvas
@@ -22,7 +23,27 @@ open build/bin/Release/Sketchbook.app          # the app
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook --list
 ```
 
-## Two runtimes, one seam
+## The sheet a sketch stands on
+
+Before the runtimes: most sketches here are **specimen sheets** — a
+titled, footed page over a run of captioned cells — and the look they are
+all set in is one value, `sketch::kit::Theme`, carried down the describe
+tree by the reconciler's inherited value.
+
+```cpp
+#include <sigilsketch/kit/Kit.h>
+
+sketch::kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
+ctx.composer.render(sketch::kit::page(
+    {.title = toU8("THE RULE AND THE STRANDS"),
+     .footer = toU8("a crossing is discovered, not declared")},
+    kit::cells({.cells = {a, b, c}, .gap = 10})));
+```
+
+`src/sketch/kit/README.md` is the canon for it: what the theme holds, how
+a sketch binds its own, and what deliberately is not there.
+
+## Three runtimes, one seam
 
 A sketch declares what it draws by which header it includes, and the
 registration macro reads the rest off the type:
@@ -31,19 +52,20 @@ registration macro reads the rest off the type:
 | --- | --- | --- |
 | `<sigilsketch/canvas/Sketch.h>` | `sketch::Sketch` | a compose Element tree, onto a canvas |
 | `<sigilsketch/set/Set.h>` | `sketch::Set` | a world Frame, on a lit set |
+| `<sigilsketch/draw/Draw.h>` | `sketch::DrawSketch` | a pen's frames, p5's way, onto a canvas that keeps them |
 
-The two are a **seam**, not a switch. `Kind` is `core::Erased<KindOps>`:
+The three are a **seam**, not a switch. `Kind` is `core::Erased<KindOps>`:
 a value that knows one runtime and one body, and opens a `Session` on
 them. Every host here — the registry listing, the live canvas, the
 headless sweep, the frame-time gate — drives a `Session` and never
-learns which runtime it is holding. A third runtime is therefore a value
-someone constructs and hands to `SIGIL_SKETCH`, and none of the hosts
-change when one arrives.
+learns which runtime it is holding. Another runtime is therefore a
+value someone constructs and hands to `SIGIL_SKETCH`, and none of the
+hosts change when one arrives.
 
-This library sits **above** both drawing libraries and links both. The
-arrow only points this way: nothing in compose or world knows this
-library exists, and a drawn tree and a lit set meet here and nowhere
-else.
+This library sits **above** the drawing libraries and links them all.
+The arrow only points this way: nothing in compose, world or draw knows
+this library exists, and a drawn tree, a lit set and a pen's canvas meet
+here and nowhere else.
 
 ## Writing one
 
@@ -74,6 +96,61 @@ Drop the file in `sketches/` and it is in the registry: the stem is its
 key, and `sketches/CMakeLists.txt` finds it by looking in the directory.
 There is no second list anywhere that could disagree.
 
+### A sketch that is a directory
+
+A sketch that outgrows one file becomes a directory named for it:
+
+```
+sketches/
+  hello.cpp                            a sketch of one translation unit
+  dunhuang_star_chart/
+    dunhuang_star_chart.cpp            the ENTRY: the same file, in a
+                                       directory of its own name
+    Catalogue.h                        reached by a quoted include
+    Catalogue.cpp                      a UNIT: compiled into the sketch
+  shared/                              the layer beside them, below
+```
+
+The rule is one sentence: **a `.cpp` standing in a directory that
+carries its own stem is the entry of a directory sketch, and every
+other `.cpp` in that directory is a unit of it.** The key is still the
+stem, `SIGIL_SKETCH` still goes in the entry and nowhere else, and the
+build compiles every unit into the sketch target with the entry. A
+directory with no entry of its own name is not a sketch, and nothing
+in it is compiled. Its `assets/` and `captures/` stand inside it, since
+both stand beside the entry.
+
+What goes in a unit is what an edit to the plate should never compile
+again: a data table generated from a source and frozen, a construction
+the entry only reads. The live host compiles the units apart and links
+them once, and a unit whose source and headers have not changed since
+it was last compiled is not compiled again — so a save of the entry
+costs the entry, not the table. A bare `sketches/<stem>.cpp` stays what
+it was, and a sketch goes from one form to the other by moving.
+
+### The shared layer
+
+`sketches/shared/` holds the modules more than one sketch reaches for
+and no library owns yet. It is not a sketch: its sources are compiled
+into the sketch target once, and its headers are spelled as
+`<shared/Name.h>` — the sketches directory is on the include path, so
+the include names the layer it comes from, and the flags a hot-reloaded
+sketch compiles with carry that path because they are lifted from the
+same target. For the live host every source there is a unit of every
+sketch, cached like the sketch's own and dropped from the dylib when the
+sketch names nothing in it, so an unchanged module costs a reload only
+its link; saving one rebuilds the sketch that is open, which is what
+makes it live. A module a library should own is promoted out of here
+into that library.
+
+**What belongs here is one FAMILY of sibling sketches' chassis** — the
+geometric grammar, the measured palette and the type register a
+reconstruction and its siblings share, named for the artefact they serve.
+What every sketch has belongs one level up, in **SigilSketchKit**
+(`src/sketch/kit`, its own README the canon): the theme a sheet is set
+in, and the stage, the page, the well and the caption built over it. A
+new module here is the cue to ask which of the two it is.
+
 `SIGIL_SKETCH` takes the folder it files under and one line on what it
 is — both shown beside it in the app. `SIGIL_SKETCH_AS` adds a name of
 its own, for a sketch filed under something other than its stem because
@@ -89,6 +166,11 @@ downsampling its plate by that whole number and laying the result over
 the reference, and a fractional scale defeats the check: at 1.875 a
 four-canvas-pixel square covers seven device pixels in one column and
 eight in the next, and no downsample recovers the reference from that.
+The draw runtime honours the same number one step earlier: its plate IS
+the canvas it keeps, so the number is a floor on the pixels that canvas
+is formed with and every frame is drawn at them from the first — a
+declaration there changes the live window too, which is the only way a
+kept canvas can be sharpened rather than magnified.
 
 ### A sketch over an SDK this machine may not have
 
@@ -108,7 +190,7 @@ the registration macro reads off the type:
 ```cpp
 struct WebPanelSketch final : sketch::Sketch {
   static bool available(std::string* why) {
-    return scry::runtime::available(why);
+    return scry::available(why);
   }
   …
 };
@@ -123,6 +205,51 @@ broken: `--list` greys it and names what is missing, the sweep prints
 frame-time gate stand it down by name. A skip is not a failure and not a
 mover, and the plates for such a sketch exist only on the machines where
 its SDK does.
+
+A sketch over FETCHED ART is the same shape with a different probe. Its
+bitmaps arrive over SigilIO's https path, which caches on disk, and
+every use site keeps a procedural stand-in so a cold cache still
+renders — but it renders the stand-in, and the plate the sketch is
+judged on is then not the picture its header describes. Two plates
+under one name is what a byte-identity sweep cannot survive, so such a
+sketch is unavailable until the art is here:
+
+```cpp
+static bool available(std::string* why) {
+  return sketch::requireCached({"https://…/leftsidepanel.gif",
+                                "https://…/2alogobug.svg"}, why);
+}
+```
+
+`requireCached` asks SigilIO's cache the IO hub's own way and never
+the network: a machine that has fetched once is available offline
+forever after, and one that never has stands down with the first
+missing URL as the reason.
+
+### The shared web engine is a host option
+
+An Ultralight process may create one renderer in its lifetime, while
+Sketchbook keeps several sketches resident and loads a fresh dylib on every
+edit. A web sketch therefore borrows the engine its host configured:
+
+```cpp
+#include <sigilsketch/scry/SharedEngine.h>
+
+const std::shared_ptr<sigil::scry::WebEngine> engine =
+    sketch::scry::sharedEngine();
+```
+
+This is SigilSketch's `scry/` feature, compiled in where the SDK is
+installed, not SigilScry's ordinary ownership model. A standalone SigilScry consumer still calls
+`WebEngine::create(config)` and owns that explicitly configured value. A
+sketch host opts into sharing by calling `configureSharedEngine(config)`
+before it opens any sketches; the first borrower boots exactly that
+configuration, and `shutdownSharedEngine()` is final for the process.
+
+The configuration belongs to the host rather than to whichever sketch was
+selected first. Differences that must coexist belong on a view or web
+session; engine-wide differences require separate processes because they
+would require separate Ultralight renderers.
 
 A 3D sketch is the same shape with a different body:
 
@@ -144,6 +271,192 @@ SIGIL_SKETCH(FirstLight, "Set", "A lit set …")
 a plate reproducible: the host steps from zero at a fixed rate and
 photographs the declared moment, so the image depends on the declaration
 and never on how fast the machine ran.
+
+A p5 sketch is the same shape with a pen — `setup` once, `draw` every
+frame, a canvas that keeps what earlier frames drew:
+
+```cpp
+#include <sigilsketch/draw/Draw.h>
+
+using namespace sigil::draw;
+
+struct Orbit final : sketch::DrawSketch {
+  void setup(sketch::DrawContext& ctx) override {
+    ctx.canvas(400, 300);
+    ctx.background(20);
+    ctx.pen.noStroke();
+  }
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
+    pen.background(20, 30);  // translucent: a trail
+    pen.fill(255, 120, 80);
+    pen.circle(200 + 120 * cos(pen.millis() / 900), 150, 40);
+  }
+};
+
+SIGIL_SKETCH(Orbit, "Draw", "A ball on a rail, with a trail.")
+```
+
+The pen is SigilDraw's, whose README is the canon for its verbs; what
+the runtime adds is p5's `setup`/`draw` loop over a surface it keeps
+between frames, a clock it owns, and the seed every session's `random`
+starts from — so a plate stepped from zero draws the same picture on
+every run. When presentation zoom changes the surface's pixel extent, the
+runtime scales the pixels it already holds into the replacement instead of
+replaying setup or clearing accumulated drawing. `ctx.pen` in setup is for
+whatever a p5 setup would have set on the canvas: a style, a font, a first
+drawing, which lands on the first frame. The same context is handed to
+`draw` every frame, so a frame reaches the ticker and `ctx.measured`
+without keeping either on the sketch; `ctx.pen` is the pen of the frame
+being drawn. `pen.noLoop()`, `pen.redraw()` and
+`pen.frameRate(fps)`
+are honoured by the runtime skipping draws, since the clock is its. The
+pointer and the keys arrive through `Session::pointer` and
+`Session::key`, which a host feeds in canvas units; headless, nothing
+arrives and `pen.mouseX` stays at zero.
+
+**A simulation is stepped by the context's ticker, not by the frame
+delta.** `ctx.ticker` is the session's `motion::Ticker`, stepped by the
+session's own clock on every frame — including the frames a
+`frameRate(fps)` request or a `noLoop` skipped, since time passed on
+those too. `addFixed(hz, fn, maxCatchUp, &alphaOut)` runs the body at
+exactly `hz` from accumulated time and publishes the leftover fraction
+of a step into the Output, so a piece drawn as
+`lerp(previous, current, alpha)` is one picture at every draw rate and a
+capture of it is a claim about the piece rather than about the machine.
+Register in `setup` and keep the Outputs on the sketch: a registration
+made in `draw` is made again every frame, and an Output that lives no
+longer than the call is read by nobody. A fresh setup gets a fresh
+ticker, so a sketch set up twice is stepped once.
+
+```cpp
+struct Cloth final : sketch::DrawSketch {
+  ch::Output<float> alpha{0.0f};
+  void setup(sketch::DrawContext& ctx) override {
+    ctx.canvas(640, 480);
+    ctx.oversample(2);
+    ctx.ticker.addFixed(60.0, [this] { solve(); return true; }, 8, &alpha);
+  }
+  void draw(sketch::DrawContext& ctx) override { paint(ctx.pen, alpha); }
+};
+```
+
+**A live readout that is a retained tree is a guest, and the guest IS
+the slot.** What `slot()` and `Composer::renderSlot` are to a described
+scene — a part updated without re-describing the rest —
+`pen.element(tree, box)` is to a pen program: the pen keeps one composer
+per CALL SITE, so the tree handed in each frame is reconciled against
+what that site already holds and its layout, its shaping and its caches
+carry. Nothing has to be declared for it, and a loop that paints several
+passes the index.
+
+**A TREE THAT DOES NOT CHANGE IS DESCRIBED ONCE.** Build it in `setup`,
+keep it as a member, and hand the same value to `pen.element` every
+frame: the guest's own animation, its bindings and its live rows still
+run, because those are read from the tree rather than rebuilt by it.
+Describing it again inside `draw` cannot make it draw anything new, and
+it makes the pen reconcile a whole tree against an identical one on
+every frame — a cost that grows with the tree and is paid for nothing.
+Only the parts whose SHAPE changes — a row appearing, a pool whose lanes
+were rewritten — are worth describing again.
+
+### One runtime's picture inside another
+
+A sketch stays in its own runtime, and what crosses between runtimes is
+a PICTURE, through two doors on the contexts.
+
+`ctx.textureScene(size, background)` — on the canvas context and the set
+context alike — is a compose scene painted into a texture: hand it a
+tree with `render()` and read `image()` or `texture()` back. A canvas
+sketch that wants a card as pixels paints it once while declaring itself
+and keeps the image; a set that wears a live 2D screen asks for the
+scene at setup, holds the pointer, and in `describe` hands it the tree
+at the scene time and puts `texture()` in a material's base-colour slot.
+
+THE SESSION KEEPS THE SCENE, and lets go of everything it kept when the
+body declares again. That is not a convenience: a scene standing on a
+device destroys the texture it painted into when it goes, so a sketch
+that took the image and dropped the scene would be holding a picture of
+nothing, and a body would be wearing a texture that is not there.
+Because the session keeps them, a body asking for a scene every frame
+holds every frame's scene — so each session's counters say how many it
+is holding, and a number that climbs is that mistake.
+
+Nothing has to be remade when time moves. A session's clock only goes
+forward: a sweep that must photograph an earlier moment opens a second
+session rather than rewinding this one, so no run of the piece begins
+where an earlier one left off, and a sketch needs no guard of its own.
+
+`ctx.bakeSet(frame, camera, size, background, seconds)` — on the canvas
+context —
+is a lit set rendered once into an image: the picture inside a page, for
+a document whose plate is re-rendered at the capture scale and cannot
+drag its chrome through a texture for the sake of one panel. The
+viewpoint is written onto the frame rather than handed to the draw, so a
+tree carrying a camera of its own is seen from it here exactly as in the
+set runtime, and forming and presenting cannot disagree. It draws on the
+CPU mesh executor whatever device the process holds and declares no
+passes, so the page's plate and its live picture are one picture.
+
+`seconds` is the MOMENT of the bake, on the baked scene's own clock,
+which starts when the scene mounts — what a set with an entrance is
+photographed at. A `staggerChildren` cascade is a schedule of transitions
+that begin at the mount, so at zero every one of them is still at its
+start pose and the picture is the set before it arrived. The clock is the
+bake's and not the sketch's: reaching the moment on the sketch's own
+ticker would step the sketch, and a document photographing a set in one
+of its panels would move everything else on the page to do it.
+
+Each door names the other library's value by forward declaration and
+nothing else of it: a sketch walking through one includes that library's
+own headers — `<sigilcompose/texture/Texture.h>`,
+`<sigilworld/frame/Frame.h>` — and the scene's and the frame's words are
+those libraries' to define.
+
+`sketch::painterRuntime()` is the third door, and it carries no picture:
+it is the `geometry::mesh::render::Runtime` the process draws mesh
+through, for a canvas sketch that stands geometry up in space rather
+than baking it.
+
+```cpp
+render::MeshStyle style;
+style.runtime = sketch::painterRuntime();  // the app's device, or the CPU
+```
+
+Written once, it is correct on both tiers — a process with no device
+hands back the CPU mesh executor, so a sketch never asks whether a
+device is here. The app installs the device one, and the sweep does not:
+a plate is hashed from the CPU executor, and the two rasterise the same
+picture but not the same bytes, because one sorts triangles back to
+front and antialiases their edges while the other depth-tests them. It
+is the 2D twin of `sketch::runtime()`, which is the whole frame a set
+draws through; a process on a device installs both.
+
+**A session keeps the painter it opened with.** What a host installed is
+the default a session takes, not a value its body re-reads: while a
+session draws, `painterRuntime()` answers that one on the drawing
+thread, so installing another reaches nothing already running.
+`onPainterRuntime(kind, painter)` is how a host opens one somewhere else
+— it is the 2D twin of `onRuntime`, and a kind that stands no mesh up of
+its own comes back unchanged. The thumbnail worker says both, with empty
+runtimes, so a still is the CPU tier's whatever the process holds.
+
+`sketch::device()` — from `<sigilsketch/core/Device.h>`, on both
+surfaces — is the fourth, and the only one that is not a runtime: it is
+the `geometry::device::Device` this process brought up, or **null**,
+which is the CPU tier. Reach for it where a runtime cannot stand in,
+which is a call that takes the device itself because what it does is
+give the device a handle over something the graphics API already holds:
+
+```cpp
+if (auto* on = sketch::device())
+  slot = world::diligent::importNative(*on, native);  // no copy, either way
+```
+
+Null is an answer, not a failure. A plate is taken on the CPU tier, so a
+sketch that reaches through this door says what it draws without one,
+and a sketch whose whole subject needs a device stands itself down
+through its own `available()` probe rather than drawing an empty set.
 
 ### Three paths for motion, and the order to reach for them
 
@@ -208,28 +521,57 @@ normally and the pinned one when the host is capturing for a diff. The
 rule is broader than clocks: it covers anything computed from the
 sketch's own execution rather than from its data.
 
+Both kinds of sketch carry it on the context they are handed each frame,
+so the figure is routed where it is drawn:
+
+```cpp
+std::snprintf(buf, sizeof buf, "BUILD %.2f ms", ctx.measured(buildMs));
+```
+
 ## Running one
 
 ```sh
 Sketchbook [--no-gpu]                       # the app
 Sketchbook --sketch <name>                  # the app, on that one
 Sketchbook <file.cpp>                       # the app, on that file
-Sketchbook --list [--kind canvas|set]       # the registry, one per line
-Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>]
+Sketchbook --list [--kind canvas|set|draw]  # the registry, one per line
+Sketchbook --catalog [<file.cpp>]           # the browser's rows, one JSON each
+Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
                                   [--frames <count>] [--fps <n>]
+                                  [--deterministic | --no-deterministic]
 Sketchbook <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
 Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
-           [--ledger] [--no-promotion] [--capture-at <s>]
+           [--ledger] [--no-promotion | --promotion] [--capture-at <s>]
            [--timing-json <path>]
+Sketchbook --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
+           [--video-bitrate <bits>] [--fps <n>] [--sketch <name>]
+           [--kind <k>] [--gpu]
+Sketchbook --compare <dir-a> <dir-b>        # two sweeps' plates, differenced
 Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
+Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set|draw]
+           [--thumbnail-budget <sec>] [--thumbnail-heavy]
 … [--assets <dir>]                          # what mounts at res://
-… [--plates <dir>]                          # the stills the browser shows
+… [--thumbnails-dir <dir>]                  # the app's own thumbnail store
 ```
 
 `--sketch` takes a case-insensitive substring and answers to a sketch's
 filed name or its file stem, which is the loop for visual iteration.
 `--shot <png>` captures the app window rather than a sketch, which is
 the only way to look at the browser and the inspector.
+
+`--catalog` prints the browser's rows without opening a window, one JSON
+object per line — the registry first, and a file this run was pointed at
+after it. What a script reads off them is what the browser reads before
+anything has been built: a compiled-in entry names the runtime it draws
+through, and a file opened by path has none until it has been compiled
+and says so rather than guessing.
+
+**A capture is deterministic and a live run is not.** Anything a sketch
+measured about its own execution is pinned when a still is being written
+and real everywhere else, so a `--frame` can be diffed while the app and
+`--bench` show the machine's own numbers. `--deterministic` and
+`--no-deterministic` name either regime for either, which is how a
+sketch's real figures are looked at in a written frame.
 
 The app brings a device up and every set draws through it, because a
 device is what runs a material's own body: the CPU mesh executor has no
@@ -241,18 +583,111 @@ not come up is reported and the app carries on — unlike the sweep's
 `--gpu`, which must fail rather than put two different pictures under one
 plate's name.
 
+**The canvas zooms without redrawing what it is showing.** The live view
+sits in a pan-zoom pasteboard, so a ctrl-wheel spin grows the item the
+frame is drawn into. It does not grow the frame: the view renders at the
+scale it had when the gesture began and the scene graph stretches that
+last frame over the growing item, so the picture follows the wheel
+immediately and pays for it only in sharpness. It re-renders at the
+settled scale once the gesture has been quiet — one pending resize, the
+last scale winning, however many steps the spin had — and a pure pan
+never re-renders at all, because the frame on the texture is the same
+frame wherever the item stands. Underneath it, the sketch's cached
+rasters are pinned to the screen's density rather than to the viewport's
+scale (`Session::setBakeDensity`), so a generated material is baked once
+and magnified through the zoom the way a bitmap the sketch loaded would
+be, instead of being rasterized again at every rung of the composer's
+bake ladder the gesture passes through. The **Capture** action raises the
+density for the photograph, so an explicitly asked-for still is written
+at its own resolution rather than at the reader's.
+
 The app is a macOS bundle, so a headless run goes through the binary
 inside it:
 `build/bin/<config>/Sketchbook.app/Contents/MacOS/Sketchbook`.
 
+### `--video`: the video montage
+
+Encodes every selected, available registry sketch into one vertical H.264
+MP4. The default frame is 1080×1920 at 30 FPS, with ten output frames per
+sketch. Each session is opened and advanced in fixed display-sized steps to
+the moment it declared with `captureAt`; a sketch that declared no moment uses
+1.5 seconds. Recording begins there, so a long entrance or loading sequence is
+settled before its cut begins. Each cut is the sketch in one fixed fitted
+rectangle on black with its title in white. The sketch's own animation remains
+live; the montage adds no border, progress chrome, pulse, scan, or reveal wipe.
+
+Before the first selected session opens, Sketchbook preloads the stock shader
+directories through SigilIO and warms their SkSL programs concurrently. The
+montage, headless sweep, capture path and live browser all cross that loading
+barrier before they render, so compilation does not become a captured loading
+frame or the first interactive frame.
+
+`--video-frames` changes each sketch's share of the edit, `--video-size`
+changes the even output dimensions, `--video-bitrate` sets H.264 bits per
+second, and `--fps` changes both the encoder rate and the fixed scene clock.
+`--sketch` makes a one-sketch video and `--kind` limits the registry by
+runtime. Hardware H.264 is preferred and OpenH264 is the fallback. Unavailable
+sketches are named and skipped rather than encoded as failure cards.
+
+`--gpu` is REQUIRED for a selection that holds a set, exactly as it is for
+the sweep, and for the same reason: a set is lit by the device renderer,
+so a montage that included one without a device would put a picture no
+recipe ran in under that sketch's name. A selection that holds a set and
+did not ask is refused, naming `--kind` as the other way out; a run that
+asks and cannot have the device fails; a run whose selection needs none
+brings none up.
+
+The app's **Export video** action writes the full registry through this path.
+The selected sketch's **Video** action writes a one-sketch cut; both use a
+native save dialog and run the encoder in a child Sketchbook process so the
+browser and its live canvas remain responsive.
+
+### `--compare`: two directories of plates
+
+Prints how far every plate in one directory stands from the plate of the
+same name in the other, decoded and differenced channel by channel:
+
+```
+compared <name> mean <mean> p99 <p99> max <max>
+size <name> <W>x<H> <W>x<H>
+missing <name> first|second
+unreadable <name> first|second
+```
+
+The three distances are absolute differences of one 8-bit channel, in
+0..255, over every channel of every pixel. It opens no sketch, needs no
+fonts, no assets and no device, and it JUDGES NOTHING — how close is
+close enough is a tolerance about a machine, which is the plate ledger's
+to hold. The ledger's device and promotion tiers are the callers: each
+renders two directories of plates in one run and asks this which
+pictures moved.
+
 ### `--frame`: the asset workflow
 
-Steps the clock to `--at` (default 1.5 s) at `--fps` (default 60), then
-captures `--frames` PNGs (sequences number as `out_0001.png…`) at
+Steps the clock at `--fps` (default 60) to the moment the sketch
+declared with `ctx.captureAt`, then captures `--frames` PNGs
+(sequences number as `out_0001.png…`) at
 `--scale` (default 1: captures match the declared canvas pixel for
 pixel, which is what asset generation wants). Declare the exact canvas,
-give it a transparent background, draw, export. `sketches/frame_asset.cpp`
-is the template.
+give it a transparent background, draw, export. Any sketch answers to the
+flag, so the sketch that draws the asset is the template.
+
+**`--gpu` puts the run on the device**, exactly as it does for a sweep: a
+set draws its frame there, and a canvas sketch's mesh painter
+(`sketch::painterRuntime()`) rasterises there. It is fatal when no device
+comes up, because a run that asked for the device and quietly gave the
+CPU's picture puts two different pictures under one name. Without it a
+file renders on the CPU mesh executor, which is what a plate is hashed
+from.
+
+**The moment is the sketch's, not the flag's.** `--at <sec>` overrides
+it, and a sketch that declared none falls back to 1.5 s; otherwise a
+still lands where `ctx.captureAt` put it, so the same file photographed
+here and photographed by the sweep is the same frame. The line it prints
+says which of the three it used. `--bench` keeps the 1.5 s default
+whatever the sketch declared: its `--at` is a warm-up that has only to
+get programs, bakes and atlases hot, and pinning it keeps the measured
+run the same run for every sketch.
 
 `--fps` sets the PRE-ROLL step, not just the capture rate. A sketch
 using a fixed-rate steppable has a catch-up clamp, so pre-rolling far
@@ -267,8 +702,20 @@ percentiles and a verdict — then a human line naming which phase
 dominated, and the runtime's own lanes under it.
 
 The gate is **p99 under 16.6 ms** — a sustained 60 FPS at the sketch's
-own declared canvas size. It always exits 0; the verdict is the output,
-not the exit status, so it can sit in a pipeline.
+own declared canvas size. It exits 0 whenever it measured: the verdict is
+the output, not the exit status, so a slow sketch can sit in a pipeline.
+A sketch that never built, or a surface that could not be allocated,
+exits 1.
+
+**A sketch that declares `ctx.plate()` is judged on its capture cost, not
+on 60 FPS.** Some sketches are plates rather than live scenes: a large
+sheet over an expensive material stack whose subject is the sheet's own
+size. A canvas the sketch cannot present at is a different statement from
+a live sketch that drops frames, so a marked sketch reports the cost of
+the still it is photographed as and the verdict reads `PLATE` rather than
+`PASS`/`FAIL`. It is never a timeout override, and it changes nothing
+about the plate sweep — only what the interactive gate asserts.
+`chaucer_astrolabe` is one.
 
 What it does, and why it is not `--frame`'s numbers: the capture path
 steps the clock on a tiny scratch surface where every draw is clipped
@@ -292,7 +739,7 @@ deterministic, so two runs measure the same frames.
 
 ```sh
 Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
-           [--sketch <name>] [--kind canvas|set]
+           [--sketch <name>] [--kind canvas|set|draw]
 ```
 
 Opens the window at a stated size and device pixel ratio, presents each
@@ -303,6 +750,29 @@ and p99, its paint phase, the submit, and the headroom the work alone
 would allow. A sketch this machine cannot run is named `SKIPPED` with
 what is missing, and no line is written for it.
 
+**Each row is the sketch that was on screen.** Selecting a sketch is an
+ask: the session opens on the render thread and its first frame — the
+program compiles, the texture bakes, the glyph atlases — can cost
+seconds. So the warm-up starts at the first frame of the selection's own
+session and not at the ask, and the rolling windows the readout comes
+from are emptied where the measured stretch begins, so a row is that
+sketch's frames over that stretch and carries nothing of what opening it
+cost. The rate is the whole stretch — the frames that reached the screen
+over the time they took — so a hitch inside it weighs what it was, while
+the panel's own readout beside the canvas stays the short rolling one a
+reader watches change. A selection that does not reach the screen within
+the ceiling is named `SKIPPED` with how long it was waited for, as is a
+stretch that ended with all but no frames in it; a run that stood any
+sketch down that way exits non-zero, because a rate it could not take is
+not a rate of zero.
+
+**Nothing else runs inside a measurement.** The store's still is not
+written while the lane is measuring, and the window keeps one session at
+a time — the one on screen goes as the next opens, rather than standing
+warm behind it and being let go in the middle of a later sketch's
+frames. So what a sketch reads in a sweep is what it reads presented
+alone, which is the only way a row means anything on its own.
+
 **It measures what `--bench` cannot.** The gate renders onto a raster
 surface at the sketch's declared size and presents nothing, which is
 what makes it a gate: the sketch's own cost, isolated. Here the frame is
@@ -311,14 +781,14 @@ and its device pixel ratio, and the numbers carry the host's own
 overhead with them — the submit or texture upload that puts the frame on
 screen, and, for a set drawn on a device, the readback and blit its
 paint phase performs. Selection goes through the same property a click
-sets, so the resident set is in the measurement too.
+sets, so a switch takes the path a reader's click takes.
 
 A presented rate is bounded by the compositor, which means by the
 display: a sketch comfortably inside its budget reads at the refresh
 rate and says nothing more. The interesting rows are the ones BELOW it,
 and the work beside them says how much of that frame was the sketch.
 
-`scripts/app_fps_ledger.py` drives it over the registry and judges each
+`scripts/sigil.py bench --lane fps` drives it over the registry and judges each
 presented rate against `bench/app_fps_<config>.json` within a stated
 band, `--rebase` adopting. The baseline is per machine AND per display
 mode, so it records the window size and scale it was taken at and the
@@ -336,7 +806,14 @@ after another, so the two questions are kept apart:
 * **Enter presents.** So does a double click, and so does the
   inspector's Open. This is the only thing that changes what is drawn —
   and the resident set is what makes it cheap, because a sketch already
-  opened comes back without being built again.
+  opened comes back without being built again. It is also what ends the
+  thumbnail fill: from there on the canvas is what draws.
+* **A click on the canvas gives it the keyboard.** The pointer over the
+  canvas and the keys while it holds focus reach the running session in
+  the sketch's own canvas units, through `Session::pointer` and
+  `Session::key`, for a sketch that reads them; a click on the list takes
+  the arrows back. A sketch with nothing for a pointer to do ignores what
+  arrives, and a drag over a set still orbits it.
 
 Two views over the same rows, and the toggle is in the top bar:
 
@@ -355,12 +832,67 @@ file stem at once, while `folder:` and `kind:` narrow on that field
 alone — so `folder:study kind:canvas rain` is one question, not three.
 `/` puts the cursor in it and Escape empties it.
 
-**The thumbnails are the quick tier's plates**, read from the baseline
-the plate ledger writes beside its manifest — so a checkout that has
-never run a sweep has no thumbnails, and one that has is looking at
-exactly the images the sweep judged. `--plates <dir>` names another
-directory. A sketch with no plate gets a drawn glyph for the runtime it
-draws through.
+**The thumbnails are the app's own.** Sketchbook keeps one store — one PNG
+per sketch, under the platform cache location (`--thumbnails-dir` and the
+`SIGIL_SKETCHBOOK_THUMBNAILS` environment variable name another). Each
+file's name carries a KEY: a hash of the sketch's source — the file, or
+every file of a directory sketch — and nothing else, so a thumbnail whose
+key no longer matches is stale and is drawn again.
+
+**The host is not in the key.** A library edit changes what a sketch
+draws while its source stands still, and every still on disk goes on
+claiming to be fresh. That is the trade taken deliberately: keying on the
+host would throw all of them away on every rebuild, and the refresh on
+opening writes back the frame that was just presented — so a still a
+rebuild made wrong heals the moment it is looked at.
+
+They are filled at two moments, and never while a sketch is being
+presented.
+
+**The fill, at launch.** The window comes up on the browser with the
+canvas dark, and draws a still for every sketch that has none: the
+sketch's kind opened and stepped to its declared moment — the same
+capture the CPU plate tier takes — scaled to the thumbnail size, one at a
+time, on the CPU and never touching the device. That holds whatever the
+process installed: a still opens every kind on the CPU runtime — a set's
+whole frame and a 2D body's mesh painter alike — so a sketch's thumbnail
+is drawn on the mesh executor even in a window whose live canvas is
+lighting sets on a device. The status strip counts
+them off, `thumbnails 12/41 …`, and each row fills in as its file lands
+without remounting the others; a row on screen is moved to the front of
+the queue, so what you are looking at is drawn first. **Opening a sketch
+ends the fill** — the walk in flight is let go at its next frame and the
+queue is dropped — and the fill finishing opens the sketch the run was
+pointed at. A run that named a sketch (`--sketch`, a file on the command
+line) or that is here to photograph or measure one (`--shot`,
+`--window-bench`) opens at once and never fills.
+
+**One still is bounded.** A sketch whose walk runs past the per-sketch
+budget, and a sketch that declared itself a plate with `ctx.plate()`
+(which is a statement that its subject costs what a plate costs), is
+abandoned and gets a one-line NOTE beside where its still would have
+gone, under the same key: the note stands in for the picture, the fill
+moves on, and the question is asked again only when the sketch's source
+changes. `--thumbnail-budget <sec>` names another budget and
+`--thumbnail-heavy` walks the declared plates as well. A sketch that
+could not be drawn at all is named once in the status strip and not tried
+again this run.
+
+**The refresh, on opening.** Once a sketch is presented, its session is
+photographed once — as it reaches the moment it declared, or after a
+second of its own clock when it declares none — and that frame is written
+into the store under the sketch's current key. A run measuring frames
+(`--window-bench`) is out of that: the photograph is taken on the render
+thread and inside a frame, which is the one thing a stretch whose whole
+subject is how long a frame takes cannot have in it. So the stills
+refresh as you browse, they are the frames you were looking at, and nothing renders
+in the background to keep them current. A sketch with no thumbnail yet
+gets a drawn glyph for the runtime it draws through.
+
+`Sketchbook --thumbnails` fills the store headless, over the same budget
+and writing the same notes, and exits non-zero naming the sketches that
+failed. It is the same render the window's fill takes, down to the
+runtime: a set is drawn on the CPU mesh executor either way.
 
 **What is not in a row is the canvas.** A sketch declares its size, its
 ground and the moment it names from inside its own setup, so those are
@@ -411,13 +943,15 @@ the benchmark phases entirely and goes straight there, which is most of
 a sweep's wall clock — and produces a bit-identical plate, because the
 capture never depended on the phases in the first place.
 
-The two runtimes make a plate differently, and both ways are
-load-bearing. A drawn tree is resolution-independent, so its still is
-one more frame re-rendered at up to twice the canvas — a texture bake
-re-runs at the capture scale rather than being upsampled. A lit set is
-FORMED at one resolution and its still describes nothing, so there is
-nothing to form again larger and its plate is the frame it just
-finished. `Session::still()` is that seam.
+The runtimes make a plate differently, and each way is load-bearing. A
+drawn tree is resolution-independent, so its still is one more frame
+re-rendered at up to twice the canvas — a texture bake re-runs at the
+capture scale rather than being upsampled. A lit set is FORMED at one
+resolution and its still describes nothing, so there is nothing to form
+again larger and its plate is the frame it just finished. A pen's
+canvas holds every frame's residue at the resolution it was formed at,
+so its plate, too, is the frame just finished. `Session::still()` is
+that seam.
 
 Which resolution that is comes off the canvas a host hands over. A
 plate's canvas is the declared size and carries no transform; a live
@@ -428,8 +962,51 @@ forms its frame at that many pixels, and puts the result back on the
 declared canvas — which on a plate's canvas is the identity, and is why
 the two hosts agree to the byte.
 
-`scripts/plate_ledger.py` drives this: four tiers over one binary, each
-with its own baseline. See `CLAUDE.md` for the tiers.
+### The promoter, and the one lane that exercises it
+
+A headless session is opened DETERMINISTIC, and a deterministic session
+holds the composer's automatic texture promotion off. The promoter
+decides by a stopwatch — a node whose paint measures over a millisecond
+for eight frames is baked and blitted thereafter — so whether it fires
+depends on how busy the machine is, and with it on the same binary draws
+two different plates. Holding it off is what makes a hash a verdict.
+
+The cost is that the whole sweep renders the runtime with one of its
+features switched out. `--promotion` is the door back: it opens every
+session with promotion ON and changes nothing else — same clock, same
+fixed step, same declared capture moment, same `ctx.measured()` pins —
+so the only difference between the two renders of a scene is the
+promoter. `--no-promotion` and `--promotion` ask for opposite runs and
+naming both is refused.
+
+IT OPENS THEM EAGER. The stopwatch that makes the promoter load-dependent
+would make the lane load-dependent too: on an idle machine nothing
+crosses the bar and the run reports a clean sweep it did not earn, while
+on a loaded one a different handful of nodes crosses it each time. So
+`--promotion` asks for the eager policy — every node the composer's rules
+admit is baked from its first frame, whatever it costs — and nothing
+about what a bake is allowed to do changes. One scene therefore exercises
+the same node set on every machine, and it is the whole promotable set
+rather than the few nodes that happened to be slow.
+
+What comes out is not byte-comparable and is not meant to be. A promoted
+node is baked under the live matrix post-translated by an integer, and
+inverting that matrix to find a shader's local coordinates does not
+cancel the integer to the last bit at a scale whose reciprocal is
+inexact, so a shaded pixel can land ONE code value from the live paint
+and nothing may land further. A worst channel over one is a picture that
+moved — a bake somewhere else, rasterised against another clip, or gone
+stale — and that is a defect in the promoter rather than a plate to
+adopt.
+
+`scripts/sigil.py plates` drives this: three tiers over one binary. The
+CPU tier judges every sketch, canvas and set alike, on byte identity
+against one baseline manifest; the device tier renders the same sketches
+through the device and judges each against the CPU plate of the same
+run, per colour channel; the promotion tier renders each scene with the
+promoter held off and again with every promotable node eagerly baked,
+and judges the pair within one code value. Only the CPU tier keeps a baseline. The judgement itself is
+`scripts/README.md`'s.
 
 ## The live host
 
@@ -440,8 +1017,64 @@ embedding a scripting language — so a sketch never leaves the real API.
 
 * The host executable exports the framework's symbols, so a sketch dylib
   links with `-undefined dynamic_lookup` and builds in a couple of
-  seconds: one small translation unit, nothing linked against the static
-  libraries.
+  seconds: a few small translation units, nothing linked against the
+  static libraries. The units — the entry, the sources beside it when
+  the sketch is a directory, the shared layer's — compile side by side
+  into cached objects and link once; a unit is compiled again only when
+  its own source or any header beside the sketch or in the shared layer
+  has been written since, one conservative rule that needs no
+  dependency scan.
+* **The guest compiles hidden**, with `-fvisibility=hidden
+  -fvisibility-inlines-hidden` on top of the flags the build captured,
+  and that is what makes the file on disk the thing that runs. A sketch
+  reaches its host through weak definitions — the class's vtable and
+  typeinfo when every virtual is inline, `kindOf<T>` and the other
+  function templates the registration macro takes the address of — and
+  weak definitions COALESCE. Every image exporting one names the same
+  symbol, and the dynamic loader binds them all to whichever came first. The
+  executable is always first and carries its own copy of every sketch in
+  the registry, so a guest at default visibility would hand back an entry
+  whose factory is the host's: the build reports, the dlopen succeeds,
+  and the picture is of the file as it stood when the host was built.
+  The same rule runs the other way between two builds of one guest,
+  since old libraries are never unloaded — build 1 would beat build 2 and
+  an edit would never appear, for a sketch outside the registry too.
+  Hidden visibility closes both directions at once, because a definition
+  that is private to its image joins no coalescing set in either. What
+  hidden does NOT touch is an UNDEFINED reference, so the framework still
+  resolves out of the host exactly as before; the two entry points the
+  registration macro exports carry `visibility("default")` explicitly, so
+  `dlsym` finds them. The cost is that a guest gets its own copy of every
+  inline the host also has, which is right for code and would be wrong
+  only for a mutable static inside one, and typeinfo equality survives
+  because a duplicated typeinfo is compared by name. `--frame` on a
+  registry sketch with one colour changed is the whole of the proof, and
+  the `sketch_reload_runs_the_file` test is exactly that.
+* **The build directory belongs to the run that made it.** The objects
+  and one dylib per build stand in `<temp>/sigil_sketch_<pid>`, shared by
+  every host in the process, and it is removed when the last of them is
+  destroyed and again on normal exit — a `--frame` or `--bench` run,
+  which ends right after its build, takes its own with it, and a
+  `--headless` sweep walks the compiled-in registry, hosts nothing and
+  makes none. Removing it disturbs nothing: no dylib is ever dlclosed,
+  and an unlinked file that is mapped stays readable until the last
+  mapping goes. Nothing on disk is read across runs anyway — the
+  freshness table that decides a rebuild is in memory. A run that was
+  killed or that faulted never reached that removal, so before a host
+  makes its own directory it removes the sibling ones whose pid no
+  process holds; a live pid's directory is never touched, this process's
+  own least of all.
+* **A build is named for the host that made it** —
+  `sketch_<host>_<build>.dylib` — because every host in a process links
+  into that one directory. Named by
+  its build number alone, the three resident hosts would all write
+  `sketch_1.dylib`: two of them building at once race for the path, and
+  the file standing there when one of them dlopens is whichever link
+  finished last, so a host adopts a sketch it did not build. The image
+  already loaded is safe either way — the linker replaces its output
+  rather than rewriting it, so the inode a mapped dylib is reading stays
+  alive under it — and it is the gap between a link and the dlopen after
+  it that an id per host closes.
 * Compile errors overlay while the **last good sketch keeps running**.
 * Old libraries are never unloaded. Their statics stay valid — a running
   session may hold a vtable or a string literal that lives in one — and
@@ -457,18 +1090,25 @@ embedding a scripting language — so a sketch never leaves the real API.
   zero. What leaves is the one presented longest ago. An EDIT is not a
   switch: a rebuild restarts its own session from nothing, which is
   exactly what an edit wants.
-* The watch covers the **headers standing beside the sketch** as well as
-  the sketch. A sketch is one translation unit and more than one file: a
-  helper beside it is reached by a quoted include, which resolves
-  relative to the including file and needs no include path — so saving
-  the header rebuilds, rather than leaving the code that stood before
-  the edit on screen with nothing saying so.
+* The watch covers **everything the sketch is built from**: the entry
+  every poll, and on a short cadence the headers standing beside it, the
+  units beside it when it is a directory sketch, and the shared layer's
+  sources and headers. A helper beside a sketch is reached by a quoted
+  include, which resolves relative to the including file and needs no
+  include path — so saving the header rebuilds, rather than leaving the
+  code that stood before the edit on screen with nothing saying so.
+  Beside a BARE sketch the other sources are other sketches, and saving
+  one of them is nothing to this one.
 * After rebuilding the framework itself, restart the host. The ABI
   version guards deliberate changes to the sketch surface; a separate
-  guard refuses to compile while any repository header on the include
-  path postdates the running binary, because a dylib built against newer
-  headers loads into a host whose structs have the old layout and the
-  crash points nowhere near the cause.
+  guard refuses to compile while ANY of the framework libraries' public
+  headers postdates the running binary, because a dylib built against
+  newer headers loads into a host whose structs have the old layout and
+  the crash points nowhere near the cause. Every one of those headers
+  counts, whatever it happens to declare: a sketch fills a pool the host
+  then resizes and builds an element the host then reconciles, so a
+  layout read one way on each side corrupts wherever the object is next
+  touched.
 
 ### A workspace: sketches outside this repository
 
@@ -493,9 +1133,16 @@ So a workspace is just a directory:
 ~/sketches/
   my_experiment.cpp     one sketch, opened by path
   palette.h             a helper, reached by a quoted include
+  rain/
+    rain.cpp            a sketch that is a directory, opened by its entry
+    drops.cpp           a unit of it
   assets/               what mounts at res://
   captures/             where the app's Capture writes
 ```
+
+The directory form is the same rule wherever the entry stands, and the
+shared layer a workspace sketch may spell `<shared/Name.h>` against is
+this repository's: the flags it compiles with are this checkout's.
 
 `assets/` beside the sketch is the default root, and `--assets <dir>`
 names another. Saving `palette.h` rebuilds the sketch that includes it.
@@ -509,7 +1156,7 @@ registry, which is the compiled-in table — a workspace file is
 photographed with `--frame` and measured with `--bench`, one file at a
 time.
 
-### The two lists that must agree
+### One surface, read twice
 
 What a sketch may `#include` is `SigilSketches`' PUBLIC dependencies —
 the flags a hot-reloaded sketch compiles with are lifted out of the
@@ -517,43 +1164,96 @@ compilation database from `sketches/Anchor.cpp`, a source of that same
 target, so the include surface cannot drift between a compiled-in sketch
 and a reloaded one.
 
-What a sketch may **link** is the force-load list in
-`book/CMakeLists.txt`. These are one fact stated twice, and when they
-disagree the symptom is invisible everywhere but one place: every sketch
-still compiles, every compiled-in sketch still runs, and the reloaded
-one fails at `dlopen` with a symbol not found in the flat namespace. The
-`sketch_reload_surface` tests exist for exactly that, one per runtime,
-and they must go through the dynamic path to see it.
+What a sketch may **link** is read off the same target: at configure
+time `src/sketch/cmake/SketchLinkSurface.cmake` walks `SigilSketches`' link closure
+and force-loads into Sketchbook every archive of this repository's in it
+— the public ones, the private ones riding beneath them, and the ones an
+optional SDK produced on the machines where it did — with Skia, the one
+vendored archive a sketch calls directly, named beside them. An archive
+added to the sketch target is therefore in the host without a second
+list to keep in step. The failure that list guards against is invisible
+everywhere but one place: every sketch still compiles, every compiled-in
+sketch still runs, and only a reloaded one fails at `dlopen` with a
+symbol not found in the flat namespace — and only for a symbol no
+compiled-in sketch happened to pull in, which is why a full tree hides
+it and a narrowed one bites. The `sketch_reload_surface` tests exist for
+exactly that, one per runtime, and they must go through the dynamic path
+to see it.
 
 ## Layout
 
 ```
 src/sketch/
-  core/       what a sketch is, what it declares, the registry, the kind seam
+  core/       what a sketch is, what it declares, the registry, the kind seam, the crash reporter
   canvas/     the 2D runtime: a clock, a ticker and a Composer
   set/        the 3D runtime: a ticker and a retained Scene
-  live/       the reload engine, the resident set, and the crash reporter
-  plate/      the headless sweep
-  book/       Sketchbook: the app, and the headless entry point
-  sketches/   every sketch, one file each
+  draw/       the immediate-mode runtime: a clock, a ticker, a pen and a surface that persists
+  kit/        the sheet a sketch stands on: the theme, the page and the furniture over it
+  live/       the reload engine, the resident set and the sweep's cadence
+  scry/       the opt-in shared Ultralight engine a web sketch borrows
+  plate/      the headless sweep, the montage, the plate comparison, the thumbnail store
+  book/       Sketchbook: the app, and the headless entry point, with the browser's rows
+  cmake/      SketchLinkSurface.cmake, the link surface a reloaded sketch is read against
+  test/       support/, the fixtures every feature's cases share
+  sketches/   every sketch, one file or one directory each; shared/ beside them
 ```
 
-Each feature is its own archive with its own tests and benchmarks, and
-links only what is beneath it. Every public header lives under
-`include/sigilsketch/`, and the directories under it nest the way the
-targets do.
+Directories and headers are the same outline — a feature at `canvas/`
+keeps its headers under `include/sigilsketch/canvas/` and its own
+`test/` and `bench/` — and the targets are four:
+
+| Target | Kind | What it is |
+|---|---|---|
+| `SigilSketch` | static archive | `core/`, `canvas/`, `set/`, `draw/`, `live/`, `plate/`, and `scry/` where the SDK is installed: the registry, the three runtimes, the reload engine and the headless renderer. Links no device backend and no Qt. |
+| `SigilSketchKit` | static archive | the sheet a sketch stands on, over the canvas runtime alone |
+| `SigilSketches` | object library | every sketch, and the one place the sketch API surface is stated |
+| `Sketchbook` | application bundle | the host: the window, the browser's rows, and every headless entry |
+
+Beside them stand `sketch_test`, `sketch_bench`, and the build step that
+writes the response file a hot-reloaded sketch compiles with.
 
 ## Boundaries
 
-* **`core` draws nothing.** A consumer that only wants to know what
-  sketches exist links it alone; it could not paint a pixel.
-* **The runtimes do not know each other.** `canvas` links compose,
-  `set` links world, and neither names a type from the other's library.
-* **`set` links no device.** The runtime a session draws through is a
-  value the process installs once — one device, one queue, every
+* **`core` draws nothing.** What a sketch is, what it declares and the
+  registry it joins are stated without a runtime in reach; nothing under
+  `core/` could paint a pixel.
+* **Every host has a guest, so the crash reporter is core's.** The live
+  host calls into a dylib it just loaded; the sweep opens a hundred
+  sketches in one process and calls into each. A fault inside one is a
+  fault inside the host either way, and without a handler the process
+  dies with a bare signal and says nothing — on a sweep, the last line
+  another sketch happened to print is then the only evidence of which one
+  it was. `installCrashReporter` names the file a host watches,
+  `noteSketch` the entry a walking host is on, `notePlates` how far the
+  run got, and `PhaseMark` what the host was doing. The handlers write
+  with `write(2)` and `backtrace_symbols_fd(3)` alone and read only
+  buffers filled before any fault could land.
+* **The runtimes do not know each other's bodies.** `canvas` links
+  compose, `set` links world, `draw` links SigilDraw, and none describes
+  through another's runtime. What crosses between them is a picture,
+  through the two doors on the contexts — a compose tree painted into a
+  texture, a world frame baked to an image — and each door names the
+  other library's value by forward declaration alone, with the archive
+  behind it linking that library privately. A sketch that walks through
+  a door includes that library's own headers.
+* **No runtime links a device.** The runtime a session draws through is
+  a value the process installs once — one device, one queue, every
   session — so a machine with no device runs every set on the CPU mesh
   executor and the plates it makes are the ones the byte-identity tier
-  hashes. `book/` is the only place that installs one.
+  hashes. `book/` is the only place that installs one, and it installs
+  three: `sketch::useRuntime` for the frame a set draws,
+  `sketch::usePainterRuntime` for the mesh draws a canvas sketch takes,
+  and `sketch::useDevice` for the device itself, which a call that
+  imports a foreign texture names and no runtime can stand in for.
+* **The force-load list is every archive the host links.** A sketch
+  dylib resolves the framework out of the host, so a symbol the host
+  does not contain stops the load. The list is walked from two roots —
+  what `SigilSketches` hands its consumers, and what the host links
+  itself — because an archive only an application brings up, a device
+  backend among them, is in the second and not the first. A gap there is
+  invisible in every compile and every picture and appears at one
+  dlopen, so each root has a reload test that names symbols nothing else
+  does.
 * **The live host is Qt-free.** Everything about watching, compiling and
   swapping is in `live/`; `book/` is the only place a window appears.
 
@@ -567,3 +1267,157 @@ forgiving contract a live-edited file wants — a magenta placeholder
 stands in for a missing or undecodable file and heals the moment one
 appears, re-running the sketch's declaration — and `hub()` opens the
 full resource surface without the sketch ever touching the filesystem.
+`video()` opens encoded bytes as a streaming SigilVideo clip, caches one clip
+per URI and decode policy, and drops those clips when the hub observes the
+source changing. A video keeps only its small decoded-frame cache; the asset
+store does not expand the whole timeline into images.
+
+## Build and test
+
+From `apps/spell-circle-canvas`:
+
+```sh
+python3 scripts/sigil.py setup --config Release
+cmake --build build --config Release --target sketch_test
+ctest --test-dir build -C Release --output-on-failure
+```
+
+A suite is selected by its own name — `ctest -R '^SketchRegistry\.'` — and
+a case by its full one, with no target behind either.
+The library has one test binary, `sketch_test`, built from every
+feature's `test/` directory; ctest discovers one entry per CASE out of
+it. `core/test/` covers the registry, the kind seam, the crash reporter
+and where a sketch stands on disk; `canvas/test/`,
+`set/test/` and `draw/test/` the three sessions;
+`kit/test/` the sheet a specimen stands on; `live/test/` the
+host, the resident set and the cadence a window sweep keeps;
+`plate/test/` the sweep, the comparison
+of two directories of plates and the montage MP4 exporter;
+`book/test/` the reload path and the catalog's rows, each through the
+`Sketchbook` binary as a script; and `scry/test/` the shared web engine
+beside the case that
+takes a page's still — two cases that must not meet in one process because
+the engine allows one renderer per process and the shared-engine case
+ends by shutting its one down for good. Both are labelled `ultralight`
+and are absent altogether without that SDK. Beside the test binary
+stands one bench binary, `sketch_bench`, built from every feature's
+`bench/` directory — a Google Benchmark executable rather than a test,
+reached through the `benches` target.
+
+A case asserts one behaviour a session or a host promises to a caller who
+has read only this page, and its name is that promise written as a
+sentence. It pins only what editing this library could falsify — a step
+count off a clock the host steps rather than reads, a projection's own
+arithmetic, the bytes two runs of one declaration agree on, the width a
+plate comes out at read from the constant the sweep uses — never a fitted
+tolerance, an anti-aliased byte or elapsed time. Pixel identity across a
+change is the plate ledger's to judge and what a frame costs is the bench
+ledger's. A claim made N times with one thing varying is one `TEST_P`
+with its rows named: which file an edit landed in and whether it is part
+of the sketch, over `AHeaderBesideABareSketch`,
+`AUnitBesideADirectorySketch`, `AnotherBareSketchBesideIt` and
+`AModuleInTheSharedLayer`.
+
+**What every session promises is written once.** A host steps, repaints
+and photographs a session without ever learning which runtime it is
+holding, so the six claims that follow from that live in
+`test/support/Sessions.h` — the canvas the body declared while it opened,
+the runtime the kind names, the lanes the runtime spends, a frame as the
+body's own time plus the runtime's, the oversample a still is worth
+taking at, and a repaint that draws the state the frames left and
+advances nothing. Each of the three session binaries instantiates them
+with a traits type naming its own fixture sketch, and what is left in
+each session's file is what only that runtime does: a canvas re-renders
+for its still and so takes one more step, a draw sketch's plate IS the
+surface earlier frames drew onto, a set is formed at the resolution of
+the canvas it is handed rather than magnified onto it.
+
+Two of the entries run no C++ at all. `sketch_readme_stems` resolves every
+sketch stem the documents in this tree name against the registry: a
+backticked snake_case token in a paragraph that is talking about
+sketches, studies or a study must name a file under `sketches/`, and one
+that does not is either exempted by name and reason in
+`test/readme_sketch_stems.py` or fails the run. It refuses a count of a
+list too — a cardinal qualifying "studies", "sketches" or "scenes"
+beside a named stem, when it claims the list's own length, is maintained
+by hand in lockstep with the list and goes stale the moment the list
+grows, so the count is deleted and the list is the count. It is the
+registry's check, which is why it is here rather than beside each
+document. `sketch_readme_stems_self_test` runs the checker's own
+fixtures, and is the only thing that would notice the extractor
+narrowing: a checker that silently resolves fewer stems still passes over
+the corpus.
+
+Fixtures live in `test/support/`, reached as `"support/<name>.h"`, and
+nothing is written twice. `Fixtures.h` is the one asset store a process
+holds — never destroyed, because it outlives every session opened over it
+— beside the font context the whole tree shares, which is
+`src/test/Fonts.h`'s and not this library's. `Pixels.h` takes the
+readings off a picture: what a surface or an image holds, whether two
+plates are one picture, the box the drawn pixels stand in, and where that
+box stands as a fraction of the plate so two plates of different sizes
+can be compared. `Sessions.h` is the contract above. `live/test/Fixture.h`
+holds what both halves of the live feature's cases need beyond them: the
+compiled-in square, its registry entry, and a `Watched` file standing in
+a scratch directory of its own — bare, or in a directory named for it,
+which is the other shape a sketch takes — which the shared
+`src/test/ScratchDir.h` empties on the way in and removes on the way out.
+The plate cases register their fixture sketches the way a sketch file
+does, so the sweep it drives walks a real registry — including one whose
+`available()` probe says no, which the sweep passes over rather than
+failing on and writes no plate for.
+
+A wait inside a test is a COUNT OF TURNS and never an open loop: a build
+polled to completion and a forked child read to its fault both give up
+and say so, because a run that hangs reports nothing at all where a run
+that fails names the claim that broke.
+
+`Host::Options::siblingScanInterval` names how long the host waits
+between re-reads of the headers standing beside the sketch. It defaults
+to a quarter second, because reading a directory is cheap but not free
+and a header is saved by hand a moment before the sketch is; a test that
+edits a header and polls sets it to zero, so the edit is seen when it is
+made rather than whenever the cadence next comes round.
+
+### Three ways a sketch is put through a host, and why they are all here
+
+The `sketch_reload_*` entries in `book/CMakeLists.txt` run
+`Sketchbook <file.cpp> --frame out.png`, which compiles the file with the
+captured response file, dlopens the result and runs it — the DYNAMIC
+path, and the only one that can see a missing archive in the force-load
+list. The plate cases call `sweep()` IN PROCESS against fixture
+sketches its own binary registered. `scripts/sigil.py plates` runs
+`Sketchbook --headless --ledger` over the COMPILED-IN registry and judges
+plate hashes. Three different things, and none of them stands in for
+another.
+
+Within the dynamic entries, one per distinct surface: `shapeworks_lab`
+and `first_light` are the widest canvas and set sketches by the symbols
+they name, `stock_materials` paints one of every stock material,
+`video_compose` reaches the decoder and encoder archives no
+geometry-heavy sketch names, `world_hud` is the other registration form,
+`dunhuang_star_chart` is the directory form — several units compiled
+apart and linked once — and the entries behind an optional SDK name
+symbols nothing else does. The archives only the HOST links, a device
+backend among them, stand behind a probe file beside that list rather
+than behind a sketch, because nothing in the registry names one and what
+it asserts is a dlopen and not a picture. A starter sketch that names
+none of those adds no entry of its own: anything that stops it compiling
+and loading stops the wide ones too.
+
+Every one of those judges a compile and a load, and none of them judges
+WHOSE code drew: a host that quietly ran its own copy of the sketch
+passes all of them. `sketch_reload_runs_the_file` is the one that looks,
+by rendering a copy of a registry sketch whose ground colour has been
+replaced and reading the corner pixel back, with the registry's own copy
+of the same sketch as the control.
+
+### A host over one sketch while the rest are broken
+
+The sketches come last: library work is expected to break them, and a
+host links every sketch it carries, so in the middle of a library pass
+no Sketchbook links at all. `-DSIGIL_SKETCH_ONLY=stem;stem` at configure
+time narrows the registry a tree compiles to those stems — the directory
+is still the only list of what a sketch IS; this says which of them one
+tree carries — so a pass over the host can be looked at through the one
+sketch it is studying. Leave it empty, the default, for every sketch.

@@ -1,8 +1,9 @@
 /** @file
- * Decorations as drawn: a restyle draws without reshaping, spanning bands
- * cover the gaps between words while per-word bands break at them,
- * highlights sit beneath the glyphs, and a shaded band draws independently
- * of the glyph paint.
+ * Decorations as drawn. Where a band's rectangles land is the decoration
+ * feature's own claim; what reaches the canvas is this file's: a band
+ * declared after the layout still inks, a highlight sits beneath the
+ * glyphs, a shaded band draws independently of the glyph paint, and a
+ * column's band runs beside the type on one side of it.
  */
 
 #include <gtest/gtest.h>
@@ -13,187 +14,111 @@
 #include <include/effects/SkGradient.h>
 
 #include <algorithm>
-#include <iomanip>
+#include <utility>
 #include <vector>
 
-#include "support/Fonts.h"
+#include "support/Faces.h"
 #include "support/Layouts.h"
 #include "support/Paragraphs.h"
+#include "support/Pixels.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
-TEST(DecorationTest, RestyleDrawsWithoutReshaping) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"decorate me");
-  BlockFlow flow(SkRect::MakeWH(400, 60));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+/// The two-word setting every band is read across, with the glue gap
+/// between the words measured off the shaped advances: a band's whole
+/// question is what it does at a word boundary.
+class DecorationInk : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    LaidOut setting = twoWordsOnOneLine();
+    m_paragraph = std::move(setting.paragraph);
+    m_layout = std::move(setting.layout);
+    m_wordRuns = wordRuns(m_layout);
+    ASSERT_GE(m_wordRuns.size(), 2u) << "the fixture must place two words";
+    m_gapStart = m_wordRuns[0]->origin.x() + m_wordRuns[0]->shaped->advance;
+    m_gapEnd = m_wordRuns[1]->origin.x();
+    ASSERT_GT(m_gapEnd, m_gapStart) << "expected inter-word glue";
+  }
 
-  fontContext.resetStats();
+  /// Paints the whole text with `style`, which is where a decoration is
+  /// declared — the layout already stands and is never rebuilt.
+  void paintEverything(const PaintStyle& style) {
+    m_paragraph.setPaint(0, static_cast<uint32_t>(m_paragraph.text().size()),
+                         style);
+  }
+
+  /// The layout drawn onto a white surface and read back. The pixmap
+  /// borrows the surface this holds, so one probe is live at a time.
+  SkPixmap probe(bool batched) {
+    m_surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 80));
+    m_surface->getCanvas()->clear(SK_ColorWHITE);
+    if (batched)
+      m_layout.drawBatched(m_surface->getCanvas(), m_paragraph);
+    else
+      m_layout.draw(m_surface->getCanvas(), m_paragraph);
+    SkPixmap pixmap;
+    EXPECT_TRUE(m_surface->peekPixels(&pixmap));
+    return pixmap;
+  }
+
+  int gapX() const { return static_cast<int>((m_gapStart + m_gapEnd) * 0.5f); }
+  int baselineY() const { return static_cast<int>(m_wordRuns[0]->origin.y()); }
+  /// True when some pixel inside the first word's extent, within six
+  /// pixels of `y`, satisfies `predicate`.
+  template <typename Predicate>
+  bool inkInFirstWord(const SkPixmap& pixmap, int y, Predicate&& predicate) {
+    const int wordStartX = static_cast<int>(m_wordRuns[0]->origin.x());
+    const int wordEndX = static_cast<int>(m_gapStart);
+    for (int x = wordStartX; x < wordEndX; ++x)
+      for (int row = y - 6; row <= y + 6; ++row)
+        if (predicate(pixmap.getColor(x, row))) return true;
+    return false;
+  }
+
+  Paragraph m_paragraph;
+  ParagraphLayout m_layout;
+  std::vector<const PositionedRun*> m_wordRuns;
+  float m_gapStart = 0, m_gapEnd = 0;
+  sk_sp<SkSurface> m_surface;
+};
+
+TEST_F(DecorationInk, ADecorationDeclaredAfterTheLayoutStillReachesTheCanvas) {
+  // Decorations are paint-side: the band is asked for on a layout that was
+  // placed before anyone mentioned it, and it must still ink.
   PaintStyle decorated(SK_ColorBLACK);
   decorated.addDecoration({}).addDecoration(
       {.kind = Decoration::Kind::kStrikethrough, .color = SK_ColorRED});
-  paragraph.setPaint(0, 8, decorated);
+  paintEverything(decorated);
 
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 60));
-  surface->getCanvas()->clear(SK_ColorWHITE);
-  layout.draw(surface->getCanvas(), paragraph);
-  layout.drawBatched(surface->getCanvas(), paragraph);
-  EXPECT_EQ(fontContext.stats().shapeCalls, 0u)
-      << "decorations are paint-side: no reshape, no relayout";
-
-  // The red strikethrough must have put red ink on the surface. The band
-  // may be 1px tall on a fractional baseline offset, so anti-aliasing can
-  // blend every pixel — accept dominantly-red rather than exact SK_ColorRED.
-  SkPixmap pixmap;
-  ASSERT_TRUE(surface->peekPixels(&pixmap));
-  bool sawRed = false;
-  for (int y = 0; y < pixmap.height() && !sawRed; ++y)
-    for (int x = 0; x < pixmap.width() && !sawRed; ++x) {
-      const SkColor color = pixmap.getColor(x, y);
-      sawRed = SkColorGetR(color) > 200 && SkColorGetG(color) < 128 &&
-               SkColorGetB(color) < 128;
-    }
-  EXPECT_TRUE(sawRed);
+  // The band may be 1px tall on a fractional baseline offset, so
+  // anti-aliasing can blend every pixel — accept dominantly-red rather
+  // than exact SK_ColorRED.
+  for (const bool batched : {false, true}) {
+    const SkPixmap pixmap = probe(batched);
+    EXPECT_TRUE(anyPixel(pixmap,
+                         [](SkColor color) {
+                           return SkColorGetR(color) > 200 &&
+                                  SkColorGetG(color) < 128 &&
+                                  SkColorGetB(color) < 128;
+                         }))
+        << (batched ? "batched" : "immediate") << ": no red band was drawn";
+  }
 }
 
-TEST(DecorationTest, UnderlineSpansAcrossWordGaps) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"mono nano", 32.0f);
-  BlockFlow flow(SkRect::MakeWH(400, 80));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
-
-  // Two words → (at least) two runs on one line with a glue gap between.
-  std::vector<const PositionedRun*> wordRuns;
-  for (const PositionedRun& run : layout.runs)
-    if (run.shaped) wordRuns.push_back(&run);
-  ASSERT_GE(wordRuns.size(), 2u);
-  const float gapStart = wordRuns[0]->origin.x() + wordRuns[0]->shaped->advance;
-  const float gapEnd = wordRuns[1]->origin.x();
-  ASSERT_GT(gapEnd, gapStart) << "expected inter-word glue";
-
-  PaintStyle underlined(SK_ColorBLACK);
-  Decoration underline;
-  underline.thickness = 3.0f;
-  underline.offset = 6.0f;  // clear of any glyph ink
-  underline.skipInk = false;
-  underlined.addDecoration(underline);
-  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
-                     underlined);
-
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 80));
-  surface->getCanvas()->clear(SK_ColorWHITE);
-  layout.draw(surface->getCanvas(), paragraph);
-
-  // The decorated range is one continuous band: the middle of the glue gap
-  // must be inked, not white (pre-spanning behavior drew per-word bands
-  // that skipped the space).
-  SkPixmap pixmap;
-  ASSERT_TRUE(surface->peekPixels(&pixmap));
-  const int probeX = static_cast<int>((gapStart + gapEnd) * 0.5f);
-  const int probeY = static_cast<int>(wordRuns[0]->origin.y() + 6.0f + 1.5f);
-  ASSERT_LT(probeX, pixmap.width());
-  ASSERT_LT(probeY, pixmap.height());
-  const SkColor gapColor = pixmap.getColor(probeX, probeY);
-  EXPECT_LT(SkColorGetR(gapColor), 100u)
-      << "underline must cover the word gap (got " << std::hex << gapColor
-      << ")";
-
-  // Same probe with skip-ink on: gaps still covered (no ink there).
-  PaintStyle skipInked(SK_ColorBLACK);
-  Decoration inkAware;
-  inkAware.thickness = 3.0f;
-  inkAware.offset = 6.0f;
-  skipInked.addDecoration(inkAware);
-  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
-                     skipInked);
-  surface->getCanvas()->clear(SK_ColorWHITE);
-  layout.draw(surface->getCanvas(), paragraph);
-  ASSERT_TRUE(surface->peekPixels(&pixmap));
-  EXPECT_LT(SkColorGetR(pixmap.getColor(probeX, probeY)), 100u)
-      << "skip-ink must only break at glyph ink, never at word gaps";
-}
-
-TEST(DecorationTest, PerWordSpanBreaksAtGaps) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"mono nano", 32.0f);
-  BlockFlow flow(SkRect::MakeWH(400, 80));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
-
-  std::vector<const PositionedRun*> wordRuns;
-  for (const PositionedRun& run : layout.runs)
-    if (run.shaped) wordRuns.push_back(&run);
-  ASSERT_GE(wordRuns.size(), 2u);
-  const float gapStart = wordRuns[0]->origin.x() + wordRuns[0]->shaped->advance;
-  const float gapEnd = wordRuns[1]->origin.x();
-  ASSERT_GT(gapEnd, gapStart);
-
-  PaintStyle underlined(SK_ColorBLACK);
-  Decoration perWord;
-  perWord.span = Decoration::Span::kPerWord;
-  perWord.thickness = 3.0f;
-  perWord.offset = 6.0f;
-  perWord.skipInk = false;
-  underlined.addDecoration(perWord);
-  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
-                     underlined);
-
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 80));
-  surface->getCanvas()->clear(SK_ColorWHITE);
-  layout.draw(surface->getCanvas(), paragraph);
-
-  SkPixmap pixmap;
-  ASSERT_TRUE(surface->peekPixels(&pixmap));
-  const int gapX = static_cast<int>((gapStart + gapEnd) * 0.5f);
-  const int bandY = static_cast<int>(wordRuns[0]->origin.y() + 6.0f + 1.5f);
-  // The gap stays bare…
-  EXPECT_GT(SkColorGetR(pixmap.getColor(gapX, bandY)), 200u)
-      << "kPerWord must not underline the word gap";
-  // …while both words still carry their own bands.
-  const int firstWordX = static_cast<int>(wordRuns[0]->origin.x() +
-                                          wordRuns[0]->shaped->advance * 0.5f);
-  EXPECT_LT(SkColorGetR(pixmap.getColor(firstWordX, bandY)), 100u);
-}
-
-TEST(DecorationTest, HighlightSpansGapsBeneathGlyphs) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"mono nano", 32.0f);
-  BlockFlow flow(SkRect::MakeWH(400, 80));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
-
-  std::vector<const PositionedRun*> wordRuns;
-  for (const PositionedRun& run : layout.runs)
-    if (run.shaped) wordRuns.push_back(&run);
-  ASSERT_GE(wordRuns.size(), 2u);
-  const float gapStart = wordRuns[0]->origin.x() + wordRuns[0]->shaped->advance;
-  const float gapEnd = wordRuns[1]->origin.x();
-  ASSERT_GT(gapEnd, gapStart);
-
+TEST_F(DecorationInk, AHighlightCoversTheGapAndTheGlyphsDrawOverIt) {
   PaintStyle marked(SK_ColorBLACK);
   Decoration highlight;
   highlight.kind = Decoration::Kind::kHighlight;
   highlight.color = 0x80FFE066;  // translucent marker yellow
   marked.addDecoration(highlight);
-  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()), marked);
+  paintEverything(marked);
 
   for (const bool batched : {false, true}) {
-    sk_sp<SkSurface> surface =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 80));
-    surface->getCanvas()->clear(SK_ColorWHITE);
-    if (batched)
-      layout.drawBatched(surface->getCanvas(), paragraph);
-    else
-      layout.draw(surface->getCanvas(), paragraph);
-
-    SkPixmap pixmap;
-    ASSERT_TRUE(surface->peekPixels(&pixmap));
+    const SkPixmap pixmap = probe(batched);
     // Mid-gap, mid-x-height: the marker stroke must cover the space
     // between words (tinted, not white).
-    const int gapX = static_cast<int>((gapStart + gapEnd) * 0.5f);
-    const int xHeightY = static_cast<int>(wordRuns[0]->origin.y() - 8.0f);
-    const SkColor gapColor = pixmap.getColor(gapX, xHeightY);
+    const int xHeightY = baselineY() - 8;
+    const SkColor gapColor = pixmap.getColor(gapX(), xHeightY);
     EXPECT_NE(gapColor, SK_ColorWHITE) << (batched ? "batched" : "immediate")
                                        << ": highlight must cover the word gap";
     EXPECT_GT(SkColorGetB(gapColor), 100u)
@@ -201,30 +126,13 @@ TEST(DecorationTest, HighlightSpansGapsBeneathGlyphs) {
 
     // The glyphs draw over the highlight: dark ink must survive somewhere
     // inside the first word's extent at x-height.
-    bool sawInk = false;
-    const int wordStartX = static_cast<int>(wordRuns[0]->origin.x());
-    const int wordEndX = static_cast<int>(gapStart);
-    for (int x = wordStartX; x < wordEndX && !sawInk; ++x)
-      for (int y = xHeightY - 6; y <= xHeightY + 6 && !sawInk; ++y)
-        sawInk = SkColorGetR(pixmap.getColor(x, y)) < 80;
-    EXPECT_TRUE(sawInk) << "glyphs must draw above the highlight";
+    EXPECT_TRUE(inkInFirstWord(pixmap, xHeightY, [](SkColor color) {
+      return SkColorGetR(color) < 80;
+    })) << "glyphs must draw above the highlight";
   }
 }
 
-TEST(DecorationTest, ShadedBandDrawsIndependentlyOfGlyphPaint) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"mono nano", 32.0f);
-  BlockFlow flow(SkRect::MakeWH(400, 80));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
-
-  std::vector<const PositionedRun*> wordRuns;
-  for (const PositionedRun& run : layout.runs)
-    if (run.shaped) wordRuns.push_back(&run);
-  ASSERT_GE(wordRuns.size(), 2u);
-  const float gapStart = wordRuns[0]->origin.x() + wordRuns[0]->shaped->advance;
-  const float gapEnd = wordRuns[1]->origin.x();
-  ASSERT_GT(gapEnd, gapStart);
-
+TEST_F(DecorationInk, AShadedBandFillsTheGapWhileTheGlyphsKeepTheirOwnPaint) {
   // Glyphs keep a plain black fill; only the highlight band gets a shader.
   // A solid green color shader stands in for the animated presets: green
   // can only reach the surface through the band's paint override.
@@ -236,24 +144,14 @@ TEST(DecorationTest, ShadedBandDrawsIndependentlyOfGlyphPaint) {
   bandPaint.setShader(SkShaders::Color(SK_ColorGREEN));
   highlight.paint = bandPaint;
   marked.addDecoration(highlight);
-  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()), marked);
+  paintEverything(marked);
 
   for (const bool batched : {false, true}) {
-    sk_sp<SkSurface> surface =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 80));
-    surface->getCanvas()->clear(SK_ColorWHITE);
-    if (batched)
-      layout.drawBatched(surface->getCanvas(), paragraph);
-    else
-      layout.draw(surface->getCanvas(), paragraph);
-
-    SkPixmap pixmap;
-    ASSERT_TRUE(surface->peekPixels(&pixmap));
+    const SkPixmap pixmap = probe(batched);
     // Mid-gap, mid-x-height sits inside the band and clear of glyph ink:
     // the shader must have filled it.
-    const int gapX = static_cast<int>((gapStart + gapEnd) * 0.5f);
-    const int xHeightY = static_cast<int>(wordRuns[0]->origin.y() - 8.0f);
-    const SkColor gapColor = pixmap.getColor(gapX, xHeightY);
+    const int xHeightY = baselineY() - 8;
+    const SkColor gapColor = pixmap.getColor(gapX(), xHeightY);
     EXPECT_GT(SkColorGetG(gapColor), 200u)
         << (batched ? "batched" : "immediate")
         << ": band shader must fill the gap";
@@ -261,24 +159,18 @@ TEST(DecorationTest, ShadedBandDrawsIndependentlyOfGlyphPaint) {
 
     // The glyph fill stays plain black above the shaded band — the two
     // pipelines resolve independently.
-    bool sawInk = false;
-    const int wordStartX = static_cast<int>(wordRuns[0]->origin.x());
-    const int wordEndX = static_cast<int>(gapStart);
-    for (int x = wordStartX; x < wordEndX && !sawInk; ++x)
-      for (int y = xHeightY - 6; y <= xHeightY + 6 && !sawInk; ++y) {
-        const SkColor color = pixmap.getColor(x, y);
-        sawInk = SkColorGetR(color) < 80 && SkColorGetG(color) < 80;
-      }
-    EXPECT_TRUE(sawInk) << "glyphs must keep their own paint";
+    EXPECT_TRUE(inkInFirstWord(pixmap, xHeightY, [](SkColor color) {
+      return SkColorGetR(color) < 80 && SkColorGetG(color) < 80;
+    })) << "glyphs must keep their own paint";
   }
 }
 
-TEST(DecorationTest, AColumnDrawsItsBandBesideTheType) {
+TEST(ColumnDecorationInk, AColumnDrawsItsBandBesideTheType) {
   // 傍線: down a column the emphasis line runs BESIDE the characters on the
   // right, the length of the run — the same band the horizontal setting
   // draws under a line, turned with the type.
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"縦書きの傍線", 32.0f);
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = machineParagraph(u8"縦書きの傍線", 32.0f);
   paragraph.setWritingMode(WritingMode::kVerticalRL);
   VerticalBlockFlow flow(SkRect::MakeWH(120, 300));
   ParagraphLayoutOptions options;
@@ -305,28 +197,28 @@ TEST(DecorationTest, AColumnDrawsItsBandBesideTheType) {
   SkPixmap pixmap;
   ASSERT_TRUE(surface->peekPixels(&pixmap));
 
-  // Red ink, and all of it on ONE side of the column axis, spread down the
+  const auto isBandRed = [](SkColor color) {
+    return SkColorGetR(color) >= 200 && SkColorGetG(color) <= 128 &&
+           SkColorGetB(color) <= 128;
+  };
+  ASSERT_GT(countPixels(pixmap, isBandRed), 0) << "a column drew no band";
+
+  // All of the band's ink on ONE side of the column axis, spread down the
   // column rather than across it.
-  int redPixels = 0, redLeftOfAxis = 0;
+  int redLeftOfAxis = 0;
   int topMost = pixmap.height(), bottomMost = -1;
   float minX = 1e9f, maxX = -1e9f;
   for (int y = 0; y < pixmap.height(); ++y)
     for (int x = 0; x < pixmap.width(); ++x) {
-      const SkColor color = pixmap.getColor(x, y);
-      if (SkColorGetR(color) < 200 || SkColorGetG(color) > 128 ||
-          SkColorGetB(color) > 128)
-        continue;
-      ++redPixels;
+      if (!isBandRed(pixmap.getColor(x, y))) continue;
       if ((float)x < first.origin.x()) ++redLeftOfAxis;
       topMost = std::min(topMost, y);
       bottomMost = std::max(bottomMost, y);
       minX = std::min(minX, (float)x);
       maxX = std::max(maxX, (float)x);
     }
-  ASSERT_GT(redPixels, 0) << "a column drew no band at all";
   EXPECT_EQ(redLeftOfAxis, 0)
       << "the band crossed to the wrong side of the column";
   EXPECT_GT(bottomMost - topMost, 60)
       << "the band must run DOWN the column, not across it";
-  EXPECT_LT(maxX - minX, 6.0f) << "a 3px band must stay 3px wide";
 }

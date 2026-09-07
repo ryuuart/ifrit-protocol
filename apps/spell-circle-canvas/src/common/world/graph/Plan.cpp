@@ -1,5 +1,5 @@
 /** @file
- * The plan, assembled: order, realise, live, alias, barrier. A failure
+ * The plan, assembled: order, claim, realise, live, alias, barrier. A failure
  * at any step leaves a plan carrying the error and no steps at all,
  * because half an order is worse than none.
  */
@@ -34,6 +34,9 @@ Plan build(const Frame& frame) {
 
   std::vector<size_t> order;
   plan.m_error = detail::order(passes, order);
+  if (!plan.m_error.empty()) return plan;
+
+  plan.m_error = detail::claims(passes, order);
   if (!plan.m_error.empty()) return plan;
 
   plan.m_error = detail::realise(passes, order, plan.m_steps);

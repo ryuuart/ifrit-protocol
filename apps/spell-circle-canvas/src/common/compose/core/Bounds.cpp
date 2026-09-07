@@ -17,6 +17,7 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
+#include <sigilgeometry/path/Numeric.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -25,10 +26,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <map>
-#include <set>
 #include <tuple>
-#include <unordered_set>
 #include <utility>
 
 #include "ComposeRuntime.h"
@@ -47,14 +45,24 @@ using namespace detail;
 /** The rect this node's OWN paint covers, in its own local space — children
  *  excluded; recordBounds() below adds the child union. The node's box,
  *  grown by every declared bleed (decorations, stroke passes, echo offsets,
- *  band width profiles, material reserves), then joined with the geometry a
- *  layout rect does not bound at all: a routed connector/rail path, a text
- *  run's path baseline, and a borrowed band spine, each outset by its own
- *  reach. */
+ *  band width profiles, material reserves), then joined with what a layout
+ *  rect does not bound at all: the ink of the glyphs a text leaf placed, a
+ *  routed connector/rail path, a text run's path baseline, and a borrowed
+ *  band spine, each outset by its own reach. */
 SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   const SkRect rect = instanceRect(inst);
   SkRect local = SkRect::MakeWH(rect.width(), rect.height());
+  // A GLYPH'S OUTLINE IS NOT ITS LINE BOX. A text leaf is measured to the
+  // band of its lines, and the ink a face draws stands outside that band
+  // wherever the face says it does — a comma's tail below the descent, an
+  // accent above the ascent — so the leaf paints past its own box by a
+  // fraction of a pixel on most faces and by more on a few. Joined here
+  // BEFORE the bleeds, so a track's reach and a decoration's bleed grow
+  // the ink as they grow the box; unioned rather than outset, because the
+  // layout already knows where the letters went and a guess would be a
+  // second opinion about it. Empty on every node that is not type.
+  local.join(inst.textInk);
   float bleed = 0;
   for (const Decoration& d : node.backgrounds)
     bleed = std::max(bleed, d.bleed());
@@ -157,7 +165,7 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
 
 std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
     Instance& inst, const SkSize& frame) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   if (!node.motionData || !(bool)node.motionData->path) return std::nullopt;
   const MotionPath& spec = *node.motionData;
 
@@ -183,8 +191,8 @@ std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
   // another lap of whichever contour it landed in; the pose read below
   // then walks every contour as one arc-length coordinate.
   const auto walk = [&](float u) {
-    float w = cache.closed ? std::fmod(u, 1.0f) : std::clamp(u, 0.0f, 1.0f);
-    if (cache.closed && w < 0.0f) w += 1.0f;
+    const float w =
+        cache.closed ? motion::phase(u, 1.0) : std::clamp(u, 0.0f, 1.0f);
     return geometry::path::toSk(
         geometry::path::poseAlong(cache.contours, w * cache.total).position);
   };
@@ -198,13 +206,13 @@ std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
     // last good one rather than reading atan2(0, 0).
     if (chord.length() <= 1e-6f) chord = here - walk(t - spec.lookAhead);
     if (chord.length() > 1e-6f)
-      orient = std::atan2(chord.y(), chord.x()) * 180.0f / SK_FloatPI;
+      orient = geometry::path::degrees(std::atan2(chord.y(), chord.x()));
   }
   return std::make_pair(here, orient);
 }
 
 Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance& inst) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   NodeTransform out;
   out.rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
   out.scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
@@ -212,6 +220,15 @@ Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance& inst) {
   out.sy = inst.resolveFloat(Instance::kScaleY, node.paint.scaleY);
   out.skx = inst.resolveFloat(Instance::kSkewX, node.paint.skewX);
   out.sky = inst.resolveFloat(Instance::kSkewY, node.paint.skewY);
+  // The depth lanes, on the nodes that carry the block; everyone else is
+  // at rest in all four and stays a 2D node in every consumer.
+  if (node.depthData) {
+    const DepthData& depth = *node.depthData;
+    out.rx = inst.resolveFloat(Instance::kRotateX, depth.rotateX);
+    out.ry = inst.resolveFloat(Instance::kRotateY, depth.rotateY);
+    out.tz = inst.resolveFloat(Instance::kTranslateZ, depth.translateZ);
+    out.sz = inst.resolveFloat(Instance::kScaleZ, depth.scaleZ);
+  }
 
   const SkRect rect = instanceRect(inst);
   // The curve is resolved in the frame the node MOVES in — its parent's
@@ -263,16 +280,55 @@ Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance& inst) {
  *  Animated transforms are fine here: resolveFloat reads the record-time
  *  value, and a RUNNING transform makes the subtree volatile, so nothing
  *  records at all. A clipped node contributes only its own box, because its
- *  children cannot escape it. */
-SkRect Composer::Impl::recordBounds(Instance& inst) {
-  const ElementNode& node = *inst.desc;
+ *  children cannot escape it.
+ *
+ *  A child that has turned in depth projects its own bounds through its
+ *  flattened 4x4 — the same producer paint flattens — and a corner behind
+ *  the viewer is left out of the box rather than mapped to nowhere. A
+ *  node HOSTING a shared space answers in the plane that space is drawn
+ *  on: its own box through its own plane, and every child in the space
+ *  through the child's full matrix there, so the layer or bake an ancestor
+ *  sizes from this holds the faces of a cube wherever they have turned. */
+SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space) {
+  const ElementNode& node = *inst.description;
   SkRect local = ownPaintBounds(inst);
+  const bool hosts = hostsSpace(inst);
+  // The host's own 4x4 in the plane its space is drawn on — what every
+  // child's matrix begins with, and what the host's own box is seen
+  // through there.
+  std::optional<SkM44> own;
+  if (hosts) {
+    SkM44 m = depthMatrixOf(inst, transformOf(inst), instanceRect(inst));
+    if (space) m = SkM44(*space, m);
+    own = m;
+    local = projectRect(own->asM33(), local);
+  }
   if (node.clipContent) return local;
   for (auto& child : inst.children) {
-    const ElementNode& cn = *child->desc;
+    const ElementNode& cn = *child->description;
     const SkRect crect = instanceRect(*child);
-    SkRect cb = recordBounds(*child);  // child-local
     const NodeTransform tf = transformOf(*child);
+    if (hosts) {
+      // In the space: a nested host answers in the same plane already; a
+      // flat child's own plane is projected there through its full matrix.
+      if (hostsSpace(*child)) {
+        local.join(recordBounds(*child, &*own));
+      } else {
+        const SkM44 m(*own, depthMatrixOf(*child, tf, crect));
+        local.join(projectRect(m.asM33(), recordBounds(*child)));
+      }
+      continue;
+    }
+    if (hostsSpace(*child)) {
+      // The space the child hosts is drawn on THIS plane.
+      local.join(recordBounds(*child));
+      continue;
+    }
+    SkRect cb = recordBounds(*child);  // child-local
+    if (tf.spatial()) {
+      local.join(projectRect(depthMatrixOf(*child, tf, crect).asM33(), cb));
+      continue;
+    }
     // The matrix comes from NodeTransform::matrix(), gate included, and not
     // from a copy of that build written here. One resolver, three consumers
     // — paint()'s matrix, this child union, and hitInstance()'s inverse —

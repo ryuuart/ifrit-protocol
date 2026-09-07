@@ -6,39 +6,16 @@
  * that install it on a description.
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkContourMeasure.h>
-#include <include/core/SkFontMetrics.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathEffect.h>
-#include <include/core/SkPicture.h>
-#include <include/core/SkPictureRecorder.h>
-#include <include/core/SkRRect.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkStrokeRec.h>
-#include <include/core/SkSurface.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <include/effects/SkTrimPathEffect.h>
-#include <sigilimage/asset/ImageAsset.h>
-#include <sigilweave/choreograph/Choreograph.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
+#include <include/core/SkTypes.h>
+#include <sigilgeometry/path/Band.h>
 
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <map>
-#include <set>
-#include <tuple>
-#include <unordered_set>
+#include <optional>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "ComposeRuntime.h"
 #include "SpanArithmetic.h"
-#include "sigilgeometry/path/Contour.h"
-#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
 
@@ -61,7 +38,9 @@ std::string passLabel(const detail::StrokePass& pass, size_t index) {
  *  message says so — that is the only place an author learns it. */
 void warnOverlappingClaims(const std::string& a, const std::string& b,
                            Span shared) {
-  static std::vector<std::string> seen;
+  // Thread-local: this tier takes no locks, so two composers on two
+  // threads would race on one shared set.
+  static thread_local std::vector<std::string> seen;
   const std::string key = a + "|" + b;
   for (const std::string& k : seen)
     if (k == key) return;
@@ -88,7 +67,7 @@ namespace {
 std::vector<std::vector<Span>> resolveSpans(const Instance& inst,
                                             const SkPath& outline) {
   std::vector<std::vector<Span>> out;
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   if (!node.hasStrokePasses()) return out;
   const std::vector<StrokePass>& passes = node.strokeData->passes;
   out.resize(passes.size());
@@ -98,7 +77,7 @@ std::vector<std::vector<Span>> resolveSpans(const Instance& inst,
   std::vector<float> values;
   values.reserve(inst.spanAnims.size());
   size_t slot = 0;
-  auto push = [&](const Animatable<float>& v) {
+  auto push = [&](const motion::Animatable<float>& v) {
     const AnimatedFloat* a =
         slot < inst.spanAnims.size() ? inst.spanAnims[slot].get() : nullptr;
     values.push_back(inst.resolveFloatAt(a, v));
@@ -188,8 +167,8 @@ struct StrokeEngine final : StrokeResolverOps {
     return resolveSpans(inst, outline);
   }
   SkPath bandRegion(const SkPath& spine, const Across& width,
-                    Formation formation) const override {
-    return detail::bandRegion(spine, width, formation);
+                    geometry::path::Formation formation) const override {
+    return geometry::path::bandRegion(spine, width.profile, formation);
   }
 };
 
@@ -225,8 +204,12 @@ Element& Element::addSpanPass(Spans where, Decoration what, std::string name,
   // into DeriveData where the ONE derive-registration walk finds them —
   // the flowAround pattern, not a second phase.
   for (const Spans::Term& t : where.terms)
-    if (t.rule == Spans::Rule::Fit && !t.key.empty())
-      m_node->deriveData.ensure().spanFitKeys.push_back(t.key);
+    if (t.rule == Spans::Rule::Fit && !t.key.empty()) {
+      detail::DeriveData& derive = m_node->deriveData.ensure();
+      derive.spanFitKeys.push_back(t.key);
+      // A gap sized from where a node LANDED is a read of its box.
+      derive.reads.push_back({t.key, sigil::core::Facet::Bounds});
+    }
   claimBorrows(what);
   detail::StrokeData& strokes = m_node->strokeData.ensure();
   if (!strokes.resolver) strokes.resolver = detail::strokeResolver();

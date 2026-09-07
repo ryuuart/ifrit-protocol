@@ -137,5 +137,3 @@ void BM_ErasedDispatch(benchmark::State& state) {
 BENCHMARK(BM_ErasedDispatch);
 
 }  // namespace
-
-BENCHMARK_MAIN();

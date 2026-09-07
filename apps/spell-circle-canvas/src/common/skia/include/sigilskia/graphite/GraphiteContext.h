@@ -1,7 +1,12 @@
 #pragma once
-#include <cstdint>
+#include <sigilcore/hardware/GpuDevice.h>
+
 #include <memory>
 #include <mutex>
+
+namespace skgpu {
+class ShaderErrorHandler;
+}  // namespace skgpu
 
 namespace skgpu::graphite {
 class Context;
@@ -11,33 +16,6 @@ struct ContextOptions;
 }  // namespace skgpu::graphite
 
 namespace sigil::skia {
-
-class GpuDevice;
-
-/**
- * The raw Vulkan handles a Graphite context is stood up on. Every field
- * is the Vulkan object bridged to an opaque pointer or integer, so this
- * header pulls in no Vulkan header: `instance`, `physicalDevice`,
- * `device` and `queue` are the dispatchable handles (pointers) as-is;
- * `apiVersion` is packed the way Vulkan packs it (major, minor, patch);
- * `getInstanceProcAddr` is the loader's `vkGetInstanceProcAddr`, from
- * which every other entry point is resolved.
- */
-struct VulkanHandles {
-  /** A function pointer as Vulkan's own loader returns one. */
-  using VoidFunction = void (*)();
-  /** The signature of `vkGetInstanceProcAddr` with the instance opaque. */
-  using GetInstanceProcAddr = VoidFunction (*)(void* instance,
-                                               const char* name);
-
-  void* instance = nullptr;
-  void* physicalDevice = nullptr;
-  void* device = nullptr;
-  void* queue = nullptr;
-  uint32_t queueFamilyIndex = 0;
-  uint32_t apiVersion = 0;
-  GetInstanceProcAddr getInstanceProcAddr = nullptr;
-};
 
 /**
  * Owns the Skia Graphite Context + Recorder used to draw into offscreen
@@ -63,11 +41,11 @@ struct VulkanHandles {
 class GraphiteContext {
  public:
   /** Graphite on the device and queue behind @p device, whichever API it
-   *  is: the one entry point a host holding a GpuDevice needs. Returns
+   *  is: the one entry point a host holding a device needs. Returns
    *  null when the device's API has no bring-up in this build or
-   *  Context creation fails. Defined by the device feature, which every
-   *  holder of a GpuDevice already links. */
-  static std::unique_ptr<GraphiteContext> create(GpuDevice& device);
+   *  Context creation fails. */
+  static std::unique_ptr<GraphiteContext> create(
+      core::hardware::GpuDevice& device);
 
 #ifdef __APPLE__
   /** Metal bring-up: @p mtlDevice / @p mtlCommandQueue are id<MTLDevice> /
@@ -83,7 +61,7 @@ class GraphiteContext {
    *  this build's Skia carries no Vulkan backend, or when Context
    *  creation fails. */
   static std::unique_ptr<GraphiteContext> createVulkan(
-      const VulkanHandles& handles);
+      const core::hardware::VulkanHandles& handles);
 
   ~GraphiteContext();
 
@@ -127,6 +105,21 @@ class GraphiteContext {
    *  SIGILSKIA_GLYPH_ATLAS_BYTES to cap the Graphite glyph-atlas
    *  texture budget; unset leaves Skia's own default in place. */
   static skgpu::graphite::ContextOptions makeContextOptions();
+
+  /** WHERE A SHADER THAT WOULD NOT COMPILE IS REPORTED. Graphite builds
+   *  the fragment program for a draw at record time and compiles it on
+   *  the device; a program that fails there is dropped, the draw paints
+   *  nothing, and the frame after it tries again. With no handler
+   *  installed Skia prints the generated shader and the compiler's
+   *  errors to stderr and the process carries on, so a body that
+   *  compiles as its own SkSL program and not once Graphite has inlined
+   *  it into a pipeline is a scrolling log rather than something a
+   *  caller can act on. A handler set here is given to every context
+   *  this factory builds afterwards, which is what makes such a failure
+   *  observable — so set it BEFORE the context is created. Process-wide;
+   *  the caller keeps ownership and must outlive the contexts. Null
+   *  restores Skia's own reporting. */
+  static void reportShaderErrorsTo(skgpu::ShaderErrorHandler* handler);
 
  private:
   /** Wraps a context and the one recorder made from it; the backend

@@ -4,42 +4,19 @@
  * uses.
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkContourMeasure.h>
-#include <include/core/SkFontMetrics.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathEffect.h>
-#include <include/core/SkPicture.h>
-#include <include/core/SkPictureRecorder.h>
-#include <include/core/SkRRect.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkStrokeRec.h>
-#include <include/core/SkSurface.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <include/effects/SkTrimPathEffect.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <include/core/SkTypes.h>  // SkDebugf — the empty-selector diagnostic
 #include <sigilweave/choreograph/Choreograph.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
 
 #include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <map>
-#include <set>
-#include <tuple>
-#include <unordered_set>
+#include <boost/unordered/unordered_flat_set.hpp>
+#include <string>
 #include <utility>
+#include <vector>
 
-#include "AxisGate.h"
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
 #include "TextEngine.h"
 #include "TextPose.h"
-#include "sigilgeometry/path/Contour.h"
-#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
 
@@ -63,7 +40,7 @@ namespace {
 
 /** Once per (mark key) whose selector found no glyphs. */
 void warnMarkSelectsNothing(const std::string& key) {
-  static std::set<std::string> warned;
+  static thread_local boost::unordered_flat_set<std::string> warned;
   if (!warned.insert(key).second) return;
   SkDebugf(
       "[compose] mark(\"%s\") selects no glyphs in this text, so it places "
@@ -77,8 +54,9 @@ void warnMarkSelectsNothing(const std::string& key) {
 
 void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
   inst.textMarkRects.clear();
-  if (!inst.desc || !inst.desc->textData || !inst.paragraph) return;
-  const detail::TextData& textData = *inst.desc->textData;
+  if (!inst.description || !inst.description->textData || !inst.paragraph)
+    return;
+  const detail::TextData& textData = *inst.description->textData;
   const std::vector<detail::MarkAnchor>& marks = textData.marks;
   if (marks.empty()) return;
   // A PATH-laid run's marks stand on the curve the letters stand on: the
@@ -102,7 +80,7 @@ void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
   const sigil::weave::ParagraphLayout& layout =
       onPath ? textStateOf(inst).pathLayout : inst.textLayout;
   static thread_local detail::GlyphStructure structure;
-  structure.build(layout, *inst.paragraph);
+  structure.build(layout, *inst.paragraph, scopeOf(inst));
   if (structure.glyphs.empty()) return;
   const auto count = (uint32_t)structure.glyphs.size();
 
@@ -141,6 +119,103 @@ void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
   }
 }
 
+std::vector<TextUnit> detail::unitsOfText(
+    Composer::Impl& impl, Instance& inst,
+    const sigil::weave::Selector& selector, sigil::weave::Unit unit,
+    std::vector<uint32_t>* sources) {
+  if (sources) sources->clear();
+  if (!inst.description || !inst.paragraph) return {};
+  const sigil::weave::Paragraph& paragraph = *inst.paragraph;
+  const TextData* textData =
+      inst.description->textData ? &*inst.description->textData : nullptr;
+  const TextPath* onPath =
+      textData && textData->onPath ? &*textData->onPath : nullptr;
+  if (onPath) {
+    const SkRect rect = impl.instanceRect(inst);
+    ensurePathLayout(impl, inst, *onPath, {rect.width(), rect.height()});
+    if (!textStateOf(inst).pathValid) return {};
+  }
+  const sigil::weave::ParagraphLayout& layout =
+      onPath ? textStateOf(inst).pathLayout : inst.textLayout;
+
+  static thread_local detail::GlyphStructure structure;
+  structure.build(layout, paragraph, scopeOf(inst));
+  if (structure.glyphs.empty()) return {};
+  const auto count = (uint32_t)structure.glyphs.size();
+  const std::vector<uint8_t> selected = detail::resolveSelection(
+      selector, structure, paragraph, inst.textNamedRuns);
+  const std::vector<uint32_t>& unitOf = structure.unitOf[(size_t)unit];
+  const bool vertical =
+      paragraph.writingMode() == sigil::weave::WritingMode::kVerticalRL;
+
+  const PoseContext poseCtx{&inst, &layout, onPath, onPath != nullptr, 0.0f};
+  std::vector<std::pair<BandKey, GlyphBand>> bandMemo;
+  std::vector<TextUnit> units;
+  // The source unit AND the line it landed on. A base that broke across a
+  // line or a column is two entries, on the two lines — which is what lets
+  // a reading split with its base, and is a truer answer than one rect
+  // spanning a break could ever be.
+  using UnitKey = std::pair<uint32_t, int>;
+  std::vector<UnitKey> keys;
+  uint32_t ordinal = 0;
+  sigil::weave::forEachPlacedGlyph(
+      layout, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+        const uint32_t g = ordinal++;
+        if (g >= count || !selected[g]) return;
+        RestPose pose;
+        if (!restPoseOf(poseCtx, placed, pose)) return;
+        const GlyphBand band = bandOf(placed.shaped, bandMemo);
+        const SkRect box = glyphBox(placed, pose, band);
+        const uint32_t source = g < unitOf.size() ? unitOf[g] : 0;
+        const UnitKey key{source, placed.lineIndex};
+        if (const size_t at = indexOfKey(keys, key); at < keys.size()) {
+          TextUnit& existing = units[at];
+          existing.rect.join(box);
+          existing.range.start =
+              std::min(existing.range.start, placed.textIndex);
+          existing.range.end =
+              std::max(existing.range.end, placed.textIndex + 1);
+          return;
+        }
+        TextUnit entry;
+        entry.rect = box;
+        entry.index = (uint32_t)units.size();
+        // A COLUMN HAS NO BASELINE: its glyphs centre themselves across the
+        // column's axis, so that axis is what the annotation beside them
+        // reads. A line reports the baseline they stand on.
+        entry.axis = vertical ? pose.centre.x() : placed.rest.y();
+        // The LAYOUT's pitch, which is the flow's band depth and one number
+        // for the whole passage.
+        entry.pitch = layout.linePitch;
+        entry.ascent = band.ascent;
+        entry.descent = band.descent;
+        entry.writingMode = paragraph.writingMode();
+        // The form is what the placement did with the glyph: a run shaped
+        // top-to-bottom stands upright, one whose placement was baked per
+        // glyph is turned with the column, and a horizontal run standing in
+        // a column is set across it.
+        if (!vertical)
+          entry.verticalForm = sigil::weave::VerticalForm::kAuto;
+        else if (placed.transformed)
+          entry.verticalForm = sigil::weave::VerticalForm::kRotated;
+        else if (placed.shaped && placed.shaped->vertical)
+          entry.verticalForm = sigil::weave::VerticalForm::kUpright;
+        else
+          entry.verticalForm = sigil::weave::VerticalForm::kTateChuYoko;
+        entry.range = {placed.textIndex, placed.textIndex + 1};
+        for (const sigil::weave::StyleSpan& span : paragraph.spans())
+          if (placed.textIndex < span.end) {
+            entry.style = span.style;
+            break;
+          }
+        entry.lineIndex = placed.lineIndex;
+        keys.push_back(key);
+        if (sources) sources->push_back(source);
+        units.push_back(std::move(entry));
+      });
+  return units;
+}
+
 namespace {
 /** ONE TRACK'S SCHEDULE RESOLVED FOR A QUERY — the front half `beatsOfTrack`
  *  and `cascadeSpanOfTrack` share: which layout the letters are on, which
@@ -159,18 +234,18 @@ struct TrackSchedule {
   detail::TrackCascade resolved;
 };
 
-bool resolveTrackSchedule(Composer::Impl& impl, Instance& inst,
-                          size_t trackIndex, TrackSchedule& out) {
-  if (!inst.desc || !inst.paragraph) return false;
-  const std::span<const Track> tracks = tracksOf(*inst.desc);
+bool resolveTrackSchedule(Instance& inst, size_t trackIndex,
+                          TrackSchedule& out) {
+  if (!inst.description || !inst.paragraph) return false;
+  const std::span<const Track> tracks = tracksOf(*inst.description);
   if (trackIndex >= tracks.size()) return false;
   out.track = &tracks[trackIndex];
   if (!out.track->effect) return false;
 
   // The layout the last draw() left standing — the path one where the run
   // rides a curve, so the beats are on the curve the letters are on.
-  if (inst.desc->textData) {
-    const std::optional<TextPath>& path = inst.desc->textData->onPath;
+  if (inst.description->textData) {
+    const std::optional<TextPath>& path = inst.description->textData->onPath;
     if (path.has_value()) out.onPath = &path.value();
   }
   out.ridesPath = out.onPath && textStateOf(inst).pathValid;
@@ -178,30 +253,27 @@ bool resolveTrackSchedule(Composer::Impl& impl, Instance& inst,
   out.layout = out.ridesPath ? &textStateOf(inst).pathLayout : &inst.textLayout;
 
   static thread_local detail::GlyphStructure structure;
-  structure.build(*out.layout, *inst.paragraph);
+  structure.build(*out.layout, *inst.paragraph, scopeOf(inst));
   out.glyphCount = (uint32_t)structure.glyphs.size();
   if (out.glyphCount == 0) return false;
 
   out.selected = detail::resolveSelection(out.track->where, structure,
                                           *inst.paragraph, inst.textNamedRuns);
-  out.resolved.build(out.track->stagger, structure, out.selected);
+  out.resolved.build(*out.track, structure, out.selected);
   return true;
 }
 }  // namespace
 
-float detail::cascadeSpanOfTrack(Composer::Impl& impl, Instance& inst,
-                                 size_t trackIndex) {
+float detail::cascadeSpanOfTrack(Instance& inst, size_t trackIndex) {
   TrackSchedule schedule;
-  if (!resolveTrackSchedule(impl, inst, trackIndex, schedule)) return 0.0f;
+  if (!resolveTrackSchedule(inst, trackIndex, schedule)) return 0.0f;
   return schedule.resolved.cascade.totalMs;
 }
 
-std::vector<Beat> detail::beatsOfTrack(Composer::Impl& impl, Instance& inst,
-                                       size_t trackIndex) {
+std::vector<Beat> detail::beatsOfTrack(Instance& inst, size_t trackIndex) {
   TrackSchedule schedule;
-  if (!resolveTrackSchedule(impl, inst, trackIndex, schedule)) return {};
-  if (!inst.paragraph.has_value()) return {};
-  const sigil::weave::Paragraph& paragraph = inst.paragraph.value();
+  if (!resolveTrackSchedule(inst, trackIndex, schedule)) return {};
+  const sigil::weave::Paragraph& paragraph = *inst.paragraph;
   const Track& track = *schedule.track;
   const auto count = schedule.glyphCount;
   const std::vector<uint8_t>& selected = schedule.selected;
@@ -226,7 +298,8 @@ std::vector<Beat> detail::beatsOfTrack(Composer::Impl& impl, Instance& inst,
   // partitioning track reports where its own half of each unit sits, which
   // is the half its effect moves.
   std::vector<Beat> beats;
-  std::vector<std::pair<uint32_t, uint32_t>> keys;
+  using BeatKey = std::pair<uint32_t, uint32_t>;
+  std::vector<BeatKey> keys;
   std::vector<std::pair<BandKey, GlyphBand>> bandMemo;
   uint32_t ordinal = 0;
   sigil::weave::forEachPlacedGlyph(
@@ -240,21 +313,17 @@ std::vector<Beat> detail::beatsOfTrack(Composer::Impl& impl, Instance& inst,
             resolved.innerUnit.empty() ? 0u : resolved.innerUnit[g];
         const SkRect box =
             glyphBox(placed, pose, bandOf(placed.shaped, bandMemo));
-        for (size_t i = keys.size(); i-- > 0;)
-          if (keys[i].first == outer && keys[i].second == inner) {
-            beats[i].rect.join(box);
-            return;
-          }
-        Beat beat;
+        const BeatKey key{outer, inner};
+        if (const size_t at = indexOfKey(keys, key); at < keys.size()) {
+          beats[at].rect.join(box);
+          return;
+        }
+        // The schedule half is the cascade's own answer, so a mark
+        // travelling beside a track cannot be told a different one from
+        // the glyphs it is marking; the rect is this library's.
+        Beat beat{resolved.cascade.beat(master, outer, inner)};
         beat.rect = box;
-        beat.unitIndex = outer;
-        beat.startMs = resolved.cascade.startMs(outer, inner);
-        beat.localT = resolved.cascade.localTime(master, outer, inner);
-        // A beat that has begun and not finished. The clamped local time
-        // reads 0 both before the beat opens and exactly as it does, and 1
-        // for the whole of the rest of the track's life.
-        beat.active = beat.localT > 0.0f && beat.localT < 1.0f;
-        keys.emplace_back(outer, inner);
+        keys.push_back(key);
         beats.push_back(beat);
       });
   return beats;

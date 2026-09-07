@@ -55,18 +55,24 @@
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilgeometry/kit/Sections.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Points.h>
+#include <sigilgeometry/mesh/pop/Sweep.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
+namespace sections = sigil::geometry::sections;
 
 using namespace sigil::compose;
 namespace mesh = sigil::geometry::mesh;
@@ -154,9 +160,10 @@ struct MeshGenerators final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background({0.04f, 0.04f, 0.062f, 1});
-    ctx.captureAt(1.0);
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                        .captureAt = 1.0,
+                        .background = SkColor4f{0.04f, 0.04f, 0.062f, 1}});
 
     // The bodies are built once. A generator's cost belongs to the
     // description, not to the frame: nothing below changes per frame, so
@@ -178,8 +185,8 @@ struct MeshGenerators final : sketch::Sketch {
     pedestal = mesh::superellipsoid({420, 26, 200}, 6);
 
     rail = knot();
-    tube = curve::sweep(rail, curve::profile::circle(12),
-                        {.segments = 220, .scale = 9});
+    tube = mesh::pop::sweep(rail, sections::circle(12),
+                            {.segments = 220, .scale = 9});
 
     mesh::Cloud cloud = points::onSpline(rail, 14);
     {
@@ -200,7 +207,10 @@ struct MeshGenerators final : sketch::Sketch {
     options.tintLane = "tint";
     stations = points::quads(cloud, 96, 64, options);
 
-    ctx.composer.render(custom([this](SkCanvas& canvas, const PaintContext&) {
+    // Keyed on the sink's own name: everything `draw` reads is cooked
+    // above, in this setup, and nothing after it moves.
+    ctx.composer.render(custom("mesh.generators", [this](SkCanvas& canvas,
+                                                         const PaintContext&) {
                           draw(canvas);
                         }).inset(0));
   }

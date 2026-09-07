@@ -12,10 +12,14 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
+#include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilgeometry/mesh/render/Shading.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/element/Element.h>
+#include <sigilworld/element/Environment.h>
 #include <sigilworld/element/Selector.h>
 
+#include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <span>
@@ -30,7 +34,9 @@ namespace sigil::world {
  *  stands for as long as the view does. */
 struct Draw {
   glm::mat4 world{1.0f};
-  const Mesh* mesh = nullptr;
+  const geometry::mesh::Mesh* mesh = nullptr;
+  /** Whether reverse-wound faces survive rasterization. */
+  Backface backface = Backface::Hidden;
   /** WHICH COOKED ARTEFACT those triangles are, named by a number no
    *  other artefact ever has. An executor that keeps something of its
    *  own per geometry — a device's uploaded buffers — keys on this and
@@ -79,6 +85,36 @@ struct Sampling {
  *  Sampling, whose null image is a body that is simply not dressed. */
 Sampling samplingOf(const ::sigil::material::Texture& texture);
 
+/** WHAT A SURFACE IS BEYOND ITS COLOUR, as an executor reads it: how
+ *  metallic, how rough, and the three glass terms. Read off the
+ *  material's params by name, so a material built from some other recipe
+ *  answers the values that leave the shading where it was. */
+struct SurfaceTerms {
+  float metallic = 0;
+  float roughness = 0.5f;
+  float transmission = 0;
+  float ior = 1.5f;
+  float thickness = 0;
+  glm::vec3 absorption{0, 0, 0};
+};
+SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material);
+
+/** AN EMITTER AS THE MESH PAINTER TAKES IT: the one directional reading
+ *  every tier that shades without a per-pixel position works from. */
+::sigil::geometry::mesh::render::Light painterLight(const light::Light& light);
+
+/** The map @p body is dressed with and whether the emitters reach it,
+ *  put on @p style — and taken off it again for a body carrying
+ *  neither, since one style is reused across a whole list of them. */
+void dress(::sigil::geometry::mesh::render::MeshStyle& style, const Draw& body);
+
+/** THE ENVIRONMENT AS A MESH PAINTER TAKES IT: the prefiltered chain,
+ *  the cosine convolution, and the orientation that carries a world
+ *  direction into the panorama's frame. An invalid environment answers
+ *  an empty one, which is a surface keeping the flat ambient it had. */
+::sigil::geometry::mesh::render::Environment paintedEnvironment(
+    const Environment& environment, const glm::mat3& orientation);
+
 /** WHAT ONE FRAME EXTRACTED, handed to every pass that runs over it.
  *
  *  The bodies arrive sorted back to front by view depth — stably, so
@@ -88,8 +124,16 @@ Sampling samplingOf(const ::sigil::material::Texture& texture);
  *  one view drawing the same picture. */
 struct View {
   std::span<const Draw> draws;
-  std::span<const Light> lights;
-  Camera camera;
+  std::span<const light::Light> lights;
+  /** THE SET'S ENVIRONMENT MAP, oriented — the panorama every lit body
+   *  samples for what reaches it from every direction. `orientation`
+   *  carries a world-space direction into the panorama's own frame, so
+   *  turning the node that placed it turns the sky. Invalid when the
+   *  frame described none, and a lit body then falls back to the flat
+   *  ambient it always had. */
+  Environment environment;
+  glm::mat3 orientation{1.0f};
+  geometry::mesh::camera::Camera camera;
   SkISize extent{0, 0};
 };
 

@@ -1,11 +1,9 @@
 #pragma once
 
 /** @file
- * The device a headless run draws on: a process-owned native device and
- * queue, with a Graphite context over them.
+ * The Graphite context a plate is drawn through: the one the device this
+ * process brought up already carries.
  */
-
-#include <memory>
 
 namespace sigil::skia {
 class GraphiteContext;
@@ -13,10 +11,16 @@ class GraphiteContext;
 
 namespace sigil::sketch {
 
-/** The headless Graphite context, or null when this build has no
- *  Graphite backend for the platform. An interactive host shares the
- *  device its window system already owns; this exists only for a run
- *  with no window, which therefore owns its own. */
-std::unique_ptr<skia::GraphiteContext> headlessGraphite();
+/** THE PROCESS'S ONE GRAPHITE CONTEXT, or null when it holds no device.
+ *
+ *  It is the device's own — 2D drawing through it lands in a texture a
+ *  3D pass on that same device samples, with no copy and one handle
+ *  table naming both — so a canvas photographed here and a set rendered
+ *  by the device runtime stand on ONE device. Nothing is created here,
+ *  and that is the point: a second device would be a second set of
+ *  textures, and a plate drawn on one of them cannot read what the
+ *  other painted. A host says which device this is by installing it,
+ *  through `sketch::useDevice()`. */
+skia::GraphiteContext* deviceGraphite();
 
 }  // namespace sigil::sketch

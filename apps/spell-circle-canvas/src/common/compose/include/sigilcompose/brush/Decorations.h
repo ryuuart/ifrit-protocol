@@ -33,10 +33,10 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkPicture.h>
-#include <sigilcompose/brush/Lines.h>  // insetOutline, cornerBrackets, cornerGaps
-#include <sigilcompose/core/GpuImage.h>
-#include <sigilcompose/core/Material.h>  // Wash — the material-valued decoration
+#include <sigilcompose/brush/Lines.h>  // cornerBrackets, cornerGaps
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/skia/Paint.h>  // Wash — the material-valued decoration
+#include <sigilskia/draw/Direct.h>
 
 #include <algorithm>
 #include <optional>
@@ -71,7 +71,7 @@ struct PathFormat {
    *  by shader pointer. On an object whose surfaces are mostly strokes,
    *  using `Fill` means writing the same material twice and converting
    *  coordinates by hand in both. */
-  std::optional<Material> strokeMaterial;
+  std::optional<material::skia::Paint> strokeMaterial;
   /** Stroke cap and join on the paint itself. The defaults are Skia's —
    *  butt caps and mitred joins — which end open contours square; line art
    *  built from many short open contours usually wants round for both.
@@ -79,12 +79,29 @@ struct PathFormat {
    *  OFFSET CURVE rather than this stroke on the node's outline. */
   SkPaint::Cap cap = SkPaint::kButt_Cap;
   SkPaint::Join join = SkPaint::kMiter_Join;
+  /** Off puts the stroke on whole pixels — the 1 px rule of an interface
+   *  that was screen-shot rather than drawn, where a smoothed edge reads
+   *  as a blur rather than as a line. `styles::BevelPair`, `Brackets` and
+   *  `TickRail` each carry the same switch for the same reason; this is
+   *  the general stroke's, so a rule beside a bracket can be as hard as
+   *  the bracket is. It costs the smoothing on EVERY mark this format
+   *  makes, dashes and stamps included: an axis-aligned rule wants it
+   *  off, a diagonal or a curve almost never does. */
+  bool antiAlias = true;
   float dashPhase = 0.0f;
   /** Bind the dash phase to a wrapping Output and the dashes MARCH — a
    *  selected route, a live link, a cut line. Like `trimPhase`, it
    *  supersedes the constant and declares the decoration animated, so the
-   *  node repaints every frame without needing a re-describe. */
-  const choreograph::Output<float>* dashPhaseBinding = nullptr;
+   *  node repaints every frame without needing a re-describe.
+   *
+   *  An animatable rather than a bare Output, so the arithmetic that
+   *  shapes the march — `bind(&secs).source(0, 3).wrap(1)`, a ping-pong,
+   *  a wiggle — sits next to the phase it drives instead of in a second
+   *  Output somebody has to step. What it cannot carry is its own
+   *  TRANSITION: a decoration paints with a PaintContext and no instance,
+   *  so there is no held motion for one to run on, and a transitioned
+   *  value reads as its target. */
+  std::optional<motion::Animatable<float>> dashPhaseBinding;
 
   /** Stamp this path repeatedly along the contour (advance px apart),
    *  rotated to follow it — vines, chains, ornament runs. */
@@ -117,7 +134,8 @@ struct PathFormat {
    *  duplicating the same path is never needed for this. */
   float trimStart = 0.0f, trimEnd = 1.0f;
   float trimOffset = 0.0f;
-  const choreograph::Output<float>* trimPhase = nullptr;  // replaces offset
+  /** Replaces `trimOffset` when set, on `dashPhaseBinding`'s terms. */
+  std::optional<motion::Animatable<float>> trimPhase;
 
   /** Structural equality so a static stroked/dashed/stamped border prunes
    *  without memo (the custom SkPathEffect compares by pointer identity). */
@@ -137,11 +155,13 @@ struct PathFormat {
   /** A bound trim phase, a bound dash phase, or a live stroke material
    *  repaints per frame (declared volatility). */
   bool isAnimated() const {
-    return trimPhase != nullptr || dashPhaseBinding != nullptr ||
+    return (trimPhase && motion::isLive(nullptr, *trimPhase)) ||
+           (dashPhaseBinding && motion::isLive(nullptr, *dashPhaseBinding)) ||
            (strokeMaterial && strokeMaterial->isAnimated());
   }
   float phase() const {
-    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
+    return dashPhaseBinding ? motion::resolveFloatAt(nullptr, *dashPhaseBinding)
+                            : dashPhase;
   }
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
@@ -172,8 +192,8 @@ struct Shadow {
    *  animated (per-frame volatility) — the hover-lift shadow slides
    *  without re-describing. `maxBind` reserves cull reach for the bound
    *  range (bleed() can't read a future value). */
-  const choreograph::Output<float>* bindOffsetX = nullptr;
-  const choreograph::Output<float>* bindOffsetY = nullptr;
+  std::optional<motion::Animatable<float>> bindOffsetX;
+  std::optional<motion::Animatable<float>> bindOffsetY;
   float maxBind = 0.0f;
 
   /** CSS box-shadow semantics: knock the shape's own footprint OUT of the
@@ -183,7 +203,10 @@ struct Shadow {
   bool knockout = false;
 
   bool operator==(const Shadow&) const = default;
-  bool isAnimated() const { return bindOffsetX || bindOffsetY; }
+  bool isAnimated() const {
+    return (bindOffsetX && motion::isLive(nullptr, *bindOffsetX)) ||
+           (bindOffsetY && motion::isLive(nullptr, *bindOffsetY));
+  }
   /** Paint reach beyond the node's bounds; the recording's cull rect grows
    *  by this. Under-report it and a big soft shadow is clipped at the
    *  node's picture-cache bounds, which is why the bound range has to be
@@ -200,8 +223,10 @@ struct Shadow {
       p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
     canvas.save();
     if (knockout) canvas.clipPath(ctx.outline, SkClipOp::kDifference, true);
-    canvas.translate(bindOffsetX ? bindOffsetX->value() : offset.x(),
-                     bindOffsetY ? bindOffsetY->value() : offset.y());
+    canvas.translate(bindOffsetX ? motion::resolveFloatAt(nullptr, *bindOffsetX)
+                                 : offset.x(),
+                     bindOffsetY ? motion::resolveFloatAt(nullptr, *bindOffsetY)
+                                 : offset.y());
     canvas.drawPath(ctx.outline, p);
     canvas.restore();
   }
@@ -219,12 +244,12 @@ struct Slice {
   std::vector<int> yDivs;
   /** Skia's native lattice draw is not implemented on every backend and
    *  silently draws NOTHING where it is not — including when a picture
-   *  recorded elsewhere replays there. `gpuimg::drawLattice` decomposes
+   *  recorded elsewhere replays there. `skia::draw::drawLattice` decomposes
    *  the lattice itself on every backend and promotes raster sources
    *  through this cache. Excluded from equality: a cache is not part of
    *  the value. */
-  std::shared_ptr<gpuimg::Promoted> gpuCache =
-      std::make_shared<gpuimg::Promoted>();
+  std::shared_ptr<skia::draw::Promoted> gpuCache =
+      std::make_shared<skia::draw::Promoted>();
   /** How the slices sample. Linear is right for a soft frame and wrong
    *  for pixel art — a window chrome, a dialog border, a button cut from a
    *  tile sheet — where it blurs every slice boundary. */
@@ -334,7 +359,7 @@ struct ContourWalk {
  *                                    SkBlendMode::kSoftLight, 0.35f))
  */
 struct Wash {
-  Material material;
+  material::skia::Paint material;
   SkBlendMode blend = SkBlendMode::kSrcOver;
   /** Strength, 0..1, applied as alpha on the pass. Clamped at paint; 0
    *  paints nothing at all. */
@@ -344,6 +369,9 @@ struct Wash {
     return material == o.material && blend == o.blend && amount == o.amount;
   }
   bool isAnimated() const { return material.isAnimated(); }
+  /** A wash through anything but source-over reads what is under the node
+   *  — which is the point of it, and why such a node cannot be baked. */
+  bool blends() const { return blend != SkBlendMode::kSrcOver; }
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
 };
@@ -407,14 +435,18 @@ struct Border {
 
   std::vector<SkScalar> dash;
   float dashPhase = 0.0f;
-  const choreograph::Output<float>* dashPhaseBinding = nullptr;
+  /** On `PathFormat::dashPhaseBinding`'s terms. */
+  std::optional<motion::Animatable<float>> dashPhaseBinding;
   SkPaint::Cap cap = SkPaint::kButt_Cap;
   SkPaint::Join join = SkPaint::kMiter_Join;
 
   bool operator==(const Border&) const = default;
-  bool isAnimated() const { return dashPhaseBinding != nullptr; }
+  bool isAnimated() const {
+    return dashPhaseBinding && motion::isLive(nullptr, *dashPhaseBinding);
+  }
   float phase() const {
-    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
+    return dashPhaseBinding ? motion::resolveFloatAt(nullptr, *dashPhaseBinding)
+                            : dashPhase;
   }
   float bleed() const {
     const float heaviest = std::max(width, cornerWidth);
@@ -428,7 +460,8 @@ struct Border {
 };
 
 namespace decorations {
-inline Wash wash(Material material, SkBlendMode blend = SkBlendMode::kSrcOver,
+inline Wash wash(material::skia::Paint material,
+                 SkBlendMode blend = SkBlendMode::kSrcOver,
                  float amount = 1.0f) {
   return Wash{std::move(material), blend, amount};
 }
@@ -480,13 +513,13 @@ inline LayerStyle doubleBorder(Border outer, Border inner) {
  *
  *  The whole brush vocabulary — `PathFormat` with its stroke alignment,
  *  dashes, stamps and its own trim window; `lines::Line`; `Brush`;
- *  `shapes::inset` — reads only `PaintContext::outline`. So none of it
+ *  `inset` — reads only `PaintContext::outline`. So none of it
  *  is actually restricted to a node's own shape, and geometry that
  *  changes per frame (a simulated rope, a live EQ curve, a plotted
  *  signal) can wear all of it:
  *
  *      custom([&](SkCanvas &c, const PaintContext &ctx) {
- *        decorations::paintOn(c, ctx, ropePath(), lines::cased(...));
+ *        decorations::paintOn(c, ctx, ropePath(), lines::presets::cased(...));
  *      }).cache(Cache::None)
  *
  *  What live geometry inside `custom()` gives up is PRUNING, not the

@@ -20,9 +20,11 @@
  *
  * The conservative rule that makes this tractable: anything holding a
  * callable the library cannot compare (custom programs, raw outline
- * lambdas, routers, custom layouts) compares UNEQUAL and never prunes.
- * Memoization is the tool for those.
+ * lambdas, raw route lambdas, custom layouts) compares UNEQUAL and never
+ * prunes. Memoization is the tool for those.
  */
+
+#include <sigilcore/reconcile/Reads.h>
 
 #include <algorithm>
 #include <cstring>
@@ -93,7 +95,7 @@ void applyDim(YGNodeRef node, const Dim& d, void (*setPx)(YGNodeRef, float),
 
 // ---- structural equality ---------------------------------------------------
 // Equal only when provably identical. Anything carrying a callable the
-// library cannot compare (custom programs, decorations, outlines, routers,
+// library cannot compare (custom programs, decorations, outlines, routes,
 // custom layouts) compares unequal and re-patches every describe; the common
 // plain cases (boxes, fills, text runs, images) prune for free.
 
@@ -102,8 +104,8 @@ void applyDim(YGNodeRef node, const Dim& d, void (*setPx)(YGNodeRef, float),
 // beside its body there; the Effect and the blocks below are this
 // library's own.
 
-bool effectEqual(const std::optional<Effect>& a,
-                 const std::optional<Effect>& b) {
+bool effectEqual(const std::optional<material::skia::Effect>& a,
+                 const std::optional<material::skia::Effect>& b) {
   if (a.has_value() != b.has_value()) return false;
   if (!a) return true;
   // Structural (Effect::operator==): static shader recipes compare by
@@ -128,7 +130,7 @@ bool textPathEqual(const TextPath& a, const TextPath& b) {
          a.orient == b.orient && a.exactTangent == b.exactTangent;
 }
 
-static_assert(kFieldCount<TextData> == 15 && kFieldCount<TextOptions> == 9 &&
+static_assert(kFieldCount<TextData> == 19 && kFieldCount<TextOptions> == 21 &&
                   kFieldCount<SpanRestyle> == 3,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
@@ -158,7 +160,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
         !propEqual(ta.tracks[i].progress, tb.tracks[i].progress))
       return false;
   if (ta.utf8 != tb.utf8 || !(ta.style == tb.style)) return false;
-  // rich(): a whole mixed paragraph as one comparable value — same base,
+  // weave::rich(): a whole mixed paragraph as one comparable value — same base,
   // same runs, same resolved styles — so a component that rebuilds its
   // spans every describe prunes like a static leaf. This is exactly what
   // the shared_ptr<Paragraph> overload below cannot answer.
@@ -196,25 +198,58 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   // declaration order — so a re-described mark list prunes, and a mark
   // pointed at a different unit re-resolves its rect.
   if (ta.marks != tb.marks) return false;
+  // annotate(): comparable selectors, readings and styles in declaration
+  // order — so a re-described reading list prunes, and a changed reading
+  // re-lays the small paragraph it is set in AND, where it reserves, the
+  // base whose strut its band is in.
+  if (ta.annotations != tb.annotations) return false;
+  // thread(): the key of the next frame. A chain that re-describes the
+  // same links prunes; one that names a different frame re-fills from
+  // there.
+  if (ta.threadTo != tb.threadTo) return false;
+  // balanceChain(): which frame opens a balanced run, and how much of the
+  // story that run must hold. Both change the depth the run is filled to,
+  // so a re-described chain that states either differently re-bisects.
+  if (ta.balanceChain != tb.balanceChain ||
+      ta.balanceThroughLine != tb.balanceThroughLine)
+    return false;
   return true;
 }
 
-static_assert(kFieldCount<DeriveData> == 15,
+static_assert(kFieldCount<DeriveData> == 19,
               "DeriveData gained or lost a field — rule on it in "
               "deriveEqual() below, then bump this count.");
 bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
   if ((bool)a != (bool)b) return false;
   if (!a) return true;
-  // Incomparable callables → conservative inequality. A band's authored
-  // SPINE rides the Shape seam instead (same rule as shapeFn): comparable
-  // generators prune, raw callables stay conservative. A band borrowed by
-  // key was always a comparable value.
-  if (a->placeFn || b->placeFn || a->router || b->router || a->railRouter ||
-      b->railRouter)
-    return false;
+  // Incomparable callables → conservative inequality. Custom layout is
+  // the one left: a band's authored SPINE rides the Shape seam and both
+  // ROUTERS ride seams of their own (same rule as shapeFn), so a
+  // comparable value prunes and only a raw callable stays conservative.
+  // A band borrowed by key was always a comparable value.
+  if (a->placeFn || b->placeFn) return false;
+  if (!(a->router == b->router)) return false;
+  if (!(a->railRouter == b->railRouter)) return false;
   if (!(a->bandSpine == b->bandSpine)) return false;
   if (a->bandWidth.has_value() != b->bandWidth.has_value()) return false;
   if (a->bandWidth && !(*a->bandWidth == *b->bandWidth)) return false;
+  // `reads` is EXCLUDED, and the exclusion is a derivation rather than a
+  // judgement call: every entry is pushed by the same statement that
+  // writes one of the fields compared above (or `TextData::threadTo`,
+  // compared with the text block), so two descriptions that differ in a
+  // read differ in the field that produced it and are already unequal.
+  // A verb that ever declared a read WITHOUT storing the key behind it
+  // would break that, and would have to be compared here.
+  // area(): the region name a child claims of the scheme above it. Two
+  // descriptions that name different regions place the child differently
+  // and must not prune into each other. `placeReadsMinSizes` needs no rule
+  // of its own: it is a property of the scheme type behind `placeFn`, and
+  // a node carrying one is already conservatively unequal above.
+  if (a->cellArea != b->cellArea) return false;
+  // tether(): where the node hangs and everywhere it may hang instead. A
+  // re-described tether that names the same places and the same points
+  // prunes; one that moves either re-resolves the position.
+  if (a->tether != b->tether) return false;
   return a->railAnchors == b->railAnchors &&
          a->flowAroundKeys == b->flowAroundKeys &&
          a->flowAroundMargin == b->flowAroundMargin &&
@@ -245,8 +280,8 @@ bool strokeEqual(const Box<StrokeData>& a, const Box<StrokeData>& b) {
 
 static_assert(kFieldCount<FxData> == 8 && kFieldCount<Mask> == 2,
               "FxData/Mask gained or lost a field — rule on it in fxEqual() "
-              "below (Mask::operator== is in Compose.h), then bump this "
-              "count.");
+              "below, where a mask compares by its own operator, then bump "
+              "this count.");
 bool fxEqual(const Box<FxData>& a, const Box<FxData>& b) {
   if ((bool)a != (bool)b) return false;
   if (!a) return true;
@@ -303,6 +338,27 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
   return true;  // ->recipe is handled with the fill compare in propsEqual
 }
 
+static_assert(kFieldCount<DepthData> == 10,
+              "DepthData gained or lost a field — rule on it in depthEqual() "
+              "below, then bump this count. Every field here is read live at "
+              "paint: a lane, an origin or a mode left out prunes into its "
+              "predecessor and the plane keeps the turn it was recorded at.");
+bool depthEqual(const Box<DepthData>& a, const Box<DepthData>& b) {
+  if ((bool)a != (bool)b) return false;
+  if (!a) return true;
+  // The five lanes compare as every animated slot does, through propEqual;
+  // the origins and the two modes are plain values.
+  return propEqual(a->rotateX, b->rotateX) &&
+         propEqual(a->rotateY, b->rotateY) &&
+         propEqual(a->translateZ, b->translateZ) &&
+         propEqual(a->scaleZ, b->scaleZ) &&
+         propEqual(a->perspective, b->perspective) &&
+         a->perspectiveOriginX == b->perspectiveOriginX &&
+         a->perspectiveOriginY == b->perspectiveOriginY &&
+         a->originZ == b->originZ && a->preserve3d == b->preserve3d &&
+         a->backface == b->backface;
+}
+
 }  // namespace
 
 /** A Spans value compares like any other description — and its animated
@@ -315,70 +371,6 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
  *  The endpoint trio is compared only for the two rules that READ it
  *  (Spans::resolve consults `values[3i..3i+2]` under Range and Wrap and
  *  nowhere else); every other field is unconditional. */
-// ---- the fx() seam's hand-written comparators ------------------------------
-
-/** Two effects are the same effect when their identity — the preset name
- *  or the author's key, the parameters, the operands, the pass material
- *  and the named curves — is; a lambda-valued curve compares unequal,
- *  conservatively, through easeEqual. */
-bool TextEffect::operator==(const TextEffect& other) const {
-  if (m_state == other.m_state) return true;  // copies of one value
-  if (!m_state || !other.m_state) return false;
-  if (m_state->name != other.m_state->name ||
-      m_state->params != other.m_state->params ||
-      m_state->operands != other.m_state->operands)
-    return false;
-  // A pass compares by its MATERIAL, by value — Material's own recipe
-  // equality, so two passes over one source with equal constants prune,
-  // and a live pass material never compares equal, conservatively.
-  if ((m_state->pass != nullptr) != (other.m_state->pass != nullptr))
-    return false;
-  if (m_state->pass && !(*m_state->pass == *other.m_state->pass)) return false;
-  if (m_state->curves.size() != other.m_state->curves.size()) return false;
-  for (size_t i = 0; i < m_state->curves.size(); ++i)
-    if (!detail::easeEqual(m_state->curves[i], other.m_state->curves[i]))
-      return false;
-  return true;
-}
-
-bool Selector::operator==(const Selector& other) const {
-  if (m_state == other.m_state) return true;
-  if (!m_state || !other.m_state) return false;  // one is "everything"
-  return *m_state == *other.m_state;
-}
-
-static_assert(kFieldCount<Stagger> == 11,
-              "Stagger gained or lost a field — rule on it in "
-              "Stagger::operator== below, then bump this count. A field left "
-              "out makes two different cascades compare equal, the text node "
-              "prunes, and it keeps beating to the old ladder forever.");
-bool Stagger::operator==(const Stagger& other) const {
-  if (eachMs != other.eachMs || amountMs != other.amountMs ||
-      durationMs != other.durationMs || loopMs != other.loopMs ||
-      from != other.from || seed != other.seed || over != other.over ||
-      beatsOver != other.beatsOver || cueMs != other.cueMs)
-    return false;
-  if (!easeEqual(distribution, other.distribution)) return false;
-  if (inner == other.inner) return true;  // both absent, or one shared value
-  if (!inner || !other.inner) return false;
-  return *inner == *other.inner;
-}
-
-static_assert(kFieldCount<Track> == 6,
-              "Track gained or lost a field — rule on it in "
-              "Track::sameShape() below, then bump this count. `progress` is "
-              "deliberately NOT compared there: it is an Animatable, and "
-              "textEqual() compares it through propEqual with every other "
-              "animated slot.");
-bool Track::sameShape(const Track& other) const {
-  return where == other.where && effect == other.effect &&
-         stagger == other.stagger && reach == other.reach &&
-         continuous == other.continuous;
-}
-bool Track::operator==(const Track& other) const {
-  return sameShape(other) && propEqual(progress, other.progress);
-}
-
 static_assert(kFieldCount<Spans::Term> == 11,
               "Spans::Term gained or lost a field — rule on it below, then "
               "bump this count. A term field left out makes every claim of "
@@ -477,10 +469,10 @@ namespace detail {
  *  The two legitimate exclusions, stated rather than assumed:
  *  `memoData` is compared EARLIER and more strictly by resolveMemo()
  *  (env snapshot + the author's own props comparator) and never reaches
- *  here, because `inst.desc` holds the memo's PRODUCED payload; and
+ *  here, because `inst.description` holds the memo's PRODUCED payload; and
  *  `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 23 && kFieldCount<PaintProps> == 15 &&
+static_assert(kFieldCount<ElementNode> == 26 && kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 3 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 3,
               "A struct propsEqual() compares BY HAND gained or lost a "
@@ -520,8 +512,9 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
   for (size_t i = 0; i < a.foregrounds.size(); ++i)
     if (!(a.foregrounds[i] == b.foregrounds[i])) return false;
   if (!(a.layout == b.layout) || !(a.corners == b.corners) ||
-      a.clipContent != b.clipContent || a.cacheMode != b.cacheMode ||
-      a.bakeScale != b.bakeScale)
+      a.clipContent != b.clipContent || a.boundary != b.boundary ||
+      a.coverageThreshold != b.coverageThreshold ||
+      a.cacheMode != b.cacheMode || a.bakeScale != b.bakeScale)
     return false;
   if (!fxEqual(a.fxData, b.fxData)) return false;
   if (!strokeEqual(a.strokeData, b.strokeData)) return false;
@@ -539,11 +532,11 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
   // though each describe minted a fresh SkShader, so a re-described gradient
   // prunes instead of being defeated by pointer inequality. Everything else
   // falls through to the plain fill compare (colour values, shader pointers).
-  const Material* recipeA =
+  const material::skia::Paint* recipeA =
       a.materialData
           ? (a.materialData->recipe ? &*a.materialData->recipe : nullptr)
           : nullptr;
-  const Material* recipeB =
+  const material::skia::Paint* recipeB =
       b.materialData
           ? (b.materialData->recipe ? &*b.materialData->recipe : nullptr)
           : nullptr;
@@ -580,6 +573,9 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
                        !propEqual(a.motionData->t, b.motionData->t) ||
                        a.motionData->lookAhead != b.motionData->lookAhead))
     return false;
+  // The depth lanes, the view and the two modes: read live at paint
+  // exactly as the 2D lanes are, and pinned beside depthEqual().
+  if (!depthEqual(a.depthData, b.depthData)) return false;
   // Content.
   if (!textEqual(a, b)) return false;
   if ((bool)a.imageData != (bool)b.imageData) return false;
@@ -600,8 +596,10 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
  *  this question and stales the world-space descendants by hand.
  *
  *  The lanes must mirror propsEqual's transform block plus travel(), which
- *  replaces the translate lanes and adds to rotate. A lane present there and
- *  missing here is a world-space material left on a stale W. */
+ *  replaces the translate lanes and adds to rotate, plus the depth block —
+ *  a re-described turn about y, a view or a space mode moves every
+ *  descendant's W as a 2D rotation does. A lane present there and missing
+ *  here is a world-space material left on a stale W. */
 bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
   const PaintProps &pa = a.paint, &pb = b.paint;
   if (!propEqual(pa.translateX, pb.translateX) ||
@@ -617,7 +615,7 @@ bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
                        !propEqual(a.motionData->t, b.motionData->t) ||
                        a.motionData->lookAhead != b.motionData->lookAhead))
     return false;
-  return true;
+  return depthEqual(a.depthData, b.depthData);
 }
 
 }  // namespace detail
@@ -627,7 +625,7 @@ bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
 void Composer::Impl::materializeText(
     Instance& inst, std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns) {
-  const TextData& text = *inst.desc->textData;
+  const TextData& text = *inst.description->textData;
   inst.paragraph.emplace();
   // Cleared for every content form, so the names a node answers for are
   // exactly the ones its CURRENT content declares.
@@ -639,12 +637,12 @@ void Composer::Impl::materializeText(
   } else if (!text.rich.empty()) {
     // The runs concatenate with nothing between them: a rich text's spacing
     // is the author's own, exactly as it is in the strings they wrote.
-    for (const RichText::Run& run : text.rich.runs()) {
-      if (!run.slotKey.empty()) {
+    for (const sigil::weave::RichText::Run& run : text.rich.runs()) {
+      if (!run.slotName.empty()) {
         // A slot run reserves a box instead of setting glyphs. The names go
         // into one list in declaration order, which is the order weave
         // matches its placeholder records to the U+FFFCs in the text.
-        inst.textSlotKeys.push_back(run.slotKey);
+        inst.textSlotKeys.push_back(run.slotName);
         inst.paragraph->appendPlaceholder(
             {run.slotSize.width(), run.slotSize.height(), run.slotBaselineDrop},
             run.style);
@@ -669,6 +667,11 @@ void Composer::Impl::materializeText(
   // its baseline IS the geometry — so the path wins and says so.
   if (text.options.set & TextOptions::kWritingMode)
     inst.paragraph->setWritingMode(text.options.writingMode);
+  // The line-break tailoring is the Paragraph's too, and lands under the
+  // same mask rule: a locale nobody named leaves a passed-in paragraph's
+  // own standing.
+  if (text.options.set & TextOptions::kLineBreakLocale)
+    inst.paragraph->setLineBreakLocale(text.options.lineBreakLocale);
   if (text.onPath &&
       inst.paragraph->writingMode() != sigil::weave::WritingMode::kHorizontal) {
     warnWritingModeOnPath();
@@ -706,7 +709,7 @@ void Composer::Impl::materializeText(
     if (painter)
       resolvedRanges[i] =
           painter->ranges(text.spanRestyles[i].where, *inst.paragraph, fonts,
-                          lines, columns, inst.textNamedRuns);
+                          lines, columns, inst.textNamedRuns, scopeOf(inst));
   if (inst.textState) inst.textState->spanAxisTracks.clear();
   // The intersection of two selections, as the ranges they share.
   const auto overlap = [](std::span<const sigil::weave::CharRange> a,
@@ -762,8 +765,8 @@ void Composer::Impl::materializeText(
     // reshaping restyle covers the same text: a track deviates whatever
     // the paragraph shaped, and a later style must be the one that stands.
     std::vector<std::pair<std::string, float>> folded;
-    if (painter->foldable(inst, restyle.style, ranges, *inst.paragraph,
-                          carriedRanges, folded)) {
+    if (painter && painter->foldable(inst, restyle.style, ranges,
+                                     *inst.paragraph, carriedRanges, folded)) {
       bool coveredLater = false;
       for (size_t j = i + 1; j < restyleCount && !coveredLater; ++j) {
         if (text.spanRestyles[j].paintOnly) continue;
@@ -794,19 +797,45 @@ void Composer::Impl::materializeText(
 sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
     const Instance& inst) const {
   sigil::weave::ParagraphLayoutOptions options;
-  if (!inst.desc || !inst.desc->textData) return options;
-  const TextData& text = *inst.desc->textData;
+  if (!inst.description || !inst.description->textData) return options;
+  const TextData& text = *inst.description->textData;
   // The passed value is the ground the setters are written over, so a
   // full-control caller keeps every field no setter named.
   options = text.layoutOptions;
   text.options.applyTo(options);
+  // OVERFLOW IS THE NORMAL CASE ON EVERY FRAME BUT THE LAST. A frame that
+  // threads into another has a remainder by design, and a marker there
+  // would say the text was cut when it was only continued; the last frame
+  // of a chain is the one that threads nowhere, and it keeps whatever
+  // ellipsis the leaf asked for.
+  if (!text.threadTo.empty()) options.overflow.ellipsis.clear();
+  // THE NEXT FRAME'S MEASURE, which only the chain knows and the widow
+  // rule needs: the lines it counts are the remainder, and the remainder
+  // is set in the frame after this one. 0 until the chain has been walked
+  // once, which is weave's "not known".
+  options.nextMeasure = inst.threadNextMeasure;
+  // THE BAND A RESERVING READING NEEDS, asked before anything is broken and
+  // answered from the reading's own metrics — which is the whole of why a
+  // reservation is a layout input and not a cycle. Only the engine can
+  // measure a face, so the painter answers; a text that dresses nothing has
+  // no annotations either.
+  if (!text.annotations.empty()) {
+    const TextPainterOps* painter = textPainterOf(inst);
+    if (!painter) painter = detail::registeredTextEngine();
+    if (painter) {
+      const sigil::weave::ReservedBand band =
+          painter->reservedBand(const_cast<Instance&>(inst), text.annotations);
+      options.reserved.before += band.before;
+      options.reserved.after += band.after;
+    }
+  }
   return options;
 }
 
 void Composer::Impl::applyLayoutProps(Instance& inst) {
   if (!inst.yoga)
     return;  // positioned subtree: instanceRect() reads the props directly
-  const LayoutProps& l = inst.desc->layout;
+  const LayoutProps& l = inst.description->layout;
   YGNodeRef n = inst.yoga;
 
   YGNodeStyleSetFlexDirection(
@@ -826,8 +855,8 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   // extent as explicit W/H onto auto-dim absolute containers — releasing
   // those here would zero the container every re-describe and feed
   // place() a degenerate input for a pass.
-  const bool autoSized =
-      inst.desc->deriveData && inst.desc->deriveData->placeFn && l.absolute;
+  const bool autoSized = inst.description->deriveData &&
+                         inst.description->deriveData->placeFn && l.absolute;
   if (!autoSized || l.width.unit != Dim::Unit::Auto)
     applyDim(n, l.width, &YGNodeStyleSetWidth, &YGNodeStyleSetWidthPercent);
   if (!autoSized || l.height.unit != Dim::Unit::Auto)
@@ -852,19 +881,20 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   // while letting any explicit alignment — the node's own or inherited from
   // the parent — through untouched.
   Align self = l.alignSelf;
-  if (inst.desc->kind == Kind::Text) {
-    const Align resolved = self != Align::Auto
-                               ? self
-                               : (inst.parent && inst.parent->desc
-                                      ? inst.parent->desc->layout.alignItems
-                                      : Align::Stretch);
+  if (inst.description->kind == Kind::Text) {
+    const Align resolved =
+        self != Align::Auto ? self
+                            : (inst.parent && inst.parent->description
+                                   ? inst.parent->description->layout.alignItems
+                                   : Align::Stretch);
     if (resolved == Align::Stretch) self = Align::Start;
   }
   YGNodeStyleSetAlignSelf(n, toYogaAlign(self));
   YGNodeStyleSetJustifyContent(n, toYogaJustify(l.justify));
 
   // The node's OWN position type. A stack child's is overwritten right
-  // after this, in patchChildren() — see the note there.
+  // after this: every child of a stack is placed absolutely whatever it
+  // asked for, which is what makes a stack a stack.
   YGNodeStyleSetPositionType(
       n, l.absolute ? YGPositionTypeAbsolute : YGPositionTypeRelative);
   if (l.hasInsets) {
@@ -903,7 +933,9 @@ void Composer::Impl::rebuildKeyIndex() {
   bySlot.clear();
   routedInstances.clear();
   flowInstances.clear();
+  tetheredInstances.clear();
   pathMarkInstances.clear();
+  threadedInstances.clear();
   routesByAnchor.clear();
   hasDerived = false;
   hasCustomLayout = false;
@@ -914,12 +946,14 @@ void Composer::Impl::rebuildKeyIndex() {
   // the derive order.
   if (root)
     reconciler.indexKeys(*root, byKey, [this](Instance& inst) {
-      if (inst.desc->kind == Kind::Slot && !inst.desc->key.empty())
-        bySlot[inst.desc->key] = &inst;
-      const ElementNode& node = *inst.desc;
+      if (inst.description->kind == Kind::Slot &&
+          !inst.description->key.empty())
+        bySlot[inst.description->key] = &inst;
+      const ElementNode& node = *inst.description;
       if (node.deriveData) {
         const DeriveData& derive = *node.deriveData;
         if (!derive.flowAroundKeys.empty()) flowInstances.push_back(&inst);
+        if (derive.tether) tetheredInstances.push_back(&inst);
         const bool isConnector =
             !derive.connectFrom.empty() && !derive.connectTo.empty();
         const bool isRail = derive.railAnchors.size() >= 2;
@@ -927,6 +961,13 @@ void Composer::Impl::rebuildKeyIndex() {
         // of question a connector asks — "where did that keyed node land"
         // — so they ride the SAME flat derive list rather than growing a
         // phase.
+        //
+        // THESE THREE ARE NOT READ QUESTIONS, which is why they read the
+        // fields and not the declared reads: they choose WHICH PASS
+        // resolves the node — a route, a flow, a chain — and which anchors
+        // a route is re-run from when one of them moves. A read says what
+        // a node waits for; this says what is done to it, and two nodes
+        // reading the same key can still be resolved by different passes.
         const bool isBorrowed = !derive.bandAround.empty() ||
                                 !derive.spanFitKeys.empty() ||
                                 !derive.borrowedPathKeys.empty();
@@ -940,6 +981,9 @@ void Composer::Impl::rebuildKeyIndex() {
               routesByAnchor[derive.connectTo].push_back(&inst);
           }
           for (const Anchor& anchor : derive.railAnchors) {
+            // A waypoint that names no node is a free point: nothing
+            // resolves it, so it belongs under no anchor's key.
+            if (anchor.nodeKey.empty()) continue;
             auto& at = routesByAnchor[anchor.nodeKey];
             if (at.empty() || at.back() != &inst)  // rails revisit anchors
               at.push_back(&inst);
@@ -950,9 +994,57 @@ void Composer::Impl::rebuildKeyIndex() {
       if (node.kind == Kind::Text && node.textData && node.textData->onPath &&
           !node.textData->marks.empty())
         pathMarkInstances.push_back(&inst);
+      if (node.kind == Kind::Text && node.textData &&
+          !node.textData->threadTo.empty())
+        threadedInstances.push_back(&inst);
       if (node.layout.centerAt) hasCenterPins = true;
     });
-  hasDerived = !routedInstances.empty() || !flowInstances.empty();
+  hasDerived = !routedInstances.empty() || !flowInstances.empty() ||
+               !threadedInstances.empty() || !tetheredInstances.empty();
+  orderDerivedByReads();
+}
+
+/** THE ORDER THE DECLARED READS IMPLY.
+ *
+ *  A derived node is one whose answer is a function of another node's
+ *  finished answer, and tree order is only the right order to resolve them
+ *  in while none of them reads another. One that does — a rail anchored on
+ *  a connector's own box, a frame threaded from a frame written later — is
+ *  a pass behind for as long as the order is the order it was written in.
+ *
+ *  Every derivation DECLARES what it reads, in the statement that writes
+ *  it, and this hands those declarations to `core::orderByReads`. Nothing
+ *  here infers an edge from which fields a node happens to carry: a
+ *  derivation added tomorrow is ordered correctly by the same lines,
+ *  because the only thing they know about it is its own declaration.
+ *
+ *  The order is STABLE: a list whose members read none of each other comes
+ *  back exactly as it went in, which is every list on nearly every tree. */
+void Composer::Impl::orderDerivedByReads() {
+  const auto reorder = [](std::vector<Instance*>& list) {
+    if (list.size() < 2) return;
+    std::vector<std::string> keys;
+    std::vector<std::vector<sigil::core::Read>> reads;
+    keys.reserve(list.size());
+    reads.reserve(list.size());
+    for (const Instance* inst : list) {
+      keys.push_back(inst->description ? inst->description->key
+                                       : std::string());
+      if (inst->description && inst->description->deriveData)
+        reads.push_back(inst->description->deriveData->reads);
+      else
+        reads.emplace_back();  // a node that declares nothing reads nothing
+    }
+    const std::vector<uint32_t> order = sigil::core::orderByReads(keys, reads);
+    std::vector<Instance*> sorted;
+    sorted.reserve(list.size());
+    for (const uint32_t index : order) sorted.push_back(list[index]);
+    list.swap(sorted);
+  };
+  reorder(flowInstances);
+  reorder(tetheredInstances);
+  reorder(routedInstances);
+  reorder(threadedInstances);
 }
 
 }  // namespace sigil::compose

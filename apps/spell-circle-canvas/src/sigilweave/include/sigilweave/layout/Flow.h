@@ -8,9 +8,10 @@
  * direction, or spans of an SkPath contour — supplied one line at a time by
  * a FlowGeometry. Ready-made geometries below cover the common cases:
  *   - BlockFlow          a single rectangle.
- *   - ExclusionFlow      a rectangle minus moving shapes (circles, rects, or
- *                        arbitrary/compound SkPaths with their fill rule
- *                        honored), in lines or in columns.
+ *   - ExclusionFlow      a rectangle minus moving Silhouettes (a rect, a
+ *                        circle, an ellipse, any filled SkPath, an image's
+ *                        own alpha, or one a caller writes), in lines or in
+ *                        columns.
  *   - VerticalBlockFlow  top-to-bottom CJK columns advancing right to left.
  *   - LineSetFlow        an explicit set of intervals (any origin/direction).
  *   - PathFlow           each SkPath contour becomes a line; glyphs ride the
@@ -27,12 +28,15 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
+#include <include/core/SkRefCnt.h>
 
 #include <cstdint>
 #include <memory>
 #include <vector>
 
 #include "sigilgeometry/path/Contour.h"
+
+class SkImage;
 
 namespace sigil::weave {
 
@@ -114,6 +118,30 @@ struct LineInterval {
                SkVector* tangent) const;
 };
 
+/// ONE BAND ASKED OF A GEOMETRY, and everything about it the band's number
+/// alone does not say.
+///
+/// `bandStart` is the whole of why this is a value rather than three
+/// arguments. Bands do not stack at `index · lineHeight`: that is true
+/// only while every line of a passage is the same height; a text whose
+/// blocks lead differently, or which puts air between them, stacks its
+/// bands at distances the LAYOUT accumulates and a geometry could not work
+/// out from a line number. So the layout carries that cursor and the
+/// geometry answers what is available in the band that starts there.
+///
+/// The block context is for a geometry that wants it — a frame grid, a
+/// well cut for one block, a drop cap's notch. A geometry that does not
+/// care ignores it, which is every geometry below.
+struct LineRequest {
+  int index = 0;         ///< 0-based band ordinal, ascending without gaps
+  float bandStart = 0;   ///< the band's near edge, along the stacking axis,
+                         ///< from the flow's own start edge
+  float lineHeight = 0;  ///< the band's thickness across that axis
+  float ascent = 0;      ///< the baseline's offset below the near edge
+  int blockIndex = 0;    ///< which block of the text is being set here
+  int lineInBlock = 0;   ///< the band's 0-based place inside that block
+};
+
 /// Supplies the intervals available to each successive line. Implementations
 /// are queried per layout pass (they may depend on animated state like
 /// moving exclusion shapes); the layout never caches geometry between
@@ -122,14 +150,24 @@ class FlowGeometry {
  public:
   virtual ~FlowGeometry() = default;
 
-  /** Returns the intervals for line `index` (0-based), given the line's
-   * height and the baseline's offset below the line top. Returns false when
-   * the geometry is exhausted (no line `index` exists); an empty
-   * `intervals` with a true return means "this line has no room, try the
+  /** Returns the intervals available in `request`'s band. Returns false when
+   * the geometry is exhausted (the band lies past its end); an empty
+   * `intervals` with a true return means "this band has no room, try the
    * next one".
    */
-  virtual bool lineIntervals(int index, float lineHeight, float ascent,
+  virtual bool lineIntervals(const LineRequest& request,
                              std::vector<LineInterval>& intervals) = 0;
+
+  /** Sugar for a caller with no block model: bands stacked at
+   * `index · lineHeight`, which is where a passage of one pitch puts them.
+   */
+  bool lineIntervals(int index, float lineHeight, float ascent,
+                     std::vector<LineInterval>& intervals) {
+    return lineIntervals(
+        LineRequest{index, static_cast<float>(index) * lineHeight, lineHeight,
+                    ascent, 0, index},
+        intervals);
+  }
 
   /** Returns true when every line yields one interval of the same width
    * (TeX's model — BlockFlow and friends). Knuth-Plass uses this to merge
@@ -145,8 +183,9 @@ class BlockFlow : public FlowGeometry {
  public:
   /** Creates horizontal line bands inside `bounds`. */
   explicit BlockFlow(const SkRect& bounds) : m_bounds(bounds) {}
+  using FlowGeometry::lineIntervals;
   /** Returns the interval for a horizontal line band when it fits. */
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  bool lineIntervals(const LineRequest& request,
                      std::vector<LineInterval>& intervals) override;
   /** Reports that every produced interval has the block width. */
   bool uniformIntervals() const override { return true; }
@@ -155,64 +194,118 @@ class BlockFlow : public FlowGeometry {
   SkRect m_bounds;
 };
 
-/// A rectangle with exclusion shapes punched out (CSS float / shape-outside
-/// style). Each band subtracts every intersecting shape's extent ACROSS the
-/// band, so a line — or a column — shortens, or splits into several
-/// intervals, around the shapes. Shapes are cheap to move: geometry is
-/// re-evaluated per layout pass.
+/// ONE STRETCH OF A BAND a silhouette occupies, measured along the flow's
+/// own axis — the units a line's pen travels in, and a column's.
+struct Span {
+  float start = 0;
+  float end = 0;
+};
+
+/// ONE BAND, measured ACROSS the flow: where a line's own depth begins and
+/// ends, which is where a column's width begins and ends when the flow is
+/// turned a quarter turn.
+struct Band {
+  float start = 0;
+  float end = 0;
+};
+
+/// A SILHOUETTE TEXT STANDS OFF. One question: which stretches of a band
+/// this shape occupies, along the flow axis — the same shape of answer for
+/// a rectangle, a photograph's alpha and anything a caller writes, which is
+/// why there is no kind to switch on.
+///
+/// THE MARGIN IS A DISC AND NOT A SQUARE. `margin` asks for the set of
+/// points within that distance of the shape: a diagonal edge stands the
+/// text off by exactly the margin and a corner comes out rounded. Every
+/// implementation owes that meaning, because a caller asking two shapes for
+/// six pixels of standoff is asking one question.
+///
+/// A silhouette CACHES what answering costs it — a flattening, a raster, a
+/// distance field — so one belongs to one flow at a time, as an SkPath's
+/// own caches do.
+class Silhouette {
+ public:
+  virtual ~Silhouette() = default;
+  /** Appends the stretches of @p band that this shape occupies, dilated by
+   * @p margin, which is never negative. The spans need not be sorted or
+   * disjoint; the flow merges them. */
+  virtual void bandSpans(FlowAxis axis, Band band, float margin,
+                         std::vector<Span>& spans) = 0;
+  /** The shape's own extent, margin excluded. */
+  virtual SkRect bounds() const = 0;
+};
+
+/// ONE AREA TEXT FLOWS AROUND: a silhouette, how far the text stands off
+/// it, and where it has moved to since. `offset` is rigid motion and costs
+/// the silhouette nothing — the marquee, the drifting figure, the parallax
+/// photograph — where a rebuilt shape re-answers from scratch.
+struct Exclusion {
+  std::shared_ptr<Silhouette> shape;
+  float margin = 0;         ///< the standoff, px, as a disc; never negative,
+                            ///< and a negative one is read as none
+  SkPoint offset = {0, 0};  ///< translation applied per layout pass
+};
+
+/// The stock silhouettes. A caller with a shape none of these describes
+/// implements Silhouette itself and stands beside them.
+namespace silhouette {
+
+/** An axis-aligned rectangle. Its margin rounds the corners, exactly as a
+ * disc offset does. */
+[[nodiscard]] std::shared_ptr<Silhouette> rectangle(const SkRect& bounds);
+/** The circle INSCRIBED in `bounds`, answered analytically: one square root
+ * a band, and the margin is simply a larger radius. */
+[[nodiscard]] std::shared_ptr<Silhouette> circle(const SkRect& bounds);
+/** The oval inscribed in `bounds` — the circle above when it is round, and
+ * otherwise the oval's own path, because a disc offset of an ellipse is not
+ * an ellipse and only the path answer stays exact. */
+[[nodiscard]] std::shared_ptr<Silhouette> ellipse(const SkRect& bounds);
+/** Any filled SkPath — several contours, curves, winding or even-odd fill,
+ * so holes and concavities stay available to text. Flattened once and kept.
+ * An inverse fill type is read as its own non-inverse self: a silhouette is
+ * the region the path encloses.
+ *
+ * The answer is read off a flattened outline exactly, at any margin: with a
+ * standoff the outline is the path unioned with itself stroked at twice the
+ * margin, round join and round cap, which is what a disc rolled around the
+ * shape sweeps. */
+[[nodiscard]] std::shared_ptr<Silhouette> path(const SkPath& path);
+/** AN IMAGE'S OWN ALPHA, resolved inside `box` in flow coordinates: a pixel
+ * is inside where its alpha is greater than `threshold`, a fraction of full
+ * opacity. It is the answer for a photograph, a rendered node, a video
+ * frame — a silhouette that is neither a shape nor a glyph run.
+ *
+ * The tolerance is the dial: a soft edge admits words further in as it
+ * rises. A new frame re-thresholds and re-measures; a still one costs that
+ * once. */
+[[nodiscard]] std::shared_ptr<Silhouette> coverage(sk_sp<SkImage> image,
+                                                   const SkRect& box,
+                                                   float threshold = 0.5f);
+
+}  // namespace silhouette
+
+/// A rectangle with exclusions punched out (CSS float / shape-outside
+/// style). Each band subtracts every intersecting silhouette's extent
+/// ACROSS the band, so a line — or a column — shortens, or splits into
+/// several intervals, around them. Exclusions are cheap to move: geometry
+/// is re-evaluated per layout pass.
 ///
 /// A COLUMN IS A LINE TURNED A QUARTER TURN, and `FlowAxis` is the whole of
 /// the difference: `kColumns` makes each band a top-to-bottom column, the
 /// columns advancing right to left from the bounds' right edge, and reads
-/// every shape's extent down the column instead of across the line. Pair it
-/// with `Paragraph::setWritingMode(WritingMode::kVerticalRL)`, exactly as
-/// `VerticalBlockFlow` is paired.
+/// every silhouette's extent down the column instead of across the line.
+/// Pair it with `Paragraph::setWritingMode(WritingMode::kVerticalRL)`,
+/// exactly as `VerticalBlockFlow` is paired.
 class ExclusionFlow : public FlowGeometry {
  public:
-  /// One area text must flow around, in the same coordinate space as the
-  /// line bands. Build with the fromCircle/fromRectangle/fromPath factories.
-  struct Shape {
-    /// Selects which of the geometry fields below are meaningful.
-    enum Kind { kCircle, kRect, kPath } kind = kRect;  ///< active geometry form
-    /// kCircle uses the inscribed circle of `bounds`; kPath ignores
-    /// `bounds`.
-    SkRect bounds = SkRect::MakeEmpty();
-    float padding = 0;  ///< extra standoff around the shape
-
-    /// kPath: any SkPath — multiple contours, curves, winding or even-odd
-    /// fill (holes and concavities stay available to text). The path is
-    /// flattened to polygons once and cached by its generation ID, so
-    /// translating it through `pathOffset` reuses that flattening; assigning
-    /// a rebuilt SkPath changes the generation ID and re-flattens on the next
-    /// layout pass.
-    SkPath path;
-    SkPoint pathOffset = {0, 0};  ///< translation applied to `path` per pass
-
-    /** Creates a circular exclusion inscribed in `bounds`. */
-    [[nodiscard]] static Shape fromCircle(const SkRect& bounds,
-                                          float padding = 0) {
-      return {kCircle, bounds, padding, {}, {0, 0}};
-    }
-    /** Creates an axis-aligned rectangular exclusion. */
-    [[nodiscard]] static Shape fromRectangle(const SkRect& bounds,
-                                             float padding = 0) {
-      return {kRect, bounds, padding, {}, {0, 0}};
-    }
-    /** Creates an exclusion from an arbitrary filled SkPath. */
-    [[nodiscard]] static Shape fromPath(const SkPath& path, float padding = 0) {
-      return {kPath, SkRect::MakeEmpty(), padding, path, {0, 0}};
-    }
-  };
-
   /** Creates line bands — or columns — in `bounds`, minus configured
-   * shapes. */
+   * exclusions. */
   explicit ExclusionFlow(const SkRect& bounds,
                          FlowAxis axis = FlowAxis::kLines);
-  /** Destroys private flattened-path cache entries. */
   ~ExclusionFlow() override;
 
-  /** Returns the mutable list of shapes subtracted from each band. */
-  std::vector<Shape>& shapes() { return m_shapes; }
+  /** Returns the mutable list of exclusions subtracted from each band. */
+  std::vector<Exclusion>& exclusions() { return m_exclusions; }
   /** Returns the outer layout bounds. */
   const SkRect& bounds() const { return m_bounds; }
   /** Returns whether the bands are lines or columns. */
@@ -222,25 +315,20 @@ class ExclusionFlow : public FlowGeometry {
    * `minimumWidth` of pen travel, in px) that would otherwise appear
    * between shapes. Defaults to 8 px.
    */
-  void setMinIntervalWidth(float minimumWidth) {
-    m_minIntervalWidth = minimumWidth;
+  void setMinimumIntervalWidth(float minimumWidth) {
+    m_minimumIntervalWidth = minimumWidth;
   }
 
+  using FlowGeometry::lineIntervals;
   /** Produces the remaining intervals of one line band or column. */
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  bool lineIntervals(const LineRequest& request,
                      std::vector<LineInterval>& intervals) override;
 
  private:
-  struct FlatPath;   ///< flattened-polygon cache entry (Flow.cpp)
-  struct PathCache;  ///< private container type; keeps hash-map deps in
-                     ///< Flow.cpp
-  const FlatPath& flattenedPathFor(const SkPath& path);
-
   SkRect m_bounds;
   FlowAxis m_axis = FlowAxis::kLines;
-  std::vector<Shape> m_shapes;
-  float m_minIntervalWidth = 8;
-  std::unique_ptr<PathCache> m_pathCache;
+  std::vector<Exclusion> m_exclusions;
+  float m_minimumIntervalWidth = 8;
 };
 
 /// Vertical-RL block (CJK book layout): each "line" is a top-to-bottom
@@ -252,8 +340,9 @@ class VerticalBlockFlow : public FlowGeometry {
  public:
   /** Creates top-to-bottom columns advancing right-to-left in `bounds`. */
   explicit VerticalBlockFlow(const SkRect& bounds) : m_bounds(bounds) {}
+  using FlowGeometry::lineIntervals;
   /** Returns the interval for one vertical column when it fits. */
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  bool lineIntervals(const LineRequest& request,
                      std::vector<LineInterval>& intervals) override;
   /** Reports that every produced column has the block height. */
   bool uniformIntervals() const override { return true; }
@@ -277,8 +366,9 @@ class LineSetFlow : public FlowGeometry {
   /** Returns the mutable explicit line collection. */
   std::vector<std::vector<LineInterval>>& lines() { return m_lines; }
 
+  using FlowGeometry::lineIntervals;
   /** Copies the requested explicit line into `intervals`. */
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  bool lineIntervals(const LineRequest& request,
                      std::vector<LineInterval>& intervals) override;
 
  private:
@@ -293,8 +383,9 @@ class PathFlow : public FlowGeometry {
   /** Appends every contour of another path as additional lines. */
   void addPath(const SkPath& path);
 
-  /** Returns the measured contour interval at `index`. */
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  using FlowGeometry::lineIntervals;
+  /** Returns the measured contour interval at `request.index`. */
+  bool lineIntervals(const LineRequest& request,
                      std::vector<LineInterval>& intervals) override;
 
  private:

@@ -1,13 +1,15 @@
 /** @file
  * The style vocabulary as plain values: the fluent variation sugar, the
- * paint-layer presets and their order, the feature preset tags, and the
- * StyleSet registry's lookup, replacement and equality.
+ * paint-layer presets and their order, the StyleSet registry's lookup,
+ * replacement and equality, and the designated-init `Type` a call site
+ * names a style's numbers in. The feature preset tags are settled by the
+ * compiler where they are declared, so nothing here asks about them.
  */
 
 #include <gtest/gtest.h>
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkPaint.h>
-#include <sigilweave/style/Features.h>
+#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/style/Style.h>
 
 #include <memory>
@@ -15,7 +17,10 @@
 
 using namespace sigil::weave;
 
-TEST(ShaperVariations, TextStyleFluentSugarStaysOrderStable) {
+// The umbrella still spells every subject.
+static_assert(std::is_same_v<StyleSet::Entry::second_type, TextStyle>);
+
+TEST(TextStyle, TheFluentSugarAppendsInTheOrderItWasCalled) {
   // weight()/opticalSize()/variation() replace in place when the axis is
   // already present — repeated fluent chains keep one order (one memoized
   // varied-typeface identity), never accumulate duplicates.
@@ -36,11 +41,11 @@ TEST(ShaperVariations, TextStyleFluentSugarStaysOrderStable) {
   EXPECT_TRUE(style == same);
 }
 
-TEST(Typography, PaintLayersExposeCompletePaintAndExplicitOrder) {
+TEST(PaintStyle, PaintLayersExposeCompletePaintAndExplicitOrder) {
   PaintStyle style(SK_ColorWHITE);
-  style.addUnderlay(PaintLayer::dropShadow(0x66000000, {3, 4}, 2.0f))
-      .addUnderlay(PaintLayer::glow(0x550000FF, 5.0f))
-      .addUnderlay(PaintLayer::outline(SK_ColorBLACK, 3.0f));
+  style.addUnderlay(sigil::weave::kit::dropShadow(0x66000000, {3, 4}, 2.0f))
+      .addUnderlay(sigil::weave::kit::glow(0x550000FF, 5.0f))
+      .addUnderlay(sigil::weave::kit::outline(SK_ColorBLACK, 3.0f));
 
   SkPaint customOverlay;
   customOverlay.setAntiAlias(true);
@@ -66,20 +71,7 @@ TEST(Typography, PaintLayersExposeCompletePaintAndExplicitOrder) {
   EXPECT_FALSE(identical == style);
 }
 
-TEST(FeaturePresets, TagsAreConstexprAndWellFormed) {
-  static_assert(Features::tabularNumbers == FontFeature{"tnum", 1});
-  static_assert(Features::standardLigaturesOff == FontFeature{"liga", 0});
-  static_assert(Features::smallCaps == FontFeature{"smcp", 1});
-  static_assert(Features::stylisticSet(1) == FontFeature{"ss01", 1});
-  static_assert(Features::stylisticSet(20) == FontFeature{"ss20", 1});
-  static_assert(Features::stylisticSet(7) == FontFeature{"ss07", 1});
-  // Out-of-range indices clamp instead of producing bogus tags.
-  static_assert(Features::stylisticSet(0) == FontFeature{"ss01", 1});
-  static_assert(Features::stylisticSet(99) == FontFeature{"ss20", 1});
-  SUCCEED();
-}
-
-TEST(StyleSetTest, LookupAnswersEveryNameAndTheBaseAnswersTheUnknownOnes) {
+TEST(StyleSet, LookupAnswersEveryNameAndTheBaseAnswersTheUnknownOnes) {
   TextStyle base;
   base.shaping.fontSize = 12.0f;
   TextStyle alert;
@@ -106,7 +98,7 @@ TEST(StyleSetTest, LookupAnswersEveryNameAndTheBaseAnswersTheUnknownOnes) {
   EXPECT_TRUE(StyleSet{}["anything"] == TextStyle{});
 }
 
-TEST(StyleSetTest, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
+TEST(StyleSet, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
   TextStyle small;
   small.shaping.fontSize = 9.0f;
   TextStyle large;
@@ -143,16 +135,55 @@ TEST(StyleSetTest, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
 // A pass names its material by pointer: two passes sharing one instance are
 // one pass, and a pass with a material is not the pass without it, so a
 // restyle that attaches a material is seen by the draw-time comparison.
-TEST(Typography, PaintLayerMaterialComparesByIdentity) {
-  const auto shared = std::shared_ptr<const sigil::material::Material>();
+TEST(PaintStyle, PaintLayerMaterialComparesByIdentity) {
+  // A pass never dereferences the material it names, and this feature does
+  // not link the library that defines one, so an address that owns nothing
+  // is all the comparison needs to be shown.
+  static char address = 0;
+  const auto named = std::shared_ptr<const sigil::material::Material>(
+      std::shared_ptr<void>{}, static_cast<const sigil::material::Material*>(
+                                   static_cast<const void*>(&address)));
   PaintLayer plain(SK_ColorRED);
   PaintLayer withMaterial(SK_ColorRED);
   EXPECT_EQ(plain, withMaterial);
-  withMaterial.material = std::shared_ptr<const sigil::material::Material>(
-      shared, reinterpret_cast<const sigil::material::Material*>(&plain));
+  withMaterial.material = named;
   EXPECT_NE(plain, withMaterial);
   PaintLayer same = withMaterial;
   EXPECT_EQ(same, withMaterial);
-  // The umbrella still spells every subject.
-  static_assert(std::is_same_v<StyleSet::Entry::second_type, TextStyle>);
+}
+
+// ---------------------------------------------------------------------------
+// Type — the designated-init aggregate a call site names a style's numbers
+// in, and the TextStyle it builds.
+
+TEST(Type, TheAggregatesNumbersLandOnTheStylesTwoHalves) {
+  const TextStyle s = textStyle({.size = 10.5f,
+                                 .color = {1, 0, 0, 1},
+                                 .track = 1.2f,
+                                 .condense = 0.8f,
+                                 .aliased = true});
+  EXPECT_FLOAT_EQ(s.shaping.fontSize, 10.5f);
+  EXPECT_FLOAT_EQ(s.shaping.letterSpacing, 1.2f);
+  EXPECT_FLOAT_EQ(s.shaping.scaleX, 0.8f);
+  EXPECT_TRUE(s.shaping.aliased);
+  EXPECT_EQ(s.paint.foreground.getColor4f(), (SkColor4f{1, 0, 0, 1}));
+}
+
+TEST(Type, WeightAndSlantBecomeAxesAndTheExtraVariationsFollowThem) {
+  Type t;
+  t.weight = 700.0f;
+  t.slant = -8.0f;
+  t.variations = {FontVariation("wdth", 75.0f)};
+  const TextStyle s = textStyle(t);
+  ASSERT_EQ(s.shaping.variations.size(), 3u);
+  EXPECT_EQ(s.shaping.variations[0], FontVariation("wght", 700));
+  EXPECT_EQ(s.shaping.variations[1], FontVariation("slnt", -8));
+  EXPECT_EQ(s.shaping.variations[2], FontVariation("wdth", 75));
+}
+
+TEST(Type, TheEightBitLadderQuantisesWhereTheFloatOneDoesNot) {
+  const SkColor4f c{0.4f, 0.4f, 0.4f, 1};
+  EXPECT_EQ(textStyle({.color = c}).paint.foreground.getColor4f(), c);
+  EXPECT_NE(
+      textStyle({.color = c, .color8 = true}).paint.foreground.getColor4f(), c);
 }

@@ -23,35 +23,67 @@
  *
  * | header | component |
  * |---|---|
- * | `kit/Frame.h` | `Frame` — figure-local polar coordinates |
- * | `kit/Frame.h` | `Grid` — the unit map (scale, origin, snap) |
- * | `kit/Frame.h` | `disc()` and `centred()` — a box about a centre |
+ * | `kit/Frame.h` | `disc()` — a node about a centre, or at a frame's |
  * | `kit/Frame.h` | `at()` — a box pinned at absolute coordinates |
  * | `kit/Sprites.h` | `dotSprite()` — the stamp a point sink draws with |
- * | `kit/Divisions.h` | `ticks()` — a division ladder as one path |
- * | `kit/Divisions.h` | `chords()` — polygon sides as N contours |
+ * | `kit/Gel.h` | `aquaGel()`, `aquaOrb()` — one era's look |
+ * | `kit/Chrome.h` | `y2kChrome()` — another |
+ * | `kit/Gloss.h` | `gloss()` and the two chrome type ramps |
  * | `kit/PixelType.h` | the aliased bitmap-font bake |
  * | `kit/Legibility.h` | halo / shade / scrim |
  * | `kit/Instruments.h` | `trackMeter()` and `restGhost()` — a cascade seen |
+ * | `kit/Kinetic.h` | the `fx::` presets over the effect seam |
+ * | `kit/Marquee.h` | `marquee()` — a ticker that repaints and never reflows |
+ * | `kit/Annotations.h` | `annotate()` — an element per unit, `Beside` it |
+ * | `kit/Annotations.h` | …or `Anchored`, where the caller says |
+ * | `kit/Typeset.h` | ruby, kenten, `NestedStyle` |
+ * | `kit/Typeset.h` | bullets, block rules |
+ * | `kit/Specimen.h` | `cell()`, `well()`, `formatted()`, `cells()`, `sheet()`
+ * — specimen furniture |
+ * | `kit/Grid.h` | `layouts::Grid` — the track grid and its sizing functions |
+ * | `kit/Layouts.h` | the other layout schemes: radial, along a path, |
+ * | | modular, diagonal, baseline, jittered |
+ * | `kit/Placers.h` | `instancing::place::` — a pool filled as a grid, a |
+ * | | ring or a repeat chain |
+ * | `kit/Routers.h` | `routers::` — what joins two laid-out nodes |
+ * | `kit/Ground.h` | the ground a page is drawn on |
  *
  * **`kit/Strokes.h` AND `kit/Plate.h` ARE NOT INCLUDED HERE, AND THIS
  * UMBRELLA DOES NOT GIVE YOU THEM.** Both are spelled in the Brush tier's
  * types and ship with it: `kit/Strokes.h` carries the stroke grammar —
- * `kit::brush::shapers`, `kit::profile`, `kit::strands`, `kit::spans`,
- * `kit::shapes`, and the `kit::brush::presets` — and `kit/Plate.h` the
+ * `kit::braid`, `kit::groove`, `spans::brackets` and the `brush::presets`
+ * — and
+ * `kit/Plate.h` the
  * bordered feed plate (`kit::plate`, `kit::tinted`). Including this file
  * brings in none of those names; include either header directly.
  *
  * Already shipped elsewhere and deliberately NOT duplicated here:
- * `test::check` / `report` / `failures` (`testing/Checks.h`, the
- * SigilComposeTesting target) are the verification plate; `hex`
- * (`Paint.h`), `type` and `pickFace` (`Typography.h`) and `motion::ramp`
- * are the prelude; `stroke` (`Decorations.h`) is the value spelling.
+ * `measure::check` / `measure::failures` (SigilMeasure's `check/Check.h`)
+ * and `test::report` (`testing/Checks.h`, the SigilComposeTesting target)
+ * are the verification plate; `hex`
+ * (`Paint.h`), `weave::textStyle`, `weave::ports::pickTypeface` and
+ * `motion::ramp` are the prelude; `stroke` (`Decorations.h`) is the value
+ * spelling. The figure's own coordinate systems and its division ladders are
+ * SigilGeometry's — `geometry::path::Frame`, `geometry::path::Grid`,
+ * `geometry::path::centred`, `geometry::shapes::ticks` and
+ * `geometry::shapes::chords`.
  */
 
-#include "sigilcompose/kit/Divisions.h"
+#include "sigilcompose/kit/Annotations.h"
+#include "sigilcompose/kit/Chrome.h"
 #include "sigilcompose/kit/Frame.h"
+#include "sigilcompose/kit/Gel.h"
+#include "sigilcompose/kit/Gloss.h"
+#include "sigilcompose/kit/Grid.h"
+#include "sigilcompose/kit/Ground.h"
 #include "sigilcompose/kit/Instruments.h"
+#include "sigilcompose/kit/Kinetic.h"
+#include "sigilcompose/kit/Layouts.h"
 #include "sigilcompose/kit/Legibility.h"
+#include "sigilcompose/kit/Marquee.h"
 #include "sigilcompose/kit/PixelType.h"
+#include "sigilcompose/kit/Placers.h"
+#include "sigilcompose/kit/Routers.h"
+#include "sigilcompose/kit/Specimen.h"
 #include "sigilcompose/kit/Sprites.h"
+#include "sigilcompose/kit/Typeset.h"

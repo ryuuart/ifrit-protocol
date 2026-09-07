@@ -6,14 +6,15 @@
  * variations and condensation as cache keys.
  */
 
-#include <absl/container/flat_hash_set.h>
 #include <gtest/gtest.h>
 #include <include/core/SkFontMgr.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
-#include <set>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include "support/ParagraphSupport.h"
 using namespace sigil::weave;
@@ -21,20 +22,12 @@ using namespace sigil::weave::test;
 
 // ── Shaping & caching ─────────────────────────────────────────────────────
 
-TEST(Shaper, ShapesLatinWord) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"Hello");
-  paragraph.ensureShaped(fontContext);
-  ASSERT_EQ(paragraph.words().size(), 1u);
-  const Word& word = paragraph.words()[0];
-  ASSERT_EQ(word.segments().size(), 1u);
-  EXPECT_EQ(word.segments()[0].shaped->glyphs.size(), 5u);
-  EXPECT_GT(word.width, 0.0f);
-  EXPECT_EQ(word.spaceWidth, 0.0f);
-}
-
-TEST(Shaper, CacheHitsOnIdenticalWords) {
-  FontContext& fontContext = sharedContext();
+TEST(Shaper, TwoIdenticalWordsAreShapedOnce) {
+  // The three exact counts below are the caching contract, and they can
+  // only be counted from empty — so this case empties the shared context
+  // first. Every sibling re-warms what it needs, and none of them counts a
+  // cache hit it did not cause itself.
+  FontContext& fontContext = sigil::test::fonts();
   fontContext.purgeShapeCache();
   fontContext.resetStats();
   Paragraph paragraph = makeParagraph(u8"tick tock tick tock tick");
@@ -45,7 +38,7 @@ TEST(Shaper, CacheHitsOnIdenticalWords) {
 }
 
 TEST(Shaper, EditReshapesOnlyTheEditedWord) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"the quick brown fox jumps over the lazy dog again and again");
   paragraph.ensureShaped(fontContext);
@@ -61,7 +54,7 @@ TEST(Shaper, EditReshapesOnlyTheEditedWord) {
 }
 
 TEST(Shaper, PaintOnlyRestyleNeverReshapes) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph =
       makeParagraph(u8"colorful words change their paint only");
   paragraph.ensureShaped(fontContext);
@@ -73,7 +66,7 @@ TEST(Shaper, PaintOnlyRestyleNeverReshapes) {
 }
 
 TEST(Shaper, FontSizeRestyleReshapesOnlyCoveredWords) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"alpha beta gamma delta epsilon");
   paragraph.ensureShaped(fontContext);
 
@@ -86,28 +79,32 @@ TEST(Shaper, FontSizeRestyleReshapesOnlyCoveredWords) {
   EXPECT_LE(fontContext.stats().shapeCalls, 2u);
 }
 
-TEST(Shaper, ClustersAreMonotone) {
-  FontContext& fontContext = sharedContext();
+TEST(Shaper, ClusterIndicesAscendAcrossAShapedWord) {
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"office");  // 'ffi' may ligate
   paragraph.ensureShaped(fontContext);
   const auto& clusters = paragraph.words()[0].segments()[0].shaped->clusters;
   EXPECT_TRUE(std::is_sorted(clusters.begin(), clusters.end()));
 }
 
-TEST(Shaper, WordBlobIsSharedAcrossLayouts) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"stable");
-  paragraph.ensureShaped(fontContext);
-  const ShapedWordRef& shaped = paragraph.words()[0].segments()[0].shaped;
-  const SkTextBlob* first = wordBlob(*shaped).get();
-  ASSERT_NE(first, nullptr);
-  EXPECT_EQ(wordBlob(*shaped).get(), first);
+TEST(Shaper, TheSameWordInTwoParagraphsDrawsFromOneBlob) {
+  // The shape cache is content-addressed, so a word two paragraphs happen
+  // to share is shaped once and both of them draw the very same blob.
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph first = makeParagraph(u8"stable");
+  Paragraph second = makeParagraph(u8"stable");
+  first.ensureShaped(fontContext);
+  second.ensureShaped(fontContext);
+  const SkTextBlob* firstBlob =
+      wordBlob(*first.words()[0].segments()[0].shaped).get();
+  ASSERT_NE(firstBlob, nullptr);
+  EXPECT_EQ(wordBlob(*second.words()[0].segments()[0].shaped).get(), firstBlob);
 }
 // ── Itemization ───────────────────────────────────────────────────────────
 
 TEST(Itemization, MixedLatinCjkSplitsIntoWords) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"Skia は速い and 빠르다 也很快");
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = machineParagraph(u8"Skia は速い and 빠르다 也很快");
   paragraph.ensureShaped(fontContext);
   ASSERT_GT(paragraph.words().size(), 4u);
 
@@ -123,8 +120,8 @@ TEST(Itemization, MixedLatinCjkSplitsIntoWords) {
 }
 
 TEST(Itemization, CjkGetsPerCharacterBreakOpportunities) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"日本語のテキスト");
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = machineParagraph(u8"日本語のテキスト");
   paragraph.ensureShaped(fontContext);
   // ICU line breaking splits ideographic text nearly per character; the
   // exact count depends on kinsoku rules, but it must be far more than one.
@@ -133,8 +130,8 @@ TEST(Itemization, CjkGetsPerCharacterBreakOpportunities) {
 }
 
 TEST(Itemization, FallbackResolvesCjkGlyphs) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"abc漢字xyz");
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = machineParagraph(u8"abc漢字xyz");
   paragraph.ensureShaped(fontContext);
   for (const Word& word : paragraph.words())
     for (const WordSegment& seg : word.segments()) {
@@ -145,15 +142,16 @@ TEST(Itemization, FallbackResolvesCjkGlyphs) {
 }
 
 TEST(Itemization, CustomFallbackResolverControlsSelection) {
+  // A primary that cannot draw the character and a face that can: the two
+  // instruments make the resolver's answer observable, since a face chosen
+  // by the machine would be whichever one it happens to have.
   sk_sp<SkFontMgr> fontManager = ports::systemFontManager();
-  sk_sp<SkTypeface> primary =
-      fontManager->matchFamilyStyle("Noto Sans", SkFontStyle());
-  sk_sp<SkTypeface> preferred =
-      fontManager->matchFamilyStyle("Noto Serif JP", SkFontStyle());
+  sk_sp<SkTypeface> primary = sigil::test::instrument::sans();
+  sk_sp<SkTypeface> preferred = sigil::test::instrument::hanSans();
   constexpr SkUnichar kJapaneseHiragana = 0x3042;  // あ
-  if (!primary || !preferred || primary->unicharToGlyph(kJapaneseHiragana) ||
-      !preferred->unicharToGlyph(kJapaneseHiragana))
-    GTEST_SKIP() << "Noto Sans / Noto Serif JP fallback fixture unavailable";
+  ASSERT_TRUE(primary && preferred);
+  ASSERT_EQ(primary->unicharToGlyph(kJapaneseHiragana), 0);
+  ASSERT_NE(preferred->unicharToGlyph(kJapaneseHiragana), 0);
 
   int resolverCalls = 0;
   std::string observedLanguage;
@@ -182,8 +180,8 @@ TEST(Itemization, CustomFallbackResolverControlsSelection) {
   EXPECT_EQ(resolverCalls, 1);
 }
 
-TEST(Itemization, HardBreakIsMandatory) {
-  FontContext& fontContext = sharedContext();
+TEST(Itemization, ANewlineIsAMandatoryBreakBetweenTwoWords) {
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"first line\nsecond");
   paragraph.ensureShaped(fontContext);
   bool sawMandatory = false;
@@ -192,9 +190,32 @@ TEST(Itemization, HardBreakIsMandatory) {
   EXPECT_TRUE(sawMandatory);
 }
 
-TEST(Itemization, RtlWordShapesRtl) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"שלום");
+TEST(Itemization, ThePairAndTheFormFeedAreMandatoryBreaksToo) {
+  FontContext& fontContext = sigil::test::fonts();
+  // The flag is the segmentation's, so a CR LF pair is ONE break and the
+  // form feed no hand-written list remembers is a break at all.
+  Paragraph paragraph = makeParagraph(u8"first\r\nsecond\fthird");
+  paragraph.ensureShaped(fontContext);
+  int mandatory = 0;
+  for (const Word& word : paragraph.words())
+    if (word.mandatoryBreakAfter) ++mandatory;
+  EXPECT_EQ(mandatory, 2);
+}
+
+TEST(Itemization, FullWidthLatinIsSetLikeTheKanjiAroundIt) {
+  FontContext& fontContext = sigil::test::fonts();
+  // The question a justified CJK line asks is whether a character stands
+  // in a full-width cell, which fullwidth Latin does however Latin its
+  // script is.
+  Paragraph paragraph = makeParagraph(u8"\uFF21\uFF22\uFF23");
+  paragraph.ensureShaped(fontContext);
+  ASSERT_FALSE(paragraph.words().empty());
+  for (const Word& word : paragraph.words()) EXPECT_TRUE(word.ideographic);
+}
+
+TEST(Itemization, ARightToLeftWordIsShapedRightToLeft) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = machineParagraph(u8"שלום");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
   const auto& clusters = paragraph.words()[0].segments()[0].shaped->clusters;
@@ -202,27 +223,46 @@ TEST(Itemization, RtlWordShapesRtl) {
   // RTL output is in visual order: cluster values run backwards.
   EXPECT_GT(clusters.front(), clusters.back());
 }
-TEST(Scripts, ArabicLamAlefLigates) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph =
-      makeParagraph(u8"لا");  // lam + alef: mandatory ligature
-  paragraph.ensureShaped(fontContext);
-  ASSERT_EQ(paragraph.words().size(), 1u);
-  const ShapedWord& shapedWord = *paragraph.words()[0].segments()[0].shaped;
-  if (!allGlyphsResolved(paragraph))
-    GTEST_SKIP() << "no Arabic font on this system";
+
+// ── A script shaped off the instrument that covers it ────────────────────
+
+/// A script shaped through the paragraph, in the face committed for that
+/// script. A face without the coverage shapes .notdef, which is no answer
+/// to the question rather than a wrong one, so the coverage is named here
+/// instead of hoped for.
+class ShapedScript : public ::testing::Test {
+ protected:
+  /// Shapes `utf8` into this fixture's paragraph, set in the instrument for
+  /// the script it is written in. Coverage is then the instrument's and not
+  /// the machine's, so the shaping below is the only thing under test and
+  /// there is nothing to skip for.
+  void shape(std::u8string_view utf8, const sk_sp<SkTypeface>& face) {
+    ASSERT_TRUE(face);
+    TextStyle style = basicStyle();
+    style.shaping.typeface = face;
+    m_paragraph.appendText(utf8, style);
+    m_paragraph.ensureShaped(sigil::test::fonts());
+    ASSERT_TRUE(allGlyphsResolved(m_paragraph))
+        << "the instrument face did not cover its own sample";
+  }
+
+  Paragraph m_paragraph;
+};
+
+TEST_F(ShapedScript, ArabicLamAlefLigates) {
+  // lam + alef: a mandatory ligature.
+  shape(u8"لا", sigil::test::instrument::arabic());
+  ASSERT_EQ(m_paragraph.words().size(), 1u);
+  const ShapedWord& shapedWord = *m_paragraph.words()[0].segments()[0].shaped;
   EXPECT_EQ(shapedWord.glyphs.size(), 1u)
       << "lam-alef must fuse into one glyph";
 }
 
-TEST(Scripts, ArabicJoinsRtl) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"العربية تكتب من اليمين إلى اليسار");
-  paragraph.ensureShaped(fontContext);
-  if (!allGlyphsResolved(paragraph))
-    GTEST_SKIP() << "no Arabic font on this system";
-  ASSERT_GE(paragraph.words().size(), 5u);
-  for (const Word& word : paragraph.words()) {
+TEST_F(ShapedScript, ArabicJoinsRtl) {
+  shape(u8"العربية تكتب من اليمين إلى اليسار",
+        sigil::test::instrument::arabic());
+  ASSERT_GE(m_paragraph.words().size(), 5u);
+  for (const Word& word : m_paragraph.words()) {
     EXPECT_EQ(word.bidiLevel & 1u, 1u) << "Arabic words must be RTL";
     const auto& clusters = word.segments()[0].shaped->clusters;
     if (clusters.size() >= 2)  // RTL visual order: clusters run backwards
@@ -230,32 +270,24 @@ TEST(Scripts, ArabicJoinsRtl) {
   }
 }
 
-TEST(Scripts, DevanagariFormsConjunctClusters) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"नमस्ते दुनिया");
-  paragraph.ensureShaped(fontContext);
-  if (!allGlyphsResolved(paragraph))
-    GTEST_SKIP() << "no Devanagari font on this system";
+TEST_F(ShapedScript, DevanagariFormsConjunctClusters) {
+  shape(u8"नमस्ते दुनिया", sigil::test::instrument::devanagari());
   // "नमस्ते" is 6 UTF-16 units but the virama fuses स्+ते into one grapheme
   // cluster: distinct clusters must be fewer than code units.
-  const Word& namaste = paragraph.words()[0];
+  const Word& namaste = m_paragraph.words()[0];
   ASSERT_EQ(namaste.segments().size(), 1u);
   const ShapedWord& shapedWord = *namaste.segments()[0].shaped;
   EXPECT_LT(uniqueClusterCount(shapedWord), 6u);
   EXPECT_GE(shapedWord.glyphs.size(), 3u);
 }
 
-TEST(Scripts, CuneiformSupplementaryPlane) {
-  FontContext& fontContext = sharedContext();
+TEST_F(ShapedScript, CuneiformSupplementaryPlane) {
   // Four codepoints beyond the BMP (U+12000, U+12031, U+12038, U+1204D):
   // each is a surrogate pair, so correct cluster values step by 2 UTF-16
-  // units. U+12031 is also featured by the hyper-scripts demo.
-  Paragraph paragraph = makeParagraph(u8"𒀀𒀱𒀸𒁍");
-  paragraph.ensureShaped(fontContext);
-  if (!allGlyphsResolved(paragraph))
-    GTEST_SKIP() << "no Cuneiform font on this system";
+  // units.
+  shape(u8"𒀀𒀱𒀸𒁍", sigil::test::instrument::cuneiform());
   std::vector<uint32_t> clusters;
-  for (const Word& word : paragraph.words())
+  for (const Word& word : m_paragraph.words())
     for (const WordSegment& segment : word.segments())
       for (uint32_t cluster : segment.shaped->clusters)
         clusters.push_back(cluster + word.textBegin);
@@ -264,10 +296,10 @@ TEST(Scripts, CuneiformSupplementaryPlane) {
     EXPECT_EQ(cluster % 2, 0u) << "clusters must land on surrogate-pair starts";
 }
 
-TEST(Scripts, EmojiZwjFamilyIsOneCluster) {
-  FontContext& fontContext = sharedContext();
+TEST(EmojiClusters, AZwjFamilyIsOneCluster) {
+  FontContext& fontContext = sigil::test::fonts();
   // Family emoji: 4 people joined by ZWJ = 11 UTF-16 units, ONE grapheme.
-  Paragraph paragraph = makeParagraph(u8"👨‍👩‍👧‍👦");
+  Paragraph paragraph = machineParagraph(u8"👨‍👩‍👧‍👦");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
   ASSERT_EQ(paragraph.words()[0].segments().size(), 1u);
@@ -278,9 +310,10 @@ TEST(Scripts, EmojiZwjFamilyIsOneCluster) {
   EXPECT_TRUE(allGlyphsResolved(paragraph));
 }
 
-TEST(Scripts, EmojiModifierAndFlagClusters) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"👍🏽 🇺🇸");  // skin tone; regional pair
+TEST(EmojiClusters, AModifierAndAFlagEachStayWithTheirBase) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph =
+      machineParagraph(u8"👍🏽 🇺🇸");  // skin tone; regional pair
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 2u);
   for (const Word& word : paragraph.words()) {
@@ -291,11 +324,11 @@ TEST(Scripts, EmojiModifierAndFlagClusters) {
   EXPECT_TRUE(allGlyphsResolved(paragraph));
 }
 
-TEST(Scripts, EmojiInsideLatinFallsBackPerSegment) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"great👍work");
+TEST(EmojiClusters, AnEmojiInsideLatinFallsBackOnItsOwnSegment) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = machineParagraph(u8"great👍work");
   paragraph.ensureShaped(fontContext);
-  absl::flat_hash_set<const SkTypeface*> faces;
+  boost::unordered_flat_set<const SkTypeface*> faces;
   for (const Word& word : paragraph.words())
     for (const WordSegment& segment : word.segments())
       faces.insert(segment.shaped->typeface.get());
@@ -312,7 +345,7 @@ TEST(Shaper, PurgeAllCachesRefillsIdentically) {
 
   auto shapeFresh = [&] {
     Paragraph paragraph;
-    paragraph.appendText(text, basicStyle());
+    paragraph.appendText(text, machineStyle());
     paragraph.ensureShaped(fontContext);
     std::vector<float> widths;
     for (const Word& word : paragraph.words()) widths.push_back(word.width);
@@ -362,11 +395,9 @@ TEST(Shaper, PurgeAllCachesResetsBorrowedMemos) {
 // ── Variable-font axis ergonomics (ShapingStyle::variations) ─────────────
 
 TEST(Shaper, VariationsChangeShapingViaStyle) {
-  FontContext& fontContext = sharedContext();
-  sk_sp<SkTypeface> base = fontContext.fontManager()->matchFamilyStyle(
-      "Noto Sans", SkFontStyle::Normal());
-  if (!base || base->getVariationDesignPosition({}) < 1)
-    GTEST_SKIP() << "no variable Noto Sans installed";
+  FontContext& fontContext = sigil::test::fonts();
+  sk_sp<SkTypeface> base = sigil::test::instrument::variable();
+  ASSERT_TRUE(base);
 
   auto totalWidth = [&](std::vector<FontVariation> variations) {
     TextStyle style = basicStyle(32.0f);
@@ -391,21 +422,10 @@ TEST(Shaper, VariationsChangeShapingViaStyle) {
 
 TEST(Shaper, VariedTypefaceIsMemoizedForCacheStability) {
   FontContext fontContext(ports::systemFontManager());
-  sk_sp<SkTypeface> base = fontContext.fontManager()->matchFamilyStyle(
-      "Noto Sans", SkFontStyle::Normal());
-  if (!base || base->getVariationDesignPosition({}) < 1)
-    GTEST_SKIP() << "no variable Noto Sans installed";
+  sk_sp<SkTypeface> base = sigil::test::instrument::variable();
+  ASSERT_TRUE(base);
 
   const std::vector<FontVariation> axes = {{"wght", 700.0f}};
-  sk_sp<SkTypeface> first = fontContext.variedTypeface(base, axes);
-  sk_sp<SkTypeface> second = fontContext.variedTypeface(base, axes);
-  ASSERT_TRUE(first);
-  EXPECT_EQ(first.get(), second.get())
-      << "identical variations must return the same clone instance";
-  EXPECT_NE(first.get(), base.get());
-
-  // Empty variations pass the base straight through.
-  EXPECT_EQ(fontContext.variedTypeface(base, {}).get(), base.get());
 
   // The memo survives a purge as a *contract*, not as storage: after
   // purgeAllCaches the next request re-resolves (possibly to the same

@@ -5,7 +5,22 @@
 
 #include "sigilmaterial/texture/Texture.h"
 
+#include <mutex>
+
 namespace sigil::material {
+
+struct ProducerSource::State {
+  explicit State(std::function<sk_sp<SkImage>()> function)
+      : produce(std::move(function)) {}
+  std::function<sk_sp<SkImage>()> produce;
+  std::once_flag once;
+  sk_sp<SkImage> baked;
+};
+
+ProducerSource::ProducerSource(std::string key,
+                               std::function<sk_sp<SkImage>()> produce)
+    : m_key(std::move(key)),
+      m_state(std::make_shared<State>(std::move(produce))) {}
 
 sk_sp<SkImage> ProducerSource::image() const {
   std::call_once(m_state->once, [&] {

@@ -6,6 +6,15 @@
 #   SpellCircleModels   QML-facing models (SpellCircle.Models)
 #   SpellCircleCanvas   the canvas item + Skia backend (SpellCircle.Canvas)
 #   SpellCircle         the executable + application QML (SpellCircle.App)
+#
+# QuickDialogs2 is named for the QML import in GraphicsSettingsForm.qml
+# rather than a C++ link.
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts
+                                     QuickDialogs2 CanvasPainter Network
+                                     GuiPrivate)
+qt_standard_project_setup(REQUIRES 6.11)
+find_package(EnTT CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 
 # ── Network: the Qt face of the shared transport ─────────────────────────
 # Wire transport only — marshals SpellCircleNet datagrams onto the Qt main
@@ -66,23 +75,16 @@ target_include_directories(SpellCircleModels
 )
 
 # ── Canvas: the scene item, Skia backend, and texture publishing ─────────
-# SkiaSceneBackend.cpp (real Skia Graphite backend) vs. SkiaSceneBackendStub.cpp
-# (always-null stub) is a build-time swap on the same createSkiaSceneBackend()
-# factory declared in include/SkiaSceneBackend.h — see SPELLCIRCLE_ENABLE_SKIA_CANVAS
-# in the top-level CMakeLists.txt. SpellCircleRenderer never branches on which
-# one it got. (The scene drawing itself lives in the shared Qt-free
-# ../shared/scene/SceneRenderer.cpp; SkiaSceneBackend.cpp is the Qt frame
-# around it.)
-if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  set(SPELLCIRCLE_SKIA_SCENE_BACKEND_SOURCE src/SkiaSceneBackend.cpp)
-else()
-  set(SPELLCIRCLE_SKIA_SCENE_BACKEND_SOURCE src/SkiaSceneBackendStub.cpp)
-endif()
-
+# SkiaSceneBackend.cpp is the Qt frame around the scene drawing, which
+# itself lives in the shared Qt-free ../shared/scene/SceneRenderer.cpp; the
+# createSkiaSceneBackend() factory declared in include/SkiaSceneBackend.h
+# answers null when the active QRhi backend has no Graphite context, and
+# SpellCircleRenderer never branches on more than that null.
+#
 # Per-platform TexturePublisher implementation behind the one factory in
 # TexturePublisherFactory.cpp: Syphon on macOS/Metal, Spout on
-# Windows/D3D11 (Windows bring-up draft — only when vcpkg spout2[dx] is
-# present), nothing elsewhere (the factory then always returns null).
+# Windows/D3D11 (only when vcpkg spout2[dx] is present), nothing elsewhere
+# (the factory then always returns null).
 set(SPELLCIRCLE_PUBLISHER_SOURCES)
 if(APPLE)
   set(SPELLCIRCLE_PUBLISHER_SOURCES src/SyphonBridge.mm include/SyphonBridge.h)
@@ -106,7 +108,7 @@ qt_add_qml_module(SpellCircleCanvas
       src/SpellCircleRenderer.cpp include/SpellCircleRenderer.h
       include/CanvasSceneBackend.h
       include/SkiaSceneBackend.h
-      ${SPELLCIRCLE_SKIA_SCENE_BACKEND_SOURCE}
+      src/SkiaSceneBackend.cpp
 )
 
 target_link_libraries(SpellCircleCanvas
@@ -123,27 +125,25 @@ target_link_libraries(SpellCircleCanvas
 )
 
 if(APPLE)
+  sigil_frameworks(canvas_frameworks Foundation CoreGraphics)
+  find_package(unofficial-syphon CONFIG REQUIRED)
   target_link_libraries(SpellCircleCanvas
       PRIVATE
-        ${FOUNDATION_FRAMEWORK}
-        ${SYPHON_FRAMEWORK}
-        ${CORE_GRAPHICS_FRAMEWORK}
+        ${canvas_frameworks}
+        unofficial::syphon::syphon
   )
 elseif(TARGET Spout2::SpoutDX)
   target_link_libraries(SpellCircleCanvas PRIVATE Spout2::SpoutDX d3d11)
   target_compile_definitions(SpellCircleCanvas PRIVATE SPELLCIRCLE_HAVE_SPOUT)
 endif()
 
-# SigilSkia (the generic Skia GPU plumbing under src/common/skia)
-# only exists when SPELLCIRCLE_ENABLE_SKIA_CANVAS is ON. SigilWeave provides
-# the animated text layer drawn by SkiaSceneBackend.cpp.
-if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  # SigilWeaveQt carries SigilWeave transitively; SigilWeavePorts provides the
-  # system font manager used by the render-thread FontContext. (No direct
-  # absl links: SigilWeave's public headers no longer expose abseil types.)
-  target_link_libraries(SpellCircleCanvas PRIVATE SigilSkiaQt SigilWeaveQt
-    SigilWeavePorts)
-endif()
+# SigilSkiaQt is the Skia GPU plumbing under src/common/skia reached
+# through a QRhi; SigilWeave provides the animated text layer drawn by
+# SkiaSceneBackend.cpp. SigilWeaveQt carries SigilWeave transitively;
+# SigilWeavePorts provides the system font manager used by the
+# render-thread FontContext.
+target_link_libraries(SpellCircleCanvas PRIVATE SigilSkiaQt SigilWeaveQt
+  SigilWeavePorts)
 
 target_include_directories(SpellCircleCanvas PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}/include
@@ -158,11 +158,9 @@ sigil_qt_target(SpellCircle)
 # App Nap suppression is a main.cpp concern, not a library: fold the one
 # ObjC++ TU straight into the executable on macOS.
 if(APPLE)
+  sigil_frameworks(app_frameworks Foundation AppKit)
   target_sources(SpellCircle PRIVATE src/AppNap.mm include/AppNap.h)
-  target_link_libraries(SpellCircle PRIVATE
-    ${FOUNDATION_FRAMEWORK}
-    ${APPKIT_FRAMEWORK}
-  )
+  target_link_libraries(SpellCircle PRIVATE ${app_frameworks})
 endif()
 
 target_include_directories(SpellCircle PRIVATE include)
@@ -211,7 +209,6 @@ set_target_properties(SpellCircle PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
-    # WIN32_EXECUTABLE TRUE
 )
 
 target_link_libraries(SpellCircle

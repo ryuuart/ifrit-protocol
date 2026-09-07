@@ -1,10 +1,13 @@
 {
   "dependencies": [
-    "abseil",
     "alembic",
     "asio",
     "benchmark",
+    "boost-container",
+    "boost-container-hash",
     "boost-pfr",
+    "boost-unordered",
+    "cdt",
     "cgltf",
     "choreograph",
     "concurrentqueue",
@@ -12,6 +15,17 @@
     "diligent-engine",
     "earcut-hpp",
     "entt",
+    {
+      "name": "ffmpeg",
+      "default-features": false,
+      "features": [
+        "avcodec",
+        "avformat",
+        "openh264",
+        "swscale",
+        "vpx"
+      ]
+    },
     "flatbuffers",
     "glm",
     "gtest",
@@ -26,6 +40,7 @@
       ]
     },
     "icu",
+    "minizip-ng",
     "openimageio",
     "shader-slang",
     {
@@ -60,6 +75,11 @@
     "spdlog",
     "stb",
     {
+      "name": "syphon",
+      "platform": "osx"
+    },
+    "tbb",
+    {
       "name": "spout2",
       "features": [
         "dx"
@@ -73,5 +93,18 @@
     },
     "vulkan-headers",
     "yoga"
+  ],
+  "overrides": [
+    {
+      "$comment": [
+        "The baseline's earcut-hpp drops one header into include/ and",
+        "exports no package, so a consumer has to find the header by",
+        "path. This version installs the library's own CMake package",
+        "instead, and the triangulator is linked like everything else:",
+        "find_package(earcut_hpp CONFIG) and one imported target."
+      ],
+      "name": "earcut-hpp",
+      "version": "3.2.3"
+    }
   ]
 }

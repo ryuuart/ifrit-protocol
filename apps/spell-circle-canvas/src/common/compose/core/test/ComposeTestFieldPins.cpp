@@ -19,6 +19,14 @@
 // describes, and keyed siblings never prune into one another — so a harness
 // that renders two trees and counts patched nodes can report exactly what a
 // correct comparator would while the comparator is in fact broken.
+//
+// THIS FILE REACHES THE LIBRARY'S OWN SOURCE DIRECTORY, and it is the only
+// test translation unit that does. That is a stated exception rather than
+// an oversight: a field left out of a comparator is unfalsifiable from
+// outside, because from outside the two descriptions simply compare equal
+// and the tree simply prunes. Every case here needs the comparator or the
+// slot table itself; a case that needs neither belongs in the binary whose
+// tier owns its subject, not here.
 
 #include <boost/pfr/core.hpp>
 
@@ -63,6 +71,10 @@ void perturb(cd::Kind& v) { v = cd::Kind::Stack; }
 
 void perturb(Cache& v) { v = Cache::None; }
 
+void perturb(Boundary& v) { v = Boundary::Glyphs; }
+
+void perturb(Backface& v) { v = Backface::Hidden; }
+
 void perturb(SkBlendMode& v) { v = SkBlendMode::kMultiply; }
 
 void perturb(Corners& v) { v.topLeft += 1.0f; }
@@ -73,7 +85,9 @@ void perturb(Shape& v) {
   v = Shape([](SkSize) { return SkPath(); });  // the raw-callable escape hatch
 }
 
-void perturb(std::optional<Transition>& v) { v = Transition{}; }
+void perturb(std::optional<sigil::motion::Transition>& v) {
+  v = motion::Transition{};
+}
 
 void perturb(choreograph::EaseFn& v) { v = &choreograph::easeInQuad; }
 
@@ -86,12 +100,12 @@ void perturb(const choreograph::Output<float>*& v) {
   v = &other;
 }
 
-void perturb(Animatable<float>& v) {
+void perturb(sigil::motion::Animatable<float>& v) {
   v = (v.plain() ? *v.plain() : 0.0f) + 1.0f;
 }
 
-void perturb(std::optional<Animatable<Fill>>& v) {
-  v = Animatable<Fill>(Fill::color(SkColor4f{1, 0, 0, 1}));
+void perturb(std::optional<sigil::motion::Animatable<Fill>>& v) {
+  v = sigil::motion::Animatable<Fill>(Fill::color(SkColor4f{1, 0, 0, 1}));
 }
 
 void perturb(std::vector<Decoration>& v) {
@@ -102,17 +116,11 @@ void perturb(std::vector<Element>& v) { v.push_back(box()); }
 
 void perturb(cd::PaintProps& v) { perturb(v.opacity); }
 
-void perturb(Unit& v) { v = Unit::Line; }
+void perturb(sigil::weave::Unit& v) { v = sigil::weave::Unit::Line; }
 
 void perturb(Beats& v) { v = Beats::Text; }
 
-void perturb(Stagger::From& v) { v = Stagger::From::End; }
-
 void perturb(std::vector<float>& v) { v.push_back(1.0f); }
-
-void perturb(std::shared_ptr<const Stagger>& v) {
-  v = std::make_shared<const Stagger>();
-}
 
 template <class T>
 void perturb(cd::Box<T>& v) {
@@ -182,20 +190,32 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
       kNames, kParticipates);
 }
 
-TEST(ComposeReconcile, EveryStaggerFieldParticipatesInEquality) {
-  // A cascade is a comparable value, and its equality is what lets text
-  // carrying tracks prune. Miss a field here and a re-described track keeps
-  // the OLD schedule with no diagnostic — a re-cut cue table that never
-  // takes, or a `beatsOver` flipped to Text on a paragraph that goes on
-  // beating over each half's own selection. Both are silent, and both look
-  // exactly like the engine ignoring the author.
-  static const char* const kNames[] = {
-      "eachMs", "amountMs", "cueMs",     "durationMs",   "loopMs", "from",
-      "seed",   "over",     "beatsOver", "distribution", "inner"};
-  static const bool kParticipates[] = {true, true, true, true, true, true,
+TEST(ComposeReconcile, EveryDepthDataFieldParticipatesInEquality) {
+  // The depth block is read live at paint exactly as PaintProps is: five
+  // lanes, the two origins, the transform origin's depth and the two
+  // modes. A lane left out keeps the plane at the turn it was recorded at;
+  // a mode left out keeps a space open, or a back drawn, that the author
+  // closed.
+  static const char* const kNames[] = {"rotateX",
+                                       "rotateY",
+                                       "translateZ",
+                                       "scaleZ",
+                                       "perspective",
+                                       "perspectiveOriginX",
+                                       "perspectiveOriginY",
+                                       "originZ",
+                                       "preserve3d",
+                                       "backface"};
+  static const bool kParticipates[] = {true, true, true, true, true,
                                        true, true, true, true, true};
-  walkFields<Stagger>([](const Stagger& a, const Stagger& b) { return a == b; },
-                      kNames, kParticipates);
+  walkFields<cd::DepthData>(
+      [](const cd::DepthData& a, const cd::DepthData& b) {
+        cd::ElementNode na, nb;
+        na.depthData.ensure() = a;
+        nb.depthData.ensure() = b;
+        return cd::propsEqual(na, nb);
+      },
+      kNames, kParticipates);
 }
 
 TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
@@ -230,39 +250,8 @@ TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
   static const bool kParticipates[] = {
       true, true, true, true, true, true, true, true, true, true, true, true,
       true, true, true, true, true, true, true, true, true, true, true, true};
-  walkFields<BoundFloat>(cd::boundMapEqual, kNames, kParticipates);
-}
-
-TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
-  // `recordBounds()` decides whether a child's transform widens the parent's
-  // bounds, and it must recognise exactly the transforms `NodeTransform`
-  // applies for paint() and hitInstance() — per-axis scale included. Miss one
-  // and a child whose ONLY transform is a per-axis scale hands its parent
-  // unscaled bounds, and every consumer sized off them (the effect layer
-  // here, the opacity layer, the texture bake) silently truncates the
-  // overflow.
-  //
-  // The parent takes an identity offset() filter purely to force a bounded
-  // saveLayer: that layer clips to recordBounds(), so wrong bounds delete the
-  // scaled-out half of the bar instead of merely mis-sizing something.
-  Host host(200, 200);
-  host.composer.render(box().child(
-      box()
-          .absolute()
-          .rect(SkRect::MakeXYWH(20, 20, 40, 40))
-          .effect(Effect::filter(SkImageFilters::Offset(0, 0, nullptr)))
-          .child(box()
-                     .absolute()
-                     .rect(SkRect::MakeXYWH(0, 0, 40, 40))
-                     .transformOrigin(0, 0)
-                     .fill(red())
-                     .scaleX(3.0f))));
-  host.frame();
-  EXPECT_EQ(host.pixel(30, 40), SK_ColorRED) << "the unscaled part is missing";
-  EXPECT_EQ(host.pixel(120, 40), SK_ColorRED)
-      << "the scaled-out part of the bar was clipped away — recordBounds() "
-         "did not see scaleX on the child";
-  EXPECT_EQ(host.pixel(150, 40), SK_ColorBLACK) << "…and it over-reached";
+  walkFields<sigil::motion::BoundFloat>(cd::boundMapEqual, kNames,
+                                        kParticipates);
 }
 
 TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
@@ -272,22 +261,24 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
   //
   //  - `memoData` never reaches propsEqual at all. resolveMemo() compares a
   //    memo EARLIER and more strictly (the env snapshot, then the author's
-  //    own props comparator) and `inst.desc` holds the memo's PRODUCED
+  //    own props comparator) and `inst.description` holds the memo's PRODUCED
   //    payload, which carries no memo block.
   //  - `children` are reconciled BY KEY, not compared. A node that prunes
   //    still walks them — that is the whole point of the structural prune.
   static const char* const kNames[] = {
-      "kind",        "key",        "layout",         "paint",
-      "corners",     "shapeFn",    "clipContent",    "hitTestable",
-      "cacheMode",   "bakeScale",  "nodeTransition", "backgrounds",
-      "foregrounds", "textData",   "imageData",      "customData",
-      "deriveData",  "fxData",     "materialData",   "strokeData",
-      "memoData",    "motionData", "children"};
+      "kind",           "boundary",    "coverageThreshold", "key",
+      "layout",         "paint",       "corners",           "shapeFn",
+      "clipContent",    "hitTestable", "cacheMode",         "bakeScale",
+      "nodeTransition", "backgrounds", "foregrounds",       "textData",
+      "imageData",      "customData",  "deriveData",        "fxData",
+      "materialData",   "strokeData",  "memoData",          "motionData",
+      "depthData",      "children"};
   static const bool kParticipates[] = {
-      true,  true, true, true, true, true, true, true, true, true,
-      true,  true, true, true, true, true, true, true, true, true,
-      false,  // memoData — resolveMemo owns it, and it never lands in desc
-      true,
+      true,  true, true, true, true, true, true, true, true, true, true,
+      true,  true, true, true, true, true, true, true, true, true, true,
+      false,  // memoData — resolveMemo owns it, and it never lands in
+              // description
+      true,  true,
       false,  // children — reconciled by key, never compared
   };
   walkFields<cd::ElementNode>(cd::propsEqual, kNames, kParticipates);
@@ -311,8 +302,9 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
   cd::ElementNode node;
   node.motionData.ensure();                 // travel(): carries kMotionT
   node.textData.ensure().onPath.emplace();  // onPath(): carries kTextPathAt
+  node.depthData.ensure();  // the depth lanes: kRotateX … kPerspective
 
-  std::vector<const Animatable<float>*> seen;
+  std::vector<const sigil::motion::Animatable<float>*> seen;
   int bespoke = 0, opacityRows = 0;
   for (const cd::SlotSpec& spec : cd::kSlotSpecs) {
     const int index = (int)spec.slot;
@@ -329,7 +321,7 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
       continue;
     }
     if (spec.role == cd::SlotRole::Opacity) ++opacityRows;
-    const Animatable<float>* v = cd::slotValueOf(spec, node);
+    const sigil::motion::Animatable<float>* v = cd::slotValueOf(spec, node);
     ASSERT_NE(v, nullptr) << "slot " << index
                           << "'s accessor reaches nothing "
                              "on a node carrying every block";

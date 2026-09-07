@@ -10,7 +10,7 @@
 
 #include <string>
 
-namespace sigil::scry::runtime {
+namespace sigil::scry {
 
 /**
  * True when the resource directory the engine would boot with holds the
@@ -23,4 +23,4 @@ namespace sigil::scry::runtime {
  */
 bool available(std::string* why = nullptr);
 
-}  // namespace sigil::scry::runtime
+}  // namespace sigil::scry

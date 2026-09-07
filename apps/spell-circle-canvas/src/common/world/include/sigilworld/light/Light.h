@@ -61,10 +61,6 @@ Light spot(glm::vec3 position, glm::vec3 direction, float outerDeg = 45,
            float innerDeg = 0, glm::vec4 color = {1, 1, 1, 1},
            float intensity = 1, float range = 600);
 
-/** How many emitters a renderer is expected to carry in one frame. A
- *  count, not a limit on how many a scene may hold. */
-inline constexpr int kBudget = 8;
-
 /** How much of @p light reaches @p at, in [0, 1], before any surface
  *  term. A sun reaches everything equally. A point light falls off on a
  *  window — (1 - (d/range)^2)^2 — rather than an inverse square, which
