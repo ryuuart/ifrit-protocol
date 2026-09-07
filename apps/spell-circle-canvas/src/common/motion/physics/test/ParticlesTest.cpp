@@ -252,6 +252,34 @@ TEST(Particles, ANamedLaneRidesThroughADeathWithItsParticle) {
   EXPECT_FLOAT_EQ(cloud.attribute("tag").rate, -1.0f);
 }
 
+TEST(Particles, AnAttributeFilledWithANumberCostsNoDraw) {
+  // Which of many mouths threw a particle is the case this is for: two
+  // emitters into one cloud, each stamping its own number, and neither
+  // spending a word of the stream on it.
+  Emitter first = fountain();
+  first.fixed = {{"mouth", 1.0f}};
+  Emitter second = fountain();
+  second.at = {400.0f, 200.0f};
+  second.fixed = {{"mouth", 2.0f}};
+
+  chance::Stream stream = chance::Stream::xorshift(0x1982u);
+  Particles cloud;
+  first.burst(cloud, stream, 300);
+  second.burst(cloud, stream, 200);
+  EXPECT_EQ(stream.drawn(), 500u * 7u);
+
+  const std::vector<float>& mouth = cloud.attribute("mouth").values;
+  for (size_t i = 0; i < cloud.size(); ++i)
+    EXPECT_FLOAT_EQ(mouth[i],
+                    cloud.points.position[i].x < 300.0f ? 1.0f : 2.0f);
+
+  // And it rides through a death like any other attribute.
+  cloud.live(10.0f);
+  EXPECT_EQ(cloud.reap([&](size_t i) { return mouth[i] == 1.0f; }), 300u);
+  EXPECT_EQ(cloud.size(), 200u);
+  for (size_t i = 0; i < cloud.size(); ++i) EXPECT_FLOAT_EQ(mouth[i], 2.0f);
+}
+
 TEST(Particles, ALaneDriftsAtItsOwnRateAndStopsAtItsOwnBound) {
   Particles cloud;
   Attribute& fade = cloud.attribute("red");

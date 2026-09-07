@@ -86,20 +86,24 @@ size_t Emitter::burst(Particles& particles, core::chance::Stream& stream,
                       size_t count) const {
   if (count == 0) return 0;
 
-  // Every attribute is asked for BEFORE any address into one is taken: adding
-  // an attribute moves the vector the attributes are held in, and an address
-  // taken first would be into the old one.
-  for (const BirthAttribute& birth : attributes)
-    if (birth.name != kLife && birth.name != kAge)
-      particles.attribute(birth.name);
+  // Every attribute is asked for BEFORE any address into one is taken:
+  // adding an attribute moves the vector the attributes are held in, and
+  // an address taken first would be into the old one.
+  const auto vectorFor = [&particles](const std::string& name) {
+    return name == kLife  ? &particles.life
+           : name == kAge ? &particles.age
+                          : &particles.attribute(name).values;
+  };
+  for (const BirthAttribute& birth : attributes) vectorFor(birth.name);
+  for (const FixedAttribute& held : fixed) vectorFor(held.name);
 
-  std::vector<std::vector<float>*> filled;
-  filled.reserve(attributes.size());
+  std::vector<std::vector<float>*> drawnInto, heldInto;
+  drawnInto.reserve(attributes.size());
+  heldInto.reserve(fixed.size());
   for (const BirthAttribute& birth : attributes)
-    filled.push_back(birth.name == kLife ? &particles.life
-                     : birth.name == kAge
-                         ? &particles.age
-                         : &particles.attribute(birth.name).values);
+    drawnInto.push_back(vectorFor(birth.name));
+  for (const FixedAttribute& held : fixed)
+    heldInto.push_back(vectorFor(held.name));
 
   const Vec2 across{-along.y, along.x};
   const Vec2 sideways{-aim.y, aim.x};
@@ -144,7 +148,9 @@ size_t Emitter::burst(Particles& particles, core::chance::Stream& stream,
     const size_t index =
         particles.add(place, heading * speed.draw(stream), 0.0f, mass);
     for (size_t i = 0; i < attributes.size(); ++i)
-      (*filled[i])[index] = attributes[i].drawn.draw(stream);
+      (*drawnInto[i])[index] = attributes[i].drawn.draw(stream);
+    for (size_t i = 0; i < fixed.size(); ++i)
+      (*heldInto[i])[index] = fixed[i].value;
   }
   return count;
 }

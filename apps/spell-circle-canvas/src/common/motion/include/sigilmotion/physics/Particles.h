@@ -237,6 +237,18 @@ struct BirthAttribute {
   bool operator==(const BirthAttribute&) const = default;
 };
 
+/** ONE ATTRIBUTE A BIRTH FILLS WITH THE SAME NUMBER EVERY TIME: which of
+ *  many emitters threw it, a material index, a tag a consumer sorts by.
+ *  It costs no draw, so adding one to an emitter does not move a cloud a
+ *  seed replays — and it is what stops a consumer writing the same
+ *  fill-the-tail loop after every burst. */
+struct FixedAttribute {
+  std::string name;
+  float value = 0.0f;
+
+  bool operator==(const FixedAttribute&) const = default;
+};
+
 /** WHAT PUTS PARTICLES INTO A CLOUD: a mouth, a direction, and the
  *  ranges every attribute of a birth is drawn from.
  *
@@ -279,6 +291,8 @@ struct Emitter {
   float mass = 1.0f;
   /** The attributes a birth fills, drawn in this order. */
   std::vector<BirthAttribute> attributes;
+  /** The attributes a birth fills with a number rather than a draw. */
+  std::vector<FixedAttribute> fixed;
   /** How many are born per unit of time. */
   float rate = 0.0f;
   /** THE FRACTION OF A PARTICLE a span of time left over, carried to the
@@ -295,9 +309,8 @@ struct Emitter {
    *  and the form a consumer whose own law says how many arrive this
    *  step reaches for.
    *
-   *  They are the LAST @p count rows of @p particles, so an attribute no draw
-   *  fills — a per-emitter constant, an index naming what threw them —
-   *  is written over that tail. */
+   *  They are the LAST @p count rows of @p particles, which is what a
+   *  consumer writing an attribute no emitter fills reaches for. */
   size_t burst(Particles& particles, core::chance::Stream& stream,
                size_t count) const;
 

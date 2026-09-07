@@ -115,6 +115,7 @@ const Emitter mouth{
     .attributes = {{std::string(kLife), {.mean = 1.4f, .variation = 0.5f}},
               {"size", {.mean = 4.0f, .variation = 1.6f}},
               {"red", {.mean = 1.0f, .variation = 0.35f}}},
+    .fixed = {{"mouth", 3.0f}},                // which one threw it
     .rate = 6000.0f};
 
 core::chance::Stream stream = core::chance::Stream::pcg(1982);
@@ -146,6 +147,10 @@ time and `Emitter::carry` holds the fraction of a particle it left over,
 so a rate finer than one birth per step still arrives at that rate.
 `Emitter::burst` is the same births at once, for the puff at the head of
 a plume and for a consumer whose own law says how many arrive this step.
+`Emitter::fixed` is beside `Emitter::attributes` for the number a birth
+is STAMPED with rather than drawn — which of many mouths threw it, a
+material index, a tag to sort by — and it costs no draw, so adding one
+does not move a cloud a seed replays.
 
 **`EmitFrom` is the mouth**: a `Point`, a `Segment`, a `Box`, a `Disc`
 (evenly over its AREA, so the middle is not crowded) or a `Ring`. The
