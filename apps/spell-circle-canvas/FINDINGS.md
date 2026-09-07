@@ -12,55 +12,27 @@ remains of them is below, then the standing entries.
 
 ## Verification state at the merge
 
-Taken on a fresh build directory after the fix pass (head 1e23e368 of
-the pass, plus this file):
+Taken on a fresh build directory at the head of the branch:
 
-- Release build: zero errors, zero warnings. `ctest`: 3230 of 3230 pass
-  (four cases skip for an SDK or data set the machine lacks).
-- CPU plate tier: 119 scenes byte-identical, 42 moved, 34 draw scenes
-  new to the ledger, none failed. Every mover re-renders identical to
-  itself and traces to a pass that named it (the fix reports name them;
-  the largest are `ui_particles` on a fixed simulation step,
-  `horizontal_flow` and `penrose_paving` on the kit's table and well,
-  `lain_navi` and `winamp_base` on a colour mix in linear light). The
-  baseline was rebased from that sweep, draw scenes included.
-- Device tier: 190 of 195 within the per-channel bar. All five that were
-  not are fixed: `brushwork_currents` (which crashed the GPU lane), `aero
-  desktop`, `nine slice` (which drew Skia's own lattice call in a trap
-  cell and now draws SigilSkia's decomposition), and — on the fence that
-  keeps a scene's painting order through a destination read —
-  `winamp_base` and `chevreul_circle`. The tier judges every scene.
-- Promotion tier: 111 of 195 within one code value; the 84 outside are
-  the standing entry below, which reports rather than gates.
-- ASan with UBSan: 3230 of 3230 pass, no report. TSan: 3232 of 3232,
-  no report, after the schedule library began stating the fork and the
-  join a divided range takes (oneTBB arrives uninstrumented, so the
-  join edge was invisible to the sanitizer; two `workaround:` lines).
-- The benchmark baseline was retaken from this tree on an idle machine
-  and committed; the app-FPS baseline likewise (its lane presents every
-  sketch in the real window).
-
-## Rulings for the pre-merge pass
-
-- `nine slice` changes rather than the ledger: the trap cell that calls
-  Skia's own lattice draw goes (or draws through SigilSkia's
-  decomposition), the `DEVICE_DIVERGENT` list is deleted, and the tier
-  judges every scene again.
-- The TSan compensation in the schedule library stands.
-- The Graphite draw-order defect behind `winamp_base` and
-  `chevreul_circle` is fixed before the merge, at its cause, with a test.
-- The painter runtime becomes per-session like the set runtime, so a
-  canvas thumbnail never reaches the installed device; the p5 key table
-  stays as it is.
-- `Track::over` against `Annotation::unit`: the rename is done with its
-  docs; the compose items declined with a reason leave this file.
-- Every standing entry is worked before the merge: `pop_math`'s gate and
-  the four arrange sites; the slang serial and chaucer's ceiling; the
-  promotion tier's glyph edges and the blend-declaring callables; rota's
-  emissive stack in the compositor.
-- After the merge: the extractions first, then the file splits.
-- The merge itself is a merge commit on `main` once the closing chain
-  is green again with a sound FPS lane.
+- Release build: zero errors, zero warnings. `ctest`: 3247 of 3247.
+- CPU plate tier: 195 scenes, every mover of the pass named by the
+  pass that moved it and rebased with the cause; the sweep no longer
+  fills the frames it discards, so `chaucer_astrolabe` renders in
+  seconds and every plate is byte-identical to before.
+- Device tier: 195 of 195 within the per-channel bar after two causes
+  were found on the Vulkan path (a blending draw painted over what was
+  described after it; a fenced pass resolving multisamples over the
+  pass before it).
+- Promotion tier: 121 of 195 within one code value; the remainder is
+  the entry below.
+- ASan with UBSan and TSan: 3247 of 3247 each, no report.
+- Benchmark baseline retaken and committed. Window-FPS baseline
+  committed from the last sweep at an unlocked screen; nothing reads
+  under the gate at the head (a per-sketch verification), and the two
+  rows the ledger still shows under it (`pop_math`, `kumiko_asanoha`)
+  were fixed after that sweep — one `sigil.py bench --lane fps --rebase`
+  at an unlocked screen collects them. The lane refuses a locked
+  screen, which throttles an invisible window's GPU work.
 
 ## Deferred past the merge, each a campaign of its own
 
