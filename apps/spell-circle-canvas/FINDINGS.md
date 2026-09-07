@@ -39,7 +39,8 @@ Taken on a fresh build directory at the head of the branch:
 - The promotion tier's head (flourish, beethoven, dunhuang, the eva_magi
   plates, spacejam, lain_navi, minard, tile map) is researched now, one
   cause at a time with a `compose_test` pin each; the tail is judged
-  after it.
+  after it. Three causes are found and fixed and five scenes are left,
+  with the ablations that narrow them: the entry below.
 - rota keeps its look; the library question is taken and answered: a
   settled node with a static layer effect is baked without it and the
   effect is run OVER that bake, with the identity test. Not at the blit,
@@ -74,7 +75,7 @@ Taken on a fresh build directory at the head of the branch:
   `Composer.cpp`, `ComposerImpl.h`, `Volatility.cpp`, `Instance.h`,
   `Layout.cpp`, `ComposeInternal.h`, `Derive.cpp`).
 
-## Automatic texture promotion moves 74 of 195 plates past one code value
+## Automatic texture promotion moves 69 of 195 plates past one code value
 
 `sigil.py plates --tier promotion` renders every scene twice on the CPU —
 once with promotion off, once EAGER (every node the promoter's rules
@@ -84,98 +85,111 @@ its live paint paints, within one code value per channel over transparent
 black and two where the bake lands on content, and a scene that moves
 further is a defect in compose rather than a plate to rebase.
 
-    195 scenes, 120 within one code value.
-    (chaucer_astrolabe was the one the sweep could not judge inside its
-    ceiling; it renders in seconds now and moves by 108.)
+    195 scenes, 126 within one code value (120 before this pass).
 
-ONE CAUSE IS FIXED and it was the one this entry was written about: a
-text leaf reported the band of its lines as its paint bounds, and the ink
-a face draws outside that band — a comma's tail, an accent — was cut by
-the bake. That is why so many unrelated scenes reported the SAME maximum:
-they share the sketch kit's chrome type. The class it accounted for (90
-on five scenes, 87 on eight) is gone; `half_float`, `spacing_passes`,
-`encode_write`, `axis_ripple`, `winamp_base`, `tategaki`,
-`nightingale_coxcomb`, `twoadvanced_*`, `cde_motif` and `env_lanes` are
-now within the rule, and `annotated_margin` (221 → 2), `ruby_kenten`
-(211 → 2), `mawarikomi` (213 → 12), `y2k chrome` (111 → 2), `chladni_tab1`
-(195 → 28), `paragraph_sheet` (217 → 83), `black_watch` (199 → 82) and
-`stroke_atlas` (190 → 105) each lost a whole cause.
+THREE CAUSES WERE FIXED IN THE POST-MERGE PASS, each with a `compose_test`
+case beside the two that pin the type one.
 
-A SECOND CAUSE IS FIXED: a device bake was allocated to exactly what the
-node paints, and Skia decides whether a path needs its CLIPPED
-rasterisation from the path's control-point bounds — which for a curve
-stand outside the ink it draws, about a hundredth of the curve's own
-extent for the cubics a stroker approximates an offset with. So every
-stroked curve was baked on Skia's clipped route and painted live on its
-unclipped one, and the two do not answer the same antialiased coverage:
-tens of code values along the whole length of the curve, which on a
-high-contrast plate is the difference between the two inks. Every device
-bake now carries a margin (a thirty-second of its larger side, never less
-than two pixels), so what bounds the drawing is the clip the bake carries
-in and never the allocation. Pinned by
-`ComposeCache.APromotedCurveKeepsTheCoverageItsLivePaintComputes`. On the
-narrowed head: `flourish` 244 → 8, `eva_magi_defense` 174 → 1 (within),
-`eva_magi_deliberation` 188 → 2; `beethoven`, `dunhuang_star_chart`,
-`eva_magi_interior`, `lain_navi`, `minard_1869` and `spacejam_1996` did
-not move and are a different cause.
+ONE — A DEVICE BAKE WAS ALLOCATED FLUSH AGAINST WHAT IT PAINTS. Skia
+decides whether a path needs its CLIPPED rasterisation from the path's
+control-point bounds, and its clipped and unclipped routes do not answer
+the same antialiased coverage. A curve's control points stand outside the
+ink it draws — measured at 1.68, 3.50 and 6.75 px for stroked arcs of
+side 152, 340 and 676, about a hundredth of the curve's own extent — so a
+bake sized to exactly what the node paints cut inside them, and every
+stroked ring, arc or ornament was baked on one route and painted live on
+the other. Tens of code values along the whole length of the curve, which
+on a high-contrast plate is the difference between the two inks. Every
+device bake now carries a margin, `bakeMargin(extent) = 2 + extent/32`.
+Reproduced in PLAIN SKIA with no compose in it, which is what named the
+mechanism. Pinned by
+`ComposeCache.APromotedCurveKeepsTheCoverageItsLivePaintComputes`, which
+fails by 62 without the margin. It moved `flourish` 244 → 8,
+`eva_magi_defense` 174 → 1, `eva_magi_deliberation` 188 → 2,
+`nine slice` 221 → 0, `stroke_atlas` 105 → 34, `hit_slots` 86 → 16,
+`blur_falloff` 55 → 17, `thunder_fulu` 77 → 30 and `astral_tome` 35 → 9.
 
-A THIRD CAUSE IS FIXED: a node stops recording the frame its device bake
-is taken, and the recording it already held was neither dropped nor
-staled — the content scalars that separated the two became the bake's
-own, and a settled node is not dirty. The bake is refused again the
-moment the matrix under it moves, which is exactly what photographing a
-plate at its view scale does, and the stale recording is what replayed.
-On `beethoven` that showed as three of nine arcs coming back a frame
-short of their reveal: the three whose transitions settled while their
-neighbours were still running, so each was promoted on the frame it
-landed and its recording was one frame behind. A promotion bake now drops
-the recording it replaced. Pinned by
-`ComposeCache.APromotedNodeDropsTheRecordingItsBakeReplaced`, which
-fails by 228 code values without it. On the narrowed head: `beethoven`
-228 → 1 (within).
+TWO — A BAKE LEFT A RECORDING BEHIND THAT WAS ONE FRAME OLD. A node stops
+recording the frame its device bake is taken, and the recording it
+already held was neither dropped nor staled: the content scalars that
+separated the two become the bake's own, and a settled node is not dirty.
+The bake is refused again the moment the matrix under it moves — which is
+exactly what photographing a plate at its view scale does — and the stale
+recording replays. On `beethoven` that showed as three of nine arcs
+coming back a frame short of their reveal: the three whose transitions
+settled while their neighbours were still running, so each was promoted
+on the frame it landed. A promotion bake now drops the recording it
+replaced, as the `Cache::Group` tier beside it already did. Pinned by
+`ComposeCache.APromotedNodeDropsTheRecordingItsBakeReplaced`, which fails
+by 228 without the drop. `beethoven` 228 → 1.
 
-WHAT REMAINS, max channel first:
-
-    flourish 244 · volatility_cost 228 · beethoven 228 · nine slice 221 ·
-    dunhuang_star_chart 216 · eva_magi_interior 190 ·
-    eva_magi_deliberation 188 · spacejam_1996 185 · lain_navi 176 ·
-    eva_magi_defense 174 · minard_1869 163 · tile map 161 ·
-    sigillum_aemeth 125 · coverage_boundary 118 · stroke_atlas 105 ·
-    kumiko_asanoha 89 · hit_slots 86 · paragraph_sheet 83 ·
-    black_watch 82 · thunder_fulu 77 · material_child 66 ·
-    blur_falloff 55 · thaumonomicon 43 · fx_scatter_mix 37 ·
-    chevreul_circle 35 · astral_tome 35 · chladni_tab1 28 ·
-    aero desktop 23 · …and forty-six more at 16 or less, thirty-one of
-    them at 6 or less
-
-TWO SHEETS DREW THE RUNTIME'S OWN CACHING VERDICTS and therefore read
-differently under a promoted run: `volatility_cost` (the tier per node,
+THREE — TWO SHEETS DREW THE RUNTIME'S OWN CACHING VERDICTS, so a promoted
+run was meant to read differently: `volatility_cost` (the tier per node,
 the split and `Composer::stats()`) and `tile map` (recordings held and
 nodes painted live, beside the reconciler's counts). Both now read a
 composer THE SHEET OWNS — the same tree, stepped on the same clock,
-drawing into nothing, opened under a policy the sheet declares
-(`volatility_cost` eager, so its map is what the promoter's rules admit
-rather than what a stopwatch reached; `tile map` held off, which is the
-regime its memo lesson is about). Neither is excluded anywhere.
-`tile map` is now within the rule and its CPU plate is byte-identical;
-`volatility_cost` fell 228 → 17, the remainder being the ordinary drift
-over its star panel, and its CPU plate moved because the tier column now
-names what the description admits instead of what the host was opened
-with. `nine slice` draws its difference on purpose and has its own
-ruling.
+drawing into nothing, under a policy the sheet declares: `volatility_cost`
+eager, so its map is what the promoter's RULES admit rather than what a
+stopwatch reached, and `tile map` held off, which is the regime its memo
+lesson is about. Neither is excluded anywhere. `tile map` is within the
+rule and its CPU plate is byte-identical; `volatility_cost` fell 228 → 17
+and ITS CPU PLATE MOVED (`929fbbff7af0` → `0f3a52faa0f2`), because the
+tier column now names what the description admits instead of what the
+host was opened with. Not rebased.
 
-WHAT TO LOOK AT NEXT. The tail — thirty-one scenes at 6 or less — is a
-different shape from the head: on `svg_silhouette` (6) the differing
-pixels are the APEX of a filled triangle and one pixel of a rule beside
-it, an antialiased corner resolving one way in the bake and another live,
-where the glyph cut was a whole coverage value. The head (flourish,
-beethoven, the eva_magi trio, dunhuang) is untouched by the type fix and
-has not been read yet.
+WHAT REMAINS, max channel first:
+
+    dunhuang_star_chart 216 · eva_magi_interior 190 · spacejam_1996 185 ·
+    lain_navi 176 · minard_1869 163 · sigillum_aemeth 122 ·
+    coverage_boundary 118 · chaucer_astrolabe 108 · kumiko_asanoha 89 ·
+    paragraph_sheet 83 · material_child 66 · black_watch 65 ·
+    thaumonomicon 43 · fx_scatter_mix 37 · chevreul_circle 35 ·
+    stroke_atlas 34 · thunder_fulu 30 · chladni_tab1 28 · aero desktop 23 ·
+    volatility_cost 17 · blur_falloff 17 · hit_slots 16 · chrome_type 13 ·
+    …and forty-six more at 9 or less, of which TWENTY sit at exactly 2.
+
+THE TWENTY AT EXACTLY TWO are the second code value the contract already
+allows — a node's own coverage composited twice where the live paint
+composited once. The tier's ceiling is still one, which is
+`sigil/plates.py`'s to change and not this entry's.
+
+WHAT IS KNOWN ABOUT THE FIVE AT THE HEAD (`dunhuang_star_chart`,
+`eva_magi_interior`, `spacejam_1996`, `lain_navi`, `minard_1869`). Two
+ablations narrow them:
+
+- ALL FIVE ARE THE WHOLE-SUBTREE PROMOTION BAKE, not the split. With the
+  eager split disabled and eager promotion on, every one is unchanged;
+  with eager promotion disabled and the split on, all five come within
+  one code value.
+- TWO OF THE FIVE ARE THE CLIP THE BAKE CARRIES. With `clipBakeLayer`
+  made a no-op, `minard_1869` falls 163 → 31 and `dunhuang_star_chart`
+  216 → 38, while the other three do not move at all. What minard loses
+  is not a rounding: WHOLE MARKS VANISH — the scale bar with its
+  graduation and its caption, and two of the five arithmetic footnotes —
+  so the bake's clip cuts content the live paint keeps.
+
+Two candidates for that clip were built and measured and neither moved a
+plate, so neither was kept: a recording's CULL RECT read as a clip (a
+recording canvas's device IS its cull, so an unclipped node inside one
+reports the cull as its clip bounds — but replacing it with the clip the
+replay stands under changed nothing, so these bakes are not inside a
+recording), and the same with each inner clip edge released. What is left
+to try is `getDeviceClipBounds()` at recording depth ZERO: what the clip
+is when a promoted node's bake is taken under an open `saveLayer` or an
+ancestor's `clipContent`, and why it is tighter than what the same node's
+live paint is cut to.
+
+`lain_navi` is a different shape and is not the clip: the promoted plate
+loses the GLOW around its type — the live plate's cyan-white bloom reads
+flat and green in the bake — which is a layer effect's reach rather than
+a cut.
 
 Assert once fixed: `--tier promotion` reports every scene within the rule,
-and each cause gets a case in `compose_test` beside the two that pin the
-type one (`ComposeCache.APromotedLineKeepsTheInkThatStandsOutsideItsBox`
-and `ComposeFaces.APromotedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics`).
+and each cause gets a case in `compose_test` beside the four that pin the
+ones found so far (`ComposeCache.APromotedLineKeepsTheInkThatStandsOutsideItsBox`,
+`ComposeFaces.APromotedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics`,
+`ComposeCache.APromotedCurveKeepsTheCoverageItsLivePaintComputes` and
+`ComposeCache.APromotedNodeDropsTheRecordingItsBakeReplaced`).
 
 ## rota_convocationis misses the raster gate on the halo it re-bakes
 
