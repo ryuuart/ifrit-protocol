@@ -362,3 +362,97 @@ TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 250u);  // 1.0 + 0.2 clamps
   EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 90u);   // the child's green
 }
+
+// ---------------------------------------------------------------------------
+// A STATIC layer effect over content that has settled is run over the bake.
+
+namespace {
+
+/** The shape the tier is for: a node that holds one bake and rides its own
+ *  transform, wearing a halo that never changes. The bound rotation is what
+ *  keeps the bake in the node's OWN space — a node standing still bakes in
+ *  device space, which is taken once and has no repeated bake to lift an
+ *  effect out of.
+ *
+ *  @p boundary is the arm: a declared coverage boundary refuses the tier
+ *  and changes nothing a box without decorations paints, so that arm is
+ *  the same node with the filter inside its bake. */
+Element haloedNode(Boundary boundary, const choreograph::Output<float>* turn) {
+  return box()
+      .key("halo")
+      .absolute()
+      .left(40)
+      .top(40)
+      .width(80)
+      .height(80)
+      .cache(Cache::Texture)
+      .boundary(boundary)
+      .transformOrigin(0.5f, 0.5f)
+      .rotate(motion::bind(turn).target(0.0f, 360.0f))
+      .effect(material::skia::Effect::glow({0.1f, 0.85f, 1.0f, 1}, 6))
+      .child(box().absolute().left(20).top(20).width(40).height(40).fill(
+          Fill::color({1, 0.72f, 0.15f, 1})));
+}
+
+}  // namespace
+
+TEST(ComposeCaching, AStaticEffectOverSettledContentIsRunOverItsBake) {
+  // The picture is the whole claim: a node whose content is rasterized
+  // WITHOUT its effect, with the effect run over that image, must paint
+  // what the same node painted with the effect inside the raster. What
+  // moves is only what a re-bake costs — the filter's own band-sized layer
+  // is gone from it.
+  //
+  // THE BLEED RULE is what makes the two the same. The lifted filter reads
+  // the bake and nothing else, so the bake must carry the effect's reach as
+  // transparent margin — here the halo's sigma against the 20 px the inner
+  // box is inset by — exactly as it had to before, when that same margin
+  // was what the filter's own layer spread into.
+  choreograph::Output<float> still{0.0f};  // held at rest: no pixel moves
+  const auto plate = [&still](Boundary boundary) {
+    Host host;
+    host.composer.setProfiling(true);
+    host.composer.render(
+        box().child(profiledUnder(haloedNode(boundary, &still))));
+    for (int i = 0; i < 3; ++i) host.frame();  // bake once, then blit
+    const Composer::NodeCost* row = requireRow(host.composer, "halo");
+    return std::pair{grab(host), row && row->effectDeferred};
+  };
+  const auto [blitFiltered, rides] = plate(Boundary::Auto);
+  const auto [bakeFiltered, sits] = plate(Boundary::Coverage);
+  EXPECT_TRUE(rides) << "the effect stayed inside the bake — nothing below "
+                        "this line compares the two tiers";
+  EXPECT_FALSE(sits) << "the reference arm deferred too, so both plates are "
+                        "the same path and the comparison proves nothing";
+  ASSERT_EQ(blitFiltered.size(), bakeFiltered.size());
+  int peak = 0;
+  size_t lit = 0;
+  for (size_t i = 0; i < blitFiltered.size(); ++i) {
+    for (unsigned shift : {0u, 8u, 16u, 24u})
+      peak =
+          std::max(peak, std::abs((int)((blitFiltered[i] >> shift) & 0xFFu) -
+                                  (int)((bakeFiltered[i] >> shift) & 0xFFu)));
+    if (blitFiltered[i] != SK_ColorBLACK) ++lit;
+  }
+  EXPECT_LE(peak, 1) << "the filter at the blit and the filter inside the "
+                        "bake paint different pixels";
+  // …and there was a halo to compare: the content alone is 40x40, so a
+  // plate agreeing on 1600 pixels agreed about the content and nothing the
+  // effect made.
+  EXPECT_GT(lit, 2600u) << "no halo outside the content in either plate";
+}
+
+TEST(ComposeCaching, ADeferredEffectSpreadsInsideTheBakeAndStopsAtIt) {
+  // The bleed rule, read off the pixels. The halo stands in the margin the
+  // node's paint bounds carry around its ink, and the node's own bake rect
+  // ends it: the lifted filter has no pixels to read past the bake, and the
+  // surface it draws into cuts the halo where the filter's own layer was
+  // cut before.
+  choreograph::Output<float> still{0.0f};
+  Host host;
+  host.composer.render(
+      box().child(profiledUnder(haloedNode(Boundary::Auto, &still))));
+  for (int i = 0; i < 3; ++i) host.frame();
+  EXPECT_GT(SkColorGetB(host.pixel(56, 100)), 20u);  // 4 px out: the halo
+  EXPECT_EQ(host.pixel(38, 100), SK_ColorBLACK);     // 2 px past the box
+}

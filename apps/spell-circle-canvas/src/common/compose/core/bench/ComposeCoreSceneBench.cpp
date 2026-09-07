@@ -216,6 +216,118 @@ static void BM_Draw_Bloom_TextureBaked(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_Bloom_TextureBaked);
 
+// ---- A STATIC layer effect over a held bake, both ways ---------------------
+//
+// The shape: a band of marks held as ONE bake in the node's own space and
+// blitted through a turn, wearing a halo that never changes. Two places the
+// halo can be applied — INSIDE the content raster, where it opens a layer
+// over the node's whole band on every bake, or OVER the finished bake, as
+// one image draw. The arms price both, on the frames that hold the bake and
+// on the frames that remake it.
+//
+// A declared COVERAGE boundary is what refuses the lifted tier. It changes
+// nothing a band of plain boxes paints, so the two arms are the same picture.
+
+namespace {
+
+Element haloedBand(Boundary boundary, const choreograph::Output<float>* turn) {
+  const float side = 640.0f, radius = 260.0f;
+  Element band = box()
+                     .key("band")
+                     .absolute()
+                     .left(40)
+                     .top(40)
+                     .width(side)
+                     .height(side)
+                     .cache(Cache::Texture)
+                     .boundary(boundary)
+                     .transformOrigin(0.5f, 0.5f)
+                     .rotate(sigil::motion::bind(turn).target(0.0f, 360.0f))
+                     .effect(sigil::material::skia::Effect::glow(
+                         {0.35f, 0.85f, 1.0f, 1.0f}, 6.0f));
+  for (int i = 0; i < 24; ++i) {
+    const float a = (float)i * (float)(2 * M_PI) / 24.0f;
+    band.child(box()
+                   .absolute()
+                   .left(side * 0.5f + radius * std::cos(a) - 9.0f)
+                   .top(side * 0.5f + radius * std::sin(a) - 9.0f)
+                   .width(18)
+                   .height(18)
+                   .fill(Fill::color({1.0f, 0.78f, 0.3f, 1.0f})));
+  }
+  return band;
+}
+
+/** The bake is taken once and every frame after is a blit through the turn:
+ *  what a held bake costs per frame with the effect where the arm puts it. */
+void haloHeldArm(benchmark::State& state, Boundary boundary, bool turning) {
+  choreograph::Output<float> turn{0.0f};
+  Host host(800, 800);
+  host.composer.render(box().child(haloedBand(boundary, &turn)));
+  host.draw();
+  float t = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    if (turning) turn = (t += 0.004f);
+    host.draw();
+  }
+}
+
+/** …and the other half of the bargain: a frame that RE-BAKES. The content is
+ *  re-described, so the bake is remade and the arm prices the bake itself. */
+void haloRebakeArm(benchmark::State& state, Boundary boundary) {
+  choreograph::Output<float> turn{0.0f};
+  Host host(800, 800);
+  host.composer.render(box().child(haloedBand(boundary, &turn)));
+  host.draw();
+  float t = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    t += 0.004f;
+    turn = t;
+    host.composer.render(
+        box().opacity(1.0f - 0.0001f * t).child(haloedBand(boundary, &turn)));
+    host.draw();
+  }
+}
+
+}  // namespace
+
+/** The halo inside the content raster: the layer is paid on every bake. */
+static void BM_Draw_StaticGlow_Held_InLayer(benchmark::State& state) {
+  haloHeldArm(state, Boundary::Coverage, true);
+}
+BENCHMARK(BM_Draw_StaticGlow_Held_InLayer);
+
+/** The halo over the finished bake, under a turn. */
+static void BM_Draw_StaticGlow_Held_OverBake(benchmark::State& state) {
+  haloHeldArm(state, Boundary::Auto, true);
+}
+BENCHMARK(BM_Draw_StaticGlow_Held_OverBake);
+
+/** …and both again with the node STANDING STILL: a held bake blitted
+ *  without a resample, which is the cheapest frame either arm has. */
+static void BM_Draw_StaticGlow_Still_InLayer(benchmark::State& state) {
+  haloHeldArm(state, Boundary::Coverage, false);
+}
+BENCHMARK(BM_Draw_StaticGlow_Still_InLayer);
+
+static void BM_Draw_StaticGlow_Still_OverBake(benchmark::State& state) {
+  haloHeldArm(state, Boundary::Auto, false);
+}
+BENCHMARK(BM_Draw_StaticGlow_Still_OverBake);
+
+/** The bake remade with the filter's own layer inside the content raster. */
+static void BM_Draw_StaticGlow_Rebake_InLayer(benchmark::State& state) {
+  haloRebakeArm(state, Boundary::Coverage);
+}
+BENCHMARK(BM_Draw_StaticGlow_Rebake_InLayer);
+
+/** The bake remade with the filter lifted off the content raster: the
+ *  content into one surface, the effect over it into the next. */
+static void BM_Draw_StaticGlow_Rebake_OverBake(benchmark::State& state) {
+  haloRebakeArm(state, Boundary::Auto);
+}
+BENCHMARK(BM_Draw_StaticGlow_Rebake_OverBake);
+
 // ---- A blur whose SIGMA VARIES across the node, three ways ----------------
 //
 // The question these arms answer: how does Effect::blur's pyramid scale in

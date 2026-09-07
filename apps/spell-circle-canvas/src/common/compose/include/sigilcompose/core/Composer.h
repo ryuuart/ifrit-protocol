@@ -443,6 +443,13 @@ class Composer {
      *  The bit index IS the Promotion ordinal, so there is no second table
      *  to drift out of sync with the enum. */
     uint16_t refusals = 0;
+    /** Is the node's layer effect applied OVER its bake rather than
+     *  inside the raster that makes it? Lifted out, the effect is one
+     *  image draw over the finished bake and a re-bake pays its content
+     *  alone; left in, it opens a layer of its own over the node's whole
+     *  band every time the node bakes. Set on a node that holds a bake and
+     *  wears an effect the library could lift; false everywhere else. */
+    bool effectDeferred = false;
     bool refused(Promotion p) const {
       return (refusals & (uint16_t)(1u << (unsigned)p)) != 0;
     }

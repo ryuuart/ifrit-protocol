@@ -330,6 +330,13 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // flag exists so a bake taken in one mode is never blitted in the other
   // — the two store different rectangles in textureBakeRect.
   bool textureDeviceSpace = false;
+  // Does the held bake still OWE its layer effect, to be applied at the
+  // blit? True only under the moving-effect tier, where the bake holds
+  // unfiltered content. The blit dresses itself from the tier the CURRENT
+  // frame takes, so a bake made under the other answer would be filtered
+  // twice or not at all; a flip re-bakes, exactly as a change of space
+  // does.
+  bool textureEffectDeferred = false;
   /** Which tiles of a LOCAL bake carry ink (BakeInk.h). A local bake is
    *  blitted through the node's own transform and resampled by it, so its
    *  whole rect runs the sampler however little of it is ink; the grid is

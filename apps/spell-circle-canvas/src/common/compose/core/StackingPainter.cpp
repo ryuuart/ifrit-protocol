@@ -1380,8 +1380,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // child materials therefore resolve against the node's box and clock,
   // exactly as a backdrop effect's do; the tier is refused to a masked node
   // so that this is the same outline paintContent would have handed them.
-  sk_sp<SkImageFilter> deferredFilter;
-  if (inst.effectOnly) {
+  const auto resolveLayerFilter = [&] {
     const PaintContext effectCtx{{rect.width(), rect.height()},
                                  SkPath(),
                                  elapsed(),
@@ -1393,9 +1392,15 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                                  curToRoot,
                                  rootLayoutSize};
     const material::skia::PaintFrame effectFrame = frameOf(effectCtx);
-    deferredFilter = layerEffectOf(node)->resolvedImageFilter(&effectFrame);
-  }
-  const bool deferEffect = (bool)deferredFilter;
+    return layerEffectOf(node)->resolvedImageFilter(&effectFrame);
+  };
+  sk_sp<SkImageFilter> deferredFilter;
+  if (inst.effectOnly) deferredFilter = resolveLayerFilter();
+  // The live tier's own answer, kept apart from the static one below: it is
+  // what lets a node hold a bake its content volatility would otherwise
+  // drop, and the static tier claims nothing of the sort.
+  const bool deferLiveEffect = (bool)deferredFilter;
+  bool deferEffect = deferLiveEffect;
 
   const bool hasBackdrop = (bool)backdropFilter;
   if (hasBackdrop) {
@@ -1492,11 +1497,35 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   const bool memoized = inst.liveMatOnly || inst.scalarMemo;
   // …or the volatility is entirely OUTSIDE the pixels the cache holds,
   // which is the deferred effect's whole claim.
-  const bool cacheHolds = !inst.subtreeVolatile || memoized || deferEffect;
+  const bool cacheHolds = !inst.subtreeVolatile || memoized || deferLiveEffect;
   // …and "are they still the RIGHT pixels?" — the two memos answer for
   // their own input and abstain on the other.
   const bool memoStale =
       (inst.liveMatOnly && !liveStable) || (inst.scalarMemo && !scalarsStable);
+  // A STATIC LAYER EFFECT OVER SETTLED CONTENT is lifted off the content
+  // raster, for a different payoff than the moving one's. The moving tier
+  // buys the image's identity across frames; this one buys the BAKE: a
+  // filter left inside the content raster opens a layer of its own over
+  // the node's whole band — allocated, cleared, drawn into and composited
+  // back on every bake — and that layer is most of what an effect over a
+  // large node costs, which is why a small sigma pays nearly what a large
+  // one does. Lifted out, the content rasterizes into the bake surface
+  // alone and the effect is one image draw over it.
+  //
+  // The candidacy only; the tier is TAKEN at the local bake below, which
+  // is the one that holds the two surfaces it needs. An ASKED-FOR bake
+  // only: an automatic promotion refuses a filtered node outright, and
+  // where the author has not asked for a texture at all this would turn a
+  // picture replay into a bake, which is a different decision than this
+  // one. A DEVICE-space bake is left exactly as it stands — it is taken
+  // once and re-taken only when the node moves, so there is no repeated
+  // bake there to make cheaper.
+  const bool staticEffectCandidate =
+      !deferLiveEffect && node.cacheMode == Cache::Texture &&
+      layerEffectOf(node) && !layerEffectOf(node)->isAnimated() &&
+      (!inst.subtreeVolatile || memoized) && !backdropEffectOf(node) &&
+      !inst.subtreeReadsBackdrop && !node.hasMasks() &&
+      node.boundary == Boundary::Auto;
 
   // Fill-only leaves route blend/opacity straight onto the fill paint instead
   // of a (device-clip-sized!) saveLayer — a field of plus-blended shapes costs
@@ -1677,11 +1706,17 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     if (recordingDepth == 0) return clip;
     return recordingReplay.mapRect(SkRect::Make(clip)).roundOut();
   };
+  // The node's paint bounds as whole device pixels, with the margin every
+  // bake is allocated with (kBakeMargin — the content must stand clear of
+  // the surface's own edge, or the scan converter answers a different
+  // coverage than the live paint's).
   const auto deviceRectOf = [&] {
     const SkRect f = totalM.mapRect(localBoundsOf());
-    return SkIRect::MakeLTRB(
+    SkIRect r = SkIRect::MakeLTRB(
         (int)std::floor(f.left()), (int)std::floor(f.top()),
         (int)std::ceil(f.right()), (int)std::ceil(f.bottom()));
+    r.outset(kBakeMargin, kBakeMargin);
+    return r;
   };
   /** EVERY DEVICE BAKE CARRIES THE CANVAS'S OWN CLIP, and this is not an
    *  optimisation — it is the condition that makes a bake the same pixels as
@@ -1836,6 +1871,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       // the temporal case — when the live material has actually ticked and
       // the baked shader is no longer the one this frame resolves to.
       if (!inst.textureImage || inst.paintDirty || memoStale ||
+          inst.textureEffectDeferred ||
           inst.textureBakeRect != SkRect::Make(device)) {
         sk_sp<SkSurface> layer = canvas.makeSurface(
             SkImageInfo::MakeN32Premul(device.width(), device.height()));
@@ -1854,6 +1890,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           inst.textureImage = layer->makeImageSnapshot();
           inst.textureInk = {};
           inst.textureDeviceSpace = true;
+          inst.textureEffectDeferred = false;
           inst.textureBakeRect = SkRect::Make(device);
           inst.bakedLiveShader = inst.hasPendingLiveFill
                                      ? inst.pendingLiveFill.shaderValue
@@ -1964,9 +2001,13 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // precisely the scenes it exists for. The own paint's extent does not
     // depend on the children at all.
     const SkRect ownF = totalM.mapRect(ownPaintBounds(inst));
-    const SkIRect device = SkIRect::MakeLTRB(
-        (int)std::floor(ownF.left()), (int)std::floor(ownF.top()),
-        (int)std::ceil(ownF.right()), (int)std::ceil(ownF.bottom()));
+    const SkIRect device = [&] {
+      SkIRect r = SkIRect::MakeLTRB(
+          (int)std::floor(ownF.left()), (int)std::floor(ownF.top()),
+          (int)std::ceil(ownF.right()), (int)std::ceil(ownF.bottom()));
+      r.outset(kBakeMargin, kBakeMargin);  // the same margin, same reason
+      return r;
+    }();
     const int64_t area = (int64_t)device.width() * device.height();
     const size_t bytes = (size_t)std::max<int64_t>(area, 0) * 4;
     const bool affordable =
@@ -2142,7 +2183,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         area <= int64_t{16} * 1024 * 1024 && affordable) {
       const SkRect want = SkRect::Make(device);
       if (!inst.textureImage || !inst.textureDeviceSpace ||
-          inst.textureBakeRect != want) {
+          inst.textureEffectDeferred || inst.textureBakeRect != want) {
         sk_sp<SkSurface> layer = canvas.makeSurface(
             SkImageInfo::MakeN32Premul(device.width(), device.height()));
         if (!layer)
@@ -2163,6 +2204,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           inst.textureImage = layer->makeImageSnapshot();
           inst.textureInk = {};
           inst.textureDeviceSpace = true;
+          inst.textureEffectDeferred = false;
           inst.textureBakeRect = want;
           inst.textureScale = maxScaleOf(totalM, localBoundsOf());
           inst.paintDirty = false;
@@ -2298,6 +2340,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           inst.textureImage = layer->makeImageSnapshot();
           inst.textureInk = {};
           inst.textureDeviceSpace = true;
+          inst.textureEffectDeferred = false;
           inst.textureBakeRect = bakeRect;
           inst.textureScale = maxScaleOf(totalM, localBounds);
           inst.bakedLiveShader = inst.hasPendingLiveFill
@@ -2422,6 +2465,27 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // bakeScale(): opt-in reduced raster scale — the bake evaluates fewer
     // pixels and the blit below linear-upscales through the same dst rect.
     scale = std::max(0.1f, scale * node.bakeScale);
+    // THE STATIC EFFECT IS LIFTED OFF THE CONTENT HERE. The bake is taken
+    // in two steps instead of one: the content rasterizes into a surface
+    // with the effect left out, and the effect is then run over that image
+    // into the surface the node holds. What it replaces is the layer the
+    // filter opened INSIDE the content raster — allocated over the node's
+    // whole band plus the filter's reach, cleared, drawn into and
+    // composited back — and that layer is most of what an effect over a
+    // large node costs, which is why a small sigma paid nearly what a
+    // large one did.
+    //
+    // NOT ON THE BLIT, which is where a MOVING effect goes. A filter hung
+    // on the blit's paint is evaluated per draw, and Skia answers it from
+    // its own cache only while the mapping that draw stands under holds
+    // still — so a node that TURNS, which is the whole population that
+    // keeps a local bake rather than a device one, would pay the entire
+    // filter on every frame in exchange for paying it once per bake.
+    const bool deferStaticEffect = staticEffectCandidate;
+    if (deferStaticEffect) {
+      deferredFilter = resolveLayerFilter();
+      deferEffect = (bool)deferredFilter;
+    }
     // Bake the full PAINT bounds, not just the box — decoration bleed and
     // overflowing children truncate otherwise (same rule as the picture
     // cull).
@@ -2436,6 +2500,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     if (area <= int64_t{16} * 1024 * 1024 &&
         (!inst.textureImage || inst.paintDirty || inst.textureScale != scale ||
          inst.textureDeviceSpace || memoStale ||
+         inst.textureEffectDeferred != deferLiveEffect ||
          inst.textureBakeRect != bake)) {
       sk_sp<SkSurface> layer =
           canvas.makeSurface(SkImageInfo::MakeN32Premul(pw, ph));
@@ -2449,6 +2514,36 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           paintContent(inst, *layer->getCanvas(), scale, SkBlendMode::kSrcOver,
                        1.0f, Phase::All, deferEffect);
         });
+        // THE STATIC EFFECT, RUN OVER THE CONTENT BAKE. One image draw
+        // into a second surface of the same rect, under the same matrix
+        // the effect's layer stood under, so the filter reads its
+        // parameters in the units they were declared in and its output is
+        // cut where the layer's output was cut — by the surface's own
+        // edge. The image lands texel for texel: the dst rect is the
+        // texels the content surface actually holds, in local units, so
+        // nothing resamples on the way through.
+        if (deferStaticEffect) {
+          const sk_sp<SkImage> content = layer->makeImageSnapshot();
+          sk_sp<SkSurface> filtered =
+              canvas.makeSurface(SkImageInfo::MakeN32Premul(pw, ph));
+          if (!filtered)
+            filtered = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(pw, ph));
+          if (content && filtered) {
+            SkCanvas* fc = filtered->getCanvas();
+            fc->scale(scale, scale);
+            fc->translate(-bake.left(), -bake.top());
+            SkPaint fp;
+            fp.setImageFilter(deferredFilter);
+            profDraw("bake effect", [&] {
+              fc->drawImageRect(
+                  content,
+                  SkRect::MakeXYWH(bake.left(), bake.top(), (float)pw / scale,
+                                   (float)ph / scale),
+                  SkSamplingOptions(), &fp);
+            });
+            layer = std::move(filtered);
+          }
+        }
         // The ink grid, off the surface's own pixels — before the
         // snapshot, so nothing is copied for it. A GPU surface answers no
         // pixmap and the grid stays empty, which is a whole-rect blit.
@@ -2458,6 +2553,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         inst.textureImage = layer->makeImageSnapshot();
         inst.textureScale = scale;
         inst.textureDeviceSpace = false;
+        inst.textureEffectDeferred = deferLiveEffect;
         inst.textureBakeRect = bake;
         inst.bakedLiveShader = inst.hasPendingLiveFill
                                    ? inst.pendingLiveFill.shaderValue
@@ -2473,6 +2569,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           inst.textureImage ? Composer::CacheState::Texture
                             : Composer::CacheState::Live;
       profileRows[profileScope.row].promotion = Composer::Promotion::AskedFor;
+      profileRows[profileScope.row].effectDeferred =
+          deferEffect && inst.textureImage;
     }
     if (!inst.textureImage) {
       // Nothing to blit: the surface was refused, or the bake would be
@@ -2516,14 +2614,24 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       // its parameters in the units they were declared in. Skia grows the
       // draw for the filter's own reach, so nothing the effect spreads
       // outside the bake rect is lost.
-      if (deferEffect) {
+      //
+      // THE BLEED RULE, which both deferred tiers ask of the bake: the
+      // filter reads the bake's own margin — the transparent band a node's
+      // paint bounds carry around its ink — and it reads NOTHING else,
+      // because outside the bake there are no pixels. So a node wearing a
+      // deferred effect must carry the effect's reach as that margin, which
+      // is what a declared bleed is for; a reach the paint bounds do not
+      // hold is spread from a cut edge.
+      if (deferLiveEffect) {
         blit.setImageFilter(deferredFilter);
         dressed = true;
       }
-      // A DEFERRED EFFECT IS NOT ADMITTED BY THE INK. The filter spreads
-      // the content OUTSIDE the pixels that carry it — that is what a glow
-      // is — and the grid describes where the ink is, not where the filter
-      // will put it. Blitted whole.
+      // AN EFFECT ON THE BLIT IS NOT ADMITTED BY THE INK. The filter
+      // spreads the content OUTSIDE the pixels that carry it — that is
+      // what a glow is — and the grid describes where the ink is, not
+      // where the filter will put it. Blitted whole. A STATIC effect is
+      // already in the pixels the grid was taken from, so it keeps its
+      // grid.
       //
       // AND THE INK CLIP IS A DEVICE-SPACE CLIP, so it obeys the device
       // bake's rule rather than the picture tier's. A region names whole
@@ -2536,7 +2644,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       // one under a declared motion, which replays under a matrix nobody
       // knows yet — can hold no such clip, and the bake is blitted whole
       // inside it.
-      const bool inkAdmitted = !deferEffect && !inst.textureInk.empty() &&
+      const bool inkAdmitted = !deferLiveEffect && !inst.textureInk.empty() &&
                                unpinnedRecordingDepth == 0;
       drawInkedImage(canvas, inst.textureImage,
                      inkAdmitted ? inst.textureInk : InkGrid{}, dst, totalM,

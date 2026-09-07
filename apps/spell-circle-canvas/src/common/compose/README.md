@@ -1038,6 +1038,37 @@ and a bake holds none of that. A masked node is refused too, since the
 blit-side resolve hands the effect's child materials the node's box and
 clock rather than a gated outline.
 
+**A STATIC LAYER EFFECT OVER SETTLED CONTENT IS RUN OVER THE BAKE, NOT
+INSIDE IT.** A node holding a `Cache::Texture` bake and wearing an
+`effect()` that never changes takes its bake in two steps: the content
+rasterizes into a surface with the effect left out, and the effect runs
+over that image into the surface the node holds. What that replaces is
+the layer the filter opened *inside* the content raster — allocated over
+the node's whole paint bounds plus the filter's reach, cleared, drawn
+into and composited back on every bake — and that layer, not the filter's
+arithmetic, is most of what an effect over a large node costs: a small
+sigma paid nearly what a large one did. The picture is the same one, and
+the blit is untouched. The tier is the author's own bake only
+(`Cache::Texture`; automatic promotion refuses a filtered node outright),
+and it is refused to a masked node, a `backdrop()`, and a node whose
+subtree composites against the canvas — the same list the live tier
+refuses.
+
+The effect stays on the *bake* and never moves onto the *blit*, which is
+where a live effect goes. A filter on a blit's paint is evaluated per
+draw and answered from Skia's own cache only while the mapping that draw
+stands under holds still, so a node that turns — the whole population
+that keeps a local bake rather than a device one — would pay the entire
+filter every frame to save it once per bake.
+
+**A DEFERRED EFFECT READS THE BAKE'S OWN MARGIN AND NOTHING ELSE.** Both
+tiers above filter an image rather than a layer, and outside that image
+there are no pixels: the effect's reach must be inside the node's paint
+bounds, as the transparent band a declared `bleed()` (or a text leaf's
+ink, or a child's overflow) puts there. A reach the bounds do not hold is
+spread from a cut edge — which is what it was before, when the filter's
+own layer was cut by the bake surface it composited into.
+
 **AN EFFECT DECLARES ITS REACH, OR IT COSTS THE CANVAS.** A filter built
 from a runtime shader may write any pixel, so Skia gives it a layer the
 size of the whole clip and a small node's effect then evaluates over the
