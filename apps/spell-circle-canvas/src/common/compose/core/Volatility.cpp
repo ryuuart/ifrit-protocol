@@ -382,6 +382,14 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     for (const Decoration& d : node.foregrounds) blends |= d.blends();
     if (node.fxData)
       for (const Decoration& d : node.fxData->overlays) blends |= d.blends();
+    // A BRUSH IS A DECORATION AND A STROKE PASS IS WHERE ONE STANDS: the
+    // same additive filament, multiply wash or soft-light halo, painted
+    // along a span of the outline instead of over the whole box. Every
+    // carrier of a Decoration is asked, or a mark declines the bake on one
+    // slot and takes it on another.
+    if (node.hasStrokePasses())
+      for (const StrokePass& pass : node.strokeData->passes)
+        blends |= pass.what.blends();
     return blends;
   }();
   const bool imageLive = node.kind == Kind::Image && imageAssetOf(node) &&

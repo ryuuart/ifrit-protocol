@@ -545,6 +545,62 @@ TEST(ComposeDecorations, AStrokeCanRefuseTheSmoothingThatBlursAHardRule) {
   EXPECT_EQ(feathered(off), 0);
 }
 
+TEST(ComposeDecorations, ABrushThatBlendsRefusesItsNodeTheBake) {
+  // The same claim on the slot a BRUSH stands in. A SPAN-QUALIFIED stroke
+  // pass keeps its Decoration in a list of its own — an unqualified stroke
+  // is a foreground and was already read — and an additive filament along
+  // part of the outline reads what is beneath the node for the reason a
+  // wash does. Every carrier of a Decoration is asked, or a mark declines
+  // the bake on one slot and takes it on another.
+  const auto page = [] {
+    LayeredBrush glow;
+    glow.layers.push_back({.width = 6,
+                           .color = {0.9f, 0.7f, 0.3f, 1},
+                           .blurSigma = 2,
+                           .blend = SkBlendMode::kPlus});
+    return box()
+        .cache(Cache::None)
+        .child(box().absolute().left(0).top(0).width(200).height(200).fill(
+            Fill::color({0.55f, 0.4f, 0.2f, 1})))
+        .child(box()
+                   .key("filament")
+                   .absolute()
+                   .left(30)
+                   .top(30)
+                   .width(140)
+                   .height(140)
+                   .stroke(spans::edges(14), glow));
+  };
+  const auto render = [&](Composer::PromotionPolicy policy) {
+    Host host;
+    host.composer.setAutoTexturePromotion(policy);
+    host.composer.setProfiling(true);
+    host.composer.render(page());
+    for (int i = 0; i < 3; ++i) host.frame();
+    return host.composer.profile().empty() ? std::vector<SkColor>()
+                                           : grab(host);
+  };
+  const std::vector<SkColor> live = render(Composer::PromotionPolicy::Off);
+  const std::vector<SkColor> eager = render(Composer::PromotionPolicy::Eager);
+  ASSERT_EQ(live.size(), eager.size());
+  size_t differing = 0;
+  for (size_t i = 0; i < live.size(); ++i)
+    if (live[i] != eager[i]) ++differing;
+  EXPECT_EQ(differing, 0u)
+      << differing
+      << " pixels moved: a node whose brush blends with the page was baked "
+         "away from the page";
+
+  Host host;
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+  host.composer.setProfiling(true);
+  host.composer.render(page());
+  host.frame();
+  const Composer::NodeCost* row = requireRow(host.composer, "filament");
+  ASSERT_NE(row, nullptr);
+  EXPECT_TRUE(row->refused(Composer::Promotion::ReadsBackdrop));
+}
+
 TEST(ComposeDecorations, AWashThroughABlendModeRefusesItsNodeTheBake) {
   // A wash through a blend mode reads what is UNDER the node — that is the
   // whole of what a soft-light pass over a page is for. A bake would offer

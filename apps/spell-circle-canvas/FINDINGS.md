@@ -171,22 +171,6 @@ Assert once fixed: `--tier promotion` reports every scene within the rule,
 and the cause gets a case in `compose_test` beside the ones that already
 pin it.
 
-## A callable that blends with the page is not yet refused the bake
-
-Two causes of one shape are fixed: a `custom()` or `picture()` leaf
-holding a paint program of its own now reads the backdrop, and a
-`Decoration` declares `blends()` beside `isAnimated()`, `bleed()`,
-`reach()` and `borrows()`; `LayerStyles.h`, `Layered.h` and
-`PixelStyles.h` declare it too and `core/Shape.h` requires it through a
-concept. What remains to verify is the rest of the same shape: a `Brush`,
-a `Silhouette` and a `Material` program are callables the same argument
-reaches, and whichever of them does not yet declare a blend can still be
-baked against transparent black.
-
-Assert once fixed: a node whose brush, silhouette or material program
-blends with the page is refused the automatic bake, and a case in
-`compose_test` renders it promoted and live and finds the two identical.
-
 ## chaucer_astrolabe cannot finish a plate under the sweep's ceiling
 
 Under the promotion tier's five concurrent jobs it was killed at the
