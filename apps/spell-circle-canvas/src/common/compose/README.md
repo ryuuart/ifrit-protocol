@@ -688,6 +688,23 @@ sits in one alone; spanning children then top their columns up, narrowest
 span first, sharing a deficit in proportion to the widths already found;
 and whatever the table is wider than its content is shared the same way,
 which is what puts every column of a real page on a fractional pixel.
+
+A column is solved BETWEEN TWO WIDTHS and not from one. What its content
+wants is the widest thing in it; what its content needs is the narrowest
+that thing goes without spilling, which is `LayoutInput::childMinSizes`
+and is why the scheme declares `readsChildMinSizes`. Given less room than
+the columns want, each gives up the same fraction of the distance between
+its two widths, so a column with nothing to give up gives nothing;
+narrower still and they stand at what they need and the table overflows,
+which is what a browser does rather than dropping content.
+`Table::declaredWidths` is the width the markup gave a column, where it
+gave one — a fixed column, out of both divisions, which what is in it can
+still widen, since no column is narrower than the narrowest thing in it.
+`Table::fit` is what the table does with room it does not need:
+`Table::Fit::Fill` shares the surplus, which is a table whose markup
+states a width, and `Table::Fit::Shrink` stops at the content, which is
+shrink-to-fit — a table whose markup states none.
+
 Rows take the first of those steps and deliberately not the second: the
 whole of a rowspan's height deficit lands on the LAST row it covers,
 because sharing it in proportion inflates the first row of every span and

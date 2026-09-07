@@ -16,6 +16,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -200,6 +201,44 @@ static void BM_Layout_Positioned_ViewportToggle(benchmark::State& state) {
   reportNodes(state, count);
 }
 BENCHMARK(BM_Layout_Positioned_ViewportToggle)->Apply(nodeLadder);
+
+/** THE AUTO TABLE'S OWN COST, with no tree under it: a page-sized table —
+ *  twenty columns by eight rows, one cell in ten spanning two columns and
+ *  one row in eight spanning two — solved from the sizes a layout pass
+ *  would have measured. The scheme runs once per layout pass over the
+ *  children of one node, so this is what a table costs a frame it is
+ *  re-laid out in. */
+static void BM_Layout_Table_Resolve(benchmark::State& state) {
+  constexpr int kColumns = 20, kRows = 8;
+  LayoutInput in;
+  in.container = {1200, 700};
+  for (int row = 0; row < kRows; ++row)
+    for (int column = 0; column < kColumns; ++column) {
+      const int columns = column % 10 == 0 && column + 1 < kColumns ? 2 : 1;
+      const int rows = row % 8 == 3 && row + 1 < kRows ? 2 : 1;
+      in.childSizes.push_back({30.0f + (float)((column * 7 + row * 3) % 40),
+                               18.0f + (float)(row % 5) * 6.0f});
+      in.childCells.push_back(CellSpan{.column = column,
+                                       .row = row,
+                                       .columns = columns,
+                                       .rows = rows,
+                                       .declared = true});
+    }
+  in.childBaselines.assign(in.childSizes.size(),
+                           std::numeric_limits<float>::quiet_NaN());
+  in.childAreas.resize(in.childSizes.size());
+  in.childMinSizes = in.childSizes;
+  const Table table{.columns = kColumns,
+                    .rows = kRows,
+                    .width = 1200,
+                    .spacing = 2,
+                    .padding = 1};
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(table.place(in));
+  state.counters["cells"] = (double)in.childSizes.size();
+  state.SetItemsProcessed(state.iterations());
+}
+BENCHMARK(BM_Layout_Table_Resolve)->Unit(benchmark::kMicrosecond);
 
 // ---- queries --------------------------------------------------------------
 

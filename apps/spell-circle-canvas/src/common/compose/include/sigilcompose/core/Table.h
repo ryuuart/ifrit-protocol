@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 namespace sigil::compose {
@@ -43,6 +44,17 @@ namespace sigil::compose {
  *                                                        Align::Start))
  *          .child(panel().cells(1, 0, 1, 2))
  *
+ *  A COLUMN IS SOLVED BETWEEN TWO WIDTHS, not from one. What its content
+ *  WANTS is the widest thing in it; what its content NEEDS is the
+ *  narrowest that thing goes without spilling — a paragraph's longest
+ *  unbreakable run, and the measured size of everything else. Given more
+ *  room than the columns want, the surplus is shared out in proportion;
+ *  given less, every column gives up the same fraction of the distance
+ *  between what it wants and what it needs, so a column with nothing to
+ *  give up gives nothing. Narrower still and the columns stand at what
+ *  they need and the table overflows, which is what a browser does rather
+ *  than dropping content.
+ *
  *  THE ONE ASYMMETRY, and it is the browsers' and not a slip. A COLUMN's
  *  surplus is shared out in proportion to the widths already found, which
  *  is what puts every column of a real page on a fractional pixel. A
@@ -58,6 +70,33 @@ struct Table {
   float width = 0.0f;
   float spacing = 0.0f;  ///< between cells — a table's cellspacing
   float padding = 0.0f;  ///< inside one — its cellpadding
+
+  /** THE WIDTH THE MARKUP GAVE A COLUMN, where it gave one; 0 is a column
+   *  sized by what is in it, and a list shorter than the grid leaves the
+   *  columns past its end sized that way too.
+   *
+   *  A declared column is FIXED: it takes no share of a surplus and gives
+   *  none up under a deficit, so a rail stated in the markup is the width
+   *  it was stated at whatever else the page does. What is in it can still
+   *  widen it — no column is narrower than the narrowest thing in it,
+   *  whatever the markup asked for. */
+  std::vector<float> declaredWidths;
+
+  /** WHAT A TABLE DOES WITH ROOM IT DOES NOT NEED. `Fill` takes the width
+   *  it was given and shares the surplus across the columns, which is a
+   *  table whose markup states a width. `Shrink` stops at what the content
+   *  wants, which is a table whose markup states none: as wide as what is
+   *  in it and no wider. Neither changes what happens when the room is too
+   *  small — the columns fall toward what they need either way. */
+  enum class Fit : uint8_t { Fill, Shrink };
+  Fit fit = Fit::Fill;
+
+  /** This scheme reads `LayoutInput::childMinSizes`: the narrowest a
+   *  column's content can be set is the floor it is solved from, and no
+   *  measured size carries it. */
+  static constexpr bool readsChildMinSizes = true;
+
+  bool operator==(const Table&) const = default;
 
   /** THE RESOLVED GRID: the column widths and row heights the algorithm
    *  arrived at, and the content-box origin of each.
@@ -109,46 +148,101 @@ struct Table {
     Grid grid;
     grid.columnWidths.assign((size_t)cols, 0.0f);
     grid.rowHeights.assign((size_t)lines, 0.0f);
+    // What each column NEEDS, held beside what it wants. The two differ
+    // only where a child can be set narrower than it was measured.
+    std::vector<float> least((size_t)cols, 0.0f);
+    auto narrowest = [&](size_t i) {
+      return i < in.childMinSizes.size() ? in.childMinSizes[i].width()
+                                         : in.childSizes[i].width();
+    };
 
     // 1. Every column is at least as wide as the widest thing that sits
     //    in it alone. A spanning child says nothing here — its width is
     //    a claim about several columns together, not about any one.
-    for (size_t i = 0; i < spans.size(); ++i)
-      if (spans[i].columns == 1 &&
-          (size_t)spans[i].column < grid.columnWidths.size())
-        grid.columnWidths[(size_t)spans[i].column] =
-            std::max(grid.columnWidths[(size_t)spans[i].column],
-                     in.childSizes[i].width());
+    for (size_t i = 0; i < spans.size(); ++i) {
+      const size_t c = (size_t)spans[i].column;
+      if (spans[i].columns != 1 || spans[i].column < 0 ||
+          c >= grid.columnWidths.size())
+        continue;
+      grid.columnWidths[c] =
+          std::max(grid.columnWidths[c], in.childSizes[i].width());
+      least[c] = std::max(least[c], narrowest(i));
+    }
 
     // 2. Then the spanning children top their columns up, narrowest span
     //    first, so a wide span sees what the narrow ones already asked
-    //    for instead of paying for them twice.
+    //    for instead of paying for them twice. Both widths are topped up:
+    //    a span that cannot be set narrower than its columns hold raises
+    //    what they need as well as what they want.
+    auto topUp = [&](std::vector<float>& tracks, const CellSpan& s,
+                     float want) {
+      const float have = extent(tracks, s.column, s.columns);
+      const float deficit = want - have;
+      if (deficit <= 0) return;
+      const float share = have - (float)(s.columns - 1) * pitch;
+      for (int j = 0; j < s.columns && (size_t)(s.column + j) < tracks.size();
+           ++j) {
+        float& w = tracks[(size_t)(s.column + j)];
+        w += share > 0 ? deficit * w / share : deficit / (float)s.columns;
+      }
+    };
     for (int k = 2; k <= cols; ++k)
       for (size_t i = 0; i < spans.size(); ++i) {
-        if (spans[i].columns != k) continue;
-        const float have = extent(grid.columnWidths, spans[i].column, k);
-        const float deficit = in.childSizes[i].width() - have;
-        if (deficit <= 0) continue;
-        const float share = have - (float)(k - 1) * pitch;
-        for (int j = 0;
-             j < k && (size_t)(spans[i].column + j) < grid.columnWidths.size();
-             ++j) {
-          float& w = grid.columnWidths[(size_t)(spans[i].column + j)];
-          w += share > 0 ? deficit * w / share : deficit / (float)k;
-        }
+        if (spans[i].columns != k || spans[i].column < 0) continue;
+        topUp(grid.columnWidths, spans[i], in.childSizes[i].width());
+        topUp(least, spans[i], narrowest(i));
       }
 
-    // 3. What the table is wider than its content, shared out in
-    //    proportion — the step that leaves every column on a fraction.
-    float content = 0;
-    for (float w : grid.columnWidths) content += w;
-    const float table = width > 0 ? width : in.container.width();
-    const float surplus = table - (content + (float)cols * 2 * padding +
-                                   (float)(cols + 1) * spacing);
-    if (surplus > 0 && content > 0)
-      for (float& w : grid.columnWidths) w += surplus * w / content;
+    // 3. A column the markup gave a width takes it, and stands out of
+    //    both divisions below — unless what is in it needs more room than
+    //    the markup asked for, which no column ever gives up.
+    std::vector<uint8_t> stated((size_t)cols, 0u);
+    for (size_t c = 0; c < declaredWidths.size() && c < (size_t)cols; ++c) {
+      if (declaredWidths[c] <= 0) continue;
+      stated[c] = 1u;
+      grid.columnWidths[c] = std::max(declaredWidths[c], least[c]);
+      least[c] = grid.columnWidths[c];
+    }
 
-    // 4. Rows, by the same first step…
+    // 4. The room the table has against what the columns asked for.
+    const float table = width > 0 ? width : in.container.width();
+    float room =
+        table - ((float)cols * 2 * padding + (float)(cols + 1) * spacing);
+    float wanted = 0, needed = 0;
+    for (int c = 0; c < cols; ++c) {
+      if (stated[(size_t)c]) {
+        room -= grid.columnWidths[(size_t)c];
+        continue;
+      }
+      wanted += grid.columnWidths[(size_t)c];
+      needed += least[(size_t)c];
+    }
+    if (room >= wanted) {
+      // What the table is wider than its content, shared out in
+      // proportion — the step that leaves every column on a fraction. A
+      // shrink-to-fit table declines the share and stops at its content.
+      if (fit == Fit::Fill && wanted > 0)
+        for (int c = 0; c < cols; ++c)
+          if (!stated[(size_t)c])
+            grid.columnWidths[(size_t)c] +=
+                (room - wanted) * grid.columnWidths[(size_t)c] / wanted;
+    } else if (room > needed && wanted > needed) {
+      // Too narrow for what they want: each column gives up the same
+      // fraction of the distance between its two widths.
+      const float part = (room - needed) / (wanted - needed);
+      for (int c = 0; c < cols; ++c)
+        if (!stated[(size_t)c])
+          grid.columnWidths[(size_t)c] =
+              least[(size_t)c] +
+              (grid.columnWidths[(size_t)c] - least[(size_t)c]) * part;
+    } else {
+      // Narrower than the content can be set at all: the columns stand at
+      // what they need and the table runs past its width.
+      for (int c = 0; c < cols; ++c)
+        if (!stated[(size_t)c]) grid.columnWidths[(size_t)c] = least[(size_t)c];
+    }
+
+    // 5. Rows, by the same first step…
     for (size_t i = 0; i < spans.size(); ++i)
       if (spans[i].rows == 1 && (size_t)spans[i].row < grid.rowHeights.size())
         grid.rowHeights[(size_t)spans[i].row] = std::max(
