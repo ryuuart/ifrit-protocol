@@ -31,9 +31,13 @@ the pass, plus this file):
   entry below.
 - Promotion tier: 111 of 195 within one code value; the 84 outside are
   the standing entry below, which reports rather than gates.
-- Sanitizers and the bench and app-FPS retake: run after this state was
-  taken; their outcome is recorded in the standing entries if they find
-  anything.
+- ASan with UBSan: 3230 of 3230 pass, no report. TSan: 3232 of 3232,
+  no report, after the schedule library began stating the fork and the
+  join a divided range takes (oneTBB arrives uninstrumented, so the
+  join edge was invisible to the sanitizer; two `workaround:` lines).
+- The benchmark baseline was retaken from this tree on an idle machine
+  and committed; the app-FPS baseline likewise (its lane presents every
+  sketch in the real window).
 
 ## Deferred past the merge, each a campaign of its own
 
