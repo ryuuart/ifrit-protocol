@@ -176,6 +176,9 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
+#include <sigilgeometry/path/Numeric.h>
+#include <sigilgeometry/path/Projection.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
@@ -195,6 +198,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -279,46 +283,57 @@ const float kK = std::tan((90.0f - kEps) * 0.5f * kD);  // 0.65147737
 const float kReq = kK;                                  // equator, in R
 const float kRcan = kK * kK;                            // Cancer,  in R
 
-/** The projection, stated once: a point at declination δ lands at
- *  radius R_eq·tan((90−δ)/2), at a plate angle equal to its right ascension.
- *  Everything else on this plate is this one line plus trigonometry. */
-float rOfDec(float decDeg) {
-  return kReq * std::tan((90.0f - decDeg) * 0.5f * kD);
+/** THE PLATE, stated once: the sphere seen from the SOUTH POLE onto the
+ *  plane of the equator, in units of the Tropic of Capricorn's radius,
+ *  with the roll saying that right ascension is read off it as an ordinary
+ *  angle from +x — which at a pole is a choice, since north is not a
+ *  direction there. Every ring engraved below is this value and a circle
+ *  it carries. */
+const path::Projection kPlate{.scheme = path::Scheme::Stereographic,
+                              .centre = {.lonDeg = 0, .latDeg = 90},
+                              .scale = kReq * 0.5f,
+                              .rollDeg = 90.0f};
+/** The two directions the families of circles are struck about: the zenith
+ *  of Oxford, on the meridian, and the pole of the ecliptic. */
+const path::Spherical kZenith{.lonDeg = 90.0f, .latDeg = kPhi};
+const path::Spherical kEclipticPole{.lonDeg = 270.0f, .latDeg = 90.0f - kEps};
+const float kYzen = kPlate.at(kZenith).y;
+
+/** A point at declination δ lands at radius R_eq·tan((90−δ)/2). */
+float rOfDec(float decDeg) { return kPlate.radiusAt(90.0f - decDeg); }
+
+SkPoint projRA(float decDeg, float raDeg) {
+  return path::toSk(kPlate.at({.lonDeg = raDeg, .latDeg = decDeg}));
 }
-/** The raw point formula, in the math frame. ψ = 90° − H, so noon is at the
- *  top, WEST is +x and EAST is −x. East on the left is not a mistake: an
+/** The same point read in HOUR ANGLE: ψ = 90° − H, so noon is at the top,
+ *  WEST is +x and EAST is −x. East on the left is not a mistake: an
  *  astrolabe shows the sky from OUTSIDE the sphere. */
 SkPoint proj(float decDeg, float hourAngleDeg) {
-  const float psi = (90.0f - hourAngleDeg) * kD;
-  const float r = rOfDec(decDeg);
-  return arrange::onEllipse({0, 0}, {r, r}, psi);
-}
-SkPoint projRA(float decDeg, float raDeg) {
-  const float r = rOfDec(decDeg);
-  return arrange::onEllipse({0, 0}, {r, r}, raDeg * kD);
+  return projRA(decDeg, 90.0f - hourAngleDeg);
 }
 
-// The horizon, and the almucantars ("compowned by two and two", I.18)
-float almCy(float h) {
-  return kReq * std::cos(kPhi * kD) / (std::sin(kPhi * kD) + std::sin(h * kD));
+// The horizon and the almucantars ("compowned by two and two", I.18): what
+// stands an altitude h from the zenith. The ecliptic, internally tangent to
+// both tropics, and Chaucer's ±6° of ecliptic latitude either side of it
+// (I.21): what stands that far from the ecliptic's own pole.
+float almCy(float h) { return kPlate.circleOf(kZenith, 90 - h)->centre.y; }
+float almR(float h) { return kPlate.circleOf(kZenith, 90 - h)->radius; }
+float bandCy(float b) {
+  return kPlate.circleOf(kEclipticPole, 90 - b)->centre.y;
 }
-float almR(float h) {
-  return kReq * std::cos(h * kD) / (std::sin(kPhi * kD) + std::sin(h * kD));
-}
-// The azimuths: a coaxal family through the zenith and the nadir
-const float kYzen = kReq * std::tan((90.0f - kPhi) * 0.5f * kD);
-const float kYnad = -kReq * std::tan((90.0f + kPhi) * 0.5f * kD);
-const float kAzCy = (kYzen + kYnad) * 0.5f;
-const float kAzA = (kYzen - kYnad) * 0.5f;
-// The ecliptic, internally tangent to both tropics
-const float kEclCy = (kRcan - 1.0f) * 0.5f;
-const float kEclR = (kRcan + 1.0f) * 0.5f;
-// the zodiac band, Chaucer's ±6° of ecliptic latitude (I.21)
-float bandCy(float beta) {
-  return (rOfDec(kEps + beta) - rOfDec(-(kEps - beta))) * 0.5f;
-}
-float bandR(float beta) {
-  return (rOfDec(kEps + beta) + rOfDec(-(kEps - beta))) * 0.5f;
+float bandR(float b) { return kPlate.circleOf(kEclipticPole, 90 - b)->radius; }
+const float kEclCy = bandCy(0.0f);
+const float kEclR = bandR(0.0f);
+
+/** The azimuths: a coaxal family through the zenith and the nadir, each a
+ *  great circle whose own pole stands on the horizon a quarter turn from
+ *  it. A′ is measured from the PRIME VERTICAL, not from north — drawn from
+ *  north the family misses by more than the plate's own radius, which the
+ *  audit prints as a finding. */
+path::PlaneCircle azimuth(float primeDeg) {
+  return kPlate
+      .circleOf(path::offsetFrom(kZenith, 180.0f - primeDeg, 90.0f), 90.0f)
+      .value();
 }
 
 /** The semi-diurnal arc: how far west of the meridian a body of declination
@@ -331,46 +346,30 @@ float seasonalStep(float decDeg) {
   return (360.0f - 2.0f * H0(decDeg)) / 12.0f;
 }
 
-float sunDec(float lamDeg) {
-  return std::asin(std::sin(kEps * kD) * std::sin(lamDeg * kD)) / kD;
-}
+/** The obliquity is one turn of the sphere about the line of the equinoxes.
+ *  Right ascension comes back either side of the equinox rather than round
+ *  from it, which is the reading the rete's rotation is measured in. */
+const path::Rotation kFromEcliptic = path::Rotation::aboutX(kEps);
+float sunDec(float lamDeg) { return kFromEcliptic({lamDeg, 0}).latDeg; }
 float sunRA(float lamDeg) {
-  return std::atan2(std::cos(kEps * kD) * std::sin(lamDeg * kD),
-                    std::cos(lamDeg * kD)) /
-         kD;
+  return path::wrap(kFromEcliptic({lamDeg, 0}).lonDeg + 180.0f, 360.0f) -
+         180.0f;
 }
 
-/** Circle through three points; null when they are collinear — which is not
- *  a degenerate case to guard against but invariant #4: the sixth
+/** The k-th seasonal-hour line, as the medieval makers struck it: divide
+ *  the below-horizon arc of each tropic into twelve, and swing a circle
+ *  through the k-th division of Cancer, of the equator and of Capricorn.
+ *
+ *  It comes back with no circle when the three stand on one line — which
+ *  is not a degenerate case to guard against but invariant #4: the sixth
  *  seasonal-hour line IS straight, because midnight is midnight at every
  *  declination. */
-struct Circ {
-  float cx = 0, cy = 0, r = 0;
-  bool ok = false;
-};
-Circ through3(SkPoint a, SkPoint b, SkPoint c) {
-  const float d =
-      2 * (a.fX * (b.fY - c.fY) + b.fX * (c.fY - a.fY) + c.fX * (a.fY - b.fY));
-  if (std::abs(d) < 1e-9f) return {};
-  const float aa = a.fX * a.fX + a.fY * a.fY, bb = b.fX * b.fX + b.fY * b.fY,
-              cc = c.fX * c.fX + c.fY * c.fY;
-  Circ out;
-  out.cx = (aa * (b.fY - c.fY) + bb * (c.fY - a.fY) + cc * (a.fY - b.fY)) / d;
-  out.cy = (aa * (c.fX - b.fX) + bb * (a.fX - c.fX) + cc * (b.fX - a.fX)) / d;
-  out.r = std::hypot(a.fX - out.cx, a.fY - out.cy);
-  out.ok = true;
-  return out;
-}
-
-/** The k-th seasonal-hour line, as the medieval makers struck it:
- *  divide the below-horizon arc of each tropic into twelve, and swing a
- *  circle through the k-th division of Cancer, of the equator and of
- *  Capricorn. */
-Circ seasonalLine(int k) {
+std::optional<path::PlaneCircle> seasonalLine(int k) {
   const SkPoint can = proj(kEps, H0(kEps) + k * seasonalStep(kEps));
   const SkPoint equ = proj(0.0f, H0(0.0f) + k * seasonalStep(0.0f));
   const SkPoint cap = proj(-kEps, H0(-kEps) + k * seasonalStep(-kEps));
-  return through3(can, equ, cap);
+  return path::circleThrough(path::fromSk(can), path::fromSk(equ),
+                             path::fromSk(cap));
 }
 
 // ---------------------------------------------------------------------------
@@ -1039,14 +1038,13 @@ struct ChaucerAstrolabe : sketch::Sketch {
         return SkPoint{p.fX - (hc.fX - hr), p.fY - (hc.fY - hr)};
       };
       for (int i = 1; i <= 5; ++i) {
-        const float ap = (float)(i * 15);           // A' from the PRIME
-        const float cx = kAzA * std::tan(ap * kD);  // VERTICAL, not north
-        const float rr = kAzA / std::cos(ap * kD);
+        const float ap = (float)(i * 15);  // A' from the PRIME VERTICAL
         const float delay = tAzim * 1000 + (float)i * 150.0f;
         for (int s = -1; s <= 1; s += 2) {
-          const float rad = rr * kR;
+          const path::PlaneCircle az = azimuth((float)s * ap);
+          const float rad = az.radius * kR;
           sky.child(
-              kit::disc(local(s * cx, kAzCy), rad)
+              kit::disc(local(az.centre.x, az.centre.y), rad)
                   .key("az" + std::to_string(i * s))
                   .shape(shapes::circle())
                   .fill(Fill::none())
@@ -1058,8 +1056,9 @@ struct ChaucerAstrolabe : sketch::Sketch {
       // passes through the east and west points by the identity
       // tan(45−φ/2)·tan(45+φ/2) = 1
       {
-        const float rad = kAzA * kR;
-        sky.child(kit::disc(local(0, kAzCy), rad)
+        const path::PlaneCircle pv = azimuth(0.0f);
+        const float rad = pv.radius * kR;
+        sky.child(kit::disc(local(pv.centre.x, pv.centre.y), rad)
                       .key("azPV")
                       .shape(shapes::circle())
                       .fill(Fill::none())
@@ -1105,13 +1104,13 @@ struct ChaucerAstrolabe : sketch::Sketch {
       auto night =
           box().inset(0).key("night").shape(heldPath(region)).clip(true);
       for (int k = 1; k <= 11; ++k) {
-        const Circ c = seasonalLine(k);
+        const std::optional<path::PlaneCircle> c = seasonalLine(k);
         const float delay = tHours * 1000 + (float)std::abs(k - 6) * 105.0f;
-        if (!c.ok)  // k = 6 is straight: midnight is midnight at every dec
+        if (!c)  // k = 6 is straight: midnight is midnight at every dec
           continue;
-        const float rad = c.r * kR;
+        const float rad = c->radius * kR;
         night.child(
-            kit::disc(PL(c.cx, c.cy), rad)
+            kit::disc(PL(c->centre.x, c->centre.y), rad)
                 .key("hr" + std::to_string(k))
                 .shape(shapes::circle())
                 .fill(Fill::none())
@@ -2082,21 +2081,20 @@ struct ChaucerAstrolabe : sketch::Sketch {
         for (int h = 0; h <= 88; h += 4)
           put(0, almCy((float)h), almR((float)h), 0.8f, 0.55f);
       } else if (i == 2) {
-        for (int a = 1; a <= 5; ++a) {
-          const float ap = (float)(a * 15);
-          put(kAzA * std::tan(ap * kD), kAzCy, kAzA / std::cos(ap * kD), 0.8f,
-              0.6f);
-          put(-kAzA * std::tan(ap * kD), kAzCy, kAzA / std::cos(ap * kD), 0.8f,
-              0.6f);
-        }
-        put(0, kAzCy, kAzA, 1.0f, 0.75f);
+        for (int a = 1; a <= 5; ++a)
+          for (int s = -1; s <= 1; s += 2) {
+            const path::PlaneCircle az = azimuth((float)s * (float)(a * 15));
+            put(az.centre.x, az.centre.y, az.radius, 0.8f, 0.6f);
+          }
+        const path::PlaneCircle pv = azimuth(0.0f);
+        put(pv.centre.x, pv.centre.y, pv.radius, 1.0f, 0.75f);
         d.child(box()
                     .rect(SkRect::MakeXYWH(r - 0.5f, 0, 1, 2 * r))
                     .fill(Fill::color(hexColor(0x241c15, 0.75f))));
       } else {
         for (int k = 1; k <= 11; ++k) {
-          const Circ c = seasonalLine(k);
-          if (c.ok) put(c.cx, c.cy, c.r, 0.8f, 0.6f);
+          const std::optional<path::PlaneCircle> c = seasonalLine(k);
+          if (c) put(c->centre.x, c->centre.y, c->radius, 0.8f, 0.6f);
         }
         d.child(box()
                     .rect(SkRect::MakeXYWH(r - 0.5f, r, 1, r))
