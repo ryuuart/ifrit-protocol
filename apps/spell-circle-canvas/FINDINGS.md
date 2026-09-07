@@ -51,11 +51,9 @@ Taken on the merged tree after the post-merge compose pass:
   hidden in the sketches over 1000 lines: palette-indexed sprites and an
   atlas packer (`xcom_battlescape`, `cde_motif`, `thaumonomicon`) →
   `compose/kit/Sprites.h`; an HTML auto-table layout scheme
-  (`spacejam_1996:999-1200`) → compose kit layouts with a test; an
-  icosahedron and a face-up pose (`bg3_dice_roll:376-503`) →
-  `geometry/kit/Solids.h` and a mesh pose; a conic generator and four
-  silhouettes (`ksp_mapview:244-566`) → geometry path and
-  `Silhouettes.h`; Motif bevels (`cde_motif`, `twoadvanced_v4`,
+  (`spacejam_1996:999-1200`) → compose kit layouts with a test; a conic
+  generator and four silhouettes (`ksp_mapview:244-566`) → geometry path
+  and `Silhouettes.h`; Motif bevels (`cde_motif`, `twoadvanced_v4`,
   `winamp_base`, `fallout2_charsheet`) → `Chrome.h`; a stereographic and
   a chart projection (`chaucer_astrolabe`, `dunhuang_star_chart`) → a
   projection value in geometry path; a tartan sett-to-cloth weave

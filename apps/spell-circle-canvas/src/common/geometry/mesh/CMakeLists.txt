@@ -3,15 +3,15 @@
 # what a mesh holds its primitive lanes in.
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilGeometryMesh
-  SOURCES Generators.cpp Mesh.cpp
-  HEADERS Mesh.h Vec.h
+  SOURCES Faces.cpp Generators.cpp Mesh.cpp
+  HEADERS Faces.h Mesh.h Vec.h
   PUBLIC SigilGeometryPath Boost::container)
 
 # ONE BINARY over the currency and the camera that places it. A camera is
 # not a boundary anyone reads: it names only mesh types and matrices, and
 # nothing links it without the currency underneath.
 sigil_test(geometry_test
-  SOURCES test/MeshTest.cpp test/CameraTest.cpp
+  SOURCES test/MeshTest.cpp test/FacesTest.cpp test/CameraTest.cpp
   LIBRARIES SigilGeometryMeshCamera)
 
 sigil_bench(geometry_bench

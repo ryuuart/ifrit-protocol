@@ -124,12 +124,13 @@
 // -----------------------------------------------------------------------------
 // THE DIE IS A SOLID, AND IT IS DERIVED
 //
-// Twelve vertices at the cyclic permutations of (0, +-1, +-phi). Twenty faces
-// found by taking every triple whose three pairwise distances are the edge
-// length 2 — not a table, a search, so a wrong phi produces no faces at all
-// rather than a wrong solid. Thirty edges fall out of the faces. Each face is
-// oriented outward against its own centroid, rotated, projected
-// orthographically and culled by normal . view <= 0.
+// `mesh::platonic(Icosahedron)` in its welded form: twelve corners on the unit
+// sphere, shared by twenty triangular faces, each wound outward. Thirty edges
+// fall out of the faces, and because the corners are shared, an edge is a pair
+// of indices and the two faces meeting on it are found by index rather than by
+// comparing positions. The faces are rotated, projected orthographically and
+// culled by normal . view <= 0. The solid is the library's; this file's part is
+// the numbering and the attitude.
 //
 // The read comes entirely from a THREE-TIER EDGE WEIGHT, because a 2D library
 // has no shading to lean on:
@@ -139,10 +140,13 @@
 // Nine or ten triangles survive, and their edges are not symmetric. That
 // asymmetry is the only reason it reads as a solid rather than a badge.
 //
-// The pips are derived too: faces pair antipodally (centroid ~ -centroid), and
-// a real d20 numbers opposite faces to sum to 21. So the settled front face is
-// given 12 — the roll — its antipode gets 9, and the remaining nine pairs take
-// (n, 21-n). Nothing is hand-placed.
+// The pips are derived too: `mesh::opposedFace` pairs the faces off by their
+// centroids, and a real d20 numbers opposite faces to sum to 21. So the face
+// that settles square to the viewer is given 12 — the roll — its antipode gets
+// 9, and the remaining nine pairs take (n, 21-n). Nothing is hand-placed.
+//
+// The settle itself is `mesh::faceUp(cage, face, +z)`: the rotation that turns
+// that one face square to the viewer, with a small tilt composed over it.
 //
 // -----------------------------------------------------------------------------
 // LINE VOCABULARY — gilt on vellum, where a lone 1 px hairline is a mistake
@@ -214,7 +218,8 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilgeometry/mesh/Vec.h>
+#include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/mesh/Faces.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -226,11 +231,14 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <glm/gtc/matrix_transform.hpp>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
+namespace mesh = sigil::geometry::mesh;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
@@ -369,162 +377,102 @@ inline const std::array<AbilityBlock, 5> kBlocks{{
 constexpr int kActiveSkill = 3;  ///< Persuasion
 
 // ------------------------------------------------------------ the solid
-constexpr float kPhi = 1.618033988749895f;
 
-// THE VECTOR ALGEBRA IS GLM'S. The subject here is the solid — twelve
-// vertices from three numbers and the faces found by search — and not a
-// dot product; the tree already depends on glm and every 3D thing in it
-// speaks glm::vec3, so a private one would be a third spelling.
-// `mesh::normalized` is the degenerate-input policy glm leaves undefined.
+// THE SOLID IS THE GEOMETRY KIT'S, in its welded form: twelve corners
+// shared by twenty faces, so an edge is a pair of corner indices and the
+// two faces that meet on it are found once rather than searched for by
+// position. What is this study's own is the NUMBERING — a real d20 pairs
+// opposite faces to sum to 21 — and the attitude the die settles at.
 using V3 = glm::vec3;
 
-/** Twelve vertices: the cyclic permutations of (0, +-1, +-phi). */
-inline std::vector<V3> icosaVertices() {
-  std::vector<V3> v;
-  v.reserve(12);
-  for (int sa : {-1, 1})
-    for (int sb : {-1, 1}) {
-      const float a = (float)sa, b = kPhi * (float)sb;
-      v.push_back({0, a, b});
-      v.push_back({a, b, 0});
-      v.push_back({b, 0, a});
-    }
-  return v;
-}
+/** Which of the twenty lands square to the viewer. One face of a regular
+ *  solid is every face, so naming it makes the settle a declaration
+ *  rather than a consequence of the order the faces came in. */
+constexpr int kSettledFace = 0;
 
-struct Solid {
-  std::vector<V3> verts;                     // 12
-  std::vector<std::array<int, 3>> faces;     // 20, wound outward
-  std::vector<V3> centroid, normal;          // per face
-  std::vector<int> pip;                      // face -> 1..20
-  std::vector<std::array<int, 2>> edges;     // 30
-  std::vector<std::array<int, 2>> edgeFace;  // 30, the two faces on each edge
+/** The die: the solid, what each face looks like from outside, the pip
+ *  each one carries, and the edge list the three-tier edge weight reads.
+ *  Each of an icosahedron's faces is one triangle, so face f is triangle
+ *  f and its three corners are the triangle's three indices. */
+struct Die {
+  mesh::Mesh cage;
+  std::vector<V3> normal, centroid;  // per face
+  std::vector<int> pip;              // face -> 1..20
+  std::vector<mesh::Edge> edges;     // 30, each with the two faces on it
+  size_t faces() const { return normal.size(); }
+  std::array<int, 3> corners(size_t face) const {
+    return {(int)cage.indices[face * 3], (int)cage.indices[face * 3 + 1],
+            (int)cage.indices[face * 3 + 2]};
+  }
 };
 
-/** Faces by SEARCH, not by table: every triple whose three pairwise distances
- *  are the edge length 2. A wrong phi yields no faces at all. */
-inline Solid buildSolid() {
-  Solid s;
-  s.verts = icosaVertices();
-  const int n = (int)s.verts.size();
-  auto d2 = [&](int i, int j) {
-    const V3 d = s.verts[(size_t)i] - s.verts[(size_t)j];
-    return glm::dot(d, d);
-  };
-  for (int i = 0; i < n; ++i)
-    for (int j = i + 1; j < n; ++j) {
-      if (std::abs(d2(i, j) - 4.0f) > 1e-3f) continue;
-      for (int k = j + 1; k < n; ++k) {
-        if (std::abs(d2(j, k) - 4.0f) > 1e-3f ||
-            std::abs(d2(i, k) - 4.0f) > 1e-3f)
-          continue;
-        std::array<int, 3> f{i, j, k};
-        const V3 &a = s.verts[(size_t)i], &b = s.verts[(size_t)j],
-                 &c = s.verts[(size_t)k];
-        V3 cen{(a.x + b.x + c.x) / 3, (a.y + b.y + c.y) / 3,
-               (a.z + b.z + c.z) / 3};
-        V3 nrm = glm::cross(b - a, c - a);
-        if (glm::dot(nrm, cen) < 0) {  // wind outward
-          std::swap(f[1], f[2]);
-          nrm = {-nrm.x, -nrm.y, -nrm.z};
-        }
-        s.faces.push_back(f);
-        s.centroid.push_back(cen);
-        s.normal.push_back(sigil::geometry::mesh::normalized(nrm));
-      }
-    }
-  // Thirty edges, each with the two faces that share it.
-  const int nf = (int)s.faces.size();
-  for (int f = 0; f < nf; ++f)
-    for (int e = 0; e < 3; ++e) {
-      int a = s.faces[(size_t)f][(size_t)e];
-      int b = s.faces[(size_t)f][(size_t)((e + 1) % 3)];
-      if (a > b) std::swap(a, b);
-      int found = -1;
-      for (int q = 0; q < (int)s.edges.size(); ++q)
-        if (s.edges[(size_t)q][0] == a && s.edges[(size_t)q][1] == b) found = q;
-      if (found < 0) {
-        s.edges.push_back({a, b});
-        s.edgeFace.push_back({f, -1});
-      } else {
-        s.edgeFace[(size_t)found][1] = f;
-      }
-    }
-  s.pip.assign((size_t)nf, 0);
-  return s;
-}
-
-inline V3 rotate(V3 p, float ax, float ay, float az) {
-  float c = std::cos(ax), sn = std::sin(ax);
-  V3 q{p.x, p.y * c - p.z * sn, p.y * sn + p.z * c};
-  c = std::cos(ay);
-  sn = std::sin(ay);
-  V3 r{q.x * c + q.z * sn, q.y, -q.x * sn + q.z * c};
-  c = std::cos(az);
-  sn = std::sin(az);
-  return {r.x * c - r.y * sn, r.x * sn + r.y * c, r.z};
-}
-
-/** Number the faces so opposites sum to 21 and the settled front face is the
- *  roll. Antipodes are found by centroid, not assumed. */
-inline void numberFaces(Solid& s, float ax, float ay, float az, int frontPip) {
-  const int nf = (int)s.faces.size();
-  std::vector<int> anti((size_t)nf, -1);
-  for (int i = 0; i < nf; ++i)
-    for (int j = 0; j < nf; ++j) {
-      const V3& a = s.centroid[(size_t)i];
-      const V3& b = s.centroid[(size_t)j];
-      if (std::abs(a.x + b.x) < 1e-3f && std::abs(a.y + b.y) < 1e-3f &&
-          std::abs(a.z + b.z) < 1e-3f)
-        anti[(size_t)i] = j;
-    }
-  int front = 0;
-  float best = -2.0f;
-  for (int i = 0; i < nf; ++i) {
-    const V3 r = rotate(s.normal[(size_t)i], ax, ay, az);
-    if (r.z > best) {
-      best = r.z;
-      front = i;
-    }
-  }
-  std::fill(s.pip.begin(), s.pip.end(), 0);
-  s.pip[(size_t)front] = frontPip;
-  if (anti[(size_t)front] >= 0)
-    s.pip[(size_t)anti[(size_t)front]] = 21 - frontPip;
+/** Number the faces so opposites sum to 21 and the face that settles
+ *  square to the viewer carries the roll. The pairing is the solid's
+ *  own — `opposedFace` measures it from the centroids — so nothing is
+ *  hand-placed and nothing assumes an order. */
+inline void numberFaces(Die& d, int settledFace, int frontPip) {
+  const size_t n = d.faces();
+  std::vector<int> across(n, -1);
+  for (size_t f = 0; f < n; ++f)
+    if (const std::optional<size_t> other = mesh::opposedFace(d.cage, f))
+      across[f] = (int)*other;
+  d.pip.assign(n, 0);
+  d.pip[(size_t)settledFace] = frontPip;
+  if (across[(size_t)settledFace] >= 0)
+    d.pip[(size_t)across[(size_t)settledFace]] = 21 - frontPip;
   int next = 1;
-  for (int i = 0; i < nf; ++i) {
-    if (s.pip[(size_t)i] != 0) continue;
+  for (size_t f = 0; f < n; ++f) {
+    if (d.pip[f] != 0) continue;
     while (next == frontPip || next == 21 - frontPip || next > 20) ++next;
-    s.pip[(size_t)i] = next;
-    if (anti[(size_t)i] >= 0) s.pip[(size_t)anti[(size_t)i]] = 21 - next;
+    d.pip[f] = next;
+    if (across[f] >= 0) d.pip[(size_t)across[f]] = 21 - next;
     ++next;
   }
 }
 
-/** The settle attitude: rotate a chosen face normal onto +z so ONE face is
- *  square to the viewer and carries the roll — then tilt ~10 deg off that
- *  axis, because a perfectly face-on icosahedron projects to a symmetric
- *  figure and a symmetric figure reads as a badge. The tilt is what makes
- *  the surviving edges unequal. */
-inline void settleAttitude(const Solid& s, float& tx, float& ty, float& tz) {
-  const V3 n = s.normal.empty() ? V3{0, 0, 1} : s.normal[0];
-  const float h = std::sqrt(n.y * n.y + n.z * n.z);
-  tx = std::atan2(n.y, n.z) + 0.175f;  // align, then tilt 10 deg
-  ty = -std::atan2(n.x, h) - 0.125f;   // …and 7 deg
-  tz = 0.085f;
+inline Die buildDie(int settledFace, int frontPip) {
+  Die d;
+  d.cage = mesh::platonic(mesh::Platonic::Icosahedron,
+                          {.circumradius = 1.0f, .sharedVertices = true});
+  const size_t faces = mesh::faceCount(d.cage);
+  for (size_t f = 0; f < faces; ++f) {
+    d.normal.push_back(mesh::faceNormal(d.cage, f));
+    d.centroid.push_back(mesh::faceCentroid(d.cage, f));
+  }
+  d.edges = mesh::edges(d.cage);
+  numberFaces(d, settledFace, frontPip);
+  return d;
+}
+
+/** An attitude as three turns, applied about x then y then z. */
+inline glm::mat3 turn(float ax, float ay, float az) {
+  glm::mat4 m(1.0f);
+  m = glm::rotate(m, az, {0, 0, 1});
+  m = glm::rotate(m, ay, {0, 1, 0});
+  m = glm::rotate(m, ax, {1, 0, 0});
+  return glm::mat3(m);
+}
+
+/** The settle attitude: the pose that turns the rolled face square to
+ *  the viewer, then a tilt off that axis — because a perfectly face-on
+ *  icosahedron projects to a symmetric figure and a symmetric figure
+ *  reads as a badge. The tilt is what makes the surviving edges
+ *  unequal. */
+inline glm::mat3 settleAttitude(const Die& d, int face) {
+  return turn(0.175f, -0.125f, 0.085f) *
+         glm::mat3(mesh::faceUp(d.cage, (size_t)face, {0, 0, 1}));
 }
 
 /** The tumble: a fast spin decelerating into the settle, then two decaying
  *  bounces. One ramp cannot shape this. Settled by kSettleAt. */
-inline void tumbleAngles(double t, float kAx, float kAy, float kAz, float& ax,
-                         float& ay, float& az) {
+inline void tumbleAngles(double t, float& ax, float& ay, float& az) {
   const float u = (float)std::clamp(t / 1.10, 0.0, 1.0);
   const float e = 1.0f - std::pow(1.0f - u, 5.0f);  // easeOutQuint
   const float remain = 1.0f - e;
   constexpr float kTau = 6.2831853f;
-  ax = kAx + remain * 2.25f * kTau;
-  ay = kAy + remain * 1.50f * kTau;
-  az = kAz + remain * 0.75f * kTau;
+  ax = remain * 2.25f * kTau;
+  ay = remain * 1.50f * kTau;
+  az = remain * 0.75f * kTau;
   if (t > 0.95) {  // two decaying bounces, dead by 1.45
     const float w = (float)(t - 0.95);
     const float b = 0.17f * std::exp(-9.0f * w) * std::sin(w * 34.0f);
@@ -535,8 +483,8 @@ inline void tumbleAngles(double t, float kAx, float kAy, float kAz, float& ax,
   // AND THEN IT STOPS. A die that keeps breathing after it has landed is
   // a scene with no settled state, so a still of it is a still of a
   // moment nothing declared — and the one thing this study is about is
-  // what happens AFTER the die lands. Past kSettleAt the attitude is the
-  // settle attitude and nothing else.
+  // what happens AFTER the die lands. Past kSettleAt the three turns are
+  // zero and the attitude is the settle attitude and nothing else.
 }
 
 }  // namespace bg3
@@ -557,10 +505,10 @@ struct Bg3DiceRoll : sketch::Sketch {
   int rowsMounted = 0;
   bool outcomeMounted = false;
 
-  bg3::Solid solid;
+  bg3::Die solid;
   sk_sp<SkTypeface> serif, mono;
-  float ax = 0, ay = 0, az = 0;
-  float tx = 0, ty = 0, tz = 0;  ///< the settle attitude
+  float ax = 0, ay = 0, az = 0;  ///< the tumble, decaying to nothing
+  glm::mat3 settle{1.0f};        ///< the attitude the die lands in
 
   // ------------------------------------------------------------------- type
   Element label(const std::string& s, float x, float y, float size,
@@ -602,21 +550,21 @@ struct Bg3DiceRoll : sketch::Sketch {
                       SkCanvas& c, const PaintContext& ctx) {
              const float cx = ctx.size.width() * 0.5f;
              const float cy = ctx.size.height() * 0.5f;
-             const float s =
-                 radius / 1.9021130f;  // circumradius sqrt(1 + phi^2)
+             // The solid stands on the unit sphere, so the radius IS the
+             // scale, and the attitude is the tumble over the settle.
+             const float s = radius;
+             const glm::mat3 attitude = bg3::turn(ax, ay + spin, az) * settle;
 
              std::array<SkPoint, 12> proj{};
              for (int i = 0; i < 12; ++i) {
-               const bg3::V3 r =
-                   bg3::rotate(solid.verts[(size_t)i], ax, ay + spin, az);
+               const bg3::V3 r = attitude * solid.cage.positions[(size_t)i];
                proj[(size_t)i] = {cx + r.x * s, cy - r.y * s};
              }
-             const int nf = (int)solid.faces.size();
+             const int nf = (int)solid.faces();
              std::vector<float> nz((size_t)nf);
              std::vector<bool> vis((size_t)nf);
              for (int f = 0; f < nf; ++f) {
-               const bg3::V3 r =
-                   bg3::rotate(solid.normal[(size_t)f], ax, ay + spin, az);
+               const bg3::V3 r = attitude * solid.normal[(size_t)f];
                nz[(size_t)f] = r.z;
                vis[(size_t)f] = r.z > 0.0f;
              }
@@ -629,7 +577,7 @@ struct Bg3DiceRoll : sketch::Sketch {
              body.setStyle(SkPaint::kFill_Style);
              for (int f = 0; f < nf; ++f) {
                if (!vis[(size_t)f]) continue;
-               const auto& t = solid.faces[(size_t)f];
+               const std::array<int, 3> t = solid.corners((size_t)f);
                // A WIDER RANGE THAN A DIAGRAM WANTS. On cream, faces
                // a quarter apart read as a solid; on black the same
                // spread reads as a flat net, and the die is the one lit
@@ -652,14 +600,14 @@ struct Bg3DiceRoll : sketch::Sketch {
              edge.setStyle(SkPaint::kStroke_Style);
              edge.setStrokeCap(SkPaint::kRound_Cap);
              SkPathBuilder interior, silhouette;
-             for (size_t e = 0; e < solid.edges.size(); ++e) {
-               const int f0 = solid.edgeFace[e][0], f1 = solid.edgeFace[e][1];
-               const int seen = (f0 >= 0 && vis[(size_t)f0] ? 1 : 0) +
-                                (f1 >= 0 && vis[(size_t)f1] ? 1 : 0);
+             for (const mesh::Edge& e : solid.edges) {
+               const int seen =
+                   (vis[e.face] ? 1 : 0) +
+                   (e.opposite != mesh::kNoFace && vis[e.opposite] ? 1 : 0);
                if (seen == 0) continue;  // back edge: omitted entirely
                SkPathBuilder& into = seen == 2 ? interior : silhouette;
-               into.moveTo(proj[(size_t)solid.edges[e][0]]);
-               into.lineTo(proj[(size_t)solid.edges[e][1]]);
+               into.moveTo(proj[e.from]);
+               into.lineTo(proj[e.to]);
              }
              edge.setStrokeWidth(1.1f);
              edge.setColor4f(mskia::withAlpha(bg3::kGiltDark, opacity * 0.75f),
@@ -678,8 +626,7 @@ struct Bg3DiceRoll : sketch::Sketch {
              glyph.setColor4f(mskia::withAlpha(bg3::kInk, opacity), nullptr);
              for (int f = 0; f < nf; ++f) {
                if (nz[(size_t)f] < 0.34f) continue;
-               const bg3::V3 r =
-                   bg3::rotate(solid.centroid[(size_t)f], ax, ay + spin, az);
+               const bg3::V3 r = attitude * solid.centroid[(size_t)f];
                const float fx = cx + r.x * s, fy = cy - r.y * s;
                const float fs =
                    radius * 0.30f * (0.55f + 0.45f * nz[(size_t)f]);
@@ -1387,17 +1334,15 @@ struct Bg3DiceRoll : sketch::Sketch {
     mono = weave::ports::face(
         {"Menlo", "SF Mono", "Monaco", "Courier New", "Helvetica"});
 
-    solid = bg3::buildSolid();
-    bg3::settleAttitude(solid, tx, ty, tz);
-    // The pips are assigned AT the settled attitude, so the face that ends up
-    // square to the viewer is the one that carries the roll — and its
-    // antipode takes 21 - roll, like a real die.
-    bg3::numberFaces(solid, tx, ty, tz, bg3::kNaturalRoll);
-    bg3::tumbleAngles(0.0, tx, ty, tz, ax, ay, az);
+    // The face that settles square to the viewer is the one that carries
+    // the roll, and its antipode takes 21 - roll, like a real die.
+    solid = bg3::buildDie(bg3::kSettledFace, bg3::kNaturalRoll);
+    settle = bg3::settleAttitude(solid, bg3::kSettledFace);
+    bg3::tumbleAngles(0.0, ax, ay, az);
 
     ctx.ticker.add([this](double dt) {
       clock += dt;
-      bg3::tumbleAngles(clock, tx, ty, tz, ax, ay, az);
+      bg3::tumbleAngles(clock, ax, ay, az);
       bezelSpin = (float)std::fmod(clock * 1.5, 360.0);      // 1.5 deg/s
       rosetteSpin = (float)std::fmod(-clock * 0.42, 360.0);  // counter
 

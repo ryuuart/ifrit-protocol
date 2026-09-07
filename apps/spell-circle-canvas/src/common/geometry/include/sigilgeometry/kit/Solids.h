@@ -4,11 +4,14 @@
  * The 3D shelf of the geometry kit — the stock solids.
  *
  * Two of them LIFT another currency into a mesh: `extrude()` raises a
- * filled path, `revolve()` lathes a profile polyline. The rest are the
- * named surfaces, each one the parametric sheet seam `mesh::grid()`
- * evaluated through a formula anyone could have written — which is why
- * they are a shelf and not the currency. A consumer with its own formula
- * calls `grid()` and is a peer of these.
+ * filled path, `revolve()` lathes a profile polyline. Most of the rest
+ * are the named surfaces, each one the parametric sheet seam
+ * `mesh::grid()` evaluated through a formula anyone could have written —
+ * which is why they are a shelf and not the currency. A consumer with its
+ * own formula calls `grid()` and is a peer of these. `box()` and
+ * `platonic()` are the two that are not sheets: their faces are flat and
+ * their corners hard, and they are stated by a corner table rather than
+ * by a formula.
  *
  * They produce `mesh::Mesh` values and are spelled in its namespace, so a
  * caller reaching for `mesh::torus` links this shelf and nothing changes
@@ -96,6 +99,52 @@ struct BoxOptions {
  *  turned inside out. A degenerate span (equal on an axis) emits its
  *  faces flat rather than nothing. */
 Mesh box(glm::vec3 lo, glm::vec3 hi, const BoxOptions& options = {});
+
+/** The five regular solids, each named by the face it is made of: four
+ *  triangles, six squares, eight triangles, twelve pentagons, twenty
+ *  triangles. */
+enum class Platonic {
+  Tetrahedron,
+  Cube,
+  Octahedron,
+  Dodecahedron,
+  Icosahedron
+};
+
+/** How `platonic()` stands a regular solid up.
+ *
+ *  `sharedVertices` picks which of two meshes the same solid is. Left
+ *  alone, every face carries its OWN corners and its own flat normal, as
+ *  `box()` does — the hard-cornered reading a die or a machined solid
+ *  wants, where a face is one tone across and the edges between faces are
+ *  edges. Turned on, the solid is its corner cage instead: one vertex per
+ *  corner, shared by every face that meets there, each carrying the
+ *  outward direction it stands in. That is the form to walk as topology —
+ *  a wireframe, an edge list, a subdivision seed — because two faces that
+ *  meet name the SAME two vertices. It carries no UVs, since a shared
+ *  corner has no one place in a face's texture square. */
+struct PlatonicOptions {
+  float circumradius = 1.0f;  ///< every corner stands this far from the centre
+  bool sharedVertices = false;
+};
+
+/** One of the five regular solids, centred on the origin, wound outward.
+ *
+ *  Its faces are gathered rather than tabulated: the face PLANES of a
+ *  regular solid are the corner directions of its dual — the cube's six
+ *  faces look along the octahedron's six corners, the dodecahedron's
+ *  twelve along the icosahedron's twelve — so one corner table per solid
+ *  states the whole of it, and each face is the corners standing furthest
+ *  along its own plane normal, ordered around it. A polygon face is
+ *  fanned into triangles and every triangle of it carries the face's
+ *  index in the `"Id"` primitive lane, so `mesh::faceCount()`,
+ *  `faceNormal()` and `faceUp()` read a dodecahedron as twelve pentagons
+ *  and not as thirty-six triangles.
+ *
+ *  `Platonic::Cube` in its hard-cornered form IS `box()` — an axis-aligned
+ *  box with equal sides — and answers exactly that, with box's own UV
+ *  square on each face. */
+Mesh platonic(Platonic solid, const PlatonicOptions& options = {});
 
 /** Torus around +y: major radius R in xz, tube radius r. */
 Mesh torus(float R, float r, int nu = 64, int nv = 32);

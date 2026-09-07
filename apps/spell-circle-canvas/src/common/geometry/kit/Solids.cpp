@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <mapbox/earcut.hpp>
 
 #include "sigilgeometry/mesh/Vec.h"
@@ -214,6 +215,207 @@ Mesh box(glm::vec3 lo, glm::vec3 hi, const BoxOptions& options) {
     }
     out.indices.insert(out.indices.end(),
                        {base, base + 1, base + 2, base, base + 2, base + 3});
+  }
+  return out;
+}
+
+namespace {
+
+/** The golden ratio, which three of the five solids' corners are stated
+ *  in: a wrong value here is a solid whose faces are not planes, which is
+ *  what the equal-edge and equal-plane checks over these meshes catch. */
+constexpr float kPhi = 1.6180339887498949f;
+
+/** Every sign of @p v, appended to @p into — the corner tables are all
+ *  sign families of two or three numbers. A zero coordinate is not
+ *  doubled, so (0, 1, phi) yields four corners and not eight. */
+void signsOf(glm::vec3 v, std::vector<glm::vec3>* into) {
+  for (float sx : {1.0f, -1.0f}) {
+    if (v.x == 0 && sx < 0) continue;
+    for (float sy : {1.0f, -1.0f}) {
+      if (v.y == 0 && sy < 0) continue;
+      for (float sz : {1.0f, -1.0f}) {
+        if (v.z == 0 && sz < 0) continue;
+        into->push_back({v.x * sx, v.y * sy, v.z * sz});
+      }
+    }
+  }
+}
+
+/** The corner directions of a regular solid, unnormalised. */
+std::vector<glm::vec3> platonicCorners(Platonic solid) {
+  std::vector<glm::vec3> out;
+  switch (solid) {
+    case Platonic::Tetrahedron:
+      // The four corners of the cube whose coordinates multiply to +1.
+      out = {{1, 1, 1}, {1, -1, -1}, {-1, 1, -1}, {-1, -1, 1}};
+      break;
+    case Platonic::Cube:
+      signsOf({1, 1, 1}, &out);
+      break;
+    case Platonic::Octahedron:
+      signsOf({1, 0, 0}, &out);
+      signsOf({0, 1, 0}, &out);
+      signsOf({0, 0, 1}, &out);
+      break;
+    case Platonic::Dodecahedron:
+      signsOf({1, 1, 1}, &out);
+      signsOf({0, 1 / kPhi, kPhi}, &out);
+      signsOf({1 / kPhi, kPhi, 0}, &out);
+      signsOf({kPhi, 0, 1 / kPhi}, &out);
+      break;
+    case Platonic::Icosahedron:
+      signsOf({0, 1, kPhi}, &out);
+      signsOf({1, kPhi, 0}, &out);
+      signsOf({kPhi, 0, 1}, &out);
+      break;
+  }
+  return out;
+}
+
+/** Where a solid's faces look, found from the corners themselves: two
+ *  edges meeting at a corner lie in one face, so the plane through that
+ *  corner and two of its neighbours is a face plane. A candidate whose
+ *  plane runs through the centre bounds nothing and is dropped; the rest
+ *  are supporting planes of a convex solid, and what stands furthest
+ *  along one is a face of it.
+ *
+ *  A table of face normals could say the same thing, but only when its
+ *  handedness matches the corner table's — two regular solids of the
+ *  same name are mirror images as often as not — and a mismatch is a
+ *  solid with no faces at all. */
+std::vector<glm::vec3> facePlanes(const std::vector<glm::vec3>& corners,
+                                  float radius) {
+  // Adjacent corners are the closest ones, and on a regular solid every
+  // edge is the same length.
+  float edge = std::numeric_limits<float>::max();
+  for (size_t i = 0; i < corners.size(); ++i)
+    for (size_t j = i + 1; j < corners.size(); ++j)
+      edge = std::min(edge, glm::length(corners[i] - corners[j]));
+  const float slack = radius * 1e-3f;
+
+  std::vector<glm::vec3> planes;
+  for (size_t i = 0; i < corners.size(); ++i) {
+    std::vector<size_t> neighbours;
+    for (size_t j = 0; j < corners.size(); ++j)
+      if (j != i &&
+          std::abs(glm::length(corners[i] - corners[j]) - edge) < slack)
+        neighbours.push_back(j);
+    for (size_t a = 0; a < neighbours.size(); ++a)
+      for (size_t b = a + 1; b < neighbours.size(); ++b) {
+        const glm::vec3 n = cross(corners[neighbours[a]] - corners[i],
+                                  corners[neighbours[b]] - corners[i]);
+        if (glm::length(n) < slack) continue;
+        glm::vec3 unit = normalized(n);
+        const float reach = dot(unit, corners[i]);
+        if (std::abs(reach) < slack) continue;  // a plane through the centre
+        if (reach < 0) unit = -unit;
+        bool known = false;
+        for (const glm::vec3& had : planes)
+          known = known || glm::length(had - unit) < 1e-3f;
+        if (!known) planes.push_back(unit);
+      }
+  }
+  return planes;
+}
+
+/** The corners standing furthest along @p normal, ordered around it so
+ *  the ring runs counter-clockwise seen from outside. */
+std::vector<uint32_t> faceRing(const std::vector<glm::vec3>& corners,
+                               glm::vec3 normal, float radius) {
+  float furthest = -std::numeric_limits<float>::max();
+  for (const glm::vec3& c : corners)
+    furthest = std::max(furthest, dot(c, normal));
+  // The gap between a face's own corners and the next ring in is a
+  // fraction of the radius on every one of the five, so the slack can be
+  // that coarse and still admit exactly one plane.
+  const float slack = radius * 1e-3f;
+  glm::vec3 x, y, z;
+  basisFor(normal, {0, 1, 0}, &x, &y, &z);
+  std::vector<std::pair<float, uint32_t>> ring;
+  for (uint32_t i = 0; i < (uint32_t)corners.size(); ++i) {
+    if (dot(corners[i], normal) < furthest - slack) continue;
+    ring.emplace_back(std::atan2(dot(corners[i], y), dot(corners[i], x)), i);
+  }
+  std::sort(ring.begin(), ring.end());
+  std::vector<uint32_t> out;
+  out.reserve(ring.size());
+  for (const auto& [angle, index] : ring) out.push_back(index);
+  return out;
+}
+
+}  // namespace
+
+Mesh platonic(Platonic solid, const PlatonicOptions& options) {
+  const float radius = options.circumradius;
+  if (solid == Platonic::Cube && !options.sharedVertices) {
+    const float half = radius / std::sqrt(3.0f);
+    Mesh cube = box({-half, -half, -half}, {half, half, half});
+    // Box emits its six faces as two triangles each, in face order, so
+    // the lane that names them is that pairing written down.
+    std::vector<glm::vec4>& ids = cube.prim("Id", {0, 0, 0, 0});
+    for (size_t t = 0; t < ids.size(); ++t) ids[t].x = (float)(t / 2);
+    return cube;
+  }
+
+  std::vector<glm::vec3> corners = platonicCorners(solid);
+  for (glm::vec3& c : corners) c = normalized(c) * radius;
+  // Two candidate planes can stand over the same face, so what is
+  // gathered decides: one face per set of corners, in the order the
+  // planes were found.
+  std::vector<std::pair<glm::vec3, std::vector<uint32_t>>> faces;
+  for (const glm::vec3& plane : facePlanes(corners, radius)) {
+    std::vector<uint32_t> ring = faceRing(corners, plane, radius);
+    if (ring.size() < 3) continue;
+    std::vector<uint32_t> sorted = ring;
+    std::sort(sorted.begin(), sorted.end());
+    bool known = false;
+    for (const auto& [had, hadRing] : faces) {
+      std::vector<uint32_t> other = hadRing;
+      std::sort(other.begin(), other.end());
+      known = known || other == sorted;
+    }
+    if (!known) faces.emplace_back(plane, std::move(ring));
+  }
+
+  Mesh out;
+  if (options.sharedVertices) {
+    out.positions = corners;
+    for (const glm::vec3& c : corners) out.normals.push_back(normalized(c));
+  }
+  std::vector<glm::vec4>& ids = out.prim("Id", {0, 0, 0, 0});
+  for (uint32_t face = 0; face < (uint32_t)faces.size(); ++face) {
+    const glm::vec3 normal = faces[face].first;
+    const std::vector<uint32_t>& ring = faces[face].second;
+    std::vector<uint32_t> fan;
+    if (options.sharedVertices) {
+      fan = ring;
+    } else {
+      // The face's own corners, in its own plane: u across, v up, both
+      // scaled to the ring's extent so the texture square lands on the
+      // face whatever its shape.
+      glm::vec3 x, y, z;
+      basisFor(normal, {0, 1, 0}, &x, &y, &z);
+      float lo = std::numeric_limits<float>::max(), hi = -lo;
+      for (uint32_t index : ring) {
+        lo = std::min({lo, dot(corners[index], x), dot(corners[index], y)});
+        hi = std::max({hi, dot(corners[index], x), dot(corners[index], y)});
+      }
+      const float span = std::max(hi - lo, 1e-6f);
+      for (uint32_t index : ring) {
+        fan.push_back((uint32_t)out.positions.size());
+        out.positions.push_back(corners[index]);
+        out.normals.push_back(normal);
+        out.uvs.emplace_back((dot(corners[index], x) - lo) / span,
+                             (dot(corners[index], y) - lo) / span);
+      }
+    }
+    for (size_t k = 1; k + 1 < fan.size(); ++k) {
+      uint32_t tri[3] = {fan[0], fan[k], fan[k + 1]};
+      orientTriangle(out.positions, tri, normal);
+      out.indices.insert(out.indices.end(), {tri[0], tri[1], tri[2]});
+      ids.emplace_back((float)face, 0, 0, 0);
+    }
   }
   return out;
 }

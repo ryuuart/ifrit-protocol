@@ -1,14 +1,17 @@
 /** @file
  * The solid shelf: a path lifted into a solid with its caps and walls, a
- * profile lathed, and the named surfaces closed and unit-normalled.
+ * profile lathed, the named surfaces closed and unit-normalled, and the
+ * five regular solids counted, closed and stood on a chosen face.
  */
 
 #include <gtest/gtest.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/mesh/Faces.h>
 
 #include <cmath>
 #include <glm/geometric.hpp>
+#include <vector>
 
 #include "support/Paths.h"
 
@@ -173,5 +176,102 @@ TEST(Solids, ABoxTakesColourOnlyWhenItIsAskedFor) {
     EXPECT_NEAR(shaded.colors[i].r, 1.0f * expected, 1e-5f);
     EXPECT_NEAR(shaded.colors[i].g, 0.5f * expected, 1e-5f);
     EXPECT_NEAR(shaded.colors[i].a, 1.0f, 1e-5f);  // alpha is not shaded
+  }
+}
+
+TEST(Solids, EveryRegularSolidCarriesItsOwnFacesAndClosesOnItself) {
+  struct Expected {
+    Platonic solid;
+    size_t faces, corners, sides;  ///< sides per face
+    const char* name;
+  };
+  const Expected kSolids[] = {
+      {Platonic::Tetrahedron, 4, 4, 3, "tetrahedron"},
+      {Platonic::Cube, 6, 8, 4, "cube"},
+      {Platonic::Octahedron, 8, 6, 3, "octahedron"},
+      {Platonic::Dodecahedron, 12, 20, 5, "dodecahedron"},
+      {Platonic::Icosahedron, 20, 12, 3, "icosahedron"}};
+
+  for (const Expected& want : kSolids) {
+    SCOPED_TRACE(want.name);
+    const Mesh cage =
+        platonic(want.solid, {.circumradius = 3.0f, .sharedVertices = true});
+    EXPECT_EQ(faceCount(cage), want.faces);
+    EXPECT_EQ(cage.vertexCount(), want.corners);
+    // A polygon face is fanned, so its triangles are two fewer than its
+    // sides — the count that separates twelve pentagons from thirty-six
+    // loose triangles.
+    EXPECT_EQ(cage.triangleCount(), want.faces * (want.sides - 2));
+
+    // Euler: V - E + F = 2 for any solid that closes on itself. An edge
+    // is where two faces meet, so the seam a fan leaves across a pentagon
+    // is not one and does not count.
+    const std::vector<Edge> rim = edges(cage);
+    EXPECT_EQ(cage.vertexCount() - rim.size() + want.faces, 2u);
+    for (const Edge& e : rim) EXPECT_NE(e.opposite, kNoFace);
+
+    // Regular means regular: every corner on one sphere, every face at
+    // one distance, every edge one length.
+    for (const glm::vec3& p : cage.positions)
+      EXPECT_NEAR(glm::length(p), 3.0f, 1e-4f);
+    const float inradius = glm::length(faceCentroid(cage, 0));
+    const float edgeLength =
+        glm::length(cage.positions[rim[0].from] - cage.positions[rim[0].to]);
+    for (const Edge& e : rim)
+      EXPECT_NEAR(glm::length(cage.positions[e.from] - cage.positions[e.to]),
+                  edgeLength, 1e-3f);
+
+    for (size_t f = 0; f < want.faces; ++f) {
+      EXPECT_NEAR(glm::length(faceCentroid(cage, f)), inradius, 1e-3f);
+      // Wound outward: the face looks the way it stands from the centre.
+      EXPECT_GT(glm::dot(faceNormal(cage, f), faceCentroid(cage, f)), 0.0f);
+    }
+
+    // The hard-cornered form is the same solid with every face's corners
+    // its own, so it carries a UV square per face and no shared normal.
+    const Mesh hard = platonic(want.solid, {.circumradius = 3.0f});
+    EXPECT_EQ(faceCount(hard), want.faces);
+    EXPECT_EQ(hard.vertexCount(), want.faces * want.sides);
+    EXPECT_EQ(hard.uvs.size(), hard.positions.size());
+    EXPECT_TRUE(normalsAreUnit(hard));
+    // Same solid, so the two forms look the same ways — the order the
+    // faces are emitted in is each form's own.
+    for (size_t f = 0; f < want.faces; ++f) {
+      bool matched = false;
+      for (size_t g = 0; g < want.faces; ++g)
+        matched = matched || glm::length(faceNormal(hard, f) -
+                                         faceNormal(cage, g)) < 1e-3f;
+      EXPECT_TRUE(matched);
+    }
+  }
+}
+
+TEST(Solids, TheHardCorneredCubeIsTheBoxItself) {
+  // Nothing re-derives what box() already is: the cube's corners stand at
+  // the circumradius, which is the box's half-diagonal.
+  const Mesh cube = platonic(Platonic::Cube, {.circumradius = std::sqrt(3.0f)});
+  const Mesh same = box({-1, -1, -1}, {1, 1, 1});
+  EXPECT_EQ(cube.positions, same.positions);
+  EXPECT_EQ(cube.normals, same.normals);
+  EXPECT_EQ(cube.uvs, same.uvs);
+  EXPECT_EQ(cube.indices, same.indices);
+}
+
+TEST(Solids, ChosenFaceUpTurnsThatFaceOntoTheAxisAndTheOneAcrossAway) {
+  const Mesh die = platonic(Platonic::Icosahedron,
+                            {.circumradius = 1.0f, .sharedVertices = true});
+  for (size_t face = 0; face < faceCount(die); ++face) {
+    SCOPED_TRACE(face);
+    Mesh settled = die;
+    settled.transform(faceUp(die, face));
+    const glm::vec3 up = faceNormal(settled, face);
+    EXPECT_NEAR(up.y, 1.0f, 1e-4f);
+
+    // An icosahedron's faces pair off, and the pair is what a die's
+    // numbering stands on: the face across from the one standing up is
+    // the one standing down.
+    const std::optional<size_t> across = opposedFace(die, face);
+    ASSERT_TRUE(across.has_value());
+    EXPECT_NEAR(faceNormal(settled, *across).y, -1.0f, 1e-4f);
   }
 }

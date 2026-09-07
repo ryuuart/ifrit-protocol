@@ -765,6 +765,16 @@ the currency every feature under it speaks.
   share: `normalized()` with a fallback for a degenerate vector, and
   `basisFor()`, the orientation basis every stamp is placed with, so a
   cloud renders identically merged, instanced or GPU-drawn.
+- **`mesh/Faces.h`** — a mesh read by its FACES rather than by its
+  triangles, over the `"Id"` primitive lane: `faceCount()`,
+  `faceNormal()`, `faceCentroid()`, `opposedFace()` (the face across from
+  one, measured from the centroids) and `faceUp()`, the rotation that
+  lands a chosen face's outward normal on a chosen axis. A mesh with no
+  such lane has one face per triangle, so every reader works on any mesh,
+  and a generator that fans a pentagon into three triangles is read as
+  the one face it is. **A pose is how anything rides a curve, and
+  `faceUp()` is the other kind**: it places a SOLID rather than following
+  a spine, which is why it stands here and not beside `curve::poseAlong()`.
 
 **`mesh/camera`** — `SigilGeometryMeshCamera`, needs `mesh`. Where a
 viewpoint and the transforms that answer to it live; a camera grows its
@@ -1265,7 +1275,17 @@ beneath, in `sigil::geometry::shapes`.
   `sideShade` darkens the four side faces against the top and bottom,
   which is what makes a field of boxes read as blocks rather than as one
   surface; at its default of 1 it shades nothing and the mesh carries no
-  colour at all.
+  colour at all. `platonic()` is the other one that is not a sheet: the
+  five regular solids from one generator, since a solid is a corner table
+  and a rule for finding the faces over it — the plane through a corner
+  and two of its neighbours is a face plane, and what stands furthest
+  along one is the face. Every triangle carries its face's index in the
+  `"Id"` lane, so a dodecahedron reads as twelve pentagons through
+  `mesh::faceCount()` and its neighbours; `sharedVertices` picks between
+  the hard-cornered solid, which is what a die or a machined part wants,
+  and the welded corner cage, where two faces that meet name the same two
+  corners and an edge is a pair of indices. The cube's hard-cornered form
+  IS `box()`, so that is what it answers.
 
 Every value here has `path(SkSize)`, `operator==` and `operator()`, and
 that is the whole contract: a consumer that caches drawings prunes on the
@@ -1699,8 +1719,8 @@ suite's file sits in the feature it covers.
 | Files | Proves |
 | --- | --- |
 | `path/test/` — `ContoursTest`, `PolylinesTest`, `MarksTest`, `SegmentsTest`, `NodesTest`, `NeighboursTest`, `ScatterTest`, `TriangulateTest`, `FieldsTest`, `OpsTest`, `SeamsTest`, `CrossingsTest`, `FramesTest`, `BlendTest` | the 2D leaf and the shape interpolation over it: where a distance along a contour lands (held against an independent walk of the same contours), what a polyline flattens and resamples to, where marks land inside a shape, an outline read verb for verb and rewritten to start elsewhere or run the other way, the node arithmetic (nodes put where a curve turns, nodes taken away where they say nothing, a run of points fitted as few cubics, the exact in-between of a pair that pairs), the uniform grid judged against the brute-force answer, what each rate and each spread of a scatter guarantees, a triangulation on sets whose answer is known by hand with the dual cells and the outline at a tightness beside it, the three things a field is walked, repeated or stepped by, what each path operator names of two outlines, the two comparable seams a mark is deviated and widened through, who goes over at a crossing, the two coordinate systems a figure is measured in, and how many steps a blend makes |
-| `mesh/test/` — `MeshTest`, `CameraTest` | the mesh currency and the camera that places it: the sheet's coherent lanes, transform and append with every lane kept sized to its elements, the primitive bake, and the view-projection and billboard transforms carried through to viewport pixels |
-| `kit/test/` — `SilhouettesTest`, `ShapersTest`, `HatchesTest`, `DivisionsTest`, `SolidsTest` | the shelves: every silhouette inscribed in its box and equal values drawing equal paths (the contract a caching consumer prunes on), every shaper answering the deviation seam and moving the mark, the hatch door taking an outline and giving one back with the lattice and the offset behind it, a tick ladder and a chord fan as one multi-contour path at their frame's convention, and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled |
+| `mesh/test/` — `MeshTest`, `FacesTest`, `CameraTest` | the mesh currency, its faces and the camera that places it: the sheet's coherent lanes, transform and append with every lane kept sized to its elements, the primitive bake, a fanned polygon read as one face with one plane and one centroid, the face-up rotation landing the face it names on the axis it is given, and the view-projection and billboard transforms carried through to viewport pixels |
+| `kit/test/` — `SilhouettesTest`, `ShapersTest`, `HatchesTest`, `DivisionsTest`, `SolidsTest` | the shelves: every silhouette inscribed in its box and equal values drawing equal paths (the contract a caching consumer prunes on), every shaper answering the deviation seam and moving the mark, the hatch door taking an outline and giving one back with the lattice and the offset behind it, a tick ladder and a chord fan as one multi-contour path at their frame's convention, and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled, and each regular solid counted by its own faces, closed on itself (V - E + F = 2), equal-edged and stood on a chosen face |
 | `mesh/curve/test/CurveTest` | splines, the two rails, the pose read along them, and the projection to a 2D path |
 | `mesh/render/test/` — `PainterTest`, `RuntimeTest`, `ShadingTest` | the mesh draw's pixels and the normals G-buffer's encoding; the draw's runtime seam; and each shading term against the closed form a device shader's own spelling of it is held to |
 | `mesh/pop/test/` — `PointsTest`, `PopChainsTest`, `PopFiltersTest`, `PopLanesTest`, `PopNeighboursTest`, `PopSelectionTest`, `PopSinksTest`, `PopFieldsTest`, `RuntimeTest`, `SweepTest`, `SweptShapesTest` | point clouds and the chains over them: the generators' conventional lanes, the modifiers that move points exactly as the operators of the same name do, the lanes a chain carries and the dials that address them by name, the operators that read points they do not own — a relaxation pushing a scatter apart and stopping, a clustering grouping it in the metric its weights name, a transfer carrying a lane over from another cloud, and the connection sink answering the pairs near enough to join — each declined by name on a device runtime, naming a subset and acting on it, the sinks a chain reaches by its own verb, the cook's and the sweep's runtime seams, and what a profile carried along a rail forms. Links the codec to seed chains from an imported model |
