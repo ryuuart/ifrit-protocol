@@ -29,8 +29,8 @@ stacks two materials where a mask says.
 Above those sit the PRIMITIVES — fully parameterised generators, one
 feature each: **sdf** (shape,
 border, glow and shadow in one pass over a signed distance), **pattern**
-(a tile baked once with a mapping and an explicit reseed, and the stock
-tiles over it), and **field** (the halftone ramp, Perlin noise, luminance
+(a tile baked once with a mapping and an explicit reseed, the stock
+tiles over it, and the woven cloth a sett and a weave make), and **field** (the halftone ramp, Perlin noise, luminance
 grain, the ripple, the CRT overlay). Under the core sits **colour**, the
 leaf: the colour value a params struct holds, the OKLab, OKLCH and
 CIELAB round trips, the ramp as one value, the harmonies read around a
@@ -68,7 +68,7 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as baked materials, over the 3D-LUT `lutRecipe()` and the per-channel `responseRecipe()` | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
-| `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
+| `SigilMaterialPattern` | `pattern::Tile` and the stock tiles; `pattern::Cloth`, the woven cloth, with `threadcount`, `pivots`, `Weave` and `warpUp` under it | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::verticalRamp` and `skia::unitRamp`, the two crossings a list of `RampStop`s reaches Skia through, with `skia::paletteImage` and `skia::paletteLookup` the palette's two beside them; `skia::palette`, the picture read down to the table it is made of; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
@@ -725,6 +725,35 @@ each takes its colours as `Color`, which an `SkColor4f` converts to.
 `Axis::V` down) rather than leaving it to `rotate(90)`: rotating remaps
 the sampling of a tile whose repeat is one period by an arbitrary eight
 pixels, which reads right only while the other direction is constant.
+
+**A woven cloth is two threadcounts and one interlacing.** `ThreadRun`
+is a run of consecutive threads of one shade — "18 black" is one — and
+`threadcount(runs, symmetry)` expands a sett into one shade index per
+thread. The shades are INDICES into the cloth's own palette, because a
+threadcount is the cloth's identity and the shade card is a variable:
+the same count woven in two dyers' blues is the same cloth. `Symmetry`
+is how the runs spell the repeat — `Asymmetric` takes them whole,
+`Reflective` takes them as the half sett and follows it with its mirror,
+which is what a register printing a pivot at half its width means — and
+`pivots(threads)` reads the reflection boundaries back off a count, two
+of them exactly half a repeat apart for a reflective sett and none for
+an asymmetric one.
+
+`Weave` is the interlacing: how many ends the warp floats over, how many
+it passes under, and how far the pattern steps per pick. `Weave::plain()`
+is the checkerboard; `Weave::twill(2, 2)` is the tartan twill, whose
+step is what draws the rib on a diagonal, and the step's sign chooses
+which diagonal. `warpUp(weave, end, pick)` is the whole rule, and
+`Cloth::at(end, pick)` reads a crossing through it: the warp's shade
+where the warp is up, the weft's where it is not, darkened by the cloth's
+`rib` on the weft floats so the interlacement stays legible inside a
+block of one colour. `clothRepeat` is the repeat in threads — a sett
+whose length is not a multiple of the weave's period tiles wider than
+the sett — `clothImage(cloth, origin, size)` bakes a window one pixel
+per thread, and `clothTile(cloth, threadPx)` is the whole repeat as a
+nearest-sampled `Tile`. A tartan is that generator at a reflective sett
+under a 2/2 twill; gingham is a two-colour sett under a plain weave;
+houndstooth is a four-and-four sett under the tartan's own twill.
 
 A Tile is not a fill: what fills is the material over it, and a
 consumer that takes one as a fill is expected to refuse it by name

@@ -64,7 +64,7 @@ sigil_test(material_test
   SOURCES color/test/ColorTest.cpp color/test/ExtractTest.cpp
           color/test/RampTest.cpp field/test/FieldTest.cpp
           ocio/test/OcioTest.cpp pattern/test/PatternTest.cpp
-          sdf/test/SdfTest.cpp
+          pattern/test/WeaveTest.cpp sdf/test/SdfTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SDF_SHADER_DIR="${SIGIL_MATERIAL_SDF_SHADER_DIR}"
               SIGIL_MATERIAL_FIELD_SHADER_DIR="${SIGIL_MATERIAL_FIELD_SHADER_DIR}"
