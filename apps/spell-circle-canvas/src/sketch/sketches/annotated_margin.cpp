@@ -163,7 +163,7 @@ struct AnnotatedMargin final : sketch::Sketch {
                        .width(Dim(m::kMeasure))
                        .fx({.effect = fx::rise(14),
                             .stagger = m::kRoll,
-                            .over = weave::Unit::Word,
+                            .unit = weave::Unit::Word,
                             .progress = animate(
                                 motion::from(0.0f).to(1.0f),
                                 {std::chrono::milliseconds((int)m::kRollSpan),

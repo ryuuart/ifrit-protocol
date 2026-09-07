@@ -234,7 +234,7 @@ struct EmberDecode : sketch::Sketch {
                    .key("burn-display")
                    .fx({.effect = fx::pass(burn),
                         .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
-                        .over = weave::Unit::Cluster,
+                        .unit = weave::Unit::Cluster,
                         .progress = &display}));
     root.child(
         text(toU8("uUnitRect[N] \xc2\xb7 uUnitPhase[N] \xe2\x80\x94 a LETTER "
@@ -246,7 +246,7 @@ struct EmberDecode : sketch::Sketch {
                    .key("burn-words")
                    .fx({.effect = fx::pass(burn),
                         .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
-                        .over = weave::Unit::Word,
+                        .unit = weave::Unit::Word,
                         .progress = &words}));
     root.child(text(toU8("the same pass, the same source at another count "
                          "\xe2\x80\x94 a WORD is a unit here, and the "

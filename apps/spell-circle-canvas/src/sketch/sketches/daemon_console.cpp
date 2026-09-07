@@ -545,7 +545,7 @@ struct DaemonConsole final : sketch::Sketch {
       leaf.fx({.where = sel::style("cipher"),
                .effect = fx::hold(fx::scramble(U"0123456789abcdef", 10)),
                .stagger = {.eachMs = 30, .durationMs = 340},
-               .over = weave::Unit::Cluster,
+               .unit = weave::Unit::Cluster,
                .progress = animate(motion::from(0.0f).to(1.0f),
                                    {750ms, &choreograph::easeNone})});
 

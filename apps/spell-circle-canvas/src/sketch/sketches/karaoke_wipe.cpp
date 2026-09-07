@@ -159,8 +159,8 @@ constexpr float kBallHold = 0.62f;
 
 /** THE CASCADE: the sung times per word, the letters swept inside each.
  *
- *  What a unit IS lives on the TRACK — `over = weave::Unit::Word`,
- *  `innerOver = weave::Unit::Cluster` — because a spread is SigilMotion's
+ *  What a unit IS lives on the TRACK — `unit = weave::Unit::Word`,
+ *  `innerUnit = weave::Unit::Cluster` — because a spread is SigilMotion's
  *  and says nothing about text. All this value carries is the table and
  *  the inner step. */
 sigil::motion::Spread wipeCascade() {
@@ -231,8 +231,8 @@ struct KaraokeWipe : sketch::Sketch {
         .key("line1")
         .fx({.effect = fx::tint(kPale, kSung),
              .stagger = wipeCascade(),
-             .over = weave::Unit::Word,
-             .innerOver = weave::Unit::Cluster,
+             .unit = weave::Unit::Word,
+             .innerUnit = weave::Unit::Cluster,
              .progress = motion::bind(&cycle).window(
                  (float)kLeadIn, (float)(kLeadIn + kLineSeconds))});
   }

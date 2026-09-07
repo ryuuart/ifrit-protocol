@@ -293,7 +293,7 @@ struct Bousen final : sketch::Sketch {
                                bs::kAka, 2.0f))
                 .fx({.effect = fx::rise(18),
                      .stagger = bs::kColumnEntrance,
-                     .over = weave::Unit::Line,
+                     .unit = weave::Unit::Line,
                      .progress = animate(motion::from(0.0f).to(1.0f),
                                          {std::chrono::milliseconds(
                                               (int)bs::kColumnEntranceSpan),

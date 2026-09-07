@@ -326,7 +326,7 @@ struct ShippingForecast : sketch::Sketch {
                .stagger = {.amountMs = 320,
                            .durationMs = 560,
                            .from = motion::Spread::From::Start},
-               .over = weave::Unit::Glyph,
+               .unit = weave::Unit::Glyph,
                .progress = beat(0.55f + delay, 2.55f + delay)};
 
     // The swell. GRAD is the advance-invariant weight axis — it thickens a
@@ -583,19 +583,19 @@ struct ShippingForecast : sketch::Sketch {
     Track initials{.where = everyInitial,
                    .effect = fx::rise(16.0f),
                    .stagger = wordClock(460.0f),
-                   .over = weave::Unit::Word,
+                   .unit = weave::Unit::Word,
                    .beatsOver = beats::Text,
                    .progress = beat(1.75f, 4.10f)};
     Track grade{.where = everyInitial & !glossary,
                 .effect = fx::variableAxisSweep("GRAD", 400.0f, 900.0f),
                 .stagger = wordClock(460.0f),
-                .over = weave::Unit::Word,
+                .unit = weave::Unit::Word,
                 .beatsOver = beats::Text,
                 .progress = beat(1.75f, 4.10f)};
     Track bodies{.where = weave::sel::each(weave::Unit::Word).drop(1),
                  .effect = fx::rise(9.0f),
                  .stagger = wordClock(500.0f),
-                 .over = weave::Unit::Word,
+                 .unit = weave::Unit::Word,
                  .beatsOver = beats::Text,
                  .progress = beat(1.83f, 4.30f)};
 
@@ -706,7 +706,7 @@ struct ShippingForecast : sketch::Sketch {
                               sigil::weave::PaintStyle(kAmber.toSkColor()))
                    .fx({.effect = fx::slide(-22.0f),
                         .stagger = {.eachMs = 150, .durationMs = 620},
-                        .over = weave::Unit::Line,
+                        .unit = weave::Unit::Line,
                         .progress = beat(2.70f, 4.60f)}));
   }
 
