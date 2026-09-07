@@ -1898,6 +1898,17 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                                      : nullptr;
           inst.bakedScalars = scalarsNow;
           inst.paintDirty = false;
+          // AND THE RECORDING GOES. A bake is taken from the description as
+          // it stands, and the node stops recording from the frame it is
+          // taken — so a recording made before it holds the content of some
+          // earlier frame with nothing left to say so: the scalars that
+          // separated them are this bake's now, and a settled node is not
+          // dirty. The bake is refused again the moment the matrix under it
+          // moves (a plate photographed at another scale, a host resized),
+          // and a recording kept here is what would replay then. Re-recording
+          // costs one paint; replaying that one is a picture of another
+          // frame.
+          inst.picture.reset();
           stats.picturesRecorded++;
           if (!coverageTrace) stats.texturesBaked++;
         }

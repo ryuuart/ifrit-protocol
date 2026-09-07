@@ -284,3 +284,109 @@ TEST(ComposeCache, ARefusalNamesTheReasonItRefused) {
   EXPECT_EQ(row->promotion, Composer::Promotion::Composited);
   EXPECT_STRNE(Composer::promotionReason(row->promotion), "");
 }
+
+// ---------------------------------------------------------------------------
+// A bake replaces the recording it was taken from.
+
+#include <include/utils/SkNoDrawCanvas.h>
+#include <sigilgeometry/kit/Generators.h>
+
+namespace {
+
+/** A REVEALED ARC TABLE UNDER A CLIPPING PLATE, which is the shape a
+ *  measured poster is: rings whose sweeps are declared once and revealed by
+ *  a mount transition each, over durations that double outward, inside a
+ *  plate that clips. The clip is what keeps the plate itself off the
+ *  promoter, so each arc is judged on its own — and the durations are what
+ *  make an arc settle while its neighbours are still moving. */
+Element arcTable() {
+  Element page = stack().fill(Fill::color({0.235f, 0.230f, 0.222f, 1}));
+  Element plate = stack().fill(Fill::color({0.96f, 0.95f, 0.93f, 1})).clip();
+  struct Run {
+    float rInner, rOuter, endDeg;
+    int ring;
+  };
+  const Run runs[] = {{0.3940f, 0.4473f, 78.75f, 2},
+                      {0.7820f, 1.2070f, 101.25f, 5}};
+  const float W = 424, H = 600;
+  const SkPoint C{0.2693f * W, 0.7156f * H};
+  for (const Run& r : runs) {
+    const float rMid = (r.rInner + r.rOuter) * 0.5f * W;
+    const float width = (r.rOuter - r.rInner) * W;
+    PathFormat ink;
+    ink.width = width;
+    ink.strokeFill = Fill::color({0.066f, 0.062f, 0.058f, 1});
+    Element arc = box()
+                      .width(2 * rMid)
+                      .height(2 * rMid)
+                      .inset(C.x() - rMid, C.y() - rMid, W - C.x() - rMid,
+                             H - C.y() - rMid)
+                      .shape(sigil::geometry::shapes::arc(-r.endDeg))
+                      .stroke(ink);
+    arc.mask(by::spans(spans::upTo(
+        animate(motion::from(0.0001f).to(r.endDeg / 360.0f),
+                {std::chrono::milliseconds(120u << (unsigned)r.ring),
+                 &choreograph::easeNone, std::chrono::milliseconds(150)}))));
+    plate.child(std::move(arc).key("ring" + std::to_string(r.ring)));
+  }
+  page.child(std::move(plate).inset(238, 20, 238, 20).key("plate"));
+  return page;
+}
+
+/** The still a plate is photographed as, with a clock running: the scene
+ *  warmed at its own scale for long enough that every entrance has landed,
+ *  then drawn ONCE at twice that onto a surface of its own. */
+std::vector<SkColor> warmedStill(bool promotion) {
+  Host host(900, 640);
+  host.composer.setAutoTexturePromotion(promotion
+                                            ? Composer::PromotionPolicy::Eager
+                                            : Composer::PromotionPolicy::Off);
+  host.composer.render(arcTable());
+  SkNoDrawCanvas discarded(900, 640);
+  for (int i = 0; i < 360; ++i) {
+    host.ticker.tick(1.0 / 60.0);
+    host.composer.draw(discarded);
+  }
+  sk_sp<SkSurface> still =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1800, 1280));
+  still->getCanvas()->clear(SK_ColorBLACK);
+  still->getCanvas()->scale(2, 2);
+  host.composer.draw(*still->getCanvas());
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(1800, 1280));
+  still->readPixels(bm.pixmap(), 0, 0);
+  std::vector<SkColor> out;
+  out.reserve(1800u * 1280u);
+  for (int y = 0; y < 1280; ++y)
+    for (int x = 0; x < 1800; ++x) out.push_back(bm.getColor(x, y));
+  return out;
+}
+
+}  // namespace
+
+TEST(ComposeCache, APromotedNodeDropsTheRecordingItsBakeReplaced) {
+  // A node stops recording the frame its bake is taken, so a recording made
+  // before it holds an earlier frame's content with nothing left to say so:
+  // the scalars that separated the two are the bake's now, and a settled
+  // node is not dirty. The bake is then refused the moment the matrix under
+  // it moves — which is exactly what photographing a plate does — and the
+  // recording is what replays. A reveal that settled one frame before its
+  // node was promoted comes back a frame short, on a hard edge: tens of
+  // code values, not one.
+  const std::vector<SkColor> live = warmedStill(false);
+  const std::vector<SkColor> baked = warmedStill(true);
+  ASSERT_EQ(live.size(), baked.size());
+  size_t differing = 0;
+  int worst = 0;
+  for (size_t i = 0; i < live.size(); ++i) {
+    if (live[i] == baked[i]) continue;
+    ++differing;
+    for (int shift : {0, 8, 16, 24})
+      worst = std::max(worst, std::abs((int)((live[i] >> shift) & 0xffu) -
+                                       (int)((baked[i] >> shift) & 0xffu)));
+  }
+  EXPECT_LE(worst, 1)
+      << differing << " pixels moved, worst " << worst
+      << " code values, when a promoted reveal was photographed at another "
+         "scale";
+}

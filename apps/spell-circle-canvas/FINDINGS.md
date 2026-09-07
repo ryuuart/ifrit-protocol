@@ -121,6 +121,21 @@ narrowed head: `flourish` 244 → 8, `eva_magi_defense` 174 → 1 (within),
 `eva_magi_interior`, `lain_navi`, `minard_1869` and `spacejam_1996` did
 not move and are a different cause.
 
+A THIRD CAUSE IS FIXED: a node stops recording the frame its device bake
+is taken, and the recording it already held was neither dropped nor
+staled — the content scalars that separated the two became the bake's
+own, and a settled node is not dirty. The bake is refused again the
+moment the matrix under it moves, which is exactly what photographing a
+plate at its view scale does, and the stale recording is what replayed.
+On `beethoven` that showed as three of nine arcs coming back a frame
+short of their reveal: the three whose transitions settled while their
+neighbours were still running, so each was promoted on the frame it
+landed and its recording was one frame behind. A promotion bake now drops
+the recording it replaced. Pinned by
+`ComposeCache.APromotedNodeDropsTheRecordingItsBakeReplaced`, which
+fails by 228 code values without it. On the narrowed head: `beethoven`
+228 → 1 (within).
+
 WHAT REMAINS, max channel first:
 
     flourish 244 · volatility_cost 228 · beethoven 228 · nine slice 221 ·
