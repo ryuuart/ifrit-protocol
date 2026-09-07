@@ -90,6 +90,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/pattern/Weave.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
@@ -185,22 +186,22 @@ inline Shades shadesOf(const Palette& p) {
 // both and you get a 504-thread cloth that looks perfectly fine and is twice
 // the right size, which is exactly what invariant #1 is for.
 
-struct Run {
-  Col c;
-  int n;
-};
+// A run is `threads of shade`, and the shade is an index into whichever of
+// the five cards above is mounted: the library's own unit, because a
+// threadcount is the cloth's identity and the colour is a variable.
+using Run = patterns::ThreadRun;
 
 // A   18 black  6 blue  2 black  6 blue  2 black 18 blue
 //      2 black  6 blue  2 black  6 blue 18 black                    (86)
 // NOLINTBEGIN(bugprone-throwing-static-initialization): literal tables; only
 // allocation could throw
-const std::vector<Run> kSettA{{K, 18}, {B, 6}, {K, 2}, {B, 6}, {K, 2}, {B, 18},
-                              {K, 2},  {B, 6}, {K, 2}, {B, 6}, {K, 18}};
+const std::vector<Run> kSettA{{18, K}, {6, B}, {2, K}, {6, B}, {2, K}, {18, B},
+                              {2, K},  {6, B}, {2, K}, {6, B}, {18, K}};
 // B   18 green  6 black 18 green                                    (42)
-const std::vector<Run> kSettB{{G, 18}, {K, 6}, {G, 18}};
+const std::vector<Run> kSettB{{18, G}, {6, K}, {18, G}};
 // C   18 black 18 blue  2 black  6 blue  2 black 18 blue 18 black   (82)
-const std::vector<Run> kSettC{{K, 18}, {B, 18}, {K, 2}, {B, 6},
-                              {K, 2},  {B, 18}, {K, 18}};
+const std::vector<Run> kSettC{{18, K}, {18, B}, {2, K}, {6, B},
+                              {2, K},  {18, B}, {18, K}};
 //                                                     Repeat B.  252 ends.
 constexpr int kPublishedEnds = 252;  // the total Douglas himself prints
 
@@ -209,35 +210,24 @@ constexpr int kPublishedEnds = 252;  // the total Douglas himself prints
 // a YELLOW and a WHITE overcheck instead. That is the documented Wilsons-of-
 // Bannockburn mechanism for producing "clan" tartans, caught in the act in a
 // 1949 weaving manual.
-const std::vector<Run> kArgA{{K, 30}, {B, 6}, {K, 6}, {B, 6}, {K, 6}, {B, 30},
-                             {K, 6},  {B, 6}, {K, 6}, {B, 6}, {K, 30}};
-const std::vector<Run> kArgB{{G, 32}, {Y, 6}, {G, 32}};
-const std::vector<Run> kArgC{{K, 30}, {B, 30}, {K, 6}, {B, 6},
-                             {K, 6},  {B, 30}, {K, 30}};
-const std::vector<Run> kArgD{{G, 32}, {W, 6}, {G, 32}};
+const std::vector<Run> kArgA{{30, K}, {6, B}, {6, K}, {6, B}, {6, K}, {30, B},
+                             {6, K},  {6, B}, {6, K}, {6, B}, {30, K}};
+const std::vector<Run> kArgB{{32, G}, {6, Y}, {32, G}};
+const std::vector<Run> kArgC{{30, K}, {30, B}, {6, K}, {6, B},
+                             {6, K},  {30, B}, {30, K}};
+const std::vector<Run> kArgD{{32, G}, {6, W}, {32, G}};
 // NOLINTEND(bugprone-throwing-static-initialization)
 constexpr int kPublishedArgyll = 416;
 
 inline int sumRuns(const std::vector<Run>& r) {
   int t = 0;
-  for (const Run& x : r) t += x.n;
+  for (const Run& x : r) t += x.threads;
   return t;
 }
 inline std::vector<Run> concatRuns(const std::vector<std::vector<Run>>& units) {
   std::vector<Run> out;
   for (const auto& u : units) out.insert(out.end(), u.begin(), u.end());
   return out;
-}
-/** Runs -> one thread per entry. The ONE expansion in the file: bands are
- *  half-open [cursor, cursor + n) and the next starts at cursor + n. Every
- *  inclusive-range variant of this loop still sums to 252, still comes out
- *  palindromic, and still looks exactly like Black Watch — only invariant #6
- *  sees it. */
-inline std::vector<uint8_t> expand(const std::vector<Run>& runs) {
-  std::vector<uint8_t> s;
-  for (const Run& r : runs)
-    for (int i = 0; i < r.n; ++i) s.push_back((uint8_t)r.c);
-  return s;
 }
 
 // ---------------------------------------------------------------------------
@@ -248,18 +238,26 @@ inline std::vector<uint8_t> expand(const std::vector<Run>& runs) {
 //   tieup[t]     = { t, (t+1) mod 4 }      each treadle lifts two shafts
 //
 // Warp end j is lifted on pick i iff threading[j] is in tieup[treadling[i]],
-// which reduces to one expression. With y increasing downward this puts the
-// rib on the "\" diagonal, which is what the register's swatch shows.
+// which is two over, two under, stepping one end per pick — the 2/2 twill,
+// and with y increasing downward it puts the rib on the "\" diagonal, which
+// is what the register's swatch shows.
+constexpr patterns::Weave kTwill = patterns::Weave::twill(2, 2);
 
-inline bool warpUp(int x, int y) { return ((x - y) % 4 + 4) % 4 < 2; }
+/** Whether the warp is up, at this loom's own interlacing. */
+inline bool warpUp(int x, int y) { return patterns::warpUp(kTwill, x, y); }
 
-/** The entire artefact. `S` is one array; there is no second sequence — the
- *  register says the weft sequence IS the warp sequence, and Douglas's
- *  as-drawn-in treadling says the same thing about the picks. */
-inline uint8_t clothAt(const std::vector<uint8_t>& S, int x, int y) {
-  const int n = (int)S.size();
-  const int xi = ((x % n) + n) % n, yi = ((y % n) + n) % n;
-  return warpUp(x, y) ? S[(size_t)xi] : S[(size_t)yi];
+/** The whole artefact as the library reads it: one threadcount used for
+ *  BOTH directions — the register says the weft sequence IS the warp
+ *  sequence, and Douglas's as-drawn-in treadling says the same about the
+ *  picks — over the shade card `sh`, with `rib` darkening the picks where
+ *  the weft is on top. */
+inline patterns::Cloth cloth(const std::vector<uint8_t>& S, const Shades& sh,
+                             float rib = 0.0f) {
+  return {.warp = S,
+          .weft = S,
+          .shades = {sh.begin(), sh.end()},
+          .weave = kTwill,
+          .rib = rib};
 }
 
 // ---------------------------------------------------------------------------
@@ -292,19 +290,6 @@ struct Verdict {
   bool argyllLaw = false;
   float unitDrift = 0;  // max |BW unit fraction - CA unit fraction|
 };
-
-/** All boundaries b with S[(b+k) mod N] == S[(b-1-k) mod N] for every k. */
-inline std::vector<int> findMirrors(const std::vector<uint8_t>& S) {
-  const int n = (int)S.size();
-  std::vector<int> out;
-  for (int b = 0; b < n; ++b) {
-    bool ok = true;
-    for (int k = 0; k < n / 2 && ok; ++k)
-      ok = S[(size_t)((b + k) % n)] == S[(size_t)((((b - 1 - k) % n) + n) % n)];
-    if (ok) out.push_back(b);
-  }
-  return out;
-}
 
 /** Solid and blend colour counts over the whole sett square. The 2/2 twill is
  *  balanced, so over any 4x4 block the crossing of warp a with weft b shows
@@ -340,7 +325,7 @@ Verdict verify(const std::vector<Run>& bwRuns, const std::vector<uint8_t>& S,
              v.total == kPublishedEnds;
 
   // #2 -- reflective: exactly two mirror boundaries, exactly half apart.
-  v.mirrors = findMirrors(S);
+  v.mirrors = patterns::pivots(S);
   if (v.mirrors.size() == 2) {
     v.mirrorGap = v.mirrors[1] - v.mirrors[0];
     v.reflective = v.mirrorGap == v.total / 2;
@@ -387,12 +372,13 @@ Verdict verify(const std::vector<Run>& bwRuns, const std::vector<uint8_t>& S,
   float cur = 0;
   for (const Run& r : bwRuns) {
     start.push_back(cur);
-    cur += (float)r.n;
+    cur += (float)r.threads;
   }
   for (size_t i = 0; i < bwRuns.size(); ++i)
     for (size_t j = 0; j < bwRuns.size(); ++j)
-      cells.push_back(SkPath::Rect(SkRect::MakeXYWH(
-          start[i], start[j], (float)bwRuns[i].n, (float)bwRuns[j].n)));
+      cells.push_back(SkPath::Rect(SkRect::MakeXYWH(start[i], start[j],
+                                                    (float)bwRuns[i].threads,
+                                                    (float)bwRuns[j].threads)));
   const test::Coverage cov =
       test::coverage(cells, SkRect::MakeWH((float)n, (float)n), 256);
   v.samples = cov.samples;
@@ -405,7 +391,7 @@ Verdict verify(const std::vector<Run>& bwRuns, const std::vector<uint8_t>& S,
   // reflective in proportion and asymmetric in colour. The register would
   // record it with the "..." repeating notation rather than a "/" pivot.
   v.argyllTotal = (int)A.size();
-  v.argyllMirrors = (int)findMirrors(A).size();
+  v.argyllMirrors = (int)patterns::pivots(A).size();
   int ab = 0;
   perceivedColours(A, v.argyllSolids, ab);
   v.argyllPerceived = v.argyllSolids + ab;
@@ -432,51 +418,26 @@ Verdict verify(const std::vector<Run>& bwRuns, const std::vector<uint8_t>& S,
 // integer, because 2 px threads on a 4 px interlacement period minified by any
 // non-integer factor is a moire generator whatever the filter is.
 
-/** N32 is kRGBA_8888 on this build and kBGRA_8888 on others, and writing an
- *  SkColor straight into getAddr32() silently swaps R and B on one of them,
- *  which comes out as blue threads rendered maroon. */
-inline uint32_t packPixel(const SkBitmap& bm, SkColor4f c) {
-  const SkColor s = c.toSkColor();
-  const uint32_t a = SkColorGetA(s), r = SkColorGetR(s), g = SkColorGetG(s),
-                 b = SkColorGetB(s);
-  return bm.colorType() == kBGRA_8888_SkColorType
-             ? (a << 24u) | (r << 16u) | (g << 8u) | b
-             : (a << 24u) | (b << 16u) | (g << 8u) | r;
-}
-
-/** `rib` darkens the cells where the WEFT is on top, which is what makes the
- *  twill legible inside a block of one colour. The main cloth panel gets this
- *  as a multiplied overlay tile instead (one element for 63,504 cells); the
+/** A window of the cloth, taken at (originX, originY). `rib` darkens the
+ *  cells where the WEFT is on top, which is what makes the twill legible
+ *  inside a block of one colour; the main cloth panel gets that as a
+ *  multiplied overlay tile instead (one element for 63,504 cells), and the
  *  drawdown bakes it in, because at 9 px per thread it has no overlay. */
 sk_sp<SkImage> bakeCloth(const std::vector<uint8_t>& S, const Shades& sh,
                          int originX, int originY, int w, int h,
                          float rib = 0.0f) {
-  SkBitmap bm;
-  bm.allocN32Pixels(w, h);
-  for (int y = 0; y < h; ++y)
-    for (int x = 0; x < w; ++x) {
-      SkColor4f c = sh[clothAt(S, originX + x, originY + y)];
-      if (rib > 0 && !warpUp(originX + x, originY + y)) {
-        const float k = 1.0f - rib;
-        c = {c.fR * k, c.fG * k, c.fB * k, c.fA};
-      }
-      *bm.getAddr32(x, y) = packPixel(bm, c);
-    }
-  bm.setImmutable();
-  return bm.asImage();
+  return patterns::clothImage(cloth(S, sh, rib), {originX, originY},
+                              SkISize::Make(w, h));
 }
 
 /** One cell of the blend table: warp colour `a` crossed with weft colour `b`,
- *  at thread scale. The same generator as the cloth — if these disagree with
- *  the main panel then one of the two is wrong. */
+ *  at thread scale. The same generator as the cloth — a one-thread sett each
+ *  way — so if these disagree with the main panel then one of the two is
+ *  wrong. */
 sk_sp<SkImage> bakeBlend(SkColor4f a, SkColor4f b, int threads) {
-  SkBitmap bm;
-  bm.allocN32Pixels(threads, threads);
-  for (int y = 0; y < threads; ++y)
-    for (int x = 0; x < threads; ++x)
-      *bm.getAddr32(x, y) = packPixel(bm, warpUp(x, y) ? a : b);
-  bm.setImmutable();
-  return bm.asImage();
+  return patterns::clothImage(
+      {.warp = {0}, .weft = {1}, .shades = {a, b}, .weave = kTwill}, {0, 0},
+      SkISize::Make(threads, threads));
 }
 
 inline Paint imageMat(const sk_sp<SkImage>& img, float px,
@@ -661,13 +622,13 @@ struct BlackWatch : sketch::Sketch {
   void build() {
     bwRuns = concatRuns({kSettA, kSettB, kSettC, kSettB});
     caRuns = concatRuns({kArgA, kArgB, kArgC, kArgD});
-    S = expand(bwRuns);
-    A = expand(caRuns);
+    S = patterns::threadcount(bwRuns);
+    A = patterns::threadcount(caRuns);
     {
       int cur = 0;
       for (const Run& r : bwRuns) {
         runStart.push_back(cur);
-        cur += r.n;
+        cur += r.threads;
       }
     }
     v = verify(bwRuns, S, A);
@@ -687,10 +648,11 @@ struct BlackWatch : sketch::Sketch {
             SkPaint p;
             float cur = 0;
             for (const Run& r : runs) {
-              p.setColor4f(modern[r.c], nullptr);
+              p.setColor4f(modern[(size_t)r.shade], nullptr);
               c.drawRect(
-                  SkRect::MakeXYWH(cur, 0, kPx * (float)r.n, sz.height()), p);
-              cur += kPx * (float)r.n;
+                  SkRect::MakeXYWH(cur, 0, kPx * (float)r.threads, sz.height()),
+                  p);
+              cur += kPx * (float)r.threads;
             }
           });
       warpMat = warpPattern.material();
@@ -1016,8 +978,9 @@ struct BlackWatch : sketch::Sketch {
     // run numerals, staggered over two rows so a 4 px band still gets one
     for (size_t r = 0; r < bwRuns.size(); ++r) {
       const float cx =
-          kClothX + ((float)runStart[r] + (float)bwRuns[r].n * 0.5f) * kPx;
-      g.child(centred(std::to_string(bwRuns[r].n),
+          kClothX +
+          ((float)runStart[r] + (float)bwRuns[r].threads * 0.5f) * kPx;
+      g.child(centred(std::to_string(bwRuns[r].threads),
                       mn(8, r % 2 ? kInk2 : kInk, 0.4f), cx - 14,
                       kBarY + kBarH + 3 + (r % 2 ? 10.0f : 0.0f), 28));
     }
@@ -1053,7 +1016,7 @@ struct BlackWatch : sketch::Sketch {
     std::string count;
     static const char kCode[] = "KBGYW";
     for (const auto& run : bwRuns)
-      count += kit::formatted("%c%d ", kCode[run.c], run.n);
+      count += kit::formatted("%c%d ", kCode[run.shade], run.threads);
     g.child(label(count, mn(11.5f, kInk, 0.3f), kClothX, kBarY + kBarH + 27,
                   kClothW));
     g.child(
@@ -1315,9 +1278,9 @@ struct BlackWatch : sketch::Sketch {
       g.child(label(b.name, mn(8.5f, kInk, 0.4f), kClothX, b.y + 8, 140));
       float cur = 0;
       for (const Run& r : *b.runs) {
-        const float w = barW * (float)r.n / (float)b.total;
-        Element seg = at(x0 + cur, b.y, w, barH).fill(modern[(size_t)r.c]);
-        if (r.c == Y || r.c == W)
+        const float w = barW * (float)r.threads / (float)b.total;
+        Element seg = at(x0 + cur, b.y, w, barH).fill(modern[(size_t)r.shade]);
+        if (r.shade == Y || r.shade == W)
           seg.foreground(
               stroke(1.5f, Fill::color(kRed), PathFormat::Align::Outer));
         g.child(std::move(seg));
