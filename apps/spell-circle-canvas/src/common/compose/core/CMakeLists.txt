@@ -89,7 +89,9 @@ sigil_test(compose_test
           test/ComposeTestTable.cpp test/ComposeTestValues.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
-            yoga::yogacore)
+            yoga::yogacore
+  LABELS fonts
+  SUITES ComposeFaces)
 
 # The kernel: describe, reconcile, layout, query, caching, and the
 # whole-scene scoreboard, blur, instances and particle arms.

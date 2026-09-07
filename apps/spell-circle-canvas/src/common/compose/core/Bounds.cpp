@@ -45,14 +45,24 @@ using namespace detail;
 /** The rect this node's OWN paint covers, in its own local space — children
  *  excluded; recordBounds() below adds the child union. The node's box,
  *  grown by every declared bleed (decorations, stroke passes, echo offsets,
- *  band width profiles, material reserves), then joined with the geometry a
- *  layout rect does not bound at all: a routed connector/rail path, a text
- *  run's path baseline, and a borrowed band spine, each outset by its own
- *  reach. */
+ *  band width profiles, material reserves), then joined with what a layout
+ *  rect does not bound at all: the ink of the glyphs a text leaf placed, a
+ *  routed connector/rail path, a text run's path baseline, and a borrowed
+ *  band spine, each outset by its own reach. */
 SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   const ElementNode& node = *inst.description;
   const SkRect rect = instanceRect(inst);
   SkRect local = SkRect::MakeWH(rect.width(), rect.height());
+  // A GLYPH'S OUTLINE IS NOT ITS LINE BOX. A text leaf is measured to the
+  // band of its lines, and the ink a face draws stands outside that band
+  // wherever the face says it does — a comma's tail below the descent, an
+  // accent above the ascent — so the leaf paints past its own box by a
+  // fraction of a pixel on most faces and by more on a few. Joined here
+  // BEFORE the bleeds, so a track's reach and a decoration's bleed grow
+  // the ink as they grow the box; unioned rather than outset, because the
+  // layout already knows where the letters went and a guess would be a
+  // second opinion about it. Empty on every node that is not type.
+  local.join(inst.textInk);
   float bleed = 0;
   for (const Decoration& d : node.backgrounds)
     bleed = std::max(bleed, d.bleed());

@@ -272,6 +272,42 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   inst.measuredSize = {std::ceil(bounds.width()), std::ceil(bounds.height())};
   inst.measuredBaseline = textBaseline(inst, bounds);
   inst.measuredRev = inst.contentRev;
+  // WHERE THE GLYPHS REACH, which is not where the lines do. The union
+  // above is the band of every line — its tallest ascent over its deepest
+  // descent — and a face is free to draw outside it: a comma's tail sits
+  // below the descent, an accent on a capital above the ascent. The band
+  // is what the box is measured to, so the ink that hangs past it is
+  // painted outside the node's box and anything that sizes a SURFACE from
+  // that box cuts it. Taken from the placed blobs, whose bounds a shaped
+  // word already carries, so the walk costs no rasterisation. The
+  // readings count too: they are drawn in this node's space, from
+  // placements this pass has just resolved.
+  const auto inkOf = [](const sigil::weave::ParagraphLayout& layout) {
+    SkRect ink = SkRect::MakeEmpty();
+    for (const sigil::weave::PositionedRun& run : layout.runs) {
+      if (!run.blob) continue;  // a placeholder run draws no glyph
+      SkRect box = run.blob->bounds();
+      // A transformed run's placement is baked into its blob and it draws
+      // at the origin; an ordinary one is a shared word blob translated.
+      if (!run.transformed) box.offset(run.origin.fX, run.origin.fY);
+      ink.join(box);
+    }
+    return ink;
+  };
+  SkRect ink = inkOf(inst.textLayout);
+  for (const Instance::PlacedAnnotation& reading : inst.textAnnotations)
+    ink.join(inkOf(reading.layout));
+  if (ink != inst.textInk) {
+    // A LEAF OF A STATED SIZE IS LAID OUT AT PAINT, because a box that
+    // never reaches the measure callback learns its depth nowhere else —
+    // and the bounds a surface was sized from were read before that. So
+    // the first ink a leaf reports is news to every recording and bake
+    // above it, and they are staled the way any other change to what a
+    // node paints stales them. A leaf laid out during the layout phase
+    // reports the same rect it reported last time and stales nothing.
+    inst.textInk = ink;
+    inst.markPaintDirtyUp();
+  }
 }
 
 bool detail::selectorNeedsLayout(const sigil::weave::Selector& selector) {

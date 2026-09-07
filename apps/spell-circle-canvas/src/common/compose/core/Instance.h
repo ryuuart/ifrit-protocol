@@ -206,6 +206,15 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     sigil::weave::ParagraphLayout layout;
   };
   std::vector<PlacedAnnotation> textAnnotations;
+  // WHERE THE GLYPHS THEMSELVES REACH, in this node's own space: the union
+  // of the placed blobs' bounds, base and readings alike. A line's band is
+  // its ascent over its descent, and the outlines a face draws are not
+  // held to it — a comma's tail, a swash, an accent on a capital all stand
+  // outside the box the layout measured. Anything that sizes a surface
+  // from a text leaf reads this beside the box, because a surface cut to
+  // the box alone loses the pixel that hangs past it, whole. Empty until a
+  // layout has run, and rewritten by every layout after.
+  SkRect textInk = SkRect::MakeEmpty();
   // weave::rich().add(text, styleName): each named run and the text it
   // occupies, in declaration order — what sel::style resolves against. Cleared
   // and rebuilt with the paragraph, so the names a node answers for are exactly
