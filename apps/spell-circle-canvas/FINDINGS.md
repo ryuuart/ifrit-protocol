@@ -219,25 +219,47 @@ So the multiplier is the only lever, and there are two ways at it:
 Assert once fixed: `--tier promotion` and `--tier cpu` both render it
 inside the ceiling at the default job count.
 
-## rota_convocationis cannot hold 60 FPS through its own emissive stack
+## rota_convocationis misses the raster gate on pixels, not on layers
 
-The scene draws one charged disc: every lit band, seal, star and rim
-flame is an emissive fill laid over the whole disc, and the composite
-misses the 60 FPS gate through the second half of the cycle. The sketch
-carried `ctx.plate()` to be judged as a still instead, which
-`CanvasSpec::plateOnly` states is for a sketch whose subject is the size
-of the sheet it draws and never a timeout override. The mark is gone and
-the look stands, so the scene now presents as what it is.
+The scene draws one charged disc, and `--bench` fails on it at the
+moments of the cycle where the disc is fully lit — the RASTER lane only.
+Presented in the real window across the whole loop it holds well over the
+gate, with p99 inside half the budget, and the app-FPS lane reports it
+within band.
 
-What the compositor does: each emissive layer is a full-disc fill drawn
-into its own layer and composited, so the per-frame cost scales with the
-number of lit elements rather than with the area any of them covers, and
-nothing coalesces layers that share a blend and a clip.
+WHAT THE COMPOSITOR ALREADY DOES, contrary to what this entry said
+before: none of the emissive elements composites through a layer. A
+fill-only leaf routes its blend and opacity onto the fill paint
+(`leafDirectBlend`) and a `Cache::Texture` node routes them onto its blit
+(`deferBlendToBlit`), so a lit element costs one additive blit of its own
+bake and nothing else. `BM_Draw_ChargedDisc_*` in `compose_bench` prices
+that shape: the cost is linear in the count of lit elements because each
+one is a distinct blit of a distinct bake, and there is no layer to
+coalesce — every stack carries a gain of its own, so no two of them can
+share a bake either.
 
-Intended: a run of emissive fills over one disc is one composite pass,
-whatever it costs to build, so a scene's frame cost tracks the pixels it
-touches rather than the count of nodes that touch them.
+WHERE THE RASTER FRAME ACTUALLY GOES, from `COMPOSE_PROF` and from
+ablating a copy of the sketch:
 
-Assert once fixed: `--bench` on `rota_convocationis` holds 60 FPS across
-the whole loop on a raster surface, and a case in `compose_bench` pins
-the cost of N emissive fills over one shape as flat in N past the first.
+- the additive stack over the disc — one anonymous full-canvas group
+  whose own paint is the run of blits — is about three quarters of the
+  frame at the moments the disc is fully lit;
+- `nomina`, the ring of names, is the rest. Its bake is taken once and
+  held, and the bench's node table reports the ONE profiled frame, which
+  is a frame that re-bakes it — so the row that named it is a bake and
+  not a per-frame cost. Removing its `styles::textGlow` alone takes that
+  node from tens of milliseconds to under one, and a sigma of 0.5 costs
+  nearly what a sigma of 6 does: it is the layer the filter needs over
+  that node's whole band, not the blur's own arithmetic.
+
+So a frame's cost already tracks the pixels the scene touches. What is
+left is a LOOK decision the sketch's author owns — how much of the disc
+is lit at once, and how large a band wears a glow — beside one library
+question worth its own measurement: whether a held bake can wear a STATIC
+layer effect at its blit the way a deferred one wears a moving one, which
+would make a glow-wearing node that re-bakes pay the bake alone.
+
+Assert if that is taken: a node whose content is settled and whose layer
+effect is static is baked with the effect left out and filtered at the
+blit, and its picture is identical to the same node filtered inside the
+bake.
