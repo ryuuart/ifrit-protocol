@@ -323,6 +323,16 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   sk_sp<SkImage> textureImage;
   float textureScale = 1.0f;
   SkRect textureBakeRect = SkRect::MakeEmpty();  // bake covers paint bounds
+  // …and the device clip that bake was CUT TO. Every device bake carries
+  // the canvas's own clip into its layer, so what it holds is not the
+  // node's paint but the node's paint as that clip left it — and a clip
+  // narrows for reasons that have nothing to do with the node's content:
+  // an ancestor's layer opens over the node's box while it fades in, a
+  // panel reveals, a window grows. A bake taken under the narrow clip and
+  // held past it blits the CUT, and the marks the clip removed never come
+  // back, because nothing else the staleness rules compare has moved: the
+  // paint bounds are the same bounds whatever the clip did to them.
+  SkIRect textureBakeClip = SkIRect::MakeEmpty();
   // Which SPACE the held bake lives in, and therefore how it must be
   // blitted: a device-space bake is snapped to whole device pixels and
   // drawn with the matrix reset (a literal copy, at any angle); a local
@@ -587,8 +597,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // opposite), but sharing the slot would make each path's staleness rules
   // answer for the other's, and they are different rules.
   sk_sp<SkImage> ownImage;
-  SkRect ownBakeRect = SkRect::MakeEmpty();  // device rect the bake covers
-  float ownPaintMs = 0;                      // EMA of the own-paint cost
+  SkRect ownBakeRect = SkRect::MakeEmpty();    // device rect the bake covers
+  SkIRect ownBakeClip = SkIRect::MakeEmpty();  // …and the clip that cut it
+  float ownPaintMs = 0;                        // EMA of the own-paint cost
   uint8_t ownHotFrames = 0;
   // Consecutive frames on which the own bake had to be REMADE. A bake per
   // frame costs more than the live draw it replaced, so a node whose own

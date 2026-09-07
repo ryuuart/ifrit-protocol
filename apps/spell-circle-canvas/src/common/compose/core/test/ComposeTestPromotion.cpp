@@ -738,3 +738,73 @@ TEST(ComposeCache, APromotedCurveKeepsTheCoverageItsLivePaintComputes) {
       << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
       << " code values, when the library promoted a stroked curve";
 }
+
+namespace {
+
+/** A PANEL THAT OPENS OVER WHAT IT HOLDS. The window clips its content to
+ *  its own box and the box's height is the reveal, so the mark inside is
+ *  cut on the frames the reveal is short and whole once it has run. The
+ *  mark's OWN description never changes across the two: same content, same
+ *  box, same place, same paint bounds — everything a bake's staleness rules
+ *  compare stands still while the only thing that moved is the clip. */
+Element revealedPage(float reveal) {
+  Element page = box().width(240).height(240).fill(Fill::color({0, 0, 0, 1}));
+  Element window =
+      box().absolute().left(0).top(0).width(240).height(reveal).clip();
+  window.child(box()
+                   .absolute()
+                   .left(20)
+                   .top(20)
+                   .width(200)
+                   .height(200)
+                   .fill(material::skia::Paint::sksl(gridEffect()))
+                   .key("mark"));
+  page.child(window.key("window"));
+  return page;
+}
+
+/** The reveal, warmed short and then opened: thirty frames with the clip
+ *  cutting the mark — long enough for the promoter to have baked whatever
+ *  it is going to — and then the same tree with the window open. */
+std::vector<SkColor> revealedThenOpen(bool promotion, int w, int h,
+                                      bool* promotedOut) {
+  Host host(w, h);
+  host.composer.setAutoTexturePromotion(promotion
+                                            ? Composer::PromotionPolicy::Eager
+                                            : Composer::PromotionPolicy::Off);
+  host.composer.setProfiling(true);
+  host.composer.render(profiledUnder(revealedPage(60).key("page")));
+  for (int i = 0; i < 30; ++i) host.frame();
+  if (promotedOut)
+    for (const Composer::NodeCost& row : host.composer.profile())
+      *promotedOut |= row.cacheState == Composer::CacheState::Promoted;
+  host.composer.render(profiledUnder(revealedPage((float)h).key("page")));
+  for (int i = 0; i < 5; ++i) host.frame();
+  return surfaceOf(host, w, h);
+}
+
+}  // namespace
+
+TEST(ComposeCache, APromotedNodeIsRebakedWhenTheClipThatCutItOpens) {
+  // A device bake carries the canvas's own clip into its layer, so what it
+  // holds is the node's paint as that clip left it. A clip narrows and
+  // widens for reasons the node's own bounds cannot see — a panel opening,
+  // a window growing, an ancestor's layer standing over the box while it
+  // fades in — and nothing else the staleness rules compare moves with it:
+  // the paint bounds are the same bounds whatever the clip did to them. So
+  // a bake taken under the narrow clip and held past it blits the CUT, and
+  // the marks the clip removed never come back.
+  bool promoted = false;
+  const std::vector<SkColor> live = revealedThenOpen(false, 240, 240, nullptr);
+  const std::vector<SkColor> baked =
+      revealedThenOpen(true, 240, 240, &promoted);
+  ASSERT_TRUE(promoted)
+      << "nothing was promoted while the clip was narrow, so this compared "
+         "two live renders";
+  ASSERT_EQ(live.size(), baked.size());
+  size_t differing = 0;
+  const int worst = worstDrift(live, baked, &differing);
+  EXPECT_LE(worst, 1) << differing << " pixels moved, worst " << worst
+                      << " code values, after the clip that cut the bake "
+                         "opened";
+}

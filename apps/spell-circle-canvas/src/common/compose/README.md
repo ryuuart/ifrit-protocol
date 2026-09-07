@@ -1144,6 +1144,18 @@ does not cancel; and nothing live may be inside the bake. A scene whose
 promoted frame differs from its unpromoted one by more than a value is a
 defect in this library, never a plate to rebase.
 
+**AND THE CLIP IS PART OF WHAT THE BAKE IS.** Because the bake carries
+the canvas's clip in, what it holds is the node's paint AS THAT CLIP LEFT
+IT — and a clip narrows and widens for reasons the node's own bounds
+cannot see: a panel opening, a window growing, an ancestor's layer
+standing over the box while the node fades in. Nothing else a bake is
+compared against moves with it, since the paint bounds are the same
+bounds whatever the clip did to them, so a bake held across the change
+would blit the cut for as long as the node's content stood still and the
+marks the clip removed would never come back. Every device bake is
+therefore stamped with the clip it was taken under and remade when that
+clip moves, exactly as a recording holding a device blit is.
+
 **AND THE BAKE STANDS CLEAR OF WHAT IT PAINTS.** Skia decides whether a
 path needs its clipped rasterisation from the path's control-point
 bounds, and its clipped and unclipped routes do not answer the same

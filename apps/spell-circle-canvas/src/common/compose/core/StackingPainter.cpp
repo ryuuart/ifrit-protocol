@@ -1735,7 +1735,15 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
    *  same place, cutting the same coverage. The bake RECT stays the node's
    *  full paint bounds, because that rect is also the identity a held bake
    *  is compared against — a rect narrowed to the clip is shared by two
-   *  different pictures whenever the clip is the smaller of the two. */
+   *  different pictures whenever the clip is the smaller of the two.
+   *
+   *  WHICH IS WHY THE CLIP IS PART OF WHAT THE BAKE IS. What the layer
+   *  holds is the node's paint as this clip left it, so the clip is
+   *  stamped on the instance and every tier below re-bakes when it moves:
+   *  a clip narrows and widens for reasons the node's own bounds cannot
+   *  see — an ancestor's layer opened over its box while it fades in, a
+   *  panel revealing, a window growing — and a bake held across that
+   *  blits the cut for as long as the node's content stands still. */
   const auto clipBakeLayer = [&](SkCanvas* lc, const SkIRect& bake) {
     lc->clipIRect(deviceClipOf().makeOffset(-bake.left(), -bake.top()));
   };
@@ -1868,12 +1876,14 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     if (device.width() > 0 && device.height() > 0 &&
         area <= int64_t{16} * 1024 * 1024 && affordable) {
       // Re-bake when the recording is stale, when the device rect moved or
-      // resized (which is how a transform-SCALE change arrives here), or —
-      // the temporal case — when the live material has actually ticked and
-      // the baked shader is no longer the one this frame resolves to.
+      // resized (which is how a transform-SCALE change arrives here), when
+      // the clip the bake was cut to moved, or — the temporal case — when
+      // the live material has actually ticked and the baked shader is no
+      // longer the one this frame resolves to.
       if (!inst.textureImage || inst.paintDirty || memoStale ||
           inst.textureEffectDeferred ||
-          inst.textureBakeRect != SkRect::Make(device)) {
+          inst.textureBakeRect != SkRect::Make(device) ||
+          inst.textureBakeClip != deviceClipOf()) {
         sk_sp<SkSurface> layer = canvas.makeSurface(
             SkImageInfo::MakeN32Premul(device.width(), device.height()));
         if (!layer)
@@ -1893,6 +1903,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           inst.textureDeviceSpace = true;
           inst.textureEffectDeferred = false;
           inst.textureBakeRect = SkRect::Make(device);
+          inst.textureBakeClip = deviceClipOf();
           inst.bakedLiveShader = inst.hasPendingLiveFill
                                      ? inst.pendingLiveFill.shaderValue
                                      : nullptr;
@@ -2036,7 +2047,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       // change. If that ever inverts, the feature silently does nothing and
       // still passes every pixel test.
       const SkRect want = SkRect::Make(device);
-      if (!inst.ownImage || inst.ownPaintDirty || inst.ownBakeRect != want) {
+      if (!inst.ownImage || inst.ownPaintDirty || inst.ownBakeRect != want ||
+          inst.ownBakeClip != deviceClipOf()) {
         sk_sp<SkSurface> layer = canvas.makeSurface(
             SkImageInfo::MakeN32Premul(device.width(), device.height()));
         if (!layer)
@@ -2054,6 +2066,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           }
           inst.ownImage = layer->makeImageSnapshot();
           inst.ownBakeRect = want;
+          inst.ownBakeClip = deviceClipOf();
           inst.ownPaintDirty = false;
           if (!coverageTrace) stats.texturesBaked++;
           // A bake per frame costs MORE than the live draw it replaced, so
@@ -2196,7 +2209,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         area <= int64_t{16} * 1024 * 1024 && affordable) {
       const SkRect want = SkRect::Make(device);
       if (!inst.textureImage || !inst.textureDeviceSpace ||
-          inst.textureEffectDeferred || inst.textureBakeRect != want) {
+          inst.textureEffectDeferred || inst.textureBakeRect != want ||
+          inst.textureBakeClip != deviceClipOf()) {
         sk_sp<SkSurface> layer = canvas.makeSurface(
             SkImageInfo::MakeN32Premul(device.width(), device.height()));
         if (!layer)
@@ -2219,6 +2233,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           inst.textureDeviceSpace = true;
           inst.textureEffectDeferred = false;
           inst.textureBakeRect = want;
+          inst.textureBakeClip = deviceClipOf();
           inst.textureScale = maxScaleOf(totalM, localBoundsOf());
           inst.paintDirty = false;
           // A group root never replays a recording. It can have made one on
@@ -2335,7 +2350,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     if (deviceEligible && deviceRectStable) {
       const SkRect bakeRect = SkRect::Make(deviceR);
       if (!inst.textureImage || inst.paintDirty || !inst.textureDeviceSpace ||
-          memoStale || inst.textureBakeRect != bakeRect) {
+          memoStale || inst.textureBakeRect != bakeRect ||
+          inst.textureBakeClip != deviceClipOf()) {
         sk_sp<SkSurface> layer = canvas.makeSurface(
             SkImageInfo::MakeN32Premul(deviceR.width(), deviceR.height()));
         if (!layer)
@@ -2355,6 +2371,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           inst.textureDeviceSpace = true;
           inst.textureEffectDeferred = false;
           inst.textureBakeRect = bakeRect;
+          inst.textureBakeClip = deviceClipOf();
           inst.textureScale = maxScaleOf(totalM, localBounds);
           inst.bakedLiveShader = inst.hasPendingLiveFill
                                      ? inst.pendingLiveFill.shaderValue
