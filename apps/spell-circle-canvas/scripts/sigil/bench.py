@@ -14,8 +14,8 @@ Benchmark's JSON reporter and takes the median real time of each
 benchmark. The `fps` lane presents each sketch in the real window through
 Sketchbook's `--window-bench` and takes the presented frame rate. They
 measure different things — the frame-time gate cannot see the host's own
-overhead, and the window lane needs a display and exclusive use of the
-machine — so they stay two lanes rather than one command; what they share
+overhead, and the window lane needs an unlocked screen and exclusive use
+of the machine — so they stay two lanes rather than one command; what they share
 is the whole of what happens to a number after it is taken.
 
 What each lane measures, how a number is taken and judged, and why each
@@ -328,6 +328,47 @@ def parse_window_lines(text):
     return rows, skipped
 
 
+def screen_is_locked():
+    """Whether the login window is covering this machine's screen.
+
+    A window nothing can see is not a window this lane can measure: the
+    system leaves an application about half a minute of full speed after
+    its window stops being visible and then runs the work behind it
+    several times slower, so a sweep longer than that reads the slowed
+    rate for every sketch after the first few and nothing on the rows
+    says why. Read off the console session rather than off any window, so
+    the answer is the same before the binary starts and after it exits.
+
+    None where the question cannot be asked — another platform, or a
+    machine whose session does not say — which is not an unlocked screen
+    and is not treated as one.
+    """
+    if sys.platform != "darwin":
+        return None
+    try:
+        session = subprocess.run(
+            "ioreg -n Root -d1 -a | plutil -convert json -o - -",
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        root = json.loads(session.stdout)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+    def locked(node):
+        if isinstance(node, dict):
+            if "CGSSessionScreenIsLocked" in node:
+                return bool(node["CGSSessionScreenIsLocked"])
+            return any(locked(value) for value in node.values())
+        if isinstance(node, list):
+            return any(locked(value) for value in node)
+        return False
+
+    return locked(root)
+
+
 def run_window(binary, args):
     command = [
         binary,
@@ -349,7 +390,12 @@ def run_window(binary, args):
     except subprocess.TimeoutExpired:
         return "", f"still running after {args.timeout_seconds:g}s (killed)"
     if result.returncode != 0:
-        return result.stdout, (result.stderr or result.stdout).strip()[-400:]
+        # THE STATUS, NOT THE CHATTER. Everything the sketches and the
+        # libraries under them write goes to this stream, so its tail is
+        # as likely to be a codec announcing its version as anything to
+        # do with the failure; quoting it as the reason printed a line
+        # that read like a measurement nobody took.
+        return result.stdout, f"Sketchbook exited {result.returncode}"
     return result.stdout, None
 
 
@@ -357,12 +403,32 @@ def fps_lane(args) -> int:
     binary = str(tree.sketchbook(args.config))
     baseline_path = str(tree.PROJECT_DIR / "bench" / f"app_fps_{args.config}.json")
 
+    if screen_is_locked():
+        print(
+            "the screen is locked, and a rate presented behind a lock "
+            "screen is not this sketch's rate: the system runs an "
+            "invisible window's work several times slower after the first "
+            "half minute, which reads as every sketch but the first few "
+            "having become slow. Unlock the screen and run it again."
+        )
+        return 1
+
     print(
         f"presenting in a {args.size} window at scale {args.scale:g}, "
         f"{args.seconds:g}s each, config {args.config}\n"
     )
     output, error = run_window(binary, args)
     rows, skipped = parse_window_lines(output)
+    # ASKED AGAIN AFTERWARDS: a screen that locks partway through a sweep
+    # slows everything from that moment on, and the rows already taken say
+    # nothing about it.
+    if screen_is_locked():
+        print(
+            "the screen locked while the sweep was running; every row "
+            "after that moment is the rate of a window nothing could see. "
+            "The baseline is untouched."
+        )
+        return 1
     if error:
         print(f"  FAILED  {error}")
     for name in sorted(skipped):

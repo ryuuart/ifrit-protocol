@@ -321,6 +321,16 @@ down exits non-zero rather than reporting a rate of zero. A baseline is therefor
 AND per display mode, and the file records the window size and scale it
 was taken at so a mismatch is visible rather than silently compared.
 
+**The screen has to be unlocked.** The lane asks before the sweep and
+again after it, and refuses either way without touching the baseline. A
+window behind a lock screen is one nothing can see, and the system runs
+an invisible window's work several times slower once it has been that
+way for about half a minute: the first few rows of a sweep read their
+true rate, everything after them reads the slowed one, and no row says
+so. Every sketch measured alone inside that half minute reads what the
+baseline holds, which is what makes such a sweep look like a regression
+in the sketches rather than a measurement taken in the dark.
+
 **How a timing is taken.** Each benchmark runs `--repetitions` times
 (default 5), every repetition long enough to satisfy `--min-time`
 (default 0.1 s) after an untimed `--warmup` (default 0.1 s). The first
