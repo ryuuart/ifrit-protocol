@@ -102,8 +102,8 @@ black and two where the bake lands on content, and a scene that moves
 further is a defect in compose rather than a plate to rebase.
 
     195 scenes, 120 within one code value.
-    (chaucer_astrolabe is the one the sweep could not judge — its own
-    entry below.)
+    (chaucer_astrolabe was the one the sweep could not judge inside its
+    ceiling; it renders in seconds now and moves by 108.)
 
 ONE CAUSE IS FIXED and it was the one this entry was written about: a
 text leaf reported the band of its lines as its paint bounds, and the ink
@@ -149,55 +149,6 @@ Assert once fixed: `--tier promotion` reports every scene within the rule,
 and each cause gets a case in `compose_test` beside the two that pin the
 type one (`ComposeCache.APromotedLineKeepsTheInkThatStandsOutsideItsBox`
 and `ComposeFaces.APromotedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics`).
-
-## chaucer_astrolabe cannot finish a plate under the sweep's ceiling
-
-Under the promotion tier's five concurrent jobs it was killed at the
-300 s per-scene ceiling in the held-off pass, so it is the one scene the
-tier could not judge. A scene that only finishes when it has the machine
-to itself is a scene no parallel sweep can gate.
-
-Where the time goes, measured. The sketch names its moment — `captureAt`
-is 22.10 s of a 26 s cycle, the earliest frame of the state the plate is
-about — and a named moment is reached by REOPENING the session and
-stepping to it one painted frame at a time. That is 1326 full paints of
-2400x1600 to photograph one of them. With automatic promotion held off,
-as a deterministic capture holds it, each of those costs about 180 ms:
-1326 × 180 ms is the four minutes, and nothing else in the run is worth
-naming beside it.
-
-There is no hot spot to cut. At the capture frame the sheet paints 150
-nodes and replays 913 recordings; the largest single node is the vellum
-grain, a full-sheet field already declared `Cache::Texture`, whose cost
-is the soft-light composite of a 2400x1600 layer and not a re-evaluation
-— then the mater's sheen at a quarter of it, and a long tail of
-sub-millisecond nodes. Cutting every node over a millisecond would not
-halve the frame.
-
-Two things were tried and do not work. `Cache::Group` on the limb and on
-the plate makes it three times WORSE: the plate's content changes every
-frame — the day, year and Chaucer traces are drawn on it — so the group
-can never hold and the attempt costs a layer per frame. Declaring more
-bakes does not reach it either: the sketch already declares the passes
-worth declaring, and the promoter, which the deterministic capture
-switches off, finds one more node.
-
-So the multiplier is the only lever, and there are two ways at it:
-
-  * The sweep reaches a declared moment without paying for the canvases
-    it throws away. Only the last of the 1326 is photographed, and the
-    sketch is a function of its own elapsed time — compose's ramps are
-    absolute-time and the ticker's fixed steps sub-step a jump — so a
-    single advance to the moment is the same picture. What this would
-    change is what compose's PAINT-time settle counters have seen by
-    then, so it must be shown to leave every declared-moment plate
-    standing before it lands.
-  * The declaration moves, which moves the plate, and the moment is the
-    subject: the trace of 12 March 1391 is the last state of the cycle
-    and there is no earlier frame of it.
-
-Assert once fixed: `--tier promotion` and `--tier cpu` both render it
-inside the ceiling at the default job count.
 
 ## rota_convocationis misses the raster gate on pixels, not on layers
 

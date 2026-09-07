@@ -14,6 +14,7 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
+#include <include/utils/SkNoDrawCanvas.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmeasure/time/Stopwatch.h>
@@ -230,6 +231,15 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     SkCanvas* const frameCanvas =
         ordered ? static_cast<SkCanvas*>(&*ordered) : surface->getCanvas();
 
+    // REACHING THE CAPTURE MOMENT COSTS THE SKETCH'S OWN WORK, NOT THE
+    // RASTERISER'S. Every frame before the captured one is thrown away, so
+    // those are described onto a canvas that keeps the size and the clip
+    // and rasterises nothing: the body runs, the tree is reconciled, laid
+    // out and painted exactly as it would be, and only the fill of pixels
+    // nobody will read is skipped. A scene whose declared moment is many
+    // seconds out spends its whole render there.
+    SkNoDrawCanvas discarded((int)size.width(), (int)size.height());
+
     FrameStats stats;
     const auto stepOne = [&](SkSurface&) {
       // One watch, read twice: the two lanes both start at the top of the
@@ -241,6 +251,12 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       stats.addWork(watch.elapsedMs());
       if (flushHook) flushHook();
       stats.add(watch.elapsedMs());
+    };
+    /** One stepped frame whose pixels are thrown away. */
+    const auto advanceOne = [&] {
+      discarded.clear(clearColor);
+      PhaseMark mark(Phase::Update);
+      session->frame(discarded, kStep);
     };
 
     // Warm past the entrance choreography so the table reports STEADY
@@ -324,10 +340,10 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         return 1;
       }
       const int captureFrame = (int)std::lround(declared * kRate);
-      for (int f = 0; f < captureFrame; ++f) stepOne(*surface);
+      for (int f = 0; f < captureFrame; ++f) advanceOne();
     } else {
       const int stepped = kProbeFrames + warmFrames + sampleFrames;
-      for (int f = stepped; f < kCaptureFrame; ++f) stepOne(*surface);
+      for (int f = stepped; f < kCaptureFrame; ++f) advanceOne();
     }
 
     char canvasLabel[24];

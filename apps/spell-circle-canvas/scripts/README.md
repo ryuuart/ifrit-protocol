@@ -124,7 +124,17 @@ per-scene override. `--rebase` adopts; a sweep narrowed by `--kind`,
 `--sketch` or `--scenes` merges into the manifest rather than
 truncating it, and only an unnarrowed rebase rewrites it wholesale.
 `--stability N` re-renders a mover and attributes a self-disagreeing
-scene to the scene. The ledger renders plates for the verdict and
+scene to the scene.
+
+**Reaching the moment costs the sketch's own work, not the rasteriser's.**
+A declared moment is reached by stepping a reopened session one frame at
+a time, and only the last of those frames is photographed — a sketch
+whose moment is twenty seconds out spends its whole render on frames
+nobody reads. Those frames are described onto a canvas that keeps the
+size and the clip and rasterises nothing, so the body runs, the tree is
+reconciled, laid out and painted exactly as it would be, and only the
+fill is skipped. It is byte-neutral by construction and was shown to be:
+`chaucer_astrolabe` fell from 259 s to 3.6 s with the same hash. The ledger renders plates for the verdict and
 nothing else: Sketchbook owns the thumbnails it shows, rendering them on
 demand into its own cache and warming them with `Sketchbook
 --thumbnails`.
