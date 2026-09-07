@@ -110,7 +110,7 @@
 // the counter/content idiom; measure() for the leader rules and the card's
 // title advance; patterns::grain, Paint::blend,
 // Paint::linearUnit/radialUnit, shapes::inset, shapes::circle, kit::disc,
-// styles::BevelEmboss, PathFormat hairlines, Element::overlay(), bind().
+// kit::bevels::plate, PathFormat hairlines, Element::overlay(), bind().
 //
 // THE HARD THING: every row here is a two-column table and the library has no
 // table. Five regimes on one screen. The kills folder is the dense case — it
@@ -165,6 +165,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -725,6 +726,20 @@ inline shapes::OutlineFn figure(Pose p) {
   return shapes::rounded(std::move(raw), 6.0f);
 }
 
+/** THE STAMP this card's chrome is pressed with: the moulded plane pair a
+ *  cast metal plate has, lit from the upper left at the angle the
+ *  capture's own shadows fall at. Every plaque, tab, button, frame and
+ *  well on the sheet is this one token set — what changes between them is
+ *  how deep the press went and which two golds it went into, never the
+ *  treatment. The one recess lit from below states its own angle: a press
+ *  from the other side is the same stamp with the light moved. */
+inline kit::Bevel stamp(float depth, float softness, SkColor4f lit,
+                                 SkColor4f shade, float angleDeg = 118) {
+  kit::Bevel b = kit::bevels::plate(lit, shade, n(depth), n(softness));
+  b.angleDeg = angleDeg;
+  return b;
+}
+
 }  // namespace fo
 
 // ===========================================================================
@@ -953,9 +968,8 @@ struct Fallout2CharSheet : sketch::Sketch {
     e.foreground(
         inset(n(-1.5f), stroke(n(1.5f), Fill::color(hexColor(0x5C4C30, 0.85f)),
                                PathFormat::Align::Center)));
-    e.foreground(styles::BevelEmboss{n(1.2f), n(1.6f), 118,
-                                     hexColor(0x8A7448, 0.55f),
-                                     hexColor(0x000000, 0.60f)});
+    e.foreground(stamp(1.2f, 1.6f, hexColor(0x8A7448, 0.55f),
+                       hexColor(0x000000, 0.60f)));
     if (rivets) {
       const float inset = 5.0f;
       for (int i = 0; i < 4; ++i) {
@@ -976,9 +990,8 @@ struct Fallout2CharSheet : sketch::Sketch {
   Element raised(fo::Rect r, float radius = 2.0f) {
     using namespace fo;
     Element e = atR(box(), r).corners(Corners{n(radius)}).fill(tabMat);
-    e.foreground(styles::BevelEmboss{n(1.4f), n(1.8f), 118,
-                                     hexColor(0xA08858, 0.60f),
-                                     hexColor(0x0C0906, 0.65f)});
+    e.foreground(stamp(1.4f, 1.8f, hexColor(0xA08858, 0.60f),
+                       hexColor(0x0C0906, 0.65f)));
     e.stroke(stroke(n(1), Fill::color(hexColor(0x1A1610, 0.9f)),
                     PathFormat::Align::Inner));
     return e;
@@ -1283,9 +1296,8 @@ struct Fallout2CharSheet : sketch::Sketch {
     const float sy = (float)selected * kRowPitch11 + 27 + 16;
     Element slider =
         at(box(), 592, sy - 12, 36, 24).fill(tabMat).corners(Corners{n(2)});
-    slider.foreground(styles::BevelEmboss{n(1.2f), n(1.4f), 118,
-                                          hexColor(0xA08858, 0.5f),
-                                          hexColor(0x0C0906, 0.6f)});
+    slider.foreground(fo::stamp(1.2f, 1.4f, hexColor(0xA08858, 0.5f),
+                                hexColor(0x0C0906, 0.6f)));
     for (int k = 0; k < 2; ++k) {
       Element btn = at(box(), 22, 2 + 11.0f * (float)k, 12, 9)
                         .fill(Fill::color(k == 0 ? hexColor(0x3A3020)
@@ -1478,10 +1490,9 @@ struct Fallout2CharSheet : sketch::Sketch {
     g.child(at(box(), 0, 0, 640, 480)
                 .foreground(stroke(n(3), Fill::color(hexColor(0x1E1810)),
                                    PathFormat::Align::Inner))
-                .foreground(inset(
-                    n(3), styles::BevelEmboss{n(2.0f), n(2.5f), 118,
-                                              hexColor(0xA08858, 0.45f),
-                                              hexColor(0x0C0906, 0.55f)})));
+                .foreground(
+                    inset(n(3), fo::stamp(2.0f, 2.5f, hexColor(0xA08858, 0.45f),
+                                          hexColor(0x0C0906, 0.55f)))));
     // vertical divider between the left/middle block and the skills column
     g.child(at(box(), 328, 0, 4, 480)
                 .fill(Paint::linearUnit(
@@ -1527,9 +1538,8 @@ struct Fallout2CharSheet : sketch::Sketch {
     g.child(at(box(), 520, 226, 34, 28)
                 .fill(Fill::color(hexColor(0x120E08)))
                 .corners(Corners{n(2)})
-                .foreground(styles::BevelEmboss{n(1.0f), n(1.4f), 300,
-                                                hexColor(0x8A7448, 0.45f),
-                                                hexColor(0x000000, 0.6f)}));
+                .foreground(fo::stamp(1.0f, 1.4f, hexColor(0x8A7448, 0.45f),
+                                      hexColor(0x000000, 0.6f), 300)));
     g.child(box().left(Dim(0)).top(Dim(0)).child(slot("points")));
 
     // PRINT / DONE / CANCEL at y = 454, each with a red button light. Lamp
@@ -1614,9 +1624,8 @@ struct Fallout2CharSheet : sketch::Sketch {
                    .blend(SkBlendMode::kSoftLight)
                    .opacity(0.70f)
                    .cache(Cache::Texture));
-      sp.foreground(styles::BevelEmboss{n(1.6f), n(2.0f), 118,
-                                        hexColor(0xB09868, 0.55f),
-                                        hexColor(0x080604, 0.70f)});
+      sp.foreground(fo::stamp(1.6f, 2.0f, hexColor(0xB09868, 0.55f),
+                              hexColor(0x080604, 0.70f)));
       sp.stroke(stroke(n(1), Fill::color(hexColor(0x1A1610)),
                        PathFormat::Align::Inner));
       for (int i = 0; i < 4; ++i)
