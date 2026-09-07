@@ -194,6 +194,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilcompose/kit/Sprites.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/reconcile/Env.h>
@@ -830,103 +831,30 @@ inline Element textField(std::string_view t, float w, bool caret = false,
 //   B background   T topShadowColor   S bottomShadowColor   L selectColor
 //   F foreground   1..8 iconGray1..8 (FIXED)   k w r g u y c m iconColor
 //
-// Rendered as greedy merged rectangles, so a 24x24 grid becomes ~20-30
-// boxes rather than 576. Symbolic characters get a bound Fill; the fixed
-// ramp gets a constant one, so most of an icon is statically cached and
-// only the symbolic runs repaint on a theme change.
+// The grid, the palette and the greedy rectangle merge are the kit's
+// `kit::pixelMap`; what belongs here is the VOCABULARY — which character
+// means which colour, and that five of the twenty-two move with the theme
+// while the rest never do.
 // ---------------------------------------------------------------------------
 
-inline std::optional<SkColor4f> fixedColor(char ch) {
-  if (ch >= '1' && ch <= '8') return C(kIconGray[(size_t)(ch - '1')]);
-  switch (ch) {
-    case 'k':
-      return C(kIconColor[0]);
-    case 'w':
-      return C(kIconColor[1]);
-    case 'r':
-      return C(kIconColor[2]);
-    case 'g':
-      return C(kIconColor[3]);
-    case 'u':
-      return C(kIconColor[4]);
-    case 'y':
-      return C(kIconColor[5]);
-    case 'c':
-      return C(kIconColor[6]);
-    case 'm':
-      return C(kIconColor[7]);
-    default:
-      return std::nullopt;
-  }
-}
+/** The characters an icon grid is written in, in palette order: the blank,
+ *  the five symbolic colours a theme moves, the fixed eight-step gray ramp
+ *  and the eight fixed icon colours. */
+constexpr std::string_view kIconChars = " BTSLF12345678kwrguycm";
 
-inline std::optional<SkColor4f> symbolic(char c, const ColorSet& s) {
-  switch (c) {
-    case 'B':
-      return s.bg;
-    case 'T':
-      return s.ts;
-    case 'S':
-      return s.bs;
-    case 'L':
-      return s.sel;
-    case 'F':
-      return s.fg;
-    default:
-      return std::nullopt;
-  }
-}
-
-/** Greedy rectangle merge over an ASCII colour grid. */
-inline Element art(const std::vector<std::string>& rows, float cell) {
+/** The palette those characters name, resolved against the ambient colour
+ *  set — so the same grid is a different sprite under a different theme,
+ *  which is the whole reason CDE icons re-colour and Win95 icons do not. */
+inline kit::Sprite iconArt(const std::vector<std::string>& rows) {
   const ColorSet s = ambient();
-  const int h = (int)rows.size();
-  const int w = h ? (int)rows[0].size() : 0;
-  Element root =
-      stack().width(Dim((float)w * cell)).height(Dim((float)h * cell));
-  std::vector<char> done((size_t)(w * h), 0);
-  for (int y = 0; y < h; ++y) {
-    for (int x = 0; x < w; ++x) {
-      const size_t idx = (size_t)y * (size_t)w + (size_t)x;
-      if (done[idx]) continue;
-      const char ch = rows[(size_t)y][(size_t)x];
-      if (ch == ' ' || ch == '.') {
-        done[idx] = 1;
-        continue;
-      }
-      int rw = 1;
-      while (x + rw < w && rows[(size_t)y][(size_t)x + (size_t)rw] == ch &&
-             !done[(size_t)y * (size_t)w + (size_t)x + (size_t)rw])
-        ++rw;
-      int rh = 1;
-      while (y + rh < h) {
-        bool ok = true;
-        for (int k = 0; k < rw; ++k)
-          if (rows[(size_t)y + (size_t)rh][(size_t)x + (size_t)k] != ch ||
-              done[((size_t)y + (size_t)rh) * (size_t)w + (size_t)x +
-                   (size_t)k]) {
-            ok = false;
-            break;
-          }
-        if (!ok) break;
-        ++rh;
-      }
-      for (int j = 0; j < rh; ++j)
-        for (int k = 0; k < rw; ++k)
-          done[((size_t)y + (size_t)j) * (size_t)w + (size_t)x + (size_t)k] = 1;
-      Element cellBox = box()
-                            .left(Dim((float)x * cell))
-                            .top(Dim((float)y * cell))
-                            .width(Dim((float)rw * cell))
-                            .height(Dim((float)rh * cell));
-      if (auto fc = fixedColor(ch))
-        cellBox.fill(*fc);
-      else if (auto sym = symbolic(ch, s))
-        cellBox.fill(*sym);
-      root.child(std::move(cellBox));
-    }
-  }
-  return root;
+  std::vector<SkColor4f> colours{{0, 0, 0, 0}, s.bg, s.ts, s.bs, s.sel, s.fg};
+  for (uint32_t gray : kIconGray) colours.push_back(C(gray));
+  for (uint32_t colour : kIconColor) colours.push_back(C(colour));
+  return kit::pixelMap(rows, {kIconChars, colours}).value_or(kit::Sprite{});
+}
+
+inline Element art(const std::vector<std::string>& rows, float cell) {
+  return kit::pixelSprite(iconArt(rows), {.cell = cell});
 }
 
 // The icon set. 24 x 24 grids at cell 2 => the 48 x 48 that Fpclock.l.pm's
