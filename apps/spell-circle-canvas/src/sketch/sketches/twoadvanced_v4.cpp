@@ -88,6 +88,7 @@
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Gloss.h>
 #include <sigilcompose/kit/Grid.h>
@@ -275,33 +276,24 @@ struct RailFlares {
 };
 
 // ---------------------------------------------------------------------------
-// The two panel CLASSES the SWF's symbol table names, as reusable
-// functions — which is what they were in 2Advanced's own component kit.
-// Both are one `styles::BevelPair`, the era's own value: a lit edge on
-// the top and left, a dark one on the bottom and right, each stroked
-// INSIDE the silhouette, so a chamfered panel wears its bevel on the
-// chamfers with nothing said about corners here.
 
-/** FSingleBevelPanelClass: base fill, a 3 px lifted top/left highlight
- *  and a 2 px darkened bottom/right shadow. The widths differ because
- *  the SWF's did. */
-inline Element singleBevel(Element e, SkColor4f base) {
+/** THE TWO PANEL CLASSES the SWF's symbol table names — FSingleBevelPanel
+ *  and FDoubleBevelPanel — as one function over the era's token set. The
+ *  base fill, a lifted top/left highlight over a darkened bottom/right
+ *  shadow (three px against two, because the SWF's were), and — where a
+ *  @p gap is asked for — the same pair again fainter that far in.
+ *  MAINFRAME, FEATURE SYSTEM and PRESS UPDATES wear the doubled one;
+ *  everything smaller is single.
+ *
+ *  Both tones come off the face, which is why the two classes were one
+ *  component with a flag in 2Advanced's own kit and are one call here.
+ *  The pair is kept INSIDE the silhouette, so a chamfered panel wears its
+ *  bevel on the chamfers with nothing said about corners, and the inner
+ *  ring rides OVER the content because at a three-pixel gap on a
+ *  three-pixel padding it stands exactly on the padding line. */
+inline Element bevelPanel(Element e, SkColor4f base, float gap = 0) {
   e.fill(base);
-  e.overlay(
-      styles::BevelPair{mskia::lighten(base, 0.15f), dark(base, 0.60f), 3, 2});
-  return e;
-}
-
-/** FDoubleBevelPanelClass: the same pair again, `inset` px in and
- *  fainter, through the decoration adaptor that runs a treatment against
- *  a concentric copy of the outline. MAINFRAME, FEATURE SYSTEM and PRESS
- *  UPDATES wear this; everything smaller is single. */
-inline Element doubleBevel(Element e, SkColor4f base, float insetPx = 6) {
-  e = singleBevel(std::move(e), base);
-  e.foreground(inset(
-      insetPx,
-      styles::BevelPair{mskia::withAlpha(mskia::lighten(base, 0.16f), 0.8f),
-                        mskia::withAlpha(dark(base, 0.55f), 0.85f), 2, 1}));
+  kit::bevelled(e, kit::bevels::flash(base, gap));
   return e;
 }
 
@@ -588,7 +580,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
     // Two segments meeting on a DIAGONAL seam, not a vertical edge. They
     // drop in one after the other: teal leads, maroon follows 80 ms later.
     Element teal =
-        singleBevel(
+        bevelPanel(
             box()
                 .left(Dim(0))
                 .top(Dim(0))
@@ -633,17 +625,17 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .child(box().width(46));
 
     Element maroon =
-        singleBevel(box()
-                        .left(Dim(548))
-                        .top(Dim(0))
-                        .width(Dim(1892.0f - 548.0f))
-                        .height(40)
-                        .shape(shapes::chamfered(40, shapes::Corner::TopLeft))
-                        .row()
-                        .alignItems(Align::Center)
-                        .padding(58, 0, 14, 0)
-                        .gap(10),
-                    kChrome)
+        bevelPanel(box()
+                       .left(Dim(548))
+                       .top(Dim(0))
+                       .width(Dim(1892.0f - 548.0f))
+                       .height(40)
+                       .shape(shapes::chamfered(40, shapes::Corner::TopLeft))
+                       .row()
+                       .alignItems(Align::Center)
+                       .padding(58, 0, 14, 0)
+                       .gap(10),
+                   kChrome)
             .translateY(animate(motion::from(-46.0f).to(0.0f),
                                 {380ms, &ch::easeOutQuint, 1530ms}))
             .child(t("\xe2\x80\xba GLOBAL NAVIGATOR", micro(11, kDust, 260)))
@@ -744,7 +736,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
     };
 
     Element panel =
-        singleBevel(box().column().padding(9).gap(6), hexColor(0x3E1013));
+        bevelPanel(box().column().padding(9).gap(6), hexColor(0x3E1013));
     panel.key("audio")
         .area("audio")
         .foreground(styles::Brackets{
@@ -782,12 +774,12 @@ struct TwoAdvancedV4 : sketch::Sketch {
 
   Element navBar() {
     using namespace tav;
-    Element bar = singleBevel(box()
-                                  .row()
-                                  .justify(Justify::SpaceEvenly)
-                                  .alignItems(Align::Center)
-                                  .padding(6, 0),
-                              kChrome);
+    Element bar = bevelPanel(box()
+                                 .row()
+                                 .justify(Justify::SpaceEvenly)
+                                 .alignItems(Align::Center)
+                                 .padding(6, 0),
+                             kChrome);
     bar.key("nav").area("nav").fill(stripesLive).staggerChildren(40ms);
     for (int i = 0; i < 7; ++i) {
       bar.child(box()
@@ -1313,7 +1305,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                    .child(slot("mfload"))
                    .opacity(&shutterInfo));
 
-    Element panel = doubleBevel(box().column().padding(3), kChrome, 3);
+    Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
     panel.key("mainframe")
         .area("mainframe")
         .translateY(animate(motion::from(70.0f).to(0.0f),
@@ -1569,7 +1561,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                        .top(Dim(316 - 11 - 34))
                        .child(cta("LAUNCH", 116, 34, kPanelSh)));
 
-    Element panel = doubleBevel(box().column().padding(3), kChrome, 3);
+    Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
     panel.key("feature")
         .area("feature")
         .translateX(animate(motion::from(90.0f).to(0.0f),
@@ -1722,7 +1714,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                        .child(box().grow(1))
                        .child(cta("ARCHIVES", 116, 34, kPanelSh)));
 
-    Element panel = doubleBevel(box().column().padding(3), kChrome, 3);
+    Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
     panel.key("press")
         .area("press")
         .translateY(animate(motion::from(60.0f).to(0.0f),
@@ -1901,7 +1893,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .child(box().grow(1))
             .child(auxView());
 
-    Element panel = doubleBevel(box().column().padding(3), kChrome, 3);
+    Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
     panel.key("aux")
         .area("aux")
         .translateY(animate(motion::from(56.0f).to(0.0f),
@@ -2001,9 +1993,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                 .child(t("\xe2\x96\xbe", micro(9, kDust, 0)))));
     };
 
-    Element row = singleBevel(
-        box().row().alignItems(Align::Center).padding(14, 0).gap(18),
-        hexColor(0x2E0B0D));
+    Element row =
+        bevelPanel(box().row().alignItems(Align::Center).padding(14, 0).gap(18),
+                   hexColor(0x2E0B0D));
     row.key("subsys")
         .area("subsys")
         .background(
