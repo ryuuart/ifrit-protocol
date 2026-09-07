@@ -108,21 +108,6 @@ the pass, plus this file):
 - `Track::over` against `Annotation::unit` — one spelling, with
   `kit/Typeset.h`, `core/Element.h` and TYPOGRAPHY.md following.
 
-## Ring and grid placement is respelled where geometry already has it
-
-`geometry::arrange::{along, onEllipse, onRing, cellAt, cellRect,
-moduleSize, step}` (`sigilgeometry/path/Arrange.h`) is the canonical
-ring-and-grid arithmetic. Every ring and every grid in the sketches now
-reaches for it; of the evenly-spread runs (`t = i / n`, `x0 + (x1 - x0) *
-i / (n - 1)`, `extent / count`) four sketch files still spell their own,
-and the seven sites deliberately not arrange's say so in a comment where
-they stand. The two spellings do not agree to the pixel, so converting a
-sketch moves its plate by sub-pixel: a per-sketch judgement with the
-cause in each commit, never a sweep.
-
-Assert once fixed: the converted sketch's placement is `arrange::`, and
-its plate is rebased in the same commit that converts it.
-
 ## Automatic texture promotion moves 84 of 161 plates past one code value
 
 `sigil.py plates --tier promotion` renders every scene twice on the CPU —

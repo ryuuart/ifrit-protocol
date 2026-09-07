@@ -59,6 +59,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/blend/Blend.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -69,6 +70,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace arrange = sigil::geometry::arrange;
 namespace blend = sigil::geometry::path::blend;
 namespace shapes = sigil::geometry::shapes;
 
@@ -131,7 +133,8 @@ SkPath wave(SkPoint from, SkPoint to, float amplitude, int cycles) {
   SkPathBuilder b;
   const int n = 96;
   for (int i = 0; i <= n; ++i) {
-    const float t = (float)i / (float)n;
+    const float t = arrange::along(0.0f, 1.0f, (size_t)i, (size_t)n + 1,
+                                   arrange::Turn::Open);
     const float x = from.fX + (to.fX - from.fX) * t;
     const float y = from.fY + (to.fY - from.fY) * t +
                     amplitude * std::sin(t * (float)cycles * 6.2831853f);

@@ -620,11 +620,12 @@ SkPath arcRing(float rNorm, int count, float spanDeg, float fromDeg) {
   const float rad = rNorm * kR;
   const SkRect oval = SkRect::MakeLTRB(kEye.x() - rad, kEye.y() - rad,
                                        kEye.x() + rad, kEye.y() + rad);
-  const float pitch = 360.0f / (float)count;
   for (int k = 0; k < count; ++k) {
     // Skia measures from due east; the table above is measured from
     // twelve o'clock, which is the whole difference.
-    const float mid = fromDeg + pitch * (float)k - 90.0f;
+    const float mid = arrange::along(fromDeg, 360.0f, (size_t)k, (size_t)count,
+                                     arrange::Turn::Closed) -
+                      90.0f;
     b.addArc(oval, mid - spanDeg * 0.5f, spanDeg);
   }
   return b.detach();
@@ -635,9 +636,9 @@ SkPath arcRing(float rNorm, int count, float spanDeg, float fromDeg) {
  *  spoke never runs from one turning layer into another. */
 SkPath spokeRing(int count, float r0, float r1, float fromDeg) {
   SkPathBuilder b;
-  const float pitch = 360.0f / (float)count;
   for (int k = 0; k < count; ++k) {
-    const float th = fromDeg + pitch * (float)k;
+    const float th = arrange::along(fromDeg, 360.0f, (size_t)k, (size_t)count,
+                                    arrange::Turn::Closed);
     b.moveTo(P(th, r0));
     b.lineTo(P(th, r1));
   }
@@ -684,9 +685,10 @@ SkPath crescentRing(float rOut, float rIn, int count, float spanDeg,
  *  twelve nodes cost one node. */
 SkPath nodeRing(int count, float rNorm, float px, float fromDeg) {
   SkPathBuilder b;
-  const float pitch = 360.0f / (float)count;
   for (int k = 0; k < count; ++k) {
-    const SkPoint c = P(fromDeg + pitch * (float)k, rNorm);
+    const SkPoint c = P(arrange::along(fromDeg, 360.0f, (size_t)k,
+                                       (size_t)count, arrange::Turn::Closed),
+                        rNorm);
     b.addOval(SkRect::MakeLTRB(c.fX - px, c.fY - px, c.fX + px, c.fY + px));
   }
   return b.detach();

@@ -420,7 +420,8 @@ std::vector<float> ordinate(float lo, float hi, bool mercator, int n) {
   std::vector<float> ys;
   ys.reserve((size_t)n + 1);
   for (int i = 0; i <= n; ++i) {
-    const float v = lo + (hi - lo) * (float)i / (float)n;
+    const float v = arrange::along(lo, hi - lo, (size_t)i, (size_t)n + 1,
+                                   arrange::Turn::Open);
     ys.push_back(mercator ? std::log(std::tan((45.0f + v * 0.5f) * kD))
                           : std::tan(v * 0.5f * kD));
   }
@@ -430,7 +431,8 @@ std::vector<float> abscissa(float lo, float hi, int n) {
   std::vector<float> xs;
   xs.reserve((size_t)n + 1);
   for (int i = 0; i <= n; ++i)
-    xs.push_back(lo + (hi - lo) * (float)i / (float)n);
+    xs.push_back(arrange::along(lo, hi - lo, (size_t)i, (size_t)n + 1,
+                                arrange::Turn::Open));
   return xs;
 }
 

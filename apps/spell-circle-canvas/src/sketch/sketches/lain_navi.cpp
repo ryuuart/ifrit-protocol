@@ -511,7 +511,8 @@ inline SkPath ellipsePath(SkPoint c, float a, float b, float tiltDeg,
   SkPathBuilder p;
   const int n = 168;
   for (int i = 0; i <= n; ++i) {
-    const float t = t0 + (t1 - t0) * (float)i / (float)n;
+    const float t = arrange::along(t0, t1 - t0, (size_t)i, (size_t)n + 1,
+                                   arrange::Turn::Open);
     const float x = a * std::cos(t), y = b * std::sin(t);
     const SkPoint q{c.fX + x * ct - y * st, c.fY + x * st + y * ct};
     if (i == 0)
