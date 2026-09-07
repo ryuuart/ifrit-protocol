@@ -64,6 +64,14 @@ GPU_TOLERANCE = {
     "lantern_room": (4.0, 64),
 }
 
+# Scenes whose SUBJECT is the difference between the two backends, so the
+# tier measures them and does not judge them. A scene belongs here only
+# when what it draws IS the divergence, and the entry says which draw.
+DEVICE_DIVERGENT = {
+    "nine slice": "the trap cell calls Skia's own drawImageLattice, which "
+    "a device implements with an empty body — the empty cell is the lesson",
+}
+
 # How far a promoted plate may stand from the same scene rendered with the
 # promoter held off: one code value on any channel of any pixel. It is not
 # a tolerance anyone chose. A promoted node is baked under the live matrix
@@ -283,6 +291,13 @@ def device_sweep(binary, scenes, timeout, jobs, host_dir, device_dir):
             verdict = 1
             continue
         mean, p99, worst = distances[scene]
+        if scene in DEVICE_DIVERGENT:
+            print(
+                f"  DRAWS IT {scene:<24} "
+                f"mean {mean:6.2f}  p99 {p99:4d}  max {worst:3d}"
+                f"\n           {DEVICE_DIVERGENT[scene]}"
+            )
+            continue
         mean_cap, p99_cap = GPU_TOLERANCE.get(scene, DEFAULT_GPU_TOLERANCE)
         over = mean > mean_cap or p99 > p99_cap
         print(

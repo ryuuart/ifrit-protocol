@@ -213,6 +213,15 @@ is answering:
 | `scattered_model` | 4.0, 128 | The other extreme: a scatter thin enough to see through is nearly all silhouette edge, one rasteriser antialiases those and the other does not, so the p99 says so while the mean says the two are the same picture. |
 | `lantern_room` | 4.0, 64 | Four coloured lamps read as directions on the host and as attenuated emitters on the device, so the bodies between them are shaded from slightly different strengths — a low mean over a picture that is mostly dark, and a p99 at the lit edges. |
 
+A ceiling is for a scene the two tiers draw the same way and read
+slightly apart. A scene whose SUBJECT is the difference is named in
+`DEVICE_DIVERGENT` instead, measured and printed and not judged, because
+no ceiling states what it is about:
+
+| sketch | why it is not judged |
+|---|---|
+| `nine slice` | Its trap cell calls Skia's own `drawImageLattice` beside the decomposed path that SigilSkia's draw feature exists to provide. `graphite::Device` implements that call with an empty body, so the cell is empty on the device and full on the host — which is the sheet's lesson, drawn rather than asserted. |
+
 ### The promotion tier
 
 `--tier promotion` renders the same sketches twice on the CPU — once
