@@ -30,6 +30,21 @@ Taken on the merged tree after the post-merge compose pass:
   first frame following another session (`dunhuang_star_chart`) stood
   down once in a sweep and measured at the display's rate alone.
 
+## Rulings
+
+- The promotion head is researched further along its named probe, one
+  cause at a time with a pin each; the tail is judged after.
+- The promotion tier's ceiling reads the contract as written: one code
+  value over transparent black, two where the bake lands on content.
+- rota's raster crest is the author's look and leaves this file.
+- The extractions campaign is staffed one agent per library seam, in
+  sequence: solids and pose with the conic and silhouettes (geometry),
+  the projections (geometry path), the pentagrid and joinery
+  (lattice), tartan (material), particles (motion), sprites and the
+  atlas packer (compose kit), the HTML table layout (compose layouts),
+  the Motif bevels (chrome); each rewrites the sketches that carried
+  the hand-rolled version and names its plate movers.
+
 ## Deferred past the merge, each a campaign of its own
 
 - The library extractions the sketch review names — the mechanisms
@@ -175,41 +190,3 @@ ones found so far (`ComposeCache.APromotedLineKeepsTheInkThatStandsOutsideItsBox
 `ComposeCache.APromotedCurveKeepsTheCoverageItsLivePaintComputes` and
 `ComposeCache.APromotedNodeDropsTheRecordingItsBakeReplaced`).
 
-## rota_convocationis misses the raster gate on the halo it re-bakes
-
-The scene draws one charged disc, and `--bench` fails on it at the
-moments of the cycle where the disc is fully lit — the RASTER lane only.
-Presented in the real window across the whole loop it holds well over the
-gate, with p99 inside half the budget, and the app-FPS lane reports it
-within band. At the sketch's own moment the raster lane passes
-(p99 7.3 ms of the 16.6 ms budget).
-
-THE LIBRARY QUESTION IS ANSWERED AND CLOSED. A settled node's static
-layer effect is no longer rasterized inside its bake: the content goes
-into one surface with the effect left out and the effect is one image
-draw over it into the surface the node holds
-(`src/common/compose/README.md`,
-`ComposeCaching.AStaticEffectOverSettledContentIsRunOverItsBake`,
-`BM_Draw_StaticGlow_*`). It is NOT applied at the blit the way a MOVING
-effect is: the same arms measure a filter on a blit at a whole filter per
-frame while the node turns — Skia answers one from its cache only while
-the mapping that draw stands under holds still — against once per bake
-here. rota's plate is byte-identical, and rota is the only scene in the
-registry that takes the tier at all: the population is a node that holds
-a LOCAL bake, and a node standing still bakes in device space, where a
-filter would have to be re-expressed in device units to be lifted.
-
-WHAT IS LEFT IS THE LOOK, and it is the author's. At the crest of
-ignition the ring of names re-bakes on EVERY frame — its charge is a
-memoized scalar and the scalar ticks — and each re-bake pays 9 ms of
-content and about 70 ms of drop shadow over an 820x820 band. That
-proportion corrects what this entry said before: the filter's own layer
-dominates a small bake, and over a band this size the halo itself is the
-cost. The run of additive blits over the disc — fringe, rays, flood, the
-emblem — is about 15% of the same frame, and each of them is one blit of
-its own bake with its own gain, which no compositor change can coalesce
-(`BM_Draw_ChargedDisc_*` prices that shape: linear in the count of lit
-elements).
-
-So the two dials are the author's: how large a band wears a glow while
-the charge is running, and how much of the disc is lit at once.
