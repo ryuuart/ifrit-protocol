@@ -129,7 +129,7 @@ struct TrackCascade {
                                     ///< empty without a nested cascade
 
   /** THE GLYPH ADAPTER, and the whole of what compose adds to a schedule:
-   *  @p track says what a unit is (`over`, `innerOver`) and which list the
+   *  @p track says what a unit is (`unit`, `innerUnit`) and which list the
    *  beats are numbered against (`beatsOver`), this walk turns the laid-out
    *  glyphs into those numbers, and the arithmetic over them is
    *  SigilMotion's. */

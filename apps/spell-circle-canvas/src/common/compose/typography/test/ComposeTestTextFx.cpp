@@ -47,7 +47,7 @@ Track probeTrack(std::vector<FxSample>* into, sigil::weave::Selector where = {},
   return Track{.where = std::move(where),
                .effect = probe("probe", into),
                .stagger = std::move(cascade),
-               .over = over,
+               .unit = over,
                .progress = progress};
 }
 

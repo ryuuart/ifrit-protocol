@@ -516,10 +516,10 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
   // it landed, so a stagger does not restart at each frame. The lanes are
   // empty for an ordinary leaf, which is then numbered exactly as it always
   // was.
-  const bool story = !structure.storyUnitOf[(size_t)track.over].empty();
+  const bool story = !structure.storyUnitOf[(size_t)track.unit].empty();
   const std::vector<uint32_t>& outerLane =
-      story ? structure.storyUnitOf[(size_t)track.over]
-            : structure.unitOf[(size_t)track.over];
+      story ? structure.storyUnitOf[(size_t)track.unit]
+            : structure.unitOf[(size_t)track.unit];
   outerUnit.assign(count, 0);
   uint32_t outerCount = 0;
   if (track.beatsOver == Beats::Text) {
@@ -528,8 +528,8 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
     // track happens to address, so two tracks that split one paragraph run
     // one clock however differently their selections resolve.
     for (uint32_t g = 0; g < count; ++g) outerUnit[g] = outerLane[g];
-    outerCount = story ? structure.storyUnitCounts[(size_t)track.over]
-                       : structure.unitCounts[(size_t)track.over];
+    outerCount = story ? structure.storyUnitCounts[(size_t)track.unit]
+                       : structure.unitCounts[(size_t)track.unit];
   } else {
     // Renumber the units the SELECTION covers, from 0, in draw order — then
     // a stagger's From, its amount-mode division and its distribution all
@@ -552,7 +552,7 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
     // one way at the top and another underneath.
     const bool overText = track.beatsOver == Beats::Text;
     const std::vector<uint32_t>& innerLane =
-        structure.unitOf[(size_t)track.innerOver];
+        structure.unitOf[(size_t)track.innerUnit];
     innerUnit.assign(count, 0);
     uint32_t within = 0, previousOuter = ~0u, previousInner = ~0u;
     for (uint32_t g = 0; g < count; ++g) {

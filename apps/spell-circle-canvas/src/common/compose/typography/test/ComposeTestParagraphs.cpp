@@ -841,7 +841,7 @@ TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
   const auto reveal = [] {
     Track track;
     track.effect = fx::rise(20.0f);
-    track.over = sigil::weave::Unit::Word;
+    track.unit = sigil::weave::Unit::Word;
     track.beatsOver = beats::Text;
     track.stagger = {.eachMs = 20.0f, .durationMs = 100.0f};
     track.progress = 0.5f;

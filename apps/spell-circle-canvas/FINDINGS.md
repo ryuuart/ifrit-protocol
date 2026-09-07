@@ -100,10 +100,27 @@ the pass, plus this file):
   the process holds, for every runtime. Assert: a canvas thumbnail with
   a painter runtime installed never reaches it.
 
-## Compose, left by the fix pass
+## The sketches still spell a track's unit `over`
 
-- `Track::over` against `Annotation::unit` — one spelling, with
-  `kit/Typeset.h`, `core/Element.h` and TYPOGRAPHY.md following.
+`Track::over` and `Track::innerOver` are now `Track::unit` and
+`Track::innerUnit` — the word `Annotation::unit` already spelled, and the
+word the value itself carries (`weave::Unit`). The library, its tests, its
+bench and TYPOGRAPHY.md are converted; twenty-seven call sites in nine
+sketches are not, and `SigilSketches` does not compile until they are:
+
+    annotated_margin:166 · bousen:296 · daemon_console:548 ·
+    ember_decode:237,249 · karaoke_wipe:163 (a comment),234,235 ·
+    matrix_rain:402,403 · rota_convocationis:1121,1122,1126,1127,1139,
+    1140,1238,1239,1243,1252,1259 · shipping_forecast:329,586,592,598,709
+    · substance_swatches:212
+
+`.over =` becomes `.unit =` and `.innerOver =` becomes `.innerUnit =`;
+nothing else about those tracks changes and no plate moves. The other
+`over` in the sketch tree — `kit::backdrop({.over = size})` — is a
+different word and stays.
+
+Assert once fixed: `grep -rn '\.over = ' src/sketch` finds only the
+backdrop's, and the sketches build.
 
 ## Automatic texture promotion moves 84 of 161 plates past one code value
 

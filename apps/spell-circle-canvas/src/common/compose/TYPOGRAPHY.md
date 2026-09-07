@@ -37,8 +37,8 @@ this library: `sel::style`, a run written under a name, and
 Motion inside a text leaf is a list of **tracks**. One `Track` is five
 values — *which* glyphs (`weave::Selector`), *what* deviation from rest
 (`TextEffect`), *how* the beats spread (`motion::Spread`), what a unit IS
-(`Track::over`), and the master `Animatable<float>` progress that drives
-it. The spread is SigilMotion's and says nothing about text; `over` is the
+(`Track::unit`), and the master `Animatable<float>` progress that drives
+it. The spread is SigilMotion's and says nothing about text; `unit` is the
 whole of what makes it a cascade over glyphs rather than over a set's
 children or a feed's rows. `Element::fx` appends one;
 several compose per glyph, with `GlyphMod` offsets and rotations adding
@@ -50,7 +50,7 @@ the kit's, in `kit/Kinetic.h`.
 
 ```cpp
 text(u8"ONE LINE, TWO MOVES", display)
-    .fx({.effect = fx::rise(20), .over = weave::Unit::Word})
+    .fx({.effect = fx::rise(20), .unit = weave::Unit::Word})
     .fx({.where = weave::sel::text(u8"TWO"),
          .effect = fx::waveLoop(),
          .progress = &phase});
@@ -103,7 +103,7 @@ count alone, which makes two same-count cascades scatter identically; give
 each field its own nonzero seed for independent scatters.
 `motion::Spread::distribution` shapes the start times across the cascade,
 and `motion::Spread::then` nests a second cascade inside every beat of the
-first — `Track::innerOver` says what a unit is at that second level.
+first — `Track::innerUnit` says what a unit is at that second level.
 
 **Irregular timing.** `motion::Spread::cues` replaces the even spread with
 a TABLE — one start time per unit, in ms — which is what caption, lyric
@@ -113,7 +113,7 @@ and lip-sync timing actually is:
 text(lyric).fx({.effect = fx::rise(12),
                 .stagger = motion::Spread{.durationMs = 180}
                                .cues({0, 340, 720, 1180}),
-                .over = weave::Unit::Word});
+                .unit = weave::Unit::Word});
 ```
 
 It answers the spread itself, so it goes anywhere one goes and compares
@@ -222,8 +222,8 @@ cascade.then({.eachMs = 80, .durationMs = 1400});
 cascade.loopMs = 5000;  // every column re-drops on its own cue, forever
 text(field, rain).fx({.effect = streak,
                       .stagger = cascade,
-                      .over = weave::Unit::Line,
-                      .innerOver = weave::Unit::Cluster,
+                      .unit = weave::Unit::Line,
+                      .innerUnit = weave::Unit::Cluster,
                       .progress = &phase});  // phase wraps every 5 s
 ```
 
@@ -1079,7 +1079,7 @@ writing direction, so a style carrying them and set along a line takes them
 there too.
 
 **The engine runs in columns.** `weave::Unit::Line` IS A COLUMN here, so a
-track with `.over = weave::Unit::Line` beats column by column and
+track with `.unit = weave::Unit::Line` beats column by column and
 `weave::sel::line(0)` addresses the rightmost one; `weave::Unit::Cluster`
 runs down a column in reading order. `spanPaint`, `spanStyle`, `textAlign`
 (start is the top of the column), `maxLines` (which clamps COLUMNS) with

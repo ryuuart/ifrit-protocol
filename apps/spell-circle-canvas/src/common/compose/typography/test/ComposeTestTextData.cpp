@@ -910,11 +910,11 @@ TEST(ComposeText, EveryCascadeFieldOfATrackParticipatesInEquality) {
   // this makes the decision about it mechanical.
   const Track base{.stagger = {.eachMs = 30}};
   Track over = base;
-  over.over = sigil::weave::Unit::Line;
+  over.unit = sigil::weave::Unit::Line;
   EXPECT_FALSE(base.sameShape(over)) << "over";
-  Track innerOver = base;
-  innerOver.innerOver = sigil::weave::Unit::Line;
-  EXPECT_FALSE(base.sameShape(innerOver)) << "innerOver";
+  Track innerUnit = base;
+  innerUnit.innerUnit = sigil::weave::Unit::Line;
+  EXPECT_FALSE(base.sameShape(innerUnit)) << "innerUnit";
   Track beatsOver = base;
   beatsOver.beatsOver = Beats::Text;
   EXPECT_FALSE(base.sameShape(beatsOver)) << "beatsOver";

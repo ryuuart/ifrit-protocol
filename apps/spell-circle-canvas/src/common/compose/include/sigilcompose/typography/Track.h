@@ -68,15 +68,17 @@ struct Track {
    *  rather than over a set's children or a feed's rows. */
   motion::Spread stagger;
   /** Which units get a beat. It is what makes the remap above more than
-   *  per-glyph spacing: `over = weave::Unit::Word` beats once per word, and
+   *  per-glyph spacing: `unit = weave::Unit::Word` beats once per word, and
    *  every glyph of that word shares its beat. The default,
    *  `weave::Unit::Cluster`, is per-glyph for ordinary Latin text and keeps a
-   *  base letter attached to its combining marks everywhere else. */
-  sigil::weave::Unit over = sigil::weave::Unit::Cluster;
+   *  base letter attached to its combining marks everywhere else. It is
+   *  the word an Annotation spells the same way: one `Unit`, one name for
+   *  the thing a cascade and a reading are both addressed by. */
+  sigil::weave::Unit unit = sigil::weave::Unit::Cluster;
   /** Which units the NESTED cascade — `stagger.then({…})` — beats over
-   *  inside each of `over`'s beats. Read only when the spread nests; a
+   *  inside each of `unit`'s beats. Read only when the spread nests; a
    *  spread with no inner level never looks at it. */
-  sigil::weave::Unit innerOver = sigil::weave::Unit::Glyph;
+  sigil::weave::Unit innerUnit = sigil::weave::Unit::Glyph;
   /** WHICH LIST those beats are numbered against — see `Beats`. The
    *  default numbers the track's own selection, which is what a track
    *  that owns its text means; `beats::Text` numbers the paragraph, which
@@ -123,8 +125,8 @@ struct Track {
    *  where every other animated slot is, by the reconciler. */
   bool sameShape(const Track& other) const {
     return where == other.where && effect == other.effect &&
-           stagger == other.stagger && over == other.over &&
-           innerOver == other.innerOver && beatsOver == other.beatsOver &&
+           stagger == other.stagger && unit == other.unit &&
+           innerUnit == other.innerUnit && beatsOver == other.beatsOver &&
            reach == other.reach && continuous == other.continuous;
   }
   /** Full equality: the shape above plus the progress. */
