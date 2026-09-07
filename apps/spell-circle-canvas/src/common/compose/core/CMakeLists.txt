@@ -47,7 +47,7 @@ sigil_library(SigilComposeCore
     # text
     TextPainter.cpp
     # the instanced leaf
-    Instances.cpp
+    Instances.cpp Shelf.cpp
     # paint values
     Fills.cpp
     # internal headers
@@ -55,7 +55,7 @@ sigil_library(SigilComposeCore
     Transforms.h ComposerImpl.h PaintInternal.h BakeInk.h InstanceStamp.h
   HEADERS ../Compose.h Composer.h Core.h Derive.h Element.h Factories.h
           Feed.h Instances.h Layout.h Mask.h Measure.h Paint.h Pattern.h
-          Shape.h Stroke.h Table.h TextPainter.h Tiles.h
+          Shape.h Shelf.h Stroke.h Table.h TextPainter.h Tiles.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilCoreCache SigilCoreComparable SigilCoreCompute
          SigilCoreReconcile SigilGeometryPath SigilImage SigilMaterial
@@ -86,7 +86,8 @@ sigil_test(compose_test
           test/ComposeTestMask.cpp test/ComposeTestFieldPins.cpp
           test/ComposeTestContentCore.cpp test/ComposeTestDepth.cpp
           test/ComposeTestInstances.cpp test/ComposeTestTether.cpp
-          test/ComposeTestTable.cpp test/ComposeTestValues.cpp
+          test/ComposeTestShelf.cpp test/ComposeTestTable.cpp
+          test/ComposeTestValues.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
             yoga::yogacore

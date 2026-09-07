@@ -10,6 +10,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Measure.h>
+#include <sigilcompose/core/Shelf.h>
 
 #include <algorithm>
 #include <cmath>
@@ -175,26 +176,18 @@ int Atlas::variants(
 bool Atlas::ensureBaked(sigil::weave::FontContext& fonts) {
   if (m_sheet) return true;
   if (m_cells.empty()) return false;
-  // Shelf pack in baked pixels.
-  m_tex.assign(m_cells.size(), SkRect::MakeEmpty());
-  float penX = 0, penY = 0, shelfH = 0, sheetW = 0;
-  for (size_t i = 0; i < m_cells.size(); ++i) {
-    const float w = m_cells[i].size.width() * m_oversample;
-    const float h = m_cells[i].size.height() * m_oversample;
-    if (penX > 0 && penX + w > kMaxSheetWidth) {
-      penY += shelfH;
-      penX = 0;
-      shelfH = 0;
-    }
-    m_tex[i] = SkRect::MakeXYWH(penX, penY, w, h);
-    penX += w;
-    shelfH = std::max(shelfH, h);
-    sheetW = std::max(sheetW, penX);
-  }
-  const int sheetWi = std::max(1, (int)std::ceil(sheetW));
-  const int sheetHi = std::max(1, (int)std::ceil(penY + shelfH));
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(sheetWi, sheetHi));
+  // Shelf pack in baked pixels. Flush, with no gutter: every stamp reads
+  // its own rectangle at the oversample it was baked at, so nothing samples
+  // across a cell edge.
+  std::vector<SkSize> boxes;
+  boxes.reserve(m_cells.size());
+  for (const Cell& cell : m_cells)
+    boxes.push_back(
+        {cell.size.width() * m_oversample, cell.size.height() * m_oversample});
+  Shelved packed = shelve(boxes, {.maxWidth = kMaxSheetWidth});
+  m_tex = std::move(packed.cells);
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
+      std::max(1, packed.sheet.width()), std::max(1, packed.sheet.height())));
   if (!surface) return false;
   SkCanvas& canvas = *surface->getCanvas();
   canvas.clear(SK_ColorTRANSPARENT);

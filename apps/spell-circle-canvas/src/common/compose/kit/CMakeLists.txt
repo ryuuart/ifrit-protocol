@@ -29,7 +29,7 @@
 # mixer a layout scatters with. The arrow points one way: this tier links
 # Brush, and Brush links nothing here.
 sigil_library(SigilComposeKit
-  SOURCES Eras.cpp Kit.cpp Routers.cpp
+  SOURCES Eras.cpp Kit.cpp Routers.cpp Sprites.cpp
   HEADERS Chrome.h Frame.h Gel.h Gloss.h Grid.h Ground.h Annotations.h
           Typeset.h Instruments.h Kinetic.h Kit.h Layouts.h Marquee.h
           PixelType.h Placers.h Routers.h Specimen.h Sprites.h
@@ -51,7 +51,7 @@ sigil_test(compose_test
           test/ComposeTestTravel.cpp test/ComposeTestRouters.cpp
           test/ComposeTestEras.cpp
           test/ComposeTestPlacers.cpp test/ComposeTestQueries.cpp
-          test/ComposeTestStudio.cpp
+          test/ComposeTestSprites.cpp test/ComposeTestStudio.cpp
   LIBRARIES SigilComposeKit SigilComposeBrush SigilMeasure
             SigilComposeTesting SigilWeavePorts
   LABELS fonts
@@ -59,5 +59,5 @@ sigil_test(compose_test
 
 # Comparable silhouettes, hit testing and blended shaped leaves.
 sigil_bench(compose_bench
-  SOURCES bench/ComposeShapeBench.cpp
+  SOURCES bench/ComposeShapeBench.cpp bench/ComposeSpriteBench.cpp
   LIBRARIES SigilComposeKit SigilWeavePorts)

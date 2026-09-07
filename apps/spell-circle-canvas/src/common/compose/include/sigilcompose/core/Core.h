@@ -17,6 +17,7 @@
 #include "sigilcompose/core/Measure.h"
 #include "sigilcompose/core/Paint.h"
 #include "sigilcompose/core/Shape.h"
+#include "sigilcompose/core/Shelf.h"
 #include "sigilcompose/core/Stroke.h"
 #include "sigilcompose/core/Table.h"
 #include "sigilcompose/core/TextPainter.h"

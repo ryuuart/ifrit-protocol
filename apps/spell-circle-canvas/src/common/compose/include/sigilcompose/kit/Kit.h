@@ -26,6 +26,8 @@
  * | `kit/Frame.h` | `disc()` — a node about a centre, or at a frame's |
  * | `kit/Frame.h` | `at()` — a box pinned at absolute coordinates |
  * | `kit/Sprites.h` | `dotSprite()` — the stamp a point sink draws with |
+ * | `kit/Sprites.h` | `Sprite`, `pixelMap()` — palette-indexed pixel art |
+ * | `kit/Sprites.h` | `SpriteSheet` — sprites under names, packed on one |
  * | `kit/Gel.h` | `aquaGel()`, `aquaOrb()` — one era's look |
  * | `kit/Chrome.h` | `y2kChrome()` — another |
  * | `kit/Gloss.h` | `gloss()` and the two chrome type ramps |

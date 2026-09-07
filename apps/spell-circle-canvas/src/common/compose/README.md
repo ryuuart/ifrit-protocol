@@ -493,6 +493,14 @@ sound model; nothing below them changes kernel semantics.
   about lettering) and `fitRun` (a run solved onto a width).
 - `core/Tiles.h` — `tiles::`, the slicing of one baked picture into a run
   of tile-sized rasters.
+- `core/Shelf.h` — `shelve`, the packing several small drawings share one
+  image by: boxes laid left to right on a shelf as deep as its deepest
+  box, wrapping at `ShelfOptions::maxWidth`, and `Shelved::cells` handed
+  back PARALLEL to the boxes given so a frame index indexes both. A caller
+  that wants the denser sheet sorts its own boxes by height first; sorting
+  here would break the parallel every consumer reads the result through.
+  It is what `instancing::Atlas` packs its cells with and what
+  `kit::SpriteSheet` packs its sprites with.
 - `core/Instances.h` — the instanced sprite leaf: `instancing::Pool`,
   the struct-of-arrays store on your side of the seam; `instancing::Atlas`,
   the cells baked once from element trees; `instancing::instances`, the
@@ -917,9 +925,18 @@ at a `geometry::path::Frame`'s — a braced pair is the centre, and a
 frame is spelled as one) and `kit::at` (a box pinned at absolute
 coordinates, for the plate that has no layout at all), `kit::dotSprite`
 (the round stamp a point sink draws each point with),
-`kit::PixFont` (aliased bitmap-font bakes, in `kit/PixelType.h`, with
-`kit/Sprites.h`'s sprite sheets and `kit/Frame.h`'s nine-slice frame
-beside it), `kit::Scrim` and the
+`kit::PixFont` (aliased bitmap-font bakes, in `kit/PixelType.h`) and
+`kit/Frame.h`'s nine-slice frame,
+the pixel art in `kit/Sprites.h` — `kit::PixelInk`, a canvas and a cell
+size with the three verbs a pixel artist has, and `kit::Sprite`, the same
+verbs recorded as `kit::SpriteRun` marks over a palette, so WHAT is
+painted is separate from WHICH COLOUR each mark takes; `kit::pixelMap`
+reads one out of a character grid through a `kit::SpriteKey` (and REFUSES
+a character the key does not carry rather than leave an unfindable hole),
+`kit::pixelSprite` presents it as nodes, `kit::spriteImage` bakes it,
+`kit::indexImage` bakes the INDICES instead for a shader that recolours
+per draw, and `kit::SpriteSheet` holds sprites under names and packs them
+onto one image, each handed the rectangle it occupies — `kit::Scrim` and the
 halo/shade legibility helpers, the stock text effects over the
 `Element::fx` seam in `kit/Kinetic.h` — `fx::enter`, the one entrance
 every unit-offset reveal is a setting of, with `fx::rise`, `fx::slide`,
@@ -1506,8 +1523,8 @@ case, with no target behind either. What locates a case is that a suite
 is named for the feature it covers and its file sits in that feature's
 directory. The kernel's suites are in `core/test/` (elements, the
 reconciler, layout, paint, transitions, text at rest, the feed, the
-instanced leaf, masks, the depth lanes and the shared space, tethers and
-the field walks), the text engine's in `typography/test/` (text data, the
+instanced leaf and the shelf it packs on, masks, the depth lanes and the
+shared space, tethers and the field walks), the text engine's in `typography/test/` (text data, the
 text pass, vertical writing, motion along paths, the paragraph controls,
 rich spans, the variation drive), the stroke and decoration engine's in
 `brush/test/` (decorations on shapes and on type, lines, the brush kinds
@@ -1515,8 +1532,8 @@ and the engine under them, the stroke grammar, stamps and strips, the
 mask gates, the paint values this tier spells over SigilMaterial, the
 pixel styles and the kit's stroke presets), the kit's in `kit/test/` (the
 kit's own values, the grid, columns of one story, silhouettes and layout
-schemes, routers, placers, travel, and the queries, studio and
-instruments over them), and one apiece in `texture/test/` (textures as
+schemes, routers, placers, pixel art and its sheet, travel, and the
+queries, studio and instruments over them), and one apiece in `texture/test/` (textures as
 element content), `draw/test/` (a pen program hosted in a node),
 `video/test/` (video frames as element content) and `web/test/` (the
 Ultralight leaf, present only where the SDK was found). The library's own
