@@ -76,6 +76,10 @@ camera::Camera stage() {
 points::BillboardStyle splat() {
   points::BillboardStyle style;
   style.size = 2.4f;
+  // The lanes a cook exports, named: a chain that varied either shows it
+  // whether the cloud is splatted the moment it is cooked or long after.
+  style.sizeLane = "size";
+  style.tintLane = "tint";
   style.additive = false;
   return style;
 }
@@ -89,15 +93,28 @@ pop::Builder base() {
       .rampBy({{0.34f, 0.60f, 0.96f, 1}, {0.98f, 0.68f, 0.32f, 1}});
 }
 
-Element cell(const char* call, const std::string& note, pop::Builder chain) {
+/** ONE CELL: a cloud the sheet cooked once, splatted once, held as an
+ *  image.
+ *
+ *  The sink closes over the COOKED points rather than over the chain that
+ *  describes them. Nothing on this sheet moves, so the chain answers the
+ *  same cloud every time it is asked, and a chain cooked inside the paint
+ *  program would be cooked again on every frame the well is painted.
+ *
+ *  TEXTURE, NOT PICTURE, and at this count that is the whole cost. Every
+ *  point in the cloud is one image draw, and a recording replays every one
+ *  of them on every frame — thousands of canvas calls to arrive at a
+ *  picture that has not changed since the cloud was cooked. A texture is
+ *  the same pixels reached once and blitted after. */
+Element cell(const char* call, const std::string& note, gm::Cloud cloud) {
   return sketch::kit::caption(
       kCell, toU8(call), toU8(note),
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
-          custom(call, [chain = std::move(chain)](SkCanvas& canvas,
+          custom(call, [cloud = std::move(cloud)](SkCanvas& canvas,
                                                   const PaintContext& pc) {
-            chain.billboards(canvas, stage(), pc.size, splat());
-          })));
+            points::drawBillboards(canvas, cloud, stage(), pc.size, splat());
+          }).cache(Cache::Texture)));
 }
 
 }  // namespace
@@ -117,149 +134,154 @@ struct PopMath final : sketch::Sketch {
     const size_t kept = selected().keep("core").cloud().size();
     const size_t dropped = selected().drop("core").cloud().size();
 
-    ctx.composer.render(
-        sketch::kit::page(
-            {.title = toU8("POP MATH \xc2\xb7 Math, Fill, Affine, Lookup, "
-                           "Select, Mix, Normal, Delete"),
-             .subtitle = toU8("dials \xc2\xb7 the operator \xc2\xb7 the Mix "
-                              "weight (0.55) \xc2\xb7 the Select feather "
-                              "(0.6 of the extent)"),
-             .footer = toU8("an operator names the lane it writes, and a "
-                            "name nothing has written yet is all zeros "
-                            "\xe2\x80\x94 which is why naming an unwritten "
-                            "lane as a mask selects nobody rather than "
-                            "everybody")},
-            kit::cells(
-                {.cells = {kit::cells(
-                               {.cells = {cell("the cloud, uncut",
-                                               kit::formatted(
-                                                   "pop::on(torus, %d) with a "
-                                                   "two-stop "
-                                                   "Lookup on T \xc2\xb7 every "
-                                                   "cell "
-                                                   "below starts here",
-                                                   kMotes),
-                                               base()),
-                                          cell(
-                                              "Math{.lane = P, .mul = {1, 2.4, "
-                                              "1, "
-                                              "1}}",
-                                              "lane = lane * mul + add, per "
-                                              "component "
-                                              "\xc2\xb7 the diagonal case of "
-                                              "Affine, "
-                                              "and the one that needs no "
-                                              "matrix",
-                                              base().op(pop::Math{pop::Lane::P,
-                                                                  {1, 2.4f,
-                                                                   1, 1}})),
-                                          cell("Affine{.matrix = rotate * "
-                                               "shear}",
-                                               "the whole affine vocabulary in "
-                                               "one "
-                                               "op "
-                                               "\xc2\xb7 as a POSITION the "
-                                               "translation applies; as a "
-                                               "DIRECTION "
-                                               "only the upper 3x3 acts",
-                                               base()
-                                                   .affine(glm::
-                                                               rotate(glm::mat4(1.0f), 0.5f, glm::vec3{0, 0, 1}) *
-                                                           glm::mat4{1,
-                                                                     0, 0, 0, 0.55f, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1})),
-                                          cell("Lookup{.from = P, .weights = "
-                                               "{0,1,0,0}}",
-                                               "key = dot(from, weights), "
-                                               "remapped "
-                                               "from [low, high] onto a table "
-                                               "of "
-                                               "stops and sampled \xc2\xb7 "
-                                               "colour "
-                                               "by "
-                                               "HEIGHT, not by T",
-                                               base()
-                                                   .rampBy(pop::Lane::P,
-                                                           1, {{0.10f, 0.14f, 0.30f, 1}, {0.30f, 0.85f, 0.72f, 1}, {1.00f, 0.95f, 0.55f, 1}},
-                                                           -24, 24))},
-                                .gap = 14}),
-                           kit::cells({.cells =
-                                           {
-                                               cell(
-                                                   "Select{.feather = 0.6} "
-                                                   "\xe2\x86\x92 "
-                                                   "Math{.mask = \"core\"}",
-                                                   "a mask is a LANE: 1 inside "
-                                                   "the "
-                                                   "region, "
-                                                   "0 outside, feathered "
-                                                   "across the outer "
-                                                   "0.6 \xc2\xb7 the write "
-                                                   "lands in "
-                                                   "proportion",
-                                                   selected().masked("core").op(
-                                                       pop::Math{pop::Lane::P,
-                                                                 {1, 1, 1, 1},
-                                                                 {0, 58, 0,
-                                                                  0}})),
-                                               cell(
-                                                   "Fill{\"anchor\"} "
-                                                   "\xe2\x86\x92 "
-                                                   "Mix{P, anchor, P, 0.55}",
-                                                   kit::formatted("to = a + (b "
-                                                                  "- a) * "
-                                                                  "factor "
-                                                                  "\xc2\xb7 "
-                                                                  "Fill "
-                                                                  "invented "
-                                                                  "the lane "
-                                                                  "on first "
-                                                                  "write and "
-                                                                  "Mix drew "
-                                                                  "the "
-                                                                  "cloud "
-                                                                  "%.0f%% of "
-                                                                  "the way to "
-                                                                  "it",
-                                                                  (double)(kFactor * 100)),
-                                                   base()
-                                                       .fill("anchor", {0, 86,
-                                                                        0, 1})
-                                                       .mix(pop::Lane::P,
-                                                            "anchor", pop::Lane::P, kFactor)),
-                                               cell(
-                                                   "Normal{.sense = +1} "
-                                                   "\xe2\x86\x92 "
-                                                   "Peak{34}",
-                                                   "Dir made unit and turned "
-                                                   "to face AWAY "
-                                                   "from the centre, then "
-                                                   "every point "
-                                                   "pushed along its own "
-                                                   "\xc2\xb7 without "
-                                                   "the Normal the pushes "
-                                                   "disagree",
-                                                   base()
-                                                       .normal(1.0f, {0, 0, 0})
-                                                       .peak(34)),
-                                               cell(
-                                                   "Delete{.mask = \"core\", "
-                                                   ".keep}",
-                                                   kit::
-                                                       formatted(
-                                                           "the count is what "
-                                                           "this op moves: "
-                                                           "%zu kept, %zu "
-                                                           "dropped, of %d "
-                                                           "\xc2\xb7 every "
-                                                           "lane compacted "
-                                                           "through one "
-                                                           "permutation",
-                                                           kept,
-                                                           dropped, kMotes),
-                                                   selected().keep("core"))},
-                                       .gap = 14})},
-                 .column = true,
-                 .gap = 18})));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("POP MATH \xc2\xb7 Math, Fill, Affine, Lookup, "
+                       "Select, Mix, Normal, Delete"),
+         .subtitle = toU8("dials \xc2\xb7 the operator \xc2\xb7 the Mix "
+                          "weight (0.55) \xc2\xb7 the Select feather "
+                          "(0.6 of the extent)"),
+         .footer = toU8("an operator names the lane it writes, and a "
+                        "name nothing has written yet is all zeros "
+                        "\xe2\x80\x94 which is why naming an unwritten "
+                        "lane as a mask selects nobody rather than "
+                        "everybody")},
+        kit::cells(
+            {.cells = {kit::cells(
+                           {.cells = {cell("the cloud, uncut",
+                                           kit::formatted(
+                                               "pop::on(torus, %d) with a "
+                                               "two-stop "
+                                               "Lookup on T \xc2\xb7 every "
+                                               "cell "
+                                               "below starts here",
+                                               kMotes),
+                                           base().cloud()),
+                                      cell("Math{.lane = P, .mul = {1, 2.4, "
+                                           "1, "
+                                           "1}}",
+                                           "lane = lane * mul + add, per "
+                                           "component "
+                                           "\xc2\xb7 the diagonal case of "
+                                           "Affine, "
+                                           "and the one that needs no "
+                                           "matrix",
+                                           base()
+                                               .op(pop::Math{pop::Lane::P,
+                                                             {1, 2.4f, 1, 1}})
+                                               .cloud()),
+                                      cell("Affine{.matrix = rotate * "
+                                           "shear}",
+                                           "the whole affine vocabulary in "
+                                           "one "
+                                           "op "
+                                           "\xc2\xb7 as a POSITION the "
+                                           "translation applies; as a "
+                                           "DIRECTION "
+                                           "only the upper 3x3 acts",
+                                           base()
+                                               .affine(glm::rotate(glm::mat4(
+                                                                       1.0f),
+                                                                   0.5f, glm::vec3{0, 0, 1}) *
+                                                       glm::
+                                                           mat4{1, 0,
+                                                                0, 0, 0.55f, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1})
+                                               .cloud()),
+                                      cell(
+                                          "Lookup{.from = P, .weights = "
+                                          "{0,1,0,0}}",
+                                          "key = dot(from, weights), "
+                                          "remapped "
+                                          "from [low, high] onto a table "
+                                          "of "
+                                          "stops and sampled \xc2\xb7 "
+                                          "colour "
+                                          "by "
+                                          "HEIGHT, not by T",
+                                          base()
+                                              .rampBy(pop::Lane::P, 1,
+                                                      {{0.10f, 0.14f, 0.30f, 1},
+                                                       {0.30f, 0.85f, 0.72f, 1},
+                                                       {1.00f, 0.95f,
+                                                        0.55f, 1}},
+                                                      -24, 24)
+                                              .cloud())},
+                            .gap = 14}),
+                       kit::cells(
+                           {.cells =
+                                {
+                                    cell(
+                                        "Select{.feather = 0.6} "
+                                        "\xe2\x86\x92 "
+                                        "Math{.mask = \"core\"}",
+                                        "a mask is a LANE: 1 inside "
+                                        "the "
+                                        "region, "
+                                        "0 outside, feathered "
+                                        "across the outer "
+                                        "0.6 \xc2\xb7 the write "
+                                        "lands in "
+                                        "proportion",
+                                        selected()
+                                            .masked("core")
+                                            .op(pop::
+                                                    Math{pop::Lane::P, {1, 1, 1, 1}, {0, 58, 0, 0}})
+                                            .cloud()),
+                                    cell("Fill{\"anchor\"} "
+                                         "\xe2\x86\x92 "
+                                         "Mix{P, anchor, P, 0.55}",
+                                         kit::formatted(
+                                             "to = a + (b "
+                                             "- a) * "
+                                             "factor "
+                                             "\xc2\xb7 "
+                                             "Fill "
+                                             "invented "
+                                             "the lane "
+                                             "on first "
+                                             "write and "
+                                             "Mix drew "
+                                             "the "
+                                             "cloud "
+                                             "%.0f%% of "
+                                             "the way to "
+                                             "it",
+                                             (double)(kFactor * 100)),
+                                         base()
+                                             .fill("anchor", {0, 86, 0, 1})
+                                             .mix(pop::Lane::P,
+                                                  "anchor", pop::Lane::P,
+                                                  kFactor)
+                                             .cloud()),
+                                    cell("Normal{.sense = +1} "
+                                         "\xe2\x86\x92 "
+                                         "Peak{34}",
+                                         "Dir made unit and turned "
+                                         "to face AWAY "
+                                         "from the centre, then "
+                                         "every point "
+                                         "pushed along its own "
+                                         "\xc2\xb7 without "
+                                         "the Normal the pushes "
+                                         "disagree",
+                                         base()
+                                             .normal(1.0f, {0, 0, 0})
+                                             .peak(34)
+                                             .cloud()),
+                                    cell("Delete{.mask = \"core\", "
+                                         ".keep}",
+                                         kit::formatted("the count is what "
+                                                        "this op moves: "
+                                                        "%zu kept, %zu "
+                                                        "dropped, of %d "
+                                                        "\xc2\xb7 every "
+                                                        "lane compacted "
+                                                        "through one "
+                                                        "permutation",
+                                                        kept, dropped, kMotes),
+                                         selected().keep("core").cloud())},
+                            .gap = 14})},
+             .column = true,
+             .gap = 18})));
   }
 };
 
