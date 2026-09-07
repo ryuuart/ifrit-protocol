@@ -478,6 +478,9 @@ const path::Frame kEcliptic{
     .centre = {0, kEclCy}, .radius = kEclR, .zero = path::Zero::East};
 const path::Frame kRing{
     .centre = {0, 0}, .radius = kRingSk, .zero = path::Zero::East};
+/** The same convention read as ARC LENGTH: where a plate angle falls along
+ *  `shapes::circle()`, which is the number ring typography rides on. */
+const path::Frame kPlateAngles{.zero = path::Zero::East};
 
 SkPoint eclPoint(float angDeg) { return kEcliptic.at(angDeg); }
 SkPoint ringPoint(float angDeg) { return kRing.at(angDeg); }
@@ -1721,7 +1724,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
     for (int i = 0; i < 12; ++i) {
       const int deg = i * 30;
       const float psi = 90.0f - (float)deg;  // plate angle of this division
-      const float f = std::fmod(psi / 360.0f + 2.0f, 1.0f);
+      const float f = kPlateAngles.fraction(psi);
       const float rr = 1.104f * kR;
       g.child(text(toU8(std::to_string(deg == 0 ? 360 : deg)),
                    type(faceLimb, 0.026f * kR, hexColor(0x33240c, 0.92f), 0.6f))
@@ -1746,7 +1749,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
     for (int n = 1; n <= 24; ++n) {
       const float psi =
           arrange::along(90.0f, -360.0f, (size_t)n, 24, arrange::Turn::Closed);
-      const float f = std::fmod(psi / 360.0f + 2.0f, 1.0f);
+      const float f = kPlateAngles.fraction(psi);
       const float rr = 1.044f * kR;
       const bool isX = (n == 21);
       g.child(
