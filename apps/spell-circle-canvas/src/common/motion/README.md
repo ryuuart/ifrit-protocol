@@ -21,7 +21,7 @@ what a consumer uses; every public header lives under
 | `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Oscillator.h`, `values/Sequence.h`, `values/Spring.h`, `values/Time.h`; `values/Values.h` includes all nine | `Transition`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()`; `Oscillator` and `Wave`, the repeating signal; `Sequence`, `Step` and `Interpolation`, the keyed track |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
 | `SigilMotionSchedule` | `schedule/Spread.h`, `schedule/Order.h`, `schedule/Cascade.h`; `schedule/Schedule.h` includes all three | `Spread`, the spec; `cascadeOrder()`, the five orderings; `Cascade` and `Beat`, a spread resolved against a frame's counts |
-| `SigilMotionPhysics` | `physics/Points.h`, `physics/Forces.h`, `physics/Constraints.h`, `physics/Verlet.h`; `physics/Physics.h` includes all four | `Vec2` and `Points`, the lanes a simulation is; `Force` with `gravity()`, `drag()`, `attract()`/`repel()`, `wind()` and `boids()`; `Constraint` with `distance()`, `stick()`, `spring()`, `range()` and `pin()`; `Verlet`, the stepper |
+| `SigilMotionPhysics` | `physics/Points.h`, `physics/Forces.h`, `physics/Constraints.h`, `physics/Verlet.h`, `physics/Particles.h`; `physics/Physics.h` includes all five | `Vec2` and `Points`, the lanes a simulation is; `Force` with `gravity()`, `drag()`, `attract()`/`repel()`, `wind()` and `boids()`; `Constraint` with `distance()`, `stick()`, `spring()`, `range()` and `pin()`; `Verlet`, the stepper; `Particles` and `Attribute`, a point set that is born, ages and dies, with `Emitter`, `EmitFrom` and `Roughly`, what puts particles into one |
 
 `SigilMotion` is the umbrella target over all five, and
 `<sigilmotion/Animation.h>` is the umbrella header over every values and
@@ -46,7 +46,7 @@ feature it names, and everything below is the library as a whole.
 | **[CLOCK.md](CLOCK.md)** | `FrameClock` and `Ticker`: deltas, the two phases of a tick, derivations, the fixed-rate lane, and the signal a host sleeps on |
 | **[VALUES.md](VALUES.md)** | `Transition`, `Animatable<T>` and its four forms, the held `AnimatedFloat` a ticker runs, `Oscillator` and `Sequence`, `Spring`, the lanes a host retargets through, and the three words for stillness |
 | **[BIND.md](BIND.md)** | `bind()`, the `Bound` chain and the fixed order `BoundFloat::apply` runs its stages in, the envelopes that are the waveform vocabulary, and the wiggle field |
-| **[PHYSICS.md](PHYSICS.md)** | `Points`, `Force`, `Constraint` and `Verlet`: the one feature here that is stepped rather than read |
+| **[PHYSICS.md](PHYSICS.md)** | `Points`, `Force`, `Constraint` and `Verlet`: the one feature here that is stepped rather than read, and `Particles` with the `Emitter` that fills it |
 | **[SCHEDULE.md](SCHEDULE.md)** | `Spread`, `cascadeOrder()` and `Cascade`: how N units share one progress, from a master float and nothing else |
 
 ## Comparing two descriptions
@@ -135,7 +135,7 @@ for the stepper's cases, `-R '^Cascade\.'` for the schedule's:
 | `bind/test/` | `Bind`, `Stages`, `StagePairs`, `Envelopes`, `PeriodicEnvelopes`, `BindNoise` | the `bind()` chain: every stage against the arithmetic it stands in for, the place each stage owns, the envelopes, `wrap`, the wiggle field, and the two comparators field by field | anything above the leaf — the record that carries a curve is the lowest thing here |
 | `clock/test/` | `FrameClock`, `Ticker` | one reading after another, pause, time scale and the stall ceiling; the Ticker stepping motions, steppables and derivations, and the fixed step that keeps its own rate whatever the host draws at | a renderer |
 | `values/test/` | `Values`, `Forms`, `Animated`, `Lanes`, `Oscillator`, `Sequence`, `Spring` | `Transition`, the `animate()` builders, `quantizeTime`, the four forms an `Animatable<T>` holds, the two signals read from a time alone, springs, the held motion of an animatable, and the lanes a host retargets through | a renderer |
-| `physics/test/` | `Physics` | the lanes a point set is and what `remove` does to their numbering, each force against the arithmetic it stands in for, a distance band read as a stick, a spring and a rope, the velocity a constraint pass gives back, the same run reproduced from the same `dt`, and the degenerate settings a caller can hand in | **the clock** — a step is a number of seconds the caller states, and a link edge to a timeline would be the first step to something in here reading time for itself |
+| `physics/test/` | `Physics`, `Particles` | the lanes a point set is and what `remove` does to their numbering, each force against the arithmetic it stands in for, a distance band read as a stick, a spring and a rope, the velocity a constraint pass gives back, the same run reproduced from the same `dt`, and the degenerate settings a caller can hand in; then a rate that produces the count it promises, a mouth that puts its births where its shape says, lifetimes that expire and compact the set, a named attribute that rides through a death, and the same seed twice as the same cloud | **the clock** — a step is a number of seconds the caller states, and a link edge to a timeline would be the first step to something in here reading time for itself |
 | `schedule/test/` | `Spread`, `Order`, `Cascade`, `CascadeOrdering` | the orderings, the ladder, cue tables, the nested and looping cascade, and the field walk over a spread's equality | **the clock** — a cascade is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
 
 No binary needs a GPU, a font, an asset or a network, so none of them
@@ -160,7 +160,8 @@ One file per subject, named for what it asserts. In `bind/test/`,
 `BindTest` (the chain builder), `BoundFloatTest` (the evaluation, the
 envelopes and the wrap), `WiggleNoiseTest` (the noise stage and the field
 under it) and `CurveComparatorTest` (the two comparators); then
-`clock/test/ClockTest.cpp`; `physics/test/PhysicsTest.cpp`;
+`clock/test/ClockTest.cpp`; then `physics/test/PhysicsTest.cpp` (the
+stepper) and `ParticlesTest.cpp` (what is born, ages and dies);
 `schedule/test/ScheduleTest.cpp`; and, in `values/test/`, `ValuesTest`
 (the values themselves), `AnimatedTest` (the held motion), `LanesTest`
 (the lane list), `OscillatorTest` and `SequenceTest` (the two signals
@@ -192,6 +193,7 @@ a lane, and the two time-only signals read one call at a time),
 `clock/bench/` (the frame clock's own step, the timeline
 stepped with N motions on it, and the derivation pass at N derived
 cells), `physics/bench/` (a field of free particles, the same field
-flocking — which is where comparing every pair shows — and a chain of
-sticks under its constraint passes) and `schedule/bench/` (resolving a
+flocking — which is where comparing every pair shows — a chain of
+sticks under its constraint passes, and ten thousand particles born,
+stepped, aged and reaped, each measured on its own) and `schedule/bench/` (resolving a
 cascade for a frame's counts, and the per-unit local-time read).
