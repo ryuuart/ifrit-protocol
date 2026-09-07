@@ -44,9 +44,7 @@ Taken on the merged tree after the post-merge compose pass:
 ## Deferred past the merge, each a campaign of its own
 
 - The library extractions the sketch review names — the mechanisms
-  hidden in the sketches over 1000 lines: palette-indexed sprites and an
-  atlas packer (`xcom_battlescape`, `cde_motif`, `thaumonomicon`) →
-  `compose/kit/Sprites.h`; an HTML auto-table layout scheme
+  hidden in the sketches over 1000 lines: an HTML auto-table layout scheme
   (`spacejam_1996:999-1200`) → compose kit layouts with a test; Motif
   bevels (`cde_motif`, `twoadvanced_v4`, `winamp_base`,
   `fallout2_charsheet`) → `Chrome.h`; a tartan sett-to-cloth weave
