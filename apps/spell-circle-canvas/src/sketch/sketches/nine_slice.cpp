@@ -14,15 +14,15 @@
  *            pixels per layout unit, and the two panels in the first row
  *            are the one image at 2 and at 1, so the difference between
  *            declaring it and not is the picture.
- *   THE TRAP Skia's own `drawImageLattice` is not implemented on every
+ *   THE DOOR Skia's own `drawImageLattice` is not implemented on every
  *            backend and draws NOTHING where it is not — including when
- *            a picture recorded elsewhere replays there. The second row
- *            draws the same frame twice at the same size: once through
- *            `Slice`, which decomposes the lattice into rects on every
- *            backend, and once through the native call in a `custom()`
- *            leaf. On a raster plate the two agree; on the device the
- *            right-hand cell is empty, which is why the decomposed path
- *            exists.
+ *            a picture recorded elsewhere replays there, so nothing in
+ *            this tree ever calls it. `skia::draw::drawLattice` is the
+ *            way round: it splits the lattice into rects every backend
+ *            performs. The second row draws the same frame twice at the
+ *            same size, once through `Slice` and once through that call
+ *            spelled by hand in a `custom()` leaf, and the two agree —
+ *            on a raster plate and on a device alike.
  *   STRETCH  The panel at the foot is re-laid out every frame, so the
  *            middle bands are watched stretching rather than assumed.
  *
@@ -37,12 +37,13 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilskia/draw/Direct.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
-#include <iterator>
 #include <memory>
 #include <utility>
+#include <vector>
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -108,50 +109,38 @@ Element panel(Slice frame, std::u8string caption, SkColor4f ink) {
       .child(text(std::move(caption), label(17, ink)));
 }
 
-/** THE NATIVE CALL, in a leaf of its own: Skia's `drawImageLattice`
+/** THE DIRECT DOOR, in a leaf of its own: `skia::draw::drawLattice`
  *  against the same divs the `Slice` beside it declares. Nothing here
- *  goes through the library's decomposition, which is the point. */
-Element nativeLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
+ *  goes through a decoration, which is the point — the call is what a
+ *  program of one's own reaches for, and it paints the same rects. */
+Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
+  // One promotion cache a leaf, shared by every frame it draws: a raster
+  // source has to reach the device once, not once a frame.
+  auto cache = std::make_shared<sigil::skia::draw::Promoted>();
   return box()
       .width(Dim(kPanelW))
       .height(Dim(kPanelH))
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      // Keyed: the asset is the whole of what the program closes over, and
-      // the sheet shows exactly one native lattice.
-      .child(custom("lattice.native",
-                    [asset = std::move(asset)](SkCanvas& canvas,
-                                               const PaintContext& ctx) {
+      // Keyed: the asset and its cache are the whole of what the program
+      // closes over, and the sheet shows exactly one hand-spelled lattice.
+      .child(custom("lattice.direct",
+                    [asset = std::move(asset), cache](SkCanvas& canvas,
+                                                      const PaintContext& ctx) {
                       const sk_sp<SkImage> image =
                           asset ? asset->frameAt(0).image : nullptr;
                       if (!image) return;
                       const int side = image->width();
-                      const int xs[] = {side / 3, side * 2 / 3};
-                      const int ys[] = {side / 3, side * 2 / 3};
-                      const SkIRect bounds =
-                          SkIRect::MakeWH(side, image->height());
-                      // EVERY FIELD NAMED, because Lattice is a plain aggregate
-                      // with no default member initializers: a declaration
-                      // followed by the four assignments this call needs leaves
-                      // the per-rectangle fill arrays holding whatever was on
-                      // the stack, and the recorder dereferences them whenever
-                      // they are not null.
-                      const SkCanvas::Lattice lattice{
-                          .fXDivs = xs,
-                          .fYDivs = ys,
-                          .fRectTypes = nullptr,
-                          .fXCount = (int)std::size(xs),
-                          .fYCount = (int)std::size(ys),
-                          .fBounds = &bounds,
-                          .fColors = nullptr};
-                      canvas.drawImageLattice(
-                          image.get(), lattice,
+                      const std::vector<int> xs{side / 3, side * 2 / 3};
+                      const std::vector<int> ys{side / 3, side * 2 / 3};
+                      sigil::skia::draw::drawLattice(
+                          canvas, *cache, image, xs, ys,
                           SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
                           SkFilterMode::kLinear);
                     })
                  .absolute()
                  .inset(0))
-      .child(text(u8"NATIVE", label(17, kQuest)));
+      .child(text(u8"DIRECT", label(17, kQuest)));
 }
 
 struct NineSlice final : sketch::Sketch {
@@ -200,9 +189,9 @@ struct NineSlice final : sketch::Sketch {
                        panel(carvedFrameSlice(azurePlain, 1.0f), u8"DECOMPOSED",
                              kQuest)),
                    sketch::kit::caption(
-                       kPanelW, u8"canvas.drawImageLattice",
-                       u8"the native op \xe2\x80\x94 blank on a device",
-                       nativeLattice(azurePlain))},
+                       kPanelW, u8"skia::draw::drawLattice",
+                       u8"the same rects \xe2\x80\x94 spelled by hand",
+                       directLattice(azurePlain))},
          .gap = 34,
          .divider = Fill::color(kRule)});
 

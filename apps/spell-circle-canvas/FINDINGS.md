@@ -26,9 +26,10 @@ the pass, plus this file):
   baseline was rebased from that sweep, draw scenes included.
 - Device tier: 190 of 195 within the per-channel bar. All five that were
   not are fixed: `brushwork_currents` (which crashed the GPU lane), `aero
-  desktop`, and — on the fence that keeps a scene's painting order
-  through a destination read — `winamp_base` and `chevreul_circle`.
-  `nine slice` is the pre-merge ruling below.
+  desktop`, `nine slice` (which drew Skia's own lattice call in a trap
+  cell and now draws SigilSkia's decomposition), and — on the fence that
+  keeps a scene's painting order through a destination read —
+  `winamp_base` and `chevreul_circle`. The tier judges every scene.
 - Promotion tier: 111 of 195 within one code value; the 84 outside are
   the standing entry below, which reports rather than gates.
 - ASan with UBSan: 3230 of 3230 pass, no report. TSan: 3232 of 3232,

@@ -214,13 +214,10 @@ is answering:
 | `lantern_room` | 4.0, 64 | Four coloured lamps read as directions on the host and as attenuated emitters on the device, so the bodies between them are shaded from slightly different strengths — a low mean over a picture that is mostly dark, and a p99 at the lit edges. |
 
 A ceiling is for a scene the two tiers draw the same way and read
-slightly apart. A scene whose SUBJECT is the difference is named in
-`DEVICE_DIVERGENT` instead, measured and printed and not judged, because
-no ceiling states what it is about:
-
-| sketch | why it is not judged |
-|---|---|
-| `nine slice` | Its trap cell calls Skia's own `drawImageLattice` beside the decomposed path that SigilSkia's draw feature exists to provide. `graphite::Device` implements that call with an empty body, so the cell is empty on the device and full on the host — which is the sheet's lesson, drawn rather than asserted. |
+slightly apart. There is no list of scenes the tier declines to judge: a
+scene that draws differently on the two backends is a defect in what
+drew it, and a sheet whose subject is a call one backend does not
+implement says so with a call every backend performs.
 
 ### The promotion tier
 
