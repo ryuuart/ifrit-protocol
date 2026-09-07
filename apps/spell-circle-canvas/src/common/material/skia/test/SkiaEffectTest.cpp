@@ -422,3 +422,81 @@ TEST(SkiaEffect, PhosphorHueDriftTurnsTheHaloAndNotTheSource) {
 // sheet, a datashader's category ramp — is one channel of indices and one
 // 256-entry table; both doors an effect has for that table are here, so a
 // consumer never has to bake one sprite per palette.
+
+// ---------------------------------------------------------------------------
+// THE BRIGHT PASS ON ITS OWN: the first half of a bloom, emitted as a
+// layer with its own coverage rather than as light to add.
+
+namespace {
+
+/** A 64x64 EMPTY field with one 24x24 square of @p color in the middle,
+ *  run through @p filter as a layer onto an F32 surface. The layer is
+ *  left transparent outside the square, which is what lets a partly
+ *  covered source reach the pass at its own alpha. */
+std::vector<float> brightThrough(const sk_sp<SkImageFilter>& filter,
+                                 SkColor4f color) {
+  const SkImageInfo info =
+      SkImageInfo::Make(64, 64, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
+  SkCanvas& canvas = *surface->getCanvas();
+  canvas.clear(SK_ColorTRANSPARENT);
+  SkPaint layer;
+  layer.setImageFilter(filter);
+  canvas.saveLayer(nullptr, &layer);
+  SkPaint ink;
+  ink.setColor(color);
+  canvas.drawRect(SkRect::MakeXYWH(20, 20, 24, 24), ink);
+  canvas.restore();
+  std::vector<float> px((size_t)64 * 64 * 4);
+  EXPECT_TRUE(surface->readPixels(SkPixmap(info, px.data(), 64 * 4 * 4), 0, 0));
+  return px;
+}
+
+}  // namespace
+
+TEST(SkiaEffect, TheBrightPassKeepsTheLightAboveItsKneeAndNothingElse) {
+  const sk_sp<SkImageFilter> pass =
+      skia::Effect::brightPass().resolvedImageFilter(nullptr);
+  // White is wholly above the knee and comes through whole.
+  const std::vector<float> white = brightThrough(pass, {1, 1, 1, 1});
+  EXPECT_NEAR(texel(white, 32, 32)[0], 1.0f, 0.01f);
+  EXPECT_NEAR(texel(white, 32, 32)[3], 1.0f, 0.01f);
+  // Nothing outside the source: the pass adds no light of its own.
+  EXPECT_NEAR(texel(white, 4, 4)[3], 0.0f, 0.001f);
+
+  // A middling grey is below the knee and is dropped entirely.
+  const std::vector<float> grey = brightThrough(pass, {0.5f, 0.5f, 0.5f, 1});
+  EXPECT_NEAR(texel(grey, 32, 32)[3], 0.0f, 0.01f);
+
+  // And one inside the knee comes through at the smoothstep's own
+  // fraction: 0.85 is 0.5667 of the way from 0.68 to 0.98, which the
+  // cubic maps to 0.5994.
+  const std::vector<float> partial =
+      brightThrough(pass, {0.85f, 0.85f, 0.85f, 1});
+  EXPECT_NEAR(texel(partial, 32, 32)[3], 0.5994f, 0.01f);
+  EXPECT_NEAR(texel(partial, 32, 32)[0], 0.85f * 0.5994f, 0.01f);
+}
+
+TEST(SkiaEffect, TheBrightPassGatesOnColourRatherThanOnCoverage) {
+  const sk_sp<SkImageFilter> pass =
+      skia::Effect::brightPass().resolvedImageFilter(nullptr);
+  // A white source at half coverage IS white, and blooms as white at
+  // half coverage. Read premultiplied it looks like a middling grey,
+  // which a gate on the premultiplied colour would refuse — and every
+  // antialiased edge in a layer is exactly this pixel.
+  const std::vector<float> veiled = brightThrough(pass, {1, 1, 1, 0.5f});
+  EXPECT_NEAR(texel(veiled, 32, 32)[3], 0.5f, 0.02f);
+  EXPECT_NEAR(texel(veiled, 32, 32)[0], 0.5f, 0.02f);
+}
+
+TEST(SkiaEffect, TheBrightPassIsComparableByItsThresholdAndKnee) {
+  EXPECT_TRUE(skia::Effect::brightPass() == skia::Effect::brightPass(0.68f));
+  EXPECT_FALSE(skia::Effect::brightPass() == skia::Effect::brightPass(0.5f));
+  EXPECT_FALSE(skia::Effect::brightPass(0.68f, 0.30f) ==
+               skia::Effect::brightPass(0.68f, 0.10f));
+  EXPECT_FALSE(skia::Effect::brightPass().isAnimated());
+  // A knee that would run past one is cut there, so the two spellings of
+  // "everything above the threshold" are one effect.
+  EXPECT_TRUE(skia::Effect::brightPass(0.9f, 0.2f) ==
+              skia::Effect::brightPass(0.9f, 4.0f));
+}

@@ -80,11 +80,22 @@ takes the layer a consumer has already rendered and runs a filter over
 it: `filter()` wraps any `SkImageFilter`, `shader()` an SkSL program
 whose `content` child IS that layer, `recipe()` a `Material` in the same
 position, and `blur()`/`directionalBlur()`/`glow()` are the three named
-spatial ones. `phosphorBloom()` is the display post-process: a bright pass
-feeds three radii whose RGB channels have different reach, so the feather
-changes hue while the sharp source remains on top. A gather is what it
-costs — twenty-four samples per pixel, three radii of eight headings,
-where a hand-rolled bright pass takes ONE and hands the spreading to
+spatial ones. `brightPass()` is the layer with everything but its light
+taken out — what is over a threshold, faded in across a knee, carried at
+its own coverage — which is the first half of a bloom on its own: chain
+it with a blur and lay the result back over the source with `kPlus`, and
+the whole cost is one tap and a separable Gaussian. It gates on the
+STRAIGHT colour and rewrites the coverage from it, because what it emits
+is a layer: a pixel half covered by white is white, and a gate on the
+premultiplied colour would call it grey and eat the edge of every source
+there is.
+
+`phosphorBloom()` is the display post-process: the same bright pass,
+gated premultiplied because it emits light to add rather than a layer,
+feeding three radii whose RGB channels have different reach, so the
+feather changes hue while the sharp source remains on top. A gather is
+what it costs — twenty-four samples per pixel, three radii of eight
+headings, where `brightPass()` takes ONE and hands the spreading to
 Skia's own separable blur — so the gather is not spent at the layer's own
 resolution. THE HALO IS GATHERED COARSE: the bright pass, the rings, the
 hue drift and the tail run over a layer reduced until the innermost ring

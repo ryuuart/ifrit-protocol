@@ -138,13 +138,14 @@ Effect Effect::glow(SkColor4f color, float sigma) {
 
 namespace {
 
-/** The two programs a bloom is made of: the gather, and the one tap of
- *  each that lays its answer back over the sharp source. */
-sk_sp<SkRuntimeEffect> phosphorProgram(const char* file) {
+/** The programs a bloom is made of: the bright pass on its own, the
+ *  gather, and the one tap of each that lays the gather's answer back
+ *  over the sharp source. */
+sk_sp<SkRuntimeEffect> bloomProgram(const char* door, const char* file) {
   auto [program, error] =
       SkRuntimeEffect::MakeForShader(SkString(shaderSource(file)));
   if (!program)
-    SkDebugf("[material] skia::Effect::phosphorBloom: %s failed: %s\n", file,
+    SkDebugf("[material] skia::Effect::%s: %s failed: %s\n", door, file,
              error.c_str());
   return program;
 }
@@ -208,10 +209,19 @@ sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
 
 }  // namespace
 
+Effect Effect::brightPass(float threshold, float knee) {
+  static const sk_sp<SkRuntimeEffect> program =
+      bloomProgram("brightPass", "BrightPass.sksl");
+  const float gate = std::clamp(threshold, 0.0f, 1.0f);
+  return shader(program,
+                {{"uThreshold", gate},
+                 {"uTop", std::min(gate + std::max(knee, 0.0f), 1.0f)}});
+}
+
 Effect Effect::phosphorBloom(float radius, float threshold, float intensity,
                              float chroma, float hueDrift, float tail) {
   static const sk_sp<SkRuntimeEffect> halo =
-      phosphorProgram("PhosphorHalo.sksl");
+      bloomProgram("phosphorBloom", "PhosphorHalo.sksl");
 
   constexpr float kDegree = 3.14159265f / 180.0f;
   Effect e = shader(halo, {{"uRadius", std::max(radius, 0.0f)},
@@ -696,7 +706,7 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* ctx) const {
     if (child) builder.child(name) = detail::childShader(*child, ctx);
   if (m_gatheredHalo) {
     static const sk_sp<SkRuntimeEffect> composite =
-        phosphorProgram("PhosphorComposite.sksl");
+        bloomProgram("phosphorBloom", "PhosphorComposite.sksl");
     // The reach the reduction is chosen from is the recipe's, or the
     // bound value where one drives it — a breathing radius picks its own
     // divisor rather than riding a stale one.

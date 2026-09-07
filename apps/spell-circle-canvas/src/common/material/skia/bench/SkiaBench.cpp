@@ -129,26 +129,11 @@ void through(benchmark::State& state, const skia::Effect& effect) {
   state.counters["megapixels"] = (double)(kWidth * kHeight) / 1e6;
 }
 
-/** The bright pass a bloom is usually hand-built from: one tap and a
- *  small Gaussian, which is the price the phosphor recipe is judged
- *  against. */
-sk_sp<SkRuntimeEffect> brightPass() {
-  static const sk_sp<SkRuntimeEffect> effect = [] {
-    auto [program, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
-uniform shader content;
-half4 main(float2 p) {
-  half4 c = content.eval(p);
-  half peak = max(c.r, max(c.g, c.b));
-  return c * smoothstep(half(0.52), half(0.82), peak);
-})"));
-    return program;
-  }();
-  return effect;
-}
-
+/** The cheap bloom: one tap and a small Gaussian, which is the price the
+ *  gathered phosphor recipe is judged against. */
 void BM_Layer_BrightPass(benchmark::State& state) {
   through(state,
-          skia::Effect::shader(brightPass())
+          skia::Effect::brightPass(0.52f, 0.30f)
               .then(skia::Effect::filter(SkImageFilters::Blur(4, 4, nullptr))));
 }
 BENCHMARK(BM_Layer_BrightPass);

@@ -1,0 +1,19 @@
+// The layer with everything but its light taken out: the straight colour
+// where it is brighter than the knee, carrying that brightness as its own
+// coverage. What comes back is a LAYER to blur and lay back over the
+// source, not light to add — which is why the gate is read on the
+// straight colour and the alpha is written rather than kept: a pixel half
+// covered by white is white, and a bright pass that read it premultiplied
+// would call it grey and drop the edge of every source it has.
+uniform shader content;
+uniform float uThreshold;
+uniform float uTop;
+
+half4 main(float2 p) {
+  half4 s = content.eval(p);
+  float a = max(s.a, 1e-4);
+  float3 straight = float3(s.rgb) / a;
+  float peak = max(max(straight.r, straight.g), straight.b);
+  float k = smoothstep(uThreshold, uTop, peak) * float(a);
+  return half4(half3(straight * k), half(k));
+}

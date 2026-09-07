@@ -86,6 +86,27 @@ class Effect {
    *  shadow at zero offset, which keeps the content on top. Chain with
    *  `then()` for a tighter core over a wider halo. */
   static Effect glow(SkColor4f color, float sigma);
+  /** THE LAYER WITH EVERYTHING BUT ITS LIGHT TAKEN OUT: what is brighter
+   *  than @p threshold, faded in over @p knee above it, carrying that
+   *  brightness as its own coverage. The first half of a bloom, on its
+   *  own, so a consumer can spend a blur and a `kPlus` composite where
+   *  `phosphorBloom()` would spend a gather: chain it with a blur and lay
+   *  the result back over the source.
+   *
+   *  The gate is read on the STRAIGHT colour and the coverage is
+   *  rewritten from it, because what comes back is a layer rather than
+   *  light to add — a pixel half covered by white is white, and gating it
+   *  premultiplied would call it grey and eat the edge of every source in
+   *  the layer. `phosphorBloom()`'s own gate reads the premultiplied
+   *  colour for the opposite reason: it never emits a layer, it
+   *  accumulates energy, and there coverage IS part of how much light a
+   *  pixel contributes.
+   *
+   *  Brightness is the peak channel, not luminance, so a saturated
+   *  primary blooms as readily as a white — which is what a phosphor and
+   *  a lamp both do, and what a luminance gate would refuse a deep blue
+   *  source. */
+  static Effect brightPass(float threshold = 0.68f, float knee = 0.30f);
   /** Display bloom over the completed layer. Pixels above @p threshold feed
    *  three concentric kernels; their red, green and blue channels are
    *  recombined with progressively different reach — red the widest, blue
