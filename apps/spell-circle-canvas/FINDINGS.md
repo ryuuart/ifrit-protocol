@@ -40,14 +40,6 @@ Taken on the merged tree after the extractions campaign:
 - The seams' library growths without a sketch consumer yet stay, with
   their cases.
 
-## Deferred, a campaign of its own
-
-- The source-file splits by subject: the 1380-line
-  `Composer::Impl::paint` in `compose/core/StackingPainter.cpp` and the
-  compose files its review lists (`Element.h`, `Reconcile.cpp`,
-  `Composer.cpp`, `ComposerImpl.h`, `Volatility.cpp`, `Instance.h`,
-  `Layout.cpp`, `ComposeInternal.h`, `Derive.cpp`).
-
 ## Automatic texture promotion moves 48 of 195 plates past the contract
 
 `sigil.py plates --tier promotion` renders every scene twice on the CPU —
