@@ -214,6 +214,14 @@ class CanvasSession final : public Session {
 
   void setAutoPromotion(Promotion policy) override {
     using Policy = compose::Composer::PromotionPolicy;
+    // A SKETCH THAT DECLARED ITS PICTURE NONLINEAR keeps the automatic
+    // promoter off whatever a host asks for. A bake is a picture held
+    // for a frame and blitted, and the arithmetic that makes that the
+    // same picture is a bound on the DIFFERENCE it may carry — which a
+    // step, a round or a reciprocal downstream of it multiplies by a
+    // gain the scene chose and nothing here can see. So the declaration
+    // outranks the request: such a scene is drawn from live paint.
+    if (m_spec.nonlinearPicture) policy = Promotion::Off;
     m_composer->setAutoTexturePromotion(policy == Promotion::Off ? Policy::Off
                                         : policy == Promotion::Eager
                                             ? Policy::Eager

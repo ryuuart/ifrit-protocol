@@ -116,11 +116,20 @@ def registry(binary, kinds):
 
 
 def render_scene(binary, scene, outdir, timeout, extra_args=PROMOTION_OFF):
-    """Render one scene; returns (scene, digest, error, elapsed seconds).
+    """Render one scene; returns (scene, digest, error, elapsed seconds,
+    declared).
 
     The elapsed time is reported for every outcome, so a sweep can name
     what it is still waiting on rather than going quiet behind its
-    slowest scene."""
+    slowest scene.
+
+    `declared` is what the SKETCH said about itself that changed what
+    this render did — the one mark a run carries back out. A sketch that
+    declares its picture nonlinear in what went into it holds the
+    automatic promoter off from its own setup, so a sweep that asked for
+    the promoter did not get it, and a tier that reported the resulting
+    agreement without saying so would be an exclusion nobody could
+    see."""
     started = time.monotonic()
     try:
         result = subprocess.run(
@@ -149,12 +158,20 @@ def render_scene(binary, scene, outdir, timeout, extra_args=PROMOTION_OFF):
                 f"raise --timeout-seconds if the scene is merely slow)"
             ),
             time.monotonic() - started,
+            None,
         )
     elapsed = time.monotonic() - started
     plate = plate_path(outdir, scene)
+    declared = "nonlinear" if f"{scene}: declared nonlinear" in result.stdout else None
     if result.returncode != 0 or not os.path.exists(plate):
-        return scene, None, (result.stderr or result.stdout).strip()[-300:], elapsed
-    return scene, baseline.digest(plate), None, elapsed
+        return (
+            scene,
+            None,
+            (result.stderr or result.stdout).strip()[-300:],
+            elapsed,
+            declared,
+        )
+    return scene, baseline.digest(plate), None, elapsed, declared
 
 
 def compared(binary, first, second):
@@ -235,9 +252,10 @@ def prune_plates(directory, scenes):
 
 def sweep(binary, scenes, outdir, timeout, jobs, extra_args, standing):
     """Renders every scene, N at a time, printing one line per scene as
-    it finishes. Returns (scene -> digest, scene -> error). @p standing
-    names how a rendered scene stands, given its digest."""
-    results, errors = {}, {}
+    it finishes. Returns (scene -> digest, scene -> error, scene ->
+    declaration). @p standing names how a rendered scene stands, given
+    its digest."""
+    results, errors, declared = {}, {}, {}
     # Submitted rather than mapped, because map yields in submission
     # order and would hold every finished scene's line behind an
     # unfinished earlier one.
@@ -247,7 +265,9 @@ def sweep(binary, scenes, outdir, timeout, jobs, extra_args, standing):
             for scene in scenes
         ]
         for done, future in enumerate(concurrent.futures.as_completed(pending), 1):
-            scene, digest, err, elapsed = future.result()
+            scene, digest, err, elapsed, mark = future.result()
+            if mark:
+                declared[scene] = mark
             if digest is None:
                 errors[scene] = err
             else:
@@ -259,7 +279,7 @@ def sweep(binary, scenes, outdir, timeout, jobs, extra_args, standing):
             )
     for scene, err in sorted(errors.items()):
         print(f"RENDER FAILED  {scene}: {err}")
-    return results, errors
+    return results, errors, declared
 
 
 def device_sweep(binary, scenes, timeout, jobs, host_dir, device_dir):
@@ -280,11 +300,11 @@ def device_sweep(binary, scenes, timeout, jobs, host_dir, device_dir):
         return 0
 
     print("[cpu]")
-    _, cpu_errors = sweep(
+    _, cpu_errors, _ = sweep(
         binary, scenes, host_dir, timeout, jobs, PROMOTION_OFF, lambda s, d: "rendered"
     )
     print("[gpu]")
-    _, gpu_errors = sweep(
+    _, gpu_errors, _ = sweep(
         binary,
         scenes,
         device_dir,
@@ -337,6 +357,16 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     nodes — an idle machine promotes nothing by cost and would report a
     clean sweep it never earned.
 
+    …EXCEPT WHERE THE SCENE DECLARED OTHERWISE. A sketch whose picture is
+    not linear in what went into it — a view that rounds each channel to a
+    palette, a bright pass through a smoothstep gate, anything that
+    unpremultiplies and so carries a gain of 1/alpha — holds the promoter
+    off from its own setup, because there is no bound between a difference
+    under such a stage and a difference over it. The tier judges those
+    scenes under the policy they declare and names them on their verdict
+    line: the declaration lives with the scene it is about, in the sketch
+    that has to explain it, and there is no list of exceptions here.
+
     THE BAR IS THE CONTRACT AS COMPOSE STATES IT, and it has two halves,
     judged per pixel against the HELD-OFF plate: one code value where that
     plate is transparent black, two where it holds content and the bake
@@ -347,11 +377,11 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     meant to match."""
 
     print("[promotion off]")
-    _, off_errors = sweep(
+    _, off_errors, _ = sweep(
         binary, scenes, off_dir, timeout, jobs, PROMOTION_OFF, lambda s, d: "rendered"
     )
     print("[promotion on]")
-    _, on_errors = sweep(
+    _, on_errors, declared = sweep(
         binary, scenes, on_dir, timeout, jobs, PROMOTION_ON, lambda s, d: "rendered"
     )
     errors = len(off_errors) + len(on_errors)
@@ -381,7 +411,8 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
             # shaded pixels. Both are within the rule; the count of
             # differing pixels is what tells them apart, so max is
             # printed for every scene rather than only for the movers.
-            print(f"  WITHIN {scene:<24} max {worst:3d}  mean {mean:6.2f}")
+            note = "   declared nonlinear" if scene in declared else ""
+            print(f"  WITHIN {scene:<24} max {worst:3d}  mean {mean:6.2f}{note}")
             continue
         over = (
             f"{over_clear} over nothing"
@@ -399,6 +430,11 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
         f"{PROMOTION_DRIFT_CEILING_OVER_CONTENT} over content), "
         f"{errors} failed"
     )
+    if declared:
+        print(
+            f"{len(declared)} of them declared a nonlinear picture and stood "
+            f"under that: {', '.join(sorted(declared))}"
+        )
     print(f"plates kept: {off_dir}\n             {on_dir}")
     if verdict == 0 and not errors:
         print("VERDICT: the promoter moves no picture past the contract's bar")
@@ -548,7 +584,7 @@ def main(argv: list) -> int:
     # directories `--compare` differences standing when it is over.
     kept_baseline = plate_dir(args.config, "baseline", fresh=False)
     outdir = kept_baseline if adopting else plate_dir(args.config, "cpu")
-    results, errors = sweep(
+    results, errors, _ = sweep(
         binary,
         list(scenes),
         outdir,

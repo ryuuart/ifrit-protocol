@@ -46,6 +46,11 @@ struct Stage {
   /** This sketch is a plate rather than a live scene: `--bench` judges
    *  it on the cost of its capture. */
   bool plateOnly = false;
+  /** This sketch's picture is not linear in what went into it — it ends
+   *  on a step, a round, a gate or a reciprocal — so the automatic
+   *  promoter is held off for it and a sweep exercising the promoter
+   *  says so. */
+  bool nonlinearPicture = false;
 };
 
 /** DECLARE THE CANVAS, THE GROUND AND THE MOMENT in one call, over the

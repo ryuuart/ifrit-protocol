@@ -231,6 +231,20 @@ struct SketchContext {
   void plate() {
     if (spec) spec->plateOnly = true;
   }
+  /** DECLARE THIS SKETCH'S PICTURE NONLINEAR in what went into it: it
+   *  ends on a step, a round, a gate or a reciprocal, so one code value
+   *  under that stage is a whole step over it and no comparison of two
+   *  rasterisations of this scene can bound what the difference means.
+   *  The automatic promoter is then held off for this sketch whatever a
+   *  host asks for, and a sweep that means to exercise it says so.
+   *
+   *      ctx.nonlinearPicture(); // the view rounds to the 216 web colours
+   *
+   *  State the ablation in the sketch's header: what the number is with
+   *  the stage left out is what says the picture under it is right. */
+  void nonlinearPicture() {
+    if (spec) spec->nonlinearPicture = true;
+  }
 };
 
 /** A SKETCH THAT DRAWS A COMPOSE ELEMENT TREE.

@@ -59,6 +59,29 @@ struct CanvasSpec {
    *  than by measurement. It is not a timeout override — nothing about
    *  the plate sweep changes — only what the interactive gate asserts. */
   bool plateOnly = false;
+
+  /** ITS PICTURE IS NOT LINEAR IN WHAT WENT INTO IT.
+   *
+   *  A sketch that ends its picture with a step, a round, a gate or a
+   *  reciprocal — a view transform that quantizes each channel to a
+   *  palette, a bright pass through a smoothstep, anything that
+   *  unpremultiplies and so carries a gain of 1/alpha — has no bound
+   *  between a difference in its INPUT and a difference in what it
+   *  shows. One code value under such a stage is a whole step over it.
+   *
+   *  That is what a tier comparing two rasterisations of one scene
+   *  cannot judge: it is handed the picture AFTER the stage, and the
+   *  rounding it means to measure arrives multiplied by a gain the
+   *  scene chose. So a sketch that declares this keeps the automatic
+   *  promoter off whatever a host asks for — its picture is drawn from
+   *  live paint, on every machine and in every run — and a sweep that
+   *  means to exercise the promoter says on its own line that this
+   *  scene stood under its own declaration instead.
+   *
+   *  It is a statement about the picture and not a way out of a
+   *  comparison: what is under the stage still has to be right, and the
+   *  sketch's header is where the ablation that showed it is stated. */
+  bool nonlinearPicture = false;
 };
 
 }  // namespace sigil::sketch

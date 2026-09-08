@@ -994,6 +994,22 @@ about what a bake is allowed to do changes. One scene therefore exercises
 the same node set on every machine, and it is the whole promotable set
 rather than the few nodes that happened to be slow.
 
+…UNLESS THE SKETCH DECLARED OTHERWISE. `ctx.nonlinearPicture()` says the
+sketch's picture is not linear in what went into it: it ends on a step, a
+round, a gate or a reciprocal — a view transform quantizing each channel
+to a palette, a bright pass through a smoothstep, anything that
+unpremultiplies and so carries a gain of 1/alpha. There is then no bound
+between a difference UNDER that stage and the difference it shows, so one
+code value the promoter is allowed to cost arrives as a whole step, in a
+place the difference was never in. Such a sketch holds the promoter off
+from its own setup whatever a host asks for, its picture is drawn from
+live paint everywhere, and a sweep that asked for the promoter prints
+`<name>: declared nonlinear` so the tier can say the scene stood under
+its own declaration rather than reporting an agreement it never tested.
+The declaration belongs to the sketch, which is where the ablation
+showing that the picture UNDER the stage is right has to be stated;
+`spacejam_1996` and the three `eva_magi_*` plates carry it.
+
 What comes out is not byte-comparable and is not meant to be. A promoted
 node is baked under the live matrix post-translated by an integer, and
 inverting that matrix to find a shader's local coordinates does not

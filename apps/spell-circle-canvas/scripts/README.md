@@ -266,6 +266,17 @@ direct shader draw. A texel whose alpha is between none and all can
 settle one value further out over a bright backdrop, and taking the bake
 at higher precision does not remove it.
 
+A SCENE MAY DECLARE THAT IT CANNOT BE JUDGED THIS WAY. A sketch whose
+picture is not linear in what went into it — `ctx.nonlinearPicture()`,
+declared where a view rounds each channel to a palette or a bright pass
+runs through a smoothstep gate — holds the promoter off from its own
+setup, so the eager half is not eager for it. There is no bound between
+a difference under such a stage and the difference it shows: the one
+code value a bake is allowed arrives as a whole step. The tier names
+those scenes on their verdict lines and again in its summary, and the
+declaration lives in the sketch that has to explain it rather than in a
+list here.
+
 Past either bar is a picture that MOVED — a bake somewhere else,
 rasterised against another clip, or gone stale — which is a defect to
 file against the promoter. `Sketchbook --compare` reports the worst

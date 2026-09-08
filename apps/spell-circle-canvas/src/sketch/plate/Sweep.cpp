@@ -198,6 +198,13 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     }
     if (options.noPromotion) session->setAutoPromotion(Session::Promotion::Off);
     if (options.promotion) session->setAutoPromotion(Session::Promotion::Eager);
+    // A SKETCH WHOSE PICTURE IS NOT LINEAR IN WHAT WENT INTO IT holds the
+    // promoter off from its own declaration, so a sweep that asked for it
+    // did not get it — and says so here rather than reporting a scene that
+    // agreed with itself. A tier that judged such a scene in silence would
+    // be an exclusion nobody could see.
+    if (options.promotion && session->canvas().nonlinearPicture)
+      std::printf("%s: declared nonlinear\n", entry.name);
     SkDebugf("=== sketch %s\n", entry.name);
 
     // Every size below comes off the session: a sketch declares its own
