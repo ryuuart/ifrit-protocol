@@ -43,7 +43,8 @@ sigil_library(SigilComposeCore
     Composer.cpp Reconcile.cpp ReconcileHost.cpp Layout.cpp Derive.cpp
     Transitions.cpp Query.cpp
     # the paint phase
-    Volatility.cpp Bounds.cpp Depth.cpp StackingPainter.cpp Coverage.cpp
+    Volatility.cpp Bounds.cpp Depth.cpp StackingPainter.cpp
+    PaintContent.cpp Coverage.cpp
     # text
     TextPainter.cpp
     # the instanced leaf
