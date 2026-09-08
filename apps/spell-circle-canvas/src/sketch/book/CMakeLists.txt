@@ -17,6 +17,8 @@ qt_add_executable(Sketchbook
   Arguments.cpp Arguments.h
   FrameLane.cpp FrameLane.h
   Keys.cpp Keys.h
+  SketchbookRenderer.cpp SketchbookRenderer.h
+  SketchbookRenderer.cpp SketchbookRenderer.h
   Startup.cpp Startup.h
   SweepLane.cpp SweepLane.h
   ThumbnailWarm.cpp ThumbnailWarm.h
