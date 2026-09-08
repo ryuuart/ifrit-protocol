@@ -33,6 +33,19 @@
  * The three ways things move: the LIVE panel is door 3. update() changes
  * DATA (which LUT is current), re-describes, and the reconciler diffs —
  * there is no binding and no per-frame work anywhere.
+ *
+ * WHY THIS SHEET DECLARES ITS PICTURE NONLINEAR. A LUT strip is sixteen
+ * texels magnified eleven times and sampled NEAREST, which is a step
+ * function of the shader's own coordinate: a texel boundary that lands on
+ * a device pixel boundary is a tie, and which texel the sample takes is
+ * then decided by the last bit of the inverse matrix — the one bit a
+ * device-space bake is allowed to differ in, and the runtime's contract
+ * bounds it at a code value for a CONTINUOUS shader. Over a step it is a
+ * whole palette entry, tens of code values wide, on the column where the
+ * tie stands. Nudging the strip an eighth of a pixel off the grid brings
+ * the promoted and unpromoted plates within ONE, so what is under the step
+ * is right and the step is what has no bound. `ctx.nonlinearPicture()`
+ * therefore holds the automatic promoter off this sheet in every host.
  */
 
 #include <include/core/SkBitmap.h>
@@ -344,7 +357,8 @@ struct MaterialChild final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
     // the live panel is on the fire LUT here
-    sketch::kit::stage(ctx, {.size = {1060, 690}, .captureAt = 1.0});
+    sketch::kit::stage(
+        ctx, {.size = {1060, 690}, .captureAt = 1.0, .nonlinearPicture = true});
     ctx.composer.render(describe());
   }
 
