@@ -1124,7 +1124,9 @@ are private to the feature: tinyobjloader, cgltf, Alembic and simdjson
 (the JSON a `.geo` is), with STL and PLY parsed by hand. One reader per translation unit —
 `Obj.cpp`, `Gltf.cpp`, `Stl.cpp`, `PlyDecode.cpp`, `Geo.cpp`, `Alembic.cpp` —
 behind the dispatcher in `Model.cpp`, sharing only what `Internal.h`
-declares; `PlyEncode.cpp` and `GeoEncode.cpp` are the writers.
+declares; the .geo reader's own attribute-class decoding is
+`GeoLanes.cpp` beside it, over the tree `GeoInternal.h` holds;
+`PlyEncode.cpp` and `GeoEncode.cpp` are the writers.
 
 - **`mesh/codec/Model.h`** — what every reader produces: `Part` (one draw
   unit: a mesh in model space, its material factors and texture

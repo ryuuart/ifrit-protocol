@@ -15,7 +15,8 @@ find_package(boost_container CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(simdjson CONFIG REQUIRED)
 sigil_library(SigilGeometryMeshCodec
-  SOURCES Alembic.cpp Geo.cpp GeoEncode.cpp Gltf.cpp Internal.h Model.cpp
+  SOURCES Alembic.cpp Geo.cpp GeoEncode.cpp GeoInternal.h GeoLanes.cpp
+          Gltf.cpp Internal.h Model.cpp
           Obj.cpp PlyDecode.cpp PlyEncode.cpp Stl.cpp
   HEADERS Decode.h Encode.h Model.h
   INCLUDE_PRIVATE ${CGLTF_INCLUDE_DIR}
