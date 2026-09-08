@@ -62,22 +62,61 @@ std::optional<Plate> readPlate(const std::filesystem::path& path) {
 }
 
 /** Mean, 99th percentile and worst absolute channel difference, in
- *  0..255, over every channel of every pixel — and the worst split by what
- *  the FIRST plate holds where the difference is.
+ *  0..255, over every channel of every pixel — and the worst split THREE
+ *  ways by what the pixel it stands on is.
  *
- *  The split is there because a caller's tolerance can depend on it: a
+ *  The split is there because a caller's tolerance can depend on it. A
  *  picture drawn over transparent black and the same picture drawn over
  *  something are not composited the same number of times, so the second is
- *  allowed a rounding the first is not. Which pixels are which is a fact
- *  about the two files and is answered here; how much each is allowed is a
- *  judgement and is not. */
+ *  allowed a rounding the first is not. And a differing pixel that sits on
+ *  an ANTIALIASED EDGE IN BOTH PLATES is a third thing again: what changed
+ *  there is one pixel's coverage of an edge both pictures draw, which is
+ *  what a mark standing a fraction of a device pixel from where the other
+ *  drew it looks like — where a picture that MOVED takes pixels off the
+ *  edges, or takes whole marks away, and shows it by differing where
+ *  neither plate has an edge at all.
+ *
+ *  Which pixels are which is a fact about the two files and is answered
+ *  here; how much each is allowed is a judgement and is not. */
 struct Distance {
   double mean = 0;
   int p99 = 0;
   int worst = 0;
   int worstOverClear = 0;    ///< where the first plate is transparent black
-  int worstOverContent = 0;  ///< where it holds anything at all
+  int worstOverContent = 0;  ///< where it holds content and is not a graze
+  int worstOverGraze = 0;    ///< …and where the difference is edge-confined
+  size_t grazingPixels = 0;  ///< how many pixels that was
 };
+
+/** HOW MUCH THE PICTURE ITSELF VARIES WITHIN A PIXEL OF EACH POINT: the
+ *  largest spread any one channel shows over the 3x3 neighbourhood, in
+ *  0..255. A pixel in the middle of a flat wash reads 0; a pixel on an
+ *  antialiased edge reads the contrast of the two things the edge is
+ *  between, because the ramp from one to the other is inside its
+ *  neighbourhood. */
+std::vector<uint8_t> localSpan(const Plate& plate) {
+  const int w = plate.width, h = plate.height;
+  std::vector<uint8_t> span((size_t)w * h, 0);
+  for (int y = 0; y < h; ++y) {
+    const int y0 = std::max(0, y - 1), y1 = std::min(h - 1, y + 1);
+    for (int x = 0; x < w; ++x) {
+      const int x0 = std::max(0, x - 1), x1 = std::min(w - 1, x + 1);
+      int worst = 0;
+      for (size_t channel = 0; channel < 4; ++channel) {
+        int lo = 255, hi = 0;
+        for (int ny = y0; ny <= y1; ++ny)
+          for (int nx = x0; nx <= x1; ++nx) {
+            const int v = plate.pixels[(((size_t)ny * w) + nx) * 4 + channel];
+            lo = std::min(lo, v);
+            hi = std::max(hi, v);
+          }
+        worst = std::max(worst, hi - lo);
+      }
+      span[(size_t)y * w + x] = (uint8_t)worst;
+    }
+  }
+  return span;
+}
 
 Distance distanceBetween(const Plate& first, const Plate& second) {
   std::array<size_t, 256> histogram{};
@@ -88,20 +127,6 @@ Distance distanceBetween(const Plate& first, const Plate& second) {
 
   Distance distance;
   if (count == 0) return distance;
-  // The same differences again, gathered PER PIXEL rather than per channel,
-  // because what a pixel stands on is a property of all four of its
-  // channels together.
-  for (size_t at = 0; at + 3 < count; at += 4) {
-    int worst = 0;
-    for (size_t channel = 0; channel < 4; ++channel)
-      worst = std::max(worst, std::abs((int)first.pixels[at + channel] -
-                                       (int)second.pixels[at + channel]));
-    if (worst == 0) continue;
-    const bool clear = first.pixels[at] == 0 && first.pixels[at + 1] == 0 &&
-                       first.pixels[at + 2] == 0 && first.pixels[at + 3] == 0;
-    int& into = clear ? distance.worstOverClear : distance.worstOverContent;
-    into = std::max(into, worst);
-  }
   size_t total = 0;
   for (size_t value = 0; value < histogram.size(); ++value)
     total += value * histogram[value];
@@ -115,6 +140,66 @@ Distance distanceBetween(const Plate& first, const Plate& second) {
     if (!foundP99 && (double)seen >= cut) {
       distance.p99 = (int)value;
       foundP99 = true;
+    }
+  }
+
+  // The same differences again, gathered PER PIXEL rather than per channel,
+  // because what a pixel stands on is a property of all four of its
+  // channels together.
+  const int w = first.width, h = first.height;
+  const size_t pixels = (size_t)w * h;
+  std::vector<uint8_t> moved(pixels, 0);
+  for (size_t at = 0; at < pixels; ++at) {
+    int worst = 0;
+    for (size_t channel = 0; channel < 4; ++channel)
+      worst = std::max(worst, std::abs((int)first.pixels[at * 4 + channel] -
+                                       (int)second.pixels[at * 4 + channel]));
+    moved[at] = (uint8_t)worst;
+  }
+  // A DIFFERENCE THE EDGE UNDER IT EXPLAINS. A pixel is edge-confined when
+  // the picture varies by at least the difference within a pixel of it IN
+  // BOTH PLATES: the two disagree about how much of an edge covers that
+  // pixel, and both draw the edge. A pixel in a flat wash carries no such
+  // variation, and a mark that is gone leaves none where it was, so
+  // neither can be confined to an edge whatever its neighbours look like.
+  const std::vector<uint8_t> spanFirst = localSpan(first);
+  const std::vector<uint8_t> spanSecond = localSpan(second);
+  std::vector<uint8_t> spilled(pixels, 0);
+  for (size_t at = 0; at < pixels; ++at)
+    spilled[at] = moved[at] > 0 &&
+                  (spanFirst[at] < moved[at] || spanSecond[at] < moved[at]);
+  for (int y = 0; y < h; ++y) {
+    const int y0 = std::max(0, y - 1), y1 = std::min(h - 1, y + 1);
+    for (int x = 0; x < w; ++x) {
+      const size_t at = (size_t)y * w + x;
+      if (moved[at] == 0) continue;
+      const bool clear =
+          first.pixels[at * 4] == 0 && first.pixels[at * 4 + 1] == 0 &&
+          first.pixels[at * 4 + 2] == 0 && first.pixels[at * 4 + 3] == 0;
+      if (clear) {
+        distance.worstOverClear =
+            std::max(distance.worstOverClear, (int)moved[at]);
+        continue;
+      }
+      // …and CONFINED TO A RUN OF THEM: a difference that reaches a pixel
+      // no edge explains is that difference, wherever else it also lands,
+      // so a graze is a pixel whose neighbourhood holds no such pixel.
+      bool confined = true;
+      const int x0 = std::max(0, x - 1), x1 = std::min(w - 1, x + 1);
+      for (int ny = y0; ny <= y1 && confined; ++ny)
+        for (int nx = x0; nx <= x1; ++nx)
+          if (spilled[(size_t)ny * w + nx]) {
+            confined = false;
+            break;
+          }
+      if (confined) {
+        distance.worstOverGraze =
+            std::max(distance.worstOverGraze, (int)moved[at]);
+        ++distance.grazingPixels;
+      } else {
+        distance.worstOverContent =
+            std::max(distance.worstOverContent, (int)moved[at]);
+      }
     }
   }
   return distance;
@@ -178,9 +263,12 @@ int compare(const CompareOptions& options) {
       continue;
     }
     const Distance distance = distanceBetween(*a, *b);
-    std::printf("compared %s mean %.4f p99 %d max %d clear %d content %d\n",
-                name.c_str(), distance.mean, distance.p99, distance.worst,
-                distance.worstOverClear, distance.worstOverContent);
+    std::printf(
+        "compared %s mean %.4f p99 %d max %d clear %d content %d graze %d "
+        "%zu\n",
+        name.c_str(), distance.mean, distance.p99, distance.worst,
+        distance.worstOverClear, distance.worstOverContent,
+        distance.worstOverGraze, distance.grazingPixels);
   }
   std::fflush(stdout);
   return verdict;

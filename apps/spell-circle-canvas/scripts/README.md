@@ -247,9 +247,9 @@ different handful each run, and a tier that measures the machine
 measures nothing. Eager bakes every node the rules admit, from its first
 frame, and changes nothing about what a bake may do.
 
-THE CEILING IS TWO BARS, and neither is a tolerance anyone chose. Each
-differing pixel is judged by what the HELD-OFF plate — the reference —
-holds in that pixel.
+THE CEILING IS THREE BARS, and not one is a tolerance anyone chose. Each
+differing pixel is judged by what it stands on, read off the HELD-OFF
+plate — the reference — and off the two plates' own pixels around it.
 
 Where that pixel is TRANSPARENT BLACK the bar is one code value. A
 promoted node is baked under the live matrix post-translated by an
@@ -266,6 +266,22 @@ direct shader draw. A texel whose alpha is between none and all can
 settle one value further out over a bright backdrop, and taking the bake
 at higher precision does not remove it.
 
+Where the difference is CONFINED TO AN ANTIALIASED EDGE BOTH PLATES DRAW
+the bar is forty. A bake is taken with an integer subtracted from the
+live matrix's translation, so the two matrices round the same numbers at
+different magnitudes and part by half a float step of the device
+coordinate: nothing along an edge that meets the grid squarely, and a
+whole supersample bucket where a curve runs nearly TANGENT to one. The
+error is the live paint's own rounding, which the bake does not share, so
+no allocation, offset or clip removes it — only a bake taken at the canvas
+origin does, at a full-canvas surface per promoted node. The forty is
+measured rather than chosen: the two scenes that arithmetic was pinned on
+report a worst grazing difference of 31 and 38, and both sit inside ONE
+supersample bucket at the contrast their curves stand at, a quarter of a
+pixel's own contrast being 64 code values between black and white. A
+scene standing under this bar says so on its verdict line, with the
+number of pixels it was.
+
 A SCENE MAY DECLARE THAT IT CANNOT BE JUDGED THIS WAY. A sketch whose
 picture is not linear in what went into it — `ctx.nonlinearPicture()`,
 declared where a view rounds each channel to a palette or a bright pass
@@ -277,11 +293,11 @@ those scenes on their verdict lines and again in its summary, and the
 declaration lives in the sketch that has to explain it rather than in a
 list here.
 
-Past either bar is a picture that MOVED — a bake somewhere else,
+Past any of the three is a picture that MOVED — a bake somewhere else,
 rasterised against another clip, or gone stale — which is a defect to
 file against the promoter. `Sketchbook --compare` reports the worst
-difference under each bar (`clear` and `content` on its line), which is
-what lets the two be judged apart. The tier keeps no baseline and
+difference under each bar (`clear`, `content` and `graze` on its line),
+which is what lets them be judged apart. The tier keeps no baseline and
 refuses `--rebase`, because there is nothing here to adopt.
 
 ### Where the plates go

@@ -1250,9 +1250,22 @@ into a fresh offscreen is the same pixels, which
 `ADeviceBakeRasterisesOnItsLivePaintsRoute` holds. The only construction
 that removes it is a bake allocated from the canvas origin, so that no
 translation enters the layer's matrix at all, and that costs a full-canvas
-surface for every promoted node. So a plate whose curves graze the grid
-carries a few such pixels in a thousand, each worth more than the values
-below, and they are the one thing here that a bake cannot be held to.
+surface for every promoted node.
+
+SO THE CONTRACT CARRIES A THIRD CLAUSE, AND IT IS THE TWIN OF THE FIRST.
+A PROMOTED MARK MAY STAND ONE FLOAT STEP OF ITS DEVICE COORDINATE FROM ITS
+LIVE PAINT WHERE A CURVE GRAZES THE GRID. What that step costs a pixel is
+not a code value but whatever quantizer stands at that coordinate — a
+supersample bucket on a nearly tangent edge, the phase bucket a glyph mask
+is cached at — so the clause bounds the SHAPE of the difference rather
+than its size: it may reach only pixels whose difference is confined to an
+antialiased edge BOTH the promoted and the live picture draw, where the
+picture varies by at least the difference within a pixel of that point in
+each of them and so does every differing pixel beside it. That is one
+pixel's coverage of an edge the two agree about. A picture that MOVED
+shows the opposite — pixels taken off the edges, a mark that is gone, a
+wash at another value — and no clause admits it. The lane below measures
+the two apart and holds each to its own bar.
 
 The one value is the bake **over transparent black**. A bake that lands
 on CONTENT carries a second, and it is a rounding rather than a move: the
@@ -1307,9 +1320,12 @@ registry is rendered twice on the CPU — once with the policy `Off` and
 once `Eager`, everything else about the two runs pinned to the same
 clock, the same fixed step and the same capture moment — and the two
 pictures are differenced channel by channel. The pair is judged by the
-one code value above: a scene whose worst channel exceeds it is a
-promoted node painting a different picture, and it is filed against this
-library. Because the on half is eager rather than measured, that sweep
+three clauses above, each differing pixel against the bar for what it
+stands on: one code value over transparent black, two over content, and
+the grazing case under a bar of its own, measured off the scenes whose
+remainder the offset's arithmetic was pinned on. A scene past any of them
+is a promoted node painting a different picture, and it is filed against
+this library. Because the on half is eager rather than measured, that sweep
 covers every promotable node in the registry and reports the same numbers
 on any machine. It is `sigil.py plates --tier promotion`, and it
 is the only run in the repository that photographs this library with

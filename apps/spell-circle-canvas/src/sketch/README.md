@@ -649,17 +649,27 @@ same name in the other, decoded and differenced channel by channel:
 
 ```
 compared <name> mean <mean> p99 <p99> max <max> clear <max> content <max>
+         graze <max> <how many>
 size <name> <W>x<H> <W>x<H>
 missing <name> first|second
 unreadable <name> first|second
 ```
 
 Every distance is an absolute difference of one 8-bit channel, in 0..255,
-over every channel of every pixel. `clear` and `content` are the same
-worst difference split by what the FIRST plate holds where the difference
-is — transparent black, or anything at all — because a caller's tolerance
-can depend on it: a picture drawn over nothing and the same picture drawn
-over something are not composited the same number of times. It opens no
+over every channel of every pixel. `clear`, `content` and `graze` are that
+worst difference split three ways over the pixels it stands on, because a
+caller's tolerance can depend on which it is. `clear` is where the FIRST
+plate — the reference — holds transparent black, so nothing was
+composited under the difference at all. `graze` is where the difference is
+CONFINED TO AN ANTIALIASED EDGE BOTH PLATES DRAW: the picture varies by at
+least the difference within a pixel of that point in each of them, and so
+does every differing pixel beside it, so what changed is one pixel's
+coverage of an edge the two agree about — which is what a mark standing a
+fraction of a device pixel from where the other drew it looks like, and
+the count beside it says on how many pixels. `content` is everything else:
+a difference that reaches a pixel no edge explains, which is what a
+picture that MOVED shows — pixels taken off the edges, a mark that is
+gone, a wash at another value. It opens no
 sketch, needs no
 fonts, no assets and no device, and it JUDGES NOTHING — how close is
 close enough is a tolerance about a machine, which is the plate ledger's

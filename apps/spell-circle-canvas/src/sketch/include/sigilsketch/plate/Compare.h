@@ -29,18 +29,32 @@ struct CompareOptions {
  *
  *      compared <name> mean <mean> p99 <p99> max <max>
  *               clear <max over transparent> content <max over the rest>
+ *               graze <max over the edge-confined> <how many>
  *      size <name> <W>x<H> <W>x<H>
  *      missing <name> first|second
  *      unreadable <name> first|second
  *
  *  Every distance is an absolute difference of one 8-bit channel, in
- *  0..255, over every channel of every pixel. `clear` and `content` are
- *  the same worst difference split by what the FIRST plate holds where the
- *  difference is — transparent black, or anything at all — because a
- *  caller's tolerance can depend on it: a picture drawn over nothing and
- *  the same picture drawn over something are not composited the same
- *  number of times. Which pixels are which is a fact about two files;
- *  how much each is allowed is a judgement and stays with the caller.
+ *  0..255, over every channel of every pixel. `clear`, `content` and
+ *  `graze` are that worst difference split THREE ways over the pixels it
+ *  stands on, because a caller's tolerance can depend on which it is:
+ *
+ *  - `clear` — the FIRST plate, which is the reference, holds transparent
+ *    black there. Nothing was composited under the difference at all.
+ *  - `graze` — the difference is CONFINED TO AN ANTIALIASED EDGE BOTH
+ *    plates draw: the picture varies by at least the difference within a
+ *    pixel of that point in each of them, and so does every differing
+ *    pixel beside it. What changed is one pixel's coverage of an edge the
+ *    two agree about, which is what a mark standing a fraction of a device
+ *    pixel from where the other drew it looks like. The count is printed
+ *    beside it, because a worst on four pixels and a worst on four hundred
+ *    thousand are different facts.
+ *  - `content` — everything else: a difference that reaches a pixel no
+ *    edge explains, which is what a picture that MOVED shows — pixels
+ *    taken off the edges, a mark that is gone, a wash at another value.
+ *
+ *  Which pixels are which is a fact about two files; how much each is
+ *  allowed is a judgement and stays with the caller.
  *
  *  Returns 0 when every plate was compared, 1 when any was missing,
  *  unreadable or a different size, and 2 when a directory cannot be read

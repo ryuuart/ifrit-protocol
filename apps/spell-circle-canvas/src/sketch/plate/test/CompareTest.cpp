@@ -1,17 +1,22 @@
 /** @file
  * The comparison of two plate directories: that two identical plates
  * read as no distance apart, that a channel moved by a known amount
- * reads as that amount, and that a plate standing in only one of the two
- * directories is named rather than passed over.
+ * reads as that amount, that the worst distance is split by what the
+ * pixel under it is — nothing, an edge both plates draw, or content —
+ * and that a plate standing in only one of the two directories is named
+ * rather than passed over.
  */
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
+#include <include/core/SkPathBuilder.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilsketch/plate/Compare.h>
 #include <sigilsketch/plate/Sweep.h>
 
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -130,6 +135,98 @@ TEST(SketchCompare, SplitsTheWorstDistanceByWhatTheFirstPlateHolds) {
   const std::string report = testing::internal::GetCapturedStdout();
   EXPECT_NE(report.find("max 9 clear 3 content 9"), std::string::npos)
       << report;
+}
+
+/** A CURVE, AND A MARK BESIDE IT. The curve is stroked and antialiased, so
+ *  every pixel along it carries partial coverage; @p shift slides it by a
+ *  fraction of a pixel, which is what a mark standing one float step of its
+ *  device coordinate from another rasterisation of itself looks like. The
+ *  mark is a hard square the curve never touches: dropping it takes whole
+ *  pixels off a flat ground, which is what a picture that MOVED looks
+ *  like. */
+void writeCurvePlate(const std::filesystem::path& dir, const std::string& name,
+                     float shift, bool withMark) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(64, 64));
+  bitmap.eraseColor(SkColorSetARGB(255, 240, 238, 232));
+  SkCanvas canvas(bitmap);
+  SkPaint ink;
+  ink.setAntiAlias(true);
+  ink.setColor(SkColorSetARGB(255, 20, 18, 16));
+  ink.setStyle(SkPaint::kStroke_Style);
+  ink.setStrokeWidth(2.5f);
+  SkPathBuilder curve;
+  curve.moveTo(4 + shift, 58);
+  curve.quadTo(20 + shift, 4, 60 + shift, 26);
+  canvas.drawPath(curve.detach(), ink);
+  if (withMark) {
+    SkPaint solid;
+    solid.setAntiAlias(false);
+    solid.setColor(SkColorSetARGB(255, 20, 18, 16));
+    canvas.drawRect(SkRect::MakeXYWH(8, 8, 7, 7), solid);
+  }
+  const sk_sp<SkData> png =
+      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
+  ASSERT_TRUE(png);
+  std::filesystem::create_directories(dir);
+  std::ofstream out(dir / (std::string(kPlatePrefix) + name + ".png"),
+                    std::ios::binary);
+  out.write(reinterpret_cast<const char*>(png->data()),
+            (std::streamsize)png->size());
+}
+
+/** The three numbers off one comparison of two directories. */
+struct Split {
+  int worst = 0, clear = 0, content = 0, graze = 0;
+  long long grazing = 0;
+};
+
+Split splitOf(const std::string& report) {
+  Split split;
+  const size_t at = report.find("max ");
+  EXPECT_NE(at, std::string::npos) << report;
+  if (at == std::string::npos) return split;
+  std::sscanf(report.c_str() + at, "max %d clear %d content %d graze %d %lld",
+              &split.worst, &split.clear, &split.content, &split.graze,
+              &split.grazing);
+  return split;
+}
+
+}  // namespace
+
+namespace {
+
+/** A GRAZE IS NOT A DEFECT, AND THE PIXELS SAY WHICH IS WHICH. A curve
+ *  slid a quarter of a pixel differs only where both plates draw its edge,
+ *  and every one of those pixels sits on a coverage ramp in each of them.
+ *  A mark that is GONE differs where one plate has a flat ground and the
+ *  other has flat ink — no ramp in either, nothing an edge explains — so
+ *  it lands on `content` however antialiased the rest of the picture is. */
+TEST(SketchCompare, TellsAGrazingEdgeFromAMarkThatIsGone) {
+  const ScratchDir scratch("compare_graze");
+  const std::filesystem::path base = scratch.path / "base";
+  const std::filesystem::path slid = scratch.path / "slid";
+  const std::filesystem::path gone = scratch.path / "gone";
+  writeCurvePlate(base, "probe", 0.0f, true);
+  writeCurvePlate(slid, "probe", 0.25f, true);
+  writeCurvePlate(gone, "probe", 0.0f, false);
+
+  testing::internal::CaptureStdout();
+  EXPECT_EQ(compare({base.string(), slid.string()}), 0);
+  const Split grazed = splitOf(testing::internal::GetCapturedStdout());
+  testing::internal::CaptureStdout();
+  EXPECT_EQ(compare({base.string(), gone.string()}), 0);
+  const Split dropped = splitOf(testing::internal::GetCapturedStdout());
+
+  // The slid curve: the whole difference is edge-confined, and there is
+  // real ink in it — a quarter of a pixel on a hard-contrast stroke is tens
+  // of code values.
+  EXPECT_GT(grazed.graze, 20);
+  EXPECT_GT(grazed.grazing, 20);
+  EXPECT_LE(grazed.content, 2);
+  // The dropped mark: the difference is the ink itself, and it is content.
+  EXPECT_GT(dropped.content, 180);
+  EXPECT_EQ(dropped.worst, dropped.content);
 }
 
 TEST(SketchCompare, NamesAPlateThatStandsInOnlyOneDirectory) {
