@@ -42,28 +42,17 @@ using namespace detail;
 // ---------------------------------------------------------------------------
 // Recording bounds
 
-/** The rect this node's OWN paint covers, in its own local space — children
- *  excluded; recordBounds() below adds the child union. The node's box,
- *  grown by every declared bleed (decorations, stroke passes, echo offsets,
- *  band width profiles, material reserves), then joined with what a layout
- *  rect does not bound at all: the ink of the glyphs a text leaf placed, a
- *  routed connector/rail path, a text run's path baseline, and a borrowed
- *  band spine, each outset by its own reach. */
-SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
-  const ElementNode& node = *inst.description;
-  const SkRect rect = instanceRect(inst);
-  SkRect local = SkRect::MakeWH(rect.width(), rect.height());
-  // A GLYPH'S OUTLINE IS NOT ITS LINE BOX. A text leaf is measured to the
-  // band of its lines, and the ink a face draws stands outside that band
-  // wherever the face says it does — a comma's tail below the descent, an
-  // accent above the ascent — so the leaf paints past its own box by a
-  // fraction of a pixel on most faces and by more on a few. Joined here
-  // BEFORE the bleeds, so a track's reach and a decoration's bleed grow
-  // the ink as they grow the box; unioned rather than outset, because the
-  // layout already knows where the letters went and a guess would be a
-  // second opinion about it. Empty on every node that is not type.
-  local.join(inst.textInk);
+namespace {
+
+/** HOW FAR OFF ITS BOX A NODE'S OWN PAINT REACHES, as one number: the
+ *  largest bleed any decoration, stroke pass, band profile, echo offset,
+ *  fx track or material declares. Every carrier here answers the same
+ *  over-report-is-safe contract, because what this number is for is a
+ *  bounds — a layer, a cull, a bake — and under-reporting one truncates
+ *  ink with no diagnostic. */
+float declaredBleed(const ElementNode& node) {
   float bleed = 0;
+
   for (const Decoration& d : node.backgrounds)
     bleed = std::max(bleed, d.bleed());
   for (const Decoration& d : node.foregrounds)
@@ -101,6 +90,33 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
     if (node.materialData->recipe)
       bleed = std::max(bleed, node.materialData->recipe->bleed());
   }
+  return bleed;
+}
+
+}  // namespace
+
+/** The rect this node's OWN paint covers, in its own local space — children
+ *  excluded; recordBounds() below adds the child union. The node's box,
+ *  grown by every declared bleed (decorations, stroke passes, echo offsets,
+ *  band width profiles, material reserves), then joined with what a layout
+ *  rect does not bound at all: the ink of the glyphs a text leaf placed, a
+ *  routed connector/rail path, a text run's path baseline, and a borrowed
+ *  band spine, each outset by its own reach. */
+SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
+  const ElementNode& node = *inst.description;
+  const SkRect rect = instanceRect(inst);
+  SkRect local = SkRect::MakeWH(rect.width(), rect.height());
+  // A GLYPH'S OUTLINE IS NOT ITS LINE BOX. A text leaf is measured to the
+  // band of its lines, and the ink a face draws stands outside that band
+  // wherever the face says it does — a comma's tail below the descent, an
+  // accent above the ascent — so the leaf paints past its own box by a
+  // fraction of a pixel on most faces and by more on a few. Joined here
+  // BEFORE the bleeds, so a track's reach and a decoration's bleed grow
+  // the ink as they grow the box; unioned rather than outset, because the
+  // layout already knows where the letters went and a guess would be a
+  // second opinion about it. Empty on every node that is not type.
+  local.join(inst.textInk);
+  const float bleed = declaredBleed(node);
   if (bleed > 0) local.outset(bleed, bleed);
   // Routed elements paint their derive-resolved PATH, which is not bounded
   // by the layout rect (a connector's box is one thing, its wire another) —
@@ -343,6 +359,24 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space) {
     local.join(m.mapRect(cb));
   }
   return local;
+}
+
+SkRect Composer::Impl::declaredShapeBounds(Instance& inst) {
+  const ElementNode& node = *inst.description;
+  // A routed path and a band's region are shapes too, and both already
+  // join the paint bounds through their own instances; this is the third
+  // carrier, the one a node names outright with `shape()`.
+  const bool routed =
+      node.deriveData && (!node.deriveData->connectFrom.empty() ||
+                          !node.deriveData->railAnchors.empty());
+  if (!node.shapeFn || node.bandWidth() || routed) return SkRect::MakeEmpty();
+  const SkRect rect = instanceRect(inst);
+  const SkPath& shape = resolveOutline(inst, {rect.width(), rect.height()});
+  if (shape.isEmpty()) return SkRect::MakeEmpty();
+  const float bleed = declaredBleed(node);
+  SkRect drawn = shape.getBounds();
+  drawn.outset(bleed, bleed);
+  return drawn;
 }
 
 }  // namespace sigil::compose

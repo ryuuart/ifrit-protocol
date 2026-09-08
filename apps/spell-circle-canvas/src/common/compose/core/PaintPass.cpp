@@ -18,7 +18,13 @@ SkIRect PaintPass::deviceClip() const {
 }
 
 SkIRect PaintPass::deviceRect() {
-  const SkRect f = totalM.mapRect(localBounds());
+  // The paint bounds, joined with the shape the node declares: a device
+  // bake is a SURFACE, and a surface allocated to less than the ink cuts
+  // it. The recording bounds leave the declared shape out because they
+  // size layers, whose bounds are part of the picture.
+  SkRect bounds = localBounds();
+  bounds.join(impl.declaredShapeBounds(inst));
+  const SkRect f = totalM.mapRect(bounds);
   SkIRect r =
       SkIRect::MakeLTRB((int)std::floor(f.left()), (int)std::floor(f.top()),
                         (int)std::ceil(f.right()), (int)std::ceil(f.bottom()));

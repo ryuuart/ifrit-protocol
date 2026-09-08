@@ -677,6 +677,21 @@ struct Composer::Impl {
    *  the space the node itself stands in, null under a flat parent; a
    *  hosting node nested in a space needs it to place its own plane. */
   SkRect recordBounds(detail::Instance& inst, const SkM44* space = nullptr);
+  /** WHERE THE SHAPE A NODE DECLARES ACTUALLY REACHES, outset by the same
+   *  bleed its box is — empty on a node that declares none. A Shape is a
+   *  function of a size and nothing requires what it returns to stand
+   *  inside the box that size came from: a generator anchored on a centre
+   *  of its own, a ring of contours drawn at radii the box knows nothing
+   *  about. The node's surface is filled with that path and every
+   *  decoration dresses it, so the ink is where the path is, and a DEVICE
+   *  BAKE allocated to less than that cuts it — the one failure a bake may
+   *  not have, since what bounds the drawing must be the clip the bake
+   *  carries in and never the allocation. It is not in the recording
+   *  bounds because those size a LAYER: a group's opacity layer, an
+   *  effect's, the surface a lifted filter is run over — and moving a
+   *  layer's bounds moves the picture it composites, where an allocation
+   *  holding more transparent pixels paints the same one. */
+  SkRect declaredShapeBounds(detail::Instance& inst);
 
   // ---- hit testing / queries (Query.cpp) ----
   bool shapeContains(detail::Instance& inst, SkPoint local, SkSize size) const;

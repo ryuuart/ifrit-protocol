@@ -1225,7 +1225,15 @@ the node paints cuts inside them, and a stroked ring or arc baked flush
 moves by tens of code values along its whole length. Every device bake is
 therefore allocated with a margin, a thirty-second of its own larger side
 and never less than two pixels, so what bounds the drawing is the clip the
-bake carries in and never the allocation.
+bake carries in and never the allocation. AND IT HOLDS THE SHAPE THE NODE
+DECLARES. A `Shape` is a function of a size and nothing holds what it
+returns inside the box that size came from — a generator anchored on a
+centre of its own, a ring of rules drawn at radii the box knows nothing
+about — and the node's surface is filled with that path while every
+decoration dresses it, so the ink is where the path is. The bake's
+allocation joins it; the recording bounds do not, because those size a
+LAYER and a layer's bounds are part of the picture it composites, where an
+allocation holding more transparent pixels paints the same one.
 
 **AND WHAT IS LEFT IS THE OFFSET'S OWN LAST BIT.** A bake is taken under
 the live matrix with an integer subtracted from its translation, so the

@@ -741,6 +741,60 @@ TEST(ComposeCache, APromotedCurveKeepsTheCoverageItsLivePaintComputes) {
 
 namespace {
 
+/** A SHAPE THAT REACHES PAST THE BOX IT WAS RESOLVED AGAINST, which is what
+ *  a ring of rules around a dial, a rule that crosses its cell and any
+ *  generator anchored on a centre of its own all are. A Shape is handed the
+ *  node's size and nothing holds what it returns to that size, so the ink
+ *  is where the path is — and the node's box says nothing about it. */
+Element shapeOutsideItsBox() {
+  Element page = box().width(240).height(240).fill(Fill::color({0, 0, 0, 1}));
+  page.child(box()
+                 .absolute()
+                 .left(80)
+                 .top(80)
+                 .width(80)
+                 .height(80)
+                 .shape(Shape([](SkSize size) {
+                   // Forty rules on a centre of the node's own, reaching
+                   // well past every edge of it.
+                   SkPathBuilder b;
+                   const SkPoint c{size.width() * 0.5f, size.height() * 0.5f};
+                   for (int i = 0; i < 40; ++i) {
+                     const float a = (float)i * 9.0f * 3.14159265f / 180.0f;
+                     b.moveTo(c.x() + std::cos(a) * 30.0f,
+                              c.y() + std::sin(a) * 30.0f);
+                     b.lineTo(c.x() + std::cos(a) * 110.0f,
+                              c.y() + std::sin(a) * 110.0f);
+                   }
+                   return b.detach();
+                 }))
+                 .fill(Fill::none())
+                 .stroke(FlatStroke{3}));
+  return page;
+}
+
+}  // namespace
+
+TEST(ComposeCache, APromotedShapeKeepsTheInkItDrawsOutsideItsBox) {
+  // A device bake is a SURFACE, and ink outside it is lost rather than
+  // rounded. The node's box bounds the layers it opens, but it does not
+  // bound the path it declares: a Shape resolved against that box may
+  // return a curve anywhere, and the surface is filled with that path while
+  // every decoration dresses it. So what a bake is allocated to holds the
+  // shape as well, and what bounds the drawing stays the clip the bake
+  // carries in rather than the allocation.
+  const PromotionDrift drift =
+      promotionDriftOf(shapeOutsideItsBox, SkMatrix::I(), 240, 240);
+  ASSERT_TRUE(drift.promoted)
+      << "nothing was promoted, so this compared two live renders";
+  EXPECT_LE(drift.worstChannel, 1)
+      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
+      << " code values, when the library promoted a node whose shape reaches "
+         "past its box";
+}
+
+namespace {
+
 /** A PANEL THAT OPENS OVER WHAT IT HOLDS. The window clips its content to
  *  its own box and the box's height is the reveal, so the mark inside is
  *  cut on the frames the reveal is short and whole once it has run. The
