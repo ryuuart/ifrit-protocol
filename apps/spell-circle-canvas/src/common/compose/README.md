@@ -1220,6 +1220,25 @@ therefore allocated with a margin, a thirty-second of its own larger side
 and never less than two pixels, so what bounds the drawing is the clip the
 bake carries in and never the allocation.
 
+**AND WHAT IS LEFT IS THE OFFSET'S OWN LAST BIT.** A bake is taken under
+the live matrix with an integer subtracted from its translation, so the
+two matrices map a point through the same numbers at different
+MAGNITUDES: the live paint rounds its sum in the binade of the device
+coordinate and the bake rounds its own in the binade of the offset one.
+Near the canvas origin the integer cancels exactly and the two are the
+same pixels; far from it they part by half a float step of the device
+coordinate — which is nothing along an edge that meets the grid squarely,
+and a whole supersample bucket where a curve runs nearly TANGENT to one.
+It is the geometric twin of the shader inversion the one value is about,
+and it is not the rasterisation route: the same curve into a layer and
+into a fresh offscreen is the same pixels, which
+`ADeviceBakeRasterisesOnItsLivePaintsRoute` holds. The only construction
+that removes it is a bake allocated from the canvas origin, so that no
+translation enters the layer's matrix at all, and that costs a full-canvas
+surface for every promoted node. So a plate whose curves graze the grid
+carries a few such pixels in a thousand, each worth more than the values
+below, and they are the one thing here that a bake cannot be held to.
+
 The one value is the bake **over transparent black**. A bake that lands
 on CONTENT carries a second, and it is a rounding rather than a move: the
 node's own coverage is composited twice where the live paint composited
