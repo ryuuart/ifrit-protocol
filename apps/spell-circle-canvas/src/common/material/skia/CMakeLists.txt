@@ -15,7 +15,8 @@ set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilMaterialSkia
   SOURCES Draw.cpp Effect.cpp Paint.cpp Palette.cpp Ramp.cpp SkiaCompiler.cpp
-  HEADERS Color.h Draw.h Effect.h Paint.h Palette.h Ramp.h SkiaCompiler.h
+  HEADERS Color.h Draw.h Effect.h Paint.h PaintDetail.h PixelBuffer.h
+          Palette.h Ramp.h SkiaCompiler.h
   PUBLIC SigilMaterialTexture SigilMaterialColor SigilMotionValues
          unofficial::skia::skia)
 sigil_shader_sources(SigilMaterialSkia
