@@ -60,7 +60,8 @@ sigil_library(SigilComposeCore
     # paint values
     Fills.cpp
     # internal headers
-    ComposeInternal.h ComposeRuntime.h Instance.h TextState.h SlotSpecs.h
+    ComposeInternal.h ComposeCompare.h ComposeRuntime.h Instance.h
+    TextState.h SlotSpecs.h
     Lanes.h
     Transforms.h NodeTransform.h ComposerImpl.h PaintInternal.h PaintPass.h
     PaintProfile.h BakeInk.h InstanceStamp.h
