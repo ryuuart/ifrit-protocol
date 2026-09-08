@@ -45,7 +45,8 @@ sigil_library(SigilComposeCore
     LayoutProps.cpp ReconcileHost.cpp Layout.cpp Derive.cpp
     Transitions.cpp Query.cpp
     # the paint phase
-    Volatility.cpp Bounds.cpp Depth.cpp Coverage.cpp
+    Volatility.cpp GroupScalars.cpp WorldMatrix.cpp Bounds.cpp Depth.cpp
+    Coverage.cpp
     # the paint of one node: the walk, its shared state, and the cache
     # ladder it dispatches through, one tier per file
     StackingPainter.cpp PaintContent.cpp PaintPass.cpp PaintProfile.cpp
