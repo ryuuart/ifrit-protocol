@@ -45,8 +45,8 @@ set_target_properties(Sketchbook PROPERTIES
 # module. Both properties are read when the module is declared, so
 # they are set before it.
 foreach(sketchbook_qml IN ITEMS
-    Main TopBar SketchList SketchGallery PlateThumb Inspector StatusStrip
-    Theme)
+    Main Browser TopBar SketchList SketchGallery PlateThumb Inspector
+    StatusStrip Theme)
   set_source_files_properties(qml/${sketchbook_qml}.qml
     PROPERTIES QT_RESOURCE_ALIAS ${sketchbook_qml}.qml)
 endforeach()
@@ -60,6 +60,7 @@ qt_add_qml_module(Sketchbook
   VERSION 1.0
   QML_FILES
     qml/Main.qml
+    qml/Browser.qml
     qml/TopBar.qml
     qml/SketchList.qml
     qml/SketchGallery.qml

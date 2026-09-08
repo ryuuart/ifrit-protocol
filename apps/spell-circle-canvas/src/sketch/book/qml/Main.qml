@@ -60,287 +60,30 @@ ApplicationWindow {
         property bool sortAscending: true
     }
 
-    // ---- The browser's state ---------------------------------------------
-    property string viewMode: "list"
+    // ---- The rows, and what the window remembers about them --------------
+    Browser {
+        id: browser
+
+        catalog: catalog
+        listView: sketchList
+        galleryView: gallery
+    }
+
     property bool inspectorOpen: true
-    property string sortKey: "folder"
-    property bool sortAscending: true
-    property string filterText: ""
-    property string folder: ""
-    /** The row the inspector shows. Not the row the canvas presents:
-     *  that is view.sketchIndex, and the two part company the moment
-     *  someone starts browsing. */
-    property int selectedIndex: -1
     /** The sketch the canvas opens on — named on the command line, or the
      *  first row. */
     readonly property int openAt: catalog.openIndex
-    property var collapsedGroups: ({})
-    property var rows: []
-    property var cards: []
-    property var folders: []
-    /** Session-only facts keyed by registry index. They overlay the stable
-     *  browser models so learning one canvas does not remount every thumbnail. */
-    property var learnedSketches: ({})
-    property int rebuildGeneration: 0
 
-    onViewModeChanged: settings.viewMode = window.viewMode
     onInspectorOpenChanged: settings.inspectorOpen = window.inspectorOpen
-    onSortKeyChanged: {
-        settings.sortKey = window.sortKey;
-        window.rebuild();
-    }
-    onSortAscendingChanged: {
-        settings.sortAscending = window.sortAscending;
-        window.rebuild();
-    }
-    onFilterTextChanged: window.rebuild()
-    onFolderChanged: window.rebuild()
-
-    /** Every field a row carries, empty — what a folder header stands
-     *  in with, so a delegate never reads a field off the wrong kind of
-     *  row and warns once per row per rebuild for nothing. */
-    readonly property var blankSketch: ({
-        sketchIndex: -1, name: "", key: "", folder: "", blurb: "", path: "",
-        kind: "", available: true, reason: "", lines: 0, subject: "",
-        editFirst: "", plate: "", canvas: "", background: "", moment: -1,
-        videoExportable: false
-    })
-
-    readonly property var selectedSketch:
-        window.learnedSketches[window.selectedIndex]
-            ?? window.sketchAt(window.selectedIndex) ?? window.blankSketch
-
-    function sketchAt(index) {
-        const all = catalog.sketches;
-        for (let i = 0; i < all.length; ++i)
-            if (all[i].sketchIndex === index)
-                return all[i];
-        return undefined;
-    }
-
-    // ---- Filtering -------------------------------------------------------
-    //
-    // Free words narrow on everything a sketch is written down as; a
-    // `folder:` or `kind:` word narrows on that field alone. Every word
-    // has to match, so words accumulate into one question rather than
-    // widening it.
-
-    function parseFilter(text) {
-        let terms = { free: [], folder: [], kind: [] };
-        const words = text.trim().toLowerCase().split(/\s+/);
-        for (let i = 0; i < words.length; ++i) {
-            const word = words[i];
-            if (word.length === 0)
-                continue;
-            if (word.startsWith("folder:"))
-                terms.folder.push(word.substring(7));
-            else if (word.startsWith("kind:"))
-                terms.kind.push(word.substring(5));
-            else
-                terms.free.push(word);
+    // What the reader last set is written back as it changes, so the
+    // window comes up on the browser they left.
+    Connections {
+        target: browser
+        function onViewModeChanged() { settings.viewMode = browser.viewMode; }
+        function onSortKeyChanged() { settings.sortKey = browser.sortKey; }
+        function onSortAscendingChanged() {
+            settings.sortAscending = browser.sortAscending;
         }
-        return terms;
-    }
-
-    function matches(sketch, terms) {
-        const hay = (sketch.name + " " + sketch.folder + " " + sketch.blurb
-                     + " " + sketch.key).toLowerCase();
-        for (let i = 0; i < terms.free.length; ++i)
-            if (hay.indexOf(terms.free[i]) < 0)
-                return false;
-        for (let i = 0; i < terms.folder.length; ++i)
-            if (sketch.folder.toLowerCase().indexOf(terms.folder[i]) < 0)
-                return false;
-        for (let i = 0; i < terms.kind.length; ++i)
-            if (sketch.kind.toLowerCase().indexOf(terms.kind[i]) < 0)
-                return false;
-        return true;
-    }
-
-    // ---- Ordering --------------------------------------------------------
-    //
-    // Ordering by FOLDER is the grouped reading, and is the default; any
-    // other column is one flat run over the whole filtered set, because
-    // a column you asked to be ordered by is one you want to read down
-    // without folders interrupting it.
-
-    function sortValue(sketch, key) {
-        if (key === "folder")
-            return sketch.folder + " " + sketch.name;
-        if (key === "kind")
-            return sketch.kind + " " + sketch.name;
-        if (key === "lines")
-            return sketch.lines;
-        if (key === "moment")
-            return sketch.moment;
-        if (key === "canvas") {
-            const size = /^(\d+)x(\d+)$/.exec(sketch.canvas);
-            return size ? Number(size[1]) * Number(size[2]) : -1;
-        }
-        return sketch.name;
-    }
-
-    function compare(left, right) {
-        const a = window.sortValue(left, window.sortKey);
-        const b = window.sortValue(right, window.sortKey);
-        // A fact a session has not answered yet sorts to the end either
-        // way: it is not a small number, it is an unknown one.
-        if (typeof a === "number" && typeof b === "number") {
-            if (a < 0 && b >= 0) return 1;
-            if (b < 0 && a >= 0) return -1;
-            return window.sortAscending ? a - b : b - a;
-        }
-        return window.sortAscending ? a.localeCompare(b) : b.localeCompare(a);
-    }
-
-    // ---- The rows --------------------------------------------------------
-
-    function rebuild() {
-        // Replacing either JavaScript-array model makes its view choose a
-        // fresh contentY. Keep the reader's place across facts learned from
-        // a newly presented sketch (and across any other registry rebuild).
-        const listScroll = sketchList.scrollPosition();
-        const galleryScroll = gallery.scrollPosition();
-        const generation = ++window.rebuildGeneration;
-        const terms = window.parseFilter(window.filterText);
-        const all = catalog.sketches;
-        let found = [];
-        for (let i = 0; i < all.length; ++i)
-            if (window.matches(all[i], terms))
-                found.push(all[i]);
-
-        // The chips count what the TEXT left, so a chip says how many
-        // there are to switch to rather than how many are on screen.
-        let counts = ({});
-        let order = [];
-        for (let i = 0; i < found.length; ++i) {
-            if (counts[found[i].folder] === undefined) {
-                counts[found[i].folder] = 0;
-                order.push(found[i].folder);
-            }
-            ++counts[found[i].folder];
-        }
-        order.sort();
-        let chips = [{ folder: "", label: "All", count: found.length }];
-        for (let i = 0; i < order.length; ++i)
-            chips.push({ folder: order[i], label: order[i],
-                         count: counts[order[i]] });
-        window.folders = chips;
-
-        let kept = [];
-        for (let i = 0; i < found.length; ++i)
-            if (window.folder.length === 0 || found[i].folder === window.folder)
-                kept.push(found[i]);
-        kept.sort(window.compare);
-        window.cards = kept;
-
-        let out = [];
-        if (window.sortKey === "folder") {
-            let openFolder = "";
-            let shut = false;
-            for (let i = 0; i < kept.length; ++i) {
-                if (kept[i].folder !== openFolder) {
-                    openFolder = kept[i].folder;
-                    // While filtering, a collapsed folder would hide its
-                    // own hits — which is worse than no filter at all.
-                    shut = terms.free.length === 0
-                        && terms.folder.length === 0
-                        && terms.kind.length === 0
-                        && window.collapsedGroups[openFolder] === true;
-                    let count = 0;
-                    for (let k = i; k < kept.length
-                         && kept[k].folder === openFolder; ++k)
-                        ++count;
-                    out.push({ header: true, folder: openFolder, count: count,
-                               collapsed: shut, sketch: window.blankSketch });
-                }
-                if (!shut)
-                    out.push({ header: false, folder: kept[i].folder,
-                               count: 0, collapsed: false, sketch: kept[i] });
-            }
-        } else {
-            for (let i = 0; i < kept.length; ++i)
-                out.push({ header: false, folder: kept[i].folder, count: 0,
-                           collapsed: false, sketch: kept[i] });
-        }
-        window.rows = out;
-
-        // A selection nothing on screen shows is not a selection: it
-        // falls to the first row there is, which is the first row of the
-        // first OPEN folder rather than of the first folder.
-        if (window.rowForSketch(window.selectedIndex) < 0) {
-            window.selectedIndex = -1;
-            const showing = window.viewMode === "gallery" ? kept : out;
-            for (let i = 0; i < showing.length; ++i) {
-                const row = showing[i].header === undefined
-                    ? showing[i] : (showing[i].header ? null : showing[i].sketch);
-                if (row !== null) {
-                    window.selectedIndex = row.sketchIndex;
-                    break;
-                }
-            }
-        }
-
-        // The views apply their new models on the next event-loop turn.
-        // Only the latest rebuild gets to put the saved positions back.
-        Qt.callLater(function() {
-            if (generation !== window.rebuildGeneration)
-                return;
-            sketchList.restoreScrollPosition(listScroll);
-            gallery.restoreScrollPosition(galleryScroll);
-        });
-    }
-
-    function toggleGroup(name) {
-        let next = ({});
-        for (const key in window.collapsedGroups)
-            next[key] = window.collapsedGroups[key];
-        next[name] = !(next[name] === true);
-        window.collapsedGroups = next;
-        window.rebuild();
-    }
-
-    /** Where the selected sketch sits in whichever view is on, or -1
-     *  when this one is not showing it. */
-    function rowForSketch(index) {
-        if (window.viewMode === "gallery") {
-            for (let i = 0; i < window.cards.length; ++i)
-                if (window.cards[i].sketchIndex === index)
-                    return i;
-            return -1;
-        }
-        for (let i = 0; i < window.rows.length; ++i)
-            if (!window.rows[i].header
-                && window.rows[i].sketch.sketchIndex === index)
-                return i;
-        return -1;
-    }
-
-    /** Moves the selection by @p step over what is actually on screen,
-     *  stepping over folder headers, and scrolls it into view. */
-    function step(delta) {
-        const here = window.rowForSketch(window.selectedIndex);
-        if (window.viewMode === "gallery") {
-            if (window.cards.length === 0)
-                return;
-            const to = Math.max(0, Math.min(window.cards.length - 1,
-                                            (here < 0 ? 0 : here + delta)));
-            window.selectedIndex = window.cards[to].sketchIndex;
-            gallery.positionAt(to);
-            return;
-        }
-        let i = here >= 0 ? here : (delta > 0 ? -1 : window.rows.length);
-        for (i += delta; i >= 0 && i < window.rows.length; i += delta) {
-            if (window.rows[i].header)
-                continue;
-            window.selectedIndex = window.rows[i].sketch.sketchIndex;
-            sketchList.positionAt(i);
-            return;
-        }
-    }
-
-    function select(index) {
-        window.selectedIndex = index;
     }
 
     /** Present it. The one action that moves the canvas — and the one
@@ -352,42 +95,6 @@ ApplicationWindow {
             return;
         catalog.endFill();
         view.sketchIndex = index;
-    }
-
-    /** Brings the selection into view — opening the folder holding it
-     *  first, because a selection inside a shut folder is one the list
-     *  cannot show and the next rebuild would move.
-     *
-     *  The scroll waits for the rows to have been handed over: a view
-     *  asked to hold an index it has not been given yet holds nothing,
-     *  and the selection stays off screen with no sign that it did. */
-    function reveal() {
-        const sketch = window.sketchAt(window.selectedIndex);
-        if (sketch === undefined)
-            return;
-        if (window.viewMode === "list"
-            && window.collapsedGroups[sketch.folder] === true)
-            window.toggleGroup(sketch.folder);
-        Qt.callLater(window.scrollToSelection);
-    }
-
-    function scrollToSelection() {
-        const at = window.rowForSketch(window.selectedIndex);
-        if (at < 0)
-            return;
-        if (window.viewMode === "gallery")
-            gallery.positionAt(at);
-        else
-            sketchList.positionAt(at);
-    }
-
-    function sortBy(key) {
-        if (window.sortKey === key)
-            window.sortAscending = !window.sortAscending;
-        else {
-            window.sortAscending = true;
-            window.sortKey = key;
-        }
     }
 
     // ---- Captures --------------------------------------------------------
@@ -460,10 +167,10 @@ ApplicationWindow {
                 stats.runtime ?? "");
             if (learned.sketchIndex === undefined)
                 return;
-            window.overlayRow(learned);
+            browser.overlayRow(learned);
         }
         function onSketchIndexChanged() {
-            window.selectedIndex = view.sketchIndex;
+            browser.selectedIndex = view.sketchIndex;
         }
     }
 
@@ -474,7 +181,7 @@ ApplicationWindow {
     // other thumbnail.
     Connections {
         target: catalog
-        function onThumbnailReady(index, row) { window.overlayRow(row); }
+        function onThumbnailReady(index, row) { browser.overlayRow(row); }
         function onThumbnailNoted(name, why) {
             window.captureLine = name + " — " + why;
             captureHide.restart();
@@ -497,35 +204,12 @@ ApplicationWindow {
         function onThumbnailCaptured(index) { catalog.adoptThumbnail(index); }
     }
 
-    /** Overlays one row by its sketch index without disturbing the rest. */
-    function overlayRow(row) {
-        if (row.sketchIndex === undefined)
-            return;
-        let next = ({});
-        for (const index in window.learnedSketches)
-            next[index] = window.learnedSketches[index];
-        next[row.sketchIndex] = row;
-        window.learnedSketches = next;
-    }
-
     Component.onCompleted: {
-        window.viewMode = settings.viewMode;
+        browser.viewMode = settings.viewMode;
         window.inspectorOpen = settings.inspectorOpen;
-        window.sortKey = settings.sortKey;
-        window.sortAscending = settings.sortAscending;
-        // Open on the SHAPE of the registry rather than on its first
-        // thirteen rows: every folder shut but the one holding what the
-        // canvas is presenting is one screen that says what is here.
-        const all = catalog.sketches;
-        const current = window.sketchAt(window.openAt);
-        let next = ({});
-        for (let i = 0; i < all.length; ++i)
-            next[all[i].folder] =
-                current === undefined || all[i].folder !== current.folder;
-        window.collapsedGroups = next;
-        window.selectedIndex = window.openAt;
-        window.rebuild();
-        window.reveal();
+        browser.sortKey = settings.sortKey;
+        browser.sortAscending = settings.sortAscending;
+        browser.openOn(window.openAt);
         // THE LOADING PHASE. Every sketch with no still gets one while
         // nothing is being presented, which is the only stretch in which
         // the machine is the fill's alone; opening a sketch ends it, and
@@ -546,19 +230,19 @@ ApplicationWindow {
 
             Layout.fillWidth: true
             total: catalog.sketches.length
-            shown: window.cards.length
-            viewMode: window.viewMode
+            shown: browser.cards.length
+            viewMode: browser.viewMode
             inspectorOpen: window.inspectorOpen
             taskRunning: catalog.taskRunning
-            onFilterTextChanged: window.filterText = topBar.filterText
+            onFilterTextChanged: browser.filterText = topBar.filterText
             onViewModeRequested: mode => {
-                window.viewMode = mode;
-                window.reveal();
+                browser.viewMode = mode;
+                browser.reveal();
             }
             onInspectorToggled: window.inspectorOpen = !window.inspectorOpen
             onVideoRequested: window.exportVideo(-1)
             onSteppedOut: {
-                if (window.viewMode === "gallery")
+                if (browser.viewMode === "gallery")
                     gallery.focusRows();
                 else
                     sketchList.focusRows();
@@ -596,37 +280,37 @@ ApplicationWindow {
                     id: sketchList
 
                     anchors.fill: parent
-                    visible: window.viewMode === "list"
+                    visible: browser.viewMode === "list"
                     catalog: catalog
-                    rows: window.rows
-                    learnedSketches: window.learnedSketches
-                    selectedIndex: window.selectedIndex
+                    rows: browser.rows
+                    learnedSketches: browser.learnedSketches
+                    selectedIndex: browser.selectedIndex
                     presentedIndex: view.sketchIndex
-                    sortKey: window.sortKey
-                    sortAscending: window.sortAscending
-                    onSelectRequested: index => window.select(index)
+                    sortKey: browser.sortKey
+                    sortAscending: browser.sortAscending
+                    onSelectRequested: index => browser.select(index)
                     onActivateRequested: index => window.activate(index)
-                    onGroupToggled: name => window.toggleGroup(name)
-                    onSortRequested: key => window.sortBy(key)
-                    onStepRequested: delta => window.step(delta)
+                    onGroupToggled: name => browser.toggleGroup(name)
+                    onSortRequested: key => browser.sortBy(key)
+                    onStepRequested: delta => browser.step(delta)
                 }
 
                 SketchGallery {
                     id: gallery
 
                     anchors.fill: parent
-                    visible: window.viewMode === "gallery"
+                    visible: browser.viewMode === "gallery"
                     catalog: catalog
-                    cards: window.cards
-                    learnedSketches: window.learnedSketches
-                    folders: window.folders
-                    folder: window.folder
-                    selectedIndex: window.selectedIndex
+                    cards: browser.cards
+                    learnedSketches: browser.learnedSketches
+                    folders: browser.folders
+                    folder: browser.folder
+                    selectedIndex: browser.selectedIndex
                     presentedIndex: view.sketchIndex
-                    onSelectRequested: index => window.select(index)
+                    onSelectRequested: index => browser.select(index)
                     onActivateRequested: index => window.activate(index)
-                    onFolderRequested: name => window.folder = name
-                    onStepRequested: delta => window.step(delta)
+                    onFolderRequested: name => browser.folder = name
+                    onStepRequested: delta => browser.step(delta)
                 }
             }
 
@@ -810,16 +494,16 @@ ApplicationWindow {
                 SplitView.maximumWidth: 520
                 visible: window.inspectorOpen
                 catalog: catalog
-                sketch: window.selectedSketch
-                presented: window.selectedIndex === view.sketchIndex
+                sketch: browser.selectedSketch
+                presented: browser.selectedIndex === view.sketchIndex
                 metrics: view.metrics
                 taskLine: catalog.taskLine
                 taskRunning: catalog.taskRunning
-                onOpenRequested: window.activate(window.selectedIndex)
-                onFrameRequested: catalog.frame(window.selectedIndex)
-                onVideoRequested: window.exportVideo(window.selectedIndex)
-                onBenchRequested: catalog.bench(window.selectedIndex)
-                onRevealRequested: catalog.reveal(window.selectedIndex)
+                onOpenRequested: window.activate(browser.selectedIndex)
+                onFrameRequested: catalog.frame(browser.selectedIndex)
+                onVideoRequested: window.exportVideo(browser.selectedIndex)
+                onBenchRequested: catalog.bench(browser.selectedIndex)
+                onRevealRequested: catalog.reveal(browser.selectedIndex)
             }
         }
 
@@ -832,7 +516,7 @@ ApplicationWindow {
             fillTotal: catalog.fillTotal
             fillNote: catalog.fillNote
             sketch: view.metrics.sketch ?? ""
-            path: window.sketchAt(view.sketchIndex)?.path ?? ""
+            path: browser.sketchAt(view.sketchIndex)?.path ?? ""
             hints: "↑↓ select · ⏎ open · / filter"
                 + (view.orbitable
                     ? " · drag/wheel orbit · ctrl-wheel zoom"
