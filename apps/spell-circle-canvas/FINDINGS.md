@@ -12,33 +12,20 @@ remains of them is below, then the standing entries.
 
 ## Verification state on main
 
-Taken on the merged tree after the extractions campaign:
+Taken on the merged tree after the extractions and the file splits:
 
-- Release build: zero errors, zero warnings. `ctest`: 3370 of 3370.
-- CPU plate tier: 195 scenes; the five that moved in the campaign were
-  rebased with their causes (`bg3_dice_roll` lands on a named face
-  through the library pose; `chaucer_astrolabe` a hairline ring one
-  pixel over from the projection value's arithmetic; `genesis_fire` a
-  fused multiply-add landing differently in the library's translation
-  unit; `dunhuang_star_chart` one code value from the precession
-  rotation; `cde_motif` a mitred bevel corner's diagonal). Every other
-  plate the eight seams touched is byte-identical.
+- Release build: zero errors, zero warnings. `ctest`: 3372 of 3372.
+- CPU plate tier: 195 scenes byte-identical after the splits; the
+  five that moved in the extractions were rebased with their causes.
 - Device tier: 195 of 195 within the per-channel bar. Promotion tier:
   147 of 195 within the rule (one code value over clear pixels, two
-  over content); the rest is the entry below.
+  over content), four scenes declaring their own nonlinearity; the rest
+  is the entry below.
 - ASan with UBSan and TSan: clean over the suite at the merge.
-- Benchmark baseline retaken with the campaign's new arms; window-FPS
+- Benchmark baseline retaken with the campaigns' arms; window-FPS
   baseline at an unlocked screen, none under the gate. The FPS lane
   refuses a locked screen, which throttles an invisible window's GPU
   work.
-
-## Rulings
-
-- The file splits run now, one agent per library in sequence, one
-  commit per file, the case listing byte-identical, no behaviour
-  change.
-- The seams' library growths without a sketch consumer yet stay, with
-  their cases.
 
 ## Automatic texture promotion moves 48 of 195 plates past the contract
 
