@@ -897,6 +897,161 @@ TEST(ComposePaintBounds, ADeclaredShapeBoundsEveryLayerTheNodeIsGiven) {
 
 namespace {
 
+/** A HARD-EDGED HALO ALONG WHATEVER OUTLINE THE NODE HANDS IT. A
+ *  stroke-and-fill of the outline widens it by exactly `spread` with no
+ *  blur, so where the halo's edge stands IS where the boundary stands,
+ *  read to the pixel — which a blurred glow's ramp could only be read to
+ *  within its falloff. Attached as a BACKGROUND, so it shows only where
+ *  the outline reaches outside the node's own fill. */
+struct Halo {
+  SkColor4f color{0.25f, 0.55f, 1.0f, 1};
+  float spread = 8;
+
+  bool operator==(const Halo&) const = default;
+  float bleed() const { return spread; }
+
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
+    SkPaint p;
+    p.setAntiAlias(true);
+    p.setColor4f(color, nullptr);
+    p.setStyle(SkPaint::kStrokeAndFill_Style);
+    p.setStrokeWidth(spread * 2);
+    c.drawPath(ctx.outline, p);
+  }
+};
+
+/** A DECORATION THAT RESERVES ROOM AND DRAWS NOTHING — the whole of what a
+ *  bleed is, with the mark taken away. It moves the node's paint bounds by
+ *  a fraction of a pixel and moves nothing else, which is the one thing
+ *  that can tell a trace reading those bounds apart from a trace reading
+ *  the box. */
+struct Reserve {
+  float extent = 13.5f;
+
+  bool operator==(const Reserve&) const = default;
+  float bleed() const { return extent; }
+  void paint(SkCanvas&, const PaintContext&) const {}
+};
+
+/** A DISC THAT REACHES WELL PAST THE BOX IT WAS RESOLVED AGAINST, and
+ *  fills — where `rulesPastTheBox` draws lines, this encloses an area, so
+ *  the pixels it covers are a silhouette a coverage trace can answer for. */
+Shape discPastTheBox() {
+  return Shape([](SkSize size) {
+    SkPathBuilder b;
+    b.addCircle(size.width() * 0.5f, size.height() * 0.5f, 100.0f);
+    return b.detach();
+  });
+}
+
+/** An 80×80 node in the middle of a 240×240 page, dressed along the
+ *  silhouette of what it drew. `past` fills a disc 100 px from the node's
+ *  own centre — sixty pixels clear of the box on every side — where the
+ *  plain node fills its box and nothing else. */
+Element haloedNode(bool past, bool reserving) {
+  Element node = box()
+                     .absolute()
+                     .left(80)
+                     .top(80)
+                     .width(80)
+                     .height(80)
+                     .fill(Fill::color({1, 0, 0, 1}))
+                     .boundary(Boundary::Coverage)
+                     .background(Halo{});
+  if (past) node.shape(discPastTheBox());
+  if (reserving) node.background(Reserve{});
+  Element page = blackPage();
+  page.child(std::move(node));
+  return page;
+}
+
+/** WHERE ONE CARRIER'S INK STANDS, as a box: the pixels where this channel
+ *  outweighs the others, so the halo's own extent is read apart from the
+ *  fill it is drawn beneath. */
+SkIRect channelBoundsOf(const std::vector<SkColor>& pixels, int w, int h,
+                        bool blue) {
+  SkIRect ink = SkIRect::MakeEmpty();
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) {
+      const SkColor c = pixels[(size_t)y * (size_t)w + (size_t)x];
+      const int r = (int)SkColorGetR(c), b = (int)SkColorGetB(c);
+      const bool mine = blue ? b > r + 24 : r > b + 24;
+      if (mine) ink.join(SkIRect::MakeXYWH(x, y, 1, 1));
+    }
+  return ink;
+}
+
+}  // namespace
+
+TEST(ComposeCoverageBounds, ADressedCoverageHoldsTheInkOutsideTheBox) {
+  // THE SILHOUETTE IS THE INK, AND THE INK IS NOT THE BOX. A coverage
+  // boundary is traced off an alpha raster of what the node drew, and the
+  // node draws wherever its carriers put it — a declared shape resolved
+  // past the box it was handed, a decoration's bleed, a glyph's overhang, a
+  // routed path. A raster allocated at the box traces a silhouette cut
+  // square at the box's edges and hands every decoration an outline the
+  // node never drew.
+  const std::vector<SkColor> pixels =
+      drawnLive(haloedNode(true, false), 240, 240);
+  const SkIRect figure = channelBoundsOf(pixels, 240, 240, false);
+  const SkIRect halo = channelBoundsOf(pixels, 240, 240, true);
+  // The fixture has to pose the problem: the disc stands sixty pixels clear
+  // of the 80×80 box on every side.
+  ASSERT_LT(figure.left(), 40) << "the fixture's shape stays inside its box";
+  ASSERT_GT(figure.right(), 200) << "the fixture's shape stays inside its box";
+
+  ASSERT_FALSE(halo.isEmpty())
+      << "the halo dressed a boundary cut at the node's box, which stands "
+         "wholly under the disc the node filled, so none of it is visible";
+  EXPECT_LE(halo.left(), figure.left() - 6)
+      << "the halo stops at " << halo.left() << " where the ink it dresses "
+      << "reaches " << figure.left();
+  EXPECT_LE(halo.top(), figure.top() - 6)
+      << "the halo stops at " << halo.top() << " where the ink it dresses "
+      << "reaches " << figure.top();
+  EXPECT_GE(halo.right(), figure.right() + 6)
+      << "the halo stops at " << halo.right() << " where the ink it dresses "
+      << "reaches " << figure.right();
+  EXPECT_GE(halo.bottom(), figure.bottom() + 6)
+      << "the halo stops at " << halo.bottom() << " where the ink it dresses "
+      << "reaches " << figure.bottom();
+}
+
+TEST(ComposeCoverageBounds, InkInsideTheBoxTracesWhereItAlwaysDid) {
+  // A WIDER RASTER IS NOT A DIFFERENT ANSWER. The trace covers the node's
+  // paint bounds, so a carrier standing outside the box moves the rect the
+  // raster is allocated at — and the boundary is a staircase of whole
+  // steps, so a rect that moved the grid by a fraction of one would restep
+  // every edge in the picture for a carrier that changed no pixel. The
+  // grid is placed on whole steps instead, and a node whose ink stays
+  // inside its box traces the path it always did.
+  const std::vector<SkColor> pixels =
+      drawnLive(haloedNode(false, false), 240, 240);
+  const SkIRect halo = channelBoundsOf(pixels, 240, 240, true);
+  // The node fills its 80×80 box at (80, 80) and the halo widens whatever
+  // outline it is handed by eight pixels, so the boundary being the box
+  // itself is one exact rect and nothing else.
+  EXPECT_EQ(halo, SkIRect::MakeLTRB(72, 72, 168, 168))
+      << "the traced boundary is not the node's own box: the halo around it "
+         "spans "
+      << halo.width() << "x" << halo.height() << " at (" << halo.left() << ", "
+      << halo.top() << ")";
+
+  const std::vector<SkColor> reserved =
+      drawnLive(haloedNode(false, true), 240, 240);
+  ASSERT_EQ(pixels.size(), reserved.size());
+  size_t differing = 0;
+  for (size_t i = 0; i < pixels.size(); ++i)
+    if (pixels[i] != reserved[i]) ++differing;
+  EXPECT_EQ(differing, 0u)
+      << differing
+      << " pixels moved when a decoration reserved 13.5 px and drew nothing, "
+         "so the raster's grid follows the paint bounds' own fraction rather "
+         "than the node's steps";
+}
+
+namespace {
+
 /** A PANEL THAT OPENS OVER WHAT IT HOLDS. The window clips its content to
  *  its own box and the box's height is the reveal, so the mark inside is
  *  cut on the frames the reveal is short and whole once it has run. The

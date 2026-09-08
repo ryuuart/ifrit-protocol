@@ -616,6 +616,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // is the one invalidation that must not depend on a flag.
   SkPath coverageOutline;
   SkSize coverageOutlineSize = {-1.0f, -1.0f};
+  /// the rect the trace's raster covered — the node's paint bounds, which
+  /// carry the ink standing outside the box and the offset that implies
+  SkRect coverageOutlineBounds = SkRect::MakeLTRB(-1, -1, -1, -1);
   float coverageOutlineScale = -1.0f;  ///< the device scale it was traced at
   float coverageOutlineThreshold = -1.0f;  ///< the tolerance it was cut at
   // The silhouette a custom shape resolved to, and the shape VALUE it came

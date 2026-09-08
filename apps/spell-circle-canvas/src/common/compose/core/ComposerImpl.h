@@ -641,7 +641,16 @@ struct Composer::Impl {
    *  path, so the answer is the visible extent of an image with a cut-out,
    *  of a clipped or masked subtree, of anything a shape and a glyph run
    *  cannot describe. Cached on the instance and re-traced only when the
-   *  layer that produced it is invalidated. */
+   *  layer that produced it is invalidated.
+   *
+   *  The surface covers `ownPaintBounds`, not `size`: a silhouette is the
+   *  ink, and a raster allocated at the box cuts the boundary square
+   *  wherever a carrier stands outside it. `size` is the box the content
+   *  was laid out against, which the trace keeps only to know the node is
+   *  sized at all and to re-trace when it changes. The path comes back in
+   *  the node's own local space either way, so a node whose ink stays
+   *  inside its box traces where it always did and one whose ink reaches
+   *  past it traces wider. */
   const SkPath& coverageOutline(detail::Instance& inst, SkSize size,
                                 float contentScale);
   /** WHAT A NODE SAYS ITS EDGE IS, in its own space — its glyph outlines

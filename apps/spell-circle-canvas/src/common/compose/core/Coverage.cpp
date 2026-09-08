@@ -10,6 +10,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkRegion.h>
 #include <include/core/SkSurface.h>
@@ -108,35 +109,61 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   // staircase is one device pixel a step, so a node that moves to a denser
   // display traces a finer boundary and must be traced again.
   const float threshold = inst.description->coverageThreshold;
+  // WHAT THE RASTER COVERS IS THE NODE'S PAINT BOUNDS, not its box. The
+  // silhouette is the ink, and a node's ink stands wherever its carriers
+  // put it — a declared shape resolved past the box it was handed, a
+  // decoration's bleed, a glyph's overhang, a routed path — so a surface
+  // allocated at the box traces a boundary cut square at the box's edges
+  // and hands a decoration an outline the node never drew. This is the one
+  // place a node is sized, and the trace reads it like every other
+  // consumer. The rect it answers is in the node's own local space, so an
+  // origin left of the box is a NEGATIVE left and the raster carries that
+  // offset.
+  const SkRect covers = sized ? ownPaintBounds(inst) : SkRect::MakeEmpty();
   const bool stale = inst.paintDirty || inst.subtreeVolatile ||
                      inst.coverageOutlineSize != size ||
+                     inst.coverageOutlineBounds != covers ||
                      inst.coverageOutlineScale != contentScale ||
                      inst.coverageOutlineThreshold != threshold;
   if (!stale || !sized) {
     if (!sized) {
       inst.coverageOutline.reset();
       inst.coverageOutlineSize = size;
+      inst.coverageOutlineBounds = covers;
       inst.coverageOutlineScale = contentScale;
       inst.coverageOutlineThreshold = threshold;
     }
     return inst.coverageOutline;
   }
   inst.coverageOutlineSize = size;
+  inst.coverageOutlineBounds = covers;
   inst.coverageOutlineScale = contentScale;
   inst.coverageOutlineThreshold = threshold;
   inst.coverageOutline.reset();
+  if (covers.isEmpty()) return inst.coverageOutline;
 
-  const float longer = std::max(size.width(), size.height());
+  const float longer = std::max(covers.width(), covers.height());
   const float scale = std::min(contentScale > 0 ? contentScale : 1.0f,
                                (float)kMaxTraceRaster / std::max(longer, 1.0f));
-  const int width = std::max(1, (int)std::ceil(size.width() * scale));
-  const int height = std::max(1, (int)std::ceil(size.height() * scale));
+  // THE RASTER'S GRID IS THE BOX'S GRID. The pixel edges are placed on
+  // whole multiples of the trace's own step, so the pixels covering the
+  // box are the same pixels whether or not a carrier widened the rect
+  // around them: a boundary is a staircase of whole steps and a rect that
+  // moved the grid by a fraction of one would restep every edge in the
+  // picture for a carrier standing somewhere else entirely.
+  const SkIRect raster =
+      SkRect::MakeLTRB(covers.left() * scale, covers.top() * scale,
+                       covers.right() * scale, covers.bottom() * scale)
+          .roundOut();
+  const int width = std::max(1, raster.width());
+  const int height = std::max(1, raster.height());
   // One channel, because coverage is the only channel the answer reads.
   const sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeA8(width, height));
   if (!surface) return inst.coverageOutline;
   SkCanvas& canvas = *surface->getCanvas();
   canvas.clear(SK_ColorTRANSPARENT);
+  canvas.translate((float)-raster.left(), (float)-raster.top());
   canvas.scale(scale, scale);
 
   // The trace's canvas is an offscreen raster at a scale of its own, so
@@ -184,8 +211,15 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   const SkRegion covered = regionOfCoveredPixels(
       alpha, (uint8_t)std::clamp(std::lround(threshold * 255.0f), 0L, 255L));
   if (covered.isEmpty()) return inst.coverageOutline;
-  inst.coverageOutline =
-      covered.getBoundaryPath().makeScale(1.0f / scale, 1.0f / scale);
+  // Back into the node's own local space, which is where a decoration and
+  // a flow exclusion both read it: the raster's own pixels, unscaled, then
+  // shifted by the offset the grid was placed at. A node whose ink stays
+  // inside its box traces the path it always did, since that offset is
+  // zero steps for it.
+  inst.coverageOutline = covered.getBoundaryPath()
+                             .makeTransform(SkMatrix::Translate(
+                                 (float)raster.left(), (float)raster.top()))
+                             .makeScale(1.0f / scale, 1.0f / scale);
   return inst.coverageOutline;
 }
 

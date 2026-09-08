@@ -334,7 +334,14 @@ Tracing a raster has three consequences and all three show:
 
 The node's OWN marks are not in the trace — they are what dresses it, and
 a mark that dressed itself would have no fixed point — while its fill, its
-content, its children and their marks are. A node that traced to nothing
+content, its children and their marks are. WHAT THE RASTER COVERS IS THE
+NODE'S PAINT BOUNDS, not its box: the silhouette is the ink, so a declared
+shape resolved past the box it was handed, a decoration's bleed, a glyph's
+overhang and a routed path are all inside the traced surface and the
+boundary is never cut square at the box's edge. The raster's grid is
+placed on whole steps of the trace's own scale, so the pixels covering the
+box are the same pixels whichever carrier widened the rect around them,
+and the path comes back in the node's own space either way. A node that traced to nothing
 keeps its shape, exactly as a text leaf with no glyph outline does. The
 trace is re-run when the node's rendered layer is invalidated, which for a
 volatile subtree is every frame.
@@ -1237,7 +1244,8 @@ SIZE.** Everything a node is given room in comes from its own paint
 bounds: the recording cull and the subtree union over it, the BOUNDED
 `saveLayer` a group opacity or blend composites through, the one a layer
 effect is run over, the surface a lifted filter runs over, the local and
-device texture bakes, and the split bake's own half. So the declared shape
+device texture bakes, the split bake's own half, and the alpha surface a
+coverage boundary is traced off. So the declared shape
 bounds every one of them, and a LAYER is the harsher case rather than the
 lenient one: a `saveLayer`'s bounds are a clip, so a layer that misses the
 node's ink DELETES it, where an allocation that misses it merely cuts what
