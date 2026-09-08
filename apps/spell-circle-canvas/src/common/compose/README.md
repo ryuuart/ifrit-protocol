@@ -315,7 +315,14 @@ Tracing a raster has three consequences and all three show:
   looking at — which is the whole reason to trace pixels rather than a
   shape — and a node that moves to a denser display is traced again. A
   ceiling on the raster's longer side bounds what a very large node asks
-  for: past it the raster is scaled down to fit and the steps grow.
+  for: past it the raster is scaled down to fit and the steps grow. So a
+  RECORDING THAT HOLDS ONE IS PINNED TO THAT SCALE: a picture replays
+  under whatever matrix it meets, which is sound for every other op in it,
+  and a traced boundary is the one answer inside that belongs to the scale
+  it was taken at. The recording counts the traces it holds — its own
+  nodes' and those of every held picture replayed into it — and is remade
+  when the scale moves, exactly as a recording holding a device blit is
+  remade when its matrix does.
 - **How much paint counts as ink is a dial.** A pixel joins the boundary
   when the node's paint reached `Element::threshold` of it, a fraction of
   full opacity. The default is half — the rule an unantialiased rasteriser

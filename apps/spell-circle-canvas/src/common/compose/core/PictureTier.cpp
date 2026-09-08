@@ -34,6 +34,9 @@ void PictureBake::replay(PictureBakeTarget& t) const {
   // to the same matrix, and remade with this one when it changes.
   t.painter->recordingDeviceBakes += t.inst->pictureDeviceBakes;
   t.painter->recordingDeviceDeferred |= t.inst->pictureDeviceDeferred;
+  // …and the traced silhouettes it holds, which pin the outer recording to
+  // the scale they were traced at exactly as the blits pin it to a matrix.
+  t.painter->recordingCoverageTraces += t.inst->pictureCoverageTraces;
 }
 void PictureBake::drop(PictureBakeTarget& t) const { t.inst->picture.reset(); }
 bool PictureBake::held(const PictureBakeTarget& t) const {
@@ -85,8 +88,10 @@ void Composer::Impl::recordPicture(Instance& inst, const SkMatrix& deviceMatrix,
   const bool invertible = recordingReplay.invert(&recordingReplayInverse);
   const uint32_t outerBakes = recordingDeviceBakes;
   const bool outerDeferred = recordingDeviceDeferred;
+  const uint32_t outerTraces = recordingCoverageTraces;
   recordingDeviceBakes = 0;
   recordingDeviceDeferred = false;
+  recordingCoverageTraces = 0;
   ++recordingDepth;
   // A replay matrix with no inverse has no device rect to land a blit on.
   if (unpinned || !invertible) ++unpinnedRecordingDepth;
@@ -98,9 +103,12 @@ void Composer::Impl::recordPicture(Instance& inst, const SkMatrix& deviceMatrix,
   inst.pictureDeviceClip = deviceClip;
   inst.pictureDeviceBakes = recordingDeviceBakes;
   inst.pictureDeviceDeferred = recordingDeviceDeferred;
+  inst.pictureCoverageTraces = recordingCoverageTraces;
+  inst.pictureHostScale = hostScale;
   // What this recording holds, the enclosing one now holds too.
   recordingDeviceBakes = outerBakes + inst.pictureDeviceBakes;
   recordingDeviceDeferred = outerDeferred || inst.pictureDeviceDeferred;
+  recordingCoverageTraces = outerTraces + inst.pictureCoverageTraces;
   recordingReplay = outerReplay;
   recordingReplayInverse = outerReplayInverse;
   inst.bakedLeafOpacity = leafOpacity;  // a settled transition re-bakes
@@ -145,13 +153,23 @@ void paintThroughPicture(PaintPass& pass) {
   const bool pinMoved = inst.pictureDeviceBakes > 0 &&
                         (totalM != inst.pictureMatrix ||
                          pass.deviceClip() != inst.pictureDeviceClip);
+  // …and the scale pin: a recording holding a traced silhouette holds a
+  // staircase of whole device pixels, which is a different path once the
+  // node is drawn at another scale — a host resized, a plate photographed
+  // at its oversample. Nothing else the tier compares moves with it: the
+  // node's content is the same content whatever scale it is drawn at, so a
+  // recording kept across the change would replay the coarser boundary and
+  // the decorations that dress it would never find the finer one.
+  const bool scalePinMoved =
+      inst.pictureCoverageTraces > 0 && inst.pictureHostScale != impl.hostScale;
   const bool deferredDue = inst.pictureDeviceDeferred && pass.matrixStable;
   if (core::decideBake({.cacheable = true,
                         .held = impl.pictureBake->held(target),
                         .stale = inst.paintDirty || pass.memoStale ||
                                  inst.bakedLeafOpacity != leafOpacity ||
                                  inst.bakedLeafBlend != leafBlend || pinMoved ||
-                                 deferredDue}) == core::BakeAction::Take)
+                                 scalePinMoved || deferredDue}) ==
+      core::BakeAction::Take)
     impl.pictureBake->take(target);
   if (pass.profile.row != SIZE_MAX)
     impl.profileRows[pass.profile.row].cacheState =

@@ -270,6 +270,16 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   SkIRect pictureDeviceClip = SkIRect::MakeEmpty();
   uint32_t pictureDeviceBakes = 0;
   bool pictureDeviceDeferred = false;
+  // …and the device scale a COVERAGE BOUNDARY inside it was traced at. A
+  // traced silhouette is a staircase of whole device pixels, so it is a
+  // different path at a different scale — the one answer a recording can
+  // hold that is not matrix-independent for a reason no blit explains.
+  // The count is kept for the same reason the blits' is: it is the number
+  // of traces the recording holds, its own nodes' and those of every held
+  // picture replayed into it, so a recording holding none is never remade
+  // for the scale alone.
+  uint32_t pictureCoverageTraces = 0;
+  float pictureHostScale = 1.0f;
   sk_sp<SkImage> textureImage;
   float textureScale = 1.0f;
   SkRect textureBakeRect = SkRect::MakeEmpty();  // bake covers paint bounds

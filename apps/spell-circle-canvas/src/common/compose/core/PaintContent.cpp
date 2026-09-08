@@ -447,6 +447,11 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     const SkPath& traced =
         coverageOutline(inst, {bounds.width(), bounds.height()}, hostScale);
     if (!traced.isEmpty()) decorationBase = &traced;
+    // A staircase of whole device pixels is a different path at a
+    // different scale, so a recording that freezes one in is pinned to the
+    // scale it was traced at, exactly as one holding a device blit is
+    // pinned to its matrix.
+    ++recordingCoverageTraces;
   }
   SkPath marksPath = !marksShow ? *decorationBase
                      : (surfaceShow && *marksShow == *surfaceShow &&

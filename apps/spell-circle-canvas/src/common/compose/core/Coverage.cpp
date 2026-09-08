@@ -160,10 +160,12 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   const uint32_t outerBakes = recordingDeviceBakes;
   const bool outerDeferred = recordingDeviceDeferred;
   const bool outerMatrixStable = recordingMatrixStable;
+  const uint32_t outerTraces = recordingCoverageTraces;
   recordingReplay = SkMatrix::I();
   recordingReplayInverse = SkMatrix::I();
   recordingDeviceBakes = 0;
   recordingDeviceDeferred = false;
+  recordingCoverageTraces = 0;
   ++recordingDepth;
   ++unpinnedRecordingDepth;
   paintContent(inst, canvas, contentScale);
@@ -174,6 +176,7 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   recordingDeviceBakes = outerBakes;
   recordingDeviceDeferred = outerDeferred;
   recordingMatrixStable = outerMatrixStable;
+  recordingCoverageTraces = outerTraces;
   coverageTrace = outerTrace;
 
   SkPixmap alpha;

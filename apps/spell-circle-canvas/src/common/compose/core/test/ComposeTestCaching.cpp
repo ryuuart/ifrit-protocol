@@ -4,6 +4,8 @@
 // kept out of the recording, a declared bake density holding one bake across
 // view scales, and a texture-cached node blending on its blit.
 
+#include <sigilgeometry/kit/Generators.h>
+
 #include "support/CoreTestSupport.h"
 
 TEST(ComposeCaching, StaticSubtreeRecordsOnce) {
@@ -455,4 +457,103 @@ TEST(ComposeCaching, ADeferredEffectSpreadsInsideTheBakeAndStopsAtIt) {
   for (int i = 0; i < 3; ++i) host.frame();
   EXPECT_GT(SkColorGetB(host.pixel(56, 100)), 20u);  // 4 px out: the halo
   EXPECT_EQ(host.pixel(38, 100), SK_ColorBLACK);     // 2 px past the box
+}
+
+// ---------------------------------------------------------------------------
+// A TRACED BOUNDARY IS A STAIRCASE OF DEVICE PIXELS, so it follows the scale.
+
+namespace {
+
+/** A NODE DRESSED ALONG WHAT IT DREW: a disc the node's own box says
+ *  nothing about, and a stroke walking the silhouette traced off it. The
+ *  stroke is the whole point — the traced path is a staircase of whole
+ *  device pixels, so a step of it is one pixel at the scale it was traced
+ *  at and half a pixel at twice that, and a decoration walking it lands
+ *  somewhere else. */
+struct TracedRule {
+  float width = 3;
+  bool operator==(const TracedRule&) const = default;
+  bool blends() const { return false; }
+  float bleed() const { return width * 0.5f; }
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+    SkPaint p;
+    p.setStyle(SkPaint::kStroke_Style);
+    p.setStrokeWidth(width);
+    p.setColor(SkColorSetRGB(255, 80, 25));
+    p.setAntiAlias(true);
+    canvas.drawPath(ctx.outline, p);
+  }
+};
+
+Element tracedDisc() {
+  Element page = box().width(200).height(200).fill(Fill::color({0, 0, 0, 1}));
+  page.child(box()
+                 .absolute()
+                 .left(20)
+                 .top(20)
+                 .width(160)
+                 .height(160)
+                 .boundary(Boundary::Coverage)
+                 .stroke(TracedRule{})
+                 .key("traced")
+                 .child(box()
+                            .absolute()
+                            .left(18)
+                            .top(30)
+                            .width(120)
+                            .height(104)
+                            .shape(geometry::shapes::circle())
+                            .fill(Fill::color({0.9f, 0.8f, 0.3f, 1}))));
+  return page;
+}
+
+/** The still a plate is photographed as: the scene drawn at twice the
+ *  scale it was warmed at, or drawn at that scale from the first frame. */
+std::vector<SkColor> stillAtTwice(bool warmFirst) {
+  Host host(200, 200);
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
+  host.composer.render(tracedDisc());
+  if (warmFirst)
+    for (int i = 0; i < 6; ++i) host.frame();
+  sk_sp<SkSurface> still =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 400));
+  still->getCanvas()->clear(SK_ColorBLACK);
+  still->getCanvas()->scale(2, 2);
+  host.composer.draw(*still->getCanvas());
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(400, 400));
+  still->readPixels(bm.pixmap(), 0, 0);
+  std::vector<SkColor> out;
+  out.reserve(400u * 400u);
+  for (int y = 0; y < 400; ++y)
+    for (int x = 0; x < 400; ++x) out.push_back(bm.getColor(x, y));
+  return out;
+}
+
+}  // namespace
+
+TEST(ComposeCache, ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves) {
+  // A recording replays under whatever matrix it meets, which is sound for
+  // every op in it EXCEPT a coverage boundary: that path is the silhouette
+  // of a raster taken at the device scale, one step of the staircase per
+  // device pixel, so a recording made at one scale carries a boundary that
+  // belongs to another. Nothing else the picture tier compares moves with
+  // it — the node's content is the same content at any scale — so the
+  // recording is pinned to the scale its traces were taken at, exactly as a
+  // recording holding a device blit is pinned to its matrix.
+  const std::vector<SkColor> warmed = stillAtTwice(true);
+  const std::vector<SkColor> fresh = stillAtTwice(false);
+  ASSERT_EQ(warmed.size(), fresh.size());
+  size_t differing = 0;
+  int worst = 0;
+  for (size_t i = 0; i < warmed.size(); ++i) {
+    if (warmed[i] == fresh[i]) continue;
+    ++differing;
+    for (int shift : {0, 8, 16, 24})
+      worst = std::max(worst, std::abs((int)((warmed[i] >> shift) & 0xffu) -
+                                       (int)((fresh[i] >> shift) & 0xffu)));
+  }
+  EXPECT_LE(worst, 1) << differing << " pixels moved, worst " << worst
+                      << " code values, when a node whose decorations walk a "
+                         "traced silhouette was drawn at another scale";
 }

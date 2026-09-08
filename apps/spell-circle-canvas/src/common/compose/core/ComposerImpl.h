@@ -236,6 +236,12 @@ struct Composer::Impl {
   // matrix holds still. Stamped onto the instance when the recording ends.
   uint32_t recordingDeviceBakes = 0;
   bool recordingDeviceDeferred = false;
+  // …and how many COVERAGE BOUNDARIES it holds, on the same terms. A
+  // traced silhouette is a staircase of whole device pixels, so a
+  // recording that froze one in is exact at the scale it was traced at
+  // and stale at every other, exactly as one holding a blit is stale
+  // under another matrix.
+  uint32_t recordingCoverageTraces = 0;
   // The node→root matrix accumulated by paint()'s own recursion — the same
   // walk Query.cpp inverts for hit testing, run forwards. Saved and
   // restored around each paint() frame (RAII, because paint() returns from
