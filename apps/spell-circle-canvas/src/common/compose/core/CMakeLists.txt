@@ -40,7 +40,8 @@ sigil_library(SigilComposeCore
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
     ElementNode.cpp Diagnostics.cpp CellFlow.cpp
     # the composer and its phases
-    Composer.cpp Reconcile.cpp ReconcileEquality.cpp MaterializeText.cpp
+    Composer.cpp Measure.cpp Tiles.cpp
+    Reconcile.cpp ReconcileEquality.cpp MaterializeText.cpp
     LayoutProps.cpp ReconcileHost.cpp Layout.cpp Derive.cpp
     Transitions.cpp Query.cpp
     # the paint phase
