@@ -48,8 +48,9 @@ sigil_slang_kernel_flags(${SIGIL_STAMP_KERNEL_CPP})
 # divided range in this repository is decided.
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilGeometryMeshPop
-  SOURCES Billboards.cpp Cloud.cpp Cook.cpp Fields.cpp Generators.cpp
-          Kernel.cpp Modifiers.cpp Sinks.cpp Stamp.cpp
+  SOURCES Billboards.cpp Cloud.cpp Cook.cpp CookInternal.h Fields.cpp
+          Generators.cpp Kernel.cpp Lanes.cpp Modifiers.cpp
+          Neighbourhood.cpp Sinks.cpp Stamp.cpp
           Sweep.cpp
           ${SIGIL_POP_KERNEL_CPP} ${SIGIL_POP_KERNEL_SPV_H}
           ${SIGIL_STAMP_KERNEL_CPP} ${SIGIL_STAMP_KERNEL_SPV_H}

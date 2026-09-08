@@ -1,72 +1,34 @@
 /** @file
- * The built-in executor and the Runtime value that carries it: a point
- * set laid out as named float4 lanes, every operator evaluated over
- * them in chain order, and the result poured into a Cloud under the
- * conventional lane names.
+ * The built-in executor and the Runtime value that carries it: the
+ * operators evaluated over the store in chain order, and the door that
+ * refuses a chain the runtime it was handed cannot run.
  *
  * WHERE THE ARITHMETIC IS. An operator whose body is a pure function of
  * one point is not written here: it is written once in the kernel this
  * feature compiles, and this executor calls that kernel's own generated
  * C++. What is left in this file is what no per-point kernel can be —
- * the generators, the neighbourhood pass, the permutation, the primitive
- * class, and the operators whose definition calls for a library sine.
+ * the permutation, the set class, the space deformers, and the operator
+ * whose definition calls for a library sine. The four that read points
+ * they do not own stand in Neighbourhood.cpp, and the seed and the
+ * export in Lanes.cpp.
  */
 
-#include <sigilcore/compute/Chance.h>
-#include <sigilcore/compute/Noise.h>
 #include <sigilcore/schedule/Parallel.h>
 
 #include <algorithm>
 #include <cmath>
 #include <glm/geometric.hpp>
-#include <limits>
 #include <numeric>
 #include <stdexcept>
 #include <string>
 
+#include "CookInternal.h"
 #include "sigilgeometry/mesh/pop/Kernel.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
-#include "sigilgeometry/path/Neighbours.h"
 
 namespace sigil::geometry::mesh {
 
-// The tier's other features this file stands on, pulled in so the code
-// below reads as one vocabulary.
-using curve::Spline3;
-
 namespace {
-
-/** How many points one worker takes at a time when a pass is divided.
- *  A pass over lanes is a handful of arithmetic operations per point, so
- *  handing a chunk to a worker is only worth it for many thousands of
- *  them; below that the whole range stays on the calling thread. A cook
- *  divides its own passes at the grain its executor was given, and this
- *  is what the built-in one carries. */
-constexpr size_t kLaneGrain = 4096;
-
-float wrap01(float t) { return t - std::floor(t); }
-
-/** The attribute store: every attribute is a named float4 lane —
- *  builtins ("P", "T", "Dir", "Scale", "Color", "Tex") and customs
- *  alike. Customs spring into being on first touch. */
-struct Attrs {
-  size_t count = 0;
-  pop::Lanes lanes;
-
-  std::vector<glm::vec4>& ensure(const std::string& name) {
-    auto [it, inserted] = lanes.try_emplace(name);
-    if (inserted) it->second.assign(count, pop::laneFill(name));
-    return it->second;
-  }
-  glm::vec4 load(const std::string& name, size_t i) { return ensure(name)[i]; }
-  void store(const std::string& name, size_t i, glm::vec4 v) {
-    ensure(name)[i] = v;
-  }
-  glm::vec3 p3(size_t i) {
-    const glm::vec4 v = load("P", i);
-    return {v.x, v.y, v.z};
-  }
-};
 
 /** ONE OPERATOR RUN THROUGH ITS KERNEL, on this tier: the lanes the
  *  dispatch named, created if this is where they first appear, and the
@@ -86,92 +48,6 @@ void runKernel(Attrs& attrs, const kernel::OpDispatch& work) {
   glm::vec4* const mask = lane(work.mask);
   kernel::run(work, dst, a, b, c, mask);
 }
-
-}  // namespace
-
-glm::vec3 pop::noiseField(glm::vec3 p, float freq, float seed) {
-  const float sx = std::sin(p.y * freq * 6.1f + seed) +
-                   0.5f * std::sin(p.z * freq * 11.3f + seed * 1.7f);
-  const float sy = std::sin(p.z * freq * 5.3f + seed * 2.1f) +
-                   0.5f * std::sin(p.x * freq * 9.7f + seed);
-  const float sz = std::sin(p.x * freq * 7.9f + seed * 1.3f) +
-                   0.5f * std::sin(p.y * freq * 8.3f + seed * 2.6f);
-  return glm::vec3{sx, sy, sz} * 0.6667f;
-}
-
-glm::vec4 pop::laneFill(std::string_view name) {
-  if (name == "Scale" || name == "Color") return {1, 1, 1, 1};
-  if (name == "Tex") return {0, 0, 1, 1};
-  if (name == "Dir") return {0, 0, 1, 0};
-  return {0, 0, 0, 0};
-}
-
-std::string_view pop::attrFor(std::string_view lane) {
-  if (lane == "t") return "T";
-  if (lane == "size") return "Scale";
-  if (lane == "dir" || lane == "normal") return "Dir";
-  if (lane == "tint") return "Color";
-  return lane;
-}
-
-std::string_view pop::cloudLaneFor(std::string_view attr) {
-  if (attr == "T") return "t";
-  if (attr == "Scale") return "size";
-  if (attr == "Dir") return "dir";
-  if (attr == "Color") return "tint";
-  return attr;
-}
-
-void pop::seedAttrs(const Cloud& cloud, pop::Lanes& lanes) {
-  const size_t n = cloud.size();
-  const auto lane = [&](const std::string& name, glm::vec4 fill) -> auto& {
-    auto [it, inserted] = lanes.try_emplace(name);
-    if (inserted || it->second.size() != n) it->second.assign(n, fill);
-    return it->second;
-  };
-  std::vector<glm::vec4>& P = lane("P", {0, 0, 0, 0});
-  core::schedule::parallelFor(n, kLaneGrain, [&](size_t first, size_t last) {
-    for (size_t i = first; i < last; ++i)
-      P[i] = {cloud.positions[i].x, cloud.positions[i].y, cloud.positions[i].z,
-              0};
-  });
-  lane("T", {0, 0, 0, 0});
-  lane("Dir", {0, 0, 1, 0});
-  lane("Scale", {1, 1, 1, 1});
-  lane("Color", {1, 1, 1, 1});
-  lane("Tex", {0, 0, 1, 1});
-  for (const auto& [name, values] : cloud.scalars) {
-    if (values.size() != n) continue;
-    const std::string target(attrFor(name));
-    std::vector<glm::vec4>& out = lane(target, {0, 0, 0, 0});
-    core::schedule::parallelFor(n, kLaneGrain, [&](size_t first, size_t last) {
-      for (size_t i = first; i < last; ++i)
-        out[i] = target == "Scale"
-                     ? glm::vec4{values[i], values[i], values[i], values[i]}
-                     : glm::vec4{values[i], 0, 0, 0};
-    });
-  }
-  for (const auto& [name, values] : cloud.vectors) {
-    if (values.size() != n) continue;
-    // "dir" is the cook's own export; "normal" is what generators and
-    // importers write. The table maps either onto Dir, so "dir" has to
-    // win where both exist.
-    const bool skip = name == "normal" && cloud.vectorIf("dir");
-    const std::string target(skip ? std::string_view(name) : attrFor(name));
-    std::vector<glm::vec4>& out = lane(target, {0, 0, 1, 0});
-    core::schedule::parallelFor(n, kLaneGrain, [&](size_t first, size_t last) {
-      for (size_t i = first; i < last; ++i)
-        out[i] = {values[i].x, values[i].y, values[i].z, 0};
-    });
-  }
-  for (const auto& [name, values] : cloud.colors) {
-    if (values.size() != n) continue;
-    const std::string target(attrFor(name));
-    lane(target, {1, 1, 1, 1}) = values;
-  }
-}
-
-namespace {
 
 /** The frame a Deform runs in: its axis normalized, its bend direction
  *  made perpendicular to that axis and normalized (a direction parallel
@@ -199,139 +75,14 @@ void deformFrame(const pop::Deform& op, glm::vec3* axis, glm::vec3* direction,
 
 }  // namespace
 
-size_t pop::seedLanes(const pop::Chain& chain, pop::Lanes* lanes) {
-  if (!lanes || chain.empty()) return 0;
-  const auto* scatter = std::get_if<pop::SplineScatter>(&chain.front());
-  const auto* surface = std::get_if<pop::MeshScatter>(&chain.front());
-  const auto* given = std::get_if<pop::PointSet>(&chain.front());
-  if (scatter && (scatter->loop.size() < 3 || scatter->count < 1)) return 0;
-  if (surface && (surface->mesh.indices.empty() || surface->count < 1))
-    return 0;
-  if (given && given->cloud.positions.empty()) return 0;
-  if (!scatter && !surface && !given) return 0;
-
-  // THE SURFACE SCATTER IS RUN FIRST, because how many points it made
-  // is how many this chain has. `points::onMesh` answers an empty cloud
-  // for a mesh of no area, and returning the requested count over it
-  // would cook a chain of points nothing ever placed — every one of them
-  // at the origin.
-  Cloud seeds;
-  if (surface) {
-    seeds = points::onMesh(surface->mesh, surface->count, surface->seed);
-    if (seeds.positions.empty()) return 0;
-  }
-
-  const size_t count = scatter ? (size_t)scatter->count
-                       : surface
-                           ? std::min((size_t)surface->count, seeds.size())
-                           : given->cloud.size();
-  const auto lane = [&](const std::string& name) -> auto& {
-    auto [it, inserted] = lanes->try_emplace(name);
-    if (inserted) it->second.assign(count, pop::laneFill(name));
-    return it->second;
-  };
-  std::vector<glm::vec4>& laneP = lane("P");
-  std::vector<glm::vec4>& laneT = lane("T");
-  std::vector<glm::vec4>& laneDir = lane("Dir");
-  lane("Scale");
-  lane("Color");
-
-  if (given) pop::seedAttrs(given->cloud, *lanes);
-
-  if (surface) {
-    const std::vector<glm::vec3>* normals = seeds.vectorIf("normal");
-    core::schedule::parallelFor(
-        count, kLaneGrain, [&](size_t first, size_t last) {
-          for (size_t i = first; i < last; ++i) {
-            const glm::vec3& p = seeds.positions[i];
-            laneP[i] = {p.x, p.y, p.z, 0};
-            laneT[i] = {((float)i + 0.5f) / (float)count, 0, 0, 0};
-            if (normals) {
-              const glm::vec3& n = (*normals)[i];
-              laneDir[i] = {n.x, n.y, n.z, 0};
-            }
-          }
-        });
-  }
-
-  if (scatter) {
-    Spline3 spline;
-    spline.points = scatter->loop;
-    spline.closed = true;
-    core::schedule::parallelFor(
-        count, kLaneGrain, [&](size_t first, size_t last) {
-          for (size_t i = first; i < last; ++i) {
-            const uint32_t seed = scatter->seed;
-            const float u0 = ((float)i + 0.5f) / (float)count;
-            const float t =
-                scatter->head - scatter->span + scatter->span * u0 +
-                (core::noise::pcgUnit((uint32_t)i * 3u + seed) - 0.5f) *
-                    (scatter->span / (float)count) * 4.0f;
-            const glm::vec3 p = spline.position(wrap01(t));
-            glm::vec3 tangent = spline.position(wrap01(t + 0.002f)) -
-                                spline.position(wrap01(t - 0.002f));
-            const float len = glm::length(tangent);
-            tangent = len > 1e-6f ? tangent * (1.0f / len) : glm::vec3{1, 0, 0};
-            glm::vec3 n0 = std::abs(tangent.y) < 0.9f
-                               ? glm::cross(tangent, {0, 1, 0})
-                               : glm::cross(tangent, {1, 0, 0});
-            n0 = n0 * (1.0f / glm::length(n0));
-            const glm::vec3 b0 = glm::cross(tangent, n0);
-            const float ang =
-                core::noise::pcgUnit((uint32_t)i * 7u + seed + 2u) * 6.2831853f;
-            const float rad =
-                std::sqrt(core::noise::pcgUnit((uint32_t)i * 5u + seed + 3u)) *
-                scatter->radius;
-            const glm::vec3 placed =
-                p + (n0 * std::cos(ang) + b0 * std::sin(ang)) * rad;
-            laneP[i] = {placed.x, placed.y, placed.z, 0};
-            laneT[i] = {u0, 0, 0, 0};
-            laneDir[i] = {tangent.x, tangent.y, tangent.z, 0};
-          }
-        });
-  }
-  return count;
-}
-
-Cloud pop::exportLanes(const pop::Lanes& lanes, size_t count) {
-  Cloud out;
-  if (count == 0) return out;
-  const auto find = [&](const char* name) -> const std::vector<glm::vec4>* {
-    const auto it = lanes.find(std::string_view(name));
-    return it == lanes.end() ? nullptr : &it->second;
-  };
-  const std::vector<glm::vec4>* P = find("P");
-  const std::vector<glm::vec4>* T = find("T");
-  const std::vector<glm::vec4>* Dir = find("Dir");
-  const std::vector<glm::vec4>* Scale = find("Scale");
-  const std::vector<glm::vec4>* Color = find("Color");
-  if (!P || !T || !Dir || !Scale || !Color) return out;
-
-  out.positions.resize(count);
-  std::vector<float>& t = out.scalar(std::string(cloudLaneFor("T")));
-  std::vector<glm::vec3>& dir = out.vector(std::string(cloudLaneFor("Dir")));
-  std::vector<float>& size = out.scalar(std::string(cloudLaneFor("Scale")), 1);
-  std::vector<glm::vec4>& tint = out.color(std::string(cloudLaneFor("Color")));
-  core::schedule::parallelFor(count, kLaneGrain,
-                              [&](size_t first, size_t last) {
-                                for (size_t i = first; i < last; ++i) {
-                                  const glm::vec4 p = (*P)[i];
-                                  out.positions[i] = {p.x, p.y, p.z};
-                                  t[i] = (*T)[i].x;
-                                  const glm::vec4 d = (*Dir)[i];
-                                  dir[i] = {d.x, d.y, d.z};
-                                  size[i] = (*Scale)[i].x;
-                                  tint[i] = (*Color)[i];
-                                }
-                              });
-  for (const auto& [name, lane] : lanes) {
-    if (name == "P" || name == "T" || name == "Dir" || name == "Scale" ||
-        name == "Color")
-      continue;
-    std::vector<glm::vec4>& exported = out.color(name);
-    for (size_t i = 0; i < count; ++i) exported[i] = lane[i];
-  }
-  return out;
+glm::vec3 pop::noiseField(glm::vec3 p, float freq, float seed) {
+  const float sx = std::sin(p.y * freq * 6.1f + seed) +
+                   0.5f * std::sin(p.z * freq * 11.3f + seed * 1.7f);
+  const float sy = std::sin(p.z * freq * 5.3f + seed * 2.1f) +
+                   0.5f * std::sin(p.x * freq * 9.7f + seed);
+  const float sz = std::sin(p.x * freq * 7.9f + seed * 1.3f) +
+                   0.5f * std::sin(p.y * freq * 8.3f + seed * 2.6f);
+  return glm::vec3{sx, sy, sz} * 0.6667f;
 }
 
 namespace {
@@ -368,216 +119,13 @@ Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
             // sink — a Cloud has no primitives. cookMesh() reads these
             // ops back off the chain once the stamps exist.
           } else if constexpr (std::is_same_v<T, pop::Smooth>) {
-            // Chain-order op: double-buffered, read-old/write-new — the
-            // shape a parallel pass would have too, and the reason there
-            // is no kernel for it: a point reads two it does not own, so
-            // one lane cannot be both what is read and what is written.
-            // The mask blends the relaxed value against the old one
-            // BEFORE the scratch write, so a masked point's neighbours
-            // still see its old value this pass.
-            std::vector<glm::vec4>& values = attrs.ensure(op.lane.name);
-            const std::vector<glm::vec4>* mask =
-                op.mask.empty() ? nullptr : &attrs.ensure(op.mask);
-            for (int pass = 0; pass < op.iterations; ++pass) {
-              std::vector<glm::vec4> next(count);
-              core::schedule::parallelFor(
-                  count, grain, [&](size_t first, size_t last) {
-                    for (size_t i = first; i < last; ++i) {
-                      const size_t a = i == 0 ? 0 : i - 1;
-                      const size_t b = i + 1 < count ? i + 1 : i;
-                      const glm::vec4 mid = (values[a] + values[b]) * 0.5f;
-                      const glm::vec4 v = values[i];
-                      const glm::vec4 relaxed = v + (mid - v) * op.strength;
-                      float m = 1.0f;
-                      if (mask) {
-                        const float raw = (*mask)[i].x;
-                        m = raw < 0.0f ? 0.0f : (raw > 1.0f ? 1.0f : raw);
-                      }
-                      next[i] = m >= 1.0f ? relaxed : v + (relaxed - v) * m;
-                    }
-                  });
-              values.swap(next);
-            }
+            runSmooth(attrs, op, count, grain);
           } else if constexpr (std::is_same_v<T, pop::Relax>) {
-            // SPATIAL relaxation, over the one grid the whole tree's
-            // proximity is answered by. The mask blends the settled
-            // positions against where they started, which is the same
-            // rule every other filter's mask is read by.
-            std::vector<glm::vec4>& values = attrs.ensure("P");
-            const std::vector<glm::vec4>* mask =
-                op.mask.empty() ? nullptr : &attrs.ensure(op.mask);
-            std::vector<glm::vec3> positions(count);
-            for (size_t i = 0; i < count; ++i)
-              positions[i] = {values[i].x, values[i].y, values[i].z};
-            const std::vector<glm::vec3> before = positions;
-            path::relax(positions, path::Relaxation{op.radius, op.iterations,
-                                                    op.strength});
-            for (size_t i = 0; i < count; ++i) {
-              float m = 1.0f;
-              if (mask) {
-                const float raw = (*mask)[i].x;
-                m = raw < 0.0f ? 0.0f : (raw > 1.0f ? 1.0f : raw);
-              }
-              const glm::vec3 settled =
-                  before[i] + (positions[i] - before[i]) * m;
-              values[i] = {settled.x, settled.y, settled.z, values[i].w};
-            }
+            runRelax(attrs, op, count);
           } else if constexpr (std::is_same_v<T, pop::Cluster>) {
-            // K-MEANS in the metric `weights` names. The centres start at
-            // points drawn from the set itself rather than at random
-            // coordinates, so no centre begins somewhere the points are
-            // not and no group starts empty.
-            const std::vector<glm::vec4>& from = attrs.ensure(op.from.name);
-            std::vector<glm::vec4>& to = attrs.ensure(op.to);
-            const int groups =
-                (int)std::min<size_t>((size_t)std::max(op.count, 1), count);
-            const glm::vec4 w = op.weights;
-            const auto keyOf = [&](size_t i) { return from[i] * w; };
-
-            // The centres are seeded the way k-means++ seeds them: the
-            // first at a point drawn from the set, and each one after it
-            // at a point chosen with probability proportional to how far
-            // it is from the nearest centre so far. Drawing all of them
-            // at random instead puts two centres in one clump often
-            // enough that a clustering nobody could defend comes back
-            // for a set whose groups are obvious.
-            std::vector<glm::vec4> centres;
-            centres.reserve((size_t)groups);
-            core::chance::Stream stream = core::chance::Stream::pcg(op.seed);
-            centres.push_back(keyOf(stream.below(count)));
-            std::vector<float> spread(count, 0.0f);
-            for (int g = 1; g < groups; ++g) {
-              double total = 0;
-              for (size_t i = 0; i < count; ++i) {
-                const glm::vec4 d = keyOf(i) - centres.back();
-                const float squared = glm::dot(d, d);
-                if (g == 1 || squared < spread[i]) spread[i] = squared;
-                total += (double)spread[i];
-              }
-              if (!(total > 0)) {
-                centres.push_back(keyOf(stream.below(count)));
-                continue;
-              }
-              double pick = (double)stream.unit() * total;
-              size_t at = count - 1;
-              for (size_t i = 0; i < count; ++i) {
-                pick -= (double)spread[i];
-                if (pick <= 0) {
-                  at = i;
-                  break;
-                }
-              }
-              centres.push_back(keyOf(at));
-            }
-
-            std::vector<int> owner(count, 0);
-            for (int pass = 0; pass < std::max(op.iterations, 1); ++pass) {
-              core::schedule::parallelFor(
-                  count, grain, [&](size_t first, size_t last) {
-                    for (size_t i = first; i < last; ++i) {
-                      const glm::vec4 key = keyOf(i);
-                      float best = std::numeric_limits<float>::infinity();
-                      int at = 0;
-                      for (int g = 0; g < groups; ++g) {
-                        const glm::vec4 d = key - centres[(size_t)g];
-                        const float squared = glm::dot(d, d);
-                        if (squared < best) {
-                          best = squared;
-                          at = g;
-                        }
-                      }
-                      owner[i] = at;
-                    }
-                  });
-              std::vector<glm::vec4> sums((size_t)groups, glm::vec4(0));
-              std::vector<int> tally((size_t)groups, 0);
-              for (size_t i = 0; i < count; ++i) {
-                sums[(size_t)owner[i]] += keyOf(i);
-                ++tally[(size_t)owner[i]];
-              }
-              // A group nobody joined keeps the centre it had: moving it
-              // to the origin would drag it somewhere the points are not.
-              for (int g = 0; g < groups; ++g)
-                if (tally[(size_t)g] > 0)
-                  centres[(size_t)g] =
-                      sums[(size_t)g] / (float)tally[(size_t)g];
-            }
-            for (size_t i = 0; i < count; ++i)
-              to[i] = {(float)owner[i], 0, 0, 0};
+            runCluster(attrs, op, count, grain);
           } else if constexpr (std::is_same_v<T, pop::Transfer>) {
-            // A GATHER FROM ANOTHER CLOUD. The source is indexed once and
-            // every destination point reads it, which is the whole reason
-            // this is one operator and not a loop at a call site.
-            if (!op.lane.empty() && op.radius > 0 &&
-                !op.source.positions.empty()) {
-              const std::vector<glm::vec4>& positions = attrs.ensure("P");
-              std::vector<glm::vec4>& lane = attrs.ensure(op.lane);
-              const std::vector<glm::vec4>* mask =
-                  op.mask.empty() ? nullptr : &attrs.ensure(op.mask);
-              const path::Neighbours index(op.source.positions);
-
-              // The source lane read under the destination's own name: a
-              // colour if the source carries one there, else a vector, else
-              // a scalar in .x. A source that carries nothing under the
-              // name transfers nothing.
-              const std::vector<glm::vec4>* colours =
-                  op.source.colorIf(op.lane);
-              const std::vector<glm::vec3>* vectors =
-                  colours ? nullptr : op.source.vectorIf(op.lane);
-              const std::vector<float>* scalars =
-                  (colours || vectors) ? nullptr : op.source.scalarIf(op.lane);
-              const auto sourceAt = [&](uint32_t i) -> glm::vec4 {
-                if (colours) return (*colours)[i];
-                if (vectors) {
-                  const glm::vec3 v = (*vectors)[i];
-                  return {v.x, v.y, v.z, 0};
-                }
-                if (scalars) return {(*scalars)[i], 0, 0, 0};
-                return {0, 0, 0, 0};
-              };
-
-              if (colours || vectors || scalars) {
-                const float blend = std::clamp(op.blendWidth, 0.0f, 1.0f);
-                const int samples = std::max(op.maxSamples, 1);
-                std::vector<uint32_t> found;
-                for (size_t i = 0; i < count; ++i) {
-                  const glm::vec4 p = positions[i];
-                  const glm::vec3 here{p.x, p.y, p.z};
-                  found = index.nearest(here, samples);
-                  glm::vec4 gathered{0, 0, 0, 0};
-                  float weight = 0, nearestDistance = 0;
-                  for (size_t at = 0; at < found.size(); ++at) {
-                    const float distance =
-                        glm::length(index.point(found[at]) - here);
-                    if (distance > op.radius) break;
-                    if (at == 0) nearestDistance = distance;
-                    // One over the distance, with a coincident source
-                    // taking the whole weight rather than an infinite one.
-                    const float w = distance > 0 ? 1.0f / distance : 1.0e6f;
-                    gathered += sourceAt(found[at]) * w;
-                    weight += w;
-                  }
-                  if (weight <= 0) continue;
-                  gathered /= weight;
-
-                  // The taper: full strength until the blend band starts,
-                  // then back to what the destination already held.
-                  float strength = 1.0f;
-                  if (blend > 0) {
-                    const float inner = op.radius * (1.0f - blend);
-                    if (nearestDistance > inner)
-                      strength = 1.0f - (nearestDistance - inner) /
-                                            (op.radius - inner);
-                    strength = std::clamp(strength, 0.0f, 1.0f);
-                  }
-                  if (mask) {
-                    const float raw = (*mask)[i].x;
-                    strength *= raw < 0.0f ? 0.0f : (raw > 1.0f ? 1.0f : raw);
-                  }
-                  lane[i] += (gathered - lane[i]) * strength;
-                }
-              }
-            }
+            runTransfer(attrs, op, count);
           } else if constexpr (std::is_same_v<T, pop::Sort>) {
             // The permutation class: EVERY lane travels with its
             // point, so the store stays coherent and only the order

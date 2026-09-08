@@ -1033,10 +1033,13 @@ implementations of the same dispatch seams.
   `setField()`/`getField()`, `noiseField()`, `attrFor()`/`cloudLaneFor()`);
   `Sinks.h` the sinks a cooked chain is spent into; and `Builder.h` the
   artist's spelling, where `pop::on()` opens a chain. The field table
-  behind `pop::setField()`/`getField()` is `Fields.cpp`; the built-in
+  behind `pop::setField()`/`getField()` is `Fields.cpp`; the lane fill,
+  the two ends of every cook (`seedLanes()`, `seedAttrs()`,
+  `exportLanes()`) and the name table are `Lanes.cpp`; the built-in
   executor, the `Runtime::cpu()` value with its `Runtime::cpu(itemGrain)`
   spelling, and the `cook()` door that checks an executor's capability
-  before dispatching are `Cook.cpp`; the mesh-forming sinks
+  before dispatching are `Cook.cpp`, with the four operators that read
+  points they do not own in `Neighbourhood.cpp`; the mesh-forming sinks
   `pop::cookMesh()` and `cookSweep()` are `Sinks.cpp`.
 - **`mesh/pop/Kernel.h`** — the seam between the two ends of one piece of
   arithmetic: `kernel::OpArgs` (the argument block, every member a
