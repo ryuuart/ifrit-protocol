@@ -47,9 +47,10 @@ struct Verlet {
 
   bool operator==(const Verlet&) const = default;
 
-  /** ONE STEP. The forces fill the force lane, the points move, the
-   *  constraints project them, and the velocity comes back out of where
-   *  they ended up. */
+  /** ONE STEP. The forces add to the force lane — onto whatever a
+   *  caller pre-loaded into it — the points move, the lane is cleared,
+   *  the constraints project them, and the velocity comes back out of
+   *  where they ended up. */
   void step(Points& points, std::span<const Force> forces,
             std::span<const Constraint> constraints) const;
 

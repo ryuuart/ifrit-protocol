@@ -34,9 +34,6 @@ Taken on the merged tree after the extractions campaign:
 
 ## Rulings
 
-- SigilMotion's force lane is the caller's to pre-load: `Verlet::step`
-  accumulates onto it and clears it after integrating, with a case that
-  pre-loads a force and sees it move the points.
 - The file splits run now, one agent per library in sequence, one
   commit per file, the case listing byte-identical, no behaviour
   change.
@@ -45,9 +42,7 @@ Taken on the merged tree after the extractions campaign:
 
 ## Deferred, a campaign of its own
 
-- The source-file splits by subject: `geometry/mesh/pop/Pop.h` (1131),
-  `mesh/pop/Cook.cpp` (792), `mesh/codec/Geo.cpp` (601),
-  `geometry/path/Ops.cpp` (604); `sketch/book/main.cpp` (1331),
+- The source-file splits by subject: `sketch/book/main.cpp` (1331),
   `book/SketchbookView.cpp` (896), `book/qml/Main.qml` (850); the
   1380-line `Composer::Impl::paint` in `compose/core/StackingPainter.cpp`
   and the compose files its review lists (`Element.h`, `Reconcile.cpp`,

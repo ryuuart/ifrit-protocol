@@ -127,9 +127,11 @@ struct Points {
    *  constraint took. */
   std::vector<Vec2> velocity;
   /** What is pushing on it this step, in mass times units per second
-   *  squared. Cleared at the start of every step and filled by the
-   *  forces, so a caller may add its own push to this lane between two
-   *  steps and it will be spent exactly once. */
+   *  squared. The lane is the CALLER'S to pre-load: a step accumulates
+   *  its forces onto whatever the lane already holds and clears it once
+   *  it has integrated, so a push written here between two steps is
+   *  spent exactly once and one written before a step that is never
+   *  taken is still there for the next one. */
   std::vector<Vec2> force;
   /** How much of it there is. Zero or less is IMMOVABLE — infinitely
    *  heavy — which is the same answer `pinned` gives and is reached by a

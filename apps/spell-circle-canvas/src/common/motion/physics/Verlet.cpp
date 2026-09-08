@@ -14,7 +14,10 @@ void Verlet::step(Points& points, std::span<const Force> forces,
   const size_t count = points.size();
   if (count == 0 || !(dt > 0.0f)) return;
 
-  for (size_t i = 0; i < count; ++i) points.force[i] = {};
+  // THE LANE IS THE CALLER'S TO PRE-LOAD. A push written into it between
+  // two steps is what the forces accumulate onto, and it is cleared once
+  // this step has spent it, so such a push is spent exactly once and a
+  // step that is never taken loses nothing.
   for (const Force& force : forces) force.apply(points, dt);
 
   // Exponential rather than a fraction taken per step: a loss stated per
@@ -35,6 +38,7 @@ void Verlet::step(Points& points, std::span<const Force> forces,
     points.velocity[i] += points.force[i] * (dt / points.mass[i]);
     points.position[i] += points.velocity[i] * dt;
   }
+  for (size_t i = 0; i < count; ++i) points.force[i] = {};
 
   const int passes = iterations > 0 ? iterations : 1;
   if (!constraints.empty())

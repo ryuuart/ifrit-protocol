@@ -2,7 +2,9 @@
  * The stepper: a fixed step is the same run twice, gravity lands on the
  * closed form, a pinned pair settles on its rest length, a band does
  * nothing until it is taut, a constraint takes the speed it took, and a
- * flock keeps every bird it started with — and the degenerate settings a
+ * flock keeps every bird it started with, a force a caller pre-loaded
+ * moves the point it was written on and is spent once — and the
+ * degenerate settings a
  * caller can hand in (no time, the clock's biggest step, no iterations, a
  * stiffness past rigid, an attractor arrived at, a body with nothing in
  * it) answer rather than dividing.
@@ -247,6 +249,33 @@ TEST(Physics, ACallersOwnForceIsAValueLikeTheOthers) {
   EXPECT_NE(custom, Force{});
 }
 
+TEST(Physics, APreLoadedForceMovesThePointItWasWrittenOn) {
+  // The lane is the caller's to pre-load. A push written into it between
+  // two steps is what the step's own forces accumulate onto, and the
+  // step clears it once it has integrated, so the push is spent once.
+  const Verlet stepper{.dt = 1.0f / 60.0f};
+  Points points;
+  points.add({0, 0});
+  points.add({0, 0});
+  points.force[0] = {600, 0};
+
+  stepper.step(points, {});
+  // One step of a constant force on a unit mass: the velocity it buys is
+  // force times the step, and the distance that velocity covers is the
+  // force times the step squared.
+  const float expected = 600.0f * stepper.dt * stepper.dt;
+  EXPECT_NEAR(points.position[0].x, expected, expected * 1e-4f);
+  EXPECT_FLOAT_EQ(points.velocity[0].x, 600.0f * stepper.dt);
+  // The point nobody pushed stands where it was.
+  EXPECT_FLOAT_EQ(points.position[1].x, 0.0f);
+  EXPECT_FLOAT_EQ(points.velocity[1].x, 0.0f);
+  // And the lane is empty again, so the push is not spent a second time.
+  EXPECT_EQ(points.force[0], Vec2{});
+  const Vec2 carried = points.velocity[0];
+  stepper.step(points, {});
+  EXPECT_FLOAT_EQ(points.velocity[0].x, carried.x);
+}
+
 TEST(Physics, AStepOfNoTimeMovesNothing) {
   // The step covers no time, so nothing happened in it — and answering
   // by dividing the forces through a zero would be a NaN in every lane
@@ -351,13 +380,17 @@ TEST(Physics, AnAttractorPullsNoHarderThanItsStrengthAtTheCentre) {
   const float strength = 300.0f;
   const std::vector<Force> forces{attract({0, 0}, strength)};
   const Verlet stepper{.dt = 1.0f / 60.0f};
+  // A step leaves the force lane empty, so what the pull WAS is read off
+  // the speed it bought: a unit mass gains the push times the step, and
+  // nothing here takes any of it back.
+  const auto pushOn = [&](const Points& points) {
+    return points.velocity[0].length() / stepper.dt;
+  };
   for (float away : {1e-6f, 1e-3f, 0.5f, 1.0f}) {
     Points points;
     points.add({away, 0});
     stepper.step(points, forces);
-    // The force lane is what the step spent, and it is a push: a mass of
-    // one makes the two the same number.
-    EXPECT_LE(points.force[0].length(), strength + 1e-2f) << "at " << away;
+    EXPECT_LE(pushOn(points), strength + 1e-2f) << "at " << away;
     EXPECT_TRUE(std::isfinite(points.position[0].x)) << "at " << away;
   }
   // And it IS the strength there, rather than nothing: the floor holds
@@ -365,7 +398,7 @@ TEST(Physics, AnAttractorPullsNoHarderThanItsStrengthAtTheCentre) {
   Points arrived;
   arrived.add({1e-6f, 0});
   stepper.step(arrived, forces);
-  EXPECT_NEAR(arrived.force[0].length(), strength, 1e-2f);
+  EXPECT_NEAR(pushOn(arrived), strength, 1e-2f);
 }
 
 TEST(Physics, ABodyForceWithNothingInItPushesNothing) {

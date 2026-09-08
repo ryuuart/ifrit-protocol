@@ -37,7 +37,11 @@ it. They are public: a simulation is a value the caller reads and
 writes, and `add`/`remove`/`clear` exist only so the attributes cannot be
 left at different lengths. `remove` moves the LAST point into the hole,
 which renumbers — so a set with constraints over it is grown and
-cleared, not thinned.
+cleared, not thinned. The `force` attribute is the caller's to pre-load:
+a step ACCUMULATES its forces onto whatever the attribute already holds
+and clears it once it has integrated, so a push written between two
+steps is spent exactly once and one written before a step that is never
+taken is still there for the next one.
 
 **Reading it into a drawing is one loop.** A stamping leaf's pool holds
 its own attributes of two-float positions, so a frame copies `position[i]`
