@@ -43,7 +43,7 @@ sigil_library(SigilComposeCore
     Composer.cpp Measure.cpp Tiles.cpp
     Reconcile.cpp ReconcileEquality.cpp MaterializeText.cpp
     LayoutProps.cpp ReconcileHost.cpp Layout.cpp LayoutText.cpp Rects.cpp
-    Derive.cpp
+    Derive.cpp FlowAround.cpp Threads.cpp Routes.cpp
     Transitions.cpp Query.cpp
     # the paint phase
     Volatility.cpp GroupScalars.cpp WorldMatrix.cpp Bounds.cpp Depth.cpp
@@ -63,7 +63,8 @@ sigil_library(SigilComposeCore
     ComposeInternal.h ComposeCompare.h ComposeRuntime.h Instance.h
     TextState.h SlotSpecs.h
     Lanes.h
-    Transforms.h NodeTransform.h ComposerImpl.h PaintInternal.h PaintPass.h
+    Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h
+    PaintInternal.h PaintPass.h
     PaintProfile.h BakeInk.h InstanceStamp.h
   HEADERS ../Compose.h Composer.h Core.h Derive.h Element.h Factories.h
           Feed.h Instances.h Layout.h Mask.h Measure.h Paint.h Pattern.h
