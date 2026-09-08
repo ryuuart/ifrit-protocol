@@ -42,7 +42,8 @@ sigil_library(SigilComposeCore
     # the composer and its phases
     Composer.cpp Measure.cpp Tiles.cpp
     Reconcile.cpp ReconcileEquality.cpp MaterializeText.cpp
-    LayoutProps.cpp ReconcileHost.cpp Layout.cpp Derive.cpp
+    LayoutProps.cpp ReconcileHost.cpp Layout.cpp LayoutText.cpp Rects.cpp
+    Derive.cpp
     Transitions.cpp Query.cpp
     # the paint phase
     Volatility.cpp GroupScalars.cpp WorldMatrix.cpp Bounds.cpp Depth.cpp
