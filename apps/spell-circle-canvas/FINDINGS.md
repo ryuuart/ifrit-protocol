@@ -50,8 +50,7 @@ Taken on the merged tree after the extractions campaign:
 
 ## Deferred, a campaign of its own
 
-- The source-file splits by subject: `material/skia/Paint.cpp` (1573),
-  `Paint.h` (771), `Effect.cpp` (748); `geometry/mesh/pop/Pop.h` (1131),
+- The source-file splits by subject: `geometry/mesh/pop/Pop.h` (1131),
   `mesh/pop/Cook.cpp` (792), `mesh/codec/Geo.cpp` (601),
   `geometry/path/Ops.cpp` (604); `sketch/book/main.cpp` (1331),
   `book/SketchbookView.cpp` (896), `book/qml/Main.qml` (850); the
