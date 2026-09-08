@@ -14,6 +14,7 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 qt_add_executable(Sketchbook
   main.cpp
+  Arguments.cpp Arguments.h
   FrameLane.cpp FrameLane.h
   Startup.cpp Startup.h
   ThumbnailWarm.cpp ThumbnailWarm.h

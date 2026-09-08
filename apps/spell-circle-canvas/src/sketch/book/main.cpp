@@ -58,7 +58,6 @@
 #include <sigilsketch/plate/Compare.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
-#include <sigilsketch/plate/Thumbnails.h>
 #include <unistd.h>
 
 #include <QtCore/QCoreApplication>
@@ -71,10 +70,6 @@
 #include <QtQml/QQmlApplicationEngine>
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
-#include <algorithm>
-#include <cctype>
-#include <chrono>
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -84,6 +79,7 @@
 #include <string>
 #include <vector>
 
+#include "Arguments.h"
 #include "FrameLane.h"
 #include "SketchCatalog.h"
 #include "SketchbookView.h"
@@ -92,15 +88,6 @@
 #include "WindowBench.h"
 
 namespace sketch = sigil::sketch;
-
-namespace {
-
-/** The default `--jitter-dt` amplitude: ±35% around the nominal
- *  interval, which is the spread a windowed host delivers when it is
- *  comfortably inside its budget and the compositor is merely uneven. */
-constexpr double kDefaultJitter = 0.35;
-
-}  // namespace
 
 // an uncaught exception ends the app with its message
 // NOLINTNEXTLINE(bugprone-exception-escape)
@@ -119,153 +106,20 @@ int main(int argc, char* argv[]) {
     ~DeviceScope() { releaseDevice(); }
   } deviceScope;
 
-  std::filesystem::path sketchFile;
-  std::filesystem::path assetsOverride;
-  std::string selected, kind, shotPath;
-  sketch::CompareOptions compareOptions;
-  sketch::SweepOptions sweepOptions;
-  sketch::StoryOptions storyOptions;
-  CaptureOptions capture;
-  WindowBench windowBench;
-  bool headless = false, list = false, catalog = false, gpu = false;
-  bool noGpu = false;
-  bool warmThumbnails = false;
-  bool thumbnailHeavy = false;
-  std::chrono::milliseconds thumbnailBudget = sketch::kThumbnailBudget;
-  std::string thumbnailDirArg;
-  std::optional<bool> deterministic;
-
-  for (int i = 1; i < argc; ++i) {
-    const std::string arg = argv[i];
-    if (arg == "--headless") {
-      headless = true;
-      if (i + 1 < argc && argv[i + 1][0] != '-')
-        sweepOptions.outDir = argv[++i];
-    } else if (arg == "--list") {
-      list = true;
-    } else if (arg == "--catalog") {
-      catalog = true;
-    } else if (arg == "--compare" && i + 2 < argc) {
-      compareOptions.first = argv[++i];
-      compareOptions.second = argv[++i];
-    } else if (arg == "--video" && i + 1 < argc) {
-      storyOptions.out = argv[++i];
-    } else if (arg == "--video-frames" && i + 1 < argc) {
-      storyOptions.framesPerSketch = std::max(1, std::stoi(argv[++i]));
-    } else if (arg == "--video-size" && i + 1 < argc) {
-      const std::string size = argv[++i];
-      const size_t by = size.find('x');
-      if (by == std::string::npos) {
-        std::fprintf(stderr, "--video-size wants WIDTHxHEIGHT\n");
-        return 2;
-      }
-      storyOptions.width = std::max(2, std::stoi(size.substr(0, by)));
-      storyOptions.height = std::max(2, std::stoi(size.substr(by + 1)));
-    } else if (arg == "--video-bitrate" && i + 1 < argc) {
-      storyOptions.bitRate = std::max<int64_t>(1, std::stoll(argv[++i]));
-    } else if (arg == "--gpu") {
-      gpu = true;
-    } else if (arg == "--no-gpu") {
-      noGpu = true;
-    } else if (arg == "--kind" && i + 1 < argc) {
-      kind = argv[++i];
-    } else if (arg == "--sketch" && i + 1 < argc) {
-      selected = argv[++i];
-    } else if (arg == "--ledger") {
-      sweepOptions.ledger = true;
-    } else if (arg == "--no-promotion") {
-      sweepOptions.noPromotion = true;
-    } else if (arg == "--promotion") {
-      sweepOptions.promotion = true;
-    } else if (arg == "--capture-at" && i + 1 < argc) {
-      sweepOptions.captureAt = std::strtod(argv[++i], nullptr);
-    } else if (arg == "--timing-json" && i + 1 < argc) {
-      sweepOptions.timingJson = argv[++i];
-    } else if (arg == "--shot" && i + 1 < argc) {
-      shotPath = argv[++i];
-    } else if (arg == "--assets" && i + 1 < argc) {
-      assetsOverride = argv[++i];
-    } else if (arg == "--thumbnails") {
-      warmThumbnails = true;
-    } else if (arg == "--thumbnails-dir" && i + 1 < argc) {
-      thumbnailDirArg = argv[++i];
-    } else if (arg == "--thumbnail-budget" && i + 1 < argc) {
-      thumbnailBudget = std::chrono::milliseconds(
-          (long long)std::lround(std::strtod(argv[++i], nullptr) * 1000.0));
-    } else if (arg == "--thumbnail-heavy") {
-      thumbnailHeavy = true;
-    } else if (arg == "--window-bench") {
-      // The stretch is optional: a bare flag takes the default, and only
-      // a following token that reads as a number is consumed.
-      windowBench.seconds = kWindowBenchSeconds;
-      if (i + 1 < argc) {
-        const std::string next = argv[i + 1];
-        if (!next.empty() &&
-            (std::isdigit((unsigned char)next[0]) || next[0] == '.')) {
-          windowBench.seconds = std::stod(next);
-          ++i;
-        }
-      }
-    } else if (arg == "--window-size" && i + 1 < argc) {
-      const std::string size = argv[++i];
-      const size_t by = size.find('x');
-      if (by == std::string::npos) {
-        std::fprintf(stderr, "--window-size wants WIDTHxHEIGHT\n");
-        return 2;
-      }
-      windowBench.width = std::max(1, std::stoi(size.substr(0, by)));
-      windowBench.height = std::max(1, std::stoi(size.substr(by + 1)));
-    } else if (arg == "--window-scale" && i + 1 < argc) {
-      windowBench.scale = std::stod(argv[++i]);
-    } else if (arg == "--frame" && i + 1 < argc) {
-      capture.out = argv[++i];
-    } else if (arg == "--at" && i + 1 < argc) {
-      capture.at = std::stod(argv[++i]);
-    } else if (arg == "--scale" && i + 1 < argc) {
-      capture.scale = std::stof(argv[++i]);
-    } else if (arg == "--frames" && i + 1 < argc) {
-      capture.frames = std::max(1, std::stoi(argv[++i]));
-    } else if (arg == "--fps" && i + 1 < argc) {
-      capture.fps = std::stod(argv[++i]);
-      storyOptions.framesPerSecond = std::max(1, (int)std::lround(capture.fps));
-    } else if (arg == "--bench") {
-      capture.bench = true;
-    } else if (arg == "--bench-frames" && i + 1 < argc) {
-      capture.benchFrames = std::max(1, std::stoi(argv[++i]));
-    } else if (arg == "--deterministic") {
-      deterministic = true;
-    } else if (arg == "--no-deterministic") {
-      deterministic = false;
-    } else if (arg == "--jitter-dt") {
-      // The amplitude is optional: a bare flag takes the default, and
-      // only a following token that reads as a number is consumed.
-      capture.jitterDt = kDefaultJitter;
-      if (i + 1 < argc) {
-        const std::string next = argv[i + 1];
-        if (!next.empty() &&
-            (std::isdigit((unsigned char)next[0]) || next[0] == '.')) {
-          capture.jitterDt = std::stod(next);
-          ++i;
-        }
-      }
-    } else if (sketchFile.empty() && arg.size() > 4 &&
-               arg.compare(arg.size() - 4, 4, ".cpp") == 0) {
-      sketchFile = arg;
-    } else {
-      std::fprintf(stderr, "unknown argument \"%s\"\n", arg.c_str());
-      return 2;
-    }
-  }
+  std::optional<Arguments> parsed = parseArguments(argc, argv);
+  if (!parsed) return 2;
+  Arguments& args = *parsed;
 
   // NOTHING IS OPENED FOR A COMPARISON: it reads two directories of
   // finished plates, so it wants no fonts, no assets, no device and no
   // registry — and it answers before any of them is built.
-  if (!compareOptions.first.empty()) return sketch::compare(compareOptions);
+  if (!args.compareOptions.first.empty())
+    return sketch::compare(args.compareOptions);
 
-  const int chosen = selected.empty() ? -1 : sketch::find(selected);
-  if (!selected.empty() && chosen < 0) {
+  const int chosen = args.selected.empty() ? -1 : sketch::find(args.selected);
+  if (!args.selected.empty() && chosen < 0) {
     std::fprintf(stderr, "no sketch matches \"%s\"; known sketches:\n",
-                 selected.c_str());
+                 args.selected.c_str());
     const auto& entries = sketch::registry();
     for (int i = 0; i < (int)entries.size(); ++i)
       std::fprintf(stderr, "  %2d  %-24s %s\n", i, entries[i].name,
@@ -273,7 +127,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  if (list) {
+  if (args.list) {
     // Spelled the way a plate names it, because a script that selects a
     // sketch here looks for its plate under the same name.
     //
@@ -285,7 +139,7 @@ int main(int argc, char* argv[]) {
     // saying nothing, which reads as a sketch that was deleted.
     const bool toTerminal = isatty(fileno(stdout)) != 0;
     const auto& entries = sketch::registry();
-    for (int index : sketch::selection(-1, kind)) {
+    for (int index : sketch::selection(-1, args.kind)) {
       const sketch::Entry& entry = entries[index];
       std::string why;
       if (entry.available(&why)) {
@@ -298,7 +152,7 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  if (catalog) {
+  if (args.catalog) {
     // THE BROWSER'S ROWS WITHOUT A WINDOW: what the catalog knows about
     // every sketch before one is opened, the registry first and a file
     // this run was pointed at after it, one JSON object per line. What a
@@ -309,7 +163,7 @@ int main(int argc, char* argv[]) {
     const QCoreApplication core(coreArgc, argv);
     SketchCatalog::sketchDir = SIGIL_SKETCH_DIR;
     SketchCatalog::thumbnailDir.clear();  // no still is rendered here
-    if (!sketchFile.empty()) SketchCatalog::externals = {sketchFile};
+    if (!args.sketchFile.empty()) SketchCatalog::externals = {args.sketchFile};
     const SketchCatalog rows;
     for (const QVariant& row : rows.sketches())
       std::printf("%s\n",
@@ -324,7 +178,7 @@ int main(int argc, char* argv[]) {
 
   // THE WARM COMMAND renders straight through the CPU still path, exactly
   // as the browser's lazy render does, and never brings a device up.
-  if (warmThumbnails) {
+  if (args.warmThumbnails) {
     SketchCatalog::sketchDir = SIGIL_SKETCH_DIR;
     // A SKETCH THAT DRAWS A PAGE NEEDS THE ONE ENGINE HERE TOO. Without
     // it `sharedEngine()` answers null and such a sketch draws the card
@@ -333,16 +187,16 @@ int main(int argc, char* argv[]) {
     SharedWebEngineScope sharedWebEngine;
     sketch::installCrashReporter({});
     finishMaterialWarmup(materialWarmup);
-    const int result =
-        runThumbnails(chosen, kind, thumbnailStoreDir(thumbnailDirArg),
-                      thumbnailBudget, thumbnailHeavy, fonts(), assets());
+    const int result = runThumbnails(
+        chosen, args.kind, thumbnailStoreDir(args.thumbnailDir),
+        args.thumbnailBudget, args.thumbnailHeavy, fonts(), assets());
     sharedWebEngine.shutdown();
     return result;
   }
 
-  if (!storyOptions.out.empty() && storyOptions.framesPerSketch > 0) {
-    storyOptions.only = chosen;
-    storyOptions.kind = kind;
+  if (!args.storyOptions.out.empty() && args.storyOptions.framesPerSketch > 0) {
+    args.storyOptions.only = chosen;
+    args.storyOptions.kind = args.kind;
     // `--gpu` FIRST, exactly as the sweep tests it: a montage of a set
     // needs the device its materials run in, and a run that did not ask
     // for one must not bring it up as a side effect of the test. A
@@ -350,8 +204,8 @@ int main(int argc, char* argv[]) {
     // encoded on the CPU mesh executor: a set is lit by the device
     // renderer, so the cut under that sketch's name would be a picture
     // no recipe ran in.
-    if (selectionNeedsDevice(chosen, kind)) {
-      if (!gpu) {
+    if (selectionNeedsDevice(chosen, args.kind)) {
+      if (!args.gpu) {
         std::fprintf(stderr,
                      "--video: this selection holds a set, which is lit on "
                      "the device; pass --gpu or narrow the selection with "
@@ -363,16 +217,16 @@ int main(int argc, char* argv[]) {
     SharedWebEngineScope sharedWebEngine;
     sketch::installCrashReporter({});
     finishMaterialWarmup(materialWarmup);
-    const int result = story(storyOptions, fonts(), assets());
+    const int result = story(args.storyOptions, fonts(), assets());
     sharedWebEngine.shutdown();
     releaseDevice();
     return result;
   }
 
-  if (headless) {
-    sweepOptions.only = chosen;
-    sweepOptions.kind = kind;
-    sweepOptions.gpu = gpu;
+  if (args.headless) {
+    args.sweepOptions.only = chosen;
+    args.sweepOptions.kind = args.kind;
+    args.sweepOptions.gpu = args.gpu;
     // `--gpu` BRINGS THE ONE DEVICE UP, whatever the selection holds.
     // A set is rendered by the runtime installed on it; a canvas is
     // photographed on a Graphite surface allocated from that same
@@ -381,7 +235,7 @@ int main(int argc, char* argv[]) {
     // painter still stays on the CPU executor whatever the flag says: a
     // plate is hashed from that executor, and the two rasterise the same
     // picture but not the same bytes.
-    if (gpu && !useDevice()) return 1;
+    if (args.gpu && !useDevice()) return 1;
     SharedWebEngineScope sharedWebEngine;
     // A SWEEP HAS A GUEST TOO, and it has a hundred of them in one
     // process: without the reporter a faulting sketch takes the run down
@@ -390,7 +244,7 @@ int main(int argc, char* argv[]) {
     // one file to name here — the sweep names the entry it is on.
     sketch::installCrashReporter({});
     finishMaterialWarmup(materialWarmup);
-    const int result = sweep(sweepOptions, fonts(), assets());
+    const int result = sweep(args.sweepOptions, fonts(), assets());
     sharedWebEngine.shutdown();
     releaseDevice();
     return result;
@@ -401,9 +255,10 @@ int main(int argc, char* argv[]) {
   // Whether the file came from the command line or was derived from a
   // registry selection: only the first is a sketch this binary was not
   // built with, and only the first joins the app's list on its own.
-  const bool fileGiven = !sketchFile.empty();
+  const bool fileGiven = !args.sketchFile.empty();
   if (!fileGiven && chosen >= 0)
-    sketchFile = sketch::sourceOf(sketchDir, sketch::registry()[chosen].key);
+    args.sketchFile =
+        sketch::sourceOf(sketchDir, sketch::registry()[chosen].key);
 
   sketch::Host::Options options;
   // DETERMINISTIC BY DEFAULT WHEN CAPTURING. A capture exists to be
@@ -411,22 +266,22 @@ int main(int argc, char* argv[]) {
   // its own plate differs from itself between two runs — so a pixel
   // sweep reports it as changed by a patch that changed nothing. The
   // live host keeps its real numbers, which is where they are wanted.
-  options.deterministic =
-      deterministic.value_or(!capture.out.empty() && !capture.bench);
+  options.deterministic = args.deterministic.value_or(
+      !args.capture.out.empty() && !args.capture.bench);
   // ASSETS STAND BESIDE THE SKETCH unless `--assets` says otherwise.
   // Leaving this empty is what asks the host for that default, and it is
   // the same answer for a sketch in this repository — whose assets stand
   // beside it too — as for a file anywhere else on disk, which is what
   // makes a directory outside this checkout a place to work.
-  options.assetsDir = assetsOverride;
+  options.assetsDir = args.assetsOverride;
   options.flagsFile = flagsFileNear(executableDir(argv[0]));
   // THE SHARED LAYER IS THIS REPOSITORY'S, for every sketch the host
   // builds: a file anywhere on disk compiles with the same flags, so it
   // may spell <shared/Name.h> too, and then needs the module behind it.
   options.sharedDir = sketchDir / "shared";
 
-  if (!capture.out.empty() || capture.bench) {
-    if (sketchFile.empty() || !std::filesystem::exists(sketchFile)) {
+  if (!args.capture.out.empty() || args.capture.bench) {
+    if (args.sketchFile.empty() || !std::filesystem::exists(args.sketchFile)) {
       std::fprintf(stderr,
                    "usage: Sketchbook <sketch.cpp> [--frame <out.png>] "
                    "[--at <sec>] [--scale <n>]\n"
@@ -441,7 +296,7 @@ int main(int argc, char* argv[]) {
                    options.flagsFile.string().c_str());
       return 2;
     }
-    options.sketchPath = std::filesystem::absolute(sketchFile);
+    options.sketchPath = std::filesystem::absolute(args.sketchFile);
     // Installed before the guest can ever run: without it, a fault
     // inside a sketch is a bare signal with nothing printed.
     sketch::installCrashReporter(options.sketchPath);
@@ -451,14 +306,15 @@ int main(int argc, char* argv[]) {
     // because a run that asked for the device and quietly gave the CPU's
     // picture puts two different pictures under one name — which is the
     // one thing a capture must never do.
-    if (gpu && !useDevice()) return 1;
+    if (args.gpu && !useDevice()) return 1;
     SharedWebEngineScope sharedWebEngine;
     finishMaterialWarmup(materialWarmup);
     int result = 0;
     {
       sketch::Host host(std::move(options), fonts());
-      result = capture.bench ? runBench(host, capture, host.sketchPath())
-                             : runFrames(host, capture);
+      result = args.capture.bench
+                   ? runBench(host, args.capture, host.sketchPath())
+                   : runFrames(host, args.capture);
     }
     // The session goes before the device does: it holds textures and
     // pipelines the device made, and releasing the device first takes
@@ -480,12 +336,12 @@ int main(int argc, char* argv[]) {
   // The window's own frame-rate lane opens the window at a stated size
   // and asks Qt for a stated scale, which it can only be told before the
   // application exists.
-  if (windowBench.scale > 0.0) {
+  if (args.windowBench.scale > 0.0) {
     char factor[32];
-    std::snprintf(factor, sizeof factor, "%g", windowBench.scale);
+    std::snprintf(factor, sizeof factor, "%g", args.windowBench.scale);
     setenv("QT_SCALE_FACTOR", factor, 1);
   }
-  if (noGpu || !useDevice())
+  if (args.noGpu || !useDevice())
     std::fprintf(stderr,
                  "[sketchbook] sets draw on the CPU mesh executor: a "
                  "surface reaches it as the colour extract read off it\n");
@@ -506,9 +362,9 @@ int main(int argc, char* argv[]) {
   // command. The worker renders with the process's own font context and
   // asset store, on the CPU, so it shares no graphics context with the
   // live canvas.
-  SketchCatalog::thumbnailDir = thumbnailStoreDir(thumbnailDirArg);
-  SketchCatalog::thumbnailBudget = thumbnailBudget;
-  SketchCatalog::thumbnailHeavy = thumbnailHeavy;
+  SketchCatalog::thumbnailDir = thumbnailStoreDir(args.thumbnailDir);
+  SketchCatalog::thumbnailBudget = args.thumbnailBudget;
+  SketchCatalog::thumbnailHeavy = args.thumbnailHeavy;
   SketchCatalog::thumbnailFonts = &fonts();
   SketchCatalog::thumbnailAssets = &assets();
   SketchbookView::fonts = &fonts();
@@ -522,7 +378,8 @@ int main(int argc, char* argv[]) {
   // exports carries neither key nor name.
   int openAt = chosen;
   if (fileGiven) {
-    SketchCatalog::externals.push_back(std::filesystem::absolute(sketchFile));
+    SketchCatalog::externals.push_back(
+        std::filesystem::absolute(args.sketchFile));
     openAt = (int)sketch::registry().size();
   }
   // WHAT THE CANVAS OPENS ON, AND WHEN. Left alone, the window comes up
@@ -532,9 +389,9 @@ int main(int argc, char* argv[]) {
   // a sketch, or that is here to photograph or measure one, is not
   // browsing: it opens at once and no fill starts.
   SketchCatalog::opensAt = openAt >= 0 ? openAt : 0;
-  SketchCatalog::opensWithoutFill = !shotPath.empty() ||
-                                    windowBench.seconds > 0.0 || fileGiven ||
-                                    chosen >= 0;
+  SketchCatalog::opensWithoutFill = !args.shotPath.empty() ||
+                                    args.windowBench.seconds > 0.0 ||
+                                    fileGiven || chosen >= 0;
   // A FRAME-RATE SWEEP MEASURES THE FRAMES AND NOTHING BESIDE THEM. The
   // browser photographs each sketch it opens for its own store, on the
   // render thread and inside a frame; here that still would be taken in
@@ -542,11 +399,12 @@ int main(int argc, char* argv[]) {
   // takes. So the store is out of reach for the run, and the sessions
   // the window would otherwise keep warm behind the one on screen go as
   // the next one opens rather than in the middle of measuring it.
-  if (windowBench.seconds > 0.0) {
+  if (args.windowBench.seconds > 0.0) {
     SketchCatalog::thumbnailDir.clear();
     SketchbookView::oneSessionAtATime = true;
   }
-  sketch::installCrashReporter(sketchFile.empty() ? sketchDir : sketchFile);
+  sketch::installCrashReporter(args.sketchFile.empty() ? sketchDir
+                                                       : args.sketchFile);
 
   QGuiApplication application(argc, argv);
 
@@ -570,20 +428,20 @@ int main(int argc, char* argv[]) {
         break;
       }
 
-  if (windowBench.seconds > 0.0) {
+  if (args.windowBench.seconds > 0.0) {
     if (!window || !view) {
       std::fprintf(stderr, "--window-bench: no window to present in\n");
       return 1;
     }
-    window->resize(windowBench.width, windowBench.height);
+    window->resize(args.windowBench.width, args.windowBench.height);
     window->raise();
     window->requestActivate();
-    if (!startWindowBench(application, *window, *view, windowBench,
-                          windowBenchSelection(chosen, kind)))
+    if (!startWindowBench(application, *window, *view, args.windowBench,
+                          windowBenchSelection(chosen, args.kind)))
       return 1;
   }
 
-  if (!shotPath.empty()) {
+  if (!args.shotPath.empty()) {
     if (!window || !view) {
       std::fprintf(stderr, "--shot: no window to grab\n");
       return 1;
@@ -601,7 +459,7 @@ int main(int argc, char* argv[]) {
     warm->setInterval(16);
     QObject::connect(
         warm, &QTimer::timeout, &application,
-        [window, view, shotPath, warm, framesLeft, patience] {
+        [window, view, shotPath = args.shotPath, warm, framesLeft, patience] {
           if (auto* item = qobject_cast<QQuickItem*>(view)) item->update();
           // A SKETCH THIS BINARY DOES NOT CARRY HAS TO BE BUILT TO BE
           // SEEN, which takes longer than the warm-up does. So the
