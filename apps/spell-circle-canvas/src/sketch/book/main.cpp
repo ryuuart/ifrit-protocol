@@ -56,7 +56,6 @@
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
-#include <sigilsketch/live/BenchCadence.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Compare.h>
 #include <sigilsketch/plate/Story.h>
@@ -109,6 +108,7 @@
 #include "FrameLane.h"
 #include "SketchCatalog.h"
 #include "SketchbookView.h"
+#include "WindowBench.h"
 
 namespace sketch = sigil::sketch;
 
@@ -147,22 +147,6 @@ class SharedWebEngineScope {
  *  interval, which is the spread a windowed host delivers when it is
  *  comfortably inside its budget and the compositor is merely uneven. */
 constexpr double kDefaultJitter = 0.35;
-
-/** How long `--window-bench` measures each sketch, how long it lets one
- *  run before it starts, and how long it waits for a selection to reach
- *  the screen at all. The warm-up is what pays for the first frames'
- *  program compiles, texture bakes and glyph atlases, and it starts at
- *  the first presented frame rather than at the ask — a session whose
- *  first frame costs seconds would otherwise spend the whole of it
- *  before anything of that sketch was on screen. The rolling windows the
- *  readout comes from are emptied where the measured stretch begins, so
- *  what is reported is frames from that stretch whatever the sketch's
- *  rate. The ceiling is generous because a first frame legitimately
- *  can be seconds long; what it catches is a window that has stopped
- *  presenting altogether. */
-constexpr double kWindowBenchSeconds = 2.5;
-constexpr double kWindowBenchWarmupSeconds = 1.2;
-constexpr double kWindowBenchCeilingSeconds = 30.0;
 
 /** THE STOCK MATERIALS, COMPILED BEFORE THE FIRST SKETCH DRAWS: the
  *  backend this host draws through, and then the material library's own
@@ -281,198 +265,6 @@ bool selectionNeedsDevice(int only, const std::string& kind) {
     if (entry && entry->needsDevice()) return true;
   }
   return false;
-}
-
-// ---------------------------------------------------------------------------
-// The window's own frame-rate lane
-
-/** What `--window-bench` was asked for. */
-struct WindowBench {
-  double seconds = 0.0;  // above zero turns the lane on
-  int width = 1440;
-  int height = 900;
-  double scale = 0.0;  // zero leaves the screen's own device pixel ratio
-};
-
-/** THE LANE OVER THE REAL WINDOW: each selected sketch presented for a
- *  stated stretch, one machine-readable line each.
- *
- *  What it measures that the frame-time gate cannot. `--bench` renders
- *  onto a raster surface at the sketch's declared size and presents
- *  nothing — it is the sketch's own cost and nothing else, which is what
- *  makes it a gate. Here the frame is drawn through the surface the
- *  window presents, at the window's pixels and its device pixel ratio,
- *  and the numbers carry the host's own overhead with them: the submit
- *  or texture upload that puts the frame on screen, and for a set the
- *  device readback and blit that its paint phase performs. The presented
- *  rate is the compositor's answer, so it is bounded by the display and
- *  a sketch inside its budget reads at the refresh rate.
- *
- *  WHAT IS MEASURED IS THE SKETCH THAT IS ON SCREEN. Selection goes
- *  through the same property QML sets, and setting it is an ask, not an
- *  arrival: the session opens on the render thread and its first frame
- *  can cost seconds. So each row waits for the window to be presenting
- *  the selection's own session before its warm-up starts, empties the
- *  rolling windows where the measured stretch begins, and reads them
- *  where it ends — one sketch measured over its own frames, whatever
- *  the one before it cost. A selection that never reaches the screen is
- *  stood down by name and the run says so in its exit status; it is not
- *  a rate of nothing.
- *
- *  False when there is nothing to present. */
-bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
-                      QObject& view, const WindowBench& options,
-                      std::vector<int> selection) {
-  if (selection.empty()) {
-    std::fprintf(stderr, "--window-bench: nothing selected\n");
-    return false;
-  }
-  sketch::BenchCadence::Times times;
-  times.warmupSeconds = kWindowBenchWarmupSeconds;
-  times.measureSeconds = options.seconds;
-  times.ceilingSeconds = kWindowBenchCeilingSeconds;
-  struct Run {
-    std::vector<int> selection;
-    size_t at = 0;
-    sketch::BenchCadence cadence;
-    std::chrono::steady_clock::time_point began;
-    double measureBegan = 0.0;
-    unsigned long long framesAtBegin = 0;
-    int stoodDown = 0;
-  };
-  auto run = std::make_shared<Run>(
-      Run{std::move(selection), 0, sketch::BenchCadence(times),
-          std::chrono::steady_clock::now(), 0.0, 0, 0});
-  run->cadence.select(0.0);
-  view.setProperty("sketchIndex", run->selection[0]);
-
-  auto* timer = new QTimer(&application);
-  timer->setInterval(8);
-  QObject::connect(
-      timer, &QTimer::timeout, &application,
-      [&window, &view, options, run, timer] {
-        // Each tick asks the item for a frame. The window drives itself
-        // once it is presenting, and the ask costs nothing when it is
-        // already going — but a window a compositor has stopped giving
-        // frames to would otherwise be measured as a sketch that stopped
-        // drawing, which is a different finding entirely.
-        if (auto* item = qobject_cast<QQuickItem*>(&view)) item->update();
-        const double now = std::chrono::duration<double>(
-                               std::chrono::steady_clock::now() - run->began)
-                               .count();
-        const sketch::Entry& entry =
-            sketch::registry()[run->selection[run->at]];
-        const std::filesystem::path wanted =
-            sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
-
-        QMutexLocker lock(&SketchbookView::hostMutex);
-        sketch::Host* host = SketchbookView::host;
-        // THE SESSION ON SCREEN IS THIS ENTRY'S, AND A FRAME OF IT HAS
-        // BEEN PRESENTED. The file a session was opened from is what
-        // names it, which is the same key the resident set holds it by.
-        const bool presenting = host && host->live() &&
-                                host->sketchPath() == wanted &&
-                                host->presentedFrames() > 0;
-        const sketch::BenchCadence::Step step =
-            run->cadence.advance(now, presenting);
-        if (step == sketch::BenchCadence::Step::Wait) return;
-        if (step == sketch::BenchCadence::Step::Begin) {
-          run->measureBegan = now;
-          run->framesAtBegin = 0;
-          // The session can go between the warm-up and here — a frame it
-          // could not draw drops it — and a stretch measured over no
-          // session is stood down below rather than read.
-          if (host) {
-            host->resetMetrics();
-            run->framesAtBegin = host->presentedFrames();
-          }
-          return;
-        }
-
-        if (step == sketch::BenchCadence::Step::Read) {
-          const QVariantMap metrics = view.property("metrics").toMap();
-          const sketch::Kind kind = entry.kind();
-          const std::string_view runtime = kind ? kind->runtime() : "?";
-          const SkSize canvas = host ? host->canvasSize() : SkSize::Make(0, 0);
-          const double work = host ? host->workMsAverage() : 0.0;
-          // THE SAME SESSION AT BOTH ENDS OF THE STRETCH, and the frames
-          // it put on screen in between.
-          const unsigned long long frames =
-              presenting && host->presentedFrames() >= run->framesAtBegin
-                  ? host->presentedFrames() - run->framesAtBegin
-                  : 0;
-          // THE RATE IS THE WHOLE STRETCH: the frames that reached the
-          // screen over the time they took. The host's own readout is a
-          // rolling one, short enough to answer a reader watching it
-          // change; a row is one number about a stated stretch, and a
-          // hitch inside that stretch weighs what it actually was.
-          const double stretch = now - run->measureBegan;
-          const double fps = stretch > 0 ? (double)frames / stretch : 0.0;
-          // KEYED BY THE STEM, not by the filed name: the line is one
-          // whitespace-separated record, and a filed name carries spaces
-          // — "aero desktop" would be read as the name "aero" followed
-          // by a field nobody wrote. The stem cannot contain a space and
-          // is what --sketch already takes.
-          //
-          // A stretch that ended with all but no frames in it is not a
-          // rate: it is stood down with what it did, rather than
-          // printed as a rate of nearly zero.
-          if (frames < 2) {
-            std::printf("WINDOW %s SKIPPED presented %llu frames in %.1fs\n",
-                        entry.key, frames, stretch);
-            ++run->stoodDown;
-          } else {
-            std::printf(
-                "WINDOW %s window=%dx%d@%g canvas=%dx%d kind=%.*s fps=%.1f "
-                "work=%.2fms p99=%.2fms draw=%.2fms submit=%.2fms "
-                "headroom=%.1f\n",
-                entry.key, window.width(), window.height(),
-                window.devicePixelRatio(), (int)canvas.width(),
-                (int)canvas.height(), (int)runtime.size(), runtime.data(), fps,
-                work, host->workMsP99(), host->drawMsAverage(),
-                metrics.value(QStringLiteral("submitMs")).toDouble(),
-                work > 0 ? 1000.0 / work : 0.0);
-          }
-        } else {
-          // Step::Skip — the window never presented this entry's session.
-          std::printf("WINDOW %s SKIPPED no frame presented in %.1fs\n",
-                      entry.key, run->cadence.elapsed(now));
-          ++run->stoodDown;
-        }
-        std::fflush(stdout);
-
-        if (++run->at >= run->selection.size()) {
-          timer->stop();
-          // A stand-down is a sketch this sweep could not measure, and a
-          // sweep that could not measure one did not do what it was
-          // asked: the rows it did take stand, and the run says so.
-          QCoreApplication::exit(run->stoodDown > 0 ? 1 : 0);
-          return;
-        }
-        view.setProperty("sketchIndex", run->selection[run->at]);
-        run->cadence.select(now);
-      });
-  timer->start();
-  return true;
-}
-
-/** The registry entries `--window-bench` will present: the whole table,
- *  or what `--sketch` and `--kind` narrow it to. A sketch this machine
- *  cannot run is named as stood down and left out, exactly as the sweep
- *  passes over it — a skip is not a failure and not a measurement. */
-std::vector<int> windowBenchSelection(int only, const std::string& kind) {
-  std::vector<int> presented;
-  const auto& entries = sketch::registry();
-  for (int index : sketch::selection(only, kind)) {
-    std::string why;
-    if (!entries[index].available(&why)) {
-      std::printf("WINDOW %s SKIPPED %s\n", entries[index].key, why.c_str());
-      continue;
-    }
-    presented.push_back(index);
-  }
-  std::fflush(stdout);
-  return presented;
 }
 
 // ---------------------------------------------------------------------------

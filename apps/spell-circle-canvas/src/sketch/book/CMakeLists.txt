@@ -15,6 +15,7 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 qt_add_executable(Sketchbook
   main.cpp
   FrameLane.cpp FrameLane.h
+  WindowBench.cpp WindowBench.h
 )
 sigil_qt_target(Sketchbook)
 
