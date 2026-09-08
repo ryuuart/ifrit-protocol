@@ -56,8 +56,6 @@
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Compare.h>
-#include <sigilsketch/plate/Story.h>
-#include <sigilsketch/plate/Sweep.h>
 #include <unistd.h>
 
 #include <QtCore/QCoreApplication>
@@ -84,7 +82,9 @@
 #include "SketchCatalog.h"
 #include "SketchbookView.h"
 #include "Startup.h"
+#include "SweepLane.h"
 #include "ThumbnailWarm.h"
+#include "VideoLane.h"
 #include "WindowBench.h"
 
 namespace sketch = sigil::sketch;
@@ -194,61 +194,10 @@ int main(int argc, char* argv[]) {
     return result;
   }
 
-  if (!args.storyOptions.out.empty() && args.storyOptions.framesPerSketch > 0) {
-    args.storyOptions.only = chosen;
-    args.storyOptions.kind = args.kind;
-    // `--gpu` FIRST, exactly as the sweep tests it: a montage of a set
-    // needs the device its materials run in, and a run that did not ask
-    // for one must not bring it up as a side effect of the test. A
-    // selection that holds a set and did not ask is REFUSED rather than
-    // encoded on the CPU mesh executor: a set is lit by the device
-    // renderer, so the cut under that sketch's name would be a picture
-    // no recipe ran in.
-    if (selectionNeedsDevice(chosen, args.kind)) {
-      if (!args.gpu) {
-        std::fprintf(stderr,
-                     "--video: this selection holds a set, which is lit on "
-                     "the device; pass --gpu or narrow the selection with "
-                     "--kind\n");
-        return 2;
-      }
-      if (!useDevice()) return 1;
-    }
-    SharedWebEngineScope sharedWebEngine;
-    sketch::installCrashReporter({});
-    finishMaterialWarmup(materialWarmup);
-    const int result = story(args.storyOptions, fonts(), assets());
-    sharedWebEngine.shutdown();
-    releaseDevice();
-    return result;
-  }
+  if (!args.storyOptions.out.empty() && args.storyOptions.framesPerSketch > 0)
+    return runVideo(args, chosen, materialWarmup);
 
-  if (args.headless) {
-    args.sweepOptions.only = chosen;
-    args.sweepOptions.kind = args.kind;
-    args.sweepOptions.gpu = args.gpu;
-    // `--gpu` BRINGS THE ONE DEVICE UP, whatever the selection holds.
-    // A set is rendered by the runtime installed on it; a canvas is
-    // photographed on a Graphite surface allocated from that same
-    // device's context, so there is one device in the process and not
-    // two that cannot read each other's textures. A canvas sketch's mesh
-    // painter still stays on the CPU executor whatever the flag says: a
-    // plate is hashed from that executor, and the two rasterise the same
-    // picture but not the same bytes.
-    if (args.gpu && !useDevice()) return 1;
-    SharedWebEngineScope sharedWebEngine;
-    // A SWEEP HAS A GUEST TOO, and it has a hundred of them in one
-    // process: without the reporter a faulting sketch takes the run down
-    // with a bare signal, and the only thing left saying which sketch it
-    // was is whatever the one before it happened to print. There is no
-    // one file to name here — the sweep names the entry it is on.
-    sketch::installCrashReporter({});
-    finishMaterialWarmup(materialWarmup);
-    const int result = sweep(args.sweepOptions, fonts(), assets());
-    sharedWebEngine.shutdown();
-    releaseDevice();
-    return result;
-  }
+  if (args.headless) return runSweep(args, chosen, materialWarmup);
 
   // ---- one file, live or measured -------------------------------------
   const std::filesystem::path sketchDir = SIGIL_SKETCH_DIR;

@@ -17,7 +17,9 @@ qt_add_executable(Sketchbook
   Arguments.cpp Arguments.h
   FrameLane.cpp FrameLane.h
   Startup.cpp Startup.h
+  SweepLane.cpp SweepLane.h
   ThumbnailWarm.cpp ThumbnailWarm.h
+  VideoLane.cpp VideoLane.h
   WindowBench.cpp WindowBench.h
 )
 sigil_qt_target(Sketchbook)
