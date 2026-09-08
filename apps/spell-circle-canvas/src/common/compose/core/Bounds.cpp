@@ -100,8 +100,15 @@ float declaredBleed(const ElementNode& node) {
  *  grown by every declared bleed (decorations, stroke passes, echo offsets,
  *  band width profiles, material reserves), then joined with what a layout
  *  rect does not bound at all: the ink of the glyphs a text leaf placed, a
- *  routed connector/rail path, a text run's path baseline, and a borrowed
- *  band spine, each outset by its own reach. */
+ *  routed connector/rail path, a text run's path baseline, a borrowed band
+ *  spine, and the shape the node declares, each outset by its own reach.
+ *
+ *  THIS IS THE ONE PLACE A NODE IS SIZED. Everything allocated from a
+ *  node's extent begins here — the recording cull and the child union over
+ *  it, the bounded saveLayer a group opacity or a layer effect opens, the
+ *  surface a lifted filter runs over, the local and device texture bakes,
+ *  the split bake's own half — so a carrier missing here is ink cut by
+ *  every one of them. */
 SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   const ElementNode& node = *inst.description;
   const SkRect rect = instanceRect(inst);
@@ -165,6 +172,13 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
       local.join(swept);
     }
   }
+  // THE SHAPE THE NODE DECLARES, which is the same problem a fourth time
+  // and the one a node names outright. A Shape is a function of a size and
+  // nothing holds what it returns inside the box that size came from: the
+  // surface is filled with that path and every decoration dresses it, so
+  // the ink is where the path is. A layer sized to less than that cuts the
+  // node's own drawing, exactly as an allocation sized to less does.
+  local.join(declaredShapeBounds(inst));
   return local;
 }
 

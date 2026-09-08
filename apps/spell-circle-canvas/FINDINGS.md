@@ -31,10 +31,6 @@ Taken on the merged tree after the extractions and the file splits:
 
 ## Rulings
 
-- A declared `shape()` bounds every layer a node is given — the
-  group-opacity, effect and lifted-filter layers `recordBounds` sizes,
-  as it already bounds the bake — with a pin; the two plates that move
-  (kumiko_asanoha, sigillum_aemeth) are rebased with that cause.
 - The promotion tier's remaining twelve stay recorded as the
   measurement with their next probes; the research resumes at the
   owner's word.
@@ -71,10 +67,19 @@ WHAT REMAINS, worst first, with the bar each crossed:
 
     kumiko_asanoha  89 grazing · paragraph_sheet 83 grazing ·
     black_watch     65 (59 over content) · thaumonomicon 43 (10) ·
-    stroke_atlas    34 (7) · thunder_fulu 30 (30) ·
-    sigillum_aemeth 25 (3) · blur_falloff 17 (17) ·
+    sigillum_aemeth 35 (3) · stroke_atlas 34 (7) ·
+    thunder_fulu    30 (30) · blur_falloff 17 (17) ·
     fallout2_charsheet 7 (3) · lain_navi 6 (6) · ksp_mapview 6 (3) ·
     winamp_base 5 (5)
+
+The two scenes whose CPU plates moved when the declared shape came to
+bound every layer were re-measured here: `kumiko_asanoha` stands where it
+did, 89 over a grazing edge on 35 645 pixels; `sigillum_aemeth` reads 35
+where it read 25, with the same 3 code values over content. Six other
+scenes' CPU pictures moved for the same cause and their promotion figures
+were NOT retaken — `thaumonomicon`, `thunder_fulu`, `lain_navi` and
+`ksp_mapview` are in the list above, `eva_magi_defense` and
+`rota_convocationis` are not.
 
 TEN OF THE TWELVE ARE OVER CONTENT, which no clause admits: a difference
 where no edge explains it is a picture that moved, and the `content`
@@ -92,17 +97,8 @@ to a quarter of a pixel, and a coordinate whose last bit lands the other
 way takes a different mask. Raising the bar to admit either would be
 choosing a number to fit two scenes, which the derivation refuses.
 
-AND ONE FINDING THIS PASS DID NOT TAKE. A node's declared `shape()` now
-joins the rect a DEVICE BAKE is allocated to, because a bake allocated to
-less than the ink cuts it. It does NOT join `recordBounds`, which sizes
-layers — a group's opacity layer, an effect's, the surface a lifted filter
-is run over — and joining it there moves pictures: `kumiko_asanoha`'s CPU
-plate by 132 code values and `sigillum_aemeth`'s by 107, an effect's layer
-growing over ink it had been cutting. Whether those layers should hold the
-shape is the owner's call, not a verification pass's.
-
 Assert once fixed: `--tier promotion` reports every scene within the rule,
-and each cause gets a case in `compose_test` beside the nine that pin the
+and each cause gets a case in `compose_test` beside the ten that pin the
 ones found so far
 (`ComposeCache.APromotedLineKeepsTheInkThatStandsOutsideItsBox`,
 `ComposeFaces.APromotedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics`,
@@ -111,5 +107,49 @@ ones found so far
 `ComposeCache.APromotedNodeIsRebakedWhenTheClipThatCutItOpens`,
 `ComposeCache.APromotedPhraseThatAddsLightKeepsTheGroundUnderIt`,
 `ComposeCache.ADeviceBakeRasterisesOnItsLivePaintsRoute`,
-`ComposeCache.ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves` and
-`ComposeCache.APromotedShapeKeepsTheInkItDrawsOutsideItsBox`).
+`ComposeCache.ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves`,
+`ComposeCache.APromotedShapeKeepsTheInkItDrawsOutsideItsBox` and
+`ComposePaintBounds.ADeclaredShapeBoundsEveryLayerTheNodeIsGiven`).
+
+## Six CPU plates moved with the declared shape and were not rebased
+
+A node's declared `shape()` now joins `ownPaintBounds`, which is where
+every rect a node is given room in begins — the recording cull, the
+bounded `saveLayer` a group opacity or a layer effect opens, the local and
+device bakes, the split bake. The ruling that asked for it named two
+plates that would move, measured on those two alone. A sweep over the 55
+scenes that declare a shape found EIGHT, all of the same cause:
+
+    kumiko_asanoha 132 · sigillum_aemeth 107 · eva_magi_defense 175 ·
+    lain_navi 159 · thaumonomicon 133 · thunder_fulu 101 ·
+    rota_convocationis 6 · ksp_mapview 2
+
+The two the ruling named were rebased. The other six were not, because a
+mover the ruling did not sanction is not a plate a verification pass may
+rebase. Each was looked at: `eva_magi_defense` gains the bottom of a panel
+that was cut square, `lain_navi` the slanted left edge of one, and
+`thunder_fulu` the ticks along the talisman's edge — ink that was deleted
+by a layer bound to the box, now whole. `thaumonomicon`,
+`rota_convocationis` and `ksp_mapview` show the other half of the same
+cause: a rect that grew re-registers a nearest-sampled sprite and an
+antialiased edge against the device grid, which is a step and not a mark
+that moved.
+
+Assert once ruled: the six are rebased with this cause and the CPU tier
+reports 195 byte-identical.
+
+## The coverage trace is rastered at the node's box
+
+`coverageOutline` allocates its alpha surface at the node's SIZE, anchored
+at the node's local origin, so every carrier of ink that stands outside
+the box — a declared shape's, a decoration's bleed, a glyph's overhang, a
+routed path's — is absent from the silhouette it traces. It is the one
+place a node is sized that does not read `ownPaintBounds`, and the fix is
+the same join plus the offset the raster would then carry, which moves the
+traced path's own coordinates. Nothing was changed here: widening the
+trace moves it for every carrier at once, not only for the declared shape,
+which is a wider ruling than the one that was given.
+
+Assert once fixed: a node whose declared shape reaches outside its box,
+dressed along its own coverage boundary, dresses the whole shape rather
+than the part of it inside the box.

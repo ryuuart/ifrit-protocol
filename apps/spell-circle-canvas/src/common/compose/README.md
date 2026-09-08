@@ -1230,10 +1230,19 @@ DECLARES. A `Shape` is a function of a size and nothing holds what it
 returns inside the box that size came from — a generator anchored on a
 centre of its own, a ring of rules drawn at radii the box knows nothing
 about — and the node's surface is filled with that path while every
-decoration dresses it, so the ink is where the path is. The bake's
-allocation joins it; the recording bounds do not, because those size a
-LAYER and a layer's bounds are part of the picture it composites, where an
-allocation holding more transparent pixels paints the same one.
+decoration dresses it, so the ink is where the path is.
+
+**A NODE IS SIZED IN ONE PLACE, AND THE DECLARED SHAPE IS PART OF THAT
+SIZE.** Everything a node is given room in comes from its own paint
+bounds: the recording cull and the subtree union over it, the BOUNDED
+`saveLayer` a group opacity or blend composites through, the one a layer
+effect is run over, the surface a lifted filter runs over, the local and
+device texture bakes, and the split bake's own half. So the declared shape
+bounds every one of them, and a LAYER is the harsher case rather than the
+lenient one: a `saveLayer`'s bounds are a clip, so a layer that misses the
+node's ink DELETES it, where an allocation that misses it merely cuts what
+falls outside. What bounds a node's drawing is the clip it carries in —
+never the rect it was given room in.
 
 **AND WHAT IS LEFT IS THE OFFSET'S OWN LAST BIT.** A bake is taken under
 the live matrix with an integer subtracted from its translation, so the

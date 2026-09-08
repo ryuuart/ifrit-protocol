@@ -745,31 +745,44 @@ namespace {
  *  a ring of rules around a dial, a rule that crosses its cell and any
  *  generator anchored on a centre of its own all are. A Shape is handed the
  *  node's size and nothing holds what it returns to that size, so the ink
- *  is where the path is — and the node's box says nothing about it. */
+ *  is where the path is — and the node's box says nothing about it.
+ *
+ *  Forty rules on a centre of the node's own, from a radius inside the box
+ *  to one well past every edge of it. */
+Shape rulesPastTheBox() {
+  return Shape([](SkSize size) {
+    SkPathBuilder b;
+    const SkPoint c{size.width() * 0.5f, size.height() * 0.5f};
+    for (int i = 0; i < 40; ++i) {
+      const float a = (float)i * 9.0f * 3.14159265f / 180.0f;
+      b.moveTo(c.x() + std::cos(a) * 30.0f, c.y() + std::sin(a) * 30.0f);
+      b.lineTo(c.x() + std::cos(a) * 110.0f, c.y() + std::sin(a) * 110.0f);
+    }
+    return b.detach();
+  });
+}
+
+/** That shape on an 80×80 node in the middle of a 240×240 page, so the ink
+ *  stands seventy pixels clear of the box on every side. */
+Element ruledNode() {
+  return box()
+      .absolute()
+      .left(80)
+      .top(80)
+      .width(80)
+      .height(80)
+      .shape(rulesPastTheBox())
+      .fill(Fill::none())
+      .stroke(FlatStroke{3});
+}
+
+Element blackPage() {
+  return box().width(240).height(240).fill(Fill::color({0, 0, 0, 1}));
+}
+
 Element shapeOutsideItsBox() {
-  Element page = box().width(240).height(240).fill(Fill::color({0, 0, 0, 1}));
-  page.child(box()
-                 .absolute()
-                 .left(80)
-                 .top(80)
-                 .width(80)
-                 .height(80)
-                 .shape(Shape([](SkSize size) {
-                   // Forty rules on a centre of the node's own, reaching
-                   // well past every edge of it.
-                   SkPathBuilder b;
-                   const SkPoint c{size.width() * 0.5f, size.height() * 0.5f};
-                   for (int i = 0; i < 40; ++i) {
-                     const float a = (float)i * 9.0f * 3.14159265f / 180.0f;
-                     b.moveTo(c.x() + std::cos(a) * 30.0f,
-                              c.y() + std::sin(a) * 30.0f);
-                     b.lineTo(c.x() + std::cos(a) * 110.0f,
-                              c.y() + std::sin(a) * 110.0f);
-                   }
-                   return b.detach();
-                 }))
-                 .fill(Fill::none())
-                 .stroke(FlatStroke{3}));
+  Element page = blackPage();
+  page.child(ruledNode());
   return page;
 }
 
@@ -791,6 +804,95 @@ TEST(ComposeCache, APromotedShapeKeepsTheInkItDrawsOutsideItsBox) {
       << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
       << " code values, when the library promoted a node whose shape reaches "
          "past its box";
+}
+
+namespace {
+
+/** THE TWO BOUNDED LAYERS A NODE OPENS OVER ITS OWN CONTENT — the one a
+ *  group opacity or blend composites through, and the one a layer effect is
+ *  run over. Both are sized from the node's paint bounds and saveLayer
+ *  bounds ARE a clip, so a bound that misses the node's ink deletes it. */
+enum class Layer { None, GroupOpacity, Effect };
+
+Element ruledNodeUnder(Layer layer) {
+  Element page = blackPage();
+  Element rules = ruledNode();
+  if (layer == Layer::GroupOpacity) {
+    // A CHILD, so the opacity opens the group's layer rather than riding
+    // the leaf's own fill paint: the fill-only leaf routes blend and
+    // opacity onto the paint and never opens a layer at all, which would
+    // be a fixture that poses nothing.
+    rules.child(box().absolute().left(30).top(30).width(20).height(20).fill(
+        Fill::color({0, 0, 1, 1})));
+    rules.opacity(0.6f);
+  }
+  if (layer == Layer::Effect)
+    // A COLOUR FILTER as the layer effect: it maps each pixel where it
+    // stands and moves no ink at all, so what the layer's bounds did to the
+    // picture is the only thing between the two renders.
+    rules.effect(material::skia::Effect::filter(
+        SkColorFilters::Blend(SK_ColorGREEN, SkBlendMode::kModulate)));
+  page.child(std::move(rules));
+  return page;
+}
+
+/** WHERE THE INK STANDS, as a box. A layer that cut the node's shape
+ *  truncates this at the node's own edges whatever it did to the values
+ *  inside it, and the tolerance is well under an antialiased edge's
+ *  faintest step so no rounding decides the answer. */
+SkIRect inkBoundsOf(const std::vector<SkColor>& pixels, int w, int h) {
+  SkIRect ink = SkIRect::MakeEmpty();
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) {
+      const SkColor c = pixels[(size_t)y * (size_t)w + (size_t)x];
+      const int lit = std::max(
+          {(int)SkColorGetR(c), (int)SkColorGetG(c), (int)SkColorGetB(c)});
+      if (lit >= 24) ink.join(SkIRect::MakeXYWH(x, y, 1, 1));
+    }
+  return ink;
+}
+
+/** One scene drawn once with promotion held off, so what the pixels answer
+ *  is about the layers a node opens and nothing about a bake. */
+std::vector<SkColor> drawnLive(Element page, int w, int h) {
+  Host host(w, h);
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
+  host.composer.render(std::move(page));
+  host.frame();
+  return surfaceOf(host, w, h);
+}
+
+}  // namespace
+
+TEST(ComposePaintBounds, ADeclaredShapeBoundsEveryLayerTheNodeIsGiven) {
+  // ONE RULE WHEREVER A NODE IS SIZED. The shape a node declares is where
+  // its ink is, so it bounds the group's opacity layer and the effect's
+  // layer exactly as it bounds the surface a bake is allocated to — and a
+  // layer is the harsher of the two, since its bounds are a clip and cut
+  // the drawing rather than merely holding less of it.
+  const SkIRect whole =
+      inkBoundsOf(drawnLive(ruledNodeUnder(Layer::None), 240, 240), 240, 240);
+  // The fixture has to pose the problem: the rules stand well outside the
+  // 80×80 box they were resolved against, on every side.
+  ASSERT_LT(whole.left(), 40) << "the fixture's shape stays inside its box";
+  ASSERT_GT(whole.right(), 200) << "the fixture's shape stays inside its box";
+
+  const SkIRect faded = inkBoundsOf(
+      drawnLive(ruledNodeUnder(Layer::GroupOpacity), 240, 240), 240, 240);
+  EXPECT_EQ(faded, whole)
+      << "the group's opacity layer cut the shape the node declared: its ink "
+         "spans "
+      << faded.width() << "x" << faded.height() << " where the same node "
+      << "drawn with no layer spans " << whole.width() << "x" << whole.height();
+
+  const SkIRect filtered =
+      inkBoundsOf(drawnLive(ruledNodeUnder(Layer::Effect), 240, 240), 240, 240);
+  EXPECT_EQ(filtered, whole)
+      << "the layer effect's layer cut the shape the node declared: its ink "
+         "spans "
+      << filtered.width() << "x" << filtered.height() << " where the same "
+      << "node drawn with no layer spans " << whole.width() << "x"
+      << whole.height();
 }
 
 namespace {

@@ -664,12 +664,12 @@ struct Composer::Impl {
    *  node drew, and none of them reads this node's boundary. */
   const detail::Instance* coverageTrace = nullptr;
   /** What the node paints BY ITSELF, in its own local space: its box grown
-   *  by every decoration's declared bleed and any routed path, and NOTHING
-   *  from its children. The split bake sizes its layer with this — and the
-   *  independence from the children is the load-bearing part, not an
-   *  optimisation: `recordBounds` unions the children in, so it changes
-   *  every frame a child moves, and a bake rect that changes every frame is
-   *  a bake remade every frame. */
+   *  by every decoration's declared bleed, any routed path and the shape it
+   *  declares, and NOTHING from its children. The split bake sizes its
+   *  layer with this — and the independence from the children is the
+   *  load-bearing part, not an optimisation: `recordBounds` unions the
+   *  children in, so it changes every frame a child moves, and a bake rect
+   *  that changes every frame is a bake remade every frame. */
   SkRect ownPaintBounds(detail::Instance& inst);
   /** The rect a node's recording must cover — in its own local plane, or,
    *  for a node hosting a shared space, in the plane that space is drawn
@@ -683,14 +683,14 @@ struct Composer::Impl {
    *  inside the box that size came from: a generator anchored on a centre
    *  of its own, a ring of contours drawn at radii the box knows nothing
    *  about. The node's surface is filled with that path and every
-   *  decoration dresses it, so the ink is where the path is, and a DEVICE
-   *  BAKE allocated to less than that cuts it — the one failure a bake may
-   *  not have, since what bounds the drawing must be the clip the bake
-   *  carries in and never the allocation. It is not in the recording
-   *  bounds because those size a LAYER: a group's opacity layer, an
-   *  effect's, the surface a lifted filter is run over — and moving a
-   *  layer's bounds moves the picture it composites, where an allocation
-   *  holding more transparent pixels paints the same one. */
+   *  decoration dresses it, so the ink is where the path is. It is a
+   *  carrier of `ownPaintBounds` and therefore bounds EVERY rect a node is
+   *  sized to — the allocation a device or local bake is made at, and the
+   *  LAYERS too: a group's opacity layer, an effect's, the surface a lifted
+   *  filter is run over. A layer whose bounds cut the node's own shape cuts
+   *  the drawing, which is the same failure as an allocation that does; the
+   *  clip a node's drawing is bounded by is the one it carries in, never
+   *  the rect it was given room in. */
   SkRect declaredShapeBounds(detail::Instance& inst);
 
   // ---- hit testing / queries (Query.cpp) ----
