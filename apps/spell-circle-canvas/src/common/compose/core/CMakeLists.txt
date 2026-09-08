@@ -43,8 +43,12 @@ sigil_library(SigilComposeCore
     Composer.cpp Reconcile.cpp ReconcileHost.cpp Layout.cpp Derive.cpp
     Transitions.cpp Query.cpp
     # the paint phase
-    Volatility.cpp Bounds.cpp Depth.cpp StackingPainter.cpp
-    PaintContent.cpp Coverage.cpp
+    Volatility.cpp Bounds.cpp Depth.cpp Coverage.cpp
+    # the paint of one node: the walk, its shared state, and the cache
+    # ladder it dispatches through, one tier per file
+    StackingPainter.cpp PaintContent.cpp PaintPass.cpp PaintProfile.cpp
+    PromotionTier.cpp SplitBake.cpp GroupBake.cpp TextureBake.cpp
+    PictureTier.cpp
     # text
     TextPainter.cpp
     # the instanced leaf
@@ -53,7 +57,8 @@ sigil_library(SigilComposeCore
     Fills.cpp
     # internal headers
     ComposeInternal.h ComposeRuntime.h Instance.h SlotSpecs.h Lanes.h
-    Transforms.h ComposerImpl.h PaintInternal.h BakeInk.h InstanceStamp.h
+    Transforms.h ComposerImpl.h PaintInternal.h PaintPass.h
+    PaintProfile.h BakeInk.h InstanceStamp.h
   HEADERS ../Compose.h Composer.h Core.h Derive.h Element.h Factories.h
           Feed.h Instances.h Layout.h Mask.h Measure.h Paint.h Pattern.h
           Shape.h Shelf.h Stroke.h Table.h TextPainter.h Tiles.h
