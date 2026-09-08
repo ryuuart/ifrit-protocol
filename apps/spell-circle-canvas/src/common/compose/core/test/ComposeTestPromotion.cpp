@@ -849,3 +849,112 @@ TEST(ComposeCache, APromotedPhraseThatAddsLightKeepsTheGroundUnderIt) {
       << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
       << " code values, when the library promoted type that adds light";
 }
+
+namespace {
+
+/** THE SAME STROKED CURVE, DRAWN THREE WAYS IN PLAIN SKIA — no compose in
+ *  it at all, because what is asked here is a question about the
+ *  rasteriser and a device bake is only the caller of it.
+ *
+ *  A bake paints its node into a fresh premultiplied surface and blits the
+ *  result; the live paint puts the same draw straight onto the
+ *  destination. If those two routes answered different antialiased
+ *  coverage — a surface property, an alpha type, a coverage mode, the way
+ *  a layer's bounds are snapped — then every promoted curve would stand a
+ *  fraction of a pixel from its live paint and no bake could ever agree.
+ *  They do not: the offscreen and the saveLayer are the same pixels as the
+ *  direct draw, and what separates the BLITTED offscreen from the direct
+ *  draw is one code value of arithmetic, the node's own coverage
+ *  composited twice where the live paint composited once. */
+struct RouteProbe {
+  int layerVsOffscreen = 0;
+  int liveVsOffscreenOverTheGround = 0;
+  int liveVsBlittedOffscreen = 0;
+};
+
+RouteProbe rasterisationRoutes() {
+  constexpr int kW = 420, kH = 420;
+  const SkColor ground = SkColorSetARGB(255, 40, 90, 140);
+  SkPathBuilder builder;
+  builder.addArc(SkRect::MakeLTRB(31, 31, 369, 369), -30.0f, 300.0f);
+  const SkPath path = builder.detach();
+  SkPaint paint;
+  paint.setStyle(SkPaint::kStroke_Style);
+  paint.setStrokeWidth(22);
+  paint.setColor(SK_ColorWHITE);
+  paint.setAntiAlias(true);
+  const SkMatrix under = SkMatrix::Translate(10, 10);
+
+  const auto surface = [] {
+    return SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kW, kH));
+  };
+  const auto pixels = [](SkSurface& from) {
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(kW, kH));
+    from.readPixels(bm.pixmap(), 0, 0);
+    std::vector<SkColor> out;
+    for (int y = 0; y < kH; ++y)
+      for (int x = 0; x < kW; ++x) out.push_back(bm.getColor(x, y));
+    return out;
+  };
+
+  // Straight onto the destination, which is what a live paint is.
+  sk_sp<SkSurface> live = surface();
+  live->getCanvas()->clear(ground);
+  live->getCanvas()->concat(under);
+  live->getCanvas()->drawPath(path, paint);
+
+  // Into a layer opened over that same destination.
+  sk_sp<SkSurface> layered = surface();
+  layered->getCanvas()->clear(ground);
+  layered->getCanvas()->saveLayer(nullptr, nullptr);
+  layered->getCanvas()->concat(under);
+  layered->getCanvas()->drawPath(path, paint);
+  layered->getCanvas()->restore();
+
+  // Into a fresh premultiplied surface — the route a bake takes — and
+  // blitted back over the ground.
+  sk_sp<SkSurface> offscreen = surface();
+  offscreen->getCanvas()->clear(SK_ColorTRANSPARENT);
+  offscreen->getCanvas()->concat(under);
+  offscreen->getCanvas()->drawPath(path, paint);
+  sk_sp<SkSurface> blitted = surface();
+  blitted->getCanvas()->clear(ground);
+  blitted->getCanvas()->drawImage(offscreen->makeImageSnapshot(), 0, 0);
+
+  // …and the same offscreen with the ground already in it, which takes
+  // the bake's route through the rasteriser and the live paint's
+  // arithmetic through the blend.
+  sk_sp<SkSurface> overGround = surface();
+  overGround->getCanvas()->clear(ground);
+  overGround->getCanvas()->concat(under);
+  overGround->getCanvas()->drawPath(path, paint);
+
+  const std::vector<SkColor> pl = pixels(*live), pa = pixels(*layered),
+                             pb = pixels(*blitted), pg = pixels(*overGround);
+  return {worstDrift(pa, pb, nullptr), worstDrift(pl, pg, nullptr),
+          worstDrift(pl, pb, nullptr)};
+}
+
+}  // namespace
+
+TEST(ComposeCache, ADeviceBakeRasterisesOnItsLivePaintsRoute) {
+  // WHAT A DEVICE BAKE RESTS ON. Skia holds more than one way to answer an
+  // antialiased edge, and which one a draw takes is decided from the
+  // path's bounds against the clip it stands in — which is why a bake is
+  // allocated with a margin. What it must NOT depend on is the surface the
+  // draw lands on: a bake paints into a fresh premultiplied surface where
+  // the live paint puts the same draw onto the destination, and if those
+  // answered different coverage no bake could ever agree with the paint it
+  // replaces.
+  const RouteProbe routes = rasterisationRoutes();
+  EXPECT_EQ(routes.layerVsOffscreen, 0)
+      << "a layer opened over the destination and a fresh offscreen "
+         "rasterise the same curve differently";
+  EXPECT_EQ(routes.liveVsOffscreenOverTheGround, 0)
+      << "an offscreen surface holding the ground rasterises the same curve "
+         "differently from the destination it stands for";
+  EXPECT_LE(routes.liveVsBlittedOffscreen, 1)
+      << "a blitted offscreen stands more than the one code value its "
+         "second composite costs from the live paint";
+}
