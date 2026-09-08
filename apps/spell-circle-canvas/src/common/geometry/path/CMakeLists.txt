@@ -22,10 +22,12 @@ find_package(CDT CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilGeometryPath
-  SOURCES Band.cpp Conic.cpp Contour.cpp Crossings.cpp Direction.cpp Edges.cpp
+  SOURCES Band.cpp Conic.cpp Contour.cpp Corners.cpp Crossings.cpp
+          Direction.cpp Distorts.cpp Edges.cpp
           Extremes.cpp Fit.cpp Hull.cpp Interpolate.cpp Lattice.cpp
           Multigrid.cpp
-          Neighbours.cpp Noise.cpp Ops.cpp Polyline.cpp Pose.cpp Projection.cpp
+          Neighbours.cpp Noise.cpp Ops.cpp OpsInternal.h Polyline.cpp Pose.cpp
+          Projection.cpp
           Scatter.cpp
           Segments.cpp Strips.cpp Symmetry.cpp Tidy.cpp Trace.cpp
           Triangulate.cpp
