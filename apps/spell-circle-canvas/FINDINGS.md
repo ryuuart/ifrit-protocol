@@ -31,6 +31,12 @@ Taken on the merged tree after the extractions and the file splits:
 
 ## Rulings
 
+- The six plates the declared-shape join moved beyond the two named
+  are rebased with the same cause: ink a layer was deleting, and
+  edges re-registered against a rect that grew.
+- The coverage trace joins `ownPaintBounds` too, carrying the offset,
+  with a pin; a sweep over the scenes that dress along their coverage
+  names every mover, which the owner rules on before any rebase.
 - The promotion tier's remaining twelve stay recorded as the
   measurement with their next probes; the research resumes at the
   owner's word.
@@ -110,33 +116,6 @@ ones found so far
 `ComposeCache.ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves`,
 `ComposeCache.APromotedShapeKeepsTheInkItDrawsOutsideItsBox` and
 `ComposePaintBounds.ADeclaredShapeBoundsEveryLayerTheNodeIsGiven`).
-
-## Six CPU plates moved with the declared shape and were not rebased
-
-A node's declared `shape()` now joins `ownPaintBounds`, which is where
-every rect a node is given room in begins — the recording cull, the
-bounded `saveLayer` a group opacity or a layer effect opens, the local and
-device bakes, the split bake. The ruling that asked for it named two
-plates that would move, measured on those two alone. A sweep over the 55
-scenes that declare a shape found EIGHT, all of the same cause:
-
-    kumiko_asanoha 132 · sigillum_aemeth 107 · eva_magi_defense 175 ·
-    lain_navi 159 · thaumonomicon 133 · thunder_fulu 101 ·
-    rota_convocationis 6 · ksp_mapview 2
-
-The two the ruling named were rebased. The other six were not, because a
-mover the ruling did not sanction is not a plate a verification pass may
-rebase. Each was looked at: `eva_magi_defense` gains the bottom of a panel
-that was cut square, `lain_navi` the slanted left edge of one, and
-`thunder_fulu` the ticks along the talisman's edge — ink that was deleted
-by a layer bound to the box, now whole. `thaumonomicon`,
-`rota_convocationis` and `ksp_mapview` show the other half of the same
-cause: a rect that grew re-registers a nearest-sampled sprite and an
-antialiased edge against the device grid, which is a step and not a mark
-that moved.
-
-Assert once ruled: the six are rebased with this cause and the CPU tier
-reports 195 byte-identical.
 
 ## The coverage trace is rastered at the node's box
 
