@@ -1022,16 +1022,22 @@ implementations of the same dispatch seams.
   a second arithmetic under one name would mean nobody could say which
   of them a picture came from.
 - **`mesh/pop/Pop.h`** — the operator chain language and the runtime seam
-  it executes through, both in the `pop` scope: `pop::on()` opens a chain,
-  `pop::cook()` evaluates one on the `pop::Runtime` it is given,
-  `pop::Executor` is what a runtime supplies (`pop::Runtime` is an erased
-  value of SigilCoreComparable's shape) and `pop::opName()` names an
-  operator. The field table behind `pop::setField()`/`getField()` is
-  `Fields.cpp`; the built-in executor, the `Runtime::cpu()` value with
-  its `Runtime::cpu(itemGrain)` spelling, and the
-  `cook()` door that checks an executor's capability before dispatching
-  are `Cook.cpp`; the mesh-forming sinks `pop::cookMesh()` and
-  `cookSweep()` are `Sinks.cpp`.
+  it executes through, both in the `pop` scope, in one include over four
+  headers: `Ops.h` carries the attribute reference a filter addresses,
+  the twenty-five operator descriptions and the `Op` variant they form,
+  with `pop::opName()` naming one; `Runtime.h` the seam — `pop::Executor`
+  is what a runtime supplies, `pop::Runtime` is an erased value of
+  SigilCoreComparable's shape, `pop::cook()` evaluates a chain on the one
+  it is given — together with the helpers every executor shares
+  (`laneFill()`, `seedLanes()`, `seedAttrs()`, `exportLanes()`,
+  `setField()`/`getField()`, `noiseField()`, `attrFor()`/`cloudLaneFor()`);
+  `Sinks.h` the sinks a cooked chain is spent into; and `Builder.h` the
+  artist's spelling, where `pop::on()` opens a chain. The field table
+  behind `pop::setField()`/`getField()` is `Fields.cpp`; the built-in
+  executor, the `Runtime::cpu()` value with its `Runtime::cpu(itemGrain)`
+  spelling, and the `cook()` door that checks an executor's capability
+  before dispatching are `Cook.cpp`; the mesh-forming sinks
+  `pop::cookMesh()` and `cookSweep()` are `Sinks.cpp`.
 - **`mesh/pop/Kernel.h`** — the seam between the two ends of one piece of
   arithmetic: `kernel::OpArgs` (the argument block, every member a
   four-component vector so its bytes stand at the same offsets in a
