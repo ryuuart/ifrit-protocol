@@ -72,7 +72,6 @@
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QMutex>
-#include <QtCore/QStandardPaths>
 #include <QtCore/QTimer>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QImage>
@@ -108,6 +107,7 @@
 #include "FrameLane.h"
 #include "SketchCatalog.h"
 #include "SketchbookView.h"
+#include "ThumbnailWarm.h"
 #include "WindowBench.h"
 
 namespace sketch = sigil::sketch;
@@ -265,102 +265,6 @@ bool selectionNeedsDevice(int only, const std::string& kind) {
     if (entry && entry->needsDevice()) return true;
   }
   return false;
-}
-
-// ---------------------------------------------------------------------------
-// The thumbnail store, and the warm command that fills it
-
-/** WHERE SKETCHBOOK KEEPS ITS THUMBNAILS. The command line names one; an
- *  environment variable names one for a test; otherwise the platform
- *  cache location, under this app's own name. The store is the app's
- *  alone: no ledger and no sweep writes into it. */
-std::filesystem::path thumbnailStoreDir(const std::string& override) {
-  if (!override.empty()) return override;
-  if (const char* env = std::getenv("SIGIL_SKETCHBOOK_THUMBNAILS"); env && *env)
-    return env;
-  const QString cache =
-      QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-  const std::filesystem::path base =
-      cache.isEmpty() ? std::filesystem::temp_directory_path()
-                      : std::filesystem::path(cache.toStdString());
-  return base / "Sketchbook" / "thumbnails";
-}
-
-/** THE WARM COMMAND: render every selected sketch's MISSING OR STALE
- *  thumbnail through the same CPU path the window's own fill takes, and
- *  exit non-zero naming the ones that could not be drawn.
- *
- *  It answers to the same budget the window's fill does: a still that
- *  runs past it is abandoned and NOTED, so the note stands in for the
- *  thumbnail and neither this command nor the window spends the budget
- *  on that sketch again while its source stays put. A sketch
- *  this machine cannot run is stood down by name rather than failed, and
- *  a sketch whose thumbnail or note is already fresh is left alone. */
-int runThumbnails(int only, const std::string& kind,
-                  const std::filesystem::path& dir,
-                  std::chrono::milliseconds budget, bool heavy,
-                  sigil::weave::FontContext& fonts, sketch::Assets& store) {
-  std::filesystem::create_directories(dir);
-  const auto& entries = sketch::registry();
-  int rendered = 0;
-  size_t skipped = 0;
-  size_t noted = 0;
-  std::vector<std::string> failed;
-  for (int index : sketch::selection(only, kind)) {
-    const sketch::Entry& entry = entries[index];
-    std::string why;
-    if (!entry.available(&why)) {
-      std::printf("thumbnail %-24s [skipped: %s]\n", entry.name, why.c_str());
-      ++skipped;
-      continue;
-    }
-    const std::filesystem::path source =
-        sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
-    const std::string key = sketch::thumbnailKey(source);
-    if (!sketch::freshThumbnail(dir, entry.name, key).empty())
-      continue;  // fresh
-    if (!sketch::thumbnailNote(dir, entry.name, key).empty()) {
-      ++noted;
-      continue;  // asked and answered
-    }
-    sketch::ThumbnailRun run;
-    run.out = sketch::thumbnailFile(dir, entry.name, key);
-    run.stem = entry.name;
-    run.maxDimension = sketch::kThumbnailWidth;
-    run.budget = budget;
-    run.heavy = heavy;
-    sketch::noteSketch(entry.name);
-    switch (sketch::renderThumbnail(entry, fonts, store, run)) {
-      case sketch::ThumbnailOutcome::Wrote:
-        std::printf("thumbnail %-24s wrote %s\n", entry.name,
-                    run.out.string().c_str());
-        ++rendered;
-        break;
-      case sketch::ThumbnailOutcome::Heavy:
-        sketch::noteThumbnail(dir, entry.name, key, "declared a plate");
-        std::printf("thumbnail %-24s [noted: declared a plate]\n", entry.name);
-        ++noted;
-        break;
-      case sketch::ThumbnailOutcome::OverBudget:
-        sketch::noteThumbnail(dir, entry.name, key,
-                              "still ran past its budget");
-        std::printf("thumbnail %-24s [noted: ran past its budget]\n",
-                    entry.name);
-        ++noted;
-        break;
-      case sketch::ThumbnailOutcome::Stopped:
-      case sketch::ThumbnailOutcome::Failed:
-        std::fprintf(stderr, "thumbnail %-24s FAILED to render\n", entry.name);
-        failed.push_back(entry.name);
-        break;
-    }
-  }
-  std::printf("thumbnails: %d rendered, %zu noted, %zu skipped, %zu failed\n",
-              rendered, noted, skipped, failed.size());
-  for (const std::string& name : failed)
-    std::fprintf(stderr, "  failed: %s\n", name.c_str());
-  std::fflush(stdout);
-  return failed.empty() ? 0 : 1;
 }
 
 }  // namespace
