@@ -12,36 +12,27 @@ remains of them is below, then the standing entries.
 
 ## Verification state on main
 
-Taken on the merged tree after the post-merge compose pass:
+Taken on the merged tree after the extractions campaign:
 
-- Release build: zero errors, zero warnings. `ctest`: 3252 of 3252.
-- CPU plate tier: 195 scenes; the six that moved in the post-merge
-  pass were rebased with their causes (`volatility_cost` reads a
-  composer of its own; the eva_magi plates, chaucer, dunhuang and
-  minard by a few code values where a device bake now carries the
-  margin a stroked curve's rasterisation route needs).
+- Release build: zero errors, zero warnings. `ctest`: 3370 of 3370.
+- CPU plate tier: 195 scenes; the five that moved in the campaign were
+  rebased with their causes (`bg3_dice_roll` lands on a named face
+  through the library pose; `chaucer_astrolabe` a hairline ring one
+  pixel over from the projection value's arithmetic; `genesis_fire` a
+  fused multiply-add landing differently in the library's translation
+  unit; `dunhuang_star_chart` one code value from the precession
+  rotation; `cde_motif` a mitred bevel corner's diagonal). Every other
+  plate the eight seams touched is byte-identical.
 - Device tier: 195 of 195 within the per-channel bar. Promotion tier:
-  146 of 195 within the contract's two bars; the rest is the entry
-  below.
+  146 of 195 within the rule (one code value over clear pixels, two
+  over content); the rest is the entry below.
 - ASan with UBSan and TSan: clean over the suite at the merge.
-- Benchmark and window-FPS baselines retaken at an unlocked screen:
-  195 sketches, none under the gate. The FPS lane refuses a locked
-  screen, which throttles an invisible window's GPU work; one heavy
-  first frame following another session (`dunhuang_star_chart`) stood
-  down once in a sweep and measured at the display's rate alone.
+- Benchmark baseline retaken with the campaign's new arms; window-FPS
+  baseline at an unlocked screen, none under the gate. The FPS lane
+  refuses a locked screen, which throttles an invisible window's GPU
+  work.
 
-## Rulings
-
-- rota's raster crest is the author's look and leaves this file.
-- The extractions campaign is staffed one agent per library seam, in
-  sequence: solids and pose with the conic and silhouettes (geometry),
-  the projections (geometry path), the pentagrid and joinery
-  (lattice), tartan (material), particles (motion), sprites and the
-  atlas packer (compose kit), the HTML table layout (compose layouts),
-  the Motif bevels (chrome); each rewrites the sketches that carried
-  the hand-rolled version and names its plate movers.
-
-## Deferred past the merge, each a campaign of its own
+## Deferred, a campaign of its own
 
 - The source-file splits by subject: `material/skia/Paint.cpp` (1573),
   `Paint.h` (771), `Effect.cpp` (748); `geometry/mesh/pop/Pop.h` (1131),
