@@ -139,6 +139,19 @@
 //                                      from the two values each row reports
 //
 // -----------------------------------------------------------------------------
+// THE BLOOM IS WHY THIS SKETCH DECLARES ITS PICTURE NONLINEAR
+//
+// Every mark wears `phosphorBloom`, and a bloom begins with a GATE: a
+// bright pass that admits what stands over its threshold, gathered over a
+// reduced layer and laid back over the sharp source. A pixel sitting on the
+// threshold is admitted or not by its last code value, and what the gate
+// admits is spread over the halo's whole reach — so a difference of one
+// under the gate is many over it, in a place the difference was never in.
+// `ctx.nonlinearPicture()` holds the automatic promoter off this scene in
+// every host: its picture is drawn from live paint, and what is under the
+// gate is judged on its own.
+//
+// -----------------------------------------------------------------------------
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/eva_magi_defense.cpp \
@@ -1320,7 +1333,8 @@ struct EvaMagiDefense : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
                              .captureAt = 2.5,
                              .background = kGround,
-                             .oversample = 2});
+                             .oversample = 2,
+                             .nonlinearPicture = true});
 
     funnel = funnelPath();
     fieldStrip = eva::fieldStrip(0.0f);

@@ -181,6 +181,23 @@
 // outline untold.
 //
 // -----------------------------------------------------------------------------
+// THE BLOOM IS WHY THIS SKETCH DECLARES ITS PICTURE NONLINEAR
+//
+// The whole plate wears `phosphorBloom`, and a bloom begins with a GATE: a
+// bright pass that admits what stands over its threshold, gathered over a
+// layer reduced by two and laid back over the sharp source. A pixel sitting
+// on the threshold is admitted or not by its last code value, and what the
+// gate admits is then spread over the halo's whole reach — so a difference
+// of one under the gate is tens over it, in a place the difference was
+// never in. With the layer effect left out this plate's promoted and live
+// renders stand at 6; through the gate the same 6 reads 190.
+//
+// So `ctx.nonlinearPicture()`: the automatic promoter is held off this
+// scene in every host and its picture is drawn from live paint. What is
+// under the gate still has to be right, and that 6 is the number that says
+// it is.
+//
+// -----------------------------------------------------------------------------
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/eva_magi_interior.cpp \
@@ -1638,7 +1655,8 @@ struct EvaMagiInterior : sketch::Sketch {
     // still unfiled — nothing of the arrival field is left to see.
     sketch::kit::stage(ctx, {.size = SkSize::Make(magi::kW, magi::kH),
                              .captureAt = 2.5,
-                             .background = magi::kGround});
+                             .background = magi::kGround,
+                             .nonlinearPicture = true});
     fonts = ctx.fonts;
     audit();
 

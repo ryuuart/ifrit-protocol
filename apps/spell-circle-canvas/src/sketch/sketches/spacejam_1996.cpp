@@ -97,6 +97,17 @@
 // per-pixel round with no lattice and no time in it, so it adds nothing
 // that moves either.
 //
+// THE VIEW TRANSFORM IS WHY THIS SKETCH DECLARES ITS PICTURE NONLINEAR.
+// The 216-colour round unpremultiplies to do its work, so its gain is
+// 1/alpha and is unbounded on a near-transparent pixel, and every channel
+// it rounds moves in steps of 51. One code value under it — the last bit
+// of a device-space bake, which the runtime's own contract admits — is a
+// whole step over it, and a sweep comparing two rasterisations of this
+// page is handed the picture after the round. With the view left out the
+// two stand within ONE, so what is under the round is right; the round is
+// what has no bound. So `ctx.nonlinearPicture()` keeps the automatic
+// promoter off this page in every host: it is drawn from live paint.
+//
 // AND ONE THING THE TABLE ALGORITHM ITSELF ASKS FOR: column surplus is
 // distributed PROPORTIONALLY across the columns, but a rowspan's height
 // deficit is NOT. Chrome gives the whole of the logotype's overflow to the
@@ -1483,7 +1494,8 @@ struct SpaceJam1996 : sketch::Sketch {
     // FINISHED page.
     sketch::kit::stage(ctx, {.size = SkSize::Make(S(640), S(800)),
                              .captureAt = 9.5,
-                             .background = kPageBlack});
+                             .background = kPageBlack,
+                             .nonlinearPicture = true});
 
     bakeArt(ctx);
     checkGrid();

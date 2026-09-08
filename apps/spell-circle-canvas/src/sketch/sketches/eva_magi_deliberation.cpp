@@ -1,5 +1,16 @@
 // The flat MAGI deliberation plate is one routed system: a rear circular bus,
 // three copies of one square module, and an information layer above both.
+//
+// THE BLOOM IS WHY THIS SKETCH DECLARES ITS PICTURE NONLINEAR. The whole
+// plate wears `phosphorBloom`, and a bloom begins with a GATE: a bright
+// pass that admits what stands over its threshold, gathered over a reduced
+// layer and laid back over the sharp source. A pixel sitting on the
+// threshold is admitted or not by its last code value, and what the gate
+// admits is spread over the halo's whole reach — so a difference of one
+// under the gate is many over it, in a place the difference was never in.
+// `ctx.nonlinearPicture()` therefore holds the automatic promoter off this
+// scene in every host: its picture is drawn from live paint, and what is
+// under the gate is judged on its own.
 
 #include <include/core/SkPaint.h>
 #include <shared/EvangelionUi.h>
@@ -218,6 +229,7 @@ struct EvaMagiDeliberation : sketch::Sketch {
     // The plate does not move: one moment, named, so the sweep and the
     // window render the same picture.
     context.captureAt(0.05);
+    context.nonlinearPicture();
     context.composer.render(describe());
   }
 };
