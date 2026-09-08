@@ -113,32 +113,3 @@ ones found so far
 `ComposeCache.ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves`,
 `ComposeCache.APromotedShapeKeepsTheInkItDrawsOutsideItsBox` and
 `ComposePaintBounds.ADeclaredShapeBoundsEveryLayerTheNodeIsGiven`).
-
-## Plates moved by the coverage trace reading the node's paint bounds
-
-`coverageOutline` rasterises at `ownPaintBounds` now rather than at the
-node's box, so the silhouette a decoration is dressed along holds the ink
-that stands outside the box — a declared shape resolved past it, a
-decoration's bleed, a glyph's overhang, a routed path, a child that
-overflows. The sweep is every scene that dresses along a coverage
-boundary, which is every scene naming `Boundary::Coverage` or
-`Element::threshold`: `coverage_boundary` alone, with `chrome_type` swept
-beside it as the control that dresses along its GLYPHS and must not move.
-
-    2 scenes, 1 byte-identical, 1 with a moved hash, 0 failed
-    compared chrome_type        max   0  content   0  identical
-    compared coverage_boundary  max 104  content 104  4 877 px
-
-ONE MOVER, and it is the trace reaching ink it used to cut:
-
-- `coverage_boundary` (bd8a64a77a0c -> 4d0f44d61c44, 4 877 pixels, worst
-  104 code values, every one of them inside x 1831-1999, y 438-571): the
-  fifth cell's lowest disc hangs four pixels below the box of the node
-  whose children the three discs are, and the baseline traced a boundary
-  cut flat across it — the halo ran straight along the cut and the inner
-  shadow drew a bright keyline on it. The disc's silhouette is round now
-  and the glow closes under it. The other four cells are byte-identical:
-  their ink stands inside their boxes, and the raster's grid is placed on
-  whole steps, so the widened rect restepped nothing.
-
-Not rebased: the owner rules on the mover.
