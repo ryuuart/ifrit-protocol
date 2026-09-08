@@ -31,6 +31,13 @@ Taken on the merged tree after the extractions and the file splits:
 
 ## Rulings
 
+- A declared `shape()` bounds every layer a node is given — the
+  group-opacity, effect and lifted-filter layers `recordBounds` sizes,
+  as it already bounds the bake — with a pin; the two plates that move
+  (kumiko_asanoha, sigillum_aemeth) are rebased with that cause.
+- The promotion tier's remaining twelve stay recorded as the
+  measurement with their next probes; the research resumes at the
+  owner's word.
 - The three git stashes in the checkout are the owner's to inspect.
 
 ## Automatic texture promotion moves 12 of 195 plates past the contract
