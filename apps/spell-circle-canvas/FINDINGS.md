@@ -27,6 +27,18 @@ Taken on the merged tree after the extractions and the file splits:
   refuses a locked screen, which throttles an invisible window's GPU
   work.
 
+## Rulings
+
+- The promotion contract gains a third clause for the graze: a
+  promoted mark may stand one float step of its device coordinate from
+  its live paint where a curve runs nearly tangent to the grid, and
+  the tier judges that case under it; the README states it beside the
+  shader inversion it is the twin of.
+- The five un-ablated heads (sigillum_aemeth, coverage_boundary,
+  kumiko_asanoha, paragraph_sheet, material_child) are researched, one
+  cause at a time with a pin each.
+- The three git stashes in the checkout are the owner's to inspect.
+
 ## Automatic texture promotion moves 48 of 195 plates past the contract
 
 `sigil.py plates --tier promotion` renders every scene twice on the CPU —
