@@ -19,7 +19,9 @@
 #include <glm/geometric.hpp>
 
 #include "OpsInternal.h"
+#include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Ops.h"
+#include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Segments.h"
 #include "sigilgeometry/path/Skia.h"
 
