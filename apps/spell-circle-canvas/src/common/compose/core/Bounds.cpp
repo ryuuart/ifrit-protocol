@@ -211,7 +211,7 @@ std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
   return std::make_pair(here, orient);
 }
 
-Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance& inst) {
+NodeTransform Composer::Impl::transformOf(Instance& inst) {
   const ElementNode& node = *inst.description;
   NodeTransform out;
   out.rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);

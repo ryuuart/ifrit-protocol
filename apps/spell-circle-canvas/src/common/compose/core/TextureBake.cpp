@@ -226,7 +226,7 @@ bool paintTextureBake(PaintPass& pass) {
   // owns that composition.
   SkMatrix destTotal = total;
   if (impl.bakeDensity <= 0 && !pass.placedByPlane && !pass.spaceHost) {
-    Composer::Impl::NodeTransform destTf = *pass.tf;
+    NodeTransform destTf = *pass.tf;
     bool declared = false;
     const auto lane = [&](Instance::Slot slot,
                           const motion::Animatable<float>& v, float& out) {

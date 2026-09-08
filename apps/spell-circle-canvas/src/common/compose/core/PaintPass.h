@@ -92,7 +92,7 @@ struct PaintPass {
 
   // ---- the placement ----
   /** The node's transform lanes, as the resolver produced them. */
-  const Composer::Impl::NodeTransform* tf = nullptr;
+  const NodeTransform* tf = nullptr;
   /** Whether the node is placed by a flattened 4x4 — a depth lane off rest,
    *  or a node standing in a shared space — rather than by the flat
    *  translate-and-concat the transform lanes describe. */
