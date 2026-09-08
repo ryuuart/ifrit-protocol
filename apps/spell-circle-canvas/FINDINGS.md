@@ -32,6 +32,22 @@ Taken on the merged tree after the extractions campaign:
   refuses a locked screen, which throttles an invisible window's GPU
   work.
 
+## Rulings
+
+- SigilMotion's force lane is the caller's to pre-load: `Verlet::step`
+  accumulates onto it and clears it after integrating, with a case that
+  pre-loads a force and sees it move the points.
+- The file splits run now, one agent per library in sequence, one
+  commit per file, the case listing byte-identical, no behaviour
+  change.
+- The promotion tier's sub-pixel graze gets its last probe (the
+  rasterisation route, layer against opaque surface, in plain Skia);
+  spacejam and the eva_magi plates declare their own nonlinearity so the
+  tier reads them under it, the way volatility_cost reads its own
+  composer.
+- The seams' library growths without a sketch consumer yet stay, with
+  their cases.
+
 ## Deferred, a campaign of its own
 
 - The source-file splits by subject: `material/skia/Paint.cpp` (1573),
