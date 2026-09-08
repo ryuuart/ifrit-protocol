@@ -42,10 +42,9 @@ Taken on the merged tree after the extractions campaign:
 
 ## Deferred, a campaign of its own
 
-- The source-file splits by subject: `sketch/book/main.cpp` (1331),
-  `book/SketchbookView.cpp` (896), `book/qml/Main.qml` (850); the
-  1380-line `Composer::Impl::paint` in `compose/core/StackingPainter.cpp`
-  and the compose files its review lists (`Element.h`, `Reconcile.cpp`,
+- The source-file splits by subject: the 1380-line
+  `Composer::Impl::paint` in `compose/core/StackingPainter.cpp` and the
+  compose files its review lists (`Element.h`, `Reconcile.cpp`,
   `Composer.cpp`, `ComposerImpl.h`, `Volatility.cpp`, `Instance.h`,
   `Layout.cpp`, `ComposeInternal.h`, `Derive.cpp`).
 
