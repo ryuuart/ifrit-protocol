@@ -475,8 +475,16 @@ class Generator:
             return []
         head = prefix[0]
         paths = self.ns_paths.get(head)
-        if paths and len(paths) == 1 and paths[0] != head:
-            return paths[0].split("::") + prefix[1:]
+        if paths:
+            # A leaf two libraries spell is the DOCUMENTING library's: a
+            # scanned dependency declaring the same word says nothing about
+            # what this document's reader would reach. Ambiguity WITHIN the
+            # library is the document's own, and is left to fail.
+            own = [p for p in paths if p.startswith(self.namespace + "::")]
+            if len(own) == 1:
+                paths = own
+            if len(paths) == 1 and paths[0] != head:
+                return paths[0].split("::") + prefix[1:]
         return list(prefix)
 
     def excluded_hit(self, spelled, line):

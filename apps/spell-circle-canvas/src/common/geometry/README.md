@@ -765,9 +765,9 @@ in no header.
   `alongIsPx` for a law keyed in px of arc length rather than in a
   fraction of it — which is what keeps a calligraphic pressure law from
   sliding along a mark as a reveal grows — and `acrossAt(along, lengthPx)`
-  is the one call that converts. `profile::self()`,
-  `profile::offset(px)`, `profile::taper(startPx, endPx)` and
-  `profile::spans(upTo, widthsPx)` are the presets that read nothing but
+  is the one call that converts. `path::profile::self()`,
+  `path::profile::offset(px)`, `path::profile::taper(startPx, endPx)` and
+  `path::profile::spans(upTo, widthsPx)` are the presets that read nothing but
   their own numbers — the boundary, the parallel, the linear run between
   two widths, and the stepped table, which does not interpolate across a
   boundary because what it describes is a measurement that changes at a
@@ -1379,7 +1379,7 @@ beneath, in `sigil::geometry::shapes`.
   u reaches 1) and `line()` (a unit-width segment, a flat band once
   swept). `SweepOptions::scale` sizes both, so neither takes a radius or
   a width, and an outline that is not one of these reaches a sweep
-  through the sweep's own `profile::fromPath()`.
+  through the sweep's own `pop::profile::fromPath()`.
 - **`kit/Divisions.h`** — a figure's divisions as ONE multi-contour path:
   `ticks()` walks a division count around a `Frame` (with a longer mark
   every N), `arcs()` walks the same count as CLOSED segments of the ring
