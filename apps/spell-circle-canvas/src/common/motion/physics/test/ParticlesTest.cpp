@@ -4,7 +4,9 @@
  * drawn from, a mouth puts its births where its shape says, lifetimes
  * expire and the set compacts, a consumer's attribute rides through a death
  * with the particle it belongs to, an attribute drifts at its own rate and
- * stops at its own bound, and the same seed twice is the same cloud.
+ * stops at its own bound, a weight is drawn from a range unless it is one
+ * number and then costs no word, and the same seed twice is the same
+ * cloud.
  */
 
 #include <gtest/gtest.h>
@@ -12,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 #include <vector>
 
 #include "support/StandsAlone.h"
@@ -348,6 +351,115 @@ TEST(Particles, TheSameSeedTwiceIsTheSameCloud) {
     EXPECT_FLOAT_EQ(same.points.velocity[i].x, 0.0f);
     EXPECT_FLOAT_EQ(same.points.velocity[i].y, -60.0f);
   }
+}
+
+TEST(Particles, AWeightIsDrawnLikeEveryOtherBirthAttribute) {
+  Emitter heavy = fountain();
+  heavy.mass = {.mean = 4.0f, .variation = 1.5f};
+
+  chance::Stream stream = chance::Stream::pcg(9001);
+  Particles cloud;
+  heavy.burst(cloud, stream, 4000);
+
+  double total = 0.0;
+  float lightest = 1e9f, heaviest = -1e9f;
+  for (const float weight : cloud.points.mass) {
+    EXPECT_GE(weight, 2.5f);
+    EXPECT_LE(weight, 5.5f);
+    total += weight;
+    lightest = std::min(lightest, weight);
+    heaviest = std::max(heaviest, weight);
+  }
+  EXPECT_NEAR(total / (double)cloud.size(), 4.0, 0.1);
+  // The range is USED and not merely respected: a draw lands close to
+  // each end of it.
+  EXPECT_LT(lightest, 2.6f);
+  EXPECT_GT(heaviest, 5.4f);
+
+  // A weight that varies costs one word beside the seven a birth already
+  // spends, and it is spent between the speed and the attributes.
+  EXPECT_EQ(stream.drawn(), 4000u * 8u);
+
+  // The scale multiplies the whole draw, as it does everywhere else.
+  Emitter scaled = fountain();
+  scaled.mass = {.mean = 4.0f, .variation = 1.5f, .scale = 0.25f};
+  chance::Stream same = chance::Stream::pcg(9001);
+  Particles smaller;
+  scaled.burst(smaller, same, 100);
+  for (size_t i = 0; i < smaller.size(); ++i)
+    EXPECT_FLOAT_EQ(smaller.points.mass[i], cloud.points.mass[i] * 0.25f);
+}
+
+TEST(Particles, AWeightThatDoesNotVaryCostsNoWordAndMovesNoCloud) {
+  const Emitter plain = fountain();
+  auto run = [](const Emitter& mouth) {
+    chance::Stream stream = chance::Stream::xorshift(0x1982u);
+    Particles cloud;
+    mouth.burst(cloud, stream, 500);
+    return std::pair<Particles, uint64_t>{cloud, stream.drawn()};
+  };
+
+  // The weight nobody stated: one for every birth, and seven words a
+  // birth exactly as the attribute list alone asks for.
+  const auto [ones, wordsForOnes] = run(plain);
+  EXPECT_EQ(wordsForOnes, 500u * 7u);
+  for (const float weight : ones.points.mass) EXPECT_FLOAT_EQ(weight, 1.0f);
+
+  // A weight stated as a middle with no raggedness: still no word, so
+  // every position, velocity and attribute of the cloud is where it was.
+  Emitter stated = plain;
+  stated.mass = {.mean = 3.0f};
+  const auto [threes, wordsForThrees] = run(stated);
+  EXPECT_EQ(wordsForThrees, 500u * 7u);
+  EXPECT_EQ(threes.points.position, ones.points.position);
+  EXPECT_EQ(threes.points.velocity, ones.points.velocity);
+  EXPECT_EQ(threes.attribute("size")->values, ones.attribute("size")->values);
+  for (const float weight : threes.points.mass) EXPECT_FLOAT_EQ(weight, 3.0f);
+
+  // And the raggedness is what costs the word: the same emitter with a
+  // variation on it spends one more and no longer replays that cloud.
+  Emitter ragged = stated;
+  ragged.mass.variation = 0.5f;
+  const auto [drawn, wordsForDrawn] = run(ragged);
+  EXPECT_EQ(wordsForDrawn, 500u * 8u);
+  EXPECT_NE(drawn.points.position, ones.points.position);
+}
+
+TEST(Particles, AHeavierParticleMovesLessUnderTheSamePush) {
+  Emitter mouth = fountain();
+  mouth.speed = {};
+  mouth.cone = 0.0f;
+  mouth.from = EmitFrom::Point;
+  mouth.mass = {.mean = 3.0f, .variation = 2.0f};
+
+  chance::Stream stream = chance::Stream::pcg(5);
+  Particles cloud;
+  mouth.burst(cloud, stream, 200);
+
+  // The same PUSH on every one of them — a force lane the caller loads,
+  // not an acceleration, since an acceleration is what weight is taken
+  // out of.
+  for (Vec2& push : cloud.points.force) push = {0.0f, 600.0f};
+  const Verlet stepper{.dt = 1.0f / 60.0f};
+  stepper.step(cloud.points, {});
+
+  size_t lightest = 0, heaviest = 0;
+  for (size_t i = 0; i < cloud.size(); ++i) {
+    if (cloud.points.mass[i] < cloud.points.mass[lightest]) lightest = i;
+    if (cloud.points.mass[i] > cloud.points.mass[heaviest]) heaviest = i;
+  }
+  ASSERT_GT(cloud.points.mass[heaviest], cloud.points.mass[lightest]);
+
+  const float lightMoved = cloud.points.velocity[lightest].y;
+  const float heavyMoved = cloud.points.velocity[heaviest].y;
+  EXPECT_GT(lightMoved, heavyMoved);
+  // And by the ratio of the two weights, since a step divides the push it
+  // was given by what it is pushing. The slack is the step's own: the
+  // velocity a step answers is recovered from where the point ended up
+  // rather than from the number that moved it.
+  const float lightPush = lightMoved * cloud.points.mass[lightest];
+  const float heavyPush = heavyMoved * cloud.points.mass[heaviest];
+  EXPECT_NEAR(lightPush, heavyPush, std::abs(heavyPush) * 1e-3f);
 }
 
 TEST(Particles, ASpreadIsAMiddleARaggednessAndAScale) {

@@ -31,9 +31,7 @@ Taken on the merged tree after the extractions and the file splits:
 
 ## Rulings
 
-- Four growths are taken now: a neighbour index over motion's points so
-  a flock stops comparing every pair; a per-particle mass drawn like
-  the other birth attributes; percentage column widths on the table; and
+- Two growths are taken now: percentage column widths on the table; and
   an edge mask on the bevel pair so winamp's doubled edge composes.
 - The promotion tier's remaining twelve stay recorded as the
   measurement with their next probes; the research resumes at the

@@ -145,8 +145,16 @@ size_t Emitter::burst(Particles& particles, core::chance::Stream& stream,
     const Vec2 heading =
         aim * std::cos(off) + sideways * (std::sin(off) * side);
 
-    const size_t index =
-        particles.add(place, heading * speed.draw(stream), 0.0f, mass);
+    // Sequenced, not two draws inside one call: which argument of a call
+    // is evaluated first is nobody's promise, and a cloud a seed replays
+    // would then depend on which compiler built the library.
+    const Vec2 thrown = heading * speed.draw(stream);
+    // A WEIGHT STATED AS ONE NUMBER IS STAMPED RATHER THAN DRAWN, and
+    // costs no word — the answer is the same either way, and spending
+    // one would put a range nobody uses between a cloud and the seed
+    // that replays it.
+    const float weight = mass.varies() ? mass.draw(stream) : mass.constant();
+    const size_t index = particles.add(place, thrown, 0.0f, weight);
     for (size_t i = 0; i < attributes.size(); ++i)
       (*drawnInto[i])[index] = attributes[i].drawn.draw(stream);
     for (size_t i = 0; i < fixed.size(); ++i)

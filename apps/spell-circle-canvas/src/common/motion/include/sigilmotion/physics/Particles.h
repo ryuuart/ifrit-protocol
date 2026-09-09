@@ -42,10 +42,12 @@ namespace sigil::motion::physics {
  *  smaller scale, and reading a recipe back off a pre-multiplied pair is
  *  arithmetic nobody does by eye.
  *
- *  IT ALWAYS DRAWS. A variation of zero still spends a word, so a birth
- *  costs the same number of words whatever the numbers on it are and two
- *  runs of the same emitter over the same stream stay in step even when
- *  one of its attributes is a constant.
+ *  `draw` ALWAYS SPENDS A WORD. A variation of zero still draws, so a
+ *  birth's attributes cost the same number of words whatever the numbers
+ *  on them are and two runs of the same emitter over the same stream stay
+ *  in step even when one of them is a constant. `constant` beside it is
+ *  the same answer without the word, for the one prop that must not
+ *  spend one.
  *
  *  It is a `chance` shape — an `Answer` and a `draw` — so a stream
  *  samples it the way it samples the stock distributions. */
@@ -61,6 +63,15 @@ struct Roughly {
   [[nodiscard]] Answer draw(core::chance::Stream& stream) const {
     return (mean + stream.signedUnit() * variation) * scale;
   }
+
+  /** Whether a draw off this can answer anything but `constant()`. */
+  [[nodiscard]] bool varies() const { return variation != 0.0f; }
+  /** THE ONE ANSWER A DRAW GIVES WHEN IT DOES NOT VARY, arrived at
+   *  without spending a word: nothing times whatever a stream answered
+   *  is nothing, so this is `draw` with the draw taken out of it. What
+   *  it is for is the place where a range that does not use itself must
+   *  not cost a word — never the birth attributes, which always draw. */
+  [[nodiscard]] float constant() const { return mean * scale; }
 
   bool operator==(const Roughly&) const = default;
 };
@@ -261,10 +272,11 @@ struct FixedAttribute {
  *
  *  THE DRAWS COME OFF THE STREAM IN ONE ORDER, and the order is part of
  *  what an emitter IS: the place, then the angle off the aim, then which
- *  side of the aim, then the speed, then `attributes` in the order they are
- *  written. A consumer that replays a seed gets the same cloud back only
- *  because that order is fixed, so an attribute is added at the END of the list
- *  when an existing cloud must not move. */
+ *  side of the aim, then the speed, then the weight where it varies, then
+ *  `attributes` in the order they are written. A consumer that replays a
+ *  seed gets the same cloud back only because that order is fixed, so an
+ *  attribute is added at the END of the list when an existing cloud must
+ *  not move. */
 struct Emitter {
   /** The shape of the mouth. */
   EmitFrom from = EmitFrom::Point;
@@ -285,10 +297,21 @@ struct Emitter {
   /** How fast a birth is thrown. Negative speeds throw it backwards,
    *  which is a plume falling into its own mouth. */
   Roughly speed{};
-  /** What a birth weighs. Every birth weighs the same, because a weight
-   *  drawn per particle is an attribute like any other: write `points.mass`
-   *  over the rows a birth answers. */
-  float mass = 1.0f;
+  /** WHAT A BIRTH WEIGHS, drawn from a range like everything else a
+   *  birth is given, and drawn right after the speed — the two things
+   *  the point set itself carries away from a birth.
+   *
+   *  A WEIGHT THAT DOES NOT VARY COSTS NO WORD. `Roughly::constant` is
+   *  what the draw would have answered, reached without spending one, so
+   *  an emitter stating a weight as a single number costs exactly what
+   *  its attributes cost and a cloud a seed replays does not move
+   *  because a weight was given a range it does not use. That is the
+   *  bargain `fixed` strikes, and it is why this one prop stands outside
+   *  the rule the attribute list is held to.
+   *
+   *  Zero or less is IMMOVABLE wherever the point set reads it, so a
+   *  range reaching through zero throws walls into a cloud. */
+  Roughly mass{.mean = 1.0f};
   /** The attributes a birth fills, drawn in this order. */
   std::vector<BirthAttribute> attributes;
   /** The attributes a birth fills with a number rather than a draw. */

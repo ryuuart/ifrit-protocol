@@ -162,6 +162,7 @@ const Emitter mouth{
     .aim = {0, -1},
     .cone = 0.6f,                              // the ejection cone
     .speed = {.mean = 180.0f, .variation = 60.0f},
+    .mass = {.mean = 1.0f, .variation = 0.4f},  // and what it weighs
     .attributes = {{std::string(kLife), {.mean = 1.4f, .variation = 0.5f}},
               {"size", {.mean = 4.0f, .variation = 1.6f}},
               {"red", {.mean = 1.0f, .variation = 0.35f}}},
@@ -188,10 +189,24 @@ stream samples it the way it samples `core::chance::Gaussian`.
 
 **A birth costs the same words whatever the numbers are.** A variation of
 zero still draws, and the draws come off the stream in one order: the
-place, the angle off the aim, which side of the aim, the speed, then
-`Emitter::attributes` in the order they are written. That order is part of
-what an emitter IS — it is why a seed replays a cloud — so an attribute is
-added at the END of the list when an existing cloud must not move.
+place, the angle off the aim, which side of the aim, the speed, the
+weight where it varies, then `Emitter::attributes` in the order they are
+written. That order is part of what an emitter IS — it is why a seed
+replays a cloud — so an attribute is added at the END of the list when an
+existing cloud must not move.
+
+**`Emitter::mass` is a range like the rest, with one exception written
+into it**: a weight that does not vary is STAMPED rather than drawn and
+costs no word. `Roughly::constant` is what the draw would have answered
+— nothing times whatever a stream said is nothing — so an emitter
+stating a weight as a single number costs exactly what its attributes
+cost, and a cloud a seed replays does not move because a weight was
+given a range it does not use. It is the bargain `Emitter::fixed`
+strikes, and it is the one place `Roughly` is read without spending a
+word; a birth attribute always draws. What a drawn weight then means is
+the stepper's: a force is divided by the mass it is pushing, so a heavy
+particle in the same wind moves less, while `gravity` is stated as an
+acceleration and carries the whole cloud down together.
 Nothing here reads a wall clock: `Emitter::emit` is handed a span of
 time and `Emitter::carry` holds the fraction of a particle it left over,
 so a rate finer than one birth per step still arrives at that rate.
