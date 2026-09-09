@@ -48,3 +48,13 @@ add_subdirectory(encode)
 sigil_library(SigilVideo
   HEADERS Video.h
   INTERFACE SigilVideoDecode SigilVideoEncode)
+
+# Every API name the prose spells, compiled against the headers that own
+# it. SigilIO is scanned and linked for the two byte sinks the encoding
+# walkthrough hands a finished file to.
+sigil_doc_probes(video
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../io/include/sigilio
+  PRELUDES "<sigilio/hub/Hub.h>"
+  FLOORS 2,5,2,0,0
+  LIBRARIES SigilVideo SigilIOHub)

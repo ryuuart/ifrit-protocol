@@ -20,3 +20,10 @@ add_subdirectory(check)
 sigil_library(SigilMeasure
   HEADERS Measure.h
   INTERFACE SigilMeasureStats SigilMeasureTime SigilMeasureCheck)
+
+# Every API name the prose spells, compiled against the headers that own
+# it.
+sigil_doc_probes(measure
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  FLOORS 2,0,0,0,0
+  LIBRARIES SigilMeasure)

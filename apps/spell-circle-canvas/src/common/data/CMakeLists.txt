@@ -21,3 +21,10 @@ add_subdirectory(decode)
 sigil_library(SigilData
   HEADERS Data.h
   INTERFACE SigilDataScale SigilDataTable SigilDataDecode)
+
+# Every API name the prose spells, compiled against the headers that own
+# it.
+sigil_doc_probes(data
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  FLOORS 4,0,0,0,0
+  LIBRARIES SigilData)
