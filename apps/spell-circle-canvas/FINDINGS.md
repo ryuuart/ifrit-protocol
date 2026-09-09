@@ -113,3 +113,23 @@ ones found so far
 `ComposeCache.ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves`,
 `ComposeCache.APromotedShapeKeepsTheInkItDrawsOutsideItsBox` and
 `ComposePaintBounds.ADeclaredShapeBoundsEveryLayerTheNodeIsGiven`).
+
+## The IO hub's network cache lives under the temp directory
+
+`sigil::io::defaultNetworkCacheDir()` answers the process temp directory
+plus `sigilio-net-cache`, and macOS purges files under the temp
+directory that have not been touched for three days. A plate sweep does
+not fetch, so a scene whose assets are network-fetched (`twoadvanced_v4`,
+`twoadvanced_equipment`) drops out of the sweep as SKIPPED on a machine
+that has been up long enough, and comes back only after a live render
+fetches again; the sweep's scene count silently narrows from 195 to 193.
+
+Intended: a cache that a lane depends on outlives the OS's temp policy —
+the platform cache location (`~/Library/Caches` on macOS), where
+Sketchbook already keeps its thumbnails, is the door the hub should
+take by default, with the temp directory only where no platform cache
+exists.
+
+Assert once fixed: the default network cache directory is under the
+platform cache location, and a sweep on a machine that rendered those
+scenes a week ago still renders them.
