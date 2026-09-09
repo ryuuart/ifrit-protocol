@@ -529,8 +529,10 @@ function(sigil_doc_probes library)
   foreach(dir IN LISTS includes)
     list(APPEND args --include ${dir})
   endforeach()
-  list(APPEND args --library "${SIGIL_HEADER_NAMESPACE}"
-                   --namespace ${ARG_NAMESPACE}
+  if(SIGIL_HEADER_NAMESPACE)
+    list(APPEND args --library ${SIGIL_HEADER_NAMESPACE})
+  endif()
+  list(APPEND args --namespace ${ARG_NAMESPACE}
                    --suite ${Library}Docs
                    --floors ${ARG_FLOORS}
                    --prelude "<gtest/gtest.h>")

@@ -54,3 +54,20 @@ sigil_add_docs(
   MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
   STRIP
         ${CMAKE_CURRENT_SOURCE_DIR}/.)
+
+# Every API name the prose spells, compiled against the headers that own
+# it. This module's surface is QML, and a QML type name is not a C++ name
+# the guard can see: what it checks here is the C++ header beside them and
+# anything qualified the page grows later. The dependency targets the
+# page names are CMake's own.
+sigil_doc_probes(ui
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
+  NAMESPACE ifrit::ui
+  PRELUDES "<WindowChrome.h>"
+  EXCLUDE "Qt6::Quick=a CMake target name, not a C++ name"
+          "Qt6::QuickControls2=a CMake target name, not a C++ name"
+          "Qt6::QuickLayouts=a CMake target name, not a C++ name"
+  SUPPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+  FLOORS 0,0,0,0,0
+  LIBRARIES IfritUi)
