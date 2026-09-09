@@ -33,6 +33,27 @@ std::shared_ptr<const Recipe> twoRecipe(const char* name = "two") {
       Target::SkSL, "half4 main(float2 p) { return half4(uColor * uScale); }"));
 }
 
+/** A stand-in Slang compiler, so `over()` builds the COMPOSED recipe.
+ *  A stack is composed only where a compiler that cannot reach a child
+ *  material is installed; one built without it carries the plain
+ *  three-slot recipe, which asks the composition cache nothing. */
+std::shared_ptr<Program> slangStandIn(std::shared_ptr<const Recipe> recipe,
+                                      Variant variant, std::string&) {
+  return std::make_shared<Program>(std::move(recipe), Target::Slang, variant);
+}
+
+/** A recipe whose Slang body spells @p mark, so the text of a
+ *  composition says which definitions were inlined into it. */
+std::shared_ptr<const Recipe> markedRecipe(const char* name, const char* mark) {
+  return std::make_shared<const Recipe>(Recipe::of<TwoParams>(name).body(
+      Target::Slang, std::string("float4 surface(float2 p) { return ") + mark +
+                         "(uColor * uScale); }"));
+}
+
+Material marked(const std::shared_ptr<const Recipe>& recipe) {
+  return Material(recipe, TwoParams{1, {1, 1, 1, 1}});
+}
+
 /** THE THREE OPERANDS every stacking case below is built from. */
 struct Operands {
   std::shared_ptr<const Recipe> recipe = twoRecipe();
@@ -75,6 +96,74 @@ TEST(Stacking, UnderWalksOneStepDownSoRepeatingItReachesTheBottom) {
   EXPECT_EQ(stackDepth(deeper), 2);
   EXPECT_EQ(*under(deeper), stack);
   EXPECT_EQ(*under(*under(deeper)), o.base);
+}
+
+TEST(Stacking, TheCompositionIsHeldUnderItsOperandsAndNotUnderTheirAddresses) {
+  registerCompiler(Target::Slang, slangStandIn);
+  const std::shared_ptr<const Recipe> base = markedRecipe("stack.key.a", "aye");
+  const std::shared_ptr<const Recipe> mask = markedRecipe("stack.key.m", "em");
+  std::shared_ptr<const Recipe> b = markedRecipe("stack.key.b", "bee");
+
+  // The stack itself is let go of, because a stack keeps its operands as
+  // its children: while one stands, so does every definition under it,
+  // and the question below is what happens when none does. The
+  // composition is kept, and it holds nothing of its operands but their
+  // inlined text.
+  std::shared_ptr<const Recipe> composedWithB;
+  {
+    const Material withB = over(marked(base), marked(b), marked(mask));
+    composedWithB = withB.recipePtr();
+  }
+  const std::string* bodyB = composedWithB->body(Target::Slang);
+  ASSERT_NE(bodyB, nullptr);
+  EXPECT_NE(bodyB->find("bee"), std::string::npos);
+
+  // THE HAZARD: a definition freed and a second allocated where it stood
+  // would inherit the first's composition, and the stack would be drawn
+  // with a body its own operand never wrote. It cannot happen, because
+  // the cache HOLDS the three definitions it composed: with the stack
+  // gone and the caller's own reference dropped, the definition is
+  // standing still, so no later recipe can be built at its address.
+  const std::weak_ptr<const Recipe> watch = b;
+  const Recipe* stood = b.get();
+  b.reset();
+  ASSERT_FALSE(watch.expired());
+
+  const std::shared_ptr<const Recipe> c = markedRecipe("stack.key.c", "cee");
+  EXPECT_NE(c.get(), stood);
+
+  // A fresh operand is a fresh key, and what comes back is the
+  // composition of THIS stack's three bodies.
+  const Material withC = over(marked(base), marked(c), marked(mask));
+  EXPECT_NE(withC.recipePtr(), composedWithB);
+  const std::string* bodyC = withC.recipe().body(Target::Slang);
+  ASSERT_NE(bodyC, nullptr);
+  EXPECT_NE(bodyC->find("cee"), std::string::npos);
+  EXPECT_EQ(bodyC->find("bee"), std::string::npos);
+}
+
+TEST(Stacking, OneCompositionServesEveryStackOverTheSameThreeDefinitions) {
+  registerCompiler(Target::Slang, slangStandIn);
+  const std::shared_ptr<const Recipe> base = markedRecipe("stack.one.a", "aye");
+  const std::shared_ptr<const Recipe> top = markedRecipe("stack.one.t", "tee");
+  const std::shared_ptr<const Recipe> mask = markedRecipe("stack.one.m", "em");
+
+  // While the definitions live, two stacks over them are one definition,
+  // one program and one pipeline — the whole reason the composition is
+  // cached rather than written per call.
+  const Material first = over(marked(base), marked(top), marked(mask));
+  const Material again = over(marked(base), marked(top), marked(mask));
+  EXPECT_EQ(first.recipePtr(), again.recipePtr());
+
+  // The blend and each operand are all in the key.
+  EXPECT_NE(
+      over(marked(base), marked(top), marked(mask), Blend::Add).recipePtr(),
+      first.recipePtr());
+  const std::shared_ptr<const Recipe> other = markedRecipe("stack.one.o", "oh");
+  EXPECT_NE(over(marked(base), marked(other), marked(mask)).recipePtr(),
+            first.recipePtr());
+  EXPECT_EQ(over(marked(base), marked(top), marked(mask)).recipePtr(),
+            first.recipePtr());
 }
 
 // ---- the bank ---------------------------------------------------------------

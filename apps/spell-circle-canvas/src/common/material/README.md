@@ -429,7 +429,11 @@ the composed body; the operand still rides every query as a child, so the
 stack still reports itself animated. The composition costs one recipe and
 one program per distinct triple of definitions and buys nothing for a
 target that samples its operands, so it is built only where a compiler
-that needs it is installed. `Target::Slang` is the one such target,
+that needs it is installed. The triple is identified by the definitions
+themselves and the cache HOLDS them, so a definition that has been
+composed stands for as long as its composition does — which is what
+keeps a later recipe built at a freed one's address from inheriting a
+body it never wrote. `Target::Slang` is the one such target,
 and `stackName(blend)` is the name every stack of a blend carries.
 
 A composed stack therefore carries slots for two languages at once, and
