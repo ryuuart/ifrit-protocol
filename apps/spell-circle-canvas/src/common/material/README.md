@@ -506,7 +506,11 @@ toward the limb and toward the poles falls out of the arithmetic instead
 of being drawn. `GlobeParams`'s `ambient` and `diffuse` are what a point
 keeps at the limb and what it gains facing the eye, which is the whole of
 what makes the disc read as a ball, and the alpha falls to nothing across
-`edgeFeather` so nothing outside the disc is painted.
+`edgeFeather` so nothing outside the disc is painted. The reading is ONE
+TEXT: written in Slang and crossed into SkSL the way the grained four's
+noise is, with each target's body that reading plus the one line that
+spells the return in that target's own types, so a globe on a device and
+a globe on a raster surface are the same ball.
 
 The gel and
 chrome tables — `aquaBodyRamp`, `aquaGlowRamp`, `chromeRamp`,
@@ -588,6 +592,17 @@ written out as polynomials for the reason a portable subset exists at
 all: a library `atan2` is two pieces of code on two targets, and an
 equirect lookup that disagreed between them would put a seam down the
 middle of a reflection.
+
+`skSLFromSlang` is that crossing, and any text may be handed to it. It
+takes off the module line and the export qualifiers and renames the three
+intrinsics the languages spell differently — `frac` to `fract`, `lerp` to
+`mix`, and `atan2` to the two-argument `atan`, whose arguments SkSL takes
+in the same order Slang does. Whole identifiers only, so `atan2P` and a
+`fraction` are left alone, which is what lets one table serve the terms
+and a kit body at once. Everything else has to be spelled the same in
+both, and a source written for this crossing accepts that in exchange for
+being one source: no texture sampling, no construct one language has and
+the other does not.
 
 **The metallic-roughness surface** is `kit::SurfaceParams` — base
 colour, metallic, roughness, emission, the normal convention, the channel

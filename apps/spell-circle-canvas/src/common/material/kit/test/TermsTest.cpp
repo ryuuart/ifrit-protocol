@@ -38,16 +38,16 @@ struct NoParams {
   float unused = 0;
 };
 
-SkColor4f term(const std::string& expression) {
+/** ONE BODY, EVALUATED: compiled through the Skia backend and drawn over
+ *  one texel of a float surface. */
+SkColor4f shadeBody(const std::string& body) {
   skia::install();
   static int serial = 0;
   const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<NoParams>("term." + std::to_string(serial++))
-          .body(Target::SkSL, termsSource(Target::SkSL) +
-                                  "half4 main(float2 xy) { return half4(" +
-                                  expression + "); }"));
+          .body(Target::SkSL, body));
   sk_sp<SkShader> shader = skia::shader(Material(recipe, NoParams{}), {});
-  EXPECT_TRUE(shader) << expression;
+  EXPECT_TRUE(shader) << body;
   if (!shader) return {0, 0, 0, 0};
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
       SkImageInfo::Make(1, 1, kRGBA_F32_SkColorType, kPremul_SkAlphaType));
@@ -60,6 +60,12 @@ SkColor4f term(const std::string& expression) {
       SkImageInfo::Make(1, 1, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
   EXPECT_TRUE(surface->readPixels(SkPixmap(one, px, sizeof(px)), 0, 0));
   return {px[0], px[1], px[2], px[3]};
+}
+
+SkColor4f term(const std::string& expression) {
+  return shadeBody(termsSource(Target::SkSL) +
+                   "half4 main(float2 xy) { return half4(" + expression +
+                   "); }");
 }
 
 /** The red channel of a term that answers one number. */
@@ -221,6 +227,31 @@ TEST(Terms, TheExposureMultipliesTheRadianceBeforeTheCurve) {
 
 TEST(Terms, TheToneCurveNeverReachesWhite) {
   EXPECT_LT(scalar("toneMap(float3(100.0, 100.0, 100.0), 1.0).r"), 1.0f);
+}
+
+TEST(Terms, ABodyWrittenWithAtan2CrossesIntoTheTwoArgumentAtan) {
+  // Slang spells the four-quadrant arctangent `atan2(y, x)` and SkSL
+  // spells it `atan(y, x)`: the same two arguments in the same order, so
+  // the crossing is the rename and nothing else.
+  const std::string slang =
+      "public float bearing(float2 v) { return atan2(v.y, v.x); }\n";
+  const std::string sksl = skSLFromSlang(slang);
+  EXPECT_EQ(sksl, "float bearing(float2 v) { return atan(v.y, v.x); }\n");
+
+  // And the crossed text compiles and answers the angle: the second
+  // quadrant is three quarters of a half turn.
+  const SkColor4f answer = shadeBody(
+      sksl +
+      "half4 main(float2 xy) { return half4("
+      "half(bearing(float2(-1.0, 1.0)) / 3.14159274), 0.0, 0.0, 1.0); }");
+  EXPECT_NEAR(answer.fR, 0.75f, 2e-3f);
+
+  // Whole identifiers only, which is what lets one table serve the terms
+  // as well: their own polynomial arctangent — written out because a
+  // library `atan2` is two pieces of code on two targets and an equirect
+  // lookup that disagreed would seam a reflection — keeps its name.
+  EXPECT_NE(termsSource(Target::SkSL).find("float atan2P(float y, float x)"),
+            std::string::npos);
 }
 
 namespace {

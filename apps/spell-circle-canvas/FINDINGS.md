@@ -31,11 +31,10 @@ Taken on the merged tree after the extractions and the file splits:
 
 ## Rulings
 
-- Five growths are taken now: a neighbour index over motion's points so
+- Four growths are taken now: a neighbour index over motion's points so
   a flock stops comparing every pair; a per-particle mass drawn like
-  the other birth attributes; percentage column widths on the table;
-  an edge mask on the bevel pair so winamp's doubled edge composes; and
-  `atan2` in the Slang-to-SkSL crossing so the globe has both bodies.
+  the other birth attributes; percentage column widths on the table; and
+  an edge mask on the bevel pair so winamp's doubled edge composes.
 - The promotion tier's remaining twelve stay recorded as the
   measurement with their next probes; the research resumes at the
   owner's word.

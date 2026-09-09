@@ -2,7 +2,8 @@
  * The globe: the disc is inscribed in the node and nothing outside it is
  * painted, the sky stands over the ground, the attitude turns the sphere
  * under a fixed eye, the graticule's pitch is a prop, and the limb
- * darkens the way a ball does.
+ * darkens the way a ball does — and the reading is one text, crossed, so
+ * a device and a raster surface shade the same ball.
  */
 
 #include <gtest/gtest.h>
@@ -12,6 +13,7 @@
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <cmath>
+#include <string>
 
 #include "support/Shade.h"
 
@@ -50,6 +52,16 @@ TEST(Globe, TheDiscIsInscribedInTheNodeAndNothingOutsideItIsPainted) {
   EXPECT_TRUE(skia::shader(globe, {}));
   EXPECT_TRUE(globe.recipe().reads(FrameInput::Resolution));
   EXPECT_TRUE(globe.geometryDependent());
+  // One arithmetic, both languages: the reading is written in Slang and
+  // crossed, and each target's body is that reading plus its own entry.
+  EXPECT_TRUE(globe.recipe().has(Target::Slang));
+  EXPECT_TRUE(globe.recipe().has(Target::SkSL));
+  EXPECT_NE(
+      globe.recipe().source(Target::SkSL).find("float4 globeAt(float2 p)"),
+      std::string::npos);
+  EXPECT_NE(
+      globe.recipe().source(Target::Slang).find("float4 globeAt(float2 p)"),
+      std::string::npos);
 
   const SkBitmap picture = render(globe, 64, 64);
   // The corners are outside the inscribed disc and carry no coverage;

@@ -19,6 +19,11 @@
  * rule's width is measured in the sphere's space rather than in the
  * angle, and the crowding toward the limb and toward the poles comes out
  * of the arithmetic instead of being drawn.
+ *
+ * ONE TEXT, BOTH LANGUAGES. The whole reading is written in Slang and
+ * crossed into SkSL, and each target's body is that reading plus the one
+ * line that spells the return in its own types, so the ball a device
+ * shades and the ball a raster surface paints cannot part company.
  */
 
 #include <sigilmaterial/color/Color.h>

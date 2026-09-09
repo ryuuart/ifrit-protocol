@@ -40,9 +40,11 @@ namespace sigil::material {
 const std::string& termsSource(Target target);
 
 /** ONE TEXT, TWO LANGUAGES: @p slang read as SkSL. The module line and
- *  the export qualifiers come off, since SkSL has neither, and the two
- *  intrinsics the languages spell differently — `frac` and `lerp` — are
- *  written the way SkSL spells them. Everything else has to be spelled
+ *  the export qualifiers come off, since SkSL has neither, and the three
+ *  intrinsics the languages spell differently — `frac`, `lerp` and
+ *  `atan2`, whose two arguments are in the same order as SkSL's
+ *  two-argument `atan` — are written the way SkSL spells them.
+ *  Everything else has to be spelled
  *  the same in both, which is the constraint a source written for this
  *  crossing accepts in exchange for being one source: no texture
  *  sampling, no library transcendental whose two implementations could
