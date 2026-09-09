@@ -18,6 +18,7 @@
 
 #include <atomic>
 #include <barrier>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -41,6 +42,48 @@ TEST(IONetwork, CacheKeyKeepsUrlExtension) {
   // No extension in the URL path: bare hash, no trailing dot-noise.
   EXPECT_EQ(networkCacheKey("https://fake.invalid/api/blob").find('.'),
             std::string::npos);
+}
+
+TEST(IONetwork, DefaultCacheDirIsUnderThePlatformCacheLocation) {
+  // The OS evicts the temp directory on its own schedule, so a fetch a
+  // later run depends on cannot live there.
+  const fs::path fallback = fs::temp_directory_path();
+  const fs::path defaulted = defaultNetworkCacheDir();
+#if defined(_WIN32)
+  const char* local = std::getenv("LOCALAPPDATA");
+  const std::string root = local ? std::string(local) : "";
+#elif defined(__APPLE__)
+  const char* home = std::getenv("HOME");
+  const std::string root = home ? std::string(home) + "/Library/Caches" : "";
+#else
+  const char* xdg = std::getenv("XDG_CACHE_HOME");
+  const char* home = std::getenv("HOME");
+  const std::string root = xdg && *xdg
+                               ? std::string(xdg)
+                               : (home ? std::string(home) + "/.cache" : "");
+#endif
+  if (root.empty()) {
+    // No platform cache location: the temp directory is the door left.
+    EXPECT_EQ(defaulted.parent_path().parent_path(), fallback);
+  } else {
+    EXPECT_EQ(defaulted, fs::path(root) / "SigilIO" / "network");
+    EXPECT_NE(defaulted.parent_path().parent_path(), fallback);
+  }
+
+  // And a hub told where to put its cache puts it there instead: the
+  // fetched body lands under the override, not under the default.
+  const ScratchDir cache("sigilio_net");
+  const std::string url = "https://fake.invalid/overridden.txt";
+  const std::string body = "written where the hub was told";
+  Hub hub;
+  hub.setNetworkCacheDir(cache.path);
+  hub.setNetworkTransport([&](std::string_view) {
+    const auto* bytes = reinterpret_cast<const std::byte*>(body.data());
+    return std::vector<std::byte>(bytes, bytes + body.size());
+  });
+  ASSERT_EQ(hub.text(url), body);
+  EXPECT_TRUE(fs::exists(cache.path / networkCacheKey(url)));
+  EXPECT_FALSE(fs::exists(defaulted / networkCacheKey(url)));
 }
 
 TEST(IONetwork, SeededCacheServesWithoutNetwork) {

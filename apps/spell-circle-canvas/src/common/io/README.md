@@ -57,9 +57,10 @@ auto crate = hub.load<Mesh>("res://props/crate.obj");   // shared_ptr<const Mesh
 sigil::io::AnyByteSource source(hub);
 auto raw = source.fetch("res://data/table.bin");
 
-// Network resources need no mount; point the disk cache somewhere durable
-// if downloads should survive a reboot. A host with its own HTTP stack
-// hands in the function that answers a URL with its body.
+// Network resources need no mount; the disk cache already sits under the
+// platform's cache location, and this points it at an asset directory
+// instead. A host with its own HTTP stack hands in the function that
+// answers a URL with its body.
 hub.setNetworkCacheDir("/opt/myapp/assets/.netcache");
 hub.setNetworkPolicy(sigil::io::NetworkPolicy::Offline);
 hub.setNetworkTransport(myHttpClient);
@@ -243,6 +244,17 @@ it would invent a resource the server never served.
 stream closed clean, so a half-written file reads as a failure rather than
 as a shorter resource. A zero-length write still creates the file:
 emptiness is a value a resource may have.
+
+`defaultNetworkCacheDir()` is `SigilIO/network` under the platform's cache
+location — `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache`
+elsewhere, `%LOCALAPPDATA%` on Windows — and falls back to the system
+temporary directory only where the platform names no cache location. The
+temporary directory is not the default because the OS evicts it on its own
+schedule (macOS deletes what has not been touched for three days), and a
+lane that renders network-fetched assets without fetching depends on the
+cache still being there. The resolver reads the environment directly:
+SigilIO stands below every UI toolkit and cannot ask one where the caches
+go. `setNetworkCacheDir()` overrides it per hub.
 
 `networkCacheKey` builds its filename from `std::hash<std::string_view>`,
 which is implementation-defined. Cache directories are therefore not

@@ -45,8 +45,13 @@ using NetworkTransport =
 std::string networkCacheKey(std::string_view url);
 
 /** Where a hub given no cache directory of its own persists its fetches:
- *  "sigilio-net-cache" under the system's temporary directory. A
- *  caller with no hub in reach — a probe asking what is already on this
+ *  "SigilIO/network" under the platform's cache location — on macOS
+ *  ~/Library/Caches, elsewhere $XDG_CACHE_HOME or ~/.cache, on Windows
+ *  %LOCALAPPDATA% — and under the system's temporary directory only
+ *  where the platform names no cache location. A fetch that a later run
+ *  depends on has to outlive the temp directory's eviction policy,
+ *  which on macOS deletes anything untouched for three days. A caller
+ *  with no hub in reach — a probe asking what is already on this
  *  machine — looks under the same directory, so the two cannot drift. */
 std::filesystem::path defaultNetworkCacheDir();
 

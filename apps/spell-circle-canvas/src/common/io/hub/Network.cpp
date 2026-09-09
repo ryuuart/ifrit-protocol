@@ -10,6 +10,7 @@
 
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <optional>
 #include <sstream>
@@ -142,8 +143,39 @@ std::string networkCacheKey(std::string_view url) {
   return key;
 }
 
+namespace {
+
+/** The directory this platform keeps caches under, or nothing when the
+ *  platform names none: caches are the OS's to evict, and a cache that
+ *  a lane depends on has to outlive the temp directory's policy, which
+ *  on macOS deletes anything untouched for three days. Resolved from
+ *  the environment rather than from a UI toolkit, because SigilIO is
+ *  below every toolkit. */
+std::filesystem::path platformCacheRoot() {
+  const auto fromEnv = [](const char* name) -> const char* {
+    const char* value = std::getenv(name);
+    return (value && *value) ? value : nullptr;
+  };
+#if defined(_WIN32)
+  if (const char* local = fromEnv("LOCALAPPDATA")) return local;
+#elif defined(__APPLE__)
+  if (const char* home = fromEnv("HOME"))
+    return std::filesystem::path(home) / "Library" / "Caches";
+#else
+  if (const char* xdg = fromEnv("XDG_CACHE_HOME")) return xdg;
+  if (const char* home = fromEnv("HOME"))
+    return std::filesystem::path(home) / ".cache";
+#endif
+  return {};
+}
+
+}  // namespace
+
 std::filesystem::path defaultNetworkCacheDir() {
-  return std::filesystem::temp_directory_path() / "sigilio-net-cache";
+  const std::filesystem::path root = platformCacheRoot();
+  const std::filesystem::path base =
+      root.empty() ? std::filesystem::temp_directory_path() : root;
+  return base / "SigilIO" / "network";
 }
 
 void Hub::setNetworkCacheDir(std::filesystem::path dir) {

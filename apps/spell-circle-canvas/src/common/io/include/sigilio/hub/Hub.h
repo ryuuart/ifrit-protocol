@@ -23,9 +23,11 @@
  *
  * http:// and https:// URIs bypass mounts and fetch over the network
  * (libcurl: redirects followed, 20s timeout, HTTP errors fail).
- * Successful fetches persist in an on-disk cache (temp dir /
- * "sigilio-net-cache"; override via setNetworkCacheDir — point it
- * at an asset dir to make downloads survive reboots). Under the
+ * Successful fetches persist in an on-disk cache (the platform cache
+ * location / "SigilIO/network" — ~/Library/Caches on macOS,
+ * $XDG_CACHE_HOME or ~/.cache elsewhere — so a fetch outlives the temp
+ * directory's eviction policy; override via setNetworkCacheDir — point
+ * it at an asset dir to keep downloads beside the assets). Under the
  * default CacheFirst policy a cache hit never touches the network, so
  * offline runs keep working with no flag to set; setNetworkPolicy
  * picks Refresh (network first, cache as the fallback) or Offline
@@ -165,9 +167,11 @@ class Hub {
    *  mount matches — the URI is then tried as a plain path). */
   std::filesystem::path resolve(std::string_view uri) const;
 
-  /** Where network fetches persist (default: temp dir /
-   *  "sigilio-net-cache"). Files land under networkCacheKey(url);
-   *  a present file is served without touching the network. */
+  /** Where network fetches persist (default: the platform cache
+   *  location / "SigilIO/network", the temp directory only where the
+   *  platform names no cache location). Files land under
+   *  networkCacheKey(url); a present file is served without touching
+   *  the network. */
   void setNetworkCacheDir(std::filesystem::path dir);
 
   /** How http(s):// asks may use the network (default: CacheFirst). */
@@ -438,7 +442,7 @@ class Hub {
   std::vector<std::pair<std::string, std::filesystem::path>> m_mounts;
   boost::container::flat_map<std::string, Entry, std::less<>> m_entries;
   boost::container::flat_map<std::type_index, Redecode> m_decoders;
-  std::filesystem::path m_networkCacheDir;  // empty = the default temp dir
+  std::filesystem::path m_networkCacheDir;  // empty = defaultNetworkCacheDir()
   NetworkPolicy m_networkPolicy = NetworkPolicy::CacheFirst;
   NetworkTransport m_networkTransport;  // empty = libcurl
   std::shared_ptr<detail::Residency> m_residency;
