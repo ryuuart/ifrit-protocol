@@ -31,12 +31,45 @@ Taken on the merged tree after the extractions and the file splits:
 
 ## Rulings
 
-- Two growths are taken now: percentage column widths on the table; and
-  an edge mask on the bevel pair so winamp's doubled edge composes.
 - The promotion tier's remaining twelve stay recorded as the
   measurement with their next probes; the research resumes at the
   owner's word.
 - The three git stashes in the checkout are the owner's to inspect.
+
+## An aligned stroke sliced to chosen edges paints nothing
+
+`onEdges(mask, stroke(w, fill, PathFormat::Align::Inner))` draws no
+pixels at all. `EdgeSlice` rewrites `PaintContext::outline` to the
+sub-contours the mask selects, and an Inner- or Outer-aligned
+`PathFormat` strokes at double width and clips to `PaintContext::outline`
+— which is now those OPEN contours. An open contour bounds no area, so
+the clip is empty and the whole mark is thrown away. A centred stroke in
+the same place is unaffected, since it does not clip.
+
+Evidently intended: the stroke clipped to the SHAPE, so a per-edge
+border does not fatten the silhouette — which is what `Align::Inner`
+means everywhere else, and what every site that spells it here was
+written for.
+
+MEASURED, on `winamp_base`: the key's second edge line was
+`inset(n(1), onEdges(Bottom | Right, stroke(n(1), …, Align::Inner)))`
+and every pixel it claimed carried the button face instead. Drawing the
+same mark as the kit's masked bevel ring moved 6111 px of the frame,
+none of which had been painted by anything before.
+
+The same spelling stands at seventeen further sites, in
+`fallout2_charsheet`, `twoadvanced_v4`, `twoadvanced_v3` and
+`twoadvanced_equipment`; one of them names `Edge::All`, which slices the
+outline into four open runs and so bounds no area either. Their pictures
+are whatever those sketches look like WITHOUT the marks.
+
+Assert once fixed: a case in `compose_test` that an Inner-aligned stroke
+run through `onEdges` lands ink on the edges the mask names and none
+outside the silhouette, and one that the same decoration on a closed
+outline is unchanged. The fix is a decision the sites depend on — either
+`EdgeSlice` carries the closed outline for the alignment clip to use, or
+an alignment on an outline that bounds no area stops clipping and
+strokes centred — and the pictures of five sketches move with it.
 
 ## Automatic texture promotion moves 12 of 195 plates past the contract
 
