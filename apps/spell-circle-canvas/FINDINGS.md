@@ -31,9 +31,13 @@ Taken on the merged tree after the extractions and the file splits:
 
 ## Rulings
 
-- The six plates the declared-shape join moved beyond the two named
-  are rebased with the same cause: ink a layer was deleting, and
-  edges re-registered against a rect that grew.
+- The IO hub's network cache moves to the platform cache location, the
+  temp directory only where none exists.
+- Five growths are taken now: a neighbour index over motion's points so
+  a flock stops comparing every pair; a per-particle mass drawn like
+  the other birth attributes; percentage column widths on the table;
+  an edge mask on the bevel pair so winamp's doubled edge composes; and
+  `atan2` in the Slang-to-SkSL crossing so the globe has both bodies.
 - The promotion tier's remaining twelve stay recorded as the
   measurement with their next probes; the research resumes at the
   owner's word.
