@@ -260,6 +260,59 @@ TEST(ComposeTable, ADeclaredColumnKeepsItsWidthAndTheRestShareTheSurplus) {
   EXPECT_NEAR(grown.columnWidths[0], 40, 0.01f);
 }
 
+TEST(ComposeTable, APercentageColumnTakesItsShareOfTheRoomTheTableHas) {
+  // <COL WIDTH="30%"> in a <TABLE WIDTH=500>: 150 whatever is in it, and
+  // the two columns the markup left alone divide the 350 that is left by
+  // the auto rule, in proportion to what they hold.
+  const Table table{.width = 500, .declaredWidths = {pct(30), {}, {}}};
+  const Table::Grid grid =
+      table.solve(given({500, 100}, {{40, 20}, {30, 20}, {90, 20}},
+                        {claims(0, 0), claims(1, 0), claims(2, 0)}));
+  ASSERT_EQ(grid.columnWidths.size(), 3u);
+  EXPECT_NEAR(grid.columnWidths[0], 150, 0.01f);
+  EXPECT_NEAR(grid.columnWidths[1], 87.5f, 0.01f) << "30 of the 120 wanted";
+  EXPECT_NEAR(grid.columnWidths[2], 262.5f, 0.01f) << "90 of the 120 wanted";
+  EXPECT_NEAR(grid.columnX[1], 150, 0.01f);
+
+  // The share is of the ROOM the columns divide and not of the table's
+  // outer width: 500 less a 2 px gap at four places and 1 px of padding
+  // either side of three columns is 486, and 30 % of that is 145.8.
+  const Table spaced{
+      .width = 500, .spacing = 2, .padding = 1, .declaredWidths = {pct(30)}};
+  const Table::Grid inset =
+      spaced.solve(given({500, 100}, {{40, 20}, {30, 20}, {90, 20}},
+                         {claims(0, 0), claims(1, 0), claims(2, 0)}));
+  EXPECT_NEAR(inset.columnWidths[0], 145.8f, 0.01f);
+}
+
+TEST(ComposeTable, TwoPercentagesShareTheTableAndTheRestTakesWhatIsLeft) {
+  // A quarter and a half of a 400-wide table, with one auto column
+  // beside them: the stated pair take 100 and 200 and stand out of the
+  // division, and the last column has the remaining 100 to itself.
+  const Table table{.width = 400, .declaredWidths = {pct(25), pct(50), {}}};
+  const Table::Grid grid =
+      table.solve(given({400, 100}, {{20, 20}, {20, 20}, {40, 20}},
+                        {claims(0, 0), claims(1, 0), claims(2, 0)}));
+  ASSERT_EQ(grid.columnWidths.size(), 3u);
+  EXPECT_NEAR(grid.columnWidths[0], 100, 0.01f);
+  EXPECT_NEAR(grid.columnWidths[1], 200, 0.01f);
+  EXPECT_NEAR(grid.columnWidths[2], 100, 0.01f);
+  EXPECT_NEAR(grid.columnX[2], 300, 0.01f);
+}
+
+TEST(ComposeTable, APercentageTheContentWillNotFitIsWidenedByTheContent) {
+  // 10 % of 500 is 50 and the cell in the column is 80 wide. No column is
+  // narrower than the narrowest thing in it, whatever the markup asked
+  // for, so it resolves 80 — the rule a stated pixel width falls under —
+  // and the column beside it takes the whole 420 that is left.
+  const Table table{.width = 500, .declaredWidths = {pct(10), {}}};
+  const Table::Grid grid = table.solve(
+      given({500, 100}, {{80, 20}, {60, 20}}, {claims(0, 0), claims(1, 0)}));
+  ASSERT_EQ(grid.columnWidths.size(), 2u);
+  EXPECT_NEAR(grid.columnWidths[0], 80, 0.01f);
+  EXPECT_NEAR(grid.columnWidths[1], 420, 0.01f);
+}
+
 TEST(ComposeTable, AColumnNothingFillsCollapsesAndLeavesTheRestAlone) {
   // The page's empty <TD> is a real cell with nothing in it. Its column
   // takes no width and no share of the surplus, and the columns beside it

@@ -71,16 +71,26 @@ struct Table {
   float spacing = 0.0f;  ///< between cells — a table's cellspacing
   float padding = 0.0f;  ///< inside one — its cellpadding
 
-  /** THE WIDTH THE MARKUP GAVE A COLUMN, where it gave one; 0 is a column
-   *  sized by what is in it, and a list shorter than the grid leaves the
-   *  columns past its end sized that way too.
+  /** THE WIDTH THE MARKUP GAVE A COLUMN, where it gave one, as ONE length
+   *  per column: `Dim` in pixels (`120`, `120_px`), in percent
+   *  (`30_pct`), or `autoDim()` for a column sized by what is in it. A
+   *  width of no pixels is that same auto column, and a list shorter than
+   *  the grid leaves the columns past its end sized that way too.
    *
-   *  A declared column is FIXED: it takes no share of a surplus and gives
-   *  none up under a deficit, so a rail stated in the markup is the width
-   *  it was stated at whatever else the page does. What is in it can still
-   *  widen it — no column is narrower than the narrowest thing in it,
-   *  whatever the markup asked for. */
-  std::vector<float> declaredWidths;
+   *  A PERCENTAGE IS A SHARE OF THE ROOM THE COLUMNS DIVIDE — the table's
+   *  own width less its padding and spacing — so it can only be resolved
+   *  once the table's width is known, which is where the auto rule takes
+   *  it. The columns the markup left alone then divide what is left by
+   *  that rule.
+   *
+   *  A declared column is FIXED however it was stated: it takes no share
+   *  of a surplus and gives none up under a deficit, so a rail stated in
+   *  the markup is the width it was stated at whatever else the page
+   *  does. What is in it can still widen it — no column is narrower than
+   *  the narrowest thing in it, whatever the markup asked for, and a
+   *  percentage the content will not fit into is widened by the content
+   *  exactly as a stated pixel width is. */
+  std::vector<Dim> declaredWidths;
 
   /** WHAT A TABLE DOES WITH ROOM IT DOES NOT NEED. `Fill` takes the width
    *  it was given and shares the surplus across the columns, which is a
@@ -193,21 +203,31 @@ struct Table {
         topUp(least, spans[i], narrowest(i));
       }
 
-    // 3. A column the markup gave a width takes it, and stands out of
-    //    both divisions below — unless what is in it needs more room than
-    //    the markup asked for, which no column ever gives up.
-    std::vector<uint8_t> stated((size_t)cols, 0u);
-    for (size_t c = 0; c < declaredWidths.size() && c < (size_t)cols; ++c) {
-      if (declaredWidths[c] <= 0) continue;
-      stated[c] = 1u;
-      grid.columnWidths[c] = std::max(declaredWidths[c], least[c]);
-      least[c] = grid.columnWidths[c];
-    }
-
-    // 4. The room the table has against what the columns asked for.
+    // 3. The room the table has for columns, which is what a percentage
+    //    is a share of and what the two divisions below spend.
     const float table = width > 0 ? width : in.container.width();
     float room =
         table - ((float)cols * 2 * padding + (float)(cols + 1) * spacing);
+
+    // 4. A column the markup gave a width takes it, and stands out of
+    //    both divisions below — its pixels as stated, its percentage as
+    //    that share of the room — unless what is in it needs more room
+    //    than the markup asked for, which no column ever gives up.
+    std::vector<uint8_t> stated((size_t)cols, 0u);
+    for (size_t c = 0; c < declaredWidths.size() && c < (size_t)cols; ++c) {
+      const Dim& asked = declaredWidths[c];
+      const float px = asked.unit == Dim::Unit::Px ? asked.value
+                       : asked.unit == Dim::Unit::Pct
+                           ? room * asked.value / 100.0f
+                           : 0.0f;
+      if (px <= 0) continue;  // auto, and a width of nothing with it
+      stated[c] = 1u;
+      grid.columnWidths[c] = std::max(px, least[c]);
+      least[c] = grid.columnWidths[c];
+    }
+
+    // 5. What the columns the markup left alone asked for, against what
+    //    is left of the room once the stated ones have taken theirs.
     float wanted = 0, needed = 0;
     for (int c = 0; c < cols; ++c) {
       if (stated[(size_t)c]) {
@@ -242,7 +262,7 @@ struct Table {
         if (!stated[(size_t)c]) grid.columnWidths[(size_t)c] = least[(size_t)c];
     }
 
-    // 5. Rows, by the same first step…
+    // 6. Rows, by the same first step…
     for (size_t i = 0; i < spans.size(); ++i)
       if (spans[i].rows == 1 && (size_t)spans[i].row < grid.rowHeights.size())
         grid.rowHeights[(size_t)spans[i].row] = std::max(

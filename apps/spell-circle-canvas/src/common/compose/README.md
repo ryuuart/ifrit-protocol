@@ -715,6 +715,15 @@ which is what a browser does rather than dropping content.
 `Table::declaredWidths` is the width the markup gave a column, where it
 gave one — a fixed column, out of both divisions, which what is in it can
 still widen, since no column is narrower than the narrowest thing in it.
+It is ONE `Dim` per column, the same length the rest of the library is
+laid out in: pixels for a `<COL WIDTH=120>`, percent for a
+`<COL WIDTH="30%">`, and `autoDim()` — or no width at all — for a column
+sized by what is in it. A percentage is a share of the room the columns
+divide, the table's width less its padding and spacing, so it resolves
+only once the table's own width is known; the columns the markup left
+alone then divide what is left of that room by the auto rule above, and a
+percentage the content will not fit into is widened by the content
+exactly as a stated pixel width is.
 `Table::fit` is what the table does with room it does not need:
 `Table::Fit::Fill` shares the surplus, which is a table whose markup
 states a width, and `Table::Fit::Shrink` stops at the content, which is
