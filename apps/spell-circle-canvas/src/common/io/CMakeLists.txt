@@ -22,3 +22,23 @@ add_subdirectory(hub)
 sigil_library(SigilIO
   HEADERS IO.h
   INTERFACE SigilIOSource SigilIOHub)
+
+# Every API name the prose spells, compiled against the headers that own
+# it. SigilImage's decode leaf is scanned and linked because the hub
+# links it publicly: the probe and encode names the walkthrough writes
+# are that library's, reached through this one.
+#
+# The names it borrows from ABOVE are exempted instead — the brush
+# decoder is registered from SigilDrawBrush, which stands on this
+# library — as is the transport target, which is CMake's word and not a
+# C++ name at all.
+sigil_doc_probes(io
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../image/include/sigilimage
+  PRELUDES "<sigilimage/asset/ImageAsset.h>"
+           "<sigilimage/encode/Encode.h>"
+  EXCLUDE "format::BrushDecoder=SigilDrawBrush stands on this library, so its decoder is named and not probed"
+          "brush::Tool=SigilDrawBrush stands on this library, so its brush value is named and not probed"
+          "CURL::libcurl=a CMake target name, not a C++ name"
+  FLOORS 10,2,2,0,0
+  LIBRARIES SigilIO SigilImageDecode)
