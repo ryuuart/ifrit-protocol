@@ -60,3 +60,14 @@ sigil_bench(substance_bench
   SOURCES bench/SubstanceBench.cpp
   LIBRARIES SigilSubstance
   DEFINITIONS SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
+
+# Every API name the prose spells, compiled against the headers that own
+# it. SigilMaterial is scanned and linked for the surface recipe and the
+# texture set an imported graph becomes.
+sigil_doc_probes(substance
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial
+  PRELUDES "<sigilmaterial/kit/Surface.h>"
+           "<sigilmaterial/texture/TextureSet.h>"
+  FLOORS 8,0,0,0,0
+  LIBRARIES SigilSubstance SigilMaterial)

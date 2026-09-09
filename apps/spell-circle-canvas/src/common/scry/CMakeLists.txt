@@ -38,3 +38,18 @@ add_subdirectory(engine)
 
 sigil_library(SigilScry
   INTERFACE SigilScryPlatform SigilScryGpu SigilScryEngine)
+
+# Every API name the prose spells, compiled against the headers that own
+# it. SigilSkia is scanned and linked for the offscreen surface the host
+# hands this library, and the SDK's CMake targets are named in the
+# boundary section as the dependencies they are, not as C++ names.
+sigil_doc_probes(scry
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include/sigilskia
+           ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
+  PRELUDES "<sigilcore/hardware/GpuDevice.h>"
+           "<sigilskia/graphite/OffscreenSurface.h>"
+  EXCLUDE "Ultralight::Ultralight=a CMake target name, not a C++ name"
+          "Ultralight::AppCore=a CMake target name, not a C++ name"
+  FLOORS 2,0,0,0,0
+  LIBRARIES SigilScry SigilSkiaGraphite SigilCoreHardware)

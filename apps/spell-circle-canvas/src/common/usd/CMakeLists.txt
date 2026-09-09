@@ -30,3 +30,16 @@ add_subdirectory(read)
 
 sigil_library(SigilUsd
   INTERFACE SigilUsdRuntime SigilUsdWrite SigilUsdRead)
+
+# Every API name the prose spells, compiled against the headers that own
+# it. SigilGeometry and SigilWorld are scanned and linked because every
+# artefact this library reads or writes is one of theirs.
+sigil_doc_probes(usd
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry
+           ${CMAKE_CURRENT_SOURCE_DIR}/../world/include/sigilworld
+  PRELUDES "<sigilgeometry/mesh/Mesh.h>"
+           "<sigilgeometry/mesh/camera/Camera.h>"
+           "<sigilworld/light/Light.h>"
+  FLOORS 8,0,0,0,0
+  LIBRARIES SigilUsd SigilGeometry SigilWorldLight)

@@ -25,3 +25,17 @@ add_subdirectory(qt)
 
 sigil_library(SigilSkia
   INTERFACE SigilSkiaGraphite SigilSkiaDraw)
+
+# Every API name the prose spells, compiled against the headers that own
+# it. SigilCore is scanned and linked for the device seam this library
+# adopts a Vulkan device across; Qt's targets are named in the boundary
+# section as the dependencies they are, not as C++ names.
+sigil_doc_probes(skia
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
+  PRELUDES "<sigilcore/hardware/GpuDevice.h>"
+           "<include/gpu/ganesh/SkSurfaceGanesh.h>"
+  EXCLUDE "Qt6::Core=a CMake target name, not a C++ name"
+          "Qt6::GuiPrivate=a CMake target name, not a C++ name"
+  FLOORS 12,0,0,0,0
+  LIBRARIES SigilSkia SigilCoreHardware)
