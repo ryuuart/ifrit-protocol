@@ -502,7 +502,19 @@ in no header.
   edge, so a grid rounded to float before it is dualised does not blur,
   it tiles differently. The corners come back as one `vertices` list
   welded at `tolerance`, so two rhombs meeting at a corner name the same
-  vertex.
+  vertex. **The offsets have to be regular and a singular set is
+  refused**: a point that lines of three or more families run through has
+  no count of those families' lines, so which side of the third line it
+  is read on is settled by the last digit rather than by the geometry and
+  the rhomb moves a whole edge with the answer. Offsets are regular when
+  no point of the plane lies on three or more of the lines; a singular
+  set answers an empty tiling the way families that cannot span the plane
+  do. All-zero offsets are singular whatever the families, since line
+  zero of each runs through the origin, and a ring of three families is
+  singular exactly when its offsets sum to a whole number. For a longer
+  ring the sum decides nothing — five families at a fifth each sum to one,
+  are regular, and dualise into the tiling that is exactly fivefold about
+  the origin, which is what a caller reaching for zero offsets wanted.
 - **`path/Neighbours.h`** — the uniform grid, and the primitive under
   everything below it. `Neighbours` is built once from a set of points
   and copies them in, then answers `within()` (a radius, into a vector

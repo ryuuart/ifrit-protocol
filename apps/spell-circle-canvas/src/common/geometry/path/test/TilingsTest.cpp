@@ -228,3 +228,80 @@ TEST(Multigrid, TheBoundOnRhombsIsTheOneThingThatStopsIt) {
                                       {.radius = 12.0, .maxRhombs = 50});
   EXPECT_EQ(t.rhombs.size(), 50u);
 }
+
+TEST(Multigrid, AllZeroOffsetsPutEveryFamilyThroughOneOriginAndAreRefused) {
+  // Line zero of every family runs through the origin whatever the
+  // families are, so every crossing there is a point three or more lines
+  // share and no rhomb standing on it has a place.
+  for (int count : {3, 4, 5, 7})
+    EXPECT_TRUE(
+        multigrid(multigridRing(count, 0.0), {.radius = 6.0}).rhombs.empty())
+        << "ring of " << count;
+
+  // Not a ring: three directions of the caller's own, all in phase.
+  const MultigridFamily loose[3] = {{.normal = 0.0, .spacing = 1.0},
+                                    {.normal = 0.7, .spacing = 1.3},
+                                    {.normal = 1.9, .spacing = 0.8}};
+  EXPECT_TRUE(multigrid(loose, {.radius = 6.0}).rhombs.empty());
+}
+
+TEST(Multigrid, AThreeFamilyRingIsSingularWhenItsOffsetsSumToAWholeNumber) {
+  // Three normals over a whole turn sum to zero, so the three lines
+  // through a crossing close exactly when the offsets do — and being a
+  // condition on the sum alone, the coincidence repeats at every crossing
+  // in the plane rather than standing at one point.
+  EXPECT_TRUE(
+      multigrid(multigridRing(3, 1.0 / 3.0), {.radius = 6.0}).rhombs.empty());
+  EXPECT_TRUE(
+      multigrid(multigridRing(3, 2.0 / 3.0), {.radius = 6.0}).rhombs.empty());
+  const MultigridFamily uneven[3] = {
+      {.normal = 0.0, .offset = 0.1},
+      {.normal = 2.0 * std::numbers::pi / 3.0, .offset = 0.2},
+      {.normal = 4.0 * std::numbers::pi / 3.0, .offset = 0.7}};
+  EXPECT_TRUE(multigrid(uneven, {.radius = 6.0}).rhombs.empty());
+
+  // A hair off the whole number is a regular set, and it dualises whole:
+  // the refusal answers the coincidence and not its neighbourhood.
+  const MultigridTiling near =
+      multigrid(multigridRing(3, 1.0 / 3.0 + 1e-3), {.radius = 6.0});
+  ASSERT_FALSE(near.rhombs.empty());
+  for (const MultigridRhomb& r : near.rhombs)
+    EXPECT_NEAR(acuteDeg(near, r), 60.0, 1e-6);
+}
+
+TEST(Multigrid, ALongerRingSummingToAWholeNumberIsRegularAndComesBackWhole) {
+  // The sum decides the class for three families and nothing for more.
+  // Five at a fifth each sum to one, stand regular, and dualise into the
+  // patch they always did — the guard turns none of it away.
+  const std::vector<MultigridFamily> five = multigridRing(5, 1.0 / 5.0);
+  const MultigridTiling t = multigrid(five, {.radius = 12.0});
+  EXPECT_EQ((int)t.rhombs.size(), 605);
+  const std::vector<double> angles = acuteAngles(t);
+  EXPECT_EQ(countNear(angles, 72.0, 1e-6) + countNear(angles, 36.0, 1e-6),
+            (int)t.rhombs.size());
+
+  // And it is the exactly fivefold member: the symmetry a caller reaching
+  // for all-zero offsets was after is here, on a regular grid.
+  const double turn = 2.0 * std::numbers::pi / 5.0;
+  const double c = std::cos(turn), s = std::sin(turn);
+  int inside = 0, matched = 0;
+  for (const glm::dvec2& v : t.vertices) {
+    if (std::hypot(v.x, v.y) > 8.0) continue;
+    ++inside;
+    const glm::dvec2 spun{v.x * c - v.y * s, v.x * s + v.y * c};
+    matched +=
+        std::any_of(t.vertices.begin(), t.vertices.end(), [&](glm::dvec2 q) {
+          return std::hypot(q.x - spun.x, q.y - spun.y) < 1e-9;
+        });
+  }
+  EXPECT_GT(inside, 100);
+  EXPECT_EQ(matched, inside);
+
+  // The other two rings at their own regular offsets are untouched too.
+  EXPECT_EQ((int)multigrid(multigridRing(4, kPenroseOffset), {.radius = 12.0})
+                .rhombs.size(),
+            611);
+  EXPECT_EQ((int)multigrid(multigridRing(3, kPenroseOffset), {.radius = 12.0})
+                .rhombs.size(),
+            572);
+}

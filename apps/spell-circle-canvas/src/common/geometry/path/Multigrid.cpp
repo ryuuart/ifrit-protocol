@@ -46,6 +46,16 @@ class CornerWeld {
   boost::unordered_flat_map<int64_t, std::vector<int>> buckets_;
 };
 
+/** HOW NEAR A LINE A CROSSING HAS TO LAND to be standing on it, as a
+ *  fraction of the family's spacing. A regular grid's nearest miss
+ *  narrows as the patch widens, but it narrows by fractions of a spacing
+ *  and never approaches the width of a double's last digits; a singular
+ *  grid's coincidence is exact and lands inside this whatever the patch.
+ *  So the two are told apart here and not by any tolerance a caller
+ *  states, which is a distance in the tiling and not a place in a
+ *  ladder. */
+constexpr double kOnLine = 1e-9;
+
 }  // namespace
 
 std::vector<MultigridFamily> multigridRing(int count, double offset,
@@ -120,7 +130,6 @@ MultigridTiling multigrid(std::span<const MultigridFamily> families,
 
       for (int kr = -bound[(size_t)r]; kr <= bound[(size_t)r]; ++kr) {
         for (int ks = -bound[(size_t)s]; ks <= bound[(size_t)s]; ++ks) {
-          if ((int)out.rhombs.size() >= options.maxRhombs) return out;
           // The one point where line kr of family r meets line ks of
           // family s.
           const double a = ((double)kr - gr) * sr;
@@ -135,15 +144,30 @@ MultigridTiling multigrid(std::span<const MultigridFamily> families,
           glm::dvec2 z{0, 0};
           for (int j = 0; j < n; ++j) {
             const MultigridFamily& f = families[(size_t)j];
-            const int k = (j == r) ? kr
-                          : (j == s)
-                              ? ks
-                              : (int)std::ceil((zeta[(size_t)j].x * x.x +
-                                                zeta[(size_t)j].y * x.y) /
-                                                   f.spacing +
-                                               f.offset);
+            int k = 0;
+            if (j == r) {
+              k = kr;
+            } else if (j == s) {
+              k = ks;
+            } else {
+              const double rung =
+                  (zeta[(size_t)j].x * x.x + zeta[(size_t)j].y * x.y) /
+                      f.spacing +
+                  f.offset;
+              // THE SINGULAR CASE, AND THE ONLY PLACE IT CAN SHOW. A
+              // crossing standing ON a line of a third family has no
+              // count of that family's lines: the ceiling reads whichever
+              // side the last digit fell on, and the rhomb it places
+              // moves a whole edge with it. The offsets that put three
+              // lines through one point are refused rather than answered
+              // wrong.
+              if (std::abs(rung - std::round(rung)) < kOnLine) return {};
+              k = (int)std::ceil(rung);
+            }
             z = z + zeta[(size_t)j] * (double)k;
           }
+
+          if ((int)out.rhombs.size() >= options.maxRhombs) return out;
 
           const glm::dvec2 c[4] = {z, z + zr, z + zr + zs, z + zs};
           bool near = false;
