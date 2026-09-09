@@ -554,16 +554,21 @@ struct WinampBase : sketch::Sketch {
                                     {{0.0f, mskia::lighten(kBtnFace, 0.10f)},
                                      {0.55f, kBtnFace},
                                      {1.0f, dark(kBtnFace, 0.22f)}}));
-    raised(e);
-    // WINAMP'S DOUBLED BUTTON EDGE: the same bevel again one native px
-    // in. It is a HALF ring rather than the token set's inner one — a
-    // stroke on the two shaded edges alone, with no light opposite it,
-    // because the key's second line is a deepened shadow and not a
-    // second bevel; a pair there lights the top of a 3 px key.
-    e.foreground(inset(
-        n(1), onEdges(path::Edge::Bottom | path::Edge::Right,
-                      stroke(n(1), Fill::color(mskia::withAlpha(kBtnLo, 0.45f)),
-                             PathFormat::Align::Inner))));
+    // WINAMP'S DOUBLED BUTTON EDGE: the skin's bevel with a second ring
+    // one native px in, and that ring a HALF one — the two shaded sides
+    // with no light opposite them, because the key's second line is a
+    // deepened shadow and not a second bevel; a whole ring there lights
+    // the top of a 3 px key. Its ends are SLICED, so the shadow turns the
+    // bottom-right corner and stops rather than running up into the two
+    // corners the outer ring lights.
+    kit::Bevel edge = kit::bevels::skin(kBtnHi, kBtnLo, n(1));
+    edge.inner =
+        kit::BevelInner{.gap = n(1),
+                        .shadow = mskia::withAlpha(kBtnLo, 0.45f),
+                        .depth = n(1),
+                        .edges = path::Edge::Bottom | path::Edge::Right,
+                        .ends = styles::BevelEnds::Sliced};
+    kit::bevelled(e, edge);
     e.child(std::move(glyph));
     return e;
   }
