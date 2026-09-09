@@ -43,6 +43,63 @@ instruments carry one property each and are reached as
 `sigil::test::instrument::sans()` and its siblings; a fixture only one
 library asks for stays in that library's own `test/assets/`.
 
+### The documentation's names
+
+Every library's README compiles. `sigil_doc_probes()` — in
+`cmake/Sigil.cmake`, beside the other calls a library is built from —
+reads the documents it is given, extracts every name an author could copy
+out of them, and generates a translation unit of probes that only builds
+if the headers still spell those names that way. The generator FAILS on a
+documented name no header declares, so a rename the prose missed is a
+build break rather than a confident wrong answer, and prose written today
+is covered today with nothing registered by hand.
+
+```cmake
+sigil_doc_probes(<library>
+  READMES <file>...            # the library's canon: README and its chapters
+  [LIBRARIES <target>...]      # linked into the probes and the test binary
+  [INCLUDES <dir>...]          # further include roots the scanner reads
+  [PRELUDES <spelling>...]     # headers the translation unit opens with
+  [ALIASES <name>=<namespace>...]
+  [EXCLUDE <name>=<reason>...]
+  [SKIP_HEADERS <file name>...]
+  [FLOORS <usings,members,indexed,listed,designators>]
+  [NAMESPACE <namespace>] [SUPPORT_DIRS <dir>...] [DEFINITIONS <define>...])
+```
+
+WHAT IS CHECKED, and nothing else: every BACKTICKED qualified name —
+`shapes::polygon`, `PathFormat::effect` — and every designated
+initialiser, in fenced `cpp` blocks and in prose alike; and the BARE
+backticked names of a bullet that OPENS with a header path, which are
+looked up in that header's own text, since the bullet is the one place an
+unqualified name says what owns it. A bare name anywhere else is
+invisible to the guard, which is what lets a document spell a script
+verb, a QML type or a file name freely. Resolving one would mean
+resolving it the way a compiler does — scopes, using-directives, ADL —
+which the generator deliberately is not.
+
+A name the documents spell on purpose that cannot resolve goes in
+`EXCLUDE` with the reason: a qualified name that is not C++ at all (a
+CMake target such as `Qt6::Quick`), a dependency's own symbol whose
+include root is not given, or a name from a library that stands ON this
+one, which a lower library's test binary must not link. Every exemption
+is printed by name and reason in the coverage report, so what the guard
+deliberately does not check is visible rather than folded into a count.
+`SKIP_HEADERS` keeps a header behind an SDK or a UI toolkit out of the
+translation unit; `FLOORS` are the five minima the visible case asserts,
+which catch an extractor that stopped matching rather than an ordinary
+edit.
+
+The generator itself is `src/test/docs/api_doc_probes.py`, and its
+`--self-test` — one ctest entry, `api_doc_probes_self_test`, for the
+whole tree — runs its own in-script fixtures: a real name must probe, an
+unreal one must fail the run, an operator spelling must be exempted and
+reported, a header listing's bare names must be checked against the
+header they are listed under, and a Skia static-factory member must take
+the class-scope probe path. It is the only check that notices the
+EXTRACTOR narrowing, since a generator that silently probes less still
+emits a translation unit that compiles green.
+
 ## Configuring — `setup`
 
 The setup verb discovers Qt 6.11 or newer and vcpkg, writes the uncommitted

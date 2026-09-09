@@ -13,6 +13,14 @@ written for someone with no prior context and is verified against the
 code. Read the one next to the code you are changing before changing it;
 do not reconstruct a library's rules from another library's document.
 
+**Every library's README is compile-checked**, itself and its chapters:
+every qualified API name they spell must exist in a header, and a bullet
+that opens with a header path is an index of that header, so its bare
+names must exist there too. `sigil_doc_probes()` in `cmake/Sigil.cmake`
+is the one place the build knows a probe;
+`apps/spell-circle-canvas/scripts/README.md` states exactly what the
+guard checks and what it cannot see.
+
 - `apps/spell-circle-canvas/README.md` — the product: the data path,
   authoring scenes in Python, building and running
 - `src/sigilweave/README.md` — text shaping and layout, with
@@ -22,8 +30,7 @@ do not reconstruct a library's rules from another library's document.
   - `src/sigilweave/kit/README.md` — the companion utilities for
     SigilWeave consumers
 - `src/common/compose/README.md` — data-driven drawable components, with
-  `src/common/compose/TYPOGRAPHY.md` beside it for the type chapter (both
-  compile-checked: every API name they spell must exist in a header)
+  `src/common/compose/TYPOGRAPHY.md` beside it for the type chapter
 - `src/common/draw/README.md` — SigilDraw: an immediate-mode pen with
   p5's verbs, the imperative way beside compose
   - `src/common/draw/brush/README.md` — the brush chapter: natural media
