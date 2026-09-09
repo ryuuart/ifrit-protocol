@@ -50,8 +50,9 @@ enum class ForceKind : uint8_t {
   /** THE THREE STEERINGS OF A FLOCK, over whichever points are within
    *  `radius`: away from the ones too close, along with the ones nearby,
    *  and towards where they are. One force rather than three, because
-   *  the three share the neighbour search and running them apart would
-   *  do it three times. */
+   *  the three share one `Neighbourhood` over the set — built at the
+   *  reach this force asks for — and running them apart would build and
+   *  ask it three times. */
   Flock,
   /** The caller's own push, as a captureless function over the props.
    *  The escape hatch, and it is a plain function pointer so a force

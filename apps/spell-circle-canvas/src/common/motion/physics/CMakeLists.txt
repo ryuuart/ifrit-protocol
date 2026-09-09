@@ -14,14 +14,16 @@
 # header-only leaf over the standard library — the same kind of edge out
 # of this library the comparable pin is.
 sigil_library(SigilMotionPhysics
-  SOURCES Constraints.cpp Forces.cpp Particles.cpp Points.cpp Verlet.cpp
-  HEADERS Constraints.h Forces.h Particles.h Physics.h Points.h Verlet.h
+  SOURCES Constraints.cpp Forces.cpp Neighbourhood.cpp Particles.cpp Points.cpp
+          Verlet.cpp
+  HEADERS Constraints.h Forces.h Neighbourhood.h Particles.h Physics.h Points.h
+          Verlet.h
   PUBLIC SigilCoreCompute)
 
 # Links the feature alone: nothing here reads a clock, and a link edge
 # that pulled one in would show up as a build failure here.
 sigil_test(motion_test
-  SOURCES test/ParticlesTest.cpp test/PhysicsTest.cpp
+  SOURCES test/NeighbourhoodTest.cpp test/ParticlesTest.cpp test/PhysicsTest.cpp
   LIBRARIES SigilMotionPhysics)
 
 sigil_bench(motion_bench

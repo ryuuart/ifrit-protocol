@@ -6,6 +6,10 @@
 #include "sigilmotion/physics/Forces.h"
 
 #include <cmath>
+#include <cstdint>
+#include <vector>
+
+#include "sigilmotion/physics/Neighbourhood.h"
 
 namespace sigil::motion::physics {
 namespace {
@@ -68,18 +72,25 @@ void applyFlock(Points& points, const Force& force) {
   if (!(force.radius > 0.0f)) return;
   const float reachSquared = force.radius * force.radius;
   const size_t count = points.size();
+  // ONE GRID FOR THE WHOLE SET, at the reach that is about to be asked
+  // for: a query then costs what is NEAR a bird rather than what the
+  // flock is, which is the difference between a hundred birds and ten
+  // thousand. It is built here rather than handed in because a force is
+  // a value a scene carries as data and cannot own a step's scratch; a
+  // rebuild is two passes over the positions, against a query per point.
+  const Neighbourhood near(points.position, force.radius);
+  std::vector<uint32_t> found;
   for (size_t i = 0; i < count; ++i) {
     if (!points.movable(i)) continue;
     Vec2 away{}, heading{}, centre{};
     int neighbours = 0;
-    // EVERY PAIR. A neighbour index over the point set — a uniform grid
-    // or a tree built once per step — answers the same question in the
-    // time one query takes rather than the time the whole set does, and
-    // it is the same index a packing, a poisson scatter and a collision
-    // pass all want. This body is the one place that has to change when
-    // the tree grows one.
-    for (size_t j = 0; j < count; ++j) {
-      if (j == i) continue;
+    // The answer arrives in index order, so this sum is the sum a walk
+    // over every pair makes and a flock does not move because it was
+    // indexed. A point is its own neighbour and is dropped here, exactly
+    // as that walk drops it.
+    near.within(points.position[i], force.radius, found);
+    for (const uint32_t j : found) {
+      if ((size_t)j == i) continue;
       const Vec2 offset = points.position[j] - points.position[i];
       const float distanceSquared = offset.lengthSquared();
       if (distanceSquared > reachSquared || distanceSquared <= 0.0f) continue;

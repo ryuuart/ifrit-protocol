@@ -1,8 +1,9 @@
 # SigilMotion — the point set
 
 The chapter on the one feature here that is stepped rather than read:
-the attributes a simulation is, the forces that push on them, the constraints
-that hold them together, and the Verlet stepper over the three.
+the attributes a simulation is, the forces that push on them, the grid
+that answers which of them are near which, the constraints that hold
+them together, and the Verlet stepper over the three.
 `README.md` beside this file is the library; `VALUES.md` holds the spring
 that is the closed form of ONE value flying at a target, which is what
 this is many of.
@@ -65,7 +66,7 @@ force is `Uniform` (an acceleration, so weight does not enter it),
 `Drag`, `Attract` (negative strength is `repel`), `Wind` (a
 `core::noise::Field` read at the point and taken as an angle), `Flock`
 (the three steerings over the neighbours within a radius, sharing one
-neighbour search) or `Body`, the caller's own captureless function. A
+grid between them) or `Body`, the caller's own captureless function. A
 constraint is `Distance` — a BAND, `rest` to `rest + slack`, which is
 the stick, the spring and the rope in one value read three ways — or
 `Pin`, a point held where the caller puts it this frame. Both compare
@@ -87,12 +88,57 @@ solvable by walking the list a few times, and what makes a point stopped
 by a stick lose the speed the stick took without any force having said
 so. `iterations` is how many walks: more is stiffer, not more correct.
 
-**The flock compares every pair.** A neighbour index over the point set
-answers the same question in the time one query takes rather than the
-time the whole set does, and it is the same index a packing, a poisson
-scatter and a collision pass all want; the bench's `FlockStep` arm
-beside `ParticleStep` is what it would move, and `applyFlock` is the one
-body that changes when the tree grows one.
+## What is near what
+
+**One grid answers every question of the form "what is near here".**
+`Neighbourhood` indexes a run of positions and answers
+`Neighbourhood::within` — the indices inside a radius of a place — so
+the cost of asking follows how many points are NEAR one rather than how
+many there are at all. `Flock` builds one over the positions at its own
+reach and asks it once per point; a packing, a poisson scatter, a
+collision pass and a density gather are the same question and read the
+same index.
+
+```cpp
+Neighbourhood near(cloth.position, 40.0f);   // the reach about to be asked
+std::vector<uint32_t> found;
+for (size_t i = 0; i < cloth.size(); ++i) {
+  near.within(cloth.position[i], 40.0f, found);
+  crowding[i] = (float)found.size() - 1.0f;    // itself is in the answer
+}
+```
+
+**The answer comes back in index order**, and that is a promise rather
+than an accident of how the buckets are laid down. A force sums over the
+neighbours it finds, a sum of floats is not associative, and so an
+answer arriving in bucket order would give a different number from the
+walk over every pair that finds exactly the same neighbours — and a
+different number again on any day the cell size moved. Index order is
+the one order every way of finding neighbours agrees on, which is what
+makes the index a REPLACEMENT for the walk rather than a second answer.
+A point of the set is its own neighbour and comes back with the rest,
+because a coincident pair means one thing to a flock and another to a
+collision; dropping it is the caller's.
+
+**The cell size is the one dial.** Left at zero it is chosen so the
+average cell holds a couple of points; given explicitly it should be
+about the radius that will be asked for, since cells much smaller than
+the radius are many to walk and cells much larger sweep in points that
+were never close. The grid is bounded in cells, so a size given is a
+request the index may coarsen and `Neighbourhood::cell` answers what it
+used. It is a SNAPSHOT: the positions are copied in, so a caller may
+move its points while the index still answers about where they were, and
+a moved set is a `Neighbourhood::build` rather than an update — which is
+what keeps every point of one pass seeing the same arrangement.
+
+The same grid stands in three dimensions in the geometry library's path
+leaf, where outlines and scatters ask it. It is not what stands here,
+and the reason is a link edge rather than a disagreement: that leaf
+publishes Skia, glm and a Boost map, while this feature's boundary is
+that a consumer which also draws links it without inheriting a drawing
+library. What crossed is the shape — two counting passes into one bucket
+array, a cell size that holds a couple of points, and a cell count
+bounded by the point count.
 
 ## What is born, ages and dies
 
