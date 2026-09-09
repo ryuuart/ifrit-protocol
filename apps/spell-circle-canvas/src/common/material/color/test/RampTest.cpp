@@ -9,6 +9,7 @@
 #include <sigilmaterial/color/Ramp.h>
 
 #include <string>
+#include <tuple>
 
 using namespace sigil::material;
 
@@ -121,13 +122,14 @@ TEST(Ramp, OneStopIsFlatAndAnUnorderedListIsReported) {
                                {0.5f, {0, 1, 0, 1}}},
                      .space = RampSpace::Srgb};
   testing::internal::CaptureStderr();
-  jumbled.at(0.25f);
+  std::ignore = jumbled.at(0.25f);
   const std::string said = testing::internal::GetCapturedStderr();
   EXPECT_NE(said.find("position order"), std::string::npos) << said;
 
   // An ordered ramp says nothing, however many times it is read.
   testing::internal::CaptureStderr();
-  for (int i = 0; i <= 10; ++i) blackToWhite().at((float)i / 10.0f);
+  for (int i = 0; i <= 10; ++i)
+    std::ignore = blackToWhite().at((float)i / 10.0f);
   EXPECT_EQ(testing::internal::GetCapturedStderr(), "");
 }
 
