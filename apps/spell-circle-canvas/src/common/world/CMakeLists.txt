@@ -51,3 +51,36 @@ add_subdirectory(kit)
 sigil_library(SigilWorld
   INTERFACE SigilWorldElement SigilWorldFrame SigilWorldGraph SigilWorldScene
             SigilWorldLight SigilWorldKit SigilWorldDiligent)
+
+# Every API name the prose spells, compiled against the headers that own
+# it. The libraries this one stands on are scanned so a borrowed name
+# resolves where it lives: the mesh currency and its runtimes, the
+# reconcile phases and the settle policy, the shader compiler, and the
+# schedule whose cascade order means the same thing in a set as in a line
+# of type. The entity store's own names are EnTT's, whose headers no
+# include root here carries.
+sigil_doc_probes(world
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry
+           ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial
+           ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
+  PRELUDES "<sigilmotion/schedule/Spread.h>"
+           "<sigilcore/reconcile/Phases.h>"
+           "<sigilcore/cache/Settle.h>"
+           "<sigilcore/cache/Cache.h>"
+           "<sigilcore/cache/Volatility.h>"
+           "<sigilmaterial/core/Combine.h>"
+           "<sigilmaterial/core/Terms.h>"
+           "<sigilmaterial/slang/SlangCompiler.h>"
+           "<sigilmaterial/kit/Surface.h>"
+           "<sigilgeometry/mesh/pop/Kernel.h>"
+           "<sigilgeometry/mesh/pop/device/Cook.h>"
+           "<sigilgeometry/mesh/pop/device/Sweep.h>"
+           "<sigilgeometry/mesh/render/device/Painter.h>"
+  EXCLUDE "geometry::device::MeshResidency=declared in SigilGeometry's device residency feature's private headers, which no consumer include path carries"
+          "entt::entity=EnTT's own, named as the dependency the entity store is: its headers are not scanned"
+          "entt::registry=EnTT's own, named as the dependency the entity store is: its headers are not scanned"
+  FLOORS 40,8,12,0,0
+  LIBRARIES SigilWorld SigilGeometry SigilCoreReconcile SigilMotionSchedule
+            SigilMaterial)

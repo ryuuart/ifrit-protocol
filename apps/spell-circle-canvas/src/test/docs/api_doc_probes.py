@@ -263,6 +263,30 @@ HEADER_TOKENS = re.compile(
 )
 
 
+def opens_a_template(text, at):
+    """Whether the aggregate at `at` is preceded by a template-parameter
+    list.
+
+    A class TEMPLATE cannot stand where a probe names a type: `M<T>` over
+    one is ill-formed, and one whose simple name a document never meant —
+    a `From` in a keyframe header beside the `From` a schedule spells —
+    would otherwise take the whole disjunction down with it.
+    """
+    before = text[:at].rstrip()
+    if not before.endswith(">"):
+        return False
+    depth, i = 0, len(before) - 1
+    while i >= 0:
+        if before[i] == ">":
+            depth += 1
+        elif before[i] == "<":
+            depth -= 1
+            if depth == 0:
+                break
+        i -= 1
+    return i >= 0 and before[:i].rstrip().endswith("template")
+
+
 def scan_headers(incdirs):
     """(namespace leaf names, {type name: [fully qualified spellings]}).
 
@@ -274,6 +298,7 @@ def scan_headers(incdirs):
     """
     namespaces = set()
     types = {}
+    templates = set()  # qualified names of class templates
     ns_paths = {}
     funcs = {}  # simple type name -> names declared with a ( in its body
     # path suffix -> every identifier that header's CODE carries, which is
@@ -315,12 +340,12 @@ def scan_headers(incdirs):
                         if m.group("open"):  # a definition
                             qual = "::".join(p for _, ps, _c in scope for p in ps)
                             name_ = m.group("aggname")
+                            spelling = (qual + "::" + name_) if qual else name_
                             types.setdefault(name_, set()).add(
-                                (
-                                    (qual + "::" + name_) if qual else name_,
-                                    os.path.join(root, name),
-                                )
+                                (spelling, os.path.join(root, name))
                             )
+                            if opens_a_template(text, m.start()):
+                                templates.add(spelling)
                             # A class is a scope too: `Composer::CacheState`
                             # must not come out as `sigil::compose::CacheState`.
                             scope.append((depth, [name_], True))
@@ -343,6 +368,7 @@ def scan_headers(incdirs):
         {k: sorted(v) for k, v in ns_paths.items()},
         {k: sorted(v) for k, v in funcs.items()},
         spelled_in,
+        templates,
     )
 
 
@@ -450,6 +476,7 @@ class Generator:
             self.ns_paths,
             self.funcs,
             self.spelled_in,
+            templates,
         ) = scan_headers(incdirs)
         self.spelled_anywhere = set()
         for names in self.spelled_in.values():
@@ -475,7 +502,9 @@ class Generator:
         # than written into a static_assert that cannot compile.
         seen_files = reachable_from(self.header_files, incdirs)
         self.types = {
-            name: [q for q, f in cands if f in seen_files] or [q for q, _ in cands]
+            name: [q for q, f in cands if f in seen_files and q not in templates]
+            or [q for q, _ in cands if q not in templates]
+            or [q for q, _ in cands]
             for name, cands in self.types.items()
         }
         self.usings = []  # (qualified, line, kind)
