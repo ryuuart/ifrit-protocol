@@ -100,71 +100,29 @@ sigil_library(SigilCompose
 # The engine walkthroughs and the compile check over the prose.
 # Every API name README.md and TYPOGRAPHY.md spell, compiled against the
 # headers that own it — both files, because the type chapter is the same
-# canon as the page that links it and prose nobody compiles is prose that
-# goes stale. A hand-written guard only covers the sections someone remembered to
-# transcribe, which is how documentation that does not compile reaches a
-# reader. This TU is GENERATED from the document on every build, so new
-# prose is covered the moment it is written and a rename the prose misses
-# is a build break rather than a confident wrong answer. The generator
-# FAILS on a documented name no header declares — the guard cannot go
-# quiet.
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
-set(COMPOSE_API_DOC_PROBES
-    ${CMAKE_CURRENT_BINARY_DIR}/ComposeApiDocProbes.cpp)
-file(GLOB_RECURSE COMPOSE_PUBLIC_HEADERS
-     CONFIGURE_DEPENDS include/sigilcompose/*.h)
-add_custom_command(
-  OUTPUT ${COMPOSE_API_DOC_PROBES}
-  COMMAND ${Python3_EXECUTABLE}
-          ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
-          --md ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-          --md ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md
-          --include ${SIGIL_INCLUDE_DIR}/sigilcompose
-          --include ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose
-          --include ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
-          --include ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
-          --include ${CMAKE_CURRENT_SOURCE_DIR}/../measure/include
-          --include ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/kit
-          --include ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/path
-          --include ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/skia
-          --include ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include/sigilskia/draw
-          --include ${CMAKE_CURRENT_SOURCE_DIR}/../draw/include/sigildraw
-          --include ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
-          --include ${CMAKE_CURRENT_SOURCE_DIR}/../../test
-          --out ${COMPOSE_API_DOC_PROBES}
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+# canon as the page that links it. The testing tier's own include root is
+# scanned beside the library's, since the walkthroughs spell the harness
+# the cases are written against.
+sigil_doc_probes(compose
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
-          ${COMPOSE_PUBLIC_HEADERS}
-  COMMENT "Extracting the README's documented names into compile probes"
-  VERBATIM)
-
-# The generator's own fixtures (--self-test): a real name must yield a
-# probe, an unreal one must fail the run, an operator spelling must be
-# exempted AND reported by name, the bare names of a header listing must be
-# checked against the header it names, and an EXTERNAL_CLASSES member must
-# take the class-scope probe path. One Python invocation, no C++ — and the only
-# check that notices the EXTRACTOR narrowing, since a generator that
-# silently probes less still emits a probe TU that compiles green.
-add_test(NAME compose_api_doc_probes_self_test
-  COMMAND ${Python3_EXECUTABLE}
-          ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
-          --self-test)
-
-# The probes are their own object library because a generated source is
-# compiled by a target in the directory that generates it, and the
-# library's one test binary stands in core/, where the first cases are.
-add_library(compose_api_doc_probes OBJECT ${COMPOSE_API_DOC_PROBES})
-target_link_libraries(compose_api_doc_probes PRIVATE
-  SigilComposeCore SigilComposeKit SigilComposeBrush SigilComposeTypography
-  SigilComposeVideo SigilComposeDraw SigilComposeTesting SigilWeavePorts)
-# The probe TU includes the test support headers, so it reads the same
-# fixture and instrument directories every case in the binary does.
-target_include_directories(compose_api_doc_probes PRIVATE
-  ${SIGIL_TEST_DIR} ${SIGIL_TEST_SUPPORT_DIR})
-target_compile_definitions(compose_api_doc_probes PRIVATE
-  SIGIL_TEST_ASSET_DIR="${SIGIL_TEST_DIR}/assets"
-  SIGIL_TEST_INSTRUMENT_DIR="${SIGIL_TEST_SUPPORT_DIR}/assets")
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose
+           ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../measure/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/kit
+           ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/path
+           ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/skia
+           ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include/sigilskia/draw
+           ${CMAKE_CURRENT_SOURCE_DIR}/../draw/include/sigildraw
+           ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../../test
+  PRELUDES "\"support/DocsTestSupport.h\""
+  ALIASES ch=choreograph
+  FLOORS 40,3,12,40,1
+  LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
+            SigilComposeTypography SigilComposeVideo SigilComposeDraw
+            SigilComposeTesting SigilWeavePorts)
 
 sigil_test(compose_test
   SOURCES test/ComposeTestDocs.cpp
@@ -180,7 +138,8 @@ sigil_test(compose_test
 # can belong to: the docs test's set, the texture feature, and the web
 # leaf where the SDK produced it (its header names SigilScry, so without
 # the target it is left out rather than failed).
-set(COMPOSE_SELF_TEST_HEADERS ${COMPOSE_PUBLIC_HEADERS})
+file(GLOB_RECURSE COMPOSE_SELF_TEST_HEADERS
+     CONFIGURE_DEPENDS include/sigilcompose/*.h)
 set(COMPOSE_SELF_TEST_LIBRARIES
     SigilComposeCore SigilComposeKit SigilComposeBrush SigilComposeTypography
     SigilComposeVideo SigilComposeDraw SigilComposeTexture)

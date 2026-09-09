@@ -12,6 +12,8 @@
 #                            contributed
 #   sigil_qt_target()        turns Qt's source scanning on for one target
 #   sigil_header_self_test() compiles every public header first and alone
+#   sigil_doc_probes()       compiles the names a library's README spells
+#                            against the headers that own them
 #   sigil_shader_sources()   compiles a directory of shader text into a
 #                            target, reachable through a generated accessor
 #   sigil_frameworks()       resolves Apple frameworks by name, once for
@@ -446,6 +448,130 @@ function(sigil_header_self_test target)
   add_test(NAME ${target}
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}
             --config $<CONFIG> --target ${target})
+endfunction()
+
+# sigil_doc_probes(<library> READMES <file>... [LIBRARIES <target>...]
+#                  [INCLUDES <dir>...] [PRELUDES <spelling>...]
+#                  [ALIASES <name>=<namespace>...] [EXCLUDE <name>=<reason>...]
+#                  [FLOORS <usings,members,indexed,listed,designators>]
+#                  [NAMESPACE <namespace>] [SUPPORT_DIRS <dir>...]
+#                  [DEFINITIONS <define>...])
+#   Compiles a library's own prose against the headers that own it. One
+#   generated translation unit per library, extracted from READMES on
+#   every build, compiled into the OBJECT library <library>_api_doc_probes
+#   and linked into <library>_test, where the generator's counts also
+#   stand as one visible case; the generator FAILS on a documented name no
+#   header declares, so the guard cannot go quiet.
+#
+#   WHAT IS CHECKED, and nothing else: every BACKTICKED qualified name
+#   (`shapes::polygon`, `PathFormat::effect`) and every designated
+#   initialiser, in fenced cpp blocks and in prose alike; and the BARE
+#   backticked names of a bullet that opens with a header path, which are
+#   looked up in that header's own text. A bare name anywhere else is
+#   invisible, so a script verb, a QML type or a file name passes unprobed
+#   — which is why a document may spell those freely. A qualified name
+#   that is not C++ at all (a CMake target, say) has to be named in
+#   EXCLUDE with the reason it cannot resolve.
+#
+#   INCLUDES are the further include roots the scanner reads, beside the
+#   library's own; a name whose type only another library declares needs
+#   that library's root here. PRELUDES are headers the translation unit
+#   opens with, after gtest's; ALIASES the namespace aliases the prose
+#   writes names through. FLOORS arms the count guard: the five minima the
+#   visible case asserts, which catch an extractor that stopped matching
+#   rather than an ordinary edit. LIBRARIES are linked into both the
+#   object library and the test binary, because a document that spells a
+#   name claims it exists wherever it lives.
+function(sigil_doc_probes library)
+  cmake_parse_arguments(ARG "" "NAMESPACE;FLOORS"
+    "READMES;LIBRARIES;INCLUDES;PRELUDES;ALIASES;EXCLUDE;SUPPORT_DIRS;DEFINITIONS"
+    ${ARGN})
+  if(NOT ARG_READMES)
+    message(FATAL_ERROR "sigil_doc_probes(${library}): no READMES")
+  endif()
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+  if(NOT TARGET GTest::gtest)
+    find_package(GTest CONFIG REQUIRED)
+  endif()
+  set(script ${SIGIL_TEST_SUPPORT_DIR}/docs/api_doc_probes.py)
+  string(SUBSTRING ${library} 0 1 head)
+  string(TOUPPER ${head} head)
+  string(SUBSTRING ${library} 1 -1 rest)
+  set(Library ${head}${rest})
+  set(target ${library}_api_doc_probes)
+  set(generated ${CMAKE_CURRENT_BINARY_DIR}/${Library}ApiDocProbes.cpp)
+  if(NOT ARG_NAMESPACE)
+    set(ARG_NAMESPACE sigil::${library})
+  endif()
+  if(NOT ARG_FLOORS)
+    set(ARG_FLOORS 0,0,0,0,0)
+  endif()
+
+  # The library's own include root leads, so its headers are the ones the
+  # probe TU includes wholesale. A library whose public surface is not a
+  # C++ include root has none, and then the preludes are all it opens.
+  set(includes ${ARG_INCLUDES})
+  set(scanned)
+  if(SIGIL_HEADER_NAMESPACE)
+    list(INSERT includes 0 ${SIGIL_INCLUDE_DIR}/${SIGIL_HEADER_NAMESPACE})
+    file(GLOB_RECURSE scanned CONFIGURE_DEPENDS
+         ${SIGIL_INCLUDE_DIR}/${SIGIL_HEADER_NAMESPACE}/*.h)
+  endif()
+
+  set(args)
+  foreach(doc IN LISTS ARG_READMES)
+    list(APPEND args --md ${doc})
+  endforeach()
+  foreach(dir IN LISTS includes)
+    list(APPEND args --include ${dir})
+  endforeach()
+  list(APPEND args --library "${SIGIL_HEADER_NAMESPACE}"
+                   --namespace ${ARG_NAMESPACE}
+                   --suite ${Library}Docs
+                   --floors ${ARG_FLOORS}
+                   --prelude "<gtest/gtest.h>")
+  foreach(prelude IN LISTS ARG_PRELUDES)
+    list(APPEND args --prelude "${prelude}")
+  endforeach()
+  foreach(alias IN LISTS ARG_ALIASES)
+    list(APPEND args --alias "${alias}")
+  endforeach()
+  foreach(exclusion IN LISTS ARG_EXCLUDE)
+    list(APPEND args --exclude "${exclusion}")
+  endforeach()
+
+  add_custom_command(
+    OUTPUT ${generated}
+    COMMAND ${Python3_EXECUTABLE} ${script} ${args} --out ${generated}
+    DEPENDS ${ARG_READMES} ${script} ${scanned}
+    COMMENT "Extracting the ${library} docs' names into compile probes"
+    VERBATIM)
+
+  # The generator's own fixtures: a real name must yield a probe, an
+  # unreal one must fail the run, an operator spelling must be exempted
+  # and reported by name, a header listing's bare names must be checked
+  # against the header they are listed under, and an EXTERNAL_CLASSES
+  # member must take the class-scope probe path. One Python invocation for
+  # the whole tree, since the fixtures are the generator's and not any
+  # library's — and the only check that notices the EXTRACTOR narrowing,
+  # since a generator that silently probes less still emits a translation
+  # unit that compiles green.
+  get_property(registered GLOBAL PROPERTY SIGIL_DOC_PROBES_SELF_TEST)
+  if(NOT registered)
+    set_property(GLOBAL PROPERTY SIGIL_DOC_PROBES_SELF_TEST ON)
+    add_test(NAME api_doc_probes_self_test
+      COMMAND ${Python3_EXECUTABLE} ${script} --self-test)
+  endif()
+
+  # The probes are their own object library, because a generated source is
+  # compiled by a target in the directory that generates it, while the
+  # library's one test binary is assembled in the feature directories.
+  add_library(${target} OBJECT ${generated})
+  target_link_libraries(${target} PRIVATE ${ARG_LIBRARIES} GTest::gtest)
+  _sigil_binary_support(${target} test
+    SUPPORT_DIRS ${ARG_SUPPORT_DIRS}
+    DEFINITIONS ${ARG_DEFINITIONS})
+  sigil_test(${library}_test LIBRARIES ${target} ${ARG_LIBRARIES})
 endfunction()
 
 # sigil_shader_sources(<target> DIR <dir> NAMESPACE <ns> [NAME <stem>]

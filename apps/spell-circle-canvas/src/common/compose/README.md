@@ -1640,7 +1640,7 @@ element content), `draw/test/` (a pen program hosted in a node),
 `video/test/` (video frames as element content) and `web/test/` (the
 Ultralight leaf, present only where the SDK was found). The library's own
 sit at the root: the generated probes over this page and `TYPOGRAPHY.md`,
-the GPU read-backs, and `compose_api_doc_probes_self_test`, which is a
+the GPU read-backs, and `api_doc_probes_self_test`, which is a
 Python run rather than a case. `compose_header_self_test` is the other
 one: every public header compiled first and alone, which is what makes
 "each header stands on its own" a build fact rather than a claim.
@@ -1705,7 +1705,7 @@ its own.
 
 The doc-probe translation unit is a C++ file that does not exist in the
 source tree.
-`test/docs/api_doc_probes.py` reads this document AND `TYPOGRAPHY.md` —
+`src/test/docs/api_doc_probes.py` reads this document AND `TYPOGRAPHY.md` —
 both are the library's canon, and prose nobody compiles is prose that goes
 stale — extracts every qualified name an author could copy out of them — from fenced code blocks **and** from
 inline `code` spans, because the prose carries as many names as the
