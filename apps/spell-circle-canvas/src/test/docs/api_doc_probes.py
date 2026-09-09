@@ -258,6 +258,7 @@ HEADER_TOKENS = re.compile(
     r"|(?P<alias>\bnamespace\s+(?P<aname>[A-Za-z_][A-Za-z0-9_]*)\s*=)"
     r"|(?P<agg>\b(?:struct|class|enum\s+class|enum\s+struct|enum)\s+"
     r"(?P<aggname>[A-Za-z_][A-Za-z0-9_]*)\b(?P<tail>[^;{\n]*)(?P<open>\{)?)"
+    r"|(?P<access>\b(?:public|private|protected)\s*:)"
     r"|(?P<fn>\b[A-Za-z_][A-Za-z0-9_]*)\s*\("
     r"|(?P<open2>\{)|(?P<close>\})"
 )
@@ -322,33 +323,54 @@ def scan_headers(incdirs):
                 )
                 text = re.sub(r'"(?:[^"\\]|\\.)*"', '""', text)
                 depth = 0
-                scope = []  # (depth_at_open, [namespace parts])
+                # [depth_at_open, [name parts], is_a_class, members_public]
+                scope = []
                 for m in HEADER_TOKENS.finditer(text):
                     if m.group("alias"):
                         namespaces.add(m.group("aname"))
                     elif m.group("ns"):
                         parts = m.group("nsname").split("::")
                         namespaces.update(parts)
-                        scope.append((depth, parts, False))
+                        scope.append([depth, parts, False, True])
                         depth += 1
-                        outer = [p for _, ps, _c in scope for p in ps]
+                        outer = [p for _, ps, _c, _a in scope for p in ps]
                         for i in range(len(outer)):
                             ns_paths.setdefault(outer[i], set()).add(
                                 "::".join(outer[: i + 1])
                             )
+                    elif m.group("access"):
+                        # A section label belongs to the class it stands in.
+                        if scope and scope[-1][2] and scope[-1][0] == depth - 1:
+                            scope[-1][3] = m.group("access").startswith("public")
                     elif m.group("agg"):
                         if m.group("open"):  # a definition
-                            qual = "::".join(p for _, ps, _c in scope for p in ps)
+                            qual = "::".join(p for _, ps, _c, _a in scope for p in ps)
                             name_ = m.group("aggname")
                             spelling = (qual + "::" + name_) if qual else name_
-                            types.setdefault(name_, set()).add(
-                                (spelling, os.path.join(root, name))
-                            )
-                            if opens_a_template(text, m.start()):
-                                templates.add(spelling)
+                            # A type declared in a class's private or
+                            # protected section is a hard error the moment a
+                            # probe names it, and this scanner is the only
+                            # thing that can keep it out of a candidate set:
+                            # the compiler's answer is a diagnostic, not a no.
+                            visible = not scope[-1][2] if scope else True
+                            visible = visible or scope[-1][3]
+                            if visible:
+                                types.setdefault(name_, set()).add(
+                                    (spelling, os.path.join(root, name))
+                                )
+                                if opens_a_template(text, m.start()):
+                                    templates.add(spelling)
                             # A class is a scope too: `Composer::CacheState`
                             # must not come out as `sigil::compose::CacheState`.
-                            scope.append((depth, [name_], True))
+                            # `struct` opens public, `class` private.
+                            scope.append(
+                                [
+                                    depth,
+                                    [name_],
+                                    True,
+                                    not m.group("agg").startswith("class"),
+                                ]
+                            )
                             depth += 1
                     elif m.group("fn"):
                         # Only names declared DIRECTLY in a class body — not
@@ -545,6 +567,8 @@ class Generator:
         if not prefix:
             return []
         head = prefix[0]
+        if any(head == alias.partition("=")[0] for alias in self.aliases):
+            return list(prefix)  # the document's own alias names the path
         paths = self.ns_paths.get(head)
         if paths:
             # A leaf two libraries spell is the DOCUMENTING library's: a

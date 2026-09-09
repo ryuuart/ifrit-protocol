@@ -149,3 +149,44 @@ add_test(NAME sketch_readme_stems
 add_test(NAME sketch_readme_stems_self_test
   COMMAND ${Python3_EXECUTABLE}
           ${CMAKE_CURRENT_LIST_DIR}/test/readme_sketch_stems.py --self-test)
+
+# The web panel's page names the runtime probe SigilScry answers, which
+# is only there where the SDK was found.
+set(SIGIL_SKETCH_DOC_SCRY_PRELUDE)
+if(TARGET SigilScry)
+  set(SIGIL_SKETCH_DOC_SCRY_PRELUDE "<sigilscry/platform/Runtime.h>")
+endif()
+
+# Every API name the prose spells, compiled against the headers that own
+# it — README.md, the kit's page and the studies' page, because each is
+# canon for what it covers. This library composes every other, so every
+# one it names is scanned and linked: a sketch's prose is written in the
+# whole vocabulary a sketch is written in.
+sigil_doc_probes(sketch
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/kit/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/sketches/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/core/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/motion/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/compose/include/sigilcompose
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/geometry/include/sigilgeometry
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/world/include/sigilworld
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/material/include/sigilmaterial
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/scry/include/sigilscry
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/draw/include/sigildraw
+           ${CMAKE_CURRENT_SOURCE_DIR}/../sigilweave/include/sigilweave
+  PRELUDES ${SIGIL_SKETCH_DOC_SCRY_PRELUDE}
+           "<sigilcompose/Compose.h>"
+           "<sigilcompose/kit/Ground.h>"
+           "<sigilcompose/kit/Marquee.h>"
+           "<sigilcompose/kit/Plate.h>"
+           "<sigilcompose/typography/TextEffect.h>"
+           "<sigilcompose/kit/Kinetic.h>"
+           "<sigilgeometry/Geometry.h>"
+           "<sigilworld/World.h>"
+           "<sigilworld/diligent/Import.h>"
+           "<sigilweave/SigilWeave.h>"
+           "<sigilweave/ports/SystemFontManager.h>"
+  ALIASES scry=::sigil::scry
+  FLOORS 50,10,10,0,0
+  LIBRARIES SigilSketch)
