@@ -88,6 +88,50 @@ void paintMitredRing(SkCanvas& c, SkRect box, const SkColor4f& near,
   c.drawPath(n.detach(), p);
 }
 
+/** THE STRIP one side of a masked ring occupies in the ring's box, cut
+ *  back at either end under `Sliced` by the depth of the band the mask
+ *  left out there. Where the neighbouring band IS drawn the strip runs to
+ *  the corner and the two overlap, which is what leaves the corner to
+ *  whichever rule the corner mode states.
+ *
+ *  The near tones are the top and the left, so each side is as deep as
+ *  the tone that lands on it. */
+SkRect band(geometry::path::Edge which, const SkRect& box,
+            geometry::path::Edge mask, BevelEnds ends, float nearWidth,
+            float farWidth) {
+  using geometry::path::Edge;
+  using geometry::path::has;
+  const auto depth = [&](Edge e) {
+    return e == Edge::Top || e == Edge::Left ? nearWidth : farWidth;
+  };
+  const auto cut = [&](Edge e) {
+    return has(mask, e) || ends == BevelEnds::Mitred ? 0.0f : depth(e);
+  };
+  SkRect strip = box;
+  switch (which) {
+    case Edge::Top:
+      strip.fBottom = box.fTop + nearWidth;
+      break;
+    case Edge::Bottom:
+      strip.fTop = box.fBottom - farWidth;
+      break;
+    case Edge::Left:
+      strip.fRight = box.fLeft + nearWidth;
+      break;
+    default:
+      strip.fLeft = box.fRight - farWidth;
+      break;
+  }
+  if (which == Edge::Left || which == Edge::Right) {
+    strip.fTop += cut(Edge::Top);
+    strip.fBottom -= cut(Edge::Bottom);
+  } else {
+    strip.fLeft += cut(Edge::Left);
+    strip.fRight -= cut(Edge::Right);
+  }
+  return strip;
+}
+
 /** The mask tile a stipple is drawn through, cut once for the process.
  *  Every stipple of the same lattice shares one image, so a desktop of
  *  greyed-out controls holds one 2 × 2 bitmap between them. */
@@ -113,19 +157,34 @@ sk_sp<SkImage> maskTile(uint64_t bits, int size) {
 
 void BevelPair::paint(SkCanvas& c, const PaintContext& ctx) const {
   using geometry::path::Edge;
+  using geometry::path::has;
   // The near edges are the top and the left; sunken swaps the tones (and
   // their widths) onto the far ones and changes nothing else.
   const SkColor4f& near = sunken ? dark : light;
   const SkColor4f& far = sunken ? light : dark;
   const float nearWidth = sunken ? darkWidth : lightWidth;
   const float farWidth = sunken ? lightWidth : darkWidth;
+  // A full ring is drawn exactly as it was before there was a mask to
+  // narrow it — no strip, no second clip, nothing to disagree about at a
+  // corner where both bands stand.
+  const bool whole = edges == Edge::All;
+  const SkRect bounds = ctx.outline.getBounds();
   if (corner != BevelCorner::Square) {
-    SkRect box = ctx.outline.getBounds();
+    SkRect box = bounds;
     if (!antiAlias)
       box = SkRect::MakeLTRB(std::round(box.left()), std::round(box.top()),
                              std::round(box.right()), std::round(box.bottom()));
     c.save();
     c.clipPath(ctx.outline, SkClipOp::kIntersect, antiAlias);
+    if (!whole) {
+      // The ring is one pair of fills over the whole box, so the mask is
+      // a clip: the strips of the sides it selects, and nothing else.
+      SkPathBuilder kept;
+      for (Edge e : {Edge::Top, Edge::Right, Edge::Bottom, Edge::Left})
+        if (has(edges, e))
+          kept.addRect(band(e, box, edges, ends, nearWidth, farWidth));
+      c.clipPath(kept.detach(), SkClipOp::kIntersect, antiAlias);
+    }
     paintMitredRing(c, box, near, far, nearWidth, farWidth,
                     corner == BevelCorner::Mitre ? 0.5f : -0.5f, antiAlias);
     c.restore();
@@ -143,10 +202,29 @@ void BevelPair::paint(SkCanvas& c, const PaintContext& ctx) const {
   p.setStrokeCap(SkPaint::kButt_Cap);
   p.setStrokeJoin(SkPaint::kMiter_Join);
   const auto edge = [&](Edge which, const SkColor4f& tone, float width) {
-    if (width <= 0.0f || tone.fA <= 0.0f) return;
+    if (width <= 0.0f || tone.fA <= 0.0f || !has(edges, which)) return;
     p.setStrokeWidth(width * 2.0f);
     p.setColor4f(tone, nullptr);
+    if (whole) {
+      c.drawPath(geometry::path::edges(ctx.outline, which, step), p);
+      return;
+    }
+    // A sliced band is cut ACROSS its run and never across its depth: the
+    // sub-contour it is stroked along already follows the silhouette, and
+    // a chamfer or a round carries its band further in from the box than
+    // a straight edge does.
+    SkRect kept = band(which, bounds, edges, ends, nearWidth, farWidth);
+    if (which == Edge::Left || which == Edge::Right) {
+      kept.fLeft = bounds.fLeft;
+      kept.fRight = bounds.fRight;
+    } else {
+      kept.fTop = bounds.fTop;
+      kept.fBottom = bounds.fBottom;
+    }
+    c.save();
+    c.clipRect(kept, SkClipOp::kIntersect, antiAlias);
     c.drawPath(geometry::path::edges(ctx.outline, which, step), p);
+    c.restore();
   };
   // Vertical edges first, horizontal ones over them: the top-right corner
   // is the top edge's and the bottom-left the bottom's.

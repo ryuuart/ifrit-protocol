@@ -58,6 +58,26 @@ enum class BevelCorner {
   MitreFar,
 };
 
+/** WHERE A BAND ENDS at a corner the mask left the other band out of.
+ *
+ *  It is a different question from `BevelCorner`, which decides how two
+ *  bands that are BOTH drawn divide the corner between them. This one
+ *  only arises where a ring is drawn on some of its edges: the band
+ *  arrives at a corner and there is nothing to meet.
+ *
+ *  With every edge drawn the two answers are the same mark. */
+enum class BevelEnds : uint8_t {
+  /** The band runs into the corner the whole ring would have made — the
+   *  corner mode's own mitre, or its square step — so a masked ring is
+   *  the full ring with bands left out. */
+  Mitred,
+  /** The band is cut flush there, one missing band's depth short, so a
+   *  half ring stops at the edge it dresses and the corner it does not
+   *  own is left to the face. This is the doubled edge a key wears on
+   *  its two shaded sides: a shadow that turns the corner and stops. */
+  Sliced,
+};
+
 /** THE BEVEL PAIR: a light edge on the top and left of the outline and a
  *  dark edge on the bottom and right, each a stroke kept inside the
  *  silhouette — the raised panel of the beveled-desktop era.
@@ -95,6 +115,17 @@ struct BevelPair {
    *  and every mark is hard, which is the only way a 1 px highlight
    *  reads as a line rather than as a blur. */
   bool antiAlias = true;
+  /** WHICH SIDES THE PAIR IS DRAWN ON. `All` is the ring every panel
+   *  wears. A subset is a HALF RING — a deepened shadow on the two
+   *  shaded sides with no light opposite it, which is what a key's
+   *  doubled edge and a one-sided rule are, and what a stroke sliced to
+   *  the same edges cannot be, since it carries no tone of its own for
+   *  the side it turns onto. A band a tone would not have landed on is
+   *  simply not drawn: the mask selects sides, never tones. */
+  geometry::path::Edge edges = geometry::path::Edge::All;
+  /** How a band ends where the mask left its neighbour out; nothing at
+   *  all under a full mask. */
+  BevelEnds ends = BevelEnds::Mitred;
 
   bool operator==(const BevelPair&) const = default;
   /** The same pair the other way up. */

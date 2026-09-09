@@ -843,10 +843,22 @@ than an image, so a stippled node compares equal to itself, with
 `styles::stipple` for the 50 % checkerboard and `styles::dither` for one
 tone of an ordered dither.
 
+A ring can also be drawn on SOME of its sides: `BevelPair::edges` is the
+edge mask, and `BevelPair::ends` says what a band does at a corner the
+mask left the other band out of — `styles::BevelEnds::Mitred` runs it
+into the corner the whole ring would have made, `styles::BevelEnds::Sliced`
+cuts it flush one missing band's depth short. A half ring is how a
+deepened shadow on two sides is said, and it carries its own tone where a
+stroke sliced to the same edges does not; with every edge drawn the two
+`ends` are the same mark.
+
 The bevel as a LOOK is `kit/Chrome.h`'s `kit::Bevel`: the tones, the
-depth, the corner, `sunken`, a `softness` that turns the drawn edge into
-a moulded one, and an optional `kit::BevelInner` — the second ring a gap
-further in, `inverted` for the groove a separator is. It is a value
+depth, the corner, `sunken`, the edge mask and its `Bevel::ends`, a
+`softness` that turns the drawn edge into a moulded one, and an optional
+`kit::BevelInner` — the second ring a gap further in, `inverted` for the
+groove a separator is and carrying its own `BevelInner::edges` and
+`BevelInner::ends`, which is the doubled edge a key wears on its two
+shaded sides alone. It is a value
 decoration in its own right, so `.overlay(theBevel)` dresses a panel, and
 it is a theme token: `env::Provide<kit::Bevel>` over a subtree and
 `kit::ambientBevel()` at each use site puts one era on every button,

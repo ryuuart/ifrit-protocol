@@ -65,6 +65,14 @@ struct BevelInner {
   /** Px of the shadowed edge; 0 takes `depth`. */
   float shadowDepth = 0;
   bool inverted = false;
+  /** WHICH SIDES this ring is drawn on, and how its bands end where the
+   *  mask left their neighbour out. A ring on two sides is a HALF ring —
+   *  the doubled edge a key wears on its shaded sides alone, where a
+   *  second full ring would light the top of a 3 px control — and
+   *  `BevelEnds::Sliced` stops it flush at the corners it does not own
+   *  rather than running it into the outer ring's. */
+  geometry::path::Edge edges = geometry::path::Edge::All;
+  styles::BevelEnds ends = styles::BevelEnds::Mitred;
   bool operator==(const BevelInner&) const = default;
 };
 
@@ -98,6 +106,12 @@ struct Bevel {
   /** Off is the lattice a bitmap toolkit drew on. Ignored above 0
    *  softness, where the mark is a blur. */
   bool antiAlias = true;
+  /** WHICH SIDES the ring is drawn on, and how its bands end where the
+   *  mask left their neighbour out — the same pair of props the inner
+   *  ring carries, for the outer one. Ignored above 0 softness, where the
+   *  mark is a blurred plane pair rather than four bands. */
+  geometry::path::Edge edges = geometry::path::Edge::All;
+  styles::BevelEnds ends = styles::BevelEnds::Mitred;
   /** Px the edge is blurred over; 0 is the drawn edge. */
   float softness = 0;
   /** Where the light stands, in degrees, for a softened edge. */

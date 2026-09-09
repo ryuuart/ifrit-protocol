@@ -23,20 +23,22 @@ namespace mskia = sigil::material::skia;
  *  is built here. */
 void ring(SkCanvas& c, const PaintContext& ctx, const Bevel& b,
           const SkColor4f& light, const SkColor4f& shadow, float depth,
-          float shadowDepth, bool sunken) {
+          float shadowDepth, bool sunken, geometry::path::Edge edges,
+          styles::BevelEnds ends) {
   const float lit = depth;
   const float drop = shadowDepth > 0 ? shadowDepth : depth;
   if (lit <= 0 && drop <= 0) return;
   if (b.softness > 0) {
     // A moulded edge has one depth and one blur, and turns over by
-    // swapping the two planes rather than by swapping the light.
+    // swapping the two planes rather than by swapping the light. It has
+    // no bands, so the edge mask has nothing to select.
     styles::BevelEmboss{std::max(lit, drop), b.softness, b.angleDeg,
                         sunken ? shadow : light, sunken ? light : shadow}
         .paint(c, ctx);
     return;
   }
-  styles::BevelPair{light,  shadow, lit,      drop,
-                    sunken, 3.0f,   b.corner, b.antiAlias}
+  styles::BevelPair{light, shadow,   lit,         drop,  sunken,
+                    3.0f,  b.corner, b.antiAlias, edges, ends}
       .paint(c, ctx);
 }
 
@@ -50,13 +52,14 @@ float Bevel::reach() const {
 }
 
 void Bevel::paint(SkCanvas& c, const PaintContext& ctx) const {
-  ring(c, ctx, *this, light, shadow, depth, shadowDepth, sunken);
+  ring(c, ctx, *this, light, shadow, depth, shadowDepth, sunken, edges, ends);
   if (!inner) return;
   PaintContext local = ctx;
   if (inner->gap != 0)
     local.outline = geometry::path::insetOutline(ctx.outline, inner->gap);
   ring(c, local, *this, inner->light, inner->shadow, inner->depth,
-       inner->shadowDepth, sunken != inner->inverted);
+       inner->shadowDepth, sunken != inner->inverted, inner->edges,
+       inner->ends);
 }
 
 Bevel ambientBevel(Bevel fallback) { return core::env::inheritedOr(fallback); }
@@ -72,6 +75,8 @@ Element& bevelled(Element& e, const Bevel& b) {
   in.depth = b.inner->depth;
   in.shadowDepth = b.inner->shadowDepth;
   in.sunken = b.sunken != b.inner->inverted;
+  in.edges = b.inner->edges;
+  in.ends = b.inner->ends;
   e.foreground(inset(b.inner->gap, Decoration(in)));
   return e;
 }

@@ -12,6 +12,7 @@
 
 namespace kit = sigil::compose::kit;
 namespace styles = sigil::compose::styles;
+namespace path = sigil::geometry::path;
 
 namespace {
 
@@ -197,6 +198,103 @@ TEST(KitChrome, DressingAPanelPutsTheInnerRingOverItsContent) {
   // The outer ring is on the node's own edge either way.
   EXPECT_EQ(at(dressed, 50, 0), SK_ColorRED);
   EXPECT_EQ(at(covered, 50, 0), SK_ColorRED);
+}
+
+namespace {
+
+/** The doubled edge of a key: a plain outer ring and an inner ring on the
+ *  two shaded sides alone, six pixels in, ending as @p ends says. */
+kit::Bevel halfInnerRing(styles::BevelEnds ends) {
+  kit::Bevel b = plain();
+  b.inner = kit::BevelInner{.gap = 6,
+                            .light = {1, 1, 1, 1},
+                            .shadow = {0, 0, 0, 1},
+                            .depth = 1,
+                            .shadowDepth = 1,
+                            .edges = path::Edge::Bottom | path::Edge::Right,
+                            .ends = ends};
+  return b;
+}
+
+}  // namespace
+
+TEST(KitChrome, AnInnerRingOnTwoSidesCarriesNoLightOppositeIt) {
+  Host host(140, 100);
+  host.composer.render(panel(halfInnerRing(styles::BevelEnds::Mitred)));
+  host.frame();
+
+  // The two sides the mask names are drawn and the two it leaves out are
+  // the face — not a fainter ring, not a ring in the other tone. A pair
+  // there would light the top of the control, which is the whole reason a
+  // second ring is masked rather than dimmed.
+  EXPECT_EQ(at(host, 50, kH - 7), SK_ColorBLACK);
+  EXPECT_EQ(at(host, kW - 7, 30), SK_ColorBLACK);
+  EXPECT_EQ(at(host, 50, 6), SK_ColorGREEN);
+  EXPECT_EQ(at(host, 6, 30), SK_ColorGREEN);
+  // The outer ring is untouched by the inner one's mask.
+  EXPECT_EQ(at(host, 50, 0), SK_ColorRED);
+  EXPECT_EQ(at(host, 0, 30), SK_ColorRED);
+  EXPECT_EQ(at(host, 50, kH - 1), SK_ColorBLUE);
+  EXPECT_EQ(at(host, kW - 1, 30), SK_ColorBLUE);
+}
+
+TEST(KitChrome, SlicedEndsStopAHalfRingWhereTheMissingBandWouldMeetIt) {
+  Host mitred(140, 100);
+  mitred.composer.render(panel(halfInnerRing(styles::BevelEnds::Mitred)));
+  mitred.frame();
+  Host sliced(140, 100);
+  sliced.composer.render(panel(halfInnerRing(styles::BevelEnds::Sliced)));
+  sliced.frame();
+
+  // The two corners the mask left half open. Mitred, each band runs into
+  // the corner the whole ring would have made; sliced, it stops one
+  // missing band's depth short and the corner is the face.
+  EXPECT_EQ(at(mitred, kW - 7, 6), SK_ColorBLACK);
+  EXPECT_EQ(at(sliced, kW - 7, 6), SK_ColorGREEN);
+  EXPECT_EQ(at(sliced, kW - 7, 7), SK_ColorBLACK) << "one pixel short";
+  EXPECT_EQ(at(mitred, 6, kH - 7), SK_ColorBLACK);
+  EXPECT_EQ(at(sliced, 6, kH - 7), SK_ColorGREEN);
+  EXPECT_EQ(at(sliced, 7, kH - 7), SK_ColorBLACK);
+  // The corner both bands own stands either way, and so do their runs.
+  EXPECT_EQ(at(mitred, kW - 7, kH - 7), SK_ColorBLACK);
+  EXPECT_EQ(at(sliced, kW - 7, kH - 7), SK_ColorBLACK);
+  EXPECT_EQ(at(sliced, 50, kH - 7), SK_ColorBLACK);
+  EXPECT_EQ(at(sliced, kW - 7, 30), SK_ColorBLACK);
+}
+
+TEST(KitChrome, AMaskedMitredRingDrawsOnlyTheSidesItNames) {
+  // The mask on a mitred ring is a clip, since the ring is two fills over
+  // the whole box rather than four strokes. Mitred ends keep the corner
+  // the whole ring would have made — which at a mitre is the OTHER band's
+  // — and sliced ends cut it away with the rest of the missing band.
+  const auto masked = [](styles::BevelEnds ends) {
+    kit::Bevel b = plain();
+    b.corner = styles::BevelCorner::Mitre;
+    b.edges = path::Edge::Bottom | path::Edge::Right;
+    b.ends = ends;
+    return b;
+  };
+  Host mitred(140, 100);
+  mitred.composer.render(panel(masked(styles::BevelEnds::Mitred)));
+  mitred.frame();
+  Host sliced(140, 100);
+  sliced.composer.render(panel(masked(styles::BevelEnds::Sliced)));
+  sliced.frame();
+
+  for (Host* host : {&mitred, &sliced}) {
+    EXPECT_EQ(at(*host, 50, 0), SK_ColorGREEN) << "no top band";
+    EXPECT_EQ(at(*host, 0, 30), SK_ColorGREEN) << "no left band";
+    EXPECT_EQ(at(*host, 50, kH - 1), SK_ColorBLUE);
+    EXPECT_EQ(at(*host, kW - 1, 30), SK_ColorBLUE);
+  }
+  // The mitre hands the top-right corner pixel to the band along the top,
+  // which the mask did not draw: mitred, the ring still gives it away and
+  // it stands lit inside the shaded band; sliced, that end of the band is
+  // gone and nothing lit is left on the panel at all.
+  EXPECT_EQ(at(mitred, kW - 1, 0), SK_ColorRED);
+  EXPECT_EQ(at(sliced, kW - 1, 0), SK_ColorGREEN);
+  EXPECT_EQ(at(sliced, kW - 1, 1), SK_ColorGREEN);
+  EXPECT_EQ(at(sliced, kW - 1, 2), SK_ColorBLUE);
 }
 
 TEST(KitChrome, AStippleTakesEveryOtherCellAndLeavesTheRest) {
