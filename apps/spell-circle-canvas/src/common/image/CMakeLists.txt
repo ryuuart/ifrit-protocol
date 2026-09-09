@@ -27,3 +27,19 @@ add_subdirectory(field)
 
 sigil_library(SigilImage
   INTERFACE SigilImageAsset SigilImageDecode SigilImageEncode SigilImageField)
+
+# Every API name the prose spells, compiled against the headers that own
+# it. SigilIO is scanned and linked for the two ways the encoding
+# walkthrough sends bytes somewhere; the dependency names in the boundary
+# section are CMake's and OpenImageIO's own, which no include root here
+# carries.
+sigil_doc_probes(image
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../io/include/sigilio
+  PRELUDES "<sigilio/hub/Hub.h>"
+           "<include/core/SkData.h>"
+  EXCLUDE "unofficial::skia::skia=a CMake target name, not a C++ name"
+          "OIIO::ImageOutput=OpenImageIO's own, named as the dependency it is: its headers are not scanned"
+          "OIIO::ImageInput=OpenImageIO's own, named as the dependency it is: its headers are not scanned"
+  FLOORS 10,5,4,0,0
+  LIBRARIES SigilImage SigilIOHub)
