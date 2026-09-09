@@ -53,3 +53,30 @@ sigil_test(draw_test
 sigil_bench(draw_bench
   SOURCES bench/DrawBench.cpp
   LIBRARIES SigilDraw SigilWeavePorts)
+
+# Every API name the prose spells, compiled against the headers that own
+# it — README.md and the brush chapter beside it. The libraries this one
+# stands on are scanned so a name it borrows resolves where it lives: the
+# paint value, the noise and chance streams, the polyline vocabulary and
+# the paragraph.
+#
+# The names it borrows from ABOVE are exempted instead. Resolving one
+# would mean this library's test binary linking the libraries that stand
+# on it, which is the dependency the tiering exists to prevent.
+sigil_doc_probes(draw
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/brush/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/path
+           ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/skia
+           ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
+  PRELUDES "<sigilgeometry/path/Polyline.h>"
+           "<sigilgeometry/path/Lattice.h>"
+           "<sigilweave/paragraph/Paragraph.h>"
+  EXCLUDE "sigil::sketch=SigilSketch stands on this library, so its names are named and not probed"
+          "sketch::DrawSketch=SigilSketch stands on this library, so its names are named and not probed"
+          "sketch::DrawContext=SigilSketch stands on this library, so its names are named and not probed"
+          "sketch::Set=SigilSketch stands on this library, so its names are named and not probed"
+          "compose::pen=SigilCompose stands on this library, so its names are named and not probed"
+  FLOORS 20,3,1,0,5
+  LIBRARIES SigilDraw SigilDrawBrush SigilIOSource SigilWeavePorts)
