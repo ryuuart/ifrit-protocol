@@ -469,7 +469,8 @@ sound model; nothing below them changes kernel semantics.
   `StampCache`, and `hexColor`, the one colour spelling here: a source
   palette's hex integer as an `SkColor4f`. What a colour BECOMES is
   SigilMaterial's vocabulary, spelled from it — `material::skia::withAlpha`,
-  `scale`, `lighten` and `mixLinear`.
+  `material::skia::scale`, `material::skia::lighten` and
+  `material::skia::mixLinear`.
 - `core/TextPainter.h` — the seam the kernel draws dressed type through:
   `TextPainterOps`, the operations the composer asks of text that is not
   resting on its own straight baseline, and `TextPainter`, that engine

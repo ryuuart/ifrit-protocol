@@ -241,8 +241,16 @@ def code_regions(path):
     return out
 
 
+# Both comment forms in ONE alternation, block first. Stripping line
+# comments separately would cut a `http://` inside a block comment down to
+# the end of its line and take the closing `*/` with it, and everything
+# after it in the file would then read as commented-out — which is how a
+# type a document names goes missing without the document being wrong.
+COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
+
+
 def strip_comments(text):
-    return re.sub(r"/\*.*?\*/", "", re.sub(r"//.*", "", text))
+    return COMMENT.sub("", text)
 
 
 HEADER_TOKENS = re.compile(
@@ -280,7 +288,11 @@ def scan_headers(incdirs):
                     open(os.path.join(root, name), encoding="utf-8").read()
                 )
                 rel = os.path.relpath(os.path.join(root, name), incdir)
-                spelled_in[rel.replace(os.sep, "/")] = set(
+                # Accumulated, not assigned: two include roots can carry a
+                # header of the same relative name, and a listing that
+                # names one must not be answered from whichever was
+                # scanned last.
+                spelled_in.setdefault(rel.replace(os.sep, "/"), set()).update(
                     re.findall(r"[A-Za-z_][A-Za-z0-9_]*", text)
                 )
                 text = re.sub(r'"(?:[^"\\]|\\.)*"', '""', text)
