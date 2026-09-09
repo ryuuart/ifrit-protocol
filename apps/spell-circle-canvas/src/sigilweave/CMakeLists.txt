@@ -40,6 +40,37 @@ sigil_library(SigilWeave
             SigilWeavePaint SigilWeaveChoreograph SigilWeaveQuery
             SigilWeaveCache)
 
+# Every API name the prose spells, compiled against the headers that own
+# it — README.md, the control-by-control catalogue and the kit's page,
+# because each is canon for what it covers. The libraries this one stands
+# on are scanned for the contour a path run rides, the distance field a
+# glyph atlas is baked into and the caching values the kit's guards are,
+# and the tree-wide test support for the instrument faces the testing
+# section names.
+#
+# The names it borrows from ABOVE are exempted instead: the settling
+# passage names SigilCompose's worked example, and SigilCompose stands on
+# this library.
+sigil_doc_probes(weave
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/FEATURES.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/kit/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/geometry/include/sigilgeometry/path
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/image/include/sigilimage
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/core/include
+           ${SIGIL_TEST_SUPPORT_DIR}
+  PRELUDES "<sigilgeometry/path/Contour.h>"
+           "<sigilimage/field/DistanceField.h>"
+           "<sigilcore/cache/Rebuild.h>"
+           "\"Fonts.h\""
+  SKIP_HEADERS SigilWeaveQt.h
+  EXCLUDE "sigil::weave::SigilWeaveKit=the exported CMake target's namespaced name, not a C++ name"
+          "SkCanvas::saveLayer=Skia's own overloaded member: no requires-spelling can name an overload set, and this generator indexes only the libraries whose include roots it is given"
+          "Element::live=SigilCompose stands on this library, so its worked example is named and not probed"
+          "Composer::settling=SigilCompose stands on this library, so its worked example is named and not probed"
+  FLOORS 35,10,10,0,0
+  LIBRARIES SigilWeave SigilGeometryPath SigilImageField SigilCoreCache)
+
 # Example programs: the headless PNG demo and the interactive Qt gallery.
 add_subdirectory(examples/demo)
 add_subdirectory(examples/gallery)

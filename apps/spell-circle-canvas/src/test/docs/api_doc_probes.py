@@ -459,6 +459,7 @@ class Generator:
         preludes=None,
         floors=None,
         aliases=None,
+        skip_headers=None,
     ):
         self.mds = mds
         self.library = library
@@ -490,8 +491,13 @@ class Generator:
                 continue
             for root, _, files in os.walk(incdir):
                 for name in sorted(files):
-                    if not name.endswith(".h") or name == "Web.h":
-                        continue  # Web.h is Ultralight-gated
+                    if not name.endswith(".h"):
+                        continue
+                    # A header behind an SDK or a UI toolkit compiles only
+                    # where that dependency is; the TU that includes every
+                    # OTHER header still probes every name it declares.
+                    if name in (skip_headers or ()):
+                        continue
                     path = os.path.join(root, name)
                     rel = os.path.relpath(path, os.path.dirname(incdir))
                     self.headers.append(rel.replace(os.sep, "/"))
@@ -1027,6 +1033,13 @@ def main():
         "for a document that spells names through one",
     )
     ap.add_argument(
+        "--skip-header",
+        action="append",
+        help="a header of the library, by file name, that the probe TU "
+        "does NOT include: one behind an SDK or a UI toolkit, which "
+        "compiles only where that dependency is",
+    )
+    ap.add_argument(
         "--floors",
         default=None,
         help="the five probe-count floors the visible case asserts, as "
@@ -1070,6 +1083,7 @@ def main():
         preludes=args.prelude,
         floors=floors,
         aliases=args.alias,
+        skip_headers=args.skip_header,
     )
     gen.collect()
     with open(args.out, "w", encoding="utf-8") as f:

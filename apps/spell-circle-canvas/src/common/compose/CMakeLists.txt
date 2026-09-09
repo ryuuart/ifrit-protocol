@@ -119,6 +119,7 @@ sigil_doc_probes(compose
            ${CMAKE_CURRENT_SOURCE_DIR}/../../test
   PRELUDES "\"support/DocsTestSupport.h\""
   ALIASES ch=choreograph
+  SKIP_HEADERS Web.h
   FLOORS 40,3,12,40,1
   LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
             SigilComposeTypography SigilComposeVideo SigilComposeDraw

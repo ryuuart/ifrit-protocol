@@ -453,6 +453,7 @@ endfunction()
 # sigil_doc_probes(<library> READMES <file>... [LIBRARIES <target>...]
 #                  [INCLUDES <dir>...] [PRELUDES <spelling>...]
 #                  [ALIASES <name>=<namespace>...] [EXCLUDE <name>=<reason>...]
+#                  [SKIP_HEADERS <file name>...]
 #                  [FLOORS <usings,members,indexed,listed,designators>]
 #                  [NAMESPACE <namespace>] [SUPPORT_DIRS <dir>...]
 #                  [DEFINITIONS <define>...])
@@ -477,14 +478,17 @@ endfunction()
 #   library's own; a name whose type only another library declares needs
 #   that library's root here. PRELUDES are headers the translation unit
 #   opens with, after gtest's; ALIASES the namespace aliases the prose
-#   writes names through. FLOORS arms the count guard: the five minima the
+#   writes names through; SKIP_HEADERS the library's own headers the
+#   translation unit must not include, which is how a header behind an SDK
+#   or a UI toolkit stays out of a probe that compiles everywhere.
+#   FLOORS arms the count guard: the five minima the
 #   visible case asserts, which catch an extractor that stopped matching
 #   rather than an ordinary edit. LIBRARIES are linked into both the
 #   object library and the test binary, because a document that spells a
 #   name claims it exists wherever it lives.
 function(sigil_doc_probes library)
   cmake_parse_arguments(ARG "" "NAMESPACE;FLOORS"
-    "READMES;LIBRARIES;INCLUDES;PRELUDES;ALIASES;EXCLUDE;SUPPORT_DIRS;DEFINITIONS"
+    "READMES;LIBRARIES;INCLUDES;PRELUDES;ALIASES;EXCLUDE;SKIP_HEADERS;SUPPORT_DIRS;DEFINITIONS"
     ${ARGN})
   if(NOT ARG_READMES)
     message(FATAL_ERROR "sigil_doc_probes(${library}): no READMES")
@@ -538,6 +542,9 @@ function(sigil_doc_probes library)
   endforeach()
   foreach(exclusion IN LISTS ARG_EXCLUDE)
     list(APPEND args --exclude "${exclusion}")
+  endforeach()
+  foreach(header IN LISTS ARG_SKIP_HEADERS)
+    list(APPEND args --skip-header "${header}")
   endforeach()
 
   add_custom_command(
