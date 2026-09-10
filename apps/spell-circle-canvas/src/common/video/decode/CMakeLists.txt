@@ -10,7 +10,8 @@ endif()
 
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilVideoDecode
-  SOURCES Decode.cpp Playback.cpp ${_device_source} Device.h
+  SOURCES Container.cpp Frames.cpp Raster.cpp Video.cpp Playback.cpp
+          ${_device_source} Device.h DecodeInternal.h
   HEADERS Decode.h Playback.h
   PUBLIC SigilVideoCore unofficial::skia::skia
   PRIVATE concurrentqueue::concurrentqueue sigil_video_ffmpeg
