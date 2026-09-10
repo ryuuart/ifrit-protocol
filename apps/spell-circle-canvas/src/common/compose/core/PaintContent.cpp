@@ -469,16 +469,16 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // resolves against it — the node's box, the node's clock, exactly what
   // Material::child hands a fill's children.
   const PaintContext paintCtx{
-      {bounds.width(), bounds.height()},
-      std::move(marksPath),
-      elapsed(),
-      contentScale,
-      ticker.active(),
-      &fonts,
-      inst.borrowedPaths.empty() ? nullptr : &inst.borrowedPaths,
-      &inst.stampCache,
-      curToRoot,        // node→root, as paint() stacked it
-      rootLayoutSize};  // …and the canvas it maps into
+      .size = {bounds.width(), bounds.height()},
+      .outline = std::move(marksPath),
+      .elapsedSeconds = elapsed(),
+      .contentScale = contentScale,
+      .animating = ticker.active(),
+      .fonts = &fonts,
+      .borrowed = inst.borrowedPaths.empty() ? nullptr : &inst.borrowedPaths,
+      .stamps = &inst.stampCache,
+      .toRoot = curToRoot,          // node→root, as paint() stacked it
+      .rootSize = rootLayoutSize};  // …and the canvas it maps into
 
   // The node's own layer effect wraps everything painted here, so it is
   // captured by picture recordings and BAKED by texture snapshots. A LIVE
@@ -674,16 +674,16 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       const int saves =
           granularPlane ? enterGates(false, Parts::kMarks, passes[i].name) : -1;
       const PaintContext passCtx{
-          paintCtx.size,
-          arith ? arith->spanPath(fullOutline, run) : fullOutline,
-          paintCtx.elapsedSeconds,
-          paintCtx.contentScale,
-          paintCtx.animating,
-          paintCtx.fonts,
-          paintCtx.borrowed,
-          nullptr,  // stamps: deliberately not shared with a span pass
-          paintCtx.toRoot,
-          paintCtx.rootSize};
+          .size = paintCtx.size,
+          .outline = arith ? arith->spanPath(fullOutline, run) : fullOutline,
+          .elapsedSeconds = paintCtx.elapsedSeconds,
+          .contentScale = paintCtx.contentScale,
+          .animating = paintCtx.animating,
+          .fonts = paintCtx.fonts,
+          .borrowed = paintCtx.borrowed,
+          .stamps = nullptr,  // deliberately not shared with a span pass
+          .toRoot = paintCtx.toRoot,
+          .rootSize = paintCtx.rootSize};
       passes[i].what.paint(canvas, passCtx);
       if (granularPlane) leaveGates(saves, cover);
     }
@@ -714,16 +714,17 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     if (refine) {
       std::vector<Span> run = *refine;
       if (marksShow) run = intersect(run, *marksShow);
-      const PaintContext markCtx{paintCtx.size,
-                                 gateOutline(arith, fullOutline, run),
-                                 paintCtx.elapsedSeconds,
-                                 paintCtx.contentScale,
-                                 paintCtx.animating,
-                                 paintCtx.fonts,
-                                 paintCtx.borrowed,
-                                 nullptr,  // stamps: not shared with a mark
-                                 paintCtx.toRoot,
-                                 paintCtx.rootSize};
+      const PaintContext markCtx{
+          .size = paintCtx.size,
+          .outline = gateOutline(arith, fullOutline, run),
+          .elapsedSeconds = paintCtx.elapsedSeconds,
+          .contentScale = paintCtx.contentScale,
+          .animating = paintCtx.animating,
+          .fonts = paintCtx.fonts,
+          .borrowed = paintCtx.borrowed,
+          .stamps = nullptr,  // not shared with a mark
+          .toRoot = paintCtx.toRoot,
+          .rootSize = paintCtx.rootSize};
       d.paint(canvas, markCtx);
     } else {
       d.paint(canvas, paintCtx);

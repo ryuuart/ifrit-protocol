@@ -132,6 +132,16 @@ enum class Backface : uint8_t { Visible, Hidden };
 struct PaintContext {
   SkSize size = SkSize::MakeEmpty();
   SkPath outline;
+  /** The CLOSED outline the node's shape encloses — what an Inner- or
+   *  Outer-aligned stroke clips against. Empty means `outline` is that
+   *  shape, which is the usual case; an adaptor that narrows `outline`
+   *  to contours BOUNDING NO AREA (`onEdges`, whose runs are open) puts
+   *  the outline it cut here, so an alignment keeps its meaning: the
+   *  mark is the half of the stroke inside — or outside — the shape,
+   *  along the runs that were cut. A decoration that reads it must
+   *  prefer it to `outline` only for that clip; the geometry to draw is
+   *  always `outline`. */
+  SkPath silhouette;
   double elapsedSeconds = 0.0;
   float contentScale = 1.0f;
   /** Is the composer's Ticker running anything at all this frame, as

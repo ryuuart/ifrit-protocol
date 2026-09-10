@@ -144,6 +144,101 @@ TEST(ComposeDecorations, EdgesSplitRoundedCornersDiagonally) {
   EXPECT_EQ(host.pixel(50, 98), SK_ColorBLUE);  // bottom untouched
 }
 
+TEST(ComposeDecorations, ASlicedInnerStrokePaintsTheBandInsideItsOwnEdges) {
+  // The runs a slice hands down are OPEN and bound no area. An alignment
+  // clips to the outline they were cut from, so the mark is the inner half
+  // of the stroke ALONG THOSE RUNS: a 8 px band on the two named edges,
+  // nothing on the other two, and nothing outside the silhouette.
+  Host host;
+  host.composer.render(
+      box().child(box().width(100).height(100).fill(blue()).foreground(onEdges(
+          geometry::path::Edge::Bottom | geometry::path::Edge::Right,
+          stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Inner)))));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 95), SK_ColorWHITE);   // in the bottom band
+  EXPECT_EQ(host.pixel(95, 50), SK_ColorWHITE);   // in the right band
+  EXPECT_EQ(host.pixel(95, 95), SK_ColorWHITE);   // the corner both own
+  EXPECT_EQ(host.pixel(50, 88), SK_ColorBLUE);    // one px above the band
+  EXPECT_EQ(host.pixel(88, 50), SK_ColorBLUE);    // one px inside of it
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorBLUE);     // top edge unnamed
+  EXPECT_EQ(host.pixel(1, 50), SK_ColorBLUE);     // left edge unnamed
+  EXPECT_EQ(host.pixel(101, 50), SK_ColorBLACK);  // nothing fattens the
+  EXPECT_EQ(host.pixel(50, 101), SK_ColorBLACK);  // silhouette
+}
+
+TEST(ComposeDecorations, ASlicedInnerStrokeIsTheKitsRingMaskedToTheSameEdges) {
+  // The same picture, twice: the brush's sliced Inner stroke and the kit's
+  // ring masked to those edges. MITRED ends, because that is the ring that
+  // runs the whole length of each named side; `Sliced` is that ring with
+  // each open end cut back by the depth of the band the mask left out
+  // there, which the case below reads off the pixels.
+  const SkColor4f tone{1, 1, 1, 1};
+  const auto edges = geometry::path::Edge::Bottom | geometry::path::Edge::Right;
+
+  Host stroked;
+  stroked.composer.render(
+      box().child(box().width(100).height(100).fill(blue()).foreground(onEdges(
+          edges, stroke(8, Fill::color(tone), PathFormat::Align::Inner)))));
+  stroked.frame();
+
+  Host ringed;
+  kit::Bevel bevel;
+  bevel.depth = 0;  // the outer ring is not part of the claim
+  bevel.shadowDepth = 0;
+  bevel.inner = kit::BevelInner{.gap = 0,
+                                .light = {0, 0, 0, 0},
+                                .shadow = tone,
+                                .depth = 8,
+                                .edges = edges,
+                                .ends = styles::BevelEnds::Mitred};
+  Element panel = box().width(100).height(100).fill(blue());
+  kit::bevelled(panel, bevel);
+  ringed.composer.render(box().child(std::move(panel)));
+  ringed.frame();
+
+  EXPECT_TRUE(identicalPixels(stroked, ringed, 200, 200));
+
+  // And with sliced ends the ring is the same band, one depth shorter at
+  // each end where the mask left the neighbour out.
+  Host cut;
+  bevel.inner->ends = styles::BevelEnds::Sliced;
+  Element sliced = box().width(100).height(100).fill(blue());
+  kit::bevelled(sliced, bevel);
+  cut.composer.render(box().child(std::move(sliced)));
+  cut.frame();
+  EXPECT_EQ(cut.pixel(4, 95), SK_ColorBLUE);       // bottom band cut at its
+  EXPECT_EQ(stroked.pixel(4, 95), SK_ColorWHITE);  // open (left) end
+  EXPECT_EQ(cut.pixel(95, 4), SK_ColorBLUE);       // right band cut at its
+  EXPECT_EQ(stroked.pixel(95, 4), SK_ColorWHITE);  // open (top) end
+  EXPECT_EQ(cut.pixel(50, 95), SK_ColorWHITE);     // the runs themselves stand
+  EXPECT_EQ(cut.pixel(95, 50), SK_ColorWHITE);
+}
+
+TEST(ComposeDecorations, ASlicedOuterStrokePaintsTheBandOutsideItsOwnEdges) {
+  // Outer keeps its meaning on a slice the same way: the half of the
+  // stroke OUTSIDE the shape, along the named runs alone.
+  Host host;
+  host.composer.render(stack().child(
+      box()
+          .absolute()
+          .left(20)
+          .top(20)
+          .width(100)
+          .height(100)
+          .fill(blue())
+          .foreground(onEdges(
+              geometry::path::Edge::Bottom | geometry::path::Edge::Right,
+              stroke(8, Fill::color({1, 1, 1, 1}),
+                     PathFormat::Align::Outer)))));
+  host.frame();
+  EXPECT_EQ(host.pixel(70, 124), SK_ColorWHITE);  // below the bottom edge
+  EXPECT_EQ(host.pixel(124, 70), SK_ColorWHITE);  // right of the right edge
+  EXPECT_EQ(host.pixel(70, 115), SK_ColorBLUE);   // inside stays the fill
+  EXPECT_EQ(host.pixel(115, 70), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(70, 16), SK_ColorBLACK);  // above the top edge
+  EXPECT_EQ(host.pixel(16, 70), SK_ColorBLACK);  // left of the left edge
+}
+
 // ---------------------------------------------------------------------------
 // Element stamps + snapshot().
 

@@ -781,7 +781,15 @@ sharp still draws its corners at the width it was designed for);
 and run a program at each sample); `Wash`; `Border`. `brush/Adaptors.h`
 runs any of them on another outline than the node's own: `onEdges`,
 against only the sub-contours facing chosen box edges, and `inset`,
-against a concentric copy of the outline. The brush engine is
+against a concentric copy of the outline. **A stroke sliced to chosen
+edges keeps its alignment.** The runs `onEdges` hands down are open and
+bound no area, so the outline they were cut from rides along in
+`PaintContext::silhouette` and that is what an alignment clips against:
+`onEdges(mask, stroke(w, fill, PathFormat::Align::Inner))` paints the
+half of its width inside the shape along the chosen edges and nowhere
+else — the band a `kit::BevelInner` masked to the same edges with
+`styles::BevelEnds::Sliced` draws — `PathFormat::Align::Outer` the half
+outside, and a centred stroke straddles the runs. The brush engine is
 three headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
 `LayeredBrush`); `brush/GeometryOps.h`, the one mechanism door for
 deviating an outline (`ops::`, `GeometryOp`); and `brush/Brushes.h`, the

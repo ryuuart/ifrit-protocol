@@ -46,16 +46,14 @@ void PaintPass::deviceBlit(const sk_sp<SkImage>& image, const SkIRect& at,
 }
 
 sk_sp<SkImageFilter> PaintPass::resolveLayerFilter() {
-  const PaintContext effectCtx{{rect.width(), rect.height()},
-                               SkPath(),
-                               impl.elapsed(),
-                               impl.hostScale,
-                               impl.ticker.active(),
-                               &impl.fonts,
-                               nullptr,
-                               &inst.stampCache,
-                               impl.curToRoot,
-                               impl.rootLayoutSize};
+  const PaintContext effectCtx{.size = {rect.width(), rect.height()},
+                               .elapsedSeconds = impl.elapsed(),
+                               .contentScale = impl.hostScale,
+                               .animating = impl.ticker.active(),
+                               .fonts = &impl.fonts,
+                               .stamps = &inst.stampCache,
+                               .toRoot = impl.curToRoot,
+                               .rootSize = impl.rootLayoutSize};
   const material::skia::PaintFrame effectFrame = frameOf(effectCtx);
   return layerEffectOf(node)->resolvedImageFilter(&effectFrame);
 }

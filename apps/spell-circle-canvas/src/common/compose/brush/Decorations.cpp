@@ -73,9 +73,14 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   }
 
   if (aligned) {
+    // The alignment clips to what the SHAPE encloses, which is the outline
+    // itself unless an adaptor narrowed the outline to runs that bound no
+    // area and left the shape in `silhouette`.
+    const SkPath& shape =
+        ctx.silhouette.isEmpty() ? ctx.outline : ctx.silhouette;
     canvas.save();
     canvas.clipPath(
-        ctx.outline,
+        shape,
         align == Align::Inner ? SkClipOp::kIntersect : SkClipOp::kDifference,
         true);
     canvas.drawPath(*drawn, p);

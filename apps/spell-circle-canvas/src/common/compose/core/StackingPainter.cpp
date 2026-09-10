@@ -165,16 +165,14 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // outline, because nothing of the node has been painted yet. Built
     // INSIDE the branch: every node reaches this line and only a few carry
     // a backdrop.
-    const PaintContext backdropCtx{{rect.width(), rect.height()},
-                                   SkPath(),
-                                   elapsed(),
-                                   hostScale,
-                                   ticker.active(),
-                                   &fonts,
-                                   nullptr,
-                                   &inst.stampCache,
-                                   curToRoot,  // this node→root
-                                   rootLayoutSize};
+    const PaintContext backdropCtx{.size = {rect.width(), rect.height()},
+                                   .elapsedSeconds = elapsed(),
+                                   .contentScale = hostScale,
+                                   .animating = ticker.active(),
+                                   .fonts = &fonts,
+                                   .stamps = &inst.stampCache,
+                                   .toRoot = curToRoot,  // this node→root
+                                   .rootSize = rootLayoutSize};
     const material::skia::PaintFrame backdropFrame = frameOf(backdropCtx);
     backdropFilter = backdropFx->resolvedImageFilter(&backdropFrame);
   }
@@ -228,16 +226,14 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   bool liveStable = false;
   inst.hasPendingLiveFill = false;
   if (inst.liveMatOnly && liveMaterialOf(node)) {
-    PaintContext probe{{rect.width(), rect.height()},
-                       SkPath(),
-                       elapsed(),
-                       hostScale,
-                       ticker.active(),
-                       &fonts,
-                       nullptr,
-                       nullptr,
-                       curToRoot,  // so the memo digest sees this move
-                       rootLayoutSize};
+    PaintContext probe{
+        .size = {rect.width(), rect.height()},
+        .elapsedSeconds = elapsed(),
+        .contentScale = hostScale,
+        .animating = ticker.active(),
+        .fonts = &fonts,
+        .toRoot = curToRoot,  // so the memo digest sees this move
+        .rootSize = rootLayoutSize};
     inst.pendingLiveFill = resolveFill(*liveMaterialOf(node), probe);
     inst.hasPendingLiveFill = true;
     liveStable = (inst.picture || inst.textureImage) && !inst.paintDirty &&

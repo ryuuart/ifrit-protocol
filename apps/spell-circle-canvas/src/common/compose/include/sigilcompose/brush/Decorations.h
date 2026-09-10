@@ -54,7 +54,15 @@ struct PathFormat {
    *  stroke inside the shape (borders that never fatten the silhouette);
    *  Outer clips it outside (keylines around a filled shape). Inner and
    *  Outer are meaningful on CLOSED outlines — an open rail has no
-   *  inside. */
+   *  inside.
+   *
+   *  SLICED TO CHOSEN EDGES, an alignment keeps that meaning. `onEdges`
+   *  hands down runs that are open, and the clip then stands on the
+   *  outline those runs were cut from: an Inner-aligned stroke paints
+   *  the half of its width inside the shape ALONG THE CHOSEN EDGES and
+   *  nowhere else — the same band a `kit::BevelInner` masked to those
+   *  edges with sliced ends draws — and an Outer-aligned one the half
+   *  outside. A centred stroke straddles the runs, as it always did. */
   enum class Align : uint8_t { Center, Inner, Outer };
 
   float width = 1.0f;

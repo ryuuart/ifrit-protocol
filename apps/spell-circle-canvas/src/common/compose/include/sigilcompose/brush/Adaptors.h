@@ -27,7 +27,13 @@ namespace sigil::compose {
 
 /** Decoration adaptor: runs @p inner with the PaintContext outline
  *  replaced by the selected edges — any primitive (PathFormat,
- *  ContourWalk, custom programs) becomes a per-edge treatment. */
+ *  ContourWalk, custom programs) becomes a per-edge treatment.
+ *
+ *  The selected runs are OPEN, so the outline they were cut from rides
+ *  along in `PaintContext::silhouette` and an inner decoration that
+ *  clips by it keeps its meaning: `stroke(w, fill, Align::Inner)` here
+ *  paints the half of its width inside the shape along the chosen edges
+ *  alone, and `Align::Outer` the half outside. */
 struct EdgeSlice {
   geometry::path::Edge mask = geometry::path::Edge::All;
   Decoration inner{PaintProgram{}};
