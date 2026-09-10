@@ -33,7 +33,9 @@ docs probes and the five growths:
 - The promotion tier's remaining twelve stay recorded as the
   measurement with their next probes; the research resumes at the
   owner's word.
-- The three git stashes in the checkout are the owner's to inspect.
+- An inner-aligned stroke on a sliced outline is fixed in the library
+  so every site paints what it declared; the seventeen sites are
+  swept, each mover shown, and rebased with the cause.
 
 ## An aligned stroke sliced to chosen edges paints nothing
 
