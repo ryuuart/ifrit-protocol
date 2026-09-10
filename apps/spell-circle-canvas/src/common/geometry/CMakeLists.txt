@@ -33,6 +33,7 @@ sigil_library(SigilGeometry
 # here rather than in whichever consumer took both.
 sigil_test(geometry_test
   SOURCES test/UmbrellaTest.cpp
+  DEFINITIONS SIGIL_GEOMETRY_INCLUDE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/include"
   LIBRARIES SigilGeometry)
 
 # Every API name the prose spells, compiled against the headers that own

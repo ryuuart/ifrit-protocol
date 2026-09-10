@@ -6,6 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
+#include <fstream>
+#include <string>
+
 #include "sigilgeometry/Geometry.h"
 
 namespace {
@@ -38,3 +42,27 @@ TEST(Umbrella, TheEdgeMaskAndTheCellBoundaryCoexist) {
 }
 
 }  // namespace
+
+// The umbrella's own claim, read off the include tree: every header under
+// the root is listed, bar the device ones the file's comment names, which
+// hand in a GPU device and are taken deliberately. A header added to a
+// tier without being listed here fails this case rather than being
+// unreachable through the one include.
+TEST(Umbrella, ListsEveryPublicHeader) {
+  const std::filesystem::path root = SIGIL_GEOMETRY_INCLUDE_ROOT;
+  std::ifstream umbrella(root / "sigilgeometry" / "Geometry.h");
+  ASSERT_TRUE(umbrella.is_open());
+  const std::string listed((std::istreambuf_iterator<char>(umbrella)),
+                           std::istreambuf_iterator<char>());
+  std::error_code ec;
+  for (const auto& entry : std::filesystem::recursive_directory_iterator(
+           root / "sigilgeometry", ec)) {
+    if (!entry.is_regular_file() || entry.path().extension() != ".h") continue;
+    const std::string spelled =
+        entry.path().lexically_relative(root).generic_string();
+    if (spelled == "sigilgeometry/Geometry.h") continue;
+    if (spelled.find("/device/") != std::string::npos) continue;
+    EXPECT_NE(listed.find("\"" + spelled + "\""), std::string::npos)
+        << spelled << " is public and not in Geometry.h";
+  }
+}
