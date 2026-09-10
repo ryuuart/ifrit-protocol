@@ -1,10 +1,24 @@
 half4 main(float2 xy) {
+  // THE HARD LINE: the first half of every pitch, darkened flat — what a
+  // tube reads as once the beam's own shape is under a pixel.
   float line = mod(xy.y, uScanPitch) < uScanPitch * 0.5
                    ? uScanStrength
                    : 0.0;
+  // THE BEAM, and THE BEAT UNDER IT: a weight falling off from each
+  // centre, which is the profile a gun draws, and a second period for the
+  // beat a composite signal carries beneath the line. Either at no
+  // strength is a tube without it.
+  float f = fract(xy.y / max(uBeamPitch, 1e-6)) - 0.5;
+  line += (1.0 - exp2(-uBeamFalloff * f * f * 4.0)) * uBeamStrength;
+  float g = fract(xy.y / max(uBeatPitch, 1e-6)) - 0.5;
+  line += (1.0 - exp2(-uBeatFalloff * g * g * 4.0)) * uBeatStrength;
+  // The grain is in the DARKENING, not in the colour: what varies cell to
+  // cell is how much light the cell gives up.
+  float gr = fract(sin(dot(floor(xy), float2(12.9898, 78.233)))
+             * 43758.5453) - 0.5;
+  float dark = clamp(line + gr * uGrain, 0.0, 1.0);
   float2 p = (xy / max(uResolution, float2(1.0)) - 0.5) * 2.0;
   float r = length(p / uSqueeze);
   float vig = smoothstep(uVigInner, uVigOuter, r) * uVigStrength;
-  float a = clamp(line + vig, 0.0, 1.0);
-  return half4(0.0, 0.0, 0.0, half(a));
+  return half4(0.0, 0.0, 0.0, half(clamp(dark + vig, 0.0, 1.0)));
 }

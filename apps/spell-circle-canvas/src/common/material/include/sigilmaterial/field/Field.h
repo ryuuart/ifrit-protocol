@@ -79,32 +79,56 @@ Material grain(float frequency, int octaves = 4, float seed = 1.0f,
  *  count is a constant in the body, so each count is its own program. */
 const std::shared_ptr<const Recipe>& grainRecipe(int octaves);
 
-/** The tube overlay's ABI. */
+/** The tube overlay's ABI.
+ *
+ *  THE DARKENING IS A SUM: a hard line, a beam, a beat under it and a
+ *  grain, each of which is absent at no strength. A monitor seen from
+ *  across a room is the hard line alone; a plate shot close enough that
+ *  the beam's own profile spans several pixels wants the beam, and close
+ *  enough to read the composite signal's own period wants the beat as
+ *  well. */
 struct CrtOverlayParams {
-  float uScanPitch;     ///< px between scanline centres
-  float uScanStrength;  ///< how dark the dark half of a pitch goes
-  float uVigInner;      ///< normalised radius the corner falloff starts at
-  float uVigOuter;      ///< where it reaches full strength
-  float uVigStrength;
-  float uSqueeze;  ///< < 1 pulls the falloff in along the short axis
+  float uScanPitch = 4.0f;       ///< px between scanline centres
+  float uScanStrength = 0.052f;  ///< how dark the dark half of a pitch goes
+  float uVigInner = 1.45f;       ///< normalised radius the falloff starts at
+  float uVigOuter = 2.15f;       ///< where it reaches full strength
+  float uVigStrength = 0.34f;
+  float uSqueeze = 0.70f;  ///< < 1 pulls the falloff in along the short axis
+  /** THE BEAM: px between beam centres, how fast its weight falls away
+   *  from one, and how dark the gap between two goes. */
+  float uBeamPitch = 4.0f;
+  float uBeamFalloff = 1.0f;
+  float uBeamStrength = 0.0f;
+  /** THE BEAT the composite carries under the line — a second period of
+   *  the same shape. */
+  float uBeatPitch = 8.0f;
+  float uBeatFalloff = 1.0f;
+  float uBeatStrength = 0.0f;
+  /** How far a per-pixel speckle moves the DARKENING either way. A tube's
+   *  noise is in how much light a cell gives up, not in its colour. */
+  float uGrain = 0.0f;
 };
 
-/** THE TUBE, as something laid OVER a picture: hard scanlines and a
- *  corner falloff, in black, with the alpha carrying both. It darkens
- *  what is under it rather than shading anything itself, so it is drawn
- *  as the last layer over the frame it ages.
+/** THE TUBE, as something laid OVER a picture: its lines and a corner
+ *  falloff, in black, with the alpha carrying both. It darkens what is
+ *  under it rather than shading anything itself, so it is drawn as the
+ *  last layer over the frame it ages.
  *
  *  @p scanPitch is the full period in px and the darker half is the first
- *  half of it, which is what makes the lines hard-edged rather than a
- *  raised-cosine beam. @p squeeze is applied to the normalised
- *  coordinate before the radius is taken, so a value under 1 makes the
- *  falloff reach in from the sides sooner than from the top.
+ *  half of it, which is what makes these lines hard-edged; the beam and
+ *  the beat in `CrtOverlayParams` are the profile a gun actually draws,
+ *  and this entry point leaves both out. @p squeeze is applied to the
+ *  normalised coordinate before the radius is taken, so a value under 1
+ *  makes the falloff reach in from the sides sooner than from the top.
  *
  *  Reads the resolution. Every parameter is a uniform; the defaults are a
  *  monitor seen straight on with the lines just visible. */
 Material crtOverlay(float scanPitch = 4.0f, float scanStrength = 0.052f,
                     float vigInner = 1.45f, float vigOuter = 2.15f,
                     float vigStrength = 0.34f, float squeeze = 0.70f);
+/** THE WHOLE TUBE, for the plate that carries more of it than a hard
+ *  line — the beam's own profile, the beat under it, the grain. */
+Material crtOverlay(const CrtOverlayParams& params);
 /** crtOverlay()'s recipe, defined once. */
 const std::shared_ptr<const Recipe>& crtOverlayRecipe();
 

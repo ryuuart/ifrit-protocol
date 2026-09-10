@@ -266,6 +266,7 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
@@ -291,6 +292,8 @@ namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
 namespace path = sigil::geometry::path;
+namespace field = sigil::material::field;
+namespace mat = sigil::material;
 namespace patterns = sigil::material::pattern;
 namespace shapes = sigil::geometry::shapes;
 
@@ -708,29 +711,27 @@ constexpr int kPhraseN = (int)(sizeof(kPhrases) / sizeof(kPhrases[0]));
 // ---------------------------------------------------------------------------
 // THE TUBE. Lottes' scanline weight, period 4.42 px (measured, correction 3),
 // plus the composite's own 9.82 px beat at a quarter weight — one tube, two
-// shots, both beats present. Baked once, crept by whole pixels.
+// shots, both beats present. Baked once, crept by whole pixels. The library's
+// overlay carries the line, the beam, the beat and the grain; this states
+// which of them this plate was shot with.
 
-inline sk_sp<SkRuntimeEffect> crtEffect() {
-  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
-      "uniform float2 uResolution;\n"
-      "half4 main(float2 xy) {\n"
-      // Lottes: a raised-cosine beam profile about the scanline centre.
-      "  float f = fract(xy.y / 4.42) - 0.5;\n"
-      "  float w = exp2(-2.6 * f * f * 4.0);\n"
-      "  float g = fract(xy.y / 9.82) - 0.5;\n"
-      "  float w2 = exp2(-1.4 * g * g * 4.0);\n"
-      "  float dark = (1.0 - w) * 0.032 + (1.0 - w2) * 0.014;\n"
-      // the corner falloff of a curved tube, gentle: this plate is shot
-      // close, so the vignette barely enters frame
-      "  float2 p = (xy / max(uResolution, float2(1.0)) - 0.5) * 2.0;\n"
-      "  float vig = smoothstep(1.05, 1.90, length(p / 0.86)) * 0.30;\n"
-      "  float gr = fract(sin(dot(floor(xy), float2(12.9898, 78.233)))\n"
-      "            * 43758.5453) - 0.5;\n"
-      "  dark = clamp(dark + gr * 0.055, 0.0, 1.0);\n"
-      "  return half4(0.0, 0.0, 0.0, half(clamp(dark + vig, 0.0, 1.0)));\n"
-      "}\n"));
-  if (!effect) SkDebugf("lain crt shader: %s\n", err.c_str());
-  return effect;
+inline mat::Material crtTube() {
+  return field::crtOverlay({// No hard line: this tube is shot close enough
+                            // that the beam's own profile is what shows.
+                            .uScanStrength = 0.0f,
+                            // The corner falloff of a curved tube, gentle:
+                            // the vignette barely enters frame.
+                            .uVigInner = 1.05f,
+                            .uVigOuter = 1.90f,
+                            .uVigStrength = 0.30f,
+                            .uSqueeze = 0.86f,
+                            .uBeamPitch = 4.42f,
+                            .uBeamFalloff = 2.6f,
+                            .uBeamStrength = 0.032f,
+                            .uBeatPitch = 9.82f,
+                            .uBeatFalloff = 1.4f,
+                            .uBeatStrength = 0.014f,
+                            .uGrain = 0.055f});
 }
 
 /** The base plate: a photographed city at night, defocused past recognition.
@@ -1168,7 +1169,7 @@ struct LainNavi : sketch::Sketch {
     root.child(box().inset(0).translateY(&creep).child(
         box()
             .rect(SkRect::MakeXYWH(0, -12, kW, kH + 24))
-            .fill(mskia::Paint::sksl(crtEffect()))
+            .fill(mskia::Paint::recipe(crtTube()))
             .cache(Cache::Texture)
             .key("crt")));
     root.child(box()

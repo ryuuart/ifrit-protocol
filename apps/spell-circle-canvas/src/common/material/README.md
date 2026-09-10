@@ -808,8 +808,15 @@ pass-through recipe, so it fills a slot and compares by its parameters;
 `grain` is value-noise fBm collapsed to one channel, one recipe per
 octave count because the count is a constant in the body; `ripple`
 resamples its `content` child through a sine displacement; `crtOverlay`
-is the tube laid over a picture — hard scanlines and a corner falloff, in
-black, with the alpha carrying both — and reads the resolution.
+is the tube laid over a picture — in black, with the alpha carrying all
+of it — and reads the resolution. Its darkening is a SUM, and each term
+is absent at no strength, so one recipe covers a monitor across a room
+and a plate shot close: a hard line at `uScanPitch`, the beam's own
+profile at `uBeamPitch` and `uBeamFalloff`, the beat a composite signal
+carries under it at `uBeatPitch`, `uGrain` moving how much light a cell
+gives up, and the corner falloff. The positional `crtOverlay(scanPitch,
+…)` is the hard line alone; `crtOverlay(CrtOverlayParams)` is the whole
+tube.
 
 ## The Skia paint
 

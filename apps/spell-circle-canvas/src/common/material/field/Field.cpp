@@ -57,9 +57,16 @@ const std::shared_ptr<const Recipe>& crtOverlayRecipe() {
 
 Material crtOverlay(float scanPitch, float scanStrength, float vigInner,
                     float vigOuter, float vigStrength, float squeeze) {
-  return Material(crtOverlayRecipe(),
-                  CrtOverlayParams{scanPitch, scanStrength, vigInner, vigOuter,
-                                   vigStrength, squeeze});
+  return crtOverlay(CrtOverlayParams{.uScanPitch = scanPitch,
+                                     .uScanStrength = scanStrength,
+                                     .uVigInner = vigInner,
+                                     .uVigOuter = vigOuter,
+                                     .uVigStrength = vigStrength,
+                                     .uSqueeze = squeeze});
+}
+
+Material crtOverlay(const CrtOverlayParams& params) {
+  return Material(crtOverlayRecipe(), params);
 }
 
 namespace {

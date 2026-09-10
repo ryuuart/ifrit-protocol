@@ -14,6 +14,8 @@
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/MaterialField.h>
 
+#include <algorithm>
+
 #include "ShaderTable.h"
 #include "support/Shade.h"
 
@@ -122,6 +124,58 @@ TEST(Field, CrtOverlayScanStrengthAndVignetteAreTheCallersNumbers) {
       render(field::crtOverlay(4.0f, 0.5f, 1.45f, 2.15f, 0.0f), 64, 64);
   EXPECT_GT(SkColorGetA(strong.getColor(32, 0)), 100u);
   EXPECT_EQ(SkColorGetA(strong.getColor(32, 2)), 0u);
+}
+
+TEST(Field, TheBeamTheBeatAndTheGrainAreAbsentUntilTheyAreGivenStrength) {
+  // The tube's darkening is a sum, and the positional entry point is the
+  // hard line alone: nothing the params added may reach a picture that
+  // did not ask for it.
+  const SkBitmap plain = render(field::crtOverlay(4.0f, 0.10f), 64, 64);
+  const SkBitmap same = render(
+      field::crtOverlay({.uScanPitch = 4.0f, .uScanStrength = 0.10f}), 64, 64);
+  for (int y = 0; y < 16; ++y)
+    EXPECT_EQ(SkColorGetA(plain.getColor(32, y)),
+              SkColorGetA(same.getColor(32, y)));
+
+  // A beam leaves its own centre alone and darkens away from it. The
+  // centre falls half a pitch in, so a row there is lighter than one a
+  // half pitch off it, and two rows a whole pitch apart read the same.
+  const SkBitmap beam = render(field::crtOverlay({.uScanStrength = 0.0f,
+                                                  .uVigStrength = 0.0f,
+                                                  .uBeamPitch = 8.0f,
+                                                  .uBeamFalloff = 2.0f,
+                                                  .uBeamStrength = 0.6f}),
+                               64, 64);
+  EXPECT_EQ(SkColorGetA(beam.getColor(32, 4)),
+            SkColorGetA(beam.getColor(32, 12)));
+  EXPECT_LT(SkColorGetA(beam.getColor(32, 4)),
+            SkColorGetA(beam.getColor(32, 8)));
+
+  // The beat is a second period of the same shape, on a pitch of its
+  // own: its centre is eight rows in where the beam's was four.
+  const SkBitmap beat = render(field::crtOverlay({.uScanStrength = 0.0f,
+                                                  .uVigStrength = 0.0f,
+                                                  .uBeamStrength = 0.0f,
+                                                  .uBeatPitch = 16.0f,
+                                                  .uBeatFalloff = 2.0f,
+                                                  .uBeatStrength = 0.6f}),
+                               64, 64);
+  EXPECT_LT(SkColorGetA(beat.getColor(32, 8)),
+            SkColorGetA(beat.getColor(32, 16)));
+
+  // The grain moves the darkening pixel to pixel, both ways, and a row
+  // with nothing else on it is no longer one value.
+  const SkBitmap grained = render(
+      field::crtOverlay(
+          {.uScanStrength = 0.20f, .uVigStrength = 0.0f, .uGrain = 0.30f}),
+      64, 64);
+  int lo = 256, hi = -1;
+  for (int x = 0; x < 64; ++x) {
+    const int a = (int)SkColorGetA(grained.getColor(x, 0));
+    lo = std::min(lo, a);
+    hi = std::max(hi, a);
+  }
+  EXPECT_GT(hi - lo, 8);
 }
 
 // ---- the embedded shader table --------------------------------------------
