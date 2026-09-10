@@ -411,7 +411,7 @@ class Effect {
                 uniformArrays, bound, blocks, dirBlur, paramBlur, blurLevels,
                 gatheredHalo, children, chainA, chainB))> == 16,
         "Effect gained or lost a member — rule on it in "
-        "Effect::operator== (Effect.cpp), then bump this count. "
+        "Effect::operator==, then bump this count. "
         "(m_colorFilter compares by pointer, like m_filter, an "
         "already-built SkColorFilter carrying no recipe either; "
         "m_filter is EXCLUDED on the shader, directionalBlur and "
