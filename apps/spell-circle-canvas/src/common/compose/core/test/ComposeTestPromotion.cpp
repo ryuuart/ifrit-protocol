@@ -317,6 +317,39 @@ TEST(ComposeCache, AnEagerComposerPromotesTheEligibleNodeOnItsFirstFrame) {
   EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
 }
 
+TEST(ComposeCache, ANodeInsideABakeIsNotBakedAgain) {
+  // A bake of a node standing inside another node's bake is consulted only
+  // on the frames that one is remade — the cost rule reads a stopwatch and
+  // would never ask for it, and only the eager policy ever does. What it
+  // costs is a composite the contract does not allow: the node's coverage
+  // into its own image, that image into the layer above, and the layer
+  // above onto the canvas, where the live paint composited once and a bake
+  // may composite twice.
+  Host host;
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+  host.composer.setProfiling(true);
+  Element page = box().key("outer").width(100).height(100).fill(red());
+  page.child(
+      box().key("inner").absolute().left(20).top(20).width(40).height(40).fill(
+          green()));
+  host.composer.render(std::move(page));
+  host.frame();
+
+  const Composer::NodeCost* outer = requireRow(host.composer, "outer");
+  const Composer::NodeCost* inner = requireRow(host.composer, "inner");
+  ASSERT_NE(outer, nullptr);
+  ASSERT_NE(inner, nullptr);
+  ASSERT_EQ(outer->cacheState, Composer::CacheState::Promoted)
+      << "the outer node was not baked, so nothing was inside a bake";
+  EXPECT_NE(inner->cacheState, Composer::CacheState::Promoted)
+      << "a node inside a bake was baked again, so its coverage is "
+         "composited three times where the live paint composited once";
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u)
+      << "the bake above already holds the node inside it";
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);
+}
+
 TEST(ComposeCache, AnEagerComposerRefusesWhatTheCostRuleRefuses) {
   // Eager skips the cost question and NOTHING else. Every refusal is a
   // condition under which a bake would paint different pixels, so the two

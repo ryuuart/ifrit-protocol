@@ -139,7 +139,16 @@ void decidePromotion(PaintPass& pass) {
   // is, so the matrix must also be holding still by the recording's own
   // history: a bake taken under a moving matrix would pin a recording that
   // is then remade, and the bake with it, on every frame of the motion.
+  // …AND NEVER INSIDE ANOTHER BAKE. The bake above already holds this
+  // node: its image is what the blit lands, and a bake of a node inside it
+  // is consulted only on the frames that one is remade — which is the
+  // measured cost being near zero, so the cost rule would never ask for it
+  // and only the eager policy ever does. What it costs is a composite: the
+  // node's own coverage into its own image, that image into the layer
+  // above, and the layer above onto the canvas, where the contract allows
+  // ONE more composite than the live paint made.
   const bool deviceBakeable = impl.unpinnedRecordingDepth == 0 &&
+                              impl.bakeDepth == 0 &&
                               (impl.recordingDepth == 0 || pass.matrixStable);
   const bool promotable =
       why == Prom::Cheap && !impl.liveOnly && deviceBakeable;
