@@ -464,8 +464,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     // A staircase of whole device pixels is a different path at a
     // different scale, so a recording that freezes one in is pinned to the
     // scale it was traced at, exactly as one holding a device blit is
-    // pinned to its matrix.
-    ++recordingCoverageTraces;
+    // pinned to its matrix. One step per device pixel is as fine as a
+    // grid gets, so the window this narrows to is a point.
+    narrowScaleWindow(hostScale, hostScale);
   }
   SkPath marksPath = !marksShow ? *decorationBase
                      : (surfaceShow && *marksShow == *surfaceShow &&

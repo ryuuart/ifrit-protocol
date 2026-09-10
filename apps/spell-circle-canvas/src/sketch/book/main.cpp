@@ -8,7 +8,7 @@
  *                                              object per line
  *   Sketchbook --compare <dir-a> <dir-b>       two sweeps' plates, differenced
  *   Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
- *              [--ledger] [--no-promotion | --promotion]
+ *              [--ledger] [--no-promotion | --promotion] [--composites]
  *              [--capture-at <s>]
  *              [--timing-json <path>]          plates, and the timing table
  *   Sketchbook --video <out.mp4> [--video-frames <n>] [--fps <n>]
@@ -41,7 +41,10 @@
  * runtime is allowed to bake is baked from its first frame, whatever it
  * costs, so the set of nodes exercised is the scene's and identical on
  * every machine. Such a run is judged by distance from a plate, never
- * by hash.
+ * by hash. `--composites` writes a second picture beside each plate,
+ * `counts_<sketch>.png`, whose grey level is how many cached rasters
+ * were blitted over that pixel — the number a per-composite rounding
+ * bound has to be multiplied by before it bounds a picture.
  *
  * A `.cpp` PATH IS TAKEN WHEREVER IT STANDS. The file joins the app's
  * list under its own stem and opens there, and it is compiled and

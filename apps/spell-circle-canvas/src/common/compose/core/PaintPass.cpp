@@ -1,5 +1,6 @@
 #include "PaintPass.h"
 
+#include <include/core/SkBitmap.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkSurface.h>
 
@@ -94,6 +95,30 @@ sk_sp<SkImage> PaintPass::takeDeviceBake(
   return scratch->makeImageSnapshot(device);
 }
 
+void Composer::Impl::countBlit(const sk_sp<SkImage>& image, const SkIRect& at) {
+  if (!image || compositePlane.width <= 0) return;
+  SkBitmap read;
+  if (!read.tryAllocPixels(
+          SkImageInfo::MakeN32Premul(image->width(), image->height())))
+    return;
+  if (!image->readPixels(nullptr, read.pixmap(), 0, 0)) return;
+  const SkIRect on =
+      SkIRect::MakeWH(compositePlane.width, compositePlane.height);
+  for (int y = std::max(at.top(), on.top());
+       y < std::min(at.bottom(), on.bottom()); ++y) {
+    const SkColor* row = (const SkColor*)read.getAddr32(0, y - at.top());
+    uint8_t* out =
+        compositePlane.counts.data() + (size_t)y * (size_t)compositePlane.width;
+    for (int x = std::max(at.left(), on.left());
+         x < std::min(at.right(), on.right()); ++x) {
+      // A BLIT THAT CONTRIBUTES NOTHING ROUNDS NOTHING: transparent black
+      // leaves the destination as it stood, to the bit.
+      if (SkColorGetA(row[x - at.left()]) == 0) continue;
+      if (out[x] < 255) ++out[x];
+    }
+  }
+}
+
 void PaintPass::deviceBlit(const sk_sp<SkImage>& image, const SkIRect& at,
                            const SkPaint* paint) {
   canvas.save();
@@ -103,6 +128,7 @@ void PaintPass::deviceBlit(const sk_sp<SkImage>& image, const SkIRect& at,
                    SkSamplingOptions(), paint);
   canvas.restore();
   if (impl.recordingDepth > 0) ++impl.recordingDeviceBakes;
+  if (impl.countComposites) impl.countBlit(image, at);
 }
 
 sk_sp<SkImageFilter> PaintPass::resolveLayerFilter() {

@@ -532,6 +532,95 @@ std::vector<SkColor> stillAtTwice(bool warmFirst) {
 
 }  // namespace
 
+// ---------------------------------------------------------------------------
+// …AND SO IS A LOCAL BAKE'S TEXEL GRID.
+
+namespace {
+
+/** A NODE BAKED AT THE HOST'S SCALE INSIDE A RECORDING THAT MOVES. The
+ *  wrapper's transform is declared animating, so its recording replays
+ *  under a matrix nobody knows in advance and the bake inside it is the
+ *  quantized LOCAL one — a texel grid measured off the host's scale,
+ *  stretched across the node's own units by the blit rather than landing
+ *  on the device grid. The stripes are one unit wide, so a bake taken at
+ *  one scale and blitted at twice it is an upscale of half the texels the
+ *  finer bake holds. */
+Element stripedBake(const ch::Output<float>* drift) {
+  Element bakedNode = box()
+                          .absolute()
+                          .left(20)
+                          .top(20)
+                          .width(160)
+                          .height(160)
+                          .fill(Fill::color({0, 0, 0, 1}))
+                          .cache(Cache::Texture)
+                          .key("striped");
+  for (int i = 0; i < 40; ++i)
+    bakedNode.child(box()
+                        .absolute()
+                        .left((float)(i * 4))
+                        .top(0)
+                        .width(1)
+                        .height(160)
+                        .fill(Fill::color({0.95f, 0.85f, 0.2f, 1})));
+  Element page = box().width(200).height(200).fill(Fill::color({0, 0, 0, 1}));
+  page.child(box().inset(0).translateY(drift).child(std::move(bakedNode)));
+  return page;
+}
+
+/** The still a plate is photographed as: warmed at one scale and then
+ *  drawn at twice it, or drawn at twice it from the first frame. */
+std::vector<SkColor> stripesAtTwice(bool warmFirst) {
+  Host host(200, 200);
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
+  ch::Output<float> drift{0.0f};
+  host.composer.render(stripedBake(&drift));
+  if (warmFirst)
+    for (int i = 0; i < 6; ++i) host.frame();
+  sk_sp<SkSurface> still =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 400));
+  still->getCanvas()->clear(SK_ColorBLACK);
+  still->getCanvas()->scale(2, 2);
+  host.composer.draw(*still->getCanvas());
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(400, 400));
+  still->readPixels(bm.pixmap(), 0, 0);
+  std::vector<SkColor> out;
+  out.reserve(400u * 400u);
+  for (int y = 0; y < 400; ++y)
+    for (int x = 0; x < 400; ++x) out.push_back(bm.getColor(x, y));
+  return out;
+}
+
+}  // namespace
+
+TEST(ComposeCache, ALocalBakeInsideARecordingFollowsTheScaleUnderIt) {
+  // A local texture bake is rasterized at a rung of the scale ladder and
+  // the blit stretches those texels across the node's own units, so the
+  // node re-bakes at the rung the host's scale reaches. A node inside a
+  // held recording is never asked again — it is painted only when the
+  // recording is taken — so a plate photographed at its oversample would
+  // blit an upscale of the raster the warm frames took at the smaller
+  // scale. The recording carries the pin instead, exactly as it carries
+  // the one a traced boundary needs.
+  const std::vector<SkColor> warmed = stripesAtTwice(true);
+  const std::vector<SkColor> fresh = stripesAtTwice(false);
+  ASSERT_EQ(warmed.size(), fresh.size());
+  size_t differing = 0;
+  int worst = 0;
+  for (size_t i = 0; i < warmed.size(); ++i) {
+    if (warmed[i] == fresh[i]) continue;
+    ++differing;
+    for (int shift : {0, 8, 16, 24})
+      worst = std::max(worst, std::abs((int)((warmed[i] >> shift) & 0xffu) -
+                                       (int)((fresh[i] >> shift) & 0xffu)));
+  }
+  EXPECT_LE(worst, 1) << differing << " pixels moved, worst " << worst
+                      << " code values, when a node baked at the host's "
+                         "scale inside a moving recording was drawn at "
+                         "another scale";
+}
+
 TEST(ComposeCache, ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves) {
   // A recording replays under whatever matrix it meets, which is sound for
   // every op in it EXCEPT a coverage boundary: that path is the silhouette

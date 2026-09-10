@@ -11,6 +11,7 @@
 #include <sigilcore/cache/Bake.h>
 #include <sigilmeasure/time/Stopwatch.h>
 
+#include <limits>
 #include <utility>
 
 #include "PaintInternal.h"
@@ -34,9 +35,10 @@ void PictureBake::replay(PictureBakeTarget& t) const {
   // to the same matrix, and remade with this one when it changes.
   t.painter->recordingDeviceBakes += t.inst->pictureDeviceBakes;
   t.painter->recordingDeviceDeferred |= t.inst->pictureDeviceDeferred;
-  // …and the traced silhouettes it holds, which pin the outer recording to
-  // the scale they were traced at exactly as the blits pin it to a matrix.
-  t.painter->recordingCoverageTraces += t.inst->pictureCoverageTraces;
+  // …and the window of host scales the rasters it holds are the same
+  // picture over, which narrows the outer recording's exactly as the
+  // blits pin that recording to a matrix.
+  t.painter->narrowScaleWindow(t.inst->pictureScaleLo, t.inst->pictureScaleHi);
 }
 void PictureBake::drop(PictureBakeTarget& t) const { t.inst->picture.reset(); }
 bool PictureBake::held(const PictureBakeTarget& t) const {
@@ -88,10 +90,12 @@ void Composer::Impl::recordPicture(Instance& inst, const SkMatrix& deviceMatrix,
   const bool invertible = recordingReplay.invert(&recordingReplayInverse);
   const uint32_t outerBakes = recordingDeviceBakes;
   const bool outerDeferred = recordingDeviceDeferred;
-  const uint32_t outerTraces = recordingCoverageTraces;
+  const float outerScaleLo = recordingScaleLo;
+  const float outerScaleHi = recordingScaleHi;
   recordingDeviceBakes = 0;
   recordingDeviceDeferred = false;
-  recordingCoverageTraces = 0;
+  recordingScaleLo = 0.0f;
+  recordingScaleHi = std::numeric_limits<float>::infinity();
   ++recordingDepth;
   // A replay matrix with no inverse has no device rect to land a blit on.
   if (unpinned || !invertible) ++unpinnedRecordingDepth;
@@ -103,12 +107,13 @@ void Composer::Impl::recordPicture(Instance& inst, const SkMatrix& deviceMatrix,
   inst.pictureDeviceClip = deviceClip;
   inst.pictureDeviceBakes = recordingDeviceBakes;
   inst.pictureDeviceDeferred = recordingDeviceDeferred;
-  inst.pictureCoverageTraces = recordingCoverageTraces;
-  inst.pictureHostScale = hostScale;
+  inst.pictureScaleLo = recordingScaleLo;
+  inst.pictureScaleHi = recordingScaleHi;
   // What this recording holds, the enclosing one now holds too.
   recordingDeviceBakes = outerBakes + inst.pictureDeviceBakes;
   recordingDeviceDeferred = outerDeferred || inst.pictureDeviceDeferred;
-  recordingCoverageTraces = outerTraces + inst.pictureCoverageTraces;
+  recordingScaleLo = std::max(outerScaleLo, inst.pictureScaleLo);
+  recordingScaleHi = std::min(outerScaleHi, inst.pictureScaleHi);
   recordingReplay = outerReplay;
   recordingReplayInverse = outerReplayInverse;
   inst.bakedLeafOpacity = leafOpacity;  // a settled transition re-bakes
@@ -153,15 +158,18 @@ void paintThroughPicture(PaintPass& pass) {
   const bool pinMoved = inst.pictureDeviceBakes > 0 &&
                         (totalM != inst.pictureMatrix ||
                          pass.deviceClip() != inst.pictureDeviceClip);
-  // …and the scale pin: a recording holding a traced silhouette holds a
-  // staircase of whole device pixels, which is a different path once the
-  // node is drawn at another scale — a host resized, a plate photographed
-  // at its oversample. Nothing else the tier compares moves with it: the
-  // node's content is the same content whatever scale it is drawn at, so a
-  // recording kept across the change would replay the coarser boundary and
-  // the decorations that dress it would never find the finer one.
-  const bool scalePinMoved =
-      inst.pictureCoverageTraces > 0 && inst.pictureHostScale != impl.hostScale;
+  // …and the scale pin: a recording holding a raster taken at the host's
+  // own scale holds a grid of whole device pixels — a traced silhouette's
+  // staircase, a local texture bake's texels — and that grid is a
+  // different picture once the node is drawn at another scale, a host
+  // resized or a plate photographed at its oversample. Nothing else the
+  // tier compares moves with it: the node's content is the same content
+  // whatever scale it is drawn at, so a recording kept across the change
+  // replays the coarser grid — the decorations dressing a boundary never
+  // find the finer one, and a local bake blits an upscale of the raster it
+  // took at the smaller scale.
+  const bool scalePinMoved = impl.hostScale < inst.pictureScaleLo ||
+                             impl.hostScale > inst.pictureScaleHi;
   const bool deferredDue = inst.pictureDeviceDeferred && pass.matrixStable;
   if (core::decideBake({.cacheable = true,
                         .held = impl.pictureBake->held(target),

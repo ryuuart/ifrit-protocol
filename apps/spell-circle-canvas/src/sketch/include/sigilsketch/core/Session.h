@@ -126,6 +126,25 @@ class Session {
    *  than for a measured run. */
   virtual void setProfiling(bool on) { (void)on; }
 
+  /** COUNT THE COMPOSITES EACH PIXEL PASSES THROUGH on the frames that
+   *  follow. A runtime that holds cached rasters composites a pixel more
+   *  times than a live paint does, and each composite rounds; the count
+   *  is what turns a per-composite bound into a bound on a picture. It
+   *  costs a readback per cached raster, so a host asks for one frame
+   *  rather than for a run, and a runtime that caches nothing of its own
+   *  ignores it. */
+  virtual void setCompositeCounting(bool on) { (void)on; }
+
+  /** The plane the last counted frame produced: one saturating byte per
+   *  device pixel of the canvas that frame was drawn on, row-major.
+   *  Empty when nothing counted. */
+  struct CompositeCounts {
+    int width = 0;
+    int height = 0;
+    std::vector<uint8_t> counts;
+  };
+  [[nodiscard]] virtual CompositeCounts compositeCounts() const { return {}; }
+
   /** HOW MANY DEVICE PIXELS A CANVAS UNIT IS WORTH, for the rasters this
    *  runtime bakes. Declared, a cached raster is taken at this density
    *  once and drawn through whatever transform the host applies after,

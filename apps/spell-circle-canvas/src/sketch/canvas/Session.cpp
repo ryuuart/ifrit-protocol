@@ -230,6 +230,16 @@ class CanvasSession final : public Session {
 
   void setProfiling(bool on) override { m_composer->setProfiling(on); }
 
+  void setCompositeCounting(bool on) override {
+    m_composer->setCompositeCounting(on);
+  }
+
+  [[nodiscard]] CompositeCounts compositeCounts() const override {
+    const compose::Composer::CompositePlane& plane =
+        m_composer->compositePlane();
+    return {plane.width, plane.height, plane.counts};
+  }
+
   void setBakeDensity(float devicePixelsPerUnit) override {
     m_composer->setBakeDensity(devicePixelsPerUnit);
   }

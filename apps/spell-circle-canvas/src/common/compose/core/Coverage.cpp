@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 #include "ComposeRuntime.h"
@@ -187,12 +188,14 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   const uint32_t outerBakes = recordingDeviceBakes;
   const bool outerDeferred = recordingDeviceDeferred;
   const bool outerMatrixStable = recordingMatrixStable;
-  const uint32_t outerTraces = recordingCoverageTraces;
+  const float outerScaleLo = recordingScaleLo;
+  const float outerScaleHi = recordingScaleHi;
   recordingReplay = SkMatrix::I();
   recordingReplayInverse = SkMatrix::I();
   recordingDeviceBakes = 0;
   recordingDeviceDeferred = false;
-  recordingCoverageTraces = 0;
+  recordingScaleLo = 0.0f;
+  recordingScaleHi = std::numeric_limits<float>::infinity();
   ++recordingDepth;
   ++unpinnedRecordingDepth;
   paintContent(inst, canvas, contentScale);
@@ -203,7 +206,8 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   recordingDeviceBakes = outerBakes;
   recordingDeviceDeferred = outerDeferred;
   recordingMatrixStable = outerMatrixStable;
-  recordingCoverageTraces = outerTraces;
+  recordingScaleLo = outerScaleLo;
+  recordingScaleHi = outerScaleHi;
   coverageTrace = outerTrace;
 
   SkPixmap alpha;

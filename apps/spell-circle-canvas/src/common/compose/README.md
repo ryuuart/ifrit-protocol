@@ -318,11 +318,13 @@ Tracing a raster has three consequences and all three show:
   for: past it the raster is scaled down to fit and the steps grow. So a
   RECORDING THAT HOLDS ONE IS PINNED TO THAT SCALE: a picture replays
   under whatever matrix it meets, which is sound for every other op in it,
-  and a traced boundary is the one answer inside that belongs to the scale
-  it was taken at. The recording counts the traces it holds — its own
-  nodes' and those of every held picture replayed into it — and is remade
-  when the scale moves, exactly as a recording holding a device blit is
-  remade when its matrix does.
+  and a traced boundary is one of the two answers inside that belong to
+  the scale it was taken at. A recording carries the WINDOW of host scales
+  everything in it is the same picture over — narrowed by its own nodes'
+  rasters and by those of every held picture replayed into it — and is
+  remade when the host leaves it, exactly as a recording holding a device
+  blit is remade when its matrix moves. A trace narrows that window to a
+  point, because one step per device pixel is as fine as a grid gets.
 - **How much paint counts as ink is a dial.** A pixel joins the boundary
   when the node's paint reached `Element::threshold` of it, a fraction of
   full opacity. The default is half — the rule an unantialiased rasteriser
@@ -1205,7 +1207,11 @@ same declaration.
 **A SCALE MOTION THAT NAMES ITS DESTINATION IS BAKED THERE, ONCE.** A
 `Cache::Texture` bake taken while the node is moving is held in local
 space at a coarse scale ladder, so a scale nobody declared — a resize, a
-pinch zoom — reuses one bake per step. An entrance is the opposite case:
+pinch zoom — reuses one bake per step. The rung is the other answer that
+belongs to the scale it was taken at: a local bake is a texel grid the
+blit stretches over the node's own units, and a node inside a held
+recording is never asked for a new rung, so it narrows that recording's
+scale window to the rung's own span. An entrance is the opposite case:
 a `from(a).to(b)` on `scale`, `scaleX` or `scaleY` names where it is
 going, so the bake is taken there once and the blit minifies through the
 entrance, which is the sharp direction. A scale driven by a binding names

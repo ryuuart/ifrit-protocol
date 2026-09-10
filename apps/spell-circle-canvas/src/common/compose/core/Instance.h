@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>  // std::size, for the kSlotSpecs asserts
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -270,16 +271,20 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   SkIRect pictureDeviceClip = SkIRect::MakeEmpty();
   uint32_t pictureDeviceBakes = 0;
   bool pictureDeviceDeferred = false;
-  // …and the device scale a COVERAGE BOUNDARY inside it was traced at. A
-  // traced silhouette is a staircase of whole device pixels, so it is a
-  // different path at a different scale — the one answer a recording can
-  // hold that is not matrix-independent for a reason no blit explains.
-  // The count is kept for the same reason the blits' is: it is the number
-  // of traces the recording holds, its own nodes' and those of every held
-  // picture replayed into it, so a recording holding none is never remade
-  // for the scale alone.
-  uint32_t pictureCoverageTraces = 0;
-  float pictureHostScale = 1.0f;
+  // …and THE WINDOW OF HOST SCALES the rasters inside it are the same
+  // picture over. A traced silhouette is a staircase of whole device
+  // pixels and a local texture bake is a texel grid the blit stretches
+  // across the node's own units: both are measured off the scale the
+  // recording was taken at, and both are answers a recording can hold
+  // that are not matrix-independent for a reason no blit explains. A node
+  // painted every frame notices and re-traces or re-bakes; a node inside
+  // a held recording is never asked again, so the recording carries the
+  // window. It is narrowed by its own nodes' rasters and by those of
+  // every held picture replayed into it — a point for a trace, the ladder
+  // rung's own span for a local bake — so a recording holding neither
+  // keeps the whole line and is never remade for the scale alone.
+  float pictureScaleLo = 0.0f;
+  float pictureScaleHi = std::numeric_limits<float>::infinity();
   sk_sp<SkImage> textureImage;
   float textureScale = 1.0f;
   SkRect textureBakeRect = SkRect::MakeEmpty();  // bake covers paint bounds

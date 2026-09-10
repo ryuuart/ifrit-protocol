@@ -66,6 +66,24 @@ bool writePlate(const SkPixmap& pixels, const std::filesystem::path& path) {
   return png && io::writeBytes(path, png->data(), png->size());
 }
 
+/** The composite-count plane on disk, beside the plate it describes: one
+ *  grey level per device pixel, so a reader sees where the counts stand
+ *  and a script reads the number itself out of the same file. */
+bool writeCountPlane(const Session::CompositeCounts& plane,
+                     const std::string& dir, const char* name) {
+  if (plane.width <= 0 || plane.height <= 0) return true;
+  SkBitmap grey;
+  if (!grey.tryAllocPixels(SkImageInfo::Make(
+          plane.width, plane.height, kGray_8_SkColorType, kOpaque_SkAlphaType)))
+    return false;
+  for (int y = 0; y < plane.height; ++y)
+    std::memcpy(grey.getAddr8(0, y),
+                plane.counts.data() + (size_t)y * (size_t)plane.width,
+                (size_t)plane.width);
+  return writePlate(grey.pixmap(),
+                    dir + "/counts_" + std::string(name) + ".png");
+}
+
 }  // namespace
 
 int sweep(const SweepOptions& options, weave::FontContext& fonts,
@@ -81,6 +99,13 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
                  "--timing-json is refused under --ledger: ledger mode "
                  "skips the benchmark phases, so there is no timing to "
                  "report\n");
+    return 1;
+  }
+  if (options.countPlane && options.gpu) {
+    std::fprintf(stderr,
+                 "--composites is refused with --gpu: the plane is read "
+                 "back off each cached raster, and a device raster is not "
+                 "readable where it is blitted\n");
     return 1;
   }
   FILE* timingJson = nullptr;
@@ -468,7 +493,20 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     sk_sp<SkSurface> plate = SkSurfaces::Raster(plateInfo);
     plate->getCanvas()->clear(clearColor);
     plate->getCanvas()->scale(scale, scale);
+    // ASKED FOR OVER THE STILL AND NOTHING ELSE: the plane describes the
+    // frame that was photographed, and every frame stepped to reach it
+    // would otherwise be counted into the same tally.
+    if (options.countPlane) session->setCompositeCounting(true);
     session->still(*plate->getCanvas());
+    if (options.countPlane) {
+      const bool wrote = writeCountPlane(session->compositeCounts(),
+                                         options.outDir, entry.name);
+      session->setCompositeCounting(false);
+      if (!wrote) {
+        if (timingJson) std::fclose(timingJson);
+        return 1;
+      }
+    }
     plate->readPixels(bitmap.pixmap(), 0, 0);
     if (!writePlate(bitmap.pixmap(), path)) {
       if (timingJson) std::fclose(timingJson);

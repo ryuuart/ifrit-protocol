@@ -81,6 +81,19 @@ struct SweepOptions {
    *  from the plate rather than by hash. Refused together with
    *  `noPromotion`, which asks for the opposite. */
   bool promotion = false;
+  /** ALSO WRITE THE COMPOSITE-COUNT PLANE beside each plate, named
+   *  `counts_<sketch>.png` — one grey level per device pixel, saying how
+   *  many cached rasters were blitted over it.
+   *
+   *  A cached raster is a composite the live paint does not make, and
+   *  each composite rounds into eight bits; so the difference a promoted
+   *  plate may carry over its live paint is a bound per composite times
+   *  the count, and the count is otherwise invisible. Written as a plate
+   *  is written, at the plate's own size, so the two index alike.
+   *
+   *  It costs a readback per bake and it is a DIAGNOSTIC: no ledger tier
+   *  judges the plane, and asking for it changes nothing a plate holds. */
+  bool countPlane = false;
   /** Take every still at this scene time, overriding both the derived
    *  frame and any sketch's declared moment. Sweeping at two different
    *  times and diffing tells you which sketches are still in motion at

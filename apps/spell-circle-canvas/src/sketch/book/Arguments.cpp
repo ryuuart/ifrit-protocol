@@ -64,6 +64,8 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       args.sweepOptions.noPromotion = true;
     } else if (arg == "--promotion") {
       args.sweepOptions.promotion = true;
+    } else if (arg == "--composites") {
+      args.sweepOptions.countPlane = true;
     } else if (arg == "--capture-at" && i + 1 < argc) {
       args.sweepOptions.captureAt = std::strtod(argv[++i], nullptr);
     } else if (arg == "--timing-json" && i + 1 < argc) {

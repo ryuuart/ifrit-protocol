@@ -463,6 +463,42 @@ class Composer {
    *  profiling is off. */
   const std::vector<NodeCost>& profile() const;
 
+  /** HOW MANY DEVICE BLITS EACH PIXEL WAS UNDER.
+   *
+   *  A cached raster is a composite the live paint does not make: the
+   *  node's coverage is rounded into the bake's own eight bits, and the
+   *  bake is then rounded again onto whatever it lands on. What that
+   *  costs a pixel is bounded per composite, so the bound a whole picture
+   *  stands under is a bound PER PIXEL times the number of composites
+   *  that pixel passed through — and nothing else in the library reports
+   *  that number. A picture that differs from its live paint by more than
+   *  one composite's worth is either a bake landing on another bake's
+   *  output or a bound that was never true; the plane tells the two
+   *  apart, per pixel, on the picture itself rather than on a fixture.
+   *
+   *  Counted are the blits: a pixel is under one when the image being
+   *  blitted carries a nonzero alpha there, because a blit that
+   *  contributes nothing rounds nothing. Sizing follows the canvas the
+   *  frame is drawn on, in that canvas's own device pixels, so a plane
+   *  and the plate taken from the same draw index alike.
+   *
+   *  It costs a readback of every bake, so it is off unless asked for and
+   *  a host asks for one draw rather than a run. */
+  void setCompositeCounting(bool on);
+  bool compositeCounting() const;
+  /** The plane the last counted draw() produced. Saturating, because a
+   *  pixel under 255 composites is a fact no eighth bit refines. */
+  struct CompositePlane {
+    int width = 0;
+    int height = 0;
+    std::vector<uint8_t> counts;
+    uint8_t at(int x, int y) const {
+      if (x < 0 || y < 0 || x >= width || y >= height) return 0;
+      return counts[(size_t)y * (size_t)width + (size_t)x];
+    }
+  };
+  const CompositePlane& compositePlane() const;
+
   /** WHAT DECIDES A PROMOTION — never what a promotion is allowed to do.
    *
    *  `ByCost` is the library's own judgement and the default: a node is

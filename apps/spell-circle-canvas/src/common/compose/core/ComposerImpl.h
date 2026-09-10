@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <cstdlib>
+#include <limits>
 #include <optional>
 
 #include "Instance.h"
@@ -239,12 +240,26 @@ struct Composer::Impl {
   // matrix holds still. Stamped onto the instance when the recording ends.
   uint32_t recordingDeviceBakes = 0;
   bool recordingDeviceDeferred = false;
-  // …and how many COVERAGE BOUNDARIES it holds, on the same terms. A
-  // traced silhouette is a staircase of whole device pixels, so a
-  // recording that froze one in is exact at the scale it was traced at
-  // and stale at every other, exactly as one holding a blit is stale
-  // under another matrix.
-  uint32_t recordingCoverageTraces = 0;
+  // …and THE WINDOW OF HOST SCALES OVER WHICH WHAT IT HOLDS IS THE SAME
+  // PICTURE. Most of a recording is scale-free — the ops carry paths and
+  // paints, and the matrix they meet is the replay's. A raster inside one
+  // is not: a traced silhouette is a staircase of whole device pixels and
+  // a local texture bake is a texel grid the blit stretches over the
+  // node's own units, and both were measured off the scale the recording
+  // was taken at. Each such raster narrows the window to the scales that
+  // would have produced the same grid — a point for a trace, the ladder
+  // rung's own span for a local bake — and a recording whose window the
+  // host has left is remade, exactly as one holding a device blit is
+  // remade under another matrix. A recording holding no raster keeps the
+  // whole line and is never remade for the scale alone.
+  float recordingScaleLo = 0.0f;
+  float recordingScaleHi = std::numeric_limits<float>::infinity();
+  /** Narrow the open recording's window to the scales that would answer
+   *  the same grid as the raster just taken. */
+  void narrowScaleWindow(float lo, float hi) {
+    recordingScaleLo = std::max(recordingScaleLo, lo);
+    recordingScaleHi = std::min(recordingScaleHi, hi);
+  }
   // The node→root matrix accumulated by paint()'s own recursion — the same
   // walk Query.cpp inverts for hit testing, run forwards. Saved and
   // restored around each paint() frame (RAII, because paint() returns from
@@ -291,6 +306,12 @@ struct Composer::Impl {
   std::vector<Composer::NodeCost> profileRows;
   double profChildMs = 0;
   int profDepth = 0;
+  // Composer::setCompositeCounting: the tally every device blit adds to,
+  // sized to the canvas at the top of a counted draw and read back off each
+  // bake's image, so it is a diagnostic and never a frame's cost.
+  bool countComposites = false;
+  Composer::CompositePlane compositePlane;
+  void countBlit(const sk_sp<SkImage>& image, const SkIRect& at);
   // render()/renderSlot() phase time accumulated since the previous draw();
   // draw() publishes it as stats.reconcileMs and zeroes the accumulator.
   double reconcileAccumMs = 0;

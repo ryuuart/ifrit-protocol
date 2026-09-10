@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstdint>
 #include <iterator>
+#include <limits>
 #include <utility>
 
 #include "PaintInternal.h"
@@ -252,15 +253,40 @@ bool paintTextureBake(PaintPass& pass) {
   static constexpr float kBakeSteps[] = {0.25f, 0.5f, 0.75f, 1.0f,
                                          1.5f,  2.0f, 3.0f,  4.0f};
   float scale = impl.bakeDensity;
+  // …AND THE WINDOW OF HOST SCALES THAT WOULD ANSWER THE SAME RUNG, for a
+  // recording to carry. A node painted every frame re-asks the ladder and
+  // re-bakes when the answer moves; a node inside a held recording is
+  // never asked again, so the recording is remade when the host's scale
+  // leaves this. A DECLARED DENSITY has no ladder to leave — that bake is
+  // taken at the density the host named whatever the matrix says — so it
+  // narrows nothing.
+  float rungLo = 0.0f;
+  float rungHi = std::numeric_limits<float>::infinity();
   if (impl.bakeDensity <= 0) {
-    const float raw =
-        std::clamp(maxScaleOf(destTotal, localBounds), 0.25f, 4.0f);
+    const float measured = maxScaleOf(destTotal, localBounds);
+    const float raw = std::clamp(measured, 0.25f, 4.0f);
     scale = kBakeSteps[std::size(kBakeSteps) - 1];
+    float below = 0.0f;
     for (float step : kBakeSteps)
       if (step >= raw) {
         scale = step;
         break;
+      } else {
+        below = step;
       }
+    // The rung spans (below, scale]; carried onto the host's scale by the
+    // ratio between the two, which is the node's own transform and holds
+    // while the host's scale is the only thing moving. The clamps are the
+    // ends of the ladder and reach past it: a node already rasterizing at
+    // the floor or the ceiling answers the same rung however much further
+    // the host goes that way.
+    if (measured > 0.0f) {
+      const float perHost = impl.hostScale / measured;
+      rungLo = raw <= kBakeSteps[0] ? 0.0f : below * perHost;
+      rungHi = raw >= kBakeSteps[std::size(kBakeSteps) - 1]
+                   ? std::numeric_limits<float>::infinity()
+                   : scale * perHost;
+    }
   }
   // bakeScale(): opt-in reduced raster scale — the bake evaluates fewer
   // pixels and the blit below linear-upscales through the same dst rect.
@@ -398,6 +424,14 @@ bool paintTextureBake(PaintPass& pass) {
       SkRect::MakeXYWH(bake.left(), bake.top(),
                        (float)inst.textureImage->width() / inst.textureScale,
                        (float)inst.textureImage->height() / inst.textureScale);
+  // A LOCAL BAKE IS A TEXEL GRID MEASURED OFF THE HOST'S SCALE, and the
+  // blit below stretches that grid across the node's own units — so at a
+  // scale past this rung it is an upscale of a raster taken for a smaller
+  // one. A node painted every frame notices and re-bakes at the new rung;
+  // a node inside a held recording is never asked again, so the recording
+  // carries the window, exactly as it carries the pin a traced boundary
+  // needs.
+  impl.narrowScaleWindow(rungLo, rungHi);
   pass.profDraw("blit", [&] {
     SkPaint blit;
     bool dressed = false;

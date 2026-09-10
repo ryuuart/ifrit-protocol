@@ -243,6 +243,17 @@ void Composer::draw(SkCanvas& canvas) {
     impl.profChildMs = 0;
     impl.profDepth = 0;
   }
+  if (impl.countComposites) {
+    // The plane indexes the canvas this frame is drawn on, in that
+    // canvas's own device pixels, and it counts THIS draw: a frame's
+    // blits are a fact about the frame, and a plane carried over from
+    // the last one would report a picture nobody is looking at.
+    const SkISize device = canvas.getBaseLayerSize();
+    impl.compositePlane.width = device.width();
+    impl.compositePlane.height = device.height();
+    impl.compositePlane.counts.assign(
+        (size_t)device.width() * (size_t)device.height(), 0);
+  }
 
   sigil::measure::Laps laps;
 
@@ -314,6 +325,17 @@ void Composer::setProfiling(bool on) {
 }
 
 bool Composer::profiling() const { return m_impl->profileEnabled; }
+
+void Composer::setCompositeCounting(bool on) {
+  m_impl->countComposites = on;
+  if (!on) m_impl->compositePlane = {};
+}
+
+bool Composer::compositeCounting() const { return m_impl->countComposites; }
+
+const Composer::CompositePlane& Composer::compositePlane() const {
+  return m_impl->compositePlane;
+}
 
 void Composer::setAutoTexturePromotion(bool on) {
   setAutoTexturePromotion(on ? PromotionPolicy::ByCost : PromotionPolicy::Off);
