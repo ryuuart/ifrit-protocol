@@ -789,7 +789,13 @@ bound no area, so the outline they were cut from rides along in
 half of its width inside the shape along the chosen edges and nowhere
 else — the band a `kit::BevelInner` masked to the same edges with
 `styles::BevelEnds::Sliced` draws — `PathFormat::Align::Outer` the half
-outside, and a centred stroke straddles the runs. The brush engine is
+outside, and a centred stroke straddles the runs. **A stroke revealed by
+a span keeps it the same way.** The run a span gate shows is open until
+the reveal is complete, so the span pass leaves the shape it cut in
+`silhouette` too: `.stroke(spans::upTo(t), stroke(2, ink,
+PathFormat::Align::Inner))` paints that fraction of the same inner band
+at every value of `t`, and at `t == 1` it is the unspanned stroke. The
+brush engine is
 three headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
 `LayeredBrush`); `brush/GeometryOps.h`, the one mechanism door for
 deviating an outline (`ops::`, `GeometryOp`); and `brush/Brushes.h`, the

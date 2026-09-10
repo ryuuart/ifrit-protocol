@@ -240,6 +240,102 @@ TEST(ComposeDecorations, ASlicedOuterStrokePaintsTheBandOutsideItsOwnEdges) {
 }
 
 // ---------------------------------------------------------------------------
+// The same alignment on a span-REVEALED outline. A span gate narrows the
+// boundary to the run shown so far, and a partial run is open exactly as a
+// slice's runs are, so the shape it was cut from rides along and the
+// alignment clips to that at every fraction of the reveal. `revealBox` is
+// a 100 x 100 box at (20, 20): its perimeter is 400 px and its boundary
+// starts at the bottom-left corner and runs UP the left edge, so 0.05 of
+// the reveal is 20 px of that 100 px edge, 0.20 is 80 px of it, and 0.90
+// is three sides and 60 px back along the bottom.
+
+TEST(ComposeDecorations, ARevealedInnerStrokePaintsTheBandInsideTheShapeSoFar) {
+  choreograph::Output<float> shown;
+  Host host;
+  host.composer.render(stack().child(revealBox().fill(blue()).stroke(
+      spans::upTo(motion::bind(&shown)),
+      stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Inner))));
+
+  shown = 0.05f;  // 20 px up the left edge: y in [100, 120]
+  host.frame();
+  EXPECT_EQ(host.pixel(24, 110), SK_ColorWHITE);  // the band, inside the shape
+  EXPECT_EQ(host.pixel(32, 110), SK_ColorBLUE);   // one band-width in: fill
+  EXPECT_EQ(host.pixel(16, 110), SK_ColorBLACK);  // nothing outside the shape
+  EXPECT_EQ(host.pixel(24, 60), SK_ColorBLUE);    // nothing ahead of the run
+
+  shown = 0.20f;  // 80 px of the 100 px left edge: y in [40, 120]
+  host.frame();
+  EXPECT_EQ(host.pixel(24, 110), SK_ColorWHITE);
+  EXPECT_EQ(host.pixel(24, 50), SK_ColorWHITE);  // on up the edge
+  EXPECT_EQ(host.pixel(32, 50), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(16, 50), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(24, 30), SK_ColorBLUE);  // short of the corner
+  EXPECT_EQ(host.pixel(60, 24), SK_ColorBLUE);  // the top edge is not yet
+
+  shown = 0.90f;  // three sides, then 60 px back along the bottom
+  host.frame();
+  EXPECT_EQ(host.pixel(60, 24), SK_ColorWHITE);    // top edge, inner half
+  EXPECT_EQ(host.pixel(116, 60), SK_ColorWHITE);   // right edge
+  EXPECT_EQ(host.pixel(100, 116), SK_ColorWHITE);  // bottom, from the right
+  EXPECT_EQ(host.pixel(40, 116), SK_ColorBLUE);    // …but not all the way back
+  EXPECT_EQ(host.pixel(60, 16), SK_ColorBLACK);    // and never outside
+  EXPECT_EQ(host.pixel(124, 60), SK_ColorBLACK);
+}
+
+TEST(ComposeDecorations, AFullyRevealedInnerStrokeIsTheUnspannedOne) {
+  // A settled reveal draws exactly what no reveal at all draws — the
+  // property the whole gate rests on, read here through an alignment.
+  const PathFormat mark =
+      stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Inner);
+
+  Host revealed;
+  revealed.composer.render(stack().child(revealBox()
+                                             .fill(blue())
+                                             .mask(by::spans(spans::upTo(1.0f)))
+                                             .stroke(mark)));
+  revealed.frame();
+
+  Host plain;
+  plain.composer.render(stack().child(revealBox().fill(blue()).stroke(mark)));
+  plain.frame();
+
+  EXPECT_TRUE(identicalPixels(revealed, plain, 200, 200));
+  EXPECT_EQ(plain.pixel(24, 60), SK_ColorWHITE);  // and both drew the band
+}
+
+TEST(ComposeDecorations, ARevealedOuterStrokePaintsTheBandOutsideTheShape) {
+  choreograph::Output<float> shown;
+  Host host;
+  host.composer.render(stack().child(revealBox().fill(blue()).stroke(
+      spans::upTo(motion::bind(&shown)),
+      stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Outer))));
+
+  shown = 0.20f;  // the whole left edge
+  host.frame();
+  EXPECT_EQ(host.pixel(16, 60), SK_ColorWHITE);  // the half outside the shape
+  EXPECT_EQ(host.pixel(24, 60), SK_ColorBLUE);   // the inside stays the fill
+  EXPECT_EQ(host.pixel(60, 24), SK_ColorBLUE);   // the top is not yet shown
+  EXPECT_EQ(host.pixel(60, 16), SK_ColorBLACK);
+}
+
+TEST(ComposeDecorations, ARevealedCentredStrokeStraddlesTheRunAsItAlwaysDid) {
+  // Centre never clipped, so the silhouette is nothing to it: the mark
+  // stands half inside the shape and half outside, along the shown run.
+  choreograph::Output<float> shown;
+  Host host;
+  host.composer.render(stack().child(revealBox().fill(blue()).stroke(
+      spans::upTo(motion::bind(&shown)),
+      stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Center))));
+
+  shown = 0.20f;
+  host.frame();
+  EXPECT_EQ(host.pixel(18, 60), SK_ColorWHITE);  // outside the shape
+  EXPECT_EQ(host.pixel(22, 60), SK_ColorWHITE);  // and inside it
+  EXPECT_EQ(host.pixel(28, 60), SK_ColorBLUE);   // half a width in: fill
+  EXPECT_EQ(host.pixel(60, 24), SK_ColorBLUE);   // the top is not yet shown
+}
+
+// ---------------------------------------------------------------------------
 // Element stamps + snapshot().
 
 TEST(ComposeStamps, SnapshotBakesIntrinsicSize) {

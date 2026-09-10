@@ -134,13 +134,15 @@ struct PaintContext {
   SkPath outline;
   /** The CLOSED outline the node's shape encloses — what an Inner- or
    *  Outer-aligned stroke clips against. Empty means `outline` is that
-   *  shape, which is the usual case; an adaptor that narrows `outline`
-   *  to contours BOUNDING NO AREA (`onEdges`, whose runs are open) puts
-   *  the outline it cut here, so an alignment keeps its meaning: the
-   *  mark is the half of the stroke inside — or outside — the shape,
-   *  along the runs that were cut. A decoration that reads it must
-   *  prefer it to `outline` only for that clip; the geometry to draw is
-   *  always `outline`. */
+   *  shape, which is the usual case; whatever narrows `outline` to
+   *  contours BOUNDING NO AREA puts the outline it cut here, so an
+   *  alignment keeps its meaning: the mark is the half of the stroke
+   *  inside — or outside — the shape, along the part of the boundary
+   *  that is left. Two things narrow it that way: `onEdges`, whose runs
+   *  are open, and a span gate, whose revealed run is open until the
+   *  reveal is complete. A decoration that reads it must prefer it to
+   *  `outline` only for that clip; the geometry to draw is always
+   *  `outline`. */
   SkPath silhouette;
   double elapsedSeconds = 0.0;
   float contentScale = 1.0f;

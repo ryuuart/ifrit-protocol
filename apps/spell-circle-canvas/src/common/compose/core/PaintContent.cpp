@@ -83,6 +83,20 @@ SkPath gateOutline(const SpanArithmeticOps* arith, const SkPath& src,
   return arith ? arith->spanPath(src, show) : src;
 }
 
+/** The shape a gated boundary was cut FROM — `PaintContext::silhouette` —
+ *  or an empty path when the gate cut nothing and the boundary IS that
+ *  shape. A span gate narrows the boundary to the run shown so far, and a
+ *  partial run is OPEN: it bounds no area. An Inner- or Outer-aligned
+ *  stroke clips to what the shape encloses, so on the run alone it clips
+ *  to nothing while the run is one straight segment and to whatever the
+ *  run's implicit closure encloses once it turns a corner. Carrying the
+ *  uncut shape keeps an alignment meaning one thing at every fraction of a
+ *  reveal: the half of the stroke's width inside — or outside — the shape,
+ *  along the part of the boundary that is shown. */
+SkPath gateSilhouette(const SkPath& src, const std::vector<Span>& show) {
+  return claimsEverything(show) ? SkPath() : src;
+}
+
 // ---- the coverage law, in one place ---------------------------------------
 //
 // A coverage gate (`by::alpha`, `by::luma` and their complements) draws the
@@ -458,6 +472,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                         decorationBase == &fullOutline)
                          ? surfacePath
                          : gateOutline(arith, *decorationBase, *marksShow);
+  // …and the shape that boundary was cut from, for an aligned stroke to
+  // clip against while only part of it is shown.
+  SkPath marksSilhouette =
+      marksShow ? gateSilhouette(*decorationBase, *marksShow) : SkPath();
   const bool trimmed = cut;
 
   // The MARKS' boundary is what a decoration receives: every decoration
@@ -471,6 +489,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   const PaintContext paintCtx{
       .size = {bounds.width(), bounds.height()},
       .outline = std::move(marksPath),
+      .silhouette = std::move(marksSilhouette),
       .elapsedSeconds = elapsed(),
       .contentScale = contentScale,
       .animating = ticker.active(),
@@ -676,6 +695,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       const PaintContext passCtx{
           .size = paintCtx.size,
           .outline = arith ? arith->spanPath(fullOutline, run) : fullOutline,
+          .silhouette = gateSilhouette(fullOutline, run),
           .elapsedSeconds = paintCtx.elapsedSeconds,
           .contentScale = paintCtx.contentScale,
           .animating = paintCtx.animating,
@@ -717,6 +737,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       const PaintContext markCtx{
           .size = paintCtx.size,
           .outline = gateOutline(arith, fullOutline, run),
+          .silhouette = gateSilhouette(fullOutline, run),
           .elapsedSeconds = paintCtx.elapsedSeconds,
           .contentScale = paintCtx.contentScale,
           .animating = paintCtx.animating,

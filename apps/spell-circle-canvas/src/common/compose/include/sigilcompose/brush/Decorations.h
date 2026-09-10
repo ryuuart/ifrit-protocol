@@ -62,7 +62,13 @@ struct PathFormat {
    *  the half of its width inside the shape ALONG THE CHOSEN EDGES and
    *  nowhere else — the same band a `kit::BevelInner` masked to those
    *  edges with sliced ends draws — and an Outer-aligned one the half
-   *  outside. A centred stroke straddles the runs, as it always did. */
+   *  outside. A centred stroke straddles the runs, as it always did.
+   *
+   *  REVEALED BY A SPAN, so does it. The run a span gate shows is open
+   *  the same way until the reveal is complete, and the clip stands on
+   *  the whole shape it was cut from: `.stroke(spans::upTo(t), stroke(w,
+   *  fill, Align::Inner))` draws that fraction of the same inner band at
+   *  every value of `t`, and is the unspanned stroke once `t` is 1. */
   enum class Align : uint8_t { Center, Inner, Outer };
 
   float width = 1.0f;
