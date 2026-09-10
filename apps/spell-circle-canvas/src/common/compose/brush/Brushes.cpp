@@ -19,10 +19,13 @@
 #include <sigilgeometry/path/Numeric.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
+#include <span>
 
 #include "sigilgeometry/path/Contour.h"
+#include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
@@ -598,28 +601,24 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
 
 namespace {
 
-/** Twice the signed area of the polygon — the sign is its winding. */
-float turnedArea(const SkPoint* pts, size_t n) {
-  float twice = 0;
-  for (size_t i = 0; i < n; ++i) {
-    const SkPoint& a = pts[i];
-    const SkPoint& b = pts[(i + 1) % n];
-    twice += a.x() * b.y() - b.x() * a.y();
-  }
-  return twice;
-}
-
 /** Add one convex piece of the band, wound the way every other piece is.
  *
  *  EVERY sub-polygon of a band must wind the same way. Under the winding
  *  fill a reversed piece laid over another cancels to 0 and punches a
  *  hole where the two overlap, which is precisely the overlap the inside
  *  of a bend is made of. Cheap to enforce here, and impossible to see
- *  coming from the picture. */
+ *  coming from the picture.
+ *
+ *  Which way a ring of points is wound is SigilGeometry's question and it
+ *  is asked over the stack: at most four points per piece, and one piece
+ *  per step of every ribbon in the frame. */
 void addBandPiece(SkPathBuilder& b, const SkPoint* pts, size_t n) {
   if (n < 3) return;
+  std::array<glm::vec2, 4> ring{};
+  for (size_t i = 0; i < n && i < ring.size(); ++i)
+    ring[i] = geometry::path::fromSk(pts[i]);
   b.moveTo(pts[0]);
-  if (turnedArea(pts, n) > 0)
+  if (geometry::path::signedArea(std::span(ring).first(n)) > 0)
     for (size_t i = n; i-- > 1;) b.lineTo(pts[i]);
   else
     for (size_t i = 1; i < n; ++i) b.lineTo(pts[i]);

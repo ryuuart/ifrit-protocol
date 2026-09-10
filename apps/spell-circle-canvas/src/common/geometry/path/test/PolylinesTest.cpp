@@ -9,6 +9,7 @@
 #include <include/core/SkRect.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <glm/geometric.hpp>
 #include <span>
@@ -357,6 +358,30 @@ TEST(Polyline, TheCentroidIsWeightedByEdgeLengthAndNotByVertexCount) {
   const glm::vec2 weighted = cut.centroid();
   EXPECT_NEAR(weighted.x, plain.x, 1e-3f);
   EXPECT_NEAR(weighted.y, plain.y, 1e-3f);
+}
+
+TEST(Polyline, TheSignedAreaOfARingIsAskedWithoutOneToHoldIt) {
+  // The span form is the same answer over the caller's own storage, which
+  // is what lets a per-piece winding question be asked on the stack. A
+  // clockwise ring in Skia's y-down space is positive, the reversed ring
+  // is its negative, and a triangle is half its bounding box.
+  const std::array<glm::vec2, 4> square{
+      {{0, 0}, {100, 0}, {100, 100}, {0, 100}}};
+  Polyline ring;
+  ring.closed = true;
+  ring.points.assign(square.begin(), square.end());
+  EXPECT_FLOAT_EQ(signedArea(square), ring.signedArea());
+  EXPECT_GT(signedArea(square), 0.0f);
+
+  const std::array<glm::vec2, 4> widdershins{
+      {{0, 0}, {0, 100}, {100, 100}, {100, 0}}};
+  EXPECT_FLOAT_EQ(signedArea(widdershins), -signedArea(square));
+
+  // Three points, which is the smallest ring the band pieces ask about.
+  EXPECT_FLOAT_EQ(signedArea(std::span(square).first(3)), 5000.0f);
+  // Fewer than three bound nothing.
+  EXPECT_FLOAT_EQ(signedArea(std::span(square).first(2)), 0.0f);
+  EXPECT_FLOAT_EQ(signedArea({}), 0.0f);
 }
 
 TEST(Polyline, ReverseTurnsTheWindingAndKeepsTheShape) {

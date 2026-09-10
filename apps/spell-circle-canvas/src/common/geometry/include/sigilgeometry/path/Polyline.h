@@ -49,6 +49,18 @@ struct Polyline {
   void reverse();
 };
 
+/** THE SIGNED AREA OF A RING OF POINTS, without a Polyline to hold them:
+ *  positive is CLOCKWISE in Skia's y-down space, and the ring closes from
+ *  the last point back to the first whether the caller thinks of it as
+ *  closed or not — area is a question about a ring.
+ *
+ *  `Polyline::signedArea()` is this over its own points. The span form
+ *  exists because the callers that ask a WINDING question ask it of three
+ *  or four points on the stack, one per piece of a swept band, and
+ *  building a heap-backed polyline per piece to answer it is the whole
+ *  cost of the answer. */
+float signedArea(std::span<const glm::vec2> ring);
+
 /** The rect every point of every polyline fits in. */
 SkRect bounds(std::span<const Polyline> lines);
 

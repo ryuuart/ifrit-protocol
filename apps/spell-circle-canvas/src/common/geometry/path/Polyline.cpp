@@ -106,16 +106,18 @@ glm::vec2 Polyline::centroid() const {
   return {(float)(x / w), (float)(y / w)};
 }
 
-float Polyline::signedArea() const {
+float signedArea(std::span<const glm::vec2> ring) {
   double area = 0;
-  const size_t n = points.size();
+  const size_t n = ring.size();
   for (size_t i = 0; i < n; ++i) {
-    const glm::vec2& a = points[i];
-    const glm::vec2& b = points[(i + 1) % n];
+    const glm::vec2& a = ring[i];
+    const glm::vec2& b = ring[(i + 1) % n];
     area += (double)a.x * b.y - (double)b.x * a.y;
   }
   return (float)(area * 0.5);
 }
+
+float Polyline::signedArea() const { return path::signedArea(points); }
 
 SkRect Polyline::bounds() const {
   const Polyline* one = this;
