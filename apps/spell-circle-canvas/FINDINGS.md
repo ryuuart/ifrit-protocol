@@ -27,11 +27,6 @@ Taken on the merged tree at the close of the session's work:
 
 ## Rulings
 
-- A span-revealed outline carries the node's own outline in
-  `PaintContext::silhouette` the way a sliced one does, so an aligned
-  stroke keeps its width inside the shape at every fraction of its
-  reveal; the fifteen sketches that spell a span with an alignment are
-  swept, each mover described, and rebased with the cause.
 - The promotion tier's research resumes on the ten movers over
   content, one cause at a time with a pin each; the two graze-shaped
   scenes over the measured bar stay recorded.
@@ -111,35 +106,25 @@ ones found so far
 `ComposeCache.APromotedShapeKeepsTheInkItDrawsOutsideItsBox` and
 `ComposePaintBounds.ADeclaredShapeBoundsEveryLayerTheNodeIsGiven`).
 
-## A span-revealed outline drops an aligned stroke the way a slice did
+## A bevel ring is lost while a span gate reveals its node
 
-`box().stroke(spans::upTo(&t), stroke(w, fill, PathFormat::Align::Inner))`
-paints nothing for most of its reveal. The span pass hands the decoration
-the REVEALED RUN as `PaintContext::outline`, and that run is open; an
-aligned `PathFormat` strokes at double width and clips to the outline it
-is given, and Skia fills an open contour by closing it, so a run that is
-still one straight segment bounds no area, the clip is empty and the
-whole mark is thrown away. As the run turns its first corner the implicit
-closure starts to enclose a triangle and the mark REAPPEARS — clipped to
-that triangle rather than to the shape, which is not a picture anyone
-asked for either.
+`kit::Bevel` and `styles::BevelPair` clip their ring to `ctx.outline` —
+"the clip is the WHOLE outline, not the edge — an open edge encloses
+nothing" — which is the same clip an Inner-aligned `PathFormat` makes.
+An aligned stroke now clips to `PaintContext::silhouette` where an
+adaptor or a span gate narrowed the outline to a contour bounding no
+area; a bevel does not read it, so under `mask(by::spans(...))` or a
+span-qualified pass its clip stands on the revealed run, which bounds
+nothing, and the whole ring is discarded until the run closes.
 
-MEASURED, on a 100 x 100 box with an 8 px Inner-aligned stroke revealed
-by `spans::upTo`: at 0.05 and at 0.20 of the perimeter no pixel of the
-revealed top edge is painted; at 0.90 the whole revealed run stands. A
-centred stroke over the same span is unaffected, since it does not clip.
+Evidently intended: the same rule the alignment now keeps — the light
+and shadow edges stand inside the shape along the part of the boundary
+that is shown, and the settled reveal is the unspanned ring.
 
-Evidently intended: what `PaintContext::silhouette` already gives a
-sliced outline — the alignment clips to the shape the run was cut from,
-so a self-drawing border keeps its width inside the silhouette at every
-fraction of its reveal. The fix is to carry the node's own outline in
-`silhouette` where the span pass narrows `outline`.
+Not taken with the alignment's fix because no site in the tree spells a
+bevel on a span-gated node, so the change would be unpinned by any
+picture; the sketches that would exercise it do not exist yet.
 
-It is not taken with the slice's, because the two are not one sweep:
-fifteen sketches spell both a span and an alignment, and every picture
-that moves has to be shown.
-
-Assert once fixed: a case in `compose_test` that an Inner-aligned stroke
-revealed to a fraction of ONE STRAIGHT RUN paints that fraction of the
-band and nothing outside the silhouette, and that the same stroke fully
-revealed is the unspanned one pixel for pixel.
+Assert once fixed: a `kit::bevelled` panel under `spans::upTo` at a
+fraction of one straight run draws that fraction of its ring inside the
+silhouette, and fully revealed is the unspanned ring pixel for pixel.
