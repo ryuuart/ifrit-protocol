@@ -69,6 +69,20 @@
 // --at 0.45 catches the warp alone on the beam (the whole design, in one
 // dimension, and it does not look like a tartan yet); 2.0 the cloth weaving
 // itself; 4.6 the arithmetic proving; 6.0 the palette turn; 7.4 the card.
+//
+// WHY THIS CARD DECLARES ITS PICTURE NONLINEAR. The drawdown is a woven
+// image sampled NEAREST at kDrawCell px per thread, which is a step
+// function of the sampler's own coordinate. At the scale a plate is
+// photographed at, a thread is 13.5 device pixels, so every second thread
+// boundary lands exactly on a pixel CENTRE — a tie, decided by the last bit
+// of the inverse matrix, which is the one bit a device-space bake is
+// allowed to differ in and which the runtime's contract bounds at a code
+// value for a CONTINUOUS sampler. Over a step it is a whole thread, tens of
+// code values wide, along the column or row where the tie stands. Sliding
+// the drawdown half a device pixel off the grid brings the promoted and
+// unpromoted plates within TWO, so what is under the step is right and the
+// step is what has no bound. `nonlinearPicture` therefore holds the
+// automatic promoter off this card in every host.
 // =============================================================================
 
 #include <include/core/SkBitmap.h>
@@ -1438,7 +1452,8 @@ struct BlackWatch : sketch::Sketch {
     // inside the final Modern hold (0.85 -> 1.0).
     sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
                              .captureAt = 7.2,
-                             .background = kCard});
+                             .background = kCard,
+                             .nonlinearPicture = true});
     ctx.ticker.add([this](double dt) {
       clock += dt;
       loom = (float)(std::fmod(clock, (double)kCycle) / (double)kCycle);
