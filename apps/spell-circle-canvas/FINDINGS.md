@@ -17,94 +17,99 @@ Taken on the merged tree at the close of the session's work:
 - Release build: zero errors, zero warnings. `ctest`: 3418 of 3418,
   every library's README compile-checked among them.
 - CPU plate tier: 195 scenes byte-identical; the four sketches whose
-  sliced inner-aligned strokes now paint were rebased with that cause.
+  sliced inner-aligned strokes now paint were rebased with that cause,
+  and six more with the caching causes below — `aero desktop`,
+  `persona menu` and `y2k chrome` where a bake now holds the skirt an
+  effect under it filters, `dunhuang_star_chart` and `minard_1869` where
+  a bake now stands on the canvas's own grid, and `volatility_cost`,
+  whose subject is the runtime's own caching verdicts.
 - Device tier: 195 of 195 within the per-channel bar. Promotion tier:
-  183 of 195 within the contract's three clauses; the rest is the entry
+  191 of 195 within the contract's three clauses; the rest is the entry
   below.
 - ASan with UBSan and TSan: clean over the suite at the merge.
 - Benchmark baseline retaken with every new arm; window-FPS baseline
   at an unlocked screen, none under the gate.
 
-## Rulings
-
-- The promotion tier's research resumes on the ten movers over
-  content, one cause at a time with a pin each; the two graze-shaped
-  scenes over the measured bar stay recorded.
-
-## Automatic texture promotion moves 12 of 195 plates past the contract
+## Automatic texture promotion moves 4 of 195 plates past the contract
 
 `sigil.py plates --tier promotion` renders every scene twice on the CPU —
 once with promotion off, once EAGER (every node the promoter's rules
 admit, baked from its first frame) — and differences the pair. The rule is
-in `src/common/compose/README.md` and it is now THREE CLAUSES, each
-differing pixel judged by what it stands on: one code value where the
-held-off plate is transparent black, two where it holds content, and forty
-where the difference is confined to an antialiased edge BOTH plates draw —
-the graze, where a promoted mark stands half a float step of its device
-coordinate from its live paint and the quantizer at that coordinate (a
-supersample bucket, a glyph's phase bucket) decides what it costs. The
-graze bar is measured rather than chosen: `minard_1869` reports 31 and
-`dunhuang_star_chart` 38 through the measure, and both sit inside one
-supersample bucket at the contrast their curves stand at.
+in `src/common/compose/README.md` and it is THREE CLAUSES, each differing
+pixel judged by what it stands on: one code value where the held-off plate
+is transparent black, two where it holds content, and forty where the
+difference is confined to an antialiased edge BOTH plates draw — the
+graze, where one step of a pixel's coverage costs whatever quantizer
+stands at that coordinate.
 
-    195 scenes, 183 within the rule, 0 failed. Five declare a nonlinear
-    picture and stand under that; thirty-four stand under the graze
-    clause, naming their grazing figure and pixel count.
+    195 scenes, 191 within the rule, 0 failed. Four declare a nonlinear
+    picture and stand under that; nineteen stand under the graze clause,
+    naming their grazing figure and pixel count.
 
-`--compare` answers which pixels are which, from the pixels rather than
-from a list: a graze is a differing pixel where the picture varies by at
-least the difference within a pixel of it IN BOTH PLATES, and so does
-every differing pixel beside it. A mark that is gone leaves a flat ground
-where it was and lands on `content` however antialiased the rest of the
-page is. Pinned by `SketchCompare.TellsAGrazingEdgeFromAMarkThatIsGone`.
+WHAT REMAINS, all four over CONTENT, which no clause admits:
 
-WHAT REMAINS, worst first, with the bar each crossed:
+    lain_navi 6 (6 over content) · winamp_base 5 (5) ·
+    ksp_mapview 6 (3) · fallout2_charsheet 3 (3)
 
-    kumiko_asanoha  89 grazing · paragraph_sheet 83 grazing ·
-    black_watch     65 (59 over content) · thaumonomicon 43 (10) ·
-    sigillum_aemeth 35 (3) · stroke_atlas 34 (7) ·
-    thunder_fulu    30 (30) · blur_falloff 17 (17) ·
-    fallout2_charsheet 7 (3) · lain_navi 6 (6) · ksp_mapview 6 (3) ·
-    winamp_base 5 (5)
+THEY ARE ONE SHAPE: a wash at another value, mean difference zero, the two
+fields correlated to four decimal places, jittering by a few code values
+per pixel over a large area. `lain_navi` is 83 407 pixels at 6 over the
+near-white of type nine additive passes stand on, the promoted plate
+darker at every one. `winamp_base` is 19 000 pixels in one panel's grain,
+the two noise fields correlating at 0.9998 with a mean difference of
+0.001. `ksp_mapview` is 537 305 pixels at 3, most of the plate.
+`fallout2_charsheet` is 3 783 at 3 in one horizontal band.
 
-The two scenes whose CPU plates moved when the declared shape came to
-bound every layer were re-measured here: `kumiko_asanoha` stands where it
-did, 89 over a grazing edge on 35 645 pixels; `sigillum_aemeth` reads 35
-where it read 25, with the same 3 code values over content. Six other
-scenes' CPU pictures moved for the same cause and their promotion figures
-were NOT retaken — `thaumonomicon`, `thunder_fulu`, `lain_navi` and
-`ksp_mapview` are in the list above, `eva_magi_defense` and
-`rota_convocationis` are not.
+FIVE ABLATIONS SAY WHAT THEY ARE NOT, each measured on all four: the bake
+margin raised by 40 and by 300 moves none of them; disabling the split
+bake moves none; disabling the promotion bake takes all four to zero, so
+it is the bake and not the sweep; taking the bake at the canvas origin
+moves none; and taking it at F16 instead of N32 takes `ksp_mapview` from 3
+to 2 and `fallout2_charsheet` from 3 to FIVE, so it is not one arithmetic.
 
-TEN OF THE TWELVE ARE OVER CONTENT, which no clause admits: a difference
-where no edge explains it is a picture that moved, and the `content`
-figure — not the max — is the number to chase. None of the ten has been
-ablated.
-
-THE TWO THAT ARE NOT are grazes over the measured bar, each with its own
-next probe. `kumiko_asanoha` is TWO pixels of 4.2 M, each on a lattice
-joint, each going from full ink to a ramp value — a coverage change of
-about three quarters, far more than a supersample bucket, so it is either
-the last bit through a corner or a conflation seam where two pieces meet
-across a bake boundary. `paragraph_sheet` is ONE glyph of a page of type,
-rendered at a different subpixel phase: Skia caches a glyph mask quantized
-to a quarter of a pixel, and a coordinate whose last bit lands the other
-way takes a different mask. Raising the bar to admit either would be
-choosing a number to fit two scenes, which the derivation refuses.
+What has not been tried is counting the composites a pixel actually passes
+through. `winamp_base`'s band stands under three surfaces — one promotion
+bake and two split bakes, none nested inside another — and three
+composites is one more than the second clause allows even where none of
+them nests. The next probe is a bake that records how many blits each
+pixel of the plate was under, differenced against the difference.
 
 Assert once fixed: `--tier promotion` reports every scene within the rule,
-and each cause gets a case in `compose_test` beside the ten that pin the
-ones found so far
+and each cause gets a case in `compose_test` beside the thirteen that pin
+the ones found so far
 (`ComposeCache.APromotedLineKeepsTheInkThatStandsOutsideItsBox`,
 `ComposeFaces.APromotedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics`,
 `ComposeCache.APromotedCurveKeepsTheCoverageItsLivePaintComputes`,
+`ComposeCache.APromotedCurveFarFromTheOriginStandsOnTheLivePaintsGrid`,
 `ComposeCache.APromotedNodeDropsTheRecordingItsBakeReplaced`,
 `ComposeCache.APromotedNodeIsRebakedWhenTheClipThatCutItOpens`,
 `ComposeCache.APromotedPhraseThatAddsLightKeepsTheGroundUnderIt`,
 `ComposeCache.ADeviceBakeRasterisesOnItsLivePaintsRoute`,
 `ComposeCache.ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves`,
-`ComposeCache.APromotedShapeKeepsTheInkItDrawsOutsideItsBox` and
+`ComposeCache.APromotedShapeKeepsTheInkItDrawsOutsideItsBox`,
+`ComposeCache.APromotedNodeKeepsTheSkirtABlurredChildFilters`,
+`ComposeCache.ANodeInsideABakeIsNotBakedAgain` and
 `ComposePaintBounds.ADeclaredShapeBoundsEveryLayerTheNodeIsGiven`).
+
+## The graze bar rests on one scene where it was measured off two
+
+`scripts/sigil/plates.py` judges `graze <= 40`, and the forty was measured
+off `minard_1869` at 31 and `dunhuang_star_chart` at 38. A device bake now
+stands on the canvas's own grid, and dunhuang reports **4** where it
+reported 38 — so the bar is measured off `minard_1869` alone, with
+`sigillum_aemeth` at 35 the only other scene anywhere near it, then
+`astral_tome` 15 and `vertigo_titles` 8.
+
+Nothing crosses the bar, so nothing was changed. But a number derived from
+two agreeing scenes and now resting on one is a derivation to retake, and
+`minard_1869`'s own 31 is unexplained: the grid halved the pixels it
+grazes on (157 127 -> 86 862) and left the worst exactly where it was, so
+whatever it is, it is not the offset every other grazing scene turned out
+to be.
+
+Assert once settled: the bar names the scene it is measured off and that
+scene's figure is explained, or the clause bounds the shape alone and the
+ledger says so.
 
 ## A bevel ring is lost while a span gate reveals its node
 
