@@ -25,7 +25,9 @@
  * The effects the runtime itself evaluates — `fx::keys`, `fx::seq`,
  * `fx::mix`, `fx::hold`, `fx::scramble`, `fx::pass` and the `fx::effect`
  * door — are the seam's, declared with it in
- * <sigilcompose/typography/TextEffect.h>; this header holds the presets,
+ * <sigilcompose/typography/TextEffect.h>, with the structural catalogue
+ * beside it in <sigilcompose/typography/TextFx.h>; this header holds the
+ * presets,
  * which are values over that seam and need nothing it does not expose.
  *
  * One-shot effects consume progress 0→1; loop effects (waveLoop) read a
@@ -48,7 +50,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Layout.h>
-#include <sigilcompose/typography/TextEffect.h>
+#include <sigilcompose/typography/TextFx.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilmotion/values/Animatable.h>

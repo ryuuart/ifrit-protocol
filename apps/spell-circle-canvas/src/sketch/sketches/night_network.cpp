@@ -42,6 +42,8 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Stamps.h>
+#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/kit/Routers.h>

@@ -10,6 +10,8 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/brush/Ribbons.h>
+#include <sigilcompose/brush/Stamps.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Gel.h>

@@ -29,12 +29,14 @@
 find_package(yoga CONFIG REQUIRED)
 sigil_library(SigilComposeBrush
   SOURCES Adaptors.cpp Decorations.cpp LayerStyles.cpp Lines.cpp
-          PixelStyles.cpp Brushes.cpp
+          PixelStyles.cpp
+          Composites.cpp Stamps.cpp Ribbon.cpp Art.cpp BakedArt.h
           # the stroke grammar's engine and the mask gates, behind the
           # kernel's StrokeResolver and MaskResolver seams
           StrokePainting.cpp SpanNormalForm.cpp Band.cpp Masks.cpp
           SpanArithmetic.h SpanContours.h
   HEADERS Adaptors.h Brush.h Brushes.h Decorations.h GeometryOps.h Hatches.h
+          Ribbons.h Stamps.h
           LayerStyles.h Layered.h Lines.h PixelStyles.h Rails.h
           ../kit/Flourish.h ../kit/Ornament.h ../kit/Plate.h ../kit/Strokes.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core

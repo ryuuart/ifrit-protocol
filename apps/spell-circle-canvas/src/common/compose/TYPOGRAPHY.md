@@ -44,10 +44,13 @@ children or a feed's rows. `Element::fx` appends one;
 several compose per glyph, with `GlyphMod` offsets and rotations adding
 and scale and alpha multiplying. The seam is three headers:
 
-- `typography/TextEffect.h` — the effect. `GlyphInfo` is what a body is
-  handed, `GlyphMod` what it returns, `GlyphModFn` the callable those two
-  make, and `TextEffect` the comparable value one is wrapped in;
-  `kNominalSizePx` is the display size a preset's reach is declared
+- `typography/TextEffect.h` — the effect as a VALUE. `GlyphInfo` is what
+  a body is handed, `GlyphMod` what it returns, `GlyphModFn` the callable
+  those two make, and `TextEffect` the comparable value one is wrapped
+  in.
+- `typography/TextFx.h` — the `fx::` catalogue: the effects the runtime
+  evaluates by STRUCTURE rather than by calling a body, and
+  `kNominalSizePx`, the display size a preset's reach is declared
   against.
 - `typography/Track.h` — the cascade. `Track` is the five values above,
   and `Beats` is which list its beats are numbered against.

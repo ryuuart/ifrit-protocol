@@ -30,6 +30,7 @@
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
+#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilmaterial/skia/Paint.h>

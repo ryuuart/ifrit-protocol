@@ -188,6 +188,8 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Stamps.h>
+#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>

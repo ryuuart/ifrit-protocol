@@ -39,9 +39,12 @@ sigil_library(SigilComposeTypography
     # the vocabulary's out-of-line members
     TextEffect.cpp
     # the engine
-    TextFx.cpp TextFxPainting.cpp TextAnnotations.cpp TextMarks.cpp
+    TextStructure.cpp TextSelection.cpp TextCascade.cpp TextFx.cpp
+    TextSubstitution.cpp TextUnitBox.cpp TextFxPainting.cpp
+    TextAnnotations.cpp TextMarks.cpp
     PathText.cpp TextPainter.cpp AxisGate.h TextEngine.h TextPose.h
-  HEADERS Annotation.h Selector.h TextEffect.h TextPath.h TextUnit.h
+    TextSubstitution.h
+  HEADERS Annotation.h Selector.h TextEffect.h TextFx.h TextPath.h TextUnit.h
           Track.h Typography.h ../kit/Legibility.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core
   PUBLIC SigilComposeCore SigilCoreComparable SigilCoreCompute SigilMaterial

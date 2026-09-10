@@ -128,6 +128,7 @@
 #include <include/core/SkTypeface.h>
 #include <include/pathops/SkPathOps.h>
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Feed.h>

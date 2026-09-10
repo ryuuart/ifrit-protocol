@@ -812,12 +812,14 @@ ring is SHOWN. A `kit::bevelled` panel under `spans::upTo` draws that
 fraction of its ring inside the shape instead of losing the whole ring
 until the run closes. The
 brush engine is
-three headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
+five headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
 `LayeredBrush`); `brush/GeometryOps.h`, the one mechanism door for
-deviating an outline (`ops::`, `GeometryOp`); and `brush/Brushes.h`, the
-brush kinds over them — `brush::solid`, the composites `brush::layers`
-and `brush::weave`, and the archetypes `brush::Scatter`, `brush::Pattern`,
-`brush::Ribbon`, `brush::Art`. A ribbon is the variable-width band, built
+deviating an outline (`ops::`, `GeometryOp`); `brush/Brushes.h`, the
+brush and its composites — `brush::solid`, `brush::layers`,
+`brush::weave` and `brush::Restyled`; and the two shelves of leaf kinds
+beside it, `brush/Stamps.h` for the STAMPED ones (`brush::Scatter`,
+`brush::Pattern`, with `brush::Placement` and `brush::CornerArt`) and
+`brush/Ribbons.h` for the SWEPT ones (`brush::Ribbon`, `brush::Art`). A ribbon is the variable-width band, built
 as one quadrilateral per sampled step rather than as one long contour,
 because a band is the UNION of its cross-sections: zipped into a single
 left-forward, right-back outline the inner rail crosses itself where the
@@ -913,8 +915,9 @@ and is taken as it stands.
 value family: `typography/TextUnit.h` — `TextUnit`, one unit as the layout
 placed it; `typography/Selector.h` — `sel::style` and `sel::inFrame`, the
 two selector forms whose subject is a description of this library;
-`typography/TextEffect.h` — `GlyphInfo`, `GlyphMod`, `TextEffect`,
-`Phase`, and the effects the runtime evaluates by structure:
+`typography/TextEffect.h` — `GlyphInfo`, `GlyphMod`, `GlyphModFn`,
+`TextEffect` and `Phase`, the value the seam is made of;
+`typography/TextFx.h` — the effects the runtime evaluates by structure:
 `fx::scramble`, the `fx::keys` keyframe table, the `fx::pass` shader pass,
 the `fx::seq`, `fx::mix` and `fx::hold` combinators, and the `fx::effect`
 door; `typography/Track.h` — `Track`, `Beats` and `Beat`;

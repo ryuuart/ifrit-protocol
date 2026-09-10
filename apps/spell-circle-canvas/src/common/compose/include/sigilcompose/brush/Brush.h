@@ -17,3 +17,5 @@
 #include "sigilcompose/brush/Lines.h"
 #include "sigilcompose/brush/PixelStyles.h"
 #include "sigilcompose/brush/Rails.h"
+#include "sigilcompose/brush/Ribbons.h"
+#include "sigilcompose/brush/Stamps.h"

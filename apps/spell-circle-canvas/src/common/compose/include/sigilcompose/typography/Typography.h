@@ -19,6 +19,7 @@
 #include "sigilcompose/typography/Annotation.h"
 #include "sigilcompose/typography/Selector.h"
 #include "sigilcompose/typography/TextEffect.h"
+#include "sigilcompose/typography/TextFx.h"
 #include "sigilcompose/typography/TextPath.h"
 #include "sigilcompose/typography/TextUnit.h"
 #include "sigilcompose/typography/Track.h"

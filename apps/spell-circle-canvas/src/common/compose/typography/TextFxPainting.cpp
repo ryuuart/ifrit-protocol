@@ -1,227 +1,34 @@
 /** @file
- * Kinetic typography at paint: the two substitution gates a dressed glyph
- * can ask for, the glyph-paint override, the band a glyph occupies, and the
- * fx painter itself — master progress, stagger remap, per-glyph deviation,
- * batched RSXform draws and the pass lanes.
+ * THE FX PAINTER: master progress → stagger remap → per-glyph deviation →
+ * batched RSXform draws (one per font/colour bucket, never per glyph), with
+ * the pass lanes beside them. The substitution gates it asks are
+ * TextSubstitution.h's and the unit box it reports is TextUnitBox.cpp's.
  */
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkFontMetrics.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkShader.h>
-#include <include/core/SkTypes.h>  // SkDebugf — the pass-material diagnostic
 #include <sigilgeometry/path/Numeric.h>  // radians — the degree conversion
-#include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/decoration/DecorationRects.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/fonts/Shaper.h>  // makeFont — the cap-height metrics
 
 #include <algorithm>
-#include <boost/container/flat_map.hpp>
-#include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
 #include <memory>
-#include <tuple>
+#include <span>
 #include <utility>
 #include <vector>
 
-#include "AxisGate.h"
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
 #include "TextEngine.h"
 #include "TextPose.h"
+#include "TextSubstitution.h"
 
 namespace sigil::compose {
 
 using namespace detail;
-
-// ---------------------------------------------------------------------------
-// Kinetic typography: master progress → stagger remap → per-glyph mods →
-// batched RSXform draws (one per font/color bucket — never per glyph).
-
-// ---------------------------------------------------------------------------
-// The two SUBSTITUTION gates a dressed glyph can ask for — a driven
-// variable-font axis, and a code-point swap. Both replace what the SHAPER
-// decided while keeping the pen positions it computed, so both are refused
-// wherever that would move a letter, and both memoize their verdict: a
-// verdict is a property of the face, and probing one costs metrics calls.
-// The axis gate is `detail::axisGate`, shared so every place that judges a
-// driven axis reads one verdict.
-
-namespace {
-
-/** How many coordinates the driven-axis ladder offers a glyph rendered at
- *  `pixelSize`. Four steps per pixel of em, between 64 and 512.
- *
- *  A driven coordinate snapped to this lands on a bounded set of FACES:
- *  every distinct coordinate is a distinct clone, a distinct batch bucket
- *  and a distinct set of glyph-atlas strikes, so the ceiling is what makes
- *  the retained clone population bounded at all. It is coarser than the
- *  tangent's because an axis step displaces an outline within the letter,
- *  where a rotation step sweeps its far edge. */
-int axisLadderSteps(float pixelSize) {
-  return ladderSteps(pixelSize, 4.0f, 64, 512);
-}
-
-/** The face a driven axis asks for, or null when the gate refuses it — the
- *  glyph then draws at its shaped face, which is the whole refusal.
- *
- *  Off a continuous track the coordinate is snapped to the ladder above and
- *  the clone is memoized, so the faces a scene can reach are bounded and
- *  each is rasterized once. ON one, the coordinate passes through raw and
- *  the clone is TRANSIENT: an unsnapped value has no bounded set to memoize,
- *  so retaining it would add a permanently held clone per frame for as long
- *  as the process runs. The price of the opt-out is therefore a fresh face
- *  and fresh glyph rasterization every frame — constant per frame, and
- *  exactly what "continuous" is asking for. */
-sk_sp<SkTypeface> drivenFace(sigil::weave::FontContext& fonts,
-                             const sk_sp<SkTypeface>& base, float pixelSize,
-                             const sigil::weave::FontVariation& axis,
-                             bool continuous) {
-  const char tag[5] = {axis.tag[0], axis.tag[1], axis.tag[2], axis.tag[3], 0};
-  const detail::AxisGate& gate = detail::axisGate(fonts, base, tag);
-  if (!gate.allowed) return nullptr;
-  sigil::weave::FontVariation coordinate = axis;
-  coordinate.value = std::clamp(axis.value, gate.min, gate.max);
-  if (gate.max > gate.min) {
-    if (continuous)
-      return fonts.variedTypefaceTransient(base, {&coordinate, 1});
-    const float steps = (float)axisLadderSteps(pixelSize);
-    const float span = gate.max - gate.min;
-    coordinate.value =
-        gate.min + std::round((coordinate.value - gate.min) / span * steps) *
-                       (span / steps);
-  }
-  // A degenerate range offers one reachable coordinate, which is a ladder of
-  // one whether or not the track asked for a ladder.
-  return fonts.variedTypeface(base, {&coordinate, 1});
-}
-
-/** The glyph a code-point substitution resolves to, or 0 when it is
- *  refused.
- *
- *  A substitution draws its replacement at the ORIGINAL glyph's pen
- *  position, so it is sound exactly when the two advance the pen equally
- *  ALONG THE AXIS THAT PEN STEPS ON: a level run steps by the horizontal
- *  advance, an upright column by the vertical one. Reading the wrong axis
- *  refuses a kana-to-digit churn down a column whose glyphs all step one em
- *  down it, and admits a pair that really would shift the column below the
- *  swap. A mismatch on the measured axis is a reshape and not a redraw, so
- *  it is refused.
- *
- *  Both advances are a property of the FACE — em fractions, not pixels — so
- *  one probe answers for every size the pair is ever drawn at, and BOTH
- *  axes are read on that one probe. The axis therefore stays out of the
- *  memo key: a pair's replacement glyph is the same glyph whichever way the
- *  run flows, and only the verdict differs, so the entry carries a verdict
- *  per axis and the lookup picks the one the run asked for. Keying on the
- *  axis instead would probe the same pair twice for two facts one probe
- *  already has. */
-SkGlyphID substituteGlyph(sigil::weave::FontContext& fonts,
-                          const sk_sp<SkTypeface>& face, SkGlyphID original,
-                          char32_t codepoint, bool vertical) {
-  if (!face) return 0;
-  struct Verdict {
-    SkGlyphID replacement = 0;       ///< 0: the face cannot draw the code point
-    bool alike[2] = {false, false};  ///< indexed by the axis: level, upright
-  };
-  using Key = std::tuple<uint32_t, SkGlyphID, uint32_t>;
-  static thread_local boost::container::flat_map<Key, Verdict> table;
-  auto [entry, fresh] = table.try_emplace(
-      Key{face->uniqueID(), original, (uint32_t)codepoint}, Verdict{});
-  Verdict& verdict = entry->second;
-  if (fresh) {
-    verdict.replacement = face->unicharToGlyph((SkUnichar)(uint32_t)codepoint);
-    for (int axis = 0; verdict.replacement && axis < 2; ++axis) {
-      // A thousandth of the em: no face's equal-advance pair misses it and
-      // no proportional pair meets it.
-      constexpr float kAdvanceEpsilonEm = 0.001f;
-      const bool down = axis == 1;
-      verdict.alike[axis] =
-          std::abs(fonts.glyphAdvanceEm(face, original, down) -
-                   fonts.glyphAdvanceEm(face, verdict.replacement, down)) <=
-          kAdvanceEpsilonEm;
-    }
-  }
-  if (verdict.replacement == 0) return 0;
-  const int axis = vertical ? 1 : 0;
-  if (verdict.alike[axis]) return verdict.replacement;
-  // Once per face and axis: a scramble over a proportional charset would
-  // otherwise report every character of it, one line each.
-  static thread_local boost::unordered_flat_set<uint64_t> warned;
-  if (warned.insert(((uint64_t)face->uniqueID() << 1u) | (uint64_t)axis).second)
-    SkDebugf(
-        "sigilcompose fx: a code-point substitution on this font is "
-        "proportional %s — refused (the replacement is drawn at the "
-        "original's pen position, so a different advance would move every "
-        "letter after it; substitute within an equal-advance charset, or "
-        "change the text and re-shape)\n",
-        vertical ? "down a column" : "along a line");
-  return 0;
-}
-
-}  // namespace
-
-GlyphBand bandOf(const sigil::weave::ShapedWord* shaped,
-                 std::vector<std::pair<BandKey, GlyphBand>>& memo) {
-  if (!shaped || !shaped->typeface) return {};
-  const BandKey key{shaped->typeface.get(), shaped->fontSize};
-  for (const auto& [seen, band] : memo)
-    if (seen == key) return band;
-  SkFontMetrics metrics;
-  sigil::weave::makeFont(shaped->typeface, shaped->fontSize)
-      .getMetrics(&metrics);
-  // Skia reports the ascent as a NEGATIVE offset from the baseline; the band
-  // wants both halves positive.
-  const GlyphBand band{-metrics.fAscent, metrics.fDescent};
-  memo.emplace_back(key, band);
-  return band;
-}
-
-/** One glyph's advance box, placed and turned the way the layout placed and
- *  turned it, as an axis-aligned bound.
- *
- *  The box is taken around the ADVANCE CENTRE the rest pose reports, which
- *  is what makes one rule cover all four baselines: a wrapped line and a
- *  mixed-style run differ only in where the centre and the band are, a path
- *  run and a rotated column run differ only in which way the box is turned,
- *  and an upright vertical glyph's advance runs down the column instead of
- *  across it. ONE body for three readers — the beatsOf query, the mark
- *  resolver and a pass track's uUnitRect — so none can disagree about
- *  where a unit is. */
-SkRect glyphBox(const sigil::weave::PlacedGlyph& placed, const RestPose& pose,
-                const GlyphBand& band) {
-  const float size = placed.shaped ? placed.shaped->fontSize : 0.0f;
-  const bool upright = placed.shaped && placed.shaped->vertical;
-  const float halfAlong = std::abs(placed.advance) * 0.5f;
-  // Along the advance, then across it. An upright vertical glyph advances
-  // DOWN its column and is about one em wide across it; everything else
-  // advances along its baseline and stands `band` tall across it.
-  const float x0 = upright ? -size * 0.5f : -halfAlong;
-  const float x1 = upright ? size * 0.5f : halfAlong;
-  const float y0 = upright ? -halfAlong : -band.ascent;
-  const float y1 = upright ? halfAlong : band.descent;
-  SkRect box = SkRect::MakeEmpty();
-  bool first = true;
-  for (const SkPoint corner :
-       {SkPoint{x0, y0}, SkPoint{x1, y0}, SkPoint{x1, y1}, SkPoint{x0, y1}}) {
-    const SkPoint at{
-        pose.centre.x() + corner.x() * pose.cosine - corner.y() * pose.sine,
-        pose.centre.y() + corner.x() * pose.sine + corner.y() * pose.cosine};
-    if (first) {
-      box = SkRect::MakeLTRB(at.x(), at.y(), at.x(), at.y());
-      first = false;
-    } else {
-      box.fLeft = std::min(box.fLeft, at.x());
-      box.fTop = std::min(box.fTop, at.y());
-      box.fRight = std::max(box.fRight, at.x());
-      box.fBottom = std::max(box.fBottom, at.y());
-    }
-  }
-  return box;
-}
 
 /** The seed a pass hands its unit in `uUnitPhase[i].y`: distinct per
  *  (outer, inner) beat, in [1, 256), and a pure function of the beat's

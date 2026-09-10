@@ -264,6 +264,8 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Stamps.h>
+#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
