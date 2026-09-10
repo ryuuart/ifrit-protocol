@@ -288,11 +288,13 @@ void stamp(SkCanvas& canvas, const PaintContext& ctx, Atlas& atlas,
   // decomposes to one drawVertices on every backend: the native call draws
   // nothing on some of them, including when a picture recorded elsewhere
   // replays there.
-  skia::draw::drawSpriteAtlas(canvas, atlas.gpuCache, atlas.image(),
-                              xforms.data(), tex.data(),
-                              tinted ? colors.data() : nullptr, xforms.size(),
-                              SkSamplingOptions(atlas.filter()), blend,
-                              nonUniform ? sizes.data() : nullptr);
+  skia::draw::SpriteBatch batch;
+  batch.xforms = xforms;
+  batch.tex = tex;
+  if (tinted) batch.colors = colors;
+  if (nonUniform) batch.sizes = sizes;
+  skia::draw::drawSpriteAtlas(canvas, atlas.gpuCache, atlas.image(), batch,
+                              SkSamplingOptions(atlas.filter()), blend);
 }
 
 }  // namespace detail

@@ -1439,7 +1439,7 @@ point the author typed, not a geometry source.)
   Graphite** in this Skia — they draw nothing. Worse, one recorded on a
   raster canvas still vanishes when the recording replays on Graphite, so
   a raster test cannot see it. Use SigilSkia's `skia::draw::drawLattice`
-  and `skia::draw::drawSpriteAtlas`
+  and `skia::draw::drawSpriteAtlas` (over a `skia::draw::SpriteBatch`)
   (`<sigilskia/draw/Direct.h>`), which decompose on every backend and
   never emit the native op. This is not an optimisation layer; it is the
   only correct path.

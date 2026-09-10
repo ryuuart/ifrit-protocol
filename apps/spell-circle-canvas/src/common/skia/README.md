@@ -312,6 +312,16 @@ fixed and stretchable bands `draw::detail::latticeEdges` computes, and
 `draw::drawSpriteAtlas` emits one `drawVertices` quad list sampling the
 sheet.
 
+The sprites are ONE VALUE, `draw::SpriteBatch`: four spans — `xforms`
+and `tex`, which are the draw, and `colors` and `sizes`, optional lanes
+an empty span opts out of. They were four parallel pointers and a count,
+with nothing holding them to one length; the batch can be asked
+(`consistent()`), and a draw whose lanes disagree refuses the whole
+batch rather than reading past the end of the short one. `sizes` is the
+per-sprite non-uniform scale `SkRSXform` cannot carry — it holds
+(scos, ssin) and one scale by construction — which is what a streaked
+particle whose aspect swings across its life needs.
+
 **They decompose on EVERY backend and never call the native op.** A
 picture recorded on a raster canvas must be able to replay on a Graphite
 one, and a recorded native lattice or atlas op vanishes there. The

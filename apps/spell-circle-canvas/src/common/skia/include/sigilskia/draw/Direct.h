@@ -25,6 +25,7 @@
 #include <include/core/SkRSXform.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkShader.h>
+#include <include/core/SkSize.h>
 #include <include/core/SkVertices.h>
 #include <include/gpu/graphite/Image.h>
 #include <include/gpu/graphite/Recorder.h>
@@ -32,6 +33,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 namespace sigil::skia::draw {
@@ -158,41 +160,87 @@ inline void drawLattice(SkCanvas& canvas, Promoted& cache, sk_sp<SkImage> img,
     }
 }
 
-/** drawAtlas on every backend (see the file comment). @p colors may be
- *  null for the untinted path. @p blend is how each sprite hits the
- *  DESTINATION — kPlus is the whole colour model of an additive particle
- *  system, and routing it through the element's saveLayer instead would
- *  composite the flattened field once rather than accumulating overlaps.
+/** THE SPRITES ONE ATLAS DRAW LAYS DOWN, as one value.
  *
- *  @p sizes, when non-null, is a per-sprite (x, y) scale MULTIPLIER on
- *  top of the xform's uniform scale — the lane SkRSXform cannot carry.
- *  A streaked particle is a quad half its velocity long by `size` wide,
- *  and its aspect swings across its life, which is what the lane is for:
- *  without it every such study hand-builds the vertex buffer this
- *  function already builds internally. */
+ *  Four lanes that must agree on their length, held together so the
+ *  agreement is the value's own business rather than four arguments and a
+ *  count the caller has to keep in step. `xforms` and `tex` are the draw
+ *  — where each sprite lands and which cell of the sheet it takes; the
+ *  other two are optional lanes, and an EMPTY one means the whole batch is
+ *  untinted or uniformly scaled, which is the common case and costs
+ *  nothing to say.
+ *
+ *  `sizes` is a per-sprite (x, y) scale MULTIPLIER on top of the xform's
+ *  uniform scale — the lane SkRSXform cannot carry, because it holds
+ *  (scos, ssin) and one scale by construction. A streaked particle is a
+ *  quad half its velocity long by `size` wide, and its aspect swings
+ *  across its life, which is what the lane is for: without it every such
+ *  study hand-builds the vertex buffer the atlas draw already builds
+ *  internally. */
+struct SpriteBatch {
+  /** Where each sprite lands: rotation, uniform scale and translation. */
+  std::span<const SkRSXform> xforms;
+  /** Which cell of the sheet each takes, in sheet pixels. */
+  std::span<const SkRect> tex;
+  /** Per-sprite tint, modulated onto the sheet. Empty is untinted. */
+  std::span<const SkColor> colors;
+  /** Per-sprite non-uniform scale. Empty is uniform. */
+  std::span<const SkSize> sizes;
+
+  size_t size() const { return xforms.size(); }
+  bool empty() const { return xforms.empty(); }
+
+  /** Do the lanes agree? A required lane shorter than `xforms`, or a
+   *  stated optional lane shorter than it, is the one thing four parallel
+   *  pointers could not say — and the draw refuses rather than reading
+   *  past the end of the short one. */
+  bool consistent() const {
+    return tex.size() >= xforms.size() &&
+           (colors.empty() || colors.size() >= xforms.size()) &&
+           (sizes.empty() || sizes.size() >= xforms.size());
+  }
+
+  /** @p n sprites from @p offset, every stated lane taken along. */
+  SpriteBatch slice(size_t offset, size_t n) const {
+    SpriteBatch out;
+    out.xforms = xforms.subspan(offset, n);
+    out.tex = tex.subspan(offset, n);
+    if (!colors.empty()) out.colors = colors.subspan(offset, n);
+    if (!sizes.empty()) out.sizes = sizes.subspan(offset, n);
+    return out;
+  }
+};
+
+/** drawAtlas on every backend (see the file comment). @p blend is how each
+ *  sprite hits the DESTINATION — kPlus is the whole colour model of an
+ *  additive particle system, and routing it through the element's
+ *  saveLayer instead would composite the flattened field once rather than
+ *  accumulating overlaps.
+ *
+ *  A batch whose lanes disagree draws NOTHING: a short lane is a caller
+ *  bug, and reading past it is the failure the batch exists to make
+ *  impossible. */
 inline void drawSpriteAtlas(SkCanvas& canvas, Promoted& cache,
-                            sk_sp<SkImage> sheet, const SkRSXform* xforms,
-                            const SkRect* tex, const SkColor* colors,
-                            size_t count, const SkSamplingOptions& sampling,
-                            SkBlendMode blend = SkBlendMode::kSrcOver,
-                            const SkSize* sizes = nullptr) {
-  if (!sheet || count == 0) return;
+                            sk_sp<SkImage> sheet, const SpriteBatch& batch,
+                            const SkSamplingOptions& sampling,
+                            SkBlendMode blend = SkBlendMode::kSrcOver) {
+  if (!sheet || batch.empty() || !batch.consistent()) return;
   // ALWAYS decomposed (see drawLattice): raster's native drawAtlas lowers
   // to the same vertices internally, and a recorded drawVertices replays
   // on Graphite where a recorded native atlas op would vanish.
   sheet = ready(cache, std::move(sheet), canvas);
   // uint16 indices cap one vertex list at 16383 sprites — chunk above it.
   constexpr size_t kMaxSprites = 16000;
+  size_t count = batch.size();
   for (size_t start = 0; count - start > kMaxSprites; start += kMaxSprites)
-    drawSpriteAtlas(canvas, cache, sheet, xforms + start, tex + start,
-                    colors ? colors + start : nullptr, kMaxSprites, sampling,
-                    blend, sizes ? sizes + start : nullptr);
+    drawSpriteAtlas(canvas, cache, sheet, batch.slice(start, kMaxSprites),
+                    sampling, blend);
   const size_t tail = (count - 1) % kMaxSprites + 1;
-  const size_t offset = count - tail;
-  xforms += offset;
-  tex += offset;
-  if (colors) colors += offset;
-  if (sizes) sizes += offset;
+  const SpriteBatch run = batch.slice(count - tail, tail);
+  const SkRSXform* xforms = run.xforms.data();
+  const SkRect* tex = run.tex.data();
+  const SkColor* colors = run.colors.empty() ? nullptr : run.colors.data();
+  const SkSize* sizes = run.sizes.empty() ? nullptr : run.sizes.data();
   count = tail;
   // Two triangles per sprite, indexed; positions from RSXform::toQuad.
   static thread_local std::vector<SkPoint> positions;

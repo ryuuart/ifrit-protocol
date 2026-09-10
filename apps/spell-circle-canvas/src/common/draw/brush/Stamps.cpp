@@ -267,10 +267,14 @@ void drawStamps(Pen& pen, Constant blend, std::span<const Stamp> stamps) {
     sizes.push_back({1.0f, stamp.height / stamp.width});
   }
   if (transforms.empty()) return;
+  sigil::skia::draw::SpriteBatch batch;
+  batch.xforms = transforms;
+  batch.tex = textureRects;
+  batch.colors = colors;
+  batch.sizes = sizes;
   sigil::skia::draw::drawSpriteAtlas(
-      *canvas, promotedTip(pen), roundTip(), transforms.data(),
-      textureRects.data(), colors.data(), transforms.size(),
-      SkSamplingOptions(SkFilterMode::kLinear), *mode, sizes.data());
+      *canvas, promotedTip(pen), roundTip(), batch,
+      SkSamplingOptions(SkFilterMode::kLinear), *mode);
 }
 
 }  // namespace sigil::draw::brush

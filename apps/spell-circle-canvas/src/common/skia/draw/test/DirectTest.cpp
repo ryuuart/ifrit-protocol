@@ -11,6 +11,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilskia/draw/Direct.h>
 
+#include <span>
 #include <vector>
 
 using namespace sigil::skia::draw;
@@ -155,8 +156,9 @@ TEST(DirectDraws, EverySpriteIsDrawnAcrossTheChunkBoundary) {
   Raster raster;
   raster.canvas().clear(SK_ColorBLACK);
   Promoted cache;
-  drawSpriteAtlas(raster.canvas(), cache, twoHalves(), xforms.data(),
-                  tex.data(), nullptr, kCount, SkSamplingOptions());
+  drawSpriteAtlas(raster.canvas(), cache, twoHalves(),
+                  SpriteBatch{.xforms = xforms, .tex = tex},
+                  SkSamplingOptions());
   EXPECT_EQ(raster.pixel(11, 11), SK_ColorWHITE) << "the first chunk";
   EXPECT_EQ(raster.pixel(151, 151), SK_ColorRED) << "…and the tail";
 }
@@ -171,11 +173,44 @@ TEST(DirectDraws, APerSpriteSizeScalesTheQuadTheXformCannot) {
   // centre at (21, 22): twenty times as wide is 40 units across it, and
   // its own height stands.
   const SkSize size{20.0f, 1.0f};
-  drawSpriteAtlas(raster.canvas(), cache, twoHalves(), &xform, &tex, nullptr, 1,
-                  SkSamplingOptions(), SkBlendMode::kSrcOver, &size);
+  drawSpriteAtlas(
+      raster.canvas(), cache, twoHalves(),
+      SpriteBatch{.xforms = {&xform, 1}, .tex = {&tex, 1}, .sizes = {&size, 1}},
+      SkSamplingOptions(), SkBlendMode::kSrcOver);
   EXPECT_EQ(raster.pixel(35, 22), SK_ColorWHITE) << "wide";
   EXPECT_EQ(raster.pixel(35, 30), SK_ColorBLACK) << "…and not tall";
   EXPECT_EQ(raster.pixel(45, 22), SK_ColorBLACK) << "…and bounded";
+}
+
+TEST(DirectDraws, ABatchWithAShortLaneDrawsNothingRatherThanReadingPastIt) {
+  // The four lanes were four pointers and a count, with nothing holding
+  // them to one length. As one value the batch can be ASKED, and a draw
+  // that cannot trust its lanes refuses the whole batch: the alternative
+  // is reading past the end of the short one, which draws a sprite out of
+  // whatever memory followed it.
+  const std::vector<SkRSXform> xforms(
+      4, SkRSXform::MakeFromRadians(1, 0, 10, 10, 0, 0));
+  const std::vector<SkRect> tex(4, SkRect::MakeWH(2, 4));
+  const std::vector<SkColor> colors(4, SK_ColorWHITE);
+  const std::vector<SkSize> sizes(4, SkSize{1, 1});
+
+  EXPECT_TRUE((SpriteBatch{.xforms = xforms, .tex = tex}.consistent()));
+  EXPECT_FALSE((SpriteBatch{.xforms = xforms, .tex = std::span(tex).first(3)}
+                    .consistent()));
+  EXPECT_FALSE((SpriteBatch{
+      .xforms = xforms, .tex = tex, .colors = std::span(colors).first(3)}
+                    .consistent()));
+  EXPECT_FALSE((SpriteBatch{
+      .xforms = xforms, .tex = tex, .sizes = std::span(sizes).first(3)}
+                    .consistent()));
+
+  Raster raster;
+  raster.canvas().clear(SK_ColorBLACK);
+  Promoted cache;
+  drawSpriteAtlas(raster.canvas(), cache, twoHalves(),
+                  SpriteBatch{.xforms = xforms, .tex = std::span(tex).first(3)},
+                  SkSamplingOptions());
+  EXPECT_EQ(raster.pixel(11, 11), SK_ColorBLACK) << "nothing was drawn";
 }
 
 TEST(DirectDraws, ReadyHandsBackTheImageWhereThereIsNoRecorder) {
