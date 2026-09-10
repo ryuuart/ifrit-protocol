@@ -1235,14 +1235,15 @@ knows yet — blits the bake whole.
 **A PROMOTED NODE PAINTS THE PICTURE ITS LIVE PAINT PAINTS**, within one
 code value per channel, and that is the whole of what automatic promotion
 may cost. The one value is not slack for a bake to be approximately
-right: a device bake is taken under the live matrix post-translated by an
-integer, and inverting that matrix at a scale whose reciprocal is inexact
-does not cancel the integer to the last bit, so a shaded pixel may land
-one code value from the live paint and nothing may land further. Every
-condition the promoter is held to follows from that — the bake carries
-the canvas's own clip, so an edge that leaves the canvas is cut the same
-way in both; the node must be upright, since off-axis the same inversion
-does not cancel; and nothing live may be inside the bake. A scene whose
+right: what a bake holds is an image of eight bits a channel, premultiplied
+by the coverage it was drawn with, and the blit composites from that — so
+a shaded pixel may land one code value from the live paint and nothing may
+land further. Every condition the promoter is held to follows from that —
+the bake carries the canvas's own clip, so an edge that leaves the canvas
+is cut the same way in both; it stands on the canvas's own grid, so the
+matrix it inverts is the live paint's to the bit; the node must be
+upright, since off-axis a blit at an absolute device rect is not the same
+picture at all; and nothing live may be inside the bake. A scene whose
 promoted frame differs from its unpromoted one by more than a value is a
 defect in this library, never a plate to rebase.
 
@@ -1263,17 +1264,27 @@ path needs its clipped rasterisation from the path's control-point
 bounds, and its clipped and unclipped routes do not answer the same
 antialiased coverage. A curve's control points stand outside the ink it
 draws — about a hundredth of the curve's own extent for the cubics a
-stroker approximates an offset with — so a bake allocated to exactly what
-the node paints cuts inside them, and a stroked ring or arc baked flush
-moves by tens of code values along its whole length. Every device bake is
-therefore allocated with a margin, a thirty-second of its own larger side
-and never less than two pixels, so what bounds the drawing is the clip the
-bake carries in and never the allocation. AND IT HOLDS THE SHAPE THE NODE
-DECLARES. A `Shape` is a function of a size and nothing holds what it
-returns inside the box that size came from — a generator anchored on a
-centre of its own, a ring of rules drawn at radii the box knows nothing
-about — and the node's surface is filled with that path while every
-decoration dresses it, so the ink is where the path is.
+stroker approximates an offset with — so a bake cut to exactly what the
+node paints cuts inside them, and a stroked ring or arc baked flush moves
+by tens of code values along its whole length. Every device bake is
+therefore taken with a margin, a thirty-second of its own larger side and
+never less than two pixels, so what bounds the drawing is the clip the
+bake carries in and never the rect it was measured to. AND IT HOLDS THE
+SHAPE THE NODE DECLARES. A `Shape` is a function of a size and nothing
+holds what it returns inside the box that size came from — a generator
+anchored on a centre of its own, a ring of rules drawn at radii the box
+knows nothing about — and the node's surface is filled with that path
+while every decoration dresses it, so the ink is where the path is. AND
+THE REACH EVERY EFFECT UNDER IT FILTERS OVER. A layer effect paints
+outside the box its node was measured to — a blur's skirt, a glow's halo,
+a shadow's offset — and that ink is drawn by the child's own filtered
+paint INTO whatever the node above was given room in, so the rect a bake
+is measured to grows by what each filter below it answers for its own
+input. A LAYER is not grown that way: Skia grows a filtered `saveLayer`
+for its filter already, and where the effect is deferred to the blit
+instead the rect is the frame the effect reads its own parameters in — a
+sigma map's unit square is the box the layout decided, so growing it would
+re-aim the effect rather than make room for it.
 
 **A NODE IS SIZED IN ONE PLACE, AND THE DECLARED SHAPE IS PART OF THAT
 SIZE.** Everything a node is given room in comes from its own paint
@@ -1286,28 +1297,37 @@ bounds every one of them, and a LAYER is the harsher case rather than the
 lenient one: a `saveLayer`'s bounds are a clip, so a layer that misses the
 node's ink DELETES it, where an allocation that misses it merely cuts what
 falls outside. What bounds a node's drawing is the clip it carries in —
-never the rect it was given room in.
+never the rect it was given room in. The ONE term a layer does not take is
+the reach the effects below it filter over, for the reason above: a
+filtered `saveLayer` grows itself, and a deferred effect reads the rect as
+its own frame.
 
-**AND WHAT IS LEFT IS THE OFFSET'S OWN LAST BIT.** A bake is taken under
-the live matrix with an integer subtracted from its translation, so the
-two matrices map a point through the same numbers at different
-MAGNITUDES: the live paint rounds its sum in the binade of the device
-coordinate and the bake rounds its own in the binade of the offset one.
-Near the canvas origin the integer cancels exactly and the two are the
-same pixels; far from it they part by half a float step of the device
-coordinate — which is nothing along an edge that meets the grid squarely,
-and a whole supersample bucket where a curve runs nearly TANGENT to one.
-It is the geometric twin of the shader inversion the one value is about,
-and it is not the rasterisation route: the same curve into a layer and
-into a fresh offscreen is the same pixels, which
-`ADeviceBakeRasterisesOnItsLivePaintsRoute` holds. The only construction
-that removes it is a bake allocated from the canvas origin, so that no
-translation enters the layer's matrix at all, and that costs a full-canvas
-surface for every promoted node.
+**AND THE BAKE STANDS ON THE CANVAS'S OWN GRID.** A bake taken on a
+surface allocated at the node's own corner maps every point through the
+live matrix with an integer subtracted from its translation, and the
+integer is exact while the SUM it enters is not: the live paint rounds its
+sum in the binade of the device coordinate and the offset one rounds its
+own in the binade of the offset coordinate. Near the canvas origin the
+integer cancels exactly and the two are the same pixels; far from it they
+part by half a float step of the device coordinate — which is nothing
+along an edge that meets the grid squarely, and a whole quantizer bucket
+where a curve runs nearly TANGENT to one or a glyph mask is cached at a
+quarter-pixel phase. It is not the rasterisation route: the same curve
+into a layer and into a fresh offscreen is the same pixels, which
+`ADeviceBakeRasterisesOnItsLivePaintsRoute` holds.
 
-SO THE CONTRACT CARRIES A THIRD CLAUSE, AND IT IS THE TWIN OF THE FIRST.
-A PROMOTED MARK MAY STAND ONE FLOAT STEP OF ITS DEVICE COORDINATE FROM ITS
-LIVE PAINT WHERE A CURVE GRAZES THE GRID. What that step costs a pixel is
+So no offset enters the layer's matrix at all. Every device bake — the
+promotion tier's, the split's, the group's and the device-space texture
+one — is painted under the node's own matrix on a surface standing at the
+canvas's origin, and the node's rect is taken off it as the image the blit
+replaces the paint with. The surface is SHARED, one per depth of nesting
+and grown to the largest rect any bake has needed, so the grid costs a
+canvas rather than a canvas per node; what a node keeps is the image, and
+the rect it is measured to has one producer.
+
+AND THE CONTRACT CARRIES A THIRD CLAUSE STILL, FOR WHAT A ROUNDING COSTS
+AN EDGE. A PROMOTED MARK MAY STAND ONE STEP OF ITS OWN COVERAGE FROM ITS
+LIVE PAINT WHERE A CURVE GRAZES THE GRID. What one step costs a pixel is
 not a code value but whatever quantizer stands at that coordinate — a
 supersample bucket on a nearly tangent edge, the phase bucket a glyph mask
 is cached at — so the clause bounds the SHAPE of the difference rather
@@ -1330,6 +1350,17 @@ further out over a bright backdrop, and taking the bake at higher
 precision does not remove it. It appears only where the node's own alpha
 is partial; an opaque node over anything is exact. Anything beyond that
 second value is a picture that changed.
+
+**WHICH IS WHY A NODE INSIDE A BAKE IS NOT BAKED AGAIN.** Two composites
+is what the second value bounds, and a bake standing inside another node's
+bake makes three: the node's own coverage into its own image, that image
+into the layer above, and the layer above onto the canvas. It buys nothing
+either — the image of the bake above is what the blit lands, so the inner
+one is consulted only on the frames that one is remade, which is the
+measured cost being near zero and the cost rule never asking. Only the
+eager policy ever reached for it, and refusing it is a condition on the
+pixels rather than a change of policy, so `Eager` and `ByCost` refuse it
+alike.
 
 **AND SO DOES TYPE THAT ADDS RATHER THAN COVERS.** A glyph pass carries
 an `SkPaint` of its own, so a phrase set additively — the blend on the
@@ -1375,10 +1406,9 @@ clock, the same fixed step and the same capture moment — and the two
 pictures are differenced channel by channel. The pair is judged by the
 three clauses above, each differing pixel against the bar for what it
 stands on: one code value over transparent black, two over content, and
-the grazing case under a bar of its own, measured off the scenes whose
-remainder the offset's arithmetic was pinned on. A scene past any of them
-is a promoted node painting a different picture, and it is filed against
-this library. Because the on half is eager rather than measured, that sweep
+the grazing case under a bar of its own, measured off the scenes that
+report the widest grazing edge. A scene past any of them is a promoted
+node painting a different picture, and it is filed against this library. Because the on half is eager rather than measured, that sweep
 covers every promotable node in the registry and reports the same numbers
 on any machine. It is `sigil.py plates --tier promotion`, and it
 is the only run in the repository that photographs this library with

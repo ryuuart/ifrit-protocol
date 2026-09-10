@@ -308,12 +308,11 @@ THE CEILING IS THREE BARS, and not one is a tolerance anyone chose. Each
 differing pixel is judged by what it stands on, read off the HELD-OFF
 plate — the reference — and off the two plates' own pixels around it.
 
-Where that pixel is TRANSPARENT BLACK the bar is one code value. A
-promoted node is baked under the live matrix post-translated by an
-integer, and inverting that matrix to find a shader's local coordinates
-does not cancel the integer to the last bit at a scale whose reciprocal
-is inexact, so a shaded pixel can land one value from the live paint and
-nothing may land further.
+Where that pixel is TRANSPARENT BLACK the bar is one code value. What a
+bake holds is an image of eight bits a channel, premultiplied by the
+coverage it was drawn with, and the blit composites from that — so a
+shaded pixel can land one value from the live paint and nothing may land
+further.
 
 Where it holds CONTENT the bar is two. There the bake lands on
 something, so the node's own coverage is composited twice where the live
@@ -324,20 +323,16 @@ settle one value further out over a bright backdrop, and taking the bake
 at higher precision does not remove it.
 
 Where the difference is CONFINED TO AN ANTIALIASED EDGE BOTH PLATES DRAW
-the bar is forty. A bake is taken with an integer subtracted from the
-live matrix's translation, so the two matrices round the same numbers at
-different magnitudes and part by half a float step of the device
-coordinate: nothing along an edge that meets the grid squarely, and a
-whole supersample bucket where a curve runs nearly TANGENT to one. The
-error is the live paint's own rounding, which the bake does not share, so
-no allocation, offset or clip removes it — only a bake taken at the canvas
-origin does, at a full-canvas surface per promoted node. The forty is
-measured rather than chosen: the two scenes that arithmetic was pinned on
-report a worst grazing difference of 31 and 38, and both sit inside ONE
-supersample bucket at the contrast their curves stand at, a quarter of a
-pixel's own contrast being 64 code values between black and white. A
-scene standing under this bar says so on its verdict line, with the
-number of pixels it was.
+the bar is forty. One rounding along such an edge is one step of that
+pixel's coverage, and what a step costs is not a code value but whatever
+quantizer stands there: nothing along an edge that meets the grid
+squarely, and a whole supersample bucket where a curve runs nearly
+TANGENT to one. The forty is measured rather than chosen: the widest
+grazing edge any scene reports is 31, and it sits inside ONE supersample
+bucket at the contrast its curves stand at, a quarter of a pixel's own
+contrast being 64 code values between black and white. A scene standing
+under this bar says so on its verdict line, with the number of pixels it
+was.
 
 A SCENE MAY DECLARE THAT IT CANNOT BE JUDGED THIS WAY. A sketch whose
 picture is not linear in what went into it — `ctx.nonlinearPicture()`,
