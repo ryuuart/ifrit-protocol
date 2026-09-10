@@ -12,15 +12,12 @@ remains of them is below, then the standing entries.
 
 ## Verification state on main
 
-Taken on the merged tree after the extractions, the file splits, the
-docs probes and the five growths:
+Taken on the merged tree at the close of the session's work:
 
-- Release build: zero errors, zero warnings. `ctest`: 3415 of 3415,
+- Release build: zero errors, zero warnings. `ctest`: 3418 of 3418,
   every library's README compile-checked among them.
-- CPU plate tier: 195 scenes byte-identical, the one mover of the
-  growths (`winamp_base`, whose doubled edge is now drawn) rebased with
-  its cause; five network-fetched scenes were warmed into the cache's
-  new location once.
+- CPU plate tier: 195 scenes byte-identical; the four sketches whose
+  sliced inner-aligned strokes now paint were rebased with that cause.
 - Device tier: 195 of 195 within the per-channel bar. Promotion tier:
   183 of 195 within the contract's three clauses; the rest is the entry
   below.
