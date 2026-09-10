@@ -34,18 +34,14 @@
  * DATA (which LUT is current), re-describes, and the reconciler diffs —
  * there is no binding and no per-frame work anywhere.
  *
- * WHY THIS SHEET DECLARES ITS PICTURE NONLINEAR. A LUT strip is sixteen
- * texels magnified eleven times and sampled NEAREST, which is a step
- * function of the shader's own coordinate: a texel boundary that lands on
- * a device pixel boundary is a tie, and which texel the sample takes is
- * then decided by the last bit of the inverse matrix — the one bit a
- * device-space bake is allowed to differ in, and the runtime's contract
- * bounds it at a code value for a CONTINUOUS shader. Over a step it is a
- * whole palette entry, tens of code values wide, on the column where the
- * tie stands. Nudging the strip an eighth of a pixel off the grid brings
- * the promoted and unpromoted plates within ONE, so what is under the step
- * is right and the step is what has no bound. `ctx.nonlinearPicture()`
- * therefore holds the automatic promoter off this sheet in every host.
+ * A LUT STRIP IS A STEP FUNCTION OF THE SAMPLER'S OWN COORDINATE: sixteen
+ * texels magnified eleven times and sampled NEAREST, so a texel boundary
+ * that lands on a device pixel boundary is a tie and the sample takes one
+ * whole palette entry or the next. It reads as a stress test of the
+ * runtime's caching contract and it is one — what decides the tie is the
+ * inverse matrix, and a device-space bake now stands on the canvas's own
+ * grid, so the matrix it inverts is the live paint's to the bit and the
+ * tie falls the same way on both sides.
  */
 
 #include <include/core/SkBitmap.h>
@@ -357,8 +353,7 @@ struct MaterialChild final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
     // the live panel is on the fire LUT here
-    sketch::kit::stage(
-        ctx, {.size = {1060, 690}, .captureAt = 1.0, .nonlinearPicture = true});
+    sketch::kit::stage(ctx, {.size = {1060, 690}, .captureAt = 1.0});
     ctx.composer.render(describe());
   }
 
