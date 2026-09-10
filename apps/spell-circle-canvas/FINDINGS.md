@@ -108,3 +108,36 @@ ones found so far
 `ComposeCache.ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves`,
 `ComposeCache.APromotedShapeKeepsTheInkItDrawsOutsideItsBox` and
 `ComposePaintBounds.ADeclaredShapeBoundsEveryLayerTheNodeIsGiven`).
+
+## A span-revealed outline drops an aligned stroke the way a slice did
+
+`box().stroke(spans::upTo(&t), stroke(w, fill, PathFormat::Align::Inner))`
+paints nothing for most of its reveal. The span pass hands the decoration
+the REVEALED RUN as `PaintContext::outline`, and that run is open; an
+aligned `PathFormat` strokes at double width and clips to the outline it
+is given, and Skia fills an open contour by closing it, so a run that is
+still one straight segment bounds no area, the clip is empty and the
+whole mark is thrown away. As the run turns its first corner the implicit
+closure starts to enclose a triangle and the mark REAPPEARS — clipped to
+that triangle rather than to the shape, which is not a picture anyone
+asked for either.
+
+MEASURED, on a 100 x 100 box with an 8 px Inner-aligned stroke revealed
+by `spans::upTo`: at 0.05 and at 0.20 of the perimeter no pixel of the
+revealed top edge is painted; at 0.90 the whole revealed run stands. A
+centred stroke over the same span is unaffected, since it does not clip.
+
+Evidently intended: what `PaintContext::silhouette` already gives a
+sliced outline — the alignment clips to the shape the run was cut from,
+so a self-drawing border keeps its width inside the silhouette at every
+fraction of its reveal. The fix is to carry the node's own outline in
+`silhouette` where the span pass narrows `outline`.
+
+It is not taken with the slice's, because the two are not one sweep:
+fifteen sketches spell both a span and an alignment, and every picture
+that moves has to be shown.
+
+Assert once fixed: a case in `compose_test` that an Inner-aligned stroke
+revealed to a fraction of ONE STRAIGHT RUN paints that fraction of the
+band and nothing outside the silhouette, and that the same stroke fully
+revealed is the unspanned one pixel for pixel.
