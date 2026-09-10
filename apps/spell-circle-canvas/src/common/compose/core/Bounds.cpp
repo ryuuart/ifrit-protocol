@@ -6,6 +6,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkImageFilter.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathEffect.h>
@@ -283,6 +284,36 @@ NodeTransform Composer::Impl::transformOf(Instance& inst) {
   return out;
 }
 
+namespace {
+
+/** WHERE A LAYER EFFECT PUTS INK THE CONTENT UNDER IT DOES NOT COVER: the
+ *  rect grown to what the node's own filter answers for it — a blur's
+ *  skirt, a glow's halo, a shadow's offset — and left alone on a node that
+ *  carries no effect.
+ *
+ *  Asked of a node by whatever CONTAINS it, and only when the rect is
+ *  about to size a surface. The halo is drawn into that surface by the
+ *  child's own filtered paint, so a surface allocated to the unfiltered
+ *  content cuts the skirt off square wherever the effect reaches past it.
+ *  Where the same rect bounds a LAYER it must not be asked: Skia grows a
+ *  filtered saveLayer for its own filter already, and a bounds grown twice
+ *  is a layer composited over more ground than the picture stands on.
+ *
+ *  The filter is resolved without a frame, which is the effect as it was
+ *  declared: a blur states the largest sigma its binding will reach, so
+ *  the reach a bound parameter can ask for is already in the declaration.
+ *  Over-reporting only makes a surface larger. */
+SkRect filteredReach(const ElementNode& node, const SkRect& local,
+                     bool forBake) {
+  if (!forBake) return local;
+  const material::skia::Effect* fx = layerEffectOf(node);
+  if (!fx) return local;
+  const sk_sp<SkImageFilter> filter = fx->resolvedImageFilter(nullptr);
+  return filter ? filter->computeFastBounds(local) : local;
+}
+
+}  // namespace
+
 /** The rect a node's RECORDING must cover, in its own local space: its own
  *  paint bounds (ownPaintBounds above), unioned with every child's bounds
  *  mapped through that child's layout offset and static paint transforms.
@@ -321,7 +352,8 @@ NodeTransform Composer::Impl::transformOf(Instance& inst) {
  *  on: its own box through its own plane, and every child in the space
  *  through the child's full matrix there, so the layer or bake an ancestor
  *  sizes from this holds the faces of a cube wherever they have turned. */
-SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space) {
+SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
+                                    bool forBake) {
   const ElementNode& node = *inst.description;
   SkRect local = ownPaintBounds(inst);
   const bool hosts = hostsSpace(inst);
@@ -336,6 +368,18 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space) {
     local = projectRect(own->asM33(), local);
   }
   if (node.clipContent) return local;
+  // A CHILD'S contribution, grown by the reach its own layer effect
+  // filters over when this rect is about to size a surface. The node's own
+  // effect is not asked here: it is applied by this node's own paint,
+  // INSIDE whatever this rect allocates, and where it is deferred to the
+  // blit instead this rect is the frame the effect reads its own
+  // parameters in — a sigma map's unit square is the box the layout
+  // decided, so growing it would re-aim the effect rather than make room
+  // for it.
+  const auto childBounds = [&](Instance& kid, const SkM44* plane) {
+    return filteredReach(*kid.description, recordBounds(kid, plane, forBake),
+                         forBake);
+  };
   for (auto& child : inst.children) {
     const ElementNode& cn = *child->description;
     const SkRect crect = instanceRect(*child);
@@ -344,19 +388,19 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space) {
       // In the space: a nested host answers in the same plane already; a
       // flat child's own plane is projected there through its full matrix.
       if (hostsSpace(*child)) {
-        local.join(recordBounds(*child, &*own));
+        local.join(childBounds(*child, &*own));
       } else {
         const SkM44 m(*own, depthMatrixOf(*child, tf, crect));
-        local.join(projectRect(m.asM33(), recordBounds(*child)));
+        local.join(projectRect(m.asM33(), childBounds(*child, nullptr)));
       }
       continue;
     }
     if (hostsSpace(*child)) {
       // The space the child hosts is drawn on THIS plane.
-      local.join(recordBounds(*child));
+      local.join(childBounds(*child, nullptr));
       continue;
     }
-    SkRect cb = recordBounds(*child);  // child-local
+    SkRect cb = childBounds(*child, nullptr);  // child-local
     if (tf.spatial()) {
       local.join(projectRect(depthMatrixOf(*child, tf, crect).asM33(), cb));
       continue;
@@ -375,6 +419,14 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space) {
     local.join(m.mapRect(cb));
   }
   return local;
+}
+
+/** …and the same union once more, for the rect a SURFACE is allocated to:
+ *  every layer effect in the subtree given the reach its own filter
+ *  answers, so a bake stands clear of the skirt a blur, a glow or a shadow
+ *  puts outside the content it filters. */
+SkRect Composer::Impl::bakeBounds(Instance& inst) {
+  return recordBounds(inst, nullptr, true);
 }
 
 SkRect Composer::Impl::declaredShapeBounds(Instance& inst) {

@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <cstdlib>
 #include <optional>
 
 #include "Instance.h"
@@ -685,7 +686,17 @@ struct Composer::Impl {
    *  on, which is where its children stand. `space` is the accumulation of
    *  the space the node itself stands in, null under a flat parent; a
    *  hosting node nested in a space needs it to place its own plane. */
-  SkRect recordBounds(detail::Instance& inst, const SkM44* space = nullptr);
+  SkRect recordBounds(detail::Instance& inst, const SkM44* space = nullptr,
+                      bool forBake = false);
+  /** The same union, for the rect a SURFACE is allocated to rather than the
+   *  rect a layer or a recording is bounded by: every layer effect in the
+   *  subtree is given the reach its own filter answers, because the skirt a
+   *  blur, a glow or a shadow puts outside the content it filters is drawn
+   *  INTO the allocation and a surface sized to the unfiltered content cuts
+   *  it off square. A LAYER is not sized with this — Skia grows a filtered
+   *  saveLayer for its filter already, and growing it here too would
+   *  composite the layer over ground the picture does not stand on. */
+  SkRect bakeBounds(detail::Instance& inst);
   /** WHERE THE SHAPE A NODE DECLARES ACTUALLY REACHES, outset by the same
    *  bleed its box is — empty on a node that declares none. A Shape is a
    *  function of a size and nothing requires what it returns to stand

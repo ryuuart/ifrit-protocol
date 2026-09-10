@@ -788,6 +788,48 @@ Element shapeOutsideItsBox() {
 
 }  // namespace
 
+namespace {
+
+/** A BLURRED CHILD INSIDE A NODE SIZED TO IT. The child's own filtered
+ *  layer draws a skirt well outside the child's box — Skia grows a
+ *  filtered saveLayer for its filter, so the halo is painted — and the
+ *  group above it is sized to the box alone, so a surface allocated to
+ *  that box cuts the skirt off square. The group carries no effect of its
+ *  own, which is what keeps it promotable: a filtered node is refused. */
+Element blurredChildUnderAGroup() {
+  Element page = blackPage();
+  Element group = box().absolute().left(100).top(100).width(40).height(40);
+  group.child(box()
+                  .width(40)
+                  .height(40)
+                  .fill(Fill::color({1, 1, 1, 1}))
+                  .effect(material::skia::Effect::filter(
+                      SkImageFilters::Blur(10, 10, nullptr))));
+  page.child(std::move(group));
+  return page;
+}
+
+}  // namespace
+
+TEST(ComposeCache, APromotedNodeKeepsTheSkirtABlurredChildFilters) {
+  // What a layer effect paints is not what the content under it covers: a
+  // blur, a glow, a shadow put ink outside the box the filtered node was
+  // measured to, and that ink is drawn INTO whatever surface the node above
+  // was allocated. Allocated to the unfiltered content, the surface cuts
+  // the skirt off square — a mark that is gone, not a rounding — so the
+  // rect a bake is sized to holds every effect below it at the reach its
+  // own filter answers. The LAYERS keep the unfiltered rect: Skia grows a
+  // filtered saveLayer for its filter already.
+  const PromotionDrift drift =
+      promotionDriftOf(blurredChildUnderAGroup, SkMatrix::I(), 240, 240);
+  ASSERT_TRUE(drift.promoted)
+      << "nothing was promoted, so this compared two live renders";
+  EXPECT_LE(drift.worstChannel, 2)
+      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
+      << " code values, when the library promoted a node holding a child "
+         "whose blur reaches past its box";
+}
+
 TEST(ComposeCache, APromotedShapeKeepsTheInkItDrawsOutsideItsBox) {
   // A device bake is a SURFACE, and ink outside it is lost rather than
   // rounded. The node's box bounds the layers it opens, but it does not

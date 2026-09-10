@@ -18,15 +18,24 @@ SkIRect PaintPass::deviceClip() const {
 }
 
 SkIRect PaintPass::deviceRect() {
-  // The paint bounds, which already hold the shape the node declares: a
-  // device bake is a SURFACE, and a surface allocated to less than the ink
-  // cuts it.
+  // The paint bounds, which already hold the shape the node declares and
+  // the reach the effects under it filter over: a device bake is a
+  // SURFACE, and a surface allocated to less than the ink cuts it.
   const SkRect f = totalM.mapRect(localBounds());
   SkIRect r =
       SkIRect::MakeLTRB((int)std::floor(f.left()), (int)std::floor(f.top()),
                         (int)std::ceil(f.right()), (int)std::ceil(f.bottom()));
   const int m = Composer::Impl::bakeMargin(std::max(r.width(), r.height()));
   r.outset(m, m);
+  // …AND NO FURTHER THAN THE CLIP THE BAKE CARRIES IN. A filter whose
+  // output does not depend on its input — a shader run over the layer —
+  // reaches everywhere, and a surface cannot be allocated to everywhere.
+  // What such a filter paints is bounded by the clip the layer is given,
+  // which is this one, so the allocation stops there and no ink is lost:
+  // nothing outside that clip is drawn into a bake at all.
+  SkIRect capped = deviceClip();
+  capped.outset(m, m);
+  if (!r.intersect(capped)) return SkIRect::MakeEmpty();
   return r;
 }
 

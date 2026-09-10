@@ -184,13 +184,15 @@ struct PaintPass {
 
   // ---- what the tiers ask of the pass ----
 
-  /** The node's paint bounds in its own space. recordBounds() walks the
-   *  whole subtree and three tiers ask for it, so it is memoised per paint
-   *  — lazily, so a node that reaches none of them never pays for it. */
+  /** The rect this node is ALLOCATED to, in its own space — the subtree
+   *  union with every layer effect in it given its filter's reach, which is
+   *  what a surface has to hold. bakeBounds() walks the whole subtree and
+   *  three tiers ask for it, so it is memoised per paint — lazily, so a
+   *  node that reaches none of them never pays for it. */
   const SkRect& localBounds() {
     if (!localBoundsDone) {
       localBoundsDone = true;
-      localPaintBounds = impl.recordBounds(inst);
+      localPaintBounds = impl.bakeBounds(inst);
     }
     return localPaintBounds;
   }
