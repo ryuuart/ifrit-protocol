@@ -100,6 +100,42 @@ TEST(Grained, LattenSitsOnItsLadderAndSheensAlongItsRun) {
   EXPECT_GT(greened, 4);
 }
 
+TEST(Grained, TheLattenToneIsWhatTheSheetPaintsAtThatPointOfItsRun) {
+  // The CPU reading exists for the stroke and the gradient stop that take
+  // a colour and cannot take a material, so what it answers has to be
+  // what the sheet beside them is painting: the same ladder, the same
+  // drift along the same run.
+  kit::LattenParams p;
+  p.tooth = 0;
+  p.patina = 0;
+  p.from = {0, 0};
+  p.to = {64, 0};
+  p.sheen = 0.3f;
+  p.level = 0.4f;
+  const SkBitmap sheet = shade(kit::latten(p), 64, 8);
+  for (int x : {0, 16, 32, 48, 63}) {
+    // The pixel is sampled at its centre, which is where the shader read
+    // the run.
+    const Color tone = kit::lattenTone(p, ((float)x + 0.5f) / 64.0f);
+    const SkColor painted = sheet.getColor(x, 4);
+    EXPECT_NEAR((float)SkColorGetR(painted) / 255.0f, tone.r, 1.5f / 255.0f);
+    EXPECT_NEAR((float)SkColorGetG(painted) / 255.0f, tone.g, 1.5f / 255.0f);
+    EXPECT_NEAR((float)SkColorGetB(painted) / 255.0f, tone.b, 1.5f / 255.0f);
+  }
+  // The ends of the ladder are reached by the level alone, and the run
+  // cannot take a tone past them.
+  p.sheen = 0;
+  p.level = 0;
+  EXPECT_EQ(kit::lattenTone(p, 0.0f), p.shadow);
+  p.level = 0.5f;
+  EXPECT_EQ(kit::lattenTone(p, 1.0f), p.body);
+  p.level = 1;
+  EXPECT_EQ(kit::lattenTone(p, 0.5f), p.light);
+  p.sheen = 4;
+  EXPECT_EQ(kit::lattenTone(p, 0.0f), p.shadow);
+  EXPECT_EQ(kit::lattenTone(p, 1.0f), p.light);
+}
+
 TEST(Grained, BoardIsItsPaintUnderATooth) {
   kit::BoardParams b;
   b.paint = {0.5f, 0.5f, 0.5f, 1};

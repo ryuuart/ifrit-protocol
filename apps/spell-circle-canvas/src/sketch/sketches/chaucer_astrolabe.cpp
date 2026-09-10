@@ -920,32 +920,24 @@ struct ChaucerAstrolabe : sketch::Sketch {
         .worldSpace();
   }
 
-  /** The same ladder sampled as a colour, for the two places a recipe
-   *  cannot reach: a `Ribbon`'s fill and a `PathFormat`'s `strokeFill`,
-   *  both of which take a `Fill` and not a material. */
-  static SkColor4f brassRamp(float u) {
-    static const SkColor4f ladder[3] = {kBrassP10, kBrassP50, kBrassP90};
-    const float t = std::clamp(u, 0.0f, 1.0f) * 2.0f;
-    const int i = std::min((int)t, 1);
-    const float f = t - (float)i;
-    return {ladder[i].fR + (ladder[i + 1].fR - ladder[i].fR) * f,
-            ladder[i].fG + (ladder[i + 1].fG - ladder[i].fG) * f,
-            ladder[i].fB + (ladder[i + 1].fB - ladder[i].fB) * f, 1};
-  }
-
   /** The sheen as a node-local gradient, in the node's own px. The two
-   *  consumers left cannot take the material, so the run is converted by
-   *  hand exactly where that is unavoidable and nowhere else. */
+   *  consumers left cannot take the material — a `Ribbon`'s fill and a
+   *  `PathFormat`'s `strokeFill` both take a `Fill` — so the sheet's own
+   *  ladder is read at the two ends of the run and its middle, exactly
+   *  where that is unavoidable and nowhere else. */
   Fill brassStroke(SkRect r, float level = 0.5f) const {
     auto p = [&](SkPoint q) {
       return SkPoint{q.fX - r.left(), q.fY - r.top()};
     };
-    const float s = 0.10f;
-    return linearGradient(p({kCx - kMaterR * 0.95f, kCy + kMaterR * 0.95f}),
-                          p({kCx + kMaterR * 0.85f, kCy - kMaterR * 1.05f}),
-                          {brassRamp(level - s * 0.5f), brassRamp(level),
-                           brassRamp(level + s * 0.5f)},
-                          {0.0f, 0.5f, 1.0f});
+    matkit::LattenParams face = sheet();
+    face.level = level;
+    return linearGradient(
+        p({kCx - kMaterR * 0.95f, kCy + kMaterR * 0.95f}),
+        p({kCx + kMaterR * 0.85f, kCy - kMaterR * 1.05f}),
+        {mat::skia::toSkColor(matkit::lattenTone(face, 0.0f)),
+         mat::skia::toSkColor(matkit::lattenTone(face, 0.5f)),
+         mat::skia::toSkColor(matkit::lattenTone(face, 1.0f))},
+        {0.0f, 0.5f, 1.0f});
   }
 
   // =========================================================================

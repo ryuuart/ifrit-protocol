@@ -72,7 +72,7 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::verticalRamp` and `skia::unitRamp`, the two crossings a list of `RampStop`s reaches Skia through, with `skia::paletteImage` and `skia::paletteLookup` the palette's two beside them; `skia::palette`, the picture read down to the table it is made of; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
-| `SigilMaterialKit` | the presets: the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; the orthographic `kit::globe`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
+| `SigilMaterialKit` | the presets: the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board` with `kit::lattenTone` reading the last one's ladder on the CPU; the orthographic `kit::globe`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
 | `SigilMaterialStock` | `stock::everyRecipe()`, one instance of every recipe this library ships gathered from the catalogues that own them, and `stock::warmup(target)`, which compiles the list into the shared program cache before a host's first frame | SigilMaterialCore; SigilMaterialField, SigilMaterialSdf, SigilMaterialKit and SigilCoreSchedule privately |
 
 `SigilMaterial` is the umbrella, an interface over all twelve. Headers live
@@ -692,7 +692,10 @@ boards a lattice's rails and its posts; `kit::LattenParams` is sheet
 brass, whose one colour and many lights are a three-tone LADDER — a
 piece's `level` is where on it that face sits, and `sheen` drifts that
 position along the run from `from` to `to`, which is how one light
-crosses two hundred nodes of one instrument; `kit::BoardParams` is a flat
+crosses two hundred nodes of one instrument — and `kit::lattenTone`
+reads that ladder on the CPU, at a position along the same run, for the
+stroke or the gradient stop that takes a colour and cannot take a
+material; `kit::BoardParams` is a flat
 `paint` under a fine tooth and a slow wear. Every length is in pixels
 rather than in the box, because a tessera is cut from a slab and its
 grain does not scale with the piece, and `seed` offsets every field, so

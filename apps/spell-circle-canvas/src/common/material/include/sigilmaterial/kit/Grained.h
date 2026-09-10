@@ -142,4 +142,16 @@ Material latten(const LattenParams& params = {});
 /** A painted board at @p params. */
 Material board(const BoardParams& params = {});
 
+/** THE LATTEN LADDER READ ON THE CPU: the colour a sheet of @p params
+ *  shows at @p along, the position on the run from `from` to `to` where
+ *  0 is `from` and 1 is `to`. It is the recipe's own reading — the
+ *  level drifted by the sheen, then the three tones — so a caller that
+ *  cannot take a material still stands on one ladder with the faces
+ *  around it.
+ *
+ *  Every consumer of a `Fill` is such a caller: a stroke's paint and a
+ *  ribbon's fill take a colour and a gradient, so a sheet crossing one
+ *  of those is the run sampled at the two ends and the middle. */
+[[nodiscard]] Color lattenTone(const LattenParams& params, float along);
+
 }  // namespace sigil::material::kit

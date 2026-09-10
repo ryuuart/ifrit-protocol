@@ -10,6 +10,7 @@
 #include <sigilmaterial/core/Terms.h>
 #include <sigilshaders/MaterialKit.h>
 
+#include <algorithm>
 #include <string>
 #include <string_view>
 
@@ -78,6 +79,16 @@ Material latten(const LattenParams& params) {
 
 Material board(const BoardParams& params) {
   return Material(boardRecipe(), params);
+}
+
+Color lattenTone(const LattenParams& params, float along) {
+  const float u =
+      std::clamp(params.level + (along - 0.5f) * params.sheen, 0.0f, 1.0f);
+  const Color& lo = u < 0.5f ? params.shadow : params.body;
+  const Color& hi = u < 0.5f ? params.body : params.light;
+  const float f = u < 0.5f ? u * 2.0f : (u - 0.5f) * 2.0f;
+  return {lo.r + (hi.r - lo.r) * f, lo.g + (hi.g - lo.g) * f,
+          lo.b + (hi.b - lo.b) * f, 1};
 }
 
 }  // namespace sigil::material::kit
