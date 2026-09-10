@@ -195,21 +195,15 @@ bool paintPromotedBake(PaintPass& pass) {
         inst.textureEffectDeferred ||
         inst.textureBakeRect != SkRect::Make(device) ||
         inst.textureBakeClip != pass.deviceClip()) {
-      sk_sp<SkSurface> layer = canvas.makeSurface(
-          SkImageInfo::MakeN32Premul(device.width(), device.height()));
-      if (!layer)
-        layer = SkSurfaces::Raster(
-            SkImageInfo::MakeN32Premul(device.width(), device.height()));
-      if (layer) {
-        SkCanvas* lc = layer->getCanvas();
-        pass.clipBakeLayer(lc, device);
-        lc->translate(-(float)device.left(), -(float)device.top());
-        lc->concat(totalM);  // identical device geometry, offset by ints
-        pass.profDraw("promote bake", [&] {
+      sk_sp<SkImage> baked;
+      pass.profDraw("promote bake", [&] {
+        baked = pass.takeDeviceBake(device, [&](SkCanvas& lc) {
           const BakeLayerScope bakeLayer(&impl);
-          impl.paintContent(inst, *lc, impl.hostScale, leafBlend, leafOpacity);
+          impl.paintContent(inst, lc, impl.hostScale, leafBlend, leafOpacity);
         });
-        inst.textureImage = layer->makeImageSnapshot();
+      });
+      if (baked) {
+        inst.textureImage = std::move(baked);
         inst.textureInk = {};
         inst.textureDeviceSpace = true;
         inst.textureEffectDeferred = false;

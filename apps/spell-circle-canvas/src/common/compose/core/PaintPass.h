@@ -19,6 +19,7 @@
 #include <sigilmeasure/time/Stopwatch.h>
 
 #include <cstdint>
+#include <functional>
 
 #include "ComposeRuntime.h"
 #include "PaintProfile.h"
@@ -206,36 +207,62 @@ struct PaintPass {
 
   /** The node's paint bounds as whole device pixels, with the margin every
    *  bake is allocated with (bakeMargin — the content must stand clear of
-   *  the surface's own edge, or the scan converter answers a different
-   *  coverage than the live paint's). */
+   *  the rect the bake is cut to, or the scan converter answers a different
+   *  coverage than the live paint's), and never reaching outside the canvas
+   *  the bake stands on. */
   SkIRect deviceRect();
 
-  /** EVERY DEVICE BAKE CARRIES THE CANVAS'S OWN CLIP, and this is not an
-   *  optimisation — it is the condition that makes a bake the same pixels as
-   *  the paint it replaces. Skia rasterizes an antialiased edge against the
-   *  clip it is given, so an edge that leaves the canvas is CUT in the live
-   *  paint and whole in a bake that spans the node's full paint bounds, and
-   *  the coverage the two compute for the pixels either side of it differs
-   *  by TENS of code values — not the single least-significant bit an
-   *  integer offset costs. Anything with bleed — a glow, a turned piece, a
-   *  full-bleed plane, a tile that overruns its page — leaves its canvas on
-   *  some side, which is most of what a bake is ever taken over.
+  /** …and the same rect for a bake measured to something other than the
+   *  node's whole paint — the split's own half. One producer, because the
+   *  margin, the clip's cap and the canvas's origin are conditions on the
+   *  RECT and not on which tier asked for it. */
+  SkIRect bakeRect(const SkRect& local) const;
+
+  /** ONE DEVICE BAKE: `content` paints the node, and the node's device rect
+   *  comes back as the image a blit at that rect replaces the paint with.
+   *  Every tier that bakes in device space goes through here, because what
+   *  makes a bake the same pixels as the paint it replaces is the
+   *  construction and not the caller.
    *
-   *  Applied to the layer while its matrix is still identity, so the rect is
-   *  in the layer's own pixels: the same device-aligned integer rect, in the
-   *  same place, cutting the same coverage. The bake RECT stays the node's
-   *  full paint bounds, because that rect is also the identity a held bake
-   *  is compared against — a rect narrowed to the clip is shared by two
-   *  different pictures whenever the clip is the smaller of the two.
+   *  IT IS TAKEN ON THE CANVAS'S OWN GRID, under the node's own matrix with
+   *  nothing concatenated onto it. A surface allocated at the node's corner
+   *  would put an integer device offset into the layer's matrix, and that
+   *  offset is exact as a number while the SUM it enters is not: the live
+   *  paint rounds `sx*x + tx` at the magnitude of the device coordinate and
+   *  the offset one rounds at the magnitude of the offset coordinate, so
+   *  the two land up to half a float step apart. Along an edge that meets
+   *  the grid squarely that is nothing; where a curve runs nearly tangent
+   *  to it, or a glyph mask is cached at a quarter-pixel phase, it is a
+   *  whole quantizer bucket. Drawn from the canvas's own origin there is no
+   *  offset to round, and the two arithmetics are the same one.
    *
-   *  WHICH IS WHY THE CLIP IS PART OF WHAT THE BAKE IS. What the layer
-   *  holds is the node's paint as this clip left it, so the clip is
-   *  stamped on the instance and every tier re-bakes when it moves: a clip
-   *  narrows and widens for reasons the node's own bounds cannot see — an
-   *  ancestor's layer opened over its box while it fades in, a panel
+   *  The surface is SHARED, one per depth of nesting, and outlives the
+   *  bake: what a node keeps is the image taken off it. So the grid costs a
+   *  canvas rather than a canvas per node.
+   *
+   *  EVERY DEVICE BAKE CARRIES THE CANVAS'S OWN CLIP, and this is not an
+   *  optimisation — it is the other condition that makes a bake the same
+   *  pixels as the paint it replaces. Skia rasterizes an antialiased edge
+   *  against the clip it is given, so an edge that leaves the canvas is CUT
+   *  in the live paint and whole in a bake that spans the node's full paint
+   *  bounds, and the coverage the two compute for the pixels either side of
+   *  it differs by TENS of code values. Anything with bleed — a glow, a
+   *  turned piece, a full-bleed plane, a tile that overruns its page —
+   *  leaves its canvas on some side, which is most of what a bake is ever
+   *  taken over.
+   *
+   *  The bake RECT stays the node's full paint bounds, because that rect is
+   *  also the identity a held bake is compared against — a rect narrowed to
+   *  the clip is shared by two different pictures whenever the clip is the
+   *  smaller of the two. WHICH IS WHY THE CLIP IS PART OF WHAT THE BAKE IS:
+   *  what the image holds is the node's paint as this clip left it, so the
+   *  clip is stamped on the instance and every tier re-bakes when it moves.
+   *  A clip narrows and widens for reasons the node's own bounds cannot see
+   *  — an ancestor's layer opened over its box while it fades in, a panel
    *  revealing, a window growing — and a bake held across that blits the
    *  cut for as long as the node's content stands still. */
-  void clipBakeLayer(SkCanvas* lc, const SkIRect& bake) const;
+  sk_sp<SkImage> takeDeviceBake(const SkIRect& device,
+                                const std::function<void(SkCanvas&)>& content);
 
   /** A device blit: the matrix reset, so the image lands at an absolute
    *  device rect — and inside a recording, the replay's inverse

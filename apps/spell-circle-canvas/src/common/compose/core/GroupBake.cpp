@@ -111,24 +111,15 @@ bool paintGroupBake(PaintPass& pass) {
       if (!inst.textureImage || !inst.textureDeviceSpace ||
           inst.textureEffectDeferred || inst.textureBakeRect != want ||
           inst.textureBakeClip != pass.deviceClip()) {
-        sk_sp<SkSurface> layer = canvas.makeSurface(
-            SkImageInfo::MakeN32Premul(device.width(), device.height()));
-        if (!layer)
-          layer = SkSurfaces::Raster(
-              SkImageInfo::MakeN32Premul(device.width(), device.height()));
-        if (layer) {
-          SkCanvas* lc = layer->getCanvas();
-          pass.clipBakeLayer(lc, device);
-          lc->translate(-(float)device.left(), -(float)device.top());
-          lc->concat(totalM);  // identical device geometry, offset by ints
-          // No leaf blend and no leaf opacity: bakes isolate, and the node's
-          // own blend/opacity are applied by the saveLayer wrapping the blit
-          // — which is why leafDirectBlend excludes Cache::Group.
-          {
-            const BakeLayerScope bakeLayer(&impl);
-            impl.paintContent(inst, *lc, impl.hostScale);
-          }
-          inst.textureImage = layer->makeImageSnapshot();
+        // No leaf blend and no leaf opacity: bakes isolate, and the node's
+        // own blend/opacity are applied by the saveLayer wrapping the blit
+        // — which is why leafDirectBlend excludes Cache::Group.
+        sk_sp<SkImage> baked = pass.takeDeviceBake(device, [&](SkCanvas& lc) {
+          const BakeLayerScope bakeLayer(&impl);
+          impl.paintContent(inst, lc, impl.hostScale);
+        });
+        if (baked) {
+          inst.textureImage = std::move(baked);
           inst.textureInk = {};
           inst.textureDeviceSpace = true;
           inst.textureEffectDeferred = false;

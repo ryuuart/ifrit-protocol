@@ -127,22 +127,16 @@ bool paintTextureBake(PaintPass& pass) {
     if (!inst.textureImage || inst.paintDirty || !inst.textureDeviceSpace ||
         memoStale || inst.textureBakeRect != bakeRect ||
         inst.textureBakeClip != pass.deviceClip()) {
-      sk_sp<SkSurface> layer = canvas.makeSurface(
-          SkImageInfo::MakeN32Premul(deviceR.width(), deviceR.height()));
-      if (!layer)
-        layer = SkSurfaces::Raster(
-            SkImageInfo::MakeN32Premul(deviceR.width(), deviceR.height()));
-      if (layer) {
-        SkCanvas* lc = layer->getCanvas();
-        pass.clipBakeLayer(lc, deviceR);
-        lc->translate(-(float)deviceR.left(), -(float)deviceR.top());
-        lc->concat(totalM);  // identical device geometry, offset by ints
-        pass.profDraw("bake", [&] {
+      sk_sp<SkImage> baked;
+      pass.profDraw("bake", [&] {
+        baked = pass.takeDeviceBake(deviceR, [&](SkCanvas& lc) {
           const BakeLayerScope bakeLayer(&impl);
-          impl.paintContent(inst, *lc,
+          impl.paintContent(inst, lc,
                             impl.hostScale);  // no leaf blend: bakes isolate
         });
-        inst.textureImage = layer->makeImageSnapshot();
+      });
+      if (baked) {
+        inst.textureImage = std::move(baked);
         inst.textureInk = {};
         inst.textureDeviceSpace = true;
         inst.textureEffectDeferred = false;

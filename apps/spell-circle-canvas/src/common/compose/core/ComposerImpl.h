@@ -8,6 +8,8 @@
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkImageInfo.h>
+#include <include/core/SkSize.h>
+#include <include/core/SkSurface.h>
 #include <sigilcore/cache/Bake.h>
 #include <sigilcore/cache/Volatility.h>
 #include <sigilcore/reconcile/Phases.h>
@@ -277,6 +279,15 @@ struct Composer::Impl {
   static constexpr int bakeMargin(int extent) {
     return 2 + std::max(0, extent) / 32;
   }
+  /** THE SURFACE A DEVICE BAKE IS TAKEN ON — one per depth of nesting, the
+   *  size of the largest rect any bake has needed, and reused: a bake is
+   *  taken on the canvas's own grid so that no offset enters the layer's
+   *  matrix (see PaintPass::takeDeviceBake), and a surface per node at that
+   *  size would be a canvas per node. What a node keeps is the image taken
+   *  off this, so nothing here outlives the bake that filled it. */
+  std::vector<sk_sp<SkSurface>> bakeSurfaces;
+  size_t bakeDepth = 0;  ///< how many bakes are in flight above this one
+  SkSurface* bakeSurface(SkCanvas& canvas, SkISize need);
   std::vector<Composer::NodeCost> profileRows;
   double profChildMs = 0;
   int profDepth = 0;

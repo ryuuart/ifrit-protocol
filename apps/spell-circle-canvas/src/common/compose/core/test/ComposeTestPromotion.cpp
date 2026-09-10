@@ -721,7 +721,45 @@ Element strokedArc() {
   return page;
 }
 
+/** THE SAME CURVE, STANDING WELL AWAY FROM THE CANVAS ORIGIN. Nothing about
+ *  the node changes — only the device coordinates its ink lands on, and the
+ *  magnitude those coordinates are computed at. */
+Element strokedArcFarFromTheOrigin() {
+  Element page = box().width(1500).height(1500).fill(Fill::color({0, 0, 0, 1}));
+  page.child(box()
+                 .absolute()
+                 .left(1100)
+                 .top(1100)
+                 .width(338)
+                 .height(338)
+                 .shape(sigil::geometry::shapes::arc(-30.0f))
+                 .stroke(FlatStroke{22}));
+  return page;
+}
+
 }  // namespace
+
+TEST(ComposeCache, APromotedCurveFarFromTheOriginStandsOnTheLivePaintsGrid) {
+  // A bake taken on a surface allocated at the node's own corner maps a
+  // point through the live matrix with its translation reduced by an
+  // integer. The integer is exact; the SUM it enters is not. The live paint
+  // rounds at the magnitude of the device coordinate and the offset one
+  // rounds at the magnitude of the offset coordinate, so the two land up to
+  // half a float step apart — nothing along an edge that meets the grid
+  // squarely, a whole supersample bucket where a curve runs nearly tangent
+  // to it. The distance from the origin is the whole of the fixture: the
+  // same arc at the origin is exact, because there the offset cancels.
+  const PromotionDrift drift =
+      promotionDriftOf(strokedArcFarFromTheOrigin, SkMatrix::I(), 1500, 1500);
+  ASSERT_TRUE(drift.promoted)
+      << "nothing was promoted, so this compared two live renders";
+  EXPECT_LE(drift.worstChannel, 2)
+      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
+      << " code values, when the library promoted a curve standing 1100 "
+         "pixels from the canvas origin";
+}
+
+namespace {}  // namespace
 
 TEST(ComposeCache, APromotedCurveKeepsTheCoverageItsLivePaintComputes) {
   // Skia decides whether a path needs its clipped rasterisation from the

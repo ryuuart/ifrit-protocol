@@ -116,15 +116,7 @@ bool paintSplitBake(PaintPass& pass) {
     // failure mode that would make this feature cost more than it saves on
     // precisely the scenes it exists for. The own paint's extent does not
     // depend on the children at all.
-    const SkRect ownF = totalM.mapRect(impl.ownPaintBounds(inst));
-    const SkIRect device = [&] {
-      SkIRect r = SkIRect::MakeLTRB(
-          (int)std::floor(ownF.left()), (int)std::floor(ownF.top()),
-          (int)std::ceil(ownF.right()), (int)std::ceil(ownF.bottom()));
-      const int m = Composer::Impl::bakeMargin(std::max(r.width(), r.height()));
-      r.outset(m, m);  // the same margin, same reason
-      return r;
-    }();
+    const SkIRect device = pass.bakeRect(impl.ownPaintBounds(inst));
     const int64_t area = (int64_t)device.width() * device.height();
     const size_t bytes = (size_t)std::max<int64_t>(area, 0) * 4;
     const bool affordable =
@@ -143,22 +135,13 @@ bool paintSplitBake(PaintPass& pass) {
       const SkRect want = SkRect::Make(device);
       if (!inst.ownImage || inst.ownPaintDirty || inst.ownBakeRect != want ||
           inst.ownBakeClip != pass.deviceClip()) {
-        sk_sp<SkSurface> layer = canvas.makeSurface(
-            SkImageInfo::MakeN32Premul(device.width(), device.height()));
-        if (!layer)
-          layer = SkSurfaces::Raster(
-              SkImageInfo::MakeN32Premul(device.width(), device.height()));
-        if (layer) {
-          SkCanvas* lc = layer->getCanvas();
-          pass.clipBakeLayer(lc, device);
-          lc->translate(-(float)device.left(), -(float)device.top());
-          lc->concat(totalM);  // identical device geometry, offset by ints
-          {
-            const BakeLayerScope bakeLayer(&impl);
-            impl.paintContent(inst, *lc, impl.hostScale, leafBlend, leafOpacity,
-                              Phase::OwnOnly);
-          }
-          inst.ownImage = layer->makeImageSnapshot();
+        sk_sp<SkImage> baked = pass.takeDeviceBake(device, [&](SkCanvas& lc) {
+          const BakeLayerScope bakeLayer(&impl);
+          impl.paintContent(inst, lc, impl.hostScale, leafBlend, leafOpacity,
+                            Phase::OwnOnly);
+        });
+        if (baked) {
+          inst.ownImage = std::move(baked);
           inst.ownBakeRect = want;
           inst.ownBakeClip = pass.deviceClip();
           inst.ownPaintDirty = false;

@@ -1,6 +1,7 @@
 #include "PaintPass.h"
 
 #include <include/core/SkPath.h>
+#include <include/core/SkSurface.h>
 
 #include <algorithm>
 #include <cmath>
@@ -17,11 +18,8 @@ SkIRect PaintPass::deviceClip() const {
   return impl.recordingReplay.mapRect(SkRect::Make(clip)).roundOut();
 }
 
-SkIRect PaintPass::deviceRect() {
-  // The paint bounds, which already hold the shape the node declares and
-  // the reach the effects under it filter over: a device bake is a
-  // SURFACE, and a surface allocated to less than the ink cuts it.
-  const SkRect f = totalM.mapRect(localBounds());
+SkIRect PaintPass::bakeRect(const SkRect& local) const {
+  const SkRect f = totalM.mapRect(local);
   SkIRect r =
       SkIRect::MakeLTRB((int)std::floor(f.left()), (int)std::floor(f.top()),
                         (int)std::ceil(f.right()), (int)std::ceil(f.bottom()));
@@ -29,18 +27,71 @@ SkIRect PaintPass::deviceRect() {
   r.outset(m, m);
   // …AND NO FURTHER THAN THE CLIP THE BAKE CARRIES IN. A filter whose
   // output does not depend on its input — a shader run over the layer —
-  // reaches everywhere, and a surface cannot be allocated to everywhere.
-  // What such a filter paints is bounded by the clip the layer is given,
-  // which is this one, so the allocation stops there and no ink is lost:
-  // nothing outside that clip is drawn into a bake at all.
+  // reaches everywhere, and a rect cannot be sized to everywhere. What such
+  // a filter paints is bounded by the clip the layer is given, which is
+  // this one, so the rect stops there and no ink is lost: nothing outside
+  // that clip is drawn into a bake at all.
+  //
+  // THE CANVAS'S OWN ORIGIN BOUNDS IT ON THE OTHER TWO SIDES, and that one
+  // is not about ink either: the bake stands on the canvas's grid, so the
+  // rect is also where the image is read off it, and there is no canvas at
+  // a negative coordinate to read.
   SkIRect capped = deviceClip();
   capped.outset(m, m);
+  capped.fLeft = std::max(0, capped.fLeft);
+  capped.fTop = std::max(0, capped.fTop);
   if (!r.intersect(capped)) return SkIRect::MakeEmpty();
   return r;
 }
 
-void PaintPass::clipBakeLayer(SkCanvas* lc, const SkIRect& bake) const {
-  lc->clipIRect(deviceClip().makeOffset(-bake.left(), -bake.top()));
+SkIRect PaintPass::deviceRect() {
+  // The paint bounds, which already hold the shape the node declares and
+  // the reach the effects under it filter over: a device bake is a
+  // SURFACE, and a surface allocated to less than the ink cuts it.
+  return bakeRect(localBounds());
+}
+
+SkSurface* Composer::Impl::bakeSurface(SkCanvas& canvas, SkISize need) {
+  if (need.width() <= 0 || need.height() <= 0) return nullptr;
+  if (bakeSurfaces.size() <= bakeDepth) bakeSurfaces.resize(bakeDepth + 1);
+  sk_sp<SkSurface>& held = bakeSurfaces[bakeDepth];
+  // GROWN, never shrunk: a host that has drawn one large frame keeps the
+  // surface that frame needed, and the next bake of any size is a clip
+  // inside it rather than an allocation.
+  if (!held || held->width() < need.width() || held->height() < need.height()) {
+    const SkImageInfo info = SkImageInfo::MakeN32Premul(
+        std::max(need.width(), held ? held->width() : 0),
+        std::max(need.height(), held ? held->height() : 0));
+    // The destination's own kind of surface where it can make one, so a
+    // device bake under a GPU canvas stays on the device.
+    held = canvas.makeSurface(info);
+    if (!held) held = SkSurfaces::Raster(info);
+  }
+  return held.get();
+}
+
+sk_sp<SkImage> PaintPass::takeDeviceBake(
+    const SkIRect& device, const std::function<void(SkCanvas&)>& content) {
+  SkSurface* scratch =
+      impl.bakeSurface(canvas, {device.right(), device.bottom()});
+  if (!scratch) return nullptr;
+  SkCanvas* lc = scratch->getCanvas();
+  const SkAutoCanvasRestore restore(lc, true);
+  lc->resetMatrix();
+  // CLEARED OVER THE WHOLE RECT, because the surface is reused and the rect
+  // is what the image is taken from: what the clip below leaves unpainted
+  // still ends up in the image, and it has to be the transparent black a
+  // fresh surface would have offered.
+  lc->clipIRect(device);
+  lc->clear(SK_ColorTRANSPARENT);
+  lc->clipIRect(deviceClip());
+  lc->setMatrix(totalM);  // the node's own matrix, on the canvas's own grid
+  // A bake taken INSIDE this one gets a surface of its own: this one is
+  // still holding the paint that reached it.
+  ++impl.bakeDepth;
+  content(*lc);
+  --impl.bakeDepth;
+  return scratch->makeImageSnapshot(device);
 }
 
 void PaintPass::deviceBlit(const sk_sp<SkImage>& image, const SkIRect& at,
