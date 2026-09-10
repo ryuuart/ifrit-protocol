@@ -131,7 +131,7 @@ the tree away.
 | --- | --- |
 | `stage(ctx, Stage)` | the canvas, the ground and the capture moment in one call — the whole `CanvasSpec`, with the ground taken from the theme unless the stage names one |
 | `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer set in the theme's three registers, its margins, its ground and its hairline |
-| `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground — with `corners` and a `keyline`, the PLATE a panel stands on, and with a `recess`, the hole punched in one |
+| `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground — with `corners` and a `keyline`, the PLATE a panel stands on; with a `recess`, the hole punched in one; with a `relief`, the piece standing proud of one |
 | `caption(measure, label, note, body)` | one captioned specimen in the theme's voice; `measure` is the cell's own width, the one distance a caption cannot inherit |
 | `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
 | `columns(Columns)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is |
@@ -171,8 +171,10 @@ than across, which one distance cannot say.
 `recess` is the well read as a HOLE punched in what holds it rather than
 as a patch of ground on it: a shadow cast inside its own edge, and a hard
 sunken lip under that shadow — the blur says how deep the surface goes
-and the lip says where it breaks. Unset is flush, which is the specimen
-well.
+and the lip says where it breaks. `relief` is the same reading with its
+sign turned over — the light one lifted edge catches and the shadow the
+opposite one casts, which is what a carved frame, a raised boss and a key
+cap all are over a ground. Unset is flush, which is the specimen well.
 
 ### What announces something — `Heading.h`
 

@@ -76,6 +76,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/style/Type.h>
@@ -94,6 +95,7 @@
 
 namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
+namespace skit = sigil::sketch::kit;
 namespace shapes = sigil::geometry::shapes;
 namespace mpattern = sigil::material::pattern;
 namespace field = sigil::material::field;
@@ -181,21 +183,35 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color,
 
 /** A sunk track: the black slot a bar's content sits in. */
 inline Element track(float w, float h) {
-  return box()
-      .width(Dim(w))
-      .height(Dim(h))
-      .fill(Paint::solid(kTrack))
-      .foreground(styles::InnerShadow{{0, 0, 0, 0.85f}, {0, 2}, 3});
+  return skit::well(
+      {.width = Dim(w),
+       .height = Dim(h),
+       .ground = Fill::color(kTrack),
+       .padding = 0,
+       .clip = false,
+       .recess = skit::Well::Recess{.shade = Fill::color({0, 0, 0, 0.85f}),
+                                    .offset = {0, 2},
+                                    .blur = 3}});
 }
 
-/** The carved bone frame Veloren hangs on everything. */
+/** The carved bone frame Veloren hangs on everything: a plate standing
+ *  proud of what holds it, with a keyline round the OUTSIDE of its box —
+ *  the piece is cut to a size and its outline is drawn around it, not
+ *  inside it, which is the one thing a well's own hairline may not do. */
 inline Element boneFrame(float w, float h, float radius = 3) {
-  return box()
-      .width(Dim(w))
-      .height(Dim(h))
-      .corners({radius})
-      .fill(Paint::linear({0, 0}, {0, h},
-                          {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}}))
+  return skit::well({.width = Dim(w),
+                     .height = Dim(h),
+                     .ground = Paint::linear(
+                         {0, 0}, {0, h},
+                         {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}}),
+                     .padding = 0,
+                     .clip = false,
+                     .corners = radius,
+                     .relief = skit::Well::Relief{.depth = 1.6f,
+                                                  .blur = 2.4f,
+                                                  .angleDeg = 120,
+                                                  .light = {1, 1, 1, 0.35f},
+                                                  .shade = {0, 0, 0, 0.65f}}})
       // The grain: Veloren's frames are carved, and a ramp with no noise
       // in it is a plastic one. It rides UNDER the bevel, so the carve
       // reads through the highlight rather than over it.
@@ -205,8 +221,6 @@ inline Element boneFrame(float w, float h, float radius = 3) {
                  .fill(Paint::recipe(field::noise(0.36f, 3, 1.0f)))
                  .opacity(0.38f)
                  .blend(SkBlendMode::kMultiply))
-      .foreground(styles::BevelEmboss{
-          1.6f, 2.4f, 120, {1, 1, 1, 0.35f}, {0, 0, 0, 0.65f}})
       .foreground(stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}),
                          PathFormat::Align::Outer));
 }

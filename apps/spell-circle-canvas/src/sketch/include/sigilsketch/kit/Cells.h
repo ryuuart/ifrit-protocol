@@ -66,6 +66,26 @@ struct Well {
     bool operator==(const Recess&) const = default;
   };
   std::optional<Recess> recess;
+  /** THE RELIEF, which is the recess with its sign turned over: what
+   *  makes a plate read as a piece STANDING PROUD of what holds it —
+   *  the light one edge catches and the shadow the opposite one casts.
+   *  Unset is flush. A carved frame, a raised boss and a key cap are all
+   *  this over a ground; the recess under it is the hole they are cut
+   *  around. */
+  struct Relief {
+    /** How far the surface is lifted off its plane, and how soft the
+     *  lift is — a hard narrow pair is a machined edge, a wide soft one
+     *  a moulded piece. */
+    float depth = 3;
+    float blur = 4;
+    /** Where the light stands, in degrees. */
+    float angleDeg = 120;
+    /** What the lit edge and the shaded one are painted in. */
+    SkColor4f light{1, 1, 1, 0.65f};
+    SkColor4f shade{0, 0, 0, 0.45f};
+    bool operator==(const Relief&) const = default;
+  };
+  std::optional<Relief> relief;
 };
 
 /** @p surface, sized, grounded, padded and clipped as @p spec and the

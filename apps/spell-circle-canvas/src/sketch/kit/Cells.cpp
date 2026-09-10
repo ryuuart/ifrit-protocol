@@ -35,6 +35,11 @@ compose::Element well(const Well& spec, compose::Element surface) {
   if (spec.keyline)
     plate.stroke(compose::stroke(spec.keylineWidth, *spec.keyline,
                                  compose::PathFormat::Align::Inner));
+  if (spec.relief) {
+    const Well::Relief& lift = *spec.relief;
+    plate.foreground(compose::styles::BevelEmboss{
+        lift.depth, lift.blur, lift.angleDeg, lift.light, lift.shade});
+  }
   if (spec.recess) {
     const Well::Recess& hole = *spec.recess;
     plate.foreground(compose::styles::InnerShadow{hole.shade.colorValue,
