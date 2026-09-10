@@ -11,6 +11,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkPathUtils.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkShader.h>
@@ -168,14 +169,40 @@ void BevelPair::paint(SkCanvas& c, const PaintContext& ctx) const {
   // narrow it — no strip, no second clip, nothing to disagree about at a
   // corner where both bands stand.
   const bool whole = edges == Edge::All;
-  const SkRect bounds = ctx.outline.getBounds();
+  // THE SHAPE THE RING DRESSES. `outline` is it unless an edge adaptor or
+  // a span gate narrowed the outline to runs that BOUND NO AREA and left
+  // the shape in `silhouette`. Everything the ring is built from is the
+  // SHAPE's: clipping to a run that encloses nothing would discard the
+  // whole ring, and a band's facing is classified against a bounds centre
+  // a run does not have. What the narrowed outline decides is how much of
+  // the ring is SHOWN, which is the band below.
+  const SkPath& shape = ctx.silhouette.isEmpty() ? ctx.outline : ctx.silhouette;
+  const SkRect bounds = shape.getBounds();
+  // …and, where the outline WAS narrowed, the band that limits the ring to
+  // the part of the boundary that is shown. A run bounds no area, so it
+  // cannot be a clip until it is given a width: the ring's own depth to
+  // each side of it leaves exactly the ring along the run and nothing
+  // else. Empty when nothing narrowed the outline, which is every panel
+  // that wears a bevel and no gate.
+  SkPath revealed;
+  if (!ctx.silhouette.isEmpty()) {
+    SkPaint depth;
+    depth.setStyle(SkPaint::kStroke_Style);
+    depth.setStrokeWidth(std::max(nearWidth, farWidth) * 2.0f);
+    revealed = skpathutils::FillPathWithPaint(ctx.outline, depth);
+  }
+  const auto clipToShape = [&](SkCanvas& canvas) {
+    canvas.clipPath(shape, SkClipOp::kIntersect, antiAlias);
+    if (!revealed.isEmpty())
+      canvas.clipPath(revealed, SkClipOp::kIntersect, antiAlias);
+  };
   if (corner != BevelCorner::Square) {
     SkRect box = bounds;
     if (!antiAlias)
       box = SkRect::MakeLTRB(std::round(box.left()), std::round(box.top()),
                              std::round(box.right()), std::round(box.bottom()));
     c.save();
-    c.clipPath(ctx.outline, SkClipOp::kIntersect, antiAlias);
+    clipToShape(c);
     if (!whole) {
       // The ring is one pair of fills over the whole box, so the mask is
       // a clip: the strips of the sides it selects, and nothing else.
@@ -191,11 +218,11 @@ void BevelPair::paint(SkCanvas& c, const PaintContext& ctx) const {
     return;
   }
   c.save();
-  // Inside the silhouette: each edge is stroked at double width and the
-  // half outside the shape is clipped away, so the mark never fattens the
-  // silhouette it dresses. The clip is the WHOLE outline, not the edge —
-  // an open edge encloses nothing.
-  c.clipPath(ctx.outline, SkClipOp::kIntersect, antiAlias);
+  // Inside the shape: each edge is stroked at double width and the half
+  // outside the shape is clipped away, so the mark never fattens the
+  // silhouette it dresses. The clip is the WHOLE shape, not the edge — an
+  // open edge encloses nothing.
+  clipToShape(c);
   SkPaint p;
   p.setAntiAlias(antiAlias);
   p.setStyle(SkPaint::kStroke_Style);
@@ -206,7 +233,7 @@ void BevelPair::paint(SkCanvas& c, const PaintContext& ctx) const {
     p.setStrokeWidth(width * 2.0f);
     p.setColor4f(tone, nullptr);
     if (whole) {
-      c.drawPath(geometry::path::edges(ctx.outline, which, step), p);
+      c.drawPath(geometry::path::edges(shape, which, step), p);
       return;
     }
     // A sliced band is cut ACROSS its run and never across its depth: the
@@ -223,7 +250,7 @@ void BevelPair::paint(SkCanvas& c, const PaintContext& ctx) const {
     }
     c.save();
     c.clipRect(kept, SkClipOp::kIntersect, antiAlias);
-    c.drawPath(geometry::path::edges(ctx.outline, which, step), p);
+    c.drawPath(geometry::path::edges(shape, which, step), p);
     c.restore();
   };
   // Vertical edges first, horizontal ones over them: the top-right corner

@@ -55,8 +55,16 @@ void Bevel::paint(SkCanvas& c, const PaintContext& ctx) const {
   ring(c, ctx, *this, light, shadow, depth, shadowDepth, sunken, edges, ends);
   if (!inner) return;
   PaintContext local = ctx;
-  if (inner->gap != 0)
+  if (inner->gap != 0) {
     local.outline = geometry::path::insetOutline(ctx.outline, inner->gap);
+    // The shape a narrowed outline was cut from is concentric with it, so
+    // the inner ring's clip moves in with its marks; leaving the outer
+    // shape here would clip the inner ring against a boundary it no longer
+    // stands on.
+    if (!ctx.silhouette.isEmpty())
+      local.silhouette =
+          geometry::path::insetOutline(ctx.silhouette, inner->gap);
+  }
   ring(c, local, *this, inner->light, inner->shadow, inner->depth,
        inner->shadowDepth, sunken != inner->inverted, inner->edges,
        inner->ends);

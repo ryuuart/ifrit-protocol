@@ -431,3 +431,48 @@ TEST(KitChrome, TheThemeCarriesTheEraToEveryPanelUnderIt) {
   fallback.sunken = true;
   EXPECT_TRUE(kit::ambientBevel(fallback).sunken);
 }
+
+TEST(KitChrome, ABevelUnderASpanGateKeepsItsRingInsideTheShape) {
+  // A span gate narrows a decoration's boundary to the run revealed so
+  // far, and a partial run is OPEN: it bounds no area. The ring's clip is
+  // the SHAPE that run was cut from, so the revealed part of the ring
+  // stands inside the panel; clipping to the run itself would discard the
+  // whole ring until the reveal came back round.
+  //
+  // The perimeter runs left, top, right, bottom, so a tenth of a 100 x 60
+  // panel's 320 px is the lower half of the LEFT edge and nothing else.
+  // Its implicit closure is a straight line enclosing nothing at all.
+  auto face = [](float reveal) {
+    Element panel =
+        box().width(Dim(kW)).height(Dim(kH)).fill(kFace).overlay(plain());
+    panel.mask(by::spans(spans::upTo(reveal)));
+    return box().padding(kX).child(std::move(panel));
+  };
+  Host host(140, 100);
+  host.composer.render(face(0.1f));
+  host.frame();
+  // Two pixels of the lit band down the revealed half of the left edge,
+  // and the third pixel in is not the band — the ring is inside the
+  // shape, not fattening it and not gone.
+  EXPECT_EQ(at(host, 0, 50), SK_ColorRED);
+  EXPECT_EQ(at(host, 1, 50), SK_ColorRED);
+  EXPECT_NE(at(host, 2, 50), SK_ColorRED);
+  EXPECT_EQ(at(host, 0, 40), SK_ColorRED);
+  // …and nothing where the reveal has not reached: the top edge is the
+  // run after this one.
+  EXPECT_NE(at(host, 0, 1), SK_ColorRED);
+  EXPECT_NE(at(host, 50, 1), SK_ColorRED);
+
+  // A SETTLED REVEAL IS THE UNSPANNED RING, pixel for pixel: a gate that
+  // claims the whole perimeter carries no shape at all, so nothing about
+  // the ring can differ from the one no gate narrowed.
+  Host gated(140, 100), bare(140, 100);
+  gated.composer.render(face(1.0f));
+  gated.frame();
+  bare.composer.render(panel(plain()));
+  bare.frame();
+  for (int y = 0; y < kH; ++y)
+    for (int x = 0; x < kW; ++x)
+      ASSERT_EQ(at(gated, x, y), at(bare, x, y))
+          << "at (" << x << ", " << y << ")";
+}

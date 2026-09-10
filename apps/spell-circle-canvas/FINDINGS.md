@@ -42,8 +42,7 @@ Taken on the merged tree at the close of the session's work:
   files over 600 lines split by subject; the cases for `exactTangent`,
   `Annotation::reserve` and the text-reuse volatility branch; the
   stamped router in the kit; `boneFrame` onto the kit frame; the three
-  colour and effect helpers onto material's; a bevel under a span gate
-  reads the silhouette.
+  colour and effect helpers onto material's.
 - `findings/` is deleted once those land; the review's record lives
   outside the repository.
 
@@ -127,26 +126,3 @@ to be.
 Assert once settled: the bar names the scene it is measured off and that
 scene's figure is explained, or the clause bounds the shape alone and the
 ledger says so.
-
-## A bevel ring is lost while a span gate reveals its node
-
-`kit::Bevel` and `styles::BevelPair` clip their ring to `ctx.outline` —
-"the clip is the WHOLE outline, not the edge — an open edge encloses
-nothing" — which is the same clip an Inner-aligned `PathFormat` makes.
-An aligned stroke now clips to `PaintContext::silhouette` where an
-adaptor or a span gate narrowed the outline to a contour bounding no
-area; a bevel does not read it, so under `mask(by::spans(...))` or a
-span-qualified pass its clip stands on the revealed run, which bounds
-nothing, and the whole ring is discarded until the run closes.
-
-Evidently intended: the same rule the alignment now keeps — the light
-and shadow edges stand inside the shape along the part of the boundary
-that is shown, and the settled reveal is the unspanned ring.
-
-Not taken with the alignment's fix because no site in the tree spells a
-bevel on a span-gated node, so the change would be unpinned by any
-picture; the sketches that would exercise it do not exist yet.
-
-Assert once fixed: a `kit::bevelled` panel under `spans::upTo` at a
-fraction of one straight run draws that fraction of its ring inside the
-silhouette, and fully revealed is the unspanned ring pixel for pixel.

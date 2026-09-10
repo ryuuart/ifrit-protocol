@@ -795,7 +795,14 @@ a span keeps it the same way.** The run a span gate shows is open until
 the reveal is complete, so the span pass leaves the shape it cut in
 `silhouette` too: `.stroke(spans::upTo(t), stroke(2, ink,
 PathFormat::Align::Inner))` paints that fraction of the same inner band
-at every value of `t`, and at `t == 1` it is the unspanned stroke. The
+at every value of `t`, and at `t == 1` it is the unspanned stroke. **So
+does a bevel ring**, which is the same rule at a different mark:
+`styles::BevelPair` — and `kit::Bevel` over it — builds its bands from
+the shape, because a band's facing is classified against a bounds centre
+a run does not have, and the narrowed outline then says how much of the
+ring is SHOWN. A `kit::bevelled` panel under `spans::upTo` draws that
+fraction of its ring inside the shape instead of losing the whole ring
+until the run closes. The
 brush engine is
 three headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
 `LayeredBrush`); `brush/GeometryOps.h`, the one mechanism door for

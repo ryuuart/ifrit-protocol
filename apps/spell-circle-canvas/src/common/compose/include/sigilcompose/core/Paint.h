@@ -140,9 +140,11 @@ struct PaintContext {
    *  inside — or outside — the shape, along the part of the boundary
    *  that is left. Two things narrow it that way: `onEdges`, whose runs
    *  are open, and a span gate, whose revealed run is open until the
-   *  reveal is complete. A decoration that reads it must prefer it to
-   *  `outline` only for that clip; the geometry to draw is always
-   *  `outline`. */
+   *  reveal is complete. A decoration reads it for the clip, and for
+   *  anything it classifies against the shape's own bounds — a bevel
+   *  band's facing, say, which a run has no centre to be read against.
+   *  What is drawn ALONG the boundary follows `outline`, which is the
+   *  part of it that is shown. */
   SkPath silhouette;
   double elapsedSeconds = 0.0;
   float contentScale = 1.0f;

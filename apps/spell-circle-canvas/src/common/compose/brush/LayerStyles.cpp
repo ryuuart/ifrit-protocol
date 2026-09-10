@@ -27,7 +27,12 @@ namespace kit = sigil::material::kit;
 
 void InnerShadow::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.save();
-  c.clipPath(ctx.outline, true);
+  // The clip is the SHAPE the outline encloses — `outline` itself unless
+  // an edge adaptor or a span gate narrowed it to runs bounding no area
+  // and left the shape in `silhouette`, where clipping to the run would
+  // discard the whole mark. The ring drawn is still `outline`, which is
+  // the part of the boundary that is shown.
+  c.clipPath(ctx.silhouette.isEmpty() ? ctx.outline : ctx.silhouette, true);
   SkPaint p;
   p.setAntiAlias(true);
   p.setColor4f(color, nullptr);
