@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <variant>
 
 #include "ComposeRuntime.h"
 #include "DeriveInternal.h"
@@ -131,11 +132,13 @@ void Composer::Impl::deriveRoute(Instance& inst) {
     const SkRect own = absoluteRect(inst);
     bool resolvedAll = true;
     for (const Anchor& anchor : derive->railAnchors) {
-      if (anchor.nodeKey.empty()) {  // a free waypoint, bound to nothing
-        pts.push_back(anchor.point);
+      if (const Anchor::FreePoint* free =
+              std::get_if<Anchor::FreePoint>(&anchor.where)) {
+        pts.push_back(free->point);  // bound to nothing
         continue;
       }
-      auto it = byKey.find(anchor.nodeKey);
+      const Anchor::OnNode& on = std::get<Anchor::OnNode>(anchor.where);
+      auto it = byKey.find(on.key);
       if (it == byKey.end()) {
         resolvedAll = false;
         break;
@@ -151,9 +154,8 @@ void Composer::Impl::deriveRoute(Instance& inst) {
         break;
       }
       const SkRect target = absoluteRect(*it->second);
-      pts.push_back(
-          {target.left() + target.width() * anchor.norm.x() - own.left(),
-           target.top() + target.height() * anchor.norm.y() - own.top()});
+      pts.push_back({target.left() + target.width() * on.norm.x() - own.left(),
+                     target.top() + target.height() * on.norm.y() - own.top()});
     }
     if (!resolvedAll) {
       // An anchor vanished (station unmounted) or went cyclic: the rail

@@ -161,9 +161,12 @@ Element rail(std::vector<Anchor> anchors, RailRouter router) {
   detail::DeriveData& derive = e.node()->deriveData.ensure();
   derive.railAnchors = std::move(anchors);
   derive.railRouter = std::move(router);
-  // …and a rail through as many boxes as it has waypoints.
+  // …and a rail through as many boxes as it has waypoints. A free point
+  // is bound to nothing and reads nothing.
   for (const Anchor& anchor : derive.railAnchors)
-    derive.reads.push_back({anchor.nodeKey, sigil::core::Facet::Bounds});
+    if (!anchor.key().empty())
+      derive.reads.push_back(
+          {std::string(anchor.key()), sigil::core::Facet::Bounds});
   return e;
 }
 

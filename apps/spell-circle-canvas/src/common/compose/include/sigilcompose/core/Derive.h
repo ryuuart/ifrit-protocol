@@ -31,6 +31,8 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
+#include <variant>
 #include <vector>
 
 namespace sigil::compose {
@@ -160,33 +162,79 @@ class Router {
 Element connector(std::string_view fromKey, std::string_view toKey,
                   Router router = {}, float gap = 0.0f);
 
-/** A rail endpoint/waypoint: a NORMALIZED point on a keyed node's resolved
- *  bounds ((0,0)=top-left, (1,1)=bottom-right — the binding form tldraw and
- *  Excalidraw both converged on; never absolute coordinates, so rails
- *  survive layout, drag, and reflow). `gap` pulls a TERMINAL anchor back
- *  along its segment (breathing room at the ends; ignored on waypoints).
+/** A rail endpoint/waypoint. It is ONE OF TWO THINGS, and the type says
+ *  which: a point bound to a keyed node, or a point bound to nothing.
+ *  `where` is the choice itself, so an anchor carries the coordinates of
+ *  the kind it IS and no others — there is no field to fill that the
+ *  resolver will not read.
  *
- *  A FREE POINT is the other half: leave `nodeKey` empty and the anchor is
- *  `point`, in the RAIL'S OWN coordinates, bound to nothing. A route
- *  through a place rather than through a thing — the bend that clears a
- *  corner, the fan-out a diagram's own drawing puts at a fixed offset —
- *  is a real waypoint and not a node, and standing invisible boxes up to
- *  carry those coordinates mounts, lays out and reconciles a node per
- *  bend for a number the caller already had.
+ *  `Anchor::on(key, norm)` is the bound form: a NORMALIZED point on that
+ *  node's resolved bounds ((0,0)=top-left, (1,1)=bottom-right — the
+ *  binding form tldraw and Excalidraw both converged on; never absolute
+ *  coordinates, so rails survive layout, drag, and reflow). The
+ *  constructor spells it too, so `{"port", {1, 0.5f}}` in a rail's
+ *  initializer list is an anchor on a node's right edge.
+ *
+ *  `Anchor::at(point)` is the free form: a point in the RAIL'S OWN
+ *  coordinates (the rail is normally `absolute().inset(0)` over the nodes
+ *  it threads, so those are the coordinates the nodes are placed in),
+ *  bound to nothing. A route through a place rather than through a thing
+ *  — the bend that clears a corner, the fan-out a diagram's own drawing
+ *  puts at a fixed offset — is a real waypoint and not a node, and
+ *  standing invisible boxes up to carry those coordinates mounts, lays
+ *  out and reconciles a node per bend for a number the caller already
+ *  had.
+ *
+ *  `gap` belongs to neither half: it pulls a TERMINAL anchor back along
+ *  its segment (breathing room at the ends; ignored on waypoints).
  *
  *  A rail whose anchors are ALL free points is a polyline the router
  *  draws and nothing binds; one that mixes them is the ordinary case —
  *  a wire that leaves a port, turns in the gutter, and arrives at
  *  another. */
 struct Anchor {
-  std::string nodeKey;
-  SkPoint norm = {0.5f, 0.5f};
+  /** Bound to a node: `norm` is read on that node's resolved bounds. */
+  struct OnNode {
+    std::string key;
+    SkPoint norm = {0.5f, 0.5f};
+    bool operator==(const OnNode&) const = default;
+  };
+  /** Bound to nothing: `point` is read in the rail's own coordinates. */
+  struct FreePoint {
+    SkPoint point = {0.0f, 0.0f};
+    bool operator==(const FreePoint&) const = default;
+  };
+
+  /** Spelled with the bound form's own default, so a default-constructed
+   *  anchor is an anchor on no node rather than an empty variant. */
+  std::variant<OnNode, FreePoint> where = OnNode{};
   float gap = 0.0f;
-  /** Read only when `nodeKey` is empty: the point, in the rail's own
-   *  coordinates (the rail is normally `absolute().inset(0)` over the
-   *  nodes it threads, so those are the coordinates the nodes are placed
-   *  in). Last, so the positional `{key, norm, gap}` spelling stands. */
-  SkPoint point = {0.0f, 0.0f};
+
+  Anchor() = default;
+  /** The bound form, spelled as the anchor's own constructor so a rail's
+   *  initializer list reads `{{"a"}, {"b", {1, 0.5f}}}`. */
+  Anchor(std::string key, SkPoint norm = {0.5f, 0.5f}, float gap = 0.0f)
+      : where(OnNode{std::move(key), norm}), gap(gap) {}
+  /** The free form. */
+  static Anchor at(SkPoint point, float gap = 0.0f) {
+    Anchor a;
+    a.where = FreePoint{point};
+    a.gap = gap;
+    return a;
+  }
+  /** The bound form, named, for a call site that reads better with a verb
+   *  than with a brace. */
+  static Anchor on(std::string key, SkPoint norm = {0.5f, 0.5f},
+                   float gap = 0.0f) {
+    return Anchor(std::move(key), norm, gap);
+  }
+
+  /** The node this anchor is bound to, or empty when it is a free point —
+   *  the one question the reads list and the route index ask. */
+  std::string_view key() const {
+    const OnNode* n = std::get_if<OnNode>(&where);
+    return n ? std::string_view(n->key) : std::string_view();
+  }
   bool operator==(const Anchor&) const = default;
 };
 

@@ -540,10 +540,11 @@ sound model; nothing below them changes kernel semantics.
   caller's — a per-frame shiver, a gate that fades a whole field at once,
   anything whose value depends on something besides this instance's own
   progress — and steps after `fly()`, over the lanes it wrote.
-- `core/Derive.h` — `connector`, `rail`, `Anchor` (a normalised point on
-  a keyed node's bounds, or — with an empty `nodeKey` — a free waypoint
-  at a point in the rail's own coordinates, so a bend that clears a
-  corner costs no node), `Tether` (where a box hangs off a keyed one:
+- `core/Derive.h` — `connector`, `rail`, `Anchor` (ONE OF TWO THINGS,
+  and `where` says which: a normalised point on a keyed node's bounds, or
+  a free waypoint at a point in the rail's own coordinates, so a bend
+  that clears a corner costs no node — spelled `on` and `at`, with `key`
+  answering which it is), `Tether` (where a box hangs off a keyed one:
   `on`, the point of the anchor it hangs from, `at`, the point of itself
   that lands there, an `offset`, and `fallbacks`, the places tried in
   order when the first will not fit `within` — written with

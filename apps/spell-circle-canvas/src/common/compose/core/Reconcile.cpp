@@ -72,8 +72,8 @@ void Composer::Impl::rebuildKeyIndex() {
           for (const Anchor& anchor : derive.railAnchors) {
             // A waypoint that names no node is a free point: nothing
             // resolves it, so it belongs under no anchor's key.
-            if (anchor.nodeKey.empty()) continue;
-            auto& at = routesByAnchor[anchor.nodeKey];
+            if (anchor.key().empty()) continue;
+            auto& at = routesByAnchor[std::string(anchor.key())];
             if (at.empty() || at.back() != &inst)  // rails revisit anchors
               at.push_back(&inst);
           }
