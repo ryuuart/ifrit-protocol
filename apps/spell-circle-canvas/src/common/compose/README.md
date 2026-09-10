@@ -1376,8 +1376,21 @@ blit of a raster image is not the arithmetic of its direct shader draw.
 So a texel whose alpha is between none and all can settle one value
 further out over a bright backdrop, and taking the bake at higher
 precision does not remove it. It appears only where the node's own alpha
-is partial; an opaque node over anything is exact. Anything beyond that
-second value is a picture that changed.
+is partial; an opaque node over anything is exact.
+
+**AND THE SECOND VALUE IS PER COMPOSITE.** A bake is one composite and a
+pixel can stand under many: nothing nests, but independent nodes overlap,
+and a stack of concentric rings each promoted on its own puts seven or
+nine cached rasters over one pixel. Each of them rounds and the rounding
+does not decay — a flat wash through N bakes stands N code values from
+the same wash painted live, which
+`ACachedRasterCostsThePixelItLandsOnOneCodeValue` measures over every
+destination value, every source alpha and a spread of source colours. So
+what bounds a PICTURE is the two above times how many composites its
+pixels stood under, and a lane that judges a picture has to count them:
+`Composer::setCompositeCounting` tallies every device blit into a plane
+the size of the canvas, which is how the difference is priced. Anything
+beyond that is a picture that changed.
 
 **WHICH IS WHY A NODE INSIDE A BAKE IS NOT BAKED AGAIN.** Two composites
 is what the second value bounds, and a bake standing inside another node's
@@ -1433,9 +1446,10 @@ once `Eager`, everything else about the two runs pinned to the same
 clock, the same fixed step and the same capture moment — and the two
 pictures are differenced channel by channel. The pair is judged by the
 three clauses above, each differing pixel against the bar for what it
-stands on: one code value over transparent black, two over content, and
-the grazing case under a bar of its own, measured off the scenes that
-report the widest grazing edge. A scene past any of them is a promoted
+stands on: one code value over transparent black, two over content per
+composite the pixel stood under — counted into a plane the eager half is
+asked for — and the grazing case under a bar of its own, measured off the
+scenes that report the widest grazing edge. A scene past any of them is a promoted
 node painting a different picture, and it is filed against this library. Because the on half is eager rather than measured, that sweep
 covers every promotable node in the registry and reports the same numbers
 on any machine. It is `sigil.py plates --tier promotion`, and it

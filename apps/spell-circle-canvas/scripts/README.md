@@ -314,13 +314,27 @@ coverage it was drawn with, and the blit composites from that — so a
 shaded pixel can land one value from the live paint and nothing may land
 further.
 
-Where it holds CONTENT the bar is two. There the bake lands on
-something, so the node's own coverage is composited twice where the live
-paint composited once — into the bake, and again when the bake is
-blitted — and Skia's blit of a raster image is not the arithmetic of its
-direct shader draw. A texel whose alpha is between none and all can
-settle one value further out over a bright backdrop, and taking the bake
-at higher precision does not remove it.
+Where it holds CONTENT the bar is two PER COMPOSITE the pixel stood
+under. There the bake lands on something, so the node's own coverage is
+composited twice where the live paint composited once — into the bake,
+and again when the bake is blitted — and Skia's blit of a raster image
+is not the arithmetic of its direct shader draw. A texel whose alpha is
+between none and all can settle one value further out over a bright
+backdrop, and taking the bake at higher precision does not remove it.
+
+PER COMPOSITE, because a bake is one composite and a pixel can stand
+under many. Nothing nests — a node inside a bake is not baked again —
+but independent nodes overlap, and a stack of concentric rings each
+promoted on its own puts seven or nine cached rasters over one pixel.
+Each of them rounds and the rounding does not decay: a flat wash through
+N bakes stands N code values from the same wash painted live, measured in
+plain Skia over every destination value, every source alpha and a spread
+of source colours. So the ON half is rendered with `--composites`, which
+writes a plane beside each plate saying how many cached rasters were
+blitted over each pixel, and `--compare` reports the content difference
+already divided by it. The bar itself never moves with a picture's
+depth; a run with no plane prices every pixel at one composite, which is
+the bound this bar carried before it could count.
 
 Where the difference is CONFINED TO AN ANTIALIASED EDGE BOTH PLATES DRAW
 the bar is forty. One rounding along such an edge is one step of that
@@ -348,8 +362,8 @@ list here.
 Past any of the three is a picture that MOVED — a bake somewhere else,
 rasterised against another clip, or gone stale — which is a defect to
 file against the promoter. `Sketchbook --compare` reports the worst
-difference under each bar (`clear`, `content` and `graze` on its line),
-which is what lets them be judged apart. The tier keeps no baseline and
+difference under each bar (`clear`, `content`, `graze` and `composited`
+on its line), which is what lets them be judged apart. The tier keeps no baseline and
 refuses `--rebase`, because there is nothing here to adopt.
 
 ### Where the plates go

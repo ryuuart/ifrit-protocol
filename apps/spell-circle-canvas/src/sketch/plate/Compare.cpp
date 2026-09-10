@@ -86,7 +86,29 @@ struct Distance {
   int worstOverContent = 0;  ///< where it holds content and is not a graze
   int worstOverGraze = 0;    ///< …and where the difference is edge-confined
   size_t grazingPixels = 0;  ///< how many pixels that was
+  /** …and the worst over content again, PER COMPOSITE the pixel stood
+   *  under. One without a count plane beside it, so this is the content
+   *  figure itself until a plane says otherwise. */
+  int worstPerComposite = 0;
+  size_t stackedPixels = 0;  ///< content pixels under more than one
 };
+
+/** THE COMPOSITE-COUNT PLANE beside a plate: how many cached rasters were
+ *  blitted over each of its pixels, one grey level each, written by a
+ *  headless sweep asked for it. A plate with none stands as a plate whose
+ *  every pixel was composited once. */
+std::vector<uint8_t> readCountPlane(const std::filesystem::path& path,
+                                    int width, int height) {
+  const std::optional<Plate> plane = readPlate(path);
+  if (!plane || plane->width != width || plane->height != height) return {};
+  std::vector<uint8_t> counts((size_t)width * height, 1);
+  for (size_t at = 0; at < counts.size(); ++at)
+    // Grey, so every channel carries it; the red one is as good as any,
+    // and a pixel no raster was blitted over is composited once like any
+    // other pixel of a live paint.
+    counts[at] = std::max<uint8_t>(1, plane->pixels[at * 4]);
+  return counts;
+}
 
 /** HOW MUCH THE PICTURE ITSELF VARIES WITHIN A PIXEL OF EACH POINT: the
  *  largest spread any one channel shows over the 3x3 neighbourhood, in
@@ -118,7 +140,8 @@ std::vector<uint8_t> localSpan(const Plate& plate) {
   return span;
 }
 
-Distance distanceBetween(const Plate& first, const Plate& second) {
+Distance distanceBetween(const Plate& first, const Plate& second,
+                         const std::vector<uint8_t>& composites) {
   std::array<size_t, 256> histogram{};
   const size_t count = std::min(first.pixels.size(), second.pixels.size());
   for (size_t at = 0; at < count; ++at)
@@ -199,6 +222,17 @@ Distance distanceBetween(const Plate& first, const Plate& second) {
       } else {
         distance.worstOverContent =
             std::max(distance.worstOverContent, (int)moved[at]);
+        // …AND THE SAME DIFFERENCE PRICED PER COMPOSITE. A cached raster
+        // is a composite the live paint does not make, and each one
+        // rounds — so what a picture may differ by is a bound per
+        // composite times the number of them the pixel stood under, and
+        // a pixel under seven is not a pixel under one however alike the
+        // two look here. Rounded up, so the figure is the bound a caller
+        // states per composite.
+        const int under = composites.empty() ? 1 : (int)composites[at];
+        distance.worstPerComposite = std::max(
+            distance.worstPerComposite, ((int)moved[at] + under - 1) / under);
+        if (under > 1) ++distance.stackedPixels;
       }
     }
   }
@@ -262,13 +296,20 @@ int compare(const CompareOptions& options) {
       verdict = 1;
       continue;
     }
-    const Distance distance = distanceBetween(*a, *b);
+    // The plane, if the sweep that wrote the SECOND directory was asked
+    // for one: it describes that render's own composites, which are the
+    // ones the first render did not make.
+    const std::vector<uint8_t> composites =
+        readCountPlane(second / (std::string(kCountPrefix) + name + ".png"),
+                       a->width, a->height);
+    const Distance distance = distanceBetween(*a, *b, composites);
     std::printf(
         "compared %s mean %.4f p99 %d max %d clear %d content %d graze %d "
-        "%zu\n",
+        "%zu composited %d %zu\n",
         name.c_str(), distance.mean, distance.p99, distance.worst,
         distance.worstOverClear, distance.worstOverContent,
-        distance.worstOverGraze, distance.grazingPixels);
+        distance.worstOverGraze, distance.grazingPixels,
+        distance.worstPerComposite, distance.stackedPixels);
   }
   std::fflush(stdout);
   return verdict;

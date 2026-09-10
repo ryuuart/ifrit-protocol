@@ -65,8 +65,8 @@ GPU_TOLERANCE = {
 }
 
 # How far a promoted plate may stand from the same scene rendered with the
-# promoter held off, and it is TWO BARS because the contract compose states
-# has two. Neither is a tolerance anyone chose.
+# promoter held off, and it is THREE BARS because the contract compose
+# states has three. None is a tolerance anyone chose.
 #
 # ONE CODE VALUE WHERE THE HELD-OFF PLATE IS TRANSPARENT BLACK. A promoted
 # node is baked under the live matrix post-translated by an integer, and
@@ -75,14 +75,28 @@ GPU_TOLERANCE = {
 # inexact — so a shaded pixel can land one code value from the live paint
 # and nothing may land further.
 #
-# TWO WHERE IT HOLDS CONTENT. There the bake LANDS ON something: the
-# node's own coverage is composited twice where the live paint composited
-# once — into the bake, and again when the bake is blitted — and Skia's
-# blit of a raster image is not the arithmetic of its direct shader draw,
-# so a texel whose alpha is between none and all can settle one value
-# further out. It is still a rounding: it appears only where the node's
-# own alpha is partial, and taking the bake at higher precision does not
-# remove it.
+# TWO WHERE IT HOLDS CONTENT, PER COMPOSITE THE PIXEL STOOD UNDER. There
+# the bake LANDS ON something: the node's own coverage is composited twice
+# where the live paint composited once — into the bake, and again when the
+# bake is blitted — and Skia's blit of a raster image is not the
+# arithmetic of its direct shader draw, so a texel whose alpha is between
+# none and all can settle one value further out. It is still a rounding:
+# it appears only where the node's own alpha is partial, and taking the
+# bake at higher precision does not remove it.
+#
+# PER COMPOSITE, because a bake is one composite and a pixel can stand
+# under many. Nothing nests — a node inside a bake is not baked again —
+# but independent nodes overlap, and a stack of concentric rings each
+# promoted on its own puts seven or nine cached rasters over one pixel.
+# Each of them rounds, and the rounding does not decay: a flat wash
+# through N bakes stands N code values from the same wash painted live,
+# measured over every destination value, every source alpha and a spread
+# of source colours. So the bound is the two above times the count, and
+# `--compare` reports the content difference already divided by it — the
+# figure judged here is a bound PER COMPOSITE and the bar does not move
+# with the picture's depth. A run whose ON half was not asked for a
+# composite-count plane prices every pixel at one composite, which is the
+# bound this bar carried before it could count.
 #
 # AND FORTY WHERE THE DIFFERENCE IS CONFINED TO A GRAZING EDGE. A bake is
 # taken under the live matrix with an integer subtracted from its
@@ -110,6 +124,9 @@ GPU_TOLERANCE = {
 PROMOTION_DRIFT_CEILING = 1
 PROMOTION_DRIFT_CEILING_OVER_CONTENT = 2
 PROMOTION_DRIFT_CEILING_OVER_GRAZE = 40
+
+# …so the ON half is asked for the plane the content bar is priced by.
+PROMOTION_ON_COUNTED = PROMOTION_ON + ("--composites",)
 
 
 def registry(binary, kinds):
@@ -198,8 +215,10 @@ def compared(binary, first, second):
     """Every plate in both directories, differenced by the renderer that
     wrote them: name -> (mean, p99, max, max over the transparent-black
     pixels of `first`, max over the rest of them, max over the pixels whose
-    difference is confined to an edge both plates draw, and how many of
-    those there were), plus the names it could not compare.
+    difference is confined to an edge both plates draw, how many of those
+    there were, that same content difference priced PER COMPOSITE the pixel
+    stood under, and how many content pixels stood under more than one),
+    plus the names it could not compare.
 
     Decoding a PNG and differencing two pictures is what the binary
     already does; what stays here is the judgement — which distance is
@@ -212,13 +231,15 @@ def compared(binary, first, second):
         # A registry name CAN CARRY SPACES, so every row is read from its
         # ends inward: the verb is the first word, the fixed-width tail is
         # the last, and whatever lies between them is the name.
-        if len(words) >= 15 and words[0] == "compared" and words[-13] == "mean":
-            name = " ".join(words[1:-13])
+        if len(words) >= 18 and words[0] == "compared" and words[-16] == "mean":
+            name = " ".join(words[1:-16])
             distances[name] = (
-                float(words[-12]),
-                int(words[-10]),
-                int(words[-8]),
-                int(words[-6]),
+                float(words[-15]),
+                int(words[-13]),
+                int(words[-11]),
+                int(words[-9]),
+                int(words[-7]),
+                int(words[-5]),
                 int(words[-4]),
                 int(words[-2]),
                 int(words[-1]),
@@ -392,9 +413,10 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
 
     THE BAR IS THE CONTRACT AS COMPOSE STATES IT, and it has three parts,
     judged per pixel against the HELD-OFF plate: one code value where that
-    plate is transparent black, two where it holds content and the bake
-    therefore composited the node's own coverage twice, and forty where the
-    difference is confined to an antialiased edge BOTH plates draw — the
+    plate is transparent black, two PER COMPOSITE where it holds content
+    and the bake therefore composited the node's own coverage twice, and
+    forty where the difference is confined to an antialiased edge BOTH
+    plates draw — the
     grazing case, where a mark stands half a float step of its device
     coordinate from its live paint and a supersample bucket flips on the
     curve that runs nearly tangent to the grid. A scene past any of them is
@@ -409,7 +431,13 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     )
     print("[promotion on]")
     _, on_errors, declared = sweep(
-        binary, scenes, on_dir, timeout, jobs, PROMOTION_ON, lambda s, d: "rendered"
+        binary,
+        scenes,
+        on_dir,
+        timeout,
+        jobs,
+        PROMOTION_ON_COUNTED,
+        lambda s, d: "rendered",
     )
     errors = len(off_errors) + len(on_errors)
 
@@ -425,14 +453,22 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
         if scene not in distances:
             verdict = 1
             continue
-        (mean, p99, worst, over_clear, over_content, over_graze, grazing) = distances[
-            scene
-        ]
+        (
+            mean,
+            p99,
+            worst,
+            over_clear,
+            over_content,
+            over_graze,
+            grazing,
+            per_composite,
+            stacked,
+        ) = distances[scene]
         # EACH PART AGAINST ITS OWN BAR, and the held-off plate is what
         # says which part a pixel is in.
         if (
             over_clear <= PROMOTION_DRIFT_CEILING
-            and over_content <= PROMOTION_DRIFT_CEILING_OVER_CONTENT
+            and per_composite <= PROMOTION_DRIFT_CEILING_OVER_CONTENT
             and over_graze <= PROMOTION_DRIFT_CEILING_OVER_GRAZE
         ):
             within += 1
@@ -447,12 +483,21 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
             # other verdict lines are read against.
             if over_graze > PROMOTION_DRIFT_CEILING_OVER_CONTENT:
                 note = f"   {over_graze} grazing on {grazing} px{note}"
+            # …and a scene whose content difference is only within the
+            # rule once the composites are counted says that too: the
+            # number on the line is the raw worst, and what it was
+            # judged by is the worst per composite.
+            if over_content > PROMOTION_DRIFT_CEILING_OVER_CONTENT:
+                note = (
+                    f"   {over_content} over content, {per_composite} per "
+                    f"composite on {stacked} stacked px{note}"
+                )
             print(f"  WITHIN {scene:<24} max {worst:3d}  mean {mean:6.2f}{note}")
             continue
         if over_clear > PROMOTION_DRIFT_CEILING:
             over = f"{over_clear} over nothing"
-        elif over_content > PROMOTION_DRIFT_CEILING_OVER_CONTENT:
-            over = f"{over_content} over content"
+        elif per_composite > PROMOTION_DRIFT_CEILING_OVER_CONTENT:
+            over = f"{per_composite} over content per composite"
         else:
             over = f"{over_graze} over a grazing edge on {grazing} px"
 
@@ -464,7 +509,8 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     print(
         f"\n{within} of {len(scenes)} within the rule "
         f"({PROMOTION_DRIFT_CEILING} over transparent black, "
-        f"{PROMOTION_DRIFT_CEILING_OVER_CONTENT} over content, "
+        f"{PROMOTION_DRIFT_CEILING_OVER_CONTENT} over content per composite "
+        f"the pixel stood under, "
         f"{PROMOTION_DRIFT_CEILING_OVER_GRAZE} on an edge both plates draw), "
         f"{errors} failed"
     )

@@ -20,6 +20,11 @@ class Assets;
  *  name is what a baseline manifest holds, so it is spelled once. */
 inline constexpr std::string_view kPlatePrefix = "plate_";
 
+/** …and how a COMPOSITE-COUNT PLANE is named: this, the sketch's filed
+ *  name, `.png`. It stands beside the plate it describes and anything
+ *  that reads one reads the spelling from here. */
+inline constexpr std::string_view kCountPrefix = "counts_";
+
 /** HOW WIDE A PLATE MAY BE before the oversample gives way rather than
  *  the pixel count. It bounds what a HOST chose; a sketch that declares
  *  an oversample of its own is rendered at exactly that, because the
@@ -81,18 +86,23 @@ struct SweepOptions {
    *  from the plate rather than by hash. Refused together with
    *  `noPromotion`, which asks for the opposite. */
   bool promotion = false;
-  /** ALSO WRITE THE COMPOSITE-COUNT PLANE beside each plate, named
-   *  `counts_<sketch>.png` — one grey level per device pixel, saying how
-   *  many cached rasters were blitted over it.
+  /** ALSO WRITE THE COMPOSITE-COUNT PLANE beside each plate, named by
+   *  `kCountPrefix` — one grey level per device pixel, saying how many
+   *  cached rasters were blitted over it.
    *
    *  A cached raster is a composite the live paint does not make, and
-   *  each composite rounds into eight bits; so the difference a promoted
-   *  plate may carry over its live paint is a bound per composite times
-   *  the count, and the count is otherwise invisible. Written as a plate
-   *  is written, at the plate's own size, so the two index alike.
+   *  each composite rounds into eight bits; so what a promoted plate may
+   *  differ from its live paint by is a bound PER COMPOSITE times the
+   *  count, and the count is otherwise invisible — a picture under seven
+   *  of them and a picture under one look alike in a difference. Written
+   *  as a plate is written, at the plate's own size, so the two index
+   *  alike, and counted over the STILL alone: the plane describes the
+   *  frame that was photographed.
    *
-   *  It costs a readback per bake and it is a DIAGNOSTIC: no ledger tier
-   *  judges the plane, and asking for it changes nothing a plate holds. */
+   *  It costs a readback per cached raster of that one frame, and asking
+   *  for it changes nothing a plate holds. `--compare` reads it beside
+   *  the second directory's plates and prices the content difference by
+   *  it. */
   bool countPlane = false;
   /** Take every still at this scene time, overriding both the derived
    *  frame and any sketch's declared moment. Sweeping at two different

@@ -81,7 +81,7 @@ bool writeCountPlane(const Session::CompositeCounts& plane,
                 plane.counts.data() + (size_t)y * (size_t)plane.width,
                 (size_t)plane.width);
   return writePlate(grey.pixmap(),
-                    dir + "/counts_" + std::string(name) + ".png");
+                    dir + "/" + std::string(kCountPrefix) + name + ".png");
 }
 
 }  // namespace

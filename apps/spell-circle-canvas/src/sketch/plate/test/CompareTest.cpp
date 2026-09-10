@@ -17,6 +17,7 @@
 #include <sigilsketch/plate/Sweep.h>
 
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -175,10 +176,10 @@ void writeCurvePlate(const std::filesystem::path& dir, const std::string& name,
             (std::streamsize)png->size());
 }
 
-/** The three numbers off one comparison of two directories. */
+/** The numbers off one comparison of two directories. */
 struct Split {
-  int worst = 0, clear = 0, content = 0, graze = 0;
-  long long grazing = 0;
+  int worst = 0, clear = 0, content = 0, graze = 0, perComposite = 0;
+  long long grazing = 0, stacked = 0;
 };
 
 Split splitOf(const std::string& report) {
@@ -186,10 +187,31 @@ Split splitOf(const std::string& report) {
   const size_t at = report.find("max ");
   EXPECT_NE(at, std::string::npos) << report;
   if (at == std::string::npos) return split;
-  std::sscanf(report.c_str() + at, "max %d clear %d content %d graze %d %lld",
+  std::sscanf(report.c_str() + at,
+              "max %d clear %d content %d graze %d %lld composited %d %lld",
               &split.worst, &split.clear, &split.content, &split.graze,
-              &split.grazing);
+              &split.grazing, &split.perComposite, &split.stacked);
   return split;
+}
+
+/** A COMPOSITE-COUNT PLANE beside a plate: one grey level per pixel,
+ *  saying how many cached rasters were blitted over it. Flat, because
+ *  what the case is about is the division and not the map. */
+void writeCountPlane(const std::filesystem::path& dir, const std::string& name,
+                     int composites, int size = 64) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(
+      SkImageInfo::Make(size, size, kGray_8_SkColorType, kOpaque_SkAlphaType));
+  std::memset(bitmap.getPixels(), composites, bitmap.computeByteSize());
+  const sk_sp<SkData> png =
+      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
+  ASSERT_TRUE(png);
+  std::filesystem::create_directories(dir);
+  std::ofstream out(
+      dir / (std::string(sigil::sketch::kCountPrefix) + name + ".png"),
+      std::ios::binary);
+  out.write(reinterpret_cast<const char*>(png->data()),
+            (std::streamsize)png->size());
 }
 
 }  // namespace
@@ -227,6 +249,34 @@ TEST(SketchCompare, TellsAGrazingEdgeFromAMarkThatIsGone) {
   // The dropped mark: the difference is the ink itself, and it is content.
   EXPECT_GT(dropped.content, 180);
   EXPECT_EQ(dropped.worst, dropped.content);
+}
+
+/** A CACHED RASTER IS A COMPOSITE, AND A PIXEL CAN STAND UNDER MANY. Each
+ *  one rounds, so what a difference costs is a bound per composite times
+ *  the count — and a difference of four under four of them is the same
+ *  fact as a difference of one under one. The count plane the second
+ *  directory carries is what says which; without one every pixel stands
+ *  under one composite and the figure is the content difference itself. */
+TEST(SketchCompare, PricesTheContentDifferenceByTheCompositesUnderIt) {
+  const ScratchDir scratch("compare_composites");
+  const std::filesystem::path base = scratch.path / "base";
+  const std::filesystem::path gone = scratch.path / "gone";
+  writeCurvePlate(base, "probe", 0.0f, true);
+  writeCurvePlate(gone, "probe", 0.0f, false);
+
+  testing::internal::CaptureStdout();
+  EXPECT_EQ(compare({base.string(), gone.string()}), 0);
+  const Split alone = splitOf(testing::internal::GetCapturedStdout());
+  EXPECT_EQ(alone.perComposite, alone.content);
+  EXPECT_EQ(alone.stacked, 0);
+
+  writeCountPlane(gone, "probe", 4);
+  testing::internal::CaptureStdout();
+  EXPECT_EQ(compare({base.string(), gone.string()}), 0);
+  const Split stacked = splitOf(testing::internal::GetCapturedStdout());
+  EXPECT_EQ(stacked.content, alone.content) << "the raw difference moved";
+  EXPECT_EQ(stacked.perComposite, (alone.content + 3) / 4);
+  EXPECT_GT(stacked.stacked, 0);
 }
 
 TEST(SketchCompare, NamesAPlateThatStandsInOnlyOneDirectory) {

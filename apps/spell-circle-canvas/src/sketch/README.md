@@ -541,8 +541,8 @@ Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
                                   [--deterministic | --no-deterministic]
 Sketchbook <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
 Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
-           [--ledger] [--no-promotion | --promotion] [--capture-at <s>]
-           [--timing-json <path>]
+           [--ledger] [--no-promotion | --promotion] [--composites]
+           [--capture-at <s>] [--timing-json <path>]
 Sketchbook --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
            [--video-bitrate <bits>] [--fps <n>] [--sketch <name>]
            [--kind <k>] [--gpu]
@@ -649,7 +649,7 @@ same name in the other, decoded and differenced channel by channel:
 
 ```
 compared <name> mean <mean> p99 <p99> max <max> clear <max> content <max>
-         graze <max> <how many>
+         graze <max> <how many> composited <per composite> <how many stacked>
 size <name> <W>x<H> <W>x<H>
 missing <name> first|second
 unreadable <name> first|second
@@ -669,7 +669,21 @@ fraction of a device pixel from where the other drew it looks like, and
 the count beside it says on how many pixels. `content` is everything else:
 a difference that reaches a pixel no edge explains, which is what a
 picture that MOVED shows — pixels taken off the edges, a mark that is
-gone, a wash at another value. It opens no
+gone, a wash at another value.
+
+`composited` is that same `content` figure divided by how many CACHED
+RASTERS were blitted over each pixel, rounded up, with the count of
+content pixels that stood under more than one beside it. A cached raster
+is a composite the picture beside it did not make and every composite
+rounds, so a difference of four under four of them is the same fact as a
+difference of one under one — and a caller whose tolerance is a bound per
+composite reads this rather than `content`. The counts come from a plane
+the SECOND directory carries beside its plates, named `counts_<sketch>`
+and written by a headless sweep asked for `--composites`; with no plane
+there every pixel stands under one composite and `composited` is
+`content`.
+
+It opens no
 sketch, needs no
 fonts, no assets and no device, and it JUDGES NOTHING — how close is
 close enough is a tolerance about a machine, which is the plate ledger's
@@ -1025,10 +1039,18 @@ node is baked under the live matrix post-translated by an integer, and
 inverting that matrix to find a shader's local coordinates does not
 cancel the integer to the last bit at a scale whose reciprocal is
 inexact, so a shaded pixel can land ONE code value from the live paint
-and nothing may land further. A worst channel over one is a picture that
-moved — a bake somewhere else, rasterised against another clip, or gone
-stale — and that is a defect in the promoter rather than a plate to
-adopt.
+and nothing may land further. Where the held-off plate holds CONTENT the
+bake lands on something, and there the bound is two — the node's own
+coverage rounded into the bake and the bake rounded onto what it lands
+on — PER CACHED RASTER the pixel stood under. Nothing nests, but
+independent nodes overlap, and a stack of concentric rings each promoted
+on its own puts seven or nine of them over one pixel; each rounds, and
+the rounding does not decay. `--composites` writes the count beside each
+plate, `counts_<sketch>.png`, one grey level per device pixel, and
+`--compare` prices the content difference by it. A difference past that
+is a picture that moved — a bake somewhere else, rasterised against
+another clip, or gone stale — and that is a defect in the promoter rather
+than a plate to adopt.
 
 `scripts/sigil.py plates` drives this: three tiers over one binary. The
 CPU tier judges every sketch, canvas and set alike, on byte identity

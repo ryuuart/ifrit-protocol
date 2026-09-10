@@ -30,6 +30,7 @@ struct CompareOptions {
  *      compared <name> mean <mean> p99 <p99> max <max>
  *               clear <max over transparent> content <max over the rest>
  *               graze <max over the edge-confined> <how many>
+ *               composited <content per composite> <how many stacked>
  *      size <name> <W>x<H> <W>x<H>
  *      missing <name> first|second
  *      unreadable <name> first|second
@@ -52,6 +53,17 @@ struct CompareOptions {
  *  - `content` — everything else: a difference that reaches a pixel no
  *    edge explains, which is what a picture that MOVED shows — pixels
  *    taken off the edges, a mark that is gone, a wash at another value.
+ *
+ *  `composited` is the `content` figure again, divided by how many
+ *  CACHED RASTERS were blitted over each pixel and rounded up, with the
+ *  count of content pixels that stood under more than one beside it. A
+ *  cached raster is a composite the picture beside it did not make and
+ *  every composite rounds, so a difference of four under four of them is
+ *  the same fact as a difference of one under one — and a caller whose
+ *  tolerance is a bound per composite reads this rather than `content`.
+ *  The counts come from a plane the second directory carries beside its
+ *  plates, written by a headless sweep asked for one; without it every
+ *  pixel stands under one composite and `composited` is `content`.
  *
  *  Which pixels are which is a fact about two files; how much each is
  *  allowed is a judgement and stays with the caller.

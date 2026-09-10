@@ -1382,3 +1382,82 @@ TEST(ComposeCache, ADeviceBakeRasterisesOnItsLivePaintsRoute) {
       << "a blitted offscreen stands more than the one code value its "
          "second composite costs from the live paint";
 }
+
+namespace {
+
+/** THE WORST A STACK OF CACHED RASTERS COSTS A FLAT WASH, measured rather
+ *  than reasoned: every destination value at once along the strip, every
+ *  source alpha, a spread of source colours, and the same marks painted
+ *  twice — straight onto the ground, which is the live paint, and each
+ *  into a bake of its own that is then blitted, which is what promotion
+ *  makes of them. A wash carries no coverage of its own, so what is left
+ *  is the composite's own arithmetic. */
+int washThroughBakes(int marks) {
+  constexpr int kW = 256;
+  const auto strip = [] {
+    return SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kW, 1));
+  };
+  const auto ground = [&](SkSurface& s) {
+    SkPaint p;
+    p.setBlendMode(SkBlendMode::kSrc);
+    p.setAntiAlias(false);
+    for (int x = 0; x < kW; ++x) {
+      p.setColor(SkColorSetARGB(255, x, x, x));
+      s.getCanvas()->drawIRect(SkIRect::MakeXYWH(x, 0, 1, 1), p);
+    }
+  };
+  const auto readRow = [](SkSurface& s) {
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(kW, 1));
+    s.readPixels(bm.pixmap(), 0, 0);
+    std::vector<SkColor> row;
+    row.reserve(kW);
+    for (int x = 0; x < kW; ++x) row.push_back(bm.getColor(x, 0));
+    return row;
+  };
+  int worst = 0;
+  for (int a = 1; a < 256; ++a)
+    for (int c = 0; c < 256; c += 17) {
+      SkPaint mark;
+      mark.setAntiAlias(false);
+      mark.setColor(SkColorSetARGB(a, c, c, c));
+      sk_sp<SkSurface> live = strip();
+      ground(*live);
+      for (int m = 0; m < marks; ++m)
+        live->getCanvas()->drawIRect(SkIRect::MakeWH(kW, 1), mark);
+      sk_sp<SkSurface> promoted = strip();
+      ground(*promoted);
+      for (int m = 0; m < marks; ++m) {
+        sk_sp<SkSurface> bake = strip();
+        bake->getCanvas()->clear(SK_ColorTRANSPARENT);
+        bake->getCanvas()->drawIRect(SkIRect::MakeWH(kW, 1), mark);
+        promoted->getCanvas()->drawImage(bake->makeImageSnapshot(), 0, 0);
+      }
+      const std::vector<SkColor> l = readRow(*live), p = readRow(*promoted);
+      for (int x = 0; x < kW; ++x)
+        for (int shift : {0, 8, 16})
+          worst = std::max(worst, std::abs((int)((l[x] >> shift) & 0xffu) -
+                                           (int)((p[x] >> shift) & 0xffu)));
+    }
+  return worst;
+}
+
+}  // namespace
+
+TEST(ComposeCache, ACachedRasterCostsThePixelItLandsOnOneCodeValue) {
+  // WHAT THE CONTRACT'S SECOND CLAUSE IS PRICED FROM. A cached raster is
+  // a composite the live paint does not make: the mark is rounded into
+  // the bake's own eight bits and the bake is rounded again onto what it
+  // lands on. On a flat wash — no coverage of the mark's own to round —
+  // that costs exactly ONE code value per composite, and it does not
+  // decay: a pixel under a stack of independent bakes pays one for each.
+  //
+  // So the clause is a bound PER COMPOSITE, and a picture is bounded by
+  // that number times how many composites its pixels stood under. The
+  // second value the clause carries over content is this one plus the
+  // rounding of the mark's own coverage into the bake, which a wash does
+  // not exercise and an antialiased edge does.
+  for (int marks = 1; marks <= 4; ++marks)
+    EXPECT_EQ(washThroughBakes(marks), marks)
+        << marks << " bakes over one pixel";
+}
