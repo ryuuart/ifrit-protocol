@@ -12,6 +12,7 @@
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the pass-material diagnostic
+#include <sigilgeometry/path/Numeric.h>  // radians — the degree conversion
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/decoration/DecorationRects.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -517,7 +518,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
                              snap(mod.colorScreen.fB, 1.0f), 0.0f};
         float cosv = 1.0f, sinv = 0.0f;
         if (mod.rotateDeg != 0) {
-          const float radians = mod.rotateDeg * 0.017453293f;
+          const float radians = geometry::path::radians(mod.rotateDeg);
           if (continuous) {
             cosv = std::cos(radians);
             sinv = std::sin(radians);
@@ -590,8 +591,8 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
           // put a product of the two tangents on the diagonal and scale the
           // glyph as well as leaning it.
           if (mod.skewXDeg != 0 || mod.skewYDeg != 0)
-            matrix.preSkew(std::tan(mod.skewXDeg * 0.017453293f),
-                           std::tan(mod.skewYDeg * 0.017453293f));
+            matrix.preSkew(std::tan(geometry::path::radians(mod.skewXDeg)),
+                           std::tan(geometry::path::radians(mod.skewYDeg)));
           matrix.preScale(mod.scale * mod.scaleX, mod.scale * mod.scaleY);
           // Innermost, so the pivot shift rides the scale exactly as it
           // does inside an RSXform.

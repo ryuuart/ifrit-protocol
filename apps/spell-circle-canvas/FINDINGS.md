@@ -38,8 +38,8 @@ Taken on the merged tree at the close of the session's work:
   to geometry's `bandRegion` and `signedArea`; the Knuth-Plass prefix
   tables leave the DP function, with the inlining claim measured.
 - The close-out's open items are done: the typography chapter names
-  its eight public names; compose reports on one channel; the three
-  hand-spelt radian factors; `Anchor`'s discriminator in the type; a
+  its eight public names; compose reports on one channel;
+  `Anchor`'s discriminator in the type; a
   `SpriteBatch` for the atlas draw; the four typography and brush
   files over 600 lines split by subject; the cases for `exactTangent`,
   `Annotation::reserve` and the text-reuse volatility branch; the
