@@ -27,9 +27,14 @@ Taken on the merged tree at the close of the session's work:
 
 ## Rulings
 
-- The promotion tier's remaining twelve stay recorded as the
-  measurement with their next probes; the research resumes at the
-  owner's word.
+- A span-revealed outline carries the node's own outline in
+  `PaintContext::silhouette` the way a sliced one does, so an aligned
+  stroke keeps its width inside the shape at every fraction of its
+  reveal; the fifteen sketches that spell a span with an alignment are
+  swept, each mover described, and rebased with the cause.
+- The promotion tier's research resumes on the ten movers over
+  content, one cause at a time with a pin each; the two graze-shaped
+  scenes over the measured bar stay recorded.
 
 ## Automatic texture promotion moves 12 of 195 plates past the contract
 
