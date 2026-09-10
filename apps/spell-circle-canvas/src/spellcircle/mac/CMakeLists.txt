@@ -41,7 +41,8 @@ endif()
 # SHARED deliberately: the Swift executable crosses one ObjC module boundary,
 # while the bridge owns and links the complete C++ rendering runtime.
 add_library(SpellCircleMacBridge SHARED
-  bridge/SCKEngine.mm bridge/SCKEngine.h
+  bridge/SCKEngine.mm bridge/SCKEngine.h bridge/SCKEngineInternal.h
+  bridge/SCKEngine+Network.mm bridge/SCKEngine+Render.mm bridge/SCKEngine+Blit.mm
   bridge/SCKCanvasView.mm bridge/SCKCanvasView.h
 )
 

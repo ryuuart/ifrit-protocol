@@ -3,7 +3,7 @@
 // Pure Objective-C surface of the native macOS engine, imported by the
 // SwiftUI app as the Clang module `SpellCircleMacBridge` (see
 // module.modulemap). Everything C++ — the shared spellcircle scene core,
-// Skia Graphite, SigilWeave — stays behind SCKEngine.mm.
+// Skia Graphite, SigilWeave — stays behind the engine's ObjC++ sources.
 
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
@@ -55,11 +55,6 @@ NS_SWIFT_UI_ACTOR
 @property(nonatomic) int port;
 @property(nonatomic, readonly) BOOL listening;
 @property(nonatomic, readonly, copy) NSString *statusText;
-/** Binds the UDP socket; returns NO (with statusText updated) on failure. */
-- (BOOL)start;
-- (void)stop;
-/** Removes all scene entities and re-renders the (empty) canvas. */
-- (void)clearScene;
 
 /** @name Graphics configuration
  * Same semantics and defaults as the Qt app's GraphicsConfig: author-space
@@ -117,9 +112,26 @@ NS_SWIFT_UI_ACTOR
  *  Clamped to [1, 240]; default 60. */
 @property(nonatomic) double targetFramesPerSecond;
 
+@end
+
+/** The socket and what arrives on it. */
+@interface SCKEngine (Network)
+/** Binds the UDP socket; returns NO (with statusText updated) on failure. */
+- (BOOL)start;
+- (void)stop;
+/** Removes all scene entities and re-renders the (empty) canvas. */
+- (void)clearScene;
+@end
+
+/** The offscreen canvas and the clock that paces it. */
+@interface SCKEngine (Render)
 /** Renders the pending scene into the offscreen texture if one is due.
  *  Called by the canvas view on each display-link tick. */
 - (void)renderPendingScene;
+@end
+
+/** The on-screen presentation of what was rendered offscreen. */
+@interface SCKEngine (Blit)
 /**
  * Blits the current offscreen scene into @p layer's next drawable: an
  * appearance-matched backdrop, the canvas plate, the latest scene frame,
@@ -133,7 +145,6 @@ NS_SWIFT_UI_ACTOR
             centerX:(double)centerX
             centerY:(double)centerY
            topInset:(double)topInsetPixels;
-
 @end
 
 NS_ASSUME_NONNULL_END
