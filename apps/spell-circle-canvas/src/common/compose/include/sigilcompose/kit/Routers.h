@@ -29,6 +29,33 @@ namespace sigil::compose::routers {
  *  out of the source first. */
 enum class Bend { MidX, HFirst, VFirst };
 
+/** WHAT A ROUTE GIVES UP TO THE MARKS THAT STAND ON IT.
+ *
+ *  A route dressed with a STAMPED brush — `brush::Pattern`'s tiles, a
+ *  `brush::Scatter`'s cells — is not a line the marks are laid over: the
+ *  marks ARE the route, and a leg whose length is not a whole number of
+ *  tiles either stretches them or leaves a seam where the count runs out.
+ *  Two numbers say the whole of it, and they are props on the routers
+ *  that already exist rather than a family of their own — any orthogonal
+ *  route can be laid out for a stamp, and the same route stroked is the
+ *  same route.
+ *
+ *  `endInset` is how much of each TERMINAL leg the route gives up, so the
+ *  first tile stands clear of the thing the route leaves rather than
+ *  under it. `advance` is the tile pitch: every corner the bend policy
+ *  puts on a leg is moved to the nearest whole number of advances from
+ *  that leg's start, so the leg carries an exact count. A corner treatment
+ *  of its own (`brush::Pattern::cornerLength`) then reserves the elbow's
+ *  room out of the two legs it joins, and the side runs come out exact.
+ *
+ *  Both zero — the default — is every route that is STROKED rather than
+ *  stamped: a stroke has no pitch and nothing standing at its ends. */
+struct Stamp {
+  float advance = 0.0f;
+  float endInset = 0.0f;
+  bool operator==(const Stamp&) const = default;
+};
+
 /** Straight center-to-center line — the connector default, as a named
  *  value for symmetry. */
 Router straight();
@@ -50,9 +77,11 @@ Router orthogonal(float cornerRadius = 0.0f);
  *  The zero-argument `orthogonal()` is NOT this function with defaults. It
  *  emits its degenerate verbs verbatim, and that output is frozen because
  *  existing routes depend on it byte for byte; this is the spelling to
- *  reach for in new code. */
-Router orthogonal(Bend bend, float cornerRadius = 0.0f,
-                  float chamferCut = 0.0f);
+ *  reach for in new code.
+ *
+ *  @p stamp lays the route out for a stamped brush — see `Stamp`. */
+Router orthogonal(Bend bend, float cornerRadius = 0.0f, float chamferCut = 0.0f,
+                  Stamp stamp = {});
 
 // ---------------------------------------------------------------------------
 // Rail routers (rail(): an ordered run of anchor points → the line's path)
@@ -65,9 +94,10 @@ Router orthogonal(Bend bend, float cornerRadius = 0.0f,
  *  Each consecutive anchor pair runs H/V legs per @p bend; collinear
  *  points collapse, so axis-aligned anchors thread as single clean
  *  segments; corners round with @p cornerRadius or cut at 45° with
- *  @p chamferCut, and chamfer wins when both are set. */
+ *  @p chamferCut, and chamfer wins when both are set. @p stamp lays the
+ *  run out for a stamped brush — see `Stamp`. */
 RailRouter manhattan(Bend bend = Bend::MidX, float cornerRadius = 0.0f,
-                     float chamferCut = 0.0f);
+                     float chamferCut = 0.0f, Stamp stamp = {});
 
 /** Adapts any pairwise Router into a RailRouter: consecutive anchors are
  *  routed pairwise (each anchor as a point rect, so center-to-center

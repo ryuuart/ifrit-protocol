@@ -359,35 +359,15 @@ inline RouteShape shapeOf(const Node& child, const Node& parent, bool flipped) {
 /** The elbow's reserved arc length on EACH adjoining run, canvas px. */
 inline float cornerArm(bool big) { return big ? kCell * 1.5f : kCell * 0.5f; }
 
-inline Router thaumRoute(bool flipped) {
-  return [flipped](const SkRect& fromR, const SkRect& toR) {
-    const SkPoint C = centre(fromR), P = centre(toR);
-    const SkPoint S = flipped ? P : C;  // the walk's start
-    const SkPoint E = flipped ? C : P;
-    const int xd = (int)std::lround(std::abs(E.fX - S.fX) / kCell);
-    const int yd = (int)std::lround(std::abs(E.fY - S.fY) / kCell);
-    const float xm = xd == 0 ? 0.0f : (E.fX > S.fX ? 1.0f : -1.0f);
-    const float ym = yd == 0 ? 0.0f : (E.fY > S.fY ? 1.0f : -1.0f);
-    const SkPoint bend{S.fX, S.fY + ym * kCell * (float)yd};
-    const float h = kCell * 0.5f;
-
-    SkPathBuilder b;
-    if (yd == 0 && xd == 0) return b.detach();
-    if (yd == 0) {  // a pure horizontal run, no turn
-      b.moveTo(S.fX + xm * h, S.fY);
-      b.lineTo(E.fX - xm * h, E.fY);
-      return b.detach();
-    }
-    if (xd == 0) {  // a pure vertical run, no turn
-      b.moveTo(S.fX, S.fY + ym * h);
-      b.lineTo(E.fX, E.fY - ym * h);
-      return b.detach();
-    }
-    b.moveTo(S.fX, S.fY + ym * h);
-    b.lineTo(bend);
-    b.lineTo(E.fX - xm * h, E.fY);
-    return b.detach();
-  };
+/** The walk, as the kit says it: vertical out of the start, one turn at
+ *  the start's own column, horizontal into the far end — and laid out FOR
+ *  THE STAMP, which is the whole of what makes it this artefact's route
+ *  rather than any orthogonal L. The turn lands on a whole number of
+ *  cells from the start, and each end gives up half a cell so the first
+ *  tile stands clear of the node instead of under it. */
+inline Router thaumRoute() {
+  return routers::orthogonal(routers::Bend::VFirst, 0.0f, 0.0f,
+                             {.advance = kCell, .endInset = kCell * 0.5f});
 }
 
 // ---------------------------------------------------------------------------
@@ -1275,7 +1255,10 @@ struct Thaumonomicon : sketch::Sketch {
     Brush br;
     br.layer(std::move(pb));
 
-    return connector(child.key, parent.key, thaumRoute(e.flipped))
+    // A REVERSE edge walks from the parent: the connector's own from/to
+    // is the walk's direction, and the route bends at the START's column.
+    return connector(e.flipped ? parent.key : child.key,
+                     e.flipped ? child.key : parent.key, thaumRoute())
         .inset(0)
         .key(std::string("edge:") + child.key + "<" + parent.key)
         .zIndex(tierZ(e.tier))

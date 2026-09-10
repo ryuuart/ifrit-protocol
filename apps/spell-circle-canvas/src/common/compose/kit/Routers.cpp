@@ -46,11 +46,41 @@ void collapseCollinear(std::vector<SkPoint>& pts) {
   pts.resize(w);
 }
 
+/** One coordinate moved to the nearest whole number of @p advance from
+ *  @p from — how a corner is put where a stamped leg's tile count ends.
+ *  An advance of nothing moves nothing. */
+float onAdvance(float from, float to, float advance) {
+  if (!(advance > 0)) return to;
+  const float delta = to - from;
+  const float steps = std::round(std::abs(delta) / advance);
+  if (steps <= 0) return from;
+  return from + (delta > 0 ? 1.0f : -1.0f) * advance * steps;
+}
+
+/** Pull @p end back toward @p toward by @p inset px — the room a route
+ *  gives up at each of its ends. Never past the far end of the leg, and
+ *  a leg with no length keeps its point. */
+void pullIn(SkPoint& end, const SkPoint& toward, float inset) {
+  if (!(inset > 0)) return;
+  const SkVector d{toward.x() - end.x(), toward.y() - end.y()};
+  const float len = std::hypot(d.x(), d.y());
+  if (len <= 0) return;
+  const float take = std::min(inset, len);
+  end = {end.x() + d.x() / len * take, end.y() + d.y() / len * take};
+}
+
 /** The shared manhattan construction: waypoints per leg by bend policy,
- *  collapsed, then one corner treatment — `chamferCut` wins over
- *  `cornerRadius` when both are set (they are alternatives, not layers). */
+ *  collapsed, then the stamp's own two moves, then one corner treatment —
+ *  `chamferCut` wins over `cornerRadius` when both are set (they are
+ *  alternatives, not layers).
+ *
+ *  THE STAMP IS APPLIED BEFORE THE CORNER TREATMENT and after the
+ *  collapse. Before, because a rounded or chamfered corner is a
+ *  replacement for the vertex the count is measured from; after, because
+ *  a collapsed run is the leg a stamp is laid along, and quantising the
+ *  vertex a collapse is about to delete would move a straight route. */
 SkPath manhattanPath(std::span<const SkPoint> anchors, Bend bend,
-                     float cornerRadius, float chamferCut) {
+                     float cornerRadius, float chamferCut, Stamp stamp = {}) {
   SkPathBuilder b;
   if (anchors.empty()) return b.detach();
   std::vector<SkPoint> way;
@@ -60,21 +90,26 @@ SkPath manhattanPath(std::span<const SkPoint> anchors, Bend bend,
     const SkPoint a = anchors[i - 1], c = anchors[i];
     switch (bend) {
       case Bend::MidX: {
-        const float midX = (a.x() + c.x()) / 2;
+        const float midX = onAdvance(a.x(), (a.x() + c.x()) / 2, stamp.advance);
         way.push_back({midX, a.y()});
         way.push_back({midX, c.y()});
         break;
       }
       case Bend::HFirst:
-        way.push_back({c.x(), a.y()});
+        way.push_back({onAdvance(a.x(), c.x(), stamp.advance), a.y()});
         break;
       case Bend::VFirst:
-        way.push_back({a.x(), c.y()});
+        way.push_back({a.x(), onAdvance(a.y(), c.y(), stamp.advance)});
         break;
     }
     way.push_back(c);
   }
   collapseCollinear(way);
+  if (stamp.endInset > 0 && way.size() >= 2) {
+    pullIn(way.front(), way[1], stamp.endInset);
+    pullIn(way.back(), way[way.size() - 2], stamp.endInset);
+  }
+  if (way.size() < 2) return b.detach();
   b.moveTo(way.front());
   for (size_t i = 1; i < way.size(); ++i) b.lineTo(way[i]);
   SkPath path = b.detach();
@@ -134,11 +169,12 @@ struct BentRoute {
   Bend bend = Bend::MidX;
   float cornerRadius = 0.0f;
   float chamferCut = 0.0f;
+  Stamp stamp;
   bool operator==(const BentRoute&) const = default;
   SkPath route(const SkRect& from, const SkRect& to) const {
     const SkPoint ends[2] = {{from.centerX(), from.centerY()},
                              {to.centerX(), to.centerY()}};
-    return manhattanPath(ends, bend, cornerRadius, chamferCut);
+    return manhattanPath(ends, bend, cornerRadius, chamferCut, stamp);
   }
 };
 
@@ -170,9 +206,10 @@ struct ManhattanRail {
   Bend bend = Bend::MidX;
   float cornerRadius = 0.0f;
   float chamferCut = 0.0f;
+  Stamp stamp;
   bool operator==(const ManhattanRail&) const = default;
   SkPath route(std::span<const SkPoint> pts) const {
-    return manhattanPath(pts, bend, cornerRadius, chamferCut);
+    return manhattanPath(pts, bend, cornerRadius, chamferCut, stamp);
   }
 };
 
@@ -379,12 +416,14 @@ Router straight() { return StraightRoute{}; }
 
 Router orthogonal(float cornerRadius) { return OrthogonalRoute{cornerRadius}; }
 
-Router orthogonal(Bend bend, float cornerRadius, float chamferCut) {
-  return BentRoute{bend, cornerRadius, chamferCut};
+Router orthogonal(Bend bend, float cornerRadius, float chamferCut,
+                  Stamp stamp) {
+  return BentRoute{bend, cornerRadius, chamferCut, stamp};
 }
 
-RailRouter manhattan(Bend bend, float cornerRadius, float chamferCut) {
-  return ManhattanRail{bend, cornerRadius, chamferCut};
+RailRouter manhattan(Bend bend, float cornerRadius, float chamferCut,
+                     Stamp stamp) {
+  return ManhattanRail{bend, cornerRadius, chamferCut, stamp};
 }
 
 RailRouter fromPairwise(Router router) {

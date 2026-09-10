@@ -37,8 +37,7 @@ Taken on the merged tree at the close of the session's work:
   to geometry's `bandRegion` and `signedArea`.
 - The close-out's open items are done: the typography chapter names
   its eight public names; the four typography and brush
-  files over 600 lines split by subject; the
-  stamped router in the kit; the colour and effect helpers onto
+  files over 600 lines split by subject; the colour and effect helpers onto
   material's, bar `lain_navi`'s plate program — a photographed city
   defocused past recognition is a picture rather than a shape with
   props, and the library states that a consumer composing its own

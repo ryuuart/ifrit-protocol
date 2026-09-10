@@ -253,6 +253,55 @@ TEST(ComposeRouters, BendPoliciesTakeTheNamedColumns) {
   EXPECT_EQ(hr.pts[1], SkPoint::Make(180, 20));
 }
 
+TEST(ComposeRouters, AStampedRouteCarriesAWholeCountOfTilesPerLeg) {
+  // A route dressed with a stamped brush is not a line the marks are laid
+  // over: the marks ARE the route. `Stamp` is what makes a leg an exact
+  // number of them — the turn lands on a whole count from the leg's
+  // start, and each end gives up room so the first tile stands clear of
+  // whatever the route leaves.
+  constexpr float kCell = 24.0f;
+  const auto stamped =
+      routers::manhattan(routers::Bend::VFirst, 0.0f, 0.0f,
+                         {.advance = kCell, .endInset = kCell * 0.5f});
+  // An end three px OFF the count: the plain router turns at the far row,
+  // the stamped one turns at the nearest whole number of cells from the
+  // start, which is what gives the leg an exact tile count.
+  const SkPoint off[2] = {{20, 20}, {116, 137}};  // 4 cells over, ~4.9 down
+  const PathDump plain =
+      dumpPath(routers::manhattan(routers::Bend::VFirst)(std::span(off, 2)));
+  ASSERT_EQ(plain.pts.size(), 3u);
+  EXPECT_EQ(plain.pts[1], SkPoint::Make(20, 137));
+  const PathDump quantised = dumpPath(stamped(std::span(off, 2)));
+  ASSERT_EQ(quantised.pts.size(), 3u);
+  EXPECT_EQ(quantised.pts[1], SkPoint::Make(20, 20 + 5 * kCell));
+
+  // On the count, which is what a route between grid-placed nodes is:
+  // both legs are axis-aligned and each END gives up half a cell along
+  // its own leg.
+  const SkPoint run[2] = {{20, 20}, {116, 140}};  // 4 cells over, 5 down
+  const PathDump onGrid = dumpPath(stamped(std::span(run, 2)));
+  ASSERT_EQ(onGrid.pts.size(), 3u);
+  EXPECT_EQ(onGrid.pts[1], SkPoint::Make(20, 140));
+  EXPECT_EQ(onGrid.pts.front(), SkPoint::Make(20, 20 + kCell * 0.5f));
+  EXPECT_EQ(onGrid.pts.back(), SkPoint::Make(116 - kCell * 0.5f, 140));
+
+  // A STRAIGHT run collapses first and is then inset from both ends of
+  // the one segment it became, so a stamped axis-aligned route is still
+  // one segment and not three.
+  const SkPoint flat[2] = {{20, 20}, {212, 20}};
+  const PathDump line = dumpPath(stamped(std::span(flat, 2)));
+  ASSERT_EQ(line.pts.size(), 2u);
+  EXPECT_EQ(line.pts.front(), SkPoint::Make(20 + kCell * 0.5f, 20));
+  EXPECT_EQ(line.pts.back(), SkPoint::Make(212 - kCell * 0.5f, 20));
+
+  // The default stamp is no stamp: an unstated route is what it was.
+  EXPECT_EQ(routers::manhattan(routers::Bend::VFirst),
+            routers::manhattan(routers::Bend::VFirst, 0.0f, 0.0f, {}));
+  EXPECT_NE(routers::manhattan(routers::Bend::VFirst),
+            routers::manhattan(routers::Bend::VFirst, 0.0f, 0.0f,
+                               {.advance = kCell}));
+}
+
 TEST(ComposeRouters, FromPairwiseStitchesOneContourAndKeepsCurves) {
   // The adapter: any pairwise Router rides rail(). Three stations, the
   // legs stitch into ONE contour (terminal caps fire once, junction

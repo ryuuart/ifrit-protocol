@@ -746,7 +746,15 @@ between one pair of rects; `routers::manhattan`, `routers::polyline`,
 `routers::octilinear` and `routers::orbit` are `RailRouter`s, over a
 whole run of anchors, and `routers::fromPairwise` adapts a `Router` into
 one by stitching its legs into a single contour, so terminal caps and
-casings fire at the run's ends rather than at every waypoint. Every one
+casings fire at the run's ends rather than at every waypoint. The two
+orthogonal spellings also take a `routers::Stamp`, which lays a route
+out FOR A STAMPED BRUSH rather than for a stroke: `advance` is the tile
+pitch every bend the policy puts on a leg is moved to a whole number of,
+and `endInset` is how much of each terminal leg the route gives up so
+the first tile stands clear of the thing it leaves. A route whose marks
+are stamps IS its marks, and a leg that is not a whole count of them
+either stretches its tiles or opens a seam; both zero — the default — is
+every route that is stroked. Every one
 of them is a comparable VALUE, the same seam a `Shape` rides: a `Router`
 or a `RailRouter` holds either a scheme — a value with `route(…)` and
 `==`, which is what each stock factory answers — or a raw callable. Two
