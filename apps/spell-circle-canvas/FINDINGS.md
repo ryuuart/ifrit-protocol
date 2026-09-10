@@ -33,8 +33,7 @@ Taken on the merged tree at the close of the session's work:
 ## Rulings
 
 - The review's declines stand as closed, bar three that are done now:
-  the pan-only predicate's three spellings become one question in
-  SigilMaterial's vocabulary; `Ribbon::band` and `turnedArea` delegate
+  `Ribbon::band` and `turnedArea` delegate
   to geometry's `bandRegion` and `signedArea`; the Knuth-Plass prefix
   tables leave the DP function, with the inlining claim measured.
 - The close-out's open items are done: the typography chapter names

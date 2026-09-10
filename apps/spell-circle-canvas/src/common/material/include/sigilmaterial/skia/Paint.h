@@ -489,32 +489,29 @@ class Paint {
    *  comparison. */
   Paint& offset(std::optional<motion::Animatable<float>> x,
                 std::optional<motion::Animatable<float>> y);
-  /** Does THIS material carry a pan channel at all (the layer-local
-   *  answer)? A channel carrying a plain number answers yes: it is still a
-   *  pan the paint has to apply. Whether it MOVES is the next question. */
-  bool hasBoundOffset() const {
-    return m_boundOffset[0].has_value() || m_boundOffset[1].has_value();
-  }
-  /** Is either axis of that pan actually moving? A pan that is a constant
-   *  is a placed tile, not an animation, and must not put its node on the
-   *  live path forever. */
-  bool boundOffsetLive() const {
-    return (m_boundOffset[0] && motion::isLive(nullptr, *m_boundOffset[0])) ||
-           (m_boundOffset[1] && motion::isLive(nullptr, *m_boundOffset[1]));
+  /** IS THIS MATERIAL'S OWN PAN THE WHOLE OF WHAT IT ANIMATES?
+   *
+   *  The question a retained runtime asks about a pan, and the only one:
+   *  a material answering yes is two floats a consumer can read back by
+   *  pointer dereference and compare, so it rides a scalar lane and prunes
+   *  by value like a placed tile; one answering no changes in ways no
+   *  memo can read and is opaque. It is a PARTITION of the animated
+   *  materials, not a hint.
+   *
+   *  Yes covers the constant pan as well as the moving one — a placed tile
+   *  is a pan whose value happens not to change — because the consumer
+   *  reads the same two floats either way. What it excludes is a live
+   *  uniform, uTime, uContentScale and any animated `child()` or `blend()`
+   *  layer, including a NESTED pan, which the layer-local channel cannot
+   *  reach. */
+  bool boundOffsetOnly() const {
+    return hasBoundOffset() && !animatedBeyondBoundOffset();
   }
   /** The pan as of NOW — what each axis's animatable reads as, 0 for an
    *  axis that carries none. Every consumer reads the pan through this one
    * body, so the volatility release, the per-draw scan and the paint itself
    * cannot disagree about what the current value is. */
   SkPoint boundOffsetValue() const;
-  /** Everything isAnimated() reports EXCEPT this material's own bound
-   *  offset: live uniform bindings, uTime/uContentScale, and any animated
-   *  child() or blend() layer — including a NESTED bound offset, which the
-   *  node-level scalar lane cannot reach and must therefore treat as
-   *  opaque. Subtracting this from isAnimated() is what routes a pan-only
-   *  material onto the comparable-scalar path instead of the coarser
-   *  live-material memo. */
-  bool animatedBeyondBoundOffset() const;
 
   /** Step the auto-injected uTime at `hz`, as floor(t·hz)/hz — deliberate
    *  choppiness declared as a property of the MATERIAL rather than plumbed
@@ -595,6 +592,28 @@ class Paint {
   bool operator==(const Paint& o) const;
 
  private:
+  /** Does THIS material carry a pan channel at all (the layer-local
+   *  answer)? A channel carrying a plain number answers yes: it is still a
+   *  pan the paint has to apply. Whether it MOVES is the next question. */
+  bool hasBoundOffset() const {
+    return m_boundOffset[0].has_value() || m_boundOffset[1].has_value();
+  }
+  /** Is either axis of that pan actually moving? A pan that is a constant
+   *  is a placed tile, not an animation, and must not put its node on the
+   *  live path forever. */
+  bool boundOffsetLive() const {
+    return (m_boundOffset[0] && motion::isLive(nullptr, *m_boundOffset[0])) ||
+           (m_boundOffset[1] && motion::isLive(nullptr, *m_boundOffset[1]));
+  }
+  /** Everything isAnimated() reports EXCEPT this material's own bound
+   *  offset: live uniform bindings, uTime/uContentScale, and any animated
+   *  child() or blend() layer — including a NESTED bound offset, which the
+   *  node-level scalar lane cannot reach and must therefore treat as
+   *  opaque. Subtracting this from isAnimated() is what boundOffsetOnly()
+   *  is; these three are the halves of that one question and no consumer
+   *  asks them apart, which is why they are not offered.  */
+  bool animatedBeyondBoundOffset() const;
+
   struct Live;    // sksl recipe (effect + constants + Output bindings)
   struct Recipe;  // comparable build recipe (gradients/image/blend)
   struct Backed;  // a Material instance and its resolve memo

@@ -322,14 +322,15 @@ Fill detail::Instance::resolveBoundFill() const {
 }
 
 std::array<float, 2> detail::Instance::resolvePatternOffset() const {
-  // Only the TOP-LEVEL bound offset of the node's fill material is a
-  // scalar-lane input. A nested one (in a blend layer, in a child slot)
-  // keeps the material on the opaque live path — see
-  // animatedBeyondBoundOffset — and never reaches this lane. All-zero when
-  // unbound, matching the ContentScalars guard, so a node without the
+  // The lane carries a pan the memo can be RESPONSIBLE for, which is the
+  // one question a paint answers about its offset: a material whose pan is
+  // the whole of what it animates. Anything else — a live uniform beside
+  // the pan, a nested pan in a blend layer or a child slot — is on the
+  // opaque live path, where no memo reads these floats at all. All-zero
+  // otherwise, matching the ContentScalars guard, so a node without the
   // channel compares equal to itself forever.
   const material::skia::Paint* m = liveMaterialOf(*description);
-  if (!m || !m->hasBoundOffset()) return {};
+  if (!m || !m->boundOffsetOnly()) return {};
   const SkPoint pan = m->boundOffsetValue();
   return {pan.x(), pan.y()};
 }

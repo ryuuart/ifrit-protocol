@@ -263,10 +263,8 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
     // which it must, because a pruned swap would leave the old Output
     // driving the pixels for the life of the instance. Everything else
     // that reports isAnimated() stays never-prune, below.
-    const bool panOnlyA =
-        a->live->hasBoundOffset() && !a->live->animatedBeyondBoundOffset();
-    const bool panOnlyB =
-        b->live->hasBoundOffset() && !b->live->animatedBeyondBoundOffset();
+    const bool panOnlyA = a->live->boundOffsetOnly();
+    const bool panOnlyB = b->live->boundOffsetOnly();
     if (panOnlyA != panOnlyB) return false;
     if (!panOnlyA && (a->live->isAnimated() || b->live->isAnimated()))
       return false;

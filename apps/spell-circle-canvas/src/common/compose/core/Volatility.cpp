@@ -163,14 +163,12 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // A fill material whose ONLY animation is its own bound tile pan is NOT
   // the live-material lane — it is two floats, resolvable outside paint by
   // a pointer dereference, so it rides the memoized scalar lane exactly as
-  // a gate fraction, the world matrix's six and a bound Fill do. A material
-  // with a bound pan AND anything else (a live uniform, an elapsed-time
-  // input, a nested pan in a blend layer) stays on the opaque live path.
-  // Conservative, and the split is a partition: patternPan and liveMat can
-  // never both be true.
+  // a gate fraction, the world matrix's six and a bound Fill do. The paint
+  // answers that in one word (boundOffsetOnly); a material with a bound pan
+  // AND anything else stays on the opaque live path. The split is a
+  // partition: patternPan and liveMat can never both be true.
   const bool liveMatAnimated = nodeLiveMat && nodeLiveMat->isAnimated();
-  const bool patternPan = liveMatAnimated && nodeLiveMat->boundOffsetLive() &&
-                          !nodeLiveMat->animatedBeyondBoundOffset();
+  const bool patternPan = liveMatAnimated && nodeLiveMat->boundOffsetOnly();
   // truly live (bound/uTime) — geometry-dependent materials resolve at
   // record time and stay cacheable
   const bool liveMat = liveMatAnimated && !patternPan;

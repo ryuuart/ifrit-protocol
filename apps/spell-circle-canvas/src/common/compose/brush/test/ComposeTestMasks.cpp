@@ -1258,6 +1258,22 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
       << "the bound form must route live";
   EXPECT_FALSE(pat.material().isAnimated())
       << "binding a COPY must not contaminate the original (value law)";
+  // ONE QUESTION, three answers. Whether the bound pan is the whole of
+  // what a material animates is what routes it onto the scalar lane,
+  // decides its prune rule and fills the lane's two floats — the same
+  // predicate at all three. A bound channel carrying a plain number
+  // answers yes exactly as a moving one does (it is still two floats the
+  // lane reads back); a material whose pan is the describe-time offset,
+  // and one with no pan at all, answer no.
+  Pattern parked = halfTilePattern();
+  parked.offset(8.0f, std::nullopt);
+  EXPECT_TRUE(parked.material().boundOffsetOnly()) << "a parked pan is a pan";
+  EXPECT_FALSE(parked.material().isAnimated()) << "…and it is not moving";
+  EXPECT_TRUE(bound.material().boundOffsetOnly()) << "…so is a moving one";
+  EXPECT_FALSE(pat.material().boundOffsetOnly())
+      << "the describe-time offset is the recipe's, not the lane's";
+  EXPECT_FALSE(halfTilePattern().material().boundOffsetOnly())
+      << "a material with no pan channel must not claim the lane";
   // The static pan draws at its phase and prunes across re-describes.
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
