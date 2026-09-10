@@ -42,11 +42,17 @@ it. The spread is SigilMotion's and says nothing about text; `unit` is the
 whole of what makes it a cascade over glyphs rather than over a set's
 children or a feed's rows. `Element::fx` appends one;
 several compose per glyph, with `GlyphMod` offsets and rotations adding
-and scale and alpha multiplying. The seam — `TextEffect`, `GlyphMod`, and
-the effects the runtime evaluates by structure — is
-`typography/TextEffect.h`; the stock effects an example reaches for,
-`fx::rise`, `fx::waveLoop` and the rest, are stock values over it and so
-the kit's, in `kit/Kinetic.h`.
+and scale and alpha multiplying. The seam is three headers:
+
+- `typography/TextEffect.h` — the effect. `GlyphInfo` is what a body is
+  handed, `GlyphMod` what it returns, `GlyphModFn` the callable those two
+  make, and `TextEffect` the comparable value one is wrapped in;
+  `kNominalSizePx` is the display size a preset's reach is declared
+  against.
+- `typography/Track.h` — the cascade. `Track` is the five values above,
+  and `Beats` is which list its beats are numbered against.
+- `kit/Kinetic.h` — the stock effects an example reaches for: `rise`,
+  `waveLoop` and the rest are values over the seam, and so the kit's.
 
 ```cpp
 text(u8"ONE LINE, TWO MOVES", display)
@@ -124,8 +130,8 @@ have nothing left to say and are ignored. A unit past the end of
 times nobody wrote), entries past the last unit go unread, and either
 mismatch warns once.
 
-**Which list the beats are numbered against.** `Track::beatsOver` takes
-`beats::Selection` — the default, numbering only the units the track's own
+**Which list the beats are numbered against.** `Track::beatsOver` takes a
+`Beats`: `beats::Selection` — the default, numbering only the units the track's own
 selector resolved — or `beats::Text`, numbering every unit of that
 granularity in the paragraph, addressed or not. Two tracks that partition
 one paragraph share a clock *by construction* only under `beats::Text`;
@@ -294,6 +300,15 @@ phase sees a renormalised 0→1 (`TextEffect::until` sets the joint,
 `Phase::xfade` lerps across it), and `fx::mix` evaluates several effects at
 one time and composes them by the same algebra stacked tracks use.
 
+Both are built through `TextEffect::composite`, which is also the door for
+a combinator of your own: the operands RIDE the value, so the result
+compares by structure — a `fx::seq` of equal phases equals another built
+the same way — rather than by the closure that evaluates it. It is also
+where whether the result DISPLACES is derived rather than restated: a
+composite moves its glyphs when any operand it may evaluate does, so a
+sequence whose second phase lifts is displacing from the moment it is
+built, and nobody has to remember to say so.
+
 **Keyframe tables.** Every published web or motion reference is a list of
 (position, value) entries, and `fx::keys` is that list as an effect. A
 `fx::Key` is a moment in local time, a `GlyphMod` at it, and optionally a
@@ -335,6 +350,36 @@ leaves it nothing to veto — every unit is always somewhere in its cycle —
 so there an effect gates its own arrival instead (the looping-cascade
 passage above).
 
+**What an effect is handed.** A body is `(glyph, local t, stream) →
+GlyphMod`, and `GlyphModFn` is that callable — the seam never holds a
+bare one, because a bare function cannot be compared, so it is wrapped in
+a named `TextEffect` before anything can hold it.
+
+The first argument is the glyph's own facts, and every index in it is a
+fact about this glyph's place in THIS layout of THIS text, stable across
+relayouts while the text is unchanged. Where it sits and how big it is:
+`GlyphInfo::rest` is the pen position the layout gave it,
+`GlyphInfo::advance` its advance width, and `GlyphInfo::fontSize` the
+size an em-relative deviation is written against — which is how one
+preset reads the same at a caption and at a headline. Where it sits in
+the text: `GlyphInfo::index` and `GlyphInfo::count` in the paragraph,
+`GlyphInfo::glyphInWord` and `GlyphInfo::wordGlyphCount` inside its word,
+then `GlyphInfo::wordIndex`, `GlyphInfo::lineIndex` and
+`GlyphInfo::sentenceIndex` for the containers it belongs to, with
+`GlyphInfo::cluster` — a base and its combining marks share one value —
+and `GlyphInfo::textIndex`, that cluster as an offset into the text. That
+list is what lets a body say *the third letter of its word* or
+*everything on line two* without the author counting glyphs by hand.
+`GlyphInfo::unitIndex` and `GlyphInfo::unitCount` are the TRACK's own
+numbering — which beat this glyph belongs to, in the list `Track::beatsOver`
+chose — so a per-word track sees word ordinals there.
+
+`GlyphInfo::styleIndex` is the one to read and never to address by: span
+restyles cut and merge the style list, so a `spanPaint` anywhere ahead of
+this glyph renumbers it, and the two resolvers could not be made to agree
+on what a given index names. The handle on a treatment is the NAME the run
+was written under, which `sel::style` addresses.
+
 **Effects get a `core::noise::Mix64Stream`**, seeded from the glyph's
 identity, so a scatter is the same scatter on every frame and after every
 relayout — which is what lets it settle and cache instead of jittering
@@ -374,6 +419,11 @@ per-unit rects and times are resolved from the SAME cascade
 `Composer::beatsOf` reports, so a pass, a mark and the glyphs cannot
 disagree about the schedule.
 
+`TextEffect::passMaterial` is what the runtime dispatches on: the pass
+material for a pass effect, null for every per-glyph one. That is the
+whole of the distinction — a pass is not a kind of track, it is an effect
+carrying a material instead of a body.
+
 **A pass can declare where it rests.** `fx::pass(m).restsAt(0)`,
 `.restsAt(1)` and `.restsAt(0, 1)` promise the SkSL is an EXACT
 pass-through at those unit phases. When every addressed unit's resolved
@@ -388,7 +438,11 @@ beat and exactly 1 after. A looping cascade touches 0 only at the instant
 a beat re-opens, so `restsAt(0)` effectively never engages there
 (correctly — the cycle is always mid-flight somewhere), while units rest
 at exactly 1 between beats, so `restsAt(1)` engages whenever no beat is
-mid-cycle. Undeclared, a pass always runs.
+mid-cycle. Undeclared, a pass always runs — `TextEffect::restPhases` reads
+back what was declared, and is empty both for a pass that declared nothing
+and for every per-glyph effect, which have no such promise to make. The
+declaration rides the effect's params, so two passes promising different
+phases do not prune onto each other.
 
 Order against everything else: deviation tracks apply FIRST, and the pass
 reads the deviated pixels — a pass is post-processing, and pixels are what
@@ -479,10 +533,19 @@ fresh and its glyphs rasterized fresh every frame, and nothing retains it.
 A glyph any addressing track declares continuous is continuous.
 
 **Every track declares its `Track::reach`** — how far past the element's
-box it may throw a glyph — or takes the number its effect declares. The
-recording cull grows by it, on the same over-reporting-is-safe contract a
+box it may throw a glyph — or takes the number its effect declares.
+`Track::reachPx` is that resolution, the track's own number where it
+states one and its effect's otherwise, and it is what the recording cull
+actually grows by, on the same over-reporting-is-safe contract a
 decoration's `bleed()` carries. Under-report and cached output is
 truncated with no diagnostic.
+
+A PRESET cannot know the size it will be drawn at, so the reach it
+declares is measured against `fx::kNominalSizePx` — the display size a
+glyph grown about its own centre is read at, and the size a keyframe
+table's growths and leans are read against too. Drawn smaller than that,
+a preset reserves more than it needs, which costs nothing; drawn larger,
+it wants a `Track::reach` of its own.
 
 `Element::textFill` and `Element::textStroke` combine with tracks and with a
 path baseline alike: a letter in flight, and a letter on a curve, are painted

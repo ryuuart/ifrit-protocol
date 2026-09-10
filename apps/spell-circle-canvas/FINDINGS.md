@@ -35,8 +35,7 @@ Taken on the merged tree at the close of the session's work:
 - The review's declines stand as closed, bar one that is done now:
   `Ribbon::band` and `turnedArea` delegate
   to geometry's `bandRegion` and `signedArea`.
-- The close-out's open items are done: the typography chapter names
-  its eight public names; the four typography and brush
+- The close-out's open items are done: the four typography and brush
   files over 600 lines split by subject; the colour and effect helpers onto
   material's, bar `lain_navi`'s plate program — a photographed city
   defocused past recognition is a picture rather than a shape with
