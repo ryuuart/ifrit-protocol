@@ -9,6 +9,7 @@
  * that reached for the kernel's internals would fail to compile here.
  */
 
+#include <include/core/SkTypes.h>  // SkDebugf — the library's one channel
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Grid.h>
 #include <sigilcompose/kit/Kit.h>
@@ -17,7 +18,6 @@
 #include <sigilgeometry/kit/Divisions.h>
 
 #include <concepts>
-#include <cstdio>
 #include <string>
 
 namespace sigil::compose::layouts::detail {
@@ -29,11 +29,11 @@ void warnAreaNotRectangular(const std::string& name) {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  std::fprintf(stderr,
-               "SigilCompose: grid area \"%s\" does not cover a rectangle, "
-               "so it is placed at the rectangle that bounds it. A name must "
-               "claim one block of cells to be addressable as one box.\n",
-               name.c_str());
+  SkDebugf(
+      "compose: grid area \"%s\" does not cover a rectangle, so it is placed "
+      "at the rectangle that bounds it. A name must claim one block of cells "
+      "to be addressable as one box.\n",
+      name.c_str());
 }
 
 }  // namespace sigil::compose::layouts::detail

@@ -14,6 +14,7 @@
  * time and composing the deviations.
  */
 
+#include <include/core/SkTypes.h>  // SkDebugf — the library's one channel
 #include <sigilcompose/typography/TextEffect.h>
 #include <sigilcore/compute/Intervals.h>
 #include <sigilweave/choreograph/Choreograph.h>
@@ -23,7 +24,6 @@
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
 #include <numeric>
 #include <utility>
@@ -293,10 +293,9 @@ void warnBadSelectorPattern(const std::u8string& pattern) {
   static thread_local boost::unordered_flat_set<std::string> seen;
   std::string key((const char*)pattern.data(), pattern.size());
   if (!seen.insert(key).second) return;
-  std::fprintf(
-      stderr,
-      "SigilCompose: weave::sel::regex(\"%s\") does not compile — this "
-      "track selects no glyphs\n",
+  SkDebugf(
+      "compose: weave::sel::regex(\"%s\") does not compile — this track "
+      "selects no glyphs\n",
       key.c_str());
 }
 
@@ -306,11 +305,10 @@ void warnNoSuchStyleName(const std::u8string& name) {
   static thread_local boost::unordered_flat_set<std::string> seen;
   std::string key((const char*)name.data(), name.size());
   if (!seen.insert(key).second) return;
-  std::fprintf(
-      stderr,
-      "SigilCompose: sel::style(\"%s\") — no run of this text was "
-      "written under that name, so it addresses nothing (only a "
-      "weave::rich() run added with add(text, styleName) carries one)\n",
+  SkDebugf(
+      "compose: sel::style(\"%s\") — no run of this text was written under "
+      "that name, so it addresses nothing (only a weave::rich() run added "
+      "with add(text, styleName) carries one)\n",
       key.c_str());
 }
 
@@ -318,12 +316,11 @@ void warnNoSuchFrameKey(const std::u8string& key) {
   static thread_local boost::unordered_flat_set<std::string> seen;
   std::string name((const char*)key.data(), key.size());
   if (!seen.insert(name).second) return;
-  std::fprintf(stderr,
-               "SigilCompose: sel::inFrame(\"%s\") on a text leaf with no "
-               "key() of its own — a frame-local address is matched against "
-               "the leaf's own key, so this one can never match and "
-               "addresses nothing\n",
-               name.c_str());
+  SkDebugf(
+      "compose: sel::inFrame(\"%s\") on a text leaf with no key() of its "
+      "own — a frame-local address is matched against the leaf's own key, so "
+      "this one can never match and addresses nothing\n",
+      name.c_str());
 }
 
 std::vector<uint8_t> resolveSelection(const sigil::weave::Selector& selector,
@@ -373,10 +370,9 @@ void warnSliceIgnored() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  std::fprintf(stderr,
-               "SigilCompose: weave::Selector::take/drop slice GLYPHS inside a "
-               "unit, which a text range cannot express — this span restyle "
-               "covers whole units\n");
+  SkDebugf(
+      "compose: weave::Selector::take/drop slice GLYPHS inside a unit, which "
+      "a text range cannot express — this span restyle covers whole units\n");
 }
 
 Ranges resolveTextRangesInto(

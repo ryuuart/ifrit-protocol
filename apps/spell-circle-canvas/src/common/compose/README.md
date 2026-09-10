@@ -1759,6 +1759,16 @@ bought with), which is how a headless run says where its time went. Any
 unparsable value means four milliseconds; unset, neither costs a clock
 read.
 
+**Everything the library says, it says through `SkDebugf`** — the
+profile lines above, and every one of the once-per-cause diagnostics a
+silent no-op carries, in every tier: the kernel, typography, brush and
+kit alike. One channel, so a host that redirects Skia's debug output
+captures the whole of what compose reports rather than half of it, and a
+tier that cannot reach the kernel's internal headers still reports
+through the same door. A warning is emitted at most once per distinct
+cause, guarded by `thread_local` state, because a description re-runs
+every frame and a mistake in one is a mistake in all of them.
+
 **Looking at any of it** goes through SigilSketch, which is where every
 renderable thing in this repository lives: one file per scene, one
 registry, one application (Sketchbook) and one headless renderer.
