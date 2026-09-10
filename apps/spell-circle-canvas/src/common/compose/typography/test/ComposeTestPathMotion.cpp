@@ -450,3 +450,57 @@ TEST(ComposePathMotion, ATrackRotationTurnsOnTheSameLadderAsTheBaseline) {
            "baseline's tangent";
   }
 }
+
+// `TextPath::exactTangent` IS THE ROTATION AND NOTHING ELSE. A glyph on a
+// curve is turned to a snapped tangent by default, because every distinct
+// rotation is a glyph-atlas strike; the flag buys the exact angle for
+// artwork set large and paying nothing per frame. Read as ink, that is two
+// claims: on a curve the two answers differ at every size the flag is for,
+// and on a STRAIGHT baseline — where there is no angle to snap — they are
+// the same pixels, so nothing else in the placement moves with it.
+TEST(ComposePathMotion, ExactTangentTurnsAGlyphTheLadderSnaps) {
+  auto render = [](const Shape& path, float size, float phase, bool exact) {
+    Host host(kField, kField);
+    host.composer.render(
+        box().child(text(u8"H", whiteStyle(size))
+                        .key("ring")
+                        .width(kField)
+                        .height(kField)
+                        .absolute()
+                        .left(0)
+                        .top(0)
+                        .onPath({.path = path,
+                                 .at = phase,
+                                 .align = TextPath::Align::Center,
+                                 .exactTangent = exact})));
+    host.frame();
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));
+    host.surface->readPixels(bm.pixmap(), 0, 0);
+    return bm;
+  };
+  auto differing = [](const SkBitmap& a, const SkBitmap& b) {
+    int n = 0;
+    for (int y = 0; y < kField; ++y)
+      for (int x = 0; x < kField; ++x)
+        if (a.getColor(x, y) != b.getColor(x, y)) ++n;
+    return n;
+  };
+  // A baseline with no curvature at all: every glyph on it faces the same
+  // way, and that way is already on every ladder.
+  const Shape straight = [](SkSize s) {
+    return SkPath::Line({0, s.height() * 0.5f}, {s.width(), s.height() * 0.5f});
+  };
+  for (const float size : {40.0f, 120.0f, 300.0f})
+    for (const float phase : {0.06f, 0.19f, 0.31f}) {
+      EXPECT_GT(
+          differing(render(geometry::shapes::circle(), size, phase, false),
+                    render(geometry::shapes::circle(), size, phase, true)),
+          0)
+          << "on a ring at " << size << " px, phase " << phase;
+      EXPECT_EQ(differing(render(straight, size, phase, false),
+                          render(straight, size, phase, true)),
+                0)
+          << "on a straight baseline at " << size << " px, phase " << phase;
+    }
+}

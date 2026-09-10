@@ -39,8 +39,7 @@ Taken on the merged tree at the close of the session's work:
   tables leave the DP function, with the inlining claim measured.
 - The close-out's open items are done: the typography chapter names
   its eight public names; the four typography and brush
-  files over 600 lines split by subject; the cases for `exactTangent`,
-  `Annotation::reserve` and the text-reuse volatility branch; the
+  files over 600 lines split by subject; the
   stamped router in the kit; `boneFrame` onto the kit frame; the three
   colour and effect helpers onto material's.
 - `findings/` is deleted once those land; the review's record lives

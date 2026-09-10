@@ -435,6 +435,48 @@ TEST(ComposeAnnotate, AReadingThatReservesNothingLeavesThePitchAlone) {
   EXPECT_NEAR(pitchOf(marked), pitchOf(bare), 0.01f);
 }
 
+// `Annotation::reserve` IS THE FIELD, not the helper. `kit::ruby` and
+// `kit::kenten` differ in several ways at once; this is ONE annotation with
+// one bit flipped, so the pitch that opens is the flag and nothing else.
+// The reading is placed either way — reserving is about the room the base
+// is broken with, never about whether the reading is drawn.
+TEST(ComposeAnnotate, ReserveIsWhatOpensTheBaseLineBox) {
+  const auto pitchOf = [](Host& host) {
+    const std::vector<TextUnit> lines = host.composer.units(
+        "t", sigil::weave::sel::each(sigil::weave::Unit::Line),
+        sigil::weave::Unit::Line);
+    return lines.empty() ? 0.0f : lines.front().pitch;
+  };
+  const auto reading = [](bool reserve) {
+    return Annotation{.where = sigil::weave::sel::text(toU8("three")),
+                      .unit = sigil::weave::Unit::Word,
+                      .readings = {toU8("iii")},
+                      .style = whiteStyle(8),
+                      .side = Annotation::Side::Before,
+                      .gap = 1.0f,
+                      .reserve = reserve};
+  };
+  const auto pitchWith = [&](Host& host, bool reserve) {
+    host.composer.render(box().child(text(passage(), whiteStyle(16))
+                                         .key("t")
+                                         .width(Dim(220.0f))
+                                         .annotate(reading(reserve))));
+    host.frame();
+    return pitchOf(host);
+  };
+  Host bare(400, 400);
+  bare.composer.render(
+      box().child(text(passage(), whiteStyle(16)).key("t").width(Dim(220.0f))));
+  bare.frame();
+
+  Host over(400, 400), reserved(400, 400);
+  EXPECT_NEAR(pitchWith(over, false), pitchOf(bare), 0.01f);
+  EXPECT_GT(pitchWith(reserved, true), pitchOf(bare) + 4.0f);
+  // …and the two annotations are not the same value, which is what keeps a
+  // node carrying one from pruning against a node carrying the other.
+  EXPECT_NE(reading(true), reading(false));
+}
+
 // ── A story through a chain of frames ────────────────────────────────────
 
 TEST(ComposeStory, EachFrameFillsFromWhereTheOneBeforeItStopped) {
@@ -1132,4 +1174,69 @@ TEST(ComposeAnnotate, ABrokenBaseSharesOneReadingAndShiftsNothingAfterIt) {
   for (size_t i = 0; i < units.size(); ++i)
     EXPECT_TRUE(readingOver(units[i]))
         << "unit " << i << " of " << units.size() << " carries no reading";
+}
+
+// A COMPOSING PASSAGE IS NEVER PROVEN STILL. A live block that had to
+// DECIDE a break this frame, or that the budget DEGRADED, may be set
+// differently the next frame with no number on this node changing — which
+// is precisely what no memo can see — so the layout reports it and the
+// volatility pass keeps the node out of the cache. The frame it answers
+// every block from decisions it already had and degrades none, it is
+// proved still like anything else and the cache takes it. Read as the
+// node's own cache state, so the claim is what the painter did rather
+// than what a counter said.
+TEST(ComposeLiveText,
+     AComposingPassageIsKeptOutOfTheCacheForExactlyThoseFrames) {
+  Host host(600, 500);
+  host.composer.setProfiling(true);
+  const auto stateOfT = [&]() {
+    for (const Composer::NodeCost& r : host.composer.profile())
+      if (r.label.rfind("t (", 0) == 0) return r.cacheState;
+    ADD_FAILURE() << "the passage was never painted";
+    return Composer::CacheState::Live;
+  };
+  // Cache::None above it so the leaf is visited every frame; without that
+  // a settled node paints once into an ancestor's recording and never
+  // appears in the profile at all.
+  const auto frameAt = [&](float measure, float budget) {
+    host.composer.render(
+        box()
+            .cache(Cache::None)
+            .child(text(longPassage(), whiteStyle(13))
+                       .key("t")
+                       .width(Dim(measure))
+                       .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
+                       .live(true, budget)));
+    host.frame();
+    return host.composer.settling("t");
+  };
+
+  // A measure this thread has not settled before: every block is decided,
+  // nothing is reused, and the node paints live for as long as that holds.
+  for (int i = 0; i < 3; ++i) {
+    const TextSettling composing = frameAt(340.0f, 0.0f);
+    EXPECT_EQ(composing.reused, 0);
+    EXPECT_EQ(composing.degraded, 0);
+    EXPECT_EQ(stateOfT(), Composer::CacheState::Live);
+  }
+
+  // Move off the measure and back, and the block is answered from the
+  // decisions the store now holds: reuse with no degrade is the frame the
+  // node stops composing, and it is cached from that frame.
+  frameAt(360.0f, 0.0f);
+  for (int i = 0; i < 3; ++i) {
+    const TextSettling settled = frameAt(340.0f, 0.0f);
+    EXPECT_GT(settled.reused, 0);
+    EXPECT_EQ(settled.degraded, 0);
+    EXPECT_EQ(stateOfT(), Composer::CacheState::Picture);
+  }
+
+  // A budget no composer can meet degrades the block, which is
+  // provisional by construction — so the node is out of the cache again on
+  // exactly the frames that report it.
+  for (int i = 0; i < 2; ++i) {
+    const TextSettling starved = frameAt(340.0f, 1.0f);
+    EXPECT_GT(starved.degraded, 0);
+    EXPECT_EQ(stateOfT(), Composer::CacheState::Live);
+  }
 }
