@@ -17,6 +17,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "KnuthPlassPrefix.h"
 #include "ParagraphLayoutInternal.h"
 #include "sigilweave/layout/ParagraphLayout.h"
 
@@ -160,129 +161,22 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   // words instead of dumping the remainder on the final line.
   const bool balance = block.style.balanceRaggedLines;
 
-  // Prefix sums: content width, and glue width/stretch/shrink per gap
-  // (gap i sits after word i; the last word's "gap" is never on a line).
-  // Extended on demand up to the furthest boundary the DP visits.
-  static thread_local std::vector<float> prefixWidth, prefixGlue, prefixStretch,
-      prefixShrink;
-  // Words followed by a tab gap, ascending; only filled when stops are
-  // active. Tab glue is pen-dependent, so it stays out of the prefix sums —
-  // lineNatural resolves it per candidate line instead.
-  static thread_local std::vector<uint32_t> tabGapIndices;
-  prefixWidth.assign(1, 0);
-  prefixGlue.assign(1, 0);
-  prefixStretch.assign(1, 0);
-  prefixShrink.assign(1, 0);
-  tabGapIndices.clear();
-  const bool tabAware = tabStopsActive(options);
-  const bool spacedByTable = !block.mojikumiAfter.empty();
-  // Every prefix array is indexed from the block's first word, so a block
-  // in the middle of a text costs what IT holds and not what precedes it.
-  const auto atWord = [&](uint32_t wordIndex) { return wordIndex - base; };
-  auto ensurePrefixSums = [&](uint32_t endWordIndex) {
-    for (uint32_t wordIndex =
-             base + static_cast<uint32_t>(prefixWidth.size()) - 1;
-         wordIndex < endWordIndex; ++wordIndex) {
-      prefixWidth.push_back(prefixWidth[atWord(wordIndex)] +
-                            words[wordIndex].width);
-      float glue = 0;
-      float stretch = 0;
-      float shrink = 0;
-      if (tabAware && words[wordIndex].tabAfter) {
-        // Tab gaps are rigid (columns pin to stops) and positional; the
-        // width they'll actually take is resolved in lineNatural.
-        tabGapIndices.push_back(wordIndex);
-      } else if (words[wordIndex].spaceWidth > 0) {
-        glue = words[wordIndex].spaceWidth * options.justification.wordSpacing;
-        stretch = glue * options.justification.spaceStretch;
-        shrink = glue * options.justification.spaceShrink;
-      } else if (options.justification.expandIdeographicGaps &&
-                 wordIndex + 1 < wordCount &&
-                 (words[wordIndex].ideographic ||
-                  words[wordIndex + 1].ideographic)) {
-        const float fontSize =
-            words[wordIndex].segments().empty()
-                ? 16.0f
-                : words[wordIndex].segments()[0].shaped->fontSize;
-        stretch = fontSize * 0.25f;
-        shrink = fontSize * 0.03f;
-      }
-      // The room a mojikumi table or tsume puts after this word is part of
-      // the gap and none of it is elastic: a table states a distance and a
-      // justified line spends its slack in the gaps the face gave it. A
-      // layout that asked for neither answers the question once, here,
-      // rather than once per word.
-      if (spacedByTable) glue += mojikumiAfter(block, wordIndex);
-      prefixGlue.push_back(prefixGlue[atWord(wordIndex)] + glue);
-      prefixStretch.push_back(prefixStretch[atWord(wordIndex)] + stretch);
-      prefixShrink.push_back(prefixShrink[atWord(wordIndex)] + shrink);
-    }
-  };
-
-  // Tab gaps interior to a candidate line [lineStart, lineEnd): gap indices
-  // in [lineStart, lineEnd - 1) — the break-side gap is never on the line.
-  auto tabGapsInLine = [&](uint32_t lineStart, uint32_t lineEnd) {
-    const auto first =
-        std::lower_bound(tabGapIndices.begin(), tabGapIndices.end(), lineStart);
-    const auto last = std::lower_bound(first, tabGapIndices.end(), lineEnd - 1);
-    return std::span<const uint32_t>(first, last);
-  };
+  // WHAT A CANDIDATE LINE IS MEASURED THROUGH: the block's prefix sums and
+  // the readings taken off them, which is one subject and lives in one
+  // place. The tables are held by the thread for the same reason the DP's
+  // arena below is, and are handed to the reader rather than reached from
+  // inside it — a thread-local access on the innermost loop is what that
+  // shape exists to keep out, and the bench's layout arms say so.
+  static thread_local LinePrefixSums::Tables prefixTables;
+  LinePrefixSums lines(prefixTables, words, block);
+  const bool tabAware = lines.tabAware();
 
   // WHAT THE DP READS OUT OF THE SETTING, read once. The pass below calls
   // paragraph.ensureShapedTo() as its frontier advances, so nothing the
   // compiler can see keeps the setting still: every field left inside the
   // loop is loaded again on every candidate line.
-  const bool hyphenating = options.hyphenation.enabled;
   const float hyphenPenalty = options.hyphenation.penalty;
   const float tolerance = options.knuthPlass.tolerance;
-
-  // Extra width when the line ends on a discretionary (soft-hyphen) break.
-  auto hyphenWidthAt = [&](uint32_t breakIndex) -> float {
-    return hyphenating && hyphenTakenAt(words, breakIndex,
-                                        breakIndex == wordCount, options)
-               ? words[breakIndex - 1].hyphenGlyph->advance
-               : 0.0f;
-  };
-
-  // Natural width and elasticity of a line holding a half-open word range.
-  // These are the DP loop's hottest calls, so they stay slim enough to
-  // inline; the tab corrections live in one flat, `tabAware`-guarded block
-  // at their call site instead (nesting them here de-inlines the lot; the
-  // bench ledger owns the cost).
-  auto lineNatural = [&](uint32_t lineStart, uint32_t lineEnd) {
-    return (prefixWidth[atWord(lineEnd)] - prefixWidth[atWord(lineStart)]) +
-           (prefixGlue[atWord(lineEnd - 1)] - prefixGlue[atWord(lineStart)]) +
-           hyphenWidthAt(lineEnd);
-  };
-  auto lineStretch = [&](uint32_t lineStart, uint32_t lineEnd) {
-    return prefixStretch[atWord(lineEnd - 1)] -
-           prefixStretch[atWord(lineStart)];
-  };
-  auto lineShrink = [&](uint32_t lineStart, uint32_t lineEnd) {
-    return prefixShrink[atWord(lineEnd - 1)] - prefixShrink[atWord(lineStart)];
-  };
-  // Natural width of a line that contains tab gaps: tab-separated segments
-  // accumulate from the prefix sums (tab gaps contributed zero there); each
-  // tab then jumps the pen to its stop through the same glueAfter placement
-  // will use, so the breaker's width for a candidate line is exactly the
-  // width it renders at.
-  auto tabResolvedNatural = [&](uint32_t lineStart, uint32_t lineEnd,
-                                std::span<const uint32_t> tabs) {
-    float pen = 0;
-    uint32_t segmentStart = lineStart;
-    for (const uint32_t tabIndex : tabs) {
-      pen += (prefixWidth[atWord(tabIndex + 1)] -
-              prefixWidth[atWord(segmentStart)]) +
-             (prefixGlue[atWord(tabIndex)] - prefixGlue[atWord(segmentStart)]);
-      pen += glueAfter(words[tabIndex], pen, options);
-      segmentStart = tabIndex + 1;
-    }
-    return pen +
-           (prefixWidth[atWord(lineEnd)] - prefixWidth[atWord(segmentStart)]) +
-           (prefixGlue[atWord(lineEnd - 1)] -
-            prefixGlue[atWord(segmentStart)]) +
-           hyphenWidthAt(lineEnd);
-  };
 
   // Shrink is only real when placement will actually render the line
   // justified: ragged lines (and demoted last lines) render at natural
@@ -358,10 +252,10 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       }
       // Shape only as the dynamic-programming frontier advances.
       paragraph.ensureShapedTo(fontContext, breakIndex);
-      ensurePrefixSums(breakIndex);
+      lines.ensureTo(breakIndex);
       // The hyphen a break here would render is a fact about the BREAK, so
       // it is settled once and not once per candidate line ending on it.
-      const float breakHyphenWidth = hyphenWidthAt(breakIndex);
+      const float breakHyphenWidth = lines.hyphenWidthAt(breakIndex);
       // Within a block the only forced break is its end: a mandatory break
       // is what ends a block, so there is never one inside.
       const bool forcedBreak = breakIndex == wordCount;
@@ -385,22 +279,20 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
         const float measure =
             (liveMeasure ? *liveMeasure : lineInterval->interval.length) *
             balanceFraction;
-        float natural = lineNatural(lineStart, breakIndex);
-        float stretch = lineStretch(lineStart, breakIndex);
-        float shrink = lineShrink(lineStart, breakIndex);
+        float natural = lines.natural(lineStart, breakIndex);
+        float stretch = lines.stretch(lineStart, breakIndex);
+        float shrink = lines.shrink(lineStart, breakIndex);
         if (tabAware) {
           // Tab corrections: the natural width resolves through the stops,
           // and glue at or before the line's last tab cannot move the
           // line's end (the following stop swallows it), so elasticity
           // counts only the gaps past that tab.
           const std::span<const uint32_t> tabs =
-              tabGapsInLine(lineStart, breakIndex);
+              lines.tabGapsIn(lineStart, breakIndex);
           if (!tabs.empty()) {
-            natural = tabResolvedNatural(lineStart, breakIndex, tabs);
-            stretch = prefixStretch[atWord(breakIndex - 1)] -
-                      prefixStretch[atWord(tabs.back() + 1)];
-            shrink = prefixShrink[atWord(breakIndex - 1)] -
-                     prefixShrink[atWord(tabs.back() + 1)];
+            natural = lines.tabResolvedNatural(lineStart, breakIndex, tabs);
+            stretch = lines.stretch(tabs.back() + 1, breakIndex);
+            shrink = lines.shrink(tabs.back() + 1, breakIndex);
           }
         }
         stretch += useEmergencyStretch ? measure : 0.0f;
@@ -446,7 +338,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
           uint32_t whole = breakIndex - 1;
           while (whole > lineStart && words[whole - 1].hyphenBreak) --whole;
           zoneRefusesBreak = whole > lineStart &&
-                             measure - lineNatural(lineStart, whole) <= zone;
+                             measure - lines.natural(lineStart, whole) <= zone;
         }
 
         float demerits =

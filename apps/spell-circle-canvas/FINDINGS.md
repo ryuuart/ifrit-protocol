@@ -32,10 +32,9 @@ Taken on the merged tree at the close of the session's work:
 
 ## Rulings
 
-- The review's declines stand as closed, bar three that are done now:
+- The review's declines stand as closed, bar one that is done now:
   `Ribbon::band` and `turnedArea` delegate
-  to geometry's `bandRegion` and `signedArea`; the Knuth-Plass prefix
-  tables leave the DP function, with the inlining claim measured.
+  to geometry's `bandRegion` and `signedArea`.
 - The close-out's open items are done: the typography chapter names
   its eight public names; the four typography and brush
   files over 600 lines split by subject; the
