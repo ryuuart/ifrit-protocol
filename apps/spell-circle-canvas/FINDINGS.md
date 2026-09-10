@@ -26,14 +26,6 @@ Taken on the merged tree at the close of the review's record:
 - Benchmark baseline retaken with every new arm; window-FPS baseline
   at an unlocked screen, none under the gate.
 
-## Rulings
-
-- `lain_navi`'s plate program stays in the sketch until the owner says
-  whether a defocused city becomes a material preset: it is a picture
-  rather than a shape with props, and the library states that a
-  consumer composing its own grained body writes its own noise or asks
-  for a preset.
-
 ## Automatic texture promotion moves 4 of 195 plates past the contract
 
 `sigil.py plates --tier promotion` renders every scene twice on the CPU —
