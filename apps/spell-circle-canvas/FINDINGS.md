@@ -43,8 +43,8 @@ Taken on the merged tree at the close of the session's work:
   files over 600 lines split by subject; the cases for `exactTangent`,
   `Annotation::reserve` and the text-reuse volatility branch; the
   stamped router in the kit; `boneFrame` onto the kit frame; the three
-  colour and effect helpers onto material's; `SIGIL_BAKE_DUMP` stated
-  or gone; a bevel under a span gate reads the silhouette.
+  colour and effect helpers onto material's; a bevel under a span gate
+  reads the silhouette.
 - `findings/` is deleted once those land; the review's record lives
   outside the repository.
 
