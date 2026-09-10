@@ -32,9 +32,15 @@ Taken on the merged tree at the close of the session's work:
 
 ## Rulings
 
-- The review's declines stand as closed, bar one that is done now:
-  `Ribbon::band` and `turnedArea` delegate
-  to geometry's `bandRegion` and `signedArea`.
+- The review's declines stand as closed. The last of the three is taken:
+  the band a ribbon fills is SigilGeometry's, and `turnedArea` is its
+  `signedArea`. The delegation is to `sweptRegion` and NOT to
+  `bandRegion`, because the two are different constructions and only one
+  of them can carry a join vocabulary or a width law keyed on the spine's
+  direction — measured before the change, a `bandRegion` ribbon differed
+  from the swept one at every corner (98 px on a rectangle, 24 on a
+  circle, none on a straight run), which is the corner treatment and
+  nothing else.
 - The close-out's open items are done: the colour and effect helpers onto
   material's, bar `lain_navi`'s plate program — a photographed city
   defocused past recognition is a picture rather than a shape with

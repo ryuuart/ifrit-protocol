@@ -778,6 +778,16 @@ in no header.
   `Formation::Centered`, `Outward` or `Inward`. A constant profile
   delegates to `parallel`, so corners get the real-vertex repair rather
   than the spur a sample-and-displace walk leaves inside every rectangle.
+  `sweptRegion()` is the OTHER construction of the same band and the two
+  differ at a hard turn: it builds no rail, unioning the band's
+  cross-sections instead, so the inside of a bend is overlap rather than
+  a crossing and the outside is whatever `Sweep::join` says — `SweepJoin`
+  being the point, the arc or the chord, the same decision a stroke's
+  join is. That vocabulary is the reason it exists, and so is `SweepWidth`,
+  a width read off a `SweepStation`: a pen NIB is widest where the spine
+  crosses it, which is a function of the tangent that no profile keyed on
+  arc length can express. A non-finite width pinches the band to the
+  spine rather than deleting the whole mark.
 - **`path/Frame.h`** — the two coordinate systems a figure is measured in.
   `Frame` converts `(angle, radius)` into a point, a rect or an
   arc-length fraction IN THE DRAWING'S OWN CONVENTION: `Zero::North` or

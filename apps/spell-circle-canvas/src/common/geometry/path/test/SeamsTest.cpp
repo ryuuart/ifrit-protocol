@@ -5,7 +5,10 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
+#include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
@@ -170,6 +173,104 @@ TEST(Band, TheRegionIsBoundedByTheWidthAndEmptyWithoutOne) {
   EXPECT_NEAR(outward.getBounds().height(), 20.0f, 1.0f);
   // A profile that is zero everywhere sweeps nothing.
   EXPECT_TRUE(bandRegion(spine, profile::self()).isEmpty());
+}
+
+// ---------------------------------------------------------------------------
+// The band SWEPT rather than zipped.
+
+/** A right angle, so a join has something to close. */
+SkPath elbow() {
+  SkPathBuilder b;
+  b.moveTo(40, 40);
+  b.lineTo(160, 40);
+  b.lineTo(160, 160);
+  return b.detach();
+}
+
+/** How many pixels of a 300 x 300 field @p path inks, aliased. */
+int inked(const SkPath& path) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(300, 300));
+  bm.eraseColor(SK_ColorBLACK);
+  SkCanvas canvas(bm);
+  SkPaint paint;
+  paint.setAntiAlias(false);
+  paint.setColor(SK_ColorWHITE);
+  canvas.drawPath(path, paint);
+  int on = 0;
+  for (int y = 0; y < 300; ++y)
+    for (int x = 0; x < 300; ++x)
+      if (bm.getColor(x, y) == SK_ColorWHITE) ++on;
+  return on;
+}
+
+TEST(Band, ASweptBandClosesItsTurnTheWayItsJoinSays) {
+  const SweepWidth constant = [](const SweepStation&) { return 24.0f; };
+  const SkPath spine = elbow();
+  const SkPath mitre = sweptRegion(spine, constant, {.join = SweepJoin::Miter});
+  const SkPath round = sweptRegion(spine, constant, {.join = SweepJoin::Round});
+  const SkPath bevel = sweptRegion(spine, constant, {.join = SweepJoin::Bevel});
+  ASSERT_FALSE(mitre.isEmpty());
+  // The point reaches furthest, the chord least, the arc between them —
+  // the same ordering a stroke's three joins have, because it is the same
+  // decision. Nothing else about the band differs, so the counts differ by
+  // the corner alone.
+  const int m = inked(mitre), r = inked(round), b = inked(bevel);
+  EXPECT_GT(m, r);
+  EXPECT_GT(r, b);
+  // …and none of them punches a hole on the INSIDE of the bend, which is
+  // what a reversed piece under the winding fill would do.
+  for (const SkPath& band : {mitre, round, bevel}) {
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(300, 300));
+    bm.eraseColor(SK_ColorBLACK);
+    SkCanvas canvas(bm);
+    SkPaint paint;
+    paint.setColor(SK_ColorWHITE);
+    canvas.drawPath(band, paint);
+    EXPECT_EQ(bm.getColor(152, 48), SK_ColorWHITE) << "a hole inside the bend";
+  }
+  // A run with no turn has no join to make, so all three are one band.
+  const SkPath straight = SkPath::Line({40, 40}, {200, 40});
+  EXPECT_EQ(inked(sweptRegion(straight, constant, {.join = SweepJoin::Miter})),
+            inked(sweptRegion(straight, constant, {.join = SweepJoin::Bevel})));
+}
+
+TEST(Band, ASweptWidthMayBeKeyedOnDirectionWhereAProfileCannot) {
+  // The reason a band is swept at all: a pen NIB is widest where the spine
+  // crosses it and thinnest along it, which is a function of the TANGENT —
+  // no profile keyed on arc length can say it. The elbow's two legs run at
+  // right angles, so one is fat and the other thin.
+  const SweepWidth nib = [](const SweepStation& at) {
+    const float a = std::atan2(at.tangent.y(), at.tangent.x());
+    return 4.0f + 20.0f * std::abs(std::sin(a));
+  };
+  const SkPath band = sweptRegion(elbow(), nib);
+  ASSERT_FALSE(band.isEmpty());
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(300, 300));
+  bm.eraseColor(SK_ColorBLACK);
+  SkCanvas canvas(bm);
+  SkPaint paint;
+  paint.setAntiAlias(false);
+  paint.setColor(SK_ColorWHITE);
+  canvas.drawPath(band, paint);
+  int wide = 0, thin = 0;
+  for (int y = 0; y < 300; ++y)
+    if (bm.getColor(100, y) == SK_ColorWHITE) ++thin;  // across the flat leg
+  for (int x = 0; x < 300; ++x)
+    if (bm.getColor(x, 100) == SK_ColorWHITE) ++wide;  // across the upright
+  EXPECT_LE(thin, 6);
+  EXPECT_GE(wide, 20);
+
+  // A law that answers nothing sweeps nothing, and a non-finite answer
+  // pinches to the spine rather than deleting the whole mark.
+  EXPECT_TRUE(sweptRegion(elbow(), {}).isEmpty());
+  const SkPath pinched = sweptRegion(elbow(), [](const SweepStation& at) {
+    return at.fraction < 0.5f ? 20.0f : std::nanf("");
+  });
+  EXPECT_FALSE(pinched.isEmpty());
+  EXPECT_TRUE(pinched.isFinite());
 }
 
 }  // namespace

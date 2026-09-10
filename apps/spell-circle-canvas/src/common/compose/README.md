@@ -819,19 +819,22 @@ brush and its composites — `brush::solid`, `brush::layers`,
 `brush::weave` and `brush::Restyled`; and the two shelves of leaf kinds
 beside it, `brush/Stamps.h` for the STAMPED ones (`brush::Scatter`,
 `brush::Pattern`, with `brush::Placement` and `brush::CornerArt`) and
-`brush/Ribbons.h` for the SWEPT ones (`brush::Ribbon`, `brush::Art`). A ribbon is the variable-width band, built
-as one quadrilateral per sampled step rather than as one long contour,
-because a band is the UNION of its cross-sections: zipped into a single
-left-forward, right-back outline the inner rail crosses itself where the
-spine turns hard, the crossing winds the wrong way, and the winding fill
-DROPS the inside of the bend — a hole that opens once the band is wider
-than about half the leg it turns on, and is then wider than the band.
-`Ribbon::join` is what happens on the OUTSIDE of that corner, an
-`SkPaint::Join` because it is the same decision a stroke makes: the
-chord, the arc, or the point (bevelling past `Ribbon::miterLimit`, which
-is also the one join whose bleed reaches past the width). `Ribbon::band`
-hands that geometry back, so a study that MEASURES what was drawn does
-not have to transcribe how it is built. `Ribbon::fillMaterial` paints the
+`brush/Ribbons.h` for the SWEPT ones (`brush::Ribbon`, `brush::Art`). A ribbon is the variable-width band, and the
+GEOMETRY is SigilGeometry's `geometry::path::sweptRegion`: the union of
+the band's cross-sections rather than one long contour, because zipped
+into a single left-forward, right-back outline the inner rail crosses
+itself where the spine turns hard, the crossing winds the wrong way, and
+the winding fill DROPS the inside of the bend — a hole that opens once
+the band is wider than about half the leg it turns on, and is then wider
+than the band. `Ribbon::join` is what happens on the OUTSIDE of that
+corner, an `SkPaint::Join` because it is the same decision a stroke
+makes: the chord, the arc, or the point (bevelling past
+`Ribbon::miterLimit`, which is also the one join whose bleed reaches past
+the width). What stays HERE is the WIDTH LAW — the linear taper, the
+`Profile`, and the calligraphic nib, whose width is a function of the
+spine's direction and so of a `geometry::path::SweepStation` rather than
+of arc length. `Ribbon::band` hands the geometry back, so a study that
+MEASURES what was drawn does not have to transcribe how it is built. `Ribbon::fillMaterial` paints the
 band with a recipe instead of a `Fill` — the door `strokeMaterial` opens
 on a stroke, mirrored here, so a ribbon beside a stroked outline does not
 have to have the same paint written twice; `brush::presets::taper` and
