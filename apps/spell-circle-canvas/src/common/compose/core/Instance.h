@@ -298,6 +298,15 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // back, because nothing else the staleness rules compare has moved: the
   // paint bounds are the same bounds whatever the clip did to them.
   SkIRect textureBakeClip = SkIRect::MakeEmpty();
+  // …AND THE MATRIX IT WAS DRAWN UNDER. The rect a device bake is measured
+  // to is whole device pixels, so a matrix that moves BELOW one leaves that
+  // rect where it was — and the picture inside it is not the same picture:
+  // an edge lands on another part of its pixel, a glyph takes another
+  // subpixel phase. A scale settling by a thousandth at the end of an
+  // entrance does it, and so does a node drifting a fraction of a pixel. A
+  // bake held across that blits the frame it was taken on, because nothing
+  // else the staleness rules compare has moved.
+  SkMatrix textureBakeMatrix = SkMatrix::I();
   // Which SPACE the held bake lives in, and therefore how it must be
   // blitted: a device-space bake is snapped to whole device pixels and
   // drawn with the matrix reset (a literal copy, at any angle); a local
@@ -564,6 +573,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   sk_sp<SkImage> ownImage;
   SkRect ownBakeRect = SkRect::MakeEmpty();    // device rect the bake covers
   SkIRect ownBakeClip = SkIRect::MakeEmpty();  // …and the clip that cut it
+  SkMatrix ownBakeMatrix = SkMatrix::I();      // …and the matrix it was
+                                               // drawn under, which moves
+                                               // below a whole device pixel
   float ownPaintMs = 0;                        // EMA of the own-paint cost
   uint8_t ownHotFrames = 0;
   // Consecutive frames on which the own bake had to be REMADE. A bake per

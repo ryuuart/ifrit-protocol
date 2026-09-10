@@ -127,7 +127,8 @@ bool paintTextureBake(PaintPass& pass) {
     const SkRect bakeRect = SkRect::Make(deviceR);
     if (!inst.textureImage || inst.paintDirty || !inst.textureDeviceSpace ||
         memoStale || inst.textureBakeRect != bakeRect ||
-        inst.textureBakeClip != pass.deviceClip()) {
+        inst.textureBakeClip != pass.deviceClip() ||
+        inst.textureBakeMatrix != totalM) {
       sk_sp<SkImage> baked;
       pass.profDraw("bake", [&] {
         baked = pass.takeDeviceBake(deviceR, [&](SkCanvas& lc) {
@@ -143,6 +144,7 @@ bool paintTextureBake(PaintPass& pass) {
         inst.textureEffectDeferred = false;
         inst.textureBakeRect = bakeRect;
         inst.textureBakeClip = pass.deviceClip();
+        inst.textureBakeMatrix = totalM;
         inst.textureScale = maxScaleOf(totalM, localBounds);
         inst.bakedLiveShader = inst.hasPendingLiveFill
                                    ? inst.pendingLiveFill.shaderValue

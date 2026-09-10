@@ -1448,8 +1448,11 @@ pictures are differenced channel by channel. The pair is judged by the
 three clauses above, each differing pixel against the bar for what it
 stands on: one code value over transparent black, two over content per
 composite the pixel stood under — counted into a plane the eager half is
-asked for — and the grazing case under a bar of its own, measured off the
-scenes that report the widest grazing edge. A scene past any of them is a promoted
+asked for — and the grazing case under a bar of its own, which is the
+quantizer's own step and not a scene's figure: Skia's supersampled scan
+converter samples four rows of a pixel, so coverage moves in quarters,
+and a quarter of the widest contrast an eight-bit plate can carry is
+sixty-four code values. A scene past any of them is a promoted
 node painting a different picture, and it is filed against this library. Because the on half is eager rather than measured, that sweep
 covers every promotable node in the registry and reports the same numbers
 on any machine. It is `sigil.py plates --tier promotion`, and it

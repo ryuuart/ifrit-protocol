@@ -110,7 +110,8 @@ bool paintGroupBake(PaintPass& pass) {
       const SkRect want = SkRect::Make(device);
       if (!inst.textureImage || !inst.textureDeviceSpace ||
           inst.textureEffectDeferred || inst.textureBakeRect != want ||
-          inst.textureBakeClip != pass.deviceClip()) {
+          inst.textureBakeClip != pass.deviceClip() ||
+          inst.textureBakeMatrix != pass.totalM) {
         // No leaf blend and no leaf opacity: bakes isolate, and the node's
         // own blend/opacity are applied by the saveLayer wrapping the blit
         // — which is why leafDirectBlend excludes Cache::Group.
@@ -125,6 +126,7 @@ bool paintGroupBake(PaintPass& pass) {
           inst.textureEffectDeferred = false;
           inst.textureBakeRect = want;
           inst.textureBakeClip = pass.deviceClip();
+          inst.textureBakeMatrix = pass.totalM;
           inst.textureScale = maxScaleOf(totalM, pass.localBounds());
           inst.paintDirty = false;
           // A group root never replays a recording. It can have made one on

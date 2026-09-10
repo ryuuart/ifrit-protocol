@@ -1461,3 +1461,73 @@ TEST(ComposeCache, ACachedRasterCostsThePixelItLandsOnOneCodeValue) {
     EXPECT_EQ(washThroughBakes(marks), marks)
         << marks << " bakes over one pixel";
 }
+
+namespace {
+
+/** A MARK THAT SETTLES A THOUSANDTH SHORT OF WHERE IT STARTED. The scale
+ *  lane runs a hair below one for the whole warm and reaches one on the
+ *  frame the still is taken, which moves the node's device geometry by far
+ *  less than a pixel: its rounded device rect never moves, its clip never
+ *  moves, and its content never changes. The mark is a stroked ellipse,
+ *  whose top and bottom run nearly tangent to the grid — where a
+ *  sub-pixel move costs a whole step of a pixel's coverage. */
+Element settlingStamp(const ch::Output<float>* lane) {
+  Element page = box().width(200).height(200).fill(Fill::color({0, 0, 0, 1}));
+  page.child(box()
+                 .absolute()
+                 .left(40)
+                 .top(70)
+                 .width(120)
+                 .height(60)
+                 .shape(geometry::shapes::circle())
+                 .stroke(FlatStroke{1.5f})
+                 .scale(lane)
+                 .key("stamp"));
+  return page;
+}
+
+std::vector<SkColor> stampAfterSettling(bool promoted) {
+  Host host(200, 200);
+  host.composer.setAutoTexturePromotion(promoted
+                                            ? Composer::PromotionPolicy::Eager
+                                            : Composer::PromotionPolicy::Off);
+  ch::Output<float> lane{0.997f};
+  host.composer.render(settlingStamp(&lane));
+  for (int i = 0; i < 8; ++i) host.frame();
+  lane = 1.0f;
+  host.composer.render(settlingStamp(&lane));
+  host.frame();
+  std::vector<SkColor> out;
+  out.reserve(200u * 200u);
+  for (int y = 0; y < 200; ++y)
+    for (int x = 0; x < 200; ++x) out.push_back(host.pixel(x, y));
+  return out;
+}
+
+}  // namespace
+
+TEST(ComposeCache, APromotedMarkIsRebakedWhenItsMatrixMovesInsideItsRect) {
+  // WHAT DECIDES A BAKE'S PIXELS IS THE MATRIX, NOT THE RECT. The rect a
+  // device bake is measured to is whole device pixels, so a matrix that
+  // moves below one leaves it exactly where it was — and the picture
+  // inside it is another picture: an edge lands on another part of its
+  // pixel, a glyph takes another subpixel phase. Nothing else the
+  // staleness rules compare moves with it, so a bake held across such a
+  // move blits the frame it was taken on for as long as the node's
+  // content stands still.
+  const std::vector<SkColor> promoted = stampAfterSettling(true);
+  const std::vector<SkColor> live = stampAfterSettling(false);
+  ASSERT_EQ(promoted.size(), live.size());
+  int worst = 0;
+  size_t differing = 0;
+  for (size_t i = 0; i < live.size(); ++i) {
+    if (live[i] == promoted[i]) continue;
+    ++differing;
+    for (int shift : {0, 8, 16, 24})
+      worst = std::max(worst, std::abs((int)((live[i] >> shift) & 0xffu) -
+                                       (int)((promoted[i] >> shift) & 0xffu)));
+  }
+  EXPECT_LE(worst, 2) << differing << " pixels moved, worst " << worst
+                      << " code values, when a promoted mark settled inside "
+                         "the device rect its bake was measured to";
+}

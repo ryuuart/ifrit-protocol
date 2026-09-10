@@ -203,7 +203,8 @@ bool paintPromotedBake(PaintPass& pass) {
     if (!inst.textureImage || inst.paintDirty || memoStale ||
         inst.textureEffectDeferred ||
         inst.textureBakeRect != SkRect::Make(device) ||
-        inst.textureBakeClip != pass.deviceClip()) {
+        inst.textureBakeClip != pass.deviceClip() ||
+        inst.textureBakeMatrix != totalM) {
       sk_sp<SkImage> baked;
       pass.profDraw("promote bake", [&] {
         baked = pass.takeDeviceBake(device, [&](SkCanvas& lc) {
@@ -218,6 +219,7 @@ bool paintPromotedBake(PaintPass& pass) {
         inst.textureEffectDeferred = false;
         inst.textureBakeRect = SkRect::Make(device);
         inst.textureBakeClip = pass.deviceClip();
+        inst.textureBakeMatrix = totalM;
         inst.bakedLiveShader = inst.hasPendingLiveFill
                                    ? inst.pendingLiveFill.shaderValue
                                    : nullptr;

@@ -108,14 +108,16 @@ GPU_TOLERANCE = {
 # no allocation, offset or clip removes it; only a bake taken at the canvas
 # origin does, at a full-canvas surface per promoted node.
 #
-# WHERE THE NUMBER COMES FROM: it is measured, not chosen. The two scenes
-# whose remainder that arithmetic was pinned on report a worst grazing
-# difference of 31 (minard_1869) and 38 (dunhuang_star_chart) — the bar is
-# those, rounded up. Both sit inside ONE supersample bucket at the contrast
-# their curves stand at: Skia's supersampled scan converter samples four
-# rows of each pixel, so the coarsest step an edge crossing one of them can
-# move a pixel by is a quarter of that pixel's own contrast, which is 64
-# code values between black and white.
+# WHERE THE NUMBER COMES FROM: THE RASTERISER'S OWN QUANTUM, and no scene.
+# Skia's supersampled scan converter samples four rows of each pixel
+# (`SK_SUPERSAMPLE_SHIFT` is 2), so the coverage it can answer for a pixel
+# moves in quarters and the coarsest step one crossing edge can make is a
+# quarter of that pixel's own contrast. The widest contrast an eight-bit
+# plate can carry is the whole range, 255, so one step is at most 64 code
+# values. That is the bar: one step of the quantizer the clause names, at
+# the contrast a plate can hold. It is not a tolerance measured off the
+# scenes that happen to graze — a bar taken from a picture moves when the
+# picture is fixed, and this one does not.
 #
 # The held-off plate is the reference, so it is the one that says which
 # bar a differing pixel is judged by; `--compare` reports the worst
@@ -123,7 +125,7 @@ GPU_TOLERANCE = {
 # than a picture that rounded.
 PROMOTION_DRIFT_CEILING = 1
 PROMOTION_DRIFT_CEILING_OVER_CONTENT = 2
-PROMOTION_DRIFT_CEILING_OVER_GRAZE = 40
+PROMOTION_DRIFT_CEILING_OVER_GRAZE = 64
 
 # …so the ON half is asked for the plane the content bar is priced by.
 PROMOTION_ON_COUNTED = PROMOTION_ON + ("--composites",)

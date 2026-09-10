@@ -134,7 +134,8 @@ bool paintSplitBake(PaintPass& pass) {
       // still passes every pixel test.
       const SkRect want = SkRect::Make(device);
       if (!inst.ownImage || inst.ownPaintDirty || inst.ownBakeRect != want ||
-          inst.ownBakeClip != pass.deviceClip()) {
+          inst.ownBakeClip != pass.deviceClip() ||
+          inst.ownBakeMatrix != pass.totalM) {
         sk_sp<SkImage> baked = pass.takeDeviceBake(device, [&](SkCanvas& lc) {
           const BakeLayerScope bakeLayer(&impl);
           impl.paintContent(inst, lc, impl.hostScale, leafBlend, leafOpacity,
@@ -144,6 +145,7 @@ bool paintSplitBake(PaintPass& pass) {
           inst.ownImage = std::move(baked);
           inst.ownBakeRect = want;
           inst.ownBakeClip = pass.deviceClip();
+          inst.ownBakeMatrix = pass.totalM;
           inst.ownPaintDirty = false;
           if (!impl.coverageTrace) impl.stats.texturesBaked++;
           // A bake per frame costs MORE than the live draw it replaced, so

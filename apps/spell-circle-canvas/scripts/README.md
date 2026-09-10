@@ -337,16 +337,17 @@ depth; a run with no plane prices every pixel at one composite, which is
 the bound this bar carried before it could count.
 
 Where the difference is CONFINED TO AN ANTIALIASED EDGE BOTH PLATES DRAW
-the bar is forty. One rounding along such an edge is one step of that
-pixel's coverage, and what a step costs is not a code value but whatever
-quantizer stands there: nothing along an edge that meets the grid
-squarely, and a whole supersample bucket where a curve runs nearly
-TANGENT to one. The forty is measured rather than chosen: the widest
-grazing edge any scene reports is 31, and it sits inside ONE supersample
-bucket at the contrast its curves stand at, a quarter of a pixel's own
-contrast being 64 code values between black and white. A scene standing
-under this bar says so on its verdict line, with the number of pixels it
-was.
+the bar is sixty-four. One rounding along such an edge is one step of
+that pixel's coverage, and what a step costs is not a code value but
+whatever quantizer stands there: nothing along an edge that meets the
+grid squarely, and a whole supersample step where a curve runs nearly
+TANGENT to one. The sixty-four is that quantizer's own size and no
+scene's: Skia's supersampled scan converter samples four rows of each
+pixel, so coverage moves in quarters, and a quarter of the widest
+contrast an eight-bit plate can carry is 64 code values. A bar taken from
+whichever picture happened to graze the hardest would move every time one
+of those pictures was fixed; this one does not. A scene standing under it
+says so on its verdict line, with the number of pixels it was.
 
 A SCENE MAY DECLARE THAT IT CANNOT BE JUDGED THIS WAY. A sketch whose
 picture is not linear in what went into it — `ctx.nonlinearPicture()`,
