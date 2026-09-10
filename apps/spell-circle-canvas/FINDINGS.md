@@ -6,23 +6,19 @@ restored. A work queue: delete an entry when it is fixed, and delete this
 file when it is empty.
 
 The merge-readiness review of branch `sigil/library-campaigns` against
-`main` (merge base `aabd3fe1b224`) and the fix pass that followed it are
-done; the full review reports are the files under `findings/`. What
-remains of them is below, then the standing entries.
+`main` (merge base `aabd3fe1b224`), the fix pass that followed it and
+the close-out of every item it raised are done; what stands below is
+what the tree holds now.
 
 ## Verification state on main
 
-Taken on the merged tree at the close of the session's work:
+Taken on the merged tree at the close of the review's record:
 
-- Release build: zero errors, zero warnings. `ctest`: 3418 of 3418,
+- Release build: zero errors, zero warnings. `ctest`: 3438 of 3438,
   every library's README compile-checked among them.
-- CPU plate tier: 195 scenes byte-identical; the four sketches whose
-  sliced inner-aligned strokes now paint were rebased with that cause,
-  and six more with the caching causes below — `aero desktop`,
-  `persona menu` and `y2k chrome` where a bake now holds the skirt an
-  effect under it filters, `dunhuang_star_chart` and `minard_1869` where
-  a bake now stands on the canvas's own grid, and `volatility_cost`,
-  whose subject is the runtime's own caching verdicts.
+- CPU plate tier: 195 scenes byte-identical; `chaucer_astrolabe` was
+  rebased after the degree conversion's one spelling moved 94 edge
+  pixels by five code values at most.
 - Device tier: 195 of 195 within the per-channel bar. Promotion tier:
   191 of 195 within the contract's three clauses; the rest is the entry
   below.
@@ -32,24 +28,11 @@ Taken on the merged tree at the close of the session's work:
 
 ## Rulings
 
-- The review's declines stand as closed. The last of the three is taken:
-  the band a ribbon fills is SigilGeometry's, and `turnedArea` is its
-  `signedArea`. The delegation is to `sweptRegion` and NOT to
-  `bandRegion`, because the two are different constructions and only one
-  of them can carry a join vocabulary or a width law keyed on the spine's
-  direction — measured before the change, a `bandRegion` ribbon differed
-  from the swept one at every corner (98 px on a rectangle, 24 on a
-  circle, none on a straight run), which is the corner treatment and
-  nothing else.
-- The close-out's open items are done: the colour and effect helpers onto
-  material's, bar `lain_navi`'s plate program — a photographed city
-  defocused past recognition is a picture rather than a shape with
-  props, and the library states that a consumer composing its own
-  grained body writes its own noise or asks for a preset. It stands on
-  the library's seam for a consumer program already; whether it becomes
-  a preset is a ruling, not a fix.
-- `findings/` is deleted once those land; the review's record lives
-  outside the repository.
+- `lain_navi`'s plate program stays in the sketch until the owner says
+  whether a defocused city becomes a material preset: it is a picture
+  rather than a shape with props, and the library states that a
+  consumer composing its own grained body writes its own noise or asks
+  for a preset.
 
 ## Automatic texture promotion moves 4 of 195 plates past the contract
 
