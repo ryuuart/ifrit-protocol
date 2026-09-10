@@ -296,8 +296,11 @@ const std::array<Observation, 17> kObs = {{
 // Y = 0.5). The grey gamme is the worked check: tone 10 of it must come out
 // #C0C0C0 and not #808080.
 
+using sigil::material::Lab;
 using sigil::material::linearToSrgb;
+using sigil::material::luminance;
 using sigil::material::srgbToLinear;
+using sigil::material::toLab;
 
 inline SkColor4f lerpLinear(SkColor4f a, SkColor4f b, float t) {
   return {linearToSrgb(srgbToLinear(a.fR) +
@@ -308,28 +311,6 @@ inline SkColor4f lerpLinear(SkColor4f a, SkColor4f b, float t) {
                        (srgbToLinear(b.fB) - srgbToLinear(a.fB)) * t),
           a.fA + (b.fA - a.fA) * t};
 }
-/** Relative luminance, Rec.709 / sRGB primaries. */
-inline float luminance(SkColor4f c) {
-  return 0.2126f * srgbToLinear(c.fR) + 0.7152f * srgbToLinear(c.fG) +
-         0.0722f * srgbToLinear(c.fB);
-}
-struct Lab {
-  float L, a, b;
-};
-inline Lab toLab(SkColor4f c) {
-  const float R = srgbToLinear(c.fR), G = srgbToLinear(c.fG),
-              B = srgbToLinear(c.fB);
-  const float X = 0.4124564f * R + 0.3575761f * G + 0.1804375f * B;
-  const float Y = 0.2126729f * R + 0.7151522f * G + 0.0721750f * B;
-  const float Z = 0.0193339f * R + 0.1191920f * G + 0.9503041f * B;
-  auto f = [](float t) {
-    return t > 216.0f / 24389.0f ? std::cbrt(t)
-                                 : (24389.0f / 27.0f * t + 16.0f) / 116.0f;
-  };
-  const float fx = f(X / 0.95047f), fy = f(Y), fz = f(Z / 1.08883f);
-  return {116.0f * fy - 16.0f, 500.0f * (fx - fy), 200.0f * (fy - fz)};
-}
-
 /** Chevreul's index n -> the sector's START angle in Skia degrees
  *  (0° = +x, sweeping clockwise). n = 0 is ROUGE, straight down. */
 inline float sectorStart(int n) {
