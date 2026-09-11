@@ -790,7 +790,10 @@ shape cache empties in one go and re-fills, costing one cold frame. The
 per-typeface, fallback, and varied-typeface maps are never pruned at all —
 `purgeAllCaches()` is the manual reset for a long-lived process whose
 typeface population churns. It is safe to call while shaped-word references
-are outstanding, because a `ShapedWord` owns its own data. (The tint-filter
+are outstanding, because a `ShapedWord` owns its own data. The full purge
+also releases optical-kerning profiles and per-face reference gaps; a shape-
+only purge retains those measurements. The font statistics count their
+queries independently of shaping calls. (The tint-filter
 table behind `GlyphRSXformBatches` is the one LRU: past its cap it drops
 its coldest entry rather than everything, so a working set sitting at the
 cap keeps the filter identities its batching depends on.)

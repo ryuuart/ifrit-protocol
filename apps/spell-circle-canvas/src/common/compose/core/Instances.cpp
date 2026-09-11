@@ -11,6 +11,7 @@
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/core/Shelf.h>
+#include <sigilskia/draw/Direct.h>
 
 #include <algorithm>
 #include <cmath>
@@ -144,10 +145,8 @@ void Pool::fly(float seconds, const std::function<float(float)>& ease) {
 int Atlas::cell(Element tree, SkSize logicalSize) {
   tree.width(logicalSize.width()).height(logicalSize.height());
   m_cells.push_back({std::move(tree), logicalSize});
-  // The sheet is now a different picture, so the texture promoted from
-  // the old one names nothing this atlas draws.
+  // The new cell list needs a new sheet image.
   m_sheet.reset();
-  gpuCache = {};
   ++m_revision;
   return (int)m_cells.size() - 1;
 }
@@ -293,7 +292,7 @@ void stamp(SkCanvas& canvas, const PaintContext& ctx, Atlas& atlas,
   batch.tex = tex;
   if (tinted) batch.colors = colors;
   if (nonUniform) batch.sizes = sizes;
-  skia::draw::drawSpriteAtlas(canvas, atlas.gpuCache, atlas.image(), batch,
+  skia::draw::drawSpriteAtlas(canvas, atlas.image(), batch,
                               SkSamplingOptions(atlas.filter()), blend);
 }
 

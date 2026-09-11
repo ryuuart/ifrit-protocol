@@ -6,8 +6,6 @@
 #include <sigildata/decode/Decoders.h>
 #include <sigilio/hub/Network.h>
 
-#include <system_error>
-
 namespace sigil::sketch {
 
 namespace {
@@ -94,19 +92,10 @@ bool Assets::poll() {
 
 bool requireCached(std::initializer_list<std::string_view> urls,
                    std::string* why, const std::filesystem::path& cacheDir) {
-  const std::filesystem::path dir =
-      cacheDir.empty() ? sigil::io::defaultNetworkCacheDir() : cacheDir;
   for (std::string_view url : urls) {
-    // A fetch persists only when it succeeded — an HTTP error writes
-    // nothing — so the file standing under the URL's own cache key is
-    // the whole question. Its SIZE is asked for too, because a write
-    // that was interrupted leaves a file that is there and holds
-    // nothing, and a sketch given nothing draws its stand-in anyway.
-    std::error_code ec;
-    const std::filesystem::path cached = dir / sigil::io::networkCacheKey(url);
-    if (std::filesystem::is_regular_file(cached, ec) && !ec &&
-        std::filesystem::file_size(cached, ec) > 0 && !ec)
-      continue;
+    // A present but empty resource cannot supply the sketch's art.
+    const auto bytes = sigil::io::probeNetworkCache(url, cacheDir);
+    if (bytes && *bytes > 0) continue;
     if (why)
       *why = "not in the IO hub's network cache on this machine \xe2\x80\x94 " +
              std::string(url);

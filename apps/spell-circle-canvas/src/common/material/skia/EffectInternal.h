@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+#include "PaintDetail.h"
+
 namespace sigil::material::skia {
 
 /** The two blurred levels of the pyramid at a declared range: the layer

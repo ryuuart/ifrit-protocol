@@ -316,7 +316,7 @@ void emitLeader(FontContext& fontContext, const Paragraph& paragraph,
   if (!leader || leader->glyphs.empty() || leader->advance <= 0) return;
   // The leader is shaped HERE and lives nowhere in the paragraph, so the
   // layout keeps the handle its runs borrow from.
-  result.shapedByTheLayout.push_back(leader);
+  LayoutAccess::retain(result, leader);
   const ShapedWord* const leaderWord = leader.get();
   const auto repeats =
       static_cast<int>(std::floor((gapEnd - gapStart) / leader->advance));

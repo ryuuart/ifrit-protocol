@@ -53,10 +53,12 @@ struct ShapedWord {
   /// `advance`/`advances` measure vertical pen travel.
   bool vertical = false;
 
-  /// Origin-relative blob built on first placement and reused by every frame
-  /// and every layout thereafter (shape once, reposition forever). Mutable
-  /// because building it is a pure cache fill on an otherwise-const value.
-  mutable sk_sp<SkTextBlob> blobCache;
+ private:
+  friend const sk_sp<SkTextBlob>& wordBlob(const ShapedWord&);
+  // Filled on first placement. Callers inspect or reuse the result through
+  // wordBlob; shared immutable glyphs cannot have their cached drawing
+  // replaced.
+  mutable sk_sp<SkTextBlob> m_blob;
 };
 
 /// Shared handle to a cache-owned, immutable ShapedWord — cheap to copy and

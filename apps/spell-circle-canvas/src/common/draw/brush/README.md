@@ -72,8 +72,8 @@ words are reset before the next.
 
 Deposition pushes and pops the pen around the mark, so the style and
 transform it found are restored while the transform still moves the
-mark. The round tips' sprite is promoted to a texture once per pen and
-kept in the pen's `Retained` store.
+mark. The round tips' sprite uses the canvas recorder's image provider,
+so pens drawing through one recorder share its retained texture.
 
 ### Strokes and fields
 

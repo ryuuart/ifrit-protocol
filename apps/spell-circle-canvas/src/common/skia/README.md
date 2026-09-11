@@ -325,9 +325,15 @@ particle whose aspect swings across its life needs.
 **They decompose on EVERY backend and never call the native op.** A
 picture recorded on a raster canvas must be able to replay on a Graphite
 one, and a recorded native lattice or atlas op vanishes there. The
-canvas's recorder gates only TEXTURE PROMOTION — `draw::ready` uploads a
-raster source through a per-owner `draw::Promoted` cache, because
-Graphite performs no implicit upload for direct image use.
+canvas's recorder gates only TEXTURE PROMOTION — `draw::ready` asks that
+recorder's image provider for a texture, so direct draws share the cache
+that ordinary image draws use. Each recorder created by `GraphiteContext`
+owns its provider; replacing a recorder also replaces its retained images.
+Callers hand over the canvas and image without any cache storage. An
+image provider that cannot supply a texture falls back to an uncached
+upload. This also serves a foreign recorder using Skia's default provider,
+which supplies no raster conversions. Raster canvases and images already
+on a texture pass through unchanged.
 
 This feature is unconditional where the rest of the library is gated:
 the ops vanish on a Graphite canvas whether or not this repository is the

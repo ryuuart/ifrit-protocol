@@ -220,7 +220,6 @@ std::vector<std::pair<std::string, Material>> everyMaterial() {
 // nowhere else.
 TEST(MaterialGpu, EveryRecipeCompilesOnTheDevice) {
   REQUIRE_GPU();
-  skia::install();
   const std::vector<std::pair<std::string, Material>> all = everyMaterial();
   // A count, so a list that quietly stopped enumerating cannot pass.
   ASSERT_GE(all.size(), 30u) << "the enumeration lost recipes";
@@ -248,7 +247,6 @@ TEST(MaterialGpu, EveryRecipeCompilesOnTheDevice) {
 // spellings that must still compile.
 TEST(MaterialGpu, TheDeviceRejectsABodyThatRedeclaresItsOwnParameter) {
   REQUIRE_GPU();
-  skia::install();
   constexpr char kCollides[] = R"(
     half4 main(float2 xy) {
       float2 pos = xy * 0.5;

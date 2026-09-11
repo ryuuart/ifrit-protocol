@@ -39,7 +39,6 @@ Effect Effect::filter(sk_sp<SkColorFilter> f) {
 }
 
 Effect Effect::recipe(const Material& material) {
-  install();
   static constexpr std::string_view kContent[] = {"content"};
   std::unique_ptr<SkRuntimeShaderBuilder> built =
       skia::builder(material, {}, {}, kContent);

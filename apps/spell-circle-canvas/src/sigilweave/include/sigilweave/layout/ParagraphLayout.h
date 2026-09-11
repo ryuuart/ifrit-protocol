@@ -36,6 +36,9 @@
 namespace sigil::weave {
 
 class FontContext;
+namespace detail {
+struct LayoutAccess;
+}
 
 /** Positioned output of one paragraph layout pass.
  *
@@ -49,12 +52,6 @@ class FontContext;
  */
 struct ParagraphLayout {
   std::vector<PositionedRun> runs;  ///< in logical word order, ready to draw
-  /// The few words this pass shaped for itself rather than finding in the
-  /// paragraph — a tab leader, an overflow marker, an initial letter and
-  /// the remainder of the word it split — held here so that the runs
-  /// pointing at them borrow from something with the layout's own
-  /// lifetime. Nothing reads this list; it exists to own.
-  std::vector<ShapedWordRef> shapedByTheLayout;
   /// Every flow interval the layout consumed, in the order the geometry
   /// handed them over — the numbering PositionedRun::intervalIndex uses.
   /// A caller that re-places transformed runs reads their geometry here
@@ -183,6 +180,11 @@ struct ParagraphLayout {
    */
   [[nodiscard]] std::vector<ColumnMetrics> columnMetrics(
       const Paragraph& paragraph) const;
+
+ private:
+  friend struct detail::LayoutAccess;
+  // Owns auxiliary glyphs for leaders, overflow markers and initial letters.
+  std::vector<ShapedWordRef> m_shapedWords;
 };
 
 /** Lays `paragraph` out into `geometry`, starting at `firstWord`. Ensures

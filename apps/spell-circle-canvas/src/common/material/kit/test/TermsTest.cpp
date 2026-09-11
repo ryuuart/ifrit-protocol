@@ -41,7 +41,6 @@ struct NoParams {
 /** ONE BODY, EVALUATED: compiled through the Skia backend and drawn over
  *  one texel of a float surface. */
 SkColor4f shadeBody(const std::string& body) {
-  skia::install();
   static int serial = 0;
   const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<NoParams>("term." + std::to_string(serial++))

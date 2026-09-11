@@ -12,12 +12,9 @@
  * instead of failing. `Offline` never touches the network: a cache hit,
  * or nothing.
  *
- * The cache is a directory of files named by `networkCacheKey(url)` —
- * hex of the URL's hash plus the URL path's extension, so a decoder's
- * path hints keep working — and it is exposed precisely so a caller can
- * PRE-SEED it. That is what this sheet does: it encodes a picture,
- * writes it under the key one URL maps to, and then asks four hubs for
- * two URLs, one seeded and one not.
+ * A caller can pre-seed a URL with `seedNetworkCache`. This sheet encodes
+ * a picture, seeds one URL, and then asks four hubs for two URLs, one
+ * seeded and one not.
  *
  * So nothing here reaches the network, and the sheet is the same picture
  * on a machine with a connection and on one without: the host used is a
@@ -26,7 +23,7 @@
  *
  * EDIT THESE FIRST
  *   kSeeded, kMissing — the two URLs, one of which is pre-seeded.
- *   kCacheDir — the directory the seed is written into.
+ *   cacheDir — the directory the seed is written into.
  */
 
 #include <include/core/SkCanvas.h>
@@ -39,10 +36,10 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Network.h>
-#include <sigilio/source/Sink.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
+#include <cstddef>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -105,14 +102,14 @@ struct NetPolicy final : sketch::Sketch {
     // every ask has already been answered
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    // THE PRE-SEED: the cache is a directory of files named by the key a
-    // URL maps to, and the key is exposed for exactly this.
+    // Seed the URL before any hub reads it.
     const std::filesystem::path cacheDir =
         std::filesystem::temp_directory_path() / "sigil-net-policy";
-    std::filesystem::create_directories(cacheDir);
-    const std::string key = io::networkCacheKey(kSeeded);
     if (sk_sp<SkData> bytes = seedBytes())
-      io::writeBytes(cacheDir / key, bytes->data(), bytes->size());
+      io::seedNetworkCache(
+          kSeeded,
+          {static_cast<const std::byte*>(bytes->data()), bytes->size()},
+          cacheDir);
 
     /** One hub, one policy, one ask — a hub of its own each time,
      *  because the policy governs the FIRST ask and an entry already
@@ -142,9 +139,7 @@ struct NetPolicy final : sketch::Sketch {
         {.title = toU8("THE NETWORK POLICIES \xc2\xb7 Hub::"
                        "setNetworkPolicy over a pre-seeded cache"),
          .subtitle = toU8("dials \xc2\xb7 the policy \xc2\xb7 which URL "
-                          "is seeded \xc2\xb7 the cache directory "
-                          "\xc2\xb7 the key a URL maps to, which is what "
-                          "makes seeding possible at all"),
+                          "is seeded \xc2\xb7 the cache directory"),
          .footer = toU8("the host is a reserved name that cannot "
                         "resolve, so nothing here leaves the machine "
                         "\xe2\x80\x94 which is what makes the Refresh "

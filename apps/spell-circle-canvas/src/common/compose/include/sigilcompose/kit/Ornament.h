@@ -13,6 +13,7 @@
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkSurface.h>
 #include <include/effects/SkDashPathEffect.h>
 #include <include/effects/SkPerlinNoiseShader.h>
 #include <sigilcompose/Compose.h>

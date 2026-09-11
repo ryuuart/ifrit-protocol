@@ -51,14 +51,13 @@ BENCHMARK(GatherStock);
  *  outside the loop, so this arm is the compiler's time and not the
  *  disk's. */
 void warm(benchmark::State& state, Catalogue catalogue) {
-  skia::install();
   const std::vector<Material> recipes = catalogue();
   size_t compiled = 0;
   for ([[maybe_unused]] auto iteration : state) {
     state.PauseTiming();
     ProgramCache::shared().clear();
     state.ResumeTiming();
-    WarmupResult result = warmup(recipes, Target::SkSL);
+    WarmupResult result = skia::warmup(recipes);
     compiled = result.unique;
     benchmark::DoNotOptimize(result);
   }
@@ -77,12 +76,11 @@ BENCHMARK(WarmStock);
 /** The whole call a host makes, gather and compile together, against a
  *  cache holding nothing: the number a first frame waits on. */
 void WarmStockFromCold(benchmark::State& state) {
-  skia::install();
   for ([[maybe_unused]] auto iteration : state) {
     state.PauseTiming();
     ProgramCache::shared().clear();
     state.ResumeTiming();
-    WarmupResult result = stock::warmup(Target::SkSL);
+    WarmupResult result = skia::warmup(stock::everyRecipe());
     benchmark::DoNotOptimize(result);
   }
 }

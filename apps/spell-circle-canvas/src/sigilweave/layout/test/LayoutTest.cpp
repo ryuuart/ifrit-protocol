@@ -306,12 +306,7 @@ TEST(LineMetricsQuery, MixedFontsGrowTheLineBand) {
       << "the 40px span must raise the mixed line's ascent";
 }
 
-TEST(ParagraphLayout, EveryRunBorrowsFromTheParagraphOrFromTheLayoutItself) {
-  // A run points at a ShapedWord it does not own. The words a pass shapes
-  // for itself — a tab leader, an overflow marker, an initial and the
-  // remainder of the word it split — are held in `shapedByTheLayout`, and
-  // that list is the only thing keeping those pointers alive: a run
-  // pointing at neither would be reading a freed word.
+TEST(ParagraphLayout, CopiesAndMovesKeepAuxiliaryGlyphsAliveAfterCachePurge) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"Whale\troads open under a sky the colour of pewter and the boats "
@@ -329,19 +324,23 @@ TEST(ParagraphLayout, EveryRunBorrowsFromTheParagraphOrFromTheLayoutItself) {
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph, flow, options);
   ASSERT_TRUE(layout.initial.placed);
-  ASSERT_FALSE(layout.shapedByTheLayout.empty());
-
-  // Moved, because a layout is handed on by value and the runs must keep
-  // pointing at what the moved-to layout holds.
-  const ParagraphLayout moved = std::move(layout);
-  for (const PositionedRun& run : moved.runs) {
+  ASSERT_TRUE(layout.ellipsized);
+  size_t auxiliaryRuns = 0;
+  for (const PositionedRun& run : layout.runs) {
     if (!run.shaped) continue;
-    bool held = false;
-    for (const ShapedWordRef& kept : moved.shapedByTheLayout)
-      if (kept.get() == run.shaped) held = true;
+    bool paragraphOwned = false;
     for (const Word& word : paragraph.words())
       for (const WordSegment& segment : word.segments())
-        if (segment.shaped.get() == run.shaped) held = true;
-    EXPECT_TRUE(held) << "a run points at a word nobody holds";
+        if (segment.shaped.get() == run.shaped) paragraphOwned = true;
+    if (!paragraphOwned) ++auxiliaryRuns;
   }
+  ASSERT_GT(auxiliaryRuns, 0u);
+  const SkPath outline = layout.glyphOutline();
+  ASSERT_FALSE(outline.isEmpty());
+
+  ParagraphLayout copy = layout;
+  layout = {};
+  fontContext.purgeAllCaches();
+  const ParagraphLayout moved = std::move(copy);
+  EXPECT_EQ(moved.glyphOutline(), outline);
 }

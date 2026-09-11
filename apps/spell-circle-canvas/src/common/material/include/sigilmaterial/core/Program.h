@@ -19,6 +19,9 @@
 namespace sigil::material {
 
 class Material;
+namespace detail {
+struct CompilerDefaults;
+}  // namespace detail
 
 /** A recipe compiled for one target and variant. The base carries what
  *  every backend shares; a backend's compiler returns a subclass holding
@@ -117,6 +120,7 @@ class ProgramCache {
   void clear();
 
  private:
+  friend struct detail::CompilerDefaults;
   struct Impl;
   std::unique_ptr<Impl> m_impl;
 };

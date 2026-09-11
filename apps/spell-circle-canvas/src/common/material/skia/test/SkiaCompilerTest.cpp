@@ -37,20 +37,19 @@ constexpr const char* kBody =
 }  // namespace
 
 TEST(SkiaCompiler, TwoUniformRecipeMatchesHandCompiledSkSL) {
-  skia::install();
   auto recipe = std::make_shared<const Recipe>(
       Recipe::of<TwoParams>("two").body(Target::SkSL, kBody));
   Material m(recipe, TwoParams{0.5f, {0.8f, 0.4f, 0.2f, 1.0f}});
   EXPECT_FALSE(m.isAnimated());
 
   const FrameData frame;
+  sk_sp<SkShader> ours = skia::shader(m, frame);
+  ASSERT_NE(ours, nullptr);
   Material::Resolved resolved = m.resolve(Target::SkSL, frame);
   ASSERT_NE(resolved.program, nullptr);
   const auto* program = resolved.program->as<skia::SkiaProgram>();
   ASSERT_NE(program, nullptr);
   EXPECT_EQ(program->target(), Target::SkSL);
-  sk_sp<SkShader> ours = skia::shader(m, frame);
-  ASSERT_NE(ours, nullptr);
 
   auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(
       "uniform float uScale;\nuniform float4 uColor;\n" + std::string(kBody)));
@@ -73,7 +72,6 @@ TEST(SkiaCompiler, TwoUniformRecipeMatchesHandCompiledSkSL) {
 }
 
 TEST(SkiaCompiler, ChildSlotSamplesAnotherMaterial) {
-  skia::install();
   auto inner = std::make_shared<const Recipe>(
       Recipe::of<TwoParams>("inner").body(Target::SkSL, kBody));
   auto outer = std::make_shared<const Recipe>(
@@ -89,12 +87,11 @@ TEST(SkiaCompiler, ChildSlotSamplesAnotherMaterial) {
 }
 
 TEST(SkiaCompiler, ABodyThatDoesNotCompileResolvesToNoProgram) {
-  skia::install();
   auto broken = std::make_shared<const Recipe>(
       Recipe::of<TwoParams>("broken").body(Target::SkSL, "half4 main("));
   Material m(broken);
-  EXPECT_EQ(m.resolve(Target::SkSL, FrameData{}).program, nullptr);
   EXPECT_EQ(skia::shader(m, FrameData{}), nullptr);
+  EXPECT_EQ(m.resolve(Target::SkSL, FrameData{}).program, nullptr);
 }
 
 namespace {
@@ -158,7 +155,6 @@ const ReservedName kReservedNames[] = {
 }  // namespace
 
 TEST_P(BodyOverAReservedName, ResolvesToNoProgramWhereItRedeclaresAParameter) {
-  skia::install();
   static int serial = 0;
   const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<TwoParams>("reserved." + std::to_string(serial++))

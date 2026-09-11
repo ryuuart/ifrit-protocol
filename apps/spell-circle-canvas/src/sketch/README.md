@@ -210,10 +210,10 @@ static bool available(std::string* why) {
 }
 ```
 
-`requireCached` asks SigilIO's cache the IO hub's own way and never
-the network: a machine that has fetched once is available offline
-forever after, and one that never has stands down with the first
-missing URL as the reason.
+`requireCached` asks SigilIO for each URL's cached byte count without
+contacting the network. A nonempty resource is available offline while it
+remains cached; a missing or empty resource stands down with the first URL
+as the reason.
 
 ### The shared web engine is a host option
 

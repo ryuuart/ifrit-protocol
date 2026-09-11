@@ -136,7 +136,6 @@ struct OcioView final : sketch::Sketch {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    material::skia::install();  // the SkSL compiler, once per process
 
     const bool have = ocio::available();
 

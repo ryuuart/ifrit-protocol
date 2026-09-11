@@ -48,7 +48,6 @@ constexpr const char* kBody =
 }  // namespace
 
 TEST(SkiaPaint, APassBodyIsNotCompiledAsAShaderOfItsOwn) {
-  skia::install();
   // A pass body is written against declarations the fx() runtime
   // prepends once it knows the track's unit count. Compiled standalone it
   // names four things that do not exist yet and the compiler reports one
@@ -64,7 +63,6 @@ TEST(SkiaPaint, APassBodyIsNotCompiledAsAShaderOfItsOwn) {
                 "    c += half4(uUnitRect[i]) * uUnitPhase[i].x;\n"
                 "  return c * half4(uColor * uScale);\n"
                 "}"));
-  EXPECT_TRUE(skia::detail::isPassBody(*pass));
   std::string said;
   {
     testing::internal::CaptureStderr();
@@ -79,7 +77,6 @@ TEST(SkiaPaint, APassBodyIsNotCompiledAsAShaderOfItsOwn) {
   // An ordinary recipe is unaffected: it still compiles at the paint.
   auto plain = std::make_shared<const Recipe>(
       Recipe::of<TwoParams>("pass.notone").body(Target::SkSL, kBody));
-  EXPECT_FALSE(skia::detail::isPassBody(*plain));
   EXPECT_NE(skia::Paint::recipe(Material(plain)).staticShader(), nullptr);
 }
 

@@ -25,6 +25,8 @@
 
 namespace sigil::weave {
 
+struct ShapedWord;
+
 /// Per-thread service object owning the shaping and font-resolution caches:
 ///   - hb_face/hb_font per SkTypeface (font data is parsed once, ever)
 ///   - per-(typeface, code point, language) glyph coverage + font fallback
@@ -159,8 +161,8 @@ class FontContext {
   void purgeShapeCache();
 
   /** Drops every cache this context owns: shape results, the per-typeface
-   * HarfBuzz faces/fonts, glyph-coverage/fallback memos, and interned
-   * language ids.
+   * HarfBuzz faces/fonts, glyph-coverage/fallback memos, varied clones,
+   * optical-kerning measurements and interned language ids.
    *
    * For long-lived processes whose typeface population changes over time —
    * the per-typeface and per-(typeface, codepoint) maps are otherwise never
@@ -175,18 +177,22 @@ class FontContext {
     uint64_t shapeCacheHits = 0;   ///< words served from the cache
     uint64_t fallbackQueries = 0;  ///< fallback-resolver invocations
     uint64_t coverageQueries = 0;  ///< uncached glyph-coverage probes
+    uint64_t opticalProfileQueries =
+        0;  ///< glyph outlines measured for kerning
+    uint64_t opticalReferenceQueries = 0;  ///< per-face reference gaps measured
   };
   /** Returns cumulative cache and shaping counters. */
   [[nodiscard]] const Stats& stats() const;
   /** Resets observable counters without clearing any caches. */
   void resetStats();
 
-  /// Implementation access for Shaper.cpp / Paragraph.cpp only.
-  struct Impl;
-  /** Returns internal per-thread services used by pipeline implementation. */
-  [[nodiscard]] Impl& impl() { return *m_impl; }
-
  private:
+  friend std::shared_ptr<const ShapedWord> shapeWord(FontContext&,
+                                                     const ShapingStyle&,
+                                                     const sk_sp<SkTypeface>&,
+                                                     std::u16string_view,
+                                                     uint32_t, bool, bool);
+  struct Impl;
   std::unique_ptr<Impl> m_impl;
 };
 

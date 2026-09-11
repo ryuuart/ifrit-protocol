@@ -142,7 +142,6 @@ struct FieldShelf final : sketch::Sketch {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    material::skia::install();  // the SkSL compiler, once per process
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("FIELD SHELF \xc2\xb7 field:: halftoneRamp, noise, "

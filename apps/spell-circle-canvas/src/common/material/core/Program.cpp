@@ -17,6 +17,7 @@
 #include <mutex>
 #include <vector>
 
+#include "ProgramInternal.h"
 #include "sigilmaterial/core/Material.h"
 
 namespace sigil::material {
@@ -63,6 +64,13 @@ ProgramCache& ProgramCache::shared() {
 void ProgramCache::registerCompiler(Target target, Compiler compiler) {
   std::lock_guard lock(m_impl->mutex);
   m_impl->compilers[target] = std::move(compiler);
+}
+
+void detail::CompilerDefaults::registerIfAbsent(Target target,
+                                                Compiler compiler) {
+  ProgramCache& cache = ProgramCache::shared();
+  std::lock_guard lock(cache.m_impl->mutex);
+  cache.m_impl->compilers.try_emplace(target, std::move(compiler));
 }
 
 bool ProgramCache::hasCompiler(Target target) const {

@@ -302,7 +302,6 @@ struct ShapeworksLab : sketch::Sketch {
                         .captureAt = 2.6,
                         .background = SkColor4f{0.05f, 0.048f, 0.088f, 1}});
 
-    material::skia::install();
     studio = material::kit::studioEnvironment();
 
     // The recipe, cooked once. A path operator chain is a DESCRIPTION —

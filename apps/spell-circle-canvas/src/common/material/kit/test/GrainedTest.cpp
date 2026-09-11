@@ -21,7 +21,6 @@ using sigil::material::test::luminance;
 using sigil::material::test::shade;
 
 TEST(Grained, EveryRecipeCompilesAndTwoSeedsAreTwoPieces) {
-  skia::install();
   for (const Material& m :
        {kit::stone(), kit::timber(), kit::latten(), kit::board()}) {
     EXPECT_TRUE(skia::shader(m, {}));

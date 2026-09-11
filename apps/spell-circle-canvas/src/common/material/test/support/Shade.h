@@ -50,7 +50,6 @@ inline SkBitmap render(const sk_sp<SkShader>& shader, int width = 4,
 /** …and @p m compiled through the Skia backend and painted the same way,
  *  with the surface's own size as the resolution the body reads. */
 inline SkBitmap render(const Material& m, int width, int height) {
-  skia::install();
   return render(skia::shader(m, {.resolution = {(float)width, (float)height}}),
                 width, height);
 }
@@ -58,7 +57,6 @@ inline SkBitmap render(const Material& m, int width, int height) {
 /** @p m FILLING a rect over a black ground, which is what a caller who
  *  paints a shape with a material gets. */
 inline SkBitmap shade(const Material& m, int width, int height) {
-  skia::install();
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
   surface->getCanvas()->clear(SK_ColorBLACK);

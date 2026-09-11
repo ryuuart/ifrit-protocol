@@ -32,6 +32,7 @@
  */
 
 #include <include/core/SkBitmap.h>
+#include <include/core/SkSurface.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

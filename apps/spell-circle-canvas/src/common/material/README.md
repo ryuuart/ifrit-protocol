@@ -70,7 +70,7 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles; `pattern::Cloth`, the woven cloth, with `threadcount`, `pivots`, `Weave` and `warpUp` under it | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
-| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::verticalRamp` and `skia::unitRamp`, the two crossings a list of `RampStop`s reaches Skia through, with `skia::paletteImage` and `skia::paletteLookup` the palette's two beside them; `skia::palette`, the picture read down to the table it is made of; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
+| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::verticalRamp` and `skia::unitRamp`, the two crossings a list of `RampStop`s reaches Skia through, with `skia::paletteImage` and `skia::paletteLookup` the palette's two beside them; `skia::palette`, the picture read down to the table it is made of; `skia::Paint`, the model as ONE shader, with `skia::PassInputs` for a pass over a layer; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
 | `SigilMaterialKit` | the presets: the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board` with `kit::lattenTone` reading the last one's ladder on the CPU; the orthographic `kit::globe`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
 | `SigilMaterialStock` | `stock::everyRecipe()`, one instance of every recipe this library ships gathered from the catalogues that own them, and `stock::warmup(target)`, which compiles the list into the shared program cache before a host's first frame | SigilMaterialCore; SigilMaterialField, SigilMaterialSdf, SigilMaterialKit and SigilCoreSchedule privately |
@@ -124,9 +124,6 @@ m.bind("uScale", &scaleOutput);        // a choreograph::Output<float>
 m.bind("uBars", spectrumBlock);        // a shared_ptr<UniformBlock>, 8 floats
 m.child("uSrc", Material(gradientRecipe, GradientParams{...}));
 
-// A renderer, once:
-skia::install();                        // registers the SkSL compiler
-
 // A renderer, per frame:
 FrameData frame{.seconds = clock.now(), .resolution = {w, h}};
 sk_sp<SkShader> shader = skia::shader(m, frame);
@@ -135,12 +132,18 @@ sk_sp<SkShader> shader = skia::shader(m, frame);
 `skia::shader` is the whole Skia path: it resolves the material, builds
 over the program's effect with every uniform set from the resolved bytes,
 binds each child slot — a material child resolved recursively, a texture
-leaf as its image shader — and makes the shader. A renderer that needs
-the pieces takes them apart the same way — `m.resolve(Target::SkSL,
-frame)` returns the `Program` and the bytes, and
-`program->as<skia::SkiaProgram>()->upload(builder, bytes)` fills a builder
-the renderer made over `program->effect()`. `skia::fill(canvas, path, m)`
+leaf as its image shader — and makes the shader. The Skia backend prepares
+its compiler on first use; drawing needs no registration step. A renderer
+that fills some child slots itself uses `skia::builder(m, frame, variant,
+leave)`, which prepares the same program and leaves the named slots for
+the caller. `skia::fill(canvas, path, m)`
 is the one-call draw: clip to the path, paint the shader across it.
+
+A renderer applying a recipe-backed paint to a layer calls
+`skia::Paint::resolvePass` with `skia::PassInputs` from
+`<sigilmaterial/skia/Pass.h>`. The inputs supply the content shader, unit
+rectangles, progress and seeds. The paint owns shader specialization and
+program reuse for each unit count.
 
 A surface from the kit reads the same way, its slots filled with textures:
 
@@ -234,9 +237,13 @@ field unread is reported the same way.
 **One program cache.** `ProgramCache::shared()` holds every compiled
 program in the process, keyed by (recipe identity, target, variant). A
 backend registers its compiler with `registerCompiler(Target, Compiler)`
-and the cache compiles on first use. `SigilMaterialSkia` registers the
-SkSL one with `skia::install()`; a device renderer registers the Slang
-one, since only the renderer knows the scaffold a body is appended to. `Variant` is a small ordered key the
+and the cache compiles on first use. Every Skia lowering entry prepares
+the built-in SkSL compiler automatically, including `skia::builder`,
+`skia::shader`, `skia::fill`, recipe-backed paints and recipe-backed effects.
+An explicitly registered SkSL compiler takes precedence for subsequent
+compilation, whether registered before or after the first draw. A device renderer registers the
+Slang compiler, since only that renderer knows the scaffold a body is
+appended to. `Variant` is a small ordered key the
 backend owns the meaning of — a premultiplied build, a debug view — and
 the default variant is the plain build.
 
@@ -841,7 +848,11 @@ device renderer warming its pipeline cache, and the device sweep below.
 A recipe added to one of those features belongs in its list.
 
 Every body those instances carry is already in the archive, so building the
-list opens nothing. `material::warmup(requests)` folds identical recipe,
+list opens nothing. A Skia host can prepare the entire catalogue with
+`skia::warmup(stock::everyRecipe())`, or pass only the materials it uses.
+This prepares the backend and compiles its distinct programs before the
+first draw; omitting warm-up leaves compilation to first use.
+`material::warmup(requests)` folds identical recipe,
 target and variant keys and compiles distinct keys concurrently;
 `material::warmup(materials, target, variant)` is the catalogue-shaped
 spelling. A request arriving while the same key is compiling shares that

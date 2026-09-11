@@ -13,8 +13,8 @@
  *  - lattice → per-cell drawImageRect (NinePatch alternating bands),
  *  - atlas   → one drawVertices quad list sampling the promoted sheet.
  * `canvas.recorder()` gates only TEXTURE PROMOTION: raster source images
- * promote through a per-owner cache because Graphite performs no implicit
- * uploads for direct image use.
+ * promote through the recorder's image provider, which owns their reuse.
+ * A provider miss falls back to an uncached upload.
  */
 
 #include <include/core/SkBlendMode.h>
@@ -28,44 +28,29 @@
 #include <include/core/SkSize.h>
 #include <include/core/SkVertices.h>
 #include <include/gpu/graphite/Image.h>
+#include <include/gpu/graphite/ImageProvider.h>
 #include <include/gpu/graphite/Recorder.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace sigil::skia::draw {
 
-/** One promoted texture, keyed by (source image, recorder) — hold one per
- *  owning value (a Slice, an Atlas) so re-draws reuse the upload.
- *
- *  THE SOURCE IS ITS IDENTITY, never its address: an owner that re-bakes
- *  its image frees the old one, and a fresh image at the recycled address
- *  would be answered with the texture of the picture before it. */
-struct Promoted {
-  sk_sp<SkImage> image;
-  uint32_t sourceId = 0;
-  const void* recorder = nullptr;
-};
-
 /** @p img ready for Graphite: the cached or freshly promoted texture
- *  (unchanged on raster canvases / already-texture images; falls back to
- *  @p img when promotion fails). */
-inline sk_sp<SkImage> ready(Promoted& cache, sk_sp<SkImage> img,
-                            SkCanvas& canvas) {
+ *  (unchanged on raster canvases / already-texture images). The recorder's
+ *  image provider owns reuse. When it cannot supply a texture, an uncached
+ *  upload is attempted; a failed upload returns @p img. */
+inline sk_sp<SkImage> ready(SkCanvas& canvas, sk_sp<SkImage> img) {
   skgpu::graphite::Recorder* recorder = canvas.recorder();
   if (!recorder || !img || img->isTextureBacked()) return img;
-  if (cache.image && cache.sourceId == img->uniqueID() &&
-      cache.recorder == recorder)
-    return cache.image;
-  sk_sp<SkImage> texture = SkImages::TextureFromImage(recorder, img.get(), {});
-  if (!texture) return img;
-  cache.image = texture;
-  cache.sourceId = img->uniqueID();
-  cache.recorder = recorder;
-  return texture;
+  sk_sp<SkImage> texture =
+      recorder->clientImageProvider()->findOrCreate(recorder, img.get(), {});
+  if (!texture) texture = SkImages::TextureFromImage(recorder, img.get(), {});
+  return texture ? std::move(texture) : std::move(img);
 }
 
 namespace detail {
@@ -125,7 +110,7 @@ inline void latticeEdges(const std::vector<int>& divs, float srcLen,
 /** drawImageLattice on every backend (see the file comment). Empty divs
  *  stretch the whole image (plain drawImageRect). @p density is the source's
  *  pixels per destination unit — see latticeEdges. */
-inline void drawLattice(SkCanvas& canvas, Promoted& cache, sk_sp<SkImage> img,
+inline void drawLattice(SkCanvas& canvas, sk_sp<SkImage> img,
                         const std::vector<int>& xDivs,
                         const std::vector<int>& yDivs, const SkRect& dst,
                         SkFilterMode filter, float density = 1.0f) {
@@ -141,7 +126,7 @@ inline void drawLattice(SkCanvas& canvas, Promoted& cache, sk_sp<SkImage> img,
   // recording canvas, and a recorded native lattice op would still vanish
   // when the picture replays on Graphite; recorded drawImageRects replay
   // fine (the shader path consults the ImageProvider).
-  img = ready(cache, std::move(img), canvas);
+  img = ready(canvas, std::move(img));
   std::vector<float> sx, dx, sy, dy;
   detail::latticeEdges(xDivs, (float)img->width(), dst.width(), sx, dx,
                        density);
@@ -220,21 +205,21 @@ struct SpriteBatch {
  *  A batch whose lanes disagree draws NOTHING: a short lane is a caller
  *  bug, and reading past it is the failure the batch exists to make
  *  impossible. */
-inline void drawSpriteAtlas(SkCanvas& canvas, Promoted& cache,
-                            sk_sp<SkImage> sheet, const SpriteBatch& batch,
+inline void drawSpriteAtlas(SkCanvas& canvas, sk_sp<SkImage> sheet,
+                            const SpriteBatch& batch,
                             const SkSamplingOptions& sampling,
                             SkBlendMode blend = SkBlendMode::kSrcOver) {
   if (!sheet || batch.empty() || !batch.consistent()) return;
   // ALWAYS decomposed (see drawLattice): raster's native drawAtlas lowers
   // to the same vertices internally, and a recorded drawVertices replays
   // on Graphite where a recorded native atlas op would vanish.
-  sheet = ready(cache, std::move(sheet), canvas);
+  sheet = ready(canvas, std::move(sheet));
   // uint16 indices cap one vertex list at 16383 sprites — chunk above it.
   constexpr size_t kMaxSprites = 16000;
   size_t count = batch.size();
   for (size_t start = 0; count - start > kMaxSprites; start += kMaxSprites)
-    drawSpriteAtlas(canvas, cache, sheet, batch.slice(start, kMaxSprites),
-                    sampling, blend);
+    drawSpriteAtlas(canvas, sheet, batch.slice(start, kMaxSprites), sampling,
+                    blend);
   const size_t tail = (count - 1) % kMaxSprites + 1;
   const SpriteBatch run = batch.slice(count - tail, tail);
   const SkRSXform* xforms = run.xforms.data();

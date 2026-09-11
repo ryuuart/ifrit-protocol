@@ -24,6 +24,12 @@
 namespace sigil::weave {
 namespace detail {
 
+struct LayoutAccess {
+  static void retain(ParagraphLayout& layout, const ShapedWordRef& word) {
+    layout.m_shapedWords.push_back(word);
+  }
+};
+
 struct FlatInterval {
   LineInterval interval;
   int sourceLineIndex = 0;

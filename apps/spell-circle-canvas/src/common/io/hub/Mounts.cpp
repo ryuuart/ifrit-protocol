@@ -79,9 +79,8 @@ void Hub::mount(std::string prefix, std::filesystem::path dir) {
 }
 
 bool Hub::write(std::string_view uri, const void* bytes, size_t size) {
-  // A network URI is fetched, never stored: the disk cache underneath
-  // it belongs to the fetch, and writing into it would invent a
-  // resource the server never served.
+  // A hub writes local resources through its mounts. A network URI
+  // belongs to its server; changing a local cache cannot write there.
   if (detail::isNetworkUri(uri)) return false;
   // The disk write runs with no lock held: a read of another resource
   // never waits behind it.

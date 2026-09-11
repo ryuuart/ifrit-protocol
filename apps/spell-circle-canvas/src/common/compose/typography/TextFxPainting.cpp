@@ -11,6 +11,7 @@
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkShader.h>
 #include <sigilgeometry/path/Numeric.h>  // radians — the degree conversion
+#include <sigilmaterial/skia/Pass.h>
 #include <sigilweave/decoration/DecorationRects.h>
 
 #include <algorithm>
@@ -500,7 +501,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
       phases.push_back(lane->locals[i]);
       phases.push_back(passUnitSeed(lane->keys[i].first, lane->keys[i].second));
     }
-    material::skia::detail::PassInputs inputs;
+    material::skia::PassInputs inputs;
     const SkMatrix toTile = SkMatrix::Translate(-reach, -reach);
     inputs.content = layer->makeShader(SkTileMode::kDecal, SkTileMode::kDecal,
                                        SkFilterMode::kLinear, &toTile, &tile);

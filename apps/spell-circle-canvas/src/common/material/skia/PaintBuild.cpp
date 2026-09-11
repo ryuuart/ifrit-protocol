@@ -332,7 +332,7 @@ sk_sp<SkShader> Paint::fittedImageShader(const PaintFrame& frame) const {
                           m_recipe->sampling, &local);
 }
 
-sk_sp<SkShader> Paint::resolvePass(const detail::PassInputs& in,
+sk_sp<SkShader> Paint::resolvePass(const PassInputs& in,
                                    const PaintFrame& ctx) const {
   if (!m_backed) return nullptr;
   const Backed& backed = *m_backed;
@@ -360,7 +360,9 @@ sk_sp<SkShader> Paint::resolvePass(const detail::PassInputs& in,
   std::unique_ptr<SkRuntimeShaderBuilder> b =
       sigil::material::skia::builder(specialized, frame, {}, leave);
   if (!b) return nullptr;  // the cache already said why, once
-  b->child(kContent) = in.content;
+  // A procedural pass may replace the layer without sampling it, in
+  // which case the compiled program declares no content slot.
+  if (b->effect()->findChild(kContent)) b->child(kContent) = in.content;
   // The array counts are the specialization's by construction, and the
   // builder demands exactly them.
   if (in.rects) b->uniform("uUnitRect").set(in.rects, (int)n * 4);

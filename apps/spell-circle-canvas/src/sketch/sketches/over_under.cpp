@@ -214,7 +214,6 @@ struct OverUnder final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    material::skia::install();  // the SkSL compiler, once per process
 
     const material::Material mixed =
         material::over(stone(), brass(), material::maskMap(placedRamp()));

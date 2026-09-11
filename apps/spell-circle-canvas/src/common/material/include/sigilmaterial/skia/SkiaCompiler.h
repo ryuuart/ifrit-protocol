@@ -1,8 +1,8 @@
 #pragma once
 
 /** @file
- * The SkSL backend: registers the compiler that turns a recipe's SkSL
- * body into an SkRuntimeEffect, and the program handle that builds an
+ * The SkSL backend: turns a recipe's SkSL body into an SkRuntimeEffect,
+ * and the program handle that builds an
  * SkRuntimeShaderBuilder from resolved bytes.
  */
 
@@ -52,9 +52,10 @@ class SkiaProgram : public Program {
   sk_sp<SkRuntimeEffect> m_effect;
 };
 
-/** Registers the SkSL compiler with the shared program cache. Idempotent;
- *  call it once before the first resolve for Target::SkSL. */
-void install();
+/** Compiles the distinct recipes instantiated by @p materials for Skia
+ *  before their first draw. The built-in compiler is available on first
+ *  use; an explicitly registered SkSL compiler takes precedence. */
+WarmupResult warmup(std::span<const Material> materials, Variant variant = {});
 
 /** THE MOST IMAGE SAMPLERS ONE LOWERED MATERIAL MAY ASK A DEVICE FOR.
  *
@@ -80,7 +81,8 @@ int samplerCount(const Material& material);
  *  a material child resolved and bound recursively, a ShaderLeaf as the
  *  shader it yields — except any slot named in @p leave, which the caller
  *  fills itself (an image filter's input, say). Null when the material has
- *  no Skia program. */
+ *  no Skia program. The built-in compiler is available on first use;
+ *  an explicitly registered SkSL compiler takes precedence. */
 std::unique_ptr<SkRuntimeShaderBuilder> builder(
     const Material& material, const FrameData& frame, Variant variant = {},
     std::span<const std::string_view> leave = {});

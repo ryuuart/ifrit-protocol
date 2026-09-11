@@ -168,7 +168,6 @@ struct ParagraphPaints final : sketch::Sketch {
     prose = sketch::kit::passage(ctx, "paragraph_paints.txt");
     // the fields are frozen at kMoment, not the clock
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    material::skia::install();  // the SkSL compiler, once per process
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("PARAGRAPH PAINTS \xc2\xb7 the preset text paints "

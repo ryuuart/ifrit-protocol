@@ -22,8 +22,7 @@ TEST(MaterialStock, HoldsEveryFeatureCatalogue) {
 }
 
 TEST(MaterialStock, WarmsEveryProgramItGathered) {
-  skia::install();
-  const WarmupResult result = stock::warmup(Target::SkSL);
+  const WarmupResult result = skia::warmup(stock::everyRecipe());
   EXPECT_GT(result.requested, 0u);
   EXPECT_EQ(result.ready, result.unique);
 }

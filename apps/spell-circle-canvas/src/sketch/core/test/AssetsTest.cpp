@@ -12,7 +12,7 @@
 #include <sigilvideo/encode/Encode.h>
 
 #include <filesystem>
-#include <fstream>
+#include <span>
 #include <string>
 #include <system_error>
 
@@ -44,11 +44,9 @@ TEST(RequireCached, AnswersFromTheCacheAndNamesTheFirstMissingUrl) {
   sigil::test::ScratchDir cache("sketch_require_cached");
   const char* fetched = "https://sketch.invalid/art/panel.gif";
   const char* missing = "https://sketch.invalid/art/logo.svg";
-  // A fetch that happened is a file under the URL's own cache key, and
-  // nothing else about it is consulted.
-  std::ofstream(cache.path / sigil::io::networkCacheKey(fetched),
-                std::ios::binary)
-      << "gif";
+  const std::string body = "gif";
+  ASSERT_TRUE(sigil::io::seedNetworkCache(
+      fetched, std::as_bytes(std::span(body.data(), body.size())), cache.path));
 
   std::string why;
   EXPECT_TRUE(requireCached({fetched}, &why, cache.path));
@@ -63,24 +61,20 @@ TEST(RequireCached, AnswersFromTheCacheAndNamesTheFirstMissingUrl) {
   EXPECT_TRUE(requireCached({}, nullptr, cache.path));
   EXPECT_FALSE(requireCached({missing}, nullptr, cache.path));
 
-  // A FILE THAT IS THERE AND HOLDS NOTHING is not the art: a fetch that
-  // was interrupted leaves one, and a sketch handed it draws its
-  // stand-in exactly as if nothing were cached at all.
-  std::ofstream(cache.path / sigil::io::networkCacheKey(missing),
-                std::ios::binary);
+  // Empty bytes cannot supply the sketch's art.
+  ASSERT_TRUE(sigil::io::seedNetworkCache(missing, {}, cache.path));
   EXPECT_FALSE(requireCached({missing}, &why, cache.path));
   EXPECT_NE(why.find(missing), std::string::npos);
 }
 
-TEST(RequireCached, AsksTheDirectoryTheIoHubPersistsFetchesTo) {
-  // With no directory named, the probe asks where a hub given none of
-  // its own puts them — the two cannot drift, because there is one
-  // answer and both read it.
-  const char* url = "https://sketch.invalid/art/nothing-has-fetched-this.png";
-  std::error_code ec;
-  std::filesystem::remove(
-      sigil::io::defaultNetworkCacheDir() / sigil::io::networkCacheKey(url),
-      ec);
+TEST(RequireCached, AConfiguredCacheIsNotTheDefaultCache) {
+  sigil::test::ScratchDir cache("sketch_require_cached_separate");
+  const std::string url = "https://sketch.invalid/art/panel.png?fixture=" +
+                          cache.path.filename().string();
+  const std::string body = "png";
+  ASSERT_TRUE(sigil::io::seedNetworkCache(
+      url, std::as_bytes(std::span(body.data(), body.size())), cache.path));
+  EXPECT_TRUE(requireCached({url}, nullptr, cache.path));
   std::string why;
   EXPECT_FALSE(requireCached({url}, &why));
   EXPECT_NE(why.find(url), std::string::npos);

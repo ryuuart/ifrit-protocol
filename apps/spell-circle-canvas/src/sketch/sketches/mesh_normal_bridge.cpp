@@ -191,7 +191,6 @@ struct MeshNormalBridge final : sketch::Sketch {
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,
                         .background = SkColor4f{0.051f, 0.051f, 0.075f, 1}});
-    material::skia::install();
     studio = material::kit::studioEnvironment();
     sunset = material::kit::sunsetEnvironment();
     blob = mesh::superellipsoid({170, 150, 90}, 2.6f, 64, 48);

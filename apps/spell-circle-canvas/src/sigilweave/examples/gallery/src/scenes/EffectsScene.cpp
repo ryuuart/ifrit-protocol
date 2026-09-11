@@ -23,7 +23,6 @@ using namespace sigil::weave;
 namespace gallery {
 
 sk_sp<SkShader> shade(const sigil::material::Material& material) {
-  sigil::material::skia::install();
   return sigil::material::skia::shader(material, {});
 }
 

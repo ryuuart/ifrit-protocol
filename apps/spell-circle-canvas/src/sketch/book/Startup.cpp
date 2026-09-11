@@ -33,8 +33,7 @@
 namespace sketch = sigil::sketch;
 
 sigil::material::WarmupResult warmStockMaterials() {
-  sigil::material::skia::install();
-  return sigil::material::stock::warmup(sigil::material::Target::SkSL);
+  return sigil::material::skia::warmup(sigil::material::stock::everyRecipe());
 }
 
 void finishMaterialWarmup(std::future<sigil::material::WarmupResult>& loading) {

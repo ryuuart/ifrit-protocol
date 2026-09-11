@@ -18,7 +18,7 @@ sigil_library(SigilMaterialSkia
           EffectDoors.cpp Paint.cpp PaintBlend.cpp PaintBuild.cpp
           PaintDetail.cpp PaintResolve.cpp PaintSources.cpp
           PaintUniforms.cpp Palette.cpp Ramp.cpp SkiaCompiler.cpp
-  HEADERS Color.h Draw.h Effect.h Paint.h PaintDetail.h PixelBuffer.h
+  HEADERS Color.h Draw.h Effect.h Paint.h Pass.h PixelBuffer.h
           Palette.h Ramp.h SkiaCompiler.h
   PUBLIC SigilMaterialTexture SigilMaterialColor SigilMotionValues
          unofficial::skia::skia)
@@ -28,7 +28,7 @@ sigil_shader_sources(SigilMaterialSkia
 # The shader directory is named for the case that asks whether the
 # embedded table holds every file in it.
 sigil_test(material_test
-  SOURCES test/SkiaCompilerTest.cpp test/SkiaColorTest.cpp
+  SOURCES test/SkiaCompilerTest.cpp test/SkiaFirstUseTest.cpp test/SkiaColorTest.cpp
           test/SkiaPaintTest.cpp test/SkiaEffectTest.cpp
           test/SkiaRampTest.cpp test/PaletteTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}

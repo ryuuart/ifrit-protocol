@@ -14,8 +14,7 @@
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/core/Program.h>       // reportOnce
-#include <sigilmaterial/skia/SkiaCompiler.h>  // install()
+#include <sigilmaterial/core/Program.h>  // reportOnce
 #include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
@@ -74,7 +73,6 @@ Paint Paint::shader(sk_sp<SkShader> shader) {
 }
 
 Paint Paint::recipe(sigil::material::Material material) {
-  sigil::material::skia::install();
   Paint m;
   m.m_backed = std::make_shared<Backed>(Backed{std::move(material), {}});
   m.m_shader = m.buildBacked(nullptr);  // static snapshot
@@ -301,6 +299,24 @@ Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops, bool radial) {
 }
 
 }  // namespace detail
+
+Paint Paint::linearUnit(SkPoint from01, SkPoint to01, std::vector<Stop> stops) {
+  return detail::unitRamp(from01, to01, std::move(stops), false);
+}
+
+Paint Paint::radialUnit(SkPoint center01, float radius01,
+                        std::vector<Stop> stops) {
+  return detail::unitRamp(center01, {radius01, radius01}, std::move(stops),
+                          true);
+}
+
+Paint Paint::glowUnit(SkPoint center01, float radius01,
+                      std::vector<Stop> stops) {
+  // Convert the radius from half-sides to half-diagonals of the unit square.
+  return detail::unitRamp(center01,
+                          {radius01 * 0.70710678f, radius01 * 0.70710678f},
+                          std::move(stops), true);
+}
 
 Paint Paint::sksl(sk_sp<SkRuntimeEffect> effect,
                   std::vector<std::pair<std::string, float>> constants) {

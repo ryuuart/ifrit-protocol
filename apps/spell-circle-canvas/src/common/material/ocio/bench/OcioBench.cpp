@@ -36,7 +36,6 @@ BENCHMARK(ExponentLutBake)->Arg(17)->Arg(33);
  *  two graded arms differ in nothing but the lowering. */
 void ExponentOverACanvas(benchmark::State& state, bool graded,
                          SkColorType surface) {
-  skia::install();
   constexpr int kWidth = 900, kHeight = 640;
   SkBitmap output;
   output.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));

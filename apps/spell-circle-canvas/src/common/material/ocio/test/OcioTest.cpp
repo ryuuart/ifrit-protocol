@@ -36,7 +36,6 @@ TEST(Ocio, AConfigThatCannotBeReadFailsSoftWithAnEmptyLut) {
 
 TEST(Ocio, AnExponentBakesToAResponseRowThatGradesTheContent) {
   if (!ocio::available()) GTEST_SKIP() << "OCIO raw config unavailable";
-  skia::install();
   Material grade = ocio::exponent(2.2f);
   ASSERT_NE(grade.leaf("lut"), nullptr);
   // An exponent's channels are independent, so the bake is one row of
@@ -80,7 +79,6 @@ SkBitmap colourRamp() {
 
 TEST(Ocio, AChannelwiseViewLowersToATableThatPaintsWhatTheProgramPaints) {
   if (!ocio::available()) GTEST_SKIP() << "OCIO raw config unavailable";
-  skia::install();
   const Material grade = ocio::exponent(1.08f);
   ASSERT_EQ(grade.recipe().channelwiseSlot(), "lut");
 
@@ -132,7 +130,6 @@ TEST(Ocio, AChannelwiseViewLowersToATableThatPaintsWhatTheProgramPaints) {
 
 TEST(Ocio, ASurfaceATableCannotCarryKeepsTheProgram) {
   if (!ocio::available()) GTEST_SKIP() << "OCIO raw config unavailable";
-  skia::install();
   const Material grade = ocio::exponent(1.08f);
   // More precision than 256 codes per channel, and a canvas backed by
   // neither raster nor GPU, which is what kUnknown says.
@@ -146,7 +143,6 @@ TEST(Ocio, ASurfaceATableCannotCarryKeepsTheProgram) {
 
 TEST(Ocio, AViewThatMixesChannelsBakesTheVolumeAndKeepsTheProgram) {
   if (!ocio::available()) GTEST_SKIP() << "OCIO raw config unavailable";
-  skia::install();
   // A primary conversion: its matrix reads all three input channels into
   // each output channel, so the per-channel proof must fail.
   const Material mix =

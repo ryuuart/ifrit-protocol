@@ -23,7 +23,6 @@ using namespace sigil::weave;
 namespace {
 /// A text-paint preset shaded by SigilMaterial's Skia backend.
 sk_sp<SkShader> shade(const sigil::material::Material& m) {
-  sigil::material::skia::install();
   return sigil::material::skia::shader(m, {});
 }
 }  // namespace

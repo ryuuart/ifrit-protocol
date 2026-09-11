@@ -44,7 +44,6 @@ using sigil::material::test::luminance;
 using sigil::material::test::shade;
 
 TEST(Surfaces, RecipesCompileAndShade) {
-  skia::install();
   const EnvironmentMap env = kit::studioEnvironment(128);
   ASSERT_TRUE(env.valid());
   const SkPath shape = SkPath::Circle(40, 40, 30);
@@ -83,7 +82,6 @@ TEST(Surfaces, BuildersFillTheDeclaredSlots) {
 }
 
 TEST(Surfaces, FillShadesInsideTheShapeOnly) {
-  skia::install();
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 120));
   surface->getCanvas()->clear(SK_ColorTRANSPARENT);
@@ -190,7 +188,6 @@ TEST(LayerStyles, ChromeRampsStopOnTheHorizon) {
 }
 
 TEST(TextPaint, EveryPaintCompilesAndMovesWithTheClock) {
-  skia::install();
   const SkRect bounds = SkRect::MakeXYWH(10, 20, 100, 40);
   for (auto make : {kit::water, kit::meshGradient, kit::sparkle, kit::starNest,
                     kit::clouds, kit::tunnel}) {
@@ -206,7 +203,6 @@ TEST(TextPaint, EveryPaintCompilesAndMovesWithTheClock) {
 }
 
 TEST(Surface, BothRecipesCompileAndShade) {
-  skia::install();
   kit::SurfaceParams params;
   params.baseColor = {0.2f, 0.6f, 0.9f, 1};
   params.emissive = {1, 0.5f, 0, 1};
@@ -252,7 +248,6 @@ TEST(Surface, DressesADecodedSet) {
 }
 
 TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
-  skia::install();
   kit::SurfaceParams red;
   red.baseColor = {1, 0, 0, 1};
   kit::SurfaceParams blue;
@@ -299,10 +294,8 @@ std::shared_ptr<Program> slangStandIn(std::shared_ptr<const Recipe> recipe,
 /** The child slots the compiled SkSL program declares, which is one
  *  image sampler each once a GPU backend has inlined it. */
 size_t declaredSlots(const Material& m) {
-  const Material::Resolved r = m.resolve(Target::SkSL, {});
-  const auto* program =
-      r.program ? r.program->as<skia::SkiaProgram>() : nullptr;
-  return program ? program->effect()->children().size() : 0u;
+  const auto built = skia::builder(m, {});
+  return built ? built->effect()->children().size() : 0u;
 }
 
 /** A one-texel texture under its own producer key, so @p key images are
@@ -318,7 +311,6 @@ Texture texel(int key) {
 }  // namespace
 
 TEST(Over, AStackAsksForItsOperandsSamplersAndNoMore) {
-  skia::install();
   registerCompiler(Target::Slang, slangStandIn);
 
   // An undressed surface fills all seven of its slots so no body ever
@@ -354,7 +346,6 @@ TEST(Over, AStackAsksForItsOperandsSamplersAndNoMore) {
 }
 
 TEST(Over, ATreeOverTheSamplerBudgetIsRefusedRatherThanDrawn) {
-  skia::install();
   // A device rejects a fragment program past its sampler indices after
   // Skia has accepted it, so the draw paints nothing and names nobody.
   // Refused here, the material that asked is the one reported.
@@ -381,7 +372,6 @@ TEST(Over, ATreeOverTheSamplerBudgetIsRefusedRatherThanDrawn) {
 // ---- the embedded shader table --------------------------------------------
 
 TEST(KitShaderTable, EveryStockBodyCompiles) {
-  skia::install();
   for (const Material& m : kit::everyRecipe()) {
     if (!m.recipe().has(Target::SkSL)) continue;
     EXPECT_TRUE(skia::shader(m, {.resolution = {64, 64}})) << m.recipe().name();

@@ -75,28 +75,6 @@ material::skia::Paint passOver(const char* source) {
 
 }  // namespace
 
-TEST(TextPass, SpecializationIsOneRecipePerUnitCount) {
-  const std::shared_ptr<const sigil::material::Recipe> authored =
-      passOver(kFloodSksl).recipeMaterial()->recipePtr();
-  const std::shared_ptr<const sigil::material::Recipe> three =
-      material::skia::detail::passRecipeFor(authored, 3);
-  ASSERT_TRUE(three);
-  // The specialization keeps the author's ABI and prepends the runtime's
-  // declarations at the count asked for.
-  EXPECT_EQ(three->params(), authored->params());
-  EXPECT_NE(three->source(sigil::material::Target::SkSL).find("uUnitRect[3]"),
-            std::string::npos);
-  // One definition per (recipe, count): asking again returns the SAME one,
-  // so the program cache holds one program for it however many draws ask.
-  EXPECT_EQ(three, material::skia::detail::passRecipeFor(authored, 3));
-  // Another count is another definition, compiled and cached apart.
-  const std::shared_ptr<const sigil::material::Recipe> five =
-      material::skia::detail::passRecipeFor(authored, 5);
-  ASSERT_TRUE(five);
-  EXPECT_NE(three, five);
-  EXPECT_EQ(five, material::skia::detail::passRecipeFor(authored, 5));
-}
-
 TEST(TextPass, RecipeMaterialsCompareByDefinition) {
   // Two materials over one recipe compare EQUAL — a helper may rebuild its
   // material every describe and still prune.

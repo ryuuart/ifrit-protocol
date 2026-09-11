@@ -114,19 +114,15 @@ Element panel(Slice frame, std::u8string caption, SkColor4f ink) {
  *  goes through a decoration, which is the point — the call is what a
  *  program of one's own reaches for, and it paints the same rects. */
 Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
-  // One promotion cache a leaf, shared by every frame it draws: a raster
-  // source has to reach the device once, not once a frame.
-  auto cache = std::make_shared<sigil::skia::draw::Promoted>();
   return box()
       .width(Dim(kPanelW))
       .height(Dim(kPanelH))
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      // Keyed: the asset and its cache are the whole of what the program
-      // closes over, and the sheet shows exactly one hand-spelled lattice.
+      // The asset is the only captured input to this keyed draw.
       .child(custom("lattice.direct",
-                    [asset = std::move(asset), cache](SkCanvas& canvas,
-                                                      const PaintContext& ctx) {
+                    [asset = std::move(asset)](SkCanvas& canvas,
+                                               const PaintContext& ctx) {
                       const sk_sp<SkImage> image =
                           asset ? asset->frameAt(0).image : nullptr;
                       if (!image) return;
@@ -134,7 +130,7 @@ Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
                       const std::vector<int> xs{side / 3, side * 2 / 3};
                       const std::vector<int> ys{side / 3, side * 2 / 3};
                       sigil::skia::draw::drawLattice(
-                          canvas, *cache, image, xs, ys,
+                          canvas, image, xs, ys,
                           SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
                           SkFilterMode::kLinear);
                     })

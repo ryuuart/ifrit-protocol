@@ -6,6 +6,8 @@
  * held for the process.
  */
 
+#include "PaintDetail.h"
+
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -99,8 +101,8 @@ std::shared_ptr<const sigil::material::Recipe> passRecipeFor(
   return held;
 }
 
-// The Paint→SkShader conversion every child slot performs (declared in
-// Paint.h): the per-draw resolve when there is a frame, the
+// The Paint→SkShader conversion every child slot performs: the
+// per-draw resolve when there is a frame, the
 // frameless snapshot when there is not, a solid as a colour shader.
 sk_sp<SkShader> childShader(const Paint& source, const PaintFrame* ctx) {
   if (!ctx)

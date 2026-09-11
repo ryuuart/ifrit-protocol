@@ -8,9 +8,8 @@
  * `fx::pass` track through.
  *
  * Declared apart from the paint class because these are shared
- * mechanisms rather than doors an author reaches for: `Effect` validates
- * its own slots here, and the text runtime fills a pass through
- * `PassInputs`.
+ * mechanisms used by the paint and effect implementations. Consumers
+ * submit pass inputs through the paint without managing specializations.
  */
 
 #include <include/core/SkPoint.h>
@@ -68,19 +67,6 @@ bool declaresShaderChild(const sk_sp<SkRuntimeEffect>& effect,
  *  `float4 uRect[3]` and `float uWeights[12]` alike. */
 bool declaresUniform(const sk_sp<SkRuntimeEffect>& effect,
                      std::string_view name, size_t bytes);
-
-/** THE PER-UNIT DATA A TEXT PASS IS HANDED — what the fx() runtime fills
- *  for a `fx::pass` track's material and `Paint::resolvePass` uploads.
- *  `content` is the addressed units' rendered layer; `rects` is 4 floats
- *  per unit (x, y, w, h, node-local px); `phases` is 2 per unit (that
- *  unit's cascade-local 0→1, then its stable seed). Non-owning views,
- *  valid for the call. */
-struct PassInputs {
-  sk_sp<SkShader> content;
-  const float* rects = nullptr;
-  const float* phases = nullptr;
-  uint32_t units = 0;
-};
 
 /** THE PASS SPECIALIZATION of @p authored at @p units: a recipe with the
  *  same params ABI whose SkSL body is the runtime's declarations —

@@ -31,7 +31,6 @@ const EnvironmentMap& studio() {
 }
 
 void SurfaceBuild(benchmark::State& state) {
-  skia::install();
   const Texture normals = bevelNormals(SkPath::Circle(40, 40, 30), 6);
   for ([[maybe_unused]] auto iteration : state) {
     Material m = state.range(0) == 0 ? kit::gold(normals, studio())
@@ -42,7 +41,6 @@ void SurfaceBuild(benchmark::State& state) {
 BENCHMARK(SurfaceBuild)->Arg(0)->Arg(1);
 
 void SurfaceShader(benchmark::State& state) {
-  skia::install();
   const Texture normals = bevelNormals(SkPath::Circle(40, 40, 30), 6);
   const Material m = kit::gold(normals, studio());
   for ([[maybe_unused]] auto iteration : state) {
@@ -53,7 +51,6 @@ void SurfaceShader(benchmark::State& state) {
 BENCHMARK(SurfaceShader);
 
 void BadgeFill(benchmark::State& state) {
-  skia::install();
   const float radius = (float)state.range(0);
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul((int)radius * 2 + 40, (int)radius * 2 + 40));
@@ -69,7 +66,6 @@ BENCHMARK(BadgeFill)->Arg(32)->Arg(128);
 /** The metallic-roughness surface: what a dressed material costs to
  *  build, and what a stack of them costs to shade. */
 void PbrBuild(benchmark::State& state) {
-  skia::install();
   const kit::SurfaceParams params;
   for ([[maybe_unused]] auto iteration : state) {
     Material m =
@@ -82,7 +78,6 @@ BENCHMARK(PbrBuild)->Arg(0)->Arg(1);
 /** The globe: what one costs to build, and what a disc of it costs to
  *  shade at two sizes. */
 void GlobeBuild(benchmark::State& state) {
-  skia::install();
   const kit::GlobeParams params;
   for ([[maybe_unused]] auto iteration : state)
     benchmark::DoNotOptimize(kit::globe(params));
@@ -90,7 +85,6 @@ void GlobeBuild(benchmark::State& state) {
 BENCHMARK(GlobeBuild);
 
 void GlobeShade(benchmark::State& state) {
-  skia::install();
   const int side = (int)state.range(0);
   const Material globe = kit::globe();
   SkBitmap bitmap;
@@ -108,7 +102,6 @@ void GlobeShade(benchmark::State& state) {
 BENCHMARK(GlobeShade)->Arg(168)->Arg(512);
 
 void StackShader(benchmark::State& state) {
-  skia::install();
   Material m = kit::surface();
   for (int i = 0; i < (int)state.range(0); ++i)
     m = over(std::move(m), kit::unlit(), maskConstant(0.5f));

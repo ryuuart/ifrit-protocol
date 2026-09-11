@@ -42,7 +42,6 @@ constexpr const char* kBody16 =
 
 template <class P>
 void BM_Shader_Live(benchmark::State& state, const char* body) {
-  skia::install();
   auto recipe = std::make_shared<const Recipe>(
       Recipe::of<P>("bench").frame(FrameInput::Time).body(Target::SkSL, body));
   Material m(recipe);

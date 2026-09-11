@@ -299,6 +299,8 @@ void FontContext::purgeAllCaches() {
   m_impl->destroyTypefaceRecords();
   m_impl->fallbackTypefaces.clear();
   m_impl->variedTypefaces.clear();
+  m_impl->glyphProfiles.clear();
+  m_impl->referenceGaps.clear();
   m_impl->fallbackLanguageIds.clear();
   m_impl->asciiFallbackTypefaces.clear();
   // Every memo below borrows from a map cleared above; leaving any of them

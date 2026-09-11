@@ -186,7 +186,6 @@ struct FrameInputs final : sketch::Sketch {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    material::skia::install();  // the SkSL compiler, once per process
 
     // The caller's table, owned beside the model rather than in the
     // describe: a block re-made each frame would compare unequal and
@@ -255,39 +254,40 @@ struct FrameInputs final : sketch::Sketch {
                                            "comparison",
                                            ramped, 1.0f)},
                             .gap = 14}),
-                       kit::cells({.cells = {cell(
-                                                 "frame(WorldTransform) "
-                                                 "\xc2\xb7 uWorld "
-                                                 "translated",
-                                                 "the body reads column 2 of "
-                                                 "uWorld as "
-                                                 "its phase \xc2\xb7 identity "
-                                                 "outside a "
-                                                 "composite, so it degrades to "
-                                                 "the "
-                                                 "node's own space",
-                                                 bars, 1.0f, glm::mat3(1, 0, 0, 0, 1, 0, 142, 0, 1)),
-                                             cell("withRecipe(dotsRecipe())",
-                                                  "THE SAME INSTANCE over a "
-                                                  "second "
-                                                  "definition of one params "
-                                                  "layout "
-                                                  "\xc2\xb7 the values, the "
-                                                  "binding and "
-                                                  "the tint all carried over",
-                                                  bars.withRecipe(dotsRecipe()),
-                                                  1.0f),
-                                             cell("withRecipe(flatRecipe())",
-                                                  "a body that reads neither "
-                                                  "uBars nor "
-                                                  "uGain \xc2\xb7 the third "
-                                                  "definition "
-                                                  "of one ABI, and the table "
-                                                  "it is still "
-                                                  "bound to reaches nothing",
-                                                  bars.withRecipe(flatRecipe()),
-                                                  1.0f)},
-                                   .gap = 14})},
+                       kit::cells(
+                           {.cells = {cell("frame(WorldTransform) "
+                                           "\xc2\xb7 uWorld "
+                                           "translated",
+                                           "the body reads column 2 of "
+                                           "uWorld as "
+                                           "its phase \xc2\xb7 identity "
+                                           "outside a "
+                                           "composite, so it degrades to "
+                                           "the "
+                                           "node's own space",
+                                           bars, 1.0f,
+                                           glm::mat3(1, 0, 0, 0, 1, 0, 142, 0,
+                                                     1)),
+                                      cell("withRecipe(dotsRecipe())",
+                                           "THE SAME INSTANCE over a "
+                                           "second "
+                                           "definition of one params "
+                                           "layout "
+                                           "\xc2\xb7 the values, the "
+                                           "binding and "
+                                           "the tint all carried over",
+                                           bars.withRecipe(dotsRecipe()), 1.0f),
+                                      cell("withRecipe(flatRecipe())",
+                                           "a body that reads neither "
+                                           "uBars nor "
+                                           "uGain \xc2\xb7 the third "
+                                           "definition "
+                                           "of one ABI, and the table "
+                                           "it is still "
+                                           "bound to reaches nothing",
+                                           bars.withRecipe(flatRecipe()),
+                                           1.0f)},
+                            .gap = 14})},
              .column = true,
              .gap = 18})));
   }

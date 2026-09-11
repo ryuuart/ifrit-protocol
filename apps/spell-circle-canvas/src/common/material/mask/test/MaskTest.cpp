@@ -47,7 +47,6 @@ Texture whiteMap() {
 }  // namespace
 
 TEST(Mask, ShapesWhatItReads) {
-  skia::install();
   const Material half = maskConstant(0.5f);
   EXPECT_TRUE(skia::shader(half, {}));
   EXPECT_FLOAT_EQ(invertMask(half).get<float>("inverted"), 1.0f);
@@ -78,7 +77,6 @@ TEST(Mask, ItPaintsItsCoverageAsGreyAtFullAlpha) {
   // colour channels, alpha 1. Put the coverage in alpha instead and a
   // mask drawn on its own is invisible rather than grey, and the two
   // languages disagree about what one recipe means.
-  skia::install();
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
   surface->getCanvas()->clear(SK_ColorTRANSPARENT);

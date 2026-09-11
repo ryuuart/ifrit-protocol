@@ -50,7 +50,7 @@
 #include <include/effects/SkGradient.h>       // the gradient Fills
 #include <include/effects/SkRuntimeEffect.h>  // the unit-space ramps
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/skia/PaintDetail.h>  // the shared paint mechanisms
+#include <sigilmaterial/skia/Pass.h>
 #include <sigilmaterial/skia/PixelBuffer.h>  // the source buffer() takes
 #include <sigilmotion/values/Animated.h>
 #include <sigilmotion/values/Time.h>
@@ -232,9 +232,7 @@ class Paint {
    *  records and cached between layouts, so it costs nothing per frame.
    *  Any number of stops. */
   static Paint linearUnit(SkPoint from01, SkPoint to01,
-                          std::vector<Stop> stops) {
-    return detail::unitRamp(from01, to01, std::move(stops), false);
-  }
+                          std::vector<Stop> stops);
   /** The unit-square radial: @p center01 and a radius as a fraction of the
    *  box's HALF-DIAGONAL, so a ramp centred at {0.5, 0.5} with radius 1
    *  reaches the CORNERS of any box.
@@ -254,10 +252,7 @@ class Paint {
    *  keep radialUnit for when you genuinely mean the corners (a
    *  vignette, a corner-to-corner wash). */
   static Paint radialUnit(SkPoint center01, float radius01,
-                          std::vector<Stop> stops) {
-    return detail::unitRamp(center01, {radius01, radius01}, std::move(stops),
-                            true);
-  }
+                          std::vector<Stop> stops);
   /** A soft round light that FILLS the box: the radius is a fraction of
    *  the box's shorter side, so radius 1 reaches the inscribed circle —
    *  which is what "a glow filling this node" means every time anyone
@@ -268,13 +263,7 @@ class Paint {
    *  rather than staying circular. That is what you want for a panel
    *  wash and not for a lamp; for a true circle, put it on a square node. */
   static Paint glowUnit(SkPoint center01, float radius01,
-                        std::vector<Stop> stops) {
-    // half-diagonal = sqrt(2)/2 of the side on a square; the ratio a
-    // caller wants is radius-in-half-diagonals = radius01 / sqrt(2).
-    return detail::unitRamp(center01,
-                            {radius01 * 0.70710678f, radius01 * 0.70710678f},
-                            std::move(stops), true);
-  }
+                        std::vector<Stop> stops);
 
   // ---- uniforms ------------------------------------------------------------
   /** Set / bind a NAMED uniform. This is meaningful ONLY on an sksl()
@@ -568,7 +557,7 @@ class Paint {
    *  filled from @p in. Null when the material is not recipe-backed or its
    *  specialization does not compile; the caller draws the units plainly
    *  then, so a broken pass shows resting letters rather than nothing. */
-  sk_sp<SkShader> resolvePass(const detail::PassInputs& in,
+  sk_sp<SkShader> resolvePass(const PassInputs& in,
                               const PaintFrame& frame) const;
 
   /** STRUCTURAL value equality — the prune signature. Two materials

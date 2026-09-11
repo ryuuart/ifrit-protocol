@@ -55,8 +55,8 @@ struct GlyphFit {
 /// A RUN BORROWS ITS GLYPHS AND OWNS NOTHING BUT ITS PLACEMENT. `shaped`
 /// points at a ShapedWord somebody else holds: the paragraph, for every run
 /// set from a word of the text, and the layout itself for the few words a
-/// layout shapes on its own (a tab leader, an overflow marker), which it
-/// retains in ParagraphLayout::shapedByTheLayout. So a run is valid exactly
+/// layout shapes and retains on its own (a tab leader, an overflow marker).
+/// A run is valid exactly
 /// as long as BOTH the paragraph it was set from and the layout that holds
 /// it are alive, and copying a run out of a layout does not extend that —
 /// which is the same rule `wordIndex` and `intervalIndex` already carry,

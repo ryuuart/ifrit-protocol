@@ -19,7 +19,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder` and `Probable` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
-| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
+| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
 
 `SigilIO` is the umbrella target over both, and
 `<sigilio/IO.h>` the umbrella header. The hub is a `ByteSource`;
@@ -65,6 +65,13 @@ hub.setNetworkCacheDir("/opt/myapp/assets/.netcache");
 hub.setNetworkPolicy(sigil::io::NetworkPolicy::Offline);
 hub.setNetworkTransport(myHttpClient);
 auto remote = hub.image("https://example.com/tex.png");
+
+// Inspect or seed the persistent cache by URL without fetching. The same
+// directory override is supplied to these operations and the hub.
+auto retainedBytes = sigil::io::probeNetworkCache(
+    "https://example.com/tex.png", "/opt/myapp/assets/.netcache");
+sigil::io::seedNetworkCache("https://example.com/seed.png", encodedBytes,
+                             "/opt/myapp/assets/.netcache");
 
 std::string_view shaderUris[] = {"shader://surface.slang",
                                  "shader://bloom.sksl"};
@@ -236,16 +243,15 @@ Failed lookups are deliberately not cached. A URI that resolves to a file
 which does not exist yet returns null now and loads as soon as the file
 appears.
 
-`write()` refuses a network URI. A hub writes where it mounts; the disk
-cache under an `http(s)://` entry belongs to the fetch, and writing into
-it would invent a resource the server never served.
+`write()` refuses a network URI. A hub writes where it mounts; a network
+URI belongs to its server, and changing the local cache cannot write there.
 
 `writeBytes()` is true only when every byte reached the file and the
 stream closed clean, so a half-written file reads as a failure rather than
 as a shorter resource. A zero-length write still creates the file:
 emptiness is a value a resource may have.
 
-`defaultNetworkCacheDir()` is `SigilIO/network` under the platform's cache
+The default disk cache is `SigilIO/network` under the platform's cache
 location — `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache`
 elsewhere, `%LOCALAPPDATA%` on Windows — and falls back to the system
 temporary directory only where the platform names no cache location. The
@@ -256,10 +262,21 @@ cache still being there. The resolver reads the environment directly:
 SigilIO stands below every UI toolkit and cannot ask one where the caches
 go. `setNetworkCacheDir()` overrides it per hub.
 
-`networkCacheKey` builds its filename from `std::hash<std::string_view>`,
-which is implementation-defined. Cache directories are therefore not
-portable across standard library implementations — treat them as local
-scratch, not as a shippable artifact.
+Cache filenames are private to the hub and implementation-dependent. Cache
+directories are local scratch, not portable artifacts. To ask whether a URL
+has bytes on this machine, `probeNetworkCache(url, directory)` returns its
+cached byte count without reading or decoding the file. A missing entry or a
+metadata error answers nothing; zero is a present, empty resource. The probe
+creates no files or directories. A consumer needing actual content can reject
+zero separately.
+
+`seedNetworkCache(url, bytes, directory)` stores already-held bytes for later
+cache reads, including empty bytes. It creates the directory when needed and
+publishes the whole resource through the same complete-file write as a fetch;
+a failed write leaves an existing resource intact. Both calls accept only
+`http://` and `https://` URLs, never contact a server, and use the default disk
+cache when the directory is empty. Seeding affects the disk cache; a hub's
+already-loaded views keep their values until discarded.
 
 Network fetches follow redirects, time out after 20 seconds, fail on any
 HTTP status of 400 or above, and buffer the whole body in memory.
@@ -360,8 +377,8 @@ answering as a `ByteSource`, which is the seam a consumer that only
 wants bytes stands on; and `io_bench` (Google Benchmark, built
 by the `benches` target and run from a Release build through
 `scripts/sigil.py bench`: `Hub::blob` on a cache hit and `load<T>` on a
-decoded view per call, `resolve` per URI against the mount table, and
-`networkCacheKey` per URL — the disk kept out of every timed loop); and
+decoded view per call and `resolve` per URI against the mount table — the
+disk kept out of every timed loop); and
 `SigilIO`, the umbrella.
 
 There is one test binary, `io_test`, built from both features' `test/`

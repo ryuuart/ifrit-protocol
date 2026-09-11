@@ -3,9 +3,8 @@
  * out of the loop: a blob served from the entry cache, a typed load
  * whose view is already decoded (the registry dispatch and cache lookup
  * that every frame-rate consumer pays), URI resolution against the mount
- * table, and the key a network URL is cached under. The one file each
- * URI names is written once, before timing. Run a Release build; Debug
- * numbers say nothing.
+ * table. The one file each URI names is written once, before timing.
+ * Run a Release build; Debug numbers say nothing.
  */
 
 #include <benchmark/benchmark.h>
@@ -112,16 +111,5 @@ void BM_Resolve(benchmark::State& state) {
   countCalls(state, 1);
 }
 BENCHMARK(BM_Resolve)->Arg(1)->Arg(8)->Arg(64);
-
-void BM_NetworkCacheKey(benchmark::State& state) {
-  const std::string url =
-      "https://example.invalid/assets/textures/albedo_4k_v03.png?rev=17";
-  for ([[maybe_unused]] auto iteration : state) {
-    std::string key = networkCacheKey(url);
-    benchmark::DoNotOptimize(key.data());
-  }
-  countCalls(state, 1);
-}
-BENCHMARK(BM_NetworkCacheKey);
 
 }  // namespace

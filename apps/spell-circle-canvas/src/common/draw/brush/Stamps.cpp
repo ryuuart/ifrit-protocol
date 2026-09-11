@@ -12,9 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <memory>
 #include <optional>
-#include <source_location>
 
 #include "DabStyle.h"
 #include "Executors.h"
@@ -59,15 +57,6 @@ sk_sp<SkImage> roundTip() {
     return SkImages::RasterFromBitmap(bitmap);
   }();
   return tip;
-}
-
-/** The disc promoted to a texture for the pen's canvas, kept by the pen
- *  for as long as the pen lives: a promoted image belongs to one
- *  recorder, so the cache is per pen rather than per process. */
-sigil::skia::draw::Promoted& promotedTip(Pen& pen) {
-  static const Slot slot = Slot::at(std::source_location::current());
-  return pen.retained().get<sigil::skia::draw::Promoted>(
-      slot, [] { return std::make_shared<sigil::skia::draw::Promoted>(); });
 }
 
 void drawStampsDirect(Pen& pen, std::span<const Stamp> stamps) {
@@ -272,9 +261,9 @@ void drawStamps(Pen& pen, Constant blend, std::span<const Stamp> stamps) {
   batch.tex = textureRects;
   batch.colors = colors;
   batch.sizes = sizes;
-  sigil::skia::draw::drawSpriteAtlas(
-      *canvas, promotedTip(pen), roundTip(), batch,
-      SkSamplingOptions(SkFilterMode::kLinear), *mode);
+  sigil::skia::draw::drawSpriteAtlas(*canvas, roundTip(), batch,
+                                     SkSamplingOptions(SkFilterMode::kLinear),
+                                     *mode);
 }
 
 }  // namespace sigil::draw::brush

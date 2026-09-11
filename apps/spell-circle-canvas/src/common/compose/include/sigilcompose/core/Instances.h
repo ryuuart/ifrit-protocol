@@ -49,7 +49,6 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilskia/draw/Direct.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -296,13 +295,6 @@ class Atlas {
   std::vector<Cell> m_cells;
   std::vector<SkRect> m_tex;  // baked-pixel rects, parallel to m_cells
   sk_sp<SkImage> m_sheet;
-
- public:
-  /** The GPU promotion of the baked sheet. A raster sheet handed straight
-   *  to a native atlas draw does not appear on every backend, so the stamp
-   *  goes through `skia::draw::` and this cache holds whatever that promotion
-   *  produced. Used by detail::stamp; not part of the atlas's identity. */
-  skia::draw::Promoted gpuCache;
 };
 
 // ---------------------------------------------------------------------------

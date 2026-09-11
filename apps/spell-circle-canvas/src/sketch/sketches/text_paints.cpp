@@ -111,7 +111,6 @@ struct TextPaints final : sketch::Sketch {
     const sketch::kit::Provide look(sheetTheme());
     // the fields are frozen at kMoment, not at the clock
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    material::skia::install();  // the SkSL compiler, once per process
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("TEXT PAINTS \xc2\xb7 Element::textFill over "

@@ -269,6 +269,11 @@ struct FontContext::Impl {
   }
 
   TypefaceRecord& recordForTypeface(const sk_sp<SkTypeface>& typeface);
+  const detail::GlyphProfile& profileOf(const sk_sp<SkTypeface>& typeface,
+                                        uint16_t glyph);
+  float referenceGap(const sk_sp<SkTypeface>& typeface);
+  void applyOpticalKerning(const sk_sp<SkTypeface>& typeface, float fontSize,
+                           ShapedWord& word);
   /** Destroys every HarfBuzz face/font and clears the record map. */
   void destroyTypefaceRecords();
   ~Impl();

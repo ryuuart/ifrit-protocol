@@ -169,9 +169,8 @@ class Hub {
 
   /** Where network fetches persist (default: the platform cache
    *  location / "SigilIO/network", the temp directory only where the
-   *  platform names no cache location). Files land under
-   *  networkCacheKey(url); a present file is served without touching
-   *  the network. */
+   *  platform names no cache location). A present resource is served
+   *  without touching the network. */
   void setNetworkCacheDir(std::filesystem::path dir);
 
   /** How http(s):// asks may use the network (default: CacheFirst). */
@@ -442,7 +441,7 @@ class Hub {
   std::vector<std::pair<std::string, std::filesystem::path>> m_mounts;
   boost::container::flat_map<std::string, Entry, std::less<>> m_entries;
   boost::container::flat_map<std::type_index, Redecode> m_decoders;
-  std::filesystem::path m_networkCacheDir;  // empty = defaultNetworkCacheDir()
+  std::filesystem::path m_networkCacheDir;  // empty = platform cache directory
   NetworkPolicy m_networkPolicy = NetworkPolicy::CacheFirst;
   NetworkTransport m_networkTransport;  // empty = libcurl
   std::shared_ptr<detail::Residency> m_residency;

@@ -26,6 +26,8 @@
 #include <utility>
 #include <vector>
 
+#include "PaintDetail.h"
+
 namespace sigil::material::skia {
 
 /** THE RESOLVE MEMO, which two threads may reach at once. Copies of one

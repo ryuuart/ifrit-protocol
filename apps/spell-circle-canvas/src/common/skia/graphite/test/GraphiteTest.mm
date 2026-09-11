@@ -21,6 +21,7 @@
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilskia/draw/Direct.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 #include <sigilskia/graphite/TextureImage.h>
@@ -147,6 +148,34 @@ std::vector<uint8_t> readMetalBytes(GpuDevice &dev, TextureHandle handle, int si
   return bytes;
 }
 
+sk_sp<SkImage> whiteSheet() {
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(4, 4);
+  bitmap.eraseColor(SK_ColorWHITE);
+  bitmap.setImmutable();
+  return bitmap.asImage();
+}
+
+bool submitRecorder(GraphiteContext &ctx, skgpu::graphite::Recorder &recorder) {
+  std::unique_ptr<skgpu::graphite::Recording> recording = recorder.snap();
+  if (!recording) return false;
+  const std::unique_lock<std::mutex> lock = ctx.lockContext();
+  skgpu::graphite::InsertRecordingInfo insert;
+  insert.fRecording = recording.get();
+  return ctx.context()->insertRecording(insert) &&
+         ctx.context()->submit(skgpu::graphite::SyncToCpu::kYes);
+}
+
+class MissingImageProvider final : public skgpu::graphite::ImageProvider {
+ public:
+  sk_sp<SkImage> findOrCreate(skgpu::graphite::Recorder *, const SkImage *,
+                              SkImage::RequiredProperties) override {
+    ++calls;
+    return nullptr;
+  }
+  int calls = 0;
+};
+
 }  // namespace
 
 TEST(SigilSkiaGraphite, CreatesOnTheSystemDevice) {
@@ -172,6 +201,122 @@ TEST(SigilSkiaGraphite, RenderTargetClearsAndReadsBack) {
   ASSERT_FALSE(pixels.empty());
   EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 255, 0));
   EXPECT_EQ(pixels.getColor(7, 7), SkColorSetARGB(255, 0, 255, 0));
+}
+
+TEST(SigilSkiaGraphite, DirectDrawsReuseTheImageProvidersTexture) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  const sk_sp<SkImage> sheet = whiteSheet();
+  sk_sp<SkSurface> surface =
+      SkSurfaces::RenderTarget(ctx->recorder(), SkImageInfo::MakeN32Premul(8, 8));
+  ASSERT_NE(surface, nullptr);
+  SkCanvas &canvas = *surface->getCanvas();
+  canvas.clear(SK_ColorBLACK);
+  canvas.drawImage(sheet, 0, 0);
+  const sk_sp<SkImage> ordinary =
+      ctx->recorder()->clientImageProvider()->findOrCreate(ctx->recorder(), sheet.get(), {});
+  ASSERT_NE(ordinary, nullptr);
+  EXPECT_TRUE(ordinary->isTextureBacked());
+  EXPECT_EQ(sigil::skia::draw::ready(canvas, sheet), ordinary);
+  EXPECT_EQ(sigil::skia::draw::ready(canvas, ordinary), ordinary);
+
+  sigil::skia::draw::drawLattice(canvas, sheet, {1, 3}, {1, 3}, SkRect::MakeXYWH(4, 0, 4, 4),
+                                 SkFilterMode::kNearest);
+  const SkRSXform xform = SkRSXform::Make(1, 0, 0, 4);
+  const SkRect tex = SkRect::MakeWH(4, 4);
+  sigil::skia::draw::drawSpriteAtlas(canvas, sheet, {.xforms = {&xform, 1}, .tex = {&tex, 1}},
+                                     SkSamplingOptions());
+  EXPECT_EQ(sigil::skia::draw::ready(canvas, sheet), ordinary);
+  const SkBitmap pixels = readGraphiteSurface(*ctx, surface.get());
+  ASSERT_FALSE(pixels.empty());
+  EXPECT_EQ(pixels.getColor(1, 1), SK_ColorWHITE);
+  EXPECT_EQ(pixels.getColor(5, 1), SK_ColorWHITE);
+  EXPECT_EQ(pixels.getColor(1, 5), SK_ColorWHITE);
+  EXPECT_EQ(pixels.getColor(5, 5), SK_ColorBLACK);
+}
+
+TEST(SigilSkiaGraphite, EachRecorderOwnsItsDirectImagePromotions) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  const sk_sp<SkImage> sheet = whiteSheet();
+  std::array<std::unique_ptr<skgpu::graphite::Recorder>, 2> recorders{ctx->makeRecorder(),
+                                                                      ctx->makeRecorder()};
+  std::array<sk_sp<SkImage>, 2> promoted;
+  for (size_t i = 0; i < recorders.size(); ++i) {
+    ASSERT_NE(recorders[i], nullptr);
+    sk_sp<SkSurface> surface =
+        SkSurfaces::RenderTarget(recorders[i].get(), SkImageInfo::MakeN32Premul(8, 8));
+    ASSERT_NE(surface, nullptr);
+    SkCanvas &canvas = *surface->getCanvas();
+    promoted[i] = sigil::skia::draw::ready(canvas, sheet);
+    ASSERT_NE(promoted[i], nullptr);
+    EXPECT_TRUE(promoted[i]->isTextureBacked());
+    EXPECT_EQ(sigil::skia::draw::ready(canvas, sheet), promoted[i]);
+    canvas.drawImage(promoted[i], 0, 0);
+    ASSERT_TRUE(submitRecorder(*ctx, *recorders[i]));
+  }
+  EXPECT_NE(promoted[0], promoted[1]);
+  recorders[0].reset();
+  sk_sp<SkSurface> surface =
+      SkSurfaces::RenderTarget(recorders[1].get(), SkImageInfo::MakeN32Premul(8, 8));
+  ASSERT_NE(surface, nullptr);
+  EXPECT_EQ(sigil::skia::draw::ready(*surface->getCanvas(), sheet), promoted[1]);
+  surface->getCanvas()->drawImage(promoted[1], 0, 0);
+  EXPECT_TRUE(submitRecorder(*ctx, *recorders[1]));
+}
+
+TEST(SigilSkiaGraphite, DirectDrawsUploadOnADefaultRecorder) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  auto recorder = ctx->context()->makeRecorder({});
+  ASSERT_NE(recorder, nullptr);
+  ASSERT_NE(recorder->clientImageProvider(), nullptr);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::RenderTarget(recorder.get(), SkImageInfo::MakeN32Premul(8, 8));
+  ASSERT_NE(surface, nullptr);
+  const sk_sp<SkImage> sheet = whiteSheet();
+  SkCanvas &canvas = *surface->getCanvas();
+  const sk_sp<SkImage> promoted = sigil::skia::draw::ready(canvas, sheet);
+  ASSERT_NE(promoted, nullptr);
+  EXPECT_TRUE(promoted->isTextureBacked());
+  canvas.clear(SK_ColorBLACK);
+  sigil::skia::draw::drawLattice(canvas, sheet, {1, 3}, {1, 3}, SkRect::MakeXYWH(4, 0, 4, 4),
+                                 SkFilterMode::kNearest);
+  const SkRSXform xform = SkRSXform::Make(1, 0, 0, 4);
+  const SkRect tex = SkRect::MakeWH(4, 4);
+  sigil::skia::draw::drawSpriteAtlas(canvas, sheet, {.xforms = {&xform, 1}, .tex = {&tex, 1}},
+                                     SkSamplingOptions());
+  ASSERT_TRUE(submitRecorder(*ctx, *recorder));
+  const SkBitmap pixels = readGraphiteSurface(*ctx, surface.get());
+  ASSERT_FALSE(pixels.empty());
+  EXPECT_EQ(pixels.getColor(5, 1), SK_ColorWHITE);
+  EXPECT_EQ(pixels.getColor(1, 5), SK_ColorWHITE);
+  EXPECT_EQ(pixels.getColor(5, 5), SK_ColorBLACK);
+}
+
+TEST(SigilSkiaGraphite, DirectPromotionUploadsWhenTheImageProviderCannotSupplyIt) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  const auto provider = sk_make_sp<MissingImageProvider>();
+  skgpu::graphite::RecorderOptions options;
+  options.fImageProvider = provider;
+  auto recorder = ctx->context()->makeRecorder(options);
+  ASSERT_NE(recorder, nullptr);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::RenderTarget(recorder.get(), SkImageInfo::MakeN32Premul(8, 8));
+  ASSERT_NE(surface, nullptr);
+  const sk_sp<SkImage> sheet = whiteSheet();
+  const sk_sp<SkImage> promoted = sigil::skia::draw::ready(*surface->getCanvas(), sheet);
+  ASSERT_NE(promoted, nullptr);
+  EXPECT_TRUE(promoted->isTextureBacked());
+  EXPECT_EQ(provider->calls, 1);
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  surface->getCanvas()->drawImage(promoted, 0, 0);
+  ASSERT_TRUE(submitRecorder(*ctx, *recorder));
+  const SkBitmap pixels = readGraphiteSurface(*ctx, surface.get());
+  ASSERT_FALSE(pixels.empty());
+  EXPECT_EQ(pixels.getColor(1, 1), SK_ColorWHITE);
+  EXPECT_EQ(pixels.getColor(5, 5), SK_ColorBLACK);
 }
 
 TEST(SigilSkiaGraphite, WrappedTextureIsVisibleToTheSharedQueue) {

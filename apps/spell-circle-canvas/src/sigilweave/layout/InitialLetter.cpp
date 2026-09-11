@@ -375,7 +375,7 @@ void placeInitialLetter(const InitialLetterPlan& plan,
   cap.lineIndex = lineIndex;
   cap.advance = plan.glyphs->advance;
   if (!cap.blob) return;
-  layout.shapedByTheLayout.push_back(plan.glyphs);
+  LayoutAccess::retain(layout, plan.glyphs);
   // In logical order: the initial opens its own block and never stands
   // before the words of the blocks above it.
   layout.runs.insert(layout.runs.begin() + (long)insertAt, std::move(cap));
@@ -398,7 +398,7 @@ void placeInitialLetter(const InitialLetterPlan& plan,
     rest.lineIndex = lineIndex;
     rest.advance = plan.remainder->advance;
     if (rest.blob && !seat.contour.valid()) {
-      layout.shapedByTheLayout.push_back(plan.remainder);
+      LayoutAccess::retain(layout, plan.remainder);
       layout.runs.insert(layout.runs.begin() + (long)insertAt + 1,
                          std::move(rest));
     }

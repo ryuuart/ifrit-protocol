@@ -23,6 +23,8 @@
 #include <string_view>
 #include <utility>
 
+#include "../core/ProgramInternal.h"
+
 namespace sigil::material::skia {
 
 void SkiaProgram::upload(SkRuntimeShaderBuilder& builder,
@@ -166,11 +168,18 @@ std::shared_ptr<Program> compile(std::shared_ptr<const Recipe> recipe,
                                        std::move(effect));
 }
 
+void ensureCompiler() {
+  static std::once_flag once;
+  std::call_once(once, [] {
+    material::detail::CompilerDefaults::registerIfAbsent(Target::SkSL, compile);
+  });
+}
+
 }  // namespace
 
-void install() {
-  static std::once_flag once;
-  std::call_once(once, [] { registerCompiler(Target::SkSL, compile); });
+WarmupResult warmup(std::span<const Material> materials, Variant variant) {
+  ensureCompiler();
+  return material::warmup(materials, Target::SkSL, variant);
 }
 
 int samplerCount(const Material& material) {
@@ -189,6 +198,7 @@ int samplerCount(const Material& material) {
 std::unique_ptr<SkRuntimeShaderBuilder> builder(
     const Material& material, const FrameData& frame, Variant variant,
     std::span<const std::string_view> leave) {
+  ensureCompiler();
   // REFUSED HERE, LOUDLY, RATHER THAN ON THE DEVICE, QUIETLY. Past the
   // limit the driver rejects the pipeline the shader is inlined into,
   // the pass is dropped and the draw paints nothing; the material that

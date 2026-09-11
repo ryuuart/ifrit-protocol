@@ -1,7 +1,7 @@
 /** @file
  * Network fetch and the disk cache: libcurl over the easy API, the
  * policy that decides whether the cache or the network answers first,
- * the cache filename a URL maps to, and the hub's two network settings.
+ * the resource operations over that cache, and the hub's network settings.
  */
 
 #include "sigilio/hub/Network.h"
@@ -81,17 +81,36 @@ bool isNetworkUri(std::string_view uri) {
   return uri.starts_with("http://") || uri.starts_with("https://");
 }
 
+static std::filesystem::path networkCachePath(
+    std::string_view url, const std::filesystem::path& cacheDir) {
+  return (cacheDir.empty() ? defaultNetworkCacheDir() : cacheDir) /
+         networkCacheKey(url);
+}
+
+/** A write publishes only when every byte is there. A sibling belongs to
+ *  one writer, so concurrent fetches and seeds cannot truncate each other's
+ *  bytes before either takes the resource's cache name. */
+static bool persistNetworkResource(const std::filesystem::path& cached,
+                                   std::span<const std::byte> bytes) {
+  const std::filesystem::path partial =
+      cached.string() + ".part." + writerSuffix();
+  std::error_code ec;
+  if (writeBytes(partial, bytes.data(), bytes.size())) {
+    std::filesystem::rename(partial, cached, ec);
+    if (!ec) return true;
+  }
+  std::filesystem::remove(partial, ec);
+  return false;
+}
+
 /** Network fetch behind the disk cache. CacheFirst: a present cache
  *  file is served without touching the network (offline-friendly).
  *  Refresh: the network goes first, the cache catches its failures.
  *  Offline: cache only. A fetch success always persists for the next
  *  run. */
 FetchResult fetchNetwork(const NetworkAccess& access, std::string_view url) {
-  const std::filesystem::path cacheDir =
-      access.cacheDir.empty() ? defaultNetworkCacheDir() : access.cacheDir;
+  const std::filesystem::path cached = networkCachePath(url, access.cacheDir);
   std::error_code ec;
-  std::filesystem::create_directories(cacheDir, ec);
-  const std::filesystem::path cached = cacheDir / networkCacheKey(url);
   const auto fromCache = [&]() -> FetchResult {
     if (std::filesystem::exists(cached, ec) && !ec)
       if (auto blob = readFile(cached))
@@ -104,28 +123,13 @@ FetchResult fetchNetwork(const NetworkAccess& access, std::string_view url) {
   auto body =
       access.transport ? access.transport(url) : CurlTransport::get(url);
   if (!body) return fromCache();  // Refresh degrades to the cached copy
-  // Persisting is best-effort, and never half done: the bytes land in a
-  // sibling file through writeBytes and take the cache name only once
-  // every byte is there, so a later run can find the whole resource or
-  // nothing, never a shorter one. The sibling is named for the WRITER,
-  // because two fetches of one URL run concurrently — the hub lets a
-  // cold ask for the same resource happen twice — and one shared
-  // partial would let each truncate what the other is writing and the
-  // rename commit a file that is half of one and half of the other.
-  const std::filesystem::path partial =
-      cached.string() + ".part." + writerSuffix();
-  if (writeBytes(partial, body->data(), body->size())) {
-    std::filesystem::rename(partial, cached, ec);
-    if (ec) std::filesystem::remove(partial, ec);
-  } else {
-    std::filesystem::remove(partial, ec);
-  }
+  // Persistence is best-effort: a fetched resource remains usable when
+  // the cache directory cannot accept it.
+  (void)persistNetworkResource(cached, *body);
   auto blob = std::make_shared<Bytes>();
   blob->bytes = std::move(*body);
   return {std::move(blob), cached, kNetworkMtime};
 }
-
-}  // namespace detail
 
 std::string networkCacheKey(std::string_view url) {
   const size_t hash = std::hash<std::string_view>{}(url);
@@ -176,6 +180,25 @@ std::filesystem::path defaultNetworkCacheDir() {
   const std::filesystem::path base =
       root.empty() ? std::filesystem::temp_directory_path() : root;
   return base / "SigilIO" / "network";
+}
+
+}  // namespace detail
+
+std::optional<std::uintmax_t> probeNetworkCache(
+    std::string_view url, const std::filesystem::path& cacheDir) {
+  if (!detail::isNetworkUri(url)) return std::nullopt;
+  const std::filesystem::path cached = detail::networkCachePath(url, cacheDir);
+  std::error_code ec;
+  if (!std::filesystem::is_regular_file(cached, ec) || ec) return std::nullopt;
+  const std::uintmax_t size = std::filesystem::file_size(cached, ec);
+  return ec ? std::nullopt : std::optional<std::uintmax_t>(size);
+}
+
+bool seedNetworkCache(std::string_view url, std::span<const std::byte> bytes,
+                      const std::filesystem::path& cacheDir) {
+  if (!detail::isNetworkUri(url)) return false;
+  return detail::persistNetworkResource(detail::networkCachePath(url, cacheDir),
+                                        bytes);
 }
 
 void Hub::setNetworkCacheDir(std::filesystem::path dir) {

@@ -9,6 +9,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <string>
 #include <string_view>
 
 #include "sigilio/hub/Hub.h"
@@ -19,6 +20,12 @@ namespace sigil::io::detail {
 std::shared_ptr<const Bytes> readFile(const std::filesystem::path& path);
 
 bool isNetworkUri(std::string_view uri);
+
+/** The cache filename derived from a URL, including its path extension. */
+std::string networkCacheKey(std::string_view url);
+
+/** The platform cache directory a hub uses without an override. */
+std::filesystem::path defaultNetworkCacheDir();
 
 /** Does @p relative stay beneath the directory it is joined onto? False
  *  for a rooted path and for anything that climbs through `..`. */

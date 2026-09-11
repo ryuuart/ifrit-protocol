@@ -77,7 +77,7 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
   if (!marker || marker->glyphs.empty()) return;
   // Like a tab leader, the marker is the layout's own word and not one of
   // the paragraph's, so the layout is what keeps it alive for its run.
-  result.shapedByTheLayout.push_back(marker);
+  LayoutAccess::retain(result, marker);
 
   size_t lineBegin = result.runs.size();
   while (lineBegin > 0 && result.runs[lineBegin - 1].lineIndex == lineIndex)

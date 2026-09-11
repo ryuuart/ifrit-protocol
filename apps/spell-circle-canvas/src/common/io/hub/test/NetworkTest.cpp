@@ -21,26 +21,38 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
+#include <iterator>
 #include <optional>
+#include <span>
 #include <string>
 #include <thread>
 #include <vector>
 
+#include "../Fetch.h"
 #include "ScratchDir.h"
 
 using namespace sigil::io;
 using sigil::test::ScratchDir;
 namespace fs = std::filesystem;
 
+namespace {
+
+std::span<const std::byte> bytesOf(std::string_view text) {
+  return std::as_bytes(std::span(text.data(), text.size()));
+}
+
+}  // namespace
+
 TEST(IONetwork, CacheKeyKeepsUrlExtension) {
   const std::string key =
-      networkCacheKey("https://fake.invalid/a/logo.png?v=2");
+      detail::networkCacheKey("https://fake.invalid/a/logo.png?v=2");
   EXPECT_TRUE(key.ends_with(".png"));
-  EXPECT_EQ(key, networkCacheKey("https://fake.invalid/a/logo.png?v=2"));
-  EXPECT_NE(key, networkCacheKey("https://fake.invalid/a/other.png?v=2"));
+  EXPECT_EQ(key,
+            detail::networkCacheKey("https://fake.invalid/a/logo.png?v=2"));
+  EXPECT_NE(key,
+            detail::networkCacheKey("https://fake.invalid/a/other.png?v=2"));
   // No extension in the URL path: bare hash, no trailing dot-noise.
-  EXPECT_EQ(networkCacheKey("https://fake.invalid/api/blob").find('.'),
+  EXPECT_EQ(detail::networkCacheKey("https://fake.invalid/api/blob").find('.'),
             std::string::npos);
 }
 
@@ -48,7 +60,7 @@ TEST(IONetwork, DefaultCacheDirIsUnderThePlatformCacheLocation) {
   // The OS evicts the temp directory on its own schedule, so a fetch a
   // later run depends on cannot live there.
   const fs::path fallback = fs::temp_directory_path();
-  const fs::path defaulted = defaultNetworkCacheDir();
+  const fs::path defaulted = detail::defaultNetworkCacheDir();
 #if defined(_WIN32)
   const char* local = std::getenv("LOCALAPPDATA");
   const std::string root = local ? std::string(local) : "";
@@ -82,22 +94,103 @@ TEST(IONetwork, DefaultCacheDirIsUnderThePlatformCacheLocation) {
     return std::vector<std::byte>(bytes, bytes + body.size());
   });
   ASSERT_EQ(hub.text(url), body);
-  EXPECT_TRUE(fs::exists(cache.path / networkCacheKey(url)));
-  EXPECT_FALSE(fs::exists(defaulted / networkCacheKey(url)));
+  EXPECT_EQ(probeNetworkCache(url, cache.path), body.size());
+  EXPECT_FALSE(probeNetworkCache(url));
 }
 
 TEST(IONetwork, SeededCacheServesWithoutNetwork) {
-  // Hermetic: the cache file is pre-seeded under the same key the hub
-  // computes, so the fake host is never contacted.
   const ScratchDir cache("sigilio_net");
   const std::string url = "https://fake.invalid/x.txt";
-  std::ofstream(cache.path / networkCacheKey(url), std::ios::binary)
-      << "from the cache";
+  ASSERT_TRUE(seedNetworkCache(url, bytesOf("from the cache"), cache.path));
   Hub hub;
   hub.setNetworkCacheDir(cache.path);
+  size_t requests = 0;
+  hub.setNetworkTransport([&](std::string_view) {
+    ++requests;
+    return std::optional<std::vector<std::byte>>{};
+  });
   auto text = hub.text(url);
   ASSERT_TRUE(text.has_value());
   EXPECT_EQ(*text, "from the cache");
+  EXPECT_EQ(requests, 0u);
+}
+
+TEST(IONetwork, CacheProbeDistinguishesMissingAndEmptyWithoutCreatingFiles) {
+  const ScratchDir root("sigilio_net_probe");
+  const fs::path directory = root.path / "not-created";
+  const std::string url = "https://fake.invalid/empty.txt";
+  EXPECT_FALSE(probeNetworkCache(url, directory));
+  EXPECT_FALSE(fs::exists(directory));
+
+  ASSERT_TRUE(seedNetworkCache(url, {}, directory));
+  EXPECT_EQ(probeNetworkCache(url, directory), 0u);
+  EXPECT_FALSE(
+      probeNetworkCache("https://fake.invalid/missing.txt", directory));
+
+  Hub offline;
+  offline.setNetworkCacheDir(directory);
+  offline.setNetworkPolicy(NetworkPolicy::Offline);
+  size_t requests = 0;
+  offline.setNetworkTransport([&](std::string_view) {
+    ++requests;
+    return std::optional<std::vector<std::byte>>{};
+  });
+  auto bytes = offline.blob(url);
+  ASSERT_NE(bytes, nullptr);
+  EXPECT_TRUE(bytes->bytes.empty());
+  EXPECT_EQ(requests, 0u);
+}
+
+TEST(IONetwork, SeedingUsesTheRequestedDirectoryAndKeepsUrlsDistinct) {
+  const ScratchDir root("sigilio_net_seed");
+  const fs::path first = root.path / "first";
+  const fs::path second = root.path / "second";
+  const std::string url = "https://fake.invalid/art.png?v=1";
+  const std::string revision = "https://fake.invalid/art.png?v=2";
+  ASSERT_TRUE(seedNetworkCache(url, bytesOf("first"), first));
+  ASSERT_TRUE(seedNetworkCache(url, bytesOf("second"), second));
+  ASSERT_TRUE(seedNetworkCache(revision, bytesOf("revision"), first));
+  EXPECT_EQ(probeNetworkCache(url, first), 5u);
+  EXPECT_EQ(probeNetworkCache(url, second), 6u);
+  EXPECT_EQ(probeNetworkCache(revision, first), 8u);
+  EXPECT_FALSE(probeNetworkCache(revision, second));
+
+  Hub offline;
+  offline.setNetworkCacheDir(first);
+  offline.setNetworkPolicy(NetworkPolicy::Offline);
+  EXPECT_EQ(offline.text(url), "first");
+  EXPECT_EQ(offline.text(revision), "revision");
+  ASSERT_TRUE(seedNetworkCache(url, bytesOf("replacement"), first));
+  EXPECT_EQ(offline.text(url), "first");
+  Hub reopened;
+  reopened.setNetworkCacheDir(first);
+  reopened.setNetworkPolicy(NetworkPolicy::Offline);
+  EXPECT_EQ(reopened.text(url), "replacement");
+}
+
+TEST(IONetwork, CacheOperationsRefuseNonNetworkUrls) {
+  const ScratchDir root("sigilio_net_uri");
+  const fs::path directory = root.path / "not-created";
+  for (std::string_view url : {"", "file:///tmp/data", "res://data", "data"}) {
+    EXPECT_FALSE(seedNetworkCache(url, bytesOf("bytes"), directory));
+    EXPECT_FALSE(probeNetworkCache(url, directory));
+  }
+  EXPECT_FALSE(fs::exists(directory));
+}
+
+TEST(IONetwork, FailedSeedLeavesNoPartialResource) {
+  const ScratchDir cache("sigilio_net_seed_failure");
+  const std::string url = "https://fake.invalid/blocked.txt";
+  const fs::path blocked = cache.path / detail::networkCacheKey(url);
+  fs::create_directory(blocked);
+  ASSERT_TRUE(writeBytes(blocked / "keep", "kept", 4));
+
+  EXPECT_FALSE(seedNetworkCache(url, bytesOf("replacement"), cache.path));
+  EXPECT_FALSE(probeNetworkCache(url, cache.path));
+  EXPECT_TRUE(fs::is_regular_file(blocked / "keep"));
+  EXPECT_EQ(std::distance(fs::directory_iterator(cache.path),
+                          fs::directory_iterator{}),
+            1);
 }
 
 TEST(IONetwork, SeededCacheDecodesImagesWithExtensionHint) {
@@ -109,8 +202,9 @@ TEST(IONetwork, SeededCacheDecodesImagesWithExtensionHint) {
   const sk_sp<SkData> png =
       sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
   ASSERT_TRUE(png);
-  ASSERT_TRUE(
-      writeBytes(cache.path / networkCacheKey(url), png->data(), png->size()));
+  ASSERT_TRUE(seedNetworkCache(
+      url, {static_cast<const std::byte*>(png->data()), png->size()},
+      cache.path));
   Hub hub;
   hub.setNetworkCacheDir(cache.path);
   auto image = hub.image(url);
@@ -127,7 +221,7 @@ TEST(IONetwork, SeededCacheDecodesImagesWithExtensionHint) {
 TEST(IONetwork, PollSkipsNetworkEntries) {
   const ScratchDir cache("sigilio_net");
   const std::string url = "https://fake.invalid/data.bin";
-  std::ofstream(cache.path / networkCacheKey(url), std::ios::binary) << "abc";
+  ASSERT_TRUE(seedNetworkCache(url, bytesOf("abc"), cache.path));
   Hub hub;
   hub.setNetworkCacheDir(cache.path);
   ASSERT_NE(hub.blob(url), nullptr);
@@ -140,8 +234,7 @@ TEST(IONetwork, PollSkipsNetworkEntries) {
 TEST(IONetwork, OfflinePolicyServesCacheAndNeverFetches) {
   const ScratchDir cache("sigilio_net");
   const std::string cached = "https://fake.invalid/have.txt";
-  std::ofstream(cache.path / networkCacheKey(cached), std::ios::binary)
-      << "kept";
+  ASSERT_TRUE(seedNetworkCache(cached, bytesOf("kept"), cache.path));
   Hub hub;
   hub.setNetworkCacheDir(cache.path);
   hub.setNetworkPolicy(NetworkPolicy::Offline);
@@ -153,8 +246,7 @@ TEST(IONetwork, OfflinePolicyServesCacheAndNeverFetches) {
 TEST(IONetwork, RefreshPolicyFallsBackToCacheOnFetchFailure) {
   const ScratchDir cache("sigilio_net");
   const std::string url = "https://fake.invalid/live.txt";
-  std::ofstream(cache.path / networkCacheKey(url), std::ios::binary)
-      << "yesterday's copy";
+  ASSERT_TRUE(seedNetworkCache(url, bytesOf("yesterday's copy"), cache.path));
   Hub hub;
   hub.setNetworkCacheDir(cache.path);
   hub.setNetworkPolicy(NetworkPolicy::Refresh);
@@ -182,8 +274,10 @@ TEST(IONetwork, FetchedBytesPersistWholeOrNotAtAll) {
   ASSERT_NE(fetched, nullptr);
   EXPECT_EQ(fetched->asText(), "ok");
   // Persisted under the cache name, and nothing partial beside it.
-  EXPECT_TRUE(fs::is_regular_file(cache.path / networkCacheKey(url)));
-  EXPECT_FALSE(fs::exists(cache.path / (networkCacheKey(url) + ".part")));
+  EXPECT_EQ(probeNetworkCache(url, cache.path), 2u);
+  EXPECT_EQ(std::distance(fs::directory_iterator(cache.path),
+                          fs::directory_iterator{}),
+            1);
 
   Hub offline;
   offline.setNetworkCacheDir(cache.path);
@@ -231,7 +325,7 @@ TEST(IONetwork, TwoConcurrentFetchesOfOneUrlCommitOneWholeFile) {
   std::vector<std::string> left;
   for (const auto& entry : fs::directory_iterator(cache.path))
     left.push_back(entry.path().filename().string());
-  EXPECT_EQ(left, std::vector<std::string>{networkCacheKey(url)});
+  EXPECT_EQ(left, std::vector<std::string>{detail::networkCacheKey(url)});
 
   Hub offline;
   offline.setNetworkCacheDir(cache.path);

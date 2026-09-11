@@ -131,8 +131,7 @@ struct Raster {
 TEST(DirectDraws, ANineSliceKeepsItsCornersAndStretchesTheMiddle) {
   Raster raster;
   raster.canvas().clear(SK_ColorBLACK);
-  Promoted cache;
-  drawLattice(raster.canvas(), cache, twoHalves(), {2}, {},
+  drawLattice(raster.canvas(), twoHalves(), {2}, {},
               SkRect::MakeXYWH(0, 0, 100, 100), SkFilterMode::kNearest);
   // The x axis is cut at 2: a fixed white band 2 units wide, then the red
   // half stretched over the rest. The y axis is undivided, so it fills.
@@ -155,8 +154,7 @@ TEST(DirectDraws, EverySpriteIsDrawnAcrossTheChunkBoundary) {
 
   Raster raster;
   raster.canvas().clear(SK_ColorBLACK);
-  Promoted cache;
-  drawSpriteAtlas(raster.canvas(), cache, twoHalves(),
+  drawSpriteAtlas(raster.canvas(), twoHalves(),
                   SpriteBatch{.xforms = xforms, .tex = tex},
                   SkSamplingOptions());
   EXPECT_EQ(raster.pixel(11, 11), SK_ColorWHITE) << "the first chunk";
@@ -166,7 +164,6 @@ TEST(DirectDraws, EverySpriteIsDrawnAcrossTheChunkBoundary) {
 TEST(DirectDraws, APerSpriteSizeScalesTheQuadTheXformCannot) {
   Raster raster;
   raster.canvas().clear(SK_ColorBLACK);
-  Promoted cache;
   const SkRSXform xform = SkRSXform::MakeFromRadians(1, 0, 20, 20, 0, 0);
   const SkRect tex = SkRect::MakeWH(2, 4);
   // The quad is centred on the cell, so a 2x4 cell at (20, 20) has its
@@ -174,7 +171,7 @@ TEST(DirectDraws, APerSpriteSizeScalesTheQuadTheXformCannot) {
   // its own height stands.
   const SkSize size{20.0f, 1.0f};
   drawSpriteAtlas(
-      raster.canvas(), cache, twoHalves(),
+      raster.canvas(), twoHalves(),
       SpriteBatch{.xforms = {&xform, 1}, .tex = {&tex, 1}, .sizes = {&size, 1}},
       SkSamplingOptions(), SkBlendMode::kSrcOver);
   EXPECT_EQ(raster.pixel(35, 22), SK_ColorWHITE) << "wide";
@@ -206,8 +203,7 @@ TEST(DirectDraws, ABatchWithAShortLaneDrawsNothingRatherThanReadingPastIt) {
 
   Raster raster;
   raster.canvas().clear(SK_ColorBLACK);
-  Promoted cache;
-  drawSpriteAtlas(raster.canvas(), cache, twoHalves(),
+  drawSpriteAtlas(raster.canvas(), twoHalves(),
                   SpriteBatch{.xforms = xforms, .tex = std::span(tex).first(3)},
                   SkSamplingOptions());
   EXPECT_EQ(raster.pixel(11, 11), SK_ColorBLACK) << "nothing was drawn";
@@ -215,13 +211,10 @@ TEST(DirectDraws, ABatchWithAShortLaneDrawsNothingRatherThanReadingPastIt) {
 
 TEST(DirectDraws, ReadyHandsBackTheImageWhereThereIsNoRecorder) {
   // A raster canvas promotes nothing: the image is already what a draw
-  // can sample, and the cache stays empty rather than holding a copy.
+  // can sample.
   Raster raster;
-  Promoted cache;
   const sk_sp<SkImage> sheet = twoHalves();
-  EXPECT_EQ(ready(cache, sheet, raster.canvas()), sheet);
-  EXPECT_EQ(cache.image, nullptr);
-  EXPECT_EQ(cache.sourceId, 0u);
+  EXPECT_EQ(ready(raster.canvas(), sheet), sheet);
   // …and a null image is answered with null rather than promoted.
-  EXPECT_EQ(ready(cache, nullptr, raster.canvas()), nullptr);
+  EXPECT_EQ(ready(raster.canvas(), nullptr), nullptr);
 }

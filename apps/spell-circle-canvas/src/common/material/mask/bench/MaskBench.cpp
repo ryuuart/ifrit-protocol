@@ -15,7 +15,6 @@ using namespace sigil::material;
 namespace {
 
 void MaskBuild(benchmark::State& state) {
-  skia::install();
   for ([[maybe_unused]] auto iteration : state) {
     Material m = maskConstant(0.5f);
     benchmark::DoNotOptimize(m);
@@ -24,7 +23,6 @@ void MaskBuild(benchmark::State& state) {
 BENCHMARK(MaskBuild);
 
 void SampledMaskShader(benchmark::State& state) {
-  skia::install();
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
   s->getCanvas()->clear(SK_ColorWHITE);
   const Material m = maskMap(Texture::of(s->makeImageSnapshot()));

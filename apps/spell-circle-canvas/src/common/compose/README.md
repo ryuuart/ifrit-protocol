@@ -1482,8 +1482,9 @@ point the author typed, not a geometry source.)
   a raster test cannot see it. Use SigilSkia's `skia::draw::drawLattice`
   and `skia::draw::drawSpriteAtlas` (over a `skia::draw::SpriteBatch`)
   (`<sigilskia/draw/Direct.h>`), which decompose on every backend and
-  never emit the native op. This is not an optimisation layer; it is the
-  only correct path.
+  never emit the native op. Raster sources use the recorder's image
+  provider, so direct draws, slices and atlases share its texture cache
+  without keeping cache storage in their descriptions.
 - **A `custom()` leaf sizes like an empty box.** It is literally a box with
   one background program, so it has no intrinsic size: dropped into an
   `absolute().inset(0)` parent it measures zero on the main axis and the

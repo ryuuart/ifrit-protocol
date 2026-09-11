@@ -148,7 +148,6 @@ TEST(PaintPasses, MaterialPassShadesThroughTheInstalledResolver) {
 
   // The resolver a host installs: SigilMaterial's Skia backend, with the
   // pass's bounds as the material's resolution.
-  sigil::material::skia::install();
   const InstalledResolver installed(
       [](const sigil::material::Material& m, const SkRect& bounds) {
         return sigil::material::skia::shader(
@@ -178,7 +177,6 @@ class TextPaintPresets : public ::testing::TestWithParam<TextPaintPreset> {};
 
 TEST_P(TextPaintPresets, EachResolvesToAShaderOverTheBoundsItIsGiven) {
   const SkRect bounds = SkRect::MakeXYWH(10, 10, 1180, 880);
-  sigil::material::skia::install();
   EXPECT_NE(sigil::material::skia::shader(GetParam().build(bounds, 1.25f), {}),
             nullptr);
 }

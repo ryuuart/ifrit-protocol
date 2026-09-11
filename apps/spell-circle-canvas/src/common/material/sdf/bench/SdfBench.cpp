@@ -25,7 +25,6 @@ Material styled(sdf::Kind kind) {
 }
 
 void SdfShader(benchmark::State& state) {
-  skia::install();
   const Material m = styled((sdf::Kind)state.range(0));
   for ([[maybe_unused]] auto iteration : state) {
     sk_sp<SkShader> s = skia::shader(m, {.resolution = {128, 128}});
@@ -35,7 +34,6 @@ void SdfShader(benchmark::State& state) {
 BENCHMARK(SdfShader)->Arg(0)->Arg(1)->Arg(2);
 
 void SdfPaint(benchmark::State& state) {
-  skia::install();
   const int side = (int)state.range(0);
   const Material m = styled(sdf::Kind::Star);
   sk_sp<SkSurface> surface =

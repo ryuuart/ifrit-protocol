@@ -171,3 +171,41 @@ TEST_F(OpticalKerning, AGlyphWithNoNeighbourIsLeftAlone) {
   ASSERT_TRUE(kerned);
   EXPECT_FLOAT_EQ(kerned->advance, plain->advance);
 }
+
+TEST_F(OpticalKerning, AFullPurgeReleasesMeasurementsAndPreservesHeldShapes) {
+  ShapingStyle style;
+  style.typeface = m_typeface;
+  style.fontSize = 32;
+  style.opticalKerning = true;
+  const auto held =
+      shapeWord(m_fontContext, style, m_typeface, u"AV", 0, false);
+  ASSERT_TRUE(held);
+  const auto blob = wordBlob(*held);
+  ASSERT_TRUE(blob);
+  const auto measured = m_fontContext.stats();
+  ASSERT_GT(measured.opticalProfileQueries, 0u);
+  ASSERT_GT(measured.opticalReferenceQueries, 0u);
+
+  m_fontContext.purgeShapeCache();
+  const auto warmMeasurements =
+      shapeWord(m_fontContext, style, m_typeface, u"AV", 0, false);
+  ASSERT_TRUE(warmMeasurements);
+  EXPECT_EQ(m_fontContext.stats().opticalProfileQueries,
+            measured.opticalProfileQueries);
+  EXPECT_EQ(m_fontContext.stats().opticalReferenceQueries,
+            measured.opticalReferenceQueries);
+
+  m_fontContext.purgeAllCaches();
+  const auto refilled =
+      shapeWord(m_fontContext, style, m_typeface, u"AV", 0, false);
+  ASSERT_TRUE(refilled);
+  EXPECT_EQ(m_fontContext.stats().opticalProfileQueries,
+            2 * measured.opticalProfileQueries);
+  EXPECT_EQ(m_fontContext.stats().opticalReferenceQueries,
+            2 * measured.opticalReferenceQueries);
+  EXPECT_EQ(refilled->positions, held->positions);
+  EXPECT_EQ(refilled->advances, held->advances);
+  EXPECT_FLOAT_EQ(refilled->advance, held->advance);
+  EXPECT_EQ(wordBlob(*held), blob);
+  EXPECT_EQ(wordBlob(*warmMeasurements)->bounds(), blob->bounds());
+}

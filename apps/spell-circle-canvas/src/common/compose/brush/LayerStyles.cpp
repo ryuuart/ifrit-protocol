@@ -93,7 +93,6 @@ material::skia::Effect ripple(float amplitudePx, float wavelengthPx,
   // a re-described equal ripple prunes.
   const sigil::material::Material m = sigil::material::field::ripple(
       amplitudePx, wavelengthPx, phase, vertical);
-  sigil::material::skia::install();
   const sigil::material::Material::Resolved resolved =
       m.resolve(sigil::material::Target::SkSL, {});
   const auto* program =

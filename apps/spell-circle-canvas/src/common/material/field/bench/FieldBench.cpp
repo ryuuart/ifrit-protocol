@@ -14,7 +14,6 @@ using namespace sigil::material;
 namespace {
 
 void paint(benchmark::State& state, const Material& m, int side) {
-  skia::install();
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
   SkPaint p;

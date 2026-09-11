@@ -11,6 +11,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilgeometry/path/Numeric.h>
+#include <sigilskia/draw/Direct.h>
 
 #include <cmath>
 
@@ -111,8 +112,8 @@ void Slice::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   sk_sp<SkImage> img = asset->frames().front().image;
   if (!img) return;
   const SkRect dst = SkRect::MakeWH(ctx.size.width(), ctx.size.height());
-  skia::draw::drawLattice(canvas, *gpuCache, std::move(img), xDivs, yDivs, dst,
-                          filter, density);
+  skia::draw::drawLattice(canvas, std::move(img), xDivs, yDivs, dst, filter,
+                          density);
 }
 
 void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {

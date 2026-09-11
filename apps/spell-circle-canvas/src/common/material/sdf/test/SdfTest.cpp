@@ -102,7 +102,6 @@ TEST(Sdf, StyleIsTheRecipeAndAGlowBindingIsLive) {
 // ---- the embedded shader table --------------------------------------------
 
 TEST(Sdf, EveryStockBodyCompiles) {
-  skia::install();
   for (const Material& m : sdf::everyRecipe()) {
     if (!m.recipe().has(Target::SkSL)) continue;
     EXPECT_TRUE(skia::shader(m, {.resolution = {64, 64}})) << m.recipe().name();

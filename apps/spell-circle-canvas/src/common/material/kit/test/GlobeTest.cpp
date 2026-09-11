@@ -47,7 +47,6 @@ int ruled(const SkBitmap& picture) {
 }  // namespace
 
 TEST(Globe, TheDiscIsInscribedInTheNodeAndNothingOutsideItIsPainted) {
-  skia::install();
   const Material globe = kit::globe();
   EXPECT_TRUE(skia::shader(globe, {}));
   EXPECT_TRUE(globe.recipe().reads(FrameInput::Resolution));

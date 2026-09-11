@@ -181,7 +181,6 @@ TEST(Field, TheBeamTheBeatAndTheGrainAreAbsentUntilTheyAreGivenStrength) {
 // ---- the embedded shader table --------------------------------------------
 
 TEST(Field, EveryStockBodyCompiles) {
-  skia::install();
   for (const Material& m : field::everyRecipe()) {
     if (!m.recipe().has(Target::SkSL)) continue;
     EXPECT_TRUE(skia::shader(m, {.resolution = {64, 64}})) << m.recipe().name();

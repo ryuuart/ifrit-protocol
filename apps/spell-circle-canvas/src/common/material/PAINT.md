@@ -54,9 +54,15 @@ it knows the track's unit count — `uContent`, `uUnitRect[N]`,
 `uUnitPhase[N]`, `kUnitCount` — so compiling it standalone names four
 things that do not exist yet and reports one error per mention, about a
 compile nobody asked for. `Paint::recipe` recognises such a body by those
-names (`skia::detail::isPassBody`) and builds no static shader for it:
+names and builds no static shader for it:
 the picture comes from `resolvePass`, and used as an ordinary fill the
 material draws nothing rather than failing loudly at load.
+
+`skia::PassInputs` is the public input to `Paint::resolvePass`: the layer
+shader, a unit count, four floats per unit for its rectangle, and two for
+its progress and stable seed. The arrays are borrowed only for that call.
+The paint owns specialization and program reuse; repeated calls with the
+same recipe and unit count share one compiled program.
 
 `PaintFrame` is what one draw supplies and no author sets: the box, the
 root's size, the box→root matrix, the clock and the device scale. A
