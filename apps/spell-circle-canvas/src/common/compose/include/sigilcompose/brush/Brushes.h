@@ -176,17 +176,17 @@ struct Weave {
       if (s.brush.blends()) return true;
     return false;
   }
-  float bleed() const {
+  float bleed(SkSize size) const {
     float worst = 0;
     for (const Strand& s : strands)
-      worst = std::max(worst, s.path.reach() + s.brush.bleed());
+      worst = std::max(worst, s.path.reach() + s.brush.bleed(size));
     return worst;
   }
   /** The widest mark any strand paints, off its own path. */
-  float reach() const {
+  float reach(SkSize size) const {
     float worst = 0;
     for (const Strand& s : strands)
-      worst = std::max(worst, s.path.reach() + s.brush.reach());
+      worst = std::max(worst, s.path.reach() + s.brush.reach(size));
     return worst;
   }
   /** Forwarded so the element can register the derive borrows without
@@ -285,12 +285,12 @@ struct Brush {
     return false;
   }
   /** The widest mark any layer paints, plus the pipeline's own reach. */
-  float reach() const {
+  float reach(SkSize size) const {
     float shared = 0;
     for (const geometry::path::Shaper& g : pipeline) shared += g.bleed();
     float worst = 0;
     for (const Layer& l : layers) {
-      float layerReach = l.dec.reach();
+      float layerReach = l.dec.reach(size);
       for (const geometry::path::Shaper& g : l.shapers) layerReach += g.bleed();
       worst = std::max(worst, layerReach);
     }
@@ -304,13 +304,13 @@ struct Brush {
       for (const std::string& k : l.dec.borrows()) keys.push_back(k);
     return keys;
   }
-  float bleed() const {
+  float bleed(SkSize size) const {
     float shared = 0;
     for (const geometry::path::Shaper& g : pipeline)
       shared += g.bleed();  // pipeline reaches compound (offset THEN wave)
     float worst = 0;
     for (const Layer& l : layers) {
-      float layerReach = l.dec.bleed();
+      float layerReach = l.dec.bleed(size);
       for (const geometry::path::Shaper& g : l.shapers) layerReach += g.bleed();
       worst = std::max(worst, layerReach);
     }
@@ -342,8 +342,8 @@ struct Restyled {
   bool isAnimated() const { return inner.isAnimated(); }
   /** Forwarded, for the reason a weave forwards it. */
   bool blends() const { return inner.blends(); }
-  float bleed() const { return inner.bleed() + extraBleed; }
-  float reach() const { return inner.reach(); }
+  float bleed(SkSize size) const { return inner.bleed(size) + extraBleed; }
+  float reach(SkSize size) const { return inner.reach(size); }
   /** Forwarded, or a wrapped weave's strand::from(key) would never be
    *  registered for the derive pass (BorrowingDecoration). */
   std::vector<std::string> borrows() const { return inner.borrows(); }

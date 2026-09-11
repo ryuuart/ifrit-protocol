@@ -30,14 +30,15 @@ compose::Element ticker(Ticker strip) {
 compose::Element timeline(const Timeline& scale) {
   const Theme& look = theme();
   const float thickness = scale.height.value_or(look.spacing.barHeight);
-  const Ground railPaint = scale.rail.value_or(Fill::color(look.palette.rule));
+  const compose::SurfacePaint railPaint =
+      scale.rail.value_or(Fill::color(look.palette.rule));
   const Fill inkFill = scale.ink.value_or(Fill::color(look.palette.ash));
   const float reachOf = scale.tick.value_or(look.spacing.tickReach);
 
   // The rail carries the marks, so a mark's position is a percentage of
   // the rail's own resolved width and the scale needs no measurement.
   Element rail = box().height(Dim(thickness));
-  railPaint.paint(rail);
+  railPaint.apply(rail);
   if (scale.width.unit != Dim::Unit::Auto) rail.width(scale.width);
   for (const Timeline::Mark& mark : scale.marks) {
     const float reach = mark.major ? reachOf : reachOf * 0.5f;

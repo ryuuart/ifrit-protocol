@@ -227,10 +227,6 @@ int main(int argc, char* argv[]) {
   // makes a directory outside this checkout a place to work.
   options.assetsDir = args.assetsOverride;
   options.flagsFile = flagsFileNear(executableDir(argv[0]));
-  // THE SHARED LAYER IS THIS REPOSITORY'S, for every sketch the host
-  // builds: a file anywhere on disk compiles with the same flags, so it
-  // may spell <shared/Name.h> too, and then needs the module behind it.
-  options.sharedDir = sketchDir / "shared";
 
   if (!args.capture.out.empty() || args.capture.bench) {
     if (args.sketchFile.empty() || !std::filesystem::exists(args.sketchFile)) {
@@ -322,7 +318,6 @@ int main(int argc, char* argv[]) {
   SketchbookView::fonts = &fonts();
   SketchbookView::assetsDir = options.assetsDir;
   SketchbookView::flagsFile = options.flagsFile;
-  SketchbookView::sharedDir = options.sharedDir;
   // A FILE ON THE COMMAND LINE OPENS THE WINDOW ON THAT FILE. The
   // registry is the compiled-in table and settles the first time it is
   // read, so the file joins a session-local list the app's own listing

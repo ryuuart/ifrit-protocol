@@ -6,10 +6,24 @@
  */
 
 #include <filesystem>
+#include <string>
 #include <string_view>
 #include <vector>
 
 namespace sigil::sketch {
+
+/** Author-supplied prose from a source file's opening comment. */
+struct SourceMetadata {
+  std::string subject;
+  std::string editFirst;
+  int lines = 0;
+};
+
+/** Counts source lines and reads the opening comments. The first paragraph
+ *  is the title; the next is the subject. EDIT THESE FIRST introduces knobs,
+ *  preserving list breaks and joining wrapped lines. Missing files return
+ *  an empty value. */
+[[nodiscard]] SourceMetadata sourceMetadata(const std::filesystem::path& file);
 
 /** THE FILE A KEY NAMES under @p dir.
  *
@@ -38,6 +52,14 @@ namespace sigil::sketch {
  *  because a compiler's output is read from the top, and the entry is
  *  the file being edited. */
 [[nodiscard]] std::vector<std::filesystem::path> unitsOf(
+    const std::filesystem::path& entry);
+
+/** Local files reached by literal quoted includes from the sketch's units,
+ *  recursively, in path order. Paths resolve beside the including file;
+ *  angle includes and compiler include paths belong to the framework build.
+ *  Missing local paths are retained so creating a header can trigger reload.
+ *  Cycles and repeated includes produce one path. */
+[[nodiscard]] std::vector<std::filesystem::path> headersOf(
     const std::filesystem::path& entry);
 
 }  // namespace sigil::sketch

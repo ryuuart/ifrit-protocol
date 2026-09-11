@@ -38,8 +38,8 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmotion/values/Spring.h>
 #include <sigilmotion/values/Time.h>
@@ -74,53 +74,17 @@ constexpr SkColor4f kThird{0.86f, 0.46f, 0.36f, 1};
 /** One curve over `kSpan` seconds, in a plot whose y runs 0 at the bottom
  *  to 1 at the top. The sampler is dense enough that a staircase reads as
  *  a staircase rather than as a ramp with corners. */
-using Curve = std::function<float(float)>;
-
-Element plot(const char* key, std::vector<std::pair<Curve, SkColor4f>> curves,
-             int gridLines = 0) {
-  // A paint program runs after the describe scope has closed, so the
-  // baseline's colour is read here and carried in by value.
-  const SkColor4f rule = sketch::kit::theme().palette.rule;
-  return custom(key,
-                [curves = std::move(curves), gridLines, rule](
-                    SkCanvas& canvas, const PaintContext& pc) {
-                  constexpr float kPad = 10;
-                  const float w = pc.size.width() - 2 * kPad;
-                  const float h = pc.size.height() - 2 * kPad;
-                  SkPaint paint;
-                  paint.setAntiAlias(true);
-                  // The grid is the clock's own steps where a cell has
-                  // them, so a staircase can be read against the rate that
-                  // cut it.
-                  paint.setColor4f(kGrid);
-                  for (int i = 1; i < gridLines; ++i) {
-                    const float x = kPad + w * (float)i / (float)gridLines;
-                    canvas.drawRect({x, kPad, x + 1, kPad + h}, paint);
-                  }
-                  paint.setColor4f(rule);
-                  canvas.drawRect({kPad, kPad + h, kPad + w, kPad + h + 1},
-                                  paint);
-                  paint.setStyle(SkPaint::kStroke_Style);
-                  paint.setStrokeWidth(1.6f);
-                  for (const auto& [curve, colour] : curves) {
-                    SkPathBuilder path;
-                    constexpr int kSamples = 420;
-                    for (int i = 0; i <= kSamples; ++i) {
-                      const float t = kSpan * (float)i / (float)kSamples;
-                      const float y = curve(t);
-                      const float px = kPad + w * (t / kSpan);
-                      const float py = kPad + h * (1.0f - y);
-                      if (i == 0)
-                        path.moveTo(px, py);
-                      else
-                        path.lineTo(px, py);
-                    }
-                    paint.setColor4f(colour);
-                    canvas.drawPath(path.detach(), paint);
-                  }
-                })
-      .absolute()
-      .inset(0);
+Element plot(const char* key, std::vector<kit::Trace> curves, int gridLines = 0,
+             float ceiling = 1) {
+  kit::Plot frame{
+      .toT = kSpan, .toY = ceiling, .pad = 10, .samples = 420, .rule = kGrid};
+  for (int i = 1; i < gridLines; ++i)
+    frame.rulesT.push_back(kSpan * (float)i / (float)gridLines);
+  return box()
+      .inset(0)
+      .child(box().left(10).right(10).bottom(9).height(1).fill(
+          Fill::color(sketch::kit::theme().palette.rule)))
+      .child(kit::curvePlot(key, std::move(curves), std::move(frame)));
 }
 
 Element cell(const char* call, const char* note, Element body) {
@@ -210,9 +174,11 @@ struct DecayStep final : sketch::Sketch {
                        "overshoots and rings, at one it arrives as fast "
                        "as it can without crossing, above one it crawls "
                        "in from one side",
-                       plot("spring", {{springWalk(0.25f), kThird},
-                                       {springWalk(0.6f), look.palette.figure},
-                                       {springWalk(1.2f), kSecond}}))},
+                       plot("spring",
+                            {{springWalk(0.25f), kThird},
+                             {springWalk(0.6f), look.palette.figure},
+                             {springWalk(1.2f), kSecond}},
+                            0, 1.4f))},
              .gap = 12})));
   }
 };

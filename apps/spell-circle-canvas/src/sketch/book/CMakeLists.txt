@@ -18,7 +18,6 @@ qt_add_executable(Sketchbook
   FrameLane.cpp FrameLane.h
   Keys.cpp Keys.h
   SketchbookRenderer.cpp SketchbookRenderer.h
-  SketchbookRenderer.cpp SketchbookRenderer.h
   Startup.cpp Startup.h
   SweepLane.cpp SweepLane.h
   ThumbnailWarm.cpp ThumbnailWarm.h
@@ -45,7 +44,7 @@ set_target_properties(Sketchbook PROPERTIES
 # module. Both properties are read when the module is declared, so
 # they are set before it.
 foreach(sketchbook_qml IN ITEMS
-    Main Browser TopBar SketchList SketchGallery PlateThumb Inspector
+    Main CanvasPane Browser TopBar SketchList SketchGallery PlateThumb Inspector
     StatusStrip Theme)
   set_source_files_properties(qml/${sketchbook_qml}.qml
     PROPERTIES QT_RESOURCE_ALIAS ${sketchbook_qml}.qml)
@@ -60,6 +59,7 @@ qt_add_qml_module(Sketchbook
   VERSION 1.0
   QML_FILES
     qml/Main.qml
+    qml/CanvasPane.qml
     qml/Browser.qml
     qml/TopBar.qml
     qml/SketchList.qml
@@ -71,6 +71,7 @@ qt_add_qml_module(Sketchbook
   SOURCES
     SketchbookView.cpp SketchbookView.h
     SketchCatalog.cpp SketchCatalog.h
+    SketchActions.cpp SketchActions.h
 )
 # The browser's thumbnails are THIS APP'S OWN, kept under the platform
 # cache location and filled on demand — nothing else writes them, so
@@ -251,7 +252,7 @@ endif()
 # it.
 add_test(NAME sketch_reload_named
   COMMAND Sketchbook
-    ${SIGIL_SKETCH_DIR}/world_hud.cpp
+    ${SIGIL_SKETCH_DIR}/world_hud/world_hud.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_named.png)
 
 # THE DIRECTORY FORM. A sketch that is a directory goes through the host
@@ -264,6 +265,12 @@ add_test(NAME sketch_reload_directory
   COMMAND Sketchbook
     ${SIGIL_SKETCH_DIR}/dunhuang_star_chart/dunhuang_star_chart.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_directory.png)
+
+add_test(NAME sketch_capture_viewport
+  COMMAND Sketchbook
+    ${CMAKE_CURRENT_LIST_DIR}/test/capture_viewport_probe.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_capture_viewport.png
+    --frames 3 --scale 1.6666667 --at 0.05)
 
 # THE CATALOG SEAM, without a window. `--catalog` prints the browser's
 # rows as the model would hand them to QML, and the script asserts what

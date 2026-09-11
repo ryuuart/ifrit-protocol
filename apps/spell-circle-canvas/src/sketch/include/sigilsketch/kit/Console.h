@@ -9,7 +9,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilsketch/kit/Ground.h>
+#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <cstddef>
@@ -40,7 +40,7 @@ struct Console {
   /** Unset is the theme's ink. A shader shades the rows' glyphs. */
   std::optional<compose::Fill> ink;
   /** Unset is the theme's cell ground. */
-  std::optional<Ground> ground;
+  std::optional<compose::SurfacePaint> ground;
   /** Unset is the theme's rule. Both the keyline and the dividers between
    *  columns. */
   std::optional<compose::Fill> border;

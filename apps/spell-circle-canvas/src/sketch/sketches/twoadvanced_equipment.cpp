@@ -52,7 +52,6 @@
 //                       laid out from them.
 //   the palette block   — the page's own attribute colours.
 
-#include <shared/TwoAdvanced.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Paint.h>
@@ -69,6 +68,8 @@
 #include <boost/container/flat_map.hpp>
 #include <cmath>
 #include <string>
+
+#include "twoadvanced_v3/TwoAdvanced.h"
 
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;

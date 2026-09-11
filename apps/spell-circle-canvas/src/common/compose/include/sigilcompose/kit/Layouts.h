@@ -1,38 +1,9 @@
 #pragma once
 
 /** @file
- * The layout schemes — free-form placement over the kernel's
- * LayoutScheme seam (`layout(scheme)`), for compositions that are not rows
- * and columns. Six schemes live here: `Radial` (a ring or fan), `AlongPath`
- * (arc-length placement on any contour), `ModularGrid` (columns × rows of
- * modules), `Diagonal` (a sheared stack), `BaselineGrid` (a vertical type
- * rhythm) and `Jittered` (a seeded deviation from a regular grid).
- *
- *   layout(layouts::Radial{.radiusFraction = 0.8f})
- *       .children(glyphs | std::views::transform(rune));
- *
- * A scheme returns one rect per child from the container size and the
- * children's measured sizes — except `ModularGrid`, which sizes children to
- * their cell span. Placement is pure arithmetic over `LayoutInput`, so the
- * result is deterministic and the node caches like any other static
- * content.
- *
- * A scheme belongs here when the placement is a FUNCTION an author would
- * otherwise write out — a ring, a modular grid, a baseline rhythm. It does
- * not belong here when the placement IS the design decision: a generator
- * that produces arrangements "in the family" of a hand-chosen one produces
- * the single thing the design is not.
- *
- * WHAT A SCHEME MAY NOT SPELL ITSELF. The two arithmetics a placement
- * catalog keeps arriving at — where item i of n falls on a ring, and which
- * cell of a grid of modules it occupies — belong to nothing here and are
- * SigilGeometry's, in `<sigilgeometry/path/Arrange.h>`. `Radial`,
- * `AlongPath`, `ModularGrid` and `Jittered` step through those bodies; the
- * pool fillers of `<sigilcompose/kit/Placers.h>` step through the same
- * ones. A scheme that re-derived a ring here would round its own way, and
- * the same ring drawn two ways would differ by a pixel with nothing in
- * either file to say why. What a scheme owns is the DECISION on top: which
- * radius per child, where the anchor of a box is, what closes the run.
+ * Free-form child placement: rings, paths, sheared stacks, baseline
+ * rhythms and seeded jitter. Each scheme places measured child boxes
+ * within a container. Track-based arrangements use Grid.
  */
 
 #include <include/core/SkContourMeasure.h>
@@ -131,8 +102,8 @@ struct AlongPath {
     // Closed stretches exclude the duplicate endpoint; open ones hit
     // both ends. Arc length divides among n children exactly as an angle
     // does around a ring, so the same run arithmetic answers both.
-    const bool loop = resolved.isLastContourClosed() && startFraction == 0.0f &&
-                      endFraction == 1.0f;
+    const bool loop =
+        contour->isClosed() && startFraction == 0.0f && endFraction == 1.0f;
     const geometry::arrange::Turn turn =
         loop ? geometry::arrange::Turn::Closed : geometry::arrange::Turn::Open;
     for (size_t i = 0; i < n; ++i) {
@@ -140,67 +111,6 @@ struct AlongPath {
       if (contour->getPosTan(geometry::arrange::along(d0, d1 - d0, i, n, turn),
                              &pos, nullptr))
         rects[i] = geometry::path::centred(pos, in.childSizes[i]);
-    }
-    return rects;
-  }
-};
-
-/** The modular grid: columns × rows of equal modules separated by gutters,
- *  each child occupying a cell SPAN (col, row, colSpan, rowSpan). Spans are
- *  given per child in declaration order, and children beyond the span list
- *  auto-flow one cell each, left→right then top→bottom. Children are SIZED
- *  to their span rather than to their content. Pair with BaselineGrid
- *  inside text cells to put the type on a shared vertical rhythm.
- *
- *  TWO SHARP EDGES, both silent:
- *
- *  - Auto-flow counts from cell 0, not from the end of the explicit spans.
- *    Give spans for the first three children of eight and the fourth child
- *    starts again at (0, 0), landing on top of whatever was explicitly
- *    placed there. Either span every child or span none of them.
- *  - `col` and `row` are NOT clamped to the grid. A value at or past
- *    `columns`/`rows`, or a negative one, places the child outside the
- *    container, where it is drawn or clipped according to the parent's own
- *    settings rather than reported as an error. */
-struct ModularGrid {
-  int columns = 4;
-  int rows = 6;
-  float gutter = 12.0f;
-
-  /** One child's cell and how many cells it covers, as a list parallel to
-   *  the children. A child that names its own cells with `Element::cells`
-   *  is placed by THAT and this list is not consulted for it — which is
-   *  the spelling to prefer, since a parallel list has nothing to check
-   *  itself against. */
-  struct Span {
-    int col = 0, row = 0, colSpan = 1, rowSpan = 1;
-    bool operator==(const Span&) const = default;
-  };
-  std::vector<Span> spans;  // per-child; missing entries auto-flow
-
-  std::vector<SkRect> place(const LayoutInput& in) const {
-    const int cols = std::max(columns, 1);
-    const SkSize gap{gutter, gutter};
-    const SkSize module = geometry::arrange::moduleSize(in.container, cols,
-                                                        std::max(rows, 1), gap);
-    std::vector<SkRect> rects(in.childSizes.size());
-    for (size_t i = 0; i < in.childSizes.size(); ++i) {
-      Span s;
-      if (i < in.childCells.size() && in.childCells[i].declared) {
-        // What the CHILD said, which is the spelling that cannot be
-        // knocked out of step by an inserted sibling.
-        const CellSpan& c = in.childCells[i];
-        s = {c.column, c.row, c.columns, c.rows};
-      } else if (i < spans.size()) {
-        s = spans[i];
-      } else {  // auto-flow the overflow, one module each
-        const geometry::arrange::Cell cell =
-            geometry::arrange::cellAt(i - spans.size(), cols);
-        s.col = cell.column;
-        s.row = cell.row;
-      }
-      rects[i] = geometry::arrange::cellRect({s.col, s.row}, module, gap,
-                                             {0, 0}, s.colSpan, s.rowSpan);
     }
     return rects;
   }

@@ -30,6 +30,12 @@
 
 namespace sigil::compose::kit {
 
+float AquaBody::bleed(SkSize size) const {
+  if (!opts.halo) return 0;
+  const float height = std::max(0.0f, size.height());
+  return Shadow{tint, {0, height * 0.25f}, height * 0.40f}.bleed();
+}
+
 void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
   const float H = ctx.size.height();
   const sigil::material::Color t = material::skia::toColor(tint);
@@ -39,11 +45,7 @@ void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
            H * 0.40f}
         .paint(c, ctx);
   }
-  SkPaint body;  // deep at the top, saturated in the middle, light below
-  body.setAntiAlias(true);
-  body.setShader(
-      material::skia::verticalRamp(0, H, material::kit::aquaBodyRamp(t)));
-  c.drawPath(ctx.outline, body);
+  Wash{material::skia::unitRamp(material::kit::aquaBodyRamp(t))}.paint(c, ctx);
   if (opts.topBand > 0) {  // the recess under the top edge
     sigil::material::Color band = material::kit::aquaTopBand(t);
     band.a *= opts.topBand;
@@ -98,21 +100,17 @@ LayerStyle aquaGel(SkColor4f tint, AquaGelOptions opts) {
                      Decoration(hairline)}};
 }
 
-LayerStyle aquaOrb(SkColor4f tint, float expectedDiameter) {
+LayerStyle aquaOrb(SkColor4f tint) {
   AquaGelOptions opts;
   opts.lensInsetXFrac = 0.16f;
   opts.lensBottomFrac = 0.50f;
   opts.bottomGlow = 0.95f;
-  opts.expectedHeight = expectedDiameter;
   return aquaGel(tint, opts);
 }
 
 void ChromeBody::paint(SkCanvas& c, const PaintContext& ctx) const {
-  SkPaint p;
-  p.setAntiAlias(true);
-  p.setShader(material::skia::verticalRamp(0, ctx.size.height(),
-                                           material::kit::chromeRamp(palette)));
-  c.drawPath(ctx.outline, p);
+  Wash{material::skia::unitRamp(material::kit::chromeRamp(palette))}.paint(c,
+                                                                           ctx);
 }
 
 void ChromeSliver::paint(SkCanvas& c, const PaintContext& ctx) const {

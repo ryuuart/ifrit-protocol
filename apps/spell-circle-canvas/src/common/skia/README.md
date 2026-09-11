@@ -132,9 +132,9 @@ over — one buffer every plane was made from, rather than each plane in
 turn — and the release runs on every path out, including a wrap that
 never happened.
 
-Only the Metal arm is built: it is what every caller of these wraps
-holds. A Vulkan arm stands beside it the day something asks for one, the
-same way the surface wrap has both.
+These image wraps accept Metal textures on a Metal recorder. A recorder
+using another backend returns no image, letting the caller choose its
+fallback; a planar wrap still runs the supplied release callback once.
 
 ### Drawing into a texture a device named
 

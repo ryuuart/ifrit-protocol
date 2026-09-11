@@ -8,7 +8,7 @@
 #include <sigilcore/cache/Cache.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilmaterial/core/Combine.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilmotion/values/Animated.h>
 

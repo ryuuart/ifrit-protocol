@@ -5,6 +5,9 @@ the entry and the sources beside it built with it. `../README.md` is the
 canon for what a sketch is, how it is registered and how it is run; this
 page is about what is in the directory.
 
+[Feature coverage](COVERAGE.md) maps public visual feature families to
+examples and distinguishes sketch demonstrations from tests and host lanes.
+
 Most of these are **studies**: each rebuilds something that actually
 existed — a shipped game screen, a real website, a published plate, a
 paving you can walk on, a lit set — out of nothing but this repository's
@@ -88,8 +91,8 @@ were read off; the rule above is written for all of them.
 | `astral_tome` | Astral Sorcery's constellation cluster page (Minecraft 1.12.2 mod, 2016–19) at exactly 3× | Four live star charts on one spread — the chart is square, the CELL is stretched |
 | `cosmati` | Cosmatesque opus sectile — quincunx and guilloche | Quarried stone as generated material, laid by the pavement's own construction |
 | `dunhuang_star_chart` | BL Or.8210/S.3326, the Dunhuang star chart (c. 649–684) | Reprojected from 1,460 real stars and the published projection, then checked against the published identifications — and it refuses to answer where the source does |
-| `eva_magi_defense` | *The End of Evangelion*'s MAGI defense plate (1997) | Six installations as one component, rotated |
-| `eva_magi_deliberation` | Evangelion's MAGI deliberation plate | One routed system: a rear circular bus, three rotated instances of one square module, and an information layer over both |
+| `eva_magi_defense` | [*The End of Evangelion*'s MAGI defense plate](https://static.wikia.nocookie.net/evangelion/images/f/f6/Magi_%28EoE%29.png) (1997) | Six installations as one component, rotated |
+| `eva_magi_deliberation` | [Evangelion's MAGI deliberation plate](https://assets.fontsinuse.com/use-media/97461/upto-700xauto/69b54994/1/jpeg/14_95tv_FUI_2.jpeg) | One routed system: a rear circular bus, three rotated instances of one square module, and an information layer over both |
 | `eva_magi_interior` | Evangelion Ep 13, the MAGI under Ireul | The camera roll as the projection; the infection as a shader |
 | `lain_navi` | *Serial Experiments Lain*'s Copland OS | No opaque window anywhere, and text through a fixed focal plane |
 | `sigillum_aemeth` | Dee's Sigillum Dei Aemeth (1582), Sloane MS 3188 f. 30r | Solved from the angels' own jump rule — 33 of 40 cells — and the wax disc's burnish drawn |
@@ -104,3 +107,9 @@ directory reaches for them, so a rename has somewhere to be noticed:
 | `hello` | The starter. Copy it. |
 | `crossing_rule` | What `sketch_reload_runs_the_file` copies with its ground colour replaced, so the entry can tell a picture drawn by the file on disk from one drawn by the host's own compiled-in copy of it. |
 | `stock_materials` | One of every stock material, painted from a sketch dylib and wired up as the `sketch_reload_materials` test — so a helper added to a shader fails the build instead of failing someone's sketch three weeks later. |
+
+The Evangelion studies share their type and phosphor treatment in
+`eva_magi_interior/EvangelionUi.h`. Japanese display type prefers an installed Matisse EB;
+otherwise it uses a heavy Japanese Mincho face. Noto Serif JP Black supplies
+the fallback on the development machine. The fallback preserves Japanese
+glyph forms but is not an exact substitute for Matisse.

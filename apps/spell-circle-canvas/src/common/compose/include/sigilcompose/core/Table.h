@@ -1,16 +1,8 @@
 #pragma once
 
 /** @file
- * The automatic table: a layout ALGORITHM over the LayoutScheme seam,
- * not a placement function.
- *
- * Every other scheme answers where child i falls from the container size
- * and a formula — a ring, a modular grid, a baseline rhythm — and could
- * have been written out by the author who used it. This one measures its
- * children twice, solves column widths against the content in them,
- * shares a surplus, and hands the resolved grid back so a caller can
- * print what it arrived at. That is the peer of the flex pass, so it
- * stands beside the seam rather than on the shelf of stock placements.
+ * Automatic table layout with intrinsic column widths, cell spans and
+ * proportional surplus distribution.
  */
 
 #include <include/core/SkRect.h>
@@ -27,13 +19,6 @@ namespace sigil::compose {
 /** THE AUTO TABLE: unequal columns sized by what is in them, spans, and a
  *  surplus shared out in proportion — the layout every HTML table has run
  *  since tables were how a page was set.
- *
- *  Not a modular grid with a different name. `ModularGrid` divides the
- *  container into equal modules and puts children in them; a table does
- *  the opposite — the CONTENT decides the columns, and only what is left
- *  over is divided. That is why nothing here goes through
- *  `geometry::arrange`: a module is one size repeated, and no column of a
- *  table is the same width as the next.
  *
  *  Each child says which cells it takes with `Element::cells` and where it
  *  sits in them with `Element::cellAlign`. A child that says nothing flows

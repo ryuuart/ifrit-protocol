@@ -451,7 +451,7 @@ TEST(ComposeWidthProfile, ANonFiniteSamplePinchesInsteadOfDeletingTheBand) {
 
 TEST(ComposeRibbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
   // A BAND IS A SURFACE, and a surface a material can dress — the same
-  // door a stroke opens with strokeMaterial. Without it a ribbon beside a
+  // door a stroke opens with strokeFill. Without it a ribbon beside a
   // stroked outline has to have the same paint written twice, once as a
   // Material in the unit square and once as a node-local Fill.
   Host host;

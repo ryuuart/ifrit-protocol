@@ -108,22 +108,12 @@ a component nests inside another the way a box does — which is the point:
 a sketch is meant to read as its algorithm plus a run of these calls, not
 as a thousand lines of furniture.
 
-**A GROUND IS EITHER OF TWO THINGS.** Every field here that paints an
-area — `Well::ground`, `Frame::shell` and `Frame::screen`, `Page::ground`,
-`Console::ground`, `Backdrop::ground`, a meter's track and its bar, a
-scrollbar's track, a ticker's rail, a chip's ground, a legend's swatches —
-is a `Ground`: one value holding a `compose::Fill` **or** a material,
-converting from either, so
-`Fill::color(kPlate)`, a `material::skia::Paint` and a bare
-`material::Material` are each written where the ground is asked for and
-none of them is wrapped. A fill goes onto the node as it always did; a
-material goes on the way `Element::fill` puts one there, so a static one
-collapses to a Fill and rides the same caching and prune path a colour
-does, while a live or geometry-dependent one stays whole and is resolved
-against the frame it is drawn at. A reconstruction whose ground is
-quarried stone is the reason for the second form: the picture holds a
-recipe, and a component that took only a `Fill` would turn that half of
-the tree away.
+Every component field that paints an area uses `compose::SurfacePaint`
+from `<sigilcompose/core/SurfacePaint.h>`. It accepts a Fill, a live fill
+binding, a material paint or a recipe directly. Neutral Compose wells and
+sheets accept the same value. Theme wrappers resolve defaults, then pass
+that value through unchanged. Pass it to `compose::Element::fill` when
+painting an Element directly.
 
 ### The surface — `Page.h`, `Cells.h`, `Passage.h`
 
@@ -367,7 +357,7 @@ word out of the scale's, the way a legend entry does.
 A leaf may not invent what an ancestor should own.
 
 * The run of cells, the captioned cell's arrangement and the sheet's own
-  layout — `compose::kit::cells`, `cell`, `well`, `sheet`. This library
+  layout — `compose::kit::cells`, `panelGrid`, `cell`, `well`, `sheet`. This library
   puts values into those; it does not restate them.
 * A ground's vignette and its grain as fills — `compose::kit::vignette`
   and `compose::kit::grained` (`kit/Ground.h`). `backdrop` puts the

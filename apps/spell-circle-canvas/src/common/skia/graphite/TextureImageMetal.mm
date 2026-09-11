@@ -6,6 +6,7 @@
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkSize.h>
+#include <include/gpu/GpuTypes.h>
 #include <include/gpu/graphite/BackendTexture.h>
 #include <include/gpu/graphite/Image.h>
 #include <include/gpu/graphite/Recorder.h>
@@ -20,7 +21,8 @@ namespace sigil::skia {
 
 sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, void *mtlTexture, int width,
                          int height, SkAlphaType alphaType, sk_sp<SkColorSpace> colorSpace) {
-  if (!mtlTexture || width <= 0 || height <= 0) return nullptr;
+  if (recorder.backend() != skgpu::BackendApi::kMetal || !mtlTexture || width <= 0 || height <= 0)
+    return nullptr;
 
   // RETAINED FOR THE IMAGE'S LIFE, and released by the wrap's own release
   // proc: an image is sampled at draw time and submitted later, and the
@@ -54,7 +56,9 @@ sk_sp<SkImage> wrapPlanarImage(skgpu::graphite::Recorder &recorder,
     if (release) release(releaseContext);
     return nullptr;
   };
-  if (planes.empty() || planes.size() > SkYUVAInfo::kMaxPlanes) return refuse();
+  if (recorder.backend() != skgpu::BackendApi::kMetal || planes.empty() ||
+      planes.size() > SkYUVAInfo::kMaxPlanes)
+    return refuse();
 
   std::array<skgpu::graphite::BackendTexture, SkYUVAInfo::kMaxPlanes> textures;
   for (size_t i = 0; i < planes.size(); ++i) {

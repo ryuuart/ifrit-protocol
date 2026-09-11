@@ -431,11 +431,11 @@ TEST(ComposeComposites, ReachReportsTheMarkWhereBleedReportsNothing) {
   // paints is still `width` wide. Sizing a repair from bleed() gives a
   // zero-sized repair for every inner stroke.
   const Decoration inner = stroke(9, red(), PathFormat::Align::Inner);
-  EXPECT_EQ(inner.bleed(), 0.0f) << "unchanged: it escapes nothing";
-  EXPECT_EQ(inner.reach(), 9.0f) << "…but the mark is 9px wide";
+  EXPECT_EQ(inner.bleed({100, 100}), 0.0f) << "unchanged: it escapes nothing";
+  EXPECT_EQ(inner.reach({100, 100}), 9.0f) << "…but the mark is 9px wide";
   const Decoration centred = stroke(9, red());
-  EXPECT_EQ(centred.bleed(), 4.5f);
-  EXPECT_EQ(centred.reach(), 9.0f);
+  EXPECT_EQ(centred.bleed({100, 100}), 4.5f);
+  EXPECT_EQ(centred.reach({100, 100}), 9.0f);
 
   // And it repairs: two CLOSED strands (where Inner is meaningful) — two
   // overlapping circles, which meet at TWO points — stroked Inner, with the
@@ -628,4 +628,22 @@ TEST(ComposeBrushKinds, CornerArtCannotBeBuiltWithoutItsAlignment) {
   EXPECT_FALSE(a == b);
   b.corner = brush::CornerArt{art, brush::CornerAlign::Bisector};
   EXPECT_TRUE(a == b);
+}
+
+TEST(ComposeDecorations, CompositeBoundsFollowTheResolvedSize) {
+  struct RelativeMark {
+    bool operator==(const RelativeMark&) const = default;
+    float bleed(SkSize size) const { return size.height() / 2; }
+    float reach(SkSize size) const { return size.height(); }
+    void paint(SkCanvas&, const PaintContext&) const {}
+  };
+  const Decoration mark = RelativeMark{};
+  const Decoration stack = Brush{}.layer(inset(-4, mark));
+  const Decoration edge = onEdges(geometry::path::Edge::Top, stack);
+  const Decoration woven = brush::layers({edge});
+  for (float height : {20.0f, 100.0f, 40.0f}) {
+    const SkSize size{80, height};
+    EXPECT_FLOAT_EQ(woven.bleed(size), height / 2 + 4);
+    EXPECT_FLOAT_EQ(woven.reach(size), height);
+  }
 }

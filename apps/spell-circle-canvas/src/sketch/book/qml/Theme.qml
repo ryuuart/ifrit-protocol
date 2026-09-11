@@ -4,6 +4,7 @@
 pragma Singleton
 
 import QtQuick
+import Ifrit.Ui 1.0 as Ui
 
 QtObject {
     // Grounds, darkest first: the window behind everything, the panels
@@ -40,5 +41,5 @@ QtObject {
 
     // Numbers line up only in a fixed pitch, and every number in this
     // window is one a reader compares against the number above it.
-    readonly property string mono: "Menlo"
+    readonly property string mono: Ui.Theme.monospaceFontFamily
 }

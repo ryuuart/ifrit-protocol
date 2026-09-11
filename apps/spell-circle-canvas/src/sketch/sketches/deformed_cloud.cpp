@@ -29,7 +29,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 

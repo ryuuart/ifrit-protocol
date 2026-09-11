@@ -52,10 +52,10 @@ inline constexpr std::chrono::milliseconds kThumbnailBudget{8000};
 /** THE STALENESS KEY for the sketch whose entry file is @p entrySource.
  *
  *  It hashes the sketch's source — the entry file, or, for a sketch that
- *  is a directory, every `.cpp`/`.h` standing beside the entry — by size
- *  and modification time, and NOTHING ELSE. A thumbnail file whose name
- *  carries a different key is stale. Cheap enough to compute on the UI
- *  thread: it stats files rather than reading them.
+ *  is a directory, every `.cpp`/`.h` standing beside the entry — plus
+ *  the local headers reached through quoted includes, by size and
+ *  modification time. Includes are followed across owner directories.
+ *  A thumbnail file whose name carries a different key is stale.
  *
  *  THE HOST IS NOT IN IT. A library edit that changes what a sketch draws
  *  leaves every still on disk claiming to be fresh, and that is the right

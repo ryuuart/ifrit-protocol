@@ -19,6 +19,34 @@
 
 namespace sigil::compose {
 
+bool SurfacePaint::none() const {
+  if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
+    const Fill* plain = fill->plain();
+    return plain && plain->kind == Fill::Kind::None;
+  }
+  return std::get<material::skia::Paint>(m_value).isNone();
+}
+
+Element& SurfacePaint::apply(Element& element) const {
+  if (!none())
+    std::visit([&](const auto& paint) { element.fill(paint); }, m_value);
+  return element;
+}
+
+Fill SurfacePaint::resolve(const PaintContext& context) const {
+  if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
+    const auto value = motion::resolveProp(*fill, std::nullopt);
+    return value.binding ? value.binding->value() : value.target;
+  }
+  return resolveFill(std::get<material::skia::Paint>(m_value), context);
+}
+
+bool SurfacePaint::isAnimated() const {
+  if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value))
+    return fill->binding() != nullptr;
+  return std::get<material::skia::Paint>(m_value).isAnimated();
+}
+
 material::skia::PaintFrame frameOf(const PaintContext& ctx) {
   material::skia::PaintFrame frame;
   frame.size = ctx.size;

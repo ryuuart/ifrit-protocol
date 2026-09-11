@@ -31,6 +31,8 @@ compose::Element page(const Page& sheet, compose::Element content) {
       .marginBottom = look.spacing.marginBottom,
       .subtitleGap = look.spacing.subtitleGap,
       .contentGap = look.spacing.contentGap,
+      .ground =
+          sheet.ground.value_or(compose::Fill::color(look.palette.ground)),
       .rule = sheet.ruled ? compose::Fill::color(look.palette.rule)
                           : compose::Fill{},
       .key = sheet.key};
@@ -38,10 +40,6 @@ compose::Element page(const Page& sheet, compose::Element content) {
   // is where the canvas is handed to it.
   compose::Element surface =
       compose::kit::sheet(spec, std::move(content)).absolute().inset(0);
-  // The ground goes on after the primitive rather than through it,
-  // because the primitive takes a Fill and a ground may be a material.
-  sheet.ground.value_or(compose::Fill::color(look.palette.ground))
-      .paint(surface);
   return surface;
 }
 

@@ -10,10 +10,7 @@
  * Everything is sized as a FRACTION of the node's height, read at paint,
  * so one value dresses a pill of any dimensions; and everything is
  * value-comparable, so a static button wearing it prunes without a memo.
- * `bleed()` runs before the node has a layout size, so the halo's cull
- * reserve is declared by `AquaGelOptions::expectedHeight` — the halo
- * reaches about 0.65 of that height beyond the box, and under-declaring
- * it truncates the halo at the cached picture's edge.
+ * Overflow is evaluated from the resolved height, including after resize.
  */
 
 #include <include/core/SkCanvas.h>
@@ -47,10 +44,6 @@ struct AquaGelOptions {
    *  surface. */
   float topBand = 0.55f;
   bool halo = true;  ///< luminous tint drop beneath the shape
-  /** The tallest the gel will be: the halo's reach beyond the box is a
-   *  fraction of it, and a renderer's cull reserve reads this before the
-   *  box has a size. Under-declaring it truncates the halo. */
-  float expectedHeight = 64.0f;
   bool operator==(const AquaGelOptions&) const = default;
 };
 
@@ -65,7 +58,7 @@ struct AquaBody {
   AquaGelOptions opts;
 
   bool operator==(const AquaBody&) const = default;
-  float bleed() const { return opts.halo ? opts.expectedHeight * 0.65f : 0.0f; }
+  float bleed(SkSize size) const;
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
@@ -100,9 +93,7 @@ LayerStyle aquaGel(SkColor4f tint = hexColor(0x1E8FFF),
 
 /** The sphere-tuned bundle: a domed lens inset further from the edges and
  *  confined to the upper half, over a hotter bottom glow — what reads as
- *  round rather than as a pill. Pass the diameter so the halo reserves the
- *  right cull reach. */
-LayerStyle aquaOrb(SkColor4f tint = hexColor(0x1E8FFF),
-                   float expectedDiameter = 128.0f);
+ *  round rather than as a pill. */
+LayerStyle aquaOrb(SkColor4f tint = hexColor(0x1E8FFF));
 
 }  // namespace sigil::compose::kit

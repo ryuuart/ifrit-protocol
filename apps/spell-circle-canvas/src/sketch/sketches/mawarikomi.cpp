@@ -33,10 +33,11 @@
 //                               crosses hands back no foot at all, which
 //                               is the interesting edge of the parting.
 
-#include <shared/VerticalSpecimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+
+#include "tategaki/VerticalSpecimen.h"
 
 namespace sketch = sigil::sketch;
 

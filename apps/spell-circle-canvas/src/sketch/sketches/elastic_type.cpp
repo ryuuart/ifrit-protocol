@@ -191,16 +191,6 @@ GlyphMod at(const TextEffect& effect, float t) {
 // The graphs — the EFFECTS, plotted. Pure functions of local time, so they
 // are static leaves and nothing here reads a clock.
 
-void strokePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
-                float width) {
-  SkPaint paint;
-  paint.setAntiAlias(true);
-  paint.setStyle(SkPaint::kStroke_Style);
-  paint.setStrokeWidth(width);
-  paint.setColor4f(color, nullptr);
-  canvas.drawPath(path, paint);
-}
-
 /** A value the plot rules and names on its own axis. The published tables
  *  are read in these units, so a reader can put a ruler on the trace. */
 struct Tick {
@@ -214,7 +204,7 @@ using Ticks = std::vector<Tick>;
  *  pixels. The graph paints its rules with it and `plot` hangs its labels
  *  off the same arithmetic, so the two cannot drift apart. */
 float tickY(float value, float lo, float hi, float h) {
-  return h - (value - lo) / (hi - lo) * h;
+  return kit::Plot{.fromY = lo, .toY = hi}.at(0, value, {0, h}).fY;
 }
 
 // The two axes, named where they are ruled. The extremes are the published
@@ -242,45 +232,22 @@ Ticks shearTicks() {
 Element graph(const char* key, TextEffect effect, Table table,
               float (*lane)(const GlyphMod&), SkColor4f color, float lo,
               float hi, float rest, Ticks ticks) {
-  return custom(key,
-                [effect = std::move(effect), table = std::move(table),
-                 ticks = std::move(ticks), lane, color, lo, hi,
-                 rest](SkCanvas& canvas, const PaintContext& ctx) {
-                  const float w = ctx.size.width(), h = ctx.size.height();
-                  const auto toY = [&](float v) { return tickY(v, lo, hi, h); };
-                  SkPaint rule;
-                  rule.setStyle(SkPaint::kStroke_Style);
-                  rule.setStrokeWidth(1);
-                  // The ruled values first, in the faint ink, then the rest
-                  // line over them in the ghost's own colour: a reader looking
-                  // for "did it reach 1.25" wants the extreme ruled, and a
-                  // reader looking for "did it come home" wants rest loudest.
-                  rule.setColor4f(kFaint, nullptr);
-                  for (const Tick& tick : ticks)
-                    if (tick.value != rest)
-                      canvas.drawLine(0, toY(tick.value), w, toY(tick.value),
-                                      rule);
-                  rule.setColor4f(kRest, nullptr);
-                  canvas.drawLine(0, toY(rest), w, toY(rest), rule);
-
-                  SkPathBuilder trace;
-                  for (int i = 0; i <= 240; ++i) {
-                    const float t = (float)i / 240.0f;
-                    const SkPoint point{w * t, toY(lane(at(effect, t)))};
-                    i == 0 ? (void)trace.moveTo(point)
-                           : (void)trace.lineTo(point);
-                  }
-                  strokePath(canvas, trace.detach(), color, 1.6f);
-
-                  SkPaint dot;
-                  dot.setAntiAlias(true);
-                  dot.setColor4f(color, nullptr);
-                  for (const fx::Key& key : table)
-                    canvas.drawCircle(w * key.at, toY(lane(at(effect, key.at))),
-                                      2.6f, dot);
-                })
+  kit::Plot frame{.fromY = lo, .toY = hi, .rule = kFaint, .markRadius = 2.6f};
+  for (const Tick& tick : ticks)
+    if (tick.value != rest) frame.rulesY.push_back(tick.value);
+  for (const fx::Key& keyframe : table) frame.marks.push_back(keyframe.at);
+  return box()
       .width(pct(100))
-      .height(pct(100));
+      .height(pct(100))
+      .child(kit::curvePlot(std::string(key) + "-rest",
+                            {{[rest](float) { return rest; }, kRest, 1}},
+                            {.fromY = lo, .toY = hi, .samples = 1}))
+      .child(kit::curvePlot(key,
+                            {{[effect = std::move(effect), lane](float t) {
+                                return lane(at(effect, t));
+                              },
+                              color}},
+                            std::move(frame)));
 }
 
 }  // namespace

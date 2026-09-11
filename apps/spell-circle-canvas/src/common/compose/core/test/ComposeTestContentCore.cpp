@@ -10,7 +10,6 @@
 #include <numeric>
 #include <variant>
 
-#include "BakeInk.h"  // the ink grid a local bake is blitted through
 #include "support/CoreTestSupport.h"
 
 namespace {
@@ -1233,16 +1232,8 @@ std::vector<int> blockPeaks(Host& host, int w, int h, int block) {
 }  // namespace
 
 TEST(ComposeCaching, ATurnedRingsBlitLosesNoneOfWhatItBaked) {
-  // The blit skips the parts of the canvas no ink of the bake can reach,
-  // and "no ink can reach" has to be exactly true: the failure mode is not
-  // a softened edge — a bake blitted through a rotation is resampled and
-  // its glyph edges land a fraction of a texel off the live paint's, which
-  // is what the local bake IS — it is a block of the ring going missing.
-  // So the claim tested here is the one the skipping makes: wherever the
-  // live paint is lit, the blit is lit too, at every angle, including the
-  // ones that put the bake's own grid across the device grid at 45
-  // degrees. Delete the ink test in BakeInk.h's scan and a band of the
-  // ring vanishes here.
+  // Rotating a cached ring may resample its edges, but no part of the
+  // visible artwork may disappear at any angle.
   const int w = 680, h = 680, block = 16;
   for (float degrees : {0.0f, 7.0f, 45.0f, 90.0f, 137.0f, -60.0f}) {
     choreograph::Output<float> turn{degrees / 360.0f};
@@ -1316,163 +1307,4 @@ TEST(ComposeCaching, ARecordedBakesBlitLosesNoneOfWhatItBaked) {
   EXPECT_GT(lit, 40) << "the ring drew nothing";
   EXPECT_EQ(lost, 0) << lost << " of " << lit
                      << " lit blocks came back empty from inside the page";
-}
-
-TEST(ComposeCaching, TheInkGridSkipsAnEmptyTileAndKeepsEveryLitOne) {
-  // The grid's two halves, read off the values rather than off a picture.
-  // A band through a square leaves most tiles empty; a solid square leaves
-  // none, and is refused a grid so it does not pay for one.
-  const auto scan = [](const std::function<void(SkCanvas&)>& draw, int side) {
-    sk_sp<SkSurface> surface =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
-    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-    draw(*surface->getCanvas());
-    SkPixmap px;
-    EXPECT_TRUE(surface->peekPixels(&px));
-    return detail::inkGridOf(px);
-  };
-  const detail::InkGrid ring = scan(
-      [](SkCanvas& c) {
-        SkPaint p;
-        p.setAntiAlias(true);
-        p.setStyle(SkPaint::kStroke_Style);
-        p.setStrokeWidth(12);
-        p.setColor(SK_ColorWHITE);
-        c.drawCircle(200, 200, 150, p);
-      },
-      400);
-  ASSERT_FALSE(ring.empty()) << "a band through a square has tiles to skip";
-  const size_t lit =
-      (size_t)std::count(ring.covered.begin(), ring.covered.end(), (uint8_t)1);
-  EXPECT_LT(lit, ring.covered.size() / 2) << "most of a ring's square is empty";
-  EXPECT_GT(lit, 0u);
-
-  EXPECT_TRUE(scan([](SkCanvas& c) { c.clear(SK_ColorWHITE); }, 400).empty())
-      << "a solid bake has nothing to skip";
-  EXPECT_TRUE(scan([](SkCanvas& c) { c.clear(SK_ColorWHITE); }, 48).empty())
-      << "a small bake is blitted in less time than the scan would take";
-}
-
-namespace {
-
-/** A bake with tiles to skip: a thin ring on a transparent square, and the
- *  grid read off its own pixels — the value `drawInkedImage` is handed. */
-struct InkedBake {
-  sk_sp<SkImage> image;
-  detail::InkGrid grid;
-};
-
-InkedBake ringBake(int side) {
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
-  SkCanvas& canvas = *surface->getCanvas();
-  canvas.clear(SK_ColorTRANSPARENT);
-  SkPaint p;
-  p.setAntiAlias(true);
-  p.setStyle(SkPaint::kStroke_Style);
-  p.setStrokeWidth(10);
-  p.setColor(SK_ColorWHITE);
-  canvas.drawCircle((float)side * 0.5f, (float)side * 0.5f, (float)side * 0.35f,
-                    p);
-  SkPixmap px;
-  EXPECT_TRUE(surface->peekPixels(&px));
-  InkedBake out;
-  out.grid = detail::inkGridOf(px);
-  out.image = surface->makeImageSnapshot();
-  return out;
-}
-
-/** The surface's pixels, row-major, so two draws can be compared byte for
- *  byte. */
-std::vector<SkColor> pixelsOf(SkSurface& surface, int w, int h) {
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  surface.readPixels(bm.pixmap(), 0, 0);
-  std::vector<SkColor> out;
-  out.reserve((size_t)w * (size_t)h);
-  for (int y = 0; y < h; ++y)
-    for (int x = 0; x < w; ++x) out.push_back(bm.getColor(x, y));
-  return out;
-}
-
-}  // namespace
-
-TEST(ComposeCaching, AnInkedBlitInsideARecordingLandsWhereThePlainBlitDoes) {
-  // THE REGION IS DEVICE PIXELS AND A RECORDING IS NOT THE DEVICE. A blit
-  // recorded into a picture is replayed under a matrix of its own, and a
-  // region computed in the recording's own space would be applied unchanged
-  // in the space it is replayed into — the wrong units in the wrong place,
-  // cutting the bake to pieces. So the caller hands over the matrix the
-  // picture is replayed under, and the recorded blit must land exactly
-  // where the single blit lands.
-  const int side = 400, canvasSide = 700;
-  const InkedBake bake = ringBake(side);
-  ASSERT_FALSE(bake.grid.empty()) << "a ring has tiles to skip";
-  const SkRect dst = SkRect::MakeXYWH(10, 10, (float)side, (float)side);
-  const SkMatrix replay = SkMatrix::Translate(180, 130);
-  const auto record = [&](bool inked) {
-    SkPictureRecorder recorder;
-    SkCanvas* rec =
-        recorder.beginRecording(SkRect::MakeIWH(canvasSide, canvasSide));
-    if (inked)
-      detail::drawInkedImage(*rec, bake.image, bake.grid, dst, replay,
-                             SkIRect::MakeWH(canvasSide, canvasSide),
-                             SkSamplingOptions(), nullptr);
-    else
-      rec->drawImageRect(bake.image, dst, SkSamplingOptions(), nullptr);
-    sk_sp<SkSurface> surface =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(canvasSide, canvasSide));
-    surface->getCanvas()->clear(SK_ColorBLACK);
-    surface->getCanvas()->concat(replay);
-    surface->getCanvas()->drawPicture(recorder.finishRecordingAsPicture());
-    return pixelsOf(*surface, canvasSide, canvasSide);
-  };
-  const std::vector<SkColor> plain = record(false);
-  const std::vector<SkColor> skipped = record(true);
-  ASSERT_EQ(plain.size(), skipped.size());
-  size_t differing = 0;
-  for (size_t i = 0; i < plain.size(); ++i)
-    if (plain[i] != skipped[i]) ++differing;
-  EXPECT_EQ(differing, 0u)
-      << differing
-      << " pixels of a recorded blit moved when its empty tiles were skipped";
-}
-
-TEST(ComposeCaching, AnInkedBlitWithNoInverseIsTheWholeBlit) {
-  // The skip is arithmetic through the INVERSE of the device matrix — a
-  // patch of the canvas is carried back into the image to ask which tiles
-  // lie under it. A matrix with no inverse (a collapsed axis, a zero scale
-  // arriving from a settling transform) answers no such question, and the
-  // only sound reading is the whole blit rather than a guess or an empty
-  // canvas.
-  const int side = 400, canvasSide = 460;
-  const InkedBake bake = ringBake(side);
-  ASSERT_FALSE(bake.grid.empty());
-  const SkRect dst = SkRect::MakeXYWH(10, 10, (float)side, (float)side);
-  const auto draw = [&](const SkMatrix& toDevice, bool inked) {
-    sk_sp<SkSurface> surface =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(canvasSide, canvasSide));
-    surface->getCanvas()->clear(SK_ColorBLACK);
-    if (inked)
-      detail::drawInkedImage(*surface->getCanvas(), bake.image, bake.grid, dst,
-                             toDevice, SkIRect::MakeWH(canvasSide, canvasSide),
-                             SkSamplingOptions(), nullptr);
-    else
-      surface->getCanvas()->drawImageRect(bake.image, dst, SkSamplingOptions(),
-                                          nullptr);
-    return pixelsOf(*surface, canvasSide, canvasSide);
-  };
-  SkMatrix collapsed = SkMatrix::I();
-  collapsed.setScaleX(0);
-  ASSERT_FALSE(collapsed.invert(nullptr));
-  const std::vector<SkColor> plain = draw(SkMatrix::I(), false);
-  const std::vector<SkColor> noInverse = draw(collapsed, true);
-  ASSERT_EQ(plain.size(), noInverse.size());
-  size_t differing = 0;
-  for (size_t i = 0; i < plain.size(); ++i)
-    if (plain[i] != noInverse[i]) ++differing;
-  EXPECT_EQ(differing, 0u)
-      << differing
-      << " pixels differ: a blit whose device matrix has no "
-         "inverse must be the plain blit";
 }

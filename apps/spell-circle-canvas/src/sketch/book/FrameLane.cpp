@@ -7,6 +7,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <include/utils/SkNoDrawCanvas.h>
 #include <sigilmeasure/stats/Samples.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Crash.h>
@@ -274,13 +275,15 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
   const double at = options.at >= 0.0
                         ? options.at
                         : (declared > 0.0 ? declared : kFallbackMoment);
-  // Step the clock to that moment with a fixed step, on a tiny scratch
-  // surface: the real pixels come from the capture below.
+  // Step at the sketch's full extent without rasterizing discarded pixels.
+  // The clip is part of a retained recording, so a tiny warm-up canvas
+  // would describe a different viewport from the one being captured.
   const double dt = 1.0 / options.fps;
-  sk_sp<SkSurface> scratch =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
+  const SkSize size = host.canvasSize();
+  SkNoDrawCanvas scratch((int)std::ceil(size.width()),
+                         (int)std::ceil(size.height()));
   const int warmup = std::max(1, (int)std::lround(at / dt));
-  for (int i = 0; i < warmup; ++i) host.frame(*scratch->getCanvas(), dt);
+  for (int i = 0; i < warmup; ++i) host.frame(scratch, dt);
 
   for (int index = 0; index < options.frames; ++index) {
     const std::string path =
@@ -292,7 +295,7 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
         return 1;
       }
     }
-    if (index + 1 < options.frames) host.frame(*scratch->getCanvas(), dt);
+    if (index + 1 < options.frames) host.frame(scratch, dt);
   }
   std::printf(
       "wrote %s (%d frame%s at %.3gx, t=%.3gs %s, build %d, work %.2f ms "

@@ -254,7 +254,7 @@ inline PathFormat groove(float radius, float width, SkColor4f dark,
                          SkColor4f lite, float shoulder = 0.22f) {
   PathFormat cut;
   cut.width = width;
-  cut.strokeMaterial = grooveRamp(radius, width, dark, lite, shoulder);
+  cut.strokeFill = grooveRamp(radius, width, dark, lite, shoulder);
   return cut;
 }
 

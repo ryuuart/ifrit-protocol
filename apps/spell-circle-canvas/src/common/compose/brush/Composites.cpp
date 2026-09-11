@@ -133,7 +133,7 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
     // The MARK's full width, not the cull's bleed(): an Align::Inner
     // stroke bleeds zero while painting a mark `width` wide, so a region
     // built from bleed() would be too small to cover its own crossing.
-    return patch > 0 ? patch : std::max(strands[i].brush.reach(), 1.0f);
+    return patch > 0 ? patch : std::max(strands[i].brush.reach(ctx.size), 1.0f);
   };
 
   // Each strand's arc length, so a crossing's `along` fractions convert to

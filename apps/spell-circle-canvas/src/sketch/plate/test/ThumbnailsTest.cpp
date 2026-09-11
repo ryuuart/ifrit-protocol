@@ -8,6 +8,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/core/Sources.h>
 #include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/element/Element.h>
@@ -257,8 +258,8 @@ TEST(ThumbnailStore, ASourceThatChangedIsANewKey) {
 TEST(ThumbnailStore, TheKeyIsTheSourceAndNothingElse) {
   // A KEY THAT CAME BACK is the whole claim: the key is a function of the
   // source's own size and time, so a source restored to what it was is
-  // owed the still it had. Nothing outside the file — no host binary, no
-  // clock — may enter, or a source put back would answer differently.
+  // owed the still it had. No host binary or clock may enter, or a source
+  // put back would answer differently.
   const ScratchDir dir("sigil_thumbnail_pure");
   const std::filesystem::path source = dir.path / "probe.cpp";
   write(source, "// one");
@@ -302,6 +303,26 @@ TEST(ThumbnailStore, ADirectorySketchIsKeyedOnEverySourceBesideItsEntry) {
   const std::string standing = thumbnailKey(entry);
   write(root / "notes.txt", "not a source");
   EXPECT_EQ(standing, thumbnailKey(entry));
+}
+
+TEST(ThumbnailStore, OwnedHeadersInvalidateBareAndDirectoryThumbnails) {
+  const ScratchDir dir("sigil_thumbnail_owners");
+  const auto owner = dir.path / "owner";
+  std::filesystem::create_directories(owner);
+  std::filesystem::create_directories(dir.path / "rain");
+  write(owner / "Palette.h", "#include \"Tone.h\"\n");
+  for (const char* name : {"bare.cpp", "rain/rain.cpp"}) {
+    const auto entry = dir.path / name;
+    const std::string prefix = directorySketch(entry) ? "../" : "";
+    write(entry, "#include \"" + prefix + "owner/Palette.h\"\n");
+    write(owner / "Tone.h", "// one\n");
+    const std::string first = thumbnailKey(entry);
+    write(owner / "Tone.h", "// a different pigment\n");
+    const std::string changed = thumbnailKey(entry);
+    EXPECT_NE(first, changed) << name;
+    write(owner / "Unused.h", "// an unrelated helper\n");
+    EXPECT_EQ(changed, thumbnailKey(entry)) << name;
+  }
 }
 
 TEST(ThumbnailStore, AStillIsFreshOnlyUnderTheKeyItWasWrittenAt) {

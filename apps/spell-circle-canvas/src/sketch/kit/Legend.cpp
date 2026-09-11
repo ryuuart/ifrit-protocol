@@ -42,15 +42,11 @@ void enter(Element& line, const LegendEntry& entry) {
 Element swatchOf(const Legend& key, const LegendEntry& entry, float side) {
   Element mark = box().width(Dim(side)).height(Dim(side)).shrink(0);
   if (key.strokeWidth > 0) {
-    // An outlined key draws the swatch as a line, so the ground goes
-    // into the stroke's own two slots rather than onto the node.
     compose::PathFormat outline =
-        compose::stroke(key.strokeWidth, entry.swatch.fill());
-    if (const material::skia::Paint* m = entry.swatch.material())
-      outline.strokeMaterial = *m;
+        compose::stroke(key.strokeWidth, entry.swatch);
     mark.stroke(std::move(outline));
   } else {
-    entry.swatch.paint(mark);
+    entry.swatch.apply(mark);
   }
   if (key.corners > 0) mark.corners(Corners{key.corners});
   if (entry.keyline)
@@ -97,7 +93,7 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
                     .alignItems(Align::Start);
   for (size_t i = 0; i < strip.swatches.size(); ++i) {
     Element patch = box();
-    strip.swatches[i].paint(patch);
+    strip.swatches[i].apply(patch);
     if (strip.width.unit != Dim::Unit::Auto) patch.width(strip.width);
     if (strip.height.unit != Dim::Unit::Auto) patch.height(strip.height);
     if (strip.corners > 0) patch.corners(Corners{strip.corners});
@@ -123,7 +119,7 @@ compose::Element chip(const Chip& tag) {
   const Theme& look = theme();
   Element plate =
       box().padding(look.spacing.chipPaddingX, look.spacing.chipPaddingY);
-  tag.ground.value_or(Fill::color(look.palette.figure)).paint(plate);
+  tag.ground.value_or(Fill::color(look.palette.figure)).apply(plate);
   plate.child(text(tag.label,
                    look.style(look.type.eyebrow, tag.ink.value_or(Fill::color(
                                                      look.palette.ground)))));

@@ -144,7 +144,7 @@ TEST(SketchKitLegend, AnEntrysMarkIsWhateverTheCallerDrew) {
 /** A strip that names only its ends keeps the unnamed steps butted, so
  *  the ramp reads as one band rather than as a row of tiles. */
 TEST(SketchKitLegend, AStripNamesTheStepsItHasWordsFor) {
-  std::vector<kit::Ground> steps;
+  std::vector<compose::SurfacePaint> steps;
   for (int i = 0; i < 4; ++i)
     steps.push_back(Fill::color({0.2f * (float)i, 0.3f, 0.4f, 1}));
   EXPECT_FALSE(sameDrawing(kit::swatchStrip({.swatches = steps,

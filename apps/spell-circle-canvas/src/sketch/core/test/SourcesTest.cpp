@@ -54,15 +54,43 @@ TEST(SketchSources, AKeyNamesTheDirectoryFormWhenItStands) {
   EXPECT_EQ(sourceOf(scratch.path, "absent"), scratch.path / "absent.cpp");
 }
 
-TEST(SketchSources, TheSharedLayerIsNotASketch) {
-  const sigil::test::ScratchDir scratch("sigil_sketch_sources_shared");
-  scratch.write("shared/palette.cpp", "// a module\n");
-  scratch.write("shared/palette.h", "// its header\n");
+TEST(SketchSources, AHelperDirectoryWithoutAnEntryIsNotASketch) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_sources_helper");
+  scratch.write("helpers/palette.cpp", "// a module\n");
+  scratch.write("helpers/palette.h", "// its header\n");
   // A directory with no entry of its own name holds units of nothing.
-  EXPECT_FALSE(directorySketch(scratch.path / "shared" / "palette.cpp"));
-  EXPECT_EQ(sourcesUnder(scratch.path / "shared"),
-            std::vector<fs::path>{scratch.path / "shared" / "palette.cpp"});
+  EXPECT_FALSE(directorySketch(scratch.path / "helpers" / "palette.cpp"));
+  EXPECT_EQ(sourcesUnder(scratch.path / "helpers"),
+            std::vector<fs::path>{scratch.path / "helpers" / "palette.cpp"});
   EXPECT_TRUE(sourcesUnder(scratch.path / "nowhere").empty());
+}
+
+TEST(SketchSources, SourceMetadataPreservesKnobsAndStopsAtCode) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_metadata");
+  scratch.write("example.cpp",
+                "// example — a title\n//\n// A reusable component.\n//\n"
+                "// EDIT THESE FIRST\n//   size — width\n//     in pixels\n"
+                "//   ink — color\nint main() {}\n// unrelated comment\n");
+  const SourceMetadata metadata = sourceMetadata(scratch.path / "example.cpp");
+  EXPECT_EQ(metadata.subject, "A reusable component.");
+  EXPECT_EQ(metadata.editFirst, "size — width in pixels\nink — color");
+  EXPECT_EQ(metadata.lines, 10);
+  EXPECT_TRUE(sourceMetadata(scratch.path / "absent.cpp").subject.empty());
+}
+
+TEST(SketchSources, LocalHeadersFollowOwnersAcrossDirectoriesAndCycles) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_header_owners");
+  scratch.write("rain/rain.cpp", "#include \"../cloud/Palette.h\"\n");
+  scratch.write("rain/drops.cpp", "# include \"Drops.h\"\n");
+  scratch.write("rain/Drops.h", "#include \"../cloud/Palette.h\"\n");
+  scratch.write("cloud/Palette.h",
+                "#include \"../rain/Drops.h\"\n"
+                "#include <vector>\n"
+                "#include \"Missing.h\"\n");
+  const std::vector<fs::path> expected{scratch.path / "cloud/Missing.h",
+                                       scratch.path / "cloud/Palette.h",
+                                       scratch.path / "rain/Drops.h"};
+  EXPECT_EQ(headersOf(scratch.path / "rain/rain.cpp"), expected);
 }
 
 }  // namespace

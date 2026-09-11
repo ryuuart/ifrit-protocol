@@ -99,7 +99,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/path/Arrange.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/kit/Meter.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>

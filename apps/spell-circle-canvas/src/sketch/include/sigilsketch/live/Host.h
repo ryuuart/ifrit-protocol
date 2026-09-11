@@ -81,11 +81,6 @@ class Host {
     /** The compiler line the build captured, beside the executable. */
     std::filesystem::path flagsFile;
     std::string compiler = "clang++";
-    /** THE SHARED LAYER: a directory whose sources are units of every
-     *  sketch this host builds, and whose headers a sketch spells as
-     *  `<shared/Name.h>`. Watched with the sketch's own files. Empty
-     *  for none. */
-    std::filesystem::path sharedDir;
     /** Pin anything a sketch measured about its own execution, so a
      *  capture can be diffed. */
     bool deterministic = false;
@@ -100,7 +95,7 @@ class Host {
      *  one. */
     std::filesystem::file_time_type hostStamp = hostBinaryTime();
     /** How long between re-reads of the directories the sketch is
-     *  built from — the one beside the entry and the shared layer. The
+     *  built from — the units beside the entry and their local headers. The
      *  entry itself is stamped every poll; the directories around it
      *  are not, because reading a directory is cheap but not free and
      *  a header is saved by hand a moment before the sketch is. Zero
@@ -298,7 +293,7 @@ class Host {
    *  source and the headers around the sketch are the ones it was
    *  compiled against. The headers are ONE stamp for every unit rather
    *  than a dependency list per unit: any header beside the sketch or
-   *  in the shared layer may be included by any unit, and re-reading
+   *  owned by another sketch may be included by any unit, and re-reading
    *  two small directories is cheaper than asking the compiler which
    *  unit includes what. */
   struct Built {
@@ -316,16 +311,16 @@ class Host {
    *  A sketch is more than one file: a helper beside it is reached by a
    *  quoted include, which resolves relative to the including file and
    *  needs no include path; a directory sketch has units beside its
-   *  entry; the shared layer has both. An edit to any of them has to
-   *  rebuild the sketch, or what stays on screen is the code that stood
-   *  before it. */
+   *  entry; local includes can reach headers in other directories. An edit to
+   * any of them has to rebuild the sketch, or what stays on screen is the code
+   * that stood before it. */
   [[nodiscard]] std::optional<std::filesystem::file_time_type> sourceStamp();
   /** Re-reads the directories the sketch is built from into the two
    *  stamps below. */
   void scanBeside();
   /** Every unit the next build compiles or reuses, in compile order:
    *  the entry, the sources beside it when it is a directory sketch,
-   *  then the shared layer's. */
+   *  in name order. */
   [[nodiscard]] std::vector<std::filesystem::path> units() const;
 
   Options m_options;

@@ -26,7 +26,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilshaders/WorldDiligent.h>

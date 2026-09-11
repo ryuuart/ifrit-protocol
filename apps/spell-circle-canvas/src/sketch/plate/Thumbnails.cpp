@@ -25,6 +25,7 @@
 #include <cstdio>
 #include <fstream>
 #include <memory>
+#include <set>
 #include <system_error>
 #include <vector>
 
@@ -78,22 +79,20 @@ std::string thumbnailKey(const fs::path& entrySource) {
   // that was just presented under the sketch's current key — so a still
   // that a rebuild made slightly wrong heals by being looked at.
   std::uint64_t seed = 0;
+  std::set<fs::path> files{entrySource};
   if (directorySketch(entrySource)) {
     // Every source beside the entry: a directory sketch is built from all
     // of them, so a still is stale when any of them changed.
     std::error_code ec;
-    std::vector<fs::path> files;
     for (auto it = fs::directory_iterator(entrySource.parent_path(), ec);
          !ec && it != fs::directory_iterator(); it.increment(ec)) {
       const fs::path& p = it->path();
       const fs::path ext = p.extension();
-      if (ext == ".cpp" || ext == ".h" || ext == ".hpp") files.push_back(p);
+      if (ext == ".cpp" || ext == ".h" || ext == ".hpp") files.insert(p);
     }
-    std::sort(files.begin(), files.end());  // directory order is not stable
-    for (const fs::path& file : files) hashFile(seed, file);
-  } else {
-    hashFile(seed, entrySource);
   }
+  for (const auto& header : headersOf(entrySource)) files.insert(header);
+  for (const fs::path& file : files) hashFile(seed, file);
   char hex[17];
   std::snprintf(hex, sizeof hex, "%016llx", (unsigned long long)seed);
   return hex;

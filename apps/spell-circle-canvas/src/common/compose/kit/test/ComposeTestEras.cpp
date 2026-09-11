@@ -108,9 +108,9 @@ TEST(KitEras, TheGelBodyLightsItsBottomEdgeAndTheHaloIsWhatItReserves) {
   // nothing.
   kit::AquaGelOptions dark;
   dark.halo = false;
-  EXPECT_GT(body.bleed(), 0.0f);
+  EXPECT_GT(body.bleed({160, 100}), 0.0f);
   const kit::AquaBody unhaloed{hexColor(0x1E8FFF), dark};
-  EXPECT_FLOAT_EQ(unhaloed.bleed(), 0.0f);
+  EXPECT_FLOAT_EQ(unhaloed.bleed({160, 100}), 0.0f);
 }
 
 TEST(KitEras, TheLensRampFadesToItsEndAndPaintsNothingBelowIt) {
@@ -127,15 +127,14 @@ TEST(KitEras, TheLensRampFadesToItsEndAndPaintsNothingBelowIt) {
   EXPECT_EQ(host.pixel(100, lensBottom + 20), SK_ColorBLACK);
 }
 
-TEST(KitEras, AnOrbReservesItsHaloFromTheDiameterItWasGiven) {
-  const LayerStyle small = kit::aquaOrb(hexColor(0x1E8FFF), 64.0f);
-  const LayerStyle large = kit::aquaOrb(hexColor(0x1E8FFF), 256.0f);
-  ASSERT_FALSE(small.under.empty());
-  ASSERT_FALSE(large.under.empty());
-  // The halo reaches beyond the box by a fraction of the height the caller
-  // declared, and nothing at paint time can measure it earlier.
-  EXPECT_GT(large.under.front().bleed(), small.under.front().bleed());
-  EXPECT_GT(small.under.front().bleed(), 0.0f);
+TEST(KitEras, AnOrbReservesItsHaloFromTheResolvedSize) {
+  const LayerStyle orb = kit::aquaOrb(hexColor(0x1E8FFF));
+  ASSERT_FALSE(orb.under.empty());
+  for (float height : {64.0f, 256.0f}) {
+    const Shadow shadow{{}, {0, height * 0.25f}, height * 0.40f};
+    EXPECT_FLOAT_EQ(orb.under.front().bleed({height, height}), shadow.bleed());
+    EXPECT_GT(shadow.bleed(), height * 0.65f);
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -51,19 +51,19 @@ namespace {
  *  over-report-is-safe contract, because what this number is for is a
  *  bounds — a layer, a cull, a bake — and under-reporting one truncates
  *  ink with no diagnostic. */
-float declaredBleed(const ElementNode& node) {
+float declaredBleed(const ElementNode& node, SkSize size) {
   float bleed = 0;
 
   for (const Decoration& d : node.backgrounds)
-    bleed = std::max(bleed, d.bleed());
+    bleed = std::max(bleed, d.bleed(size));
   for (const Decoration& d : node.foregrounds)
-    bleed = std::max(bleed, d.bleed());
+    bleed = std::max(bleed, d.bleed(size));
   if (node.fxData)
     for (const Decoration& d : node.fxData->overlays)
-      bleed = std::max(bleed, d.bleed());
+      bleed = std::max(bleed, d.bleed(size));
   if (node.strokeData)
     for (const detail::StrokePass& pass : node.strokeData->passes)
-      bleed = std::max(bleed, pass.what.bleed());
+      bleed = std::max(bleed, pass.what.bleed(size));
   // A band reaches profile.max() px off its spine, and a width profile is
   // REQUIRED to be able to report that number — which is the whole reason
   // `max()` is part of that interface. A width function that cannot state
@@ -126,7 +126,7 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   // layout already knows where the letters went and a guess would be a
   // second opinion about it. Empty on every node that is not type.
   local.join(inst.textInk);
-  const float bleed = declaredBleed(node);
+  const float bleed = declaredBleed(node, {rect.width(), rect.height()});
   if (bleed > 0) local.outset(bleed, bleed);
   // Routed elements paint their derive-resolved PATH, which is not bounded
   // by the layout rect (a connector's box is one thing, its wire another) —
@@ -441,7 +441,7 @@ SkRect Composer::Impl::declaredShapeBounds(Instance& inst) {
   const SkRect rect = instanceRect(inst);
   const SkPath& shape = resolveOutline(inst, {rect.width(), rect.height()});
   if (shape.isEmpty()) return SkRect::MakeEmpty();
-  const float bleed = declaredBleed(node);
+  const float bleed = declaredBleed(node, {rect.width(), rect.height()});
   SkRect drawn = shape.getBounds();
   drawn.outset(bleed, bleed);
   return drawn;

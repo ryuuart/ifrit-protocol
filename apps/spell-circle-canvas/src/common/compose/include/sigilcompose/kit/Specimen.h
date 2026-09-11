@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -148,7 +149,7 @@ struct Caption {
 struct Well {
   Dim width;
   Dim height;
-  Fill ground;
+  SurfacePaint ground;
   float padding = 0.0f;
   bool clip = true;
 };
@@ -156,7 +157,7 @@ struct Well {
 [[nodiscard]] inline Element well(const Well& spec, Element surface) {
   if (spec.width.unit != Dim::Unit::Auto) surface.width(spec.width);
   if (spec.height.unit != Dim::Unit::Auto) surface.height(spec.height);
-  if (spec.ground.kind != Fill::Kind::None) surface.fill(spec.ground);
+  if (!spec.ground.none()) surface.fill(spec.ground);
   if (spec.padding != 0.0f) surface.padding(spec.padding);
   if (spec.clip) surface.clip();
   return surface;
@@ -219,7 +220,7 @@ __attribute__((format(printf, 1, 2))) std::string formatted(const char* pattern,
  *
  *  It places nothing itself and sizes nothing: the run is an ordinary
  *  box in its parent's flow, and a cell keeps the width it was given. A
- *  grid is a column of runs. */
+ *  wrapped panel grid shares its width across equal columns. */
 struct Cells {
   /** In order along the axis. */
   std::vector<Element> cells;
@@ -236,28 +237,26 @@ struct Cells {
   Align align = Align::Start;
 };
 
-[[nodiscard]] inline Element cells(Cells run) {
-  Element shelf = box().gap(run.gap).alignItems(run.align);
-  if (run.column)
-    shelf.column();
-  else
-    shelf.row();
-  const bool ruled = run.divider.kind != Fill::Kind::None;
-  bool first = true;
-  for (Element& cell : run.cells) {
-    if (!first && ruled) {
-      Element rule = run.column ? box().height(Dim(run.dividerWidth))
-                                : box().width(Dim(run.dividerWidth));
-      // The rule spans the run's whole cross extent whatever the cells'
-      // own alignment is: a rule that stopped at the tallest cell's top
-      // would read as a tick.
-      shelf.child(rule.fill(run.divider).alignSelf(Align::Stretch));
-    }
-    first = false;
-    shelf.child(std::move(cell));
-  }
-  return shelf;
-}
+/** A flex row or column, with dividers spanning its cross axis. */
+[[nodiscard]] Element cells(Cells run);
+
+/** Equal-width panels with optional dividers. A partial last row keeps
+ *  the same column widths as the full rows above it. */
+struct PanelGrid {
+  std::vector<Element> cells;
+  /** Positive counts wrap; zero or negative puts every panel on one row. */
+  int columns = 3;
+  float gap = 20.0f;
+  /** Unset uses the horizontal gap. */
+  std::optional<float> rowGap;
+  Fill divider;
+  float dividerWidth = 1.0f;
+  /** Cross-axis alignment for a single row. Wrapped rows stretch panels
+   *  to the height of the tallest panel in that row. */
+  Align align = Align::Stretch;
+};
+
+[[nodiscard]] Element panelGrid(PanelGrid grid);
 
 // ---------------------------------------------------------------------------
 // The sheet
@@ -303,7 +302,7 @@ struct Sheet {
   float contentGap = 18.0f;
   /** The page's own ground. Fill::none() (default) paints nothing, for a
    *  canvas the host already cleared. */
-  Fill ground;
+  SurfacePaint ground;
   /** The hairline under the header and over the footer. Fill::none()
    *  (default) rules neither. */
   Fill rule;
@@ -319,7 +318,7 @@ struct Sheet {
   };
   Element root = box().column().padding(page.marginX, page.marginTop,
                                         page.marginX, page.marginBottom);
-  if (page.ground.kind != Fill::Kind::None) root.fill(page.ground);
+  if (!page.ground.none()) root.fill(page.ground);
 
   const bool ruled = page.rule.kind != Fill::Kind::None;
   // A rule bisects the content gap: the same distance from the header to

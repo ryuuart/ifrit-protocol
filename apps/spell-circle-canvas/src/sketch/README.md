@@ -108,7 +108,6 @@ sketches/
                                        directory of its own name
     Catalogue.h                        reached by a quoted include
     Catalogue.cpp                      a UNIT: compiled into the sketch
-  shared/                              the layer beside them, below
 ```
 
 The rule is one sentence: **a `.cpp` standing in a directory that
@@ -117,8 +116,8 @@ other `.cpp` in that directory is a unit of it.** The key is still the
 stem, `SIGIL_SKETCH` still goes in the entry and nowhere else, and the
 build compiles every unit into the sketch target with the entry. A
 directory with no entry of its own name is not a sketch, and nothing
-in it is compiled. Its `assets/` and `captures/` stand inside it, since
-both stand beside the entry.
+in it is compiled. By default, `assets/` stands beside the sketch folder;
+`--assets` chooses a different resource root.
 
 What goes in a unit is what an edit to the plate should never compile
 again: a data table generated from a source and frozen, a construction
@@ -128,28 +127,18 @@ it was last compiled is not compiled again — so a save of the entry
 costs the entry, not the table. A bare `sketches/<stem>.cpp` stays what
 it was, and a sketch goes from one form to the other by moving.
 
-### The shared layer
+### Helpers have an owner
 
-`sketches/shared/` holds the modules more than one sketch reaches for
-and no library owns yet. It is not a sketch: its sources are compiled
-into the sketch target once, and its headers are spelled as
-`<shared/Name.h>` — the sketches directory is on the include path, so
-the include names the layer it comes from, and the flags a hot-reloaded
-sketch compiles with carry that path because they are lifted from the
-same target. For the live host every source there is a unit of every
-sketch, cached like the sketch's own and dropped from the dylib when the
-sketch names nothing in it, so an unchanged module costs a reload only
-its link; saving one rebuilds the sketch that is open, which is what
-makes it live. A module a library should own is promoted out of here
-into that library.
+A sketch owns its reference-specific construction, palette and type in its
+own directory. Related studies may include an owner's header with a relative
+quoted include; the live host follows those includes recursively. Helpers
+with a general purpose belong in the library that owns that purpose, or in
+SigilSketchKit when they are specimen furniture.
 
-**What belongs here is one FAMILY of sibling sketches' chassis** — the
-geometric grammar, the measured palette and the type register a
-reconstruction and its siblings share, named for the artefact they serve.
-What every sketch has belongs one level up, in **SigilSketchKit**
-(`src/sketch/kit`, its own README the canon): the theme a sheet is set
-in, and the stage, the page, the well and the caption built over it. A
-new module here is the cue to ask which of the two it is.
+For example, the MAGI voting study owns `eva_magi_interior/EvangelionUi.h`;
+the defense study includes it as `../eva_magi_interior/EvangelionUi.h`.
+Only the owner's entry registers a sketch. Including its helper does not
+compile the owner's scene into the consuming sketch.
 
 `SIGIL_SKETCH` takes the folder it files under and one line on what it
 is — both shown beside it in the app. `SIGIL_SKETCH_AS` adds a name of
@@ -825,6 +814,24 @@ run says so when they differ.
 
 ## Going through the registry
 
+The window composes four responsibilities: `SketchCatalog` supplies rows
+and thumbnails, `Browser` filters and selects those rows,
+`CanvasPane` owns the viewport, input gestures and compile-error panel, and
+`SketchActions` runs frame, video and benchmark commands from a supplied
+row. Selection does not launch work. Commands own their subprocess and
+status, so exporting a sketch does not change the catalog or the live
+canvas. An empty command row selects the full registry for video export.
+
+- `core/Sources.h` — `SourceMetadata` and `sourceMetadata` read author prose
+  without Qt; `sourceOf`, `directorySketch`, `sourcesUnder` and `unitsOf`
+  resolve the files and translation units belonging to a sketch. `headersOf`
+  follows its local quoted includes across owner directories.
+
+The thumbnail worker is the existing `ThumbnailQueue`; the catalog
+marshals its results onto the GUI thread. Captures and device readback
+remain on the render thread, sharing the context that owns the live
+session's images.
+
 The app is a BROWSER BESIDE A CANVAS, and the canvas never gives up its
 half. Going through a hundred sketches is a matter of looking at one
 after another, so the two questions are kept apart:
@@ -864,9 +871,9 @@ alone — so `folder:study kind:canvas rain` is one question, not three.
 **The thumbnails are the app's own.** Sketchbook keeps one store — one PNG
 per sketch, under the platform cache location (`--thumbnails-dir` and the
 `SIGIL_SKETCHBOOK_THUMBNAILS` environment variable name another). Each
-file's name carries a KEY: a hash of the sketch's source — the file, or
-every file of a directory sketch — and nothing else, so a thumbnail whose
-key no longer matches is stale and is drawn again.
+file's name carries a KEY: a hash of the sketch's source files and local
+headers, including quoted includes followed across owner directories.
+A thumbnail whose key no longer matches is stale and is drawn again.
 
 **The host is not in the key.** A library edit changes what a sketch
 draws while its source stands still, and every still on disk goes on
@@ -1072,11 +1079,11 @@ embedding a scripting language — so a sketch never leaves the real API.
   links with `-undefined dynamic_lookup` and builds in a couple of
   seconds: a few small translation units, nothing linked against the
   static libraries. The units — the entry, the sources beside it when
-  the sketch is a directory, the shared layer's — compile side by side
+  the sketch is a directory — compile side by side
   into cached objects and link once; a unit is compiled again only when
-  its own source or any header beside the sketch or in the shared layer
-  has been written since, one conservative rule that needs no
-  dependency scan.
+  its own source or a local header has been written since. Literal quoted
+  includes resolve relative to their including file and are followed
+  recursively; framework includes remain part of the framework build.
 * **The guest compiles hidden**, with `-fvisibility=hidden
   -fvisibility-inlines-hidden` on top of the flags the build captured,
   and that is what makes the file on disk the thing that runs. A sketch
@@ -1145,8 +1152,8 @@ embedding a scripting language — so a sketch never leaves the real API.
   exactly what an edit wants.
 * The watch covers **everything the sketch is built from**: the entry
   every poll, and on a short cadence the headers standing beside it, the
-  units beside it when it is a directory sketch, and the shared layer's
-  sources and headers. A helper beside a sketch is reached by a quoted
+  units beside it when it is a directory sketch, and local headers reached
+  through quoted includes. A helper beside a sketch is reached by a quoted
   include, which resolves relative to the including file and needs no
   include path — so saving the header rebuilds, rather than leaving the
   code that stood before the edit on screen with nothing saying so.
@@ -1193,9 +1200,8 @@ So a workspace is just a directory:
   captures/             where the app's Capture writes
 ```
 
-The directory form is the same rule wherever the entry stands, and the
-shared layer a workspace sketch may spell `<shared/Name.h>` against is
-this repository's: the flags it compiles with are this checkout's.
+The directory form and relative local includes work the same way wherever
+the entry stands. Framework headers come from the flags this checkout builds.
 
 `assets/` beside the sketch is the default root, and `--assets <dir>`
 names another. Saving `palette.h` rebuilds the sketch that includes it.
@@ -1248,7 +1254,7 @@ src/sketch/
   book/       Sketchbook: the app, and the headless entry point, with the browser's rows
   cmake/      SketchLinkSurface.cmake, the link surface a reloaded sketch is read against
   test/       support/, the fixtures every feature's cases share
-  sketches/   every sketch, one file or one directory each; shared/ beside them
+  sketches/   every sketch, one file or one directory each
 ```
 
 Directories and headers are the same outline — a feature at `canvas/`

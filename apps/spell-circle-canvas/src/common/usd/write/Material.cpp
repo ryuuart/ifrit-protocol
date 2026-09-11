@@ -21,7 +21,7 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmaterial/core/Combine.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 
 #include <cmath>
 

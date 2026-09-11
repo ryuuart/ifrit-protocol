@@ -35,7 +35,7 @@
 #include <sigilgeometry/mesh/codec/Decode.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilio/IO.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 

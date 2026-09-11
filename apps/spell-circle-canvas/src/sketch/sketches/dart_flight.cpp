@@ -26,7 +26,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>

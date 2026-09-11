@@ -36,7 +36,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/set/Set.h>

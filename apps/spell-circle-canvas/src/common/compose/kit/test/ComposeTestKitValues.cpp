@@ -1,12 +1,4 @@
-// Kit-tier tests: <sigilcompose/kit/*.h>.
-//
-// The kit sits ON TOP of the API and changes none of it, so a kit failure
-// must never be reported as a kernel failure — hence a separate binary.
-//
-// Every case here is written to FAIL WITHOUT THE COMPONENT, and to measure
-// what the component produced rather than to restate the arithmetic it was
-// produced with — a test that recomputes the formula it is checking proves
-// only that the compiler is deterministic.
+// Public kit components: layout, captions, pixel type and paint presets.
 
 #include <include/core/SkFont.h>
 #include <include/core/SkPath.h>
@@ -687,4 +679,73 @@ TEST(KitGround, AGrainIsNeutralAtZeroAndBrokenAboveIt) {
   const SkColor first = rough.pixel(0, 20);
   for (int x = 1; x < 120 && !moved; ++x) moved = rough.pixel(x, 20) != first;
   EXPECT_TRUE(moved);
+}
+
+TEST(KitSpecimen, PanelsShareWidthAndKeepTheLastRowAligned) {
+  Host host(320, 200);
+  host.composer.render(box().child(kit::panelGrid(
+      {.cells = {box().key("a").width(240).height(20),
+                 box().key("b").width(10).height(30), box().key("c").height(10),
+                 box().key("d").height(15)},
+       .columns = 3,
+       .gap = 10,
+       .rowGap = 12})));
+  host.frame();
+  const auto a = host.composer.bounds("a");
+  const auto b = host.composer.bounds("b");
+  const auto d = host.composer.bounds("d");
+  ASSERT_TRUE(a && b && d);
+  EXPECT_FLOAT_EQ(a->width(), 100);
+  EXPECT_FLOAT_EQ(a->width(), b->width());
+  EXPECT_FLOAT_EQ(a->width(), d->width());
+  EXPECT_FLOAT_EQ(a->height(), 30);
+  EXPECT_FLOAT_EQ(d->left(), 0);
+  EXPECT_FLOAT_EQ(d->top(), 42);
+}
+
+TEST(KitSpecimen, PanelDividersKeepTheirWidthAcrossWrappedRows) {
+  Host host(300, 200);
+  host.composer.render(box().child(kit::panelGrid(
+      {.cells = {box().key("a").height(20), box().key("b").height(30),
+                 box().key("c").height(15), box().key("d").height(25)},
+       .columns = 2,
+       .gap = 10,
+       .rowGap = 12,
+       .divider = red(),
+       .dividerWidth = 4})));
+  host.frame();
+  const auto a = host.composer.bounds("a");
+  const auto b = host.composer.bounds("b");
+  const auto c = host.composer.bounds("c");
+  const auto d = host.composer.bounds("d");
+  ASSERT_TRUE(a && b && c && d);
+  EXPECT_FLOAT_EQ(a->width(), 138);
+  EXPECT_FLOAT_EQ(b->left(), 162);
+  EXPECT_FLOAT_EQ(c->top(), 42);
+  EXPECT_FLOAT_EQ(d->left(), b->left());
+  EXPECT_EQ(host.pixel(150, 29), SK_ColorRED);
+  EXPECT_EQ(host.pixel(150, 60), SK_ColorRED);
+  EXPECT_EQ(host.pixel(150, 35), SK_ColorBLACK);
+}
+
+TEST(KitSpecimen, SurfacePaintPreservesBindingsAndMaterialResolution) {
+  choreograph::Output<Fill> ink(Fill::color({1, 0, 0, 1}));
+  Host host(200, 100);
+  host.composer.render(
+      box().child(kit::well({.width = 100, .height = 60, .ground = &ink})));
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
+  ink = Fill::color({0, 1, 0, 1});
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);
+  EXPECT_EQ(SurfacePaint(&ink), SurfacePaint(&ink));
+  const SurfacePaint paint = material::skia::Paint::linearUnit(
+      {0, 0}, {1, 0}, {{0, {1, 0, 0, 1}}, {1, {0, 0, 1, 1}}});
+  for (float width : {80.0f, 160.0f}) {
+    host.composer.render(box().child(
+        kit::well({.width = width, .height = 60, .ground = paint})));
+    host.frame();
+    const SkColor middle = host.pixel((int)(width / 2), 20);
+    EXPECT_NEAR(SkColorGetR(middle), SkColorGetB(middle), 5);
+  }
 }

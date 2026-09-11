@@ -42,7 +42,8 @@ struct EdgeSlice {
   /** Forwarded, or an inner weave's strand::from(key) would never be
    *  registered for the derive pass (BorrowingDecoration). */
   std::vector<std::string> borrows() const { return inner.borrows(); }
-  float reach() const { return inner.reach(); }
+  float bleed(SkSize size) const { return inner.bleed(size); }
+  float reach(SkSize size) const { return inner.reach(size); }
   /** Forwarded, or a wrapped blending mark would be baked into a layer of
    *  its own and resolve against transparent black instead of the page
    *  (BlendingDecoration). */
@@ -83,7 +84,10 @@ struct Inset {
   /** Forwarded, or an inner weave's strand::from(key) would never be
    *  registered for the derive pass (BorrowingDecoration). */
   std::vector<std::string> borrows() const { return inner.borrows(); }
-  float reach() const { return inner.reach(); }
+  float bleed(SkSize size) const {
+    return inner.bleed(size) + std::max(0.0f, -px);
+  }
+  float reach(SkSize size) const { return inner.reach(size); }
   /** Forwarded, for the reason EdgeSlice forwards it. */
   bool blends() const { return inner.blends(); }
 

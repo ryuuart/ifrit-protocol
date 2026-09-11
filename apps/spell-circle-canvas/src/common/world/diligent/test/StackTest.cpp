@@ -13,7 +13,7 @@
 #include <gtest/gtest.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/core/FrameData.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilworld/diligent/Runtime.h>
 

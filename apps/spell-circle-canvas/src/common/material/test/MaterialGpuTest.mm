@@ -26,8 +26,8 @@
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/core/Terms.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/kit/Recipes.h>
-#include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/ocio/Ocio.h>
 #include <sigilmaterial/sdf/Sdf.h>

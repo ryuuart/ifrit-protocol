@@ -94,6 +94,10 @@ const Color c = heat.through(temperature, [&](double t) {
 });
 ```
 
+The `data_scales` sketch draws every transform through one component: curves
+for continuous inputs and explicit marks or bands for categories. Its axes
+and marks read the same scale props.
+
 ## Mental model
 
 **One value, props not functions.** A `Scale` is an aggregate: fill in

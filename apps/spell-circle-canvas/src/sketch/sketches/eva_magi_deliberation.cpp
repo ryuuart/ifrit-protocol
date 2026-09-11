@@ -1,19 +1,8 @@
-// The flat MAGI deliberation plate is one routed system: a rear circular bus,
-// three copies of one square module, and an information layer above both.
-//
-// THE BLOOM IS WHY THIS SKETCH DECLARES ITS PICTURE NONLINEAR. The whole
-// plate wears `phosphorBloom`, and a bloom begins with a GATE: a bright
-// pass that admits what stands over its threshold, gathered over a reduced
-// layer and laid back over the sharp source. A pixel sitting on the
-// threshold is admitted or not by its last code value, and what the gate
-// admits is spread over the halo's whole reach — so a difference of one
-// under the gate is many over it, in a place the difference was never in.
-// `ctx.nonlinearPicture()` therefore holds the automatic promoter off this
-// scene in every host: its picture is drawn from live paint, and what is
-// under the gate is judged on its own.
+// The flat MAGI deliberation plate: a rear circular bus, three rotated
+// square modules, and a front information layer. The type registers separate
+// computer labels, display numerals, the serif wordmark and Japanese headings.
 
 #include <include/core/SkPaint.h>
-#include <shared/EvangelionUi.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Frame.h>
@@ -26,6 +15,8 @@
 
 #include <string>
 
+#include "eva_magi_interior/EvangelionUi.h"
+
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace weave = sigil::weave;
@@ -35,9 +26,9 @@ using namespace sigil::compose;
 namespace {
 
 const SkColor4f kGround = hexColor(0x020202);
-const SkColor4f kOrange = hexColor(0xF08320);
+const SkColor4f kOrange = hexColor(0xF39A19);
 const SkColor4f kOrangeDim = hexColor(0xA94C15);
-const SkColor4f kMint = hexColor(0x63E6BC);
+const SkColor4f kMint = hexColor(0x59E7A0);
 const SkColor4f kMintRule = hexColor(0x2AA98A);
 const SkColor4f kMintRuleHi = hexColor(0x65E3BC);
 const SkColor4f kInk = hexColor(0x071615);
@@ -75,12 +66,12 @@ struct EvaMagiDeliberation : sketch::Sketch {
   weave::TextStyle han(const std::u8string& run, float capHeight,
                        float maxWidth, SkColor4f color) const {
     weave::TextStyle style =
-        evangelion::minchoDisplay(capHeight * 1.34f, color, 1.12f);
+        evangelion::minchoDisplay(capHeight * 1.34f, color, 1.30f);
     if (fonts) {
       const TextMetrics probe = metrics(style, *fonts);
       if (probe.capHeight > 1.0f)
         style = evangelion::minchoDisplay(
-            style.shaping.fontSize * capHeight / probe.capHeight, color, 1.12f);
+            style.shaping.fontSize * capHeight / probe.capHeight, color, 1.30f);
       const SkSize measured =
           sigil::compose::intrinsicSize(text(run, style), *fonts);
       if (measured.width() > maxWidth && measured.width() > 1.0f)
@@ -142,10 +133,10 @@ struct EvaMagiDeliberation : sketch::Sketch {
         .style(decorations::doubleBorder(
             decorations::border(6.0f, Fill::color(kOrange), 0.0f),
             decorations::border(3.0f, Fill::color(kInk), 9.0f)))
-        .child(text(numeral, fit(evangelion::groteskBold(), numeral, 88.0f,
-                                 side - 48.0f, kInk))
+        .child(text(numeral, fit(evangelion::voteNumeral(number), numeral,
+                                 88.0f, side - 48.0f, kInk))
                    .centerAt({side * 0.5f, side * layout.numberSlotY(number)}))
-        .child(text(label, fit(evangelion::groteskBold(), label, 31.0f,
+        .child(text(label, fit(evangelion::moduleLabel(), label, 31.0f,
                                side - 48.0f, kInk))
                    .centerAt({side * 0.5f, side * layout.nameSlotY(number)}));
   }
@@ -178,7 +169,7 @@ struct EvaMagiDeliberation : sketch::Sketch {
                       .top(334.0f + (float)line * 32.0f));
     }
 
-    group.child(text(u8"MAGI", fit(evangelion::groteskBold(), u8"MAGI", 54.0f,
+    group.child(text(u8"MAGI", fit(evangelion::magiWordmark(), u8"MAGI", 54.0f,
                                    230.0f, kOrange))
                     .centerAt({720.0f, 535.0f}));
 
@@ -209,15 +200,13 @@ struct EvaMagiDeliberation : sketch::Sketch {
 
   Element describe() const {
     Element root = box().inset(0);
-    root.child(
-        picture()
-            .effect(mskia::Effect::phosphorBloom(10.0f, 0.48f, 0.46f, 0.84f))
-            .cache(Cache::Texture)
-            .key("phosphor"));
+    root.child(picture()
+                   .effect(evangelion::phosphor())
+                   .cache(Cache::Texture)
+                   .key("phosphor"));
     root.child(box()
                    .inset(0)
-                   .fill(mskia::Paint::recipe(
-                       sigil::material::field::crtOverlay(4.0f, 0.040f)))
+                   .fill(mskia::Paint::recipe(evangelion::tube()))
                    .cache(Cache::Texture));
     return root;
   }

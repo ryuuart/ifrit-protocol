@@ -296,3 +296,57 @@ TEST(ComposeCache, ATextureBakeUnderPerspectiveTracksTheCamera) {
          "device-space bake (or re-baked under camera motion) instead of "
          "holding one local bake";
 }
+
+TEST(ComposeCache, SparseFurnitureSurvivesAFractionalCaptureScale) {
+  const auto scene = [](Cache cache) {
+    auto furniture = box().inset(0).cache(cache);
+    furniture.child(
+        box()
+            .left(72)
+            .top(58)
+            .width(1296)
+            .height(936)
+            .fill(Fill::none())
+            .foreground(decorations::border(7, Fill::color({1, 1, 1, 1}))));
+    furniture.child(
+        box()
+            .left(442)
+            .top(311)
+            .width(556)
+            .height(556)
+            .shape(geometry::shapes::circle())
+            .fill(Fill::none())
+            .foreground(decorations::border(5, Fill::color({1, 1, 1, 1}))));
+    return box()
+        .inset(0)
+        .cache(Cache::None)
+        .effect(
+            material::skia::Effect::filter(SkImageFilters::Blur(1, 1, nullptr)))
+        .child(std::move(furniture));
+  };
+  Host cached(1440, 1052), plain(1440, 1052);
+  cached.composer.render(scene(Cache::Texture));
+  plain.composer.render(scene(Cache::None));
+  cached.composer.setAutoTexturePromotion(false);
+  plain.composer.setAutoTexturePromotion(false);
+  for (int i = 0; i < 3; ++i) cached.frame();
+  for (Host* host : {&cached, &plain}) {
+    host->surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2400, 1754));
+    host->surface->getCanvas()->scale(5.0f / 3.0f, 5.0f / 3.0f);
+    host->frame();
+  }
+  SkBitmap expected, actual;
+  expected.allocPixels(SkImageInfo::MakeN32Premul(2400, 1754));
+  actual.allocPixels(expected.info());
+  plain.surface->readPixels(expected.pixmap(), 0, 0);
+  cached.surface->readPixels(actual.pixmap(), 0, 0);
+  int lit = 0, lost = 0;
+  for (int y = 0; y < 1754; ++y)
+    for (int x = 0; x < 2400; ++x) {
+      if (SkColorGetR(expected.getColor(x, y)) < 200) continue;
+      ++lit;
+      if (SkColorGetR(actual.getColor(x, y)) < 100) ++lost;
+    }
+  EXPECT_GT(lit, 10000);
+  EXPECT_EQ(lost, 0);
+}

@@ -73,7 +73,7 @@ const char* phaseName(int phase) {
     case Phase::Host:
       break;
   }
-  return "host code (NOT inside the sketch)";
+  return "host code";
 }
 
 const char* signalName(int number) {
@@ -97,7 +97,7 @@ const char* signalName(int number) {
 }
 
 void handler(int number) {
-  emit("\n=== the sketch crashed ===\n  signal: ");
+  emit("\n=== fatal signal ===\n  signal: ");
   emit(signalName(number));
   emit("\n  sketch: ");
   emit(g_sketchName[0]   ? g_sketchName
@@ -123,15 +123,9 @@ void handler(int number) {
     emit(" ms)");
   }
   emit(
-      "\n\nThis is a fault inside the SKETCH image, not the host. The two\n"
-      "that account for almost all of them:\n"
-      "  * an SkSL material whose main() is not monolithic, or whose loop\n"
-      "    bound is a uniform: its AST is built on one side of the\n"
-      "    host/dylib line and inlined on the other, and dispatch across\n"
-      "    that boundary faults on PAC.\n"
-      "  * a steppable that captured SketchContext& — it is a per-frame\n"
-      "    value the host rebuilds, so the reference dangles. Capture\n"
-      "    `this` and take the context as a parameter.\n\nstack:\n");
+      "\n\nThe phase records the active operation; the stack identifies the "
+      "fault.\n"
+      "\nstack:\n");
 
 #if defined(__APPLE__) || defined(__unix__)
   std::array<void*, 64> frames{};

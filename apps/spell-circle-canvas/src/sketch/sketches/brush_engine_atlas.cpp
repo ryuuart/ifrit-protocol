@@ -20,7 +20,7 @@ constexpr std::array<SkColor4f, 6> kInk{{
     {0.12f, 0.32f, 0.42f, 1.0f},
     {0.12f, 0.48f, 0.38f, 1.0f},
     {0.82f, 0.26f, 0.18f, 1.0f},
-    {0.91f, 0.55f, 0.08f, 1.0f},
+    {0.55f, 0.32f, 0.04f, 1.0f},
     {0.48f, 0.22f, 0.48f, 1.0f},
 }};
 
@@ -28,7 +28,7 @@ struct BrushEngineAtlas final : sketch::DrawSketch {
   brush::Engine brushes;
 
   void setup(sketch::DrawContext& context) override {
-    context.canvas(1000, 820);
+    context.canvas(1000, 900);
     context.captureAt(0.25);
     context.pen.randomSeed(0xB2A55u);
     context.pen.noiseSeed(0xB2A55u);
@@ -80,6 +80,14 @@ struct BrushEngineAtlas final : sketch::DrawSketch {
   void draw(sketch::DrawContext& context) override {
     Pen& pen = context.pen;
     pen.background(246, 239, 222);
+    pen.noStroke();
+    pen.fill(40, 34, 31);
+    pen.textSize(26);
+    pen.text("PIGMENT / PRESSURE / PAPER", 48, 40);
+    pen.textSize(13);
+    pen.text("ONE PASS", 72, 78);
+    pen.text("SIX PASSES", 250, 78);
+    pen.text("FIELD-WARPED WASH", 610, 78);
 
     const std::array<const char*, 14> names{{
         "2B",
@@ -98,9 +106,12 @@ struct BrushEngineAtlas final : sketch::DrawSketch {
         "paper-tip",
     }};
     for (size_t i = 0; i < names.size(); ++i) {
-      const float y = 58.0f + (float)i * 48.0f;
-      brushes.set(names[i], kInk[i % kInk.size()], i < 6 ? 2.0f : 0.8f);
-      brushes.line(pen, {72, y}, {430, y + pen.random(-12, 12)}, 0.3f, 0.72f);
+      const float y = 112.0f + (float)i * 48.0f;
+      brushes.set(names[i], kInk[i % kInk.size()], i < 6 ? 4.0f : 1.6f);
+      brushes.line(pen, {72, y}, {218, y - 6}, 0.75f, 1.0f);
+      for (int pass = 0; pass < 6; ++pass)
+        brushes.line(pen, {250, y + pen.random(-2, 2)},
+                     {414, y - 6 + pen.random(-2, 2)}, 0.75f, 1.0f);
       pen.noStroke();
       pen.fill(42, 38, 34, 205);
       pen.textAlign(LEFT, CENTER);
@@ -113,7 +124,7 @@ struct BrushEngineAtlas final : sketch::DrawSketch {
     brushes.fillBleed(0.32f, brush::BleedDirection::Out, -0.35f);
     brushes.fillTexture(0.5f, 0.45f, true);
     brushes.field("waves");
-    brushes.circle(pen, 720, 190, 122.5f, 0.8f);
+    brushes.circle(pen, 750, 232, 122.5f, 0.8f);
     brushes.noField();
     brushes.noFill();
 
@@ -142,6 +153,13 @@ struct BrushEngineAtlas final : sketch::DrawSketch {
     pen.textAlign(CENTER, CENTER);
     pen.textSize(24);
     pen.text("ONE DAB ENGINE", 730, 570);
+    pen.textAlign(LEFT, BASELINE);
+    pen.textSize(14);
+    pen.text("Pressure tapers each stroke. Repeated passes build pigment.", 48,
+             845);
+    pen.text(
+        "One engine: stock tools, custom stamps, washes, hatches and masses.",
+        48, 868);
     pen.noLoop();
   }
 };

@@ -16,7 +16,7 @@
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Params.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/light/Light.h>
 

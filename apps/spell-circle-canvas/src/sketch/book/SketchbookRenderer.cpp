@@ -159,7 +159,6 @@ std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
   if (!SketchbookView::fonts) return nullptr;  // nothing shapes text yet
   options.assetsDir = SketchbookView::assetsDir;
   options.flagsFile = SketchbookView::flagsFile;
-  options.sharedDir = SketchbookView::sharedDir;
   // The file is the session's name: it is what distinguishes a registry
   // entry from every other, and a file opened by path from every other.
   const std::string key = options.sketchPath.string();
@@ -415,10 +414,11 @@ void SketchbookRenderer::runPendingCaptures() {
       const fs::path dir = host->sketchPath().parent_path() / "captures";
       const std::string stem = host->sketchPath().stem().string();
       fs::path out;
-      for (int n = 1; n < 10000; ++n) {
-        char name[256];
-        std::snprintf(name, sizeof name, "%s-%03d.png", stem.c_str(), n);
-        out = dir / name;
+      for (uint64_t n = 1;; ++n) {
+        const std::string number = std::to_string(n);
+        const std::string padding(number.size() < 3 ? 3 - number.size() : 0,
+                                  '0');
+        out = dir / (stem + "-" + padding + number + ".png");
         if (!fs::exists(out)) break;
       }
       // A CAPTURE IS PHOTOGRAPHED AT ITS OWN DENSITY. The live frame's

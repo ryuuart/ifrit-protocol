@@ -29,8 +29,8 @@
 # mixer a layout scatters with. The arrow points one way: this tier links
 # Brush, and Brush links nothing here.
 sigil_library(SigilComposeKit
-  SOURCES Bevels.cpp Eras.cpp Kit.cpp Routers.cpp Sprites.cpp
-  HEADERS Chrome.h Frame.h Gel.h Gloss.h Grid.h Ground.h Annotations.h
+  SOURCES Bevels.cpp Eras.cpp Routers.cpp Specimen.cpp Sprites.cpp
+  HEADERS Chrome.h Frame.h Gel.h Gloss.h Ground.h Annotations.h
           Typeset.h Instruments.h Kinetic.h Kit.h Layouts.h Marquee.h
           PixelType.h Placers.h Routers.h Specimen.h Sprites.h
   PUBLIC SigilComposeCore SigilComposeTypography SigilComposeBrush
@@ -46,7 +46,6 @@ sigil_library(SigilComposeKit
 # that case alone carries the label.
 sigil_test(compose_test
   SOURCES test/ComposeTestKitValues.cpp test/ComposeTestChrome.cpp
-          test/ComposeTestGrid.cpp
           test/ComposeTestColumns.cpp
           test/ComposeTestLayoutsAndShapes.cpp
           test/ComposeTestTravel.cpp test/ComposeTestRouters.cpp

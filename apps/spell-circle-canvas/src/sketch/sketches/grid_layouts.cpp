@@ -5,7 +5,7 @@
  * A `LayoutScheme` returns one rect per child from the container size
  * and the children's MEASURED sizes, in a bounded second pass after
  * Yoga. The three here differ in what they do with that measurement.
- * `ModularGrid` throws the measured size away and SIZES each card to its
+ * `Grid` throws the measured size away and SIZES each card to its
  * cell span, so a card is whatever the module is. `Diagonal` keeps every
  * measured size and only moves the cards, each row's left edge riding
  * the same shear line a `skewX` would lean the verticals to. And
@@ -28,6 +28,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/Grid.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -118,7 +119,7 @@ struct GridLayouts final : sketch::Sketch {
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("GRID LAYOUTS \xc2\xb7 layout(layouts::"
-                       "ModularGrid | Diagonal | BaselineGrid)"),
+                       "Grid | Diagonal | BaselineGrid)"),
          .subtitle = toU8("dials \xc2\xb7 the module (3 columns "
                           "\xc3\x97 4 rows, 10 px gutter) \xc2\xb7 the "
                           "baseline rhythm (32 px) \xc2\xb7 the shear "
@@ -131,25 +132,27 @@ struct GridLayouts final : sketch::Sketch {
                         "reads childBaselines, which a box does not "
                         "have")},
         kit::cells(
-            {.cells = {cell("layouts::ModularGrid{3, 4, 10}",
-                            "the card is SIZED to its cell \xc2\xb7 twelve "
-                            "with no spans auto-flow one module each, "
-                            "left to right then down",
-                            layout(layouts::ModularGrid{.columns = kColumns,
-                                                        .rows = kRows,
-                                                        .gutter = kGutter})),
-                       cell("layouts::Diagonal{-12, 6}",
-                            "measured sizes kept \xc2\xb7 x tracks the shear "
-                            "line at each row's y, and the run is shifted so "
-                            "nothing lands at negative x",
-                            layout(layouts::Diagonal{.skewDeg = kSkewDeg,
-                                                     .gap = 6})),
-                       cell("layouts::BaselineGrid{32}",
-                            "each card falls to the next 32 px line by its "
-                            "own FIRST BASELINE \xc2\xb7 three type sizes, "
-                            "one rhythm",
-                            layout(layouts::BaselineGrid{.rhythm = kRhythm}),
-                            true)},
+            {.cells =
+                 {cell("Grid: 3 columns x 4 rows",
+                       "the card is SIZED to its cell \xc2\xb7 twelve "
+                       "with no spans auto-flow one module each, "
+                       "left to right then down",
+                       layout(layouts::Grid{
+                           .columns =
+                               layouts::repeatTrack(kColumns, layouts::fr()),
+                           .rows = layouts::repeatTrack(kRows, layouts::fr()),
+                           .gap = {kGutter, kGutter}})),
+                  cell("layouts::Diagonal{-12, 6}",
+                       "measured sizes kept \xc2\xb7 x tracks the shear "
+                       "line at each row's y, and the run is shifted so "
+                       "nothing lands at negative x",
+                       layout(
+                           layouts::Diagonal{.skewDeg = kSkewDeg, .gap = 6})),
+                  cell("layouts::BaselineGrid{32}",
+                       "each card falls to the next 32 px line by its "
+                       "own FIRST BASELINE \xc2\xb7 three type sizes, "
+                       "one rhythm",
+                       layout(layouts::BaselineGrid{.rhythm = kRhythm}), true)},
              .gap = 16})));
   }
 };

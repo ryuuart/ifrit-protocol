@@ -38,7 +38,7 @@ sigil_library(SigilComposeCore
     ElementLayout.cpp ElementShape.cpp ElementMask.cpp ElementPaint.cpp
     ElementMarks.cpp ElementTransform.cpp ElementText.cpp
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
-    ElementNode.cpp Diagnostics.cpp CellFlow.cpp
+    ElementNode.cpp Diagnostics.cpp CellFlow.cpp Grid.cpp
     # the composer and its phases
     Composer.cpp Measure.cpp Tiles.cpp
     Reconcile.cpp ReconcileEquality.cpp MaterializeText.cpp
@@ -65,10 +65,10 @@ sigil_library(SigilComposeCore
     Lanes.h
     Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h
     PaintInternal.h PaintPass.h
-    PaintProfile.h BakeInk.h InstanceStamp.h
+    PaintProfile.h InstanceStamp.h
   HEADERS ../Compose.h Composer.h Core.h Derive.h Element.h Factories.h
-          Feed.h Instances.h Layout.h Mask.h Measure.h Paint.h Pattern.h
-          Shape.h Shelf.h Stroke.h Table.h TextPainter.h Tiles.h
+          Feed.h Grid.h Instances.h Layout.h Mask.h Measure.h Paint.h Pattern.h
+          Shape.h Shelf.h Stroke.h SurfacePaint.h Table.h TextPainter.h Tiles.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilCoreCache SigilCoreComparable SigilCoreCompute
          SigilCoreReconcile SigilGeometryPath SigilImage SigilMaterial
@@ -83,15 +83,13 @@ sigil_shader_sources(SigilComposeCore DIR ${_shaders} NAMESPACE sigil::compose)
 # The field walks include ComposeInternal.h AND ComposeRuntime.h (the
 # only test TU that does either) so the equality comparators and the
 # kSlotSpecs table can be reached DIRECTLY, which is why this binary
-# alone sees the library's source directory; the caching cases reach
-# BakeInk.h over the same path, for the same reason — a bake's ink grid
-# decides what the blit may skip, and a grid that skips too much is
-# invisible from outside until it drops a pixel. yoga::yogacore is
+# alone sees the library's source directory. yoga::yogacore is
 # PRIVATE to Core, so its headers are not on this target's path by
 # inheritance — and ComposeRuntime.h includes <yoga/Yoga.h>. Listed for
 # the INCLUDE PATH; the archive itself was already in the link closure.
 sigil_test(compose_test
-  SOURCES test/ComposeTestLayout.cpp test/ComposeTestContent.cpp
+  SOURCES test/ComposeTestLayout.cpp test/ComposeTestGrid.cpp
+          test/ComposeTestContent.cpp
           test/ComposeTestReconcile.cpp test/ComposeTestCaching.cpp
           test/ComposeTestPromotion.cpp test/ComposeTestMotion.cpp
           test/ComposeTestEffects.cpp test/ComposeTestMaterial.cpp

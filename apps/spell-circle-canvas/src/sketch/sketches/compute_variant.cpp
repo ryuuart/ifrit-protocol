@@ -41,7 +41,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Selector.h>

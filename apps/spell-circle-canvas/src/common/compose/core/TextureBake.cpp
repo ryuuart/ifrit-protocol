@@ -139,7 +139,6 @@ bool paintTextureBake(PaintPass& pass) {
       });
       if (baked) {
         inst.textureImage = std::move(baked);
-        inst.textureInk = {};
         inst.textureDeviceSpace = true;
         inst.textureEffectDeferred = false;
         inst.textureBakeRect = bakeRect;
@@ -371,12 +370,6 @@ bool paintTextureBake(PaintPass& pass) {
           layer = std::move(filtered);
         }
       }
-      // The ink grid, off the surface's own pixels — before the
-      // snapshot, so nothing is copied for it. A GPU surface answers no
-      // pixmap and the grid stays empty, which is a whole-rect blit.
-      SkPixmap baked;
-      inst.textureInk =
-          layer->peekPixels(&baked) ? inkGridOf(baked) : InkGrid{};
       inst.textureImage = layer->makeImageSnapshot();
       inst.textureScale = scale;
       inst.textureDeviceSpace = false;
@@ -460,31 +453,12 @@ bool paintTextureBake(PaintPass& pass) {
       blit.setImageFilter(deferredFilter);
       dressed = true;
     }
-    // AN EFFECT ON THE BLIT IS NOT ADMITTED BY THE INK. The filter
-    // spreads the content OUTSIDE the pixels that carry it — that is
-    // what a glow is — and the grid describes where the ink is, not
-    // where the filter will put it. Blitted whole. A STATIC effect is
-    // already in the pixels the grid was taken from, so it keeps its
-    // grid.
-    //
-    // AND THE INK CLIP IS A DEVICE-SPACE CLIP, so it obeys the device
-    // bake's rule rather than the picture tier's. A region names whole
-    // pixels of the device and ignores the matrix — which is what makes
-    // it a set of pixels rather than an outline — so one recorded into a
-    // picture is applied, unchanged, in the space that picture is
-    // replayed into. It is therefore computed through the replay, and a
-    // recording holding one is pinned to the matrix it was made under
-    // exactly as one holding a device blit is. An UNPINNED recording —
-    // one under a declared motion, which replays under a matrix nobody
-    // knows yet — can hold no such clip, and the bake is blitted whole
-    // inside it.
-    const bool inkAdmitted = !deferLiveEffect && !inst.textureInk.empty() &&
-                             impl.unpinnedRecordingDepth == 0;
-    drawInkedImage(canvas, inst.textureImage,
-                   inkAdmitted ? inst.textureInk : InkGrid{}, dst, totalM,
-                   pass.deviceClip(), SkSamplingOptions(SkFilterMode::kLinear),
-                   dressed ? &blit : nullptr);
-    if (inkAdmitted && impl.recordingDepth > 0) ++impl.recordingDeviceBakes;
+    // Keep the blit in the node's coordinate system. A device-space region
+    // cannot follow a local bake through a changed capture scale or a
+    // filtered layer's intermediate surface.
+    canvas.drawImageRect(inst.textureImage, dst,
+                         SkSamplingOptions(SkFilterMode::kLinear),
+                         dressed ? &blit : nullptr);
   });
   return false;
 }

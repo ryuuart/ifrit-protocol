@@ -74,11 +74,13 @@ pixel buffer's Y and UV planes and hands them to SigilSkia's
 or CPU colour conversion. One texture cache serves every decoder on the same
 Metal device, and one wrapped image per decoded frame can feed any number of
 draws.
-A raster canvas, an unsupported native pixel format, or a disabled device
+A raster or Vulkan canvas, an unsupported native pixel format, or a disabled device
 policy transfers and converts through the CPU executor. Both executors read
 the stream's colour matrix and range — BT.709, BT.2020 or BT.601, limited
 or full — off the frame, and an untagged stream is BT.601 limited on both,
 so a clip composites to the same colours whichever executor answers.
+An unsupported native wrap is attempted once per decoded frame and recorder;
+the cached CPU image serves subsequent draws on that recorder.
 
 The native device passed in `DecodeOptions::metalDevice` must be the device
 behind the destination recorder. Null selects the system Metal device. A host

@@ -16,6 +16,22 @@
 
 namespace sigil::compose {
 
+float Shadow::bleed() const {
+  float extent = 0;
+  if (blur > 0) {
+    SkPaint paint;
+    paint.setMaskFilter(
+        SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
+    const SkRect unit = SkRect::MakeWH(1, 1);
+    SkRect storage;
+    // Skia's mask filter supplies the conservative extent of its kernel.
+    const SkRect bounds = paint.computeFastBounds(unit, &storage);
+    extent = std::max({-bounds.left(), -bounds.top(), bounds.right() - 1,
+                       bounds.bottom() - 1});
+  }
+  return std::max({std::abs(offset.fX), std::abs(offset.fY), maxBind}) + extent;
+}
+
 void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(antiAlias);
@@ -26,8 +42,8 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   p.setStrokeWidth(aligned ? width * 2 : width);
   p.setStrokeCap(cap);
   p.setStrokeJoin(join);
-  const Fill stroke =
-      strokeMaterial ? resolveFill(*strokeMaterial, ctx) : strokeFill;
+  const Fill stroke = strokeFill.resolve(ctx);
+  if (stroke.kind == Fill::Kind::None) return;
   if (stroke.kind == Fill::Kind::Color)
     p.setColor4f(stroke.colorValue, nullptr);
   else if (stroke.kind == Fill::Kind::Shader)

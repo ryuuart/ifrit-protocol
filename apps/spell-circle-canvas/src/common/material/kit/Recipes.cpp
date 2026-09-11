@@ -13,8 +13,8 @@
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Globe.h>
 #include <sigilmaterial/kit/Grained.h>
-#include <sigilmaterial/kit/Surface.h>
-#include <sigilmaterial/kit/Surfaces.h>
+#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>

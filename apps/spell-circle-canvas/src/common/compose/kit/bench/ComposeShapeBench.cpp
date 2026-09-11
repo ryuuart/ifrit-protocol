@@ -40,11 +40,8 @@ Element shapedGrid(int count, ShapeIdentity identity) {
     if (identity == ShapeIdentity::Comparable) {
       leaf.shape(geometry::shapes::star(5 + id % 3, 0.45f, 0.08f));
     } else {
-      leaf.shape([](SkSize size) {
-        SkPathBuilder path;
-        path.addOval(SkRect::MakeWH(size.width(), size.height()));
-        return path.detach();
-      });
+      const auto shape = geometry::shapes::star(5 + id % 3, 0.45f, 0.08f);
+      leaf.shape([shape](SkSize size) { return shape.path(size); });
     }
     root.child(std::move(leaf));
   }

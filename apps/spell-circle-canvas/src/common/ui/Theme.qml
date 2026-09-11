@@ -42,6 +42,15 @@ QtObject {
     readonly property color controlBackground: Qt.rgba(root.system.windowText.r, root.system.windowText.g, root.system.windowText.b, 0.07)
     readonly property color controlHoverBackground: Qt.rgba(root.system.windowText.r, root.system.windowText.g, root.system.windowText.b, 0.14)
 
-    readonly property string monospaceFontFamily: "Menlo, Monaco, Courier New"
+    readonly property string monospaceFontFamily: {
+        const available = Qt.fontFamilies();
+        const preferred = ["Menlo", "Consolas", "DejaVu Sans Mono",
+                           "Liberation Mono", "Monaco", "Courier New"];
+        for (const family of preferred) {
+            if (available.indexOf(family) >= 0)
+                return family;
+        }
+        return Qt.application.font.family;
+    }
     readonly property int toolbarHeight: 38
 }

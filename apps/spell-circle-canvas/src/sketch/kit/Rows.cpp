@@ -23,7 +23,7 @@ compose::Element labelRow(const Reading& reading, const Readout& how) {
   if (!reading.swatch.none()) {
     const float side = how.swatchSide.value_or(look.spacing.swatchSide);
     Element mark = box().width(Dim(side)).height(Dim(side));
-    reading.swatch.paint(mark);
+    reading.swatch.apply(mark);
     mark.shrink(0);
     if (how.swatchCorners > 0) mark.corners(Corners{how.swatchCorners});
     row.child(std::move(mark));
@@ -86,7 +86,7 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
     if (!row.swatch.none()) {
       const float side = how.swatchSide.value_or(look.spacing.swatchSide);
       Element mark = box().width(Dim(side)).height(Dim(side));
-      row.swatch.paint(mark);
+      row.swatch.apply(mark);
       mark.shrink(0);
       if (how.swatchCorners > 0) mark.corners(Corners{how.swatchCorners});
       line.child(std::move(mark));

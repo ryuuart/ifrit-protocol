@@ -8,8 +8,8 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilmotion/values/Animated.h>
-#include <sigilsketch/kit/Ground.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -93,7 +93,7 @@ struct Scrollbar {
   /** How far the thumb stands in from the two long edges of the bar. */
   float thumbInset = 0;
   /** The track the thumb runs in; unset is the theme's cell ground. */
-  std::optional<Ground> track;
+  std::optional<compose::SurfacePaint> track;
 };
 
 /** THE BAR.

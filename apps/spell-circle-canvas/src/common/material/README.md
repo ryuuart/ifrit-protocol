@@ -78,7 +78,7 @@ directory, each a static archive that links only what sits beneath it:
 `SigilMaterial` is the umbrella, an interface over all twelve. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
 `<sigilmaterial/core/Recipe.h>`, `<sigilmaterial/texture/Texture.h>`,
-`<sigilmaterial/kit/Surfaces.h>` — and `<sigilmaterial/Material.h>`
+`<sigilmaterial/kit/Reflections.h>` — and `<sigilmaterial/Material.h>`
 includes the whole core.
 
 ## Using it
@@ -146,7 +146,7 @@ A surface from the kit reads the same way, its slots filled with textures:
 
 ```cpp
 #include <sigilmaterial/kit/Environments.h>
-#include <sigilmaterial/kit/Surfaces.h>
+#include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/texture/Surface.h>
 

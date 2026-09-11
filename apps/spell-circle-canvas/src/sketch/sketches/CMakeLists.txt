@@ -12,14 +12,6 @@
 # always, and there is no second list anywhere that could disagree with
 # this directory.
 #
-# `shared/` IS THE ONE DIRECTORY HERE THAT IS NOT A SKETCH: modules more
-# than one sketch reaches for and no library owns yet. Its sources are
-# compiled into this target once, and its headers are reached as
-# <shared/Name.h> — this directory is on the include path, so the include
-# names the layer it comes from. A module a library should own is
-# promoted out of it. Any other directory without an entry file in it
-# is not a sketch and nothing in it is compiled.
-#
 # An OBJECT library, not an archive: registration happens in a
 # namespace-scope initializer with nothing referring to it, which an
 # archive would drop. Object libraries link every object by
@@ -37,9 +29,6 @@ set(SIGIL_SKETCH_UNITS)
 foreach(nested_file IN LISTS SIGIL_SKETCH_NESTED_FILES)
   get_filename_component(sketch_dir ${nested_file} DIRECTORY)
   get_filename_component(sketch_stem ${sketch_dir} NAME)
-  if(sketch_stem STREQUAL "shared")
-    continue()
-  endif()
   if(nested_file STREQUAL "${sketch_dir}/${sketch_stem}.cpp")
     list(APPEND SIGIL_SKETCH_FILES ${nested_file})
     file(GLOB sketch_units CONFIGURE_DEPENDS ${sketch_dir}/*.cpp)
@@ -47,8 +36,6 @@ foreach(nested_file IN LISTS SIGIL_SKETCH_NESTED_FILES)
     list(APPEND SIGIL_SKETCH_UNITS ${sketch_units})
   endif()
 endforeach()
-file(GLOB SIGIL_SKETCH_SHARED_FILES CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_LIST_DIR}/shared/*.cpp)
 
 # THE SKETCHES THAT NEED A LIBRARY THIS BUILD MAY NOT HAVE: stem, then
 # the target that must exist for it to compile. A sketch over an optional
@@ -127,7 +114,6 @@ add_library(SigilSketches OBJECT
   Anchor.cpp
   ${SIGIL_SKETCH_FILES}
   ${SIGIL_SKETCH_UNITS}
-  ${SIGIL_SKETCH_SHARED_FILES}
 )
 # THE SKETCH API SURFACE, stated once. What a sketch may #include is
 # exactly this target's PUBLIC dependencies, and the flags a hot-reloaded
@@ -156,11 +142,6 @@ target_link_libraries(SigilSketches PUBLIC
   SigilMeasure
   Boost::container Boost::unordered
   ${SIGIL_SKETCH_OPTIONAL_LIBRARIES})
-# This directory is on the include path for one reason: a module under
-# shared/ is spelled <shared/Name.h>, so the include names the layer.
-# PUBLIC, because the flags a hot-reloaded sketch compiles with are
-# lifted from this target's compile line — the same surface, once.
-target_include_directories(SigilSketches PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 target_compile_definitions(SigilSketches PUBLIC
   SIGIL_SKETCH_ASSET_DIR="${SIGIL_SKETCH_ASSET_DIR}"
   SIGIL_SKETCH_DIR="${SIGIL_SKETCH_DIR}"

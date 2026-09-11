@@ -57,7 +57,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/kit/Environments.h>
-#include <sigilmaterial/kit/Surfaces.h>
+#include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>

@@ -11,7 +11,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/frame/Frame.h>

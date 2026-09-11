@@ -455,10 +455,8 @@ adds and which carries the harness a consumer's own tests reach for. The
 internal headers beside each feature's sources are not reachable from
 outside it. Each feature has an umbrella named after it (`core/Core.h`,
 `kit/Kit.h`, `brush/Brush.h`, `typography/Typography.h`) over its public
-headers — over MOST of them: an umbrella is a convenience and not an
-index, so `core/Feed.h` and `core/Pattern.h`, and the kit's `Grid.h`,
-`Ground.h`, `Layouts.h`, `Placers.h` and `Routers.h`, are included by
-name. `<sigilcompose/Compose.h>` at the root is the umbrella over the
+headers. Umbrellas are conveniences; a consumer can include each header
+from its owning feature. `<sigilcompose/Compose.h>` at the root is the umbrella over the
 kernel — exactly `core/Core.h`. Each header stands on its own; include
 the one a translation unit needs, from the feature whose target the
 translation unit links.
@@ -466,6 +464,11 @@ translation unit links.
 **Kernel — `core/`.** A user who reads these headers has a complete and
 sound model; nothing below them changes kernel semantics.
 
+- `core/SurfacePaint.h` — `SurfacePaint`, a component prop accepting a
+  Fill, an animatable Fill or a material. Pass it to Element's fill verb.
+  Empty paint preserves the element's fill; bindings retain their source
+  identity and materials retain their frame-dependent behavior. Neutral
+  wells and sheets accept this same value as their ground.
 - `core/Paint.h` — the paint values: `Fill`, `Corners`, `Backface`,
   `PaintContext`,
   `StampCache`, and `hexColor`, the one colour spelling here: a source
@@ -614,11 +617,11 @@ SigilGeometry's, spelled `geometry::shapes::` from
 `<sigilgeometry/kit/Silhouettes.h>`: a comparable `path(SkSize)` value
 needs nothing of a component tree, and every one of them prunes a shaped
 node exactly as an unshaped one prunes. `kit/Layouts.h` holds the placement schemes for the `layout()`
-seam (`layouts::Radial`, `AlongPath`, `ModularGrid`, `Diagonal`,
+seam (`layouts::Radial`, `AlongPath`, `Diagonal`,
 `BaselineGrid`, `Jittered`) — each one a placement FUNCTION an author
 could have written out. `core/Table.h` stands beside the seam instead,
 because the auto table is an algorithm and not a formula, and so does
-`kit/Grid.h`.
+`core/Grid.h`.
 
 `layouts::Grid` is the one arrangement a page divides into — equal
 shares, unequal columns sized by what is in them, a fixed rail beside a
@@ -694,8 +697,18 @@ looks plausible. `CellSpan::declared` is what a scheme reads to tell
 "cell (0,0)" from "wherever you like", so a table can flow the children
 that said nothing into the cells no child claimed. `Table` and
 `layouts::Grid` are placed entirely by it — the grid resolving a name to
-one first; `ModularGrid` reads it too and falls back to its own parallel
-`spans` list for a child that named no cells.
+one first. Equal modules use repeated fractional tracks on both axes;
+placement stays on each child:
+
+```cpp
+layout(layouts::Grid{
+    .columns = layouts::repeatTrack(4, layouts::fr()),
+    .rows = layouts::repeatTrack(4, layouts::fr()),
+    .gap = {8, 8}})
+    .child(header().cells(0, 0, 2, 1))
+    .child(sidebar().cells(3, 0, 1, 3))
+    .child(body());  // flows into the next unoccupied cell
+```
 
 `Table` is the HTML automatic table layout: unequal columns
 sized by what is in them, spans, and a surplus shared out in proportion.
@@ -837,7 +850,7 @@ the width). What stays HERE is the WIDTH LAW — the linear taper, the
 spine's direction and so of a `geometry::path::SweepStation` rather than
 of arc length. `Ribbon::band` hands the geometry back, so a study that
 MEASURES what was drawn does not have to transcribe how it is built. `Ribbon::fillMaterial` paints the
-band with a recipe instead of a `Fill` — the door `strokeMaterial` opens
+band with a recipe instead of a `Fill` — the door `strokeFill` opens
 on a stroke, mirrored here, so a ribbon beside a stroked outline does not
 have to have the same paint written twice; `brush::presets::taper` and
 `brush::presets::calligraphic` each take a `material::skia::Paint` beside a
@@ -1076,7 +1089,8 @@ the body, or both lines above it, or both below, and `labelMeasure` and
 widen the cell it captions), `kit::well`, the fixed, clipped surface a
 specimen is drawn into with every size, fill and padding supplied by the
 caller, `kit::formatted`, the dynamically sized printf-style reading those
-captions use, `kit::cells`, a run of
+captions use, `kit::panelGrid`, equal-width panels that wrap at the stated
+column count and keep a short last row aligned, and `kit::cells`, a run of
 them along one axis with a hairline between neighbours, and
 `kit::sheet`, the titled and footed page that rules its header and
 footer off from the content between them; every face, size and distance
@@ -1136,8 +1150,11 @@ find out.
   `material::skia::Effect` with a bound uniform or a live child. Tier
   inheritance is real: a live child makes the parent effect live, so no
   cache can freeze the parameter.
-- A decoration that paints beyond the node's box declares `bleed()`, and
-  one that needs to say how wide the *mark* is declares `reach()`. These
+- A decoration that paints beyond the node's box declares `bleed()`, or
+  `bleed(SkSize)` when its overflow depends on the resolved layout size.
+  The latter is queried again after resize. Mark width is declared with
+  `reach()` or `reach(SkSize)`. Composite brushes and outline adaptors
+  forward the resolved size to their decorations. These
   are different numbers — an inner-aligned stroke bleeds zero while
   painting a mark several pixels wide. Over-reporting is safe;
   under-reporting silently truncates cached pictures.
@@ -1234,31 +1251,11 @@ change of what the picture IS, not of how big it is being shown.
 `Composer::bakeDensity()` reads it back, and zero — the default — is the
 ladder.
 
-**A BAKE IS BLITTED WHERE ITS INK IS.** A bake held in local space is
-drawn through the node's own transform, and a transform that is not an
-integer translation resamples: the sampler runs over every pixel of the
-bake's rect whether the texel it reads is ink or transparent black. The
-shapes a bake is most worth taking for are the ones that waste the most
-of that — a ring of type, a turning arc layer, a glow round a figure is a
-thin band inside a square. So a bake records which coarse tiles of it
-hold any non-transparent texel, and the blit is admitted only on the
-whole device pixels those tiles can reach. Nothing about the picture
-changes: the draw is the same draw under the same matrix, the region is a
-set of whole pixels so no pixel falls between its parts, and a tile is
-kept if any texel in it or beside it is ink, so a skipped tile is one no
-sample could have read. A solid bake is refused a grid and blitted whole,
-as is a small one and a bake carrying a deferred effect — a filter
-spreads content outside the pixels that carry it, which is the one thing
-the grid does not describe.
-
-The region is device pixels, so it is bound to a device. A blit made
-inside a recording is replayed under a matrix of its own, and a region
-ignores that matrix the way it ignores every other — so the region is
-computed through the replay, and a recording that holds one is pinned to
-the matrix it was made under, remade when that matrix moves, exactly as a
-recording holding a device-space bake is. A recording that cannot be
-pinned — one under a declared motion, which replays under a matrix nobody
-knows yet — blits the bake whole.
+**A LOCAL BAKE IS BLITTED AS ONE IMAGE.** The image follows the node's
+transform and the layer's coordinate system. Transparent texels contribute
+nothing. A device-space region cannot safely restrict this blit when a
+capture changes scale or an effect evaluates the picture on an intermediate
+surface, so local bakes carry no separately cached clipping grid.
 
 **A PROMOTED NODE PAINTS THE PICTURE ITS LIVE PAINT PAINTS**, within one
 code value per channel, and that is the whole of what automatic promotion
@@ -1730,7 +1727,7 @@ ctest --test-dir build -C Release --output-on-failure
 
 Registered tests. The library has ONE test binary, `compose_test`, built
 from every feature's `test/` directory; ctest discovers one entry per
-CASE out of it, so `ctest -R 'KitGrid\.'` selects a suite and
+CASE out of it, so `ctest -R 'ComposeGrid\.'` selects a suite and
 `ctest -R 'ComposeContent.AKeyedShapeSettlesOnTheValueItClosesOver'` one
 case, with no target behind either. What locates a case is that a suite
 is named for the feature it covers and its file sits in that feature's

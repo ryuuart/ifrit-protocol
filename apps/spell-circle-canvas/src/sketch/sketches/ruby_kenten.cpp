@@ -37,7 +37,6 @@
 //   kSplitHeight          — how deep the split column is, which is what
 //                           decides where the base breaks.
 
-#include <shared/VerticalSpecimen.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
@@ -50,6 +49,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "tategaki/VerticalSpecimen.h"
 
 namespace sketch = sigil::sketch;
 

@@ -11,8 +11,8 @@
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Globe.h>
-#include <sigilmaterial/kit/Surface.h>
-#include <sigilmaterial/kit/Surfaces.h>
+#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>

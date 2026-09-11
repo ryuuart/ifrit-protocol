@@ -33,7 +33,7 @@ compose::Element console(const Console& panel) {
   // The ground goes on after the primitive rather than through it,
   // because the primitive takes a Fill and a ground may be a material.
   panel.ground.value_or(compose::Fill::color(look.palette.cellGround))
-      .paint(plate);
+      .apply(plate);
   return plate;
 }
 

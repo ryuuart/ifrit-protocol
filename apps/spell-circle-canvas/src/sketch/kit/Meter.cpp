@@ -19,12 +19,13 @@ using compose::text;
 compose::Element meter(const Meter& bar) {
   const Theme& look = theme();
   const float filled = std::clamp(bar.fraction, 0.0f, 1.0f);
-  const Ground trackPaint =
+  const compose::SurfacePaint trackPaint =
       bar.track.value_or(Fill::color(look.palette.cellGround));
-  const Ground barPaint = bar.bar.value_or(Fill::color(look.palette.figure));
+  const compose::SurfacePaint barPaint =
+      bar.bar.value_or(Fill::color(look.palette.figure));
 
   Element rail = box();
-  trackPaint.paint(rail);
+  trackPaint.apply(rail);
   rail.clip();
   if (bar.width.unit != Dim::Unit::Auto) rail.width(bar.width);
   rail.height(bar.height.value_or(Dim(look.spacing.barHeight)));
@@ -37,7 +38,7 @@ compose::Element meter(const Meter& bar) {
     // Scaled from the left edge rather than sized: the bed keeps its
     // recording and only the transform moves.
     Element run = box().absolute().inset(bar.inset.value_or(0.0f));
-    barPaint.paint(run);
+    barPaint.apply(run);
     run.transformOrigin(0, 0.5f).scaleX(*bar.level);
     if (bar.corners > 0) run.corners(Corners{bar.corners});
     rail.child(std::move(run));
@@ -48,7 +49,7 @@ compose::Element meter(const Meter& bar) {
     // half of them.
     Element run =
         box().width(compose::pct(filled * 100)).height(compose::pct(100));
-    barPaint.paint(run);
+    barPaint.apply(run);
     run.alignSelf(Align::Stretch);
     if (bar.corners > 0) run.corners(Corners{bar.corners});
     rail.child(std::move(run));
@@ -79,10 +80,10 @@ compose::Element gauge(const Gauge& dial) {
   // `thickness` px on a dial of `diameter` px leaves this much of it.
   const float inner =
       std::clamp(1.0f - (2.0f * dial.thickness) / diameter, 0.0f, 0.999f);
-  const auto ring = [&](float sweep, const Ground& paint) {
+  const auto ring = [&](float sweep, const compose::SurfacePaint& paint) {
     Element band = box().absolute().inset(0).shape(
         geometry::shapes::sector(dial.startDeg, sweep, inner));
-    paint.paint(band);
+    paint.apply(band);
     return band;
   };
 

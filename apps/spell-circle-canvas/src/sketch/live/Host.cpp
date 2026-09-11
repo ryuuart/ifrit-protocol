@@ -67,8 +67,8 @@ int run(const std::string& command, std::string& output) {
 }
 
 /** Where a unit's object goes: named for the unit, and for the whole of
- *  its path, so two units of one stem in different directories — a
- *  sketch's `tables.cpp` and the shared layer's — do not share one. */
+ *  its path, so two units of one stem in different directories — two
+ *  sketches' `tables.cpp` files — do not share one. */
 std::filesystem::path objectFor(const std::filesystem::path& buildDir,
                                 const std::filesystem::path& source) {
   char hash[24];
@@ -237,9 +237,9 @@ void Host::scanBeside() {
   m_unitStamp = {};
   // Beside a bare sketch the other sources are OTHER SKETCHES, and an
   // edit to one of them is nothing to this one; only a directory sketch
-  // owns the sources around its entry. Headers are shared either way,
-  // reached by a quoted include. The shared layer is units and headers
-  // of every sketch. Nothing else in a directory is an input of the
+  // owns the sources around its entry. Local headers are reached by
+  // quoted includes, including helpers owned by another sketch.
+  // Nothing else in a directory is an input of the
   // compile: a capture landing beside the sketch is not an edit.
   const auto stamp = [this](const std::filesystem::path& dir, bool sources) {
     std::error_code scan;
@@ -262,18 +262,15 @@ void Host::scanBeside() {
   };
   stamp(m_options.sketchPath.parent_path(),
         directorySketch(m_options.sketchPath));
-  if (!m_options.sharedDir.empty()) stamp(m_options.sharedDir, true);
+  for (const auto& header : headersOf(m_options.sketchPath)) {
+    std::error_code error;
+    const auto time = std::filesystem::last_write_time(header, error);
+    if (!error) m_headerStamp = std::max(m_headerStamp, time);
+  }
 }
 
 std::vector<std::filesystem::path> Host::units() const {
-  std::vector<std::filesystem::path> all = unitsOf(m_options.sketchPath);
-  if (!m_options.sharedDir.empty()) {
-    std::vector<std::filesystem::path> shared =
-        sourcesUnder(m_options.sharedDir);
-    all.insert(all.end(), std::make_move_iterator(shared.begin()),
-               std::make_move_iterator(shared.end()));
-  }
-  return all;
+  return unitsOf(m_options.sketchPath);
 }
 
 void Host::startCompile() {

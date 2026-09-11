@@ -159,8 +159,7 @@ struct ChromeType final : sketch::Sketch {
 
     std::vector<Element> rows;
     rows.push_back(pair("Y2K CHROME", kit::y2kChrome()));
-    rows.push_back(pair("AQUA GEL", kit::aquaGel(hexColor(0x1E8FFF),
-                                                 {.expectedHeight = 108.0f})));
+    rows.push_back(pair("AQUA GEL", kit::aquaGel(hexColor(0x1E8FFF))));
     rows.push_back(pair("BEVEL + GLOW", bevelAndGlow));
 
     return sketch::kit::page(

@@ -73,7 +73,7 @@ sigil_doc_probes(world
            "<sigilmaterial/core/Combine.h>"
            "<sigilmaterial/core/Terms.h>"
            "<sigilmaterial/slang/SlangCompiler.h>"
-           "<sigilmaterial/kit/Surface.h>"
+           "<sigilmaterial/kit/Pbr.h>"
            "<sigilgeometry/mesh/pop/Kernel.h>"
            "<sigilgeometry/mesh/pop/device/Cook.h>"
            "<sigilgeometry/mesh/pop/device/Sweep.h>"

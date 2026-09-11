@@ -30,7 +30,7 @@ namespace sigil::compose::brush {
 struct Ribbon {
   Fill fill = Fill::color({1, 1, 1, 1});
   /** A Material for the band, superseding `fill` when set — the same
-   *  door `Decoration::strokeMaterial` opens on a stroke, so a recipe
+   *  door `Decoration::strokeFill` opens on a stroke, so a recipe
    *  that dresses an outline can dress the ribbon beside it without
    *  being written twice.
    *

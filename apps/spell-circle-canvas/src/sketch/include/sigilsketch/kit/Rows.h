@@ -8,7 +8,7 @@
 
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilsketch/kit/Ground.h>
+#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -27,7 +27,7 @@ struct Reading {
   /** A mark standing BEFORE the name, for a row that is also a key —
    *  a tier, a channel, a series on a chart beside it. Empty (default)
    *  draws none and spends no room. */
-  Ground swatch;
+  compose::SurfacePaint swatch;
 };
 
 /** HOW A ROW IS SET — the widths and the mark, with none of the words. */
@@ -75,7 +75,7 @@ struct Readout {
 struct Row {
   std::vector<std::u8string> cells;
   /** Before the first column, for a table that is also a key. */
-  Ground swatch;
+  compose::SurfacePaint swatch;
   /** Names the row, so a query can read it back and a reveal can address
    *  it one row at a time. Empty keys nothing. */
   std::string key;

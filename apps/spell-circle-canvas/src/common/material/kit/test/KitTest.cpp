@@ -19,9 +19,9 @@
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/kit/LayerStyles.h>
 #include <sigilmaterial/kit/Patterns.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/kit/Recipes.h>
-#include <sigilmaterial/kit/Surface.h>
-#include <sigilmaterial/kit/Surfaces.h>
+#include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>

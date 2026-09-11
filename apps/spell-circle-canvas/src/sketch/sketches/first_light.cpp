@@ -16,7 +16,7 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>

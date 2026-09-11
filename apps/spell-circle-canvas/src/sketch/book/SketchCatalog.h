@@ -9,7 +9,6 @@
 #include <sigilsketch/plate/ThumbnailQueue.h>
 
 #include <QtCore/QObject>
-#include <QtCore/QProcess>
 #include <QtCore/QUrl>
 #include <QtCore/QVariantList>
 #include <QtCore/QVariantMap>
@@ -62,11 +61,6 @@ class SketchCatalog : public QObject {
    *  the browser to overlay, which is what keeps a thumbnail that has
    *  already mounted from being remounted. */
   Q_PROPERTY(QVariantList sketches READ sketches CONSTANT)
-  /** The one line the last Frame, Video or Bench run left behind, and whether
-   *  one is still going. These are the whole of what the inspector shows
-   *  for a subprocess: these runs answer in one line by design. */
-  Q_PROPERTY(QString taskLine READ taskLine NOTIFY taskChanged)
-  Q_PROPERTY(bool taskRunning READ taskRunning NOTIFY taskChanged)
   /** THE FILL, WHILE IT IS HAPPENING: whether it is, how many stills it
    *  set out to draw, how many of them are answered, and the last thing
    *  it had to say about a sketch it could not draw. */
@@ -91,11 +85,6 @@ class SketchCatalog : public QObject {
   [[nodiscard]] QString fillNote() const { return m_fillNote; }
   [[nodiscard]] int openIndex() const { return opensAt; }
   [[nodiscard]] bool openAtOnce() const { return opensWithoutFill; }
-  [[nodiscard]] QString taskLine() const { return m_taskLine; }
-  [[nodiscard]] bool taskRunning() const {
-    return m_task.state() != QProcess::NotRunning;
-  }
-
   /** What a running session declared about itself. A row keeps the last
    *  answer it was given: a sketch looked at once still reads its canvas
    *  back after the resident set has let it go. @p runtime fills an empty
@@ -151,18 +140,6 @@ class SketchCatalog : public QObject {
    *  presenting has reached the moment it named. */
   Q_INVOKABLE void adoptThumbnail(int index);
 
-  /** Render one still of the sketch through this same binary's `--frame`
-   *  path, into `captures/` beside the file. */
-  Q_INVOKABLE void frame(int index);
-  /** Export the registry, or one registry sketch, as a vertical MP4. */
-  Q_INVOKABLE void video(int index, const QUrl& output);
-  /** A writable filename for the video save dialog. */
-  Q_INVOKABLE QUrl videoDefault(int index) const;
-  /** Run the 60 FPS gate over it, and keep the verdict line. */
-  Q_INVOKABLE void bench(int index);
-  /** Show the file in the Finder. */
-  Q_INVOKABLE void reveal(int index);
-
   /** WHERE THE SKETCH SOURCES STAND, and the files this session was
    *  pointed at beyond the registry. Set by main() before QML loads; the
    *  book library owns them because the catalog and the live view both
@@ -193,7 +170,6 @@ class SketchCatalog : public QObject {
   static sigil::sketch::Assets* thumbnailAssets;
 
  signals:
-  void taskChanged();
   void fillChanged();
   /** A thumbnail landed for @p index: the row, with its plate filled in,
    *  for QML to overlay without remounting every other thumbnail. */
@@ -205,13 +181,6 @@ class SketchCatalog : public QObject {
   void thumbnailNoted(const QString& name, const QString& why);
 
  private:
-  /** Runs this binary against one sketch file and keeps one line of what
-   *  it said. Only one at a time: these are seconds-long renders, and a
-   *  second one started over the first would report whichever finished
-   *  last under whichever button was pressed first. */
-  void run(const QString& label, const QStringList& arguments,
-           const QString& prefix);
-
   /** WHAT THE QUEUE'S WORKER LEFT, on the worker's own thread: the note
    *  a sketch with no still is remembered by, and the marshalling back to
    *  the GUI thread of everything that touches the model. */
@@ -226,9 +195,6 @@ class SketchCatalog : public QObject {
   bool fillFromDisk(int index);
 
   QVariantList m_rows;
-  QProcess m_task;
-  QString m_taskLine;
-  QString m_taskPrefix;
 
   /** THE ORDER STILLS ARE DRAWN IN, and the worker that draws them —
    *  the library's, so what is ordered is testable without a window.

@@ -144,7 +144,9 @@ VideoFrame Video::Impl::materialize(CachedFrame& cached,
   if (cached.hardwareDecoded && recorder) {
     if (!deviceContext)
       deviceContext = device::makeContext(options.metalDevice);
-    if (!cached.deviceImage || cached.deviceRecorder != recorder) {
+    // A refusal is cached too: an unsupported recorder cannot wrap the
+    // same native frame on a later draw without changing backends.
+    if (cached.deviceRecorder != recorder) {
       cached.deviceImage =
           deviceContext
               ? device::wrapNativeFrame(cached.native, recorder, *deviceContext)

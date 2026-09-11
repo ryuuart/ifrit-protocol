@@ -34,23 +34,37 @@ struct ObservableFibonacciRectangles final : sketch::DrawSketch {
     while (static_cast<int>(fibonacci.size()) < count)
       fibonacci.push_back(fibonacci[fibonacci.size() - 2] + fibonacci.back());
 
-    const float scalar = pen.width / (2.0f * fibonacci.back());
+    std::vector<SkRect> tiles;
+    SkRect bounds = SkRect::MakeEmpty();
     float x = 0.0f;
     float y = 0.0f;
-    pen.background(0);
-    pen.push();
-    pen.translate(pen.width * 0.5f, pen.height * 0.5f);
     for (int index = 1; index < static_cast<int>(fibonacci.size()) - 1;
          ++index) {
-      pen.fill(static_cast<float>((10 * index) % 100), 40, 100);
-      pen.stroke(0, 34);
-      pen.rect(scalar * x, scalar * y,
-               scalar * signFor(index + 1) * fibonacci[index - 1],
-               scalar * signFor(index) * fibonacci[index]);
+      const SkRect tile =
+          SkRect::MakeXYWH(x, y,
+                           (float)(signFor(index + 1) * fibonacci[index - 1]),
+                           (float)(signFor(index) * fibonacci[index]))
+              .makeSorted();
+      tiles.push_back(tile);
+      bounds.join(tile);
       if (index % 2 == 1)
         x += signFor(index) * (fibonacci[index] + fibonacci[index - 1]);
       else
         y += signFor(index) * (fibonacci[index] + fibonacci[index + 1]);
+    }
+    const float scalar = std::min((pen.width - 96) / bounds.width(),
+                                  (pen.height - 96) / bounds.height());
+    pen.background(0);
+    pen.push();
+    pen.translate(pen.width * 0.5f, pen.height * 0.5f);
+    pen.scale(scalar);
+    pen.translate(-bounds.centerX(), -bounds.centerY());
+    pen.strokeWeight(1.0f / scalar);
+    for (size_t index = 0; index < tiles.size(); ++index) {
+      const SkRect tile = tiles[index];
+      pen.fill(static_cast<float>((10 * (index + 1)) % 100), 40, 100);
+      pen.stroke(0, 34);
+      pen.rect(tile.x(), tile.y(), tile.width(), tile.height());
     }
     pen.pop();
   }

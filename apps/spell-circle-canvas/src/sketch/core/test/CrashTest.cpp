@@ -4,6 +4,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <poll.h>
 #include <sigilsketch/core/Crash.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -35,8 +36,17 @@ struct Faulted {
  *  reports what it said on the way out. */
 Faulted faultIn(const std::function<void()>& body) {
   int pipes[2] = {-1, -1};
-  EXPECT_EQ(::pipe(pipes), 0);
+  if (::pipe(pipes) != 0) {
+    ADD_FAILURE() << "Could not create the crash-reporting pipe";
+    return {};
+  }
   const pid_t child = ::fork();
+  if (child < 0) {
+    ::close(pipes[0]);
+    ::close(pipes[1]);
+    ADD_FAILURE() << "Could not fork the crash-reporting child";
+    return {};
+  }
   if (child == 0) {
     ::dup2(pipes[1], STDERR_FILENO);
     ::close(pipes[0]);
@@ -46,15 +56,14 @@ Faulted faultIn(const std::function<void()>& body) {
   }
   ::close(pipes[1]);
   Faulted out;
-  // BOTH WAITS ARE COUNTED. A child that neither faults nor exits would
-  // hold an open read and then an open wait forever, and a run that
-  // hangs reports nothing at all where a run that fails names the claim
-  // that broke. A report is a few hundred bytes, so a child still
-  // writing after this many reads is one that will not stop.
-  constexpr int kReads = 64;
+  // Poll before reading so a stuck child cannot block the test indefinitely.
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(5);
   constexpr int kTurns = 5000;
   std::array<char, 4096> buffer{};
-  for (int read = 0; read < kReads; ++read) {
+  while (std::chrono::steady_clock::now() < deadline) {
+    pollfd input{pipes[0], POLLIN, 0};
+    if (::poll(&input, 1, 100) <= 0) continue;
     const ssize_t n = ::read(pipes[0], buffer.data(), buffer.size());
     if (n <= 0) break;
     out.said.append(buffer.data(), (size_t)n);
@@ -109,4 +118,19 @@ TEST(SketchCrash, FallsBackToThePathWhenNoEntryIsNamed) {
       << report.said;
   EXPECT_EQ(report.said.find("plates:"), std::string::npos)
       << "a host that walks nothing has no plate count to report";
+}
+
+TEST(SketchCrash, HostFaultDoesNotBlameASketch) {
+  const Faulted report = faultIn([] {
+    installCrashReporter("/somewhere/Sketchbook");
+    {
+      PhaseMark mark(Phase::Setup);
+    }
+    ::raise(SIGABRT);
+  });
+  EXPECT_EQ(report.signal, SIGABRT);
+  EXPECT_NE(report.said.find("phase:  host code"), std::string::npos);
+  EXPECT_EQ(report.said.find("inside the SKETCH"), std::string::npos);
+  EXPECT_EQ(report.said.find("the sketch crashed"), std::string::npos);
+  EXPECT_NE(report.said.find("stack:"), std::string::npos);
 }

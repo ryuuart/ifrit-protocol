@@ -29,7 +29,7 @@ nothing but its graphs, so a test of one is a test of both.
 ## Using it
 
 ```cpp
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/texture/TextureSet.h>
 #include <sigilsubstance/Substance.h>
 

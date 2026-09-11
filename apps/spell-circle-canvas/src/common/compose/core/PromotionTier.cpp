@@ -214,7 +214,6 @@ bool paintPromotedBake(PaintPass& pass) {
       });
       if (baked) {
         inst.textureImage = std::move(baked);
-        inst.textureInk = {};
         inst.textureDeviceSpace = true;
         inst.textureEffectDeferred = false;
         inst.textureBakeRect = SkRect::Make(device);

@@ -37,7 +37,6 @@
 //   kAka / kAi           — the two band inks: vermilion for the right-hand
 //                          sideline, indigo for the left-hand one.
 
-#include <shared/VerticalSpecimen.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -48,6 +47,8 @@
 #include <sigilweave/query/Selector.h>
 
 #include <utility>
+
+#include "tategaki/VerticalSpecimen.h"
 
 namespace sketch = sigil::sketch;
 

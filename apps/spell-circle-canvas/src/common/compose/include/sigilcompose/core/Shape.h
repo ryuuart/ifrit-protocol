@@ -384,6 +384,18 @@ concept BleedingDecoration = requires(const D& d) {
   { d.bleed() } -> std::convertible_to<float>;
 };
 
+/** Overflow in pixels, evaluated with the resolved layout size. */
+template <typename D>
+concept SizedBleedingDecoration = requires(const D& d, SkSize size) {
+  { d.bleed(size) } -> std::convertible_to<float>;
+};
+
+/** Mark width in pixels, evaluated with the resolved layout size. */
+template <typename D>
+concept SizedReachingDecoration = requires(const D& d, SkSize size) {
+  { d.reach(size) } -> std::convertible_to<float>;
+};
+
 /** Optional on a DecorationScheme: the FULL width of the MARK it paints,
  *  across the outline it dresses.
  *
@@ -486,6 +498,16 @@ class Decoration {
         return std::any_cast<const D&>(a) == std::any_cast<const D&>(b);
       };
     }
+    if constexpr (SizedBleedingDecoration<D>)
+      m_sizedBleed = [scheme](SkSize size) {
+        return (float)scheme.bleed(size);
+      };
+    if constexpr (SizedReachingDecoration<D>)
+      m_sizedReach = [scheme](SkSize size) {
+        return (float)scheme.reach(size);
+      };
+    else if constexpr (!ReachingDecoration<D> && SizedBleedingDecoration<D>)
+      m_sizedReach = m_sizedBleed;
     m_paint = [s = std::move(scheme)](SkCanvas& c, const PaintContext& ctx) {
       s.paint(c, ctx);
     };
@@ -503,10 +525,14 @@ class Decoration {
   }
   /** Declared volatility, read off whichever word the scheme spelled. */
   bool isAnimated() const { return m_animated; }
-  float bleed() const { return m_bleed; }
+  float bleed(SkSize size) const {
+    return m_sizedBleed ? m_sizedBleed(size) : m_bleed;
+  }
   /** FULL width of the mark this decoration paints, across the outline it
    *  dresses (see ReachingDecoration). Falls back to bleed(), then to 0. */
-  float reach() const { return m_reach; }
+  float reach(SkSize size) const {
+    return m_sizedReach ? m_sizedReach(size) : m_reach;
+  }
   /** Whether the mark composites with what is already on the canvas (see
    *  BlendingDecoration). True for a bare PaintProgram, which declares
    *  nothing. */
@@ -534,6 +560,8 @@ class Decoration {
   bool m_blends = false;
   float m_bleed = 0.0f;
   float m_reach = 0.0f;
+  std::function<float(SkSize)> m_sizedBleed;
+  std::function<float(SkSize)> m_sizedReach;
   std::vector<std::string> m_borrows;
   PaintProgram m_paint;
   std::any m_scheme;

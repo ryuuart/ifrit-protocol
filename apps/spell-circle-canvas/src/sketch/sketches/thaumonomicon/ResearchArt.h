@@ -1,0 +1,941 @@
+#pragma once
+
+#include <include/core/SkBitmap.h>
+#include <include/core/SkContourMeasure.h>
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Hatches.h>
+#include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/brush/Ribbons.h>
+#include <sigilcompose/brush/Stamps.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/PixelType.h>
+#include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Sprites.h>
+#include <sigilcompose/kit/Strokes.h>
+#include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/kit/Shapers.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#include "ResearchWeb.h"
+
+namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace field = sigil::material::field;
+namespace arrange = sigil::geometry::arrange;
+namespace path = sigil::geometry::path;
+namespace shapers = sigil::geometry::shapers;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
+
+using namespace sigil::compose;
+using namespace sigil::motion;
+using namespace std::chrono_literals;
+using sigil::material::skia::Paint;
+namespace ch = choreograph;
+
+namespace thaum {
+
+// ---------------------------------------------------------------------------
+// SCALE. One constant: GUI px -> canvas px. Nothing else scales.
+
+// GUI scale 3, not 2 — and it is Minecraft's own answer, not a preference.
+// ScaledResolution walks `while (i != guiScale && scaledWidth/(i+1) >= 320 &&
+// scaledHeight/(i+1) >= 240) ++i`, and at 1280x800 that stops at 3 (1280/4 is
+// 320, but 800/4 = 200 < 240). So AUTO gives 3, the GUI space is
+// ceil(1280/3) x ceil(800/3) = 427 x 267, and screenX/screenY are 395 x 235.
+//
+// This is also the whole composition. The ALCHEMY web is 456 x 216 GUI px:
+// at scale 2 it is smaller than a 608-px window and sits inside the frame
+// like a diagram, and at scale 3 it is WIDER than the 395-px window and runs
+// off both side edges — which is the screen everyone remembers. It is the
+// same arithmetic either way; the mod just does not open at scale 2 here.
+constexpr path::Grid kUnits{.scale = 3.0f};
+constexpr float U = kUnits.scale;
+constexpr float g(float v) { return kUnits.s(v); }
+
+constexpr float kCanvasW = 1280.0f, kCanvasH = 800.0f;
+constexpr float kGuiW = 427, kGuiH = 267;    // ceil(canvas / 3)
+constexpr float kStartX = 16, kStartY = 16;  // GuiResearchBrowser ctor
+constexpr float kScreenX = kGuiW - 32;       // width - 32  = 395
+constexpr float kScreenY = kGuiH - 32;       // height - 32 = 235
+constexpr float kCell = g(24);               // the lattice cell, canvas px
+
+// The scroll is DERIVED, not chosen: updateResearch():246-262 accumulates
+// guiBounds over the category's columns/rows and the view centres on their
+// midpoint. For ALCHEMY at this resolution that is
+//   locX = floor((-6*24 - 395 + 48 + 12*24 - 24) / 2) = floor(-113.5) = -114
+//   locY = floor((-4*24 - 235 + 48 +  4*24 - 24) / 2) = floor(-105.5) = -106
+constexpr float kLocX = -114, kLocY = -106;
+
+/** THE LATTICE: 16x16 icons on a 24 px pitch, so eight of the pitch is
+ *  air (GuiResearchBrowser:596-600, :664). `arrange::cellRect` is that
+ *  arithmetic's origin — module, gap and origin, with the icon's own
+ *  centre read off the rect rather than added by hand. The view's scroll
+ *  is the grid's origin. */
+inline SkRect iconRect(int col, int row) {
+  return arrange::cellRect({col, row}, {16, 16}, {8, 8},
+                           {kStartX - kLocX, kStartY - kLocY});
+}
+/** Node centre in canvas px. */
+inline SkPoint centreOf(int col, int row) {
+  const SkRect r = iconRect(col, row);
+  return kUnits.at({r.centerX(), r.centerY()});
+}
+
+/** :598 — the visibility test, and it is a CULL, not a clip: the ICON'S
+ *  TOP-LEFT, in view space, must lie inside [-24, screenX] x [-24, screenY],
+ *  and a node that fails is dropped whole rather than clipped. drawLine has no
+ *  such test, so the EDGES to a culled node are drawn anyway and run off under
+ *  the frame band. That asymmetry is what makes the browser read as a viewport
+ *  onto a web that continues, and at this scroll it drops exactly three:
+ *  BOTTLETAINT at column -6 and the two column-12 nodes. */
+inline bool culled(int col, int row) {
+  const float vx = (float)col * 24 - kLocX;
+  const float vy = (float)row * 24 - kLocY;
+  return vx < -24 || vy < -24 || vx > kScreenX || vy > kScreenY;
+}
+
+inline SkPoint centre(const SkRect& r) { return {r.centerX(), r.centerY()}; }
+
+inline Decoration prog(PaintProgram p) { return Decoration(std::move(p)); }
+
+/** Deterministic hash — every jitter, tear and speckle comes through here. */
+inline uint32_t hash3(int a, int b, int c) {
+  return sigil::core::noise::lattice(0, a, b, c);
+}
+inline float noise1(int a, int b, int c) {
+  return (float)(hash3(a, b, c) & 0xFFFFu) / 32767.5f - 1.0f;  // [-1,1]
+}
+
+// ---------------------------------------------------------------------------
+// PALETTE. The aspect colours are Aspect.java's, verbatim. Everything else is
+// reconstructed ink and parchment for textures that exist in no repo.
+
+namespace aspect {
+constexpr uint32_t kAer = 0xFFFF7E, kTerra = 0x56C000, kIgnis = 0xFF5A01;
+constexpr uint32_t kAqua = 0x3CD4FC, kOrdo = 0xD5D4EC, kPerditio = 0x404040;
+constexpr uint32_t kAlkimia = 0x23AC9D, kPraecantatio = 0xCF00FF;
+constexpr uint32_t kVitium = 0x800080, kVictus = 0xDE0005;
+constexpr uint32_t kMetallum = 0xB5B5CD, kDesiderium = 0xE6BE44;
+constexpr uint32_t kAversio = 0xC05050, kAuram = 0xFFC0FF;
+constexpr uint32_t kMachina = 0x8080A0, kHumanus = 0xFFD7C0;
+constexpr uint32_t kAlienis = 0x805080, kHerba = 0x01AC00;
+constexpr uint32_t kMortuus = 0x6A0005, kInstrumentum = 0x4040EE;
+}  // namespace aspect
+
+// Reconstructed ink/parchment.
+const SkColor4f kInkDeep = hexColor(0x0E0A06);
+const SkColor4f kInkBody = hexColor(0xEADCBC);
+const SkColor4f kPaper = hexColor(0xA0865E);
+const SkColor4f kPaperLit = hexColor(0xCDAE7B);
+const SkColor4f kPaperDark = hexColor(0x2A2113);
+const SkColor4f kBrass = hexColor(0x8A6E38);
+const SkColor4f kBrassLit = hexColor(0xC9A860);
+const SkColor4f kBrassDark = hexColor(0x2A200F);
+
+// Text colours, converted from the source's decimal literals.
+const SkColor4f kTextGold = hexColor(0xFFAA00);    // §6
+const SkColor4f kTextRed = hexColor(0xFF5555);     // §c
+const SkColor4f kTextYellow = hexColor(0xFFFF55);  // §e
+const SkColor4f kTextWhite = hexColor(0xFFFFFF);
+
+// ---------------------------------------------------------------------------
+// THE EDGE TIERS — genResearchBackgroundZoomable:550-571. The web itself
+// (the nodes, the edges and the save state) is the catalogue beside this
+// file; what is here is what the drawing does with a tier.
+
+inline float tierMul(EdgeTier t) {
+  return t == kParentKnown ? 0.6f : t == kParentUnknown ? 0.2f : 0.3f;
+}
+inline SkColor4f tierTint(EdgeTier t, SkColor4f base) {
+  const float k = tierMul(t);
+  SkColor4f c = mskia::scale(base, k);
+  if (t == kSiblingKnown)
+    c.fB = base.fB * 0.4f;  // 0.3,0.3,0.4 — the one tier with a hue
+  return c;
+}
+inline int tierZ(EdgeTier t) {
+  return t == kParentKnown ? 3 : t == kParentUnknown ? 2 : 1;
+}
+
+// ---------------------------------------------------------------------------
+// THE ROUTER — drawLine():901-1011, transcribed.
+//
+// The walk starts at the CHILD (or, when REVERSE, at the parent), runs
+// VERTICALLY to the other end's row, turns exactly once, and runs
+// HORIZONTALLY to one cell short of the other end. So the bend sits at
+// (startColumn, endRow) — never at the midpoint an orthogonal router picks.
+// Straight tiles are 24x24; the turn is a 24x24 elbow, or a 48x48 elbow that
+// eats TWO cells of each leg when both deltas exceed one (`bigCorner`, :904).
+//
+// The path handed to the brush is ONE open contour with hard 90-degree
+// breaks, trimmed half a cell at each end (the mod's first tile sits a whole
+// cell from the node, and its last stops a cell short). brush::Pattern::
+// cornerLength then reserves the elbow's own room, and the side runs come out
+// to an exact integer count with sx = 1.0:
+//
+//   reserve   = kCell/2 (small elbow)   or 1.5*kCell (big)
+//   vertical  = kCell*yd - kCell/2 - reserve = kCell*(yd-1) or kCell*(yd-2)
+//   horizontal= kCell*xd - kCell/2 - reserve = kCell*(xd-1) or kCell*(xd-2)
+//
+// which is tile-for-tile what the `v` and `h` loops at :970-1005 emit.
+
+struct RouteShape {
+  bool bigCorner = false;
+  bool hasCorner = false;
+  float handed = 0;  // cross(incoming, outgoing): picks the elbow's mirror
+};
+
+/** Classify without building — the Brush must pick its elbow art before the
+ *  path exists. */
+inline RouteShape shapeOf(const Node& child, const Node& parent, bool flipped) {
+  const int sx = flipped ? parent.col : child.col;
+  const int sy = flipped ? parent.row : child.row;
+  const int ex = flipped ? child.col : parent.col;
+  const int ey = flipped ? child.row : parent.row;
+  const int xd = std::abs(ex - sx), yd = std::abs(ey - sy);
+  const float xm = xd == 0 ? 0.0f : (ex > sx ? 1.0f : -1.0f);
+  const float ym = yd == 0 ? 0.0f : (ey > sy ? 1.0f : -1.0f);
+  return {xd > 1 && yd > 1, xd > 0 && yd > 0, -ym * xm};
+}
+
+/** The elbow's reserved arc length on EACH adjoining run, canvas px. */
+inline float cornerArm(bool big) { return big ? kCell * 1.5f : kCell * 0.5f; }
+
+/** The walk, as the kit says it: vertical out of the start, one turn at
+ *  the start's own column, horizontal into the far end — and laid out FOR
+ *  THE STAMP, which is the whole of what makes it this artefact's route
+ *  rather than any orthogonal L. The turn lands on a whole number of
+ *  cells from the start, and each end gives up half a cell so the first
+ *  tile stands clear of the node instead of under it. */
+inline Router thaumRoute() {
+  return routers::orthogonal(routers::Bend::VFirst, 0.0f, 0.0f,
+                             {.advance = kCell, .endInset = kCell * 0.5f});
+}
+
+// ---------------------------------------------------------------------------
+// INK. Every tile in the route vocabulary is generated from the brush kit:
+// shapers::Jitter over a layered bed and a ruled body, plus a light
+// brush::Scatter of spatter.
+// Art elements are held by the sketch so their node identity is stable and the
+// brush::Pattern bake happens once.
+
+/** A pen stroke as a Brush: the ink BED (wide and dark, ink soaking into
+ *  paper), a triple rule whose bold spine carries the value and whose
+ *  hairline outriders are the pen's own casing, and a scatter of spatter
+ *  grains. An edge's state moves its VALUE and never its width, so every tier
+ *  of edge lays down the same weight of line. */
+inline Brush penBrush(SkColor4f tint, float k, const Element& spatter,
+                      float bow = 0.0f) {
+  Brush br;
+  if (bow > 0)
+    br.shaped(shapers::Wave{.amplitude = g(bow), .wavelength = g(30)});
+  br.shaped(
+      shapers::Jitter{.segLength = g(4.5f), .deviation = g(0.45f), .seed = 21});
+  // The bed: a crisp dark outline a GUI px wider than the body, and NO blur.
+  // brush::Pattern and brush::Scatter bake their art with snapshot(), which
+  // records DRAW CALLS, so an SkMaskFilter inside a tile is re-run on every
+  // one of the hundred-plus stamps a frame of routes costs. Art stamped that
+  // often has to be flat geometry.
+  br.layer(LayeredBrush{{
+      {g(4.0f) * k, mskia::scale(kInkDeep, 1.0f, 0.34f * tint.fA)},
+      {g(2.6f) * k, mskia::scale(kInkDeep, 1.0f, 0.92f * tint.fA)},
+  }});
+  // the body: one rule — state moves VALUE, never width
+  br.layer(lines::Line{.width = g(1.3f) * k, .fill = Fill::color(tint)});
+  // the dry edge: a hairline offset to one side, where the nib lifted
+  br.layer(lines::Line{.width = g(0.45f) * k,
+                       .fill = Fill::color(
+                           mskia::scale(tint, 1.35f, 0.85f * tint.fA))},
+           {shapers::Offset{.px = g(0.85f), .step = g(2)}});
+  br.layer(brush::Scatter{.art = spatter,
+                          .spacing = g(13),
+                          .seed = 9,
+                          .jitterAlong = g(4),
+                          .jitterNormal = g(2.4f),
+                          .jitterScale = 0.8f,
+                          .jitterRotateDeg = 40,
+                          .alignToPath = false,
+                          .bleedPx = g(6)});
+  return br;
+}
+
+/** One ink grain — the brush::Scatter cell. */
+inline Element spatterCell(SkColor4f tint) {
+  return box()
+      .width(g(1.2f))
+      .height(g(1.2f))
+      .shape(shapes::circle())
+      .fill(Fill::color(mskia::scale(tint, 0.85f, 0.7f * tint.fA)));
+}
+
+/** One 24x24 straight tile, authored 28 GUI px wide so successive stamps
+ *  overlap by 2 px and the sketchy jitter never opens a seam. The KNOT at the
+ *  tile's centre is what makes the 24-px repeat legible as a repeat — the run
+ *  has to read as a chain of stamped cells, because that is what it is. */
+inline Element straightTile(SkColor4f tint, const Element& spatter,
+                            const Element& knot) {
+  const float w = g(28), h = g(14);
+  Brush br = penBrush(tint, 1.0f, spatter, 0.45f);
+  br.layer(
+      brush::Scatter{.art = knot,
+                     .place = {.mode = brush::Placement::Mode::CentralPoint},
+                     .alignToPath = true,
+                     .bleedPx = g(6)});
+  return box()
+      .width(w)
+      .height(h)
+      .shape(keyedShape(std::tuple{w, h},
+                        [w, h](SkSize) {
+                          SkPathBuilder p;
+                          p.moveTo(0, h * 0.5f);
+                          p.lineTo(w, h * 0.5f);
+                          return p.detach();
+                        }))
+      .stroke(std::move(br));
+}
+
+/** The knot: a small inked lozenge, one per straight tile. */
+inline Element knotCell(SkColor4f tint) {
+  Element e = box()
+                  .width(g(4.4f))
+                  .height(g(3.2f))
+                  .shape(shapes::polygon(4, 0))
+                  .fill(Fill::color(mskia::scale(tint, 1.12f)));
+  e.stroke(PathFormat{
+      .width = g(1.1f),
+      .strokeFill = Fill::color(mskia::scale(kInkDeep, 1, 0.9f * tint.fA))});
+  return e;
+}
+
+/** The elbow tile, drawn in the frame brush::Pattern stamps it in — local +x
+ *  along the OUTGOING leg, which the brush only does when it is ASKED
+ *  (`cornerAlign = Outgoing`, set in edgeEl; the default is the bisector, and
+ *  under it this art lands 45 degrees off). In that frame:
+ *
+ *    the bend    is the art's own centre,
+ *    the exit    is at local (+arm, 0),
+ *    the entry   is at local (0, cross(u,w) * arm),
+ *
+ *  so a left turn and a right turn are MIRRORS and need two arts — which is
+ *  cheap, because each connector has exactly one corner and picks its art up
+ *  front. `arm` is the reserved length, kCell/2 for the 24x24 elbow and
+ *  1.5*kCell for the 48x48 one. The turn is HARD: the mod stamps a cell, it
+ *  does not round a join. */
+inline Element elbowTile(float arm, float handed, SkColor4f tint,
+                         const Element& spatter, const Element& knot) {
+  const float pad = g(7);
+  const float half = arm + pad;
+  const float side = half * 2.0f;
+  const SkPoint entry{half, half + handed * arm};
+  const SkPoint exit{half + arm, half};
+  Brush br = penBrush(tint, 1.0f, spatter, 0.0f);
+  br.layer(
+      brush::Scatter{.art = knot,
+                     .place = {.mode = brush::Placement::Mode::InnerVertices},
+                     .alignToPath = true,
+                     .bleedPx = g(6)});
+  return box()
+      .width(side)
+      .height(side)
+      .shape(keyedShape(std::tuple{entry.fX, entry.fY, exit.fX, exit.fY, half},
+                        [entry, exit, half](SkSize) {
+                          SkPathBuilder p;
+                          p.moveTo(entry);
+                          p.lineTo(half, half);
+                          p.lineTo(exit);
+                          return p.detach();
+                        }))
+      .stroke(std::move(br));
+}
+
+/** The arrowhead stamped near the child end of an edge, authored pointing
+ *  along +x and rotated onto the edge's final direction by arrowEl(). */
+inline Element arrowCell(SkColor4f tint) {
+  return box()
+      .width(g(9))
+      .height(g(7.5f))
+      .shape(shapes::arrow(0.02f, 0.98f))
+      .fill(Fill::color(tint))
+      .stroke(PathFormat{.width = g(1),
+                         .strokeFill = Fill::color(
+                             mskia::scale(kInkDeep, 1, 0.6f * tint.fA))});
+}
+
+// ---------------------------------------------------------------------------
+// THE PLATES. Four silhouettes chosen by meta (:621-637), each a torn paper
+// plate with a sketched ink border. HIDDEN adds 32 to V — a second, tattered
+// variant of every one of them.
+
+/** A hand-torn square: the perimeter walked at 40 stations, each pushed out
+ *  along its own normal by a seeded amount. Nothing here is a rounded rect.
+ *
+ *  IT IS NOT `shapes::shaped(box(), shapers::Jitter{...})`, which this file
+ *  reaches for on three STROKES. A Jitter displaces in either direction at
+ *  a spacing set by segment length; a torn paper edge only ever goes
+ *  OUTWARD, and the forty stations are what makes the tear read at a
+ *  32 px plate. Two different drawings, so this one stays — as a value
+ *  keyed on the two numbers it is a function of, which is what lets the
+ *  plate prune. */
+inline auto tornSquare(uint32_t seed, float amp) {
+  return keyedShape(std::pair{seed, amp}, [seed, amp](SkSize s) {
+    SkPathBuilder p;
+    const int n = 40;
+    const float w = s.width(), h = s.height();
+    for (int i = 0; i < n; ++i) {
+      const float t = (float)i / (float)n * 4.0f;
+      const int e = (int)t;
+      const float f = t - (float)e;
+      SkPoint q;
+      SkVector out;
+      switch (e) {
+        case 0:
+          q = {w * f, 0};
+          out = {0, -1};
+          break;
+        case 1:
+          q = {w, h * f};
+          out = {1, 0};
+          break;
+        case 2:
+          q = {w * (1 - f), h};
+          out = {0, 1};
+          break;
+        default:
+          q = {0, h * (1 - f)};
+          out = {-1, 0};
+          break;
+      }
+      const float d = noise1((int)seed, i, 3) * amp;
+      const SkPoint r{q.fX + out.fX * d, q.fY + out.fY * d};
+      if (i == 0)
+        p.moveTo(r);
+      else
+        p.lineTo(r);
+    }
+    p.close();
+    return p.detach();
+  });
+}
+
+/** The plate: silhouette + parchment + tooth + a sketched double rule. The
+ *  border is a Brush rather than a stroke width, so the rule can carry its own
+ *  jitter and a second dotted pass offset inside it. */
+inline Element plateArt(uint8_t meta, uint32_t seed, const Element& spatter) {
+  const bool hidden = (meta & kHidden) != 0;
+  Shape shape = tornSquare(seed, g(hidden ? 2.4f : 1.3f));
+  if (meta & kRound)
+    shape = shapes::blob(seed, 0.055f, 9);
+  else if (meta & kHex)
+    shape = shapes::polygon(6, 90);
+
+  const SkColor4f face = hidden ? mskia::scale(kPaper, 0.80f) : kPaper;
+  const SkColor4f lit = hidden ? mskia::scale(kPaperLit, 0.80f) : kPaperLit;
+
+  Element e =
+      box()
+          .width(g(32))
+          .height(g(32))
+          .shape(shape)
+          .fill(Paint::radialUnit(
+              {0.38f, 0.32f}, 1.05f,
+              {{0.0f, lit}, {0.55f, face}, {1.0f, mskia::scale(face, 0.42f)}}))
+          .overlay(lines::Hatch{
+              .strokeFill = Fill::color(mskia::scale(kPaperDark, 1, 0.13f)),
+              .spacing = g(3.2f),
+              .width = g(0.6f),
+              .angleDeg = 32});
+  // A doubled rule: a solid outer and a dotted inner that stops short.
+  Brush rule;
+  rule.shaped(
+      shapers::Jitter{.segLength = g(5), .deviation = g(0.7f), .seed = seed});
+  lines::Line outer;
+  outer.width = g(1.6f);
+  outer.fill = Fill::color(mskia::scale(kInkDeep, 1.0f, hidden ? 0.55f : 0.9f));
+  rule.layer(outer);
+  lines::Line inner;
+  inner.width = g(0.8f);
+  inner.fill = Fill::color(mskia::scale(kBrassLit, hidden ? 0.35f : 0.75f));
+  inner.dashIntervals = {g(2.0f), g(hidden ? 4.0f : 2.5f)};
+  rule.layer(inner, {shapers::Offset{.px = -g(2.4f), .step = g(2)}});
+  e.stroke(rule);
+  return e;
+}
+
+/** SPIKY stamps a SECOND plate over the first (:635) — an eight-pointed star
+ *  with concave arms, which is the only place shapes::star's waist earns its
+ *  keep. */
+inline Element spikyOverlay(uint32_t seed) {
+  Element e = box()
+                  .inset(0)
+                  .shape(shapes::star(8, 0.74f, 0.35f))
+                  .fill(Fill::color(mskia::scale(kBrass, 1.0f, 0.30f)));
+  Brush br;
+  br.shaped(
+      shapers::Jitter{.segLength = g(4), .deviation = g(0.6f), .seed = seed});
+  lines::Line l;
+  l.width = g(1.1f);
+  l.fill = Fill::color(mskia::scale(kBrassLit, 0.9f, 0.85f));
+  br.layer(l);
+  e.stroke(br);
+  return e;
+}
+
+// ---------------------------------------------------------------------------
+// THE ITEM GLYPHS — 16x16 GUI px, drawn as whole GUI pixels so nothing lands
+// off the grid. The mod's textures are in no repo; these are reconstructions
+// named for the textures alchemy.json asks for.
+
+inline uint32_t mulHex(uint32_t word, float k) {
+  const uint32_t r = (uint32_t)(((word >> 16u) & 255u) * k);
+  const uint32_t gg = (uint32_t)(((word >> 8u) & 255u) * k);
+  const uint32_t b = (uint32_t)((word & 255u) * k);
+  return (r << 16u) | (gg << 8u) | b;
+}
+
+/** A stoppered phial/bottle silhouette shared by several icons. */
+inline void glassVessel(kit::Sprite& k, SkColor4f liquid, float top = 4) {
+  k.rect(6, top - 1, 4, 2, hexColor(0x6B5030));  // cork
+  k.rect(6, top + 1, 4, 1, hexColor(0x8A8FA0));  // neck
+  k.rect(5, top + 2, 6, 11 - (top - 4), hexColor(0xB6C6D6, 0.35f));
+  k.rect(5, top + 2, 1, 11 - (top - 4), hexColor(0xE7F1F8, 0.55f));
+  k.rect(6, top + 6, 4, 7 - (top - 4), liquid);
+  k.rect(5, 14, 6, 1, hexColor(0x2A3240));
+}
+
+/** One glyph as marks on its own 16 x 16 grid: what is drawn, at what
+ *  coordinates, in what colour — and nothing about where it lands or how
+ *  faded it is, which are the presentation's. */
+inline kit::Sprite glyphSprite(int glyph) {
+  kit::Sprite k;
+  k.grid = {16, 16};
+  const auto a = [](uint32_t word, float mulA = 1.0f) {
+    return hexColor(word, mulA);
+  };
+  switch (glyph) {
+    case gAspect: {  // cat_alchemy.png — the alkimia aspect medallion
+      const SkColor4f c = a(aspect::kAlkimia);
+      for (int i = 0; i < 6; ++i) {
+        const float ang = arrange::along(0.0f, 6.2831853f, (size_t)i, 6,
+                                         arrange::Turn::Closed);
+        k.px(8 + 5 * std::cos(ang) - 0.5f, 8 + 5 * std::sin(ang) - 0.5f, c);
+      }
+      k.rect(6, 4, 4, 1, c);
+      k.rect(5, 5, 1, 6, c);
+      k.rect(10, 5, 1, 6, c);
+      k.rect(6, 11, 4, 1, c);
+      k.rect(7, 7, 2, 2, a(aspect::kAlkimia, 0.75f));
+      break;
+    }
+    case gAlumentum:  // a burning nugget
+      k.rect(6, 6, 4, 6, a(0x241A12));
+      k.rect(7, 4, 2, 3, a(aspect::kIgnis));
+      k.rect(6, 7, 1, 3, a(0xFFB25A, 0.9f));
+      k.rect(9, 8, 1, 2, a(0xFF8020, 0.9f));
+      k.rect(5, 12, 6, 1, a(0x120C08));
+      break;
+    case gIngot:  // ingot_brass
+      k.rect(3, 8, 10, 4, a(0xB98A32));
+      k.rect(4, 7, 8, 1, a(0xE0BE6A));
+      k.rect(3, 11, 10, 1, a(0x6B4E18));
+      k.rect(5, 9, 6, 1, a(0xE8D296, 0.7f));
+      break;
+    case gCluster:  // cluster_iron
+      k.rect(4, 9, 3, 4, a(0x6E6E72));
+      k.rect(7, 6, 4, 7, a(0x9A9AA2));
+      k.rect(8, 4, 2, 3, a(0xC8C8D0));
+      k.rect(11, 10, 2, 3, a(0x55555A));
+      k.rect(8, 7, 1, 3, a(0xE6E6EE, 0.8f));
+      break;
+    case gTallow:  // tallow
+      k.rect(5, 5, 6, 8, a(0xE3D8A8));
+      k.rect(5, 4, 6, 1, a(0xF6EFCC));
+      k.rect(5, 12, 6, 1, a(0x8C8358));
+      k.rect(7, 7, 1, 4, a(0xFFFCE2, 0.55f));
+      break;
+    case gBucket:  // bucket_death
+      k.rect(4, 5, 8, 8, a(0x8D9299));
+      k.rect(5, 6, 6, 5, a(aspect::kMortuus));
+      k.rect(4, 4, 8, 1, a(0xB9BEC6));
+      k.rect(4, 12, 8, 1, a(0x4A4E55));
+      k.rect(3, 5, 1, 4, a(0x6E7278));
+      break;
+    case gBottle:  // bottle_taint
+      glassVessel(k, a(aspect::kVitium), 3);
+      k.px(7, 9, a(0xC060FF, 0.9f));
+      break;
+    case gSalts:  // bath_salts
+      k.rect(4, 8, 8, 5, a(0xD8CFE6));
+      k.rect(4, 7, 8, 1, a(0xF0E9F8));
+      for (int i = 0; i < 7; ++i)
+        k.px(4 + i, 5 + (float)(hash3(i, 3, 5) % 3u), a(0xEDE6FA, 0.85f));
+      k.rect(4, 12, 8, 1, a(0x807A90));
+      break;
+    case gSoap:  // sanity_soap
+      k.rect(4, 7, 8, 5, a(0xE6E0C4));
+      k.rect(4, 6, 8, 1, a(0xF7F3DC));
+      k.rect(4, 11, 8, 1, a(0x8E8868));
+      k.rect(6, 8, 4, 2, a(0xC9C29A, 0.8f));
+      k.px(11, 5, a(0xFFFFFF, 0.7f));
+      k.px(12, 4, a(0xFFFFFF, 0.5f));
+      break;
+    case gSpa:  // spa
+      k.rect(3, 9, 10, 4, a(0x9A7A50));
+      k.rect(3, 8, 10, 1, a(0xC29B66));
+      k.rect(4, 10, 8, 2, a(aspect::kAqua, 0.8f));
+      for (int i = 0; i < 3; ++i)
+        k.px(5 + i * 3, 5 + (float)(hash3(i, 7, 2) % 2u), a(0xDDF2FF, 0.6f));
+      break;
+    case gSmelter:  // smelter_basic — a squat crucible on legs
+    case gSmelterThaum:
+    case gSmelterVoid: {
+      const uint32_t body = glyph == gSmelter        ? 0x7E5A34
+                            : glyph == gSmelterThaum ? 0x6C6AA8
+                                                     : 0x2C2438;
+      k.rect(3, 5, 10, 7, a(body));
+      k.rect(3, 4, 10, 1, a(body + 0x181818));
+      k.rect(4, 6, 8, 3, a(aspect::kIgnis, 0.85f));
+      k.rect(5, 7, 6, 1, a(0xFFD27A, 0.9f));
+      k.rect(3, 12, 2, 2, a(mulHex(body, 0.6f)));
+      k.rect(11, 12, 2, 2, a(mulHex(body, 0.6f)));
+      break;
+    }
+    case gJar:  // jar_normal
+      k.rect(4, 4, 8, 2, a(0x8A6E38));
+      k.rect(4, 6, 8, 8, a(0xC5D9E4, 0.42f));
+      k.rect(4, 6, 1, 8, a(0xE9F4FA, 0.6f));
+      k.rect(5, 9, 6, 4, a(aspect::kAlkimia, 0.85f));
+      k.rect(4, 13, 8, 1, a(0x3A4450));
+      break;
+    case gTube:  // tube
+      k.rect(2, 7, 12, 3, a(0x8A8FA0));
+      k.rect(2, 7, 12, 1, a(0xC0C6D6));
+      k.rect(6, 6, 4, 5, a(0x6B7080));
+      k.rect(2, 9, 12, 1, a(0x4A4E5A));
+      break;
+    case gSmelterAux:  // smelter_aux
+      k.rect(4, 6, 8, 7, a(0x6E5A3A));
+      k.rect(4, 5, 8, 1, a(0x8E7448));
+      k.rect(6, 3, 4, 3, a(0x8A8FA0));
+      k.rect(5, 8, 6, 3, a(aspect::kIgnis, 0.7f));
+      break;
+    case gVent:  // smelter_vent
+      k.rect(5, 8, 6, 5, a(0x6E6E72));
+      k.rect(4, 7, 8, 1, a(0x9A9AA2));
+      for (int i = 0; i < 3; ++i)
+        k.rect(6 + i * 2, 3 + (float)(hash3(i, 2, 9) % 2u), 1, 3,
+               a(0xCFE2EE, 0.55f));
+      break;
+    case gCentrifuge:  // centrifuge
+      k.rect(4, 3, 8, 3, a(0x8A8FA0));
+      k.rect(5, 6, 6, 6, a(0x5E626C));
+      k.rect(6, 7, 4, 4, a(aspect::kAlkimia, 0.8f));
+      k.rect(3, 12, 10, 2, a(0x3E424A));
+      k.px(5, 4, a(0xE0E6F0, 0.8f));
+      break;
+    case gThaumatorium:  // thaumatorium
+      k.rect(3, 4, 10, 9, a(0x5A4A2E));
+      k.rect(3, 3, 10, 1, a(0x7E6A44));
+      k.rect(5, 6, 6, 5, a(0x1C1810));
+      k.rect(6, 7, 4, 3, a(aspect::kPraecantatio, 0.85f));
+      k.rect(2, 6, 1, 5, a(0x8A6E38));
+      k.rect(13, 6, 1, 5, a(0x8A6E38));
+      break;
+    case gInput:  // essentia_input
+      k.rect(4, 4, 8, 8, a(0x6C6AA8));
+      k.rect(5, 5, 6, 6, a(0x2A2840));
+      k.rect(6, 6, 4, 4, a(aspect::kAlkimia, 0.9f));
+      k.rect(4, 12, 8, 1, a(0x3A3860));
+      break;
+    case gUrn:  // everfull_urn
+      k.rect(5, 3, 6, 2, a(0x7E6242));
+      k.rect(4, 5, 8, 8, a(0x9A7A50));
+      k.rect(4, 5, 1, 8, a(0xC29B66));
+      k.rect(5, 7, 6, 4, a(aspect::kAqua, 0.75f));
+      k.rect(4, 13, 8, 1, a(0x50402A));
+      break;
+    default:  // potion_sprayer
+      k.rect(4, 6, 5, 7, a(0x8A8FA0));
+      k.rect(5, 7, 3, 5, a(aspect::kVictus, 0.8f));
+      k.rect(9, 4, 3, 3, a(0x6B7080));
+      for (int i = 0; i < 4; ++i)
+        k.px(12 + (float)(i % 2), 3 + (float)i, a(0xFFB6C8, 0.55f));
+      break;
+  }
+  return k;
+}
+
+/** The icon element: a 16x16 GUI box whose paint program stamps the glyph
+ *  at the GUI scale. `bw` is drawResearchIcon's monochrome pass — a locked
+ *  node's icon is drawn at 0.1-0.2 grey (:639-643, :683), which is the one
+ *  reading that wants a layer: the grey replaces the glyph's colours
+ *  wherever it drew, so it has to see the finished drawing. */
+inline Element iconEl(const kit::Sprite& art, float alpha, bool bw) {
+  return box().width(g(16)).height(g(16)).background(
+      prog([art, alpha, bw](SkCanvas& c, const PaintContext&) {
+        if (!bw) {
+          kit::drawSprite(c, art, {0, 0}, {.cell = U, .alpha = alpha});
+          return;
+        }
+        c.saveLayer(nullptr, nullptr);
+        kit::drawSprite(c, art, {0, 0}, {.cell = U});
+        SkPaint dim;
+        dim.setBlendMode(SkBlendMode::kSrcIn);
+        dim.setColor4f({0.18f, 0.18f, 0.18f, alpha}, nullptr);
+        c.drawPaint(dim);
+        c.restore();
+      }));
+}
+
+// ---------------------------------------------------------------------------
+// THE BADGES. UV(176,16) "new research" at (iconX-9, iconY-9) and UV(208,16)
+// "new page" at (iconX-9, iconY+9), both drawn through glScaled(0.5) — so a
+// 32x32 cell lands as a 16x16 badge whose CENTRE is 1 px outside the icon's
+// corner (:644-659). (iconX, iconY) is the 16x16 icon's TOP-LEFT, 8 GUI px
+// up-left of centreOf() — nodeBadges() converts before applying the offsets,
+// which is what puts the research star on the plate's upper-left corner and
+// the page tag against its lower-left one.
+
+inline Element researchBadge() {
+  return box()
+      .width(g(16))
+      .height(g(16))
+      .shape(shapes::star(4, 0.30f, 0.55f))
+      .fill(Paint::radialUnit({0.5f, 0.5f}, 0.9f,
+                              {{0, hexColor(0xFFF3C0)},
+                               {0.45f, hexColor(0xFFAA00)},
+                               {1, hexColor(0xFFAA00, 0)}}));
+}
+inline Element pageBadge() {
+  Element e = box()
+                  .width(g(11))
+                  .height(g(13))
+                  .shape(keyedShape(std::string_view("page-badge"),
+                                    [](SkSize s) {
+                                      SkPathBuilder p;
+                                      const float w = s.width(), h = s.height(),
+                                                  c = w * 0.42f;
+                                      p.moveTo(0, 0);
+                                      p.lineTo(w - c, 0);
+                                      p.lineTo(w, c);
+                                      p.lineTo(w, h);
+                                      p.lineTo(0, h);
+                                      p.close();
+                                      return p.detach();
+                                    }))
+                  .fill(Fill::color(hexColor(0xD9E8C6)));
+  e.stroke(
+      PathFormat{.width = g(1), .strokeFill = Fill::color(hexColor(0x2A3A1E))});
+  e.overlay(lines::Hatch{.strokeFill = Fill::color(hexColor(0x5A7A46, 0.75f)),
+                         .spacing = g(2.4f),
+                         .width = g(0.8f),
+                         .angleDeg = 0});
+  return e;
+}
+
+// ---------------------------------------------------------------------------
+// drawForbidden (:1013-1020): a vitium-purple node swirl stamped over any
+// research whose stages carry warp, at :603 — BEFORE the plate, so what a
+// player actually sees is a corona bleeding out from under the node rather
+// than a mark on it. LIQUIDDEATH (warp 3) and BOTTLETAINT (warp 2) are the
+// two in this category. The mod animates it by walking 32 frames of
+// nodeTexture and calls renderQuadCentered at 32x32; this is one generated
+// lobed halo, drawn wider than 32x32 so the corona still reads past a plate
+// that fills its own cell, on a bound rotation — paint-only volatility, so the
+// node keeps its cached picture.
+
+inline Element warpSwirl(const ch::Output<float>* spin, int strength) {
+  const float a = 0.30f + 0.09f * (float)strength;
+  Element e =
+      box()
+          .width(g(44))
+          .height(g(44))
+          .shape(shapes::star(6, 0.50f, 0.62f))
+          .fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
+                                  {{0.0f, hexColor(0xC060FF, a)},
+                                   {0.45f, hexColor(0x7A0BA8, a * 0.8f)},
+                                   {1.0f, hexColor(0x2A0038, 0)}}))
+          .blend(SkBlendMode::kPlus)
+          .rotate(bind(spin).scale(360.0f));
+  return e;
+}
+
+// ---------------------------------------------------------------------------
+// THE FRAME (:726-755). A 22-px band whose outer edge is at -2 on every side,
+// built from a 22x22 corner tile and 64-px edge runs. It is stamped as a
+// CLOSED rect with four hard 90-degree breaks, which is the shape
+// brush::Pattern's corner handling is built for. The inner rule beside it is
+// the other idiom — four OPEN contours that stop short of the corners instead
+// of mitring.
+
+/** One 64x22 GUI edge run: a brass band with beading and rivets. Authored
+ *  along +x; the brush rotates it onto each side. */
+inline Element frameRun() {
+  const float w = g(64), h = g(22);
+  return box().width(w).height(h).background(
+      prog([](SkCanvas& c, const PaintContext& in) {
+        const kit::PixelInk k{c, U};
+        const float W = in.size.width() / U, H = in.size.height() / U;
+        // the band
+        k.rect(0, 2, W, H - 4, kBrass);
+        k.rect(0, 2, W, 1, kBrassLit);
+        k.rect(0, H - 3, W, 1, kBrassDark);
+        k.rect(0, 5, W, 1, mskia::scale(kBrassDark, 1, 0.55f));
+        k.rect(0, H - 6, W, 1, mskia::scale(kBrassLit, 1, 0.35f));
+        // beading: a lens every 8 px, and a rivet every 16
+        for (int i = 0; i < (int)W; i += 8) {
+          k.rect((float)i + 2, 7, 4, H - 14, mskia::scale(kBrass, 1.22f));
+          k.rect((float)i + 3, 8, 2, H - 16, mskia::scale(kBrass, 0.72f));
+        }
+        for (int i = 8; i < (int)W; i += 16) {
+          k.rect((float)i - 1, H / 2 - 1, 2, 2, kBrassLit);
+          k.px((float)i - 1, H / 2, mskia::scale(kBrassDark, 1, 0.8f));
+        }
+      }));
+}
+
+/** UV(13,13), 22x22 — and it is the SAME CELL twice. drawTexturedModalRect
+ *  stamps it at the four frame corners (:751-754) and again, at (x-3, y-3),
+ *  behind every category tab (:1105). So one art serves both, and the tab
+ *  rail is literally the frame's own corner boss repeated down the margin.
+ *  `tint` is the multiply the mod applies: 1,1,1 normally and 0.6,1.0,1.0 for
+ *  the selected category (:1099-1103).
+ *
+ *  The box is 24 GUI px, one px of bleed on each side of the 22-px cell, which
+ *  is why every caller offsets it by an extra -1 in both axes. */
+inline Element cornerPlate(SkColor4f tint) {
+  const float s = g(24);
+  return box().width(s).height(s).background(
+      prog([tint](SkCanvas& c, const PaintContext& in) {
+        const float m = in.size.width() * 0.5f;
+        auto T = [tint](SkColor4f a) {
+          return SkColor4f{a.fR * tint.fR, a.fG * tint.fG, a.fB * tint.fB,
+                           a.fA};
+        };
+        SkPaint p;
+        p.setAntiAlias(true);
+        // the seating shadow, then the boss body as a lit sphere
+        p.setColor4f(T(mskia::scale(kBrassDark, 0.7f, 0.85f)), nullptr);
+        c.drawCircle(m + g(0.6f), m + g(0.8f), g(10.6f), p);
+        for (int i = 0; i < 9; ++i) {
+          const float f = (float)i / 8.0f;
+          p.setColor4f(T(mskia::scale(kBrass, 1.55f - 0.85f * f)), nullptr);
+          c.drawCircle(m - g(1.5f) * (1 - f), m - g(1.8f) * (1 - f),
+                       g(10.0f) * (1.0f - 0.62f * f), p);
+        }
+        // four studs on the diagonals — the cell's own ornament
+        for (int i = 0; i < 4; ++i) {
+          const SkPoint stud =
+              arrange::onRing((size_t)i, 4, {m, m}, {g(7.2f), g(7.2f)},
+                              0.7853982f, 6.2831853f, arrange::Turn::Closed);
+          const float x = stud.fX, y = stud.fY;
+          p.setColor4f(T(mskia::scale(kBrassDark, 1.0f, 0.9f)), nullptr);
+          c.drawCircle(x, y, g(1.9f), p);
+          p.setColor4f(T(mskia::scale(kBrassLit, 1.15f)), nullptr);
+          c.drawCircle(x - g(0.35f), y - g(0.4f), g(1.2f), p);
+        }
+        // the bevel: a bright arc up-left, a dark arc down-right
+        p.setStyle(SkPaint::kStroke_Style);
+        p.setStrokeWidth(g(1.3f));
+        const SkRect ring =
+            SkRect::MakeLTRB(m - g(10), m - g(10), m + g(10), m + g(10));
+        p.setColor4f(T(mskia::scale(kBrassLit, 1.25f, 0.9f)), nullptr);
+        c.drawArc(ring, 150, 150, false, p);
+        p.setColor4f(T(mskia::scale(kBrassDark, 1.0f, 0.9f)), nullptr);
+        c.drawArc(ring, 330, 150, false, p);
+        // the recess and its catchlight
+        p.setStyle(SkPaint::kFill_Style);
+        p.setColor4f(T(mskia::scale(kBrassDark, 1.1f)), nullptr);
+        c.drawCircle(m, m, g(4.4f), p);
+        p.setColor4f(T(mskia::scale(kBrass, 1.35f)), nullptr);
+        c.drawCircle(m, m, g(3.1f), p);
+        p.setColor4f(T(mskia::scale(kBrassLit, 1.3f, 0.85f)), nullptr);
+        c.drawCircle(m - g(1.0f), m - g(1.1f), g(1.3f), p);
+      }));
+}
+
+// ---------------------------------------------------------------------------
+// PIXEL TYPE. Minecraft's ascii.png is a 1-bit bitmap face on an 8-px cell and
+// is in no repo, so the substitute is shaped with ShapingStyle::aliased at
+// the ORIGINAL 1x size, rasterised into
+// an A8 mask, and presented at 2x with kNearest — which makes it a bitmap
+// face again, on the grid, with no antialiasing anywhere. The drop shadow is
+// the game's own: FontRenderer offsets by +1 and multiplies the colour by
+// 0.25 ((color & 16579836) >> 2).
+//
+// THE SIZE MUST BE 10, AND THE CONSTRAINT IS X-HEIGHT, NOT THRESHOLDING.
+// Minecraft's own glyph body is 7 px tall on a 5 px x-height, and lowercase e's
+// counter is one whole pixel of that. kAlias lights a pixel iff its CENTRE is
+// inside the outline, so a face whose x-height rounds below 5 px loses that
+// pixel and e closes into a bowl with a notch — which reads as an a. Menlo's
+// x-height is 4.4 px at size 9 and 4.9 px at size 10, so 9 prints "Alchamical"
+// and "rasaarch" and 10 prints every e open. Going the other way is no better:
+// at 11 the two gaps in m close and it prints as a solid block.
+//
+// The threshold in bakeText below is NOT the knob for this. Under kAlias the
+// mask handed back is already 0 or 255, so `>= 110` reclassifies nothing and
+// any cutoff in 1..255 renders pixel-for-pixel identical. It only becomes
+// a real control if `aliased` goes false, and the antialiased-then-threshold
+// path opens e at every cutoff that also fills in m.
+
+/** The bake is `kit/PixelType.h`'s, which owns exactly this: shape a run
+ *  with antialiasing off, rasterise it, threshold it to a 1-bit A8 mask,
+ *  crop to the ink, and present it at an integer scale with nearest
+ *  sampling — down to Minecraft's own +1 px, x0.25 shadow defaults. The
+ *  pad-doubling retry there also fixes the trailing-glyph clip a fixed
+ *  slack only guesses at. */
+using PixText = ::sigil::compose::kit::Mask;
+
+/** The substitute face's size, in GUI px. See the note above: 9 closes every
+ *  lowercase e and 11 fills in m. */
+inline constexpr float kPixSizePx = 10.0f;
+
+inline PixText bakeText(const std::string& s, weave::FontContext& fonts,
+                        const sk_sp<SkTypeface>& face, float sizePx) {
+  const weave::TextStyle st = weave::textStyle({.face = face,
+                                                .size = sizePx,
+                                                .color = {1, 1, 1, 1},
+                                                .aliased = true,
+                                                .color8 = true});
+  const std::u8string u8(reinterpret_cast<const char8_t*>(s.c_str()));
+  return ::sigil::compose::kit::bakeRun(u8, fonts, st);
+}
+
+/** Draw a baked mask at 2x, nearest, with the +1 GUI px 25% shadow. */
+inline void blitText(SkCanvas& c, const PixText& t, float x, float y,
+                     SkColor4f col, bool shadow = true) {
+  ::sigil::compose::kit::draw(
+      c, t, {g(x), g(y)},
+      {.colour = col,
+       .scale = g(1.0f),
+       .shadowOffset = shadow ? SkVector{g(1.0f), g(1.0f)} : SkVector{0, 0},
+       .shadowMul = 0.25f});
+}
+
+}  // namespace thaum
+
+using namespace thaum;
+
+// ===========================================================================

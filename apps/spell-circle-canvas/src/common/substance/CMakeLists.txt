@@ -67,7 +67,7 @@ sigil_bench(substance_bench
 sigil_doc_probes(substance
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial
-  PRELUDES "<sigilmaterial/kit/Surface.h>"
+  PRELUDES "<sigilmaterial/kit/Pbr.h>"
            "<sigilmaterial/texture/TextureSet.h>"
   FLOORS 8,0,0,0,0
   LIBRARIES SigilSubstance SigilMaterial)

@@ -130,9 +130,8 @@ struct Edit {
   /** The entry stands in a directory named for it, so the sources
    *  beside it are units of it rather than other sketches. */
   bool inADirectoryOfItsOwn;
-  /** A shared layer is configured beside it. Its sources are units of
-   *  every sketch and its headers may be included by any. */
-  bool sharedLayer;
+  /** The entry includes a helper owned by a neighbouring sketch. */
+  bool includesNeighbour;
   const char* written;
   bool rebuilds;
 };
@@ -151,9 +150,8 @@ TEST_P(EditedFile, StartsABuildExactlyWhenWhatWasEditedIsPartOfTheSketch) {
   // every poll is what lets the edit below be seen the moment it is made
   // rather than whenever the cadence next comes round.
   opts.siblingScanInterval = std::chrono::milliseconds(0);
-  if (edit.sharedLayer) {
-    opts.sharedDir = file.dir.path / "shared";
-    std::filesystem::create_directories(opts.sharedDir);
+  if (edit.includesNeighbour) {
+    std::ofstream(file.path) << "#include \"owner/Palette.h\"\n";
   }
   Host host(std::move(opts), fonts());
   ASSERT_FALSE(host.compiling());
@@ -177,8 +175,8 @@ INSTANTIATE_TEST_SUITE_P(
         // Beside a bare sketch the other sources are other sketches, and
         // an edit to one of them is nothing to this one.
         Edit{"AnotherBareSketchBesideIt", false, false, "other.cpp", false},
-        // The shared layer's sources are units of every sketch.
-        Edit{"AModuleInTheSharedLayer", false, true, "shared/palette.cpp",
+        // An included helper remains watched in its owner's directory.
+        Edit{"AHeaderOwnedByAnotherSketch", false, true, "owner/Palette.h",
              true}),
     [](const ::testing::TestParamInfo<Edit>& row) { return row.param.what; });
 

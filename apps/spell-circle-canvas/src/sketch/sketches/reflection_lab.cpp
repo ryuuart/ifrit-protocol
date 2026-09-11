@@ -45,7 +45,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Environments.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>

@@ -72,6 +72,11 @@ dark appearance with no per-app switch. Surface colours carry alpha so they
 read as tinted glass over a vibrant window and still degrade to sensible
 solids on an opaque one. `Theme.darkMode` is derived, not configured.
 
+**Font fallback resolves once in the theme.** `Theme.monospaceFontFamily`
+selects the first installed family from its monospace preferences, or the
+application font when none is installed. Controls pass that single name to
+`font.family`.
+
 **Vibrancy is opt-in and may decline.** `WindowChrome.applyVibrancy()`
 returns whether the window is now vibrant and should therefore be made
 transparent. Where it returns false, the caller keeps its opaque

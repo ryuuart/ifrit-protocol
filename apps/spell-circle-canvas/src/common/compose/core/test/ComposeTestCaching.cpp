@@ -646,3 +646,36 @@ TEST(ComposeCache, ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves) {
                       << " code values, when a node whose decorations walk a "
                          "traced silhouette was drawn at another scale";
 }
+
+TEST(ComposeCaching, DecorationOverflowFollowsResizeAndCachedReplay) {
+  struct RelativeMark {
+    bool operator==(const RelativeMark&) const = default;
+    float bleed(SkSize size) const { return size.height() / 2; }
+    void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+      SkPaint paint;
+      paint.setColor(SK_ColorRED);
+      const float extra = bleed(ctx.size);
+      canvas.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height())
+                          .makeOutset(extra, extra),
+                      paint);
+    }
+  };
+  for (Cache cache : {Cache::Picture, Cache::Texture}) {
+    Host host(300, 300);
+    for (float height : {20.0f, 80.0f, 30.0f}) {
+      host.composer.render(box().child(box()
+                                           .key("relative")
+                                           .absolute()
+                                           .left(100)
+                                           .top(100)
+                                           .width(40)
+                                           .height(height)
+                                           .background(RelativeMark{})
+                                           .cache(cache)));
+      host.frame();
+      host.frame();
+      EXPECT_EQ(host.pixel(110, 100 - (int)(height / 2) + 2), SK_ColorRED);
+      EXPECT_NE(host.pixel(110, 100 - (int)(height / 2) - 2), SK_ColorRED);
+    }
+  }
+}

@@ -51,7 +51,7 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/path/Ops.h>
 #include <sigilmaterial/kit/Environments.h>
-#include <sigilmaterial/kit/Surfaces.h>
+#include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/skia/Draw.h>

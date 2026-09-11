@@ -20,7 +20,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/path/Arrange.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>

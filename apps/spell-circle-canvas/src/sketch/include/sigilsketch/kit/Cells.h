@@ -10,7 +10,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilsketch/kit/Ground.h>
+#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -27,7 +27,7 @@ struct Well {
   /** Unset is the theme's cell ground. Set it to `Fill::none()` for a
    *  well that paints nothing, and to a material for a well grounded in
    *  something generated per pixel. */
-  std::optional<Ground> ground;
+  std::optional<compose::SurfacePaint> ground;
   /** Across; unset is the theme's well padding. */
   std::optional<float> padding;
   /** Down, where a plate is set tighter or looser than it is wide; unset

@@ -53,7 +53,7 @@
 #include <sigilimage/decode/Decode.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>

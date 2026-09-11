@@ -72,20 +72,11 @@ struct PathFormat {
   enum class Align : uint8_t { Center, Inner, Outer };
 
   float width = 1.0f;
-  Fill strokeFill = Fill::color({1, 1, 1, 1});
+  SurfacePaint strokeFill = Fill::color({1, 1, 1, 1});
   Align align = Align::Center;
 
   /** Dash on/off intervals in px (empty → solid). */
   std::vector<SkScalar> dashIntervals;
-  /** A Material for the stroke, superseding `strokeFill` when set.
-   *
-   *  Prefer it to `strokeFill` when the same paint also fills something:
-   *  a Material is authored in the unit square, compares structurally, and
-   *  can carry live uniforms, where a `Fill` is node-local pixels compared
-   *  by shader pointer. On an object whose surfaces are mostly strokes,
-   *  using `Fill` means writing the same material twice and converting
-   *  coordinates by hand in both. */
-  std::optional<material::skia::Paint> strokeMaterial;
   /** Stroke cap and join on the paint itself. The defaults are Skia's —
    *  butt caps and mitred joins — which end open contours square; line art
    *  built from many short open contours usually wants round for both.
@@ -171,7 +162,7 @@ struct PathFormat {
   bool isAnimated() const {
     return (trimPhase && motion::isLive(nullptr, *trimPhase)) ||
            (dashPhaseBinding && motion::isLive(nullptr, *dashPhaseBinding)) ||
-           (strokeMaterial && strokeMaterial->isAnimated());
+           strokeFill.isAnimated();
   }
   float phase() const {
     return dashPhaseBinding ? motion::resolveFloatAt(nullptr, *dashPhaseBinding)
@@ -184,7 +175,7 @@ struct PathFormat {
 /** A solid stroke of the node outline (dash/stamp via PathFormat).
  *  `align` positions it: Center (default) straddles the outline, Inner
  *  keeps it inside the silhouette, Outer outside (the keyline). */
-inline PathFormat stroke(float width, Fill fill,
+inline PathFormat stroke(float width, SurfacePaint fill,
                          PathFormat::Align align = PathFormat::Align::Center) {
   PathFormat f;
   f.width = width;
@@ -225,9 +216,7 @@ struct Shadow {
    *  by this. Under-report it and a big soft shadow is clipped at the
    *  node's picture-cache bounds, which is why the bound range has to be
    *  declared through `maxBind` — bleed() cannot read a future value. */
-  float bleed() const {
-    return std::max({std::abs(offset.fX), std::abs(offset.fY), maxBind}) + blur;
-  }
+  float bleed() const;
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     SkPaint p;

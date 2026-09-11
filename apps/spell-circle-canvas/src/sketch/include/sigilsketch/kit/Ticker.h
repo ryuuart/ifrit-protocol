@@ -9,8 +9,8 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilmotion/values/Animated.h>
-#include <sigilsketch/kit/Ground.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -68,7 +68,7 @@ struct Timeline {
   /** How far a major tick reaches past the rail; unset is the theme's. */
   std::optional<float> tick;
   /** The rail; unset is the theme's rule colour. */
-  std::optional<Ground> rail;
+  std::optional<compose::SurfacePaint> rail;
   /** THE INK EVERY MARK IS DRAWN IN — the ticks and the words alike,
    *  except a word that states its own; unset is the theme's ash. A
    *  shader shades the glyphs as it shades the ticks. */
