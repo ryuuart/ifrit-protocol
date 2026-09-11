@@ -17,7 +17,7 @@ namespace spellcircle {
 
 namespace {
 
-// Components store UTF-8 std::strings; the paragraph cache accepts them as
+// Components store UTF-8 std::strings; the text service accepts them as
 // u8string_view without copying or transcoding.
 std::u8string_view u8view(const std::string& text) {
   return {reinterpret_cast<const char8_t*>(text.data()), text.size()};
@@ -29,10 +29,14 @@ SceneRenderer::SceneRenderer() = default;
 SceneRenderer::~SceneRenderer() = default;
 
 sigil::weave::FontContext& SceneRenderer::fontContext() {
+  return textContext().fonts();
+}
+
+sigil::weave::TextContext& SceneRenderer::textContext() {
   // Created on first use, on the calling thread (its owner) — all label and
   // paragraph text below goes through it.
   if (!m_textContext)
-    m_textContext = std::make_unique<sigil::weave::FontContext>(
+    m_textContext = std::make_unique<sigil::weave::TextContext>(
         sigil::weave::ports::systemFontManager());
   return *m_textContext;
 }
@@ -41,7 +45,7 @@ void SceneRenderer::draw(SkCanvas* skCanvas, const ResolvedScene& scene,
                          const SceneStyle& style) {
   if (!skCanvas) return;
 
-  sigil::weave::FontContext& textContext = fontContext();
+  sigil::weave::TextContext& text = textContext();
 
   const SkColor accentColor = style.accentColor;
 
@@ -50,7 +54,10 @@ void SceneRenderer::draw(SkCanvas* skCanvas, const ResolvedScene& scene,
   // typeface falls back to the context default so labels never silently
   // draw nothing.
   sk_sp<SkTypeface> typeface = style.typeface;
-  if (!typeface) typeface = textContext.defaultTypeface();
+  if (!typeface) typeface = text.fonts().defaultTypeface();
+  sigil::weave::TextStyle labelStyle;
+  labelStyle.shaping.typeface = typeface;
+  labelStyle.shaping.fontSize = style.fontSize;
   SkFont font(typeface, style.fontSize);
   font.setSubpixel(true);
   font.setEdging(SkFont::Edging::kAntiAlias);
@@ -107,19 +114,16 @@ void SceneRenderer::draw(SkCanvas* skCanvas, const ResolvedScene& scene,
           makeRingLabelInterval(m_ringLabelGeometry, fontMetrics,
                                 radius + style.labelOffset, circle.textStart);
       if (interval.contour.valid()) {
-        sigil::weave::Paragraph& label = m_labelParagraphs.paragraphFor(
-            u8view(circle.name), typeface, style.fontSize);
         sigil::weave::LineSetFlow flow;
         flow.lines().push_back({interval});
         sigil::weave::ParagraphLayoutOptions labelOptions;
         labelOptions.alignment = sigil::weave::TextAlignment::kCenter;
-        sigil::weave::ParagraphLayout labelLayout =
-            sigil::weave::layoutParagraph(textContext, label, flow,
-                                          labelOptions);
+        const auto labelLayout =
+            text.layout(u8view(circle.name), labelStyle, flow, labelOptions);
         sigil::weave::PaintStyle accentPaint(accentColor);
         skCanvas->save();
         skCanvas->translate(centerX, centerY);
-        labelLayout.draw(skCanvas, label, &accentPaint);
+        labelLayout.draw(skCanvas, &accentPaint);
         skCanvas->restore();
       }
     }
@@ -134,15 +138,14 @@ void SceneRenderer::draw(SkCanvas* skCanvas, const ResolvedScene& scene,
         pointLabel.anchor.x + pointLabel.direction.x * style.pointDistance;
     const float centerY =
         pointLabel.anchor.y + pointLabel.direction.y * style.pointDistance;
-    sigil::weave::Paragraph& label = m_labelParagraphs.paragraphFor(
-        u8view(pointLabel.value), typeface, style.fontSize);
-    const float textWidth = label.naturalWidth(textContext);
-    sigil::weave::ParagraphLayout labelLayout = sigil::weave::layoutSingleLine(
-        textContext, label,
-        {centerX - textWidth * 0.5f,
-         centerY + centeredBaselineOffset(fontMetrics)});
+    const float textWidth =
+        text.naturalWidth(u8view(pointLabel.value), labelStyle);
+    const auto labelLayout =
+        text.singleLine(u8view(pointLabel.value), labelStyle,
+                        {centerX - textWidth * 0.5f,
+                         centerY + centeredBaselineOffset(fontMetrics)});
     sigil::weave::PaintStyle accentPaint(accentColor);
-    labelLayout.draw(skCanvas, label, &accentPaint);
+    labelLayout.draw(skCanvas, &accentPaint);
   }
 
   // ── Boxes ────────────────────────────────────────────────────────────────
@@ -159,9 +162,7 @@ void SceneRenderer::draw(SkCanvas* skCanvas, const ResolvedScene& scene,
   boxStrokePaint.setStrokeWidth(style.strokeWidth);
   boxStrokePaint.setColor(accentColor);
   for (const auto& box : scene.boxes) {
-    sigil::weave::Paragraph& label = m_labelParagraphs.paragraphFor(
-        u8view(box.value), typeface, style.fontSize);
-    const float textWidth = label.naturalWidth(textContext);
+    const float textWidth = text.naturalWidth(u8view(box.value), labelStyle);
     const float resolvedBoxWidth =
         std::max(textWidth + style.boxPadding * 2.0f, style.boxWidth);
     const float resolvedBoxHeight = style.boxHeight;
@@ -200,10 +201,10 @@ void SceneRenderer::draw(SkCanvas* skCanvas, const ResolvedScene& scene,
 
     // TextBaseline::Top: the top of the glyphs (not the alphabetic
     // baseline) sits at (boxX + boxPadding, boxY + boxPadding).
-    sigil::weave::ParagraphLayout labelLayout = sigil::weave::layoutSingleLine(
-        textContext, label,
-        {boxX + style.boxPadding,
-         boxY + style.boxPadding - fontMetrics.fAscent});
+    const auto labelLayout =
+        text.singleLine(u8view(box.value), labelStyle,
+                        {boxX + style.boxPadding,
+                         boxY + style.boxPadding - fontMetrics.fAscent});
     sigil::weave::PaintStyle textPaint;
     if (box.active > 0.0f) {
       // Punches the text out of the box fill instead of drawing it on top
@@ -213,7 +214,7 @@ void SceneRenderer::draw(SkCanvas* skCanvas, const ResolvedScene& scene,
     } else {
       textPaint.foreground.setColor(accentColor);
     }
-    labelLayout.draw(skCanvas, label, &textPaint);
+    labelLayout.draw(skCanvas, &textPaint);
   }
 }
 

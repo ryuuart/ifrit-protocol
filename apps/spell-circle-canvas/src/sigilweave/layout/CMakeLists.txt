@@ -13,18 +13,19 @@
 # key in this repository is accumulated with.
 find_package(ICU REQUIRED COMPONENTS i18n uc data)
 find_package(boost_unordered CONFIG REQUIRED)
+find_package(boost_container_hash CONFIG REQUIRED)
 find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
 sigil_library(SigilWeaveLayout
   SOURCES BandScan.cpp BandScan.h Beside.cpp Blobs.cpp Blobs.h Blocks.cpp
           Ellipsis.cpp Flow.cpp Greedy.cpp InitialLetter.cpp KnuthPlass.cpp
-          LayoutMetrics.cpp LineBreak.cpp Placement.cpp Silhouette.cpp
+          LayoutMetrics.cpp LineBreak.cpp Placement.cpp Silhouette.cpp TextContext.cpp
           KnuthPlassPrefix.h ParagraphLayoutInternal.h
   HEADERS Beside.h Breaking.h Flow.h Frame.h InitialLetter.h Justification.h
           LayoutOptions.h Mojikumi.h Overflow.h ParagraphLayout.h
-          ParagraphStyle.h PositionedRun.h Story.h TabStops.h
+          ParagraphStyle.h PositionedRun.h Story.h TabStops.h TextContext.h
   PUBLIC SigilWeaveParagraph SigilGeometryPath
   PRIVATE SigilWeaveUnicode SigilImageField SigilCoreCompute
-          harfbuzz::harfbuzz ICU::uc Boost::unordered)
+          harfbuzz::harfbuzz ICU::uc Boost::unordered Boost::container_hash)
 
 # Everything that places runs and reads where they landed, one subject to a
 # file named for it: both breakers and the live composer over them, the
@@ -46,7 +47,7 @@ sigil_test(weave_test
           test/FrameTest.cpp test/HyphenationTest.cpp test/LineEdgesTest.cpp
           test/BesideTest.cpp test/MojikumiTest.cpp test/BalanceTest.cpp
           test/InitialLetterTest.cpp
-          test/StoryTest.cpp
+          test/StoryTest.cpp test/TextContextTest.cpp
   LIBRARIES SigilWeaveLayout SigilWeaveKit SigilWeavePorts
             Boost::unordered
   LABELS fonts

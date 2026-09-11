@@ -6,6 +6,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkSurface.h>
 #include <sigilweave/kit/SigilWeaveKit.h>
 
 #include <string>
@@ -19,6 +20,23 @@ using namespace sigil::weave;
 using namespace sigil::weave::test;
 
 namespace {
+
+TEST(Labels, TextContextRetentionReachesBothCaptionEncodings) {
+  auto surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 100));
+  ASSERT_TRUE(surface);
+  kit::LabelOptions options;
+  options.typeface = basicStyle().shaping.typeface;
+  options.width = 350;
+  options.height = 40;
+  for (size_t capacity : {size_t{0}, size_t{2}}) {
+    TextContext text(sigil::test::fonts(), {.paragraphCacheEntries = capacity});
+    kit::drawLabel(surface->getCanvas(), text, u8"caption", {0, 0}, options);
+    options.color = SK_ColorRED;
+    kit::drawLabel(surface->getCanvas(), text, u"caption", {10, 50}, options);
+    EXPECT_EQ(text.stats().paragraphBuilds, capacity ? 1u : 2u);
+    EXPECT_EQ(text.stats().paragraphEntries, capacity ? 1u : 0u);
+  }
+}
 
 std::vector<uint32_t> breakPoints(const kit::PatternHyphenator& hyphenator,
                                   std::u16string_view word,

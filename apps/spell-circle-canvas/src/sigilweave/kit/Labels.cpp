@@ -37,6 +37,19 @@ void drawLabelImpl(SkCanvas* canvas, sigil::weave::FontContext& fontContext,
   layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
 }
 
+template <typename TextView>
+void drawLabelImpl(SkCanvas* canvas, TextContext& context, TextView text,
+                   SkPoint origin, const LabelOptions& options) {
+  BlockFlow flow(
+      SkRect::MakeXYWH(origin.x(), origin.y(), options.width, options.height));
+  context
+      .layout(text,
+              makeStyle(options.fontSize, options.color, options.language,
+                        options.typeface),
+              flow)
+      .draw(canvas);
+}
+
 }  // namespace
 
 void drawLabel(SkCanvas* canvas, sigil::weave::FontContext& fontContext,
@@ -49,6 +62,16 @@ void drawLabel(SkCanvas* canvas, sigil::weave::FontContext& fontContext,
                std::u16string_view text, SkPoint origin,
                const LabelOptions& options) {
   drawLabelImpl(canvas, fontContext, text, origin, options);
+}
+
+void drawLabel(SkCanvas* canvas, TextContext& context, std::u8string_view text,
+               SkPoint origin, const LabelOptions& options) {
+  drawLabelImpl(canvas, context, text, origin, options);
+}
+
+void drawLabel(SkCanvas* canvas, TextContext& context, std::u16string_view text,
+               SkPoint origin, const LabelOptions& options) {
+  drawLabelImpl(canvas, context, text, origin, options);
 }
 
 }  // namespace sigil::weave::kit

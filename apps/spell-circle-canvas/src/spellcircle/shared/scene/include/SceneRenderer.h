@@ -12,8 +12,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
-#include <sigilweave/cache/SingleLineParagraphCache.h>
-#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/layout/TextContext.h>
 
 #include <memory>
 
@@ -90,8 +89,8 @@ class SceneRenderer {
   sigil::weave::FontContext& fontContext();
 
  private:
-  std::unique_ptr<sigil::weave::FontContext> m_textContext;
-  sigil::weave::SingleLineParagraphCache m_labelParagraphs;
+  sigil::weave::TextContext& textContext();
+  std::unique_ptr<sigil::weave::TextContext> m_textContext;
   RingLabelGeometryCache m_ringLabelGeometry;
 };
 

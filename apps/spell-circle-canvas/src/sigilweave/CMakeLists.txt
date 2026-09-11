@@ -25,7 +25,6 @@ add_subdirectory(decoration)
 add_subdirectory(paint)
 add_subdirectory(choreograph)
 add_subdirectory(query)
-add_subdirectory(cache)
 add_subdirectory(ports)
 add_subdirectory(kit)
 add_subdirectory(qt)
@@ -37,8 +36,7 @@ add_subdirectory(qt)
 sigil_library(SigilWeave
   INTERFACE SigilWeaveUnicode SigilWeaveStyle SigilWeaveFonts
             SigilWeaveParagraph SigilWeaveLayout SigilWeaveDecoration
-            SigilWeavePaint SigilWeaveChoreograph SigilWeaveQuery
-            SigilWeaveCache)
+            SigilWeavePaint SigilWeaveChoreograph SigilWeaveQuery)
 
 # Every API name the prose spells, compiled against the headers that own
 # it — README.md, the control-by-control catalogue and the kit's page,

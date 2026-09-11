@@ -256,14 +256,17 @@ this archive.
   calls.
 - **`choreograph/Choreograph.h`** — the three above.
 
+**Text service — `layout/TextContext.h`:** `TextContext` owns or borrows a
+font service and manages paragraph reuse internally. Configure
+`TextContextOptions::paragraphCacheEntries` (zero disables retention), then
+measure or lay out text with its full style. `TextLayout` retains the text
+its runs borrow, so eviction and later calls cannot invalidate a result.
+The service is part of `SigilWeaveLayout`; drawing links `SigilWeavePaint`.
+
 **`query`** — `SigilWeaveQuery`, optional: `query/Query.h` finds ranges by
 substring, word, or ICU regex; `MarkerSet` tracks named ranges across
 edits, DOM-Range style. `query/Selector.h` is the same question written
 down rather than asked: `Selector` and the `sel::` vocabulary.
-
-**`cache`** — `SigilWeaveCache`, optional:
-`cache/SingleLineParagraphCache.h` caches single-style paragraphs by text,
-typeface, and quantized size, for high-frequency labels.
 
 Separate from the engine: **`ports`** (`ports/SystemFontManager.h`, the OS
 font manager), **`kit`** (`kit/`, the companion utilities, with its own

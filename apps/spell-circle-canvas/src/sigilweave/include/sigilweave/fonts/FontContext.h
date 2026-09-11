@@ -25,7 +25,7 @@
 
 namespace sigil::weave {
 
-/// Per-thread service object owning every cache the pipeline leans on:
+/// Per-thread service object owning the shaping and font-resolution caches:
 ///   - hb_face/hb_font per SkTypeface (font data is parsed once, ever)
 ///   - per-(typeface, code point, language) glyph coverage + font fallback
 ///   - the word shape cache (see Shaper.h)

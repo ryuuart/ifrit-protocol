@@ -27,7 +27,8 @@
  *                   `PathFlow`, or your own `FlowGeometry`), the options,
  *                   `layoutParagraph()` and its positioned runs, and
  *                   `Story`, a text and its block styles filled into as
- *                   many frames as it is given.
+ *                   many frames as it is given; `TextContext`, single-style
+ *                   text with configured paragraph reuse and owned results.
  *   - decoration/   underline, strikethrough, overline and highlight bands
  *                   resolved against the placed runs.
  *   - paint/        `ParagraphLayout::draw()` and `drawBatched()`.
@@ -35,7 +36,6 @@
  *                   `GlyphDress`, `GlyphRSXformBatches`.
  *   - query/        find / select / annotate ranges, `Selector` and the
  *                   `sel::` vocabulary, and edit-following `MarkerSet`s.
- *   - cache/        `SingleLineParagraphCache` for high-frequency labels.
  *
  * Separate targets, never pulled in here: ports/ (the OS font manager),
  * kit/ (consumer discipline: guards, buckets, labels) and qt/ (the Qt
@@ -61,7 +61,7 @@
  *  Line breaking and placement: layoutParagraph, options, positioned runs,
  *  and the label fast path (layout/ParagraphLayout.h,
  *  layout/LayoutOptions.h, layout/PositionedRun.h,
- *  cache/SingleLineParagraphCache.h). */
+ *  layout/TextContext.h). */
 /** @defgroup paint Painting & effects
  *  Draw-time appearance: paint layers and decoration bands (the
  *  PaintStyle half of style/Style.h; decoration/Decoration.h). */
@@ -71,7 +71,6 @@
 /** @defgroup animation Animation
  *  Per-glyph choreography over finished layouts (choreograph/). */
 
-#include "sigilweave/cache/SingleLineParagraphCache.h"
 #include "sigilweave/choreograph/Choreograph.h"
 #include "sigilweave/decoration/Decoration.h"
 #include "sigilweave/fonts/FontContext.h"
@@ -80,6 +79,7 @@
 #include "sigilweave/layout/Flow.h"
 #include "sigilweave/layout/ParagraphLayout.h"
 #include "sigilweave/layout/Story.h"
+#include "sigilweave/layout/TextContext.h"
 #include "sigilweave/paint/Paint.h"
 #include "sigilweave/paragraph/Paragraph.h"
 #include "sigilweave/paragraph/RichText.h"

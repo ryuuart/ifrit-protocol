@@ -39,7 +39,7 @@ writing against it — is one file over.
 
 using namespace sigil::weave;
 
-// One context per layout thread. It owns every cache the pipeline leans on.
+// One context per layout thread. It owns the shaping and font-resolution caches.
 FontContext fonts(ports::systemFontManager());
 
 TextStyle base;
@@ -95,6 +95,53 @@ into the paragraph, and the word, interval and style indices beside it are
 indices into that same paragraph and layout. Keep the paragraph and the
 layout alive for as long as you read runs off it — a run copied out of a
 layout keeps nothing alive on its own.
+
+### Text without a caller-managed cache
+
+For labels and other single-style horizontal passages, one text context owns
+both the font service and paragraph reuse:
+
+```cpp
+#include <sigilweave/layout/TextContext.h>
+
+TextContext text(ports::systemFontManager(), {.paragraphCacheEntries = 1024});
+TextStyle caption;
+caption.shaping.fontSize = 18;
+caption.paint.foreground.setColor(SK_ColorWHITE);
+
+float width = text.naturalWidth(u8"Signal received", caption);
+auto label = text.singleLine(u8"Signal received", caption, {20, 40});
+label.draw(canvas);
+```
+
+`TextContextOptions::paragraphCacheEntries` bounds the retained paragraphs;
+zero disables retention. Entries are identified by exact Unicode text and
+the complete shaping style. Font size is not rounded. Paint-only changes
+reuse analysis when no earlier result still holds that paragraph. UTF-8 and
+UTF-16 inputs address the same entries, and least recently requested entries
+are released first.
+
+`TextContext::layout` accepts a flow and paragraph options for wrapped or
+curved text. Geometry is queried on every call; moving a shape needs no
+manual cache invalidation. `TextLayout::paragraph` and `TextLayout::layout`
+expose the immutable text and ordinary positioned result. The result keeps
+its text alive through eviction, purge and context destruction. A subsequent
+call that would mutate a held paragraph builds a separate one, using the
+font service's shared shapes. The retention limit excludes results held by
+callers.
+
+A context may instead borrow an existing font service with
+`TextContext text(fonts);`; that service must outlive the context. Both forms
+are confined to one layout thread. `TextContext::fonts` gives access to font
+resolution, shaping counters and font-cache purges.
+`TextContext::purgeParagraphs` releases retained paragraphs without touching
+font caches or outstanding results. `TextContext::stats` reports paragraph
+builds, cache hits and retained entries; resetting counters preserves entries.
+
+Editable and mixed-style documents continue to use `Paragraph` and
+`layoutParagraph` directly. `kit::LayoutGuard` remains useful when the caller
+can identify changes in custom geometry or coordinate several layouts.
+The engine cannot infer that an arbitrary mutable flow is unchanged.
 
 ### Writing your own geometry
 
@@ -265,15 +312,14 @@ rest.
 | `SigilWeavePaint` | `draw()` and `drawBatched()`, `paint/Paint.h` | — |
 | `SigilWeaveChoreograph` | per-glyph choreography | — |
 | `SigilWeaveQuery` | range search and markers | ICU, private |
-| `SigilWeaveCache` | the label cache | Boost.Unordered, ICU — private |
 | `SigilWeave` | interface over every target above | — |
 | `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the named OpenType feature presets, the three arrangements of a paint layer everyone writes, and the line-edge and hyphenation tables | SigilWeaveUnicode — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 
 Each feature links only the features beneath it — style, then fonts, then
-paragraph, then layout, with decoration, paint, choreograph, query and
-cache each resting on the one they need — so a consumer of one tier links
+paragraph, then layout, with decoration, paint, choreograph and query
+each resting on the one they need — so a consumer of one tier links
 that tier alone; `SigilWeave` is for a consumer of the whole engine. Skia
 and SigilGeometryPath are PUBLIC dependencies — the path a line of text
 follows is a geometry contour, and a path silhouette flattens through the
@@ -303,7 +349,7 @@ state.
 
 - **No SkShaper, no SkParagraph.** HarfBuzz and ICU are called directly.
 - **Product-specific geometry lives with the consumer.** The core exposes the
-  reusable pieces — `SingleLineParagraphCache` and `layoutSingleLine()` — and
+  reusable pieces — `TextContext` and `layoutSingleLine()` — and
   nothing above them. Measurement and curvature compensation for a particular
   application's labels belong in that application. No product symbol appears
   in this library or its tests.

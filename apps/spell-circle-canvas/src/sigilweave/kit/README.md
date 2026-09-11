@@ -47,8 +47,10 @@ Everything here is `sigil::weave::kit` with one exception:
 name for a four-cc tag rather than a piece of consumer discipline, and it
 reads as one where a style is written.
 
-`sigil::weave::SingleLineParagraphCache` (the engine's `cache` feature) is the companion for
-high-frequency short labels; `drawLabel()` documents when to graduate to it.
+Pass `sigil::weave::TextContext` to `drawLabel()` for paragraph reuse managed
+by the engine. Its `TextContextOptions::paragraphCacheEntries` setting bounds
+retention, and zero disables it. The FontContext overload builds a paragraph
+per call while reusing shaped words. Neither overload requires a cache object.
 
 The plain keyed guard the layout guard is built on knows nothing about
 text, so it is not here: `sigil::core::RebuildGuard`,

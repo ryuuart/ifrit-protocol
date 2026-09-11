@@ -22,6 +22,7 @@ class SlotsScene final : public Scene {
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams& params,
                     FontContext& fontContext) override {
+    if (!m_text) m_text = std::make_unique<TextContext>(fontContext);
     if (!m_serif) {
       m_serif = defaultSerif(fontContext);
       m_sansTypeface = fontContext.fontManager()->matchFamilyStyle(
@@ -29,7 +30,7 @@ class SlotsScene final : public Scene {
       if (!m_sansTypeface) m_sansTypeface = fontContext.defaultTypeface();
     }
     const float fontSize = params.fontSize;
-    m_built.ensure({fontSize}, [&] { build(fontContext, fontSize); });
+    m_built.ensure({fontSize}, [&] { build(fontSize); });
 
     // Pulse the first pill. Resizing an inline object relayouts the whole
     // paragraph live without reshaping a word: the placeholder's size feeds
@@ -70,17 +71,17 @@ class SlotsScene final : public Scene {
         backgroundPaint.setColor(placed.index == 0 ? kAccent : kBlue);
         canvas->drawRoundRect(placed.rect, placed.rect.height() * 0.5f,
                               placed.rect.height() * 0.5f, backgroundPaint);
-        Paragraph& label = m_pillLabelParagraphs.paragraphFor(
-            m_pillTexts[static_cast<size_t>(placed.index)], m_sansTypeface,
-            fontSize * 0.68f);
-        const float textWidth = label.naturalWidth(fontContext);
-        PaintStyle white(SK_ColorWHITE);
-        layoutSingleLine(
-            fontContext, label,
-            {placed.rect.centerX() - textWidth * 0.5f,
-             placed.rect.centerY() -
-                 (pillMetrics.fAscent + pillMetrics.fDescent) * 0.5f})
-            .draw(canvas, label, &white);
+        const auto text = m_pillTexts[static_cast<size_t>(placed.index)];
+        const auto style =
+            makeStyle(fontSize * 0.68f, SK_ColorWHITE, "", m_sansTypeface);
+        const float textWidth = m_text->naturalWidth(text, style);
+        m_text
+            ->singleLine(
+                text, style,
+                {placed.rect.centerX() - textWidth * 0.5f,
+                 placed.rect.centerY() -
+                     (pillMetrics.fAscent + pillMetrics.fDescent) * 0.5f})
+            .draw(canvas);
       } else {
         SkPaint fill;
         fill.setAntiAlias(true);
@@ -119,13 +120,14 @@ class SlotsScene final : public Scene {
 
  private:
   /// Rebuilds the paragraph and measures every inline pill label.
-  void build(FontContext& fontContext, float fontSize) {
+  void build(float fontSize) {
     m_pillTexts = {u8"LOW RISK", u8"42 ms", u8"β-channel", u8"cache-hot"};
     m_pillWidths.clear();
     for (const char8_t* text : m_pillTexts) {
-      Paragraph& label = m_pillLabelParagraphs.paragraphFor(
-          text, m_sansTypeface, fontSize * 0.68f);
-      m_pillWidths.push_back(label.naturalWidth(fontContext) + fontSize * 1.1f);
+      const auto style =
+          makeStyle(fontSize * 0.68f, SK_ColorWHITE, "", m_sansTypeface);
+      m_pillWidths.push_back(m_text->naturalWidth(text, style) +
+                             fontSize * 1.1f);
     }
 
     m_paragraph.clear();
@@ -167,7 +169,7 @@ class SlotsScene final : public Scene {
   }
 
   Paragraph m_paragraph;
-  SingleLineParagraphCache m_pillLabelParagraphs;
+  std::unique_ptr<TextContext> m_text;
   std::vector<const char8_t*> m_pillTexts;
   std::vector<float> m_pillWidths;
   sk_sp<SkTypeface> m_serif;

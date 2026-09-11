@@ -7,6 +7,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/layout/TextContext.h>
 #include <sigilweave/style/Style.h>
 #include <sigilweave/style/Type.h>
 
@@ -58,9 +59,9 @@ struct LabelOptions {
 /** Draws a short explanatory caption in one call: builds a single-span
  *  paragraph, flows it into a small block at `origin`, and draws it.
  *
- *  This shapes the text on every call — right for annotations drawn a
- *  handful of times per frame. Text hot enough to matter belongs in a
- *  sigil::weave::SingleLineParagraphCache or behind a RebuildGuard instead. */
+ *  The FontContext overload builds a paragraph on each call, reusing
+ *  shaped words. The TextContext overload also reuses paragraph analysis
+ *  according to that context's configured retention limit. */
 void drawLabel(SkCanvas* canvas, sigil::weave::FontContext& fontContext,
                std::u8string_view text, SkPoint origin,
                const LabelOptions& options = {});
@@ -68,6 +69,14 @@ void drawLabel(SkCanvas* canvas, sigil::weave::FontContext& fontContext,
 /** UTF-16 variant: lets UTF-16 sources (QString via sigil::weave::qt::toU16,
  *  std::u16string) feed a label without transcoding. */
 void drawLabel(SkCanvas* canvas, sigil::weave::FontContext& fontContext,
+               std::u16string_view text, SkPoint origin,
+               const LabelOptions& options = {});
+
+/** Draws a caption with paragraph reuse managed by the text context. */
+void drawLabel(SkCanvas* canvas, sigil::weave::TextContext& textContext,
+               std::u8string_view text, SkPoint origin,
+               const LabelOptions& options = {});
+void drawLabel(SkCanvas* canvas, sigil::weave::TextContext& textContext,
                std::u16string_view text, SkPoint origin,
                const LabelOptions& options = {});
 
