@@ -80,14 +80,6 @@ sketch::kit::Theme sheetTheme() {
   return paper;
 }
 
-weave::TextStyle serif(float size, SkColor4f color, float track = 0) {
-  return sketch::kit::theme().mono(size, color, track);
-}
-
-weave::TextStyle sans(float size, SkColor4f color, float track = 0) {
-  return sketch::kit::theme().sans(size, color, track);
-}
-
 Element shapePassage() {
   Element medallion =
       box()
@@ -100,7 +92,11 @@ Element shapePassage() {
           .shape(shapes::star(10, 0.62f, 0.08f))
           .fill(Fill::color(kGold))
           .child(
-              text(u8"FLOW", sans(14, kInk, 1.2f)).absolute().left(49).top(66));
+              text(u8"FLOW")
+                  .font(sketch::kit::theme().font({.size = 14, .track = 1.2f}))
+                  .absolute()
+                  .left(49)
+                  .top(66));
 
   Element passage =
       text(
@@ -110,8 +106,7 @@ Element shapePassage() {
           u8"the room on the right. Near each point the interval changes "
           u8"with the silhouette instead of following its box. Once the "
           u8"shape has passed, the paragraph recovers its full measure and "
-          u8"continues without a special text mode.",
-          serif(15, kInk))
+          u8"continues without a special text mode.")
           .key("shape-passage")
           .width(430)
           .flowAround("central-star", kWrapMargin)
@@ -131,7 +126,11 @@ Element droppedPassage() {
           .height(kDropHeight)
           .shape(shapes::rounded(shapes::star(8, 0.58f, 0.12f), 5))
           .fill(Fill::color(kCinnabar))
-          .child(text(u8"H", serif(50, kPaper)).absolute().left(29).top(29));
+          .child(text(u8"H")
+                     .font({.size = 50, .color = kPaper})
+                     .absolute()
+                     .left(29)
+                     .top(29));
   ornament.key("illuminated-h")
       .absolute()
       .left(Dimension(0.0f))
@@ -148,8 +147,7 @@ Element droppedPassage() {
                   u8"lines take the changing room beside the points; the "
                   u8"later lines return to the whole measure. A photograph, "
                   u8"seal, flourish, or illustrated letter uses exactly the "
-                  u8"same relationship.",
-                  serif(15, kInk))
+                  u8"same relationship.")
                  .key("drop-passage")
                  .width(430)
                  .flowAround("illuminated-h", kWrapMargin));
@@ -175,17 +173,21 @@ struct HorizontalFlow final : sketch::Sketch {
                         .captureAt = 0.05,
                         .background = sheet.palette.ground});
 
+    // The root: the book face at the passages' size, in the sheet's ink.
     ctx.composer.render(
         box()
             .fill(Fill::color(sheet.palette.ground))
-            .child(text(u8"HORIZONTAL TEXT FLOW",
-                        sheet.style(sheet.type.title, sheet.palette.ink))
+            .font({.face = sheet.type.mono, .size = 15})
+            .ink(sheet.palette.ink)
+            .child(text(u8"HORIZONTAL TEXT FLOW")
+                       .styleClass("title")
                        .absolute()
                        .left(42)
                        .top(34))
             .child(text(u8"one exclusion rule · a shape in the measure · an "
-                        u8"ornament at the opening",
-                        sheet.style(sheet.type.subtitle, sheet.palette.ash))
+                        u8"ornament at the opening")
+                       .styleClass("subtitle")
+                       .ink(sheet.palette.ash)
                        .absolute()
                        .left(43)
                        .top(76))
