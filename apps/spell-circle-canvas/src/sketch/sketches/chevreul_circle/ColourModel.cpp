@@ -391,7 +391,7 @@ auto ChevreulCircle::buildVerifyTable() -> void {
 }
 
 auto ChevreulCircle::buildLaw() -> void {
-  weave::TextStyle body = sr(13, kInk);
+  weave::TextStyle body = sheet().sans(13, kInk);
   body.shaping.languageTag = "en-GB";
   weave::ParagraphBuilder b(body);
   // SigilWeave breaks at SOFT HYPHENS only, so the discretionaries are
@@ -402,7 +402,8 @@ auto ChevreulCircle::buildLaw() -> void {
       u8"dis­sim­i­lar as pos­si­ble, both "
       u8"in their op­ti­cal com­po­si­tion "
       u8"and in the height of their tone.”  ");
-  b.pushStyle(it(11, kInk2));
+  b.pushStyle(
+      weave::textStyle({.face = serifIt(), .size = 11, .color = kInk2}));
   b.addText(
       u8"— M. E. Chevreul, §16, De la loi du contraste simultané des "
       u8"couleurs, 1839; trans. Charles Martel.");

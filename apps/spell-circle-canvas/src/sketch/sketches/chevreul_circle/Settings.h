@@ -32,6 +32,9 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Length.h>
+#include <sigilweave/style/StyleSheet.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -56,6 +59,7 @@ using sigil::material::skia::Paint;
 using sigil::compose::kit::at;
 using sigil::geometry::path::centred;
 using namespace std::chrono_literals;
+using namespace sigil::weave::literals;
 namespace ch = choreograph;
 namespace weave = sigil::weave;
 
@@ -290,26 +294,24 @@ inline const sketch::kit::Theme& sheet() {
   return look;
 }
 
-// The plate's four registers: the roman it is set in and the mono the
-// numbers run in, both read off the plate's own sheet so every line on the
-// plate is set in one of the two faces it names, and the bold and italic
-// cuts, which name their own face at the call because a sheet holds two.
-// They read `sheet()` and not the theme in scope because a register is also
-// asked for while a paragraph is being built, which is before anything
-// binds one.
-inline weave::TextStyle sr(float sz, SkColor4f c, float tr = 0) {
-  return sheet().sans(sz, c, tr);
-}
-inline weave::TextStyle sbd(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle(
-      {.face = serifBold(), .size = sz, .color = c, .track = tr});
-}
-inline weave::TextStyle it(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle(
-      {.face = serifIt(), .size = sz, .color = c, .track = tr});
-}
-inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
-  return sheet().mono(sz, c, tr);
+// THE PLATE'S VOICE is stated once, on the root of the tree it is described
+// into: the mono the machine-read lines run in, in the grey of the small
+// caps and numerals. A line set otherwise says only what differs — a size,
+// a tracking, the letterpress black, a serif cut — and the lines the plate
+// sets more than once are classes over the sheet's registers, bound with
+// the sheet wherever the plate is described. The italic cut names its own
+// face because a sheet holds two.
+inline const weave::StyleSheet& classes() {
+  static const weave::StyleSheet look =
+      sheet()
+          .styleSheet()
+          .set("heading", {.size = 8.5f, .color = kInk, .track = 0.5f})
+          .set("note", {.size = 7.0f, .track = 0.2f})
+          .set("column", {.size = 6.5f, .track = 0.2f})
+          .set("readout", {.size = 8.0f, .track = 0.2f})
+          .set("finding", {.size = 8.0f, .color = kRed, .track = 0.2f})
+          .set("quote", {.face = serifIt(), .size = 8.5f});
+  return look;
 }
 
 inline std::u8string U(const std::string& s) { return toUtf8(s); }
@@ -320,23 +322,25 @@ inline std::string hexOf(SkColor4f c) {
   return kit::formatted("#%02X%02X%02X", q(c.fR), q(c.fG), q(c.fB));
 }
 
-inline Element label(const std::string& s, const weave::TextStyle& st, float x,
-                     float y, float w) {
-  return at(x, y, w, st.shaping.fontSize * 1.7f).child(text(U(s), st));
+/** One line of type at a plate position — ranged left, centred, or right
+ *  — set in whatever the caller states on it, a class or a partial, over
+ *  the root voice. The line box is 1.7 em of that type, so it follows the
+ *  size the line resolves to. */
+inline Element label(const std::string& s, float x, float y, float w) {
+  return at(x, y, w, 0).height(1.7_em).child(text(U(s)));
 }
-inline Element centred(const std::string& s, const weave::TextStyle& st,
-                       float x, float y, float w) {
-  return at(x, y, w, st.shaping.fontSize * 1.7f)
-      .child(text(U(s), st)
+inline Element centred(const std::string& s, float x, float y, float w) {
+  return at(x, y, w, 0)
+      .height(1.7_em)
+      .child(text(U(s))
                  .textAlign(weave::TextAlignment::kCenter)
                  .width(Dimension(w)));
 }
-inline Element rightAt(const std::string& s, const weave::TextStyle& st,
-                       float x, float y, float w) {
-  return at(x, y, w, st.shaping.fontSize * 1.7f)
-      .child(text(U(s), st)
-                 .textAlign(weave::TextAlignment::kEnd)
-                 .width(Dimension(w)));
+inline Element rightAt(const std::string& s, float x, float y, float w) {
+  return at(x, y, w, 0)
+      .height(1.7_em)
+      .child(
+          text(U(s)).textAlign(weave::TextAlignment::kEnd).width(Dimension(w)));
 }
 
 /** The rim baseline: a circle wound COUNTER-CLOCKWISE and starting at

@@ -128,10 +128,11 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
     }};
     for (size_t i = 0; i < caps.size(); ++i) {
       const Cap& c = caps[i];
-      g.child(centred(c.s,
-                      c.bold ? sbd(c.size, kInk, c.track)
-                             : sr(c.size, kInk, c.track),
-                      kC.fX - 97, kC.fY + c.dy, 194)
+      g.child(centred(c.s, kC.fX - 97, kC.fY + c.dy, 194)
+                  .font({.face = c.bold ? serifBold() : serif(),
+                         .size = c.size,
+                         .color = kInk,
+                         .track = c.track})
                   .key("cap" + std::to_string(i))
                   .opacity(bind(&demo).window(0.185f + 0.006f * (float)i,
                                               0.205f + 0.006f * (float)i)));
@@ -144,8 +145,8 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
 
   // ---- the limb: 12 names + 60 numerals, TANGENTIAL, glyph-up inward
   //      (the plate's convention, read off the scan — see the header)
-  const weave::TextStyle nameSt = sr(8.5f, kInk, 0.55f);
-  const weave::TextStyle numSt = sr(9.5f, kInk2, 0);
+  const weave::TextStyle nameSt = sheet().sans(8.5f, kInk, 0.55f);
+  const weave::TextStyle numSt = sheet().sans(9.5f, kInk2);
   const float rMid = (kRLimbIn + kRLimbOut) * 0.5f;
   // TextPath::offset positions the BASELINE, and glyph-up points inward
   // here, so centring a run in the limb band needs its cap height —
@@ -221,7 +222,8 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
   // that genuinely radiates, which is what Orient::Radial is for.
   for (int i = 0; i < 12; ++i) {
     const int n = i * 6;
-    g.child(text(U(std::to_string(n)), mn(10.0f, kRed, 0.3f))
+    g.child(text(U(std::to_string(n)))
+                .font({.size = 10, .color = kRed, .track = 0.3f})
                 .key("ix" + std::to_string(n))
                 .width(Dimension(2 * (kRSweepOut + 11)))
                 .height(Dimension(2 * (kRSweepOut + 11)))
@@ -249,8 +251,8 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
   {
     const float x0 = 58, y0 = 762, w = 19, h = 21;
     Element ins = box();
-    ins.child(
-        label("161 YEARS OF PAPER", mn(7.0f, kInk2, 0.5f), x0, y0 - 14, 200));
+    ins.child(label("161 YEARS OF PAPER", x0, y0 - 14, 200)
+                  .font({.size = 7, .track = 0.5f}));
     for (int i = 0; i < 8; ++i) {
       const int n = i * 9;
       ins.child(at(x0 + (float)i * (w + 1), y0, w, h)
@@ -258,8 +260,8 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
       ins.child(at(x0 + (float)i * (w + 1), y0 + h + 1, w, h)
                     .fill(Fill::color(corrected[(size_t)n])));
     }
-    ins.child(label("scanned / corrected", mn(6.5f, kInk2, 0.2f), x0,
-                    y0 + 2 * h + 3, 160));
+    ins.child(label("scanned / corrected", x0, y0 + 2 * h + 3, 160)
+                  .styleClass("column"));
     ins.opacity(bind(&demo).window(0.26f, 0.29f));
     g.child(std::move(ins));
   }
@@ -283,8 +285,9 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
          kRed},
     }};
     for (size_t i = 0; i < lines.size(); ++i)
-      g.child(label(lines[i].first, mn(7.4f, lines[i].second, 0.15f), 56,
-                    864 + (float)i * 11.8f, 760)
+      g.child(label(lines[i].first, 56, 864 + (float)i * 11.8f, 760)
+                  .font({.size = 7.4f, .track = 0.15f})
+                  .ink(lines[i].second)
                   .opacity(bind(&demo).window(0.26f, 0.29f)));
   }
   return g;
@@ -292,10 +295,10 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
 
 auto ChevreulCircle::theQuadrant() -> Element {
   Element g = box();
-  g.child(
-      label("CHEVREUL'S QUADRANT · §163–§165 · ROUGE, TEN RADII × TWENTY "
-            "TONES = 200 CELLS",
-            mn(9.0f, kInk, 0.6f), 56, 918, 760));
+  g.child(label("CHEVREUL'S QUADRANT · §163–§165 · ROUGE, TEN RADII × TWENTY "
+                "TONES = 200 CELLS",
+                56, 918, 760)
+              .font({.size = 9, .color = kInk, .track = 0.6f}));
   const float gw = 10 * (kQCellW + kQGapX) - kQGapX;
   const float gh = 20 * (kQCellH + kQGapY) - kQGapY;
 
@@ -304,15 +307,16 @@ auto ChevreulCircle::theQuadrant() -> Element {
                                               "5/10", "6/10", "7/10", "8/10",
                                               "9/10", "NOIR"}};
   for (int k = 0; k < 10; ++k)
-    g.child(centred(heads[(size_t)k], mn(6.5f, kInk2, 0.2f),
-                    kQX + (float)k * (kQCellW + kQGapX), 936, kQCellW)
+    g.child(centred(heads[(size_t)k], kQX + (float)k * (kQCellW + kQGapX), 936,
+                    kQCellW)
+                .styleClass("column")
                 .opacity(bind(&demo).window(0.80f + 0.012f * (float)k,
                                             0.815f + 0.012f * (float)k)));
   // row numbers, and 15 marked as the normal tone
   for (int t : {1, 5, 10, 15, 20})
-    g.child(rightAt(std::to_string(t),
-                    t == 15 ? mn(6.5f, kRed, 0) : mn(6.5f, kInk2, 0), 56,
-                    kQY + (float)(t - 1) * (kQCellH + kQGapY) - 2.0f, 34));
+    g.child(rightAt(std::to_string(t), 56,
+                    kQY + (float)(t - 1) * (kQCellH + kQGapY) - 2.0f, 34)
+                .font({.size = 6.5f, .color = t == 15 ? kRed : kInk2}));
   g.child(at(kQX - 4, kQY + 14.0f * (kQCellH + kQGapY) - 1, gw + 8, 1)
               .fill(Fill::color(hexColor(0x8E2F26, 0.55f)))
               .opacity(bind(&demo).window(0.93f, 0.95f)));
@@ -326,23 +330,28 @@ auto ChevreulCircle::theQuadrant() -> Element {
 
   g.child(label(derivation2 + "   — mixed in LINEAR light, per §164's "
                               "quantities of pigment",
-                mn(8.0f, kInk2, 0.2f), 56, kQY + gh + 6, 760));
-  g.child(label(
-      kit::formatted("instanced: 1 atlas cell, 200 tints, %d/%d colour-exact "
-                     "on readback (max channel dev %d)",
-                     v.tintExact, v.tintCells, v.tintMaxDev),
-      mn(8.0f, v.tintExact == v.tintCells ? kInk2 : kRed, 0.2f), 56,
-      kQY + gh + 20, 760));
+                56, kQY + gh + 6, 760)
+              .styleClass("readout"));
+  g.child(label(kit::formatted("instanced: 1 atlas cell, 200 tints, %d/%d "
+                               "colour-exact on readback (max channel dev %d)",
+                               v.tintExact, v.tintCells, v.tintMaxDev),
+                56, kQY + gh + 20, 760)
+              .styleClass(v.tintExact == v.tintCells ? "readout" : "finding"));
   return g;
 }
 
 auto ChevreulCircle::chordCounter() -> Element {
+  // Described again from update(), outside the scope describe() opens, so
+  // the classes are bound here; the font and the ink reach the slot from
+  // where it stands in the plate.
+  const sketch::kit::Provide look(sheet(), classes());
   const float x0 = 852, y0 = 136, S = 380;
   Element g = box();
   g.child(
-      label(counterText, mn(8.0f, kRed, 0.2f), x0 + 10, y0 + S - 32, S - 20));
+      label(counterText, x0 + 10, y0 + S - 32, S - 20).styleClass("finding"));
   g.child(label(kit::formatted("centroid a* %.2f  b* %.2f   ·   mean C* %.1f",
                                v.centA, v.centB, v.meanChroma),
-                mn(7.5f, kInk2, 0.2f), x0 + 10, y0 + S - 18, S - 20));
+                x0 + 10, y0 + S - 18, S - 20)
+              .font({.size = 7.5f, .track = 0.2f}));
   return g;
 }

@@ -2,14 +2,17 @@
 
 auto ChevreulCircle::theHeader() -> Element {
   Element g = box();
-  g.child(label("1er CERCLE CHROMATIQUE DE Mr CHEVREUL — RENFERMANT LES "
-                "COULEURS FRANCHES",
-                sbd(26, kInk, 2.6f), 56, 40, 1700)
-              .opacity(bind(&demo).window(0.0f, 0.02f)));
+  g.child(
+      label("1er CERCLE CHROMATIQUE DE Mr CHEVREUL — RENFERMANT LES "
+            "COULEURS FRANCHES",
+            56, 40, 1700)
+          .font({.face = serifBold(), .size = 26, .color = kInk, .track = 2.6f})
+          .opacity(bind(&demo).window(0.0f, 0.02f)));
   g.child(label("PL. V · DES COULEURS ET DE LEURS APPLICATIONS AUX ARTS "
                 "INDUSTRIELS · J.-B. BAILLIÈRE ET FILS, PARIS, 1864 · "
                 "DIGEON SC. · LAMOUREUX IMP. · 37 CM",
-                mn(9.5f, kInk2, 0.7f), 58, 84, 1700)
+                58, 84, 1700)
+              .font({.size = 9.5f, .track = 0.7f})
               .opacity(bind(&demo).window(0.01f, 0.04f)));
   g.child(at(56, 104, 1688, 1).fill(Fill::color(kRule)));
   return g;
@@ -31,7 +34,8 @@ auto ChevreulCircle::theLabPlot() -> Element {
           .fill(Fill::color(kWell))
           .foreground(stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
   g.child(label("CIELAB a* b* · THE 72 MEASURED COLOURS · 36 DIAMETERS",
-                mn(8.5f, kInk, 0.5f), x0 + 10, y0 + 6, S - 20));
+                x0 + 10, y0 + 6, S - 20)
+              .styleClass("heading"));
 
   // axes and ticks, drawn on hand-built geometry through the brush
   // vocabulary — decorations::paintOn is the seam for that.
@@ -103,10 +107,11 @@ auto ChevreulCircle::theLabPlot() -> Element {
               .scale(bind(&demo)
                          .window(0.275f, 0.30f)
                          .map(ch::EaseFn(ease::outBack(2.0f)))));
-  g.child(label("a* →", mn(7, kInk2), x0 + S - 42, y0 + S - 44, 40));
-  g.child(label("b* ↑", mn(7, kInk2), cx + 6, y0 + 26, 40));
-  g.child(label("+ = a*b* ORIGIN     ○ = CENTROID OF THE 72",
-                mn(7.0f, kInk2, 0.3f), x0 + 10, y0 + S - 46, S - 20));
+  g.child(label("a* →", x0 + S - 42, y0 + S - 44, 40).font({.size = 7}));
+  g.child(label("b* ↑", cx + 6, y0 + 26, 40).font({.size = 7}));
+  g.child(label("+ = a*b* ORIGIN     ○ = CENTROID OF THE 72", x0 + 10,
+                y0 + S - 46, S - 20)
+              .font({.size = 7, .track = 0.3f}));
   g.child(slot("chordcount"));
   return g;
 }
@@ -118,8 +123,8 @@ auto ChevreulCircle::theObservations() -> Element {
       at(x0, y0, W, H)
           .fill(Fill::color(kWell))
           .foreground(stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
-  g.child(label("LES DIX-SEPT OBSERVATIONS · §21–§37", mn(8.5f, kInk, 0.5f),
-                x0 + 10, y0 + 6, W - 20));
+  g.child(label("LES DIX-SEPT OBSERVATIONS · §21–§37", x0 + 10, y0 + 6, W - 20)
+              .styleClass("heading"));
   const float rowH = 19.4f, top = y0 + 24;
   for (size_t i = 0; i < kObs.size(); ++i) {
     const Observation& o = kObs[i];
@@ -130,10 +135,10 @@ auto ChevreulCircle::theObservations() -> Element {
     Element row = at(x0 + 8, y, W - 16, rowH - 2)
                       .key("obs" + std::to_string(i))
                       .opacity(bind(&demo).window(lo, lo + 0.006f));
-    row.child(rightAt(std::to_string(o.plate), mn(7.5f, kInk2), 0, 3, 16));
+    row.child(rightAt(std::to_string(o.plate), 0, 3, 16).font({.size = 7.5f}));
     row.child(at(22, 1, 15, 15).fill(Fill::color(ca)));
     row.child(at(37, 1, 15, 15).fill(Fill::color(cb)));
-    row.child(label("→", mn(8, kInk2), 56, 1, 14));
+    row.child(label("→", 56, 1, 14).font({.size = 8}));
     // the predicted pair fades in AFTER its sources land
     Element pred = box()
                        .key("pr" + std::to_string(i))
@@ -147,20 +152,23 @@ auto ChevreulCircle::theObservations() -> Element {
     row.child(std::move(pred));
     row.child(label(kit::formatted("%s · %s", kNewtonName[(size_t)o.a],
                                    kNewtonName[(size_t)o.b]),
-                    mn(7.0f, kInk, 0.2f), 108, 3, 108));
-    row.child(label(kit::formatted("%s / %s", o.modA, o.modB), it(8.5f, kInk2),
-                    218, 1.5f, 250));
+                    108, 3, 108)
+                  .styleClass("note")
+                  .ink(kInk));
+    row.child(label(kit::formatted("%s / %s", o.modA, o.modB), 218, 1.5f, 250)
+                  .styleClass("quote"));
     g.child(std::move(row));
   }
   g.child(label(kit::formatted("C(7,2) = %d − 4 complémentaires = %d      "
                                "(by geometry: %d, or %d — neither is 17)",
                                v.pairs21, v.byName, v.byStrict, v.byLoose),
-                mn(8.0f, kRed, 0.2f), x0 + 10, y0 + H - 32, W - 20)
+                x0 + 10, y0 + H - 32, W - 20)
+              .styleClass("finding")
               .opacity(bind(&demo).window(0.79f, 0.80f)));
-  g.child(
-      label("indigo read as BLEU-VIOLET (54); greenish-yellow as "
-            "JAUNE-VERT (30) — both readings, not citations",
-            mn(6.5f, kInk2, 0.2f), x0 + 10, y0 + H - 18, W - 20));
+  g.child(label("indigo read as BLEU-VIOLET (54); greenish-yellow as "
+                "JAUNE-VERT (30) — both readings, not citations",
+                x0 + 10, y0 + H - 18, W - 20)
+              .styleClass("column"));
   return g;
 }
 
@@ -186,12 +194,12 @@ auto ChevreulCircle::aStaircase(const std::array<SkColor4f, 20>& ramp, float y,
 
 auto ChevreulCircle::theIllusion() -> Element {
   Element g = box();
-  g.child(label("THE CHEVREUL ILLUSION · TWENTY FLAT BANDS", mn(9, kInk, 0.6f),
-                852, 552, 500));
-  g.child(
-      rightAt("§164 read as equal REFLECTANCE   ·   the modern equal "
-              "code-value ramp   ·   §164 under γ 2.2",
-              mn(7.5f, kInk2, 0.3f), 1100, 553, 644));
+  g.child(label("THE CHEVREUL ILLUSION · TWENTY FLAT BANDS", 852, 552, 500)
+              .font({.size = 9, .color = kInk, .track = 0.6f}));
+  g.child(rightAt("§164 read as equal REFLECTANCE   ·   the modern equal "
+                  "code-value ramp   ·   §164 under γ 2.2",
+                  1100, 553, 644)
+              .font({.size = 7.5f, .track = 0.3f}));
 
   g.child(
       at(kStairX, kStairYA - 2, kBandW * kBandN, kStairH + 4)
@@ -200,7 +208,8 @@ auto ChevreulCircle::theIllusion() -> Element {
   g.child(aStaircase(gamme, kStairYA, kStairH, "sa", true));
   g.child(label("§164 · Y = (20−t)/19, sRGB-encoded · tone 10 = " +
                     hexOf(gamme[9]) + " (not #808080)",
-                mn(7.0f, kInk2, 0.2f), kStairX, kStairYA + kStairH + 5, 520));
+                kStairX, kStairYA + kStairH + 5, 520)
+              .styleClass("note"));
 
   g.child(
       at(kStairX, kStairYB - 2, kBandW * kBandN, kStairH + 4)
@@ -210,44 +219,49 @@ auto ChevreulCircle::theIllusion() -> Element {
   g.child(label("equal code value · tone 10 = " + hexOf(gammeCode[9]) +
                     " (Y = 0.216, not 0.526) — the lerp this piece "
                     "deliberately does not do",
-                mn(7.0f, kInk2, 0.2f), kStairX, kStairYB + kStairH + 5, 720));
+                kStairX, kStairYB + kStairH + 5, 720)
+              .styleClass("note"));
 
   // the OCIO strip
   if (v.ocioAvailable) {
     g.child(aStaircase(gamme, kStairYC, 28.0f, "sc", false, true));
-    g.child(label(
-        kit::formatted("§164 ramp under ocio::exponent(2.2) — an OCIO-baked "
-                       "LUT Effect: tone 10 %s measures %s through it",
-                       hexOf(gamme[9]).c_str(), v.ocioSample.c_str()),
-        mn(7.0f, kInk2, 0.2f), kStairX, kStairYC + 32, 760));
+    g.child(label(kit::formatted("§164 ramp under ocio::exponent(2.2) — an "
+                                 "OCIO-baked LUT Effect: tone 10 %s measures "
+                                 "%s through it",
+                                 hexOf(gamme[9]).c_str(), v.ocioSample.c_str()),
+                  kStairX, kStairYC + 32, 760)
+                .styleClass("note"));
   } else {
-    g.child(label("OCIO: not compiled in", mn(9.0f, kRed, 0.4f), kStairX,
-                  kStairYC + 10, 400));
+    g.child(label("OCIO: not compiled in", kStairX, kStairYC + 10, 400)
+                .font({.size = 9, .color = kRed, .track = 0.4f}));
   }
 
   // every fourth band's hex, inked against its own band
   for (int b = 0; b < kBandN; b += 4)
-    g.child(
-        centred(hexOf(gamme[(size_t)b]), mn(6.8f, b < 12 ? kInk : kWhite, 0),
-                kStairX + (float)b * kBandW, kStairYA + kStairH - 12, kBandW));
+    g.child(centred(hexOf(gamme[(size_t)b]), kStairX + (float)b * kBandW,
+                    kStairYA + kStairH - 12, kBandW)
+                .font({.size = 6.8f, .color = b < 12 ? kInk : kWhite}));
 
+  g.child(label("“the light tone will appear lighter, and the deep tone "
+                "deeper, commencing at the line of contact” — Introduction",
+                852, 774, 600)
+              .styleClass("quote")
+              .font({.size = 9.5f, .color = kInk}));
   g.child(
-      label("“the light tone will appear lighter, and the deep tone "
-            "deeper, commencing at the line of contact” — Introduction",
-            it(9.5f, kInk), 852, 774, 600));
-  g.child(
-      rightAt(kit::formatted("%d bands · per-band σ = %.2f · %d/%d hexes exact "
-                             "byte for byte",
+      rightAt(kit::formatted("%d bands · per-band σ = %.2f · %d/%d hexes "
+                             "exact byte for byte",
                              v.bands, v.bandSigmaMax, v.bandsExact, v.bands),
-              mn(8.5f, kRed, 0.2f), 1300, 776, 444));
+              1300, 776, 444)
+          .styleClass("finding")
+          .font({.size = 8.5f}));
   return g;
 }
 
 auto ChevreulCircle::theContrast() -> Element {
   const float x0 = 852, y0 = 838, W = 380;
   Element g = box();
-  g.child(label("SIMULTANEOUS CONTRAST · TWELVE IDENTICAL PATCHES",
-                mn(8.5f, kInk, 0.5f), x0, y0, W));
+  g.child(label("SIMULTANEOUS CONTRAST · TWELVE IDENTICAL PATCHES", x0, y0, W)
+              .styleClass("heading"));
   const float cw = 88, chh = 66, gx = x0 + 6, gy = y0 + 18;
   // Beat 4's grounds arrive and withdraw as a DIRECTIONAL WIPE at 90 deg
   // (downward), which is what Chevreul's own method looks like: take the
@@ -280,12 +294,14 @@ auto ChevreulCircle::theContrast() -> Element {
     g.child(at(arrange::cellRect({i, 0}, {24, 24}, {3, 0}, {gx, ry}).fLeft, ry,
                24, 24)
                 .fill(Fill::color(gamme[14])));
-  g.child(label(
-      kit::formatted("all twelve patches are %s — Chevreul's grey, tone 15",
-                     hexOf(gamme[14]).c_str()),
-      mn(8.0f, kRed, 0.2f), x0, ry + 28, W));
-  g.child(label("§16: “they will appear as dissimilar as possible”",
-                it(8.5f, kInk2), x0, ry + 42, W));
+  g.child(label(kit::formatted("all twelve patches are %s — Chevreul's grey, "
+                               "tone 15",
+                               hexOf(gamme[14]).c_str()),
+                x0, ry + 28, W)
+              .styleClass("finding"));
+  g.child(
+      label("§16: “they will appear as dissimilar as possible”", x0, ry + 42, W)
+          .styleClass("quote"));
   return g;
 }
 
@@ -319,8 +335,8 @@ auto ChevreulCircle::theVerification() -> Element {
       at(x0 - 8, ty0 - 8, W - 4, (float)rows * lh + 16)
           .fill(Fill::color(kWell))
           .foreground(stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
-  g.child(label("VERIFIED AT STARTUP, NOT ASSERTED", mn(7.5f, kInk2, 0.5f), x0,
-                ty0 - 22, W));
+  g.child(label("VERIFIED AT STARTUP, NOT ASSERTED", x0, ty0 - 22, W)
+              .font({.size = 7.5f, .track = 0.5f}));
   std::vector<sketch::kit::Row> lines;
   lines.reserve(rows);
   for (size_t i = 0; i < rows; ++i) {
@@ -337,9 +353,9 @@ auto ChevreulCircle::theVerification() -> Element {
               .opacity(bind(&demo).window(lo, hi))
               .child(sketch::kit::table(std::move(lines),
                                         {.columns = {{222}, {66, true}, {}}})));
-  g.child(
-      label("§38: “do we know, at the present day, of two coloured "
-            "bodies … Certainly not!”",
-            it(8.5f, kInk2), x0, ty0 + (float)rows * lh + 12, W));
+  g.child(label("§38: “do we know, at the present day, of two coloured "
+                "bodies … Certainly not!”",
+                x0, ty0 + (float)rows * lh + 12, W)
+              .styleClass("quote"));
   return g;
 }

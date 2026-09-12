@@ -3,11 +3,15 @@
 #include "ChevreulCircle.h"
 
 auto ChevreulCircle::describe(sketch::SketchContext& ctx) -> Element {
-  // The plate's sheet stands for everything described below it, so a kit
-  // component four levels down is set in the plate's ink without being
-  // handed it.
-  sketch::kit::Provide look(sheet());
-  Element root = stack().width(Dimension(kW)).height(Dimension(kH));
+  // The plate's sheet and its classes stand for everything described below
+  // it, so a kit component four levels down is set in the plate's ink
+  // without being handed it; the root states the voice every line inherits.
+  const sketch::kit::Provide look(sheet(), classes());
+  Element root = stack()
+                     .width(Dimension(kW))
+                     .height(Dimension(kH))
+                     .font({.face = mono()})
+                     .ink(kInk2);
 
   // the leaf: measured paper, its tooth, and the platemark
   root.child(at(0, 0, kW, kH).fill(Fill::color(kPaper)));
@@ -31,12 +35,14 @@ auto ChevreulCircle::describe(sketch::SketchContext& ctx) -> Element {
   root.child(theContrast());
   root.child(theVerification());
 
-  root.child(label(
-      "COLOURS MEASURED FROM SCIENCE HISTORY INSTITUTE ND1280 .C497 1864, "
-      "PL. V, 2880×3789 · PAPER WHITE #EFE8D9 DIVIDED OUT IN LINEAR LIGHT · "
-      "CONSTRUCTION AFTER CHEVREUL §6, §16, §160–§165 · TRANS. C. MARTEL · "
-      "NO OUTPUT VIEW TRANSFORM IS SET, DELIBERATELY",
-      mn(8.0f, kInk2, 0.55f), 56, 1168, 1690));
+  root.child(
+      label(
+          "COLOURS MEASURED FROM SCIENCE HISTORY INSTITUTE ND1280 .C497 1864, "
+          "PL. V, 2880×3789 · PAPER WHITE #EFE8D9 DIVIDED OUT IN LINEAR "
+          "LIGHT · CONSTRUCTION AFTER CHEVREUL §6, §16, §160–§165 · TRANS. "
+          "C. MARTEL · NO OUTPUT VIEW TRANSFORM IS SET, DELIBERATELY",
+          56, 1168, 1690)
+          .font({.size = 8, .track = 0.55f}));
   return root;
 }
 
