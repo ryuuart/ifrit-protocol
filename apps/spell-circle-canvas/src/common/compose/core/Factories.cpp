@@ -34,6 +34,18 @@ Element positioned() {
   return e;
 }
 
+Element text(std::u8string utf8) {
+  Element e;
+  e.node()->kind = Kind::Text;
+  detail::TextData& text = e.node()->textData.ensure();
+  text.utf8 = std::move(utf8);
+  // Set in the font and ink in force where the leaf lands in the tree:
+  // the cascade pass resolves them and materialises the paragraph from
+  // the instance's font, and `style` here is never read.
+  text.inherits = true;
+  return e;
+}
+
 Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   Element e;
   e.node()->kind = Kind::Text;
@@ -49,19 +61,23 @@ Element text(std::u8string utf8, sigil::weave::TextStyle style) {
 }
 
 Element text(sigil::weave::RichText spans) {
-  // The style set a named run resolves through, when the author named none
-  // on the value itself: whatever `environment::Provide<weave::StyleSet>`
+  // The sheet a named run resolves through, when the author named none on
+  // the value itself: whatever `environment::Provide<weave::StyleSheet>`
   // offers this describe scope. Supplied here rather than left to the value
   // because the scope is this library's — the value holds resolved styles
   // afterwards and depends on no scope that has since ended — and an
-  // explicit set always wins, whichever order the two were written in.
+  // explicit sheet always wins, whichever order the two were written in.
   if (!spans.hasStyles())
-    if (const sigil::weave::StyleSet* ambient =
-            core::environment::inherited<sigil::weave::StyleSet>())
+    if (const sigil::weave::StyleSheet* ambient =
+            core::environment::inherited<sigil::weave::StyleSheet>())
       spans.styles(*ambient);
   Element e;
   e.node()->kind = Kind::Text;
   detail::TextData& text = e.node()->textData.ensure();
+  // A rich text started with no base is set in the font in force where it
+  // lands, exactly as a plain leaf that names no style is; one started
+  // with a base is set in that base alone.
+  text.inherits = !spans.hasBase();
   // The base rides along as `style` because everything downstream that asks
   // a text leaf what it is set in — the strut a line height comes from, the
   // metric band textFill() maps into — reads one style, and a mixed

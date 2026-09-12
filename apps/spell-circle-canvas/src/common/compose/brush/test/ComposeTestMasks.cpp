@@ -1331,7 +1331,7 @@ TEST(ComposeSpans, EachContourStitchesItsOwnSeamOnAMultiContourPath) {
   // one run sum, and one mark does not.
   LayeredBrush additive;
   additive.layers.push_back({.width = 8.0f,
-                             .color = {1, 1, 1, 0.4f},
+                             .color = SkColor4f{1, 1, 1, 0.4f},
                              .blend = SkBlendMode::kPlus,
                              .roundCap = true});
 

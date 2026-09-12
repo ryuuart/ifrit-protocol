@@ -91,7 +91,7 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   stroke.setStyle(SkPaint::kStroke_Style);
   stroke.setStrokeJoin(join);                // round unless asked otherwise
   stroke.setStrokeCap(SkPaint::kRound_Cap);  // rails always end round
-  applyFill(stroke);
+  applyFill(stroke, ctx);
   if (!dashIntervals.empty())
     stroke.setPathEffect(SkDashPathEffect::Make(
         SkSpan(dashIntervals.data(), dashIntervals.size()), phase()));
@@ -209,7 +209,7 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     tiePaint.setAntiAlias(true);
     tiePaint.setStyle(SkPaint::kStroke_Style);
     tiePaint.setStrokeWidth(tickWidth > 0 ? tickWidth : width);
-    applyFill(tiePaint);
+    applyFill(tiePaint, ctx);
     canvas.drawPath(ties.detach(), tiePaint);
   }
 
@@ -220,7 +220,7 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
       (midCap != Cap::None && midSpacing > 0)) {
     SkPaint head;
     head.setAntiAlias(true);
-    applyFill(head);
+    applyFill(head, ctx);
     SkContourMeasureIter iter(capPath, false);
     while (sk_sp<SkContourMeasure> contour = iter.next()) {
       const float len = contour->length();
@@ -260,11 +260,14 @@ float Line::trimFor(Cap cap) const {
   return 0.0f;
 }
 
-void Line::applyFill(SkPaint& p) const {
-  if (fill.kind == Fill::Kind::Color)
-    p.setColor4f(fill.colorValue, nullptr);
-  else if (fill.kind == Fill::Kind::Shader)
-    p.setShader(fill.shaderValue);
+void Line::applyFill(SkPaint& p, const PaintContext& ctx) const {
+  // A fill written as the ink in force, or as a custom property, takes
+  // its colour from the node the line is painted under.
+  const Fill resolved = resolveRef(fill, ctx);
+  if (resolved.kind == Fill::Kind::Color)
+    p.setColor4f(resolved.colorValue, nullptr);
+  else if (resolved.kind == Fill::Kind::Shader)
+    p.setShader(resolved.shaderValue);
 }
 
 void Line::drawCap(SkCanvas& canvas, const SkPaint& head, Cap cap, SkPoint pos,
@@ -351,10 +354,11 @@ void Rails::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     p.setStrokeWidth(rail.width);
     p.setStrokeCap(rail.cap);
     p.setStrokeJoin(rail.join);
-    if (rail.fill.kind == Fill::Kind::Color)
-      p.setColor4f(rail.fill.colorValue, nullptr);
-    else if (rail.fill.kind == Fill::Kind::Shader)
-      p.setShader(rail.fill.shaderValue);
+    const Fill railFill = resolveRef(rail.fill, ctx);
+    if (railFill.kind == Fill::Kind::Color)
+      p.setColor4f(railFill.colorValue, nullptr);
+    else if (railFill.kind == Fill::Kind::Shader)
+      p.setShader(railFill.shaderValue);
     canvas.drawPath(run, p);
   }
 }
@@ -371,10 +375,11 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (pitchPx <= 0.5f) return;
   SkPaint p;
   p.setAntiAlias(true);
-  if (strokeFill.kind == Fill::Kind::Color)
-    p.setColor4f(strokeFill.colorValue, nullptr);
-  else if (strokeFill.kind == Fill::Kind::Shader)
-    p.setShader(strokeFill.shaderValue);
+  const Fill hatchFill = resolveRef(strokeFill, ctx);
+  if (hatchFill.kind == Fill::Kind::Color)
+    p.setColor4f(hatchFill.colorValue, nullptr);
+  else if (hatchFill.kind == Fill::Kind::Shader)
+    p.setShader(hatchFill.shaderValue);
   c.save();
   c.clipPath(ctx.outline, true);
   auto pass = [&](float deg) {
@@ -404,10 +409,11 @@ void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   p.setAntiAlias(true);
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(width);
-  if (strokeFill.kind == Fill::Kind::Color)
-    p.setColor4f(strokeFill.colorValue, nullptr);
-  else if (strokeFill.kind == Fill::Kind::Shader)
-    p.setShader(strokeFill.shaderValue);
+  const Fill ringFill = resolveRef(strokeFill, ctx);
+  if (ringFill.kind == Fill::Kind::Color)
+    p.setColor4f(ringFill.colorValue, nullptr);
+  else if (ringFill.kind == Fill::Kind::Shader)
+    p.setShader(ringFill.shaderValue);
 
   c.save();
   c.clipPath(ctx.outline, true);

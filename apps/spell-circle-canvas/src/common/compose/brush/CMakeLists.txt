@@ -58,7 +58,7 @@ sigil_test(compose_test
           test/ComposeTestBorders.cpp test/ComposeTestBrushEngine.cpp
           test/ComposeTestStrokeGrammar.cpp test/ComposeTestSpanWindows.cpp
           test/ComposeTestBands.cpp test/ComposeTestCrossings.cpp
-          test/ComposeTestStrokeWords.cpp
+          test/ComposeTestStrokeWords.cpp test/ComposeTestInkStroke.cpp
           test/ComposeTestDecorations.cpp test/ComposeTestTextDecorations.cpp
           test/ComposeTestStampsAndStrips.cpp test/ComposeTestMasks.cpp
           test/ComposeTestPaintValues.cpp test/ComposeTestLayerStyles.cpp

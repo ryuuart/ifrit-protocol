@@ -107,6 +107,16 @@ class Composer {
    *  freezes paint time at 0 — fine for static content and goldens. */
   void setClock(const motion::FrameClock* clock);
 
+  /** WHAT A LEAF UNDER NOTHING IS SET IN: the font and the ink the root
+   *  inherits from, which every node that leaves them unset takes in turn.
+   *  Black, 16 px and the font context's family by default — the values
+   *  `weave::initialType()` carries — so a description that names no style
+   *  draws as it always has. A host whose picture stands inside another
+   *  seeds them from where it stands: a pen's guest from the pen, a scene
+   *  painted into a texture from the node that shows it. Every field of
+   *  @p font counts; one it leaves unset takes the initial value. */
+  void setInherited(const sigil::weave::Type& font, SkColor4f ink);
+
   /** Output view transform (color management): applied to the composer's
    *  whole output as the final stage — one saveLayer while set, zero cost
    *  when cleared (a default Effect{}). The intended source is an OCIO

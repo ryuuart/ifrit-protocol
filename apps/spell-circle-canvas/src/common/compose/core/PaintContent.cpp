@@ -187,7 +187,7 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
     outline.paint.setStyle(SkPaint::kStroke_Style);
     outline.paint.setStrokeWidth(node.textData->textStrokeWidth);
     outline.paint.setStrokeJoin(SkPaint::kRound_Join);
-    const Fill& sf = node.textData->textStrokeFill;
+    const Fill sf = resolveRef(node.textData->textStrokeFill, paintCtx);
     if (sf.kind == Fill::Kind::Shader && sf.shaderValue)
       outline.paint.setShader(sf.shaderValue);
     else
@@ -497,8 +497,14 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       .fonts = &fonts,
       .borrowed = inst.borrowedPaths.empty() ? nullptr : &inst.borrowedPaths,
       .stamps = &inst.stampCache,
-      .toRoot = curToRoot,          // node→root, as paint() stacked it
-      .rootSize = rootLayoutSize};  // …and the canvas it maps into
+      .toRoot = curToRoot,         // node→root, as paint() stacked it
+      .rootSize = rootLayoutSize,  // …and the canvas it maps into
+      // The cascade as it resolved at this node: the ink every mark that
+      // names no colour takes, the font a pen program begins in, and the
+      // custom properties a fill or an ink may read.
+      .ink = inst.font.color.value_or(SkColor4f{0, 0, 0, 1}),
+      .font = inst.font,
+      .vars = inst.vars.get()};
 
   // The node's own layer effect wraps everything painted here, so it is
   // captured by picture recordings and BAKED by texture snapshots. A LIVE
@@ -704,7 +710,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           .borrowed = paintCtx.borrowed,
           .stamps = nullptr,  // deliberately not shared with a span pass
           .toRoot = paintCtx.toRoot,
-          .rootSize = paintCtx.rootSize};
+          .rootSize = paintCtx.rootSize,
+          .ink = paintCtx.ink,
+          .font = paintCtx.font,
+          .vars = paintCtx.vars};
       passes[i].what.paint(canvas, passCtx);
       if (granularPlane) leaveGates(saves, cover);
     }
@@ -746,7 +755,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           .borrowed = paintCtx.borrowed,
           .stamps = nullptr,  // not shared with a mark
           .toRoot = paintCtx.toRoot,
-          .rootSize = paintCtx.rootSize};
+          .rootSize = paintCtx.rootSize,
+          .ink = paintCtx.ink,
+          .font = paintCtx.font,
+          .vars = paintCtx.vars};
       d.paint(canvas, markCtx);
     } else {
       d.paint(canvas, paintCtx);
@@ -805,19 +817,22 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
              inst.anims[Instance::kFillLerp]->started &&
              inst.anims[Instance::kFillLerp]->value.isConnected()) {
       const float t = inst.anims[Instance::kFillLerp]->value.value();
-      fill = inst.fillTo;
+      // Either endpoint may be written as the ink in force or a custom
+      // property, so both are resolved here before the colours are mixed.
+      const Fill from = resolveRef(inst.fillFrom, paintCtx);
+      const Fill to = resolveRef(inst.fillTo, paintCtx);
+      fill = to;
       for (int i = 0; i < 4; ++i)
-        fill.colorValue.vec()[i] = inst.fillFrom.colorValue.vec()[i] +
-                                   (inst.fillTo.colorValue.vec()[i] -
-                                    inst.fillFrom.colorValue.vec()[i]) *
-                                       t;
+        fill.colorValue.vec()[i] =
+            from.colorValue.vec()[i] +
+            (to.colorValue.vec()[i] - from.colorValue.vec()[i]) * t;
       fill.kind = Fill::Kind::Color;
     } else {
       ResolvedProperty<Fill> resolved =
           resolveProperty(*node.paint.fill, node.nodeTransition);
       fill = resolved.target;
     }
-    resolvedFill = fill;
+    resolvedFill = resolveRef(fill, paintCtx);
   }
 
   // The SURFACE — the fill and its echo re-stamps — under whatever gates

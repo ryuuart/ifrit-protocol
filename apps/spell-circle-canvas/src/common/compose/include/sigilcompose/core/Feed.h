@@ -203,7 +203,7 @@ template <class RowFunction>
 // Rows of text — the shape a log, a transcript or a tape takes.
 
 /** A text row: the line, and the NAME of the style it is set in. The name
- *  is resolved against a `weave::StyleSet` at build time, so an unregistered
+ *  is resolved against a `weave::StyleSheet` at build time, so an unregistered
  *  name — including the default empty one — takes the set's base style. */
 struct TextRow {
   std::u8string text;
@@ -224,7 +224,7 @@ using TextRing = Ring<TextRow>;
 struct TextOptions {
   Options window;
   /** Row style by name. The base entry sets every row that names nothing. */
-  sigil::weave::StyleSet styles;
+  sigil::weave::StyleSheet styles;
 
   bool operator==(const TextOptions&) const = default;
 };
@@ -235,7 +235,7 @@ struct TextOptions {
  *  Exposed so a caller can build the column by hand when the rows need
  *  something the options do not carry, keying each row with `rowKey()`. */
 [[nodiscard]] inline Element textRow(const TextRow& row,
-                                     const sigil::weave::StyleSet& styles) {
+                                     const sigil::weave::StyleSheet& styles) {
   return text(row.text, styles[row.style]);
 }
 

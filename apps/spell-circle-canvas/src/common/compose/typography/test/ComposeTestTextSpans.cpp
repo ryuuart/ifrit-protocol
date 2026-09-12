@@ -71,16 +71,16 @@ TEST(TextRich, AChangedRunStylePatchesToo) {
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
 }
 
-TEST(TextRich, NamedRunsResolveThroughTheAmbientStyleSet) {
+TEST(TextRich, NamedRunsResolveThroughTheAmbientStyleSheet) {
   // How a name resolves is weave's (see its own test). What is this
-  // library's is the AMBIENT set: `environment::Provide<weave::StyleSet>`
+  // library's is the AMBIENT set: `environment::Provide<weave::StyleSheet>`
   // reaches a text leaf described in its scope, and a set the value names beats
   // it.
   const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
-  sigil::weave::StyleSet reds;
-  reds.set("accent", coloredStyle(20, SK_ColorRED));
-  sigil::weave::StyleSet greens;
-  greens.set("accent", coloredStyle(20, SK_ColorGREEN));
+  sigil::weave::StyleSheet reds(base);
+  reds.set("accent", sigil::weave::Type{.color = SkColor4f{1, 0, 0, 1}});
+  sigil::weave::StyleSheet greens(base);
+  greens.set("accent", sigil::weave::Type{.color = SkColor4f{0, 1, 0, 1}});
 
   Host host(200, 120);
   const auto accentColor = [&](sigil::weave::RichText content) {
@@ -94,7 +94,7 @@ TEST(TextRich, NamedRunsResolveThroughTheAmbientStyleSet) {
   };
 
   {
-    core::environment::Provide<sigil::weave::StyleSet> ambient(reds);
+    core::environment::Provide<sigil::weave::StyleSheet> ambient(reds);
     EXPECT_EQ(accentColor(sigil::weave::rich(base).add(u8"x", "accent")),
               SK_ColorRED)
         << "the environment set never reached the leaf";
@@ -213,15 +213,16 @@ TEST(TextSpans, ALineSelectorAddressesTheLayout) {
 
 namespace {
 
-sigil::weave::StyleSet glossarySet(SkColor termColor, float termSize) {
-  sigil::weave::StyleSet set{coloredStyle(24, SK_ColorWHITE)};
-  set.set("term", coloredStyle(termSize, termColor));
+sigil::weave::StyleSheet glossarySet(SkColor termColor, float termSize) {
+  sigil::weave::StyleSheet set{coloredStyle(24, SK_ColorWHITE)};
+  set.set("term", sigil::weave::Type{.size = termSize,
+                                     .color = SkColor4f::FromColor(termColor)});
   return set;
 }
 
 /** "alpha beta gamma beta delta beta", where the first and last `beta` are
  *  written under the name and the middle one is not. */
-sigil::weave::RichText glossaryCopy(const sigil::weave::StyleSet& set) {
+sigil::weave::RichText glossaryCopy(const sigil::weave::StyleSheet& set) {
   sigil::weave::RichText copy = sigil::weave::rich(set.base());
   copy.styles(set)
       .add(u8"alpha ")
@@ -403,7 +404,7 @@ TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
   // re-registering it against a different style, at a different size that
   // re-shapes and re-places everything, leaves the same runs addressed.
   Host host(760, 140);
-  const auto namedGlyphs = [&](const sigil::weave::StyleSet& set) {
+  const auto namedGlyphs = [&](const sigil::weave::StyleSheet& set) {
     host.composer.render(box().padding(10).child(
         text(glossaryCopy(set))
             .key("t")

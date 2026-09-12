@@ -256,8 +256,9 @@ in.
 
 ### Type
 
-`text(utf8, style)` and `text(weave::rich(base).add(…))` are the two content
-forms, and everything a passage can be told past that — the per-glyph fx
+`text(utf8)`, set in the font in force where it lands, `text(utf8, style)`,
+set in one whole style, and `text(weave::rich(base).add(…))` are the three
+content forms, and everything a passage can be told past that — the per-glyph fx
 tracks and their selectors, a run riding a path, span restyling, the
 paragraph controls, threaded frames over a `weave::Story`, readings set beside
 the type, a passage whose measure moves, and vertical CJK columns — is in
@@ -444,6 +445,105 @@ CSS's model over it.
 
 ---
 
+## The cascade
+
+Three things flow down the TREE, from a node to everything under it,
+wherever the code that built a child ran: the font a passage is set in,
+its colour, which is the ink, and the custom properties. Everything else
+a node says about itself — its fill, its stroke, its padding, its
+transform — stays on that node. It is CSS's own split between the
+properties that inherit and the ones that do not, and the rule of thumb
+transfers whole: text properties inherit, box properties do not.
+
+```cpp
+box().font({.face = serif, .size = 14}).ink(hexColor(0xe6e6ea))
+    .child(text(u8"Signal"))                      // the font and ink above
+    .child(text(u8"Heading").font({.size = 22}))  // the size alone; the rest inherits
+    .child(box().stroke(stroke(1.5f)));           // no colour named: the ink
+```
+
+**A leaf that names no style is set in the font and ink in force where
+it lands.** `text(utf8)` is that leaf. `Element::font` on any node is a
+PARTIAL, a `weave::Type` whose every field is optional: the fields it
+names override the inherited font and the rest inherit, so
+`font({.size = 22})` is the inherited face and colour at another size,
+and `font({.size = 1.5_em})` is half again the size inherited.
+`Element::ink` is the font's colour spelled alone — CSS's `color` — which
+text under the node is set in, which every mark that names no colour is
+painted in (`stroke(1.5f)` with no fill, a line or a ribbon written as
+`Fill::currentInk()`), and which `Fill::currentInk()` reads back wherever
+a slot demands a fill. A leaf given a whole `weave::TextStyle`,
+`text(utf8, style)`, is set in it alone and inherits nothing, which is
+what every leaf written before this chapter existed does. What a leaf
+under nothing is set in is `Composer::setInherited`: black, 16 px and the
+font context's family by default, the values `weave::initialType()`
+carries, and what a pen's guest or a texture scene seeds from where it
+stands.
+
+**Resolution is the tree's, not the call stack's.** The cascade pass runs
+over the retained tree after describe and before layout, top-down, each
+node's font, ink and properties the parent's overlaid with its own
+declaration. So a child built first and adopted later is set in the
+adopter's ink, a slot's content inherits from where the slot stands
+however it was described, and a description holds only what was written
+— a partial, a colour, a property — never a resolved value, which is what
+keeps the prune exact. A bake is a root: `snapshot`, an atlas cell, a
+pattern tile and `compose::texture` resolve against the initial values,
+as an image placed on a page inherits nothing from it.
+
+**A class is a named partial.** `Element::styleClass` folds in the
+`weave::Type` a `weave::StyleSheet` in scope registers under the name,
+read where the element is WRITTEN — a class is lexical, exactly as a CSS
+class is defined in a sheet and applied by name — and the fields it sets
+then inherit down the tree like any `font()`. A name no sheet in scope
+carries warns once and sets nothing. `weave::rich()` started with no base
+is an inheriting passage: a run added with a partial keeps the inherited
+face and size in every field it does not name, and only a run added with
+a whole style keeps the style it was written with. Blocks have the same
+discipline through `sigil::weave::ParagraphStyleSheet` and
+`Element::paragraphs`.
+
+**A custom property is set on a node and read by anything under it.**
+`Element::var` sets one; `var(name)` reads it as a `Dimension`,
+`Fill::var(name)` as a fill, and `ink(var(name))` as the ink, the nearest
+ancestor that set the name winning. It reaches exactly what the kernel
+resolves — a fill, a stroke, a mark, a length, the ink — and no further:
+a material, a layer style and every other value the kernel cannot see
+inside take concrete values, so inside those the look is still read
+where it is written, through `core::environment::Provide`. That channel
+is LEXICAL, read by the code that builds an element; the cascade is
+STRUCTURAL, carried by the tree the element ends up in. One sentence
+holds both: the tree carries the font, the ink and the properties; code
+reads the look.
+
+**Lengths measure against the font.** `Dimension` takes SigilWeave's
+`weave::Length` and its literals: `1_em` on a box property is the node's
+own resolved font size, `1_em` on `weave::Type::size` is the parent's,
+`0.5_lh` is half the node's line height, `1_rem` is the root's size, and
+a length written as `var(name)` is whatever the property holds. The
+padding, the margin and the gap take a `Dimension` now, and a bare number
+is still pixels.
+
+**Motion stays on the node that declares it.** A node whose ink changes
+under `Element::transition` eases it, and everything under it follows —
+repainted while the colour moves, cached again when it settles. A bound
+ink is not offered: a live value inherited from above would make the
+subtree under it volatile, a direction the caching kernel does not fold.
+What a change costs follows the split above: an ancestor's font change
+re-materialises and relays out the inheriting leaves under it, and
+rewrites every length measured in it; an ink change repaints them and
+breaks no line again.
+
+**The pen begins in the ink and the font.** A `compose::pen` or
+`compose::graphics` program finds its fill and stroke in the node's ink
+and its text in the node's font — `PaintContext::ink` and
+`PaintContext::font` — restyles for its scope with the pen's own verbs,
+and a guest tree it paints through `paintRetained` inherits from the tree
+the pen stands in. `PaintContext::vars` is the same node's properties,
+for a decoration that resolves a fill by hand through `resolveRef`.
+
+---
+
 ## The header map
 
 Everything lives in `namespace sigil::compose` under
@@ -472,7 +572,12 @@ sound model; nothing below them changes kernel semantics.
 - `core/Paint.h` — the paint values: `Fill`, `Corners`, `Backface`,
   `PaintContext`,
   `StampCache`, and `hexColor`, the one colour spelling here: a source
-  palette's hex integer as an `SkColor4f`. What a colour BECOMES is
+  palette's hex integer as an `SkColor4f`. A `Fill` may be written as a
+  REFERENCE the tree resolves at paint — `Fill::currentInk`, the ink in
+  force, and `Fill::var`, a custom property — through `resolveRef`, which
+  every consumer holding a `PaintContext` runs a fill through; the
+  context carries the node's `PaintContext::ink`, `PaintContext::font`
+  and `PaintContext::vars` for it. What a colour BECOMES is
   SigilMaterial's vocabulary, spelled from it — `material::skia::withAlpha`,
   `material::skia::scale`, `material::skia::lighten` and
   `material::skia::mixLinear`.
@@ -497,7 +602,13 @@ sound model; nothing below them changes kernel semantics.
   `Mask`.
 - `core/Layout.h` — `Dimension` and its literals, `Align`, `Justify`, `Echo`,
   `Cache`, `LayoutInput` / `LayoutScheme`, `CellSpan`, and the
-  `ComponentProperties` / `ComponentFunction` concepts.
+  `ComponentProperties` / `ComponentFunction` concepts. A `Dimension`
+  also takes SigilWeave's `Length` (`em`, `rem`, `lh`) and a `VarRef`, the
+  relative units the cascade resolves.
+- `core/Var.h` — `VarRef`, the reference a custom property's name
+  interns to, with `var` to make one and `varName` to read it back.
+- `core/Cascade.h` — `VarValue`, what a custom property holds, and
+  `VarTable`, the properties in force at a node.
 - `core/Element.h` — `Element` and its builders, the class alone.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
   `positioned`, `text`, `frame`, `image`, `picture` (a recorded
@@ -563,7 +674,8 @@ sound model; nothing below them changes kernel semantics.
   value, with `Router::comparable` and `RailRouter::comparable` reporting
   whether the one a node holds can prune.
 - `core/Composer.h` — `Composer`, and `TextSettling`, what
-  `Composer::settling` reports about a live passage's last layout.
+  `Composer::settling` reports about a live passage's last layout;
+  `Composer::setInherited` is what the root inherits from.
 - `core/Paint.h` — beside `Fill` and `PaintContext`: `frameOf`, `toFill`
   and `resolveFill`, the three lines that put SigilMaterial's
   `material::skia::Paint` on a node. The paint model itself is that
@@ -576,11 +688,12 @@ sound model; nothing below them changes kernel semantics.
 - `core/Feed.h` — the streaming collection: a `feed::Ring` of rows,
   windowed to the newest `feed::Options::visible` and keyed by sequence
   id, so an append costs one mount and every surviving row keeps its
-  cached picture; rows of text name their style in a
-  `sigil::weave::StyleSet` (`feed::TextRow`, `feed::TextOptions`). Built
+  cached picture; rows of text name their class in a
+  `sigil::weave::StyleSheet` (`feed::TextRow`, `feed::TextOptions`). Built
   purely by composing the kernel; the bordered strip several feeds sit on
   is the kit's `kit::plate` (`kit/Plate.h`), with `kit::tinted` building
-  the one-face style set its rows name, and `kit::console` is that plate
+  the one-face sheet whose classes differ in colour alone, and
+  `kit::console` is that plate
   over N feeds of one voice — each in its own column, or `Console::stacked`
   to a column — which is the verification plate a study prints its checks
   into.
@@ -1477,6 +1590,29 @@ promotion switched on.
 Several correct behaviours produce nothing, with no diagnostic, and look
 exactly like a layout bug.
 
+- **A class no sheet in scope carries sets nothing.** `styleClass("labl")`
+  under no `weave::StyleSheet`, or under one that never registered the
+  name, leaves the leaf in whatever it inherits and warns once; the
+  symptom is text at the inherited size, which looks like a class that
+  did not take. Bind the sheet with `core::environment::Provide` around
+  the code that BUILDS the element, not around the tree it lands in: a
+  class is read where the element is written.
+- **A custom property nobody set resolves to nothing.** `Fill::var("acent")`
+  paints nothing and a `var("guter")` length is zero, each warning once;
+  a property set as a length and read as a colour, or the reverse, is the
+  same miss. The nearest ancestor's `Element::var` is what a read finds,
+  so a property set on a sibling or on the leaf's own child is not there.
+- **A bake is a root.** `snapshot`, an atlas cell, a pattern tile and a
+  texture scene inherit nothing from the tree that asked for them: a fill
+  written as `Fill::currentInk()` inside one is the initial black, and an
+  inheriting leaf inside one is 16 px in the font context's family. Set
+  the font and ink on the baked tree itself, or seed the composer with
+  `Composer::setInherited`.
+- **The theme is lexical; the cascade is not.** A value read through
+  `core::environment::Provide` is copied into the element by the code
+  that builds it, so a component built outside a scope and mounted inside
+  it keeps the outer look — while its text still takes the inner ink,
+  because the font, the ink and the properties are carried by the tree.
 - **An unknown key resolves to nothing, everywhere in the derive family.**
 `flowAround("typo")`, `spans::fit("typo")`, `around("typo")`, a `connector`
 to a node not in the tree, a `strand::from` on a missing key — every one

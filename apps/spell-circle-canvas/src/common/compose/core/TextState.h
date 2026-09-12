@@ -67,6 +67,17 @@ struct TextState {
   // AFTER the description's own tracks, so the painter's selection and
   // track lists are the description's tracks followed by these.
   std::vector<Track> spanAxisTracks;
+
+  // ---- what an ink-only repaint needs ----------------------------------
+  //
+  // The ranges each spanPaint()/spanStyle() restyle resolved to when the
+  // paragraph was materialised, in declaration order, and which of them
+  // were folded into axis tracks rather than applied. An inheriting leaf
+  // whose ink changes sets the new colour on its inherited ranges in place
+  // and then replays these paints over them, so the restyles stand exactly
+  // as materialisation left them without a line being broken again.
+  std::vector<std::vector<sigil::weave::CharRange>> restyleRanges;
+  std::vector<bool> restyleFolded;
 };
 
 }  // namespace sigil::compose::detail

@@ -259,6 +259,43 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
       motion::progressRamp(ticker, anim, *nextFill.transition, 0.0f);
     }
   }
+
+  // The kInkLerp row (SlotRole::Bespoke): the ink this node DECLARES,
+  // colour → colour through a synthesized progress. Only a node that
+  // writes its ink can ease it — a transition belongs to the node whose
+  // property changes — and everything under it follows, because the
+  // cascade pass reads the ramp into the resolved colour each frame. A
+  // next ink with no transition, or one read from a custom property, is a
+  // snap, and disconnects any easing in flight so the description lands.
+  const auto declaredInk = [](const ElementNode& n) -> std::optional<SkColor4f> {
+    if (!n.cascadeData || n.cascadeData->inkVar || !n.cascadeData->font)
+      return std::nullopt;
+    return n.cascadeData->font->color;
+  };
+  const std::optional<SkColor4f> prevInk = declaredInk(prev);
+  const std::optional<SkColor4f> nextInk = declaredInk(next);
+  if (!(nextInk && nd)) {
+    if (auto& anim = inst.anims[Instance::kInkLerp]; anim && anim->started) {
+      anim->value.disconnect();
+      anim->started = false;
+    }
+  }
+  if (prevInk && nextInk && nd && !(*prevInk == *nextInk)) {
+    // The colour on screen as the new "from": mid-easing, the value the
+    // ramp stands at, so a retarget never snaps back to the old endpoint.
+    SkColor4f from = *prevInk;
+    auto& anim = inst.anims[Instance::kInkLerp];
+    if (anim && anim->started && anim->value.isConnected()) {
+      const float t = anim->value.value();
+      for (int i = 0; i < 4; ++i)
+        from.vec()[i] = inst.inkFrom.vec()[i] +
+                        (inst.inkTo.vec()[i] - inst.inkFrom.vec()[i]) * t;
+    }
+    inst.inkFrom = from;
+    inst.inkTo = *nextInk;
+    motion::progressRamp(ticker, anim, *nd, 0.0f);
+    cascadeDirty = true;
+  }
 }
 
 // ---------------------------------------------------------------------------

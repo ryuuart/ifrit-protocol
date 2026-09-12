@@ -67,7 +67,7 @@ bool textPathEqual(const TextPath& a, const TextPath& b) {
          a.orient == b.orient && a.exactTangent == b.exactTangent;
 }
 
-static_assert(kFieldCount<TextData> == 19 && kFieldCount<TextOptions> == 21 &&
+static_assert(kFieldCount<TextData> == 20 && kFieldCount<TextOptions> == 21 &&
                   kFieldCount<SpanRestyle> == 3,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
@@ -96,7 +96,12 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
     if (!ta.tracks[i].sameShape(tb.tracks[i]) ||
         !propertyEqual(ta.tracks[i].progress, tb.tracks[i].progress))
       return false;
-  if (ta.utf8 != tb.utf8 || !(ta.style == tb.style)) return false;
+  // A leaf that inherits its font and one set in a total style are
+  // different leaves even over the same words: what they draw depends on
+  // different things.
+  if (ta.utf8 != tb.utf8 || ta.inherits != tb.inherits ||
+      !(ta.style == tb.style))
+    return false;
   // weave::rich(): a whole mixed paragraph as one comparable value — same base,
   // same runs, same resolved styles — so a component that rebuilds its
   // spans every describe prunes like a static leaf. This is exactly what
@@ -408,9 +413,9 @@ namespace detail {
  * reaches here, because `inst.description` holds the memo's PRODUCED payload;
  * and `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 26 && kFieldCount<PaintProps> == 15 &&
+static_assert(kFieldCount<ElementNode> == 27 && kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 3 && kFieldCount<CustomData> == 2 &&
-                  kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 3,
+                  kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 5,
               "A struct propertiesEqual() compares BY HAND gained or lost a "
               "field. Rule on it below — participate, or a stated reason "
               "not to — then bump this count. A miss is silent: the node "
@@ -454,6 +459,12 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
     return false;
   if (!fxEqual(a.fxData, b.fxData)) return false;
   if (!strokeEqual(a.strokeData, b.strokeData)) return false;
+  // The cascade: the partial font, the ink's property and the custom
+  // properties this node declares are read by the pass that resolves
+  // every node under it, so a change here re-patches the node and the
+  // pass carries it down.
+  if ((bool)a.cascadeData != (bool)b.cascadeData) return false;
+  if (a.cascadeData && !(*a.cascadeData == *b.cascadeData)) return false;
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
     return false;
   if (a.nodeTransition &&

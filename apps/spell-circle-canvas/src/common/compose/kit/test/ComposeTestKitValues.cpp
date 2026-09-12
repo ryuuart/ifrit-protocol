@@ -22,7 +22,7 @@ sigil::weave::TextStyle pixelStyle(float size) {
       {.face = sigil::weave::ports::pickTypeface(
            {"Menlo", "DejaVu Sans Mono", "Courier New"}),
        .size = size,
-       .color = {1, 1, 1, 1},
+       .color = SkColor4f{1, 1, 1, 1},
        .aliased = true});
 }
 
@@ -61,7 +61,7 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
         sigil::weave::ports::pickTypeface({family}, SkFontStyle::Italic());
     if (!face) continue;
     const auto style = sigil::weave::textStyle(
-        {.face = face, .size = 12.0f, .color = {1, 1, 1, 1}, .aliased = true});
+        {.face = face, .size = 12.0f, .color = SkColor4f{1, 1, 1, 1}, .aliased = true});
     for (const char8_t* s : {u8"Wf", u8"of", u8"lift", u8"Ay"}) {
       const kit::Coverage tight =
           kit::coverage(s, fonts(), style, {.x = 0, .y = 0});

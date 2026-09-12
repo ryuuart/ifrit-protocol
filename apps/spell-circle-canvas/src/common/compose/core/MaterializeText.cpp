@@ -22,12 +22,34 @@ void Composer::Impl::materializeText(
   inst.textSlotKeys.clear();
   inst.textSlotRects.clear();
   inst.textNamedRuns.clear();
+  inst.inheritedInkRanges.clear();
+  // AN INHERITING LEAF IS SET IN THE FONT IN FORCE where it stands — the
+  // instance's resolved font once the cascade pass has run, the root's
+  // before it, and the pass materialises again if the two differ. The
+  // font it was set in is kept beside the paragraph so the pass can tell
+  // a change that re-shapes from one that repaints alone.
+  const bool inherits = text.inherits;
+  const sigil::weave::Type& fontNow =
+      inst.cascadeResolved ? inst.font : rootFont;
+  const sigil::weave::TextStyle inherited =
+      inherits ? sigil::weave::toTextStyle(fontNow) : sigil::weave::TextStyle{};
+  if (inherits) inst.textFont = fontNow;
   if (text.paragraphOverride) {
     *inst.paragraph = *text.paragraphOverride;
   } else if (!text.rich.empty()) {
+    // An inheriting rich text's unstyled runs are set in the font in
+    // force, its partial runs over it, and only a run written with a whole
+    // style keeps the style it was written with.
+    const sigil::weave::TextStyle& base = inherits ? inherited : text.rich.base();
     // The runs concatenate with nothing between them: a rich text's spacing
     // is the author's own, exactly as it is in the strings they wrote.
     for (const sigil::weave::RichText::Run& run : text.rich.runs()) {
+      sigil::weave::TextStyle style = run.style;
+      bool inksInherited = false;
+      if (inherits && !run.total) {
+        style = run.over ? sigil::weave::overlay(base, *run.over) : base;
+        inksInherited = !(run.over && run.over->color);
+      }
       if (!run.slotName.empty()) {
         // A slot run reserves a box instead of setting glyphs. The names go
         // into one list in declaration order, which is the order weave
@@ -35,7 +57,7 @@ void Composer::Impl::materializeText(
         inst.textSlotKeys.push_back(run.slotName);
         inst.paragraph->appendPlaceholder(
             {run.slotSize.width(), run.slotSize.height(), run.slotBaselineDrop},
-            run.style);
+            style);
         continue;
       }
       // The extent a named run occupies, read off the text as it grows: a
@@ -43,11 +65,17 @@ void Composer::Impl::materializeText(
       // produced, so the restyles below may cut the spans to pieces and
       // selectors::style still answers with the run.
       const auto begin = (uint32_t)inst.paragraph->text().size();
-      inst.paragraph->appendText(run.utf8, run.style);
+      inst.paragraph->appendText(run.utf8, style);
+      const auto end = (uint32_t)inst.paragraph->text().size();
       if (!run.styleName.empty())
-        inst.textNamedRuns.push_back(
-            {run.styleName, {begin, (uint32_t)inst.paragraph->text().size()}});
+        inst.textNamedRuns.push_back({run.styleName, {begin, end}});
+      if (inksInherited)
+        inst.inheritedInkRanges.push_back({{begin, end}, run.over});
     }
+  } else if (inherits) {
+    inst.paragraph->appendText(text.utf8, inherited);
+    inst.inheritedInkRanges.push_back(
+        {{0, (uint32_t)inst.paragraph->text().size()}, std::nullopt});
   } else {
     inst.paragraph->appendText(text.utf8, text.style);
   }
@@ -101,6 +129,13 @@ void Composer::Impl::materializeText(
           painter->ranges(text.spanRestyles[i].where, *inst.paragraph, fonts,
                           lines, columns, inst.textNamedRuns, scopeOf(inst));
   if (inst.textState) inst.textState->spanAxisTracks.clear();
+  // What an ink-only repaint replays: the ranges as resolved here, and
+  // which restyles the fold below took instead of applying.
+  if (restyleCount > 0 || inst.textState) {
+    TextState& state = textStateOf(inst);
+    state.restyleRanges = resolvedRanges;
+    state.restyleFolded.assign(restyleCount, false);
+  }
   // The intersection of two selections, as the ranges they share.
   const auto overlap = [](std::span<const sigil::weave::CharRange> a,
                           std::span<const sigil::weave::CharRange> b) {
@@ -172,6 +207,7 @@ void Composer::Impl::materializeText(
           track.effect = TextEffect::variableAxis(axis, value);
           textStateOf(inst).spanAxisTracks.push_back(std::move(track));
         }
+        textStateOf(inst).restyleFolded[i] = true;
         continue;
       }
     }

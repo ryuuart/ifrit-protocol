@@ -50,7 +50,8 @@ void Ribbon::paint(SkCanvas& c, const PaintContext& ctx) const {
   // A material supersedes the fill, and it is resolved through the same
   // body a stroke's does, so a recipe means the same thing on a band as
   // on the outline beside it — unit square, node's box, one clock.
-  const Fill band = fillMaterial ? resolveFill(*fillMaterial, ctx) : fill;
+  const Fill band =
+      fillMaterial ? resolveFill(*fillMaterial, ctx) : resolveRef(fill, ctx);
   if (band.kind == Fill::Kind::Color)
     p.setColor4f(band.colorValue, nullptr);
   else if (band.kind == Fill::Kind::Shader)

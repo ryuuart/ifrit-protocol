@@ -70,6 +70,15 @@ Element stack();
  *  centerAt, layout() schemes, flowAround text. Those need the flex
  *  world. */
 Element positioned();
+/** A text leaf SET IN THE FONT AND INK IN FORCE where it lands in the
+ *  tree — the nearest ancestor's `Element::font` and `Element::ink`, or the
+ *  root's — with its own `font()` overriding field by field. Built before
+ *  or after it is adopted, wherever the code that built it ran, it takes
+ *  the style of the node it ends up under, which is what a dark panel
+ *  needs to recolour content handed to it already made. */
+Element text(std::u8string utf8);
+/** A text leaf set in @p style ALONE. A `TextStyle` is total, so the leaf
+ *  inherits nothing: whatever its ancestors set, it draws exactly this. */
 Element text(std::u8string utf8, sigil::weave::TextStyle style);
 /** Mixed-style text as a COMPARABLE VALUE — see weave::RichText. A re-described
  *  identical value prunes, which is the whole difference between this and

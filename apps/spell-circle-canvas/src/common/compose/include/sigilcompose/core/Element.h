@@ -97,13 +97,20 @@ class Element {
   /** Flex-wrap: children flow onto new lines/columns when they
    *  overflow the main axis. */
   Element& wrapLines(bool on = true);
-  Element& gap(float px);
-  Element& padding(float all);
-  Element& padding(float horizontal, float vertical);
-  Element& padding(float left, float top, float right, float bottom);
-  Element& margin(float all);
-  Element& margin(float horizontal, float vertical);
-  Element& margin(float left, float top, float right, float bottom);
+  /** The gap, the padding and the margin take a `Dimension`: a bare
+   *  number is pixels, a percent is of the parent, and `1_em`, `0.5_lh`
+   *  and `1_rem` (SigilWeave's length literals) measure against the font
+   *  in force — the node's own size and line height, or the root's — so
+   *  the air around type follows the type. */
+  Element& gap(Dimension length);
+  Element& padding(Dimension all);
+  Element& padding(Dimension horizontal, Dimension vertical);
+  Element& padding(Dimension left, Dimension top, Dimension right,
+                   Dimension bottom);
+  Element& margin(Dimension all);
+  Element& margin(Dimension horizontal, Dimension vertical);
+  Element& margin(Dimension left, Dimension top, Dimension right,
+                  Dimension bottom);
   /** The flex BASIS, not a guarantee. `shrink` defaults to 1, faithful to
    *  Yoga and CSS, so a `width(150)` child of a row that overflows is
    *  150 px wide only until the row runs out of room — then it gives some
@@ -304,6 +311,50 @@ class Element {
    *  so an overlapping claim is a description-level mistake reported once,
    *  never one that blinks in and out partway through a transition. */
   Element& mask(Parts what, Gate with);
+
+  // ---- the cascade ----
+  // Three things flow down the TREE, from a node to everything under it,
+  // wherever the code that built a child ran: the font, its colour (the
+  // ink), and the custom properties. Everything else a node says about
+  // itself stays on that node — CSS's own split between the properties
+  // that inherit and the ones that do not. A node that leaves one unset
+  // takes the nearest ancestor's, and the root's are the composer's
+  // `setInherited` defaults.
+  /** THE FONT EVERYTHING UNDER THIS NODE IS SET IN, as a PARTIAL: the
+   *  fields @p partial names override the inherited font, and every field
+   *  it leaves unset inherits — `font({.size = 22})` is the inherited face
+   *  and colour at another size. A text leaf reads its own; a container's
+   *  reaches every text under it that does not say otherwise. Written
+   *  twice on one node, the later call wins field by field, and so does a
+   *  class written between. A relative size resolves against the PARENT's
+   *  font: `font({.size = 1.5_em})` is half again the size inherited. */
+  Element& font(sigil::weave::Type partial);
+  /** THE INK: the colour text under this node is set in and every mark
+   *  that names no colour is painted in — CSS's `color`, which is the
+   *  font's own colour spelled alone. `Fill::currentInk()` reads it back
+   *  wherever a fill must be named. A node whose ink changes under a
+   *  `transition()` eases it, and everything under it follows. */
+  Element& ink(SkColor4f colour);
+  /** The ink read from a custom property in force here:
+   *  `ink(var("accent"))`. A property nobody set, or one holding a length,
+   *  leaves the inherited ink standing and says so once. */
+  Element& ink(VarRef reference);
+  /** A CLASS: the named partial the `weave::StyleSheet` in scope registers
+   *  under @p name, folded into this node's font where the element is
+   *  WRITTEN. A class is lexical — it is looked up in the sheet bound
+   *  around the code that builds the element — and the fields it sets then
+   *  inherit down the tree like any `font()`. A name no sheet in scope
+   *  carries warns once and sets nothing. */
+  Element& styleClass(std::string_view name);
+  /** A CUSTOM PROPERTY set on this node and inherited by everything under
+   *  it, read back through `var(name)` written as a length, `Fill::var`
+   *  written as a fill, or `ink(var(name))`. The nearest ancestor that set
+   *  a name wins, as CSS's custom properties do. A material, a layer
+   *  style and every other value the kernel cannot see inside take
+   *  concrete values, so a property reaches exactly what resolves through
+   *  the paint context: a fill, a stroke, a mark, a length, the ink. */
+  Element& var(std::string_view name, SkColor4f colour);
+  Element& var(std::string_view name, Dimension length);
 
   // ---- paint ----
   /** A colour, a shader, a transition between colours, or a LIVE binding.
@@ -927,9 +978,9 @@ class Element {
    *  the justification, the hyphenation and the tab stops — each of which
    *  falls back to this leaf's own where the block leaves it unset. */
   Element& paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks);
-  /** The same, by NAME, resolved through the `ParagraphStyleSet` the
+  /** The same, by NAME, resolved through the `ParagraphStyleSheet` the
    *  environment offers
-   * (`environment::Provide<sigil::weave::ParagraphStyleSet>`).
+   * (`environment::Provide<sigil::weave::ParagraphStyleSheet>`).
    *
    *  Resolution happens where this is written, inside the author's describe
    *  scope, so the finished description holds real styles and depends on no

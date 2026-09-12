@@ -541,7 +541,7 @@ TEST(ComposeStudio, ATypedOptionsValueCarriesWhatPositionalArgumentsCannot) {
   // the same way its predecessor did.
   const sigil::weave::TextStyle s =
       weave::textStyle({.size = 18.0f,
-                        .color = {0.2f, 0.4f, 0.6f, 1},
+                        .color = SkColor4f{0.2f, 0.4f, 0.6f, 1},
                         .track = 1.25f,
                         .condense = 0.94f,
                         .weight = 650.0f,
@@ -592,7 +592,7 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
   b.append({u8"beta"});
 
   feed::TextOptions style;
-  style.styles.base(weave::textStyle({.size = 9, .color = {1, 1, 1, 1}}));
+  style.styles.base(weave::textStyle({.size = 9, .color = SkColor4f{1, 1, 1, 1}}));
   style.window.gap = 1.0f;
 
   auto strip = [&] {
@@ -656,7 +656,7 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
   // tinted() builds one style per named colour from a single face and size.
   // The names carry no meaning to it, deliberately: what a study calls its
   // passing ink is the study's convention, not the library's.
-  const sigil::weave::StyleSet mono =
+  const sigil::weave::StyleSheet mono =
       kit::tinted(nullptr, 10.5f, {1, 1, 1, 1},
                   {{"dim", {0.5f, 0.5f, 0.5f, 1}},
                    {"pass", {0, 1, 0, 1}},
@@ -676,7 +676,7 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
   // count. feed::height() is that number, and the plate below is built
   // from it with no slack at all.
   feed::TextOptions st;
-  st.styles.base(weave::textStyle({.size = 9.2f, .color = {1, 1, 1, 1}}));
+  st.styles.base(weave::textStyle({.size = 9.2f, .color = SkColor4f{1, 1, 1, 1}}));
   st.window.gap = 1.0f;
   st.window.visible = 12;
 
@@ -748,8 +748,8 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
   // patched, and an author who needs something the options do not carry can
   // write that column themselves without losing the identity discipline.
   feed::TextOptions st;
-  st.styles.base(weave::textStyle({.size = 20, .color = {1, 1, 1, 1}}))
-      .set("alert", weave::textStyle({.size = 20, .color = {1, 0, 0, 1}}));
+  st.styles.base(weave::textStyle({.size = 20, .color = SkColor4f{1, 1, 1, 1}}))
+      .set("alert", weave::Type{.color = SkColor4f{1, 0, 0, 1}});
   st.window.gap = 4.0f;
   feed::TextRing ring;
   ring.append({u8"AAAA"});

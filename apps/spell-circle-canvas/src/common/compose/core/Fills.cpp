@@ -36,7 +36,10 @@ Element& SurfacePaint::apply(Element& element) const {
 Fill SurfacePaint::resolve(const PaintContext& context) const {
   if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
     const auto value = motion::resolveProperty(*fill, std::nullopt);
-    return value.binding ? value.binding->value() : value.target;
+    // A fill written as the ink in force, or as a custom property, takes
+    // its colour from the node it is painted under.
+    return resolveRef(value.binding ? value.binding->value() : value.target,
+                      context);
   }
   return resolveFill(std::get<material::skia::Paint>(m_value), context);
 }

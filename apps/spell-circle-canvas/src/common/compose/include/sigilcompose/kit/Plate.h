@@ -4,7 +4,7 @@
  * SigilCompose kit — the plate several feeds usually sit on, and the style
  * set that colours their rows. Both are plain composition over the public
  * API: `plate` is a padded, bordered box with hairline dividers, `tinted` a
- * `sigil::weave::StyleSet` of one face and one size whose entries differ
+ * `sigil::weave::StyleSheet` of one face and one size whose entries differ
  * only in colour, which is the shape `feed::height` measures exactly. `console`
  * is `plate` over `feed::feed`, the verification plate every study prints its
  * checks into.
@@ -28,7 +28,7 @@
 
 namespace sigil::compose::kit {
 
-/** A style set of one face and one size whose entries differ only in
+/** A style sheet of one face and one size whose classes differ only in
  *  COLOUR — the shape `feed::height` measures exactly, and the usual shape
  *  for rows that are all one voice with levels marked in ink.
  *
@@ -36,15 +36,16 @@ namespace sigil::compose::kit {
  *  the levels are (one reads them as {dim, heading, pass, fail}, another as
  *  {trace, warn, alert}), so there is no fixed vocabulary in the library and
  *  a name is only what the caller's rows say. */
-[[nodiscard]] inline sigil::weave::StyleSet tinted(
+[[nodiscard]] inline sigil::weave::StyleSheet tinted(
     const sk_sp<SkTypeface>& face, float size, SkColor4f base,
     std::vector<std::pair<std::string, SkColor4f>> named) {
-  sigil::weave::StyleSet set(
+  sigil::weave::StyleSheet sheet(
       weave::textStyle({.face = face, .size = size, .color = base}));
+  // Each level is a CLASS over the base: the colour alone, the face and
+  // the size inherited from it.
   for (auto& [name, color] : named)
-    set.set(std::move(name),
-            weave::textStyle({.face = face, .size = size, .color = color}));
-  return set;
+    sheet.set(std::move(name), weave::Type{.color = color});
+  return sheet;
 }
 
 // ---------------------------------------------------------------------------

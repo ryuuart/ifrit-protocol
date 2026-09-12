@@ -71,7 +71,10 @@ struct PathFormat {
   enum class Align : uint8_t { Center, Inner, Outer };
 
   float width = 1.0f;
-  SurfacePaint strokeFill = Fill::color({1, 1, 1, 1});
+  /** THE INK IN FORCE UNLESS ONE IS NAMED — a stroke that says no colour
+   *  is painted in the colour the nearest `Element::ink` set, exactly as a
+   *  text leaf that names no style is set in it. */
+  SurfacePaint strokeFill = Fill::currentInk();
   Align align = Align::Center;
 
   /** Dash on/off intervals in px (empty → solid). */
@@ -181,6 +184,12 @@ inline PathFormat stroke(float width, SurfacePaint fill,
   f.strokeFill = std::move(fill);
   f.align = align;
   return f;
+}
+/** A solid stroke IN THE INK IN FORCE — no colour named, so the nearest
+ *  `Element::ink` paints it, and a recoloured ancestor recolours it. */
+inline PathFormat stroke(float width,
+                         PathFormat::Align align = PathFormat::Align::Center) {
+  return stroke(width, Fill::currentInk(), align);
 }
 
 /** A soft drop shadow behind the node's outline — a value DecorationScheme

@@ -152,7 +152,7 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
     const TextPath& spec = *node.textData->onPath;
     const SkPath baseline = spec.path({rect.width(), rect.height()});
     if (!baseline.isEmpty()) {
-      const TextMetrics band = metrics(node.textData->style, fonts);
+      const TextMetrics band = metrics(baseStyleOf(inst), fonts);
       const float reach =
           std::max(band.ascent, band.descent) + std::abs(spec.offset) + bleed;
       SkRect curve = baseline.getBounds();

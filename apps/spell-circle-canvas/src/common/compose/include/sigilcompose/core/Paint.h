@@ -20,9 +20,11 @@
 #include <include/core/SkSize.h>
 #include <include/core/SkTypes.h>
 #include <include/effects/SkGradient.h>
+#include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -47,6 +49,8 @@ class FontContext;
 
 namespace sigil::compose {
 
+class VarTable;
+
 namespace detail {
 struct ElementNode;
 }  // namespace detail
@@ -55,21 +59,54 @@ struct ElementNode;
 // Paint values
 
 /** A paint slot: nothing, a color, or anything Skia can shade (gradient
- *  helpers live in util, SkSL via SkRuntimeEffect works here). */
+ *  helpers live in util, SkSL via SkRuntimeEffect works here) — or a
+ *  REFERENCE to a colour the tree supplies where the fill is painted: the
+ *  ink in force, or a custom property. */
 struct Fill {
   enum class Kind : uint8_t { None, Color, Shader };
+  /** Where a colour fill READS its colour from when it was written as a
+   *  reference rather than a value. `None` is a value. */
+  enum class Ref : uint8_t { None, CurrentInk, Var };
 
   static Fill color(SkColor4f c) { return {Kind::Color, c, nullptr}; }
   static Fill shader(sk_sp<SkShader> s);
   static Fill none() { return {}; }
+  /** THE INK IN FORCE where the fill is painted — CSS's currentColor: the
+   *  colour the nearest `Element::ink` set, which is also the colour text
+   *  under it is set in. A mark that names no colour at all is already
+   *  painted in it; this is the spelling for a slot that demands a fill.
+   *  Until a paint context resolves it, it stands as the root's black, so
+   *  a consumer that reads the colour with no context in hand draws that
+   *  rather than nothing. */
+  static Fill currentInk() {
+    Fill f{Kind::Color, {0, 0, 0, 1}, nullptr};
+    f.ref = Ref::CurrentInk;
+    return f;
+  }
+  /** The colour the custom property @p reference names, as the nearest
+   *  ancestor's `Element::var` set it. A name nobody set, or one holding a
+   *  length, resolves to no fill and says so once. */
+  static Fill var(VarRef reference) {
+    Fill f{Kind::Color, {0, 0, 0, 0}, nullptr};
+    f.ref = Ref::Var;
+    f.varId = reference.id;
+    return f;
+  }
+  static Fill var(std::string_view name) { return var(compose::var(name)); }
 
   Kind kind = Kind::None;
   SkColor4f colorValue = {0, 0, 0, 0};
   sk_sp<SkShader> shaderValue;
+  Ref ref = Ref::None;
+  uint32_t varId = 0;
+
+  /** Whether the colour is a reference the paint context still has to
+   *  resolve — see `resolveRef`. */
+  [[nodiscard]] bool references() const { return ref != Ref::None; }
 
   bool operator==(const Fill& o) const {
     return kind == o.kind && colorValue == o.colorValue &&
-           shaderValue == o.shaderValue;
+           shaderValue == o.shaderValue && ref == o.ref && varId == o.varId;
   }
 };
 
@@ -194,9 +231,31 @@ struct PaintContext {
    *  becomes for a world-space material (a canvas-unit ramp spans the
    *  canvas). Empty outside a composer; resolve falls back to `size`. */
   SkSize rootSize = SkSize::MakeEmpty();
+
+  /** THE INK IN FORCE at this node — the colour the nearest
+   *  `Element::ink` set, which every mark that names no colour is painted
+   *  in and `Fill::currentInk()` resolves to. Black outside a composer,
+   *  which is the root's own default. */
+  SkColor4f ink = {0, 0, 0, 1};
+  /** THE FONT IN FORCE at this node, every field resolved — what a pen
+   *  program hosted here sets its text in, and what a guest tree painted
+   *  from it inherits. The initial values outside a composer. */
+  sigil::weave::Type font;
+  /** The custom properties in force here, or null outside a composer and
+   *  where no ancestor set one. */
+  const VarTable* vars = nullptr;
 };
 
 using PaintProgram = std::function<void(SkCanvas&, const PaintContext&)>;
+
+/** A fill written as a REFERENCE — the ink in force, or a custom property —
+ *  resolved against @p ctx into the colour it names; a fill written as a
+ *  value passes through unchanged. A property nobody set, or one that holds
+ *  a length, resolves to no fill, and the miss is reported once per name.
+ *  Every consumer that reads a `Fill` with a context in hand resolves it
+ *  through here first; one that reads the colour without a context sees the
+ *  root's black for the ink and nothing for a property. */
+[[nodiscard]] Fill resolveRef(const Fill& fill, const PaintContext& ctx);
 
 // ---------------------------------------------------------------------------
 // A paint as a node's fill — the adapter between SigilMaterial's Skia

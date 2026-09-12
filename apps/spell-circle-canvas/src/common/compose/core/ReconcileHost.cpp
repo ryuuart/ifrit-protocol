@@ -245,6 +245,7 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
         prev && prev->textData ? &*prev->textData : nullptr;
     const bool textChanged =
         !prevText || kindChanged || prevText->utf8 != text.utf8 ||
+        prevText->inherits != text.inherits ||
         !(prevText->style == text.style) || !(prevText->rich == text.rich) ||
         prevText->paragraphOverride != text.paragraphOverride ||
         !(prevText->options == text.options) ||

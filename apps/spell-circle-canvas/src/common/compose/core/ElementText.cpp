@@ -112,8 +112,8 @@ Element& Element::paragraphs(std::span<const std::string_view> names) {
   // The set is read HERE, inside the author's describe scope, exactly as a
   // named character run reads its own: the finished description then holds
   // real styles and depends on no scope that has since ended.
-  const sigil::weave::ParagraphStyleSet* set =
-      core::environment::inherited<sigil::weave::ParagraphStyleSet>();
+  const sigil::weave::ParagraphStyleSheet* set =
+      core::environment::inherited<sigil::weave::ParagraphStyleSheet>();
   std::vector<sigil::weave::ParagraphStyle> resolved;
   resolved.reserve(names.size());
   for (const std::string_view name : names) {

@@ -186,7 +186,7 @@ struct Line {
   /** How much body to cut under a terminal (dashes stop under heads). */
   float trimFor(Cap cap) const;
 
-  void applyFill(SkPaint& p) const;
+  void applyFill(SkPaint& p, const PaintContext& ctx) const;
 
   void drawCap(SkCanvas& canvas, const SkPaint& head, Cap cap, SkPoint pos,
                SkVector tan) const;

@@ -96,6 +96,18 @@ struct Composer::Impl {
   YGConfigRef yogaConfig = nullptr;
   bool needsLayout = true;
   bool contentDirty = true;
+  // ---- the cascade ----
+  // What the root inherits from — Composer::setInherited — every field
+  // engaged, its colour the root ink; and the face's line height at it,
+  // computed when it is first needed.
+  sigil::weave::Type rootFont = sigil::weave::initialType();
+  float rootLineHeight = 0.0f;
+  // Whether the resolved fonts, inks and properties on the instances may
+  // be stale: set by every reconcile that changed anything and by
+  // setInherited, and left set by a pass that found an ink transition
+  // running, so the next frame resolves again.
+  bool cascadeDirty = true;
+  bool inkAnimating = false;
   Reconciler::KeyIndex byKey;
   // Slots get their OWN index. They live in byKey too (so bounds() and
   // hitTest() still answer for a slot's name), but a slot's CONTENT may
@@ -382,6 +394,32 @@ struct Composer::Impl {
    *  every reconcile (Reconcile.cpp). */
   void rebuildKeyIndex();
   void applyLayoutProps(detail::Instance& inst);
+  /** @p length in pixels for @p inst: a pixel as it stands, a relative
+   *  unit against the font in force at the node, a custom property
+   *  looked up and resolved the same way. A percent answers itself and
+   *  is the caller's to hand Yoga as one; @p relative is raised when the
+   *  answer depended on the font or on a property. */
+  float resolveLength(const detail::Instance& inst, const Dimension& length,
+                      bool& relative) const;
+
+  // ---- the cascade (Cascade.cpp) ----
+  /** Resolves the font, the ink and the custom properties in force at
+   *  every node, top-down from the root's, and applies what changed: an
+   *  inheriting text leaf is re-materialised or repainted, a node with
+   *  relative lengths has its style rewritten, and everything whose
+   *  colour moved is marked to repaint. Runs before layout whenever
+   *  `cascadeDirty` says the answers may have moved. */
+  void runCascade();
+  void resolveCascade(detail::Instance& inst,
+                      const sigil::weave::Type& parentFont,
+                      float parentLineHeight,
+                      const std::shared_ptr<const VarTable>& parentVars);
+  /** An inheriting text leaf whose ink alone changed: the new colour set
+   *  on its inherited ranges in place, the restyles replayed over them,
+   *  and nothing re-shaped or re-broken. */
+  void refreshInheritedInk(detail::Instance& inst);
+  /** The face's own line height at @p font, px. */
+  float lineHeightAt(const sigil::weave::Type& font);
   /** Builds the instance's Paragraph from whichever content form its
    *  description carries — plain utf8, `weave::rich()` runs, or a copy of a
    *  supplied Paragraph — and then applies the span restyles in

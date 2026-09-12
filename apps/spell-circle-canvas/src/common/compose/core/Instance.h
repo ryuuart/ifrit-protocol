@@ -174,6 +174,40 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // for it. Read through textStateOf().
   std::unique_ptr<TextState> textState;
 
+  // ---- the cascade, resolved --------------------------------------------
+  // THE FONT IN FORCE at this node, every field engaged: the parent's,
+  // overlaid with what this node's description declares, with the ink
+  // transition this node may be running read in as the colour. Its colour
+  // IS the ink. Written by the cascade pass before layout; read by text
+  // materialisation, by the relative lengths and by the paint context.
+  sigil::weave::Type font;
+  // The face's own line height at `font`, px — what an `lh` length under
+  // this node resolves against.
+  float lineHeight = 0.0f;
+  // THE CUSTOM PROPERTIES IN FORCE: the parent's table shared when this
+  // node sets none, or a copy of it with this node's own written over.
+  std::shared_ptr<const VarTable> vars;
+  // Whether the pass has resolved this node at least once — before that,
+  // `font` and `vars` are whatever the constructor left and nothing may
+  // read them as the truth.
+  bool cascadeResolved = false;
+  // Whether any length this node's layout declares is relative — an em, a
+  // rem, an lh or a custom property — so a change in the font in force, or
+  // in the properties, rewrites its Yoga style. Written with the style.
+  bool relativeLengths = false;
+  // On a text leaf that inherits: the font the paragraph was last
+  // materialised in, compared against `font` to tell a change that
+  // re-shapes (any field but the colour) from one that repaints alone.
+  sigil::weave::Type textFont;
+  // …and the UTF-16 ranges whose colour is the ink in force, each with
+  // the partial the run was written with, so an ink-only change sets the
+  // paint on the paragraph in place and no line is broken again.
+  struct InkRange {
+    sigil::weave::CharRange range;
+    std::optional<sigil::weave::Type> over;
+  };
+  std::vector<InkRange> inheritedInkRanges;
+
   // Transition state, keyed by property slot
   // The FIXED property slots — one per property every node can carry, so the
   // count is a property of the KERNEL. Mask gates and fx() tracks are
@@ -204,10 +238,15 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     kTranslateZ,
     kScaleZ,
     kPerspective,
+    // The ink this node DECLARES easing from one colour to another under
+    // its transition; the cascade pass reads the ramp into the colour of
+    // `font` each frame, so everything under the node follows.
+    kInkLerp,
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
   Fill fillFrom, fillTo;  // endpoints for kFillLerp
+  SkColor4f inkFrom{0, 0, 0, 1}, inkTo{0, 0, 0, 1};  // endpoints for kInkLerp
 
   // Derive-phase state
   std::vector<Exclusion> exclusionsLocal;  // flowAround targets, text-local
@@ -731,6 +770,20 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
 inline TextState& textStateOf(Instance& inst) {
   if (!inst.textState) inst.textState = std::make_unique<TextState>();
   return *inst.textState;
+}
+
+/** THE STYLE A TEXT LEAF IS SET IN, as one total style: the font in force
+ *  for a leaf that inherits — the resolved one once the cascade pass has
+ *  run, the initial values before — and the description's own style
+ *  otherwise. What the strut, the metric band and the reach of a path run
+ *  are read from. */
+[[nodiscard]] inline sigil::weave::TextStyle baseStyleOf(const Instance& inst) {
+  const ElementNode& node = *inst.description;
+  if (node.textData && node.textData->inherits)
+    return sigil::weave::toTextStyle(inst.cascadeResolved
+                                         ? inst.font
+                                         : sigil::weave::initialType());
+  return node.textData ? node.textData->style : sigil::weave::TextStyle{};
 }
 
 inline bool childrenCarryYoga(const Instance& inst) {

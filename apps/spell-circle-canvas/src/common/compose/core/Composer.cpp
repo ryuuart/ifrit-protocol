@@ -35,8 +35,11 @@ using namespace detail;
 // blocks (ComposeInternal.h) that most nodes never carry, and only hot
 // fields sit inline. This assert is the gate: a field added to the base
 // struct instead of a block fails the build rather than quietly taxing
-// every node in every tree.
-static_assert(sizeof(ElementNode) <= 768,
+// every node in every tree. The cap stands where the hot fields put it:
+// the gap, the padding and the margin are lengths every kind carries,
+// and a length that may be measured in the font is twice the float it
+// replaced.
+static_assert(sizeof(ElementNode) <= 832,
               "ElementNode grew — put rare fields in a block");
 
 // ---------------------------------------------------------------------------
@@ -123,7 +126,13 @@ void Composer::render(const Element& root) {
   // A patch may have started or stopped a transition, so its volatility
   // must be recomputed. An identical retained description does not: keeping
   // this false lets active() poll a released external binding before draw.
-  if (impl.contentDirty || impl.needsLayout) impl.volatileDirty = true;
+  // The same change may have moved a font, an ink or a property that
+  // everything under the patched node inherits, so the cascade resolves
+  // again before the next layout.
+  if (impl.contentDirty || impl.needsLayout) {
+    impl.volatileDirty = true;
+    impl.cascadeDirty = true;
+  }
   impl.rebuildKeyIndex();
   impl.reconcileAccumMs += reconcile.elapsedMs();
 }
@@ -163,8 +172,23 @@ void Composer::renderSlot(std::string_view name, const Element& content) {
   // invalidates the slot either way.
   impl.reconciler.replaceContent(slotInst, content.node());
   impl.volatileDirty = true;
+  // The content inherits from where the slot stands, however it was
+  // described, so the pass resolves it under the slot's ancestors.
+  impl.cascadeDirty = true;
   impl.rebuildKeyIndex();
   impl.reconcileAccumMs += reconcile.elapsedMs();
+}
+
+void Composer::setInherited(const sigil::weave::Type& font, SkColor4f ink) {
+  Impl& impl = *m_impl;
+  sigil::weave::Type root =
+      sigil::weave::overlay(sigil::weave::initialType(), font);
+  root.color = ink;
+  if (root == impl.rootFont) return;
+  impl.rootFont = std::move(root);
+  impl.rootLineHeight = 0.0f;
+  impl.cascadeDirty = true;
+  impl.contentDirty = true;
 }
 
 bool Composer::dirty() const {
@@ -257,6 +281,9 @@ void Composer::draw(SkCanvas& canvas) {
 
   sigil::measure::Laps laps;
 
+  // The cascade before layout: an inheriting leaf must be set in its font
+  // before it is measured, and a length in ems before Yoga reads it.
+  if (impl.cascadeDirty) impl.runCascade();
   impl.ensureLayout();
   impl.stats.layoutMs = laps.mark("layout");
 

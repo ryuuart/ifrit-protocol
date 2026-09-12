@@ -158,6 +158,12 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // otherThanScalar` true BY CONSTRUCTION rather than by review.
   const bool fillLerp = inst.anims[Instance::kFillLerp] &&
                         inst.anims[Instance::kFillLerp]->value.isConnected();
+  // The kInkLerp row: an ink easing on this node moves the colour every
+  // text and mark under it is painted in, and the cascade pass repaints
+  // them each frame; the node itself declares the motion here so no
+  // ancestor caches across it.
+  const bool inkLerp = inst.anims[Instance::kInkLerp] &&
+                       inst.anims[Instance::kInkLerp]->value.isConnected();
   const bool boundFill = node.paint.fill && node.paint.fill->binding();
   const material::skia::Paint* nodeLiveMat = liveMaterialOf(node);
   // A fill material whose ONLY animation is its own bound tile pan is NOT
@@ -411,8 +417,9 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // exactly these two subtractions, which is why neither can forget a term.
   // (`boundFill` is inside `scalarDeclared`, so it reaches
   // `otherThanLiveMat` through the scalar term, exactly as a gate does.)
-  const bool otherThanScalar = sharedOpaque || liveMat || fillLerp;
-  const bool otherThanLiveMat = sharedOpaque || fillLerp || scalarDeclared;
+  const bool otherThanScalar = sharedOpaque || liveMat || fillLerp || inkLerp;
+  const bool otherThanLiveMat =
+      sharedOpaque || fillLerp || inkLerp || scalarDeclared;
   const bool ownContent = otherThanScalar || scalarContent;
 
   core::ChildVolatility kids;
@@ -557,6 +564,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // two are the same path.
   inst.effectOnly = liveLayerEffect && !sharedOpaqueBesideLayerEffect &&
                     !boundFill && !liveMat && !patternPan && !fillLerp &&
+                    !inkLerp &&
                     !scalarDeclared && !childrenVolatile &&
                     !verdict.subtreeReadsBackdrop && !node.hasMasks() &&
                     node.boundary == Boundary::Auto;

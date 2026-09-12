@@ -39,8 +39,9 @@ sigil_library(SigilComposeCore
     ElementMarks.cpp ElementTransform.cpp ElementText.cpp
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
     ElementNode.cpp Diagnostics.cpp CellFlow.cpp Grid.cpp
+    ElementCascade.cpp
     # the composer and its phases
-    Composer.cpp Measure.cpp Tiles.cpp
+    Composer.cpp Measure.cpp Tiles.cpp Cascade.cpp
     Reconcile.cpp ReconcileEquality.cpp MaterializeText.cpp
     LayoutProps.cpp ReconcileHost.cpp Layout.cpp LayoutText.cpp Rects.cpp
     Derive.cpp FlowAround.cpp Threads.cpp Routes.cpp
@@ -66,9 +67,10 @@ sigil_library(SigilComposeCore
     Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h
     PaintInternal.h PaintPass.h
     PaintProfile.h InstanceStamp.h
-  HEADERS ../Compose.h Composer.h Core.h Derive.h Element.h Factories.h
-          Feed.h Grid.h Instances.h Layout.h Mask.h Measure.h Paint.h Pattern.h
-          Shape.h Shelf.h Stroke.h SurfacePaint.h Table.h TextPainter.h Tiles.h
+  HEADERS ../Compose.h Cascade.h Composer.h Core.h Derive.h Element.h
+          Factories.h Feed.h Grid.h Instances.h Layout.h Mask.h Measure.h
+          Paint.h Pattern.h Shape.h Shelf.h Stroke.h SurfacePaint.h Table.h
+          TextPainter.h Tiles.h Var.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilCoreCache SigilCoreComparable SigilCoreCompute
          SigilCoreReconcile SigilGeometryPath SigilImage SigilMaterial
@@ -98,7 +100,7 @@ sigil_test(compose_test
           test/ComposeTestContentCore.cpp test/ComposeTestDepth.cpp
           test/ComposeTestInstances.cpp test/ComposeTestTether.cpp
           test/ComposeTestShelf.cpp test/ComposeTestTable.cpp
-          test/ComposeTestValues.cpp
+          test/ComposeTestValues.cpp test/ComposeTestCascade.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
             yoga::yogacore

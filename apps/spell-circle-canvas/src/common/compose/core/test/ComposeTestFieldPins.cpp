@@ -79,7 +79,7 @@ void perturb(SkBlendMode& v) { v = SkBlendMode::kMultiply; }
 
 void perturb(Corners& v) { v.topLeft += 1.0f; }
 
-void perturb(cd::LayoutProps& v) { v.gap += 1.0f; }
+void perturb(cd::LayoutProps& v) { v.gap = Dimension(v.gap.value + 1.0f); }
 
 void perturb(Shape& v) {
   v = Shape([](SkSize) { return SkPath(); });  // the raw-callable escape hatch
@@ -273,7 +273,7 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
       "nodeTransition", "backgrounds", "foregrounds",       "textData",
       "imageData",      "customData",  "deriveData",        "fxData",
       "materialData",   "strokeData",  "memoData",          "motionData",
-      "depthData",      "children"};
+      "depthData",      "cascadeData", "children"};
   static const bool kParticipates[] = {
       true,
       true,
@@ -301,6 +301,8 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
               // description
       true,
       true,
+      true,   // cascadeData — the font, the ink's property and the custom
+              // properties a node declares for everything under it
       false,  // children — reconciled by key, never compared
   };
   walkFields<cd::ElementNode>(cd::propertiesEqual, kNames, kParticipates);

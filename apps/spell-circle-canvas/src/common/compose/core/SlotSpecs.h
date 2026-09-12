@@ -185,6 +185,16 @@ inline constexpr SlotSpec kSlotSpecs[] = {
        return n.depthData ? &n.depthData->perspective : nullptr;
      },
      0.0f, nullptr},
+    // kInkLerp is the same kind of row as kFillLerp: a 0→1 progress the
+    // composer synthesizes for an ink easing from one colour to another
+    // under the node's transition. The description holds a colour in its
+    // cascade block and no float, so there is nothing for `of` to return;
+    // its call sites are hand-written beside the loops, each labelled
+    // "the kInkLerp row", and the cascade pass is the one reader of the
+    // colour it produces.
+    {Instance::kInkLerp, SlotRole::Bespoke, nullptr, 0.0f,
+     "a progress scalar over the declared ink's colour change — there is "
+     "no Animatable<float> in the description to point at"},
 };
 
 static_assert(std::size(kSlotSpecs) == (size_t)Instance::kSlots,

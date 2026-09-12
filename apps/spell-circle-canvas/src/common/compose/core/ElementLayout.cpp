@@ -26,37 +26,37 @@ Element& Element::wrapLines(bool on) {
   return *this;
 }
 
-Element& Element::gap(float px) {
-  m_node->layout.gap = px;
+Element& Element::gap(Dimension length) {
+  m_node->layout.gap = length;
   return *this;
 }
 
-Element& Element::padding(float all) {
+Element& Element::padding(Dimension all) {
   m_node->layout.padding = {all, all, all, all};
   return *this;
 }
 
-Element& Element::padding(float h, float v) {
+Element& Element::padding(Dimension h, Dimension v) {
   m_node->layout.padding = {h, v, h, v};
   return *this;
 }
 
-Element& Element::padding(float l, float t, float r, float b) {
+Element& Element::padding(Dimension l, Dimension t, Dimension r, Dimension b) {
   m_node->layout.padding = {l, t, r, b};
   return *this;
 }
 
-Element& Element::margin(float all) {
+Element& Element::margin(Dimension all) {
   m_node->layout.margin = {all, all, all, all};
   return *this;
 }
 
-Element& Element::margin(float h, float v) {
+Element& Element::margin(Dimension h, Dimension v) {
   m_node->layout.margin = {h, v, h, v};
   return *this;
 }
 
-Element& Element::margin(float l, float t, float r, float b) {
+Element& Element::margin(Dimension l, Dimension t, Dimension r, Dimension b) {
   m_node->layout.margin = {l, t, r, b};
   return *this;
 }

@@ -23,6 +23,7 @@
 
 #include "ComposeCompare.h"
 #include "sigilcompose/Compose.h"
+#include "sigilcompose/core/Cascade.h"
 // The text leaf's description is spelled in the typography vocabulary —
 // its tracks, its runs, its readings, its restyles' selectors, its
 // baseline path — which the kernel stores, compares and lays out without
@@ -34,12 +35,8 @@ namespace sigil::compose::detail {
 
 enum class Kind : uint8_t { Box, Stack, Text, Image, Custom, Slot };
 
-struct EdgeValues {
-  float left = 0, top = 0, right = 0, bottom = 0;
-  bool operator==(const EdgeValues&) const = default;
-};
-
-/** Per-edge Dims for absolute insets: Auto = that side is unpinned. */
+/** Per-edge Dims: for absolute insets Auto is a side left unpinned; for
+ *  padding and margin every side is a length, zero by default. */
 struct EdgeDims {
   Dimension left, top, right, bottom;
   bool operator==(const EdgeDims&) const = default;
@@ -48,8 +45,8 @@ struct EdgeDims {
 struct LayoutProps {
   bool row = false;
   bool wrap = false;
-  float gap = 0;
-  EdgeValues padding, margin;
+  Dimension gap = 0.0f;
+  EdgeDims padding{0.0f, 0.0f, 0.0f, 0.0f}, margin{0.0f, 0.0f, 0.0f, 0.0f};
   Dimension width, height, minWidth, maxWidth, minHeight, maxHeight, basis;
   float aspect = 0;
   float grow = 0, shrink = 1;
@@ -251,6 +248,12 @@ struct TextData {
   Fill textStrokeFill;
   std::u8string utf8;
   sigil::weave::TextStyle style;
+  // text(utf8) and text(rich()) with no base: the leaf is set in the font
+  // and ink IN FORCE where it stands in the tree, resolved by the cascade
+  // pass and materialised from the instance's resolved font rather than
+  // from `style`, which such a leaf never reads. A run of an inheriting
+  // rich text keeps its own style only where it was written whole.
+  bool inherits = false;
   // text(weave::RichText): several runs, several styles, one comparable value.
   // Empty on every other content form.
   sigil::weave::RichText rich;
@@ -524,6 +527,23 @@ struct DepthData {
   Backface backface = Backface::Visible;
 };
 
+/** THE CASCADE A NODE DECLARES — Element::font, Element::ink and
+ *  Element::var: the partial font everything under it inherits (its colour
+ *  is the ink), the ink as a custom-property reference where it was written
+ *  as one, and the custom properties the node sets. A block rather than
+ *  inline fields because a node that says nothing about any of them, which
+ *  is most of a tree, pays one null pointer. What a node RESOLVES to lives
+ *  on the instance (Instance::font, Instance::vars), written by the cascade
+ *  pass from the parent's resolved values and this block. */
+struct CascadeData {
+  std::optional<sigil::weave::Type> font;
+  /** ink(var(...)): the property the ink reads. Exclusive with a colour in
+   *  `font->color` — whichever was written last stands. */
+  std::optional<VarRef> inkVar;
+  VarTable vars;
+  bool operator==(const CascadeData&) const = default;
+};
+
 /** The memo shell's payload: SigilCore's Memo, producing an Element. The
  *  reconciler compares its captured `environment` and then its properties
  * against the memo the node was last described from, and runs `invoke` under
@@ -581,6 +601,9 @@ struct ElementNode {
   // The depth lanes (see DepthData): a plane that never turns carries
   // none, for the same reason travel() is a block.
   Box<DepthData> depthData;
+  // The cascade this node declares (see CascadeData): a node that inherits
+  // everything and sets nothing carries none.
+  Box<CascadeData> cascadeData;
 
   std::vector<Element> children;
 
@@ -612,6 +635,16 @@ void warnWritingModeOnPath();
  *  A block set in a default nobody asked for is the silent no-op this
  *  library refuses to ship. */
 void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope);
+
+/** The once-per-name diagnostic behind `Element::styleClass` naming a
+ *  class no `weave::StyleSheet` in scope carries — nothing is set, and a
+ *  leaf that looks unstyled must not look like a class that took. */
+void warnNoSuchClass(std::string_view name, bool anySheetInScope);
+
+/** The once-per-name diagnostic behind a custom property read where no
+ *  ancestor set it, or set to the other kind of value: `Fill::var` and
+ *  `ink(var(...))` want a colour, a `Dimension` wants a length. */
+void warnNoSuchVar(VarRef reference, bool wantColour);
 
 /** Does this selector reach for a LINE, and therefore need a layout to
  *  resolve against? The question the second layout pass is gated on. */

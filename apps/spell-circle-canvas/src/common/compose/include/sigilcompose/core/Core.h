@@ -7,6 +7,7 @@
  * included by name.
  */
 
+#include "sigilcompose/core/Cascade.h"
 #include "sigilcompose/core/Composer.h"
 #include "sigilcompose/core/Derive.h"
 #include "sigilcompose/core/Element.h"
@@ -23,3 +24,4 @@
 #include "sigilcompose/core/Table.h"
 #include "sigilcompose/core/TextPainter.h"
 #include "sigilcompose/core/Tiles.h"
+#include "sigilcompose/core/Var.h"

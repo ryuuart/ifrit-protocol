@@ -555,7 +555,7 @@ TEST(ComposeDecorations, ABrushThatBlendsRefusesItsNodeTheBake) {
   const auto page = [] {
     LayeredBrush glow;
     glow.layers.push_back({.width = 6,
-                           .color = {0.9f, 0.7f, 0.3f, 1},
+                           .color = SkColor4f{0.9f, 0.7f, 0.3f, 1},
                            .blurSigma = 2,
                            .blend = SkBlendMode::kPlus});
     return box()

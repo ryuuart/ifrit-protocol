@@ -84,7 +84,7 @@ element; a pattern that does not compile selects nothing and warns once.
 `selectors::style` is the odd one out and addresses the TREATMENT rather than a
 position: every run a `weave::rich()` value added under a style name
 (`weave::RichText::add` with a name resolved through a
-`sigil::weave::StyleSet`).
+`sigil::weave::StyleSheet`).
 
 ```cpp
 text(weave::rich(base).styles(set)
@@ -730,14 +730,21 @@ content does not declare draws nothing and says so once; a slot the geometry
 could not place is silent, like every other word that did not fit.
 
 `weave::RichText::add` takes a run in the base style, a run in its own
-`sigil::weave::TextStyle`, or a run under a NAME resolved through a
-`sigil::weave::StyleSet` — supplied by `weave::RichText::styles` or
-inherited through `core::environment::Provide`. An explicit set beats the inherited
-one whichever order the two are written in, and a name the set does not
-register resolves to the base `weave::rich()` was given, so a misspelling
-shows as content set in the default rather than as content that did not
-draw. `weave::RichText::runs` and `weave::RichText::base` read the finished
-value back.
+whole `sigil::weave::TextStyle`, a run in a PARTIAL `sigil::weave::Type`
+that overrides the base field by field, or a run under a NAME — a class
+— resolved through a `sigil::weave::StyleSheet` supplied by
+`weave::RichText::styles` or inherited through `core::environment::Provide`.
+An explicit sheet beats the inherited one whichever order the two are
+written in, and a name the sheet does not register resolves to the base
+`weave::rich()` was given, so a misspelling shows as content set in the
+default rather than as content that did not draw. A rich text started
+with NO base, `weave::rich()`, is an inheriting passage: it is set in the
+font and ink in force where the leaf lands in the tree, a run added with
+a partial keeps the inherited face and size in every field it does not
+name, and only a run added with a whole style keeps the style it was
+written with — the same rule `text(utf8)` follows for a plain leaf, in
+the README's cascade chapter. `weave::RichText::runs` and
+`weave::RichText::base` read the finished value back.
 
 **It is a comparable value, and that is the point.** Two rich texts with
 the same base and the same runs in the same styles are equal, so a
@@ -886,7 +893,7 @@ SigilWeave's README is the canon for what each one means. A block past the
 end of the list is set by the leaf's own settings alone, so ONE entry
 styles the first block and leaves the rest plain. `Element::paragraph`
 sets every block alike, and `Element::paragraphs` also takes NAMES,
-resolved through the `sigil::weave::ParagraphStyleSet` the environment
+resolved through the `sigil::weave::ParagraphStyleSheet` the environment
 offers — the same discipline `weave::rich().add(text, name)` follows for
 character styles. A name no set in scope carries WARNS ONCE and the block
 is set in the set's base entry, because a block quietly set in a default

@@ -102,6 +102,11 @@ void collectGroupScalars(const Instance& inst, bool root,
   if (inst.anims[Instance::kFillLerp] &&
       inst.anims[Instance::kFillLerp]->value.isConnected())
     out.push_back(inst.anims[Instance::kFillLerp]->value.value());
+  // The kInkLerp row, the same way: the progress of an ink easing on this
+  // node, which every text and mark under it repaints with.
+  if (inst.anims[Instance::kInkLerp] &&
+      inst.anims[Instance::kInkLerp]->value.isConnected())
+    out.push_back(inst.anims[Instance::kInkLerp]->value.value());
   for (const auto& child : inst.children)
     collectGroupScalars(*child, false, out);
 }

@@ -98,9 +98,9 @@ void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope) {
   if (!seen.insert(std::string(name)).second) return;
   SkDebugf(
       "compose: paragraphs(\"%.*s\") — %s, so this block is set in a plain "
-      "default. Register it with ParagraphStyleSet::set() and provide the "
+      "default. Register it with ParagraphStyleSheet::set() and provide the "
       "set above this element "
-      "(environment::Provide<weave::ParagraphStyleSet>), or "
+      "(environment::Provide<weave::ParagraphStyleSheet>), or "
       "pass the style itself.\n",
       (int)name.size(), name.data(),
       anySetInScope ? "the paragraph style set in scope carries no such name"

@@ -11,8 +11,11 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
+#include <sigilcompose/core/Var.h>
 #include <sigilcore/cache/Policy.h>
+#include <sigilweave/style/Length.h>
 
+#include <bit>
 #include <concepts>
 #include <cstdint>
 #include <string>
@@ -24,17 +27,47 @@ namespace sigil::compose {
 // ---------------------------------------------------------------------------
 // Layout values (Yoga semantics, 1:1)
 
-/** A length that may be absolute, relative to the parent, or left for
- *  layout to decide. Constructing one from a bare float gives pixels,
- *  so the common case reads as a number. */
+/** A length that may be absolute, relative to the parent, relative to the
+ *  font in force, read from a custom property, or left for layout to
+ *  decide. Constructing one from a bare float gives pixels, so the common
+ *  case reads as a number.
+ *
+ *  THE RELATIVE UNITS ARE THE FONT'S. `em` is the node's own resolved font
+ *  size, `rem` the root's, `lh` the node's own line height — SigilWeave's
+ *  `Length`, spelled with its `_em`, `_rem` and `_lh` literals, converts
+ *  here — so a padding written in ems follows the type it surrounds, and a
+ *  change to an ancestor's font relays out everything measured in it. A
+ *  `var(...)` reads the length the nearest ancestor set under that name
+ *  and resolves it where it is read. */
 struct Dimension {
-  enum class Unit : uint8_t { Px, Pct, Auto };
+  enum class Unit : uint8_t { Px, Pct, Auto, Em, Rem, Lh, Var };
   Unit unit = Unit::Auto;
+  /** The length, or under `Var` the reference id, bit-cast into the float
+   *  and never read as one. */
   float value = 0.0f;
 
   constexpr Dimension() = default;
   constexpr Dimension(float px)  // NOLINT: implicit by design
       : unit(Unit::Px), value(px) {}
+  constexpr Dimension(sigil::weave::Length length)  // NOLINT: implicit
+      : unit(length.unit == sigil::weave::Length::Unit::Em    ? Unit::Em
+             : length.unit == sigil::weave::Length::Unit::Rem ? Unit::Rem
+             : length.unit == sigil::weave::Length::Unit::Lh  ? Unit::Lh
+                                                              : Unit::Px),
+        value(length.value) {}
+  constexpr Dimension(VarRef reference)  // NOLINT: implicit
+      : unit(Unit::Var), value(std::bit_cast<float>(reference.id)) {}
+
+  /** Whether resolving this length needs the font in force or a custom
+   *  property — everything but a pixel, a percent and auto. */
+  [[nodiscard]] constexpr bool relative() const {
+    return unit == Unit::Em || unit == Unit::Rem || unit == Unit::Lh ||
+           unit == Unit::Var;
+  }
+  /** The custom property a `Var` length reads; meaningless otherwise. */
+  [[nodiscard]] constexpr VarRef reference() const {
+    return {std::bit_cast<uint32_t>(value)};
+  }
   bool operator==(const Dimension&) const = default;
 };
 constexpr Dimension pct(float v) {
