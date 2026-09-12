@@ -238,20 +238,17 @@ inline sigil::material::Material tube() {
   });
 }
 
-inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& face, float size,
-                                    SkColor4f color, float scaleX = 1.0f,
-                                    float tracking = 0.0f) {
-  return sigil::weave::textStyle({.face = face,
-                                  .size = size,
-                                  .color = color,
-                                  .track = tracking,
-                                  .condense = scaleX});
-}
-
-/** The Japanese display register used where Matisse EB is unavailable. */
+/** The Japanese display register used where Matisse EB is unavailable. A
+ *  WHOLE style rather than a partial for the cascade: a stand-in below
+ *  extra-bold is thickened with a stroke on its paint, which a partial
+ *  cannot state. */
 inline sigil::weave::TextStyle minchoDisplay(float size, SkColor4f color,
                                              float scaleX = 1.30f) {
-  sigil::weave::TextStyle style = type(minchoHeavy(), size, color, scaleX);
+  sigil::weave::TextStyle style =
+      sigil::weave::textStyle({.face = minchoHeavy(),
+                               .size = size,
+                               .color = color,
+                               .condense = scaleX});
   if (style.shaping.typeface && style.shaping.typeface->fontStyle().weight() <
                                     SkFontStyle::kExtraBold_Weight) {
     style.paint.foreground.setStyle(SkPaint::kStrokeAndFill_Style);

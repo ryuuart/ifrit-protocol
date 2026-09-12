@@ -43,26 +43,27 @@ struct EvaMagiDeliberation : sketch::Sketch {
   evangelion::MagiVoteLayout layout;
   weave::FontContext* fonts = nullptr;
 
-  weave::TextStyle fit(const sk_sp<SkTypeface>& face, const std::u8string& run,
-                       float capHeight, float maxWidth, SkColor4f color,
-                       float tracking = 0.0f) const {
+  /** A Latin run solved to a cap height and a measure, as a PARTIAL (face,
+   *  size, condensation) set in the ink where it lands; probes are it whole. */
+  weave::Type fit(const sk_sp<SkTypeface>& face, const std::u8string& run,
+                  float capHeight, float maxWidth) const {
     float size = capHeight * 1.4f;
     if (fonts) {
       const TextMetrics probe =
-          metrics(evangelion::type(face, 100.0f, color), *fonts);
+          metrics(weave::textStyle({.face = face, .size = 100.0f}), *fonts);
       if (probe.capHeight > 1.0f) size = 100.0f * capHeight / probe.capHeight;
     }
-    weave::TextStyle style =
-        evangelion::type(face, size, color, 1.0f, tracking);
+    weave::Type style{.face = face, .size = size};
     if (fonts && maxWidth > 1.0f) {
-      const SkSize measured =
-          sigil::compose::intrinsicSize(text(run, style), *fonts);
+      const SkSize measured = sigil::compose::intrinsicSize(
+          text(run, weave::textStyle(style)), *fonts);
       if (measured.width() > maxWidth && measured.width() > 1.0f)
-        style.shaping.scaleX = maxWidth / measured.width();
+        style.condense = maxWidth / measured.width();
     }
     return style;
   }
 
+  /** A Han run stays a whole style: the Mincho stand-in strokes its paint. */
   weave::TextStyle han(const std::u8string& run, float capHeight,
                        float maxWidth, SkColor4f color) const {
     weave::TextStyle style =
@@ -129,20 +130,25 @@ struct EvaMagiDeliberation : sketch::Sketch {
         .rotate(layout.rotationFor(number))
         .transformOrigin(0.5f, 0.5f)
         .fill(mskia::Paint::solid(kMint))
+        .ink(kInk)
         .clip(true)
         .style(decorations::doubleBorder(
             decorations::border(6.0f, Fill::color(kOrange), 0.0f),
             decorations::border(3.0f, Fill::color(kInk), 9.0f)))
-        .child(text(numeral, fit(evangelion::voteNumeral(number), numeral,
-                                 88.0f, side - 48.0f, kInk))
+        .child(text(numeral)
+                   .font(fit(evangelion::voteNumeral(number), numeral, 88.0f,
+                             side - 48.0f))
                    .centerAt({side * 0.5f, side * layout.numberSlotY(number)}))
-        .child(text(label, fit(evangelion::moduleLabel(), label, 31.0f,
-                               side - 48.0f, kInk))
+        .child(text(label)
+                   .font(fit(evangelion::moduleLabel(), label, 31.0f,
+                             side - 48.0f))
                    .centerAt({side * 0.5f, side * layout.nameSlotY(number)}));
   }
 
+  /** The layer's Latin is orange, stated once; the whole-style Han names its
+   * own. */
   Element information() const {
-    Element group = box().inset(0);
+    Element group = box().inset(0).ink(kOrange);
     group.child(rules(145.0f, 106.0f, 375.0f));
     group.child(rules(145.0f, 241.0f, 375.0f));
     group.child(rules(920.0f, 106.0f, 375.0f));
@@ -153,25 +159,27 @@ struct EvaMagiDeliberation : sketch::Sketch {
     group.child(text(u8"決議", han(u8"決議", 83.0f, 300.0f, kOrange))
                     .centerAt({1107.5f, 184.0f}));
 
-    group.child(
-        text(u8"CODE : 132", fit(evangelion::condensedBold(), u8"CODE : 132",
-                                 45.0f, 270.0f, kOrange))
-            .left(151.0f)
-            .top(275.0f));
+    group.child(text(u8"CODE : 132")
+                    .font(fit(evangelion::condensedBold(), u8"CODE : 132",
+                              45.0f, 270.0f))
+                    .left(151.0f)
+                    .top(275.0f));
 
     static const char* kData[] = {"FILE:MAGI_SYS", "EXTENTION:2048",
                                   "EX_MODE:ON", "PRIORITY:A__"};
     for (int line = 0; line < 4; ++line) {
       const std::u8string run = toUtf8(kData[line]);
-      group.child(text(run, fit(evangelion::condensedBold(), run, 22.0f, 286.0f,
-                                kOrange))
-                      .left(151.0f)
-                      .top(334.0f + (float)line * 32.0f));
+      group.child(
+          text(run)
+              .font(fit(evangelion::condensedBold(), run, 22.0f, 286.0f))
+              .left(151.0f)
+              .top(334.0f + (float)line * 32.0f));
     }
 
-    group.child(text(u8"MAGI", fit(evangelion::magiWordmark(), u8"MAGI", 54.0f,
-                                   230.0f, kOrange))
-                    .centerAt({720.0f, 535.0f}));
+    group.child(
+        text(u8"MAGI")
+            .font(fit(evangelion::magiWordmark(), u8"MAGI", 54.0f, 230.0f))
+            .centerAt({720.0f, 535.0f}));
 
     group.child(
         box()
