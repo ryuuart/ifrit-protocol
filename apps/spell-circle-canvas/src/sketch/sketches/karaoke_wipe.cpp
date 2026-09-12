@@ -267,12 +267,11 @@ struct KaraokeWipe : sketch::Sketch {
     return strip;
   }
 
+  /** The sheet's type is stated once at its root — the face, the label size
+   *  and tracking, the label colour as the ink — and every caption inherits
+   *  it, restating only what it changes. The lyric line alone is a whole
+   *  style, because its keyline is an underlay on its paint. */
   [[nodiscard]] Element describe() const {
-    const sigil::weave::TextStyle small = weave::textStyle(
-        {.face = face, .size = 11.5f, .color = kLabel, .track = 2.4f});
-    const sigil::weave::TextStyle note = weave::textStyle(
-        {.face = face, .size = 11.5f, .color = kFaint, .track = 0.5f});
-
     Element stage =
         box()
             .column()
@@ -299,13 +298,12 @@ struct KaraokeWipe : sketch::Sketch {
                                   .translateY(&ballY)))
             .child(lyricLine())
             .child(ruler().margin(0, 12, 0, 0))
-            .child(text(toUtf8(kLine2),
-                        weave::textStyle({.face = face,
-                                          .size = kLyricSize * 0.78f,
-                                          .color = kNext,
-                                          .track = kTrack,
-                                          .aliased = kAliased,
-                                          .antiAlias = false}))
+            .child(text(toUtf8(kLine2))
+                       .font({.size = kLyricSize * 0.78f,
+                              .color = kNext,
+                              .track = kTrack,
+                              .aliased = kAliased,
+                              .antiAlias = false})
                        .key("line2")
                        .margin(0, 22, 0, 0));
 
@@ -315,16 +313,14 @@ struct KaraokeWipe : sketch::Sketch {
         .gap(26)
         .fill(linearGradient({0, 0}, {0, kH}, {kStage, kBand, kStage},
                              {0.0f, 0.5f, 1.0f}))
-        .child(
-            box()
-                .row()
-                .alignItems(Align::End)
-                .child(text(toUtf8("FOLLOW THE BOUNCING BALL"), small).grow(1))
-                .child(text(toUtf8("FLEISCHER 1924 \xc2\xb7 CD+G 1985"),
-                            weave::textStyle({.face = face,
-                                              .size = 11.5f,
-                                              .color = kNext,
-                                              .track = 2.4f}))))
+        .font({.face = face, .size = 11.5f, .track = 2.4f})
+        .ink(kLabel)
+        .child(box()
+                   .row()
+                   .alignItems(Align::End)
+                   .child(text(toUtf8("FOLLOW THE BOUNCING BALL")).grow(1))
+                   .child(text(toUtf8("FLEISCHER 1924 \xc2\xb7 CD+G 1985"))
+                              .ink(kNext)))
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(box().grow(1))
         .child(box().alignItems(Align::Center).child(std::move(stage)))
@@ -337,8 +333,9 @@ struct KaraokeWipe : sketch::Sketch {
                            std::to_string(wordCues().size()) + " SUNG TIMES, " +
                            std::to_string((int)kEachMs) +
                            " MS PER LETTER INSIDE A WORD, " +
-                           std::to_string((int)kSwitchMs) + " MS TO CHANGE"),
-                    note));
+                           std::to_string((int)kSwitchMs) + " MS TO CHANGE"))
+                   .font({.track = 0.5f})
+                   .ink(kFaint));
   }
 
   void setup(sketch::SketchContext& ctx) override {
