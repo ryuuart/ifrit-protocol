@@ -38,6 +38,19 @@ TEST(Graphics, DrawnOnceAndPutDownWhereTheFrameSaysInCanvasUnits) {
   EXPECT_EQ(paper.inked(), SkIRect::MakeXYWH(10, 10, 20, 20));
 }
 
+TEST(Graphics, FormedNoCoarserThanItsDensityFloor) {
+  Paper paper;
+  Graphics buffer{20, 20};
+  buffer.setDensityFloor(2.0f);
+  paper.begin();
+  Pen& g = buffer.begin(paper.pen);
+  EXPECT_FLOAT_EQ(g.contentScale(), 2.0f) << "the buffer's pen says so";
+  buffer.end();
+  paper.end();
+  EXPECT_EQ(buffer.extent(), SkISize::Make(40, 40))
+      << "twice the host's density, which is one";
+}
+
 TEST(Graphics, KeepsItsPixelsAndItsStyleBetweenFrames) {
   Paper paper;
   Graphics buffer{20, 20};

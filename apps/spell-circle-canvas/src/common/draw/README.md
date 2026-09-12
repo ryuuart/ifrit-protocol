@@ -306,7 +306,8 @@ beside the verbs, never a renamed one.
   whoever declares it, because it lives across frames. `buffer.begin(pen)`
   opens a frame on it and hands back its pen, `buffer.end()` closes it,
   `pen.image(buffer, x, y)` puts it down and `buffer.image()` is what it
-  holds as an `SkImage`. It is formed at the host pen's own density,
+  holds as an `SkImage`. It is formed at the host pen's own density or
+  the floor `buffer.setDensityFloor(px)` names, whichever is greater,
   through the host's canvas so it lives where the host draws, and placed
   by its CANVAS size rather than its pixel count; its clock and fonts
   are the host's, and its style and its pixels hold between frames as a
@@ -511,7 +512,8 @@ nearest-neighbour, a `fill` between two vertices colouring the corners
 either side of it — and this library's own: a material as a fill, a
 silhouette as a shape, a guest retained per call site, the canvas
 carrying the pen's transform, an offscreen buffer formed at the host's
-density and put down in canvas units and keeping what it held across a
+density or a declared floor and put down in canvas units and keeping
+what it held across a
 resize, a pen beginning in an inherited ink and font and dropping both
 for whatever the program set itself, a unit-space material ramping
 across the frame under `CANVAS` and across each box under `SHAPE`, a

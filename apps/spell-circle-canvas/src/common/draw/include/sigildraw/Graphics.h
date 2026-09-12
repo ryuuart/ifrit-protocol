@@ -59,8 +59,8 @@ class Graphics {
   Graphics& operator=(const Graphics&) = delete;
 
   /** Opens a frame on the buffer and hands back its pen. The buffer is
-   *  formed here on first use, transparent, and the host pen's clock
-   *  and fonts are read onto it. */
+   *  formed here on first use, transparent, and the host pen's clock,
+   *  fonts, pointer and keys are read onto it. */
   Pen& begin(Pen& host);
   /** Closes it. The pen's style survives; the pixels stand. */
   void end();
@@ -71,6 +71,13 @@ class Graphics {
    *  `begin` with what this one holds drawn into it, scaled to the new
    *  extent. The same size again does nothing. */
   void resize(float width, float height);
+  /** A FLOOR ON THE DENSITY the buffer is formed at, in device pixels per
+   *  canvas unit. The buffer is formed at the host's own density or this,
+   *  whichever is greater, so a picture a host means to photograph finer
+   *  than it steps it is drawn finer from its first frame rather than
+   *  magnified at the still. Zero, the default, is the host's density
+   *  alone. A change takes effect at the next `begin`, pixels kept. */
+  void setDensityFloor(float devicePixelsPerUnit);
 
   /** What has been drawn on it, as an image — what `pen.image` takes,
    *  and what a material takes as a shader's source. Null before the
@@ -95,6 +102,7 @@ class Graphics {
   float m_width;
   float m_height;
   float m_scale = 1.0f;
+  float m_densityFloor = 0.0f;
   bool m_open = false;
 };
 

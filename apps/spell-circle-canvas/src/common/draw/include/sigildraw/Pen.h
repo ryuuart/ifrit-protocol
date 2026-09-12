@@ -162,6 +162,8 @@ class Pen {
   void loop() { m_looping = true; }
   void redraw() { m_redraw = true; }
   [[nodiscard]] bool keyIsDown(int code) const;
+  /** Every key code held this frame — what `keyIsDown` answers over. */
+  [[nodiscard]] std::span<const int> keysDown() const { return m_keysDown; }
 
   // ---- colour --------------------------------------------------------------
   void colorMode(Constant mode);

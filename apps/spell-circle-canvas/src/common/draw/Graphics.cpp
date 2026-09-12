@@ -15,8 +15,12 @@ namespace sigil::draw {
 Graphics::Graphics(float width, float height)
     : m_width(std::max(1.0f, width)), m_height(std::max(1.0f, height)) {}
 
+void Graphics::setDensityFloor(float devicePixelsPerUnit) {
+  m_densityFloor = std::max(0.0f, devicePixelsPerUnit);
+}
+
 void Graphics::form(Pen& host) {
-  const float density = host.contentScale();
+  const float density = std::max(host.contentScale(), m_densityFloor);
   const SkISize extent{std::max(1, (int)std::lround(m_width * density)),
                        std::max(1, (int)std::lround(m_height * density))};
   if (m_surface && m_extent == extent) {
@@ -75,6 +79,16 @@ Pen& Graphics::begin(Pen& host) {
   frame.deltaSeconds = host.deltaTime / 1000.0;
   frame.frameCount = host.frameCount;
   frame.fonts = host.fonts();
+  // The host's input as well as its clock: a program on the buffer reads
+  // the pointer and the keys in the buffer's own units, which are the
+  // host's canvas units where it is put down at the origin.
+  frame.mouseX = host.mouseX;
+  frame.mouseY = host.mouseY;
+  frame.mouseIsPressed = host.mouseIsPressed;
+  frame.keyIsPressed = host.keyIsPressed;
+  frame.key = host.key;
+  frame.keyCode = host.keyCode;
+  frame.keysDown = host.keysDown();
   pen.begin(*canvas, frame);
   m_open = true;
   return pen;
