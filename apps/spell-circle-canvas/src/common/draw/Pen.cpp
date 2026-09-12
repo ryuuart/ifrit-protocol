@@ -34,6 +34,7 @@ using detail::joinOf;
 using detail::kDefaultSeed;
 using detail::resolve;
 using detail::setBlend;
+using detail::sizePx;
 
 Pen::Pen() : m_random(kDefaultSeed) { applyStyle(); }
 
@@ -95,6 +96,33 @@ double Pen::frameRate() const {
 bool Pen::keyIsDown(int code) const {
   return std::find(m_keysDown.begin(), m_keysDown.end(), code) !=
          m_keysDown.end();
+}
+
+void Pen::inherit(SkColor4f ink, const weave::Type& font) {
+  m_inheritedInk = ink;
+  m_inheritedFont = font;
+  // WHAT THE PROGRAM HAS NOT SET, AND NOTHING ELSE. The flags `fill`,
+  // `stroke` and the text verbs raise are what says so, and the style
+  // fields are written here rather than the verbs called, because `fill()`
+  // would raise the flag itself and put back a `noFill()` the program
+  // asked for — the seed must not become a choice.
+  if (!m_style.fillSet) {
+    m_style.fill = material::skia::Paint::solid(ink);
+    m_style.fillFitted = false;
+    resolveFill();
+  }
+  if (!m_style.strokeSet) {
+    m_style.stroke = material::skia::Paint::solid(ink);
+    m_style.strokeFitted = false;
+    resolveStroke();
+  }
+  if (!m_style.typeSet) {
+    m_style.type = font;
+    // The leading comes with the type, on the same five-quarters rule
+    // `textFont` and `textSize` seat it by: a size arrives without one,
+    // and a block of inherited text has to open at the inherited size.
+    m_style.leading = sizePx(font) * 1.25f;
+  }
 }
 
 // ---- the style --------------------------------------------------------------

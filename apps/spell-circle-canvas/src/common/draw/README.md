@@ -272,6 +272,22 @@ beside the verbs, never a renamed one.
   antialiasing and its dash ride these paints, so under `noFill()` there
   is nowhere to read them from either: take them off the stroke, or set a
   fill.
+* **The pen can be told what it inherits.** `inherit(ink, font)` is what a
+  host calls after `begin` each frame, and it seeds ONLY THE STYLE THE
+  PROGRAM HAS NOT SET: the fill and the stroke take the ink until a `fill`
+  or a `stroke` is called, and the text type takes the `weave::Type` until
+  a `textFont`, a `textSize` or a `textStyle` is. After that the program's
+  own choice holds from frame to frame the way every other p5 style does,
+  and the inherited pair stops reaching it. Nothing else is touched, so a
+  `noFill()` still means no fill whatever the ink is, and the inherited
+  size seats the leading on the same five-quarters rule `textSize` does.
+  The pair is remembered — `inheritedInk()` and `inheritedFont()`, black
+  and `weave::initialType()` on a pen that was never told one — so
+  whatever else a frame seeds reads it off the pen rather than keeping a
+  copy of its own. **A pen nobody calls this on keeps p5's own defaults**:
+  a white fill, a black stroke, text at twelve pixels. What has such a
+  pair to hand over is a host with a cascade — a declarative tree where
+  every node carries a resolved colour and a resolved type.
 * **`createGraphics` is a value, not a call.** `Graphics buffer{w, h}`
   is p5's offscreen canvas — a surface with a pen of its own, kept by
   whoever declares it, because it lives across frames. `buffer.begin(pen)`
@@ -281,7 +297,12 @@ beside the verbs, never a renamed one.
   through the host's canvas so it lives where the host draws, and placed
   by its CANVAS size rather than its pixel count; its clock and fonts
   are the host's, and its style and its pixels hold between frames as a
-  pen's and a canvas's do.
+  pen's and a canvas's do. `resize(w, h)` gives it another canvas size,
+  and A SURFACE THAT HAS TO BE REPLACED KEEPS THE PICTURE: when the
+  density moves or the size does, what the old surface held is drawn into
+  the replacement scaled to its extent rather than cleared out of it — a
+  buffer is where earlier frames accumulate, and growing one must not
+  erase them.
 
 ## The brush library
 
@@ -336,6 +357,13 @@ a node — the same door from the other side.
 pen's frame delta on the frames the guest is painted and stands still on
 the frames it is not; nothing a guest holds ever reads the wall, which
 is what keeps a plate with a guest in it reproducible.
+
+**The guest begins in the pen's ink and font.** What a guest cascades from
+is the pair the pen was told it inherits, read off `inheritedInk()` and
+`inheritedFont()` by whoever wrote the `paintRetained` for it — so a tree
+painted inside a pen program starts in the same colour and the same type
+the pen's own verbs do, and a pen nobody told seeds it with black and the
+initial type.
 
 ## Layout
 
@@ -470,7 +498,9 @@ nearest-neighbour, a `fill` between two vertices colouring the corners
 either side of it — and this library's own: a material as a fill, a
 silhouette as a shape, a guest retained per call site, the canvas
 carrying the pen's transform, an offscreen buffer formed at the host's
-density and put down in canvas units, a unit-space material ramping
+density and put down in canvas units and keeping what it held across a
+resize, a pen beginning in an inherited ink and font and dropping both
+for whatever the program set itself, a unit-space material ramping
 across the frame under `CANVAS` and across each box under `SHAPE`, a
 built `SkVertices` drawn with the pen's fill and moved by the pen's
 transform, and both paints answering null where the style says there is

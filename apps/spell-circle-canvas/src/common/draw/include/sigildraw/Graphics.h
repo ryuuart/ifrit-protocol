@@ -37,6 +37,13 @@ namespace sigil::draw {
  *  the density changes and kept otherwise, so what was drawn on it
  *  stands until something draws over it, exactly as p5's does.
  *
+ *  A RE-FORM KEEPS THE PICTURE. A surface that has to be replaced — the
+ *  density moved, or `resize` gave the buffer another canvas size — is
+ *  not handed over empty: what the old one held is drawn into it, scaled
+ *  to the new extent. Changing how large a buffer is, or how many pixels
+ *  a unit of it covers, must not erase what earlier frames accumulated
+ *  on it.
+ *
  *  ITS CLOCK IS THE HOST'S. `begin` reads the host pen's frame count,
  *  elapsed time, step and fonts onto the buffer's pen, so a material
  *  resolved there and a shaped line of text there agree with the frame
@@ -57,6 +64,13 @@ class Graphics {
   Pen& begin(Pen& host);
   /** Closes it. The pen's style survives; the pixels stand. */
   void end();
+
+  /** ANOTHER CANVAS SIZE for the buffer, in the same units the
+   *  constructor took — what a host whose box has changed calls. The
+   *  pixels are kept: the replacement surface is formed at the next
+   *  `begin` with what this one holds drawn into it, scaled to the new
+   *  extent. The same size again does nothing. */
+  void resize(float width, float height);
 
   /** What has been drawn on it, as an image — what `pen.image` takes,
    *  and what a material takes as a shader's source. Null before the

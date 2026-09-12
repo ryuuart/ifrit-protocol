@@ -4,6 +4,7 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkSamplingOptions.h>
 #include <sigildraw/Graphics.h>
 
 #include <algorithm>
@@ -18,7 +19,13 @@ void Graphics::form(Pen& host) {
   const float density = host.contentScale();
   const SkISize extent{std::max(1, (int)std::lround(m_width * density)),
                        std::max(1, (int)std::lround(m_height * density))};
-  if (m_surface && m_extent == extent) return;
+  if (m_surface && m_extent == extent) {
+    // The units the buffer's pen draws in are its canvas size whatever
+    // extent the surface was formed at, so a `resize` too small to move
+    // the rounded extent still moves the scale.
+    m_scale = (float)extent.width() / m_width;
+    return;
+  }
   const SkImageInfo info = SkImageInfo::MakeN32Premul(extent);
   // Made through the host's canvas so it lives where the host draws;
   // raster is what a host with no device offers, and what a device
@@ -26,10 +33,32 @@ void Graphics::form(Pen& host) {
   sk_sp<SkSurface> surface =
       host.canvas() ? host.canvas()->makeSurface(info) : nullptr;
   if (!surface) surface = SkSurfaces::Raster(info);
+  SkCanvas& target = *surface->getCanvas();
+  target.clear(SK_ColorTRANSPARENT);
+  // A REPLACEMENT CARRIES THE PICTURE OVER, scaled from the extent it was
+  // drawn at to the one it is kept at: a buffer is where earlier frames
+  // accumulate, so moving the density or the size must not erase them.
+  if (m_surface) {
+    SkAutoCanvasRestore restore(&target, true);
+    target.scale((float)extent.width() / (float)m_extent.width(),
+                 (float)extent.height() / (float)m_extent.height());
+    m_surface->draw(&target, 0, 0, SkSamplingOptions(SkFilterMode::kLinear),
+                    nullptr);
+  }
   m_surface = std::move(surface);
   m_extent = extent;
   m_scale = (float)extent.width() / m_width;
-  m_surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+}
+
+void Graphics::resize(float width, float height) {
+  const float w = std::max(1.0f, width);
+  const float h = std::max(1.0f, height);
+  if (w == m_width && h == m_height) return;
+  m_width = w;
+  m_height = h;
+  // The surface itself is re-formed by the next `begin`, which is where
+  // the host's density is known; what stands on this one is carried into
+  // it there.
 }
 
 Pen& Graphics::begin(Pen& host) {

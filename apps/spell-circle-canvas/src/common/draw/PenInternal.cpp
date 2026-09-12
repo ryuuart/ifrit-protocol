@@ -8,6 +8,7 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilshaders/Draw.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <cmath>
@@ -179,6 +180,10 @@ bool resolve(const material::skia::Paint& material, SkPaint& paint,
 
 bool fittable(const SkRect* box) {
   return box && box->width() > 0.0f && box->height() > 0.0f;
+}
+
+float sizePx(const weave::Type& type) {
+  return type.size.value_or(weave::Length{12.0f}).value;
 }
 
 }  // namespace sigil::draw::detail

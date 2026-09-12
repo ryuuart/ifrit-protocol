@@ -100,6 +100,26 @@ class Pen {
    *  screen. What a hairline, a dash period or a bake resolution
    *  computed outside the pen has to be scaled by. */
   [[nodiscard]] float contentScale() const { return m_contentScale; }
+  /** THE INK AND THE FONT THE PEN BEGINS IN, which a host hands over
+   *  after `begin` each frame: they seed the style for what the PROGRAM
+   *  has not set. The fill and the stroke take @p ink until a `fill` or a
+   *  `stroke` is called, and the text type takes @p font until a
+   *  `textFont`, a `textSize` or a `textStyle` is — after which that
+   *  verb's choice holds from frame to frame, as p5's does, and this
+   *  stops reaching it. Nothing else in the style is touched, so a
+   *  `noFill()` or a `noStroke()` still means what it says.
+   *
+   *  A PEN NOBODY CALLS THIS ON KEEPS p5's OWN DEFAULTS: a white fill, a
+   *  black stroke, text at twelve pixels. */
+  void inherit(SkColor4f ink, const weave::Type& font);
+  /** The pair the last `inherit` carried — black and
+   *  `weave::initialType()` on a pen that was never told one — so
+   *  whatever else is seeded from this pen reads the same values here
+   *  rather than keeping its own copy of them. */
+  [[nodiscard]] SkColor4f inheritedInk() const { return m_inheritedInk; }
+  [[nodiscard]] const weave::Type& inheritedFont() const {
+    return m_inheritedFont;
+  }
   /** What this pen keeps between frames for its guests. */
   [[nodiscard]] Retained& retained() { return m_retained; }
   [[nodiscard]] const Retained& retained() const { return m_retained; }
@@ -505,6 +525,9 @@ class Pen {
      *  until a fill is set, and strokes it only once a stroke is. */
     bool fillSet = false;
     bool strokeSet = false;
+    /** Whether `textFont`, `textSize` or `textStyle` was ever called — an
+     *  inherited font seeds the type only until one of them does. */
+    bool typeSet = false;
     /** Whether the fill's and the stroke's coordinates are measured
      *  against each shape's bounds rather than against the canvas. */
     bool fillFitted = false;
@@ -589,6 +612,8 @@ class Pen {
   bool m_redraw = false;
   double m_targetFrameRate = 0.0;
   std::vector<int> m_keysDown;
+  SkColor4f m_inheritedInk{0, 0, 0, 1};
+  weave::Type m_inheritedFont = weave::initialType();
 
   Style m_style;
   std::vector<Style> m_stack;

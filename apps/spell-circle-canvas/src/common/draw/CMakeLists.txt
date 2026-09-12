@@ -42,7 +42,7 @@ sigil_test(draw_test
   SOURCES test/PenShapeTest.cpp test/PenStyleTest.cpp
           test/PenTransformTest.cpp test/PenImageTest.cpp
           test/PenValuesTest.cpp test/GraphicsTest.cpp
-          test/DrawTextTest.cpp
+          test/DrawTextTest.cpp test/PenInheritTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_DRAW_SHADER_DIR="${_shaders}"
   LIBRARIES SigilDraw SigilWeavePorts)

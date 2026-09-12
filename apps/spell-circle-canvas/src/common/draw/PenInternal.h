@@ -18,6 +18,10 @@
 
 #include <cstdint>
 
+namespace sigil::weave {
+struct Type;
+}
+
 namespace sigil::draw::detail {
 
 /** The seed every pen starts on, so a sketch stepped from zero draws the
@@ -55,5 +59,11 @@ bool resolve(const material::skia::Paint& material, SkPaint& paint,
  *  material to divide by their extent is how a fitted fill turns into
  *  nothing. */
 bool fittable(const SkRect* box);
+
+/** A TYPE'S SIZE IN THE PEN'S OWN UNITS, which are pixels: `textSize`
+ *  takes a number of them and every measurement the pen makes of a glyph
+ *  is in them. A type naming no size at all is p5's twelve, the size a
+ *  fresh pen sets text at. */
+float sizePx(const weave::Type& type);
 
 }  // namespace sigil::draw::detail

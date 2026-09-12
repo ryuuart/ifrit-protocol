@@ -23,7 +23,11 @@
 #include <string_view>
 #include <vector>
 
+#include "PenInternal.h"
+
 namespace sigil::draw {
+
+using detail::sizePx;
 
 namespace {
 
@@ -92,12 +96,14 @@ weave::TextStyle Pen::textStyleNow() {
 void Pen::textSize(float size) {
   m_style.type.size = size;
   m_style.leading = size * 1.25f;
+  m_style.typeSet = true;
 }
 
 void Pen::textFont(std::string_view family) {
   m_style.family.assign(family);
   m_style.type.face = nullptr;
   m_style.matched = nullptr;
+  m_style.typeSet = true;
 }
 
 void Pen::textFont(std::string_view family, float size) {
@@ -109,13 +115,15 @@ void Pen::textFont(sk_sp<SkTypeface> typeface) {
   m_style.family.clear();
   m_style.type.face = std::move(typeface);
   m_style.matched = nullptr;
+  m_style.typeSet = true;
 }
 
 void Pen::textFont(const weave::Type& type) {
   m_style.type = type;
   m_style.family.clear();
   m_style.matched = nullptr;
-  m_style.leading = type.size * 1.25f;
+  m_style.leading = sizePx(type) * 1.25f;
+  m_style.typeSet = true;
 }
 
 void Pen::textAlign(Constant horizontal) { m_style.textAlignX = horizontal; }
@@ -132,13 +140,14 @@ float Pen::textLeading() const { return m_style.leading; }
 void Pen::textStyle(Constant style) {
   m_style.textStyle = style;
   m_style.matched = nullptr;
+  m_style.typeSet = true;
 }
 
 float Pen::textAscent() {
   sk_sp<SkTypeface> typeface = face();
   if (!typeface) return 0.0f;
   SkFontMetrics metrics;
-  SkFont(typeface, m_style.type.size).getMetrics(&metrics);
+  SkFont(typeface, sizePx(m_style.type)).getMetrics(&metrics);
   return -metrics.fAscent;
 }
 
@@ -146,7 +155,7 @@ float Pen::textDescent() {
   sk_sp<SkTypeface> typeface = face();
   if (!typeface) return 0.0f;
   SkFontMetrics metrics;
-  SkFont(typeface, m_style.type.size).getMetrics(&metrics);
+  SkFont(typeface, sizePx(m_style.type)).getMetrics(&metrics);
   return metrics.fDescent;
 }
 
