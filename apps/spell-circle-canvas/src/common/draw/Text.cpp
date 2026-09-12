@@ -177,7 +177,8 @@ namespace {
  *  the fill on top, the stroke beneath it as p5 draws them. p5 fills
  *  text black until a fill is set and strokes it only once a stroke is,
  *  so a fresh pen's text is black ink and not a white blob with a black
- *  outline. */
+ *  outline; a fill a host SEEDED through `inherit` counts as set, so text
+ *  under an inherited ink is set in that ink. */
 weave::PaintStyle glyphPaint(bool doFill, bool fillSet, const SkPaint* fill,
                              bool strokeSet, const SkPaint* stroke,
                              bool antiAlias) {
@@ -207,7 +208,8 @@ void Pen::textLine(std::string_view line, float x, float baseline) {
   const weave::ParagraphLayout layout =
       weave::layoutSingleLine(*m_fonts, paragraph, {x0, baseline});
   weave::PaintStyle over =
-      glyphPaint(m_style.doFill, m_style.fillSet, fillPaint(),
+      glyphPaint(m_style.doFill, m_style.fillSet || m_style.fillSeeded,
+                 fillPaint(),
                  m_style.strokeSet, strokePaint(), m_style.antiAlias);
   // The colours a fill was never set for are built here rather than
   // copied from a paint, so the blend has to be put on them.
@@ -273,7 +275,8 @@ void Pen::text(std::string_view str, float x, float y, float w, float h) {
   const weave::ParagraphLayout layout =
       weave::layoutParagraph(*m_fonts, paragraph, flow, options);
   weave::PaintStyle over =
-      glyphPaint(m_style.doFill, m_style.fillSet, fillPaint(),
+      glyphPaint(m_style.doFill, m_style.fillSet || m_style.fillSeeded,
+                 fillPaint(),
                  m_style.strokeSet, strokePaint(), m_style.antiAlias);
   blendInto(over.foreground);
   layout.draw(m_canvas, paragraph, &over);

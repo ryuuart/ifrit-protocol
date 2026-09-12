@@ -259,11 +259,9 @@ Element crossFade(bool cooled) {
 
 // ------------------------------------------------------------- the pen
 
-/** (10) A pen program's shapes and its type SIZE come from the node it
- *  stands in, unasked for; `push`/`pop` restyles for a scope and hands the
- *  ink back at the end of it. The GLYPHS are the one mark the ink does not
- *  reach: a pen fills text black until a fill is set, so the line below
- *  stands on a plate that makes the black legible. */
+/** (10) A pen program's shapes, its glyphs and its type SIZE come from
+ *  the node it stands in, unasked for; `push`/`pop` restyles for a scope
+ *  and hands the ink back at the end of it. */
 Element penCell() {
   return box()
       .padding(kPad)
@@ -273,11 +271,7 @@ Element penCell() {
                           [](Pen& pen) {
                             pen.noStroke();
                             pen.circle(30, 32, 44);
-                            pen.push();
-                            pen.fill(kPale);
-                            pen.rect(60, 10, 176, 42);
-                            pen.pop();
-                            pen.text("no fill: p5's black", 70, 38);
+                            pen.text("no fill, no textFont", 70, 38);
                             pen.push();
                             pen.fill(kWarm);
                             pen.circle(30, 104, 44);
@@ -460,10 +454,9 @@ struct Cascade final : sketch::Sketch {
                             "is taken partway through the mixture",
                             crossFade(cooled)),
                        cell("compose::pen(program)",
-                            "the circle and the type size are the node's, "
-                            "unasked for, and a fill inside push/pop "
-                            "restyles the scope \xc2\xb7 the GLYPHS are p5's "
-                            "black until a fill is set",
+                            "the circle, the words and the type size are "
+                            "the node's, unasked for, and a fill inside "
+                            "push/pop restyles the scope",
                             penCell(), 0),
                        cell("compose::graphics(program)",
                             "the same door onto pixels that are KEPT \xc2\xb7 "

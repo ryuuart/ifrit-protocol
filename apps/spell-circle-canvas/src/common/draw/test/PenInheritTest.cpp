@@ -121,6 +121,22 @@ TEST(PenInherit, AFontTheProgramSetOutlivesEveryFontAfterIt) {
   EXPECT_FLOAT_EQ(after, chosen);
 }
 
+TEST(PenInherit, TheGlyphsTakeTheInkUntilTheProgramSetsAFill) {
+  // p5 fills text black until a fill is set; a fill the host seeded
+  // counts as set, so a line drawn with no fill call is in the ink.
+  Paper paper{200, 60};
+  beginBare(paper);
+  paper.pen.inherit({0, 1, 0, 1}, typeAt(40));
+  paper.pen.noStroke();
+  paper.pen.text("nn", 10, 45);
+  paper.end();
+  bool green = false;
+  for (int y = 10; y < 50 && !green; ++y)
+    for (int x = 10; x < 120 && !green; ++x)
+      green = paper.pixel(x, y) == SK_ColorGREEN;
+  EXPECT_TRUE(green);
+}
+
 TEST(PenInherit, TheLeadingComesWithTheInheritedSize) {
   Paper paper;
   beginBare(paper);

@@ -544,17 +544,6 @@
    "submit": 0.24,
    "headroom": 3871.8
   },
-  "env_theme": {
-   "window": "1440x900@2",
-   "canvas": "1140x520",
-   "kind": "canvas",
-   "fps": 120.0,
-   "work": 0.43,
-   "p99": 1.2,
-   "draw": 0.4,
-   "submit": 0.21,
-   "headroom": 2349.3
-  },
   "eva_magi_defense": {
    "window": "1440x900@2",
    "canvas": "1920x1080",

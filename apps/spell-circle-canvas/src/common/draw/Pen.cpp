@@ -109,6 +109,7 @@ void Pen::inherit(SkColor4f ink, const weave::Type& font) {
   if (!m_style.fillSet) {
     m_style.fill = material::skia::Paint::solid(ink);
     m_style.fillFitted = false;
+    m_style.fillSeeded = true;
     resolveFill();
   }
   if (!m_style.strokeSet) {

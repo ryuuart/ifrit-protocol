@@ -1054,7 +1054,7 @@ two runs side by side never read each other's files.
 
 The acceptance pieces are the
 `material_lab`, `material_atlas`, `material_child`, `stock_materials`,
-`text_paints`, `reflection_lab`, `env_faces`, `env_lanes`, `env_theme`,
+`text_paints`, `reflection_lab`, `env_faces`, `env_lanes`,
 `shapeworks_lab` and `mesh_normal_bridge` sketches under
 `src/sketch/sketches/`, whose surfaces are shaded here. SigilCompose is the largest consumer: its
 `Material::recipe` resolves a material through this library's cache with

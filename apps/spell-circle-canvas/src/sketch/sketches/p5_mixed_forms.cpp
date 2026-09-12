@@ -6,9 +6,7 @@
 // finds them already in force, so `pen.text` is shaped in the inherited
 // face at the inherited size with NO textFont call, and the guest the pen
 // paints through `pen.element(card, box)` begins in the same pair — its
-// lines name no style at all and are set in what the tree says. The one
-// mark the ink does not reach on its own is a glyph, which a pen fills
-// black until a fill is set, so the display line spells `inheritedInk()`.
+// lines name no style at all and are set in what the tree says.
 //
 // What the pen still decides for itself is what it sets: `pen.fill(Paint)`
 // puts a material under a p5 verb, inside a push/pop so the type after it
@@ -105,10 +103,6 @@ struct P5MixedForms final : sketch::Sketch {
       pen.pop();
     }
     pen.pop();
-    // A pen fills text black until a fill is set, so the ink the tree put
-    // in force reaches every mark here except the glyphs. It is spelled
-    // from the pen's own inherited pair rather than restated as a colour.
-    pen.fill(pen.inheritedInk());
     pen.text("shaped by weave, drawn by a pen", pen.width / 2, 60);
     pen.element(
         card(pen.frameCount),

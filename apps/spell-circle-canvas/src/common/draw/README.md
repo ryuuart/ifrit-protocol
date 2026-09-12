@@ -149,7 +149,8 @@ streak, a lit facet, a heat gradient, without one shape per band — while
 its stroke still follows the outline; one fill across the shape is one
 path, as before, and only the triangle and quad kinds have a mesh. Text is
 black until a fill is set and stroked only once a stroke is, so a fresh
-pen's text is ink. `point` is a disc of the stroke weight in the stroke
+pen's text is ink; a fill a host seeded through `inherit` counts as set,
+so text under an inherited ink is set in that ink. `point` is a disc of the stroke weight in the stroke
 colour. `textSize` sets the leading to five quarters of the size until
 `textLeading` says otherwise. `push` saves the style and the transform
 together and `pop` restores both; a push left open at the end of a frame
@@ -275,8 +276,9 @@ beside the verbs, never a renamed one.
 * **The pen can be told what it inherits.** `inherit(ink, font)` is what a
   host calls after `begin` each frame, and it seeds ONLY THE STYLE THE
   PROGRAM HAS NOT SET: the fill and the stroke take the ink until a `fill`
-  or a `stroke` is called, and the text type takes the `weave::Type` until
-  a `textFont`, a `textSize` or a `textStyle` is. After that the program's
+  or a `stroke` is called — the glyphs with them, since a seeded fill is
+  a fill as far as text is concerned — and the text type takes the
+  `weave::Type` until a `textFont`, a `textSize` or a `textStyle` is. After that the program's
   own choice holds from frame to frame the way every other p5 style does,
   and the inherited pair stops reaching it. Nothing else is touched, so a
   `noFill()` still means no fill whatever the ink is, and the inherited
@@ -505,7 +507,8 @@ across the frame under `CANVAS` and across each box under `SHAPE`, a
 built `SkVertices` drawn with the pen's fill and moved by the pen's
 transform, and both paints answering null where the style says there is
 nothing to draw with. The text cases hold text shaped and centred by its
-alignment, seated by its box, and black until a fill is set; they shape
+alignment, seated by its box, black until a fill is set and in the ink
+once one was seeded; they shape
 against the tree's instrument face, so they pin relations rather than
 pixels. The one case that names no face reads the machine's own
 families, and it alone — the `PenMachineFace` suite — carries the

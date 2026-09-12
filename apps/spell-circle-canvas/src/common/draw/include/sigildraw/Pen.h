@@ -525,6 +525,10 @@ class Pen {
      *  until a fill is set, and strokes it only once a stroke is. */
     bool fillSet = false;
     bool strokeSet = false;
+    /** Whether `inherit` seeded the fill. The glyphs take a seeded fill
+     *  exactly as they take a chosen one, so text under an inherited ink
+     *  is set in it; p5's own black stands only for a pen nobody told. */
+    bool fillSeeded = false;
     /** Whether `textFont`, `textSize` or `textStyle` was ever called — an
      *  inherited font seeds the type only until one of them does. */
     bool typeSet = false;
