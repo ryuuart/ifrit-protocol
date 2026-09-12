@@ -13,9 +13,10 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigilimage/decode/Decode.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/draw/Draw.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilvideo/decode/Decode.h>
@@ -71,21 +72,25 @@ struct StoryMomentProbe : Sketch {
 };
 
 /** A PEN THAT NEVER CLEARS: one green square per frame, marching right,
- *  on a canvas that keeps what earlier frames drew. What it is for is
- *  the montage's pre-roll: a draw sketch's frames ARE the picture, so a
- *  pre-roll stepped onto a scratch surface would throw the march away
- *  and the cut would show one square instead of the trail. */
-struct DrawnTrail : DrawSketch {
+ *  on the canvas a `graphics` node keeps. What it is for is the
+ *  montage's pre-roll: the picture IS the frames already drawn, and the
+ *  canvas belongs to the node rather than to the surface the host steps
+ *  on, so the march has to survive a pre-roll taken somewhere else. */
+struct DrawnTrail : Sketch {
   int drawn = 0;
-  void setup(DrawContext& ctx) override {
+  void setup(SketchContext& ctx) override {
     ctx.canvas(64, 48);
-    ctx.background(0);
+    ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.5);
-  }
-  void draw(DrawContext& ctx) override {
-    ctx.pen.noStroke();
-    ctx.pen.fill(0, 255, 0);
-    ctx.pen.rect((float)((drawn++ * 2) % 60), 20, 3, 8);
+    ctx.composer.render(graphics("drawn_trail.loop",
+                                 [this](sigil::draw::Pen& pen) {
+                                   pen.noStroke();
+                                   pen.fill(0, 255, 0);
+                                   pen.rect((float)((drawn++ * 2) % 60), 20, 3,
+                                            8);
+                                 })
+                            .absolute()
+                            .inset(0));
   }
 };
 
@@ -401,10 +406,11 @@ TEST(Story, EncodesASelectedSketchAsVerticalMp4) {
       << "the fitted sketch moved inside its story card";
 }
 
-/** THE MONTAGE'S PRE-ROLL KEEPS A PEN'S PIXELS. A draw sketch's picture
- *  is the frames it has already drawn, so reaching its declared moment
- *  has to happen on the surface the cut is taken from. */
-TEST(Story, ADrawSketchIsPreRolledOnTheSurfaceItIsCapturedFrom) {
+/** THE MONTAGE'S PRE-ROLL KEEPS A PEN'S PIXELS. The picture a pen
+ *  program builds up is the frames it has already drawn, and they stand
+ *  on the node's own canvas — so reaching the declared moment on a
+ *  scratch surface leaves the march intact. */
+TEST(Story, AKeptCanvasSurvivesThePreRoll) {
   const ScratchDir out("sigil_story_drawn");
   StoryOptions options;
   options.outputPath = (out.path / "drawn.mp4").string();

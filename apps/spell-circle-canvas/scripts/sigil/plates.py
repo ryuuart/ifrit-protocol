@@ -36,7 +36,7 @@ from sigil import baseline, tree
 
 # One prefix names every plate.
 PLATE_PREFIX = "plate_"
-KINDS = ("canvas", "set", "draw")
+KINDS = ("canvas", "set")
 
 # The flag every render carries: the benchmark-free exact-stepped capture.
 RENDER_ARGS = ("--ledger",)

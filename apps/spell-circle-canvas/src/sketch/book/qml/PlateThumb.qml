@@ -14,8 +14,7 @@ Rectangle {
      *  yet — in which case one is asked for as the thumbnail comes on
      *  screen. */
     property url plate
-    /** "canvas", "set" or "draw" — which glyph stands in for a missing
-     *  plate. */
+    /** "canvas" or "set" — which glyph stands in for a missing plate. */
     property string kind
     /** The catalog to ask for a render, and the sketch this thumbnail is
      *  of. A missing or stale thumbnail is requested as the row appears

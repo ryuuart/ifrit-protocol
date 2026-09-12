@@ -3,7 +3,7 @@
  *
  *   Sketchbook [--no-gpu]                      the app, on the last sketch
  *   Sketchbook --sketch <name>                 the app, on that one
- *   Sketchbook --list [--kind canvas|set|draw] the registry, one per line
+ *   Sketchbook --list [--kind canvas|set]     the registry, one per line
  *   Sketchbook --catalog [<file.cpp>]          the browser's rows, one JSON
  *                                              object per line
  *   Sketchbook --compare <dir-a> <dir-b>       two sweeps' plates, differenced
@@ -23,7 +23,7 @@
  *   Sketchbook --window-bench [<sec>] [--window-size <WxH>]
  *              [--window-scale <n>] [--sketch <name>] [--kind <k>]
  *                                              the window's own frame rate
- *   Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set|draw]
+ *   Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set]
  *              [--thumbnail-budget <sec>] [--thumbnail-heavy]
  *                                              render missing/stale stills
  *   … [--assets <dir>]                         where res:// mounts

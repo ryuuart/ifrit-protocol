@@ -213,7 +213,7 @@ is an app bundle, so headless runs go through the binary inside it:
 
 ```sh
 build/bin/<config>/Sketchbook.app/Contents/MacOS/Sketchbook \
-  --headless <outdir> [--gpu] [--sketch <name>] [--kind canvas|set|draw]
+  --headless <outdir> [--gpu] [--sketch <name>] [--kind canvas|set]
 ```
 
 Pointed at a file with no `--headless`, Sketchbook opens on it, from
@@ -231,7 +231,7 @@ promotion off, so `--promotion` is the one door that lets the promoter
 go with every other pin standing, and `--no-promotion` pins it off on a
 backend whose default would not; the plate ledger's promotion tier
 renders each scene both ways and judges the pair. `--thumbnails [--sketch
-<name>] [--kind canvas|set|draw]` renders the browser's missing or stale
+<name>] [--kind canvas|set]` renders the browser's missing or stale
 thumbnails headless and exits non-zero naming any that failed — the app
 owns its thumbnails, rendering them on demand into a cache under the
 platform cache location (`--thumbnails-dir` overrides it); the plate

@@ -36,21 +36,28 @@ function draw() {
 ```
 
 ```cpp
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
-struct Bounce final : sketch::DrawSketch {
+struct Bounce final : sketch::Sketch {
   float x = 200, y = 100, vx = 3, vy = 2;
 
-  void setup(sketch::DrawContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(400, 300);
-    ctx.pen.noStroke();
+    ctx.composer.render(
+        compose::graphics("bounce.loop", [this](Pen& pen) { draw(pen); })
+            .absolute()
+            .inset(0));
   }
 
-  void draw(sketch::DrawContext& ctx) override {
-    Pen& pen = ctx.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) pen.noStroke();
     pen.background(20, 30);
     x += vx;
     y += vy;
@@ -65,11 +72,15 @@ SIGIL_SKETCH(Bounce, "Draw", "The bouncing ball, pasted from p5.")
 ```
 
 `createCanvas`, `loadImage` and the moment a plate is taken belong to
-whoever steps the pen — here the `sketch::DrawSketch` runtime — and
-both `setup` and `draw` speak to
-that runtime through its context, which hands over the pen: in `setup`
-for anything a p5 setup would have set on the canvas, in `draw` as the
-pen of the frame. Everything else is the pen.
+whoever steps the pen — here a `compose::graphics` node filling the
+canvas of a `sketch::Sketch`, whose canvas is KEPT between frames, which
+is what makes the translucent ground a trail. The program is the p5
+`draw`, run once per frame with the node's own pen, and it honours
+`noLoop`, `redraw` and `frameRate` as p5 does. What a p5 `setup` would
+have set on the canvas — a style, a seed, a drawing made once — is the
+program's first frame, which `pen.frameCount == 1` names; the size, the
+ground and the capture moment are declared to the sketch's own context.
+Everything else is the pen.
 
 **The one deliberate departure is the pen itself.** p5's verbs are
 globals over one canvas; here they are members of a value that holds the

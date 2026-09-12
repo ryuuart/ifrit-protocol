@@ -3,13 +3,14 @@
 # registry, one live host and one headless renderer.
 #
 # It stands ABOVE the drawing libraries rather than beside them: a sketch
-# may describe a compose Element tree, a world Frame or a pen's frame, so
-# this library links all three. Nothing underneath links back — a drawn
-# tree, a lit set and a pen's canvas meet here and nowhere else.
+# may describe a compose Element tree or a world Frame, and a pen paints
+# through a node of the first, so this library links all three. Nothing
+# underneath links back — a drawn tree, a lit set and a pen's canvas meet
+# here and nowhere else.
 #
 # One archive, in directories that are the outline: core/ (what a sketch
-# is and the registry it joins), the three runtimes canvas/, set/ and
-# draw/, live/ (the reload engine), plate/ (the headless renderer) and,
+# is and the registry it joins), the two runtimes canvas/ and set/,
+# live/ (the reload engine), plate/ (the headless renderer) and,
 # where the SDK is installed, scry/ (the one web engine sketches borrow).
 # Each directory keeps its own tests and benchmarks beside its code. The
 # fixtures every sketch test shares are test/support/, reached as
@@ -41,11 +42,12 @@ find_package(EnTT CONFIG REQUIRED)
 #
 # PUBLIC is what the headers spell: the resource hub, the comparable
 # erasure the kind seam is built on, the instruments every runtime times
-# itself with, the camera the viewpoint seam is spelled in, and the three
-# runtimes' own vocabularies — compose for a canvas, world for a set, the
-# pen for a draw. The two doors between runtimes (a compose tree painted
-# into a texture, a world frame baked to an image) name the other side by
-# forward declaration alone. What a session reads in its own source —
+# itself with, the camera the viewpoint seam is spelled in, and the two
+# runtimes' own vocabularies — compose for a canvas, world for a set,
+# with the pen among compose's because a pen program is a node. The two
+# doors between runtimes (a compose tree painted into a texture, a world
+# frame baked to an image) name the other side by forward declaration
+# alone. What a session reads in its own source —
 # the byte writer a plate is saved through, the Graphite handle, the
 # decoders and encoders — is PRIVATE.
 set(SIGIL_SKETCH_SOURCES
@@ -53,7 +55,6 @@ set(SIGIL_SKETCH_SOURCES
   core/Sources.cpp
   canvas/Context.cpp canvas/Session.cpp
   set/Context.cpp set/Session.cpp
-  draw/Session.cpp
   live/BuildDirectory.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
   plate/Compare.cpp plate/Graphite.cpp plate/Story.cpp plate/Sweep.cpp
   plate/ThumbnailQueue.cpp plate/Thumbnails.cpp)
@@ -62,7 +63,6 @@ set(SIGIL_SKETCH_HEADERS
   core/Kind.h core/Registry.h core/Session.h core/Sources.h
   canvas/Sketch.h
   set/Set.h
-  draw/Draw.h
   live/Host.h live/Residency.h
   plate/Compare.h plate/FrameStats.h plate/Graphite.h plate/Story.h
   plate/Sweep.h plate/ThumbnailQueue.h plate/Thumbnails.h)
@@ -71,7 +71,8 @@ set(SIGIL_SKETCH_PUBLIC
   SigilVideoDecode SigilVideoCore SigilImageEncode SigilMeasure
   SigilMotionClock
   SigilComposeCore SigilComposeKit SigilComposeBrush SigilComposeTypography
-  SigilComposeTexture SigilComposeTesting SigilGeometry SigilMaterial
+  SigilComposeTexture SigilComposeTesting SigilComposeDraw
+  SigilGeometry SigilMaterial
   SigilMaterialKit SigilWeaveKit SigilWeavePorts
   SigilWorldScene SigilWorldKit SigilWorldFrame SigilWorldElement
   SigilWorldLight
@@ -101,7 +102,6 @@ sigil_library(SigilSketch
 add_subdirectory(core)
 add_subdirectory(canvas)
 add_subdirectory(set)
-add_subdirectory(draw)
 add_subdirectory(live)
 add_subdirectory(plate)
 if(TARGET SigilScry)
@@ -177,6 +177,7 @@ sigil_doc_probes(sketch
            ${CMAKE_CURRENT_SOURCE_DIR}/../sigilweave/include/sigilweave
   PRELUDES ${SIGIL_SKETCH_DOC_SCRY_PRELUDE}
            "<sigilcompose/Compose.h>"
+           "<sigilcompose/draw/Draw.h>"
            "<sigilcompose/kit/Ground.h>"
            "<sigilcompose/kit/Marquee.h>"
            "<sigilcompose/kit/Plate.h>"

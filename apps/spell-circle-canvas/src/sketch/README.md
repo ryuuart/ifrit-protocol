@@ -43,7 +43,7 @@ ctx.composer.render(sketch::kit::page(
 `src/sketch/kit/README.md` is the canon for it: what the theme holds, how
 a sketch binds its own, and what deliberately is not there.
 
-## Three runtimes, one seam
+## Two runtimes, one seam
 
 A sketch declares what it draws by which header it includes, and the
 registration macro reads the rest off the type:
@@ -52,9 +52,12 @@ registration macro reads the rest off the type:
 | --- | --- | --- |
 | `<sigilsketch/canvas/Sketch.h>` | `sketch::Sketch` | a compose Element tree, onto a canvas |
 | `<sigilsketch/set/Set.h>` | `sketch::Set` | a world Frame, on a lit set |
-| `<sigilsketch/draw/Draw.h>` | `sketch::DrawSketch` | a pen's frames, p5's way, onto a canvas that keeps them |
 
-The three are a **seam**, not a switch. `Kind` is `core::Erased<KindOperations>`:
+A pen is not a third: `compose::graphics(program)` is a node whose pen
+paints onto a canvas KEPT between frames, so a p5 loop is a canvas sketch
+whose tree holds one of those.
+
+The two are a **seam**, not a switch. `Kind` is `core::Erased<KindOperations>`:
 a value that knows one runtime and one body, and opens a `Session` on
 them. Every host here — the registry listing, the live canvas, the
 headless sweep, the frame-time gate — drives a `Session` and never
@@ -155,11 +158,12 @@ downsampling its plate by that whole number and laying the result over
 the reference, and a fractional scale defeats the check: at 1.875 a
 four-canvas-pixel square covers seven device pixels in one column and
 eight in the next, and no downsample recovers the reference from that.
-The draw runtime honours the same number one step earlier: its plate IS
-the canvas it keeps, so the number is a floor on the pixels that canvas
-is formed with and every frame is drawn at them from the first — a
-declaration there changes the live window too, which is the only way a
-kept canvas can be sharpened rather than magnified.
+A KEPT CANVAS IS PHOTOGRAPHED, NOT REDRAWN. The surface a
+`compose::graphics` node holds is formed at the density of the frame it
+was first painted on, and a still taken at a larger scale re-forms it
+with what it holds carried over — so what a program drew once is
+magnified there rather than drawn again, and only what the program draws
+on the still's own frame lands at the still's pixels.
 
 ### A sketch over an SDK this machine may not have
 
@@ -261,22 +265,29 @@ a plate reproducible: the host steps from zero at a fixed rate and
 photographs the declared moment, so the image depends on the declaration
 and never on how fast the machine ran.
 
-A p5 sketch is the same shape with a pen — `setup` once, `draw` every
-frame, a canvas that keeps what earlier frames drew:
+A p5 sketch is a canvas sketch whose tree is ONE NODE — a pen over a
+canvas that keeps what earlier frames drew:
 
 ```cpp
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
-struct Orbit final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& ctx) override {
+struct Orbit final : sketch::Sketch {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(400, 300);
-    ctx.background(20);
-    ctx.pen.noStroke();
+    ctx.background({0.078f, 0.078f, 0.078f, 1});
+    ctx.composer.render(
+        compose::graphics("orbit.loop", [this](Pen& pen) { draw(pen); })
+            .absolute()
+            .inset(0));
   }
-  void draw(sketch::DrawContext& ctx) override {
-    Pen& pen = ctx.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) pen.noStroke();
     pen.background(20, 30);  // translucent: a trail
     pen.fill(255, 120, 80);
     pen.circle(200 + 120 * cos(pen.millis() / 900), 150, 40);
@@ -286,29 +297,31 @@ struct Orbit final : sketch::DrawSketch {
 SIGIL_SKETCH(Orbit, "Draw", "A ball on a rail, with a trail.")
 ```
 
-The pen is SigilDraw's, whose README is the canon for its verbs; what
-the runtime adds is p5's `setup`/`draw` loop over a surface it keeps
-between frames, a clock it owns, and the seed every session's `random`
-starts from — so a plate stepped from zero draws the same picture on
-every run. When presentation zoom changes the surface's pixel extent, the
-runtime scales the pixels it already holds into the replacement instead of
-replaying setup or clearing accumulated drawing. `ctx.pen` in setup is for
-whatever a p5 setup would have set on the canvas: a style, a font, a first
-drawing, which lands on the first frame. The same context is handed to
-`draw` every frame, so a frame reaches the ticker and `ctx.measured`
-without keeping either on the sketch; `ctx.pen` is the pen of the frame
-being drawn. `pen.noLoop()`, `pen.redraw()` and
-`pen.frameRate(fps)`
-are honoured by the runtime skipping draws, since the clock is its. The
-pointer and the keys arrive through `Session::pointer` and
-`Session::key`, which a host feeds in canvas units; headless, nothing
-arrives and `pen.mouseX` stays at zero.
+The pen is SigilDraw's, whose README is the canon for its verbs, and the
+node is SigilCompose's, whose README is the canon for the door: what
+`compose::graphics` adds over `compose::pen` is a surface that stands
+between frames, so a translucent ground is a trail, a slow accumulation
+holds, and a picture drawn once stays drawn. The clock is the composer's
+and the seed every session's `random` starts from is the same, so a plate
+stepped from zero draws the same picture on every run. A box that changes
+resizes the surface with the pixels carried over rather than cleared.
+What a p5 `setup` would have set on the canvas — a style, a font, a
+drawing made once — is the program's FIRST FRAME, which
+`pen.frameCount == 1` names, since the pen belongs to the node and not to
+the sketch's own context. `pen.noLoop()`, `pen.redraw()` and
+`pen.frameRate(fps)` are read off that pen, and the surface goes on being
+put down on the frames the program does not run.
+
+A pen program is handed no context, so a figure a sketch measured about
+its own execution reads `ctx.deterministic` while declaring and keeps it:
+the flag says the same thing for the whole session. Nothing feeds a
+pointer or a key into the node, so `pen.mouseX` stays at zero.
 
 **A simulation is stepped by the context's ticker, not by the frame
 delta.** `ctx.ticker` is the session's `motion::Ticker`, stepped by the
 session's own clock on every frame — including the frames a
-`frameRate(fps)` request or a `noLoop` skipped, since time passed on
-those too. `addFixed(hz, fn, maxCatchUp, &alphaOut)` runs the body at
+`frameRate(fps)` request or a `noLoop` skipped, since the node is painted
+on those and time passed on them. `addFixed(hz, fn, maxCatchUp, &alphaOut)` runs the body at
 exactly `hz` from accumulated time and publishes the leftover fraction
 of a step into the Output, so a piece drawn as
 `lerp(previous, current, alpha)` is one picture at every draw rate and a
@@ -319,14 +332,17 @@ longer than the call is read by nobody. A fresh setup gets a fresh
 ticker, so a sketch set up twice is stepped once.
 
 ```cpp
-struct Cloth final : sketch::DrawSketch {
+struct Cloth final : sketch::Sketch {
   ch::Output<float> alpha{0.0f};
-  void setup(sketch::DrawContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(640, 480);
     ctx.oversample(2);
     ctx.ticker.addFixed(60.0, [this] { solve(); return true; }, 8, &alpha);
+    ctx.composer.render(
+        compose::graphics("cloth.loop", [this](Pen& pen) { paint(pen, alpha); })
+            .absolute()
+            .inset(0));
   }
-  void draw(sketch::DrawContext& ctx) override { paint(ctx.pen, alpha); }
 };
 ```
 
@@ -523,7 +539,7 @@ std::snprintf(buf, sizeof buf, "BUILD %.2f ms", ctx.measured(buildMs));
 Sketchbook [--no-gpu]                       # the app
 Sketchbook --sketch <name>                  # the app, on that one
 Sketchbook <file.cpp>                       # the app, on that file
-Sketchbook --list [--kind canvas|set|draw]  # the registry, one per line
+Sketchbook --list [--kind canvas|set]      # the registry, one per line
 Sketchbook --catalog [<file.cpp>]           # the browser's rows, one JSON each
 Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
                                   [--frames <count>] [--fps <n>]
@@ -537,7 +553,7 @@ Sketchbook --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
            [--kind <k>] [--gpu]
 Sketchbook --compare <dir-a> <dir-b>        # two sweeps' plates, differenced
 Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
-Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set|draw]
+Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set]
            [--thumbnail-budget <sec>] [--thumbnail-heavy]
 … [--assets <dir>]                          # what mounts at res://
 … [--thumbnails-dir <dir>]                  # the app's own thumbnail store
@@ -757,7 +773,7 @@ deterministic, so two runs measure the same frames.
 
 ```sh
 Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
-           [--sketch <name>] [--kind canvas|set|draw]
+           [--sketch <name>] [--kind canvas|set]
 ```
 
 Opens the window at a stated size and device pixel ratio, presents each
@@ -1246,7 +1262,6 @@ src/sketch/
   core/       what a sketch is, what it declares, the registry, the kind seam, the crash reporter
   canvas/     the 2D runtime: a clock, a ticker and a Composer
   set/        the 3D runtime: a ticker and a retained Scene
-  draw/       the immediate-mode runtime: a clock, a ticker, a pen and a surface that persists
   kit/        the sheet a sketch stands on: the theme, the page and the furniture over it
   live/       the reload engine, the resident set and the sweep's cadence
   scry/       the opt-in shared Ultralight engine a web sketch borrows
@@ -1263,7 +1278,7 @@ keeps its headers under `include/sigilsketch/canvas/` and its own
 
 | Target | Kind | What it is |
 |---|---|---|
-| `SigilSketch` | static archive | `core/`, `canvas/`, `set/`, `draw/`, `live/`, `plate/`, and `scry/` where the SDK is installed: the registry, the three runtimes, the reload engine and the headless renderer. Links no device backend and no Qt. |
+| `SigilSketch` | static archive | `core/`, `canvas/`, `set/`, `live/`, `plate/`, and `scry/` where the SDK is installed: the registry, the two runtimes, the reload engine and the headless renderer. Links no device backend and no Qt. |
 | `SigilSketchKit` | static archive | the sheet a sketch stands on, over the canvas runtime alone |
 | `SigilSketches` | object library | every sketch, and the one place the sketch API surface is stated |
 | `Sketchbook` | application bundle | the host: the window, the browser's rows, and every headless entry |
@@ -1346,8 +1361,8 @@ a case by its full one, with no target behind either.
 The library has one test binary, `sketch_test`, built from every
 feature's `test/` directory; ctest discovers one entry per CASE out of
 it. `core/test/` covers the registry, the kind seam, the crash reporter
-and where a sketch stands on disk; `canvas/test/`,
-`set/test/` and `draw/test/` the three sessions;
+and where a sketch stands on disk; `canvas/test/` and
+`set/test/` the two sessions;
 `kit/test/` the sheet a specimen stands on; `live/test/` the
 host, the resident set and the cadence a window sweep keeps;
 `plate/test/` the sweep, the comparison
@@ -1384,12 +1399,11 @@ holding, so the six claims that follow from that live in
 the runtime the kind names, the lanes the runtime spends, a frame as the
 body's own time plus the runtime's, the oversample a still is worth
 taking at, and a repaint that draws the state the frames left and
-advances nothing. Each of the three session binaries instantiates them
-with a traits type naming its own fixture sketch, and what is left in
-each session's file is what only that runtime does: a canvas re-renders
-for its still and so takes one more step, a draw sketch's plate IS the
-surface earlier frames drew onto, a set is formed at the resolution of
-the canvas it is handed rather than magnified onto it.
+advances nothing. Each session's cases instantiate them with a traits
+type naming its own fixture sketch, and what is left in each session's
+file is what only that runtime does: a canvas re-renders for its still
+and so takes one more step, a set is formed at the resolution of the
+canvas it is handed rather than magnified onto it.
 
 Two of the entries run no C++ at all. `sketch_readme_stems` resolves every
 sketch stem the documents in this tree name against the registry: a

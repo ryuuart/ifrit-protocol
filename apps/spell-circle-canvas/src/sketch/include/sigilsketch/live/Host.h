@@ -163,9 +163,9 @@ class Host {
    *  something has loaded. */
   [[nodiscard]] Session* session() { return m_session.get(); }
 
-  /** WHICH RUNTIME THE LOADED SKETCH DRAWS THROUGH — "canvas", "set" or
-   *  "draw" — read off the kind the host is holding, or empty before one
-   *  has loaded. A file opened by path is not known to draw through any
+  /** WHICH RUNTIME THE LOADED SKETCH DRAWS THROUGH — "canvas" or "set" —
+   *  read off the kind the host is holding, or empty before one has
+   *  loaded. A file opened by path is not known to draw through any
    *  runtime until it has been built, so this is what fills in the row a
    *  browser could not read off the file. */
   [[nodiscard]] std::string_view kind() const {

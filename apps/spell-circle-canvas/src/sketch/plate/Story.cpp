@@ -203,11 +203,14 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
       const double captureMoment = declaredMoment > 0.0 ? declaredMoment : 1.5;
       const double frameStep = 1.0 / options.framesPerSecond;
       const double preRollStep = 1.0 / std::max(60, options.framesPerSecond);
-      const bool keepsPixels = kind->retainsPixels();
+      // REACHING THE MOMENT COSTS THE SKETCH'S WORK, NOT THE RASTERISER'S:
+      // every frame before the captured one is described onto a surface
+      // nobody reads. A tree that keeps a canvas of its own between
+      // frames keeps it here too — the canvas is the node's, not this
+      // one's — so what accumulates survives the pre-roll.
       const sk_sp<SkSurface> scratch =
-          keepsPixels ? nullptr
-                      : SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
-      if (!keepsPixels && !scratch) {
+          SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
+      if (!scratch) {
         std::fprintf(stderr, "story could not allocate its pre-roll surface\n");
         return 1;
       }
@@ -224,18 +227,14 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
       // their catch-up limit, leaving a long sketch visibly short of the
       // state it declared worth capturing.
       double elapsed = 0.0;
-      SkCanvas& preRollCanvas =
-          keepsPixels ? sourceCanvas : *scratch->getCanvas();
-      const float preRollScale = keepsPixels ? sourceScale : 1.0f;
+      SkCanvas& preRollCanvas = *scratch->getCanvas();
       while (elapsed + preRollStep < captureMoment) {
-        step(preRollCanvas, preRollScale, preRollStep);
+        step(preRollCanvas, 1.0f, preRollStep);
         elapsed += preRollStep;
       }
-      step(preRollCanvas, preRollScale, captureMoment - elapsed);
-      // A retained canvas or set can form the final state once at the output
-      // extent. A draw sketch keeps the pixels made during pre-roll, so it
-      // already stands on the source surface at the right resolution.
-      if (!keepsPixels) step(sourceCanvas, sourceScale, 0.0);
+      step(preRollCanvas, 1.0f, captureMoment - elapsed);
+      // The final state, formed once at the output extent.
+      step(sourceCanvas, sourceScale, 0.0);
 
       for (int frame = 0; frame < options.framesPerSketch; ++frame) {
         if (frame > 0) step(sourceCanvas, sourceScale, frameStep);
