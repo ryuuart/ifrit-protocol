@@ -259,13 +259,6 @@ struct ElasticType : sketch::Sketch {
 
   sk_sp<SkTypeface> face, faceLabel;
 
-  [[nodiscard]] sigil::weave::TextStyle small(SkColor4f color,
-                                              float size = 11.5f,
-                                              float track = 2.4f) const {
-    return weave::textStyle(
-        {.face = faceLabel, .size = size, .color = color, .track = track});
-  }
-
   /** One specimen row: the word, deformed letter by letter.
    *
    *  The cascade is per CLUSTER rather than per glyph, which for this word
@@ -283,7 +276,7 @@ struct ElasticType : sketch::Sketch {
     return box()
         .column()
         .gap(8)
-        .child(text(toUtf8(caption), small(kLabel)))
+        .child(text(toUtf8(caption)))
         .child(kit::restGhost(
             text(toUtf8(word), set)
                 .key(word)
@@ -305,7 +298,8 @@ struct ElasticType : sketch::Sketch {
                         .stroke(stroke(1.0f, Fill::color(kFaint)))
                         .child(std::move(inner).inset(0));
     for (const Tick& tick : ticks)
-      frame.child(text(toUtf8(tick.label), small(kLabel, 9.5f, 0.4f))
+      frame.child(text(toUtf8(tick.label))
+                      .font({.size = 9.5f, .track = 0.4f})
                       .absolute()
                       .right(5)
                       // Held inside the frame: a value at the very top of the
@@ -318,9 +312,11 @@ struct ElasticType : sketch::Sketch {
         .grow(1)
         .gap(7)
         .child(std::move(frame))
-        .child(text(toUtf8(title), small(kLabel, 11.0f, 0.8f)));
+        .child(text(toUtf8(title)).font({.size = 11.0f, .track = 0.8f}));
   }
 
+  /** The label type is stated once on the root; a caption restates only what
+   *  it changes. */
   [[nodiscard]] Element describe() {
     return box()
         .column()
@@ -329,19 +325,24 @@ struct ElasticType : sketch::Sketch {
         .fill(linearGradient({0, 0}, {0, kH},
                              {kPaper, hexColor(0x15151B), kPaper},
                              {0.0f, 0.55f, 1.0f}))
+        .font({.face = faceLabel, .size = 11.5f, .track = 2.4f})
+        .ink(kLabel)
         .child(box()
                    .row()
                    .alignItems(Align::End)
-                   .child(text(toUtf8("ELASTIC TYPE"), small(kInk, 12.5f, 3.4f))
+                   .child(text(toUtf8("ELASTIC TYPE"))
+                              .font({.size = 12.5f, .track = 3.4f})
+                              .ink(kInk)
                               .grow(1))
                    .child(text(toUtf8("ANIMATE.CSS 2013 \xc2\xb7 SQUASH AND "
-                                      "STRETCH 1981"),
-                               small(kFaint))))
+                                      "STRETCH 1981"))
+                              .ink(kFaint)))
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(text(toUtf8("GREY IS THE REST POSE, SHARING THE LIVE LINE'S "
                            "ORIGIN \xe2\x80\x94 WHERE IT SHOWS, THAT LETTER "
-                           "IS DEFORMED"),
-                    small(kRest, 10.5f, 0.6f)))
+                           "IS DEFORMED"))
+                   .font({.size = 10.5f, .track = 0.6f})
+                   .ink(kRest))
         .child(row("RUBBERBAND",
                    "rubberBand \xc2\xb7 SEVEN STOPS ON TWO SCALE AXES",
                    fx::keys(rubberTable(), &cssEase)))
@@ -380,8 +381,9 @@ struct ElasticType : sketch::Sketch {
         .child(text(toUtf8("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
                            "DEVIATION AN RSXFORM CANNOT CARRY \xc2\xb7 EVERY "
                            "GLYPH ON THESE TWO LINES DRAWS UNDER ITS OWN "
-                           "MATRIX"),
-                    small(kFaint, 11.0f, 0.6f)));
+                           "MATRIX"))
+                   .font({.size = 11.0f, .track = 0.6f})
+                   .ink(kFaint));
   }
 
   void setup(sketch::SketchContext& ctx) override {
