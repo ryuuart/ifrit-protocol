@@ -1,5 +1,8 @@
 // A socketed inventory: item data and reusable slots assembled into a grid.
 
+#include <sigilweave/style/StyleSheet.h>
+#include <sigilweave/style/Type.h>
+
 #include "Inventory.h"
 
 struct LootGrid final : sketch::Sketch {
@@ -226,16 +229,11 @@ struct LootGrid final : sketch::Sketch {
         .height(Dimension(690.0f))
         .left(30.0f)
         .top(96.0f)
-        .child(text(toUtf8("HOARD"), weave::textStyle({.size = 12,
-                                                       .color = lt::kBronzeLit,
-                                                       .track = 4.5f,
-                                                       .weight = 650}))
-                   .left(16.0f)
-                   .top(492.0f))
+        .child(
+            text(toUtf8("HOARD")).styleClass("heading").left(16.0f).top(492.0f))
         .child(text(toUtf8("10 \xc3\x97"
-                           " 4"),
-                    weave::textStyle(
-                        {.size = 11, .color = lt::kAsh, .track = 2.0f}))
+                           " 4"))
+                   .font({.size = 11, .track = 2.0f})
                    .left(398.0f)
                    .top(493.0f))
         .child(std::move(grid));
@@ -338,11 +336,10 @@ struct LootGrid final : sketch::Sketch {
         // which narrows the run without cutting the cap height the label
         // is read by.
         const bool narrow = s.w < 2;
-        socket.child(text(toUtf8(s.label),
-                          weave::textStyle({.size = 7.0f,
-                                            .color = lt::kAsh,
-                                            .track = narrow ? 0.4f : 1.3f,
-                                            .condense = narrow ? 0.86f : 1.0f}))
+        socket.child(text(toUtf8(s.label))
+                         .font({.size = 7.0f,
+                                .track = narrow ? 0.4f : 1.3f,
+                                .condense = narrow ? 0.86f : 1.0f})
                          .left(0)
                          .right(0)
                          .bottom(3)
@@ -359,18 +356,13 @@ struct LootGrid final : sketch::Sketch {
           .row()
           .width(Dimension(166.0f))
           .alignItems(Align::Center)
-          .child(text(toUtf8(label),
-                      weave::textStyle(
-                          {.size = 10.5f, .color = lt::kAsh, .track = 1.1f})))
+          .child(text(toUtf8(label)).font({.size = 10.5f, .track = 1.1f}))
           .child(box()
                      .grow(1)
                      .height(Dimension(1.0f))
                      .margin(6, 0, 6, 0)
                      .fill(Paint::solid({0.42f, 0.38f, 0.31f, 0.28f})))
-          .child(text(toUtf8(value), weave::textStyle({.size = 12,
-                                                       .color = valueColor,
-                                                       .track = 0.5f,
-                                                       .weight = 620})));
+          .child(text(toUtf8(value)).styleClass("value").ink(valueColor));
     };
     body.child(
         box()
@@ -405,12 +397,7 @@ struct LootGrid final : sketch::Sketch {
         .child(loot::panel(pw, ph).inset(0))
         .child(loot::rivets(pw, ph))
         .child(
-            text(toUtf8("EQUIPPED"), weave::textStyle({.size = 12,
-                                                       .color = lt::kBronzeLit,
-                                                       .track = 4.5f,
-                                                       .weight = 650}))
-                .left(pad)
-                .top(pad))
+            text(toUtf8("EQUIPPED")).styleClass("heading").left(pad).top(pad))
         .child(std::move(body));
   }
 
@@ -420,10 +407,6 @@ struct LootGrid final : sketch::Sketch {
     namespace lt = loot;
     using namespace std::chrono_literals;
     const SkColor4f rc = lt::rarityColor(lt::Rarity::Unique);
-    auto line = [&](const char* s, SkColor4f c) {
-      return text(toUtf8(s),
-                  weave::textStyle({.size = 11.5f, .color = c, .track = 0.2f}));
-    };
     return box()
         .width(Dimension(300.0f))
         .left(500)
@@ -440,28 +423,28 @@ struct LootGrid final : sketch::Sketch {
         .opacity(animate(motion::from(0.0f).to(1.0f), {380ms}))
         .translateY(animate(motion::from(8.0f).to(0.0f), {460ms}))
         .zIndex(9)
+        // Every line under the name is set in this one size and tracking;
+        // what each says for itself is its colour.
+        .font({.size = 11.5f, .track = 0.2f})
         // THE NAME IS THE ONE PLACE QUALITY IS SPELLED OUT, so it is set
         // in a display face rather than in the sheet's grotesque: Diablo
         // II names items in a blackletter-derived display type and reads
         // everything else in a small serif, and the difference between
         // those two registers is most of what makes a tooltip feel like
         // that game's tooltip.
-        .child(
-            text(toUtf8("Doomslinger"), weave::textStyle({.face = displayFace,
-                                                          .size = 17,
-                                                          .color = rc,
-                                                          .track = 1.2f,
-                                                          .weight = 620})))
-        .child(text(toUtf8("Colossus Blade"),
-                    weave::textStyle(
-                        {.size = 11.5f, .color = lt::kParch, .track = 0.8f}))
+        .child(text(toUtf8("Doomslinger"))
+                   .font({.face = displayFace,
+                          .size = 17,
+                          .color = rc,
+                          .track = 1.2f,
+                          .weight = 620}))
+        .child(text(toUtf8("Colossus Blade"))
+                   .font({.color = lt::kParch, .track = 0.8f})
                    .margin(0, 0, 0, 6))
-        .child(line("189% Enhanced Damage", lt::rarityColor(lt::Rarity::Magic)))
-        .child(line("+2 to Fire Skills", lt::rarityColor(lt::Rarity::Magic)))
-        .child(
-            line("Adds 40-92 Fire Damage", lt::rarityColor(lt::Rarity::Magic)))
-        .child(line("Ignores Target's Defence",
-                    lt::rarityColor(lt::Rarity::Magic)))
+        .child(text(toUtf8("189% Enhanced Damage")).styleClass("affix"))
+        .child(text(toUtf8("+2 to Fire Skills")).styleClass("affix"))
+        .child(text(toUtf8("Adds 40-92 Fire Damage")).styleClass("affix"))
+        .child(text(toUtf8("Ignores Target's Defence")).styleClass("affix"))
         .child(box()
                    .width(Dimension(180.0f))
                    .height(Dimension(1.0f))
@@ -470,8 +453,8 @@ struct LootGrid final : sketch::Sketch {
                                        {{0.0f, {rc.fR, rc.fG, rc.fB, 0.0f}},
                                         {0.5f, {rc.fR, rc.fG, rc.fB, 0.5f}},
                                         {1.0f, {rc.fR, rc.fG, rc.fB, 0.0f}}})))
-        .child(line("Required Strength: 189", lt::kAsh))
-        .child(line("Required Level: 63", hexColor(0xD04040)));
+        .child(text(toUtf8("Required Strength: 189")))
+        .child(text(toUtf8("Required Level: 63")).ink(hexColor(0xD04040)));
   }
 
   /** THE BELT: four quick-slots on the same cell, which is the one place
@@ -498,11 +481,10 @@ struct LootGrid final : sketch::Sketch {
               .child(lt::artwork(
                   kHeld[i], lt::kCell * 0.6f, lt::kCell * 0.7f,
                   i == 3 ? hexColor(0xB9A06A) : hexColor(0xC24040), i != 3)));
-      slot.child(
-          text(toUtf8(kKeys[i]),
-               weave::textStyle({.size = 8, .color = lt::kAsh, .track = 0.4f}))
-              .left(3)
-              .top(2));
+      slot.child(text(toUtf8(kKeys[i]))
+                     .font({.size = 8, .track = 0.4f})
+                     .left(3)
+                     .top(2));
       rack.child(std::move(slot));
     }
     return box()
@@ -510,10 +492,7 @@ struct LootGrid final : sketch::Sketch {
         .gap(7)
         .left(500)
         .top(150)
-        .child(text(toUtf8("BELT"), weave::textStyle({.size = 12,
-                                                      .color = lt::kBronzeLit,
-                                                      .track = 4.5f,
-                                                      .weight = 650})))
+        .child(text(toUtf8("BELT")).styleClass("heading"))
         .child(std::move(rack));
   }
 
@@ -548,11 +527,8 @@ struct LootGrid final : sketch::Sketch {
         .left(500)
         .top(560)
         .child(text(toUtf8("HORADRIC CUBE \xc2\xb7 3 \xc3\x97"
-                           " 4"),
-                    weave::textStyle({.size = 12,
-                                      .color = lt::kBronzeLit,
-                                      .track = 4.5f,
-                                      .weight = 650})))
+                           " 4"))
+                   .styleClass("heading"))
         .child(std::move(grid));
   }
 
@@ -568,15 +544,33 @@ struct LootGrid final : sketch::Sketch {
     return look;
   }
 
+  /** THE CLASSES PAST THE REGISTERS: a panel's bronze heading, the figure
+   *  a stat row answers with, and a tooltip's affix line, which is set in
+   *  the magic colour. Every other line is the root's ink at a size of
+   *  its own. */
+  static weave::StyleSheet classes(const sketch::kit::Theme& look) {
+    weave::StyleSheet sheet = look.styleSheet();
+    sheet.set(
+        "heading",
+        {.size = 12, .color = loot::kBronzeLit, .track = 4.5f, .weight = 650});
+    sheet.set("value", {.size = 12, .track = 0.5f, .weight = 620});
+    sheet.set("affix", {.color = loot::rarityColor(loot::Rarity::Magic)});
+    return sheet;
+  }
+
   Element describe() {
     namespace lt = loot;
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Theme look = sheetTheme();
+    const sketch::kit::Provide bound(look, classes(look));
     const std::string goldText = kit::formatted("%d", gold);
 
-    auto root = stack().fill(Paint::linear({0, 0}, {0, lt::kH},
-                                           {{0.0f, hexColor(0x0D0C0A)},
-                                            {0.5f, hexColor(0x14120F)},
-                                            {1.0f, hexColor(0x080706)}}));
+    // THE ROOT OF THE CASCADE: ash is the ink every line that names no
+    // colour of its own is set in — the keys, the labels, the remarks.
+    auto root =
+        stack().ink(lt::kAsh).fill(Paint::linear({0, 0}, {0, lt::kH},
+                                                 {{0.0f, hexColor(0x0D0C0A)},
+                                                  {0.5f, hexColor(0x14120F)},
+                                                  {1.0f, hexColor(0x080706)}}));
 
     // THE GROUND IS TOOLED LEATHER, and it is tiled rather than painted:
     // two patterns over one dark ramp, each a repeating tile the
@@ -616,21 +610,19 @@ struct LootGrid final : sketch::Sketch {
                               .translateX(1.0f)
                               .translateY(1.0f)));
 
-    root.child(
-        box()
-            .column()
-            .left(30)
-            .top(34)
-            .child(text(toUtf8("HOARD OF THE HORADRIM"),
-                        weave::textStyle({.size = 23,
-                                          .color = lt::kParch,
-                                          .track = 3.4f,
-                                          .weight = 640})))
-            .child(text(toUtf8("grid inventory \xe2\x80\x94 generated "
-                               "materials, no sprites"),
-                        weave::textStyle(
-                            {.size = 12, .color = lt::kAsh, .track = 1.0f}))
-                       .margin(0, 5, 0, 0)));
+    root.child(box()
+                   .column()
+                   .left(30)
+                   .top(34)
+                   .child(text(toUtf8("HOARD OF THE HORADRIM"))
+                              .font({.size = 23,
+                                     .color = lt::kParch,
+                                     .track = 3.4f,
+                                     .weight = 640}))
+                   .child(text(toUtf8("grid inventory \xe2\x80\x94 generated "
+                                      "materials, no sprites"))
+                              .font({.size = 12, .track = 1.0f})
+                              .margin(0, 5, 0, 0)));
 
     root.child(paperdoll());
     root.child(gridPanel());
@@ -659,14 +651,12 @@ struct LootGrid final : sketch::Sketch {
                                            {{0.0f, hexColor(0xFFE9A8)},
                                             {0.6f, hexColor(0xD8A93C)},
                                             {1.0f, hexColor(0x7A5C15)}})))
-            .child(text(toUtf8(goldText),
-                        weave::textStyle({.size = 17,
-                                          .color = hexColor(0xD8B95C),
-                                          .track = 1.6f,
-                                          .weight = 620})))
-            .child(text(toUtf8("GOLD"),
-                        weave::textStyle(
-                            {.size = 10, .color = lt::kAsh, .track = 2.2f}))));
+            .child(text(toUtf8(goldText))
+                       .font({.size = 17,
+                              .color = hexColor(0xD8B95C),
+                              .track = 1.6f,
+                              .weight = 620}))
+            .child(text(toUtf8("GOLD")).font({.size = 10, .track = 2.2f})));
 
     // The two keys, bottom left and bottom right. Both are
     // `sketch::kit::legend` under the sheet's own theme: a dim body
