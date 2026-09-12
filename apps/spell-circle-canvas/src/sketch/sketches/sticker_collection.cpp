@@ -192,8 +192,8 @@ struct StickerCollection final : sketch::Sketch {
             .inset(0)
             .cache(Cache::None);
 
-    const weave::TextStyle title =
-        weave::textStyle({.size = 29, .color = {1, 1, 1, 1}, .track = 3.4f});
+    const weave::TextStyle title = weave::textStyle(
+        {.size = 29, .color = SkColor4f{1, 1, 1, 1}, .track = 3.4f});
     ctx.composer.render(
         stack()
             .width(kWidth)

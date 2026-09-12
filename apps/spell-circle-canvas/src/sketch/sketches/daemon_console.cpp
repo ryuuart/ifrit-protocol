@@ -314,28 +314,21 @@ struct DaemonConsole final : sketch::Sketch {
    *  span. Timestamps and tags are monospaced so the columns align by
    *  construction; the chrome (header, rail, counters) is proportional with
    *  tabular numerals asked of it where digits must sit in columns. */
-  sigil::weave::StyleSet rowStyles() const {
+  sigil::weave::StyleSheet rowStyles() const {
     namespace dc = daemon_console;
-    sigil::weave::StyleSet s(weave::textStyle(
+    sigil::weave::StyleSheet s(weave::textStyle(
         {.face = faceMono, .size = 12.5f, .color = dc::kBody}));
-    s.set("ts",
-          weave::textStyle({.face = faceMono, .size = 11, .color = dc::kDim}));
-    s.set("trace", weave::textStyle(
-                       {.face = faceMono, .size = 12.5f, .color = dc::kDim}));
-    s.set("seal",
-          weave::textStyle(
-              {.face = faceMono, .size = 12.5f, .color = hexColor(0x8FE5C4)}));
-    s.set("flux", weave::textStyle(
-                      {.face = faceMono, .size = 12.5f, .color = dc::kWarn}));
-    s.set("breach",
-          weave::textStyle(
-              {.face = faceMono, .size = 12.5f, .color = dc::kCritText}));
-    s.set("cipher",
-          weave::textStyle(
-              {.face = faceMono, .size = 12.5f, .color = dc::kAccent}));
+    // Every entry is a PARTIAL over that base: the payload voices change
+    // the colour alone, the timestamp one size down with it, and only the
+    // tags name a face of their own.
+    s.set("ts", weave::Type{.size = 11, .color = dc::kDim});
+    s.set("trace", weave::Type{.color = dc::kDim});
+    s.set("seal", weave::Type{.color = hexColor(0x8FE5C4)});
+    s.set("flux", weave::Type{.color = dc::kWarn});
+    s.set("breach", weave::Type{.color = dc::kCritText});
+    s.set("cipher", weave::Type{.color = dc::kAccent});
     auto tag = [&](SkColor4f color) {
-      return weave::textStyle(
-          {.face = faceMonoMed, .size = 11, .color = color});
+      return weave::Type{.face = faceMonoMed, .size = 11, .color = color};
     };
     s.set("tag-trace", tag(mskia::withAlpha(dc::kDim, 0.8f)));
     s.set("tag-info", tag(dc::kChrome));
@@ -481,7 +474,7 @@ struct DaemonConsole final : sketch::Sketch {
    *  live, and the frame it ends the row goes back to being a cached
    *  static leaf like every row above it. */
   Element logRow(const daemon_console::LogRow& r,
-                 const sigil::weave::StyleSet& styles) const {
+                 const sigil::weave::StyleSheet& styles) const {
     namespace dc = daemon_console;
     const dc::SevDress& d = dc::dress(r.sev);
 
@@ -647,7 +640,7 @@ struct DaemonConsole final : sketch::Sketch {
 
     // Built once per describe; the rows compare it by value, so identical
     // styles prune and only genuinely new rows mount.
-    const sigil::weave::StyleSet styles = rowStyles();
+    const sigil::weave::StyleSheet styles = rowStyles();
     Element well =
         box()
             .grow(1)

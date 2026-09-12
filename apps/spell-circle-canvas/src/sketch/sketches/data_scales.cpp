@@ -69,8 +69,8 @@ Element mapping(const Mapping& properties) {
                       })
                    .inset(0));
 
-  const auto label =
-      sigil::weave::textStyle({.size = 11, .color = {0.64f, 0.70f, 0.76f, 1}});
+  const auto label = sigil::weave::textStyle(
+      {.size = 11, .color = SkColor4f{0.64f, 0.70f, 0.76f, 1}});
   data::Scale axis = properties.scale;
   if (!categories && axis.transform != data::Transform::Time)
     axis.transform = data::Transform::Linear;

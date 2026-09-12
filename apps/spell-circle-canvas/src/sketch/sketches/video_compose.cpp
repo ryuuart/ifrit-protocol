@@ -157,7 +157,7 @@ struct VideoCompose final : sketch::Sketch {
     }
 
     const weave::TextStyle title = weave::textStyle(
-        {.size = 27, .color = {1, 1, 1, 0.96f}, .track = 5.5f});
+        {.size = 27, .color = SkColor4f{1, 1, 1, 0.96f}, .track = 5.5f});
     stage.child(text(u8"100 / COMPOSE VIDEO", title)
                     .absolute()
                     .inset(42, 42, 42, kHeight - 96));

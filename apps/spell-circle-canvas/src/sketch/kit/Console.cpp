@@ -1,5 +1,6 @@
 #include <sigilcompose/kit/Plate.h>
 #include <sigilsketch/kit/Console.h>
+#include <sigilweave/style/Type.h>
 
 #include <utility>
 
@@ -14,10 +15,12 @@ compose::Element console(const Console& panel) {
   // colour-only helper, because a console's ink is a Fill: a shader over
   // the base rows shades them, and a level names a colour of its own.
   const Register voice{.size = size, .mono = true};
-  weave::StyleSet styles(look.style(
+  weave::StyleSheet styles(look.style(
       voice, panel.ink.value_or(compose::Fill::color(look.palette.ink))));
+  // Each level is a CLASS over that base: its colour alone, the voice's
+  // face and size inherited.
   for (const auto& [name, color] : panel.levels)
-    styles.set(name, look.style(voice, color));
+    styles.set(name, weave::Type{.color = color});
   compose::Element plate = compose::kit::console(
       {.feeds = panel.feeds,
        .style = {.window = {.visible = panel.visible,

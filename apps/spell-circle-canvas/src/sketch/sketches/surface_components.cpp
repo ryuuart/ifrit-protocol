@@ -34,7 +34,8 @@ struct Card {
 };
 
 weave::TextStyle label(float size = 16) {
-  return weave::textStyle({.size = size, .color = {0.94f, 0.95f, 0.98f, 1}});
+  return weave::textStyle(
+      {.size = size, .color = SkColor4f{0.94f, 0.95f, 0.98f, 1}});
 }
 
 Element card(const Card& properties, Element content) {

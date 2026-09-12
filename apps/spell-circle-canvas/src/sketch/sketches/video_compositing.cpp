@@ -211,7 +211,7 @@ struct VideoCompositing final : sketch::Sketch {
             .cache(Cache::None);
 
     const weave::TextStyle title = weave::textStyle(
-        {.size = 34, .color = {1, 1, 1, 0.96f}, .track = 8.0f});
+        {.size = 34, .color = SkColor4f{1, 1, 1, 0.96f}, .track = 8.0f});
     ctx.composer.render(stack()
                             .width(kWidth)
                             .height(kHeight)

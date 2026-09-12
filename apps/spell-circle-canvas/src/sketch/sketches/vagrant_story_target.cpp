@@ -552,18 +552,20 @@ struct VagrantStoryTarget final : sketch::Set {
   compose::Element hud() {
     using namespace vs;
     const Limb& L = kLimbs[kSelected];
-    const weave::TextStyle title = weave::textStyle({.size = 13.0f,
-                                                     .color = {1, 1, 1, 1},
-                                                     .track = 0.0f,
-                                                     .condense = 0.92f,
-                                                     .aliased = true,
-                                                     .antiAlias = false});
-    const weave::TextStyle body = weave::textStyle({.size = 9.0f,
-                                                    .color = {1, 1, 1, 1},
-                                                    .track = 0.0f,
-                                                    .condense = 0.95f,
-                                                    .aliased = true,
-                                                    .antiAlias = false});
+    const weave::TextStyle title =
+        weave::textStyle({.size = 13.0f,
+                          .color = SkColor4f{1, 1, 1, 1},
+                          .track = 0.0f,
+                          .condense = 0.92f,
+                          .aliased = true,
+                          .antiAlias = false});
+    const weave::TextStyle body =
+        weave::textStyle({.size = 9.0f,
+                          .color = SkColor4f{1, 1, 1, 1},
+                          .track = 0.0f,
+                          .condense = 0.95f,
+                          .aliased = true,
+                          .antiAlias = false});
 
     compose::Element root =
         compose::box().width((float)kHudW).height((float)kHudH);

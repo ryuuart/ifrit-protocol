@@ -319,12 +319,14 @@ auto DunhuangStarChart::poleText() -> Element {
 
 auto DunhuangStarChart::logStyle() -> feed::TextOptions {
   feed::TextOptions s;
+  // One voice, and the levels are CLASSES over it: a colour each, the
+  // face and the size the base's.
   s.styles.base(type(faceMono, 9.2f, hexColor(0x9a8a68)))
-      .set("dim", type(faceMono, 9.2f, hexColor(0x6d6249)))
-      .set("heading", type(faceMono, 9.2f, hexColor(0xc9a35c)))
-      .set("pass", type(faceMono, 9.2f, hexColor(0x6ba87e)))
-      .set("number", type(faceMono, 9.2f, hexColor(0xcf6a4a)))
-      .set("fail", type(faceMono, 9.2f, hexColor(0xc4483a)));
+      .set("dim", weave::Type{.color = hexColor(0x6d6249)})
+      .set("heading", weave::Type{.color = hexColor(0xc9a35c)})
+      .set("pass", weave::Type{.color = hexColor(0x6ba87e)})
+      .set("number", weave::Type{.color = hexColor(0xcf6a4a)})
+      .set("fail", weave::Type{.color = hexColor(0xc4483a)});
   s.window.gap = 1.0f;
   s.window.visible = 12;
   return s;

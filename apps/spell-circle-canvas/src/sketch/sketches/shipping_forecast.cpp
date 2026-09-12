@@ -287,21 +287,20 @@ struct ShippingForecast : sketch::Sketch {
    *  "term") and the set says what that looks like. A name the set does not
    *  register falls back to the base, so a misspelling shows as body copy
    *  rather than as a run that did not draw. */
-  [[nodiscard]] sigil::weave::StyleSet forecastStyles() const {
-    sigil::weave::StyleSet set{body(19.5f, kBone)};
+  [[nodiscard]] sigil::weave::StyleSheet forecastStyles() const {
+    sigil::weave::StyleSheet set{body(19.5f, kBone)};
     // The wind direction: the one thing in the sentence that is a heading,
-    // so it is set as one — condensed, tracked, and a shade brighter.
-    set.set("dir", weave::textStyle({.face = faceBold,
-                                     .size = 19.5f,
-                                     .color = kBone,
-                                     .track = 0.6f,
-                                     .condense = 0.94f}));
+    // so it is set as one — condensed, tracked, and a shade brighter. It
+    // states only that: the size and the colour are the base's.
+    set.set("dir", weave::Type{.face = faceBold,
+                               .track = 0.6f,
+                               .condense = 0.94f});
     // A defined term. A serif italic inside a grotesque paragraph reads as
     // a citation of a glossary, which is exactly what these words are.
-    set.set(
-        "term",
-        weave::textStyle(
-            {.face = faceTerm, .size = 20.5f, .color = kAmber, .track = 0.2f}));
+    set.set("term", weave::Type{.face = faceTerm,
+                                .size = 20.5f,
+                                .color = kAmber,
+                                .track = 0.2f});
     return set;
   }
 
@@ -545,7 +544,7 @@ struct ShippingForecast : sketch::Sketch {
    *  paragraph shaped, at the positions it shaped them, wearing a different
    *  colour. */
   [[nodiscard]] Element forecast() {
-    const sigil::weave::StyleSet set = forecastStyles();
+    const sigil::weave::StyleSheet set = forecastStyles();
     weave::RichText copy = weave::rich(set.base());
     copy.styles(set)
         .add(u8"Southwesterly", "dir")
@@ -676,7 +675,7 @@ struct ShippingForecast : sketch::Sketch {
    *  would be a `spanStyle`, and would re-break the passage the line cascade
    *  is beating over. */
   [[nodiscard]] Element synopsis() {
-    const sigil::weave::StyleSet set = forecastStyles();
+    const sigil::weave::StyleSheet set = forecastStyles();
     sigil::weave::TextStyle graded = set.base();
     graded.variation("GRAD", 800.0f);
     weave::RichText copy = weave::rich(set.base());

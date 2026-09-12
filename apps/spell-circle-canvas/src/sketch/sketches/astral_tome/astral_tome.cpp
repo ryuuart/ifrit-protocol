@@ -320,7 +320,8 @@ struct AstralTome : sketch::Sketch {
                            "GuiJournalConstellationCluster, PAGE 1 OF 4"),
                     weave::textStyle({.face = mono,
                                       .size = 13.0f,
-                                      .color = {0.72f, 0.66f, 0.50f, 1.0f},
+                                      .color = SkColor4f{0.72f, 0.66f, 0.50f,
+                                                         1.0f},
                                       .track = 2.6f})));
     band.child(text(
         toUtf8("Four charts on one page at the mod's own numbers: a 95x95 "
@@ -329,7 +330,7 @@ struct AstralTome : sketch::Sketch {
                "divisor between 12 and 21."),
         weave::textStyle({.face = mono,
                           .size = 11.0f,
-                          .color = {0.50f, 0.46f, 0.38f, 1.0f},
+                          .color = SkColor4f{0.50f, 0.46f, 0.38f, 1.0f},
                           .track = 0.4f})));
     return band;
   }

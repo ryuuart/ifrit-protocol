@@ -661,9 +661,8 @@ auto Minard1869::consoleStrip() -> Element {
                           {"measured", hexColor(0x64a8d8)},
                           {"heading", hexColor(0xf0e8d8)}});
   // The heading runs a shade larger; set() replaces it where it sits.
-  s.styles.set("heading", weave::textStyle({.face = faceMono,
-                                            .size = 8.8f,
-                                            .color = hexColor(0xf0e8d8)}));
+  s.styles.set("heading",
+               weave::Type{.size = 8.8f, .color = hexColor(0xf0e8d8)});
   s.window.gap = 0.0f;
   s.window.visible = 20;
   return kit::console({.feeds = {&colA, &colB, &colC, &colD, &colE},

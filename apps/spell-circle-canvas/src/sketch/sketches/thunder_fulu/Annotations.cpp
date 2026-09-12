@@ -63,12 +63,14 @@ auto ThunderFulu::chantPanel() -> Element {
 
 auto ThunderFulu::logStyle() -> feed::TextOptions {
   feed::TextOptions s;
+  // One voice, and the levels are CLASSES over it: a colour each, the
+  // face and the size the base's.
   s.styles.base(type(faceMono, 9.6f, hexColor(0x9a8a68)))
-      .set("dim", type(faceMono, 9.6f, hexColor(0x6d6249)))
-      .set("heading", type(faceMono, 9.6f, kGold))
-      .set("pass", type(faceMono, 9.6f, hexColor(0x5fae7f)))
-      .set("number", type(faceMono, 9.6f, hexColor(0xcf6a4a)))
-      .set("fail", type(faceMono, 9.6f, hexColor(0xc4483a)));
+      .set("dim", weave::Type{.color = hexColor(0x6d6249)})
+      .set("heading", weave::Type{.color = kGold})
+      .set("pass", weave::Type{.color = hexColor(0x5fae7f)})
+      .set("number", weave::Type{.color = hexColor(0xcf6a4a)})
+      .set("fail", weave::Type{.color = hexColor(0xc4483a)});
   s.window.gap = 1.0f;
   s.window.visible = 13;
   return s;

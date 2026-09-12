@@ -87,7 +87,7 @@ weave::TextStyle bakeFace(float size, bool proportional = false) {
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
   return weave::textStyle({.face = proportional ? text : code,
                            .size = size,
-                           .color = {1, 1, 1, 1},
+                           .color = SkColor4f{1, 1, 1, 1},
                            .aliased = true});
 }
 
