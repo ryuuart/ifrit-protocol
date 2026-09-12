@@ -32,6 +32,8 @@
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Length.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -60,6 +62,7 @@ using sigil::material::skia::Paint;
 using sigil::compose::kit::at;
 using sigil::geometry::path::centred;
 using namespace std::chrono_literals;
+using namespace sigil::weave::literals;
 
 namespace {
 
@@ -427,36 +430,38 @@ inline const sketch::kit::Theme& sheet() {
   return look;
 }
 
-// A positional shorthand over the library's designated-init `type()`, for
-// the paragraph registers that name their own face at the call.
-inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
-                           SkColor4f color, float track = 0) {
-  return weave::textStyle(
-      {.face = tf, .size = size, .color = color, .track = track});
-}
-// The mono register reads the card's own sheet rather than resolving a face
-// of its own, so every line a machine wrote on this card is set in the one
-// face the sheet names. It reads `sheet()` and not the theme in scope
-// because a register is also asked for while a paragraph is being built,
-// which is before anything binds one.
-inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
-  return sheet().mono(sz, c, tr);
-}
-inline weave::TextStyle sb(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle(
-      {.face = sansB(), .size = sz, .color = c, .track = tr});
+// THE CARD'S VOICE is stated once, on the root of the tree it is described
+// into: the mono every machine-read line runs in, in the grey of its small
+// print. A line set otherwise says only what differs — a size, a tracking,
+// the ink black, a serif cut — and the lines the card sets more than once
+// are classes over the sheet's registers, bound with the sheet wherever the
+// card is described. The serif cuts name their own face because a sheet
+// holds two.
+inline const weave::StyleSheet& classes() {
+  static const weave::StyleSheet look =
+      sheet()
+          .styleSheet()
+          .set("heading", {.size = 9, .color = kInk, .track = 0.5f})
+          .set("tag", {.size = 7, .track = 0.6f})
+          .set("note", {.size = 8, .track = 0.2f})
+          .set("quote", {.face = serif(), .size = 10.5f})
+          .set("name", {.face = serifIt(), .size = 13});
+  return look;
 }
 
 inline std::u8string U(const std::string& s) { return toUtf8(s); }
 
-inline Element label(const std::string& s, const weave::TextStyle& st, float x,
-                     float y, float w) {
-  return at(x, y, w, st.shaping.fontSize * 1.6f).child(text(U(s), st));
+/** One line of type at a card position, ranged left or centred, set in
+ *  whatever the caller states on it — a class or a partial — over the root
+ *  voice. The line box is 1.6 em of that type, so it follows the size the
+ *  line resolves to. */
+inline Element label(const std::string& s, float x, float y, float w) {
+  return at(x, y, w, 0).height(1.6_em).child(text(U(s)));
 }
-inline Element centred(const std::string& s, const weave::TextStyle& st,
-                       float x, float y, float w) {
-  return at(x, y, w, st.shaping.fontSize * 1.6f)
-      .child(text(U(s), st)
+inline Element centred(const std::string& s, float x, float y, float w) {
+  return at(x, y, w, 0)
+      .height(1.6_em)
+      .child(text(U(s))
                  .textAlign(weave::TextAlignment::kCenter)
                  .width(Dimension(w)));
 }
