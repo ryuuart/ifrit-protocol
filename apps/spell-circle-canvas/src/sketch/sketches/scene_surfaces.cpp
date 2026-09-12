@@ -42,6 +42,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -49,6 +50,7 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/set/Set.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -64,6 +66,7 @@ namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
 namespace compose = sigil::compose;
+namespace environment = sigil::core::environment;
 namespace weave = sigil::weave;
 namespace gm = sigil::geometry::mesh;
 namespace sections = sigil::geometry::sections;
@@ -85,6 +88,19 @@ constexpr float kRepeats = 6.0f;
 constexpr int kTapeWidth = 512;
 constexpr int kTapeHeight = 160;
 
+/** THE SCREENS' TYPE, as classes: a screen's title and the note under it,
+ *  and the tape's display line and its caption. Bound where the room is
+ *  described, so every screen's leaves name their register; that a
+ *  screen's glyphs are aliased is each scene's own root's statement. */
+weave::StyleSheet screenType() {
+  weave::StyleSheet sheet;
+  sheet.set("title", {.size = 22.0f, .color = compose::hexColor(0xbfd4ef)});
+  sheet.set("note", {.size = 19.0f, .color = compose::hexColor(0x7e93b4)});
+  sheet.set("display", {.size = 46.0f, .color = compose::hexColor(0xf2ebdc)});
+  sheet.set("caption", {.size = 20.0f, .color = compose::hexColor(0x9eb8d9)});
+  return sheet;
+}
+
 /** A LEVEL SCREEN: a row of bars whose heights ride one wave, so the
  *  whole row moves together and no single bar has to be watched. */
 compose::Element levels(float seconds, SkColor4f accent) {
@@ -94,11 +110,9 @@ compose::Element levels(float seconds, SkColor4f accent) {
                               .column()
                               .gap(8.0f)
                               .padding(16.0f)
-                              .fill(compose::hexColor(0x12171f));
-  root.child(compose::text(
-      u8"LEVELS", weave::textStyle({.size = 22.0f,
-                                    .color = compose::hexColor(0xbfd4ef),
-                                    .antiAlias = false})));
+                              .fill(compose::hexColor(0x12171f))
+                              .font({.antiAlias = false});
+  root.child(compose::text(u8"LEVELS").styleClass("title"));
   compose::Element row =
       compose::box().row().gap(7.0f).height(compose::pct(100));
   for (int i = 0; i < 9; ++i) {
@@ -124,11 +138,9 @@ compose::Element trace(float seconds, SkColor4f accent) {
                               .column()
                               .gap(10.0f)
                               .padding(16.0f)
-                              .fill(compose::hexColor(0x0f141c));
-  root.child(compose::text(
-      u8"TRACE", weave::textStyle({.size = 22.0f,
-                                   .color = compose::hexColor(0xbfd4ef),
-                                   .antiAlias = false})));
+                              .fill(compose::hexColor(0x0f141c))
+                              .font({.antiAlias = false});
+  root.child(compose::text(u8"TRACE").styleClass("title"));
   constexpr int kCells = 14;
   compose::Element row = compose::box().row().gap(5.0f).height(44.0f);
   for (int i = 0; i < kCells; ++i) {
@@ -142,11 +154,7 @@ compose::Element trace(float seconds, SkColor4f accent) {
                                   accent.fB * lit, 1.0f}));
   }
   root.child(std::move(row));
-  root.child(
-      compose::text(u8"one wave, fourteen cells",
-                    weave::textStyle({.size = 19.0f,
-                                      .color = compose::hexColor(0x7e93b4),
-                                      .antiAlias = false})));
+  root.child(compose::text(u8"one wave, fourteen cells").styleClass("note"));
   return root;
 }
 
@@ -160,11 +168,9 @@ compose::Element dial(float seconds, SkColor4f accent) {
                               .column()
                               .gap(10.0f)
                               .padding(16.0f)
-                              .fill(compose::hexColor(0x14121f));
-  root.child(compose::text(
-      u8"DIAL", weave::textStyle({.size = 22.0f,
-                                  .color = compose::hexColor(0xbfd4ef),
-                                  .antiAlias = false})));
+                              .fill(compose::hexColor(0x14121f))
+                              .font({.antiAlias = false});
+  root.child(compose::text(u8"DIAL").styleClass("title"));
   const float reading = 0.5f + 0.5f * std::sin(seconds * 1.15f);
   compose::Element track = compose::box()
                                .width(compose::pct(100))
@@ -217,16 +223,10 @@ compose::Element tape(float seconds) {
                               .column()
                               .gap(6.0f)
                               .padding(14.0f)
-                              .fill(compose::hexColor(0x1f2430));
-  root.child(compose::text(
-      u8"WOVEN", weave::textStyle({.size = 46.0f,
-                                   .color = compose::hexColor(0xf2ebdc),
-                                   .antiAlias = false})));
-  root.child(
-      compose::text(u8"a scene, sampled",
-                    weave::textStyle({.size = 20.0f,
-                                      .color = compose::hexColor(0x9eb8d9),
-                                      .antiAlias = false})));
+                              .fill(compose::hexColor(0x1f2430))
+                              .font({.antiAlias = false});
+  root.child(compose::text(u8"WOVEN").styleClass("display"));
+  root.child(compose::text(u8"a scene, sampled").styleClass("caption"));
   compose::Element marks =
       compose::box().row().gap(10.0f).height(18.0f).absolute();
   marks.left(16.0f).bottom(14.0f);
@@ -313,6 +313,7 @@ struct SceneSurfaces final : sketch::Set {
   }
 
   world::Frame describe(float seconds) override {
+    const environment::Provide<weave::StyleSheet> type(screenType());
     const std::array<SkColor4f, 3> accents = {
         SkColor4f{0.30f, 0.82f, 1.00f, 1.0f},
         SkColor4f{1.00f, 0.62f, 0.24f, 1.0f},
