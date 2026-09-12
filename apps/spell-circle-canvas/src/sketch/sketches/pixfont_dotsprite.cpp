@@ -30,6 +30,8 @@
  *   kScale — the integer present scale.
  */
 
+// TAGS: Typography/Lettering, Media/Images
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkPaint.h>

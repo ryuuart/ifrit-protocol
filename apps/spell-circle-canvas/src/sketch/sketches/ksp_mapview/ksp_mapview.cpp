@@ -1,5 +1,7 @@
 // ksp mapview: scene assembly and animation.
 
+// TAGS: Motion/Trajectories, Interfaces/Game, Data/Astronomy
+
 #include "KspMapView.h"
 
 auto KspMapView::describe(sketch::SketchContext& ctx) -> Element {

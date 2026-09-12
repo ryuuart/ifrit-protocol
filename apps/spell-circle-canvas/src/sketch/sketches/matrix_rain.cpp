@@ -110,6 +110,8 @@
 //       src/sketch/sketches/matrix_rain.cpp \
 //       --frame /tmp/matrix_rain.png
 
+// TAGS: Typography/Effects, Motion/Particles
+
 #include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>

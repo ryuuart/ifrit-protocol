@@ -2,6 +2,8 @@
  * observable_flowfield_3 — random samples of a sine-composed angle field.
  */
 
+// TAGS: Drawing/Generative
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSpan.h>
 #include <sigilcompose/core/Core.h>

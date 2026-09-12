@@ -39,6 +39,8 @@
  *   kHang — the indent a marker hangs in, px, per level.
  */
 
+// TAGS: Typography/Paragraph
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>

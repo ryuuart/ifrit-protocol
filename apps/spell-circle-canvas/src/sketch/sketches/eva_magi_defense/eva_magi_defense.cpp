@@ -6,6 +6,8 @@
 // Capture at 2.5 seconds: five hostile sites, one friendly, the front still.
 // The front climbs from 3 to 17 seconds; the network then repeats.
 
+// TAGS: Interfaces/Film
+
 #include <sigilcompose/core/Measure.h>
 
 #include "DefenseLayout.h"

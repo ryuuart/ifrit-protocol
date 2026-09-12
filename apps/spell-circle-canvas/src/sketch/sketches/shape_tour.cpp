@@ -39,6 +39,8 @@
  *                edited number and its picture stay together.
  */
 
+// TAGS: Drawing/Primitives
+
 #include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

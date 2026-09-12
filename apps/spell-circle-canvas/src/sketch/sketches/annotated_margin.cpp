@@ -29,6 +29,8 @@
 //               label and every note follows the new wrap.
 //   kGutter   — how far the marginalia stand off the text.
 
+// TAGS: Typography/Paragraph
+
 #include <sigilcompose/kit/Annotations.h>
 #include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Kinetic.h>

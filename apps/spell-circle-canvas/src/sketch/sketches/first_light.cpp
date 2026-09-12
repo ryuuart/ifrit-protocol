@@ -11,6 +11,8 @@
  * function of the declared moment.
  */
 
+// TAGS: Materials/Lighting
+
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>

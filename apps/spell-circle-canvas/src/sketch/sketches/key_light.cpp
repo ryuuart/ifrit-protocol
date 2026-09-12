@@ -15,6 +15,8 @@
  * still as it looks and still change colour.
  */
 
+// TAGS: Materials/Lighting
+
 #include <choreograph/Choreograph.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>

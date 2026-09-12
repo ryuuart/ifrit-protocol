@@ -1,5 +1,7 @@
 // chaucer astrolabe: scene assembly and animation.
 
+// TAGS: Data/Astronomy
+
 #include "ChaucerAstrolabe.h"
 
 auto ChaucerAstrolabe::describe(sketch::SketchContext&) -> Element {

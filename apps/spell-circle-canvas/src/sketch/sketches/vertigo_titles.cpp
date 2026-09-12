@@ -123,6 +123,8 @@
 //              composition reaches R·√2, so this keeps the glow inside.
 //   the 16 s card cycle in the ticker — four cards, four seconds each.
 
+// TAGS: Motion/Trajectories
+
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkPathBuilder.h>

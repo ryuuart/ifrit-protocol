@@ -1,5 +1,7 @@
 // rota convocationis: scene assembly and animation.
 
+// TAGS: Typography/Lettering, Patterns/Ornament
+
 #include "RotaConvocationis.h"
 
 auto RotaConvocationis::describe() -> Element {

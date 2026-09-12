@@ -1,4 +1,6 @@
 /** One Scale prop maps a value, draws its axis and sizes its marks. */
+// TAGS: Data/Scales
+
 #include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildata/scale/Scale.h>

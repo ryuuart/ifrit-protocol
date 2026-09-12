@@ -44,6 +44,8 @@
  * of where the texel is and of nothing a machine decides.
  */
 
+// TAGS: Materials/Lighting
+
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilgeometry/kit/Solids.h>

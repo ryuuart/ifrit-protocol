@@ -42,6 +42,8 @@
 //                steps to the next.
 //   kSweepSecs — one pass of the reading index down the field.
 
+// TAGS: Typography/Paragraph, Geometry/Layout
+
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>

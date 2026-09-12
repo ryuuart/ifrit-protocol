@@ -52,6 +52,8 @@
 //                       laid out from them.
 //   the palette block   — the page's own attribute colours.
 
+// TAGS: Interfaces/Web
+
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Paint.h>

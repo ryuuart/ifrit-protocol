@@ -32,6 +32,8 @@
 // cooked ONCE; the two leaves are immediate-mode `custom()` programs only
 // because a projection is cheaper to redo than to cache.
 
+// TAGS: Geometry/Points
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>

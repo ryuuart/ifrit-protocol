@@ -1,5 +1,7 @@
 // hitman verlet: scene assembly and animation.
 
+// TAGS: Motion/Physics
+
 #include "HitmanVerlet.h"
 
 auto HitmanVerlet::setup(sketch::SketchContext& ctx) -> void {

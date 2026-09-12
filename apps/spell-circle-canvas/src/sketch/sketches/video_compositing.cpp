@@ -18,6 +18,8 @@
  * Dutton's Apache-licensed simpl demo.
  */
 
+// TAGS: Media/Video
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>

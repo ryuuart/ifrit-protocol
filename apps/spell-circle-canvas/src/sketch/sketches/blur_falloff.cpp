@@ -36,6 +36,8 @@
  * effect to live, so no bake can sample the parameter once and freeze it.
  */
 
+// TAGS: Materials/Compositing
+
 #include <include/effects/SkImageFilters.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

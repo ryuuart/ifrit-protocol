@@ -18,6 +18,8 @@
 //   kDrift   how fast the field moves them
 //   kDisplay the size the tree sets, which the pen's line is shaped at
 
+// TAGS: Drawing/Primitives
+
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>

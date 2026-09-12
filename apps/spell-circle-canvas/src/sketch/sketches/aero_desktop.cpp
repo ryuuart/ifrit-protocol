@@ -28,6 +28,8 @@
 // translucent, so a solid shadow core would show through the backdrop blur
 // and muddy it.
 
+// TAGS: Materials/Compositing, Interfaces/Desktop
+
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>

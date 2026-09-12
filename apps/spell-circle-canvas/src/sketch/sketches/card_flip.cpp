@@ -38,6 +38,8 @@
 //                        shorter is a stronger projection.
 //   kTilt              — the plate's pitch away from the viewer, degrees.
 
+// TAGS: Geometry/Meshes
+
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilsketch/canvas/Sketch.h>

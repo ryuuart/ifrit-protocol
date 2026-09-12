@@ -8,6 +8,8 @@
 //   kLeaves   the silhouettes arranged along the stem
 //   kGreens   the pigments shared by wet and dry leaves
 
+// TAGS: Drawing/Brushes
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

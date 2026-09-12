@@ -22,6 +22,8 @@
 // through their spans, and the first-class layer does the baking (2x
 // oversample built in) and the drawAtlas stamping.
 
+// TAGS: Motion/Particles
+
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/kit/Flourish.h>
 #include <sigilcompose/kit/Legibility.h>

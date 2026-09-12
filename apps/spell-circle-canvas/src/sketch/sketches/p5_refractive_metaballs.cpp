@@ -9,6 +9,8 @@
  * moving centres, so the geometry and the material share one animation.
  */
 
+// TAGS: Drawing/Generative, Materials/Shaders
+
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>

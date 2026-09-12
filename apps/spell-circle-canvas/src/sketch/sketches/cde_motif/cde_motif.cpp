@@ -1,5 +1,7 @@
 // A CDE desktop whose bevels and control colours are derived from its palette.
 
+// TAGS: Interfaces/Desktop
+
 #include "Motif.h"
 
 struct CdeMotifSketch : sketch::Sketch {

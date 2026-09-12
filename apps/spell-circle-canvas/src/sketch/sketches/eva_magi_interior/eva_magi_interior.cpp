@@ -6,6 +6,8 @@
 // Capture at 2.5 seconds: MELCHIOR taken, BALTHASAR partly infected, CASPER
 // clean. Later moments advance the verdict and countdown.
 
+// TAGS: Interfaces/Film
+
 #include "VotingPlate.h"
 
 struct EvaMagiInterior : sketch::Sketch {

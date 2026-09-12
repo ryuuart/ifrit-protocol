@@ -29,6 +29,8 @@
  *   kPlayhead    — the frame index the wrapping cell reads.
  */
 
+// TAGS: Materials/Compositing, Media/Images
+
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -210,171 +212,180 @@ struct MaterialAtlas final : sketch::Sketch {
                                                "grid, "
                                                "fromTexturePacker, "
                                                "fromAseprite, region, frame"),
-                                           .subtitle = toUtf8(kit::formatted("d"
-                                                                             "i"
-                                                                             "a"
-                                                                             "l"
-                                                                             "s"
-                                                                             " "
-                                                                             "\xc2\xb7 the grid (%d by %d of %d px) \xc2\xb7 the "
-                                                                             "s"
-                                                                             "o"
-                                                                             "u"
-                                                                             "r"
-                                                                             "c"
-                                                                             "e"
-                                                                             " "
-                                                                             "J"
-                                                                             "S"
-                                                                             "O"
-                                                                             "N"
-                                                                             " "
-                                                                             "\xc2\xb7 the sequence \xc2\xb7 the playhead "
-                                                                             "("
-                                                                             "%"
-                                                                             "z"
-                                                                             "u"
-                                                                             ","
-                                                                             " "
-                                                                             "p"
-                                                                             "a"
-                                                                             "s"
-                                                                             "t"
-                                                                             " "
-                                                                             "t"
-                                                                             "h"
-                                                                             "e"
-                                                                             " "
-                                                                             "e"
-                                                                             "n"
-                                                                             "d"
-                                                                             " "
-                                                                             "o"
-                                                                             "f"
-                                                                             " "
-                                                                             "a"
-                                                                             " "
-                                                                             "f"
-                                                                             "o"
-                                                                             "u"
-                                                                             "r"
-                                                                             "-"
-                                                                             "f"
-                                                                             "r"
-                                                                             "a"
-                                                                             "m"
-                                                                             "e"
-                                                                             " "
-                                                                             "r"
-                                                                             "u"
-                                                                             "n"
-                                                                             ")",
-                                                                             kCols,
-                                                                             kRows,
-                                                                             kCellSide,
-                                                                             kPlayhead)),
-                                           .footer = toUtf8(
-                                               "a region is an ordinary "
-                                               "texture cut from the "
-                                               "sheet, so a sprite needs no "
-                                               "second sampling "
-                                               "path \xe2\x80\x94 and frame() "
-                                               "wraps, so a "
-                                               "playhead is a counter and not "
-                                               "a modulus at "
-                                               "every call site")},
-                                          kit::cells({.cells = {kit::cells({.cells = {cell("the sheet, whole",
-                                                                                           kit::formatted(
-                                                                                               "%d by %d cells of %d px \xc2\xb7 "
-                                                                                               "each wedge sweeps 45\xc2\xb0 "
-                                                                                               "further than the last, so a run "
-                                                                                               "read out of order shows it",
-                                                                                               kCols, kRows, kCellSide),
-                                                                                           [sheet =
-                                                                                                sheet](SkCanvas& canvas) {
-                                                                                             put(canvas,
-                                                                                                 sheet,
-                                                                                                 SkRect::MakeXYWH(
-                                                                                                     10,
-                                                                                                     (kPicture -
-                                                                                                      160) *
-                                                                                                         0.5f,
-                                                                                                     320,
-                                                                                                     160),
-                                                                                                 {kCols *
-                                                                                                      kCellSide,
-                                                                                                  kRows *
-                                                                                                      kCellSide});
-                                                                                           }),
-                                                                                      cell("Atlas::grid(sheet, 4, 2)",
-                                                                                           kit::formatted("equal cells, row-major, named by "
-                                                                                                          "index \xc2\xb7 sequences: %s",
-                                                                                                          sequenceNames(
-                                                                                                              grid)
-                                                                                                              .c_str()),
-                                                                                           strip(grid,
-                                                                                                 "all", 4, 0)),
-                                                                                      cell("\xe2\x80\xa6"
-                                                                                           " the second row of it",
-                                                                                           "the same sequence read from index 4 "
-                                                                                           "\xc2\xb7 one list of indices, and the "
-                                                                                           "caller says where in it to start",
-                                                                                           strip(grid,
-                                                                                                 "all", 4, 4))},
-                                                                            .gap = 14}),
-                                                                kit::cells({.cells = {cell("Atlas::fromTexturePacker(sheet, json)",
-                                                                                           packed ? kit::formatted(
-                                                                                                        "a sequence per NAME STEM "
-                                                                                                        "\xc2\xb7 %s \xc2\xb7 "
-                                                                                                        "walk_01\xe2\x80\xa6"
-                                                                                                        "walk_04 in numeric order",
-                                                                                                        sequenceNames(
-                                                                                                            *packed)
-                                                                                                            .c_str())
-                                                                                                  : "not that JSON",
-                                                                                           packed ? strip(*packed,
-                                                                                                          "walk", 4, 0)
-                                                                                                  : std::function<void(
-                                                                                                        SkCanvas&)>{}),
-                                                                                      cell(
-                                                                                          "Atlas::fromAseprite(sheet, json)",
-                                                                                          tagged
-                                                                                              ? kit::formatted(
-                                                                                                    "a sequence per frame TAG "
-                                                                                                    "\xc2\xb7 %s \xc2\xb7 the "
-                                                                                                    "names carry nothing here",
-                                                                                                    sequenceNames(
-                                                                                                        *tagged)
-                                                                                                        .c_str())
-                                                                                              : "not that JSON",
-                                                                                          tagged
-                                                                                              ? strip(
-                                                                                                    *tagged,
-                                                                                                    "shut", 4, 0)
-                                                                                              : std::function<void(
-                                                                                                    SkCanvas&)>{}),
-                                                                                      cell(
-                                                                                          "frame(\"walk\", 6) \xc2\xb7 wrapping",
-                                                                                          packed
-                                                                                              ? kit::formatted(
-                                                                                                    "index %zu of a four-frame run "
-                                                                                                    "\xc2\xb7 past the end "
-                                                                                                    "wraps, so the strip reads "
-                                                                                                    "2, 3, 0, 1",
-                                                                                                    kPlayhead)
-                                                                                              : "not that JSON",
-                                                                                          packed
-                                                                                              ? strip(
-                                                                                                    *packed,
-                                                                                                    "walk",
-                                                                                                    4,
-                                                                                                    kPlayhead)
-                                                                                              : std::function<void(
-                                                                                                    SkCanvas&)>{})},
-                                                                            .gap =
-                                                                                14})},
-                                                      .column = true,
-                                                      .gap = 18})));
+                                           .subtitle = toUtf8(kit::formatted(
+                                               "d"
+                                               "i"
+                                               "a"
+                                               "l"
+                                               "s"
+                                               " "
+                                               "\xc2\xb7 the grid (%d by %d of "
+                                               "%d px) \xc2\xb7 the "
+                                               "s"
+                                               "o"
+                                               "u"
+                                               "r"
+                                               "c"
+                                               "e"
+                                               " "
+                                               "J"
+                                               "S"
+                                               "O"
+                                               "N"
+                                               " "
+                                               "\xc2\xb7 the sequence \xc2\xb7 "
+                                               "the playhead "
+                                               "("
+                                               "%"
+                                               "z"
+                                               "u"
+                                               ","
+                                               " "
+                                               "p"
+                                               "a"
+                                               "s"
+                                               "t"
+                                               " "
+                                               "t"
+                                               "h"
+                                               "e"
+                                               " "
+                                               "e"
+                                               "n"
+                                               "d"
+                                               " "
+                                               "o"
+                                               "f"
+                                               " "
+                                               "a"
+                                               " "
+                                               "f"
+                                               "o"
+                                               "u"
+                                               "r"
+                                               "-"
+                                               "f"
+                                               "r"
+                                               "a"
+                                               "m"
+                                               "e"
+                                               " "
+                                               "r"
+                                               "u"
+                                               "n"
+                                               ")",
+                                               kCols, kRows, kCellSide,
+                                               kPlayhead)),
+                                           .footer =
+                                               toUtf8("a region is an ordinary "
+                                                      "texture cut from the "
+                                                      "sheet, so a sprite "
+                                                      "needs no "
+                                                      "second sampling "
+                                                      "path \xe2\x80\x94 and "
+                                                      "frame() "
+                                                      "wraps, so a "
+                                                      "playhead is a counter "
+                                                      "and not "
+                                                      "a modulus at "
+                                                      "every call site")},
+                                          kit::cells(
+                                              {.cells = {kit::cells({.cells = {cell("the sheet, whole",
+                                                                                    kit::formatted(
+                                                                                        "%d by %d cells of %d px \xc2\xb7 "
+                                                                                        "each wedge sweeps 45\xc2\xb0 "
+                                                                                        "further than the last, so a run "
+                                                                                        "read out of order shows it",
+                                                                                        kCols,
+                                                                                        kRows,
+                                                                                        kCellSide),
+                                                                                    [sheet =
+                                                                                         sheet](
+                                                                                        SkCanvas&
+                                                                                            canvas) {
+                                                                                      put(canvas,
+                                                                                          sheet,
+                                                                                          SkRect::MakeXYWH(
+                                                                                              10,
+                                                                                              (kPicture -
+                                                                                               160) *
+                                                                                                  0.5f,
+                                                                                              320,
+                                                                                              160),
+                                                                                          {kCols *
+                                                                                               kCellSide,
+                                                                                           kRows *
+                                                                                               kCellSide});
+                                                                                    }),
+                                                                               cell("Atlas::grid(sheet, 4, 2)",
+                                                                                    kit::formatted(
+                                                                                        "equal cells, row-major, named by "
+                                                                                        "index \xc2\xb7 sequences: %s",
+                                                                                        sequenceNames(
+                                                                                            grid)
+                                                                                            .c_str()),
+                                                                                    strip(grid,
+                                                                                          "all",
+                                                                                          4, 0)),
+                                                                               cell("\xe2\x80\xa6"
+                                                                                    " the second row of it",
+                                                                                    "the same sequence read from index 4 "
+                                                                                    "\xc2\xb7 one list of indices, and the "
+                                                                                    "caller says where in it to start",
+                                                                                    strip(grid,
+                                                                                          "all",
+                                                                                          4, 4))},
+                                                                     .gap =
+                                                                         14}),
+                                                         kit::cells({.cells = {cell("Atlas::fromTexturePacker(sheet, json)",
+                                                                                    packed ? kit::formatted(
+                                                                                                 "a sequence per NAME STEM "
+                                                                                                 "\xc2\xb7 %s \xc2\xb7 "
+                                                                                                 "walk_01\xe2\x80\xa6"
+                                                                                                 "walk_04 in numeric order",
+                                                                                                 sequenceNames(
+                                                                                                     *packed)
+                                                                                                     .c_str())
+                                                                                           : "not that JSON",
+                                                                                    packed ? strip(*packed,
+                                                                                                   "walk",
+                                                                                                   4, 0)
+                                                                                           : std::function<
+                                                                                                 void(
+                                                                                                     SkCanvas&)>{}),
+                                                                               cell("Atlas::fromAseprite(sheet, json)",
+                                                                                    tagged ? kit::formatted("a sequence per frame TAG "
+                                                                                                            "\xc2\xb7 %s \xc2\xb7 the "
+                                                                                                            "names carry nothing here",
+                                                                                                            sequenceNames(*tagged)
+                                                                                                                .c_str())
+                                                                                           : "not that JSON",
+                                                                                    tagged ? strip(*tagged,
+                                                                                                   "shut", 4, 0)
+                                                                                           : std::function<void(
+                                                                                                 SkCanvas&)>{}),
+                                                                               cell(
+                                                                                   "frame(\"walk\", 6) \xc2\xb7 wrapping",
+                                                                                   packed
+                                                                                       ? kit::formatted(
+                                                                                             "index %zu of a four-frame run "
+                                                                                             "\xc2\xb7 past the end "
+                                                                                             "wraps, so the strip reads "
+                                                                                             "2, 3, 0, 1",
+                                                                                             kPlayhead)
+                                                                                       : "not that JSON",
+                                                                                   packed
+                                                                                       ? strip(
+                                                                                             *packed,
+                                                                                             "walk",
+                                                                                             4,
+                                                                                             kPlayhead)
+                                                                                       : std::function<void(
+                                                                                             SkCanvas&)>{})},
+                                                                     .gap =
+                                                                         14})},
+                                               .column = true,
+                                               .gap = 18})));
   }
 };
 

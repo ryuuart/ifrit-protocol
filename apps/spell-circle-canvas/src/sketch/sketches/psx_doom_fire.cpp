@@ -38,6 +38,8 @@
 //       src/sketch/sketches/psx_doom_fire.cpp \
 //       --frame /tmp/psx_doom_fire.png
 
+// TAGS: Drawing/Generative, Interfaces/Game
+
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <sigilcompose/core/Core.h>

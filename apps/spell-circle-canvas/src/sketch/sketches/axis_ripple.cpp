@@ -73,6 +73,8 @@
 //       src/sketch/sketches/axis_ripple.cpp \
 //       --frame /tmp/axis_ripple.png
 
+// TAGS: Typography/Effects, Motion/Transitions
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/kit/Kinetic.h>

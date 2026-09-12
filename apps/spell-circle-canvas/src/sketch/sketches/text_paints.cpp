@@ -26,6 +26,8 @@
  *   kMoment  — the second every animated field is frozen at.
  */
 
+// TAGS: Typography/Effects
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Gloss.h>
 #include <sigilcompose/kit/Specimen.h>

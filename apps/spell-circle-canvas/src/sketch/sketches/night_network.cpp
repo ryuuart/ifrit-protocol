@@ -39,6 +39,8 @@
 //                    fractions of it, and the legend's swatches follow.
 //   the palette block — one colour per line, and the legend reads them.
 
+// TAGS: Drawing/Brushes, Drawing/Generative
+
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>

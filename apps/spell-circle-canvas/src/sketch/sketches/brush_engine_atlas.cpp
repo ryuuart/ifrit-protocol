@@ -3,6 +3,8 @@
 // Stock tools, a caller-defined tip, field-warped surfaces and an even-odd
 // mass share one instance-owned engine and one deterministic pigment stream.
 
+// TAGS: Drawing/Brushes
+
 #include <include/core/SkBitmap.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>

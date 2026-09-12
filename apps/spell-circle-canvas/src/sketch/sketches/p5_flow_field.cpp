@@ -7,6 +7,8 @@
  * therefore move at different rates while the frame remains reproducible.
  */
 
+// TAGS: Drawing/Generative, Patterns/Noise
+
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>

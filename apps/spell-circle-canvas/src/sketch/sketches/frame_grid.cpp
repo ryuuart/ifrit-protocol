@@ -27,6 +27,8 @@
  *   kSnap   — the canvas-px pitch the Grid rounds results to.
  */
 
+// TAGS: Geometry/Layout
+
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

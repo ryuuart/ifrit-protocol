@@ -26,6 +26,8 @@
  *   kWindow     — the reach of a corner window, px.
  */
 
+// TAGS: Geometry/Paths
+
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

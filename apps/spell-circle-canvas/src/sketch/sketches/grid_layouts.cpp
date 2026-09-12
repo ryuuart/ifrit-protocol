@@ -25,6 +25,8 @@
  *   kSkewDeg — the shear the second cell's rows ride.
  */
 
+// TAGS: Geometry/Layout
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>

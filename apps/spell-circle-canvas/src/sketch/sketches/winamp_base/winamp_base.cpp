@@ -1,5 +1,7 @@
 // winamp base: scene assembly and animation.
 
+// TAGS: Interfaces/Desktop
+
 #include "WinampBase.h"
 
 auto WinampBase::describe() -> Element {

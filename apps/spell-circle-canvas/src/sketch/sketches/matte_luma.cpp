@@ -38,6 +38,8 @@
  * animation slot, but a still comparison wants none.
  */
 
+// TAGS: Materials/Compositing
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>

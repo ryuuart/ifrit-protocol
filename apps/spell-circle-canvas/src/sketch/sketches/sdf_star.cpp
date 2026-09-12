@@ -27,6 +27,8 @@
  *   kGlow       — the glow's falloff radius, px.
  */
 
+// TAGS: Materials/Shaders
+
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

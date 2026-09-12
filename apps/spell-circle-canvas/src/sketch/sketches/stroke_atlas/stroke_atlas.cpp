@@ -1,5 +1,7 @@
 // A catalogue of stroke materials, joins and layered brush treatments.
 
+// TAGS: Drawing/Primitives
+
 #include "Specimens.h"
 
 struct StrokeAtlasSketch : sketch::Sketch {

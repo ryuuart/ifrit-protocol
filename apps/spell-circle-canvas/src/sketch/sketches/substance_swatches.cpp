@@ -22,6 +22,8 @@
 //               from the count rather than a size being chosen and the
 //               cards fitted into it.
 
+// TAGS: Materials/Shaders
+
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilimage/asset/ImageAsset.h>

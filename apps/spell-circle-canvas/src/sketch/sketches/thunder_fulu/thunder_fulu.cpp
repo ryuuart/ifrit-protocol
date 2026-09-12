@@ -1,5 +1,7 @@
 // thunder fulu: scene assembly and animation.
 
+// TAGS: Typography/Lettering, Drawing/Brushes
+
 #include "ThunderFulu.h"
 
 auto ThunderFulu::describe(sketch::SketchContext&) -> Element {

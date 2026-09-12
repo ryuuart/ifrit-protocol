@@ -16,6 +16,8 @@
  *   kWrapMargin — the clearance between either silhouette and the type.
  */
 
+// TAGS: Typography/Paragraph
+
 #include <sigilcompose/core/Core.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>

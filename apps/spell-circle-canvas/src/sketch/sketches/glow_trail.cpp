@@ -15,6 +15,8 @@
  * three of them take turns on.
  */
 
+// TAGS: Motion/Particles, Materials/Compositing
+
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>

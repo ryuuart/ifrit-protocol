@@ -36,6 +36,8 @@
  *   kPeriod — the phase's loop and the spring's period, seconds.
  */
 
+// TAGS: Motion/Clocks
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>

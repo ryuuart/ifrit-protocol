@@ -33,6 +33,8 @@
 //                               crosses hands back no foot at all, which
 //                               is the interesting edge of the parting.
 
+// TAGS: Typography/Paragraph, Typography/CJK
+
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>

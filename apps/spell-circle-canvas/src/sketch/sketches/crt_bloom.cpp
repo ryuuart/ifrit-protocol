@@ -43,6 +43,8 @@
  *                 expect.
  */
 
+// TAGS: Materials/Compositing
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/field/Field.h>

@@ -1,5 +1,7 @@
 // An ability check composed from the die, skill modifiers and result panels.
 
+// TAGS: Interfaces/Game
+
 #include "AbilityCheck.h"
 
 struct Bg3DiceRoll : sketch::Sketch {

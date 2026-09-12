@@ -34,6 +34,8 @@
 //                               moment stands after it, so raising it
 //                               past 2.4 s puts the plate mid-entrance.
 
+// TAGS: Typography/CJK
+
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>

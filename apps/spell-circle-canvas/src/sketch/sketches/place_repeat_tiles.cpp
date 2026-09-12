@@ -26,6 +26,8 @@
  *   kTiles — how many tiles the strip is cut into.
  */
 
+// TAGS: Geometry/Layout, Patterns/Tiling
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPicture.h>
 #include <sigilcompose/core/Core.h>

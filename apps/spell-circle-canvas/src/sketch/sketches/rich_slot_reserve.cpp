@@ -38,6 +38,8 @@
  *   kBand — the room reserved beside every line, px.
  */
 
+// TAGS: Typography/Paragraph
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>

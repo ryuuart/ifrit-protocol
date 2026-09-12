@@ -6,6 +6,8 @@
 // spacing and scatter a stamp is placed by, the grain standing still on the
 // surface or riding each dab, and a curve the pressure drives.
 
+// TAGS: Drawing/Brushes
+
 #include <include/core/SkBitmap.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>

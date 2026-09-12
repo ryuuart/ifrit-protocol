@@ -1,6 +1,8 @@
 // The Genesis wall of fire: a fixed-step particle simulation drawn as luminous
 // streaks.
 
+// TAGS: Drawing/Generative, Motion/Particles
+
 #include "GenesisFire.h"
 
 void GenesisFire::setup(sketch::SketchContext& ctx) {

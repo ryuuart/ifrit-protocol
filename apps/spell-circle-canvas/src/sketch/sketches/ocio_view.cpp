@@ -28,6 +28,8 @@
  *   kConfig  — the config an ocio:// URI names.
  */
 
+// TAGS: Materials/Color
+
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkGradient.h>

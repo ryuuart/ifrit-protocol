@@ -56,6 +56,10 @@ QVariantMap rowFor(int index, const std::string& name, const std::string& key,
   row.insert(QStringLiteral("subject"), QString::fromStdString(header.subject));
   row.insert(QStringLiteral("editFirst"),
              QString::fromStdString(header.editFirst));
+  QStringList tags;
+  for (const auto& tag : header.tags)
+    tags.push_back(QString::fromStdString(tag));
+  row.insert(QStringLiteral("tags"), tags);
   row.insert(QStringLiteral("plate"), QString());
   // Answered by a running session, and empty until one has run.
   row.insert(QStringLiteral("canvas"), QString());

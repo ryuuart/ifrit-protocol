@@ -49,6 +49,8 @@
  *                 and chrome shows the difference hardest.
  */
 
+// TAGS: Geometry/Meshes, Materials/Lighting
+
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
 #include <sigilgeometry/kit/Silhouettes.h>

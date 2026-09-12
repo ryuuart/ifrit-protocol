@@ -30,6 +30,8 @@
  * declared once.
  */
 
+// TAGS: Geometry/Layout, Materials/Compositing
+
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>

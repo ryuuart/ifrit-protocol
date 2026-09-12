@@ -2,6 +2,8 @@
 // square modules, and a front information layer. The type registers separate
 // computer labels, display numerals, the serif wordmark and Japanese headings.
 
+// TAGS: Geometry/Diagrams, Interfaces/Film
+
 #include <include/core/SkPaint.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Paint.h>

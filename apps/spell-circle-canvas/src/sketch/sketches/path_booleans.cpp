@@ -28,6 +28,8 @@
 //   Roughen::seed          — a different jitter, still reproducible.
 //   PuckerBloat::amount    — ±1 is full strength either way.
 
+// TAGS: Geometry/Paths
+
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <sigilgeometry/kit/Silhouettes.h>

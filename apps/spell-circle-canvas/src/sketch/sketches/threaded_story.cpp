@@ -37,6 +37,8 @@
 //                     more of the story reaches the columns.
 //   kColumnGutter   — the gutter between the two column frames.
 
+// TAGS: Typography/Paragraph, Motion/Transitions
+
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>

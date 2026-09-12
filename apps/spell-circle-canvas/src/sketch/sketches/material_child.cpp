@@ -44,6 +44,8 @@
  * tie falls the same way on both sides.
  */
 
+// TAGS: Materials/Shaders
+
 #include <include/core/SkBitmap.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>

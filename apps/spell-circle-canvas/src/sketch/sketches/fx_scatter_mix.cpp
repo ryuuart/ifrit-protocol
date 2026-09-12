@@ -31,6 +31,8 @@
  *   kEach, kDuration — the spread's per-unit spacing and motion, ms.
  */
 
+// TAGS: Typography/Effects, Motion/Transitions
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Specimen.h>

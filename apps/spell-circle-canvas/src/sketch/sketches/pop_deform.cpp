@@ -26,6 +26,8 @@
  *   kTwistDeg / kTaper / kBendDeg / kPeak — the deformer amounts. Both
  *                rows read them, so the two stay comparable.
  */
+// TAGS: Geometry/Points
+
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

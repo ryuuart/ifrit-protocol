@@ -4,6 +4,8 @@
 // stable, making pressure, tilt, barrel rotation and speed response readable
 // without an attached tablet.
 
+// TAGS: Drawing/Brushes
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

@@ -1,5 +1,7 @@
 // sigillum aemeth: scene assembly and animation.
 
+// TAGS: Geometry/Diagrams, Patterns/Ornament
+
 #include "SigillumAemeth.h"
 
 auto SigillumAemeth::describe(sketch::SketchContext&) -> Element {

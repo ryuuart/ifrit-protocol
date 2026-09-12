@@ -26,6 +26,8 @@
 //   status bar ...... marquee, driven live: the content width is
 //                     measured and the wrapping phase comes from the ticker
 
+// TAGS: Materials/Compositing, Interfaces/Desktop
+
 #include <include/core/SkMaskFilter.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/LayerStyles.h>

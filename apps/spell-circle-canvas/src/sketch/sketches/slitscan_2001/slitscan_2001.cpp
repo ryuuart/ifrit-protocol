@@ -1,5 +1,7 @@
 // slitscan 2001: scene assembly and animation.
 
+// TAGS: Media/Video
+
 #include "SlitScan2001.h"
 
 auto SlitScan2001::describe(sketch::SketchContext& ctx) -> Element {

@@ -26,6 +26,8 @@
  *   kGain  — the height every bar is multiplied by.
  */
 
+// TAGS: Materials/Shaders
+
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

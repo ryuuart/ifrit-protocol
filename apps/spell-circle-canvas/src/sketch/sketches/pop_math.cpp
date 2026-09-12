@@ -22,6 +22,8 @@
  *   kFeather — the fraction of Select's extent that fades.
  */
 
+// TAGS: Geometry/Points
+
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

@@ -38,6 +38,8 @@
 //   kPlateH       — how large the reproduction hangs on the wall; every
 //                   fraction below rides it.
 
+// TAGS: Typography/Lettering
+
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/canvas/Sketch.h>

@@ -1,5 +1,7 @@
 // minard 1869: scene assembly and animation.
 
+// TAGS: Data/Charts
+
 #include "Minard1869.h"
 
 auto Minard1869::describe(sketch::SketchContext& ctx) -> Element {

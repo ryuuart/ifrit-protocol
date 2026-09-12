@@ -40,6 +40,8 @@
 //   ChromeParameters::brushed / GoldParameters::sparkle — the surfaces row.
 //   the chain on the wire — .count(), .noise(), the two ramp stops.
 
+// TAGS: Geometry/Paths, Runtime/Starter
+
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <sigilgeometry/kit/Sections.h>

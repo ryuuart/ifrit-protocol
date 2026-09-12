@@ -42,6 +42,8 @@
  * frame-graph subject rather than a shading one.
  */
 
+// TAGS: Materials/Lighting
+
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Environments.h>

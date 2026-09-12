@@ -51,6 +51,8 @@
  *               therefore how hard the transported rail is pushed.
  */
 
+// TAGS: Typography/Lettering, Geometry/Paths
+
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Measure.h>

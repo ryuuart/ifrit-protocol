@@ -91,6 +91,8 @@
  *   kHudScale — the integer scale the baked bitmap face is presented at.
  */
 
+// TAGS: Interfaces/Game
+
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/PixelType.h>

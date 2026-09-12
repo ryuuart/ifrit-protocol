@@ -29,6 +29,8 @@
  *   kGround   — the colour withGround() replaces the lower half with.
  */
 
+// TAGS: Materials/Lighting
+
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>

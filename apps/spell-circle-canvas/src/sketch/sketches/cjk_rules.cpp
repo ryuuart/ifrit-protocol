@@ -38,6 +38,8 @@
  *   kTsume — the em fraction every other full-width gap closes up by.
  */
 
+// TAGS: Typography/CJK
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>

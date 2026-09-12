@@ -31,6 +31,8 @@
 //   .noise(amplitude, frequency) — the wobble, on the rail not the skin.
 //   .smooth(strength, iterations) — drop it and the star sweep kinks.
 
+// TAGS: Geometry/Points
+
 #include <include/core/SkMatrix.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Sections.h>

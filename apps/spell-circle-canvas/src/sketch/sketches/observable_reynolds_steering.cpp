@@ -2,6 +2,8 @@
  * observable_reynolds_steering — alignment, cohesion and separation flocking.
  */
 
+// TAGS: Drawing/Generative, Motion/Physics
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

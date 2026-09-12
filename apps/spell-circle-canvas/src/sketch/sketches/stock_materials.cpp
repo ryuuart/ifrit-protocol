@@ -31,6 +31,8 @@
  * ramps, and `kit::` text paints.
  */
 
+// TAGS: Materials/Shaders
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>

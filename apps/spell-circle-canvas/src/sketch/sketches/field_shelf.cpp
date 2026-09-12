@@ -28,6 +28,8 @@
  *   kSeed     — the seed every generated field is offset by.
  */
 
+// TAGS: Materials/Shaders
+
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>

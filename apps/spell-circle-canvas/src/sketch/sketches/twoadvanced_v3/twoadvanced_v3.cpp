@@ -1,6 +1,8 @@
 // The 2Advanced expansion site: a page assembled from production images and
 // reusable modules.
 
+// TAGS: Interfaces/Web
+
 #include "TwoAdvancedV3.h"
 
 Element TwoAdvancedV3::describe() {

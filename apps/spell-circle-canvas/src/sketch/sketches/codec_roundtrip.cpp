@@ -26,6 +26,8 @@
  *   kMotes           — points scattered on it for the cloud round trip.
  */
 
+// TAGS: Geometry/Meshes, Media/Models
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>

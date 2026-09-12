@@ -15,6 +15,8 @@
 //   kFade   the background's alpha: lower is a longer trail
 //   vx, vy  the speed, in pixels per frame
 
+// TAGS: Drawing/Primitives, Motion/Physics, Runtime/Starter
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>

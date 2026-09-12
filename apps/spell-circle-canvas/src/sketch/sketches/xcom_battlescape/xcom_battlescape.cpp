@@ -1,6 +1,8 @@
 // An X-COM battlescape composed from palette-indexed sprites and tactical
 // controls.
 
+// TAGS: Interfaces/Game
+
 #include "Sprites.h"
 
 struct XcomBattlescape : sketch::Sketch {

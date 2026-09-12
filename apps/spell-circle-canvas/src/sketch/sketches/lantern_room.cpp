@@ -22,6 +22,8 @@
  * the bodies are the honest reading of where the light is.
  */
 
+// TAGS: Materials/Lighting
+
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/path/Arrange.h>

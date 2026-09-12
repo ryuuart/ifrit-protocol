@@ -8,6 +8,8 @@
 // ctx.assets.image("name.png") (a magenta checker shows until the file
 // exists; editing the file on disk hot-swaps it too).
 
+// TAGS: Runtime/Starter
+
 #include <include/core/SkPathBuilder.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>

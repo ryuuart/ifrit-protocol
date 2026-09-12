@@ -10,6 +10,8 @@
 //   kOrbitMarks   how many charcoal gestures turn around the centre
 //   kPalette      the pigments assigned to successive strokes
 
+// TAGS: Drawing/Brushes
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

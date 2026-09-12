@@ -66,6 +66,8 @@
 // The 13.6 s mark is the settled plate. Earlier moments show the argument
 // being made: 2.2 s is diagram 1 growing clockwise out of July 1854.
 
+// TAGS: Data/Charts
+
 #include <include/core/SkFont.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>

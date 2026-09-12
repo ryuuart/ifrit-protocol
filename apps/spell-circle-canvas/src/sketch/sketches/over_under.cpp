@@ -27,6 +27,8 @@
  *   kBevel — the shoulder the slope mask's normals are derived from.
  */
 
+// TAGS: Materials/Compositing
+
 #include <include/core/SkSurface.h>
 #include <include/effects/SkGradient.h>
 #include <sigilcompose/core/Core.h>

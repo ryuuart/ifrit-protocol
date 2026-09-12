@@ -30,6 +30,8 @@
  * generated one is.
  */
 
+// TAGS: Geometry/Points, Media/Models
+
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/codec/Decode.h>

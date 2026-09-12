@@ -27,6 +27,8 @@
  *   kNotch  — the notch's width and depth, px.
  */
 
+// TAGS: Geometry/Paths
+
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

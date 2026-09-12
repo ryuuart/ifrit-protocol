@@ -45,6 +45,8 @@
  *   kMetersPerUnit — the stage metadata a consumer reads the size by.
  */
 
+// TAGS: Media/Models
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>

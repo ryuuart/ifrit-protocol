@@ -29,6 +29,8 @@
 // A raking light crosses the pavement the way it does at floor level,
 // and the whole floor lays itself ring by ring.
 
+// TAGS: Patterns/Tiling
+
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/typography/Typography.h>

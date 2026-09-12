@@ -25,6 +25,8 @@
 //   kRingRadius / kRingWidth — which points the lane holds.
 //   kTwistDeg  — panel 3's amount.
 
+// TAGS: Geometry/Points, Media/Models
+
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

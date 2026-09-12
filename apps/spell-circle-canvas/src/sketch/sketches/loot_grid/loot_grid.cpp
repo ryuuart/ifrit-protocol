@@ -1,5 +1,7 @@
 // A socketed inventory: item data and reusable slots assembled into a grid.
 
+// TAGS: Interfaces/Game
+
 #include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 

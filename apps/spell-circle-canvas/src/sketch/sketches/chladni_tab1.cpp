@@ -99,6 +99,8 @@
 // is the argument being made: figures 1-3 drawn in sand, figure 4 in the
 // act of gathering into six arms, figures 5-12 still an even scatter.
 
+// TAGS: Drawing/Generative
+
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>

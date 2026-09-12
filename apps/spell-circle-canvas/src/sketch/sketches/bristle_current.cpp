@@ -14,6 +14,8 @@
 //   kTurn          how far the noise may turn a bristle from the prevailing
 //   flow
 
+// TAGS: Drawing/Brushes, Drawing/Generative
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>

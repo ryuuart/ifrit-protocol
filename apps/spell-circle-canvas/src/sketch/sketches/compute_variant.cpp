@@ -37,6 +37,8 @@
  *   the captured moment, which is where the rail's window stands.
  */
 
+// TAGS: Geometry/Points
+
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>

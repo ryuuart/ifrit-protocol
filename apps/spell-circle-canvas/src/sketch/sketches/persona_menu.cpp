@@ -41,6 +41,8 @@
 // every y position are left alone. Keep that split if you move anything:
 // scaling the type or the wedges with the width is what breaks the look.
 
+// TAGS: Interfaces/Game
+
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>

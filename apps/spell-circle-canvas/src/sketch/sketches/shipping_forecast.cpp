@@ -140,6 +140,8 @@
 //
 //   The whole bulletin:  --at 0.2 --frames 30 --fps 4
 
+// TAGS: Typography/Effects, Motion/Transitions
+
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>

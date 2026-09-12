@@ -1,5 +1,7 @@
 // A research web laid over parchment, stamped connectors and brass controls.
 
+// TAGS: Geometry/Diagrams, Interfaces/Game
+
 #include "ResearchArt.h"
 
 struct Thaumonomicon : sketch::Sketch {

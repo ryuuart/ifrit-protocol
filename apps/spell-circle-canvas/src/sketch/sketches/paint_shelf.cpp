@@ -30,6 +30,8 @@
  *   kWindow — the sweep's start and end angles.
  */
 
+// TAGS: Materials/Color
+
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

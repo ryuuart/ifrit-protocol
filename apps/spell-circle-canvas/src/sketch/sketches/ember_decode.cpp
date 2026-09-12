@@ -62,6 +62,8 @@
 //       src/sketch/sketches/ember_decode.cpp \
 //       --frame /tmp/ember_decode.png
 
+// TAGS: Typography/Effects, Materials/Shaders
+
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/core/Material.h>

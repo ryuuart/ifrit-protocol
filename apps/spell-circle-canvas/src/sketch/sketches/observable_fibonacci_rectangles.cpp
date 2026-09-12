@@ -2,6 +2,8 @@
  * observable_fibonacci_rectangles — signed Fibonacci tiles around the origin.
  */
 
+// TAGS: Drawing/Generative, Patterns/Ornament
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

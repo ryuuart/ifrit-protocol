@@ -1,5 +1,7 @@
 // twoadvanced v4: scene assembly and animation.
 
+// TAGS: Interfaces/Web
+
 #include "TwoAdvancedV4.h"
 
 auto TwoAdvancedV4::describe() -> Element {

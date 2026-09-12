@@ -1,5 +1,7 @@
 // A 3D world with a composited status display and interaction overlays.
 
+// TAGS: Interfaces/Game
+
 #include "Hud.h"
 
 namespace {

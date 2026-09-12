@@ -31,6 +31,8 @@
  *   kCells — the lattice cell, in samples.
  */
 
+// TAGS: Patterns/Noise
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>

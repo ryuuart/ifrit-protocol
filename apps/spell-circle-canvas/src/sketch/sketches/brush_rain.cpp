@@ -3,6 +3,8 @@
 // Each gesture keeps its own field direction and phase. The field bends the
 // centreline while the selected tool supplies edge character, grain and taper.
 
+// TAGS: Drawing/Brushes
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

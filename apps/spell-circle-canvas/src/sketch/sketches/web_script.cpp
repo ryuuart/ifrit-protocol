@@ -36,6 +36,8 @@
  *   kScript    — the expression the second cell evaluates.
  */
 
+// TAGS: Interfaces/Web
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>

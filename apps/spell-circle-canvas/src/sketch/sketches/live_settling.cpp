@@ -41,6 +41,8 @@
  *   kBudget — the floor under a frame the optimizing breaker cannot meet.
  */
 
+// TAGS: Typography/Paragraph
+
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

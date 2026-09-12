@@ -1,5 +1,7 @@
 // An asanoha lattice assembled from mitred timber pieces.
 
+// TAGS: Patterns/Tiling
+
 #include "Joinery.h"
 
 struct KumikoAsanoha : sketch::Sketch {

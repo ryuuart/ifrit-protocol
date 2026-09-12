@@ -30,6 +30,8 @@
  *   kDrop — how far the slot's bottom sits below the base's baseline.
  */
 
+// TAGS: Typography/Paragraph, Typography/CJK
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>

@@ -30,6 +30,8 @@
  *   kStrands, kAmplitude, kWavelength — the braid.
  */
 
+// TAGS: Geometry/Diagrams, Patterns/Ornament
+
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>

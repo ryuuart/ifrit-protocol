@@ -2,6 +2,8 @@
  * observable_l_system_tree — a bracketed branching Lindenmayer tree.
  */
 
+// TAGS: Drawing/Generative, Patterns/Ornament
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

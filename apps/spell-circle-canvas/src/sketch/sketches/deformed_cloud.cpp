@@ -25,6 +25,8 @@
  * only thing separating them is one flag.
  */
 
+// TAGS: Geometry/Points
+
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Points.h>

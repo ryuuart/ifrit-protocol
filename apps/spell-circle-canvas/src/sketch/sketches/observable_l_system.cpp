@@ -2,6 +2,8 @@
  * observable_l_system — a turtle interpreting a two-rule Lindenmayer word.
  */
 
+// TAGS: Drawing/Generative, Patterns/Ornament
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>

@@ -10,6 +10,8 @@
  *   columns — the number of equal tracks in the panel grid.
  */
 
+// TAGS: Materials/Compositing
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/kit/Gel.h>

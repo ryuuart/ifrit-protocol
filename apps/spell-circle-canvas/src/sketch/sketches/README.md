@@ -47,6 +47,12 @@ which is what you want while you are CHANGING one. Opening the app on
 the whole registry is what you want while you are LOOKING at one next to
 everything else.
 
+Each entry's opening comment carries `TAGS:` with comma-separated subject
+paths, such as `Typography/Paragraph, Motion/Transitions`. Sketchbook builds
+its subject tree from those paths. A sketch may have several tags; its
+registration category remains its collection. File locations do not define
+navigation groups.
+
 The table below is every sketch filed under a `Study ·` category — the
 studies that rebuild a REFERENCE — with what each one puts under load.
 Every other sketch here carries its own line in its own `SIGIL_SKETCH`

@@ -45,6 +45,8 @@
 //                their effect and in nothing else.
 //   kSpecimen  — the size the specimens are set at.
 
+// TAGS: Typography/Effects, Motion/Transitions
+
 #include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Specimen.h>

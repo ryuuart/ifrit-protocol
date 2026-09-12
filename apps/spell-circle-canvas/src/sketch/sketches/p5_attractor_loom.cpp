@@ -9,6 +9,8 @@
  * geometry instead of supplying the pattern.
  */
 
+// TAGS: Drawing/Generative
+
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>

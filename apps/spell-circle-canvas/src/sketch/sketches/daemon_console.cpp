@@ -58,6 +58,8 @@
 //   the palette block    — the whole surface is dressed out of it, and
 //                          severity is encoded in ink as well as in form.
 
+// TAGS: Interfaces/Game
+
 #include <include/core/SkPaint.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Pattern.h>

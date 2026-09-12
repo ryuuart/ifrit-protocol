@@ -2,6 +2,8 @@
  * observable_noise — coherent noise beside an uncorrelated random polyline.
  */
 
+// TAGS: Drawing/Generative, Patterns/Noise
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>

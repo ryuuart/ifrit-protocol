@@ -1,6 +1,8 @@
 // A Penrose pavement assembled from computed tiles, decorated edges and stone
 // materials.
 
+// TAGS: Patterns/Tiling
+
 #include "Tiling.h"
 
 struct PenrosePaving : sketch::Sketch {

@@ -51,6 +51,8 @@
 //   kCapLines       — how deep the versal is dropped, in lines.
 //   kTurnSecs       — how long a page holds before it is turned.
 
+// TAGS: Typography/Paragraph
+
 #include <include/core/SkMaskFilter.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Ornament.h>

@@ -39,6 +39,8 @@
  * kRibbonRadius — how wide the tape loop stands round the console
  */
 
+// TAGS: Geometry/Meshes
+
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/texture/Texture.h>

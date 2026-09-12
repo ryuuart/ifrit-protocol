@@ -11,6 +11,8 @@
 //   kBristles     how many hairs make each loaded brush
 //   kPigmentAlpha how heavily each bristle deposits pigment
 
+// TAGS: Drawing/Brushes
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

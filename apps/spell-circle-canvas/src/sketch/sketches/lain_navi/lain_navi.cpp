@@ -1,5 +1,7 @@
 // Translucent Copland OS panels layered over a moving field of type.
 
+// TAGS: Interfaces/Film
+
 #include "Navi.h"
 
 struct LainNavi : sketch::Sketch {

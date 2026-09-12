@@ -78,6 +78,23 @@ TEST(SketchSources, SourceMetadataPreservesKnobsAndStopsAtCode) {
   EXPECT_TRUE(sourceMetadata(scratch.path / "absent.cpp").subject.empty());
 }
 
+TEST(SketchSources, TagsArePathsAndDoNotBecomeSubjectOrKnobs) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_metadata_tags");
+  scratch.write("example.cpp",
+                "/** @file\n * A title\n *\n * A paragraph about the drawing.\n"
+                " * TAGS: Typography / Paragraph, Motion/Text, , / /\n"
+                " *\n * EDIT THESE FIRST\n *   size — width\n */\n"
+                "// TAGS: Typography/Paragraph, Drawing//Brushes/\n"
+                "#include <vector>\n// TAGS: Ignored\n");
+  const SourceMetadata metadata = sourceMetadata(scratch.path / "example.cpp");
+  EXPECT_EQ(metadata.subject, "A paragraph about the drawing.");
+  EXPECT_EQ(metadata.editFirst, "size — width");
+  EXPECT_EQ(metadata.tags,
+            (std::vector<std::string>{"Typography/Paragraph", "Motion/Text",
+                                      "Drawing/Brushes"}));
+  EXPECT_TRUE(sourceMetadata(scratch.path / "absent.cpp").tags.empty());
+}
+
 TEST(SketchSources, LocalHeadersFollowOwnersAcrossDirectoriesAndCycles) {
   const sigil::test::ScratchDir scratch("sigil_sketch_header_owners");
   scratch.write("rain/rain.cpp", "#include \"../cloud/Palette.h\"\n");

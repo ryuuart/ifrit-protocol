@@ -9,6 +9,8 @@
  * second material fitted to its circle, so the glow needs no raster asset.
  */
 
+// TAGS: Drawing/Generative
+
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>

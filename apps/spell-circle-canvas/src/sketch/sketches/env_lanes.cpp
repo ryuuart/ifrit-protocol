@@ -29,6 +29,8 @@
  *   kBackdrop, kBlur — how much sky is shown, and how soft.
  */
 
+// TAGS: Materials/Lighting
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>

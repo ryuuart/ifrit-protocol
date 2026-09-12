@@ -10,6 +10,8 @@
  * deterministic capture samples the same five decoders synchronously.
  */
 
+// TAGS: Media/Video
+
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/video/Video.h>

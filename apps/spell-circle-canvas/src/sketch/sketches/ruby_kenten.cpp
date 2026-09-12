@@ -37,6 +37,8 @@
 //   kSplitHeight          — how deep the split column is, which is what
 //                           decides where the base breaks.
 
+// TAGS: Typography/CJK
+
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>

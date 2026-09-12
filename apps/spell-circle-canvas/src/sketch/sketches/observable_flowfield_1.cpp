@@ -2,6 +2,8 @@
  * observable_flowfield_1 — a regular grid sampling a diagonal angle field.
  */
 
+// TAGS: Drawing/Generative
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

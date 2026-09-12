@@ -1,5 +1,7 @@
 // Four constellation charts assembled as an illuminated book spread.
 
+// TAGS: Geometry/Diagrams, Interfaces/Game
+
 #include "Constellations.h"
 
 struct AstralTome : sketch::Sketch {

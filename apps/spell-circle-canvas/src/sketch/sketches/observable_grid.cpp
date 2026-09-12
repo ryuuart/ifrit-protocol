@@ -2,6 +2,8 @@
  * observable_grid — repeated square cells under one animated rotation.
  */
 
+// TAGS: Drawing/Generative
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

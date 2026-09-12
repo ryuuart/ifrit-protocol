@@ -31,6 +31,8 @@
  *   Cache::Texture are what earn four of the five reasons.
  */
 
+// TAGS: Geometry/Diagrams
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>

@@ -47,6 +47,8 @@
 //   kLaps    — track 4's `.target(0, kLaps)`. 0.5 is half a lap.
 //   kPeriod  — seconds per lap of `phase`; changes speed, not the picture.
 
+// TAGS: Motion/Clocks
+
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

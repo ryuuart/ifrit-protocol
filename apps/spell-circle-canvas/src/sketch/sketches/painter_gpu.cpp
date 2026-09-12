@@ -30,6 +30,8 @@
  *   kCurve  — the curved sheet's radius; larger is flatter.
  */
 
+// TAGS: Geometry/Meshes
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/texture/Texture.h>

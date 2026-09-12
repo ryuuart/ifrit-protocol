@@ -28,6 +28,8 @@
  *   kLit    — the one axis a session specialises on (defines SIGIL_LIT).
  */
 
+// TAGS: Materials/Shaders
+
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

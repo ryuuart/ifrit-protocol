@@ -2,6 +2,8 @@
  * observable_noise_map — a tiled view of coherent two-dimensional noise.
  */
 
+// TAGS: Drawing/Generative, Patterns/Noise
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

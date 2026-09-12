@@ -36,6 +36,8 @@
  *   kSeat — the extra offset added on top of whatever a seating measured.
  */
 
+// TAGS: Typography/Paragraph
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>

@@ -35,6 +35,8 @@
  *   kScale   — how many sheet pixels one source pixel covers.
  */
 
+// TAGS: Media/Images
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSamplingOptions.h>

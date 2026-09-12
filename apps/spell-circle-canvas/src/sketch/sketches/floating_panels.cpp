@@ -45,6 +45,8 @@
  *                                   panel are the same picture.
  */
 
+// TAGS: Geometry/Meshes
+
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Solids.h>

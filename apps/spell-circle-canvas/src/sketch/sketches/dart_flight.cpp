@@ -22,6 +22,8 @@
  * it, and nothing about where it goes.
  */
 
+// TAGS: Geometry/Meshes, Motion/Trajectories
+
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>

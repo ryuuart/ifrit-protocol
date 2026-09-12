@@ -2,6 +2,8 @@
  * observable_reaction_diffusion — a Gray-Scott field advanced on the CPU.
  */
 
+// TAGS: Drawing/Generative, Patterns/Noise
+
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
 #include <sigilcompose/core/Core.h>

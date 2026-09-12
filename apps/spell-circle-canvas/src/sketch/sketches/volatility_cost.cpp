@@ -69,6 +69,8 @@
  *                 settle, the right panel is still volatile and says so.
  */
 
+// TAGS: Runtime/Caching
+
 #include <include/core/SkPaint.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcompose/brush/Brushes.h>

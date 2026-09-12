@@ -51,6 +51,8 @@
 //   detail card ......... the tooltip typography: name, kind rule, stat
 //                         lines, italic flavour, on a framed scrim
 
+// TAGS: Geometry/Diagrams, Interfaces/Game
+
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>

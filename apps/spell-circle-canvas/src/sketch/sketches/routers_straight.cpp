@@ -32,6 +32,8 @@
  *   kBulge — the arc router's bulge, as a fraction of the chord.
  */
 
+// TAGS: Geometry/Diagrams
+
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Routers.h>

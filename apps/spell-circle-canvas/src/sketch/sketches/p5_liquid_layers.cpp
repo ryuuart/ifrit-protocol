@@ -7,6 +7,8 @@
  * points move and the brush texture does not flicker in a captured sequence.
  */
 
+// TAGS: Drawing/Brushes, Drawing/Generative
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

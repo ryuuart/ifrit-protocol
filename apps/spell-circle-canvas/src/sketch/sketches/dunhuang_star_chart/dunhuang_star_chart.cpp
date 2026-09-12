@@ -1,5 +1,7 @@
 // dunhuang star chart: scene assembly and animation.
 
+// TAGS: Data/Astronomy
+
 #include "DunhuangStarChart.h"
 
 auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {

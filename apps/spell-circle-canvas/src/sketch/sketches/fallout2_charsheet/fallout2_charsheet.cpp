@@ -1,5 +1,7 @@
 // fallout2 charsheet: scene assembly and animation.
 
+// TAGS: Interfaces/Game
+
 #include "Fallout2CharSheet.h"
 
 auto Fallout2CharSheet::describe() -> Element {

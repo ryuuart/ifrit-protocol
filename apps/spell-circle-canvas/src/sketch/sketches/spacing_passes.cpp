@@ -42,6 +42,8 @@
  *   kGlyphScale — what the third pass scales the letters across by.
  */
 
+// TAGS: Typography/Paragraph
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>

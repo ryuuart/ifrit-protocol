@@ -31,6 +31,8 @@
  *   kFirst, kSecond — the two states the text file is written in.
  */
 
+// TAGS: Runtime/Resources
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
 #include <include/core/SkPaint.h>

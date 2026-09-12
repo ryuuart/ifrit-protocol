@@ -1,6 +1,8 @@
 // The Space Jam website assembled from illustrated navigation and a table
 // layout.
 
+// TAGS: Interfaces/Web
+
 #include "Artwork.h"
 
 struct SpaceJam1996 : sketch::Sketch {

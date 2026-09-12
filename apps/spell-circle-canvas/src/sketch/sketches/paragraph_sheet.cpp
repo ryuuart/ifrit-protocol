@@ -36,6 +36,8 @@
 //                 and the justification panel earns its letter spacing.
 //   kInk/kPaper — the sheet's two inks.
 
+// TAGS: Typography/Paragraph
+
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>

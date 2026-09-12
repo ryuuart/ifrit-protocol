@@ -35,6 +35,8 @@
  *   the page, below — what the second screen wears.
  */
 
+// TAGS: Materials/Compositing, Media/Images
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>

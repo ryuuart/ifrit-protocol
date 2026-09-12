@@ -33,6 +33,8 @@
 //                   letters give a bevel more room to read.
 //   kWordmark     — the word itself. A wider one lengthens the horizon.
 
+// TAGS: Typography/Lettering
+
 #include <sigilcompose/brush/Brush.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Gel.h>

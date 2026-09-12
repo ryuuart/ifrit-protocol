@@ -53,6 +53,8 @@
 //                          binormal, at large values they lie flat.
 //   the station count in onSpline — how many panels ride the rail.
 
+// TAGS: Geometry/Meshes
+
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <sigilgeometry/kit/Sections.h>

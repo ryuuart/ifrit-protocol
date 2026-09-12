@@ -54,6 +54,8 @@
  *   the ribbon's steps      — under about twenty it separates into rails.
  */
 
+// TAGS: Motion/Transitions
+
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>

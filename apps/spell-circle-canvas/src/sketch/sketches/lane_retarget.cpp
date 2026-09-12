@@ -32,6 +32,8 @@
  *   kDuration — the transition both descriptions ask for.
  */
 
+// TAGS: Motion/Transitions
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>

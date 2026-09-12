@@ -2,6 +2,8 @@
  * observable_fibonacci — squares distributed by the golden-angle sequence.
  */
 
+// TAGS: Drawing/Generative, Patterns/Ornament
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

@@ -1,5 +1,7 @@
 // The Black Watch sett woven from its thread counts and twill rule.
 
+// TAGS: Patterns/Tiling
+
 #include "Tartan.h"
 
 struct BlackWatch : sketch::Sketch {

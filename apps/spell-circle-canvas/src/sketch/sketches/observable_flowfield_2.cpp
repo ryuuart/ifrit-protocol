@@ -2,6 +2,8 @@
  * observable_flowfield_2 — random samples of a diagonal angle field.
  */
 
+// TAGS: Drawing/Generative
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSpan.h>
 #include <sigilcompose/core/Core.h>

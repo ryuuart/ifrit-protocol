@@ -32,6 +32,8 @@
  *   kTurns — the spiral's turns, which is how tight the baseline is.
  */
 
+// TAGS: Typography/Lettering
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>

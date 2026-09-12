@@ -26,6 +26,8 @@
  *   kRail       — the constant offset the second cell walks, px.
  */
 
+// TAGS: Geometry/Paths
+
 #include <include/core/SkPath.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

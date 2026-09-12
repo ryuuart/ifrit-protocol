@@ -1,5 +1,7 @@
 // chevreul circle: scene assembly and animation.
 
+// TAGS: Materials/Color
+
 #include "ChevreulCircle.h"
 
 auto ChevreulCircle::describe(sketch::SketchContext& ctx) -> Element {

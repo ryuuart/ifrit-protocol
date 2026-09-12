@@ -1,6 +1,8 @@
 // A Dead Space upgrade bench composed from routed circuit nodes and status
 // panels.
 
+// TAGS: Geometry/Diagrams, Interfaces/Game
+
 #include "Circuit.h"
 
 struct Ds2Bench : sketch::Sketch {

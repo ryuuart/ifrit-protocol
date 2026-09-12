@@ -78,6 +78,8 @@
 //       src/sketch/sketches/elastic_type.cpp \
 //       --frame /tmp/elastic_type.png
 
+// TAGS: Typography/Effects, Motion/Transitions
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/kit/Instruments.h>

@@ -38,6 +38,8 @@
  *   kLevels — how many levels the derivation quantizes its source to.
  */
 
+// TAGS: Motion/Clocks
+
 #include <choreograph/Choreograph.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>

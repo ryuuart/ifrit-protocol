@@ -34,6 +34,7 @@ bool isRule(const std::string& text) {
  *  list flattened to the left margin stops reading as one. */
 std::string undecorate(std::string text) {
   const std::string bare = trimmed(text);
+  if (bare.starts_with("*/")) return {};
   if (bare.rfind("///", 0) == 0)
     text = text.substr(text.find("///") + 3);
   else if (bare.rfind("//", 0) == 0)
@@ -95,6 +96,30 @@ bool isHeading(const std::vector<std::string>& paragraph) {
   return !line.empty() && line.back() != '.';
 }
 
+void appendTags(SourceMetadata& header, std::string_view text) {
+  while (!text.empty()) {
+    const size_t comma = text.find(',');
+    const std::string_view tag = text.substr(0, comma);
+    std::string path;
+    size_t start = 0;
+    while (start < tag.size()) {
+      const size_t slash = tag.find('/', start);
+      const auto part = trimmed(std::string(tag.substr(start, slash - start)));
+      if (!part.empty()) {
+        if (!path.empty()) path += '/';
+        path += part;
+      }
+      if (slash == std::string_view::npos) break;
+      start = slash + 1;
+    }
+    if (!path.empty() && std::find(header.tags.begin(), header.tags.end(),
+                                   path) == header.tags.end())
+      header.tags.push_back(std::move(path));
+    if (comma == std::string_view::npos) break;
+    text.remove_prefix(comma + 1);
+  }
+}
+
 }  // namespace
 
 SourceMetadata sourceMetadata(const std::filesystem::path& file) {
@@ -124,6 +149,11 @@ SourceMetadata sourceMetadata(const std::filesystem::path& file) {
       inBlock = bare.find("*/") == std::string::npos;
     } else {
       inHeader = false;  // the first line of code closes the header
+      continue;
+    }
+    const auto content = trimmed(text);
+    if (content.starts_with("TAGS:")) {
+      appendTags(header, std::string_view(content).substr(5));
       continue;
     }
     if (text.empty()) {

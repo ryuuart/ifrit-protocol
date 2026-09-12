@@ -30,6 +30,8 @@
  *   kPairs — the pairs the table measures.
  */
 
+// TAGS: Typography/Lettering
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>

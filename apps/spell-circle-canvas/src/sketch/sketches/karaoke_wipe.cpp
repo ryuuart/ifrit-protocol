@@ -75,6 +75,8 @@
 //
 //   The hop, frame by frame:  --at 1.20 --frames 10 --fps 12
 
+// TAGS: Typography/Effects, Motion/Transitions
+
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>

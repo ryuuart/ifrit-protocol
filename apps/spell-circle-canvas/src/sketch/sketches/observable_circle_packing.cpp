@@ -2,6 +2,8 @@
  * observable_circle_packing — circles added and grown until they collide.
  */
 
+// TAGS: Drawing/Generative
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

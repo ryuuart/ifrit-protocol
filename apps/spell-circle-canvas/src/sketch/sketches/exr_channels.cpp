@@ -41,6 +41,8 @@
  *   kCell  — how large each plane is drawn.
  */
 
+// TAGS: Media/Images
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
 #include <include/core/SkImageInfo.h>

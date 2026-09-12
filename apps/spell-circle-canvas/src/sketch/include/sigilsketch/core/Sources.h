@@ -16,13 +16,16 @@ namespace sigil::sketch {
 struct SourceMetadata {
   std::string subject;
   std::string editFirst;
+  /** Comma-separated TAGS in the opening comment. A slash nests a subject;
+   *  several paths place a sketch in several browser groups. */
+  std::vector<std::string> tags;
   int lines = 0;
 };
 
 /** Counts source lines and reads the opening comments. The first paragraph
  *  is the title; the next is the subject. EDIT THESE FIRST introduces knobs,
- *  preserving list breaks and joining wrapped lines. Missing files return
- *  an empty value. */
+ *  preserving list breaks and joining wrapped lines. TAGS: lines supply
+ *  group paths without becoming prose. Missing files return an empty value. */
 [[nodiscard]] SourceMetadata sourceMetadata(const std::filesystem::path& file);
 
 /** THE FILE A KEY NAMES under @p dir.

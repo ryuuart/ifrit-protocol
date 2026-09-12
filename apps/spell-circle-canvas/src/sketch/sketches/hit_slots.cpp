@@ -52,6 +52,8 @@
  *   kTargets — more keyed outlines under the same one-pass hit test.
  */
 
+// TAGS: Runtime/Interaction
+
 #include <include/core/SkPaint.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>

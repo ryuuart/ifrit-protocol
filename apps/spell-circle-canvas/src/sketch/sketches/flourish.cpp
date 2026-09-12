@@ -19,6 +19,8 @@
 // the draw-on scrollwork, and the shimmer. Everything else is static, and
 // every bound node is a sibling of a bake rather than inside one.
 
+// TAGS: Drawing/Generative, Patterns/Ornament
+
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkSurface.h>

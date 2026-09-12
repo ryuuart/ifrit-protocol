@@ -26,6 +26,8 @@
  *   kIterations — the strongest smoothing on the sheet.
  */
 
+// TAGS: Geometry/Points, Motion/Particles
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>

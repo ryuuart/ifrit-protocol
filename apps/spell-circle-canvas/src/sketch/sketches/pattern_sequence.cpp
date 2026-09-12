@@ -24,6 +24,8 @@
  *   kPan    — the offset the mapping pans the repeat by, px.
  */
 
+// TAGS: Patterns/Tiling
+
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

@@ -28,6 +28,8 @@
  *   kGlow — the outer glow's blur extent, px.
  */
 
+// TAGS: Materials/Compositing
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>

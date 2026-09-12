@@ -35,6 +35,8 @@
 //   kPageWidth / kPageHeight  — the view's own pixels, which the layout
 //                               around it is sized against.
 
+// TAGS: Interfaces/Web
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <sigilcompose/typography/Typography.h>

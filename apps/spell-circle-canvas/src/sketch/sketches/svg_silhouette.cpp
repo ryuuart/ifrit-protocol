@@ -22,6 +22,8 @@
  *   kBoxes  — the three box shapes it is asked to fill.
  */
 
+// TAGS: Geometry/Paths
+
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>

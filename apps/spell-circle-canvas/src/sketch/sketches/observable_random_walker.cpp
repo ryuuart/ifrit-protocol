@@ -2,6 +2,8 @@
  * observable_random_walker — a four-direction walk constrained to the canvas.
  */
 
+// TAGS: Drawing/Generative
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>

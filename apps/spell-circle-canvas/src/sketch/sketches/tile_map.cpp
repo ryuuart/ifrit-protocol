@@ -31,6 +31,8 @@
  *   kChunkCols / kChunkRows / kChunks — the map
  */
 
+// TAGS: Geometry/Layout, Runtime/Caching
+
 #include <include/core/SkBitmap.h>
 #include <include/core/SkSurface.h>
 #include <include/utils/SkNoDrawCanvas.h>

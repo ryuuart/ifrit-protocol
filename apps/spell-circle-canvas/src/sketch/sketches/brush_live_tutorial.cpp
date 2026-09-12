@@ -8,6 +8,8 @@
 //   kSceneSeconds  how long each construction remains on screen
 //   kPalette       the pigments shared by all six scenes
 
+// TAGS: Drawing/Brushes
+
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>

@@ -33,6 +33,8 @@
  *   The captured moment, which is what decides how far the cascade got.
  */
 
+// TAGS: Motion/Transitions
+
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
