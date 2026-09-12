@@ -86,14 +86,8 @@ sk_sp<SkTypeface> grotesque() {
   return weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
 }
 
-weave::TextStyle body(float size = 13.0f) {
-  return weave::textStyle({.face = serif(), .size = size, .color = kInk});
-}
-weave::TextStyle lead(float size = 15.0f) {
-  return weave::textStyle({.face = serif(), .size = size, .color = kInk});
-}
-weave::TextStyle label(float size = 8.5f, SkColor4f colour = kFaint,
-                       float track = 1.4f) {
+/** A caption line: a whole style, which is what a kit::Caption takes. */
+weave::TextStyle label(float size, SkColor4f colour, float track) {
   return weave::textStyle(
       {.face = grotesque(), .size = size, .color = colour, .track = track});
 }
@@ -111,11 +105,13 @@ kit::Caption voice() {
 }
 
 /** The story, declared once. Its blocks are numbered from its own start,
- *  so the third block is set the same way whichever frame it lands in. */
+ *  so the third block is set the same way whichever frame it lands in. It
+ *  states no base: a frame sets it in the font and ink in force where the
+ *  frame stands. */
 weave::Story article() {
   weave::Story built(
-      weave::rich(body())
-          .add(u8"WHERE A STORY IS CUT\n", lead(16))
+      weave::rich()
+          .add(u8"WHERE A STORY IS CUT\n", weave::Type{.size = 16})
           .add(u8"A frame is not a paragraph and not a column: it is a "
                u8"piece of geometry a story is filled into, and a story is "
                u8"filled into as many of them as it is given. The first "
@@ -216,25 +212,29 @@ struct ThreadedStory final : sketch::Sketch {
 
     return box()
         .fill(Fill::color(s::kPaper))
+        .font({.face = s::grotesque(), .size = 9.5f})
+        .ink(s::kFaint)
         .child(
             box()
                 .absolute()
                 .inset(s::kMargin, s::kMargin - 14, 0, 0)
                 .column()
                 .gap(5)
-                .child(text(toUtf8("ONE STORY, THREE FRAMES, TWICE"),
-                            s::label(11, s::kInk, 3.4f)))
+                .child(text(toUtf8("ONE STORY, THREE FRAMES, TWICE"))
+                           .font({.size = 11, .color = s::kInk, .track = 3.4f}))
                 .child(text(toUtf8("the cut is a word index \xe2\x80\x94 the "
                                    "remainder the frame before reported \xe2"
                                    "\x80\x94 so a narrower first frame moves "
-                                   "it, and the columns begin elsewhere"),
-                            s::label(9.5f, s::kFaint, 0.3f))
+                                   "it, and the columns begin elsewhere"))
+                           .font({.track = 0.3f})
                            .width(Dimension(700.0f))))
         .child(box()
                    .absolute()
                    .inset(s::kMargin, s::kMargin + 56, 0, 0)
                    .row()
                    .gap(44)
+                   .font({.face = s::serif(), .size = 13})
+                   .ink(s::kInk)
                    .child(captioned("NARROW FIRST FRAME",
                                     "less fits before the columns, so they "
                                     "start earlier in the story",
@@ -245,8 +245,8 @@ struct ThreadedStory final : sketch::Sketch {
                                     chain("wide", s::kWide, article))))
         .child(
             text(toUtf8("a Western column is a FRAME; the vertical writing "
-                        "mode keeps the word for the thing it already meant"),
-                 s::label(9.5f, s::kFaint, 0.2f))
+                        "mode keeps the word for the thing it already meant"))
+                .font({.track = 0.2f})
                 .absolute()
                 .inset(s::kMargin, s::kH - 32, 0, 0));
   }
