@@ -20,14 +20,14 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   // arithmetic here, over the substituted faces' own measured metrics —
   // alignItems(Align::Baseline) would be the kernel spelling, but the two
   // runs are absolutely positioned at documented x/y, not laid out in a row.
-  g.child(ink(t(d.name, titleStyle()), 348 - 345, 272 - 267, titleRise));
+  g.child(ink(t(d.name, titleType()), 348 - 345, 272 - 267, titleRise));
   const int walkIdx = skill == 0 ? 0 : (skill == 7 ? 1 : 2);
   const float advance = titleAdvance[walkIdx] / kScale;
-  g.child(bodyAt(d.formula, kInk, 348 - 345 + advance + 8, 286 - 267));
+  g.child(bodyAt(d.formula, 348 - 345 + advance + 8, 286 - 267));
 
   // ---- the rule: two 1-px lines at y = 300, 301 ------------------------
   g.child(
-      at(box(), 348 - 345, 300 - 267, 613 - 348, 2).fill(Fill::color(kInk)));
+      at(box(), 348 - 345, 300 - 267, 613 - 348, 2).fill(Fill::currentInk()));
 
   // ---- the illustration, and the FLOAT the copy clears ----------------
   // The exclusion is the keyed node's resolved BOX. Fallout's exclusion is
@@ -48,8 +48,7 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   figNode.shape(keyedShape(pose, figure(pose)));
   // PathFormat exposes no cap or join, so these open contours end square and
   // mitre at the joints — fine for a 1998 blit.
-  figNode.stroke(
-      stroke(n(1.15f), Fill::color(kInk), PathFormat::Align::Center));
+  figNode.stroke(stroke(n(1.15f), PathFormat::Align::Center));
   g.child(figNode);
 
   // ---- the body. Greedy first-fit, ragged right, forced 11 px pitch. ---
@@ -75,10 +74,13 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
 
 auto Fallout2CharSheet::card() -> Element {
   using namespace fo;
+  // ALL card text and its rule are black: the ink is the card's, and the
+  // slot's content inherits it from where the slot stands.
   Element c = at(box(), 345, 267, 277, 170)
                   .fill(parchMat)
                   .clip()
-                  .corners(Corners{n(1)});
+                  .corners(Corners{n(1)})
+                  .ink(kInk);
   c.overlay(styles::Overlay{parchTooth, SkBlendMode::kSoftLight, 0.55f});
   // creases: two diagonal slivers and one bottom-right scuff. The creases
   // are what sell the card as a stuck-on scrap.
@@ -155,9 +157,8 @@ auto Fallout2CharSheet::failureCard() const -> Element {
       .column()
       .padding(28)
       .gap(14)
-      .child(text(toUtf8("THE ARITHMETIC DOES NOT MATCH THE SHIPPED "
-                         "PREMADES"),
-                  sheetType(bodyBold(), 22.0f, hexColor(0xE04020), 1.2f)))
+      .child(t("THE ARITHMETIC DOES NOT MATCH THE SHIPPED PREMADES",
+               sheetType(bodyBold(), 22.0f, hexColor(0xE04020), 1.2f)))
       .child(sketch::kit::table(
           std::move(rows),
           {.columns = {{420}, {90, true}, {}}, .gap = 16, .swatchSide = 11}));
@@ -172,7 +173,9 @@ auto Fallout2CharSheet::captionBand() -> Element {
                      .height(Dimension(kCaptionH))
                      .fill(Paint::linearUnit({0, 0}, {0, 1},
                                              {{0.0f, hexColor(0x0B0D08)},
-                                              {1.0f, hexColor(0x050604)}}));
+                                              {1.0f, hexColor(0x050604)}}))
+                     // the band's running line; each line says its colour
+                     .font({.face = bodyFace(), .size = 13.0f, .track = 0.1f});
   band.foreground(onEdges(
       path::Edge::Top,
       stroke(2.0f, Fill::color(hexColor(0x3A3020)), PathFormat::Align::Inner)));
@@ -181,35 +184,32 @@ auto Fallout2CharSheet::captionBand() -> Element {
       "match the shipped sheets (Narg, Mingan, Chitsa), trait "
       "corrections included",
       sheetAudit.checks() - sheetAudit.failures(), sheetAudit.checks());
-  auto line = [&](const char* s, float size, SkColor4f c, float y,
-                  float track) {
-    return text(toUtf8(s), fo::sheetType(bodyFace(), size, c, track))
-        .left(Dimension(30))
-        .top(Dimension(y));
+  auto line = [](const char* s, float y) {
+    return text(toUtf8(s)).left(Dimension(30)).top(Dimension(y));
   };
-  band.child(text(toUtf8("FALLOUT 2 \xc2\xb7 CHARACTER SCREEN \xc2\xb7 BLACK "
-                         "ISLE STUDIOS, 1998 \xc2\xb7 640\xc3\x97"
-                         "480 8-BIT "
-                         "INDEXED, REBUILT AT 2\xc3\x97"),
-                  fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
+  band.child(t("FALLOUT 2 \xc2\xb7 CHARACTER SCREEN \xc2\xb7 BLACK ISLE "
+               "STUDIOS, 1998 \xc2\xb7 640\xc3\x97"
+               "480 8-BIT INDEXED, REBUILT AT 2\xc3\x97",
+               fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
                  .left(Dimension(30))
                  .top(Dimension(14)));
-  band.child(line(audited.c_str(), 14.5f, kGreen, 41, 0.2f));
-  band.child(
-      line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "
-           "palette has no pure green, so what reached the CRT is "
-           "#3CF800.",
-           13.0f, hexColor(0x8A8A78), 64, 0.1f));
-  band.child(
-      line("Chrome, plaques, rivets, tabs and parchment are "
-           "procedural; the originals are raster FRMs (intrface art "
-           "id 177). The sheet is RE-SET in real faces.",
-           13.0f, hexColor(0x6A6A5A), 84, 0.1f));
-  band.child(
-      line("The screen above is exactly 1280\xc3\x97"
-           "960 \xe2\x80\x94 "
-           "halve it and it overlays the 1998 capture. This band is "
-           "not part of the artefact.",
-           13.0f, hexColor(0x55554A), 104, 0.1f));
+  band.child(line(audited.c_str(), 41)
+                 .font({.size = 14.5f, .color = kGreen, .track = 0.2f}));
+  band.child(line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "
+                  "palette has no pure green, so what reached the CRT is "
+                  "#3CF800.",
+                  64)
+                 .ink(hexColor(0x8A8A78)));
+  band.child(line("Chrome, plaques, rivets, tabs and parchment are "
+                  "procedural; the originals are raster FRMs (intrface art "
+                  "id 177). The sheet is RE-SET in real faces.",
+                  84)
+                 .ink(hexColor(0x6A6A5A)));
+  band.child(line("The screen above is exactly 1280\xc3\x97"
+                  "960 \xe2\x80\x94 "
+                  "halve it and it overlays the 1998 capture. This band is "
+                  "not part of the artefact.",
+                  104)
+                 .ink(hexColor(0x55554A)));
   return band;
 }

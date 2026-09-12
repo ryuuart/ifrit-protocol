@@ -27,7 +27,7 @@ auto Fallout2CharSheet::specialColumn() -> Element {
     // The two-letter gold abbreviation and its dash: measured ink 20..55,
     // 21 px tall, i.e. 2 px below the row's y. A worn engraved stencil.
     g.child(ink(engravedText(std::string(abbr[(size_t)i]) + "-", n(29.0f),
-                             kGold, engravedCondense, 0.2f)
+                             engravedCondense, 0.2f)
                     .opacity(0.94f),
                 kAbbrX, y + 2.0f, engravedRise(n(29.0f))));
 
@@ -57,7 +57,7 @@ auto Fallout2CharSheet::specialColumn() -> Element {
                     {{0.0f, kParchLit2}, {1.0f, hexColor(0x8C6428)}})));
     g.child(at(box(), kPlaqueX - 4, y + 15, 2, 7)
                 .fill(mskia::withAlpha(kParchLit, 0.85f)));
-    g.child(bodyAt(descriptor(value), kGreen, kDescX, y + 8));
+    g.child(bodyAt(descriptor(value), kDescX, y + 8));
   }
   return g;
 }
@@ -108,16 +108,16 @@ auto Fallout2CharSheet::odometer(float x, float y, int value,
 auto Fallout2CharSheet::statusBlock() -> Element {
   using namespace fo;
   Element g = box().inset(0);
-  g.child(bodyAt("Hit Points", kGreen, 194, 46));
-  g.child(bodyAt(kit::formatted("%d/%d", stats.hitPoints, stats.hitPoints),
-                 kGreen, 263, 46));
+  g.child(bodyAt("Hit Points", 194, 46));
+  g.child(bodyAt(kit::formatted("%d/%d", stats.hitPoints, stats.hitPoints), 263,
+                 46));
   static const char* cond[7] = {"Poisoned",          "Radiated",
                                 "Eye Damage",        "Crippled Right Arm",
                                 "Crippled Left Arm", "Crippled Right Leg",
                                 "Crippled Left Leg"};
   for (int i = 0; i < 7; ++i)
-    g.child(bodyAt(cond[(size_t)i], kInactive, 194,
-                   46 + kRowPitch13 * (float)(i + 1)));
+    g.child(bodyAt(cond[(size_t)i], 194, 46 + kRowPitch13 * (float)(i + 1))
+                .ink(kInactive));
   return g;
 }
 
@@ -150,8 +150,8 @@ auto Fallout2CharSheet::derivedBlock() -> Element {
   constexpr float kLabelCondense = 0.96f;
   for (int i = 0; i < 10; ++i) {
     const float y = 179 + kRowPitch13 * (float)i;
-    g.child(bodyAt(rows[(size_t)i].label, kGreen, 194, y, kLabelCondense));
-    g.child(bodyAt(rows[(size_t)i].value, kGreen, 288, y));
+    g.child(bodyAt(rows[(size_t)i].label, 194, y, kLabelCondense));
+    g.child(bodyAt(rows[(size_t)i].value, 288, y));
   }
   return g;
 }
@@ -159,11 +159,10 @@ auto Fallout2CharSheet::derivedBlock() -> Element {
 auto Fallout2CharSheet::levelBlock() -> Element {
   using namespace fo;
   Element g = box().inset(0);
-  g.child(bodyAt("Level: " + std::to_string(kLevel), kGreen, 32, 280));
-  g.child(
-      bodyAt("Exp: " + thousands(experienceForLevel(kLevel)), kGreen, 32, 291));
-  g.child(bodyAt("Next Level: " + thousands(experienceForLevel(kLevel + 1)),
-                 kGreen, 32, 302));
+  g.child(bodyAt("Level: " + std::to_string(kLevel), 32, 280));
+  g.child(bodyAt("Exp: " + thousands(experienceForLevel(kLevel)), 32, 291));
+  g.child(bodyAt("Next Level: " + thousands(experienceForLevel(kLevel + 1)), 32,
+                 302));
   return g;
 }
 
@@ -182,9 +181,8 @@ auto Fallout2CharSheet::folder() -> Element {
         raised({x0, sel ? 327.0f : 330.0f, x1 - x0, sel ? 33.0f : 29.0f}, 2.5f);
     if (!sel) tab.overlay(styles::colorOverlay(hexColor(0x000000, 0.30f)));
     tab.justify(Justify::Center).alignItems(Align::Center);
-    tab.child(engravedText(tabs[(size_t)i], n(23.0f),
-                           sel ? kGold : hexColor(0x6E5A20), engravedCondense,
-                           0.3f)
+    tab.child(engravedText(tabs[(size_t)i], n(23.0f), engravedCondense, 0.3f)
+                  .ink(sel ? kGold : hexColor(0x6E5A20))
                   .translateY(sel ? n(-1.0f) : n(0.0f)));
     g.child(tab);
   }
@@ -197,8 +195,8 @@ auto Fallout2CharSheet::folder() -> Element {
     const float nameW = killNameW[(size_t)i] / kScale;  // back to orig px
     const float countW = killCountW[(size_t)i] / kScale;
     const float gap = 1.0f;  // fontGetLetterSpacing() at this size
-    g.child(bodyAt(k.name, kGreen, 34, y));
-    g.child(bodyAt(count, kGreen, 314 - countW, y));
+    g.child(bodyAt(k.name, 34, y));
+    g.child(bodyAt(count, 314 - countW, y));
     const float x0 = 34 + nameW + gap * 2;
     const float x1 = 314 - countW - gap * 2;
     if (x1 > x0)
@@ -251,8 +249,8 @@ auto Fallout2CharSheet::skillsColumn() -> Element {
     int pct = skillPct[(size_t)i];
     if (i == selected)
       pct += 2 * presses;  // 1 point = 2% on a tagged skill (editor.msg {500})
-    g.child(bodyAt(skills()[(size_t)i].name, c, 380, y));
-    g.child(bodyAt(std::to_string(pct) + "%", c, 573, y));
+    g.child(bodyAt(skills()[(size_t)i].name, 380, y).ink(c));
+    g.child(bodyAt(std::to_string(pct) + "%", 573, y).ink(c));
   }
   // The +/- slider graphic, blitted at (592, selectedIndex*11 + 27 + 16),
   // its buttons at x = 614.
@@ -278,8 +276,8 @@ auto Fallout2CharSheet::skillsColumn() -> Element {
                   .inset(0)
                   .justify(Justify::Center)
                   .alignItems(Align::Center)
-                  .child(t(k == 0 ? "+" : "-",
-                           fo::sheetType(bodyBold(), n(7.0f), kGold))));
+                  .child(text(toUtf8(k == 0 ? "+" : "-"))
+                             .font({.size = n(7.0f), .color = kGold})));
     slider.child(btn);
   }
   slider.child(at(box(), 2, 6, 16, 12)

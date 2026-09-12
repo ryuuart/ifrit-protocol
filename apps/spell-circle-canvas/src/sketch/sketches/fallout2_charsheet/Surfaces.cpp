@@ -1,22 +1,5 @@
 #include "Fallout2CharSheet.h"
 
-auto Fallout2CharSheet::plaqueType(float size, SkColor4f c, float condense,
-                                   float track) const -> weave::TextStyle {
-  return weave::textStyle({.face = fo::engraved(),
-                           .size = size,
-                           .color = c,
-                           .track = fo::n(track),
-                           .condense = condense});
-}
-
-auto Fallout2CharSheet::titleStyle() const -> weave::TextStyle {
-  return weave::textStyle({.face = fo::titleFace(),
-                           .size = fo::n(23.8f),
-                           .color = fo::kInk,
-                           .track = fo::n(-0.1f),
-                           .condense = titleCondense});
-}
-
 auto Fallout2CharSheet::buildSurfaces() -> void {
   using namespace fo;
   // The plate: an olive ramp, a cast-metal tooth, and rust blotches. The
@@ -157,20 +140,20 @@ auto Fallout2CharSheet::chrome() -> Element {
     // with the whole leftover above them. Lifting the run by a third of
     // that rise puts the CAPS' own band in the middle of the plaque, which
     // is the only band on a run of capitals anyone reads as centred.
-    p.child(engravedText(plaqueText[i], n(26.0f), kGold, engravedCondense, 0.6f)
+    p.child(engravedText(plaqueText[i], n(26.0f), engravedCondense, 0.6f)
                 .margin(0, -engravedRise(n(26.0f)) / 3.0f, 0, 0));
     g.child(p);
   }
 
   // The SKILLS heading (font 103, #907824) at (380, 5), and SKILL POINTS at
   // (400, 233) with its own two-digit odometer at (522, 228).
-  g.child(ink(engravedText("SKILLS", n(24.0f), kGold, 0.78f, 0.5f), 380, 4,
+  g.child(ink(engravedText("SKILLS", n(24.0f), 0.78f, 0.5f), 380, 4,
               engravedRise(n(24.0f))));
   // The SKILL POINTS bar: a raised strip carrying the label and the counter,
   // between the skills well and the card.
   g.child(raised({336, 226, 292, 30}, 3.0f));
-  g.child(ink(engravedText("SKILL POINTS", n(24.0f), kGold, 0.78f, 0.5f), 400,
-              232, engravedRise(n(24.0f))));
+  g.child(ink(engravedText("SKILL POINTS", n(24.0f), 0.78f, 0.5f), 400, 232,
+              engravedRise(n(24.0f))));
   g.child(at(box(), 520, 226, 34, 28)
               .fill(Fill::color(hexColor(0x120E08)))
               .corners(Corners{n(2)})
@@ -199,8 +182,8 @@ auto Fallout2CharSheet::chrome() -> Element {
                      .fill(Fill::color(kLampOff))
                      .opacity(&lampFlash));
     g.child(lamp);
-    g.child(ink(engravedText(btn[i], n(22.0f), kGold, 0.80f, 0.3f), textX[i],
-                454, engravedRise(n(22.0f))));
+    g.child(ink(engravedText(btn[i], n(22.0f), 0.80f, 0.3f), textX[i], 454,
+                engravedRise(n(22.0f))));
   }
   return g;
 }

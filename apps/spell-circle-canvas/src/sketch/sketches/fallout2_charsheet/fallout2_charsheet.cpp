@@ -9,13 +9,17 @@ auto Fallout2CharSheet::describe() -> Element {
                      .height(Dimension(kScreenH + kCaptionH));
 
   // ---- the screen -----------------------------------------------------
+  // THE ROOT OF THE SCREEN'S TYPE: font 101 in the terminal green, which
+  // every row that names no style of its own is set in where it lands.
   Element screen = box()
                        .left(Dimension(0))
                        .top(Dimension(0))
                        .width(Dimension(kScreenW))
                        .height(Dimension(kScreenH))
                        .clip()
-                       .fill(plateMat);
+                       .fill(plateMat)
+                       .font(bodyType())
+                       .ink(kGreen);
   // the cast-metal tooth and the rust, as layer elements: each composites
   // whole against what is already on the canvas
   screen.child(box()
@@ -152,7 +156,7 @@ auto Fallout2CharSheet::setup(sketch::SketchContext& ctx) -> void {
         "Poison Res.Radiation Res.Sequence Healing RateCritical Chance";
     const float probeChars = (float)std::strlen(kProbe);
     const float w =
-        ctx.measure(t(kProbe, fo::sheetType(bodyFace(), 100.0f, kGreen)))
+        ctx.measure(whole(kProbe, fo::sheetType(bodyFace(), 100.0f, kGreen)))
             .width();
     if (w > 1.0f) bodyEm = w / (probeChars * 100.0f);
     // The line-top -> cap-top slack. Fallout's draw y is the top of the
@@ -160,26 +164,26 @@ auto Fallout2CharSheet::setup(sketch::SketchContext& ctx) -> void {
     // differ by (ascent - capHeight). Taken as a fraction of the measured
     // line height, which lands every row on the reference's own y.
     bodyRise =
-        std::max(0.0f, ctx.measure(t("H", body(kGreen))).height() * 0.20f);
+        std::max(0.0f, ctx.measure(whole("H", bodyType())).height() * 0.20f);
     // font 102: squeeze the substitute until "Melee Weapons" lands on the
     // reference's ~6.8 original px per character.
     const float raw =
-        ctx.measure(t("Melee Weapons",
-                      fo::sheetType(titleFace(), n(23.8f), kInk, n(-0.1f))))
+        ctx.measure(whole("Melee Weapons",
+                          fo::sheetType(titleFace(), n(23.8f), kInk, n(-0.1f))))
             .width();
     if (raw > 1.0f)
       titleCondense = std::clamp(n(6.8f * 13.0f) / raw, 0.30f, 1.0f);
     titleRise =
-        std::max(0.0f, ctx.measure(t("H", titleStyle())).height() * 0.20f);
+        std::max(0.0f, ctx.measure(whole("H", titleType())).height() * 0.20f);
     // The engraved condense, same discipline: "ST-" is 36 original px of
     // ink on the capture, so squeeze the substitute onto that measured
     // width rather than guessing a factor.
     const float rawSt =
-        ctx.measure(t("ST-", plaqueType(fo::n(29.0f), kGold, 1.0f, 0.2f)))
+        ctx.measure(whole("ST-", engravedType(fo::n(29.0f), 1.0f, 0.2f)))
             .width();
     if (rawSt > 1.0f)
       engravedCondense = std::clamp(fo::n(36.0f) / rawSt, 0.30f, 1.0f);
-    const float eh = ctx.measure(t("H", plaqueType(100.0f, kGold))).height();
+    const float eh = ctx.measure(whole("H", engravedType(100.0f))).height();
     if (eh > 1.0f)
       engravedRiseFrac = std::clamp(eh * 0.20f / 100.0f, 0.05f, 0.40f);
   }
@@ -187,9 +191,9 @@ auto Fallout2CharSheet::setup(sketch::SketchContext& ctx) -> void {
   // the leader-row advances: two measures per row, nine rows.
   for (int i = 0; i < 9; ++i) {
     killNameW[(size_t)i] =
-        ctx.measure(t(kills()[(size_t)i].name, body(kGreen))).width();
+        ctx.measure(whole(kills()[(size_t)i].name, bodyType())).width();
     killCountW[(size_t)i] =
-        ctx.measure(t(std::to_string(kills()[(size_t)i].count), body(kGreen)))
+        ctx.measure(whole(std::to_string(kills()[(size_t)i].count), bodyType()))
             .width();
   }
   // the card title advances, for the formula's hand-computed x
@@ -197,7 +201,8 @@ auto Fallout2CharSheet::setup(sketch::SketchContext& ctx) -> void {
     const int idx[3] = {0, 7, 4};
     for (int k = 0; k < 3; ++k)
       titleAdvance[k] =
-          ctx.measure(t(skills()[(size_t)idx[k]].name, titleStyle())).width();
+          ctx.measure(whole(skills()[(size_t)idx[k]].name, titleType()))
+              .width();
   }
 
   ctx.ticker.add([this](double dt) {

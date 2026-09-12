@@ -177,16 +177,17 @@ inline sk_sp<SkTypeface> digitFace() {
                    SkFontStyle::kBold_Weight, SkFontStyle::kCondensed_Width);
 }
 
-// A positional shorthand over weave's designated-init `textStyle()`: the
-// sheet has one type signature and names its own five parameters over it.
-inline weave::TextStyle sheetType(const sk_sp<SkTypeface>& tf, float size,
-                                  SkColor4f color, float track = 0,
-                                  float condense = 1.0f) {
-  return weave::textStyle({.face = tf,
-                           .size = size,
-                           .color = color,
-                           .track = track,
-                           .condense = condense});
+// A positional shorthand over weave's designated-init `Type`: the sheet has
+// one type signature and names its own five parameters over it. A PARTIAL,
+// laid over the font and ink in force where the run lands.
+inline weave::Type sheetType(const sk_sp<SkTypeface>& tf, float size,
+                             SkColor4f color, float track = 0,
+                             float condense = 1.0f) {
+  return {.face = tf,
+          .size = size,
+          .color = color,
+          .track = track,
+          .condense = condense};
 }
 
 /** Original px the body face advances per character, ON AVERAGE.
@@ -202,8 +203,15 @@ inline weave::TextStyle sheetType(const sk_sp<SkTypeface>& tf, float size,
  *  measurement has to survive. */
 constexpr float kBodyAdvance = 5.80f;
 
-inline Element t(const std::string& s, weave::TextStyle st) {
-  return text(toUtf8(s), std::move(st));
+/** A run set in @p partial over what is in force where it lands. */
+inline Element t(const std::string& s, weave::Type partial) {
+  return text(toUtf8(s)).font(std::move(partial));
+}
+/** The same run as the WHOLE style @p partial names over the initial
+ *  values — for `measure()`, whose one-shot layout resolves no cascade and
+ *  would measure a partial in the initial font rather than its own. */
+inline Element whole(const std::string& s, const weave::Type& partial) {
+  return text(toUtf8(s), weave::textStyle(partial));
 }
 /** Place at a DOCUMENTED (x, y) in original screen px. `y` is Fallout's draw
  *  y — the top of the glyph cell — so the rise correction lands here, once. */

@@ -88,10 +88,16 @@ struct Fallout2CharSheet : sketch::Sketch {
   /** font 101 at 10 px is a BITMAP face: 1-px stems at 640 wide, which is a
    *  heavy colour. An outline face at the same size reads much lighter, so the
    *  substitute runs BOLD — and because Andale Mono is monospaced, bold has
-   *  identical advances and every column stays where the game put it. */
+   *  identical advances and every column stays where the game put it. THE
+   *  SCREEN'S ROOT FONT: a run naming no face of its own is set in it. */
+  weave::Type bodyType() const {
+    return {.face = fo::bodyBold(), .size = bodySize()};
+  }
+  /** The same as a whole style, for the card's hand-built paragraph. */
   weave::TextStyle body(SkColor4f c) const {
-    return weave::textStyle(
-        {.face = fo::bodyBold(), .size = bodySize(), .color = c});
+    weave::Type whole = bodyType();
+    whole.color = c;
+    return weave::textStyle(whole);
   }
   /** The engraved gold. Sizes are DERIVED from measured ink on the capture:
    *  "ST-" is 36x21 original px, "SKILLS" 51x18, "PRINT" 47x16, "LUKE" 58x20.
@@ -100,21 +106,33 @@ struct Fallout2CharSheet : sketch::Sketch {
    *  abbreviations, the top plaques and the folder tabs take
    *  engravedCondense, probed in setup() from "ST-"'s measured ink — the
    *  same discipline the body advance and the card title use; the headings
-   *  and buttons state their factors at the call, tuned to their own runs. */
-  weave::TextStyle plaqueType(float size, SkColor4f c, float condense = 0.95f,
-                              float track = 0.5f) const;
+   *  and buttons state their factors at the call, tuned to their own runs.
+   *  The gold is the register's own; the one run set dimmer says so. */
+  weave::Type engravedType(float size, float condense = 0.95f,
+                           float track = 0.5f) const {
+    return {.face = fo::engraved(),
+            .size = size,
+            .color = fo::kGold,
+            .track = fo::n(track),
+            .condense = condense};
+  }
   /** font 102: cap height 17 original px, advance ~6.8 — a heavily condensed
    *  heavy grotesque (measured off the reference: "Strength" is 55 px wide
    *  with 17 px capitals, a 0.40 advance/cap ratio no stock face has). The
    *  condense factor is derived in setup() from the substitute's own advance
-   *  rather than guessed. */
-  weave::TextStyle titleStyle() const;
+   *  rather than guessed. Its colour is the card's ink. */
+  weave::Type titleType() const {
+    return {.face = fo::titleFace(),
+            .size = fo::n(23.8f),
+            .track = fo::n(-0.1f),
+            .condense = titleCondense};
+  }
 
-  Element bodyAt(const std::string& s, SkColor4f c, float x, float y,
+  /** A body run at a documented (x, y), set in the font and ink in force
+   *  where it lands: the screen's green unless its row says otherwise. */
+  Element bodyAt(const std::string& s, float x, float y,
                  float condense = 1.0f) {
-    return fo::ink(
-        fo::t(s, fo::sheetType(fo::bodyBold(), bodySize(), c, 0, condense)), x,
-        y, bodyRise);
+    return fo::ink(fo::t(s, {.condense = condense}), x, y, bodyRise);
   }
 
   // =========================================================================
@@ -141,9 +159,9 @@ struct Fallout2CharSheet : sketch::Sketch {
   /** Engraved gold lettering: the bright face over a 1 px shadow stamp. There
    *  is no glyph-level stroke to reach for, so the doubling is echo() — one
    *  misprint stamp UNDER the run, which is exactly the effect. */
-  Element engravedText(const std::string& s, float size, SkColor4f c,
-                       float condense = 0.95f, float track = 0.5f) {
-    return fo::t(s, plaqueType(size, c, condense, track))
+  Element engravedText(const std::string& s, float size, float condense = 0.95f,
+                       float track = 0.5f) {
+    return fo::t(s, engravedType(size, condense, track))
         .echo({fo::n(1.0f), fo::n(1.0f)}, fo::kGoldDim);
   }
 
