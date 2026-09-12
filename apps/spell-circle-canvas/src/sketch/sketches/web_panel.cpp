@@ -55,7 +55,6 @@
 
 namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace scry = sigil::scry;
 
 using namespace sigil::compose;
@@ -173,10 +172,8 @@ Element note(std::u8string heading, std::u8string body) {
       .foreground(stroke(1.0f, Fill::color(hexColor(0x7ee8ff, 0.22f))))
       .column()
       .gap(6)
-      .child(text(std::move(heading),
-                  weave::textStyle({.size = 14, .color = kInk})))
-      .child(text(std::move(body),
-                  weave::textStyle({.size = 11.5f, .color = kDim})));
+      .child(text(std::move(heading)).font({.size = 14}))
+      .child(text(std::move(body)).font({.size = 11.5f, .color = kDim}));
 }
 
 }  // namespace
@@ -226,11 +223,12 @@ struct WebPanelSketch final : sketch::Sketch {
         .fill(linearGradient(
             {0, 0}, {0, 660},
             {hexColor(0x140e26), hexColor(0x241033), hexColor(0x0d1424)}))
-        .child(
-            text(u8"A PAGE AS A LEAF",
-                 weave::textStyle({.size = 15, .color = kInk, .track = 2.4f}))
-                .left(40)
-                .top(32))
+        // The scene's one ink, stated once; the dim lines say so.
+        .ink(kInk)
+        .child(text(u8"A PAGE AS A LEAF")
+                   .font({.size = 15, .track = 2.4f})
+                   .left(40)
+                   .top(32))
         // The page at its own pixel size: the view is created at exactly
         // the box it is laid into, so nothing resamples.
         .child(box()
@@ -257,8 +255,8 @@ struct WebPanelSketch final : sketch::Sketch {
                                u8"is held beside the sketch rather than "
                                u8"inside it.")))
         .child(text(u8"the page background is transparent — the scene's "
-                    u8"gradient is what shows between its cards",
-                    weave::textStyle({.size = 12, .color = kDim}))
+                    u8"gradient is what shows between its cards")
+                   .font({.size = 12, .color = kDim})
                    .left(40)
                    .top(590));
   }
@@ -270,6 +268,7 @@ struct WebPanelSketch final : sketch::Sketch {
   [[nodiscard]] static Element unavailable(const std::string& why) {
     return stack()
         .fill(Fill::color(hexColor(0x0b0a16)))
+        .ink(kInk)
         .child(
             box()
                 .inset(40, 40, 40, 40)
@@ -279,10 +278,8 @@ struct WebPanelSketch final : sketch::Sketch {
                 .foreground(stroke(1.0f, Fill::color(hexColor(0x7ee8ff, 0.2f))))
                 .column()
                 .gap(10)
-                .child(text(u8"no web engine here",
-                            weave::textStyle({.size = 22, .color = kInk})))
-                .child(text(toUtf8(why),
-                            weave::textStyle({.size = 13, .color = kDim}))));
+                .child(text(u8"no web engine here").font({.size = 22}))
+                .child(text(toUtf8(why)).font({.size = 13, .color = kDim})));
   }
 
  private:
