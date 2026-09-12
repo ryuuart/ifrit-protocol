@@ -1,8 +1,8 @@
 /** @file
- * A block's own pitch and what opens it: the four leading kinds, the one
- * rule that decides the gap between two blocks, the four indents, an
- * alignment set per block, half-leading, and a span lifted off the
- * baseline it sits on.
+ * A block's own pitch and what opens it: the four leading kinds, the face's
+ * own height a caller can ask for by itself, the one rule that decides the
+ * gap between two blocks, the four indents, an alignment set per block,
+ * half-leading, and a span lifted off the baseline it sits on.
  */
 
 #include <gtest/gtest.h>
@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilweave/fonts/Shaper.h"
 #include "support/LayoutSupport.h"
 
 using namespace sigil::weave;
@@ -33,6 +34,21 @@ TEST(ParagraphStyle, FaceLeadingIsWhatAnUnstyledTextGets) {
 
   EXPECT_EQ(baselines(bare), baselines(withEmptyStyle));
   EXPECT_FLOAT_EQ(bare.linePitch, withEmptyStyle.linePitch);
+}
+
+TEST(ParagraphStyle, LineHeightOfAStyleIsTheHeightFaceLeadingSetsThePitchTo) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
+  BlockFlow flow(SkRect::MakeWH(120, 900));
+  const std::vector<float> lines =
+      baselines(layoutParagraph(fonts, paragraph, flow));
+  ASSERT_GE(lines.size(), 2u);
+
+  // What a caller resolving a length in `lh` asks for is the one number the
+  // block's own pitch is measured from, not a second derivation of it.
+  const float height = lineHeightOf(basicStyle(16.0f), fonts);
+  EXPECT_FLOAT_EQ(height, paragraph.strutAt(fonts, 0).height);
+  EXPECT_NEAR(height, lines[1] - lines[0], 0.01f);
 }
 
 TEST(ParagraphStyle, MultipleLeadingOpensThePitch) {

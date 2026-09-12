@@ -169,18 +169,22 @@ struct ParagraphStyle {
  * so a misspelling shows as a block set in the document's default rather
  * than as a block that did not lay out. `find` is the form that admits
  * absence. Order of registration is kept and compared, which is what lets
- * a set sit inside a larger comparable value and be diffed with it. Lookup
- * is a linear scan: a document names a handful of styles, and a scan of a
- * handful beats a hash of one.
+ * a sheet sit inside a larger comparable value and be diffed with it.
+ * Lookup is a linear scan: a document names a handful of styles, and a
+ * scan of a handful beats a hash of one.
+ *
+ * A block's setting is WHOLE rather than partial: the four optionals on
+ * ParagraphStyle already say "the layout's own answer stands", so an
+ * entry that states nothing else is already the document's default.
  */
-class ParagraphStyleSet {
+class ParagraphStyleSheet {
  public:
-  ParagraphStyleSet() = default;
-  /** Starts a set whose unregistered names resolve to `base`. */
-  explicit ParagraphStyleSet(ParagraphStyle base) : m_base(std::move(base)) {}
+  ParagraphStyleSheet() = default;
+  /** Starts a sheet whose unregistered names resolve to `base`. */
+  explicit ParagraphStyleSheet(ParagraphStyle base) : m_base(std::move(base)) {}
 
   /** Registers or replaces `name`. */
-  ParagraphStyleSet& set(std::string name, ParagraphStyle style) {
+  ParagraphStyleSheet& set(std::string name, ParagraphStyle style) {
     for (std::pair<std::string, ParagraphStyle>& entry : m_entries)
       if (entry.first == name) {
         entry.second = std::move(style);
@@ -208,7 +212,7 @@ class ParagraphStyleSet {
   /** The style every unregistered name resolves to. */
   [[nodiscard]] const ParagraphStyle& base() const { return m_base; }
 
-  bool operator==(const ParagraphStyleSet&) const = default;
+  bool operator==(const ParagraphStyleSheet&) const = default;
 
  private:
   ParagraphStyle m_base;

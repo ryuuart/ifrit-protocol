@@ -133,7 +133,7 @@ includes that feature's header.
 Unicode question the engine asks answered as plain values over UTF-16
 text (its own section below).
 
-**`style`** — `SigilWeaveStyle`, header-only over Skia's paint types:
+**`style`** — `SigilWeaveStyle`, over Skia's paint types:
 
 - **`style/Style.h`** — the umbrella over the vocabulary every other
   header speaks, one header per subject beneath it: `style/ShapingStyle.h`
@@ -147,17 +147,31 @@ text (its own section below).
   are `kit/PaintLayers.h`), `style/Decoration.h`
   (`Decoration`), `style/PaintStyle.h` (`PaintStyle`, draw-time),
   `style/TextStyle.h` (`TextStyle` = the two halves) and
-  `style/StyleSet.h` (`StyleSet`, a small ordered registry of named
-  styles, comparable by value, whose lookup always answers — an
-  unregistered name resolves to the set's base entry).
-- **`style/Type.h`** — `Type` and `textStyle()`: the parameters of a style as a
-  designated-init aggregate (face, size, colour, tracking, condensation,
-  weight, slant, aliasing, the 8-bit colour ladder, extra axes) and the
-  `TextStyle` they build. It decides nothing — there is no type scale and
-  no opinion about which face stands in for which. The face itself comes
-  from `ports::pickTypeface()`, which walks the system font manager, or
-  from `ports::face()`, which keeps that answer once per chain and style —
-  a face is compared by pointer, so one holder is what lets two asks for
+  `style/StyleSheet.h` (`StyleSheet`, a base style and the named PARTIALS
+  over it, comparable by value, whose lookup always answers — an
+  unregistered name resolves to the base alone, and `find` is the form
+  that admits absence; `set`, `contains`, `entries`).
+- **`style/Length.h`** — `Length`: a distance in pixels, or one stated
+  against a size it does not carry — `Unit`, `relative`, and the three
+  relative units spelled either as `em`, `rem`, `lh` or as the `_em`,
+  `_rem`, `_lh` suffixes beside them. Pixels are implicit, so a plain
+  number already is a length and no pixel suffix is declared here.
+- **`style/Type.h`** — `Type`, the PARTIAL a call site names a style's
+  numbers in: a designated-init aggregate (face, size, colour, tracking,
+  condensation, weight, slant, aliasing, the 8-bit colour ladder, extra
+  axes) whose every field is OPTIONAL, so a style can state the two things
+  it changes and inherit the rest. `empty` asks whether it states nothing.
+  Around it: `initialType`, every field engaged with the value an unset one
+  means; `merge`, the pure field copy that folds two partials written about
+  one passage into one; `overlay`, the resolving merge that is one step of
+  a cascade — onto a `Type`, or onto a built `TextStyle` — and the one
+  place a relative size becomes pixels; `toTextStyle`, the style a total
+  names; and `textStyle`, a partial over the initial values, which is the
+  one-call form a study writes. It decides nothing — there is no type scale
+  and no opinion about which face stands in for which. The face itself
+  comes from `ports::pickTypeface()`, which walks the system font manager,
+  or from `ports::face()`, which keeps that answer once per chain and style
+  — a face is compared by pointer, so one holder is what lets two asks for
   one family compare equal.
 - **`kit/Features.h`** — named OpenType presets
   (`features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so
@@ -173,7 +187,11 @@ text (its own section below).
   faces, fallback memos, varied-typeface clones (retained, or transient for
   a continuously varying coordinate), the shape cache, observable `Stats`.
 - **`fonts/Shaper.h`** — `ShapedWord`, `shapeWord()`, `wordBlob()`,
-  `makeFont()`. Reach for it to inspect or reuse individual glyph runs.
+  `makeFont()`. Reach for it to inspect or reuse individual glyph runs —
+  and for `faceMetrics()` and `lineHeightOf()`, the face's own metrics at
+  a style's size and design position and the single-spaced line height
+  they come to — which is both what a block's strut reports and the line
+  height a size stated in lh units is resolved against.
 
 **`paragraph`** — `SigilWeaveParagraph`, the Unicode leaf private:
 
@@ -185,8 +203,13 @@ text (its own section below).
   log, sentence boundaries, and the analysis entry points;
   `ParagraphBuilder` for the push/pop idiom.
 - **`paragraph/RichText.h`** — the same content said as a VALUE:
-  `RichText`, `rich()`, runs of text with the styles or style NAMES they
-  are set in, and `RichText::slot` for a box reserved in the flow.
+  `RichText`, `rich()`, runs of text with the whole styles, the PARTIALS
+  or the class NAMES they are set in (`RichText::add`, `RichText::styles`),
+  and `RichText::slot` for a box reserved in the flow. A run keeps the
+  partial it was written with (`Run::over`) and says whether its style is
+  its own whole one (`Run::total`), so a host that supplies the base a
+  passage never named can resolve the runs against it; `RichText::hasBase`
+  is how it asks whether one was named.
 - **`paragraph/Unit.h`** — `Unit`: the granularity a passage is
   addressed by.
 
@@ -202,7 +225,8 @@ a contour interval carries a `geometry::path::Contour`:
   `layout/Justification.h`, `layout/Overflow.h`, `layout/TabStops.h`,
   `layout/Frame.h` (`FrameOptions`, `ReservedBand`, `PathTextOptions`),
   `layout/Mojikumi.h` and `layout/ParagraphStyle.h` (`Leading`,
-  `IndentOptions`, `KeepOptions`, `ParagraphStyle`, `ParagraphStyleSet`).
+  `IndentOptions`, `KeepOptions`, `ParagraphStyle`,
+  `ParagraphStyleSheet`).
 - **`layout/PositionedRun.h`** — `PositionedRun`, one draw call, and the
   `LineMetrics` and `ColumnMetrics` bands derived from placed runs. A run
   BORROWS its glyphs: `shaped` is a `const ShapedWord*` into the paragraph

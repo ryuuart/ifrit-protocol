@@ -5,7 +5,6 @@
  * tall as, and the natural width a paragraph would take unwrapped.
  */
 
-#include <include/core/SkFont.h>
 #include <include/core/SkFontMetrics.h>
 
 #include <algorithm>
@@ -15,6 +14,7 @@
 #include <vector>
 
 #include "sigilweave/fonts/FontContext.h"
+#include "sigilweave/fonts/Shaper.h"
 #include "sigilweave/paragraph/Paragraph.h"
 #include "sigilweave/unicode/Unicode.h"
 
@@ -26,14 +26,10 @@ namespace {
  *  the face's own metrics at the size it is set. */
 Paragraph::Strut strutOfShaping(FontContext& fontContext,
                                 const ShapingStyle& shaping) {
-  sk_sp<SkTypeface> typeface =
-      fontContext.variedTypeface(shaping.typeface, shaping.variations);
-  const SkFont font = makeFont(typeface, shaping.fontSize);
-  SkFontMetrics metrics;
-  font.getMetrics(&metrics);
+  const SkFontMetrics metrics = faceMetrics(fontContext, shaping);
   Paragraph::Strut strut;
   strut.ascent = -metrics.fAscent;
-  strut.height = -metrics.fAscent + metrics.fDescent + metrics.fLeading;
+  strut.height = lineHeightOf(metrics);
   strut.capHeight = metrics.fCapHeight;
   strut.xHeight = metrics.fXHeight;
   return strut;

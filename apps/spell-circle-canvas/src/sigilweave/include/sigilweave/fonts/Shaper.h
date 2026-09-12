@@ -11,6 +11,7 @@
  * placement; reach for it only to inspect or reuse individual glyph runs.
  */
 
+#include <include/core/SkFontMetrics.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTextBlob.h>
@@ -87,5 +88,28 @@ using ShapedWordReference = std::shared_ptr<const ShapedWord>;
  */
 [[nodiscard]] SkFont makeFont(const sk_sp<SkTypeface>& typeface, float fontSize,
                               float scaleX = 1.0f, bool aliased = false);
+
+/** The face's own metrics at the size and design position `shaping` names,
+ * with the variable-font clone resolved through the context's memo so the
+ * numbers are the ones the shaped glyphs were measured with.
+ */
+[[nodiscard]] SkFontMetrics faceMetrics(FontContext& fontContext,
+                                        const ShapingStyle& shaping);
+
+/** THE FACE'S OWN SINGLE-SPACED LINE HEIGHT from metrics already in hand:
+ * ascent to descent, plus the leading the face asks for between its lines.
+ * This is the height a block's pitch is measured from when its leading is
+ * the face's own, and the height its strut reports.
+ */
+[[nodiscard]] inline float lineHeightOf(const SkFontMetrics& metrics) {
+  return -metrics.fAscent + metrics.fDescent + metrics.fLeading;
+}
+
+/** The same height for a style, resolving its face through `fontContext` —
+ * the number to hand `overlay()` as a line height when a size is stated in
+ * `lh` and the face that answers is in reach.
+ */
+[[nodiscard]] float lineHeightOf(const TextStyle& style,
+                                 FontContext& fontContext);
 
 }  // namespace sigil::weave

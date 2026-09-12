@@ -1,9 +1,10 @@
 /** @file
  * The style vocabulary as plain values: the fluent variation sugar, the
- * paint-layer presets and their order, the StyleSet registry's lookup,
- * replacement and equality, and the designated-init `Type` a call site
- * names a style's numbers in. The feature preset tags are settled by the
- * compiler where they are declared, so nothing here asks about them.
+ * paint-layer presets and their order, the StyleSheet's lookup, replacement
+ * and equality, and the partial `Type` a call site names a style's numbers
+ * in — what it overlays, what it leaves alone, and how a relative length
+ * becomes pixels. The feature preset tags are settled by the compiler where
+ * they are declared, so nothing here asks about them.
  */
 
 #include <gtest/gtest.h>
@@ -17,8 +18,9 @@
 
 using namespace sigil::weave;
 
-// The umbrella still spells every subject.
-static_assert(std::is_same_v<StyleSet::Entry::second_type, TextStyle>);
+// The umbrella still spells every subject, and a sheet's entries are the
+// PARTIALS a class is, not whole styles.
+static_assert(std::is_same_v<StyleSheet::Entry::second_type, Type>);
 
 TEST(TextStyle, TheFluentSugarAppendsInTheOrderItWasCalled) {
   // weight()/opticalSize()/variation() replace in place when the axis is
@@ -71,40 +73,43 @@ TEST(PaintStyle, PaintLayersExposeCompletePaintAndExplicitOrder) {
   EXPECT_FALSE(identical == style);
 }
 
-TEST(StyleSet, LookupAnswersEveryNameAndTheBaseAnswersTheUnknownOnes) {
+TEST(StyleSheet, AClassResolvesThroughTheSheetAndAnAbsentNameAnswersTheBase) {
   TextStyle base;
   base.shaping.fontSize = 12.0f;
-  TextStyle alert;
-  alert.shaping.fontSize = 12.0f;
-  alert.paint.foreground.setColor(SK_ColorRED);
+  base.paint.foreground.setColor4f({1, 1, 1, 1}, nullptr);
 
-  StyleSet styles(base);
-  styles.set("alert", alert);
+  StyleSheet styles(base);
+  // The class states only the colour — the size is the base's, which is the
+  // whole point of an entry being a partial.
+  styles.set("alert", Type{.color = SkColor4f{1, 0, 0, 1}});
 
-  EXPECT_TRUE(styles["alert"] == alert);
+  const TextStyle alert = styles["alert"];
+  EXPECT_FLOAT_EQ(alert.shaping.fontSize, 12.0f)
+      << "a field the class is silent about is the base's";
+  EXPECT_EQ(alert.paint.foreground.getColor4f(), (SkColor4f{1, 0, 0, 1}));
   EXPECT_TRUE(styles.contains("alert"));
   ASSERT_NE(styles.find("alert"), nullptr);
+  EXPECT_EQ(styles.find("alert")->color, (SkColor4f{1, 0, 0, 1}))
+      << "find() hands back the partial, not the style it resolves to";
 
   // The unknown-name contract: a lookup ALWAYS returns a style, and the one
-  // it returns for a name nobody registered is the base. A misspelling is
-  // therefore visible as base-styled text, never as text that vanished.
+  // it returns for a name nobody registered is the base alone. A misspelling
+  // is therefore visible as base-styled text, never as text that vanished.
   EXPECT_TRUE(styles["alrt"] == base) << "an unknown name must fall back";
   EXPECT_TRUE(styles[""] == base) << "the empty name is an unknown name";
   EXPECT_FALSE(styles.contains("alrt"));
   EXPECT_EQ(styles.find("alrt"), nullptr) << "find() reports absence";
   EXPECT_EQ(styles.size(), 1u) << "a failed lookup must not register a name";
 
-  // A default-constructed set still answers: the base is a default style.
-  EXPECT_TRUE(StyleSet{}["anything"] == TextStyle{});
+  // A default-constructed sheet still answers: the base is a default style.
+  EXPECT_TRUE(StyleSheet{}["anything"] == TextStyle{});
 }
 
-TEST(StyleSet, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
-  TextStyle small;
-  small.shaping.fontSize = 9.0f;
-  TextStyle large;
-  large.shaping.fontSize = 24.0f;
+TEST(StyleSheet, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
+  const Type small{.size = 9.0f};
+  const Type large{.size = 24.0f};
 
-  StyleSet a;
+  StyleSheet a;
   a.set("head", small).set("body", large);
   EXPECT_EQ(a.size(), 2u);
   EXPECT_EQ(a.entries()[0].first, "head") << "entries keep insertion order";
@@ -113,21 +118,23 @@ TEST(StyleSet, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
   a.set("head", large);
   EXPECT_EQ(a.size(), 2u);
   EXPECT_EQ(a.entries()[0].first, "head");
-  EXPECT_TRUE(a["head"] == large);
+  EXPECT_FLOAT_EQ(a["head"].shaping.fontSize, 24.0f);
 
-  // Equality is what lets a StyleSet ride inside a larger comparable value:
-  // same base, same entries, same order.
-  StyleSet b;
+  // Equality is what lets a StyleSheet ride inside a larger comparable
+  // value: same base, same entries, same order.
+  StyleSheet b;
   b.set("head", large).set("body", large);
   EXPECT_TRUE(a == b);
-  b.base(small);
+  TextStyle other;
+  other.shaping.fontSize = 9.0f;
+  b.base(other);
   EXPECT_FALSE(a == b) << "the base participates in equality";
 
-  StyleSet reordered;
+  StyleSheet reordered;
   reordered.set("body", large).set("head", large);
   EXPECT_FALSE(a == reordered) << "equality is order-sensitive";
 
-  StyleSet extra = a;
+  StyleSheet extra = a;
   extra.set("note", small);
   EXPECT_FALSE(a == extra);
 }
@@ -153,12 +160,12 @@ TEST(PaintStyle, PaintLayerMaterialComparesByIdentity) {
 }
 
 // ---------------------------------------------------------------------------
-// Type — the designated-init aggregate a call site names a style's numbers
-// in, and the TextStyle it builds.
+// Type — the PARTIAL a call site names a style's numbers in, the merges that
+// resolve one, and the TextStyle a total builds.
 
 TEST(Type, TheAggregatesNumbersLandOnTheStylesTwoHalves) {
   const TextStyle s = textStyle({.size = 10.5f,
-                                 .color = {1, 0, 0, 1},
+                                 .color = SkColor4f{1, 0, 0, 1},
                                  .track = 1.2f,
                                  .condense = 0.8f,
                                  .aliased = true});
@@ -186,4 +193,120 @@ TEST(Type, TheEightBitLadderQuantisesWhereTheFloatOneDoesNot) {
   EXPECT_EQ(textStyle({.color = c}).paint.foreground.getColor4f(), c);
   EXPECT_NE(
       textStyle({.color = c, .color8 = true}).paint.foreground.getColor4f(), c);
+}
+
+TEST(Type, TextStyleOfATotalSpecIsTheStyleThatSpecHasAlwaysNamed) {
+  // A spec that states every field lands exactly where it says, field by
+  // field on the style's two halves. Optional fields are a way of saying
+  // LESS, never a way of meaning something else: a call site that states a
+  // style in full gets that style and no resolution happens to it.
+  const TextStyle s = textStyle({.size = 13.0f,
+                                 .color = SkColor4f{0.1f, 0.2f, 0.3f, 1},
+                                 .track = 1.25f,
+                                 .condense = 0.92f,
+                                 .weight = 650.0f,
+                                 .slant = -9.0f,
+                                 .aliased = true,
+                                 .antiAlias = false,
+                                 .variations = {FontVariation("wdth", 75.0f)}});
+  TextStyle expected;
+  expected.shaping.fontSize = 13.0f;
+  expected.shaping.letterSpacing = 1.25f;
+  expected.shaping.scaleX = 0.92f;
+  expected.shaping.aliased = true;
+  expected.paint.foreground.setColor4f({0.1f, 0.2f, 0.3f, 1}, nullptr);
+  expected.paint.foreground.setAntiAlias(false);
+  expected.weight(650.0f).variation("slnt", -9.0f).variation("wdth", 75.0f);
+  EXPECT_TRUE(s == expected);
+}
+
+TEST(Type, APartialOverlaysATotalFieldByField) {
+  Type base = initialType();
+  base.size = 20.0f;
+  base.track = 2.0f;
+  base.condense = 0.9f;
+  base.color = SkColor4f{1, 1, 1, 1};
+
+  const Type total = overlay(base, {.color = SkColor4f{1, 0, 0, 1},
+                                    .weight = 700.0f});
+  EXPECT_EQ(total.color, (SkColor4f{1, 0, 0, 1})) << "a named field wins";
+  EXPECT_EQ(total.weight, 700.0f);
+  EXPECT_EQ(total.size, Length(20.0f)) << "a field it is silent about stands";
+  EXPECT_EQ(total.track, 2.0f);
+  EXPECT_EQ(total.condense, 0.9f);
+
+  // The partial that names nothing overlays onto anything as itself.
+  EXPECT_TRUE(Type{}.empty());
+  EXPECT_FALSE(Type{.track = 0.0f}.empty())
+      << "a field set to zero is a field that was set";
+  EXPECT_TRUE(overlay(base, Type{}) == base);
+}
+
+TEST(Type, AnUnsetFieldInheritsRightThroughToTheStyle) {
+  const sk_sp<SkTypeface> none;
+  const Type heading{.size = 32.0f, .weight = 800.0f};
+  const TextStyle inherited =
+      toTextStyle(overlay(overlay(initialType(), {.track = 3.0f}), heading));
+  EXPECT_FLOAT_EQ(inherited.shaping.fontSize, 32.0f);
+  EXPECT_FLOAT_EQ(inherited.shaping.letterSpacing, 3.0f)
+      << "the tracking nobody restated came down the cascade";
+  EXPECT_EQ(inherited.shaping.typeface, none) << "and so did the null face";
+  ASSERT_EQ(inherited.shaping.variations.size(), 1u);
+  EXPECT_EQ(inherited.shaping.variations[0], FontVariation("wght", 800));
+
+  // An axis already present is replaced where it stands, so a cascade never
+  // accumulates two settings of one axis and the order stays stable.
+  const Type varied =
+      overlay(Type{.variations = {FontVariation("wght", 300.0f),
+                                  FontVariation("opsz", 12.0f)}},
+              Type{.variations = {FontVariation("wght", 900.0f)}});
+  ASSERT_EQ(varied.variations.size(), 2u);
+  EXPECT_EQ(varied.variations[0], FontVariation("wght", 900));
+  EXPECT_EQ(varied.variations[1], FontVariation("opsz", 12));
+}
+
+TEST(Type, ARelativeSizeResolvesAgainstTheBase) {
+  const Type base{.size = 20.0f};
+  EXPECT_EQ(overlay(base, {.size = em(0.5f)}).size, Length(10.0f));
+  EXPECT_EQ(overlay(base, {.size = 1.5_em}).size, Length(30.0f))
+      << "the suffix and the function spell one length";
+  EXPECT_EQ(overlay(base, {.size = 2_rem}, 10.0f).size, Length(20.0f))
+      << "rem is the root's size, not the base's";
+  EXPECT_EQ(overlay(base, {.size = 1_lh}, 16.0f, 28.0f).size, Length(28.0f));
+  // No line height known: a single-spaced line is taken as 1.2 times the
+  // size it is set in, so lh stays a number rather than becoming zero.
+  EXPECT_FLOAT_EQ(overlay(base, {.size = 1_lh}).size->value, 24.0f);
+  // A base that states no size leaves the initial 16 px to multiply.
+  EXPECT_EQ(overlay(Type{}, {.size = 2_em}).size, Length(32.0f));
+  // And the resolved size is a plain number: px, resolved once, never a
+  // multiple carried forward to be applied twice.
+  EXPECT_FALSE(overlay(base, {.size = 0.5_em}).size->relative());
+
+  // The TextStyle form resolves against the size the style already carries.
+  TextStyle built;
+  built.shaping.fontSize = 24.0f;
+  EXPECT_FLOAT_EQ(overlay(built, {.size = em(0.25f)}).shaping.fontSize, 6.0f);
+}
+
+TEST(Type, MergeCopiesFieldsAndLeavesARelativeSizeRelative) {
+  // Two partials written about one element fold into one partial, which is
+  // not yet resolved against anything: a relative size stays relative
+  // because neither partial knows what it is relative to.
+  Type folded{.size = 2_em, .track = 1.0f,
+              .variations = {FontVariation("wght", 300.0f)}};
+  merge(folded, {.color = SkColor4f{0, 1, 0, 1}, .track = 4.0f,
+                 .variations = {FontVariation("wght", 700.0f),
+                                FontVariation("wdth", 80.0f)}});
+  EXPECT_EQ(folded.size, 2_em) << "a relative size is copied, not resolved";
+  EXPECT_EQ(folded.track, 4.0f) << "a field the second names wins";
+  EXPECT_EQ(folded.color, (SkColor4f{0, 1, 0, 1}));
+  ASSERT_EQ(folded.variations.size(), 2u);
+  EXPECT_EQ(folded.variations[0], FontVariation("wght", 700))
+      << "an axis already present is replaced where it stands";
+  EXPECT_EQ(folded.variations[1], FontVariation("wdth", 80));
+
+  // An absolute size is copied the same way, and a partial that states
+  // nothing changes nothing.
+  Type keep{.size = 11.0f};
+  EXPECT_TRUE(merge(keep, Type{}) == Type{.size = 11.0f});
 }

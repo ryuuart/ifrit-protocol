@@ -37,6 +37,19 @@ SkFont makeFont(const sk_sp<SkTypeface>& typeface, float fontSize, float scaleX,
   return font;
 }
 
+SkFontMetrics faceMetrics(FontContext& fontContext,
+                          const ShapingStyle& shaping) {
+  const sk_sp<SkTypeface> typeface =
+      fontContext.variedTypeface(shaping.typeface, shaping.variations);
+  SkFontMetrics metrics;
+  makeFont(typeface, shaping.fontSize).getMetrics(&metrics);
+  return metrics;
+}
+
+float lineHeightOf(const TextStyle& style, FontContext& fontContext) {
+  return lineHeightOf(faceMetrics(fontContext, style.shaping));
+}
+
 // The glyph's edges, measured once per face and kept.
 const detail::GlyphProfile& FontContext::Impl::profileOf(
     const sk_sp<SkTypeface>& typeface, uint16_t glyph) {

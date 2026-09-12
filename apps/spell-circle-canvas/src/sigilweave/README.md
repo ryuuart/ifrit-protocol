@@ -254,10 +254,14 @@ catalogue of those values.
 
 Two rules run through all five and are worth stating once.
 
-**The library decides nothing typographic.** No fraction of a base's size
-is written anywhere in it: a reading's size is its own style's, a
-prohibition set is data, a mojikumi table is data, a hyphenation pattern
-table is data. `kit/` ships stock tables and a caller's own is their peer.
+**The library decides nothing typographic.** A reading's size is its own
+style's, a prohibition set is data, a mojikumi table is data, a
+hyphenation pattern table is data. `kit/` ships stock tables and a
+caller's own is their peer. One fraction of a size is written down, and it
+is a fallback rather than a decision: a length stated in line heights,
+overlaid with no line height supplied, takes 1.2 times the size it is set
+at, because the alternative is zero and zero is not a length. The real
+number is the face's, and `weave::lineHeightOf` is how to get it.
 
 **Settled text is the special case.** A page laid out once and then read
 is the easy end of what this engine is for; the ordinary end is text
@@ -286,9 +290,10 @@ every frame.
 
 Three of the values are worth naming here because they are what a caller
 writes rather than what the engine produces. **`RichText`** says a mixed
-passage as runs and the styles — or the style NAMES — they are set in, and
-two of them describing the same runs are EQUAL, which is how a caller that
-rebuilds its text every frame shapes nothing when nothing changed.
+passage as runs and the styles — whole ones, PARTIALS, or the NAMES of
+classes in a `StyleSheet` — they are set in, and two of them describing the
+same runs are EQUAL, which is how a caller that rebuilds its text every
+frame shapes nothing when nothing changed.
 **`Story`** is one of those plus the block styles its paragraphs are set
 under, and a chain of frames fills from it. **`Selector`** is a selection
 written down and not yet asked: `selectors::word(3)`, `selectors::regex(u8"[0-9]+")`,
@@ -299,12 +304,40 @@ canonical one — and the two kinds a caller defines for itself,
 `Kind::Named` and `Kind::Scope`, ride the same value and compose with the
 rest.
 
+### A style stated in part
+
+A `TextStyle` is total: every field of it is a decision. **`Type`** is the
+same vocabulary with every field OPTIONAL — a PARTIAL, which is what a
+caller actually writes. `Type{.weight = 800}` says "heavier, and the rest
+as it was", and `weave::overlay(base, over)` is the one step that settles
+what "as it was" means: field by field, `over` wins where it states a
+field and `base` stands everywhere else. `weave::merge` folds two partials
+written about one passage into one partial, without resolving anything.
+`weave::initialType()` is the bottom of any such chain — every field
+engaged with the value an unset one means — so `weave::textStyle(t)` is a
+partial over those, and `weave::toTextStyle` the style a total comes to.
+
+A size may be stated against a number the call site does not have:
+`weave::em(0.75f)` of a size decided elsewhere, `weave::rem(2)` of a
+root's, `weave::lh(1)` of a line's, or the `_em` / `_rem` / `_lh` suffixes
+that spell the same three (`Length`). A relative length becomes pixels
+inside `overlay`, where the number it is relative to is in reach, so a
+total `Type` always carries pixels. The face that answers a line height is
+not in the style vocabulary at all — ask `weave::lineHeightOf` for it, and
+pass what it returns.
+
+A **`StyleSheet`** is a base style and a handful of those partials under
+NAMES: the levels of a log, the states a selection switches between, the
+roles a table's columns take. An entry states what it CHANGES, so one
+sheet serves a document whose base size was decided elsewhere, and lookup
+always answers — a name nobody registered resolves to the base alone.
+
 ## Targets and dependencies
 
 | Target | Contents | Beyond Skia |
 |---|---|---|
 | `SigilWeaveUnicode` | the Unicode leaf | ICU and HarfBuzz's ICU bridge, private; no Skia |
-| `SigilWeaveStyle` | the style vocabulary, header-only, with `Type` and `textStyle()` — the designated-init aggregate a call site names a style's numbers in | — |
+| `SigilWeaveStyle` | the style vocabulary, with `Type` — the partial a call site names a style's numbers in, every field optional — the merges that resolve one, and the `StyleSheet` of named partials | — |
 | `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, Boost.Unordered and Boost.ContainerHash — private |
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, Boost.Container — private |
 | `SigilWeaveLayout` | flows and silhouettes, the initial letter, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); SigilImageField (the distance field a silhouette measures its standoff off), the Unicode leaf, HarfBuzz, ICU and Boost.Unordered — private |
@@ -415,9 +448,11 @@ What each feature's `test/` holds:
 
 - `unicode/test/` — the Unicode leaf, with no fonts at all.
 - `style/test/` — styles as plain values: fluent sugar, paint-layer
-  presets, the `StyleSet` registry. No fonts either, and no run-time case
-  for the feature preset tags: they are `static_assert`ed beside their own
-  declarations, where only editing them can falsify them.
+  presets, the `StyleSheet`'s lookup, and what a partial overlays, leaves
+  alone, and resolves a relative length against. No fonts either, and no
+  run-time case for the feature preset tags: they are `static_assert`ed
+  beside their own declarations, where only editing them can falsify
+  them.
 - `fonts/test/` — the font service asked about faces this machine
   happens to have: the fallback memo keyed by language, the transient
   varied clone, and the pair a shaper sets by measuring outlines.

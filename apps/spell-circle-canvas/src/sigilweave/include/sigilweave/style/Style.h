@@ -21,16 +21,18 @@
  * (ParagraphLayout.h), which reuses the shaped positions precisely because
  * the axis leaves advances alone.
  *
- * TextStyle.h holds the two halves together; StyleSet.h the named registry
- * of them; Type.h the designated-init aggregate a call site names a
- * style's numbers in. Attach styles to text through Paragraph /
- * ParagraphBuilder (Paragraph.h).
+ * TextStyle.h holds the two halves together; Type.h the PARTIAL a call
+ * site names a style's numbers in, every field optional, with Length.h
+ * for a size stated against one it does not carry; StyleSheet.h a base
+ * style and the named partials over it. Attach styles to text through
+ * Paragraph / ParagraphBuilder (Paragraph.h).
  */
 
 #include "sigilweave/style/Decoration.h"
+#include "sigilweave/style/Length.h"
 #include "sigilweave/style/PaintLayer.h"
 #include "sigilweave/style/PaintStyle.h"
 #include "sigilweave/style/ShapingStyle.h"
-#include "sigilweave/style/StyleSet.h"
+#include "sigilweave/style/StyleSheet.h"
 #include "sigilweave/style/TextStyle.h"
 #include "sigilweave/style/Type.h"

@@ -15,7 +15,9 @@
  *                   segmentation, bidi. ICU only.
  *   - style/        `TextStyle` = `ShapingStyle` (shape-cache key) +
  *                   `PaintStyle` (draw-time); paint layers, decorations,
- *                   the `StyleSet` registry, the OpenType feature presets.
+ *                   `Type`, the partial a style is named in, with `Length`
+ *                   and the merges that resolve one, the `StyleSheet` of
+ *                   named partials, the OpenType feature presets.
  *   - fonts/        `FontContext`, the per-thread service object (caches,
  *                   HarfBuzz, fallback, varied faces), and `shapeWord()`.
  *   - paragraph/    the document: UTF-16 text + style spans + placeholders,
