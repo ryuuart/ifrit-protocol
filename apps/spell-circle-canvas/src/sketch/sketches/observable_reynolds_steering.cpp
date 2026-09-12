@@ -2,13 +2,17 @@
  * observable_reynolds_steering — alignment, cohesion and separation flocking.
  */
 
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
@@ -42,17 +46,19 @@ struct Boid {
   Vec velocity;
 };
 
-struct ObservableReynoldsSteering final : sketch::DrawSketch {
+struct ObservableReynoldsSteering final : sketch::Sketch {
   std::vector<Boid> boids;
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(900, 720);
     context.captureAt(5.0);
-    context.pen.randomSeed(0xC2A16u);
-    context.pen.colorMode(HSB, 360, 100, 100, 255);
-    for (int index = 0; index < 50; ++index)
-      boids.push_back({{450.0f, 360.0f},
-                       {context.pen.random(-1, 1), context.pen.random(-1, 1)}});
+    boids.clear();
+
+    context.composer.render(
+        compose::graphics("observable_reynolds_steering.loop",
+                          [this](Pen& pen) { draw(pen); })
+            .absolute()
+            .inset(0));
   }
 
   Vec seek(const Boid& boid, Vec target) const {
@@ -105,8 +111,19 @@ struct ObservableReynoldsSteering final : sketch::DrawSketch {
     }
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.randomSeed(0xC2A16u);
+      pen.colorMode(HSB, 360, 100, 100, 255);
+      for (int index = 0; index < 50; ++index)
+        boids.push_back(
+            {{450.0f, 360.0f}, {pen.random(-1, 1), pen.random(-1, 1)}});
+      // THE GROUND, laid once. The canvas this loop keeps opens with
+      // nothing on it, and the wash below is one alpha step: over a
+      // transparent surface it never builds up, so the trails would
+      // stand on whatever is behind the canvas rather than on black.
+      pen.background(0);
+    }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.background(0, 1);
     update();

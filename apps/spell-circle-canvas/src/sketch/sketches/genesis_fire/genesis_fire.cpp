@@ -3,7 +3,7 @@
 
 #include "GenesisFire.h"
 
-void GenesisFire::setup(sketch::DrawContext& ctx) {
+void GenesisFire::setup(sketch::SketchContext& ctx) {
   // 4.6 s into the 10 s loop: the wavefront is near the right edge, the
   // leftmost systems are burning out and the rightmost have just ignited.
   ctx.canvas(kCanvasW, kCanvasH);
@@ -72,12 +72,18 @@ void GenesisFire::setup(sketch::DrawContext& ctx) {
   benchEl = renderModelPanel();
   prodEl = productionPanel();
 
-  ctx.pen.noStroke();
-  ctx.pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
+  deterministic = ctx.deterministic;
+  ctx.composer.render(
+      graphics("genesis_fire.loop", [this](Pen& pen) { draw(pen); })
+          .absolute()
+          .inset(0));
 }
 
-void GenesisFire::draw(sketch::DrawContext& ctx) {
-  Pen& pen = ctx.pen;
+void GenesisFire::draw(Pen& pen) {
+  if (pen.frameCount == 1) {
+    pen.noStroke();
+    pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
+  }
   // The renderers follow the SIM clock: the streak lists, the two pools
   // and the census row are rebuilt when — and only when — a film frame
   // has passed.
@@ -141,7 +147,7 @@ void GenesisFire::draw(sketch::DrawContext& ctx) {
   pen.noStroke();
 
   // --- the caption band, declared OUTSIDE the artefact ----------------
-  stageCaption(ctx);
+  stageCaption(pen);
 
   // --- the sidebar: five panels, each its own guest --------------------
   pen.element(genEl, SkRect::MakeXYWH(kSideX, panelTop(0), kSideW, kPanelH[0]));
@@ -168,8 +174,7 @@ void GenesisFire::draw(sketch::DrawContext& ctx) {
   }
 }
 
-void GenesisFire::stageCaption(sketch::DrawContext& ctx) {
-  Pen& pen = ctx.pen;
+void GenesisFire::stageCaption(Pen& pen) {
   const float a = cue(pen.millis(), 1250, 300);
   if (a <= 0.001f) return;
   char buf[160];
@@ -184,7 +189,7 @@ void GenesisFire::stageCaption(sketch::DrawContext& ctx) {
                 // renders of the same frame. `measured` reads zero
                 // where the host is capturing for a diff, which is what
                 // makes a captured still comparable byte for byte.
-                ctx.measured(buildUs / 1000.0));
+                measured(buildUs / 1000.0));
   const float right = kStageX + kStageW;
   pen.textAlign(sigil::draw::RIGHT, sigil::draw::TOP);
   penMono(pen, 8.5f, fadeTo(hexColor(0xFFB672, 0.85f), a), 0.5f);

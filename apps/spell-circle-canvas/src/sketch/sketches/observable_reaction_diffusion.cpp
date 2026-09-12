@@ -4,13 +4,17 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
 #include <array>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
@@ -22,13 +26,13 @@ struct Cell {
   float b = 0.0f;
 };
 
-struct ObservableReactionDiffusion final : sketch::DrawSketch {
+struct ObservableReactionDiffusion final : sketch::Sketch {
   std::vector<Cell> field =
       std::vector<Cell>(static_cast<size_t>(kGrid * kGrid));
   std::vector<Cell> next = field;
   SkBitmap bitmap;
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(720, 720);
     context.captureAt(5.0);
     bitmap.allocN32Pixels(kGrid, kGrid);
@@ -36,6 +40,12 @@ struct ObservableReactionDiffusion final : sketch::DrawSketch {
       for (int x = 56; x < 88; ++x) field[y * kGrid + x].b = 1.0f;
     for (int y = 30; y < 42; ++y)
       for (int x = 94; x < 106; ++x) field[y * kGrid + x].b = 1.0f;
+
+    context.composer.render(
+        compose::graphics("observable_reaction_diffusion.loop",
+                          [this](Pen& pen) { draw(pen); })
+            .absolute()
+            .inset(0));
   }
 
   Cell at(int x, int y) const {
@@ -86,8 +96,7 @@ struct ObservableReactionDiffusion final : sketch::DrawSketch {
     }
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
     for (int iteration = 0; iteration < 5; ++iteration) advance();
     rasterize();
     pen.background(0);

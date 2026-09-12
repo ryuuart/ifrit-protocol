@@ -12,9 +12,12 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
 #include <array>
@@ -22,6 +25,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace field = sigil::material::field;
 namespace mskia = sigil::material::skia;
 using namespace sigil::draw;
@@ -74,7 +78,7 @@ mskia::Paint budLight() {
                                  {1.00f, {0.03f, 0.05f, 0.16f, 0.12f}}});
 }
 
-struct P5FractalGarden final : sketch::DrawSketch {
+struct P5FractalGarden final : sketch::Sketch {
   struct Segment {
     SkPoint from;
     SkPoint to;
@@ -84,13 +88,15 @@ struct P5FractalGarden final : sketch::DrawSketch {
   const mskia::Paint background = ground();
   const mskia::Paint buds = budLight();
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(900, 900);
-    context.background(6, 8, 16);
+    context.background({6 / 255.0f, 8 / 255.0f, 16 / 255.0f, 1});
     context.captureAt(0.05);  // the tree is a direct function of the clock
-    context.pen.angleMode(RADIANS);
-    context.pen.strokeCap(ROUND);
-    context.pen.noFill();
+
+    context.composer.render(compose::graphics("p5_fractal_garden.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
   void branch(std::array<std::vector<Segment>, kDepth + 1>& levels,
@@ -114,8 +120,12 @@ struct P5FractalGarden final : sketch::DrawSketch {
            depth - 1, clock, lineage * 2 + 2);
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.angleMode(RADIANS);
+      pen.strokeCap(ROUND);
+      pen.noFill();
+    }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.background(background);
 

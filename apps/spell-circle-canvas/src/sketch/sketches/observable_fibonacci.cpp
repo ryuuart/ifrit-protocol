@@ -2,25 +2,35 @@
  * observable_fibonacci — squares distributed by the golden-angle sequence.
  */
 
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
 
-struct ObservableFibonacci final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& context) override {
+struct ObservableFibonacci final : sketch::Sketch {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(800, 800);
     context.captureAt(0.05);
-    context.pen.noStroke();
-    context.pen.rectMode(CENTER);
+
+    context.composer.render(compose::graphics("observable_fibonacci.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.noStroke();
+      pen.rectMode(CENTER);
+    }
     constexpr int kCount = 1000;
     constexpr float kPhi = 1.61803398875f;
     constexpr float kRadius = 0.70710678118f;

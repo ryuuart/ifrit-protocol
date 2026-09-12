@@ -10,13 +10,17 @@
 //   kOrbitMarks   how many charcoal gestures turn around the centre
 //   kPalette      the pigments assigned to successive strokes
 
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigildraw/brush/Brush.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
 
@@ -32,17 +36,21 @@ constexpr std::array<SkColor4f, 5> kPalette{{
     {0.38f, 0.16f, 0.34f, 1.0f},
 }};
 
-struct BrushworkCurrents final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& ctx) override {
+struct BrushworkCurrents final : sketch::Sketch {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1080, 760);
-    ctx.background(241, 234, 215);
+    ctx.background({241 / 255.0f, 234 / 255.0f, 215 / 255.0f, 1});
     ctx.captureAt(0.25);
-    ctx.pen.randomSeed(0xB405u);
-    ctx.pen.noFill();
+
+    ctx.composer.render(compose::graphics("brushwork_currents.sheet",
+                                          [this](Pen& pen) { draw(pen); })
+                            .absolute()
+                            .inset(0));
   }
 
-  void draw(sketch::DrawContext& ctx) override {
-    Pen& pen = ctx.pen;
+  void draw(Pen& pen) {
+    pen.randomSeed(0xB405u);
+    pen.noFill();
     pen.background(241, 234, 215);
 
     pen.stroke(72, 56, 43, 16);

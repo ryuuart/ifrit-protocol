@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct HitmanVerlet final : sketch::DrawSketch {
+struct HitmanVerlet final : sketch::Sketch {
   // -------------------------------------------------------------------------
   // §4 — the mechanism
 
@@ -316,7 +316,9 @@ struct HitmanVerlet final : sketch::DrawSketch {
 
   // =========================================================================
 
-  void setup(sketch::DrawContext& ctx) override;
+  void setup(sketch::SketchContext& ctx) override;
 
-  void draw(sketch::DrawContext& ctx) override;
+  /** THE LOOP, run by the pen of the node the study stands in: one frame
+   *  of the canvas that node keeps. */
+  void draw(Pen& pen);
 };

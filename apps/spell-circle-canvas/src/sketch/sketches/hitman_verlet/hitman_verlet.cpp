@@ -2,7 +2,7 @@
 
 #include "HitmanVerlet.h"
 
-auto HitmanVerlet::setup(sketch::DrawContext& ctx) -> void {
+auto HitmanVerlet::setup(sketch::SketchContext& ctx) -> void {
   ctx.canvas(kCanvasW, kCanvasH);
   ctx.background(kInk);
   // This study brings its own canvas, background and capture instant
@@ -65,12 +65,17 @@ auto HitmanVerlet::setup(sketch::DrawContext& ctx) -> void {
   colAEl = {panelA1(), panelA2(), panelA3()};
   colBEl = {panelB1(), panelB2(), panelB3()};
 
-  ctx.pen.noStroke();
-  ctx.pen.textAlign(draw::LEFT, draw::TOP);
+  ctx.composer.render(
+      graphics("hitman_verlet.loop", [this](Pen& pen) { draw(pen); })
+          .absolute()
+          .inset(0));
 }
 
-auto HitmanVerlet::draw(sketch::DrawContext& ctx) -> void {
-  Pen& pen = ctx.pen;
+auto HitmanVerlet::draw(Pen& pen) -> void {
+  if (pen.frameCount == 1) {
+    pen.noStroke();
+    pen.textAlign(draw::LEFT, draw::TOP);
+  }
   const double ms = pen.millis();
   // The pools are written every frame, because what they carry is the
   // interpolated position and that moves between steps as well as

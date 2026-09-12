@@ -7,17 +7,21 @@
  * points move and the brush texture does not flicker in a captured sequence.
  */
 
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 #include <cmath>
 
 namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
 namespace mskia = sigil::material::skia;
 namespace pattern = sigil::material::pattern;
@@ -61,16 +65,18 @@ brush::Tool liquidNib(SkColor4f colour, float width) {
   return tool;
 }
 
-struct P5LiquidLayers final : sketch::DrawSketch {
+struct P5LiquidLayers final : sketch::Sketch {
   const mskia::Paint ground = graphPaper();
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(720, 560);
-    context.background(4, 9, 18);
+    context.background({4 / 255.0f, 9 / 255.0f, 18 / 255.0f, 1});
     context.captureAt(0.05);  // the painting is a direct function of the clock
-    context.pen.strokeCap(ROUND);
-    context.pen.strokeJoin(ROUND);
-    context.pen.noFill();
+
+    context.composer.render(compose::graphics("p5_liquid_layers.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
   std::array<brush::Sample, 6> controls(int ribbon, float clock, float width,
@@ -91,8 +97,12 @@ struct P5LiquidLayers final : sketch::DrawSketch {
     return path;
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.strokeCap(ROUND);
+      pen.strokeJoin(ROUND);
+      pen.noFill();
+    }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.randomSeed(0x11A71Du);
     pen.background(ground);

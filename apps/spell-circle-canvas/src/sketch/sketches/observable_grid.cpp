@@ -2,25 +2,35 @@
  * observable_grid — repeated square cells under one animated rotation.
  */
 
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
 
-struct ObservableGrid final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& context) override {
+struct ObservableGrid final : sketch::Sketch {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(800, 800);
     context.captureAt(0.05);
-    context.pen.rectMode(CENTER);
-    context.pen.noFill();
+
+    context.composer.render(compose::graphics("observable_grid.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.rectMode(CENTER);
+      pen.noFill();
+    }
     constexpr int kCells = 10;
     constexpr float kCell = 80.0f;
     const float clock = static_cast<float>(pen.millis() * 0.001);

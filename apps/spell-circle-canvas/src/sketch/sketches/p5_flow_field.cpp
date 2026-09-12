@@ -9,15 +9,19 @@
 
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 
 namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace field = sigil::material::field;
 namespace mskia = sigil::material::skia;
 using namespace sigil::draw;
@@ -67,23 +71,29 @@ mskia::Paint particleLight() {
                                  {1.0f, {0.18f, 0.08f, 0.42f, 0.0f}}});
 }
 
-struct P5FlowField final : sketch::DrawSketch {
+struct P5FlowField final : sketch::Sketch {
   const mskia::Paint ink = currentInk();
   const mskia::Paint sparks = particleLight();
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(960, 720);
-    context.background(4, 7, 17);
+    context.background({4 / 255.0f, 7 / 255.0f, 17 / 255.0f, 1});
     context.captureAt(0.05);  // the field is a direct function of the clock
-    context.pen.noiseSeed(809u);
-    context.pen.noiseDetail(5, 0.54f);
-    context.pen.strokeCap(ROUND);
-    context.pen.strokeJoin(ROUND);
-    context.pen.noFill();
+
+    context.composer.render(
+        compose::graphics("p5_flow_field.loop", [this](Pen& pen) { draw(pen); })
+            .absolute()
+            .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.noiseSeed(809u);
+      pen.noiseDetail(5, 0.54f);
+      pen.strokeCap(ROUND);
+      pen.strokeJoin(ROUND);
+      pen.noFill();
+    }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.background(4, 7, 17);
     pen.blendMode(ADD);

@@ -2,7 +2,20 @@
 
 #include "Settings.h"
 
-struct GenesisFire final : sketch::DrawSketch {
+struct GenesisFire final : sketch::Sketch {
+  /** The host is capturing for a diff, so a figure this study took off
+   *  its own execution is pinned. Read from the context while declaring
+   *  and kept, because the caption is drawn by a pen program and a pen
+   *  program is handed no context. */
+  bool deterministic = false;
+  /** A number measured about this study's own execution: @p value
+   *  normally, @p pinned under a capture that will be compared, since a
+   *  plate carrying a build time no two runs agree on differs from
+   *  itself. */
+  [[nodiscard]] double measured(double value, double pinned = 0.0) const {
+    return deterministic ? pinned : value;
+  }
+
   // --- the two levels ------------------------------------------------------
   struct Site {
     SkPoint p;      // surface point
@@ -264,16 +277,18 @@ struct GenesisFire final : sketch::DrawSketch {
 
   // =========================================================================
 
-  void setup(sketch::DrawContext& ctx) override;
+  void setup(sketch::SketchContext& ctx) override;
 
-  void draw(sketch::DrawContext& ctx) override;
+  /** THE LOOP, run by the pen of the node the study stands in: one frame
+   *  of the canvas that node keeps. */
+  void draw(Pen& pen);
 
   /** THE CAPTION BAND. It states what the study proves — how many streaks
    *  are alive, the raster the demo was computed for, and which light in
    *  the picture is hand-placed — and it is drawn OUTSIDE the stage,
    *  because a plate of an artefact is a plate of the artefact. Nothing
    *  here is a mark on the frame; it is a band under it. */
-  void stageCaption(sketch::DrawContext& ctx);
+  void stageCaption(Pen& pen);
 
   /** A part's entrance as time arithmetic: what a described tree spells
    *  as `animate(from(0).to(1), {duration, delay})`, in a loop that has

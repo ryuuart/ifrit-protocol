@@ -2,23 +2,33 @@
  * observable_noise_map — a tiled view of coherent two-dimensional noise.
  */
 
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
 
-struct ObservableNoiseMap final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& context) override {
+struct ObservableNoiseMap final : sketch::Sketch {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(720, 720);
     context.captureAt(0.05);
-    context.pen.noiseSeed(0xA4CD8346u);
-    context.pen.noStroke();
+
+    context.composer.render(compose::graphics("observable_noise_map.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.noiseSeed(0xA4CD8346u);
+      pen.noStroke();
+    }
     constexpr int kStep = 12;
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.background(0);

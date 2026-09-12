@@ -2,13 +2,17 @@
  * observable_noise — coherent noise beside an uncorrelated random polyline.
  */
 
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 #include <cstdint>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace chance = sigil::core::chance;
 using namespace sigil::draw;
 
@@ -18,17 +22,23 @@ namespace {
  *  so nothing here carries a mixer of its own. */
 float sample(uint32_t value) { return chance::Stream::mix64(value).unit(); }
 
-struct ObservableNoise final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& context) override {
+struct ObservableNoise final : sketch::Sketch {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(900, 720);
     context.captureAt(0.05);
-    context.pen.noiseSeed(0x8B554407u);
-    context.pen.noFill();
-    context.pen.strokeJoin(ROUND);
+
+    context.composer.render(compose::graphics("observable_noise.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.noiseSeed(0x8B554407u);
+      pen.noFill();
+      pen.strokeJoin(ROUND);
+    }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.background(0);
     pen.stroke(255);

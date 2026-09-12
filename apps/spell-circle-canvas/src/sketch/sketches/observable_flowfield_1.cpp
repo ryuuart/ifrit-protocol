@@ -2,25 +2,35 @@
  * observable_flowfield_1 — a regular grid sampling a diagonal angle field.
  */
 
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
 
-struct ObservableFlowfield1 final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& context) override {
+struct ObservableFlowfield1 final : sketch::Sketch {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(720, 720);
     context.captureAt(0.05);
-    context.pen.noFill();
-    context.pen.strokeCap(SQUARE);
+
+    context.composer.render(compose::graphics("observable_flowfield_1.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.noFill();
+      pen.strokeCap(SQUARE);
+    }
     constexpr float kStep = 12.0f;
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.background(0);

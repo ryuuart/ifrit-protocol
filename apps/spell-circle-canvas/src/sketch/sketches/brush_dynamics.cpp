@@ -4,14 +4,18 @@
 // stable, making pressure, tilt, barrel rotation and speed response readable
 // without an attached tablet.
 
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigildraw/brush/Brush.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 #include <cmath>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
 
@@ -44,16 +48,20 @@ void label(Pen& pen, const char* text, float y) {
   pen.text(text, 145, y);
 }
 
-struct BrushDynamics final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& context) override {
+struct BrushDynamics final : sketch::Sketch {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(1000, 760);
     context.captureAt(0.25);
-    context.pen.randomSeed(0xD1A6A1C5u);
-    context.pen.noiseSeed(0xD1A6A1C5u);
+
+    context.composer.render(compose::graphics("brush_dynamics.sheet",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    pen.randomSeed(0xD1A6A1C5u);
+    pen.noiseSeed(0xD1A6A1C5u);
     pen.background(248, 241, 224);
 
     std::vector<brush::Input> pressure = lane(170);

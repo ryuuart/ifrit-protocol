@@ -2,13 +2,17 @@
  * observable_fibonacci_rectangles — signed Fibonacci tiles around the origin.
  */
 
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 #include <cmath>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
@@ -18,15 +22,22 @@ int signFor(int index) {
   return signs[index % signs.size()];
 }
 
-struct ObservableFibonacciRectangles final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& context) override {
+struct ObservableFibonacciRectangles final : sketch::Sketch {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(800, 800);
     context.captureAt(0.05);
-    context.pen.colorMode(HSB, 100);
+
+    context.composer.render(
+        compose::graphics("observable_fibonacci_rectangles.loop",
+                          [this](Pen& pen) { draw(pen); })
+            .absolute()
+            .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.colorMode(HSB, 100);
+    }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     const int count =
         7 + static_cast<int>(5.0f * (0.5f + 0.5f * std::sin(clock * 0.72f)));

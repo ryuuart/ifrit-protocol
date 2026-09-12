@@ -11,8 +11,11 @@
 
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 #include <cmath>
@@ -20,6 +23,7 @@
 #include <utility>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace mskia = sigil::material::skia;
 using namespace sigil::draw;
 
@@ -193,18 +197,21 @@ void drawTendril(Pen& pen, SkPoint from, SkPoint to, int index, float clock,
              controlB.y(), to.x(), to.y());
 }
 
-struct P5RefractiveMetaballs final : sketch::DrawSketch {
+struct P5RefractiveMetaballs final : sketch::Sketch {
   const mskia::Paint source = lineField();
   const mskia::Paint filament = tendrilInk();
   /** Compiled once and held on the sketch: the frame asks for it. */
   const sk_sp<SkRuntimeEffect> refraction = glassEffect();
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(720, 720);
-    context.background(2, 5, 14);
+    context.background({2 / 255.0f, 5 / 255.0f, 14 / 255.0f, 1});
     context.captureAt(0.05);  // the field is a direct function of the clock
-    context.pen.strokeCap(ROUND);
-    context.pen.strokeJoin(ROUND);
+
+    context.composer.render(compose::graphics("p5_refractive_metaballs.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
   std::array<Lobe, kLobeCount> lobes(float clock) const {
@@ -264,8 +271,11 @@ struct P5RefractiveMetaballs final : sketch::DrawSketch {
     }
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.strokeCap(ROUND);
+      pen.strokeJoin(ROUND);
+    }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     const std::array<Lobe, kLobeCount> balls = lobes(clock);
     pen.background(source);

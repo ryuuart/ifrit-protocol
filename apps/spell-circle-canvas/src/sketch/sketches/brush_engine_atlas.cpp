@@ -4,12 +4,16 @@
 // mass share one instance-owned engine and one deterministic pigment stream.
 
 #include <include/core/SkBitmap.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigildraw/brush/Brush.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
 
@@ -24,14 +28,12 @@ constexpr std::array<SkColor4f, 6> kInk{{
     {0.48f, 0.22f, 0.48f, 1.0f},
 }};
 
-struct BrushEngineAtlas final : sketch::DrawSketch {
+struct BrushEngineAtlas final : sketch::Sketch {
   brush::Engine brushes;
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(1000, 900);
     context.captureAt(0.25);
-    context.pen.randomSeed(0xB2A55u);
-    context.pen.noiseSeed(0xB2A55u);
     brushes.scaleBrushes(3.5f);
 
     brush::Tool diamond = brush::marker(SkColors::kBlack, 15.0f);
@@ -75,10 +77,16 @@ struct BrushEngineAtlas final : sketch::DrawSketch {
     paperTip.rotation = brush::Rotation::Natural;
     paperTip.markerTip = false;
     brushes.add("paper-tip", std::move(paperTip));
+
+    context.composer.render(compose::graphics("brush_engine_atlas.sheet",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    pen.randomSeed(0xB2A55u);
+    pen.noiseSeed(0xB2A55u);
     pen.background(246, 239, 222);
     pen.noStroke();
     pen.fill(40, 34, 31);

@@ -8,9 +8,12 @@
 //   kSceneSeconds  how long each construction remains on screen
 //   kPalette       the pigments shared by all six scenes
 
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilgeometry/path/Arrange.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 #include <cmath>
@@ -19,6 +22,7 @@
 
 namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
 
@@ -64,19 +68,15 @@ void label(Pen& pen, std::string_view text, SkColor4f color, float x = 300,
   pen.text(text, x, y);
 }
 
-struct BrushLiveTutorial final : sketch::DrawSketch {
+struct BrushLiveTutorial final : sketch::Sketch {
   brush::Engine brushes;
   int lastScene = -1;
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(840, 840);
-    context.background(255, 252, 235);
+    context.background({255 / 255.0f, 252 / 255.0f, 235 / 255.0f, 1});
     context.captureAt(12.5);
-    context.pen.frameRate(30);
-    context.pen.randomSeed(0x213123u);
-    context.pen.noiseSeed(0x213123u);
 
-    context.pen.angleMode(DEGREES);
     brushes.scaleBrushes(3.5f);
 
     brush::Tool watercolor = brush::marker(SkColors::kBlack, 10.0f);
@@ -100,6 +100,11 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
     whiteCharcoal.opacity = 0.52f;
     whiteCharcoal.blend = SCREEN;
     brushes.add("white-charcoal", whiteCharcoal);
+
+    context.composer.render(compose::graphics("brush_live_tutorial.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
   void resetBrushes() {
@@ -301,8 +306,13 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
     label(pen, "*spline()", {0.84f, 0.86f, 0.85f, 1}, x + 65, y);
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.frameRate(30);
+      pen.randomSeed(0x213123u);
+      pen.noiseSeed(0x213123u);
+      pen.angleMode(DEGREES);
+    }
     const float seconds = (float)pen.millis() / 1000.0f;
     const int scene = (int)std::floor(seconds / kSceneSeconds) % 6;
     const float localSeconds = std::fmod(seconds, kSceneSeconds);
@@ -334,8 +344,6 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
     pen.pop();
     lastScene = scene;
   }
-
-  void mousePressed(Pen& pen) override { pen.noLoop(); }
 };
 
 }  // namespace

@@ -7,13 +7,17 @@
 // surface or riding each dab, and a curve the pressure drives.
 
 #include <include/core/SkBitmap.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigildraw/brush/Brush.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
 
@@ -72,18 +76,21 @@ brush::Tool imported(sk_sp<SkImage> shape, SkColor4f color, float width) {
   return tool;
 }
 
-struct BrushCustom final : sketch::DrawSketch {
+struct BrushCustom final : sketch::Sketch {
   sk_sp<SkImage> shape;
   sk_sp<SkImage> grain;
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(1000, 760);
     // The sheet is complete once every row has been laid.
     context.captureAt(0.25);
-    context.pen.randomSeed(0xC5A17u);
-    context.pen.noiseSeed(0xC5A17u);
     shape = chiselTip();
     grain = paperGrain();
+
+    context.composer.render(
+        compose::graphics("brush_custom.sheet", [this](Pen& pen) { draw(pen); })
+            .absolute()
+            .inset(0));
   }
 
   /** One arc of the same centreline, so every row differs only by what
@@ -98,8 +105,9 @@ struct BrushCustom final : sketch::DrawSketch {
     return brush::spline(controls, 2.0f, 0.7f);
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    pen.randomSeed(0xC5A17u);
+    pen.noiseSeed(0xC5A17u);
     pen.background(246, 243, 236);
 
     // The shape alone: spacing and scatter stated against the stamp.

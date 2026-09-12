@@ -4,14 +4,18 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSpan.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 #include <cstdint>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace chance = sigil::core::chance;
 using namespace sigil::draw;
 
@@ -21,16 +25,22 @@ namespace {
  *  so nothing here carries a mixer of its own. */
 float sample(uint32_t value) { return chance::Stream::mix64(value).unit(); }
 
-struct ObservableFlowfield2 final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& context) override {
+struct ObservableFlowfield2 final : sketch::Sketch {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(720, 720);
     context.captureAt(0.05);
-    context.pen.noFill();
-    context.pen.strokeCap(SQUARE);
+
+    context.composer.render(compose::graphics("observable_flowfield_2.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.noFill();
+      pen.strokeCap(SQUARE);
+    }
     constexpr int kCount = 8000;
     constexpr float kStep = 10.0f;
     const float clock = static_cast<float>(pen.millis() * 0.001);

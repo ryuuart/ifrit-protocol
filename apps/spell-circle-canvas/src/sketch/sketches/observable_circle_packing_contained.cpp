@@ -2,12 +2,16 @@
  * observable_circle_packing_contained — growing circles inside one boundary.
  */
 
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
@@ -19,14 +23,19 @@ struct Circle {
   SkColor4f colour;
 };
 
-struct ObservableCirclePackingContained final : sketch::DrawSketch {
+struct ObservableCirclePackingContained final : sketch::Sketch {
   static constexpr float kBoundary = 255.0f;
   std::vector<Circle> circles;
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(800, 800);
     context.captureAt(3.0);
-    context.pen.randomSeed(0xCB81F23Bu);
+
+    context.composer.render(
+        compose::graphics("observable_circle_packing_contained.loop",
+                          [this](Pen& pen) { draw(pen); })
+            .absolute()
+            .inset(0));
   }
 
   bool outside(const Circle& circle) const {
@@ -76,8 +85,10 @@ struct ObservableCirclePackingContained final : sketch::DrawSketch {
     }
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.randomSeed(0xCB81F23Bu);
+    }
     pen.background(0);
     pen.noFill();
     pen.stroke(255);

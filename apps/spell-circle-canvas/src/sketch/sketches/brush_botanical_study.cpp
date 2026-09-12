@@ -8,9 +8,12 @@
 //   kLeaves   the silhouettes arranged along the stem
 //   kGreens   the pigments shared by wet and dry leaves
 
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilgeometry/path/Arrange.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
 #include <array>
@@ -19,6 +22,7 @@
 
 namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
 
@@ -152,19 +156,23 @@ void vein(Pen& pen, const Leaf& leaf, SkColor4f color) {
   }
 }
 
-struct BrushBotanicalStudy final : sketch::DrawSketch {
+struct BrushBotanicalStudy final : sketch::Sketch {
   brush::Engine brushes;
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(1100, 780);
     context.captureAt(0.25);
-    context.pen.randomSeed(0xB07A11CAu);
-    context.pen.noiseSeed(0xB07A11CAu);
     brushes.scaleBrushes(1.15f);
+
+    context.composer.render(compose::graphics("brush_botanical_study.sheet",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    pen.randomSeed(0xB07A11CAu);
+    pen.noiseSeed(0xB07A11CAu);
     pen.background(247, 241, 222);
     paper(pen);
 

@@ -12,13 +12,17 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace field = sigil::material::field;
 namespace mskia = sigil::material::skia;
 using namespace sigil::draw;
@@ -66,17 +70,19 @@ mskia::Paint ground() {
         SkBlendMode::kSoftLight}});
 }
 
-struct P5AttractorLoom final : sketch::DrawSketch {
+struct P5AttractorLoom final : sketch::Sketch {
   const mskia::Paint threads = threadInk();
   const mskia::Paint background = ground();
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(900, 720);
-    context.background(4, 6, 14);
+    context.background({4 / 255.0f, 6 / 255.0f, 14 / 255.0f, 1});
     context.captureAt(0.05);  // the loom is a direct function of the clock
-    context.pen.noFill();
-    context.pen.strokeCap(ROUND);
-    context.pen.strokeJoin(ROUND);
+
+    context.composer.render(compose::graphics("p5_attractor_loom.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
   void trace(Pen& pen, int thread, float clock) {
@@ -114,8 +120,12 @@ struct P5AttractorLoom final : sketch::DrawSketch {
       pen.canvas()->drawPath(segments.detach(), *stroke);
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.noFill();
+      pen.strokeCap(ROUND);
+      pen.strokeJoin(ROUND);
+    }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.background(background);
 

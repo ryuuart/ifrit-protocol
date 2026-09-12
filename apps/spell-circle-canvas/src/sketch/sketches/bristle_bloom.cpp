@@ -11,12 +11,16 @@
 //   kBristles     how many hairs make each loaded brush
 //   kPigmentAlpha how heavily each bristle deposits pigment
 
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
@@ -39,16 +43,16 @@ constexpr std::array<Pigment, 5> kPigments{{
     {105, 112, 191},
 }};
 
-struct BristleBloom final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& ctx) override {
+struct BristleBloom final : sketch::Sketch {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(900, 900);
-    ctx.background(18, 15, 24);
+    ctx.background({18 / 255.0f, 15 / 255.0f, 24 / 255.0f, 1});
     ctx.captureAt(0.25);
-    ctx.pen.randomSeed(0xB10550u);
-    ctx.pen.noiseSeed(0xB10550u);
-    ctx.pen.strokeCap(ROUND);
-    ctx.pen.strokeJoin(ROUND);
-    ctx.pen.noFill();
+
+    ctx.composer.render(compose::graphics("bristle_bloom.bloom",
+                                          [this](Pen& pen) { draw(pen); })
+                            .absolute()
+                            .inset(0));
   }
 
   void brush(Pen& pen, float length, float width, float bend,
@@ -90,8 +94,12 @@ struct BristleBloom final : sketch::DrawSketch {
     }
   }
 
-  void draw(sketch::DrawContext& ctx) override {
-    Pen& pen = ctx.pen;
+  void draw(Pen& pen) {
+    pen.randomSeed(0xB10550u);
+    pen.noiseSeed(0xB10550u);
+    pen.strokeCap(ROUND);
+    pen.strokeJoin(ROUND);
+    pen.noFill();
     pen.background(18, 15, 24);
 
     // Fine warm and cool flecks keep the ground from being a perfectly flat

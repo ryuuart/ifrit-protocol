@@ -2,12 +2,16 @@
  * observable_circle_packing — circles added and grown until they collide.
  */
 
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
@@ -19,13 +23,17 @@ struct Circle {
   SkColor4f colour;
 };
 
-struct ObservableCirclePacking final : sketch::DrawSketch {
+struct ObservableCirclePacking final : sketch::Sketch {
   std::vector<Circle> circles;
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(900, 720);
     context.captureAt(4.0);
-    context.pen.randomSeed(0x89FB1EB3u);
+
+    context.composer.render(compose::graphics("observable_circle_packing.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
   bool overlaps(const Circle& candidate, float padding = 2.0f) const {
@@ -71,8 +79,10 @@ struct ObservableCirclePacking final : sketch::DrawSketch {
     }
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.randomSeed(0x89FB1EB3u);
+    }
     pen.background(0);
     pen.stroke(0, 110);
     for (const Circle& circle : circles) {

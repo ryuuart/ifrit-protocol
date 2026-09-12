@@ -3,13 +3,17 @@
 // Each gesture keeps its own field direction and phase. The field bends the
 // centreline while the selected tool supplies edge character, grain and taper.
 
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
 #include <sigildraw/brush/Brush.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
 
@@ -34,16 +38,20 @@ constexpr std::array<SkColor4f, 6> kPigments{{
     {0.16f, 0.19f, 0.28f, 1},
 }};
 
-struct BrushRain final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& ctx) override {
+struct BrushRain final : sketch::Sketch {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(840, 840);
     ctx.captureAt(0.25);
-    ctx.pen.randomSeed(0xB125A1u);
-    ctx.pen.noiseSeed(0x5EA8EDu);
+
+    ctx.composer.render(
+        compose::graphics("brush_rain.sheet", [this](Pen& pen) { draw(pen); })
+            .absolute()
+            .inset(0));
   }
 
-  void draw(sketch::DrawContext& ctx) override {
-    Pen& pen = ctx.pen;
+  void draw(Pen& pen) {
+    pen.randomSeed(0xB125A1u);
+    pen.noiseSeed(0x5EA8EDu);
     pen.background(249, 246, 231);
 
     for (int stroke = 0; stroke < 112; ++stroke) {

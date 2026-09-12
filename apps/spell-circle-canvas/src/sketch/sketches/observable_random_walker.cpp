@@ -2,14 +2,18 @@
  * observable_random_walker — a four-direction walk constrained to the canvas.
  */
 
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace chance = sigil::core::chance;
 using namespace sigil::draw;
 
@@ -18,14 +22,18 @@ namespace {
 /** One word keyed on @p value, from the library's mixer. */
 uint32_t hash(uint32_t value) { return chance::Stream::mix64(value).bits(); }
 
-struct ObservableRandomWalker final : sketch::DrawSketch {
-  void setup(sketch::DrawContext& context) override {
+struct ObservableRandomWalker final : sketch::Sketch {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(800, 800);
     context.captureAt(0.05);
+
+    context.composer.render(compose::graphics("observable_random_walker.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
     constexpr float kStep = 20.0f;
     const float clock = static_cast<float>(pen.millis() * 0.001);
     const int visible =

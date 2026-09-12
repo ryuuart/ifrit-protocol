@@ -19,11 +19,13 @@
 //   The fire is a STATEFUL cellular automaton: every cell's next value
 //   reads its neighbours' CURRENT values out of a persistent buffer, and
 //   the buffer is stepped at the historical 27 Hz whatever rate the host
-//   draws at. An immediate-mode loop is the shape of that — the buffer is
-//   the sketch's own member, `ctx.ticker.addFixed(27, …)` owns the sim
-//   clock, and every frame is one nearest-neighbour blit of the bitmap
-//   the last tick rasterized, at `noSmooth()` so a cell is three canvas
-//   pixels of one colour rather than a bilinear smear.
+//   draws at. A pen's loop is the shape of that — the buffer is the
+//   sketch's own member, `ctx.ticker.addFixed(27, …)` owns the sim clock,
+//   and every frame is one nearest-neighbour blit of the bitmap the last
+//   tick rasterized, at `noSmooth()` so a cell is three canvas pixels of
+//   one colour rather than a bilinear smear. The loop stands in the tree
+//   as one `compose::graphics` node filling the canvas, which is where
+//   p5's frames come from here.
 //
 //   The interpolant `addFixed` publishes is the strobe: the energy pip
 //   beside the step counter is `decay(alpha · step, 20 ms)`, which is 1
@@ -44,9 +46,10 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigildraw/Draw.h>
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Cascade.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -165,7 +168,19 @@ float cue(double ms, float delayMs, float durationMs,
 
 // ---------------------------------------------------------------------------
 
-struct PsxDoomFire final : sketch::DrawSketch {
+struct PsxDoomFire final : sketch::Sketch {
+  /** The host is capturing for a diff, so a figure this sketch took off
+   *  its own execution is pinned. Read from the context while declaring
+   *  and kept, because the panels are drawn by a pen program and a pen
+   *  program is handed no context. */
+  bool deterministic = false;
+  /** A number measured about this sketch's own execution: @p value
+   *  normally, @p pinned under a capture that will be compared, since a
+   *  plate carrying a rate no two runs agree on differs from itself. */
+  [[nodiscard]] double measured(double value, double pinned = 0.0) const {
+    return deterministic ? pinned : value;
+  }
+
   // --- the automaton's state: one buffer, mutated in place ---
   std::vector<uint8_t> heat;
   std::array<uint32_t, 37> lut{};       // heat → premultiplied RGBA8888 word
@@ -551,8 +566,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
     pen.textAlign(LEFT, TOP);
   }
 
-  void specPanel(sketch::DrawContext& ctx, double seconds, double drawHz) {
-    Pen& pen = ctx.pen;
+  void specPanel(Pen& pen, double seconds, double drawHz) {
     const float x = kSideX, y = kBodyY, w = kSideW, h = kSpecH;
     pen.noStroke();
     pen.fill(kPanelInk);
@@ -589,9 +603,9 @@ struct PsxDoomFire final : sketch::DrawSketch {
     foot -= statH;
     // Both rates are read off this run's own execution, so a capture
     // taken for a diff carries the rates the sheet declares instead.
-    const double simRate = ctx.measured(
-        seconds > 0.5 ? (double)simSteps / seconds : kSimHz, kSimHz);
-    const double drawRate = ctx.measured(drawHz, 60.0);
+    const double simRate =
+        measured(seconds > 0.5 ? (double)simSteps / seconds : kSimHz, kSimHz);
+    const double drawRate = measured(drawHz, 60.0);
     const std::string rate = compose::kit::formatted("%.2f Hz", simRate);
     const std::string drawn = compose::kit::formatted("%.1f Hz", drawRate);
     const std::string ratio =
@@ -690,14 +704,16 @@ struct PsxDoomFire final : sketch::DrawSketch {
 
   // =========================================================================
 
-  void setup(sketch::DrawContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(kInk);
     ctx.captureAt(6.0);
-    // The canvas a pen keeps IS the plate, so this is a floor on the
-    // pixels it is formed with: at 2, one fire cell is six device pixels
-    // and the one blit this study is about is never resampled.
+    // At 2, one fire cell is six device pixels of the plate and the one
+    // blit this study is about is never resampled.
     ctx.oversample(2);
+    // A PEN PROGRAM IS HANDED NO CONTEXT, so the one flag its panels read
+    // is kept here: it says the same thing every frame of a session.
+    deterministic = ctx.deterministic;
 
     rng = 0x9E3779B9u;
     stepped = false;
@@ -738,12 +754,17 @@ struct PsxDoomFire final : sketch::DrawSketch {
         },
         6, &alpha);
 
-    ctx.pen.noStroke();
-    ctx.pen.textAlign(LEFT, TOP);
+    ctx.composer.render(
+        compose::graphics("psx_doom_fire.loop", [this](Pen& pen) { draw(pen); })
+            .absolute()
+            .inset(0));
   }
 
-  void draw(sketch::DrawContext& ctx) override {
-    Pen& pen = ctx.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.noStroke();
+      pen.textAlign(LEFT, TOP);
+    }
     // The picture follows the SIM clock: the automaton stepped or it did
     // not, and when it did the buffer is rasterized once for however many
     // draw frames come before the next step.
@@ -759,7 +780,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
          cue(ms, 320, 400));
     firePanel(pen, ms);
     paletteStrip(pen, ms);
-    specPanel(ctx, ms / 1000.0, pen.frameRate());
+    specPanel(pen, ms / 1000.0, pen.frameRate());
     inspectorPanel(pen, ms);
   }
 };

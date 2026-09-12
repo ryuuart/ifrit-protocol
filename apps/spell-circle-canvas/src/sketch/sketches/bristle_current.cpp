@@ -14,8 +14,11 @@
 //   kTurn          how far the noise may turn a bristle from the prevailing
 //   flow
 
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
 #include <array>
@@ -24,6 +27,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace chance = sigil::core::chance;
 using namespace sigil::draw;
 
@@ -66,7 +70,7 @@ struct Mark {
   uint8_t pigment;
 };
 
-struct BristleCurrent final : sketch::DrawSketch {
+struct BristleCurrent final : sketch::Sketch {
   NoiseField field{0xC011A6Eu};
   std::vector<Bristle> bristles;
   std::vector<Mark> pending;
@@ -142,9 +146,9 @@ struct BristleCurrent final : sketch::DrawSketch {
     }
   }
 
-  void setup(sketch::DrawContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kCanvas, kCanvas);
-    ctx.background(244, 238, 221);
+    ctx.background({244 / 255.0f, 238 / 255.0f, 221 / 255.0f, 1});
     ctx.captureAt(5.2);
 
     rng = chance::Stream::xorshift(0x7F4A7C15u);
@@ -156,7 +160,21 @@ struct BristleCurrent final : sketch::DrawSketch {
     for (int ribbon = 0; ribbon < kRibbonCount; ++ribbon)
       placeRibbon(ribbon, false);
 
-    Pen& pen = ctx.pen;
+    ctx.ticker.addFixed(kSimHz, [this] {
+      step();
+      return true;
+    });
+
+    ctx.composer.render(compose::graphics("bristle_current.field",
+                                          [this](Pen& pen) { draw(pen); })
+                            .absolute()
+                            .inset(0));
+  }
+
+  /** THE PAPER, laid once. The marks are deposited on it over the whole
+   *  run, so the ground and its grain belong to the first frame of the
+   *  canvas the node keeps and to no frame after it. */
+  void layPaper(Pen& pen) {
     pen.randomSeed(0xD12B57u);
     pen.background(244, 238, 221);
     pen.strokeCap(ROUND);
@@ -165,15 +183,10 @@ struct BristleCurrent final : sketch::DrawSketch {
       pen.strokeWeight(pen.random(0.22f, 0.95f));
       pen.point(pen.random(kCanvas), pen.random(kCanvas));
     }
-
-    ctx.ticker.addFixed(kSimHz, [this] {
-      step();
-      return true;
-    });
   }
 
-  void draw(sketch::DrawContext& ctx) override {
-    Pen& pen = ctx.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) layPaper(pen);
     pen.blendMode(MULTIPLY);
     pen.strokeCap(ROUND);
     for (const Mark& mark : pending) {

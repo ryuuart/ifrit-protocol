@@ -2,13 +2,17 @@
  * observable_l_system_tree — a bracketed branching Lindenmayer tree.
  */
 
-#include <sigilsketch/draw/Draw.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 #include <string>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
@@ -26,19 +30,25 @@ struct Turtle {
   float angle;
 };
 
-struct ObservableLSystemTree final : sketch::DrawSketch {
+struct ObservableLSystemTree final : sketch::Sketch {
   std::string sentence = "F";
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(800, 800);
     context.captureAt(0.05);
-    context.pen.strokeCap(ROUND);
     for (int generation = 0; generation < 4; ++generation)
       sentence = grow(sentence);
+
+    context.composer.render(compose::graphics("observable_l_system_tree.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.strokeCap(ROUND);
+    }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     const float turn = radians(25.0f + 3.0f * std::sin(clock * 0.55f));
     constexpr float kLength = 15.625f;

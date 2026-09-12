@@ -2,8 +2,11 @@
  * observable_l_system — a turtle interpreting a two-rule Lindenmayer word.
  */
 
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>
-#include <sigilsketch/draw/Draw.h>
+#include <sigildraw/Draw.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
 #include <cmath>
@@ -11,6 +14,7 @@
 #include <string>
 
 namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
 namespace chance = sigil::core::chance;
 using namespace sigil::draw;
 
@@ -36,19 +40,25 @@ float radiusFor(size_t index) {
   return chance::Stream::mix64(index).range(6.0f, 20.0f);
 }
 
-struct ObservableLSystem final : sketch::DrawSketch {
+struct ObservableLSystem final : sketch::Sketch {
   std::string sentence = "A";
 
-  void setup(sketch::DrawContext& context) override {
+  void setup(sketch::SketchContext& context) override {
     context.canvas(800, 800);
     context.captureAt(0.05);
-    context.pen.stroke(255);
     for (int generation = 0; generation < 5; ++generation)
       sentence = rewrite(sentence);
+
+    context.composer.render(compose::graphics("observable_l_system.loop",
+                                              [this](Pen& pen) { draw(pen); })
+                                .absolute()
+                                .inset(0));
   }
 
-  void draw(sketch::DrawContext& context) override {
-    Pen& pen = context.pen;
+  void draw(Pen& pen) {
+    if (pen.frameCount == 1) {
+      pen.stroke(255);
+    }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     const float cycle = 0.5f - 0.5f * std::cos(clock * 0.42f);
     const size_t visible = std::max<size_t>(
