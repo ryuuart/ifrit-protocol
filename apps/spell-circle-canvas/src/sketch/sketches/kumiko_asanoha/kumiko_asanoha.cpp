@@ -219,15 +219,17 @@ struct KumikoAsanoha : sketch::Sketch {
     const SkPoint I2{org.x() + side * rIn, org.y() + side * rOut};
     const float r = side * rIn;  // the incircle radius of each half
 
-    const auto rule = weave::textStyle(
-        {.size = 10.5f, .color = hexColor(0xC9B78F, 0.75f), .track = 0.9f});
-    const auto ink = weave::textStyle(
-        {.size = 12, .color = hexColor(0xE4D5B2, 0.86f), .track = 1.3f});
-    const auto dim = weave::textStyle(
-        {.size = 10.5f, .color = hexColor(0xB7A281, 0.55f), .track = 0.5f});
-
-    Element g = box().left(0).top(y0).width(kW).height(kBandH).fill(
-        Fill::color(hexColor(0x120C07)));
+    // The drawing's ruling hand, stated once on the band: every line under
+    // it is set in it unless it says otherwise.
+    Element g = box()
+                    .left(0)
+                    .top(y0)
+                    .width(kW)
+                    .height(kBandH)
+                    .fill(Fill::color(hexColor(0x120C07)))
+                    .font({.size = 10.5f,
+                           .color = hexColor(0xC9B78F, 0.75f),
+                           .track = 0.9f});
     // the drawing's own ground: a hairline ruled off the room above it
     g.child(box().left(0).top(0).width(kW).height(1).fill(
         Fill::color(hexColor(0x4A3620, 0.9f))));
@@ -274,28 +276,32 @@ struct KumikoAsanoha : sketch::Sketch {
                   .fill(Fill::color(hexColor(0xC79A57, 0.16f)))
                   .stroke(stroke(0.9f, Fill::color(hexColor(0xC79A57, 0.55f)),
                                  PathFormat::Align::Inner)));
-      g.child(text(toUtf8(jig[i]), rule)
+      g.child(text(toUtf8(jig[i]))
                   .left(x - 30)
                   .top(150)
                   .width(60)
                   .textAlign(weave::TextAlignment::kCenter));
     }
     g.child(text(toUtf8("THREE JIGS \xe2\x80\x94 AND A RIGHT ANGLE IS "
-                        "22.5 + 45 + 22.5"),
-                 dim)
+                        "22.5 + 45 + 22.5"))
+                .font({.color = hexColor(0xB7A281, 0.55f), .track = 0.5f})
                 .left(392)
                 .top(24)
                 .width(300));
 
     // the reading
-    g.child(text(toUtf8("ONE CELL, TAKEN APART"), ink).left(760).top(30));
+    g.child(
+        text(toUtf8("ONE CELL, TAKEN APART"))
+            .font(
+                {.size = 12, .color = hexColor(0xE4D5B2, 0.86f), .track = 1.3f})
+            .left(760)
+            .top(30));
     g.child(
         text(
             toUtf8("The diagonal cuts the cell into two right isoceles "
                    "triangles. In each, the three infill pieces run from the "
                    "triangle's vertices to its INCENTER \xe2\x80\x94 and every "
-                   "number the panel is built on falls out of that one rule."),
-            rule)
+                   "number the panel is built on falls out of that one rule."))
             .left(760)
             .top(56)
             .width(520));
@@ -305,14 +311,12 @@ struct KumikoAsanoha : sketch::Sketch {
                         "atan(\xe2\x88\x9a"
                         "2\xe2\x88\x92"
                         "1) = "
-                        "22.5\xc2\xb0"),
-                 rule)
+                        "22.5\xc2\xb0"))
                 .left(760)
                 .top(126)
                 .width(520));
     g.child(text(toUtf8("1 diagonal + 2 fillers + 4 locking pieces = 7 per "
-                        "cell  \xc2\xb7  60 cells = 420 ha"),
-                 rule)
+                        "cell  \xc2\xb7  60 cells = 420 ha"))
                 .left(760)
                 .top(148)
                 .width(520));
@@ -363,9 +367,8 @@ struct KumikoAsanoha : sketch::Sketch {
         .child(beam(kRoom - 122, 122, false))
         .child(text(toUtf8("ASANOHA KUMIKO \xc2\xb7 SQUARE JIGUMI \xc2\xb7 "
                            "HINOKI ON KEYAKI \xc2\xb7 900\xc3\x97"
-                           "400mm TYPE"),
-                    weave::textStyle(
-                        {.size = 12, .color = kCaption, .track = 1.1f}))
+                           "400mm TYPE"))
+                   .font({.size = 12, .color = kCaption, .track = 1.1f})
                    .left(950)
                    .top(916)
                    .width(300)
