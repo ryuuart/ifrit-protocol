@@ -285,13 +285,12 @@ struct CdeMotifSketch : sketch::Sketch {
                        .column();
     for (int i = 0; i < (int)cde::kPalettes.size(); ++i) {
       const bool current = i == paletteIndex;
-      Element rowBox =
-          box()
-              .row()
-              .alignItems(Align::Center)
-              .height(Dimension(20))
-              .padding(6, 0)
-              .child(cde::label(cde::kPalettes[(size_t)i]->name));
+      Element rowBox = box()
+                           .row()
+                           .alignItems(Align::Center)
+                           .height(Dimension(20))
+                           .padding(6, 0)
+                           .child(cde::label(cde::kPalettes[(size_t)i]->name));
       if (current) rowBox.fill(c6.sel);
       list.child(std::move(rowBox));
     }

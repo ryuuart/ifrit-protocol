@@ -31,8 +31,8 @@
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 
-using sigil::material::skia::Paint;
 using sigil::draw::Pen;
+using sigil::material::skia::Paint;
 
 namespace {
 

@@ -49,9 +49,9 @@ compose::Element page(const Page& sheet, compose::Element content) {
       compose::kit::sheet(specification, std::move(content))
           .absolute()
           .inset(0)
-          .font({.face = running.face ? running.face
-                                      : (running.mono ? look.type.mono
-                                                      : look.type.sans),
+          .font({.face = running.face
+                             ? running.face
+                             : (running.mono ? look.type.mono : look.type.sans),
                  .size = running.size,
                  .track = running.track})
           .ink(look.palette.ink);

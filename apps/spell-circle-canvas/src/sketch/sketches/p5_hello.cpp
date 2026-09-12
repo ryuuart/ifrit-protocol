@@ -41,18 +41,18 @@ struct P5Hello final : sketch::Sketch {
     // The node is declared once and the program runs every frame, so the
     // ball is stepped by the program and nothing is ever described again.
     ctx.composer.render(compose::graphics("p5_hello.ball",
-                                         [this](Pen& pen) {
-                                           pen.noStroke();
-                                           pen.background(20, kFade);
-                                           x += vx;
-                                           y += vy;
-                                           if (x < 20 || x > pen.width - 20)
-                                             vx = -vx;
-                                           if (y < 20 || y > pen.height - 20)
-                                             vy = -vy;
-                                           pen.fill(255, 120, 80);
-                                           pen.circle(x, y, 40);
-                                         })
+                                          [this](Pen& pen) {
+                                            pen.noStroke();
+                                            pen.background(20, kFade);
+                                            x += vx;
+                                            y += vy;
+                                            if (x < 20 || x > pen.width - 20)
+                                              vx = -vx;
+                                            if (y < 20 || y > pen.height - 20)
+                                              vy = -vy;
+                                            pen.fill(255, 120, 80);
+                                            pen.circle(x, y, 40);
+                                          })
                             .absolute()
                             .inset(0));
   }

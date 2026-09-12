@@ -68,9 +68,9 @@ constexpr double kSwitchAt = 0.30;  // when the panel's ink is re-described
 constexpr auto kFade = 900ms;       // how long it eases
 constexpr double kCapture = 0.70;   // the moment inside the ease
 
-constexpr float kSpin = 3.0f;   // the dot's rate, radians per second
-constexpr float kOrbit = 40;    // its radius, px
-constexpr float kTrail = 14;    // alpha of the ground laid each frame, 0..255
+constexpr float kSpin = 3.0f;  // the dot's rate, radians per second
+constexpr float kOrbit = 40;   // its radius, px
+constexpr float kTrail = 14;   // alpha of the ground laid each frame, 0..255
 
 constexpr SkColor4f kPale{0.92f, 0.94f, 0.97f, 1};
 constexpr SkColor4f kTeal{0.38f, 0.85f, 0.80f, 1};
@@ -188,9 +188,8 @@ Element richRuns() {
                       .add(u8"a partial run", weave::Type{.color = kWarm})
                       .add(u8", then ")
                       .add(u8"a total one",
-                           weave::textStyle({.size = 10,
-                                             .color = kCool,
-                                             .track = 1.4f}))));
+                           weave::textStyle(
+                               {.size = 10, .color = kCool, .track = 1.4f}))));
 }
 
 /** (7) A property set on a subtree, read under it, overridden nearer. */
@@ -200,7 +199,8 @@ Element properties() {
         .row()
         .gap(10)
         .alignItems(Align::Center)
-        .child(box().width(26).height(26).corners({4}).fill(Fill::var("accent")))
+        .child(
+            box().width(26).height(26).corners({4}).fill(Fill::var("accent")))
         .child(text(u8"ink(var(\"accent\"))").ink(var("accent")));
   };
   return box()
@@ -226,8 +226,13 @@ Element properties() {
  *  parent's. */
 Element lengths() {
   const auto block = [](float size) {
-    return box().font({.size = size}).ink(kPale).child(
-        box().padding(1_em).fill(Fill::color(kPanel)).child(text(u8"1_em")));
+    return box()
+        .font({.size = size})
+        .ink(kPale)
+        .child(box()
+                   .padding(1_em)
+                   .fill(Fill::color(kPanel))
+                   .child(text(u8"1_em")));
   };
   return box()
       .column()
@@ -235,8 +240,10 @@ Element lengths() {
       .alignItems(Align::Start)
       .child(block(9))
       .child(block(17))
-      .child(box().font({.size = 11}).ink(kTeal).child(
-          text(u8"1.5_em of 11 px").font({.size = 1.5_em})));
+      .child(box()
+                 .font({.size = 11})
+                 .ink(kTeal)
+                 .child(text(u8"1.5_em of 11 px").font({.size = 1.5_em})));
 }
 
 /** (9) The node that declares the ink eases it, and everything under it
@@ -287,24 +294,19 @@ Element penCell() {
  *  frames. A translucent ground each frame is p5's trail, which the
  *  repainting pen above cannot do at all. */
 Element trailCell() {
-  return box()
-      .padding(kPad)
-      .ink(kTeal)
-      .child(compose::graphics("cascade.trail",
-                               [](Pen& pen) {
-                                 pen.background(kPanel.fR * 255,
-                                                kPanel.fG * 255,
-                                                kPanel.fB * 255, kTrail);
-                                 const float t =
-                                     (float)pen.millis() / 1000.0f * kSpin;
-                                 pen.noStroke();
-                                 pen.circle(
-                                     pen.width * 0.5f + std::cos(t) * kOrbit,
+  return box().padding(kPad).ink(kTeal).child(
+      compose::graphics("cascade.trail",
+                        [](Pen& pen) {
+                          pen.background(kPanel.fR * 255, kPanel.fG * 255,
+                                         kPanel.fB * 255, kTrail);
+                          const float t = (float)pen.millis() / 1000.0f * kSpin;
+                          pen.noStroke();
+                          pen.circle(pen.width * 0.5f + std::cos(t) * kOrbit,
                                      pen.height * 0.5f + std::sin(t) * kOrbit,
                                      16);
-                               })
-                 .width(kCell - 2 * kPad)
-                 .height(kBody - 2 * kPad));
+                        })
+          .width(kCell - 2 * kPad)
+          .height(kBody - 2 * kPad));
 }
 
 // ------------------------------------------------- the lexical channel

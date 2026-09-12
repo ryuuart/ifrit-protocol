@@ -325,9 +325,7 @@ inline ColorSet ambient() { return environment::inheritedOr(ColorSet{}); }
  *  is the half a widget used to have to hand to each of its labels — the
  *  set is one decision about a surface and everything on it, so it is
  *  stated where the surface is. */
-inline Element surface(const ColorSet& s) {
-  return box().fill(s.bg).ink(s.fg);
-}
+inline Element surface(const ColorSet& s) { return box().fill(s.bg).ink(s.fg); }
 
 // ===========================================================================
 // 4. THE BEVEL — lib/Xm/Draw.c, DrawSimpleShadow().

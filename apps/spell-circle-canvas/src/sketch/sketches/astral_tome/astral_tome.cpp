@@ -316,13 +316,13 @@ struct AstralTome : sketch::Sketch {
                        .gap(5.0f)
                        .zIndex(20)
                        .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}));
-    band.child(text(toUtf8("ASTRAL SORCERY \xc2\xb7 "
-                           "GuiJournalConstellationCluster, PAGE 1 OF 4"),
-                    weave::textStyle({.face = mono,
-                                      .size = 13.0f,
-                                      .color = SkColor4f{0.72f, 0.66f, 0.50f,
-                                                         1.0f},
-                                      .track = 2.6f})));
+    band.child(
+        text(toUtf8("ASTRAL SORCERY \xc2\xb7 "
+                    "GuiJournalConstellationCluster, PAGE 1 OF 4"),
+             weave::textStyle({.face = mono,
+                               .size = 13.0f,
+                               .color = SkColor4f{0.72f, 0.66f, 0.50f, 1.0f},
+                               .track = 2.6f})));
     band.child(text(
         toUtf8("Four charts on one page at the mod's own numbers: a 95x95 "
                "SQUARE render box hung on an 80x110 hit cell, the offsetMap's "

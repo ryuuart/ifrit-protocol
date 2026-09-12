@@ -307,28 +307,27 @@ struct ShippingForecast : sketch::Sketch {
     // The wind direction: the one thing in the sentence that is a heading,
     // so it is set as one — condensed, tracked, and a shade brighter. It
     // states only that: the size and the colour are the base's.
-    set.set("dir", weave::Type{.face = faceBold,
-                               .track = 0.6f,
-                               .condense = 0.94f});
+    set.set("dir",
+            weave::Type{.face = faceBold, .track = 0.6f, .condense = 0.94f});
     // A defined term. A serif italic inside a grotesque paragraph reads as
     // a citation of a glossary, which is exactly what these words are.
-    set.set("term", weave::Type{.face = faceTerm,
-                                .size = 20.5f,
-                                .color = kAmber,
-                                .track = 0.2f});
+    set.set(
+        "term",
+        weave::Type{
+            .face = faceTerm, .size = 20.5f, .color = kAmber, .track = 0.2f});
     // A Beaufort numeral. NO COLOUR: the number and the bar over it are one
     // fact, so the cell sets the ink and both take it.
     set.set("force",
             weave::Type{.face = faceBold, .size = 10.5f, .track = 0.4f});
     // The barometer, and the column a station's reading stands in.
-    set.set("readout", weave::Type{.face = faceMono,
-                                   .size = 27.0f,
-                                   .color = kBone,
-                                   .track = 3.0f});
-    set.set("station", weave::Type{.face = faceMono,
-                                   .size = 12.0f,
-                                   .color = kSlate,
-                                   .track = 0.4f});
+    set.set(
+        "readout",
+        weave::Type{
+            .face = faceMono, .size = 27.0f, .color = kBone, .track = 3.0f});
+    set.set(
+        "station",
+        weave::Type{
+            .face = faceMono, .size = 12.0f, .color = kSlate, .track = 0.4f});
     return set;
   }
 
@@ -537,12 +536,8 @@ struct ShippingForecast : sketch::Sketch {
         // are one statement, so the amber is named once and the mark that
         // names no colour takes it.
         .ink(kAmber)
-        .child(box()
-                   .width(7)
-                   .height(7)
-                   .corners({4})
-                   .shrink(0)
-                   .fill(Fill::currentInk()))
+        .child(box().width(7).height(7).corners({4}).shrink(0).fill(
+            Fill::currentInk()))
         .child(text(toUtf8("GALE WARNING \xc2\xb7 GERMAN BIGHT \xc2\xb7 "
                            "IMMINENT"))
                    .font({.face = faceBold, .size = 13.5f, .track = 2.8f})

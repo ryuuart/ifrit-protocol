@@ -294,16 +294,16 @@ TEST(Type, ARelativeTrackingResolvesAgainstTheSizeTheTypeComesTo) {
   // tracking a face wants and holds it at every size.
   const Type base{.size = 20.0f};
   EXPECT_FLOAT_EQ(overlay(base, {.track = em(-0.08f)}).track->value, -1.6f);
-  EXPECT_FLOAT_EQ(overlay(base, {.size = 40.0f, .track = em(0.1f)}).track->value,
-                  4.0f)
+  EXPECT_FLOAT_EQ(
+      overlay(base, {.size = 40.0f, .track = em(0.1f)}).track->value, 4.0f)
       << "against the size stated in the same partial, not the base's";
   EXPECT_FALSE(overlay(base, {.track = 0.1_em}).track->relative());
   // A pixel tracking is a pixel, whatever the size.
   EXPECT_EQ(overlay(base, {.track = 1.2f}).track, Length(1.2f));
   // The TextStyle forms resolve against the size the style carries.
-  EXPECT_FLOAT_EQ(textStyle({.size = 50.0f, .track = em(0.02f)})
-                      .shaping.letterSpacing,
-                  1.0f);
+  EXPECT_FLOAT_EQ(
+      textStyle({.size = 50.0f, .track = em(0.02f)}).shaping.letterSpacing,
+      1.0f);
   TextStyle built;
   built.shaping.fontSize = 30.0f;
   EXPECT_FLOAT_EQ(overlay(built, {.track = em(0.1f)}).shaping.letterSpacing,

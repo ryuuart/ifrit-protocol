@@ -106,8 +106,8 @@ Type overlay(const Type& base, const Type& over, float rootSizePx,
     total.size = Length(
         resolvePx(*over.size, sizeAgainst(base), rootSizePx, lineHeightPx));
   if (total.track && total.track->relative())
-    total.track = Length(resolvePx(*total.track, sizeAgainst(total),
-                                   rootSizePx, lineHeightPx));
+    total.track = Length(
+        resolvePx(*total.track, sizeAgainst(total), rootSizePx, lineHeightPx));
   return total;
 }
 
