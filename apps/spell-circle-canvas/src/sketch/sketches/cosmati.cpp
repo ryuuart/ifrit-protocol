@@ -53,7 +53,6 @@ namespace sketch = sigil::sketch;
 namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 namespace motion = sigil::motion;
-namespace weave = sigil::weave;
 namespace mkit = sigil::material::kit;
 namespace mskia = sigil::material::skia;
 
@@ -382,17 +381,24 @@ struct Cosmati final : sketch::Sketch {
     namespace ch = choreograph;
     using namespace std::chrono_literals;
 
-    auto root = stack().fill(Paint::linear(
-        {0, 0}, {0, cs::kH},
-        {{0.0f, hexColor(0x14120F)}, {1.0f, hexColor(0x080706)}}));
+    // The apparatus' dim ink, stated once; the title and the ring say
+    // theirs.
+    auto root = stack()
+                    .fill(Paint::linear({0, 0}, {0, cs::kH},
+                                        {{0.0f, hexColor(0x14120F)},
+                                         {1.0f, hexColor(0x080706)}}))
+                    .ink(cs::kInkDim);
 
     // ---- the pavement ------------------------------------------------
+    // The frame's lettering is the plate's own font: the two lines cut
+    // into the Purbeck band inherit it whole.
     Element floorPlate = stack()
                              .key("floor")
                              .left(cs::kFieldX)
                              .top(cs::kFieldY)
                              .width(Dimension(cs::kFieldSide))
-                             .height(Dimension(cs::kFieldSide));
+                             .height(Dimension(cs::kFieldSide))
+                             .font({.size = 11, .track = 3.4f});
 
     // THE PURBECK FRAME IS A FRAME: a shell carrying the inscription
     // band, with the mortar bed set into it by the band's own width on
@@ -411,20 +417,14 @@ struct Cosmati final : sketch::Sketch {
             .foreground(stroke(2.0f, Fill::color(cs::kMarble),
                                PathFormat::Align::Inner))
             .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 8}, 18)));
-    floorPlate.child(
-        text(
-            toUtf8("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
-                   "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7"),
-            weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
-            .left(cs::kBandW)
-            .top(13));
-    floorPlate.child(
-        text(
-            toUtf8("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
-                   "MCCLXVIII \xc2\xb7"),
-            weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
-            .left(cs::kBandW)
-            .top(cs::kFieldSide - 24));
+    floorPlate.child(text(toUtf8("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
+                                 "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7"))
+                         .left(cs::kBandW)
+                         .top(13));
+    floorPlate.child(text(toUtf8("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
+                                 "MCCLXVIII \xc2\xb7"))
+                         .left(cs::kBandW)
+                         .top(cs::kFieldSide - 24));
 
     // ---- the quincunx of quincunxes ---------------------------------
     const float c = cs::kFieldSide * 0.5f;
@@ -464,25 +464,20 @@ struct Cosmati final : sketch::Sketch {
     // shaped run on a circular baseline — onPath, not 40 hand-placed
     // glyphs — and it does NOT auto-flip, because the letter-cutters
     // didn't: glyph-up points outward the whole way round.
-    floorPlate.child(text(toUtf8("\xc2\xb7 SPHERICVM \xc2\xb7 ARCHETYPVM "
-                                 "\xc2\xb7 MVNDVM \xc2\xb7 PRIMVM \xc2\xb7 "
-                                 "TRIPLEX \xc2\xb7"),
-                          [] {
-                            namespace cs = cosmati;
-                            auto t = weave::textStyle({.size = 9,
-                                                       .color = cs::kGiallo,
-                                                       .track = 2.0f,
-                                                       .weight = 600});
-                            return t;
-                          }())
-                         .width(Dimension(big * 1.50f))
-                         .height(Dimension(big * 1.50f))
-                         .centerAt({c, c})
-                         .onPath({.path = shapes::arc(-90.0f, 359.9f),
-                                  .at = 0.0f,
-                                  .align = TextPath::Align::Start,
-                                  .offset = 0.0f})
-                         .zIndex(6));
+    floorPlate.child(
+        text(toUtf8("\xc2\xb7 SPHERICVM \xc2\xb7 ARCHETYPVM "
+                    "\xc2\xb7 MVNDVM \xc2\xb7 PRIMVM \xc2\xb7 "
+                    "TRIPLEX \xc2\xb7"))
+            .font(
+                {.size = 9, .color = cs::kGiallo, .track = 2.0f, .weight = 600})
+            .width(Dimension(big * 1.50f))
+            .height(Dimension(big * 1.50f))
+            .centerAt({c, c})
+            .onPath({.path = shapes::arc(-90.0f, 359.9f),
+                     .at = 0.0f,
+                     .align = TextPath::Align::Start,
+                     .offset = 0.0f})
+            .zIndex(6));
 
     // the raking light: a soft band crossing the polished floor
     floorPlate.child(
@@ -508,15 +503,14 @@ struct Cosmati final : sketch::Sketch {
             .column()
             .left(px)
             .top(cs::kFieldY + 4)
-            .child(text(toUtf8("OPUS SECTILE"),
-                        weave::textStyle({.size = 21,
-                                          .color = cs::kInk,
-                                          .track = 3.4f,
-                                          .weight = 640})))
+            .child(text(toUtf8("OPUS SECTILE"))
+                       .font({.size = 21,
+                              .color = cs::kInk,
+                              .track = 3.4f,
+                              .weight = 640}))
             .child(text(toUtf8("Cosmatesque \xc2\xb7 Westminster "
-                               "1268"),
-                        weave::textStyle(
-                            {.size = 11, .color = cs::kInkDim, .track = 1.4f}))
+                               "1268"))
+                       .font({.size = 11, .track = 1.4f})
                        .margin(0, 6, 0, 0))
             .child(box()
                        .width(Dimension(190.0f))
@@ -529,16 +523,14 @@ struct Cosmati final : sketch::Sketch {
                                             {1.0f,
                                              {cs::kGiallo.fR, cs::kGiallo.fG,
                                               cs::kGiallo.fB, 0.0f}}})))
-            .child(
-                text(toUtf8("The governing figure is the QUINCUNX "
-                            "\xe2\x80\x94 four roundels about a "
-                            "fifth. The Great Pavement is a "
-                            "quincunx of quincunxes, 25 Roman feet "
-                            "square, laid by a Roman crew under "
-                            "Odoricus."),
-                     weave::textStyle(
-                         {.size = 11.5f, .color = cs::kInkDim, .track = 0.2f}))
-                    .width(Dimension(210.0f))));
+            .child(text(toUtf8("The governing figure is the QUINCUNX "
+                               "\xe2\x80\x94 four roundels about a "
+                               "fifth. The Great Pavement is a "
+                               "quincunx of quincunxes, 25 Roman feet "
+                               "square, laid by a Roman crew under "
+                               "Odoricus."))
+                       .font({.size = 11.5f, .track = 0.2f})
+                       .width(Dimension(210.0f))));
 
     // the quarry legend: every stone named, with a real sample of it
     struct Quarry {
