@@ -111,8 +111,8 @@
 //     the drive by `selectors::style("term")` — the runs addressed by the name
 //     they were written in — so the copy can gain a fourth defined term
 //     without a fourth string in this file. The one thing still spelled
-//     twice is the name itself: once in `forecastStyles` and once in the
-//     selector, which is what naming anything costs.
+//     twice is the name itself: once in the sheet of registers and once in
+//     the selector, which is what naming anything costs.
 //  2. A number picked out by pattern is picked out in weight as well as
 //     in colour: a `spanStyle` that changes only an advance-invariant
 //     axis holds it on the glyphs without re-shaping them, which is what the
@@ -144,6 +144,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -159,6 +160,7 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Style.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -282,13 +284,26 @@ struct ShippingForecast : sketch::Sketch {
         {.face = faceBold, .size = size, .color = color, .track = track});
   }
 
-  /** The three registers the forecast paragraph weaves together, as a NAMED
-   *  set rather than as three call sites: the run says what it IS ("dir",
-   *  "term") and the set says what that looks like. A name the set does not
-   *  register falls back to the base, so a misspelling shows as body copy
-   *  rather than as a run that did not draw. */
-  [[nodiscard]] sigil::weave::StyleSheet forecastStyles() const {
+  /** THE SHEET'S REGISTERS, AS NAMED PARTIALS rather than as a call site
+   *  each: a line or a run says what it IS — an eyebrow, a wind direction,
+   *  a defined term, a sea area, a Beaufort force — and the sheet says what
+   *  that looks like. A name the sheet does not register resolves to the
+   *  base, so a misspelling shows as body copy rather than as something
+   *  that did not draw; the base is the forecast paragraph's own voice,
+   *  which is also what the synopsis's spanStyle grades against. */
+  [[nodiscard]] sigil::weave::StyleSheet registers() const {
     sigil::weave::StyleSheet set{body(19.5f, kBone)};
+    // The line that names a block — seven of them, one per panel.
+    set.set("eyebrow", weave::Type{.face = faceBold,
+                                   .size = 11.0f,
+                                   .color = kSlateDim,
+                                   .track = 3.0f});
+    // A sea area on the ring: a name rather than a label, so it is set a
+    // shade under the body ink.
+    set.set("area", weave::Type{.face = faceBold,
+                                .size = 11.5f,
+                                .color = hexColor(0xBFC7D1),
+                                .track = 1.1f});
     // The wind direction: the one thing in the sentence that is a heading,
     // so it is set as one — condensed, tracked, and a shade brighter. It
     // states only that: the size and the colour are the base's.
@@ -301,6 +316,19 @@ struct ShippingForecast : sketch::Sketch {
                                 .size = 20.5f,
                                 .color = kAmber,
                                 .track = 0.2f});
+    // A Beaufort numeral. NO COLOUR: the number and the bar over it are one
+    // fact, so the cell sets the ink and both take it.
+    set.set("force",
+            weave::Type{.face = faceBold, .size = 10.5f, .track = 0.4f});
+    // The barometer, and the column a station's reading stands in.
+    set.set("readout", weave::Type{.face = faceMono,
+                                   .size = 27.0f,
+                                   .color = kBone,
+                                   .track = 3.0f});
+    set.set("station", weave::Type{.face = faceMono,
+                                   .size = 12.0f,
+                                   .color = kSlate,
+                                   .track = 0.4f});
     return set;
   }
 
@@ -448,11 +476,8 @@ struct ShippingForecast : sketch::Sketch {
       // same sweep here, and saying it once in the delay is what makes that
       // visible rather than coincidental.
       const float start = 0.20f + (float)i * 0.17f;
-      panel.child(text(toUtf8(kAreaRing[i].name),
-                       weave::textStyle({.face = faceBold,
-                                         .size = 11.5f,
-                                         .color = hexColor(0xBFC7D1),
-                                         .track = 1.1f}))
+      panel.child(text(toUtf8(kAreaRing[i].name))
+                      .styleClass("area")
                       .key(std::string("area") + std::to_string(i))
                       .inset(kRingBox * 0.5f - radius)
                       .onPath({.path = shapes::circle(),
@@ -475,8 +500,8 @@ struct ShippingForecast : sketch::Sketch {
                        .child(heroLine("BIGHT", "hero-2", 0.22f));
     panel.child(std::move(name));
 
-    panel.child(text(toUtf8("SEA AREA \xc2\xb7 READ IN ORDER FROM VIKING"),
-                     label(11.0f, kSlateDim, 3.0f))
+    panel.child(text(toUtf8("SEA AREA \xc2\xb7 READ IN ORDER FROM VIKING"))
+                    .styleClass("eyebrow")
                     .key("ring-cap")
                     .centerAt({kEye.x(), kEye.y() + 118.0f})
                     .opacity(beat(2.30f, 2.95f)));
@@ -508,11 +533,19 @@ struct ShippingForecast : sketch::Sketch {
         .alignItems(Align::Center)
         .gap(12)
         .opacity(beat(0.10f, 0.70f))
-        .child(box().width(7).height(7).corners({4}).shrink(0).fill(
-            Fill::color(kAmber)))
+        // THE STRIP'S INK IS THE WARNING'S COLOUR: the dot and the words
+        // are one statement, so the amber is named once and the mark that
+        // names no colour takes it.
+        .ink(kAmber)
+        .child(box()
+                   .width(7)
+                   .height(7)
+                   .corners({4})
+                   .shrink(0)
+                   .fill(Fill::currentInk()))
         .child(text(toUtf8("GALE WARNING \xc2\xb7 GERMAN BIGHT \xc2\xb7 "
-                           "IMMINENT"),
-                    label(13.5f, kAmber, 2.8f))
+                           "IMMINENT"))
+                   .font({.face = faceBold, .size = 13.5f, .track = 2.8f})
                    .key("gale")
                    .fx({.effect = std::move(arrive),
                         .stagger = {.eachMs = 0,
@@ -544,10 +577,10 @@ struct ShippingForecast : sketch::Sketch {
    *  paragraph shaped, at the positions it shaped them, wearing a different
    *  colour. */
   [[nodiscard]] Element forecast() {
-    const sigil::weave::StyleSheet set = forecastStyles();
-    weave::RichText copy = weave::rich(set.base());
-    copy.styles(set)
-        .add(u8"Southwesterly", "dir")
+    // AN INHERITING PASSAGE: the unnamed runs are set in the voice the node
+    // carries and each named run changes only what its register states.
+    weave::RichText copy = weave::rich();
+    copy.add(u8"Southwesterly", "dir")
         .add(u8" 5 to 7, occasionally gale 8 ")
         .add(u8"later", "term")
         .add(u8". Rain then showers. Moderate or good, occasionally ")
@@ -601,10 +634,12 @@ struct ShippingForecast : sketch::Sketch {
     return box()
         .column()
         .gap(9)
-        .child(text(toUtf8("AREA FORECAST"), label(11.0f, kSlateDim, 3.0f))
+        .child(text(toUtf8("AREA FORECAST"))
+                   .styleClass("eyebrow")
                    .key("fc-eyebrow")
                    .opacity(beat(1.50f, 2.10f)))
         .child(text(copy)
+                   .font({.size = 19.5f})
                    .key("forecast")
                    .width(pct(100))
                    .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
@@ -621,16 +656,15 @@ struct ShippingForecast : sketch::Sketch {
    *  why its charset is digits and capitals of one width. On a proportional
    *  face the runtime measures both, refuses, and draws the true letter. */
   [[nodiscard]] Element barometer() {
-    const sigil::weave::TextStyle mono = weave::textStyle(
-        {.face = faceMono, .size = 27.0f, .color = kBone, .track = 3.0f});
     return box()
         .column()
         .gap(7)
-        .child(text(toUtf8("PRESSURE \xc2\xb7 TENDENCY"),
-                    label(11.0f, kSlateDim, 3.0f))
+        .child(text(toUtf8("PRESSURE \xc2\xb7 TENDENCY"))
+                   .styleClass("eyebrow")
                    .key("baro-eyebrow")
                    .opacity(beat(2.10f, 2.65f)))
-        .child(text(toUtf8("1003 FALLING SLOWLY"), mono)
+        .child(text(toUtf8("1003 FALLING SLOWLY"))
+                   .styleClass("readout")
                    .key("baro")
                    // HELD, because a decode is otherwise churning at local
                    // 0: the substitution is in force from the track's first
@@ -675,12 +709,13 @@ struct ShippingForecast : sketch::Sketch {
    *  would be a `spanStyle`, and would re-break the passage the line cascade
    *  is beating over. */
   [[nodiscard]] Element synopsis() {
-    const sigil::weave::StyleSheet set = forecastStyles();
-    sigil::weave::TextStyle graded = set.base();
+    // The grade is declared against the voice the passage is set in — the
+    // one thing a restyle cannot inherit, being a whole style by
+    // construction.
+    sigil::weave::TextStyle graded = registers().base();
     graded.variation("GRAD", 800.0f);
-    weave::RichText copy = weave::rich(set.base());
-    copy.styles(set)
-        .add(u8"Low", "dir")
+    weave::RichText copy = weave::rich();
+    copy.add(u8"Low", "dir")
         .add(u8", Rockall, ")
         .add(u8"987")
         .add(u8", ")
@@ -692,11 +727,12 @@ struct ShippingForecast : sketch::Sketch {
     return box()
         .column()
         .gap(9)
-        .child(text(toUtf8("GENERAL SYNOPSIS \xc2\xb7 0100 UTC"),
-                    label(11.0f, kSlateDim, 3.0f))
+        .child(text(toUtf8("GENERAL SYNOPSIS \xc2\xb7 0100 UTC"))
+                   .styleClass("eyebrow")
                    .key("syn-eyebrow")
                    .opacity(beat(2.60f, 3.10f)))
         .child(text(copy)
+                   .font({.size = 19.5f})
                    .key("synopsis")
                    .width(pct(100))
                    .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
@@ -727,8 +763,8 @@ struct ShippingForecast : sketch::Sketch {
     rule.width = 1.0f;
     rule.strokeFill = Fill::color(kKeyline);
     Element table = box().column().gap(0).child(
-        text(toUtf8("COASTAL STATIONS \xc2\xb7 0100 UTC"),
-             label(11.0f, kSlateDim, 3.0f))
+        text(toUtf8("COASTAL STATIONS \xc2\xb7 0100 UTC"))
+            .styleClass("eyebrow")
             .key("st-eyebrow")
             .opacity(beat(2.66f, 3.16f))
             .margin(0, 0, 0, 8));
@@ -746,10 +782,8 @@ struct ShippingForecast : sketch::Sketch {
               .child(text(toUtf8(r.wind), label(12.5f, kSlate, 1.4f))
                          .width(74)
                          .textAlign(sigil::weave::TextAlignment::kEnd))
-              .child(text(toUtf8(r.baro), weave::textStyle({.face = faceMono,
-                                                            .size = 12.0f,
-                                                            .color = kSlate,
-                                                            .track = 0.4f}))
+              .child(text(toUtf8(r.baro))
+                         .styleClass("station")
                          .width(166)
                          .textAlign(sigil::weave::TextAlignment::kEnd)));
     }
@@ -766,7 +800,6 @@ struct ShippingForecast : sketch::Sketch {
     Element strip = box().row().gap(6).height(56).alignItems(Align::End);
     for (int f = 0; f <= 12; ++f) {
       const bool named = f >= 5 && f <= 8;
-      const SkColor4f ink = named ? kAmber : hexColor(0x37475B);
       strip.child(
           box()
               .grow(1)
@@ -774,19 +807,23 @@ struct ShippingForecast : sketch::Sketch {
               .gap(6)
               .alignItems(Align::Center)
               .key("bf" + std::to_string(f))
+              // THE BAR AND THE NUMERAL ARE ONE FACT, so the cell names the
+              // ink and the numeral takes it. A force this bulletin does not
+              // quote has a darker bar than numeral — the one place they part.
+              .ink(named ? kAmber : kSlateDim)
               .child(box()
                          .width(pct(100))
                          .height(6.0f + (float)f * 2.6f)
-                         .fill(Fill::color(ink)))
-              .child(text(toUtf8(std::to_string(f)),
-                          label(10.5f, named ? kAmber : kSlateDim, 0.4f))));
+                         .fill(named ? Fill::currentInk()
+                                     : Fill::color(hexColor(0x37475B))))
+              .child(text(toUtf8(std::to_string(f))).styleClass("force")));
     }
     return box()
         .column()
         .gap(9)
         .opacity(beat(3.20f, 3.80f))
-        .child(text(toUtf8("BEAUFORT FORCE \xc2\xb7 5 TO 7, OCCASIONALLY 8"),
-                    label(11.0f, kSlateDim, 3.0f))
+        .child(text(toUtf8("BEAUFORT FORCE \xc2\xb7 5 TO 7, OCCASIONALLY 8"))
+                   .styleClass("eyebrow")
                    .key("bf-eyebrow"))
         .child(std::move(strip))
         .child(text(toUtf8("5 FRESH BREEZE \xc2\xb7 6 STRONG BREEZE \xc2\xb7 "
@@ -873,6 +910,11 @@ struct ShippingForecast : sketch::Sketch {
   }
 
   [[nodiscard]] Element describe() {
+    // THE REGISTERS ARE IN SCOPE FOR EVERYTHING DESCRIBED HERE: a class is
+    // read where the element is written, so the sheet is bound around the
+    // whole description.
+    const sigil::core::environment::Provide<sigil::weave::StyleSheet> sheet(
+        registers());
     Element column =
         box()
             .column()
@@ -916,6 +958,11 @@ struct ShippingForecast : sketch::Sketch {
         .fill(linearGradient({0, 0}, {0, kH},
                              {kSea, kSeaLift, hexColor(0x05080C)},
                              {0.0f, 0.55f, 1.0f}))
+        // THE SHEET'S VOICE AND ITS INK: the grotesque everything but the
+        // glossary and the readouts is set in, and the bone the body copy
+        // takes. A register states what it changes against these.
+        .font({.face = faceBody})
+        .ink(kBone)
         .child(spine().opacity(envelope()))
         .child(std::move(column));
   }

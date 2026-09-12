@@ -30,6 +30,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -319,6 +320,15 @@ struct Theme {
  *  the scope it was composed inside. */
 inline ColorSet ambient() { return environment::inheritedOr(ColorSet{}); }
 
+/** A SURFACE WEARING @p s: grounded in the set's background and INKED in
+ *  its foreground, which is what every plane in a CDE session is. The ink
+ *  is the half a widget used to have to hand to each of its labels — the
+ *  set is one decision about a surface and everything on it, so it is
+ *  stated where the surface is. */
+inline Element surface(const ColorSet& s) {
+  return box().fill(s.bg).ink(s.fg);
+}
+
 // ===========================================================================
 // 4. THE BEVEL — lib/Xm/Draw.c, DrawSimpleShadow().
 // ===========================================================================
@@ -432,37 +442,53 @@ constexpr float kType = 13.0f;  // [MEAS] ink boxes: cap height 9-10 px
  *  size the ink boxes were measured at. */
 constexpr float kTrack = 0.95f;
 
-/** The UI register: one face, one size, HARD EDGES. `aliased` selects
- *  1-bit rasterisation and is part of the shape-cache key, so a run
- *  carries it through shaping — which is the whole of what a 1995 X11
- *  desktop's type looks like, and the one property this reconstruction
- *  cannot approximate. */
-inline sigil::weave::TextStyle type(SkColor4f c, float size = kType) {
-  return weave::textStyle({.face = uiFace(),
-                           .size = size,
-                           .color = c,
-                           .track = kTrack,
-                           .aliased = true,
-                           .antiAlias = false});
+/** THE UI REGISTER, as the partial a screen declares at its root: one
+ *  face, one size, HARD EDGES, and NO COLOUR — a colour set's foreground
+ *  is the ink of whatever wears the set, so the register is the desktop's
+ *  and the colour is the subtree's. `aliased` selects 1-bit rasterisation
+ *  and is part of the shape-cache key, so a run carries it through shaping
+ *  — which is the whole of what a 1995 X11 desktop's type looks like, and
+ *  the one property this reconstruction cannot approximate. */
+inline sigil::weave::Type uiType() {
+  return {.face = uiFace(),
+          .size = kType,
+          .track = kTrack,
+          .aliased = true,
+          .antiAlias = false};
 }
 
-/** One run of UI type, with Motif's mnemonic underline on exactly one
- *  character when asked. Two spans and a `Decoration{Kind::kUnderline}`
- *  at thickness 1, which is what Motif's underline is; `skipInk` off,
- *  because Motif's does not break for a descender. */
-inline Element label(std::string_view t, SkColor4f c, float size = kType,
-                     int mnemonic = -1) {
-  const sigil::weave::TextStyle plain = type(c, size);
-  if (mnemonic < 0 || mnemonic >= (int)t.size())
-    return text(toUtf8(t), plain).shrink(0);
-  sigil::weave::TextStyle under = plain;
+/** ONE RUN OF UI TYPE IN THE INK IN FORCE — a window title, a menu item, a
+ *  file name: each is just its own words. */
+inline Element label(std::string_view t) { return text(toUtf8(t)).shrink(0); }
+
+/** The same at another size, and in a colour of its own where the run is
+ *  not in the set's: a calendar page's month over its day, the one figure a
+ *  proof row fails on. */
+inline Element label(std::string_view t, float size,
+                     std::optional<SkColor4f> c = std::nullopt) {
+  return text(toUtf8(t)).font({.size = size, .color = c}).shrink(0);
+}
+
+/** One run with Motif's mnemonic underline on exactly one character. Two
+ *  spans and a `Decoration{Kind::kUnderline}` at thickness 1, which is what
+ *  Motif's underline is; `skipInk` off, because Motif's does not break for
+ *  a descender.
+ *
+ *  THE UNDERLINED CHARACTER IS TOLD ITS COLOUR: a decoration carries one of
+ *  its own rather than taking the ink the glyphs are painted in, so that
+ *  span is a whole style and inherits nothing. The two either side do. */
+inline Element mnemonicLabel(std::string_view t, SkColor4f c, int mnemonic) {
+  if (mnemonic < 0 || mnemonic >= (int)t.size()) return label(t);
+  sigil::weave::Type coloured = uiType();
+  coloured.color = c;
+  sigil::weave::TextStyle under = weave::textStyle(coloured);
   sigil::weave::Decoration d;
   d.kind = sigil::weave::Decoration::Kind::kUnderline;
   d.skipInk = false;
   d.thickness = 1;
   d.color = c.toSkColor();
   under.paint.addDecoration(d);
-  return text(weave::rich(plain)
+  return text(weave::rich()
                   .add(toUtf8(t.substr(0, (size_t)mnemonic)))
                   .add(toUtf8(t.substr((size_t)mnemonic, 1)), under)
                   .add(toUtf8(t.substr((size_t)mnemonic + 1))))
@@ -485,9 +511,9 @@ inline Element label(std::string_view t, SkColor4f c, float size = kType,
 inline Element pushButton(std::string_view t, bool armed = false,
                           bool defaulted = false, bool insensitive = false) {
   const ColorSet s = ambient();
-  Element lab = label(t, s.fg);
   Element inner = box()
                       .fill(armed ? s.sel : s.bg)
+                      .ink(s.fg)
                       .overlay(bevel(2, armed, false))
                       .padding(2)
                       .alignItems(Align::Center)
@@ -497,7 +523,7 @@ inline Element pushButton(std::string_view t, bool armed = false,
                                  .padding(6, 2)
                                  .alignItems(Align::Center)
                                  .justify(Justify::Center)
-                                 .child(std::move(lab)));
+                                 .child(label(t)));
   if (insensitive) inner.foreground(stipple());
   Element ring = box().padding(2).child(std::move(inner));
   if (defaulted) ring.overlay(bevel(1, true, false));
@@ -515,15 +541,14 @@ inline Element textField(std::string_view t, float w, bool caret = false,
                       .alignItems(Align::Center)
                       .grow(1)
                       .padding(3, 0)
-                      .child(label(t, s.fg));
+                      .child(label(t));
   if (caret && caretOut)
     inner.child(box()
                     .width(Dimension(1))
                     .height(Dimension(13))
                     .fill(s.fg)
                     .opacity(motion::bind(caretOut).quantize(2)));
-  Element field = box()
-                      .fill(s.bg)
+  Element field = surface(s)
                       .overlay(bevel(2, true, false))
                       .padding(2)
                       .height(Dimension(24))

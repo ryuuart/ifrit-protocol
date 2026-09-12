@@ -550,16 +550,20 @@ struct PersonaMenu final : sketch::Sketch {
 
   Element promptCircle(const char* glyph) {
     namespace nn = persona_menu;
+    // THE RING AND THE LETTER IN IT ARE ONE MARK, so the white is named
+    // once: a stroke that names no colour is painted in the ink, and so is
+    // the glyph inside it.
     return box()
         .width(32)
         .height(32)
         .shape(shapes::squircle(2.0f))
         .fill(SkColor4f{nn::kGroundDark.fR, nn::kGroundDark.fG,
                         nn::kGroundDark.fB, 0.8f})
-        .stroke(stroke(3, Fill::color(nn::kPaper)))
+        .ink(nn::kPaper)
+        .stroke(stroke(3))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(toUtf8(glyph), nn::smallType(14, nn::kPaper, 0)));
+        .child(text(toUtf8(glyph)).font({.size = 14, .color8 = true}));
   }
 
   /** The date stamp the pause menu wears in its top-left corner: the day
@@ -635,7 +639,12 @@ struct PersonaMenu final : sketch::Sketch {
           .row()
           .alignItems(Align::Center)
           .gap(6)
-          .child(text(toUtf8(label), nn::smallType(9, color, 1.4f)).width(16))
+          // The gauge's colour IS the label's: HP is green wherever it is
+          // written, so the row names it and the two letters take it.
+          .ink(color)
+          .child(text(toUtf8(label))
+                     .font({.size = 9, .track = 1.4f, .color8 = true})
+                     .width(16))
           .child(box()
                      .width(84)
                      .height(6)

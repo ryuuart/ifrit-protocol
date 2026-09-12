@@ -105,9 +105,8 @@ struct CdeMotifSketch : sketch::Sketch {
                            .width(Dimension(11))
                            .height(Dimension(11))
                            .overlay(cde::bevelFg(1));
-    return box()
+    return cde::surface(s)
         .height(Dimension(23))
-        .fill(s.bg)
         .overlay(cde::bevel(1, false, false))
         .row()
         .alignItems(Align::Center)
@@ -117,7 +116,7 @@ struct CdeMotifSketch : sketch::Sketch {
                    .grow(1)
                    .alignItems(Align::Center)
                    .justify(Justify::Center)
-                   .child(cde::label(t, s.fg)))
+                   .child(cde::label(t)))
         .child(furniture(std::move(minGlyph)))
         .child(box().width(Dimension(2)))
         .child(furniture(std::move(maxGlyph)));
@@ -127,9 +126,8 @@ struct CdeMotifSketch : sketch::Sketch {
    *  underline on exactly one character of every label. */
   Element menuBar(const std::vector<std::string>& items, int rightFrom) {
     const Set s = cde::ambient();
-    Element bar = box()
+    Element bar = cde::surface(s)
                       .height(Dimension(31))
-                      .fill(s.bg)
                       .overlay(cde::bevel(1, false, false))
                       .row()
                       .alignItems(Align::Center)
@@ -137,7 +135,7 @@ struct CdeMotifSketch : sketch::Sketch {
     for (int i = 0; i < (int)items.size(); ++i) {
       if (i == rightFrom) bar.child(box().grow(1));
       bar.child(box().padding(8, 4).child(
-          cde::label(items[(size_t)i], s.fg, cde::kType, 0)));
+          cde::mnemonicLabel(items[(size_t)i], s.fg, 0)));
     }
     return bar;
   }
@@ -183,7 +181,7 @@ struct CdeMotifSketch : sketch::Sketch {
                        .alignItems(Align::Center)
                        .gap(2)
                        .child(cde::art(cde::icoFolder(), 2.0f))
-                       .child(cde::label(name, c5.fg)));
+                       .child(cde::label(name)));
 
       // The scrollbar: a sunken trough with a raised slider, and a
       // STEPPER at each end — CDE puts an arrow box top and bottom, and
@@ -228,16 +226,15 @@ struct CdeMotifSketch : sketch::Sketch {
                             .alignItems(Align::Center)
                             .padding(8, 6)
                             .gap(8)
-                            .child(cde::label("Path:", c5.fg));
+                            .child(cde::label("Path:"));
       {
         environment::Provide<cde::ColorSet> field(theme[4]);
         pathRow.child(cde::textField("/export/home/user", 420, true, &caret));
       }
 
       Element client =
-          box()
+          cde::surface(c5)
               .grow(1)
-              .fill(c5.bg)
               .column()
               .child(std::move(pathRow))
               // The icon pane is an XmScrolledWindow: XmSHADOW_IN at
@@ -260,7 +257,7 @@ struct CdeMotifSketch : sketch::Sketch {
                          .row()
                          .alignItems(Align::Center)
                          .padding(8, 2)
-                         .child(cde::label("31 Items  11 Hidden", c5.fg)));
+                         .child(cde::label("31 Items  11 Hidden")));
 
       window = box()
                    .grow(1)
@@ -281,8 +278,7 @@ struct CdeMotifSketch : sketch::Sketch {
     const Set& c2 = theme[2];  // dtsession's primary set — unstyled widgets
     const Set& c6 = theme[6];  // list panes
 
-    Element list = box()
-                       .fill(c6.bg)
+    Element list = cde::surface(c6)
                        .overlay(cde::bevel(2, true, false))
                        .padding(2)
                        .grow(1)
@@ -295,7 +291,7 @@ struct CdeMotifSketch : sketch::Sketch {
               .alignItems(Align::Center)
               .height(Dimension(20))
               .padding(6, 0)
-              .child(cde::label(cde::kPalettes[(size_t)i]->name, c6.fg));
+              .child(cde::label(cde::kPalettes[(size_t)i]->name));
       if (current) rowBox.fill(c6.sel);
       list.child(std::move(rowBox));
     }
@@ -306,7 +302,7 @@ struct CdeMotifSketch : sketch::Sketch {
                      .alignItems(Align::Center)
                      .height(Dimension(20))
                      .padding(6, 0)
-                     .child(cde::label(n, c6.fg)));
+                     .child(cde::label(n)));
 
     // XmScrollBar: a sunken trough in the workspace set with a raised
     // slider, 15 px of trough plus 2 px of shadow either side [MEAS].
@@ -352,8 +348,7 @@ struct CdeMotifSketch : sketch::Sketch {
                           .child(cde::pushButton("Help"));
 
     Element body =
-        box()
-            .fill(c2.bg)
+        cde::surface(c2)
             .grow(1)
             .column()
             .padding(10)
@@ -365,17 +360,16 @@ struct CdeMotifSketch : sketch::Sketch {
                        .child(box()
                                   .column()
                                   .gap(4)
-                                  .child(cde::label("Palettes", c2.fg))
+                                  .child(cde::label("Palettes"))
                                   .child(std::move(listPane)))
                        .child(box()
                                   .column()
                                   .gap(4)
-                                  .child(cde::label("Color Sets", c2.fg))
+                                  .child(cde::label("Color Sets"))
                                   .child(std::move(swatches))
                                   .child(box().height(Dimension(6)))
-                                  .child(cde::label("Number of Colors:", c2.fg))
-                                  .child(cde::label("  High Color  (8 sets)",
-                                                    c2.fg))))
+                                  .child(cde::label("Number of Colors:"))
+                                  .child(cde::label("  High Color  (8 sets)"))))
             .child(
                 box().height(Dimension(2)).overlay(cde::bevel(2, false, true)))
             .child(std::move(buttons));
@@ -398,7 +392,7 @@ struct CdeMotifSketch : sketch::Sketch {
                         .alignItems(Align::Center)
                         .height(Dimension(24))
                         .padding(14, 0)
-                        .child(cde::label(t, s.fg))
+                        .child(cde::label(t))
                         .child(box().grow(1));
       if (cascade)
         row.child(box()
@@ -421,8 +415,7 @@ struct CdeMotifSketch : sketch::Sketch {
     Element tearOff =
         box().height(Dimension(9)).margin(3).overlay(cde::bevel(2, true, true));
 
-    return box()
-        .fill(s.bg)
+    return cde::surface(s)
         .overlay(cde::bevel(2, false, false))
         .padding(2)
         .width(Dimension(214))
@@ -460,8 +453,8 @@ struct CdeMotifSketch : sketch::Sketch {
                      .height(Dimension(36))
                      .fill(cde::toSk(c))
                      .overlay(cde::bevel(2, false, false)))
-          .child(cde::label(name, s.fg))
-          .child(cde::label(hex, s.fg));
+          .child(cde::label(name))
+          .child(cde::label(hex));
     };
 
     const char* branch = d.branch == cde::Branch::Dark   ? "DARK"
@@ -473,15 +466,14 @@ struct CdeMotifSketch : sketch::Sketch {
 
     Element proof = box().column().gap(1).justify(Justify::Center);
     for (const measure::Check& c : derivation().rows)
-      proof.child(cde::label(c.line(22, 9), c.pass ? s.fg : s.bs, 10));
+      proof.child(cde::label(c.line(22, 9), 10.0f, c.pass ? s.fg : s.bs));
 
-    return box()
-        .fill(s.bg)
+    return cde::surface(s)
         .overlay(cde::bevel(2, false, false))
         .padding(2)
         .column()
         .child(box().padding(8, 6).child(
-            cde::label("XmGetColors( bg ) - live", s.fg, cde::kType, 0)))
+            cde::mnemonicLabel("XmGetColors( bg ) - live", s.fg, 0)))
         .child(box()
                    .row()
                    .gap(18)
@@ -498,7 +490,7 @@ struct CdeMotifSketch : sketch::Sketch {
                    // algorithm has to reproduce, each with its verdict
                    // computed from the two values rather than written.
                    .child(std::move(proof)))
-        .child(box().padding(8, 8).child(cde::label(line, s.fg)));
+        .child(box().padding(8, 8).child(cde::label(line)));
   }
 
   // -------------------------------------------------------------------------
@@ -628,6 +620,7 @@ struct CdeMotifSketch : sketch::Sketch {
     return stack()
         .width(Dimension(48))
         .height(Dimension(48))
+        .ink(s.fg)
         .child(box()
                    .inset(3, 2, 3, 2)
                    .fill(cde::C(cde::kIconColor[1]))
@@ -640,7 +633,7 @@ struct CdeMotifSketch : sketch::Sketch {
                    .fill(s.sel)
                    .alignItems(Align::Center)
                    .justify(Justify::Center)
-                   .child(cde::label("Jul", s.fg, 11)))
+                   .child(cde::label("Jul", 11.0f)))
         .child(box()
                    .left(Dimension(5))
                    .top(Dimension(18))
@@ -648,7 +641,7 @@ struct CdeMotifSketch : sketch::Sketch {
                    .height(Dimension(24))
                    .alignItems(Align::Center)
                    .justify(Justify::Center)
-                   .child(cde::label("22", cde::C(cde::kIconColor[0]), 19)));
+                   .child(cde::label("22", 19.0f, cde::C(cde::kIconColor[0]))));
   }
 
   /** The SWITCH: dtwm.fp.src gives it NUMBER_OF_ROWS 2, plus Lock, the
@@ -664,15 +657,14 @@ struct CdeMotifSketch : sketch::Sketch {
       for (int c = 0; c < 2; ++c) {
         const int i = r * 2 + c;
         const Set& ws = theme[kSets[i]];
-        rr.child(box()
+        rr.child(cde::surface(ws)
                      .width(Dimension(129))
                      .height(Dimension(22))
-                     .fill(ws.bg)
                      .overlay(cde::bevel(2, false, false))
                      .row()
                      .alignItems(Align::Center)
                      .padding(7, 0)
-                     .child(cde::label(kNames[i], ws.fg)));
+                     .child(cde::label(kNames[i])));
       }
       gridEl.child(std::move(rr));
     }
@@ -757,14 +749,13 @@ struct CdeMotifSketch : sketch::Sketch {
    *  and what trim()/scaleY could not have given. */
   Element helpSubpanel() {
     const Set& s = theme[2];
-    Element col = box()
-                      .fill(s.bg)
+    Element col = cde::surface(s)
                       .overlay(cde::bevel(2, false, false))
                       .padding(4)
                       .column()
                       .alignItems(Align::Center)
                       .gap(4)
-                      .child(cde::label("Help", s.fg))
+                      .child(cde::label("Help"))
                       .child(box()
                                  .row()
                                  .gap(6)
@@ -798,15 +789,21 @@ struct CdeMotifSketch : sketch::Sketch {
                    .alignItems(Align::Center)
                    .justify(Justify::Center)
                    .child(cde::art(pixmap, 2.0f)))
-        .child(box()
-                   .fill(s.bg)
+        .child(cde::surface(s)
                    .overlay(cde::bevel(1, false, false))
                    .padding(4, 1)
-                   .child(cde::label(title, s.fg)));
+                   .child(cde::label(title)));
   }
 
   Element describe(sketch::SketchContext& ctx) {
-    Element root = stack().width(Dimension(1152)).height(Dimension(900));
+    // ONE REGISTER FOR THE WHOLE DESKTOP, declared where the desktop is:
+    // CDE has no type hierarchy, so every label under here is set in this
+    // and says only its words. The colour is not part of it — a colour
+    // set's foreground is the ink of whatever wears the set.
+    Element root = stack()
+                       .width(Dimension(1152))
+                       .height(Dimension(900))
+                       .font(cde::uiType());
 
     // 1. The root window: PinStripe, tiled, in colour set 3's shadows.
     //    ONE 28 x 52 pixmap that dtwm tiles — not instanced, not
