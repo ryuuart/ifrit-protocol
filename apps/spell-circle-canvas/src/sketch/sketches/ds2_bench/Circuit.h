@@ -99,20 +99,20 @@ inline sk_sp<SkTypeface> uiFace(bool bold) {
       want);
 }
 
-// The bench's one register, over weave's designated-init `textStyle()`.
-// Tracking arrives here in EM, not px, because the reference quotes it that
-// way; the em size is known at this call, so the conversion lands here.
-inline weave::TextStyle benchType(float size, SkColor4f color,
-                                  float trackEm = 0.07f, bool bold = true,
-                                  float stretch = 1.16f) {
+// The bench's one register, as the PARTIAL a node's font is set from: on a
+// leaf it is that run's type, on a row it is every run under it. Tracking
+// arrives here in EM, not px, because the reference quotes it that way; the
+// em size is known at this call, so the conversion lands here.
+inline weave::Type benchType(float size, SkColor4f color, float trackEm = 0.07f,
+                             bool bold = true, float stretch = 1.16f) {
   // The port holds the face, so asking it per style hands back the one
   // pointer every style and every memo below compares against — where a
   // static here would hold it in a dylib that is unloaded on reload.
-  return weave::textStyle({.face = uiFace(bold),
-                           .size = size,
-                           .color = color,
-                           .track = trackEm * size,
-                           .condense = stretch});
+  return {.face = uiFace(bold),
+          .size = size,
+          .color = color,
+          .track = trackEm * size,
+          .condense = stretch};
 }
 
 // ---------------------------------------------------------------------------

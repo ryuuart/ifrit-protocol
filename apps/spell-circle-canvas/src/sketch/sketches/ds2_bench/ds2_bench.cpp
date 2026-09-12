@@ -240,7 +240,8 @@ struct Ds2Bench : sketch::Sketch {
             .alignItems(Align::Center)
             .justify(Justify::Center)
             .zIndex(7)
-            .child(text(toUtf8("CONTACT BEAM"), benchType(31, kTitle, 0.10f))
+            .child(text(toUtf8("CONTACT BEAM"))
+                       .font(benchType(31, kTitle, 0.10f))
                        .key("title")
                        .fx({.effect = fx::typeOn(),
                             .stagger = {.eachMs = 26, .durationMs = 190},
@@ -251,12 +252,13 @@ struct Ds2Bench : sketch::Sketch {
     // under the rule: the repair caption at left, and at right the RIG's
     // integrity as an ANNULAR GAUGE — shapes::sector is a closed wedge, so
     // the track and the fill are the same generator twice
-    root.child(box()
-                   .at({kPX + 34, kRuleY + 13})
-                   .zIndex(7)
-                   .child(text(toUtf8("NANOCIRCUIT REPAIR · TIER III"),
-                               benchType(10.5f, mskia::withAlpha(kCyan, 0.5f),
-                                         0.2f, false))));
+    root.child(
+        box()
+            .at({kPX + 34, kRuleY + 13})
+            .zIndex(7)
+            .child(text(toUtf8("NANOCIRCUIT REPAIR · TIER III"))
+                       .font(benchType(10.5f, mskia::withAlpha(kCyan, 0.5f),
+                                       0.2f, false))));
     const float gaugeD = 26, gaugeX = 786, gaugeY = kRuleY + 6;
     // 359.99, not 360: shapes::sector() with a full-turn sweep produces an
     // EMPTY path (SkPathBuilder::arcTo swallows |sweep| == 360), so the
@@ -272,12 +274,13 @@ struct Ds2Bench : sketch::Sketch {
                    .shape(shapes::sector(-90, 360 * 0.78f, 0.58f))
                    .fill(Paint::solid(mskia::withAlpha(kCyan, 0.9f)))
                    .zIndex(7));
-    root.child(box()
-                   .at({gaugeX + 34, kRuleY + 13})
-                   .zIndex(7)
-                   .child(text(toUtf8("R.I.G. INTEGRITY 78%"),
-                               benchType(10.5f, mskia::withAlpha(kCyan, 0.5f),
-                                         0.2f, false))));
+    root.child(
+        box()
+            .at({gaugeX + 34, kRuleY + 13})
+            .zIndex(7)
+            .child(text(toUtf8("R.I.G. INTEGRITY 78%"))
+                       .font(benchType(10.5f, mskia::withAlpha(kCyan, 0.5f),
+                                       0.2f, false))));
   }
 
   // -------------------------------------------------------------------
@@ -428,12 +431,12 @@ struct Ds2Bench : sketch::Sketch {
                                   {{0.0f, mskia::withAlpha(art.ring, 0.42f)},
                                    {1.0f, mskia::withAlpha(art.ring, 0.0f)}}))
               .zIndex(5));
-      layer.child(
-          text(toUtf8(art.label),
-               benchType(c.labelSize, mskia::withAlpha(kCyan, 0.78f), 0.11f))
-              .centerAt({at.fX + dia * 0.88f, at.fY + c.labelDy})
-              .opacity(animate(from(0.0f).to(1.0f), {320ms}))
-              .zIndex(5));
+      layer.child(text(toUtf8(art.label))
+                      .font(benchType(c.labelSize,
+                                      mskia::withAlpha(kCyan, 0.78f), 0.11f))
+                      .centerAt({at.fX + dia * 0.88f, at.fY + c.labelDy})
+                      .opacity(animate(from(0.0f).to(1.0f), {320ms}))
+                      .zIndex(5));
     }
     root.child(std::move(layer));
 
@@ -459,11 +462,12 @@ struct Ds2Bench : sketch::Sketch {
             .alignItems(Align::Center)
             .justify(Justify::SpaceBetween)
             .zIndex(8)
-            .child(text(toUtf8(c.caption),
-                        benchType(11, mskia::withAlpha(kCyan, 0.62f), 0.18f)))
-            .child(text(
-                toUtf8(slots),
-                benchType(9.5f, mskia::withAlpha(kCyan, 0.4f), 0.18f, false))));
+            .child(
+                text(toUtf8(c.caption))
+                    .font(benchType(11, mskia::withAlpha(kCyan, 0.62f), 0.18f)))
+            .child(text(toUtf8(slots))
+                       .font(benchType(9.5f, mskia::withAlpha(kCyan, 0.4f),
+                                       0.18f, false))));
     root.child(
         box()
             .rect(SkRect::MakeXYWH(c.x0 - 34, c.y0 - 32, kRuleW, 1.0f))
@@ -491,9 +495,9 @@ struct Ds2Bench : sketch::Sketch {
         .child(box()
                    .width(Dimension(160.0f))
                    .alignItems(Align::End)
-                   .child(text(
-                       toUtf8(s.label),
-                       benchType(14, mskia::withAlpha(kCyan, 0.95f), 0.10f))))
+                   .child(text(toUtf8(s.label))
+                              .font(benchType(
+                                  14, mskia::withAlpha(kCyan, 0.95f), 0.10f))))
         .child(box()
                    .width(Dimension(9.0f))
                    .height(Dimension(9.0f))
@@ -508,11 +512,11 @@ struct Ds2Bench : sketch::Sketch {
                    .translateX(animate(from(-16.0f).to(0.0f), {380ms}))
                    .child(instancing::instances(pips, pipPools[(size_t)r])))
         .child(box().grow(1))
-        .child(
-            box()
-                .width(Dimension(84.0f))
-                .child(text(toUtf8(s.value),
-                            benchType(13, hexColor(0xDCEEF2), 0.02f, false))));
+        .child(box()
+                   .width(Dimension(84.0f))
+                   .child(text(toUtf8(s.value))
+                              .font(benchType(13, hexColor(0xDCEEF2), 0.02f,
+                                              false))));
   }
 
   void legend(Element& root) {
@@ -532,26 +536,20 @@ struct Ds2Bench : sketch::Sketch {
             .gap(3)
             .staggerChildren(70ms, Spread::From::Start);
 
+    // the column heads: one register on the row, three bare runs under it
     card.child(
         box()
             .row()
             .height(Dimension(14.0f))
+            .font(benchType(9, mskia::withAlpha(kCyan, 0.42f), 0.22f, false))
             .child(box()
                        .width(Dimension(160.0f))
                        .alignItems(Align::End)
-                       .child(text(toUtf8("SPECIFICATION"),
-                                   benchType(9, mskia::withAlpha(kCyan, 0.42f),
-                                             0.22f, false))))
+                       .child(text(toUtf8("SPECIFICATION"))))
             .child(box().width(Dimension(35.0f)))
-            .child(text(
-                toUtf8("NANOCIRCUIT LOAD"),
-                benchType(9, mskia::withAlpha(kCyan, 0.42f), 0.22f, false)))
+            .child(text(toUtf8("NANOCIRCUIT LOAD")))
             .child(box().grow(1))
-            .child(box()
-                       .width(Dimension(84.0f))
-                       .child(text(toUtf8("VALUE"),
-                                   benchType(9, mskia::withAlpha(kCyan, 0.42f),
-                                             0.22f, false)))));
+            .child(box().width(Dimension(84.0f)).child(text(toUtf8("VALUE")))));
     for (int r = 0; r < kStatCount; ++r) card.child(statRow(r));
     root.child(std::move(card));
 
@@ -596,17 +594,18 @@ struct Ds2Bench : sketch::Sketch {
             .padding(16, 11)
             .gap(2)
             .zIndex(7)
-            .child(box()
-                       .width(Dimension(112.0f))
-                       .height(Dimension(21.0f))
-                       .alignItems(Align::Center)
-                       .justify(Justify::Center)
-                       .shape(chamfer(6))
-                       .stroke(stroke(
-                           1.0f, Fill::color(mskia::withAlpha(kCyan, 0.45f))))
-                       .child(text(toUtf8("NODES"),
-                                   benchType(12, mskia::withAlpha(kCyan, 0.95f),
-                                             0.16f))))
+            .child(
+                box()
+                    .width(Dimension(112.0f))
+                    .height(Dimension(21.0f))
+                    .alignItems(Align::Center)
+                    .justify(Justify::Center)
+                    .shape(chamfer(6))
+                    .stroke(stroke(1.0f,
+                                   Fill::color(mskia::withAlpha(kCyan, 0.45f))))
+                    .child(text(toUtf8("NODES"))
+                               .font(benchType(
+                                   12, mskia::withAlpha(kCyan, 0.95f), 0.16f))))
             // the brass power-node puck: side wall, top face, bore ring
             .child(
                 box()
@@ -637,7 +636,8 @@ struct Ds2Bench : sketch::Sketch {
                             .shape(shapes::squircle(2.0f))
                             .stroke(stroke(
                                 1.3f, Fill::color(hexColor(0x74590F, 0.9f))))))
-            .child(text(toUtf8("2"), benchType(40, kTitle, 0.0f))
+            .child(text(toUtf8("2"))
+                       .font(benchType(40, kTitle, 0.0f))
                        .key("nodecount")
                        .transition({.duration = 200ms})));
 
@@ -661,11 +661,7 @@ struct Ds2Bench : sketch::Sketch {
             .stroke(stroke(1.0f, Fill::color(mskia::withAlpha(kCyan, 0.36f))))
             .zIndex(8));
 
-    auto hint = [&](const std::string& label) {
-      return text(toUtf8(label),
-                  benchType(12, mskia::withAlpha(kCyan, 0.78f), 0.06f, false));
-    };
-
+    // the hints: one register on the row, bare runs under it
     root.child(
         box()
             .rect(SkRect::MakeXYWH(kPX, kHintY + 8, kPW, 26.0f))
@@ -674,6 +670,7 @@ struct Ds2Bench : sketch::Sketch {
             .justify(Justify::Center)
             .gap(56)
             .zIndex(8)
+            .font(benchType(12, mskia::withAlpha(kCyan, 0.78f), 0.06f, false))
             .child(
                 box()
                     .row()
@@ -711,9 +708,9 @@ struct Ds2Bench : sketch::Sketch {
                             .width(Dimension(15.0f))
                             .height(Dimension(15.0f))
                             .cache(Cache::None))
-                    .child(hint("Navigate")))
-            .child(hint("[Enter] Select"))
-            .child(hint("[Esc] Exit")));
+                    .child(text(toUtf8("Navigate"))))
+            .child(text(toUtf8("[Enter] Select")))
+            .child(text(toUtf8("[Esc] Exit"))));
 
     // the empty hardware sockets the bezel carries at its bottom corners
     for (float x : {kPX + 34, kPR - 46}) {
