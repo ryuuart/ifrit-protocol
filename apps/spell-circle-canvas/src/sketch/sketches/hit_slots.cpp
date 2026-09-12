@@ -70,7 +70,6 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
@@ -95,10 +94,6 @@ sketch::kit::Theme sheetTheme() {
   look.palette.ink = {0.94f, 0.88f, 0.69f, 1};
   look.palette.ash = {0.58f, 0.60f, 0.70f, 1};
   return look;
-}
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
 }
 
 std::string targetKey(int i) { return "target-" + std::to_string(i); }
@@ -243,6 +238,9 @@ struct HitSlots final : sketch::Sketch {
              std::to_string((int)hitBounds->width()) + " \xc3\x97 " +
              std::to_string((int)hitBounds->height());
 
+    // The readout is set in ash, and the answer's own line in the ink a
+    // size up: one font on the column, one partial on that leaf.
+    const sketch::kit::Theme& look = sketch::kit::theme();
     return root.child(
         box()
             .column()
@@ -250,14 +248,14 @@ struct HitSlots final : sketch::Sketch {
             .absolute()
             .inset(20, ctx.size.height() - 78, 20, 14)
             .hitTestable(false)
-            .child(text(toUtf8("hitTest(probe) \xe2\x86\x92 " + hitLabel),
-                        label(16, sketch::kit::theme().palette.ink)))
+            .font({.size = 12.5f})
+            .ink(look.palette.ash)
+            .child(text(toUtf8("hitTest(probe) \xe2\x86\x92 " + hitLabel))
+                       .font({.size = 16, .color = look.palette.ink}))
             .child(text(
-                toUtf8("bounds(\"" + hitLabel + "\") \xe2\x86\x92 " + rect),
-                label(12.5f, sketch::kit::theme().palette.ash)))
-            .child(text(
-                toUtf8("routesAt(\"" + hitLabel + "\") \xe2\x86\x92 " + routes),
-                label(12.5f, sketch::kit::theme().palette.ash))));
+                toUtf8("bounds(\"" + hitLabel + "\") \xe2\x86\x92 " + rect)))
+            .child(text(toUtf8("routesAt(\"" + hitLabel + "\") \xe2\x86\x92 " +
+                               routes))));
   }
 
   void setup(sketch::SketchContext& ctx) override {
