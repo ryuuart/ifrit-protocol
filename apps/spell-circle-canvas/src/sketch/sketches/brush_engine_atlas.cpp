@@ -78,6 +78,10 @@ struct BrushEngineAtlas final : sketch::Sketch {
     paperTip.markerTip = false;
     brushes.add("paper-tip", std::move(paperTip));
 
+    // Drawn once and kept, so the picture is formed at two device pixels
+    // per unit: a still photographed finer than the canvas is stepped is
+    // drawn on that grid rather than magnified to it.
+    context.composer.setBakeDensity(2.0f);
     context.composer.render(compose::graphics("brush_engine_atlas.sheet",
                                               [this](Pen& pen) { draw(pen); })
                                 .absolute()

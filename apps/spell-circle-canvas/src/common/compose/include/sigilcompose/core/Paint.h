@@ -160,6 +160,16 @@ struct Corners {
  *  through — never by a 2D mirror, so `scaleX(-1)` stays visible. */
 enum class Backface : uint8_t { Visible, Hidden };
 
+/** THE KEYS A HOST FEEDS THE COMPOSER — `Composer::setKey` — as a pen
+ *  program reads them: whether one is down, the one most recently
+ *  pressed by name and code, and every code held. */
+struct KeyState {
+  bool pressed = false;
+  std::string key;
+  int keyCode = 0;
+  std::vector<int> down;
+};
+
 /** The one paint-program context: custom leaves (and, in extensions,
  *  decorations and contour walks) all receive this. `elapsedSeconds` is
  *  the Ticker's FrameClock time — pause/time-scale affect it. `fonts`
@@ -244,6 +254,23 @@ struct PaintContext {
   /** The custom properties in force here, or null outside a composer and
    *  where no ancestor set one. */
   const VarTable* vars = nullptr;
+
+  /** WHERE THE POINTER STANDS, in this node's own box, and whether its
+   *  button is down — what the host fed `Composer::setPointer`, mapped
+   *  through the node's transform. The origin with the button up where
+   *  nobody points. */
+  struct Pointer {
+    SkPoint at = {0, 0};
+    bool pressed = false;
+  };
+  Pointer pointer;
+  /** The keys the host fed `Composer::setKey`, or null outside a composer.
+   *  Valid for the duration of the paint call. */
+  const KeyState* keys = nullptr;
+  /** The composer's `setBakeDensity`, device pixels per layout unit, or
+   *  zero where none was declared — what a kept canvas is formed no
+   *  coarser than. */
+  float bakeDensity = 0.0f;
 };
 
 using PaintProgram = std::function<void(SkCanvas&, const PaintContext&)>;

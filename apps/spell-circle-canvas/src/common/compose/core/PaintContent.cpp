@@ -487,6 +487,13 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // Built BEFORE the effect's saveLayer because an effect's child Material
   // resolves against it — the node's box, the node's clock, exactly what
   // Material::child hands a fill's children.
+  // The pointer in the node's own box: the canvas point the host fed,
+  // taken back through the node's transform. A projection with no
+  // inverse leaves it at the origin, as a node nobody can point at.
+  PaintContext::Pointer pointerHere;
+  pointerHere.pressed = pointerPressed;
+  if (SkMatrix toNode; curToRoot.invert(&toNode))
+    pointerHere.at = toNode.mapPoint(pointerAt);
   const PaintContext paintCtx{
       .size = {bounds.width(), bounds.height()},
       .outline = std::move(marksPath),
@@ -504,7 +511,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       // custom properties a fill or an ink may read.
       .ink = inst.font.color.value_or(SkColor4f{0, 0, 0, 1}),
       .font = inst.font,
-      .vars = inst.vars.get()};
+      .vars = inst.vars.get(),
+      .pointer = pointerHere,
+      .keys = &keys,
+      .bakeDensity = bakeDensity};
 
   // The node's own layer effect wraps everything painted here, so it is
   // captured by picture recordings and BAKED by texture snapshots. A LIVE
@@ -713,7 +723,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           .rootSize = paintCtx.rootSize,
           .ink = paintCtx.ink,
           .font = paintCtx.font,
-          .vars = paintCtx.vars};
+          .vars = paintCtx.vars,
+          .pointer = paintCtx.pointer,
+          .keys = paintCtx.keys,
+          .bakeDensity = paintCtx.bakeDensity};
       passes[i].what.paint(canvas, passCtx);
       if (granularPlane) leaveGates(saves, cover);
     }
@@ -758,7 +771,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           .rootSize = paintCtx.rootSize,
           .ink = paintCtx.ink,
           .font = paintCtx.font,
-          .vars = paintCtx.vars};
+          .vars = paintCtx.vars,
+          .pointer = paintCtx.pointer,
+          .keys = paintCtx.keys,
+          .bakeDensity = paintCtx.bakeDensity};
       d.paint(canvas, markCtx);
     } else {
       d.paint(canvas, paintCtx);

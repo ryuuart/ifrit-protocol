@@ -570,7 +570,8 @@ sound model; nothing below them changes kernel semantics.
   identity and materials retain their frame-dependent behavior. Neutral
   wells and sheets accept this same value as their ground.
 - `core/Paint.h` — the paint values: `Fill`, `Corners`, `Backface`,
-  `PaintContext`,
+  `PaintContext`, `KeyState` — the keys a host fed, as a paint program
+  reads them beside `PaintContext::pointer` —
   `StampCache`, and `hexColor`, the one colour spelling here: a source
   palette's hex integer as an `SkColor4f`. A `Fill` may be written as a
   REFERENCE the tree resolves at paint — `Fill::currentInk`, the ink in
@@ -675,7 +676,9 @@ sound model; nothing below them changes kernel semantics.
   whether the one a node holds can prune.
 - `core/Composer.h` — `Composer`, and `TextSettling`, what
   `Composer::settling` reports about a live passage's last layout;
-  `Composer::setInherited` is what the root inherits from.
+  `Composer::setInherited` is what the root inherits from;
+  `Composer::setPointer` and `Composer::setKey` are the input a host
+  feeds, which a pen or paint program under a node reads.
 - `core/Paint.h` — beside `Fill` and `PaintContext`: `frameOf`, `toFill`
   and `resolveFill`, the three lines that put SigilMaterial's
   `material::skia::Paint` on a node. The paint model itself is that
@@ -1105,7 +1108,12 @@ and height the node's box and its transform starting at the box's
 corner, so a declarative scene drops into p5's verbs for one node, and
 the pen begins in the node's own ink and resolved type, so an unset
 `fill` or `textSize` is what the cascade says rather than p5's white and
-twelve. `compose::graphics` is the same door onto a canvas that is KEPT:
+twelve. The pen's `mouseX`, `mouseY`, `mouseIsPressed` and keys are what the host
+fed `Composer::setPointer` and `Composer::setKey`, the pointer mapped
+into the node's own box, so a program that follows the pointer reads
+the same numbers it would on its own canvas; a paint program reads them
+as `PaintContext::pointer` and `PaintContext::keys`. `compose::graphics`
+is the same door onto a canvas that is KEPT:
 the program draws on a `draw::Graphics` the size of the box, which stands
 between frames and is put down on the node's canvas each one — `pen`
 repaints from nothing every frame, `graphics` keeps what earlier frames
@@ -1373,6 +1381,10 @@ for a change of view scale. `Element::bakeScale` still multiplies it, so
 a node that needs more resolution than the canvas carries asks for it and
 gets it once. Content that changes still re-bakes, because that is a
 change of what the picture IS, not of how big it is being shown.
+A canvas kept under `compose::graphics` is formed no coarser than it
+from its first frame, which is what a picture drawn once and photographed
+finer than its host steps needs: pixels that accumulate cannot be
+re-taken at the still, only magnified to it.
 `Composer::bakeDensity()` reads it back, and zero — the default — is the
 ladder.
 

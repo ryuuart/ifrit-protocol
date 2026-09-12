@@ -38,6 +38,16 @@ struct Held {
     lastSeconds = ctx.elapsedSeconds;
     frame.frameCount = ++frames;
     frame.fonts = ctx.fonts;
+    // The input the host fed the composer, in the node's own box.
+    frame.mouseX = ctx.pointer.at.x();
+    frame.mouseY = ctx.pointer.at.y();
+    frame.mouseIsPressed = ctx.pointer.pressed;
+    if (ctx.keys) {
+      frame.keyIsPressed = ctx.keys->pressed;
+      frame.key = ctx.keys->key;
+      frame.keyCode = ctx.keys->keyCode;
+      frame.keysDown = ctx.keys->down;
+    }
     return frame;
   }
 };
@@ -61,6 +71,10 @@ struct HeldGraphics {
   std::optional<draw::Graphics> surface;
   double sinceDraw = 0.0;
   double slack = 0.0;
+  /** How many times the program has RUN — p5's `frameCount` for a program
+   *  under `noLoop` or a requested rate, which counts draws, not the frames
+   *  the node was painted on. */
+  int runs = 0;
 };
 
 /** WHETHER THE PROGRAM RUNS THIS FRAME, on p5's rules, read off the pen
@@ -97,9 +111,19 @@ PaintProgram onto(PenProgram program) {
       held->surface->resize(frame.width, frame.height);
     else
       held->surface.emplace(frame.width, frame.height);
+    // Formed no coarser than the composer's declared bake density: a
+    // picture the host means to photograph finer than it steps it is
+    // drawn finer from the first frame rather than magnified at the still.
+    held->surface->setDensityFloor(ctx.bakeDensity);
     draw::Pen& g = held->surface->begin(held->host.pen);
     g.inherit(ctx.ink, ctx.font);
     if (shouldRun(g, *held)) {
+      // The program's own clock, as p5 keeps it: the count counts runs,
+      // and the step is the time since the last one, so a program under
+      // `frameRate(30)` that divides by `deltaTime` divides by a
+      // thirtieth and not by the node's sixtieth.
+      g.frameCount = ++held->runs;
+      g.deltaTime = held->sinceDraw * 1000.0;
       program(g);
       held->sinceDraw = 0.0;
     }

@@ -49,6 +49,10 @@ struct BristleBloom final : sketch::Sketch {
     ctx.background({18 / 255.0f, 15 / 255.0f, 24 / 255.0f, 1});
     ctx.captureAt(0.25);
 
+    // Drawn once and kept, so the picture is formed at two device pixels
+    // per unit: a still photographed finer than the canvas is stepped is
+    // drawn on that grid rather than magnified to it.
+    ctx.composer.setBakeDensity(2.0f);
     ctx.composer.render(compose::graphics("bristle_bloom.bloom",
                                           [this](Pen& pen) { draw(pen); })
                             .absolute()

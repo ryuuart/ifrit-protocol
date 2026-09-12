@@ -242,6 +242,14 @@ class CanvasSession final : public Session {
     return {plane.width, plane.height, plane.counts};
   }
 
+  void pointer(float x, float y, bool pressed) override {
+    m_composer->setPointer({x, y}, pressed);
+  }
+
+  void key(std::string_view name, int code, bool pressed) override {
+    m_composer->setKey(name, code, pressed);
+  }
+
   void setBakeDensity(float devicePixelsPerUnit) override {
     m_composer->setBakeDensity(devicePixelsPerUnit);
   }

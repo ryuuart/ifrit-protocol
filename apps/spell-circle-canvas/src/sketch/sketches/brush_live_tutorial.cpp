@@ -307,6 +307,8 @@ struct BrushLiveTutorial final : sketch::Sketch {
   }
 
   void draw(Pen& pen) {
+    // A press freezes the tutorial on the scene it is showing.
+    if (pen.mouseIsPressed) pen.noLoop();
     if (pen.frameCount == 1) {
       pen.frameRate(30);
       pen.randomSeed(0x213123u);

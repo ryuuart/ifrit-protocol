@@ -422,6 +422,22 @@ void Composer::setBakeDensity(float devicePixelsPerUnit) {
 
 float Composer::bakeDensity() const { return m_impl->bakeDensity; }
 
+void Composer::setPointer(SkPoint canvasPoint, bool pressed) {
+  m_impl->pointerAt = canvasPoint;
+  m_impl->pointerPressed = pressed;
+}
+
+void Composer::setKey(std::string_view name, int code, bool pressed) {
+  KeyState& keys = m_impl->keys;
+  std::erase(keys.down, code);
+  if (pressed) {
+    keys.down.push_back(code);
+    keys.key.assign(name);
+    keys.keyCode = code;
+  }
+  keys.pressed = !keys.down.empty();
+}
+
 const char* Composer::promotionReason(Promotion p) {
   switch (p) {
     case Promotion::Cheap:

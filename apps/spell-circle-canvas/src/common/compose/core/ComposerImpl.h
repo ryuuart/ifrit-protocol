@@ -199,6 +199,11 @@ struct Composer::Impl {
    *  bake is taken at, whatever the frame's matrix says. Zero is the
    *  coarse ladder read off that matrix. */
   float bakeDensity = 0.0f;
+  /** Composer::setPointer and setKey: what the host last fed, handed to
+   *  every paint context of the frame. */
+  SkPoint pointerAt = {0, 0};
+  bool pointerPressed = false;
+  KeyState keys;
   bool promotionExplicit = false;  // did the host call the setter?
   // The value paint() actually reads, recomputed each draw(). Differs from
   // `autoPromote` only under the backend-aware default: automatic promotion

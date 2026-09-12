@@ -24,11 +24,13 @@ using PenProgram = std::function<void(draw::Pen&)>;
  *
  *  The pen's `width` and `height` are the node's box, its transform
  *  starts at the box's corner, its clock is the composer's and its fonts
- *  are the composer's. The node is at `Cache::None`, so the program runs
- *  every frame; the pen it runs with lives with the node, so a style set
- *  in one frame holds in the next and a guest painted from it is
- *  retained. Like `custom()`, it sizes as an empty box does — give it
- *  dims, or make it `absolute().inset(0)`. */
+ *  are the composer's. Its `mouseX`, `mouseY`, `mouseIsPressed` and the
+ *  keys are what the host fed `Composer::setPointer` and
+ *  `Composer::setKey`, the pointer in the node's own box. The node is at
+ * `Cache::None`, so the program runs every frame; the pen it runs with lives
+ * with the node, so a style set in one frame holds in the next and a guest
+ * painted from it is retained. Like `custom()`, it sizes as an empty box does —
+ * give it dims, or make it `absolute().inset(0)`. */
 Element pen(PenProgram program);
 /** The PRUNABLE spelling: @p key is the program's identity, on the same
  *  contract as the keyed `custom()`. */
@@ -53,8 +55,13 @@ Element pen(std::string_view key, PenProgram program);
  *  the program is doing; and like `pen()` it sizes as an empty box does,
  *  so give it dims or make it `absolute().inset(0)`.
  *
- *  The pen's clock, fonts, ink and font are the node's, exactly as in
- *  `pen()`. */
+ *  The pen's clock, fonts, ink, font and input are the node's, exactly
+ *  as in `pen()` — except that `frameCount` counts the program's RUNS and
+ *  `deltaTime` is the time since the last one, as p5 keeps them for a
+ *  program under `noLoop` or a requested rate. The canvas is formed no
+ *  coarser than the composer's `setBakeDensity`, so a picture a host
+ *  means to photograph finer than it steps it is drawn finer from the
+ *  first frame rather than magnified at the still. */
 Element graphics(PenProgram program);
 /** The PRUNABLE spelling: @p key is the program's identity, on the same
  *  contract as the keyed `custom()`. */

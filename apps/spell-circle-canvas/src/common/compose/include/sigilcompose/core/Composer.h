@@ -632,6 +632,19 @@ class Composer {
   void setBakeDensity(float devicePixelsPerUnit);
   float bakeDensity() const;
 
+  /** WHERE THE POINTER STANDS over the scene, in the composer's own canvas
+   *  units, and whether its button is down. A host feeds it as the pointer
+   *  moves and the button changes; a pen program hosted in a node reads it
+   *  as `mouseX`, `mouseY` and `mouseIsPressed`, mapped into the node's
+   *  own box, and a paint program as `PaintContext::pointer`. Nothing is
+   *  invalidated by it — a node that reads the pointer repaints anyway,
+   *  since it is at `Cache::None`. */
+  void setPointer(SkPoint canvasPoint, bool pressed);
+  /** A KEY GOING DOWN OR UP, by the name a keyboard spells it and its
+   *  code: what a pen program reads as `keyIsPressed`, `key`, `keyCode`
+   *  and `keyIsDown`, and a paint program as `PaintContext::keys`. */
+  void setKey(std::string_view name, int code, bool pressed);
+
   /** @private */
   struct Impl;
 
