@@ -264,8 +264,8 @@ TEST(DevicePop, EverySupportedChainCooksToTheSameBits) {
   const pop::Runtime runtime = pop::deviceRuntime(*on);
 
   for (const Case& one : everySupportedChain()) {
-    for (const pop::Op& op : one.chain)
-      ASSERT_TRUE(runtime->supports(op))
+    for (const pop::Operation& operation : one.chain)
+      ASSERT_TRUE(runtime->supports(operation))
           << one.what << ": the device declined an operator this test "
           << "expected it to run";
     const Cloud host = pop::cook(one.chain, pop::Runtime::cpu());
@@ -320,8 +320,8 @@ TEST(DevicePop, TheKernelAndTheRuntimeAgreeOnWhatHasOne) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
   const pop::Runtime runtime = pop::deviceRuntime(*on);
   namespace kernel = geometry::mesh::kernel;
-  const pop::Op jitter = pop::Jitter{};
-  const pop::Op relax = pop::Smooth{};
+  const pop::Operation jitter = pop::Jitter{};
+  const pop::Operation relax = pop::Smooth{};
   EXPECT_TRUE(kernel::has(jitter));
   EXPECT_FALSE(kernel::has(relax));
   EXPECT_EQ(runtime->supports(jitter), kernel::has(jitter));

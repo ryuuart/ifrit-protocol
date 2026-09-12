@@ -21,7 +21,7 @@ namespace sigil::geometry::shapes {
  *  raw callable never prunes, where the generator values below do. It
  *  exists because a hand-rolled curve has to start somewhere; promote it
  *  to a value once it settles. */
-using OutlineFn = std::function<SkPath(SkSize)>;
+using OutlineFunction = std::function<SkPath(SkSize)>;
 
 /** An outline from an SVG path-d string (SkParsePath) — trace a reference
  *  silhouette in any vector tool, paste the `d`, done. The path's bounds
@@ -95,7 +95,7 @@ inline Star star(int points, float innerRatio = 0.5f, float waist = 0.0f) {
  *  glyph-up radially OUTWARD and a counter-clockwise one puts it INWARD.
  *  Both are uniform engraver's conventions, and they are opposite in sign,
  *  so a ring inscription that reads upside down wants this argument rather
- *  than a hand-written `OutlineFn`.
+ *  than a hand-written `OutlineFunction`.
  *
  *  @p startIndex picks which of the oval's four extreme points the contour
  *  begins at, which is what `TextPath::at` measures from. It defaults to 1

@@ -7,9 +7,9 @@
 #include <cstdint>
 #include <vector>
 
-#include "sigilgeometry/path/Ops.h"
+#include "sigilgeometry/path/Operations.h"
 
-namespace sigil::geometry::path::ops {
+namespace sigil::geometry::path::operations {
 namespace {
 
 constexpr float kDegrees = 57.295779513f;
@@ -241,4 +241,4 @@ std::vector<StripLap> stripLaps(std::span<const Strip> pieces,
   return out;
 }
 
-}  // namespace sigil::geometry::path::ops
+}  // namespace sigil::geometry::path::operations

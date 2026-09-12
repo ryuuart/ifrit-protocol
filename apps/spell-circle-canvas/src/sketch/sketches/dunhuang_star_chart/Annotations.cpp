@@ -7,16 +7,16 @@ auto DunhuangStarChart::locator() -> Element {
   auto g = box()
                .left(lx)
                .top(ly)
-               .width(Dim(lw))
-               .height(Dim(lh))
+               .width(Dimension(lw))
+               .height(Dimension(lh))
                .rotate(0.32f)
                .key("locator")
                .opacity(gate(0.3f, 1.2f));
   g.child(box()
               .left(0)
               .top(0)
-              .width(Dim(lw))
-              .height(Dim(lh))
+              .width(Dimension(lw))
+              .height(Dimension(lh))
               .fill(Paint::linear({0, 0}, {0, lh},
                                   {{0.0f, hexColor(0xa2865c)},
                                    {0.5f, hexColor(0xd6bf95)},
@@ -30,8 +30,8 @@ auto DunhuangStarChart::locator() -> Element {
     g.child(box()
                 .left(cx - 7)
                 .top(6)
-                .width(Dim(14))
-                .height(Dim(9))
+                .width(Dimension(14))
+                .height(Dimension(9))
                 .shape(shapes::blob((uint32_t)(700 + c), 0.34f, 6))
                 .fill(Fill::color(hexColor(0x33291c, 0.85f))));
   }
@@ -40,8 +40,8 @@ auto DunhuangStarChart::locator() -> Element {
     g.child(box()
                 .left(cx)
                 .top(19)
-                .width(Dim(1.1f))
-                .height(Dim(lh - 25))
+                .width(Dimension(1.1f))
+                .height(Dimension(lh - 25))
                 .fill(Fill::color(hexColor(0x33291c, 0.55f))));
   }
   // the 13 maps
@@ -51,8 +51,8 @@ auto DunhuangStarChart::locator() -> Element {
     g.child(box()
                 .left(x0)
                 .top(lh * 0.16f)
-                .width(Dim(kMapWmm * mm))
-                .height(Dim(lh * 0.68f))
+                .width(Dimension(kMapWmm * mm))
+                .height(Dimension(lh * 0.68f))
                 .stroke(PathFormat{
                     .width = 0.8f,
                     .strokeFill = Fill::color(hexColor(0x2a2118, 0.9f))}));
@@ -63,8 +63,8 @@ auto DunhuangStarChart::locator() -> Element {
     g.child(box()
                 .left(dcx - dr)
                 .top(lh * 0.5f - dr)
-                .width(Dim(dr * 2))
-                .height(Dim(dr * 2))
+                .width(Dimension(dr * 2))
+                .height(Dimension(dr * 2))
                 .shape(shapes::circle())
                 .stroke(PathFormat{
                     .width = 0.8f,
@@ -85,31 +85,35 @@ auto DunhuangStarChart::locator() -> Element {
     g.child(box()
                 .left(a)
                 .top(-4)
-                .width(Dim(b - a))
-                .height(Dim(lh + 8))
+                .width(Dimension(b - a))
+                .height(Dimension(lh + 8))
                 .fill(Fill::color(hexColor(0x2f6d86, 0.30f)))
                 .stroke(spans::corners(9.0f),
                         brush::solid(1.4f, Fill::color(kTrace))));
   }
-  g.child(text(toU8("THE WHOLE SCROLL, 1:16 \xc2\xb7 3,940 \xc3\x97 244 mm "
-                    "\xc2\xb7 right: "
-                    "26 cloud drawings over 80 columns of uranomancy "
-                    "\xc2\xb7 left: the "
-                    "13-map atlas, 2,100 mm \xc2\xb7 shaded: what this plate "
-                    "shows"),
+  g.child(text(toUtf8("THE WHOLE SCROLL, 1:16 \xc2\xb7 3,940 \xc3\x97 244 mm "
+                      "\xc2\xb7 right: "
+                      "26 cloud drawings over 80 columns of uranomancy "
+                      "\xc2\xb7 left: the "
+                      "13-map atlas, 2,100 mm \xc2\xb7 shaded: what this plate "
+                      "shows"),
                type(faceMono, 8.6f, hexColor(0x9a8a68, 0.9f)))
               .left(2)
               .top(lh + 5)
-              .width(Dim(1700)));
+              .width(Dimension(1700)));
   return g;
 }
 
 auto DunhuangStarChart::poleDrift() -> Element {
   const float S = 132.0f, cx = S * 0.5f, cy = S * 0.5f;
   const float pxPerDeg = (S * 0.5f - 12.0f) / 30.0f;
-  auto g =
-      box().left(150).top(234).width(Dim(S)).height(Dim(S)).key("pole").opacity(
-          gate(tPrec0 - 0.8f, tPrec0 + 0.2f));
+  auto g = box()
+               .left(150)
+               .top(234)
+               .width(Dimension(S))
+               .height(Dimension(S))
+               .key("pole")
+               .opacity(gate(tPrec0 - 0.8f, tPrec0 + 0.2f));
   auto poleAt = [](float epoch, float& ra, float& dec) {
     // where the pole of J2000 stands in that epoch's own coordinates,
     // which is the circle the pole is drawn walking round
@@ -128,8 +132,8 @@ auto DunhuangStarChart::poleDrift() -> Element {
     g.child(box()
                 .left(cx - rr)
                 .top(cy - rr)
-                .width(Dim(rr * 2))
-                .height(Dim(rr * 2))
+                .width(Dimension(rr * 2))
+                .height(Dimension(rr * 2))
                 .shape(shapes::circle())
                 .stroke(PathFormat{
                     .width = 0.5f,
@@ -147,8 +151,8 @@ auto DunhuangStarChart::poleDrift() -> Element {
   g.child(box()
               .left(0)
               .top(0)
-              .width(Dim(S))
-              .height(Dim(S))
+              .width(Dimension(S))
+              .height(Dimension(S))
               .shape(heldPath(tb.detach()))
               .stroke(spans::upTo(gate(tPrec0, tPrec1)),
                       lines::Line{.width = 2.0f, .fill = Fill::color(kTrace)}));
@@ -164,8 +168,8 @@ auto DunhuangStarChart::poleDrift() -> Element {
   g.child(box()
               .left(0)
               .top(0)
-              .width(Dim(S))
-              .height(Dim(S))
+              .width(Dimension(S))
+              .height(Dimension(S))
               .shape(heldPath(wb.detach()))
               .stroke(PathFormat{
                   .width = 0.7f,
@@ -187,14 +191,14 @@ auto DunhuangStarChart::poleDrift() -> Element {
     g.child(box()
                 .left(q.fX - 3)
                 .top(q.fY - 3)
-                .width(Dim(6))
-                .height(Dim(6))
+                .width(Dimension(6))
+                .height(Dimension(6))
                 .shape(shapes::circle())
                 .fill(Fill::color(kCinnabar)));
-    g.child(text(toU8(r.name), type(faceMono, 7.4f, hexColor(0x9a8a68)))
+    g.child(text(toUtf8(r.name), type(faceMono, 7.4f, hexColor(0x9a8a68)))
                 .left(q.fX + r.lx)
                 .top(q.fY + r.ly)
-                .width(Dim(60)));
+                .width(Dimension(60)));
   }
   {
     float ra, dec;
@@ -203,8 +207,8 @@ auto DunhuangStarChart::poleDrift() -> Element {
     g.child(box()
                 .left(q.fX - 6)
                 .top(q.fY - 6)
-                .width(Dim(12))
-                .height(Dim(12))
+                .width(Dimension(12))
+                .height(Dimension(12))
                 .shape(shapes::star(4, 0.30f))
                 .fill(Fill::color(kTrace))
                 .opacity(gate(tPrec1 - 0.4f, tPrec1 + 0.3f)));
@@ -212,16 +216,16 @@ auto DunhuangStarChart::poleDrift() -> Element {
   g.child(box()
               .left(cx - 3)
               .top(cy - 3)
-              .width(Dim(6))
-              .height(Dim(6))
+              .width(Dimension(6))
+              .height(Dimension(6))
               .shape(shapes::circle())
               .stroke(PathFormat{
                   .width = 0.9f,
                   .strokeFill = Fill::color(hexColor(0xe0cfa6, 0.8f))}));
-  g.child(text(toU8("J2000 pole"), type(faceMono, 7.4f, hexColor(0x6d6249)))
+  g.child(text(toUtf8("J2000 pole"), type(faceMono, 7.4f, hexColor(0x6d6249)))
               .left(cx - 52)
               .top(cy + 6)
-              .width(Dim(70)));
+              .width(Dimension(70)));
   return g;
 }
 
@@ -229,14 +233,14 @@ auto DunhuangStarChart::poleText() -> Element {
   auto g = box()
                .left(300)
                .top(228)
-               .width(Dim(452))
+               .width(Dimension(452))
                .key("poletext")
                .opacity(gate(tPrec0 - 0.6f, tPrec0 + 0.4f));
-  g.child(text(toU8("THE CHART DATES ITSELF"),
+  g.child(text(toUtf8("THE CHART DATES ITSELF"),
                type(faceDisplay, 12.0f, hexColor(0xc9a35c), 1.0f))
               .left(0)
               .top(0)
-              .width(Dim(430)));
+              .width(Dimension(430)));
   const char* rows[7] = {
       "the celestial pole's own track, from the SAME IAU 1976",
       "matrix the 1,460 stars ride. rings at 10/20/30 deg.",
@@ -247,11 +251,11 @@ auto DunhuangStarChart::poleText() -> Element {
       "this: 3.9 deg is HALF alp UMi's own distance at that date.",
   };
   for (int i = 0; i < 7; ++i)
-    g.child(text(toU8(rows[i]),
+    g.child(text(toUtf8(rows[i]),
                  type(faceMono, 9.0f, i == 3 ? kChalk : hexColor(0x9a8a68)))
                 .left(0)
                 .top(18.0f + (float)i * 12.2f)
-                .width(Dim(430)));
+                .width(Dimension(430)));
 
   // THE EPOCH, RUNNING. One Output remapped three ways: it turns the star
   // field's rotation matrix, walks the pole's track above, and slides this
@@ -262,8 +266,8 @@ auto DunhuangStarChart::poleText() -> Element {
       box()
           .left(0)
           .top(112)
-          .width(Dim(bw))
-          .height(Dim(9))
+          .width(Dimension(bw))
+          .height(Dimension(9))
           .shape(keyedShape(std::string_view("ruler-scale"),
                             [](SkSize sz) {
                               SkPathBuilder b;
@@ -282,20 +286,20 @@ auto DunhuangStarChart::poleText() -> Element {
                             }))
           .stroke(lines::Line{.width = 0.9f,
                               .fill = Fill::color(hexColor(0x9a8a68, 0.8f))}));
-  g.child(text(toU8("+700"), type(faceMono, 8.0f, hexColor(0x9a8a68)))
+  g.child(text(toUtf8("+700"), type(faceMono, 8.0f, hexColor(0x9a8a68)))
               .left(0)
               .top(124)
-              .width(Dim(40)));
-  g.child(text(toU8("J2000"), type(faceMono, 8.0f, hexColor(0x9a8a68)))
+              .width(Dimension(40)));
+  g.child(text(toUtf8("J2000"), type(faceMono, 8.0f, hexColor(0x9a8a68)))
               .left(bw - 40)
               .top(124)
-              .width(Dim(40))
+              .width(Dimension(40))
               .textAlign(weave::TextAlignment::kEnd));
   g.child(box()
               .left(-4)
               .top(107)
-              .width(Dim(8))
-              .height(Dim(19))
+              .width(Dimension(8))
+              .height(Dimension(19))
               .shape(shapes::polygon(3, 180.0f))
               .fill(Fill::color(kCinnabar))
               .translateX(settled
@@ -304,12 +308,12 @@ auto DunhuangStarChart::poleText() -> Element {
                                                       .window(tPrec0, tPrec1)
                                                       .invert()
                                                       .target(0.0f, bw))));
-  g.child(text(toU8("13.00 Julian centuries \xc2\xb7 the sky slides "
-                    "18.5\xc2\xb0 in RA"),
+  g.child(text(toUtf8("13.00 Julian centuries \xc2\xb7 the sky slides "
+                      "18.5\xc2\xb0 in RA"),
                type(faceMono, 8.4f, hexColor(0xc9a35c)))
               .left(0)
               .top(136)
-              .width(Dim(430)));
+              .width(Dimension(430)));
   return g;
 }
 
@@ -327,13 +331,17 @@ auto DunhuangStarChart::logStyle() -> feed::TextOptions {
 }
 
 auto DunhuangStarChart::projectionPanel() -> Element {
-  auto g = box().left(96).top(1046).width(Dim(700)).key("proj").opacity(
-      gate(tProj, tProj + 0.9f));
-  g.child(text(toU8("TWO QUESTIONS THE CHART CANNOT ANSWER, AND WHY"),
+  auto g = box()
+               .left(96)
+               .top(1046)
+               .width(Dimension(700))
+               .key("proj")
+               .opacity(gate(tProj, tProj + 0.9f));
+  g.child(text(toUtf8("TWO QUESTIONS THE CHART CANNOT ANSWER, AND WHY"),
                type(faceDisplay, 13.0f, hexColor(0xc9a35c), 1.1f))
               .left(0)
               .top(0)
-              .width(Dim(690)));
+              .width(Dimension(690)));
 
   // curve A: the Mercator ordinate against its own best-fit line
   const float pw = 320.0f, ph = 132.0f;
@@ -350,10 +358,16 @@ auto DunhuangStarChart::projectionPanel() -> Element {
                           "map 13 polar distance 0\xc2\xb0\xe2\x80\xa6"
                           "38\xc2\xb0"}};
   for (const auto& pl : plots) {
-    auto p = box().left(pl.x).top(30).width(Dim(pw)).height(Dim(ph));
-    p.child(box().left(0).top(0).width(Dim(pw)).height(Dim(ph)).stroke(
-        spans::edges(16.0f),
-        brush::solid(0.9f, Fill::color(hexColor(0x8a7458, 0.5f)))));
+    auto p =
+        box().left(pl.x).top(30).width(Dimension(pw)).height(Dimension(ph));
+    p.child(
+        box()
+            .left(0)
+            .top(0)
+            .width(Dimension(pw))
+            .height(Dimension(ph))
+            .stroke(spans::edges(16.0f),
+                    brush::solid(0.9f, Fill::color(hexColor(0x8a7458, 0.5f)))));
     const float lo = pl.lo, hi = pl.hi;
     const bool merc = pl.merc;
     // THE DEPARTURE CURVE, self-normalised — the same residual the
@@ -381,8 +395,8 @@ auto DunhuangStarChart::projectionPanel() -> Element {
         box()
             .left(0)
             .top(0)
-            .width(Dim(pw))
-            .height(Dim(ph))
+            .width(Dimension(pw))
+            .height(Dimension(ph))
             .shape(heldPath(curve.detach()))
             .stroke(lines::Line{.width = 1.5f, .fill = Fill::color(kTrace)}));
     // the chart's own residual band, to the same vertical scale
@@ -393,26 +407,26 @@ auto DunhuangStarChart::projectionPanel() -> Element {
     p.child(box()
                 .left(0)
                 .top(ph * 0.5f - half)
-                .width(Dim(pw))
-                .height(Dim(half * 2))
+                .width(Dimension(pw))
+                .height(Dimension(half * 2))
                 .fill(Fill::color(hexColor(0xa8382a, 0.13f)))
                 .stroke(PathFormat{
                     .width = 0.6f,
                     .strokeFill = Fill::color(hexColor(0xa8382a, 0.45f)),
                     .dashIntervals = {4, 4}}));
-    p.child(text(toU8(pl.cap), type(faceMono, 8.4f, hexColor(0x9a8a68)))
+    p.child(text(toUtf8(pl.cap), type(faceMono, 8.4f, hexColor(0x9a8a68)))
                 .left(0)
                 .top(ph + 4)
-                .width(Dim(pw)));
-    p.child(text(toU8(merc ? "linear \xe2\x88\x92 Mercator (blue) vs the "
-                             "hand (red band)"
-                           : "equidist. \xe2\x88\x92 stereo. (blue); the "
-                             "hand is 7.6\xc3\x97 "
-                             "the plot, off scale"),
+                .width(Dimension(pw)));
+    p.child(text(toUtf8(merc ? "linear \xe2\x88\x92 Mercator (blue) vs the "
+                               "hand (red band)"
+                             : "equidist. \xe2\x88\x92 stereo. (blue); the "
+                               "hand is 7.6\xc3\x97 "
+                               "the plot, off scale"),
                  type(faceMono, 8.4f, hexColor(0x6d6249)))
                 .left(0)
                 .top(ph + 15)
-                .width(Dim(pw)));
+                .width(Dimension(pw)));
     g.child(std::move(p));
   }
   const char* lines_[6] = {
@@ -432,45 +446,49 @@ auto DunhuangStarChart::projectionPanel() -> Element {
       kit::formatted(lines_[5], 0.013f / depStereo.sigma),
   };
   for (int i = 0; i < 6; ++i)
-    g.child(text(toU8(rows[(size_t)i]), type(faceMono, 9.6f, kChalk))
+    g.child(text(toUtf8(rows[(size_t)i]), type(faceMono, 9.6f, kChalk))
                 .left(0)
                 .top(196 + (float)i * 13.4f)
-                .width(Dim(690)));
-  g.child(text(toU8("all three maps favour PURE CYLINDRICAL (0.974/0.972, "
-                    "0.975/0.974, 0.996/0.994) \xe2\x80\x94 3 of 3, p=0.125"),
+                .width(Dimension(690)));
+  g.child(text(toUtf8("all three maps favour PURE CYLINDRICAL (0.974/0.972, "
+                      "0.975/0.974, 0.996/0.994) \xe2\x80\x94 3 of 3, p=0.125"),
                type(faceMono, 9.6f, hexColor(0xcf6a4a)))
               .left(0)
               .top(280)
-              .width(Dim(690)));
-  g.child(text(toU8("the disc cannot decide BECAUSE IT STOPS AT +52\xc2\xb0: "
-                    "over a "
-                    "full hemisphere the pair would part by 7.00\xc2\xb0"),
+              .width(Dimension(690)));
+  g.child(text(toUtf8("the disc cannot decide BECAUSE IT STOPS AT +52\xc2\xb0: "
+                      "over a "
+                      "full hemisphere the pair would part by 7.00\xc2\xb0"),
                type(faceMono, 9.6f, hexColor(0x6d6249)))
               .left(0)
               .top(294)
-              .width(Dim(690)));
+              .width(Dimension(690)));
   return g;
 }
 
 auto DunhuangStarChart::auditPanel() -> Element {
-  auto g = box().left(840).top(1046).width(Dim(880)).key("audit").opacity(
-      gate(tAudit - 0.9f, tAudit - 0.2f));
-  g.child(text(toU8("MAP 5 \xc2\xb7 THE ORION REGION \xc2\xb7 TABLE 4 OF "
-                    "BONNET-BIDAUD, PRADERIE & WHITFIELD 2009"),
+  auto g = box()
+               .left(840)
+               .top(1046)
+               .width(Dimension(880))
+               .key("audit")
+               .opacity(gate(tAudit - 0.9f, tAudit - 0.2f));
+  g.child(text(toUtf8("MAP 5 \xc2\xb7 THE ORION REGION \xc2\xb7 TABLE 4 OF "
+                      "BONNET-BIDAUD, PRADERIE & WHITFIELD 2009"),
                type(faceDisplay, 13.0f, hexColor(0xc9a35c), 1.0f))
               .left(0)
               .top(0)
-              .width(Dim(880)));
-  g.child(text(toU8("month 4 \xc2\xb7 xiu Zui, Shen, Jing \xc2\xb7 listed "
-                    "N\xe2\x86\x92"
-                    "S, "
-                    "W\xe2\x86\x92"
-                    "E, i.e. by increasing RA \xc2\xb7 R=Shi shi  B=Gan shi  "
-                    "W=Wu Xian shi"),
+              .width(Dimension(880)));
+  g.child(text(toUtf8("month 4 \xc2\xb7 xiu Zui, Shen, Jing \xc2\xb7 listed "
+                      "N\xe2\x86\x92"
+                      "S, "
+                      "W\xe2\x86\x92"
+                      "E, i.e. by increasing RA \xc2\xb7 R=Shi shi  B=Gan shi  "
+                      "W=Wu Xian shi"),
                type(faceMono, 8.6f, hexColor(0x9a8a68)))
               .left(0)
               .top(16)
-              .width(Dim(880)));
+              .width(Dimension(880)));
   // the subtitle above runs top 16..24 at 8.6 px; the column header needs
   // its own line, not the same one
   const float y0 = 40.0f, rowH = 15.2f;
@@ -486,110 +504,119 @@ auto DunhuangStarChart::auditPanel() -> Element {
       {228, "COL"}, {253, "SXC"},     {281, "MAP"},
       {312, "CZ"},  {362, "CONF"},    {400, "DEFECT"}};
   for (const Head& h : heads)
-    g.child(text(toU8(h.s), type(faceMono, 8.6f, hexColor(0x6d6249)))
+    g.child(text(toUtf8(h.s), type(faceMono, 8.6f, hexColor(0x6d6249)))
                 .left(h.x)
                 .top(y0 - 13)
-                .width(Dim(120)));
+                .width(Dimension(120)));
   for (int i = 0; i < 20; ++i) {
     const M5Row& r = conc.five(i);
     const float y = y0 + (float)i * rowH;
     const float t = tAudit + (float)i * tAuditEach;
-    auto row = box().left(0).top(y).width(Dim(880)).height(Dim(rowH)).opacity(
-        gate(t, t + 0.35f));
+    auto row = box()
+                   .left(0)
+                   .top(y)
+                   .width(Dimension(880))
+                   .height(Dimension(rowH))
+                   .opacity(gate(t, t + 0.35f));
     int cz = 0;
     for (int a = 0; a < nAst; ++a)
       if (cat.ast(a).id == r.cid) cz = astUnique(cat, cat.ast(a));
-    row.child(text(toU8(kit::formatted("%3d", i + 1)),
+    row.child(text(toUtf8(kit::formatted("%3d", i + 1)),
                    type(faceMono, 9.4f, hexColor(0x6d6249)))
                   .left(0)
                   .top(0)
-                  .width(Dim(26)));
-    row.child(text(toU8(r.pinyin), type(faceMono, 9.4f, kChalk))
+                  .width(Dimension(26)));
+    row.child(text(toUtf8(r.pinyin), type(faceMono, 9.4f, kChalk))
                   .left(30)
                   .top(0)
-                  .width(Dim(126)));
-    row.child(text(toU8(r.native), type(faceHan ? faceHan : faceSerif, 10.4f,
-                                        schoolInk(r.school)))
+                  .width(Dimension(126)));
+    row.child(text(toUtf8(r.native), type(faceHan ? faceHan : faceSerif, 10.4f,
+                                          schoolInk(r.school)))
                   .left(160)
                   .top(-2)
-                  .width(Dim(64)));
+                  .width(Dimension(64)));
     row.child(box()
                   .left(232)
                   .top(3.4f)
-                  .width(Dim(8))
-                  .height(Dim(8))
+                  .width(Dimension(8))
+                  .height(Dimension(8))
                   .shape(shapes::circle())
                   .fill(Fill::color(schoolInk(r.school)))
                   .stroke(PathFormat{.width = 0.8f,
                                      .strokeFill = Fill::color(kInk)}));
     row.child(
-        text(toU8(kit::formatted("%4d %4d %4d", r.sxc, r.map, cz)),
+        text(toUtf8(kit::formatted("%4d %4d %4d", r.sxc, r.map, cz)),
              type(faceMono, 9.4f,
                   r.sxc == r.map ? hexColor(0x9a8a68) : hexColor(0xcf6a4a)))
             .left(250)
             .top(0)
-            .width(Dim(94)));
+            .width(Dimension(94)));
     // the confidence index, as five cells
     for (int c = 0; c < 5; ++c)
       row.child(
           box()
               .left(356 + (float)c * 7.0f)
               .top(3.6f)
-              .width(Dim(5.2f))
-              .height(Dim(7.0f))
+              .width(Dimension(5.2f))
+              .height(Dimension(7.0f))
               .fill(Fill::color(c < r.confidence ? hexColor(0xc9a35c, 0.85f)
                                                  : hexColor(0x6d6249, 0.28f))));
     if (!r.defect.empty())
-      row.child(text(toU8(r.defect), type(faceMono, 9.0f, hexColor(0xb4531f)))
+      row.child(text(toUtf8(r.defect), type(faceMono, 9.0f, hexColor(0xb4531f)))
                     .left(400)
                     .top(0)
-                    .width(Dim(478)));
+                    .width(Dimension(478)));
     g.child(std::move(row));
   }
   const float yT = y0 + 20.0f * rowH + 8.0f;
   g.child(box()
               .left(0)
               .top(yT - 4)
-              .width(Dim(878))
-              .height(Dim(0.8f))
+              .width(Dimension(878))
+              .height(Dimension(0.8f))
               .fill(Fill::color(hexColor(0x8a7458, 0.5f)))
               .opacity(gate(tAudit + 5.4f, tAudit + 5.9f)));
   const std::string tot = kit::formatted(
       "TOTALS  SXC %d   map %d   Chen Zhuo %d distinct (Fa's 3 in, Sanzhu's "
       "9 absent \xe2\x80\x94 5 + 9 = SXC's 14 for Wuche, exactly)",
       m5Sxc, m5Map, m5ChenZhuo);
-  g.child(text(toU8(tot), type(faceMono, 9.4f, kChalk))
+  g.child(text(toUtf8(tot), type(faceMono, 9.4f, kChalk))
               .left(0)
               .top(yT)
-              .width(Dim(878))
+              .width(Dimension(878))
               .opacity(gate(tAudit + 5.5f, tAudit + 6.0f)));
-  g.child(text(toU8("Table 4's own n(map) column sums to 108. Its stated total "
-                    "is 109. The census is soft, and the paper says so."),
-               type(faceMono, 9.4f, hexColor(0xcf6a4a)))
-              .left(0)
-              .top(yT + 13)
-              .width(Dim(878))
-              .opacity(gate(tAudit + 5.7f, tAudit + 6.2f)));
-  g.child(text(toU8("6 documented defects in 20 asterisms, drawn AS FOUND "
-                    "\xe2\x80\x94 "
-                    "ringed on map 5 above. A study that corrects them has "
-                    "destroyed the object."),
+  g.child(
+      text(toUtf8("Table 4's own n(map) column sums to 108. Its stated total "
+                  "is 109. The census is soft, and the paper says so."),
+           type(faceMono, 9.4f, hexColor(0xcf6a4a)))
+          .left(0)
+          .top(yT + 13)
+          .width(Dimension(878))
+          .opacity(gate(tAudit + 5.7f, tAudit + 6.2f)));
+  g.child(text(toUtf8("6 documented defects in 20 asterisms, drawn AS FOUND "
+                      "\xe2\x80\x94 "
+                      "ringed on map 5 above. A study that corrects them has "
+                      "destroyed the object."),
                type(faceMono, 9.4f, hexColor(0xb4531f)))
               .left(0)
               .top(yT + 26)
-              .width(Dim(878))
+              .width(Dimension(878))
               .opacity(gate(tAudit + 5.9f, tAudit + 6.4f)));
   return g;
 }
 
 auto DunhuangStarChart::map13Panel() -> Element {
-  auto g = box().left(96).top(1362).width(Dim(700)).key("m13").opacity(
-      gate(tAudit + 4.6f, tAudit + 5.4f));
-  g.child(text(toU8("MAP 13 \xc2\xb7 THE CIRCUMPOLAR DISC \xc2\xb7 TABLE 5"),
+  auto g = box()
+               .left(96)
+               .top(1362)
+               .width(Dimension(700))
+               .key("m13")
+               .opacity(gate(tAudit + 4.6f, tAudit + 5.4f));
+  g.child(text(toUtf8("MAP 13 \xc2\xb7 THE CIRCUMPOLAR DISC \xc2\xb7 TABLE 5"),
                type(faceDisplay, 12.0f, hexColor(0xc9a35c), 1.0f))
               .left(0)
               .top(0)
-              .width(Dim(700)));
+              .width(Dimension(700)));
   const char* rows[10] = {
       "34 asterisms, stated total 142 stars; the n(map) column sums to 141",
       "(its Tianpei row reads \"5 or 6\", which is where the one goes).",
@@ -609,18 +636,19 @@ auto DunhuangStarChart::map13Panel() -> Element {
       "XIAN, the other",
   };
   for (int i = 0; i < 10; ++i)
-    g.child(text(toU8(rows[i]),
+    g.child(text(toUtf8(rows[i]),
                  type(faceMono, 9.2f,
                       i == 3 || i == 5 ? kChalk : hexColor(0x9a8a68)))
                 .left(0)
                 .top(18.0f + (float)i * 12.4f)
-                .width(Dim(700)));
+                .width(Dimension(700)));
   g.child(
-      text(toU8("under GAN. The map draws both BLACK. Printed, not corrected."),
+      text(toUtf8(
+               "under GAN. The map draws both BLACK. Printed, not corrected."),
            type(faceMono, 9.2f, hexColor(0xb4531f)))
           .left(0)
           .top(18.0f + 10 * 12.4f)
-          .width(Dim(700)));
+          .width(Dimension(700)));
   return g;
 }
 
@@ -629,8 +657,8 @@ auto DunhuangStarChart::consolePanel() -> Element {
   auto g = box()
                .left(x)
                .top(y)
-               .width(Dim(w))
-               .height(Dim(h))
+               .width(Dimension(w))
+               .height(Dimension(h))
                .fill(Fill::color(hexColor(0x100e0b, 0.86f)))
                .stroke(stroke(1.0f, Fill::color(hexColor(0x8a7458, 0.24f)),
                               PathFormat::Align::Inner))
@@ -639,8 +667,8 @@ auto DunhuangStarChart::consolePanel() -> Element {
       box()
           .left(12)
           .top(9)
-          .width(Dim(w - 24))
-          .height(Dim(h - 18))
+          .width(Dimension(w - 24))
+          .height(Dimension(h - 18))
           .column()
           .gap(6)
           .child(feed::feed(logA, logStyle()))
@@ -655,7 +683,7 @@ auto DunhuangStarChart::ruleNote() -> Element {
   auto g = box()
                .left(766)
                .top(228)
-               .width(Dim(770))
+               .width(Dimension(770))
                .key("rulenote")
                .opacity(gate(tFold1 - 0.2f, tFold1 + 0.8f));
   const char* rows[6] = {
@@ -668,67 +696,73 @@ auto DunhuangStarChart::ruleNote() -> Element {
   };
   for (int i = 0; i < 6; ++i)
     g.child(
-        text(toU8(rows[i]),
+        text(toUtf8(rows[i]),
              type(i ? faceMono : faceDisplay, i ? 9.0f : 12.0f,
                   i ? hexColor(0x9a8a68) : hexColor(0xc9a35c), i ? 0.0f : 1.0f))
             .left(0)
             .top(i ? 16.0f + (float)i * 12.2f : 0.0f)
-            .width(Dim(700)));
+            .width(Dimension(700)));
   g.child(
-      text(toU8("take 30 deg per map instead (12 x 30 = 360, one dot per "
-                "star, matching the 1,339 census) and the columns come out"),
+      text(toUtf8("take 30 deg per map instead (12 x 30 = 360, one dot per "
+                  "star, matching the 1,339 census) and the columns come out"),
            type(faceMono, 9.0f, hexColor(0xcf6a4a)))
           .left(0)
           .top(92)
-          .width(Dim(700)));
-  g.child(text(toU8("21.6 mm wide, which is not a Tang column. NEITHER READING "
-                    "CLOSES. This plate draws the first, so you can see it."),
-               type(faceMono, 9.0f, hexColor(0xcf6a4a)))
-              .left(0)
-              .top(104)
-              .width(Dim(700)));
+          .width(Dimension(700)));
+  g.child(
+      text(toUtf8("21.6 mm wide, which is not a Tang column. NEITHER READING "
+                  "CLOSES. This plate draws the first, so you can see it."),
+           type(faceMono, 9.0f, hexColor(0xcf6a4a)))
+          .left(0)
+          .top(104)
+          .width(Dimension(700)));
   return g;
 }
 
 auto DunhuangStarChart::headings() -> Element {
-  auto g = box().left(0).top(0).width(Dim(kW)).height(Dim(kH)).key("head");
-  g.child(text(toU8("THE DUNHUANG STAR CHART, REPROJECTED"),
+  auto g = box()
+               .left(0)
+               .top(0)
+               .width(Dimension(kW))
+               .height(Dimension(kH))
+               .key("head");
+  g.child(text(toUtf8("THE DUNHUANG STAR CHART, REPROJECTED"),
                type(faceDisplay, 27.0f, hexColor(0xe0cfa6), 2.4f))
               .left(96)
               .top(16)
-              .width(Dim(1200)));
-  g.child(text(toU8("British Library Or.8210/S.3326 \xc2\xb7 Mogao Cave 17, "
-                    "Dunhuang \xc2\xb7 +649\xe2\x80\x93"
-                    "684 \xc2\xb7 3,940 \xc3\x97 244 mm, "
-                    "pure mulberry fibre 0.04 mm \xc2\xb7 1,339 dots in 257 "
-                    "asterisms"),
+              .width(Dimension(1200)));
+  g.child(text(toUtf8("British Library Or.8210/S.3326 \xc2\xb7 Mogao Cave 17, "
+                      "Dunhuang \xc2\xb7 +649\xe2\x80\x93"
+                      "684 \xc2\xb7 3,940 \xc3\x97 244 mm, "
+                      "pure mulberry fibre 0.04 mm \xc2\xb7 1,339 dots in 257 "
+                      "asterisms"),
                type(faceMono, 10.2f, hexColor(0x9a8a68)))
               .left(98)
               .top(46)
-              .width(Dim(1500)));
-  g.child(text(toU8("NOT TRACED. 1,460 real stars precessed J2000 "
-                    "\xe2\x86\x92 +700 "
-                    "(IAU 1976) and pushed through Table 3's own measured "
-                    "projection."),
+              .width(Dimension(1500)));
+  g.child(text(toUtf8("NOT TRACED. 1,460 real stars precessed J2000 "
+                      "\xe2\x86\x92 +700 "
+                      "(IAU 1976) and pushed through Table 3's own measured "
+                      "projection."),
                type(faceMono, 10.2f, hexColor(0xc9a35c)))
               .left(1660)
               .top(16)
-              .width(Dim(830)));
+              .width(Dimension(830)));
   g.child(
-      text(toU8("PLATE I \xc2\xb7 north up, WEST AT RIGHT, RA increasing "
-                "right-to-left \xe2\x80\x94 the direction the scroll reads"),
+      text(toUtf8("PLATE I \xc2\xb7 north up, WEST AT RIGHT, RA increasing "
+                  "right-to-left \xe2\x80\x94 the direction the scroll reads"),
            type(faceMono, 9.4f, hexColor(0x6d6249)))
           .left(1660)
           .top(34)
-          .width(Dim(830)));
+          .width(Dimension(830)));
   // the scale bar, in cm of real paper
   const float barMm = 100.0f;
   g.child(
       box()
           .left(96)
           .top(1546)
-          .width(Dim(barMm * kPxMm))
-          .height(Dim(7))
+          .width(Dimension(barMm * kPxMm))
+          .height(Dimension(7))
           .shape(keyedShape(std::string_view("scale-bar"),
                             [](SkSize s) {
                               SkPathBuilder b;
@@ -745,19 +779,19 @@ auto DunhuangStarChart::headings() -> Element {
                             }))
           .stroke(lines::Line{.width = 1.0f,
                               .fill = Fill::color(hexColor(0x9a8a68, 0.8f))}));
-  g.child(text(toU8("10 cm of scroll \xc2\xb7 IDP scan 204.8 px/cm"),
+  g.child(text(toUtf8("10 cm of scroll \xc2\xb7 IDP scan 204.8 px/cm"),
                type(faceMono, 8.6f, hexColor(0x6d6249)))
               .left(96 + barMm * kPxMm + 10)
               .top(1544)
-              .width(Dim(420)));
-  g.child(text(toU8("data: Stellarium chinese_chenzhuo (GPL) \xc2\xb7 "
-                    "astronexus/HYG v4.1 \xc2\xb7 arXiv:0906.3034 Tables "
-                    "3\xe2\x80\x93"
-                    "5 "
-                    "\xc2\xb7 IDP 7861395E5F814419BA05483EAB254832"),
+              .width(Dimension(420)));
+  g.child(text(toUtf8("data: Stellarium chinese_chenzhuo (GPL) \xc2\xb7 "
+                      "astronexus/HYG v4.1 \xc2\xb7 arXiv:0906.3034 Tables "
+                      "3\xe2\x80\x93"
+                      "5 "
+                      "\xc2\xb7 IDP 7861395E5F814419BA05483EAB254832"),
                type(faceMono, 8.6f, hexColor(0x6d6249)))
               .left(1660)
               .top(1544)
-              .width(Dim(880)));
+              .width(Dimension(880)));
   return g;
 }

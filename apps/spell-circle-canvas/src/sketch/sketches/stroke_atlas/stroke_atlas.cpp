@@ -276,7 +276,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
       Brush hairSketch;
       hairSketch.layer(lines::Line{.width = 1.3f, .fill = soft()},
                        {sigil::geometry::shapers::Jitter{
-                           .segLength = 7, .deviation = 2.0f, .seed = 3}});
+                           .segmentLength = 7, .deviation = 2.0f, .seed = 3}});
       plate.child(specimen(460, 1032, 150, 74, hairpin(), hairSketch,
                            "shapers::Jitter on a hairpin"));
     }
@@ -290,7 +290,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
             .top(1082));
     {
       auto field = [&](float x, float dy, const char* label,
-                       shapes::OutlineFn shape, Decoration dec) {
+                       shapes::OutlineFunction shape, Decoration dec) {
         return box()
             .absolute()
             .left(x)
@@ -340,7 +340,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
     {
       struct Frame {
         const char* label;
-        shapes::OutlineFn shape;
+        shapes::OutlineFunction shape;
         Decoration dec;
         float rot = 0;
         std::optional<LayerStyle> style;  // set instead of dec for stacks
@@ -349,12 +349,12 @@ struct StrokeAtlasSketch : sketch::Sketch {
       };
       // Laid out in two staggered rows of seven and eight.
       std::vector<Frame> frames;
-      auto add = [&](const char* label, shapes::OutlineFn shape, Decoration dec,
-                     float rot = 0) {
+      auto add = [&](const char* label, shapes::OutlineFunction shape,
+                     Decoration dec, float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), std::move(dec), rot,
                                std::nullopt, std::nullopt});
       };
-      auto addStyle = [&](const char* label, shapes::OutlineFn shape,
+      auto addStyle = [&](const char* label, shapes::OutlineFunction shape,
                           LayerStyle style, float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), PathFormat{.width = 0},
                                rot, std::move(style), std::nullopt});
@@ -364,7 +364,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
       // as a dedicated decoration that draws its own rectangle. The ink then
       // follows whatever shape the node actually has, so the same call gives
       // four brackets on a rect and eight on a chamfer.
-      auto addSpans = [&](const char* label, shapes::OutlineFn shape,
+      auto addSpans = [&](const char* label, shapes::OutlineFunction shape,
                           Spans where, Decoration dec, float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), std::move(dec), rot,
                                std::nullopt, std::move(where)});
@@ -440,10 +440,10 @@ struct StrokeAtlasSketch : sketch::Sketch {
         drawn
             .layer(lines::Line{.width = 1.3f, .fill = ink()},
                    {sigil::geometry::shapers::Jitter{
-                       .segLength = 9, .deviation = 2.2f, .seed = 5}})
+                       .segmentLength = 9, .deviation = 2.2f, .seed = 5}})
             .layer(lines::Line{.width = 1.1f, .fill = soft()},
                    {sigil::geometry::shapers::Jitter{
-                       .segLength = 9, .deviation = 1.1f, .seed = 23}});
+                       .segmentLength = 9, .deviation = 1.1f, .seed = 23}});
         add("two shapers::Jitter layers on a rect", frameRect(8), drawn, -1.8f);
       }
       add("onEdges(Top|Bottom, stroke(2))", frameRect(8),

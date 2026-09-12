@@ -22,7 +22,7 @@
 // construct the two languages spell differently. The transcendentals are
 // written out as polynomials for the same reason a portable subset
 // exists at all: a library `atan2` is two pieces of code on two targets,
-// and an equirect lookup that disagreed between them would put a seam
+// and an equirectangular lookup that disagreed between them would put a seam
 // down the middle of a reflection.
 
 module Shading;
@@ -57,11 +57,11 @@ public float acosP(float x) {
   return c < 0.0 ? 3.14159274 - r : r;
 }
 
-/** Where a direction reads on an equirect panorama: u = 0.5 turns to
+/** Where a direction reads on an equirectangular panorama: u = 0.5 turns to
  *  face -z, u wraps once around, and v runs 0 at the zenith to 1 at the
  *  nadir. The one convention every consumer of an environment map
  *  shares, on every tier. */
-public float2 equirectUv(float3 d) {
+public float2 equirectangularUv(float3 d) {
   float len = sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
   float3 u = len > 0.0 ? d / len : float3(0.0, 1.0, 0.0);
   return float2(0.5 + atan2P(u.x, -u.z) * 0.15915494,
@@ -69,8 +69,8 @@ public float2 equirectUv(float3 d) {
 }
 
 /** The unit direction a panorama coordinate stands for — the inverse of
- *  `equirectUv`. */
-public float3 equirectDirection(float2 uv) {
+ *  `equirectangularUv`. */
+public float3 equirectangularDirection(float2 uv) {
   float theta = uv.y * 3.14159274;
   float phi = (uv.x - 0.5) * 6.28318548;
   float s = sin(theta);

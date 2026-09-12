@@ -1,12 +1,12 @@
 #pragma once
 
 /** @file
- * WHAT PUSHES ON A POINT SET: one force value with a kind and the props
+ * WHAT PUSHES ON A POINT SET: one force value with a kind and the properties
  * each kind reads, and the stock values that name the ones a study
  * reaches for.
  *
  * One value rather than a type per force, for the same reason a noise
- * field is one value with props: a force chosen for a scene is carried
+ * field is one value with properties: a force chosen for a scene is carried
  * as data — compared, stored, handed across a describe — and a list of
  * them is a plain array with no indirection in the inner loop. A prop a
  * kind does not read is ignored, and saying so is cheaper than a family
@@ -54,7 +54,7 @@ enum class ForceKind : uint8_t {
    *  reach this force asks for — and running them apart would build and
    *  ask it three times. */
   Flock,
-  /** The caller's own push, as a captureless function over the props.
+  /** The caller's own push, as a captureless function over the properties.
    *  The escape hatch, and it is a plain function pointer so a force
    *  carrying one still compares. */
   Body,
@@ -78,7 +78,7 @@ struct Flocking {
 struct Force;
 
 /** The caller's own force: a captureless function over the point set and
- *  the force value that carries its props. */
+ *  the force value that carries its properties. */
 using ForceBody = void (*)(Points& points, float seconds, const Force& force);
 
 /** ONE FORCE, as a value.

@@ -148,14 +148,14 @@ std::optional<std::vector<float>> bakeResponse(
 
 Material lutMaterial(sk_sp<SkImage> lutImage, int n) {
   if (!lutImage) return Material(lutRecipe());
-  Material m(lutRecipe(), LutParams{(float)n});
+  Material m(lutRecipe(), LutParameters{(float)n});
   m.child("lut", Texture::of(std::move(lutImage)));
   return m;
 }
 
 Material responseMaterial(sk_sp<SkImage> rowImage) {
   if (!rowImage) return Material(lutRecipe());
-  Material m(responseRecipe(), LutParams{(float)kResponseSize});
+  Material m(responseRecipe(), LutParameters{(float)kResponseSize});
   m.child("lut", Texture::of(std::move(rowImage)));
   return m;
 }
@@ -223,18 +223,18 @@ Material viewTransform(std::string_view config, std::string_view displayName,
   }
 }
 
-Material convert(std::string_view config, std::string_view src,
-                 std::string_view dst, int lutSize) {
+Material convert(std::string_view config, std::string_view source,
+                 std::string_view destination, int lutSize) {
   try {
     OCIO::ConstConfigRcPtr cfg = loadConfig(config);
     OCIO::ColorSpaceTransformRcPtr t = OCIO::ColorSpaceTransform::Create();
-    t->setSrc(std::string(src).c_str());
-    t->setDst(std::string(dst).c_str());
+    t->setSrc(std::string(source).c_str());
+    t->setDst(std::string(destination).c_str());
     return bake(cfg, t, lutSize);
   } catch (const OCIO::Exception& e) {
     SkDebugf("sigilmaterial ocio::convert(\"%.*s\" -> \"%.*s\"): %s\n",
-             (int)src.size(), src.data(), (int)dst.size(), dst.data(),
-             e.what());
+             (int)source.size(), source.data(), (int)destination.size(),
+             destination.data(), e.what());
     return Material(lutRecipe());
   }
 }

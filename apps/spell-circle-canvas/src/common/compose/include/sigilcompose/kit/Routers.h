@@ -35,7 +35,7 @@ enum class Bend { MidX, HFirst, VFirst };
  *  `brush::Scatter`'s cells — is not a line the marks are laid over: the
  *  marks ARE the route, and a leg whose length is not a whole number of
  *  tiles either stretches them or leaves a seam where the count runs out.
- *  Two numbers say the whole of it, and they are props on the routers
+ *  Two numbers say the whole of it, and they are properties on the routers
  *  that already exist rather than a family of their own — any orthogonal
  *  route can be laid out for a stamp, and the same route stroked is the
  *  same route.
@@ -70,7 +70,7 @@ Router orthogonal(float cornerRadius = 0.0f);
  *  Collinear points collapse, so an axis-aligned pair emits ONE segment
  *  rather than three with zero-length ends, and the corner is either
  *  rounded (@p cornerRadius, SkCornerPathEffect) or cut at 45°
- *  (@p chamferCut — `geometry::path::ops::chamferCorners`). The two
+ *  (@p chamferCut — `geometry::path::operations::chamferCorners`). The two
  *  are alternatives:
  *  chamfer wins when both are set.
  *

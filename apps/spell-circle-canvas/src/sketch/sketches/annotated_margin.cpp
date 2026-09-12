@@ -47,7 +47,7 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 namespace motion = sigil::motion;
 namespace weave = sigil::weave;
@@ -137,30 +137,30 @@ struct AnnotatedMargin final : sketch::Sketch {
                        .inset(52, 44, 0, 0)
                        .column()
                        .gap(6)
-                       .child(text(toU8("BESIDE THE TEXT"),
+                       .child(text(toUtf8("BESIDE THE TEXT"),
                                    m::note(12, m::kInk, 4.0f)))
-                       .child(text(toU8("one element per unit, placed from "
-                                        "the unit's own rect"),
+                       .child(text(toUtf8("one element per unit, placed from "
+                                          "the unit's own rect"),
                                    m::note(10, m::kFaint, 0.3f))))
             // The passage itself: one leaf, keyed, and annotated by
             // nothing — everything below reads it from outside.
             .child(text(m::kPassage, m::body())
                        .key("passage")
                        .absolute()
-                       .left(Dim(m::kTextLeft))
-                       .top(Dim(m::kTextTop))
-                       .width(Dim(m::kMeasure))
+                       .left(Dimension(m::kTextLeft))
+                       .top(Dimension(m::kTextTop))
+                       .width(Dimension(m::kMeasure))
                        .paragraph({.leading = weave::Leading::multiple(1.55f)}))
             // The same text again, lower, under a cascade — the playhead
             // below rides its beats.
-            .child(text(toU8("A marker placed from a beat agrees with the "
-                             "letters by construction."),
+            .child(text(toUtf8("A marker placed from a beat agrees with the "
+                               "letters by construction."),
                         m::body(17))
                        .key("cascade")
                        .absolute()
-                       .left(Dim(m::kTextLeft))
-                       .top(Dim(m::kH - 210))
-                       .width(Dim(m::kMeasure))
+                       .left(Dimension(m::kTextLeft))
+                       .top(Dimension(m::kH - 210))
+                       .width(Dimension(m::kMeasure))
                        .fx({.effect = fx::rise(14),
                             .stagger = m::kRoll,
                             .unit = weave::Unit::Word,
@@ -170,51 +170,52 @@ struct AnnotatedMargin final : sketch::Sketch {
                                  &ch::easeNone, 200ms})}));
 
     // ── The label under every word of the opening phrase ────────────────
-    page.child(
-        kit::annotate(
-            composer, "passage", weave::sel::words(0, 6), weave::Unit::Word,
-            {.side = kit::Beside::Side::After, .gap = 5.0f},
-            [&](const TextUnit& unit) {
-              // The label says what the unit IS — its range
-              // and the line it landed on — because a label
-              // that only repeated the word would be showing
-              // nothing the word does not already show.
-              return text(toU8(std::to_string(unit.range.start) +
-                               "\xe2\x80\x93" + std::to_string(unit.range.end)),
-                          m::note(7.5f, m::kMark, 0.2f));
-            })
-            .absolute()
-            .inset(0, 0, 0, 0));
+    page.child(kit::annotate(composer, "passage", weave::selectors::words(0, 6),
+                             weave::Unit::Word,
+                             {.side = kit::Beside::Side::After, .gap = 5.0f},
+                             [&](const TextUnit& unit) {
+                               // The label says what the unit IS — its range
+                               // and the line it landed on — because a label
+                               // that only repeated the word would be showing
+                               // nothing the word does not already show.
+                               return text(
+                                   toUtf8(std::to_string(unit.range.start) +
+                                          "\xe2\x80\x93" +
+                                          std::to_string(unit.range.end)),
+                                   m::note(7.5f, m::kMark, 0.2f));
+                             })
+                   .absolute()
+                   .inset(0, 0, 0, 0));
 
     // ── One note per line, in the gutter, with a leader ──────────────────
     page.child(
-        kit::annotate(composer, "passage", weave::sel::each(weave::Unit::Line),
-                      weave::Unit::Line,
-                      {.side = kit::Beside::Side::Start,
-                       .gap = m::kGutter,
-                       .measure = m::kNoteMeasure},
-                      [&](const TextUnit& unit) {
-                        return box()
-                            .width(Dim(m::kNoteMeasure))
-                            .justify(Justify::End)
-                            .row()
-                            .gap(8)
-                            .child(text(
-                                toU8("line " + std::to_string(unit.lineIndex) +
+        kit::annotate(
+            composer, "passage", weave::selectors::each(weave::Unit::Line),
+            weave::Unit::Line,
+            {.side = kit::Beside::Side::Start,
+             .gap = m::kGutter,
+             .measure = m::kNoteMeasure},
+            [&](const TextUnit& unit) {
+              return box()
+                  .width(Dimension(m::kNoteMeasure))
+                  .justify(Justify::End)
+                  .row()
+                  .gap(8)
+                  .child(text(toUtf8("line " + std::to_string(unit.lineIndex) +
                                      " \xc2\xb7 baseline " +
                                      std::to_string((int)unit.axis)),
-                                m::note()))
-                            .child(box()
-                                       .width(Dim(m::kGutter - 6))
-                                       .height(Dim(1.0f))
-                                       .fill(Fill::color(m::kFaint)));
-                      })
+                              m::note()))
+                  .child(box()
+                             .width(Dimension(m::kGutter - 6))
+                             .height(Dimension(1.0f))
+                             .fill(Fill::color(m::kFaint)));
+            })
             .absolute()
             .inset(0, 0, 0, 0));
 
     // ── A rule cut to what the block occupies ───────────────────────────
     page.child(kit::rules(composer, "passage",
-                          weave::sel::each(weave::Unit::Line),
+                          weave::selectors::each(weave::Unit::Line),
                           {.where = kit::BlockRule::Where::Below,
                            .thickness = 1.0f,
                            .gap = 14.0f,
@@ -233,8 +234,8 @@ struct AnnotatedMargin final : sketch::Sketch {
                    .inset(0, 0, 0, 0));
 
     return page.child(
-        text(toU8("a sibling annotation reserves nothing and lags a frame; "
-                  "a reading that must never lag is part of the text"),
+        text(toUtf8("a sibling annotation reserves nothing and lags a frame; "
+                    "a reading that must never lag is part of the text"),
              m::note(10, m::kFaint, 0.2f))
             .absolute()
             .inset(52, m::kH - 34, 0, 0));

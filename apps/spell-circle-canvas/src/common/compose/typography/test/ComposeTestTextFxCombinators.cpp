@@ -1,4 +1,4 @@
-// THE COMBINATORS OVER WHOLE EFFECTS: fx::seq's phases and crossfades,
+// THE COMBINATORS OVER WHOLE EFFECTS: fx::sequence's phases and crossfades,
 // fx::mix's composition, fx::keys' table and its curves, fx::hold's veto,
 // and what each answers about displacing its glyphs.
 //
@@ -13,12 +13,12 @@
 namespace {
 
 /** An effect that reports a constant dy, so a composition's arithmetic is
- *  readable straight off the returned GlyphMod. */
+ *  readable straight off the returned GlyphModifier. */
 TextEffect constantDy(float dy) {
   return fx::effect(
       "constantDy" + std::to_string((int)dy),
       [dy](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
-        GlyphMod m;
+        GlyphModifier m;
         m.dy = dy;
         return m;
       });
@@ -28,13 +28,13 @@ TextEffect constantDy(float dy) {
 TextEffect reportT() {
   return fx::effect("reportT", [](const GlyphInfo&, float t,
                                   sigil::core::noise::Mix64Stream&) {
-    GlyphMod m;
+    GlyphModifier m;
     m.dy = t;
     return m;
   });
 }
 
-GlyphMod evaluate(const TextEffect& effect, float t) {
+GlyphModifier evaluate(const TextEffect& effect, float t) {
   GlyphInfo g;
   sigil::core::noise::Mix64Stream rng(1);
   return effect(g, t, rng);
@@ -46,24 +46,25 @@ TEST(ComposeTextFx, SeqRenormalizesEachPhaseOverItsOwnWindow) {
   // Each phase sees a full 0→1 across its slice of local time — that is
   // what makes a sequence a sequence rather than three effects sharing one
   // clock and each playing a third of its curve.
-  const TextEffect sequence = fx::seq(reportT().until(0.5f), reportT());
+  const TextEffect sequence = fx::sequence(reportT().until(0.5f), reportT());
   EXPECT_FLOAT_EQ(evaluate(sequence, 0.0f).dy, 0.0f);
   EXPECT_FLOAT_EQ(evaluate(sequence, 0.25f).dy, 0.5f);  // half of phase one
   EXPECT_FLOAT_EQ(evaluate(sequence, 0.75f).dy, 0.5f);  // half of phase two
   EXPECT_FLOAT_EQ(evaluate(sequence, 1.0f).dy, 1.0f);
   // The last phase runs to the end whatever it was declared with.
   const TextEffect short_ =
-      fx::seq(reportT().until(0.5f), reportT().until(0.6f));
+      fx::sequence(reportT().until(0.5f), reportT().until(0.6f));
   EXPECT_FLOAT_EQ(evaluate(short_, 1.0f).dy, 1.0f);
 }
 
 TEST(ComposeTextFx, SeqCutsHardByDefaultAndLerpsAcrossAnXfade) {
-  const TextEffect cut = fx::seq(constantDy(10).until(0.5f), constantDy(0));
+  const TextEffect cut =
+      fx::sequence(constantDy(10).until(0.5f), constantDy(0));
   EXPECT_FLOAT_EQ(evaluate(cut, 0.49f).dy, 10.0f);
   EXPECT_FLOAT_EQ(evaluate(cut, 0.51f).dy, 0.0f);
 
   const TextEffect faded =
-      fx::seq(constantDy(10).until(0.5f).xfade(0.2f), constantDy(0));
+      fx::sequence(constantDy(10).until(0.5f).crossfade(0.2f), constantDy(0));
   EXPECT_FLOAT_EQ(evaluate(faded, 0.29f).dy, 10.0f);    // before the window
   EXPECT_NEAR(evaluate(faded, 0.40f).dy, 5.0f, 1e-4f);  // halfway across
   EXPECT_NEAR(evaluate(faded, 0.50f).dy, 0.0f, 1e-4f);  // at the joint
@@ -77,7 +78,7 @@ TEST(ComposeTextFx, MixEvaluatesBothAndComposesByTheTrackAlgebra) {
     return fx::effect(
         "half" + std::to_string((int)(scale * 10)),
         [scale](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
-          GlyphMod m;
+          GlyphModifier m;
           m.scale = scale;
           m.alpha = scale;
           return m;
@@ -89,12 +90,12 @@ TEST(ComposeTextFx, MixEvaluatesBothAndComposesByTheTrackAlgebra) {
 }
 
 TEST(ComposeTextFx, CombinatorsAreComparableWhenTheirOperandsAre) {
-  EXPECT_TRUE(fx::seq(fx::rise(20).until(0.5f), fx::pop()) ==
-              fx::seq(fx::rise(20).until(0.5f), fx::pop()));
-  EXPECT_FALSE(fx::seq(fx::rise(20).until(0.5f), fx::pop()) ==
-               fx::seq(fx::rise(20).until(0.6f), fx::pop()));
-  EXPECT_FALSE(fx::seq(fx::rise(20).until(0.5f), fx::pop()) ==
-               fx::seq(fx::rise(22).until(0.5f), fx::pop()));
+  EXPECT_TRUE(fx::sequence(fx::rise(20).until(0.5f), fx::pop()) ==
+              fx::sequence(fx::rise(20).until(0.5f), fx::pop()));
+  EXPECT_FALSE(fx::sequence(fx::rise(20).until(0.5f), fx::pop()) ==
+               fx::sequence(fx::rise(20).until(0.6f), fx::pop()));
+  EXPECT_FALSE(fx::sequence(fx::rise(20).until(0.5f), fx::pop()) ==
+               fx::sequence(fx::rise(22).until(0.5f), fx::pop()));
   EXPECT_TRUE(fx::mix(fx::rise(20), fx::slide()) ==
               fx::mix(fx::rise(20), fx::slide()));
   EXPECT_FALSE(fx::mix(fx::rise(20), fx::slide()) ==
@@ -125,7 +126,7 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
   // placement…
   EXPECT_FALSE(fx::keys({{0.0f, {.alpha = 0.0f}}, {1.0f, {}}}).displaces());
   EXPECT_FALSE(
-      fx::keys({{0.0f, {.colorMul = {0.2f, 0.2f, 0.2f, 1}}}, {1.0f, {}}})
+      fx::keys({{0.0f, {.colorMultiplier = {0.2f, 0.2f, 0.2f, 1}}}, {1.0f, {}}})
           .displaces());
   // …and every lane that is.
   EXPECT_TRUE(fx::keys({{0.0f, {.dx = 12.0f}}, {1.0f, {}}}).displaces());
@@ -141,20 +142,22 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
   // alpha, which places nothing, so it is its operand's answer.
   EXPECT_FALSE(fx::mix(fx::typeOn(), fx::scramble()).displaces());
   EXPECT_TRUE(fx::mix(fx::typeOn(), fx::rise()).displaces());
-  EXPECT_FALSE(fx::seq(fx::typeOn().until(0.5f), fx::scramble()).displaces());
-  EXPECT_TRUE(fx::seq(fx::typeOn().until(0.5f), fx::rise()).displaces());
+  EXPECT_FALSE(
+      fx::sequence(fx::typeOn().until(0.5f), fx::scramble()).displaces());
+  EXPECT_TRUE(fx::sequence(fx::typeOn().until(0.5f), fx::rise()).displaces());
   EXPECT_FALSE(fx::hold(fx::scramble()).displaces());
   EXPECT_TRUE(fx::hold(fx::rise()).displaces());
   // Nesting keeps the derivation exact rather than sticky.
-  EXPECT_FALSE(fx::mix(fx::seq(fx::tint(SkColors::kGray, SkColors::kWhite)),
-                       fx::hold(fx::typeOn()))
-                   .displaces());
+  EXPECT_FALSE(
+      fx::mix(fx::sequence(fx::tint(SkColors::kGray, SkColors::kWhite)),
+              fx::hold(fx::typeOn()))
+          .displaces());
 
   // A PASS IS NOT A PLACEMENT: its shader runs over pixels already
   // rasterized at the resting origins.
-  struct NoParams {};
+  struct NoParameters {};
   const auto identityPass = std::make_shared<const sigil::material::Recipe>(
-      sigil::material::Recipe::of<NoParams>("test.identity-pass")
+      sigil::material::Recipe::of<NoParameters>("test.identity-pass")
           .body(sigil::material::Target::SkSL,
                 "half4 main(float2 xy) { return uContent.eval(xy); }"));
   EXPECT_FALSE(fx::pass(material::skia::Paint::recipe(
@@ -162,9 +165,9 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
                    .displaces());
 
   // THE OPAQUE DOOR assumes motion, and takes the author's word otherwise.
-  const GlyphModFn still = [](const GlyphInfo&, float,
-                              sigil::core::noise::Mix64Stream&) {
-    GlyphMod m;
+  const GlyphModifierFunction still = [](const GlyphInfo&, float,
+                                         sigil::core::noise::Mix64Stream&) {
+    GlyphModifier m;
     m.alpha = 0.5f;
     return m;
   };
@@ -188,9 +191,9 @@ TEST(ComposeTextFx, KeysReproducesEveryEntryAtItsOwnPosition) {
       {1.00f, {}}};
   const TextEffect rubber = fx::keys(table, &choreograph::easeInOutCubic);
   for (const fx::Key& key : table) {
-    EXPECT_FLOAT_EQ(evaluate(rubber, key.at).scaleX, key.mod.scaleX)
+    EXPECT_FLOAT_EQ(evaluate(rubber, key.at).scaleX, key.modifier.scaleX)
         << "scaleX at " << key.at;
-    EXPECT_FLOAT_EQ(evaluate(rubber, key.at).scaleY, key.mod.scaleY)
+    EXPECT_FLOAT_EQ(evaluate(rubber, key.at).scaleY, key.modifier.scaleY)
         << "scaleY at " << key.at;
   }
   // Outside the table's own span it HOLDS at the ends rather than
@@ -227,7 +230,7 @@ TEST(ComposeTextFx, KeysEasesEachSegmentOnItsOwn) {
 }
 
 TEST(ComposeTextFx, KeysCutsASubstitutionAndLerpsAMatchingAxis) {
-  // The seq crossfade's rules, because it is the same arithmetic: there is
+  // The sequence crossfade's rules, because it is the same arithmetic: there is
   // no half-way glyph between two outlines, and an axis is the one
   // substitution with a continuum — and only between two entries naming the
   // SAME axis.
@@ -240,7 +243,7 @@ TEST(ComposeTextFx, KeysCutsASubstitutionAndLerpsAMatchingAxis) {
   const sigil::weave::FontVariation heavy("GRAD", 800.0f);
   const TextEffect swept =
       fx::keys({{0.0f, {.axis = light}}, {1.0f, {.axis = heavy}}});
-  const GlyphMod midway = evaluate(swept, 0.5f);
+  const GlyphModifier midway = evaluate(swept, 0.5f);
   ASSERT_TRUE(midway.axis.has_value());
   EXPECT_FLOAT_EQ(midway.axis.value_or(sigil::weave::FontVariation()).value,
                   600.0f);
@@ -248,7 +251,7 @@ TEST(ComposeTextFx, KeysCutsASubstitutionAndLerpsAMatchingAxis) {
   const sigil::weave::FontVariation slant("slnt", -10.0f);
   const TextEffect crossed =
       fx::keys({{0.0f, {.axis = light}}, {1.0f, {.axis = slant}}});
-  const auto tagOf = [](const GlyphMod& mod) {
+  const auto tagOf = [](const GlyphModifier& mod) {
     return mod.axis ? std::string(mod.axis->tag, 4) : std::string("(unset)");
   };
   EXPECT_EQ(tagOf(evaluate(crossed, 0.4f)), "GRAD");

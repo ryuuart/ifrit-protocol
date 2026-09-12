@@ -57,8 +57,8 @@ struct Table {
   float padding = 0.0f;  ///< inside one — its cellpadding
 
   /** THE WIDTH THE MARKUP GAVE A COLUMN, where it gave one, as ONE length
-   *  per column: `Dim` in pixels (`120`, `120_px`), in percent
-   *  (`30_pct`), or `autoDim()` for a column sized by what is in it. A
+   *  per column: `Dimension` in pixels (`120`, `120_px`), in percent
+   *  (`30_pct`), or `autoDimension()` for a column sized by what is in it. A
    *  width of no pixels is that same auto column, and a list shorter than
    *  the grid leaves the columns past its end sized that way too.
    *
@@ -75,7 +75,7 @@ struct Table {
    *  the narrowest thing in it, whatever the markup asked for, and a
    *  percentage the content will not fit into is widened by the content
    *  exactly as a stated pixel width is. */
-  std::vector<Dim> declaredWidths;
+  std::vector<Dimension> declaredWidths;
 
   /** WHAT A TABLE DOES WITH ROOM IT DOES NOT NEED. `Fill` takes the width
    *  it was given and shares the surplus across the columns, which is a
@@ -200,9 +200,9 @@ struct Table {
     //    than the markup asked for, which no column ever gives up.
     std::vector<uint8_t> stated((size_t)cols, 0u);
     for (size_t c = 0; c < declaredWidths.size() && c < (size_t)cols; ++c) {
-      const Dim& asked = declaredWidths[c];
-      const float px = asked.unit == Dim::Unit::Px ? asked.value
-                       : asked.unit == Dim::Unit::Pct
+      const Dimension& asked = declaredWidths[c];
+      const float px = asked.unit == Dimension::Unit::Px ? asked.value
+                       : asked.unit == Dimension::Unit::Pct
                            ? room * asked.value / 100.0f
                            : 0.0f;
       if (px <= 0) continue;  // auto, and a width of nothing with it

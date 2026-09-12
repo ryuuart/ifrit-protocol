@@ -10,33 +10,35 @@
 
 namespace sigil::sketch::kit {
 
-compose::Element well(const Well& spec, compose::Element surface) {
+compose::Element well(const Well& specification, compose::Element surface) {
   const Theme& look = theme();
-  const float padX = spec.padding.value_or(look.spacing.wellPadding);
-  const float padY = spec.paddingY.value_or(padX);
+  const float padX = specification.padding.value_or(look.spacing.wellPadding);
+  const float padY = specification.paddingY.value_or(padX);
   // The padding is chained here rather than handed down, because the
   // primitive takes one distance and a plate may be set tighter down than
   // across. Everything else is the primitive's.
-  const compose::SurfacePaint bed =
-      spec.ground.value_or(compose::Fill::color(look.palette.cellGround));
-  compose::Element plate = compose::kit::well({.width = spec.width,
-                                               .height = spec.height,
+  const compose::SurfacePaint bed = specification.ground.value_or(
+      compose::Fill::color(look.palette.cellGround));
+  compose::Element plate = compose::kit::well({.width = specification.width,
+                                               .height = specification.height,
                                                .ground = bed,
                                                .padding = 0,
-                                               .clip = spec.clip},
+                                               .clip = specification.clip},
                                               std::move(surface));
   if (padX != 0 || padY != 0) plate.padding(padX, padY);
-  if (spec.corners > 0) plate.corners(compose::Corners{spec.corners});
-  if (spec.keyline)
-    plate.stroke(compose::stroke(spec.keylineWidth, *spec.keyline,
+  if (specification.corners > 0)
+    plate.corners(compose::Corners{specification.corners});
+  if (specification.keyline)
+    plate.stroke(compose::stroke(specification.keylineWidth,
+                                 *specification.keyline,
                                  compose::PathFormat::Align::Inner));
-  if (spec.relief) {
-    const Well::Relief& lift = *spec.relief;
+  if (specification.relief) {
+    const Well::Relief& lift = *specification.relief;
     plate.foreground(compose::styles::BevelEmboss{
         lift.depth, lift.blur, lift.angleDeg, lift.light, lift.shade});
   }
-  if (spec.recess) {
-    const Well::Recess& hole = *spec.recess;
+  if (specification.recess) {
+    const Well::Recess& hole = *specification.recess;
     plate.foreground(compose::styles::InnerShadow{hole.shade.colorValue,
                                                   hole.offset, hole.blur});
     if (hole.lipLight && hole.lipDark)
@@ -47,7 +49,9 @@ compose::Element well(const Well& spec, compose::Element surface) {
   return plate;
 }
 
-compose::Element well(const Well& spec) { return well(spec, compose::box()); }
+compose::Element well(const Well& specification) {
+  return well(specification, compose::box());
+}
 
 compose::Element caption(float measure, std::u8string label, std::u8string note,
                          compose::Element body) {

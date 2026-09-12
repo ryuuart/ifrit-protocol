@@ -8,7 +8,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
-#include <sigilcore/reconcile/Env.h>
+#include <sigilcore/reconcile/Environment.h>
 
 #include <any>
 #include <functional>
@@ -41,7 +41,7 @@ Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   text.utf8 = std::move(utf8);
   text.style = std::move(style);
   // The box fits the type: measured text must not stretch on the cross
-  // axis. That demotion is NOT applied here — it happens when layout props
+  // axis. That demotion is NOT applied here — it happens when layout properties
   // are written to Yoga, where the alignment this leaf actually resolved to
   // (its own, or its parent's) is known, so a parent's alignItems(Center)
   // or alignItems(End) still reaches text leaves untouched.
@@ -50,14 +50,14 @@ Element text(std::u8string utf8, sigil::weave::TextStyle style) {
 
 Element text(sigil::weave::RichText spans) {
   // The style set a named run resolves through, when the author named none
-  // on the value itself: whatever `env::Provide<weave::StyleSet>` offers
-  // this describe scope. Supplied here rather than left to the value
+  // on the value itself: whatever `environment::Provide<weave::StyleSet>`
+  // offers this describe scope. Supplied here rather than left to the value
   // because the scope is this library's — the value holds resolved styles
   // afterwards and depends on no scope that has since ended — and an
   // explicit set always wins, whichever order the two were written in.
   if (!spans.hasStyles())
     if (const sigil::weave::StyleSet* ambient =
-            core::env::inherited<sigil::weave::StyleSet>())
+            core::environment::inherited<sigil::weave::StyleSet>())
       spans.styles(*ambient);
   Element e;
   e.node()->kind = Kind::Text;
@@ -129,7 +129,7 @@ Element picture(sk_sp<SkPicture> recorded, SkSize native) {
                                       ctx.size.height() / recordedAt.height());
                        canvas.drawPicture(pic.get());
                      });
-  return e.width(Dim(native.width())).height(Dim(native.height()));
+  return e.width(Dimension(native.width())).height(Dimension(native.height()));
 }
 
 Element pathFigure(SkPath absolute, float bleed) {
@@ -187,17 +187,17 @@ Element makeLayout(std::function<std::vector<SkRect>(const LayoutInput&)> place,
   return e;
 }
 
-Element makeMemo(std::any props,
+Element makeMemo(std::any properties,
                  std::function<bool(const std::any&, const std::any&)> equal,
                  std::function<Element(const std::any&)> invoke) {
   Element e;
   detail::MemoData& memo = e.node()->memoData.ensure();
-  memo.props = std::move(props);
+  memo.properties = std::move(properties);
   memo.equal = std::move(equal);
   memo.invoke = std::move(invoke);
   // Captured HERE, in the author's scope — the whole point. By the time
   // the reconciler decides whether to call `invoke`, this stack is gone.
-  memo.env = core::env::capture();
+  memo.environment = core::environment::capture();
   return e;
 }
 

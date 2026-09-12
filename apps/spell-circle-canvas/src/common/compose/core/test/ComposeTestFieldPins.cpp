@@ -1,7 +1,7 @@
 // THE FIELD WALK — the runtime half of ComposeInternal.h's field pins.
 //
-// `propsEqual()` and its helpers compare a description FIELD BY FIELD, and a
-// field left out fails INVISIBLY: two different descriptions compare equal,
+// `propertiesEqual()` and its helpers compare a description FIELD BY FIELD, and
+// a field left out fails INVISIBLY: two different descriptions compare equal,
 // the patch prunes, `markPaintDirtyUp()` never runs, a stale picture replays,
 // and `applyTransitions()` — which only runs inside the `own` branch — never
 // ramps an `animate()` on that property. Nothing errors, and no other test
@@ -185,7 +185,7 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
         cd::ElementNode na, nb;
         na.paint = a;
         nb.paint = b;
-        return cd::propsEqual(na, nb);
+        return cd::propertiesEqual(na, nb);
       },
       kNames, kParticipates);
 }
@@ -213,7 +213,7 @@ TEST(ComposeReconcile, EveryDepthDataFieldParticipatesInEquality) {
         cd::ElementNode na, nb;
         na.depthData.ensure() = a;
         nb.depthData.ensure() = b;
-        return cd::propsEqual(na, nb);
+        return cd::propertiesEqual(na, nb);
       },
       kNames, kParticipates);
 }
@@ -234,7 +234,7 @@ TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
                                        "holdEnd",
                                        "fallEnd",
                                        "duty",
-                                       "waveFn",
+                                       "waveFunction",
                                        "steps",
                                        "scale",
                                        "offset",
@@ -255,14 +255,15 @@ TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
 }
 
 TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
-  // Two fields must NOT reach propsEqual(), and the table asserts their
+  // Two fields must NOT reach propertiesEqual(), and the table asserts their
   // inertness rather than describing it, so an accidental inclusion fails
   // here too:
   //
-  //  - `memoData` never reaches propsEqual at all. resolveMemo() compares a
-  //    memo EARLIER and more strictly (the env snapshot, then the author's
-  //    own props comparator) and `inst.description` holds the memo's PRODUCED
-  //    payload, which carries no memo block.
+  //  - `memoData` never reaches propertiesEqual at all. resolveMemo() compares
+  //  a
+  //    memo EARLIER and more strictly (the environment snapshot, then the
+  //    author's own properties comparator) and `inst.description` holds the
+  //    memo's PRODUCED payload, which carries no memo block.
   //  - `children` are reconciled BY KEY, not compared. A node that prunes
   //    still walks them — that is the whole point of the structural prune.
   static const char* const kNames[] = {
@@ -274,14 +275,35 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
       "materialData",   "strokeData",  "memoData",          "motionData",
       "depthData",      "children"};
   static const bool kParticipates[] = {
-      true,  true, true, true, true, true, true, true, true, true, true,
-      true,  true, true, true, true, true, true, true, true, true, true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
       false,  // memoData — resolveMemo owns it, and it never lands in
               // description
-      true,  true,
+      true,
+      true,
       false,  // children — reconciled by key, never compared
   };
-  walkFields<cd::ElementNode>(cd::propsEqual, kNames, kParticipates);
+  walkFields<cd::ElementNode>(cd::propertiesEqual, kNames, kParticipates);
 }
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 /** @file
  * The recipe: identity is the object and equality the definition, what
  * the layout appends, which slots a body is declared to sample, and the
- * recipe that has no params at all.
+ * recipe that has no parameters at all.
  */
 
 #include <gtest/gtest.h>
@@ -15,13 +15,13 @@ using namespace sigil::material;
 
 namespace {
 
-struct TwoParams {
+struct TwoParameters {
   float uScale;
   Color uColor;
 };
 
 std::shared_ptr<const Recipe> twoRecipe(const char* name = "two") {
-  return std::make_shared<const Recipe>(Recipe::of<TwoParams>(name).body(
+  return std::make_shared<const Recipe>(Recipe::of<TwoParameters>(name).body(
       Target::SkSL, "half4 main(float2 p) { return half4(uColor * uScale); }"));
 }
 
@@ -42,7 +42,7 @@ TEST(Recipe, IdentityIsTheObjectAndEqualityIsTheDefinition) {
 }
 
 TEST(Recipe, LayoutAppendsFrameInputsAndDeclarationsListChildren) {
-  Recipe r = Recipe::of<TwoParams>("r");
+  Recipe r = Recipe::of<TwoParameters>("r");
   r.frame(FrameInput::Resolution).frame(FrameInput::Time).child("uTex");
   EXPECT_TRUE(r.reads(FrameInput::Time));
   EXPECT_FALSE(r.reads(FrameInput::WorldTransform));
@@ -53,7 +53,7 @@ TEST(Recipe, LayoutAppendsFrameInputsAndDeclarationsListChildren) {
   EXPECT_EQ(r.layout().fields[3].name, "uResolution");
   EXPECT_EQ(r.layout().fields[3].offset, 24u);
   EXPECT_EQ(r.layout().byteSize, 32u);
-  EXPECT_EQ(r.params().byteSize, 20u);
+  EXPECT_EQ(r.parameters().byteSize, 20u);
   EXPECT_EQ(r.declarations(Target::SkSL),
             "uniform float uScale;\n"
             "uniform float4 uColor;\n"
@@ -68,7 +68,7 @@ TEST(Recipe, LayoutAppendsFrameInputsAndDeclarationsListChildren) {
 }
 
 TEST(Recipe, ASlotOneTargetsBodyNeverSamplesIsNotDeclaredToIt) {
-  Recipe r = Recipe::of<TwoParams>("split");
+  Recipe r = Recipe::of<TwoParameters>("split");
   r.child("uRead").child("uUnread");
   // With no body there is nothing to say, so both slots are declared.
   EXPECT_TRUE(r.samples(Target::SkSL, "uUnread"));
@@ -94,15 +94,15 @@ TEST(Recipe, ASlotOneTargetsBodyNeverSamplesIsNotDeclaredToIt) {
   EXPECT_EQ(r.children().size(), 2u);
 }
 
-TEST(Recipe, NoParamsIsARecipeOverSlotsAndFrameInputsAlone) {
-  struct NoParams {};
+TEST(Recipe, NoParametersIsARecipeOverSlotsAndFrameInputsAlone) {
+  struct NoParameters {};
   auto r = std::make_shared<const Recipe>(
-      Recipe::of<NoParams>("bare")
+      Recipe::of<NoParameters>("bare")
           .frame(FrameInput::Time)
           .child("uSrc")
           .body(Target::SkSL, "half4 main(float2 p) { return uSrc.eval(p); }"));
-  EXPECT_TRUE(r->params().fields.empty());
-  EXPECT_EQ(r->params().byteSize, 0u);
+  EXPECT_TRUE(r->parameters().fields.empty());
+  EXPECT_EQ(r->parameters().byteSize, 0u);
   // The frame uniform still lays out, from offset zero.
   ASSERT_EQ(r->layout().fields.size(), 1u);
   EXPECT_EQ(r->layout().fields[0].name, "uTime");

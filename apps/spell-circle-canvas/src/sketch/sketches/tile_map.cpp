@@ -2,10 +2,10 @@
  * tile map — what a memo is worth, made visible: one tile is edited on a
  * timer, and only the chunk holding it is described again.
  *
- * The map is four `memo` chunks of 8×5 tiles, each keyed by props that
+ * The map is four `memo` chunks of 8×5 tiles, each keyed by properties that
  * say which chunk it is, how many times it has changed, and which of its
  * cells carries an edit. Every 0.7 s ONE cell in ONE chunk is given a
- * different atlas region. Its chunk's props are then unequal to the ones
+ * different atlas region. Its chunk's properties are then unequal to the ones
  * the reconciler is holding, so that chunk's describe runs and its
  * subtree re-records; the other three compare equal, their describes are
  * skipped, and their recordings replay.
@@ -56,7 +56,7 @@ namespace motion = sigil::motion;
 namespace ch = choreograph;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -146,7 +146,7 @@ std::shared_ptr<sigil::image::ImageAsset> atlas() {
 
 /** ONE EDIT: which cell of a chunk carries a region other than the one
  *  the map's own rule gives it, and which region that is. Part of the
- *  memo's props, which is what makes an edit a describe. */
+ *  memo's properties, which is what makes an edit a describe. */
 struct Edit {
   int cell = -1;
   int id = 0;
@@ -154,7 +154,7 @@ struct Edit {
 };
 
 /** THE MEMO'S PROPS: everything the chunk's description depends on. Two
- *  props that compare equal are a describe the reconciler does not
+ *  properties that compare equal are a describe the reconciler does not
  *  run. */
 struct Chunk {
   int index = 0;
@@ -176,8 +176,9 @@ int tileAt(int chunk, int x, int y) {
 
 Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
                      const Chunk& chunk) {
-  Element tiles =
-      box().width(Dim(kChunkCols * kTile)).height(Dim(kChunkRows * kTile));
+  Element tiles = box()
+                      .width(Dimension(kChunkCols * kTile))
+                      .height(Dimension(kChunkRows * kTile));
   for (int y = 0; y < kChunkRows; ++y)
     for (int x = 0; x < kChunkCols; ++x) {
       const int cell = y * kChunkCols + x;
@@ -187,8 +188,8 @@ Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
       tiles.child(image(tileset)
                       .region(SkRect::MakeXYWH((float)id * 16, 0, 16, 16))
                       .inset(at.fLeft, at.fTop, 0, 0)
-                      .width(Dim(kTile))
-                      .height(Dim(kTile)));
+                      .width(Dimension(kTile))
+                      .height(Dimension(kTile)));
     }
   return tiles;
 }
@@ -252,12 +253,12 @@ struct TileMap final : sketch::Sketch {
 
   Element describe(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
-    Element grid = box().row().width(Dim(kChunks * kChunkCols * kTile));
+    Element grid = box().row().width(Dimension(kChunks * kChunkCols * kTile));
     for (int i = 0; i < kChunks; ++i) {
       Element chunk =
           stack()
-              .width(Dim(kChunkCols * kTile))
-              .height(Dim(kChunkRows * kTile))
+              .width(Dimension(kChunkCols * kTile))
+              .height(Dimension(kChunkRows * kTile))
               // Recorded, so a describe that runs is a recording
               // written and the footer's count is the work itself.
               .child(memo(Chunk{i, revisions[(size_t)i], edits[(size_t)i]},
@@ -299,12 +300,12 @@ struct TileMap final : sketch::Sketch {
          .subtitle = u8"one tile edited every 0.7 s \xe2\x80\x94 the chunk "
                      u8"that holds it is described again and washed; the "
                      u8"other three replay",
-         .footer = toU8(counts + "   |   " + timing)},
+         .footer = toUtf8(counts + "   |   " + timing)},
         std::move(grid));
   }
 
   /** THE DATA PATH, and only when the data changes: one cell of one
-   *  chunk is given a different region, that chunk's props stop being
+   *  chunk is given a different region, that chunk's properties stop being
    *  equal, and the tree is described again. Between edits nothing is
    *  described at all — the wash fades on its lane. */
   void update(double elapsed, sketch::SketchContext& ctx) override {

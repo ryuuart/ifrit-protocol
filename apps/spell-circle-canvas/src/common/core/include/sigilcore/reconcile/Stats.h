@@ -17,10 +17,11 @@ namespace sigil::core {
  *  `report()` publishes them into named counters for a printed set. */
 struct ReconcileStats {
   int64_t describedNodes = 0;  ///< descriptions visited
-  int64_t memoHits = 0;        ///< memo env and props equal → describe skipped
-  int64_t patchedNodes = 0;    ///< nodes whose description changed
-  int64_t mounted = 0;         ///< nodes created
-  int64_t retired = 0;         ///< nodes handed to the host's destroy
+  int64_t memoHits =
+      0;  ///< memo environment and properties equal → describe skipped
+  int64_t patchedNodes = 0;  ///< nodes whose description changed
+  int64_t mounted = 0;       ///< nodes created
+  int64_t retired = 0;       ///< nodes handed to the host's destroy
 
   /** Zero the per-pass counts. */
   void reset() {

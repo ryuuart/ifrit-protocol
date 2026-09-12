@@ -49,7 +49,7 @@ namespace mskia = sigil::material::skia;
 using sigil::material::skia::Paint;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 
 namespace {
@@ -184,7 +184,7 @@ struct Zellige final : sketch::Sketch {
                                       {0.42f, {1, 1, 1, 0.05f}},
                                       {0.58f, {0, 0, 0, 0.03f}},
                                       {1.00f, {0, 0, 0, 0.10f}}}))))
-        .child(text(toU8(label), zw::type(13, zw::kInk, 1.2f)));
+        .child(text(toUtf8(label), zw::type(13, zw::kInk, 1.2f)));
   }
 
   Element describe() {
@@ -194,28 +194,28 @@ struct Zellige final : sketch::Sketch {
         // Speckled plaster grain over the ground — its own full-bleed
         // layer (the root fill and the pattern can't share one slot).
         .child(box().inset(0, 0, 0, 0).fill(grain.material()))
-        .child(
-            box()
-                .column()
-                .inset(50, 44, 50, 44)
-                .gap(14)
-                .child(
-                    box()
-                        .row()
-                        .alignItems(Align::Baseline)
-                        .gap(14)
-                        .child(text(toU8("ZELLIJE"), zw::type(34, zw::kInk, 3)))
-                        .child(text(toU8("Hankin PIC \xc2\xb7 4.8.8 \xc2\xb7 "
+        .child(box()
+                   .column()
+                   .inset(50, 44, 50, 44)
+                   .gap(14)
+                   .child(box()
+                              .row()
+                              .alignItems(Align::Baseline)
+                              .gap(14)
+                              .child(text(toUtf8("ZELLIJE"),
+                                          zw::type(34, zw::kInk, 3)))
+                              .child(text(
+                                  toUtf8("Hankin PIC \xc2\xb7 4.8.8 \xc2\xb7 "
                                          "\xce\xb8 swept 30\xe2\x80\x93"
                                          "60\xc2\xb0"),
-                                    zw::type(14, zw::kSub, 1))))
-                .child(box()
-                           .row()
-                           .grow(1)
-                           .gap(22)
-                           .child(panel(left, captions[0]))
-                           .child(panel(middle, captions[1]))
-                           .child(panel(right, captions[2]))));
+                                  zw::type(14, zw::kSub, 1))))
+                   .child(box()
+                              .row()
+                              .grow(1)
+                              .gap(22)
+                              .child(panel(left, captions[0]))
+                              .child(panel(middle, captions[1]))
+                              .child(panel(right, captions[2]))));
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {

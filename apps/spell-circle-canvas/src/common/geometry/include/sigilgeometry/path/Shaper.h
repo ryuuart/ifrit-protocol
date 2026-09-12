@@ -10,8 +10,8 @@
  *
  * Comparable is the point: a consumer that caches drawings can prove two
  * frames asked for the same deviation and keep the recording it already
- * has. `ops::PathOp` is the incomparable sibling, for a one-off chain
- * nothing has to prune against.
+ * has. `operations::PathOperation` is the incomparable sibling, for a one-off
+ * chain nothing has to prune against.
  */
 
 #include <include/core/SkPath.h>

@@ -77,7 +77,7 @@ class Host {
     std::filesystem::path sketchPath;
     /** Where the sketch looks for what it did not generate. Defaults to
      *  `assets` beside the sketch file. */
-    std::filesystem::path assetsDir;
+    std::filesystem::path assetsDirectory;
     /** The compiler line the build captured, beside the executable. */
     std::filesystem::path flagsFile;
     std::string compiler = "clang++";
@@ -116,8 +116,8 @@ class Host {
    *  disk survives usefully past the run: the freshness table that
    *  decides a rebuild is in memory, so no later process reads a byte
    *  of it. */
-  [[nodiscard]] const std::filesystem::path& buildDir() const {
-    return m_buildDir;
+  [[nodiscard]] const std::filesystem::path& buildDirectory() const {
+    return m_buildDirectory;
   }
 
   /** Removes the build directories of processes that are no longer
@@ -130,7 +130,7 @@ class Host {
    *  removes anything: a directory whose process is alive — this
    *  process's own included — is left standing. Calling it walks, every
    *  time and from any thread. */
-  static void sweepAbandonedBuildDirs();
+  static void sweepAbandonedBuildDirectories();
 
   /** TAKES THIS PROCESS'S ONE WALK, answering true to whoever took it
    *  and false to everyone after.
@@ -325,7 +325,7 @@ class Host {
 
   Options m_options;
   weave::FontContext& m_fonts;
-  std::filesystem::path m_buildDir;
+  std::filesystem::path m_buildDirectory;
   /** WHICH HOST IN THIS PROCESS THIS IS, counted from one. Every host in
    *  a process links into one build directory, so the id is in the name
    *  of every dylib this one builds: without it two hosts building at

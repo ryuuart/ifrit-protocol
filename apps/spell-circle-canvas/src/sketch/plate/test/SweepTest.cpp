@@ -218,9 +218,9 @@ PixelBounds greenBounds(const SkImage& image) {
   return bounds;
 }
 
-SweepOptions ledgerRun(const std::filesystem::path& outDir) {
+SweepOptions ledgerRun(const std::filesystem::path& outputDirectory) {
   SweepOptions options;
-  options.outDir = outDir.string();
+  options.outputDirectory = outputDirectory.string();
   options.ledger = true;
   options.noPromotion = true;
   options.only = find("sweep_probe");
@@ -360,7 +360,7 @@ TEST(Sweep, KeepsTheWidthCeilingForASketchThatDeclaresNoOversample) {
 TEST(Story, EncodesASelectedSketchAsVerticalMp4) {
   const ScratchDir out("sigil_story_selected");
   StoryOptions options;
-  options.out = (out.path / "story.mp4").string();
+  options.outputPath = (out.path / "story.mp4").string();
   options.only = find("story_moment_probe");
   options.width = 360;
   options.height = 640;
@@ -373,11 +373,11 @@ TEST(Story, EncodesASelectedSketchAsVerticalMp4) {
   ASSERT_GE(options.only, 0);
   ASSERT_EQ(0, story(options, fonts(), assets()));
 
-  const std::vector<char> encoded = bytesOf(options.out);
+  const std::vector<char> encoded = bytesOf(options.outputPath);
   ASSERT_FALSE(encoded.empty());
   const auto* bytes = reinterpret_cast<const std::byte*>(encoded.data());
   const std::optional<sigil::video::VideoProbe> probe =
-      sigil::video::probeVideo(bytes, encoded.size(), options.out);
+      sigil::video::probeVideo(bytes, encoded.size(), options.outputPath);
   ASSERT_TRUE(probe);
   EXPECT_EQ(probe->width, 360);
   EXPECT_EQ(probe->height, 640);
@@ -386,7 +386,8 @@ TEST(Story, EncodesASelectedSketchAsVerticalMp4) {
 
   const std::shared_ptr<sigil::video::Video> clip = sigil::video::decodeVideo(
       bytes, encoded.size(),
-      {.hardware = sigil::video::HardwarePreference::Disabled}, options.out);
+      {.hardware = sigil::video::HardwarePreference::Disabled},
+      options.outputPath);
   ASSERT_TRUE(clip);
   const sigil::video::VideoFrame first = clip->frameAt(0.0);
   const sigil::video::VideoFrame last = clip->frameAt(0.2);
@@ -406,7 +407,7 @@ TEST(Story, EncodesASelectedSketchAsVerticalMp4) {
 TEST(Story, ADrawSketchIsPreRolledOnTheSurfaceItIsCapturedFrom) {
   const ScratchDir out("sigil_story_drawn");
   StoryOptions options;
-  options.out = (out.path / "drawn.mp4").string();
+  options.outputPath = (out.path / "drawn.mp4").string();
   options.only = find("drawn_trail");
   options.width = 360;
   options.height = 640;
@@ -419,12 +420,13 @@ TEST(Story, ADrawSketchIsPreRolledOnTheSurfaceItIsCapturedFrom) {
   ASSERT_GE(options.only, 0);
   ASSERT_EQ(0, story(options, fonts(), assets()));
 
-  const std::vector<char> encoded = bytesOf(options.out);
+  const std::vector<char> encoded = bytesOf(options.outputPath);
   ASSERT_FALSE(encoded.empty());
   const auto* bytes = reinterpret_cast<const std::byte*>(encoded.data());
   const std::shared_ptr<sigil::video::Video> clip = sigil::video::decodeVideo(
       bytes, encoded.size(),
-      {.hardware = sigil::video::HardwarePreference::Disabled}, options.out);
+      {.hardware = sigil::video::HardwarePreference::Disabled},
+      options.outputPath);
   ASSERT_TRUE(clip);
   const sigil::video::VideoFrame first = clip->frameAt(0.0);
   ASSERT_TRUE(first.image);

@@ -11,8 +11,8 @@
 find_package(boost_container_hash CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilCoreReconcile
-  SOURCES Env.cpp Reads.cpp
-  HEADERS Env.h Host.h Memo.h Node.h Phases.h Reads.h Reconcile.h
+  SOURCES Environment.cpp Reads.cpp
+  HEADERS Environment.h Host.h Memo.h Node.h Phases.h Reads.h Reconcile.h
           Reconciler.h Stats.h
   PUBLIC SigilCoreComparable SigilMeasure Boost::container_hash
          Boost::unordered)
@@ -20,7 +20,7 @@ sigil_library(SigilCoreReconcile
 # Over a fake host, so a link edge that pulled a drawing or layout
 # library in would show up as a build failure here.
 sigil_test(core_test
-  SOURCES test/FakeHost.h test/ReconcilerTest.cpp test/EnvTest.cpp
+  SOURCES test/FakeHost.h test/ReconcilerTest.cpp test/EnvironmentTest.cpp
           test/PhasesTest.cpp test/ReadsTest.cpp
   LIBRARIES SigilCoreReconcile)
 

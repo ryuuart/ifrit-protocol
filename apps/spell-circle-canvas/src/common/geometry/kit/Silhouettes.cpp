@@ -205,9 +205,9 @@ SkPath Harmonograph::path(SkSize s) const {
   return detail::samplePolyline(
       [fa = a, fb = b, delta, fdamping = damping,
        fprecession = precession](float t) {
-        const float env = std::exp(-fdamping * t);
-        const float x = env * std::sin(fa * t + delta);
-        const float y = env * std::sin(fb * t);
+        const float envelope = std::exp(-fdamping * t);
+        const float x = envelope * std::sin(fa * t + delta);
+        const float y = envelope * std::sin(fb * t);
         if (fprecession == 0.0f) return SkPoint{x, y};
         const float th = fprecession * t;
         const float c = std::cos(th), sn = std::sin(th);

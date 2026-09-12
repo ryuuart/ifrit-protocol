@@ -39,7 +39,7 @@ namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -66,7 +66,7 @@ sketch::kit::Theme sheetTheme() {
  *  spelled under it and the rule it illustrates under that. */
 Element cell(const char* call, const char* note, Shape curve) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(box()
                      .absolute()
@@ -86,15 +86,15 @@ struct CurveShelf final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("CURVE SHELF \xc2\xb7 shapes:: parametric, "
-                       "lissajous, harmonograph, rose, spiral, trochoid"),
-         .subtitle = toU8("dials \xc2\xb7 the two frequency parameters in "
-                          "each cell \xc2\xb7 the sample count \xc2\xb7 "
-                          "the stroke width (1.5 px, one for the shelf)"),
-         .footer = toU8("every curve here evaluates in the unit frame "
-                        "and is scaled onto the node's half-extents, so "
-                        "a cell twice the size draws the same figure "
-                        "twice as large and never a different one")},
+        {.title = toUtf8("CURVE SHELF \xc2\xb7 shapes:: parametric, "
+                         "lissajous, harmonograph, rose, spiral, trochoid"),
+         .subtitle = toUtf8("dials \xc2\xb7 the two frequency parameters in "
+                            "each cell \xc2\xb7 the sample count \xc2\xb7 "
+                            "the stroke width (1.5 px, one for the shelf)"),
+         .footer = toUtf8("every curve here evaluates in the unit frame "
+                          "and is scaled onto the node's half-extents, so "
+                          "a cell twice the size draws the same figure "
+                          "twice as large and never a different one")},
         kit::cells(
             {.cells =
                  {kit::cells(
@@ -111,8 +111,7 @@ struct CurveShelf final : sketch::Sketch {
                                            0.62f * std::sin(t) +
                                                0.34f * std::sin(7 * t)};
                                      },
-                                     0.0f,
-                                     6.2831853f, 1400)),
+                                     0.0f, 6.2831853f, 1400)),
                             cell("lissajous(3, 2, 90)",
                                  "x = sin(a\xc2\xb7t + \xce\xb4), "
                                  "y = sin(b\xc2\xb7t)",
@@ -129,37 +128,31 @@ struct CurveShelf final : sketch::Sketch {
                                  "r = cos(k\xc2\xb7\xce\xb8) \xc2\xb7 "
                                  "odd k gives k petals",
                                  shapes::rose(5))},
-                       .gap =
-                           12}),
+                       .gap = 12}),
                   kit::cells(
                       {.cells =
                            {cell("rose(4)",
                                  "\xe2\x80\xa6"
                                  "and EVEN k gives 2k, "
                                  "which is the rule about this family",
-                                 shapes::
-                                     rose(4)),
+                                 shapes::rose(4)),
                             cell("spiral(4)",
                                  "Archimedean \xe2\x80\x94 even "
                                  "spacing: a clock spring",
-                                 shapes::
-                                     spiral(4)),
+                                 shapes::spiral(4)),
                             cell("spiral(4, true, 0.34)",
                                  "logarithmic \xe2\x80\x94 a constant "
                                  "angle: a nautilus",
-                                 shapes::
-                                     spiral(4, true, 0.34f)),
+                                 shapes::spiral(4, true, 0.34f)),
                             cell("trochoid(5, 3, 5, false, 3)",
                                  "an EPItrochoid: the rolling circle "
                                  "runs outside the fixed one",
-                                 shapes::
-                                     trochoid(5, 3, 5, false, 3)),
+                                 shapes::trochoid(5, 3, 5, false, 3)),
                             cell("trochoid(5, 3, 5, true, 3)",
                                  "\xe2\x80\xa6"
                                  "and the same three "
                                  "numbers with it running inside",
-                                 shapes::
-                                     trochoid(5, 3, 5, true, 3))},
+                                 shapes::trochoid(5, 3, 5, true, 3))},
                        .gap =
                            12})},
              .column = true,

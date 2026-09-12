@@ -61,7 +61,7 @@ auto raw = source.fetch("res://data/table.bin");
 // platform's cache location, and this points it at an asset directory
 // instead. A host with its own HTTP stack hands in the function that
 // answers a URL with its body.
-hub.setNetworkCacheDir("/opt/myapp/assets/.netcache");
+hub.setNetworkCacheDirectory("/opt/myapp/assets/.netcache");
 hub.setNetworkPolicy(sigil::io::NetworkPolicy::Offline);
 hub.setNetworkTransport(myHttpClient);
 auto remote = hub.image("https://example.com/tex.png");
@@ -260,7 +260,7 @@ schedule (macOS deletes what has not been touched for three days), and a
 lane that renders network-fetched assets without fetching depends on the
 cache still being there. The resolver reads the environment directly:
 SigilIO stands below every UI toolkit and cannot ask one where the caches
-go. `setNetworkCacheDir()` overrides it per hub.
+go. `setNetworkCacheDirectory()` overrides it per hub.
 
 Cache filenames are private to the hub and implementation-dependent. Cache
 directories are local scratch, not portable artifacts. To ask whether a URL

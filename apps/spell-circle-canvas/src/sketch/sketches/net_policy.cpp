@@ -50,7 +50,7 @@ namespace img = sigil::image;
 namespace io = sigil::io;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -83,16 +83,19 @@ Element cell(const char* call, const char* note,
              const std::shared_ptr<const img::ImageAsset>& asset,
              const std::string& readout) {
   const sketch::kit::Theme& sheet = sketch::kit::theme();
-  Element art = asset ? image(asset).width(Dim(150)).height(Dim(100))
-                      : box().width(Dim(150)).height(Dim(100)).fill(
-                            Fill::color({0.13f, 0.10f, 0.11f, 1}));
+  Element art = asset
+                    ? image(asset).width(Dimension(150)).height(Dimension(100))
+                    : box()
+                          .width(Dimension(150))
+                          .height(Dimension(100))
+                          .fill(Fill::color({0.13f, 0.10f, 0.11f, 1}));
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .column()
           .gap(10)
           .child(std::move(art))
-          .child(text(toU8(readout), sheet.mono(10, sheet.palette.figure))));
+          .child(text(toUtf8(readout), sheet.mono(10, sheet.palette.figure))));
 }
 
 }  // namespace
@@ -116,7 +119,7 @@ struct NetPolicy final : sketch::Sketch {
      *  loaded stays as it is. */
     const auto ask = [&](io::NetworkPolicy policy, const char* url) {
       io::Hub hub;
-      hub.setNetworkCacheDir(cacheDir);
+      hub.setNetworkCacheDirectory(cacheDir);
       hub.setNetworkPolicy(policy);
       return hub.image(url);
     };
@@ -136,15 +139,15 @@ struct NetPolicy final : sketch::Sketch {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("THE NETWORK POLICIES \xc2\xb7 Hub::"
-                       "setNetworkPolicy over a pre-seeded cache"),
-         .subtitle = toU8("dials \xc2\xb7 the policy \xc2\xb7 which URL "
-                          "is seeded \xc2\xb7 the cache directory"),
-         .footer = toU8("the host is a reserved name that cannot "
-                        "resolve, so nothing here leaves the machine "
-                        "\xe2\x80\x94 which is what makes the Refresh "
-                        "cell a fetch that genuinely failed and fell "
-                        "back rather than one that was skipped")},
+        {.title = toUtf8("THE NETWORK POLICIES \xc2\xb7 Hub::"
+                         "setNetworkPolicy over a pre-seeded cache"),
+         .subtitle = toUtf8("dials \xc2\xb7 the policy \xc2\xb7 which URL "
+                            "is seeded \xc2\xb7 the cache directory"),
+         .footer = toUtf8("the host is a reserved name that cannot "
+                          "resolve, so nothing here leaves the machine "
+                          "\xe2\x80\x94 which is what makes the Refresh "
+                          "cell a fetch that genuinely failed and fell "
+                          "back rather than one that was skipped")},
         kit::cells(
             {.cells = {cell("CacheFirst \xc2\xb7 seeded",
                             "the default \xc2\xb7 a present cache file is "

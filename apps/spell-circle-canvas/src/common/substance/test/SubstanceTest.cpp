@@ -92,11 +92,11 @@ TEST(Substance, DescribesEveryParameterWithItsKindAndArity) {
   SKIP_WITHOUT_SAMPLE("Autumn_Leaves.sbsar");
   std::unique_ptr<substance::Package> package = leaves();
   ASSERT_TRUE(package);
-  const std::vector<substance::Parameter> params =
+  const std::vector<substance::Parameter> parameters =
       package->graph(0).parameters();
-  EXPECT_FALSE(params.empty());
+  EXPECT_FALSE(parameters.empty());
   bool hasSize = false;
-  for (const substance::Parameter& p : params) {
+  for (const substance::Parameter& p : parameters) {
     if (p.identifier == "$outputsize") {
       hasSize = true;
       EXPECT_EQ(p.kind, substance::Parameter::Kind::Int2);
@@ -197,9 +197,9 @@ TEST(Substance, SetsAParameterItHasAndRefusesOneItDoesNot) {
   substance::Graph& graph = package->graph(0);
 
   // The first float slider that is not the size, moved to its far end.
-  const std::vector<substance::Parameter> params = graph.parameters();
+  const std::vector<substance::Parameter> parameters = graph.parameters();
   const substance::Parameter* knob = nullptr;
-  for (const substance::Parameter& p : params)
+  for (const substance::Parameter& p : parameters)
     if (p.kind == substance::Parameter::Kind::Float &&
         p.identifier != "$outputsize" && p.maximum.size() == 1 &&
         p.maximum[0] > p.minimum[0]) {

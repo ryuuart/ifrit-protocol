@@ -15,7 +15,6 @@
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/TextPaint.h>
-#include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <algorithm>
 #include <cmath>
@@ -88,23 +87,8 @@ void Overlay::paint(SkCanvas& c, const PaintContext& ctx) const {
 
 material::skia::Effect ripple(float amplitudePx, float wavelengthPx,
                               float phase, bool vertical) {
-  // The field's recipe compiled through SigilMaterial's cache, spelled
-  // as a shader effect so the recipe's float uniforms stay comparable and
-  // a re-described equal ripple prunes.
-  const sigil::material::Material m = sigil::material::field::ripple(
-      amplitudePx, wavelengthPx, phase, vertical);
-  const sigil::material::Material::Resolved resolved =
-      m.resolve(sigil::material::Target::SkSL, {});
-  const auto* program =
-      resolved.program
-          ? resolved.program->as<sigil::material::skia::SkiaProgram>()
-          : nullptr;
-  if (!program) return {};
-  return material::skia::Effect::shader(
-      program->effect(), {{"uAmp", m.get<float>("uAmp")},
-                          {"uFreq", m.get<float>("uFreq")},
-                          {"uPhase", m.get<float>("uPhase")},
-                          {"uVertical", m.get<float>("uVertical")}});
+  return material::skia::Effect::recipe(
+      material::field::ripple(amplitudePx, wavelengthPx, phase, vertical));
 }
 
 }  // namespace sigil::compose::styles

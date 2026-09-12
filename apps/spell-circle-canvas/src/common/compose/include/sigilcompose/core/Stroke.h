@@ -46,7 +46,7 @@ namespace sigil::compose {
 namespace detail {
 struct Instance;
 }  // namespace detail
-class StrokeResolverOps;
+class StrokeResolverOperations;
 
 // ---------------------------------------------------------------------------
 // The stroke grammar — WHERE a stroke goes
@@ -261,7 +261,7 @@ struct Across {
   geometry::path::Profile profile;
   /** The brush engine that sweeps the profile into a region — installed by
    *  `across()`, excluded from equality. */
-  core::Erased<StrokeResolverOps> resolver;
+  core::Erased<StrokeResolverOperations> resolver;
   bool operator==(const Across& o) const { return profile == o.profile; }
   /** FIELD PIN: a member added here must be ruled on in operator== above,
    *  then this count bumped. `resolver` is excluded on purpose. */
@@ -289,9 +289,9 @@ Across across(geometry::path::Profile p);
  *  the stroke passes and the mask gates, because a pass under a gate
  *  claims `where ∩ gate` and two spellings of the intersection would let
  *  the two disagree. */
-class SpanArithmeticOps {
+class SpanArithmeticOperations {
  public:
-  virtual ~SpanArithmeticOps() = default;
+  virtual ~SpanArithmeticOperations() = default;
   /** Clamp to [0,1], drop empties, sort and merge — the one normal form
    *  every span answer is in. */
   virtual std::vector<Span> normalize(const std::vector<Span>& spans) const = 0;
@@ -313,7 +313,7 @@ class SpanArithmeticOps {
  *  `background(spans, …)` and `across()`; a description built without
  *  those verbs carries none, and the kernel then paints no span pass and
  *  no band region. */
-class StrokeResolverOps : public SpanArithmeticOps {
+class StrokeResolverOperations : public SpanArithmeticOperations {
  public:
   /** Every stroke pass's claimed runs for this frame, in pass order, with
    *  rest() complements applied — resolved against @p outline, the node's
@@ -328,7 +328,7 @@ class StrokeResolverOps : public SpanArithmeticOps {
 
 /** The resolver as a description carries it — on its stroke passes and on
  *  a band's width — excluded from structural equality. */
-using StrokeResolver = core::Erased<StrokeResolverOps>;
+using StrokeResolver = core::Erased<StrokeResolverOperations>;
 
 /** A band spine borrowed from another element's resolved shape, through
  *  the derive phase: `band(around("dial"), across(14))`. */

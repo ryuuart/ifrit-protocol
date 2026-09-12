@@ -297,11 +297,12 @@ Element& Element::staggerChildren(motion::Spread spread) {
 // ---- the memo --------------------------------------------------------------
 
 Element detail::makeMemo(
-    std::any props, std::function<bool(const std::any&, const std::any&)> equal,
+    std::any properties,
+    std::function<bool(const std::any&, const std::any&)> equal,
     std::function<Element(const std::any&)> invoke) {
   Element element;
-  element.node()->memo = Memo{std::move(props), std::move(equal),
-                              std::move(invoke), core::env::capture()};
+  element.node()->memo = Memo{std::move(properties), std::move(equal),
+                              std::move(invoke), core::environment::capture()};
   return element;
 }
 

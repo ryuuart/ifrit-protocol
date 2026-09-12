@@ -34,7 +34,7 @@ namespace {
  *  the Skia backend and drawn over one texel of a float surface, so what
  *  comes back is what the term computed rather than what an 8-bit
  *  channel could hold. */
-struct NoParams {
+struct NoParameters {
   float unused = 0;
 };
 
@@ -43,9 +43,9 @@ struct NoParams {
 SkColor4f shadeBody(const std::string& body) {
   static int serial = 0;
   const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<NoParams>("term." + std::to_string(serial++))
+      Recipe::of<NoParameters>("term." + std::to_string(serial++))
           .body(Target::SkSL, body));
-  sk_sp<SkShader> shader = skia::shader(Material(recipe, NoParams{}), {});
+  sk_sp<SkShader> shader = skia::shader(Material(recipe, NoParameters{}), {});
   EXPECT_TRUE(shader) << body;
   if (!shader) return {0, 0, 0, 0};
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
@@ -160,10 +160,11 @@ const ClosedForm kClosedForms[] = {
      0.0f, 2e-3f},
     // THE PANORAMA'S CONVENTION: v = 0 is the zenith, and a direction and
     // a coordinate round trip.
-    {"TheZenithIsAtTheTopOfThePanorama", "equirectUv(float3(0.0, 1.0, 0.0)).y",
-     0.0f, 2e-3f},
+    {"TheZenithIsAtTheTopOfThePanorama",
+     "equirectangularUv(float3(0.0, 1.0, 0.0)).y", 0.0f, 2e-3f},
     {"ADirectionAndAPanoramaCoordinateRoundTrip",
-     "equirectDirection(equirectUv(normalize(float3(0.3, 0.5, -0.8)))).y",
+     "equirectangularDirection(equirectangularUv(normalize(float3(0.3, 0.5, "
+     "-0.8)))).y",
      0.50507627f, 4e-3f},
     // A roughness reads across the chain it was prefiltered into.
     {"HalfRoughnessIsHalfwayUpTheChain", "roughnessLevel(0.5, 9.0)", 4.0f,
@@ -212,7 +213,7 @@ TEST(Terms, ARoughSurfaceTakesLessOfTheEnvironmentThanASmoothOne) {
 
 TEST(Terms, LookingAlongMinusZIsTheMiddleOfThePanorama) {
   const SkColor4f forward =
-      term("equirectUv(float3(0.0, 0.0, -1.0)), 0.0, 1.0");
+      term("equirectangularUv(float3(0.0, 0.0, -1.0)), 0.0, 1.0");
   EXPECT_NEAR(forward.fR, 0.5f, 2e-3f);
   EXPECT_NEAR(forward.fG, 0.5f, 2e-3f);
 }
@@ -247,7 +248,7 @@ TEST(Terms, ABodyWrittenWithAtan2CrossesIntoTheTwoArgumentAtan) {
 
   // Whole identifiers only, which is what lets one table serve the terms
   // as well: their own polynomial arctangent — written out because a
-  // library `atan2` is two pieces of code on two targets and an equirect
+  // library `atan2` is two pieces of code on two targets and an equirectangular
   // lookup that disagreed would seam a reflection — keeps its name.
   EXPECT_NE(termsSource(Target::SkSL).find("float atan2P(float y, float x)"),
             std::string::npos);

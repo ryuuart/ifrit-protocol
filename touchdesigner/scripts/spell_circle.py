@@ -19,8 +19,10 @@ Info contains specific details on what's changed:
 
 Make sure the corresponding toggle is enabled in the DAT Execute DAT.
 
-""" 
-from SpellCircle.canvas import SCCanvas
+"""
+
+from SpellCircle import SpellCircleCanvas
+
 
 def onTableChange(dat: DAT):
     """
@@ -28,11 +30,13 @@ def onTableChange(dat: DAT):
     """
     return
 
+
 def onRowChange(dat, rows):
-	return
+    return
+
 
 def onColChange(dat: DAT, cols):
-    canvas = SCCanvas(width=10, height=10)
+    canvas = SpellCircleCanvas(width=10, height=10)
 
     for row in dat.rows()[1:]:
         x = float(row[1].val)
@@ -45,8 +49,10 @@ def onColChange(dat: DAT, cols):
     op("udpout1").sendBytes(canvas.to_bytes())
     return
 
+
 def onCellChange(dat, cells, prev):
     return
+
 
 def onSizeChange(dat):
     return

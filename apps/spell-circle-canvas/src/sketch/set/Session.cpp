@@ -67,16 +67,19 @@ class SetSession final : public Session {
   SetSession(Set* set, weave::FontContext& fonts, Assets& assets,
              world::Runtime runtime)
       : m_set(set), m_scene(m_ticker), m_runtime(std::move(runtime)) {
-    m_spec.size = {900, 640};
-    m_spec.background = {0.04f, 0.045f, 0.06f, 1.0f};
-    m_spec.captureSeconds = 1.0;
-    SetContext ctx{assets, fonts, &m_spec, &m_camera, &m_scenes};
+    m_specification.size = {900, 640};
+    m_specification.background = {0.04f, 0.045f, 0.06f, 1.0f};
+    m_specification.captureSeconds = 1.0;
+    SetContext ctx{assets, fonts, &m_specification, &m_camera, &m_scenes};
     m_set->setup(ctx);
     m_declared = m_camera;
-    m_extent = {(int)m_spec.size.width(), (int)m_spec.size.height()};
+    m_extent = {(int)m_specification.size.width(),
+                (int)m_specification.size.height()};
   }
 
-  [[nodiscard]] const CanvasSpec& canvas() const override { return m_spec; }
+  [[nodiscard]] const CanvasSpecification& canvas() const override {
+    return m_specification;
+  }
 
   void frame(SkCanvas& canvas, double dt) override {
     m_laps.reset();
@@ -105,7 +108,7 @@ class SetSession final : public Session {
     }
     if (m_runtime) {
       frame.runtime(m_runtime);
-      throughPasses(frame, m_spec.background);
+      throughPasses(frame, m_specification.background);
     }
     m_scene.render(frame);
     // WHAT THE SET ITSELF DECLARED, read back after the describe that
@@ -193,12 +196,13 @@ class SetSession final : public Session {
   /** The declared canvas in the pixels @p canvas has for it. */
   [[nodiscard]] SkISize extentOn(const SkCanvas& canvas) const {
     const float scale = pixelScale(canvas);
-    return {std::max(1, (int)std::lround(m_spec.size.width() * scale)),
-            std::max(1, (int)std::lround(m_spec.size.height() * scale))};
+    return {
+        std::max(1, (int)std::lround(m_specification.size.width() * scale)),
+        std::max(1, (int)std::lround(m_specification.size.height() * scale))};
   }
 
   void paint(SkCanvas& canvas) {
-    canvas.clear(m_spec.background.toSkColor());
+    canvas.clear(m_specification.background.toSkColor());
     // The picture arrives as many pixels across as the frame STANDING
     // was formed at — as a presented resource, or as bodies projected
     // into that extent — and is put back on the declared canvas here.
@@ -208,8 +212,8 @@ class SetSession final : public Session {
     // has to land. On a canvas at the declared size it is the identity
     // and the bytes are the plate's.
     SkAutoCanvasRestore restore(&canvas, true);
-    canvas.scale(m_spec.size.width() / (float)m_extent.width(),
-                 m_spec.size.height() / (float)m_extent.height());
+    canvas.scale(m_specification.size.width() / (float)m_extent.width(),
+                 m_specification.size.height() / (float)m_extent.height());
     m_scene.draw(canvas, viewing());
   }
 
@@ -223,7 +227,7 @@ class SetSession final : public Session {
   world::Runtime m_runtime;
   motion::Ticker m_ticker;
   world::Scene m_scene;
-  CanvasSpec m_spec;
+  CanvasSpecification m_specification;
   /** The fallback the set was handed at setup, for a tree declaring no
    *  camera of its own. */
   geometry::mesh::camera::Camera m_camera;

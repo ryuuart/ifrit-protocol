@@ -95,7 +95,7 @@ TEST(Model, TheFitTransformCentresAndScalesWhateverItIsGiven) {
 
 TEST(Model, AMaterialSlotRidesThePrimitiveClass) {
   // A .geo with a string shop_materialpath per primitive lands as the
-  // "Material" prim lane by string-table index; the fetched Avocado (one
+  // "Material" primitive lane by string-table index; the fetched Avocado (one
   // material) names slot 0 and merged() keeps the lane.
   const char* geo = R"([
     "fileversion","20.5.278","pointcount",4,"vertexcount",6,"primitivecount",2,
@@ -115,7 +115,7 @@ TEST(Model, AMaterialSlotRidesThePrimitiveClass) {
       codec::decode::model(geo, std::strlen(geo), "slots.geo");
   ASSERT_TRUE(model);
   const std::vector<glm::vec4>* lane =
-      model->parts.front().mesh.primIf("Material");
+      model->parts.front().mesh.primitiveIf("Material");
   ASSERT_TRUE(lane);
   ASSERT_EQ(lane->size(), 2u);
   EXPECT_FLOAT_EQ((*lane)[0].x, 1.0f);  // "/mat/glass"
@@ -135,7 +135,7 @@ TEST(Model, AMaterialSlotRidesThePrimitiveClass) {
   EXPECT_EQ(avocado->materialSlotCount(), 1);
   EXPECT_EQ(avocado->parts.front().materialIndex, 0);
   const Mesh merged = avocado->merged();
-  const std::vector<glm::vec4>* slots = merged.primIf("Material");
+  const std::vector<glm::vec4>* slots = merged.primitiveIf("Material");
   ASSERT_TRUE(slots);
   EXPECT_EQ(slots->size(), merged.triangleCount());
 }

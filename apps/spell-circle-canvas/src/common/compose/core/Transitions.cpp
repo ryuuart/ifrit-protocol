@@ -222,7 +222,7 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
   // shadow rule as the float slots).
   bool nextFillTransitions = false;
   if (next.paint.fill) {
-    ResolvedProp<Fill> nf = resolveProp(*next.paint.fill, nd);
+    ResolvedProperty<Fill> nf = resolveProperty(*next.paint.fill, nd);
     // Only a COLOR target can continue a color lerp: a shader/none fill
     // with a transition must still disconnect the running lerp, or the
     // node keeps painting a color no description contains until the old
@@ -237,8 +237,8 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
     }
   }
   if (prev.paint.fill && next.paint.fill) {
-    ResolvedProp<Fill> prevFill = resolveProp(*prev.paint.fill, nd);
-    ResolvedProp<Fill> nextFill = resolveProp(*next.paint.fill, nd);
+    ResolvedProperty<Fill> prevFill = resolveProperty(*prev.paint.fill, nd);
+    ResolvedProperty<Fill> nextFill = resolveProperty(*next.paint.fill, nd);
     if (!prevFill.binding && !nextFill.binding && nextFill.transition &&
         prevFill.target.kind == Fill::Kind::Color &&
         nextFill.target.kind == Fill::Kind::Color &&

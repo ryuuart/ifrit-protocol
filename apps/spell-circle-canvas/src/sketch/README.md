@@ -35,8 +35,8 @@ tree by the reconciler's inherited value.
 
 sketch::kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
 ctx.composer.render(sketch::kit::page(
-    {.title = toU8("THE RULE AND THE STRANDS"),
-     .footer = toU8("a crossing is discovered, not declared")},
+    {.title = toUtf8("THE RULE AND THE STRANDS"),
+     .footer = toUtf8("a crossing is discovered, not declared")},
     kit::cells({.cells = {a, b, c}, .gap = 10})));
 ```
 
@@ -54,7 +54,7 @@ registration macro reads the rest off the type:
 | `<sigilsketch/set/Set.h>` | `sketch::Set` | a world Frame, on a lit set |
 | `<sigilsketch/draw/Draw.h>` | `sketch::DrawSketch` | a pen's frames, p5's way, onto a canvas that keeps them |
 
-The three are a **seam**, not a switch. `Kind` is `core::Erased<KindOps>`:
+The three are a **seam**, not a switch. `Kind` is `core::Erased<KindOperations>`:
 a value that knows one runtime and one body, and opens a `Session` on
 them. Every host here — the registry listing, the live canvas, the
 headless sweep, the frame-time gate — drives a `Session` and never

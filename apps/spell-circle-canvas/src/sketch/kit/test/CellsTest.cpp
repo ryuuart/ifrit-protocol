@@ -49,12 +49,13 @@ TEST(SketchKitCells, CaptionDrawsTheHandSpelledCell) {
 TEST(SketchKitCells, WellTakesTheThemesCellGround) {
   const kit::Theme& house = kit::houseTheme();
   EXPECT_TRUE(sameDrawing(
-      compose::kit::well({.width = compose::Dim(163),
-                          .height = compose::Dim(176),
+      compose::kit::well({.width = compose::Dimension(163),
+                          .height = compose::Dimension(176),
                           .ground = Fill::color(house.palette.cellGround)},
                          compose::box().child(subject())),
-      kit::well({.width = compose::Dim(163), .height = compose::Dim(176)},
-                compose::box().child(subject()))));
+      kit::well(
+          {.width = compose::Dimension(163), .height = compose::Dimension(176)},
+          compose::box().child(subject()))));
 }
 
 /** THE PLATE: a grounded well with rounded corners and one hairline round
@@ -65,8 +66,8 @@ TEST(SketchKitCells, APlateIsAGroundedWellWithCornersAndOneKeyline) {
   const Fill edge = Fill::color({0.42f, 0.38f, 0.22f, 1});
   EXPECT_TRUE(
       sameDrawing(compose::box()
-                      .width(compose::Dim(163))
-                      .height(compose::Dim(176))
+                      .width(compose::Dimension(163))
+                      .height(compose::Dimension(176))
                       .corners(compose::Corners{8})
                       .padding(16)
                       .clip()
@@ -74,8 +75,8 @@ TEST(SketchKitCells, APlateIsAGroundedWellWithCornersAndOneKeyline) {
                       .stroke(compose::stroke(
                           1.0f, edge, compose::PathFormat::Align::Inner))
                       .child(subject()),
-                  kit::well({.width = compose::Dim(163),
-                             .height = compose::Dim(176),
+                  kit::well({.width = compose::Dimension(163),
+                             .height = compose::Dimension(176),
                              .ground = ground,
                              .padding = 16,
                              .corners = 8,
@@ -92,8 +93,8 @@ TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
       .lipDark = SkColor4f{0, 0, 0, 0.55f}};
   EXPECT_TRUE(sameDrawing(
       compose::box()
-          .width(compose::Dim(140))
-          .height(compose::Dim(90))
+          .width(compose::Dimension(140))
+          .height(compose::Dimension(90))
           .clip()
           .fill(ground)
           .foreground(compose::styles::InnerShadow{hole.shade.colorValue,
@@ -101,16 +102,16 @@ TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
           .overlay(compose::styles::bevelPair(*hole.lipLight, *hole.lipDark,
                                               hole.lipWidth,
                                               /*sunken=*/true)),
-      kit::well({.width = compose::Dim(140),
-                 .height = compose::Dim(90),
+      kit::well({.width = compose::Dimension(140),
+                 .height = compose::Dimension(90),
                  .ground = ground,
                  .recess = hole})));
   // …and it is not the flush well: the recess draws something.
-  EXPECT_FALSE(sameDrawing(kit::well({.width = compose::Dim(140),
-                                      .height = compose::Dim(90),
+  EXPECT_FALSE(sameDrawing(kit::well({.width = compose::Dimension(140),
+                                      .height = compose::Dimension(90),
                                       .ground = ground}),
-                           kit::well({.width = compose::Dim(140),
-                                      .height = compose::Dim(90),
+                           kit::well({.width = compose::Dimension(140),
+                                      .height = compose::Dimension(90),
                                       .ground = ground,
                                       .recess = hole})));
 }
@@ -119,14 +120,14 @@ TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
 TEST(SketchKitCells, APaddingDownOfItsOwn) {
   const Fill ground = Fill::color({0.10f, 0.11f, 0.14f, 1});
   EXPECT_TRUE(sameDrawing(compose::box()
-                              .width(compose::Dim(163))
-                              .height(compose::Dim(176))
+                              .width(compose::Dimension(163))
+                              .height(compose::Dimension(176))
                               .padding(13, 10)
                               .clip()
                               .fill(ground)
                               .child(subject()),
-                          kit::well({.width = compose::Dim(163),
-                                     .height = compose::Dim(176),
+                          kit::well({.width = compose::Dimension(163),
+                                     .height = compose::Dimension(176),
                                      .ground = ground,
                                      .padding = 13,
                                      .paddingY = 10},
@@ -143,13 +144,13 @@ TEST(SketchKitCells, AWellGroundedInAMaterialIsTheHandSpelledFill) {
       {.hi = {0.47f, 0.29f, 0.29f, 1}, .lo = {0.30f, 0.19f, 0.19f, 1}});
   EXPECT_TRUE(
       sameDrawing(compose::box()
-                      .width(compose::Dim(163))
-                      .height(compose::Dim(176))
+                      .width(compose::Dimension(163))
+                      .height(compose::Dimension(176))
                       .clip()
                       .fill(sigil::material::skia::Paint::recipe(quarry))
                       .child(subject()),
-                  kit::well({.width = compose::Dim(163),
-                             .height = compose::Dim(176),
+                  kit::well({.width = compose::Dimension(163),
+                             .height = compose::Dimension(176),
                              .ground = quarry},
                             compose::box().child(subject()))));
 }
@@ -158,21 +159,23 @@ TEST(SketchKitCells, AWellGroundedInAMaterialIsTheHandSpelledFill) {
 TEST(SketchKitCells, AWellWithoutThemDrawsWhatItAlwaysDid) {
   const kit::Theme& house = kit::houseTheme();
   EXPECT_TRUE(sameDrawing(
-      compose::kit::well({.width = compose::Dim(163),
-                          .height = compose::Dim(176),
+      compose::kit::well({.width = compose::Dimension(163),
+                          .height = compose::Dimension(176),
                           .ground = Fill::color(house.palette.cellGround),
                           .padding = house.spacing.wellPadding},
                          compose::box().child(subject())),
-      kit::well({.width = compose::Dim(163), .height = compose::Dim(176)},
-                compose::box().child(subject()))));
+      kit::well(
+          {.width = compose::Dimension(163), .height = compose::Dimension(176)},
+          compose::box().child(subject()))));
 }
 
 TEST(SketchKitCells, AnExplicitGroundWinsOverTheThemes) {
   EXPECT_FALSE(sameDrawing(
-      kit::well({.width = compose::Dim(163), .height = compose::Dim(176)},
-                compose::box().child(subject())),
-      kit::well({.width = compose::Dim(163),
-                 .height = compose::Dim(176),
+      kit::well(
+          {.width = compose::Dimension(163), .height = compose::Dimension(176)},
+          compose::box().child(subject())),
+      kit::well({.width = compose::Dimension(163),
+                 .height = compose::Dimension(176),
                  .ground = Fill::color({0.4f, 0.1f, 0.1f, 1})},
                 compose::box().child(subject()))));
 }
@@ -191,12 +194,12 @@ TEST(SketchKitCells, ARunIsTheHandSpelledRunAtTheThemesGutter) {
  *  do because it does not know how wide the page is. */
 TEST(SketchKitCells, ColumnsTakeEqualShares) {
   Element wide = compose::box()
-                     .width(compose::Dim(300))
-                     .height(compose::Dim(20))
+                     .width(compose::Dimension(300))
+                     .height(compose::Dimension(20))
                      .fill(Fill::color({0.9f, 0.3f, 0.4f, 1}));
   Element narrow = compose::box()
-                       .width(compose::Dim(10))
-                       .height(compose::Dim(20))
+                       .width(compose::Dimension(10))
+                       .height(compose::Dimension(20))
                        .fill(Fill::color({0.9f, 0.3f, 0.4f, 1}));
   SkBitmap shared =
       Drawn(kit::panelGrid({.cells = {wide, narrow}, .columns = 0})).pixels();

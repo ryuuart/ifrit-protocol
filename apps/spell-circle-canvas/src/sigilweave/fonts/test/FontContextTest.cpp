@@ -134,9 +134,9 @@ TEST_F(OpticalKerning, APairIsSetByWhatItsOutlinesLeaveBetweenThem) {
   // stands clear of the A's own diagonal for most of their height, so a
   // measurement of the two edges closes them further than a face's even
   // pair sits.
-  const ShapedWordRef byMetrics =
+  const ShapedWordReference byMetrics =
       shapeWord(m_fontContext, metric, m_typeface, u"AV", 0, false, false);
-  const ShapedWordRef byOutlines =
+  const ShapedWordReference byOutlines =
       shapeWord(m_fontContext, optical, m_typeface, u"AV", 0, false, false);
   ASSERT_TRUE(byMetrics);
   ASSERT_TRUE(byOutlines);
@@ -163,9 +163,9 @@ TEST_F(OpticalKerning, AGlyphWithNoNeighbourIsLeftAlone) {
   style.fontSize = 32.0f;
   ShapingStyle optical = style;
   optical.opticalKerning = true;
-  const ShapedWordRef plain =
+  const ShapedWordReference plain =
       shapeWord(m_fontContext, style, m_typeface, u"o", 0, false, false);
-  const ShapedWordRef kerned =
+  const ShapedWordReference kerned =
       shapeWord(m_fontContext, optical, m_typeface, u"o", 0, false, false);
   ASSERT_TRUE(plain);
   ASSERT_TRUE(kerned);

@@ -29,12 +29,12 @@ Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp,
   // variety — is the stamping operator's own, applied as the vertex is
   // formed rather than walked over afterwards.
   Mesh out = points::instance(cloud, stamp, points::stampOptions(cloud));
-  // The PRIMITIVE class: every Promote op bakes a point lane onto the
+  // The PRIMITIVE class: every Promote operation bakes a point lane onto the
   // stamped triangles. Each point owns stamp.triangleCount() of them,
-  // which is exactly the run points::promoteToPrims addresses.
-  for (const pop::Op& op : chain)
-    if (const auto* promote = std::get_if<pop::Promote>(&op))
-      points::promoteToPrims(
+  // which is exactly the run points::promoteToPrimitives addresses.
+  for (const pop::Operation& operation : chain)
+    if (const auto* promote = std::get_if<pop::Promote>(&operation))
+      points::promoteToPrimitives(
           out, cloud,
           promote->from.name == "Id"
               ? "Id"

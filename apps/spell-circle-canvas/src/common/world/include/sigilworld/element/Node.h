@@ -116,8 +116,8 @@ struct ElementNode {
  *
  *  Two fields are deliberately excluded and both are compared elsewhere:
  *  `memo` is compared earlier and more strictly by the reconciler (the
- *  captured environment, then the author's own props comparison), and
+ *  captured environment, then the author's own properties comparison), and
  *  `children` are reconciled by key rather than compared. */
-bool propsEqual(const ElementNode& a, const ElementNode& b);
+bool propertiesEqual(const ElementNode& a, const ElementNode& b);
 
 }  // namespace sigil::world

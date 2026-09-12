@@ -26,19 +26,19 @@
 
 namespace sigil::geometry::mesh {
 
-void runSmooth(Attrs& attrs, const pop::Smooth& op, size_t count,
+void runSmooth(Attrs& attributes, const pop::Smooth& operation, size_t count,
                size_t grain) {
-  // Chain-order op: double-buffered, read-old/write-new — the
+  // Chain-order operation: double-buffered, read-old/write-new — the
   // shape a parallel pass would have too, and the reason there
   // is no kernel for it: a point reads two it does not own, so
   // one lane cannot be both what is read and what is written.
   // The mask blends the relaxed value against the old one
   // BEFORE the scratch write, so a masked point's neighbours
   // still see its old value this pass.
-  std::vector<glm::vec4>& values = attrs.ensure(op.lane.name);
+  std::vector<glm::vec4>& values = attributes.ensure(operation.lane.name);
   const std::vector<glm::vec4>* mask =
-      op.mask.empty() ? nullptr : &attrs.ensure(op.mask);
-  for (int pass = 0; pass < op.iterations; ++pass) {
+      operation.mask.empty() ? nullptr : &attributes.ensure(operation.mask);
+  for (int pass = 0; pass < operation.iterations; ++pass) {
     std::vector<glm::vec4> next(count);
     core::schedule::parallelFor(count, grain, [&](size_t first, size_t last) {
       for (size_t i = first; i < last; ++i) {
@@ -46,7 +46,7 @@ void runSmooth(Attrs& attrs, const pop::Smooth& op, size_t count,
         const size_t b = i + 1 < count ? i + 1 : i;
         const glm::vec4 mid = (values[a] + values[b]) * 0.5f;
         const glm::vec4 v = values[i];
-        const glm::vec4 relaxed = v + (mid - v) * op.strength;
+        const glm::vec4 relaxed = v + (mid - v) * operation.strength;
         float m = 1.0f;
         if (mask) {
           const float raw = (*mask)[i].x;
@@ -59,20 +59,21 @@ void runSmooth(Attrs& attrs, const pop::Smooth& op, size_t count,
   }
 }
 
-void runRelax(Attrs& attrs, const pop::Relax& op, size_t count) {
+void runRelax(Attrs& attributes, const pop::Relax& operation, size_t count) {
   // SPATIAL relaxation, over the one grid the whole tree's
   // proximity is answered by. The mask blends the settled
   // positions against where they started, which is the same
   // rule every other filter's mask is read by.
-  std::vector<glm::vec4>& values = attrs.ensure("P");
+  std::vector<glm::vec4>& values = attributes.ensure("P");
   const std::vector<glm::vec4>* mask =
-      op.mask.empty() ? nullptr : &attrs.ensure(op.mask);
+      operation.mask.empty() ? nullptr : &attributes.ensure(operation.mask);
   std::vector<glm::vec3> positions(count);
   for (size_t i = 0; i < count; ++i)
     positions[i] = {values[i].x, values[i].y, values[i].z};
   const std::vector<glm::vec3> before = positions;
   path::relax(positions,
-              path::Relaxation{op.radius, op.iterations, op.strength});
+              path::Relaxation{operation.radius, operation.iterations,
+                               operation.strength});
   for (size_t i = 0; i < count; ++i) {
     float m = 1.0f;
     if (mask) {
@@ -84,17 +85,17 @@ void runRelax(Attrs& attrs, const pop::Relax& op, size_t count) {
   }
 }
 
-void runCluster(Attrs& attrs, const pop::Cluster& op, size_t count,
+void runCluster(Attrs& attributes, const pop::Cluster& operation, size_t count,
                 size_t grain) {
   // K-MEANS in the metric `weights` names. The centres start at
   // points drawn from the set itself rather than at random
   // coordinates, so no centre begins somewhere the points are
   // not and no group starts empty.
-  const std::vector<glm::vec4>& from = attrs.ensure(op.from.name);
-  std::vector<glm::vec4>& to = attrs.ensure(op.to);
+  const std::vector<glm::vec4>& from = attributes.ensure(operation.from.name);
+  std::vector<glm::vec4>& to = attributes.ensure(operation.to);
   const int groups =
-      (int)std::min<size_t>((size_t)std::max(op.count, 1), count);
-  const glm::vec4 w = op.weights;
+      (int)std::min<size_t>((size_t)std::max(operation.count, 1), count);
+  const glm::vec4 w = operation.weights;
   const auto keyOf = [&](size_t i) { return from[i] * w; };
 
   // The centres are seeded the way k-means++ seeds them: the
@@ -106,7 +107,7 @@ void runCluster(Attrs& attrs, const pop::Cluster& op, size_t count,
   // for a set whose groups are obvious.
   std::vector<glm::vec4> centres;
   centres.reserve((size_t)groups);
-  core::chance::Stream stream = core::chance::Stream::pcg(op.seed);
+  core::chance::Stream stream = core::chance::Stream::pcg(operation.seed);
   centres.push_back(keyOf(stream.below(count)));
   std::vector<float> spread(count, 0.0f);
   for (int g = 1; g < groups; ++g) {
@@ -134,7 +135,7 @@ void runCluster(Attrs& attrs, const pop::Cluster& op, size_t count,
   }
 
   std::vector<int> owner(count, 0);
-  for (int pass = 0; pass < std::max(op.iterations, 1); ++pass) {
+  for (int pass = 0; pass < std::max(operation.iterations, 1); ++pass) {
     core::schedule::parallelFor(count, grain, [&](size_t first, size_t last) {
       for (size_t i = first; i < last; ++i) {
         const glm::vec4 key = keyOf(i);
@@ -166,26 +167,30 @@ void runCluster(Attrs& attrs, const pop::Cluster& op, size_t count,
   for (size_t i = 0; i < count; ++i) to[i] = {(float)owner[i], 0, 0, 0};
 }
 
-void runTransfer(Attrs& attrs, const pop::Transfer& op, size_t count) {
+void runTransfer(Attrs& attributes, const pop::Transfer& operation,
+                 size_t count) {
   // A GATHER FROM ANOTHER CLOUD. The source is indexed once and
   // every destination point reads it, which is the whole reason
   // this is one operator and not a loop at a call site.
-  if (!op.lane.empty() && op.radius > 0 && !op.source.positions.empty()) {
-    const std::vector<glm::vec4>& positions = attrs.ensure("P");
-    std::vector<glm::vec4>& lane = attrs.ensure(op.lane);
+  if (!operation.lane.empty() && operation.radius > 0 &&
+      !operation.source.positions.empty()) {
+    const std::vector<glm::vec4>& positions = attributes.ensure("P");
+    std::vector<glm::vec4>& lane = attributes.ensure(operation.lane);
     const std::vector<glm::vec4>* mask =
-        op.mask.empty() ? nullptr : &attrs.ensure(op.mask);
-    const path::Neighbours index(op.source.positions);
+        operation.mask.empty() ? nullptr : &attributes.ensure(operation.mask);
+    const path::Neighbours index(operation.source.positions);
 
     // The source lane read under the destination's own name: a
     // colour if the source carries one there, else a vector, else
     // a scalar in .x. A source that carries nothing under the
     // name transfers nothing.
-    const std::vector<glm::vec4>* colours = op.source.colorIf(op.lane);
+    const std::vector<glm::vec4>* colours =
+        operation.source.colorIf(operation.lane);
     const std::vector<glm::vec3>* vectors =
-        colours ? nullptr : op.source.vectorIf(op.lane);
+        colours ? nullptr : operation.source.vectorIf(operation.lane);
     const std::vector<float>* scalars =
-        (colours || vectors) ? nullptr : op.source.scalarIf(op.lane);
+        (colours || vectors) ? nullptr
+                             : operation.source.scalarIf(operation.lane);
     const auto sourceAt = [&](uint32_t i) -> glm::vec4 {
       if (colours) return (*colours)[i];
       if (vectors) {
@@ -197,8 +202,8 @@ void runTransfer(Attrs& attrs, const pop::Transfer& op, size_t count) {
     };
 
     if (colours || vectors || scalars) {
-      const float blend = std::clamp(op.blendWidth, 0.0f, 1.0f);
-      const int samples = std::max(op.maxSamples, 1);
+      const float blend = std::clamp(operation.blendWidth, 0.0f, 1.0f);
+      const int samples = std::max(operation.maxSamples, 1);
       std::vector<uint32_t> found;
       for (size_t i = 0; i < count; ++i) {
         const glm::vec4 p = positions[i];
@@ -208,7 +213,7 @@ void runTransfer(Attrs& attrs, const pop::Transfer& op, size_t count) {
         float weight = 0, nearestDistance = 0;
         for (size_t at = 0; at < found.size(); ++at) {
           const float distance = glm::length(index.point(found[at]) - here);
-          if (distance > op.radius) break;
+          if (distance > operation.radius) break;
           if (at == 0) nearestDistance = distance;
           // One over the distance, with a coincident source
           // taking the whole weight rather than an infinite one.
@@ -223,9 +228,10 @@ void runTransfer(Attrs& attrs, const pop::Transfer& op, size_t count) {
         // then back to what the destination already held.
         float strength = 1.0f;
         if (blend > 0) {
-          const float inner = op.radius * (1.0f - blend);
+          const float inner = operation.radius * (1.0f - blend);
           if (nearestDistance > inner)
-            strength = 1.0f - (nearestDistance - inner) / (op.radius - inner);
+            strength =
+                1.0f - (nearestDistance - inner) / (operation.radius - inner);
           strength = std::clamp(strength, 0.0f, 1.0f);
         }
         if (mask) {

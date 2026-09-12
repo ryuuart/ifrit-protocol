@@ -45,8 +45,8 @@
 // stagger — so the loop below drives the track's PROGRESS up, holds it, and
 // drives it back DOWN, which replays the cascade in reverse and burns the
 // line off right to left (the last unit to arrive is the first to lose
-// progress). And a pass is a whole-track statement: fx::seq/mix/hold do not
-// consult it, so a pass that wants phases writes them in its own SkSL.
+// progress). And a pass is a whole-track statement: fx::sequence/mix/hold do
+// not consult it, so a pass that wants phases writes them in its own SkSL.
 //
 // EDIT THESE FIRST
 //   kEachMs   — start-to-start between units. 0 decodes the whole line at
@@ -165,7 +165,7 @@ half4 main(float2 xy) {
 
 /** The burn's ABI. The three weights are one array rather than three
  *  floats because they are read as a set and the body indexes them. */
-struct BurnParams {
+struct BurnParameters {
   sigil::material::Color uInk;
   sigil::material::Color uEmber;
   std::array<float, 3> uWeights;  // sweep, speckle, patch
@@ -177,7 +177,7 @@ struct BurnParams {
  *  than a static in this dylib, which a reload unloads. */
 std::shared_ptr<const sigil::material::Recipe> burnRecipe() {
   return std::make_shared<const sigil::material::Recipe>(
-      sigil::material::Recipe::of<BurnParams>("ember.burn")
+      sigil::material::Recipe::of<BurnParameters>("ember.burn")
           .body(sigil::material::Target::SkSL, kBurnSksl));
 }
 
@@ -227,8 +227,8 @@ struct EmberDecode : sketch::Sketch {
     const mskia::Paint burn = burnMaterial(recipe);
     Element root =
         box().column().padding(44).gap(20).fill(mskia::Paint::solid(kPlate));
-    root.child(text(toU8("TEXT AS A SAMPLER \xc2\xb7 ONE SkSL PASS OVER ONE "
-                         "RENDERED LINE"),
+    root.child(text(toUtf8("TEXT AS A SAMPLER \xc2\xb7 ONE SkSL PASS OVER ONE "
+                           "RENDERED LINE"),
                     label));
     root.child(text(u8"EMBER DECODE", big)
                    .key("burn-display")
@@ -237,9 +237,9 @@ struct EmberDecode : sketch::Sketch {
                         .unit = weave::Unit::Cluster,
                         .progress = &display}));
     root.child(
-        text(toU8("uUnitRect[N] \xc2\xb7 uUnitPhase[N] \xe2\x80\x94 a LETTER "
-                  "is a unit; the bar under each one is the progress that "
-                  "unit's uniform carries, read back from beatsOf"),
+        text(toUtf8("uUnitRect[N] \xc2\xb7 uUnitPhase[N] \xe2\x80\x94 a LETTER "
+                    "is a unit; the bar under each one is the progress that "
+                    "unit's uniform carries, read back from beatsOf"),
              faint));
     root.child(box().height(6));
     root.child(text(u8"ONE PASS PER WORD PHASE", small)
@@ -248,15 +248,15 @@ struct EmberDecode : sketch::Sketch {
                         .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
                         .unit = weave::Unit::Word,
                         .progress = &words}));
-    root.child(text(toU8("the same pass, the same source at another count "
-                         "\xe2\x80\x94 a WORD is a unit here, and the "
-                         "runtime compiled and cached one variant per "
-                         "count"),
+    root.child(text(toUtf8("the same pass, the same source at another count "
+                           "\xe2\x80\x94 a WORD is a unit here, and the "
+                           "runtime compiled and cached one variant per "
+                           "count"),
                     faint));
     root.child(box().grow(1));
-    root.child(text(toU8("one draw and one pass over each line's own box, "
-                         "whatever N is \xc2\xb7 per-unit progress is "
-                         "uniform DATA, not scene structure"),
+    root.child(text(toUtf8("one draw and one pass over each line's own box, "
+                           "whatever N is \xc2\xb7 per-unit progress is "
+                           "uniform DATA, not scene structure"),
                     faint));
 
     // THE SCHEDULE, DRAWN, from the same query the pass agrees with: one

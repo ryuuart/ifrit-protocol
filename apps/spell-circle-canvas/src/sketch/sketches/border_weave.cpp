@@ -49,7 +49,7 @@ namespace shapes = sigil::geometry::shapes;
 namespace crossing = sigil::geometry::path::crossing;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -73,8 +73,10 @@ constexpr SkColor4f kCool{0.46f, 0.70f, 0.86f, 1};
  *  real tangent break the corner scan can find — except in the last cell,
  *  which is the inscribed circle, a silhouette with no break anywhere. */
 Element plaque(bool round = false) {
-  Element node =
-      box().width(Dim(kPlaque)).height(Dim(kPlaque)).fill(Fill::color(kPlate));
+  Element node = box()
+                     .width(Dimension(kPlaque))
+                     .height(Dimension(kPlaque))
+                     .fill(Fill::color(kPlate));
   if (round)
     node.shape(shapes::circle());
   else
@@ -84,7 +86,7 @@ Element plaque(bool round = false) {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body).absolute().inset(
               (kCell - kPlaque) / 2, (kPicture - kPlaque) / 2,
@@ -106,17 +108,17 @@ struct BorderWeave final : sketch::Sketch {
                          .corner = kArm};
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("THE RULE AND THE STRANDS \xc2\xb7 Border's four "
-                       "modes, brush::weave over one outline"),
-         .subtitle = toU8("dials \xc2\xb7 the width (1.8 px) and inset "
-                          "(7 px) \xc2\xb7 the corner arm (18 px) "
-                          "\xc2\xb7 the strand count (3), amplitude and "
-                          "wavelength \xc2\xb7 the chamfer"),
-         .footer = toU8("a crossing is DISCOVERED and not declared, so "
-                        "the strands of a weave must be waves: n "
-                        "oscillations of equal amplitude at evenly "
-                        "spread phases must trade sides, and parallels "
-                        "are rails that never cross")},
+        {.title = toUtf8("THE RULE AND THE STRANDS \xc2\xb7 Border's four "
+                         "modes, brush::weave over one outline"),
+         .subtitle = toUtf8("dials \xc2\xb7 the width (1.8 px) and inset "
+                            "(7 px) \xc2\xb7 the corner arm (18 px) "
+                            "\xc2\xb7 the strand count (3), amplitude and "
+                            "wavelength \xc2\xb7 the chamfer"),
+         .footer = toUtf8("a crossing is DISCOVERED and not declared, so "
+                          "the strands of a weave must be waves: n "
+                          "oscillations of equal amplitude at evenly "
+                          "spread phases must trade sides, and parallels "
+                          "are rails that never cross")},
         kit::cells(
             {.cells =
                  {cell("border(1.8, ink, inset 7)",

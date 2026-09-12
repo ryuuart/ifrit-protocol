@@ -725,7 +725,7 @@ struct XcomBattlescape : sketch::Sketch {
     for (const measure::Check& c : verdict.rows) {
       if (!c.judged() || c.pass) continue;
       rows.push_back(
-          {{toU8(c.label), toU8(c.actual), toU8("want " + c.expected)},
+          {{toUtf8(c.label), toUtf8(c.actual), toUtf8("want " + c.expected)},
            Fill::color(C(blk(2, 3)))});
     }
     sketch::kit::Provide bound(look);

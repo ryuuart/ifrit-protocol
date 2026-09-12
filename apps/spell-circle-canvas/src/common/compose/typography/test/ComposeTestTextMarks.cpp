@@ -13,42 +13,44 @@
 
 TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
   // The arguments read in TIME ORDER while the mechanism runs the other
-  // way: colorMul MULTIPLIES, so the element is set in the destination and
-  // the effect divides down toward the origin. At t = 1 the multiplier must
+  // way: colorMultiplier MULTIPLIES, so the element is set in the destination
+  // and the effect divides down toward the origin. At t = 1 the multiplier must
   // therefore be white — anything else tints a line that has arrived.
   const SkColor4f pale{0.9f, 0.8f, 0.4f, 1};
   const SkColor4f sung{0.3f, 0.6f, 0.8f, 1};
   const TextEffect ramp = fx::tint(pale, sung);
   GlyphInfo glyph;
   sigil::core::noise::Mix64Stream rng(1);
-  const GlyphMod start = ramp(glyph, 0.0f, rng);
-  const GlyphMod end = ramp(glyph, 1.0f, rng);
-  const GlyphMod middle = ramp(glyph, 0.5f, rng);
+  const GlyphModifier start = ramp(glyph, 0.0f, rng);
+  const GlyphModifier end = ramp(glyph, 1.0f, rng);
+  const GlyphModifier middle = ramp(glyph, 0.5f, rng);
 
   // Origin: the multiplier that takes the DESTINATION to `pale`.
-  EXPECT_NEAR(start.colorMul.fR * sung.fR, pale.fR, 1e-5f);
-  EXPECT_NEAR(start.colorMul.fG * sung.fG, pale.fG, 1e-5f);
-  EXPECT_NEAR(start.colorMul.fB * sung.fB, pale.fB, 1e-5f);
+  EXPECT_NEAR(start.colorMultiplier.fR * sung.fR, pale.fR, 1e-5f);
+  EXPECT_NEAR(start.colorMultiplier.fG * sung.fG, pale.fG, 1e-5f);
+  EXPECT_NEAR(start.colorMultiplier.fB * sung.fB, pale.fB, 1e-5f);
   // Destination: no tint at all.
-  EXPECT_NEAR(end.colorMul.fR, 1.0f, 1e-5f);
-  EXPECT_NEAR(end.colorMul.fG, 1.0f, 1e-5f);
-  EXPECT_NEAR(end.colorMul.fB, 1.0f, 1e-5f);
+  EXPECT_NEAR(end.colorMultiplier.fR, 1.0f, 1e-5f);
+  EXPECT_NEAR(end.colorMultiplier.fG, 1.0f, 1e-5f);
+  EXPECT_NEAR(end.colorMultiplier.fB, 1.0f, 1e-5f);
   // And a monotone ramp between them on every channel, in whichever
   // direction that channel happens to run.
   for (auto lane : {&SkColor4f::fR, &SkColor4f::fG, &SkColor4f::fB}) {
-    const float a = start.colorMul.*lane, b = middle.colorMul.*lane;
+    const float a = start.colorMultiplier.*lane,
+                b = middle.colorMultiplier.*lane;
     EXPECT_GT((b - a) * (1.0f - a), 0.0f)
         << "the middle of the ramp is not between its ends";
   }
   // Alpha is left alone: a reveal that also fades is a separate track.
-  EXPECT_FLOAT_EQ(start.colorMul.fA, 1.0f);
+  EXPECT_FLOAT_EQ(start.colorMultiplier.fA, 1.0f);
   // The value is comparable, which is what lets a re-described wipe prune.
   EXPECT_TRUE(fx::tint(pale, sung) == ramp);
   EXPECT_FALSE(fx::tint(sung, pale) == ramp);
   // A destination channel of zero cannot be departed from, and the ramp
   // says so by holding at 1 rather than dividing by nothing.
-  const GlyphMod dark = fx::tint({1, 1, 1, 1}, {0, 0, 0, 1})(glyph, 0.0f, rng);
-  EXPECT_FLOAT_EQ(dark.colorMul.fR, 1.0f);
+  const GlyphModifier dark =
+      fx::tint({1, 1, 1, 1}, {0, 0, 0, 1})(glyph, 0.0f, rng);
+  EXPECT_FLOAT_EQ(dark.colorMultiplier.fR, 1.0f);
 }
 
 TEST(ComposeTextFx, TintComposesWithAnotherTrackByMultiplying) {
@@ -104,7 +106,8 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
       text(u8"ALPHA BETA GAMMA", whiteStyle(24))
           .key("line")
           .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
-          .mark(sigil::weave::sel::word(1), box().key("caret").fill(green()))));
+          .mark(sigil::weave::selectors::word(1),
+                box().key("caret").fill(green()))));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("line", 0);
   ASSERT_EQ(beats.size(), 3u);
@@ -123,7 +126,7 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
       text(u8"ALPHA BETA GAMMA", whiteStyle(24))
           .key("line")
           .mark(
-              sigil::weave::sel::word(1),
+              sigil::weave::selectors::word(1),
               box().key("caret").left(0).top(pct(100)).width(2).height(9).fill(
                   green()))));
   pinned.frame();
@@ -144,7 +147,7 @@ TEST(ComposeTextFx, MarkFollowsItsUnitWhenTheTextReflows) {
         box().padding(10).child(text(u8"ALPHA BETA GAMMA DELTA", whiteStyle(24))
                                     .key("line")
                                     .width(width)
-                                    .mark(sigil::weave::sel::word(3),
+                                    .mark(sigil::weave::selectors::word(3),
                                           box().key("caret").fill(green()))));
     host.frame();
     return markRect(host, "caret");
@@ -170,7 +173,7 @@ TEST(ComposeTextFx, MarkStandsAtRestWhileACascadeDeviatesTheGlyphs) {
             .fx({.effect = fx::rise(40),
                  .stagger = {.eachMs = 0, .durationMs = 100},
                  .progress = progress})
-            .mark(sigil::weave::sel::word(1),
+            .mark(sigil::weave::selectors::word(1),
                   box().key("caret").fill(green()))));
     host.frame();
     return markRect(host, "caret");
@@ -196,7 +199,8 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
           .height(180)
           .onPath({.path = geometry::shapes::circle()})
           .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
-          .mark(sigil::weave::sel::word(2), box().key("caret").fill(green()))));
+          .mark(sigil::weave::selectors::word(2),
+                box().key("caret").fill(green()))));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
   ASSERT_GT(beats.size(), 2u);
@@ -216,7 +220,8 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
           .width(180)
           .height(180)
           .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
-          .mark(sigil::weave::sel::word(2), box().key("caret").fill(green()))));
+          .mark(sigil::weave::selectors::word(2),
+                box().key("caret").fill(green()))));
   straight.frame();
   const SkRect flow = markRect(straight, "caret");
   EXPECT_TRUE(std::abs(caret.left() - flow.left()) > 1.0f ||
@@ -233,7 +238,7 @@ TEST(ComposeTextFx, MarkResolvingNothingPlacesNothing) {
   host.composer.render(box().padding(10).child(
       text(u8"ALPHA BETA", whiteStyle(24))
           .key("line")
-          .mark(sel::style("nobody"),
+          .mark(selectors::style("nobody"),
                 box().key("caret").width(30).height(30).fill(green()))));
   host.frame();
   EXPECT_TRUE(markRect(host, "caret").isEmpty())
@@ -251,10 +256,11 @@ TEST(ComposeTextFx, MarkPrunesAndReResolvesWhenItMoves) {
   // different word must not, or the caret keeps the rect it had.
   Host host(400, 140);
   const auto describe = [](uint32_t word) {
-    return box().padding(10).child(text(u8"ALPHA BETA GAMMA", whiteStyle(24))
-                                       .key("line")
-                                       .mark(sigil::weave::sel::word(word),
-                                             box().key("caret").fill(green())));
+    return box().padding(10).child(
+        text(u8"ALPHA BETA GAMMA", whiteStyle(24))
+            .key("line")
+            .mark(sigil::weave::selectors::word(word),
+                  box().key("caret").fill(green())));
   };
   host.composer.render(describe(0));
   host.frame();
@@ -284,7 +290,7 @@ TEST(ComposeTextFx, MarkIsNotASlotAndReservesNoSpaceInTheFlow) {
   const float bare = widthOf(text(u8"ALPHA BETA", whiteStyle(24)));
   const float marked =
       widthOf(text(u8"ALPHA BETA", whiteStyle(24))
-                  .mark(sigil::weave::sel::word(0),
+                  .mark(sigil::weave::selectors::word(0),
                         box().key("m").width(40).fill(green())));
   EXPECT_NEAR(marked, bare, 0.01f) << "the mark reserved space in the flow";
 }

@@ -304,7 +304,7 @@ auto ChevreulCircle::theVerification() -> Element {
   o.knuthPlass.tolerance = 6000.0f;
   o.lineMetrics.height = 16.0f;
   if (lawPara)
-    g.child(at(x0, y0, 380, 96).child(text(lawPara, o).width(Dim(380))));
+    g.child(at(x0, y0, 380, 96).child(text(lawPara, o).width(Dimension(380))));
 
   // The words are the run's own — the label each claim was made under,
   // the figure it came to, and the verdict `measure::Check` computed from

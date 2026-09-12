@@ -7,17 +7,17 @@
 // Three stanzas, left to right, and the middle one is the reason the
 // class needs a bake at all.
 //
-//   1. FACETS  a prim "Color" lane written straight onto a formed body
-//      and read natively by `MeshStyle::primColorLane`. The two
+//   1. FACETS  a primitive "Color" lane written straight onto a formed body
+//      and read natively by `MeshStyle::primitiveColorLane`. The two
 //      triangles of every quad alternate brightness — that alternation
 //      IS the demonstration.
-//   2. BAKED   the SAME lane through `mesh::bakePrimColor`, which
+//   2. BAKED   the SAME lane through `mesh::bakePrimitiveColor`, which
 //      unwelds each triangle into three of its own vertices and writes
 //      the value per vertex. That is how the class reaches a pipeline
 //      with vertex attributes and nothing else. Both styles run flat —
 //      no specular, no rim — so the two pictures are comparable and any
 //      difference is the bake's, not the lighting's.
-//   3. PIECES  the point class promoted INTO the prim class.
+//   3. PIECES  the point class promoted INTO the primitive class.
 //      `.promote("Id")` stamps every triangle with its owning point's
 //      index, so a stamp instance is a RUN OF TRIANGLES sharing an Id
 //      value rather than a second container the renderer must know
@@ -98,7 +98,7 @@ struct PopPrims final : sketch::Sketch {
     flat.rim = 0;
 
     render::MeshStyle lane = flat;
-    lane.primColorLane = "Color";
+    lane.primitiveColorLane = "Color";
     render::drawMesh(canvas, facets, camera::place({-380, 10, 0}, 0, -28), view,
                      kCanvas, lane);
 
@@ -117,10 +117,10 @@ struct PopPrims final : sketch::Sketch {
                         .captureAt = 1.0,
                         .background = SkColor4f{0.051f, 0.051f, 0.075f, 1}});
 
-    // 1 — a prim lane written straight onto a formed body.
+    // 1 — a primitive lane written straight onto a formed body.
     facets = mesh::torus(130, 46, 34, 14);
     {
-      std::vector<glm::vec4>& color = facets.prim("Color");
+      std::vector<glm::vec4>& color = facets.primitive("Color");
       const size_t quads = color.size() / 2;
       for (size_t t = 0; t < color.size(); ++t) {
         // The two triangles of a quad share its ramp position and differ
@@ -132,9 +132,9 @@ struct PopPrims final : sketch::Sketch {
     }
 
     // 2 — the same lane unwelded into per-vertex colours.
-    baked = mesh::bakePrimColor(facets, "Color");
+    baked = mesh::bakePrimitiveColor(facets, "Color");
 
-    // 3 — the point class promoted into the prim class.
+    // 3 — the point class promoted into the primitive class.
     std::vector<glm::vec3> loop;
     for (int i = 0; i < 12; ++i) {
       const float a = (float)i / 12.0f * 6.2831853f;
@@ -148,8 +148,8 @@ struct PopPrims final : sketch::Sketch {
                  .lookAt({0, 210, 900})
                  .promote("Id")
                  .stamps(mesh::quad(46, 46));
-    if (const std::vector<glm::vec4>* ids = pieces.primIf("Id")) {
-      std::vector<glm::vec4>& tint = pieces.prim("Color");
+    if (const std::vector<glm::vec4>* ids = pieces.primitiveIf("Id")) {
+      std::vector<glm::vec4>& tint = pieces.primitive("Color");
       for (size_t t = 0; t < tint.size(); ++t) {
         const int id = (int)(*ids)[t].x;
         tint[t] = oklabRamp((float)(id * 19 % kPieces) / (float)kPieces,
@@ -160,13 +160,13 @@ struct PopPrims final : sketch::Sketch {
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.
     ctx.composer.render(
-        custom("pop.prims", [this](SkCanvas& canvas, const PaintContext&) {
+        custom("pop.primitives", [this](SkCanvas& canvas, const PaintContext&) {
           draw(canvas);
         }).inset(0));
   }
 };
 
 SIGIL_SKETCH(PopPrims, "Kit · API",
-             "attributes on triangles — a prim colour lane read natively, "
+             "attributes on triangles — a primitive colour lane read natively, "
              "the same lane baked into vertices, and a point lane "
              "promoted so stamp runs are addressable")

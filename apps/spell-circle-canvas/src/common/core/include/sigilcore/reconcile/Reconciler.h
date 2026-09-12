@@ -18,7 +18,7 @@
 #include <utility>
 #include <vector>
 
-#include "sigilcore/reconcile/Env.h"
+#include "sigilcore/reconcile/Environment.h"
 #include "sigilcore/reconcile/Host.h"
 #include "sigilcore/reconcile/Stats.h"
 
@@ -219,8 +219,8 @@ class Reconciler {
   }
 
   /** The description a memo resolves to: the retained payload on a hit
-   *  (env equal, then props equal — both compared because both are read
-   *  by the deferred describe), else the memo's produce under the
+   *  (environment equal, then properties equal — both compared because both are
+   * read by the deferred describe), else the memo's produce under the
    *  environment its author had. A non-memo resolves to itself. */
   Description resolveMemo(Node* existing, const Description& node,
                           bool& described) {
@@ -229,15 +229,15 @@ class Reconciler {
       described = true;
       return node;
     }
-    // A memo is a pure function of (props, ENVIRONMENT). The environment
-    // is compared first and for the same reason props are: an `env::`
-    // binding is read live by the deferred describe, so a memo that hit
-    // on props alone would keep serving whatever environment it first
-    // described under.
+    // A memo is a pure function of (properties, ENVIRONMENT). The environment
+    // is compared first and for the same reason properties are: an
+    // `environment::` binding is read live by the deferred describe, so a memo
+    // that hit on properties alone would keep serving whatever environment it
+    // first described under.
     if (existing && existing->memoShell) {
       const auto* previous = m_host.memoOf(existing->memoShell);
-      if (previous && previous->env == memo->env &&
-          previous->equal(previous->props, memo->props)) {
+      if (previous && previous->environment == memo->environment &&
+          previous->equal(previous->properties, memo->properties)) {
         m_stats.memoHits++;
         described = false;
         return existing->description;  // reuse the previously described payload
@@ -246,7 +246,7 @@ class Reconciler {
     described = true;
     // …and the deferred call runs under the bindings its AUTHOR had, not
     // whatever scope this reconcile happens to sit inside (usually none).
-    env::Restore restore(memo->env);
+    environment::Restore restore(memo->environment);
     return m_host.produce(*memo);
   }
 

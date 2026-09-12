@@ -44,7 +44,7 @@ namespace path = sigil::geometry::path;
 namespace arrange = sigil::geometry::arrange;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -112,7 +112,7 @@ void reading(SkCanvas& canvas, const path::Frame& frame, float deg,
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&)> draw) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [draw = std::move(draw)](SkCanvas& canvas,
@@ -144,16 +144,16 @@ struct FrameGrid final : sketch::Sketch {
     }();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("FRAME AND GRID \xc2\xb7 path::Frame, path::Grid, "
-                       "arrange::onRing / moduleSize / cellRect"),
-         .subtitle = toU8("dials \xc2\xb7 the frame's zero and sense "
-                          "\xc2\xb7 the module and the gaps \xc2\xb7 the "
-                          "grid's scale (7 px per unit) and snap (7 px)"),
-         .footer = toU8("arrange:: knows nothing about what is being "
-                        "placed \xe2\x80\x94 it takes numbers and "
-                        "answers one point or one rect, which is what "
-                        "lets a layout scheme and a sprite buffer reach "
-                        "the same body")},
+        {.title = toUtf8("FRAME AND GRID \xc2\xb7 path::Frame, path::Grid, "
+                         "arrange::onRing / moduleSize / cellRect"),
+         .subtitle = toUtf8("dials \xc2\xb7 the frame's zero and sense "
+                            "\xc2\xb7 the module and the gaps \xc2\xb7 the "
+                            "grid's scale (7 px per unit) and snap (7 px)"),
+         .footer = toUtf8("arrange:: knows nothing about what is being "
+                          "placed \xe2\x80\x94 it takes numbers and "
+                          "answers one point or one rect, which is what "
+                          "lets a layout scheme and a sprite buffer reach "
+                          "the same body")},
         kit::cells(
             {.cells =
                  {kit::cells(

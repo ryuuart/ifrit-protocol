@@ -13,7 +13,7 @@ link the other. A host that holds one never spells a graphics API.
 
 | header | holds |
 |--------|-------|
-| `hardware/GpuDevice.h` | `GpuDevice`, `Backend`, `NativeDevice`, `VulkanHandles`, `NativeTexture`, `TextureDesc`, `TextureFormat`, `TextureUsage`, `mipLevelsFor` — the device, what it is made of, and what a texture on it is |
+| `hardware/GpuDevice.h` | `GpuDevice`, `Backend`, `NativeDevice`, `VulkanHandles`, `NativeTexture`, `TextureDescription`, `TextureFormat`, `TextureUsage`, `mipLevelsFor` — the device, what it is made of, and what a texture on it is |
 | `hardware/Handle.h` | `Handle`, `TypedHandle<Tag>`, `TextureHandle`, `BufferHandle`, `FenceHandle`, `HandleTable<T, H>` — a name that goes stale, and the slot store behind it |
 | `hardware/Fence.h` | `FenceValue`, `FenceWait`, `kFenceInitialValue`, `kFenceDefaultTimeout` — a timeline and what waiting on one answers |
 
@@ -34,7 +34,7 @@ std::unique_ptr<GpuDevice> device = GpuDevice::createOwned();
 // NativeDevice native{Backend::Metal, mtlDevice, mtlCommandQueue};
 // device = GpuDevice::adopt(native);      // never frees them
 
-TextureDesc desc;
+TextureDescription desc;
 desc.width = 1920;
 desc.height = 1080;
 desc.format = TextureFormat::BGRA8Unorm;
@@ -58,7 +58,7 @@ texture the host made enters the same table through
 `importNative(nativeTexture, /*takeOwnership=*/true)`, after which the
 device releases it like one of its own.
 
-**A texture may carry a chain.** `TextureDesc::mipLevels` asks for one,
+**A texture may carry a chain.** `TextureDescription::mipLevels` asks for one,
 level 0 at the description's size and each level after it half the last;
 `mipLevelsFor(width, height)` is how deep the size allows, and a count past
 it is clamped to it. A chain is not only a filtering aid here: a

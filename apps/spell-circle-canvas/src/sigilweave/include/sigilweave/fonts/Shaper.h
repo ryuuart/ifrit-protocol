@@ -63,19 +63,19 @@ struct ShapedWord {
 
 /// Shared handle to a cache-owned, immutable ShapedWord — cheap to copy and
 /// safe to hold across layouts.
-using ShapedWordRef = std::shared_ptr<const ShapedWord>;
+using ShapedWordReference = std::shared_ptr<const ShapedWord>;
 
 /** Shapes `text` with HarfBuzz, going through FontContext's shape cache.
  * `typeface` must already be fallback-resolved (see
  * FontContext::resolveTypeface); `rightToLeft` selects the HarfBuzz direction
  * and `vertical` shapes top-to-bottom (mutually exclusive with rightToLeft).
  */
-[[nodiscard]] ShapedWordRef shapeWord(FontContext& fontContext,
-                                      const ShapingStyle& style,
-                                      const sk_sp<SkTypeface>& typeface,
-                                      std::u16string_view text,
-                                      ScriptTag script, bool rightToLeft,
-                                      bool vertical = false);
+[[nodiscard]] ShapedWordReference shapeWord(FontContext& fontContext,
+                                            const ShapingStyle& style,
+                                            const sk_sp<SkTypeface>& typeface,
+                                            std::u16string_view text,
+                                            ScriptTag script, bool rightToLeft,
+                                            bool vertical = false);
 
 /** Returns the shared origin-relative SkTextBlob for `word`, building and
  * memoizing it on first use. Cheap on every call after the first.

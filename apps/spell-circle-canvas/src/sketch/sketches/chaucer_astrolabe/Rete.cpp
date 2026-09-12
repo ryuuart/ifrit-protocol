@@ -147,22 +147,22 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
       const float f = std::fmod(1.0f - mid / 360.0f + 1.0f, 1.0f);
       const float size =
           std::min(0.052f * kR, span / (float)std::strlen(kSigns[i]) * 1.62f);
-      clipped.child(
-          text(toU8(kSigns[i]), type(faceEngrave, size,
-                                     hexColor(0x33240c, 0.88f), size * 0.055f))
-              .width(Dim(2 * kEclR * kR))
-              .height(Dim(2 * kEclR * kR))
-              .centerAt(PL(0, kEclCy))
-              .key("sign" + std::to_string(i))
-              .onPath(TextPath{.path = shapes::circle(),
-                               .at = f,
-                               .align = TextPath::Align::Center,
-                               .offset = -0.030f * kR,
-                               .autoFlip = false,
-                               .orient = TextPath::Orient::Tangent})
-              .opacity(
-                  animate(from(0.0f).to(1.0f),
-                          ramp(tRete * 1000 + 1200 + (float)i * 45, 400))));
+      clipped.child(text(toUtf8(kSigns[i]),
+                         type(faceEngrave, size, hexColor(0x33240c, 0.88f),
+                              size * 0.055f))
+                        .width(Dimension(2 * kEclR * kR))
+                        .height(Dimension(2 * kEclR * kR))
+                        .centerAt(PL(0, kEclCy))
+                        .key("sign" + std::to_string(i))
+                        .onPath(TextPath{.path = shapes::circle(),
+                                         .at = f,
+                                         .align = TextPath::Align::Center,
+                                         .offset = -0.030f * kR,
+                                         .autoFlip = false,
+                                         .orient = TextPath::Orient::Tangent})
+                        .opacity(animate(
+                            from(0.0f).to(1.0f),
+                            ramp(tRete * 1000 + 1200 + (float)i * 45, 400))));
     }
     g.child(std::move(clipped));
   }
@@ -223,10 +223,10 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
     const float a = std::atan2(p.fY, p.fX) / kD;
     const float f = std::fmod(1.0f - a / 360.0f + 1.0f, 1.0f);
     g.child(
-        text(toU8(kStars[i].name),
+        text(toUtf8(kStars[i].name),
              type(faceEngrave, 0.026f * kR, hexColor(0x33240c, 0.82f), 0.4f))
-            .width(Dim(2 * kR * (1.0f - kRingW * 0.5f)))
-            .height(Dim(2 * kR * (1.0f - kRingW * 0.5f)))
+            .width(Dimension(2 * kR * (1.0f - kRingW * 0.5f)))
+            .height(Dimension(2 * kR * (1.0f - kRingW * 0.5f)))
             .centerAt(PL(0, 0))
             .key("sname" + std::to_string(i))
             .onPath(TextPath{.path = shapes::circle(),

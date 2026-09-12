@@ -1,10 +1,10 @@
 #pragma once
 
 /** @file
- * An inherited value, read where a component is described: env::Provide
- * binds a value for a describe scope, env::inherited reads it, and
- * env::capture is what a memo takes where it is written, so that its
- * environment is part of its key and env::Restore can re-establish it
+ * An inherited value, read where a component is described: environment::Provide
+ * binds a value for a describe scope, environment::inherited reads it, and
+ * environment::capture is what a memo takes where it is written, so that its
+ * environment is part of its key and environment::Restore can re-establish it
  * around the deferred describe.
  */
 
@@ -22,7 +22,7 @@
 namespace sigil::core {
 
 // ---------------------------------------------------------------------------
-// env — an INHERITED VALUE, read where a component is described
+// environment — an INHERITED VALUE, read where a component is described
 //
 // A describe phase is an ordinary C++ call tree, evaluated eagerly and
 // bottom-up: `box().child(panel())` calls `panel()` before the box exists,
@@ -31,11 +31,11 @@ namespace sigil::core {
 // description tree, and the C++ answer to "inherit down a call stack" is
 // dynamic scope:
 //
-//     env::Provide<Palette> theme(dark);      // binds for this scope
+//     environment::Provide<Palette> theme(dark);      // binds for this scope
 //     return box().child(panel());            // panel() reads it
 //
 //     // …four levels down, in a component that was never handed it:
-//     const Palette *p = env::inherited<Palette>();
+//     const Palette *p = environment::inherited<Palette>();
 //
 // WHY THIS DOES NOT COST THE PRUNE. An inherited value is read DURING
 // DESCRIBE and lands in the reading node's own description, so the
@@ -49,8 +49,8 @@ namespace sigil::core {
 // THE ONE PLACE THE KERNEL HAD TO LEARN IT is the memo, the only site
 // where a component function runs AFTER the author's scope has ended. A
 // memo therefore captures the ambient stack at construction, compares it
-// alongside its props, and re-establishes it around the deferred call —
-// so a memo stays a pure function of (props, environment) and cannot
+// alongside its properties, and re-establishes it around the deferred call —
+// so a memo stays a pure function of (properties, environment) and cannot
 // serve a stale value. Anything else that takes a callable and runs it
 // later runs with NO scope: capture what such a lambda needs by value at
 // the call site, which is where the scope still exists.
@@ -69,9 +69,9 @@ namespace sigil::core {
 //
 // Bindings are keyed by C++ TYPE, so this is a transport channel rather
 // than a design-token vocabulary: the key a component uses is its own
-// props type.
+// properties type.
 
-namespace env {
+namespace environment {
 
 /** One ambient binding, type-erased. `type` is a per-T number so no RTTI
  *  is needed and the type test is an integer compare. Two entries are
@@ -96,13 +96,13 @@ struct Entry {
  *  feature is free unused. */
 using Snapshot = std::vector<Entry>;
 
-}  // namespace env
+}  // namespace environment
 
 namespace detail {
 
 /** The live describe-time stack. Thread-local: a describe runs on whatever
  *  thread the host calls on. */
-env::Snapshot& envStack();
+environment::Snapshot& environmentStack();
 
 /** THE IDENTITY OF AN INHERITED TYPE, as a number the compiler derives
  *  from the type's own spelling.
@@ -115,13 +115,13 @@ env::Snapshot& envStack();
  *  of the type is the same string in both images, so it is hashed at
  *  compile time and the number is the key. */
 template <class T>
-constexpr std::uint64_t envTypeTag() {
+constexpr std::uint64_t environmentTypeTag() {
   return hash::fnv1a(hash::kFnvOffset, std::string_view{__PRETTY_FUNCTION__});
 }
 
 }  // namespace detail
 
-namespace env {
+namespace environment {
 
 /** The bindings in scope right now, copied — what a memo captures where
  *  it is WRITTEN, because by the time the reconciler decides whether to
@@ -143,9 +143,9 @@ class Restore {
   Snapshot m_saved;
 };
 
-}  // namespace env
+}  // namespace environment
 
-namespace env {
+namespace environment {
 
 /** Bind `value` for every component described while this object lives.
  *  RAII and LIFO; an inner `Provide<T>` shadows an outer one, and other
@@ -158,12 +158,13 @@ class Provide {
                   "an inherited value is a value");
     auto held = std::make_shared<const T>(std::move(value));
     m_self = held.get();
-    detail::envStack().push_back(Entry{
-        detail::envTypeTag<T>(), std::shared_ptr<const void>(std::move(held)),
-        [](const void* a, const void* b) {
-          return *static_cast<const T*>(a) == *static_cast<const T*>(b);
-        }});
-    m_depth = detail::envStack().size();
+    detail::environmentStack().push_back(
+        Entry{detail::environmentTypeTag<T>(),
+              std::shared_ptr<const void>(std::move(held)),
+              [](const void* a, const void* b) {
+                return *static_cast<const T*>(a) == *static_cast<const T*>(b);
+              }});
+    m_depth = detail::environmentStack().size();
   }
   /** Unbinds THIS scope's binding and no other. Destroying providers out
    *  of LIFO order is misuse; when it happens, the destructor locates its
@@ -176,13 +177,13 @@ class Provide {
    *  scopes nested. The well-nested path stays a compare and a
    *  pop_back, allocation-free. */
   ~Provide() {
-    Snapshot& stack = detail::envStack();
+    Snapshot& stack = detail::environmentStack();
     if (stack.size() == m_depth && stack.back().value.get() == m_self) {
       stack.pop_back();
       return;
     }
     std::fputs(
-        "[core] env::Provide destroyed out of order — scopes must nest "
+        "[core] environment::Provide destroyed out of order — scopes must nest "
         "LIFO; removing only this scope's own binding\n",
         stderr);
     for (size_t i = stack.size(); i-- > 0;)
@@ -205,8 +206,8 @@ class Provide {
  *  read it). */
 template <class T>
 const T* inherited() {
-  const Snapshot& stack = detail::envStack();
-  const std::uint64_t tag = detail::envTypeTag<T>();
+  const Snapshot& stack = detail::environmentStack();
+  const std::uint64_t tag = detail::environmentTypeTag<T>();
   for (size_t i = stack.size(); i-- > 0;)
     if (stack[i].type == tag)
       return static_cast<const T*>(stack[i].value.get());
@@ -228,6 +229,6 @@ bool bound() {
   return inherited<T>() != nullptr;
 }
 
-}  // namespace env
+}  // namespace environment
 
 }  // namespace sigil::core

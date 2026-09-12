@@ -126,7 +126,7 @@ enum class Overflow {
  *              .steps = 12, .padding = 0.1};
  *  ```
  *
- *  Only the props its transform reads matter; the rest keep their
+ *  Only the properties its transform reads matter; the rest keep their
  *  defaults and are ignored. */
 struct Scale {
   /** The values coming in. For `Ordinal`, `Band` and `Point` the input

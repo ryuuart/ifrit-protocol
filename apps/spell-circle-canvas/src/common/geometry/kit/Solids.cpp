@@ -353,7 +353,7 @@ Mesh platonic(Platonic solid, const PlatonicOptions& options) {
     Mesh cube = box({-half, -half, -half}, {half, half, half});
     // Box emits its six faces as two triangles each, in face order, so
     // the lane that names them is that pairing written down.
-    std::vector<glm::vec4>& ids = cube.prim("Id", {0, 0, 0, 0});
+    std::vector<glm::vec4>& ids = cube.primitive("Id", {0, 0, 0, 0});
     for (size_t t = 0; t < ids.size(); ++t) ids[t].x = (float)(t / 2);
     return cube;
   }
@@ -383,7 +383,7 @@ Mesh platonic(Platonic solid, const PlatonicOptions& options) {
     out.positions = corners;
     for (const glm::vec3& c : corners) out.normals.push_back(normalized(c));
   }
-  std::vector<glm::vec4>& ids = out.prim("Id", {0, 0, 0, 0});
+  std::vector<glm::vec4>& ids = out.primitive("Id", {0, 0, 0, 0});
   for (uint32_t face = 0; face < (uint32_t)faces.size(); ++face) {
     const glm::vec3 normal = faces[face].first;
     const std::vector<uint32_t>& ring = faces[face].second;

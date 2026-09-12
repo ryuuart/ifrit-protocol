@@ -9,7 +9,7 @@ namespace sigil::sketch::kit {
 
 using compose::Align;
 using compose::box;
-using compose::Dim;
+using compose::Dimension;
 using compose::Element;
 using compose::Fill;
 using compose::text;
@@ -59,7 +59,7 @@ compose::Element titleCard(const TitleCard& card) {
       look.spacing.subtitleGap);
   if (card.ruled)
     place(box()
-              .height(Dim(1))
+              .height(Dimension(1))
               .alignSelf(Align::Stretch)
               .fill(Fill::color(look.palette.rule)),
           look.spacing.contentGap * 0.5f);
@@ -95,7 +95,7 @@ compose::Element sectionHeader(const SectionHeader& header) {
         text(header.label, look.style(look.type.section, look.palette.ink)));
   // The rule is what GROWS, so the label stays at the left and the note at
   // the right however wide the header is given.
-  Element between = box().grow(1).height(Dim(1)).alignSelf(Align::Center);
+  Element between = box().grow(1).height(Dimension(1)).alignSelf(Align::Center);
   if (header.ruled) between.fill(Fill::color(look.palette.rule));
   row.child(std::move(between));
   if (!header.note.empty())

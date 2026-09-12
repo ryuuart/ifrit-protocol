@@ -20,7 +20,7 @@ namespace {
 class SlotsScene final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams& params,
+                    int /*frameNumber*/, const SceneParameters& parameters,
                     FontContext& fontContext) override {
     if (!m_text) m_text = std::make_unique<TextContext>(fontContext);
     if (!m_serif) {
@@ -29,7 +29,7 @@ class SlotsScene final : public Scene {
           "Noto Sans", SkFontStyle());
       if (!m_sansTypeface) m_sansTypeface = fontContext.defaultTypeface();
     }
-    const float fontSize = params.fontSize;
+    const float fontSize = parameters.fontSize;
     m_built.ensure({fontSize}, [&] { build(fontSize); });
 
     // Pulse the first pill. Resizing an inline object relayouts the whole
@@ -46,8 +46,8 @@ class SlotsScene final : public Scene {
     BlockFlow flow(SkRect::MakeXYWH(canvasWidth * 0.1f, 44, canvasWidth * 0.8f,
                                     canvasHeight - 90));
     ParagraphLayoutOptions options;
-    options.alignment = params.alignment;
-    options.lineBreakStrategy = params.lineBreakStrategy;
+    options.alignment = parameters.alignment;
+    options.lineBreakStrategy = parameters.lineBreakStrategy;
     options.lineMetrics.height = fontSize * 2.1f;
 
     const auto layoutStartTime = Clock::now();

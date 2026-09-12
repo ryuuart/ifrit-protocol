@@ -29,9 +29,9 @@ namespace sigil::sketch::kit {
  *  a still of it is worth taking, and — where it wants something other
  *  than the theme's ground — what is behind it.
  *
- *  It is `CanvasSpec` with the ground made optional, because the ground
- *  is the one field of a canvas that is part of the LOOK, and a sheet
- *  set under a theme has already said what it is. */
+ *  It is `CanvasSpecification` with the ground made optional, because the
+ * ground is the one field of a canvas that is part of the LOOK, and a sheet set
+ * under a theme has already said what it is. */
 struct Stage {
   SkSize size{900, 640};
   /** The scene time a still should be taken at. Negative states no
@@ -58,7 +58,7 @@ struct Stage {
  *
  *      sketch::kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
  *
- *  It writes the whole `CanvasSpec`, defaults included, so what a host
+ *  It writes the whole `CanvasSpecification`, defaults included, so what a host
  *  reads back afterwards is exactly what this says. */
 void stage(SketchContext& ctx, const Stage& surface);
 
@@ -89,9 +89,9 @@ struct Page {
  *  hairline the theme's colours.
  *
  *      ctx.composer.render(sketch::kit::page(
- *          {.title = toU8("THE RULE AND THE STRANDS"),
- *           .subtitle = toU8("dials · the width and the inset"),
- *           .footer = toU8("a crossing is discovered, not declared")},
+ *          {.title = toUtf8("THE RULE AND THE STRANDS"),
+ *           .subtitle = toUtf8("dials · the width and the inset"),
+ *           .footer = toUtf8("a crossing is discovered, not declared")},
  *          kit::cells({.cells = {a, b, c}, .gap = 10})));
  *
  *  A PAGE IS THE WHOLE SURFACE, so this one places itself over the

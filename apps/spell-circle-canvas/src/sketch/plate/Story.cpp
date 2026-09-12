@@ -105,7 +105,7 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
                  "frames and bit rate must be positive\n");
     return 2;
   }
-  if (!video::formatForPath(options.out)) {
+  if (!video::formatForPath(options.outputPath)) {
     std::fprintf(stderr, "story output must end in .mp4\n");
     return 2;
   }
@@ -274,12 +274,13 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
                  encoder->error().c_str());
     return 1;
   }
-  if (!io::writeBytes(options.out, mp4->data(), mp4->size())) {
-    std::fprintf(stderr, "could not write story to %s\n", options.out.c_str());
+  if (!io::writeBytes(options.outputPath, mp4->data(), mp4->size())) {
+    std::fprintf(stderr, "could not write story to %s\n",
+                 options.outputPath.c_str());
     return 1;
   }
   std::printf("wrote %s: %d sketches, %d skipped, %lld frames, %s\n",
-              options.out.c_str(), rendered, skipped,
+              options.outputPath.c_str(), rendered, skipped,
               (long long)encoder->frameCount(), encoder->codec().c_str());
   return 0;
 }

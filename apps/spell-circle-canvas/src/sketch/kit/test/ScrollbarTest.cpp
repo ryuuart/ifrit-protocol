@@ -28,8 +28,8 @@ using sigil::sketch::test::fonts;
  *  which is all a stepper ever is. */
 Element stepper() {
   return compose::box()
-      .width(compose::Dim(16))
-      .height(compose::Dim(16))
+      .width(compose::Dimension(16))
+      .height(compose::Dimension(16))
       .shrink(0)
       .fill(Fill::color({0.4f, 0.4f, 0.5f, 1}));
 }
@@ -40,18 +40,18 @@ Element barByHand(float top, float length) {
   const kit::Theme& house = kit::houseTheme();
   return compose::box()
       .column()
-      .width(compose::Dim(16))
-      .height(compose::Dim(232))
+      .width(compose::Dimension(16))
+      .height(compose::Dimension(232))
       .child(stepper())
       .child(compose::box()
                  .grow(1)
                  .fill(Fill::color(house.palette.cellGround))
                  .child(compose::box()
                             .absolute()
-                            .left(compose::Dim(0))
-                            .right(compose::Dim(0))
-                            .top(compose::Dim(top))
-                            .height(compose::Dim(length))
+                            .left(compose::Dimension(0))
+                            .right(compose::Dimension(0))
+                            .top(compose::Dimension(top))
+                            .height(compose::Dimension(length))
                             .fill(Fill::color(house.palette.figure))))
       .child(stepper());
 }
@@ -62,8 +62,8 @@ Element bar(float at) {
               .trailing = stepper(),
               .scrolled = {.view = 100, .content = 400, .track = 200},
               .at = at})
-      .width(compose::Dim(16))
-      .height(compose::Dim(232));
+      .width(compose::Dimension(16))
+      .height(compose::Dimension(232));
 }
 
 TEST(SketchKitScrollbar, TheBarIsTheHandSpelledStack) {
@@ -108,12 +108,12 @@ TEST(SketchKitScrollbar, AShortThumbIsHeldAtItsMinimum) {
 /** A measured thumb is stated rather than read off a ratio — which is
  *  what a reconstruction of a bar someone else drew has. */
 TEST(SketchKitScrollbar, AStatedLengthReplacesTheShare) {
-  EXPECT_TRUE(sameDrawing(barByHand(0, 90),
-                          kit::scrollbar({.leading = stepper(),
-                                          .trailing = stepper(),
-                                          .thumbLength = compose::Dim(90)})
-                              .width(compose::Dim(16))
-                              .height(compose::Dim(232))));
+  EXPECT_TRUE(sameDrawing(
+      barByHand(0, 90), kit::scrollbar({.leading = stepper(),
+                                        .trailing = stepper(),
+                                        .thumbLength = compose::Dimension(90)})
+                            .width(compose::Dimension(16))
+                            .height(compose::Dimension(232))));
 }
 
 }  // namespace

@@ -42,14 +42,14 @@ QString exclusionsDefaultText() {
 class ExclusionsScene final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams& params,
+                    int /*frameNumber*/, const SceneParameters& parameters,
                     FontContext& fontContext) override {
     if (!m_serif) m_serif = defaultSerif(fontContext);
-    m_body.ensure(params, exclusionsDefaultText(), m_serif);
+    m_body.ensure(parameters, exclusionsDefaultText(), m_serif);
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
-    const float fontSize = params.fontSize;
+    const float fontSize = parameters.fontSize;
     ExclusionFlow flow(
         SkRect::MakeXYWH(28, 24, canvasWidth - 56, canvasHeight - 48));
 
@@ -103,8 +103,8 @@ class ExclusionsScene final : public Scene {
     flow.setMinimumIntervalWidth(fontSize * 3);
 
     ParagraphLayoutOptions options;
-    options.alignment = params.alignment;
-    options.lineBreakStrategy = params.lineBreakStrategy;
+    options.alignment = parameters.alignment;
+    options.lineBreakStrategy = parameters.lineBreakStrategy;
     options.lineMetrics.height = fontSize * 1.7f;
     options.knuthPlass.minimumIntervalWidth = fontSize * 3;
     options.overflow.ellipsis =

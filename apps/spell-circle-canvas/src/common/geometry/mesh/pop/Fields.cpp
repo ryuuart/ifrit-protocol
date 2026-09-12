@@ -17,7 +17,7 @@ namespace {
  *  call per numeric field, and both setField and getField walk it, so
  *  the two can never list different fields. */
 template <class OpRef, class F>
-void eachField(OpRef& op, F&& f) {
+void eachField(OpRef& operation, F&& f) {
   const auto vec3 = [&](const char* base, auto& v) {
     f(std::string(base) + ".x", v.x);
     f(std::string(base) + ".y", v.y);
@@ -60,7 +60,7 @@ void eachField(OpRef& op, F&& f) {
         } else if constexpr (std::is_same_v<T, pop::LookAt>) {
           vec3("target", o.target);
         } else if constexpr (std::is_same_v<T, pop::Math>) {
-          vec4("mul", o.mul);
+          vec4("multiplier", o.multiplier);
           vec4("add", o.add);
         } else if constexpr (std::is_same_v<T, pop::Smooth>) {
           f("strength", o.strength);
@@ -84,7 +84,7 @@ void eachField(OpRef& op, F&& f) {
         } else if constexpr (std::is_same_v<T, pop::Fill>) {
           vec4("value", o.value);
         } else if constexpr (std::is_same_v<T, pop::Atlas>) {
-          f("cols", o.cols);
+          f("columns", o.columns);
           f("rows", o.rows);
           f("seed", o.seed);
         } else if constexpr (std::is_same_v<T, pop::Lookup>) {
@@ -125,7 +125,7 @@ void eachField(OpRef& op, F&& f) {
         }
         // Promote and PointSet have no numeric fields.
       },
-      op);
+      operation);
 }
 
 template <class T>
@@ -150,9 +150,10 @@ float readBack(const T& member) {
 
 }  // namespace
 
-bool pop::setField(pop::Op& op, std::string_view field, float value) {
+bool pop::setField(pop::Operation& operation, std::string_view field,
+                   float value) {
   bool hit = false;
-  eachField(op, [&](const std::string& name, auto& member) {
+  eachField(operation, [&](const std::string& name, auto& member) {
     if (!hit && name == field) {
       assign(member, value);
       hit = true;
@@ -161,15 +162,16 @@ bool pop::setField(pop::Op& op, std::string_view field, float value) {
   return hit;
 }
 
-std::optional<float> pop::getField(const pop::Op& op, std::string_view field) {
+std::optional<float> pop::getField(const pop::Operation& operation,
+                                   std::string_view field) {
   std::optional<float> out;
-  eachField(op, [&](const std::string& name, const auto& member) {
+  eachField(operation, [&](const std::string& name, const auto& member) {
     if (!out && name == field) out = readBack(member);
   });
   return out;
 }
 
-std::string_view pop::opName(const pop::Op& op) {
+std::string_view pop::operationName(const pop::Operation& operation) {
   // One arm per alternative, spelled as the operator's own type name, so
   // a chain printed on a control surface and a runtime's complaint about
   // an operator it cannot run say the same word. An alternative with no
@@ -228,13 +230,13 @@ std::string_view pop::opName(const pop::Op& op) {
         else if constexpr (std::is_same_v<T, pop::PointSet>)
           return "PointSet";
         else
-          // NO CATCH-ALL. An alternative added to `Op` without an arm
+          // NO CATCH-ALL. An alternative added to `Operation` without an arm
           // here would otherwise be reported under whichever name the
           // last arm carried, in the one message a runtime writes when
           // it cannot run an operator.
           static_assert(sizeof(T) == 0,
-                        "pop::opName has no arm for this operator");
+                        "pop::operationName has no arm for this operator");
       },
-      op);
+      operation);
 }
 }  // namespace sigil::geometry::mesh

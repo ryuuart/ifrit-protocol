@@ -56,7 +56,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
   /** The ladder and the light, with the level left at the bottom: the bank
    *  keys on these bytes, so the run, the tones and the grain are the
    *  species and the level alone is the bucket. */
-  static matkit::LattenParams sheet();
+  static matkit::LattenParameters sheet();
 
   /** The sheet at @p level, banked. */
   Paint brass(float level = 0.5f);

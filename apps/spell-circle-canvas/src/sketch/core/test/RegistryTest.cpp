@@ -17,7 +17,7 @@ using namespace sigil::sketch;
 
 /** A kind that draws nothing: the registry never opens one, so a test of
  *  what it holds needs no runtime at all. */
-struct StillKind final : KindOps {
+struct StillKind final : KindOperations {
   [[nodiscard]] std::string_view runtime() const override { return "still"; }
   [[nodiscard]] std::unique_ptr<Session> open(sigil::weave::FontContext&,
                                               Assets&, bool) const override {

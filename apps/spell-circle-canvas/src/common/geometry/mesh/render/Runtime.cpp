@@ -46,7 +46,7 @@ glm::mat3 normalMatrix(const glm::mat4& m) {
 /** A shaded colour as this executor carries it between shading and
  *  emission: STRAIGHT FLOAT, so a primitive lane multiplies into it in
  *  the same domain the device painter multiplies in and the mesh's own
- *  `bakePrimColor` folds in. Quantising first and multiplying bytes
+ *  `bakePrimitiveColor` folds in. Quantising first and multiplying bytes
  *  afterwards is a different answer, and one lane must not mean two
  *  colours. */
 glm::vec4 rgba(glm::vec3 rgb, float a) { return {rgb.x, rgb.y, rgb.z, a}; }
@@ -209,9 +209,9 @@ struct CpuExecutor : Executor {
     // triangle's emitted vertex colours. Lit mode only — the Normals and
     // Uv buffers must stay unmodulated.
     const std::vector<glm::vec4>* primColor =
-        style.primColorLane.empty() || style.mode != MeshStyle::Mode::Lit
+        style.primitiveColorLane.empty() || style.mode != MeshStyle::Mode::Lit
             ? nullptr
-            : mesh.primIf(style.primColorLane);
+            : mesh.primitiveIf(style.primitiveColorLane);
     if (primColor && primColor->size() != mesh.triangleCount())
       primColor = nullptr;
 
@@ -219,7 +219,7 @@ struct CpuExecutor : Executor {
     struct Tri {
       uint32_t i0, i1, i2;
       float depth;
-      uint32_t index;  ///< primitive index, for the prim lanes
+      uint32_t index;  ///< primitive index, for the primitive lanes
     };
     std::vector<Tri> tris;
     tris.reserve(mesh.indices.size() / 3);

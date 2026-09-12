@@ -200,7 +200,7 @@ void importGltfMesh(const cgltf_options& options, const cgltf_data& data,
       const auto fetch = [&](const cgltf_texture_view& view,
                              const char* usage) {
         if (!view.texture || !view.texture->image) return;
-        Part::TextureRef& ref = part.textures[usage];
+        Part::TextureReference& ref = part.textures[usage];
         fetchGltfImage(options, *view.texture->image, resolve, ref.uri,
                        ref.bytes);
       };
@@ -240,7 +240,7 @@ void importGltfMesh(const cgltf_options& options, const cgltf_data& data,
     // The material slot every triangle of this part wears, on the
     // primitive class, so a merged model keeps per-face materials.
     if (part.materialIndex >= 0)
-      part.mesh.prim("Material", {0, 0, 0, 0})
+      part.mesh.primitive("Material", {0, 0, 0, 0})
           .assign(part.mesh.triangleCount(),
                   {(float)part.materialIndex, 0, 0, 0});
     if (!part.mesh.indices.empty()) out.parts.push_back(std::move(part));

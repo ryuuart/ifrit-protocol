@@ -102,8 +102,8 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                                 .height(6)
                                 .fill(mskia::withAlpha(kPanelSh, 0.7f))
                                 .child(box()
-                                           .left(Dim(0))
-                                           .top(Dim(0))
+                                           .left(Dimension(0))
+                                           .top(Dimension(0))
                                            .width(112)
                                            .height(6)
                                            .fill(hexColor(0x0E3234))))
@@ -160,8 +160,8 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                         .opacity(0.45f),
                     0, 316 - 46, 150, 46));
   bodyArea.child(box()
-                     .left(Dim(694 - 11 - 116))
-                     .top(Dim(316 - 11 - 34))
+                     .left(Dimension(694 - 11 - 116))
+                     .top(Dimension(316 - 11 - 34))
                      .child(cta("LAUNCH", 116, 34, kPanelSh)));
 
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
@@ -349,9 +349,13 @@ auto TwoAdvancedV4::auxiliary() -> Element {
       {"\xe2\x9c\x89", "Subscribe to the 2Advanced Members",
        "List and receive exclusive news & press...", "\xe2\x80\xba SUBSCRIBE"},
   };
-  Element supplementals = box().grow(1).basis(Dim(0)).column().gap(3).child(
-      auxBar("SUPPLEMENTALS & "
-             "ESSENTIALS"));
+  Element supplementals = box()
+                              .grow(1)
+                              .basis(Dimension(0))
+                              .column()
+                              .gap(3)
+                              .child(auxBar("SUPPLEMENTALS & "
+                                            "ESSENTIALS"));
   for (const Item& it : items)
     supplementals.child(
         box()
@@ -391,7 +395,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
   Element photoshop =
       box()
           .grow(1)
-          .basis(Dim(0))
+          .basis(Dimension(0))
           .column()
           .gap(4)
           .child(auxBar("PHOTOSHOP: SECRETS OF THE PROS"))
@@ -425,7 +429,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
   Element press =
       box()
           .grow(1)
-          .basis(Dim(0))
+          .basis(Dimension(0))
           .column()
           .gap(4)
           .child(auxBar("FEATURED PRESS"))

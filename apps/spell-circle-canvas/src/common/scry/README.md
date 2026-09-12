@@ -341,7 +341,7 @@ built binary after every build (`<exe dir>/resources`) — Ultralight's
 standard app-bundling layout, and how a packaged application should ship
 them. At startup the engine resolves the resource directory in this order:
 
-1. `WebEngineConfig::resourceDir`, if set,
+1. `WebEngineConfig::resourceDirectory`, if set,
 2. `resources/` next to the executable — the staged copy,
 3. the SDK location found at configure time, compiled in as a fallback.
 

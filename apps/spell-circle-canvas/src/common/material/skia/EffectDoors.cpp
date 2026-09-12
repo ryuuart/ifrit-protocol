@@ -41,7 +41,7 @@ void putByName(std::vector<std::pair<std::string, Value>>& lane,
 Effect& Effect::child(std::string name, Paint source) {
   // Which names this effect kind can fill — Material::child's structure,
   // one branch per kind, warn-and-ignore everywhere else.
-  if (m_paramBlur) {
+  if (m_parametricBlur) {
     if (name != "sigma") {
       SkDebugf(
           "[material] skia::Effect::child(\"%s\") on a blur() — its one child "
@@ -111,7 +111,7 @@ Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
   // Every dropped binding says so — Material's guardrail: warn and ignore,
   // never a debug abort (one sketch typo must not kill the hot-reload
   // host). A silent drop here loses an animation with no diagnostic.
-  if (m_dirBlur) {
+  if (m_directionalBlur) {
     // The recipe's named parameters — anything else warns and is ignored.
     if (name != "sigma" && name != "angle" && name != "across") {
       SkDebugf(
@@ -123,7 +123,7 @@ Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
     putByName(m_bound, std::move(name), std::move(value));
     return *this;
   }
-  if (m_paramBlur) {
+  if (m_parametricBlur) {
     if (name != "maxSigma") {
       SkDebugf(
           "[material] skia::Effect::uniform(\"%s\") on a blur() — its one "
@@ -182,7 +182,7 @@ bool effectTakesConstant(const sk_sp<SkRuntimeEffect>& effect,
 
 Effect& Effect::uniform(std::string name, float value) {
   if (!effectTakesConstant(m_effect, name, sizeof(float),
-                           m_dirBlur || m_paramBlur))
+                           m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniforms, std::move(name), value);
   m_filter = buildFilter(nullptr);  // refresh the snapshot, as child() does
@@ -191,7 +191,7 @@ Effect& Effect::uniform(std::string name, float value) {
 
 Effect& Effect::uniform(std::string name, std::array<float, 2> value) {
   if (!effectTakesConstant(m_effect, name, 2 * sizeof(float),
-                           m_dirBlur || m_paramBlur))
+                           m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniforms2, std::move(name), value);
   m_filter = buildFilter(nullptr);
@@ -200,7 +200,7 @@ Effect& Effect::uniform(std::string name, std::array<float, 2> value) {
 
 Effect& Effect::uniform(std::string name, std::array<float, 4> value) {
   if (!effectTakesConstant(m_effect, name, 4 * sizeof(float),
-                           m_dirBlur || m_paramBlur))
+                           m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniforms4, std::move(name), value);
   m_filter = buildFilter(nullptr);
@@ -211,7 +211,7 @@ Effect& Effect::uniform(std::string name, std::vector<float> values) {
   // An array validates by TOTAL float count — all the builder checks, and
   // the builder refuses a partial write, so the count must be exact.
   if (!effectTakesConstant(m_effect, name, values.size() * sizeof(float),
-                           m_dirBlur || m_paramBlur))
+                           m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniformArrays, std::move(name), std::move(values));
   m_filter = buildFilter(nullptr);
@@ -228,7 +228,7 @@ Effect& Effect::uniform(std::string name,
     return *this;
   }
   if (!effectTakesConstant(m_effect, name, block->size() * sizeof(float),
-                           m_dirBlur || m_paramBlur))
+                           m_directionalBlur || m_parametricBlur))
     return *this;
   // A rejected block is not recorded, so it declares no volatility —
   // the same rule a rejected Output binding follows.

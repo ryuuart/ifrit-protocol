@@ -144,7 +144,7 @@ glm::vec3 atLevel(const std::vector<sk_sp<SkImage>>& levels, glm::vec2 uv,
 glm::vec3 environmentRadiance(const Environment& environment,
                               glm::vec3 direction, float roughness) {
   if (environment.levels.empty()) return {0, 0, 0};
-  const glm::vec2 uv = equirectUv(environment.orientation * direction);
+  const glm::vec2 uv = equirectangularUv(environment.orientation * direction);
   const float pick =
       std::clamp(roughness + environment.roughnessBias, 0.0f, 1.0f) *
       (float)(environment.levels.size() - 1);
@@ -159,7 +159,7 @@ glm::vec3 environmentRadiance(const Environment& environment,
 glm::vec3 environmentIrradiance(const Environment& environment,
                                 glm::vec3 normal) {
   if (!environment.irradiance) return {0, 0, 0};
-  const glm::vec2 uv = equirectUv(environment.orientation * normal);
+  const glm::vec2 uv = equirectangularUv(environment.orientation * normal);
   glm::vec3 received = samplePanorama(environment.irradiance, uv);
   const float fade = std::clamp(environment.crossfade, 0.0f, 1.0f);
   if (fade > 0 && environment.nextIrradiance)

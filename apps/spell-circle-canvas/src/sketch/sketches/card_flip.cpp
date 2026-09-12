@@ -52,7 +52,7 @@ namespace motion = sigil::motion;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -106,7 +106,7 @@ Element panel(SkRect frame, const char* caption) {
       .corners({10})
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .perspective(kViewDistance)
-      .child(text(toU8(caption), type(13, kAsh, 2))
+      .child(text(toUtf8(caption), type(13, kAsh, 2))
                  .absolute()
                  .left(18)
                  .bottom(14));
@@ -158,8 +158,8 @@ struct CardFlip final : sketch::Sketch {
           .justify(Justify::SpaceBetween)
           .rotateY(turn)
           .backface(Backface::Hidden)
-          .child(text(toU8(title), type(30, kPaper, 1)))
-          .child(text(toU8(line), type(14, kPaper, 1)).width(pct(100)));
+          .child(text(toUtf8(title), type(30, kPaper, 1)))
+          .child(text(toUtf8(line), type(14, kPaper, 1)).width(pct(100)));
     };
     return box()
         .absolute()
@@ -182,7 +182,7 @@ struct CardFlip final : sketch::Sketch {
           .foreground(stroke(1.0f, Fill::color(kEdge)))
           .alignItems(Align::Center)
           .justify(Justify::Center)
-          .child(text(toU8(kFaceNames[i]), type(64, kInk)));
+          .child(text(toUtf8(kFaceNames[i]), type(64, kInk)));
     };
     return box()
         .absolute()
@@ -219,8 +219,8 @@ struct CardFlip final : sketch::Sketch {
         .transformOrigin(0.5f, 1.0f)  // hinged along its bottom edge
         .rotateX(kTilt)
         .rotateY(motion::bind(&sway).source(-1, 1).target(-14, 14))
-        .child(text(toU8("TILTED PLATE"), type(18, kInk, 3)))
-        .child(text(toU8(passage), type(14, kInk)).width(pct(100)));
+        .child(text(toUtf8("TILTED PLATE"), type(18, kInk, 3)))
+        .child(text(toUtf8(passage), type(14, kInk)).width(pct(100)));
   }
 
   Element describe() const {
@@ -230,7 +230,7 @@ struct CardFlip final : sketch::Sketch {
     constexpr float pw = (kCanvas.fWidth - 4 * gap) / 3;
     return stack()
         .fill(Fill::color(sketch::kit::theme().palette.ground))
-        .child(text(toU8("THE DEPTH LANES \xe2\x80\x94 A NODE IS A PLANE"),
+        .child(text(toUtf8("THE DEPTH LANES \xe2\x80\x94 A NODE IS A PLANE"),
                     type(14, kAsh, 3))
                    .absolute()
                    .left(gap)

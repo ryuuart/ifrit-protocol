@@ -220,9 +220,9 @@ Element panel(float width, float height, const char* title, const char* sub,
               Element inner) {
   inner.inset(0);  // the plot fills its frame
   return sketch::kit::caption(
-      width, toU8(title), toU8(sub),
-      sketch::kit::well({.width = Dim(width),
-                         .height = Dim(height),
+      width, toUtf8(title), toUtf8(sub),
+      sketch::kit::well({.width = Dimension(width),
+                         .height = Dimension(height),
                          .ground = Fill::none(),
                          .clip = false,
                          .keyline = Fill::color(kFrame)})
@@ -247,7 +247,7 @@ Element track(Shape curve, MotionPath along, Element mark, const char* caption,
               const char* spelling) {
   along.path = curve;
   mark.travel(std::move(along));
-  return sketch::kit::caption(232, toU8(caption), toU8(spelling),
+  return sketch::kit::caption(232, toUtf8(caption), toUtf8(spelling),
                               box()
                                   .width(176)
                                   .height(176)
@@ -348,14 +348,14 @@ struct BoundLane : sketch::Sketch {
                          stack()
                              .child(chip(shakeX, sameY, kTraceB, 62))
                              .child(chip(shakeX, shakeY, kTrace, 142))),
-                   text(toU8("THE ORDER IS THE POINT. wrap folds the affine "
-                             "value, so a wrapped phase still wiggles across "
-                             "the seam; wiggle adds in the property's own "
-                             "units, so its amount is pixels here and laps "
-                             "below; clamp is always last, whenever it was "
-                             "written."),
+                   text(toUtf8("THE ORDER IS THE POINT. wrap folds the affine "
+                               "value, so a wrapped phase still wiggles across "
+                               "the seam; wiggle adds in the property's own "
+                               "units, so its amount is pixels here and laps "
+                               "below; clamp is always last, whenever it was "
+                               "written."),
                         label(12, kDim))
-                       .width(Dim(420))},
+                       .width(Dimension(420))},
          .gap = 24});
 
     Element tracks = kit::cells(
@@ -393,16 +393,16 @@ struct BoundLane : sketch::Sketch {
          .gap = 8});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("THE BOUND LANE \xc2\xb7 bind(&output)"),
-         .subtitle = toU8("normalise \xe2\x86\x92 envelope "
-                          "\xe2\x86\x92 curve \xe2\x86\x92 quantize "
-                          "\xe2\x86\x92 affine \xe2\x86\x92 wrap "
-                          "\xe2\x86\x92 wiggle \xe2\x86\x92 clamp, "
-                          "in that order whatever order they were "
-                          "written in"),
-         .footer = toU8("outline and motion path are one Shape value "
-                        "\xc2\xb7 translateX/Y are IGNORED while a path "
-                        "is engaged")},
+        {.title = toUtf8("THE BOUND LANE \xc2\xb7 bind(&output)"),
+         .subtitle = toUtf8("normalise \xe2\x86\x92 envelope "
+                            "\xe2\x86\x92 curve \xe2\x86\x92 quantize "
+                            "\xe2\x86\x92 affine \xe2\x86\x92 wrap "
+                            "\xe2\x86\x92 wiggle \xe2\x86\x92 clamp, "
+                            "in that order whatever order they were "
+                            "written in"),
+         .footer = toUtf8("outline and motion path are one Shape value "
+                          "\xc2\xb7 translateX/Y are IGNORED while a path "
+                          "is engaged")},
         kit::cells({.cells = {std::move(chain), std::move(locusRow),
                               std::move(tracks)},
                     .column = true,

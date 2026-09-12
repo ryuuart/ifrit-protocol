@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * Reflection over a params struct — the ABI between a material's author
+ * Reflection over a parameter struct — the ABI between a material's author
  * and the shader that reads it. A plain aggregate of uniform-typed fields
  * is walked by name and offset with no macro and no registration, and
  * its uniform declarations are emitted per target from the same walk.
@@ -24,7 +24,7 @@
 
 namespace sigil::material {
 
-/** The uniform types a params field may have. Every one is some count of
+/** The uniform types a parameter field may have. Every one is some count of
  *  floats with float alignment, so a struct of them has no padding and its
  *  bytes ARE the upload. */
 enum class Kind : uint8_t {
@@ -36,7 +36,7 @@ enum class Kind : uint8_t {
   Mat3,        ///< nine floats, column-major, declared as float3x3
 };
 
-/** One field of a params struct as the upload sees it. */
+/** One field of a parameter struct as the upload sees it. */
 struct Field {
   std::string name;
   Kind kind;
@@ -46,7 +46,7 @@ struct Field {
   bool operator==(const Field&) const = default;
 };
 
-/** The upload layout of a params struct, in declaration order. */
+/** The upload layout of a parameter struct, in declaration order. */
 struct Schema {
   std::vector<Field> fields;
   size_t byteSize = 0;
@@ -120,8 +120,8 @@ constexpr std::string_view fieldName() {
 
 namespace detail {
 template <class P, class F, size_t... I>
-void forEachFieldImpl(const P& params, F&& f, std::index_sequence<I...>) {
-  (f(fieldName<I, P>(), boost::pfr::get<I>(params)), ...);
+void forEachFieldImpl(const P& parameters, F&& f, std::index_sequence<I...>) {
+  (f(fieldName<I, P>(), boost::pfr::get<I>(parameters)), ...);
 }
 template <class P, class F, size_t... I>
 void forEachFieldImpl(F&& f, std::index_sequence<I...>) {
@@ -141,10 +141,10 @@ constexpr size_t floatBytes(std::index_sequence<I...>) {
 }
 }  // namespace detail
 
-/** Calls `f(name, value)` for each field of @p params in order. */
+/** Calls `f(name, value)` for each field of @p parameters in order. */
 template <class P, class F>
-void forEachField(const P& params, F&& f) {
-  detail::forEachFieldImpl(params, std::forward<F>(f),
+void forEachField(const P& parameters, F&& f) {
+  detail::forEachFieldImpl(parameters, std::forward<F>(f),
                            std::make_index_sequence<fieldCount<P>()>{});
 }
 
@@ -166,16 +166,16 @@ void forEachField(F&& f) {
 template <class P>
 const Schema& schema() {
   static_assert(std::is_aggregate_v<P>,
-                "a params struct is a plain aggregate of uniform fields");
+                "a parameter struct is a plain aggregate of uniform fields");
   static_assert(
       detail::allUniform<P>(std::make_index_sequence<fieldCount<P>()>{}),
-      "every params field is float, glm::vec2, glm::vec4, "
+      "every parameter field is float, glm::vec2, glm::vec4, "
       "std::array<float, N> or Color");
   static_assert(
       fieldCount<P>() == 0 ||
           sizeof(P) == detail::floatBytes<P>(
                            std::make_index_sequence<fieldCount<P>()>{}),
-      "a params struct is packed floats with no padding");
+      "a parameter struct is packed floats with no padding");
   static const Schema s = [] {
     Schema out;
     size_t offset = 0;

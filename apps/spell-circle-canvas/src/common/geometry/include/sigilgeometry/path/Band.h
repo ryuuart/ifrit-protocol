@@ -30,7 +30,7 @@ enum class Formation : uint8_t { Centered, Outward, Inward };
  *  behind a relative strand, and exactly the band's frame. A constant
  *  profile delegates to `parallel`, which means the same side.
  *
- *  It is `ops::offset` under a WIDTH LAW rather than a distance, which
+ *  It is `operations::offset` under a WIDTH LAW rather than a distance, which
  *  is a different axis of generality and not a case of it: the operator
  *  takes one number and this takes a function of arc length, so neither
  *  can be written as the other with a prop. Where the law is constant

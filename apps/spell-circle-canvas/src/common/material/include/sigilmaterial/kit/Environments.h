@@ -3,7 +3,7 @@
 /** @file
  * Two named skies, baked with no assets.
  *
- * `EnvironmentMap::baked()` is the seam: a function from an equirect
+ * `EnvironmentMap::baked()` is the seam: a function from an equirectangular
  * coordinate to linear radiance. These two are the stock values over it,
  * the ones the reflective surfaces are lit and graded against when no
  * photographed panorama is at hand.

@@ -205,8 +205,8 @@ inline Element panel(float height, const char* heading, int order) {
   const auto delay = std::chrono::milliseconds(85 * order);
   return box()
       .column()
-      .width(Dim(kColW))
-      .height(Dim(height))
+      .width(Dimension(kColW))
+      .height(Dimension(height))
       .shrink(0)
       .padding(kPanelPad)
       .gap(7)
@@ -219,7 +219,8 @@ inline Element panel(float height, const char* heading, int order) {
       .translateX(
           animate(from(14.0f).to(0.0f), {.duration = 300ms, .delay = delay}))
       .key(std::string("panel") + std::to_string(order))
-      .child(t(heading, ui(9.5f, kSteel, 1.9f)).height(Dim(12)).shrink(0));
+      .child(
+          t(heading, ui(9.5f, kSteel, 1.9f)).height(Dimension(12)).shrink(0));
 }
 
 }  // namespace hitman_verlet

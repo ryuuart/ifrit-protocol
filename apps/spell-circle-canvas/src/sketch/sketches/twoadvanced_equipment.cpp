@@ -229,8 +229,12 @@ struct TwoAdvancedEquipment : sketch::Sketch {
               SkColor4f fallback = teq::kMaroon) {
     auto it = art.find(name);
     if (it == art.end() || !it->second)
-      return box().width(Dim(w)).height(Dim(h)).shrink(0).fill(fallback);
-    return image(it->second).width(Dim(w)).height(Dim(h)).shrink(0);
+      return box()
+          .width(Dimension(w))
+          .height(Dimension(h))
+          .shrink(0)
+          .fill(fallback);
+    return image(it->second).width(Dimension(w)).height(Dimension(h)).shrink(0);
   }
 
   // ---- the three frames ---------------------------------------------------
@@ -331,7 +335,8 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     // The explicit height matters: the list overflows its frame, and a
     // flex child left to its defaults would SHRINK to fit instead of
     // scrolling — rows visibly compressing into one another.
-    Element list = box().column().width(501).height(Dim(kListH)).shrink(0);
+    Element list =
+        box().column().width(501).height(Dimension(kListH)).shrink(0);
     list.child(box().height(1));
     list.child(img("ecom-productselection.gif", 501, 16, kMaroon));
     list.child(box().height(6));
@@ -349,8 +354,8 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     // thumb, in exactly the BODY's SCROLLBAR-* colours.
     auto sbButton = [&](bool up) {
       return box()
-          .width(Dim(kSbW))
-          .height(Dim(kSbW))
+          .width(Dimension(kSbW))
+          .height(Dimension(kSbW))
           .fill(kSbFace)
           .foreground(
               onEdges(path::Edge::Top | path::Edge::Left,
@@ -374,7 +379,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
              .scrolled = frame,
              .position = scrollEnvelope().target(0.0f, frame.thumb().travel),
              .track = Fill::color(kSbTrack)})
-            .width(Dim(kSbW));
+            .width(Dimension(kSbW));
 
     return at(box().fill(kWhite), kLeftW, kTopH, kPageW - kLeftW, kContentH)
         .clip()
@@ -394,8 +399,8 @@ struct TwoAdvancedEquipment : sketch::Sketch {
   Element describe() {
     using namespace teq;
     Element page = box()
-                       .width(Dim(kPageW))
-                       .height(Dim(kPageH))
+                       .width(Dimension(kPageW))
+                       .height(Dimension(kPageH))
                        .fill(kWhite)
                        .child(topFrame())
                        .child(leftFrame())

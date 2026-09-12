@@ -32,14 +32,14 @@ QString knuthPlassDefaultText() {
 class KnuthPlassScene final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams& params,
+                    int /*frameNumber*/, const SceneParameters& parameters,
                     FontContext& fontContext) override {
     if (!m_serif) m_serif = defaultSerif(fontContext);
-    m_body.ensure(params, knuthPlassDefaultText(), m_serif);
+    m_body.ensure(parameters, knuthPlassDefaultText(), m_serif);
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
-    const float fontSize = params.fontSize;
+    const float fontSize = parameters.fontSize;
     // Whole-pixel measure: the breathing sine moves well under a pixel per
     // frame, so most frames pose the *same* problem as the last — quantize
     // and reuse the cached layouts instead of re-breaking 2× per frame.
@@ -50,9 +50,9 @@ class KnuthPlassScene final : public Scene {
 
     double layoutMicroseconds = 0;
     m_layoutGuard.ensure(
-        m_body.paragraph, {measure, size, params.alignment}, [&] {
+        m_body.paragraph, {measure, size, parameters.alignment}, [&] {
           ParagraphLayoutOptions options;
-          options.alignment = params.alignment;
+          options.alignment = parameters.alignment;
           options.lineMetrics.height = fontSize * 1.6f;
           options.hyphenation.enabled = true;
           options.knuthPlass.minimumIntervalWidth = fontSize * 3;

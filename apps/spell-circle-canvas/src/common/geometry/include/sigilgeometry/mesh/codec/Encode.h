@@ -72,7 +72,7 @@ std::string ply(const Mesh& mesh, const PlyOptions& options = {});
 std::string geo(const Cloud& cloud);
 
 /** The Mesh as a `.geo` of closed polygons, one per triangle, with the
- *  vertex attributes on the points and every `Mesh::prims` lane as a
+ *  vertex attributes on the points and every `Mesh::primitives` lane as a
  *  four-component primitive attribute. A mesh with no faces is a point
  *  cloud and is written as one.
  *

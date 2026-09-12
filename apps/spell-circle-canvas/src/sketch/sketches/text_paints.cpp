@@ -13,7 +13,7 @@
  * is.
  *
  * The six animated fields share one ABI — the run's origin and extent,
- * the clock, and a slow two-axis drift derived from it — so the params
+ * the clock, and a slow two-axis drift derived from it — so the parameters
  * are built by one call and the six differ only in their bodies. They
  * are held at one moment here; bind the clock and they run.
  *
@@ -43,7 +43,7 @@ namespace material = sigil::material;
 namespace paint = sigil::material::skia;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -87,7 +87,7 @@ Element cell(const char* call, const char* note, paint::Paint fill,
   Element plate = sketch::kit::well({.width = kCell, .height = kPicture})
                       .alignItems(Align::Center)
                       .justify(Justify::Center);
-  Element word = text(toU8(kWord), display()).textFill(std::move(fill));
+  Element word = text(toUtf8(kWord), display()).textFill(std::move(fill));
   if (beneath.isSolid() || beneath.asShader())
     plate.child(
         box()
@@ -95,8 +95,9 @@ Element cell(const char* call, const char* note, paint::Paint fill,
             .inset(0)
             .alignItems(Align::Center)
             .justify(Justify::Center)
-            .child(text(toU8(kWord), display()).textFill(std::move(beneath))));
-  return sketch::kit::caption(kCell, toU8(call), toU8(note),
+            .child(
+                text(toUtf8(kWord), display()).textFill(std::move(beneath))));
+  return sketch::kit::caption(kCell, toUtf8(call), toUtf8(note),
                               std::move(plate).child(std::move(word)));
 }
 
@@ -113,17 +114,17 @@ struct TextPaints final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("TEXT PAINTS \xc2\xb7 Element::textFill over "
-                       "kit::water, meshGradient, sparkle, starNest, "
-                       "clouds, tunnel"),
-         .subtitle = toU8("dials \xc2\xb7 the paint \xc2\xb7 the type "
-                          "size (56 px \xe2\x80\x94 change it and the "
-                          "fills do not move) \xc2\xb7 the moment "
-                          "(6.4 s)"),
-         .footer = toU8("the material's unit square lands with x across "
-                        "the widest line and y from cap top to "
-                        "baseline, so a ramp authored once in [0, 1] "
-                        "crosses the capitals at any size")},
+        {.title = toUtf8("TEXT PAINTS \xc2\xb7 Element::textFill over "
+                         "kit::water, meshGradient, sparkle, starNest, "
+                         "clouds, tunnel"),
+         .subtitle = toUtf8("dials \xc2\xb7 the paint \xc2\xb7 the type "
+                            "size (56 px \xe2\x80\x94 change it and the "
+                            "fills do not move) \xc2\xb7 the moment "
+                            "(6.4 s)"),
+         .footer = toUtf8("the material's unit square lands with x across "
+                          "the widest line and y from cap top to "
+                          "baseline, so a ramp authored once in [0, 1] "
+                          "crosses the capitals at any size")},
         kit::cells(
             {.cells =
                  {kit::cells(

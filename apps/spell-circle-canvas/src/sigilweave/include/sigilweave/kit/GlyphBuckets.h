@@ -76,15 +76,15 @@ struct GlyphBuckets {
     }
   }
 
-  /** Visits every non-empty bucket with `drawFn(const Bucket &)` and
+  /** Visits every non-empty bucket with `drawFunction(const Bucket &)` and
    *  returns the total glyph count visited. Call once per draw pass. */
-  template <typename DrawFn>
-  int drawEach(DrawFn&& drawFn) const {
+  template <typename DrawFunction>
+  int drawEach(DrawFunction&& drawFunction) const {
     int total = 0;
     for (const Bucket& bucket : buckets) {
       if (bucket.glyphs.empty()) continue;
       total += static_cast<int>(bucket.glyphs.size());
-      drawFn(bucket);
+      drawFunction(bucket);
     }
     return total;
   }

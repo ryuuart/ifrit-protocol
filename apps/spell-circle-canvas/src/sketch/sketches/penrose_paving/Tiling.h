@@ -405,9 +405,9 @@ const Granite kKobraGrey{kGreyBase, kGreyLit, kGreyVein, 1.00f,
 class GraniteBank {
  public:
   Paint get(const Granite& g, uint32_t seed, bool fat) {
-    // The species is the params' bytes and the bucket is the seed, so the
+    // The species is the parameters' bytes and the bucket is the seed, so the
     // two rhombs of one granite at one bucket are ONE material.
-    const matkit::StoneParams species{
+    const matkit::StoneParameters species{
         .hi = skia::toColor(g.lit),
         .lo = skia::toColor(g.base),
         // The bed runs across the sett rather than along it, so a rotated
@@ -440,7 +440,7 @@ class GraniteBank {
                 std::clamp(c.g * (1 + jitter), 0.f, 1.f),
                 std::clamp(c.b * (1 + jitter), 0.f, 1.f), 1};
           };
-          matkit::StoneParams p = species;
+          matkit::StoneParameters p = species;
           p.hi = tone(species.hi);
           p.lo = tone(species.lo);
           p.seed = (float)bucket;

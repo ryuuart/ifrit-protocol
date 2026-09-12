@@ -55,7 +55,7 @@ namespace material = sigil::material;
 namespace paint = sigil::material::skia;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -110,7 +110,7 @@ SkRect run() { return SkRect::MakeWH(1, 1); }
  *  thing the sheet varies. */
 Element column(const std::u8string& prose, paint::Paint fill) {
   return text(prose, body())
-      .width(Dim(kPanel - kInset * 2))
+      .width(Dimension(kPanel - kInset * 2))
       .paragraph(block())
       .textAlign(weave::TextAlignment::kJustify)
       .lineBreak(weave::LineBreakStrategy::kKnuthPlass)
@@ -122,15 +122,15 @@ Element column(const std::u8string& prose, paint::Paint fill) {
  *  the first — which is what a transparent field is drawn over. */
 Element panel(const std::u8string& prose, const char* call, const char* note,
               paint::Paint fill, paint::Paint beneath = {}) {
-  Element plate =
-      sketch::kit::well(
-          {.width = Dim(kPanel), .height = Dim(kColumn), .padding = kInset})
-          .column();
+  Element plate = sketch::kit::well({.width = Dimension(kPanel),
+                                     .height = Dimension(kColumn),
+                                     .padding = kInset})
+                      .column();
   if (beneath.isSolid() || beneath.asShader())
     plate.child(
         box().absolute().inset(0).child(column(prose, std::move(beneath))));
   return sketch::kit::caption(
-      kPanel, toU8(call), toU8(note),
+      kPanel, toUtf8(call), toUtf8(note),
       std::move(plate).child(column(prose, std::move(fill))));
 }
 
@@ -170,17 +170,17 @@ struct ParagraphPaints final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("PARAGRAPH PAINTS \xc2\xb7 the preset text paints "
-                       "over a page of body type"),
-         .subtitle = toU8("one passage \xc2\xb7 one face, size, measure, "
-                          "leading, breaker and justification "
-                          "\xc2\xb7 eight inks \xc2\xb7 the moment "
-                          "(6.4 s)"),
-         .footer = toU8("the material's unit square spans the WHOLE run, "
-                        "so a page gets a sliver of what a word gets "
-                        "whole \xe2\x80\x94 which is the thing to look "
-                        "for here, and the thing a one-word specimen "
-                        "cannot show")},
+        {.title = toUtf8("PARAGRAPH PAINTS \xc2\xb7 the preset text paints "
+                         "over a page of body type"),
+         .subtitle = toUtf8("one passage \xc2\xb7 one face, size, measure, "
+                            "leading, breaker and justification "
+                            "\xc2\xb7 eight inks \xc2\xb7 the moment "
+                            "(6.4 s)"),
+         .footer = toUtf8("the material's unit square spans the WHOLE run, "
+                          "so a page gets a sliver of what a word gets "
+                          "whole \xe2\x80\x94 which is the thing to look "
+                          "for here, and the thing a one-word specimen "
+                          "cannot show")},
         kit::cells(
             {.cells = {topRow(), bottomRow()}, .column = true, .gap = 14})));
   }

@@ -55,7 +55,7 @@ bool isPassBody(const sigil::material::Recipe& recipe) {
 // THE ONE SPECIALIZATION behind every pass: the author's recipe with the
 // runtime's declarations prepended to its SkSL body at the requested unit
 // count, held per (recipe identity, count) for the process. The
-// specialization carries the author's params layout, so the instance's
+// specialization carries the author's parameters layout, so the instance's
 // values, bindings and children ride it unchanged; it is a second
 // definition, so its program compiles and caches apart, which is what
 // stops a count from meaning a compile per frame.
@@ -82,7 +82,7 @@ std::shared_ptr<const sigil::material::Recipe> passRecipeFor(
     if (c.units == n && c.authored == authored) return c.recipe;
   const std::string count = std::to_string(n);
   // The arrays and the loop bound sit at the head of the BODY rather than
-  // among the declarations, because a params field is a value the author
+  // among the declarations, because a parameter field is a value the author
   // sets and these three are the runtime's alone: nothing may write them
   // through the instance, and the count is a compile-time constant no
   // upload could carry.
@@ -104,12 +104,12 @@ std::shared_ptr<const sigil::material::Recipe> passRecipeFor(
 // The Paint→SkShader conversion every child slot performs: the
 // per-draw resolve when there is a frame, the
 // frameless snapshot when there is not, a solid as a colour shader.
-sk_sp<SkShader> childShader(const Paint& source, const PaintFrame* ctx) {
-  if (!ctx)
+sk_sp<SkShader> childShader(const Paint& source, const PaintFrame* paintFrame) {
+  if (!paintFrame)
     return source.asShader();  // already turns a solid into SkShaders::Color
   if (source.isNone()) return nullptr;
   if (source.isSolid()) return SkShaders::Color(source.solidColor(), nullptr);
-  return source.shaderFor(*ctx);
+  return source.shaderFor(*paintFrame);
 }
 
 }  // namespace detail

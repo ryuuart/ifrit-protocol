@@ -21,8 +21,8 @@ Element GenesisFire::generationPanel() {
 }
 
 Element GenesisFire::censusBar(float frac, SkColor4f c, const char* key) {
-  sketch::kit::Meter bar{.width = Dim(96),
-                         .height = Dim(7),
+  sketch::kit::Meter bar{.width = Dimension(96),
+                         .height = Dimension(7),
                          .track = Fill::color(hexColor(0x171B24)),
                          .bar = Fill::color(c)};
   bar.level = animate(

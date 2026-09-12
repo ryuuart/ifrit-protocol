@@ -16,7 +16,7 @@
  * new binding and re-patches its node.
  *
  * `withRecipe` is the third door: THE SAME INSTANCE over a second
- * definition of the same params layout. Values, bindings and children
+ * definition of the same parameters layout. Values, bindings and children
  * carry over and the two compile and cache apart, which is the point —
  * one program per specialization rather than one per draw.
  *
@@ -50,7 +50,7 @@ using material::Color;
 using material::FrameInput;
 using material::Recipe;
 using material::Target;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -73,7 +73,7 @@ sketch::kit::Theme sheetTheme() {
 /** The ABI: a float, a colour and a table. Packed floats with float
  *  alignment, which is what lets the struct's memory image BE the
  *  upload. */
-struct BarsParams {
+struct BarsParameters {
   float uGain;
   Color uTint;
   std::array<float, kBars> uBars;
@@ -136,7 +136,7 @@ half4 main(float2 p) {
 )";
 
 std::shared_ptr<const Recipe> make(const char* name, const char* body) {
-  return std::make_shared<const Recipe>(Recipe::of<BarsParams>(name)
+  return std::make_shared<const Recipe>(Recipe::of<BarsParameters>(name)
                                             .frame(FrameInput::Resolution)
                                             .frame(FrameInput::ContentScale)
                                             .frame(FrameInput::WorldTransform)
@@ -166,7 +166,7 @@ SkPath whole() {
 Element cell(const char* call, const std::string& note, material::Material m,
              float contentScale, glm::mat3 world = glm::mat3(1.0f)) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [m = std::move(m), contentScale, world, face = whole()](
@@ -201,7 +201,7 @@ struct FrameInputs final : sketch::Sketch {
       second->values()[(size_t)i] = 0.15f + 0.8f * (float)i / (float)kBars;
     second->commit();
 
-    const BarsParams stock{
+    const BarsParameters stock{
         .uGain = kGain, .uTint = {0.42f, 0.80f, 0.92f, 1}, .uBars = {}};
 
     // ONE recipe pointer for the two materials that share a body: a
@@ -215,17 +215,17 @@ struct FrameInputs final : sketch::Sketch {
     ramped.set("uTint", Color{0.96f, 0.68f, 0.34f, 1});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("FRAME INPUTS \xc2\xb7 Recipe::frame + "
-                       "UniformBlock + Material::withRecipe"),
-         .subtitle = toU8("dials \xc2\xb7 the content scale (1, then 3) "
-                          "\xc2\xb7 the world translation \xc2\xb7 the "
-                          "block's twelve floats \xc2\xb7 the recipe the "
-                          "instance is worn on"),
-         .footer = toU8("what a compiler KEEPS is what the upload "
-                        "fills: a field a body never reads reaches "
-                        "nothing, and the program cache names the "
-                        "recipe and every field the compiler dropped "
-                        "once per target")},
+        {.title = toUtf8("FRAME INPUTS \xc2\xb7 Recipe::frame + "
+                         "UniformBlock + Material::withRecipe"),
+         .subtitle = toUtf8("dials \xc2\xb7 the content scale (1, then 3) "
+                            "\xc2\xb7 the world translation \xc2\xb7 the "
+                            "block's twelve floats \xc2\xb7 the recipe the "
+                            "instance is worn on"),
+         .footer = toUtf8("what a compiler KEEPS is what the upload "
+                          "fills: a field a body never reads reaches "
+                          "nothing, and the program cache names the "
+                          "recipe and every field the compiler dropped "
+                          "once per target")},
         kit::cells(
             {.cells = {kit::cells(
                            {.cells = {cell("bind(\"uBars\", block) \xc2\xb7 "
@@ -271,7 +271,7 @@ struct FrameInputs final : sketch::Sketch {
                                       cell("withRecipe(dotsRecipe())",
                                            "THE SAME INSTANCE over a "
                                            "second "
-                                           "definition of one params "
+                                           "definition of one parameters "
                                            "layout "
                                            "\xc2\xb7 the values, the "
                                            "binding and "

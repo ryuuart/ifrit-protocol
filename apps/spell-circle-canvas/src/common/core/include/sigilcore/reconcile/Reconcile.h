@@ -10,7 +10,7 @@
  */
 
 #include "sigilcore/comparable/Erased.h"
-#include "sigilcore/reconcile/Env.h"
+#include "sigilcore/reconcile/Environment.h"
 #include "sigilcore/reconcile/Host.h"
 #include "sigilcore/reconcile/Memo.h"
 #include "sigilcore/reconcile/Node.h"

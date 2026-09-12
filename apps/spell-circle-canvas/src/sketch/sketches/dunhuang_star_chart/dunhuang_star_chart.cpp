@@ -3,7 +3,7 @@
 #include "DunhuangStarChart.h"
 
 auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
-  auto root = box().left(0).top(0).width(Dim(kW)).height(Dim(kH));
+  auto root = box().left(0).top(0).width(Dimension(kW)).height(Dimension(kH));
   root.child(ground());
   root.child(locator());
 
@@ -12,8 +12,8 @@ auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
       box()
           .left(108)
           .top(250)
-          .width(Dim(2344))
-          .height(Dim(764))
+          .width(Dimension(2344))
+          .height(Dimension(764))
           .key("grat")
           .opacity(gate(tSky - 0.6f, tSky + 0.6f))
           .zIndex(-1)
@@ -43,8 +43,8 @@ auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
     auto sg = box()
                   .left(segLo(seg))
                   .top(kSegTop)
-                  .width(Dim(segHi(seg) - segLo(seg)))
-                  .height(Dim(kSegH))
+                  .width(Dimension(segHi(seg) - segLo(seg)))
+                  .height(Dimension(kSegH))
                   .clip(true)
                   .key(seg ? "segR" : "segL");
     for (int k = 1; k <= 12; ++k) {
@@ -67,8 +67,8 @@ auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
       box()
           .left(0)
           .top(0)
-          .width(Dim(kW))
-          .height(Dim(kH))
+          .width(Dimension(kW))
+          .height(Dimension(kH))
           .key("stars")
           .opacity(gate(tSky - 0.5f, tSky + 0.7f))
           .child(instancing::instances(atlas, pool, instancing::Mode::Live)));
@@ -166,73 +166,73 @@ auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
   }
   rebuild(2000.0f, 0.0f);
 
-  logA.append({toU8("THE JOIN"), "heading"});
-  logA.append({toU8(kit::formatted(
+  logA.append({toUtf8("THE JOIN"), "heading"});
+  logA.append({toUtf8(kit::formatted(
                    "chinese_chenzhuo: %d asterisms, 1,883 vertex words", nAst)),
                "dim"});
-  logA.append({toU8("1,463 star TOKENS \xe2\x80\x94 3 are DSO (M44/M7/M31)"),
+  logA.append({toUtf8("1,463 star TOKENS \xe2\x80\x94 3 are DSO (M44/M7/M31)"),
                "number"});
   logA.append(
-      {toU8(kit::formatted("  so %d HIP numbers vs Chen Zhuo's canonical 1,464",
-                           nStars)),
+      {toUtf8(kit::formatted(
+           "  so %d HIP numbers vs Chen Zhuo's canonical 1,464", nStars)),
        "dim"});
-  logA.append({toU8("HYG v4.1 join on HIP: 1,457 direct, 3 LOST"), "number"});
-  logA.append({toU8("  55203 xi UMa, 78727 xi Sco, 115125 94 Aqr B"), "dim"});
+  logA.append({toUtf8("HYG v4.1 join on HIP: 1,457 direct, 3 LOST"), "number"});
+  logA.append({toUtf8("  55203 xi UMa, 78727 xi Sco, 115125 94 Aqr B"), "dim"});
   logA.append(
-      {toU8("  cause: HYG BLANKS hip on resolved double components"), "dim"});
-  logA.append({toU8("  Bayer fallback recovers all three"), "pass"});
+      {toUtf8("  cause: HYG BLANKS hip on resolved double components"), "dim"});
+  logA.append({toUtf8("  Bayer fallback recovers all three"), "pass"});
   logA.append(
-      {toU8(kit::formatted("RESOLVED %d / %d = 100.00%%", nStars, nStars)),
+      {toUtf8(kit::formatted("RESOLVED %d / %d = 100.00%%", nStars, nStars)),
        "pass"});
   logA.append(
-      {toU8("largest 1300-yr proper motion 1.476 deg (HIP 19849)"), "dim"});
+      {toUtf8("largest 1300-yr proper motion 1.476 deg (HIP 19849)"), "dim"});
 
-  logB.append({toU8("THE EPOCH, AND THE DECLINATION WINDOW"), "heading"});
+  logB.append({toUtf8("THE EPOCH, AND THE DECLINATION WINDOW"), "heading"});
   logB.append(
-      {toU8("paper precessed to +700, NOT +665 (sect. 4.1)"), "number"});
+      {toUtf8("paper precessed to +700, NOT +665 (sect. 4.1)"), "number"});
   logB.append(
-      {toU8("  665 vs 700 = 0.489 deg RA; map 5's RA residual 2.26"), "dim"});
+      {toUtf8("  665 vs 700 = 0.489 deg RA; map 5's RA residual 2.26"), "dim"});
   logB.append(
-      {toU8("  4.6x below the chart's own hand. UNRESOLVABLE."), "pass"});
-  logB.append({toU8(kit::formatted("of %d stars at +700:", nStars)), "dim"});
-  logB.append(
-      {toU8(kit::formatted("  %4d fall on maps 1-12  (|DEC| <= 45)", nOnMaps)),
-       "dim"});
-  logB.append(
-      {toU8(kit::formatted("  %4d fall on the disc    (DEC >= +52)", nOnDisc)),
-       "dim"});
-  logB.append({toU8(kit::formatted("  %4d fall in the UNCOVERED band +45..+52",
-                                   nInGap)),
+      {toUtf8("  4.6x below the chart's own hand. UNRESOLVABLE."), "pass"});
+  logB.append({toUtf8(kit::formatted("of %d stars at +700:", nStars)), "dim"});
+  logB.append({toUtf8(kit::formatted("  %4d fall on maps 1-12  (|DEC| <= 45)",
+                                     nOnMaps)),
+               "dim"});
+  logB.append({toUtf8(kit::formatted("  %4d fall on the disc    (DEC >= +52)",
+                                     nOnDisc)),
+               "dim"});
+  logB.append({toUtf8(kit::formatted(
+                   "  %4d fall in the UNCOVERED band +45..+52", nInGap)),
                "number"});
-  logB.append({toU8(kit::formatted("  %4d are south of DEC -45, off the chart",
-                                   nTooSouth)),
+  logB.append({toUtf8(kit::formatted(
+                   "  %4d are south of DEC -45, off the chart", nTooSouth)),
                "number"});
   logB.append(
-      {toU8("Chang'an is 34.3N, so DEC < -55.7 never rises at all"), "dim"});
+      {toUtf8("Chang'an is 34.3N, so DEC < -55.7 never rises at all"), "dim"});
 
-  logC.append({toU8("THE SCHOOLS, AND WHAT IS NOT ATTESTED"), "heading"});
+  logC.append({toUtf8("THE SCHOOLS, AND WHAT IS NOT ATTESTED"), "heading"});
   logC.append(
-      {toU8("S.3326 is the FIRST document to colour the three"), "dim"});
+      {toUtf8("S.3326 is the FIRST document to colour the three"), "dim"});
   logC.append(
-      {toU8("  schools: Shi shi RED, Gan shi BLACK, Wu Xian WHITE"), "dim"});
+      {toUtf8("  schools: Shi shi RED, Gan shi BLACK, Wu Xian WHITE"), "dim"});
   logC.append(
-      {toU8(kit::formatted(
+      {toUtf8(kit::formatted(
            "Tables 4+5 give a colour for 54 asterisms; %d stars", nSchooled)),
        "dim"});
   logC.append(
-      {toU8(kit::formatted(
+      {toUtf8(kit::formatted(
            "%d stars have NO published school: drawn undeclared", nUnattested)),
        "number"});
   logC.append(
-      {toU8("guessing the rest would be inventing the evidence"), "dim"});
+      {toUtf8("guessing the rest would be inventing the evidence"), "dim"});
   logC.append(
-      {toU8("Huagai +6 unaccounted: Chen Zhuo HAS Gang, 9 stars"), "number"});
+      {toUtf8("Huagai +6 unaccounted: Chen Zhuo HAS Gang, 9 stars"), "number"});
   logC.append(
-      {toU8("  9 != 6, so it is consistent and does not close"), "dim"});
+      {toUtf8("  9 != 6, so it is consistent and does not close"), "dim"});
   logC.append(
-      {toU8("Sangong: Chen Zhuo files one under WU XIAN (white),"), "dim"});
-  logC.append(
-      {toU8("  the map draws BOTH black. printed, not corrected."), "number"});
+      {toUtf8("Sangong: Chen Zhuo files one under WU XIAN (white),"), "dim"});
+  logC.append({toUtf8("  the map draws BOTH black. printed, not corrected."),
+               "number"});
 
   ctx.ticker.add([this, &tick = ctx.ticker](double) {
     clockT = tick.elapsed();

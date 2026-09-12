@@ -53,7 +53,7 @@ namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -126,13 +126,13 @@ Element cell(const char* call, const char* note, Element body,
              const std::string& readout) {
   const sketch::kit::Theme& look = sketch::kit::theme();
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body))
-          .child(text(toU8(readout), look.mono(10, look.palette.figure))
+          .child(text(toUtf8(readout), look.mono(10, look.palette.figure))
                      .absolute()
-                     .left(Dim(8.0f))
-                     .top(Dim(6.0f))
+                     .left(Dimension(8.0f))
+                     .top(Dimension(6.0f))
                      .padding(4, 2)
                      .fill(Fill::color(look.palette.cellGround))));
 }
@@ -162,17 +162,17 @@ struct LaneRetarget final : sketch::Sketch {
         kit::formatted("retargetFamily \xc2\xb7 shape 1 \xe2\x86\x92 2");
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("RETARGETING A LANE \xc2\xb7 motion::"
-                       "retargetSlots, motion::retargetFamily"),
-         .subtitle = toU8("dials \xc2\xb7 the moment the second "
-                          "description arrives (0.55 s, the rule on "
-                          "every plot) \xc2\xb7 the two targets \xc2\xb7 "
-                          "the transition both ask for (900 ms)"),
-         .footer = toU8("a description that changes the SHAPE of a "
-                        "positional family DROPS its running motions "
-                        "rather than carrying them onto endpoints that "
-                        "now mean something else \xe2\x80\x94 the same "
-                        "rule keys enforce for whole nodes")},
+        {.title = toUtf8("RETARGETING A LANE \xc2\xb7 motion::"
+                         "retargetSlots, motion::retargetFamily"),
+         .subtitle = toUtf8("dials \xc2\xb7 the moment the second "
+                            "description arrives (0.55 s, the rule on "
+                            "every plot) \xc2\xb7 the two targets \xc2\xb7 "
+                            "the transition both ask for (900 ms)"),
+         .footer = toUtf8("a description that changes the SHAPE of a "
+                          "positional family DROPS its running motions "
+                          "rather than carrying them onto endpoints that "
+                          "now mean something else \xe2\x80\x94 the same "
+                          "rule keys enforce for whole nodes")},
         kit::cells(
             {.cells = {cell("one description, left alone",
                             "the flight the other three interrupt \xc2\xb7 "

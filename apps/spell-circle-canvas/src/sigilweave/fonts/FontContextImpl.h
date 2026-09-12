@@ -235,7 +235,8 @@ struct FontContext::Impl {
   boost::unordered_node_map<uint32_t, AsciiTable> asciiFallbackTypefaces;
   uint32_t lastAsciiTypefaceId = 0;
   AsciiTable* lastAsciiFallbackTable = nullptr;
-  boost::unordered_flat_map<ShapeKey, ShapedWordRef, ShapeKeyHash, ShapeKeyEq>
+  boost::unordered_flat_map<ShapeKey, ShapedWordReference, ShapeKeyHash,
+                            ShapeKeyEq>
       shapeCache;
 
   // (typefaceId, glyph) -> the glyph's edge profile in ems, measured once

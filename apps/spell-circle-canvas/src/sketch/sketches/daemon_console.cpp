@@ -89,7 +89,7 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
@@ -487,10 +487,10 @@ struct DaemonConsole final : sketch::Sketch {
 
     auto line = weave::rich(styles.base())
                     .styles(styles)
-                    .add(toU8(std::format("{:07.2f}  ", r.t)), "ts")
-                    .add(toU8(std::format("{:<6}", r.tag)), d.tagStyle)
-                    .add(toU8(r.body), d.bodyStyle);
-    if (!r.cipher.empty()) line.add(toU8("  " + r.cipher), "cipher");
+                    .add(toUtf8(std::format("{:07.2f}  ", r.t)), "ts")
+                    .add(toUtf8(std::format("{:<6}", r.tag)), d.tagStyle)
+                    .add(toUtf8(r.body), d.bodyStyle);
+    if (!r.cipher.empty()) line.add(toUtf8("  " + r.cipher), "cipher");
 
     Element leaf = text(std::move(line));
     switch (r.sev) {
@@ -542,7 +542,7 @@ struct DaemonConsole final : sketch::Sketch {
       // The cipher decodes on its own clock: held to NOTHING until each
       // glyph's beat opens (an unheld scramble would show wrong letters out
       // of turn), then hex churn, resolved by the end of the beat.
-      leaf.fx({.where = sel::style("cipher"),
+      leaf.fx({.where = selectors::style("cipher"),
                .effect = fx::hold(fx::scramble(U"0123456789abcdef", 10)),
                .stagger = {.eachMs = 30, .durationMs = 340},
                .unit = weave::Unit::Cluster,
@@ -570,7 +570,7 @@ struct DaemonConsole final : sketch::Sketch {
    *  channel is named in are this console's, carried down by its theme. */
   Element meterRow(const char* label, choreograph::Output<float>* level) {
     sketch::kit::Meter bar{
-        .label = toU8(label), .height = Dim(4), .corners = 2};
+        .label = toUtf8(label), .height = Dimension(4), .corners = 2};
     bar.level = level;
     return sketch::kit::meter(bar);
   }
@@ -586,9 +586,9 @@ struct DaemonConsole final : sketch::Sketch {
         .gap(8)
         .alignItems(Align::Center)
         .child(box().width(6).height(6).corners({1.5f}).fill(Fill::color(chip)))
-        .child(text(toU8(label), chrome(10, dc::kChrome, 1.6f)))
+        .child(text(toUtf8(label), chrome(10, dc::kChrome, 1.6f)))
         .child(box().grow(1))
-        .child(text(toU8(std::format("{}", n)),
+        .child(text(toUtf8(std::format("{}", n)),
                     chrome(12, dc::kBone, 0, true, true)));
   }
 
@@ -666,11 +666,11 @@ struct DaemonConsole final : sketch::Sketch {
             .alignItems(Align::Center)
             .child(box().width(9).height(9).corners({2}).rotate(45.0f).fill(
                 Fill::color(dc::kAccent)))
-            .child(text(toU8("WARDNET"), chrome(15, dc::kBone, 3.5f, true)))
-            .child(
-                text(toU8("PERIMETER WATCH"), chrome(10.5f, dc::kChrome, 3.5f)))
+            .child(text(toUtf8("WARDNET"), chrome(15, dc::kBone, 3.5f, true)))
+            .child(text(toUtf8("PERIMETER WATCH"),
+                        chrome(10.5f, dc::kChrome, 3.5f)))
             .child(box().grow(1))
-            .child(text(toU8("NODE 07 \xc2\xb7 flooded-causeway"),
+            .child(text(toUtf8("NODE 07 \xc2\xb7 flooded-causeway"),
                         chrome(10.5f, dc::kDim, 0.8f)))
             .child(box()
                        .width(6)
@@ -678,7 +678,7 @@ struct DaemonConsole final : sketch::Sketch {
                        .corners({3})
                        .fill(Fill::color(dc::kOk))
                        .opacity(&lamp))
-            .child(text(toU8(std::format("T+{:07.2f}", mission(clockNow))),
+            .child(text(toUtf8(std::format("T+{:07.2f}", mission(clockNow))),
                         chrome(11.5f, dc::kAccent, 0.6f, true, true)));
 
     // ---- rail -------------------------------------------------------------
@@ -688,48 +688,48 @@ struct DaemonConsole final : sketch::Sketch {
             .column()
             .width(172)
             .gap(9)
-            .child(text(toU8("CHANNELS"), label))
+            .child(text(toUtf8("CHANNELS"), label))
             .child(meterRow("LATT", &meter[0]))
             .child(meterRow("GATE", &meter[1]))
             .child(meterRow("FLUX", &meter[2]))
             .child(meterRow("AUTH", &meter[3]))
             .child(rule(6, 2))
-            .child(text(toU8("SEVERITY \xc2\xb7 SESSION"), label))
+            .child(text(toUtf8("SEVERITY \xc2\xb7 SESSION"), label))
             .child(counterRow("SEALS", dc::kOk, gen.seals))
             .child(counterRow("FLUX WARNS", dc::kWarn, gen.warns))
             .child(counterRow("BREACHES", dc::kCrit, gen.breaches))
             .child(rule(6, 2))
-            .child(text(toU8("UPLINK"), label))
-            .child(
-                box()
-                    .row()
-                    .gap(8)
-                    .alignItems(Align::Center)
-                    .child(text(toU8("latency"), chrome(10, dc::kChrome, 0.8f)))
-                    .child(box().grow(1))
-                    .child(text(toU8(std::format(
-                                    "{:2.0f} mS",
-                                    11.0 + 3.0 * std::sin(clockNow * 0.7))),
-                                chrome(11, dc::kBone, 0, true, true))))
+            .child(text(toUtf8("UPLINK"), label))
+            .child(box()
+                       .row()
+                       .gap(8)
+                       .alignItems(Align::Center)
+                       .child(text(toUtf8("latency"),
+                                   chrome(10, dc::kChrome, 0.8f)))
+                       .child(box().grow(1))
+                       .child(text(toUtf8(std::format(
+                                       "{:2.0f} mS",
+                                       11.0 + 3.0 * std::sin(clockNow * 0.7))),
+                                   chrome(11, dc::kBone, 0, true, true))))
             // The hero stat anchors the rail's foot: session health as one
             // number, amber the moment the breach count says it should be.
             .child(box().grow(1))
             .child(rule(6, 2))
-            .child(text(toU8("WARD INTEGRITY"), label))
+            .child(text(toUtf8("WARD INTEGRITY"), label))
             .child(
                 box()
                     .row()
                     .gap(4)
                     .alignItems(Align::Baseline)
                     .child(text(
-                        toU8(std::format("{:.1f}", integrity())),
+                        toUtf8(std::format("{:.1f}", integrity())),
                         chrome(24, integrity() >= 96.0 ? dc::kBone : dc::kWarn,
                                0, true, true)))
-                    .child(text(toU8("%"), chrome(12, dc::kChrome))))
-            .child(
-                text(toU8(std::format("{} breach{} this session", gen.breaches,
-                                      gen.breaches == 1 ? "" : "es")),
-                     chrome(9.5f, dc::kDim, 0.8f, false, true)));
+                    .child(text(toUtf8("%"), chrome(12, dc::kChrome))))
+            .child(text(
+                toUtf8(std::format("{} breach{} this session", gen.breaches,
+                                   gen.breaches == 1 ? "" : "es")),
+                chrome(9.5f, dc::kDim, 0.8f, false, true)));
 
     // ---- prompt -----------------------------------------------------------
     const char* command = dc::kCommands[commandIndex];
@@ -741,13 +741,13 @@ struct DaemonConsole final : sketch::Sketch {
             .child(text(weave::rich(weave::textStyle({.face = faceMono,
                                                       .size = 12,
                                                       .color = dc::kDim}))
-                            .add(toU8("wardnet"))
-                            .add(toU8(" $ "),
+                            .add(toUtf8("wardnet"))
+                            .add(toUtf8(" $ "),
                                  weave::textStyle({.face = faceMonoMed,
                                                    .size = 12,
                                                    .color = dc::kAccent}))))
             .child(text(
-                toU8(std::string(command).substr(0, shown)),
+                toUtf8(std::string(command).substr(0, shown)),
                 weave::textStyle(
                     {.face = faceMono, .size = 12.5f, .color = dc::kBone})))
             .child(box()
@@ -765,8 +765,8 @@ struct DaemonConsole final : sketch::Sketch {
                                     .target(0.10f, 1.0f))
                        .key("caret"))
             .child(box().grow(1))
-            .child(text(toU8(std::format("ring 256 \xc2\xb7 {} events",
-                                         (unsigned long long)gen.events)),
+            .child(text(toUtf8(std::format("ring 256 \xc2\xb7 {} events",
+                                           (unsigned long long)gen.events)),
                         chrome(9.5f, dc::kDim, 0.8f, false, true)));
 
     return stack()

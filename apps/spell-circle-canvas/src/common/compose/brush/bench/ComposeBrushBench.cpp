@@ -10,11 +10,11 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
-#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
+#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
@@ -280,8 +280,8 @@ Element decoratedRow(const Row& row) {
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
       .background(shadow({0, 0, 0, 0.5f}, {0, 2}, 6))
       .foreground(stroke(1.5f, Fill::color({0.5f, 0.5f, 0.6f, 1})))
-      .child(text(toU8(row.name), style).grow(1))
-      .child(text(toU8(std::to_string(row.score)), style));
+      .child(text(toUtf8(row.name), style).grow(1))
+      .child(text(toUtf8(std::to_string(row.score)), style));
 }
 
 Element decoratedBoard(const std::vector<Row>& rows) {

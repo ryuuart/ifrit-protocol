@@ -51,7 +51,7 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 namespace weave = sigil::weave;
 
 namespace {
@@ -144,7 +144,8 @@ kit::Caption callVoice(float measure) {
 
 /// A panel: a name, what the control decides, and the specimen under it.
 Element panel(const char* name, const char* note, Element specimen) {
-  return kit::cell(panelVoice(), toU8(name), toU8(note), std::move(specimen));
+  return kit::cell(panelVoice(), toUtf8(name), toUtf8(note),
+                   std::move(specimen));
 }
 
 constexpr const char8_t* kFourWays =
@@ -155,11 +156,11 @@ constexpr const char8_t* kFourWays =
 Element leadingSpecimen(const char* caption, weave::Leading leading) {
   weave::ParagraphStyle style;
   style.leading = leading;
-  return kit::cell(callVoice(kMeasure * 0.48f), toU8(caption), u8"",
+  return kit::cell(callVoice(kMeasure * 0.48f), toUtf8(caption), u8"",
                    text(kFourWays, body(11.5f))
-                       .width(Dim(kMeasure * 0.48f))
+                       .width(Dimension(kMeasure * 0.48f))
                        .paragraph(style))
-      .width(Dim(kMeasure * 0.48f));
+      .width(Dimension(kMeasure * 0.48f));
 }
 
 }  // namespace sheet
@@ -192,29 +193,29 @@ struct ParagraphSheet final : sketch::Sketch {
                                               weave::Leading::face()))
                     .child(s::leadingSpecimen("Leading::multiple(1.7)",
                                               weave::Leading::multiple(1.7f))))
-            .child(
-                box()
-                    .row()
-                    .gap(18)
-                    .child(s::leadingSpecimen("Leading::absolute(22)",
-                                              weave::Leading::absolute(22)))
-                    .child(kit::cell(
-                               s::callVoice(s::kMeasure * 0.48f),
-                               toU8("Leading::grid(21)"), u8"",
-                               // The grid, drawn: every rule is one
-                               // step, so a baseline off the rhythm is
-                               // a thing to see rather than to argue
-                               // about.
-                               box()
-                                   .height(Dim(s::kGrid * 4))
-                                   .width(Dim(s::kMeasure * 0.48f))
-                                   .child(gridRules())
-                                   .child(text(s::kFourWays, s::body(11.5f))
-                                              .absolute()
-                                              .inset(0, 0, 0, 0)
-                                              .width(Dim(s::kMeasure * 0.48f))
-                                              .paragraph(grid)))
-                               .width(Dim(s::kMeasure * 0.48f)))));
+            .child(box()
+                       .row()
+                       .gap(18)
+                       .child(s::leadingSpecimen("Leading::absolute(22)",
+                                                 weave::Leading::absolute(22)))
+                       .child(kit::cell(
+                                  s::callVoice(s::kMeasure * 0.48f),
+                                  toUtf8("Leading::grid(21)"), u8"",
+                                  // The grid, drawn: every rule is one
+                                  // step, so a baseline off the rhythm is
+                                  // a thing to see rather than to argue
+                                  // about.
+                                  box()
+                                      .height(Dimension(s::kGrid * 4))
+                                      .width(Dimension(s::kMeasure * 0.48f))
+                                      .child(gridRules())
+                                      .child(text(s::kFourWays, s::body(11.5f))
+                                                 .absolute()
+                                                 .inset(0, 0, 0, 0)
+                                                 .width(Dimension(s::kMeasure *
+                                                                  0.48f))
+                                                 .paragraph(grid)))
+                                  .width(Dimension(s::kMeasure * 0.48f)))));
   }
 
   /// Four rules one grid step apart, behind the grid specimen.
@@ -222,13 +223,14 @@ struct ParagraphSheet final : sketch::Sketch {
     namespace s = sheet;
     Element stackOfRules = box().absolute().inset(0, 0, 0, 0);
     for (int line = 0; line < 4; ++line)
-      stackOfRules.child(box()
-                             .absolute()
-                             .left(Dim(0.0f))
-                             .top(Dim(s::kGrid * static_cast<float>(line + 1)))
-                             .width(Dim(s::kMeasure * 0.48f))
-                             .height(Dim(1.0f))
-                             .fill(Fill::color(s::kRule)));
+      stackOfRules.child(
+          box()
+              .absolute()
+              .left(Dimension(0.0f))
+              .top(Dimension(s::kGrid * static_cast<float>(line + 1)))
+              .width(Dimension(s::kMeasure * 0.48f))
+              .height(Dimension(1.0f))
+              .fill(Fill::color(s::kRule)));
     return stackOfRules;
   }
 
@@ -255,7 +257,7 @@ struct ParagraphSheet final : sketch::Sketch {
              u8"The block above claimed six and the one below claimed "
              u8"twenty-four, so twenty-four stands.",
              s::body())
-            .width(Dim(s::kMeasure))
+            .width(Dimension(s::kMeasure))
             .paragraphs({first, second, third}));
   }
 
@@ -292,7 +294,7 @@ struct ParagraphSheet final : sketch::Sketch {
              u8"A last-line indent pulls the closing line in, and it is "
              u8"the fit that decides which line that is.",
              s::body())
-            .width(Dim(s::kMeasure))
+            .width(Dimension(s::kMeasure))
             .paragraphs({firstLine, hanging, bothEnds, lastLine}));
   }
 
@@ -314,14 +316,14 @@ struct ParagraphSheet final : sketch::Sketch {
 
     const auto column = [&](const char* caption,
                             const weave::JustificationOptions& spec) {
-      return kit::cell(s::callVoice(s::kMeasure * 0.31f), toU8(caption), u8"",
+      return kit::cell(s::callVoice(s::kMeasure * 0.31f), toUtf8(caption), u8"",
                        text(passage, s::body(11.0f))
-                           .width(Dim(s::kMeasure * 0.31f))
+                           .width(Dimension(s::kMeasure * 0.31f))
                            .textAlign(weave::TextAlignment::kJustify)
                            .lineBreak(weave::LineBreakStrategy::kKnuthPlass)
                            .hyphenation({.patterns = &s::hyphenator()})
                            .justification(spec))
-          .width(Dim(s::kMeasure * 0.31f));
+          .width(Dimension(s::kMeasure * 0.31f));
     };
 
     return s::panel(
@@ -357,7 +359,7 @@ struct ParagraphSheet final : sketch::Sketch {
              u8"recto\tsheet\tvolume\t128.75\tIII\n"
              u8"verso\tfold\tcodex\t3.5\tIV",
              s::figures(11.5f))
-            .width(Dim(520.0f))
+            .width(Dimension(520.0f))
             .tabStops(stops));
   }
 
@@ -384,8 +386,8 @@ struct ParagraphSheet final : sketch::Sketch {
              u8"\xe3\x82\x8c\xe3\x81\x8c\xe5\x88\x97\xe3\x81\xae\xe5\xb9\x85"
              u8"\xe3\x81\xab\xe3\x81\xaa\xe3\x82\x8b\xe3\x80\x82",
              vertical)
-            .width(Dim(210.0f))
-            .height(Dim(250.0f))
+            .width(Dimension(210.0f))
+            .height(Dimension(250.0f))
             .writingMode(weave::WritingMode::kVerticalRL)
             .paragraphs({heading, verse}));
   }

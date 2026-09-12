@@ -18,7 +18,7 @@ namespace {
 class RainScene final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double /*elapsedSeconds*/,
-                    int frameNumber, const SceneParams& /*params*/,
+                    int frameNumber, const SceneParameters& /*parameters*/,
                     FontContext& fontContext) override {
     if (m_paragraph.text().empty())
       m_paragraph = kit::mixedScriptFiller(700, 13.0f);

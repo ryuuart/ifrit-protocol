@@ -181,8 +181,8 @@ auto HitmanVerlet::simulation(Pen& pen) -> void {
 
 auto HitmanVerlet::stageOverlay() -> Element {
   return stack()
-      .width(Dim(kStage))
-      .height(Dim(kStage))
+      .width(Dimension(kStage))
+      .height(Dimension(kStage))
       .child(box().inset(0).child(
           instancing::instances(dotAtlas, dotPool, instancing::Mode::Live)));
 }

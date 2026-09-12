@@ -33,7 +33,7 @@ TEST(SketchKitRows, ALabelRowRangesItsFigureToTheMeasure) {
           .row()
           .alignItems(compose::Align::Center)
           .gap(house.spacing.labelGap)
-          .width(compose::Dim(220))
+          .width(compose::Dimension(220))
           .child(compose::text(u8"nodes", house.style(house.type.captionNote,
                                                       house.palette.ash)))
           .child(compose::box().grow(1))
@@ -52,7 +52,7 @@ TEST(SketchKitRows, AReadoutStacksItsRowsAtTheThemesGap) {
       compose::box()
           .column()
           .gap(house.spacing.rowGap)
-          .width(compose::Dim(220))
+          .width(compose::Dimension(220))
           .child(kit::labelRow({.name = u8"nodes", .value = u8"1 248"},
                                {.measure = 220}))
           .child(kit::labelRow({.name = u8"instances", .value = u8"96"},
@@ -108,23 +108,22 @@ TEST(SketchKitRows, ATableDrawsTheHandSpelledColumns) {
       compose::box()
           .column()
           .gap(house.spacing.rowGap)
-          .child(
-              compose::box()
-                  .row()
-                  .alignItems(compose::Align::Center)
-                  .gap(8)
-                  .child(compose::box()
-                             .width(compose::Dim(9))
-                             .height(compose::Dim(9))
-                             .fill(tier)
-                             .shrink(0))
-                  .child(compose::text(u8"cellPanel", figure())
-                             .width(compose::Dim(126)))
-                  .child(
-                      compose::text(u8"0.00", figure()).width(compose::Dim(46)))
-                  .child(compose::text(u8"Promoted", quiet())
-                             .width(compose::Dim(66)))
-                  .child(compose::text(u8"baked by the library", quiet())));
+          .child(compose::box()
+                     .row()
+                     .alignItems(compose::Align::Center)
+                     .gap(8)
+                     .child(compose::box()
+                                .width(compose::Dimension(9))
+                                .height(compose::Dimension(9))
+                                .fill(tier)
+                                .shrink(0))
+                     .child(compose::text(u8"cellPanel", figure())
+                                .width(compose::Dimension(126)))
+                     .child(compose::text(u8"0.00", figure())
+                                .width(compose::Dimension(46)))
+                     .child(compose::text(u8"Promoted", quiet())
+                                .width(compose::Dimension(66)))
+                     .child(compose::text(u8"baked by the library", quiet())));
   Element byKit = kit::table(
       {{{u8"cellPanel", u8"0.00", u8"Promoted", u8"baked by the library"},
         tier}},
@@ -150,7 +149,7 @@ TEST(SketchKitRows, ASurplusWordTakesTheLastColumnsRegister) {
                      .child(compose::text(u8"key",
                                           house.style(house.type.captionNote,
                                                       house.palette.ash))
-                                .width(compose::Dim(60)))
+                                .width(compose::Dimension(60)))
                      .child(compose::text(u8"0.00",
                                           house.style(house.type.captionLabel,
                                                       house.palette.figure)))

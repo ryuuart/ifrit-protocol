@@ -971,7 +971,7 @@ TEST(ComposeMaskGates, TheOvalRegionCutsTheInscribedEllipseAndNotItsBox) {
 // ---- Region is a VALUE ---------------------------------------------------
 
 TEST(ComposeMaskGates, RegionIsAComparableValue) {
-  // The shape gate's obvious signature takes an OutlineFn — an
+  // The shape gate's obvious signature takes an OutlineFunction — an
   // incomparable std::function, whose node never prunes and therefore never
   // caches. Region is a closed, comparable value instead, which is what lets
   // a shape gate sit on a node without disabling every cache above it.

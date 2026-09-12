@@ -36,7 +36,7 @@ struct Arguments {
   bool warmThumbnails = false;
   bool thumbnailHeavy = false;
   std::chrono::milliseconds thumbnailBudget = sigil::sketch::kThumbnailBudget;
-  std::string thumbnailDir;
+  std::string thumbnailDirectory;
   std::optional<bool> deterministic;
 };
 

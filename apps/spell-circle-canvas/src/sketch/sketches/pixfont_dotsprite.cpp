@@ -51,7 +51,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -97,7 +97,7 @@ Element plate(Element body) {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(kCell, toU8(call), toU8(note),
+  return sketch::kit::caption(kCell, toUtf8(call), toUtf8(note),
                               plate(std::move(body)));
 }
 
@@ -121,17 +121,17 @@ struct PixFontDotSprite final : sketch::Sketch {
     dot = kit::dotSprite(32);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("PIXEL TYPE AND THE STAMP \xc2\xb7 kit::bakeRun, "
-                       "kit::bakeFont / kit::blit, kit::dotSprite"),
+        {.title = toUtf8("PIXEL TYPE AND THE STAMP \xc2\xb7 kit::bakeRun, "
+                         "kit::bakeFont / kit::blit, kit::dotSprite"),
          .subtitle =
-             toU8("dials \xc2\xb7 the bake size (9, 12, 16 px) \xc2\xb7 "
-                  "the present scale (3\xc3\x97, integer) \xc2\xb7 the "
-                  "on colour \xc2\xb7 the blit's track (1 and 5 px)"),
+             toUtf8("dials \xc2\xb7 the bake size (9, 12, 16 px) \xc2\xb7 "
+                    "the present scale (3\xc3\x97, integer) \xc2\xb7 the "
+                    "on colour \xc2\xb7 the blit's track (1 and 5 px)"),
          .footer =
-             toU8("the threshold is INERT under aliased shaping: Skia "
-                  "lights a pixel iff its centre is inside the outline, "
-                  "so the coverage is already binary and what decides "
-                  "legibility is whether the x-height rounds up or down")},
+             toUtf8("the threshold is INERT under aliased shaping: Skia "
+                    "lights a pixel iff its centre is inside the outline, "
+                    "so the coverage is already binary and what decides "
+                    "legibility is whether the x-height rounds up or down")},
         kit::cells({.cells = {sizeSweep(), presented(), shadowed(), readout(),
                               stamp()},
                     .gap = 12})));
@@ -148,7 +148,7 @@ struct PixFontDotSprite final : sketch::Sketch {
               .row()
               .gap(10)
               .alignItems(Align::Center)
-              .child(text(toU8(kit::formatted("%2.0f", kBakeSizes[i])),
+              .child(text(toUtf8(kit::formatted("%2.0f", kBakeSizes[i])),
                           mono(9, sketch::kit::theme().palette.ash)))
               .child(kit::masked(sweep[i], {.colour = kOn, .scale = 2})));
     return cell("bakeRun(\"3.eg\", fonts, aliased(size))",
@@ -186,7 +186,7 @@ struct PixFontDotSprite final : sketch::Sketch {
             .child(kit::masked(sweep[2], {.colour = kOn,
                                           .scale = kScale,
                                           .shadowOffset = {3, 3},
-                                          .shadowMul = 0.25f})));
+                                          .shadowMultiplier = 0.25f})));
   }
 
   /** Trap 3, and the whole reason the 96-cell bake exists: a number that

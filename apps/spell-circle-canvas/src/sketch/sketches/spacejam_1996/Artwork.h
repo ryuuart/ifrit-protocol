@@ -185,7 +185,7 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
                  .clip(true)
                  .zIndex(2)
                  .child(ring({c.fX, -S(0)}, S(47), S(16), -20, 0.62f, ringMat())
-                            .top(Dim(-c.fY))))
+                            .top(Dimension(-c.fY))))
       .child(navLabel(f, "LUNAR TUNES", S(19), S(0), S(57), S(9), kLabelWhite));
 }
 
@@ -215,13 +215,13 @@ inline Element artLineup(sigil::weave::FontContext& f) {
                  .clip(true)
                  .zIndex(2)
                  .child(ring({c.fX, 0}, S(29), S(15), -22, 0.60f, ringMat())
-                            .top(Dim(c.fY - S(34) - S(15)))))
+                            .top(Dimension(c.fY - S(34) - S(15)))))
       .child(navLabel(f, "THE LINEUP", S(8), S(-1), S(50), S(9)));
 }
 
 // --- p-sitemap.gif, 104x67 — a rainbow vortex and four yellow darts.
 /** An arrowhead: tip forward, two barbs, a notch in the back. */
-inline shapes::OutlineFn dart() {
+inline shapes::OutlineFunction dart() {
   return [](SkSize s) {
     SkPathBuilder b;
     b.moveTo(s.width(), s.height() * 0.5f);
@@ -273,8 +273,8 @@ inline Element artSitemap(sigil::weave::FontContext& f) {
  *  `shapes::polygon(3, deg)` is inscribed and equilateral, which is the
  *  wrong shape for a swept fin: it has one aspect ratio and one rotation,
  *  where a fin needs three independent vertices. */
-inline shapes::OutlineFn tri(float ax, float ay, float bx, float by, float cx,
-                             float cy) {
+inline shapes::OutlineFunction tri(float ax, float ay, float bx, float by,
+                                   float cx, float cy) {
   return [=](SkSize s) {
     SkPathBuilder b;
     b.moveTo(ax * s.width(), ay * s.height());
@@ -396,9 +396,9 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
     const SkSize m =
         intrinsicSize(text(U(s), ty(display(), size, kLabel, 0)), fonts);
     const float sx = m.width() > 1 ? targetW / m.width() : 1.0f;
-    return t.left(Dim(x))
-        .top(Dim(capTopY - 0.20f * size))
-        .width(Dim(m.width() + 4.0f))
+    return t.left(Dimension(x))
+        .top(Dimension(capTopY - 0.20f * size))
+        .width(Dimension(m.width() + 4.0f))
         .scaleX(sx)
         .skewX(lean)
         .transformOrigin(0.0f, 0.5f);
@@ -449,11 +449,15 @@ inline Element wordmark(sigil::weave::FontContext& fonts, const char* s,
   if (m.width() > target && m.width() > 1) sx = target / m.width();
   Element t = text(U(s), styleAt(size));
   t.echo({kScale, kScale}, C5(0x8C0000));
-  t.left(Dim(rightAlign ? w - target : 0))
-      .top(Dim(-h * 0.22f))
-      .width(Dim(m.width() + 4.0f));
+  t.left(Dimension(rightAlign ? w - target : 0))
+      .top(Dimension(-h * 0.22f))
+      .width(Dimension(m.width() + 4.0f));
   if (sx < 0.999f) t.scaleX(sx).transformOrigin(0.0f, 0.5f);
-  return stack().width(Dim(w)).height(Dim(h)).clip(true).child(std::move(t));
+  return stack()
+      .width(Dimension(w))
+      .height(Dimension(h))
+      .clip(true)
+      .child(std::move(t));
 }
 
 // ---------------------------------------------------------------------------

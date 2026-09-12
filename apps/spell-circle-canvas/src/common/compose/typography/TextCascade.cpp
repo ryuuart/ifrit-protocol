@@ -94,27 +94,29 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
 // ---------------------------------------------------------------------------
 // Composition
 
-/** FIELD PIN. `compose()` and `lerpMod()` below are hand-written exhaustive
- *  lists over GlyphMod's members, and so is the routing decision in
- *  TextFxPainting.cpp that sends a glyph down the matrix path. All three fail
+/** FIELD PIN. `compose()` and `lerpModifier()` below are hand-written
+ * exhaustive lists over GlyphModifier's members, and so is the routing decision
+ * in TextFxPainting.cpp that sends a glyph down the matrix path. All three fail
  * the same way when a field is added and one of them is not told: silently, by
  *  drawing the deviation of some other track or some other moment. */
-void glyphModFieldPin(GlyphMod& v) {
-  auto& [dx, dy, scale, rotateDeg, alpha, colorMul, colorAdd, colorScreen,
-         scaleX, scaleY, skewXDeg, skewYDeg, axis, codepoint] = v;
+void glyphModifierFieldPin(GlyphModifier& v) {
+  auto& [dx, dy, scale, rotateDeg, alpha, colorMultiplier, colorAdd,
+         colorScreen, scaleX, scaleY, skewXDeg, skewYDeg, axis, codepoint] = v;
   static_assert(
-      std::tuple_size_v<decltype(std::tie(
-              dx, dy, scale, rotateDeg, alpha, colorMul, colorAdd, colorScreen,
-              scaleX, scaleY, skewXDeg, skewYDeg, axis, codepoint))> == 14,
-      "GlyphMod gained or lost a field — rule on it in compose() and "
-      "lerpMod() below, in appendKeyParams() (a field a keys table cannot "
+      std::tuple_size_v<decltype(std::tie(dx, dy, scale, rotateDeg, alpha,
+                                          colorMultiplier, colorAdd,
+                                          colorScreen, scaleX, scaleY, skewXDeg,
+                                          skewYDeg, axis, codepoint))> == 14,
+      "GlyphModifier gained or lost a field — rule on it in compose() and "
+      "lerpModifier() below, in appendKeyParameters() (a field a keys table "
+      "cannot "
       "spell makes two different tables compare equal), and in the matrix "
       "ROUTING in TextFxPainting.cpp (a field an RSXform cannot carry has to "
       "send "
       "its glyph down the matrix path), then bump this count.");
 }
 
-void compose(GlyphMod& into, const GlyphMod& next) {
+void compose(GlyphModifier& into, const GlyphModifier& next) {
   into.dx += next.dx;
   into.dy += next.dy;
   into.rotateDeg += next.rotateDeg;
@@ -124,9 +126,10 @@ void compose(GlyphMod& into, const GlyphMod& next) {
   into.scaleX *= next.scaleX;
   into.scaleY *= next.scaleY;
   into.alpha *= next.alpha;
-  into.colorMul = {
-      into.colorMul.fR * next.colorMul.fR, into.colorMul.fG * next.colorMul.fG,
-      into.colorMul.fB * next.colorMul.fB, into.colorMul.fA * next.colorMul.fA};
+  into.colorMultiplier = {into.colorMultiplier.fR * next.colorMultiplier.fR,
+                          into.colorMultiplier.fG * next.colorMultiplier.fG,
+                          into.colorMultiplier.fB * next.colorMultiplier.fB,
+                          into.colorMultiplier.fA * next.colorMultiplier.fA};
   // The additive term ADDS unclamped — the clamp happens once, at the draw,
   // so two half flashes make one full one rather than each clamping alone.
   into.colorAdd = {
@@ -147,8 +150,9 @@ void compose(GlyphMod& into, const GlyphMod& next) {
   if (next.codepoint) into.codepoint = next.codepoint;
 }
 
-GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w) {
-  GlyphMod out;
+GlyphModifier lerpModifier(const GlyphModifier& a, const GlyphModifier& b,
+                           float w) {
+  GlyphModifier out;
   out.dx = a.dx + (b.dx - a.dx) * w;
   out.dy = a.dy + (b.dy - a.dy) * w;
   out.rotateDeg = a.rotateDeg + (b.rotateDeg - a.rotateDeg) * w;
@@ -158,10 +162,11 @@ GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w) {
   out.scaleX = a.scaleX + (b.scaleX - a.scaleX) * w;
   out.scaleY = a.scaleY + (b.scaleY - a.scaleY) * w;
   out.alpha = a.alpha + (b.alpha - a.alpha) * w;
-  out.colorMul = {a.colorMul.fR + (b.colorMul.fR - a.colorMul.fR) * w,
-                  a.colorMul.fG + (b.colorMul.fG - a.colorMul.fG) * w,
-                  a.colorMul.fB + (b.colorMul.fB - a.colorMul.fB) * w,
-                  a.colorMul.fA + (b.colorMul.fA - a.colorMul.fA) * w};
+  out.colorMultiplier = {
+      a.colorMultiplier.fR + (b.colorMultiplier.fR - a.colorMultiplier.fR) * w,
+      a.colorMultiplier.fG + (b.colorMultiplier.fG - a.colorMultiplier.fG) * w,
+      a.colorMultiplier.fB + (b.colorMultiplier.fB - a.colorMultiplier.fB) * w,
+      a.colorMultiplier.fA + (b.colorMultiplier.fA - a.colorMultiplier.fA) * w};
   // The two colour terms lerp componentwise like every other continuous
   // field — a flash decays through straight interpolation of its own
   // channels, not through the compose() arithmetic, which is for stacking.

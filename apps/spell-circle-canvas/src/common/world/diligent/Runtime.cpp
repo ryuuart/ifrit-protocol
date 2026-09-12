@@ -94,8 +94,8 @@ class GpuExecutor : public Executor {
     gm::pop::Runtime on = declared;
     if (m_points && declared == gm::pop::Runtime::cpu()) {
       bool whole = true;
-      for (const gm::pop::Op& op : pass.chain())
-        whole = whole && m_points->supports(op);
+      for (const gm::pop::Operation& operation : pass.chain())
+        whole = whole && m_points->supports(operation);
       if (whole) on = m_points;
     }
     *targets.points(writes.front()) = gm::pop::cook(pass.chain(), on);

@@ -39,7 +39,7 @@ and the ones that name nothing say so.
 | Tabs: position, leaders, alignment on a character | done | `TabStop` | `Element::tabStops`; per block through `Element::paragraphs` |
 | Paragraph rules above / below, shading | done as compose kit | `kit::rules` | `kit::rules` |
 | Paragraph border | **not started** | — | — |
-| Nested styles, GREP styles, line styles | exists | `sel::regex`, `sel::line`, span restyling | `Element::spanStyle`, `Element::spanPaint` over the same selectors, plus compose's own `sel::style` for a named run |
+| Nested styles, GREP styles, line styles | exists | `selectors::regex`, `selectors::line`, span restyling | `Element::spanStyle`, `Element::spanPaint` over the same selectors, plus compose's own `selectors::style` for a named run |
 | Named character styles | exists — a registry whose lookup always answers | `StyleSet`, `RichText::add(text, name)`, `RichText::styles` | `weave::rich().add(text, name)`, with `env::Provide<weave::StyleSet>` supplying the set a value did not name |
 | Named paragraph styles | exists — the same registry shape for blocks | `ParagraphStyleSet` | `Element::paragraphs(names)` against `env::Provide<weave::ParagraphStyleSet>`; a name no set carries warns |
 | Character: size, tracking, horizontal scale | exists | `ShapingStyle` | the `TextStyle` a `text()` or `weave::rich()` run carries; `Element::spanStyle` |
@@ -56,7 +56,7 @@ and the ones that name nothing say so.
 | Frame: first-baseline offset | done | `FrameOptions::firstBaseline` | `Element::firstBaseline` |
 | Frame: auto-size | exists | compose measure | a leaf given no width measures its own content |
 | Threading (in and out ports) | done | `Story`; `layoutParagraph`'s resume word; the chain also states the next frame's measure through `ParagraphLayoutOptions::nextMeasure` | `weave::Story`, `frame`, `Element::key` and `Element::thread` |
-| Story-wide addressing | done — a story's words, characters, sentences and named runs are the story's already, and the LINE is what a frame chain renumbers | `sel::line` | `weave::sel::line` addresses the story, compose's `sel::inFrame` is the frame-local address beside it, and a cascade's beats span the chain on one master progress |
+| Story-wide addressing | done — a story's words, characters, sentences and named runs are the story's already, and the LINE is what a frame chain renumbers | `selectors::line` | `weave::selectors::line` addresses the story, compose's `selectors::inFrame` is the frame-local address beside it, and a cascade's beats span the chain on one master progress |
 | Text wrap: bounding box, object shape, offsets | done — one `Silhouette` seam with a rectangle, a circle, an ellipse, any filled path, an image's alpha and a caller's own as peers | `Silhouette`, `Exclusion`, `silhouette::` | `Element::flowAround`, over the target's own `Element::boundary` |
 | Text wrap: the standoff | done — `Exclusion::margin` is a DISC, so a diagonal edge stands off by exactly the margin and a corner rounds; measured off an exact Euclidean distance field where no analytic answer exists | `Exclusion::margin`, `image::distanceField` | the margin argument of `Element::flowAround` |
 | Text wrap: an image's own alpha, at a tolerance | done — inside where the alpha exceeds the threshold, so a soft edge admits words as the dial rises | `silhouette::coverage` | `Element::boundary(Boundary::Coverage)` with `Element::threshold` |

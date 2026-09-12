@@ -184,7 +184,7 @@ struct ParagraphLayout {
  private:
   friend struct detail::LayoutAccess;
   // Owns auxiliary glyphs for leaders, overflow markers and initial letters.
-  std::vector<ShapedWordRef> m_shapedWords;
+  std::vector<ShapedWordReference> m_shapedWords;
 };
 
 /** Lays `paragraph` out into `geometry`, starting at `firstWord`. Ensures

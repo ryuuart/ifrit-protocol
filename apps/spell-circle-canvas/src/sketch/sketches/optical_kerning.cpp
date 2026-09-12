@@ -45,7 +45,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -73,7 +73,7 @@ weave::TextStyle display(float size, SkColor4f color, bool optical) {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .child(std::move(body)));
 }
@@ -94,7 +94,7 @@ struct OpticalKerning final : sketch::Sketch {
     const auto advance = [&](const char* text8, bool optical) {
       return ctx
           .measure(
-              box().child(text(toU8(text8), display(kSize, figure, optical))))
+              box().child(text(toUtf8(text8), display(kSize, figure, optical))))
           .width();
     };
     for (int i = 0; i < 6; ++i)
@@ -106,24 +106,24 @@ struct OpticalKerning final : sketch::Sketch {
                        advance(kHeadline, true) - advance(kHeadline, false));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("OPTICAL KERNING \xc2\xb7 "
-                       "ShapingStyle::opticalKerning"),
-         .subtitle = toU8("dials \xc2\xb7 the size (40 px, which is the "
-                          "size the deltas are for) \xc2\xb7 the pairs "
-                          "measured \xc2\xb7 the face, whose own even "
-                          "pair is the reference"),
-         .footer = toU8("the face's table is switched OFF while this is "
-                        "on, because the two are answers to the same "
-                        "question and a page takes one of them \xe2\x80"
-                        "\x94 and the reference is the face's own even "
-                        "pair, so a loose face stays loose")},
+        {.title = toUtf8("OPTICAL KERNING \xc2\xb7 "
+                         "ShapingStyle::opticalKerning"),
+         .subtitle = toUtf8("dials \xc2\xb7 the size (40 px, which is the "
+                            "size the deltas are for) \xc2\xb7 the pairs "
+                            "measured \xc2\xb7 the face, whose own even "
+                            "pair is the reference"),
+         .footer = toUtf8("the face's table is switched OFF while this is "
+                          "on, because the two are answers to the same "
+                          "question and a page takes one of them \xe2\x80"
+                          "\x94 and the reference is the face's own even "
+                          "pair, so a loose face stays loose")},
         kit::cells(
             {.cells = {plain(), optical(), both(), table()}, .gap = 14})));
   }
 
   Element headline(SkColor4f colour, bool optical) {
-    return text(toU8(kHeadline), display(kSize, colour, optical))
-        .width(Dim(kCell - 24));
+    return text(toUtf8(kHeadline), display(kSize, colour, optical))
+        .width(Dimension(kCell - 24));
   }
 
   Element plain() {
@@ -159,7 +159,7 @@ struct OpticalKerning final : sketch::Sketch {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(7);
     for (const std::string& row : rows)
-      column.child(text(toU8(row), sheet.mono(11, sheet.palette.figure)));
+      column.child(text(toUtf8(row), sheet.mono(11, sheet.palette.figure)));
     return cell("measured pair deltas",
                 "each pair set twice and the two advances subtracted "
                 "\xc2\xb7 negative closes the pair up, and the last row is "

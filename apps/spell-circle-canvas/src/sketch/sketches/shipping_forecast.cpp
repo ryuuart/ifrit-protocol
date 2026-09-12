@@ -108,7 +108,7 @@
 //
 //  1. A grade is an axis one face carries and another does not, and the
 //     forecast paragraph is set in three faces. The glossary is kept out of
-//     the drive by `sel::style("term")` — the runs addressed by the name
+//     the drive by `selectors::style("term")` — the runs addressed by the name
 //     they were written in — so the copy can gain a fourth defined term
 //     without a fourth string in this file. The one thing still spelled
 //     twice is the name itself: once in `forecastStyles` and once in the
@@ -347,10 +347,10 @@ struct ShippingForecast : sketch::Sketch {
             motion::bind(&secs).source(0.0f, (float)kBreathPeriod).cosine()};
 
     return box().clip().width(pct(100)).child(
-        text(toU8(words), weave::textStyle({.face = faceDisplay,
-                                            .size = kHero,
-                                            .color = kBone,
-                                            .track = 1.5f}))
+        text(toUtf8(words), weave::textStyle({.face = faceDisplay,
+                                              .size = kHero,
+                                              .color = kBone,
+                                              .track = 1.5f}))
             .key(key)
             .width(pct(100))
             .textAlign(sigil::weave::TextAlignment::kCenter)
@@ -416,7 +416,7 @@ struct ShippingForecast : sketch::Sketch {
     }
     const char* kCardinals[4] = {"N", "E", "S", "W"};
     for (int q = 0; q < 4; ++q) {
-      panel.child(text(toU8(kCardinals[q]), label(12.0f, kAmber, 2.0f))
+      panel.child(text(toUtf8(kCardinals[q]), label(12.0f, kAmber, 2.0f))
                       .key(std::string("card") + kCardinals[q])
                       .centerAt(arrange::onRing(
                           (size_t)q, 4, {kEye.x(), kEye.y()},
@@ -449,7 +449,7 @@ struct ShippingForecast : sketch::Sketch {
       // same sweep here, and saying it once in the delay is what makes that
       // visible rather than coincidental.
       const float start = 0.20f + (float)i * 0.17f;
-      panel.child(text(toU8(kAreaRing[i].name),
+      panel.child(text(toUtf8(kAreaRing[i].name),
                        weave::textStyle({.face = faceBold,
                                          .size = 11.5f,
                                          .color = hexColor(0xBFC7D1),
@@ -476,7 +476,7 @@ struct ShippingForecast : sketch::Sketch {
                        .child(heroLine("BIGHT", "hero-2", 0.22f));
     panel.child(std::move(name));
 
-    panel.child(text(toU8("SEA AREA \xc2\xb7 READ IN ORDER FROM VIKING"),
+    panel.child(text(toUtf8("SEA AREA \xc2\xb7 READ IN ORDER FROM VIKING"),
                      label(11.0f, kSlateDim, 3.0f))
                     .key("ring-cap")
                     .centerAt({kEye.x(), kEye.y() + 118.0f})
@@ -497,8 +497,8 @@ struct ShippingForecast : sketch::Sketch {
    *  into the settle's opening, so the strip arrives and compresses in one
    *  gesture. */
   [[nodiscard]] Element galeStrip() {
-    TextEffect arrive = fx::seq(fx::slide(-46.0f).until(0.46f).xfade(0.20f),
-                                fx::pop(0.86f, 2.6f));
+    TextEffect arrive = fx::sequence(
+        fx::slide(-46.0f).until(0.46f).crossfade(0.20f), fx::pop(0.86f, 2.6f));
     return sketch::kit::well({.ground = Fill::color(hexColor(0x1C1206)),
                               .padding = 13,
                               .paddingY = 10,
@@ -511,8 +511,8 @@ struct ShippingForecast : sketch::Sketch {
         .opacity(beat(0.10f, 0.70f))
         .child(box().width(7).height(7).corners({4}).shrink(0).fill(
             Fill::color(kAmber)))
-        .child(text(toU8("GALE WARNING \xc2\xb7 GERMAN BIGHT \xc2\xb7 "
-                         "IMMINENT"),
+        .child(text(toUtf8("GALE WARNING \xc2\xb7 GERMAN BIGHT \xc2\xb7 "
+                           "IMMINENT"),
                     label(13.5f, kAmber, 2.8f))
                    .key("gale")
                    .fx({.effect = std::move(arrive),
@@ -569,8 +569,8 @@ struct ShippingForecast : sketch::Sketch {
     // selection the two would run cascades of different lengths, and the
     // grade would arrive on a different beat from the letter it grades.
     const weave::Selector everyInitial =
-        weave::sel::each(weave::Unit::Word).take(1);
-    const weave::Selector glossary = sel::style("term");
+        weave::selectors::each(weave::Unit::Word).take(1);
+    const weave::Selector glossary = selectors::style("term");
     // ONE CLOCK ACROSS THE THREE. `beats::Text` numbers every word of the
     // paragraph, addressed or not, so three tracks that partition one
     // sentence share a ladder BY CONSTRUCTION; under the default numbering
@@ -592,7 +592,7 @@ struct ShippingForecast : sketch::Sketch {
                 .unit = weave::Unit::Word,
                 .beatsOver = beats::Text,
                 .progress = beat(1.75f, 4.10f)};
-    Track bodies{.where = weave::sel::each(weave::Unit::Word).drop(1),
+    Track bodies{.where = weave::selectors::each(weave::Unit::Word).drop(1),
                  .effect = fx::rise(9.0f),
                  .stagger = wordClock(500.0f),
                  .unit = weave::Unit::Word,
@@ -602,14 +602,14 @@ struct ShippingForecast : sketch::Sketch {
     return box()
         .column()
         .gap(9)
-        .child(text(toU8("AREA FORECAST"), label(11.0f, kSlateDim, 3.0f))
+        .child(text(toUtf8("AREA FORECAST"), label(11.0f, kSlateDim, 3.0f))
                    .key("fc-eyebrow")
                    .opacity(beat(1.50f, 2.10f)))
         .child(text(copy)
                    .key("forecast")
                    .width(pct(100))
                    .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-                   .spanPaint(weave::sel::regex(u8"[0-9]+"),
+                   .spanPaint(weave::selectors::regex(u8"[0-9]+"),
                               sigil::weave::PaintStyle(kAmber.toSkColor()))
                    .fx(std::move(initials))
                    .fx(std::move(grade))
@@ -627,11 +627,11 @@ struct ShippingForecast : sketch::Sketch {
     return box()
         .column()
         .gap(7)
-        .child(text(toU8("PRESSURE \xc2\xb7 TENDENCY"),
+        .child(text(toUtf8("PRESSURE \xc2\xb7 TENDENCY"),
                     label(11.0f, kSlateDim, 3.0f))
                    .key("baro-eyebrow")
                    .opacity(beat(2.10f, 2.65f)))
-        .child(text(toU8("1003 FALLING SLOWLY"), mono)
+        .child(text(toUtf8("1003 FALLING SLOWLY"), mono)
                    .key("baro")
                    // HELD, because a decode is otherwise churning at local
                    // 0: the substitution is in force from the track's first
@@ -646,7 +646,7 @@ struct ShippingForecast : sketch::Sketch {
                                     .durationMs = 520,
                                     .from = motion::Spread::From::Start},
                         .progress = beat(2.25f, 4.10f)}))
-        .child(text(toU8("SLOWLY \xe2\x80\x94 0.1 TO 1.5 MB IN THREE HOURS"),
+        .child(text(toUtf8("SLOWLY \xe2\x80\x94 0.1 TO 1.5 MB IN THREE HOURS"),
                     body(12.0f, kSlateDim, 0.6f))
                    .key("baro-note")
                    .opacity(beat(3.30f, 3.90f)));
@@ -693,7 +693,7 @@ struct ShippingForecast : sketch::Sketch {
     return box()
         .column()
         .gap(9)
-        .child(text(toU8("GENERAL SYNOPSIS \xc2\xb7 0100 UTC"),
+        .child(text(toUtf8("GENERAL SYNOPSIS \xc2\xb7 0100 UTC"),
                     label(11.0f, kSlateDim, 3.0f))
                    .key("syn-eyebrow")
                    .opacity(beat(2.60f, 3.10f)))
@@ -701,8 +701,8 @@ struct ShippingForecast : sketch::Sketch {
                    .key("synopsis")
                    .width(pct(100))
                    .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-                   .spanStyle(weave::sel::regex(u8"[0-9]+"), graded)
-                   .spanPaint(weave::sel::regex(u8"[0-9]+"),
+                   .spanStyle(weave::selectors::regex(u8"[0-9]+"), graded)
+                   .spanPaint(weave::selectors::regex(u8"[0-9]+"),
                               sigil::weave::PaintStyle(kAmber.toSkColor()))
                    .fx({.effect = fx::slide(-22.0f),
                         .stagger = {.eachMs = 150, .durationMs = 620},
@@ -728,7 +728,7 @@ struct ShippingForecast : sketch::Sketch {
     rule.width = 1.0f;
     rule.strokeFill = Fill::color(kKeyline);
     Element table = box().column().gap(0).child(
-        text(toU8("COASTAL STATIONS \xc2\xb7 0100 UTC"),
+        text(toUtf8("COASTAL STATIONS \xc2\xb7 0100 UTC"),
              label(11.0f, kSlateDim, 3.0f))
             .key("st-eyebrow")
             .opacity(beat(2.66f, 3.16f))
@@ -743,14 +743,14 @@ struct ShippingForecast : sketch::Sketch {
               .key(std::string("st") + std::to_string(i))
               .foreground(onEdges(sigil::geometry::path::Edge::Top, rule))
               .opacity(beat(2.80f + (float)i * 0.14f, 3.40f + (float)i * 0.14f))
-              .child(text(toU8(r.place), body(12.5f, kBone, 0.8f)).grow(1))
-              .child(text(toU8(r.wind), label(12.5f, kSlate, 1.4f))
+              .child(text(toUtf8(r.place), body(12.5f, kBone, 0.8f)).grow(1))
+              .child(text(toUtf8(r.wind), label(12.5f, kSlate, 1.4f))
                          .width(74)
                          .textAlign(sigil::weave::TextAlignment::kEnd))
-              .child(text(toU8(r.baro), weave::textStyle({.face = faceMono,
-                                                          .size = 12.0f,
-                                                          .color = kSlate,
-                                                          .track = 0.4f}))
+              .child(text(toUtf8(r.baro), weave::textStyle({.face = faceMono,
+                                                            .size = 12.0f,
+                                                            .color = kSlate,
+                                                            .track = 0.4f}))
                          .width(166)
                          .textAlign(sigil::weave::TextAlignment::kEnd)));
     }
@@ -779,19 +779,19 @@ struct ShippingForecast : sketch::Sketch {
                          .width(pct(100))
                          .height(6.0f + (float)f * 2.6f)
                          .fill(Fill::color(ink)))
-              .child(text(toU8(std::to_string(f)),
+              .child(text(toUtf8(std::to_string(f)),
                           label(10.5f, named ? kAmber : kSlateDim, 0.4f))));
     }
     return box()
         .column()
         .gap(9)
         .opacity(beat(3.20f, 3.80f))
-        .child(text(toU8("BEAUFORT FORCE \xc2\xb7 5 TO 7, OCCASIONALLY 8"),
+        .child(text(toUtf8("BEAUFORT FORCE \xc2\xb7 5 TO 7, OCCASIONALLY 8"),
                     label(11.0f, kSlateDim, 3.0f))
                    .key("bf-eyebrow"))
         .child(std::move(strip))
-        .child(text(toU8("5 FRESH BREEZE \xc2\xb7 6 STRONG BREEZE \xc2\xb7 "
-                         "7 NEAR GALE \xc2\xb7 8 GALE"),
+        .child(text(toUtf8("5 FRESH BREEZE \xc2\xb7 6 STRONG BREEZE \xc2\xb7 "
+                           "7 NEAR GALE \xc2\xb7 8 GALE"),
                     body(10.5f, kSlateDim, 0.8f))
                    .key("bf-names"));
   }
@@ -808,7 +808,7 @@ struct ShippingForecast : sketch::Sketch {
    *  layout placed the glyph in, and here that frame is turned with the
    *  column, so the lift runs ACROSS the column rather than up the page. */
   [[nodiscard]] Element spine() {
-    return text(toU8("BBC RADIO 4 \xc2\xb7 198 kHz LONG WAVE \xc2\xb7 0048"),
+    return text(toUtf8("BBC RADIO 4 \xc2\xb7 198 kHz LONG WAVE \xc2\xb7 0048"),
                 label(12.5f, kSlateDim, 2.6f))
         .key("spine")
         .left(40)
@@ -853,16 +853,16 @@ struct ShippingForecast : sketch::Sketch {
     };
     std::vector<sketch::kit::Line> slugs;
     for (int i = 0; i < 3; ++i)
-      slugs.push_back({.words = toU8(kSlug[i]),
+      slugs.push_back({.words = toUtf8(kSlug[i]),
                        .opacity = beat(0.55f + (float)i * 0.16f,
                                        1.15f + (float)i * 0.16f)});
 
     const sketch::kit::Provide look(mastheadTheme());
     return sketch::kit::titleCard(
-        {.eyebrow = {.words = toU8("MET OFFICE \xc2\xb7 FOR THE MARITIME AND "
-                                   "COASTGUARD AGENCY"),
+        {.eyebrow = {.words = toUtf8("MET OFFICE \xc2\xb7 FOR THE MARITIME AND "
+                                     "COASTGUARD AGENCY"),
                      .opacity = beat(0.05f, 0.55f)},
-         .title = {.words = toU8("THE SHIPPING FORECAST"),
+         .title = {.words = toUtf8("THE SHIPPING FORECAST"),
                    .fx = Track{.effect = fx::rise(16.0f),
                                .stagger = {.eachMs = 0,
                                            .amountMs = 420,
@@ -906,9 +906,9 @@ struct ShippingForecast : sketch::Sketch {
                                   .alignItems(Align::Center)
                                   .justify(Justify::Center)
                                   .child(ringPanel())))
-            .child(text(toU8("EVERY ADJECTIVE IN THE BULLETIN IS A DEFINED "
-                             "QUANTITY \xc2\xb7 THE ORDER OF THE AREAS IS "
-                             "FIXED AND RUNS CLOCKWISE"),
+            .child(text(toUtf8("EVERY ADJECTIVE IN THE BULLETIN IS A DEFINED "
+                               "QUANTITY \xc2\xb7 THE ORDER OF THE AREAS IS "
+                               "FIXED AND RUNS CLOCKWISE"),
                         body(11.0f, kSlateDim, 0.5f))
                        .key("foot")
                        .opacity(beat(3.10f, 3.75f)));

@@ -41,7 +41,7 @@ void Composer::Impl::materializeText(
       // The extent a named run occupies, read off the text as it grows: a
       // name is a handle on THIS run's characters, not on the style span it
       // produced, so the restyles below may cut the spans to pieces and
-      // sel::style still answers with the run.
+      // selectors::style still answers with the run.
       const auto begin = (uint32_t)inst.paragraph->text().size();
       inst.paragraph->appendText(run.utf8, run.style);
       if (!run.styleName.empty())
@@ -94,7 +94,7 @@ void Composer::Impl::materializeText(
       restyleCount);
   // The ranges are the painter's answer: text that carries none — a
   // description built without a text verb — is restyled by nothing.
-  const TextPainterOps* painter = textPainterOf(inst);
+  const TextPainterOperations* painter = textPainterOf(inst);
   for (size_t i = 0; i < restyleCount; ++i)
     if (painter)
       resolvedRanges[i] =
@@ -210,7 +210,7 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
   // measure a face, so the painter answers; a text that dresses nothing has
   // no annotations either.
   if (!text.annotations.empty()) {
-    const TextPainterOps* painter = textPainterOf(inst);
+    const TextPainterOperations* painter = textPainterOf(inst);
     if (!painter) painter = detail::registeredTextEngine();
     if (painter) {
       const sigil::weave::ReservedBand band =

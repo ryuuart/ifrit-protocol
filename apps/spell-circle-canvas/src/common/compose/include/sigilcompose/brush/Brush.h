@@ -10,7 +10,7 @@
 #include "sigilcompose/brush/Adaptors.h"
 #include "sigilcompose/brush/Brushes.h"
 #include "sigilcompose/brush/Decorations.h"
-#include "sigilcompose/brush/GeometryOps.h"
+#include "sigilcompose/brush/GeometryOperations.h"
 #include "sigilcompose/brush/Hatches.h"
 #include "sigilcompose/brush/LayerStyles.h"
 #include "sigilcompose/brush/Layered.h"

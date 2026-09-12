@@ -28,8 +28,8 @@ namespace sigil::sketch::kit {
  *  card whose lines all moved together would be a different picture. A
  *  line written as words alone rests, which is what a set card is:
  *
- *      {.title = {toU8("THE SHIPPING FORECAST")}}
- *      {.title = {.words = toU8("VERTIGO, 1958"), .fx = rise}}
+ *      {.title = {toUtf8("THE SHIPPING FORECAST")}}
+ *      {.title = {.words = toUtf8("VERTIGO, 1958"), .fx = rise}}
  */
 struct Line {
   std::u8string words;
@@ -80,9 +80,10 @@ struct TitleCard {
 
 /** THE CARD, set in the theme's registers and spaced by its gaps.
  *
- *      sketch::kit::titleCard({.eyebrow = {toU8("SIGIL \xc2\xb7 COMPOSE")},
- *                              .title = {toU8("THE STROKE ATLAS")},
- *                              .subtitle = {toU8("every rail, at one width")}})
+ *      sketch::kit::titleCard({.eyebrow = {toUtf8("SIGIL \xc2\xb7 COMPOSE")},
+ *                              .title = {toUtf8("THE STROKE ATLAS")},
+ *                              .subtitle = {toUtf8("every rail, at one
+ * width")}})
  *
  *  It sizes itself to its lines and takes the width it is given, so it
  *  goes into a column as it is. A missing line is absent and spends no
@@ -102,8 +103,8 @@ struct SectionHeader {
 
 /** THE HEADER, one line high.
  *
- *      sketch::kit::sectionHeader({.label = toU8("DYNAMICS"),
- *                                  .note = toU8("6 presets")})
+ *      sketch::kit::sectionHeader({.label = toUtf8("DYNAMICS"),
+ *                                  .note = toUtf8("6 presets")})
  *
  *  It stretches across whatever width it is given: the rule is what grows,
  *  so the label stays at the left and the note at the right however wide

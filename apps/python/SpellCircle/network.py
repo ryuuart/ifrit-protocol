@@ -49,7 +49,3 @@ def send_once(
     """Sends one scene payload with a short-lived UDP socket."""
     with SceneSender(host, port) as sender:
         sender.send(data)
-
-
-# Compatibility for existing streaming scripts; prefer SceneSender.
-SCSender = SceneSender

@@ -159,7 +159,7 @@ std::shared_ptr<Program> ProgramCache::program(
   // dial that does nothing. Named once per (recipe, target), like every
   // other thing this cache has to say about a definition.
   std::string unread;
-  for (const Field& f : recipe->params().fields) {
+  for (const Field& f : recipe->parameters().fields) {
     if (built->keeps(f.name)) continue;
     if (!unread.empty()) unread += ", ";
     unread += f.name;
@@ -238,7 +238,7 @@ WarmupResult warmup(std::span<const Material> materials, Target target,
   std::vector<WarmupRequest> requests;
   requests.reserve(materials.size());
   for (const Material& material : materials)
-    requests.push_back({material.recipePtr(), target, variant});
+    requests.push_back({material.recipePointer(), target, variant});
   return warmup(requests);
 }
 

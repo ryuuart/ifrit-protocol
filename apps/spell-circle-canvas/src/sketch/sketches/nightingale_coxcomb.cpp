@@ -375,8 +375,8 @@ struct NightingaleCoxcomb : sketch::Sketch {
                   float delayMs, const std::string& key) {
     return text(std::u8string(content.begin(), content.end()), style)
         .key(key)
-        .width(Dim(2 * radius))
-        .height(Dim(2 * radius))
+        .width(Dimension(2 * radius))
+        .height(Dimension(2 * radius))
         .centerAt(centre)
         .onPath(TextPath{.path = rimBaseline(),
                          .at = bearingDeg / 360.0f,
@@ -395,8 +395,8 @@ struct NightingaleCoxcomb : sketch::Sketch {
     const float box = radius + half;
     return text(std::u8string(content.begin(), content.end()), style)
         .key(key)
-        .width(Dim(2 * box))
-        .height(Dim(2 * box))
+        .width(Dimension(2 * box))
+        .height(Dimension(2 * box))
         .centerAt(centre)
         .onPath(
             TextPath{.path = spokeBaseline(bearingDeg, (radius - half) / box,
@@ -604,7 +604,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
              .stagger = {.eachMs = 0, .amountMs = 620, .durationMs = 40},
              .progress = animate(from(0.0f).to(1.0f),
                                  ramp(tTitle1 * 1000, 700, ch::easeNone))};
-    root.child(text(toU8("DIAGRAM of the CAUSES of MORTALITY"), title1)
+    root.child(text(toUtf8("DIAGRAM of the CAUSES of MORTALITY"), title1)
                    .key("title1")
                    .fx(std::move(t1))
                    .echo({0.8f, 0.5f}, hexColor(0x241c15, 0.8f))
@@ -614,7 +614,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
              .stagger = {.eachMs = 0, .amountMs = 340, .durationMs = 40},
              .progress = animate(from(0.0f).to(1.0f),
                                  ramp(tTitle2 * 1000, 400, ch::easeNone))};
-    root.child(text(toU8("in the ARMY in the EAST."), title2)
+    root.child(text(toUtf8("in the ARMY in the EAST."), title2)
                    .key("title2")
                    .fx(std::move(t2))
                    .echo({0.6f, 0.4f}, hexColor(0x241c15, 0.7f))
@@ -640,12 +640,12 @@ struct NightingaleCoxcomb : sketch::Sketch {
         {.face = faceGrotesque, .size = 21, .color = kInk, .track = 0.4f});
     auto caption = [&](const char* num, const char* label, float cx, float numX,
                        float startSec, const char* key) {
-      root.child(text(toU8(num), capNum)
+      root.child(text(toUtf8(num), capNum)
                      .key(std::string(key) + "n")
                      .centerAt({numX, 40})
                      .opacity(animate(from(0.0f).to(1.0f),
                                       ramp(startSec * 1000, 320))));
-      root.child(text(toU8(label), capText)
+      root.child(text(toUtf8(label), capText)
                      .key(std::string(key) + "t")
                      .centerAt({cx, 78})
                      .opacity(animate(from(0.0f).to(1.0f),
@@ -759,7 +759,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
                 .progress = animate(
                     from(0.0f).to(1.0f),
                     ramp(tLegend * 1000, penStagger.spanMs(2), ch::easeNone))};
-      legend.child(text(toU8(legendText[i].text), script)
+      legend.child(text(toUtf8(legendText[i].text), script)
                        .key("leg" + std::to_string(i))
                        .fx(std::move(pen))
                        .left(171.0f + (float)legendText[i].indent * 22.0f)
@@ -768,7 +768,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
     root.child(std::move(legend));
 
     // ---- printer's imprint ------------------------------------------
-    root.child(text(toU8("Harrison & Sons, St. Martin's Lane."),
+    root.child(text(toUtf8("Harrison & Sons, St. Martin's Lane."),
                     weave::textStyle(
                         {.face = faceScript, .size = 20, .color = kInkSoft}))
                    .key("imprint")

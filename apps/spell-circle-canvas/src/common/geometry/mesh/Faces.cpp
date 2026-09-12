@@ -18,7 +18,7 @@ namespace {
 /** The `"Id"` lane when it is sized to the triangles, null otherwise —
  *  a short or absent lane is read as "one face per triangle". */
 const std::vector<glm::vec4>* faceLane(const Mesh& mesh) {
-  const std::vector<glm::vec4>* lane = mesh.primIf("Id");
+  const std::vector<glm::vec4>* lane = mesh.primitiveIf("Id");
   if (lane == nullptr || lane->size() != mesh.triangleCount()) return nullptr;
   return lane;
 }

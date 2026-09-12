@@ -10,7 +10,7 @@ namespace sigil::sketch::kit {
 using compose::Align;
 using compose::box;
 using compose::Corners;
-using compose::Dim;
+using compose::Dimension;
 using compose::Element;
 using compose::Fill;
 using compose::text;
@@ -19,10 +19,10 @@ compose::Element labelRow(const Reading& reading, const Readout& how) {
   const Theme& look = theme();
   Element row =
       box().row().alignItems(Align::Center).gap(look.spacing.labelGap);
-  if (how.measure > 0) row.width(Dim(how.measure));
+  if (how.measure > 0) row.width(Dimension(how.measure));
   if (!reading.swatch.none()) {
     const float side = how.swatchSide.value_or(look.spacing.swatchSide);
-    Element mark = box().width(Dim(side)).height(Dim(side));
+    Element mark = box().width(Dimension(side)).height(Dimension(side));
     reading.swatch.apply(mark);
     mark.shrink(0);
     if (how.swatchCorners > 0) mark.corners(Corners{how.swatchCorners});
@@ -31,7 +31,7 @@ compose::Element labelRow(const Reading& reading, const Readout& how) {
   if (!reading.name.empty()) {
     Element name =
         text(reading.name, look.style(look.type.captionNote, look.palette.ash));
-    if (how.nameMeasure > 0) name.width(Dim(how.nameMeasure));
+    if (how.nameMeasure > 0) name.width(Dimension(how.nameMeasure));
     row.child(std::move(name));
   }
   // With a measure the space between is what grows, which is what puts
@@ -49,12 +49,12 @@ compose::Element labelRow(const Reading& reading, const Readout& how) {
 compose::Element readout(std::vector<Reading> rows, const Readout& how) {
   const Theme& look = theme();
   Element column = box().column().gap(look.spacing.rowGap);
-  if (how.measure > 0) column.width(Dim(how.measure));
+  if (how.measure > 0) column.width(Dimension(how.measure));
   bool first = true;
   for (const Reading& reading : rows) {
     if (!first && how.ruled)
       column.child(box()
-                       .height(Dim(1))
+                       .height(Dimension(1))
                        .alignSelf(Align::Stretch)
                        .fill(Fill::color(look.palette.rule)));
     first = false;
@@ -74,7 +74,7 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
   for (const Row& row : rows) {
     if (!first && how.ruled)
       column.child(box()
-                       .height(Dim(1))
+                       .height(Dimension(1))
                        .alignSelf(Align::Stretch)
                        .fill(Fill::color(look.palette.rule)));
     first = false;
@@ -85,7 +85,7 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
     if (!row.key.empty()) line.key(row.key);
     if (!row.swatch.none()) {
       const float side = how.swatchSide.value_or(look.spacing.swatchSide);
-      Element mark = box().width(Dim(side)).height(Dim(side));
+      Element mark = box().width(Dimension(side)).height(Dimension(side));
       row.swatch.apply(mark);
       mark.shrink(0);
       if (how.swatchCorners > 0) mark.corners(Corners{how.swatchCorners});
@@ -95,12 +95,13 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
       // A row with more words than columns sets the surplus in the last
       // column's register, at its own width — which is the shape a table
       // whose final column is prose already has.
-      const Column spec =
+      const Column specification =
           how.columns.empty()
               ? Column{}
               : how.columns[std::min(i, how.columns.size() - 1)];
-      Element cell = text(row.cells[i], ink(spec.figure));
-      if (spec.width > 0 && i < how.columns.size()) cell.width(Dim(spec.width));
+      Element cell = text(row.cells[i], ink(specification.figure));
+      if (specification.width > 0 && i < how.columns.size())
+        cell.width(Dimension(specification.width));
       line.child(std::move(cell));
     }
     column.child(std::move(line));

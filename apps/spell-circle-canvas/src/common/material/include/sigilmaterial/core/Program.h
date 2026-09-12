@@ -87,7 +87,7 @@ struct WarmupResult {
  *  surfaces at the first describe and does not scroll past every frame.
  *
  *  A program that COMPILED is checked the same way and reported the same
- *  once: a params field the body never reads is discarded by the shader
+ *  once: a parameter field the body never reads is discarded by the shader
  *  compiler and uploads nothing, so the field is dead weight in the ABI
  *  and every value written to it is lost in silence. The check names the
  *  recipe and each unread field. */

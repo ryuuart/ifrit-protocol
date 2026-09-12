@@ -96,18 +96,18 @@ const Color c = heat.through(temperature, [&](double t) {
 
 The `data_scales` sketch draws every transform through one component: curves
 for continuous inputs and explicit marks or bands for categories. Its axes
-and marks read the same scale props.
+and marks read the same scale properties.
 
 ## Mental model
 
-**One value, props not functions.** A `Scale` is an aggregate: fill in
-the props its transform reads and leave the rest at their defaults.
+**One value, properties not functions.** A `Scale` is an aggregate: fill in
+the properties its transform reads and leave the rest at their defaults.
 `apply` (spelled `operator()`) maps a domain value to a range position,
 `invert` goes back, `position` stops at the unit number in between, and
 `through` hands that unit number to an interpolator over a range this
 library cannot name. `slot`, `bandwidth`, `stepWidth`, `ticks`,
 `tickStep` and `nice` are readings of the same value. Two scales with
-the same props are the same value, so a scale can be a field on a
+the same properties are the same value, so a scale can be a field on a
 description or bound into a context without defeating a structural
 comparison.
 
@@ -286,7 +286,7 @@ has no mapping for — a `base` that is not above zero and away from one, a
 `Pow` `exponent` of zero, a `Symlog` `threshold` that is not above zero.
 Every mapping is not a number, `ticks()` answers nothing and `nice()`
 leaves the domain alone, so the three read alike and a scale built from
-props that are still at zero draws nothing rather than drawing
+properties that are still at zero draws nothing rather than drawing
 somewhere.
 
 `Threshold` reads its cuts in the order they are given: a value's slot

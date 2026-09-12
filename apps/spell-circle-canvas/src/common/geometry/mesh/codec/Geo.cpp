@@ -179,7 +179,7 @@ std::vector<GeoPolygon> geoPolygons(const Json* primitives) {
  *  and the vertex- or point-class N, uv, Cd and Alpha it resolves to);
  *  a file with no polygons is a point cloud whose mesh vertices are its
  *  points. Point attributes beyond the conventional ones become named
- *  lanes on the Part; primitive attributes become Mesh::prims lanes,
+ *  lanes on the Part; primitive attributes become Mesh::primitives lanes,
  *  replicated across each polygon's fan triangles; point groups become
  *  0/1 scalar lanes under the group's name and primitive groups the
  *  same on the primitive class. Detail attributes have no home and are
@@ -228,16 +228,16 @@ std::optional<Model> importHoudiniGeo(std::string_view text) {
 
   // Which class an attribute is read from, vertex first: a vertex uv
   // outranks a point uv, as in Houdini.
-  const auto attr =
+  const auto attribute =
       [&](std::string_view name) -> std::pair<const GeoAttribute*, bool> {
     if (const GeoAttribute* v = geoFind(vertexAttrs, name)) return {v, true};
     if (const GeoAttribute* p = geoFind(pointAttrs, name)) return {p, false};
     return {nullptr, false};
   };
-  const auto [N, nVertex] = attr("N");
-  const auto [uv, uvVertex] = attr("uv");
-  const auto [Cd, cdVertex] = attr("Cd");
-  const auto [Alpha, alphaVertex] = attr("Alpha");
+  const auto [N, nVertex] = attribute("N");
+  const auto [uv, uvVertex] = attribute("uv");
+  const auto [Cd, cdVertex] = attribute("Cd");
+  const auto [Alpha, alphaVertex] = attribute("Alpha");
 
   const bool cloud = polygons.empty();
   // Emit one mesh vertex per (vertex, or point in the cloud case).
@@ -289,8 +289,9 @@ std::optional<Model> importHoudiniGeo(std::string_view text) {
     }
     // Primitive attributes and groups: one value per triangle, from
     // the polygon that produced it.
-    const auto primLane = [&](const std::string& name, const GeoAttribute& a) {
-      std::vector<glm::vec4>& lane = mesh.prim(name, {0, 0, 0, 0});
+    const auto primitiveLane = [&](const std::string& name,
+                                   const GeoAttribute& a) {
+      std::vector<glm::vec4>& lane = mesh.primitive(name, {0, 0, 0, 0});
       for (size_t t = 0; t < triPrim.size(); ++t) {
         const size_t p = triPrim[t];
         if (p >= a.count()) continue;
@@ -306,10 +307,10 @@ std::optional<Model> importHoudiniGeo(std::string_view text) {
         // Houdini's material assignment is a string per primitive; the
         // string table's index is the material slot, and the table's
         // order is the slot order.
-        if (a.name == "shop_materialpath") primLane("Material", a);
+        if (a.name == "shop_materialpath") primitiveLane("Material", a);
         continue;
       }
-      primLane(a.name == "Cd" ? "Color" : a.name, a);
+      primitiveLane(a.name == "Cd" ? "Color" : a.name, a);
     }
     if (const Json* groups = root.get("primitivegroups"))
       for (const Json& entry : groups->array()) {
@@ -321,7 +322,7 @@ std::optional<Model> importHoudiniGeo(std::string_view text) {
         flags.name = pair[0].get("name")->string();
         flags.size = 1;
         flags.values = geoGroup(*pair[1].get("selection"), primitiveCount);
-        primLane(flags.name, flags);
+        primitiveLane(flags.name, flags);
       }
   }
   if (mesh.normals.size() != mesh.positions.size()) mesh.normals.clear();

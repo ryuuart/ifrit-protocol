@@ -58,7 +58,7 @@ concept ShapeScheme =
  *  - a COMPARABLE scheme (any `shapes::` generator, or your own value
  *    with `path(SkSize)` + `==`) — the node prunes while the value and
  *    its size are unchanged;
- *  - a raw callable (`[](SkSize) -> SkPath`, an `OutlineFn`) — the escape
+ *  - a raw callable (`[](SkSize) -> SkPath`, an `OutlineFunction`) — the escape
  *    hatch. It never compares equal to a separately-constructed Shape, so
  *    the node re-patches on every describe and can never prune. That is a
  *    real per-frame cost on a node that would otherwise be static; reach
@@ -490,7 +490,7 @@ class Decoration {
         }()) {
     // Value-comparable schemes (PathFormat, Slice, Shadow…) retain a
     // comparator so the reconciler can prune a static decorated node with no
-    // memo (see propsEqual). A non-comparable scheme — or a bare
+    // memo (see propertiesEqual). A non-comparable scheme — or a bare
     // PaintProgram — keeps none and stays conservatively unequal.
     if constexpr (std::equality_comparable<D>) {
       m_scheme = scheme;  // retained copy, compared structurally

@@ -147,7 +147,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   const float horizon = std::round(h * 0.66f);
   const float cx = w * 0.50f;
 
-  Element scene = stack().width(Dim(w)).height(Dim(h)).clip();
+  Element scene = stack().width(Dimension(w)).height(Dimension(h)).clip();
 
   // THE BAKED RENDER: sky, city, water and pods in one image, sized to
   // the panel. A null bake (no raster surface) leaves the gradient
@@ -229,8 +229,8 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
                     .opacity(0.55f)
                     .blend(SkBlendMode::kPlus));
   water.child(box()
-                  .left(Dim(cx - 190))
-                  .top(Dim(-72))
+                  .left(Dimension(cx - 190))
+                  .top(Dimension(-72))
                   .width(380)
                   .height(300)
                   .fill(mskia::Paint::radialUnit(
@@ -246,10 +246,10 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // the specular COLUMN — the vertical smear of a light in water, and
   // the single cue that reads "reflection" from across the room
   water.child(box()
-                  .left(Dim(cx - 40))
-                  .top(Dim(0))
+                  .left(Dimension(cx - 40))
+                  .top(Dimension(0))
                   .width(80)
-                  .height(Dim(h - horizon))
+                  .height(Dimension(h - horizon))
                   .fill(mskia::Paint::linearUnit(
                       {0, 0}, {0, 1},
                       {{0.00f, mskia::withAlpha(kGlow, 0.55f)},
@@ -272,7 +272,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
 
 auto TwoAdvancedV4::hero(float w, float h) -> Element {
   using namespace tav;
-  Element s = stack().width(Dim(w)).height(Dim(h)).clip();
+  Element s = stack().width(Dimension(w)).height(Dimension(h)).clip();
   s.child(heroScene(w, h, false));
   // the atmospheric bloom pass: the same composite, blurred, screened
   // back over itself. Built `still` so it is provably static and the
@@ -298,8 +298,8 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
         .column()
         .gap(2)
         .alignItems(end ? Align::End : Align::Start)
-        .left(Dim(l))
-        .top(Dim(tp))
+        .left(Dimension(l))
+        .top(Dimension(tp))
         .child(t(a, micro(10, mskia::withAlpha(kCyan, 0.8f), 220)))
         .child(t(b, micro(10, mskia::withAlpha(kCyanRing, 0.45f), 220)));
   };
@@ -309,8 +309,8 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
   s.child(corner("DEPTH 00.42", "PRESS 1013 HPA", 20, h - 42, false));
   s.child(
       box()
-          .left(Dim(w - 214))
-          .top(Dim(h - 32))
+          .left(Dimension(w - 214))
+          .top(Dimension(h - 32))
           .row()
           .gap(6)
           .alignItems(Align::Center)
@@ -330,9 +330,9 @@ auto TwoAdvancedV4::mainframe() -> Element {
   const float slatW = 1178.0f / 6.0f;
   for (int i = 0; i < 6; ++i)
     body.child(box()
-                   .left(Dim((float)i * slatW))
-                   .top(Dim(0))
-                   .width(Dim(slatW + 1))
+                   .left(Dimension((float)i * slatW))
+                   .top(Dimension(0))
+                   .width(Dimension(slatW + 1))
                    .height(316)
                    .fill(mskia::Paint::linearUnit({0, 0}, {1, 0},
                                                   {{0.0f, hexColor(0x2A0708)},
@@ -345,8 +345,8 @@ auto TwoAdvancedV4::mainframe() -> Element {
                    .transformOrigin(0.5f, 0.0f));
   // The ACCESSING readout that rides the closed shutters.
   body.child(box()
-                 .left(Dim(1178.0f / 2 - 220))
-                 .top(Dim(316.0f / 2 - 32))
+                 .left(Dimension(1178.0f / 2 - 220))
+                 .top(Dimension(316.0f / 2 - 32))
                  .width(440)
                  .height(64)
                  .shape(shapes::chamfered(10, shapes::Corner::Diagonal))
@@ -390,7 +390,7 @@ auto TwoAdvancedV4::mfLoadReadout(int section) -> Element {
 auto TwoAdvancedV4::monitorBody(float h) -> Element {
   using namespace tav;
   return box()
-      .height(Dim(h))
+      .height(Dimension(h))
       .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
                                      {{0.00f, kPanelHi},
                                       {0.15f, kPanel},

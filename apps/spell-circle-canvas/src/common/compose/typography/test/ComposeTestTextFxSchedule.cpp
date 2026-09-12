@@ -64,14 +64,16 @@ TEST(ComposeTextFx, PartitioningTracksShareOneClockOnlyUnderBeatsText) {
             .key("p")
             .width(360)
             .fx({.where =
-                     sigil::weave::sel::each(sigil::weave::Unit::Word).take(1) &
-                     sigil::weave::sel::words(1, 4),
+                     sigil::weave::selectors::each(sigil::weave::Unit::Word)
+                         .take(1) &
+                     sigil::weave::selectors::words(1, 4),
                  .effect = fx::rise(6),
                  .stagger = spec,
                  .unit = sigil::weave::Unit::Word,
                  .beatsOver = numbering})
             .fx({.where =
-                     sigil::weave::sel::each(sigil::weave::Unit::Word).drop(1),
+                     sigil::weave::selectors::each(sigil::weave::Unit::Word)
+                         .drop(1),
                  .effect = fx::rise(6),
                  .stagger = spec})));
     host.frame();

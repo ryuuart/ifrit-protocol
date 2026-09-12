@@ -156,8 +156,8 @@ struct Probing : Sketch {
     return box().inset(0).child(box()
                                     .alignSelf(Align::Start)
                                     .shrink(0)
-                                    .width(Dim(ink))
-                                    .height(Dim(20))
+                                    .width(Dimension(ink))
+                                    .height(Dimension(20))
                                     .fill(Fill::color({1, 0, 0, 1})));
   }
 };

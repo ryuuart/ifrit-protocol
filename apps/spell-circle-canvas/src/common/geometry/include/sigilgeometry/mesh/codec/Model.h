@@ -56,11 +56,11 @@ struct Part {
    *  file spells it. Formats without a material model leave this
    *  empty. These are the words SigilMaterial's texture-set door
    *  reads. */
-  struct TextureRef {
+  struct TextureReference {
     std::string uri;
     std::vector<std::byte> bytes;
   };
-  boost::container::map<std::string, TextureRef> textures;
+  boost::container::map<std::string, TextureReference> textures;
   float metallic = 1;   ///< glTF's factor default; multiplies the map
   float roughness = 1;  ///< likewise
   glm::vec4 emissive = {0, 0, 0, 1};
@@ -74,7 +74,7 @@ struct Part {
   bool opaque = true;
   /** The file's material SLOT this part wears (glTF: the material's
    *  index in the file; -1 when the part names none). The same number
-   *  is written across the part's `mesh.prims["Material"]` lane, so a
+   *  is written across the part's `mesh.primitives["Material"]` lane, so a
    *  merged model keeps per-triangle slots. Houdini's `.geo` writes the
    *  lane from `shop_materialpath` (its string table's index) and
    *  leaves this -1. */
@@ -88,7 +88,7 @@ struct Part {
    *
    *  These three are the POINT class, one value per VERTEX. Per-face
    *  attributes are a different cardinality and live in a different
-   *  container: `mesh.prims` (see below). */
+   *  container: `mesh.primitives` (see below). */
   boost::container::map<std::string, std::vector<float>, std::less<>>
       scalarLanes;
   boost::container::map<std::string, std::vector<glm::vec3>, std::less<>>
@@ -97,7 +97,7 @@ struct Part {
       colorLanes;
 
   /** Per-PRIMITIVE attributes need no member of their own: they land
-   *  in `mesh.prims`, the Mesh currency's primitive-lane container,
+   *  in `mesh.primitives`, the Mesh currency's primitive-lane container,
    *  which is triangleCount()-sized by definition — so a per-face lane
    *  can never be read as a per-vertex one, and Model::merged()
    *  carries them through Mesh::append for free. PLY face properties

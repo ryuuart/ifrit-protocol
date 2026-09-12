@@ -50,7 +50,7 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 namespace weave = sigil::weave;
 
 namespace {
@@ -121,15 +121,15 @@ struct ChromeType final : sketch::Sketch {
     // On the box: the style dresses the node's own shape and the word
     // sits inside it.
     Element onBox = sketch::kit::caption(
-        0, toU8("Boundary::Auto"), toU8("the node's rectangle"),
+        0, toUtf8("Boundary::Auto"), toUtf8("the node's rectangle"),
         box().padding(18).corners({6}).style(style).child(
-            text(toU8(c::kWordmark), c::wordmark(letterInk))));
+            text(toUtf8(c::kWordmark), c::wordmark(letterInk))));
     // The letters: the same value, the other boundary.
     Element onGlyphs = sketch::kit::caption(
-        0, toU8("Boundary::Glyphs"),
-        toU8("the contours the placement produced"),
+        0, toUtf8("Boundary::Glyphs"),
+        toUtf8("the contours the placement produced"),
         box().padding(18).child(
-            text(toU8(c::kWordmark), c::wordmark({0, 0, 0, 0}))
+            text(toUtf8(c::kWordmark), c::wordmark({0, 0, 0, 0}))
                 .boundary(Boundary::Glyphs)
                 .style(style)));
     // The pair's own name stands wider and larger than a cell's call.
@@ -139,7 +139,7 @@ struct ChromeType final : sketch::Sketch {
          .label = look.sans(9.5f, c::kPale, 2.6f),
          .note = look.sans(8, c::kFaint, 0.3f),
          .gap = 10},
-        toU8(name), u8"",
+        toUtf8(name), u8"",
         kit::cells({.cells = {std::move(onBox), std::move(onGlyphs)},
                     .gap = 26,
                     .divider = Fill::color(c::kFaint),

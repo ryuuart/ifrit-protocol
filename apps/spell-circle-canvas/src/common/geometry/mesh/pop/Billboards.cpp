@@ -41,8 +41,8 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
       style.sizeLane.empty() ? nullptr : cloud.scalarIf(style.sizeLane);
   const std::vector<glm::vec4>* tintLane =
       style.tintLane.empty() ? nullptr : cloud.colorIf(style.tintLane);
-  const std::vector<glm::vec4>* texLane =
-      style.texLane.empty() ? nullptr : cloud.colorIf(style.texLane);
+  const std::vector<glm::vec4>* textureLane =
+      style.textureLane.empty() ? nullptr : cloud.colorIf(style.textureLane);
 
   // Pixels per world unit at distance d: focal / d * (h/2).
   const float focal = 1.0f / std::tan(camera.fovYDeg * (float)M_PI / 360.0f);
@@ -64,9 +64,9 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
     glm::vec4 tint = style.tint;
     if (tintLane && i < tintLane->size()) tint *= (*tintLane)[i];
     splat.tint = tint;
-    if (texLane && i < texLane->size()) {
-      const glm::vec4& window = (*texLane)[i];
-      // A window with no extent is not a cell: an atlas op that never
+    if (textureLane && i < textureLane->size()) {
+      const glm::vec4& window = (*textureLane)[i];
+      // A window with no extent is not a cell: an atlas operation that never
       // ran, or a lane padded with zeros, would otherwise splat a sliver
       // of one texel across every point.
       if (window.z > 0.0f && window.w > 0.0f) splat.window = window;

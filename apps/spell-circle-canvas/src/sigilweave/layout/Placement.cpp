@@ -310,7 +310,7 @@ void emitLeader(FontContext& fontContext, const Paragraph& paragraph,
   sk_sp<SkTypeface> typeface = fontContext.resolveTypeface(
       span.style.shaping.typeface, firstCodepoint, languageTag);
   if (!typeface) typeface = fontContext.defaultTypeface();
-  const ShapedWordRef leader =
+  const ShapedWordReference leader =
       shapeWord(fontContext, span.style.shaping, typeface, stop.leader,
                 static_cast<ScriptTag>(HB_SCRIPT_COMMON), false, false);
   if (!leader || leader->glyphs.empty() || leader->advance <= 0) return;

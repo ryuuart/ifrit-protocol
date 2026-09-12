@@ -10,15 +10,16 @@
 #include <vector>
 
 #include "sigilgeometry/path/Lattice.h"
-#include "sigilgeometry/path/Ops.h"
+#include "sigilgeometry/path/Operations.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
 
 namespace sigil::geometry::shapes {
 
 SkPath hatchOutline(const SkPath& outline, const Hatch& hatch) {
-  const SkPath filled =
-      hatch.inset == 0 ? outline : path::ops::offset(outline, -hatch.inset);
+  const SkPath filled = hatch.inset == 0
+                            ? outline
+                            : path::operations::offset(outline, -hatch.inset);
   const std::vector<path::Polyline> rings = path::flatten(filled);
   const std::vector<path::LatticeMark> marks =
       path::lattice(rings, {.spacing = hatch.spacing,

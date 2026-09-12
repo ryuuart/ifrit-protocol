@@ -301,10 +301,10 @@ TEST(ComposeShapeValues, AChangedParameterPatchesAndMovesPixels) {
 }
 
 TEST(ComposeShapeValues, ARawCallableIsTheEscapeHatchAndStaysConservative) {
-  // A hand-rolled OutlineFn cannot compare, so its node re-patches on every
-  // describe. That is the conservative answer and it is deliberate: claiming
-  // equality for two callables would prune a node whose outline had in fact
-  // changed. An author who needs the prune wraps the node in memo().
+  // A hand-rolled OutlineFunction cannot compare, so its node re-patches on
+  // every describe. That is the conservative answer and it is deliberate:
+  // claiming equality for two callables would prune a node whose outline had in
+  // fact changed. An author who needs the prune wraps the node in memo().
   Host host;
   auto tree = [] {
     return box().child(box()

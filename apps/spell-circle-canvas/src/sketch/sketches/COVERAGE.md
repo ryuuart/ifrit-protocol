@@ -12,10 +12,10 @@ show how those operations compose into a complete picture.
 
 | Feature family | Examples | What to inspect |
 | --- | --- | --- |
-| Component props, slots and shared arrangements | [surface_components](surface_components.cpp), [border_weave](border_weave.cpp), [net_policy](net_policy.cpp) | One card accepts different content and paint values; incomplete panel rows retain their track widths. |
+| Component properties, slots and shared arrangements | [surface_components](surface_components.cpp), [border_weave](border_weave.cpp), [net_policy](net_policy.cpp) | One card accepts different content and paint values; incomplete panel rows retain their track widths. |
 | Flex, track and table layout | [grid_layouts](grid_layouts.cpp), [spacejam_1996](spacejam_1996/spacejam_1996.cpp), [twoadvanced_equipment](twoadvanced_equipment.cpp) | Child placement, baseline alignment, automatic table sizing and spans. |
 | Keyed updates, feeds and memoization | [daemon_console](daemon_console.cpp), [loot_grid](loot_grid/loot_grid.cpp), [volatility_cost](volatility_cost.cpp) | Entries arrive and leave; stable descriptions keep their retained identities. |
-| Theme and environment values | [env_theme](env_theme.cpp), [env_faces](env_faces.cpp), [env_lanes](env_lanes.cpp) | Nested overrides and the point at which values become component props. Deferred callbacks capture resolved values. |
+| Theme and environment values | [env_theme](env_theme.cpp), [env_faces](env_faces.cpp), [env_lanes](env_lanes.cpp) | Nested overrides and the point at which values become component properties. Deferred callbacks capture resolved values. |
 | Cache and layer boundaries | [live_settling](live_settling.cpp), [coverage_boundary](coverage_boundary.cpp), [surface_components](surface_components.cpp) | Live descendants, silhouette tracing and resizing a style under texture caching. |
 | Shapes and path construction | [shape_tour](shape_tour.cpp), [path_booleans](path_booleans.cpp), [svg_silhouette](svg_silhouette.cpp) | Generated silhouettes, boolean operations and fitting imported contours. |
 | Contour sampling and placement | [contour_poses](contour_poses.cpp), [exact_tangent](exact_tangent.cpp), [formation_bands](formation_bands.cpp) | Arc-length placement, tangents, shared geometry and swept bands. |

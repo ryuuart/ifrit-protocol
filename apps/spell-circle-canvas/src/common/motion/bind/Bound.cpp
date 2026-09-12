@@ -49,7 +49,7 @@ Bound& Bound::square(float duty) {
 
 Bound& Bound::wave(choreograph::EaseFn shape) {
   m_b.envelope = Envelope::kWave;
-  m_b.waveFn = std::move(shape);
+  m_b.waveFunction = std::move(shape);
   return *this;
 }
 

@@ -53,35 +53,36 @@ void readMesh(const UsdPrim& prim, ReadContext& context,
   geometry::mesh::Mesh& mesh = part.mesh;
   VtVec3fArray normals;
   usdMesh.GetNormalsAttr().Get(&normals);
-  const TfToken normalsInterp = usdMesh.GetNormalsInterpolation();
+  const TfToken normalsInterpolation = usdMesh.GetNormalsInterpolation();
   UsdGeomPrimvarsAPI primvars(usdMesh);
   VtVec2fArray st;
   VtIntArray stIndices;
-  TfToken stInterp;
+  TfToken stInterpolation;
   if (UsdGeomPrimvar pv = primvars.GetPrimvar(TfToken("st"))) {
     pv.Get(&st);
     pv.GetIndices(&stIndices);
-    stInterp = pv.GetInterpolation();
+    stInterpolation = pv.GetInterpolation();
   }
   VtVec3fArray colors;
   VtIntArray colorIndices;
-  TfToken colorInterp;
+  TfToken colorInterpolation;
   if (UsdGeomPrimvar pv = usdMesh.GetDisplayColorPrimvar()) {
     pv.Get(&colors);
     pv.GetIndices(&colorIndices);
-    colorInterp = pv.GetInterpolation();
+    colorInterpolation = pv.GetInterpolation();
   }
   const std::vector<GfVec3f> nPerFv =
       normals.empty() ? std::vector<GfVec3f>{}
-                      : perFaceVertex(normals, normalsInterp, counts, indices,
-                                      VtIntArray());
+                      : perFaceVertex(normals, normalsInterpolation, counts,
+                                      indices, VtIntArray());
   const std::vector<GfVec2f> stPerFv =
-      st.empty() ? std::vector<GfVec2f>{}
-                 : perFaceVertex(st, stInterp, counts, indices, stIndices);
+      st.empty()
+          ? std::vector<GfVec2f>{}
+          : perFaceVertex(st, stInterpolation, counts, indices, stIndices);
   const std::vector<GfVec3f> cPerFv =
-      colors.empty()
-          ? std::vector<GfVec3f>{}
-          : perFaceVertex(colors, colorInterp, counts, indices, colorIndices);
+      colors.empty() ? std::vector<GfVec3f>{}
+                     : perFaceVertex(colors, colorInterpolation, counts,
+                                     indices, colorIndices);
   // Face -> subset material slot (the "Material" lane), then the fan.
   std::vector<int> faceSlot(counts.size(), -1);
   const std::vector<UsdGeomSubset> subsets = UsdGeomSubset::GetGeomSubsets(
@@ -130,7 +131,7 @@ void readMesh(const UsdPrim& prim, ReadContext& context,
     }
   }
   if (!subsets.empty() || wholeSlot >= 0)
-    mesh.prim("Material", {0, 0, 0, 0}) = std::move(laneValues);
+    mesh.primitive("Material", {0, 0, 0, 0}) = std::move(laneValues);
   if (mesh.normals.size() != mesh.positions.size()) mesh.normals.clear();
   if (mesh.uvs.size() != mesh.positions.size()) mesh.uvs.clear();
   if (mesh.colors.size() != mesh.positions.size()) mesh.colors.clear();

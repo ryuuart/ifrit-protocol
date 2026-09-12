@@ -83,7 +83,7 @@ TEST(Color, HsvWalksTheWheelAndFoldsWhateverItIsGiven) {
 TEST(Color, TakesAFourFloatColourFieldForFieldWithoutNamingItsLibrary) {
   // The shape of a Skia colour, declared here so this test names no
   // renderer either — which is the whole point of matching by shape: the
-  // leaf every params struct includes must not include one.
+  // leaf every parameter struct includes must not include one.
   struct FourFloats {
     float fR, fG, fB, fA;
   };

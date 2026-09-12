@@ -94,7 +94,7 @@ Element dashboard(const std::vector<Channel> &channels) {
       .padding(24)
       .fill(hexColor(0x05070a))
       .children(channels | std::views::transform([](const Channel &c) {
-                  // memo() skips the describe call entirely while the props
+                  // memo() skips the describe call entirely while the properties
                   // compare equal. key() is what the reconciler matches on
                   // across describes, so rows survive reordering.
                   return memo(c, meter).key(c.id);
@@ -188,7 +188,7 @@ subtree change" is a decidable property rather than a heuristic.
 ### Phase order
 
 `render()` mounts or patches, as a recursive keyed reconcile. A memo
-compares its captured environment snapshot and then the author's props
+compares its captured environment snapshot and then the author's properties
 comparator; a hit reuses the previous payload without describing at all.
 A structural equality check is the prune: equal means nothing is marked
 dirty and no transition is applied, though children still reconcile.
@@ -267,7 +267,7 @@ the same probe this page is.
 The shape of it in one paragraph: a text leaf holds an ordered list of
 `fx()` TRACKS, each `(selector, effect, stagger, progress)` — which
 glyphs, what deviation from rest, how their start times spread, what
-drives it — and the same `sel::` vocabulary addresses glyphs for a track,
+drives it — and the same `selectors::` vocabulary addresses glyphs for a track,
 characters for a `spanStyle`, and units for anything standing beside the
 passage. What a passage is SET like is `Element::paragraphs` and the
 layout setters beside it, which map onto
@@ -477,7 +477,7 @@ sound model; nothing below them changes kernel semantics.
   `material::skia::scale`, `material::skia::lighten` and
   `material::skia::mixLinear`.
 - `core/TextPainter.h` — the seam the kernel draws dressed type through:
-  `TextPainterOps`, the operations the composer asks of text that is not
+  `TextPainterOperations`, the operations the composer asks of text that is not
   resting on its own straight baseline, and `TextPainter`, that engine
   as the value a text verb installs on a description. It is spelled in
   the typography feature's vocabulary and only names it; the kernel
@@ -495,9 +495,9 @@ sound model; nothing below them changes kernel semantics.
   `geometry::path::crossing::` deciding who passes over whom.
 - `core/Mask.h` — the masking family: `Region`, `parts::`, `by::`, `Gate`,
   `Mask`.
-- `core/Layout.h` — `Dim` and its literals, `Align`, `Justify`, `Echo`,
+- `core/Layout.h` — `Dimension` and its literals, `Align`, `Justify`, `Echo`,
   `Cache`, `LayoutInput` / `LayoutScheme`, `CellSpan`, and the
-  `ComponentProps` / `ComponentFn` concepts.
+  `ComponentProperties` / `ComponentFunction` concepts.
 - `core/Element.h` — `Element` and its builders, the class alone.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
   `positioned`, `text`, `frame`, `image`, `picture` (a recorded
@@ -505,7 +505,7 @@ sound model; nothing below them changes kernel semantics.
   of a `snapshot()` that keeps the pruning and the caching the bake was
   taken for), `pathFigure` (a path already in canvas coordinates,
   re-based into its own bounds), `custom`, `slot`, `layout`, `memo`,
-  with `toU8` for a call site holding a `std::string`.
+  with `toUtf8` for a call site holding a `std::string`.
 - `core/Measure.h` — the one-shot verbs that take a tree without a live
   composer: `snapshot`, `intrinsicSize`, `metrics`, `measureRun`,
   `runPens`, and the two that solve a style BACKWARDS from a size the
@@ -687,7 +687,7 @@ layout pass established — plus `LayoutInput::childCells`, one `CellSpan`
 per child, written by `Element::cells` and `Element::cellAlign`, and
 `LayoutInput::childAreas`, the region name `Element::area` wrote, empty
 for a child that named none. The name sits beside the span rather than in
-it because a string on the props of every node in the tree is what the
+it because a string on the properties of every node in the tree is what the
 node's size budget forbids, and a named region is rare. Both are on the
 CHILD and not in a list the scheme carries beside it, because a parallel list
 has nothing to check itself against: insert or reorder one child and
@@ -731,9 +731,9 @@ which is what a browser does rather than dropping content.
 `Table::declaredWidths` is the width the markup gave a column, where it
 gave one — a fixed column, out of both divisions, which what is in it can
 still widen, since no column is narrower than the narrowest thing in it.
-It is ONE `Dim` per column, the same length the rest of the library is
+It is ONE `Dimension` per column, the same length the rest of the library is
 laid out in: pixels for a `<COL WIDTH=120>`, percent for a
-`<COL WIDTH="30%">`, and `autoDim()` — or no width at all — for a column
+`<COL WIDTH="30%">`, and `autoDimension()` — or no width at all — for a column
 sized by what is in it. A percentage is a share of the room the columns
 divide, the table's width less its padding and spacing, so it resolves
 only once the table's own width is known; the columns the markup left
@@ -828,8 +828,8 @@ fraction of its ring inside the shape instead of losing the whole ring
 until the run closes. The
 brush engine is
 five headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
-`LayeredBrush`); `brush/GeometryOps.h`, the one mechanism door for
-deviating an outline (`ops::`, `GeometryOp`); `brush/Brushes.h`, the
+`LayeredBrush`); `brush/GeometryOperations.h`, the one mechanism door for
+deviating an outline (`operations::`, `GeometryOperation`); `brush/Brushes.h`, the
 brush and its composites — `brush::solid`, `brush::layers`,
 `brush::weave` and `brush::Restyled`; and the two shelves of leaf kinds
 beside it, `brush/Stamps.h` for the STAMPED ones (`brush::Scatter`,
@@ -910,7 +910,7 @@ groove a separator is and carrying its own `BevelInner::edges` and
 `BevelInner::ends`, which is the doubled edge a key wears on its two
 shaded sides alone. It is a value
 decoration in its own right, so `.overlay(theBevel)` dresses a panel, and
-it is a theme token: `env::Provide<kit::Bevel>` over a subtree and
+it is a theme token: `environment::Provide<kit::Bevel>` over a subtree and
 `kit::ambientBevel()` at each use site puts one era on every button,
 panel and well under it. `kit::bevels::motif`, `motifEtched`, `flash`,
 `skin` and `plate` are the token sets four toolkits' edges resolve to.
@@ -931,19 +931,19 @@ and is taken as it stands.
 
 **Type — `typography/`.** The DRESSING is this feature's, one header per
 value family: `typography/TextUnit.h` — `TextUnit`, one unit as the layout
-placed it; `typography/Selector.h` — `sel::style` and `sel::inFrame`, the
+placed it; `typography/Selector.h` — `selectors::style` and `selectors::inFrame`, the
 two selector forms whose subject is a description of this library;
-`typography/TextEffect.h` — `GlyphInfo`, `GlyphMod`, `GlyphModFn`,
+`typography/TextEffect.h` — `GlyphInfo`, `GlyphModifier`, `GlyphModifierFunction`,
 `TextEffect` and `Phase`, the value the seam is made of;
 `typography/TextFx.h` — the effects the runtime evaluates by structure:
 `fx::scramble`, the `fx::keys` keyframe table, the `fx::pass` shader pass,
-the `fx::seq`, `fx::mix` and `fx::hold` combinators, and the `fx::effect`
+the `fx::sequence`, `fx::mix` and `fx::hold` combinators, and the `fx::effect`
 door; `typography/Track.h` — `Track`, `Beats` and `Beat`;
 `typography/Annotation.h` — `Annotation`; `typography/TextPath.h` —
 `TextPath`; and `typography/Typography.h`, the umbrella over them. The
 TEXT ITSELF is SigilWeave's and is included from there: `weave::rich` /
 `weave::RichText` and `weave::Story` for the content, `weave::Unit` for
-the granularity, `weave::Selector` and `weave::sel::` for what a track
+the granularity, `weave::Selector` and `weave::selectors::` for what a track
 addresses.
 
 The kernel describes its text leaf in that vocabulary — a description
@@ -1534,7 +1534,7 @@ number left out of the key freezes at whatever it was on the frame that
 recorded, with no error and no warning.
 
 This matters more than it sounds. An inherited value carried through
-`core::env::` that holds a `std::function` is incomparable, and that turns every
+`core::environment::` that holds a `std::function` is incomparable, and that turns every
 `memo` below it into a permanent miss. Materialise derived values *into*
 the type: run the function, store the result.
 
@@ -1593,7 +1593,7 @@ paragraph are `weave::`; an animatable, a transition and a cascade are
 `motion::`. Each is spelled at its own origin here — compose re-exports
 none of them. `SigilCoreReconcile` is the reconciler: the
 keyed and positional match, the memo, the identity prune, the
-`core::env::` channel and the animation lane operations are its, and `Composer` is its
+`core::environment::` channel and the animation lane operations are its, and `Composer` is its
 host — the description comparators, Yoga, text and paint stay here.
 `SigilCoreCache` is the caching kernel, and `Composer` is its host too:
 the three-valued cache policy (`cachePolicy` maps this library's

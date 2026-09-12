@@ -21,8 +21,8 @@ using namespace sigil::core::hardware;
 
 namespace {
 
-TextureDesc smallTexture() {
-  TextureDesc desc;
+TextureDescription smallTexture() {
+  TextureDescription desc;
   desc.width = 8;
   desc.height = 8;
   desc.label = "core_hardware_device_test";
@@ -228,7 +228,7 @@ TEST(HardwareDevice, ADestroyedFenceIsStaleAndRefusesEverySpellingOfItsName) {
 
 TEST(HardwareDevice, ATextureIsBuiltWithTheLevelsTheSizeAllowsAndNoMore) {
   DEVICE_OR_SKIP(device);
-  TextureDesc desc = smallTexture();
+  TextureDescription desc = smallTexture();
   desc.width = 256;
   desc.height = 128;
   desc.mipLevels = 9;

@@ -81,7 +81,7 @@ namespace render = sigil::geometry::mesh::render;
 namespace wkit = sigil::world::kit;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -152,7 +152,7 @@ Element banner(float length) {
   for (int s = 0; s < kSectors; ++s) {
     column.child(box().grow());
     const std::string numeral = kit::formatted("- %02d -", s + 1);
-    column.child(text(toU8(numeral), label(34, kNumeral)));
+    column.child(text(toUtf8(numeral), label(34, kNumeral)));
     column.child(text(pool[(size_t)s % 4], label(40, kInk)));
   }
   column.child(box().grow());
@@ -227,7 +227,7 @@ struct YarnMarquee final : sketch::Sketch {
   Element panel(const char* call, const char* note, std::string key,
                 const std::vector<curve::Frame3>* rail) const {
     return sketch::kit::caption(
-        kPanel, toU8(call), toU8(note),
+        kPanel, toUtf8(call), toUtf8(note),
         custom(std::move(key),
                [this, rail](SkCanvas& canvas, const PaintContext&) {
                  paintRail(canvas, *rail, art);
@@ -266,14 +266,14 @@ struct YarnMarquee final : sketch::Sketch {
     hung = curve::hangFrames(rail, kSections, 1.0f, 1.0f);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("THE HUNG RAIL \xc2\xb7 curve::hangFrames against "
-                       "curve::frames"),
-         .subtitle = toU8("one closed winding, one banner, a two-point "
-                          "line profile \xe2\x80\x94 the ticks are each "
-                          "frame's across-vector at the band's own "
-                          "width"),
-         .footer = toU8("painter order is the depth test \xc2\xb7 the "
-                        "cull is off, so both faces of a cloth show")},
+        {.title = toUtf8("THE HUNG RAIL \xc2\xb7 curve::hangFrames against "
+                         "curve::frames"),
+         .subtitle = toUtf8("one closed winding, one banner, a two-point "
+                            "line profile \xe2\x80\x94 the ticks are each "
+                            "frame's across-vector at the band's own "
+                            "width"),
+         .footer = toUtf8("painter order is the depth test \xc2\xb7 the "
+                          "cull is off, so both faces of a cloth show")},
         kit::cells(
             {.cells = {panel("curve::frames(loop, 220)",
                              "parallel transport \xe2\x80\x94 the smallest "

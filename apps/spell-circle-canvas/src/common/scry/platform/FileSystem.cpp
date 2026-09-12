@@ -35,9 +35,9 @@ std::string PrefixFileSystem::resolve(const ultralight::String& path) const {
   std::string p = toUtf8(path);
   constexpr std::string_view kResourcePrefix = "resources/";
   if (p.rfind(kResourcePrefix, 0) == 0)
-    return m_resourceDir + "/" + p.substr(kResourcePrefix.size());
+    return m_resourceDirectory + "/" + p.substr(kResourcePrefix.size());
   if (!p.empty() && p.front() == '/') return p;
-  return m_baseDir + "/" + p;
+  return m_baseDirectory + "/" + p;
 }
 
 bool PrefixFileSystem::FileExists(const ultralight::String& path) {

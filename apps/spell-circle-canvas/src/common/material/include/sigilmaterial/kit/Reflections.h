@@ -33,7 +33,7 @@ namespace sigil::material::kit {
  *  cleanly. Every field is a uniform of the body except `roughness`,
  *  which picks the environment level when the material is built, and
  *  `envSize`, which the builder fills from the environment. */
-struct GoldParams {
+struct GoldParameters {
   Color tint = {1.0f, 0.78f, 0.34f, 1};  ///< gold F0
   float roughness = 0.25f;
   float crinkle = 0.35f;       ///< foil wrinkle strength (0 = polished)
@@ -47,8 +47,8 @@ struct GoldParams {
  *  environment is pushed. `contrast` and `exposure` shape the
  *  reflection, `brushed` streaks it anisotropically, and `fresnel` sets
  *  how much brighter the glancing edges read. `roughness` and `envSize`
- *  as for GoldParams. */
-struct ChromeParams {
+ *  as for GoldParameters. */
+struct ChromeParameters {
   Color tint = {0.92f, 0.95f, 1.0f, 1};  ///< cool steel bias
   float roughness = 0.0f;
   float contrast = 1.6f;  ///< env contrast curve (chrome pops at ~1.6)
@@ -63,8 +63,8 @@ struct ChromeParams {
 /** Dials for glass — a transmissive surface that displaces the backdrop
  *  behind it rather than reflecting an environment. `refractPx` is how
  *  far the bevel bends what is behind, which is what sells the
- *  thickness. `roughness` and `envSize` as for GoldParams. */
-struct GlassParams {
+ *  thickness. `roughness` and `envSize` as for GoldParameters. */
+struct GlassParameters {
   Color tint = {0.82f, 0.93f, 0.96f, 1};  ///< transmission colour
   float refractPx = 18;      ///< max backdrop displacement at the bevel
   float reflection = 0.55f;  ///< fresnel reflection strength
@@ -83,17 +83,17 @@ const std::shared_ptr<const Recipe>& chromeRecipe();
  *  behind the surface is part of what it shades. */
 const std::shared_ptr<const Recipe>& glassRecipe();
 
-/** A gold surface over @p normals, reflecting @p env at the params'
+/** A gold surface over @p normals, reflecting @p env at the parameters'
  *  roughness. */
 Material gold(Texture normals, const EnvironmentMap& env,
-              const GoldParams& params = {});
+              const GoldParameters& parameters = {});
 /** A chrome surface over @p normals, reflecting @p env. */
 Material chrome(Texture normals, const EnvironmentMap& env,
-                const ChromeParams& params = {});
+                const ChromeParameters& parameters = {});
 /** A glass surface over @p normals, refracting @p backdrop — an image of
  *  what sits behind the shape in the same device coordinates — and
  *  reflecting @p env. */
 Material glass(Texture normals, const EnvironmentMap& env, Texture backdrop,
-               const GlassParams& params = {});
+               const GlassParameters& parameters = {});
 
 }  // namespace sigil::material::kit

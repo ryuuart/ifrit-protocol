@@ -91,9 +91,10 @@ SkColor phosphorColor(float t) {
 class TerminalScene final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
-                    int frameNumber, const SceneParams& params,
+                    int frameNumber, const SceneParameters& parameters,
                     FontContext& fontContext) override {
-    m_body.ensure(params, terminalDefaultText(), fontContext.defaultTypeface());
+    m_body.ensure(parameters, terminalDefaultText(),
+                  fontContext.defaultTypeface());
     Paragraph& paragraph = m_body.paragraph;
 
     const float canvasWidth = size.width();
@@ -106,12 +107,13 @@ class TerminalScene final : public Scene {
     // the reveal never touches it, only the draw loop below.
     double layoutMicroseconds = 0;
     m_layoutGuard.ensure(
-        paragraph, {size, params.lineBreakStrategy, params.fontSize}, [&] {
+        paragraph, {size, parameters.lineBreakStrategy, parameters.fontSize},
+        [&] {
           BlockFlow flow(box);
           ParagraphLayoutOptions options;
           options.alignment = TextAlignment::kStart;
-          options.lineBreakStrategy = params.lineBreakStrategy;
-          options.lineMetrics.height = params.fontSize * 1.55f;
+          options.lineBreakStrategy = parameters.lineBreakStrategy;
+          options.lineMetrics.height = parameters.fontSize * 1.55f;
 
           const sigil::measure::Stopwatch layoutTime;
           m_layout = layoutParagraph(fontContext, paragraph, flow, options);
@@ -120,10 +122,11 @@ class TerminalScene final : public Scene {
         });
 
     const float charsPerSecond =
-        std::max(1.0f, params.floatValue(QStringLiteral("speed"), 60.0f));
-    const float glowAmount = params.floatValue(QStringLiteral("glow"), 0.65f);
+        std::max(1.0f, parameters.floatValue(QStringLiteral("speed"), 60.0f));
+    const float glowAmount =
+        parameters.floatValue(QStringLiteral("glow"), 0.65f);
     const float glitchAmount =
-        params.floatValue(QStringLiteral("glitch"), 0.35f);
+        parameters.floatValue(QStringLiteral("glitch"), 0.35f);
 
     // The tape clock, in character units. One loop: type the schedule, hold
     // with a blinking cursor, dissolve (every glyph scrambles then fades on
@@ -166,8 +169,8 @@ class TerminalScene final : public Scene {
     uint32_t glyphIndex = 0;
     int drawnGlyphs = 0;
     bool cursorPlaced = false;
-    SkPoint cursorPen = {box.left(), box.top() + params.fontSize};
-    float cursorFontSize = params.fontSize;
+    SkPoint cursorPen = {box.left(), box.top() + parameters.fontSize};
+    float cursorFontSize = parameters.fontSize;
     for (const PositionedRun& run : m_layout.runs) {
       const Word& word = paragraph.words()[run.wordIndex];
       if (word.segments().empty()) continue;
@@ -315,7 +318,7 @@ class TerminalScene final : public Scene {
     if (elapsedChars <= dissolveStart)  // hidden once the dissolve begins
       drawCursor(canvas, cursorPen, cursorFontSize, elapsedSeconds,
                  elapsedChars >= m_scheduleChars, glowAmount);
-    if (params.boolValue(QStringLiteral("scanlines"), true))
+    if (parameters.boolValue(QStringLiteral("scanlines"), true))
       drawCrtOverlays(canvas, size, elapsedSeconds);
     drawFooter(canvas, fontContext, box.left(), canvasHeight - 16);
 

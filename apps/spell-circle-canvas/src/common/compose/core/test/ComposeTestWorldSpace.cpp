@@ -170,7 +170,7 @@ TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
 }
 
 // LAYOUT moves the node while the field stays put in canvas space. The
-// node's own props PRUNE here — only a sibling spacer changes — so the
+// node's own properties PRUNE here — only a sibling spacer changes — so the
 // invalidation can only come from the layout-rect sync noticing the node's
 // world matrix moved. No other phase sees this.
 TEST(ComposeWorldSpace, ALayoutMoveLeavesTheFieldAnchored) {

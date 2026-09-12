@@ -325,8 +325,8 @@ TEST(ComposePathMotion, AFadeOnlyTrackKeepsWholePixelOrigins) {
 // the lane the table publishes into differs.
 TEST(ComposePathMotion, AKeysTableEngagesTheGridOnlyWhereItMovesGlyphs) {
   choreograph::Output<float> progress{0.5f};
-  const TextEffect colourOnly =
-      fx::keys({{0.0f, {.colorMul = {0.3f, 0.3f, 0.3f, 1.0f}}}, {1.0f, {}}});
+  const TextEffect colourOnly = fx::keys(
+      {{0.0f, {.colorMultiplier = {0.3f, 0.3f, 0.3f, 1.0f}}}, {1.0f, {}}});
   const TextEffect offset = fx::keys({{0.0f, {.dx = 9.0f}}, {1.0f, {}}});
 
   Host cheapHost(kField, kField);
@@ -398,7 +398,7 @@ TEST(ComposePathMotion, ATrackRotationTurnsOnTheSameLadderAsTheBaseline) {
     const TextEffect turn(
         "turn", {},
         [sweep](const GlyphInfo&, float t, sigil::core::noise::Mix64Stream&) {
-          GlyphMod m;
+          GlyphModifier m;
           m.rotateDeg = sweep * t;
           return m;
         },

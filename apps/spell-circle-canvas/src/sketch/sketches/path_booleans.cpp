@@ -1,6 +1,6 @@
 // path_booleans.cpp — THE PATH OPERATOR VOCABULARY, on one sheet.
 // =============================================================================
-// Every operator in `geometry::path::ops` takes outlines and returns an
+// Every operator in `geometry::path::operations` takes outlines and returns an
 // outline. That is the whole contract, and it is why they compose: the
 // output of a boolean is a legal input to an offset, which is a legal
 // input to a distort, and none of them knows what made its argument.
@@ -13,7 +13,7 @@
 //          offset is not a scale: the outward steps round the corners
 //          off, and the inward ones lose the shoulders entirely and
 //          arrive at a plain rounded rect.
-//   ROW 2R A RECIPE. `chain()` composes three steps into one `PathOp`
+//   ROW 2R A RECIPE. `chain()` composes three steps into one `PathOperation`
 //          value — the non-destructive form: the recipe is a value that
 //          can be applied to any outline, not a sequence of edits made
 //          to one.
@@ -31,7 +31,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilgeometry/path/Ops.h>
+#include <sigilgeometry/path/Operations.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
@@ -39,7 +39,7 @@ namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-namespace ops = sigil::geometry::path::ops;
+namespace operations = sigil::geometry::path::operations;
 
 namespace {
 
@@ -77,17 +77,19 @@ struct PathBooleans final : sketch::Sketch {
       const float y = 140;
       const SkColor4f ink = {0.85f, 0.9f, 1.0f, 1};
       struct Case {
-        SkPath (*op)(const SkPath&, const SkPath&);
+        SkPath (*operation)(const SkPath&, const SkPath&);
       };
-      const Case cases[] = {
-          {ops::unite}, {ops::subtract}, {ops::intersect}, {ops::exclude}};
+      const Case cases[] = {{operations::unite},
+                            {operations::subtract},
+                            {operations::intersect},
+                            {operations::exclude}};
       float x = 170;
       for (const Case& c : cases) {
         const SkPath a = at(shapes::star(5, 34.0f / 78.0f), 78, {x - 18, y});
         const SkPath b = at(shapes::circle(), 52, {x + 34, y + 18});
         outlinePath(canvas, a, {0.4f, 0.5f, 0.7f, 0.5f}, 1.5f);
         outlinePath(canvas, b, {0.4f, 0.5f, 0.7f, 0.5f}, 1.5f);
-        fillPath(canvas, c.op(a, b), ink);
+        fillPath(canvas, c.operation(a, b), ink);
         x += 300;
       }
     }
@@ -95,7 +97,7 @@ struct PathBooleans final : sketch::Sketch {
     {
       const SkPath base = at(shapes::squircle(3.0f), 70, {250, 400});
       for (int i = -2; i <= 3; ++i) {
-        const SkPath ring = ops::offset(base, (float)i * 22.0f);
+        const SkPath ring = operations::offset(base, (float)i * 22.0f);
         outlinePath(canvas, ring,
                     {0.3f + 0.12f * (float)(i + 2),
                      0.75f - 0.09f * (float)(i + 2), 1.0f, 0.9f},
@@ -106,9 +108,9 @@ struct PathBooleans final : sketch::Sketch {
     {
       const SkPath base = at(shapes::circle(), 80, {700, 400});
       outlinePath(canvas, base, {0.4f, 0.5f, 0.7f, 0.6f}, 1.5f);
-      const ops::PathOp recipe =
-          ops::chain({ops::offsetBy(18), ops::Zigzag{7, 30, true},
-                      ops::Roughen{2.5f, 6, 11}});
+      const operations::PathOperation recipe = operations::chain(
+          {operations::offsetBy(18), operations::Zigzag{7, 30, true},
+           operations::Roughen{2.5f, 6, 11}});
       fillPath(canvas, recipe(base), {1.0f, 0.62f, 0.3f, 0.95f});
     }
     // Row 3 — the distort menu over one base star.
@@ -122,12 +124,13 @@ struct PathBooleans final : sketch::Sketch {
         SkColor4f color;
       };
       const Row rows[] = {
-          {ops::Roughen{5, 7, 3}.apply(base), {0.55f, 0.95f, 0.7f, 1}},
-          {ops::Zigzag{6, 26, false}.apply(base), {0.95f, 0.85f, 0.4f, 1}},
-          {ops::Zigzag{6, 26, true}.apply(base), {0.95f, 0.6f, 0.4f, 1}},
-          {ops::PuckerBloat{-0.6f}.apply(base), {0.7f, 0.55f, 0.95f, 1}},
-          {ops::PuckerBloat{0.7f}.apply(base), {0.45f, 0.75f, 0.95f, 1}},
-          {ops::Twirl{100}.apply(base), {0.95f, 0.5f, 0.7f, 1}},
+          {operations::Roughen{5, 7, 3}.apply(base), {0.55f, 0.95f, 0.7f, 1}},
+          {operations::Zigzag{6, 26, false}.apply(base),
+           {0.95f, 0.85f, 0.4f, 1}},
+          {operations::Zigzag{6, 26, true}.apply(base), {0.95f, 0.6f, 0.4f, 1}},
+          {operations::PuckerBloat{-0.6f}.apply(base), {0.7f, 0.55f, 0.95f, 1}},
+          {operations::PuckerBloat{0.7f}.apply(base), {0.45f, 0.75f, 0.95f, 1}},
+          {operations::Twirl{100}.apply(base), {0.95f, 0.5f, 0.7f, 1}},
       };
       float x = 130;
       for (const Row& row : rows) {
@@ -155,6 +158,6 @@ struct PathBooleans final : sketch::Sketch {
 };
 
 SIGIL_SKETCH(PathBooleans, "Kit · API",
-             "geometry::path::ops — the four booleans over one pair, "
+             "geometry::path::operations — the four booleans over one pair, "
              "offsets both ways, a chain() recipe as a value, and the "
              "distorts over one star")

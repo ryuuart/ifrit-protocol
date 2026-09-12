@@ -6,7 +6,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilgeometry/path/Ops.h>
+#include <sigilgeometry/path/Operations.h>
 #include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Color.h>
@@ -24,7 +24,7 @@
 namespace sketch = sigil::sketch;
 namespace matkit = sigil::material::kit;
 namespace mat = sigil::material;
-namespace ops = sigil::geometry::path::ops;
+namespace operations = sigil::geometry::path::operations;
 namespace shapes = sigil::geometry::shapes;
 namespace skia = sigil::material::skia;
 namespace weave = sigil::weave;
@@ -154,21 +154,21 @@ class TimberBank {
             bool along = false) {
     return Paint::recipe(m_bank.get(
         matkit::timberRecipe(),
-        matkit::TimberParams{.base = skia::toColor(t.base),
-                             .light = skia::toColor(t.light),
-                             .dark = skia::toColor(t.dark),
-                             .span = span,
-                             .flip = flip ? 1.0f : 0.0f,
-                             .along = along ? 1.0f : 0.0f,
-                             .grain = t.grain,
-                             .figure = t.figure,
-                             // The tooth is the surface; the figure above is
-                             // the wood's story. Keep toothScale x stretch
-                             // under about a tenth or the tooth aliases into
-                             // hash noise with no diagnostic.
-                             .tooth = 0.26f,
-                             .toothScale = 0.045f,
-                             .stretch = 2.0f},
+        matkit::TimberParameters{.base = skia::toColor(t.base),
+                                 .light = skia::toColor(t.light),
+                                 .dark = skia::toColor(t.dark),
+                                 .span = span,
+                                 .flip = flip ? 1.0f : 0.0f,
+                                 .along = along ? 1.0f : 0.0f,
+                                 .grain = t.grain,
+                                 .figure = t.figure,
+                                 // The tooth is the surface; the figure above
+                                 // is the wood's story. Keep toothScale x
+                                 // stretch under about a tenth or the tooth
+                                 // aliases into hash noise with no diagnostic.
+                                 .tooth = 0.26f,
+                                 .toothScale = 0.045f,
+                                 .stretch = 2.0f},
         seed));
   }
 
@@ -436,13 +436,13 @@ struct Panel {
     // joinery finds names the boards it is between. The tolerance is the
     // distance at which a crossing is a piece landing on another's face
     // — a butt joint, which shows no lap.
-    std::vector<ops::Strip> stock;
+    std::vector<operations::Strip> stock;
     stock.reserve(strips.size());
     for (const Strip& s : strips)
       stock.push_back({{s.a.x(), s.a.y()}, {s.b.x(), s.b.y()}, s.w});
 
-    for (const ops::StripLap& lap :
-         ops::stripLaps(stock, {.tolerance = 2.5f, .lapLimit = 3.0f})) {
+    for (const operations::StripLap& lap :
+         operations::stripLaps(stock, {.tolerance = 2.5f, .lapLimit = 3.0f})) {
       const Strip& s1 = strips[(size_t)lap.pieces[0]];
       const Strip& s2 = strips[(size_t)lap.pieces[1]];
       // Only the lattice laps: a leaf piece sits on the face of what it

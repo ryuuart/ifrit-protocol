@@ -15,7 +15,7 @@ class Host;
 
 /** What a run was asked to photograph or to measure. */
 struct CaptureOptions {
-  std::string out;
+  std::string outputPath;
   /** Seconds of fixed-step stepping before the capture, as the CALLER
    *  stated it. Negative means unstated, which is not the same as 1.5:
    *  a still then lands at the moment the sketch itself declared, and

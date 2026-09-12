@@ -27,7 +27,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     if (arg == "--headless") {
       args.headless = true;
       if (i + 1 < argc && argv[i + 1][0] != '-')
-        args.sweepOptions.outDir = argv[++i];
+        args.sweepOptions.outputDirectory = argv[++i];
     } else if (arg == "--list") {
       args.list = true;
     } else if (arg == "--catalog") {
@@ -36,7 +36,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       args.compareOptions.first = argv[++i];
       args.compareOptions.second = argv[++i];
     } else if (arg == "--video" && i + 1 < argc) {
-      args.storyOptions.out = argv[++i];
+      args.storyOptions.outputPath = argv[++i];
     } else if (arg == "--video-frames" && i + 1 < argc) {
       args.storyOptions.framesPerSketch = std::max(1, std::stoi(argv[++i]));
     } else if (arg == "--video-size" && i + 1 < argc) {
@@ -77,7 +77,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     } else if (arg == "--thumbnails") {
       args.warmThumbnails = true;
     } else if (arg == "--thumbnails-dir" && i + 1 < argc) {
-      args.thumbnailDir = argv[++i];
+      args.thumbnailDirectory = argv[++i];
     } else if (arg == "--thumbnail-budget" && i + 1 < argc) {
       args.thumbnailBudget = std::chrono::milliseconds(
           (long long)std::lround(std::strtod(argv[++i], nullptr) * 1000.0));
@@ -107,7 +107,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     } else if (arg == "--window-scale" && i + 1 < argc) {
       args.windowBench.scale = std::stod(argv[++i]);
     } else if (arg == "--frame" && i + 1 < argc) {
-      args.capture.out = argv[++i];
+      args.capture.outputPath = argv[++i];
     } else if (arg == "--at" && i + 1 < argc) {
       args.capture.at = std::stod(argv[++i]);
     } else if (arg == "--scale" && i + 1 < argc) {

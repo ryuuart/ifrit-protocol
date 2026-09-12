@@ -42,10 +42,10 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
-#include <sigilcompose/brush/Stamps.h>
-#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/brush/Ribbons.h>
+#include <sigilcompose/brush/Stamps.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Shapers.h>
@@ -70,7 +70,7 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
@@ -128,7 +128,7 @@ inline Element station(const char* key, float x, float y, float size = 16) {
 
 inline Element label(const char* s, float x, float y, SkColor4f c = kAsh,
                      float size = 13, float track = 1.5f) {
-  return text(toU8(s), type(size, c, track)).inset(x, y, 0, 0).zIndex(8);
+  return text(toUtf8(s), type(size, c, track)).inset(x, y, 0, 0).zIndex(8);
 }
 
 /** The ARTLINE art cell: a stem with alternating leaf lenses — reads as a
@@ -164,8 +164,8 @@ inline Element legendRow(const char* name, const char* what, SkColor4f c,
       .row()
       .inset(30, y, 0, 0)
       .zIndex(8)
-      .child(text(toU8(name), type(12.5f, c, 1.4f)))
-      .child(text(toU8(what), type(12.5f, kAsh, 0.4f)).margin(10, 0, 0, 0));
+      .child(text(toUtf8(name), type(12.5f, c, 1.4f)))
+      .child(text(toUtf8(what), type(12.5f, kAsh, 0.4f)).margin(10, 0, 0, 0));
 }
 
 }  // namespace night_network
@@ -211,7 +211,7 @@ struct NightNetwork final : sketch::Sketch {
 
     // -- 1. EMBER LINE: the cased pair. Router left SHARP (radius 0);
     //    the Brush pipeline rounds, then the layer lays two rails whose
-    //    dashes/params share one centerline (Lines.h keeps them in phase).
+    //    dashes/parameters share one centerline (Lines.h keeps them in phase).
     Brush emberBrush;
     emberBrush.shaped(shapers::Rounded{12.0f});
     emberBrush.layer(
@@ -505,16 +505,16 @@ struct NightNetwork final : sketch::Sketch {
         .child(nn::label("saltmarsh", 693, 477))
         .child(nn::label("the smokewater", 668, 206, {0.45f, 0.62f, 0.78f, 1}))
         // ---- title + legend ----
-        .child(
-            box()
-                .column()
-                .inset(28, 27, 0, 0)
-                .zIndex(8)
-                .child(text(toU8("NIGHT NETWORK"), nn::type(30, nn::kBone, 2)))
-                .child(text(toU8("the brush engine \xe2\x80\x94 twelve"
-                                 " constructions"),
-                            nn::type(14, nn::kAsh, 1))
-                           .margin(0, 6, 0, 0)))
+        .child(box()
+                   .column()
+                   .inset(28, 27, 0, 0)
+                   .zIndex(8)
+                   .child(text(toUtf8("NIGHT NETWORK"),
+                               nn::type(30, nn::kBone, 2)))
+                   .child(text(toUtf8("the brush engine \xe2\x80\x94 twelve"
+                                      " constructions"),
+                               nn::type(14, nn::kAsh, 1))
+                              .margin(0, 6, 0, 0)))
         // Ten rows reach into the map now — a feathered ink backing keeps
         // the routes from striking through the legend type.
         .child(box()

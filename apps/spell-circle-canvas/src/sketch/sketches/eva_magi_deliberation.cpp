@@ -35,7 +35,7 @@ const SkColor4f kInk = hexColor(0x071615);
 const SkColor4f kRed = hexColor(0xA20915);
 const SkColor4f kRedHot = hexColor(0xE1262E);
 
-std::u8string toU8(const char* value) {
+std::u8string toUtf8(const char* value) {
   return std::u8string(reinterpret_cast<const char8_t*>(value));
 }
 
@@ -120,7 +120,7 @@ struct EvaMagiDeliberation : sketch::Sketch {
     const float side = layout.moduleSide;
     const std::u8string numeral =
         number == 1 ? u8"1" : (number == 2 ? u8"2" : u8"3");
-    const std::u8string label = toU8(name);
+    const std::u8string label = toUtf8(name);
     return box()
         .left(rect.left())
         .top(rect.top())
@@ -162,7 +162,7 @@ struct EvaMagiDeliberation : sketch::Sketch {
     static const char* kData[] = {"FILE:MAGI_SYS", "EXTENTION:2048",
                                   "EX_MODE:ON", "PRIORITY:A__"};
     for (int line = 0; line < 4; ++line) {
-      const std::u8string run = toU8(kData[line]);
+      const std::u8string run = toUtf8(kData[line]);
       group.child(text(run, fit(evangelion::condensedBold(), run, 22.0f, 286.0f,
                                 kOrange))
                       .left(151.0f)

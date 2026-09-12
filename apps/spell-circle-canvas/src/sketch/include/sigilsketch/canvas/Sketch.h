@@ -12,7 +12,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilsketch/core/Assets.h>
-#include <sigilsketch/core/CanvasSpec.h>
+#include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Device.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
@@ -39,15 +39,16 @@ namespace sigil::sketch {
  *
  *  It is a PER-FRAME value the host rebuilds, and non-copyable
  *  deliberately: capturing it in a steppable by reference dangles next
- *  frame, and capturing a copy would hold a stale spec and a stale size
- *  just as silently. Neither compiles. Capture `ctx.composer` (stable
- *  for the sketch's life) or plain data instead. */
+ *  frame, and capturing a copy would hold a stale specification and a stale
+ * size just as silently. Neither compiles. Capture `ctx.composer` (stable for
+ * the sketch's life) or plain data instead. */
 struct SketchContext {
   compose::Composer& composer;    // render()/renderSlot()/query surface
   sigil::motion::Ticker& ticker;  // steppables + choreograph timeline
   Assets& assets;                 // hot-reloading resource access
   SkSize size;                    // the current logical canvas size
-  CanvasSpec* spec = nullptr;     // host-owned; written via the calls below
+  CanvasSpecification* specification =
+      nullptr;  // host-owned; written via the calls below
   sigil::weave::FontContext* fonts = nullptr;  // measure()/snapshot() fuel
   /** Host-owned: the texture scenes `textureScene()` handed out, kept
    *  for the session's life. */
@@ -55,7 +56,8 @@ struct SketchContext {
 
   SketchContext(
       compose::Composer& composerIn, sigil::motion::Ticker& tickerIn,
-      Assets& assetsIn, SkSize sizeIn, CanvasSpec* specIn = nullptr,
+      Assets& assetsIn, SkSize sizeIn,
+      CanvasSpecification* specificationIn = nullptr,
       sigil::weave::FontContext* fontsIn = nullptr,
       bool deterministicIn = false,
       std::vector<std::shared_ptr<compose::TextureScene>>* scenesIn = nullptr)
@@ -63,7 +65,7 @@ struct SketchContext {
         ticker(tickerIn),
         assets(assetsIn),
         size(sizeIn),
-        spec(specIn),
+        specification(specificationIn),
         fonts(fontsIn),
         scenes(scenesIn),
         deterministic(deterministicIn) {}
@@ -174,35 +176,35 @@ struct SketchContext {
    *  back afterwards. The setters below write that value a field at a
    *  time, so a sketch that declares more than its size says the same
    *  thing in three or four calls; this says it in one, and a caller
-   *  that already holds a `CanvasSpec` — a kit component handed a stage,
-   *  a host replaying a declaration — hands it over rather than taking
-   *  it apart.
+   *  that already holds a `CanvasSpecification` — a kit component handed a
+   * stage, a host replaying a declaration — hands it over rather than taking it
+   * apart.
    *
    *      ctx.canvas({.size = {1080, 430}, .background = ground,
    *                  .captureSeconds = 2.78});
    *
    *  Every field is declared, defaults included: this is the value, not
    *  a patch over the one already there. */
-  void canvas(const CanvasSpec& declared) {
-    if (spec) *spec = declared;
+  void canvas(const CanvasSpecification& declared) {
+    if (specification) *specification = declared;
     size = declared.size;  // visible immediately
   }
   /** Declare the logical canvas size. Usually in setup(); calling later
    *  resizes live, applied on the next frame. */
   void canvas(float width, float height) {
-    if (spec) spec->size = {width, height};
+    if (specification) specification->size = {width, height};
     size = {width, height};  // visible immediately
   }
   /** The colour behind the scene. */
   void background(SkColor4f color) {
-    if (spec) spec->background = color;
+    if (specification) specification->background = color;
   }
   /** Declare the scene time a STILL of this sketch should be taken at —
    *  the moment the piece is most itself.
    *
    *      ctx.captureAt(7.2); // the hold at the end of the cycle */
   void captureAt(double seconds) {
-    if (spec) spec->captureSeconds = seconds;
+    if (specification) specification->captureSeconds = seconds;
   }
   /** Declare how many device pixels per canvas pixel a PLATE of this
    *  sketch is taken at — a whole number, at least one, honoured
@@ -219,7 +221,7 @@ struct SketchContext {
    *
    *      ctx.oversample(2); // one 1994 pixel is 4 canvas px, so 8 here */
   void oversample(int perCanvasPixel) {
-    if (spec) spec->oversample = std::max(1, perCanvasPixel);
+    if (specification) specification->oversample = std::max(1, perCanvasPixel);
   }
   /** DECLARE THIS SKETCH A PLATE, not a live scene. Its subject is the
    *  size of the sheet it draws, so `--bench` judges it on the cost of
@@ -229,7 +231,7 @@ struct SketchContext {
    *
    *      ctx.plate(); // a 2400×1600 sheet, judged on its capture */
   void plate() {
-    if (spec) spec->plateOnly = true;
+    if (specification) specification->plateOnly = true;
   }
   /** DECLARE THIS SKETCH'S PICTURE NONLINEAR in what went into it: it
    *  ends on a step, a round, a gate or a reciprocal, so one code value
@@ -243,7 +245,7 @@ struct SketchContext {
    *  State the ablation in the sketch's header: what the number is with
    *  the stage left out is what says the picture under it is right. */
   void nonlinearPicture() {
-    if (spec) spec->nonlinearPicture = true;
+    if (specification) specification->nonlinearPicture = true;
   }
 };
 
@@ -279,7 +281,7 @@ class Sketch {
 
 /** THE 2D KIND: a compose Element tree, reconciled by a Composer and
  *  painted onto a canvas, driven by a clock the host owns. */
-class CanvasKind final : public KindOps {
+class CanvasKind final : public KindOperations {
  public:
   using Factory = Sketch* (*)();
   explicit CanvasKind(Factory factory) : m_factory(factory) {}

@@ -4,14 +4,16 @@
 
 auto Fallout2CharSheet::describe() -> Element {
   using namespace fo;
-  Element root = stack().width(Dim(kScreenW)).height(Dim(kScreenH + kCaptionH));
+  Element root = stack()
+                     .width(Dimension(kScreenW))
+                     .height(Dimension(kScreenH + kCaptionH));
 
   // ---- the screen -----------------------------------------------------
   Element screen = box()
-                       .left(Dim(0))
-                       .top(Dim(0))
-                       .width(Dim(kScreenW))
-                       .height(Dim(kScreenH))
+                       .left(Dimension(0))
+                       .top(Dimension(0))
+                       .width(Dimension(kScreenW))
+                       .height(Dimension(kScreenH))
                        .clip()
                        .fill(plateMat);
   // the cast-metal tooth and the rust, as layer elements: each composites

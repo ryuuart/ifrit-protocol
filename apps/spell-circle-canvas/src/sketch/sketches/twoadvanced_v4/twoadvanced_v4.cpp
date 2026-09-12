@@ -31,10 +31,10 @@ auto TwoAdvancedV4::describe() -> Element {
                             "dock      dock      dock"},
                // clang-format on
                .gap = {8, 0}})
-          .left(Dim(24))
-          .top(Dim(0))
+          .left(Dimension(24))
+          .top(Dimension(0))
           .width(1892)
-          .height(Dim(1530));
+          .height(Dimension(1530));
   for (Element panel :
        {audioModule(), navBar(), masthead(), mainframe(), featureSystem(),
         auxiliary(), pressUpdates(), subSystem(), legalStrip(), footerDock()})
@@ -137,9 +137,9 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   // measure the press entries at the well's own wrap width, so the
   // auto-scroll walks the REAL overflow rather than a guessed one
   pressOverflow = std::max(
-      0.0f,
-      ctx.measure(box().width(Dim(kPressWellW)).child(pressList())).height() -
-          kPressWellH);
+      0.0f, ctx.measure(box().width(Dimension(kPressWellW)).child(pressList()))
+                    .height() -
+                kPressWellH);
 
   // --- the instanced chevron array in the footer dock ---
   dockAtlas = std::make_shared<instancing::Atlas>(2.0f);

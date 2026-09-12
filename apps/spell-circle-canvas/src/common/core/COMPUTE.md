@@ -119,7 +119,7 @@ INDEX — neighbouring indices are unrelated, which is what a per-stamp
 jitter wants and what a displacement, a drift or a flow cannot use.
 `noise::Field` reads the same `noise::lattice` mixer at a point, so points
 near each other read near values and the two agree about what a seed means.
-It is one value with props and not a header per kind: Perlin, simplex and
+It is one value with properties and not a header per kind: Perlin, simplex and
 cellular noise are the `kind`, fBm is `octaves` with `gain` and
 `lacunarity`, ridged and billowed noise is the `fold`, a tileable field is
 a `period`, a warped one is `warp`. Eight of those are plain numbers and
@@ -153,9 +153,9 @@ both say so.
 ## Which of these a theme may carry
 
 A drawing's look is chosen once and read in many places, and
-`reconcile/Env.h` is how a value chosen once reaches every reader without
-being passed through them: `env::Provide<T>` binds it for a describe scope
-and `env::inherited<T>()` reads it any number of levels down, at no cost to
+`reconcile/Environment.h` is how a value chosen once reaches every reader without
+being passed through them: `environment::Provide<T>` binds it for a describe scope
+and `environment::inherited<T>()` reads it any number of levels down, at no cost to
 the prune, because an inherited value is read DURING describe and lands in
 the reading node's own description. Two of the values above are shaped for
 exactly that, and they are shaped for it on purpose:
@@ -171,7 +171,7 @@ exactly that, and they are shaped for it on purpose:
   sheet's paper agree instead of ten arguments being re-spelled at each
   call.
 
-`Env.h` binds two conditions on anything carried this way, and both are why
+`Environment.h` binds two conditions on anything carried this way, and both are why
 these are structs of plain members with a defaulted `==`. A binding is
 keyed by its C++ TYPE, so a token group is its own small struct and there
 is no name-keyed lookup to invent. And a derived value must be MATERIALISED
@@ -182,7 +182,7 @@ seed and the source, never a stream that has already been drawn from.
 
 The line between a token and an argument runs through the same place in
 both: WHAT the look is, is chosen for the sheet; WHERE it is read, is the
-call's own. A field's props are a token and the point it is evaluated at is
+call's own. A field's properties are a token and the point it is evaluated at is
 an argument; a chance's seed and source are a token and the shape drawn
 from it is an argument. Nothing here binds anything — this library holds no
 theme and knows of no drawing — it only says which of its values are shaped

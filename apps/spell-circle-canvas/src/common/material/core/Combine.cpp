@@ -61,7 +61,7 @@ std::string_view slangFile(Blend blend) {
 
 std::shared_ptr<const Recipe> make(Blend blend) {
   return std::make_shared<const Recipe>(
-      Recipe::of<OverParams>(stackName(blend))
+      Recipe::of<OverParameters>(stackName(blend))
           .child("base")
           .child("top")
           .child("mask")
@@ -75,7 +75,7 @@ std::shared_ptr<const Recipe> make(Blend blend) {
  *  everything else a body names it defines itself. */
 std::vector<std::string> renamed(const Recipe& recipe) {
   std::vector<std::string> names;
-  for (const Field& f : recipe.params().fields) names.push_back(f.name);
+  for (const Field& f : recipe.parameters().fields) names.push_back(f.name);
   for (const std::string& slot : recipe.children()) names.push_back(slot);
   return names;
 }
@@ -132,19 +132,19 @@ std::string composedSlang(Blend blend, const Recipe* operands[3]) {
  *  its operands needs nothing composed — and the composed Slang one. */
 std::shared_ptr<const Recipe> composeRecipe(Blend blend,
                                             const Recipe* operands[3]) {
-  Schema params;
-  params.fields.push_back({"amount", Kind::Float, 1, 0});
-  params.byteSize = sizeof(float);
+  Schema parameters;
+  parameters.fields.push_back({"amount", Kind::Float, 1, 0});
+  parameters.byteSize = sizeof(float);
   for (int i = 0; i < 3; ++i)
-    for (const Field& f : operands[i]->params().fields) {
+    for (const Field& f : operands[i]->parameters().fields) {
       Field copy = f;
       copy.name = std::string(kOperands[i].prefix) + f.name;
-      copy.offset = params.byteSize;
-      params.byteSize += f.floats * sizeof(float);
-      params.fields.push_back(std::move(copy));
+      copy.offset = parameters.byteSize;
+      parameters.byteSize += f.floats * sizeof(float);
+      parameters.fields.push_back(std::move(copy));
     }
 
-  Recipe recipe = Recipe::of(stackName(blend), params);
+  Recipe recipe = Recipe::of(stackName(blend), parameters);
   recipe.child("base").child("top").child("mask");
   for (int i = 0; i < 3; ++i) {
     for (const std::string& slot : operands[i]->children())
@@ -233,7 +233,7 @@ void carry(Material& out, const Material* operands[3]) {
   for (int i = 0; i < 3; ++i) {
     const Material& operand = *operands[i];
     const std::string prefix = kOperands[i].prefix;
-    for (const Field& f : operand.recipe().params().fields) {
+    for (const Field& f : operand.recipe().parameters().fields) {
       if (f.offset + f.floats * sizeof(float) > operand.bytes().size())
         continue;
       const auto* values =
@@ -284,19 +284,19 @@ const std::shared_ptr<const Recipe>& overRecipe(Blend blend) {
 
 Material over(Material base, Material top, Material mask, Blend blend,
               float amount) {
-  const std::shared_ptr<const Recipe> recipe =
-      composed(blend, base.recipePtr(), top.recipePtr(), mask.recipePtr());
+  const std::shared_ptr<const Recipe> recipe = composed(
+      blend, base.recipePointer(), top.recipePointer(), mask.recipePointer());
   const auto fill = [&](Material out) {
     out.child("base", std::move(base));
     out.child("top", std::move(top));
     out.child("mask", std::move(mask));
     return out;
   };
-  if (!recipe) return fill(Material(overRecipe(blend), OverParams{amount}));
+  if (!recipe) return fill(Material(overRecipe(blend), OverParameters{amount}));
 
   // A composed recipe's ABI is its operands' fields and not one struct's,
   // so its values are written field by field rather than poured from a
-  // params struct.
+  // parameter struct.
   Material out(recipe);
   out.set("amount", amount);
   const Material* operands[3] = {&base, &top, &mask};

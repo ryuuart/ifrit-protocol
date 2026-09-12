@@ -180,7 +180,7 @@ Entry entryOf(const char* name) {
 
 ThumbnailRun runInto(const std::filesystem::path& out, std::string stem) {
   ThumbnailRun run;
-  run.out = out;
+  run.outputPath = out;
   run.stem = std::move(stem);
   run.maxDimension = 64;
   return run;
@@ -204,7 +204,7 @@ TEST(ThumbnailStore, ASetIsDrawnOnTheCpuWhateverTheProcessInstalled) {
   useRuntime({});
 
   EXPECT_EQ(ThumbnailOutcome::Wrote, outcome);
-  EXPECT_TRUE(std::filesystem::exists(run.out));
+  EXPECT_TRUE(std::filesystem::exists(run.outputPath));
   EXPECT_EQ(reached.load(), 0)
       << "the still went through the runtime the process installed";
 }
@@ -229,7 +229,7 @@ TEST(ThumbnailStore, ACanvasIsPaintedOnTheCpuWhateverTheProcessInstalled) {
   usePainterRuntime({});
 
   EXPECT_EQ(ThumbnailOutcome::Wrote, outcome);
-  EXPECT_TRUE(std::filesystem::exists(run.out));
+  EXPECT_TRUE(std::filesystem::exists(run.outputPath));
   EXPECT_EQ(reached.load(), 0)
       << "the still went through the painter the process installed";
 }
@@ -380,7 +380,7 @@ TEST(ThumbnailRender, AWalkLetGoAnswersWithoutFinishingIt) {
   // last one drawn — and every one of the thousands after it is not.
   EXPECT_EQ(kStopAfter, g_frames.load());
   EXPECT_LT(g_frames.load(), kWholeWalk);
-  EXPECT_FALSE(std::filesystem::exists(run.out))
+  EXPECT_FALSE(std::filesystem::exists(run.outputPath))
       << "a walk let go leaves no still behind";
 }
 
@@ -397,7 +397,7 @@ TEST(ThumbnailRender, AWalkPastItsBudgetIsAbandoned) {
   EXPECT_EQ(ThumbnailOutcome::OverBudget,
             renderThumbnail(entry, fonts(), assets(), run));
   EXPECT_LT(g_frames.load(), kWholeWalk);
-  EXPECT_FALSE(std::filesystem::exists(run.out));
+  EXPECT_FALSE(std::filesystem::exists(run.outputPath));
 }
 
 TEST(ThumbnailRender, ASketchThatDeclaredItselfAPlateIsNotWalked) {
@@ -409,13 +409,13 @@ TEST(ThumbnailRender, ASketchThatDeclaredItselfAPlateIsNotWalked) {
   EXPECT_EQ(ThumbnailOutcome::Heavy,
             renderThumbnail(entry, fonts(), assets(), run));
   EXPECT_EQ(0, g_frames.load()) << "setup ran; the walk did not";
-  EXPECT_FALSE(std::filesystem::exists(run.out));
+  EXPECT_FALSE(std::filesystem::exists(run.outputPath));
 
   // …and a run asked for the heavy ones draws it like any other.
   run.heavy = true;
   EXPECT_EQ(ThumbnailOutcome::Wrote,
             renderThumbnail(entry, fonts(), assets(), run));
-  EXPECT_TRUE(std::filesystem::exists(run.out));
+  EXPECT_TRUE(std::filesystem::exists(run.outputPath));
 }
 
 TEST(ThumbnailRender, AWalkInsideItsBudgetWritesTheStill) {
@@ -429,7 +429,7 @@ TEST(ThumbnailRender, AWalkInsideItsBudgetWritesTheStill) {
   EXPECT_EQ(ThumbnailOutcome::Wrote,
             renderThumbnail(entry, fonts(), assets(), run));
   EXPECT_GT(g_frames.load(), 0);
-  EXPECT_TRUE(std::filesystem::exists(run.out));
+  EXPECT_TRUE(std::filesystem::exists(run.outputPath));
   EXPECT_TRUE(thumbnailNote(dir.path, "plate", "cccc").empty())
       << "a still that landed leaves nothing standing in for it";
 }

@@ -27,16 +27,18 @@ constexpr uint64_t kMeshLifetime = 2;
  *  A PRIMITIVE lane makes the vertices unshared: its value belongs to a
  *  triangle, and a vertex two triangles meet at cannot hold two of them.
  *  Without one the mesh's own indices stand. */
-void fillVertices(const mesh::Mesh& mesh, std::string_view primColorLane,
+void fillVertices(const mesh::Mesh& mesh, std::string_view primitiveColorLane,
                   std::vector<MeshVertex>* vertices,
                   std::vector<uint32_t>* indices) {
   const size_t n = mesh.vertexCount();
   const bool hasNormals = mesh.normals.size() == n;
   const bool hasUvs = mesh.uvs.size() == n;
   const bool hasColors = mesh.colors.size() == n;
-  const std::vector<glm::vec4>* prim =
-      primColorLane.empty() ? nullptr : mesh.primIf(primColorLane);
-  if (prim && prim->size() != mesh.triangleCount()) prim = nullptr;
+  const std::vector<glm::vec4>* primitive =
+      primitiveColorLane.empty() ? nullptr
+                                 : mesh.primitiveIf(primitiveColorLane);
+  if (primitive && primitive->size() != mesh.triangleCount())
+    primitive = nullptr;
 
   const auto write = [&](size_t i, glm::vec4 tint) {
     MeshVertex v;
@@ -55,14 +57,14 @@ void fillVertices(const mesh::Mesh& mesh, std::string_view primColorLane,
     v.color[1] = c.g;
     v.color[2] = c.b;
     v.color[3] = c.a;
-    v.prim[0] = tint.r;
-    v.prim[1] = tint.g;
-    v.prim[2] = tint.b;
-    v.prim[3] = tint.a;
+    v.primitive[0] = tint.r;
+    v.primitive[1] = tint.g;
+    v.primitive[2] = tint.b;
+    v.primitive[3] = tint.a;
     vertices->push_back(v);
   };
 
-  if (!prim) {
+  if (!primitive) {
     vertices->reserve(n);
     for (size_t i = 0; i < n; ++i) write(i, {1, 1, 1, 1});
     *indices = mesh.indices;
@@ -73,7 +75,7 @@ void fillVertices(const mesh::Mesh& mesh, std::string_view primColorLane,
   for (size_t t = 0; t + 2 < mesh.indices.size(); t += 3)
     for (size_t k = 0; k < 3; ++k) {
       indices->push_back((uint32_t)vertices->size());
-      write(mesh.indices[t + k], (*prim)[t / 3]);
+      write(mesh.indices[t + k], (*primitive)[t / 3]);
     }
 }
 
@@ -105,7 +107,7 @@ MeshResidency::~MeshResidency() = default;
 
 const MeshBuffers* MeshResidency::upload(uint64_t artefact,
                                          const mesh::Mesh& mesh,
-                                         std::string_view primColorLane) {
+                                         std::string_view primitiveColorLane) {
   if (mesh.positions.empty() || mesh.indices.size() < 3) return nullptr;
   MeshBuffers& buffers = m_meshes[artefact];
   buffers.used = m_frame;
@@ -113,13 +115,13 @@ const MeshBuffers* MeshResidency::upload(uint64_t artefact,
   // lane and once without is two packings — unshared vertices carrying a
   // tint per triangle, and the mesh's own shared ones — so the held pair
   // answers only the lane it was packed for.
-  if (buffers.vertices && buffers.primColorLane == primColorLane)
+  if (buffers.vertices && buffers.primitiveColorLane == primitiveColorLane)
     return &buffers;
 
   std::vector<MeshVertex> vertices;
   std::vector<uint32_t> indices;
-  fillVertices(mesh, primColorLane, &vertices, &indices);
-  buffers.primColorLane = primColorLane;
+  fillVertices(mesh, primitiveColorLane, &vertices, &indices);
+  buffers.primitiveColorLane = primitiveColorLane;
 
   buffers.vertices.Release();
   buffers.indices.Release();
@@ -145,11 +147,11 @@ const MeshBuffers* MeshResidency::upload(uint64_t artefact,
 }
 
 const MeshBuffers* MeshResidency::stream(const mesh::Mesh& mesh,
-                                         std::string_view primColorLane) {
+                                         std::string_view primitiveColorLane) {
   if (mesh.positions.empty() || mesh.indices.size() < 3) return nullptr;
   std::vector<MeshVertex> vertices;
   std::vector<uint32_t> indices;
-  fillVertices(mesh, primColorLane, &vertices, &indices);
+  fillVertices(mesh, primitiveColorLane, &vertices, &indices);
 
   dg::IRenderDevice* renderDevice = m_device->renderDevice();
   dg::IDeviceContext* context = m_device->context();

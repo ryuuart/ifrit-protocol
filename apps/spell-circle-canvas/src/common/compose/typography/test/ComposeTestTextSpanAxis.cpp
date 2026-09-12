@@ -95,7 +95,7 @@ TEST(TextSpanAxis, AnInvariantAxisRedrawsWithoutReshaping) {
 
   host.composer.render(box().padding(10).child(
       text(body, base)
-          .spanStyle(sigil::weave::sel::regex(u8"[0-9]+"),
+          .spanStyle(sigil::weave::selectors::regex(u8"[0-9]+"),
                      withAxis(base, "GRAD", hi))
           .key("t")));
   host.frame();
@@ -131,9 +131,9 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
   Host paintFirst(400, 120);
   paintFirst.composer.render(box().padding(10).child(
       text(body, base)
-          .spanPaint(sigil::weave::sel::regex(u8"[0-9]+"),
+          .spanPaint(sigil::weave::selectors::regex(u8"[0-9]+"),
                      sigil::weave::PaintStyle(SK_ColorRED))
-          .spanStyle(sigil::weave::sel::regex(u8"[0-9]+"),
+          .spanStyle(sigil::weave::selectors::regex(u8"[0-9]+"),
                      withAxis(base, "GRAD", hi))
           .key("t")));
   paintFirst.frame();
@@ -146,9 +146,9 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
   Host styleFirst(400, 120);
   styleFirst.composer.render(box().padding(10).child(
       text(body, base)
-          .spanStyle(sigil::weave::sel::regex(u8"[0-9]+"),
+          .spanStyle(sigil::weave::selectors::regex(u8"[0-9]+"),
                      withAxis(base, "GRAD", hi))
-          .spanPaint(sigil::weave::sel::regex(u8"[0-9]+"),
+          .spanPaint(sigil::weave::selectors::regex(u8"[0-9]+"),
                      sigil::weave::PaintStyle(SK_ColorRED))
           .key("t")));
   styleFirst.frame();

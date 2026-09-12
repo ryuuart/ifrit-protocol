@@ -159,7 +159,7 @@ SigilWeave's intercept cache keys with the stir. SigilCompose is one host —
 its `Composer` holds a `Reconciler` over its `Instance` and `ElementNode`,
 folds its Skia lanes, materials, gates and text into the proof's
 declarations, holds a `Settle` over its own content scalars, and implements
-`BakeOps` over its picture recordings. Yoga, text, paint and the meaning of
+`BakeOperations` over its picture recordings. Yoga, text, paint and the meaning of
 every term stay on its side of the seam.
 
 ## Build and test
@@ -183,7 +183,7 @@ field's:
 | `comparable/test/` | `Erased`, `Fields` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes |
 | `compute/test/` | `Fnv1a`, `Fnv1aFold`, `Combine`, `Intervals`, `Noise`, `Stream`, `ChanceStream`, `Draws`, `Shapes`, `Sequences`, `Shuffle`, `Reservoir`, `Chance`, `Field`, `NoiseField`, `Curve` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points; the curve, held to what makes it a value — two of the same shape at the same numbers are equal, two shapes at the same numbers are not, and a caller's own body compares by the same rule — and to the character each house shape is chosen for |
 | `schedule/test/` | `ScheduleParallel`, `ScheduleConcurrentIo` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once and joining every thread even when one item fails |
-| `reconcile/test/` | `Reconciler`, `Env`, `Phases`, `Reads` | the reconciler over a fake host, the inherited-value channel, the phase runner and the read ordering |
+| `reconcile/test/` | `Reconciler`, `Environment`, `Phases`, `Reads` | the reconciler over a fake host, the inherited-value channel, the phase runner and the read ordering |
 | `cache/test/` | `CacheProof`, `Volatility`, `CacheHost`, `CacheSettle`, `CacheBake`, `RebuildGuard`, `CachedValue`, `QuantizeKey` | the settled-subtree proof, the stability release and the bake seam over a fake host, and the keyed rebuild guard with the quantized key a continuous input is bucketed by |
 | `hardware/test/` | `HardwareHandle`, `MipChain` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows |
 | `hardware/test/DeviceTest.mm` | `HardwareDevice` (`gpu`) | a real device — what it comes up with, what it refuses to adopt, when a destroyed resource is really gone, who releases an imported texture, fences as timelines, and the levels a texture is built with |
@@ -199,7 +199,7 @@ One file per subject, named for what it asserts: `HashTest`,
 `compute/test/`; `ErasedTest` in `comparable/test/` (the erasure and the
 field pin are one subject — what a value needs before anything can decide
 it did not change — and a consumer takes both or neither); `ParallelTest`
-and `ConcurrentIoTest` in `schedule/test/`; `ReconcilerTest`, `EnvTest`,
+and `ConcurrentIoTest` in `schedule/test/`; `ReconcilerTest`, `EnvironmentTest`,
 `PhasesTest` and `ReadsTest` in `reconcile/test/`; `VolatilityTest`,
 `SettleTest`, `BakeTest` and `RebuildTest` in `cache/test/`; `HandleTest`,
 `MipChainTest` and `DeviceTest` in `hardware/test/`.

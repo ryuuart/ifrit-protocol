@@ -56,16 +56,19 @@ TEST(KitColumns, ABalancedRunIsShallowerThanTheDepthItWasGiven) {
 TEST(KitColumns, ASpannerBreaksTheChainAndTheRunAboveItIsBalanced) {
   Host host(400, 900);
   const auto draw = [&] {
-    host.composer.render(box().absolute().inset(0).child(kit::columns(
-        {.story = article(),
-         .count = 3,
-         .gutter = 20,
-         .width = 360,
-         .height = 300,
-         .spanners = {{sigil::weave::sel::line(11),
-                       box().key("plate").width(Dim(360)).height(Dim(24)).fill(
-                           red())}},
-         .composer = &host.composer})));
+    host.composer.render(box().absolute().inset(0).child(
+        kit::columns({.story = article(),
+                      .count = 3,
+                      .gutter = 20,
+                      .width = 360,
+                      .height = 300,
+                      .spanners = {{sigil::weave::selectors::line(11),
+                                    box()
+                                        .key("plate")
+                                        .width(Dimension(360))
+                                        .height(Dimension(24))
+                                        .fill(red())}},
+                      .composer = &host.composer})));
     host.frame();
   };
   draw();  // the first draw has no layout to read the selector off
@@ -96,8 +99,9 @@ TEST(KitColumns, TheRunBelowTheSpannerResumesWhereTheOneAboveRanOut) {
          .gutter = 20,
          .width = 360,
          .height = 300,
-         .spanners = {{sigil::weave::sel::line(11),
-                       box().key("plate").width(Dim(360)).height(Dim(24))}},
+         .spanners =
+             {{sigil::weave::selectors::line(11),
+               box().key("plate").width(Dimension(360)).height(Dimension(24))}},
          .composer = &host.composer})));
     host.frame();
   };
@@ -109,7 +113,7 @@ TEST(KitColumns, TheRunBelowTheSpannerResumesWhereTheOneAboveRanOut) {
   // the spanner and in none of the run below it.
   const auto lineIn = [&](const char* key, uint32_t line) {
     return !host.composer
-                .units(key, sigil::weave::sel::line(line),
+                .units(key, sigil::weave::selectors::line(line),
                        sigil::weave::Unit::Line)
                 .empty();
   };
@@ -132,9 +136,9 @@ TEST(KitColumns, ARunWhoseFramesStateNoDepthInPixelsIsLeftAlone) {
           .child(frame(article())
                      .key("a")
                      .thread("b")
-                     .width(Dim(170.0f))
+                     .width(Dimension(170.0f))
                      .balanceChain())
-          .child(frame(article()).key("b").width(Dim(170.0f)))));
+          .child(frame(article()).key("b").width(Dimension(170.0f)))));
   host.frame();
   EXPECT_GT(require(host.composer.bounds("a")).height(), 0);
 }

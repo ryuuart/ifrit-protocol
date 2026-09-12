@@ -15,8 +15,8 @@ is the leaf the erased seam value on a description comes from.
 | `reconcile/Reconciler.h` | `Reconciler<Host, Node, Description>` — `render()`, `replaceContent()`, `patch()`, `patchChildren()`, `resolveMemo()`, `keyOf()`, `matchKeyOf()`, `indexKeys()`, `stats()`, `frame()`, and its `KeyIndex` |
 | `reconcile/Host.h` | the `ReconcileHost` concept — the operations a host implements — and `DescriptionValue` |
 | `reconcile/Node.h` | `Node<Derived, Description>` — the tree skeleton a host's node derives from: `parent`, `description`, `memoShell`, `children` |
-| `reconcile/Memo.h` | `Memo<Produced>` — a deferred describe and its key: `props`, `equal`, `invoke`, `env` |
-| `reconcile/Env.h` | `env::Provide`, `env::inherited`, `env::inheritedOr`, `env::bound`, and the `env::Snapshot`, `env::capture`, `env::Restore` a memo is built on |
+| `reconcile/Memo.h` | `Memo<Produced>` — a deferred describe and its key: `properties`, `equal`, `invoke`, `environment` |
+| `reconcile/Environment.h` | `environment::Provide`, `environment::inherited`, `environment::inheritedOr`, `environment::bound`, and the `environment::Snapshot`, `environment::capture`, `environment::Restore` a memo is built on |
 | `reconcile/Phases.h` | `Phase<Impl>` and `runPhases` — a host's declared pass list with its converging group |
 | `reconcile/Reads.h` | `Facet`, `Read`, `orderByReads` — what one node reads off another, and the order that puts every reader after what it read |
 | `reconcile/Stats.h` | `ReconcileStats` — the pass counts, and `report()` into `sigil::measure::Counters` |
@@ -62,7 +62,7 @@ struct Host {
   static const Memo<DescriptionPtr>* memoOf(const DescriptionPtr& d) {
     return d->memo ? &*d->memo : nullptr;
   }
-  static DescriptionPtr produce(const Memo<DescriptionPtr>& m) { return m.invoke(m.props); }
+  static DescriptionPtr produce(const Memo<DescriptionPtr>& m) { return m.invoke(m.properties); }
 
   // acting on a node
   std::unique_ptr<Instance> create(const DescriptionPtr& d, Instance* parent,
@@ -134,17 +134,17 @@ readers caught in one keep their declaration order — so a cyclic
 declaration is a slightly-off pass rather than a hang, which is the same
 bargain the convergence cap makes.
 
-**A memo is a pure function of (props, environment).** A description can be
-a memo shell: props, a comparison over them, and a deferred describe. The
-reconciler compares the shell's captured environment first and its props
+**A memo is a pure function of (properties, environment).** A description can be
+a memo shell: properties, a comparison over them, and a deferred describe. The
+reconciler compares the shell's captured environment first and its properties
 second against the shell the node was last described from; on a hit the
 node's payload stands and the describe is skipped, on a miss the describe
-runs under the environment its author had (`env::Restore`) and the result
+runs under the environment its author had (`environment::Restore`) and the result
 becomes the payload. The shell rides on the node as `memoShell`; the
 payload is `description`.
 
-**An inherited value lands in the description.** `env::Provide<T>` binds a
-value for a describe scope and `env::inherited<T>()` reads it four levels
+**An inherited value lands in the description.** `environment::Provide<T>` binds a
+value for a describe scope and `environment::inherited<T>()` reads it four levels
 down; the value is read DURING describe and lands in the reading node's own
 description, so the prune is already an exact dependency tracker and no
 phase learns a new concept. The environment reaches the kernel only through

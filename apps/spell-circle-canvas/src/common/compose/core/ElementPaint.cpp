@@ -14,7 +14,7 @@ Element& Element::fill(motion::Animatable<Fill> f) {
   // fill after a live-material fill must actually take effect (and release
   // the node from the live-volatile path). staticMaterial must drop too, or
   // a stale equal-comparing recipe would over-prune this new fill.
-  // Dropping the WHOLE block (not just its members) keeps propsEqual's
+  // Dropping the WHOLE block (not just its members) keeps propertiesEqual's
   // block-presence check aligned with a node that never had a material.
   m_node->materialData = {};
   return *this;

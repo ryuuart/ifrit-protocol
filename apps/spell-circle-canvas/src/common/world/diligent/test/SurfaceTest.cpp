@@ -106,13 +106,13 @@ TEST(SurfaceSlots, AnEmissiveMapCarriesItsOwnColour) {
 
   // Emission is the map TIMES the strength, so a surface with no
   // strength emits nothing whatever its slot holds — which is what makes
-  // the stock params say "not an emitter" rather than "a white one".
-  material::kit::SurfaceParams params;
-  params.baseColor = {0.1f, 0.1f, 0.1f, 1.0f};
-  params.emissive = {1, 1, 1, 1};
-  material::Material dark = material::kit::surface(params);
-  params.emissiveStrength = 1;
-  material::Material glowing = material::kit::surface(params);
+  // the stock parameters say "not an emitter" rather than "a white one".
+  material::kit::SurfaceParameters parameters;
+  parameters.baseColor = {0.1f, 0.1f, 0.1f, 1.0f};
+  parameters.emissive = {1, 1, 1, 1};
+  material::Material dark = material::kit::surface(parameters);
+  parameters.emissiveStrength = 1;
+  material::Material glowing = material::kit::surface(parameters);
   glowing.child(material::kit::kEmissiveSlot,
                 flat("world.test.emissive", {0.9f, 0.2f, 0.2f, 1.0f}));
 
@@ -126,10 +126,10 @@ TEST(SurfaceSlots, AnOpacityCutoutDropsTexelsOutright) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
-  material::kit::SurfaceParams params;
-  params.baseColor = {0.9f, 0.5f, 0.2f, 1.0f};
-  params.alphaCutoff = 0.5f;
-  material::Material cut = material::kit::surface(params);
+  material::kit::SurfaceParameters parameters;
+  parameters.baseColor = {0.9f, 0.5f, 0.2f, 1.0f};
+  parameters.alphaCutoff = 0.5f;
+  material::Material cut = material::kit::surface(parameters);
   cut.child(material::kit::kOpacitySlot,
             drawnTexture("world.test.opacity", 2, 1, [](SkCanvas& canvas) {
               canvas.clear(SK_ColorWHITE);
@@ -187,10 +187,10 @@ TEST(SurfaceSlots, ASlotDressedInWhiteIsTheSamePictureAsOneDressedInNothing) {
   // an undressed surface and one dressed with white in every slot a
   // scalar multiplies must be the SAME picture — not a near one — which
   // is the whole of what "white means no map here" claims.
-  const material::kit::SurfaceParams params{
+  const material::kit::SurfaceParameters parameters{
       .baseColor = {0.7f, 0.55f, 0.3f, 1.0f}};
-  const material::Material plain = material::kit::surface(params);
-  material::Material white = material::kit::surface(params);
+  const material::Material plain = material::kit::surface(parameters);
+  material::Material white = material::kit::surface(parameters);
   const material::Texture texel = flat("world.test.white", SkColors::kWhite);
   white.child(material::kit::kRoughnessSlot, texel);
   white.child(material::kit::kMetallicSlot, texel);
@@ -312,8 +312,9 @@ material::EnvironmentMap hemispheres(SkColor4f above, SkColor4f below) {
   }
   const SkImageInfo info = SkImageInfo::Make(
       kWidth, kHeight, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
-  return material::EnvironmentMap::fromEquirect(SkImages::RasterFromPixmapCopy(
-      {info, pixels.data(), (size_t)kWidth * 4 * sizeof(float)}));
+  return material::EnvironmentMap::fromEquirectangular(
+      SkImages::RasterFromPixmapCopy(
+          {info, pixels.data(), (size_t)kWidth * 4 * sizeof(float)}));
 }
 
 /** A set carrying @p sky and nothing else — no body, no emitter — so
@@ -432,11 +433,13 @@ TEST(Environment, AMirrorWearsTheSkyAndAMatteSurfaceIsLitByIt) {
     return plateOf(frame, on.runtime);
   };
 
-  material::kit::SurfaceParams mirror = material::kit::SurfaceParams::chrome();
+  material::kit::SurfaceParameters mirror =
+      material::kit::SurfaceParameters::chrome();
   mirror.baseColor = {1, 1, 1, 1};
   const SkBitmap chrome = photographWith(material::kit::surface(mirror));
-  const SkBitmap matte = photographWith(material::kit::surface(
-      material::kit::SurfaceParams::dielectric({0.1f, 0.6f, 0.1f, 1}, 0.9f)));
+  const SkBitmap matte = photographWith(
+      material::kit::surface(material::kit::SurfaceParameters::dielectric(
+          {0.1f, 0.6f, 0.1f, 1}, 0.9f)));
 
   const SkColor4f mirrored = at(chrome, 0.5f, 0.5f);
   const SkColor4f diffuse = at(matte, 0.5f, 0.5f);

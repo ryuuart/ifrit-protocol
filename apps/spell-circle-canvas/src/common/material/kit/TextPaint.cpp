@@ -19,13 +19,15 @@ namespace {
 
 std::shared_ptr<const Recipe> make(const char* name,
                                    std::string_view shaderName) {
-  return std::make_shared<const Recipe>(Recipe::of<TextPaintParams>(name).body(
-      Target::SkSL, std::string(shaderSource(shaderName))));
+  return std::make_shared<const Recipe>(
+      Recipe::of<TextPaintParameters>(name).body(
+          Target::SkSL, std::string(shaderSource(shaderName))));
 }
 
 }  // namespace
 
-TextPaintParams textPaintParams(const SkRect& bounds, float timeSeconds) {
+TextPaintParameters textPaintParameters(const SkRect& bounds,
+                                        float timeSeconds) {
   return {{bounds.left(), bounds.top()},
           {std::max(1.0f, bounds.width()), std::max(1.0f, bounds.height())},
           timeSeconds,
@@ -38,7 +40,7 @@ const std::shared_ptr<const Recipe>& waterRecipe() {
 }
 
 Material water(const SkRect& bounds, float timeSeconds) {
-  return Material(waterRecipe(), textPaintParams(bounds, timeSeconds));
+  return Material(waterRecipe(), textPaintParameters(bounds, timeSeconds));
 }
 
 const std::shared_ptr<const Recipe>& meshGradientRecipe() {
@@ -47,7 +49,8 @@ const std::shared_ptr<const Recipe>& meshGradientRecipe() {
 }
 
 Material meshGradient(const SkRect& bounds, float timeSeconds) {
-  return Material(meshGradientRecipe(), textPaintParams(bounds, timeSeconds));
+  return Material(meshGradientRecipe(),
+                  textPaintParameters(bounds, timeSeconds));
 }
 
 const std::shared_ptr<const Recipe>& sparkleRecipe() {
@@ -56,7 +59,7 @@ const std::shared_ptr<const Recipe>& sparkleRecipe() {
 }
 
 Material sparkle(const SkRect& bounds, float timeSeconds) {
-  return Material(sparkleRecipe(), textPaintParams(bounds, timeSeconds));
+  return Material(sparkleRecipe(), textPaintParameters(bounds, timeSeconds));
 }
 
 const std::shared_ptr<const Recipe>& starNestRecipe() {
@@ -65,7 +68,7 @@ const std::shared_ptr<const Recipe>& starNestRecipe() {
 }
 
 Material starNest(const SkRect& bounds, float timeSeconds) {
-  return Material(starNestRecipe(), textPaintParams(bounds, timeSeconds));
+  return Material(starNestRecipe(), textPaintParameters(bounds, timeSeconds));
 }
 
 const std::shared_ptr<const Recipe>& cloudsRecipe() {
@@ -74,7 +77,7 @@ const std::shared_ptr<const Recipe>& cloudsRecipe() {
 }
 
 Material clouds(const SkRect& bounds, float timeSeconds) {
-  return Material(cloudsRecipe(), textPaintParams(bounds, timeSeconds));
+  return Material(cloudsRecipe(), textPaintParameters(bounds, timeSeconds));
 }
 
 const std::shared_ptr<const Recipe>& tunnelRecipe() {
@@ -83,7 +86,7 @@ const std::shared_ptr<const Recipe>& tunnelRecipe() {
 }
 
 Material tunnel(const SkRect& bounds, float timeSeconds) {
-  return Material(tunnelRecipe(), textPaintParams(bounds, timeSeconds));
+  return Material(tunnelRecipe(), textPaintParameters(bounds, timeSeconds));
 }
 
 std::vector<RampStop> sunsetChromeText() {

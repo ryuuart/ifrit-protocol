@@ -10,16 +10,18 @@ using namespace sigil::weave;
 
 namespace gallery {
 
-bool BodyCache::ensure(const SceneParams& params, const QString& fallbackText,
+bool BodyCache::ensure(const SceneParameters& parameters,
+                       const QString& fallbackText,
                        const sk_sp<SkTypeface>& fallbackTypeface) {
-  const QString& text = params.text.isEmpty() ? fallbackText : params.text;
+  const QString& text =
+      parameters.text.isEmpty() ? fallbackText : parameters.text;
   const sk_sp<SkTypeface>& typeface =
-      params.typeface ? params.typeface : fallbackTypeface;
-  return m_guard.ensure({text, typeface.get(), params.fontSize}, [&] {
+      parameters.typeface ? parameters.typeface : fallbackTypeface;
+  return m_guard.ensure({text, typeface.get(), parameters.fontSize}, [&] {
     paragraph.clear();
     // Zero-copy: QString and Paragraph both store UTF-16.
     sigil::weave::qt::appendText(
-        paragraph, text, makeStyle(params.fontSize, kInk, "", typeface));
+        paragraph, text, makeStyle(parameters.fontSize, kInk, "", typeface));
   });
 }
 

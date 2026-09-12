@@ -288,8 +288,8 @@ void stamp(SkCanvas& canvas, const PaintContext& ctx, Atlas& atlas,
   // nothing on some of them, including when a picture recorded elsewhere
   // replays there.
   skia::draw::SpriteBatch batch;
-  batch.xforms = xforms;
-  batch.tex = tex;
+  batch.transforms = xforms;
+  batch.sourceRectangles = tex;
   if (tinted) batch.colors = colors;
   if (nonUniform) batch.sizes = sizes;
   skia::draw::drawSpriteAtlas(canvas, atlas.image(), batch,
@@ -346,9 +346,9 @@ Element instances(std::shared_ptr<Atlas> atlas,
         .inset(0)
         .cache(Cache::None);
   }
-  detail::DataProps props{atlas, pool, pool->revision(), atlas->revision(),
-                          blend};
-  return memo(std::move(props), [](const detail::DataProps& p) {
+  detail::DataProps properties{atlas, pool, pool->revision(), atlas->revision(),
+                               blend};
+  return memo(std::move(properties), [](const detail::DataProps& p) {
     return custom([atlas = p.atlas, pool = p.pool, blend = p.blend](
                       SkCanvas& canvas, const PaintContext& ctx) {
              detail::stamp(canvas, ctx, *atlas, *pool, blend);

@@ -33,16 +33,16 @@
 
 namespace sigil::material {
 
-/** The equirect convention every consumer of this value shares:
+/** The equirectangular convention every consumer of this value shares:
  *  `u = 0.5 + atan2(d.x, -d.z) / 2pi`, `v = acos(d.y) / pi`. So v = 0 is
  *  the zenith (+y), v = 1 the nadir, and u = 0.5 looks along -z — the
  *  direction a camera with no rotation faces. */
-SkV2 equirectUv(SkV3 direction);
-/** The inverse of `equirectUv`: the unit direction a panorama texel
+SkV2 equirectangularUv(SkV3 direction);
+/** The inverse of `equirectangularUv`: the unit direction a panorama texel
  *  stands for. */
-SkV3 equirectDirection(SkV2 uv);
+SkV3 equirectangularDirection(SkV2 uv);
 
-/** An equirect panorama with the two prefiltered readings a lit body
+/** An equirectangular panorama with the two prefiltered readings a lit body
  *  needs. A copyable handle; copies share one cache and compare equal, so
  *  a renderer can key a device texture on the value itself. */
 class EnvironmentMap {
@@ -55,20 +55,20 @@ class EnvironmentMap {
   EnvironmentMap() = default;
 
   /** Bake a panorama from @p radiance, called once per texel with the
-   *  equirect coordinates that texel stands for and answering linear
+   *  equirectangular coordinates that texel stands for and answering linear
    *  RGB. The width is the panorama's; the height is half of it. This is
    *  the seam a procedural sky is written against — the named bakes live
    *  in the kit. */
   static EnvironmentMap baked(
       int width, const std::function<SkV3(float u, float v)>& radiance);
-  /** Wrap a loaded equirect panorama (LDR, or F16/F32 with HDR range
+  /** Wrap a loaded equirectangular panorama (LDR, or F16/F32 with HDR range
    *  intact). This is the primary form a photographed sky arrives in. */
-  static EnvironmentMap fromEquirect(sk_sp<SkImage> image);
+  static EnvironmentMap fromEquirectangular(sk_sp<SkImage> image);
 
   /** The six faces of a cube map, in the order every graphics API names
    *  them: +x, -x, +y, -y, +z, -z, each looking outward with +y up. */
   using Faces = std::array<sk_sp<SkImage>, 6>;
-  /** Resample six cube faces into one equirect panorama. @p width is the
+  /** Resample six cube faces into one equirectangular panorama. @p width is the
    *  panorama's width (height is half); 0 asks for four times a face's
    *  edge, which keeps the texel density a face had at the equator. */
   static EnvironmentMap fromFaces(const Faces& faces, int width = 0);
@@ -95,7 +95,7 @@ class EnvironmentMap {
    *  into `kLevels` and cached. */
   sk_sp<SkImage> image(float roughness = 0) const;
   /** `image(roughness)` as a texture that repeats in azimuth and clamps
-   *  at the poles — the sampling an equirect panorama has to have. */
+   *  at the poles — the sampling an equirectangular panorama has to have. */
   Texture texture(float roughness = 0) const;
   /** The panorama's pixel size. */
   SkISize size() const;

@@ -1,7 +1,7 @@
 /** @file
  * THE COMPOSITES — a brush that is other brushes. The layered stack every
- * stroke is built out of; the geometry op that deviates an outline before
- * a mark is laid on it; `brush::Weave`, which resolves a set of strands
+ * stroke is built out of; the geometry operation that deviates an outline
+ * before a mark is laid on it; `brush::Weave`, which resolves a set of strands
  * into one crossing picture; `Brush` itself, whose layers each take their
  * own shapers over the pipeline's; and `brush::Restyled`, one decoration
  * on a deviated outline.
@@ -51,7 +51,8 @@ void LayeredBrush::paint(SkCanvas& c, const PaintContext& ctx) const {
   }
 }
 
-GeometryOp::GeometryOp(geometry::path::Shaper s) : m_bleed(s.bleed()) {
+GeometryOperation::GeometryOperation(geometry::path::Shaper s)
+    : m_bleed(s.bleed()) {
   m_held = s;
   m_equals = [](const std::any& a, const std::any& b) {
     return std::any_cast<const geometry::path::Shaper&>(a) ==
@@ -233,17 +234,17 @@ void Brush::paint(SkCanvas& c, const PaintContext& ctx) const {
       layerPath = g.shape(layerPath);
     PaintContext restyled = ctx;
     restyled.outline = std::move(layerPath);
-    l.dec.paint(c, restyled);
+    l.decoration.paint(c, restyled);
   }
 }
 
 namespace brush {
 
 void Restyled::paint(SkCanvas& c, const PaintContext& ctx) const {
-  // No null check: GeometryOp::apply passes the path through unchanged
+  // No null check: GeometryOperation::apply passes the path through unchanged
   // when it holds nothing.
   PaintContext restyled = ctx;
-  restyled.outline = op.apply(ctx.outline);
+  restyled.outline = operation.apply(ctx.outline);
   inner.paint(c, restyled);
 }
 

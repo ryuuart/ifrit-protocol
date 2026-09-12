@@ -547,14 +547,14 @@ TEST(ComposeBrushEngine, AGeometryOpComparesByTheShaperItHolds) {
   // The op a restyle carries is comparable when it was built from a
   // comparable shaper, and never when it was built from a raw callable —
   // which is the whole difference between the two doors.
-  const GeometryOp wave{
+  const GeometryOperation wave{
       geometry::shapers::Wave{.amplitude = 8, .wavelength = 24}};
-  const GeometryOp same{
+  const GeometryOperation same{
       geometry::shapers::Wave{.amplitude = 8, .wavelength = 24}};
-  const GeometryOp wider{
+  const GeometryOperation wider{
       geometry::shapers::Wave{.amplitude = 12, .wavelength = 24}};
-  const GeometryOp raw{
-      geometry::path::ops::PathOp([](const SkPath& p) { return p; })};
+  const GeometryOperation raw{geometry::path::operations::PathOperation(
+      [](const SkPath& p) { return p; })};
   EXPECT_TRUE(wave == same);
   EXPECT_FALSE(wave == wider);
   EXPECT_FALSE(raw == raw);

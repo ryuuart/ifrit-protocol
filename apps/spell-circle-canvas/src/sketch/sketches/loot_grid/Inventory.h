@@ -34,7 +34,7 @@ namespace field = sigil::material::field;
 namespace mpattern = sigil::material::pattern;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
@@ -247,8 +247,8 @@ inline Element artwork(Art art, float w, float h, SkColor4f tint,
                          std::min(1.0f, tint.fB * 1.55f + 0.20f), 1};
   const SkColor4f lo{tint.fR * 0.32f, tint.fG * 0.32f, tint.fB * 0.32f, 1};
   return box()
-      .width(Dim(w))
-      .height(Dim(h))
+      .width(Dimension(w))
+      .height(Dimension(h))
       .shape(artPath(art))
       .fill(Paint::linear({0, 0}, {w * 0.35f, h},
                           {{0.0f, hi}, {0.55f, tint}, {1.0f, lo}}))
@@ -324,8 +324,8 @@ inline float spanW(int cells) { return cellRect(0, 0, cells, 1).width(); }
  *  says the depth and the lip says where the surface breaks. */
 inline Element well(float w, float h, float alpha = 1.0f) {
   return sketch::kit::well(
-      {.width = Dim(w),
-       .height = Dim(h),
+      {.width = Dimension(w),
+       .height = Dimension(h),
        .ground =
            Paint::linear({0, 0}, {0, h},
                          {{0.0f, {kWellLo.fR, kWellLo.fG, kWellLo.fB, alpha}},
@@ -340,8 +340,8 @@ inline Element well(float w, float h, float alpha = 1.0f) {
 /** The bronze-framed stone panel every part of this UI sits in. */
 inline Element panel(float w, float h) {
   return box()
-      .width(Dim(w))
-      .height(Dim(h))
+      .width(Dimension(w))
+      .height(Dimension(h))
       .corners({4})
       .background(styles::dropShadow({0, 0, 0, 0.65f}, {0, 7}, 16))
       .fill(Paint::linear({0, 0}, {0, h}, {{0.0f, kStoneHi}, {1.0f, kStoneLo}}))
@@ -373,8 +373,8 @@ inline Element panel(float w, float h) {
 inline Element rivets(float w, float h, float inset = 11) {
   auto stud = [](float x, float y) {
     return box()
-        .width(Dim(6.0f))
-        .height(Dim(6.0f))
+        .width(Dimension(6.0f))
+        .height(Dimension(6.0f))
         .corners({3})
         .left(x - 3)
         .top(y - 3)

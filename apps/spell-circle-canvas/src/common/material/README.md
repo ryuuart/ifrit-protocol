@@ -20,7 +20,7 @@ set by role), bakes the two textures a reflective surface is shaded from
 and frame sequences.
 
 The shading model the authoring tools export for — metallic-roughness,
-with a map per role — is a preset like any other: one params struct is
+with a map per role — is a preset like any other: one parameter struct is
 its ABI, one child slot per map, and the choice between the lit and the
 unlit recipe is what the surface IS. Local variation on top of it is not
 a bespoke recipe per pair but a composition: `over(base, top, mask)`
@@ -32,7 +32,7 @@ border, glow and shadow in one pass over a signed distance), **pattern**
 (a tile baked once with a mapping and an explicit reseed, the stock
 tiles over it, and the woven cloth a sett and a weave make), and **field** (the halftone ramp, Perlin noise, luminance
 grain, the ripple, the CRT overlay). Under the core sits **colour**, the
-leaf: the colour value a params struct holds, the OKLab, OKLCH and
+leaf: the colour value a parameter struct holds, the OKLab, OKLCH and
 CIELAB round trips, the ramp as one value, the harmonies read around a
 hue, the dither threshold a pixel is rounded against and the table a run
 of pixels is made of — all of it linking nothing; above the texture
@@ -62,8 +62,8 @@ directory, each a static archive that links only what sits beneath it:
 
 | target | holds | links |
 |--------|-------|-------|
-| `SigilMaterialColor` | `Color`, `rgb()`, `hsv()`, the three mixes and `luminance()`, `RampStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Params.h` includes | SigilCoreCompute |
-| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
+| `SigilMaterialColor` | `Color`, `rgb()`, `hsv()`, the three mixes and `luminance()`, `RampStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Parameters.h` includes | SigilCoreCompute |
+| `SigilMaterialCore` | the value model: `Target`, `Parameters`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `texture::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson privately |
 | `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as baked materials, over the 3D-LUT `lutRecipe()` and the per-channel `responseRecipe()` | SigilMaterialTexture; OpenColorIO privately, when found |
@@ -122,7 +122,7 @@ auto glow = std::make_shared<const Recipe>(
 Material m(glow, Glow{1.0f, {1, 0.8f, 0.2f, 1}, {}});
 m.bind("uScale", &scaleOutput);        // a choreograph::Output<float>
 m.bind("uBars", spectrumBlock);        // a shared_ptr<UniformBlock>, 8 floats
-m.child("uSrc", Material(gradientRecipe, GradientParams{...}));
+m.child("uSrc", Material(gradientRecipe, GradientParameters{...}));
 
 // A renderer, per frame:
 FrameData frame{.seconds = clock.now(), .resolution = {w, h}};
@@ -154,7 +154,7 @@ A surface from the kit reads the same way, its slots filled with textures:
 #include <sigilmaterial/texture/Surface.h>
 
 const EnvironmentMap studio = kit::studioEnvironment();
-kit::ChromeParams steel;
+kit::ChromeParameters steel;
 steel.brushed = 0.6f;
 steel.roughness = 0.2f;
 // bevelNormals() places its map at the outline's bounds, so the recipe
@@ -165,7 +165,7 @@ skia::fill(canvas, outline, badge);   // per frame; the program is cached
 
 ## Mental model
 
-**A params struct is the ABI, and the bytes are the upload.** Every field
+**A parameter struct is the ABI, and the bytes are the upload.** Every field
 type is some count of floats with float alignment — `float`, `glm::vec2`,
 `glm::vec4`, `std::array<float, N>`, `Color` — so a struct of them has no
 padding and its memory image is exactly the uniform data in declaration
@@ -185,7 +185,7 @@ and names the recipe and the field on stderr once per pair, beside the
 reports for an unknown field and a wrong float count. The value is still
 written; the report is about the picture, not the bytes.
 
-It is asked at the WRITE and not at the compile because a params struct
+It is asked at the WRITE and not at the compile because a parameter struct
 carrying a field this recipe's kind has no use for is a shared ABI and
 not a mistake — the three `sdf` silhouettes are one struct whose `uP0..2`
 mean something different in each — and a struct poured in whole says
@@ -204,7 +204,7 @@ equality use the pointer. Define a recipe once and hold it in a
 A definition a renderer can only finish at draw — a body rewritten around
 an array size or a constant nothing knew earlier — is a SPECIALIZATION:
 `m.withRecipe(r)` is the same instance over a second recipe of the same
-params layout, so the values, bindings and children carry over and the two
+parameters layout, so the values, bindings and children carry over and the two
 definitions compile and cache apart. Hold the specializations, one per
 distinct constant, or the cache fills with a definition per draw.
 
@@ -231,7 +231,7 @@ material resolved for a target its recipe has no body for — or one no
 compiler is registered for, or one whose body fails to compile — yields a
 null program, and the cache reports it to stderr exactly once per (recipe,
 target), naming both, so the mistake surfaces at the first describe rather
-than scrolling past every frame. A body that compiles but leaves a params
+than scrolling past every frame. A body that compiles but leaves a parameters
 field unread is reported the same way.
 
 **One program cache.** `ProgramCache::shared()` holds every compiled
@@ -259,7 +259,7 @@ they were committed.
 
 **Frame inputs are declared, then injected.** `Recipe::frame(FrameInput)`
 declares that the body reads `uTime`, `uResolution`, `uContentScale` or
-`uWorld`; the declaration adds the uniform after the params and
+`uWorld`; the declaration adds the uniform after the parameters and
 `resolve()` fills it from the `FrameData`. Time and content scale make a
 material `isAnimated()`; resolution and the world transform make it
 `geometryDependent()`. `quantizeTime(hz)` snaps the time a material sees
@@ -277,7 +277,7 @@ changed.
 **A slot is declared to the target that samples it, and to no other.**
 A slot belongs to the recipe, but each target's generated declarations
 carry only the slots ITS body spells — `Recipe::samples(target, slot)` is
-that reading, the one `readsField` takes of a params field, and a target
+that reading, the one `readsField` takes of a parameter field, and a target
 with no body answers yes. The two sets differ where one language reaches
 a child material and another cannot: a composed stack declares a slot per
 operand's own slot for the language handed one body per material, and the
@@ -344,12 +344,12 @@ slot — is the renderer's rule, not this library's.
 
 **A surface is shaded from two textures.** `EnvironmentMap` is the
 panorama a surface sees when it looks past the lights — equirectangular,
-u = azimuth, v = 0 at the zenith, with `equirectUv` and
-`equirectDirection` as the one convention every consumer shares. Sources
+u = azimuth, v = 0 at the zenith, with `equirectangularUv` and
+`equirectangularDirection` as the one convention every consumer shares. Sources
 resolve into that single form while the value is built: `baked()` runs a
 radiance function over the panorama (the kit's `studioEnvironment()` and
 `sunsetEnvironment()` are two written against it, and need no assets),
-`fromEquirect()` wraps a loaded
+`fromEquirectangular()` wraps a loaded
 lat-long panorama, `fromFaces()` resamples six cube faces and
 `fromCubeMap()` unpacks one sheet — a 4:3 or 3:4 cross, a 6:1 row or a
 1:6 column — into the same. A cube map arrives as an ordinary image
@@ -400,7 +400,7 @@ material whose red channel is read as a scalar; `blend` is `Mix`, `Add`
 or `Multiply`, one recipe each so a body carries no branch; `amount` is
 how strongly the top shows where the mask is fully on, which is the
 stack's own strength rather than a second answer about where it applies.
-It is a parameter of the call because a COMPOSED stack has no params
+It is a parameter of the call because a COMPOSED stack has no parameters
 struct to write afterwards — its ABI is its operands' fields — so a
 caller who did not know to write the field by name would get a stack at
 full strength and read it as a wrong mask. `under(m)`
@@ -510,7 +510,7 @@ graticule is a PLANE DISTANCE — a meridian is the plane through the
 poles at its longitude, a parallel the plane at its own sine — so a
 rule's width is measured in the sphere's own space and the crowding
 toward the limb and toward the poles falls out of the arithmetic instead
-of being drawn. `GlobeParams`'s `ambient` and `diffuse` are what a point
+of being drawn. `GlobeParameters`'s `ambient` and `diffuse` are what a point
 keeps at the limb and what it gains facing the eye, which is the whole of
 what makes the disc read as a ball, and the alpha falls to nothing across
 `edgeFeather` so nothing outside the disc is painted. The reading is ONE
@@ -526,7 +526,7 @@ into its own gradient, and nothing else: which highlight a bundle shows
 and how deep its bevel cuts are knobs on that renderer's decorations, so
 its option sets are its own. The text paints
 — `water`, `meshGradient`, `sparkle`, `starNest`, `clouds`, `tunnel` —
-share the `TextPaintParams` ABI of a run's origin and extent, the clock
+share the `TextPaintParameters` ABI of a run's origin and extent, the clock
 and a slow motion vector; `sunsetChromeText()` and `silverChromeText()`
 are the chrome-type ramps in unit space.
 
@@ -565,7 +565,7 @@ sum), `environmentReflection` (the additive one), `refraction`,
 own absorption is a uniform of that name and a term compiled beside one
 would be an ambiguous reference), `emission`, `occlusion` — beside the display transform
 every lit sum ends at, `luminance` and `toneMap`, and the panorama's own
-geometry, `equirectUv`, `equirectDirection` and `roughnessLevel`. No
+geometry, `equirectangularUv`, `equirectangularDirection` and `roughnessLevel`. No
 term is a whole shading model and none has to be physically complete to
 be useful: a surface calls the ones it needs, the way a shader graph in
 an authoring tool is a composition of nodes.
@@ -597,7 +597,7 @@ export qualifiers taken off. Nothing in it uses a construct the two
 languages spell differently, the transcendentals included, which are
 written out as polynomials for the reason a portable subset exists at
 all: a library `atan2` is two pieces of code on two targets, and an
-equirect lookup that disagreed between them would put a seam down the
+equirectangular lookup that disagreed between them would put a seam down the
 middle of a reflection.
 
 `skSLFromSlang` is that crossing, and any text may be handed to it. It
@@ -611,13 +611,13 @@ both, and a source written for this crossing accepts that in exchange for
 being one source: no texture sampling, no construct one language has and
 the other does not.
 
-**The metallic-roughness surface** is `kit::SurfaceParams` — base
+**The metallic-roughness surface** is `kit::SurfaceParameters` — base
 colour, metallic, roughness, emission, the normal convention, the channel
 each packed map is read from, the cutout threshold and the glass terms,
 which are transmission, index of refraction, thickness and the
 Beer-Lambert absorption a medium takes out of what passes through it —
 under two recipes over the same ABI: `kit::surface()` takes light,
-`kit::unlit()` is its own light. `SurfaceParams::chrome()`, `gold()`,
+`kit::unlit()` is its own light. `SurfaceParameters::chrome()`, `gold()`,
 `metal(tint, roughness)`, `dielectric(colour, roughness)` and `glass()`
 are the compositions the kit ships. `Reflection` is how the environment
 reaches a lit surface — `SplitSum`, where the surface's own reflectance
@@ -643,7 +643,7 @@ and the glass terms have no effect on either body. `surface()` shades the
 albedo attenuated by occlusion plus its emission — the ambient-only
 evaluation of the model — and `unlit()` shades the albedo alone.
 
-A renderer that HAS the surface attributes reads the same params and
+A renderer that HAS the surface attributes reads the same parameters and
 slots, and the lit Slang body tells it what the surface IS beyond its
 colour: how rough, how metallic, how much light passes through it at what
 index through what thickness of what medium, and how the environment
@@ -676,7 +676,7 @@ all three of its operands have a body for.
 
 `kit::gold`, `kit::chrome` and `kit::glass` are recipes over two slots,
 `normals` and `env` (glass adds `backdrop`, an image of what sits behind
-the shape in the same device coordinates). Each params struct's fields
+the shape in the same device coordinates). Each parameter struct's fields
 are the body's uniforms by name, with two exceptions the comments state:
 `roughness` picks the environment level when the material is built, and
 `envSize` is filled by the builder. Real reflection models sampled per
@@ -690,19 +690,19 @@ at all, and all four are the same construction: a RAMP of the material's
 own tones, a GRAIN of value noise folded into the colour as light rather
 than as hue — which is what keeps a coloured surface from reading as
 rainbow terrazzo — and a SPECKLE in some fraction of the cells of a
-lattice. What differs is the ramp. `kit::StoneParams` runs a bed of `hi`
+lattice. What differs is the ramp. `kit::StoneParameters` runs a bed of `hi`
 and `lo` at `bedAngle` over `bedLength`, flecked in its own tones;
-`kit::TimberParams` is a planed board, a flat face between a narrow lit
+`kit::TimberParameters` is a planed board, a flat face between a narrow lit
 arris and a narrow shadowed one across its `span`, with `flip` to light
 the far edge and `along` to turn the piece down local y, so one recipe
-boards a lattice's rails and its posts; `kit::LattenParams` is sheet
+boards a lattice's rails and its posts; `kit::LattenParameters` is sheet
 brass, whose one colour and many lights are a three-tone LADDER — a
 piece's `level` is where on it that face sits, and `sheen` drifts that
 position along the run from `from` to `to`, which is how one light
 crosses two hundred nodes of one instrument — and `kit::lattenTone`
 reads that ladder on the CPU, at a position along the same run, for the
 stroke or the gradient stop that takes a colour and cannot take a
-material; `kit::BoardParams` is a flat
+material; `kit::BoardParameters` is a flat
 `paint` under a fine tooth and a slow wear. Every length is in pixels
 rather than in the box, because a tessera is cut from a slab and its
 grain does not scale with the piece, and `seed` offsets every field, so
@@ -714,9 +714,9 @@ does.
 **A field of a thousand pieces banks its materials.** A paving whose
 every sett differs cannot afford a material per sett — a material is a
 program and a resolve — so `Bank` bounds them: `bank.get(recipe,
-params, seed)` folds the seed into one of `buckets()` and answers the
-instance for that (recipe, params, bucket) triple, minting it once. The
-params' BYTES are their identity, which `schema<P>()` proves is sound by
+parameters, seed)` folds the seed into one of `buckets()` and answers the
+instance for that (recipe, parameters, bucket) triple, minting it once. The
+parameters' BYTES are their identity, which `schema<P>()` proves is sound by
 refusing a struct that is not packed floats, so two pieces of one species
 in one bucket are one material and a second tone is a second species. The
 seeded form writes the bucket into a `seed` field and ignores whatever
@@ -822,7 +822,7 @@ and a plate shot close: a hard line at `uScanPitch`, the beam's own
 profile at `uBeamPitch` and `uBeamFalloff`, the beat a composite signal
 carries under it at `uBeatPitch`, `uGrain` moving how much light a cell
 gives up, and the corner falloff. The positional `crtOverlay(scanPitch,
-…)` is the hard line alone; `crtOverlay(CrtOverlayParams)` is the whole
+…)` is the hard line alone; `crtOverlay(CrtOverlayParameters)` is the whole
 tube.
 
 ## The Skia paint
@@ -833,6 +833,14 @@ tree of solids, ramps, images, buffers, SkSL effects and blend layers;
 the three volatility tiers it declares by what it reads; the unit-square
 ramps that need no box size written down; and `skia::Effect`, the
 post-processing recipe over a layer a consumer has already rendered.
+
+`skia::Effect::recipe(material)` captures the material's uniforms and child
+slots when constructed. Static captures compare by material value and compiled
+program, so describing the same effect again can reuse a retained layer.
+Captures with live inputs compare by their built filter's identity: a binding
+names its source rather than the value captured from it. Re-describe to sample
+those inputs again. Surface-specific lowering to a colour filter retains that
+filter's own identity.
 
 ## Warming every program
 
@@ -943,8 +951,8 @@ the feature they cover:
 | `stock/test/` | that the catalogue holds every feature catalogue, and that the warm-up compiles every program it gathered | — |
 | `MaterialGpu` | every body this library ships, on a device | `gpu` |
 
-The core's cases cover params reflection —
-including that the schema IS the params struct's own layout, read off
+The core's cases cover parameters reflection —
+including that the schema IS the parameter struct's own layout, read off
 `offsetof` rather than off the numbers this compiler happened to choose —
 recipe identity against definition equality, the program cache's keys, a
 compile held open until every concurrent request has arrived so the fold

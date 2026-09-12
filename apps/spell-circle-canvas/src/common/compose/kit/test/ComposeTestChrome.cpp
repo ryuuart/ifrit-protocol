@@ -6,7 +6,7 @@
 #include <include/core/SkColor.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/kit/Chrome.h>
-#include <sigilcore/reconcile/Env.h>
+#include <sigilcore/reconcile/Environment.h>
 
 #include "support/ShapeTestSupport.h"
 
@@ -30,7 +30,7 @@ constexpr int kX = 20, kY = 20, kW = 100, kH = 60;
  *  wants. */
 Element panel(const kit::Bevel& b) {
   return box().padding(kX).child(
-      box().width(Dim(kW)).height(Dim(kH)).fill(kFace).overlay(b));
+      box().width(Dimension(kW)).height(Dimension(kH)).fill(kFace).overlay(b));
 }
 
 /** The pixel at (x, y) of the FACE's own coordinates. */
@@ -174,7 +174,8 @@ TEST(KitChrome, DressingAPanelPutsTheInnerRingOverItsContent) {
   kit::Bevel b = plain();
   b.inner = kit::BevelInner{6, {1, 1, 1, 1}, {0, 0, 0, 1}, 1, 1, false};
   const auto panelWith = [&](bool dressed) {
-    Element face = box().width(Dim(kW)).height(Dim(kH)).fill(kFace).padding(6);
+    Element face =
+        box().width(Dimension(kW)).height(Dimension(kH)).fill(kFace).padding(6);
     if (dressed)
       kit::bevelled(face, b);
     else
@@ -299,9 +300,12 @@ TEST(KitChrome, AMaskedMitredRingDrawsOnlyTheSidesItNames) {
 
 TEST(KitChrome, AStippleTakesEveryOtherCellAndLeavesTheRest) {
   Host host(140, 100);
-  host.composer.render(box().padding(kX).child(
-      box().width(Dim(kW)).height(Dim(kH)).fill(kFace).overlay(
-          styles::stipple({1, 0, 0, 1}))));
+  host.composer.render(
+      box().padding(kX).child(box()
+                                  .width(Dimension(kW))
+                                  .height(Dimension(kH))
+                                  .fill(kFace)
+                                  .overlay(styles::stipple({1, 0, 0, 1}))));
   host.frame();
   // stipple(x, y) = (x + y) is even, at one pixel per cell.
   for (int y = 0; y < 4; ++y)
@@ -327,9 +331,12 @@ TEST(KitChrome, ADitherTakesAsManyCellsAsItsToneAsksFor) {
 
 TEST(KitChrome, ThePixelLatticeStippleDrawsInsideTheOutline) {
   Host host(140, 100);
-  host.composer.render(box().padding(kX).child(
-      box().width(Dim(kW)).height(Dim(kH)).fill(kFace).overlay(
-          styles::stipple({1, 0, 0, 1}))));
+  host.composer.render(
+      box().padding(kX).child(box()
+                                  .width(Dimension(kW))
+                                  .height(Dimension(kH))
+                                  .fill(kFace)
+                                  .overlay(styles::stipple({1, 0, 0, 1}))));
   host.frame();
   // Nothing outside the face: a tile drawn over the bounds and clipped to
   // nothing would flood the host.
@@ -414,10 +421,12 @@ TEST(KitChrome, TheThemeCarriesTheEraToEveryPanelUnderIt) {
   // Every use site says "the bevel of the window I am in" and nothing
   // else, which is the whole point of the token set.
   const auto describe = [](kit::Bevel era) {
-    const sigil::core::env::Provide<kit::Bevel> bound(era);
-    return box().padding(kX).child(
-        box().width(Dim(kW)).height(Dim(kH)).fill(kFace).overlay(
-            kit::ambientBevel()));
+    const sigil::core::environment::Provide<kit::Bevel> bound(era);
+    return box().padding(kX).child(box()
+                                       .width(Dimension(kW))
+                                       .height(Dimension(kH))
+                                       .fill(kFace)
+                                       .overlay(kit::ambientBevel()));
   };
   Host host(140, 100);
   host.composer.render(describe(plain()));
@@ -426,7 +435,7 @@ TEST(KitChrome, TheThemeCarriesTheEraToEveryPanelUnderIt) {
   EXPECT_EQ(at(host, 50, kH - 1), SK_ColorBLUE);
 
   // Unbound, the fallback stands: a panel outside any era is not undrawn.
-  EXPECT_FALSE(sigil::core::env::bound<kit::Bevel>());
+  EXPECT_FALSE(sigil::core::environment::bound<kit::Bevel>());
   kit::Bevel fallback = plain();
   fallback.sunken = true;
   EXPECT_TRUE(kit::ambientBevel(fallback).sunken);
@@ -443,8 +452,11 @@ TEST(KitChrome, ABevelUnderASpanGateKeepsItsRingInsideTheShape) {
   // panel's 320 px is the lower half of the LEFT edge and nothing else.
   // Its implicit closure is a straight line enclosing nothing at all.
   auto face = [](float reveal) {
-    Element panel =
-        box().width(Dim(kW)).height(Dim(kH)).fill(kFace).overlay(plain());
+    Element panel = box()
+                        .width(Dimension(kW))
+                        .height(Dimension(kH))
+                        .fill(kFace)
+                        .overlay(plain());
     panel.mask(by::spans(spans::upTo(reveal)));
     return box().padding(kX).child(std::move(panel));
   };

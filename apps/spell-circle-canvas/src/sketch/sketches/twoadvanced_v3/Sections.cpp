@@ -16,7 +16,8 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
   // leaf patched onto a container trips the layout engine.
   const std::string key =
       kit::formatted("sec:%d:%d", sec, settle >= 1.0f ? 1 : (int)(settle * 14));
-  Element art = box().key(key).width(Dim(kStageW)).height(Dim(kArtH)).clip();
+  Element art =
+      box().key(key).width(Dimension(kStageW)).height(Dimension(kArtH)).clip();
   const ImagePtr& bg = sec < 0 ? homeBg : sectionBg[(size_t)sec];
   if (bg)
     art.fill(stretchFill(bg, kStageW, kArtH));
@@ -102,7 +103,8 @@ Element TwoAdvancedV3::transitionArt(int fromSec, int toSec, int step) {
   using namespace tv3;
   const float f = (float)step / 14.0f;
   const std::string key = kit::formatted("trans:%d:%d", fromSec, toSec);
-  Element out = box().key(key).width(Dim(kStageW)).height(Dim(kArtH)).clip();
+  Element out =
+      box().key(key).width(Dimension(kStageW)).height(Dimension(kArtH)).clip();
   out.child(box().inset(0).child(sectionArt(fromSec, 1.0f)));
   out.child(box().inset(0).child(sectionArt(toSec, f)).mask(by::edge(0, f)));
   // the leading band, one step wide, brightest at mid-sweep
@@ -118,7 +120,7 @@ Element TwoAdvancedV3::module(const char* glyph, const char* barLabel,
                               Element body, int order) {
   using namespace tv3;
   return box()
-      .width(Dim(kPanelW))
+      .width(Dimension(kPanelW))
       .column()
       .child(moduleBar(glyph, barLabel, kPanelW))
       .child(
@@ -319,7 +321,7 @@ Element TwoAdvancedV3::support2a() {
   auto half = [&](const char* head, const char* copy, const char* btn) {
     return box()
         .grow(1)
-        .basis(Dim(0))
+        .basis(Dimension(0))
         .column()
         .gap(4)
         .alignItems(Align::Center)
@@ -355,7 +357,7 @@ Element TwoAdvancedV3::follow2a() {
   if (socialSprite) {
     // The sprite is authored @2x (436×32); the layout shows it at 1×.
     const float iw = (float)socialSprite->width() * 0.5f;
-    icons.width(Dim(iw)).fill(stretchFill(socialSprite, iw, 16));
+    icons.width(Dimension(iw)).fill(stretchFill(socialSprite, iw, 16));
   } else {
     icons.row().gap(12);
     for (int i = 0; i < 7; ++i)

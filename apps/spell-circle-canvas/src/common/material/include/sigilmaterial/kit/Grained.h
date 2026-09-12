@@ -43,7 +43,7 @@ namespace sigil::material::kit {
  *  fleck in `speckle` of the cells of a `speckleCell` px lattice, each
  *  either the light tone brightened or the dark one darkened, laid over
  *  at `speckleAlpha`. */
-struct StoneParams {
+struct StoneParameters {
   Color hi = {0.87f, 0.84f, 0.77f, 1};
   Color lo = {0.73f, 0.69f, 0.63f, 1};
   float bedAngle = 24.0f;  ///< degrees
@@ -69,7 +69,7 @@ struct StoneParams {
  *  they read; `tooth` and `toothScale` are the luminance grain, with
  *  `stretch` running it along the piece. Keep `toothScale · stretch`
  *  under about a tenth or the tooth aliases to hash. */
-struct TimberParams {
+struct TimberParameters {
   Color base = {0.84f, 0.74f, 0.54f, 1};
   Color light = {0.96f, 0.90f, 0.77f, 1};
   Color dark = {0.56f, 0.42f, 0.23f, 1};
@@ -95,7 +95,7 @@ struct TimberParams {
  *  instrument. `tooth` is the tooling's grain; `patina` is the fraction
  *  of `patinaCell` px cells carrying a fleck of `patinaColor`, whose
  *  alpha is its strength. */
-struct LattenParams {
+struct LattenParameters {
   Color shadow = {0.36f, 0.27f, 0.18f, 1};
   Color body = {0.63f, 0.53f, 0.26f, 1};
   Color light = {1.0f, 0.86f, 0.55f, 1};
@@ -116,7 +116,7 @@ struct LattenParams {
  *  painted. `tooth` and `toothScale` are the fine grain, `stretch` runs
  *  it one way; `wear` and `wearScale` are the slow blotch that makes one
  *  board differ from the next. */
-struct BoardParams {
+struct BoardParameters {
   Color paint = {0.91f, 0.89f, 0.84f, 1};
   float tooth = 0.08f;
   float toothScale = 0.045f;
@@ -127,22 +127,22 @@ struct BoardParams {
 };
 
 /** The recipes, defined once. None declares a child slot: every field is
- *  computed from the params and the seed. */
+ *  computed from the parameters and the seed. */
 const std::shared_ptr<const Recipe>& stoneRecipe();
 const std::shared_ptr<const Recipe>& timberRecipe();
 const std::shared_ptr<const Recipe>& lattenRecipe();
 const std::shared_ptr<const Recipe>& boardRecipe();
 
-/** A stone at @p params. */
-Material stone(const StoneParams& params = {});
-/** A board of timber at @p params. */
-Material timber(const TimberParams& params = {});
-/** A sheet of latten at @p params. */
-Material latten(const LattenParams& params = {});
-/** A painted board at @p params. */
-Material board(const BoardParams& params = {});
+/** A stone at @p parameters. */
+Material stone(const StoneParameters& parameters = {});
+/** A board of timber at @p parameters. */
+Material timber(const TimberParameters& parameters = {});
+/** A sheet of latten at @p parameters. */
+Material latten(const LattenParameters& parameters = {});
+/** A painted board at @p parameters. */
+Material board(const BoardParameters& parameters = {});
 
-/** THE LATTEN LADDER READ ON THE CPU: the colour a sheet of @p params
+/** THE LATTEN LADDER READ ON THE CPU: the colour a sheet of @p parameters
  *  shows at @p along, the position on the run from `from` to `to` where
  *  0 is `from` and 1 is `to`. It is the recipe's own reading — the
  *  level drifted by the sheen, then the three tones — so a caller that
@@ -152,6 +152,6 @@ Material board(const BoardParams& params = {});
  *  Every consumer of a `Fill` is such a caller: a stroke's paint and a
  *  ribbon's fill take a colour and a gradient, so a sheet crossing one
  *  of those is the run sampled at the two ends and the middle. */
-[[nodiscard]] Color lattenTone(const LattenParams& params, float along);
+[[nodiscard]] Color lattenTone(const LattenParameters& parameters, float along);
 
 }  // namespace sigil::material::kit

@@ -66,7 +66,7 @@ struct Beside {
  *  beside it.
  *
  *      root.child(kit::annotate(composer, "verse",
- *                               weave::sel::each(weave::Unit::Word),
+ *                               weave::selectors::each(weave::Unit::Word),
  *                               weave::Unit::Word,
  *                               {.side = Beside::Side::End, .gap = 14},
  *                               [&](const TextUnit &u) {
@@ -203,7 +203,7 @@ struct Anchored {
  *  read-back as the placement above, with the arithmetic handed over.
  *
  *      root.child(kit::annotate(composer, "verse",
- *                               weave::sel::text(u8"Ishmael"),
+ *                               weave::selectors::text(u8"Ishmael"),
  *                               weave::Unit::Word,
  *                               {.horizontal = kit::Anchored::From::Frame,
  *                                .offset = {-44, 0}},
@@ -231,11 +231,11 @@ struct Anchored {
   // reports the whole line rather than the part a selector addressed: an
   // object measured from the line is measured from all of it.
   const std::vector<TextUnit> lines =
-      wantsLine
-          ? composer.units(baseKey,
-                           sigil::weave::sel::each(sigil::weave::Unit::Line),
-                           sigil::weave::Unit::Line)
-          : std::vector<TextUnit>{};
+      wantsLine ? composer.units(
+                      baseKey,
+                      sigil::weave::selectors::each(sigil::weave::Unit::Line),
+                      sigil::weave::Unit::Line)
+                : std::vector<TextUnit>{};
   const std::optional<SkRect> frame =
       wantsFrame ? composer.bounds(baseKey) : std::nullopt;
   for (const TextUnit& entry : units) {

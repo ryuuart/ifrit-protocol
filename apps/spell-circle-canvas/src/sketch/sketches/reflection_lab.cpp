@@ -92,19 +92,20 @@ world::Element balls() {
       // The row runs across the turntable's parked station rather than
       // along it, so all four are seen face on.
       .rotateY(90.0f)
+      .child(ball(
+          "chrome", left,
+          material::kit::surface(material::kit::SurfaceParameters::chrome())))
       .child(
-          ball("chrome", left,
-               material::kit::surface(material::kit::SurfaceParams::chrome())))
-      .child(ball("rough", left + kGap,
-                  material::kit::surface(material::kit::SurfaceParams::metal(
-                      {0.85f, 0.86f, 0.88f, 1}, 0.35f))))
-      .child(
-          ball("dielectric", left + 2.0f * kGap,
-               material::kit::surface(material::kit::SurfaceParams::dielectric(
-                   {0.14f, 0.30f, 0.42f, 1}, 0.15f))))
-      .child(
-          ball("glass", left + 3.0f * kGap,
-               material::kit::surface(material::kit::SurfaceParams::glass())));
+          ball("rough", left + kGap,
+               material::kit::surface(material::kit::SurfaceParameters::metal(
+                   {0.85f, 0.86f, 0.88f, 1}, 0.35f))))
+      .child(ball(
+          "dielectric", left + 2.0f * kGap,
+          material::kit::surface(material::kit::SurfaceParameters::dielectric(
+              {0.14f, 0.30f, 0.42f, 1}, 0.15f))))
+      .child(ball(
+          "glass", left + 3.0f * kGap,
+          material::kit::surface(material::kit::SurfaceParameters::glass())));
 }
 
 }  // namespace

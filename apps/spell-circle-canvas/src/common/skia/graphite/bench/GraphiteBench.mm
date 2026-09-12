@@ -35,7 +35,7 @@ GpuDevice *device() {
 /** One render target of the size a frame actually wraps, per device: the
  *  two forms must name the same texture or they are not being compared. */
 TextureHandle target(GpuDevice &dev) {
-  TextureDesc desc;
+  TextureDescription desc;
   desc.width = 1024;
   desc.height = 1024;
   desc.format = TextureFormat::BGRA8Unorm;

@@ -143,12 +143,12 @@ struct GlowTrail final : sketch::Set {
         .pass(world::postPass("hot")
                   .reads("colour")
                   .writes("hot")
-                  .only(world::sel::tag("glow"))
+                  .only(world::selectors::tag("glow"))
                   .levels(1.9f, 0.06f, {1.0f, 0.86f, 0.66f, 1.0f}))
         // CULL: the same beads, alone, so what is softened next is the
         // emitters rather than the picture.
         .pass(world::geometryPass("emitters")
-                  .only(world::sel::tag("glow"))
+                  .only(world::selectors::tag("glow"))
                   .writes("spark"))
         .pass(
             world::postPass("bloom").reads("spark").writes("bloom").blur(11.0f))

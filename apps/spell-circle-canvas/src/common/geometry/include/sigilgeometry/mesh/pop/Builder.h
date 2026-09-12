@@ -21,7 +21,7 @@ namespace pop {
  *  values: one entry verb, chained INTENT verbs with loud defaults
  *  (seeds auto-vary; every parameter is optional), and the result
  *  IS the Chain — nothing hides in the builder, so reach into any
- *  op afterwards and re-cook. Sinks form directly:
+ *  operation afterwards and re-cook. Sinks form directly:
  *
  *    Mesh comet = pop::on(loop).count(9000).window(0.9f, 0.3f)
  *                     .spread(40).noise(18).fade(pink, cyan)
@@ -77,18 +77,19 @@ class Builder {
       m->seed = v;
     return *this;
   }
-  Builder& jitter(float amplitude, AttrRef attr = Lane::P) {
-    m_chain.emplace_back(Jitter{std::move(attr), amplitude, nextSeed()});
+  Builder& jitter(float amplitude, AttributeReference attribute = Lane::P) {
+    m_chain.emplace_back(Jitter{std::move(attribute), amplitude, nextSeed()});
     return *this;
   }
   Builder& noise(float amplitude, float frequency = 0.01f,
-                 AttrRef attr = Lane::P) {
+                 AttributeReference attribute = Lane::P) {
     m_chain.emplace_back(
-        Noise{std::move(attr), amplitude, frequency, (float)nextSeed()});
+        Noise{std::move(attribute), amplitude, frequency, (float)nextSeed()});
     return *this;
   }
-  Builder& vary(float spread, float base = 1, AttrRef attr = Lane::Scale) {
-    m_chain.emplace_back(Vary{std::move(attr), base, spread, nextSeed()});
+  Builder& vary(float spread, float base = 1,
+                AttributeReference attribute = Lane::Scale) {
+    m_chain.emplace_back(Vary{std::move(attribute), base, spread, nextSeed()});
     return *this;
   }
   Builder& fade(glm::vec4 from, glm::vec4 to) {
@@ -106,13 +107,13 @@ class Builder {
     return *this;
   }
   /** Create/fill any attribute — customs included. */
-  Builder& fill(AttrRef attr, glm::vec4 value) {
-    m_chain.emplace_back(Fill{std::move(attr), value});
+  Builder& fill(AttributeReference attribute, glm::vec4 value) {
+    m_chain.emplace_back(Fill{std::move(attribute), value});
     return *this;
   }
   /** Texture hint: a stable per-point sprite-atlas cell in "Tex". */
-  Builder& atlas(int cols, int rows) {
-    m_chain.emplace_back(Atlas{cols, rows, nextSeed()});
+  Builder& atlas(int columns, int rows) {
+    m_chain.emplace_back(Atlas{columns, rows, nextSeed()});
     return *this;
   }
   /** Drive one attribute from another through a table of stops —
@@ -120,8 +121,9 @@ class Builder {
    *  reads, give the range it spans, hand over as many stops as the
    *  curve needs. `.rampBy(Lane::P, 1, {deep, shallow}, 0, 200)` is
    *  "colour by height". */
-  Builder& rampBy(AttrRef from, int component, std::vector<glm::vec4> stops,
-                  float low = 0, float high = 1, AttrRef to = Lane::Color) {
+  Builder& rampBy(AttributeReference from, int component,
+                  std::vector<glm::vec4> stops, float low = 0, float high = 1,
+                  AttributeReference to = Lane::Color) {
     m_chain.emplace_back(Lookup{std::move(from), componentWeight(component),
                                 std::move(to), std::move(stops), low, high});
     return *this;
@@ -140,15 +142,16 @@ class Builder {
     return *this;
   }
   /** ...or by any attribute's component: `.orderBy("energy")`. */
-  Builder& orderBy(AttrRef by, int component = 0, bool descending = false) {
+  Builder& orderBy(AttributeReference by, int component = 0,
+                   bool descending = false) {
     m_chain.emplace_back(
         Sort{std::move(by), componentWeight(component), descending});
     return *this;
   }
   /** Carry a point attribute onto the PRIMITIVES the sink forms —
-   *  the prim class, addressed by the same names. "Id" promotes the
+   *  the primitive class, addressed by the same names. "Id" promotes the
    *  owning point's index. An empty @p to keeps the source's name. */
-  Builder& promote(AttrRef from, std::string to = {}) {
+  Builder& promote(AttributeReference from, std::string to = {}) {
     if (to.empty()) to = from.name;
     m_chain.emplace_back(Promote{std::move(from), std::move(to)});
     return *this;
@@ -166,19 +169,19 @@ class Builder {
   /** Group the points into @p count clusters and write which one each
    *  landed in to a lane. */
   Builder& cluster(int count, std::string to = "cluster") {
-    Cluster op;
-    op.count = count;
-    op.to = std::move(to);
-    m_chain.emplace_back(std::move(op));
+    Cluster operation;
+    operation.count = count;
+    operation.to = std::move(to);
+    m_chain.emplace_back(std::move(operation));
     return *this;
   }
   /** Carry a lane over from another cloud, gathered within @p radius. */
   Builder& transfer(Cloud source, std::string lane, float radius) {
-    Transfer op;
-    op.source = std::move(source);
-    op.lane = std::move(lane);
-    op.radius = radius;
-    m_chain.emplace_back(std::move(op));
+    Transfer operation;
+    operation.source = std::move(source);
+    operation.lane = std::move(lane);
+    operation.radius = radius;
+    m_chain.emplace_back(std::move(operation));
     return *this;
   }
   /** SELECT: write a mask lane from a region. `.select("top",
@@ -221,18 +224,19 @@ class Builder {
   }
   /** The affine vocabulary on P (or any lane): pass a matrix from
    *  camera::place or glm. */
-  Builder& affine(const glm::mat4& matrix, AttrRef lane = Lane::P) {
+  Builder& affine(const glm::mat4& matrix, AttributeReference lane = Lane::P) {
     m_chain.emplace_back(Affine{std::move(lane), matrix, false});
     return *this;
   }
   /** ...and its direction twin: rotate Dir (or any direction lane)
    *  by the same matrix's upper 3x3, renormalized. */
-  Builder& orient(const glm::mat4& matrix, AttrRef lane = Lane::Dir) {
+  Builder& orient(const glm::mat4& matrix,
+                  AttributeReference lane = Lane::Dir) {
     m_chain.emplace_back(Affine{std::move(lane), matrix, true});
     return *this;
   }
   /** Push every point along its own Dir. */
-  Builder& peak(float distance, AttrRef along = Lane::Dir) {
+  Builder& peak(float distance, AttributeReference along = Lane::Dir) {
     m_chain.emplace_back(Peak{distance, std::move(along)});
     return *this;
   }
@@ -279,19 +283,21 @@ class Builder {
     return *this;
   }
   /** Blend two attributes into a third by a constant... */
-  Builder& mix(AttrRef a, AttrRef b, AttrRef to, float factor = 0.5f) {
+  Builder& mix(AttributeReference a, AttributeReference b,
+               AttributeReference to, float factor = 0.5f) {
     m_chain.emplace_back(
         Mix{std::move(a), std::move(b), std::move(to), factor, {}});
     return *this;
   }
   /** ...or by a lane's .x — "fade toward white by heat". */
-  Builder& mixBy(AttrRef a, AttrRef b, AttrRef to, std::string factorLane) {
+  Builder& mixBy(AttributeReference a, AttributeReference b,
+                 AttributeReference to, std::string factorLane) {
     m_chain.emplace_back(Mix{std::move(a), std::move(b), std::move(to), 0,
                              std::move(factorLane)});
     return *this;
   }
   /** Duplicate an attribute under another name. */
-  Builder& copy(const AttrRef& from, AttrRef to) {
+  Builder& copy(const AttributeReference& from, AttributeReference to) {
     m_chain.emplace_back(Mix{from, from, std::move(to), 0, {}});
     return *this;
   }
@@ -311,7 +317,7 @@ class Builder {
    *  @p sense — turn every one of them away from @p center (+1) or
    *  toward it (-1). */
   Builder& normal(float sense = 0, glm::vec3 center = {0, 0, 0},
-                  AttrRef lane = Lane::Dir) {
+                  AttributeReference lane = Lane::Dir) {
     Normal n;
     n.lane = std::move(lane);
     n.center = center;
@@ -319,8 +325,8 @@ class Builder {
     m_chain.emplace_back(std::move(n));
     return *this;
   }
-  /** Escape hatch: any raw op joins the chain. */
-  Builder& op(Op o) {
+  /** Escape hatch: any raw operation joins the chain. */
+  Builder& operation(Operation o) {
     m_chain.push_back(std::move(o));
     return *this;
   }

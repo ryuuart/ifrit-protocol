@@ -32,7 +32,7 @@ class SkCanvas;
 class GalleryView;
 
 using gallery::Scene;
-using gallery::SceneParams;
+using gallery::SceneParameters;
 
 // ── Render-thread side ─────────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ class GalleryViewRenderer : public QQuickRhiItemRenderer {
 #endif
   std::vector<uint32_t> m_rasterPixels;  // CPU fallback framebuffer.
 
-  SceneParams m_sceneParameters;
+  SceneParameters m_sceneParameters;
   uint64_t m_sceneParameterRevision = std::numeric_limits<uint64_t>::max();
   int m_lastSyncedSceneIndex = -1;
   QString m_sceneText;

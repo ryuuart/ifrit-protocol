@@ -50,17 +50,17 @@ QString effectsDefaultText() { return QStringLiteral("Layered glyphs"); }
 class LayerShowcasePart final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams& params,
+                    int /*frameNumber*/, const SceneParameters& parameters,
                     FontContext& fontContext) override {
     if (!m_serif) m_serif = defaultSerif(fontContext);
 
     const QString text =
-        params.text.isEmpty() ? effectsDefaultText() : params.text;
+        parameters.text.isEmpty() ? effectsDefaultText() : parameters.text;
     const sk_sp<SkTypeface>& typeface =
-        params.typeface ? params.typeface : m_serif;
-    const float fontSize = std::clamp(params.fontSize * 2.5f, 30.0f, 68.0f);
+        parameters.typeface ? parameters.typeface : m_serif;
+    const float fontSize = std::clamp(parameters.fontSize * 2.5f, 30.0f, 68.0f);
     const float paragraphFontSize =
-        std::clamp(params.fontSize * 0.85f, 14.0f, 22.0f);
+        std::clamp(parameters.fontSize * 0.85f, 14.0f, 22.0f);
 
     const float canvasWidth = static_cast<float>(size.width());
     const float canvasHeight = static_cast<float>(size.height());
@@ -298,10 +298,10 @@ class LayerShowcasePart final : public Scene {
 class EffectsScene final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
-                    int frameNumber, const SceneParams& params,
+                    int frameNumber, const SceneParameters& parameters,
                     FontContext& fontContext) override {
     const int mode =
-        std::clamp(params.intValue(QStringLiteral("mode"), 0), 0, 2);
+        std::clamp(parameters.intValue(QStringLiteral("mode"), 0), 0, 2);
     if (!m_parts[static_cast<size_t>(mode)]) {
       switch (mode) {
         case 1:
@@ -316,7 +316,7 @@ class EffectsScene final : public Scene {
       }
     }
     return m_parts[static_cast<size_t>(mode)]->render(
-        canvas, size, elapsedSeconds, frameNumber, params, fontContext);
+        canvas, size, elapsedSeconds, frameNumber, parameters, fontContext);
   }
 
  private:

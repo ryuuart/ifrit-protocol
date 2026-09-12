@@ -139,7 +139,7 @@ auto KspMapView::orbits(sketch::SketchContext& ctx) -> Element {
 
   Element g = stack().inset(0);
   auto full = [&](Element e) {
-    e.inset(0).width(Dim(W)).height(Dim(H));
+    e.inset(0).width(Dimension(W)).height(Dimension(H));
     return e;
   };
 
@@ -217,8 +217,8 @@ auto KspMapView::targetLabel(sketch::SketchContext& ctx) -> Element {
                        .offset = -9.0f,
                        .autoFlip = true})
       .inset(0)
-      .width(Dim(ctx.size.width()))
-      .height(Dim(ctx.size.height()));
+      .width(Dimension(ctx.size.width()))
+      .height(Dimension(ctx.size.height()));
 }
 
 auto KspMapView::marker(const char* label, SkPoint p, SkColor4f c, bool filled,
@@ -259,7 +259,8 @@ auto KspMapView::gizmo() -> Element {
   // one shared builder, two lengths, two fill modes
   auto arm = [&](const char* k, float bearing, float len, SkColor4f c,
                  bool solid, bool jitter) {
-    Element e = box().width(Dim(len)).height(Dim(20)).shape(paddle(len));
+    Element e =
+        box().width(Dimension(len)).height(Dimension(20)).shape(paddle(len));
     if (solid)
       e.fill(Paint::solid(c));
     else
@@ -278,8 +279,8 @@ auto KspMapView::gizmo() -> Element {
     const float rad2 = bearing * 0.017453293f;
     Element e =
         box()
-            .width(Dim(18))
-            .height(Dim(18))
+            .width(Dimension(18))
+            .height(Dimension(18))
             .shape(solid ? shapes::ring(2.6f, 3.0f) : shapes::ring(2.2f))
             .fill(Paint::solid(solid ? c : mskia::withAlpha(c, 0.62f)))
             .centerAt(arrange::onEllipse(hub, {40, 40}, rad2))
@@ -367,7 +368,7 @@ auto KspMapView::burnCard() -> Element {
                      .child(t("m/s", body(10, mskia::withAlpha(kLcd, 0.8f)))))
           .child(slot("burn"))
           .child(box()
-                     .height(Dim(1))
+                     .height(Dimension(1))
                      .fill(Paint::solid(hexColor(0x2C3238)))
                      .margin(2)),
       646, 566, 190, 88);

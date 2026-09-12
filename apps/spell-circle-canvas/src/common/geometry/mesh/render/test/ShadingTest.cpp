@@ -34,10 +34,10 @@ TEST(Shading, ThePolynomialInverseTrigonometryMeetsTheStandardLibrarys) {
 TEST(Shading, TheEquirectangularMapPutsTheZenithAtTheTopOfThePanorama) {
   using namespace sigil::geometry::mesh::render;
   // u = 0.5 looks along -z; v = 0 is the zenith.
-  const glm::vec2 forward = equirectUv({0, 0, -1});
+  const glm::vec2 forward = equirectangularUv({0, 0, -1});
   EXPECT_NEAR(forward.x, 0.5f, 2e-3f);
   EXPECT_NEAR(forward.y, 0.5f, 2e-3f);
-  EXPECT_NEAR(equirectUv({0, 1, 0}).y, 0.0f, 2e-3f);
+  EXPECT_NEAR(equirectangularUv({0, 1, 0}).y, 0.0f, 2e-3f);
 }
 
 TEST(Shading, AMetalReflectsItsOwnColourAndADielectricFourPerCent) {

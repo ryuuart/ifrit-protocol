@@ -312,8 +312,8 @@ fixed and stretchable bands `draw::detail::latticeEdges` computes, and
 `draw::drawSpriteAtlas` emits one `drawVertices` quad list sampling the
 sheet.
 
-The sprites are ONE VALUE, `draw::SpriteBatch`: four spans — `xforms`
-and `tex`, which are the draw, and `colors` and `sizes`, optional lanes
+The sprites are ONE VALUE, `draw::SpriteBatch`: four spans — `transforms`
+and `sourceRectangles`, which are the draw, and `colors` and `sizes`, optional lanes
 an empty span opts out of. They were four parallel pointers and a count,
 with nothing holding them to one length; the batch can be asked
 (`consistent()`), and a draw whose lanes disagree refuses the whole

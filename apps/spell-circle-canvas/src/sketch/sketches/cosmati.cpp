@@ -58,7 +58,7 @@ namespace mkit = sigil::material::kit;
 namespace mskia = sigil::material::skia;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
@@ -245,8 +245,8 @@ struct Cosmati final : sketch::Sketch {
     // paint-only, so they still animate over a texture that was
     // rasterized once.
     Element el = stack()
-                     .width(Dim(r * 2))
-                     .height(Dim(r * 2))
+                     .width(Dimension(r * 2))
+                     .height(Dimension(r * 2))
                      .centerAt(at)
                      .cache(Cache::Texture)
                      .opacity(animate(motion::from(0.0f).to(1.0f),
@@ -288,8 +288,8 @@ struct Cosmati final : sketch::Sketch {
     const int periods = std::max(2, (int)std::round(w / (h * 1.5f)));
     const std::chrono::milliseconds delay{420 + 70 * seed};
     Element band = stack()
-                       .width(Dim(w))
-                       .height(Dim(h))
+                       .width(Dimension(w))
+                       .height(Dimension(h))
                        .centerAt({x, y})
                        .rotate(degrees)
                        .cache(Cache::Texture)
@@ -317,8 +317,8 @@ struct Cosmati final : sketch::Sketch {
       band.child(box()
                      .left(cx - h * 0.20f)
                      .top(h * 0.30f)
-                     .width(Dim(h * 0.40f))
-                     .height(Dim(h * 0.40f))
+                     .width(Dimension(h * 0.40f))
+                     .height(Dimension(h * 0.40f))
                      .corners({h * 0.20f})
                      .fill(cs::stone(cs::kPorphyry, cs::kPorphyryLo, 30))
                      .foreground(stroke(1.0f, Fill::color(cs::kMarble))));
@@ -338,8 +338,8 @@ struct Cosmati final : sketch::Sketch {
     // alternative is re-evaluating that shader over the whole quarter on
     // every frame, which the CPU raster backend does literally.
     Element q = stack()
-                    .width(Dim(side))
-                    .height(Dim(side))
+                    .width(Dimension(side))
+                    .height(Dimension(side))
                     .left(x)
                     .top(y)
                     .cache(Cache::Texture)
@@ -391,8 +391,8 @@ struct Cosmati final : sketch::Sketch {
                              .key("floor")
                              .left(cs::kFieldX)
                              .top(cs::kFieldY)
-                             .width(Dim(cs::kFieldSide))
-                             .height(Dim(cs::kFieldSide));
+                             .width(Dimension(cs::kFieldSide))
+                             .height(Dimension(cs::kFieldSide));
 
     // THE PURBECK FRAME IS A FRAME: a shell carrying the inscription
     // band, with the mortar bed set into it by the band's own width on
@@ -413,15 +413,15 @@ struct Cosmati final : sketch::Sketch {
             .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 8}, 18)));
     floorPlate.child(
         text(
-            toU8("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
-                 "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7"),
+            toUtf8("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
+                   "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7"),
             weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
             .left(cs::kBandW)
             .top(13));
     floorPlate.child(
         text(
-            toU8("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
-                 "MCCLXVIII \xc2\xb7"),
+            toUtf8("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
+                   "MCCLXVIII \xc2\xb7"),
             weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
             .left(cs::kBandW)
             .top(cs::kFieldSide - 24));
@@ -464,9 +464,9 @@ struct Cosmati final : sketch::Sketch {
     // shaped run on a circular baseline — onPath, not 40 hand-placed
     // glyphs — and it does NOT auto-flip, because the letter-cutters
     // didn't: glyph-up points outward the whole way round.
-    floorPlate.child(text(toU8("\xc2\xb7 SPHERICVM \xc2\xb7 ARCHETYPVM "
-                               "\xc2\xb7 MVNDVM \xc2\xb7 PRIMVM \xc2\xb7 "
-                               "TRIPLEX \xc2\xb7"),
+    floorPlate.child(text(toUtf8("\xc2\xb7 SPHERICVM \xc2\xb7 ARCHETYPVM "
+                                 "\xc2\xb7 MVNDVM \xc2\xb7 PRIMVM \xc2\xb7 "
+                                 "TRIPLEX \xc2\xb7"),
                           [] {
                             namespace cs = cosmati;
                             auto t = weave::textStyle({.size = 9,
@@ -475,8 +475,8 @@ struct Cosmati final : sketch::Sketch {
                                                        .weight = 600});
                             return t;
                           }())
-                         .width(Dim(big * 1.50f))
-                         .height(Dim(big * 1.50f))
+                         .width(Dimension(big * 1.50f))
+                         .height(Dimension(big * 1.50f))
                          .centerAt({c, c})
                          .onPath({.path = shapes::arc(-90.0f, 359.9f),
                                   .at = 0.0f,
@@ -489,8 +489,8 @@ struct Cosmati final : sketch::Sketch {
         box()
             .left(-260)
             .top(-40)
-            .width(Dim(210.0f))
-            .height(Dim(cs::kFieldSide + 80))
+            .width(Dimension(210.0f))
+            .height(Dimension(cs::kFieldSide + 80))
             .rotate(14.0f)
             .translateX(motion::bind(&rake).target(-260, cosmati::kW + 260))
             .fill(Paint::linear({0, 0}, {210, 0},
@@ -508,19 +508,19 @@ struct Cosmati final : sketch::Sketch {
             .column()
             .left(px)
             .top(cs::kFieldY + 4)
-            .child(
-                text(toU8("OPUS SECTILE"), weave::textStyle({.size = 21,
-                                                             .color = cs::kInk,
-                                                             .track = 3.4f,
-                                                             .weight = 640})))
-            .child(text(toU8("Cosmatesque \xc2\xb7 Westminster "
-                             "1268"),
+            .child(text(toUtf8("OPUS SECTILE"),
+                        weave::textStyle({.size = 21,
+                                          .color = cs::kInk,
+                                          .track = 3.4f,
+                                          .weight = 640})))
+            .child(text(toUtf8("Cosmatesque \xc2\xb7 Westminster "
+                               "1268"),
                         weave::textStyle(
                             {.size = 11, .color = cs::kInkDim, .track = 1.4f}))
                        .margin(0, 6, 0, 0))
             .child(box()
-                       .width(Dim(190.0f))
-                       .height(Dim(1.0f))
+                       .width(Dimension(190.0f))
+                       .height(Dimension(1.0f))
                        .margin(0, 12, 0, 12)
                        .fill(Paint::linear({0, 0}, {190, 0},
                                            {{0.0f,
@@ -530,15 +530,15 @@ struct Cosmati final : sketch::Sketch {
                                              {cs::kGiallo.fR, cs::kGiallo.fG,
                                               cs::kGiallo.fB, 0.0f}}})))
             .child(
-                text(toU8("The governing figure is the QUINCUNX "
-                          "\xe2\x80\x94 four roundels about a "
-                          "fifth. The Great Pavement is a "
-                          "quincunx of quincunxes, 25 Roman feet "
-                          "square, laid by a Roman crew under "
-                          "Odoricus."),
+                text(toUtf8("The governing figure is the QUINCUNX "
+                            "\xe2\x80\x94 four roundels about a "
+                            "fifth. The Great Pavement is a "
+                            "quincunx of quincunxes, 25 Roman feet "
+                            "square, laid by a Roman crew under "
+                            "Odoricus."),
                      weave::textStyle(
                          {.size = 11.5f, .color = cs::kInkDim, .track = 0.2f}))
-                    .width(Dim(210.0f))));
+                    .width(Dimension(210.0f))));
 
     // the quarry legend: every stone named, with a real sample of it
     struct Quarry {
@@ -563,10 +563,10 @@ struct Cosmati final : sketch::Sketch {
     std::vector<sketch::kit::LegendEntry> quarries;
     for (const Quarry& q : kQuarries)
       quarries.push_back(
-          {.label = toU8(q.label),
+          {.label = toUtf8(q.label),
            .mark = box()
-                       .width(Dim(20.0f))
-                       .height(Dim(13.0f))
+                       .width(Dimension(20.0f))
+                       .height(Dimension(13.0f))
                        .fill(cs::stone(q.hi, q.lo, 34))
                        .foreground(stroke(
                            1.0f, Fill::color({cs::kMarble.fR, cs::kMarble.fG,

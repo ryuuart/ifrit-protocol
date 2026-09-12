@@ -23,7 +23,7 @@ sigil::core::hardware::GpuDevice *gpuDevice() {
 sigil::core::hardware::TextureHandle makeSolidTexture(int width, int height) {
   sigil::core::hardware::GpuDevice *device = gpuDevice();
   if (!device) return {};
-  sigil::core::hardware::TextureDesc desc;
+  sigil::core::hardware::TextureDescription desc;
   desc.width = width;
   desc.height = height;
   desc.format = sigil::core::hardware::TextureFormat::BGRA8Unorm;

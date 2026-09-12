@@ -60,18 +60,18 @@ auto KspMapView::navball() -> Element {
       const float halfW = (deg % 30 == 0) ? kBallR * 0.44f : kBallR * 0.26f;
       deck.child(
           box()
-              .left(Dim(mid - halfW))
-              .top(Dim(y - 0.9f))
-              .width(Dim(halfW * 2.0f))
-              .height(Dim(1.8f))
+              .left(Dimension(mid - halfW))
+              .top(Dimension(y - 0.9f))
+              .width(Dimension(halfW * 2.0f))
+              .height(Dimension(1.8f))
               .fill(Paint::solid(mskia::withAlpha(hexColor(0xEAF4F8), 0.88f))));
       const std::string num = std::to_string(deg);
       for (int e = 0; e < 2; ++e)
         deck.child(
             t(num.c_str(),
               bold(7.0f, mskia::withAlpha(hexColor(0xEAF4F8), 0.9f), 0.3f))
-                .left(Dim(e ? mid + halfW + 3.0f : mid - halfW - 13.0f))
-                .top(Dim(y - 5.0f)));
+                .left(Dimension(e ? mid + halfW + 3.0f : mid - halfW - 13.0f))
+                .top(Dimension(y - 5.0f)));
     };
     for (int r : kRungs) {
       rung(r, +1);
@@ -80,10 +80,10 @@ auto KspMapView::navball() -> Element {
     // The horizon: one bold white rule, which is the line every other
     // reading on the instrument is taken against.
     deck.child(box()
-                   .left(Dim(mid - kBallR * 0.92f))
-                   .top(Dim(mid - 1.4f))
-                   .width(Dim(kBallR * 1.84f))
-                   .height(Dim(2.8f))
+                   .left(Dimension(mid - kBallR * 0.92f))
+                   .top(Dimension(mid - 1.4f))
+                   .width(Dimension(kBallR * 1.84f))
+                   .height(Dimension(2.8f))
                    .fill(Paint::solid(hexColor(0xFFFFFF))));
     g.child(at(box().shape(shapes::circle()).clip().child(std::move(deck)),
                kBall, kBallR * 2, kBallR * 2));
@@ -251,8 +251,8 @@ auto KspMapView::navball() -> Element {
                  .gap(5)
                  .child(t("164.9m/s", body(11, hexColor(0x14181A))))
                  .child(box()
-                            .width(Dim(13))
-                            .height(Dim(13))
+                            .width(Dimension(13))
+                            .height(Dimension(13))
                             .corners({2})
                             .alignItems(Align::Center)
                             .justify(Justify::Center)
@@ -313,8 +313,10 @@ auto KspMapView::staging() -> Element {
                        .alignItems(Align::Center)
                        .justify(Justify::Center)
                        .child(t(badge, body(14, hexColor(0xE3E9EC)))))
-            .child(box().right(Dim(1)).bottom(Dim(0)).child(
-                t(count, bold(8, hexColor(0xF6D488))))),
+            .child(box()
+                       .right(Dimension(1))
+                       .bottom(Dimension(0))
+                       .child(t(count, bold(8, hexColor(0xF6D488))))),
         x + 4, py, 27, 27);
   };
   // NOT `sketch::kit::meter`, and the difference is the artefact: that
@@ -368,7 +370,7 @@ auto KspMapView::staging() -> Element {
                          .align = PathFormat::Align::Inner});
   stage.child(
       box()
-          .height(Dim(9))
+          .height(Dimension(9))
           .fill(Paint::solid(hexColor(0xE0B720)))
           .foreground(lines::presets::hatch(
               Fill::color(hexColor(0x141414, 0.9f)), 8.0f, 4.0f, -45.0f)));
@@ -380,8 +382,8 @@ auto KspMapView::staging() -> Element {
           .padding(0, 6, 0, 6)
           .alignItems(Align::Center)
           .child(box()
-                     .width(Dim(15))
-                     .height(Dim(15))
+                     .width(Dimension(15))
+                     .height(Dimension(15))
                      .shape(shapes::circle())
                      .fill(Paint::radialUnit({0.38f, 0.30f}, 1.0f,
                                              {{0.0f, hexColor(0xE6FDD1)},
@@ -421,15 +423,17 @@ auto KspMapView::staging() -> Element {
                                         .tickSpacing = 6.0f,
                                         .tickLength = 9.0f}))
             .child(box()
-                       .width(Dim(9))
-                       .height(Dim(8))
-                       .top(Dim(0))
-                       .left(Dim(48))
+                       .width(Dimension(9))
+                       .height(Dimension(8))
+                       .top(Dimension(0))
+                       .left(Dimension(48))
                        .shape(shapes::polygon(3, 180))
                        .fill(Paint::solid(kStageTab))
                        .translateX(bind(drive).target(-42, 42)))
-            .child(box().left(Dim(4)).top(Dim(1)).child(
-                t(label, bold(8, hexColor(0xC7D0D5))))),
+            .child(box()
+                       .left(Dimension(4))
+                       .top(Dimension(1))
+                       .child(t(label, bold(8, hexColor(0xC7D0D5))))),
         x + 154, py, 106, 16);
   };
   g.child(tapeGauge("ROLL", 756, &rollTape));
@@ -440,8 +444,8 @@ auto KspMapView::staging() -> Element {
 auto KspMapView::digitCell(const char* d) -> Element {
   using namespace ksp;
   return box()
-      .width(Dim(13))
-      .height(Dim(17))
+      .width(Dimension(13))
+      .height(Dimension(17))
       .alignItems(Align::Center)
       .justify(Justify::Center)
       .fill(Paint::linearUnit({0, 0}, {0, 1},
@@ -499,42 +503,44 @@ auto KspMapView::altimeter() -> Element {
   g.child(wheel("K", 18.0f + 6 * 28.0f, true));
 
   // ATMOSPHERE tape
-  g.child(
-      at(stack()
-             .fill(Paint::linearUnit({0, 0}, {0, 1},
-                                     {{0.0f, hexColor(0x2E6E9E)},
-                                      {0.5f, hexColor(0x4E9CC8)},
-                                      {1.0f, hexColor(0x1E4E72)}}))
-             .stroke(PathFormat{.width = 1.0f,
-                                .strokeFill = Fill::color(hexColor(0x18333F)),
-                                .align = PathFormat::Align::Inner})
-             .clip()
-             .child(box()
-                        .inset(0)
-                        .shape(keyedShape(std::string_view("atmosphere-rail"),
-                                          [](SkSize s) {
-                                            SkPathBuilder b;
-                                            b.moveTo(2, s.height() * 0.62f);
-                                            b.lineTo(s.width() - 2,
-                                                     s.height() * 0.62f);
-                                            return b.detach();
-                                          }))
-                        .stroke(lines::Line{
-                            .width = 0.9f,
-                            .fill = Fill::color(hexColor(0xE8F4FA, 0.85f)),
-                            .tickSpacing = 5.0f,
-                            .tickLength = 12.0f}))
-             .child(box().left(Dim(6)).top(Dim(1)).child(
-                 t("ATMOSPHERE", bold(8, hexColor(0xEAF4FA), 1.4f))))
-             .child(box()
-                        .width(Dim(9))
-                        .height(Dim(8))
-                        .left(Dim(30))
-                        .top(Dim(0))
-                        .shape(shapes::polygon(3, 180))
-                        .fill(Paint::solid(hexColor(0xFFFFFF)))
-                        .translateX(bind(&yawTape).target(0, 190))),
-         18, 48, 238, 22));
+  g.child(at(
+      stack()
+          .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                  {{0.0f, hexColor(0x2E6E9E)},
+                                   {0.5f, hexColor(0x4E9CC8)},
+                                   {1.0f, hexColor(0x1E4E72)}}))
+          .stroke(PathFormat{.width = 1.0f,
+                             .strokeFill = Fill::color(hexColor(0x18333F)),
+                             .align = PathFormat::Align::Inner})
+          .clip()
+          .child(box()
+                     .inset(0)
+                     .shape(keyedShape(std::string_view("atmosphere-rail"),
+                                       [](SkSize s) {
+                                         SkPathBuilder b;
+                                         b.moveTo(2, s.height() * 0.62f);
+                                         b.lineTo(s.width() - 2,
+                                                  s.height() * 0.62f);
+                                         return b.detach();
+                                       }))
+                     .stroke(lines::Line{
+                         .width = 0.9f,
+                         .fill = Fill::color(hexColor(0xE8F4FA, 0.85f)),
+                         .tickSpacing = 5.0f,
+                         .tickLength = 12.0f}))
+          .child(box()
+                     .left(Dimension(6))
+                     .top(Dimension(1))
+                     .child(t("ATMOSPHERE", bold(8, hexColor(0xEAF4FA), 1.4f))))
+          .child(box()
+                     .width(Dimension(9))
+                     .height(Dimension(8))
+                     .left(Dimension(30))
+                     .top(Dimension(0))
+                     .shape(shapes::polygon(3, 180))
+                     .fill(Paint::solid(hexColor(0xFFFFFF)))
+                     .translateX(bind(&yawTape).target(0, 190))),
+      18, 48, 238, 22));
 
   // vertical-speed dial
   const SkPoint dc{300, 42};

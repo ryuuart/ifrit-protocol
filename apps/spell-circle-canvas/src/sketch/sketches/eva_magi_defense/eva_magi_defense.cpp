@@ -155,8 +155,8 @@ struct EvaMagiDefense : sketch::Sketch {
       // measured, the glyph's centre sits at 30% of a 150 px cell, which is
       // 44 px — the middle of the 88 px width. And it stays UPRIGHT while
       // the plate turns.
-      cell.child(displayText(toU8(std::string(1, (char)('0' + n))), numeralSize,
-                             kNumeral, 0.88f)
+      cell.child(displayText(toUtf8(std::string(1, (char)('0' + n))),
+                             numeralSize, kNumeral, 0.88f)
                      .centerAt({r.width() * 0.5f, r.width() * 0.5f + 3})
                      .rotate(-s.rotation));
       plate.child(std::move(cell));
@@ -174,7 +174,7 @@ struct EvaMagiDefense : sketch::Sketch {
                     .gap(-6)
                     .rotate(-s.rotation)
                     .child(text(u8"MAGI", type(36, ink, 0.86f)))
-                    .child(text(toU8(s.name), type(50, ink, 0.95f))));
+                    .child(text(toUtf8(s.name), type(50, ink, 0.95f))));
     return plate;
   }
 
@@ -209,10 +209,10 @@ struct EvaMagiDefense : sketch::Sketch {
     const float step = (L.h - 2.0f * labelStyle.insetY) / (float)count;
     for (int i = 0; i < count; ++i)
       node.child(
-          text(toU8(L.lines[i]), style)
+          text(toUtf8(L.lines[i]), style)
               .centerAt(
                   {L.role == LabelRole::Country
-                       ? intrinsicSize(text(toU8(L.lines[i]), style), *fonts)
+                       ? intrinsicSize(text(toUtf8(L.lines[i]), style), *fonts)
                                  .width() *
                              0.5f
                        : L.w * 0.5f,
@@ -413,8 +413,8 @@ struct EvaMagiDefense : sketch::Sketch {
     for (const measure::Check& c : verdict.rows) {
       if (!c.judged()) continue;
       rows.push_back(
-          {{toU8(c.label), toU8(c.actual),
-            toU8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
+          {{toUtf8(c.label), toUtf8(c.actual),
+            toUtf8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
            Fill::color(c.pass ? SkColor4f{0, 0.30f, 0.14f, 1}
                               : SkColor4f{0.62f, 0, 0, 1})});
     }
@@ -469,7 +469,7 @@ struct EvaMagiDefense : sketch::Sketch {
       for (const char* line : label.lines)
         if (line)
           widest =
-              std::max(widest, ctx.measure(text(toU8(line), style)).width());
+              std::max(widest, ctx.measure(text(toUtf8(line), style)).width());
       // The cap height fixes the vertical register; condensation only fits
       // width.
       style.shaping.scaleX = (label.w - 2.0f * reg.insetX) / widest;

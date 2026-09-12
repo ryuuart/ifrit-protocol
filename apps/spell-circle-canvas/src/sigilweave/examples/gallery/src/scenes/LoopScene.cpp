@@ -27,10 +27,10 @@ QString loopDefaultText() {
 class LoopScene final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams& params,
+                    int /*frameNumber*/, const SceneParameters& parameters,
                     FontContext& fontContext) override {
     if (!m_serif) m_serif = defaultSerif(fontContext);
-    m_body.ensure(params, loopDefaultText(), m_serif);
+    m_body.ensure(parameters, loopDefaultText(), m_serif);
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();

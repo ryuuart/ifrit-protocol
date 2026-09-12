@@ -267,19 +267,19 @@ struct PenrosePaving : sketch::Sketch {
     std::vector<sketch::kit::Row> rows;
     for (const measure::Check& c : verdict.rows) {
       if (c.standing == measure::Standing::Heading) {
-        rows.push_back({{toU8(c.label)}, {}});
+        rows.push_back({{toUtf8(c.label)}, {}});
         continue;
       }
       // A reading has no verdict to mark, but it keeps the mark's WIDTH:
       // an unmarked row that also loses the indent reads as a heading.
       if (!c.judged()) {
-        rows.push_back(
-            {{toU8(c.label), toU8(c.actual), u8""}, Fill::color({0, 0, 0, 0})});
+        rows.push_back({{toUtf8(c.label), toUtf8(c.actual), u8""},
+                        Fill::color({0, 0, 0, 0})});
         continue;
       }
       rows.push_back(
-          {{toU8(c.label), toU8(c.actual),
-            toU8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
+          {{toUtf8(c.label), toUtf8(c.actual),
+            toUtf8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
            Fill::color(c.pass ? held : broken)});
     }
     const std::string summary = kit::formatted(
@@ -299,7 +299,7 @@ struct PenrosePaving : sketch::Sketch {
         .padding(14)
         .gap(9)
         .child(text(
-            toU8(summary),
+            toUtf8(summary),
             weave::textStyle(
                 {.size = 10.5f, .color = hexColor(0x8E9295), .track = 1.0f})))
         .child(sketch::kit::table(
@@ -318,14 +318,15 @@ struct PenrosePaving : sketch::Sketch {
         .stroke(stroke(1.0f, Fill::color(hexColor(0x5E6163, 0.55f)),
                        PathFormat::Align::Inner))
         .background(styles::dropShadow(hexColor(0x000000, 0.55f), {0, 6}, 22))
-        .child(text(toU8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
-                         "\xc3\x97"
-                         "1/\xcf\x86"),
-                    weave::textStyle({.size = 10.5f,
-                                      .color = hexColor(0x8E9295),
-                                      .track = 1.0f}))
-                   .left(14)
-                   .top(12))
+        .child(
+            text(toUtf8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
+                        "\xc3\x97"
+                        "1/\xcf\x86"),
+                 weave::textStyle({.size = 10.5f,
+                                   .color = hexColor(0x8E9295),
+                                   .track = 1.0f}))
+                .left(14)
+                .top(12))
         .child(box().left(10).top(34).width(kDiagW).height(kDiagH).child(
             slot("deflate")));
   }
@@ -435,26 +436,26 @@ struct PenrosePaving : sketch::Sketch {
                                   PathFormat::Align::Inner))
                    .background(styles::dropShadow(hexColor(0x000000, 0.5f),
                                                   {0, 5}, 18)))
-        .child(text(toU8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
-                         "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
-                         "STAINLESS INSERTS"),
+        .child(text(toUtf8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
+                           "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
+                           "STAINLESS INSERTS"),
                     weave::textStyle({.size = 13.0f,
                                       .color = hexColor(0xDCE0E2),
                                       .track = 1.9f}))
                    .left(76)
                    .top(1100)
                    .opacity(1.0f))
-        .child(text(toU8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
-                         "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
+        .child(text(toUtf8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
+                           "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
                     weave::textStyle({.size = 11.5f,
                                       .color = hexColor(0xA9AEB1),
                                       .track = 1.5f}))
                    .left(76)
                    .top(1126)
                    .opacity(1.0f))
-        .child(text(toU8(spec), weave::textStyle({.size = 10.5f,
-                                                  .color = hexColor(0x8E9598),
-                                                  .track = 1.3f}))
+        .child(text(toUtf8(spec), weave::textStyle({.size = 10.5f,
+                                                    .color = hexColor(0x8E9598),
+                                                    .track = 1.3f}))
                    .left(76)
                    .top(1152)
                    .opacity(1.0f))

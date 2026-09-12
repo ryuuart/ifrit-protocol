@@ -56,7 +56,7 @@ namespace img = sigil::image;
 namespace io = sigil::io;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -109,7 +109,7 @@ sk_sp<SkData> chart(int bars, SkColor4f ink) {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 10})
           .child(std::move(body)));
 }
@@ -161,17 +161,17 @@ struct HubReload final : sketch::Sketch {
         hub.image(chartUri);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("A MOUNTED FOLDER \xc2\xb7 Hub::mount, text, "
-                       "registerDecoder / load, poll"),
-         .subtitle = toU8("dials \xc2\xb7 the prefix the folder is "
-                          "mounted under \xc2\xb7 the two states each "
-                          "file is written in \xc2\xb7 what a T is "
-                          "decoded from bytes by"),
-         .footer = toU8("the decode a view was made with rides along "
-                        "with the view, so poll() re-runs exactly it "
-                        "\xe2\x80\x94 which is what makes hot reload a "
-                        "property of the hub rather than of every "
-                        "consumer of it")},
+        {.title = toUtf8("A MOUNTED FOLDER \xc2\xb7 Hub::mount, text, "
+                         "registerDecoder / load, poll"),
+         .subtitle = toUtf8("dials \xc2\xb7 the prefix the folder is "
+                            "mounted under \xc2\xb7 the two states each "
+                            "file is written in \xc2\xb7 what a T is "
+                            "decoded from bytes by"),
+         .footer = toUtf8("the decode a view was made with rides along "
+                          "with the view, so poll() re-runs exactly it "
+                          "\xe2\x80\x94 which is what makes hot reload a "
+                          "property of the hub rather than of every "
+                          "consumer of it")},
         kit::cells(
             {.cells =
                  {cell("hub.text(\"res://notes.txt\")",
@@ -223,8 +223,8 @@ struct HubReload final : sketch::Sketch {
     const sketch::kit::Theme& look = sketch::kit::theme();
     Element column = box().column().gap(8);
     for (const std::string& row : rows)
-      column.child(text(toU8(row), look.mono(10, look.palette.figure))
-                       .width(Dim(kCell - 20)));
+      column.child(text(toUtf8(row), look.mono(10, look.palette.figure))
+                       .width(Dimension(kCell - 20)));
     return column;
   }
 
@@ -261,8 +261,9 @@ struct HubReload final : sketch::Sketch {
                  const std::shared_ptr<const img::ImageAsset>& after) {
     Element column = box().column().gap(8);
     for (const std::shared_ptr<const img::ImageAsset>& asset : {before, after})
-      column.child(asset ? image(asset).width(Dim(120)).height(Dim(80))
-                         : box().width(Dim(120)).height(Dim(80)));
+      column.child(
+          asset ? image(asset).width(Dimension(120)).height(Dimension(80))
+                : box().width(Dimension(120)).height(Dimension(80)));
     return column;
   }
 };

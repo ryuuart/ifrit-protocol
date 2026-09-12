@@ -4,7 +4,7 @@ auto KspMapView::infoRow(const char* label, const char* value) -> Element {
   using namespace ksp;
   return box()
       .row()
-      .height(Dim(19))
+      .height(Dimension(19))
       .alignItems(Align::Center)
       .padding(0, 0, 0, 8)
       .child(t(label, body(11, kCardInk)))
@@ -15,7 +15,7 @@ auto KspMapView::infoRow(const char* label, const char* value) -> Element {
 auto KspMapView::infoHead(const char* label) -> Element {
   using namespace ksp;
   return box()
-      .height(Dim(19))
+      .height(Dimension(19))
       .justify(Justify::Center)
       .padding(0, 0, 0, 8)
       .fill(Paint::solid(ksp::kCardStrip))
@@ -32,13 +32,13 @@ auto KspMapView::infoCard() -> Element {
           .translateX(animate(from(46.0f).to(0.0f), {380ms, ch::easeOutQuad}))
           .opacity(animate(from(0.0f).to(1.0f), {380ms}))
           .child(box()
-                     .height(Dim(26))
+                     .height(Dimension(26))
                      .justify(Justify::Center)
                      .padding(0, 0, 0, 9)
                      .fill(Paint::solid(kOrange))
                      .child(t("Kerbal X", bold(14, hexColor(0xFFFFFF)))))
           .child(box()
-                     .height(Dim(19))
+                     .height(Dimension(19))
                      .justify(Justify::Center)
                      .padding(0, 0, 0, 9)
                      .fill(Paint::solid(kCardSub))
@@ -49,8 +49,8 @@ auto KspMapView::infoCard() -> Element {
                      .padding(4, 0, 4, 8)
                      .gap(8)
                      .child(box()
-                                .width(Dim(34))
-                                .height(Dim(40))
+                                .width(Dimension(34))
+                                .height(Dimension(40))
                                 .shape(shapes::polygon(7, 12))
                                 .fill(Paint::linearUnit(
                                     {0, 0}, {1, 1},
@@ -79,7 +79,9 @@ auto KspMapView::infoCard() -> Element {
           .child(infoRow("Max. Acceleration", "21.4 m/s²"))
           .child(infoRow("Thrust / Weight", "1.63"))
           .child(box().grow(1))
-          .child(box().height(Dim(6)).fill(Paint::solid(hexColor(0x9DA1A6)))),
+          .child(box()
+                     .height(Dimension(6))
+                     .fill(Paint::solid(hexColor(0x9DA1A6)))),
       906, 40, 240, 318);
 }
 

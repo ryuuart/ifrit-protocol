@@ -102,31 +102,31 @@ void readMaterial(const UsdShadeMaterial& material,
     }
   };
   if (auto tex = image("roughness")) {
-    geometry::mesh::codec::decode::Part::TextureRef& ref =
+    geometry::mesh::codec::decode::Part::TextureReference& ref =
         part.textures["roughness"];
     fetch(*tex, ref.uri, ref.bytes);
   } else {
     scalar("roughness", part.roughness);
   }
   if (auto tex = image("metallic")) {
-    geometry::mesh::codec::decode::Part::TextureRef& ref =
+    geometry::mesh::codec::decode::Part::TextureReference& ref =
         part.textures["metallic"];
     fetch(*tex, ref.uri, ref.bytes);
   } else {
     scalar("metallic", part.metallic);
   }
   if (auto tex = image("occlusion")) {
-    geometry::mesh::codec::decode::Part::TextureRef& ref =
+    geometry::mesh::codec::decode::Part::TextureReference& ref =
         part.textures["occlusion"];
     fetch(*tex, ref.uri, ref.bytes);
   }
   if (auto tex = image("normal")) {
-    geometry::mesh::codec::decode::Part::TextureRef& ref =
+    geometry::mesh::codec::decode::Part::TextureReference& ref =
         part.textures["normal"];
     fetch(*tex, ref.uri, ref.bytes);
   }
   if (auto tex = image("emissiveColor")) {
-    geometry::mesh::codec::decode::Part::TextureRef& ref =
+    geometry::mesh::codec::decode::Part::TextureReference& ref =
         part.textures["emissive"];
     fetch(*tex, ref.uri, ref.bytes);
     part.emissive = {1, 1, 1, 1};
@@ -135,7 +135,7 @@ void readMaterial(const UsdShadeMaterial& material,
     if (in.Get(&c)) part.emissive = {c[0], c[1], c[2], 1};
   }
   if (auto tex = image("opacity")) {
-    geometry::mesh::codec::decode::Part::TextureRef& ref =
+    geometry::mesh::codec::decode::Part::TextureReference& ref =
         part.textures["opacity"];
     fetch(*tex, ref.uri, ref.bytes);
     part.opaque = false;

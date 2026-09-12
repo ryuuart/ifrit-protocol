@@ -33,9 +33,9 @@ enum class SegmentForm : uint8_t {
 /// One shaped run inside a Word (usually the only one; more when a style
 /// boundary, script change, or font fallback splits the word).
 struct WordSegment {
-  ShapedWordRef shaped;     ///< cache-shared glyph run this segment draws
-  uint32_t styleIndex = 0;  ///< index into Paragraph::spans()
-  float advanceOffset = 0;  ///< pen offset from the word origin (for
+  ShapedWordReference shaped;  ///< cache-shared glyph run this segment draws
+  uint32_t styleIndex = 0;     ///< index into Paragraph::spans()
+  float advanceOffset = 0;     ///< pen offset from the word origin (for
                             ///< kTateChuYoko this lands on the run's baseline)
   SegmentForm form = SegmentForm::kFlow;  ///< vertical-text placement; always
                                           ///< kFlow in horizontal paragraphs
@@ -129,7 +129,7 @@ struct Word {
   /// break at (see Paragraph::setSoftHyphenBreaks) is interior to its word
   /// and sets nothing.
   bool hyphenBreak = false;
-  ShapedWordRef hyphenGlyph;  ///< only set alongside `hyphenBreak`
+  ShapedWordReference hyphenGlyph;  ///< only set alongside `hyphenBreak`
 
   /// \>= 0: this word is Paragraph::placeholders()[placeholderIndex] — no
   /// glyphs, `width` comes from the placeholder record.

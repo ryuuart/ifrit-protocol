@@ -132,7 +132,7 @@ struct FakeHost {
     return d->memo ? &*d->memo : nullptr;
   }
   static Description produce(const Memo<Description>& memo) {
-    return memo.invoke(memo.props);
+    return memo.invoke(memo.properties);
   }
 
   // ---- acting on a node ----

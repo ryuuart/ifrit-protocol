@@ -24,13 +24,13 @@ namespace sigil::core {
  *  side of the seam: the kernel's three-way answer is the same for all of
  *  them. */
 template <typename Target>
-struct BakeOps {
-  BakeOps() = default;
-  BakeOps(const BakeOps&) = default;
-  BakeOps(BakeOps&&) = default;
-  BakeOps& operator=(const BakeOps&) = default;
-  BakeOps& operator=(BakeOps&&) = default;
-  virtual ~BakeOps() = default;
+struct BakeOperations {
+  BakeOperations() = default;
+  BakeOperations(const BakeOperations&) = default;
+  BakeOperations(BakeOperations&&) = default;
+  BakeOperations& operator=(const BakeOperations&) = default;
+  BakeOperations& operator=(BakeOperations&&) = default;
+  virtual ~BakeOperations() = default;
 
   /** Turn the settled subtree at @p target into a replayable artefact,
    *  replacing whatever it held. */
@@ -48,7 +48,7 @@ struct BakeOps {
 /** A bake seam value: a host's operations, carried and compared like any
  *  other value on a description. */
 template <typename Target>
-using Bake = Erased<BakeOps<Target>>;
+using Bake = Erased<BakeOperations<Target>>;
 
 /** WHAT TO DO WITH ONE NODE'S BAKE THIS FRAME. */
 enum class BakeAction : uint8_t {
@@ -91,23 +91,23 @@ struct BakeState {
  *  is due, drops a held artefact the node may no longer keep, and draws
  *  whichever way the answer says. @return what it did.
  *
- *  An empty @p ops means the host offers no bake at this tier, which is
+ *  An empty @p operations means the host offers no bake at this tier, which is
  *  `Live` — a seam with nothing behind it draws rather than refusing. */
 template <typename Target>
-BakeAction runBake(const Bake<Target>& ops, Target& target,
+BakeAction runBake(const Bake<Target>& operations, Target& target,
                    const BakeState& state) {
-  if (!ops) return BakeAction::Live;
+  if (!operations) return BakeAction::Live;
   const BakeAction action = decideBake(state);
   switch (action) {
     case BakeAction::Live:
-      if (ops->held(target)) ops->drop(target);
+      if (operations->held(target)) operations->drop(target);
       break;
     case BakeAction::Take:
-      ops->take(target);
-      ops->replay(target);
+      operations->take(target);
+      operations->replay(target);
       break;
     case BakeAction::Replay:
-      ops->replay(target);
+      operations->replay(target);
       break;
   }
   return action;

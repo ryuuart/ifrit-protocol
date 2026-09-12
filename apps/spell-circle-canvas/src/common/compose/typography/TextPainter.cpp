@@ -21,11 +21,11 @@ using namespace detail;
 
 namespace {
 
-/** The engine as a TextPainterOps: every operation forwards to the
+/** The engine as a TextPainterOperations: every operation forwards to the
  *  engine's own body with the instance's composer. One value for every
  *  text, so two descriptions dressing their type compare equal here — and
  *  the field is excluded from equality regardless. */
-struct TextEngine final : TextPainterOps {
+struct TextEngine final : TextPainterOperations {
   bool operator==(const TextEngine&) const { return true; }
   void paint(Instance& inst, SkCanvas& canvas,
              const sigil::weave::PaintStyle* override, const TextPath* onPath,
@@ -162,7 +162,7 @@ Element& Element::variationDrive(const char (&tag)[5],
   track.effect = TextEffect(
       key, {},
       [coordinate, value](const GlyphInfo&, float, core::noise::Mix64Stream&) {
-        GlyphMod mod;
+        GlyphModifier mod;
         if (!value) return mod;
         sigil::weave::FontVariation driven = coordinate;
         driven.value = value->value();

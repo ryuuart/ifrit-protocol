@@ -266,7 +266,7 @@ The service is part of `SigilWeaveLayout`; drawing links `SigilWeavePaint`.
 **`query`** — `SigilWeaveQuery`, optional: `query/Query.h` finds ranges by
 substring, word, or ICU regex; `MarkerSet` tracks named ranges across
 edits, DOM-Range style. `query/Selector.h` is the same question written
-down rather than asked: `Selector` and the `sel::` vocabulary.
+down rather than asked: `Selector` and the `selectors::` vocabulary.
 
 Separate from the engine: **`ports`** (`ports/SystemFontManager.h`, the OS
 font manager), **`kit`** (`kit/`, the companion utilities, with its own
@@ -871,7 +871,7 @@ bounds the rotations, and dropping it in exchange multiplies the mask
 population by the rotation count.
 
 **A `GlyphDress` carries what varies per glyph** rather than per pass — the
-placement, the fade, three colour terms (a `colorMul` tint, a `colorAdd`
+placement, the fade, three colour terms (a `colorMultiplier` tint, a `colorAdd`
 flash added after it, and a `colorScreen` glow screened over both — the two
 brightening terms a multiplier cannot say), a `face` override for a glyph
 drawn through a varied clone, and a `matrix` for the placements an RSXform

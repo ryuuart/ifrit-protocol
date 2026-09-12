@@ -33,7 +33,7 @@ namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -62,13 +62,13 @@ constexpr SkColor4f kFigure{0.98f, 0.80f, 0.34f, 1};
 Element cell(const char* call, const char* note, SkSize boxSize,
              bool preserveAspect) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture, .clip = false})
           .alignItems(Align::Center)
           .justify(Justify::Center)
           .child(box()
-                     .width(Dim(boxSize.width()))
-                     .height(Dim(boxSize.height()))
+                     .width(Dimension(boxSize.width()))
+                     .height(Dimension(boxSize.height()))
                      .stroke(stroke(1.0f, Fill::color(kBoxRule)))
                      .child(box()
                                 .grow(1)
@@ -86,15 +86,15 @@ struct SvgSilhouette final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("SVG SILHOUETTE \xc2\xb7 shapes::svg(d, "
-                       "preserveAspect)"),
-         .subtitle = toU8("dials \xc2\xb7 the d string (\"M62 4 L18 78 "
-                          "H44 L30 148 L86 62 H56 Z\") \xc2\xb7 the fit "
-                          "\xc2\xb7 the box it is asked to fill"),
-         .footer = toU8("the parse happens once, at the call, and what "
-                        "the value holds afterwards is the parsed path "
-                        "\xe2\x80\x94 which compares, so a node shaped "
-                        "by an svg() prunes like any other")},
+        {.title = toUtf8("SVG SILHOUETTE \xc2\xb7 shapes::svg(d, "
+                         "preserveAspect)"),
+         .subtitle = toUtf8("dials \xc2\xb7 the d string (\"M62 4 L18 78 "
+                            "H44 L30 148 L86 62 H56 Z\") \xc2\xb7 the fit "
+                            "\xc2\xb7 the box it is asked to fill"),
+         .footer = toUtf8("the parse happens once, at the call, and what "
+                          "the value holds afterwards is the parsed path "
+                          "\xe2\x80\x94 which compares, so a node shaped "
+                          "by an svg() prunes like any other")},
         kit::cells(
             {.cells =
                  {kit::cells({.cells =

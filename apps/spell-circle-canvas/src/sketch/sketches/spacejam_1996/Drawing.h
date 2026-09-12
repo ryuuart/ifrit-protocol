@@ -110,7 +110,7 @@ inline sigil::weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
   return s;
 }
 
-inline std::u8string U(const char* s) { return toU8(s); }
+inline std::u8string U(const char* s) { return toUtf8(s); }
 
 /** The label outline, spelled with echo() because there is no glyph stroke.
  *  Eight re-stamps at ±r plus one at (2r, 2r): the shipped art carries a
@@ -129,7 +129,11 @@ inline Element& outlineText(Element& e, float r) {
 // Geometry sugar
 
 inline Element rect(float x, float y, float w, float h) {
-  return box().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
+  return box()
+      .left(Dimension(x))
+      .top(Dimension(y))
+      .width(Dimension(w))
+      .height(Dimension(h));
 }
 
 /** A shaded sphere: a circle-outlined box of 2r centred on c. Every planet
@@ -330,7 +334,7 @@ inline bool diagSpike(int x, int y) {
 
 inline Element starTile() {
   const float T = S(111.0f);
-  Element tile = box().width(Dim(T)).height(Dim(T));
+  Element tile = box().width(Dimension(T)).height(Dimension(T));
 
   // Three very faint lens-flare ghosts, at the sampled centres and radii
   // (page px, 15-26). They are what stops the field reading as pure noise.
@@ -421,7 +425,7 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
   // width and wraps against the image box. Pinning the node to that natural
   // width is what keeps it one line; the artBox's clip() takes the
   // overhang, and the paint-time condense brings it back inside.
-  t.left(Dim(x)).top(Dim(y)).width(Dim(m.width() + 4.0f));
+  t.left(Dimension(x)).top(Dimension(y)).width(Dimension(m.width() + 4.0f));
   if (sx < 0.999f) t.scaleX(sx).transformOrigin(0.0f, 0.5f);
   return t;
 }
@@ -436,7 +440,7 @@ inline Element ring(SkPoint c, float rx, float ry, float rotDeg,
 }
 
 inline Element artBox(float w, float h) {
-  return stack().width(Dim(w)).height(Dim(h)).clip(true);
+  return stack().width(Dimension(w)).height(Dimension(h)).clip(true);
 }
 
 // --- p-souvenirs.gif, 83x83 — the CENTRED glow, and half of the controlled

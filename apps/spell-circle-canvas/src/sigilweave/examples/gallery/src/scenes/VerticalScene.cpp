@@ -20,7 +20,7 @@ namespace {
 class VerticalScene final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams& /*params*/,
+                    int /*frameNumber*/, const SceneParameters& /*parameters*/,
                     FontContext& fontContext) override {
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();

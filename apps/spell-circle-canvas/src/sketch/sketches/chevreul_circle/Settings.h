@@ -312,7 +312,7 @@ inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
   return sheet().mono(sz, c, tr);
 }
 
-inline std::u8string U(const std::string& s) { return toU8(s); }
+inline std::u8string U(const std::string& s) { return toUtf8(s); }
 inline std::string hexOf(SkColor4f c) {
   auto q = [](float v) {
     return (int)std::lround(std::clamp(v, 0.f, 1.f) * 255.f);
@@ -329,13 +329,14 @@ inline Element centred(const std::string& s, const weave::TextStyle& st,
   return at(x, y, w, st.shaping.fontSize * 1.7f)
       .child(text(U(s), st)
                  .textAlign(weave::TextAlignment::kCenter)
-                 .width(Dim(w)));
+                 .width(Dimension(w)));
 }
 inline Element rightAt(const std::string& s, const weave::TextStyle& st,
                        float x, float y, float w) {
   return at(x, y, w, st.shaping.fontSize * 1.7f)
-      .child(
-          text(U(s), st).textAlign(weave::TextAlignment::kEnd).width(Dim(w)));
+      .child(text(U(s), st)
+                 .textAlign(weave::TextAlignment::kEnd)
+                 .width(Dimension(w)));
 }
 
 /** The rim baseline: a circle wound COUNTER-CLOCKWISE and starting at
@@ -350,11 +351,11 @@ inline Element rightAt(const std::string& s, const weave::TextStyle& st,
  *  kCCW + 2 starts the contour at the bottom and runs anticlockwise, which
  *  is the engraver's convention above and cannot be had from the default
  *  clockwise oval. */
-inline shapes::OutlineFn rimBaseline() {
+inline shapes::OutlineFunction rimBaseline() {
   return shapes::circle(SkPathDirection::kCCW, 2);
 }
 /** A radius through the centre of the box, as a straight diameter. */
-inline shapes::OutlineFn diameter() {
+inline shapes::OutlineFunction diameter() {
   return [](SkSize s) {
     SkPathBuilder b;
     b.moveTo(0, s.height() * 0.5f);

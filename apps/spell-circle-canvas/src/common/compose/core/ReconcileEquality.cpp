@@ -37,7 +37,7 @@ namespace {
 // plain cases (boxes, fills, text runs, images) prune for free.
 
 // Transition, BoundFloat and Animatable compare through SigilCore's
-// comparators (transitionEqual, boundMapEqual, propEqual), each pinned
+// comparators (transitionEqual, boundMapEqual, propertyEqual), each pinned
 // beside its body there; the Effect and the blocks below are this
 // library's own.
 
@@ -60,9 +60,9 @@ static_assert(kFieldCount<TextPath> == 7,
               "textPathEqual() below, then bump this count. The comparator "
               "is hand-written at all because `at` is an Animatable, and "
               "an Animatable is compared where every other animated slot "
-              "is: through propEqual.");
+              "is: through propertyEqual.");
 bool textPathEqual(const TextPath& a, const TextPath& b) {
-  return a.path == b.path && propEqual(a.at, b.at) && a.align == b.align &&
+  return a.path == b.path && propertyEqual(a.at, b.at) && a.align == b.align &&
          a.offset == b.offset && a.autoFlip == b.autoFlip &&
          a.orient == b.orient && a.exactTangent == b.exactTangent;
 }
@@ -85,7 +85,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   // parameters, or the key an ad-hoc lambda was given), cascade, reach and
   // the continuous opt-out — so text that re-describes the same tracks
   // prunes like any other static leaf. The progress is an Animatable and is
-  // compared where every other animated slot is, through propEqual.
+  // compared where every other animated slot is, through propertyEqual.
   //
   // variationDrive()'s track rides this comparison too: its effect's key
   // carries the axis tag AND the driven Output's address, so a re-describe
@@ -94,7 +94,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   if (ta.tracks.size() != tb.tracks.size()) return false;
   for (size_t i = 0; i < ta.tracks.size(); ++i)
     if (!ta.tracks[i].sameShape(tb.tracks[i]) ||
-        !propEqual(ta.tracks[i].progress, tb.tracks[i].progress))
+        !propertyEqual(ta.tracks[i].progress, tb.tracks[i].progress))
       return false;
   if (ta.utf8 != tb.utf8 || !(ta.style == tb.style)) return false;
   // weave::rich(): a whole mixed paragraph as one comparable value — same base,
@@ -245,7 +245,7 @@ bool fxEqual(const Box<FxData>& a, const Box<FxData>& b) {
 
 static_assert(kFieldCount<MaterialData> == 2,
               "MaterialData gained or lost a field — rule on it in "
-              "materialEqual() below (or in propsEqual, which owns the "
+              "materialEqual() below (or in propertiesEqual, which owns the "
               "->recipe half), then bump this count.");
 bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
   if ((bool)a != (bool)b) return false;
@@ -270,7 +270,7 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
       return false;
     if (!(*a->live == *b->live)) return false;
   }
-  return true;  // ->recipe is handled with the fill compare in propsEqual
+  return true;  // ->recipe is handled with the fill compare in propertiesEqual
 }
 
 static_assert(kFieldCount<DepthData> == 10,
@@ -281,13 +281,13 @@ static_assert(kFieldCount<DepthData> == 10,
 bool depthEqual(const Box<DepthData>& a, const Box<DepthData>& b) {
   if ((bool)a != (bool)b) return false;
   if (!a) return true;
-  // The five lanes compare as every animated slot does, through propEqual;
+  // The five lanes compare as every animated slot does, through propertyEqual;
   // the origins and the two modes are plain values.
-  return propEqual(a->rotateX, b->rotateX) &&
-         propEqual(a->rotateY, b->rotateY) &&
-         propEqual(a->translateZ, b->translateZ) &&
-         propEqual(a->scaleZ, b->scaleZ) &&
-         propEqual(a->perspective, b->perspective) &&
+  return propertyEqual(a->rotateX, b->rotateX) &&
+         propertyEqual(a->rotateY, b->rotateY) &&
+         propertyEqual(a->translateZ, b->translateZ) &&
+         propertyEqual(a->scaleZ, b->scaleZ) &&
+         propertyEqual(a->perspective, b->perspective) &&
          a->perspectiveOriginX == b->perspectiveOriginX &&
          a->perspectiveOriginY == b->perspectiveOriginY &&
          a->originZ == b->originZ && a->preserve3d == b->preserve3d &&
@@ -324,8 +324,8 @@ bool Spans::operator==(const Spans& other) const {
     // term, and a claim that only slides would otherwise prune to its
     // first frame.
     if ((a.rule == Rule::Range || a.rule == Rule::Wrap) &&
-        (!propEqual(a.begin, b.begin) || !propEqual(a.end, b.end) ||
-         !propEqual(a.offset, b.offset)))
+        (!propertyEqual(a.begin, b.begin) || !propertyEqual(a.end, b.end) ||
+         !propertyEqual(a.offset, b.offset)))
       return false;
     return true;
   };
@@ -381,7 +381,8 @@ bool Gate::operator==(const Gate& other) const {
     case Kind::Spans:
       return where == other.where;
     case Kind::Edge:
-      return angleDeg == other.angleDeg && propEqual(fraction, other.fraction);
+      return angleDeg == other.angleDeg &&
+             propertyEqual(fraction, other.fraction);
     case Kind::Shape:
       return outside == other.outside && region == other.region;
     case Kind::Coverage:
@@ -403,20 +404,20 @@ namespace detail {
  *
  *  The two legitimate exclusions, stated rather than assumed:
  *  `memoData` is compared EARLIER and more strictly by resolveMemo()
- *  (env snapshot + the author's own props comparator) and never reaches
- *  here, because `inst.description` holds the memo's PRODUCED payload; and
- *  `children` are reconciled by key rather than compared — a node that
+ *  (environment snapshot + the author's own properties comparator) and never
+ * reaches here, because `inst.description` holds the memo's PRODUCED payload;
+ * and `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
 static_assert(kFieldCount<ElementNode> == 26 && kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 3 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 3,
-              "A struct propsEqual() compares BY HAND gained or lost a "
+              "A struct propertiesEqual() compares BY HAND gained or lost a "
               "field. Rule on it below — participate, or a stated reason "
               "not to — then bump this count. A miss is silent: the node "
               "prunes, markPaintDirtyUp() never runs, a stale picture "
               "replays, and applyTransitions() never ramps an animate() on "
               "it. Nothing else fails, so no test will catch it for you.");
-bool propsEqual(const ElementNode& a, const ElementNode& b) {
+bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   if (a.kind != b.kind || a.key != b.key) return false;
   // Incomparable callables → conservative inequality.
   if (a.hitTestable != b.hitTestable) return false;
@@ -478,23 +479,26 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
   if ((recipeA != nullptr) != (recipeB != nullptr)) return false;
   if (recipeA) {
     if (!(*recipeA == *recipeB)) return false;
-  } else if (pa.fill && !propEqual(*pa.fill, *pb.fill)) {
+  } else if (pa.fill && !propertyEqual(*pa.fill, *pb.fill)) {
     return false;
   }
-  if (!propEqual(pa.opacity, pb.opacity) || pa.blendMode != pb.blendMode ||
-      !propEqual(pa.translateX, pb.translateX) ||
-      !propEqual(pa.translateY, pb.translateY) ||
-      !propEqual(pa.rotate, pb.rotate) || !propEqual(pa.scale, pb.scale) ||
+  if (!propertyEqual(pa.opacity, pb.opacity) || pa.blendMode != pb.blendMode ||
+      !propertyEqual(pa.translateX, pb.translateX) ||
+      !propertyEqual(pa.translateY, pb.translateY) ||
+      !propertyEqual(pa.rotate, pb.rotate) ||
+      !propertyEqual(pa.scale, pb.scale) ||
       // Every transform lane appears in this list, including the per-axis
       // scales. Omitting one makes two descriptions that differ only in
       // that lane compare equal, so the patch prunes, the node is never
       // marked paint-dirty, and it keeps the picture recorded at the old
       // value — and applyTransitions runs only inside the `own` branch
       // below, so an animate() on the missing lane never ramps either.
-      !propEqual(pa.scaleX, pb.scaleX) || !propEqual(pa.scaleY, pb.scaleY) ||
-      !propEqual(pa.skewX, pb.skewX) || !propEqual(pa.skewY, pb.skewY) ||
-      pa.originX != pb.originX || pa.originY != pb.originY ||
-      pa.originPx != pb.originPx || pa.zIndex != pb.zIndex)
+      !propertyEqual(pa.scaleX, pb.scaleX) ||
+      !propertyEqual(pa.scaleY, pb.scaleY) ||
+      !propertyEqual(pa.skewX, pb.skewX) ||
+      !propertyEqual(pa.skewY, pb.skewY) || pa.originX != pb.originX ||
+      pa.originY != pb.originY || pa.originPx != pb.originPx ||
+      pa.zIndex != pb.zIndex)
     return false;
   // travel(): a motion path is read live at paint, so every one of its
   // fields participates here or a change to that field prunes into its
@@ -505,7 +509,7 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
   // changes the node's ORIENTATION.
   if ((bool)a.motionData != (bool)b.motionData) return false;
   if (a.motionData && (!(a.motionData->path == b.motionData->path) ||
-                       !propEqual(a.motionData->t, b.motionData->t) ||
+                       !propertyEqual(a.motionData->t, b.motionData->t) ||
                        a.motionData->lookAhead != b.motionData->lookAhead))
     return false;
   // The depth lanes, the view and the two modes: read live at paint
@@ -530,24 +534,26 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
  *  is connected, so the volatility walk sees nothing either. The patch asks
  *  this question and stales the world-space descendants by hand.
  *
- *  The lanes must mirror propsEqual's transform block plus travel(), which
+ *  The lanes must mirror propertiesEqual's transform block plus travel(), which
  *  replaces the translate lanes and adds to rotate, plus the depth block —
  *  a re-described turn about y, a view or a space mode moves every
  *  descendant's W as a 2D rotation does. A lane present there and missing
  *  here is a world-space material left on a stale W. */
 bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
   const PaintProps &pa = a.paint, &pb = b.paint;
-  if (!propEqual(pa.translateX, pb.translateX) ||
-      !propEqual(pa.translateY, pb.translateY) ||
-      !propEqual(pa.rotate, pb.rotate) || !propEqual(pa.scale, pb.scale) ||
-      !propEqual(pa.scaleX, pb.scaleX) || !propEqual(pa.scaleY, pb.scaleY) ||
-      !propEqual(pa.skewX, pb.skewX) || !propEqual(pa.skewY, pb.skewY) ||
-      pa.originX != pb.originX || pa.originY != pb.originY ||
-      pa.originPx != pb.originPx)
+  if (!propertyEqual(pa.translateX, pb.translateX) ||
+      !propertyEqual(pa.translateY, pb.translateY) ||
+      !propertyEqual(pa.rotate, pb.rotate) ||
+      !propertyEqual(pa.scale, pb.scale) ||
+      !propertyEqual(pa.scaleX, pb.scaleX) ||
+      !propertyEqual(pa.scaleY, pb.scaleY) ||
+      !propertyEqual(pa.skewX, pb.skewX) ||
+      !propertyEqual(pa.skewY, pb.skewY) || pa.originX != pb.originX ||
+      pa.originY != pb.originY || pa.originPx != pb.originPx)
     return false;
   if ((bool)a.motionData != (bool)b.motionData) return false;
   if (a.motionData && (!(a.motionData->path == b.motionData->path) ||
-                       !propEqual(a.motionData->t, b.motionData->t) ||
+                       !propertyEqual(a.motionData->t, b.motionData->t) ||
                        a.motionData->lookAhead != b.motionData->lookAhead))
     return false;
   return depthEqual(a.depthData, b.depthData);

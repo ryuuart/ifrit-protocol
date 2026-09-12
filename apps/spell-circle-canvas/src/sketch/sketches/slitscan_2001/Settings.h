@@ -188,7 +188,7 @@ inline weave::TextStyle quo(float s, SkColor4f c) {
 }
 
 inline Element rule(float w, SkColor4f c, float h = 1.0f) {
-  return box().width(Dim(w)).height(Dim(h)).shrink(0).fill(c);
+  return box().width(Dimension(w)).height(Dimension(h)).shrink(0).fill(c);
 }
 
 // ---------------------------------------------------------------------------
@@ -276,22 +276,22 @@ inline Strip bakeStrip(Element tree, sigil::weave::FontContext& fonts, int W,
 /** Op-art: concentric rings over a dense bar lattice -- "backlit graphic
  *  shapes with scrolling graphics" [GE]. */
 inline Element artOpArt() {
-  Element g = box().width(Dim(kCellW)).height(Dim(kCellH));
+  Element g = box().width(Dimension(kCellW)).height(Dimension(kCellH));
   for (int i = 0; i < 122; ++i) {
     const float x = (float)i * 12.1f;
     const float hh = 30.0f + 220.0f * std::fabs(std::sin((float)i * 0.2131f));
     g.child(box()
-                .left(Dim(x))
-                .top(Dim(kCellH * 0.5f - hh * 0.5f))
+                .left(Dimension(x))
+                .top(Dimension(kCellH * 0.5f - hh * 0.5f))
                 .width(5)
-                .height(Dim(hh))
+                .height(Dimension(hh))
                 .fill(Fill::color(kWhite)));
   }
   for (int i = 0; i < 13; ++i) {
     const float cx = 56.0f + (float)i * 114.0f;
     g.child(box()
-                .left(Dim(cx - 170.0f))
-                .top(Dim(kCellH * 0.5f - 170.0f))
+                .left(Dimension(cx - 170.0f))
+                .top(Dimension(kCellH * 0.5f - 170.0f))
                 .width(340)
                 .height(340)
                 .shape(shapes::circle())
@@ -304,22 +304,22 @@ inline Element artOpArt() {
 /** Architectural drawing + spirals: a hatched section, elevation courses,
  *  logarithmic spirals. */
 inline Element artArch() {
-  Element g = box().width(Dim(kCellW)).height(Dim(kCellH));
+  Element g = box().width(Dimension(kCellW)).height(Dimension(kCellH));
   g.child(box().inset(0).foreground(
       lines::presets::hatch(Fill::color(kWhite), 9.0f, 2.6f, 58.0f)));
   for (int i = 0; i < 8; ++i) {
     const float x = 20.0f + (float)i * 182.0f;
     g.child(box()
-                .left(Dim(x))
-                .top(Dim(30))
+                .left(Dimension(x))
+                .top(Dimension(30))
                 .width(176)
                 .height(432)
                 .shape(shapes::spiral(2.4f + 0.35f * (float)i, true, 0.36f))
                 .foreground(stroke(8.0f, Fill::color(kWhite))));
     for (int k = 0; k < 11; ++k)
       g.child(box()
-                  .left(Dim(x - 16.0f))
-                  .top(Dim(14.0f + (float)k * 44.0f))
+                  .left(Dimension(x - 16.0f))
+                  .top(Dimension(14.0f + (float)k * 44.0f))
                   .width(208)
                   .height(4)
                   .fill(Fill::color(kWhite)));
@@ -330,15 +330,15 @@ inline Element artArch() {
 /** Circuit print + posterised botanical. Shared by SH 27 and SH 29 [GE],
  *  and it carries the white-stripe defect. */
 inline Element artCircuit(Pattern& grid, Pattern& spek) {
-  Element g = box().width(Dim(kCellW)).height(Dim(kCellH));
+  Element g = box().width(Dimension(kCellW)).height(Dimension(kCellH));
   g.child(box().inset(0).fill(grid.material()));
   g.child(box().inset(0).fill(spek.material()));
   for (int i = 0; i < 110; ++i) {
     const float x = std::fmod((float)i * 137.31f, kCellW - 34.0f) + 12.0f;
     const float y = std::fmod((float)i * 271.7f, kCellH - 34.0f) + 12.0f;
     g.child(box()
-                .left(Dim(x))
-                .top(Dim(y))
+                .left(Dimension(x))
+                .top(Dimension(y))
                 .width(26)
                 .height(26)
                 .shape(shapes::annulus(0.52f))

@@ -89,7 +89,8 @@ std::string Writer::environmentMap(std::string_view name,
   const std::string path = impl.uniquePath(parent, name);
   UsdLuxDomeLight dome = UsdLuxDomeLight::Define(impl.stage, SdfPath(path));
 
-  const std::filesystem::path dir = impl.file.parent_path() / impl.textureDir();
+  const std::filesystem::path dir =
+      impl.file.parent_path() / impl.textureDirectory();
   if (!impl.texturesDirReady) {
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
@@ -100,7 +101,7 @@ std::string Writer::environmentMap(std::string_view name,
   const float peak = writePanorama(environment.map.image(0), dir / leaf);
   if (peak > 0)
     dome.CreateTextureFileAttr().Set(
-        SdfAssetPath((impl.textureDir() / leaf).generic_string()));
+        SdfAssetPath((impl.textureDirectory() / leaf).generic_string()));
   // Every consumer of a dome light reads its texture as a lat-long
   // panorama; saying so is one attribute and saves a reader guessing
   // from the aspect ratio.

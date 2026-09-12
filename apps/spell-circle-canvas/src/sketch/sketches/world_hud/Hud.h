@@ -49,7 +49,7 @@ namespace path = sigil::geometry::path;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
@@ -125,8 +125,8 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color,
 /** A sunk track: the black slot a bar's content sits in. */
 inline Element track(float w, float h) {
   return skit::well(
-      {.width = Dim(w),
-       .height = Dim(h),
+      {.width = Dimension(w),
+       .height = Dimension(h),
        .ground = Fill::color(kTrack),
        .padding = 0,
        .clip = false,
@@ -140,8 +140,8 @@ inline Element track(float w, float h) {
  *  the piece is cut to a size and its outline is drawn around it, not
  *  inside it, which is the one thing a well's own hairline may not do. */
 inline Element boneFrame(float w, float h, float radius = 3) {
-  return skit::well({.width = Dim(w),
-                     .height = Dim(h),
+  return skit::well({.width = Dimension(w),
+                     .height = Dimension(h),
                      .ground = Paint::linear(
                          {0, 0}, {0, h},
                          {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}}),
@@ -178,16 +178,16 @@ inline Element bar(float frameW, float frameH, float innerW, float innerH,
     e.child(box()
                 .left(padX + innerW * (1.0f - decay))
                 .top(padY)
-                .width(Dim(innerW * decay))
-                .height(Dim(innerH))
+                .width(Dimension(innerW * decay))
+                .height(Dimension(innerH))
                 .fill(Paint::solid({kQualityEpic.fR, kQualityEpic.fG,
                                     kQualityEpic.fB, 0.55f})));
   e.child(
       box()
           .left(padX)
           .top(padY)
-          .width(Dim(innerW * fraction))
-          .height(Dim(innerH))
+          .width(Dimension(innerW * fraction))
+          .height(Dimension(innerH))
           .fill(Paint::linear(
               {0, 0}, {0, innerH},
               {{0.0f,

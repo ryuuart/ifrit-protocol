@@ -54,7 +54,7 @@ namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -94,7 +94,7 @@ template <class Shape>
 Element cell(Shape shape, const char* call, const char* note,
              bool closed = true) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       // The call IS the identity: it spells the generator and every number
       // handed to it, which is the whole of what the program closes over.
       custom(call,
@@ -228,18 +228,18 @@ struct ShapeShelf final : sketch::Sketch {
          .gap = 16});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("THE SILHOUETTE SHELF \xc2\xb7 every shapes:: "
-                       "generator, at two sizes"),
-         .subtitle = toU8("one comparable VALUE per cell, drawn at 96 px "
-                          "and at 44 px from the same parameters "
-                          "\xe2\x80\x94 a generator is written in the "
-                          "box's coordinates, so the small copy is a "
-                          "construction and not a scaling"),
-         .footer = toU8("closed figures are filled and outlined; the "
-                        "open ones are stroked only, since an open path "
-                        "has no inside \xc2\xb7 anything with "
-                        "path(SkSize) and operator== belongs on this "
-                        "shelf")},
+        {.title = toUtf8("THE SILHOUETTE SHELF \xc2\xb7 every shapes:: "
+                         "generator, at two sizes"),
+         .subtitle = toUtf8("one comparable VALUE per cell, drawn at 96 px "
+                            "and at 44 px from the same parameters "
+                            "\xe2\x80\x94 a generator is written in the "
+                            "box's coordinates, so the small copy is a "
+                            "construction and not a scaling"),
+         .footer = toUtf8("closed figures are filled and outlined; the "
+                          "open ones are stroked only, since an open path "
+                          "has no inside \xc2\xb7 anything with "
+                          "path(SkSize) and operator== belongs on this "
+                          "shelf")},
         std::move(generators)));
   }
 };

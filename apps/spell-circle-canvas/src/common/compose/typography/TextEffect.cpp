@@ -36,10 +36,10 @@ TextEffect TextEffect::pass(material::skia::Paint material) {
   auto state = std::make_shared<State>();
   state->name = "pass";
   // The identity body keeps the value truthy (a track with an empty effect
-  // is skipped) and keeps a pass harmless as a seq/mix/hold operand, where
+  // is skipped) and keeps a pass harmless as a sequence/mix/hold operand, where
   // only the deviation is consulted.
-  state->fn = [](const GlyphInfo&, float, core::noise::Mix64Stream&) {
-    return GlyphMod{};
+  state->function = [](const GlyphInfo&, float, core::noise::Mix64Stream&) {
+    return GlyphModifier{};
   };
   // A pass paints where its material says it does; the material's declared
   // reserve is the effect's reach, and Track::reach overrides as ever.
@@ -73,7 +73,8 @@ TextEffect TextEffect::withRests(std::initializer_list<float> phases) const {
     return *this;
   }
   auto state = std::make_shared<State>(*m_state);
-  state->params.insert(state->params.end(), phases.begin(), phases.end());
+  state->parameters.insert(state->parameters.end(), phases.begin(),
+                           phases.end());
   TextEffect out;
   out.m_state = std::move(state);
   return out;
@@ -89,7 +90,7 @@ TextEffect TextEffect::displacing(bool moves) const {
   if (m_state->pass) {
     // Once per process: a pass runs over already-rasterized pixels, so it
     // has no pen position to move and the declaration says nothing. Its
-    // params slot is the rest declaration, which this must not write into.
+    // parameters slot is the rest declaration, which this must not write into.
     static thread_local bool warned = false;
     if (!warned) {
       warned = true;
@@ -107,7 +108,7 @@ TextEffect TextEffect::displacing(bool moves) const {
   // that disagree about placement compare unequal and re-patch. Every
   // library-built effect answers at construction and never comes through
   // here, so nothing appends twice.
-  state->params.push_back(moves ? 1.0f : 0.0f);
+  state->parameters.push_back(moves ? 1.0f : 0.0f);
   TextEffect out;
   out.m_state = std::move(state);
   return out;

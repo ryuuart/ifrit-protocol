@@ -79,7 +79,7 @@ struct Scrollbar {
   /** THE THUMB'S LENGTH, stated INSTEAD of read off `scrolled` — px or a
    *  share of the track. For a reconstruction whose thumb was measured
    *  off the original rather than computed from anything it scrolls. */
-  compose::Dim thumbLength;
+  compose::Dimension thumbLength;
   /** Where the window stands: 0 at the start of what it scrolls, 1 at the
    *  end. It is a fraction rather than a distance because the distance is
    *  the travel, which the bar is the one that knows. */
@@ -101,7 +101,7 @@ struct Scrollbar {
  *      sketch::kit::scrollbar({.thumb = slider(),
  *                              .scrolled = {rows, whole, trackH},
  *                              .at = read})
- *          .width(Dim(19))
+ *          .width(Dimension(19))
  *          .padding(2)
  *
  *  The track grows into whatever length the bar is given, so a bar beside

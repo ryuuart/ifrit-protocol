@@ -1,12 +1,17 @@
 #include "DunhuangStarChart.h"
 
 auto DunhuangStarChart::ground() -> Element {
-  auto g = box().left(0).top(0).width(Dim(kW)).height(Dim(kH)).key("ground");
+  auto g = box()
+               .left(0)
+               .top(0)
+               .width(Dimension(kW))
+               .height(Dimension(kH))
+               .key("ground");
   g.child(box()
               .left(0)
               .top(0)
-              .width(Dim(kW))
-              .height(Dim(kH))
+              .width(Dimension(kW))
+              .height(Dimension(kH))
               .fill(Paint::linear({0, 0}, {kW, kH},
                                   {{0.0f, hexColor(0x171410)},
                                    {0.5f, hexColor(0x1d1913)},
@@ -31,8 +36,8 @@ auto DunhuangStarChart::scrollBand(float x0, float x1, const char* keyName,
   auto g = box()
                .left(x0)
                .top(kBandTop)
-               .width(Dim(w))
-               .height(Dim(kBandH))
+               .width(Dimension(w))
+               .height(Dimension(kBandH))
                .rotate(tilt)
                .key(keyName)
                .cache(Cache::Texture)
@@ -42,8 +47,8 @@ auto DunhuangStarChart::scrollBand(float x0, float x1, const char* keyName,
   g.child(box()
               .left(0)
               .top(0)
-              .width(Dim(w))
-              .height(Dim(kBandH))
+              .width(Dimension(w))
+              .height(Dimension(kBandH))
               .fill(Paint::linear({0, 0}, {0, kBandH},
                                   {{0.00f, kKraft},
                                    {0.055f, kPaperDeep},
@@ -58,8 +63,8 @@ auto DunhuangStarChart::scrollBand(float x0, float x1, const char* keyName,
   g.child(box()
               .left(0)
               .top(0)
-              .width(Dim(w))
-              .height(Dim(kBandH))
+              .width(Dimension(w))
+              .height(Dimension(kBandH))
               .fill(paperGrain)
               .opacity(0.20f)
               .blend(SkBlendMode::kSoftLight)
@@ -67,8 +72,8 @@ auto DunhuangStarChart::scrollBand(float x0, float x1, const char* keyName,
   g.child(box()
               .left(0)
               .top(0)
-              .width(Dim(w))
-              .height(Dim(kBandH))
+              .width(Dimension(w))
+              .height(Dimension(kBandH))
               .foreground(Wash{.material = paperSpeck.material(),
                                .blend = SkBlendMode::kMultiply,
                                .amount = 0.55f})
@@ -83,8 +88,8 @@ auto DunhuangStarChart::scrollBand(float x0, float x1, const char* keyName,
     g.child(box()
                 .left(gx)
                 .top(6)
-                .width(Dim(3.0f))
-                .height(Dim(kBandH - 12))
+                .width(Dimension(3.0f))
+                .height(Dimension(kBandH - 12))
                 .fill(Fill::color(hexColor(0x8b6e45, 0.10f))));
   }
 
@@ -93,8 +98,8 @@ auto DunhuangStarChart::scrollBand(float x0, float x1, const char* keyName,
       box()
           .left(0)
           .top(0)
-          .width(Dim(w))
-          .height(Dim(kBandH))
+          .width(Dimension(w))
+          .height(Dimension(kBandH))
           .shape(keyedShape(std::string_view("band-rules"),
                             [](SkSize s) {
                               SkPathBuilder b;
@@ -106,7 +111,7 @@ auto DunhuangStarChart::scrollBand(float x0, float x1, const char* keyName,
                             }))
           .stroke(Brush{}
                       .shaped(shapers::Jitter{
-                          .segLength = 34, .deviation = 0.9f, .seed = 3326})
+                          .segmentLength = 34, .deviation = 0.9f, .seed = 3326})
                       .layer(lines::Rails{
                           .rails = {
                               {.across = 0,
@@ -129,8 +134,8 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
   auto g = box()
                .left(xl - segLo(seg))
                .top(kFrameTop - kSegTop)
-               .width(Dim(w))
-               .height(Dim(kFrameH))
+               .width(Dimension(w))
+               .height(Dimension(kFrameH))
                .key(kit::formatted("map%d_%d", k, seg))
                .opacity(gate(tFold0 - 0.4f, tFold0 + 1.1f));
 
@@ -145,10 +150,10 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
       box()
           .left(0)
           .top(0)
-          .width(Dim(w))
-          .height(Dim(kFrameH))
+          .width(Dimension(w))
+          .height(Dimension(kFrameH))
           .stroke(Brush{}
-                      .shaped(shapers::Jitter{.segLength = 30,
+                      .shaped(shapers::Jitter{.segmentLength = 30,
                                               .deviation = 1.1f,
                                               .seed = (uint32_t)(600 + k)})
                       .layer(lines::Line{
@@ -162,8 +167,8 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
   g.child(box()
               .left(0)
               .top(yEq - 1)
-              .width(Dim(w))
-              .height(Dim(2))
+              .width(Dimension(w))
+              .height(Dimension(2))
               .shape(keyedShape(std::string_view("equator"),
                                 [](SkSize s) {
                                   SkPathBuilder b;
@@ -186,31 +191,31 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
     g.child(box()
                 .left(x - 0.4f)
                 .top(0)
-                .width(Dim(0.9f))
-                .height(Dim(big ? 8.0f : 4.5f))
+                .width(Dimension(0.9f))
+                .height(Dimension(big ? 8.0f : 4.5f))
                 .fill(Fill::color(hexColor(0x8a7458, 0.40f))));
     g.child(box()
                 .left(x - 0.4f)
                 .top(kFrameH - (big ? 8.0f : 4.5f))
-                .width(Dim(0.9f))
-                .height(Dim(big ? 8.0f : 4.5f))
+                .width(Dimension(0.9f))
+                .height(Dimension(big ? 8.0f : 4.5f))
                 .fill(Fill::color(hexColor(0x8a7458, 0.40f))));
     if (big)
-      g.child(text(toU8(kit::formatted("%d", (int)std::lround(wrap360(
-                                                 mapCentre(k) + (float)t)))),
+      g.child(text(toUtf8(kit::formatted("%d", (int)std::lround(wrap360(
+                                                   mapCentre(k) + (float)t)))),
                    type(faceMono, 7.4f, hexColor(0x8a7458, 0.60f)))
                   .left(x - 11)
                   .top(kFrameH + 3)
-                  .width(Dim(24))
+                  .width(Dimension(24))
                   .textAlign(weave::TextAlignment::kCenter));
   }
 
   // the map's own number and month, in the margin above
-  g.child(text(toU8(kit::formatted("%d", k)),
+  g.child(text(toUtf8(kit::formatted("%d", k)),
                type(faceDisplay, 13.0f, hexColor(0x4a3b28, 0.82f)))
               .left(w - 20)
               .top(-19)
-              .width(Dim(18))
+              .width(Dimension(18))
               .textAlign(weave::TextAlignment::kEnd));
 
   // THE MANSION BOUNDARIES, ruled where the DETERMINATIVE STARS put them
@@ -224,8 +229,8 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
     g.child(box()
                 .left(x - 6)
                 .top(0)
-                .width(Dim(12))
-                .height(Dim(kFrameH))
+                .width(Dimension(12))
+                .height(Dimension(kFrameH))
                 .shape(keyedShape(std::string_view("ra-tick"),
                                   [](SkSize sz) {
                                     SkPathBuilder b;
@@ -240,17 +245,17 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
                     .trimStart = 0.06f,
                     .trimEnd = 0.94f}));
     g.child(
-        text(toU8(cat.xiu(m).native), type(faceHan ? faceHan : faceSerif, 11.5f,
-                                           hexColor(0x2a2118, 0.88f)))
+        text(toUtf8(cat.xiu(m).native), type(faceHan ? faceHan : faceSerif,
+                                             11.5f, hexColor(0x2a2118, 0.88f)))
             .left(x - 9)
             .top(-32)
-            .width(Dim(18))
+            .width(Dimension(18))
             .textAlign(weave::TextAlignment::kCenter));
-    g.child(text(toU8(cat.xiu(m).pinyin),
+    g.child(text(toUtf8(cat.xiu(m).pinyin),
                  type(faceMono, 7.0f, hexColor(0x5d4c37, 0.75f)))
                 .left(x - 20)
                 .top(-45)
-                .width(Dim(40))
+                .width(Dimension(40))
                 .textAlign(weave::TextAlignment::kCenter));
   }
   return g;
@@ -266,8 +271,8 @@ auto DunhuangStarChart::columnBand(int k, int seg) -> Element {
   auto g = box()
                .left(xl - segLo(seg))
                .top(kFrameTop + 8 - kSegTop)
-               .width(Dim(w))
-               .height(Dim(kFrameH - 16))
+               .width(Dimension(w))
+               .height(Dimension(kFrameH - 16))
                .key(kit::formatted("cols%d_%d", k, seg))
                .opacity(gate(tFold0 + 0.2f, tFold0 + 1.5f));
   const int nCols = (int)std::round(kColBandMm / kColMm);
@@ -290,8 +295,8 @@ auto DunhuangStarChart::columnBand(int k, int seg) -> Element {
           box()
               .left(cx - 3.9f)
               .top(gy)
-              .width(Dim(7.8f))
-              .height(Dim(6.2f))
+              .width(Dimension(7.8f))
+              .height(Dimension(6.2f))
               .fill(Fill::color(hexColor(0x241d15, 0.80f)))
               .shape(shapes::blob((uint32_t)(k * 97 + c * 13 + gI), 0.42f, 7)));
     }
@@ -308,24 +313,25 @@ auto DunhuangStarChart::discPlate(int seg) -> Element {
   auto g = box()
                .left(c.fX - rOut - segLo(seg))
                .top(c.fY - rOut - kSegTop)
-               .width(Dim(d))
-               .height(Dim(d))
+               .width(Dimension(d))
+               .height(Dimension(d))
                .key(kit::formatted("disc%d", seg))
                .opacity(gate(tFold0 - 0.2f, tFold0 + 1.4f));
 
   // the limb: a heavy outer rule and a hairline inner one
-  g.child(box()
-              .left(0)
-              .top(0)
-              .width(Dim(d))
-              .height(Dim(d))
-              .shape(shapes::circle())
-              .stroke(Brush{}
-                          .shaped(shapers::Jitter{
-                              .segLength = 22, .deviation = 1.0f, .seed = 1300})
-                          .layer(brush::presets::heavyHairHeavy(
-                              1.7f, 0.5f,
-                              Fill::color(hexColor(0x3a2e1e, 0.86f)), 5.0f))));
+  g.child(
+      box()
+          .left(0)
+          .top(0)
+          .width(Dimension(d))
+          .height(Dimension(d))
+          .shape(shapes::circle())
+          .stroke(Brush{}
+                      .shaped(shapers::Jitter{
+                          .segmentLength = 22, .deviation = 1.0f, .seed = 1300})
+                      .layer(brush::presets::heavyHairHeavy(
+                          1.7f, 0.5f, Fill::color(hexColor(0x3a2e1e, 0.86f)),
+                          5.0f))));
 
   // the DEC rings, at the published 5.10 °/cm — parametric, not stamped
   for (int dec = 60; dec <= 85; dec += 5) {
@@ -334,8 +340,8 @@ auto DunhuangStarChart::discPlate(int seg) -> Element {
     g.child(box()
                 .left(rOut - rr)
                 .top(rOut - rr)
-                .width(Dim(rr * 2))
-                .height(Dim(rr * 2))
+                .width(Dimension(rr * 2))
+                .height(Dimension(rr * 2))
                 .shape(shapes::circle())
                 .stroke(PathFormat{
                     .width = 0.5f,
@@ -351,8 +357,8 @@ auto DunhuangStarChart::discPlate(int seg) -> Element {
     g.child(box()
                 .left(0)
                 .top(0)
-                .width(Dim(d))
-                .height(Dim(d))
+                .width(Dimension(d))
+                .height(Dimension(d))
                 .shape(keyedShape(std::tuple(ang, rOut),
                                   [ang, rOut](SkSize) {
                                     SkPathBuilder b;
@@ -374,13 +380,13 @@ auto DunhuangStarChart::discPlate(int seg) -> Element {
       const SkPoint label =
           arrange::onEllipse({rOut, rOut}, {rOut - 16.0f, rOut - 16.0f}, a);
       const float lx = label.fX, ly = label.fY;
-      g.child(
-          text(toU8(cat.xiu(m).native), type(faceHan ? faceHan : faceSerif,
-                                             11.0f, hexColor(0x2a2118, 0.85f)))
-              .left(lx - 8)
-              .top(ly - 8)
-              .width(Dim(16))
-              .textAlign(weave::TextAlignment::kCenter));
+      g.child(text(toUtf8(cat.xiu(m).native),
+                   type(faceHan ? faceHan : faceSerif, 11.0f,
+                        hexColor(0x2a2118, 0.85f)))
+                  .left(lx - 8)
+                  .top(ly - 8)
+                  .width(Dimension(16))
+                  .textAlign(weave::TextAlignment::kCenter));
     }
   }
 
@@ -390,8 +396,8 @@ auto DunhuangStarChart::discPlate(int seg) -> Element {
   g.child(box()
               .left(rOut - 5)
               .top(rOut - 5)
-              .width(Dim(10))
-              .height(Dim(10))
+              .width(Dimension(10))
+              .height(Dimension(10))
               .shape(shapes::circle())
               .stroke(PathFormat{
                   .width = 0.7f,
@@ -399,8 +405,8 @@ auto DunhuangStarChart::discPlate(int seg) -> Element {
   g.child(box()
               .left(rOut - 3.2f)
               .top(rOut - poleOff - 3.2f)
-              .width(Dim(6.4f))
-              .height(Dim(6.4f))
+              .width(Dimension(6.4f))
+              .height(Dimension(6.4f))
               .shape(shapes::star(4, 0.34f))
               .fill(Fill::color(kTrace))
               .opacity(gate(tProj - 1.4f, tProj - 0.4f)));
@@ -409,8 +415,8 @@ auto DunhuangStarChart::discPlate(int seg) -> Element {
   g.child(box()
               .left(rOut - poleOff * 0.45f - 4.0f)
               .top(rOut - poleOff * 0.7f - 4.0f)
-              .width(Dim(8))
-              .height(Dim(8))
+              .width(Dimension(8))
+              .height(Dimension(8))
               .shape(shapes::circle())
               .fill(Fill::color(hexColor(0xa8382a, 0.34f)))
               .opacity(gate(tFold1, tFold1 + 0.8f)));
@@ -425,7 +431,7 @@ auto DunhuangStarChart::discNotes(int seg) -> Element {
   auto g = box()
                .left(cx - rOut - 8)
                .top(kBandMid + rOut - kSegTop + 16)
-               .width(Dim(rOut * 2 + 16))
+               .width(Dimension(rOut * 2 + 16))
                .key(kit::formatted("discnote%d", seg))
                .opacity(gate(tProj - 1.2f, tProj - 0.3f));
   const std::string rows[4] = {
@@ -437,19 +443,20 @@ auto DunhuangStarChart::discNotes(int seg) -> Element {
                      (90.0f - kDiscCenDec) / kPolPerMm),
   };
   for (int i = 0; i < 4; ++i)
-    g.child(text(toU8(rows[(size_t)i]), type(faceMono, 8.0f,
-                                             i >= 2 ? hexColor(0x8a3020, 0.95f)
-                                                    : hexColor(0x4a3b28, 0.9f)))
-                .left(0)
-                .top((float)i * 10.4f)
-                .width(Dim(rOut * 2 + 16)));
-  g.child(text(toU8("slightly erased, sits near it \xe2\x80\x94 \"could be "
-                    "the Pole "
-                    "star\". Drawn as found."),
+    g.child(
+        text(toUtf8(rows[(size_t)i]), type(faceMono, 8.0f,
+                                           i >= 2 ? hexColor(0x8a3020, 0.95f)
+                                                  : hexColor(0x4a3b28, 0.9f)))
+            .left(0)
+            .top((float)i * 10.4f)
+            .width(Dimension(rOut * 2 + 16)));
+  g.child(text(toUtf8("slightly erased, sits near it \xe2\x80\x94 \"could be "
+                      "the Pole "
+                      "star\". Drawn as found."),
                type(faceMono, 8.0f, hexColor(0x8a3020, 0.95f)))
               .left(0)
               .top(41.6f)
-              .width(Dim(rOut * 2 + 16)));
+              .width(Dimension(rOut * 2 + 16)));
   return g;
 }
 
@@ -457,21 +464,21 @@ auto DunhuangStarChart::raRuler(int seg) -> Element {
   auto g = box()
                .left(0)
                .top(0)
-               .width(Dim(segHi(seg) - segLo(seg)))
-               .height(Dim(kSegH))
+               .width(Dimension(segHi(seg) - segLo(seg)))
+               .height(Dimension(kSegH))
                .key(kit::formatted("raruler%d", seg))
                .opacity(gate(tFold1 - 0.4f, tFold1 + 0.6f));
   const float y = kBandTop - kSegTop - 46.0f;
   if (seg == 1)
-    g.child(text(toU8("EACH FRAME SPANS 48\xc2\xb0 OF RA ON A 30\xc2\xb0 "
-                      "PITCH \xc2\xb7 "
-                      "HATCHED: the 18\xc2\xb0 it shares with its neighbour "
-                      "\xc2\xb7 "
-                      "the axis JUMPS BACK at every boundary"),
+    g.child(text(toUtf8("EACH FRAME SPANS 48\xc2\xb0 OF RA ON A 30\xc2\xb0 "
+                        "PITCH \xc2\xb7 "
+                        "HATCHED: the 18\xc2\xb0 it shares with its neighbour "
+                        "\xc2\xb7 "
+                        "the axis JUMPS BACK at every boundary"),
                  type(faceMono, 8.4f, hexColor(0xc9a35c, 0.9f)))
                 .left(600)
                 .top(y - 26)
-                .width(Dim(900)));  // just clear of the sheet
+                .width(Dimension(900)));  // just clear of the sheet
   for (int k = 1; k <= 12; ++k) {
     const float s0 = mapSlotS(k);
     const float xl = segX(seg, s0 + kMapWmm) - segLo(seg);
@@ -481,8 +488,8 @@ auto DunhuangStarChart::raRuler(int seg) -> Element {
         box()
             .left(xl)
             .top(y)
-            .width(Dim(xr - xl))
-            .height(Dim(11))
+            .width(Dimension(xr - xl))
+            .height(Dimension(11))
             .shape(keyedShape(std::string_view("span-bracket"),
                               [](SkSize sz) {
                                 SkPathBuilder b;
@@ -496,27 +503,29 @@ auto DunhuangStarChart::raRuler(int seg) -> Element {
                               }))
             .stroke(lines::Line{
                 .width = 1.0f, .fill = Fill::color(hexColor(0xc9a35c, 0.7f))}));
-    g.child(text(toU8(kit::formatted("%d\xc2\xb0", (int)std::lround(wrap360(
-                                                       mapCentre(k) - 24.0f)))),
+    g.child(text(toUtf8(kit::formatted(
+                     "%d\xc2\xb0",
+                     (int)std::lround(wrap360(mapCentre(k) - 24.0f)))),
                  type(faceMono, 7.6f, hexColor(0xc9a35c, 0.85f)))
                 .left(xr - 26)
                 .top(y + 13)
-                .width(Dim(28))
+                .width(Dimension(28))
                 .textAlign(weave::TextAlignment::kEnd));
-    g.child(text(toU8(kit::formatted("%d\xc2\xb0", (int)std::lround(wrap360(
-                                                       mapCentre(k) + 24.0f)))),
+    g.child(text(toUtf8(kit::formatted(
+                     "%d\xc2\xb0",
+                     (int)std::lround(wrap360(mapCentre(k) + 24.0f)))),
                  type(faceMono, 7.6f, hexColor(0xc9a35c, 0.85f)))
                 .left(xl - 2)
                 .top(y + 13)
-                .width(Dim(28)));
+                .width(Dimension(28)));
     // the 18 deg this frame shares with its LEFT neighbour, hatched
     const float ov = 18.0f / kRaPerMm * kPxMm;
     g.child(
         box()
             .left(xl)
             .top(y - 11)
-            .width(Dim(ov))
-            .height(Dim(9))
+            .width(Dimension(ov))
+            .height(Dimension(9))
             .fill(Fill::color(hexColor(0xb4531f, 0.16f)))
             .background(lines::presets::hatch(
                 Fill::color(hexColor(0xb4531f, 0.75f)), 3.6f, 0.7f, 45.0f)));
@@ -528,21 +537,25 @@ auto DunhuangStarChart::breakMark() -> Element {
   auto g = box()
                .left(kBreakL - 8)
                .top(kBandTop - 16)
-               .width(Dim(kBreakR - kBreakL + 16))
-               .height(Dim(kBandH + 32))
+               .width(Dimension(kBreakR - kBreakL + 16))
+               .height(Dimension(kBandH + 32))
                .key("break")
                .opacity(gate(tPaper + 0.4f, tPaper + 1.4f));
   const float w = kBreakR - kBreakL + 16, h = kBandH + 32;
-  g.child(box().left(0).top(0).width(Dim(w)).height(Dim(h)).fill(
-      Fill::color(hexColor(0x171410, 0.96f))));
+  g.child(box()
+              .left(0)
+              .top(0)
+              .width(Dimension(w))
+              .height(Dimension(h))
+              .fill(Fill::color(hexColor(0x171410, 0.96f))));
   for (int i = 0; i < 2; ++i) {
     const float x = 8.0f + (float)i * (w - 16.0f);
     g.child(
         box()
             .left(x - 9)
             .top(0)
-            .width(Dim(18))
-            .height(Dim(h))
+            .width(Dimension(18))
+            .height(Dimension(h))
             .shape(keyedShape(std::string_view("break-zigzag"),
                               [](SkSize s) {
                                 SkPathBuilder b;
@@ -562,11 +575,11 @@ auto DunhuangStarChart::breakMark() -> Element {
   }
   const float sL = (kOriginR - kBreakR) / kPxMm,
               sR = (kOriginL - kBreakL) / kPxMm;
-  g.child(text(toU8(kit::formatted("%d mm", (int)std::lround(sR - sL))),
+  g.child(text(toUtf8(kit::formatted("%d mm", (int)std::lround(sR - sL))),
                type(faceMono, 8.2f, hexColor(0x9a8a68, 0.85f)))
               .left(-16)
               .top(h + 4)
-              .width(Dim(w + 32))
+              .width(Dimension(w + 32))
               .textAlign(weave::TextAlignment::kCenter));
   return g;
 }

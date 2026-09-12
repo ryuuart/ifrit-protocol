@@ -91,7 +91,7 @@ enum class Sense { CW, CCW };
  *  Trivially copyable; holds no Element and no node state. */
 struct Frame {
   SkPoint centre{0, 0};
-  /** The px radius that `rNorm = 1` maps to. Authoring the rest of a
+  /** The px radius that `normalizedRadius = 1` maps to. Authoring the rest of a
    *  figure in normalised radius is what lets the whole plate be rescaled
    *  by editing this one number. */
   float radius = 1.0f;
@@ -174,9 +174,9 @@ struct Frame {
   // ---- points ------------------------------------------------------------
 
   /** `(angle, NORMALISED radius)` → a point in the frame's parent space.
-   *  `rNorm = 1` is `radius`. */
-  SkPoint at(float deg, float rNorm = 1.0f) const {
-    return px(deg, rNorm * radius);
+   *  `normalizedRadius = 1` is `radius`. */
+  SkPoint at(float deg, float normalizedRadius = 1.0f) const {
+    return px(deg, normalizedRadius * radius);
   }
   /** `(angle, PX radius)` → a point, for a figure whose radii were
    *  measured in pixels rather than as fractions of one figure radius. */
@@ -193,11 +193,12 @@ struct Frame {
 
   // ---- boxes -------------------------------------------------------------
 
-  /** The square box of radius `rNorm` about the centre — the frame every
-   *  silhouette generator inscribes itself in: inset it, union it, or
-   *  hand it to whatever draws the figure. */
-  SkRect box(float rNorm = 1.0f) const {
-    return centred(centre, 2 * rNorm * radius, 2 * rNorm * radius);
+  /** The square box of radius `normalizedRadius` about the centre — the frame
+   * every silhouette generator inscribes itself in: inset it, union it, or hand
+   * it to whatever draws the figure. */
+  SkRect box(float normalizedRadius = 1.0f) const {
+    return centred(centre, 2 * normalizedRadius * radius,
+                   2 * normalizedRadius * radius);
   }
   // ---- derived frames ----------------------------------------------------
 

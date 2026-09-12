@@ -63,7 +63,7 @@ void Writer::Impl::fillMesh(UsdGeomMesh& usdMesh,
     usdMesh.CreateDisplayColorPrimvar(UsdGeomTokens->vertex).Set(colors);
     usdMesh.CreateDisplayOpacityPrimvar(UsdGeomTokens->vertex).Set(alphas);
   }
-  for (const auto& [name, lane] : mesh.prims) {
+  for (const auto& [name, lane] : mesh.primitives) {
     if (name == "Material" || lane.size() != mesh.triangleCount()) continue;
     VtVec4fArray values;
     for (const glm::vec4& v : lane) values.push_back({v.x, v.y, v.z, v.w});
@@ -78,7 +78,7 @@ void Writer::Impl::bind(UsdGeomMesh& usdMesh, const geometry::mesh::Mesh& mesh,
                         const std::vector<material::Material>& slots,
                         std::string_view hint) {
   if (slots.empty()) return;
-  const std::vector<glm::vec4>* lane = mesh.primIf("Material");
+  const std::vector<glm::vec4>* lane = mesh.primitiveIf("Material");
   if (slots.size() == 1 || !lane || lane->size() != mesh.triangleCount()) {
     UsdShadeMaterialBindingAPI::Apply(usdMesh.GetPrim())
         .Bind(UsdShadeMaterial(stage->GetPrimAtPath(

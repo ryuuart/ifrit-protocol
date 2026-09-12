@@ -73,7 +73,7 @@ void Writer::Impl::removeWrittenImages() {
   for (const auto& [image, asset] : writtenImages)
     std::filesystem::remove(root / asset, ec);
   writtenImages.clear();
-  const std::filesystem::path dir = root / textureDir();
+  const std::filesystem::path dir = root / textureDirectory();
   if (texturesDirReady && std::filesystem::is_empty(dir, ec))
     std::filesystem::remove(dir, ec);
 }

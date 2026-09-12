@@ -35,8 +35,8 @@ class Session;
  *  body declares itself while it is being opened: a sketch that reads
  *  the flag while declaring its panels has already drawn the unpinned
  *  number by the time a later setter could arrive. */
-struct KindOps {
-  virtual ~KindOps() = default;
+struct KindOperations {
+  virtual ~KindOperations() = default;
   /** What this kind draws through, named — how a host selects part of a
    *  registry it does not otherwise interpret. */
   [[nodiscard]] virtual std::string_view runtime() const = 0;
@@ -68,6 +68,6 @@ struct KindOps {
  *  SIGIL_SKETCH, never a case someone adds to a switch in a host — and
  *  the host that lists, sweeps and photographs sketches does not change
  *  when one arrives. */
-using Kind = core::Erased<KindOps>;
+using Kind = core::Erased<KindOperations>;
 
 }  // namespace sigil::sketch

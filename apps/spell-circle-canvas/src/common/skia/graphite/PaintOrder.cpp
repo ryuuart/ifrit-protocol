@@ -100,21 +100,21 @@ void PaintOrderCanvas::onDrawPicture(const SkPicture* picture,
 }
 
 void PaintOrderCanvas::willSave() {
-  m_layerReadsDst.push_back(false);
+  m_layerReadsDestination.push_back(false);
   SkPaintFilterCanvas::willSave();
 }
 
 SkCanvas::SaveLayerStrategy PaintOrderCanvas::getSaveLayerStrategy(
     const SaveLayerRec& rec) {
-  m_layerReadsDst.push_back(m_fencing && rec.fPaint &&
-                            readsDestination(*rec.fPaint));
+  m_layerReadsDestination.push_back(m_fencing && rec.fPaint &&
+                                    readsDestination(*rec.fPaint));
   return SkPaintFilterCanvas::getSaveLayerStrategy(rec);
 }
 
 void PaintOrderCanvas::willRestore() {
-  if (!m_layerReadsDst.empty()) {
-    m_restoreReadsDst = m_layerReadsDst.back();
-    m_layerReadsDst.pop_back();
+  if (!m_layerReadsDestination.empty()) {
+    m_restoreReadsDestination = m_layerReadsDestination.back();
+    m_layerReadsDestination.pop_back();
   }
   SkPaintFilterCanvas::willRestore();
 }
@@ -123,8 +123,8 @@ void PaintOrderCanvas::didRestore() {
   SkPaintFilterCanvas::didRestore();
   // The composite a layer's restore draws is the reading draw, so the
   // pass ends after it rather than before it.
-  if (m_restoreReadsDst) {
-    m_restoreReadsDst = false;
+  if (m_restoreReadsDestination) {
+    m_restoreReadsDestination = false;
     m_pending = true;
   }
 }

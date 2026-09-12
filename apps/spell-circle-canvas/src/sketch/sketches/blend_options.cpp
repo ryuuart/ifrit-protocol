@@ -75,7 +75,7 @@ namespace blend = sigil::geometry::path::blend;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -148,7 +148,7 @@ using Painter = void (*)(SkCanvas&);
 Element band(std::string key, float width, float height, const char* call,
              const char* note, Painter paint) {
   return sketch::kit::caption(
-      width, toU8(call), toU8(note),
+      width, toUtf8(call), toUtf8(note),
       custom(std::move(key),
              [paint](SkCanvas& canvas, const PaintContext&) { paint(canvas); })
           .width(width)
@@ -305,11 +305,11 @@ struct BlendOptions final : sketch::Sketch {
     bands.push_back(std::move(spineRow));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("BLEND OPTIONS \xc2\xb7 how many steps, "
-                       "what rides along, and where they walk"),
-         .subtitle = toU8("path::blend interpolates OUTLINES: "
-                          "every intermediate is a real path"),
-         .footer = toU8("Sketchbook \xc2\xb7 blend_options")},
+        {.title = toUtf8("BLEND OPTIONS \xc2\xb7 how many steps, "
+                         "what rides along, and where they walk"),
+         .subtitle = toUtf8("path::blend interpolates OUTLINES: "
+                            "every intermediate is a real path"),
+         .footer = toUtf8("Sketchbook \xc2\xb7 blend_options")},
         kit::cells({.cells = std::move(bands), .column = true, .gap = 18})));
   }
 };

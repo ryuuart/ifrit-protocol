@@ -137,7 +137,7 @@ inline float acosP(float x) {
 /** Where a direction reads on an equirect panorama: u = 0.5 turns to
  *  face -z, u wraps once around, and v runs 0 at the zenith to 1 at the
  *  nadir. */
-inline glm::vec2 equirectUv(glm::vec3 d) {
+inline glm::vec2 equirectangularUv(glm::vec3 d) {
   const float len = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
   const glm::vec3 u = len > 0 ? d / len : glm::vec3(0, 1, 0);
   return {0.5f + atan2P(u.x, -u.z) * 0.15915494f, acosP(u.y) * 0.31830989f};

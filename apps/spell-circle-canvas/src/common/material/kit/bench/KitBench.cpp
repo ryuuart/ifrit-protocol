@@ -66,10 +66,10 @@ BENCHMARK(BadgeFill)->Arg(32)->Arg(128);
 /** The metallic-roughness surface: what a dressed material costs to
  *  build, and what a stack of them costs to shade. */
 void PbrBuild(benchmark::State& state) {
-  const kit::SurfaceParams params;
+  const kit::SurfaceParameters parameters;
   for ([[maybe_unused]] auto iteration : state) {
     Material m =
-        state.range(0) == 0 ? kit::surface(params) : kit::unlit(params);
+        state.range(0) == 0 ? kit::surface(parameters) : kit::unlit(parameters);
     benchmark::DoNotOptimize(m);
   }
 }
@@ -78,9 +78,9 @@ BENCHMARK(PbrBuild)->Arg(0)->Arg(1);
 /** The globe: what one costs to build, and what a disc of it costs to
  *  shade at two sizes. */
 void GlobeBuild(benchmark::State& state) {
-  const kit::GlobeParams params;
+  const kit::GlobeParameters parameters;
   for ([[maybe_unused]] auto iteration : state)
-    benchmark::DoNotOptimize(kit::globe(params));
+    benchmark::DoNotOptimize(kit::globe(parameters));
 }
 BENCHMARK(GlobeBuild);
 

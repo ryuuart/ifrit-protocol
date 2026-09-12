@@ -11,7 +11,7 @@
 
 #include <sigilmaterial/core/FrameData.h>
 #include <sigilmaterial/core/Leaf.h>
-#include <sigilmaterial/core/Params.h>
+#include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/core/Program.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/core/UniformBlock.h>
@@ -32,7 +32,7 @@ namespace sigil::material {
 /** A recipe instance.
  *
  *  VALUES are held as the bytes the shader receives, written from the
- *  params struct at construction and by `set()` per field afterwards.
+ *  parameter struct at construction and by `set()` per field afterwards.
  *  BINDINGS replace a field's bytes at every resolve: a
  *  `motion::Animatable<float>` fills a float field with what it reads as
  *  this frame, a `UniformBlock` fills an array field with its current
@@ -54,19 +54,21 @@ namespace sigil::material {
  * prune. */
 class Material {
  public:
-  /** An instance of @p recipe with the field values of @p params, whose
+  /** An instance of @p recipe with the field values of @p parameters, whose
    *  type must be the struct the recipe was defined over. */
   template <class P>
-  Material(std::shared_ptr<const Recipe> recipe, const P& params)
-      : Material(std::move(recipe), &params, sizeof(P), &schema<P>()) {}
+  Material(std::shared_ptr<const Recipe> recipe, const P& parameters)
+      : Material(std::move(recipe), &parameters, sizeof(P), &schema<P>()) {}
   /** An instance whose fields all start at zero. */
   explicit Material(std::shared_ptr<const Recipe> recipe);
 
   const Recipe& recipe() const { return *m_recipe; }
-  const std::shared_ptr<const Recipe>& recipePtr() const { return m_recipe; }
+  const std::shared_ptr<const Recipe>& recipePointer() const {
+    return m_recipe;
+  }
   /** THE SAME INSTANCE OVER @p recipe: the values, bindings, children and
    *  settings unchanged, resolving and caching against a second
-   *  definition. @p recipe must have this one's params layout — it is a
+   *  definition. @p recipe must have this one's parameters layout — it is a
    *  SPECIALIZATION of the same ABI, a body rewritten around a size or a
    *  constant a renderer knows only at draw — and a layout that differs is
    *  reported once and the material comes back on its own recipe. The
@@ -90,10 +92,10 @@ class Material {
     write(name, Kind::FloatArray, floats.data(), floats.size());
     return *this;
   }
-  /** Rewrites every field from @p params. */
+  /** Rewrites every field from @p parameters. */
   template <class P>
-  Material& set(const P& params) {
-    write(&params, sizeof(P), &schema<P>());
+  Material& set(const P& parameters) {
+    write(&parameters, sizeof(P), &schema<P>());
     return *this;
   }
   /** The field's current bytes, reinterpreted. The caller names the type
@@ -101,7 +103,7 @@ class Material {
   template <Uniform T>
   T get(std::string_view name) const {
     T out{};
-    const Field* f = m_recipe->params().find(name);
+    const Field* f = m_recipe->parameters().find(name);
     if (f && f->floats == UniformTraits<T>::floats)
       std::memcpy(&out, m_bytes.data() + f->offset, sizeof(T));
     return out;
@@ -193,7 +195,7 @@ class Material {
   Resolved resolve(Target target, const FrameData& frame,
                    Variant variant = {}) const;
 
-  /** The author-set bytes, in the recipe's `params()` layout. */
+  /** The author-set bytes, in the recipe's `parameters()` layout. */
   std::span<const std::byte> bytes() const { return m_bytes; }
 
  private:
@@ -204,9 +206,9 @@ class Material {
     motion::Animatable<float> value{0.0f};
     std::shared_ptr<const UniformBlock> block;
   };
-  Material(std::shared_ptr<const Recipe> recipe, const void* params,
+  Material(std::shared_ptr<const Recipe> recipe, const void* parameters,
            size_t size, const Schema* schema);
-  void write(const void* params, size_t size, const Schema* schema);
+  void write(const void* parameters, size_t size, const Schema* schema);
   void write(std::string_view name, Kind kind, const void* floats,
              size_t count);
   Binding* binding(std::string_view name);

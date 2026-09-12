@@ -22,7 +22,7 @@ namespace {
 
 /** The pad value Mesh::append fills a missing primitive lane with, BY
  *  NAME — a missing "Color" means white (an untinted primitive), every
- *  other lane zeros. The prim-class twin of Points.cpp's
+ *  other lane zeros. The primitive-class twin of Points.cpp's
  *  scalarDefault/colorDefault. */
 glm::vec4 primDefault(std::string_view name) {
   return name == "Color" ? glm::vec4{1, 1, 1, 1} : glm::vec4{0, 0, 0, 0};
@@ -58,15 +58,16 @@ constexpr glm::vec4 kColorPad{1, 1, 1, 1};
 
 }  // namespace
 
-std::vector<glm::vec4>& Mesh::prim(const std::string& name, glm::vec4 fill) {
-  std::vector<glm::vec4>& lane = prims[name];
+std::vector<glm::vec4>& Mesh::primitive(const std::string& name,
+                                        glm::vec4 fill) {
+  std::vector<glm::vec4>& lane = primitives[name];
   lane.resize(triangleCount(), fill);
   return lane;
 }
 
-const std::vector<glm::vec4>* Mesh::primIf(std::string_view name) const {
-  auto it = prims.find(name);
-  return it == prims.end() ? nullptr : &it->second;
+const std::vector<glm::vec4>* Mesh::primitiveIf(std::string_view name) const {
+  auto it = primitives.find(name);
+  return it == primitives.end() ? nullptr : &it->second;
 }
 
 void Mesh::append(const Mesh& other) {
@@ -78,21 +79,23 @@ void Mesh::append(const Mesh& other) {
   // Primitive lanes: union of both sides, each missing side padded with
   // the lane NAME's conventional default. Counted BEFORE the indices
   // grow, so the "ours" pad lands at the old triangle count.
-  if (!prims.empty() || !other.prims.empty()) {
+  if (!primitives.empty() || !other.primitives.empty()) {
     const size_t oldTris = triangleCount();
     const size_t newTris = oldTris + other.triangleCount();
-    for (auto& [name, lane] : prims) lane.resize(oldTris, primDefault(name));
-    for (const auto& [name, lane] : other.prims) {
-      std::vector<glm::vec4>& mine = prims[name];
+    for (auto& [name, lane] : primitives)
+      lane.resize(oldTris, primDefault(name));
+    for (const auto& [name, lane] : other.primitives) {
+      std::vector<glm::vec4>& mine = primitives[name];
       mine.resize(oldTris, primDefault(name));
       mine.insert(mine.end(), lane.begin(), lane.end());
     }
-    // The trailing pad is what repairs a SHORT incoming prim lane: an
+    // The trailing pad is what repairs a SHORT incoming primitive lane: an
     // `other` lane holding fewer entries than other.triangleCount()
     // leaves `mine` under newTris after the insert, and this resize
     // tops it up by name. (A too-LONG lane is truncated by the same
     // call.)
-    for (auto& [name, lane] : prims) lane.resize(newTris, primDefault(name));
+    for (auto& [name, lane] : primitives)
+      lane.resize(newTris, primDefault(name));
   }
   // Color lanes get the same coherence dance as normals and uvs below,
   // for the same reason: consumers read "lane sized to positions" as

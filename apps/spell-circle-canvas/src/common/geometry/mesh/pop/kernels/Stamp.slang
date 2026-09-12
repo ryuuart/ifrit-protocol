@@ -63,7 +63,7 @@ RWStructuredBuffer<float4> pointColor;
 /** Per point: the texture window {uOffset, vOffset, uScale, vScale} its
  *  stamp's uvs are remapped through — the identity where there is
  *  none. */
-RWStructuredBuffer<float4> pointTex;
+RWStructuredBuffer<float4> pointTextureWindows;
 
 // TWO LANES CARRY THREE. A position and a normal each spend three of
 // their four floats and a uv is two numbers, so the uv rides in the two
@@ -121,7 +121,7 @@ void stampVertex(uint i) {
     by = crossP(bz, bx);
   }
 
-  float4 tex = pointTex[p];
+  float4 tex = pointTextureWindows[p];
   float2 uv = stampUv[v].xy;
 
   float3 sp = stampPosition[v].xyz;

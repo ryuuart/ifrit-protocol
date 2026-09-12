@@ -38,7 +38,10 @@ struct MarqueeOptions {
 inline Element marquee(const Element& content, MarqueeOptions how) {
   const bool pin = how.contentWidth > 0;
   auto copy = [&] {
-    return pin ? box().width(Dim(how.contentWidth)).shrink(0).child(content)
+    return pin ? box()
+                     .width(Dimension(how.contentWidth))
+                     .shrink(0)
+                     .child(content)
                : content;
   };
   return box().clip(true).child(box()

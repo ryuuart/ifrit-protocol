@@ -10,7 +10,7 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/core/CanvasSpec.h>
+#include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Kind.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/core/Sources.h>
@@ -98,16 +98,16 @@ std::string thumbnailKey(const fs::path& entrySource) {
   return hex;
 }
 
-fs::path thumbnailFile(const fs::path& dir, std::string_view stem,
+fs::path thumbnailFile(const fs::path& directory, std::string_view stem,
                        std::string_view key) {
-  return dir / (std::string(stem) + std::string(kKeyMark) + std::string(key) +
-                ".png");
+  return directory / (std::string(stem) + std::string(kKeyMark) +
+                      std::string(key) + ".png");
 }
 
-fs::path freshThumbnail(const fs::path& dir, std::string_view stem,
+fs::path freshThumbnail(const fs::path& directory, std::string_view stem,
                         std::string_view key) {
-  if (dir.empty()) return {};
-  const fs::path file = thumbnailFile(dir, stem, key);
+  if (directory.empty()) return {};
+  const fs::path file = thumbnailFile(directory, stem, key);
   std::error_code ec;
   return fs::exists(file, ec) ? file : fs::path{};
 }
@@ -115,29 +115,29 @@ fs::path freshThumbnail(const fs::path& dir, std::string_view stem,
 namespace {
 
 /** Where the note for @p stem at @p key stands. */
-fs::path noteFile(const fs::path& dir, std::string_view stem,
+fs::path noteFile(const fs::path& directory, std::string_view stem,
                   std::string_view key) {
-  return dir / (std::string(stem) + std::string(kKeyMark) + std::string(key) +
-                std::string(kNoteSuffix));
+  return directory / (std::string(stem) + std::string(kKeyMark) +
+                      std::string(key) + std::string(kNoteSuffix));
 }
 
 }  // namespace
 
-bool noteThumbnail(const fs::path& dir, std::string_view stem,
+bool noteThumbnail(const fs::path& directory, std::string_view stem,
                    std::string_view key, std::string_view why) {
-  if (dir.empty()) return false;
+  if (directory.empty()) return false;
   std::error_code ec;
-  fs::create_directories(dir, ec);
-  const fs::path file = noteFile(dir, stem, key);
+  fs::create_directories(directory, ec);
+  const fs::path file = noteFile(directory, stem, key);
   if (!io::writeBytes(file, why.data(), why.size())) return false;
-  pruneThumbnails(dir, stem, file);
+  pruneThumbnails(directory, stem, file);
   return true;
 }
 
-std::string thumbnailNote(const fs::path& dir, std::string_view stem,
+std::string thumbnailNote(const fs::path& directory, std::string_view stem,
                           std::string_view key) {
-  if (dir.empty()) return {};
-  const fs::path file = noteFile(dir, stem, key);
+  if (directory.empty()) return {};
+  const fs::path file = noteFile(directory, stem, key);
   std::error_code ec;
   if (!fs::exists(file, ec)) return {};
   std::ifstream stream(file);
@@ -148,11 +148,11 @@ std::string thumbnailNote(const fs::path& dir, std::string_view stem,
   return line.empty() ? std::string("no still") : line;
 }
 
-void pruneThumbnails(const fs::path& dir, std::string_view stem,
+void pruneThumbnails(const fs::path& directory, std::string_view stem,
                      const fs::path& keep) {
   std::error_code ec;
   const std::string prefix = std::string(stem) + std::string(kKeyMark);
-  for (auto it = fs::directory_iterator(dir, ec);
+  for (auto it = fs::directory_iterator(directory, ec);
        !ec && it != fs::directory_iterator(); it.increment(ec)) {
     const fs::path& p = it->path();
     if (p == keep) continue;
@@ -195,19 +195,20 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   // thumbnail must be that same picture.
   session->setAutoPromotion(Session::Promotion::Off);
 
-  const CanvasSpec& spec = session->canvas();
-  const SkSize size = spec.size;
+  const CanvasSpecification& specification = session->canvas();
+  const SkSize size = specification.size;
   if (size.width() <= 0 || size.height() <= 0) return ThumbnailOutcome::Failed;
   // A SKETCH THAT SAID IT IS A PLATE SAID IT COSTS WHAT A PLATE COSTS.
   // Only setup was needed to learn that, which is the cheap half; the
   // walk is what is stood down.
-  if (spec.plateOnly && !run.heavy) return ThumbnailOutcome::Heavy;
-  const SkColor4f background = spec.background;
+  if (specification.plateOnly && !run.heavy) return ThumbnailOutcome::Heavy;
+  const SkColor4f background = specification.background;
 
   // Step from zero to the sketch's declared moment on a working surface
   // its own size — the frame the plate tier photographs.
-  const double moment =
-      spec.captureSeconds > 0 ? spec.captureSeconds : kDefaultMoment;
+  const double moment = specification.captureSeconds > 0
+                            ? specification.captureSeconds
+                            : kDefaultMoment;
   const int frames = std::max(0, (int)std::lround(moment * kRate));
   const SkImageInfo workInfo =
       SkImageInfo::MakeN32Premul((int)size.width(), (int)size.height());
@@ -248,9 +249,9 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
     return ThumbnailOutcome::Failed;
   const sk_sp<SkData> png =
       image::encodeImage(bitmap.pixmap(), image::Format::Png);
-  if (!png || !io::writeBytes(run.out, png->data(), png->size()))
+  if (!png || !io::writeBytes(run.outputPath, png->data(), png->size()))
     return ThumbnailOutcome::Failed;
-  pruneThumbnails(run.out.parent_path(), run.stem, run.out);
+  pruneThumbnails(run.outputPath.parent_path(), run.stem, run.outputPath);
   return ThumbnailOutcome::Wrote;
 }
 

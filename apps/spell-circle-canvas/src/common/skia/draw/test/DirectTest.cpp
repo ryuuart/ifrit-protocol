@@ -1,5 +1,5 @@
 /** @file
- * The band split a nine-slice decomposes into: divs cut the source into
+ * The band split a nine-slice decomposes into: divisions cut the source into
  * alternating fixed and stretchable intervals starting FIXED, the
  * stretchable ones share whatever destination space is left, and a
  * destination too small for the fixed sum scales the fixed bands down
@@ -23,10 +23,11 @@ struct Split {
   std::vector<float> src, dst;
 };
 
-Split edgesOf(const std::vector<int>& divs, float srcLen, float dstLen,
-              float density = 1.0f) {
+Split edgesOf(const std::vector<int>& divisions, float sourceLength,
+              float destinationLength, float density = 1.0f) {
   Split s;
-  detail::latticeEdges(divs, srcLen, dstLen, s.src, s.dst, density);
+  detail::latticeEdges(divisions, sourceLength, destinationLength, s.src, s.dst,
+                       density);
   return s;
 }
 
@@ -146,16 +147,18 @@ TEST(DirectDraws, EverySpriteIsDrawnAcrossTheChunkBoundary) {
   // run is one sprite past the cut, with the last one somewhere else, so
   // a lost tail is a pixel that is not there.
   constexpr size_t kCount = 16001;
-  std::vector<SkRSXform> xforms(kCount,
-                                SkRSXform::MakeFromRadians(1, 0, 10, 10, 0, 0));
-  std::vector<SkRect> tex(kCount, SkRect::MakeWH(2, 4));  // the white half
-  xforms.back() = SkRSXform::MakeFromRadians(1, 0, 150, 150, 0, 0);
-  tex.back() = SkRect::MakeLTRB(2, 0, 4, 4);  // …and the red one
+  std::vector<SkRSXform> transforms(
+      kCount, SkRSXform::MakeFromRadians(1, 0, 10, 10, 0, 0));
+  std::vector<SkRect> sourceRectangles(kCount,
+                                       SkRect::MakeWH(2, 4));  // the white half
+  transforms.back() = SkRSXform::MakeFromRadians(1, 0, 150, 150, 0, 0);
+  sourceRectangles.back() = SkRect::MakeLTRB(2, 0, 4, 4);  // …and the red one
 
   Raster raster;
   raster.canvas().clear(SK_ColorBLACK);
   drawSpriteAtlas(raster.canvas(), twoHalves(),
-                  SpriteBatch{.xforms = xforms, .tex = tex},
+                  SpriteBatch{.transforms = transforms,
+                              .sourceRectangles = sourceRectangles},
                   SkSamplingOptions());
   EXPECT_EQ(raster.pixel(11, 11), SK_ColorWHITE) << "the first chunk";
   EXPECT_EQ(raster.pixel(151, 151), SK_ColorRED) << "…and the tail";
@@ -164,16 +167,17 @@ TEST(DirectDraws, EverySpriteIsDrawnAcrossTheChunkBoundary) {
 TEST(DirectDraws, APerSpriteSizeScalesTheQuadTheXformCannot) {
   Raster raster;
   raster.canvas().clear(SK_ColorBLACK);
-  const SkRSXform xform = SkRSXform::MakeFromRadians(1, 0, 20, 20, 0, 0);
-  const SkRect tex = SkRect::MakeWH(2, 4);
+  const SkRSXform transform = SkRSXform::MakeFromRadians(1, 0, 20, 20, 0, 0);
+  const SkRect sourceRectangles = SkRect::MakeWH(2, 4);
   // The quad is centred on the cell, so a 2x4 cell at (20, 20) has its
   // centre at (21, 22): twenty times as wide is 40 units across it, and
   // its own height stands.
   const SkSize size{20.0f, 1.0f};
-  drawSpriteAtlas(
-      raster.canvas(), twoHalves(),
-      SpriteBatch{.xforms = {&xform, 1}, .tex = {&tex, 1}, .sizes = {&size, 1}},
-      SkSamplingOptions(), SkBlendMode::kSrcOver);
+  drawSpriteAtlas(raster.canvas(), twoHalves(),
+                  SpriteBatch{.transforms = {&transform, 1},
+                              .sourceRectangles = {&sourceRectangles, 1},
+                              .sizes = {&size, 1}},
+                  SkSamplingOptions(), SkBlendMode::kSrcOver);
   EXPECT_EQ(raster.pixel(35, 22), SK_ColorWHITE) << "wide";
   EXPECT_EQ(raster.pixel(35, 30), SK_ColorBLACK) << "…and not tall";
   EXPECT_EQ(raster.pixel(45, 22), SK_ColorBLACK) << "…and bounded";
@@ -185,27 +189,35 @@ TEST(DirectDraws, ABatchWithAShortLaneDrawsNothingRatherThanReadingPastIt) {
   // that cannot trust its lanes refuses the whole batch: the alternative
   // is reading past the end of the short one, which draws a sprite out of
   // whatever memory followed it.
-  const std::vector<SkRSXform> xforms(
+  const std::vector<SkRSXform> transforms(
       4, SkRSXform::MakeFromRadians(1, 0, 10, 10, 0, 0));
-  const std::vector<SkRect> tex(4, SkRect::MakeWH(2, 4));
+  const std::vector<SkRect> sourceRectangles(4, SkRect::MakeWH(2, 4));
   const std::vector<SkColor> colors(4, SK_ColorWHITE);
   const std::vector<SkSize> sizes(4, SkSize{1, 1});
 
-  EXPECT_TRUE((SpriteBatch{.xforms = xforms, .tex = tex}.consistent()));
-  EXPECT_FALSE((SpriteBatch{.xforms = xforms, .tex = std::span(tex).first(3)}
+  EXPECT_TRUE((SpriteBatch{.transforms = transforms,
+                           .sourceRectangles = sourceRectangles}
+                   .consistent()));
+  EXPECT_FALSE(
+      (SpriteBatch{.transforms = transforms,
+                   .sourceRectangles = std::span(sourceRectangles).first(3)}
+           .consistent()));
+  EXPECT_FALSE((SpriteBatch{.transforms = transforms,
+                            .sourceRectangles = sourceRectangles,
+                            .colors = std::span(colors).first(3)}
                     .consistent()));
-  EXPECT_FALSE((SpriteBatch{
-      .xforms = xforms, .tex = tex, .colors = std::span(colors).first(3)}
-                    .consistent()));
-  EXPECT_FALSE((SpriteBatch{
-      .xforms = xforms, .tex = tex, .sizes = std::span(sizes).first(3)}
+  EXPECT_FALSE((SpriteBatch{.transforms = transforms,
+                            .sourceRectangles = sourceRectangles,
+                            .sizes = std::span(sizes).first(3)}
                     .consistent()));
 
   Raster raster;
   raster.canvas().clear(SK_ColorBLACK);
-  drawSpriteAtlas(raster.canvas(), twoHalves(),
-                  SpriteBatch{.xforms = xforms, .tex = std::span(tex).first(3)},
-                  SkSamplingOptions());
+  drawSpriteAtlas(
+      raster.canvas(), twoHalves(),
+      SpriteBatch{.transforms = transforms,
+                  .sourceRectangles = std::span(sourceRectangles).first(3)},
+      SkSamplingOptions());
   EXPECT_EQ(raster.pixel(11, 11), SK_ColorBLACK) << "nothing was drawn";
 }
 

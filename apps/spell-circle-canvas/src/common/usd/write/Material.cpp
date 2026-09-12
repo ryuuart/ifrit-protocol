@@ -1,6 +1,6 @@
 /** @file
  * A material as UsdPreviewSurface: one prim per distinct material under
- * /World/Materials, the surface recipe's params read by name and its map
+ * /World/Materials, the surface recipe's parameters read by name and its map
  * slots as UsdUVTexture nodes reading `st`, and the images themselves
  * written as PNG files beside the stage.
  */
@@ -40,8 +40,8 @@ bool writePng(const sk_sp<SkImage>& image, const std::filesystem::path& path) {
 
 }  // namespace
 
-std::filesystem::path Writer::Impl::textureDir() const {
-  if (!options.textureDir.empty()) return options.textureDir;
+std::filesystem::path Writer::Impl::textureDirectory() const {
+  if (!options.textureDirectory.empty()) return options.textureDirectory;
   return file.stem().string() + "_textures";
 }
 
@@ -50,7 +50,7 @@ std::optional<std::string> Writer::Impl::textureAsset(
   if (!image) return std::nullopt;
   if (auto it = writtenImages.find(image.get()); it != writtenImages.end())
     return it->second;
-  const std::filesystem::path dir = file.parent_path() / textureDir();
+  const std::filesystem::path dir = file.parent_path() / textureDirectory();
   if (!texturesDirReady) {
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
@@ -59,26 +59,26 @@ std::optional<std::string> Writer::Impl::textureAsset(
   const std::string name =
       std::to_string(++textureCounter) + "_" + role + ".png";
   if (!writePng(image, dir / name)) return std::nullopt;
-  std::string asset = (textureDir() / name).generic_string();
+  std::string asset = (textureDirectory() / name).generic_string();
   writtenImages[image.get()] = asset;
   return asset;
 }
 
 namespace {
 
-/** A params field's value when the recipe declares it, else @p fallback
+/** A parameters field's value when the recipe declares it, else @p fallback
  *  — so a material built from some other recipe still writes a valid
  *  preview surface rather than a surface of zeros. */
 float scalar(const material::Material& m, std::string_view name,
              float fallback) {
-  const material::Field* field = m.recipe().params().find(name);
+  const material::Field* field = m.recipe().parameters().find(name);
   return field && field->kind == material::Kind::Float ? m.get<float>(name)
                                                        : fallback;
 }
 
 material::Color tint(const material::Material& m, std::string_view name,
                      material::Color fallback) {
-  const material::Field* field = m.recipe().params().find(name);
+  const material::Field* field = m.recipe().parameters().find(name);
   return field && field->kind == material::Kind::Color
              ? m.get<material::Color>(name)
              : fallback;

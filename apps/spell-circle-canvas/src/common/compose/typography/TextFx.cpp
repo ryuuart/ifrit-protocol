@@ -41,26 +41,26 @@ bool anyDisplaces(const Range& operands) {
 }
 }  // namespace
 
-TextEffect seq(std::vector<Phase> phases) {
+TextEffect sequence(std::vector<Phase> phases) {
   if (phases.empty()) return TextEffect();
   // The last phase always runs to the end of local time, whatever it was
   // declared with — otherwise the tail of every sequence is undefined.
-  phases.back() = Phase(phases.back().effect(), 1.0f).xfade(0.0f);
+  phases.back() = Phase(phases.back().effect(), 1.0f).crossfade(0.0f);
 
   std::vector<TextEffect> operands;
-  std::vector<float> params;
+  std::vector<float> parameters;
   operands.reserve(phases.size());
-  params.reserve(phases.size() * 2);
+  parameters.reserve(phases.size() * 2);
   float reach = 0;
   for (const Phase& p : phases) {
     operands.push_back(p.effect());
-    params.push_back(p.endsAt());
-    params.push_back(p.overlap());
+    parameters.push_back(p.endsAt());
+    parameters.push_back(p.overlap());
     reach = std::max(reach, p.effect().reach());
   }
   const bool displaces = anyDisplaces(operands);
   return TextEffect::composite(
-      "seq", params, operands,
+      "sequence", parameters, operands,
       [phases](const GlyphInfo& g, float t, core::noise::Mix64Stream&) {
         // Which window `t` falls in, and where inside it.
         const auto windowAt = [&](size_t i) {
@@ -80,7 +80,7 @@ TextEffect seq(std::vector<Phase> phases) {
             width > 0 ? std::clamp((t - begin) / width, 0.0f, 1.0f) : 1.0f;
         core::noise::Mix64Stream own(
             compose::detail::glyphSeed(g, (uint32_t)index));
-        GlyphMod mod = phases[index].effect()(g, local, own);
+        GlyphModifier modifier = phases[index].effect()(g, local, own);
         // The crossfade window sits at the END of this phase, so at the
         // joint the blend has already reached the next phase's own start.
         const float overlap = phases[index].overlap();
@@ -89,33 +89,34 @@ TextEffect seq(std::vector<Phase> phases) {
               std::clamp((t - (end - overlap)) / overlap, 0.0f, 1.0f);
           core::noise::Mix64Stream nextRng(
               compose::detail::glyphSeed(g, (uint32_t)index + 1));
-          const GlyphMod next = phases[index + 1].effect()(g, 0.0f, nextRng);
-          mod = compose::detail::lerpMod(mod, next, w);
+          const GlyphModifier next =
+              phases[index + 1].effect()(g, 0.0f, nextRng);
+          modifier = compose::detail::lerpModifier(modifier, next, w);
         }
-        return mod;
+        return modifier;
       },
       reach, displaces);
 }
 
 namespace {
 
-/** One entry's numbers, laid end to end. Every field of a GlyphMod is here,
- *  at a fixed stride, so two tables compare exactly when they say the same
+/** One entry's numbers, laid end to end. Every field of a GlyphModifier is
+ * here, at a fixed stride, so two tables compare exactly when they say the same
  *  thing — structural equality over the whole table rather than a digest of
  *  it. The two substitutions ride along as numbers: a code point IS one, and
  *  an axis is its four tag bytes, its value, and whether it was set at all. */
-void appendKeyParams(std::vector<float>& out, const Key& key) {
-  const GlyphMod& m = key.mod;
+void appendKeyParameters(std::vector<float>& out, const Key& key) {
+  const GlyphModifier& m = key.modifier;
   out.insert(out.end(), {key.at,
                          m.dx,
                          m.dy,
                          m.scale,
                          m.rotateDeg,
                          m.alpha,
-                         m.colorMul.fR,
-                         m.colorMul.fG,
-                         m.colorMul.fB,
-                         m.colorMul.fA,
+                         m.colorMultiplier.fR,
+                         m.colorMultiplier.fG,
+                         m.colorMultiplier.fB,
+                         m.colorMultiplier.fA,
                          m.colorAdd.fR,
                          m.colorAdd.fG,
                          m.colorAdd.fB,
@@ -144,7 +145,7 @@ void appendKeyParams(std::vector<float>& out, const Key& key) {
 float keysReach(const std::vector<Key>& table) {
   float reach = 0;
   for (const Key& key : table) {
-    const GlyphMod& m = key.mod;
+    const GlyphModifier& m = key.modifier;
     const float grown = std::max({std::abs(m.scale * m.scaleX),
                                   std::abs(m.scale * m.scaleY), 1.0f}) -
                         1.0f;
@@ -165,7 +166,7 @@ float keysReach(const std::vector<Key>& table) {
  *  colour terms, the fade and the two substitutions are not placement. */
 bool keysDisplace(const std::vector<Key>& table) {
   for (const Key& key : table) {
-    const GlyphMod& m = key.mod;
+    const GlyphModifier& m = key.modifier;
     if (m.dx != 0 || m.dy != 0 || m.rotateDeg != 0 || m.skewXDeg != 0 ||
         m.skewYDeg != 0 || m.scale != 1 || m.scaleX != 1 || m.scaleY != 1)
       return true;
@@ -177,8 +178,8 @@ bool keysDisplace(const std::vector<Key>& table) {
 
 TextEffect keys(std::vector<Key> table, choreograph::EaseFn ease) {
   if (table.empty()) return TextEffect();
-  std::vector<float> params;
-  params.reserve(table.size() * 29);
+  std::vector<float> parameters;
+  parameters.reserve(table.size() * 29);
   // The table-wide curve first, then one slot per entry whether or not that
   // entry overrode it: equal tables then always compare curve lists of equal
   // length, and a curve moved from one entry to another is a difference.
@@ -186,17 +187,17 @@ TextEffect keys(std::vector<Key> table, choreograph::EaseFn ease) {
   curves.reserve(table.size() + 1);
   curves.push_back(ease);
   for (const Key& key : table) {
-    appendKeyParams(params, key);
+    appendKeyParameters(parameters, key);
     curves.push_back(key.ease);
   }
   const float reach = keysReach(table);
   const bool displaces = keysDisplace(table);
   return TextEffect(
-      "keys", std::move(params),
+      "keys", std::move(parameters),
       [table = std::move(table), ease = std::move(ease)](
           const GlyphInfo&, float t, core::noise::Mix64Stream&) {
         t = std::clamp(t, 0.0f, 1.0f);
-        if (t <= table.front().at) return table.front().mod;
+        if (t <= table.front().at) return table.front().modifier;
         for (size_t i = 1; i < table.size(); ++i) {
           if (t > table[i].at) continue;
           const Key& from = table[i - 1];
@@ -208,10 +209,10 @@ TextEffect keys(std::vector<Key> table, choreograph::EaseFn ease) {
           // The curve is the one named on the segment's OPENING entry, which
           // is where a keyframe list states it.
           const choreograph::EaseFn& curve = from.ease ? from.ease : ease;
-          return compose::detail::lerpMod(from.mod, to.mod,
-                                          curve ? curve(u) : u);
+          return compose::detail::lerpModifier(from.modifier, to.modifier,
+                                               curve ? curve(u) : u);
         }
-        return table.back().mod;
+        return table.back().modifier;
       },
       reach, std::move(curves), displaces);
 }
@@ -235,9 +236,9 @@ TextEffect hold(TextEffect effect) {
         // instant and nothing else — a looping effect gates its own
         // arrival instead of borrowing this one.
         if (t <= 0.0f) {
-          GlyphMod mod;
-          mod.alpha = 0.0f;
-          return mod;
+          GlyphModifier modifier;
+          modifier.alpha = 0.0f;
+          return modifier;
         }
         // The glyph's OWN stream, not a lane of its own: a held effect draws
         // exactly the numbers it would have drawn unheld.
@@ -251,17 +252,17 @@ TextEffect scramble(std::u32string charset, int steps) {
   // every code point is exactly representable, so two scrambles over the
   // same characters compare equal and two over different ones do not —
   // structural equality, not a hash that could collide.
-  std::vector<float> params;
-  params.reserve(charset.size() + 1);
-  params.push_back((float)steps);
-  for (char32_t point : charset) params.push_back((float)(uint32_t)point);
+  std::vector<float> parameters;
+  parameters.reserve(charset.size() + 1);
+  parameters.push_back((float)steps);
+  for (char32_t point : charset) parameters.push_back((float)(uint32_t)point);
   const uint32_t ticks = (uint32_t)std::max(steps, 1);
   return TextEffect(
-      "scramble", std::move(params),
+      "scramble", std::move(parameters),
       [charset = std::move(charset), ticks](const GlyphInfo&, float t,
                                             core::noise::Mix64Stream& rng) {
-        GlyphMod mod;
-        if (charset.empty()) return mod;
+        GlyphModifier modifier;
+        if (charset.empty()) return modifier;
         // ONE draw from the glyph's own stream, and everything below is
         // derived from it — so a glyph churns through the same characters
         // at the same moments on every frame and after every relayout,
@@ -272,13 +273,13 @@ TextEffect scramble(std::u32string charset, int steps) {
         // resolved by t = 1: the point of the effect is that the true text
         // is what the reader is left with.
         const float settle = 0.35f + (float)(seed >> 24u) * (0.6f / 255.0f);
-        if (t >= settle) return mod;
+        if (t >= settle) return modifier;
         const uint32_t tick =
             (uint32_t)(std::clamp(t, 0.0f, 1.0f) * (float)ticks);
-        mod.codepoint =
+        modifier.codepoint =
             charset[compose::detail::mix64Value(seed + tick * 0x9e3779b9u) %
                     charset.size()];
-        return mod;
+        return modifier;
       },
       // A substitution draws a different outline AT THE ORIGINAL'S PEN
       // POSITION — that is the whole condition the runtime enforces on it —
@@ -296,7 +297,7 @@ TextEffect mix(std::vector<TextEffect> effects) {
       "mix", {}, std::move(operands),
       [effects = std::move(effects)](const GlyphInfo& g, float t,
                                      core::noise::Mix64Stream&) {
-        GlyphMod out;
+        GlyphModifier out;
         for (size_t i = 0; i < effects.size(); ++i) {
           core::noise::Mix64Stream own(
               compose::detail::glyphSeed(g, (uint32_t)i));

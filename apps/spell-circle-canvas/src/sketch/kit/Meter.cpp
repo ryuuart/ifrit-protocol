@@ -11,7 +11,7 @@ namespace sigil::sketch::kit {
 using compose::Align;
 using compose::box;
 using compose::Corners;
-using compose::Dim;
+using compose::Dimension;
 using compose::Element;
 using compose::Fill;
 using compose::text;
@@ -27,8 +27,8 @@ compose::Element meter(const Meter& bar) {
   Element rail = box();
   trackPaint.apply(rail);
   rail.clip();
-  if (bar.width.unit != Dim::Unit::Auto) rail.width(bar.width);
-  rail.height(bar.height.value_or(Dim(look.spacing.barHeight)));
+  if (bar.width.unit != Dimension::Unit::Auto) rail.width(bar.width);
+  rail.height(bar.height.value_or(Dimension(look.spacing.barHeight)));
   if (bar.corners > 0) rail.corners(Corners{bar.corners});
   if (bar.keyline)
     rail.stroke(compose::stroke(bar.keylineWidth, *bar.keyline,
@@ -58,7 +58,7 @@ compose::Element meter(const Meter& bar) {
   if (bar.label.empty() && bar.reading.empty()) return rail;
 
   Element column = box().column();
-  if (bar.width.unit != Dim::Unit::Auto) column.width(bar.width);
+  if (bar.width.unit != Dimension::Unit::Auto) column.width(bar.width);
   Element head = box().row().alignItems(Align::Baseline);
   if (!bar.label.empty())
     head.child(
@@ -87,7 +87,7 @@ compose::Element gauge(const Gauge& dial) {
     return band;
   };
 
-  Element face = box().width(Dim(diameter)).height(Dim(diameter));
+  Element face = box().width(Dimension(diameter)).height(Dimension(diameter));
   face.child(ring(dial.sweepDeg,
                   dial.track.value_or(Fill::color(look.palette.cellGround))));
   if (swept > 0)

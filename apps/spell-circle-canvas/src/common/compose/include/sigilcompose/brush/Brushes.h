@@ -22,10 +22,10 @@
  *
  * EQUALITY IS THE THING TO WATCH. A brush assembled from comparable parts
  * is itself a comparable value, so a styled connector prunes and caches as
- * one value. Any raw callable in it — a `StampModFn`, a
- * `geometry::path::ops::PathOp` — makes it conservatively unequal forever,
- * so its node re-patches on every describe; memo the host node, or keep the
- * value itself alive rather than rebuilding it.
+ * one value. Any raw callable in it — a `StampModifierFunction`, a
+ * `geometry::path::operations::PathOperation` — makes it conservatively unequal
+ * forever, so its node re-patches on every describe; memo the host node, or
+ * keep the value itself alive rather than rebuilding it.
  *
  * Two numbers every brush declares, and they are not the same: `bleed()` is
  * how far paint escapes the outline, which grows a cached recording's cull;
@@ -36,14 +36,14 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <sigilcompose/brush/Decorations.h>  // PathSample
-#include <sigilcompose/brush/Lines.h>        // lines::displace (the wave op)
+#include <sigilcompose/brush/Lines.h>  // lines::displace (the wave operation)
 #include <sigilgeometry/kit/Shapers.h>
 
 #include <memory>
 #include <vector>
 
 #include "sigilcompose/Compose.h"
-#include "sigilcompose/brush/GeometryOps.h"
+#include "sigilcompose/brush/GeometryOperations.h"
 #include "sigilcompose/brush/Layered.h"
 
 namespace sigil::compose {
@@ -240,10 +240,10 @@ struct Brush {
    *  an asymmetric casing one brush — a road with a lane and a curb, each
    *  riding its own offset shaper — instead of three stacked elements. */
   struct Layer {
-    Decoration dec;
+    Decoration decoration;
     std::vector<geometry::path::Shaper> shapers;
     bool operator==(const Layer& o) const {
-      return dec == o.dec && shapers == o.shapers;
+      return decoration == o.decoration && shapers == o.shapers;
     }
   };
 
@@ -263,8 +263,8 @@ struct Brush {
    *
    *  The suffix takes the same comparable `Shaper` seam `shaped()` takes.
    *  For a raw incomparable lambda, wrap this layer's decoration in
-   *  `brush::restyle(op, dec)` instead — the one mechanism door, at the
-   *  cost of pruning. */
+   *  `brush::restyle(operation, decoration)` instead — the one mechanism door,
+   * at the cost of pruning. */
   Brush& layer(Decoration d, std::vector<geometry::path::Shaper> suffix = {}) {
     layers.push_back(Layer{std::move(d), std::move(suffix)});
     return *this;
@@ -275,13 +275,13 @@ struct Brush {
   }
   bool isAnimated() const {
     for (const Layer& l : layers)
-      if (l.dec.isAnimated()) return true;
+      if (l.decoration.isAnimated()) return true;
     return false;
   }
   /** Forwarded, for the reason a weave forwards it. */
   bool blends() const {
     for (const Layer& l : layers)
-      if (l.dec.blends()) return true;
+      if (l.decoration.blends()) return true;
     return false;
   }
   /** The widest mark any layer paints, plus the pipeline's own reach. */
@@ -290,7 +290,7 @@ struct Brush {
     for (const geometry::path::Shaper& g : pipeline) shared += g.bleed();
     float worst = 0;
     for (const Layer& l : layers) {
-      float layerReach = l.dec.reach(size);
+      float layerReach = l.decoration.reach(size);
       for (const geometry::path::Shaper& g : l.shapers) layerReach += g.bleed();
       worst = std::max(worst, layerReach);
     }
@@ -301,7 +301,7 @@ struct Brush {
   std::vector<std::string> borrows() const {
     std::vector<std::string> keys;
     for (const Layer& l : layers)
-      for (const std::string& k : l.dec.borrows()) keys.push_back(k);
+      for (const std::string& k : l.decoration.borrows()) keys.push_back(k);
     return keys;
   }
   float bleed(SkSize size) const {
@@ -310,7 +310,7 @@ struct Brush {
       shared += g.bleed();  // pipeline reaches compound (offset THEN wave)
     float worst = 0;
     for (const Layer& l : layers) {
-      float layerReach = l.dec.bleed(size);
+      float layerReach = l.decoration.bleed(size);
       for (const geometry::path::Shaper& g : l.shapers) layerReach += g.bleed();
       worst = std::max(worst, layerReach);
     }
@@ -326,18 +326,18 @@ namespace brush {
  *  any decoration (LayeredBrush, lines::Line, PathFormat…) gains waves,
  *  jitter, rounding without knowing.
  *
- *  THE ONE MECHANISM DOOR. It takes a `GeometryOp`, which a comparable
- *  shaper value and a raw `geometry::path::ops::PathOp` lambda both
- *  convert to — and the lambda has nowhere else to go.
+ *  THE ONE MECHANISM DOOR. It takes a `GeometryOperation`, which a comparable
+ *  shaper value and a raw `geometry::path::operations::PathOperation` lambda
+ * both convert to — and the lambda has nowhere else to go.
  *
  *  The WRAPPER is incomparable either way, because it has no operator== at
- *  all, so a node wearing one never prunes whichever op it was handed:
+ *  all, so a node wearing one never prunes whichever operation it was handed:
  *  memo the host node, or keep the value pointer-stable. Prefer
  *  `Brush::shaped(value)` whenever a shaper can say it — that prunes. */
 struct Restyled {
-  GeometryOp op;
+  GeometryOperation operation;
   Decoration inner;
-  float extraBleed = 8.0f;  // the op's own overhang (wave amplitude…)
+  float extraBleed = 8.0f;  // the operation's own overhang (wave amplitude…)
 
   bool isAnimated() const { return inner.isAnimated(); }
   /** Forwarded, for the reason a weave forwards it. */
@@ -351,9 +351,9 @@ struct Restyled {
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
 
-inline Restyled restyle(GeometryOp op, Decoration inner,
+inline Restyled restyle(GeometryOperation operation, Decoration inner,
                         float extraBleed = 8.0f) {
-  return Restyled{std::move(op), std::move(inner), extraBleed};
+  return Restyled{std::move(operation), std::move(inner), extraBleed};
 }
 
 }  // namespace brush

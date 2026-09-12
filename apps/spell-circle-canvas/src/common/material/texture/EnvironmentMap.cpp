@@ -1,6 +1,6 @@
 /** @file
  * The environment map: the procedural bakes, the cube sources resampled
- * into the one equirect form, the wrap-aware roughness blurs, the mip
+ * into the one equirectangular form, the wrap-aware roughness blurs, the mip
  * chain a device binds, the cosine convolution a diffuse term reads, and
  * the solid-angle mean.
  */
@@ -34,8 +34,8 @@ struct Grid {
   const float* at(int x, int y) const { return &px[((size_t)y * w + x) * 4]; }
   float* at(int x, int y) { return &px[((size_t)y * w + x) * 4]; }
 
-  /** Bilinear, wrapping in u and clamping in v — the sampling an equirect
-   *  panorama has: azimuth is periodic, the poles are not. */
+  /** Bilinear, wrapping in u and clamping in v — the sampling an
+   * equirectangular panorama has: azimuth is periodic, the poles are not. */
   SkV4 sample(float u, float v) const {
     const float fx = u * (float)w - 0.5f;
     const float fy = v * (float)h - 0.5f;
@@ -111,8 +111,8 @@ Grid resample(const Grid& src, int w, int h) {
   return out;
 }
 
-sk_sp<SkImage> bakeEquirect(int width,
-                            const std::function<SkV3(float u, float v)>& fn) {
+sk_sp<SkImage> bakeEquirectangular(
+    int width, const std::function<SkV3(float u, float v)>& fn) {
   const int height = std::max(width / 2, 8);
   std::vector<float> pixels((size_t)width * height * 4);
   for (int y = 0; y < height; ++y) {
@@ -134,7 +134,7 @@ sk_sp<SkImage> bakeEquirect(int width,
 }
 
 /** Three-pass box blur ~= gaussian, run on F32 pixels with horizontal
- *  WRAP (an equirect's u axis is periodic — Skia's blur filter can't
+ *  WRAP (an equirectangular's u axis is periodic — Skia's blur filter can't
  *  know that) and vertical clamp. */
 void boxBlurF32(std::vector<float>& pixels, int w, int h, int radius) {
   if (radius < 1) return;
@@ -227,7 +227,7 @@ SkV4 sampleFace(const Grid& g, float u, float v) {
   return out;
 }
 
-Grid facesToEquirect(const std::array<Grid, 6>& faces, int width) {
+Grid facesToEquirectangular(const std::array<Grid, 6>& faces, int width) {
   Grid out;
   const int height = std::max(width / 2, 4);
   out.w = width;
@@ -237,7 +237,7 @@ Grid facesToEquirect(const std::array<Grid, 6>& faces, int width) {
     const float v = ((float)y + 0.5f) / (float)height;
     for (int x = 0; x < width; ++x) {
       const float u = ((float)x + 0.5f) / (float)width;
-      const FaceHit hit = faceOf(equirectDirection({u, v}));
+      const FaceHit hit = faceOf(equirectangularDirection({u, v}));
       const Grid& face = faces[hit.face];
       float* dst = out.at(x, y);
       if (face.empty()) {
@@ -270,7 +270,7 @@ Grid cut(const Grid& sheet, int col, int row, int edge) {
 
 }  // namespace
 
-SkV2 equirectUv(SkV3 d) {
+SkV2 equirectangularUv(SkV3 d) {
   const float len = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
   if (len <= 0) return {0.5f, 0.5f};
   d = {d.x / len, d.y / len, d.z / len};
@@ -278,7 +278,7 @@ SkV2 equirectUv(SkV3 d) {
           std::acos(std::clamp(d.y, -1.0f, 1.0f)) / kPi};
 }
 
-SkV3 equirectDirection(SkV2 uv) {
+SkV3 equirectangularDirection(SkV2 uv) {
   const float theta = uv.y * kPi;
   const float phi = (uv.x - 0.5f) * 2 * kPi;
   const float s = std::sin(theta);
@@ -301,10 +301,10 @@ struct EnvironmentMap::State {
 
 EnvironmentMap EnvironmentMap::baked(
     int width, const std::function<SkV3(float u, float v)>& radiance) {
-  return fromEquirect(bakeEquirect(width, radiance));
+  return fromEquirectangular(bakeEquirectangular(width, radiance));
 }
 
-EnvironmentMap EnvironmentMap::fromEquirect(sk_sp<SkImage> image) {
+EnvironmentMap EnvironmentMap::fromEquirectangular(sk_sp<SkImage> image) {
   EnvironmentMap env;
   if (!image) return env;
   env.m_state = std::make_shared<State>();
@@ -320,10 +320,10 @@ EnvironmentMap EnvironmentMap::fromFaces(const Faces& faces, int width) {
     edge = std::max(edge, grids[i].w);
   }
   if (edge <= 0) return {};
-  // Four faces stand end to end around the equator, so an equirect at
+  // Four faces stand end to end around the equator, so an equirectangular at
   // four times the edge keeps the density a face had there.
   const int w = width > 0 ? width : edge * 4;
-  return fromEquirect(gridImage(facesToEquirect(grids, w)));
+  return fromEquirectangular(gridImage(facesToEquirectangular(grids, w)));
 }
 
 EnvironmentMap EnvironmentMap::fromCubeMap(sk_sp<SkImage> sheet) {
@@ -362,7 +362,8 @@ EnvironmentMap EnvironmentMap::fromCubeMap(sk_sp<SkImage> sheet) {
   std::array<Grid, 6> faces;
   for (int i = 0; i < 6; ++i)
     faces[i] = cut(grid, layout->at[i][0], layout->at[i][1], edge);
-  return fromEquirect(gridImage(facesToEquirect(faces, edge * 4)));
+  return fromEquirectangular(
+      gridImage(facesToEquirectangular(faces, edge * 4)));
 }
 
 sk_sp<SkImage> EnvironmentMap::image(float roughness) const {
@@ -439,7 +440,7 @@ EnvironmentMap EnvironmentMap::withGround(SkColor4f color) const {
       for (int c = 0; c < 4; ++c) px[c] += ((&color.fR)[c] - px[c]) * k;
     }
   }
-  return fromEquirect(gridImage(grid)).withPrefilterSize(m_prefilter);
+  return fromEquirectangular(gridImage(grid)).withPrefilterSize(m_prefilter);
 }
 
 std::vector<sk_sp<SkImage>> EnvironmentMap::chain() const {
@@ -494,7 +495,7 @@ sk_sp<SkImage> EnvironmentMap::irradiance() const {
       const float u = ((float)x + 0.5f) / (float)kSrcW;
       const float* px = src.at(x, y);
       samples.push_back(
-          {equirectDirection({u, v}), solid, {px[0], px[1], px[2]}});
+          {equirectangularDirection({u, v}), solid, {px[0], px[1], px[2]}});
     }
   }
 
@@ -506,7 +507,7 @@ sk_sp<SkImage> EnvironmentMap::irradiance() const {
     const float v = ((float)y + 0.5f) / (float)kOutH;
     for (int x = 0; x < kOutW; ++x) {
       const float u = ((float)x + 0.5f) / (float)kOutW;
-      const SkV3 n = equirectDirection({u, v});
+      const SkV3 n = equirectangularDirection({u, v});
       float acc[3] = {0, 0, 0};
       float total = 0;
       for (const Sample& s : samples) {

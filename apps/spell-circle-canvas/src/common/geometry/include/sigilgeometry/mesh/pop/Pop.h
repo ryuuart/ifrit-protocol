@@ -21,6 +21,6 @@
  */
 
 #include "sigilgeometry/mesh/pop/Builder.h"
-#include "sigilgeometry/mesh/pop/Ops.h"
+#include "sigilgeometry/mesh/pop/Operations.h"
 #include "sigilgeometry/mesh/pop/Runtime.h"
 #include "sigilgeometry/mesh/pop/Sinks.h"

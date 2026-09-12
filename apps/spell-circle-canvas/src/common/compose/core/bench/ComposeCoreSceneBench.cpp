@@ -50,8 +50,8 @@ Element scoreRow(const Row& row) {
       .padding(8)
       .corners({6})
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
-      .child(text(toU8(row.name), style).grow(1))
-      .child(text(toU8(std::to_string(row.score)), style));
+      .child(text(toUtf8(row.name), style).grow(1))
+      .child(text(toUtf8(std::to_string(row.score)), style));
 }
 
 Element scoreboard(const std::vector<Row>& rows) {

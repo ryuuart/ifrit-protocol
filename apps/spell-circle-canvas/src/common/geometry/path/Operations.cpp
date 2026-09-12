@@ -1,13 +1,13 @@
 /** @file
  * THE BOOLEANS AND THE OFFSET: two paths combined through Skia's path
- * ops, and one path grown or shrunk — either as a band the source's own
+ * operations, and one path grown or shrunk — either as a band the source's own
  * area is united with or cut by, or, where the answer has to stay
  * interpolable against the source, by moving the source's own nodes
  * along their bisectors. The composition that runs a list of operators
  * in order stands here too, because it is the vocabulary's own verb.
  */
 
-#include "sigilgeometry/path/Ops.h"
+#include "sigilgeometry/path/Operations.h"
 
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
@@ -18,18 +18,18 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 
-#include "OpsInternal.h"
+#include "OperationsInternal.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Segments.h"
 #include "sigilgeometry/path/Skia.h"
 
-namespace sigil::geometry::path::ops {
+namespace sigil::geometry::path::operations {
 
 namespace {
 
-SkPath binary(const SkPath& a, const SkPath& b, SkPathOp op) {
+SkPath binary(const SkPath& a, const SkPath& b, SkPathOp operation) {
   SkPath out;
-  if (!Op(a, b, op, &out)) return SkPath();
+  if (!Op(a, b, operation, &out)) return SkPath();
   return out;
 }
 
@@ -190,13 +190,13 @@ SkPath offset(const SkPath& path, float distance,
   return band;
 }
 
-PathOp chain(std::vector<PathOp> steps) {
+PathOperation chain(std::vector<PathOperation> steps) {
   return [steps = std::move(steps)](const SkPath& path) {
     SkPath current = path;
-    for (const PathOp& step : steps)
+    for (const PathOperation& step : steps)
       if (step) current = step(current);
     return current;
   };
 }
 
-}  // namespace sigil::geometry::path::ops
+}  // namespace sigil::geometry::path::operations

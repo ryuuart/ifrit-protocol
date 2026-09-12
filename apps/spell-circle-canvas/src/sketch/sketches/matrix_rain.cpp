@@ -149,8 +149,8 @@ constexpr bool kMeter = false;
 
 // ---- the palette ----------------------------------------------------------
 // The type is SET in the head colour and every later moment is a multiplier
-// down from it: `colorMul` can only darken, so the brightest state must be
-// the one the style owns.
+// down from it: `colorMultiplier` can only darken, so the brightest state must
+// be the one the style owns.
 constexpr SkColor4f kVoid = {0.004f, 0.012f, 0.006f, 1};
 constexpr SkColor4f kHead = {0.97f, 1.0f, 0.98f, 1};
 constexpr SkColor4f kBedInk = {0.030f, 0.095f, 0.042f, 1};
@@ -247,24 +247,24 @@ TextEffect streak() {
   return fx::keys({
       {0.000f, {}},
       {0.155f, {}},
-      {0.300f, {.colorMul = {0.27f, 0.96f, 0.42f, 1}}},
-      {0.600f, {.colorMul = {0.09f, 0.50f, 0.16f, 1}}},
-      {1.000f, {.alpha = 0.0f, .colorMul = {0.02f, 0.20f, 0.06f, 1}}},
+      {0.300f, {.colorMultiplier = {0.27f, 0.96f, 0.42f, 1}}},
+      {0.600f, {.colorMultiplier = {0.09f, 0.50f, 0.16f, 1}}},
+      {1.000f, {.alpha = 0.0f, .colorMultiplier = {0.02f, 0.20f, 0.06f, 1}}},
   });
 }
 
 /** WHICH CELLS ARE WESTERN — the digits-and-'#' class, addressed by the
  *  characters themselves so the partition follows whatever text a seed
  *  dealt. The complement is the half-width class. */
-weave::Selector westCells() { return weave::sel::regex(u8"[0-9#]"); }
+weave::Selector westCells() { return weave::selectors::regex(u8"[0-9#]"); }
 
 /** The per-glyph phosphor lift the whole field wears: each cell screens up
  *  by its own seeded amount — most barely, a few hard — so no two cells
  *  burn alike, the way the screens' tubes never sit at one brightness.
  *  Squaring the draw skews the field dim with sparse hot cells. Stable per
  *  glyph, so the field caches between churn steps. */
-GlyphMod phosphorLift(sigil::core::noise::Mix64Stream& rng) {
-  GlyphMod m;
+GlyphModifier phosphorLift(sigil::core::noise::Mix64Stream& rng) {
+  GlyphModifier m;
   const float lift = rng.unit() * rng.unit();
   m.colorScreen = {0.10f * lift, 0.45f * lift, 0.16f * lift, 0.0f};
   return m;
@@ -278,7 +278,7 @@ TextEffect mirrorLift() {
   return fx::effect(
       "rain-mirror-lift",
       [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream& rng) {
-        GlyphMod m = phosphorLift(rng);
+        GlyphModifier m = phosphorLift(rng);
         m.scaleX = -1.0f;
         return m;
       },
@@ -347,7 +347,7 @@ struct MatrixRain : sketch::Sketch {
     std::string probe;
     for (int i = 0; i < 8; ++i) appendUtf8(probe, U'ｱ');
     const SkSize one =
-        ctx.measure(text(toU8(probe), kanaStyle(size, kHead, 0.0f))
+        ctx.measure(text(toUtf8(probe), kanaStyle(size, kHead, 0.0f))
                         .writingMode(sigil::weave::WritingMode::kVerticalRL));
     const float step = std::max(1.0f, one.height() / 8.0f);
     const float pitch = std::max(1.0f, one.width());
@@ -388,7 +388,7 @@ struct MatrixRain : sketch::Sketch {
     cascade.seed = f.seed;
     cascade.then({.eachMs = f.eachMs, .durationMs = f.durationMs});
     cascade.loopMs = f.loopMs;
-    return text(toU8(fieldText[j]), kanaStyle(f.size, kHead, f.glowSigma))
+    return text(toUtf8(fieldText[j]), kanaStyle(f.size, kHead, f.glowSigma))
         .key(f.key)
         .left(0)
         .top(0)
@@ -418,7 +418,7 @@ struct MatrixRain : sketch::Sketch {
     // The bed: the whole screen faintly alive. No streak track — these
     // glyphs are never bright and never absent, they only churn, mirrored
     // and lifted like the curtains above them.
-    root.child(text(toU8(bedText), kanaStyle(kBedSize, kBedInk, 0.0f))
+    root.child(text(toUtf8(bedText), kanaStyle(kBedSize, kBedInk, 0.0f))
                    .key("rain-bed")
                    .left(0)
                    .top(0)
@@ -478,14 +478,15 @@ struct MatrixRain : sketch::Sketch {
         // thing on the page that could differ between two machines
         // rendering the same declared moment. That there are four planes
         // is a fact about the declaration, so that is what is stated.
-        text(toU8("SIMON WHITELEY'S DIGITAL RAIN \xc2\xb7 FOUR PLANES OF "
-                  "HALF-WIDTH KATAKANA AND DIGITS, "
-                  "MIRRORED PER GLYPH, HELD UPRIGHT \xc2\xb7 THE LIGHT FALLS, "
-                  "THE TYPE STANDS STILL"),
-             weave::textStyle({.face = faceLabel,
-                               .size = 10.5f,
-                               .color = kLabel,
-                               .track = 2.2f}))
+        text(
+            toUtf8("SIMON WHITELEY'S DIGITAL RAIN \xc2\xb7 FOUR PLANES OF "
+                   "HALF-WIDTH KATAKANA AND DIGITS, "
+                   "MIRRORED PER GLYPH, HELD UPRIGHT \xc2\xb7 THE LIGHT FALLS, "
+                   "THE TYPE STANDS STILL"),
+            weave::textStyle({.face = faceLabel,
+                              .size = 10.5f,
+                              .color = kLabel,
+                              .track = 2.2f}))
             .key("caption")
             .left(26)
             .top(kH - 30));

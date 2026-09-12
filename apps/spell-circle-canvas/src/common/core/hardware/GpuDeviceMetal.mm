@@ -53,7 +53,7 @@ class MetalBackend final : public GpuDevice::DeviceBackend {
 
   const NativeDevice &native() const override { return m_native; }
 
-  NativeTexture createTexture(const TextureDesc &desc) override {
+  NativeTexture createTexture(const TextureDescription &desc) override {
     const int levels = clampedMipLevels(desc);
     MTLTextureDescriptor *descriptor =
         [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:toMetal(desc.format)

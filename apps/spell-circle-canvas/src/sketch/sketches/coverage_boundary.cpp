@@ -46,7 +46,7 @@ namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -109,13 +109,13 @@ struct CutOuts {
 
 Element art(const CutOuts& cut, float alpha = 1.0f) {
   return image(alpha < 1.0f ? cut.faint : cut.solid)
-      .width(Dim(kArt))
-      .height(Dim(kArt));
+      .width(Dimension(kArt))
+      .height(Dimension(kArt));
 }
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body).absolute().inset(
               (kCell - kArt) / 2, (kPicture - kArt) / 2, (kCell - kArt) / 2,
@@ -136,27 +136,27 @@ struct CoverageBoundary final : sketch::Sketch {
     const auto disc = [](float x, float y, float d) {
       return box()
           .absolute()
-          .left(Dim(x))
-          .top(Dim(y))
-          .width(Dim(d))
-          .height(Dim(d))
+          .left(Dimension(x))
+          .top(Dimension(y))
+          .width(Dimension(d))
+          .height(Dimension(d))
           .shape(shapes::circle())
           .fill(Fill::color(kFigure));
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("COVERAGE BOUNDARY \xc2\xb7 "
-                       "Element::boundary(Boundary::Coverage)"),
-         .subtitle = toU8("dials \xc2\xb7 the boundary \xc2\xb7 the "
-                          "cut-out's alpha (0.30, under the half a "
-                          "pixel must be covered to join) \xc2\xb7 the "
-                          "glow's blur (11 px) \xc2\xb7 one style value "
-                          "for every cell"),
-         .footer = toU8("Coverage costs a raster and a trace whenever "
-                        "the node's layer is invalidated, and the "
-                        "node's OWN decorations are never in it "
-                        "\xe2\x80\x94 a mark that dressed itself would "
-                        "have no fixed point")},
+        {.title = toUtf8("COVERAGE BOUNDARY \xc2\xb7 "
+                         "Element::boundary(Boundary::Coverage)"),
+         .subtitle = toUtf8("dials \xc2\xb7 the boundary \xc2\xb7 the "
+                            "cut-out's alpha (0.30, under the half a "
+                            "pixel must be covered to join) \xc2\xb7 the "
+                            "glow's blur (11 px) \xc2\xb7 one style value "
+                            "for every cell"),
+         .footer = toUtf8("Coverage costs a raster and a trace whenever "
+                          "the node's layer is invalidated, and the "
+                          "node's OWN decorations are never in it "
+                          "\xe2\x80\x94 a mark that dressed itself would "
+                          "have no fixed point")},
         kit::cells(
             {.cells = {cell("image(cutOut)",
                             "the source \xc2\xb7 an opaque star with a hole "

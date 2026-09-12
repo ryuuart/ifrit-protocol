@@ -91,7 +91,7 @@ TEST(Device, GraphiteDrawsOnTheDeviceDiligentMade) {
   EXPECT_NE(gpu->native().vulkan.device, nullptr);
   EXPECT_NE(gpu->native().vulkan.queue, nullptr);
 
-  core::hardware::TextureDesc desc;
+  core::hardware::TextureDescription desc;
   desc.width = 8;
   desc.height = 8;
   desc.format = core::hardware::TextureFormat::RGBA8Unorm;
@@ -154,13 +154,13 @@ using core::hardware::FenceWait;
 using core::hardware::GpuDevice;
 using core::hardware::kFenceInitialValue;
 using core::hardware::NativeTexture;
-using core::hardware::TextureDesc;
+using core::hardware::TextureDescription;
 using core::hardware::TextureFormat;
 using core::hardware::TextureHandle;
 using core::hardware::VulkanHandles;
 
-TextureDesc smallTexture() {
-  TextureDesc desc;
+TextureDescription smallTexture() {
+  TextureDescription desc;
   desc.width = 8;
   desc.height = 8;
   desc.label = "geometry_device_test";
@@ -194,7 +194,7 @@ TEST(AdoptedDevice, AdoptsItsOwnHandlesAgain) {
   auto adopted = GpuDevice::adopt(owned->native(), &error);
   ASSERT_NE(adopted, nullptr) << error;
   EXPECT_EQ(adopted->native().vulkan.device, owned->native().vulkan.device);
-  TextureDesc desc = smallTexture();
+  TextureDescription desc = smallTexture();
   const TextureHandle texture = adopted->createTexture(desc);
   ASSERT_TRUE(adopted->isValid(texture));
   const NativeTexture native = adopted->exportNative(texture);
@@ -220,7 +220,7 @@ TEST(AdoptedDevice, TextureFormatsMapAndRetire) {
   const uint32_t expected[] = {37 /*R8G8B8A8_UNORM*/, 44 /*B8G8R8A8_UNORM*/,
                                97 /*R16G16B16A16_SFLOAT*/};
   for (int i = 0; i < 3; ++i) {
-    TextureDesc desc = smallTexture();
+    TextureDescription desc = smallTexture();
     desc.format = formats[i];
     const TextureHandle texture = device->createTexture(desc);
     ASSERT_TRUE(device->isValid(texture)) << "format " << i;
@@ -236,7 +236,7 @@ TEST(AdoptedDevice, TextureFormatsMapAndRetire) {
   for (int i = 0; i < 3; ++i) device->beginFrame();
   EXPECT_EQ(device->pendingDestroys(), 0u);
 
-  TextureDesc cpu = smallTexture();
+  TextureDescription cpu = smallTexture();
   cpu.cpuAccessible = true;
   const TextureHandle hostVisible = device->createTexture(cpu);
   EXPECT_TRUE(device->isValid(hostVisible));
@@ -245,7 +245,7 @@ TEST(AdoptedDevice, TextureFormatsMapAndRetire) {
   // A prefiltered environment is one image per level, so a Vulkan image
   // has to be created with the whole chain rather than have one
   // generated from level 0.
-  TextureDesc chained = smallTexture();
+  TextureDescription chained = smallTexture();
   chained.width = 256;
   chained.height = 128;
   chained.format = TextureFormat::RGBA16Float;
@@ -319,7 +319,7 @@ TEST(AdoptedGraphite, WrapsATextureNamedByHandle) {
   skia::GraphiteContext* ctx = on->graphite();
   if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
 
-  TextureDesc desc = smallTexture();
+  TextureDescription desc = smallTexture();
   // Host-visible memory is not what a render target wants on this path;
   // the pixels come back through Skia rather than a map.
   desc.cpuAccessible = false;
@@ -344,7 +344,7 @@ TEST(AdoptedGraphite, SubmitSignalsAFence) {
   skia::GraphiteContext* ctx = on->graphite();
   if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
 
-  TextureDesc desc = smallTexture();
+  TextureDescription desc = smallTexture();
   desc.cpuAccessible = false;
   const TextureHandle handle = dev->createTexture(desc);
   const FenceHandle fence = dev->createFence();

@@ -52,7 +52,7 @@ struct Instance;
 
 namespace detail {
 /** ONE `weave::rich()` RUN THAT WAS WRITTEN UNDER A STYLE NAME, and the text it
- *  occupies — what `sel::style` resolves against.
+ *  occupies — what `selectors::style` resolves against.
  *
  *  The name is tied to the run's TEXT rather than to the style span it
  *  produced, and that is the whole reason the answer holds up. Spans are
@@ -69,8 +69,8 @@ struct NamedRun {
   sigil::weave::CharRange chars;
 };
 
-/** WHERE A LEAF STANDS IN ITS STORY — what makes `weave::sel::line` address the
- *  story and `sel::inFrame` address one frame of it.
+/** WHERE A LEAF STANDS IN ITS STORY — what makes `weave::selectors::line`
+ * address the story and `selectors::inFrame` address one frame of it.
  *
  *  A story's words, characters, sentences and named runs are the story's
  *  already: every frame of a chain builds the whole story's paragraph and
@@ -82,7 +82,7 @@ struct TextScope {
   uint32_t lineOffset = 0;  ///< story line index of this leaf's line 0
   uint32_t storyLines = 0;  ///< lines the whole chain placed; 0 if not one
   bool inChain = false;     ///< this leaf is one frame of several
-  /** This leaf's key, for sel::inFrame. OWNED: the scope outlives the
+  /** This leaf's key, for selectors::inFrame. OWNED: the scope outlives the
    *  description it was read from — it is held in the glyph structure
    *  those resolvers cache, and a patch replaces the description under
    *  it. */
@@ -104,9 +104,9 @@ struct TextScope {
  *  The instance handed in is the kernel's retained node for the text; the
  *  painter reads its paragraph and layout and keeps its own engine state on
  *  it. */
-class TextPainterOps {
+class TextPainterOperations {
  public:
-  virtual ~TextPainterOps() = default;
+  virtual ~TextPainterOperations() = default;
   /** THE GLYPH DRAW for dressed text: the rest pose comes from the baseline
    *  — level on a plain run, on the curve and turned to it on a path run —
    *  and every fx() track's deviation applies on top of it. @p override is
@@ -137,8 +137,8 @@ class TextPainterOps {
       detail::Instance& inst,
       std::span<const Annotation> annotations) const = 0;
   /** WHICH TEXT A SELECTOR ADDRESSES, as UTF-16 ranges — sorted, merged,
-   *  non-overlapping. `weave::sel::line` reads @p lines, or @p columns where
-   * the passage is vertical; `sel::style` reads @p named. */
+   *  non-overlapping. `weave::selectors::line` reads @p lines, or @p columns
+   * where the passage is vertical; `selectors::style` reads @p named. */
   virtual std::vector<sigil::weave::CharRange> ranges(
       const sigil::weave::Selector& selector,
       sigil::weave::Paragraph& paragraph, sigil::weave::FontContext& fonts,
@@ -177,7 +177,7 @@ class TextPainterOps {
 /** The painter as a description carries it: a comparable value, excluded
  *  from structural equality because it is the same engine on every text
  *  that has one. */
-using TextPainter = core::Erased<TextPainterOps>;
+using TextPainter = core::Erased<TextPainterOperations>;
 
 namespace detail {
 /** THE ENGINE WITHOUT A DESCRIPTION TO CARRY IT. A text leaf installs the
@@ -187,8 +187,8 @@ namespace detail {
  *  itself here as it is linked in, and the read-back queries fall through
  *  to it. Null in a program that links the kernel without that tier, where
  *  those queries answer empty, as an unknown key does. */
-void registerTextEngine(const TextPainterOps* engine);
-[[nodiscard]] const TextPainterOps* registeredTextEngine();
+void registerTextEngine(const TextPainterOperations* engine);
+[[nodiscard]] const TextPainterOperations* registeredTextEngine();
 }  // namespace detail
 
 }  // namespace sigil::compose

@@ -23,14 +23,14 @@ one of three answers and the other two are about shapes and images.
 engine's and is spelled `weave::`: the content (`weave::rich`,
 `weave::RichText`, `weave::Story`), the granularity (`weave::Unit`,
 `weave::Unit::Word`), and selection with every form that names a position
-in the text (`weave::Selector`, `weave::sel::word`, `weave::sel::regex`,
-`weave::sel::each`). Include them from `<sigilweave/paragraph/RichText.h>`,
+in the text (`weave::Selector`, `weave::selectors::word`, `weave::selectors::regex`,
+`weave::selectors::each`). Include them from `<sigilweave/paragraph/RichText.h>`,
 `<sigilweave/layout/Story.h>`, `<sigilweave/paragraph/Unit.h>` and
 `<sigilweave/query/Selector.h>`. What this library adds is the DRESSING —
 the track, the effect, the reading, the path, the unit as the layout
 placed it — and the two selector forms whose subject is a description of
-this library: `sel::style`, a run written under a name, and
-`sel::inFrame`, one frame of a chain named by its `Element::key`.
+this library: `selectors::style`, a run written under a name, and
+`selectors::inFrame`, one frame of a chain named by its `Element::key`.
 
 ### Text fx
 
@@ -41,11 +41,11 @@ values — *which* glyphs (`weave::Selector`), *what* deviation from rest
 it. The spread is SigilMotion's and says nothing about text; `unit` is the
 whole of what makes it a cascade over glyphs rather than over a set's
 children or a feed's rows. `Element::fx` appends one;
-several compose per glyph, with `GlyphMod` offsets and rotations adding
+several compose per glyph, with `GlyphModifier` offsets and rotations adding
 and scale and alpha multiplying. The seam is three headers:
 
 - `typography/TextEffect.h` — the effect as a VALUE. `GlyphInfo` is what
-  a body is handed, `GlyphMod` what it returns, `GlyphModFn` the callable
+  a body is handed, `GlyphModifier` what it returns, `GlyphModifierFunction` the callable
   those two make, and `TextEffect` the comparable value one is wrapped
   in.
 - `typography/TextFx.h` — the `fx::` catalogue: the effects the runtime
@@ -60,7 +60,7 @@ and scale and alpha multiplying. The seam is three headers:
 ```cpp
 text(u8"ONE LINE, TWO MOVES", display)
     .fx({.effect = fx::rise(20), .unit = weave::Unit::Word})
-    .fx({.where = weave::sel::text(u8"TWO"),
+    .fx({.where = weave::selectors::text(u8"TWO"),
          .effect = fx::waveLoop(),
          .progress = &phase});
 ```
@@ -72,16 +72,16 @@ beats over: `weave::Unit::Glyph`, `weave::Unit::Cluster`,
 correct — a base letter and its combining marks are one unit and never
 separate under a stagger.
 
-**Selectors.** `weave::sel::word`, `weave::sel::words`, `weave::sel::line`,
-`weave::sel::sentence`, `weave::sel::range`, `weave::sel::text` and
-`weave::sel::regex` name a position in the text; `weave::sel::each` slices
+**Selectors.** `weave::selectors::word`, `weave::selectors::words`, `weave::selectors::line`,
+`weave::selectors::sentence`, `weave::selectors::range`, `weave::selectors::text` and
+`weave::selectors::regex` name a position in the text; `weave::selectors::each` slices
 every unit of one granularity the same way, with `weave::Selector::take` and
 `weave::Selector::drop` partitioning each unit exactly. Combine with `|`,
 `&` and `!`. A default-constructed `weave::Selector` addresses everything.
 Selection is resolved once per (content, layout, selector) and cached on the
 element; a pattern that does not compile selects nothing and warns once.
 
-`sel::style` is the odd one out and addresses the TREATMENT rather than a
+`selectors::style` is the odd one out and addresses the TREATMENT rather than a
 position: every run a `weave::rich()` value added under a style name
 (`weave::RichText::add` with a name resolved through a
 `sigil::weave::StyleSet`).
@@ -89,7 +89,7 @@ position: every run a `weave::rich()` value added under a style name
 ```cpp
 text(weave::rich(base).styles(set)
          .add(u8"gusting ").add(u8"soon", "term").add(u8", then rain"))
-    .fx({.where = !sel::style("term"), .effect = fx::variableAxis("GRAD", 900)});
+    .fx({.where = !selectors::style("term"), .effect = fx::variableAxis("GRAD", 900)});
 ```
 
 A glossary set in one registered style stays addressable when the copy
@@ -262,7 +262,7 @@ resolves — a caret, a callout, a tick, a rule standing at a word's edge:
 
 ```cpp
 text(line, style)
-    .mark(weave::sel::word(3), box().left(0).top(pct(100))
+    .mark(weave::selectors::word(3), box().left(0).top(pct(100))
                              .width(pct(100)).height(2).fill(ink));
 ```
 
@@ -298,14 +298,14 @@ its author gives it — two different bodies under one key compare equal and
 one of them silently never draws. The one declaration an ad-hoc body
 carries, `TextEffect::displacing`, joins those parameters rather than
 sitting beside them, so two bodies under one key that disagree about
-placement do not prune onto each other. `fx::seq` remaps local time so each
+placement do not prune onto each other. `fx::sequence` remaps local time so each
 phase sees a renormalised 0→1 (`TextEffect::until` sets the joint,
-`Phase::xfade` lerps across it), and `fx::mix` evaluates several effects at
+`Phase::crossfade` lerps across it), and `fx::mix` evaluates several effects at
 one time and composes them by the same algebra stacked tracks use.
 
 Both are built through `TextEffect::composite`, which is also the door for
 a combinator of your own: the operands RIDE the value, so the result
-compares by structure — a `fx::seq` of equal phases equals another built
+compares by structure — a `fx::sequence` of equal phases equals another built
 the same way — rather than by the closure that evaluates it. It is also
 where whether the result DISPLACES is derived rather than restated: a
 composite moves its glyphs when any operand it may evaluate does, so a
@@ -314,7 +314,7 @@ built, and nobody has to remember to say so.
 
 **Keyframe tables.** Every published web or motion reference is a list of
 (position, value) entries, and `fx::keys` is that list as an effect. A
-`fx::Key` is a moment in local time, a `GlyphMod` at it, and optionally a
+`fx::Key` is a moment in local time, a `GlyphModifier` at it, and optionally a
 curve of its own:
 
 ```cpp
@@ -330,7 +330,7 @@ The curve applies **per segment** — every pair of entries runs the whole
 curve over its own span, which is what a keyframe list means and what one
 curve stretched across the table would not be. `fx::Key::ease` overrides it
 for the segment that *opens* at that entry; unset segments are linear.
-Interpolation is componentwise through the same arithmetic a `fx::seq`
+Interpolation is componentwise through the same arithmetic a `fx::sequence`
 crossfade uses, so `codepoint` cuts at the middle of a segment and `axis`
 lerps only between entries naming the same tag. The table is the identity:
 two `fx::keys` over the same numbers and the same named curves compare equal
@@ -354,7 +354,7 @@ so there an effect gates its own arrival instead (the looping-cascade
 passage above).
 
 **What an effect is handed.** A body is `(glyph, local t, stream) →
-GlyphMod`, and `GlyphModFn` is that callable — the seam never holds a
+GlyphModifier`, and `GlyphModifierFunction` is that callable — the seam never holds a
 bare one, because a bare function cannot be compared, so it is wrapped in
 a named `TextEffect` before anything can hold it.
 
@@ -381,7 +381,7 @@ chose — so a per-word track sees word ordinals there.
 restyles cut and merge the style list, so a `spanPaint` anywhere ahead of
 this glyph renumbers it, and the two resolvers could not be made to agree
 on what a given index names. The handle on a treatment is the NAME the run
-was written under, which `sel::style` addresses.
+was written under, which `selectors::style` addresses.
 
 **Effects get a `core::noise::Mix64Stream`**, seeded from the glyph's
 identity, so a scatter is the same scatter on every frame and after every
@@ -398,7 +398,7 @@ treatment is data rather than scene structure, and the cost is one draw
 plus one pass whatever the unit count is:
 
 ```cpp
-// emberDissolve is a SigilMaterial recipe over the params struct Burn,
+// emberDissolve is a SigilMaterial recipe over the parameter struct Burn,
 // carrying the pass body as its SkSL.
 auto burn = material::skia::Paint::recipe(
     sigil::material::Material(emberDissolve, Burn{ink}));
@@ -412,7 +412,7 @@ shader: a runtime effect's array size is fixed at compile and SkSL has no
 uniform-bounded loop, so the runtime holds a specialization of that recipe
 per distinct count, its body the declarations above plus `const int
 kUnitCount = N` ahead of the author's. Write the body against those names
-and do not declare them, and declare every uniform of your own as a params
+and do not declare them, and declare every uniform of your own as a parameters
 field rather than in the body's text; any other material warns once and
 the track draws its glyphs at rest. `main(xy)` runs in the node's own px, the layer is sampled at the
 device's resolution (a 2x host stays sharp with no supersampled bake), and
@@ -444,7 +444,7 @@ at exactly 1 between beats, so `restsAt(1)` engages whenever no beat is
 mid-cycle. Undeclared, a pass always runs — `TextEffect::restPhases` reads
 back what was declared, and is empty both for a pass that declared nothing
 and for every per-glyph effect, which have no such promise to make. The
-declaration rides the effect's params, so two passes promising different
+declaration rides the effect's parameters, so two passes promising different
 phases do not prune onto each other.
 
 Order against everything else: deviation tracks apply FIRST, and the pass
@@ -454,13 +454,13 @@ layer, never directly as well; several pass tracks run in declaration
 order, each over its own selection's layer, and a glyph two passes address
 renders in both. A path baseline and a vertical column place glyphs before
 any of this, so a pass rides both. A pass is a whole-track statement:
-inside `fx::seq`, `fx::mix` and `fx::hold` its material is not consulted —
+inside `fx::sequence`, `fx::mix` and `fx::hold` its material is not consulted —
 sequence a pass by driving its progress, and gate its onset in its own
 SkSL, which holds the whole schedule.
 
 **Colour as a cascade.** `fx::tint(from, to)` is the colour reveal — a
 karaoke wipe, a highlight sweeping a word — and it carries one inversion
-worth stating once. `GlyphMod::colorMul` MULTIPLIES, and a multiplier only
+worth stating once. `GlyphModifier::colorMultiplier` MULTIPLIES, and a multiplier only
 takes a colour toward black, so **the element is set in `to` and the effect
 multiplies down toward `from`**. The arguments still read in time order and
 the division is done inside: `fx::tint(pale, sung)` on a line set in `sung`
@@ -469,11 +469,11 @@ with no diagnostic. Multiplying is also what lets it tint a gradient-filled
 line without knowing what fills it, and why a destination channel of zero
 cannot be departed from.
 
-The way *up* is the other two colour terms. `GlyphMod::colorAdd` is the
+The way *up* is the other two colour terms. `GlyphModifier::colorAdd` is the
 **hard flash**: added to whatever the style paints — after the multiply,
 clamped at the draw — it brightens where a multiplier can only darken, and
 it *adds across tracks*, the sum clamping once, so two half flashes make one
-full one. `GlyphMod::colorScreen` is the **phosphor glow that never clips**:
+full one. `GlyphModifier::colorScreen` is the **phosphor glow that never clips**:
 the painted colour c becomes 1 − (1 − c)(1 − s), lifting each channel in
 proportion to its headroom, and screens combine *commutatively* across
 tracks — stacked glows compose order-free. Both are RGB-only (coverage
@@ -487,8 +487,8 @@ pass — no second filter form — and a flat pass takes the same arithmetic in
 its colour. Neutral values (all zero) cost nothing: the untouched-paint
 fast path is byte-identical to a deviation that never mentions them.
 
-**What a `GlyphMod` can say.** Beyond `dx`, `dy`, `scale`, `rotateDeg` and
-`alpha`: `colorMul` multiplies every pass the glyph's style draws (a flat
+**What a `GlyphModifier` can say.** Beyond `dx`, `dy`, `scale`, `rotateDeg` and
+`alpha`: `colorMultiplier` multiplies every pass the glyph's style draws (a flat
 pass multiplies its colour, a shader pass takes an equivalent modulation,
 so a gradient keeps its ramp and wears the tint over it); `colorAdd` and
 `colorScreen` brighten over every pass the same way — the flash and the
@@ -499,7 +499,7 @@ the two shear angles read as `Element::skewX` and `Element::skewY` do, and a
 glyph naming both takes one shear pair rather than one shear after the
 other; `axis` drives a variable-font axis at draw time; and `codepoint`
 draws a different letter in this one's place. The last two are SUBSTITUTIONS and compose
-last-one-wins — a `fx::seq` crossfade cuts them at the middle of its window
+last-one-wins — a `fx::sequence` crossfade cuts them at the middle of its window
 rather than lerping, because there is no half-way glyph between two
 outlines. (Two phases driving the *same* axis are the exception, and lerp.)
 
@@ -522,7 +522,7 @@ driven axis composes with entrances and loops instead of being a second
 text path they would hide.
 
 **Snapping, and `Track::continuous`.** Rotation, alpha, the colour terms
-(`colorMul`, `colorAdd`, `colorScreen`) and the axis coordinate are
+(`colorMultiplier`, `colorAdd`, `colorScreen`) and the axis coordinate are
 quantized before they reach the
 draw: each distinct value is a distinct batch bucket *and* a distinct
 glyph-atlas strike. The axis ladder is cut per RENDERED SIZE — one step is
@@ -659,7 +659,7 @@ glyphs, which is what `TextEffect::displaces` answers. That answer is
 move glyphs; `fx::typeOn`, `fx::variableAxisSweep`, `fx::tint` and `fx::scramble` touch
 coverage, colour or the outline and leave every pen position alone),
 `fx::keys` reads its own table (any entry publishing an offset, a lean, a
-shear or a growth), and `fx::seq`, `fx::mix` and `fx::hold` derive from
+shear or a growth), and `fx::sequence`, `fx::mix` and `fx::hold` derive from
 their operands. `fx::pass` does not displace — its shader runs over pixels
 already rasterized at the resting origins, so refining those origins says
 nothing about where the pass puts its output. Only `fx::effect` has to be
@@ -692,7 +692,7 @@ auto p = weave::rich(base)
              .add(u8"noise", mono);
 
 text(p)
-    .spanPaint(weave::sel::regex(u8"[0-9]+"),
+    .spanPaint(weave::selectors::regex(u8"[0-9]+"),
                sigil::weave::PaintStyle(SK_ColorRED))
     .maxLines(3)
     .ellipsis(u8"…");
@@ -732,7 +732,7 @@ could not place is silent, like every other word that did not fit.
 `weave::RichText::add` takes a run in the base style, a run in its own
 `sigil::weave::TextStyle`, or a run under a NAME resolved through a
 `sigil::weave::StyleSet` — supplied by `weave::RichText::styles` or
-inherited through `core::env::Provide`. An explicit set beats the inherited
+inherited through `core::environment::Provide`. An explicit set beats the inherited
 one whichever order the two are written in, and a name the set does not
 register resolves to the base `weave::rich()` was given, so a misspelling
 shows as content set in the default rather than as content that did not
@@ -749,7 +749,7 @@ hatch for the passage too custom for either verb, not the way to set two
 colours in a sentence.
 
 **Selector styling.** `Element::spanPaint` and `Element::spanStyle`
-restyle whatever the SAME `sel::` selectors the tracks use address, on
+restyle whatever the SAME `selectors::` selectors the tracks use address, on
 every content form alike — plain text, `weave::rich()` spans and the paragraph
 overload. They are ordered by **what they are allowed to disturb**:
 
@@ -780,11 +780,11 @@ restyle keeps it:
 ```cpp
 sigil::weave::TextStyle graded = base;
 graded.variation("GRAD", 780);
-text(copy, base).spanStyle(weave::sel::regex(u8"[0-9]+"), graded);
+text(copy, base).spanStyle(weave::selectors::regex(u8"[0-9]+"), graded);
 ```
 
 Such a restyle is carried as a track holding `fx::variableAxis`,
-and inherits what that means. The coordinate is a `GlyphMod::axis`, so it
+and inherits what that means. The coordinate is a `GlyphModifier::axis`, so it
 goes through the same size-scaled ladder a driven axis does and composes
 with entrances and loops instead of being hidden by them; and the leaf
 then draws through the batched glyph path, where a span style's band
@@ -796,14 +796,14 @@ re-shapes too, so the later declaration is the one that stands.
 
 `spanPaint` and `spanStyle` resolve their selection as TEXT RANGES rather
 than glyphs, because a restyle runs on the paragraph before there are glyphs
-to point at: `weave::sel::text` and `weave::sel::regex` through weave's
-query layer, `weave::sel::word`, `weave::sel::words`, `weave::sel::sentence`
-and `weave::sel::range` through the paragraph's own structure, `sel::style`
-through the named runs the content declared, and `weave::sel::line` through
+to point at: `weave::selectors::text` and `weave::selectors::regex` through weave's
+query layer, `weave::selectors::word`, `weave::selectors::words`, `weave::selectors::sentence`
+and `weave::selectors::range` through the paragraph's own structure, `selectors::style`
+through the named runs the content declared, and `weave::selectors::line` through
 the layout. Two consequences follow. `weave::Selector::take` and
 `weave::Selector::drop` slice glyphs inside a unit, which no text range can
-express — an `weave::sel::each` selector restyles its whole units and the
-slice warns once. And a `weave::sel::line` restyle costs a second layout
+express — an `weave::selectors::each` selector restyles its whole units and the
+slice warns once. And a `weave::selectors::line` restyle costs a second layout
 pass and addresses the layout of the text BEFORE the restyle: it does not
 chase its own result, so a `spanStyle` that moves the line breaks leaves the
 selection where the first breaking put it.
@@ -839,7 +839,7 @@ than against the frame's supply of lines, so a frame that changes only in
 DEPTH changes which lines it holds and never where they break.
 
 ```cpp
-text(caption, body).width(Dim(measure)).live(true, 2000.0f)
+text(caption, body).width(Dimension(measure)).live(true, 2000.0f)
 ```
 
 **NOTHING INFERS IT.** A live layout answers the overflow tail
@@ -873,7 +873,7 @@ per block in block order:
 
 ```cpp
 text(weave::rich(body).add(u8"A heading\nand its body, which runs on\nand on"))
-    .width(Dim(360.0f))
+    .width(Dimension(360.0f))
     .paragraphs({headingStyle, bodyStyle})
     .firstBaseline(sigil::weave::FrameOptions::FirstBaseline::kCapHeight)
     .distribute(sigil::weave::FrameOptions::Distribute::kJustify);
@@ -905,29 +905,29 @@ its block styles and nothing else — no layout, no cursor, no frame — and
 weave::Story article(weave::rich(body).add(u8"…"));
 article.paragraphs({headingStyle, bodyStyle, bodyStyle});
 
-root.child(frame(article).key("a").thread("b").width(Dim(300.0f)))
-    .child(frame(article).key("b").width(Dim(300.0f)).ellipsis(u8"…"));
+root.child(frame(article).key("a").thread("b").width(Dimension(300.0f)))
+    .child(frame(article).key("b").width(Dimension(300.0f)).ellipsis(u8"…"));
 ```
 
 Each frame fills from where the one before it stopped, so the cut moves as
 any frame's measure moves, and the blocks are numbered from the STORY's
 start — the third block is set the same way whichever frame it lands in.
 
-**A STORY NUMBERS ITS OWN LINES.** `weave::sel::line(40)` is the fortieth line
+**A STORY NUMBERS ITS OWN LINES.** `weave::selectors::line(40)` is the fortieth line
 of the story wherever it landed, so a chain that reflows moves the
 selection with the text instead of addressing a different line in every
 frame; words, characters, sentences and named runs were the story's
 already, since every frame builds the whole story's paragraph and resumes
-at a word. `sel::inFrame("b")` is the frame-local address beside it —
+at a word. `selectors::inFrame("b")` is the frame-local address beside it —
 everything the named frame holds, and nothing anywhere else — so
-`sel::inFrame("b") & weave::sel::line(40)` is "line 40, if frame b is where it
+`selectors::inFrame("b") & weave::selectors::line(40)` is "line 40, if frame b is where it
 landed". A frame-local address on a leaf with no `key` can never match and
 warns once.
 
 **BEATS SPAN THE CHAIN.** A cascade over a threaded story runs one clock
 across the whole of it: with `beats::Text` the fortieth word is beat forty
 wherever it landed, so a staggered reveal carries on from one frame into
-the next instead of restarting, and a `fx::seq` phase's crossfade stays
+the next instead of restarting, and a `fx::sequence` phase's crossfade stays
 put across a reflow that moves a word from one frame to another —
 its beat is the story's, not the frame's. The word, the sentence and the
 line are the three granularities this holds for, because each carries a
@@ -998,7 +998,7 @@ composer's space.
 
 ```cpp
 for (const TextUnit &u :
-     composer.units("verse", weave::sel::each(weave::Unit::Word),
+     composer.units("verse", weave::selectors::each(weave::Unit::Word),
                     weave::Unit::Word))
   ;  // u.rect, u.axis, u.pitch, u.ascent, u.range, u.style, u.lineIndex
 ```
@@ -1040,7 +1040,7 @@ the caller: the object is still tied to a text position and still moves
 when the text reflows, but it stands at an offset the author states.
 
 ```cpp
-kit::annotate(composer, "verse", weave::sel::text(u8"Ishmael"),
+kit::annotate(composer, "verse", weave::selectors::text(u8"Ishmael"),
               weave::Unit::Word,
               {.horizontal = kit::Anchored::From::Frame, .offset = {-44, 0}},
               [&](const TextUnit &u) { return figure(u); });
@@ -1070,7 +1070,7 @@ lines follow that outline rather than its box.
 ```cpp
 text(passage, bodyType).initialLetter({.lines = 3, .margin = 6.0f});
 
-ornament.key("versal").absolute().left(Dim(0.0f)).top(Dim(0.0f));
+ornament.key("versal").absolute().left(Dimension(0.0f)).top(Dimension(0.0f));
 text(rest, bodyType).flowAround("versal", 6.0f);
 ```
 
@@ -1146,7 +1146,7 @@ there too.
 
 **The engine runs in columns.** `weave::Unit::Line` IS A COLUMN here, so a
 track with `.unit = weave::Unit::Line` beats column by column and
-`weave::sel::line(0)` addresses the rightmost one; `weave::Unit::Cluster`
+`weave::selectors::line(0)` addresses the rightmost one; `weave::Unit::Cluster`
 runs down a column in reading order. `spanPaint`, `spanStyle`, `textAlign`
 (start is the top of the column), `maxLines` (which clamps COLUMNS) with
 `ellipsis` at the clamped column's foot, `flowAround`, `lastLine`,

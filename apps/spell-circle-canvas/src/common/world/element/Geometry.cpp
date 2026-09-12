@@ -23,7 +23,7 @@ using core::hash::kFnvOffset;
 uint64_t mixMesh(uint64_t hash, const geometry::mesh::Mesh& mesh) {
   hash = fnv1a(hash, mesh.positions.size());
   hash = fnv1a(hash, mesh.indices.size());
-  return fnv1a(hash, mesh.prims.size());
+  return fnv1a(hash, mesh.primitives.size());
 }
 
 uint64_t mixCloud(uint64_t hash, const geometry::mesh::Cloud& cloud) {
@@ -113,8 +113,8 @@ uint64_t signature(const Geometry& geometry) {
     return mixMesh(mixCloud(hash, stamped->cloud), stamped->stamp);
   if (const Chained* chained = std::get_if<Chained>(&geometry)) {
     hash = fnv1a(hash, chained->chain.size());
-    for (const gm::pop::Op& op : chained->chain)
-      hash = fnv1a(hash, (uint64_t)op.index());
+    for (const gm::pop::Operation& operation : chained->chain)
+      hash = fnv1a(hash, (uint64_t)operation.index());
     return mixMesh(hash, chained->stamp);
   }
   if (const Generator* generator = std::get_if<Generator>(&geometry))

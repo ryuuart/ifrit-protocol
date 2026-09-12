@@ -49,7 +49,7 @@ namespace motion = sigil::motion;
 
 using namespace sigil::compose;
 namespace weave = sigil::weave;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 
 namespace {
@@ -96,8 +96,8 @@ struct Tategaki final : sketch::Sketch {
     return tg::specimen(
         caption, tg::label(12, tg::kAi, 2),
         text(std::move(run))
-            .width(Dim(46.0f))
-            .height(Dim(140.0f))
+            .width(Dimension(46.0f))
+            .height(Dimension(140.0f))
             .writingMode(sigil::weave::WritingMode::kVerticalRL),
         0.0f, 12.0f);
   }
@@ -134,12 +134,12 @@ struct Tategaki final : sketch::Sketch {
                    .absolute()
                    .inset(tg::kW - tg::kColumnBlockRight - tg::kColumnBlockW,
                           92, tg::kColumnBlockRight, 0)
-                   .width(Dim(tg::kColumnBlockW))
-                   .height(Dim(tg::kColumnBlockH))
+                   .width(Dimension(tg::kColumnBlockW))
+                   .height(Dimension(tg::kColumnBlockH))
                    .writingMode(sigil::weave::WritingMode::kVerticalRL)
                    // The phrase the plate is about, in vermilion — paint only,
                    // so the glyphs are exactly the glyphs the passage shaped.
-                   .spanPaint(weave::sel::text(u8"縦組み"),
+                   .spanPaint(weave::selectors::text(u8"縦組み"),
                               sigil::weave::PaintStyle(tg::kAka.toSkColor()))
                    // One settling entrance, beating cluster by cluster in
                    // READING ORDER: down each column, then right to left.
@@ -155,18 +155,18 @@ struct Tategaki final : sketch::Sketch {
                 .inset(64, 88, 0, 0)
                 .column()
                 .gap(10)
-                .child(text(toU8("\xe7\xb8\xa6\xe7\xb5\x84\xe3\x81\xbf"),
+                .child(text(toUtf8("\xe7\xb8\xa6\xe7\xb5\x84\xe3\x81\xbf"),
                             tg::body(46, tg::kGofun)))
                 .child(box()
-                           .width(Dim(120.0f))
-                           .height(Dim(1.0f))
+                           .width(Dimension(120.0f))
+                           .height(Dimension(1.0f))
                            .fill(Fill::color(tg::kAi)))
-                .child(text(toU8("VERTICAL-RL"), tg::label(15, tg::kAi, 4)))
-                .child(text(toU8("UTR#50 orientation, 'vert' forms,\n"
-                                 "tate-chu-yoko digits, rotated Latin"),
+                .child(text(toUtf8("VERTICAL-RL"), tg::label(15, tg::kAi, 4)))
+                .child(text(toUtf8("UTR#50 orientation, 'vert' forms,\n"
+                                   "tate-chu-yoko digits, rotated Latin"),
                             tg::label(14, tg::kGofun, 0.5f))
-                           .width(Dim(240.0f)))
-                .child(box().height(Dim(26.0f)))
+                           .width(Dimension(240.0f)))
+                .child(box().height(Dimension(26.0f)))
                 .child(
                     box()
                         .row()
@@ -192,13 +192,13 @@ struct Tategaki final : sketch::Sketch {
                                               sigil::weave::VerticalForm::
                                                   kTateChuYoko))
                                 .add(u8"年"))))
-                .child(box().height(Dim(22.0f)))
-                .child(text(toU8("one paragraph \xc2\xb7 one writingMode "
-                                 "\xc2\xb7 three forms"),
+                .child(box().height(Dimension(22.0f)))
+                .child(text(toUtf8("one paragraph \xc2\xb7 one writingMode "
+                                   "\xc2\xb7 three forms"),
                             tg::label(13, {0.55f, 0.53f, 0.50f, 1}))
-                           .width(Dim(300.0f))))
-        .child(text(toU8("cluster-unit entrance staggers DOWN the column, "
-                         "columns advance right to left"),
+                           .width(Dimension(300.0f))))
+        .child(text(toUtf8("cluster-unit entrance staggers DOWN the column, "
+                           "columns advance right to left"),
                     tg::label(13, {0.48f, 0.46f, 0.44f, 1}))
                    .absolute()
                    .inset(64, tg::kH - 46, 0, 0));

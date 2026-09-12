@@ -1,7 +1,7 @@
 /** @file
  * The program cache: one program per recipe, target and variant,
  * concurrent requests folded onto one compile, the warm-up, and the two
- * things it says once — a missing body and a params field the compiled
+ * things it says once — a missing body and a parameter field the compiled
  * body never reads.
  */
 
@@ -23,13 +23,13 @@ using namespace sigil::material;
 
 namespace {
 
-struct TwoParams {
+struct TwoParameters {
   float uScale;
   Color uColor;
 };
 
 std::shared_ptr<const Recipe> twoRecipe(const char* name = "two") {
-  return std::make_shared<const Recipe>(Recipe::of<TwoParams>(name).body(
+  return std::make_shared<const Recipe>(Recipe::of<TwoParameters>(name).body(
       Target::SkSL, "half4 main(float2 p) { return half4(uColor * uScale); }"));
 }
 
@@ -67,9 +67,9 @@ TEST(ProgramCache, OneProgramPerRecipeTargetAndVariant) {
   ProgramCache cache;
   cache.registerCompiler(Target::Slang, countingCompiler);
   auto a = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("a").body(Target::Slang, "x"));
+      Recipe::of<TwoParameters>("a").body(Target::Slang, "x"));
   auto b = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("a").body(Target::Slang, "x"));
+      Recipe::of<TwoParameters>("a").body(Target::Slang, "x"));
   gCompiles = 0;
   auto p1 = cache.program(a, Target::Slang);
   auto p2 = cache.program(a, Target::Slang);
@@ -110,7 +110,7 @@ TEST(ProgramCache, ConcurrentRequestsShareOneInFlightCompile) {
             std::move(recipe), Target::Slang, variant));
       });
   auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("concurrent").body(Target::Slang, "x"));
+      Recipe::of<TwoParameters>("concurrent").body(Target::Slang, "x"));
 
   std::atomic_int arrived = 0;
   std::vector<std::future<std::shared_ptr<Program>>> asks;
@@ -136,9 +136,9 @@ TEST(ProgramCache, WarmupFoldsDuplicateKeysAndPopulatesTheCache) {
             std::move(recipe), Target::Slang, variant));
       });
   auto a = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("warm.a").body(Target::Slang, "x"));
+      Recipe::of<TwoParameters>("warm.a").body(Target::Slang, "x"));
   auto b = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("warm.b").body(Target::Slang, "x"));
+      Recipe::of<TwoParameters>("warm.b").body(Target::Slang, "x"));
   const WarmupRequest requests[] = {
       {a, Target::Slang, {}},
       {b, Target::Slang, {}},
@@ -179,12 +179,12 @@ TEST(ProgramCache, CompileFailureIsNullAndRetriedAfterClear) {
         return std::shared_ptr<Program>{};
       });
   auto r = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("bad").body(Target::Slang, "x"));
+      Recipe::of<TwoParameters>("bad").body(Target::Slang, "x"));
   EXPECT_EQ(cache.program(r, Target::Slang), nullptr);
   EXPECT_EQ(calls, 1);
 }
 
-TEST(ProgramCache, UnreadParamsFieldIsNamedOnce) {
+TEST(ProgramCache, UnreadParametersFieldIsNamedOnce) {
   ProgramCache cache;
   cache.registerCompiler(
       Target::Slang,
@@ -193,7 +193,7 @@ TEST(ProgramCache, UnreadParamsFieldIsNamedOnce) {
             std::make_shared<DroppingProgram>(r, v, "uScale"));
       });
   auto r = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("dead").body(Target::Slang, "x"));
+      Recipe::of<TwoParameters>("dead").body(Target::Slang, "x"));
   const std::string said = captureStderr(
       [&] { EXPECT_NE(cache.program(r, Target::Slang), nullptr); });
   EXPECT_NE(said.find("\"dead\""), std::string::npos) << said;

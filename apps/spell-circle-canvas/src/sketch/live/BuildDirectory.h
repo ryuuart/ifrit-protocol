@@ -23,10 +23,10 @@ namespace sigil::sketch {
  *  dlclosed, because a live session may hold a vtable or a string literal
  *  inside one — and an unlinked file that is mapped stays readable until
  *  the last mapping goes. */
-[[nodiscard]] std::filesystem::path acquireBuildDir();
+[[nodiscard]] std::filesystem::path acquireBuildDirectory();
 
 /** The last host to let go removes the directory. */
-void releaseBuildDir();
+void releaseBuildDirectory();
 
 /** WHICH HOST IN THIS PROCESS, counted from one and never reused.
  *

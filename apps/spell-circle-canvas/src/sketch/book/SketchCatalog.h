@@ -144,13 +144,13 @@ class SketchCatalog : public QObject {
    *  pointed at beyond the registry. Set by main() before QML loads; the
    *  book library owns them because the catalog and the live view both
    *  read them and neither should reach into the other. */
-  static std::filesystem::path sketchDir;
+  static std::filesystem::path sketchDirectory;
   static std::vector<std::filesystem::path> externals;
 
   /** THE THUMBNAIL STORE: one directory this app owns, under the platform
    *  cache location unless the command line or an environment variable
    *  named another. Set by main() before QML loads. */
-  static std::filesystem::path thumbnailDir;
+  static std::filesystem::path thumbnailDirectory;
   /** What one still of the fill is allowed, and whether a sketch that
    *  declared itself a plate is walked at all. Set by main() before QML
    *  loads. */

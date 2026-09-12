@@ -75,7 +75,7 @@ const Theme& houseTheme() {
 }
 
 const Theme& theme() {
-  const Theme* bound = sigil::core::env::inherited<Theme>();
+  const Theme* bound = sigil::core::environment::inherited<Theme>();
   return bound != nullptr ? *bound : houseTheme();
 }
 

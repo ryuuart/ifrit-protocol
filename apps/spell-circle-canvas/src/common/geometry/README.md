@@ -92,7 +92,7 @@ a result never spells the swizzle itself.
 ## Using it
 
 ```cpp
-#include <sigilgeometry/path/Ops.h>
+#include <sigilgeometry/path/Operations.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -104,10 +104,10 @@ using namespace sigil::geometry::mesh;
 void paint(SkCanvas &canvas, SkSize viewport, const SkPath &star) {
   // 2D: an outline bloated, roughened and offset. A recipe is a chain of
   // operators, a value: hold it, apply it to any path, apply it again.
-  const ops::PathOp recipe = ops::chain({
-      ops::PuckerBloat{0.3f},
-      ops::Roughen{3},
-      ops::offsetBy(4),
+  const operations::PathOperation recipe = operations::chain({
+      operations::PuckerBloat{0.3f},
+      operations::Roughen{3},
+      operations::offsetBy(4),
   });
   SkPaint fill;
   fill.setAntiAlias(true);
@@ -142,7 +142,7 @@ void paint(SkCanvas &canvas, SkSize viewport, const SkPath &star) {
 
 Nothing above holds a device, a context or a frame. `Mesh` is a plain
 struct of vectors; `pop::Chain` is a `std::vector` of variants; a
-`PathOp` is a callable you can copy, compose and re-apply.
+`PathOperation` is a callable you can copy, compose and re-apply.
 
 ## The mental model
 
@@ -209,7 +209,7 @@ copies of them.
 
 **Values, not baked results.** Options structs, distortion structs,
 operator values, splines, clouds and chains are all plain data you edit and
-re-cook. `ops::PathOp` plus `ops::chain()` compose a non-destructive
+re-cook. `operations::PathOperation` plus `operations::chain()` compose a non-destructive
 recipe; `blend::Options`, `pop::SweepOptions` and `pop::Chain` behave the
 same way. Nothing is committed until a draw call or an explicit cook asks
 for it, so changing one dial and re-running is always available.
@@ -220,10 +220,10 @@ first touch and sized to the point count. Generators write conventional
 names — `"t"`, `"tangent"`, `"normal"`, `"binormal"`, `"size"`, `"tint"`,
 `"uv"` — and consumers read them back by name, so your own cooked lane
 slots in wherever a built-in one does. The *primitive* class lives on
-`Mesh::prims`: `vec4` lanes sized to `triangleCount()`, because a primitive
+`Mesh::primitives`: `vec4` lanes sized to `triangleCount()`, because a primitive
 here *is* one triangle. Its conventional names are `"Color"` (a flat
 per-triangle tint) and `"Id"` (`.x` carries which piece the triangle
-belongs to). `points::promoteToPrims()` and the `pop::Promote` operator
+belongs to). `points::promoteToPrimitives()` and the `pop::Promote` operator
 move values from the point class to the primitive class.
 
 **`Mesh` is the shared currency.** The same `positions`/`normals`/`uvs`/
@@ -255,16 +255,16 @@ ring vertex. The build compiles each twice — to C++, which the executor
 behind the built-in runtime calls, and to SPIR-V, which a runtime that
 owns a device dispatches. Neither side re-derives a formula, which is
 what lets two tiers be held to bit identity rather than to a tolerance.
-`kernel::has(op)` is the one answer to whether an operator has a kernel,
+`kernel::has(operation)` is the one answer to whether an operator has a kernel,
 `kernel::describe()` packs one into the argument block both ends read,
-`kernel::run()` is the host call, and `kernel::opSpirv()` is the module a
+`kernel::run()` is the host call, and `kernel::operationSpirv()` is the module a
 device runs.
 
 **One namespace holds every kernel here.** `mesh::kernel` is where the
 point operators' arithmetic, the swept ring's and the stamping's are all
-declared, each naming its own subject — `OpArgs`/`OpDispatch`,
+declared, each naming its own subject — `OperationArguments`/`OperationDispatch`,
 `SweepArgs`/`SweepDispatch`, `StampArgs`/`StampDispatch`, and
-`opSpirv()`/`sweepSpirv()`/`stampSpirv()` — so no two of them answer to
+`operationSpirv()`/`sweepSpirv()`/`stampSpirv()` — so no two of them answer to
 one name and a reader looking for what a device dispatches finds all of
 them together. `kernel::run()` is one overload set the dispatch type
 decides.
@@ -337,7 +337,7 @@ round, an open one parks — so a mark travelling a 2D outline and a camera
 flying a 3D spline agree about what "past the end" means without either
 of them spelling it.
 
-**Operator dials are addressable by name.** `pop::setField(op,
+**Operator dials are addressable by name.** `pop::setField(operation,
 "amount", v)` and `getField` reach every numeric field of every operator
 — vector components dotted (`"center.x"`, `"add.w"`, `"to.g"`), enums and
 bools as numbers, ints truncated — so a control surface, a preset file
@@ -671,7 +671,7 @@ in no header.
   on a plinth) keeps the correspondence an outline offset cannot give;
   a needle-sharp corner's mitre is capped at a stated number of
   distances, blunting the corner rather than dropping the vertex.
-- **`path/Ops.h`** — path operators. Booleans over Skia's pathops
+- **`path/Operations.h`** — path operators. Booleans over Skia's pathops
   (`unite` over a pair or over a whole stack, `subtract`, `intersect`,
   `exclude`, `simplify`), the OFFSET and the CORNER ROUNDING — one
   operator each, since every side, every join and every selection either
@@ -679,7 +679,7 @@ in no header.
   as parameter structs you apply on demand: `Roughen` (seeded jitter
   along the normal, each contour drawing from its own stream so adding
   one does not re-roll the others), `Zigzag`, `PuckerBloat`, `Twirl`.
-  `PathOp` and `chain()` compose them, `offsetBy()` adapts `offset` into
+  `PathOperation` and `chain()` compose them, `offsetBy()` adapts `offset` into
   a step. Beside them two treatments that are neither a boolean nor a
   distortion. `chamferCorners()` cuts every line-line corner with a
   straight bevel a stated distance along each leg — the 45-degree face a
@@ -756,7 +756,7 @@ in no header.
   `bleed()` declaring how far the deviation reaches). It bends one
   continuous mark — a wave, a zigzag, a jitter, an offset. Comparable is
   the point: a consumer that caches drawings proves two frames asked for
-  the same deviation and keeps the recording it has, which `ops::PathOp`
+  the same deviation and keeps the recording it has, which `operations::PathOperation`
   cannot answer.
 - **`path/Profile.h`** — `Profile`, the comparable WIDTH LAW, over the
   `ProfileScheme` concept (`across(along)`, `max()`, equality). `max()`
@@ -874,9 +874,9 @@ in no header.
 the currency every feature under it speaks.
 
 - **`mesh/Mesh.h`** — the mesh currency. The `Mesh` struct (positions,
-  normals, uvs, colors, indices, and the `prims` lane map),
+  normals, uvs, colors, indices, and the `primitives` lane map),
   `append()`/`transform()`/`computeNormals()`/`bounds()`, and
-  `mesh::bakePrimColor()`. Two surfaces are here rather than on the kit's
+  `mesh::bakePrimitiveColor()`. Two surfaces are here rather than on the kit's
   shelf because everything else is built through them: `grid()`, the
   parametric-sheet seam a caller hands its own formula to, and `quad()`,
   the flat panel a consumer needs to have a mesh at all. The struct's own
@@ -973,7 +973,7 @@ own repertoire here rather than inside whatever draws through it.
   for a tier with no shading language: `Environment` (the prefiltered
   chain a reflection reads, the cosine convolution a diffuse term reads,
   the orientation, the dials, the backdrop and the ground sphere it is
-  projected onto), `equirectUv` and the two polynomials under it,
+  projected onto), `equirectangularUv` and the two polynomials under it,
   `specularColor`, `fresnelRough`, `environmentBrdf` and
   `environmentSpecular`, `attenuate`, `refraction`, and
   `luminance`/`toneMap`, the display transform every lit sum ends at.
@@ -1025,12 +1025,12 @@ implementations of the same dispatch seams.
 - **`mesh/pop/Points.h`** — `Cloud` and its lane accessors (`Cloud.cpp`);
   the generators `onSpline()`, `grid()`, `ring()`, `scatterBox()` and
   `onMesh()` (`Generators.cpp`); the modifiers `jitter()` and
-  `displaceNoise()`, `stampOptions()` and `promoteToPrims()`
+  `displaceNoise()`, `stampOptions()` and `promoteToPrimitives()`
   (`Modifiers.cpp`); the consumers `instance()` and `quads()`, which
   stamp a mesh at every point into one merged mesh (`Stamp.cpp`); and
   `drawBillboards()`, camera-facing sprites
-  (`Billboards.cpp`). `BillboardStyle::texLane` names a colour lane of
-  {uOffset, vOffset, uScale, vScale} windows — what a `pop::Atlas` op
+  (`Billboards.cpp`). `BillboardStyle::textureLane` names a colour lane of
+  {uOffset, vOffset, uScale, vScale} windows — what a `pop::Atlas` operation
   writes into `"Tex"` — and each splat then draws THAT CELL of the
   sprite, so one sheet splats as a field of different sprites. It is
   named rather than assumed, because a cloud may carry `"Tex"` for the
@@ -1045,18 +1045,18 @@ implementations of the same dispatch seams.
   of them a picture came from.
 - **`mesh/pop/Pop.h`** — the operator chain language and the runtime seam
   it executes through, both in the `pop` scope, in one include over four
-  headers: `Ops.h` carries the attribute reference a filter addresses,
-  the twenty-five operator descriptions and the `Op` variant they form,
-  with `pop::opName()` naming one; `Runtime.h` the seam — `pop::Executor`
+  headers: `Operations.h` carries the attribute reference a filter addresses,
+  the twenty-five operator descriptions and the `Operation` variant they form,
+  with `pop::operationName()` naming one; `Runtime.h` the seam — `pop::Executor`
   is what a runtime supplies, `pop::Runtime` is an erased value of
   SigilCoreComparable's shape, `pop::cook()` evaluates a chain on the one
   it is given — together with the helpers every executor shares
-  (`laneFill()`, `seedLanes()`, `seedAttrs()`, `exportLanes()`,
-  `setField()`/`getField()`, `noiseField()`, `attrFor()`/`cloudLaneFor()`);
+  (`laneFill()`, `seedLanes()`, `seedAttributes()`, `exportLanes()`,
+  `setField()`/`getField()`, `noiseField()`, `attributeFor()`/`cloudLaneFor()`);
   `Sinks.h` the sinks a cooked chain is spent into; and `Builder.h` the
   artist's spelling, where `pop::on()` opens a chain. The field table
   behind `pop::setField()`/`getField()` is `Fields.cpp`; the lane fill,
-  the two ends of every cook (`seedLanes()`, `seedAttrs()`,
+  the two ends of every cook (`seedLanes()`, `seedAttributes()`,
   `exportLanes()`) and the name table are `Lanes.cpp`; the built-in
   executor, the `Runtime::cpu()` value with its `Runtime::cpu(itemGrain)`
   spelling, and the `cook()` door that checks an executor's capability
@@ -1064,10 +1064,10 @@ implementations of the same dispatch seams.
   points they do not own in `Neighbourhood.cpp`; the mesh-forming sinks
   `pop::cookMesh()` and `cookSweep()` are `Sinks.cpp`.
 - **`mesh/pop/Kernel.h`** — the seam between the two ends of one piece of
-  arithmetic: `kernel::OpArgs` (the argument block, every member a
+  arithmetic: `kernel::OperationArguments` (the argument block, every member a
   four-component vector so its bytes stand at the same offsets in a
-  uniform buffer), `kernel::OpDispatch` (which lane fills each binding
-  role), `has()`, `describe()`, `run()` and `opSpirv()`. It also names
+  uniform buffer), `kernel::OperationDispatch` (which lane fills each binding
+  role), `has()`, `describe()`, `run()` and `operationSpirv()`. It also names
   the namespace every kernel here shares. `Kernel.cpp` packs
   and calls.
 - **`mesh/pop/Sweep.h`** — the swept operator as a subject: the
@@ -1195,7 +1195,7 @@ private include path and are not the library's to offer.
 
 ### The operators
 
-`pop::Op` is a variant over twenty-five operator values, and `pop::Chain`
+`pop::Operation` is a variant over twenty-five operator values, and `pop::Chain`
 is a vector of them. Generators seed a chain: `SplineScatter` (points along a
 window of a closed loop), `MeshScatter` (points on a formed model's
 faces) and `PointSet` (an existing `Cloud` — an import's `asCloud()`, a
@@ -1227,7 +1227,7 @@ nothing and is the currency a line, a mesh edge and a spring all already
 want. `Promote` and `Sort` are the
 primitive-class and permutation-class operators.
 
-Every operator addresses attributes by name through `pop::AttrRef`, with
+Every operator addresses attributes by name through `pop::AttributeReference`, with
 `"P"`, `"T"`, `"Dir"`, `"Scale"`, `"Color"` and `"Tex"` as the well-known
 names and anything else creating a custom lane on first write.
 
@@ -1246,7 +1246,7 @@ with the same expression.
 `move`, `fill`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`,
 `select`, `drop`, `keep`, `masked`, `affine`, `orient`, `peak`, `twist`,
 `taper`, `bend`, `mix`, `mixBy`, `copy`, `normal`, `relax`, `cluster`,
-`transfer`, `op`) append operators — `masked()` sets
+`transfer`, `operation`) append operators — `masked()` sets
 the mask on the filter just added — and the builder converts to a
 `Chain`, so you can reach into any operator afterwards and re-cook. Sinks
 end a chain: `cook()` to a `Cloud`, `cookMesh()` to one mesh of stamps,
@@ -1376,7 +1376,7 @@ beneath, in `sigil::geometry::shapes`.
   a band width. Both stand in `shapers::` and not in `path::profile`,
   because a kit composes over a seam and does not grow it.
 - **`kit/Hatches.h`** — `hatchOutline()`, a silhouette filled with lines
-  as one path: the outline narrowed by `ops::offset`, flattened, run
+  as one path: the outline narrowed by `operations::offset`, flattened, run
   through `path::lattice` and joined up. It is a door rather than a
   construction — a caller holding an `SkPath` should not have to flatten
   it into rings itself, and that is why the fill has next to no adoption
@@ -1439,7 +1439,7 @@ the same standing — the kit is stock, never privileged, and equal values
 must draw identical paths at every size.
 
 **One table for the lane convention, and one for the stamp.**
-`pop::attrFor` and `pop::cloudLaneFor` are the whole of the mapping
+`pop::attributeFor` and `pop::cloudLaneFor` are the whole of the mapping
 between a Cloud's lane names and the chain's attribute names —
 `t`↔`T`, `size`↔`Scale`, `dir`↔`Dir`, `tint`↔`Color`, with `normal` also
 seeding `Dir` because that is what a generator or an importer writes —
@@ -1473,7 +1473,7 @@ std::unique_ptr<geometry::device::Device> device =
 if (!device) return;  // no Vulkan runtime, for instance; `error` says why
 
 core::hardware::GpuDevice& gpu = *device->gpu();
-core::hardware::TextureDesc desc;
+core::hardware::TextureDescription desc;
 desc.width = desc.height = 512;
 const core::hardware::TextureHandle texture = gpu.createTexture(desc);
 const core::hardware::FenceHandle fence = gpu.createFence();
@@ -1673,7 +1673,7 @@ is silently, plausibly wrong rather than obviously broken.
   is written as a call into the operator's own arithmetic rather than as
   a second copy of it. The `DevicePop` suite compares the two paths
   bit for bit.
-- **The declaration order of `pop::Op`'s variant alternatives is ABI.**
+- **The declaration order of `pop::Operation`'s variant alternatives is ABI.**
   The variant *index* IS the operator number the kernel switches on, so
   one numbering serves the host and the device. New operators are
   appended; inserting one in the middle silently sends every operator
@@ -1685,7 +1685,7 @@ is silently, plausibly wrong rather than obviously broken.
   arc's end tangents rigidly, so the geometry past the band keeps its
   shape rather than being stretched.
 - **A `PointSet` lays its cloud out by name, and the layout is shared.**
-  `pop::seedAttrs()` is the one function that maps a cloud onto the
+  `pop::seedAttributes()` is the one function that maps a cloud onto the
   attribute store — positions to `P`, `"t"`/`"size"`/`"tint"` to
   `T`/`Scale`/`Color`, `"dir"` (or, failing that, `"normal"`) to `Dir`,
   `"Tex"` to `Tex`, everything else under its own name — and the GPU
@@ -1723,7 +1723,7 @@ is silently, plausibly wrong rather than obviously broken.
   extensions and the alpha mode — words SigilWorld's texture-set door
   reads directly. A part's material SLOT (`materialIndex`, glTF's material
   index; a `.geo`'s `shop_materialpath` string index) is also written
-  across its `mesh.prims["Material"]` lane, so `Model::merged()` keeps
+  across its `mesh.primitives["Material"]` lane, so `Model::merged()` keeps
   per-triangle materials and `materialSlotCount()` says how many.
   Likewise, `decode::model()` never touches the filesystem for
   external references unless you gave it a `Resolver` or used the path
@@ -1735,8 +1735,8 @@ is silently, plausibly wrong rather than obviously broken.
   vertex becomes its own mesh vertex (so a vertex-class `uv` or `N`
   survives seams and hard edges; the vertex class outranks the point
   class for the conventional names), the `uv` v axis is flipped to the
-  top-left convention, primitive `Cd` becomes the `"Color"` prim lane and
-  every other primitive attribute a prim lane under its own name. Point
+  top-left convention, primitive `Cd` becomes the `"Color"` primitive lane and
+  every other primitive attribute a primitive lane under its own name. Point
   and primitive *groups* arrive as 0/1 lanes named after the group — the
   shape a `pop` mask expects — so a Houdini group named `top` is
   `.masked("top")` downstream. Detail (global) attributes and string

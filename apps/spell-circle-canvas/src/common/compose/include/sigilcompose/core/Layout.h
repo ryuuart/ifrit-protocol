@@ -1,11 +1,11 @@
 #pragma once
 
 /** @file
- * SigilCompose layout values — Dim and its literals, Align, Justify, Echo,
- * Cache with the `cachePolicy` that reads it as the kernel's own, the
+ * SigilCompose layout values — Dimension and its literals, Align, Justify,
+ * Echo, Cache with the `cachePolicy` that reads it as the kernel's own, the
  * CellSpan a child claims and the LayoutInput a custom LayoutScheme
- * places children from, and the ComponentProps and ComponentFn concepts
- * the generic entry points are constrained by.
+ * places children from, and the ComponentProperties and ComponentFunction
+ * concepts the generic entry points are constrained by.
  */
 
 #include <include/core/SkColor.h>
@@ -27,32 +27,36 @@ namespace sigil::compose {
 /** A length that may be absolute, relative to the parent, or left for
  *  layout to decide. Constructing one from a bare float gives pixels,
  *  so the common case reads as a number. */
-struct Dim {
+struct Dimension {
   enum class Unit : uint8_t { Px, Pct, Auto };
   Unit unit = Unit::Auto;
   float value = 0.0f;
 
-  constexpr Dim() = default;
-  constexpr Dim(float px)  // NOLINT: implicit by design
+  constexpr Dimension() = default;
+  constexpr Dimension(float px)  // NOLINT: implicit by design
       : unit(Unit::Px), value(px) {}
-  bool operator==(const Dim&) const = default;
+  bool operator==(const Dimension&) const = default;
 };
-constexpr Dim pct(float v) {
-  Dim d;
-  d.unit = Dim::Unit::Pct;
+constexpr Dimension pct(float v) {
+  Dimension d;
+  d.unit = Dimension::Unit::Pct;
   d.value = v;
   return d;
 }
-constexpr Dim autoDim() { return {}; }
+constexpr Dimension autoDimension() { return {}; }
 
-/** `width(50_pct)`, `basis(120_px)` — for the Dim-valued setters;
+/** `width(50_pct)`, `basis(120_px)` — for the Dimension-valued setters;
  *  exposed by `using namespace sigil::compose` (or `using namespace
  *  sigil::compose::literals`). */
 inline namespace literals {
-constexpr Dim operator""_px(long double v) { return Dim((float)v); }
-constexpr Dim operator""_px(unsigned long long v) { return Dim((float)v); }
-constexpr Dim operator""_pct(long double v) { return pct((float)v); }
-constexpr Dim operator""_pct(unsigned long long v) { return pct((float)v); }
+constexpr Dimension operator""_px(long double v) { return Dimension((float)v); }
+constexpr Dimension operator""_px(unsigned long long v) {
+  return Dimension((float)v);
+}
+constexpr Dimension operator""_pct(long double v) { return pct((float)v); }
+constexpr Dimension operator""_pct(unsigned long long v) {
+  return pct((float)v);
+}
 }  // namespace literals
 
 enum class Align : uint8_t { Auto, Start, Center, End, Stretch, Baseline };
@@ -218,7 +222,7 @@ struct LayoutInput {
    *  and what a name resolves to. A name no picture carries is silent and
    *  the child flows.
    *
-   *  Beside `childCells` rather than in it because a string on the props
+   *  Beside `childCells` rather than in it because a string on the properties
    *  of every node in the tree is what the node size assertion forbids,
    *  and a named region is rare. */
   std::vector<std::string> childAreas;
@@ -259,12 +263,12 @@ concept SizesFromContentMinima = LayoutScheme<L> && requires {
 // Concepts (readable errors at the generic entry points)
 
 template <typename P>
-concept ComponentProps = std::equality_comparable<P> && std::copyable<P>;
+concept ComponentProperties = std::equality_comparable<P> && std::copyable<P>;
 
 class Element;
 
 template <typename F, typename P>
-concept ComponentFn =
+concept ComponentFunction =
     std::invocable<F, const P&> &&
     std::convertible_to<std::invoke_result_t<F, const P&>, Element>;
 

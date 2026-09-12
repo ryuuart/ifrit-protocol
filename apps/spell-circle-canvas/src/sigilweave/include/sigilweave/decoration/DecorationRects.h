@@ -46,7 +46,7 @@ const PaintStyle& resolvePaint(const std::vector<StyleSpan>& spans,
 /// A run that can carry a decoration band: straight glyphs, along a line or
 /// down a column. A run the layout TURNED carries none — a band would have
 /// to follow the curve it rides.
-inline bool decorableRun(const PositionedRun& run) {
+inline bool canDecorateRun(const PositionedRun& run) {
   return !run.transformed && run.shaped && run.placeholderIndex < 0 && run.blob;
 }
 
@@ -103,7 +103,7 @@ void forEachDecorationRect(const std::vector<PositionedRun>& runs,
                            DecorationPhase phase, EmitRect&& emitRect) {
   for (size_t groupStart = 0; groupStart < runs.size();) {
     const PositionedRun& first = runs[groupStart];
-    if (!decorableRun(first)) {
+    if (!canDecorateRun(first)) {
       ++groupStart;
       continue;
     }
@@ -124,7 +124,8 @@ void forEachDecorationRect(const std::vector<PositionedRun>& runs,
     while (groupEnd < runs.size()) {
       const PositionedRun& candidate = runs[groupEnd];
       const PositionedRun& previous = runs[groupEnd - 1];
-      if (!decorableRun(candidate) || candidate.lineIndex != first.lineIndex ||
+      if (!canDecorateRun(candidate) ||
+          candidate.lineIndex != first.lineIndex ||
           candidate.styleIndex != first.styleIndex ||
           candidate.shaped->vertical != alongColumn ||
           candidate.shaped->typeface.get() != first.shaped->typeface.get() ||

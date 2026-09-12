@@ -112,10 +112,11 @@ void FontContext::Impl::applyOpticalKerning(const sk_sp<SkTypeface>& typeface,
   word.advance += shift;
 }
 
-ShapedWordRef shapeWord(FontContext& fontContext, const ShapingStyle& style,
-                        const sk_sp<SkTypeface>& typeface,
-                        std::u16string_view text, ScriptTag script,
-                        bool rightToLeft, bool vertical) {
+ShapedWordReference shapeWord(FontContext& fontContext,
+                              const ShapingStyle& style,
+                              const sk_sp<SkTypeface>& typeface,
+                              std::u16string_view text, ScriptTag script,
+                              bool rightToLeft, bool vertical) {
   FontContext::Impl& implementation = *fontContext.m_impl;
 
   // Probe with a borrowed view — the warm path allocates nothing.

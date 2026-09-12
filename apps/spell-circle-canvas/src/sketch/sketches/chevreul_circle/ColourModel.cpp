@@ -190,8 +190,8 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
     Element strip = box().row();
     for (int b = 0; b < kBandN; ++b)
       strip.child(box()
-                      .width(Dim(kBandW))
-                      .height(Dim(32))
+                      .width(Dimension(kBandW))
+                      .height(Dimension(32))
                       .shrink(0)
                       .fill(Fill::color(gamme[(size_t)b])));
     // test::rasterize is the read-back: it wraps the tree in the shell
@@ -277,8 +277,11 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
   if (ctx.fonts && quadAtlas && quadPool) {
     const float gw = 10 * (kQCellW + kQGapX) - kQGapX;
     const float gh = 20 * (kQCellH + kQGapY) - kQGapY;
-    Element probe = box().width(Dim(gw)).height(Dim(gh)).child(
-        instancing::instances(quadAtlas, quadPool, instancing::Mode::Data));
+    Element probe = box()
+                        .width(Dimension(gw))
+                        .height(Dimension(gh))
+                        .child(instancing::instances(quadAtlas, quadPool,
+                                                     instancing::Mode::Data));
     const test::Raster r = test::rasterize(
         std::move(probe), *ctx.fonts, {(int)std::ceil(gw), (int)std::ceil(gh)},
         kN32_SkColorType);
@@ -317,8 +320,8 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
     // viewer's screen is handed.
     const test::Raster r =
         test::rasterize(box()
-                            .width(Dim(32))
-                            .height(Dim(32))
+                            .width(Dimension(32))
+                            .height(Dimension(32))
                             .fill(Fill::color(gamme[9]))
                             .effect(Effect::recipe(ocio::exponent(2.2f))),
                         *ctx.fonts, {32, 32}, kN32_SkColorType);

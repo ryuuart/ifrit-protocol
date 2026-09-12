@@ -160,7 +160,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         (unsigned)caps);
   }
 
-  std::filesystem::create_directories(options.outDir);
+  std::filesystem::create_directories(options.outputDirectory);
   // TWO TIMING COLUMNS, and the difference between them is the point.
   // "frame ms" is end to end, the backend flush included — on the device
   // that is a synchronous drain per frame, so the column is the honest
@@ -424,8 +424,8 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
                                       kPlateWidthCeiling / size.width()));
     const SkImageInfo plateInfo = SkImageInfo::MakeN32Premul(
         (int)(size.width() * scale), (int)(size.height() * scale));
-    const std::string path =
-        options.outDir + "/" + std::string(kPlatePrefix) + entry.name + ".png";
+    const std::string path = options.outputDirectory + "/" +
+                             std::string(kPlatePrefix) + entry.name + ".png";
     SkBitmap bitmap;
     bitmap.allocPixels(plateInfo);
 
@@ -500,7 +500,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     session->still(*plate->getCanvas());
     if (options.countPlane) {
       const bool wrote = writeCountPlane(session->compositeCounts(),
-                                         options.outDir, entry.name);
+                                         options.outputDirectory, entry.name);
       session->setCompositeCounting(false);
       if (!wrote) {
         if (timingJson) std::fclose(timingJson);
@@ -524,7 +524,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
   if (!options.gpu) {
     const size_t written = chosen.size() - skipped;
     std::printf("wrote %zu plate%s to %s\n", written, written == 1 ? "" : "s",
-                options.outDir.c_str());
+                options.outputDirectory.c_str());
   }
   if (timingJson) std::fclose(timingJson);
   return 0;

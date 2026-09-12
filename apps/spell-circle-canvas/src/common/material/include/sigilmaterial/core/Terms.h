@@ -59,7 +59,7 @@ std::string skSLFromSlang(std::string_view slang);
  *  `environmentReflection`, `refraction`, `absorption`, `emission`,
  *  `occlusion`, the display transform every lit sum ends at —
  *  `luminance`, `toneMap` — and the panorama's own geometry:
- *  `equirectUv`, `equirectDirection`, `roughnessLevel`, `atan2P`,
+ *  `equirectangularUv`, `equirectangularDirection`, `roughnessLevel`, `atan2P`,
  *  `acosP`. */
 
 }  // namespace sigil::material

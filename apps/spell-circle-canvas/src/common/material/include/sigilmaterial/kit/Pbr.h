@@ -3,7 +3,7 @@
 /** @file
  * The metallic-roughness surface — the shading model the authoring tools
  * export for and glTF, USD's preview surface and every scanned material
- * set are written against. One params struct is its ABI: base colour,
+ * set are written against. One parameter struct is its ABI: base colour,
  * metallic, roughness, emission, the normal convention, the channel each
  * packed map is read from, the cutout threshold and the glass terms. One
  * child slot per map, named for the role it fills, so a discovered
@@ -24,7 +24,7 @@
  * `metallic`, `normalScale` and `normalDirectX` with the normal map,
  * `transmission`, `ior`, `thickness` and `absorption`.
  *
- * The Slang bodies read the same params and the same slots, and say more
+ * The Slang bodies read the same parameters and the same slots, and say more
  * than a colour, because the renderer that compiles them shades. Every
  * lit body states its surface's whole PBR standing — roughness, metal,
  * and the three glass terms — so a renderer with an environment map to
@@ -71,7 +71,7 @@ inline constexpr std::string_view kOpacitySlot =
  *  multiplied by the map in the matching slot, so a set that ships a
  *  metallic map wants `metallic = 1` for the map's values to come
  *  through — which is what `surface(TextureMaps)` arranges. */
-struct SurfaceParams {
+struct SurfaceParameters {
   Color baseColor = {0.8f, 0.8f, 0.8f, 1};
   float metallic = 0;
   float roughness = 0.5f;
@@ -111,18 +111,18 @@ struct SurfaceParams {
   float reflectionWeight = 1;
 
   /** A polished mirror: metal, and rough enough to be a real object. */
-  static SurfaceParams chrome();
+  static SurfaceParameters chrome();
   /** Warm metal at the reflectance gold actually has. */
-  static SurfaceParams gold();
+  static SurfaceParameters gold();
   /** A metal at @p roughness — the study between a mirror and a matte
    *  casting. */
-  static SurfaceParams metal(Color tint, float roughness);
+  static SurfaceParameters metal(Color tint, float roughness);
   /** A dielectric: not a metal, so it reflects a few per cent head on
    *  and much more at the rim, and keeps its colour in the diffuse. */
-  static SurfaceParams dielectric(Color baseColor, float roughness);
+  static SurfaceParameters dielectric(Color baseColor, float roughness);
   /** Clear glass: what is behind it, refracted, with a reflection over
    *  the top. */
-  static SurfaceParams glass();
+  static SurfaceParameters glass();
 };
 
 /** HOW THE ENVIRONMENT REACHES A SURFACE, which is a choice about the
@@ -144,17 +144,17 @@ enum class Reflection : uint8_t {
 /** The recipes, defined once. Both declare every map slot above. */
 const std::shared_ptr<const Recipe>& surfaceRecipe(
     Reflection reflection = Reflection::SplitSum);
-/** The unlit half of that pair — the same params and the same slots, with
+/** The unlit half of that pair — the same parameters and the same slots, with
  *  no shading terms read. */
 const std::shared_ptr<const Recipe>& unlitRecipe();
 
 /** A lit metallic-roughness surface, composed from the shading terms:
  *  occlusion over the albedo, emission added, and the surface's PBR
  *  standing handed to whatever renderer shades it. */
-Material surface(const SurfaceParams& params = {},
+Material surface(const SurfaceParameters& parameters = {},
                  Reflection reflection = Reflection::SplitSum);
 /** A surface that is its own light: no shading, no shadow terms. */
-Material unlit(const SurfaceParams& params = {});
+Material unlit(const SurfaceParameters& parameters = {});
 
 /** Whether @p m is an instance of either surface recipe. */
 bool isSurface(const Material& m);
@@ -175,6 +175,6 @@ const Texture* map(const Material& m, std::string_view slot);
  *  scalar a present map multiplies started at one — left at its stock
  *  value a metallic map would multiply zero and never be seen — unless
  *  @p base already moved it. */
-Material surface(const texture::TextureMaps& maps, SurfaceParams base = {});
+Material surface(const texture::TextureMaps& maps, SurfaceParameters base = {});
 
 }  // namespace sigil::material::kit

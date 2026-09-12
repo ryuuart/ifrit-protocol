@@ -5,10 +5,10 @@
  * a picture rather than as a stroke.
  *
  * `brush::Scatter` places its art at samples along the outline — a
- * `brush::Placement` says where those samples fall, and a `StampModFn`
- * may deviate each copy. `brush::Pattern` lays a tile end to end and fits
- * the count to the run, with `brush::CornerArt` for the elbow a turn is
- * made of. Both are leaf kinds of `Brush`
+ * `brush::Placement` says where those samples fall, and a
+ * `StampModifierFunction` may deviate each copy. `brush::Pattern` lays a tile
+ * end to end and fits the count to the run, with `brush::CornerArt` for the
+ * elbow a turn is made of. Both are leaf kinds of `Brush`
  * (<sigilcompose/brush/Brushes.h>), and both bake their art as a PICTURE,
  * so a mask filter inside a tile is re-run on every stamp.
  */
@@ -53,21 +53,21 @@ struct Placement {
 };
 
 /** One placed instance's deviation from its slot — the programmatic twist
- *  (mirrors GlyphMod; return {.skip = true} to drop a slot). */
-struct StampMod {
+ *  (mirrors GlyphModifier; return {.skip = true} to drop a slot). */
+struct StampModifier {
   float dAlong = 0, dNormal = 0;  ///< px, in the sample's tangent frame
   float scale = 1;
   float rotateDeg = 0;
   float alpha = 1;
   bool skip = false;
 };
-using StampModFn =
-    std::function<StampMod(const PathSample&, size_t index, size_t count)>;
+using StampModifierFunction =
+    std::function<StampModifier(const PathSample&, size_t index, size_t count)>;
 
 /** The SCATTER brush: an Element instanced along the path at `spacing`,
- *  with seeded jitter and the StampMod hook. The art bakes ONCE via
+ *  with seeded jitter and the StampModifier hook. The art bakes ONCE via
  *  snapshot() (its own decorations and all) and replays per slot. Keep
- *  the art Element pointer-stable across renders to prune; a mod fn makes
+ *  the art Element pointer-stable across renders to prune; a modifier fn makes
  *  the value incomparable (memo the host).
  *
  *  THE CACHE IN THIS VALUE IS THE FALLBACK. Inside a composer the bake
@@ -94,10 +94,10 @@ struct Scatter {
    *  jitter. The CULL's number, measured from the path outwards — the
    *  mark's own width is `reach()`, twice this. */
   float bleedPx = 32.0f;
-  StampModFn mod;
-  bool animatedMod = false;  ///< mod reads time → repaint per frame
+  StampModifierFunction modifier;
+  bool animatedModifier = false;  ///< modifier reads time → repaint per frame
 
-  bool isAnimated() const { return animatedMod; }
+  bool isAnimated() const { return animatedModifier; }
   float bleed() const { return bleedPx; }
   /** The mark's full width: a stamp is centred on the path, so it spans
    *  the reserve on both sides of it. */
@@ -107,15 +107,15 @@ struct Scatter {
            place == o.place && seed == o.seed && jitterAlong == o.jitterAlong &&
            jitterNormal == o.jitterNormal && jitterScale == o.jitterScale &&
            jitterRotateDeg == o.jitterRotateDeg &&
-           alignToPath == o.alignToPath && bleedPx == o.bleedPx && !mod &&
-           !o.mod && animatedMod == o.animatedMod;
+           alignToPath == o.alignToPath && bleedPx == o.bleedPx && !modifier &&
+           !o.modifier && animatedModifier == o.animatedModifier;
   }
 
   /** The scatter's baked stamp, shared by every copy of the brush
    *  value. `bakedFor` pins the bake to the art it came from, so a
    *  copy that swaps art re-bakes instead of stamping the old one. */
   struct Cache {
-    sk_sp<SkPicture> pic;
+    sk_sp<SkPicture> picture;
     // The art node the bake belongs to — copies that swap art re-bake.
     std::weak_ptr<detail::ElementNode> bakedFor;
   };
@@ -216,10 +216,10 @@ struct Pattern {
   /** How far a tile escapes the outline: half a tile's extent across the
    *  path. The CULL's number — the mark's own width is `reach()`. */
   float bleedPx = 32.0f;
-  StampModFn mod;  ///< side tiles only
-  bool animatedMod = false;
+  StampModifierFunction modifier;  ///< side tiles only
+  bool animatedModifier = false;
 
-  bool isAnimated() const { return animatedMod; }
+  bool isAnimated() const { return animatedModifier; }
   float bleed() const { return bleedPx; }
   /** The mark's full width: a tile is centred on the path, so it spans
    *  the reserve on both sides of it. */
@@ -232,8 +232,8 @@ struct Pattern {
            node(end) == node(o.end) && corner == o.corner &&
            advance == o.advance && cornerAngleDeg == o.cornerAngleDeg &&
            cornerLength == o.cornerLength && stretchToFit == o.stretchToFit &&
-           bleedPx == o.bleedPx && !mod && !o.mod &&
-           animatedMod == o.animatedMod;
+           bleedPx == o.bleedPx && !modifier && !o.modifier &&
+           animatedModifier == o.animatedModifier;
   }
 
   /** The baked tile art, keyed on each art Element's NODE — which is what

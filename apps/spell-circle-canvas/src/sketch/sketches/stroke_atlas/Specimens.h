@@ -81,35 +81,35 @@ sk_sp<SkTypeface> romanBoldFace() {
  *  the body unless a caller asks for a lighter one. */
 Element call(const char* words, float size = 9.5f, SkColor4f c = kInk) {
   return text(
-      toU8(words),
+      toUtf8(words),
       weave::textStyle(
           {.face = monoFace(), .size = size, .color = c, .track = 0.1f}));
 }
 Element roman(const char* words, float size, SkColor4f c = kInk,
               float tracking = 0) {
   return text(
-      toU8(words),
+      toUtf8(words),
       weave::textStyle(
           {.face = romanFace(), .size = size, .color = c, .track = tracking}));
 }
 Element romanBold(const char* words, float size, SkColor4f c = kInk,
                   float tracking = 0) {
-  return text(toU8(words), weave::textStyle({.face = romanBoldFace(),
-                                             .size = size,
-                                             .color = c,
-                                             .track = tracking}));
+  return text(toUtf8(words), weave::textStyle({.face = romanBoldFace(),
+                                               .size = size,
+                                               .color = c,
+                                               .track = tracking}));
 }
 
 // ---------------------------------------------------------------------------
 // the geometry the specimens ride on
 //
-// Each is an OutlineFn: a path in the node's own laid-out box. Keeping
+// Each is an OutlineFunction: a path in the node's own laid-out box. Keeping
 // them as generators (rather than baked paths) is what lets the SAME
 // decoration value be dropped onto a straight run, an S, a ring and a
 // spiral without restating it.
 
 /** A straight run down the middle of the box. */
-shapes::OutlineFn hline() {
+shapes::OutlineFunction hline() {
   return [](SkSize s) {
     SkPathBuilder b;
     b.moveTo(0, s.height() * 0.5f);
@@ -121,7 +121,7 @@ shapes::OutlineFn hline() {
 /** The serpent: one gentle bend, then a tight one. This is the shape that
  *  exposes an offset-contour bug — the tight lobe's inner rail is much
  *  shorter than its outer one. */
-shapes::OutlineFn serpent() {
+shapes::OutlineFunction serpent() {
   return [](SkSize s) {
     const float w = s.width(), h = s.height();
     SkPathBuilder b;
@@ -136,7 +136,7 @@ shapes::OutlineFn serpent() {
 /** A hairpin: a 180° turn at a radius small enough that a 6 px casing
  *  self-intersects on the inside. If a style survives this it survives
  *  anything. */
-shapes::OutlineFn hairpin() {
+shapes::OutlineFunction hairpin() {
   return [](SkSize s) {
     const float w = s.width(), h = s.height();
     const float r = h * 0.30f;
@@ -152,7 +152,7 @@ shapes::OutlineFn hairpin() {
 }
 
 /** A plain rectangle inset by `pad` — the frame specimens' carrier. */
-shapes::OutlineFn frameRect(float pad) {
+shapes::OutlineFunction frameRect(float pad) {
   return [pad](SkSize s) {
     SkPathBuilder b;
     b.addRect(SkRect::MakeLTRB(pad, pad, s.width() - pad, s.height() - pad));
@@ -170,8 +170,9 @@ shapes::OutlineFn frameRect(float pad) {
  *  column on the sheet — a specimen book positions by eye against the
  *  shape being shown, and a flex row would put every rule on the same
  *  baseline, which is exactly the reading this sheet exists to refute. */
-Element specimen(float x, float y, float w, float h, shapes::OutlineFn shape,
-                 Decoration dec, const char* label, float labelDy = 6) {
+Element specimen(float x, float y, float w, float h,
+                 shapes::OutlineFunction shape, Decoration dec,
+                 const char* label, float labelDy = 6) {
   return box()
       .absolute()
       .left(x)
@@ -185,7 +186,7 @@ Element specimen(float x, float y, float w, float h, shapes::OutlineFn shape,
 
 /** The same, with no caption (for the rings, which are captioned outside
  *  the circle). */
-Element bare(float x, float y, float w, float h, shapes::OutlineFn shape,
+Element bare(float x, float y, float w, float h, shapes::OutlineFunction shape,
              Decoration dec) {
   return box()
       .absolute()
@@ -318,10 +319,10 @@ std::vector<Style> displacedStyles() {
   sketch2
       .layer(lines::Line{.width = 1.3f, .fill = soft()},
              {sigil::geometry::shapers::Jitter{
-                 .segLength = 9, .deviation = 2.0f, .seed = 7}})
+                 .segmentLength = 9, .deviation = 2.0f, .seed = 7}})
       .layer(lines::Line{.width = 1.3f, .fill = soft()},
              {sigil::geometry::shapers::Jitter{
-                 .segLength = 9, .deviation = 1.0f, .seed = 41}});
+                 .segmentLength = 9, .deviation = 1.0f, .seed = 41}});
 
   Brush waveOnCased;
   waveOnCased

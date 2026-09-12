@@ -61,7 +61,7 @@ namespace field = sigil::material::field;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -173,31 +173,31 @@ struct CrtBloom final : sketch::Sketch {
                               .child(headline(kCore).zIndex(2)));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("CRT BLOOM \xc2\xb7 Effect::glow beside the stack "
-                       "it names"),
-         .subtitle = toU8("identical content either side of the seam "
-                          "\xe2\x80\x94 one word, one size, one spread, "
-                          "one tube; only the construction differs"),
-         .footer = toU8("glow composites its halo UNDER the letters, "
-                        "which is a drop shadow at zero offset; the "
-                        "stack ADDS it, so the core blows out \xc2\xb7 a "
-                        "phosphor adds, a shadow does not")},
+        {.title = toUtf8("CRT BLOOM \xc2\xb7 Effect::glow beside the stack "
+                         "it names"),
+         .subtitle = toUtf8("identical content either side of the seam "
+                            "\xe2\x80\x94 one word, one size, one spread, "
+                            "one tube; only the construction differs"),
+         .footer = toUtf8("glow composites its halo UNDER the letters, "
+                          "which is a drop shadow at zero offset; the "
+                          "stack ADDS it, so the core blows out \xc2\xb7 a "
+                          "phosphor adds, a shadow does not")},
         kit::cells({.cells = {sketch::kit::caption(
-                                  kPanel, toU8("Effect::glow(halo, 14)"),
-                                  toU8("one node \xe2\x80\x94 the halo is "
-                                       "the headline's own coverage, so "
-                                       "nothing can drift out of step "
-                                       "with the letters"),
+                                  kPanel, toUtf8("Effect::glow(halo, 14)"),
+                                  toUtf8("one node \xe2\x80\x94 the halo is "
+                                         "the headline's own coverage, so "
+                                         "nothing can drift out of step "
+                                         "with the letters"),
                                   std::move(primitive)),
                               seam(),
                               sketch::kit::caption(
                                   kPanel,
-                                  toU8("directionalBlur(14, 0\xc2\xb0, 14) + "
-                                       "kPlus"),
-                                  toU8("two nodes \xe2\x80\x94 the same "
-                                       "headline described twice, the lower "
-                                       "copy blurred, added and baked to a "
-                                       "texture because it never changes"),
+                                  toUtf8("directionalBlur(14, 0\xc2\xb0, 14) + "
+                                         "kPlus"),
+                                  toUtf8("two nodes \xe2\x80\x94 the same "
+                                         "headline described twice, the lower "
+                                         "copy blurred, added and baked to a "
+                                         "texture because it never changes"),
                                   std::move(built))},
                     .gap = 22})));
   }

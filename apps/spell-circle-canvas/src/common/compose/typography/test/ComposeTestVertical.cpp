@@ -134,15 +134,15 @@ TEST(TextVertical, MaxLinesClampsColumns) {
 }
 
 TEST(TextVertical, ALineSelectorAddressesAColumn) {
-  // weave::sel::line resolves through the LAYOUT, and in a vertical passage the
-  // layout numbers columns. Column 0 is the RIGHTMOST one.
+  // weave::selectors::line resolves through the LAYOUT, and in a vertical
+  // passage the layout numbers columns. Column 0 is the RIGHTMOST one.
   Host host(300, 240);
   host.composer.render(box().padding(10).child(
       text(kProse, jp(22, SK_ColorWHITE))
           .width(200)
           .height(180)
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .spanPaint(sigil::weave::sel::line(0),
+          .spanPaint(sigil::weave::selectors::line(0),
                      sigil::weave::PaintStyle(SK_ColorRED))
           .key("t")));
   host.frame();
@@ -217,7 +217,7 @@ TEST(TextVertical, SpanPaintRecolorsAColumnWithoutReshaping) {
                     .writingMode(sigil::weave::WritingMode::kVerticalRL)
                     .key("t");
     if (restyled)
-      t.spanPaint(sigil::weave::sel::text(u8"赤い"),
+      t.spanPaint(sigil::weave::selectors::text(u8"赤い"),
                   sigil::weave::PaintStyle(SK_ColorRED));
     return box().padding(10).child(std::move(t));
   };
@@ -317,7 +317,7 @@ TEST(TextVertical, AnUprightGlyphTurnsAboutItsColumnAxis) {
       t.fx({.effect = fx::effect(
                 "quarter",
                 [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
-                  GlyphMod m;
+                  GlyphModifier m;
                   m.scale = 0.25f;
                   return m;
                 },
@@ -431,7 +431,7 @@ TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
 
   const auto render = [&](Host& host, sigil::weave::WritingMode mode,
                           char32_t point) {
-    GlyphMod mod;
+    GlyphModifier mod;
     mod.codepoint = point;
     host.composer.render(box().padding(10).child(
         text(u8"AAA", style)
@@ -483,12 +483,12 @@ TEST(TextVertical, TheUnitReadBackNamesHowEachOneStandsInItsColumn) {
           .width(200)
           .height(180)
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .spanStyle(sigil::weave::sel::text(u8"30"), tcy)
+          .spanStyle(sigil::weave::selectors::text(u8"30"), tcy)
           .key("t")));
   host.frame();
 
   const std::vector<TextUnit> units = host.composer.units(
-      "t", sigil::weave::sel::each(sigil::weave::Unit::Cluster),
+      "t", sigil::weave::selectors::each(sigil::weave::Unit::Cluster),
       sigil::weave::Unit::Cluster);
   ASSERT_FALSE(units.empty());
   int upright = 0, level = 0;
@@ -514,8 +514,8 @@ TEST(TextVertical, AMarkAnchorsToTheColumnItsUnitStandsIn) {
           .width(200)
           .height(200)
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .mark(sigil::weave::sel::text(u8"縦組み"),
-                box().key("rule").width(Dim(3.0f)).fill(red()))
+          .mark(sigil::weave::selectors::text(u8"縦組み"),
+                box().key("rule").width(Dimension(3.0f)).fill(red()))
           .key("t")));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
@@ -548,7 +548,7 @@ TEST(TextVertical, ASpanStyleReshapesOnlyTheRunItNames) {
                     .key("t");
     if (dressed) {
       sigil::weave::TextStyle big = jp(40, SK_ColorWHITE);
-      t.spanStyle(sigil::weave::sel::text(u8"文章"), big);
+      t.spanStyle(sigil::weave::selectors::text(u8"文章"), big);
     }
     return box().padding(10).child(std::move(t));
   };
@@ -624,7 +624,7 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
             .width(60)
             .height(220)
             .writingMode(sigil::weave::WritingMode::kVerticalRL)
-            .spanPaint(sigil::weave::sel::text(u8"三四五六"), sidelined)
+            .spanPaint(sigil::weave::selectors::text(u8"三四五六"), sidelined)
             .fx({.effect = fx::rise(24),
                  .stagger = {.eachMs = 90},
                  .unit = sigil::weave::Unit::Cluster,
@@ -709,7 +709,7 @@ TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
             .width(60)
             .height(220)
             .writingMode(sigil::weave::WritingMode::kVerticalRL)
-            .spanPaint(sigil::weave::sel::text(u8"三四五六"), sidelined)
+            .spanPaint(sigil::weave::selectors::text(u8"三四五六"), sidelined)
             .key("t"));
   };
 

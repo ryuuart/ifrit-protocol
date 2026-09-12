@@ -18,7 +18,7 @@ namespace sigil::core::hardware {
  *  to at least one and to no more than the size can carry. Every backend
  *  needs the same number, so it is derived once here rather than twice
  *  from two spellings of the same rule. */
-inline int clampedMipLevels(const TextureDesc& desc) {
+inline int clampedMipLevels(const TextureDescription& desc) {
   const int possible = mipLevelsFor(desc.width, desc.height);
   return desc.mipLevels < 1
              ? 1
@@ -32,7 +32,7 @@ class GpuDevice::DeviceBackend {
   virtual const NativeDevice& native() const = 0;
 
   /** A native texture the backend owns (+1 reference), or empty. */
-  virtual NativeTexture createTexture(const TextureDesc& desc) = 0;
+  virtual NativeTexture createTexture(const TextureDescription& desc) = 0;
   /** Takes a +1 reference on a host texture so it survives the host
    *  dropping it, or does nothing when the device is not to own it. */
   virtual void retainTexture(const NativeTexture& texture) = 0;

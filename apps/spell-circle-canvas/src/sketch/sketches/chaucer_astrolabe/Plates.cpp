@@ -1,6 +1,6 @@
 #include "ChaucerAstrolabe.h"
 
-auto ChaucerAstrolabe::sheet() -> matkit::LattenParams {
+auto ChaucerAstrolabe::sheet() -> matkit::LattenParameters {
   return {.shadow = mat::skia::toColor(kBrassP10),
           .body = mat::skia::toColor(kBrassP50),
           .light = mat::skia::toColor(kBrassP90),
@@ -26,7 +26,7 @@ auto ChaucerAstrolabe::brass(float level) -> Paint {
                                                 (float)(kLevels - 1));
   return Paint::recipe(latten.get(matkit::lattenRecipe(), sheet(), bucket,
                                   [](uint32_t b) {
-                                    matkit::LattenParams p = sheet();
+                                    matkit::LattenParameters p = sheet();
                                     p.level = (float)b / (float)(kLevels - 1);
                                     return mat::Material(matkit::lattenRecipe(),
                                                          p);
@@ -36,7 +36,7 @@ auto ChaucerAstrolabe::brass(float level) -> Paint {
 
 auto ChaucerAstrolabe::brassStroke(SkRect r, float level) const -> Fill {
   auto p = [&](SkPoint q) { return SkPoint{q.fX - r.left(), q.fY - r.top()}; };
-  matkit::LattenParams face = sheet();
+  matkit::LattenParameters face = sheet();
   face.level = level;
   return linearGradient(p({kCx - kMaterR * 0.95f, kCy + kMaterR * 0.95f}),
                         p({kCx + kMaterR * 0.85f, kCy - kMaterR * 1.05f}),
@@ -404,10 +404,10 @@ auto ChaucerAstrolabe::limb() -> Element {
     const float f = kPlateAngles.fraction(psi);
     const float rr = 1.104f * kR;
     g.child(
-        text(toU8(std::to_string(deg == 0 ? 360 : deg)),
+        text(toUtf8(std::to_string(deg == 0 ? 360 : deg)),
              type(faceLimb, 0.026f * kR, hexColor(0x33240c, 0.92f), 0.6f))
-            .width(Dim(2 * rr))
-            .height(Dim(2 * rr))
+            .width(Dimension(2 * rr))
+            .height(Dimension(2 * rr))
             .centerAt({kCx, kCy})
             .key("degnum" + std::to_string(i))
             .onPath(TextPath{.path = shapes::circle(),
@@ -429,12 +429,12 @@ auto ChaucerAstrolabe::limb() -> Element {
     const float f = kPlateAngles.fraction(psi);
     const float rr = 1.044f * kR;
     const bool isX = (n == 21);
-    g.child(text(toU8(kLetters[n - 1]), type(faceLimb, 0.040f * kR,
-                                             isX ? hexColor(0x33240c, 1.0f)
-                                                 : hexColor(0x33240c, 0.88f),
-                                             0))
-                .width(Dim(2 * rr))
-                .height(Dim(2 * rr))
+    g.child(text(toUtf8(kLetters[n - 1]), type(faceLimb, 0.040f * kR,
+                                               isX ? hexColor(0x33240c, 1.0f)
+                                                   : hexColor(0x33240c, 0.88f),
+                                               0))
+                .width(Dimension(2 * rr))
+                .height(Dimension(2 * rr))
                 .centerAt({kCx, kCy})
                 .key("hl" + std::to_string(n))
                 .onPath(TextPath{.path = shapes::circle(),

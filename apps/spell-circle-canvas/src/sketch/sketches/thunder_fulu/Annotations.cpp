@@ -2,7 +2,7 @@
 
 auto ThunderFulu::chantPanel() -> Element {
   auto g = box().left(718).top(796).width(474).key("chant");
-  g.child(text(toU8("ZHAN HONG FU \xc2\xb7 SEVER THE RAINBOW"),
+  g.child(text(toUtf8("ZHAN HONG FU \xc2\xb7 SEVER THE RAINBOW"),
                type(faceDisplay, 17.0f, kGold, 1.4f))
               .left(0)
               .top(0)
@@ -38,21 +38,22 @@ auto ThunderFulu::chantPanel() -> Element {
   };
   for (int i = 0; i < 5; ++i) {
     const float t = tGall + (float)i * 0.7f;
-    g.child(text(toU8(lines_[i]), type(faceMono, 11.5f, kChalk))
+    g.child(text(toUtf8(lines_[i]), type(faceMono, 11.5f, kChalk))
                 .left(0)
                 .top(36 + (float)i * 19)
                 .width(468)
                 .opacity(bind(&scribe).window(t, t + 0.4f).target(0.22f, 1.0f))
                 .key(kit::formatted("chant%d", i)));
   }
-  g.child(text(toU8("\xe2\x80\x9c\xe6\x80\xa5\xe6\x80\xa5\xe5\xa6\x82\xe5\xbe"
-                    "\x8b\xe4\xbb\xa4\xe2\x80\x9d is the Han imperial-document "
-                    "closing formula, borrowed whole. It ends"),
-               type(faceItalic, 10.5f, hexColor(0x7d6f52)))
-              .left(0)
-              .top(136)
-              .width(468));
-  g.child(text(toU8("almost every fu, and it goes at the FOOT."),
+  g.child(
+      text(toUtf8("\xe2\x80\x9c\xe6\x80\xa5\xe6\x80\xa5\xe5\xa6\x82\xe5\xbe"
+                  "\x8b\xe4\xbb\xa4\xe2\x80\x9d is the Han imperial-document "
+                  "closing formula, borrowed whole. It ends"),
+           type(faceItalic, 10.5f, hexColor(0x7d6f52)))
+          .left(0)
+          .top(136)
+          .width(468));
+  g.child(text(toUtf8("almost every fu, and it goes at the FOOT."),
                type(faceItalic, 10.5f, hexColor(0x7d6f52)))
               .left(0)
               .top(150)
@@ -91,7 +92,7 @@ auto ThunderFulu::consolePanel() -> Element {
 
 auto ThunderFulu::tempoPanel() -> Element {
   auto g = box().left(718).top(972).width(474).key("tempo");
-  g.child(text(toU8("YI QI LI DUAN \xc2\xb7 CUT OFF IN ONE BREATH"),
+  g.child(text(toUtf8("YI QI LI DUAN \xc2\xb7 CUT OFF IN ONE BREATH"),
                type(faceDisplay, 13.0f, kGold, 1.2f))
               .left(0)
               .top(0)
@@ -104,26 +105,26 @@ auto ThunderFulu::tempoPanel() -> Element {
       "FU JIAO  foot       38 str   0.034 s/stroke   NO LIFT, FLYING WHITE",
   };
   for (int i = 0; i < 5; ++i)
-    g.child(text(toU8(rows[i]),
+    g.child(text(toUtf8(rows[i]),
                  type(faceMono, 10.5f,
                       i == 4 ? hexColor(0xcf6a4a) : hexColor(0x9a8a68)))
                 .left(0)
                 .top(20 + (float)i * 15)
                 .width(468));
   g.child(
-      text(toU8("the foot is 7.1x the body \xe2\x80\x94 doctrine, measured: "
-                "\"the foot is the last"),
+      text(toUtf8("the foot is 7.1x the body \xe2\x80\x94 doctrine, measured: "
+                  "\"the foot is the last"),
            type(faceItalic, 10.5f, hexColor(0x7d6f52)))
           .left(0)
           .top(100)
           .width(468));
-  g.child(text(toU8("step; total concentration, cut off in a single breath, "
-                    "no slowing"),
+  g.child(text(toUtf8("step; total concentration, cut off in a single breath, "
+                      "no slowing"),
                type(faceItalic, 10.5f, hexColor(0x7d6f52)))
               .left(0)
               .top(114)
               .width(468));
-  g.child(text(toU8("or dragging.\"  A fu written at one tempo is not a fu."),
+  g.child(text(toUtf8("or dragging.\"  A fu written at one tempo is not a fu."),
                type(faceItalic, 10.5f, hexColor(0x7d6f52)))
               .left(0)
               .top(128)
@@ -133,13 +134,13 @@ auto ThunderFulu::tempoPanel() -> Element {
 
 auto ThunderFulu::marginColumn() -> Element {
   const float X = 718, Wc = 282;
-  auto g = box().left(X).top(0).width(Dim(Wc)).key("margin");
+  auto g = box().left(X).top(0).width(Dimension(Wc)).key("margin");
 
   auto rule = [&](float y, float w) {
     return box()
         .left(0)
         .top(y)
-        .width(Dim(w))
+        .width(Dimension(w))
         .height(3)
         .shape(keyedShape(w,
                           [w](SkSize) {
@@ -159,29 +160,29 @@ auto ThunderFulu::marginColumn() -> Element {
   };
 
   // --- 踏符頭: one chant line per hook, as the hook goes down -----------
-  g.child(text(toU8("TA FU TOU \xc2\xb7 TREADING THE HEAD"),
+  g.child(text(toUtf8("TA FU TOU \xc2\xb7 TREADING THE HEAD"),
                type(faceDisplay, 11.5f, kGold, 1.1f))
               .left(0)
               .top(126)
-              .width(Dim(Wc)));
+              .width(Dimension(Wc)));
   g.child(rule(144, Wc));
   for (int k = 0; k < 3; ++k) {
     const float t = tHead + (float)k * (tHeadEach + tHeadGap);
-    g.child(text(toU8(kHeadChant[k]), type(faceItalic, 11.0f, kChalk))
+    g.child(text(toUtf8(kHeadChant[k]), type(faceItalic, 11.0f, kChalk))
                 .left(0)
                 .top(154 + (float)k * 26)
-                .width(Dim(Wc))
+                .width(Dimension(Wc))
                 .opacity(bind(&scribe).window(t, t + 0.3f).target(0.14f, 0.98f))
                 .key(kit::formatted("hc%d", k)));
   }
 
   // --- the width law, PLOTTED. 起 · 行 · 收 as one curve ---------------
   const float py = 260, ph = 126, pw = Wc;
-  g.child(text(toU8("QI / XING / SHOU \xc2\xb7 w(s) OVER ARC LENGTH"),
+  g.child(text(toUtf8("QI / XING / SHOU \xc2\xb7 w(s) OVER ARC LENGTH"),
                type(faceDisplay, 11.5f, kGold, 1.1f))
               .left(0)
               .top(py - 22)
-              .width(Dim(Wc)));
+              .width(Dimension(Wc)));
   g.child(rule(py - 5, Wc));
   // STRIP 1 — the band the law actually paints, by the same Ribbon that
   // paints the plate. This is the specimen, not an illustration of one.
@@ -193,8 +194,8 @@ auto ThunderFulu::marginColumn() -> Element {
     g.child(box()
                 .left(0)
                 .top(py + 6)
-                .width(Dim(pw))
-                .height(Dim(bh))
+                .width(Dimension(pw))
+                .height(Dimension(bh))
                 .shape(heldPath(axis.detach()))
                 .fill(Fill::none())
                 .stroke(brush::Ribbon{
@@ -208,8 +209,8 @@ auto ThunderFulu::marginColumn() -> Element {
     g.child(box()
                 .left(0)
                 .top(cy)
-                .width(Dim(pw))
-                .height(Dim(chh))
+                .width(Dimension(pw))
+                .height(Dimension(chh))
                 .shape(keyedShape(std::tuple{pw, chh, sc},
                                   [pw, chh, sc](SkSize) {
                                     SkPathBuilder b;
@@ -228,8 +229,8 @@ auto ThunderFulu::marginColumn() -> Element {
     g.child(box()
                 .left(0)
                 .top(cy)
-                .width(Dim(pw))
-                .height(Dim(chh))
+                .width(Dimension(pw))
+                .height(Dimension(chh))
                 // shapes::parametric returns UNIT coordinates (+-1
                 // spans the box), so with the baseline at the box's
                 // bottom and the 1.0 reference at its middle the plot is
@@ -253,16 +254,16 @@ auto ThunderFulu::marginColumn() -> Element {
     const float mx[3] = {0.0f, 0.28f, 0.88f};
     const float off[3] = {2, -18, -52};
     for (int i = 0; i < 3; ++i)
-      g.child(text(toU8(marks[i]), type(faceMono, 8.5f, hexColor(0xa89778)))
+      g.child(text(toUtf8(marks[i]), type(faceMono, 8.5f, hexColor(0xa89778)))
                   .left(mx[i] * pw + off[i])
                   .top(cy + chh - widthLaw(mx[i]) * sc + (i == 1 ? 4 : -13))
                   .width(120)
                   .key(kit::formatted("lawmk%d", i)));
-    g.child(text(toU8("s = distance / fullLength, NOT PathSample::fraction"),
+    g.child(text(toUtf8("s = distance / fullLength, NOT PathSample::fraction"),
                  type(faceMono, 8.5f, hexColor(0x6f6047)))
                 .left(0)
                 .top(cy + chh + 4)
-                .width(Dim(pw)));
+                .width(Dimension(pw)));
   }
 
   // --- the six recovered classes, as specimens -------------------------
@@ -275,11 +276,11 @@ auto ThunderFulu::marginColumn() -> Element {
   // compressed to buy room — SHU's specimen starts at cell y = 2, already
   // under its own caption — so any change here has to move the heading.
   const float ky = 412;
-  g.child(text(toU8("SIX CLASSES \xc2\xb7 w0, RECOVERED"),
+  g.child(text(toUtf8("SIX CLASSES \xc2\xb7 w0, RECOVERED"),
                type(faceDisplay, 11.5f, kGold, 1.1f))
               .left(0)
               .top(ky)
-              .width(Dim(Wc)));
+              .width(Dimension(Wc)));
   g.child(rule(ky + 18, Wc));
   // Each specimen runs in its OWN class's direction, at the class's own
   // w₀, so the key reads as the taxonomy and not as six copies of one
@@ -308,8 +309,8 @@ auto ThunderFulu::marginColumn() -> Element {
                                       .step = 1.2f,
                                       .width = LawBand{w0}})
                 .key(kit::formatted("spec%d", c)));
-    g.child(text(toU8(kit::formatted("%s  %.3f em", kClsName[c],
-                                     (double)w0ForClass(c))),
+    g.child(text(toUtf8(kit::formatted("%s  %.3f em", kClsName[c],
+                                       (double)w0ForClass(c))),
                  type(faceMono, 9.0f, hexColor(0xa48c5c)))
                 .left(cx)
                 .top(y + 56)
@@ -319,28 +320,28 @@ auto ThunderFulu::marginColumn() -> Element {
 
   // --- the six phrases sung while 罡 is drawn ---------------------------
   const float gy = 646;  // see the note above ky
-  g.child(text(toU8("SUNG WHILE GANG IS DRAWN"),
+  g.child(text(toUtf8("SUNG WHILE GANG IS DRAWN"),
                type(faceDisplay, 11.5f, kGold, 1.1f))
               .left(0)
               .top(gy)
-              .width(Dim(Wc)));
+              .width(Dimension(Wc)));
   g.child(rule(gy + 18, Wc));
   for (int k = 0; k < 6; ++k) {
     // the chant must finish exactly as the tenth stroke lands
     const float t = tGall + (float)k * (10.0f * tGallEach / 6.0f);
     g.child(
-        text(toU8(kit::formatted("%d/6  %s", k + 1, kGallChant[k])),
+        text(toUtf8(kit::formatted("%d/6  %s", k + 1, kGallChant[k])),
              type(faceItalic, 11.0f, k == 5 ? hexColor(0xe07a52) : kChalk))
             .left(0)
             .top(gy + 28 + (float)k * 18)
-            .width(Dim(Wc))
+            .width(Dimension(Wc))
             .opacity(bind(&scribe).window(t, t + 0.28f).target(0.14f, 0.98f))
             .key(kit::formatted("gc%d", k)));
   }
-  g.child(text(toU8("the sixth phrase lands on the tenth stroke"),
+  g.child(text(toUtf8("the sixth phrase lands on the tenth stroke"),
                type(faceMono, 9.0f, hexColor(0x6f6047)))
               .left(0)
               .top(gy + 132)
-              .width(Dim(Wc)));
+              .width(Dimension(Wc)));
   return g;
 }

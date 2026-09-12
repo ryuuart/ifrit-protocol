@@ -35,9 +35,9 @@ struct Beside {
   sigil::sketch::Assets store{root};
   sigil::motion::Ticker ticker;
   compose::Composer composer{ticker, fonts()};
-  sigil::sketch::CanvasSpec spec;
-  sigil::sketch::SketchContext ctx{composer, ticker, store,
-                                   {0, 0},   &spec,  &fonts()};
+  sigil::sketch::CanvasSpecification specification;
+  sigil::sketch::SketchContext ctx{composer, ticker,         store,
+                                   {0, 0},   &specification, &fonts()};
 
   explicit Beside(std::string_view text) {
     std::filesystem::remove_all(root);

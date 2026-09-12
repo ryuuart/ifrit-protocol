@@ -147,7 +147,7 @@ std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
     // the compiled-in entry and builds only once the file changes.
     options.compiledIn = &entries[index];
     options.sketchPath =
-        sketch::sourceOf(SketchCatalog::sketchDir, entries[index].key);
+        sketch::sourceOf(SketchCatalog::sketchDirectory, entries[index].key);
   } else if (const int external = externalAt(index);
              external >= 0 && external < (int)SketchCatalog::externals.size()) {
     // A file this binary does not carry has to be built to be seen, so
@@ -157,7 +157,7 @@ std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
     return nullptr;
   }
   if (!SketchbookView::fonts) return nullptr;  // nothing shapes text yet
-  options.assetsDir = SketchbookView::assetsDir;
+  options.assetsDirectory = SketchbookView::assetsDirectory;
   options.flagsFile = SketchbookView::flagsFile;
   // The file is the session's name: it is what distinguishes a registry
   // entry from every other, and a file opened by path from every other.
@@ -248,13 +248,13 @@ void SketchbookRenderer::publishMetrics() {
   // is told here, so a row reads its canvas back after a look at
   // something else.
   metrics.insert(QStringLiteral("sketchIndex"), m_index);
-  const sketch::CanvasSpec& spec = session->canvas();
-  const SkSize size = spec.size;
+  const sketch::CanvasSpecification& specification = session->canvas();
+  const SkSize size = specification.size;
   metrics.insert(
       QStringLiteral("canvas"),
       QStringLiteral("%1x%2").arg((int)size.width()).arg((int)size.height()));
-  metrics.insert(QStringLiteral("moment"), spec.captureSeconds);
-  const SkColor colour = spec.background.toSkColor();
+  metrics.insert(QStringLiteral("moment"), specification.captureSeconds);
+  const SkColor colour = specification.background.toSkColor();
   metrics.insert(QStringLiteral("background"),
                  QStringLiteral("#%1").arg((uint)(colour & 0x00ffffffU), 6, 16,
                                            QLatin1Char('0')));
@@ -364,7 +364,7 @@ void SketchbookRenderer::refreshThumbnail() {
   // is the frame the reader was looking at, which is why nothing needs
   // to be re-rendered in the background to keep it current.
   constexpr double kSettledSeconds = 1.0;
-  if (m_thumbnailTaken || SketchCatalog::thumbnailDir.empty()) return;
+  if (m_thumbnailTaken || SketchCatalog::thumbnailDirectory.empty()) return;
   const auto& entries = sketch::registry();
   // A file opened by path has no row in the store: the store is keyed by
   // a registry sketch's filed name, and two drafts may share a stem.
@@ -373,9 +373,10 @@ void SketchbookRenderer::refreshThumbnail() {
   if (!host || !host->live()) return;
   sketch::Session* session = host->session();
   if (!session) return;
-  const sketch::CanvasSpec& spec = session->canvas();
-  const double moment =
-      spec.captureSeconds > 0 ? spec.captureSeconds : kSettledSeconds;
+  const sketch::CanvasSpecification& specification = session->canvas();
+  const double moment = specification.captureSeconds > 0
+                            ? specification.captureSeconds
+                            : kSettledSeconds;
   if (m_sceneSeconds < moment) return;
   // Taken whether or not it lands: a sketch whose still cannot be
   // written is not one to try again on every frame after its moment.
@@ -383,18 +384,18 @@ void SketchbookRenderer::refreshThumbnail() {
 
   const sketch::Entry& entry = entries[m_index];
   const std::filesystem::path source =
-      sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+      sketch::sourceOf(SketchCatalog::sketchDirectory, entry.key);
   const std::string key = sketch::thumbnailKey(source);
   const std::filesystem::path out =
-      sketch::thumbnailFile(SketchCatalog::thumbnailDir, entry.name, key);
-  const SkSize size = spec.size;
+      sketch::thumbnailFile(SketchCatalog::thumbnailDirectory, entry.name, key);
+  const SkSize size = specification.size;
   const float longest = std::max(size.width(), size.height());
   if (!(longest > 0)) return;
   const float scale = std::min(1.0f, (float)sketch::kThumbnailWidth / longest);
   std::error_code code;
   std::filesystem::create_directories(out.parent_path(), code);
   if (!host->capture(out, scale)) return;
-  sketch::pruneThumbnails(SketchCatalog::thumbnailDir, entry.name, out);
+  sketch::pruneThumbnails(SketchCatalog::thumbnailDirectory, entry.name, out);
   if (m_view)
     QMetaObject::invokeMethod(
         m_view,

@@ -87,7 +87,7 @@ struct MagiModule {
     return {barWidth * 0.5f + 2.0f, 66.0f};
   }
 
-  [[nodiscard]] sigil::geometry::shapes::OutlineFn outline() const {
+  [[nodiscard]] sigil::geometry::shapes::OutlineFunction outline() const {
     const MagiModule geometry = *this;
     return [geometry](SkSize) {
       const float stemLeft = geometry.stemLeft();

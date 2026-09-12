@@ -281,7 +281,7 @@ struct WebPanelSketch final : sketch::Sketch {
                 .gap(10)
                 .child(text(u8"no web engine here",
                             weave::textStyle({.size = 22, .color = kInk})))
-                .child(text(toU8(why),
+                .child(text(toUtf8(why),
                             weave::textStyle({.size = 13, .color = kDim}))));
   }
 

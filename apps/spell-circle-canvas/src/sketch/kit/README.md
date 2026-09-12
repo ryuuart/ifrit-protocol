@@ -24,9 +24,9 @@ struct BorderWeave final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     sketch::kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("THE RULE AND THE STRANDS"),
-         .subtitle = toU8("dials · the width and the inset"),
-         .footer = toU8("a crossing is discovered, not declared")},
+        {.title = toUtf8("THE RULE AND THE STRANDS"),
+         .subtitle = toUtf8("dials · the width and the inset"),
+         .footer = toUtf8("a crossing is discovered, not declared")},
         kit::cells({.cells = {cell(…), cell(…)}, .gap = 10})));
   }
 };
@@ -38,7 +38,7 @@ struct BorderWeave final : sketch::Sketch {
 `TypeScale` of seven `Register`s and two faces, a `Spacing` of the
 distances a sheet is set by, and where a cell's caption lines stand.
 
-It arrives at a component through **`sigil::core::env`**, the
+It arrives at a component through **`sigil::core::environment`**, the
 reconciler's inherited value, aliased here as `sketch::kit::Provide`:
 
 ```cpp
@@ -119,7 +119,7 @@ painting an Element directly.
 
 | | |
 | --- | --- |
-| `stage(ctx, Stage)` | the canvas, the ground and the capture moment in one call — the whole `CanvasSpec`, with the ground taken from the theme unless the stage names one |
+| `stage(ctx, Stage)` | the canvas, the ground and the capture moment in one call — the whole `CanvasSpecification`, with the ground taken from the theme unless the stage names one |
 | `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer set in the theme's three registers, its margins, its ground and its hairline |
 | `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground — with `corners` and a `keyline`, the PLATE a panel stands on; with a `recess`, the hole punched in one; with a `relief`, the piece standing proud of one |
 | `caption(measure, label, note, body)` | one captioned specimen in the theme's voice; `measure` is the cell's own width, the one distance a caption cannot inherit |
@@ -129,7 +129,7 @@ painting an Element directly.
 | `passage(ctx, name)` | the prose at `res://passages/<name>`, minus the newlines a file ends with — the prose a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
 
 ```cpp
-sketch::kit::page({.title = toU8("THE STROKE ATLAS")},
+sketch::kit::page({.title = toUtf8("THE STROKE ATLAS")},
                   sketch::kit::panelGrid({.cells = panels, .columns = 4}));
 ```
 
@@ -174,9 +174,9 @@ cap all are over a ground. Unset is flush, which is the specimen well.
 | `sectionHeader(SectionHeader)` | a name at the left, a remark at the right, and the rule that fills what the two leave between them |
 
 ```cpp
-sketch::kit::titleCard({.eyebrow = {toU8("SIGIL · COMPOSE")},
-                        .title = {toU8("THE STROKE ATLAS")},
-                        .subtitle = {toU8("every rail, at one width")}});
+sketch::kit::titleCard({.eyebrow = {toUtf8("SIGIL · COMPOSE")},
+                        .title = {toUtf8("THE STROKE ATLAS")},
+                        .subtitle = {toUtf8("every rail, at one width")}});
 ```
 
 **EACH LINE IS A `Line`, NOT A STRING**, because a masthead is performed
@@ -195,8 +195,8 @@ and `Row::key` do.
 
 ```cpp
 sketch::kit::titleCard(
-    {.eyebrow = {.words = toU8("MET OFFICE"), .opacity = beat(0.05f, 0.55f)},
-     .title = {.words = toU8("THE SHIPPING FORECAST"),
+    {.eyebrow = {.words = toUtf8("MET OFFICE"), .opacity = beat(0.05f, 0.55f)},
+     .title = {.words = toUtf8("THE SHIPPING FORECAST"),
                .fx = Track{.effect = fx::rise(16.0f), .progress = …}},
      .notes = std::move(slugs),
      .align = Align::Stretch,
@@ -272,8 +272,8 @@ returns.
 | `gauge(Gauge)` | the same reading around a dial, over `geometry::shapes::sector` |
 
 ```cpp
-sketch::kit::meter({.fraction = load, .label = toU8("cache"),
-                    .reading = toU8("74%"), .width = Dim(220)});
+sketch::kit::meter({.fraction = load, .label = toUtf8("cache"),
+                    .reading = toUtf8("74%"), .width = Dimension(220)});
 ```
 
 A live fraction is a re-describe rather than a binding: the filled part
@@ -296,7 +296,7 @@ sketch::kit::scrollbar({.leading = stepper(true), .trailing = stepper(false),
                         .scrolled = {.view = shown, .content = whole,
                                      .track = trackH},
                         .position = envelope().target(0.0f, travel)})
-    .width(Dim(19))
+    .width(Dimension(19))
     .padding(2)
 ```
 
@@ -323,8 +323,8 @@ computed from anything states its `thumbLength` instead.
 | `frame(Frame, screen)` | a device's chrome: an outer shell, a screen inset into it by the bezel on every side, and the plate its word is engraved on |
 
 ```cpp
-sketch::kit::frame({.width = Dim(275), .height = Dim(116), .bezel = 6,
-                    .plate = toU8("MAIN WINDOW")}, tape);
+sketch::kit::frame({.width = Dimension(275), .height = Dimension(116), .bezel = 6,
+                    .plate = toUtf8("MAIN WINDOW")}, tape);
 ```
 
 `Backdrop::over` is the canvas — a vignette is a fact about an extent,
@@ -379,7 +379,7 @@ A leaf may not invent what an ancestor should own.
 
 It draws nothing and holds no kernel state, and nothing links it back —
 `SigilSketches` links it, and no library below does. It LINKS THE SKETCH
-ARCHIVE, because `stage()` writes a sketch's `CanvasSpec` through the
+ARCHIVE, because `stage()` writes a sketch's `CanvasSpecification` through the
 canvas runtime's own context: no device backend and no window come with
 that, but the reload engine and the headless renderer stand in the same
 archive and do. It is PIC, because a hot-reloaded sketch's dylib force-loads

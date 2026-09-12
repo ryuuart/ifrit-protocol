@@ -447,7 +447,7 @@ inline weave::TextStyle sb(float sz, SkColor4f c, float tr = 0) {
       {.face = sansB(), .size = sz, .color = c, .track = tr});
 }
 
-inline std::u8string U(const std::string& s) { return toU8(s); }
+inline std::u8string U(const std::string& s) { return toUtf8(s); }
 
 inline Element label(const std::string& s, const weave::TextStyle& st, float x,
                      float y, float w) {
@@ -458,7 +458,7 @@ inline Element centred(const std::string& s, const weave::TextStyle& st,
   return at(x, y, w, st.shaping.fontSize * 1.6f)
       .child(text(U(s), st)
                  .textAlign(weave::TextAlignment::kCenter)
-                 .width(Dim(w)));
+                 .width(Dimension(w)));
 }
 inline Element rule(float x, float y, float w, float h, SkColor4f c) {
   return at(x, y, w, h).fill(c);

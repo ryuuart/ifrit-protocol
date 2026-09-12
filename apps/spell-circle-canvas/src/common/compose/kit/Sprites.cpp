@@ -86,17 +86,18 @@ void drawSprite(SkCanvas& canvas, const Sprite& sprite, SkPoint at,
 }
 
 Element pixelSprite(const Sprite& sprite, const SpriteStyle& style) {
-  Element root = stack()
-                     .width(Dim((float)sprite.grid.width() * style.cell))
-                     .height(Dim((float)sprite.grid.height() * style.cell));
+  Element root =
+      stack()
+          .width(Dimension((float)sprite.grid.width() * style.cell))
+          .height(Dimension((float)sprite.grid.height() * style.cell));
   for (const SpriteRun& run : sprite.runs) {
     const SkColor4f colour = faded(sprite.colourOf(run.index), style.alpha);
     if (colour.fA <= 0) continue;
     root.child(box()
-                   .left(Dim(run.x * style.cell))
-                   .top(Dim(run.y * style.cell))
-                   .width(Dim(run.w * style.cell))
-                   .height(Dim(run.h * style.cell))
+                   .left(Dimension(run.x * style.cell))
+                   .top(Dimension(run.y * style.cell))
+                   .width(Dimension(run.w * style.cell))
+                   .height(Dimension(run.h * style.cell))
                    .fill(colour));
   }
   return root;

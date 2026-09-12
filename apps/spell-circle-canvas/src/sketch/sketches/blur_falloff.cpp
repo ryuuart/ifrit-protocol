@@ -56,7 +56,7 @@ namespace mskia = sigil::material::skia;
 namespace ptn = sigil::material::pattern;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -134,7 +134,7 @@ mskia::Paint lensMap() {
 Element panel(const char* call, const char* note, mskia::Effect e,
               std::string key) {
   return sketch::kit::caption(
-      kPanel, toU8(call), toU8(note),
+      kPanel, toUtf8(call), toUtf8(note),
       subject().key(std::move(key)).effect(std::move(e)));
 }
 
@@ -149,14 +149,14 @@ struct BlurFalloff final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = {1080, 430}, .captureAt = 2.78});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("BLUR FALLOFF \xc2\xb7 Effect::blur(Paint "
-                       "sigmaMap, float maxSigma)"),
-         .subtitle = toU8("one effect, four falloffs \xe2\x80\x94 same "
-                          "content, same maximum sigma, only the map "
-                          "differs"),
-         .footer = toU8("the parameter is a PAINT, so it prunes, it "
-                        "animates on the one uniform channel, and its "
-                        "unit square is whatever box the layout decided")},
+        {.title = toUtf8("BLUR FALLOFF \xc2\xb7 Effect::blur(Paint "
+                         "sigmaMap, float maxSigma)"),
+         .subtitle = toUtf8("one effect, four falloffs \xe2\x80\x94 same "
+                            "content, same maximum sigma, only the map "
+                            "differs"),
+         .footer = toUtf8("the parameter is a PAINT, so it prunes, it "
+                          "animates on the one uniform channel, and its "
+                          "unit square is whatever box the layout decided")},
         kit::cells(
             {.cells = {panel("filter(Blur(14, 14))",
                              "a constant blur, for contrast: all legible or "

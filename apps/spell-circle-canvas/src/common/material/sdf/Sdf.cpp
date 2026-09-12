@@ -28,7 +28,7 @@ namespace {
 std::shared_ptr<const Recipe> make(const char* name,
                                    std::string_view distanceFile) {
   return std::make_shared<const Recipe>(
-      Recipe::of<SdfParams>(name)
+      Recipe::of<SdfParameters>(name)
           .frame(FrameInput::Resolution)
           .body(Target::SkSL, std::string(shaderSource(distanceFile))
                                   .append(shaderSource("Style.sksl"))));
@@ -67,10 +67,11 @@ float pad(const Style& style) {
 Material material(const Shape& shape, const Style& style) {
   return Material(
       recipe(shape.kind),
-      SdfParams{pad(style), style.fill, style.borderWidth, style.borderColor,
-                style.glowRadius, style.glowColor, style.shadowOffset.x,
-                style.shadowOffset.y, style.shadowBlur, style.shadowColor,
-                shape.p0, shape.p1, shape.p2});
+      SdfParameters{pad(style), style.fill, style.borderWidth,
+                    style.borderColor, style.glowRadius, style.glowColor,
+                    style.shadowOffset.x, style.shadowOffset.y,
+                    style.shadowBlur, style.shadowColor, shape.p0, shape.p1,
+                    shape.p2});
 }
 
 std::vector<Material> everyRecipe() {

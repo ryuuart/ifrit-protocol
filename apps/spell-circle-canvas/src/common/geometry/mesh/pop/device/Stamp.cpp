@@ -92,7 +92,7 @@ struct StampGpu {
   LaneBuffer pointOrigin;
   LaneBuffer pointDir;
   LaneBuffer pointColor;
-  LaneBuffer pointTex;
+  LaneBuffer pointTextureWindows;
   LaneBuffer outPosition;
   LaneBuffer outNormal;
   LaneBuffer outColor;
@@ -180,7 +180,8 @@ bool StampGpu::dispatch(const kernel::StampDispatch& work) {
   dg::IBufferView* pd = upload(pointDir, "stamp point dir", work.pointDir);
   dg::IBufferView* pc =
       upload(pointColor, "stamp point colour", work.pointColor);
-  dg::IBufferView* pt = upload(pointTex, "stamp point tex", work.pointTex);
+  dg::IBufferView* pt =
+      upload(pointTextureWindows, "stamp point tex", work.pointTextureWindows);
   dg::IBufferView* outPos =
       outPosition.sized(renderDevice, "stamp out position", count);
   dg::IBufferView* outNor =
@@ -207,7 +208,7 @@ bool StampGpu::dispatch(const kernel::StampDispatch& work) {
   bind("pointOrigin", po);
   bind("pointDir", pd);
   bind("pointColor", pc);
-  bind("pointTex", pt);
+  bind("pointTextureWindows", pt);
   bind("outPosition", outPos);
   bind("outNormal", outNor);
   bind("outColor", outCol);

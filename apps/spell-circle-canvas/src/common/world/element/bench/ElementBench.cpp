@@ -40,7 +40,7 @@ void PropsEqual(benchmark::State& state) {
   const Element a = Element().key("n").at({1, 2, 3}).rotateY(30.0f).tag("lit");
   const Element b = Element().key("n").at({1, 2, 3}).rotateY(30.0f).tag("lit");
   for ([[maybe_unused]] auto iteration : state)
-    benchmark::DoNotOptimize(propsEqual(*a.node(), *b.node()));
+    benchmark::DoNotOptimize(propertiesEqual(*a.node(), *b.node()));
 }
 BENCHMARK(PropsEqual);
 

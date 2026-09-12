@@ -30,13 +30,16 @@ namespace sigil::compose::kit {
  *  needs `width(2r).height(2r).centerAt(c)` spelled out at its call
  *  site. */
 inline Element disc(SkPoint centre, float radius) {
-  return box().width(Dim(radius * 2)).height(Dim(radius * 2)).centerAt(centre);
+  return box()
+      .width(Dimension(radius * 2))
+      .height(Dimension(radius * 2))
+      .centerAt(centre);
 }
 
 /** THE PINNED BOX: a node at absolute `(x, y)` of size @p w × @p h.
  *
- *  `box().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h))` is the
- *  four-call spelling every plate that has no layout at all repeats — a
+ *  `box().left(Dimension(x)).top(Dimension(y)).width(Dimension(w)).height(Dimension(h))`
+ * is the four-call spelling every plate that has no layout at all repeats — a
  *  transcribed interface, an engraved plate, a pattern card. Reconstructing
  *  a reference means quoting coordinates measured off it, and there is
  *  nothing for a flexbox to decide.
@@ -44,13 +47,20 @@ inline Element disc(SkPoint centre, float radius) {
  *  It is a peer of `disc()` rather than a layout scheme: it decides
  *  nothing, and every number is the caller's. */
 inline Element at(float x, float y, float w, float h) {
-  return box().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
+  return box()
+      .left(Dimension(x))
+      .top(Dimension(y))
+      .width(Dimension(w))
+      .height(Dimension(h));
 }
 /** The same, onto an element that already exists — the overload a caller
  *  reaches for when the node is built elsewhere and only its position is
  *  the plate's business. */
 inline Element at(Element e, float x, float y, float w, float h) {
-  e.left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
+  e.left(Dimension(x))
+      .top(Dimension(y))
+      .width(Dimension(w))
+      .height(Dimension(h));
   return e;
 }
 

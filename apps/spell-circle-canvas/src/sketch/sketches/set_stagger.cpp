@@ -20,8 +20,8 @@
  * shapes of the same cascade.
  *
  * A SELECTOR is the other half: a comparable value naming a set of nodes
- * rather than enumerating one. `sel::under(key)` answers for everything
- * BELOW that node and not for the node itself; `sel::material(m)`
+ * rather than enumerating one. `selectors::under(key)` answers for everything
+ * BELOW that node and not for the node itself; `selectors::material(m)`
  * compares the node's material by value. A pass narrowed by one addresses
  * those bodies and no others — here the far row is drawn again into a
  * target of its own and composited back over the frame, which is how a
@@ -64,7 +64,7 @@ constexpr float kPitch = 62;      // between two children, world units
 constexpr float kRise = 120;      // how far a child enters from, world units
 
 /** The material the far row wears, held as a value so a pass can name it
- *  with `sel::material` — a selector compares it by value. */
+ *  with `selectors::material` — a selector compares it by value. */
 material::Material litSlab() {
   return material::kit::surface(
       {.baseColor = {0.86f, 0.62f, 0.34f, 1}, .roughness = 0.38f});
@@ -160,8 +160,8 @@ struct SetStagger final : sketch::Set {
     // its own, softened, and laid back over it.
     frame.pass(world::geometryPass("main").writes("colour"))
         .pass(world::geometryPass("far-only")
-                  .only(world::sel::under("far") &
-                        world::sel::material(litSlab()))
+                  .only(world::selectors::under("far") &
+                        world::selectors::material(litSlab()))
                   .writes("halo"))
         .pass(world::postPass("soft").reads("halo").writes("soft").blur(9.0f))
         .pass(world::postPass("picture")

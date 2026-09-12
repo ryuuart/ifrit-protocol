@@ -1,11 +1,11 @@
 /** @file
- * env_theme — `env::Provide<T>` / `env::inherited<T>()`.
+ * env_theme — `environment::Provide<T>` / `environment::inherited<T>()`.
  *
  * The point is a value read where a component is COMPOSED, not where it
  * is written. `chip()` below takes NO arguments and is four calls down
  * from the nearest `Provide`; `feed::feed(ring)` — a library component
  * nobody here wrote — is themed by the same channel, keyed on its own
- * props type.
+ * properties type.
  *
  * Three columns, one component tree, drawn three times:
  *   NO BINDING   inherited<Palette>() is null, so chip() uses its own
@@ -19,20 +19,20 @@
  * EDIT THESE FIRST
  *   kOuter / kInner — the two Palettes. Change a colour and watch which
  *                chips move: only the ones under that scope, because a
- *                read lands in the reading node's OWN props and
- *                propsEqual is already the dependency tracker.
+ *                read lands in the reading node's OWN properties and
+ *                propertiesEqual is already the dependency tracker.
  *   kLevels     — how deep the handed-nothing chain runs.
  *
- * The three ways things move: none of them. env:: is a DESCRIBE-path
+ * The three ways things move: none of them. environment:: is a DESCRIBE-path
  * channel — a theme change re-describes and the reconciler patches the
- * nodes whose props moved. Bind the one property that scrubs at 60 Hz,
+ * nodes whose properties moved. Bind the one property that scrubs at 60 Hz,
  * never the theme.
  */
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilcore/reconcile/Env.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
@@ -42,10 +42,10 @@
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
-namespace env = sigil::core::env;
+namespace environment = sigil::core::environment;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 /** The house sheet, in this one's own look. */
@@ -68,9 +68,9 @@ sketch::kit::Theme sheetTheme() {
 }
 
 /** An inherited type is a comparable VALUE. Structural and exact — that is
- *  what makes `propsEqual` the dependency tracker. No std::function lives
+ *  what makes `propertiesEqual` the dependency tracker. No std::function lives
  *  in here: a member that cannot compare equal to itself would make every
- *  memo below a permanent miss, because the props of every reading node
+ *  memo below a permanent miss, because the properties of every reading node
  *  would look changed on every describe. Derivations are RUN and STORED. */
 struct Palette {
   std::string name = "chip()'s own default";
@@ -107,7 +107,7 @@ weave::TextStyle label(float size, SkColor4f color, float track = 0) {
 // default when there is none.
 
 Element chip(const char* caption) {
-  const Palette c = env::inheritedOr(Palette{});
+  const Palette c = environment::inheritedOr(Palette{});
   return box()
       .width(64)
       .height(34)
@@ -116,7 +116,7 @@ Element chip(const char* caption) {
       .stroke(stroke(1.2f, Fill::color(c.accent)))
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      .child(text(toU8(caption), label(11, c.ink)));
+      .child(text(toUtf8(caption), label(11, c.ink)));
 }
 
 /** `kLevels` plain containers, none of which knows a Palette exists. */
@@ -133,18 +133,20 @@ Element handedNothing(int depth) {
 
 /** A named-binding question a component can ask instead of falling back. */
 Element boundLine() {
-  const bool have = env::bound<Palette>();
-  const Palette c = env::inheritedOr(Palette{});
+  const bool have = environment::bound<Palette>();
+  const Palette c = environment::inheritedOr(Palette{});
   return text(
-      toU8(have ? std::string("env::bound<Palette>() true \xc2\xb7 ") + c.name
-                : std::string("env::bound<Palette>() FALSE")),
+      toUtf8(have
+                 ? std::string("environment::bound<Palette>() true \xc2\xb7 ") +
+                       c.name
+                 : std::string("environment::bound<Palette>() FALSE")),
       label(11, have ? c.accent : kDim));
 }
 
 // -------------------------------------------------------------- the library
 // feed::TextOptions is the worked consumer: it is already a comparable
-// props type, so it is already an env key. `feed::feed(ring)` with no
-// options argument reads whatever is in scope.
+// properties type, so it is already an environment key. `feed::feed(ring)` with
+// no options argument reads whatever is in scope.
 
 feed::TextOptions feedOptions(const Palette& c) {
   feed::TextOptions options;
@@ -157,7 +159,7 @@ feed::TextOptions feedOptions(const Palette& c) {
 }
 
 Element panelColumn(const char* heading, const char* note, Element body) {
-  return sketch::kit::caption(kColumn, toU8(heading), toU8(note),
+  return sketch::kit::caption(kColumn, toUtf8(heading), toUtf8(note),
                               std::move(body));
 }
 
@@ -171,7 +173,7 @@ Element themedBody(const feed::TextRing& ring) {
       .stroke(stroke(1.0f, Fill::color(kFrame)))
       .child(handedNothing(kLevels))
       .child(boundLine())
-      .child(text(toU8("feed::feed(ring) \xc2\xb7 no options argument"),
+      .child(text(toUtf8("feed::feed(ring) \xc2\xb7 no options argument"),
                   label(10, kDim)))
       .child(feed::feed(ring));
 }
@@ -184,11 +186,11 @@ struct EnvTheme : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = {1140, 520}});
-    // Nothing moves: env is a describe-path channel.
+    // Nothing moves: environment is a describe-path channel.
     ctx.captureAt(0.05);
 
     ring.clear();
-    ring.append({u8"describe: env stack pushed", "accent"});
+    ring.append({u8"describe: environment stack pushed", "accent"});
     ring.append({u8"chip() read the nearest binding"});
     ring.append({u8"patchedNodes == 1 on a colour change", "dim"});
     ring.append({u8"nothing was threaded through"});
@@ -199,8 +201,8 @@ struct EnvTheme : sketch::Sketch {
     // OUTER — one Provide, at the top. `plain`'s tree was already built
     // above and is unaffected: reads happen during DESCRIBE.
     Element outer = [&] {
-      env::Provide<Palette> palette(kOuter);
-      env::Provide<feed::TextOptions> style(feedOptions(kOuter));
+      environment::Provide<Palette> palette(kOuter);
+      environment::Provide<feed::TextOptions> style(feedOptions(kOuter));
       return themedBody(ring);
     }();
 
@@ -209,11 +211,11 @@ struct EnvTheme : sketch::Sketch {
     // feed::TextOptions binding is untouched by it, and after the inner scope
     // ends the outer Palette is back.
     Element shadowed = [&] {
-      env::Provide<Palette> palette(kOuter);
-      env::Provide<feed::TextOptions> style(feedOptions(kOuter));
+      environment::Provide<Palette> palette(kOuter);
+      environment::Provide<feed::TextOptions> style(feedOptions(kOuter));
       Element top = handedNothing(kLevels);
       Element inner = [&] {
-        env::Provide<Palette> nested(kInner);
+        environment::Provide<Palette> nested(kInner);
         return box()
             .column()
             .gap(8)
@@ -228,22 +230,22 @@ struct EnvTheme : sketch::Sketch {
           .stroke(stroke(1.0f, Fill::color(kFrame)))
           .child(std::move(top))
           .child(std::move(inner))
-          .child(text(toU8("\xe2\x80\xa6"
-                           "and back OUT of the inner scope:"),
+          .child(text(toUtf8("\xe2\x80\xa6"
+                             "and back OUT of the inner scope:"),
                       label(10, kDim)))
           .child(handedNothing(kLevels))
           .child(feed::feed(ring));
     }();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("ENV \xc2\xb7 env::Provide<T> / "
-                       "env::inherited<T>()"),
-         .subtitle = toU8("one component tree, three environments "
-                          "\xe2\x80\x94 read where a component is "
-                          "COMPOSED, not where it is written"),
-         .footer = toU8("bindings are keyed by C++ TYPE \xc2\xb7 there "
-                        "is no library-wide Theme \xc2\xb7 a callable "
-                        "the KERNEL invokes sees no scope")},
+        {.title = toUtf8("ENV \xc2\xb7 environment::Provide<T> / "
+                         "environment::inherited<T>()"),
+         .subtitle = toUtf8("one component tree, three environments "
+                            "\xe2\x80\x94 read where a component is "
+                            "COMPOSED, not where it is written"),
+         .footer = toUtf8("bindings are keyed by C++ TYPE \xc2\xb7 there "
+                          "is no library-wide Theme \xc2\xb7 a callable "
+                          "the KERNEL invokes sees no scope")},
         kit::cells(
             {.cells = {panelColumn("NO BINDING",
                                    "inheritedOr() default \xe2\x80\x94 the "
@@ -258,7 +260,7 @@ struct EnvTheme : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    EnvTheme, "Kit \xc2\xb7 API",
-    "env::Provide / inherited \xe2\x80\x94 one tree, three environments; "
-    "feed::TextOptions is the worked library consumer")
+SIGIL_SKETCH(EnvTheme, "Kit \xc2\xb7 API",
+             "environment::Provide / inherited \xe2\x80\x94 one tree, three "
+             "environments; "
+             "feed::TextOptions is the worked library consumer")

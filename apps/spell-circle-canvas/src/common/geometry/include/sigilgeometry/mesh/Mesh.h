@@ -38,30 +38,31 @@ struct Mesh {
   std::vector<glm::vec4> colors;
   std::vector<uint32_t> indices;
 
-  /** PRIMITIVE attribute lanes — the Houdini/TouchDesigner prim class,
+  /** PRIMITIVE attribute lanes — the Houdini/TouchDesigner primitive class,
    *  the point lanes' sibling. A primitive here IS a TRIANGLE (one
    *  index triple), so every lane holds exactly triangleCount() float4
    *  values, addressed BY NAME exactly like Cloud's point lanes and
-   *  pop's AttrRef: no second identity system, just a second class.
+   *  pop's AttributeReference: no second identity system, just a second class.
    *
    *  Conventional names (nothing enforces them): "Color" (flat
-   *  per-primitive tint — render::MeshStyle::primColorLane reads it and
-   *  mesh::bakePrimColor bakes it for vertex-only renderers) and "Id"
+   *  per-primitive tint — render::MeshStyle::primitiveColorLane reads it and
+   *  mesh::bakePrimitiveColor bakes it for vertex-only renderers) and "Id"
    *  (.x = the piece the triangle belongs to; instancing writes the
    *  owning point's index, so "a stamp instance" is expressible as a
    *  lane VALUE rather than a new container). Any other name is a
    *  custom lane, create-on-first-touch. */
-  boost::container::map<std::string, std::vector<glm::vec4>, std::less<>> prims;
+  boost::container::map<std::string, std::vector<glm::vec4>, std::less<>>
+      primitives;
 
   size_t vertexCount() const { return positions.size(); }
   size_t triangleCount() const { return indices.size() / 3; }
 
   /** Primitive-lane accessor, create-on-touch, sized to
    *  triangleCount(). */
-  std::vector<glm::vec4>& prim(const std::string& name,
-                               glm::vec4 fill = {1, 1, 1, 1});
+  std::vector<glm::vec4>& primitive(const std::string& name,
+                                    glm::vec4 fill = {1, 1, 1, 1});
   /** Read-only primitive-lane lookup; null when absent. */
-  const std::vector<glm::vec4>* primIf(std::string_view name) const;
+  const std::vector<glm::vec4>* primitiveIf(std::string_view name) const;
 
   /** Append another mesh (indices re-based). Primitive lanes
    *  concatenate; a lane missing on one side pads by NAME convention
@@ -69,7 +70,7 @@ struct Mesh {
    *  Cloud::append takes for point lanes.
    *
    *  Every optional lane comes out sized to the merge: colors, normals
-   *  and uvs to positions.size(), prims to triangleCount(). That holds
+   *  and uvs to positions.size(), primitives to triangleCount(). That holds
    *  whether a side lacks the lane entirely or carries a SHORT one —
    *  consumers read "lane sized to positions" as the presence bit for
    *  the whole mesh (render::drawMesh's hasNormals is exactly that), so
@@ -102,6 +103,6 @@ Mesh quad(float width, float height);
  *  with no shader change. Existing vertex colors multiply through; a
  *  missing or mis-sized lane returns the mesh unchanged. Primitive
  *  lanes survive on the result (triangle order is preserved). */
-Mesh bakePrimColor(const Mesh& mesh, std::string_view lane = "Color");
+Mesh bakePrimitiveColor(const Mesh& mesh, std::string_view lane = "Color");
 
 }  // namespace sigil::geometry::mesh

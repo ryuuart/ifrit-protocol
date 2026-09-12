@@ -11,7 +11,7 @@
 #include <sigilcore/hardware/GpuDevice.h>
 
 #include "EngineImpl.h"
-#include "ResourceDir.h"
+#include "ResourceDirectory.h"
 
 #ifdef __APPLE__
 #include "metal/MetalDriver.h"
@@ -21,9 +21,9 @@ namespace sigil::scry {
 
 bool WebEngine::Impl::setupPlatform() {
   m_logger = std::make_unique<CallbackLogger>(config.logCallback);
-  m_fileSystem =
-      std::make_unique<PrefixFileSystem>(resolveResourceDir(config.resourceDir),
-                                         config.fileSystemDir, m_logger.get());
+  m_fileSystem = std::make_unique<PrefixFileSystem>(
+      resolveResourceDirectory(config.resourceDirectory),
+      config.fileSystemDirectory, m_logger.get());
   m_surfaceFactory = std::make_unique<SkiaSurfaceFactory>();
 
   ultralight::Config ulConfig;

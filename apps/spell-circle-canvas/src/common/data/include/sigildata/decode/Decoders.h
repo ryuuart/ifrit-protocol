@@ -33,7 +33,7 @@ namespace sigil::data {
  *  is delimiter-separated text. The bytes are read as UTF-8, and a byte
  *  order mark at the front is not a field. */
 struct TableDecoder {
-  /** What a delimiter-separated file is read by. Its zeroed props still
+  /** What a delimiter-separated file is read by. Its zeroed properties still
    *  infer per resource, so one decoder serves comma and tab files
    *  alike; setting one pins every resource this decoder reads. */
   CsvOptions csv;

@@ -50,7 +50,7 @@ a motion already headed at the new target keeps flying, and a next value
 that is plain or bound snaps and disconnects. `mountEntrance` plays the
 `from` an `animate(from(a).to(b))` declares, or a `through({…})`
 waypoint list segment by segment, after whatever extra delay the caller
-staggers by. `resolveProp<T>` is the flattening underneath: an animatable
+staggers by. `resolveProperty<T>` is the flattening underneath: an animatable
 read against a fallback transition, giving a target, a binding, or a
 spec.
 
@@ -72,7 +72,7 @@ scale(breath.at(clock.elapsed()));      // read wherever the number is wanted
 glow(flare.at(ageOfTheHit));
 ```
 
-**`Oscillator` is one repeating signal with props**: the `wave` — sine,
+**`Oscillator` is one repeating signal with properties**: the `wave` — sine,
 triangle, sawtooth or square with a `duty` — `hertz`, a starting
 `phase` in cycles, an `amplitude` and the `centre` it swings about.
 Every wave is stated on the same folded phase and answers on [-1, 1]
@@ -112,7 +112,7 @@ target that is allowed to move.
 
 ```cpp
 Spring cursor;                                   // value 0, at rest
-SpringParams p{.periodSeconds = 0.39f, .damping = 0.22f};
+SpringParameters p{.periodSeconds = 0.39f, .damping = 0.22f};
 cursor = spring(cursor, selectedX, dt, p);       // every frame
 if (!springMoving(cursor, selectedX)) sleep();   // done, to within a pixel
 ```

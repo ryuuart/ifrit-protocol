@@ -50,7 +50,7 @@ constexpr const char* kEraseSksl =
 
 /** These bodies read the runtime's declarations and nothing of their own,
  *  so their recipes carry no ABI. */
-struct NoParams {};
+struct NoParameters {};
 
 /** The pass material over @p source: ONE recipe per source for the whole
  *  TU, because a recipe's identity is the object — two materials over one
@@ -67,7 +67,7 @@ material::skia::Paint passOver(const char* source) {
     if (h.source == source)
       return material::skia::Paint::recipe(sigil::material::Material(h.recipe));
   auto recipe = std::make_shared<const sigil::material::Recipe>(
-      sigil::material::Recipe::of<NoParams>("test.pass")
+      sigil::material::Recipe::of<NoParameters>("test.pass")
           .body(sigil::material::Target::SkSL, source));
   held.push_back({source, recipe});
   return material::skia::Paint::recipe(sigil::material::Material(recipe));
@@ -194,7 +194,7 @@ TEST(TextPass, ReachGrowsBoundsWithoutMovingContent) {
   const TextEffect lift =
       fx::effect("test-lift",
                  [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
-                   GlyphMod m;
+                   GlyphModifier m;
                    m.dy = -14.0f;
                    return m;
                  });
@@ -282,7 +282,7 @@ TEST(TextPass, ComposesDownstreamOfDeviationTracks) {
   const TextEffect hide =
       fx::effect("test-hide",
                  [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
-                   GlyphMod m;
+                   GlyphModifier m;
                    m.alpha = 0.0f;
                    return m;
                  });

@@ -26,7 +26,7 @@ using sigil::material::test::render;
 
 namespace {
 
-struct TwoParams {
+struct TwoParameters {
   float uScale;
   Color uColor;
 };
@@ -38,8 +38,8 @@ constexpr const char* kBody =
 
 TEST(SkiaCompiler, TwoUniformRecipeMatchesHandCompiledSkSL) {
   auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("two").body(Target::SkSL, kBody));
-  Material m(recipe, TwoParams{0.5f, {0.8f, 0.4f, 0.2f, 1.0f}});
+      Recipe::of<TwoParameters>("two").body(Target::SkSL, kBody));
+  Material m(recipe, TwoParameters{0.5f, {0.8f, 0.4f, 0.2f, 1.0f}});
   EXPECT_FALSE(m.isAnimated());
 
   const FrameData frame;
@@ -67,19 +67,20 @@ TEST(SkiaCompiler, TwoUniformRecipeMatchesHandCompiledSkSL) {
 
   // The same recipe resolves to the same program object every time.
   EXPECT_EQ(m.resolve(Target::SkSL, frame).program, resolved.program);
-  Material other(recipe, TwoParams{1.0f, {1, 1, 1, 1}});
+  Material other(recipe, TwoParameters{1.0f, {1, 1, 1, 1}});
   EXPECT_EQ(other.resolve(Target::SkSL, frame).program, resolved.program);
 }
 
 TEST(SkiaCompiler, ChildSlotSamplesAnotherMaterial) {
   auto inner = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("inner").body(Target::SkSL, kBody));
+      Recipe::of<TwoParameters>("inner").body(Target::SkSL, kBody));
   auto outer = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("outer").child("uSrc").body(
+      Recipe::of<TwoParameters>("outer").child("uSrc").body(
           Target::SkSL,
           "half4 main(float2 p) { return uSrc.eval(p) * half4(uScale); }"));
-  Material m(outer, TwoParams{1.0f, {0, 0, 0, 1}});
-  m.child("uSrc", Material(inner, TwoParams{1.0f, {0.0f, 1.0f, 0.0f, 1.0f}}));
+  Material m(outer, TwoParameters{1.0f, {0, 0, 0, 1}});
+  m.child("uSrc",
+          Material(inner, TwoParameters{1.0f, {0.0f, 1.0f, 0.0f, 1.0f}}));
   sk_sp<SkShader> shader = skia::shader(m, FrameData{});
   ASSERT_NE(shader, nullptr);
   const SkBitmap bm = render(shader);
@@ -88,7 +89,7 @@ TEST(SkiaCompiler, ChildSlotSamplesAnotherMaterial) {
 
 TEST(SkiaCompiler, ABodyThatDoesNotCompileResolvesToNoProgram) {
   auto broken = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("broken").body(Target::SkSL, "half4 main("));
+      Recipe::of<TwoParameters>("broken").body(Target::SkSL, "half4 main("));
   Material m(broken);
   EXPECT_EQ(skia::shader(m, FrameData{}), nullptr);
   EXPECT_EQ(m.resolve(Target::SkSL, FrameData{}).program, nullptr);
@@ -157,7 +158,7 @@ const ReservedName kReservedNames[] = {
 TEST_P(BodyOverAReservedName, ResolvesToNoProgramWhereItRedeclaresAParameter) {
   static int serial = 0;
   const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("reserved." + std::to_string(serial++))
+      Recipe::of<TwoParameters>("reserved." + std::to_string(serial++))
           .body(Target::SkSL, GetParam().body));
   const bool refused = skia::shader(Material(recipe), FrameData{}) == nullptr;
   EXPECT_EQ(refused, GetParam().refused);

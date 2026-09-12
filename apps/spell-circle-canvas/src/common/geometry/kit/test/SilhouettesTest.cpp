@@ -47,7 +47,7 @@ int lineSegments(const SkPath& p) {
 
 struct Generator {
   const char* name;
-  OutlineFn make;
+  OutlineFunction make;
 };
 
 class SilhouetteGenerator : public ::testing::TestWithParam<Generator> {};

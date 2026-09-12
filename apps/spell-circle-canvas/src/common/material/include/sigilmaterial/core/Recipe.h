@@ -1,13 +1,13 @@
 #pragma once
 
 /** @file
- * Recipe — a material's definition: the params struct that is its ABI,
+ * Recipe — a material's definition: the parameter struct that is its ABI,
  * one body per shading language, the child slots it samples and the
  * frame values it reads. A recipe is defined once and shared; every
  * Material is an instance of one.
  */
 
-#include <sigilmaterial/core/Params.h>
+#include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/core/Target.h>
 
 #include <boost/container/map.hpp>
@@ -21,7 +21,7 @@
 namespace sigil::material {
 
 /** The per-frame values a body may read. Declaring one adds its uniform
- *  after the params and tells the tier queries what the material depends
+ *  after the parameters and tells the tier queries what the material depends
  *  on. Bit-valued so a recipe's set is one integer. */
 enum class FrameInput : uint8_t {
   Time = 1,            ///< `uniform float uTime`, seconds
@@ -38,19 +38,19 @@ enum class FrameInput : uint8_t {
  *  the program cache and a Material's prune comparison use identity. */
 class Recipe {
  public:
-  /** A recipe whose ABI is the params struct @p P, named @p name for
+  /** A recipe whose ABI is the parameter struct @p P, named @p name for
    *  messages and for the identity a cache key spells. */
   template <class P>
   static Recipe of(std::string name) {
     return Recipe(std::move(name), schema<P>());
   }
-  /** A recipe whose ABI is @p params directly rather than a C++ struct's
+  /** A recipe whose ABI is @p parameters directly rather than a C++ struct's
    *  — the door for a definition COMPOSED while the library runs, whose
    *  fields are other recipes' fields and so belong to no one type.
    *  `of<P>()` is the ordinary way in; a caller here owes the same rule
-   *  a params struct is checked against, that the layout is packed
+   *  a parameter struct is checked against, that the layout is packed
    *  floats. */
-  static Recipe of(std::string name, const Schema& params);
+  static Recipe of(std::string name, const Schema& parameters);
 
   /** The body for @p target: everything after the generated
    *  declarations, so for SkSL the `half4 main(float2 p) { ... }` and its
@@ -76,9 +76,9 @@ class Recipe {
   Recipe& channelwise(std::string slot);
 
   const std::string& name() const { return m_name; }
-  /** The params struct's layout — the author-set uniforms alone. */
-  const Schema& params() const { return m_params; }
-  /** The full upload layout: the params, then the declared frame inputs
+  /** The parameter struct's layout — the author-set uniforms alone. */
+  const Schema& parameters() const { return m_parameters; }
+  /** The full upload layout: the parameters, then the declared frame inputs
    *  in enum order. A program's uniforms are set from bytes in this
    *  layout. */
   const Schema& layout() const { return m_layout; }
@@ -90,14 +90,14 @@ class Recipe {
    *  uploaded and the picture does not change, which at a call site is
    *  indistinguishable from a wrong value. Asking the bodies is the only
    *  way to know — a shading compiler's reflection reports what the
-   *  source DECLARED, and the declarations are generated from the params
+   *  source DECLARED, and the declarations are generated from the parameters
    *  whether the body reads them or not.
    *
    *  Spelled means as a WHOLE IDENTIFIER, so a `low` inside `lowEdge` is
    *  a different name; a recipe with no body at all answers yes, having
    *  nothing to say. */
   bool readsField(std::string_view name) const;
-  /** `readsField(name)` for a field of `params()`, answered without
+  /** `readsField(name)` for a field of `parameters()`, answered without
    *  looking the name up again. */
   bool readsField(const Field& field) const;
   /** WHETHER THE BODY FOR @p target SAMPLES THE CHILD SLOT @p slot.
@@ -127,7 +127,7 @@ class Recipe {
   /** The declared frame inputs as one bit set. */
   uint8_t frameInputs() const { return m_frame; }
 
-  /** The generated head of the program: the params' uniforms, the frame
+  /** The generated head of the program: the parameters' uniforms, the frame
    *  uniforms, then the child slots this target's body samples, in
    *  @p target's syntax. */
   std::string declarations(Target target) const;
@@ -148,19 +148,19 @@ class Recipe {
   bool operator==(const Recipe&) const = default;
 
  private:
-  Recipe(std::string name, const Schema& params);
+  Recipe(std::string name, const Schema& parameters);
   void relayout();
   void rescan();
   bool spelled(std::string_view name) const;
 
   std::string m_name;
-  Schema m_params;
+  Schema m_parameters;
   Schema m_layout;
   boost::container::map<Target, std::string> m_bodies;
   std::vector<std::string> m_children;
   /** channelwise()'s slot; empty means the body is not channelwise. */
   std::string m_channelwise;
-  /** Per params field, whether a body spells it — settled once when a
+  /** Per parameter field, whether a body spells it — settled once when a
    *  body is set, because a material writes every field of every
    *  instance it builds and each write asks. */
   std::vector<uint8_t> m_read;

@@ -29,28 +29,29 @@ using codec::decode::Model;
 using codec::decode::Part;
 
 TEST(Save, PlyRoundTripsPrimitiveLanes) {
-  // Per-triangle (prim) lanes survive a PLY round trip in both encodings:
-  // they are written as face properties and read back into Mesh::prims
+  // Per-triangle (primitive) lanes survive a PLY round trip in both encodings:
+  // they are written as face properties and read back into Mesh::primitives
   // under the same names. Names are not special-cased — an arbitrary
   // "Charge" travels exactly like the conventional "Color".
   Mesh quad = mesh::quad(10, 6);  // 4 vertices, 2 triangles
   ASSERT_EQ(quad.triangleCount(), 2u);
-  quad.prim("Color") = {{1, 0, 0, 1}, {0, 0.5f, 1, 0.25f}};
-  quad.prim("Charge") = {{0.5f, -2, 7, 1.0f / 3.0f}, {1e-5f, 3, 0, 1}};
+  quad.primitive("Color") = {{1, 0, 0, 1}, {0, 0.5f, 1, 0.25f}};
+  quad.primitive("Charge") = {{0.5f, -2, 7, 1.0f / 3.0f}, {1e-5f, 3, 0, 1}};
 
   for (const bool binary : {false, true}) {
     const std::string bytes = codec::encode::ply(quad, {.binary = binary});
     ASSERT_FALSE(bytes.empty());
-    auto model = codec::decode::model(bytes.data(), bytes.size(), "prim.ply");
+    auto model =
+        codec::decode::model(bytes.data(), bytes.size(), "primitive.ply");
     ASSERT_TRUE(model.has_value());
     const codec::decode::Part& part = model->parts.front();
     const Mesh& back = part.mesh;
     ASSERT_EQ(back.triangleCount(), 2u);
 
-    const std::vector<glm::vec4>* color = back.primIf("Color");
+    const std::vector<glm::vec4>* color = back.primitiveIf("Color");
     ASSERT_NE(color, nullptr) << "binary=" << binary;
     ASSERT_EQ(color->size(), 2u);
-    const std::vector<glm::vec4>* charge = back.primIf("Charge");
+    const std::vector<glm::vec4>* charge = back.primitiveIf("Charge");
     ASSERT_NE(charge, nullptr) << "binary=" << binary;
     ASSERT_EQ(charge->size(), 2u);
     // The ascii writer prints with %g, which keeps six significant digits,
@@ -59,9 +60,9 @@ TEST(Save, PlyRoundTripsPrimitiveLanes) {
     const float tol = binary ? 0.0f : 1e-6f;
     for (size_t t = 0; t < 2; ++t)
       for (int c = 0; c < 4; ++c) {
-        EXPECT_NEAR((*color)[t][c], quad.prims.at("Color")[t][c], tol);
-        EXPECT_NEAR((*charge)[t][c], quad.prims.at("Charge")[t][c],
-                    std::abs(quad.prims.at("Charge")[t][c]) * tol + tol);
+        EXPECT_NEAR((*color)[t][c], quad.primitives.at("Color")[t][c], tol);
+        EXPECT_NEAR((*charge)[t][c], quad.primitives.at("Charge")[t][c],
+                    std::abs(quad.primitives.at("Charge")[t][c]) * tol + tol);
       }
     if (binary) {
       EXPECT_FLOAT_EQ((*charge)[0].w, 1.0f / 3.0f);
@@ -70,7 +71,7 @@ TEST(Save, PlyRoundTripsPrimitiveLanes) {
 
     // Cardinality is preserved on the way back: a per-face lane has one
     // value per triangle, a point lane one per vertex, and the two never
-    // mix. So the face lanes appear in Mesh::prims and nowhere else —
+    // mix. So the face lanes appear in Mesh::primitives and nowhere else —
     // neither in the Part's point lanes nor in the Cloud it pours into.
     EXPECT_EQ(part.scalarLanes.count("Color_r"), 0u);
     EXPECT_EQ(part.colorLanes.count("Color"), 0u);
@@ -79,7 +80,7 @@ TEST(Save, PlyRoundTripsPrimitiveLanes) {
     EXPECT_EQ(cloud.colorIf("Charge"), nullptr);
 
     // And merged() carries them out through Mesh::append.
-    EXPECT_EQ(model->merged().prims.count("Charge"), 1u);
+    EXPECT_EQ(model->merged().primitives.count("Charge"), 1u);
   }
 }
 
@@ -226,8 +227,8 @@ TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
 
 TEST(Save, PlyWritesPrimLanesAsFaceProperties) {
   Mesh m = splitQuad();
-  m.prim("Color")[0] = {1, 0, 0, 1};
-  m.prim("Color")[1] = {0, 0.25f, 0, 1};
+  m.primitive("Color")[0] = {1, 0, 0, 1};
+  m.primitive("Color")[1] = {0, 0.25f, 0, 1};
   const std::string text = codec::encode::ply(m);
   ASSERT_FALSE(text.empty());
   // Prim lanes are per-triangle, so they are declared on the FACE element,
@@ -247,9 +248,9 @@ TEST(Save, PlyWritesPrimLanesAsFaceProperties) {
   EXPECT_NE(text.find("3 0 2 3 0 0.25 0 1\n"), std::string::npos);
   // Adding face properties must not disturb the geometry: the written file
   // still reads back through this library's own importer with its triangles
-  // intact. (That the prim VALUES also survive the trip is checked
+  // intact. (That the primitive VALUES also survive the trip is checked
   // separately, in PlyRoundTripsPrimitiveLanes.)
-  auto back = codec::decode::model(text.data(), text.size(), "prims.ply");
+  auto back = codec::decode::model(text.data(), text.size(), "primitives.ply");
   ASSERT_TRUE(back.has_value());
   ASSERT_EQ(back->parts.size(), 1u);
   EXPECT_EQ(back->parts.front().mesh.triangleCount(), 2u);
@@ -349,8 +350,8 @@ TEST(Save, GeoRoundTripsACloudLaneForLane) {
 
 TEST(Save, GeoRoundTripsAMeshUnweldedWithItsPrimitiveLanes) {
   Mesh mesh = splitQuad();
-  mesh.prim("Color") = {{1, 0, 0, 1}, {0, 0.25f, 0, 1}};
-  mesh.prim("Charge") = {{7, 0, 0, 0}, {-2, 0, 0, 0}};
+  mesh.primitive("Color") = {{1, 0, 0, 1}, {0, 0.25f, 0, 1}};
+  mesh.primitive("Charge") = {{7, 0, 0, 0}, {-2, 0, 0, 0}};
 
   const std::string text = codec::encode::geo(mesh);
   ASSERT_FALSE(text.empty());
@@ -374,12 +375,12 @@ TEST(Save, GeoRoundTripsAMeshUnweldedWithItsPrimitiveLanes) {
       EXPECT_NEAR(was.z, is.z, 1e-5f);
     }
 
-  const std::vector<glm::vec4>* colour = again.primIf("Color");
+  const std::vector<glm::vec4>* colour = again.primitiveIf("Color");
   ASSERT_NE(colour, nullptr);
   EXPECT_NEAR((*colour)[1].y, 0.25f, 1e-5f);
   // Four components under its own name, so a lane the reader has no
   // convention for still comes back whole rather than splatted.
-  const std::vector<glm::vec4>* charge = again.primIf("Charge");
+  const std::vector<glm::vec4>* charge = again.primitiveIf("Charge");
   ASSERT_NE(charge, nullptr);
   EXPECT_NEAR((*charge)[0].x, 7.0f, 1e-5f);
   EXPECT_NEAR((*charge)[1].x, -2.0f, 1e-5f);

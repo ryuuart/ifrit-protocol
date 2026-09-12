@@ -101,7 +101,7 @@ bool TextureScene::useDevice(core::hardware::GpuDevice& device,
   Impl& impl = *m_impl;
   // The usage left at its default is the one a scene needs: a shader
   // reads the texture and a canvas paints into it.
-  core::hardware::TextureDesc desc;
+  core::hardware::TextureDescription desc;
   desc.width = impl.size.width();
   desc.height = impl.size.height();
   desc.format = core::hardware::TextureFormat::RGBA8Unorm;

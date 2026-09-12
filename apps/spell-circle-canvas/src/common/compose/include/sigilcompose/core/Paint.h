@@ -237,7 +237,7 @@ class StampCache {
    *  rastered image with the logical size it was baked at, and reads
    *  back only the kind it wrote. */
   struct Entry {
-    sk_sp<SkPicture> pic;
+    sk_sp<SkPicture> picture;
     sk_sp<SkImage> image;
     SkSize artSize{0, 0};
   };

@@ -2,7 +2,7 @@
 
 auto WinampBase::eqWindow() -> Element {
   using namespace wa;
-  Element w = box().width(Dim(n(275))).height(Dim(n(116)));
+  Element w = box().width(Dimension(n(275))).height(Dimension(n(116)));
   w.child(box().inset(0).fill(steel).cache(Cache::Texture));
   raised(w, kWellHi, kWellLo);
   w.child(titleBar(275, "WINAMP EQUALIZER", false, false));
@@ -10,16 +10,19 @@ auto WinampBase::eqWindow() -> Element {
   // ON / AUTO / PRESETS
   Element on = key(14, 18, 26, 12, box());
   on.row().alignItems(Align::Center).padding(n(2), 0, 0, 0);
-  on.child(box().width(Dim(n(3))).height(Dim(n(3))).fill(wa::kGreen));
-  on.child(box().width(Dim(n(2))));
+  on.child(
+      box().width(Dimension(n(3))).height(Dimension(n(3))).fill(wa::kGreen));
+  on.child(box().width(Dimension(n(2))));
   on.child(t("ON", pix(4.4f, hexColor(0x121A24))));
   w.child(on);
 
   Element autoB = key(40, 18, 32, 12, box());
   autoB.row().alignItems(Align::Center).padding(n(2), 0, 0, 0);
-  autoB.child(
-      box().width(Dim(n(3))).height(Dim(n(3))).fill(hexColor(0x3C4A58)));
-  autoB.child(box().width(Dim(n(2))));
+  autoB.child(box()
+                  .width(Dimension(n(3)))
+                  .height(Dimension(n(3)))
+                  .fill(hexColor(0x3C4A58)));
+  autoB.child(box().width(Dimension(n(2))));
   autoB.child(t("AUTO", pix(4.4f, hexColor(0x121A24))));
   w.child(autoB);
 

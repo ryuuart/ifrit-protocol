@@ -26,7 +26,7 @@ sigil_library(SigilGeometryPath
           Direction.cpp Distorts.cpp Edges.cpp
           Extremes.cpp Fit.cpp Hull.cpp Interpolate.cpp Lattice.cpp
           Multigrid.cpp
-          Neighbours.cpp Noise.cpp Ops.cpp OpsInternal.h Polyline.cpp Pose.cpp
+          Neighbours.cpp Noise.cpp Operations.cpp OperationsInternal.h Polyline.cpp Pose.cpp
           Projection.cpp
           Scatter.cpp
           Segments.cpp Strips.cpp Symmetry.cpp Tidy.cpp Trace.cpp
@@ -34,7 +34,7 @@ sigil_library(SigilGeometryPath
   HEADERS Arrange.h Band.h Cells.h Conic.h Contour.h Crossings.h Direction.h
           Edges.h Extremes.h Fit.h Frame.h Hull.h Interpolate.h Lattice.h
           Neighbours.h
-          Noise.h Numeric.h Ops.h Polyline.h Pose.h Profile.h Projection.h
+          Noise.h Numeric.h Operations.h Polyline.h Pose.h Profile.h Projection.h
           Scatter.h
           Segments.h Shaper.h Skia.h Stride.h Symmetry.h Tidy.h Trace.h
           Triangulate.h
@@ -54,7 +54,7 @@ sigil_test(geometry_test
           test/MarksTest.cpp test/SegmentsTest.cpp test/NodesTest.cpp
           test/NeighboursTest.cpp test/ScatterTest.cpp
           test/TriangulateTest.cpp test/FieldsTest.cpp
-          test/OpsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp
+          test/OperationsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp
           test/FramesTest.cpp test/ProjectionsTest.cpp test/BlendTest.cpp
           test/TilingsTest.cpp test/StripsTest.cpp
   LIBRARIES SigilGeometryPath SigilGeometryPathBlend)

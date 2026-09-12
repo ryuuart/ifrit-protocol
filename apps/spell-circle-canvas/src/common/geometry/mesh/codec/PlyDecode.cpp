@@ -29,9 +29,9 @@ namespace {
 // own name. Files without a face element are honest point clouds
 // (empty indices) — asCloud() is their natural consumer.
 //
-// FACE properties are the PRIMITIVE class and land in Mesh::prims, the
+// FACE properties are the PRIMITIVE class and land in Mesh::primitives, the
 // read leg of encode::ply's per-face write: one value per TRIANGLE,
-// replicated when a polygon fans. Point lanes and prim lanes never
+// replicated when a polygon fans. Point lanes and primitive lanes never
 // share a container, so their cardinalities cannot be confused.
 
 struct PlyScalarType {
@@ -106,7 +106,7 @@ struct PlyElement {
  *  length, stays scalar.
  *
  *  BOTH attribute classes fold through here: the POINT lanes on the
- *  Part and the PRIMITIVE lanes bound for Mesh::prims. The suffix
+ *  Part and the PRIMITIVE lanes bound for Mesh::primitives. The suffix
  *  grammar is one grammar, so it gets one implementation — a second
  *  copy would be the thing that drifts. */
 void foldSuffixedLanes(
@@ -238,7 +238,7 @@ std::optional<Model> importPly(const std::byte* bytes, size_t size) {
   /** PRIMITIVE-class values as they arrive: raw floats under the
    *  property's own name, one entry per TRIANGLE (not per face row —
    *  see the fan replication below). Accumulated across every face
-   *  element, folded and widened into Mesh::prims once the body is
+   *  element, folded and widened into Mesh::primitives once the body is
    *  read. */
   boost::container::map<std::string, std::vector<float>, std::less<>>
       primScalars;
@@ -435,11 +435,11 @@ std::optional<Model> importPly(const std::byte* bytes, size_t size) {
 
   foldSuffixedLanes(part.scalarLanes, part.vectorLanes, part.colorLanes);
 
-  // The PRIMITIVE class comes home to Mesh::prims — its OWN container,
+  // The PRIMITIVE class comes home to Mesh::primitives — its OWN container,
   // triangleCount()-sized BY DEFINITION, so a per-face lane can never
   // be mistaken for a per-vertex one: Part's scalar/vector/color lanes
   // and asCloud() stay strictly point-class. Same folder as the point
-  // lanes, then widened to the vec4 currency prims speak: a folded
+  // lanes, then widened to the vec4 currency primitives speak: a folded
   // color IS the vec4 (this is encode::ply's own Color_r/_g/_b/_a leg),
   // a folded vector takes w = 0 (Mesh::append's pad for non-"Color"
   // lanes), and a lone scalar lands in .x — the "Id" convention.
@@ -453,22 +453,22 @@ std::optional<Model> importPly(const std::byte* bytes, size_t size) {
     // A lane the file under- or over-supplied is DROPPED whole rather
     // than published at a lying cardinality — the same posture the
     // dropped-face path takes, and the reason a header that promises
-    // face properties it never delivers cannot desync mesh.prims.
+    // face properties it never delivers cannot desync mesh.primitives.
     const auto publish = [tris](const std::string& name, size_t n) {
       return tris > 0 && n == tris && !name.empty();
     };
     for (const auto& [name, lane] : primColors)
-      if (publish(name, lane.size())) mesh.prims[name] = lane;
+      if (publish(name, lane.size())) mesh.primitives[name] = lane;
     for (const auto& [name, lane] : primVectors)
       if (publish(name, lane.size())) {
-        std::vector<glm::vec4>& out = mesh.prims[name];
+        std::vector<glm::vec4>& out = mesh.primitives[name];
         out.resize(lane.size());
         for (size_t i = 0; i < lane.size(); ++i)
           out[i] = glm::vec4(lane[i], 0.0f);
       }
     for (const auto& [name, lane] : primScalars)
       if (publish(name, lane.size())) {
-        std::vector<glm::vec4>& out = mesh.prims[name];
+        std::vector<glm::vec4>& out = mesh.primitives[name];
         out.assign(lane.size(), glm::vec4{0});
         for (size_t i = 0; i < lane.size(); ++i) out[i].x = lane[i];
       }

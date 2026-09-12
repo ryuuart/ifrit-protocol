@@ -82,7 +82,7 @@ float BoundFloat::apply(float v) const {
       // whatever the function draws across one period, the signal
       // repeats it. An empty function passes the folded phase through.
       const float u = v - std::floor(v);
-      v = waveFn ? waveFn(u) : u;
+      v = waveFunction ? waveFunction(u) : u;
       break;
     }
   }
@@ -141,7 +141,8 @@ bool boundMapEqual(const BoundFloat& a, const BoundFloat& b) {
          // The two curve slots compare under the same conservative rule: a
          // plain function is compared by identity, a capturing lambda is
          // unequal to everything and the binding re-patches every describe.
-         easeEqual(a.curve, b.curve) && easeEqual(a.waveFn, b.waveFn);
+         easeEqual(a.curve, b.curve) &&
+         easeEqual(a.waveFunction, b.waveFunction);
 }
 
 }  // namespace sigil::motion

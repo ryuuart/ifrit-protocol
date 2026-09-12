@@ -81,7 +81,7 @@ TEST(MeshResidency, UploadsAgainWhenAnAskNamesADifferentPrimitiveLane) {
   device::MeshResidency resident(*on);
 
   mesh::Mesh tinted = quad();
-  tinted.prim("Color") = {{1, 0, 0, 1}, {0, 1, 0, 1}};
+  tinted.primitive("Color") = {{1, 0, 0, 1}, {0, 1, 0, 1}};
 
   // WITHOUT A LANE the mesh's own indices stand and its four vertices
   // are shared. WITH ONE they cannot be: the value belongs to a

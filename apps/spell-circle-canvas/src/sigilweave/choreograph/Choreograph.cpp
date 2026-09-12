@@ -141,14 +141,15 @@ GlyphRSXformBatches::Batch& GlyphRSXformBatches::batchForPass(
 void GlyphRSXformBatches::addGlyph(const ShapedWord* font,
                                    const PaintStyle& style, SkGlyphID glyph,
                                    float halfAdvance, const GlyphDress& dress) {
-  const float alpha = dress.alphaScale * dress.colorMul.fA;
+  const float alpha = dress.alphaScale * dress.colorMultiplier.fA;
   // Any of the three colour terms off neutral takes the modulated path;
   // all neutral leaves the source paint untouched, byte for byte.
-  const bool tinted = dress.colorMul.fR != 1.0f || dress.colorMul.fG != 1.0f ||
-                      dress.colorMul.fB != 1.0f || dress.colorAdd.fR != 0 ||
-                      dress.colorAdd.fG != 0 || dress.colorAdd.fB != 0 ||
-                      dress.colorScreen.fR != 0 || dress.colorScreen.fG != 0 ||
-                      dress.colorScreen.fB != 0;
+  const bool tinted = dress.colorMultiplier.fR != 1.0f ||
+                      dress.colorMultiplier.fG != 1.0f ||
+                      dress.colorMultiplier.fB != 1.0f ||
+                      dress.colorAdd.fR != 0 || dress.colorAdd.fG != 0 ||
+                      dress.colorAdd.fB != 0 || dress.colorScreen.fR != 0 ||
+                      dress.colorScreen.fG != 0 || dress.colorScreen.fB != 0;
   const SkVector local =
       dress.centreOffset ? *dress.centreOffset : SkVector{halfAdvance, 0};
   const SkRSXform transform = {
@@ -179,7 +180,7 @@ void GlyphRSXformBatches::addGlyph(const ShapedWord* font,
       // that colour. Same arithmetic both ways: multiply, add, clamp,
       // then screen.
       if (dressed.getShader() || dressed.getColorFilter()) {
-        dressed.setColorFilter(tintFilter(dress.colorMul,
+        dressed.setColorFilter(tintFilter(dress.colorMultiplier,
                                           dressed.refColorFilter(),
                                           dress.colorAdd, dress.colorScreen));
       } else {
@@ -189,11 +190,11 @@ void GlyphRSXformBatches::addGlyph(const ShapedWord* font,
           return lit + (1.0f - lit) * screen;
         };
         const SkColor4f base = dressed.getColor4f();
-        dressed.setColor4f({channel(base.fR, dress.colorMul.fR,
+        dressed.setColor4f({channel(base.fR, dress.colorMultiplier.fR,
                                     dress.colorAdd.fR, dress.colorScreen.fR),
-                            channel(base.fG, dress.colorMul.fG,
+                            channel(base.fG, dress.colorMultiplier.fG,
                                     dress.colorAdd.fG, dress.colorScreen.fG),
-                            channel(base.fB, dress.colorMul.fB,
+                            channel(base.fB, dress.colorMultiplier.fB,
                                     dress.colorAdd.fB, dress.colorScreen.fB),
                             base.fA},
                            nullptr);

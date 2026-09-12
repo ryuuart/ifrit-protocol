@@ -53,7 +53,7 @@ std::string skSLFromSlang(std::string_view slang) {
   rename("lerp", "mix");
   // Two arguments, same order in both: Slang's atan2(y, x) is SkSL's
   // two-argument atan(y, x). Whole identifiers only, so `atan2P` — the
-  // polynomial the terms use where an equirect seam would show — is not
+  // polynomial the terms use where an equirectangular seam would show — is not
   // touched, and neither is a one-argument atan already spelled the same.
   rename("atan2", "atan");
   return out;

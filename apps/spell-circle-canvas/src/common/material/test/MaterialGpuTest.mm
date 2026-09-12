@@ -57,7 +57,7 @@ using namespace sigil::material;
 namespace {
 
 /** A body that reads no parameter still needs an ABI. */
-struct NoParams {
+struct NoParameters {
   float unused = 0;
 };
 
@@ -151,7 +151,7 @@ std::string shadeOnGpu(const Material& material) {
  *  the compiler is free to drop the call that would have failed. */
 Material termsMaterial() {
   static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<NoParams>("terms.everyTerm").body(Target::SkSL, termsSource(Target::SkSL) + R"(
+      Recipe::of<NoParameters>("terms.everyTerm").body(Target::SkSL, termsSource(Target::SkSL) + R"(
       half4 main(float2 xy) {
         float3 n = normalize(float3(0.2, 0.3, 1.0));
         float3 l = normalize(float3(xy.x + 0.5, xy.y + 0.5, 1.0));
@@ -162,8 +162,8 @@ Material termsMaterial() {
                   + roughnessLevel(0.3, 6.0)
                   + lambert(n, l) + blinn(n, l, v, 32.0)
                   + occlusion(0.7, 0.8) + luminance(radiance);
-        float2 uv = equirectUv(l);
-        float3 dir = equirectDirection(uv);
+        float2 uv = equirectangularUv(l);
+        float3 dir = equirectangularDirection(uv);
         float2 ab = environmentBrdf(0.3, max(dot(n, v), 0.0));
         float3 lit = fresnel(f0, max(dot(n, v), 0.0))
                    + fresnelRough(f0, max(dot(n, v), 0.0), 0.3)
@@ -176,7 +176,7 @@ Material termsMaterial() {
         return half4(half3(toneMap(lit, 1.0)), 1.0);
       }
     )"));
-  return Material(recipe, NoParams{});
+  return Material(recipe, NoParameters{});
 }
 
 /** Every material this library can hand a backend, named. */
@@ -196,9 +196,9 @@ std::vector<std::pair<std::string, Material>> everyMaterial() {
   // The stacks: one per blend, over operands the kit supplies. A stack is
   // a material like any other and its operands are its children, so the
   // body compiled is the combinator's over three sampled slots.
-  kit::SurfaceParams red;
+  kit::SurfaceParameters red;
   red.baseColor = {1, 0.2f, 0.1f, 1};
-  kit::SurfaceParams blue;
+  kit::SurfaceParameters blue;
   blue.baseColor = {0.1f, 0.3f, 1, 1};
   for (const Blend blend : {Blend::Mix, Blend::Add, Blend::Multiply})
     add({over(kit::unlit(red), kit::unlit(blue), maskConstant(0.5f), blend)});

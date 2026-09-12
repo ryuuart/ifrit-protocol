@@ -52,14 +52,14 @@ struct Chained {
 
 /** The escape from the geometry vocabulary: a value that builds its own
  *  mesh. */
-class GeneratorOps {
+class GeneratorOperations {
  public:
-  GeneratorOps() = default;
-  GeneratorOps(const GeneratorOps&) = default;
-  GeneratorOps(GeneratorOps&&) = default;
-  GeneratorOps& operator=(const GeneratorOps&) = default;
-  GeneratorOps& operator=(GeneratorOps&&) = default;
-  virtual ~GeneratorOps() = default;
+  GeneratorOperations() = default;
+  GeneratorOperations(const GeneratorOperations&) = default;
+  GeneratorOperations(GeneratorOperations&&) = default;
+  GeneratorOperations& operator=(const GeneratorOperations&) = default;
+  GeneratorOperations& operator=(GeneratorOperations&&) = default;
+  virtual ~GeneratorOperations() = default;
 
   /** What this generator is called, in a message that names it. */
   [[nodiscard]] virtual std::string name() const = 0;
@@ -73,7 +73,7 @@ class GeneratorOps {
  *  one cooked mesh; a model without one compares equal to nothing but
  *  its own copies, and therefore cooks again whenever it is described
  *  afresh. */
-using Generator = core::Erased<GeneratorOps>;
+using Generator = core::Erased<GeneratorOperations>;
 
 /** THE GEOMETRY SLOT. An empty slot draws nothing — a node that is only
  *  a placement for its children, an emitter or a viewpoint. */

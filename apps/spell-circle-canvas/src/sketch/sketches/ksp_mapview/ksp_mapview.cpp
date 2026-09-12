@@ -29,8 +29,8 @@ auto KspMapView::describe(sketch::SketchContext& ctx) -> Element {
           .opacity(0.34f);
 
   return stack()
-      .width(Dim(W))
-      .height(Dim(H))
+      .width(Dimension(W))
+      .height(Dimension(H))
       .child(backdrop(ctx))
       .child(std::move(map))
       .child(std::move(bloom))

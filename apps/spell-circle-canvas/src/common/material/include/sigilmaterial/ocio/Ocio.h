@@ -47,7 +47,7 @@ bool available();
 
 /** The ABI both bake recipes share: the number of samples along one
  *  axis of the bake in the `lut` slot. */
-struct LutParams {
+struct LutParameters {
   float lutSize;
 };
 
@@ -77,10 +77,10 @@ const std::shared_ptr<const Recipe>& responseRecipe();
 Material viewTransform(std::string_view config, std::string_view display,
                        std::string_view view, int lutSize = 33);
 
-/** A colour-space conversion @p src to @p dst from the same config
+/** A colour-space conversion @p source to @p destination from the same config
  *  sources. Same failure contract. */
-Material convert(std::string_view config, std::string_view src,
-                 std::string_view dst, int lutSize = 33);
+Material convert(std::string_view config, std::string_view source,
+                 std::string_view destination, int lutSize = 33);
 
 /** A plain exponent (gamma) transform baked through OCIO's raw config —
  *  needs no config file. A quick grade, and the plumbing test. Its

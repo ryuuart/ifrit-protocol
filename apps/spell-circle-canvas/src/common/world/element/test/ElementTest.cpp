@@ -41,11 +41,11 @@ TEST(WorldElement, CopyOnWriteLeavesTheOriginalAlone) {
   copy.translateX(20.0f);
 
   EXPECT_NE(base.node(), copy.node());
-  EXPECT_FALSE(propsEqual(*base.node(), *copy.node()));
+  EXPECT_FALSE(propertiesEqual(*base.node(), *copy.node()));
 
   Element same = base;
   EXPECT_EQ(base.node(), same.node());
-  EXPECT_TRUE(propsEqual(*base.node(), *same.node()));
+  EXPECT_TRUE(propertiesEqual(*base.node(), *same.node()));
 }
 
 TEST(WorldElement, TwoDescribesOfTheSameNodePrune) {
@@ -55,7 +55,7 @@ TEST(WorldElement, TwoDescribesOfTheSameNodePrune) {
   };
   Element a = describe();
   Element b = describe();
-  EXPECT_TRUE(propsEqual(*a.node(), *b.node()));
+  EXPECT_TRUE(propertiesEqual(*a.node(), *b.node()));
 }
 
 namespace {
@@ -155,13 +155,13 @@ TEST_P(DescribedField, ReachesThePruneAndTellsItsTwoValuesApart) {
   const Field& field = GetParam();
   const Element one = field.one(base());
   const Element other = field.other(base());
-  EXPECT_FALSE(propsEqual(*base().node(), *one.node()))
+  EXPECT_FALSE(propertiesEqual(*base().node(), *one.node()))
       << "does not reach the prune";
-  EXPECT_FALSE(propsEqual(*base().node(), *other.node()))
+  EXPECT_FALSE(propertiesEqual(*base().node(), *other.node()))
       << "does not reach the prune";
-  EXPECT_FALSE(propsEqual(*one.node(), *other.node()))
+  EXPECT_FALSE(propertiesEqual(*one.node(), *other.node()))
       << "compares equal at two different values";
-  EXPECT_TRUE(propsEqual(*one.node(), *field.one(base()).node()))
+  EXPECT_TRUE(propertiesEqual(*one.node(), *field.one(base()).node()))
       << "compares unequal to a second description of itself";
 }
 
@@ -171,23 +171,23 @@ INSTANTIATE_TEST_SUITE_P(EveryFieldADescriptionCarries, DescribedField,
 TEST(WorldElement, BackfaceVisibilityReachesThePrune) {
   const Element hidden = Element().key("body");
   const Element visible = Element().key("body").backface(Backface::Visible);
-  EXPECT_FALSE(propsEqual(*hidden.node(), *visible.node()));
-  EXPECT_TRUE(
-      propsEqual(*visible.node(),
-                 *Element().key("body").backface(Backface::Visible).node()));
+  EXPECT_FALSE(propertiesEqual(*hidden.node(), *visible.node()));
+  EXPECT_TRUE(propertiesEqual(
+      *visible.node(),
+      *Element().key("body").backface(Backface::Visible).node()));
 }
 
 TEST(WorldElement, TheGeometrySlotsValueTypeIsTheKind) {
   Element mesh = Element().key("g").mesh(triangle(10));
   Element cloud =
       Element().key("g").cloud(geometry::mesh::Cloud{}).stamp(triangle(10));
-  EXPECT_FALSE(propsEqual(*mesh.node(), *cloud.node()));
+  EXPECT_FALSE(propertiesEqual(*mesh.node(), *cloud.node()));
 
   Element sameMesh = Element().key("g").mesh(triangle(10));
-  EXPECT_TRUE(propsEqual(*mesh.node(), *sameMesh.node()));
+  EXPECT_TRUE(propertiesEqual(*mesh.node(), *sameMesh.node()));
 
   Element otherMesh = Element().key("g").mesh(triangle(11));
-  EXPECT_FALSE(propsEqual(*mesh.node(), *otherMesh.node()));
+  EXPECT_FALSE(propertiesEqual(*mesh.node(), *otherMesh.node()));
 }
 
 TEST(WorldElement, StampAndCloudReadInEitherOrder) {
@@ -195,7 +195,7 @@ TEST(WorldElement, StampAndCloudReadInEitherOrder) {
   points.positions = {{0, 0, 0}, {5, 0, 0}};
   Element first = Element().stamp(triangle(2)).cloud(points);
   Element second = Element().cloud(points).stamp(triangle(2));
-  EXPECT_TRUE(propsEqual(*first.node(), *second.node()));
+  EXPECT_TRUE(propertiesEqual(*first.node(), *second.node()));
 
   const Cooked cooked = cook(first.node()->geometry);
   EXPECT_EQ(cooked.cloud.size(), 2u);
@@ -206,12 +206,12 @@ TEST(WorldElement, MaterialsCompareByValue) {
   Element a = Element().fill(paint({1, 0, 0, 1}));
   Element b = Element().fill(paint({1, 0, 0, 1}));
   Element c = Element().fill(paint({0, 1, 0, 1}));
-  EXPECT_TRUE(propsEqual(*a.node(), *b.node()));
-  EXPECT_FALSE(propsEqual(*a.node(), *c.node()));
+  EXPECT_TRUE(propertiesEqual(*a.node(), *b.node()));
+  EXPECT_FALSE(propertiesEqual(*a.node(), *c.node()));
 
   const material::Material slots[] = {paint({1, 0, 0, 1}), paint({0, 0, 1, 1})};
   Element perFace = Element().fill(std::span<const material::Material>(slots));
-  EXPECT_FALSE(propsEqual(*a.node(), *perFace.node()));
+  EXPECT_FALSE(propertiesEqual(*a.node(), *perFace.node()));
   EXPECT_EQ(perFace.node()->slots.size(), 2u);
   EXPECT_FALSE(perFace.node()->material.has_value());
 }
@@ -301,9 +301,9 @@ TEST(WorldElement, MemoSkipsTheDescribeItsPropsDidNotChange) {
   const Element other = build(4);
   ASSERT_TRUE(same.node()->memo.has_value());
   ASSERT_TRUE(other.node()->memo.has_value());
-  EXPECT_TRUE(shell.equal(shell.props, same.node()->memo->props));
-  EXPECT_FALSE(shell.equal(shell.props, other.node()->memo->props));
-  Element produced = shell.invoke(shell.props);
+  EXPECT_TRUE(shell.equal(shell.properties, same.node()->memo->properties));
+  EXPECT_FALSE(shell.equal(shell.properties, other.node()->memo->properties));
+  Element produced = shell.invoke(shell.properties);
   EXPECT_EQ(described, 1);
   EXPECT_EQ(produced.node()->key, "memoized");
 }

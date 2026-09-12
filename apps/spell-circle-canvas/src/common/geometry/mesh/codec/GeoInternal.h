@@ -86,7 +86,7 @@ bool geoDecodeValues(const Json& block, size_t count, int size,
 std::vector<GeoAttribute> geoAttributes(const Json* list, size_t count);
 
 /** The attribute of that name, or nullptr where the class has none. */
-const GeoAttribute* geoFind(const std::vector<GeoAttribute>& attrs,
+const GeoAttribute* geoFind(const std::vector<GeoAttribute>& attributes,
                             std::string_view name);
 
 /** A group's membership as a per-element flag list. */

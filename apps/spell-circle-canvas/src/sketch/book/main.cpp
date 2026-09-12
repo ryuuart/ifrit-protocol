@@ -164,8 +164,8 @@ int main(int argc, char* argv[]) {
     // by path has none until it has been built.
     int coreArgc = 1;
     const QCoreApplication core(coreArgc, argv);
-    SketchCatalog::sketchDir = SIGIL_SKETCH_DIR;
-    SketchCatalog::thumbnailDir.clear();  // no still is rendered here
+    SketchCatalog::sketchDirectory = SIGIL_SKETCH_DIR;
+    SketchCatalog::thumbnailDirectory.clear();  // no still is rendered here
     if (!args.sketchFile.empty()) SketchCatalog::externals = {args.sketchFile};
     const SketchCatalog rows;
     for (const QVariant& row : rows.sketches())
@@ -182,7 +182,7 @@ int main(int argc, char* argv[]) {
   // THE WARM COMMAND renders straight through the CPU still path, exactly
   // as the browser's lazy render does, and never brings a device up.
   if (args.warmThumbnails) {
-    SketchCatalog::sketchDir = SIGIL_SKETCH_DIR;
+    SketchCatalog::sketchDirectory = SIGIL_SKETCH_DIR;
     // A SKETCH THAT DRAWS A PAGE NEEDS THE ONE ENGINE HERE TOO. Without
     // it `sharedEngine()` answers null and such a sketch draws the card
     // that says why it could not — which would then be written to disk
@@ -191,26 +191,27 @@ int main(int argc, char* argv[]) {
     sketch::installCrashReporter({});
     finishMaterialWarmup(materialWarmup);
     const int result = runThumbnails(
-        chosen, args.kind, thumbnailStoreDir(args.thumbnailDir),
+        chosen, args.kind, thumbnailStoreDirectory(args.thumbnailDirectory),
         args.thumbnailBudget, args.thumbnailHeavy, fonts(), assets());
     sharedWebEngine.shutdown();
     return result;
   }
 
-  if (!args.storyOptions.out.empty() && args.storyOptions.framesPerSketch > 0)
+  if (!args.storyOptions.outputPath.empty() &&
+      args.storyOptions.framesPerSketch > 0)
     return runVideo(args, chosen, materialWarmup);
 
   if (args.headless) return runSweep(args, chosen, materialWarmup);
 
   // ---- one file, live or measured -------------------------------------
-  const std::filesystem::path sketchDir = SIGIL_SKETCH_DIR;
+  const std::filesystem::path sketchDirectory = SIGIL_SKETCH_DIR;
   // Whether the file came from the command line or was derived from a
   // registry selection: only the first is a sketch this binary was not
   // built with, and only the first joins the app's list on its own.
   const bool fileGiven = !args.sketchFile.empty();
   if (!fileGiven && chosen >= 0)
     args.sketchFile =
-        sketch::sourceOf(sketchDir, sketch::registry()[chosen].key);
+        sketch::sourceOf(sketchDirectory, sketch::registry()[chosen].key);
 
   sketch::Host::Options options;
   // DETERMINISTIC BY DEFAULT WHEN CAPTURING. A capture exists to be
@@ -219,16 +220,16 @@ int main(int argc, char* argv[]) {
   // sweep reports it as changed by a patch that changed nothing. The
   // live host keeps its real numbers, which is where they are wanted.
   options.deterministic = args.deterministic.value_or(
-      !args.capture.out.empty() && !args.capture.bench);
+      !args.capture.outputPath.empty() && !args.capture.bench);
   // ASSETS STAND BESIDE THE SKETCH unless `--assets` says otherwise.
   // Leaving this empty is what asks the host for that default, and it is
   // the same answer for a sketch in this repository — whose assets stand
   // beside it too — as for a file anywhere else on disk, which is what
   // makes a directory outside this checkout a place to work.
-  options.assetsDir = args.assetsOverride;
-  options.flagsFile = flagsFileNear(executableDir(argv[0]));
+  options.assetsDirectory = args.assetsOverride;
+  options.flagsFile = flagsFileNear(executableDirectory(argv[0]));
 
-  if (!args.capture.out.empty() || args.capture.bench) {
+  if (!args.capture.outputPath.empty() || args.capture.bench) {
     if (args.sketchFile.empty() || !std::filesystem::exists(args.sketchFile)) {
       std::fprintf(stderr,
                    "usage: Sketchbook <sketch.cpp> [--frame <out.png>] "
@@ -300,23 +301,24 @@ int main(int argc, char* argv[]) {
   // the lock the live canvas draws under. THE WALK IS CLAIMED HERE, on
   // this thread and before the async starts, so a first host opened
   // before the async has run finds it taken and walks nothing.
-  std::future<void> buildDirSweep;
+  std::future<void> buildDirectorySweep;
   if (sketch::Host::claimSweep())
-    buildDirSweep =
-        std::async(std::launch::async, &sketch::Host::sweepAbandonedBuildDirs);
-  SketchCatalog::sketchDir = sketchDir;
+    buildDirectorySweep = std::async(
+        std::launch::async, &sketch::Host::sweepAbandonedBuildDirectories);
+  SketchCatalog::sketchDirectory = sketchDirectory;
   // WHERE THE BROWSER'S THUMBNAILS COME FROM: this app's own store, filled
   // on demand by a background worker and by the `--thumbnails` warm
   // command. The worker renders with the process's own font context and
   // asset store, on the CPU, so it shares no graphics context with the
   // live canvas.
-  SketchCatalog::thumbnailDir = thumbnailStoreDir(args.thumbnailDir);
+  SketchCatalog::thumbnailDirectory =
+      thumbnailStoreDirectory(args.thumbnailDirectory);
   SketchCatalog::thumbnailBudget = args.thumbnailBudget;
   SketchCatalog::thumbnailHeavy = args.thumbnailHeavy;
   SketchCatalog::thumbnailFonts = &fonts();
   SketchCatalog::thumbnailAssets = &assets();
   SketchbookView::fonts = &fonts();
-  SketchbookView::assetsDir = options.assetsDir;
+  SketchbookView::assetsDirectory = options.assetsDirectory;
   SketchbookView::flagsFile = options.flagsFile;
   // A FILE ON THE COMMAND LINE OPENS THE WINDOW ON THAT FILE. The
   // registry is the compiled-in table and settles the first time it is
@@ -347,10 +349,10 @@ int main(int argc, char* argv[]) {
   // the window would otherwise keep warm behind the one on screen go as
   // the next one opens rather than in the middle of measuring it.
   if (args.windowBench.seconds > 0.0) {
-    SketchCatalog::thumbnailDir.clear();
+    SketchCatalog::thumbnailDirectory.clear();
     SketchbookView::oneSessionAtATime = true;
   }
-  sketch::installCrashReporter(args.sketchFile.empty() ? sketchDir
+  sketch::installCrashReporter(args.sketchFile.empty() ? sketchDirectory
                                                        : args.sketchFile);
 
   QGuiApplication application(argc, argv);

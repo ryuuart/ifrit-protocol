@@ -2,13 +2,13 @@
 
 /** @file
  * SigilCompose typography — the two selector forms that address something
- * of THIS library: `sel::style`, a run of a `weave::rich()` value written
- * under a name, and `sel::inFrame`, one frame of a chain named by its
+ * of THIS library: `selectors::style`, a run of a `weave::rich()` value written
+ * under a name, and `selectors::inFrame`, one frame of a chain named by its
  * `Element::key`.
  *
  * The selector VALUE and every form that addresses the text itself —
- * `weave::sel::word`, `line`, `sentence`, `range`, `regex`, `text`, `each`
- * and the `|`, `&`, `!` combinators — are SigilWeave's, in
+ * `weave::selectors::word`, `line`, `sentence`, `range`, `regex`, `text`,
+ * `each` and the `|`, `&`, `!` combinators — are SigilWeave's, in
  * `<sigilweave/query/Selector.h>`. These two are here because what they
  * name is here: a name the content declared, and the key of a node in this
  * tree. Both build the same `weave::Selector`, so either composes with any
@@ -23,7 +23,7 @@
 namespace sigil::compose {
 
 /** The selector forms whose subject is a compose description. */
-namespace sel {
+namespace selectors {
 
 /** EVERY RUN DRESSED UNDER THIS NAME — the runs a `weave::rich()` value
  *  added with `add(utf8, styleName)`, addressed by the name rather than by
@@ -55,8 +55,9 @@ namespace sel {
 /** EVERYTHING THE NAMED FRAME HOLDS — the frame-local address, since every
  *  other form numbers the story.
  *
- *      sel::inFrame("b") & weave::sel::line(0)  // no line: line 0 is in a
- *      sel::inFrame("b")                        // the text frame b got
+ *      selectors::inFrame("b") & weave::selectors::line(0)  // no line: line 0
+ * is in a selectors::inFrame("b")                        // the text frame b
+ * got
  *
  *  Resolved on the leaf being addressed and nowhere else: it selects
  *  everything on the frame whose `key` it names and nothing anywhere else,
@@ -73,6 +74,6 @@ namespace sel {
        .pattern = std::u8string((const char8_t*)key.data(), key.size())});
 }
 
-}  // namespace sel
+}  // namespace selectors
 
 }  // namespace sigil::compose

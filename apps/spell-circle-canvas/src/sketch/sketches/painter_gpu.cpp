@@ -52,7 +52,7 @@ namespace camera = sigil::geometry::mesh::camera;
 namespace render = sigil::geometry::mesh::render;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -168,7 +168,7 @@ struct PainterGpu final : sketch::Sketch {
   Element cell(const char* call, std::u8string note,
                const render::Runtime& runtime) {
     return sketch::kit::caption(
-        kCell.width(), toU8(call), std::move(note),
+        kCell.width(), toUtf8(call), std::move(note),
         custom(std::string("cell.") + call,
                [this, runtime](SkCanvas& canvas, const PaintContext&) {
                  draw(canvas, runtime);
@@ -212,16 +212,16 @@ struct PainterGpu final : sketch::Sketch {
               u8"canvas";
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("PAINTER RUNTIME \xc2\xb7 MeshStyle::runtime + "
-                       "sketch::painterRuntime()"),
-         .subtitle = toU8("dials \xc2\xb7 the runtime (named on each "
-                          "cell) \xc2\xb7 the panel count (3 flat cards "
-                          "and one curved sheet per cell)"),
-         .footer = toU8("drawMesh changes hands; drawImagePanel does "
-                        "not \xe2\x80\x94 a panel concats the "
-                        "perspective and hands the image to the canvas, "
-                        "so the cards are the same on both executors and "
-                        "only the floor and the curve can differ")},
+        {.title = toUtf8("PAINTER RUNTIME \xc2\xb7 MeshStyle::runtime + "
+                         "sketch::painterRuntime()"),
+         .subtitle = toUtf8("dials \xc2\xb7 the runtime (named on each "
+                            "cell) \xc2\xb7 the panel count (3 flat cards "
+                            "and one curved sheet per cell)"),
+         .footer = toUtf8("drawMesh changes hands; drawImagePanel does "
+                          "not \xe2\x80\x94 a panel concats the "
+                          "perspective and hands the image to the canvas, "
+                          "so the cards are the same on both executors and "
+                          "only the floor and the curve can differ")},
         kit::cells({.cells = {cell("render::Runtime::cpu()",
                                    u8"the built-in executor — no device, "
                                    u8"triangles sorted back to front, their "

@@ -75,7 +75,7 @@ bool claimsEverything(const std::vector<Span>& show) {
  *  the geometry actually changed — which only the SURFACE needs, because
  *  only the surface has a cheap rrect to fall out of. Decorations always
  *  draw a path. */
-SkPath gateOutline(const SpanArithmeticOps* arith, const SkPath& src,
+SkPath gateOutline(const SpanArithmeticOperations* arith, const SkPath& src,
                    const std::vector<Span>& show, bool* cut = nullptr) {
   if (claimsEverything(show)) return src;
   if (cut) *cut = true;
@@ -366,7 +366,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // brush engine the node's stroke passes carry, or failing that the one
   // its first spans gate carries. Absent only on a node that has neither,
   // which then has nothing to cut.
-  const SpanArithmeticOps* arith = nullptr;
+  const SpanArithmeticOperations* arith = nullptr;
   if (node.strokeData && node.strokeData->resolver)
     arith = node.strokeData->resolver.get();
   if (!arith && masks)
@@ -813,8 +813,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                                        t;
       fill.kind = Fill::Kind::Color;
     } else {
-      ResolvedProp<Fill> resolved =
-          resolveProp(*node.paint.fill, node.nodeTransition);
+      ResolvedProperty<Fill> resolved =
+          resolveProperty(*node.paint.fill, node.nodeTransition);
       fill = resolved.target;
     }
     resolvedFill = fill;
@@ -945,7 +945,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           // Dressed type draws through the painter its description carries;
           // a description that dresses its text without one (built from the
           // data blocks directly, never through a text verb) draws at rest.
-          const TextPainterOps* painter = textPainterOf(inst);
+          const TextPainterOperations* painter = textPainterOf(inst);
           if ((hasTextFx(inst) || onPath) && painter) {
             painter->paint(inst, canvas, glyphPaint, onPath,
                            {bounds.width(), bounds.height()}, paintCtx);

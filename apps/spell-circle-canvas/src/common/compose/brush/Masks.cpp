@@ -98,11 +98,11 @@ Gate lumaOut(material::skia::Paint coverage) {
 
 namespace {
 
-/** The engine as a MaskResolverOps: a spans gate resolves its terms and
+/** The engine as a MaskResolverOperations: a spans gate resolves its terms and
  *  normalizes, a shape gate resolves its region against the node's
  *  outline, a coverage gate resolves its material. One value for every
  *  gate. */
-struct MaskEngine final : MaskResolverOps {
+struct MaskEngine final : MaskResolverOperations {
   bool operator==(const MaskEngine&) const { return true; }
   std::vector<Span> normalize(const std::vector<Span>& spans) const override {
     return detail::normalizeSpans(spans);

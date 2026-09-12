@@ -59,7 +59,7 @@ namespace weave = sigil::weave;
 namespace scry = sigil::scry;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -235,12 +235,12 @@ struct WebScript final : sketch::Sketch {
         kScrollBy);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("DRIVING A PAGE \xc2\xb7 setLoadCallback + "
-                       "evaluateScript + scroll + mouse"),
-         .subtitle = toU8("dials \xc2\xb7 the script \xc2\xb7 the wheel "
-                          "\xc2\xb7 the point pressed \xe2\x80\x94 one "
-                          "document, four views, one call apart"),
-         .footer = toU8(
+        {.title = toUtf8("DRIVING A PAGE \xc2\xb7 setLoadCallback + "
+                         "evaluateScript + scroll + mouse"),
+         .subtitle = toUtf8("dials \xc2\xb7 the script \xc2\xb7 the wheel "
+                            "\xc2\xb7 the point pressed \xe2\x80\x94 one "
+                            "document, four views, one call apart"),
+         .footer = toUtf8(
              std::string(
                  "every call crosses to the web thread, so each cell was "
                  "driven and then waited on for the engine's own events "
@@ -283,7 +283,7 @@ struct WebScript final : sketch::Sketch {
                       std::string note) {
     const SkRect where = SkRect::MakeWH((float)kViewW, (float)kViewH);
     return sketch::kit::caption(
-        (float)kViewW, toU8(call), toU8(note),
+        (float)kViewW, toUtf8(call), toUtf8(note),
         custom(std::move(key),
                [view, still = std::move(still), where](SkCanvas& canvas,
                                                        const PaintContext&) {
@@ -312,9 +312,9 @@ struct WebScript final : sketch::Sketch {
         .column()
         .gap(10)
         .padding(40)
-        .child(text(toU8("no web engine here"), label(20, sheet.palette.ink)))
-        .child(
-            text(toU8(why), label(12, sheet.palette.ash)).width(Dim(620.0f)));
+        .child(text(toUtf8("no web engine here"), label(20, sheet.palette.ink)))
+        .child(text(toUtf8(why), label(12, sheet.palette.ash))
+                   .width(Dimension(620.0f)));
   }
 };
 

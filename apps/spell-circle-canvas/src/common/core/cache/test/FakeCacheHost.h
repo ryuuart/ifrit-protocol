@@ -84,7 +84,7 @@ struct Counters {
 
 /** The host's one bake tier. Comparable through its counters, so two seam
  *  values built over one host answer equal. */
-struct CountingBake : BakeOps<FakeNode> {
+struct CountingBake : BakeOperations<FakeNode> {
   explicit CountingBake(Counters* c) : counters(c) {}
   Counters* counters = nullptr;
 

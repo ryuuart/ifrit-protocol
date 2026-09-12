@@ -13,7 +13,7 @@
 
 #include "sigilgeometry/path/Segments.h"
 
-namespace sigil::geometry::path::ops {
+namespace sigil::geometry::path::operations {
 
 /** The first chord of @p piece that is not degenerate, as a unit
  *  vector. */
@@ -37,4 +37,4 @@ inline glm::vec2 arrivingAlong(const Segment& piece) {
   return {1, 0};
 }
 
-}  // namespace sigil::geometry::path::ops
+}  // namespace sigil::geometry::path::operations

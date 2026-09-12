@@ -11,7 +11,7 @@
  * What an executor must reproduce: a geometry pass paints the bodies its
  * realisation leaves it into the first image it writes, from the view's
  * camera and under the view's lights; a compute pass cooks its chain
- * into the point set it writes; a post pass applies its op to the images
+ * into the point set it writes; a post pass applies its operation to the images
  * it reads and writes the result. A pass carrying a body runs that body
  * instead, given the view and the targets.
  */

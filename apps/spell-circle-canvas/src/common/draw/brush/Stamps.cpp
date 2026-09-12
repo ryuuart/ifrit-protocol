@@ -257,8 +257,8 @@ void drawStamps(Pen& pen, Constant blend, std::span<const Stamp> stamps) {
   }
   if (transforms.empty()) return;
   sigil::skia::draw::SpriteBatch batch;
-  batch.xforms = transforms;
-  batch.tex = textureRects;
+  batch.transforms = transforms;
+  batch.sourceRectangles = textureRects;
   batch.colors = colors;
   batch.sizes = sizes;
   sigil::skia::draw::drawSpriteAtlas(*canvas, roundTip(), batch,

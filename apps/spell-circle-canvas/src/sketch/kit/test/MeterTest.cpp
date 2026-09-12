@@ -34,7 +34,7 @@ TEST(SketchKitMeter, ABoundLevelFillsTheRailAsAFractionDoes) {
   const SkColor4f figure = kit::houseTheme().palette.figure;
   const auto barAt = [&](float level, int x) {
     SkBitmap drawn =
-        Drawn(kit::meter({.level = level, .width = compose::Dim(200)}))
+        Drawn(kit::meter({.level = level, .width = compose::Dimension(200)}))
             .pixels();
     const SkColor4f pixel = drawn.getColor4f(x, 2);
     return std::abs(pixel.fR - figure.fR) < 0.02f &&
@@ -50,8 +50,8 @@ TEST(SketchKitMeter, ABoundLevelFillsTheRailAsAFractionDoes) {
 TEST(SketchKitMeter, TheBarIsTheFractionOfTheTrack) {
   const kit::Theme& house = kit::houseTheme();
   Element byHand = compose::box()
-                       .width(compose::Dim(220))
-                       .height(compose::Dim(house.spacing.barHeight))
+                       .width(compose::Dimension(220))
+                       .height(compose::Dimension(house.spacing.barHeight))
                        .fill(Fill::color(house.palette.cellGround))
                        .clip()
                        .child(compose::box()
@@ -59,9 +59,9 @@ TEST(SketchKitMeter, TheBarIsTheFractionOfTheTrack) {
                                   .height(compose::pct(100))
                                   .fill(Fill::color(house.palette.figure))
                                   .alignSelf(compose::Align::Stretch));
-  EXPECT_TRUE(
-      sameDrawing(std::move(byHand),
-                  kit::meter({.fraction = 0.4f, .width = compose::Dim(220)})));
+  EXPECT_TRUE(sameDrawing(
+      std::move(byHand),
+      kit::meter({.fraction = 0.4f, .width = compose::Dimension(220)})));
 }
 
 /** THE FILL STATES ITS OWN HEIGHT. A rail is laid out in whichever
@@ -72,8 +72,8 @@ TEST(SketchKitMeter, TheBarFillsItsRailInsideAColumn) {
   const SkColor4f figure = kit::houseTheme().palette.figure;
   SkBitmap drawn = Drawn(compose::box().column().child(
                              kit::meter({.fraction = 0.5f,
-                                         .width = compose::Dim(200),
-                                         .height = compose::Dim(20)})))
+                                         .width = compose::Dimension(200),
+                                         .height = compose::Dimension(20)})))
                        .pixels();
   const SkColor4f pixel = drawn.getColor4f(40, 10);
   EXPECT_NEAR(pixel.fR, figure.fR, 0.02f);
@@ -85,8 +85,8 @@ TEST(SketchKitMeter, TheBarFillsItsRailInsideAColumn) {
 TEST(SketchKitMeter, ABezelHoldsTheFillOffTheFrame) {
   const SkColor4f figure = kit::houseTheme().palette.figure;
   SkBitmap drawn = Drawn(kit::meter({.fraction = 1.0f,
-                                     .width = compose::Dim(200),
-                                     .height = compose::Dim(24),
+                                     .width = compose::Dimension(200),
+                                     .height = compose::Dimension(24),
                                      .keyline = Fill::color(SkColors::kRed),
                                      .keylineWidth = 2.0f,
                                      .inset = 6.0f}))
@@ -104,12 +104,12 @@ TEST(SketchKitMeter, ABezelHoldsTheFillOffTheFrame) {
 /** A fraction outside 0..1 is clamped: a bar past its own end is a
  *  drawing error rather than a reading. */
 TEST(SketchKitMeter, AFractionOutsideTheTrackIsClamped) {
-  EXPECT_TRUE(
-      sameDrawing(kit::meter({.fraction = 3.0f, .width = compose::Dim(220)}),
-                  kit::meter({.fraction = 1.0f, .width = compose::Dim(220)})));
-  EXPECT_TRUE(
-      sameDrawing(kit::meter({.fraction = -1.0f, .width = compose::Dim(220)}),
-                  kit::meter({.fraction = 0.0f, .width = compose::Dim(220)})));
+  EXPECT_TRUE(sameDrawing(
+      kit::meter({.fraction = 3.0f, .width = compose::Dimension(220)}),
+      kit::meter({.fraction = 1.0f, .width = compose::Dimension(220)})));
+  EXPECT_TRUE(sameDrawing(
+      kit::meter({.fraction = -1.0f, .width = compose::Dimension(220)}),
+      kit::meter({.fraction = 0.0f, .width = compose::Dimension(220)})));
 }
 
 TEST(SketchKitMeter, TheDialSweepsWithItsFraction) {

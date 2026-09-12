@@ -97,9 +97,9 @@ struct Style {
   bool operator==(const Style&) const = default;
 };
 
-/** The params struct — the recipe's ABI. Every field is a uniform of the
+/** The parameter struct — the recipe's ABI. Every field is a uniform of the
  *  body by this name. */
-struct SdfParams {
+struct SdfParameters {
   float uPad;
   Color uFill;
   float uBorderW;

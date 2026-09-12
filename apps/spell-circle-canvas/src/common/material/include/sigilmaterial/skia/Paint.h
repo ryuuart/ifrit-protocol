@@ -28,7 +28,7 @@
  * here is SkSL and SkShader and nothing else.
  *
  * A RECIPE-BACKED paint (`recipe()`) is one over a `Material` instance:
- * the recipe's params are its uniforms, its bindings and child slots are
+ * the recipe's parameters are its uniforms, its bindings and child slots are
  * the instance's, and it resolves through the core's program cache with
  * the frame the caller supplies. It sits in the same three tiers by the
  * same rules, and uniform()/child() on it are the core's doors spelled in

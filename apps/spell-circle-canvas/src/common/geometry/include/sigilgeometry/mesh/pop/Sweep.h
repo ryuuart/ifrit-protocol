@@ -53,8 +53,8 @@ namespace sigil::geometry::mesh::pop {
 namespace profile {
 
 /** The first contour of @p outline, flattened. The door from the 2D
- *  shape vocabulary: a star, a squircle, an `ops::PathOp` recipe's
- *  result. A closed outline sweeps as a wrapped ring; an open one
+ *  shape vocabulary: a star, a squircle, an `operations::PathOperation`
+ * recipe's result. A closed outline sweeps as a wrapped ring; an open one
  *  sweeps as a strip. */
 path::Polyline fromPath(const SkPath& outline, float tolerance = 0.4f);
 

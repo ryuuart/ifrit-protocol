@@ -131,13 +131,13 @@ Element panel(const char* title, const char* note, Element inner) {
   // panel would otherwise widen the cell and the two rows would stop
   // lining up column for column.
   return sketch::kit::caption(
-             kPanel, toU8(title), toU8(note),
-             sketch::kit::well({.width = Dim(kPanel),
-                                .height = Dim(kPanel * 1.6f),
+             kPanel, toUtf8(title), toUtf8(note),
+             sketch::kit::well({.width = Dimension(kPanel),
+                                .height = Dimension(kPanel * 1.6f),
                                 .ground = Fill::none(),
                                 .keyline = Fill::color(kFrame)})
                  .child(std::move(inner)))
-      .width(Dim(kPanel));
+      .width(Dimension(kPanel));
 }
 
 /** The shared head of every chain: the column, spread, sized, and a
@@ -229,23 +229,23 @@ struct PopDeform final : sketch::Sketch {
 
     Element banded = kit::cells(
         {.cells = {box()
-                       .width(Dim(kLead))
+                       .width(Dimension(kLead))
                        .column()
                        .gap(6)
-                       .child(text(toU8("\xe2\x80\xa6"
-                                        "and the same four, "
-                                        ".masked(\"band\")"),
+                       .child(text(toUtf8("\xe2\x80\xa6"
+                                          "and the same four, "
+                                          ".masked(\"band\")"),
                                    label(13, kInk, 0.6f)))
-                       .child(text(toU8("a mask is one more lane on the "
-                                        "cloud, so a masked deformer is the "
-                                        "same chain reading one more "
-                                        "channel. The four calls below are "
-                                        "the four above with one more link "
-                                        "in each; the amounts are shared "
-                                        "constants, so the two rows are "
-                                        "comparable by construction."),
+                       .child(text(toUtf8("a mask is one more lane on the "
+                                          "cloud, so a masked deformer is the "
+                                          "same chain reading one more "
+                                          "channel. The four calls below are "
+                                          "the four above with one more link "
+                                          "in each; the amounts are shared "
+                                          "constants, so the two rows are "
+                                          "comparable by construction."),
                                    label(11, kDim))
-                                  .width(Dim(kLead))),
+                                  .width(Dimension(kLead))),
                    panel("twist(\xe2\x80\xa6).masked(\"band\")",
                          "only the band turns", splat(twistedM)),
                    panel("taper(\xe2\x80\xa6).masked(\"band\")",
@@ -257,15 +257,15 @@ struct PopDeform final : sketch::Sketch {
          .gap = 14});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("POP DEFORM \xc2\xb7 select() writes a lane, "
-                       "masked() takes it"),
-         .subtitle = toU8("one column of 1,400 points \xc2\xb7 twist, "
-                          "taper, bend and orient+peak, on the whole "
-                          "cloud above and on the selected band below"),
-         .footer = toU8("every chain is cooked once by the CPU "
-                        "reference executor and splatted by "
-                        "points::drawBillboards \xc2\xb7 all ten are "
-                        "GPU-executable unchanged")},
+        {.title = toUtf8("POP DEFORM \xc2\xb7 select() writes a lane, "
+                         "masked() takes it"),
+         .subtitle = toUtf8("one column of 1,400 points \xc2\xb7 twist, "
+                            "taper, bend and orient+peak, on the whole "
+                            "cloud above and on the selected band below"),
+         .footer = toUtf8("every chain is cooked once by the CPU "
+                          "reference executor and splatted by "
+                          "points::drawBillboards \xc2\xb7 all ten are "
+                          "GPU-executable unchanged")},
         kit::cells({.cells = {std::move(whole), std::move(banded)},
                     .column = true,
                     .gap = 22})));

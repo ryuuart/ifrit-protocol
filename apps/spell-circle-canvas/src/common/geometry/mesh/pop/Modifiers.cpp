@@ -31,9 +31,9 @@ namespace points {
 void jitter(Cloud& cloud, float amplitude, uint32_t seed) {
   const size_t n = cloud.size();
   if (n == 0) return;
-  mesh::kernel::OpDispatch work;
+  mesh::kernel::OperationDispatch work;
   if (!mesh::kernel::describe(
-          pop::Op{pop::Jitter{pop::Lane::P, amplitude, seed}}, n, &work))
+          pop::Operation{pop::Jitter{pop::Lane::P, amplitude, seed}}, n, &work))
     return;
   // The kernel reads and writes one four-wide lane; the positions are
   // poured across it and back, which is the whole of what reaching the
@@ -67,8 +67,9 @@ InstanceOptions stampOptions(const Cloud& cloud) {
   return options;
 }
 
-void promoteToPrims(Mesh& mesh, const Cloud& cloud, std::string_view cloudLane,
-                    const std::string& primLane) {
+void promoteToPrimitives(Mesh& mesh, const Cloud& cloud,
+                         std::string_view cloudLane,
+                         const std::string& primitiveLane) {
   const size_t points = cloud.size();
   const size_t tris = mesh.triangleCount();
   if (points == 0 || tris == 0 || tris % points != 0) return;
@@ -86,7 +87,7 @@ void promoteToPrims(Mesh& mesh, const Cloud& cloud, std::string_view cloudLane,
       wantId ? nullptr : cloud.colorIf(cloudLane);
   if (!wantId && !scalars && !vectors && !colors) return;
 
-  std::vector<glm::vec4>& lane = mesh.prim(primLane);
+  std::vector<glm::vec4>& lane = mesh.primitive(primitiveLane);
   lane.assign(tris, glm::vec4{0, 0, 0, 0});
   for (size_t i = 0; i < points; ++i) {
     glm::vec4 value{0, 0, 0, 0};

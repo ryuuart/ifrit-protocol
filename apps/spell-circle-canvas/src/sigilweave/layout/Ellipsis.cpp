@@ -71,7 +71,7 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
   sk_sp<SkTypeface> typeface = fontContext.resolveTypeface(
       span.style.shaping.typeface, firstCodepoint, languageTag);
   if (!typeface) typeface = fontContext.defaultTypeface();
-  ShapedWordRef marker = shapeWord(
+  ShapedWordReference marker = shapeWord(
       fontContext, span.style.shaping, typeface, options.overflow.ellipsis,
       static_cast<ScriptTag>(HB_SCRIPT_COMMON), false, uprightMarker);
   if (!marker || marker->glyphs.empty()) return;

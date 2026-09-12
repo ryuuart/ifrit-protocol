@@ -24,9 +24,9 @@ namespace fs = std::filesystem;
 namespace sketch = sigil::sketch;
 
 // Set by main() before QML loads, and before the rows are printed.
-fs::path SketchCatalog::sketchDir;
+fs::path SketchCatalog::sketchDirectory;
 std::vector<fs::path> SketchCatalog::externals;
-fs::path SketchCatalog::thumbnailDir;
+fs::path SketchCatalog::thumbnailDirectory;
 std::chrono::milliseconds SketchCatalog::thumbnailBudget =
     sketch::kThumbnailBudget;
 bool SketchCatalog::thumbnailHeavy = false;
@@ -75,7 +75,8 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
     const sketch::Entry& entry = entries[i];
     // The bare file, or the entry of a directory sketch: what the row
     // reads its header and its line count from, and what a click opens.
-    const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+    const fs::path file =
+        sketch::sourceOf(SketchCatalog::sketchDirectory, entry.key);
     QVariantMap row =
         rowFor(i, entry.name, entry.key, QString::fromUtf8(entry.category),
                QString::fromUtf8(entry.blurb), file);
@@ -94,10 +95,10 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
     row.insert(QStringLiteral("reason"), QString::fromStdString(why));
     // A fresh thumbnail already in the store shows at once, without a
     // render — a warm command or an earlier look left it behind.
-    if (!SketchCatalog::thumbnailDir.empty()) {
+    if (!SketchCatalog::thumbnailDirectory.empty()) {
       const std::string k = sketch::thumbnailKey(file);
-      const fs::path fresh =
-          sketch::freshThumbnail(SketchCatalog::thumbnailDir, entry.name, k);
+      const fs::path fresh = sketch::freshThumbnail(
+          SketchCatalog::thumbnailDirectory, entry.name, k);
       if (!fresh.empty())
         row.insert(QStringLiteral("plate"),
                    QUrl::fromLocalFile(QString::fromStdString(fresh.string()))
@@ -130,10 +131,11 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
       [](int index, const std::atomic_bool& stop) {
         const sketch::Entry& entry = sketch::registry()[index];
         const fs::path file =
-            sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+            sketch::sourceOf(SketchCatalog::sketchDirectory, entry.key);
         sketch::ThumbnailRun run;
-        run.out = sketch::thumbnailFile(SketchCatalog::thumbnailDir, entry.name,
-                                        sketch::thumbnailKey(file));
+        run.outputPath =
+            sketch::thumbnailFile(SketchCatalog::thumbnailDirectory, entry.name,
+                                  sketch::thumbnailKey(file));
         run.stem = entry.name;
         run.maxDimension = sketch::kThumbnailWidth;
         run.budget = SketchCatalog::thumbnailBudget;
@@ -178,12 +180,13 @@ QVariantMap SketchCatalog::learn(int index, const QString& canvas,
 
 bool SketchCatalog::fillFromDisk(int index) {
   if (index < 0 || index >= (int)sketch::registry().size()) return false;
-  if (SketchCatalog::thumbnailDir.empty()) return false;
+  if (SketchCatalog::thumbnailDirectory.empty()) return false;
   const sketch::Entry& entry = sketch::registry()[index];
-  const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+  const fs::path file =
+      sketch::sourceOf(SketchCatalog::sketchDirectory, entry.key);
   const std::string key = sketch::thumbnailKey(file);
-  const fs::path fresh =
-      sketch::freshThumbnail(SketchCatalog::thumbnailDir, entry.name, key);
+  const fs::path fresh = sketch::freshThumbnail(
+      SketchCatalog::thumbnailDirectory, entry.name, key);
   if (fresh.empty()) return false;
   const QString url =
       QUrl::fromLocalFile(QString::fromStdString(fresh.string())).toString();
@@ -204,14 +207,17 @@ bool wantsThumbnail(int index) {
   const auto& entries = sketch::registry();
   if (index < 0 || index >= (int)entries.size()) return false;
   if (!entries[index].available()) return false;
-  if (SketchCatalog::thumbnailDir.empty()) return false;
+  if (SketchCatalog::thumbnailDirectory.empty()) return false;
   const sketch::Entry& entry = entries[index];
-  const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+  const fs::path file =
+      sketch::sourceOf(SketchCatalog::sketchDirectory, entry.key);
   const std::string key = sketch::thumbnailKey(file);
-  if (!sketch::freshThumbnail(SketchCatalog::thumbnailDir, entry.name, key)
+  if (!sketch::freshThumbnail(SketchCatalog::thumbnailDirectory, entry.name,
+                              key)
            .empty())
     return false;
-  return sketch::thumbnailNote(SketchCatalog::thumbnailDir, entry.name, key)
+  return sketch::thumbnailNote(SketchCatalog::thumbnailDirectory, entry.name,
+                               key)
       .empty();
 }
 
@@ -219,7 +225,7 @@ bool wantsThumbnail(int index) {
 
 void SketchCatalog::fillThumbnails() {
   if (m_filling || !m_thumbnails || m_thumbnails->ended()) return;
-  if (SketchCatalog::thumbnailDir.empty() ||
+  if (SketchCatalog::thumbnailDirectory.empty() ||
       SketchCatalog::thumbnailFonts == nullptr ||
       SketchCatalog::thumbnailAssets == nullptr)
     return;
@@ -289,8 +295,9 @@ void SketchCatalog::reportThumbnail(int index, sketch::ThumbnailOutcome outcome,
       break;
   }
   if (!note.empty() && outcome != sketch::ThumbnailOutcome::Failed) {
-    const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
-    sketch::noteThumbnail(SketchCatalog::thumbnailDir, entry.name,
+    const fs::path file =
+        sketch::sourceOf(SketchCatalog::sketchDirectory, entry.key);
+    sketch::noteThumbnail(SketchCatalog::thumbnailDirectory, entry.name,
                           sketch::thumbnailKey(file), note);
   }
   const QString name = QString::fromUtf8(entry.name);

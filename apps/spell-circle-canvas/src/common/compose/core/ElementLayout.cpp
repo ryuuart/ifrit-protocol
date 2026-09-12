@@ -61,32 +61,32 @@ Element& Element::margin(float l, float t, float r, float b) {
   return *this;
 }
 
-Element& Element::width(Dim d) {
+Element& Element::width(Dimension d) {
   m_node->layout.width = d;
   return *this;
 }
 
-Element& Element::height(Dim d) {
+Element& Element::height(Dimension d) {
   m_node->layout.height = d;
   return *this;
 }
 
-Element& Element::minWidth(Dim d) {
+Element& Element::minWidth(Dimension d) {
   m_node->layout.minWidth = d;
   return *this;
 }
 
-Element& Element::maxWidth(Dim d) {
+Element& Element::maxWidth(Dimension d) {
   m_node->layout.maxWidth = d;
   return *this;
 }
 
-Element& Element::minHeight(Dim d) {
+Element& Element::minHeight(Dimension d) {
   m_node->layout.minHeight = d;
   return *this;
 }
 
-Element& Element::maxHeight(Dim d) {
+Element& Element::maxHeight(Dimension d) {
   m_node->layout.maxHeight = d;
   return *this;
 }
@@ -106,7 +106,7 @@ Element& Element::shrink(float f) {
   return *this;
 }
 
-Element& Element::basis(Dim d) {
+Element& Element::basis(Dimension d) {
   m_node->layout.basis = d;
   return *this;
 }
@@ -134,38 +134,38 @@ Element& Element::absolute() {
 Element& Element::inset(float all) { return inset(all, all, all, all); }
 
 Element& Element::inset(float l, float t, float r, float b) {
-  return inset(Dim(l), Dim(t), Dim(r), Dim(b));
+  return inset(Dimension(l), Dimension(t), Dimension(r), Dimension(b));
 }
 
-Element& Element::inset(Dim l, Dim t, Dim r, Dim b) {
+Element& Element::inset(Dimension l, Dimension t, Dimension r, Dimension b) {
   m_node->layout.absolute = true;
   m_node->layout.hasInsets = true;
   m_node->layout.insets = {l, t, r, b};
   return *this;
 }
 
-Element& Element::left(Dim d) {
+Element& Element::left(Dimension d) {
   m_node->layout.absolute = true;
   m_node->layout.hasInsets = true;
   m_node->layout.insets.left = d;
   return *this;
 }
 
-Element& Element::top(Dim d) {
+Element& Element::top(Dimension d) {
   m_node->layout.absolute = true;
   m_node->layout.hasInsets = true;
   m_node->layout.insets.top = d;
   return *this;
 }
 
-Element& Element::right(Dim d) {
+Element& Element::right(Dimension d) {
   m_node->layout.absolute = true;
   m_node->layout.hasInsets = true;
   m_node->layout.insets.right = d;
   return *this;
 }
 
-Element& Element::bottom(Dim d) {
+Element& Element::bottom(Dimension d) {
   m_node->layout.absolute = true;
   m_node->layout.hasInsets = true;
   m_node->layout.insets.bottom = d;
@@ -249,16 +249,16 @@ Element& Element::cellAlign(Align across, Align down) {
 // `hasInsets`), so a shortcut that wrote the fields directly would produce a
 // node the longhand can never produce.
 Element& Element::rect(const SkRect& r) {
-  left(Dim(r.fLeft));
-  top(Dim(r.fTop));
-  width(Dim(r.width()));
-  height(Dim(r.height()));
+  left(Dimension(r.fLeft));
+  top(Dimension(r.fTop));
+  width(Dimension(r.width()));
+  height(Dimension(r.height()));
   return *this;
 }
 
 Element& Element::at(SkPoint topLeft) {
-  left(Dim(topLeft.fX));
-  top(Dim(topLeft.fY));
+  left(Dimension(topLeft.fX));
+  top(Dimension(topLeft.fY));
   return *this;
 }
 

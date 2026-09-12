@@ -52,7 +52,7 @@ std::shared_ptr<WebView> WebEngine::createView(int width, int height,
     viewConfig.initial_device_scale = options.deviceScale > 0.0
                                           ? options.deviceScale
                                           : m_impl->config.deviceScale;
-    viewImpl->view = m_impl->ulRenderer().CreateView(
+    viewImpl->view = m_impl->ultralightRenderer().CreateView(
         static_cast<uint32_t>(width), static_cast<uint32_t>(height), viewConfig,
         nullptr);
     viewImpl->view->set_load_listener(viewImpl.get());

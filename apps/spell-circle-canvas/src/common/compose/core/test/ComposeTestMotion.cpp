@@ -231,7 +231,7 @@ TEST(ComposeTravel, APathWithNoMeasurableLengthLeavesTheLanesStanding) {
 }
 
 TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
-  // Per-axis scale has to reach propsEqual like every other paint field.
+  // Per-axis scale has to reach propertiesEqual like every other paint field.
   // Left out, two descriptions differing only in scaleX compare EQUAL: the
   // patch prunes, the node is never marked paint-dirty, and the old picture
   // replays at the old scale — a wrong picture with no failure anywhere.

@@ -68,7 +68,7 @@ struct PictureBakeTarget {
  *  exactly the same words.
  *
  *  Stateless, so every instance of it is the same value. */
-struct PictureBake : core::BakeOps<PictureBakeTarget> {
+struct PictureBake : core::BakeOperations<PictureBakeTarget> {
   void take(PictureBakeTarget& t) const override;
   void replay(PictureBakeTarget& t) const override;
   void drop(PictureBakeTarget& t) const override;
@@ -335,7 +335,7 @@ struct Composer::Impl {
     return description->key;
   }
   static bool equal(const Description& a, const Description& b) {
-    return detail::propsEqual(*a, *b);
+    return detail::propertiesEqual(*a, *b);
   }
   /** Slot content is owned by renderSlot(), not the description. */
   static bool reconcilesChildren(const Description& description) {
@@ -351,7 +351,7 @@ struct Composer::Impl {
     return description->memoData ? &*description->memoData : nullptr;
   }
   static Description produce(const detail::MemoData& memo) {
-    return memo.invoke(memo.props).node();
+    return memo.invoke(memo.properties).node();
   }
   // Acting on an instance:
   /** A fresh instance for @p node under @p parent, patched once. @p ordinal
@@ -386,8 +386,8 @@ struct Composer::Impl {
    *  description carries — plain utf8, `weave::rich()` runs, or a copy of a
    *  supplied Paragraph — and then applies the span restyles in
    *  declaration order. @p lines is the geometry a previous layout
-   *  produced, which is what a `weave::sel::line` restyle addresses; empty
-   *  leaves those selectors unresolved. @p columns carries the same
+   *  produced, which is what a `weave::selectors::line` restyle addresses;
+   * empty leaves those selectors unresolved. @p columns carries the same
    *  geometry for a vertical passage, where a line IS a column. */
   void materializeText(
       detail::Instance& inst,
@@ -607,14 +607,15 @@ struct Composer::Impl {
   // ---- the text painter, as the kernel reaches it ----
   /** The engine a text description installed, or null for text the kernel
    *  draws at rest by itself. */
-  static const TextPainterOps* textPainterOf(const detail::Instance& inst) {
+  static const TextPainterOperations* textPainterOf(
+      const detail::Instance& inst) {
     const detail::ElementNode* node = inst.description.get();
     return node && node->textData ? node->textData->painter.get() : nullptr;
   }
   /** Resolves the node's mark() rects through its painter; a node with no
    *  painter anchors nothing. */
   void resolveTextMarks(detail::Instance& inst) {
-    if (const TextPainterOps* painter = textPainterOf(inst))
+    if (const TextPainterOperations* painter = textPainterOf(inst))
       painter->marks(inst);
     else
       inst.textMarkRects.clear();
@@ -628,7 +629,7 @@ struct Composer::Impl {
     if (!inst.description || !inst.description->textData ||
         inst.description->textData->annotations.empty())
       return;
-    const TextPainterOps* painter = textPainterOf(inst);
+    const TextPainterOperations* painter = textPainterOf(inst);
     if (!painter) painter = detail::registeredTextEngine();
     if (painter) painter->annotations(inst);
   }

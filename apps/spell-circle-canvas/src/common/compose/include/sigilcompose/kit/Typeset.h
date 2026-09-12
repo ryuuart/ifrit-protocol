@@ -49,8 +49,8 @@ namespace sigil::compose::kit {
 /** FURIGANA: a reading set over the base it reads.
  *
  *      text(passage, body)
- *          .annotate(kit::ruby(weave::sel::text(u8"漢字"), weave::Unit::Word,
- *                              {u8"かんじ"}, furigana))
+ *          .annotate(kit::ruby(weave::selectors::text(u8"漢字"),
+ * weave::Unit::Word, {u8"かんじ"}, furigana))
  *
  *  MONO, GROUP AND JUKUGO ARE THE UNIT: `weave::Unit::Cluster` gives one
  *  reading per character, `weave::Unit::Word` one per word, and a compound
@@ -146,15 +146,15 @@ struct NestedStyle {
     const NestedStyle& nested) {
   switch (nested.until) {
     case NestedStyle::Until::Characters:
-      return sigil::weave::sel::range({0, nested.count});
+      return sigil::weave::selectors::range({0, nested.count});
     case NestedStyle::Until::Words:
-      return sigil::weave::sel::words(0, nested.count);
+      return sigil::weave::selectors::words(0, nested.count);
     case NestedStyle::Until::Delimiter:
       break;
   }
-  if (nested.delimiter.empty()) return sigil::weave::sel::words(0, 0);
-  return sigil::weave::sel::regex(u8"\\A[\\s\\S]*?\\Q" + nested.delimiter +
-                                  u8"\\E");
+  if (nested.delimiter.empty()) return sigil::weave::selectors::words(0, 0);
+  return sigil::weave::selectors::regex(u8"\\A[\\s\\S]*?\\Q" +
+                                        nested.delimiter + u8"\\E");
 }
 
 /** A LIST WHOSE MARKERS HANG IN THE INDENT.
@@ -182,13 +182,14 @@ struct NestedStyle {
     const std::u8string& marker =
         markers.empty() ? items[index]
                         : markers[std::min(index, markers.size() - 1)];
-    list.child(
-        box()
-            .child(text(items[index], style)
-                       .width(Dim(measure))
-                       .paragraph(hanging))
-            .child(
-                text(marker, style).absolute().left(Dim(0.0f)).top(Dim(0.0f))));
+    list.child(box()
+                   .child(text(items[index], style)
+                              .width(Dimension(measure))
+                              .paragraph(hanging))
+                   .child(text(marker, style)
+                              .absolute()
+                              .left(Dimension(0.0f))
+                              .top(Dimension(0.0f))));
   }
   return list;
 }
@@ -224,8 +225,8 @@ struct NestedStyle {
   for (int index = 0; index < count; ++index) {
     Element column = frame(story)
                          .key(keyPrefix + std::to_string(index))
-                         .width(Dim(measure))
-                         .height(Dim(height));
+                         .width(Dimension(measure))
+                         .height(Dimension(height));
     if (index + 1 < count)
       column.thread(keyPrefix + std::to_string(index + 1));
     else if (!ellipsis.empty())
@@ -252,8 +253,8 @@ struct Spanner {
  *
  *      root.child(kit::columns({.story = article, .count = 3,
  *                               .gutter = 28, .width = 760, .height = 420,
- *                               .spanners = {{weave::sel::line(11), plate()}},
- *                               .composer = &composer}));
+ *                               .spanners = {{weave::selectors::line(11),
+ * plate()}}, .composer = &composer}));
  *
  *  Each column takes an equal share of `width` after the gutters, and
  *  `height` is the DEEPEST a row of columns may be rather than the depth
@@ -309,8 +310,8 @@ struct ColumnSet {
     for (int i = 0; i < set.count; ++i, ++index) {
       Element column = frame(set.story)
                            .key(keyAt(index))
-                           .width(Dim(measure))
-                           .height(Dim(set.height));
+                           .width(Dimension(measure))
+                           .height(Dimension(set.height));
       // Every row but the last opens a balanced run that must reach the
       // line its spanner breaks after; the last row is the remainder and
       // keeps the depth it was given.
@@ -341,7 +342,7 @@ struct BlockRule {
 
 /** RULES AND SHADING CUT TO WHAT A BLOCK ACTUALLY OCCUPIES.
  *
- *      root.child(kit::rules(composer, "epigraph", sel::all(),
+ *      root.child(kit::rules(composer, "epigraph", selectors::all(),
  *                            {.where = BlockRule::Where::Behind,
  *                             .bleed = 4, .colour = tint})
  *                     .absolute().inset(0));

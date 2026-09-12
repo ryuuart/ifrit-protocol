@@ -18,7 +18,7 @@
 namespace sigil::material::field {
 
 /** The halftone ramp's ABI. */
-struct HalftoneRampParams {
+struct HalftoneRampParameters {
   float uSpacing;
   float uRMin;
   float uRMax;
@@ -56,7 +56,7 @@ Material noise(float frequency, int octaves = 4, float seed = 1.0f,
                bool turbulence = false);
 
 /** The grain's ABI. */
-struct GrainParams {
+struct GrainParameters {
   glm::vec2 uFreq;  ///< frequency with the anisotropy folded in
   float uSeed;
   float uContrast;
@@ -87,7 +87,7 @@ const std::shared_ptr<const Recipe>& grainRecipe(int octaves);
  *  the beam's own profile spans several pixels wants the beam, and close
  *  enough to read the composite signal's own period wants the beat as
  *  well. */
-struct CrtOverlayParams {
+struct CrtOverlayParameters {
   float uScanPitch = 4.0f;       ///< px between scanline centres
   float uScanStrength = 0.052f;  ///< how dark the dark half of a pitch goes
   float uVigInner = 1.45f;       ///< normalised radius the falloff starts at
@@ -116,7 +116,7 @@ struct CrtOverlayParams {
  *
  *  @p scanPitch is the full period in px and the darker half is the first
  *  half of it, which is what makes these lines hard-edged; the beam and
- *  the beat in `CrtOverlayParams` are the profile a gun actually draws,
+ *  the beat in `CrtOverlayParameters` are the profile a gun actually draws,
  *  and this entry point leaves both out. @p squeeze is applied to the
  *  normalised coordinate before the radius is taken, so a value under 1
  *  makes the falloff reach in from the sides sooner than from the top.
@@ -128,12 +128,12 @@ Material crtOverlay(float scanPitch = 4.0f, float scanStrength = 0.052f,
                     float vigStrength = 0.34f, float squeeze = 0.70f);
 /** THE WHOLE TUBE, for the plate that carries more of it than a hard
  *  line — the beam's own profile, the beat under it, the grain. */
-Material crtOverlay(const CrtOverlayParams& params);
+Material crtOverlay(const CrtOverlayParameters& parameters);
 /** crtOverlay()'s recipe, defined once. */
 const std::shared_ptr<const Recipe>& crtOverlayRecipe();
 
 /** The ripple's ABI. */
-struct RippleParams {
+struct RippleParameters {
   float uAmp;
   float uFreq;  ///< radians per px
   float uPhase;

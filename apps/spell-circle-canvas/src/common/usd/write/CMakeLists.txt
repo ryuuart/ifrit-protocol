@@ -1,7 +1,7 @@
 # The write feature: a stage built from the values a scene is made of and
 # saved in the format the file's extension asks for. Links the geometry
 # features it takes values from, SigilMaterialKit for the surface recipe
-# whose params and map slots become a preview surface, SigilWorldLight for
+# whose parameters and map slots become a preview surface, SigilWorldLight for
 # the emitters and SigilWorldElement for the environment map a dome light
 # carries; OpenUSD, the image encoder that turns a texture into bytes and
 # the sink that lands them beside the stage are private to it.

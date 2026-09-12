@@ -44,7 +44,7 @@ struct Probe : Sketch {
 
 void Ledger(benchmark::State& state) {
   SweepOptions options;
-  options.outDir =
+  options.outputDirectory =
       (std::filesystem::temp_directory_path() / "sigil_sweep_bench").string();
   options.ledger = true;
   options.noPromotion = true;

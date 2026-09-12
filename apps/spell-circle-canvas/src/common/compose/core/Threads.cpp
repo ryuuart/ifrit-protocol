@@ -198,8 +198,8 @@ bool Composer::Impl::balanceRuns(const std::vector<Instance*>& chain) {
       if (text && text->balanceChain) break;
       ++last;
     }
-    const Dim declared = chain[first]->description->layout.height;
-    if (declared.unit != Dim::Unit::Px || declared.value <= 0) continue;
+    const Dimension declared = chain[first]->description->layout.height;
+    if (declared.unit != Dimension::Unit::Px || declared.value <= 0) continue;
     const uint32_t cursor = chain[first]->threadCursor;
     const uint32_t through = opens->balanceThroughLine;
     // The line the run is asked to reach is the STORY's, so what the run

@@ -101,8 +101,8 @@ struct SwatchStrip {
   /** Parallel to the swatches, and shorter is allowed: a strip that names
    *  only its ends labels only its ends. An empty label names nothing. */
   std::vector<std::u8string> labels;
-  compose::Dim width;
-  compose::Dim height;
+  compose::Dimension width;
+  compose::Dimension height;
   /** Between neighbours; unset is the theme's row gap. 0 butts the
    *  swatches, which is what a continuous ramp wants. */
   std::optional<float> gap;
@@ -113,8 +113,8 @@ struct SwatchStrip {
  *
  *      sketch::kit::swatchStrip({.swatches = steps,
  *                                .labels = {u8"0", {}, {}, u8"1"},
- *                                .width = Dim(28), .height = Dim(14),
- *                                .gap = 0})
+ *                                .width = Dimension(28), .height =
+ * Dimension(14), .gap = 0})
  */
 [[nodiscard]] compose::Element swatchStrip(const SwatchStrip& strip);
 
@@ -132,7 +132,7 @@ struct Chip {
 
 /** THE CHIP, set in the theme's eyebrow register.
  *
- *      sketch::kit::chip({.label = toU8("PINNED")})
+ *      sketch::kit::chip({.label = toUtf8("PINNED")})
  *
  *  It sizes itself to its word plus the theme's chip padding, so a run of
  *  chips in a row is a row of them at their own widths. */

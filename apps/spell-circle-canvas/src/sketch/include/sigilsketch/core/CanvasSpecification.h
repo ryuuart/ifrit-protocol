@@ -43,7 +43,7 @@ namespace sigil::sketch {
  *  eight in the next, and no downsample recovers the reference from
  *  that. Declaring an integer is how such a sketch keeps its plate on
  *  its own grid, and it is the reason the number outranks the width. */
-struct CanvasSpec {
+struct CanvasSpecification {
   SkSize size = {900, 640};
   SkColor4f background = {0.043f, 0.039f, 0.078f, 1};
   double captureSeconds = -1.0;

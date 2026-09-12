@@ -55,7 +55,7 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 namespace weave = sigil::weave;
 
 namespace {
@@ -97,7 +97,7 @@ inline kit::Caption voice() {
 
 /** A captioned column: the caption over it, the specimen under it. */
 inline Element column(const char* caption, const char* note, Element specimen) {
-  return kit::cell(voice(), toU8(caption), toU8(note), std::move(specimen));
+  return kit::cell(voice(), toUtf8(caption), toUtf8(note), std::move(specimen));
 }
 
 }  // namespace furigana
@@ -114,8 +114,8 @@ struct RubyKenten final : sketch::Sketch {
   Element passage(std::u8string utf8, float height = furigana::kColumnH) {
     namespace f = furigana;
     return text(std::move(utf8), f::body(f::kBodySize, f::kSumi))
-        .width(Dim(f::kColumnW))
-        .height(Dim(height))
+        .width(Dimension(f::kColumnW))
+        .height(Dimension(height))
         .writingMode(weave::WritingMode::kVerticalRL);
   }
 
@@ -134,7 +134,8 @@ struct RubyKenten final : sketch::Sketch {
             u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x81\xae"
             u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
             .annotate(kit::ruby(
-                weave::sel::text(u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"),
+                weave::selectors::text(
+                    u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"),
                 weave::Unit::Cluster,
                 {u8"\xe3\x81\xab", u8"\xe3\x81\xbb", u8"\xe3\x81\x94"},
                 rubyType(), 1.0f));
@@ -144,11 +145,12 @@ struct RubyKenten final : sketch::Sketch {
         passage(
             u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x81\xae"
             u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
-            .annotate(kit::ruby(weave::sel::text(u8"\xe6\x9b\xb8\xe7\x89\xa9"),
-                                weave::Unit::Word,
-                                {u8"\xe3\x81\x97\xe3\x82\x87"
-                                 u8"\xe3\x82\x82\xe3\x81\xa4"},
-                                rubyType(), 1.0f));
+            .annotate(
+                kit::ruby(weave::selectors::text(u8"\xe6\x9b\xb8\xe7\x89\xa9"),
+                          weave::Unit::Word,
+                          {u8"\xe3\x81\x97\xe3\x82\x87"
+                           u8"\xe3\x82\x82\xe3\x81\xa4"},
+                          rubyType(), 1.0f));
 
     // JUKUGO — the compound per cluster, each character its own reading.
     Element jukugo =
@@ -156,7 +158,7 @@ struct RubyKenten final : sketch::Sketch {
             u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"
             u8"\xe3\x82\x92\xe5\xbc\x95\xe3\x81\x8f\xe3\x80\x82")
             .annotate(kit::ruby(
-                weave::sel::text(
+                weave::selectors::text(
                     u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"),
                 weave::Unit::Cluster,
                 {u8"\xe3\x81\x93\xe3\x81\x8f", u8"\xe3\x81\x94",
@@ -171,9 +173,9 @@ struct RubyKenten final : sketch::Sketch {
             u8"\xe3\x81\xab\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"
             u8"\xe3\x81\x8c\xe7\xab\x8b\xe3\x81\xa4\xe3\x80\x82",
             f::kSplitHeight)
-            .width(Dim(f::kColumnW * 2.2f))
+            .width(Dimension(f::kColumnW * 2.2f))
             .annotate(kit::ruby(
-                weave::sel::text(
+                weave::selectors::text(
                     u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"),
                 weave::Unit::Word,
                 {u8"\xe3\x81\x93\xe3\x81\x8f\xe3\x81\x94\xe3\x81\x98"
@@ -186,29 +188,30 @@ struct RubyKenten final : sketch::Sketch {
             u8"\xe3\x81\x93\xe3\x81\x93\xe3\x81\xa0\xe3\x81\x91"
             u8"\xe3\x81\xaf\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"
             u8"\xe3\x81\xaa\xe3\x80\x82")
-            .annotate(kit::kenten(
-                weave::sel::text(u8"\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"),
-                marks, u8"\xef\xb9\x85", 1.0f));
+            .annotate(kit::kenten(weave::selectors::text(
+                                      u8"\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"),
+                                  marks, u8"\xef\xb9\x85", 1.0f));
 
     return box()
         .fill(linearGradient({0, 0}, {0, f::kH}, {f::kKinariLift, f::kKinari}))
-        .child(box()
-                   .absolute()
-                   .inset(52, 44, 0, 0)
-                   .column()
-                   .gap(4)
-                   .child(text(toU8("\xe3\x83\xab\xe3\x83\x93\xe3\x81\xa8"
-                                    "\xe5\x82\x8d\xe7\x82\xb9"),
-                               f::body(30, f::kSumi)))
-                   .child(box().height(6))
-                   .child(text(toU8("A READING IS PART OF THE TEXT"),
-                               f::label(11, f::kAi, 3.0f)))
-                   .child(text(toU8("the band it needs is in the base's strut "
-                                    "before the base is broken, so the column "
-                                    "pitch opens once\nand the reading is "
-                                    "placed on the result"),
-                               f::label(10.5f, f::kUsu, 0.2f))
-                              .width(Dim(430.0f))))
+        .child(
+            box()
+                .absolute()
+                .inset(52, 44, 0, 0)
+                .column()
+                .gap(4)
+                .child(text(toUtf8("\xe3\x83\xab\xe3\x83\x93\xe3\x81\xa8"
+                                   "\xe5\x82\x8d\xe7\x82\xb9"),
+                            f::body(30, f::kSumi)))
+                .child(box().height(6))
+                .child(text(toUtf8("A READING IS PART OF THE TEXT"),
+                            f::label(11, f::kAi, 3.0f)))
+                .child(text(toUtf8("the band it needs is in the base's strut "
+                                   "before the base is broken, so the column "
+                                   "pitch opens once\nand the reading is "
+                                   "placed on the result"),
+                            f::label(10.5f, f::kUsu, 0.2f))
+                           .width(Dimension(430.0f))))
         .child(box()
                    .absolute()
                    .inset(0, 158, 46, 0)
@@ -236,19 +239,20 @@ struct RubyKenten final : sketch::Sketch {
                           .gap = 13,
                           .noteGap = 7,
                           .noteMeasure = 300.0f},
-                         toU8("SPLIT \xc2\xb7 ACROSS A COLUMN BREAK"),
-                         toU8("the base breaks inside the compound, so its "
-                              "reading breaks with it, in proportion to the "
-                              "base's advance either side"),
+                         toUtf8("SPLIT \xc2\xb7 ACROSS A COLUMN BREAK"),
+                         toUtf8("the base breaks inside the compound, so its "
+                                "reading breaks with it, in proportion to the "
+                                "base's advance either side"),
                          std::move(split))
                    .absolute()
                    .inset(52, 320, 0, 0))
-        .child(text(toU8("mono \xc2\xb7 group \xc2\xb7 jukugo are the UNIT "
-                         "and nothing else \xe2\x80\x94 the reading's size is "
-                         "its own type's, never a fraction of the base's"),
-                    f::label(10, f::kUsu, 0.2f))
-                   .absolute()
-                   .inset(52, f::kH - 34, 0, 0));
+        .child(
+            text(toUtf8("mono \xc2\xb7 group \xc2\xb7 jukugo are the UNIT "
+                        "and nothing else \xe2\x80\x94 the reading's size is "
+                        "its own type's, never a fraction of the base's"),
+                 f::label(10, f::kUsu, 0.2f))
+                .absolute()
+                .inset(52, f::kH - 34, 0, 0));
   }
 };
 

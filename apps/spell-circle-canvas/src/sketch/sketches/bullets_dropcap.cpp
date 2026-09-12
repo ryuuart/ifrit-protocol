@@ -56,7 +56,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -85,7 +85,7 @@ weave::TextStyle serif(float size, SkColor4f color, float track = 0) {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 14})
           .child(std::move(body)));
 }
@@ -95,9 +95,9 @@ Element cell(const char* call, const char* note, Element body) {
  *  one text leaf: the initial is not a second element. */
 Element dropped(const char* key, std::optional<kit::NestedStyle> nested) {
   Element block =
-      text(toU8(kPassage), serif(11.5f, kBody))
+      text(toUtf8(kPassage), serif(11.5f, kBody))
           .key(key)
-          .width(Dim(kCell - 28))
+          .width(Dimension(kCell - 28))
           .initialLetter(
               {.lines = kCapLines,
                .margin = kMargin,
@@ -119,9 +119,9 @@ Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
                                     .absolute()
                                     .left(15)
                                     .top(14));
-  ornament.key(key).absolute().left(Dim(0.0f)).top(Dim(0.0f));
-  Element body = text(toU8(kPassage).substr(1), serif(11.5f, kBody))
-                     .width(Dim(kCell - 28))
+  ornament.key(key).absolute().left(Dimension(0.0f)).top(Dimension(0.0f));
+  Element body = text(toUtf8(kPassage).substr(1), serif(11.5f, kBody))
+                     .width(Dimension(kCell - 28))
                      .flowAround(key, kMargin);
   if (nested) body.spanStyle(kit::nestedRun(*nested), nested->style);
   return box().child(std::move(ornament)).child(std::move(body));
@@ -161,20 +161,20 @@ struct BulletsDropCap final : sketch::Sketch {
                                   .margin(kHang, 0, 0, 0));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("BULLETS AND THE INITIAL LETTER \xc2\xb7 "
-                       "initialLetter, kit::NestedStyle, kit::bullets"),
-         .subtitle = toU8("dials \xc2\xb7 the cap's depth in LINES (3, "
-                          "and the size follows from the face) \xc2\xb7 "
-                          "the body's stand-off (7 px) \xc2\xb7 where "
-                          "the nested run stops \xc2\xb7 the hang (16 "
-                          "px per level)"),
-         .footer = toU8("the initial is a property of the block and the "
-                        "layout derives its size; an ornament is still "
-                        "an exclusion the body flows around; the nested "
-                        "style is a span restyle over a selector the "
-                        "vocabulary could already name; and a list is "
-                        "an indent with the marker standing in the room "
-                        "it opened")},
+        {.title = toUtf8("BULLETS AND THE INITIAL LETTER \xc2\xb7 "
+                         "initialLetter, kit::NestedStyle, kit::bullets"),
+         .subtitle = toUtf8("dials \xc2\xb7 the cap's depth in LINES (3, "
+                            "and the size follows from the face) \xc2\xb7 "
+                            "the body's stand-off (7 px) \xc2\xb7 where "
+                            "the nested run stops \xc2\xb7 the hang (16 "
+                            "px per level)"),
+         .footer = toUtf8("the initial is a property of the block and the "
+                          "layout derives its size; an ornament is still "
+                          "an exclusion the body flows around; the nested "
+                          "style is a span restyle over a selector the "
+                          "vocabulary could already name; and a list is "
+                          "an indent with the marker standing in the room "
+                          "it opened")},
         kit::cells(
             {.cells =
                  {cell("text(passage).initialLetter({.lines = 3})",

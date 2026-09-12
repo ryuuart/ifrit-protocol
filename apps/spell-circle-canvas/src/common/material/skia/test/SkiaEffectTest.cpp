@@ -14,6 +14,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/texture/Texture.h>
 
 #include <algorithm>
 #include <cmath>
@@ -33,6 +34,96 @@ TEST(SkiaEffect, AFilterIsBuiltOnceAndComparesByItsIdentity) {
   // The empty effect resolves to nothing and is reflexive.
   EXPECT_EQ(skia::Effect().resolvedImageFilter(nullptr), nullptr);
   EXPECT_TRUE(skia::Effect() == skia::Effect{});
+}
+
+TEST(SkiaEffect, RecipeSnapshotsCompareTheirValuesAndOperands) {
+  struct Parameters {
+    float gain = 1;
+  };
+  const auto tint = std::make_shared<const Recipe>(
+      Recipe::of<Parameters>("effect.snapshot.tint")
+          .body(Target::SkSL, "half4 main(float2 p) { return half4(gain); }"));
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<Parameters>("effect.snapshot")
+          .child("content")
+          .child("tint")
+          .body(Target::SkSL,
+                "half4 main(float2 p) { return content.eval(p) * "
+                "tint.eval(p) * half(gain); }"));
+  Material material(recipe, Parameters{});
+  material.child("tint", Material(tint, Parameters{}));
+  const skia::Effect captured = skia::Effect::recipe(material);
+  ASSERT_NE(captured.imageFilter(), nullptr);
+  EXPECT_TRUE(captured == skia::Effect::recipe(material));
+  EXPECT_TRUE(captured == captured.then(skia::Effect{}));
+  EXPECT_FALSE(captured == skia::Effect::filter(captured.imageFilter()));
+
+  Material changed = material;
+  changed.set("gain", 0.5f);
+  EXPECT_FALSE(captured == skia::Effect::recipe(changed));
+  changed = material;
+  changed.child("tint", Material(tint, Parameters{0.5f}));
+  EXPECT_FALSE(captured == skia::Effect::recipe(changed));
+  EXPECT_TRUE(captured == skia::Effect::recipe(material));
+}
+
+TEST(SkiaEffect, RecipeSnapshotsKeepCapturedLiveValuesApart) {
+  struct Parameters {
+    float gain = 1;
+  };
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<Parameters>("effect.snapshot.live")
+          .child("content")
+          .body(
+              Target::SkSL,
+              "half4 main(float2 p) { return content.eval(p) * half(gain); }"));
+  choreograph::Output<float> gain(1.0f);
+  Material material(recipe, Parameters{});
+  material.bind("gain", &gain);
+  const skia::Effect first = skia::Effect::recipe(material);
+  gain = 0.5f;
+  const skia::Effect second = skia::Effect::recipe(material);
+  ASSERT_NE(first.imageFilter(), nullptr);
+  ASSERT_NE(second.imageFilter(), nullptr);
+  EXPECT_FALSE(first == second);
+  EXPECT_TRUE(first == skia::Effect(first));
+  EXPECT_FALSE(first.isAnimated());
+
+  const skia::Effect expiredSource = [&] {
+    choreograph::Output<float> localGain(0.25f);
+    Material local(recipe, Parameters{});
+    local.bind("gain", &localGain);
+    return skia::Effect::recipe(local);
+  }();
+  const skia::Effect copy = expiredSource;
+  EXPECT_TRUE(expiredSource == copy);
+  EXPECT_NE(copy.resolvedImageFilter(nullptr), nullptr);
+}
+
+TEST(SkiaEffect, RecipeSnapshotsDistinguishSurfaceLowering) {
+  struct Parameters {};
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<Parameters>("effect.snapshot.surface")
+          .child("content")
+          .child("response")
+          .channelwise("response")
+          .body(Target::SkSL,
+                "half4 main(float2 p) { half4 c = content.eval(p); "
+                "return half4(response.eval(float2(c.r * 255, 0)).r, "
+                "response.eval(float2(c.g * 255, 0)).g, "
+                "response.eval(float2(c.b * 255, 0)).b, c.a); }"));
+  auto surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(256, 1));
+  ASSERT_NE(surface, nullptr);
+  surface->getCanvas()->clear(SK_ColorWHITE);
+  Material material(recipe);
+  material.child("response", Texture::of(surface->makeImageSnapshot()));
+  const skia::Effect table =
+      skia::Effect::recipe(material, kRGBA_8888_SkColorType);
+  const skia::Effect shader =
+      skia::Effect::recipe(material, kRGBA_F16_SkColorType);
+  ASSERT_NE(table.colorFilter(), nullptr);
+  ASSERT_NE(shader.imageFilter(), nullptr);
+  EXPECT_FALSE(table == shader);
 }
 
 TEST(SkiaEffect, ABoundUniformMakesItLiveAndItNeverPrunes) {

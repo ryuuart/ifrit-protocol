@@ -18,7 +18,7 @@
 namespace gallery {
 
 /** Live control state pushed down from the QML panel. */
-struct SceneParams {
+struct SceneParameters {
   QString text;                // body text; empty → scene default
   sk_sp<SkTypeface> typeface;  // null → scene default
   float fontSize = 17.0f;
@@ -69,7 +69,7 @@ class Scene {
    *  increments once per rendered frame and freezes while paused. */
   virtual FrameStats render(SkCanvas* canvas, SkISize size,
                             double elapsedSeconds, int frameNumber,
-                            const SceneParams& params,
+                            const SceneParameters& parameters,
                             sigil::weave::FontContext& fontContext) = 0;
 
   /** Handles a pointer press in scene coordinates. */

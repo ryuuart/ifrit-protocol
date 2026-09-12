@@ -4,7 +4,7 @@
  * @ingroup query
  *
  * SELECTING TEXT AS A VALUE: `Selector`, which says which of a passage a
- * caller means, and the `sel::` vocabulary that builds one.
+ * caller means, and the `selectors::` vocabulary that builds one.
  *
  * The other half of this feature answers a question NOW — `findAllOccurrences`
  * hands back the ranges a needle matches in the paragraph it was given. A
@@ -35,7 +35,7 @@ namespace sigil::weave {
 
 /** WHICH OF A PASSAGE A CALLER MEANS, as a comparable value.
  *
- *  Built from `sel::` (see below), combined with `|` (union), `&`
+ *  Built from `selectors::` (see below), combined with `|` (union), `&`
  *  (intersection) and `!` (complement). A default-constructed selector
  *  addresses EVERYTHING, which is what a caller who names nothing gets.
  *
@@ -47,7 +47,7 @@ class Selector {
  public:
   Selector() = default;  ///< everything
 
-  /** Within EACH unit of an `sel::each` selector, keep `n` glyphs from
+  /** Within EACH unit of a `selectors::each` selector, keep `n` glyphs from
    *  wherever `drop()` left off. `take(n)` and `drop(n)` on their own
    *  partition every unit exactly: no glyph is in both, none is in
    *  neither. */
@@ -159,7 +159,7 @@ inline bool Selector::operator==(const Selector& other) const {
 
 /** THE SELECTOR VOCABULARY. Absolute forms name a position in the text;
  *  `each` slices every unit of one granularity the same way. */
-namespace sel {
+namespace selectors {
 
 /** The i-th word — the line-break units the analysis produced. */
 [[nodiscard]] inline Selector word(uint32_t index) {
@@ -213,6 +213,6 @@ namespace sel {
   return Selector::of({.kind = Selector::Kind::Each, .each = granularity});
 }
 
-}  // namespace sel
+}  // namespace selectors
 
 }  // namespace sigil::weave

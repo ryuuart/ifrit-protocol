@@ -18,7 +18,7 @@ namespace sigil::world {
 
 /** WHAT A SELECTOR IS ASKED ABOUT: one node, as the terms read it. The
  *  ancestor keys run from the root down to the node's parent, so
- *  `sel::under("rig")` answers true for everything below the node keyed
+ *  `selectors::under("rig")` answers true for everything below the node keyed
  *  "rig" and false for that node itself. */
 struct Subject {
   std::string_view key;
@@ -37,7 +37,7 @@ struct Subject {
 class Selector {
  public:
   /** Which question a term asks. */
-  enum class Op : uint8_t {
+  enum class Operation : uint8_t {
     All,       ///< every node
     Tag,       ///< the node carries this word
     Key,       ///< the node answers to this key
@@ -55,7 +55,9 @@ class Selector {
 
   /** The term this selector is, for a caller printing or inspecting one.
    *  A default-constructed selector answers `All`. */
-  [[nodiscard]] Op op() const { return m_term ? m_term->op : Op::All; }
+  [[nodiscard]] Operation operation() const {
+    return m_term ? m_term->operation : Operation::All;
+  }
   /** The word a Tag, Key or Under term holds; empty for the rest. */
   [[nodiscard]] const std::string& word() const;
   /** The operands a combinator holds; empty for a leaf term. */
@@ -65,17 +67,18 @@ class Selector {
    *  term compares its material by value. */
   bool operator==(const Selector& other) const;
 
-  /** @private the term constructors the `sel::` factories and the
+  /** @private the term constructors the `selectors::` factories and the
    *  combinators build through. */
-  static Selector leaf(Op op, std::string word);
+  static Selector leaf(Operation operation, std::string word);
   /** @private the material-term constructor. */
-  static Selector leaf(Op op, ::sigil::material::Material material);
+  static Selector leaf(Operation operation,
+                       ::sigil::material::Material material);
   /** @private the constructor the combinators build through. */
-  static Selector combine(Op op, std::vector<Selector> operands);
+  static Selector combine(Operation operation, std::vector<Selector> operands);
 
  private:
   struct Term {
-    Op op = Op::All;
+    Operation operation = Operation::All;
     std::string word;
     std::shared_ptr<const ::sigil::material::Material> material;
     std::vector<Selector> operands;
@@ -91,7 +94,7 @@ Selector operator&(Selector a, Selector b);
 Selector operator!(Selector a);
 
 /** The terms a selector is built from. */
-namespace sel {
+namespace selectors {
 
 /** Nodes carrying @p word — what `Element::tag()` put there. */
 Selector tag(std::string word);
@@ -102,6 +105,6 @@ Selector under(std::string k);
 /** Nodes whose material equals @p m, by value. */
 Selector material(::sigil::material::Material m);
 
-}  // namespace sel
+}  // namespace selectors
 
 }  // namespace sigil::world

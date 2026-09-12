@@ -137,9 +137,9 @@ Element splat(geometry::mesh::Cloud cloud) {
 
 Element panel(const char* title, const char* note, Element inner) {
   return sketch::kit::caption(
-      kPanel, toU8(title), toU8(note),
-      sketch::kit::well({.width = Dim(kPanel),
-                         .height = Dim(kPanel * 0.8f),
+      kPanel, toUtf8(title), toUtf8(note),
+      sketch::kit::well({.width = Dimension(kPanel),
+                         .height = Dimension(kPanel * 0.8f),
                          .ground = Fill::none(),
                          .keyline = Fill::color(kFrame)})
           .child(std::move(inner)));
@@ -169,7 +169,7 @@ struct GeoGroups : sketch::Sketch {
     if (!model || model->parts.empty()) {
       caption = "the .geo did not parse";
       ctx.composer.render(
-          text(toU8(caption), weave::textStyle({.size = 15, .color = kInk}))
+          text(toUtf8(caption), weave::textStyle({.size = 15, .color = kInk}))
               .left(30)
               .top(16));
       return;
@@ -186,16 +186,16 @@ struct GeoGroups : sketch::Sketch {
               " of them";
 
     // 1. As saved, the ring drawn larger: a Math on Scale, masked.
-    saved = geometry::mesh::pop::on(seed).op(kRingLarger).cloud();
+    saved = geometry::mesh::pop::on(seed).operation(kRingLarger).cloud();
     // 2. Peak everyone OUTSIDE the ring: the group inverted into a
     // second lane by a Math, and the peak masked by that.
     peaked = geometry::mesh::pop::on(seed)
                  .copy("ring", "outside")
-                 .op(geometry::mesh::pop::Math{
+                 .operation(geometry::mesh::pop::Math{
                      "outside", {-1, 0, 0, 0}, {1, 0, 0, 0}})
                  .peak(60)
                  .masked("outside")
-                 .op(kRingLarger)
+                 .operation(kRingLarger)
                  .cloud();
     // 3. Only the ring turns.
     twisted = geometry::mesh::pop::on(seed)
@@ -203,17 +203,17 @@ struct GeoGroups : sketch::Sketch {
                   .masked("ring")
                   .peak(30)
                   .masked("ring")
-                  .op(kRingLarger)
+                  .operation(kRingLarger)
                   .cloud();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("GEO GROUPS \xc2\xb7 a point group is a pop mask "
-                       "the moment it lands"),
-         .subtitle = toU8(caption),
-         .footer = toU8("a point group arrives from the file as a 0/1 "
-                        "lane under its own name — which is what "
-                        "masked() reads, and what encode::geo writes "
-                        "back out")},
+        {.title = toUtf8("GEO GROUPS \xc2\xb7 a point group is a pop mask "
+                         "the moment it lands"),
+         .subtitle = toUtf8(caption),
+         .footer = toUtf8("a point group arrives from the file as a 0/1 "
+                          "lane under its own name — which is what "
+                          "masked() reads, and what encode::geo writes "
+                          "back out")},
         kit::cells(
             {.cells = {panel("pop::on(part.asCloud())",
                              "Cd from the file; group \"ring\" scaled up",

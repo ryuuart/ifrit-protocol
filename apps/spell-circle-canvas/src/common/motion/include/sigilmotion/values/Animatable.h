@@ -129,7 +129,7 @@ auto fields(Transitioned<T>& v) {
 
 static_assert(core::kFieldCount<Transitioned<float>> == 4,
               "Transitioned gained or lost a field — rule on it in "
-              "propEqual() below, then bump this count.");
+              "propertyEqual() below, then bump this count.");
 /** Two animatable slots are equal when they take the same form and that
  *  form's contents are equal: a plain value by `==`, a transitioned value
  *  by target, origin, waypoints and spec, a shaped binding by
@@ -138,7 +138,7 @@ static_assert(core::kFieldCount<Transitioned<float>> == 4,
  *  compares equal to a different Output, and a slot that is moving is
  *  never pruned into a slot that is moving to something else. */
 template <typename T>
-bool propEqual(const Animatable<T>& a, const Animatable<T>& b) {
+bool propertyEqual(const Animatable<T>& a, const Animatable<T>& b) {
   if (a.index() != b.index()) return false;
   if (const T* plainA = a.plain()) return *plainA == *b.plain();
   if (const Transitioned<T>* trA = a.transitioned()) {
@@ -152,12 +152,12 @@ bool propEqual(const Animatable<T>& a, const Animatable<T>& b) {
   return a.binding() == b.binding();
 }
 
-/** `propEqual` under the operator, so a description struct holding an
+/** `propertyEqual` under the operator, so a description struct holding an
  *  animatable slot keeps its `= default` equality and cannot acquire a
- *  second, weaker rule by accident. ONE body: this IS `propEqual`. */
+ *  second, weaker rule by accident. ONE body: this IS `propertyEqual`. */
 template <typename T>
 bool operator==(const Animatable<T>& a, const Animatable<T>& b) {
-  return propEqual(a, b);
+  return propertyEqual(a, b);
 }
 
 }  // namespace sigil::motion

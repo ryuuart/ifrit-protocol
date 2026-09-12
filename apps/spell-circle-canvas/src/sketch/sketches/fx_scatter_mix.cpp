@@ -10,7 +10,7 @@
  *
  * `fx::mix` evaluates every operand at the same local t and composes the
  * results by the algebra stacked tracks use: dx, dy and rotation ADD,
- * scale and alpha MULTIPLY. It is not a sequence — `fx::seq` re-clocks
+ * scale and alpha MULTIPLY. It is not a sequence — `fx::sequence` re-clocks
  * its phases over windows, this one runs them all at once — and it is
  * comparable when its operands are, so a mixed track prunes like any
  * other.
@@ -48,7 +48,7 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -77,11 +77,11 @@ weave::TextStyle specimen() {
 Element cell(const char* call, const char* note, const char* key, Track track) {
   track.progress = kProgress;
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
-          .child(text(toU8("DISPLACEMENT"), specimen())
+          .child(text(toUtf8("DISPLACEMENT"), specimen())
                      .key(key)
-                     .width(Dim(kCell - 28))
+                     .width(Dimension(kCell - 28))
                      .absolute()
                      .inset(14, 60, 14, 14)
                      .fx(std::move(track))));
@@ -108,18 +108,18 @@ struct FxScatterMix final : sketch::Sketch {
     const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("SCATTER, MIX AND THE LADDER \xc2\xb7 fx::"
-                       "scatter, fx::mix, Spread::from, distribution"),
-         .subtitle = toU8("dials \xc2\xb7 the progress the photograph is "
-                          "taken at (0.50) \xc2\xb7 the scatter's radius "
-                          "(34 px) and lean (26\xc2\xb0) \xc2\xb7 the "
-                          "origin \xc2\xb7 the distribution curve"),
-         .footer = toU8("mix composes by the algebra stacked tracks use "
-                        "\xe2\x80\x94 dx, dy and rotation add, scale and "
-                        "alpha multiply \xe2\x80\x94 and the scatter's "
-                        "randomness is seeded from each glyph's own "
-                        "identity, so it is the same scatter every "
-                        "frame")},
+        {.title = toUtf8("SCATTER, MIX AND THE LADDER \xc2\xb7 fx::"
+                         "scatter, fx::mix, Spread::from, distribution"),
+         .subtitle = toUtf8("dials \xc2\xb7 the progress the photograph is "
+                            "taken at (0.50) \xc2\xb7 the scatter's radius "
+                            "(34 px) and lean (26\xc2\xb0) \xc2\xb7 the "
+                            "origin \xc2\xb7 the distribution curve"),
+         .footer = toUtf8("mix composes by the algebra stacked tracks use "
+                          "\xe2\x80\x94 dx, dy and rotation add, scale and "
+                          "alpha multiply \xe2\x80\x94 and the scatter's "
+                          "randomness is seeded from each glyph's own "
+                          "identity, so it is the same scatter every "
+                          "frame")},
         kit::cells(
             {.cells =
                  {cell("fx::scatter(34, 26)",

@@ -98,7 +98,7 @@ struct HelloSketch : sketch::Sketch {
                    .cache(Cache::None))
         // Re-rendered by update() whenever the score changes —
         // the keyed text keeps its identity across renders.
-        .child(text(toU8("score " + std::to_string(score)),
+        .child(text(toUtf8("score " + std::to_string(score)),
                     weave::textStyle({.size = 24, .color = hexColor(0xffd9a0)}))
                    .key("score")
                    .inset(650, 120, 90, 480))

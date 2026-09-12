@@ -69,10 +69,10 @@ geometry::mesh::Cloud sparkCloud() {
 }
 
 material::Material glowSurface() {
-  material::kit::SurfaceParams glowParams;
-  glowParams.emissive = {1, 0.5f, 0, 1};
-  glowParams.emissiveStrength = 2;
-  return material::kit::surface(glowParams);
+  material::kit::SurfaceParameters glowParameters;
+  glowParameters.emissive = {1, 0.5f, 0, 1};
+  glowParameters.emissiveStrength = 2;
+  return material::kit::surface(glowParameters);
 }
 
 }  // namespace

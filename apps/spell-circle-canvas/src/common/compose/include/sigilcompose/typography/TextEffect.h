@@ -2,12 +2,12 @@
 
 /** @file
  * SigilCompose typography — THE EFFECT AS A VALUE: what a body sees for
- * one glyph (`GlyphInfo`), the deviation from rest it returns (`GlyphMod`),
- * the callable those two make (`GlyphModFn`), the comparable value one is
- * wrapped in (`TextEffect`, with `Phase` for a sequence) — and nothing
- * else. The effects the runtime evaluates by STRUCTURE are the catalogue
- * beside this file, <sigilcompose/typography/TextFx.h>; the stock presets
- * that are plain values over the seam are the kit's, in
+ * one glyph (`GlyphInfo`), the deviation from rest it returns
+ * (`GlyphModifier`), the callable those two make (`GlyphModifierFunction`), the
+ * comparable value one is wrapped in (`TextEffect`, with `Phase` for a
+ * sequence) — and nothing else. The effects the runtime evaluates by STRUCTURE
+ * are the catalogue beside this file, <sigilcompose/typography/TextFx.h>; the
+ * stock presets that are plain values over the seam are the kit's, in
  * <sigilcompose/kit/Kinetic.h>.
  *
  * Everything on the seam is a COMPARABLE VALUE. That is not decoration:
@@ -64,7 +64,7 @@ struct GlyphInfo {
    *  restyle resolver runs while that list is being edited, so the two
    *  resolvers could not be made to agree on what a given index names. The
    *  handle on a treatment is the NAME the run was written under, which
-   *  `sel::style` addresses and which only new content changes. */
+   *  `selectors::style` addresses and which only new content changes. */
   uint32_t styleIndex = 0;
   uint32_t sentenceIndex = 0;  ///< 0-based sentence
   /** Which beat of the track's own stagger this glyph belongs to, and how
@@ -78,19 +78,19 @@ struct GlyphInfo {
  *  progress t ∈ [0,1]. alpha 0 skips the glyph entirely.
  *
  *  This is the type the composition algebra operates on: stacked tracks,
- *  `fx::mix`, a `fx::seq` crossfade and a `fx::keys` segment all combine
- *  GlyphMods the same way — dx/dy, rotateDeg, skewXDeg and skewYDeg ADD;
- *  scale, scaleX, scaleY, alpha and colorMul MULTIPLY; colorAdd ADDS and
+ *  `fx::mix`, a `fx::sequence` crossfade and a `fx::keys` segment all combine
+ *  GlyphModifiers the same way — dx/dy, rotateDeg, skewXDeg and skewYDeg ADD;
+ *  scale, scaleX, scaleY, alpha and colorMultiplier MULTIPLY; colorAdd ADDS and
  *  colorScreen SCREENS, each channelwise; and the two
  *  SUBSTITUTIONS, `axis` and
  *  `codepoint`, are last-one-wins. Substitutions do not blend because
  *  there is no half-way glyph between two outlines: a later track that
- *  names one replaces what an earlier one named, and a `fx::seq`
+ *  names one replaces what an earlier one named, and a `fx::sequence`
  *  crossfade cuts them at the middle of its window rather than lerping.
  *  (An axis coordinate is the exception inside a crossfade: two phases
  *  driving the SAME axis lerp their values, because the face does have a
  *  continuum between them.) */
-struct GlyphMod {
+struct GlyphModifier {
   float dx = 0, dy = 0;
   float scale = 1;  ///< uniform; multiplies scaleX and scaleY below
   float rotateDeg = 0;
@@ -99,24 +99,24 @@ struct GlyphMod {
    *  pass painting a flat colour multiplies it; a pass painting a shader
    *  takes the equivalent modulation, so a gradient keeps its ramp and
    *  wears the tint over it. White is no tint. */
-  SkColor4f colorMul = {1, 1, 1, 1};
+  SkColor4f colorMultiplier = {1, 1, 1, 1};
   /** A per-channel ADDITIVE term over every pass the glyph's style draws —
    *  the hard flash a multiplier cannot say, because a multiplier only
    *  moves a colour toward black and moves a zero channel not at all. The
-   *  glyph's painted colour becomes `colour·colorMul + colorAdd`, then
+   *  glyph's painted colour becomes `colour·colorMultiplier + colorAdd`, then
    *  `colorScreen` below, clamped to [0,1] at the draw. Adds ACROSS TRACKS
    *  channelwise and clamps once at the draw, so two half flashes make one
    *  full one. RGB only: the alpha component rides the algebra but reaches
    *  no draw — coverage is the multiplicative lane's (`alpha`,
-   *  `colorMul.fA`). Zero is no flash and costs nothing. */
+   *  `colorMultiplier.fA`). Zero is no flash and costs nothing. */
   SkColor4f colorAdd = {0, 0, 0, 0};
   /** A per-channel SCREEN term — the painted colour c becomes
    *  1 − (1 − c)(1 − colorScreen) — the phosphor glow that lifts each
    *  channel in proportion to its headroom and never clips. Screens
    *  COMMUTATIVELY across tracks (1 − (1−a)(1−b) reads the same both
-   *  ways), so stacked glows compose order-free; applied after `colorMul`
-   *  and `colorAdd`, which is what makes one colour-matrix carry all
-   *  three. RGB only, as `colorAdd` is. Zero is no glow and costs
+   *  ways), so stacked glows compose order-free; applied after
+   * `colorMultiplier` and `colorAdd`, which is what makes one colour-matrix
+   * carry all three. RGB only, as `colorAdd` is. Zero is no glow and costs
    *  nothing. */
   SkColor4f colorScreen = {0, 0, 0, 0};
   /** Non-uniform scale and shear on each axis (degrees). An RSXform encodes
@@ -161,8 +161,8 @@ struct GlyphMod {
  *  is reseeded fresh for each glyph, so an effect may draw as many values
  *  as it likes without the sequence depending on how many its neighbours
  *  drew. */
-using GlyphModFn =
-    std::function<GlyphMod(const GlyphInfo&, float, core::noise::Mix64Stream&)>;
+using GlyphModifierFunction = std::function<GlyphModifier(
+    const GlyphInfo&, float, core::noise::Mix64Stream&)>;
 
 /** THE EFFECT, as a comparable value: a name, its parameters, and any
  *  operand effects it was built from.
@@ -170,7 +170,7 @@ using GlyphModFn =
  *  Two effects are equal when they carry the same name, the same
  *  parameters, equal operands and the same curves — so `fx::rise(26) ==
  *  fx::rise(26)`,
- *  `fx::rise(26) != fx::rise(30)`, and a `fx::seq` of equal phases equals
+ *  `fx::rise(26) != fx::rise(30)`, and a `fx::sequence` of equal phases equals
  *  another built the same way. That equality is what lets a re-described
  *  element with unchanged tracks PRUNE instead of re-recording every
  *  frame.
@@ -194,14 +194,15 @@ class TextEffect {
    *
    *  `displaces` is the placement fact below — true unless the body provably
    *  leaves every glyph on its pen position. */
-  TextEffect(std::string name, std::vector<float> params, GlyphModFn fn,
-             float reach, std::vector<choreograph::EaseFn> curves = {},
+  TextEffect(std::string name, std::vector<float> parameters,
+             GlyphModifierFunction function, float reach,
+             std::vector<choreograph::EaseFn> curves = {},
              bool displaces = true) {
     auto state = std::make_shared<State>();
     state->name = std::move(name);
-    state->params = std::move(params);
+    state->parameters = std::move(parameters);
     state->curves = std::move(curves);
-    state->fn = std::move(fn);
+    state->function = std::move(function);
     state->reach = reach;
     state->displaces = displaces;
     m_state = std::move(state);
@@ -226,7 +227,7 @@ class TextEffect {
         {(float)(unsigned char)tag[0], (float)(unsigned char)tag[1],
          (float)(unsigned char)tag[2], (float)(unsigned char)tag[3], value},
         [coordinate](const GlyphInfo&, float, core::noise::Mix64Stream&) {
-          GlyphMod m;
+          GlyphModifier m;
           m.axis = coordinate;
           return m;
         },
@@ -236,19 +237,20 @@ class TextEffect {
   }
 
   /** Evaluates the deviation. An empty effect answers the identity. */
-  GlyphMod operator()(const GlyphInfo& g, float t,
-                      core::noise::Mix64Stream& rng) const {
-    return m_state && m_state->fn ? m_state->fn(g, t, rng) : GlyphMod{};
+  GlyphModifier operator()(const GlyphInfo& g, float t,
+                           core::noise::Mix64Stream& rng) const {
+    return m_state && m_state->function ? m_state->function(g, t, rng)
+                                        : GlyphModifier{};
   }
-  explicit operator bool() const { return m_state && (bool)m_state->fn; }
+  explicit operator bool() const { return m_state && (bool)m_state->function; }
   /** Pixels beyond the element's box this effect may paint. */
   [[nodiscard]] float reach() const { return m_state ? m_state->reach : 0.0f; }
   [[nodiscard]] const std::string& name() const {
     static const std::string kEmpty;
     return m_state ? m_state->name : kEmpty;
   }
-  [[nodiscard]] std::span<const float> params() const {
-    return m_state ? std::span<const float>(m_state->params)
+  [[nodiscard]] std::span<const float> parameters() const {
+    return m_state ? std::span<const float>(m_state->parameters)
                    : std::span<const float>();
   }
   [[nodiscard]] std::span<const TextEffect> operands() const {
@@ -270,7 +272,7 @@ class TextEffect {
     if (m_state == other.m_state) return true;  // copies of one value
     if (!m_state || !other.m_state) return false;
     if (m_state->name != other.m_state->name ||
-        m_state->params != other.m_state->params ||
+        m_state->parameters != other.m_state->parameters ||
         m_state->reach != other.m_state->reach ||
         m_state->operands != other.m_state->operands)
       return false;
@@ -288,21 +290,22 @@ class TextEffect {
     return true;
   }
 
-  /** A phase of `fx::seq` ending at local `t` — `a.until(0.35f)`. */
+  /** A phase of `fx::sequence` ending at local `t` — `a.until(0.35f)`. */
   [[nodiscard]] class Phase until(float t) const;
 
-  /** Builds a composite (`fx::seq`, `fx::mix`) — the operands ride the
+  /** Builds a composite (`fx::sequence`, `fx::mix`) — the operands ride the
    *  value so the result compares by structure. `displaces` is the fact
    *  DERIVED from those operands: a composite moves its glyphs when any
    *  operand it may evaluate does. */
-  static TextEffect composite(std::string name, std::vector<float> params,
-                              std::vector<TextEffect> operands, GlyphModFn fn,
-                              float reach, bool displaces) {
+  static TextEffect composite(std::string name, std::vector<float> parameters,
+                              std::vector<TextEffect> operands,
+                              GlyphModifierFunction function, float reach,
+                              bool displaces) {
     auto state = std::make_shared<State>();
     state->name = std::move(name);
-    state->params = std::move(params);
+    state->parameters = std::move(parameters);
     state->operands = std::move(operands);
-    state->fn = std::move(fn);
+    state->function = std::move(function);
     state->reach = reach;
     state->displaces = displaces;
     TextEffect out;
@@ -333,7 +336,7 @@ class TextEffect {
    *  and the shader and draws the glyphs directly. The contract, and what
    *  a false promise looks like, is documented at `fx::pass` below.
    *  Pass effects only: on any other effect this warns once and returns
-   *  the effect unchanged. The declaration rides the effect's params, so
+   *  the effect unchanged. The declaration rides the effect's parameters, so
    *  it participates in equality as every parameter does. */
   [[nodiscard]] TextEffect restsAt(float phase) const;
   /** Both ends: `fx::pass(m).restsAt(0, 1)`. */
@@ -341,8 +344,9 @@ class TextEffect {
   /** The declared pass-through phases — empty when none were declared,
    *  and for every per-glyph effect. */
   [[nodiscard]] std::span<const float> restPhases() const {
-    return m_state && m_state->pass ? std::span<const float>(m_state->params)
-                                    : std::span<const float>();
+    return m_state && m_state->pass
+               ? std::span<const float>(m_state->parameters)
+               : std::span<const float>();
   }
 
   /** DOES THIS EFFECT MOVE ITS GLYPHS OFF THEIR PEN POSITIONS? A glyph mask
@@ -369,9 +373,9 @@ class TextEffect {
    *
    *  Every effect the library builds ANSWERS FOR ITSELF and needs no call
    *  here: a preset knows its own deviation, `fx::keys` reads its table, and
-   *  `fx::seq`, `fx::mix` and `fx::hold` derive from their operands. The
-   *  declaration rides the effect's params, so two bodies under one key that
-   *  disagree about placement compare unequal and re-patch.
+   *  `fx::sequence`, `fx::mix` and `fx::hold` derive from their operands. The
+   *  declaration rides the effect's parameters, so two bodies under one key
+   * that disagree about placement compare unequal and re-patch.
    *
    *  A PASS is not a placement: `fx::pass` runs its shader over pixels that
    *  were already rasterized at the glyphs' resting origins, so refining
@@ -382,10 +386,10 @@ class TextEffect {
  private:
   struct State {
     std::string name;
-    std::vector<float> params;
+    std::vector<float> parameters;
     std::vector<TextEffect> operands;
     std::vector<choreograph::EaseFn> curves;
-    GlyphModFn fn;
+    GlyphModifierFunction function;
     float reach = 0;
     /** Whether the body moves glyphs off their pen positions — see
      *  displaces(). True is the safe answer, so it is the default. */
@@ -395,24 +399,24 @@ class TextEffect {
      *  equality by VALUE (the paint's operator==), like an Effect child. */
     std::shared_ptr<const material::skia::Paint> pass;
   };
-  /** restsAt()'s one body: appends the phases to the pass's params — a
-   *  pass carries no other parameters, so its params slot IS the rest
+  /** restsAt()'s one body: appends the phases to the pass's parameters — a
+   *  pass carries no other parameters, so its parameters slot IS the rest
    *  declaration and the phases join equality with no second clause. */
   [[nodiscard]] TextEffect withRests(std::initializer_list<float> phases) const;
   std::shared_ptr<const State> m_state;
 };
 
-/** One phase of a `fx::seq`: an effect, where it ends in local time, and
+/** One phase of a `fx::sequence`: an effect, where it ends in local time, and
  *  how long it crossfades into whatever follows. */
 class Phase {
  public:
-  Phase(TextEffect e)  // NOLINT: implicit by design (seq(a.until(…), b))
+  Phase(TextEffect e)  // NOLINT: implicit by design (sequence(a.until(…), b))
       : m_effect(std::move(e)) {}
   Phase(TextEffect e, float endsAt)
       : m_effect(std::move(e)), m_endsAt(endsAt) {}
   /** Lerp this phase's deviation into the next one's over the last
    *  `fraction` of local time before the joint. Default is a hard cut. */
-  Phase& xfade(float fraction) {
+  Phase& crossfade(float fraction) {
     m_overlap = fraction;
     return *this;
   }

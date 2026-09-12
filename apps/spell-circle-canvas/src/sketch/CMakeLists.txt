@@ -54,11 +54,11 @@ set(SIGIL_SKETCH_SOURCES
   canvas/Context.cpp canvas/Session.cpp
   set/Context.cpp set/Session.cpp
   draw/Session.cpp
-  live/BuildDir.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
+  live/BuildDirectory.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
   plate/Compare.cpp plate/Graphite.cpp plate/Story.cpp plate/Sweep.cpp
   plate/ThumbnailQueue.cpp plate/Thumbnails.cpp)
 set(SIGIL_SKETCH_HEADERS
-  core/Assets.h core/CanvasSpec.h core/Crash.h core/Device.h core/Fit.h
+  core/Assets.h core/CanvasSpecification.h core/Crash.h core/Device.h core/Fit.h
   core/Kind.h core/Registry.h core/Session.h core/Sources.h
   canvas/Sketch.h
   set/Set.h

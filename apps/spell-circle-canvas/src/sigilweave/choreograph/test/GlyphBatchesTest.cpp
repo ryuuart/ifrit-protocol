@@ -218,7 +218,7 @@ TEST(GlyphBatches, TintMultipliesAFlatPassAndModulatesAShaderOne) {
   // Green only: the blue outline underlay must go black, and the red end of
   // the gradient foreground must go black too, while its green end holds.
   GlyphDress dress;
-  dress.colorMul = {0, 1, 0, 1};
+  dress.colorMultiplier = {0, 1, 0, 1};
   GlyphRSXformBatches batches;
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
     GlyphDress placed = dress;
@@ -272,7 +272,7 @@ TEST(GlyphBatches, OneTintIsOneBucketHoweverManyGlyphsWearIt) {
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
     GlyphDress dress;
     dress.center = glyph.rest + SkVector{glyph.advance * 0.5f, 0};
-    dress.colorMul = {0.5f, 0.75f, 1.0f, 1.0f};
+    dress.colorMultiplier = {0.5f, 0.75f, 1.0f, 1.0f};
     batches.addGlyph(glyph, dress);
   });
   EXPECT_EQ(batches.batches.size(), 1u)

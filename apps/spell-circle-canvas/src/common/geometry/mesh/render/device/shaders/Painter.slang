@@ -109,14 +109,14 @@ struct VSIn {
   /** The PRIMITIVE lane: one value per triangle, carried on each of its
    *  three vertices because a triangle has nowhere else to hold one. It
    *  is 1 wherever no lane was named. */
-  float4 prim : ATTRIB4;
+  float4 primitive : ATTRIB4;
 };
 
 struct VSOut {
   float4 position : SV_Position;
   /** The whole shaded colour, straight alpha, already saturated. */
   float4 color : COLOR0;
-  float4 prim : COLOR1;
+  float4 primitive : COLOR1;
   float2 uv : TEXCOORD0;
 };
 
@@ -163,7 +163,7 @@ float4 shadeVertex(VSIn input) {
   float3 ambient = uAmbient.rgb;
   if (uEnvDiffuse.w > 0.5) {
     let skyN = mul(uEnvMatrix, float4(n, 0.0)).xyz;
-    ambient = uIrradiance.SampleLevel(equirectUv(skyN), 0.0).rgb *
+    ambient = uIrradiance.SampleLevel(equirectangularUv(skyN), 0.0).rgb *
               uEnvDiffuse.rgb;
   }
   float3 accum = albedo * ambient;
@@ -189,7 +189,7 @@ float4 shadeVertex(VSIn input) {
     let skyR = mul(uEnvMatrix, float4(r, 0.0)).xyz;
     let level = roughnessLevel(rough + uSurface.z, uEnvSpecular.w);
     let radiance =
-        uEnvironment.SampleLevel(equirectUv(skyR), level).rgb *
+        uEnvironment.SampleLevel(equirectangularUv(skyR), level).rgb *
         uEnvSpecular.rgb;
     accum = accum + environmentSpecular(radiance, f0, rough, nDotV);
   }
@@ -214,7 +214,7 @@ VSOut vsPaint(VSIn input) {
   // host multiplies it too — into the vertex colour it has already
   // finished shading. Only the lit mode carries one: the two buffers
   // would be corrupted by a tint.
-  out.prim = uMode.x > 0.5 ? float4(1.0, 1.0, 1.0, 1.0) : input.prim;
+  out.primitive = uMode.x > 0.5 ? float4(1.0, 1.0, 1.0, 1.0) : input.primitive;
   return out;
 }
 
@@ -223,8 +223,8 @@ VSOut vsPaint(VSIn input) {
  *  sets expects. */
 [shader("fragment")]
 float4 fsPaint(VSOut input) : SV_Target {
-  let tinted = float4(input.color.rgb * input.prim.rgb,
-                      input.color.a * input.prim.a);
+  let tinted = float4(input.color.rgb * input.primitive.rgb,
+                      input.color.a * input.primitive.a);
   let uv = mul(uTextureUv, float4(input.uv, 0.0, 1.0)).xy;
   let map = uTexture.Sample(uv);
   let rgb = tinted.rgb * map.rgb;

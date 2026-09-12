@@ -26,15 +26,15 @@ namespace {
 
 /** A material that paints rather than covers: no range to move, no
  *  answer to flip. */
-struct PaintParams {
+struct PaintParameters {
   Color uColor;
 };
 
 Material paint() {
   static const std::shared_ptr<const Recipe> recipe =
-      std::make_shared<const Recipe>(Recipe::of<PaintParams>("paint").body(
+      std::make_shared<const Recipe>(Recipe::of<PaintParameters>("paint").body(
           Target::SkSL, "half4 main(float2 p) { return half4(uColor); }"));
-  return Material(recipe, PaintParams{{1, 0, 0, 1}});
+  return Material(recipe, PaintParameters{{1, 0, 0, 1}});
 }
 
 /** A white 2x2, for a sampled mask to read. */

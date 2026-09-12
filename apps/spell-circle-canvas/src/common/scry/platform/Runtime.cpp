@@ -7,12 +7,12 @@
 
 #include <filesystem>
 
-#include "ResourceDir.h"
+#include "ResourceDirectory.h"
 
 namespace sigil::scry {
 
 bool available(std::string* why) {
-  const std::string dir = resolveResourceDir({});
+  const std::string dir = resolveResourceDirectory({});
   std::string missing;
   std::error_code ec;
   // The ICU data the layout engine reads and the certificate bundle its

@@ -34,7 +34,7 @@ concept FourFloatColor = requires(const C& value) {
 
 /** A colour as a shader receives it: four straight (not premultiplied)
  *  components in sRGB, one float each. Exactly four floats in memory, so a
- *  params struct holding one mirrors to bytes as a plain float4 uniform. */
+ *  parameter struct holding one mirrors to bytes as a plain float4 uniform. */
 struct Color {
   float r = 0, g = 0, b = 0, a = 1;
 

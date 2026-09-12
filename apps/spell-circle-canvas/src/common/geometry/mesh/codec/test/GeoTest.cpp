@@ -108,15 +108,15 @@ TEST(ReadGeo, PolygonsUnweldWithTheirVertexAndPrimitiveClasses) {
   EXPECT_FLOAT_EQ(mesh.uvs[2].x, 1.0f);
   EXPECT_FLOAT_EQ(mesh.uvs[2].y, 0.0f);
   EXPECT_FLOAT_EQ(mesh.uvs[6].x, 0.5f);
-  // Primitive Cd -> the "Color" prim lane, replicated over the fan.
-  const std::vector<glm::vec4>* color = mesh.primIf("Color");
+  // Primitive Cd -> the "Color" primitive lane, replicated over the fan.
+  const std::vector<glm::vec4>* color = mesh.primitiveIf("Color");
   ASSERT_TRUE(color);
   ASSERT_EQ(color->size(), 3u);
   EXPECT_FLOAT_EQ((*color)[0].r, 1.0f);
   EXPECT_FLOAT_EQ((*color)[1].r, 1.0f);
   EXPECT_FLOAT_EQ((*color)[2].b, 1.0f);
-  // Primitive group -> a 0/1 prim lane.
-  const std::vector<glm::vec4>* front = mesh.primIf("front");
+  // Primitive group -> a 0/1 primitive lane.
+  const std::vector<glm::vec4>* front = mesh.primitiveIf("front");
   ASSERT_TRUE(front);
   EXPECT_FLOAT_EQ((*front)[0].x, 1.0f);
   EXPECT_FLOAT_EQ((*front)[1].x, 1.0f);

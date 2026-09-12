@@ -54,13 +54,13 @@ float controlDeviation(const SkPoint pts[], int count) {
   return worst;
 }
 
-glm::vec2 evalQuad(const SkPoint p[3], float t) {
+glm::vec2 evaluateQuadratic(const SkPoint p[3], float t) {
   const float u = 1 - t;
   return {u * u * p[0].fX + 2 * u * t * p[1].fX + t * t * p[2].fX,
           u * u * p[0].fY + 2 * u * t * p[1].fY + t * t * p[2].fY};
 }
 
-glm::vec2 evalCubic(const SkPoint p[4], float t) {
+glm::vec2 evaluateCubic(const SkPoint p[4], float t) {
   const float u = 1 - t;
   return {u * u * u * p[0].fX + 3 * u * u * t * p[1].fX +
               3 * u * t * t * p[2].fX + t * t * t * p[3].fX,
@@ -68,15 +68,15 @@ glm::vec2 evalCubic(const SkPoint p[4], float t) {
               3 * u * t * t * p[2].fY + t * t * t * p[3].fY};
 }
 
-template <typename Eval>
+template <typename Evaluator>
 void flattenCurve(std::vector<glm::vec2>& out, const SkPoint pts[], int count,
-                  float tolerance, Eval eval) {
+                  float tolerance, Evaluator evaluate) {
   const float dev = controlDeviation(pts, count);
   int segments =
       dev <= tolerance ? 1 : (int)std::ceil(std::sqrt(dev / tolerance) * 4.0f);
   segments = std::clamp(segments, 1, 256);
   for (int i = 1; i <= segments; ++i)
-    out.push_back(eval(pts, (float)i / (float)segments));
+    out.push_back(evaluate(pts, (float)i / (float)segments));
 }
 
 }  // namespace
@@ -210,7 +210,7 @@ std::vector<Polyline> flatten(const SkPath& path, float tolerance) {
         current.points.push_back(fromSk(pts[1]));
         break;
       case SkPath::kQuad_Verb:
-        flattenCurve(current.points, pts, 3, tolerance, evalQuad);
+        flattenCurve(current.points, pts, 3, tolerance, evaluateQuadratic);
         break;
       case SkPath::kConic_Verb: {
         SkPoint quads[1 + 2 * 2];
@@ -218,11 +218,11 @@ std::vector<Polyline> flatten(const SkPath& path, float tolerance) {
             pts[0], pts[1], pts[2], iter.conicWeight(), quads, 1);
         for (int q = 0; q < count; ++q)
           flattenCurve(current.points, quads + static_cast<ptrdiff_t>(q) * 2, 3,
-                       tolerance, evalQuad);
+                       tolerance, evaluateQuadratic);
         break;
       }
       case SkPath::kCubic_Verb:
-        flattenCurve(current.points, pts, 4, tolerance, evalCubic);
+        flattenCurve(current.points, pts, 4, tolerance, evaluateCubic);
         break;
       case SkPath::kClose_Verb:
         current.closed = true;

@@ -74,7 +74,7 @@ namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -250,13 +250,13 @@ struct HitSlots final : sketch::Sketch {
             .absolute()
             .inset(20, ctx.size.height() - 78, 20, 14)
             .hitTestable(false)
-            .child(text(toU8("hitTest(probe) \xe2\x86\x92 " + hitLabel),
+            .child(text(toUtf8("hitTest(probe) \xe2\x86\x92 " + hitLabel),
                         label(16, sketch::kit::theme().palette.ink)))
-            .child(
-                text(toU8("bounds(\"" + hitLabel + "\") \xe2\x86\x92 " + rect),
-                     label(12.5f, sketch::kit::theme().palette.ash)))
             .child(text(
-                toU8("routesAt(\"" + hitLabel + "\") \xe2\x86\x92 " + routes),
+                toUtf8("bounds(\"" + hitLabel + "\") \xe2\x86\x92 " + rect),
+                label(12.5f, sketch::kit::theme().palette.ash)))
+            .child(text(
+                toUtf8("routesAt(\"" + hitLabel + "\") \xe2\x86\x92 " + routes),
                 label(12.5f, sketch::kit::theme().palette.ash))));
   }
 

@@ -61,8 +61,8 @@ Element cells(Cells run) {
   bool first = true;
   for (Element& cell : run.cells) {
     if (!first && ruled) {
-      Element rule = run.column ? box().height(Dim(run.dividerWidth))
-                                : box().width(Dim(run.dividerWidth));
+      Element rule = run.column ? box().height(Dimension(run.dividerWidth))
+                                : box().width(Dimension(run.dividerWidth));
       // The rule spans the run's whole cross extent whatever the cells'
       // own alignment is: a rule that stopped at the tallest cell's top
       // would read as a tick.

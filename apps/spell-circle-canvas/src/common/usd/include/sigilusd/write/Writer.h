@@ -37,7 +37,7 @@ namespace sigil::usd {
 struct WriteOptions {
   /** Where the materials' images are written, relative to the stage
    *  file; empty = "<stem>_textures". PNG. */
-  std::filesystem::path textureDir;
+  std::filesystem::path textureDirectory;
   /** USD's stage metadata. Meshes here are authored in whatever units
    *  the caller used; metersPerUnit tells a consumer how to read them
    *  (0.01 = centimetres, the DCC default). */

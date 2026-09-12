@@ -178,15 +178,16 @@ Mesh quads(const Cloud& cloud, float width, float height,
  *  Promote), the instancing companion: an instanced @p mesh lays each
  *  point's stamp down as a consecutive run of triangles, so triangle
  *  index / (triangles per stamp) IS the owning point. Fills
- *  Mesh::prims[@p primLane] from the cloud lane @p cloudLane —
+ *  Mesh::primitives[@p primitiveLane] from the cloud lane @p cloudLane —
  *  scalars broadcast to all four components, vectors take w = 0,
  *  colors copy — and the RESERVED source name "Id" writes the owning
  *  point's index in .x instead of reading a lane.
  *
- *  No-op unless the mesh's triangle count divides evenly by the
+ *  No-operation unless the mesh's triangle count divides evenly by the
  *  cloud's point count (i.e. it really is @p cloud instanced). */
-void promoteToPrims(Mesh& mesh, const Cloud& cloud, std::string_view cloudLane,
-                    const std::string& primLane);
+void promoteToPrimitives(Mesh& mesh, const Cloud& cloud,
+                         std::string_view cloudLane,
+                         const std::string& primitiveLane);
 
 /** How `drawBillboards()` splats its sprites — the image and its size,
  *  the lanes that vary size and tint per point, and whether the
@@ -200,17 +201,17 @@ struct BillboardStyle {
   std::string tintLane;  ///< color per point
   /** THE ATLAS WINDOW LANE: a colour lane holding {uOffset, vOffset,
    *  uScale, vScale} per point, in the unit square — which is exactly
-   *  what a `pop::Atlas` op writes into "Tex". Each splat then draws
+   *  what a `pop::Atlas` operation writes into "Tex". Each splat then draws
    *  THAT CELL of the sprite instead of the whole image, so one sheet of
    *  sprites splats as a field of different ones and a cloud carries
    *  which is which.
    *
    *  Named rather than assumed, because a cloud may carry "Tex" for the
    *  stamping path while these splats are meant to be one sprite; say
-   *  `"Tex"` to read what the atlas op wrote. A point whose window is
+   *  `"Tex"` to read what the atlas operation wrote. A point whose window is
    *  degenerate, or which the lane does not reach, takes the whole
    *  image. */
-  std::string texLane;
+  std::string textureLane;
   glm::vec4 tint = {1, 1, 1, 1};
   bool additive = true;  ///< kPlus glow vs kSrcOver
   bool depthSort = true;

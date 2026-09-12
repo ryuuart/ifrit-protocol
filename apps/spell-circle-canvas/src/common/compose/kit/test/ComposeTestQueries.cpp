@@ -86,7 +86,7 @@ TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
   // (Nightingale's 1858 plate) and a counter-clockwise one puts it INWARD
   // (Chevreul's 1864 limb) — both uniform engraver's conventions,
   // opposite in sign, which is why a ring inscription so often ends up
-  // hand-rolling an OutlineFn over a default nobody chose.
+  // hand-rolling an OutlineFunction over a default nobody chose.
   //
   // The two assertions are chosen so as NOT to depend on knowing which
   // quadrant Skia's addOval starts in: the directed overload at kCW is
@@ -360,10 +360,10 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
     return box().child(box()
                            .key("plate")
                            .absolute()
-                           .left(Dim(40))
-                           .top(Dim(60))
-                           .width(Dim(50))
-                           .height(Dim(30))
+                           .left(Dimension(40))
+                           .top(Dimension(60))
+                           .width(Dimension(50))
+                           .height(Dimension(30))
                            .fill(red()));
   };
   auto terse = [&] {
@@ -379,7 +379,7 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
   EXPECT_EQ(host.pixel(45, 55), SK_ColorBLACK);  // above the top edge
   EXPECT_EQ(host.pixel(95, 65), SK_ColorBLACK);  // right of the right edge
 
-  // Re-describe with rect(). Equal props => the reconciler prunes it.
+  // Re-describe with rect(). Equal properties => the reconciler prunes it.
   host.composer.render(terse());
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
@@ -414,8 +414,8 @@ TEST(ComposePlacement, AtPinsTheCornerAndLeavesTheNodeToSizeItself) {
     return box().child(text(u8"Wm", styleAt(20))
                            .key("cap")
                            .absolute()
-                           .left(Dim(30))
-                           .top(Dim(40)));
+                           .left(Dimension(30))
+                           .top(Dimension(40)));
   };
   auto terse = [] {
     return box().child(text(u8"Wm", styleAt(20)).key("cap").at({30, 40}));
@@ -456,16 +456,20 @@ TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
     return box().child(box()
                            .key("p")
                            .absolute()
-                           .left(Dim(30))
-                           .top(Dim(30))
+                           .left(Dimension(30))
+                           .top(Dimension(30))
                            .width(20)
                            .height(20)
                            .fill(red()));
   };
   auto without = [] {
-    return box().child(
-        box().key("p").left(Dim(30)).top(Dim(30)).width(20).height(20).fill(
-            red()));
+    return box().child(box()
+                           .key("p")
+                           .left(Dimension(30))
+                           .top(Dimension(30))
+                           .width(20)
+                           .height(20)
+                           .fill(red()));
   };
   host.composer.render(withRedundant());
   host.frame();
@@ -759,7 +763,7 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
     if (staggered) column.staggerChildren(400ms);
     for (const feed::Row<feed::TextRow>& r : ring.rows()) {
       Element row = feed::textRow(r.value, st.styles);
-      row.key(feed::rowKey(r.seq));
+      row.key(feed::rowKey(r.sequence));
       if (staggered)
         row.opacity(animate(motion::from(0.0f).to(1.0f),
                             {200ms, &choreograph::easeNone}));

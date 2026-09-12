@@ -216,10 +216,11 @@ inline void warnUnknownUniform(const char* what, const std::string& name) {
  *  An identity W — outside a composer, or a root-level node with no
  *  transform — wraps nothing, because node-local and root-local are then
  *  the same frame. */
-inline sk_sp<SkShader> anchorToRoot(sk_sp<SkShader> s, const PaintFrame& ctx) {
-  if (!s || ctx.toRoot.isIdentity()) return s;
+inline sk_sp<SkShader> anchorToRoot(sk_sp<SkShader> s,
+                                    const PaintFrame& paintFrame) {
+  if (!s || paintFrame.toRoot.isIdentity()) return s;
   SkMatrix inv;
-  if (!ctx.toRoot.invert(&inv))
+  if (!paintFrame.toRoot.invert(&inv))
     return s;  // degenerate transform: nothing sensible to anchor through
   return s->makeWithLocalMatrix(inv);
 }

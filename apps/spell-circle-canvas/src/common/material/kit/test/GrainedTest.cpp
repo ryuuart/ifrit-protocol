@@ -27,8 +27,8 @@ TEST(Grained, EveryRecipeCompilesAndTwoSeedsAreTwoPieces) {
     EXPECT_TRUE(m.recipe().has(Target::SkSL));
     EXPECT_TRUE(m.recipe().has(Target::Slang));
   }
-  kit::StoneParams a;
-  kit::StoneParams b = a;
+  kit::StoneParameters a;
+  kit::StoneParameters b = a;
   b.seed = 3;
   // One seed twice is one material; two seeds are two pieces of one
   // quarry — the same tones, different flecks and veins.
@@ -39,7 +39,7 @@ TEST(Grained, EveryRecipeCompilesAndTwoSeedsAreTwoPieces) {
   EXPECT_GT(differing(first, second), 200);
   EXPECT_EQ(differing(first, shade(kit::stone(a), 64, 64)), 0);
   // The grain is luminance: a coloured stone stays its own hue.
-  kit::StoneParams red;
+  kit::StoneParameters red;
   red.hi = {0.8f, 0.2f, 0.2f, 1};
   red.lo = {0.5f, 0.1f, 0.1f, 1};
   red.speckle = 0;
@@ -52,7 +52,7 @@ TEST(Grained, EveryRecipeCompilesAndTwoSeedsAreTwoPieces) {
 }
 
 TEST(Grained, TimberLightsTheNearArrisAndFlipLightsTheFar) {
-  kit::TimberParams t;
+  kit::TimberParameters t;
   t.span = 40;
   t.tooth = 0;
   t.figure = 0;
@@ -73,7 +73,7 @@ TEST(Grained, TimberLightsTheNearArrisAndFlipLightsTheFar) {
 }
 
 TEST(Grained, LattenSitsOnItsLadderAndSheensAlongItsRun) {
-  kit::LattenParams p;
+  kit::LattenParameters p;
   p.tooth = 0;
   p.from = {0, 0};
   p.to = {64, 0};
@@ -104,7 +104,7 @@ TEST(Grained, TheLattenToneIsWhatTheSheetPaintsAtThatPointOfItsRun) {
   // a colour and cannot take a material, so what it answers has to be
   // what the sheet beside them is painting: the same ladder, the same
   // drift along the same run.
-  kit::LattenParams p;
+  kit::LattenParameters p;
   p.tooth = 0;
   p.patina = 0;
   p.from = {0, 0};
@@ -136,7 +136,7 @@ TEST(Grained, TheLattenToneIsWhatTheSheetPaintsAtThatPointOfItsRun) {
 }
 
 TEST(Grained, BoardIsItsPaintUnderATooth) {
-  kit::BoardParams b;
+  kit::BoardParameters b;
   b.paint = {0.5f, 0.5f, 0.5f, 1};
   const SkBitmap card = shade(kit::board(b), 48, 48);
   int lo = 255, hi = 0;

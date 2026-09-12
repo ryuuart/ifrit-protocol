@@ -371,13 +371,13 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
   style.paint.foreground.setColor(SK_ColorWHITE);
   const TextEffect lift =
       fx::effect("gpu-lift", [](const GlyphInfo &, float, sigil::core::noise::Mix64Stream &) {
-        GlyphMod m;
+        GlyphModifier m;
         m.dy = -14.0f;
         return m;
       });
-  struct NoParams {};
+  struct NoParameters {};
   const auto identity = std::make_shared<const sigil::material::Recipe>(
-      sigil::material::Recipe::of<NoParams>("gpu.identity-pass")
+      sigil::material::Recipe::of<NoParameters>("gpu.identity-pass")
           .body(sigil::material::Target::SkSL,
                 "half4 main(float2 xy) { return uContent.eval(xy); }"));
   const auto describe = [&](float reach) {

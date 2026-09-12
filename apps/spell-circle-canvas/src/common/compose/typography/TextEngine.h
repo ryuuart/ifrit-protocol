@@ -79,16 +79,17 @@ struct GlyphStructure {
 
 /** Which glyphs a selector addresses: one byte per glyph, in walk order.
  *  A pattern that does not compile answers all-zero and warns once, and so
- *  does an `sel::style` name @p named does not carry. */
+ *  does an `selectors::style` name @p named does not carry. */
 std::vector<uint8_t> resolveSelection(const sigil::weave::Selector& selector,
                                       const GlyphStructure& structure,
                                       const sigil::weave::Paragraph& paragraph,
                                       std::span<const NamedRun> named);
 /** The once-per-pattern diagnostic behind an unresolvable selector. */
 void warnBadSelectorPattern(const std::u8string& pattern);
-/** The once-per-name diagnostic behind an `sel::style` no run answers to. */
+/** The once-per-name diagnostic behind an `selectors::style` no run answers to.
+ */
 void warnNoSuchStyleName(const std::u8string& name);
-/** The once-per-key diagnostic behind an `sel::inFrame` naming a frame no
+/** The once-per-key diagnostic behind an `selectors::inFrame` naming a frame no
  *  leaf in the tree carries. */
 void warnNoSuchFrameKey(const std::u8string& key);
 /** WHICH TEXT A SELECTOR ADDRESSES, as UTF-16 ranges rather than glyphs —
@@ -97,15 +98,15 @@ void warnNoSuchFrameKey(const std::u8string& key);
  *
  *  Sorted, merged and non-overlapping. `|`, `&` and `!` are interval
  *  arithmetic over the text; the complement is taken against the whole
- *  text. `weave::sel::line` reads @p lines, or @p columns where the passage is
- *  vertical and a line IS a column — the geometry a previous layout
+ *  text. `weave::selectors::line` reads @p lines, or @p columns where the
+ * passage is vertical and a line IS a column — the geometry a previous layout
  *  produced, passed as plain values rather than as a layout because the
  *  paragraph that layout belongs to is the one being replaced — and
  *  addresses nothing when both are empty. `weave::Selector::take`/`drop` slice
- *  glyphs inside a unit, which no text range can express: an `weave::sel::each`
- *  selector answers with its whole units and the slice warns once.
- *  `sel::style` reads @p named, which is why the table is built before the
- *  restyles that consume it run. */
+ *  glyphs inside a unit, which no text range can express: an
+ * `weave::selectors::each` selector answers with its whole units and the slice
+ * warns once. `selectors::style` reads @p named, which is why the table is
+ * built before the restyles that consume it run. */
 std::vector<sigil::weave::CharRange> resolveTextRanges(
     const sigil::weave::Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
@@ -139,18 +140,19 @@ struct TrackCascade {
 
 /** The composition algebra, in one place: offsets, rotations and shears ADD,
  *  scale, alpha and the colour multiplier MULTIPLY, the additive colour term
- *  ADDS and the screen term SCREENS. Stacked tracks, fx::mix, a seq
+ *  ADDS and the screen term SCREENS. Stacked tracks, fx::mix, a sequence
  *  crossfade and a keys segment all go through these two, so they cannot
  *  drift apart. */
-void compose(GlyphMod& into, const GlyphMod& next);
-GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w);
-/** FIELD PIN for GlyphMod: A FIELD ADDED TO IT IS A BUILD FAILURE until the
- *  two functions above carry it. The definition binds every member by name,
+void compose(GlyphModifier& into, const GlyphModifier& next);
+GlyphModifier lerpModifier(const GlyphModifier& a, const GlyphModifier& b,
+                           float w);
+/** FIELD PIN for GlyphModifier: A FIELD ADDED TO IT IS A BUILD FAILURE until
+ * the two functions above carry it. The definition binds every member by name,
  *  so a new one breaks the count. What it closes is invisible otherwise — a
- *  field left out of `compose` or `lerpMod` reads at rest for every stacked
- *  track and never interpolates, so the effect appears to work and then
+ *  field left out of `compose` or `lerpModifier` reads at rest for every
+ * stacked track and never interpolates, so the effect appears to work and then
  *  quietly does not move. Defined beside the two, never called. */
-void glyphModFieldPin(GlyphMod& v);
+void glyphModifierFieldPin(GlyphModifier& v);
 /** The seed an effect's random stream is constructed from — the glyph's
  * identity plus the operand lane inside a composite. */
 uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane = 0);

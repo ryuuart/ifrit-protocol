@@ -52,9 +52,9 @@ std::shared_ptr<const Effect::BlurLevels> makeBlurLevels(float maxSigma);
 /** blur()'s filter DAG over held levels: the layer, its two blurs, and
  *  the map that mixes between them, cropped to the reach the range
  *  declares. */
-sk_sp<SkImageFilter> makeParamBlur(const Effect::BlurLevels* levels,
-                                   float sigma, sk_sp<SkShader> sigmaMap,
-                                   SkSize box);
+sk_sp<SkImageFilter> makeParametricBlur(const Effect::BlurLevels* levels,
+                                        float sigma, sk_sp<SkShader> sigmaMap,
+                                        SkSize box);
 
 /** A uniform name this effect will not take, said once per name.
  *

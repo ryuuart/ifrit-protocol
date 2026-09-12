@@ -93,7 +93,7 @@ struct GlyphDress {
   /// already carrying a colour filter) gets the equivalent modulating
   /// filter, so a gradient keeps its ramp and takes the tint over it.
   /// Alpha here folds into `alphaScale`. White is no tint.
-  SkColor4f colorMul = {1, 1, 1, 1};
+  SkColor4f colorMultiplier = {1, 1, 1, 1};
   /// Added to every pass's colour after the multiply, clamped at the draw
   /// — the flash a multiplier cannot brighten into. RGB only; the alpha
   /// component is never read, coverage being `alphaScale`'s lane. Zero is

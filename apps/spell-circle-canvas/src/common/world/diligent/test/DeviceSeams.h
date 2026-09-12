@@ -172,7 +172,7 @@ inline PaintedTexture paintOnDevice(geometry::device::Device& device,
   skia::GraphiteContext* graphite = device.graphite();
   if (!gpu || !graphite) return out;
 
-  core::hardware::TextureDesc desc;
+  core::hardware::TextureDescription desc;
   desc.width = desc.height = side;
   desc.format = core::hardware::TextureFormat::RGBA8Unorm;
   out.handle = gpu->createTexture(desc);

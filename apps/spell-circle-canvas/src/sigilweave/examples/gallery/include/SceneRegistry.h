@@ -26,7 +26,7 @@ namespace gallery {
 struct SceneParameter {
   enum class Type { kBool, kFloat, kInt, kChoice };
 
-  QString id;     ///< stable key into SceneParams::values
+  QString id;     ///< stable key into SceneParameters::values
   QString label;  ///< sidebar text
   Type type = Type::kFloat;
   QVariant defaultValue;

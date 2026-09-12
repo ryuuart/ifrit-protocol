@@ -75,12 +75,13 @@ material::slang::Uniforms baseUniforms(const material::slang::Compiled& program,
   return uniforms;
 }
 
-/** The op, applied to @p source into @p into. A blur takes two passes
+/** The operation, applied to @p source into @p into. A blur takes two passes
  *  through a working target; everything else takes one. */
-void applyOp(Gpu& gpu, const PostOp& op, dg::ITexture* source,
-             dg::ITexture* into, SkBlendMode blend, bool clear) {
+void applyOperation(Gpu& gpu, const PostOperation& operation,
+                    dg::ITexture* source, dg::ITexture* into, SkBlendMode blend,
+                    bool clear) {
   const PostPrograms& programs = postPrograms();
-  if (const Blur* blur = std::get_if<Blur>(&op)) {
+  if (const Blur* blur = std::get_if<Blur>(&operation)) {
     dg::ITexture* half = gpu.working(kBlurTarget);
     if (!half) return;
     material::slang::Uniforms across =
@@ -94,7 +95,7 @@ void applyOp(Gpu& gpu, const PostOp& op, dg::ITexture* source,
     drawStage(gpu, programs.blur, into, blend, down, {half}, clear);
     return;
   }
-  if (const Levels* levels = std::get_if<Levels>(&op)) {
+  if (const Levels* levels = std::get_if<Levels>(&operation)) {
     material::slang::Uniforms uniforms =
         baseUniforms(programs.levels, gpu.extent, 0.0f, 1.0f);
     uniforms.set("uGrade", levels->gain, levels->lift, 1.0f, 0.0f);
@@ -111,15 +112,15 @@ void applyOp(Gpu& gpu, const PostOp& op, dg::ITexture* source,
 /** Which blend a composite lays a layer under. Anything this backend has
  *  no blend state for arrives as the plain one over another, which is
  *  what a pass that named no mode gets too. */
-SkBlendMode compositeBlend(const PostOp& op) {
-  const Composite* composite = std::get_if<Composite>(&op);
+SkBlendMode compositeBlend(const PostOperation& operation) {
+  const Composite* composite = std::get_if<Composite>(&operation);
   if (!composite) return SkBlendMode::kSrcOver;
   return composite->mode == SkBlendMode::kPlus ? SkBlendMode::kPlus
                                                : SkBlendMode::kSrcOver;
 }
 
-float compositeOpacity(const PostOp& op) {
-  const Composite* composite = std::get_if<Composite>(&op);
+float compositeOpacity(const PostOperation& operation) {
+  const Composite* composite = std::get_if<Composite>(&operation);
   return composite ? composite->opacity : 1.0f;
 }
 
@@ -131,7 +132,7 @@ void applyPost(Gpu& gpu, const PassWork& work) {
   if (writes.empty()) return;
 
   // The layers are taken BEFORE the target is opened, because a pass may
-  // write what it reads: opening it first would hand the op its own
+  // write what it reads: opening it first would hand the operation its own
   // blank target instead of the picture.
   const PostPrograms& programs = postPrograms();
   std::vector<dg::ITexture*> layers;
@@ -171,8 +172,8 @@ void applyPost(Gpu& gpu, const PassWork& work) {
   }
 
   if (coverage) {
-    // Masked: the picture stands everywhere, and the op reaches it only
-    // where the coverage does. The op lands in a working target first
+    // Masked: the picture stands everywhere, and the operation reaches it only
+    // where the coverage does. The operation lands in a working target first
     // because the coverage has to multiply the OP, not the picture.
     material::slang::Uniforms plain =
         baseUniforms(programs.copy, gpu.extent, 0.0f, 1.0f);
@@ -180,7 +181,8 @@ void applyPost(Gpu& gpu, const PassWork& work) {
               {layers.front()}, true);
     dg::ITexture* lifted = gpu.working(kMaskedTarget);
     if (!lifted) return;
-    applyOp(gpu, pass.op(), layers.front(), lifted, SkBlendMode::kSrc, true);
+    applyOperation(gpu, pass.operation(), layers.front(), lifted,
+                   SkBlendMode::kSrc, true);
     material::slang::Uniforms masked =
         baseUniforms(programs.masked, gpu.extent, 0.0f, 1.0f);
     drawStage(gpu, programs.masked, into, SkBlendMode::kSrcOver, masked,
@@ -188,11 +190,11 @@ void applyPost(Gpu& gpu, const PassWork& work) {
     return;
   }
 
-  applyOp(gpu, pass.op(), layers.front(), into, SkBlendMode::kSrc,
-          /*clear=*/true);
-  const SkBlendMode blend = compositeBlend(pass.op());
-  const float opacity = compositeOpacity(pass.op());
-  if (!std::holds_alternative<Composite>(pass.op())) return;
+  applyOperation(gpu, pass.operation(), layers.front(), into, SkBlendMode::kSrc,
+                 /*clear=*/true);
+  const SkBlendMode blend = compositeBlend(pass.operation());
+  const float opacity = compositeOpacity(pass.operation());
+  if (!std::holds_alternative<Composite>(pass.operation())) return;
   for (size_t i = 1; i < layers.size(); ++i) {
     material::slang::Uniforms uniforms =
         baseUniforms(programs.copy, gpu.extent, 0.0f, opacity);

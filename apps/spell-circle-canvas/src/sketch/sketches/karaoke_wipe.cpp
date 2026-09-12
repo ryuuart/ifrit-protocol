@@ -30,7 +30,7 @@
 // THE WIPE IS A COLOUR MULTIPLIER ON A CASCADE. The line is set ONCE, in
 // the sung colour, and `fx::tint(pale, sung)` multiplies every glyph down
 // to the pale colour until its own beat arrives. It is a multiplier rather
-// than a colour because that is what a `GlyphMod` carries — every pass the
+// than a colour because that is what a `GlyphModifier` carries — every pass the
 // glyph's style draws is modulated, so the same track would tint a
 // gradient-filled line without knowing it was a gradient.
 //
@@ -227,7 +227,7 @@ struct KaraokeWipe : sketch::Sketch {
     // until each letter's own beat arrives — the inversion a colour
     // multiplier forces, which is why the effect takes the two colours in
     // time order and does the division itself.
-    return text(toU8(kLine1), lyric)
+    return text(toUtf8(kLine1), lyric)
         .key("line1")
         .fx({.effect = fx::tint(kPale, kSung),
              .stagger = wipeCascade(),
@@ -299,15 +299,15 @@ struct KaraokeWipe : sketch::Sketch {
                                   .translateY(&ballY)))
             .child(lyricLine())
             .child(ruler().margin(0, 12, 0, 0))
-            .child(
-                text(toU8(kLine2), weave::textStyle({.face = face,
-                                                     .size = kLyricSize * 0.78f,
-                                                     .color = kNext,
-                                                     .track = kTrack,
-                                                     .aliased = kAliased,
-                                                     .antiAlias = false}))
-                    .key("line2")
-                    .margin(0, 22, 0, 0));
+            .child(text(toUtf8(kLine2),
+                        weave::textStyle({.face = face,
+                                          .size = kLyricSize * 0.78f,
+                                          .color = kNext,
+                                          .track = kTrack,
+                                          .aliased = kAliased,
+                                          .antiAlias = false}))
+                       .key("line2")
+                       .margin(0, 22, 0, 0));
 
     return box()
         .column()
@@ -315,15 +315,16 @@ struct KaraokeWipe : sketch::Sketch {
         .gap(26)
         .fill(linearGradient({0, 0}, {0, kH}, {kStage, kBand, kStage},
                              {0.0f, 0.5f, 1.0f}))
-        .child(box()
-                   .row()
-                   .alignItems(Align::End)
-                   .child(text(toU8("FOLLOW THE BOUNCING BALL"), small).grow(1))
-                   .child(text(toU8("FLEISCHER 1924 \xc2\xb7 CD+G 1985"),
-                               weave::textStyle({.face = face,
-                                                 .size = 11.5f,
-                                                 .color = kNext,
-                                                 .track = 2.4f}))))
+        .child(
+            box()
+                .row()
+                .alignItems(Align::End)
+                .child(text(toUtf8("FOLLOW THE BOUNCING BALL"), small).grow(1))
+                .child(text(toUtf8("FLEISCHER 1924 \xc2\xb7 CD+G 1985"),
+                            weave::textStyle({.face = face,
+                                              .size = 11.5f,
+                                              .color = kNext,
+                                              .track = 2.4f}))))
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(box().grow(1))
         .child(box().alignItems(Align::Center).child(std::move(stage)))
@@ -331,12 +332,12 @@ struct KaraokeWipe : sketch::Sketch {
         // The numbers are read off the table rather than typed beside it:
         // a caption that can disagree with the schedule it describes is the
         // one thing worse than no caption.
-        .child(text(toU8("THE BALL MARKS THE POINT, THE WIPE MARKS THE "
-                         "BOUNDARY \xc2\xb7 " +
-                         std::to_string(wordCues().size()) + " SUNG TIMES, " +
-                         std::to_string((int)kEachMs) +
-                         " MS PER LETTER INSIDE A WORD, " +
-                         std::to_string((int)kSwitchMs) + " MS TO CHANGE"),
+        .child(text(toUtf8("THE BALL MARKS THE POINT, THE WIPE MARKS THE "
+                           "BOUNDARY \xc2\xb7 " +
+                           std::to_string(wordCues().size()) + " SUNG TIMES, " +
+                           std::to_string((int)kEachMs) +
+                           " MS PER LETTER INSIDE A WORD, " +
+                           std::to_string((int)kSwitchMs) + " MS TO CHANGE"),
                     note));
   }
 

@@ -3,7 +3,7 @@
 auto WinampBase::playlistWindow() -> Element {
   using namespace wa;
   const float W = 400, H = 377;
-  Element w = box().width(Dim(n(W))).height(Dim(n(H)));
+  Element w = box().width(Dimension(n(W))).height(Dimension(n(H)));
   w.child(box().inset(0).fill(steel).cache(Cache::Texture));
   raised(w, kWellHi, kWellLo);
   w.child(titleBar(W, "WINAMP PLAYLIST", true, false, 20.0f));
@@ -115,7 +115,7 @@ auto WinampBase::trackList() -> Element {
     const Track& tr = tracks()[(size_t)i];
     const SkColor4f ink = i == nowPlaying ? kPlNow : kPlText;
     Element r = box()
-                    .height(Dim(n(rowH)))
+                    .height(Dimension(n(rowH)))
                     .row()
                     .alignItems(Align::Center)
                     .padding(n(3), 0, n(3), 0);
@@ -138,12 +138,12 @@ auto WinampBase::ellipsized(int idx, const std::string& s,
                             const sigil::weave::TextStyle& st, float w)
     -> Element {
   sigil::weave::ParagraphBuilder b(st);
-  b.addText(toU8(s));
+  b.addText(toUtf8(s));
   auto p = std::make_shared<sigil::weave::Paragraph>(b.build());
   if ((int)rowPara.size() <= idx) rowPara.resize((size_t)idx + 1);
   rowPara[(size_t)idx] = p;
   sigil::weave::ParagraphLayoutOptions o;
   o.overflow.ellipsis = u"…";
   o.overflow.maxLines = 1;
-  return text(p, o).width(Dim(w)).shrink(0);
+  return text(p, o).width(Dimension(w)).shrink(0);
 }

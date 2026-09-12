@@ -71,7 +71,7 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
         const sketch::Entry& entry =
             sketch::registry()[run->selection[run->at]];
         const std::filesystem::path wanted =
-            sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+            sketch::sourceOf(SketchCatalog::sketchDirectory, entry.key);
 
         QMutexLocker lock(&SketchbookView::hostMutex);
         sketch::Host* host = SketchbookView::host;

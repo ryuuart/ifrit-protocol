@@ -1,6 +1,6 @@
 /** @file
  * The gold, chrome and glass bodies in SkSL — the shared prelude of
- * normal decode, equirect lookup and value noise, then each reflection
+ * normal decode, equirectangular lookup and value noise, then each reflection
  * model — and the builders that fill their texture slots.
  */
 
@@ -27,7 +27,7 @@ glm::vec2 sizeOf(const EnvironmentMap& env) {
 
 const std::shared_ptr<const Recipe>& goldRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<GoldParams>("gold").child("normals").child("env").body(
+      Recipe::of<GoldParameters>("gold").child("normals").child("env").body(
           Target::SkSL, std::string(noisePrelude(Target::SkSL))
                             .append(shaderSource("ReflectivePrelude.sksl"))
                             .append(shaderSource("ReflectiveGold.sksl"))));
@@ -36,7 +36,7 @@ const std::shared_ptr<const Recipe>& goldRecipe() {
 
 const std::shared_ptr<const Recipe>& chromeRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<ChromeParams>("chrome").child("normals").child("env").body(
+      Recipe::of<ChromeParameters>("chrome").child("normals").child("env").body(
           Target::SkSL, std::string(noisePrelude(Target::SkSL))
                             .append(shaderSource("ReflectivePrelude.sksl"))
                             .append(shaderSource("ReflectiveChrome.sksl"))));
@@ -45,7 +45,7 @@ const std::shared_ptr<const Recipe>& chromeRecipe() {
 
 const std::shared_ptr<const Recipe>& glassRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<GlassParams>("glass")
+      Recipe::of<GlassParameters>("glass")
           .child("normals")
           .child("env")
           .child("backdrop")
@@ -57,32 +57,32 @@ const std::shared_ptr<const Recipe>& glassRecipe() {
 }
 
 Material gold(Texture normals, const EnvironmentMap& env,
-              const GoldParams& params) {
-  GoldParams p = params;
+              const GoldParameters& parameters) {
+  GoldParameters p = parameters;
   p.envSize = sizeOf(env);
   Material m(goldRecipe(), p);
   m.child("normals", std::move(normals));
-  m.child("env", env.texture(params.roughness));
+  m.child("env", env.texture(parameters.roughness));
   return m;
 }
 
 Material chrome(Texture normals, const EnvironmentMap& env,
-                const ChromeParams& params) {
-  ChromeParams p = params;
+                const ChromeParameters& parameters) {
+  ChromeParameters p = parameters;
   p.envSize = sizeOf(env);
   Material m(chromeRecipe(), p);
   m.child("normals", std::move(normals));
-  m.child("env", env.texture(params.roughness));
+  m.child("env", env.texture(parameters.roughness));
   return m;
 }
 
 Material glass(Texture normals, const EnvironmentMap& env, Texture backdrop,
-               const GlassParams& params) {
-  GlassParams p = params;
+               const GlassParameters& parameters) {
+  GlassParameters p = parameters;
   p.envSize = sizeOf(env);
   Material m(glassRecipe(), p);
   m.child("normals", std::move(normals));
-  m.child("env", env.texture(params.roughness));
+  m.child("env", env.texture(parameters.roughness));
   m.child("backdrop", std::move(backdrop));
   return m;
 }

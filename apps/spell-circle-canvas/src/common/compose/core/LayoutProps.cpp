@@ -1,6 +1,6 @@
 /** @file
- * A node's layout props, as Yoga's setters: one dimension at a time, each
- * unit of Dim to the setter that takes it.
+ * A node's layout properties, as Yoga's setters: one dimension at a time, each
+ * unit of Dimension to the setter that takes it.
  */
 
 #include "ComposeRuntime.h"
@@ -47,16 +47,17 @@ YGJustify toYogaJustify(Justify j) {
   return YGJustifyFlexStart;
 }
 
-void applyDim(YGNodeRef node, const Dim& d, void (*setPx)(YGNodeRef, float),
+void applyDim(YGNodeRef node, const Dimension& d,
+              void (*setPx)(YGNodeRef, float),
               void (*setPct)(YGNodeRef, float)) {
   switch (d.unit) {
-    case Dim::Unit::Px:
+    case Dimension::Unit::Px:
       setPx(node, d.value);
       break;
-    case Dim::Unit::Pct:
+    case Dimension::Unit::Pct:
       setPct(node, d.value);
       break;
-    case Dim::Unit::Auto:
+    case Dimension::Unit::Auto:
       // Patch reuses the yoga node, so a dim REMOVED from the description
       // must be written back as YGUndefined rather than skipped. Skipping
       // leaves the previous describe's value in the style set, where it
@@ -70,7 +71,7 @@ void applyDim(YGNodeRef node, const Dim& d, void (*setPx)(YGNodeRef, float),
 
 void Composer::Impl::applyLayoutProps(Instance& inst) {
   if (!inst.yoga)
-    return;  // positioned subtree: instanceRect() reads the props directly
+    return;  // positioned subtree: instanceRect() reads the properties directly
   const LayoutProps& l = inst.description->layout;
   YGNodeRef n = inst.yoga;
 
@@ -93,9 +94,9 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   // place() a degenerate input for a pass.
   const bool autoSized = inst.description->deriveData &&
                          inst.description->deriveData->placeFn && l.absolute;
-  if (!autoSized || l.width.unit != Dim::Unit::Auto)
+  if (!autoSized || l.width.unit != Dimension::Unit::Auto)
     applyDim(n, l.width, &YGNodeStyleSetWidth, &YGNodeStyleSetWidthPercent);
-  if (!autoSized || l.height.unit != Dim::Unit::Auto)
+  if (!autoSized || l.height.unit != Dimension::Unit::Auto)
     applyDim(n, l.height, &YGNodeStyleSetHeight, &YGNodeStyleSetHeightPercent);
   applyDim(n, l.minWidth, &YGNodeStyleSetMinWidth,
            &YGNodeStyleSetMinWidthPercent);
@@ -138,15 +139,15 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
     // `.top(12).right(12)` pins a corner badge without stretching it.
     // Always write all four — patch() reuses the yoga node, and a side
     // that was pinned last describe must actually release.
-    auto applyInset = [n](YGEdge edge, const Dim& d) {
+    auto applyInset = [n](YGEdge edge, const Dimension& d) {
       switch (d.unit) {
-        case Dim::Unit::Px:
+        case Dimension::Unit::Px:
           YGNodeStyleSetPosition(n, edge, d.value);
           break;
-        case Dim::Unit::Pct:
+        case Dimension::Unit::Pct:
           YGNodeStyleSetPositionPercent(n, edge, d.value);
           break;
-        case Dim::Unit::Auto:
+        case Dimension::Unit::Auto:
           YGNodeStyleSetPosition(n, edge, YGUndefined);
           break;
       }

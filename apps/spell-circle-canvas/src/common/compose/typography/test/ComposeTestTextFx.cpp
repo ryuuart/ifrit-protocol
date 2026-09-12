@@ -26,7 +26,7 @@ TextEffect probe(std::string key, std::vector<FxSample>* into) {
                     [into](const GlyphInfo& g, float t,
                            sigil::core::noise::Mix64Stream& rng) {
                       into->push_back({g, t, rng.unit()});
-                      return GlyphMod{};
+                      return GlyphModifier{};
                     });
 }
 
@@ -169,7 +169,7 @@ TEST(ComposeTextFx, TextFillAndTextStrokeTravelWithAMovingGlyph) {
     if (moving)
       t.fx({.effect = fx::effect("still", [](const GlyphInfo&, float,
                                              sigil::core::noise::Mix64Stream&) {
-              return GlyphMod{};
+              return GlyphModifier{};
             })});
     return box().padding(10).child(std::move(t));
   };
@@ -208,17 +208,18 @@ TEST(ComposeTextFx, SelectorsAddressWhatTheyName) {
     host.frame();
     return addressed(samples);
   };
-  EXPECT_EQ(run(sigil::weave::sel::word(1)), (std::vector<size_t>{3, 4, 5}));
-  EXPECT_EQ(run(sigil::weave::sel::words(1, 3)),
+  EXPECT_EQ(run(sigil::weave::selectors::word(1)),
+            (std::vector<size_t>{3, 4, 5}));
+  EXPECT_EQ(run(sigil::weave::selectors::words(1, 3)),
             (std::vector<size_t>{3, 4, 5, 6, 7, 8}));
-  EXPECT_EQ(run(sigil::weave::sel::text(u8"BBB")),
+  EXPECT_EQ(run(sigil::weave::selectors::text(u8"BBB")),
             (std::vector<size_t>{3, 4, 5}));
-  EXPECT_EQ(run(sigil::weave::sel::regex(u8"B+")),
+  EXPECT_EQ(run(sigil::weave::selectors::regex(u8"B+")),
             (std::vector<size_t>{3, 4, 5}));
-  EXPECT_EQ(run(sigil::weave::sel::line(0)).size(),
+  EXPECT_EQ(run(sigil::weave::selectors::line(0)).size(),
             9u);                                        // one line, everything
   EXPECT_EQ(run(sigil::weave::Selector()).size(), 9u);  // default: everything
-  EXPECT_TRUE(run(sigil::weave::sel::regex(u8"([")).empty())
+  EXPECT_TRUE(run(sigil::weave::selectors::regex(u8"([")).empty())
       << "a pattern that does not compile must select NOTHING rather than "
          "everything — silently addressing the whole paragraph is the "
          "failure this rule exists to prevent";
@@ -235,14 +236,17 @@ TEST(ComposeTextFx, SelectorAlgebraUnionsIntersectsAndComplements) {
     host.frame();
     return addressed(samples);
   };
-  EXPECT_EQ(run(sigil::weave::sel::word(0) | sigil::weave::sel::word(2)),
-            (std::vector<size_t>{0, 1, 2, 6, 7, 8}));
-  EXPECT_EQ(run(sigil::weave::sel::words(0, 2) & sigil::weave::sel::word(1)),
+  EXPECT_EQ(
+      run(sigil::weave::selectors::word(0) | sigil::weave::selectors::word(2)),
+      (std::vector<size_t>{0, 1, 2, 6, 7, 8}));
+  EXPECT_EQ(run(sigil::weave::selectors::words(0, 2) &
+                sigil::weave::selectors::word(1)),
             (std::vector<size_t>{3, 4, 5}));
-  EXPECT_EQ(run(!sigil::weave::sel::word(1)),
+  EXPECT_EQ(run(!sigil::weave::selectors::word(1)),
             (std::vector<size_t>{0, 1, 2, 6, 7, 8}));
   EXPECT_TRUE(
-      run(sigil::weave::sel::word(0) & sigil::weave::sel::word(1)).empty());
+      run(sigil::weave::selectors::word(0) & sigil::weave::selectors::word(1))
+          .empty());
 }
 
 TEST(ComposeTextFx, EachTakeAndDropPartitionEveryUnitExactly) {
@@ -260,9 +264,9 @@ TEST(ComposeTextFx, EachTakeAndDropPartitionEveryUnitExactly) {
     return addressed(samples);
   };
   const std::vector<size_t> firsts =
-      run(sigil::weave::sel::each(sigil::weave::Unit::Word).take(1));
+      run(sigil::weave::selectors::each(sigil::weave::Unit::Word).take(1));
   const std::vector<size_t> rest =
-      run(sigil::weave::sel::each(sigil::weave::Unit::Word).drop(1));
+      run(sigil::weave::selectors::each(sigil::weave::Unit::Word).drop(1));
   EXPECT_EQ(firsts, (std::vector<size_t>{0, 3, 6}));
   EXPECT_EQ(rest, (std::vector<size_t>{1, 2, 4, 5, 7, 8}));
   std::vector<size_t> both = firsts;
@@ -389,7 +393,7 @@ TEST(ComposeTextFx, TwoTracksComposeByAddingOffsets) {
     return fx::effect(
         "shove" + std::to_string((int)dx),
         [dx](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
-          GlyphMod m;
+          GlyphModifier m;
           m.dx = dx;
           return m;
         },
@@ -432,7 +436,7 @@ TEST(ComposeTextFx, ATrackedRunSurvivesTheBakeItIsCachedInto) {
                                 "drop",
                                 [](const GlyphInfo&, float,
                                    sigil::core::noise::Mix64Stream&) {
-                                  GlyphMod m;
+                                  GlyphModifier m;
                                   m.dy = 60;
                                   return m;
                                 },
@@ -464,7 +468,7 @@ TEST(ComposeTextFx, ATrackReachKeepsAWideThrowInsideTheCull) {
     Track t{.effect = fx::effect(
                 "drop",
                 [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
-                  GlyphMod m;
+                  GlyphModifier m;
                   m.dy = 60;
                   return m;
                 },
@@ -514,7 +518,9 @@ TEST(ComposeTextFx, EqualTrackListsPruneAndAKeyedLambdaComparesByKey) {
   // A keyed lambda compares by its KEY: same key prunes, different key does
   // not. That is the whole contract fx::effect() asks of its caller.
   const auto body = [](const GlyphInfo&, float,
-                       sigil::core::noise::Mix64Stream&) { return GlyphMod{}; };
+                       sigil::core::noise::Mix64Stream&) {
+    return GlyphModifier{};
+  };
   host.composer.render(tree(fx::effect("mine", body)));
   host.frame();
   host.composer.render(tree(fx::effect("mine", body)));

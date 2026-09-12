@@ -55,7 +55,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -109,12 +109,12 @@ Element chain(const std::string& tag, const weave::Story& story) {
   const auto plate = [&](const std::string& key, bool threaded) {
     Element leaf = frame(story)
                        .key(key)
-                       .width(Dim(kFrame.width() - 20))
-                       .height(Dim(kFrame.height() - 20));
+                       .width(Dimension(kFrame.width() - 20))
+                       .height(Dimension(kFrame.height() - 20));
     if (threaded) leaf.thread(tag + "-2");
     return box()
-        .width(Dim(kFrame.width()))
-        .height(Dim(kFrame.height()))
+        .width(Dimension(kFrame.width()))
+        .height(Dimension(kFrame.height()))
         .clip()
         .fill(Fill::color(sketch::kit::theme().palette.cellGround))
         .padding(10)
@@ -129,8 +129,8 @@ Element chain(const std::string& tag, const weave::Story& story) {
 
 Element optionPlate(Element body) {
   return box()
-      .width(Dim(kOptionCell))
-      .height(Dim(kOptionPicture))
+      .width(Dimension(kOptionCell))
+      .height(Dimension(kOptionPicture))
       .clip()
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .padding(12)
@@ -145,18 +145,18 @@ struct KeepsAndFrames final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("KEEPS AND FRAME OPTIONS \xc2\xb7 KeepOptions, "
-                       "Element::firstBaseline, Element::distribute"),
-         .subtitle = toU8("dials \xc2\xb7 the widow and orphan counts "
-                          "(2 and 2) \xc2\xb7 startInNextFrame \xc2\xb7 "
-                          "the seating rule \xc2\xb7 what becomes of the "
-                          "room left over"),
-         .footer = toU8("a keep never empties a frame \xe2\x80\x94 a "
-                        "retraction that would leave the fill with "
-                        "nothing is dropped, because the text would "
-                        "arrive at the next frame in exactly the state "
-                        "that emptied this one and the chain would "
-                        "never advance")},
+        {.title = toUtf8("KEEPS AND FRAME OPTIONS \xc2\xb7 KeepOptions, "
+                         "Element::firstBaseline, Element::distribute"),
+         .subtitle = toUtf8("dials \xc2\xb7 the widow and orphan counts "
+                            "(2 and 2) \xc2\xb7 startInNextFrame \xc2\xb7 "
+                            "the seating rule \xc2\xb7 what becomes of the "
+                            "room left over"),
+         .footer = toUtf8("a keep never empties a frame \xe2\x80\x94 a "
+                          "retraction that would leave the fill with "
+                          "nothing is dropped, because the text would "
+                          "arrive at the next frame in exactly the state "
+                          "that emptied this one and the chain would "
+                          "never advance")},
         kit::cells(
             {.cells = {chains(), options()}, .column = true, .gap = 18})));
   }
@@ -166,25 +166,25 @@ struct KeepsAndFrames final : sketch::Sketch {
   Element chains() {
     return kit::cells(
         {.cells = {sketch::kit::caption(
-                       kChainCell, toU8("KeepOptions{} \xc2\xb7 free"),
-                       toU8("the cut falls where the fill reached the foot "
-                            "of frame one \xc2\xb7 the reference"),
+                       kChainCell, toUtf8("KeepOptions{} \xc2\xb7 free"),
+                       toUtf8("the cut falls where the fill reached the foot "
+                              "of frame one \xc2\xb7 the reference"),
                        chain("free", article(true, {}, {}))),
                    sketch::kit::caption(
                        kChainCell,
-                       toU8("keep{.widowLines = 2, .orphanLines = 2}"),
-                       toU8("no single line may stand alone at either side "
-                            "of the join \xc2\xb7 the lines that would have "
-                            "are taken back out and reported as overflow"),
+                       toUtf8("keep{.widowLines = 2, .orphanLines = 2}"),
+                       toUtf8("no single line may stand alone at either side "
+                              "of the join \xc2\xb7 the lines that would have "
+                              "are taken back out and reported as overflow"),
                        chain("keep", article(true,
                                              {.widowLines = kWidows,
                                               .orphanLines = kOrphans},
                                              {}))),
                    sketch::kit::caption(
-                       kChainCell, toU8("keep{.startInNextFrame = true}"),
-                       toU8("on the LAST block, over a SHORTER body "
-                            "\xc2\xb7 it starts frame two though frame "
-                            "one still has room for it"),
+                       kChainCell, toUtf8("keep{.startInNextFrame = true}"),
+                       toUtf8("on the LAST block, over a SHORTER body "
+                              "\xc2\xb7 it starts frame two though frame "
+                              "one still has room for it"),
                        chain("start",
                              article(false, {}, {.startInNextFrame = true})))},
          .gap = 16});
@@ -193,18 +193,18 @@ struct KeepsAndFrames final : sketch::Sketch {
   /** The four frame options: two seatings and two distributions, each on
    *  the same short passage in the same box. */
   Element options() {
-    const auto passage = [](const char* text) { return toU8(text); };
+    const auto passage = [](const char* text) { return toUtf8(text); };
     Element seated =
         text(passage("Seated on the first line's own ascent, which is what "
                      "a leaf that says nothing gets."),
              serif(11.5f, kBody))
-            .width(Dim(kOptionCell - 24))
+            .width(Dimension(kOptionCell - 24))
             .firstBaseline(weave::FrameOptions::FirstBaseline::kAscent, kSeat);
     Element capped =
         text(passage("Seated on the first line's CAP HEIGHT, so two leaves "
                      "of different type start their text at one height."),
              serif(11.5f, kBody))
-            .width(Dim(kOptionCell - 24))
+            .width(Dimension(kOptionCell - 24))
             .firstBaseline(weave::FrameOptions::FirstBaseline::kCapHeight,
                            kSeat);
     Element stacked =
@@ -214,8 +214,8 @@ struct KeepsAndFrames final : sketch::Sketch {
                           "costs nothing to say."),
                   serif(11.5f, kBody)))
             .key("dist-start")
-            .width(Dim(kOptionCell - 24))
-            .height(Dim(kOptionPicture - 24))
+            .width(Dimension(kOptionCell - 24))
+            .height(Dimension(kOptionPicture - 24))
             .distribute(weave::FrameOptions::Distribute::kStart);
     Element justified =
         frame(
@@ -224,35 +224,35 @@ struct KeepsAndFrames final : sketch::Sketch {
                                  "magazine reaches its foot."),
                          serif(11.5f, kBody)))
             .key("dist-justify")
-            .width(Dim(kOptionCell - 24))
-            .height(Dim(kOptionPicture - 24))
+            .width(Dimension(kOptionCell - 24))
+            .height(Dimension(kOptionPicture - 24))
             .distribute(weave::FrameOptions::Distribute::kJustify);
 
     return kit::cells(
         {.cells = {sketch::kit::caption(
-                       kOptionCell, toU8("firstBaseline(kAscent)"),
-                       toU8("the first line's own ascent \xc2\xb7 what a "
-                            "leaf that says nothing gets, and the "
-                            "reference for the cell beside it"),
+                       kOptionCell, toUtf8("firstBaseline(kAscent)"),
+                       toUtf8("the first line's own ascent \xc2\xb7 what a "
+                              "leaf that says nothing gets, and the "
+                              "reference for the cell beside it"),
                        optionPlate(std::move(seated))),
                    sketch::kit::caption(
-                       kOptionCell, toU8("firstBaseline(kCapHeight)"),
-                       toU8("the cap top lands on the box's own top "
-                            "\xc2\xb7 every later baseline follows at its "
-                            "block's pitch, so the passage moves as one"),
+                       kOptionCell, toUtf8("firstBaseline(kCapHeight)"),
+                       toUtf8("the cap top lands on the box's own top "
+                              "\xc2\xb7 every later baseline follows at its "
+                              "block's pitch, so the passage moves as one"),
                        optionPlate(std::move(capped))),
                    sketch::kit::caption(
-                       kOptionCell, toU8("distribute(kStart)"),
-                       toU8("the leftover room stays past the last line "
-                            "\xc2\xb7 the frame carries a stated height, "
-                            "so there IS room left over here"),
+                       kOptionCell, toUtf8("distribute(kStart)"),
+                       toUtf8("the leftover room stays past the last line "
+                              "\xc2\xb7 the frame carries a stated height, "
+                              "so there IS room left over here"),
                        optionPlate(std::move(stacked))),
                    sketch::kit::caption(
-                       kOptionCell, toU8("distribute(kJustify)"),
-                       toU8("the same room spread between the lines as "
-                            "extra leading \xc2\xb7 the gaps open evenly "
-                            "and the last line lands on the frame's "
-                            "foot"),
+                       kOptionCell, toUtf8("distribute(kJustify)"),
+                       toUtf8("the same room spread between the lines as "
+                              "extra leading \xc2\xb7 the gaps open evenly "
+                              "and the last line lands on the frame's "
+                              "foot"),
                        optionPlate(std::move(justified)))},
          .gap = 14});
   }

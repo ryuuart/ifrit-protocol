@@ -69,21 +69,21 @@ std::vector<Parameter> Graph::parameters() const {
   std::vector<Parameter> out;
   for (air::InputInstanceBase* in : m_impl->instance->getInputs()) {
     Parameter p;
-    p.identifier = str(in->mDesc.mIdentifier);
-    p.label = str(in->mDesc.mLabel);
-    p.group = str(in->mDesc.mGuiGroup);
+    p.identifier = toString(in->mDesc.mIdentifier);
+    p.label = toString(in->mDesc.mLabel);
+    p.group = toString(in->mDesc.mGuiGroup);
     p.kind = kindOf(in->mDesc.mType);
     p.widget = widgetOf(in->mDesc.mGuiWidget);
     withNumeric(*in, [&](auto& numeric, int n) {
-      using Inst = std::decay_t<decltype(numeric)>;
-      const typename Inst::Desc& desc = numeric.getDesc();
+      using Instance = std::decay_t<decltype(numeric)>;
+      const typename Instance::Desc& description = numeric.getDesc();
       toFloats(numeric.getValue(), n, p.values);
-      toFloats(desc.mDefaultValue, n, p.defaults);
-      toFloats(desc.mMinValue, n, p.minimum);
-      toFloats(desc.mMaxValue, n, p.maximum);
-      for (const auto& [value, label] : desc.mEnumValues) {
+      toFloats(description.mDefaultValue, n, p.defaults);
+      toFloats(description.mMinValue, n, p.minimum);
+      toFloats(description.mMaxValue, n, p.maximum);
+      for (const auto& [value, label] : description.mEnumValues) {
         if constexpr (std::is_arithmetic_v<std::decay_t<decltype(value)>>)
-          p.choices.emplace_back((int)value, str(label));
+          p.choices.emplace_back((int)value, toString(label));
       }
       return true;
     });
@@ -96,17 +96,17 @@ std::vector<Output> Graph::outputs() const {
   std::vector<Output> out;
   for (air::OutputInstance* o : m_impl->instance->getOutputs()) {
     Output d;
-    d.identifier = str(o->mDesc.mIdentifier);
-    d.label = str(o->mDesc.mLabel);
+    d.identifier = toString(o->mDesc.mIdentifier);
+    d.label = toString(o->mDesc.mLabel);
     d.image = o->mDesc.isImage();
     if (!o->mDesc.mChannelsFull.empty()) {
       const air::ChannelFullDesc& ch = o->mDesc.mChannelsFull.front();
       d.usage = ch.mUsage == air::Channel_UNKNOWN
-                    ? str(ch.mUsageStr)
+                    ? toString(ch.mUsageStr)
                     : std::string(air::getChannelNames()[ch.mUsage]);
       d.srgb = ch.mColorSpace == air::ColorSpace_sRGB;
     } else if (!o->mDesc.mChannelsStr.empty()) {
-      d.usage = str(o->mDesc.mChannelsStr.front());
+      d.usage = toString(o->mDesc.mChannelsStr.front());
     }
     out.push_back(std::move(d));
   }

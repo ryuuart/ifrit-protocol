@@ -57,7 +57,7 @@ namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
@@ -111,7 +111,7 @@ inline Element gelPill(std::string_view label, SkColor4f tint, float w = kPillW,
       .row()
       .justify(Justify::Center)
       .alignItems(Align::Center)
-      .child(text(toU8(label), gelLabel(tint)));
+      .child(text(toUtf8(label), gelLabel(tint)));
 }
 
 inline Element gelOrb(float d = kOrbD) {
@@ -197,7 +197,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                  .justify(Justify::Center)
                  .alignItems(Align::Center)
                  .zIndex(1)
-                 .child(text(toU8(label),
+                 .child(text(toUtf8(label),
                              gelLabel({t.deep.fR * 1.3f, t.deep.fG * 1.3f,
                                        t.deep.fB * 1.3f, 1}))));
 }
@@ -221,7 +221,7 @@ inline Element plasticButton(std::string_view label) {
       .row()
       .justify(Justify::Center)
       .alignItems(Align::Center)
-      .child(text(toU8(label), type(13, hexColor(0xFFFFFF), 0.5f, 600)));
+      .child(text(toUtf8(label), type(13, hexColor(0xFFFFFF), 0.5f, 600)));
 }
 
 /** Tiny window-chrome bevel square (the min/max/close cluster). */
@@ -250,7 +250,7 @@ inline Element glint(float size, float rotationDeg, float alpha = 0.95f) {
 
 /** Small caption under the A/B specimens. */
 inline Element caption(std::string_view s) {
-  return text(toU8(s), type(10, hexColor(0xAFC0DE), 0.8f, 600));
+  return text(toUtf8(s), type(10, hexColor(0xAFC0DE), 0.8f, 600));
 }
 
 }  // namespace y2k_chrome
@@ -293,10 +293,11 @@ struct Y2kChrome final : sketch::Sketch {
         box()
             .row()
             .alignItems(Align::Center)
-            .height(Dim(yc::kStatusH))
-            .child(text(toU8(unit), yc::type(11, hexColor(0x39424C), 1.0f, 550))
-                       .shrink(0));
-    if (unitW > 0) content.width(Dim(unitW)).shrink(0);
+            .height(Dimension(yc::kStatusH))
+            .child(
+                text(toUtf8(unit), yc::type(11, hexColor(0x39424C), 1.0f, 550))
+                    .shrink(0));
+    if (unitW > 0) content.width(Dimension(unitW)).shrink(0);
     return content;
   }
 
@@ -322,7 +323,7 @@ struct Y2kChrome final : sketch::Sketch {
             .alignItems(Align::Center)
             .padding(12, 0)
             .gap(5)
-            .child(text(toU8("SIGILNET 2000 \xe2\x80\x94 hyperportal v4.2"),
+            .child(text(toUtf8("SIGILNET 2000 \xe2\x80\x94 hyperportal v4.2"),
                         [] {
                           auto s = yc::type(12, hexColor(0xF2F6FA), 0.4f, 600);
                           sigil::weave::PaintLayer ground;
@@ -352,7 +353,7 @@ struct Y2kChrome final : sketch::Sketch {
             .justify(Justify::Center)
             .alignItems(Align::Center)
             .padding(34, 0)
-            .child(text(toU8("MILLENNIUM"),
+            .child(text(toUtf8("MILLENNIUM"),
                         [] {
                           namespace yc = y2k_chrome;
                           auto s = yc::type(54, {1, 1, 1, 0.97f}, 3, 800);
@@ -421,8 +422,8 @@ struct Y2kChrome final : sketch::Sketch {
             .margin(0, -12, 0, -24)
             .cache(Cache::Texture)
             .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
-            .child(text(toU8("\xc2\xb7 t h e   f u t u r e   i s   "
-                             "c h r o m e \xc2\xb7"),
+            .child(text(toUtf8("\xc2\xb7 t h e   f u t u r e   i s   "
+                               "c h r o m e \xc2\xb7"),
                         yc::type(14, hexColor(0x7FD0FF), 2.5f, 650))
                        .effect(styles::textGlow({1.0f, 1.0f, 1.0f, 0.95f}, 2)
                                    .then(styles::textGlow(
@@ -494,8 +495,8 @@ struct Y2kChrome final : sketch::Sketch {
             .child(strip)
             .child(
                 box().width(1).height(11).fill(Fill::color(hexColor(0xA6ADB4))))
-            .child(
-                text(toU8("56K"), yc::type(10, hexColor(0x6A737D), 1.0f, 700)));
+            .child(text(toUtf8("56K"),
+                        yc::type(10, hexColor(0x6A737D), 1.0f, 700)));
 
     // The window's large blurred shadow is static and the marquee inside it
     // is not, and a node combining the two inherits the marquee's
@@ -586,21 +587,22 @@ struct Y2kChrome final : sketch::Sketch {
                                 .opacity(animate(motion::from(0.0f).to(1.0f),
                                                  {500ms}))
                                 .child(yc::gelOrb())
-                                .child(box()
-                                           .column()
-                                           .margin(14, 0, 0, 4)
-                                           .gap(3)
-                                           .child(text(
-                                               toU8("now streaming @ 56k"),
-                                               yc::type(12, hexColor(0xC8D6EE),
-                                                        0.6f, 600)))
-                                           .child(text(
-                                               toU8("\xc2\xa9 2000 sigilnet "
-                                                    "industries \xe2\x80\x94 "
-                                                    "best viewed at 800\xc3\x97"
-                                                    "600"),
-                                               yc::type(10, hexColor(0x8DA0C4),
-                                                        0.4f))))
+                                .child(
+                                    box()
+                                        .column()
+                                        .margin(14, 0, 0, 4)
+                                        .gap(3)
+                                        .child(text(
+                                            toUtf8("now streaming @ 56k"),
+                                            yc::type(12, hexColor(0xC8D6EE),
+                                                     0.6f, 600)))
+                                        .child(text(
+                                            toUtf8("\xc2\xa9 2000 sigilnet "
+                                                   "industries \xe2\x80\x94 "
+                                                   "best viewed at 800\xc3\x97"
+                                                   "600"),
+                                            yc::type(10, hexColor(0x8DA0C4),
+                                                     0.4f))))
                                 .child(box().grow(1))
                                 .child(box()
                                            .column()
@@ -610,8 +612,8 @@ struct Y2kChrome final : sketch::Sketch {
                                            .child(yc::plasticButton(
                                                "ENTER SITE >>"))
                                            .child(text(
-                                               toU8("[ no frames \xc2\xb7 "
-                                                    "spacer.gif free ]"),
+                                               toUtf8("[ no frames \xc2\xb7 "
+                                                      "spacer.gif free ]"),
                                                yc::type(10, hexColor(0x8DA0C4),
                                                         0.4f))))))
                 .child(statusBar));

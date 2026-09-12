@@ -144,7 +144,7 @@ void paintGeometry(const PassWork& work, const View& view, Targets& targets) {
     // is what makes it visible in a pass that paints everything.
     if (work.realisation == Selection::Variant && pass.variant()) {
       const material::Field* field =
-          pass.variant()->recipe().params().find("baseColor");
+          pass.variant()->recipe().parameters().find("baseColor");
       geometry::mesh::render::MeshStyle over = style;
       // The variant surface is a colour laid over the bodies a selector
       // names, and the pass's own lights are what it stands under —

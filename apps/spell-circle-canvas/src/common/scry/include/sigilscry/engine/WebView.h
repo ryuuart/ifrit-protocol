@@ -89,7 +89,7 @@ class WebView {
   void resize(int width, int height);
 
   /** Loads an HTML string as the main document. Relative resource paths
-   *  resolve against WebEngineConfig::fileSystemDir. */
+   *  resolve against WebEngineConfig::fileSystemDirectory. */
   void loadHTML(std::string html);
 
   /** Navigates to @p url — file:///, http(s)://, or data: . */

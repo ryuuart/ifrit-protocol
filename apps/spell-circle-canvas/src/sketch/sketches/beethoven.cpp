@@ -57,7 +57,7 @@ namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 
 namespace {
@@ -201,7 +201,7 @@ struct Beethoven final : sketch::Sketch {
     for (size_t g = 0; g < groups.size(); ++g) {
       Element entries = box().column().gap(1 * bp::kScale);
       for (const char* line : groups[g].lines)
-        entries.child(text(toU8(line), small(11.5f)));
+        entries.child(text(toUtf8(line), small(11.5f)));
       table.child(
           box()
               .key("group" + std::to_string(g))
@@ -211,7 +211,7 @@ struct Beethoven final : sketch::Sketch {
                          .width(56 * bp::kScale)
                          .row()
                          .justify(Justify::End)
-                         .child(text(toU8(groups[g].label), small(11.5f))))
+                         .child(text(toUtf8(groups[g].label), small(11.5f))))
               .child(std::move(entries)));
     }
     return table;
@@ -237,10 +237,10 @@ struct Beethoven final : sketch::Sketch {
     // poster's most characteristic detail and the reason its lower half
     // reads as setting rather than as caption.
     poster.child(
-        text(toU8("beethoven"), weave::textStyle({.size = 38 * bp::kScale,
-                                                  .color = bp::kInk,
-                                                  .track = 0.2f * bp::kScale,
-                                                  .color8 = true}))
+        text(toUtf8("beethoven"), weave::textStyle({.size = 38 * bp::kScale,
+                                                    .color = bp::kInk,
+                                                    .track = 0.2f * bp::kScale,
+                                                    .color8 = true}))
             .key("title")
             .absolute()
             .left(0.055f * bp::kPlateW)
@@ -269,19 +269,19 @@ struct Beethoven final : sketch::Sketch {
                    .column()
                    .gap(4)
                    .inset(bp::kPlateX + bp::kPlateW + 32, bp::kH - 150, 24, 64)
-                   .child(text(toU8("josef m\xc3\xbcller-brockmann"),
+                   .child(text(toUtf8("josef m\xc3\xbcller-brockmann"),
                                weave::textStyle({.size = 14.0f,
                                                  .color = bp::kLabel,
                                                  .track = 0.6f,
                                                  .color8 = true})))
-                   .child(text(toU8("beethoven \xe2\x80\x94 tonhalle "
-                                    "z\xc3\xbcrich, 1955"),
+                   .child(text(toUtf8("beethoven \xe2\x80\x94 tonhalle "
+                                      "z\xc3\xbcrich, 1955"),
                                weave::textStyle({.size = 12.0f,
                                                  .color = bp::kLabel,
                                                  .track = 0.4f,
                                                  .color8 = true})))
-                   .child(text(toU8("measured arc table \xc2\xb7 rings "
-                                    "double 1:2:4:8:16"),
+                   .child(text(toUtf8("measured arc table \xc2\xb7 rings "
+                                      "double 1:2:4:8:16"),
                                weave::textStyle({.size = 12.0f,
                                                  .color = bp::kLabel,
                                                  .track = 0.4f,

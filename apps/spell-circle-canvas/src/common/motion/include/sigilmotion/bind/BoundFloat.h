@@ -81,7 +81,7 @@ struct BoundFloat {
   // square(): the ON fraction of each period, stored clamped to [0,1].
   float duty = 0.5f;
   // wave(): the caller's own periodic shape, read on the folded phase.
-  choreograph::EaseFn waveFn;
+  choreograph::EaseFn waveFunction;
   int steps = 0;                      // quantize(): 0 = continuous
   float scale = 1.0f, offset = 0.0f;  // the affine chain
   bool clamped = false;
@@ -128,13 +128,14 @@ namespace detail {
  *  does not need this: `core::kFieldCount<T>` reads any aggregate. */
 inline auto fields(BoundFloat& v) {
   auto& [source, inScale, inOffset, curve, clampInput, envelope, riseStart,
-         holdStart, holdEnd, fallEnd, duty, waveFn, steps, scale, offset,
+         holdStart, holdEnd, fallEnd, duty, waveFunction, steps, scale, offset,
          clamped, lo, hi, wiggleAmount, wiggleFrequency, wiggleSeed,
          wiggleOctaves, wiggleFalloff, wrapPeriod] = v;
   return std::tie(source, inScale, inOffset, curve, clampInput, envelope,
-                  riseStart, holdStart, holdEnd, fallEnd, duty, waveFn, steps,
-                  scale, offset, clamped, lo, hi, wiggleAmount, wiggleFrequency,
-                  wiggleSeed, wiggleOctaves, wiggleFalloff, wrapPeriod);
+                  riseStart, holdStart, holdEnd, fallEnd, duty, waveFunction,
+                  steps, scale, offset, clamped, lo, hi, wiggleAmount,
+                  wiggleFrequency, wiggleSeed, wiggleOctaves, wiggleFalloff,
+                  wrapPeriod);
 }
 }  // namespace detail
 

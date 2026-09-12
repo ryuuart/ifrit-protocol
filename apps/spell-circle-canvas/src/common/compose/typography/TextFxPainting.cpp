@@ -240,7 +240,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // multiply, and the two substitutions are last-one-wins.
         // A glyph no track addresses keeps the identity deviation and
         // draws at rest.
-        GlyphMod mod;
+        GlyphModifier modifier;
         bool continuous = false;
         for (const Resolved& r : live) {
           if (!(*r.selected)[g]) continue;
@@ -255,7 +255,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
               rc.cascade.localTime(r.master, rc.outerUnit[g],
                                    rc.innerUnit.empty() ? 0u : rc.innerUnit[g]);
           core::noise::Mix64Stream rng(detail::glyphSeed(info));
-          detail::compose(mod, r.track->effect(info, t, rng));
+          detail::compose(modifier, r.track->effect(info, t, rng));
           continuous |= r.track->continuous;
         }
         // THE BEAT IS NOTED BEFORE THE INK IS. A glyph the deviation faded
@@ -284,7 +284,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
           for (const std::unique_ptr<PassLane>& lane : passes)
             if ((*lane->source->selected)[g]) noteBeat(*lane);
         };
-        if (mod.alpha <= 0.003f || mod.scale <= 0.001f) {
+        if (modifier.alpha <= 0.003f || modifier.scale <= 0.001f) {
           noteBeatsAndDrop();
           return;
         }
@@ -300,7 +300,8 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // The colour multiplier's ALPHA folds into the fade rather than
         // snapping on a ladder of its own: two independent 32-step alphas
         // would be a thousand buckets where one is thirty-two.
-        const float alpha = snap(mod.alpha * mod.colorMul.fA, 1.0f);
+        const float alpha =
+            snap(modifier.alpha * modifier.colorMultiplier.fA, 1.0f);
         if (alpha <= 0.0f) {
           noteBeatsAndDrop();
           return;
@@ -309,24 +310,25 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // ceiling is only there so a runaway number cannot mint buckets
         // without bound.
         constexpr float kTintCeiling = 4.0f;
-        const SkColor4f tint{snap(mod.colorMul.fR, kTintCeiling),
-                             snap(mod.colorMul.fG, kTintCeiling),
-                             snap(mod.colorMul.fB, kTintCeiling), 1.0f};
+        const SkColor4f tint{snap(modifier.colorMultiplier.fR, kTintCeiling),
+                             snap(modifier.colorMultiplier.fG, kTintCeiling),
+                             snap(modifier.colorMultiplier.fB, kTintCeiling),
+                             1.0f};
         // The additive and screen terms ride the same 32-step ladder,
         // ceilinged at 1: an add past full is clamped at the draw anyway,
         // and a screen past full has no headroom left to lift. RGB only —
         // their alpha components state nothing at a draw. The snap is what
         // bounds the memoized filter population, and Track::continuous
         // lifts it here exactly as it does for the multiplier.
-        const SkColor4f flash{snap(mod.colorAdd.fR, 1.0f),
-                              snap(mod.colorAdd.fG, 1.0f),
-                              snap(mod.colorAdd.fB, 1.0f), 0.0f};
-        const SkColor4f glow{snap(mod.colorScreen.fR, 1.0f),
-                             snap(mod.colorScreen.fG, 1.0f),
-                             snap(mod.colorScreen.fB, 1.0f), 0.0f};
+        const SkColor4f flash{snap(modifier.colorAdd.fR, 1.0f),
+                              snap(modifier.colorAdd.fG, 1.0f),
+                              snap(modifier.colorAdd.fB, 1.0f), 0.0f};
+        const SkColor4f glow{snap(modifier.colorScreen.fR, 1.0f),
+                             snap(modifier.colorScreen.fG, 1.0f),
+                             snap(modifier.colorScreen.fB, 1.0f), 0.0f};
         float cosv = 1.0f, sinv = 0.0f;
-        if (mod.rotateDeg != 0) {
-          const float radians = geometry::path::radians(mod.rotateDeg);
+        if (modifier.rotateDeg != 0) {
+          const float radians = geometry::path::radians(modifier.rotateDeg);
           if (continuous) {
             cosv = std::cos(radians);
             sinv = std::sin(radians);
@@ -359,9 +361,10 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // keeps a stagger's shove tangential to the lettering it belongs
         // to. The rotations compose the same way: the track's angle turns
         // the glyph from wherever the baseline had already turned it.
-        const SkPoint centre = {
-            pose.centre.x() + pose.cosine * mod.dx - pose.sine * mod.dy,
-            pose.centre.y() + pose.sine * mod.dx + pose.cosine * mod.dy};
+        const SkPoint centre = {pose.centre.x() + pose.cosine * modifier.dx -
+                                    pose.sine * modifier.dy,
+                                pose.centre.y() + pose.sine * modifier.dx +
+                                    pose.cosine * modifier.dy};
         const float turnCos = pose.cosine * cosv - pose.sine * sinv;
         const float turnSin = pose.sine * cosv + pose.cosine * sinv;
 
@@ -370,19 +373,19 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // textFill/textStroke override, when the node carries one.
         sigil::weave::GlyphDress dress;
         dress.alphaScale = alpha;
-        dress.colorMul = tint;
+        dress.colorMultiplier = tint;
         dress.colorAdd = flash;
         dress.colorScreen = glow;
         if (pose.centreOffset) dress.centreOffset = &*pose.centreOffset;
-        if (mod.axis && placed.shaped)
+        if (modifier.axis && placed.shaped)
           dress.face =
               drivenFace(impl.fonts, placed.shaped->typeface,
-                         placed.shaped->fontSize, *mod.axis, continuous);
+                         placed.shaped->fontSize, *modifier.axis, continuous);
         SkGlyphID glyph = placed.glyph;
-        if (mod.codepoint && placed.shaped)
+        if (modifier.codepoint && placed.shaped)
           if (const SkGlyphID substitute = substituteGlyph(
                   impl.fonts, placed.shaped->typeface, placed.glyph,
-                  mod.codepoint, placed.shaped->vertical))
+                  modifier.codepoint, placed.shaped->vertical))
             glyph = substitute;
 
         // ROUTING, per glyph and not per node: an RSXform carries a
@@ -390,26 +393,28 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // unevenly draws under its own matrix while every glyph that does
         // not keeps the shared transform array untouched.
         SkMatrix matrix;
-        if (mod.skewXDeg != 0 || mod.skewYDeg != 0 || mod.scaleX != 1 ||
-            mod.scaleY != 1) {
+        if (modifier.skewXDeg != 0 || modifier.skewYDeg != 0 ||
+            modifier.scaleX != 1 || modifier.scaleY != 1) {
           matrix.setAll(turnCos, -turnSin, centre.x(), turnSin, turnCos,
                         centre.y(), 0, 0, 1);
           // ONE shear carrying both angles, as the node's own skew lanes
           // take them — not an x shear applied after a y one, which would
           // put a product of the two tangents on the diagonal and scale the
           // glyph as well as leaning it.
-          if (mod.skewXDeg != 0 || mod.skewYDeg != 0)
-            matrix.preSkew(std::tan(geometry::path::radians(mod.skewXDeg)),
-                           std::tan(geometry::path::radians(mod.skewYDeg)));
-          matrix.preScale(mod.scale * mod.scaleX, mod.scale * mod.scaleY);
+          if (modifier.skewXDeg != 0 || modifier.skewYDeg != 0)
+            matrix.preSkew(
+                std::tan(geometry::path::radians(modifier.skewXDeg)),
+                std::tan(geometry::path::radians(modifier.skewYDeg)));
+          matrix.preScale(modifier.scale * modifier.scaleX,
+                          modifier.scale * modifier.scaleY);
           // Innermost, so the pivot shift rides the scale exactly as it
           // does inside an RSXform.
           matrix.preTranslate(-local.x(), -local.y());
           dress.matrix = &matrix;
         } else {
           dress.center = centre;
-          dress.cosine = turnCos * mod.scale;
-          dress.sine = turnSin * mod.scale;
+          dress.cosine = turnCos * modifier.scale;
+          dress.sine = turnSin * modifier.scale;
         }
         // ROUTE: a glyph a pass addresses is drawn inside that pass's
         // layer — with the deviation just composed, because the pass reads

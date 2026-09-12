@@ -9,7 +9,7 @@
 #include <sigilgeometry/path/Extremes.h>
 #include <sigilgeometry/path/Fit.h>
 #include <sigilgeometry/path/Interpolate.h>
-#include <sigilgeometry/path/Ops.h>
+#include <sigilgeometry/path/Operations.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Segments.h>
 #include <sigilgeometry/path/Tidy.h>
@@ -130,7 +130,7 @@ void BM_Offset(benchmark::State& state) {
   const SkPath path = rippledRing(64);
   const float position = (float)state.range(0) / 100.0f;
   for ([[maybe_unused]] auto iteration : state) {
-    SkPath grown = ops::offset(path, 8.0f, {.position = position});
+    SkPath grown = operations::offset(path, 8.0f, {.position = position});
     benchmark::DoNotOptimize(grown);
   }
 }

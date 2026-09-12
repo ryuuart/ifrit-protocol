@@ -10,7 +10,7 @@
  * roughness-and-metallic map, and one that emits.
  *
  * WHICH CARD READS ON WHICH TIER. The device tier runs each material's
- * own body, so every card there is what its params and its maps say. The
+ * own body, so every card there is what its parameters and its maps say. The
  * CPU tier has no compiler and reads a surface's base colour and its
  * base-colour map alone, so on it the row is five flat colours and the
  * floor's weave: the plain card is its colour, the stack is the colour

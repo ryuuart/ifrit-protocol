@@ -25,6 +25,7 @@
 
 #include <array>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -60,9 +61,10 @@ class Effect {
   /** A SigilMaterial recipe as the effect: its program runs over the
    *  layer, which arrives in the child slot named `content`; every other
    *  slot and every uniform is bound from the material as it stands now.
-   *  Built once, like filter(): the material's bindings are read at
-   *  construction and the effect compares by its built filter's identity,
-   *  so animate by re-describing. */
+   *  Built once: the material's bindings are read at construction, so
+   *  animate by re-describing. A static material compares by its value
+   *  and compiled program; a material with live inputs compares by the
+   *  built filter's identity because those inputs were sampled once. */
   static Effect recipe(const Material& material);
   /** THE SAME RECIPE, LOWERED FOR THE SURFACE IT WILL LAND ON.
    *
@@ -294,13 +296,13 @@ class Effect {
   const sk_sp<SkColorFilter>& colorFilter() const { return m_colorFilter; }
   /** The filter with any bound uniforms resolved NOW — what the paint
    *  phase applies. Identical to imageFilter() for a static effect.
-   *  @p ctx is the painting node's PaintFrame, which child() materials
+   *  @p paintFrame is the painting node's PaintFrame, which child() materials
    *  resolve against (its box, its clock) — exactly the context
    *  Material::child hands its children. Null is the context-free form:
    *  static children keep their snapshot, and it is what a caller holding
    *  an Effect outside a paint can ask for. */
   sk_sp<SkImageFilter> resolvedImageFilter(
-      const PaintFrame* ctx = nullptr) const;
+      const PaintFrame* paintFrame = nullptr) const;
   /** THE VOLATILITY DECLARATION — one word across the whole library: does
    *  this effect change without a re-describe? True while any uniform is
    *  bound, or while any child Material is live. The tier inheritance
@@ -334,9 +336,17 @@ class Effect {
    *  carries every Material an effect samples: one equality, one tier
    *  walk, one resolve loop, and `child("sigma", …)` re-aims the map for
    *  free. */
-  struct ParamBlur {
+  struct ParametricBlur {
     float maxSigma = 0;
-    bool operator==(const ParamBlur&) const = default;
+    bool operator==(const ParametricBlur&) const = default;
+  };
+
+  /** The comparable source and compiled program of one recipe()
+   *  snapshot. Live sources are not retained: the filter owns their
+   *  sampled values and compares by identity. */
+  struct RecipeSnapshot {
+    std::optional<Material> material;
+    sk_sp<const SkRuntimeEffect> program;
   };
 
   sk_sp<SkImageFilter> m_filter;
@@ -344,6 +354,7 @@ class Effect {
   // consumer hangs on a paint rather than running through the filter
   // graph. Exclusive with m_filter.
   sk_sp<SkColorFilter> m_colorFilter;
+  std::shared_ptr<const RecipeSnapshot> m_recipeSnapshot;
   // The shader recipe (kept so bound uniforms can rebuild per paint and
   // so equality can compare structurally).
   sk_sp<SkRuntimeEffect> m_effect;
@@ -358,8 +369,9 @@ class Effect {
   // Their presence makes the effect isAnimated(), like a bound scalar.
   std::vector<std::pair<std::string, std::shared_ptr<const UniformBlock>>>
       m_blocks;
-  std::optional<DirectionalBlur> m_dirBlur;        // directionalBlur()'s recipe
-  std::optional<ParamBlur> m_paramBlur;            // blur()'s recipe
+  std::optional<DirectionalBlur>
+      m_directionalBlur;                           // directionalBlur()'s recipe
+  std::optional<ParametricBlur> m_parametricBlur;  // blur()'s recipe
   std::shared_ptr<const BlurLevels> m_blurLevels;  // …and its held passes
   // phosphorBloom(): the shader recipe above is the HALO program alone,
   // and this says the node is that program gathered over a reduced layer
@@ -382,12 +394,12 @@ class Effect {
    *  for the same reason: a static child's snapshot is already correct,
    *  and a context-needing one must be rebuilt per paint or it freezes. */
   bool anyChildNeedsContext() const;
-  /** The child slot @p name as a shader, resolved against @p ctx. */
+  /** The child slot @p name as a shader, resolved against @p paintFrame. */
   sk_sp<SkShader> childShaderFor(std::string_view name,
-                                 const PaintFrame* ctx) const;
+                                 const PaintFrame* paintFrame) const;
   /** The recipe's filter, built unconditionally — the store-time snapshot
-   *  (null ctx) and the per-paint resolve are one construction. */
-  sk_sp<SkImageFilter> buildFilter(const PaintFrame* ctx) const;
+   *  (null paintFrame) and the per-paint resolve are one construction. */
+  sk_sp<SkImageFilter> buildFilter(const PaintFrame* paintFrame) const;
   /** THE EFFECT AS ONE IMAGE FILTER: the colour lane lifted into the
    *  filter graph. A chain composes image filters, and a consumer that
    *  knows only image filters must still get the right picture; the
@@ -402,22 +414,26 @@ class Effect {
    *  what to decide. The state is private, so the decomposition lives
    *  inside the class. */
   static void fieldPin(Effect& v) {
-    auto& [filter, colorFilter, effect, uniforms, uniforms2, uniforms4,
-           uniformArrays, bound, blocks, dirBlur, paramBlur, blurLevels,
-           gatheredHalo, children, chainA, chainB] = v;
+    auto& [filter, colorFilter, recipeSnapshot, effect, uniforms, uniforms2,
+           uniforms4, uniformArrays, bound, blocks, directionalBlur,
+           parametricBlur, blurLevels, gatheredHalo, children, chainA, chainB] =
+        v;
     static_assert(
         std::tuple_size_v<decltype(std::tie(
-                filter, colorFilter, effect, uniforms, uniforms2, uniforms4,
-                uniformArrays, bound, blocks, dirBlur, paramBlur, blurLevels,
-                gatheredHalo, children, chainA, chainB))> == 16,
+                filter, colorFilter, recipeSnapshot, effect, uniforms,
+                uniforms2, uniforms4, uniformArrays, bound, blocks,
+                directionalBlur, parametricBlur, blurLevels, gatheredHalo,
+                children, chainA, chainB))> == 17,
         "Effect gained or lost a member — rule on it in "
         "Effect::operator==, then bump this count. "
         "(m_colorFilter compares by pointer, like m_filter, an "
         "already-built SkColorFilter carrying no recipe either; "
+        "m_recipeSnapshot compares material value and compiled program, "
+        "or m_filter identity when its source has live inputs; "
         "m_filter is EXCLUDED on the shader, directionalBlur and "
         "blur paths because it is derived from m_effect + the "
-        "constant lanes / m_dirBlur / m_paramBlur + m_children, "
-        "and m_blurLevels is derived from m_paramBlur alone, "
+        "constant lanes / m_directionalBlur / m_parametricBlur + m_children, "
+        "and m_blurLevels is derived from m_parametricBlur alone, "
         "while m_gatheredHalo is derived from nothing and is "
         "compared beside the shader recipe; "
         "m_bound and m_blocks make the effect isAnimated(), which "

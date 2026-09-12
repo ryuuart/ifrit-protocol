@@ -42,7 +42,7 @@ using AnimatedFloats = std::vector<std::unique_ptr<AnimatedFloat>>;
 
 /** Constant, binding, or transitioned — one animatable flattened. */
 template <typename T>
-struct ResolvedProp {
+struct ResolvedProperty {
   T target{};
   const choreograph::Output<T>* binding = nullptr;
   const Transition* transition = nullptr;  // the value's own or the default
@@ -53,9 +53,9 @@ struct ResolvedProp {
  *  its own spec instead, and a binding takes neither — it is already a
  *  running curve. */
 template <typename T>
-ResolvedProp<T> resolveProp(const Animatable<T>& v,
-                            const std::optional<Transition>& fallback) {
-  ResolvedProp<T> out;
+ResolvedProperty<T> resolveProperty(const Animatable<T>& v,
+                                    const std::optional<Transition>& fallback) {
+  ResolvedProperty<T> out;
   if (const T* plain = v.plain()) {
     out.target = *plain;
     if (fallback) out.transition = &*fallback;

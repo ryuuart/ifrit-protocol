@@ -96,8 +96,8 @@ class PaintOrderCanvas : public SkPaintFilterCanvas {
   /** One entry a save, true where the layer's own paint reads the
    *  destination — a layer like that is composited by the restore, which
    *  is the draw that has to end the pass. */
-  std::vector<bool> m_layerReadsDst;
-  bool m_restoreReadsDst = false;
+  std::vector<bool> m_layerReadsDestination;
+  bool m_restoreReadsDestination = false;
   /** A reading draw has landed and the next draw must begin a new pass. */
   mutable bool m_pending = false;
   mutable int m_fences = 0;

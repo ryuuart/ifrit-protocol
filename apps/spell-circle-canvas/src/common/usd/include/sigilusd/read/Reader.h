@@ -53,7 +53,7 @@ struct ReadLight {
  *  decoded — this library opens no image, the way it opens no texture
  *  for a material either — so `environment.map` is empty and `texture`
  *  is the path, relative to the stage, that a caller decodes and hands
- *  to `EnvironmentMap::fromEquirect`. */
+ *  to `EnvironmentMap::fromEquirectangular`. */
 struct ReadEnvironment {
   std::string path;
   std::string texture;

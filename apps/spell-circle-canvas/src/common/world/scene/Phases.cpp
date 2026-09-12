@@ -69,7 +69,8 @@ const material::Material* readableSurface(const material::Material* material) {
 glm::vec4 baseColorOf(const material::Material* material) {
   constexpr glm::vec4 kDefault{0.8f, 0.8f, 0.85f, 1.0f};
   if (!material) return kDefault;
-  const material::Field* field = material->recipe().params().find("baseColor");
+  const material::Field* field =
+      material->recipe().parameters().find("baseColor");
   if (!field || field->floats != 4) return kDefault;
   return material->get<glm::vec4>("baseColor");
 }
@@ -101,7 +102,7 @@ geometry::mesh::camera::Camera placeCamera(
  *  subtree is provably standing still and replayed until something in it
  *  moves. The order is entities, not pixels — the components those
  *  entities carry are exactly what a settled subtree does not change. */
-struct DrawOrderBake : core::BakeOps<Scene::Impl::BakeTarget> {
+struct DrawOrderBake : core::BakeOperations<Scene::Impl::BakeTarget> {
   void take(Scene::Impl::BakeTarget& target) const override {
     target.node->baked.clear();
     target.impl->extractInto(*target.node, target.node->baked,

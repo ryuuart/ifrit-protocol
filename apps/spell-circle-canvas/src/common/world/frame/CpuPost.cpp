@@ -35,20 +35,20 @@ sk_sp<SkColorFilter> gradeOf(const Levels& levels) {
   return SkColorFilters::Matrix(matrix);
 }
 
-/** The op, painted onto @p canvas from @p layers. The first layer is
- *  what a single-image op reads; a composite lays every layer after it
+/** The operation, painted onto @p canvas from @p layers. The first layer is
+ *  what a single-image operation reads; a composite lays every layer after it
  *  on top under its own mode and opacity. */
-void paintOp(SkCanvas& canvas, const PostOp& op,
-             const std::vector<sk_sp<SkImage>>& layers) {
+void paintOperation(SkCanvas& canvas, const PostOperation& operation,
+                    const std::vector<sk_sp<SkImage>>& layers) {
   SkPaint paint;
-  if (const Blur* blur = std::get_if<Blur>(&op))
+  if (const Blur* blur = std::get_if<Blur>(&operation))
     paint.setImageFilter(
         SkImageFilters::Blur(blur->sigma, blur->sigma, nullptr));
-  else if (const Levels* levels = std::get_if<Levels>(&op))
+  else if (const Levels* levels = std::get_if<Levels>(&operation))
     paint.setColorFilter(gradeOf(*levels));
   canvas.drawImage(layers.front(), 0, 0, kSampling, &paint);
 
-  const Composite* composite = std::get_if<Composite>(&op);
+  const Composite* composite = std::get_if<Composite>(&operation);
   if (!composite) return;
   for (size_t i = 1; i < layers.size(); ++i) {
     SkPaint over;
@@ -66,7 +66,7 @@ void applyPost(const PassWork& work, Targets& targets) {
   if (!name) return;
 
   // The layers are taken BEFORE the target is cleared, because a pass
-  // may write what it reads: clearing first would hand the op its own
+  // may write what it reads: clearing first would hand the operation its own
   // blank target instead of the picture.
   std::vector<sk_sp<SkImage>> layers;
   for (const std::string& read : pass.reads()) {
@@ -87,14 +87,14 @@ void applyPost(const PassWork& work, Targets& targets) {
   if (layers.empty()) return;
 
   if (!coverage) {
-    paintOp(*canvas, pass.op(), layers);
+    paintOperation(*canvas, pass.operation(), layers);
     return;
   }
-  // Masked: the picture stands everywhere, and the op reaches it only
+  // Masked: the picture stands everywhere, and the operation reaches it only
   // where the coverage does.
   canvas->drawImage(layers.front(), 0, 0, kSampling, nullptr);
   canvas->saveLayer(nullptr, nullptr);
-  paintOp(*canvas, pass.op(), layers);
+  paintOperation(*canvas, pass.operation(), layers);
   SkPaint keep;
   keep.setBlendMode(SkBlendMode::kDstIn);
   canvas->drawImage(coverage, 0, 0, kSampling, &keep);

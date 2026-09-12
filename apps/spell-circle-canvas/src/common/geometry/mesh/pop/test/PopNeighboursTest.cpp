@@ -82,12 +82,12 @@ TEST(Pop, RelaxLeavesCoincidentPointsWhereTheyAre) {
 }
 
 TEST(Pop, RelaxIsMaskedTheWayEveryFilterIs) {
-  pop::Relax op;
-  op.radius = 10.0f;
-  op.iterations = 20;
-  op.mask = "held";
+  pop::Relax operation;
+  operation.radius = 10.0f;
+  operation.iterations = 20;
+  operation.mask = "held";
   pop::Chain chain{pop::PointSet{at({{0, 0, 0}, {1, 0, 0}})},
-                   pop::Fill{"held", {0, 0, 0, 0}}, op};
+                   pop::Fill{"held", {0, 0, 0, 0}}, operation};
   const Cloud held = pop::cook(chain);
   EXPECT_NEAR(glm::length(held.positions[1] - held.positions[0]), 1.0f, 1e-4f);
 }
@@ -104,9 +104,10 @@ TEST(Pop, ClusterFindsTheGroupsThatAreThere) {
     for (int i = 0; i < 30; ++i)
       positions.push_back(knot + glm::vec3((float)(i % 5), (float)(i / 5), 0));
 
-  pop::Cluster op;
-  op.count = 3;
-  const Cloud grouped = pop::cook(pop::Chain{pop::PointSet{at(positions)}, op});
+  pop::Cluster operation;
+  operation.count = 3;
+  const Cloud grouped =
+      pop::cook(pop::Chain{pop::PointSet{at(positions)}, operation});
   const std::vector<glm::vec4>* lane = grouped.colorIf("cluster");
   ASSERT_NE(lane, nullptr);
   ASSERT_EQ(lane->size(), positions.size());
@@ -130,10 +131,11 @@ TEST(Pop, ClusterWeightsChooseTheMetric) {
     positions.push_back({i < 20 ? 0.0f : 900.0f, (float)(i % 20), 0});
 
   const auto groupOf = [&](glm::vec4 weights) {
-    pop::Cluster op;
-    op.count = 2;
-    op.weights = weights;
-    const Cloud out = pop::cook(pop::Chain{pop::PointSet{at(positions)}, op});
+    pop::Cluster operation;
+    operation.count = 2;
+    operation.weights = weights;
+    const Cloud out =
+        pop::cook(pop::Chain{pop::PointSet{at(positions)}, operation});
     std::vector<int> groups;
     for (const glm::vec4 value : *out.colorIf("cluster"))
       groups.push_back((int)value.x);
@@ -153,13 +155,13 @@ TEST(Pop, ClusterWeightsChooseTheMetric) {
 
 TEST(Pop, OneSeedIsOneClustering) {
   const Cloud scattered = points::scatterBox({0, 0, 0}, {100, 100, 100}, 200);
-  pop::Cluster op;
-  op.count = 5;
-  op.seed = 7;
-  const pop::Chain chain{pop::PointSet{scattered}, op};
+  pop::Cluster operation;
+  operation.count = 5;
+  operation.seed = 7;
+  const pop::Chain chain{pop::PointSet{scattered}, operation};
   EXPECT_EQ(pop::cook(chain), pop::cook(chain));
 
-  pop::Cluster other = op;
+  pop::Cluster other = operation;
   other.seed = 8;
   const Cloud elsewhere =
       pop::cook(pop::Chain{pop::PointSet{scattered}, other});
@@ -176,13 +178,13 @@ TEST(Pop, TransferFromAOnePointSourceWritesThatValueEverywhere) {
   Cloud source = at({{0, 0, 0}});
   source.scalar("heat")[0] = 42.0f;
 
-  pop::Transfer op;
-  op.source = source;
-  op.lane = "heat";
-  op.radius = 1000.0f;
+  pop::Transfer operation;
+  operation.source = source;
+  operation.lane = "heat";
+  operation.radius = 1000.0f;
   const Cloud out = pop::cook(pop::Chain{
       pop::PointSet{points::scatterBox({-50, -50, -50}, {50, 50, 50}, 100)},
-      op});
+      operation});
   const std::vector<glm::vec4>* heat = out.colorIf("heat");
   ASSERT_NE(heat, nullptr);
   for (const glm::vec4 value : *heat) EXPECT_NEAR(value.x, 42.0f, 1e-3f);
@@ -194,13 +196,13 @@ TEST(Pop, TransferAtOneSampleIsAPlainNearestNeighbourLookup) {
   heat[0] = 1.0f;
   heat[1] = 9.0f;
 
-  pop::Transfer op;
-  op.source = source;
-  op.lane = "heat";
-  op.radius = 1000.0f;
-  op.maxSamples = 1;
-  const Cloud out = pop::cook(
-      pop::Chain{pop::PointSet{at({{-90, 0, 0}, {90, 0, 0}, {-1, 0, 0}})}, op});
+  pop::Transfer operation;
+  operation.source = source;
+  operation.lane = "heat";
+  operation.radius = 1000.0f;
+  operation.maxSamples = 1;
+  const Cloud out = pop::cook(pop::Chain{
+      pop::PointSet{at({{-90, 0, 0}, {90, 0, 0}, {-1, 0, 0}})}, operation});
   const std::vector<glm::vec4>& answer = *out.colorIf("heat");
   EXPECT_NEAR(answer[0].x, 1.0f, 1e-4f);
   EXPECT_NEAR(answer[1].x, 9.0f, 1e-4f);
@@ -211,12 +213,12 @@ TEST(Pop, TransferLeavesAPointWithNothingInRangeAlone) {
   Cloud source = at({{0, 0, 0}});
   source.scalar("heat")[0] = 5.0f;
 
-  pop::Transfer op;
-  op.source = source;
-  op.lane = "heat";
-  op.radius = 10.0f;
-  const Cloud out =
-      pop::cook(pop::Chain{pop::PointSet{at({{1, 0, 0}, {500, 0, 0}})}, op});
+  pop::Transfer operation;
+  operation.source = source;
+  operation.lane = "heat";
+  operation.radius = 10.0f;
+  const Cloud out = pop::cook(
+      pop::Chain{pop::PointSet{at({{1, 0, 0}, {500, 0, 0}})}, operation});
   const std::vector<glm::vec4>& answer = *out.colorIf("heat");
   EXPECT_NEAR(answer[0].x, 5.0f, 1e-4f);
   EXPECT_NEAR(answer[1].x, 0.0f, 1e-4f);
@@ -272,19 +274,19 @@ TEST(Pop, ConnectAdjacentWithNoPieceLaneBridgesNothing) {
 // The seam
 
 TEST(Pop, TheNeighbourhoodOperatorsAreNamedInAChain) {
-  EXPECT_EQ(pop::opName(pop::Op{pop::Smooth{}}), "Smooth");
-  EXPECT_EQ(pop::opName(pop::Op{pop::Relax{}}), "Relax");
-  EXPECT_EQ(pop::opName(pop::Op{pop::Cluster{}}), "Cluster");
-  EXPECT_EQ(pop::opName(pop::Op{pop::Transfer{}}), "Transfer");
+  EXPECT_EQ(pop::operationName(pop::Operation{pop::Smooth{}}), "Smooth");
+  EXPECT_EQ(pop::operationName(pop::Operation{pop::Relax{}}), "Relax");
+  EXPECT_EQ(pop::operationName(pop::Operation{pop::Cluster{}}), "Cluster");
+  EXPECT_EQ(pop::operationName(pop::Operation{pop::Transfer{}}), "Transfer");
 }
 
 TEST(Pop, TheNeighbourhoodOperatorsCarryTheirDialsByName) {
-  pop::Op op = pop::Relax{};
-  EXPECT_TRUE(pop::setField(op, "radius", 12.0f));
-  EXPECT_EQ(pop::getField(op, "radius").value(), 12.0f);
-  EXPECT_FALSE(pop::getField(op, "strengthiness").has_value());
+  pop::Operation operation = pop::Relax{};
+  EXPECT_TRUE(pop::setField(operation, "radius", 12.0f));
+  EXPECT_EQ(pop::getField(operation, "radius").value(), 12.0f);
+  EXPECT_FALSE(pop::getField(operation, "strengthiness").has_value());
 
-  pop::Op cluster = pop::Cluster{};
+  pop::Operation cluster = pop::Cluster{};
   EXPECT_TRUE(pop::setField(cluster, "count", 6.0f));
   EXPECT_EQ(pop::getField(cluster, "count").value(), 6.0f);
 }

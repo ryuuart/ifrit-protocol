@@ -128,7 +128,7 @@ TEST(Field, CrtOverlayScanStrengthAndVignetteAreTheCallersNumbers) {
 
 TEST(Field, TheBeamTheBeatAndTheGrainAreAbsentUntilTheyAreGivenStrength) {
   // The tube's darkening is a sum, and the positional entry point is the
-  // hard line alone: nothing the params added may reach a picture that
+  // hard line alone: nothing the parameters added may reach a picture that
   // did not ask for it.
   const SkBitmap plain = render(field::crtOverlay(4.0f, 0.10f), 64, 64);
   const SkBitmap same = render(

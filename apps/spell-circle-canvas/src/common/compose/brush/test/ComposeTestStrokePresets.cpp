@@ -122,7 +122,7 @@ TEST(ComposeKitStrokes, TheWaveProfileIsAKitValueOverACoreSeam) {
 
 TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
   // `.shaped(value)` is the ONE geometry-deviation seam. `brush::restyle`
-  // does the same job around a `GeometryOp`, and it stays because a raw
+  // does the same job around a `GeometryOperation`, and it stays because a raw
   // lambda can never be a Shaper — a Shaper is comparable by design, and a
   // lambda is not. So the claim here is that the two spellings agree, not
   // that one replaces the other.
@@ -401,7 +401,7 @@ TEST(ComposeKitStrokes, ABleedIsADISTANCEAndNeverNegative) {
   EXPECT_FLOAT_EQ(kitZigzag.bleed(), 4.0f);
   // …and the type-erased seams read the same number through.
   EXPECT_FLOAT_EQ(geometry::path::Shaper(kitWave).bleed(), 4.0f);
-  EXPECT_FLOAT_EQ(GeometryOp(kitSquare).bleed(), 5.0f);
+  EXPECT_FLOAT_EQ(GeometryOperation(kitSquare).bleed(), 5.0f);
   // A negative amplitude still DRAWS — it is the same wave, half a cycle
   // over — so this is a cull fix and not a clamp on the value.
   SkPathBuilder b;

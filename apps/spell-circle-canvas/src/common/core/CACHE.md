@@ -13,7 +13,7 @@ and `COMPARABLE.md` is the leaf the bake seam's erased value comes from.
 | `cache/Policy.h` | `Cache` — the three-valued cache policy: `Auto`, `Always`, `Never` |
 | `cache/Volatility.h` | `NodeVolatility`, `SubtreeVerdict`, `ChildVolatility` and `foldSubtree` — the settled-subtree proof |
 | `cache/Settle.h` | `Settle<Values>` — the stability release: `observe`, `release`, `moved`, `frames`, `held`, `restart` |
-| `cache/Bake.h` | `BakeOps<Target>`, `Bake<Target>`, `BakeState`, `BakeAction`, `decideBake`, `runBake` — the bake seam |
+| `cache/Bake.h` | `BakeOperations<Target>`, `Bake<Target>`, `BakeState`, `BakeAction`, `decideBake`, `runBake` — the bake seam |
 | `cache/Rebuild.h` | `RebuildGuard<Keys...>`, `CachedValue<Value, Keys...>` and `quantizeKey` — rebuild on change, with the key one declared tuple rather than a row of members and an if |
 
 `<sigilcore/cache/Cache.h>` includes all five.
@@ -58,7 +58,7 @@ replays a frame that has already changed.
 
 ## The decision is the kernel's, the artefact is the host's
 
-`BakeOps` names four operations over a `Target` the kernel never looks
+`BakeOperations` names four operations over a `Target` the kernel never looks
 inside: take the bake, replay it, drop it, and say whether one is held.
 `decideBake` answers `Live`, `Take` or `Replay` from three facts. A host
 with several tiers — a recorded command list, a rasterized image, a whole

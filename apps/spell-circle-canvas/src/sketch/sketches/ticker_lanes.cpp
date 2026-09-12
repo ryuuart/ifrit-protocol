@@ -59,7 +59,7 @@ namespace motion = sigil::motion;
 namespace ch = choreograph;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -119,15 +119,15 @@ Element cell(const char* call, const char* note, Element body,
              const std::string& readout) {
   const sketch::kit::Theme& look = sketch::kit::theme();
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body))
           // The readout stands on a scrim of the cell's own ground: a
           // trace runs the whole plate and would otherwise cross it.
-          .child(text(toU8(readout), look.mono(10, look.palette.figure))
+          .child(text(toUtf8(readout), look.mono(10, look.palette.figure))
                      .absolute()
-                     .left(Dim(8.0f))
-                     .top(Dim(6.0f))
+                     .left(Dimension(8.0f))
+                     .top(Dimension(6.0f))
                      .padding(4, 2)
                      .fill(Fill::color(look.palette.cellGround))));
 }
@@ -189,18 +189,18 @@ struct TickerLanes final : sketch::Sketch {
     readouts[3] = kit::formatted("timeline \xc2\xb7 RampTo over %.1f s", kRamp);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("THE TICKER'S LANES \xc2\xb7 Ticker::add, "
-                       "addFixed, derive, timeline"),
-         .subtitle = toU8("dials \xc2\xb7 three seconds at a 120 Hz delta "
-                          "\xc2\xb7 the fixed rate (5 Hz) \xc2\xb7 the "
-                          "derivation's levels (6) \xc2\xb7 the "
-                          "timeline motion's duration (1.4 s)"),
-         .footer = toU8("a derivation runs in a SECOND PHASE, after the "
-                        "timeline and after every steppable, so it "
-                        "never reads a stale source and registration "
-                        "order does not matter \xe2\x80\x94 which is "
-                        "exactly what a hand-rolled shadow copy cannot "
-                        "promise")},
+        {.title = toUtf8("THE TICKER'S LANES \xc2\xb7 Ticker::add, "
+                         "addFixed, derive, timeline"),
+         .subtitle = toUtf8("dials \xc2\xb7 three seconds at a 120 Hz delta "
+                            "\xc2\xb7 the fixed rate (5 Hz) \xc2\xb7 the "
+                            "derivation's levels (6) \xc2\xb7 the "
+                            "timeline motion's duration (1.4 s)"),
+         .footer = toUtf8("a derivation runs in a SECOND PHASE, after the "
+                          "timeline and after every steppable, so it "
+                          "never reads a stale source and registration "
+                          "order does not matter \xe2\x80\x94 which is "
+                          "exactly what a hand-rolled shadow copy cannot "
+                          "promise")},
         kit::cells(
             {.cells =
                  {cell("ticker.add([](double dt) { … return true; })",

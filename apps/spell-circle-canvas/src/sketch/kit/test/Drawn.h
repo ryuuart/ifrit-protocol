@@ -71,8 +71,8 @@ inline bool sameDrawing(compose::Element left, compose::Element right) {
  *  drawings is a difference in what the kit put around it. */
 inline compose::Element subject() {
   return compose::box()
-      .width(compose::Dim(60))
-      .height(compose::Dim(40))
+      .width(compose::Dimension(60))
+      .height(compose::Dimension(40))
       .fill(compose::Fill::color({0.9f, 0.3f, 0.4f, 1}));
 }
 

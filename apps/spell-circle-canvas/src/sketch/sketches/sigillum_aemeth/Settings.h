@@ -303,7 +303,7 @@ inline SkPoint heptVertex(int k, float rNorm) {
  *  that glyph-up comes out radially outward — the engraver's convention.
  *  TextPath walks every contour in order as ONE arc-length coordinate, so
  *  side k's midpoint is at exactly (k + 0.5)/7 of the whole. */
-inline shapes::OutlineFn heptChords(float rNorm, float inset) {
+inline shapes::OutlineFunction heptChords(float rNorm, float inset) {
   return [rNorm, inset](SkSize) {
     SkPathBuilder b;
     for (int k = 0; k < 7; ++k) {
@@ -420,8 +420,9 @@ inline Weave buildWeave(float rNorm) {
  *  SkDiscretePathEffect over a 3900 px circle on EVERY PAINT, which during a
  *  trim reveal is every frame; baking the jitter into the OUTLINE instead
  *  runs it once at layout and leaves the reveal as pure geometry. */
-inline shapes::OutlineFn wobbled(shapes::OutlineFn base, uint32_t seed,
-                                 float seg = 26.0f, float dev = 0.34f) {
+inline shapes::OutlineFunction wobbled(shapes::OutlineFunction base,
+                                       uint32_t seed, float seg = 26.0f,
+                                       float dev = 0.34f) {
   return [base = std::move(base), seed, seg, dev](SkSize s) {
     return shapers::Jitter{seg, dev, seed}.shape(base(s));
   };

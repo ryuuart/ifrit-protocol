@@ -43,7 +43,7 @@ sk_sp<SkShader> Paint::asShader() const {
   return nullptr;  // none
 }
 
-sk_sp<SkShader> Paint::shaderFor(const PaintFrame& ctx) const {
+sk_sp<SkShader> Paint::shaderFor(const PaintFrame& paintFrame) const {
   // Deferred blend: when any layer needs the PaintFrame (live uniforms,
   // SDF uResolution), the flatten happens HERE, per resolve, so every layer
   // contributes its correct current form — the eager snapshot from blend()
@@ -53,8 +53,8 @@ sk_sp<SkShader> Paint::shaderFor(const PaintFrame& ctx) const {
   // way through childShader → resolve.
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend &&
       (isAnimated() || geometryDependent())) {
-    sk_sp<SkShader> folded = foldBlend(&ctx);
-    if (m_worldSpace) folded = anchorToRoot(std::move(folded), ctx);
+    sk_sp<SkShader> folded = foldBlend(&paintFrame);
+    if (m_worldSpace) folded = anchorToRoot(std::move(folded), paintFrame);
     return folded;
   }
   // The sksl path — build() digests W and applies the world-space wrap
@@ -62,16 +62,16 @@ sk_sp<SkShader> Paint::shaderFor(const PaintFrame& ctx) const {
   // gradient-factory materials geometry-dependent too, and those have no
   // sksl recipe; they take the final branch below instead.
   if (m_live && (isAnimated() || geometryDependent()))
-    return build(*m_live, &ctx, m_worldSpace);
+    return build(*m_live, &paintFrame, m_worldSpace);
   // The recipe-backed path — the same rule, through the core's cache.
   if (m_backed && (isAnimated() || geometryDependent()))
-    return buildBacked(&ctx);
+    return buildBacked(&paintFrame);
   // The fit: the source mapped onto THIS box, which neither the static
   // snapshot below nor the recipe matrix could know. It carries the bound
   // pan itself, so it sits above the pan branch as well.
   if (hasFit()) {
-    if (sk_sp<SkShader> fitted = fittedImageShader(ctx)) {
-      if (m_worldSpace) fitted = anchorToRoot(std::move(fitted), ctx);
+    if (sk_sp<SkShader> fitted = fittedImageShader(paintFrame)) {
+      if (m_worldSpace) fitted = anchorToRoot(std::move(fitted), paintFrame);
       return fitted;
     }
   }
@@ -82,7 +82,7 @@ sk_sp<SkShader> Paint::shaderFor(const PaintFrame& ctx) const {
   // the node's recording alive between moves.
   if (hasBoundOffset()) {
     if (sk_sp<SkShader> panned = pannedImageShader()) {
-      if (m_worldSpace) panned = anchorToRoot(std::move(panned), ctx);
+      if (m_worldSpace) panned = anchorToRoot(std::move(panned), paintFrame);
       return panned;
     }
   }
@@ -93,7 +93,7 @@ sk_sp<SkShader> Paint::shaderFor(const PaintFrame& ctx) const {
   // geometry-tier materials, resolved when the node records, so no
   // per-frame pointer stability is at stake.
   sk_sp<SkShader> s = m_shader;
-  if (m_worldSpace && s) s = anchorToRoot(std::move(s), ctx);
+  if (m_worldSpace && s) s = anchorToRoot(std::move(s), paintFrame);
   return s;
 }
 

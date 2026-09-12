@@ -108,9 +108,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // chain, and whatever the frame before it left unplaced for every other.
   uint32_t threadCursor = 0;
   // …and the LINE this frame's first line is, counted from the story's
-  // start. A story numbers its own lines: weave::sel::line(40) is the fortieth
-  // line of the story wherever it landed, so a chain that reflows moves
-  // the selection with the text instead of addressing a different line in
+  // start. A story numbers its own lines: weave::selectors::line(40) is the
+  // fortieth line of the story wherever it landed, so a chain that reflows
+  // moves the selection with the text instead of addressing a different line in
   // every frame. 0 for the head, and for every text that is not a frame.
   uint32_t threadLineOffset = 0;
   // …and the MEASURE THE NEXT FRAME SETS IN, which the widow rule needs
@@ -166,9 +166,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // layout has run, and rewritten by every layout after.
   SkRect textInk = SkRect::MakeEmpty();
   // weave::rich().add(text, styleName): each named run and the text it
-  // occupies, in declaration order — what sel::style resolves against. Cleared
-  // and rebuilt with the paragraph, so the names a node answers for are exactly
-  // the ones its current content declares.
+  // occupies, in declaration order — what selectors::style resolves against.
+  // Cleared and rebuilt with the paragraph, so the names a node answers for are
+  // exactly the ones its current content declares.
   std::vector<detail::NamedRun> textNamedRuns;
   // The engine's state (TextState) — null until dressed type first asks
   // for it. Read through textStateOf().

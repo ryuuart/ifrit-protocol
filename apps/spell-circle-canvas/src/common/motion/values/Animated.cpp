@@ -30,8 +30,8 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
                        const Animatable<float>& prevValue,
                        const Animatable<float>& nextValue,
                        const std::optional<Transition>& fallback) {
-  ResolvedProp<float> prev = resolveProp(prevValue, fallback);
-  ResolvedProp<float> next = resolveProp(nextValue, fallback);
+  ResolvedProperty<float> prev = resolveProperty(prevValue, fallback);
+  ResolvedProperty<float> next = resolveProperty(nextValue, fallback);
   // Snap semantics must actually LAND: a lingering ramp from an earlier
   // transition would shadow the plain description forever (resolveFloatAt
   // prefers a started anim), so the snap paths disconnect it.

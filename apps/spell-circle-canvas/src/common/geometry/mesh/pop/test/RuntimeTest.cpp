@@ -42,8 +42,8 @@ struct Recorder : pop::Executor {
   std::string name() const override { return label; }
   // The narrow executor runs generators and nothing else, which is the
   // shape of a backend that can seed lanes but not filter them.
-  bool supports(const pop::Op& op) const override {
-    return everything || std::holds_alternative<pop::SplineScatter>(op);
+  bool supports(const pop::Operation& operation) const override {
+    return everything || std::holds_alternative<pop::SplineScatter>(operation);
   }
   Cloud cook(const pop::Chain&) const override {
     ++cooks;
@@ -164,8 +164,9 @@ TEST(PopRuntime, AnUnsupportedOperatorStopsTheCookByName) {
 }
 
 TEST(PopRuntime, EveryOperatorNamesItself) {
-  EXPECT_EQ(pop::opName(pop::Op{pop::SplineScatter{}}), "SplineScatter");
-  EXPECT_EQ(pop::opName(pop::Op{pop::Jitter{}}), "Jitter");
-  EXPECT_EQ(pop::opName(pop::Op{pop::Deform{}}), "Deform");
-  EXPECT_EQ(pop::opName(pop::Op{pop::PointSet{}}), "PointSet");
+  EXPECT_EQ(pop::operationName(pop::Operation{pop::SplineScatter{}}),
+            "SplineScatter");
+  EXPECT_EQ(pop::operationName(pop::Operation{pop::Jitter{}}), "Jitter");
+  EXPECT_EQ(pop::operationName(pop::Operation{pop::Deform{}}), "Deform");
+  EXPECT_EQ(pop::operationName(pop::Operation{pop::PointSet{}}), "PointSet");
 }

@@ -51,7 +51,7 @@ namespace noise = sigil::core::noise;
 namespace core = sigil::core;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -103,7 +103,7 @@ Element field(const char* key, Field sample) {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body)));
 }
@@ -119,18 +119,18 @@ struct NoiseShelf final : sketch::Sketch {
     const int columns = (int)(kCell / kBlock);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("THE MIXERS \xc2\xb7 core::noise hash, "
-                       "Mix64Stream, pcgHash, xorshift, lattice, and "
-                       "core::hash"),
-         .subtitle = toU8("dials \xc2\xb7 one seed for the whole shelf "
-                          "\xc2\xb7 four px a sample \xc2\xb7 the "
-                          "lattice's cell (6 samples) \xc2\xb7 what the "
-                          "key is folded over"),
-         .footer = toU8("each of these is a bit-exact function of its "
-                        "inputs on every platform, which is what lets a "
-                        "shader agree with a CPU preview to the bit "
-                        "\xe2\x80\x94 and why the constants and the "
-                        "shift schedules are not tuning knobs")},
+        {.title = toUtf8("THE MIXERS \xc2\xb7 core::noise hash, "
+                         "Mix64Stream, pcgHash, xorshift, lattice, and "
+                         "core::hash"),
+         .subtitle = toUtf8("dials \xc2\xb7 one seed for the whole shelf "
+                            "\xc2\xb7 four px a sample \xc2\xb7 the "
+                            "lattice's cell (6 samples) \xc2\xb7 what the "
+                            "key is folded over"),
+         .footer = toUtf8("each of these is a bit-exact function of its "
+                          "inputs on every platform, which is what lets a "
+                          "shader agree with a CPU preview to the bit "
+                          "\xe2\x80\x94 and why the constants and the "
+                          "shift schedules are not tuning knobs")},
         kit::cells(
             {.cells = {cell("noise::hash(seed, i)",
                             "the 64-bit avalanche squeezed to a unit float "
@@ -215,7 +215,7 @@ struct NoiseShelf final : sketch::Sketch {
 
   Element text_(const std::string& row) {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
-    return text(toU8(row), sheet.mono(9.5f, sheet.palette.figure));
+    return text(toUtf8(row), sheet.mono(9.5f, sheet.palette.figure));
   }
 };
 

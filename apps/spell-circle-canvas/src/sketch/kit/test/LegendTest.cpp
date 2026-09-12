@@ -44,18 +44,20 @@ TEST(SketchKitLegend, AnEntryIsASwatchAndItsWords) {
           .column()
           .gap(house.spacing.rowGap)
           .alignItems(compose::Align::Start)
-          .child(compose::box()
-                     .row()
-                     .alignItems(compose::Align::Center)
-                     .gap(house.spacing.captionNoteGap)
-                     .child(compose::box()
-                                .width(compose::Dim(house.spacing.swatchSide))
-                                .height(compose::Dim(house.spacing.swatchSide))
-                                .fill(warm)
-                                .shrink(0))
-                     .child(compose::text(u8"lit",
-                                          house.style(house.type.captionNote,
-                                                      house.palette.ink))));
+          .child(
+              compose::box()
+                  .row()
+                  .alignItems(compose::Align::Center)
+                  .gap(house.spacing.captionNoteGap)
+                  .child(
+                      compose::box()
+                          .width(compose::Dimension(house.spacing.swatchSide))
+                          .height(compose::Dimension(house.spacing.swatchSide))
+                          .fill(warm)
+                          .shrink(0))
+                  .child(compose::text(
+                      u8"lit",
+                      house.style(house.type.captionNote, house.palette.ink))));
   EXPECT_TRUE(sameDrawing(std::move(byHand),
                           kit::legend({.entries = {{warm, u8"lit"}}})));
 }
@@ -80,8 +82,8 @@ TEST(SketchKitLegend, AnEntryCanCarryItsOwnEdgeAndItsOwnInk) {
                      .alignItems(compose::Align::Center)
                      .gap(6)
                      .child(compose::box()
-                                .width(compose::Dim(9))
-                                .height(compose::Dim(9))
+                                .width(compose::Dimension(9))
+                                .height(compose::Dimension(9))
                                 .fill(body)
                                 .shrink(0)
                                 .corners(compose::Corners{1.5f})
@@ -118,8 +120,8 @@ TEST(SketchKitLegend, AnEntryWithoutThemDrawsWhatItAlwaysDid) {
 TEST(SketchKitLegend, AnEntrysMarkIsWhateverTheCallerDrew) {
   const kit::Theme& house = kit::houseTheme();
   Element sample = compose::box()
-                       .width(compose::Dim(20))
-                       .height(compose::Dim(13))
+                       .width(compose::Dimension(20))
+                       .height(compose::Dimension(13))
                        .fill(Fill::color({0.45f, 0.29f, 0.29f, 1}))
                        .foreground(compose::stroke(
                            1.0f, Fill::color({0.87f, 0.84f, 0.77f, 0.55f})));
@@ -148,13 +150,13 @@ TEST(SketchKitLegend, AStripNamesTheStepsItHasWordsFor) {
   for (int i = 0; i < 4; ++i)
     steps.push_back(Fill::color({0.2f * (float)i, 0.3f, 0.4f, 1}));
   EXPECT_FALSE(sameDrawing(kit::swatchStrip({.swatches = steps,
-                                             .width = compose::Dim(28),
-                                             .height = compose::Dim(14),
+                                             .width = compose::Dimension(28),
+                                             .height = compose::Dimension(14),
                                              .gap = 0}),
                            kit::swatchStrip({.swatches = steps,
                                              .labels = {u8"0", {}, {}, u8"1"},
-                                             .width = compose::Dim(28),
-                                             .height = compose::Dim(14),
+                                             .width = compose::Dimension(28),
+                                             .height = compose::Dimension(14),
                                              .gap = 0})));
 }
 

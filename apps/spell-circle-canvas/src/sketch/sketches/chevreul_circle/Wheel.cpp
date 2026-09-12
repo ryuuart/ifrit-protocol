@@ -167,8 +167,8 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
       // sized parent silently collapses all 72 labels onto one point.
       g.child(text(U(s), st)
                   .key(key)
-                  .width(Dim(2 * rMid))
-                  .height(Dim(2 * rMid))
+                  .width(Dimension(2 * rMid))
+                  .height(Dimension(2 * rMid))
                   .centerAt(kC)
                   .onPath(TextPath{.path = rimBaseline(),
                                    .at = f,
@@ -194,10 +194,10 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
     // the cell divider, on the sector boundary
     const float bd = sectorStart(n) * 3.14159265f / 180.0f;
     g.child(box()
-                .left(Dim(kC.fX - kRLimbOut))
-                .top(Dim(kC.fY - kRLimbOut))
-                .width(Dim(2 * kRLimbOut))
-                .height(Dim(2 * kRLimbOut))
+                .left(Dimension(kC.fX - kRLimbOut))
+                .top(Dimension(kC.fY - kRLimbOut))
+                .width(Dimension(2 * kRLimbOut))
+                .height(Dimension(2 * kRLimbOut))
                 .key("div" + std::to_string(n))
                 .fill(Fill::none())
                 .shape(keyedShape(bd,
@@ -223,8 +223,8 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
     const int n = i * 6;
     g.child(text(U(std::to_string(n)), mn(10.0f, kRed, 0.3f))
                 .key("ix" + std::to_string(n))
-                .width(Dim(2 * (kRSweepOut + 11)))
-                .height(Dim(2 * (kRSweepOut + 11)))
+                .width(Dimension(2 * (kRSweepOut + 11)))
+                .height(Dimension(2 * (kRSweepOut + 11)))
                 .centerAt(kC)
                 .onPath(TextPath{.path = rimBaseline(),
                                  .at = (float)n / 72.0f,

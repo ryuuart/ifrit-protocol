@@ -37,7 +37,7 @@
 #include <span>
 #include <vector>
 
-namespace sigil::geometry::path::ops {
+namespace sigil::geometry::path::operations {
 
 /** Everything either shape covers. */
 SkPath unite(const SkPath& a, const SkPath& b);
@@ -322,15 +322,15 @@ struct Twirl {
 };
 
 /** A step in a non-destructive recipe; every distort above converts. */
-using PathOp = std::function<SkPath(const SkPath&)>;
+using PathOperation = std::function<SkPath(const SkPath&)>;
 
 /** Left-to-right composition: chain({offsetBy(4), Roughen{...}}). */
-PathOp chain(std::vector<PathOp> steps);
+PathOperation chain(std::vector<PathOperation> steps);
 
 /** offset() as a recipe step. */
-inline PathOp offsetBy(float delta, const OffsetOptions& options = {}) {
+inline PathOperation offsetBy(float delta, const OffsetOptions& options = {}) {
   return
       [delta, options](const SkPath& p) { return offset(p, delta, options); };
 }
 
-}  // namespace sigil::geometry::path::ops
+}  // namespace sigil::geometry::path::operations

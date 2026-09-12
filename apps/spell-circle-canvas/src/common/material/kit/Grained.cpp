@@ -43,49 +43,49 @@ std::shared_ptr<const Recipe> define(const char* name,
 
 const std::shared_ptr<const Recipe>& stoneRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
-      define<StoneParams>("kit.stone", "Stone");
+      define<StoneParameters>("kit.stone", "Stone");
   return recipe;
 }
 
 const std::shared_ptr<const Recipe>& timberRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
-      define<TimberParams>("kit.timber", "Timber");
+      define<TimberParameters>("kit.timber", "Timber");
   return recipe;
 }
 
 const std::shared_ptr<const Recipe>& lattenRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
-      define<LattenParams>("kit.latten", "Latten");
+      define<LattenParameters>("kit.latten", "Latten");
   return recipe;
 }
 
 const std::shared_ptr<const Recipe>& boardRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
-      define<BoardParams>("kit.board", "Board");
+      define<BoardParameters>("kit.board", "Board");
   return recipe;
 }
 
-Material stone(const StoneParams& params) {
-  return Material(stoneRecipe(), params);
+Material stone(const StoneParameters& parameters) {
+  return Material(stoneRecipe(), parameters);
 }
 
-Material timber(const TimberParams& params) {
-  return Material(timberRecipe(), params);
+Material timber(const TimberParameters& parameters) {
+  return Material(timberRecipe(), parameters);
 }
 
-Material latten(const LattenParams& params) {
-  return Material(lattenRecipe(), params);
+Material latten(const LattenParameters& parameters) {
+  return Material(lattenRecipe(), parameters);
 }
 
-Material board(const BoardParams& params) {
-  return Material(boardRecipe(), params);
+Material board(const BoardParameters& parameters) {
+  return Material(boardRecipe(), parameters);
 }
 
-Color lattenTone(const LattenParams& params, float along) {
-  const float u =
-      std::clamp(params.level + (along - 0.5f) * params.sheen, 0.0f, 1.0f);
-  const Color& lo = u < 0.5f ? params.shadow : params.body;
-  const Color& hi = u < 0.5f ? params.body : params.light;
+Color lattenTone(const LattenParameters& parameters, float along) {
+  const float u = std::clamp(
+      parameters.level + (along - 0.5f) * parameters.sheen, 0.0f, 1.0f);
+  const Color& lo = u < 0.5f ? parameters.shadow : parameters.body;
+  const Color& hi = u < 0.5f ? parameters.body : parameters.light;
   const float f = u < 0.5f ? u * 2.0f : (u - 0.5f) * 2.0f;
   return {lo.r + (hi.r - lo.r) * f, lo.g + (hi.g - lo.g) * f,
           lo.b + (hi.b - lo.b) * f, 1};

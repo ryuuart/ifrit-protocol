@@ -14,7 +14,7 @@
 #include <sigilcompose/kit/Sprites.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilcore/reconcile/Env.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Patterns.h>
@@ -36,7 +36,7 @@
 namespace sketch = sigil::sketch;
 namespace measure = sigil::measure;
 namespace test = sigil::compose::test;
-namespace env = sigil::core::env;
+namespace environment = sigil::core::environment;
 namespace motion = sigil::motion;
 namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
@@ -281,12 +281,12 @@ constexpr std::array<uint32_t, 8> kIconColor = {0x000000, 0xFFFFFF, 0xFF0000,
 //
 //    A CDE widget is drawn in whatever set the window around it was
 //    assigned, and no widget picks its own. That is an ambient value, so
-//    it is one: `core::env::Provide<ColorSet>` opens the scope a piece of
-//    chrome is drawn in, and every bevel, label, stipple and icon under
-//    it reads the same set without being handed it. Threading a set by
-//    argument through six levels is how a window ends up drawn in three
-//    of them by accident, and one window in three sets is the one
-//    mistake a study of this derivation cannot afford.
+//    it is one: `core::environment::Provide<ColorSet>` opens the scope a piece
+//    of chrome is drawn in, and every bevel, label, stipple and icon under it
+//    reads the same set without being handed it. Threading a set by argument
+//    through six levels is how a window ends up drawn in three of them by
+//    accident, and one window in three sets is the one mistake a study of this
+//    derivation cannot afford.
 //
 //    Values, not bound Outputs. A bound colour is declared volatility,
 //    and volatility is per NODE and binary: "this bevel changes every
@@ -317,7 +317,7 @@ struct Theme {
 
 /** The set this piece of chrome is being drawn in. Handed nothing; reads
  *  the scope it was composed inside. */
-inline ColorSet ambient() { return env::inheritedOr(ColorSet{}); }
+inline ColorSet ambient() { return environment::inheritedOr(ColorSet{}); }
 
 // ===========================================================================
 // 4. THE BEVEL — lib/Xm/Draw.c, DrawSimpleShadow().
@@ -454,7 +454,7 @@ inline Element label(std::string_view t, SkColor4f c, float size = kType,
                      int mnemonic = -1) {
   const sigil::weave::TextStyle plain = type(c, size);
   if (mnemonic < 0 || mnemonic >= (int)t.size())
-    return text(toU8(t), plain).shrink(0);
+    return text(toUtf8(t), plain).shrink(0);
   sigil::weave::TextStyle under = plain;
   sigil::weave::Decoration d;
   d.kind = sigil::weave::Decoration::Kind::kUnderline;
@@ -463,16 +463,16 @@ inline Element label(std::string_view t, SkColor4f c, float size = kType,
   d.color = c.toSkColor();
   under.paint.addDecoration(d);
   return text(weave::rich(plain)
-                  .add(toU8(t.substr(0, (size_t)mnemonic)))
-                  .add(toU8(t.substr((size_t)mnemonic, 1)), under)
-                  .add(toU8(t.substr((size_t)mnemonic + 1))))
+                  .add(toUtf8(t.substr(0, (size_t)mnemonic)))
+                  .add(toUtf8(t.substr((size_t)mnemonic, 1)), under)
+                  .add(toUtf8(t.substr((size_t)mnemonic + 1))))
       .shrink(0);
 }
 
 // ===========================================================================
 // 7. WIDGETS.  Not one takes a colour set as an argument: each reads
 //    `ambient()` — the set the window it was composed inside opened with
-//    `env::Provide<ColorSet>` — so a bevel, a label, a stipple and an
+//    `environment::Provide<ColorSet>` — so a bevel, a label, a stipple and an
 //    icon four levels down are all in the same set without anyone
 //    passing it down. A window that wants two puts the second scope
 //    around the subtree that wears it, which is how the File Manager
@@ -492,7 +492,7 @@ inline Element pushButton(std::string_view t, bool armed = false,
                       .padding(2)
                       .alignItems(Align::Center)
                       .justify(Justify::Center)
-                      .height(Dim(25))
+                      .height(Dimension(25))
                       .child(box()
                                  .padding(6, 2)
                                  .alignItems(Align::Center)
@@ -517,21 +517,24 @@ inline Element textField(std::string_view t, float w, bool caret = false,
                       .padding(3, 0)
                       .child(label(t, s.fg));
   if (caret && caretOut)
-    inner.child(box().width(Dim(1)).height(Dim(13)).fill(s.fg).opacity(
-        motion::bind(caretOut).quantize(2)));
+    inner.child(box()
+                    .width(Dimension(1))
+                    .height(Dimension(13))
+                    .fill(s.fg)
+                    .opacity(motion::bind(caretOut).quantize(2)));
   Element field = box()
                       .fill(s.bg)
                       .overlay(bevel(2, true, false))
                       .padding(2)
-                      .height(Dim(24))
+                      .height(Dimension(24))
                       .row()
                       .alignItems(Align::Center)
                       .child(std::move(inner));
-  if (!caret) return field.width(Dim(w));
+  if (!caret) return field.width(Dimension(w));
   // The focused widget carries XmeDrawHighlight's ring OUTSIDE its
   // shadow: four plain rectangles of highlightThickness, no mitre.
   return box()
-      .width(Dim(w))
+      .width(Dimension(w))
       .padding(2)
       .overlay(highlight(2))
       .child(std::move(field).grow(1));

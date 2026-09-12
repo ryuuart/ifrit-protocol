@@ -39,7 +39,7 @@ namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using Corner = sigil::geometry::shapes::Corner;
 
 namespace {
@@ -68,7 +68,7 @@ sketch::kit::Theme sheetTheme() {
  *  treatment reads both as a silhouette and as an edge. */
 Element cell(const char* call, const char* note, Shape cut) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture, .clip = false})
           .child(box()
                      .absolute()
@@ -87,15 +87,15 @@ struct CornerNotched final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("CORNER TREATMENTS \xc2\xb7 rounded + chamfered + "
-                       "notched, over a Corner mask"),
-         .subtitle = toU8("dials \xc2\xb7 the radius (22 px) \xc2\xb7 the "
-                          "chamfer (30 px) \xc2\xb7 the notch (38 by 18 "
-                          "px) \xc2\xb7 the mask"),
-         .footer = toU8("every cell here is one value away from the "
-                        "box at the top left \xe2\x80\x94 a radius, a "
-                        "cut, a bite, or the mask that says which "
-                        "corners take one")},
+        {.title = toUtf8("CORNER TREATMENTS \xc2\xb7 rounded + chamfered + "
+                         "notched, over a Corner mask"),
+         .subtitle = toUtf8("dials \xc2\xb7 the radius (22 px) \xc2\xb7 the "
+                            "chamfer (30 px) \xc2\xb7 the notch (38 by 18 "
+                            "px) \xc2\xb7 the mask"),
+         .footer = toUtf8("every cell here is one value away from the "
+                          "box at the top left \xe2\x80\x94 a radius, a "
+                          "cut, a bite, or the mask that says which "
+                          "corners take one")},
         kit::cells(
             {.cells =
                  {kit::cells(

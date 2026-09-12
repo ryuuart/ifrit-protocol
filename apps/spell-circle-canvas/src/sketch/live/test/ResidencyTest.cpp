@@ -32,7 +32,7 @@ Residency::Open opener(const std::filesystem::path& path, int* built) {
     if (built) ++*built;
     Host::Options options;
     options.sketchPath = path;
-    options.assetsDir = path.parent_path();
+    options.assetsDirectory = path.parent_path();
     options.flagsFile = path.parent_path() / "no_such.rsp";
     options.compiledIn = &kSquare;
     return std::make_unique<Host>(std::move(options), fonts());

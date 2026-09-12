@@ -144,7 +144,7 @@ class VulkanBackend final : public GpuDevice::DeviceBackend {
 
   const NativeDevice& native() const override { return m_native; }
 
-  NativeTexture createTexture(const TextureDesc& desc) override {
+  NativeTexture createTexture(const TextureDescription& desc) override {
     // Vulkan's create-info structs are zero-filled and then written field
     // by field; every field this call depends on, `samples` included, is
     // given its value below.

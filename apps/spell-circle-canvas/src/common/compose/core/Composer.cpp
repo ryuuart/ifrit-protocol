@@ -509,7 +509,7 @@ std::vector<Beat> Composer::beatsOf(std::string_view key,
   // The handle is a unique_ptr, so a const method still reaches a
   // non-const Impl through it.
   Impl& impl = *m_impl;
-  const TextPainterOps* painter = Impl::textPainterOf(*it->second);
+  const TextPainterOperations* painter = Impl::textPainterOf(*it->second);
   if (!painter) return {};  // text at rest runs no schedule
   std::vector<Beat> beats = painter->beats(*it->second, trackIndex);
   if (beats.empty()) return beats;
@@ -538,7 +538,7 @@ std::vector<TextUnit> Composer::units(std::string_view key,
   // A passage that dresses nothing carries no painter, and it still has
   // units to report — so the engine the typography tier registered answers
   // for it.
-  const TextPainterOps* painter = Impl::textPainterOf(*it->second);
+  const TextPainterOperations* painter = Impl::textPainterOf(*it->second);
   if (!painter) painter = detail::registeredTextEngine();
   if (!painter) return {};
   std::vector<TextUnit> units = painter->units(*it->second, selector, unit);
@@ -567,7 +567,7 @@ float Composer::cascadeSpanMs(std::string_view key, size_t trackIndex) const {
   // Logically const: resolving a schedule fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.
   Impl& impl = *m_impl;
-  const TextPainterOps* painter = Impl::textPainterOf(*it->second);
+  const TextPainterOperations* painter = Impl::textPainterOf(*it->second);
   return painter ? painter->cascadeSpanMs(*it->second, trackIndex) : 0.0f;
 }
 

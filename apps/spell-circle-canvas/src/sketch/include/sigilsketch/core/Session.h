@@ -6,7 +6,7 @@
  */
 
 #include <sigilgeometry/mesh/camera/Camera.h>
-#include <sigilsketch/core/CanvasSpec.h>
+#include <sigilsketch/core/CanvasSpecification.h>
 
 #include <cstdint>
 #include <optional>
@@ -50,7 +50,7 @@ class Session {
   /** The canvas the body declared. Read it AFTER opening: a sketch
    *  declares its size from inside its own setup. A body may declare a
    *  new one mid-run, so a host re-reads it after every frame. */
-  [[nodiscard]] virtual const CanvasSpec& canvas() const = 0;
+  [[nodiscard]] virtual const CanvasSpecification& canvas() const = 0;
 
   /** Advance the scene by @p dt seconds and draw the result into
    *  @p canvas. A negative @p dt asks for wall time.

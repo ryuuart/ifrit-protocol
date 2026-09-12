@@ -73,21 +73,21 @@ struct Composite {
   bool operator==(const Composite&) const = default;
 };
 
-/** WHAT A POST PASS DOES to what it reads. An empty op copies. */
-using PostOp = std::variant<std::monostate, Blur, Levels, Composite>;
+/** WHAT A POST PASS DOES to what it reads. An empty operation copies. */
+using PostOperation = std::variant<std::monostate, Blur, Levels, Composite>;
 
 /** THE PASS ESCAPE: a body that does the work itself, given what the
  *  frame extracted and the frame's targets. A pass carrying one runs it
  *  instead of its stage's own work, and the stage still declares the
  *  reads and writes the ordering needs. */
-class PassBodyOps {
+class PassBodyOperations {
  public:
-  PassBodyOps() = default;
-  PassBodyOps(const PassBodyOps&) = default;
-  PassBodyOps(PassBodyOps&&) = default;
-  PassBodyOps& operator=(const PassBodyOps&) = default;
-  PassBodyOps& operator=(PassBodyOps&&) = default;
-  virtual ~PassBodyOps() = default;
+  PassBodyOperations() = default;
+  PassBodyOperations(const PassBodyOperations&) = default;
+  PassBodyOperations(PassBodyOperations&&) = default;
+  PassBodyOperations& operator=(const PassBodyOperations&) = default;
+  PassBodyOperations& operator=(PassBodyOperations&&) = default;
+  virtual ~PassBodyOperations() = default;
 
   /** Does the pass's work over what the frame extracted (@p view) and
    *  the frame's resources (@p targets). */
@@ -97,7 +97,7 @@ class PassBodyOps {
 /** A body carried as a comparable value. A model with `==` declares its
  *  own identity; a model without one — the lambda door below — compares
  *  equal to nothing but its own copies. */
-using PassBody = core::Erased<PassBodyOps>;
+using PassBody = core::Erased<PassBodyOperations>;
 
 /** ONE STAGE OF MAKING A FRAME.
  *
@@ -153,13 +153,13 @@ class Pass {
   /** The body a geometry pass stands at every point of every point set
    *  it reads. */
   Pass& stamp(geometry::mesh::Mesh body);
-  /** Soften what the pass reads. A pass carries ONE post op, so this
+  /** Soften what the pass reads. A pass carries ONE post operation, so this
    *  replaces whatever `levels` or `composite` set. */
   Pass& blur(float sigma);
-  /** Grade what the pass reads, replacing any other post op. */
+  /** Grade what the pass reads, replacing any other post operation. */
   Pass& levels(float gain, float lift, SkColor4f tint = {1, 1, 1, 1});
   /** Lay what the pass reads one layer over another, replacing any other
-   *  post op. */
+   *  post operation. */
   Pass& composite(SkBlendMode mode, float opacity = 1.0f);
   /** THE ESCAPE, as a comparable seam value. */
   Pass& body(PassBody b);
@@ -190,7 +190,7 @@ class Pass {
     return m_popRuntime;
   }
   [[nodiscard]] const geometry::mesh::Mesh& stamp() const { return m_stamp; }
-  [[nodiscard]] const PostOp& op() const { return m_op; }
+  [[nodiscard]] const PostOperation& operation() const { return m_operation; }
   [[nodiscard]] const PassBody& body() const { return m_body; }
 
   /** Value equality, field by field. A pass carrying a lambda body is
@@ -215,7 +215,7 @@ class Pass {
   geometry::mesh::pop::Runtime m_popRuntime =
       geometry::mesh::pop::Runtime::cpu();
   geometry::mesh::Mesh m_stamp;
-  PostOp m_op;
+  PostOperation m_operation;
   PassBody m_body;
 };
 

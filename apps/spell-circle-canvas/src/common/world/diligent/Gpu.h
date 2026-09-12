@@ -120,7 +120,7 @@ struct Gpu {
   /** TARGETS NO RESOURCE NAMES, made on the first ask and kept for the
    *  extent's life. A device cannot sample an image it is drawing into,
    *  so every stage that reads and writes at once — one direction of a
-   *  blur, a masked op, a pass that writes what it reads — takes one of
+   *  blur, a masked operation, a pass that writes what it reads — takes one of
    *  these, and they are addressed by index so that two such stages in
    *  one pass cannot be handed the same one. */
   std::vector<dg::RefCntAutoPtr<dg::ITexture>> scratch;

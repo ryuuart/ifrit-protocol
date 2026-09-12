@@ -46,7 +46,7 @@ struct Graph::Impl {
 };
 
 /** The framework's strings use their own allocator; copy out. */
-inline std::string str(const SubstanceAir::string& s) {
+inline std::string toString(const SubstanceAir::string& s) {
   return {s.data(), s.size()};
 }
 

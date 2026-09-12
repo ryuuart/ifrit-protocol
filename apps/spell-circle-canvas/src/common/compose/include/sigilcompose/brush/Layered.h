@@ -86,7 +86,7 @@ struct LayeredBrush {
 // The brush model — a brush is a PIPELINE: geometry shapers over the path,
 // then paint LAYERS over the result, some of which instance whole elements
 // along it with a programmatic per-instance twist. The four leaf kinds:
-//   brush::Scatter  jittered instances of one element, plus a mod function
+//   brush::Scatter  jittered instances of one element, plus a modifier function
 //   brush::Pattern  side/corner/start/end tiles, fitted an integer number
 //                   of times per run and stretched to close the gap
 //   brush::Ribbon   a variable-width filled band; taper or calligraphic nib

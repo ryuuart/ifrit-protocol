@@ -56,7 +56,7 @@ namespace motion = sigil::motion;
 
 using namespace sigil::compose;
 namespace weave = sigil::weave;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 
 namespace {
@@ -144,8 +144,8 @@ struct Bousen final : sketch::Sketch {
     return bs::specimen(
         caption, bs::label(9, bs::kUsu, 0.6f),
         text(u8"\xe5\x82\x8d\xe7\xb7\x9a\xe4\xbe\x8b", style)
-            .width(Dim(28.0f))
-            .height(Dim(62.0f))
+            .width(Dimension(28.0f))
+            .height(Dimension(62.0f))
             .writingMode(sigil::weave::WritingMode::kVerticalRL),
         132.0f, 8.0f);
   }
@@ -157,8 +157,8 @@ struct Bousen final : sketch::Sketch {
     return bs::specimen(
         caption, bs::label(11, bs::kAi, 1.5f),
         text(u8"「あっ」、。", style)
-            .width(Dim(42.0f))
-            .height(Dim(150.0f))
+            .width(Dimension(42.0f))
+            .height(Dimension(150.0f))
             .writingMode(sigil::weave::WritingMode::kVerticalRL),
         96.0f, 10.0f);
   }
@@ -187,25 +187,25 @@ struct Bousen final : sketch::Sketch {
                 .absolute()
                 .inset(bs::kW - bs::kBlockRight - bs::kBlockW, 96,
                        bs::kBlockRight, 0)
-                .width(Dim(bs::kBlockW))
-                .height(Dim(bs::kBlockH))
+                .width(Dimension(bs::kBlockW))
+                .height(Dimension(bs::kBlockH))
                 .writingMode(sigil::weave::WritingMode::kVerticalRL)
                 // The band the plate is named for: down the RIGHT of the
                 // column, the length of the phrase it dresses.
                 .spanPaint(
-                    weave::sel::text(u8"傍線"),
+                    weave::selectors::text(u8"傍線"),
                     bs::banded(bs::kSumi,
                                sigil::weave::Decoration::Kind::kUnderline,
                                bs::kAka, 2.5f))
                 // Its opposite, down the left.
-                .spanPaint(weave::sel::text(u8"約物"),
+                .spanPaint(weave::selectors::text(u8"約物"),
                            bs::banded(bs::kSumi,
                                       sigil::weave::Decoration::Kind::kOverline,
                                       bs::kAi, 2.0f))
                 // A highlight covers the column PITCH — there is no cap
                 // band across a column to hang one on.
                 .spanPaint(
-                    weave::sel::text(u8"小書きの仮名"),
+                    weave::selectors::text(u8"小書きの仮名"),
                     bs::banded(bs::kSumi,
                                sigil::weave::Decoration::Kind::kHighlight,
                                {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f}, 0))
@@ -213,34 +213,35 @@ struct Bousen final : sketch::Sketch {
                 // the rect it anchors to is the union of that phrase's
                 // advance boxes, and in a column those stack downward, so
                 // the note it carries runs down the page beside them.
-                .mark(weave::sel::text(u8"列は右から左へ"),
-                      box()
-                          .key("callout")
-                          .left(Dim(-168.0f))
-                          .top(pct(0))
-                          .width(Dim(168.0f))
-                          // THE LEADER. A note standing in the margin is a
-                          // note about nothing until something joins it to
-                          // the phrase; the rule runs from the text block
-                          // to the mark's own left edge, which is the
-                          // phrase's edge, so it lands where the anchor is
-                          // rather than where a coordinate would have put
-                          // it.
-                          .child(box()
-                                     .key("leader")
-                                     .absolute()
-                                     .left(Dim(0.0f))
-                                     .top(Dim(42.0f))
-                                     .width(Dim(168.0f))
-                                     .height(Dim(1.0f))
-                                     .fill(Fill::color(bs::kAka)))
-                          .child(text(weave::rich(bs::label(10, bs::kUsu))
-                                          .add(toU8("mark() "),
-                                               bs::label(11, bs::kAka, 1))
-                                          .add(toU8("\xe2\x80\x94 anchored to "
+                .mark(
+                    weave::selectors::text(u8"列は右から左へ"),
+                    box()
+                        .key("callout")
+                        .left(Dimension(-168.0f))
+                        .top(pct(0))
+                        .width(Dimension(168.0f))
+                        // THE LEADER. A note standing in the margin is a
+                        // note about nothing until something joins it to
+                        // the phrase; the rule runs from the text block
+                        // to the mark's own left edge, which is the
+                        // phrase's edge, so it lands where the anchor is
+                        // rather than where a coordinate would have put
+                        // it.
+                        .child(box()
+                                   .key("leader")
+                                   .absolute()
+                                   .left(Dimension(0.0f))
+                                   .top(Dimension(42.0f))
+                                   .width(Dimension(168.0f))
+                                   .height(Dimension(1.0f))
+                                   .fill(Fill::color(bs::kAka)))
+                        .child(text(weave::rich(bs::label(10, bs::kUsu))
+                                        .add(toUtf8("mark() "),
+                                             bs::label(11, bs::kAka, 1))
+                                        .add(toUtf8("\xe2\x80\x94 anchored to "
                                                     "the phrase,\nnot to a "
                                                     "coordinate")))
-                                     .width(Dim(150.0f)))))
+                                   .width(Dimension(150.0f)))))
         // The plate names itself in the other writing mode, so the two
         // stand side by side.
         .child(
@@ -249,19 +250,20 @@ struct Bousen final : sketch::Sketch {
                 .inset(64, 92, 0, 0)
                 .column()
                 .gap(10)
-                .child(text(toU8("\xe5\x82\x8d\xe7\xb7\x9a"),
+                .child(text(toUtf8("\xe5\x82\x8d\xe7\xb7\x9a"),
                             bs::body(44, bs::kSumi)))
                 .child(box()
-                           .width(Dim(120.0f))
-                           .height(Dim(1.0f))
+                           .width(Dimension(120.0f))
+                           .height(Dimension(1.0f))
                            .fill(Fill::color(bs::kAka)))
-                .child(text(toU8("THE COLUMN'S FURNITURE"),
+                .child(text(toUtf8("THE COLUMN'S FURNITURE"),
                             bs::label(13, bs::kAi, 3)))
-                .child(text(toU8("a band beside the column, not beneath a\n"
-                                 "line \xc2\xb7 a mark on the phrase it names"),
-                            bs::label(13, bs::kSumi, 0.4f))
-                           .width(Dim(260.0f)))
-                .child(box().height(Dim(20.0f)))
+                .child(
+                    text(toUtf8("a band beside the column, not beneath a\n"
+                                "line \xc2\xb7 a mark on the phrase it names"),
+                         bs::label(13, bs::kSumi, 0.4f))
+                        .width(Dimension(260.0f)))
+                .child(box().height(Dimension(20.0f)))
                 .child(box()
                            .row()
                            .gap(30)
@@ -269,12 +271,12 @@ struct Bousen final : sketch::Sketch {
                                            bs::body(26, bs::kSumi)))
                            .child(specimen("valt \xc2\xb7 vpal \xc2\xb7 vkna",
                                            bs::columnFitted(26, bs::kAka))))
-                .child(box().height(Dim(14.0f)))
-                .child(text(toU8("the pair is one string set twice: the "
-                                 "second asks\nthe face for the metrics it "
-                                 "keeps for a column"),
+                .child(box().height(Dimension(14.0f)))
+                .child(text(toUtf8("the pair is one string set twice: the "
+                                   "second asks\nthe face for the metrics it "
+                                   "keeps for a column"),
                             bs::label(11, bs::kUsu))
-                           .width(Dim(300.0f))))
+                           .width(Dimension(300.0f))))
         // The cascade lives on its own strip, and it wears a band. A track
         // draws its glyphs itself, in batched buckets that carry glyphs
         // alone, so the sideline is drawn beside them at the placement the
@@ -284,11 +286,11 @@ struct Bousen final : sketch::Sketch {
             text(u8"列ごとに文字が現れる。右から左へ。", bs::body(21, bs::kAi))
                 .absolute()
                 .inset(352, 150, 0, 0)
-                .width(Dim(120.0f))
-                .height(Dim(300.0f))
+                .width(Dimension(120.0f))
+                .height(Dimension(300.0f))
                 .writingMode(sigil::weave::WritingMode::kVerticalRL)
                 .spanPaint(
-                    weave::sel::text(u8"右から左へ"),
+                    weave::selectors::text(u8"右から左へ"),
                     bs::banded(bs::kAi,
                                sigil::weave::Decoration::Kind::kUnderline,
                                bs::kAka, 2.0f))
@@ -299,13 +301,13 @@ struct Bousen final : sketch::Sketch {
                                          {std::chrono::milliseconds(
                                               (int)bs::kColumnEntranceSpan),
                                           &ch::easeNone, 220ms})}))
-        .child(text(toU8("\xe2\x86\x91 this strip's entrance beats over\n"
-                         "weave::Unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
-                         "and its band stands at rest"),
+        .child(text(toUtf8("\xe2\x86\x91 this strip's entrance beats over\n"
+                           "weave::Unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
+                           "and its band stands at rest"),
                     bs::label(10, bs::kUsu))
                    .absolute()
                    .inset(300, 466, 0, 0)
-                   .width(Dim(180.0f)))
+                   .width(Dimension(180.0f)))
         // The three conventions, each on a column of its own, so the page
         // shows them side by side instead of naming them in a footer.
         .child(
@@ -324,8 +326,8 @@ struct Bousen final : sketch::Sketch {
                                     sigil::weave::Decoration::Kind::kHighlight,
                                     {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f},
                                     0)))
-        .child(text(toU8("the entrance beats over COLUMNS \xc2\xb7 a band is "
-                         "beside the column, never beneath a line"),
+        .child(text(toUtf8("the entrance beats over COLUMNS \xc2\xb7 a band is "
+                           "beside the column, never beneath a line"),
                     bs::label(12, bs::kUsu))
                    .absolute()
                    .inset(64, bs::kH - 44, 0, 0));

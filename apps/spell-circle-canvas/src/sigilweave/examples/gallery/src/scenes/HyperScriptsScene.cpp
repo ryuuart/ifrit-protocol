@@ -51,11 +51,11 @@ void drawSceneLabel(SkCanvas* canvas, FontContext& fontContext, TextView text,
 class HyperScriptsScene final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams& params,
+                    int /*frameNumber*/, const SceneParameters& parameters,
                     FontContext& fontContext) override {
-    const float baseSize = std::clamp(params.fontSize, 12.0f, 26.0f);
-    m_built.ensure({baseSize, params.typeface.get()},
-                   [&] { build(baseSize, params.typeface); });
+    const float baseSize = std::clamp(parameters.fontSize, 12.0f, 26.0f);
+    m_built.ensure({baseSize, parameters.typeface.get()},
+                   [&] { build(baseSize, parameters.typeface); });
 
     const float width = static_cast<float>(size.width());
     const float height = static_cast<float>(size.height());

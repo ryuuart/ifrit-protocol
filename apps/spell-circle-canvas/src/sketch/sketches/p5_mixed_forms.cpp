@@ -59,7 +59,7 @@ struct P5MixedForms final : sketch::DrawSketch {
             weave::textStyle(
                 {.size = 16, .color = compose::hexColor(0xffffff)})))
         .child(compose::text(
-                   compose::toU8("frame " + std::to_string(frame)),
+                   compose::toUtf8("frame " + std::to_string(frame)),
                    weave::textStyle(
                        {.size = 13, .color = compose::hexColor(0x9fb0d0)}))
                    .key("frame"));

@@ -18,13 +18,13 @@ using namespace sigil::material;
 
 namespace {
 
-struct TwoParams {
+struct TwoParameters {
   float uScale;
   Color uColor;
 };
 
 std::shared_ptr<const Recipe> twoRecipe(const char* name = "two") {
-  return std::make_shared<const Recipe>(Recipe::of<TwoParams>(name).body(
+  return std::make_shared<const Recipe>(Recipe::of<TwoParameters>(name).body(
       Target::SkSL, "half4 main(float2 p) { return half4(uColor * uScale); }"));
 }
 
@@ -64,10 +64,10 @@ std::string captureStderr(const std::function<void()>& fn) {
 TEST(Material, WritingToAFieldNoBodyReadsSaysSo) {
   // A dial that does nothing looks exactly like a wrong value from the
   // call site, and no compiler's reflection can say which it is: the
-  // declarations are generated from the params whether the body reads
+  // declarations are generated from the parameters whether the body reads
   // them or not. The RECIPE can say, and it is asked at the write.
   auto r = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("half-read")
+      Recipe::of<TwoParameters>("half-read")
           .body(Target::Slang, "float4 main() { return uColor; }"));
   Material m(r);
   const std::string said = captureStderr([&] { m.set("uScale", 2.0f); });
@@ -85,21 +85,22 @@ TEST(Material, WritingToAFieldNoBodyReadsSaysSo) {
   EXPECT_EQ(m.get<float>("uScale"), 3.0f);
   // A NAME INSIDE A LONGER ONE is a different name.
   auto sub = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("substring")
+      Recipe::of<TwoParameters>("substring")
           .body(Target::Slang, "float4 main() { return uScaleFactor; }"));
   Material s(sub);
   EXPECT_NE(captureStderr([&] { s.set("uScale", 1.0f); }).find("uScale"),
             std::string::npos);
   // A recipe with no body at all has nothing to say.
-  auto none = std::make_shared<const Recipe>(Recipe::of<TwoParams>("bodiless"));
+  auto none =
+      std::make_shared<const Recipe>(Recipe::of<TwoParameters>("bodiless"));
   Material n(none);
   EXPECT_EQ(captureStderr([&] { n.set("uScale", 1.0f); }), "");
 }
 
-TEST(Material, MirrorsParamsAsBytesAndSetsFields) {
+TEST(Material, MirrorsParametersAsBytesAndSetsFields) {
   auto r = twoRecipe();
-  Material m(r, TwoParams{2.0f, {0.1f, 0.2f, 0.3f, 1.0f}});
-  EXPECT_EQ(m.bytes().size(), sizeof(TwoParams));
+  Material m(r, TwoParameters{2.0f, {0.1f, 0.2f, 0.3f, 1.0f}});
+  EXPECT_EQ(m.bytes().size(), sizeof(TwoParameters));
   EXPECT_EQ(m.get<float>("uScale"), 2.0f);
   EXPECT_EQ(m.get<Color>("uColor"), (Color{0.1f, 0.2f, 0.3f, 1.0f}));
   m.set("uScale", 3.0f);
@@ -113,13 +114,13 @@ TEST(Material, MirrorsParamsAsBytesAndSetsFields) {
   m.set("missing", 1.0f);
   Material zero(r);
   EXPECT_EQ(zero.get<float>("uScale"), 0.0f);
-  zero.set(TwoParams{3.0f, {1, 1, 0, 1}});
+  zero.set(TwoParameters{3.0f, {1, 1, 0, 1}});
   EXPECT_TRUE(zero == m);
 }
 
 TEST(Material, EqualityIsByValueWithBindingsByIdentity) {
   auto r = twoRecipe();
-  const TwoParams p{1.0f, {0, 0, 0, 1}};
+  const TwoParameters p{1.0f, {0, 0, 0, 1}};
   Material a(r, p), b(r, p);
   EXPECT_TRUE(a == b);
   b.set("uScale", 2.0f);
@@ -160,12 +161,12 @@ TEST(Material, AnEmptyLeafSlotComparesAgainstAFilledOneWithoutReadingIt) {
   // Whichever side is empty, the answer is "not equal", read from the
   // pointers rather than from what they point at.
   auto r = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("leafslot")
+      Recipe::of<TwoParameters>("leafslot")
           .child("uSrc")
           .body(
               Target::SkSL,
               "half4 main(float2 p) { return uSrc.eval(p) * half4(uColor); }"));
-  const TwoParams p{1.0f, {1, 1, 1, 1}};
+  const TwoParameters p{1.0f, {1, 1, 1, 1}};
   Material empty(r, p);
   empty.child("uSrc", std::shared_ptr<const Leaf>{});
   Material alsoEmpty(r, p);
@@ -180,7 +181,7 @@ TEST(Material, AnEmptyLeafSlotComparesAgainstAFilledOneWithoutReadingIt) {
 
 TEST(Material, TiersFollowBindingsFrameInputsAndChildren) {
   auto plain = twoRecipe();
-  Material still(plain, TwoParams{});
+  Material still(plain, TwoParameters{});
   EXPECT_FALSE(still.isAnimated());
   EXPECT_FALSE(still.geometryDependent());
 
@@ -191,15 +192,15 @@ TEST(Material, TiersFollowBindingsFrameInputsAndChildren) {
   EXPECT_FALSE(bound.geometryDependent());
 
   auto timed = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("timed").frame(FrameInput::Time));
+      Recipe::of<TwoParameters>("timed").frame(FrameInput::Time));
   EXPECT_TRUE(Material(timed).isAnimated());
   auto sized = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("sized").frame(FrameInput::Resolution));
+      Recipe::of<TwoParameters>("sized").frame(FrameInput::Resolution));
   EXPECT_FALSE(Material(sized).isAnimated());
   EXPECT_TRUE(Material(sized).geometryDependent());
 
   auto parentRecipe = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("parent").child("uA").child("uB"));
+      Recipe::of<TwoParameters>("parent").child("uA").child("uB"));
   Material parent(parentRecipe);
   EXPECT_FALSE(parent.isAnimated());
   parent.child("uB", Material(sized));
@@ -253,7 +254,7 @@ TEST(Material, ResolveSamplesBindingsInjectsFrameAndMemoises) {
     return v;
   };
   EXPECT_EQ(at(a, "uScale"), 5.0f);
-  EXPECT_EQ(at(a, "uTable"), 0.0f);  // the block's zeros, not the params
+  EXPECT_EQ(at(a, "uTable"), 0.0f);  // the block's zeros, not the parameters
   EXPECT_EQ(at(a, "uTime"), 1.25f);
   EXPECT_EQ(at(a, "uResolution"), 64.0f);
 

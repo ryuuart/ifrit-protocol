@@ -46,7 +46,7 @@ namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -65,15 +65,15 @@ constexpr SkColor4f kWarm{0.86f, 0.52f, 0.34f, 1};
 /** The one motif every chain repeats and the strip is built from. */
 Element motif() {
   return box()
-      .width(Dim(kMotif.width()))
-      .height(Dim(kMotif.height()))
+      .width(Dimension(kMotif.width()))
+      .height(Dimension(kMotif.height()))
       .shape(shapes::star(6, 0.46f, 0.14f))
       .fill(Fill::color(sketch::kit::theme().palette.figure));
 }
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body)));
 }
@@ -111,7 +111,7 @@ struct PlaceRepeatTiles final : sketch::Sketch {
                       .column()
                       .gap(8)
                       .padding(5)
-                      .width(Dim(kTile.width()))
+                      .width(Dimension(kTile.width()))
                       // Dark on one side and light on the other, so a
                       // mirrored tile is legible AS mirrored.
                       .fill(linearGradient({0, 0}, {(float)kTile.width(), 0},
@@ -120,8 +120,8 @@ struct PlaceRepeatTiles final : sketch::Sketch {
     const SkColor4f figure = sketch::kit::theme().palette.figure;
     for (int i = 0; i < kTiles * 3; ++i)
       run.child(box()
-                    .width(Dim(kMotif.width()))
-                    .height(Dim(kMotif.height()))
+                    .width(Dimension(kMotif.width()))
+                    .height(Dimension(kMotif.height()))
                     .shape(shapes::star(6, 0.46f, 0.14f))
                     .fill(Fill::color(i % 3 == 0 ? kWarm : figure)));
     // …and re-recorded behind a bounding-box hierarchy, so each tile's
@@ -130,18 +130,18 @@ struct PlaceRepeatTiles final : sketch::Sketch {
     strip = tiles::sliceable(snapshot(box().child(std::move(run)), *ctx.fonts));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("REPEAT AND TILE \xc2\xb7 instancing::place::"
-                       "repeat, tiles::window / tiles::sliceable"),
+        {.title = toUtf8("REPEAT AND TILE \xc2\xb7 instancing::place::"
+                         "repeat, tiles::window / tiles::sliceable"),
          .subtitle =
-             toU8("dials \xc2\xb7 the copy count (9) \xc2\xb7 the "
-                  "per-copy translate (19 px), rotation and scale step "
-                  "\xc2\xb7 the opacity ramp \xc2\xb7 the tile count (4) "
-                  "and its facing"),
-         .footer = toU8("a chain's scale step is EXPONENTIAL and its "
-                        "translate linear, and a tile is a clip and a "
-                        "translate \xe2\x80\x94 there is no windowed "
-                        "bake and no need for one, because neighbouring "
-                        "tiles share their boundary texels")},
+             toUtf8("dials \xc2\xb7 the copy count (9) \xc2\xb7 the "
+                    "per-copy translate (19 px), rotation and scale step "
+                    "\xc2\xb7 the opacity ramp \xc2\xb7 the tile count (4) "
+                    "and its facing"),
+         .footer = toUtf8("a chain's scale step is EXPONENTIAL and its "
+                          "translate linear, and a tile is a clip and a "
+                          "translate \xe2\x80\x94 there is no windowed "
+                          "bake and no need for one, because neighbouring "
+                          "tiles share their boundary texels")},
         kit::cells({.cells = {chain(), turned(), ramped(), sliced(false),
                               sliced(true)},
                     .gap = 12})));

@@ -56,7 +56,7 @@ namespace image = sigil::image;
 namespace io = sigil::io;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -91,7 +91,7 @@ weave::TextStyle label(float size, SkColor4f color, float track = 0) {
 Element cell(std::string key, sk_sp<SkImage> frame, float w, float h,
              const char* call, std::string note) {
   return sketch::kit::caption(
-      0, toU8(call), toU8(note),
+      0, toUtf8(call), toUtf8(note),
       custom(std::move(key),
              [frame, w, h](SkCanvas& canvas, const PaintContext&) {
                if (!frame) return;
@@ -176,23 +176,23 @@ struct GifFrames final : sketch::Sketch {
                  : std::to_string(gif.repetitionCount()) + " repetitions");
 
     return sketch::kit::page(
-        {.title = toU8("ANIMATED FRAMES \xc2\xb7 ImageAsset::frames() "
-                       "+ frameAt(ms)"),
-         .subtitle = toU8(std::string("dials \xc2\xb7 the file (") + kSource +
-                          ") \xc2\xb7 the moments the lower "
-                          "shelf reads"),
-         .footer = toU8(foot)},
+        {.title = toUtf8("ANIMATED FRAMES \xc2\xb7 ImageAsset::frames() "
+                         "+ frameAt(ms)"),
+         .subtitle = toUtf8(std::string("dials \xc2\xb7 the file (") + kSource +
+                            ") \xc2\xb7 the moments the lower "
+                            "shelf reads"),
+         .footer = toUtf8(foot)},
         kit::cells(
-            {.cells = {kit::cell(header(), toU8("DECODED"),
-                                 toU8("every frame, composited "
-                                      "at decode \xe2\x80\x94 "
-                                      "drawing one never needs "
-                                      "the one before it"),
+            {.cells = {kit::cell(header(), toUtf8("DECODED"),
+                                 toUtf8("every frame, composited "
+                                        "at decode \xe2\x80\x94 "
+                                        "drawing one never needs "
+                                        "the one before it"),
                                  decoded(gif)),
-                       kit::cell(header(), toU8("PLAYED"),
-                                 toU8("frameAt looks the moment "
-                                      "up in the durations and "
-                                      "loops past the last one"),
+                       kit::cell(header(), toUtf8("PLAYED"),
+                                 toUtf8("frameAt looks the moment "
+                                        "up in the durations and "
+                                        "loops past the last one"),
                                  sampled(gif))},
              .column = true,
              .gap = 26,
@@ -222,13 +222,13 @@ struct GifFrames final : sketch::Sketch {
         .column()
         .gap(10)
         .padding(40)
-        .child(text(toU8("no animated document here"),
+        .child(text(toUtf8("no animated document here"),
                     label(20, sheet.palette.ink)))
-        .child(text(toU8(std::string(kSource) +
-                         " did not decode: the hub reached neither the "
-                         "network nor a cached copy of it"),
+        .child(text(toUtf8(std::string(kSource) +
+                           " did not decode: the hub reached neither the "
+                           "network nor a cached copy of it"),
                     label(12, sheet.palette.ash))
-                   .width(Dim(620.0f)));
+                   .width(Dimension(620.0f)));
   }
 };
 

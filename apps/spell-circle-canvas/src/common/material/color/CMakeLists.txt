@@ -2,7 +2,7 @@
 # packed spelling, the OKLab and OKLCH round trips, the ramp as a value,
 # the harmonies read around a hue, the dither threshold and the table a
 # run of pixels is made of. The leaf of this library — the core's
-# Params.h includes it, so it carries no renderer and nothing that draws.
+# Parameters.h includes it, so it carries no renderer and nothing that draws.
 # Its one link is SigilCoreCompute, header-only over the standard library,
 # for the shaped curve a ramp walks its position through: the same value
 # an easing and a keyed track read, so a look chosen once reads the same

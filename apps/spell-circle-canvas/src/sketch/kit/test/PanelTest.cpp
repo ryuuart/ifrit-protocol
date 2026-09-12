@@ -33,13 +33,13 @@ TEST(SketchKitPanel, AKeylineOfNoneDrawsNoKeyline) {
   const Fill screen = Fill::color({0.86f, 0.84f, 0.78f, 1});
   EXPECT_TRUE(sameDrawing(
       compose::box()
-          .width(compose::Dim(220))
-          .height(compose::Dim(180))
+          .width(compose::Dimension(220))
+          .height(compose::Dimension(180))
           .padding(20)
           .fill(shell)
           .child(compose::box().column().grow(1).fill(screen).clip()),
-      kit::frame({.width = compose::Dim(220),
-                  .height = compose::Dim(180),
+      kit::frame({.width = compose::Dimension(220),
+                  .height = compose::Dimension(180),
                   .shell = shell,
                   .corners = 0,
                   .bezel = 20,
@@ -92,8 +92,8 @@ TEST(SketchKitPanel, TheScreenIsInsetByTheBezel) {
       compose::box()
           .column()
           .padding(8)
-          .width(compose::Dim(200))
-          .height(compose::Dim(120))
+          .width(compose::Dimension(200))
+          .height(compose::Dimension(120))
           .fill(Fill::color(house.palette.cellGround))
           .corners(compose::Corners{6})
           .child(compose::box()
@@ -105,11 +105,11 @@ TEST(SketchKitPanel, TheScreenIsInsetByTheBezel) {
                      .stroke(compose::stroke(1, Fill::color(house.palette.rule),
                                              compose::PathFormat::Align::Inner))
                      .child(subject()));
-  EXPECT_TRUE(sameDrawing(
-      std::move(byHand),
-      kit::frame(
-          {.width = compose::Dim(200), .height = compose::Dim(120), .bezel = 8},
-          subject())));
+  EXPECT_TRUE(sameDrawing(std::move(byHand),
+                          kit::frame({.width = compose::Dimension(200),
+                                      .height = compose::Dimension(120),
+                                      .bezel = 8},
+                                     subject())));
 }
 
 /** A shell quarried rather than coloured: the frame's two grounds each
@@ -127,8 +127,8 @@ TEST(SketchKitPanel, AFrameShellAndScreenTakeAMaterial) {
       compose::box()
           .column()
           .padding(8)
-          .width(compose::Dim(200))
-          .height(compose::Dim(120))
+          .width(compose::Dimension(200))
+          .height(compose::Dimension(120))
           .fill(sigil::material::skia::Paint::recipe(purbeck))
           .corners(compose::Corners{6})
           .child(compose::box()
@@ -140,13 +140,13 @@ TEST(SketchKitPanel, AFrameShellAndScreenTakeAMaterial) {
                      .stroke(compose::stroke(1, Fill::color(house.palette.rule),
                                              compose::PathFormat::Align::Inner))
                      .child(subject()));
-  EXPECT_TRUE(
-      sameDrawing(std::move(byHand), kit::frame({.width = compose::Dim(200),
-                                                 .height = compose::Dim(120),
-                                                 .shell = purbeck,
-                                                 .bezel = 8,
-                                                 .screen = mortar},
-                                                subject())));
+  EXPECT_TRUE(sameDrawing(std::move(byHand),
+                          kit::frame({.width = compose::Dimension(200),
+                                      .height = compose::Dimension(120),
+                                      .shell = purbeck,
+                                      .bezel = 8,
+                                      .screen = mortar},
+                                     subject())));
 }
 
 }  // namespace

@@ -47,7 +47,7 @@ inline constexpr float kPlateWidthCeiling = 2400.0f;
  *  ledger run writes is bit-identical to the plate a timing run writes,
  *  because the capture is a function of the declared moment alone. */
 struct SweepOptions {
-  std::string outDir = "sketch_plates";
+  std::string outputDirectory = "sketch_plates";
   /** Draw on the device: a Graphite surface for the sketches that paint
    *  onto a canvas, the device runtime for the ones that light a set. */
   bool gpu = false;

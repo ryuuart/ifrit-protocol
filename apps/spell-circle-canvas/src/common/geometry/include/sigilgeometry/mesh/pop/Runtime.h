@@ -25,7 +25,7 @@
 #include <string_view>
 #include <vector>
 
-#include "sigilgeometry/mesh/pop/Ops.h"
+#include "sigilgeometry/mesh/pop/Operations.h"
 
 namespace sigil::geometry::mesh {
 namespace pop {
@@ -52,9 +52,9 @@ class Executor {
    *  operator produces. */
   virtual std::string name() const = 0;
 
-  /** Can this runtime run @p op? A runtime that runs everything
+  /** Can this runtime run @p operation? A runtime that runs everything
    *  answers true to every operator. */
-  virtual bool supports(const Op& op) const = 0;
+  virtual bool supports(const Operation& operation) const = 0;
 
   /** Evaluate @p chain into a Cloud with the conventional lanes.
    *  Every executor is required to produce the same cloud from the
@@ -129,7 +129,7 @@ Cloud exportLanes(const Lanes& lanes, size_t count);
  *  function, so the CPU cook and a device executor's initial upload
  *  agree lane for lane. @p lanes gains or overwrites the seeded names,
  *  every lane sized to the cloud. */
-void seedAttrs(const Cloud& cloud, Lanes& lanes);
+void seedAttributes(const Cloud& cloud, Lanes& lanes);
 
 /** PARAMETER ADDRESSING: an operator's numeric fields by name, the way
  *  a control surface or an animation lane reaches into a chain without
@@ -141,10 +141,11 @@ void seedAttrs(const Cloud& cloud, Lanes& lanes);
  *  take their integer value. `setField` returns false and writes
  *  nothing for a name the operator does not have; `getField` returns
  *  nullopt for it. */
-bool setField(Op& op, std::string_view field, float value);
+bool setField(Operation& operation, std::string_view field, float value);
 /** The read side of that addressing: the named field's value as a
  *  float, or nullopt when the operator has no such field. */
-std::optional<float> getField(const Op& op, std::string_view field);
+std::optional<float> getField(const Operation& operation,
+                              std::string_view field);
 
 /** THE FIELD `Noise` DISPLACES BY, at @p p, in the units the operator
  *  carries: a sum of library sines, returned before the amplitude
@@ -176,8 +177,8 @@ Cloud cook(const Chain& chain, const Runtime& runtime = Runtime::cpu());
  *  Every path that crosses between the two spellings reads these, so a
  *  cloud seeded into a chain and exported back out again comes home to
  *  the lanes it left from. A name outside the table maps to itself. */
-std::string_view attrFor(std::string_view lane);
-std::string_view cloudLaneFor(std::string_view attr);
+std::string_view attributeFor(std::string_view lane);
+std::string_view cloudLaneFor(std::string_view attribute);
 
 }  // namespace pop
 }  // namespace sigil::geometry::mesh

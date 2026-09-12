@@ -203,12 +203,12 @@ inline weave::TextStyle sheetType(const sk_sp<SkTypeface>& tf, float size,
 constexpr float kBodyAdvance = 5.80f;
 
 inline Element t(const std::string& s, weave::TextStyle st) {
-  return text(toU8(s), std::move(st));
+  return text(toUtf8(s), std::move(st));
 }
 /** Place at a DOCUMENTED (x, y) in original screen px. `y` is Fallout's draw
  *  y — the top of the glyph cell — so the rise correction lands here, once. */
 inline Element ink(Element e, float x, float y, float rise) {
-  e.left(Dim(kUnits.x(x))).top(Dim(kUnits.y(y) - rise));
+  e.left(Dimension(kUnits.x(x))).top(Dimension(kUnits.y(y) - rise));
   return e;
 }
 /** Absolute placement in the SHEET'S OWN pixels — the numbers read off
@@ -459,7 +459,7 @@ struct Pose {
  *  outer leg -> foot -> inner leg -> crotch and mirrors back, so the body
  *  reads as a body. Everything is a function of the pose, and the corners are
  *  softened by shapes::rounded() rather than by hand-tuned control points. */
-inline shapes::OutlineFn figure(Pose p) {
+inline shapes::OutlineFunction figure(Pose p) {
   auto raw = [p](SkSize s) {
     const float w = s.width(), h = s.height();
     const float cx = w * 0.5f;

@@ -275,8 +275,8 @@ TEST(ComposeReconcile, RemovedDimsAndInsetsRelease) {
   pins.frame();
   ASSERT_EQ(require(pins.composer.bounds("p")).width(), 180);
   pins.composer.render(box().child(box()
-                                       .left(Dim(20.0f))
-                                       .top(Dim(20.0f))
+                                       .left(Dimension(20.0f))
+                                       .top(Dimension(20.0f))
                                        .width(50)
                                        .height(20)
                                        .fill(blue())

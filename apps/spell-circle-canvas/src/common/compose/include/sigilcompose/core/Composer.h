@@ -321,8 +321,8 @@ class Composer {
     size_t yogaNodes = 0;       ///< instances carrying a Yoga node —
                                 ///< positioned() subtrees carry none
     size_t describedNodes = 0;  ///< element nodes visited last render()
-    size_t memoHits = 0;        ///< memo props equal → describe skipped
-    size_t patchedNodes = 0;    ///< instances whose props changed
+    size_t memoHits = 0;        ///< memo properties equal → describe skipped
+    size_t patchedNodes = 0;    ///< instances whose properties changed
     size_t picturesLive = 0;    ///< auto-cached subtree pictures held
     size_t texturesLive = 0;    ///< Cache::Texture images held
     /** CACHE WRITES last draw() — every recording AND every pixel bake.

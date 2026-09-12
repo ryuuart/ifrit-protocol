@@ -99,10 +99,10 @@ class Assets {
  *  It asks the cache the IO hub's own way — the file a URL lands under,
  *  in the directory fetches persist to — and never the network, because
  *  a probe that fetched would make availability a function of the
- *  connection. @p cacheDir names another cache than the IO hub's default,
+ *  connection. @p cacheDirectory names another cache than the IO hub's default,
  *  which is what a test hands it. */
-[[nodiscard]] bool requireCached(std::initializer_list<std::string_view> urls,
-                                 std::string* why,
-                                 const std::filesystem::path& cacheDir = {});
+[[nodiscard]] bool requireCached(
+    std::initializer_list<std::string_view> urls, std::string* why,
+    const std::filesystem::path& cacheDirectory = {});
 
 }  // namespace sigil::sketch

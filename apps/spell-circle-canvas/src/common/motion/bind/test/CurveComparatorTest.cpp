@@ -79,8 +79,8 @@ TEST(Bind, ABoundMapComparesEveryFieldItHolds) {
   EXPECT_TRUE(differs([](BoundFloat& b) { b.holdEnd += 0.01f; })) << "holdEnd";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.fallEnd += 0.01f; })) << "fallEnd";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.duty += 0.01f; })) << "duty";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.waveFn = &ch::easeInQuad; }))
-      << "waveFn";
+  EXPECT_TRUE(differs([](BoundFloat& b) { b.waveFunction = &ch::easeInQuad; }))
+      << "waveFunction";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.steps += 1; })) << "steps";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.scale += 1.0f; })) << "scale";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.offset += 1.0f; })) << "offset";

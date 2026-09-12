@@ -147,26 +147,26 @@ struct MeshNormalBridge final : sketch::Sketch {
 
     {
       const glm::mat4 model = camera::place({kStations[0], 0, 0}, 24, -10, -8);
-      material::kit::ChromeParams params;
-      params.contrast = 1.35f;
+      material::kit::ChromeParameters parameters;
+      parameters.contrast = 1.35f;
       shadeThroughCoverage(
           canvas, blob, model, view,
           material::skia::shader(
               material::kit::chrome(
                   material::Texture::of(normalPass(blob, model, view)), sunset,
-                  params),
+                  parameters),
               {}));
     }
     {
       const glm::mat4 model = camera::place({kStations[1], 0, -40}, 0, -30, 18);
-      material::kit::GoldParams params;
-      params.crinkle = 0.12f;
+      material::kit::GoldParameters parameters;
+      parameters.crinkle = 0.12f;
       shadeThroughCoverage(
           canvas, ring, model, view,
           material::skia::shader(
               material::kit::gold(
                   material::Texture::of(normalPass(ring, model, view)), studio,
-                  params),
+                  parameters),
               {}));
     }
     // THE OTHER SOURCE. No mesh, no G-buffer, no coverage pass: the map
@@ -174,13 +174,13 @@ struct MeshNormalBridge final : sketch::Sketch {
     // stencil, so one drawPath is the whole panel.
     {
       const SkPath outline = squircle();
-      material::kit::ChromeParams params;
-      params.contrast = 1.35f;
+      material::kit::ChromeParameters parameters;
+      parameters.contrast = 1.35f;
       SkPaint shade;
       shade.setAntiAlias(true);
       shade.setShader(material::skia::shader(
           material::kit::chrome(material::bevelNormals(outline, kBevelPx),
-                                sunset, params),
+                                sunset, parameters),
           {}));
       canvas.drawPath(outline, shade);
     }
@@ -202,8 +202,8 @@ struct MeshNormalBridge final : sketch::Sketch {
           .width(300)
           .absolute()
           .inset(kCanvas.width() * 0.5f + x - 150, kCanvas.height() - 92, 0, 0)
-          .child(text(toU8(call), label(12.5f, kInk, 0.4f)))
-          .child(text(toU8(note), label(10.5f, kDim)).width(Dim(300)));
+          .child(text(toUtf8(call), label(12.5f, kInk, 0.4f)))
+          .child(text(toUtf8(note), label(10.5f, kDim)).width(Dimension(300)));
     };
     ctx.composer.render(
         stack()
@@ -214,7 +214,7 @@ struct MeshNormalBridge final : sketch::Sketch {
                             draw(canvas);
                           })
                        .inset(0))
-            .child(text(toU8("NORMAL MAPS \xc2\xb7 two sources, one recipe"),
+            .child(text(toUtf8("NORMAL MAPS \xc2\xb7 two sources, one recipe"),
                         label(15, kInk, 2.0f))
                        .left(30)
                        .top(20))
@@ -232,10 +232,10 @@ struct MeshNormalBridge final : sketch::Sketch {
                 "from a flat path's coverage, under the same "
                 "recipe and the same sky",
                 kStations[2]))
-            .child(text(toU8("both encode device-space normals as "
-                             "rgb = n\xc2\xb7"
-                             "0.5 + 0.5, and a recipe cannot "
-                             "tell which one it was handed"),
+            .child(text(toUtf8("both encode device-space normals as "
+                               "rgb = n\xc2\xb7"
+                               "0.5 + 0.5, and a recipe cannot "
+                               "tell which one it was handed"),
                         label(11, kDim))
                        .left(30)
                        .bottom(16)));

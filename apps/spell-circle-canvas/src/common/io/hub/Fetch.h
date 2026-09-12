@@ -25,7 +25,7 @@ bool isNetworkUri(std::string_view uri);
 std::string networkCacheKey(std::string_view url);
 
 /** The platform cache directory a hub uses without an override. */
-std::filesystem::path defaultNetworkCacheDir();
+std::filesystem::path defaultNetworkCacheDirectory();
 
 /** Does @p relative stay beneath the directory it is joined onto? False
  *  for a rooted path and for anything that climbs through `..`. */
@@ -47,7 +47,8 @@ struct FetchResult {
 /** The network settings one ask runs under, copied out of the hub
  *  under its lock so the fetch itself runs outside it. */
 struct NetworkAccess {
-  std::filesystem::path cacheDir;  // empty = defaultNetworkCacheDir()
+  std::filesystem::path
+      cacheDirectory;  // empty = defaultNetworkCacheDirectory()
   NetworkPolicy policy = NetworkPolicy::CacheFirst;
   NetworkTransport transport;  // empty = libcurl
 };

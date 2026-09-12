@@ -7,7 +7,7 @@
  */
 
 #include <sigilsketch/core/Assets.h>
-#include <sigilsketch/core/CanvasSpec.h>
+#include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Device.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
@@ -37,7 +37,8 @@ namespace sigil::sketch {
 struct SetContext {
   Assets& assets;
   weave::FontContext& fonts;
-  CanvasSpec* spec = nullptr;  ///< host-owned; written via the calls below
+  CanvasSpecification* specification =
+      nullptr;  ///< host-owned; written via the calls below
   geometry::mesh::camera::Camera* eye =
       nullptr;  ///< host-owned; the fallback viewpoint
   /** Host-owned: the texture scenes `textureScene()` handed out, kept
@@ -65,16 +66,16 @@ struct SetContext {
 
   /** Declare the plate's size in pixels. */
   void canvas(int width, int height) {
-    if (spec) spec->size = {(float)width, (float)height};
+    if (specification) specification->size = {(float)width, (float)height};
   }
   /** The colour behind the set — and, on a device, what the frame's own
    *  clear is written with. */
   void background(SkColor4f color) {
-    if (spec) spec->background = color;
+    if (specification) specification->background = color;
   }
   /** The scene time a still of this set is taken at. */
   void captureAt(double seconds) {
-    if (spec) spec->captureSeconds = seconds;
+    if (specification) specification->captureSeconds = seconds;
   }
   /** The viewpoint, unless the tree declares one of its own — a set that
    *  puts a camera on a rail says so in its description and leaves this
@@ -107,7 +108,7 @@ class Set {
 
 /** THE 3D KIND: a world Frame, reconciled onto a retained Scene and
  *  drawn through whichever runtime the process brought up. */
-class SetKind final : public KindOps {
+class SetKind final : public KindOperations {
  public:
   using Factory = Set* (*)();
   explicit SetKind(Factory factory) : m_factory(factory) {}

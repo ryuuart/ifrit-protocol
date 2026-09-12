@@ -46,7 +46,7 @@ struct MeshVertex {
   /** The PRIMITIVE lane the triangle this vertex belongs to carries, or
    *  ones where no lane was named. A triangle has nowhere of its own to
    *  hold a value, so its three vertices each carry it. */
-  float prim[4];
+  float primitive[4];
 };
 
 /** THE LAYOUT A PIPELINE DECLARES over these buffers, in the order the
@@ -73,7 +73,7 @@ struct MeshBuffers {
    *  asked for once with a lane and once without is two different pairs
    *  of buffers. Answering the held pair for the other request would
    *  hand a draw the wrong vertex count and the wrong tints. */
-  std::string primColorLane;
+  std::string primitiveColorLane;
   /** The frame this was last drawn in, so a mesh nobody names any more
    *  is let go. */
   uint64_t used = 0;
@@ -101,18 +101,18 @@ class MeshResidency {
   MeshResidency& operator=(const MeshResidency&) = delete;
 
   /** @p mesh's buffers, uploaded the first time @p artefact is asked
-   *  for with @p primColorLane, and repacked when a later call names a
+   *  for with @p primitiveColorLane, and repacked when a later call names a
    *  different lane. A caller cooking a mesh of its own — the stamps of
    *  a point set — has no artefact to name, and passes an id of its own
    *  that no frame after it repeats. Null when the mesh has no triangles
    *  or the device refused the buffers. */
   const MeshBuffers* upload(uint64_t artefact, const mesh::Mesh& mesh,
-                            std::string_view primColorLane = {});
+                            std::string_view primitiveColorLane = {});
 
   /** @p mesh in the streaming buffers, overwriting whatever draw wrote
    *  them last. For a caller whose seam carries no artefact number. */
   const MeshBuffers* stream(const mesh::Mesh& mesh,
-                            std::string_view primColorLane = {});
+                            std::string_view primitiveColorLane = {});
 
   /** Closes the frame: what no draw has named lately is released. */
   void endFrame();

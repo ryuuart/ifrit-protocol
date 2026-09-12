@@ -2,7 +2,7 @@
 // takes, and a sheet of them at the density a reconstructed desktop has.
 
 #include <sigilcompose/kit/Chrome.h>
-#include <sigilcore/reconcile/Env.h>
+#include <sigilcore/reconcile/Environment.h>
 
 #include <string>
 
@@ -31,8 +31,12 @@ kit::Bevel era(int which) {
 }
 
 Element panelOf(const kit::Bevel& b, int index) {
-  return box().width(Dim(180)).height(Dim(40)).fill(kFace).overlay(b).key(
-      "panel" + std::to_string(index));
+  return box()
+      .width(Dimension(180))
+      .height(Dimension(40))
+      .fill(kFace)
+      .overlay(b)
+      .key("panel" + std::to_string(index));
 }
 
 }  // namespace
@@ -64,7 +68,7 @@ static void BM_Chrome_Panels(benchmark::State& state) {
   const int count = (int)state.range(0);
   bench::Host host(240, 60 * 44 + 40);
   const auto tree = [&] {
-    const sigil::core::env::Provide<kit::Bevel> bound(
+    const sigil::core::environment::Provide<kit::Bevel> bound(
         kit::bevels::motif(kLit, kShade));
     Element page = box().padding(20).gap(4);
     for (int i = 0; i < count; ++i) page.child(panelOf(kit::ambientBevel(), i));
@@ -86,8 +90,8 @@ static void BM_Chrome_Stipple(benchmark::State& state) {
   bench::Host host(240, 80);
   const auto tree = [] {
     return box().padding(20).child(box()
-                                       .width(Dim(180))
-                                       .height(Dim(40))
+                                       .width(Dimension(180))
+                                       .height(Dimension(40))
                                        .fill(kFace)
                                        .overlay(styles::stipple(kShade))
                                        .key("stippled"));

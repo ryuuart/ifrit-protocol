@@ -41,7 +41,7 @@ struct EdgeValues {
 
 /** Per-edge Dims for absolute insets: Auto = that side is unpinned. */
 struct EdgeDims {
-  Dim left, top, right, bottom;
+  Dimension left, top, right, bottom;
   bool operator==(const EdgeDims&) const = default;
 };
 
@@ -50,7 +50,7 @@ struct LayoutProps {
   bool wrap = false;
   float gap = 0;
   EdgeValues padding, margin;
-  Dim width, height, minWidth, maxWidth, minHeight, maxHeight, basis;
+  Dimension width, height, minWidth, maxWidth, minHeight, maxHeight, basis;
   float aspect = 0;
   float grow = 0, shrink = 1;
   Align alignItems = Align::Stretch;
@@ -60,7 +60,7 @@ struct LayoutProps {
   bool hasInsets = false;
   /** positioned() container: children (and their subtrees) get NO Yoga
    *  nodes; instanceRect() resolves their rects straight from these
-   *  props. */
+   *  properties. */
   bool positioned = false;
   EdgeDims insets;
   std::optional<SkPoint> centerAt;  // absolute: center ON this point
@@ -490,8 +490,9 @@ struct MaterialData {
   // collapses to paint.fill instead). Declares the node volatile.
   std::optional<material::skia::Paint> live;
   // The comparable recipe behind paint.fill when it was set via
-  // fill(Material): propsEqual compares this structurally, so a re-described
-  // material fill prunes even though each describe minted a fresh shader.
+  // fill(Material): propertiesEqual compares this structurally, so a
+  // re-described material fill prunes even though each describe minted a fresh
+  // shader.
   std::optional<material::skia::Paint> recipe;
 };
 
@@ -524,9 +525,9 @@ struct DepthData {
 };
 
 /** The memo shell's payload: SigilCore's Memo, producing an Element. The
- *  reconciler compares its captured `env` and then its props against the
- *  memo the node was last described from, and runs `invoke` under that
- *  environment on a miss. */
+ *  reconciler compares its captured `environment` and then its properties
+ * against the memo the node was last described from, and runs `invoke` under
+ * that environment on a miss. */
 using MemoData = core::Memo<Element>;
 
 struct ElementNode {

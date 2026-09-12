@@ -72,7 +72,7 @@ constexpr bool has(TextureUsage set, TextureUsage flag) {
 /** A texture to create: size, format, usage, how many mip levels it
  *  carries, and whether the CPU may read and write its bytes directly
  *  (shared storage). */
-struct TextureDesc {
+struct TextureDescription {
   int width = 0;
   int height = 0;
   TextureFormat format = TextureFormat::RGBA8Unorm;
@@ -179,7 +179,7 @@ class GpuDevice {
   static constexpr uint64_t kFramesInFlight = 3;
 
   /** A new texture; a null handle when the API refuses the description. */
-  TextureHandle createTexture(const TextureDesc& desc);
+  TextureHandle createTexture(const TextureDescription& desc);
   /** A handle over a texture the host made. With @p takeOwnership the
    *  device releases it on destroy like one of its own; without, the
    *  host keeps it alive and destroy only forgets it. A null handle

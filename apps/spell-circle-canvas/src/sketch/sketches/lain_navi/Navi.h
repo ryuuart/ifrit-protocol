@@ -113,7 +113,7 @@ constexpr float kBarBotL = 152.0f, kBarBotR = 995.0f;  // at the bar's TOP row
 /** A chrome bar is a PARALLELOGRAM, not a rect — the one measurement in the
  *  window that a rounded-rect frame cannot express. Authored in the node's own
  *  local box so the bevel material can be a linearUnit ramp. */
-inline shapes::OutlineFn barOutline(float shear) {
+inline shapes::OutlineFunction barOutline(float shear) {
   return [shear](SkSize s) {
     const float d = shear * s.height();
     SkPathBuilder b;

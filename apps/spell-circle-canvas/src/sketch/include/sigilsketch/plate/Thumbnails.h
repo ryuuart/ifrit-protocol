@@ -65,17 +65,17 @@ inline constexpr std::chrono::milliseconds kThumbnailBudget{8000};
 [[nodiscard]] std::string thumbnailKey(
     const std::filesystem::path& entrySource);
 
-/** Where a fresh thumbnail for @p stem at @p key lands under @p dir. The
+/** Where a fresh thumbnail for @p stem at @p key lands under @p directory. The
  *  key is in the filename so a changed source is a new URL — which is
  *  what makes a cached image decoder reload it. */
 [[nodiscard]] std::filesystem::path thumbnailFile(
-    const std::filesystem::path& dir, std::string_view stem,
+    const std::filesystem::path& directory, std::string_view stem,
     std::string_view key);
 
 /** The fresh thumbnail already on disk for @p stem at @p key, or empty
  *  when none is — a missing file, or one carrying a different key. */
 [[nodiscard]] std::filesystem::path freshThumbnail(
-    const std::filesystem::path& dir, std::string_view stem,
+    const std::filesystem::path& directory, std::string_view stem,
     std::string_view key);
 
 /** LEAVES ONE LINE SAYING WHY THIS SKETCH HAS NO STILL, beside where the
@@ -86,19 +86,20 @@ inline constexpr std::chrono::milliseconds kThumbnailBudget{8000};
  *  finding is not written down. The note carries the same key the still
  *  would have, so editing the sketch asks the question again and nothing
  *  else does. */
-bool noteThumbnail(const std::filesystem::path& dir, std::string_view stem,
-                   std::string_view key, std::string_view why);
+bool noteThumbnail(const std::filesystem::path& directory,
+                   std::string_view stem, std::string_view key,
+                   std::string_view why);
 
 /** The note left for @p stem at @p key, or empty when there is none. */
-[[nodiscard]] std::string thumbnailNote(const std::filesystem::path& dir,
+[[nodiscard]] std::string thumbnailNote(const std::filesystem::path& directory,
                                         std::string_view stem,
                                         std::string_view key);
 
-/** Removes everything @p dir holds for @p stem except @p keep — the
+/** Removes everything @p directory holds for @p stem except @p keep — the
  *  stills and the notes of every other key, so a sketch that changed
  *  leaves no spent answer behind. */
-void pruneThumbnails(const std::filesystem::path& dir, std::string_view stem,
-                     const std::filesystem::path& keep);
+void pruneThumbnails(const std::filesystem::path& directory,
+                     std::string_view stem, const std::filesystem::path& keep);
 
 /** HOW ONE RENDER ENDED. */
 enum class ThumbnailOutcome {
@@ -120,7 +121,7 @@ enum class ThumbnailOutcome {
 /** ONE RENDER: where the still goes, how large, how long it may take and
  *  what stops it. */
 struct ThumbnailRun {
-  std::filesystem::path out;
+  std::filesystem::path outputPath;
   /** THE NAME THE STILL IS FILED UNDER — the sketch's, as the store
    *  spells it. It is what the spent stills and notes of other keys are
    *  found by when this one lands, and the caller always has it: a name
@@ -147,7 +148,7 @@ struct ThumbnailRun {
   const std::atomic_bool* stop = nullptr;
 };
 
-/** RENDERS ONE REGISTRY SKETCH'S STILL and writes it to `run.out`.
+/** RENDERS ONE REGISTRY SKETCH'S STILL and writes it to `run.outputPath`.
  *
  *  It opens the sketch's kind, steps it from zero at the sweep's own
  *  fixed rate to its declared moment (or the sweep's derived default when

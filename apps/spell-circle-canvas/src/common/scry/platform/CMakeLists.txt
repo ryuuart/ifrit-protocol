@@ -9,14 +9,14 @@
 # types and stays beside the sources.
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilScryPlatform
-  SOURCES FileSystem.cpp FileSystem.h Logger.cpp Logger.h ResourceDir.cpp
-          ResourceDir.h Runtime.cpp SkiaSurface.cpp SkiaSurface.h Utf8.h
+  SOURCES FileSystem.cpp FileSystem.h Logger.cpp Logger.h ResourceDirectory.cpp
+          ResourceDirectory.h Runtime.cpp SkiaSurface.cpp SkiaSurface.h Utf8.h
   HEADERS LogLevel.h Runtime.h
   PUBLIC unofficial::skia::skia
   PRIVATE SigilIOSource Ultralight::Ultralight)
 
 # Fallback resource location (icudt67l.dat, cacert.pem) compiled in;
-# WebEngineConfig::resourceDir overrides it at runtime.
+# WebEngineConfig::resourceDirectory overrides it at runtime.
 target_compile_definitions(SigilScryPlatform PRIVATE
   SIGILSCRY_DEFAULT_RESOURCE_DIR="${Ultralight_RESOURCE_DIR}")
 

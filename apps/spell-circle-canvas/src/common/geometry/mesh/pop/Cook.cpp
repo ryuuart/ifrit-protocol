@@ -34,10 +34,10 @@ namespace {
  *  dispatch named, created if this is where they first appear, and the
  *  kernel called over them. A role the operator does not read is handed
  *  the destination, which the kernel never looks at. */
-void runKernel(Attrs& attrs, const kernel::OpDispatch& work) {
-  glm::vec4* const dst = attrs.ensure(work.dst).data();
+void runKernel(Attrs& attributes, const kernel::OperationDispatch& work) {
+  glm::vec4* const destination = attributes.ensure(work.destination).data();
   const auto lane = [&](const std::string& name) -> glm::vec4* {
-    return name.empty() ? dst : attrs.ensure(name).data();
+    return name.empty() ? destination : attributes.ensure(name).data();
   };
   // Read in this order and not inside the call: a lane created here can
   // be the one another role names, and every one of them must exist
@@ -46,7 +46,7 @@ void runKernel(Attrs& attrs, const kernel::OpDispatch& work) {
   glm::vec4* const b = lane(work.b);
   glm::vec4* const c = lane(work.c);
   glm::vec4* const mask = lane(work.mask);
-  kernel::run(work, dst, a, b, c, mask);
+  kernel::run(work, destination, a, b, c, mask);
 }
 
 /** The frame a Deform runs in: its axis normalized, its bend direction
@@ -54,12 +54,12 @@ void runKernel(Attrs& attrs, const kernel::OpDispatch& work) {
  *  to the axis, or zero, falls back to a fixed perpendicular), and
  *  side = axis x direction. `Deform` has no kernel and every device
  *  executor declines it, so the frame is this cook's alone. */
-void deformFrame(const pop::Deform& op, glm::vec3* axis, glm::vec3* direction,
-                 glm::vec3* side) {
-  glm::vec3 a = op.axis;
+void deformFrame(const pop::Deform& operation, glm::vec3* axis,
+                 glm::vec3* direction, glm::vec3* side) {
+  glm::vec3 a = operation.axis;
   const float al = glm::length(a);
   a = al > 1e-6f ? a / al : glm::vec3{0, 1, 0};
-  glm::vec3 d = op.direction - a * glm::dot(op.direction, a);
+  glm::vec3 d = operation.direction - a * glm::dot(operation.direction, a);
   const float dl = glm::length(d);
   if (dl > 1e-6f) {
     d = d / dl;
@@ -91,25 +91,25 @@ namespace {
  *  takes at a time; it changes nothing about the cloud, only how the
  *  passes are divided. */
 Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
-  Attrs attrs;
-  attrs.count = pop::seedLanes(chain, &attrs.lanes);
-  if (attrs.count == 0) return {};
+  Attrs attributes;
+  attributes.count = pop::seedLanes(chain, &attributes.lanes);
+  if (attributes.count == 0) return {};
   // Not const: the SET class changes how many points there are, and
   // every operator after one of those addresses the new count.
-  size_t count = attrs.count;
+  size_t count = attributes.count;
 
   for (size_t opIndex = 1; opIndex < chain.size(); ++opIndex) {
     // THE KERNEL FIRST. An operator that has one is arithmetic this file
     // does not hold a second copy of, and the dispatch is the same
     // description a device executor is handed.
-    kernel::OpDispatch work;
+    kernel::OperationDispatch work;
     if (kernel::describe(chain[opIndex], count, &work)) {
-      runKernel(attrs, work);
+      runKernel(attributes, work);
       continue;
     }
     std::visit(
-        [&](const auto& op) {
-          using T = std::decay_t<decltype(op)>;
+        [&](const auto& operation) {
+          using T = std::decay_t<decltype(operation)>;
           if constexpr (std::is_same_v<T, pop::SplineScatter> ||
                         std::is_same_v<T, pop::MeshScatter> ||
                         std::is_same_v<T, pop::PointSet> ||
@@ -117,15 +117,15 @@ Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
             // Generators only lead a chain and are ignored mid-chain.
             // Promote is the PRIMITIVE class: nothing to do on the point
             // sink — a Cloud has no primitives. cookMesh() reads these
-            // ops back off the chain once the stamps exist.
+            // operations back off the chain once the stamps exist.
           } else if constexpr (std::is_same_v<T, pop::Smooth>) {
-            runSmooth(attrs, op, count, grain);
+            runSmooth(attributes, operation, count, grain);
           } else if constexpr (std::is_same_v<T, pop::Relax>) {
-            runRelax(attrs, op, count);
+            runRelax(attributes, operation, count);
           } else if constexpr (std::is_same_v<T, pop::Cluster>) {
-            runCluster(attrs, op, count, grain);
+            runCluster(attributes, operation, count, grain);
           } else if constexpr (std::is_same_v<T, pop::Transfer>) {
-            runTransfer(attrs, op, count);
+            runTransfer(attributes, operation, count);
           } else if constexpr (std::is_same_v<T, pop::Sort>) {
             // The permutation class: EVERY lane travels with its
             // point, so the store stays coherent and only the order
@@ -134,13 +134,15 @@ Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
             // source lane thereby created) BEFORE the lanes are
             // permuted, so the map is not grown mid-walk.
             std::vector<float> keys(count);
-            const std::vector<glm::vec4>& values = attrs.ensure(op.by.name);
+            const std::vector<glm::vec4>& values =
+                attributes.ensure(operation.by.name);
             core::schedule::parallelFor(
                 count, grain, [&](size_t first, size_t last) {
                   for (size_t i = first; i < last; ++i) {
                     const glm::vec4 v = values[i];
-                    const float k = v.x * op.weights.x + v.y * op.weights.y +
-                                    v.z * op.weights.z + v.w * op.weights.w;
+                    const float k =
+                        v.x * operation.weights.x + v.y * operation.weights.y +
+                        v.z * operation.weights.z + v.w * operation.weights.w;
                     // A NaN key would break the comparator's strict weak
                     // ordering outright (UB in stable_sort), so it sorts as
                     // zero rather than corrupting the whole permutation.
@@ -149,12 +151,13 @@ Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
                 });
             std::vector<uint32_t> order(count);
             std::iota(order.begin(), order.end(), 0u);
-            std::stable_sort(
-                order.begin(), order.end(), [&](uint32_t a, uint32_t b) {
-                  return op.descending ? keys[a] > keys[b] : keys[a] < keys[b];
-                });
+            std::stable_sort(order.begin(), order.end(),
+                             [&](uint32_t a, uint32_t b) {
+                               return operation.descending ? keys[a] > keys[b]
+                                                           : keys[a] < keys[b];
+                             });
             std::vector<glm::vec4> next(count);
-            for (auto& [name, lane] : attrs.lanes) {
+            for (auto& [name, lane] : attributes.lanes) {
               core::schedule::parallelFor(
                   count, grain, [&](size_t first, size_t last) {
                     for (size_t i = first; i < last; ++i)
@@ -168,15 +171,16 @@ Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
             // so the store stays coherent and nothing but its length
             // moves. An unnamed mask deletes nothing: an operator that
             // emptied the set by omission is not one anybody wants.
-            if (op.mask.empty()) return;
-            const std::vector<glm::vec4>& mask = attrs.ensure(op.mask);
+            if (operation.mask.empty()) return;
+            const std::vector<glm::vec4>& mask =
+                attributes.ensure(operation.mask);
             std::vector<uint32_t> kept;
             kept.reserve(count);
             for (size_t i = 0; i < count; ++i) {
-              const bool named = mask[i].x >= op.threshold;
-              if (named == op.keep) kept.push_back((uint32_t)i);
+              const bool named = mask[i].x >= operation.threshold;
+              if (named == operation.keep) kept.push_back((uint32_t)i);
             }
-            for (auto& [name, lane] : attrs.lanes) {
+            for (auto& [name, lane] : attributes.lanes) {
               std::vector<glm::vec4> next(kept.size());
               core::schedule::parallelFor(
                   kept.size(), grain, [&](size_t first, size_t last) {
@@ -186,38 +190,42 @@ Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
               lane = std::move(next);
             }
             count = kept.size();
-            attrs.count = count;
+            attributes.count = count;
           } else if constexpr (std::is_same_v<T, pop::Deform>) {
             // The frame: a unit axis, plus for Bend a unit direction
             // made perpendicular to it. Degenerate inputs (a zero
             // axis, a direction parallel to the axis) fall back the
             // same way wherever this is evaluated.
             glm::vec3 axis, dir, side;
-            deformFrame(op, &axis, &dir, &side);
-            const float span = op.high - op.low;
-            const float rad = op.amount * 3.14159265f / 180.0f;
-            std::vector<glm::vec4>& values = attrs.ensure(op.lane.name);
+            deformFrame(operation, &axis, &dir, &side);
+            const float span = operation.high - operation.low;
+            const float rad = operation.amount * 3.14159265f / 180.0f;
+            std::vector<glm::vec4>& values =
+                attributes.ensure(operation.lane.name);
             const std::vector<glm::vec4>* mask =
-                op.mask.empty() ? nullptr : &attrs.ensure(op.mask);
+                operation.mask.empty() ? nullptr
+                                       : &attributes.ensure(operation.mask);
             core::schedule::parallelFor(
                 count, grain, [&](size_t first, size_t last) {
                   for (size_t i = first; i < last; ++i) {
                     const glm::vec4 v = values[i];
-                    const glm::vec3 p = glm::vec3{v.x, v.y, v.z} - op.origin;
+                    const glm::vec3 p =
+                        glm::vec3{v.x, v.y, v.z} - operation.origin;
                     const float h = glm::dot(p, axis);
                     const glm::vec3 perp = p - axis * h;
-                    float u = span != 0.0f ? (h - op.low) / span
-                                           : (h >= op.low ? 1.0f : 0.0f);
+                    float u = span != 0.0f ? (h - operation.low) / span
+                                           : (h >= operation.low ? 1.0f : 0.0f);
                     u = u < 0.0f ? 0.0f : (u > 1.0f ? 1.0f : u);
                     glm::vec3 out;
-                    if (op.kind == pop::Deform::Kind::Twist) {
+                    if (operation.kind == pop::Deform::Kind::Twist) {
                       const float ang = rad * u;
                       const float c = std::cos(ang), sn = std::sin(ang);
                       // Rodrigues about the unit axis; perp is already
                       // perpendicular so the parallel term is zero.
                       out = axis * h + perp * c + glm::cross(axis, perp) * sn;
-                    } else if (op.kind == pop::Deform::Kind::Taper) {
-                      out = axis * h + perp * (1.0f + (op.amount - 1.0f) * u);
+                    } else if (operation.kind == pop::Deform::Kind::Taper) {
+                      out = axis * h +
+                            perp * (1.0f + (operation.amount - 1.0f) * u);
                     } else {
                       // Bend: the band becomes an arc of `rad` radians and
                       // length `span`, curving toward dir. Below the band
@@ -233,20 +241,23 @@ Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
                       } else {
                         const float R = span / rad;
                         const float hb =
-                            h < op.low ? op.low : (h > op.high ? op.high : h);
-                        const float theta = (hb - op.low) / R;
+                            h < operation.low
+                                ? operation.low
+                                : (h > operation.high ? operation.high : h);
+                        const float theta = (hb - operation.low) / R;
                         const float c = std::cos(theta), sn = std::sin(theta);
                         // Arc centre sits at +R along dir from (low). A
                         // point at height hb and offset x lands at
                         //   along axis: low + (R - x) * sin(theta)
                         //   along dir:  R - (R - x) * cos(theta)
                         const float extra = h - hb;  // rigid overhang
-                        const float hOut = op.low + (R - x) * sn + extra * c;
+                        const float hOut =
+                            operation.low + (R - x) * sn + extra * c;
                         const float xOut = R - (R - x) * c + extra * sn;
                         out = axis * hOut + dir * xOut + side * y;
                       }
                     }
-                    out += op.origin;
+                    out += operation.origin;
                     const glm::vec4 result{out.x, out.y, out.z, v.w};
                     float m = mask ? (*mask)[i].x : 1.0f;
                     m = m < 0.0f ? 0.0f : (m > 1.0f ? 1.0f : m);
@@ -258,17 +269,19 @@ Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
             // polynomial sine is a different function from a library
             // one, not a rounding of it, so a kernel would change what
             // this operator MEANS rather than where it runs.
-            std::vector<glm::vec4>& values = attrs.ensure(op.lane.name);
+            std::vector<glm::vec4>& values =
+                attributes.ensure(operation.lane.name);
             const std::vector<glm::vec4>* mask =
-                op.mask.empty() ? nullptr : &attrs.ensure(op.mask);
+                operation.mask.empty() ? nullptr
+                                       : &attributes.ensure(operation.mask);
             core::schedule::parallelFor(
                 count, grain, [&](size_t first, size_t last) {
                   for (size_t i = first; i < last; ++i) {
                     const glm::vec4 old = values[i];
                     const glm::vec3 dd =
-                        pop::noiseField({old.x, old.y, old.z}, op.frequency,
-                                        op.seed) *
-                        op.amplitude;
+                        pop::noiseField({old.x, old.y, old.z},
+                                        operation.frequency, operation.seed) *
+                        operation.amplitude;
                     glm::vec4 v = old;
                     v.x += dd.x;
                     v.y += dd.y;
@@ -283,7 +296,7 @@ Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
         chain[opIndex]);
   }
 
-  return pop::exportLanes(attrs.lanes, count);
+  return pop::exportLanes(attributes.lanes, count);
 }
 
 /** The built-in executor: every operator on the CPU, and the cloud
@@ -304,7 +317,7 @@ struct CpuExecutor : pop::Executor {
   std::string name() const override { return "cpu"; }
   // The reference runs the whole vocabulary; there is no operator for
   // it to decline, because it is what "supported" is defined against.
-  bool supports(const pop::Op&) const override { return true; }
+  bool supports(const pop::Operation&) const override { return true; }
   Cloud cook(const pop::Chain& chain) const override {
     return cookOnCpu(chain, grain);
   }
@@ -327,11 +340,11 @@ Cloud pop::cook(const pop::Chain& chain, const pop::Runtime& runtime) {
   // the same guarantee and the same message. A chain short one operator
   // cooks a cloud that looks right and is not the described one, which
   // is the one failure a caller cannot see.
-  for (const pop::Op& op : chain)
-    if (!runtime->supports(op))
-      throw std::runtime_error("the \"" + runtime->name() +
-                               "\" pop runtime cannot run the \"" +
-                               std::string(pop::opName(op)) + "\" operator");
+  for (const pop::Operation& operation : chain)
+    if (!runtime->supports(operation))
+      throw std::runtime_error(
+          "the \"" + runtime->name() + "\" pop runtime cannot run the \"" +
+          std::string(pop::operationName(operation)) + "\" operator");
   return runtime->cook(chain);
 }
 

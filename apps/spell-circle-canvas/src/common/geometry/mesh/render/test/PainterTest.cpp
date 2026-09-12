@@ -80,8 +80,8 @@ TEST(Render, TheNormalsModeEncodesDeviceSpaceWithYDown) {
 
 TEST(Render, APrimitiveColourLaneTintsEachTriangleFlat) {
   Mesh m = splitQuad();
-  m.prim("Color")[0] = {1, 0, 0, 1};  // lower-right half
-  m.prim("Color")[1] = {0, 0, 1, 1};  // upper-left half
+  m.primitive("Color")[0] = {1, 0, 0, 1};  // lower-right half
+  m.primitive("Color")[1] = {0, 0, 1, 1};  // upper-left half
 
   camera::Camera camera;
   camera.eye = {0, 0, 300};
@@ -105,7 +105,7 @@ TEST(Render, APrimitiveColourLaneTintsEachTriangleFlat) {
   const SkBitmap plain = render(style);
   EXPECT_EQ(plain.getColor(120, 95), plain.getColor(79, 54));
 
-  style.primColorLane = "Color";
+  style.primitiveColorLane = "Color";
   const SkBitmap tinted = render(style);
   const SkColor lowerRight = tinted.getColor(120, 95);
   const SkColor upperLeft = tinted.getColor(79, 54);
@@ -118,6 +118,6 @@ TEST(Render, APrimitiveColourLaneTintsEachTriangleFlat) {
   // ignored outside lit rendering.
   style.mode = render::MeshStyle::Mode::Normals;
   render::MeshStyle bare = style;
-  bare.primColorLane.clear();
+  bare.primitiveColorLane.clear();
   EXPECT_EQ(render(style).getColor(120, 95), render(bare).getColor(120, 95));
 }

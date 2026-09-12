@@ -33,9 +33,9 @@ struct Meter {
   /** Over the bar at the right, in the theme's figure colour — what the
    *  fraction came to, written out. */
   std::u8string reading;
-  compose::Dim width;
+  compose::Dimension width;
   /** Unset is the theme's bar height. */
-  std::optional<compose::Dim> height;
+  std::optional<compose::Dimension> height;
   /** The empty part; unset is the theme's cell ground. */
   std::optional<compose::SurfacePaint> track;
   /** The filled part; unset is the theme's figure colour. */
@@ -57,8 +57,8 @@ struct Meter {
 
 /** THE METER.
  *
- *      sketch::kit::meter({.fraction = load, .label = toU8("cache"),
- *                          .reading = toU8("74%"), .width = Dim(220)})
+ *      sketch::kit::meter({.fraction = load, .label = toUtf8("cache"),
+ *                          .reading = toUtf8("74%"), .width = Dimension(220)})
  *
  *  A plain fraction is a WIDTH, so a bar that changes is a re-describe;
  *  `level` is the binding for one that moves every frame. */
@@ -88,7 +88,7 @@ struct Gauge {
 /** THE DIAL.
  *
  *      sketch::kit::gauge({.fraction = 0.62f, .diameter = 84,
- *                          .reading = toU8("0.62")})
+ *                          .reading = toUtf8("0.62")})
  */
 [[nodiscard]] compose::Element gauge(const Gauge& dial);
 

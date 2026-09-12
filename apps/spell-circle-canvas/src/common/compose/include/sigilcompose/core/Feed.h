@@ -31,7 +31,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Measure.h>
-#include <sigilcore/reconcile/Env.h>
+#include <sigilcore/reconcile/Environment.h>
 
 #include <chrono>
 #include <cmath>
@@ -48,7 +48,7 @@ namespace sigil::compose::feed {
  *  that will key it for as long as it is on screen. */
 template <class T>
 struct Row {
-  uint64_t seq = 0;
+  uint64_t sequence = 0;
   T value{};
 
   bool operator==(const Row&) const = default;
@@ -67,10 +67,10 @@ class Ring {
   explicit Ring(size_t capacity = 512) : m_capacity(capacity) {}
 
   uint64_t append(T value) {
-    const uint64_t seq = m_next++;
-    m_rows.push_back({seq, std::move(value)});
+    const uint64_t sequence = m_next++;
+    m_rows.push_back({sequence, std::move(value)});
     if (m_rows.size() > m_capacity) m_rows.pop_front();
-    return seq;
+    return sequence;
   }
   void clear() { m_rows.clear(); }
 
@@ -80,7 +80,7 @@ class Ring {
   bool empty() const { return m_rows.empty(); }
   size_t capacity() const { return m_capacity; }
   /** The id the next append will take. */
-  uint64_t nextSeq() const { return m_next; }
+  uint64_t nextSequence() const { return m_next; }
 
  private:
   size_t m_capacity;
@@ -93,7 +93,9 @@ class Ring {
  *  across describes. It overrides whatever key the row factory set: the
  *  identity of a row is its place in the sequence, not anything about its
  *  content. */
-inline std::string rowKey(uint64_t seq) { return "row#" + std::to_string(seq); }
+inline std::string rowKey(uint64_t sequence) {
+  return "row#" + std::to_string(sequence);
+}
 
 /** How a feed lays its rows out. Comparable, so it can BE a value a
  *  component compares or inherits. */
@@ -133,10 +135,10 @@ struct Options {
  *  The returned column is an ordinary Element: give it a size, a fill, a
  *  `grow(1)`, or append something after the rows (a caret, a "…more"
  *  affordance) with `.child()`. */
-template <class T, class RowFn>
-  requires std::invocable<RowFn, const T&>
+template <class T, class RowFunction>
+  requires std::invocable<RowFunction, const T&>
 [[nodiscard]] Element feed(const Ring<T>& ring, const Options& options,
-                           RowFn&& row) {
+                           RowFunction&& row) {
   Element column = box().column().gap(options.gap).clip();
   if (options.entrance.eachMs > 0)
     column.staggerChildren(
@@ -147,7 +149,7 @@ template <class T, class RowFn>
   const size_t first = n > options.visible ? n - options.visible : 0;
   for (size_t i = first; i < n; ++i) {
     Element built = row(rows[i].value);
-    built.key(rowKey(rows[i].seq));
+    built.key(rowKey(rows[i].sequence));
     column.child(std::move(built));
   }
   return column;
@@ -185,10 +187,11 @@ template <class T, class RowFn>
  * size by the root's CHILDREN and ignore the root's own dimensions. It changes
  *  nothing while `feed()` returns a column that sets neither a width nor a
  *  height, and it keeps the measurement honest if that ever changes. */
-template <class RowFn>
-  requires std::invocable<RowFn>
+template <class RowFunction>
+  requires std::invocable<RowFunction>
 [[nodiscard]] float height(const Options& options, size_t rows,
-                           RowFn&& probeRow, sigil::weave::FontContext& fonts) {
+                           RowFunction&& probeRow,
+                           sigil::weave::FontContext& fonts) {
   Ring<uint64_t> probe(rows > 0 ? rows : 1);
   for (size_t i = 0; i < rows; ++i) probe.append(i);
   Element column =
@@ -213,11 +216,11 @@ using TextRing = Ring<TextRow>;
 
 /** A text feed's whole appearance: the layout and the styles its rows name.
  *
- *  Comparable, so it can BE an inherited value: `env::` bindings are keyed
- *  by C++ type, and the key this component uses is its own props type —
- *  which is how a feed gets themed from above without the library shipping
- *  a palette layer (see `feed(const TextRing&)`). Exact and structural,
- *  like every other value the reconciler compares. */
+ *  Comparable, so it can BE an inherited value: `environment::` bindings are
+ * keyed by C++ type, and the key this component uses is its own properties type
+ * — which is how a feed gets themed from above without the library shipping a
+ * palette layer (see `feed(const TextRing&)`). Exact and structural, like every
+ * other value the reconciler compares. */
 struct TextOptions {
   Options window;
   /** Row style by name. The base entry sets every row that names nothing. */
@@ -244,16 +247,16 @@ struct TextOptions {
 }
 
 /** The same feed, styled by whoever composed it rather than by whoever
- *  wrote this call — bind `env::Provide<feed::TextOptions>` upstream and
- *  nothing has to be threaded through the containers in between. Falls back
+ *  wrote this call — bind `environment::Provide<feed::TextOptions>` upstream
+ * and nothing has to be threaded through the containers in between. Falls back
  *  to default-constructed options when nothing is bound.
  *
- *  The environment key is this component's own props type. There is no
+ *  The environment key is this component's own properties type. There is no
  *  library-wide theme value to inherit instead: a design-token layer would
  *  have to decide what a token IS for every component, and this library
  *  deliberately leaves that to the composition. */
 [[nodiscard]] inline Element feed(const TextRing& ring) {
-  return feed(ring, core::env::inheritedOr(TextOptions{}));
+  return feed(ring, core::environment::inheritedOr(TextOptions{}));
 }
 
 /** How tall a text feed of @p rows rows is — `height()` with the base style

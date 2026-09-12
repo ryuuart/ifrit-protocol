@@ -87,7 +87,7 @@ Sampling samplingOf(const ::sigil::material::Texture& texture);
 
 /** WHAT A SURFACE IS BEYOND ITS COLOUR, as an executor reads it: how
  *  metallic, how rough, and the three glass terms. Read off the
- *  material's params by name, so a material built from some other recipe
+ *  material's parameters by name, so a material built from some other recipe
  *  answers the values that leave the shading where it was. */
 struct SurfaceTerms {
   float metallic = 0;

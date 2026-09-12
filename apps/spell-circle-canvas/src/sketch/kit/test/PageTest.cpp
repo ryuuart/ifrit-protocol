@@ -29,35 +29,35 @@ using sigil::sketch::test::fonts;
 TEST(SketchKitStage, DeclaresTheWholeCanvas) {
   sigil::motion::Ticker ticker;
   compose::Composer composer(ticker, fonts());
-  sigil::sketch::CanvasSpec spec;
-  sigil::sketch::SketchContext ctx(composer, ticker, assets(), {0, 0}, &spec,
-                                   &fonts());
+  sigil::sketch::CanvasSpecification specification;
+  sigil::sketch::SketchContext ctx(composer, ticker, assets(), {0, 0},
+                                   &specification, &fonts());
 
   kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
-  EXPECT_EQ(spec.size, (SkSize{1100, 424}));
-  EXPECT_EQ(spec.captureSeconds, 0.05);
-  EXPECT_EQ(spec.background, kit::houseTheme().palette.ground);
-  EXPECT_EQ(spec.oversample, 0);
-  EXPECT_FALSE(spec.plateOnly);
+  EXPECT_EQ(specification.size, (SkSize{1100, 424}));
+  EXPECT_EQ(specification.captureSeconds, 0.05);
+  EXPECT_EQ(specification.background, kit::houseTheme().palette.ground);
+  EXPECT_EQ(specification.oversample, 0);
+  EXPECT_FALSE(specification.plateOnly);
   EXPECT_EQ(ctx.size, (SkSize{1100, 424}));
 }
 
 TEST(SketchKitStage, TheGroundIsTheThemesUnlessTheStageSaysOtherwise) {
   sigil::motion::Ticker ticker;
   compose::Composer composer(ticker, fonts());
-  sigil::sketch::CanvasSpec spec;
-  sigil::sketch::SketchContext ctx(composer, ticker, assets(), {0, 0}, &spec,
-                                   &fonts());
+  sigil::sketch::CanvasSpecification specification;
+  sigil::sketch::SketchContext ctx(composer, ticker, assets(), {0, 0},
+                                   &specification, &fonts());
 
   kit::Theme paper = kit::houseTheme();
   paper.palette.ground = {0.945f, 0.937f, 0.918f, 1};
   {
     const kit::Provide bound(paper);
     kit::stage(ctx, {.size = {100, 100}});
-    EXPECT_EQ(spec.background, paper.palette.ground);
+    EXPECT_EQ(specification.background, paper.palette.ground);
   }
   kit::stage(ctx, {.size = {100, 100}, .background = SkColor4f{1, 0, 0, 1}});
-  EXPECT_EQ(spec.background, (SkColor4f{1, 0, 0, 1}));
+  EXPECT_EQ(specification.background, (SkColor4f{1, 0, 0, 1}));
 }
 
 // The components, against what they replace

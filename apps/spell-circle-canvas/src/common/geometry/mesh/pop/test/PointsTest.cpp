@@ -176,7 +176,7 @@ TEST(Points, ACloudSplattedAsBillboardsReachesTheCanvas) {
 
 TEST(Points, BillboardsSplatTheAtlasCellTheCloudCarries) {
   // A sprite SHEET splats as a field of different sprites, and which one
-  // each point takes is the window a pop::Atlas op wrote into "Tex".
+  // each point takes is the window a pop::Atlas operation wrote into "Tex".
   // Without the lane every point takes the whole sheet, which is the
   // failure this reads: a splat showing all four quadrants at once.
   //
@@ -216,7 +216,7 @@ TEST(Points, BillboardsSplatTheAtlasCellTheCloudCarries) {
     style.size = 60;
     style.additive = false;
     style.perspective = false;
-    style.texLane = lane;
+    style.textureLane = lane;
     points::drawBillboards(*surface->getCanvas(), cloud, camera, {120, 120},
                            style);
     SkBitmap bm;
@@ -230,7 +230,7 @@ TEST(Points, BillboardsSplatTheAtlasCellTheCloudCarries) {
   // between four different colours — anything but the cell's own.
   EXPECT_NE(centrePixel(""), SK_ColorGREEN);
 
-  // A degenerate window is not a cell: an atlas op that never ran, or a
+  // A degenerate window is not a cell: an atlas operation that never ran, or a
   // lane padded with zeros, takes the whole image rather than splatting
   // a sliver of one texel over everything.
   cloud.color("Tex") = {{0.0f, 0.0f, 0.0f, 0.0f}};

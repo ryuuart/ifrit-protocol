@@ -310,7 +310,7 @@ Element ring(float r, SkColor4f color, float width) {
 }
 
 Element plate(float height) {
-  return sketch::kit::well({.height = Dim(height),
+  return sketch::kit::well({.height = Dimension(height),
                             .ground = Fill::color(kPlate),
                             .padding = 16,
                             .corners = 8,
@@ -446,7 +446,7 @@ struct VertigoTitles : sketch::Sketch {
       // The entrance ramp covers the cascade's own span, so the last
       // capital lands exactly when the master progress does.
       const Spread cascade{.eachMs = 30, .durationMs = 480};
-      panel.child(text(toU8("VERTIGO"), face)
+      panel.child(text(toUtf8("VERTIGO"), face)
                       .key("vertigo")
                       .centerAt(kEye)
                       .fx({.effect = fx::pop(0.30f),
@@ -461,7 +461,7 @@ struct VertigoTitles : sketch::Sketch {
     // laid over the busiest part of the card: that is where the film puts
     // its body credits too.
     panel.child(
-        text(toU8("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY"),
+        text(toUtf8("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY"),
              faced(faceDisplay, 15, kSolidInk, 2.6f))
             .key("credit")
             .centerAt({kEye.x(), kEye.y() + 152.0f})
@@ -472,7 +472,7 @@ struct VertigoTitles : sketch::Sketch {
     // Element::onPath() — one text leaf where hand-placing curved
     // lettering would have been one leaf and one measure() per glyph.
     panel.child(
-        text(toU8("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE"),
+        text(toUtf8("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE"),
              faced(faceGothic, 11, hexColor(0xEDE6D8, 0.42f), 3.4f))
             .key("ring-top")
             .width(544)
@@ -485,7 +485,7 @@ struct VertigoTitles : sketch::Sketch {
                      .autoFlip = false})
             .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500))));
     panel.child(
-        text(toU8("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR"),
+        text(toUtf8("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR"),
              faced(faceGothic, 11, hexColor(0xEDE6D8, 0.42f), 3.4f))
             .key("ring-bottom")
             .width(544)
@@ -512,12 +512,12 @@ struct VertigoTitles : sketch::Sketch {
         "CARD D · a:b 5:3 · δ 60° · k 0.12 · R 167 px",
     };
     for (int i = 0; i < 4; ++i)
-      panel.child(text(toU8(kSlug[i]), faced(faceGothic, 10, kBone, 1.8f))
+      panel.child(text(toUtf8(kSlug[i]), faced(faceGothic, 10, kBone, 1.8f))
                       .key(std::string("slug") + kCards[i].tag)
                       .left(22)
                       .top(20)
                       .opacity(&cardA[i]));
-    panel.child(text(toU8("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone"),
+    panel.child(text(toUtf8("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone"),
                      faced(faceGothic, 10, hexColor(0xEDE6D8, 0.50f), 1.8f))
                     .key("slug-rig")
                     .left(22)
@@ -559,13 +559,13 @@ struct VertigoTitles : sketch::Sketch {
                 .shape(figure(kCards[2], 700))
                 .stroke(stroke(0.8f, Fill::color(hexColor(0x2E5C9E, 0.55f))))
                 .rotate(turntable()));
-    p.child(text(toU8("VERTIGO"), hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
+    p.child(text(toUtf8("VERTIGO"), hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
                 .key("spec-outline"));
-    p.child(text(toU8("SAUL BASS · JOHN WHITNEY"),
+    p.child(text(toUtf8("SAUL BASS · JOHN WHITNEY"),
                  faced(faceDisplay, 14, kBone, 2.0f))
                 .key("spec-solid"));
-    p.child(text(toU8("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
-                      "— BOTH CLARENDON."),
+    p.child(text(toUtf8("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
+                        "— BOTH CLARENDON."),
                  faced(faceGothic, 10, kSteel, 0.6f))
                 .key("spec-cap"));
     return p;
@@ -595,13 +595,14 @@ struct VertigoTitles : sketch::Sketch {
                                .shape(figure(c, 360))
                                .stroke(stroke(0.9f, Fill::color(c.core)))
                                .rotate(turntable())));
-      row.child(box()
-                    .column()
-                    .grow(1)
-                    .gap(2)
-                    .child(text(toU8(c.line1),
-                                faced(faceGothicBold, 11, kBone, 0.7f)))
-                    .child(text(toU8(c.line2), faced(faceGothic, 9, kSteel))));
+      row.child(
+          box()
+              .column()
+              .grow(1)
+              .gap(2)
+              .child(
+                  text(toUtf8(c.line1), faced(faceGothicBold, 11, kBone, 0.7f)))
+              .child(text(toUtf8(c.line2), faced(faceGothic, 9, kSteel))));
       p.child(std::move(row));
     }
     return p;
@@ -617,17 +618,17 @@ struct VertigoTitles : sketch::Sketch {
         "CURVES PLOT JULES LISSAJOUS'S PARAMETRIC EQUATIONS",
     };
     auto p = plate(176).gap(5);
-    p.child(text(toU8("THE M-5 GUN DIRECTOR"),
+    p.child(text(toUtf8("THE M-5 GUN DIRECTOR"),
                  faced(faceGothicBold, 13, kBone, 1.6f))
                 .key("rig-h"));
     for (int i = 0; i < 4; ++i)
-      p.child(text(toU8(kFacts[i]), faced(faceGothic, 10.5f, kSteel, 0.3f))
+      p.child(text(toUtf8(kFacts[i]), faced(faceGothic, 10.5f, kSteel, 0.3f))
                   .key("rig" + std::to_string(i))
                   .opacity(animate(from(0.0f).to(1.0f),
                                    ramp(900.0f + (float)i * 90.0f, 300))));
     p.child(box().grow(1));
-    p.child(text(toU8("hitchcocksvertigo.substack.com · rhizome.org "
-                      "· diyphotography.net"),
+    p.child(text(toUtf8("hitchcocksvertigo.substack.com · rhizome.org "
+                        "· diyphotography.net"),
                  faced(faceGothic, 9, kSteelDim))
                 .key("rig-cite"));
     return p;
@@ -665,7 +666,7 @@ struct VertigoTitles : sketch::Sketch {
     std::vector<sketch::kit::Line> sources;
     for (int i = 0; i < 4; ++i)
       sources.push_back(
-          {.words = toU8(kSrc[i]),
+          {.words = toUtf8(kSrc[i]),
            .ink = Fill::color(kSteelDim),
            .opacity = animate(from(0.0f).to(1.0f),
                               ramp(520.0f + (float)i * 70.0f, 260))});
@@ -676,11 +677,11 @@ struct VertigoTitles : sketch::Sketch {
       const sketch::kit::Provide look(mastheadTheme());
       root.child(
           sketch::kit::titleCard(
-              {.eyebrow = {.words = toU8("PRECESSING LISSAJOUS FIGURES"),
+              {.eyebrow = {.words = toUtf8("PRECESSING LISSAJOUS FIGURES"),
                            .opacity =
                                animate(from(0.0f).to(1.0f), ramp(0, 260)),
                            .lift = animate(from(8.0f).to(0.0f), ramp(0, 260))},
-               .title = {.words = toU8("VERTIGO, 1958"),
+               .title = {.words = toUtf8("VERTIGO, 1958"),
                          .fx = Track{.effect = fx::rise(18.0f),
                                      .stagger = {.eachMs = 26,
                                                  .amountMs = 0,
@@ -688,9 +689,9 @@ struct VertigoTitles : sketch::Sketch {
                                      .progress = animate(
                                          from(0.0f).to(1.0f),
                                          ramp(140, 900, ch::easeOutExpo))}},
-               .subtitle = {.words = toU8("Saul Bass, title design — John "
-                                          "Whitney, spirals — Paramount, "
-                                          "dir. Alfred Hitchcock"),
+               .subtitle = {.words = toUtf8("Saul Bass, title design — John "
+                                            "Whitney, spirals — Paramount, "
+                                            "dir. Alfred Hitchcock"),
                             .opacity =
                                 animate(from(0.0f).to(1.0f), ramp(420, 240))},
                .notes = std::move(sources),

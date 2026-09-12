@@ -14,8 +14,8 @@
 namespace {
 
 /** An effect under `key` returning one fixed deviation — the readable way
- *  to drive a single GlyphMod field from a test. */
-TextEffect fixed(std::string key, GlyphMod mod) {
+ *  to drive a single GlyphModifier field from a test. */
+TextEffect fixed(std::string key, GlyphModifier mod) {
   return fx::effect(
       std::move(key),
       [mod](const GlyphInfo&, float, core::noise::Mix64Stream&) { return mod; },
@@ -104,7 +104,7 @@ TEST(ComposeDebug, RestGhostDrawsTheSameWordUndeformedUnderTheMovingOne) {
   // that moved them.
   Host host(300, 140);
   const SkColor4f ghostInk{0, 0, 1, 1};
-  GlyphMod shove;
+  GlyphModifier shove;
   shove.dx = 60.0f;
   host.composer.render(box().padding(10).child(
       kit::restGhost(text(u8"AB", whiteStyle(40))
@@ -155,7 +155,7 @@ TEST(ComposeDebug, RestGhostCopiesTheTypeAndNotTheMarksOnIt) {
   host.composer.render(box().padding(10).child(
       kit::restGhost(text(u8"ALPHA BETA", whiteStyle(24))
                          .key("word")
-                         .mark(sigil::weave::sel::word(1),
+                         .mark(sigil::weave::selectors::word(1),
                                box().key("caret").width(4).fill(green())),
                      {0, 0, 1, 1})));
   host.frame();

@@ -45,13 +45,15 @@ void finishMaterialWarmup(std::future<sigil::material::WarmupResult>& loading) {
                  result.ready, result.unique);
 }
 
-std::filesystem::path flagsFileNear(const std::filesystem::path& exeDir) {
-  std::filesystem::path beside = exeDir / "sketch_flags.rsp";
+std::filesystem::path flagsFileNear(
+    const std::filesystem::path& executableDirectory) {
+  std::filesystem::path beside = executableDirectory / "sketch_flags.rsp";
   if (std::filesystem::exists(beside)) return beside;
-  return exeDir.parent_path().parent_path().parent_path() / "sketch_flags.rsp";
+  return executableDirectory.parent_path().parent_path().parent_path() /
+         "sketch_flags.rsp";
 }
 
-std::filesystem::path executableDir(const char* argv0) {
+std::filesystem::path executableDirectory(const char* argv0) {
 #ifdef __APPLE__
   char buffer[4096];
   uint32_t size = sizeof buffer;

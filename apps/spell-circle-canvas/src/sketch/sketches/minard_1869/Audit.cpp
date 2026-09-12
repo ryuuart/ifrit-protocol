@@ -3,7 +3,7 @@
 auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
   // --- flow conservation, on Minard's own engraved numbers -------------
   auto say = [&](feed::TextRing& r, const std::string& s, const char* style) {
-    r.append({toU8(s), style});
+    r.append({toUtf8(s), style});
   };
   // THE VERDICT IS NEVER WRITTEN BY HAND. `measure::check` computes it
   // from the two values and `test::report` prints it in the ink that

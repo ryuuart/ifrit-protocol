@@ -281,7 +281,7 @@ const std::vector<Linie>& linienOf(int num) {
  *  is written as the maths it is rather than as a path-builder loop —
  *  which is also what makes figures 7, 9 and 10 three numbers each
  *  instead of a table of Bezier control points. */
-shapes::OutlineFn linieOutline(Linie l) {
+shapes::OutlineFunction linieOutline(Linie l) {
   if (l.straight) {
     const SkPoint a = kUnit.at(l.bearing, 1.0f);
     return shapes::parametric(
@@ -665,7 +665,7 @@ struct ChladniTab1 : sketch::Sketch {
     // ---- the numeral, upper left of its circle (measured at
     // -0.80R, -1.04R from the centre, baseline-left) ----
     root.child(
-        text(toU8(std::to_string(f.num) + "."),
+        text(toUtf8(std::to_string(f.num) + "."),
              type(faceNumeral, 37, kInk, 0.5f))
             .key(tag + "num")
             .centerAt({c.fX - 0.82f * kR, c.fY - 1.15f * kR})
@@ -677,7 +677,7 @@ struct ChladniTab1 : sketch::Sketch {
     for (size_t li = 0; li < labels.size(); ++li) {
       const Label& l = labels[li];
       root.child(
-          text(toU8(l.glyph), type(faceLabel, 33, kInk))
+          text(toUtf8(l.glyph), type(faceLabel, 33, kInk))
               .key(tag + "lab" + std::to_string(li))
               .centerAt(polar(c, kR * l.radius, l.bearing))
               .opacity(bind(&settle[fi]).source(0.84f, 0.99f).clamp(0.0f, 1.0f))
@@ -757,7 +757,7 @@ struct ChladniTab1 : sketch::Sketch {
               .stagger = {.eachMs = 0, .amountMs = 520, .durationMs = 60},
               .progress = animate(from(0.0f).to(1.0f),
                                   ramp(tTitle * 1000, 620, ch::easeNone))};
-    root.child(text(toU8("Tab. I."), type(faceSwash, 62, kInk, 1.0f))
+    root.child(text(toUtf8("Tab. I."), type(faceSwash, 62, kInk, 1.0f))
                    .key("title")
                    .fx(std::move(pen))
                    .centerAt({1436 * kScale, 106 * kScale}));
@@ -771,7 +771,7 @@ struct ChladniTab1 : sketch::Sketch {
 
     // ---- the engraver's signature, inside the frame at the foot ----
     root.child(
-        text(toU8("Capieux. sculps. 1786."),
+        text(toUtf8("Capieux. sculps. 1786."),
              type(faceSwash, 27, kInkSoft, 0.3f))
             .key("credit")
             .centerAt({1402 * kScale, 1917 * kScale})

@@ -63,7 +63,8 @@ void warnOverlappingClaims(const std::string& a, const std::string& b,
 namespace {
 
 /** Every stroke pass's claimed runs for this frame, in pass order, with
- *  rest() complements applied — the body behind StrokeResolverOps::claims. */
+ *  rest() complements applied — the body behind
+ * StrokeResolverOperations::claims. */
 std::vector<std::vector<Span>> resolveSpans(const Instance& inst,
                                             const SkPath& outline) {
   std::vector<std::vector<Span>> out;
@@ -143,10 +144,10 @@ std::vector<std::vector<Span>> resolveSpans(const Instance& inst,
   return out;
 }
 
-/** The engine as a StrokeResolverOps: every operation forwards to the
+/** The engine as a StrokeResolverOperations: every operation forwards to the
  *  span arithmetic and the claim resolution above. One value for every
  *  stroked node. */
-struct StrokeEngine final : StrokeResolverOps {
+struct StrokeEngine final : StrokeResolverOperations {
   bool operator==(const StrokeEngine&) const { return true; }
   std::vector<Span> normalize(const std::vector<Span>& spans) const override {
     return normalizeSpans(spans);

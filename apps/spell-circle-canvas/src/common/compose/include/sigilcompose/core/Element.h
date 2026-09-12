@@ -110,34 +110,35 @@ class Element {
    *  back, and the result is silently narrower content rather than an
    *  error. Pair with `.shrink(0)` when `width(150)` means "this IS 150".
    *  The same holds for `height()` in a column. */
-  Element& width(Dim d);
-  Element& height(Dim d);
-  Element& minWidth(Dim d);
-  Element& maxWidth(Dim d);
-  Element& minHeight(Dim d);
-  Element& maxHeight(Dim d);
+  Element& width(Dimension d);
+  Element& height(Dimension d);
+  Element& minWidth(Dimension d);
+  Element& maxWidth(Dimension d);
+  Element& minHeight(Dimension d);
+  Element& maxHeight(Dimension d);
   Element& aspect(float ratio);
   Element& grow(float factor = 1.0f);
   Element& shrink(float factor);
-  Element& basis(Dim d);
+  Element& basis(Dimension d);
   Element& alignItems(Align a);
   Element& alignSelf(Align a);
   Element& justify(Justify j);
   Element& absolute();
   Element& inset(float all);
   Element& inset(float left, float top, float right, float bottom);
-  /** Dim-valued insets: px, pct(), or autoDim() per side — autoDim()
-   *  leaves that side unpinned (the CSS `auto`), so width/height (or the
-   *  opposite inset) size the node instead of stretching it. */
-  Element& inset(Dim left, Dim top, Dim right, Dim bottom);
+  /** Dimension-valued insets: px, pct(), or autoDimension() per side —
+   * autoDimension() leaves that side unpinned (the CSS `auto`), so width/height
+   * (or the opposite inset) size the node instead of stretching it. */
+  Element& inset(Dimension left, Dimension top, Dimension right,
+                 Dimension bottom);
   /** Pin ONE edge of an absolute node (implies absolute()): the
    *  corner-badge idiom — `.top(12).right(12)` pins a date block to the
    *  top-right without stretching it across the box. Unpinned sides stay
    *  auto. */
-  Element& left(Dim d);
-  Element& top(Dim d);
-  Element& right(Dim d);
-  Element& bottom(Dim d);
+  Element& left(Dimension d);
+  Element& top(Dimension d);
+  Element& right(Dimension d);
+  Element& bottom(Dimension d);
   /** HANG THIS NODE OFF A KEYED ONE, at a stated pair of points, with a
    *  list of places to try when the first will not fit (implies
    *  absolute()).
@@ -206,7 +207,7 @@ class Element {
    *      g.child(text(u8"…", st).at({panelBox.fLeft + 16, panelBox.fTop}));
    *
    *  Does not cover right()/bottom() pinning, percentage insets, or
-   *  autoDim() sides — those are different intents and keep the longhand.
+   *  autoDimension() sides — those are different intents and keep the longhand.
    *  `geometry::path::centred()` (kit/Frame.h) builds the rect for the
    * centre-and-size case. */
   Element& rect(const SkRect& r);
@@ -327,7 +328,7 @@ class Element {
    *  <sigilmaterial/skia/Paint.h>. A static paint collapses to a Fill, so
    *  it caches and prunes on the same path. */
   Element& fill(material::skia::Paint m);
-  /** A surface value supplied by component props. Exact-type deduction
+  /** A surface value supplied by component properties. Exact-type deduction
    *  keeps ordinary fill and material arguments on their own overloads. */
   template <typename P>
     requires std::same_as<std::remove_cvref_t<P>, SurfacePaint>
@@ -771,7 +772,7 @@ class Element {
    *  (the advance-invariant weight) or re-render discretely instead.
    *
    *  SUGAR over `fx()`: it appends a whole-text track whose deviation is
-   *  `GlyphMod::axis`, so a driven axis composes with entrances, loops and
+   *  `GlyphModifier::axis`, so a driven axis composes with entrances, loops and
    *  every other track instead of being a second text path they would hide.
    *  Being a track, it also draws through the batched glyph path, so a
    *  span's band stands at its rest placement while the letters move.
@@ -791,7 +792,7 @@ class Element {
    *  inside that rect, and free to sit outside it:
    *
    *      text(line, style)
-   *          .mark(weave::sel::word(3), box().left(0).top(pct(100))
+   *          .mark(weave::selectors::word(3), box().left(0).top(pct(100))
    *                                   .width(pct(100)).height(2)
    *                                   .fill(Fill::color(ink)))
    *
@@ -809,7 +810,7 @@ class Element {
    *  part of the sentence; mark the type that is already there.
    *
    *  A SELECTOR RESOLVING SEVERAL UNITS GIVES ONE RECT, the union of every
-   *  glyph it addressed — `weave::sel::each(weave::Unit::Word)` therefore
+   *  glyph it addressed — `weave::selectors::each(weave::Unit::Word)` therefore
    * anchors a mark to the whole paragraph, which is a rect and rarely the
    * intent. One mark is one element with one identity and one box; to mark each
    * of several units, write one mark per unit. A selector resolving NOTHING —
@@ -848,9 +849,9 @@ class Element {
   /** Text leaves only: THE FRAME THIS ONE FILLS INTO — the next link of a
    *  chain over one `weave::Story`.
    *
-   *      root.child(frame(article).key("a").thread("b").width(Dim(280)))
-   *          .child(frame(article).key("b").thread("c").width(Dim(280)))
-   *          .child(frame(article).key("c").width(Dim(280)));
+   *      root.child(frame(article).key("a").thread("b").width(Dimension(280)))
+   *          .child(frame(article).key("b").thread("c").width(Dimension(280)))
+   *          .child(frame(article).key("c").width(Dimension(280)));
    *
    *  Each frame fills from where the one before it stopped, so the cut
    *  moves as any frame's measure moves. A frame that threads somewhere
@@ -892,7 +893,7 @@ class Element {
    *
    *      text(passage, body)
    *          .writingMode(WritingMode::kVerticalRL)
-   *          .annotate({.where = weave::sel::text(u8"漢字"),
+   *          .annotate({.where = weave::selectors::text(u8"漢字"),
    *                     .unit = weave::Unit::Word,          // group ruby
    *                     .readings = {u8"かんじ"},
    *                     .style = furigana})
@@ -927,7 +928,8 @@ class Element {
    *  falls back to this leaf's own where the block leaves it unset. */
   Element& paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks);
   /** The same, by NAME, resolved through the `ParagraphStyleSet` the
-   *  environment offers (`env::Provide<sigil::weave::ParagraphStyleSet>`).
+   *  environment offers
+   * (`environment::Provide<sigil::weave::ParagraphStyleSet>`).
    *
    *  Resolution happens where this is written, inside the author's describe
    *  scope, so the finished description holds real styles and depends on no
@@ -987,7 +989,7 @@ class Element {
    *  the next — so this layout is one of a run of them rather than an
    *  answer somebody asked for once.
    *
-   *      text(caption, body).width(Dim(slider)).live(true, 2000.0f)
+   *      text(caption, body).width(Dimension(slider)).live(true, 2000.0f)
    *
    *  It buys two things. The break decisions of a block set in a uniform
    *  measure are kept and reused, keyed on the words and on the measure
@@ -1072,7 +1074,7 @@ class Element {
 
   // ---- span restyling: the type treatment, addressed by selector -------
   //
-  // The same `sel::` vocabulary the fx() tracks address glyphs with, used
+  // The same `selectors::` vocabulary the fx() tracks address glyphs with, used
   // to say what a range LOOKS LIKE rather than how it moves. Each verb
   // takes an ordered list — call any of them as many times as the passage
   // needs — and a LATER DECLARATION WINS wherever two overlap, so a broad
@@ -1096,16 +1098,18 @@ class Element {
   // paints with the style it is given, as ever.
   //
   // Both run on the PARAGRAPH and resolve their selection as TEXT RANGES,
-  // not glyphs: `weave::sel::text` and
-  // `weave::sel::regex` go through weave's query layer, `weave::sel::word`,
-  // `weave::sel::words`, `weave::sel::sentence` and `weave::sel::range` through
-  // the paragraph's own structure, and `weave::sel::line` through the layout.
+  // not glyphs: `weave::selectors::text` and
+  // `weave::selectors::regex` go through weave's query layer,
+  // `weave::selectors::word`, `weave::selectors::words`,
+  // `weave::selectors::sentence` and `weave::selectors::range` through the
+  // paragraph's own structure, and `weave::selectors::line` through the layout.
   // `weave::Selector::take` and `weave::Selector::drop` slice GLYPHS inside a
-  // unit, which a text range cannot express — an `weave::sel::each` selector
-  // restyles its whole units here, and the slice is ignored with a warning.
+  // unit, which a text range cannot express — an `weave::selectors::each`
+  // selector restyles its whole units here, and the slice is ignored with a
+  // warning.
   //
-  // A `weave::sel::line` restyle addresses THE LAYOUT OF THE TEXT BEFORE THE
-  // RESTYLE, and costs a second layout pass. It does not chase its own
+  // A `weave::selectors::line` restyle addresses THE LAYOUT OF THE TEXT BEFORE
+  // THE RESTYLE, and costs a second layout pass. It does not chase its own
   // result: a `spanStyle` on a line that moves the line breaks leaves the
   // selection where the first breaking put it.
 

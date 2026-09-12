@@ -176,7 +176,7 @@ auto Fallout2CharSheet::chrome() -> Element {
               .corners(Corners{n(2)})
               .foreground(fo::stamp(1.0f, 1.4f, hexColor(0x8A7448, 0.45f),
                                     hexColor(0x000000, 0.6f), 300)));
-  g.child(box().left(Dim(0)).top(Dim(0)).child(slot("points")));
+  g.child(box().left(Dimension(0)).top(Dimension(0)).child(slot("points")));
 
   // PRINT / DONE / CANCEL at y = 454, each with a red button light. Lamp
   // rects sampled at x 344..355, 457..468, 553..564, y 455..466.

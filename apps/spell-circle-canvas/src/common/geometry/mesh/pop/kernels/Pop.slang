@@ -37,12 +37,12 @@
  *  so the block's bytes stand at the same offsets in a uniform buffer as
  *  they do in the struct the host fills — no layout has to be reported
  *  or guessed. */
-struct PopArgs {
+struct PointOperationArguments {
   /** x: which operator; y: how many points; z: the operator's seed;
    *  w: flags, bit 0 meaning a mask lane is bound. */
   uint4 code;
   /** The operator's whole numbers, one meaning per operator. */
-  uint4 nums;
+  uint4 integers;
   /** …and its real ones. */
   float4 a;
   float4 b;
@@ -54,7 +54,7 @@ struct PopArgs {
   float4 m3;
 };
 
-uniform PopArgs args;
+uniform PointOperationArguments arguments;
 
 // THE LANES A DISPATCH TOUCHES, one binding per role rather than one per
 // name: an operator reads at most three lanes, a mask and a table, and
@@ -62,10 +62,10 @@ uniform PopArgs args;
 // writable so that a lane bound to two roles at once — the common case,
 // an operator reading and writing one lane — is one resource in one
 // state and not the same resource claimed two ways.
-RWStructuredBuffer<float4> dst;
-RWStructuredBuffer<float4> srcA;
-RWStructuredBuffer<float4> srcB;
-RWStructuredBuffer<float4> srcC;
+RWStructuredBuffer<float4> destination;
+RWStructuredBuffer<float4> sourceA;
+RWStructuredBuffer<float4> sourceB;
+RWStructuredBuffer<float4> sourceC;
 RWStructuredBuffer<float4> mask;
 RWStructuredBuffer<float4> table;
 
@@ -92,18 +92,18 @@ float pcgUnit(uint x) {
  *  rather than blending it against the old one, so a masked write and an
  *  unmasked one land on the same bits. */
 float maskAt(uint i) {
-  if ((args.code.w & 1u) == 0u) return 1.0;
+  if ((arguments.code.w & 1u) == 0u) return 1.0;
   return saturateP(mask[i].x);
 }
 
 void storeMasked(uint i, float4 v) {
   float m = maskAt(i);
   if (m >= 1.0) {
-    dst[i] = v;
+    destination[i] = v;
     return;
   }
-  float4 old = dst[i];
-  dst[i] = old + (v - old) * m;
+  float4 old = destination[i];
+  destination[i] = old + (v - old) * m;
 }
 
 // ---- the operators, by the index their description carries ------------
@@ -128,9 +128,9 @@ static const uint kNormal = 21u;
 
 /** lane += a stable random cube offset per point. */
 void opJitter(uint i) {
-  uint seed = args.code.z;
-  float amplitude = args.a.x;
-  float4 v = srcA[i];
+  uint seed = arguments.code.z;
+  float amplitude = arguments.a.x;
+  float4 v = sourceA[i];
   v.x = v.x + (pcgUnit(i * 3u + seed) - 0.5) * 2.0 * amplitude;
   v.y = v.y + (pcgUnit(i * 5u + seed + 1u) - 0.5) * 2.0 * amplitude;
   v.z = v.z + (pcgUnit(i * 7u + seed + 2u) - 0.5) * 2.0 * amplitude;
@@ -139,59 +139,59 @@ void opJitter(uint i) {
 
 /** lane = from + (to - from) * T. */
 void opRamp(uint i) {
-  float t = srcA[i].x;
-  storeMasked(i, args.a + (args.b - args.a) * t);
+  float t = sourceA[i].x;
+  storeMasked(i, arguments.a + (arguments.b - arguments.a) * t);
 }
 
 /** lane = base * (1 + spread * (hash * 2 - 1)), across all four. */
 void opVary(uint i) {
-  float value = args.a.x * (1.0 + args.a.y *
-                                      (pcgUnit(i * 11u + args.code.z) * 2.0 -
+  float value = arguments.a.x * (1.0 + arguments.a.y *
+                                      (pcgUnit(i * 11u + arguments.code.z) * 2.0 -
                                        1.0));
   storeMasked(i, float4(value, value, value, value));
 }
 
 /** Dir = normalize(target - P), keeping Dir's own .w. */
 void opLookAt(uint i) {
-  float4 p = srcA[i];
-  float3 d = float3(args.a.x - p.x, args.a.y - p.y, args.a.z - p.z);
+  float4 p = sourceA[i];
+  float3 d = float3(arguments.a.x - p.x, arguments.a.y - p.y, arguments.a.z - p.z);
   float len = lengthP(d);
   float3 dir = len > 1e-6 ? d * (1.0 / len) : float3(0.0, 0.0, 1.0);
-  float w = srcB[i].w;
+  float w = sourceB[i].w;
   storeMasked(i, float4(dir.x, dir.y, dir.z, w));
 }
 
-/** lane = lane * mul + add, per component. */
-void opMath(uint i) { storeMasked(i, srcA[i] * args.a + args.b); }
+/** lane = lane * multiplier + add, per component. */
+void opMath(uint i) { storeMasked(i, sourceA[i] * arguments.a + arguments.b); }
 
 /** lane = a constant. */
-void opFill(uint i) { storeMasked(i, args.a); }
+void opFill(uint i) { storeMasked(i, arguments.a); }
 
 /** Tex = the atlas cell this point drew. */
 void opAtlas(uint i) {
-  int cols = int(args.nums.x);
-  int rows = int(args.nums.y);
-  float du = 1.0 / float(cols);
+  int columns = int(arguments.integers.x);
+  int rows = int(arguments.integers.y);
+  float du = 1.0 / float(columns);
   float dv = 1.0 / float(rows);
-  int cells = cols * rows;
-  int drawn = int(pcgUnit(i * 13u + args.code.z) * float(cells));
+  int cells = columns * rows;
+  int drawn = int(pcgUnit(i * 13u + arguments.code.z) * float(cells));
   int cell = drawn < cells - 1 ? drawn : cells - 1;
-  int cellRow = cell / cols;
-  storeMasked(i, float4(float(cell % cols) * du, float(cellRow) * dv, du, dv));
+  int cellRow = cell / columns;
+  storeMasked(i, float4(float(cell % columns) * du, float(cellRow) * dv, du, dv));
 }
 
 /** to = the stop table sampled at dot(from, weights), remapped from
  *  [low, high] onto the table's span. */
 void opLookup(uint i) {
-  int n = int(args.nums.x);
+  int n = int(arguments.integers.x);
   // An empty table is a no-op, on this target and on the other: there is
   // nothing between no stops to interpolate.
   if (n < 1) return;
-  float4 s = srcA[i];
-  float key = s.x * args.a.x + s.y * args.a.y + s.z * args.a.z +
-              s.w * args.a.w;
-  float low = args.b.x;
-  float denom = args.b.y - low;
+  float4 s = sourceA[i];
+  float key = s.x * arguments.a.x + s.y * arguments.a.y + s.z * arguments.a.z +
+              s.w * arguments.a.w;
+  float low = arguments.b.x;
+  float denom = arguments.b.y - low;
   float u = denom != 0.0 ? (key - low) / denom : 0.0;
   u = saturateP(u);
   float x = u * float(n - 1);
@@ -207,15 +207,15 @@ void opLookup(uint i) {
 /** A selection lane written from a region of space. It takes no mask:
  *  the lane it writes IS what a mask is made of. */
 void opSelect(uint i) {
-  float3 size = float3(args.b.x != 0.0 ? args.b.x : 1e-6,
-                       args.b.y != 0.0 ? args.b.y : 1e-6,
-                       args.b.z != 0.0 ? args.b.z : 1e-6);
-  float feather = saturateP(args.c.x);
-  float4 s = srcA[i];
-  float3 q = float3((s.x - args.a.x) / size.x, (s.y - args.a.y) / size.y,
-                    (s.z - args.a.z) / size.z);
+  float3 size = float3(arguments.b.x != 0.0 ? arguments.b.x : 1e-6,
+                       arguments.b.y != 0.0 ? arguments.b.y : 1e-6,
+                       arguments.b.z != 0.0 ? arguments.b.z : 1e-6);
+  float feather = saturateP(arguments.c.x);
+  float4 s = sourceA[i];
+  float3 q = float3((s.x - arguments.a.x) / size.x, (s.y - arguments.a.y) / size.y,
+                    (s.z - arguments.a.z) / size.z);
   float d;
-  if (args.nums.x == 0u) {
+  if (arguments.integers.x == 0u) {
     d = sqrt(q.x * q.x + q.y * q.y + q.z * q.z);
   } else {
     d = max(abs(q.x), max(abs(q.y), abs(q.z)));
@@ -229,32 +229,32 @@ void opSelect(uint i) {
     float t = saturateP((d - (1.0 - feather)) / feather);
     inside = 1.0 - t * t * (3.0 - 2.0 * t);
   }
-  if (args.nums.z != 0u) inside = 1.0 - inside;
-  float old = dst[i].x;
+  if (arguments.integers.z != 0u) inside = 1.0 - inside;
+  float old = destination[i].x;
   float v = inside;
-  if (args.nums.y == 1u) v = max(old, inside);
-  if (args.nums.y == 2u) v = min(old, inside);
-  if (args.nums.y == 3u) v = old * (1.0 - inside);
-  dst[i] = float4(v, v, v, v);
+  if (arguments.integers.y == 1u) v = max(old, inside);
+  if (arguments.integers.y == 2u) v = min(old, inside);
+  if (arguments.integers.y == 3u) v = old * (1.0 - inside);
+  destination[i] = float4(v, v, v, v);
 }
 
 /** lane = matrix * lane, as a position or as a direction. The matrix is
  *  applied COLUMN by column and the four products summed in pairs,
  *  which is the order the host's own matrices are multiplied in. */
 float4 applyAffine(float4 v, float w) {
-  float4 mul0 = args.m0 * v.x;
-  float4 mul1 = args.m1 * v.y;
+  float4 mul0 = arguments.m0 * v.x;
+  float4 mul1 = arguments.m1 * v.y;
   float4 add0 = mul0 + mul1;
-  float4 mul2 = args.m2 * v.z;
-  float4 mul3 = args.m3 * w;
+  float4 mul2 = arguments.m2 * v.z;
+  float4 mul3 = arguments.m3 * w;
   float4 add1 = mul2 + mul3;
   return add0 + add1;
 }
 
 void opAffine(uint i) {
-  float4 v = srcA[i];
+  float4 v = sourceA[i];
   float4 r;
-  if (args.nums.x != 0u) {
+  if (arguments.integers.x != 0u) {
     float4 t = applyAffine(v, 0.0);
     float len = lengthP(float3(t.x, t.y, t.z));
     r = len > 1e-6 ? float4(t.x / len, t.y / len, t.z / len, v.w)
@@ -268,11 +268,11 @@ void opAffine(uint i) {
 
 /** lane.xyz += normalize(along.xyz) * distance. */
 void opPeak(uint i) {
-  float4 along = srcA[i];
+  float4 along = sourceA[i];
   float len = lengthP(float3(along.x, along.y, along.z));
-  float4 v = dst[i];
+  float4 v = destination[i];
   if (len > 1e-6) {
-    float k = args.a.x / len;
+    float k = arguments.a.x / len;
     v.x = v.x + along.x * k;
     v.y = v.y + along.y * k;
     v.z = v.z + along.z * k;
@@ -282,9 +282,9 @@ void opPeak(uint i) {
 
 /** to = a + (b - a) * factor, the factor a constant or a lane's .x. */
 void opMix(uint i) {
-  float4 va = srcA[i];
-  float4 vb = srcB[i];
-  float f = args.nums.x != 0u ? srcC[i].x : args.a.x;
+  float4 va = sourceA[i];
+  float4 vb = sourceB[i];
+  float f = arguments.integers.x != 0u ? sourceC[i].x : arguments.a.x;
   storeMasked(i, va + (vb - va) * f);
 }
 
@@ -293,14 +293,14 @@ void opMix(uint i) {
  *  length, so a direction too short to have one costs no second
  *  division. */
 void opNormal(uint i) {
-  float4 v = srcA[i];
+  float4 v = sourceA[i];
   float len = lengthP(float3(v.x, v.y, v.z));
   float3 n = len > 1e-6 ? float3(v.x / len, v.y / len, v.z / len)
-                        : float3(args.b.x, args.b.y, args.b.z);
-  float sense = args.a.w;
+                        : float3(arguments.b.x, arguments.b.y, arguments.b.z);
+  float sense = arguments.a.w;
   if (sense != 0.0) {
-    float4 p = srcB[i];
-    float3 d = float3(p.x - args.a.x, p.y - args.a.y, p.z - args.a.z);
+    float4 p = sourceB[i];
+    float3 d = float3(p.x - arguments.a.x, p.y - arguments.a.y, p.z - arguments.a.z);
     float facing = (n.x * d.x + n.y * d.y + n.z * d.z) * sense;
     if (facing < 0.0) n = float3(-n.x, -n.y, -n.z);
   }
@@ -308,33 +308,33 @@ void opNormal(uint i) {
 }
 
 void popPoint(uint i) {
-  if (i >= args.code.y) return;
-  uint op = args.code.x;
-  if (op == kJitter) {
+  if (i >= arguments.code.y) return;
+  uint operation = arguments.code.x;
+  if (operation == kJitter) {
     opJitter(i);
-  } else if (op == kRamp) {
+  } else if (operation == kRamp) {
     opRamp(i);
-  } else if (op == kVary) {
+  } else if (operation == kVary) {
     opVary(i);
-  } else if (op == kLookAt) {
+  } else if (operation == kLookAt) {
     opLookAt(i);
-  } else if (op == kMath) {
+  } else if (operation == kMath) {
     opMath(i);
-  } else if (op == kFill) {
+  } else if (operation == kFill) {
     opFill(i);
-  } else if (op == kAtlas) {
+  } else if (operation == kAtlas) {
     opAtlas(i);
-  } else if (op == kLookup) {
+  } else if (operation == kLookup) {
     opLookup(i);
-  } else if (op == kSelect) {
+  } else if (operation == kSelect) {
     opSelect(i);
-  } else if (op == kAffine) {
+  } else if (operation == kAffine) {
     opAffine(i);
-  } else if (op == kPeak) {
+  } else if (operation == kPeak) {
     opPeak(i);
-  } else if (op == kMix) {
+  } else if (operation == kMix) {
     opMix(i);
-  } else if (op == kNormal) {
+  } else if (operation == kNormal) {
     opNormal(i);
   }
 }

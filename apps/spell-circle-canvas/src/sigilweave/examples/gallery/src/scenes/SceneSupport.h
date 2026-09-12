@@ -4,7 +4,7 @@
 // The reusable machinery — rebuild/layout guards, glyph buckets, label and
 // filler helpers, timing — lives in SigilWeaveKit; this header
 // keeps only the gallery's specializations of it: the palette, the
-// SceneParams-aware body cache, the palette-colored caption, and a morphing
+// SceneParameters-aware body cache, the palette-colored caption, and a morphing
 // ring path shared by more than one scene. Scene-specific state lives in
 // each scene's own file.
 
@@ -40,7 +40,7 @@ inline constexpr SkColor kPaper = sigil::weave::examples::palette::kPaper;
 using kit::makeStyle;
 
 /// Caches a scene body paragraph until one of its shaping inputs changes:
-/// the gallery's SceneParams front-end to a sigil::core::RebuildGuard,
+/// the gallery's SceneParameters front-end to a sigil::core::RebuildGuard,
 /// resolving empty panel values to the scene's defaults before they enter the
 /// key.
 struct BodyCache {
@@ -48,7 +48,7 @@ struct BodyCache {
 
   /// Rebuilds the paragraph when its text, typeface, or size has changed.
   /// Returns true when rebuilding occurred.
-  bool ensure(const SceneParams& params, const QString& fallbackText,
+  bool ensure(const SceneParameters& parameters, const QString& fallbackText,
               const sk_sp<SkTypeface>& fallbackTypeface);
 
  private:

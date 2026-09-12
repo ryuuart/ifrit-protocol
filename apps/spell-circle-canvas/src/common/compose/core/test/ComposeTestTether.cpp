@@ -21,15 +21,15 @@ Element scene(SkPoint anchorAt, Tether tether) {
       .child(box()
                  .key("anchor")
                  .absolute()
-                 .left(Dim(anchorAt.x()))
-                 .top(Dim(anchorAt.y()))
-                 .width(Dim(40.0f))
-                 .height(Dim(20.0f))
+                 .left(Dimension(anchorAt.x()))
+                 .top(Dimension(anchorAt.y()))
+                 .width(Dimension(40.0f))
+                 .height(Dimension(20.0f))
                  .fill(green()))
       .child(box()
                  .key("badge")
-                 .width(Dim(60.0f))
-                 .height(Dim(20.0f))
+                 .width(Dimension(60.0f))
+                 .height(Dimension(20.0f))
                  .fill(red())
                  .tether(std::move(tether)));
 }
@@ -40,8 +40,7 @@ TEST(ComposeTether, ThePairOfPointsIsTheWholePosition) {
   Host host(300, 300);
   // Centred above: the badge's bottom-centre lands on the anchor's
   // top-centre.
-  host.composer.render(
-      scene({100, 100}, hung({0.5f, 0.0f}, {0.5f, 1.0f})));
+  host.composer.render(scene({100, 100}, hung({0.5f, 0.0f}, {0.5f, 1.0f})));
   host.frame();
   EXPECT_EQ(require(host.composer.bounds("badge")),
             SkRect::MakeXYWH(100 + 20 - 30, 100 - 20, 60, 20));
@@ -108,13 +107,13 @@ TEST(ComposeTether, AWithinNarrowerThanTheCanvasIsWhatFitsIsJudgedAgainst) {
 
 TEST(ComposeTether, AnUnknownKeyIsSilentAndTheBoxStaysWhereLayoutLeftIt) {
   Host host(300, 300);
-  host.composer.render(box().absolute().inset(0).child(
-      box()
-          .key("badge")
-          .width(Dim(60.0f))
-          .height(Dim(20.0f))
-          .fill(red())
-          .tether({.key = "nobody"})));
+  host.composer.render(
+      box().absolute().inset(0).child(box()
+                                          .key("badge")
+                                          .width(Dimension(60.0f))
+                                          .height(Dimension(20.0f))
+                                          .fill(red())
+                                          .tether({.key = "nobody"})));
   host.frame();
   EXPECT_EQ(require(host.composer.bounds("badge")),
             SkRect::MakeXYWH(0, 0, 60, 20));
@@ -128,10 +127,13 @@ TEST(ComposeTether, ABoxCannotHangOffItsOwnDescendant) {
   host.composer.render(box().absolute().inset(0).child(
       box()
           .key("badge")
-          .width(Dim(60.0f))
-          .height(Dim(20.0f))
+          .width(Dimension(60.0f))
+          .height(Dimension(20.0f))
           .tether({.key = "inner"})
-          .child(box().key("inner").width(Dim(10.0f)).height(Dim(10.0f)))));
+          .child(box()
+                     .key("inner")
+                     .width(Dimension(10.0f))
+                     .height(Dimension(10.0f)))));
   host.frame();
   EXPECT_EQ(require(host.composer.bounds("badge")),
             SkRect::MakeXYWH(0, 0, 60, 20));

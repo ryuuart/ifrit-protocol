@@ -35,9 +35,9 @@
 // shader over every pixel, and only a bake keeps the pixels.
 //
 // EDIT THESE FIRST
-//   the outline recipe — swap Roughen for ops::Twirl{40}, raise the
+//   the outline recipe — swap Roughen for operations::Twirl{40}, raise the
 //                        bloat, hand the result to kit::chrome instead.
-//   ChromeParams::brushed / GoldParams::sparkle — the surfaces row.
+//   ChromeParameters::brushed / GoldParameters::sparkle — the surfaces row.
 //   the chain on the wire — .count(), .noise(), the two ramp stops.
 
 #include <include/core/SkPathBuilder.h>
@@ -49,7 +49,7 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/render/Painter.h>
-#include <sigilgeometry/path/Ops.h>
+#include <sigilgeometry/path/Operations.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -74,7 +74,7 @@ namespace sections = sigil::geometry::sections;
 namespace material = sigil::material;
 namespace mesh = sigil::geometry::mesh;
 namespace curve = sigil::geometry::mesh::curve;
-namespace ops = sigil::geometry::path::ops;
+namespace operations = sigil::geometry::path::operations;
 namespace shapes = sigil::geometry::shapes;
 namespace mpattern = sigil::material::pattern;
 
@@ -309,10 +309,10 @@ struct ShapeworksLab : sketch::Sketch {
     // bevel normal map that outline casts, so the material over it is
     // built here beside them. Editing any of the three re-runs setup,
     // which is what the reload loop is.
-    const ops::PathOp recipe = ops::chain({
-        ops::PuckerBloat{0.25f},
-        ops::Roughen{3.2f, 8, 3},
-        ops::offsetBy(6),
+    const operations::PathOperation recipe = operations::chain({
+        operations::PuckerBloat{0.25f},
+        operations::Roughen{3.2f, 8, 3},
+        operations::offsetBy(6),
     });
     cookedPath = recipe(star(7, 152, 84, {0, 0}));
     cooked =
@@ -326,20 +326,20 @@ struct ShapeworksLab : sketch::Sketch {
     glassPath = SkPath::Circle(445, 150, 78);
     backdrop = bakeChecker(540, 300);
     {
-      material::kit::GoldParams params;
-      params.crinkle = 0.4f;
-      params.sparkle = 0.7f;
+      material::kit::GoldParameters parameters;
+      parameters.crinkle = 0.4f;
+      parameters.sparkle = 0.7f;
       gold = material::kit::gold(material::bevelNormals(goldPath, 9), studio,
-                                 params);
+                                 parameters);
     }
     {
-      material::kit::ChromeParams params;
-      params.brushed = 0.6f;
-      params.roughness = 0.2f;
+      material::kit::ChromeParameters parameters;
+      parameters.brushed = 0.6f;
+      parameters.roughness = 0.2f;
       // studio, not sunset: a flat face reflects whatever sits dead
       // ahead on the equirect, and the sunset parks its sun there.
       chrome = material::kit::chrome(material::bevelNormals(chromePath, 12),
-                                     studio, params);
+                                     studio, parameters);
     }
     glass = material::kit::glass(material::bevelNormals(glassPath, 14), studio,
                                  material::Texture::of(backdrop));

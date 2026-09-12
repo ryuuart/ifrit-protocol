@@ -44,7 +44,7 @@ namespace sketch = sigil::sketch;
 namespace paint = sigil::material::skia;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -85,7 +85,7 @@ std::vector<paint::Stop> wheel() {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture}, std::move(body)));
 }
 
@@ -143,16 +143,16 @@ struct PaintShelf final : sketch::Sketch {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("PAINT SHELF \xc2\xb7 skia::Paint conical, sweep, "
-                       "buffer, worldSpace"),
-         .subtitle = toU8("dials \xc2\xb7 the focal offset (44 px) "
-                          "\xc2\xb7 the sweep window (45\xc2\xb0 to "
-                          "315\xc2\xb0) \xc2\xb7 worldSpace on or off"),
-         .footer = toU8("a paint sits in one of three volatility tiers "
-                        "\xe2\x80\x94 static, geometry, live "
-                        "\xe2\x80\x94 and every leaf here but the buffer "
-                        "is static or geometry, so a node painted with "
-                        "one still caches and prunes")},
+        {.title = toUtf8("PAINT SHELF \xc2\xb7 skia::Paint conical, sweep, "
+                         "buffer, worldSpace"),
+         .subtitle = toUtf8("dials \xc2\xb7 the focal offset (44 px) "
+                            "\xc2\xb7 the sweep window (45\xc2\xb0 to "
+                            "315\xc2\xb0) \xc2\xb7 worldSpace on or off"),
+         .footer = toUtf8("a paint sits in one of three volatility tiers "
+                          "\xe2\x80\x94 static, geometry, live "
+                          "\xe2\x80\x94 and every leaf here but the buffer "
+                          "is static or geometry, so a node painted with "
+                          "one still caches and prunes")},
         kit::cells(
             {.cells =
                  {kit::cells(

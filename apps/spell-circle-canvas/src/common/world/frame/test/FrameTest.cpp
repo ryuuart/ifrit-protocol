@@ -121,8 +121,8 @@ TEST(WorldFrame, APassComparesFieldByField) {
   EXPECT_EQ(a, b);
   EXPECT_NE(a, geometryPass("main").writes("colour"));
   EXPECT_NE(a, computePass("main").writes("colour", "depth"));
-  EXPECT_NE(geometryPass("main").only(sel::tag("glow")),
-            geometryPass("main").only(sel::tag("lit")));
+  EXPECT_NE(geometryPass("main").only(selectors::tag("glow")),
+            geometryPass("main").only(selectors::tag("lit")));
   EXPECT_EQ(postPass("bloom").reads("colour").blur(4.0f),
             postPass("bloom").reads("colour").blur(4.0f));
   EXPECT_NE(postPass("bloom").reads("colour").blur(4.0f),
@@ -155,7 +155,8 @@ TEST(WorldFrame, AGeometryPassPaintsEveryBody) {
 TEST(WorldFrame, AMaskRealisationPaintsCoverageAndNothingElse) {
   Bodies bodies;
   Targets targets = targetsAt(kExtent);
-  const Pass pass = geometryPass("cover").only(sel::tag("glow")).writes("mask");
+  const Pass pass =
+      geometryPass("cover").only(selectors::tag("glow")).writes("mask");
   Runtime::cpu()->execute(workOf(pass, Selection::Mask), bodies.view(),
                           targets);
 
@@ -175,7 +176,7 @@ TEST(WorldFrame, AVariantRealisationDrawsTheSelectionAgain) {
   Runtime::cpu()->execute(workOf(ordinary), bodies.view(), plain);
   const Pass over = geometryPass("main")
                         .writes("colour")
-                        .only(sel::tag("glow"))
+                        .only(selectors::tag("glow"))
                         .variant(white);
   Runtime::cpu()->execute(workOf(over, Selection::Variant), bodies.view(),
                           varied);

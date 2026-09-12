@@ -46,7 +46,7 @@ using sigil::core::hardware::FenceWait;
 using sigil::core::hardware::GpuDevice;
 using sigil::core::hardware::kFenceInitialValue;
 using sigil::core::hardware::NativeDevice;
-using sigil::core::hardware::TextureDesc;
+using sigil::core::hardware::TextureDescription;
 using sigil::core::hardware::TextureFormat;
 using sigil::core::hardware::TextureHandle;
 using sigil::skia::GraphiteContext;
@@ -96,8 +96,8 @@ GpuDevice *adoptedDevice() {
 
 /** An 8x8 BGRA render target the device owns, readable by the CPU so the
  *  Metal arms can check the bytes without a copy. */
-TextureDesc smallTarget() {
-  TextureDesc desc;
+TextureDescription smallTarget() {
+  TextureDescription desc;
   desc.width = 8;
   desc.height = 8;
   desc.format = TextureFormat::BGRA8Unorm;
@@ -222,10 +222,11 @@ TEST(SigilSkiaGraphite, DirectDrawsReuseTheImageProvidersTexture) {
 
   sigil::skia::draw::drawLattice(canvas, sheet, {1, 3}, {1, 3}, SkRect::MakeXYWH(4, 0, 4, 4),
                                  SkFilterMode::kNearest);
-  const SkRSXform xform = SkRSXform::Make(1, 0, 0, 4);
-  const SkRect tex = SkRect::MakeWH(4, 4);
-  sigil::skia::draw::drawSpriteAtlas(canvas, sheet, {.xforms = {&xform, 1}, .tex = {&tex, 1}},
-                                     SkSamplingOptions());
+  const SkRSXform transform = SkRSXform::Make(1, 0, 0, 4);
+  const SkRect sourceRectangles = SkRect::MakeWH(4, 4);
+  sigil::skia::draw::drawSpriteAtlas(
+      canvas, sheet, {.transforms = {&transform, 1}, .sourceRectangles = {&sourceRectangles, 1}},
+      SkSamplingOptions());
   EXPECT_EQ(sigil::skia::draw::ready(canvas, sheet), ordinary);
   const SkBitmap pixels = readGraphiteSurface(*ctx, surface.get());
   ASSERT_FALSE(pixels.empty());
@@ -282,10 +283,11 @@ TEST(SigilSkiaGraphite, DirectDrawsUploadOnADefaultRecorder) {
   canvas.clear(SK_ColorBLACK);
   sigil::skia::draw::drawLattice(canvas, sheet, {1, 3}, {1, 3}, SkRect::MakeXYWH(4, 0, 4, 4),
                                  SkFilterMode::kNearest);
-  const SkRSXform xform = SkRSXform::Make(1, 0, 0, 4);
-  const SkRect tex = SkRect::MakeWH(4, 4);
-  sigil::skia::draw::drawSpriteAtlas(canvas, sheet, {.xforms = {&xform, 1}, .tex = {&tex, 1}},
-                                     SkSamplingOptions());
+  const SkRSXform transform = SkRSXform::Make(1, 0, 0, 4);
+  const SkRect sourceRectangles = SkRect::MakeWH(4, 4);
+  sigil::skia::draw::drawSpriteAtlas(
+      canvas, sheet, {.transforms = {&transform, 1}, .sourceRectangles = {&sourceRectangles, 1}},
+      SkSamplingOptions());
   ASSERT_TRUE(submitRecorder(*ctx, *recorder));
   const SkBitmap pixels = readGraphiteSurface(*ctx, surface.get());
   ASSERT_FALSE(pixels.empty());

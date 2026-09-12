@@ -372,7 +372,10 @@ TEST(KitOrnament, AnOrnamentKeepsItsSilhouetteAsTheOpeningExclusion) {
     Element ornament =
         box().width(90).height(90).fill(Fill::color({0, 1, 0, 1}));
     if (silhouette) ornament.shape(geometry::shapes::circle());
-    ornament.key("ornament").absolute().left(Dim(0.0f)).top(Dim(0.0f));
+    ornament.key("ornament")
+        .absolute()
+        .left(Dimension(0.0f))
+        .top(Dimension(0.0f));
     return box()
         .width(220)
         .height(260)
@@ -537,8 +540,8 @@ TEST(KitSpecimen, AWellClipsByDefaultAndCanBeOpened) {
     return kit::well({.width = 100, .height = 80, .clip = clip},
                      box().child(box()
                                      .absolute()
-                                     .left(Dim(90))
-                                     .top(Dim(20))
+                                     .left(Dimension(90))
+                                     .top(Dimension(20))
                                      .width(30)
                                      .height(20)
                                      .fill(green())));

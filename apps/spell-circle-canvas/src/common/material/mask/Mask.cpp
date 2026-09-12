@@ -21,8 +21,8 @@ namespace sigil::material {
 
 namespace {
 
-Material sampled(Texture source, MaskParams params) {
-  Material m(sampledMaskRecipe(), params);
+Material sampled(Texture source, MaskParameters parameters) {
+  Material m(sampledMaskRecipe(), parameters);
   m.child(kMaskSourceSlot, std::move(source));
   return m;
 }
@@ -32,7 +32,7 @@ Material sampled(Texture source, MaskParams params) {
 const std::shared_ptr<const Recipe>& constantMaskRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
       std::make_shared<const Recipe>(
-          Recipe::of<MaskParams>("mask.constant")
+          Recipe::of<MaskParameters>("mask.constant")
               .body(Target::SkSL,
                     std::string(mask::shaderSource("MaskFit.sksl"))
                         .append(mask::shaderSource("MaskConstant.sksl")))
@@ -45,7 +45,7 @@ const std::shared_ptr<const Recipe>& constantMaskRecipe() {
 const std::shared_ptr<const Recipe>& sampledMaskRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
       std::make_shared<const Recipe>(
-          Recipe::of<MaskParams>("mask.sampled")
+          Recipe::of<MaskParameters>("mask.sampled")
               .child(std::string(kMaskSourceSlot))
               .body(Target::SkSL,
                     std::string(mask::shaderSource("MaskFit.sksl"))
@@ -57,34 +57,34 @@ const std::shared_ptr<const Recipe>& sampledMaskRecipe() {
 }
 
 Material maskConstant(float value) {
-  MaskParams params;
-  params.value = value;
-  return Material(constantMaskRecipe(), params);
+  MaskParameters parameters;
+  parameters.value = value;
+  return Material(constantMaskRecipe(), parameters);
 }
 
 Material maskMap(Texture map, int channel) {
-  MaskParams params;
-  params.channel = (float)channel;
-  params.reading = (float)MaskReading::Channel;
-  return sampled(std::move(map), params);
+  MaskParameters parameters;
+  parameters.channel = (float)channel;
+  parameters.reading = (float)MaskReading::Channel;
+  return sampled(std::move(map), parameters);
 }
 
 Material maskSlope(Texture normals, glm::vec3 up, float low, float high) {
-  MaskParams params;
-  params.reading = (float)MaskReading::Slope;
-  params.axis = {up.x, up.y, up.z, 0};
-  params.low = low;
-  params.high = high;
-  return sampled(std::move(normals), params);
+  MaskParameters parameters;
+  parameters.reading = (float)MaskReading::Slope;
+  parameters.axis = {up.x, up.y, up.z, 0};
+  parameters.low = low;
+  parameters.high = high;
+  return sampled(std::move(normals), parameters);
 }
 
 Material maskHeight(Texture positions, float low, float high, glm::vec3 axis) {
-  MaskParams params;
-  params.reading = (float)MaskReading::Height;
-  params.axis = {axis.x, axis.y, axis.z, 0};
-  params.low = low;
-  params.high = high;
-  return sampled(std::move(positions), params);
+  MaskParameters parameters;
+  parameters.reading = (float)MaskReading::Height;
+  parameters.axis = {axis.x, axis.y, axis.z, 0};
+  parameters.low = low;
+  parameters.high = high;
+  return sampled(std::move(positions), parameters);
 }
 
 namespace {
@@ -98,8 +98,9 @@ namespace {
  *  the next thing read, rather than a field name that means nothing on
  *  its own. */
 bool isMask(const Material& material, const char* verb) {
-  const Schema& params = material.recipe().params();
-  if (params.find("low") && params.find("high") && params.find("inverted"))
+  const Schema& parameters = material.recipe().parameters();
+  if (parameters.find("low") && parameters.find("high") &&
+      parameters.find("inverted"))
     return true;
   reportOnce("mask:" + std::string(verb) + ":" + material.recipe().name(),
              std::string(verb) + " reshapes a MASK, and recipe \"" +

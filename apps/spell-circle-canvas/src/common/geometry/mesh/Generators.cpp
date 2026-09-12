@@ -91,13 +91,13 @@ Mesh quad(float width, float height) {
   });
 }
 
-Mesh bakePrimColor(const Mesh& mesh, std::string_view lane) {
-  const std::vector<glm::vec4>* prim = mesh.primIf(lane);
+Mesh bakePrimitiveColor(const Mesh& mesh, std::string_view lane) {
+  const std::vector<glm::vec4>* primitive = mesh.primitiveIf(lane);
   const size_t tris = mesh.triangleCount();
-  if (!prim || prim->size() != tris || tris == 0) return mesh;
+  if (!primitive || primitive->size() != tris || tris == 0) return mesh;
 
   Mesh out;
-  out.prims = mesh.prims;  // triangle order survives the unweld
+  out.primitives = mesh.primitives;  // triangle order survives the unweld
   const bool normals = mesh.normals.size() == mesh.positions.size();
   const bool uvs = mesh.uvs.size() == mesh.positions.size();
   const bool colors = mesh.colors.size() == mesh.positions.size();
@@ -107,7 +107,7 @@ Mesh bakePrimColor(const Mesh& mesh, std::string_view lane) {
   if (uvs) out.uvs.reserve(tris * 3);
   out.colors.reserve(tris * 3);
   for (size_t t = 0; t < tris; ++t) {
-    const glm::vec4 flat = (*prim)[t];
+    const glm::vec4 flat = (*primitive)[t];
     for (size_t k = 0; k < 3; ++k) {
       const uint32_t idx = mesh.indices[t * 3 + k];
       out.indices.push_back((uint32_t)out.positions.size());

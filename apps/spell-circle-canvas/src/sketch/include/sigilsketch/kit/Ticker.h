@@ -34,14 +34,14 @@ struct Ticker {
   motion::Animatable<float> phase;
   /** Between the two copies; unset is the theme's label gap. */
   std::optional<float> gap;
-  compose::Dim width;
-  compose::Dim height;
+  compose::Dimension width;
+  compose::Dimension height;
 };
 
 /** THE CRAWL, clipped to its window.
  *
  *      sketch::kit::ticker({.content = strip, .contentWidth = w,
- *                           .phase = bind(&crawl), .width = Dim(320)})
+ *                           .phase = bind(&crawl), .width = Dimension(320)})
  */
 [[nodiscard]] compose::Element ticker(Ticker strip);
 
@@ -62,7 +62,7 @@ struct Timeline {
     std::optional<compose::Fill> ink;
   };
   std::vector<Mark> marks;
-  compose::Dim width;
+  compose::Dimension width;
   /** Unset is the theme's bar height. */
   std::optional<float> height;
   /** How far a major tick reaches past the rail; unset is the theme's. */
@@ -81,7 +81,7 @@ struct Timeline {
  *
  *      sketch::kit::timeline({.marks = {{0, u8"0 ms"}, {0.5f, {}, false},
  *                                       {1, u8"640 ms"}},
- *                             .width = Dim(420)})
+ *                             .width = Dimension(420)})
  *
  *  A mark's word is CENTRED on its tick and clipped by nothing, so a word
  *  at 0 or at 1 reaches past the rail's end by half its own width — which

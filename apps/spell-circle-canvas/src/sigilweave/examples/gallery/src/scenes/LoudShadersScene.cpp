@@ -24,15 +24,16 @@ QString loudShadersDefaultText() { return QStringLiteral("SHADER"); }
 class LoudShadersPart final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams& params,
+                    int /*frameNumber*/, const SceneParameters& parameters,
                     FontContext& fontContext) override {
     if (!m_serif) m_serif = defaultSerif(fontContext);
 
     const QString text =
-        params.text.isEmpty() ? loudShadersDefaultText() : params.text;
+        parameters.text.isEmpty() ? loudShadersDefaultText() : parameters.text;
     const sk_sp<SkTypeface>& typeface =
-        params.typeface ? params.typeface : m_serif;
-    const float fontSize = std::clamp(params.fontSize * 3.4f, 46.0f, 200.0f);
+        parameters.typeface ? parameters.typeface : m_serif;
+    const float fontSize =
+        std::clamp(parameters.fontSize * 3.4f, 46.0f, 200.0f);
 
     double layoutMicroseconds = 0;
     m_rebuild.ensure({text, typeface.get(), fontSize, size}, [&] {

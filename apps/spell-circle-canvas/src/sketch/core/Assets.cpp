@@ -91,10 +91,11 @@ bool Assets::poll() {
 }
 
 bool requireCached(std::initializer_list<std::string_view> urls,
-                   std::string* why, const std::filesystem::path& cacheDir) {
+                   std::string* why,
+                   const std::filesystem::path& cacheDirectory) {
   for (std::string_view url : urls) {
     // A present but empty resource cannot supply the sketch's art.
-    const auto bytes = sigil::io::probeNetworkCache(url, cacheDir);
+    const auto bytes = sigil::io::probeNetworkCache(url, cacheDirectory);
     if (bytes && *bytes > 0) continue;
     if (why)
       *why = "not in the IO hub's network cache on this machine \xe2\x80\x94 " +

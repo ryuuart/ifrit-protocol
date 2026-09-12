@@ -12,7 +12,7 @@
 #include <sigildraw/Draw.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/core/Assets.h>
-#include <sigilsketch/core/CanvasSpec.h>
+#include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 
@@ -41,9 +41,9 @@ namespace sigil::sketch {
  *  sketch.
  *
  *  Built for the call it is handed to and non-copyable: it holds
- *  references to session state and points at the session's own spec, so
- *  one kept past the call would write into nothing. Keep plain data on
- *  the sketch instead. */
+ *  references to session state and points at the session's own specification,
+ * so one kept past the call would write into nothing. Keep plain data on the
+ * sketch instead. */
 struct DrawContext {
   draw::Pen& pen;
   /** THE SESSION'S TICKER, stepped by the session's own clock every
@@ -70,16 +70,17 @@ struct DrawContext {
   motion::Ticker& ticker;
   Assets& assets;
   weave::FontContext& fonts;
-  CanvasSpec* spec = nullptr;  ///< host-owned; written via the calls below
+  CanvasSpecification* specification =
+      nullptr;  ///< host-owned; written via the calls below
 
   DrawContext(draw::Pen& penIn, motion::Ticker& tickerIn, Assets& assetsIn,
-              weave::FontContext& fontsIn, CanvasSpec* specIn,
+              weave::FontContext& fontsIn, CanvasSpecification* specificationIn,
               bool deterministicIn)
       : pen(penIn),
         ticker(tickerIn),
         assets(assetsIn),
         fonts(fontsIn),
-        spec(specIn),
+        specification(specificationIn),
         deterministic(deterministicIn) {}
   DrawContext(const DrawContext&) = delete;
   DrawContext& operator=(const DrawContext&) = delete;
@@ -104,7 +105,7 @@ struct DrawContext {
    *  and height follow at once, so a setup that draws after declaring
    *  draws at the right size. */
   void canvas(float width, float height) {
-    if (spec) spec->size = {width, height};
+    if (specification) specification->size = {width, height};
     pen.width = width;
     pen.height = height;
   }
@@ -113,7 +114,7 @@ struct DrawContext {
    *  a host letterboxes it. Read in the pen's colour mode, as p5 reads
    *  a background. */
   void background(SkColor4f color) {
-    if (spec) spec->background = color;
+    if (specification) specification->background = color;
   }
   void background(float gray) { background(pen.color(gray)); }
   void background(float gray, float alpha) {
@@ -129,7 +130,7 @@ struct DrawContext {
   /** The scene time a STILL of this sketch is taken at — the moment the
    *  piece is most itself. */
   void captureAt(double seconds) {
-    if (spec) spec->captureSeconds = seconds;
+    if (specification) specification->captureSeconds = seconds;
   }
   /** How many device pixels per canvas pixel this sketch is DRAWN at —
    *  a whole number, at least one. The canvas a pen program keeps is
@@ -148,7 +149,7 @@ struct DrawContext {
    *
    *      ctx.oversample(2); // one source pixel is 3 canvas px, so 6 here */
   void oversample(int perCanvasPixel) {
-    if (spec) spec->oversample = std::max(1, perCanvasPixel);
+    if (specification) specification->oversample = std::max(1, perCanvasPixel);
   }
   /** p5's loadImage: the image at "res://<name>" — the sketch's assets
    *  directory — as something `pen.image` draws. A file not there yet
@@ -191,7 +192,7 @@ class DrawSketch {
 
 /** THE IMMEDIATE-MODE KIND: a pen over a surface the session keeps,
  *  stepped by a clock the session owns. */
-class DrawKind final : public KindOps {
+class DrawKind final : public KindOperations {
  public:
   using Factory = DrawSketch* (*)();
   explicit DrawKind(Factory factory) : m_factory(factory) {}

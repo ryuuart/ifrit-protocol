@@ -131,7 +131,7 @@ struct Track {
   }
   /** Full equality: the shape above plus the progress. */
   bool operator==(const Track& other) const {
-    return sameShape(other) && motion::propEqual(progress, other.progress);
+    return sameShape(other) && motion::propertyEqual(progress, other.progress);
   }
 };
 
@@ -140,7 +140,7 @@ struct Track {
 // the count bumped. A cascade field left out makes two different cascades
 // compare equal, the text node prunes, and it keeps beating to the old
 // ladder forever. `progress` is deliberately NOT compared in sameShape():
-// it is an Animatable, and the reconciler compares it through propEqual
+// it is an Animatable, and the reconciler compares it through propertyEqual
 // with every other animated slot.
 static_assert(core::kFieldCount<Track> == 9,
               "Track gained or lost a field — rule on it in "

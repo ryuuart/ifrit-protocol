@@ -9,7 +9,7 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf — the rest-of-non-text diagnostic
-#include <sigilcore/reconcile/Env.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilweave/unicode/Unicode.h>
 
 #include "ComposeInternal.h"
@@ -113,7 +113,7 @@ Element& Element::paragraphs(std::span<const std::string_view> names) {
   // named character run reads its own: the finished description then holds
   // real styles and depends on no scope that has since ended.
   const sigil::weave::ParagraphStyleSet* set =
-      core::env::inherited<sigil::weave::ParagraphStyleSet>();
+      core::environment::inherited<sigil::weave::ParagraphStyleSet>();
   std::vector<sigil::weave::ParagraphStyle> resolved;
   resolved.reserve(names.size());
   for (const std::string_view name : names) {

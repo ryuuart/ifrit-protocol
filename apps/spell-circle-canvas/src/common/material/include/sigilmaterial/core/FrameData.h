@@ -2,7 +2,7 @@
 
 /** @file
  * FrameData — the values a renderer injects into a material once per
- * frame, which no params struct carries because the author never sets
+ * frame, which no parameter struct carries because the author never sets
  * them: the clock, the surface, and the node's placement in the world.
  */
 

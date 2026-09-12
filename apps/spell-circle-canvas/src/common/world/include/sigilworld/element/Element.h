@@ -296,22 +296,22 @@ class Element {
 using Memo = core::Memo<Element>;
 
 namespace detail {
-Element makeMemo(std::any props,
+Element makeMemo(std::any properties,
                  std::function<bool(const std::any&, const std::any&)> equal,
                  std::function<Element(const std::any&)> invoke);
 }  // namespace detail
 
-/** Deferred description: @p fn runs only when @p props changed (by
+/** Deferred description: @p fn runs only when @p properties changed (by
  *  `operator==`) since the last render at this position or key, AND the
- *  ambient `env::` bindings are unchanged — a memo is a pure function of
- *  (props, environment). The captured stack is re-established around the
- *  deferred call, so `env::inherited<T>()` inside @p fn reads what was
+ *  ambient `environment::` bindings are unchanged — a memo is a pure function
+ * of (properties, environment). The captured stack is re-established around the
+ *  deferred call, so `environment::inherited<T>()` inside @p fn reads what was
  *  bound where the memo was WRITTEN. */
 template <class P, class F>
   requires std::equality_comparable<P> && std::invocable<F, const P&>
-Element memo(P props, F fn) {
+Element memo(P properties, F fn) {
   return detail::makeMemo(
-      std::any(std::move(props)),
+      std::any(std::move(properties)),
       [](const std::any& a, const std::any& b) {
         return std::any_cast<const P&>(a) == std::any_cast<const P&>(b);
       },

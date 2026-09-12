@@ -10,8 +10,8 @@
 namespace {
 
 /** An effect under `key` returning one fixed deviation — the readable way
- *  to drive a single GlyphMod field from a test. */
-TextEffect fixed(std::string key, GlyphMod mod) {
+ *  to drive a single GlyphModifier field from a test. */
+TextEffect fixed(std::string key, GlyphModifier mod) {
   return fx::effect(
       std::move(key),
       [mod](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {

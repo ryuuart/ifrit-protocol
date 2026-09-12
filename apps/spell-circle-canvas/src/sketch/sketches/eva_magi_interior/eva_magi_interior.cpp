@@ -98,8 +98,8 @@ struct EvaMagiInterior : sketch::Sketch {
     for (const measure::Check& c : verdict.rows) {
       if (!c.judged()) continue;
       rows.push_back(
-          {{toU8(c.label), toU8(c.actual),
-            toU8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
+          {{toUtf8(c.label), toUtf8(c.actual),
+            toUtf8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
            Fill::color(c.pass ? SkColor4f{0, 0.30f, 0.14f, 1}
                               : SkColor4f{0.62f, 0, 0, 1})});
     }
@@ -261,15 +261,15 @@ struct EvaMagiInterior : sketch::Sketch {
     }
     if (!red && seeded[(size_t)i]) node.child(box().inset(0).fill(infection));
     const SkColor4f labelInk = red ? magi::kInkRed : magi::kInk;
-    node.child(text(toU8(p.number),
+    node.child(text(toUtf8(p.number),
                     fitCap(evangelion::voteNumeral(number), 86.0f, labelInk))
                    .centerAt({sz.width() * 0.5f,
                               sz.height() * layout.numberSlotY(number)}));
-    node.child(
-        text(toU8(p.label), fitWithin(evangelion::moduleLabel(), toU8(p.label),
-                                      31.0f, sz.width() - 44.0f, labelInk))
-            .centerAt(
-                {sz.width() * 0.5f, sz.height() * layout.nameSlotY(number)}));
+    node.child(text(toUtf8(p.label),
+                    fitWithin(evangelion::moduleLabel(), toUtf8(p.label), 31.0f,
+                              sz.width() - 44.0f, labelInk))
+                   .centerAt({sz.width() * 0.5f,
+                              sz.height() * layout.nameSlotY(number)}));
     return node;
   }
 
@@ -323,8 +323,8 @@ struct EvaMagiInterior : sketch::Sketch {
     static const char* kBlock[5] = {"FILE:MAGI_SYS", "EXTENTION:2048",
                                     "EX_MODE:ON", "PRIORITY:A__", nullptr};
     for (int i = 0; kBlock[i]; ++i)
-      g.child(inked(toU8(kBlock[i]), file, {151.0f, 350.0f + (float)i * 32.0f},
-                    sFile));
+      g.child(inked(toUtf8(kBlock[i]), file,
+                    {151.0f, 350.0f + (float)i * 32.0f}, sFile));
 
     const auto k1 = fitEmSpan(u8"提訴", 300.0f, magi::kKanji);
     const auto k1h = fitEmSpan(u8"提訴", 300.0f, magi::kKanjiHot);
@@ -390,7 +390,7 @@ struct EvaMagiInterior : sketch::Sketch {
     if (countdown < 0) return box().absolute().width(0).height(0);
     const std::string buf = kit::formatted("%d", countdown);
     return box().left(1096).top(96).child(text(
-        toU8(buf), magi::type(magi::latin(), 260.0f, magi::kRedHot, 1.2f)));
+        toUtf8(buf), magi::type(magi::latin(), 260.0f, magi::kRedHot, 1.2f)));
   }
 
   /** The HUD slot: everything that changes on a CLOCK rather than on the

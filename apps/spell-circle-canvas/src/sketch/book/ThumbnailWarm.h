@@ -21,7 +21,7 @@ class FontContext;
  *  environment variable names one for a test; otherwise the platform
  *  cache location, under this app's own name. The store is the app's
  *  alone: no ledger and no sweep writes into it. */
-std::filesystem::path thumbnailStoreDir(const std::string& override);
+std::filesystem::path thumbnailStoreDirectory(const std::string& override);
 
 /** THE WARM COMMAND: render every selected sketch's MISSING OR STALE
  *  thumbnail through the same CPU path the window's own fill takes, and
@@ -34,7 +34,7 @@ std::filesystem::path thumbnailStoreDir(const std::string& override);
  *  this machine cannot run is stood down by name rather than failed, and
  *  a sketch whose thumbnail or note is already fresh is left alone. */
 int runThumbnails(int only, const std::string& kind,
-                  const std::filesystem::path& dir,
+                  const std::filesystem::path& directory,
                   std::chrono::milliseconds budget, bool heavy,
                   sigil::weave::FontContext& fonts,
                   sigil::sketch::Assets& store);

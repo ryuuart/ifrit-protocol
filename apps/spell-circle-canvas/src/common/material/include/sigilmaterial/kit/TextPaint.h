@@ -22,17 +22,18 @@ namespace sigil::material::kit {
 
 /** The ABI every text paint shares: where the run sits, how large it is,
  *  the clock, and a slow two-axis drift derived from it. */
-struct TextPaintParams {
+struct TextPaintParameters {
   glm::vec2 origin;
   glm::vec2 extent;
   float time;
   glm::vec2 motion;
 };
 
-/** The params for a run at @p bounds at @p timeSeconds: the extent is at
+/** The parameters for a run at @p bounds at @p timeSeconds: the extent is at
  *  least one pixel each way, and the motion is the sine and cosine of two
  *  slow rates. */
-TextPaintParams textPaintParams(const SkRect& bounds, float timeSeconds);
+TextPaintParameters textPaintParameters(const SkRect& bounds,
+                                        float timeSeconds);
 
 /** Animated, rippling blue water with fine caustic highlights. */
 Material water(const SkRect& bounds, float timeSeconds);

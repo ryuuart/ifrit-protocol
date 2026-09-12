@@ -52,7 +52,7 @@ SkPath edges(const SkPath& outline, Edge mask, float step = 3.0f);
  *  silhouette — a chamfered panel, a star, a blob — not just rectangles,
  *  and MITRED, so a straight edge stays parallel to the one it came from.
  *
- *  It is `ops::offset` mitred and butt-capped with the sign the other
+ *  It is `operations::offset` mitred and butt-capped with the sign the other
  *  way round, and stands here rather than there because "the frame six
  *  pixels in" is the thing a caller asks for by name. */
 SkPath insetOutline(const SkPath& outline, float px);

@@ -12,7 +12,7 @@
 #include <cstdint>
 #include <utility>
 
-#include "sigilgeometry/path/Ops.h"
+#include "sigilgeometry/path/Operations.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Shaper.h"
 #include "sigilgeometry/path/Skia.h"
@@ -53,7 +53,7 @@ struct Rounded {
     return inner == o.inner && radius == o.radius;
   }
   SkPath path(SkSize s) const {
-    return path::ops::roundCorners(inner(s), radius);
+    return path::operations::roundCorners(inner(s), radius);
   }
   SkPath operator()(SkSize s) const { return path(s); }
 };

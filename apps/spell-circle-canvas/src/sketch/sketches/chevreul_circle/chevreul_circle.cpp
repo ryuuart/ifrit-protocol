@@ -7,7 +7,7 @@ auto ChevreulCircle::describe(sketch::SketchContext& ctx) -> Element {
   // component four levels down is set in the plate's ink without being
   // handed it.
   sketch::kit::Provide look(sheet());
-  Element root = stack().width(Dim(kW)).height(Dim(kH));
+  Element root = stack().width(Dimension(kW)).height(Dimension(kH));
 
   // the leaf: measured paper, its tooth, and the platemark
   root.child(at(0, 0, kW, kH).fill(Fill::color(kPaper)));

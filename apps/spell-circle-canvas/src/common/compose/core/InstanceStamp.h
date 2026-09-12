@@ -2,7 +2,7 @@
 
 /** @file
  * The stamp behind the instanced leaf: the one draw a pool becomes, the
- * size past which it culls each sprite against the clip, and the props the
+ * size past which it culls each sprite against the clip, and the properties the
  * cached mode memoizes the leaf on.
  *
  * Private to the kernel. A consumer describes a pool and an atlas and

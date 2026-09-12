@@ -68,8 +68,8 @@ struct SpaceJam1996 : sketch::Sketch {
                   canvas.drawPicture(p.get());
                   canvas.restore();
                 })
-                    .width(Dim(artW[i]))
-                    .height(Dim(artH[i]));
+                    .width(Dimension(artW[i]))
+                    .height(Dimension(artH[i]));
     if (inFlight) e.cache(Cache::None);
     return e;
   }
@@ -84,9 +84,11 @@ struct SpaceJam1996 : sketch::Sketch {
     const bool inFlight =
         s.asset >= 0 && (arrivedMask & (1u << (unsigned)s.asset)) == 0;
     Element c = box().column().alignSelf(Align::Start).shrink(0);
-    if (s.asset < 0) c.width(Dim(0)).height(Dim(0));
+    if (s.asset < 0) c.width(Dimension(0)).height(Dimension(0));
     if (s.brs > 0)
-      c.child(box().width(Dim(0)).height(Dim(sj::S(18) * (float)s.brs)));
+      c.child(box()
+                  .width(Dimension(0))
+                  .height(Dimension(sj::S(18) * (float)s.brs)));
     if (s.asset >= 0) c.child(revealed(s.asset, inFlight));
     c.cells(s.col, s.row, s.colspan, s.rowspan).cellAlign(s.across, s.down);
     return c;
@@ -122,16 +124,16 @@ struct SpaceJam1996 : sketch::Sketch {
     const bool ballIn = (arrivedMask & (1u << kFastbreak)) != 0;
     Element fastRow =
         stack()
-            .left(Dim(S(70)))
-            .top(Dim(S(86)))
-            .width(Dim(S(500)))
-            .height(Dim(S(46)))
+            .left(Dimension(S(70)))
+            .top(Dimension(S(86)))
+            .width(Dimension(S(500)))
+            .height(Dimension(S(46)))
             .child(revealed(kFast, (arrivedMask & (1u << kFast)) == 0)
-                       .left(Dim(S(3)))
-                       .top(Dim(S(17.5f))))
+                       .left(Dimension(S(3)))
+                       .top(Dimension(S(17.5f))))
             .child(revealed(kBreak, (arrivedMask & (1u << kBreak)) == 0)
-                       .left(Dim(S(93)))
-                       .top(Dim(S(17.5f))));
+                       .left(Dimension(S(93)))
+                       .top(Dimension(S(17.5f))));
     if (ballIn) {
       // Fully arrived: the live element, whose material steps its uTime at
       // 10 Hz — the GIF's own frame rate, six frames, forever.
@@ -142,17 +144,19 @@ struct SpaceJam1996 : sketch::Sketch {
     } else {
       // Still arriving: a partially-downloaded animated GIF shows its first
       // frame and does not animate. Same picture path as everything else.
-      fastRow.child(revealed(kFastbreak, true).left(Dim(S(53))).top(Dim(S(3))));
+      fastRow.child(revealed(kFastbreak, true)
+                        .left(Dimension(S(53)))
+                        .top(Dimension(S(3))));
     }
 
     // 3. the planet table. Nothing below is hand-placed: `Table`
     //    runs the auto-layout rule over the children's measured sizes and
     //    the cells they claim.
     Element grid = layout(table)
-                       .left(Dim(S(70)))
-                       .top(Dim(S(168)))
-                       .width(Dim(S(500)))
-                       .height(Dim(S(435)))
+                       .left(Dimension(S(70)))
+                       .top(Dimension(S(168)))
+                       .width(Dimension(S(500)))
+                       .height(Dimension(S(435)))
                        .key("table");
     for (const Slot& slot : kSlotTable) grid.child(cell(slot));
 
@@ -162,9 +166,9 @@ struct SpaceJam1996 : sketch::Sketch {
     auto small = ty(serif(), S(13.33f), kBodyText);
     Element colophon =
         box()
-            .left(Dim(0))
-            .top(Dim(S(757)))
-            .width(Dim(S(640)))
+            .left(Dimension(0))
+            .top(Dimension(S(757)))
+            .width(Dimension(S(640)))
             .column()
             .alignItems(Align::Center)
             .child(
@@ -201,8 +205,8 @@ struct SpaceJam1996 : sketch::Sketch {
         {kBreak, wordmark(f, "BREAK", S(50), S(11), false), S(50), S(11)});
     jobs.push_back({kFastbreak,
                     rect(0, 0, S(40), S(40))
-                        .left(Dim(0))
-                        .top(Dim(0))
+                        .left(Dimension(0))
+                        .top(Dimension(0))
                         .shape(shapes::circle())
                         .fill(ballMaterial(false, C5(0xFF6B29), C5(0xC64210),
                                            C5(0x521800), 0.050f)),
@@ -223,10 +227,12 @@ struct SpaceJam1996 : sketch::Sketch {
     for (Job& j : jobs) {
       artW[j.ix] = j.w;
       artH[j.ix] = j.h;
-      pic[j.ix] =
-          snapshot(box().width(Dim(j.w)).height(Dim(j.h)).clip(true).child(
-                       std::move(j.tree)),
-                   f, {j.w, j.h});
+      pic[j.ix] = snapshot(box()
+                               .width(Dimension(j.w))
+                               .height(Dimension(j.h))
+                               .clip(true)
+                               .child(std::move(j.tree)),
+                           f, {j.w, j.h});
     }
     artW[kStars] = artH[kStars] = 0;
   }
@@ -319,7 +325,7 @@ struct SpaceJam1996 : sketch::Sketch {
     for (const measure::Check& c : verdict.rows) {
       if (!c.judged() || c.pass) continue;
       rows.push_back(
-          {{toU8(c.label), toU8(c.actual), toU8("want " + c.expected)},
+          {{toUtf8(c.label), toUtf8(c.actual), toUtf8("want " + c.expected)},
            Fill::color(C5(0xFF0000))});
     }
     sketch::kit::Provide bound(look);
@@ -335,7 +341,7 @@ struct SpaceJam1996 : sketch::Sketch {
         .padding(S(12))
         .gap(S(8))
         .child(text(
-            toU8("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID"),
+            toUtf8("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID"),
             weave::textStyle(
                 {.face = display(), .size = S(11), .color = C5(0xFFFF00)})))
         .child(sketch::kit::table(std::move(rows),

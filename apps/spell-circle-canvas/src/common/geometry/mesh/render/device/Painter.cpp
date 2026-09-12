@@ -188,9 +188,9 @@ class PainterExecutor : public Executor {
     // upload rather than at the draw. Only the lit mode carries one: the
     // normal and uv buffers would be corrupted by a tint.
     const bool tinted =
-        !style.primColorLane.empty() && style.mode == MeshStyle::Mode::Lit;
+        !style.primitiveColorLane.empty() && style.mode == MeshStyle::Mode::Lit;
     const device::MeshBuffers* buffers = state.meshes.stream(
-        mesh, tinted ? style.primColorLane : std::string_view{});
+        mesh, tinted ? style.primitiveColorLane : std::string_view{});
     if (!buffers) {
       state.endFrame();
       return;
@@ -201,7 +201,7 @@ class PainterExecutor : public Executor {
                                   /*depth=*/true,
                                   /*depthWrite=*/true,
                                   /*fullscreen=*/false,
-                                  /*prim=*/true,
+                                  /*primitive=*/true,
                                   /*cull=*/style.backfaceCull};
     const device::Pipeline* pipeline = state.pipelines.pipeline(key);
     if (!pipeline) {

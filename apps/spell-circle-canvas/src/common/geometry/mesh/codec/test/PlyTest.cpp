@@ -262,7 +262,7 @@ TEST(ReadPly, AFacePropertyReplicatesAcrossTheTrianglesItsFanBecomes) {
   ASSERT_TRUE(model.has_value());
   const Mesh& mesh = model->parts.front().mesh;
   ASSERT_EQ(mesh.triangleCount(), 5u);  // 2 from the quad, 3 from the pent
-  const std::vector<glm::vec4>* color = mesh.primIf("Color");
+  const std::vector<glm::vec4>* color = mesh.primitiveIf("Color");
   ASSERT_NE(color, nullptr);
   ASSERT_EQ(color->size(), 5u);
   for (size_t t = 0; t < 2; ++t) {
@@ -277,7 +277,7 @@ TEST(ReadPly, AFacePropertyReplicatesAcrossTheTrianglesItsFanBecomes) {
   }
   // Prim lanes are always four-component, so a single per-face scalar
   // property widens into .x with the other three left at zero.
-  const std::vector<glm::vec4>* density = mesh.primIf("density");
+  const std::vector<glm::vec4>* density = mesh.primitiveIf("density");
   ASSERT_NE(density, nullptr);
   ASSERT_EQ(density->size(), 5u);
   EXPECT_FLOAT_EQ((*density)[1].x, 2.5f);
@@ -322,12 +322,12 @@ TEST(ReadPly, AFacePropertyReplicatesAcrossTheTrianglesItsFanBecomes) {
   ASSERT_TRUE(binModel.has_value());
   const Mesh& binMesh = binModel->parts.front().mesh;
   ASSERT_EQ(binMesh.triangleCount(), 5u);
-  ASSERT_NE(binMesh.primIf("Color"), nullptr);
-  ASSERT_EQ(binMesh.primIf("Color")->size(), 5u);
-  EXPECT_FLOAT_EQ((*binMesh.primIf("Color"))[1].x, 1.0f);
-  EXPECT_FLOAT_EQ((*binMesh.primIf("Color"))[2].y, 0.25f);
-  ASSERT_NE(binMesh.primIf("density"), nullptr);
-  EXPECT_FLOAT_EQ((*binMesh.primIf("density"))[4].x, -1.5f);
+  ASSERT_NE(binMesh.primitiveIf("Color"), nullptr);
+  ASSERT_EQ(binMesh.primitiveIf("Color")->size(), 5u);
+  EXPECT_FLOAT_EQ((*binMesh.primitiveIf("Color"))[1].x, 1.0f);
+  EXPECT_FLOAT_EQ((*binMesh.primitiveIf("Color"))[2].y, 0.25f);
+  ASSERT_NE(binMesh.primitiveIf("density"), nullptr);
+  EXPECT_FLOAT_EQ((*binMesh.primitiveIf("density"))[4].x, -1.5f);
 }
 
 TEST(ReadPly, FaceLanesTakeTheConventionalColourAndAnyDeclaredOrder) {
@@ -354,7 +354,7 @@ TEST(ReadPly, FaceLanesTakeTheConventionalColourAndAnyDeclaredOrder) {
   ASSERT_TRUE(model.has_value());
   const Mesh& mesh = model->parts.front().mesh;
   ASSERT_EQ(mesh.triangleCount(), 3u);  // 1 triangle + a fanned quad
-  const std::vector<glm::vec4>* color = mesh.primIf("Color");
+  const std::vector<glm::vec4>* color = mesh.primitiveIf("Color");
   ASSERT_NE(color, nullptr);
   ASSERT_EQ(color->size(), 3u);
   EXPECT_NEAR((*color)[0].x, 1.0f, 1e-3f);  // uchar normalized
@@ -362,7 +362,7 @@ TEST(ReadPly, FaceLanesTakeTheConventionalColourAndAnyDeclaredOrder) {
   EXPECT_FLOAT_EQ((*color)[0].w, 1.0f);  // no alpha channel -> 1
   EXPECT_NEAR((*color)[1].z, 1.0f, 1e-3f);
   EXPECT_NEAR((*color)[2].y, 1.0f, 1e-3f);
-  const std::vector<glm::vec4>* heat = mesh.primIf("heat");
+  const std::vector<glm::vec4>* heat = mesh.primitiveIf("heat");
   ASSERT_NE(heat, nullptr);
   ASSERT_EQ(heat->size(), 3u);
   EXPECT_FLOAT_EQ((*heat)[0].x, 9.0f);  // raw: only colour names normalize
@@ -390,13 +390,13 @@ TEST(ReadPly, FaceLanesSurviveAHostileFaceHeader) {
   ASSERT_TRUE(model.has_value());
   const Mesh& mesh = model->parts.front().mesh;
   ASSERT_EQ(mesh.triangleCount(), 1u);
-  ASSERT_NE(mesh.primIf("Color"), nullptr);
-  ASSERT_EQ(mesh.primIf("Color")->size(), 1u);
+  ASSERT_NE(mesh.primitiveIf("Color"), nullptr);
+  ASSERT_EQ(mesh.primitiveIf("Color")->size(), 1u);
   // The SURVIVING face's value, not the dropped one's.
-  EXPECT_FLOAT_EQ((*mesh.primIf("Color"))[0].x, 0.5f);
+  EXPECT_FLOAT_EQ((*mesh.primitiveIf("Color"))[0].x, 0.5f);
 
   // (b) A face count no data could back is rejected before anything is
-  // sized from it — the prim path never resizes on a declared count.
+  // sized from it — the primitive path never resizes on a declared count.
   const char* hugeFaces =
       "ply\nformat ascii 1.0\n"
       "element vertex 3\n"
@@ -447,7 +447,7 @@ TEST(ReadPly, FaceLanesSurviveAHostileFaceHeader) {
   ASSERT_TRUE(dupModel.has_value());
   const Mesh& dupMesh = dupModel->parts.front().mesh;
   ASSERT_EQ(dupMesh.triangleCount(), 1u);
-  ASSERT_NE(dupMesh.primIf("heat"), nullptr);
-  ASSERT_EQ(dupMesh.primIf("heat")->size(), 1u);
-  EXPECT_FLOAT_EQ((*dupMesh.primIf("heat"))[0].x, 6.0f);
+  ASSERT_NE(dupMesh.primitiveIf("heat"), nullptr);
+  ASSERT_EQ(dupMesh.primitiveIf("heat")->size(), 1u);
+  EXPECT_FLOAT_EQ((*dupMesh.primitiveIf("heat"))[0].x, 6.0f);
 }

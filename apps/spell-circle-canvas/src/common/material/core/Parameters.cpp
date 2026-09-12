@@ -2,7 +2,7 @@
  * Uniform declarations per target, emitted from a schema.
  */
 
-#include "sigilmaterial/core/Params.h"
+#include "sigilmaterial/core/Parameters.h"
 
 namespace sigil::material {
 

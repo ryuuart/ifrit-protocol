@@ -33,8 +33,8 @@
 // grade is weight without width — and the cell is set in a face that
 // carries one.
 //
-// TINT READS BACKWARDS ON PURPOSE. `GlyphMod::colorMul` multiplies, and a
-// multiplier only takes a colour toward black, so the element is set in
+// TINT READS BACKWARDS ON PURPOSE. `GlyphModifier::colorMultiplier` multiplies,
+// and a multiplier only takes a colour toward black, so the element is set in
 // the DESTINATION and the effect divides down toward the origin. The
 // arguments still read in time order.
 //
@@ -63,7 +63,7 @@ namespace motion = sigil::motion;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -183,13 +183,13 @@ struct KineticCard final : sketch::Sketch {
     track.progress = &phase;
     track.stagger = kCascade;
     return sketch::kit::caption(
-        kCell, toU8(row.call), toU8(row.note),
+        kCell, toUtf8(row.call), toUtf8(row.note),
         box()
-            .width(Dim(kCell))
-            .height(Dim(kBodyH))
-            .child(text(toU8(row.word), specimen(ink, std::move(face)))
+            .width(Dimension(kCell))
+            .height(Dimension(kBodyH))
+            .child(text(toUtf8(row.word), specimen(ink, std::move(face)))
                        .key(row.key)
-                       .width(Dim(kCell))
+                       .width(Dimension(kCell))
                        .fx(std::move(track))));
   }
 

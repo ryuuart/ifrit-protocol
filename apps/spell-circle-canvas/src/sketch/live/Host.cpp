@@ -28,7 +28,7 @@
 #include <sstream>
 #include <string_view>
 
-#include "BuildDir.h"
+#include "BuildDirectory.h"
 #include "SkewGuard.h"
 #include "sigilsketch/core/Crash.h"
 
@@ -37,7 +37,7 @@ namespace sigil::sketch {
 namespace {
 
 Host::Options withDefaults(Host::Options options) {
-  if (options.assetsDir.empty()) {
+  if (options.assetsDirectory.empty()) {
     // A SKETCH THAT IS A DIRECTORY keeps its other units beside its
     // entry, so the assets are NOT beside the entry: they are one level
     // further up, in the directory every sketch shares. The entry's stem
@@ -46,7 +46,7 @@ Host::Options withDefaults(Host::Options options) {
     std::filesystem::path beside = options.sketchPath.parent_path();
     if (beside.filename() == options.sketchPath.stem())
       beside = beside.parent_path();
-    options.assetsDir = beside / "assets";
+    options.assetsDirectory = beside / "assets";
   }
   return options;
 }
@@ -69,12 +69,13 @@ int run(const std::string& command, std::string& output) {
 /** Where a unit's object goes: named for the unit, and for the whole of
  *  its path, so two units of one stem in different directories — two
  *  sketches' `tables.cpp` files — do not share one. */
-std::filesystem::path objectFor(const std::filesystem::path& buildDir,
+std::filesystem::path objectFor(const std::filesystem::path& buildDirectory,
                                 const std::filesystem::path& source) {
   char hash[24];
   std::snprintf(hash, sizeof hash, "%zx",
                 std::hash<std::string>{}(source.string()));
-  return buildDir / (std::string(hash) + "_" + source.stem().string() + ".o");
+  return buildDirectory /
+         (std::string(hash) + "_" + source.stem().string() + ".o");
 }
 
 /** One unit to its object, with the flags the build captured — and the
@@ -128,20 +129,20 @@ std::string linkLine(const Host::Options& options,
   return cmd.str();
 }
 
-constexpr CanvasSpec kUnloaded{};
+constexpr CanvasSpecification kUnloaded{};
 
 }  // namespace
 
 Host::Host(Options options, weave::FontContext& fonts)
     : m_options(withDefaults(std::move(options))),
       m_fonts(fonts),
-      m_assets(m_options.assetsDir) {
+      m_assets(m_options.assetsDirectory) {
   // Before this process claims its own: the directories of runs that were
   // killed or that faulted are the ones nothing else will ever clear. An
   // owner that swept while its window was coming up claimed the walk
   // before this host existed, and this host walks nothing.
-  if (claimSweep()) sweepAbandonedBuildDirs();
-  m_buildDir = acquireBuildDir();
+  if (claimSweep()) sweepAbandonedBuildDirectories();
+  m_buildDirectory = acquireBuildDirectory();
   m_hostId = nextHostId();
   // A sketch this binary already carries opens instantly, and the file is
   // watched from where it stands: an edit builds, an unedited file never
@@ -167,7 +168,7 @@ Host::~Host() {
   // An unlinked file that is mapped stays readable until the last
   // mapping goes, so removing the directory takes nothing out from
   // under a library still in use.
-  releaseBuildDir();
+  releaseBuildDirectory();
 }
 
 void Host::openSession(const Kind& kind) {
@@ -298,8 +299,8 @@ void Host::startCompile() {
   m_status = "compiling build " + std::to_string(m_generation + 1) + "…";
 
   const std::filesystem::path out =
-      m_buildDir / ("sketch_" + std::to_string(m_hostId) + "_" +
-                    std::to_string(++m_generation) + ".dylib");
+      m_buildDirectory / ("sketch_" + std::to_string(m_hostId) + "_" +
+                          std::to_string(++m_generation) + ".dylib");
   // Every unit is on the link line; only the stale ones are compiled. A
   // unit is stale when it has never been built, when its source is not
   // the one its object came from, or when any header around the sketch
@@ -312,7 +313,7 @@ void Host::startCompile() {
   for (const std::filesystem::path& source : units()) {
     std::error_code ec;
     const auto sourceTime = std::filesystem::last_write_time(source, ec);
-    const std::filesystem::path object = objectFor(m_buildDir, source);
+    const std::filesystem::path object = objectFor(m_buildDirectory, source);
     objects.push_back(object);
     const auto built = m_built.find(source);
     const bool fresh = !ec && built != m_built.end() &&
@@ -495,10 +496,10 @@ void Host::markPresented() {
 
 bool Host::capture(const std::filesystem::path& out, float scale) {
   if (!m_session) return false;
-  const CanvasSpec& spec = m_session->canvas();
+  const CanvasSpecification& specification = m_session->canvas();
   const SkImageInfo info = SkImageInfo::MakeN32Premul(
-      std::max(1, (int)(spec.size.width() * scale)),
-      std::max(1, (int)(spec.size.height() * scale)));
+      std::max(1, (int)(specification.size.width() * scale)),
+      std::max(1, (int)(specification.size.height() * scale)));
   sk_sp<SkSurface> surface = m_captureBackend.makeSurface
                                  ? m_captureBackend.makeSurface(info)
                                  : SkSurfaces::Raster(info);
@@ -506,7 +507,7 @@ bool Host::capture(const std::filesystem::path& out, float scale) {
   SkCanvas* through =
       m_captureBackend.canvasOf ? m_captureBackend.canvasOf(*surface) : nullptr;
   SkCanvas& canvas = through ? *through : *surface->getCanvas();
-  canvas.clear(spec.background.toSkColor());
+  canvas.clear(specification.background.toSkColor());
   canvas.scale(scale, scale);
   m_session->repaint(canvas);
   SkBitmap bitmap;

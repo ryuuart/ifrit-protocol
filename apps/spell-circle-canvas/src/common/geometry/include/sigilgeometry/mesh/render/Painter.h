@@ -102,11 +102,11 @@ struct MeshStyle {
    *  two levels is the same bleed arriving by the other door; linear
    *  reads between texels and between levels. */
   SkFilterMode filter = SkFilterMode::kLinear;
-  /** PRIMITIVE lane (Mesh::prims) multiplied into each triangle's
+  /** PRIMITIVE lane (Mesh::primitives) multiplied into each triangle's
    *  colour — flat per-face tint, no vertex duplication. Empty = off;
    *  a missing or mis-sized lane is ignored. Lit mode only: Normals
    *  and Uv render BUFFERS, and a tint there would corrupt them. */
-  std::string primColorLane;
+  std::string primitiveColorLane;
   bool backfaceCull = true;
   bool depthSort = true;
   /** Who performs the draw. The default is the built-in CPU executor;

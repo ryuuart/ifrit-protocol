@@ -32,7 +32,7 @@ const std::string& globePrelude(Target target) {
 const std::shared_ptr<const Recipe>& globeRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
       std::make_shared<const Recipe>(
-          Recipe::of<GlobeParams>("kit.globe")
+          Recipe::of<GlobeParameters>("kit.globe")
               .body(Target::SkSL, std::string(globePrelude(Target::SkSL))
                                       .append(shaderSource("Globe.sksl")))
               .body(Target::Slang, std::string(globePrelude(Target::Slang))
@@ -41,8 +41,8 @@ const std::shared_ptr<const Recipe>& globeRecipe() {
   return recipe;
 }
 
-Material globe(const GlobeParams& params) {
-  return Material(globeRecipe(), params);
+Material globe(const GlobeParameters& parameters) {
+  return Material(globeRecipe(), parameters);
 }
 
 }  // namespace sigil::material::kit

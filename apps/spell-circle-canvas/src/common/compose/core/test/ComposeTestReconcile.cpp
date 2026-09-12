@@ -112,7 +112,7 @@ struct EnvPalette {
  *  and reading the environment — the `feed::`/decoration case. */
 Element envThemedChip() {
   return box().width(20).height(20).fill(
-      Fill::color(core::env::inheritedOr(EnvPalette{}).surface));
+      Fill::color(core::environment::inheritedOr(EnvPalette{}).surface));
 }
 
 /** Its sibling, which reads nothing and must never repatch for a theme. */
@@ -129,7 +129,7 @@ Element envLevel1() { return box().child(envLevel2()); }
 /** Describe under a binding, and hand back a tree the binding no longer
  *  touches — the whole design in three lines. */
 Element envDescribeWith(EnvPalette p) {
-  core::env::Provide<EnvPalette> theme(p);
+  core::environment::Provide<EnvPalette> theme(p);
   return box().child(envLevel1());
 }
 
@@ -139,8 +139,8 @@ TEST(ComposeEnv, InheritedValueReachesAComponentNobodyHandedIt) {
   Host host;
   Element tree = envDescribeWith(EnvPalette{{0, 0, 1, 1}, {1, 1, 0, 1}});
   EXPECT_FALSE(
-      core::env::bound<EnvPalette>());  // the scope ended; the VALUE is
-  host.composer.render(tree);           // already baked into the tree
+      core::environment::bound<EnvPalette>());  // the scope ended; the VALUE is
+  host.composer.render(tree);                   // already baked into the tree
   host.frame();
   EXPECT_EQ(host.pixel(5, 5), SK_ColorBLUE);   // the themed chip
   EXPECT_EQ(host.pixel(5, 25), SK_ColorBLUE);  // its plain sibling
@@ -150,7 +150,8 @@ TEST(ComposeEnv, InheritedValueReachesAComponentNobodyHandedIt) {
   bare.composer.render(box().child(envLevel1()));
   bare.frame();
   EXPECT_EQ(bare.pixel(5, 5), SK_ColorRED);
-  EXPECT_FALSE(core::env::bound<EnvPalette>());  // and the scope unwound
+  EXPECT_FALSE(
+      core::environment::bound<EnvPalette>());  // and the scope unwound
 }
 
 TEST(ComposeEnv, UnchangedEnvironmentStillPrunes) {
@@ -177,7 +178,7 @@ TEST(ComposeEnv, UnchangedEnvironmentStillPrunes) {
 }
 
 TEST(ComposeEnv, ThemeChangeRepatchesOnlyTheNodesThatMoved) {
-  // The other half: a change costs exactly the readers whose props moved,
+  // The other half: a change costs exactly the readers whose properties moved,
   // not the provider's subtree. Four container levels and one plain
   // sibling sit between the binding and the reader; none of them repatch.
   Host host;
@@ -207,7 +208,7 @@ TEST(ComposeEnv, MemoIsAPureFunctionOfPropsAndEnvironment) {
   auto component = [](const Props&) {
     ++describeCalls;
     return box().width(20).height(20).fill(
-        Fill::color(core::env::inheritedOr(EnvPalette{}).surface));
+        Fill::color(core::environment::inheritedOr(EnvPalette{}).surface));
   };
 
   Host host;
@@ -216,13 +217,13 @@ TEST(ComposeEnv, MemoIsAPureFunctionOfPropsAndEnvironment) {
   // Provide below has been destroyed. Building the tree and handing it to
   // the composer are two statements, deliberately.
   auto describeWith = [&component](EnvPalette p) {
-    core::env::Provide<EnvPalette> theme(p);
+    core::environment::Provide<EnvPalette> theme(p);
     return box().child(memo(Props{1}, component).key("m"));
   };
   auto renderWith = [&](EnvPalette p) {
     Element tree = describeWith(p);
     ASSERT_FALSE(
-        core::env::bound<EnvPalette>());  // the binding is gone by here
+        core::environment::bound<EnvPalette>());  // the binding is gone by here
     host.composer.render(tree);
   };
 
@@ -231,11 +232,13 @@ TEST(ComposeEnv, MemoIsAPureFunctionOfPropsAndEnvironment) {
   EXPECT_EQ(describeCalls, 1);
   EXPECT_EQ(host.pixel(5, 5), SK_ColorBLUE);  // the captured stack reached fn
 
-  renderWith(EnvPalette{{0, 0, 1, 1}, {}});  // same props, EQUAL environment
+  renderWith(
+      EnvPalette{{0, 0, 1, 1}, {}});  // same properties, EQUAL environment
   EXPECT_EQ(describeCalls, 1);
   EXPECT_EQ(host.composer.stats().memoHits, 1u);
 
-  renderWith(EnvPalette{{0, 1, 0, 1}, {}});  // same props, environment moved
+  renderWith(
+      EnvPalette{{0, 1, 0, 1}, {}});  // same properties, environment moved
   EXPECT_EQ(describeCalls, 2);
   EXPECT_EQ(host.composer.stats().memoHits, 0u);
   host.frame();
@@ -247,21 +250,21 @@ TEST(ComposeEnv, InnerProvideShadowsAndUnwinds) {
     int v = 0;
     bool operator==(const EnvOther&) const = default;
   };
-  core::env::Provide<EnvPalette> outer(EnvPalette{{1, 0, 0, 1}, {}});
-  ASSERT_TRUE(core::env::bound<EnvPalette>());
-  EXPECT_TRUE(core::env::inherited<EnvPalette>()->surface ==
+  core::environment::Provide<EnvPalette> outer(EnvPalette{{1, 0, 0, 1}, {}});
+  ASSERT_TRUE(core::environment::bound<EnvPalette>());
+  EXPECT_TRUE(core::environment::inherited<EnvPalette>()->surface ==
               SkColor4f({1, 0, 0, 1}));
   {
-    core::env::Provide<EnvPalette> inner(EnvPalette{{0, 0, 1, 1}, {}});
-    core::env::Provide<EnvOther> other(EnvOther{7});
-    EXPECT_TRUE(core::env::inherited<EnvPalette>()->surface ==
+    core::environment::Provide<EnvPalette> inner(EnvPalette{{0, 0, 1, 1}, {}});
+    core::environment::Provide<EnvOther> other(EnvOther{7});
+    EXPECT_TRUE(core::environment::inherited<EnvPalette>()->surface ==
                 SkColor4f({0, 0, 1, 1}));
-    EXPECT_EQ(core::env::inherited<EnvOther>()->v,
+    EXPECT_EQ(core::environment::inherited<EnvOther>()->v,
               7);  // keyed by TYPE, no crosstalk
   }
-  EXPECT_TRUE(core::env::inherited<EnvPalette>()->surface ==
+  EXPECT_TRUE(core::environment::inherited<EnvPalette>()->surface ==
               SkColor4f({1, 0, 0, 1}));
-  EXPECT_FALSE(core::env::bound<EnvOther>());
+  EXPECT_FALSE(core::environment::bound<EnvOther>());
 }
 
 TEST(ComposeEnv, OutOfOrderDestructionCannotUnbindASibling) {
@@ -270,18 +273,19 @@ TEST(ComposeEnv, OutOfOrderDestructionCannotUnbindASibling) {
   // remove a SIBLING's binding when scopes die out of order, corrupting an
   // environment the sibling still believes it provides. Heap providers
   // force the wrong order deliberately.
-  auto outer = std::make_unique<core::env::Provide<EnvPalette>>(
+  auto outer = std::make_unique<core::environment::Provide<EnvPalette>>(
       EnvPalette{{1, 0, 0, 1}, {}});
-  auto inner = std::make_unique<core::env::Provide<EnvPalette>>(
+  auto inner = std::make_unique<core::environment::Provide<EnvPalette>>(
       EnvPalette{{0, 0, 1, 1}, {}});
   ::testing::internal::CaptureStderr();
   outer.reset();  // destroyed FIRST, from under the inner scope
-  EXPECT_NE(::testing::internal::GetCapturedStderr().find("env::Provide"),
-            std::string::npos)
+  EXPECT_NE(
+      ::testing::internal::GetCapturedStderr().find("environment::Provide"),
+      std::string::npos)
       << "the misuse must be loud";
   // The surviving scope's binding still resolves — the misused destructor
   // removed its own entry, not the top of the stack.
-  const EnvPalette* survivor = core::env::inherited<EnvPalette>();
+  const EnvPalette* survivor = core::environment::inherited<EnvPalette>();
   ASSERT_NE(survivor, nullptr);
   EXPECT_TRUE(survivor->surface == SkColor4f({0, 0, 1, 1}));
   // The inner scope's own destruction is now below its recorded depth, so
@@ -289,14 +293,14 @@ TEST(ComposeEnv, OutOfOrderDestructionCannotUnbindASibling) {
   ::testing::internal::CaptureStderr();
   inner.reset();
   (void)::testing::internal::GetCapturedStderr();
-  EXPECT_FALSE(core::env::bound<EnvPalette>());
+  EXPECT_FALSE(core::environment::bound<EnvPalette>());
 }
 
 TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
   // The entry's actual complaint: a library component had to be handed its
-  // colours by whoever composed it. The env key is feed::TextOptions — the
-  // component's OWN props type — so no library-wide Theme exists or needs
-  // to.
+  // colours by whoever composed it. The environment key is feed::TextOptions —
+  // the component's OWN properties type — so no library-wide Theme exists or
+  // needs to.
   feed::TextRing ring;
   ring.append({u8"ready."});
 
@@ -305,10 +309,10 @@ TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
   themed.window.gap = 7.0f;
 
   Element tree = [&] {
-    core::env::Provide<feed::TextOptions> style(themed);
+    core::environment::Provide<feed::TextOptions> style(themed);
     return box().padding(4).child(box().child(feed::feed(ring)));
   }();
-  ASSERT_FALSE(core::env::bound<feed::TextOptions>());
+  ASSERT_FALSE(core::environment::bound<feed::TextOptions>());
 
   Host host;
   host.composer.render(tree);

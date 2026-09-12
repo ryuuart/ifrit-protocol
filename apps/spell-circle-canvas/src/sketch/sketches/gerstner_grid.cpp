@@ -70,7 +70,7 @@ namespace pattern = sigil::material::pattern;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 
 namespace {
@@ -235,8 +235,8 @@ struct GerstnerGrid final : sketch::Sketch {
     return stack()
         .left(g::kFieldX)
         .top(g::kFieldY)
-        .width(Dim(g::kFieldW))
-        .height(Dim(g::kFieldH))
+        .width(Dimension(g::kFieldW))
+        .height(Dimension(g::kFieldH))
         .child(box().inset(0).fill(unitRule.material()))
         .child(box().inset(0).fill(emphasisRule.material()));
   }
@@ -253,8 +253,8 @@ struct GerstnerGrid final : sketch::Sketch {
                         .key("bands")
                         .left(g::kFieldX)
                         .top(g::kFieldY)
-                        .width(Dim(g::kFieldW))
-                        .height(Dim(g::kFieldH))
+                        .width(Dimension(g::kFieldW))
+                        .height(Dimension(g::kFieldH))
                         .staggerChildren(52ms);
     for (int i = 0; i < c.columns; ++i) {
       const float x = g::columnUnit(c, i) * g::kUnit;
@@ -264,8 +264,8 @@ struct GerstnerGrid final : sketch::Sketch {
               .key("col" + std::to_string(i))
               .left(x)
               .top(0)
-              .width(Dim(colW))
-              .height(Dim(g::kFieldH))
+              .width(Dimension(colW))
+              .height(Dimension(g::kFieldH))
               .opacity(animate(motion::from(0.0f).to(1.0f),
                                {320ms, &ch::easeOutQuad}))
               .translateY(animate(motion::from(9.0f).to(0.0f),
@@ -281,25 +281,25 @@ struct GerstnerGrid final : sketch::Sketch {
           box().left(0).top(g::kUnit * 5).right(0).column().gap(g::kUnit);
       for (int b = 0; b < c.blocks; ++b)
         copy.child(
-            text(toU8(g::kBody[(i + b) % g::kBodyCount]),
+            text(toUtf8(g::kBody[(i + b) % g::kBodyCount]),
                  weave::textStyle({.size = c.size,
                                    .color = b % 2 == 0 ? g::kInk : g::kInkSoft,
                                    .track = 0,
                                    .weight = 0}))
-                .width(Dim(colW)));
+                .width(Dimension(colW)));
       band.child(std::move(copy));
       // a column rule at the head, the way Capital marked its columns
       band.child(box()
                      .left(0)
                      .top(g::kUnit * 3.4f)
-                     .width(Dim(colW))
-                     .height(Dim(1.4f))
+                     .width(Dimension(colW))
+                     .height(Dimension(1.4f))
                      .fill(Fill::color(g::kInk)));
       const std::string label = kit::formatted("%02d", i + 1);
-      band.child(text(toU8(label), weave::textStyle({.size = 10,
-                                                     .color = g::kRed,
-                                                     .track = 1.6f,
-                                                     .weight = 620}))
+      band.child(text(toUtf8(label), weave::textStyle({.size = 10,
+                                                       .color = g::kRed,
+                                                       .track = 1.6f,
+                                                       .weight = 620}))
                      .left(0)
                      .top(g::kUnit * 1.7f));
       bands.child(std::move(band));
@@ -320,25 +320,25 @@ struct GerstnerGrid final : sketch::Sketch {
         .column()
         .left(g::kFieldX)
         .top(38)
-        .child(
-            box()
-                .row()
-                .alignItems(Align::End)
-                .child(
-                    text(toU8("PROGRAMME"), weave::textStyle({.size = 30,
-                                                              .color = g::kInk,
-                                                              .track = 3.2f,
-                                                              .weight = 680})))
-                .child(text(toU8("58"), weave::textStyle({.size = 30,
-                                                          .color = g::kRed,
-                                                          .track = 1.0f,
-                                                          .weight = 680}))
-                           .margin(14, 0, 0, 0))
-                .child(text(toU8(count), weave::textStyle({.size = 11,
-                                                           .color = g::kInkSoft,
-                                                           .track = 3.0f,
-                                                           .weight = 600}))
-                           .margin(18, 0, 0, 6)));
+        .child(box()
+                   .row()
+                   .alignItems(Align::End)
+                   .child(text(toUtf8("PROGRAMME"),
+                               weave::textStyle({.size = 30,
+                                                 .color = g::kInk,
+                                                 .track = 3.2f,
+                                                 .weight = 680})))
+                   .child(text(toUtf8("58"), weave::textStyle({.size = 30,
+                                                               .color = g::kRed,
+                                                               .track = 1.0f,
+                                                               .weight = 680}))
+                              .margin(14, 0, 0, 0))
+                   .child(text(toUtf8(count),
+                               weave::textStyle({.size = 11,
+                                                 .color = g::kInkSoft,
+                                                 .track = 3.0f,
+                                                 .weight = 600}))
+                              .margin(18, 0, 0, 6)));
   }
 
   /** The arithmetic, printed where a caption goes. */
@@ -356,14 +356,15 @@ struct GerstnerGrid final : sketch::Sketch {
             .left(g::kFieldX)
             .top(g::kFieldY + g::kFieldH + 16)
             .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
-            .child(text(toU8("58 ="), weave::textStyle({.size = 13,
-                                                        .color = g::kInkSoft,
-                                                        .track = 1.2f,
-                                                        .weight = 600})))
-            .child(text(toU8(c.arithmetic), weave::textStyle({.size = 15,
-                                                              .color = g::kInk,
-                                                              .track = 0.8f,
-                                                              .weight = 640})));
+            .child(text(toUtf8("58 ="), weave::textStyle({.size = 13,
+                                                          .color = g::kInkSoft,
+                                                          .track = 1.2f,
+                                                          .weight = 600})))
+            .child(
+                text(toUtf8(c.arithmetic), weave::textStyle({.size = 15,
+                                                             .color = g::kInk,
+                                                             .track = 0.8f,
+                                                             .weight = 640})));
     // the ladder of all six, with the live one marked
     Element ladder = box()
                          .row()
@@ -376,18 +377,19 @@ struct GerstnerGrid final : sketch::Sketch {
       const std::string n = kit::formatted("%d", g::kConfigs[i].columns);
       ladder.child(
           box()
-              .width(Dim(22.0f))
-              .height(Dim(22.0f))
+              .width(Dimension(22.0f))
+              .height(Dimension(22.0f))
               .alignItems(Align::Center)
               .justify(Justify::Center)
               .fill(Fill::color(live ? g::kRed : SkColor4f{0, 0, 0, 0}))
               .foreground(
                   stroke(1.0f, Fill::color(live ? g::kRed : g::kInkSoft)))
-              .child(text(toU8(n), weave::textStyle(
-                                       {.size = 12,
-                                        .color = live ? g::kPaper : g::kInkSoft,
-                                        .track = 0.6f,
-                                        .weight = 620}))));
+              .child(text(
+                  toUtf8(n),
+                  weave::textStyle({.size = 12,
+                                    .color = live ? g::kPaper : g::kInkSoft,
+                                    .track = 0.6f,
+                                    .weight = 620}))));
     }
     return stack().inset(0).child(std::move(row)).child(std::move(ladder));
   }
@@ -418,7 +420,7 @@ struct GerstnerGrid final : sketch::Sketch {
     // the page, because an unlabelled red rule across live text reads as a
     // defect rather than as an instrument.
     root.child(
-        text(toU8("READING INDEX"),
+        text(toUtf8("READING INDEX"),
              weave::textStyle(
                  {.size = 7, .color = g::kRed, .track = 0.6f, .weight = 620}))
             .left(g::kFieldX + g::kFieldW + 6)
@@ -428,8 +430,8 @@ struct GerstnerGrid final : sketch::Sketch {
     root.child(
         box()
             .left(g::kFieldX - 22)
-            .width(Dim(g::kFieldW + 44))
-            .height(Dim(1.0f))
+            .width(Dimension(g::kFieldW + 44))
+            .height(Dimension(1.0f))
             .top(0)
             .translateY(&sweep)
             .fill(linearGradient({0, 0}, {g::kFieldW + 44, 0},
@@ -445,13 +447,13 @@ struct GerstnerGrid final : sketch::Sketch {
             .column()
             .left(g::kFieldX)
             .bottom(26)
-            .child(text(toU8("KARL GERSTNER \xc2\xb7 CAPITAL "
-                             "\xc2\xb7 1962"),
+            .child(text(toUtf8("KARL GERSTNER \xc2\xb7 CAPITAL "
+                               "\xc2\xb7 1962"),
                         weave::textStyle({.size = 10,
                                           .color = g::kInkSoft,
                                           .track = 2.6f,
                                           .weight = 600})))
-            .child(text(toU8("the mobile grid, run"),
+            .child(text(toUtf8("the mobile grid, run"),
                         weave::textStyle(
                             {.size = 10, .color = g::kInkSoft, .track = 1.2f}))
                        .margin(0, 3, 0, 0)));

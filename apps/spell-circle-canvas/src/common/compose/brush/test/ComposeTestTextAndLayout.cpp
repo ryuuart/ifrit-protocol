@@ -49,10 +49,10 @@ TEST(ComposeText, TextAlignCentersWithinWideBox) {
   };
   Host start(400, 100), center(400, 100);
   start.composer.render(
-      box().child(text(u8"II", whiteStyle(30)).width(Dim(300.0f))));
+      box().child(text(u8"II", whiteStyle(30)).width(Dimension(300.0f))));
   center.composer.render(
       box().child(text(u8"II", whiteStyle(30))
-                      .width(Dim(300.0f))
+                      .width(Dimension(300.0f))
                       .textAlign(sigil::weave::TextAlignment::kCenter)));
   start.frame();
   center.frame();
@@ -67,8 +67,8 @@ TEST(ComposeKitMarquee, TwoCopiesSlideUnderOneClip) {
   choreograph::Output<float> phase{0.0f};
   host.composer.render(box().padding(10).child(
       kit::marquee(box().width(60).height(20).fill(red()), {.phase = &phase})
-          .width(Dim(100.0f))
-          .height(Dim(20.0f))));
+          .width(Dimension(100.0f))
+          .height(Dimension(20.0f))));
   host.frame();
   EXPECT_EQ(host.pixel(60, 20), SK_ColorRED);   // first copy
   EXPECT_EQ(host.pixel(105, 20), SK_ColorRED);  // second copy (65..130 → clip)
@@ -514,7 +514,7 @@ TEST(ComposeTextPath, ATrackDeviatesInTheBaselinesOwnFrame) {
   const TextEffect lift =
       fx::effect("test.pathframe.lift",
                  [](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
-                   GlyphMod mod;
+                   GlyphModifier mod;
                    mod.dy = -40.0f * (1.0f - t);
                    return mod;
                  });
@@ -595,7 +595,7 @@ TEST(ComposeTextPath, ATrackAndABaselineBothRunRatherThanOneWinning) {
       t.fx({.effect = fx::effect(
                 "test.pathframe.out",
                 [](const GlyphInfo&, float, core::noise::Mix64Stream&) {
-                  GlyphMod mod;
+                  GlyphModifier mod;
                   mod.dy = -22.0f;
                   return mod;
                 }),

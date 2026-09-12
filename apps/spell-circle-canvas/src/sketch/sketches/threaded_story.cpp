@@ -54,7 +54,7 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 namespace weave = sigil::weave;
 
@@ -176,30 +176,30 @@ struct ThreadedStory final : sketch::Sketch {
                    .fill(Fill::color({1, 1, 1, 0.6f}))
                    .corners({3})
                    .padding(14)
-                   .width(Dim(measure + 28))
-                   .height(Dim(s::kFrameH))
+                   .width(Dimension(measure + 28))
+                   .height(Dimension(s::kFrameH))
                    .clip()
                    .child(box()
                               .key(stone)
                               .absolute()
-                              .left(Dim(measure * 0.45f))
-                              .top(Dim(58.0f))
-                              .width(Dim(74.0f))
-                              .height(Dim(74.0f))
+                              .left(Dimension(measure * 0.45f))
+                              .top(Dimension(58.0f))
+                              .width(Dimension(74.0f))
+                              .height(Dimension(74.0f))
                               .corners({37})
                               .fill(Fill::color(s::kDisc)))
                    .child(frame(article)
                               .key(head)
                               .thread(column + "0")
-                              .width(Dim(measure))
-                              .height(Dim(s::kFrameH - 28))
+                              .width(Dimension(measure))
+                              .height(Dimension(s::kFrameH - 28))
                               .flowAround(stone, 9.0f)))
         .child(box()
                    .fill(Fill::color({1, 1, 1, 0.6f}))
                    .corners({3})
                    .padding(14)
-                   .width(Dim(measure + 28))
-                   .height(Dim(s::kFrameH + 96))
+                   .width(Dimension(measure + 28))
+                   .height(Dimension(s::kFrameH + 96))
                    .child(kit::columns(article, 2, s::kColumnGutter, measure,
                                        s::kFrameH + 68, column, u8"\u2026")));
   }
@@ -210,24 +210,26 @@ struct ThreadedStory final : sketch::Sketch {
 
     const auto captioned = [&](const char* name, const char* note,
                                Element built) {
-      return kit::cell(s::voice(), toU8(name), toU8(note), std::move(built));
+      return kit::cell(s::voice(), toUtf8(name), toUtf8(note),
+                       std::move(built));
     };
 
     return box()
         .fill(Fill::color(s::kPaper))
-        .child(box()
-                   .absolute()
-                   .inset(s::kMargin, s::kMargin - 14, 0, 0)
-                   .column()
-                   .gap(5)
-                   .child(text(toU8("ONE STORY, THREE FRAMES, TWICE"),
-                               s::label(11, s::kInk, 3.4f)))
-                   .child(text(toU8("the cut is a word index \xe2\x80\x94 the "
-                                    "remainder the frame before reported \xe2"
-                                    "\x80\x94 so a narrower first frame moves "
-                                    "it, and the columns begin elsewhere"),
-                               s::label(9.5f, s::kFaint, 0.3f))
-                              .width(Dim(700.0f))))
+        .child(
+            box()
+                .absolute()
+                .inset(s::kMargin, s::kMargin - 14, 0, 0)
+                .column()
+                .gap(5)
+                .child(text(toUtf8("ONE STORY, THREE FRAMES, TWICE"),
+                            s::label(11, s::kInk, 3.4f)))
+                .child(text(toUtf8("the cut is a word index \xe2\x80\x94 the "
+                                   "remainder the frame before reported \xe2"
+                                   "\x80\x94 so a narrower first frame moves "
+                                   "it, and the columns begin elsewhere"),
+                            s::label(9.5f, s::kFaint, 0.3f))
+                           .width(Dimension(700.0f))))
         .child(box()
                    .absolute()
                    .inset(s::kMargin, s::kMargin + 56, 0, 0)
@@ -241,11 +243,12 @@ struct ThreadedStory final : sketch::Sketch {
                                     "more fits before them, and the same two "
                                     "columns begin further in",
                                     chain("wide", s::kWide, article))))
-        .child(text(toU8("a Western column is a FRAME; the vertical writing "
-                         "mode keeps the word for the thing it already meant"),
-                    s::label(9.5f, s::kFaint, 0.2f))
-                   .absolute()
-                   .inset(s::kMargin, s::kH - 32, 0, 0));
+        .child(
+            text(toUtf8("a Western column is a FRAME; the vertical writing "
+                        "mode keeps the word for the thing it already meant"),
+                 s::label(9.5f, s::kFaint, 0.2f))
+                .absolute()
+                .inset(s::kMargin, s::kH - 32, 0, 0));
   }
 };
 

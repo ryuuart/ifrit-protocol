@@ -18,11 +18,11 @@
  *
  *   text(u8"ONE LINE, TWO MOVES", display)
  *       .fx({.effect = fx::rise(20), .unit = weave::Unit::Word})
- *       .fx({.where = weave::sel::text(u8"TWO"),
+ *       .fx({.where = weave::selectors::text(u8"TWO"),
  *            .effect = fx::waveLoop(),
  *            .progress = &phase});
  *
- * The effects the runtime itself evaluates — `fx::keys`, `fx::seq`,
+ * The effects the runtime itself evaluates — `fx::keys`, `fx::sequence`,
  * `fx::mix`, `fx::hold`, `fx::scramble`, `fx::pass` and the `fx::effect`
  * door — are the seam's, declared with it in
  * <sigilcompose/typography/TextEffect.h>, with the structural catalogue
@@ -83,7 +83,7 @@ enum class Curve : uint8_t { OutCubic, OutExpo, OutBack };
  *  while the alpha completes over the first `fadeOver` of local progress
  *  so a glyph is opaque while it is still moving. What differs between a
  *  rise, a slide and a tumble is only WHICH LANES carry the displacement,
- *  so they are props here and not six bodies.
+ *  so they are properties here and not six bodies.
  *
  *      text(u8"KINETIC", display).fx({.effect = fx::enter({.dy = 26})})
  *
@@ -137,7 +137,7 @@ struct Entrance {
           dy += rng.signedUnit() * e.scatterPx;
         }
         if (e.scatterLeanDeg != 0) lean += rng.signedUnit() * e.scatterLeanDeg;
-        GlyphMod m;
+        GlyphModifier m;
         m.dx = left * dx;
         m.dy = left * dy;
         m.rotateDeg = left * lean;
@@ -190,7 +190,7 @@ struct Entrance {
   return TextEffect(
       "typeOn", {},
       [](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
-        GlyphMod m;
+        GlyphModifier m;
         m.alpha = t >= 0.5f ? 1.0f : 0.0f;
         return m;
       },
@@ -210,7 +210,7 @@ struct Entrance {
       "waveLoop", {amplitudeEm, phaseRadPerGlyph},
       [amplitudeEm, phaseRadPerGlyph](const GlyphInfo& g, float t,
                                       core::noise::Mix64Stream&) {
-        GlyphMod m;
+        GlyphModifier m;
         m.dy = std::sin(t * geometry::path::kTau -
                         (float)g.index * phaseRadPerGlyph) *
                amplitudeEm * (g.fontSize > 0 ? g.fontSize : 16.0f);
@@ -232,7 +232,7 @@ struct Entrance {
        (float)(unsigned char)tag[2], (float)(unsigned char)tag[3], from, to},
       [coordinate, from, to](const GlyphInfo&, float t,
                              core::noise::Mix64Stream&) {
-        GlyphMod m;
+        GlyphModifier m;
         sigil::weave::FontVariation driven = coordinate;
         driven.value = from + (to - from) * std::clamp(t, 0.0f, 1.0f);
         m.axis = driven;
@@ -246,10 +246,10 @@ struct Entrance {
  *  initial catching its colour as it lands.
  *
  *  THE ELEMENT IS SET IN `to`, AND THE EFFECT MULTIPLIES DOWN TOWARD
- *  `from`. That inversion is the one thing to get right here. A `GlyphMod`
- *  carries `colorMul`, a per-channel MULTIPLIER over every pass the glyph's
- *  style draws, and a multiplier can only take a colour toward black — so
- *  the DESTINATION is what the style paints, and the origin is reached by
+ *  `from`. That inversion is the one thing to get right here. A `GlyphModifier`
+ *  carries `colorMultiplier`, a per-channel MULTIPLIER over every pass the
+ * glyph's style draws, and a multiplier can only take a colour toward black —
+ * so the DESTINATION is what the style paints, and the origin is reached by
  *  dividing. The arguments still read in time order and the division is
  *  done here: `fx::tint(pale, sung)` on a line set in `sung` wipes it from
  *  pale to sung. Set the line in `from` and it draws pale throughout,
@@ -260,8 +260,8 @@ struct Entrance {
  *  DESTINATION CHANNEL OF ZERO cannot be departed from — nothing multiplies
  *  0 into anything else — so that channel holds at 0 for the whole ramp
  *  whatever @p from says there. The way UP is the other two colour terms:
- *  `GlyphMod::colorAdd` is the hard flash over whatever the style paints,
- *  `GlyphMod::colorScreen` the glow that brightens toward white without
+ *  `GlyphModifier::colorAdd` is the hard flash over whatever the style paints,
+ *  `GlyphModifier::colorScreen` the glow that brightens toward white without
  *  clipping — both usually spoken through a `fx::keys` table.
  *
  *  Alpha is untouched: a reveal that also fades wants an alpha track, which
@@ -276,10 +276,10 @@ struct Entrance {
       "tint", {from.fR, from.fG, from.fB, from.fA, to.fR, to.fG, to.fB, to.fA},
       [origin](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
         const float e = motion::ease::smoothstep(t);
-        GlyphMod m;
-        m.colorMul = {origin.fR + (1.0f - origin.fR) * e,
-                      origin.fG + (1.0f - origin.fG) * e,
-                      origin.fB + (1.0f - origin.fB) * e, 1.0f};
+        GlyphModifier m;
+        m.colorMultiplier = {origin.fR + (1.0f - origin.fR) * e,
+                             origin.fG + (1.0f - origin.fG) * e,
+                             origin.fB + (1.0f - origin.fB) * e, 1.0f};
         return m;
       },
       // Colour only: a wipe repaints letters, it does not move them.

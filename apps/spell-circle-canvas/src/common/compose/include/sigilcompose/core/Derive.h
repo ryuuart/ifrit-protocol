@@ -86,15 +86,15 @@ namespace detail {
 /** WHAT A ROUTE SEAM DOES: answer the path between two endpoint rects.
  *  The operations behind `Router`, so the erasure itself is SigilCore's
  *  one mechanism and this header holds only the vocabulary. */
-struct RouteOps {
-  virtual ~RouteOps() = default;
+struct RouteOperations {
+  virtual ~RouteOperations() = default;
   virtual SkPath route(const SkRect& from, const SkRect& to) const = 0;
 };
 
 /** A comparable scheme as those operations. Its equality is the scheme's,
  *  which is what makes two separately-built routers of one kind prune. */
 template <RouteScheme R>
-struct RouteModel : RouteOps {
+struct RouteModel : RouteOperations {
   R scheme;
   explicit RouteModel(R s) : scheme(std::move(s)) {}
   bool operator==(const RouteModel& o) const { return scheme == o.scheme; }
@@ -104,9 +104,9 @@ struct RouteModel : RouteOps {
 };
 
 /** The callable escape hatch, which carries no equality at all. */
-struct RouteFn : RouteOps {
+struct RouteFunction : RouteOperations {
   std::function<SkPath(const SkRect&, const SkRect&)> fn;
-  explicit RouteFn(std::function<SkPath(const SkRect&, const SkRect&)> f)
+  explicit RouteFunction(std::function<SkPath(const SkRect&, const SkRect&)> f)
       : fn(std::move(f)) {}
   SkPath route(const SkRect& from, const SkRect& to) const override {
     return fn ? fn(from, to) : SkPath();
@@ -132,8 +132,8 @@ class Router {
              std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F>&,
                                    const SkRect&, const SkRect&>)
   Router(F fn)  // NOLINT: implicit by design (connector(a, b, [](…){…}))
-      : m_held(core::Erased<detail::RouteOps>(detail::RouteFn(std::move(fn)))) {
-  }
+      : m_held(core::Erased<detail::RouteOperations>(
+            detail::RouteFunction(std::move(fn)))) {}
 
   explicit operator bool() const { return (bool)m_held; }
   SkPath operator()(const SkRect& from, const SkRect& to) const {
@@ -156,7 +156,7 @@ class Router {
   bool operator==(const Router& o) const { return m_held == o.m_held; }
 
  private:
-  core::Erased<detail::RouteOps> m_held;
+  core::Erased<detail::RouteOperations> m_held;
 };
 
 Element connector(std::string_view fromKey, std::string_view toKey,
@@ -310,13 +310,13 @@ namespace detail {
 
 /** WHAT A RAIL SEAM DOES: answer the path through an ordered anchor run.
  *  The rail's half of the same one mechanism the route seam uses. */
-struct RailOps {
-  virtual ~RailOps() = default;
+struct RailOperations {
+  virtual ~RailOperations() = default;
   virtual SkPath route(std::span<const SkPoint> anchors) const = 0;
 };
 
 template <RailScheme R>
-struct RailModel : RailOps {
+struct RailModel : RailOperations {
   R scheme;
   explicit RailModel(R s) : scheme(std::move(s)) {}
   bool operator==(const RailModel& o) const { return scheme == o.scheme; }
@@ -326,9 +326,9 @@ struct RailModel : RailOps {
 };
 
 /** The callable escape hatch, which carries no equality at all. */
-struct RailFn : RailOps {
+struct RailFunction : RailOperations {
   std::function<SkPath(std::span<const SkPoint>)> fn;
-  explicit RailFn(std::function<SkPath(std::span<const SkPoint>)> f)
+  explicit RailFunction(std::function<SkPath(std::span<const SkPoint>)> f)
       : fn(std::move(f)) {}
   SkPath route(std::span<const SkPoint> anchors) const override {
     return fn ? fn(anchors) : SkPath();
@@ -354,7 +354,8 @@ class RailRouter {
              std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F>&,
                                    std::span<const SkPoint>>)
   RailRouter(F fn)  // NOLINT: implicit by design (rail(a, [](auto p){…}))
-      : m_held(core::Erased<detail::RailOps>(detail::RailFn(std::move(fn)))) {}
+      : m_held(core::Erased<detail::RailOperations>(
+            detail::RailFunction(std::move(fn)))) {}
 
   explicit operator bool() const { return (bool)m_held; }
   SkPath operator()(std::span<const SkPoint> anchors) const {
@@ -374,7 +375,7 @@ class RailRouter {
   bool operator==(const RailRouter& o) const { return m_held == o.m_held; }
 
  private:
-  core::Erased<detail::RailOps> m_held;
+  core::Erased<detail::RailOperations> m_held;
 };
 
 /** The component that IS a line: a path threaded through an ordered span of

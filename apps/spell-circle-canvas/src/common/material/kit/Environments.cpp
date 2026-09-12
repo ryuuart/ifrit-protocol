@@ -17,7 +17,7 @@ float gauss(float x, float sigma) {
   return std::exp(-(x * x) / (2 * sigma * sigma));
 }
 
-/** Angular distance on the equirect u axis (wraps). */
+/** Angular distance on the equirectangular u axis (wraps). */
 float alongU(float a, float b) {
   const float d = std::abs(a - b);
   return std::min(d, 1.0f - d);

@@ -192,12 +192,12 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   };
   layOut();
   readGeometry();
-  // A weave::sel::line span restyle needs line geometry to name a line at all,
-  // and the materialization that ran at describe time had none. Re-materialize
-  // against the lines just produced — plain values, so the paragraph they
-  // came from is free to go — and lay out once more. The WHOLE restyle list
-  // runs again in declaration order, so the "later wins" rule holds across
-  // the line-scoped ones and the rest alike.
+  // A weave::selectors::line span restyle needs line geometry to name a line at
+  // all, and the materialization that ran at describe time had none.
+  // Re-materialize against the lines just produced — plain values, so the
+  // paragraph they came from is free to go — and lay out once more. The WHOLE
+  // restyle list runs again in declaration order, so the "later wins" rule
+  // holds across the line-scoped ones and the rest alike.
   //
   // It resolves against THE TEXT BEFORE THE RESTYLE and stops there: a
   // spanStyle that moves the line breaks does not chase its own result,

@@ -92,7 +92,7 @@ inline sk_sp<SkTypeface> verdanaFace(bool bold) {
 
 /** A narrow-string label, which is what every caption on these pages is. */
 inline sigil::compose::Element t(const char* s, sigil::weave::TextStyle style) {
-  return sigil::compose::text(sigil::compose::toU8(s), std::move(style));
+  return sigil::compose::text(sigil::compose::toUtf8(s), std::move(style));
 }
 
 // ---------------------------------------------------------------------------

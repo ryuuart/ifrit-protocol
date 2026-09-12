@@ -9,7 +9,7 @@
 #include <include/effects/SkCornerPathEffect.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilgeometry/path/Numeric.h>
-#include <sigilgeometry/path/Ops.h>
+#include <sigilgeometry/path/Operations.h>
 
 #include <algorithm>
 #include <cmath>
@@ -114,7 +114,7 @@ SkPath manhattanPath(std::span<const SkPoint> anchors, Bend bend,
   for (size_t i = 1; i < way.size(); ++i) b.lineTo(way[i]);
   SkPath path = b.detach();
   if (chamferCut > 0)
-    return geometry::path::ops::chamferCorners(path, chamferCut);
+    return geometry::path::operations::chamferCorners(path, chamferCut);
   if (cornerRadius <= 0) return path;
   SkPathBuilder rounded;
   SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);

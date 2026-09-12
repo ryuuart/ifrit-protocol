@@ -6,7 +6,7 @@
  * lights, and it has ONE internal form: equirectangular, u = azimuth,
  * v = 0 at the zenith. Every source resolves into that form while the
  * value is built — `studio()` and `sunset()` bake one with no assets,
- * `fromEquirect()` wraps a loaded lat-long panorama, `fromFaces()`
+ * `fromEquirectangular()` wraps a loaded lat-long panorama, `fromFaces()`
  * resamples six cube faces, and `fromCubeMap()` unpacks one sheet (a 4:3
  * or 3:4 cross, a 6:1 row or a 1:6 column) into the same.
  *
@@ -50,7 +50,7 @@ namespace sketch = sigil::sketch;
 namespace material = sigil::material;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -127,7 +127,7 @@ material::Texture shoulder() { return material::bevelNormals(disc(), kBevel); }
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&, const material::FrameData&)> draw) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [draw = std::move(draw)](SkCanvas& canvas,
@@ -138,31 +138,34 @@ Element cell(const char* call, const std::string& note,
 
 /** The panorama itself, fitted into the cell. */
 Element panorama(const char* call, const std::string& note,
-                 const material::EnvironmentMap& env, float roughness = 0) {
-  return cell(call, note,
-              [env, roughness](SkCanvas& canvas, const material::FrameData&) {
-                const sk_sp<SkImage> image = env.image(roughness);
-                if (!image) return;
-                const float w = kCell - 16;
-                const float h = w * 0.5f;
-                canvas.drawImageRect(
-                    image, SkRect::MakeXYWH(8, (kPicture - h) * 0.5f, w, h),
-                    SkSamplingOptions(SkFilterMode::kLinear));
-              });
+                 const material::EnvironmentMap& environment,
+                 float roughness = 0) {
+  return cell(
+      call, note,
+      [environment, roughness](SkCanvas& canvas, const material::FrameData&) {
+        const sk_sp<SkImage> image = environment.image(roughness);
+        if (!image) return;
+        const float w = kCell - 16;
+        const float h = w * 0.5f;
+        canvas.drawImageRect(image,
+                             SkRect::MakeXYWH(8, (kPicture - h) * 0.5f, w, h),
+                             SkSamplingOptions(SkFilterMode::kLinear));
+      });
 }
 
 /** A chrome disc reflecting the panorama. */
 Element reflector(const char* call, const std::string& note,
-                  const material::EnvironmentMap& env, float roughness = 0) {
-  material::kit::ChromeParams params;
-  params.roughness = roughness;
-  params.contrast = 1.5f;
+                  const material::EnvironmentMap& environment,
+                  float roughness = 0) {
+  material::kit::ChromeParameters parameters;
+  parameters.roughness = roughness;
+  parameters.contrast = 1.5f;
   // The face is captured BY VALUE: this program is invoked at paint time,
   // long after the frame that described it.
   return cell(
       call, note,
-      [paint = material::kit::chrome(shoulder(), env, params), face = disc()](
-          SkCanvas& canvas, const material::FrameData& frame) {
+      [paint = material::kit::chrome(shoulder(), environment, parameters),
+       face = disc()](SkCanvas& canvas, const material::FrameData& frame) {
         material::skia::fill(canvas, face, paint, frame);
       });
 }
@@ -185,23 +188,23 @@ struct EnvFaces final : sketch::Sketch {
     const material::EnvironmentMap unpacked =
         material::EnvironmentMap::fromCubeMap(row(six));
     const material::EnvironmentMap rewrapped =
-        material::EnvironmentMap::fromEquirect(resampled.image(0));
+        material::EnvironmentMap::fromEquirectangular(resampled.image(0));
     const material::EnvironmentMap grounded =
         resampled.withGround(kGroundColour);
     const SkColor4f mean = resampled.average();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("ENVIRONMENT FACES \xc2\xb7 EnvironmentMap "
-                       "studio, fromFaces, fromCubeMap, fromEquirect, "
-                       "withGround"),
-         .subtitle = toU8("dials \xc2\xb7 the face set (six baked here) "
-                          "\xc2\xb7 the ground colour \xc2\xb7 the "
-                          "roughness the reflection reads the panorama "
-                          "at"),
-         .footer = toU8("one internal form, four ways in: u is azimuth, "
-                        "v is 0 at the zenith, and every source is "
-                        "resampled into that while the value is built "
-                        "rather than at each lookup")},
+        {.title = toUtf8("ENVIRONMENT FACES \xc2\xb7 EnvironmentMap "
+                         "studio, fromFaces, fromCubeMap, fromEquirectangular, "
+                         "withGround"),
+         .subtitle = toUtf8("dials \xc2\xb7 the face set (six baked here) "
+                            "\xc2\xb7 the ground colour \xc2\xb7 the "
+                            "roughness the reflection reads the panorama "
+                            "at"),
+         .footer = toUtf8("one internal form, four ways in: u is azimuth, "
+                          "v is 0 at the zenith, and every source is "
+                          "resampled into that while the value is built "
+                          "rather than at each lookup")},
         kit::cells(
             {.cells =
                  {kit::cells({.cells =

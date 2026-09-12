@@ -16,7 +16,7 @@
 #include <glm/geometric.hpp>
 
 #include "sigilgeometry/path/Numeric.h"
-#include "sigilgeometry/path/Ops.h"
+#include "sigilgeometry/path/Operations.h"
 
 namespace sigil::geometry::path {
 
@@ -75,8 +75,9 @@ SkPath edges(const SkPath& outline, Edge mask, float step) {
 SkPath insetOutline(const SkPath& outline, float px) {
   // The mitred, butt-capped offset with the sign the other way round:
   // positive px shrinks. The arithmetic is the operator's.
-  return ops::offset(outline, -px,
-                     {.join = ops::Join::Miter, .cap = ops::Cap::Butt});
+  return operations::offset(
+      outline, -px,
+      {.join = operations::Join::Miter, .cap = operations::Cap::Butt});
 }
 
 std::vector<glm::vec2> insetPolygon(std::span<const glm::vec2> polygon,

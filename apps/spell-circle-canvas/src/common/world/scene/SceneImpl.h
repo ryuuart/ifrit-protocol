@@ -225,7 +225,7 @@ struct Scene::Impl {
     return description->key;
   }
   static bool equal(const Description& a, const Description& b) {
-    return propsEqual(*a, *b);
+    return propertiesEqual(*a, *b);
   }
   static bool reconcilesChildren(const Description&) { return true; }
   static const std::vector<Element>& children(const Description& description) {
@@ -238,7 +238,7 @@ struct Scene::Impl {
     return description->memo ? &*description->memo : nullptr;
   }
   static Description produce(const Memo& memo) {
-    return memo.invoke(memo.props).node();
+    return memo.invoke(memo.properties).node();
   }
 
   std::unique_ptr<Instance> create(const Description& description,

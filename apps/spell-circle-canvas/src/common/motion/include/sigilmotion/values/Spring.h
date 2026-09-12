@@ -23,7 +23,7 @@ namespace sigil::motion {
  *  timing. The physical pair (stiffness, viscosity) is not, and a
  *  consumer tuning one of those has to retune the other to keep the
  *  look. */
-struct SpringParams {
+struct SpringParameters {
   float periodSeconds = 0.4f;
   float damping = 0.5f;
 };
@@ -59,7 +59,8 @@ struct Spring {
  *  A non-positive period answers the target at rest — the spelling of
  *  "instant". A non-positive `dt` answers the spring unchanged. A
  *  negative damping is read as 0. */
-inline Spring spring(Spring from, float target, float dt, SpringParams p = {}) {
+inline Spring spring(Spring from, float target, float dt,
+                     SpringParameters p = {}) {
   if (!(dt > 0.0f)) return from;
   if (!(p.periodSeconds > 0.0f)) return {target, 0.0f};
 

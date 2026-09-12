@@ -7,7 +7,7 @@ auto SlitScan2001::header() -> Element {
              .progress = animate(to(1.0f), {440ms, ch::easeOutExpo, 120ms})};
   return box()
       .column()
-      .height(Dim(kHeaderH))
+      .height(Dimension(kHeaderH))
       .gap(4)
       .child(
           t("TIME AS AN AXIS OF THE IMAGE", ui(10, kType2, 2.6f))
@@ -59,10 +59,10 @@ auto SlitScan2001::filmFrame() -> Element {
   // no core.
   Element vanishing =
       box()
-          .left(Dim(-150.0f))
-          .top(Dim(-150.0f))
-          .width(Dim(300.0f))
-          .height(Dim(300.0f))
+          .left(Dimension(-150.0f))
+          .top(Dimension(-150.0f))
+          .width(Dimension(300.0f))
+          .height(Dimension(300.0f))
           .translateX(&coreX)
           .translateY(&coreY)
           // The core's own picture never changes — only where it is —
@@ -90,10 +90,10 @@ auto SlitScan2001::filmFrame() -> Element {
   auto hud = [&](const std::string& str, float l, float tp, float r, float b,
                  SkColor4f col) {
     Element e = t(str, mono(8, col, 0.6f)).absolute();
-    if (l >= 0) e.left(Dim(l));
-    if (r >= 0) e.right(Dim(r));
-    if (tp >= 0) e.top(Dim(tp));
-    if (b >= 0) e.bottom(Dim(b));
+    if (l >= 0) e.left(Dimension(l));
+    if (r >= 0) e.right(Dimension(r));
+    if (tp >= 0) e.top(Dimension(tp));
+    if (b >= 0) e.bottom(Dimension(b));
     return e;
   };
 
@@ -102,8 +102,8 @@ auto SlitScan2001::filmFrame() -> Element {
   const long long mm = (long long)std::fmod(machineSec / 60.0, 60.0);
 
   return box()
-      .width(Dim(kFilmW))
-      .height(Dim(kFilmH))
+      .width(Dimension(kFilmW))
+      .height(Dimension(kFilmH))
       .shrink(0)
       .fill(kBlack)
       .clip()
@@ -117,9 +117,9 @@ auto SlitScan2001::filmFrame() -> Element {
       // The shutter bar -- the ONLY thing in the plate driven by
       // addFixed's interpolant, and the caption says why.
       .child(box()
-                 .left(Dim(0))
-                 .top(Dim(0))
-                 .width(Dim(kFilmW))
+                 .left(Dimension(0))
+                 .top(Dimension(0))
+                 .width(Dimension(kFilmW))
                  .height(2)
                  .fill(al(kCold, 0.4f))
                  .mask(by::edge(0.0f, bind(&frameAlpha))))
@@ -134,9 +134,9 @@ auto SlitScan2001::filmFrame() -> Element {
       // it — the stack has to own the spacing for the wrap to be safe.
       .child(box()
                  .absolute()
-                 .left(Dim(10))
-                 .right(Dim(10))
-                 .bottom(Dim(6))
+                 .left(Dimension(10))
+                 .right(Dimension(10))
+                 .bottom(Dimension(6))
                  .column()
                  .gap(2)
                  .child(box()
@@ -164,8 +164,8 @@ auto SlitScan2001::filmFrame() -> Element {
 auto SlitScan2001::rigStrip() -> Element {
   using namespace slit;
   return box()
-      .width(Dim(kRigW))
-      .height(Dim(kRigH))
+      .width(Dimension(kRigW))
+      .height(Dimension(kRigH))
       .shrink(0)
       .key("rig")
       // BOTH PROGRAMS BELOW ARE KEYLESS ON PURPOSE. They read the
@@ -174,26 +174,26 @@ auto SlitScan2001::rigStrip() -> Element {
       // frame; a key would name one drawing and replay it.
       .child(
           custom([this](SkCanvas& c, const PaintContext& p) { drawRig(c, p); })
-              .left(Dim(0))
-              .top(Dim(0))
-              .width(Dim(kElevW))
-              .height(Dim(kRigH))
+              .left(Dimension(0))
+              .top(Dimension(0))
+              .width(Dimension(kElevW))
+              .height(Dimension(kRigH))
               .clip()
               .cache(Cache::None))
       .child(custom([this](SkCanvas& c, const PaintContext& p) {
                drawArtworkPanel(c, p);
              })
-                 .left(Dim(kRigW - kPanelStripW))
-                 .top(Dim(0))
-                 .width(Dim(kPanelStripW))
-                 .height(Dim(kRigH))
+                 .left(Dimension(kRigW - kPanelStripW))
+                 .top(Dimension(0))
+                 .width(Dimension(kPanelStripW))
+                 .height(Dimension(kRigH))
                  .cache(Cache::None))
       // The "THIS EXPOSURE" monitor, in the elevation's upper-left where
       // there is nothing but sky. The only place you see a frame BEING
       // MADE rather than made, so it gets the good corner.
       .child(box()
-                 .left(Dim(18))
-                 .top(Dim(10))
+                 .left(Dimension(18))
+                 .top(Dimension(10))
                  .width(264)
                  .height(116)
                  .corners({4})
@@ -210,13 +210,13 @@ auto SlitScan2001::rigStrip() -> Element {
                                                          SkBlendMode::kPlus))
                             .effect(Effect::shader(transfer, {{"k", 2.4f}})))
                  .child(t("THIS EXPOSURE", mono(8, al(kCold, 0.85f), 1.4f))
-                            .left(Dim(8))
-                            .top(Dim(5)))
-                 .child(slot("expo").left(Dim(8)).bottom(Dim(19)))
+                            .left(Dimension(8))
+                            .top(Dimension(5)))
+                 .child(slot("expo").left(Dimension(8)).bottom(Dimension(19)))
                  .child(t("ONE SWEEP / 3.0 s. THE MACHINE TOOK 45–60 s "
                           "[C85]. ×18.",
                           mono(7, al(kTick, 0.95f)))
-                            .left(Dim(8))
-                            .bottom(Dim(6))))
-      .child(slot("readout").left(Dim(20)).top(Dim(130)));
+                            .left(Dimension(8))
+                            .bottom(Dimension(6))))
+      .child(slot("readout").left(Dimension(20)).top(Dimension(130)));
 }

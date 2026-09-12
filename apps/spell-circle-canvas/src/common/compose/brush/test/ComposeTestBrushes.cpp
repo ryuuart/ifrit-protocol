@@ -79,8 +79,8 @@ TEST(ComposeBrushes, ScatterModSkipsAndLifts) {
   brush::Scatter b;
   b.art = box().width(6).height(6).fill(red());
   b.spacing = 40;
-  b.mod = [](const PathSample&, size_t i, size_t) {
-    brush::StampMod m;
+  b.modifier = [](const PathSample&, size_t i, size_t) {
+    brush::StampModifier m;
     if (i % 2)
       m.skip = true;  // drop every other slot
     else
@@ -446,7 +446,8 @@ TEST(ComposeBrushes, ANestedBrushKeepsEverythingButTheOutline) {
   const ContextProbe woven, layered, restyled;
   brush::layers({woven}).paint(canvas, ctx);
   Brush{}.layer(layered).paint(canvas, ctx);
-  brush::restyle(geometry::path::ops::PathOp([](const SkPath& p) { return p; }),
+  brush::restyle(geometry::path::operations::PathOperation(
+                     [](const SkPath& p) { return p; }),
                  restyled)
       .paint(canvas, ctx);
 
@@ -466,10 +467,11 @@ TEST(ComposeBrushes, ACompositeBlendsWhenAnythingInsideItDoes) {
   // its own, where it resolves against transparent black.
   EXPECT_TRUE(Decoration(brush::layers({BlendingMark{}})).blends());
   EXPECT_TRUE(Decoration(Brush{}.layer(BlendingMark{})).blends());
-  EXPECT_TRUE(Decoration(brush::restyle(geometry::path::ops::PathOp(
-                                            [](const SkPath& p) { return p; }),
-                                        BlendingMark{}))
-                  .blends());
+  EXPECT_TRUE(
+      Decoration(brush::restyle(geometry::path::operations::PathOperation(
+                                    [](const SkPath& p) { return p; }),
+                                BlendingMark{}))
+          .blends());
   EXPECT_TRUE(
       Decoration(onEdges(geometry::path::Edge::Top, BlendingMark{})).blends());
   EXPECT_TRUE(Decoration(inset(4, BlendingMark{})).blends());

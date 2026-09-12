@@ -64,8 +64,8 @@ struct Backdrop {
  *  screen's inset arrived at by subtracting the bezel from the shell in
  *  four places. */
 struct Frame {
-  compose::Dim width;
-  compose::Dim height;
+  compose::Dimension width;
+  compose::Dimension height;
   /** The body; unset is the theme's cell ground. */
   std::optional<compose::SurfacePaint> shell;
   /** Unset is the theme's panel radius. */
@@ -89,8 +89,8 @@ struct Frame {
 
 /** THE CHROME, with @p screen inside its opening.
  *
- *      sketch::kit::frame({.width = Dim(275), .height = Dim(116),
- *                          .bezel = 6, .plate = toU8("MAIN WINDOW")},
+ *      sketch::kit::frame({.width = Dimension(275), .height = Dimension(116),
+ *                          .bezel = 6, .plate = toUtf8("MAIN WINDOW")},
  *                         readout({.rows = tape}))
  *
  *  The opening is a flex column, so what goes into it lays out normally;

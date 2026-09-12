@@ -40,12 +40,12 @@ auto Minard1869::frames() -> Element {
 
 auto Minard1869::provenance() -> Element {
   auto g = box().inset(0);
-  g.child(text(toU8("pour la Bibliothèque impériale"),
+  g.child(text(toUtf8("pour la Bibliothèque impériale"),
                type(faceScript, 30, kManuscript, 1.0f))
               .at({40, 4})
               .key("dedic")
               .mask(by::edge(0.0f, beat(0.45f, 1.15f))));
-  g.child(text(toU8("Ge Don 4182"), type(faceScript, 16, kManuscript, 0.4f))
+  g.child(text(toUtf8("Ge Don 4182"), type(faceScript, 16, kManuscript, 0.4f))
               .at({1218, 12})
               .key("gedon")
               .opacity(beat(0.9f, 1.2f)));
@@ -56,7 +56,7 @@ auto Minard1869::provenance() -> Element {
             .rect(SkRect::MakeXYWH(cx - r, cy - r * 0.66f, 2 * r, 1.32f * r))
             .shape(shapes::circle())
             .stroke(stroke(1.5f, Fill::color(kStampRed)))
-            .child(text(toU8(label), type(faceRoman, 7.5f, kStampRed, 0.3f))
+            .child(text(toUtf8(label), type(faceRoman, 7.5f, kStampRed, 0.3f))
                        .at({r * 0.35f, r * 0.42f}))
             .key(k)
             .scale(animate(from(0.0f).to(1.0f),
@@ -107,23 +107,24 @@ auto Minard1869::caliper() -> Element {
   jaw(r.x, r.y, r.halfPx, "jaw1");
   const float rx = kFrameL + 10, ry = 686.0f;
   g.child(
-      text(toU8(kit::formatted("%.2f mm", r.mm)), type(faceUiBold, 17, kBlue))
+      text(toUtf8(kit::formatted("%.2f mm", r.mm)), type(faceUiBold, 17, kBlue))
           .at({rx, ry})
           .key("calread"));
-  g.child(text(toU8(kit::formatted("÷ %.0f = %.4f mm / 10.000", r.men,
-                                   r.mm / (r.men / 10000.0f))),
+  g.child(text(toUtf8(kit::formatted("÷ %.0f = %.4f mm / 10.000", r.men,
+                                     r.mm / (r.men / 10000.0f))),
                type(faceUi, 9.5f, kBlue))
               .at({rx, ry + 20})
               .key("calread2"));
-  g.child(text(toU8(std::string(r.where) +
-                    "\n(measured on the BnF sheet, no cross-scan "
-                    "calibration)"),
+  g.child(text(toUtf8(std::string(r.where) +
+                      "\n(measured on the BnF sheet, no cross-scan "
+                      "calibration)"),
                type(faceUi, 9, hexColor(0x2f6f9c, 0.9f)))
               .at({rx, ry + 33})
               .key("calread3"));
-  g.child(text(toU8("the legend says 1.0000"), type(faceUiBold, 10, kClaimRed))
-              .at({rx, ry + 58})
-              .key("calread4"));
+  g.child(
+      text(toUtf8("the legend says 1.0000"), type(faceUiBold, 10, kClaimRed))
+          .at({rx, ry + 58})
+          .key("calread4"));
   return g;
 }
 
@@ -166,7 +167,7 @@ auto Minard1869::card(float y, float h, const char* title, const char* key,
                .key(key)
                .opacity(beat(t0, t0 + 0.4f))
                .translateY(bind(&T).window(t0, t0 + 0.4f).invert().scale(14));
-  c.child(kit::sheet({.title = toU8(title),
+  c.child(kit::sheet({.title = toUtf8(title),
                       .titleStyle = type(faceUiBold, 15, kCardInk, 1.6f),
                       .marginX = 18,
                       .marginTop = 12,
@@ -222,22 +223,22 @@ auto Minard1869::cardScale() -> Element {
                 .opacity(beat(tScale + 0.6f + 0.09f * (float)i,
                               tScale + 0.8f + 0.09f * (float)i)));
   }
-  g.child(text(toU8("width_px = 3.828 px per 10,000 men,  intercept "
-                    "−0.19 px,  R² = 0.99266"),
+  g.child(text(toUtf8("width_px = 3.828 px per 10,000 men,  intercept "
+                      "−0.19 px,  R² = 0.99266"),
                type(faceUi, 11, kBlue))
               .at({px0 + 6, py0 + 4})
               .key("fitlab")
               .opacity(beat(tScale + 2.3f, tScale + 2.6f)));
-  g.child(text(toU8("the fitted line goes through the ORIGIN to a fifth of "
-                    "a pixel — the zones are not merely\nlinear in men, "
-                    "they are proportional"),
+  g.child(text(toUtf8("the fitted line goes through the ORIGIN to a fifth of "
+                      "a pixel — the zones are not merely\nlinear in men, "
+                      "they are proportional"),
                type(faceUi, 10, kGrey))
               .at({px0 + 6, py0 + 22})
               .key("proplab")
               .opacity(beat(tScale + 2.4f, tScale + 2.7f)));
-  g.child(text(toU8("men →"), type(faceUi, 9, kGrey))
+  g.child(text(toUtf8("men →"), type(faceUi, 9, kGrey))
               .at({px0 + pw - 40, py0 + ph + 6}));
-  g.child(text(toU8("px"), type(faceUi, 9, kGrey)).at({px0 - 24, py0 - 2}));
+  g.child(text(toUtf8("px"), type(faceUi, 9, kGrey)).at({px0 - 24, py0 - 2}));
 
   // the two horizontal rules that matter
   // the two rules are drawn PROPORTIONAL: their lengths are the two
@@ -252,11 +253,11 @@ auto Minard1869::cardScale() -> Element {
                 .stroke(spans::upTo(beat(t0, t0 + 0.3f)),
                         stroke(2.0f, Fill::color(col)))
                 .key(k));
-    g.child(text(toU8(v), type(faceUiBold, 17, col))
+    g.child(text(toUtf8(v), type(faceUiBold, 17, col))
                 .at({rx, y - 26})
                 .key(std::string(k) + "v")
                 .opacity(beat(t0, t0 + 0.3f)));
-    g.child(text(toU8(what), type(faceUi, 10, col))
+    g.child(text(toUtf8(what), type(faceUi, 10, col))
                 .at({rx, y + 6})
                 .key(std::string(k) + "w")
                 .opacity(beat(t0, t0 + 0.3f)));
@@ -273,19 +274,19 @@ auto Minard1869::cardScale() -> Element {
                                  .dashIntervals = {3, 3}})
               .key("ruleTick")
               .opacity(beat(tScale + 2.0f, tScale + 2.3f)));
-  g.child(text(toU8("half a French ligne = 1.1279 mm      (SPECULATION)"),
+  g.child(text(toUtf8("half a French ligne = 1.1279 mm      (SPECULATION)"),
                type(faceUi, 10, kGrey))
               .at({rx, 238})
               .key("ligneNote")
               .opacity(beat(tLigne, tLigne + 0.4f)));
-  g.child(text(toU8("competing: litho reduction · catalogued paper size "
-                    "wrong (this one would kill it)"),
+  g.child(text(toUtf8("competing: litho reduction · catalogued paper size "
+                      "wrong (this one would kill it)"),
                type(faceUi, 9, kGrey))
               .at({rx, 254})
               .key("ligneAlt")
               .opacity(beat(tLigne + 0.4f, tLigne + 0.8f)));
-  g.child(text(toU8("and the SAME factor appears on the Hannibal panel, "
-                    "drawn from different data."),
+  g.child(text(toUtf8("and the SAME factor appears on the Hannibal panel, "
+                      "drawn from different data."),
                type(faceUi, 10, kCardInk))
               .at({rx, 276})
               .key("hannSame")
@@ -333,8 +334,8 @@ auto Minard1869::cardFloor() -> Element {
                                  .dashIntervals = {5, 4}})
               .key("floorRule")
               .opacity(beat(tScale + 1.4f, tScale + 1.7f)));
-  g.child(text(toU8("3.8 px per 10,000 — the advance band's slope; the "
-                    "retreat holds it above ~35,000 men"),
+  g.child(text(toUtf8("3.8 px per 10,000 — the advance band's slope; the "
+                      "retreat holds it above ~35,000 men"),
                type(faceUi, 9, kGrey))
               .at({px0 + 120, py0 - 14})
               .key("floorLab")
@@ -347,28 +348,28 @@ auto Minard1869::cardFloor() -> Element {
                 .opacity(beat(tScale + 1.0f + 0.05f * (float)i,
                               tScale + 1.2f + 0.05f * (float)i)));
   for (float men : {4000.0f, 10000.0f, 30000.0f, 100000.0f})
-    g.child(text(toU8(french(men)), type(faceUi, 8.5f, kGrey))
+    g.child(text(toUtf8(french(men)), type(faceUi, 8.5f, kGrey))
                 .at({P(men, 3.0f).x() - 12, py0 + ph + 4})
                 .key("fx" + std::to_string((int)men)));
-  g.child(text(toU8("4,000 men drawn 2.6× too wide — 0.4 mm is "
-                    "below what a lithographic crayon will hold"),
+  g.child(text(toUtf8("4,000 men drawn 2.6× too wide — 0.4 mm is "
+                      "below what a lithographic crayon will hold"),
                type(faceUi, 10, kAmber))
               .at({px0, py0 + ph + 18})
               .key("floorAmber")
               .opacity(beat(tScale + 1.8f, tScale + 2.1f)));
-  g.child(text(toU8("minimum drawn width 5.4 px = 1.57 mm"),
+  g.child(text(toUtf8("minimum drawn width 5.4 px = 1.57 mm"),
                type(faceUi, 10, kCardInk))
               .at({px0 + 480, py0 + 44})
               .key("floorMin")
               .opacity(beat(tScale + 1.9f, tScale + 2.2f)));
-  g.child(text(toU8("NEGATIVE RESULT — and it is the more useful half: "
-                    "the famous 12,000→14,000 anomaly is NOT\nmeasurable "
-                    "in the ink. At the floor both readings are 5.4 px. The "
-                    "prettier finding does not exist."),
+  g.child(text(toUtf8("NEGATIVE RESULT — and it is the more useful half: "
+                      "the famous 12,000→14,000 anomaly is NOT\nmeasurable "
+                      "in the ink. At the floor both readings are 5.4 px. The "
+                      "prettier finding does not exist."),
                type(faceUi, 10, kClaimRed))
-              .left(Dim(px0 + 480))
-              .top(Dim(py0 + 10))
-              .width(Dim(kAuditW - px0 - 500))
+              .left(Dimension(px0 + 480))
+              .top(Dimension(py0 + 10))
+              .width(Dimension(kAuditW - px0 - 500))
               .key("floorNeg")
               .opacity(beat(tScale + 2.2f, tScale + 2.6f)));
   return g;
@@ -433,7 +434,7 @@ auto Minard1869::cardGeo() -> Element {
                 .opacity(beat(tGeo + 0.1f + 0.02f * (float)i,
                               tGeo + 0.35f + 0.02f * (float)i)));
     if (out)
-      g.child(text(toU8(c.plate), type(faceUiBold, 10, kAmber))
+      g.child(text(toUtf8(c.plate), type(faceUiBold, 10, kAmber))
                   .at({MX(c.lon) + 7, MY(c.lat) - 6})
                   .key("gcl" + std::to_string(i))
                   .opacity(beat(tGeo + 1.6f, tGeo + 1.9f)));
@@ -467,28 +468,28 @@ auto Minard1869::cardGeo() -> Element {
               .fill(Paint::solid(hexColor(0x6d675c, 0.22f)))
               .key("quantum")
               .opacity(beat(tGeo + 1.3f, tGeo + 1.6f)));
-  g.child(text(toU8("residual vectors ×8"), type(faceUi, 9, kGrey))
+  g.child(text(toUtf8("residual vectors ×8"), type(faceUi, 9, kGrey))
               .at({ox, oy + 150})
               .key("exaggLab")
               .opacity(beat(tGeo + 0.6f, tGeo + 0.9f)));
-  g.child(text(toU8("0.1° grid = 6.41 km"), type(faceUi, 9, kGrey))
+  g.child(text(toUtf8("0.1° grid = 6.41 km"), type(faceUi, 9, kGrey))
               .at({hx + hw * 6.41f / 40.0f + 10, hy + 4})
               .key("quantumLab")
               .opacity(beat(tGeo + 1.35f, tGeo + 1.65f)));
-  g.child(text(toU8("median 5.35 km on an 871 km span — 0.6%. The "
-                    "received account is wrong."),
+  g.child(text(toUtf8("median 5.35 km on an 871 km span — 0.6%. The "
+                      "received account is wrong."),
                type(faceUiBold, 12, kPass))
-              .left(Dim(hx))
-              .top(Dim(hy + hh + 10))
-              .width(Dim(330))
+              .left(Dimension(hx))
+              .top(Dimension(hy + hh + 10))
+              .width(Dimension(330))
               .key("geoCap")
               .opacity(beat(tGeo + 1.7f, tGeo + 2.0f)));
-  g.child(text(toU8("residual is within 1.8× of what the 0.1° "
-                    "digitisation grid alone produces"),
+  g.child(text(toUtf8("residual is within 1.8× of what the 0.1° "
+                      "digitisation grid alone produces"),
                type(faceUi, 9, kGrey))
-              .left(Dim(hx))
-              .top(Dim(hy + hh + 42))
-              .width(Dim(330))
+              .left(Dimension(hx))
+              .top(Dimension(hy + hh + 42))
+              .width(Dimension(330))
               .key("geoCap2")
               .opacity(beat(tGeo + 1.8f, tGeo + 2.1f)));
   return g;
@@ -507,7 +508,7 @@ auto Minard1869::cardLegs() -> Element {
     const float y = by + rowH * (float)i;
     const bool bad = legs[i].ratio < 0.7f || legs[i].ratio > 1.3f;
     const float dx = (legs[i].ratio - 1.0f) * bw * 0.62f;
-    g.child(text(toU8(legs[i].name), type(faceUi, 9.5f, bad ? kAmber : kGrey))
+    g.child(text(toUtf8(legs[i].name), type(faceUi, 9.5f, bad ? kAmber : kGrey))
                 .at({60, y - 2})
                 .key("legn" + std::to_string(i))
                 .opacity(beat(tDistort + 0.1f + 0.04f * (float)i,
@@ -523,25 +524,25 @@ auto Minard1869::cardLegs() -> Element {
                 .transformOrigin(dx < 0 ? 1.0f : 0.0f, 0.5f)
                 .opacity(beat(tDistort + 0.2f + 0.05f * (float)i,
                               tDistort + 0.4f + 0.05f * (float)i)));
-    g.child(text(toU8(kit::formatted("%.3f", legs[i].ratio)),
+    g.child(text(toUtf8(kit::formatted("%.3f", legs[i].ratio)),
                  type(faceUi, 9.5f, bad ? kAmber : kGrey))
                 .at({bx + bw + 20, y - 2})
                 .key("legv" + std::to_string(i))
                 .opacity(beat(tDistort + 0.2f + 0.04f * (float)i,
                               tDistort + 0.4f + 0.04f * (float)i)));
   }
-  g.child(text(toU8("TOTAL 934.2 km real → 944.6 km on Minard, ratio "
-                    "1.011 — one leg squeezed to 59%, the next stretched "
-                    "to 153%, the total kept right,\nexactly where Wizma, "
-                    "Chjat and Mojaisk crowd into 130 px of lettering.  "
-                    "That the room was for the labels is an INFERENCE."),
+  g.child(text(toUtf8("TOTAL 934.2 km real → 944.6 km on Minard, ratio "
+                      "1.011 — one leg squeezed to 59%, the next stretched "
+                      "to 153%, the total kept right,\nexactly where Wizma, "
+                      "Chjat and Mojaisk crowd into 130 px of lettering.  "
+                      "That the room was for the labels is an INFERENCE."),
                type(faceUi, 10, kCardInk))
-              .left(Dim(60))
+              .left(Dimension(60))
               // Two lines of 10 pt under ten rows of 12.2 is what the card's
               // 206 holds: set any lower and the second line's baseline
               // falls past the card edge and the sentence is cut in half.
-              .top(Dim(by + rowH * 10 + 4))
-              .width(Dim(900))
+              .top(Dimension(by + rowH * 10 + 4))
+              .width(Dimension(900))
               .key("legTotal")
               .opacity(beat(tDistort + 0.9f, tDistort + 1.3f)));
   return g;
@@ -553,7 +554,7 @@ auto Minard1869::cardReaumur() -> Element {
   const char* heads[] = {"date on the plate", "°R", "°C", "°F", "days"};
   const float cols[] = {0, 250, 330, 410, 500};
   for (int c = 0; c < 5; ++c)
-    g.child(text(toU8(heads[c]), type(faceUiBold, 9.5f, kGrey))
+    g.child(text(toUtf8(heads[c]), type(faceUiBold, 9.5f, kGrey))
                 .at({x0 + cols[c], y0 - 16})
                 .key("rh" + std::to_string(c)));
   for (size_t i = 0; i < plate.temps.size(); ++i) {
@@ -562,7 +563,7 @@ auto Minard1869::cardReaumur() -> Element {
     const SkColor4f col = cold ? kBlue : kCardInk;
     const float y = y0 + rowH * (float)i;
     auto cell = [&](int c, const std::string& s, SkColor4f cc, float sz) {
-      g.child(text(toU8(s), type(faceUi, sz, cc))
+      g.child(text(toUtf8(s), type(faceUi, sz, cc))
                   .at({x0 + cols[c], y})
                   .key("rc" + std::to_string(i) + "_" + std::to_string(c))
                   .opacity(beat(tReaumur + 0.05f * (float)i,
@@ -580,32 +581,32 @@ auto Minard1869::cardReaumur() -> Element {
     cell(4, i == 0 ? std::string("—") : std::to_string(t.daysSincePrev), kGrey,
          10.0f);
   }
-  g.child(text(toU8("°C = °R × 5/4      °F = °R "
-                    "× 9/4 + 32      (exact — Réaumur puts 80 "
-                    "degrees between ice and steam)"),
+  g.child(text(toUtf8("°C = °R × 5/4      °F = °R "
+                      "× 9/4 + 32      (exact — Réaumur puts 80 "
+                      "degrees between ice and steam)"),
                type(faceUi, 10, kGrey))
               .at({x0, y0 + rowH * 9 + 2})
               .key("reqs")
               .opacity(beat(tReaumur + 0.5f, tReaumur + 0.8f)));
-  g.child(text(toU8("−30 °R = −37.50 °C = −35.50 "
-                    "°F.  The plate's title says degrés du\nthermomètre "
-                    "de Réaumur in display capitals, and reproductions "
-                    "still\nrelabel the axis Celsius while keeping his "
-                    "numbers."),
+  g.child(text(toUtf8("−30 °R = −37.50 °C = −35.50 "
+                      "°F.  The plate's title says degrés du\nthermomètre "
+                      "de Réaumur in display capitals, and reproductions "
+                      "still\nrelabel the axis Celsius while keeping his "
+                      "numbers."),
                type(faceUi, 10, kClaimRed))
-              .left(Dim(x0 + 560))
-              .top(Dim(y0 + 4))
-              .width(Dim(400))
+              .left(Dimension(x0 + 560))
+              .top(Dimension(y0 + 4))
+              .width(Dimension(400))
               .key("reaWrong")
               .opacity(beat(tReaumur + 0.9f, tReaumur + 1.3f)));
   // the two campaigns, the reason the panels share a sheet
-  g.child(text(toU8("Hannibal 218 BC    96,000 → 26,000    survived "
-                    "27.08%\nNapoleon 1812     422,000 → 10,000    "
-                    "survived  2.37%\nThis is why he printed them together."),
+  g.child(text(toUtf8("Hannibal 218 BC    96,000 → 26,000    survived "
+                      "27.08%\nNapoleon 1812     422,000 → 10,000    "
+                      "survived  2.37%\nThis is why he printed them together."),
                type(faceUiBold, 12, kCardInk))
-              .left(Dim(x0 + 560))
-              .top(Dim(y0 + 74))
-              .width(Dim(420))
+              .left(Dimension(x0 + 560))
+              .top(Dimension(y0 + 74))
+              .width(Dimension(420))
               .key("twoCamp")
               .opacity(beat(tTwo, tTwo + 0.5f)));
   return g;
@@ -624,29 +625,30 @@ auto Minard1869::auditColumn() -> Element {
 
 auto Minard1869::titleStrip() -> Element {
   auto g = box().rect(SkRect::MakeXYWH(48, 28, 2464, 80));
-  g.child(sketch::kit::titleCard(
-              {.title = {toU8("Carte figurative des pertes successives en "
-                              "hommes de l'armée française dans la campagne "
-                              "de Russie 1812–1813, comparée à celle "
-                              "d'Annibal durant la 2ᵉᵐᵉ guerre punique")},
-               .subtitle = {toU8("BnF, Ge Don 4182 · lithograph · 62 × 54 "
-                                 "cm · Paris, 20 novembre 1869 · Minard was "
-                                 "88, and died ten months later during the "
-                                 "siege of Paris")},
-               .notes = {{.words = toU8("the sheet is drawn at its own aspect "
-                                        "— 2.258 px per millimetre of "
-                                        "Minard's paper, so every band width "
-                                        "on screen is a real millimetre "
-                                        "count"),
-                          .ink = Fill::color(hexColor(0x2f6f9c))},
-                         {.words = toU8("THE PLATE STATES ITS OWN "
-                                        "CONSTRUCTION RULE.  THIS SKETCH "
-                                        "CHECKS IT — AND THEN CHECKS ITSELF "
-                                        "WITH THE SAME MEASUREMENT."),
-                          .ink = Fill::color(hexColor(0xb5761e))}}})
-              .left(Dim(0))
-              .top(Dim(0))
-              .width(Dim(2464)));
+  g.child(
+      sketch::kit::titleCard(
+          {.title = {toUtf8("Carte figurative des pertes successives en "
+                            "hommes de l'armée française dans la campagne "
+                            "de Russie 1812–1813, comparée à celle "
+                            "d'Annibal durant la 2ᵉᵐᵉ guerre punique")},
+           .subtitle = {toUtf8("BnF, Ge Don 4182 · lithograph · 62 × 54 "
+                               "cm · Paris, 20 novembre 1869 · Minard was "
+                               "88, and died ten months later during the "
+                               "siege of Paris")},
+           .notes = {{.words = toUtf8("the sheet is drawn at its own aspect "
+                                      "— 2.258 px per millimetre of "
+                                      "Minard's paper, so every band width "
+                                      "on screen is a real millimetre "
+                                      "count"),
+                      .ink = Fill::color(hexColor(0x2f6f9c))},
+                     {.words = toUtf8("THE PLATE STATES ITS OWN "
+                                      "CONSTRUCTION RULE.  THIS SKETCH "
+                                      "CHECKS IT — AND THEN CHECKS ITSELF "
+                                      "WITH THE SAME MEASUREMENT."),
+                      .ink = Fill::color(hexColor(0xb5761e))}}})
+          .left(Dimension(0))
+          .top(Dimension(0))
+          .width(Dimension(2464)));
   return g;
 }
 

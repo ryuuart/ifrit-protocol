@@ -466,7 +466,7 @@ compose::Element run(const ck::Mask& mask, float x, float y, SkColor4f colour) {
   compose::Element e = ck::masked(mask, {.colour = colour,
                                          .scale = kHudScale,
                                          .shadowOffset = kShadow,
-                                         .shadowMul = 0.0f});
+                                         .shadowMultiplier = 0.0f});
   e.absolute()
       .left(std::round(x / 2.5f) * 2.5f)
       .top(std::round(y / 4.0f) * 4.0f);
@@ -495,8 +495,8 @@ compose::Element gauge(float x, float y, float w, float h, float fraction,
                        SkColor4f colour) {
   return sketch::kit::meter(
              {.fraction = fraction,
-              .width = compose::Dim(w),
-              .height = compose::Dim(h),
+              .width = compose::Dimension(w),
+              .height = compose::Dimension(h),
               .track = compose::Fill::color({0.031f, 0.039f, 0.071f, 0.86f}),
               .bar = compose::Fill::color(colour),
               .keyline =

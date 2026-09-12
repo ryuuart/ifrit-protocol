@@ -1,6 +1,6 @@
 /** @file
  * The environment map: a roughness reads its own bucket and each is
- * built once, the equirect convention round-trips, six faces and a cube
+ * built once, the equirectangular convention round-trips, six faces and a cube
  * sheet resample into one panorama, the irradiance of a constant sky is
  * that constant, float survives the chain, and a ground colour replaces
  * the lower hemisphere.
@@ -105,24 +105,24 @@ TEST(EnvironmentMap, ASmallPanoramaKeepsItsOwnWidthInTheChain) {
   EXPECT_EQ(bandedSky(2048).withPrefilterSize(64).prefilterSize(), 64);
 }
 
-TEST(EnvironmentMap, TheEquirectConventionRoundTrips) {
+TEST(EnvironmentMap, TheEquirectangularConventionRoundTrips) {
   // A direction and a panorama coordinate are the same thing said twice,
   // and every consumer of the value depends on them agreeing.
   for (float u : {0.02f, 0.17f, 0.5f, 0.83f}) {
     for (float v : {0.05f, 0.3f, 0.5f, 0.95f}) {
-      const SkV2 back = equirectUv(equirectDirection({u, v}));
+      const SkV2 back = equirectangularUv(equirectangularDirection({u, v}));
       EXPECT_NEAR(back.x, u, 1e-4f) << u << "," << v;
       EXPECT_NEAR(back.y, v, 1e-4f) << u << "," << v;
     }
   }
   // The azimuth is periodic: u = 0 and u = 1 are one direction, and the
   // inverse answers whichever end of the turn it landed on.
-  const SkV2 seam = equirectUv(equirectDirection({0.0f, 0.5f}));
+  const SkV2 seam = equirectangularUv(equirectangularDirection({0.0f, 0.5f}));
   EXPECT_NEAR(std::min(seam.x, 1.0f - seam.x), 0.0f, 1e-4f);
   // v = 0 is the zenith and u = 0.5 looks along -z.
-  const SkV3 up = equirectDirection({0.5f, 0.0f});
+  const SkV3 up = equirectangularDirection({0.5f, 0.0f});
   EXPECT_NEAR(up.y, 1.0f, 1e-5f);
-  const SkV3 forward = equirectDirection({0.5f, 0.5f});
+  const SkV3 forward = equirectangularDirection({0.5f, 0.5f});
   EXPECT_NEAR(forward.z, -1.0f, 1e-5f);
 }
 
@@ -142,7 +142,7 @@ TEST(EnvironmentMap, SixFacesResampleIntoOnePanorama) {
   // exactly.
   const sk_sp<SkImage> pano = env.image(0);
   const auto colourAt = [&](SkV3 direction) {
-    const SkV2 uv = equirectUv(direction);
+    const SkV2 uv = equirectangularUv(direction);
     const int x = std::min((int)(uv.x * 128.0f), 127);
     const int y = std::min((int)(uv.y * 64.0f), 63);
     const SkColor4f c = floatPixel(pano, x, y);
@@ -229,7 +229,7 @@ TEST(EnvironmentMap, ACubeMapInAContainerIsTheSheetOfItsFaces) {
     const sk_sp<SkImage> pano = env.image(0);
     const sk_sp<SkImage> sheet = fromSheet.image(0);
     for (int i = 0; i < 6; ++i) {
-      const SkV2 uv = equirectUv(axes[i]);
+      const SkV2 uv = equirectangularUv(axes[i]);
       const int x =
           std::min((int)(uv.x * (float)pano->width()), pano->width() - 1);
       const int y =
@@ -262,7 +262,7 @@ TEST(EnvironmentMap, IrradianceOfAConstantPanoramaIsTheConstant) {
   // makes it the number a Lambertian body multiplies its albedo by.
   const SkColor4f sky{0.2f, 0.55f, 0.9f, 1};
   const EnvironmentMap env =
-      EnvironmentMap::fromEquirect(constantPanorama(64, 32, sky));
+      EnvironmentMap::fromEquirectangular(constantPanorama(64, 32, sky));
   const sk_sp<SkImage> lobe = env.irradiance();
   ASSERT_TRUE(lobe);
   EXPECT_EQ(lobe->dimensions(), SkISize::Make(32, 16));
@@ -287,7 +287,7 @@ TEST(EnvironmentMap, FloatSurvivesTheBucketsAndTheChain) {
   // the sky beside it.
   const SkColor4f bright{6.0f, 3.0f, 1.5f, 1};
   const EnvironmentMap env =
-      EnvironmentMap::fromEquirect(constantPanorama(64, 32, bright));
+      EnvironmentMap::fromEquirectangular(constantPanorama(64, 32, bright));
   for (float roughness : {0.0f, 0.4f, 1.0f}) {
     const SkColor4f got = floatPixel(env.image(roughness), 12, 7);
     EXPECT_NEAR(got.fR, bright.fR, 1e-3f) << roughness;

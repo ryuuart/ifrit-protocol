@@ -89,20 +89,24 @@ struct CdeMotifSketch : sketch::Sketch {
     const Set s = cde::ambient();
     auto furniture = [&](Element glyph) {
       return box()
-          .width(Dim(20))
-          .height(Dim(19))
+          .width(Dimension(20))
+          .height(Dimension(19))
           .fill(s.bg)
           .overlay(cde::bevel(1, false, false))
           .alignItems(Align::Center)
           .justify(Justify::Center)
           .child(std::move(glyph));
     };
-    Element menuGlyph = box().width(Dim(12)).height(Dim(4)).fill(s.fg);
-    Element minGlyph = box().width(Dim(5)).height(Dim(5)).fill(s.fg);
-    Element maxGlyph =
-        box().width(Dim(11)).height(Dim(11)).overlay(cde::bevelFg(1));
+    Element menuGlyph =
+        box().width(Dimension(12)).height(Dimension(4)).fill(s.fg);
+    Element minGlyph =
+        box().width(Dimension(5)).height(Dimension(5)).fill(s.fg);
+    Element maxGlyph = box()
+                           .width(Dimension(11))
+                           .height(Dimension(11))
+                           .overlay(cde::bevelFg(1));
     return box()
-        .height(Dim(23))
+        .height(Dimension(23))
         .fill(s.bg)
         .overlay(cde::bevel(1, false, false))
         .row()
@@ -115,7 +119,7 @@ struct CdeMotifSketch : sketch::Sketch {
                    .justify(Justify::Center)
                    .child(cde::label(t, s.fg)))
         .child(furniture(std::move(minGlyph)))
-        .child(box().width(Dim(2)))
+        .child(box().width(Dimension(2)))
         .child(furniture(std::move(maxGlyph)));
   }
 
@@ -124,7 +128,7 @@ struct CdeMotifSketch : sketch::Sketch {
   Element menuBar(const std::vector<std::string>& items, int rightFrom) {
     const Set s = cde::ambient();
     Element bar = box()
-                      .height(Dim(31))
+                      .height(Dimension(31))
                       .fill(s.bg)
                       .overlay(cde::bevel(1, false, false))
                       .row()
@@ -152,12 +156,12 @@ struct CdeMotifSketch : sketch::Sketch {
     // path field is its own (set 4 is the near-white text set, and the
     // only one that ever takes the LITE branch), and the scrollbar is
     // set 3 because a scrollbar is dtwm's, not the application's.
-    env::Provide<cde::ColorSet> chrome(theme[1]);
+    environment::Provide<cde::ColorSet> chrome(theme[1]);
     Element title = titleBar("File Manager - user", true);
 
     Element window;
     {
-      env::Provide<cde::ColorSet> body(theme[5]);
+      environment::Provide<cde::ColorSet> body(theme[5]);
       const Set& c5 = cde::ambient();
 
       // The reference holds 31 folders in a pane this size. They flow
@@ -174,7 +178,7 @@ struct CdeMotifSketch : sketch::Sketch {
       Element grid = box().row().wrapLines().gap(4).padding(8, 8);
       for (const char* name : kNames)
         grid.child(box()
-                       .width(Dim(70))
+                       .width(Dimension(70))
                        .column()
                        .alignItems(Align::Center)
                        .gap(2)
@@ -189,20 +193,20 @@ struct CdeMotifSketch : sketch::Sketch {
       // view whose icon count nothing in this sketch stands for.
       Element scrollbar;
       {
-        env::Provide<cde::ColorSet> bar(theme[3]);
+        environment::Provide<cde::ColorSet> bar(theme[3]);
         const Set& c3 = cde::ambient();
         auto stepper = [&](bool up) {
           return box()
-              .width(Dim(15))
-              .height(Dim(15))
+              .width(Dimension(15))
+              .height(Dimension(15))
               .shrink(0)
               .fill(c3.bg)
               .overlay(cde::bevel(2, false, false))
               .alignItems(Align::Center)
               .justify(Justify::Center)
               .child(box()
-                         .width(Dim(9))
-                         .height(Dim(7))
+                         .width(Dimension(9))
+                         .height(Dimension(7))
                          .shape(shapes::polygon(3, up ? 0.0f : 180.0f))
                          .fill(c3.fg));
         };
@@ -210,9 +214,9 @@ struct CdeMotifSketch : sketch::Sketch {
                                             .trailing = stepper(false),
                                             .thumb = box().fill(c3.bg).overlay(
                                                 cde::bevel(2, false, false)),
-                                            .thumbLength = Dim(150),
+                                            .thumbLength = Dimension(150),
                                             .track = Fill::none()})
-                        .width(Dim(19))
+                        .width(Dimension(19))
                         .padding(2)
                         .gap(2)
                         .fill(c3.bg)
@@ -226,7 +230,7 @@ struct CdeMotifSketch : sketch::Sketch {
                             .gap(8)
                             .child(cde::label("Path:", c5.fg));
       {
-        env::Provide<cde::ColorSet> field(theme[4]);
+        environment::Provide<cde::ColorSet> field(theme[4]);
         pathRow.child(cde::textField("/export/home/user", 420, true, &caret));
       }
 
@@ -247,10 +251,12 @@ struct CdeMotifSketch : sketch::Sketch {
                          .padding(2)
                          .child(box().grow(1).clip().child(std::move(grid)))
                          .child(std::move(scrollbar)))
-              .child(box().height(Dim(2)).margin(2, 3).overlay(
-                  cde::bevel(2, true, true)))
               .child(box()
-                         .height(Dim(22))
+                         .height(Dimension(2))
+                         .margin(2, 3)
+                         .overlay(cde::bevel(2, true, true)))
+              .child(box()
+                         .height(Dimension(22))
                          .row()
                          .alignItems(Align::Center)
                          .padding(8, 2)
@@ -287,7 +293,7 @@ struct CdeMotifSketch : sketch::Sketch {
           box()
               .row()
               .alignItems(Align::Center)
-              .height(Dim(20))
+              .height(Dimension(20))
               .padding(6, 0)
               .child(cde::label(cde::kPalettes[(size_t)i]->name, c6.fg));
       if (current) rowBox.fill(c6.sel);
@@ -298,7 +304,7 @@ struct CdeMotifSketch : sketch::Sketch {
       list.child(box()
                      .row()
                      .alignItems(Align::Center)
-                     .height(Dim(20))
+                     .height(Dimension(20))
                      .padding(6, 0)
                      .child(cde::label(n, c6.fg)));
 
@@ -309,7 +315,7 @@ struct CdeMotifSketch : sketch::Sketch {
                                          cde::bevel(2, false, false)),
                                      .thumbLength = pct(sliderFrac),
                                      .track = Fill::none()})
-          .width(Dim(19))
+          .width(Dimension(19))
           .fill(t.bg)
           .overlay(cde::bevel(2, true, false))
           .padding(2);
@@ -317,7 +323,7 @@ struct CdeMotifSketch : sketch::Sketch {
 
     Element listPane = box()
                            .row()
-                           .width(Dim(170))
+                           .width(Dimension(170))
                            .child(std::move(list))
                            .child(scrollBar(theme[3], 34));
 
@@ -328,8 +334,8 @@ struct CdeMotifSketch : sketch::Sketch {
       for (int c = 0; c < 4; ++c) {
         const int idx = r * 4 + c + 1;
         rr.child(box()
-                     .width(Dim(50))
-                     .height(Dim(42))
+                     .width(Dimension(50))
+                     .height(Dimension(42))
                      .fill(theme[idx].bg)
                      .overlay(cde::bevel(2, false, false)));
       }
@@ -366,11 +372,12 @@ struct CdeMotifSketch : sketch::Sketch {
                                   .gap(4)
                                   .child(cde::label("Color Sets", c2.fg))
                                   .child(std::move(swatches))
-                                  .child(box().height(Dim(6)))
+                                  .child(box().height(Dimension(6)))
                                   .child(cde::label("Number of Colors:", c2.fg))
                                   .child(cde::label("  High Color  (8 sets)",
                                                     c2.fg))))
-            .child(box().height(Dim(2)).overlay(cde::bevel(2, false, true)))
+            .child(
+                box().height(Dimension(2)).overlay(cde::bevel(2, false, true)))
             .child(std::move(buttons));
 
     return windowFrame(box()
@@ -389,30 +396,36 @@ struct CdeMotifSketch : sketch::Sketch {
       Element row = box()
                         .row()
                         .alignItems(Align::Center)
-                        .height(Dim(24))
+                        .height(Dimension(24))
                         .padding(14, 0)
                         .child(cde::label(t, s.fg))
                         .child(box().grow(1));
       if (cascade)
-        row.child(box().width(Dim(9)).height(Dim(9)).fill(s.bg).overlay(
-            cde::bevel(2, false, false)));
+        row.child(box()
+                      .width(Dimension(9))
+                      .height(Dimension(9))
+                      .fill(s.bg)
+                      .overlay(cde::bevel(2, false, false)));
       if (insensitive) row.foreground(cde::stipple());
       return row;
     };
     // XmSHADOW_ETCHED_IN at T = 2 — a two-pass etched shadow, and the only
     // place in a CDE session where that branch of XmeDrawShadows shows.
     auto separator = [&] {
-      return box().height(Dim(2)).margin(3).overlay(cde::bevel(2, true, true));
+      return box()
+          .height(Dimension(2))
+          .margin(3)
+          .overlay(cde::bevel(2, true, true));
     };
     // The tear-off "perforation" Motif puts at the top of a posted menu.
     Element tearOff =
-        box().height(Dim(9)).margin(3).overlay(cde::bevel(2, true, true));
+        box().height(Dimension(9)).margin(3).overlay(cde::bevel(2, true, true));
 
     return box()
         .fill(s.bg)
         .overlay(cde::bevel(2, false, false))
         .padding(2)
-        .width(Dim(214))
+        .width(Dimension(214))
         .column()
         .child(std::move(tearOff))
         .child(item("New...", false, false))
@@ -443,8 +456,8 @@ struct CdeMotifSketch : sketch::Sketch {
           .gap(3)
           .alignItems(Align::Center)
           .child(box()
-                     .width(Dim(70))
-                     .height(Dim(36))
+                     .width(Dimension(70))
+                     .height(Dimension(36))
                      .fill(cde::toSk(c))
                      .overlay(cde::bevel(2, false, false)))
           .child(cde::label(name, s.fg))
@@ -502,16 +515,21 @@ struct CdeMotifSketch : sketch::Sketch {
   Element handle() {
     const Set s = cde::ambient();
     return box()
-        .width(Dim(18))
+        .width(Dimension(18))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(box().width(Dim(18)).height(Dim(31)).fill(s.bs).overlay(
-            styles::Scanlines{s.ts, 2, 1, 1}));
+        .child(box()
+                   .width(Dimension(18))
+                   .height(Dimension(31))
+                   .fill(s.bs)
+                   .overlay(styles::Scanlines{s.ts, 2, 1, 1}));
   }
 
   Element panelSeparator() {
-    return box().width(Dim(2)).column().child(
-        box().grow(1).overlay(cde::bevel(2, true, true)));
+    return box()
+        .width(Dimension(2))
+        .column()
+        .child(box().grow(1).overlay(cde::bevel(2, true, true)));
   }
 
   /** A Front Panel control: a 48 x 48 icon, 4 px either side, with the
@@ -526,18 +544,20 @@ struct CdeMotifSketch : sketch::Sketch {
   Element control(Element icon, float w, bool subpanelArrow) {
     const Set s = cde::ambient();
     Element chev = box()
-                       .height(Dim(10))
+                       .height(Dimension(10))
                        .alignItems(Align::Center)
                        .justify(Justify::Center);
     if (subpanelArrow) {
       Element up = box().column().alignItems(Align::Center);
       for (int i = 0; i < 4; ++i)
-        up.child(
-            box().width(Dim((float)(1 + i * 2))).height(Dim(1)).fill(s.fg));
+        up.child(box()
+                     .width(Dimension((float)(1 + i * 2)))
+                     .height(Dimension(1))
+                     .fill(s.fg));
       chev.child(std::move(up));
     }
     return box()
-        .width(Dim(w))
+        .width(Dimension(w))
         .column()
         .alignItems(Align::Center)
         .justify(Justify::Center)
@@ -551,7 +571,7 @@ struct CdeMotifSketch : sketch::Sketch {
    *  emerge from the frame rate. */
   Element clockIcon() {
     const Set s = cde::ambient();
-    Element face = stack().width(Dim(48)).height(Dim(48));
+    Element face = stack().width(Dimension(48)).height(Dimension(48));
     face.child(box().inset(0).corners({24}).fill(s.bg).foreground(
         PathFormat{.width = 2,
                    .strokeFill = Fill::color(cde::C(cde::kIconGray[6])),
@@ -567,36 +587,36 @@ struct CdeMotifSketch : sketch::Sketch {
       const float cx = c.fX, cy = c.fY;
       const float sz = (i % 3 == 0) ? 4.0f : 2.0f;
       face.child(box()
-                     .left(Dim(cx - sz * 0.5f))
-                     .top(Dim(cy - sz * 0.5f))
-                     .width(Dim(sz))
-                     .height(Dim(sz))
+                     .left(Dimension(cx - sz * 0.5f))
+                     .top(Dimension(cy - sz * 0.5f))
+                     .width(Dimension(sz))
+                     .height(Dimension(sz))
                      .fill(cde::C(cde::kIconColor[0])));
     }
     // Hour hand, ~60% radius; minute hand, full radius. Both quantised to
     // the minute: 61 levels across [0,1] is a 6-degree step.
     face.child(
         box()
-            .left(Dim(23))
-            .top(Dim(13))
-            .width(Dim(3))
-            .height(Dim(11))
+            .left(Dimension(23))
+            .top(Dimension(13))
+            .width(Dimension(3))
+            .height(Dimension(11))
             .fill(cde::C(cde::kIconColor[0]))
             .transformOrigin(0.5f, 1.0f)
             .rotate(motion::bind(&clockT).quantize(61).scale(30).offset(300)));
     face.child(box()
-                   .left(Dim(23))
-                   .top(Dim(6))
-                   .width(Dim(2))
-                   .height(Dim(18))
+                   .left(Dimension(23))
+                   .top(Dimension(6))
+                   .width(Dimension(2))
+                   .height(Dimension(18))
                    .fill(cde::C(cde::kIconColor[0]))
                    .transformOrigin(0.5f, 1.0f)
                    .rotate(motion::bind(&clockT).quantize(61).scale(360)));
     face.child(box()
-                   .left(Dim(22))
-                   .top(Dim(22))
-                   .width(Dim(4))
-                   .height(Dim(4))
+                   .left(Dimension(22))
+                   .top(Dimension(22))
+                   .width(Dimension(4))
+                   .height(Dimension(4))
                    .corners({2})
                    .fill(cde::C(cde::kIconColor[0])));
     return face;
@@ -606,26 +626,26 @@ struct CdeMotifSketch : sketch::Sketch {
   Element dateIcon() {
     const Set s = cde::ambient();
     return stack()
-        .width(Dim(48))
-        .height(Dim(48))
+        .width(Dimension(48))
+        .height(Dimension(48))
         .child(box()
                    .inset(3, 2, 3, 2)
                    .fill(cde::C(cde::kIconColor[1]))
                    .overlay(cde::bevel(2, false, false)))
         .child(box()
-                   .left(Dim(5))
-                   .top(Dim(4))
-                   .width(Dim(38))
-                   .height(Dim(13))
+                   .left(Dimension(5))
+                   .top(Dimension(4))
+                   .width(Dimension(38))
+                   .height(Dimension(13))
                    .fill(s.sel)
                    .alignItems(Align::Center)
                    .justify(Justify::Center)
                    .child(cde::label("Jul", s.fg, 11)))
         .child(box()
-                   .left(Dim(5))
-                   .top(Dim(18))
-                   .width(Dim(38))
-                   .height(Dim(24))
+                   .left(Dimension(5))
+                   .top(Dimension(18))
+                   .width(Dimension(38))
+                   .height(Dimension(24))
                    .alignItems(Align::Center)
                    .justify(Justify::Center)
                    .child(cde::label("22", cde::C(cde::kIconColor[0]), 19)));
@@ -645,8 +665,8 @@ struct CdeMotifSketch : sketch::Sketch {
         const int i = r * 2 + c;
         const Set& ws = theme[kSets[i]];
         rr.child(box()
-                     .width(Dim(129))
-                     .height(Dim(22))
+                     .width(Dimension(129))
+                     .height(Dimension(22))
                      .fill(ws.bg)
                      .overlay(cde::bevel(2, false, false))
                      .row()
@@ -661,21 +681,21 @@ struct CdeMotifSketch : sketch::Sketch {
                        .gap(4)
                        .alignItems(Align::Center)
                        .justify(Justify::Center)
-                       .width(Dim(26))
+                       .width(Dimension(26))
                        .child(cde::art(cde::icoLock(), 2.0f))
                        .child(box()
-                                  .width(Dim(10))
-                                  .height(Dim(10))
+                                  .width(Dimension(10))
+                                  .height(Dimension(10))
                                   .fill(cde::C(0x00C000))
                                   .overlay(cde::bevel(1, true, false))
                                   .opacity(motion::bind(&busy).quantize(2)));
     Element right = box()
-                        .width(Dim(26))
+                        .width(Dimension(26))
                         .alignItems(Align::Center)
                         .justify(Justify::Center)
                         .child(cde::art(cde::icoExit(), 2.0f));
     return box()
-        .width(Dim(324))
+        .width(Dimension(324))
         .row()
         .alignItems(Align::Center)
         .justify(Justify::Center)
@@ -688,7 +708,7 @@ struct CdeMotifSketch : sketch::Sketch {
   Element frontPanel() {
     const Set& s = theme[2];  // dtsession: the primary colour set
 
-    Element rowEl = box().row().alignItems(Align::Center).height(Dim(74));
+    Element rowEl = box().row().alignItems(Align::Center).height(Dimension(74));
     rowEl.child(handle());
     rowEl.child(panelSeparator());
     rowEl.child(control(clockIcon(), 58, false));
@@ -750,8 +770,10 @@ struct CdeMotifSketch : sketch::Sketch {
                                  .gap(6)
                                  .child(cde::art(cde::icoHelp(), 1.4f))
                                  .child(cde::art(cde::icoApps(), 1.4f)))
-                      .child(box().height(Dim(6)).width(Dim(60)).overlay(
-                          cde::bevel(2, true, true)));
+                      .child(box()
+                                 .height(Dimension(6))
+                                 .width(Dimension(60))
+                                 .overlay(cde::bevel(2, true, true)));
     return col.mask(by::edge(270.0f, &subpanel));  // 270 = from the BOTTOM
   }
 
@@ -769,8 +791,8 @@ struct CdeMotifSketch : sketch::Sketch {
         .alignItems(Align::Center)
         .gap(2)
         .child(box()
-                   .width(Dim(64))
-                   .height(Dim(64))
+                   .width(Dimension(64))
+                   .height(Dimension(64))
                    .fill(s.bg)
                    .overlay(cde::bevel(2, false, false))
                    .alignItems(Align::Center)
@@ -784,7 +806,7 @@ struct CdeMotifSketch : sketch::Sketch {
   }
 
   Element describe(sketch::SketchContext& ctx) {
-    Element root = stack().width(Dim(1152)).height(Dim(900));
+    Element root = stack().width(Dimension(1152)).height(Dimension(900));
 
     // 1. The root window: PinStripe, tiled, in colour set 3's shadows.
     //    ONE 28 x 52 pixmap that dtwm tiles — not instanced, not
@@ -795,30 +817,38 @@ struct CdeMotifSketch : sketch::Sketch {
                    .cache(Cache::Texture));
 
     // 2. The File Manager.
-    root.child(fileManager().left(Dim(40)).top(Dim(48)).width(Dim(600)).height(
-        Dim(452)));
+    root.child(fileManager()
+                   .left(Dimension(40))
+                   .top(Dimension(48))
+                   .width(Dimension(600))
+                   .height(Dimension(452)));
 
     // 3. The Style Manager's Color dialog.
-    root.child(colorDialog().left(Dim(664)).top(Dim(96)).width(Dim(452)).height(
-        Dim(356)));
+    root.child(colorDialog()
+                   .left(Dimension(664))
+                   .top(Dimension(96))
+                   .width(Dimension(452))
+                   .height(Dimension(356)));
 
     // 4. A posted (torn-off) menu.
-    root.child(postedMenu().left(Dim(700)).top(Dim(506)));
+    root.child(postedMenu().left(Dimension(700)).top(Dimension(506)));
 
     // 5. The derivation strip — the only smooth motion on the canvas.
-    root.child(slot("derivation").left(Dim(40)).top(Dim(536)));
+    root.child(slot("derivation").left(Dimension(40)).top(Dimension(536)));
 
     // 6. The Help subpanel, wiping up out of the panel. The Help control
     //    sits at x = 912..968, so the subpanel is centred on it and its
     //    bottom edge meets the panel's top.
-    root.child(
-        helpSubpanel().left(Dim(865)).top(Dim(700)).width(Dim(150)).height(
-            Dim(106)));
+    root.child(helpSubpanel()
+                   .left(Dimension(865))
+                   .top(Dimension(700))
+                   .width(Dimension(150))
+                   .height(Dimension(106)));
 
     // 6b. Iconified windows on the root, where dtwm parks them.
     root.child(box()
-                   .left(Dim(48))
-                   .top(Dim(690))
+                   .left(Dimension(48))
+                   .top(Dimension(690))
                    .row()
                    .gap(34)
                    .child(iconifiedWindow("Terminal", cde::icoEditor()))
@@ -827,8 +857,11 @@ struct CdeMotifSketch : sketch::Sketch {
 
     // 7. The Front Panel, bottom-centred. 960 wide => 948 of content,
     //    which is exactly the measured control list.
-    root.child(frontPanel().left(Dim(96)).top(Dim(806)).width(Dim(960)).height(
-        Dim(86)));
+    root.child(frontPanel()
+                   .left(Dimension(96))
+                   .top(Dimension(806))
+                   .width(Dimension(960))
+                   .height(Dimension(86)));
 
     (void)ctx;
     return root;
@@ -902,7 +935,7 @@ struct CdeMotifSketch : sketch::Sketch {
           ((int)std::floor(elapsed / 3.0)) % (int)cde::kPalettes.size();
       theme.load(*cde::kPalettes[(size_t)paletteIndex]);
       // A palette change is a re-describe, which is what the inherited
-      // channel makes it: the reconciler patches the nodes whose props
+      // channel makes it: the reconciler patches the nodes whose properties
       // moved and leaves the rest, where a bound colour would have made
       // every node on the desktop volatile for ever to save this.
       ctx.composer.render(describe(ctx));

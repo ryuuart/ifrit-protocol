@@ -73,7 +73,7 @@ inline sigil::weave::TextStyle uiB(float size, SkColor4f color,
 /** One line of the panel. */
 inline sigil::compose::Element t(std::string_view line,
                                  sigil::weave::TextStyle style) {
-  return sigil::compose::text(sigil::compose::toU8(line), std::move(style));
+  return sigil::compose::text(sigil::compose::toUtf8(line), std::move(style));
 }
 
 /** The same register as a PEN's type, for the study that draws its panel

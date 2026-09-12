@@ -35,7 +35,7 @@ sigil_library(SigilComposeBrush
           # kernel's StrokeResolver and MaskResolver seams
           StrokePainting.cpp SpanNormalForm.cpp Band.cpp Masks.cpp
           SpanArithmetic.h SpanContours.h
-  HEADERS Adaptors.h Brush.h Brushes.h Decorations.h GeometryOps.h Hatches.h
+  HEADERS Adaptors.h Brush.h Brushes.h Decorations.h GeometryOperations.h Hatches.h
           Ribbons.h Stamps.h
           LayerStyles.h Layered.h Lines.h PixelStyles.h Rails.h
           ../kit/Flourish.h ../kit/Ornament.h ../kit/Plate.h ../kit/Strokes.h

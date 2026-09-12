@@ -103,13 +103,13 @@ inline sigil::compose::Element specimen(std::string_view caption,
                                         float gap = 8.0f) {
   // A caption stacked over its body is the compose kit's cell in its
   // type-specimen reading; only the register and the measure are this
-  // plate's, and both are props.
+  // plate's, and both are properties.
   return sigil::compose::kit::cell(
       {.where = sigil::compose::kit::Caption::Where::Above,
        .label = style,
        .gap = gap,
        .labelMeasure = captionWidth},
-      sigil::compose::toU8(caption), {}, std::move(column));
+      sigil::compose::toUtf8(caption), {}, std::move(column));
 }
 
 }  // namespace vertical

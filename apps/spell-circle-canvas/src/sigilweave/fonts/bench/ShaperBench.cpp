@@ -54,8 +54,8 @@ void BM_ShapeWord_Cold(benchmark::State& state) {
     sigil::test::fonts().purgeShapeCache();
     state.ResumeTiming();
     for (const std::u16string& word : words.words) {
-      ShapedWordRef shaped = shapeWord(sigil::test::fonts(), style, typeface,
-                                       word, words.script, false);
+      ShapedWordReference shaped = shapeWord(
+          sigil::test::fonts(), style, typeface, word, words.script, false);
       benchmark::DoNotOptimize(shaped.get());
     }
   }
@@ -75,8 +75,8 @@ void BM_ShapeWord_Warm(benchmark::State& state) {
                     false);
   for ([[maybe_unused]] auto iteration : state) {
     for (const std::u16string& word : words.words) {
-      ShapedWordRef shaped = shapeWord(sigil::test::fonts(), style, typeface,
-                                       word, words.script, false);
+      ShapedWordReference shaped = shapeWord(
+          sigil::test::fonts(), style, typeface, word, words.script, false);
       benchmark::DoNotOptimize(shaped.get());
     }
   }

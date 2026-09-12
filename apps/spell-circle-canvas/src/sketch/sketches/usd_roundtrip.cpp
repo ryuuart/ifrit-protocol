@@ -101,7 +101,7 @@ sketch::kit::Theme sheetTheme() {
 }  // namespace
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -143,7 +143,7 @@ const char* kindName(world::light::Kind kind) {
 Element cell(const std::string& key, const char* heading,
              const std::string& reading, gm::Mesh mesh, camera::Camera lens) {
   return sketch::kit::caption(
-      kCell, toU8(heading), toU8(reading),
+      kCell, toUtf8(heading), toUtf8(reading),
       sketch::kit::well(
           {.width = kCell, .height = kPicture, .clip = false},
           custom(key, [mesh = std::move(mesh), lens](SkCanvas& canvas,
@@ -257,14 +257,14 @@ struct UsdRoundtrip final : sketch::Sketch {
       foot += "   \xc2\xb7   a package layer is not written through save()";
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("USD ROUND TRIP \xc2\xb7 usd::Writer "
-                       "\xe2\x86\x92 readModel / readLights / "
-                       "readCameras"),
-         .subtitle = toU8("dials \xc2\xb7 the format (.usdc, "
-                          ".usda, .usdz) \xc2\xb7 metersPerUnit "
-                          "\xe2\x80\x94 each cell drawn from the "
-                          "camera its own file gave back"),
-         .footer = toU8(foot)},
+        {.title = toUtf8("USD ROUND TRIP \xc2\xb7 usd::Writer "
+                         "\xe2\x86\x92 readModel / readLights / "
+                         "readCameras"),
+         .subtitle = toUtf8("dials \xc2\xb7 the format (.usdc, "
+                            ".usda, .usdz) \xc2\xb7 metersPerUnit "
+                            "\xe2\x80\x94 each cell drawn from the "
+                            "camera its own file gave back"),
+         .footer = toUtf8(foot)},
         kit::cells(std::move(shelf))));
   }
 };

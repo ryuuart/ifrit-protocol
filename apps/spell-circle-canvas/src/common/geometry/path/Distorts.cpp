@@ -20,10 +20,10 @@
 
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Numeric.h"
-#include "sigilgeometry/path/Ops.h"
+#include "sigilgeometry/path/Operations.h"
 #include "sigilgeometry/path/Polyline.h"
 
-namespace sigil::geometry::path::ops {
+namespace sigil::geometry::path::operations {
 
 namespace {
 
@@ -166,4 +166,4 @@ SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength) {
   return out.detach();
 }
 
-}  // namespace sigil::geometry::path::ops
+}  // namespace sigil::geometry::path::operations

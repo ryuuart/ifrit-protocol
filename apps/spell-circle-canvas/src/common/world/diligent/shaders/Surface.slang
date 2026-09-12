@@ -272,7 +272,7 @@ void tangentAxes(float3 n, float3 p, float2 uv, out float3 t, out float3 b) {
  *  running. */
 float3 environmentAt(float3 direction, float roughness) {
   let d = normalizeP(mul(uEnvMatrix, float4(direction, 0.0)).xyz);
-  let uv = equirectUv(d);
+  let uv = equirectangularUv(d);
   let level = roughnessLevel(roughness + uEnvDials.z, uEnvDials.w);
   let a = uEnvironment.SampleLevel(uv, level).rgb;
   let b = uEnvironmentNext.SampleLevel(uv, level).rgb;
@@ -282,7 +282,7 @@ float3 environmentAt(float3 direction, float roughness) {
 /** …and what falls on a surface facing that way from everywhere. */
 float3 irradianceAt(float3 normal) {
   let d = normalizeP(mul(uEnvMatrix, float4(normal, 0.0)).xyz);
-  let uv = equirectUv(d);
+  let uv = equirectangularUv(d);
   let a = uIrradiance.SampleLevel(uv, 0.0).rgb;
   let b = uIrradianceNext.SampleLevel(uv, 0.0).rgb;
   return mixP(a, b, uEnvTint.a) * uEnvTint.rgb * uEnvDials.x;

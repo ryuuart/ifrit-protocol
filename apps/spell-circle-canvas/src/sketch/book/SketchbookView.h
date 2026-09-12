@@ -103,7 +103,7 @@ class SketchbookView : public QQuickRhiItem {
   /** Where a sketch looks for what it did not generate. Empty means
    *  `assets/` beside whichever file is open, which is what makes a
    *  directory of sketches outside this repository a place to work. */
-  static std::filesystem::path assetsDir;
+  static std::filesystem::path assetsDirectory;
   static std::filesystem::path flagsFile;
   /** WHAT EVERY SESSION THIS WINDOW OPENS SHAPES TEXT WITH — the
    *  process's one font context, handed over by main() before QML loads.

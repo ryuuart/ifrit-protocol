@@ -86,7 +86,7 @@ void BM_CreateDestroyTexture(benchmark::State &state) {
     state.SkipWithError("no Metal device");
     return;
   }
-  TextureDesc desc;
+  TextureDescription desc;
   desc.width = 64;
   desc.height = 64;
   for ([[maybe_unused]] auto iteration : state) {

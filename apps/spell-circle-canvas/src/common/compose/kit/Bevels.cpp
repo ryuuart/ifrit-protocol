@@ -6,7 +6,7 @@
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/kit/Chrome.h>
-#include <sigilcore/reconcile/Env.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/skia/Color.h>
 
@@ -70,7 +70,9 @@ void Bevel::paint(SkCanvas& c, const PaintContext& ctx) const {
        inner->ends);
 }
 
-Bevel ambientBevel(Bevel fallback) { return core::env::inheritedOr(fallback); }
+Bevel ambientBevel(Bevel fallback) {
+  return core::environment::inheritedOr(fallback);
+}
 
 Element& bevelled(Element& e, const Bevel& b) {
   Bevel outer = b;

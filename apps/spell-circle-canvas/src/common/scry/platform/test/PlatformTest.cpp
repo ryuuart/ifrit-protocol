@@ -24,7 +24,7 @@
 
 #include "FileSystem.h"
 #include "Logger.h"
-#include "ResourceDir.h"
+#include "ResourceDirectory.h"
 #include "ScratchDir.h"
 #include "SkiaSurface.h"
 
@@ -158,13 +158,13 @@ TEST(ScryPlatform, LoggerMapsLevelsAndRoutesToTheCallback) {
 }
 
 TEST(ScryPlatform, ResourceDirIsStagedNextToTheExecutable) {
-  const std::string staged = executableAdjacentResourceDir();
+  const std::string staged = executableAdjacentResourceDirectory();
   ASSERT_FALSE(staged.empty()) << "ultralight_copy_resources() stages it";
   EXPECT_TRUE(std::filesystem::is_regular_file(std::filesystem::path(staged) /
                                                "icudt67l.dat"));
   // The configured directory wins; otherwise the staged one.
-  EXPECT_EQ(resolveResourceDir("/explicit"), "/explicit");
-  EXPECT_EQ(resolveResourceDir(""), staged);
+  EXPECT_EQ(resolveResourceDirectory("/explicit"), "/explicit");
+  EXPECT_EQ(resolveResourceDirectory(""), staged);
   // The probe answers over that same resolved directory: the runtime data
   // is there, so it says yes and writes no reason. A machine missing it
   // gets the reason instead, which is what a caller shows in place of the

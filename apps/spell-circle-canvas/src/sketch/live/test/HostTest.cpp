@@ -48,7 +48,7 @@ const Entry kRestarted{"restarted", "restarted", "Test", "", &restartedKind};
 Host::Options options(const std::filesystem::path& path) {
   Host::Options opts;
   opts.sketchPath = path;
-  opts.assetsDir = std::filesystem::temp_directory_path();
+  opts.assetsDirectory = std::filesystem::temp_directory_path();
   opts.flagsFile = std::filesystem::temp_directory_path() / "no_such.rsp";
   opts.compiledIn = &kSquare;
   return opts;
@@ -257,7 +257,7 @@ TEST(SketchHost, KeepsRefusingAfterTheBinaryOnDiskIsReplaced) {
 TEST(SketchHost, ReportsWaitingWhenNothingHasLoaded) {
   Host::Options opts;
   opts.sketchPath = std::filesystem::temp_directory_path() / "absent.cpp";
-  opts.assetsDir = std::filesystem::temp_directory_path();
+  opts.assetsDirectory = std::filesystem::temp_directory_path();
   opts.flagsFile = std::filesystem::temp_directory_path() / "no_such.rsp";
   Host host(std::move(opts), fonts());
   EXPECT_FALSE(host.live());
@@ -278,7 +278,7 @@ pid_t unusedPid() {
   return 0;
 }
 
-TEST(SketchHostBuildDir, StandsWhileTheHostLivesAndGoesWithIt) {
+TEST(SketchHostBuildDirectory, StandsWhileTheHostLivesAndGoesWithIt) {
   // The objects and the dylibs a run compiles serve nobody once it ends:
   // the table that decides a rebuild is in memory, so no later run reads
   // a byte of them, and the directory's name carries a pid no later run
@@ -287,14 +287,14 @@ TEST(SketchHostBuildDir, StandsWhileTheHostLivesAndGoesWithIt) {
   std::filesystem::path dir;
   {
     Host host(options(file.path), fonts());
-    dir = host.buildDir();
+    dir = host.buildDirectory();
     ASSERT_FALSE(dir.empty());
     EXPECT_TRUE(std::filesystem::is_directory(dir));
   }
   EXPECT_FALSE(std::filesystem::exists(dir));
 }
 
-TEST(SketchHostBuildDir, SweepsAGoneProcessAndLeavesALiveOneStanding) {
+TEST(SketchHostBuildDirectory, SweepsAGoneProcessAndLeavesALiveOneStanding) {
   // A run that was killed or that faulted never reached the removal
   // above. The pid in the name is what says which is which, and only
   // "nobody holds it" removes anything — a directory belonging to a
@@ -311,7 +311,7 @@ TEST(SketchHostBuildDir, SweepsAGoneProcessAndLeavesALiveOneStanding) {
   std::ofstream(abandoned / "sketch_1.dylib") << "a library nobody holds\n";
   std::filesystem::create_directories(live);
 
-  Host::sweepAbandonedBuildDirs();
+  Host::sweepAbandonedBuildDirectories();
 
   EXPECT_FALSE(std::filesystem::exists(abandoned));
   EXPECT_TRUE(std::filesystem::is_directory(live));
@@ -353,7 +353,7 @@ std::string stubCompiler(const std::filesystem::path& script) {
   return false;
 }
 
-TEST(SketchHostBuildDir, TwoHostsInOneProcessNeverLinkOverEachOther) {
+TEST(SketchHostBuildDirectory, TwoHostsInOneProcessNeverLinkOverEachOther) {
   // Every host in a process links into ONE directory, and the window
   // keeps three sketches resident, each with a host of its own. A build
   // named by its generation alone would have all of them writing
@@ -388,7 +388,8 @@ TEST(SketchHostBuildDir, TwoHostsInOneProcessNeverLinkOverEachOther) {
 
   std::vector<std::string> libraries;
   std::error_code ec;
-  for (auto it = std::filesystem::directory_iterator(square.buildDir(), ec);
+  for (auto it =
+           std::filesystem::directory_iterator(square.buildDirectory(), ec);
        !ec && it != std::filesystem::directory_iterator(); it.increment(ec))
     if (it->path().extension() == ".dylib")
       libraries.push_back(it->path().filename().string());

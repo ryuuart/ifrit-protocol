@@ -69,7 +69,7 @@ bool declaresUniform(const sk_sp<SkRuntimeEffect>& effect,
                      std::string_view name, size_t bytes);
 
 /** THE PASS SPECIALIZATION of @p authored at @p units: a recipe with the
- *  same params ABI whose SkSL body is the runtime's declarations —
+ *  same parameters ABI whose SkSL body is the runtime's declarations —
  *  `uContent`, `uUnitRect[N]`, `uUnitPhase[N]`, `kUnitCount` — followed by
  *  the author's, held once per distinct (recipe, N) for the process. The
  *  unit count must be baked into the definition because a runtime effect's

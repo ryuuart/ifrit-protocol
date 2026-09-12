@@ -46,7 +46,7 @@
 //
 //  * `jello` shears on BOTH axes — the published rule is
 //    `skewX(a) skewY(a)`, the same angle on each — so the word rocks on a
-//    diagonal. The two angles ride one `GlyphMod` and reach the glyph as a
+//    diagonal. The two angles ride one `GlyphModifier` and reach the glyph as a
 //    single shear pair.
 //  * CSS crosses EACH KEYFRAME SEGMENT with its own timing function, `ease`
 //    by default, rather than running one curve across the whole list. That
@@ -181,7 +181,7 @@ Table jelloTable() {
 /** The deviation at one moment, for the graphs: the effects are pure
  *  functions of local time here, so the picture is read out of the same
  *  value the glyphs are drawn from. */
-GlyphMod at(const TextEffect& effect, float t) {
+GlyphModifier at(const TextEffect& effect, float t) {
   GlyphInfo glyph;
   sigil::core::noise::Mix64Stream rng(1);
   return effect(glyph, t, rng);
@@ -230,7 +230,7 @@ Ticks shearTicks() {
  *  are the value range the plot's height spans, and @p ticks are the values
  *  it rules. */
 Element graph(const char* key, TextEffect effect, Table table,
-              float (*lane)(const GlyphMod&), SkColor4f color, float lo,
+              float (*lane)(const GlyphModifier&), SkColor4f color, float lo,
               float hi, float rest, Ticks ticks) {
   kit::Plot frame{.fromY = lo, .toY = hi, .rule = kFaint, .markRadius = 2.6f};
   for (const Tick& tick : ticks)
@@ -283,9 +283,9 @@ struct ElasticType : sketch::Sketch {
     return box()
         .column()
         .gap(8)
-        .child(text(toU8(caption), small(kLabel)))
+        .child(text(toUtf8(caption), small(kLabel)))
         .child(kit::restGhost(
-            text(toU8(word), set)
+            text(toUtf8(word), set)
                 .key(word)
                 .fx({.effect = std::move(effect),
                      .stagger = {.eachMs = kEachMs, .durationMs = kDurMs},
@@ -305,7 +305,7 @@ struct ElasticType : sketch::Sketch {
                         .stroke(stroke(1.0f, Fill::color(kFaint)))
                         .child(std::move(inner).inset(0));
     for (const Tick& tick : ticks)
-      frame.child(text(toU8(tick.label), small(kLabel, 9.5f, 0.4f))
+      frame.child(text(toUtf8(tick.label), small(kLabel, 9.5f, 0.4f))
                       .absolute()
                       .right(5)
                       // Held inside the frame: a value at the very top of the
@@ -318,7 +318,7 @@ struct ElasticType : sketch::Sketch {
         .grow(1)
         .gap(7)
         .child(std::move(frame))
-        .child(text(toU8(title), small(kLabel, 11.0f, 0.8f)));
+        .child(text(toUtf8(title), small(kLabel, 11.0f, 0.8f)));
   }
 
   [[nodiscard]] Element describe() {
@@ -332,15 +332,15 @@ struct ElasticType : sketch::Sketch {
         .child(box()
                    .row()
                    .alignItems(Align::End)
-                   .child(text(toU8("ELASTIC TYPE"), small(kInk, 12.5f, 3.4f))
+                   .child(text(toUtf8("ELASTIC TYPE"), small(kInk, 12.5f, 3.4f))
                               .grow(1))
-                   .child(text(toU8("ANIMATE.CSS 2013 \xc2\xb7 SQUASH AND "
-                                    "STRETCH 1981"),
+                   .child(text(toUtf8("ANIMATE.CSS 2013 \xc2\xb7 SQUASH AND "
+                                      "STRETCH 1981"),
                                small(kFaint))))
         .child(box().height(1).fill(Fill::color(kFaint)))
-        .child(text(toU8("GREY IS THE REST POSE, SHARING THE LIVE LINE'S "
-                         "ORIGIN \xe2\x80\x94 WHERE IT SHOWS, THAT LETTER "
-                         "IS DEFORMED"),
+        .child(text(toUtf8("GREY IS THE REST POSE, SHARING THE LIVE LINE'S "
+                           "ORIGIN \xe2\x80\x94 WHERE IT SHOWS, THAT LETTER "
+                           "IS DEFORMED"),
                     small(kRest, 10.5f, 0.6f)))
         .child(row("RUBBERBAND",
                    "rubberBand \xc2\xb7 SEVEN STOPS ON TWO SCALE AXES",
@@ -350,36 +350,37 @@ struct ElasticType : sketch::Sketch {
                    "BOTH AXES",
                    fx::keys(jelloTable(), &cssEase)))
         .child(box().grow(1))
-        .child(box()
-                   .row()
-                   .gap(28)
-                   .height(146)
-                   .child(plot("rubberBand \xe2\x80\x94 scaleX 0.75 TO 1.25",
-                               graph(
-                                   "g-rx", fx::keys(rubberTable(), &cssEase),
-                                   rubberTable(),
-                                   [](const GlyphMod& m) { return m.scaleX; },
-                                   kX, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
-                               kScaleLo, kScaleHi, scaleTicks()))
-                   .child(plot("rubberBand \xe2\x80\x94 scaleY 0.75 TO 1.25",
-                               graph(
-                                   "g-ry", fx::keys(rubberTable(), &cssEase),
-                                   rubberTable(),
-                                   [](const GlyphMod& m) { return m.scaleY; },
-                                   kY, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
-                               kScaleLo, kScaleHi, scaleTicks()))
-                   .child(plot("jello \xe2\x80\x94 skewX = skewY \xc2\xb1"
-                               "12.5\xc2\xb0, HALVING",
-                               graph(
-                                   "g-j", fx::keys(jelloTable(), &cssEase),
-                                   jelloTable(),
-                                   [](const GlyphMod& m) { return m.skewXDeg; },
-                                   kX, kShearLo, kShearHi, 0.0f, shearTicks()),
-                               kShearLo, kShearHi, shearTicks())))
-        .child(text(toU8("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
-                         "DEVIATION AN RSXFORM CANNOT CARRY \xc2\xb7 EVERY "
-                         "GLYPH ON THESE TWO LINES DRAWS UNDER ITS OWN "
-                         "MATRIX"),
+        .child(
+            box()
+                .row()
+                .gap(28)
+                .height(146)
+                .child(plot("rubberBand \xe2\x80\x94 scaleX 0.75 TO 1.25",
+                            graph(
+                                "g-rx", fx::keys(rubberTable(), &cssEase),
+                                rubberTable(),
+                                [](const GlyphModifier& m) { return m.scaleX; },
+                                kX, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
+                            kScaleLo, kScaleHi, scaleTicks()))
+                .child(plot("rubberBand \xe2\x80\x94 scaleY 0.75 TO 1.25",
+                            graph(
+                                "g-ry", fx::keys(rubberTable(), &cssEase),
+                                rubberTable(),
+                                [](const GlyphModifier& m) { return m.scaleY; },
+                                kY, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
+                            kScaleLo, kScaleHi, scaleTicks()))
+                .child(plot(
+                    "jello \xe2\x80\x94 skewX = skewY \xc2\xb1"
+                    "12.5\xc2\xb0, HALVING",
+                    graph(
+                        "g-j", fx::keys(jelloTable(), &cssEase), jelloTable(),
+                        [](const GlyphModifier& m) { return m.skewXDeg; }, kX,
+                        kShearLo, kShearHi, 0.0f, shearTicks()),
+                    kShearLo, kShearHi, shearTicks())))
+        .child(text(toUtf8("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
+                           "DEVIATION AN RSXFORM CANNOT CARRY \xc2\xb7 EVERY "
+                           "GLYPH ON THESE TWO LINES DRAWS UNDER ITS OWN "
+                           "MATRIX"),
                     small(kFaint, 11.0f, 0.6f)));
   }
 

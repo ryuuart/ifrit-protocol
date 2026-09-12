@@ -96,7 +96,7 @@ frame.extent({1280, 720})
      .pass(postPass("bloom")
                .reads("colour")
                .writes("lit")
-               .only(sel::tag("glow"))
+               .only(selectors::tag("glow"))
                .blur(9.0f))
      .pass(postPass("trail")
                .reads("lit")
@@ -168,7 +168,7 @@ CPU rasterizer and the device pipeline.
 ## Mental model
 
 **A description is a value; a node is what it became.** `Element` is
-copy-on-write and comparable. `propsEqual` rules on every one of its
+copy-on-write and comparable. `propertiesEqual` rules on every one of its
 fields, pinned by a field count that fails the build when the struct
 changes, and answers false for anything it cannot compare — a field left
 out of the comparison does not produce a wrong answer where the mistake
@@ -243,7 +243,7 @@ a tree prunes on a node.
 |---|---|
 | `reads(names…)` / `writes(names…)` | the resources this pass touches, by name. The first name it writes is what its stage paints into |
 | `previous(name)` | that resource AS IT STOOD at the end of the frame before. It orders nothing, which is how a feedback loop is declared without a cycle |
-| `only(Selector)` | which bodies the pass addresses — `sel::tag`, `sel::key`, `sel::under`, `sel::material`, composed with `\|`, `&` and `!` |
+| `only(Selector)` | which bodies the pass addresses — `selectors::tag`, `selectors::key`, `selectors::under`, `selectors::material`, composed with `\|`, `&` and `!` |
 | `variant(Material)` | …drawn again in that surface |
 | `realise(Selection)` | override how the selection reaches the pixels |
 | `clear(SkColor4f)` | what a geometry pass clears its target to |
@@ -292,7 +292,7 @@ where a device is present states them where they cannot be tested.
 |---|---|---|
 | nothing narrowed | `Selection::None` — every body | there is no selection |
 | a geometry pass with `only` | `Cull` — only the selected bodies are drawn | a pass that paints bodies can simply paint fewer |
-| a post pass with `only` | `Mask` — the picture stands everywhere and the op reaches it through coverage, which the graph makes the last geometry pass before it also write | a post pass has no bodies; it has pixels, and the selection has to arrive as pixels too |
+| a post pass with `only` | `Mask` — the picture stands everywhere and the operation reaches it through coverage, which the graph makes the last geometry pass before it also write | a post pass has no bodies; it has pixels, and the selection has to arrive as pixels too |
 
 | `variant(surface)` | `Variant` — the selection is drawn again in that surface | it is a re-draw by definition |
 | `realise(…)` | exactly that | a pass that knows better says so |
@@ -330,8 +330,8 @@ and these are the names it reads them with:
 - `lanesOf(node, out)` reads a node's fixed lanes in `Slot` order and
   `standingValue(slot)` is what a lane holds when nothing animates it;
   `localMatrix(values)` is a placement's own matrix;
-- `GeneratorOps` is the seam a geometry that cooks itself implements,
-  and `PassBodyOps` the seam a pass that does its own work implements —
+- `GeneratorOperations` is the seam a geometry that cooks itself implements,
+  and `PassBodyOperations` the seam a pass that does its own work implements —
   both carried as comparable values, so a frame holding one prunes on
   it like any other field.
 
@@ -365,7 +365,7 @@ surfaces:
 - a **post pass** takes its layers — the images it reads, then the
   images it named through `previous()` — softens, grades or lays them
   one over another, and writes the result. Masked, the first layer
-  stands everywhere and the op reaches it only through the coverage.
+  stands everywhere and the operation reaches it only through the coverage.
 
 A pass carrying a body runs that body instead, and the declarations
 around it are unchanged.
@@ -410,7 +410,7 @@ and nothing of the engine.
   only when its length was even. A blur is a separable Gaussian in two
   draws through a working target, a grade is one draw, and a composite
   lays each further layer over the first under a blend state. Masked, the
-  picture is copied first and the op reaches it through the coverage.
+  picture is copied first and the operation reaches it through the coverage.
   A device cannot sample an image it is drawing into, so every stage that
   reads and writes at once takes a working target of its own — including
   a pass that declares it writes what it reads, which on the host is
@@ -570,7 +570,7 @@ itself. Operation by operation:
 | core operation | what this host does |
 |---|---|
 | `keyOf` | the description's `key` |
-| `equal` | `propsEqual` — every field of `ElementNode`, with the geometry slot's variant equality standing in for a kind comparison |
+| `equal` | `propertiesEqual` — every field of `ElementNode`, with the geometry slot's variant equality standing in for a kind comparison |
 | `reconcilesChildren` | true: children are described, never filled by another path |
 | `children` / `descriptionOf` | the description's `children`, and the node handle off each `Element` |
 | `memoOf` / `produce` | the description's `Memo`, and the deferred describe run under the environment its author had |
@@ -678,7 +678,7 @@ per vertex, so:
   interpolates between, so a coarse mesh under a bright sky reads as
   facets where a device reads as a curve, and the two tiers' plates are
   compared within a ceiling that says so. The surface's metallic and
-  roughness are read off the material's params by name, one number over
+  roughness are read off the material's parameters by name, one number over
   the whole body: there is no per-pixel half here and no map is sampled
   for either.
 - GLASS is where the two tiers part company most. `transmission`, `ior`
@@ -743,7 +743,7 @@ exercise every feature this library has:
   set: one plain, one a STACK of two through a mask, one wearing a normal
   map, one wearing a packed roughness-and-metallic map read at two
   channels, and one that emits in a pattern. Every card is chosen because
-  the device SHADES it, so the device plate is what the params and the
+  the device SHADES it, so the device plate is what the parameters and the
   maps say; the CPU plate is five flat colours and the floor's weave,
   because that tier reads a base colour and a base-colour map and nothing
   else. The cards are curved rather than flat, because a Blinn highlight
@@ -771,7 +771,7 @@ exercise every feature this library has:
 - **`set_stagger`** — the entrances of a set's children, cascaded, and
   the two selectors that address a subtree afterwards. Two rows differ
   only in their spread's origin, so at one moment they hold different
-  shapes of the same cascade; `sel::under` and `sel::material` narrow a
+  shapes of the same cascade; `selectors::under` and `selectors::material` narrow a
   pass to one of them.
 - **`key_light`** — the emitter's dials. One still set under the kit's
   three-point rig, with the key light's strength and colour bound to live
@@ -1041,7 +1041,7 @@ and a rim term that nothing scales. So:
   the integral rather than a lookup table. What is implemented is the
   arithmetic above, and a metallic-roughness texture set therefore reads
   as a plausible surface rather than as the one a renderer with those
-  three would produce from the same params.
+  three would produce from the same parameters.
 - a foreign texture — one another engine, a decoder or a capture painted
   with the graphics API — reaches a slot through
   `diligent::importNative`, and is bound where it stands. It answers no

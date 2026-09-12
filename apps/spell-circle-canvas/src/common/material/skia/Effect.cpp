@@ -43,7 +43,14 @@ Effect Effect::recipe(const Material& material) {
   std::unique_ptr<SkRuntimeShaderBuilder> built =
       skia::builder(material, {}, {}, kContent);
   if (!built) return {};
-  return filter(SkImageFilters::RuntimeShader(*built, "content", nullptr));
+  Effect effect =
+      filter(SkImageFilters::RuntimeShader(*built, "content", nullptr));
+  if (!effect.m_filter) return {};
+  std::optional<Material> comparable;
+  if (!material.isAnimated()) comparable = material;
+  effect.m_recipeSnapshot = std::make_shared<const RecipeSnapshot>(
+      RecipeSnapshot{std::move(comparable), sk_ref_sp(built->effect())});
+  return effect;
 }
 
 namespace {
@@ -169,36 +176,40 @@ Effect Effect::then(const Effect& next) const {
   return e;
 }
 
-sk_sp<SkImageFilter> Effect::resolvedImageFilter(const PaintFrame* ctx) const {
+sk_sp<SkImageFilter> Effect::resolvedImageFilter(
+    const PaintFrame* paintFrame) const {
   if (m_chainA)
-    return SkImageFilters::Compose(m_chainB->resolvedImageFilter(ctx),
-                                   m_chainA->resolvedImageFilter(ctx));
+    return SkImageFilters::Compose(m_chainB->resolvedImageFilter(paintFrame),
+                                   m_chainA->resolvedImageFilter(paintFrame));
   // A context-needing child (live or geometry tier) has to be re-resolved
   // per paint; a static one is already in the snapshot. Same question
   // Material::build's memo asks of its children, same answer.
-  if (m_bound.empty() && m_blocks.empty() && !(ctx && anyChildNeedsContext()))
+  if (m_bound.empty() && m_blocks.empty() &&
+      !(paintFrame && anyChildNeedsContext()))
     return liftedFilter();
-  return buildFilter(ctx);
+  return buildFilter(paintFrame);
 }
 
 /** THE FILTER, built from the recipe — unconditionally, which is what
  *  separates it from resolvedImageFilter(): the store-time snapshot and the
  *  per-paint resolve are the SAME construction differing only in whether
- *  there is a context, exactly as Material::build(live, ctx) is. */
-sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* ctx) const {
-  if (m_paramBlur) {  // re-wrap the held pyramid with the parameter's scale
-    float sigma = m_paramBlur->maxSigma;
+ *  there is a context, exactly as Material::build(live, paintFrame) is. */
+sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
+  if (m_parametricBlur) {  // re-wrap the held pyramid with the parameter's
+                           // scale
+    float sigma = m_parametricBlur->maxSigma;
     for (const auto& [name, out] : m_bound)
       if (name == "maxSigma") sigma = motion::resolveFloatAt(nullptr, out);
     // A declared 0 holds no pyramid; a bound value then builds one at
     // the value, at every paint — the cost declaring the range avoids.
     const std::shared_ptr<const BlurLevels> levels =
         m_blurLevels ? m_blurLevels : makeBlurLevels(sigma);
-    return makeParamBlur(levels.get(), sigma, childShaderFor("sigma", ctx),
-                         ctx ? ctx->size : SkSize::MakeEmpty());
+    return makeParametricBlur(
+        levels.get(), sigma, childShaderFor("sigma", paintFrame),
+        paintFrame ? paintFrame->size : SkSize::MakeEmpty());
   }
-  if (m_dirBlur) {  // rebuild the sandwich from the bound parameters
-    DirectionalBlur d = *m_dirBlur;
+  if (m_directionalBlur) {  // rebuild the sandwich from the bound parameters
+    DirectionalBlur d = *m_directionalBlur;
     for (const auto& [name, out] : m_bound) {
       const float v = motion::resolveFloatAt(nullptr, out);
       if (name == "sigma")
@@ -225,7 +236,7 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* ctx) const {
   // contract: a child sees the SAME frame, because there is one node).
   // "content" is the library's and is filled by the factory below.
   for (const auto& [name, child] : m_children)
-    if (child) builder.child(name) = detail::childShader(*child, ctx);
+    if (child) builder.child(name) = detail::childShader(*child, paintFrame);
   if (m_gatheredHalo) {
     static const sk_sp<SkRuntimeEffect> composite =
         bloomProgram("phosphorBloom", "PhosphorComposite.sksl");
@@ -290,12 +301,22 @@ static bool childrenEqual(
 
 bool Effect::operator==(const Effect& o) const {
   if (isAnimated() || o.isAnimated())
-    return false;                    // live never prunes — the material rule
-  if (m_paramBlur || o.m_paramBlur)  // blur(): by RECIPE + the sigma MAP
-    return m_paramBlur == o.m_paramBlur &&
+    return false;  // live never prunes — the material rule
+  if (m_recipeSnapshot || o.m_recipeSnapshot) {
+    if (!m_recipeSnapshot || !o.m_recipeSnapshot) return false;
+    if (m_recipeSnapshot->program != o.m_recipeSnapshot->program) return false;
+    if (!m_recipeSnapshot->material || !o.m_recipeSnapshot->material)
+      return m_filter == o.m_filter;
+    return *m_recipeSnapshot->material == *o.m_recipeSnapshot->material;
+  }
+  if (m_parametricBlur ||
+      o.m_parametricBlur)  // blur(): by RECIPE + the sigma MAP
+    return m_parametricBlur == o.m_parametricBlur &&
            childrenEqual(m_children, o.m_children);
-  if (m_dirBlur || o.m_dirBlur)       // directionalBlur(): by RECIPE, so a
-    return m_dirBlur == o.m_dirBlur;  // re-described equal one prunes
+  if (m_directionalBlur ||
+      o.m_directionalBlur)  // directionalBlur(): by RECIPE, so a
+    return m_directionalBlur ==
+           o.m_directionalBlur;  // re-described equal one prunes
   if (m_effect || o.m_effect)
     return m_effect == o.m_effect && m_gatheredHalo == o.m_gatheredHalo &&
            m_uniforms == o.m_uniforms && m_uniforms2 == o.m_uniforms2 &&

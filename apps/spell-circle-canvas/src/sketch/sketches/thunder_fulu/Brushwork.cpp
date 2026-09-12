@@ -49,8 +49,8 @@ auto ThunderFulu::inkStroke(const Stroke& s) const -> Element {
   Element e = box()
                   .left(f.left())
                   .top(f.top())
-                  .width(Dim(f.width()))
-                  .height(Dim(f.height()))
+                  .width(Dimension(f.width()))
+                  .height(Dimension(f.height()))
                   .shape(heldPath(local))
                   .fill(Fill::none())
                   .stroke(std::move(brush))
@@ -119,8 +119,8 @@ auto ThunderFulu::ironGround() -> Element {
   g.child(box()
               .left(-16)
               .top(-8)
-              .width(Dim(kPW + 46))
-              .height(Dim(kPH + 44))
+              .width(Dimension(kPW + 46))
+              .height(Dimension(kPH + 44))
               .shape(shapes::chamfered(26.0f))
               .fill(Paint::radialUnit({0.5f, 0.5f}, 0.78f,
                                       {{0.0f, hexColor(0x000000, 0.66f)},

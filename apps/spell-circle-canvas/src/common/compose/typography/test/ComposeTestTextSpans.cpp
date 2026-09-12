@@ -73,8 +73,9 @@ TEST(TextRich, AChangedRunStylePatchesToo) {
 
 TEST(TextRich, NamedRunsResolveThroughTheAmbientStyleSet) {
   // How a name resolves is weave's (see its own test). What is this
-  // library's is the AMBIENT set: `env::Provide<weave::StyleSet>` reaches a
-  // text leaf described in its scope, and a set the value names beats it.
+  // library's is the AMBIENT set: `environment::Provide<weave::StyleSet>`
+  // reaches a text leaf described in its scope, and a set the value names beats
+  // it.
   const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
   sigil::weave::StyleSet reds;
   reds.set("accent", coloredStyle(20, SK_ColorRED));
@@ -87,16 +88,16 @@ TEST(TextRich, NamedRunsResolveThroughTheAmbientStyleSet) {
         box().padding(6).child(text(std::move(content)).key("t")));
     host.frame();
     const std::vector<TextUnit> units = host.composer.units(
-        "t", sel::style("accent"), sigil::weave::Unit::Cluster);
+        "t", selectors::style("accent"), sigil::weave::Unit::Cluster);
     return units.empty() ? SK_ColorTRANSPARENT
                          : units[0].style.paint.foreground.getColor();
   };
 
   {
-    core::env::Provide<sigil::weave::StyleSet> ambient(reds);
+    core::environment::Provide<sigil::weave::StyleSet> ambient(reds);
     EXPECT_EQ(accentColor(sigil::weave::rich(base).add(u8"x", "accent")),
               SK_ColorRED)
-        << "the env set never reached the leaf";
+        << "the environment set never reached the leaf";
     EXPECT_EQ(accentColor(
                   sigil::weave::rich(base).add(u8"x", "accent").styles(greens)),
               SK_ColorGREEN)
@@ -121,7 +122,7 @@ TEST(TextSpans, SpanPaintRecolorsWithoutReshaping) {
 
   host.composer.render(box().padding(10).child(
       text(body, base)
-          .spanPaint(sigil::weave::sel::regex(u8"[0-9]+"),
+          .spanPaint(sigil::weave::selectors::regex(u8"[0-9]+"),
                      sigil::weave::PaintStyle(SK_ColorRED))
           .key("t")));
   host.frame();
@@ -144,11 +145,11 @@ TEST(TextSpans, SpanStyleReshapesOnlyTheWordsItCovers) {
   ASSERT_EQ(before.size(), 3u);
 
   // The LAST word, so the two ahead of it keep their pen positions too.
-  host.composer.render(
-      box().padding(10).child(text(body, base)
-                                  .spanStyle(sigil::weave::sel::text(u8"gamma"),
-                                             coloredStyle(40, SK_ColorRED))
-                                  .key("t")));
+  host.composer.render(box().padding(10).child(
+      text(body, base)
+          .spanStyle(sigil::weave::selectors::text(u8"gamma"),
+                     coloredStyle(40, SK_ColorRED))
+          .key("t")));
   host.frame();
   const std::vector<const void*> after = runShapes(host, "t");
   ASSERT_EQ(after.size(), 3u);
@@ -165,9 +166,9 @@ TEST(TextSpans, ALaterRestyleWinsOnOverlap) {
 
   host.composer.render(box().padding(10).child(
       text(body, base)
-          .spanPaint(sigil::weave::sel::text(u8"beta"),
+          .spanPaint(sigil::weave::selectors::text(u8"beta"),
                      sigil::weave::PaintStyle(SK_ColorRED))
-          .spanPaint(sigil::weave::sel::words(0, 2),
+          .spanPaint(sigil::weave::selectors::words(0, 2),
                      sigil::weave::PaintStyle(SK_ColorGREEN))
           .key("t")));
   host.frame();
@@ -177,9 +178,9 @@ TEST(TextSpans, ALaterRestyleWinsOnOverlap) {
 
   host.composer.render(box().padding(10).child(
       text(body, base)
-          .spanPaint(sigil::weave::sel::words(0, 2),
+          .spanPaint(sigil::weave::selectors::words(0, 2),
                      sigil::weave::PaintStyle(SK_ColorGREEN))
-          .spanPaint(sigil::weave::sel::text(u8"beta"),
+          .spanPaint(sigil::weave::selectors::text(u8"beta"),
                      sigil::weave::PaintStyle(SK_ColorRED))
           .key("t")));
   host.frame();
@@ -201,7 +202,7 @@ TEST(TextSpans, ALineSelectorAddressesTheLayout) {
   host.composer.render(box().padding(10).child(
       text(body, base)
           .width(200)
-          .spanPaint(sigil::weave::sel::line(0),
+          .spanPaint(sigil::weave::selectors::line(0),
                      sigil::weave::PaintStyle(SK_ColorRED))
           .key("t")));
   host.frame();
@@ -251,13 +252,13 @@ TEST(TextStyleSelector, AddressesTheNamedRunsAndNotTheirWords) {
     return host.composer.beatsOf("t", 0);
   };
 
-  const std::vector<Beat> byName = wordsAddressed(sel::style("term"));
+  const std::vector<Beat> byName = wordsAddressed(selectors::style("term"));
   const std::vector<Beat> byWords =
-      wordsAddressed(sigil::weave::sel::text(u8"beta"));
+      wordsAddressed(sigil::weave::selectors::text(u8"beta"));
   ASSERT_EQ(byWords.size(), 3u) << "the three literal betas";
-  ASSERT_EQ(byName.size(), 2u)
-      << "the name caught a run nobody wrote it on — sel::style is matching "
-         "text rather than the runs the content named";
+  ASSERT_EQ(byName.size(), 2u) << "the name caught a run nobody wrote it on — "
+                                  "selectors::style is matching "
+                                  "text rather than the runs the content named";
   // …and they are the FIRST and THIRD of them, in place: the middle beta is
   // the one the name skips.
   EXPECT_EQ(byName[0].rect, byWords[0].rect);
@@ -281,19 +282,21 @@ TEST(TextStyleSelector, ComposesUnderTheSelectorAlgebra) {
   };
 
   const size_t whole = glyphsAddressed(sigil::weave::Selector{});
-  const size_t named = glyphsAddressed(sel::style("term"));
+  const size_t named = glyphsAddressed(selectors::style("term"));
   ASSERT_EQ(named, 8u) << "two four-letter runs";
-  EXPECT_EQ(glyphsAddressed(sigil::weave::sel::text(u8"beta")), 12u)
+  EXPECT_EQ(glyphsAddressed(sigil::weave::selectors::text(u8"beta")), 12u)
       << "three of them";
 
   // The three operators, against the same two runs.
-  EXPECT_EQ(glyphsAddressed(sel::style("term") | sigil::weave::sel::word(0)),
+  EXPECT_EQ(glyphsAddressed(selectors::style("term") |
+                            sigil::weave::selectors::word(0)),
             named + 5u)
       << "alpha joined the union";
-  EXPECT_EQ(glyphsAddressed(sel::style("term") & sigil::weave::sel::word(1)),
+  EXPECT_EQ(glyphsAddressed(selectors::style("term") &
+                            sigil::weave::selectors::word(1)),
             4u)
       << "the intersection is the first named run alone";
-  EXPECT_EQ(glyphsAddressed(!sel::style("term")), whole - named);
+  EXPECT_EQ(glyphsAddressed(!selectors::style("term")), whole - named);
 }
 
 TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
@@ -305,7 +308,7 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
     return box().padding(10).child(
         text(u8"alpha beta gamma", coloredStyle(24, SK_ColorWHITE))
             .key("t")
-            .fx({.where = sel::style("unregistered-register"),
+            .fx({.where = selectors::style("unregistered-register"),
                  .effect = fx::rise(0),
                  .stagger = {.durationMs = 1},
                  .unit = sigil::weave::Unit::Glyph}));
@@ -320,7 +323,7 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
   host.composer.render(box().padding(11).child(
       text(u8"alpha beta gamma", coloredStyle(24, SK_ColorWHITE))
           .key("t")
-          .fx({.where = sel::style("unregistered-register"),
+          .fx({.where = selectors::style("unregistered-register"),
                .effect = fx::rise(0),
                .stagger = {.durationMs = 1},
                .unit = sigil::weave::Unit::Glyph})));
@@ -344,7 +347,7 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
   // Where the three betas actually sit, read off the layout rather than
   // guessed, so the assertions below can name one of them.
   host.composer.render(box().padding(10).child(
-      text(copy).key("t").fx({.where = sigil::weave::sel::text(u8"beta"),
+      text(copy).key("t").fx({.where = sigil::weave::selectors::text(u8"beta"),
                               .effect = fx::rise(0),
                               .stagger = {.eachMs = 1, .durationMs = 1},
                               .unit = sigil::weave::Unit::Word})));
@@ -363,12 +366,14 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
     return countColor(host, bandOf(beat), SK_ColorRED);
   };
 
-  EXPECT_GT(redsIn(sel::style("term"), betas[0]), 5) << "the first named run";
-  EXPECT_GT(redsIn(sel::style("term"), betas[2]), 5) << "the last named run";
-  EXPECT_EQ(redsIn(sel::style("term"), betas[1]), 0)
+  EXPECT_GT(redsIn(selectors::style("term"), betas[0]), 5)
+      << "the first named run";
+  EXPECT_GT(redsIn(selectors::style("term"), betas[2]), 5)
+      << "the last named run";
+  EXPECT_EQ(redsIn(selectors::style("term"), betas[1]), 0)
       << "the unnamed beta was repainted, so the restyle resolver matched "
          "the word rather than the run";
-  EXPECT_GT(redsIn(sigil::weave::sel::text(u8"beta"), betas[1]), 5)
+  EXPECT_GT(redsIn(sigil::weave::selectors::text(u8"beta"), betas[1]), 5)
       << "…which the literal selector does catch, as it must";
 
   // And through spanStyle, which re-shapes: exactly the named runs do.
@@ -389,8 +394,8 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
     for (size_t i = 0; i < after.size(); ++i) moved += after[i] != before[i];
     return moved;
   };
-  EXPECT_EQ(reshapedUnder(sel::style("term")), 2u);
-  EXPECT_EQ(reshapedUnder(sigil::weave::sel::text(u8"beta")), 3u);
+  EXPECT_EQ(reshapedUnder(selectors::style("term")), 2u);
+  EXPECT_EQ(reshapedUnder(sigil::weave::selectors::text(u8"beta")), 3u);
 }
 
 TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
@@ -402,7 +407,7 @@ TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
     host.composer.render(box().padding(10).child(
         text(glossaryCopy(set))
             .key("t")
-            .fx({.where = sel::style("term"),
+            .fx({.where = selectors::style("term"),
                  .effect = fx::rise(0),
                  .stagger = {.eachMs = 1, .durationMs = 1},
                  .unit = sigil::weave::Unit::Glyph})));

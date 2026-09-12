@@ -142,9 +142,3 @@ class SpellCircleCanvas:
             self.width,
             self.height,
         )
-
-
-# Existing TouchDesigner projects import these names directly from this
-# module, so keep non-advertised aliases while the public API migrates.
-PointRef = PointReference
-SCCanvas = SpellCircleCanvas

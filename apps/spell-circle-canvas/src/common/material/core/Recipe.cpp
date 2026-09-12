@@ -1,6 +1,6 @@
 /** @file
  * Recipe definition: bodies per target, the generated declarations, and
- * the upload layout that appends the frame inputs to the params.
+ * the upload layout that appends the frame inputs to the parameters.
  */
 
 #include "sigilmaterial/core/Recipe.h"
@@ -60,13 +60,13 @@ std::string_view uniformName(FrameInput input) {
   return "";
 }
 
-Recipe::Recipe(std::string name, const Schema& params)
-    : m_name(std::move(name)), m_params(params) {
+Recipe::Recipe(std::string name, const Schema& parameters)
+    : m_name(std::move(name)), m_parameters(parameters) {
   relayout();
 }
 
-Recipe Recipe::of(std::string name, const Schema& params) {
-  return Recipe(std::move(name), params);
+Recipe Recipe::of(std::string name, const Schema& parameters) {
+  return Recipe(std::move(name), parameters);
 }
 
 Recipe& Recipe::body(Target target, std::string source) {
@@ -94,7 +94,7 @@ Recipe& Recipe::frame(FrameInput input) {
 }
 
 void Recipe::relayout() {
-  m_layout = m_params;
+  m_layout = m_parameters;
   for (FrameInput input : kFrameInputs) {
     if (!reads(input)) continue;
     Field f = frameField(input);
@@ -111,14 +111,14 @@ const std::string* Recipe::body(Target target) const {
 
 bool Recipe::readsField(std::string_view name) const {
   if (m_bodies.empty() || name.empty()) return true;
-  const std::vector<Field>& fields = m_params.fields;
+  const std::vector<Field>& fields = m_parameters.fields;
   for (size_t i = 0; i < fields.size() && i < m_read.size(); ++i)
     if (fields[i].name == name) return m_read[i] != 0;
   return spelled(name);
 }
 
 bool Recipe::readsField(const Field& field) const {
-  const std::vector<Field>& fields = m_params.fields;
+  const std::vector<Field>& fields = m_parameters.fields;
   if (m_bodies.empty()) return true;
   if (&field >= fields.data() && &field < fields.data() + fields.size()) {
     const size_t index = size_t(&field - fields.data());
@@ -128,9 +128,9 @@ bool Recipe::readsField(const Field& field) const {
 }
 
 void Recipe::rescan() {
-  m_read.resize(m_params.fields.size());
-  for (size_t i = 0; i < m_params.fields.size(); ++i)
-    m_read[i] = spelled(m_params.fields[i].name) ? 1 : 0;
+  m_read.resize(m_parameters.fields.size());
+  for (size_t i = 0; i < m_parameters.fields.size(); ++i)
+    m_read[i] = spelled(m_parameters.fields[i].name) ? 1 : 0;
 }
 
 bool Recipe::spelled(std::string_view name) const {

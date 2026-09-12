@@ -64,7 +64,7 @@ namespace sigil::material::kit {
  *  rim and nothing outside it is painted. `fill` is how much of the
  *  inscribed disc the sphere takes, for a globe that has to sit inside a
  *  bezel drawn in the same box. */
-struct GlobeParams {
+struct GlobeParameters {
   Color sky = {0.24f, 0.48f, 0.71f, 1};
   Color skyPole = {0.12f, 0.30f, 0.49f, 1};
   Color ground = {0.54f, 0.42f, 0.24f, 1};
@@ -93,9 +93,9 @@ struct GlobeParams {
 /** The globe recipe, defined once. */
 const std::shared_ptr<const Recipe>& globeRecipe();
 
-/** A globe at @p params. It reads the node's resolution and fills the
+/** A globe at @p parameters. It reads the node's resolution and fills the
  *  largest disc that fits in it, so the box is what sizes and places the
  *  sphere; bind `yaw`, `pitch` and `roll` to drive an attitude. */
-Material globe(const GlobeParams& params = {});
+Material globe(const GlobeParameters& parameters = {});
 
 }  // namespace sigil::material::kit

@@ -103,11 +103,12 @@ struct Caption {
   Element noteLeaf;
   if (hasLabel) {
     labelLeaf = text(std::move(label), caption.label);
-    if (caption.labelMeasure > 0) labelLeaf.width(Dim(caption.labelMeasure));
+    if (caption.labelMeasure > 0)
+      labelLeaf.width(Dimension(caption.labelMeasure));
   }
   if (hasNote) {
     noteLeaf = text(std::move(note), caption.note);
-    if (caption.noteMeasure > 0) noteLeaf.width(Dim(caption.noteMeasure));
+    if (caption.noteMeasure > 0) noteLeaf.width(Dimension(caption.noteMeasure));
   }
   switch (caption.where) {
     case Caption::Where::Split:
@@ -147,16 +148,16 @@ struct Caption {
  *  contains a laid-out body. An open width or height leaves that dimension
  *  already carried by the surface alone. */
 struct Well {
-  Dim width;
-  Dim height;
+  Dimension width;
+  Dimension height;
   SurfacePaint ground;
   float padding = 0.0f;
   bool clip = true;
 };
 
 [[nodiscard]] inline Element well(const Well& spec, Element surface) {
-  if (spec.width.unit != Dim::Unit::Auto) surface.width(spec.width);
-  if (spec.height.unit != Dim::Unit::Auto) surface.height(spec.height);
+  if (spec.width.unit != Dimension::Unit::Auto) surface.width(spec.width);
+  if (spec.height.unit != Dimension::Unit::Auto) surface.height(spec.height);
   if (!spec.ground.none()) surface.fill(spec.ground);
   if (spec.padding != 0.0f) surface.padding(spec.padding);
   if (spec.clip) surface.clip();
@@ -327,7 +328,7 @@ struct Sheet {
       0.0f, (page.contentGap - (ruled ? page.ruleWidth : 0.0f)) * 0.5f);
   const auto rule = [&](const char* which) {
     return named(box()
-                     .height(Dim(page.ruleWidth))
+                     .height(Dimension(page.ruleWidth))
                      .alignSelf(Align::Stretch)
                      .fill(page.rule)
                      .margin(0, half, 0, half),

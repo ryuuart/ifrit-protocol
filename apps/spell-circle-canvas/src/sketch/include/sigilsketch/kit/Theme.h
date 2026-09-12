@@ -13,7 +13,7 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilcore/reconcile/Env.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilweave/style/TextStyle.h>
 
 namespace sigil::sketch::kit {
@@ -253,6 +253,6 @@ enum class Voice {
  *  memo's deferred describe — runs outside this scope, so such a lambda
  *  captures the colours it needs by value here, where the scope still
  *  stands. */
-using Provide = sigil::core::env::Provide<Theme>;
+using Provide = sigil::core::environment::Provide<Theme>;
 
 }  // namespace sigil::sketch::kit

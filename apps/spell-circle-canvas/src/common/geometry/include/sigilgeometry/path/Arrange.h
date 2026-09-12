@@ -84,18 +84,18 @@ struct Cell {
 /** Which cell `index` is when cells fill each row left to right before
  *  starting the next. */
 inline Cell cellAt(size_t index, int columns) {
-  const size_t cols = (size_t)std::max(columns, 1);
-  return {(int)(index % cols), (int)(index / cols)};
+  const size_t columnCount = (size_t)std::max(columns, 1);
+  return {(int)(index % columnCount), (int)(index / columnCount)};
 }
 
 /** The module that fits `columns` by `rows` of itself, plus the gaps
  *  between them, exactly into `container`. Gaps sit only BETWEEN modules,
  *  so the outer edges of the grid are the container's own. */
 inline SkSize moduleSize(SkSize container, int columns, int rows, SkSize gap) {
-  const float cols = (float)std::max(columns, 1);
-  const float rws = (float)std::max(rows, 1);
-  return {(container.width() - gap.width() * (cols - 1)) / cols,
-          (container.height() - gap.height() * (rws - 1)) / rws};
+  const float columnCount = (float)std::max(columns, 1);
+  const float rowCount = (float)std::max(rows, 1);
+  return {(container.width() - gap.width() * (columnCount - 1)) / columnCount,
+          (container.height() - gap.height() * (rowCount - 1)) / rowCount};
 }
 
 /** The rect a block of cells covers: `cell` is its top-left module on a

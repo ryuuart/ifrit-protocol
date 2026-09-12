@@ -35,7 +35,7 @@
  *   - choreograph/  per-glyph animation: `forEachPlacedGlyph`,
  *                   `GlyphDress`, `GlyphRSXformBatches`.
  *   - query/        find / select / annotate ranges, `Selector` and the
- *                   `sel::` vocabulary, and edit-following `MarkerSet`s.
+ *                   `selectors::` vocabulary, and edit-following `MarkerSet`s.
  *
  * Separate targets, never pulled in here: ports/ (the OS font manager),
  * kit/ (consumer discipline: guards, buckets, labels) and qt/ (the Qt

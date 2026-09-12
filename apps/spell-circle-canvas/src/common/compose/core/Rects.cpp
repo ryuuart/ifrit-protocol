@@ -110,13 +110,14 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
     parentW = parentRect.width();
     parentH = parentRect.height();
   }
-  auto resolve = [](const Dim& d, float parentExtent) -> std::optional<float> {
+  auto resolve = [](const Dimension& d,
+                    float parentExtent) -> std::optional<float> {
     switch (d.unit) {
-      case Dim::Unit::Px:
+      case Dimension::Unit::Px:
         return d.value;
-      case Dim::Unit::Pct:
+      case Dimension::Unit::Pct:
         return parentExtent * d.value / 100.0f;
-      case Dim::Unit::Auto:
+      case Dimension::Unit::Auto:
       default:
         return std::nullopt;
     }

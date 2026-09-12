@@ -93,7 +93,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  with an SkSL body, because the unit count is baked into the compiled
  *  shader — a runtime effect's array size is fixed at compile and SkSL has
  *  no uniform-bounded loop. The RUNTIME owns that specialization: it holds
- *  a second recipe over the same params, per distinct unit count, whose
+ *  a second recipe over the same parameters, per distinct unit count, whose
  *  body is
  *
  *      uniform shader uContent;        // the units' rendered layer
@@ -102,8 +102,8 @@ inline constexpr float kNominalSizePx = 96.0f;
  *      const int kUnitCount = N;      // the loop bound
  *
  *  ahead of the author's — write the body against those names and do not
- *  declare them, and put every uniform of your own in the params struct
- *  rather than in the body's text. The params ARE the ABI: a field the
+ *  declare them, and put every uniform of your own in the parameters struct
+ *  rather than in the body's text. The parameters ARE the ABI: a field the
  *  body never reads is named on stderr rather than silently dropped. A
  *  body that does not compile is reported once against its recipe's name,
  *  with the compiler's own message — whose LINE NUMBERS count from the
@@ -142,7 +142,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  of this, so a pass rides both, with unit rects turned the way the
  *  layout turned the letters.
  *
- *  A pass is a WHOLE-TRACK statement: inside `fx::seq`, `fx::mix` or
+ *  A pass is a WHOLE-TRACK statement: inside `fx::sequence`, `fx::mix` or
  *  `fx::hold` its material is not consulted and the operand contributes
  *  the identity. Sequence a pass by driving its progress; gate its onset
  *  in its own SkSL, which holds the whole schedule.
@@ -166,7 +166,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  there — correctly, the cycle is always mid-flight somewhere — while a
  *  unit RESTS at exactly 1 between beats, so `restsAt(1)` engages whenever
  *  no beat is mid-cycle. Undeclared, a pass always runs. The declaration
- *  rides the effect's comparable params, so two passes differing only in
+ *  rides the effect's comparable parameters, so two passes differing only in
  *  their rests compare unequal and re-patch. */
 [[nodiscard]] TextEffect pass(material::skia::Paint material);
 
@@ -175,7 +175,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  The key IS the identity — two effects with the same key compare equal
  *  and the reconciler will prune one onto the other, so give a different
  *  body a different key or the old one silently keeps drawing. Bake the
- *  parameters that vary into the key (or into `params`) rather than
+ *  parameters that vary into the key (or into `parameters`) rather than
  *  capturing them silently.
  *
  *  `reach` is how far past the element's box the body may push a glyph;
@@ -183,15 +183,16 @@ inline constexpr float kNominalSizePx = 96.0f;
  *
  *  THE ONE PLACEMENT FACT THE LIBRARY CANNOT INFER lives here too. Every
  *  other effect answers `TextEffect::displaces` for itself — a preset knows
- *  its own deviation, `fx::keys` reads its table, `fx::seq`, `fx::mix` and
+ *  its own deviation, `fx::keys` reads its table, `fx::sequence`, `fx::mix` and
  *  `fx::hold` derive from their operands — but a lambda is opaque until it
  *  runs, so this door assumes the moving answer and takes
  *  `.displacing(false)` as the promise that the body leaves every pen
  *  position alone. */
-[[nodiscard]] inline TextEffect effect(std::string key, GlyphModFn program,
+[[nodiscard]] inline TextEffect effect(std::string key,
+                                       GlyphModifierFunction program,
                                        float reach = 48.0f,
-                                       std::vector<float> params = {}) {
-  return TextEffect(std::move(key), std::move(params), std::move(program),
+                                       std::vector<float> parameters = {}) {
+  return TextEffect(std::move(key), std::move(parameters), std::move(program),
                     reach);
 }
 
@@ -199,8 +200,8 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  deviation there, and — optionally — the curve for the segment that
  *  STARTS at it. */
 struct Key {
-  float at = 0;  ///< local time, 0→1
-  GlyphMod mod;  ///< the deviation at that moment
+  float at = 0;            ///< local time, 0→1
+  GlyphModifier modifier;  ///< the deviation at that moment
   /** The curve this entry's own segment is interpolated with, overriding
    *  the table's. Unset takes the table's; the LAST entry's is never read,
    *  because no segment starts there. */
@@ -229,7 +230,7 @@ struct Key {
  *  of the last and run the middle at whatever slope the curve happened to
  *  have there. Unset, a segment is linear.
  *
- *  Interpolation is COMPONENTWISE and follows the `fx::seq` crossfade
+ *  Interpolation is COMPONENTWISE and follows the `fx::sequence` crossfade
  *  exactly, because it is the same arithmetic: `codepoint` cuts at the
  *  middle of the segment rather than lerping, since there is no half-way
  *  glyph between two outlines; `axis` lerps only when the two entries name
@@ -268,11 +269,11 @@ struct Key {
 [[nodiscard]] TextEffect hold(TextEffect effect);
 
 /** PHASES IN LOCAL TIME: each phase sees a renormalized 0→1 over its own
- *  window, so `fx::seq(a.until(0.35f), b.until(0.75f).xfade(0.10f), c)`
- *  plays `a` over the first 35% of every unit's beat, `b` over the next
- *  40% and `c` over the rest — each running its full curve.
+ *  window, so `fx::sequence(a.until(0.35f), b.until(0.75f).crossfade(0.10f),
+ * c)` plays `a` over the first 35% of every unit's beat, `b` over the next 40%
+ * and `c` over the rest — each running its full curve.
  *
- *  The default joint is a hard cut. `.xfade(f)` on the ENDING phase lerps
+ *  The default joint is a hard cut. `.crossfade(f)` on the ENDING phase lerps
  *  its deviation into the next one's, componentwise, over the last `f` of
  *  local time before the joint.
  *
@@ -282,14 +283,14 @@ struct Key {
  *  standing still and lerped toward. What they do share is the
  *  componentwise interpolation — the crossfade here and a segment there run
  *  the same arithmetic, so the substitutions cut the same way in both. */
-[[nodiscard]] TextEffect seq(std::vector<Phase> phases);
+[[nodiscard]] TextEffect sequence(std::vector<Phase> phases);
 template <typename... Rest>
-[[nodiscard]] TextEffect seq(Phase first, Rest&&... rest) {
+[[nodiscard]] TextEffect sequence(Phase first, Rest&&... rest) {
   std::vector<Phase> phases;
   phases.reserve(1 + sizeof...(Rest));
   phases.push_back(std::move(first));
   (phases.push_back(Phase(std::forward<Rest>(rest))), ...);
-  return seq(std::move(phases));
+  return sequence(std::move(phases));
 }
 
 /** BOTH AT ONCE: evaluates every operand at the same local t and composes

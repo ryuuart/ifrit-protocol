@@ -48,7 +48,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -83,7 +83,7 @@ std::u8string narrow(std::u16string_view utf16) {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .child(std::move(body)));
 }
@@ -105,7 +105,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
     // about: its size, its face and its language are the note's, and the
     // base has no say in any of them.
     weave::Paragraph note = weave::ParagraphBuilder(serif(kNoteSize, figure))
-                                .addText(toU8(kNote))
+                                .addText(toUtf8(kNote))
                                 .build();
     split = weave::warichuSplit(*ctx.fonts, note);
 
@@ -124,24 +124,24 @@ struct WarichuPlaceholder final : sketch::Sketch {
                                reinterpret_cast<const char*>(second.c_str()));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("WARICHU \xc2\xb7 weave::warichuSplit into a "
-                       "reserved inline slot"),
-         .subtitle = toU8("dials \xc2\xb7 the note's own size (8 px "
-                          "against a 13 px base) \xc2\xb7 the slot's "
-                          "baseline drop \xc2\xb7 the note's length, "
-                          "which is what decides the cut"),
-         .footer = toU8("the cut is the break opportunity that leaves "
-                        "the two lines CLOSEST IN ADVANCE \xe2\x80\x94 "
-                        "two lines of one length is what makes a note "
-                        "read as one object rather than as a line with "
-                        "something under it")},
+        {.title = toUtf8("WARICHU \xc2\xb7 weave::warichuSplit into a "
+                         "reserved inline slot"),
+         .subtitle = toUtf8("dials \xc2\xb7 the note's own size (8 px "
+                            "against a 13 px base) \xc2\xb7 the slot's "
+                            "baseline drop \xc2\xb7 the note's length, "
+                            "which is what decides the cut"),
+         .footer = toUtf8("the cut is the break opportunity that leaves "
+                          "the two lines CLOSEST IN ADVANCE \xe2\x80\x94 "
+                          "two lines of one length is what makes a note "
+                          "read as one object rather than as a line with "
+                          "something under it")},
         kit::cells({.cells = {oneLineCell(), splitCell(), verticalCell(),
                               readoutCell()},
                     .gap = 14})));
   }
 
   Element text_(const char* utf8) {
-    return text(toU8(utf8),
+    return text(toUtf8(utf8),
                 serif(kNoteSize, sketch::kit::theme().palette.figure));
   }
 
@@ -153,7 +153,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
                  .slot("note", slot, kDrop)
                  .add(u8" interrupts the line it stands in, rather than "
                       u8"standing beside it."))
-            .width(Dim(kCell - 24))
+            .width(Dimension(kCell - 24))
             // The band goes into the block's strut, so the base's own
             // pitch opens to hold the note.
             .child(box()
@@ -162,8 +162,8 @@ struct WarichuPlaceholder final : sketch::Sketch {
                        .child(std::move(child)));
     if (vertical) {
       leaf.writingMode(weave::WritingMode::kVerticalRL)
-          .width(Dim(kCell - 24))
-          .height(Dim(kPicture - 24));
+          .width(Dimension(kCell - 24))
+          .height(Dimension(kPicture - 24));
     }
     return leaf;
   }
@@ -210,13 +210,15 @@ struct WarichuPlaceholder final : sketch::Sketch {
       if (vertical) {
         // The band is ACROSS the column in a vertical setting, so the two
         // lines stand side by side and each runs down the note's advance.
-        leaf.left(Dim(along))
-            .top(Dim(0.0f))
-            .width(Dim(half))
-            .height(Dim(split.advance))
+        leaf.left(Dimension(along))
+            .top(Dimension(0.0f))
+            .width(Dimension(half))
+            .height(Dimension(split.advance))
             .writingMode(weave::WritingMode::kVerticalRL);
       } else {
-        leaf.left(Dim(0.0f)).top(Dim(along)).width(Dim(split.advance));
+        leaf.left(Dimension(0.0f))
+            .top(Dimension(along))
+            .width(Dimension(split.advance));
       }
       return leaf;
     };
@@ -228,8 +230,8 @@ struct WarichuPlaceholder final : sketch::Sketch {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(8);
     for (const std::string& row : report)
-      column.child(text(toU8(row), sheet.mono(10, sheet.palette.figure))
-                       .width(Dim(kCell - 24)));
+      column.child(text(toUtf8(row), sheet.mono(10, sheet.palette.figure))
+                       .width(Dimension(kCell - 24)));
     return cell("WarichuSplit{advance, band, cutWord}",
                 "what the split answered for this note at this size "
                 "\xc2\xb7 the caller cuts its own text at that word's start",

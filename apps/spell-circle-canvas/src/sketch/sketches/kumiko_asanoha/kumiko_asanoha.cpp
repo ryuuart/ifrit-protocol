@@ -274,43 +274,44 @@ struct KumikoAsanoha : sketch::Sketch {
                   .fill(Fill::color(hexColor(0xC79A57, 0.16f)))
                   .stroke(stroke(0.9f, Fill::color(hexColor(0xC79A57, 0.55f)),
                                  PathFormat::Align::Inner)));
-      g.child(text(toU8(jig[i]), rule)
+      g.child(text(toUtf8(jig[i]), rule)
                   .left(x - 30)
                   .top(150)
                   .width(60)
                   .textAlign(weave::TextAlignment::kCenter));
     }
-    g.child(text(toU8("THREE JIGS \xe2\x80\x94 AND A RIGHT ANGLE IS "
-                      "22.5 + 45 + 22.5"),
+    g.child(text(toUtf8("THREE JIGS \xe2\x80\x94 AND A RIGHT ANGLE IS "
+                        "22.5 + 45 + 22.5"),
                  dim)
                 .left(392)
                 .top(24)
                 .width(300));
 
     // the reading
-    g.child(text(toU8("ONE CELL, TAKEN APART"), ink).left(760).top(30));
+    g.child(text(toUtf8("ONE CELL, TAKEN APART"), ink).left(760).top(30));
     g.child(
-        text(toU8("The diagonal cuts the cell into two right isoceles "
-                  "triangles. In each, the three infill pieces run from the "
-                  "triangle's vertices to its INCENTER \xe2\x80\x94 and every "
-                  "number the panel is built on falls out of that one rule."),
-             rule)
+        text(
+            toUtf8("The diagonal cuts the cell into two right isoceles "
+                   "triangles. In each, the three infill pieces run from the "
+                   "triangle's vertices to its INCENTER \xe2\x80\x94 and every "
+                   "number the panel is built on falls out of that one rule."),
+            rule)
             .left(760)
             .top(56)
             .width(520));
-    g.child(text(toU8("incircle r = s(2\xe2\x88\x92\xe2\x88\x9a"
-                      "2)/2 = "
-                      "0.29289 s  \xc2\xb7  arm off a 45\xc2\xb0 corner = "
-                      "atan(\xe2\x88\x9a"
-                      "2\xe2\x88\x92"
-                      "1) = "
-                      "22.5\xc2\xb0"),
+    g.child(text(toUtf8("incircle r = s(2\xe2\x88\x92\xe2\x88\x9a"
+                        "2)/2 = "
+                        "0.29289 s  \xc2\xb7  arm off a 45\xc2\xb0 corner = "
+                        "atan(\xe2\x88\x9a"
+                        "2\xe2\x88\x92"
+                        "1) = "
+                        "22.5\xc2\xb0"),
                  rule)
                 .left(760)
                 .top(126)
                 .width(520));
-    g.child(text(toU8("1 diagonal + 2 fillers + 4 locking pieces = 7 per "
-                      "cell  \xc2\xb7  60 cells = 420 ha"),
+    g.child(text(toUtf8("1 diagonal + 2 fillers + 4 locking pieces = 7 per "
+                        "cell  \xc2\xb7  60 cells = 420 ha"),
                  rule)
                 .left(760)
                 .top(148)
@@ -360,9 +361,9 @@ struct KumikoAsanoha : sketch::Sketch {
         .child(post(kW - 146, 146))
         .child(beam(0, 122, true))
         .child(beam(kRoom - 122, 122, false))
-        .child(text(toU8("ASANOHA KUMIKO \xc2\xb7 SQUARE JIGUMI \xc2\xb7 "
-                         "HINOKI ON KEYAKI \xc2\xb7 900\xc3\x97"
-                         "400mm TYPE"),
+        .child(text(toUtf8("ASANOHA KUMIKO \xc2\xb7 SQUARE JIGUMI \xc2\xb7 "
+                           "HINOKI ON KEYAKI \xc2\xb7 900\xc3\x97"
+                           "400mm TYPE"),
                     weave::textStyle(
                         {.size = 12, .color = kCaption, .track = 1.1f}))
                    .left(950)

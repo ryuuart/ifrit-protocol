@@ -1,5 +1,5 @@
 /** @file
- * Material instances: byte mirroring of the params struct, per-field
+ * Material instances: byte mirroring of the parameter struct, per-field
  * writes and bindings, child slots holding materials or leaves, the tier
  * queries, value equality and the memoised resolve.
  */
@@ -16,20 +16,21 @@
 namespace sigil::material {
 
 Material::Material(std::shared_ptr<const Recipe> recipe)
-    : m_recipe(std::move(recipe)), m_bytes(m_recipe->params().byteSize) {}
+    : m_recipe(std::move(recipe)), m_bytes(m_recipe->parameters().byteSize) {}
 
-Material::Material(std::shared_ptr<const Recipe> recipe, const void* params,
+Material::Material(std::shared_ptr<const Recipe> recipe, const void* parameters,
                    size_t size, const Schema* schema)
     : Material(std::move(recipe)) {
-  write(params, size, schema);
+  write(parameters, size, schema);
 }
 
 Material Material::withRecipe(std::shared_ptr<const Recipe> recipe) const {
-  if (!recipe || recipe->params() != m_recipe->params()) {
-    reportOnce("specialize:" + m_recipe->name(),
-               "recipe \"" + m_recipe->name() +
-                   "\": a specialization must carry the same params layout; "
-                   "the material stays on its own recipe");
+  if (!recipe || recipe->parameters() != m_recipe->parameters()) {
+    reportOnce(
+        "specialize:" + m_recipe->name(),
+        "recipe \"" + m_recipe->name() +
+            "\": a specialization must carry the same parameters layout; "
+            "the material stays on its own recipe");
     return *this;
   }
   Material out = *this;
@@ -41,24 +42,25 @@ Material Material::withRecipe(std::shared_ptr<const Recipe> recipe) const {
   return out;
 }
 
-void Material::write(const void* params, size_t size, const Schema* schema) {
-  // A params struct with no fields lays out to nothing while still
+void Material::write(const void* parameters, size_t size,
+                     const Schema* schema) {
+  // A parameter struct with no fields lays out to nothing while still
   // occupying a byte as a C++ object, so its size can never be the
   // upload's; there is simply nothing to copy.
-  if (*schema == m_recipe->params() && schema->fields.empty()) return;
-  if (*schema != m_recipe->params() || size != m_bytes.size()) {
-    reportOnce("params:" + m_recipe->name(),
+  if (*schema == m_recipe->parameters() && schema->fields.empty()) return;
+  if (*schema != m_recipe->parameters() || size != m_bytes.size()) {
+    reportOnce("parameters:" + m_recipe->name(),
                "recipe \"" + m_recipe->name() +
-                   "\": the params struct given is not the one the recipe "
+                   "\": the parameter struct given is not the one the recipe "
                    "was defined over; the values are ignored");
     return;
   }
-  std::memcpy(m_bytes.data(), params, size);
+  std::memcpy(m_bytes.data(), parameters, size);
 }
 
 void Material::write(std::string_view name, Kind kind, const void* floats,
                      size_t count) {
-  const Field* f = m_recipe->params().find(name);
+  const Field* f = m_recipe->parameters().find(name);
   // THE REPORT'S KEY IS BUILT WHERE IT IS REPORTED. This is the per-field
   // setter, called once per field of every material built, and a string
   // assembled on the way past would be an allocation per field spent on
@@ -75,7 +77,7 @@ void Material::write(std::string_view name, Kind kind, const void* floats,
   // A FIELD NO BODY READS is a dial that does nothing: the bytes go up
   // and the picture does not change, which at a call site reads exactly
   // like a wrong value. It is reported HERE rather than where a program
-  // is compiled because here is where somebody wrote to it — a params
+  // is compiled because here is where somebody wrote to it — a parameters
   // struct that carries a field this recipe's kind has no use for is a
   // shared ABI and not a mistake, and poured in whole it says nothing.
   if (!m_recipe->readsField(*f))
@@ -104,7 +106,7 @@ Material::Binding* Material::binding(std::string_view name) {
 
 Material& Material::bind(std::string_view name,
                          motion::Animatable<float> value) {
-  const Field* f = m_recipe->params().find(name);
+  const Field* f = m_recipe->parameters().find(name);
   if (!f || f->kind != Kind::Float) {
     reportOnce("bind:" + m_recipe->name() + ":" + std::string(name),
                "recipe \"" + m_recipe->name() + "\" has no float field \"" +
@@ -127,7 +129,7 @@ Material& Material::unbind(std::string_view name) {
 
 Material& Material::bind(std::string_view name,
                          std::shared_ptr<const UniformBlock> block) {
-  const Field* f = m_recipe->params().find(name);
+  const Field* f = m_recipe->parameters().find(name);
   const std::string key = "bind:" + m_recipe->name() + ":" + std::string(name);
   if (!f || f->kind != Kind::FloatArray) {
     reportOnce(key, "recipe \"" + m_recipe->name() +
@@ -254,7 +256,7 @@ bool Material::operator==(const Material& other) const {
     const Binding* b = nullptr;
     for (const Binding& x : other.m_bindings)
       if (x.name == a.name) b = &x;
-    if (!b || !motion::propEqual(a.value, b->value) || a.block != b->block)
+    if (!b || !motion::propertyEqual(a.value, b->value) || a.block != b->block)
       return false;
   }
   for (size_t i = 0; i < m_children.size(); ++i) {
@@ -276,7 +278,7 @@ Material::Resolved Material::resolve(Target target, const FrameData& frame,
   if (!m_bytes.empty())
     std::memcpy(m_scratch.data(), m_bytes.data(), m_bytes.size());
   for (const Binding& b : m_bindings) {
-    const Field* f = m_recipe->params().find(b.name);
+    const Field* f = m_recipe->parameters().find(b.name);
     if (!f) continue;
     if (b.block) {
       const std::span<const float> values = b.block->values();

@@ -271,11 +271,11 @@ struct Present {
   /** INTEGER, please: a bitmap face at 1.5× is a blurry bitmap face. */
   float scale = 1.0f;
   /** A second pass underneath, offset by this many DESTINATION px, with
-   *  the colour's RGB multiplied by `shadowMul`. The defaults follow
+   *  the colour's RGB multiplied by `shadowMultiplier`. The defaults follow
    *  Minecraft's own font renderer, which offsets by one GUI pixel and
    *  multiplies by a quarter. Zero offset = no shadow pass. */
   SkVector shadowOffset = {0, 0};
-  float shadowMul = 0.25f;
+  float shadowMultiplier = 0.25f;
 };
 
 /** Draw a baked mask at @p at (top-left), immediate mode.
@@ -292,9 +292,10 @@ inline void draw(SkCanvas& canvas, const Mask& m, SkPoint at,
   SkPaint paint;
   paint.setAntiAlias(false);
   if (p.shadowOffset.fX != 0 || p.shadowOffset.fY != 0) {
-    paint.setColor4f({p.colour.fR * p.shadowMul, p.colour.fG * p.shadowMul,
-                      p.colour.fB * p.shadowMul, p.colour.fA},
-                     nullptr);
+    paint.setColor4f(
+        {p.colour.fR * p.shadowMultiplier, p.colour.fG * p.shadowMultiplier,
+         p.colour.fB * p.shadowMultiplier, p.colour.fA},
+        nullptr);
     canvas.drawImageRect(m.image,
                          dst.makeOffset(p.shadowOffset.fX, p.shadowOffset.fY),
                          nearest, &paint);

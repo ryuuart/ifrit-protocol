@@ -16,7 +16,7 @@
  */
 
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Params.h>
+#include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/core/Recipe.h>
 
 #include <boost/container/map.hpp>
@@ -30,12 +30,12 @@
 
 namespace sigil::material {
 
-/** THE BANK. `get` answers the instance for a (recipe, params, bucket)
+/** THE BANK. `get` answers the instance for a (recipe, parameters, bucket)
  *  triple, building it once through the maker it is handed; the bucket
- *  is `seed % buckets()`. The params' BYTES are their identity — a params
- *  struct is packed floats, which `schema<P>()` proves — so two pieces of
- *  one species at one seed bucket are one material, and a species with a
- *  different tone or scale is another. */
+ *  is `seed % buckets()`. The parameters' BYTES are their identity — a
+ * parameters struct is packed floats, which `schema<P>()` proves — so two
+ * pieces of one species at one seed bucket are one material, and a species with
+ * a different tone or scale is another. */
 class Bank {
  public:
   explicit Bank(uint32_t buckets = 24) : m_buckets(buckets ? buckets : 1) {}
@@ -44,7 +44,7 @@ class Bank {
   /** The bucket @p seed falls in. */
   uint32_t bucket(uint32_t seed) const { return seed % m_buckets; }
 
-  /** The instance for (@p recipe, @p params, the bucket of @p seed),
+  /** The instance for (@p recipe, @p parameters, the bucket of @p seed),
    *  built by @p make(bucket) the first time that triple is asked for and
    *  answered from the bank thereafter. The maker is where the bucket
    *  becomes what varies the piece — a seed the recipe reads, a jitter on
@@ -53,30 +53,30 @@ class Bank {
   template <class P, std::invocable<uint32_t> Make>
     requires std::convertible_to<std::invoke_result_t<Make, uint32_t>, Material>
   const Material& get(const std::shared_ptr<const Recipe>& recipe,
-                      const P& params, uint32_t seed, Make&& make) {
+                      const P& parameters, uint32_t seed, Make&& make) {
     (void)schema<P>();  // packed floats, so the bytes are the identity
     const uint32_t b = bucket(seed);
-    Key key{recipe.get(), bytesOf(params), b};
+    Key key{recipe.get(), bytesOf(parameters), b};
     auto it = m_bank.find(key);
     if (it == m_bank.end())
       it = m_bank.emplace(std::move(key), Material(make(b))).first;
     return it->second;
   }
 
-  /** The SEEDED form, for a params struct carrying a `seed` field: the
+  /** The SEEDED form, for a parameter struct carrying a `seed` field: the
    *  bucket is written into it and @p recipe instantiated over the result.
-   *  Whatever seed the caller left in @p params is ignored — the bucket is
+   *  Whatever seed the caller left in @p parameters is ignored — the bucket is
    *  the seed, so pieces in one bucket are one material and a caller's
    *  own seed cannot make the bank unbounded. */
   template <class P>
     requires requires(P& p) {
       { p.seed } -> std::convertible_to<float>;
     }
-  const Material& get(const std::shared_ptr<const Recipe>& recipe, P params,
+  const Material& get(const std::shared_ptr<const Recipe>& recipe, P parameters,
                       uint32_t seed) {
-    params.seed = 0.0f;
-    return get(recipe, params, seed, [&](uint32_t b) {
-      P seeded = params;
+    parameters.seed = 0.0f;
+    return get(recipe, parameters, seed, [&](uint32_t b) {
+      P seeded = parameters;
       seeded.seed = (float)b;
       return Material(recipe, seeded);
     });
@@ -89,13 +89,13 @@ class Bank {
  private:
   struct Key {
     const Recipe* recipe = nullptr;
-    std::vector<std::byte> params;
+    std::vector<std::byte> parameters;
     uint32_t bucket = 0;
     auto operator<=>(const Key&) const = default;
   };
   template <class P>
-  static std::vector<std::byte> bytesOf(const P& params) {
-    const auto* p = reinterpret_cast<const std::byte*>(&params);
+  static std::vector<std::byte> bytesOf(const P& parameters) {
+    const auto* p = reinterpret_cast<const std::byte*>(&parameters);
     return std::vector<std::byte>(p, p + sizeof(P));
   }
 

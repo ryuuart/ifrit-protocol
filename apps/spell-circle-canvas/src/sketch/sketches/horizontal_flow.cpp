@@ -32,7 +32,7 @@ namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -132,7 +132,10 @@ Element droppedPassage() {
           .shape(shapes::rounded(shapes::star(8, 0.58f, 0.12f), 5))
           .fill(Fill::color(kCinnabar))
           .child(text(u8"H", serif(50, kPaper)).absolute().left(29).top(29));
-  ornament.key("illuminated-h").absolute().left(Dim(0.0f)).top(Dim(0.0f));
+  ornament.key("illuminated-h")
+      .absolute()
+      .left(Dimension(0.0f))
+      .top(Dimension(0.0f));
 
   return box()
       .width(430)
@@ -153,9 +156,9 @@ Element droppedPassage() {
 }
 
 Element panel(float left, const char* title, const char* note, Element body) {
-  return sketch::kit::well({.width = Dim(476), .height = Dim(438)},
-                           sketch::kit::caption(kMeasure, toU8(title),
-                                                toU8(note), std::move(body)))
+  return sketch::kit::well({.width = Dimension(476), .height = Dimension(438)},
+                           sketch::kit::caption(kMeasure, toUtf8(title),
+                                                toUtf8(note), std::move(body)))
       .absolute()
       .left(left)
       .top(126);

@@ -145,10 +145,10 @@ inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
 }
 
 inline Element t(const char* s, sigil::weave::TextStyle st) {
-  return text(toU8(s), std::move(st));
+  return text(toUtf8(s), std::move(st));
 }
 inline Element t(const std::string& s, sigil::weave::TextStyle st) {
-  return text(toU8(s), std::move(st));
+  return text(toUtf8(s), std::move(st));
 }
 
 // ---------------------------------------------------------------------------

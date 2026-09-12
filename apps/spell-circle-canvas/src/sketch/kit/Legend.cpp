@@ -10,7 +10,7 @@ namespace sigil::sketch::kit {
 using compose::Align;
 using compose::box;
 using compose::Corners;
-using compose::Dim;
+using compose::Dimension;
 using compose::Element;
 using compose::Fill;
 using compose::text;
@@ -40,7 +40,7 @@ void enter(Element& line, const LegendEntry& entry) {
 /** The patch a key's mark is where the entry drew none of its own: the
  *  entry's colour at the key's own side, dressed as the key says. */
 Element swatchOf(const Legend& key, const LegendEntry& entry, float side) {
-  Element mark = box().width(Dim(side)).height(Dim(side)).shrink(0);
+  Element mark = box().width(Dimension(side)).height(Dimension(side)).shrink(0);
   if (key.strokeWidth > 0) {
     compose::PathFormat outline =
         compose::stroke(key.strokeWidth, entry.swatch);
@@ -94,8 +94,8 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
   for (size_t i = 0; i < strip.swatches.size(); ++i) {
     Element patch = box();
     strip.swatches[i].apply(patch);
-    if (strip.width.unit != Dim::Unit::Auto) patch.width(strip.width);
-    if (strip.height.unit != Dim::Unit::Auto) patch.height(strip.height);
+    if (strip.width.unit != Dimension::Unit::Auto) patch.width(strip.width);
+    if (strip.height.unit != Dimension::Unit::Auto) patch.height(strip.height);
     if (strip.corners > 0) patch.corners(Corners{strip.corners});
     const bool named = i < strip.labels.size() && !strip.labels[i].empty();
     if (!named) {

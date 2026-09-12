@@ -49,7 +49,7 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -169,11 +169,11 @@ struct RoutesProbe final : sketch::Sketch {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     return box()
         .key(key)
-        .inset(Dim(x), Dim(y), Dim(), Dim())
-        .width(Dim(kNode))
-        .height(Dim(34))
+        .inset(Dimension(x), Dimension(y), Dimension(), Dimension())
+        .width(Dimension(kNode))
+        .height(Dimension(34))
         .fill(Fill::color(sheet.palette.cellGround))
-        .child(text(toU8(key), sheet.mono(10, sheet.palette.figure))
+        .child(text(toUtf8(key), sheet.mono(10, sheet.palette.figure))
                    .absolute()
                    .inset(9, 9, 0, 0));
   }
@@ -187,7 +187,9 @@ struct RoutesProbe final : sketch::Sketch {
         stack()
             .inset(0)
             // The hub every listed route is anchored on.
-            .child(probe("hub", 128, 128).width(Dim(80)).height(Dim(44)))
+            .child(probe("hub", 128, 128)
+                       .width(Dimension(80))
+                       .height(Dimension(44)))
             // Four probes, each wearing one promotion verdict.
             .child(probe("spun", 16, 24).rotate(-8))
             .child(probe("glass", 220, 24).opacity(0.55f))
@@ -246,11 +248,11 @@ struct RoutesProbe final : sketch::Sketch {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(7);
     if (rows.empty())
-      column.child(text(toU8(empty), sheet.mono(10, sheet.palette.ash))
-                       .width(Dim(measure)));
+      column.child(text(toUtf8(empty), sheet.mono(10, sheet.palette.ash))
+                       .width(Dimension(measure)));
     for (const std::string& row : rows)
-      column.child(text(toU8(row), sheet.mono(10, sheet.palette.figure))
-                       .width(Dim(measure)));
+      column.child(text(toUtf8(row), sheet.mono(10, sheet.palette.figure))
+                       .width(Dimension(measure)));
     return column;
   }
 
@@ -258,44 +260,44 @@ struct RoutesProbe final : sketch::Sketch {
     constexpr float kList = 260;
     constexpr float kTable = 430;
     return sketch::kit::page(
-        {.title = toU8("ROUTES AND COSTS \xc2\xb7 "
-                       "Composer::routesAt, Composer::profile"),
-         .subtitle = toU8("dials \xc2\xb7 the probed node (\"hub\") "
-                          "\xc2\xb7 which routes carry a key \xc2\xb7 "
-                          "the property each probe wears: rotate, "
-                          "opacity, Cache::None, Cache::Texture"),
-         .footer = toU8("a profile row's reason names a condition "
-                        "under which a bake would produce DIFFERENT "
-                        "pixels \xe2\x80\x94 which is the one thing "
-                        "promotion may never do, and the reason an "
-                        "expensive node stays live")},
+        {.title = toUtf8("ROUTES AND COSTS \xc2\xb7 "
+                         "Composer::routesAt, Composer::profile"),
+         .subtitle = toUtf8("dials \xc2\xb7 the probed node (\"hub\") "
+                            "\xc2\xb7 which routes carry a key \xc2\xb7 "
+                            "the property each probe wears: rotate, "
+                            "opacity, Cache::None, Cache::Texture"),
+         .footer = toUtf8("a profile row's reason names a condition "
+                          "under which a bake would produce DIFFERENT "
+                          "pixels \xe2\x80\x94 which is the one thing "
+                          "promotion may never do, and the reason an "
+                          "expensive node stays live")},
         kit::cells({.cells = {sketch::kit::caption(
                                   kDiagram,
-                                  toU8("connector(from, to, router)"
-                                       ".key(\xe2\x80\xa6)"),
-                                  toU8("four routes on one hub \xc2\xb7 "
-                                       "three carry keys and the fourth "
-                                       "does not"),
+                                  toUtf8("connector(from, to, router)"
+                                         ".key(\xe2\x80\xa6)"),
+                                  toUtf8("four routes on one hub \xc2\xb7 "
+                                         "three carry keys and the fourth "
+                                         "does not"),
                                   diagram()),
                               sketch::kit::caption(
-                                  kList, toU8("composer.routesAt(\"hub\")"),
-                                  toU8("in tree order \xc2\xb7 the keyless "
-                                       "route is anchored and drawn, and "
-                                       "not in this list"),
+                                  kList, toUtf8("composer.routesAt(\"hub\")"),
+                                  toUtf8("in tree order \xc2\xb7 the keyless "
+                                         "route is anchored and drawn, and "
+                                         "not in this list"),
                                   lines(routes, kList,
                                         "\xe2\x80\x94 nothing yet: the "
                                         "first describe has not been "
                                         "drawn")),
                               sketch::kit::caption(
                                   kTable,
-                                  toU8("composer.profile() \xe2\x86\x92 "
-                                       "label \xc2\xb7 cacheState \xc2\xb7 "
-                                       "promotionReason"),
-                                  toU8("each probe looked up by its own key "
-                                       "\xc2\xb7 the milliseconds are on "
-                                       "these same rows and are not printed, "
-                                       "because a plate that carries a "
-                                       "timing differs from itself"),
+                                  toUtf8("composer.profile() \xe2\x86\x92 "
+                                         "label \xc2\xb7 cacheState \xc2\xb7 "
+                                         "promotionReason"),
+                                  toUtf8("each probe looked up by its own key "
+                                         "\xc2\xb7 the milliseconds are on "
+                                         "these same rows and are not printed, "
+                                         "because a plate that carries a "
+                                         "timing differs from itself"),
                                   lines(verdicts, kTable,
                                         "\xe2\x80\x94 empty until a frame "
                                         "has been drawn with profiling "

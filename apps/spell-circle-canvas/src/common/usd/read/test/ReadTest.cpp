@@ -190,7 +190,7 @@ TEST(UsdRead, SubsetsBecomeTheMaterialLaneAndTheFirstOneFillsTheFactors) {
 
   // Two subsets, two materials, in the order met: the triangle's face
   // wears slot 0 and the quad's two triangles slot 1.
-  const std::vector<glm::vec4>* lane = plate->mesh.primIf("Material");
+  const std::vector<glm::vec4>* lane = plate->mesh.primitiveIf("Material");
   ASSERT_TRUE(lane);
   ASSERT_EQ(lane->size(), 3u);
   EXPECT_FLOAT_EQ((*lane)[0].x, 0.0f);
@@ -272,7 +272,7 @@ TEST(UsdRead, RoundTripsWhatTheWriterAuthors) {
   EXPECT_EQ(part.mesh.triangleCount(), torus.mesh.triangleCount());
   EXPECT_EQ(part.mesh.vertexCount(),
             torus.mesh.triangleCount() * 3);  // unwelded
-  const std::vector<glm::vec4>* slots = part.mesh.primIf("Material");
+  const std::vector<glm::vec4>* slots = part.mesh.primitiveIf("Material");
   ASSERT_TRUE(slots);
   int ones = 0;
   for (const glm::vec4& v : *slots) ones += v.x > 0.5f;

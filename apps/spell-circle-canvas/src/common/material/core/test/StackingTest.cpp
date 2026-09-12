@@ -13,23 +13,23 @@ using namespace sigil::material;
 
 namespace {
 
-struct TwoParams {
+struct TwoParameters {
   float uScale;
   Color uColor;
 };
 
-struct SeededParams {
+struct SeededParameters {
   float seed;
   Color uColor;
 };
 
 std::shared_ptr<const Recipe> seededRecipe(const char* name = "seeded") {
-  return std::make_shared<const Recipe>(Recipe::of<SeededParams>(name).body(
+  return std::make_shared<const Recipe>(Recipe::of<SeededParameters>(name).body(
       Target::SkSL, "half4 main(float2 p) { return half4(uColor * seed); }"));
 }
 
 std::shared_ptr<const Recipe> twoRecipe(const char* name = "two") {
-  return std::make_shared<const Recipe>(Recipe::of<TwoParams>(name).body(
+  return std::make_shared<const Recipe>(Recipe::of<TwoParameters>(name).body(
       Target::SkSL, "half4 main(float2 p) { return half4(uColor * uScale); }"));
 }
 
@@ -45,21 +45,21 @@ std::shared_ptr<Program> slangStandIn(std::shared_ptr<const Recipe> recipe,
 /** A recipe whose Slang body spells @p mark, so the text of a
  *  composition says which definitions were inlined into it. */
 std::shared_ptr<const Recipe> markedRecipe(const char* name, const char* mark) {
-  return std::make_shared<const Recipe>(Recipe::of<TwoParams>(name).body(
+  return std::make_shared<const Recipe>(Recipe::of<TwoParameters>(name).body(
       Target::Slang, std::string("float4 surface(float2 p) { return ") + mark +
                          "(uColor * uScale); }"));
 }
 
 Material marked(const std::shared_ptr<const Recipe>& recipe) {
-  return Material(recipe, TwoParams{1, {1, 1, 1, 1}});
+  return Material(recipe, TwoParameters{1, {1, 1, 1, 1}});
 }
 
 /** THE THREE OPERANDS every stacking case below is built from. */
 struct Operands {
   std::shared_ptr<const Recipe> recipe = twoRecipe();
-  Material base{recipe, TwoParams{1, {1, 0, 0, 1}}};
-  Material top{recipe, TwoParams{1, {0, 0, 1, 1}}};
-  Material mask{recipe, TwoParams{0.5f, {1, 1, 1, 1}}};
+  Material base{recipe, TwoParameters{1, {1, 0, 0, 1}}};
+  Material top{recipe, TwoParameters{1, {0, 0, 1, 1}}};
+  Material mask{recipe, TwoParameters{0.5f, {1, 1, 1, 1}}};
 };
 
 }  // namespace
@@ -112,7 +112,7 @@ TEST(Stacking, TheCompositionIsHeldUnderItsOperandsAndNotUnderTheirAddresses) {
   std::shared_ptr<const Recipe> composedWithB;
   {
     const Material withB = over(marked(base), marked(b), marked(mask));
-    composedWithB = withB.recipePtr();
+    composedWithB = withB.recipePointer();
   }
   const std::string* bodyB = composedWithB->body(Target::Slang);
   ASSERT_NE(bodyB, nullptr);
@@ -135,7 +135,7 @@ TEST(Stacking, TheCompositionIsHeldUnderItsOperandsAndNotUnderTheirAddresses) {
   // A fresh operand is a fresh key, and what comes back is the
   // composition of THIS stack's three bodies.
   const Material withC = over(marked(base), marked(c), marked(mask));
-  EXPECT_NE(withC.recipePtr(), composedWithB);
+  EXPECT_NE(withC.recipePointer(), composedWithB);
   const std::string* bodyC = withC.recipe().body(Target::Slang);
   ASSERT_NE(bodyC, nullptr);
   EXPECT_NE(bodyC->find("cee"), std::string::npos);
@@ -153,24 +153,24 @@ TEST(Stacking, OneCompositionServesEveryStackOverTheSameThreeDefinitions) {
   // cached rather than written per call.
   const Material first = over(marked(base), marked(top), marked(mask));
   const Material again = over(marked(base), marked(top), marked(mask));
-  EXPECT_EQ(first.recipePtr(), again.recipePtr());
+  EXPECT_EQ(first.recipePointer(), again.recipePointer());
 
   // The blend and each operand are all in the key.
   EXPECT_NE(
-      over(marked(base), marked(top), marked(mask), Blend::Add).recipePtr(),
-      first.recipePtr());
+      over(marked(base), marked(top), marked(mask), Blend::Add).recipePointer(),
+      first.recipePointer());
   const std::shared_ptr<const Recipe> other = markedRecipe("stack.one.o", "oh");
-  EXPECT_NE(over(marked(base), marked(other), marked(mask)).recipePtr(),
-            first.recipePtr());
-  EXPECT_EQ(over(marked(base), marked(top), marked(mask)).recipePtr(),
-            first.recipePtr());
+  EXPECT_NE(over(marked(base), marked(other), marked(mask)).recipePointer(),
+            first.recipePointer());
+  EXPECT_EQ(over(marked(base), marked(top), marked(mask)).recipePointer(),
+            first.recipePointer());
 }
 
 // ---- the bank ---------------------------------------------------------------
 
-TEST(Bank, FoldsSeedsIntoBucketsAndKeysOnTheRecipeAndParams) {
+TEST(Bank, FoldsSeedsIntoBucketsAndKeysOnTheRecipeAndParameters) {
   Bank bank(24);
-  SeededParams p{0.0f, {0, 0, 0, 1}};
+  SeededParameters p{0.0f, {0, 0, 0, 1}};
   const std::shared_ptr<const Recipe> recipe = seededRecipe();
   const Material& first = bank.get(recipe, p, 5);
   // The bucket IS the seed the recipe reads, and pieces in one bucket are
@@ -180,10 +180,10 @@ TEST(Bank, FoldsSeedsIntoBucketsAndKeysOnTheRecipeAndParams) {
   EXPECT_NE(&bank.get(recipe, p, 6), &first);
   for (uint32_t seed = 0; seed < 1000; ++seed) (void)bank.get(recipe, p, seed);
   EXPECT_EQ(bank.size(), 24u);
-  // A seed the caller left in the params does not reach the key.
+  // A seed the caller left in the parameters does not reach the key.
   p.seed = 99;
   EXPECT_EQ(&bank.get(recipe, p, 5), &first);
-  // The params' bytes are the rest of the key, so another tone is another
+  // The parameters' bytes are the rest of the key, so another tone is another
   // species and another recipe another row.
   p.uColor = {1, 0, 0, 1};
   EXPECT_NE(&bank.get(recipe, p, 5), &first);
@@ -199,7 +199,7 @@ TEST(Bank, TheMakerRunsOncePerBucketAndItsAnswerIsWhatIsBanked) {
   const std::shared_ptr<const Recipe> recipe = twoRecipe();
   int made = 0;
   for (uint32_t seed = 0; seed < 40; ++seed)
-    (void)bank.get(recipe, TwoParams{}, seed, [&](uint32_t bucket) {
+    (void)bank.get(recipe, TwoParameters{}, seed, [&](uint32_t bucket) {
       ++made;
       Material m(recipe);
       m.set("uScale", (float)bucket * 7);
@@ -207,7 +207,7 @@ TEST(Bank, TheMakerRunsOncePerBucketAndItsAnswerIsWhatIsBanked) {
     });
   EXPECT_EQ(made, 4);
   EXPECT_EQ(bank.size(), 4u);
-  EXPECT_FLOAT_EQ(bank.get(recipe, TwoParams{}, 9,
+  EXPECT_FLOAT_EQ(bank.get(recipe, TwoParameters{}, 9,
                            [&](uint32_t) { return Material(recipe); })
                       .get<float>("uScale"),
                   7.0f);

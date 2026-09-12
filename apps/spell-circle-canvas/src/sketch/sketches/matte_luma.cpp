@@ -60,7 +60,7 @@ namespace mskia = sigil::material::skia;
 namespace ptn = sigil::material::pattern;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -188,7 +188,7 @@ Element bandLabels(float stripW) {
     row.child(box()
                   .width(stripW / (float)kBands.size())
                   .justify(Justify::Center)
-                  .child(text(toU8(band.label), label(10, kDim))));
+                  .child(text(toUtf8(band.label), label(10, kDim))));
   return row;
 }
 
@@ -211,7 +211,7 @@ struct MatteLuma final : sketch::Sketch {
     };
     const auto captioned = [&](const char* call, const char* note,
                                Element body) {
-      return sketch::kit::caption(kPanel, toU8(call), toU8(note),
+      return sketch::kit::caption(kPanel, toUtf8(call), toUtf8(note),
                                   std::move(body));
     };
 
@@ -245,29 +245,30 @@ struct MatteLuma final : sketch::Sketch {
         box()
             .column()
             .gap(6)
-            .child(text(toU8("Rec. 601 on ENCODED values \xc2\xb7 each colour "
-                             "paired with its 0.299 R + 0.587 G + 0.114 B "
-                             "grey twin"),
-                        label(13, kInk)))
+            .child(
+                text(toUtf8("Rec. 601 on ENCODED values \xc2\xb7 each colour "
+                            "paired with its 0.299 R + 0.587 G + 0.114 B "
+                            "grey twin"),
+                     label(13, kInk)))
             .child(cell(stripW, 64, box().inset(0).fill(bands)))
             .child(bandLabels(stripW))
-            .child(text(toU8("\xe2\x80\xa6"
-                             "the same eight bands as a by::luma "
-                             "matte \xe2\x86\x93 each pair reads the SAME"),
+            .child(text(toUtf8("\xe2\x80\xa6"
+                               "the same eight bands as a by::luma "
+                               "matte \xe2\x86\x93 each pair reads the SAME"),
                         label(11, kDim))
                        .margin(0, 6, 0, 0))
             .child(cell(stripW, 64, std::move(bandMatted)));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("TRACK MATTES \xc2\xb7 by::alpha / alphaOut / "
-                       "luma / lumaOut"),
-         .subtitle = toU8("one content, one coverage paint, four gates "
-                          "\xe2\x80\x94 right halves match between alpha "
-                          "and luma because the luma is taken on the "
-                          "PREMULTIPLIED colour; left halves do not"),
-         .footer = toU8("Y' = 0.299 R' + 0.587 G' + 0.114 B' \xc2\xb7 "
-                        "Rec. 709's luminance coefficients on encoded "
-                        "values would break every pair above")},
+        {.title = toUtf8("TRACK MATTES \xc2\xb7 by::alpha / alphaOut / "
+                         "luma / lumaOut"),
+         .subtitle = toUtf8("one content, one coverage paint, four gates "
+                            "\xe2\x80\x94 right halves match between alpha "
+                            "and luma because the luma is taken on the "
+                            "PREMULTIPLIED colour; left halves do not"),
+         .footer = toUtf8("Y' = 0.299 R' + 0.587 G' + 0.114 B' \xc2\xb7 "
+                          "Rec. 709's luminance coefficients on encoded "
+                          "values would break every pair above")},
         kit::cells({.cells = {std::move(gates), std::move(law)},
                     .column = true,
                     .gap = 26})));

@@ -45,13 +45,13 @@ namespace sigil::geometry::mesh::kernel {
  *  Every member is a four-component vector, so these bytes stand at the
  *  same offsets in a device's uniform buffer as they do here — there is
  *  no layout to report and none to guess. */
-struct OpArgs {
+struct OperationArguments {
   /** x: which operator, by its index among the language's descriptions;
    *  y: how many points; z: the operator's seed; w: flags, bit 0 meaning
    *  a mask lane is bound. */
   glm::uvec4 code{0, 0, 0, 0};
   /** The operator's whole numbers, one meaning per operator. */
-  glm::uvec4 nums{0, 0, 0, 0};
+  glm::uvec4 integers{0, 0, 0, 0};
   /** …and its real ones. */
   glm::vec4 a{0, 0, 0, 0};
   glm::vec4 b{0, 0, 0, 0};
@@ -63,7 +63,7 @@ struct OpArgs {
   glm::vec4 m3{0, 0, 0, 0};
 };
 
-/** The flag bits `OpArgs::code.w` carries. */
+/** The flag bits `OperationArguments::code.w` carries. */
 enum : uint32_t {
   /** A mask lane is bound, so the operator's write is blended by it. */
   kMasked = 1u << 0u,
@@ -74,11 +74,11 @@ enum : uint32_t {
  *
  *  A role an operator does not read is left unnamed, and a runtime may
  *  bind anything to it — the kernel never reads it. Writing goes through
- *  `dst` alone. Where `dst` and a source name one lane, that is one lane
- *  read and written in place, which is what most filters are. */
-struct OpDispatch {
-  OpArgs args;
-  std::string dst;
+ *  `destination` alone. Where `destination` and a source name one lane, that is
+ * one lane read and written in place, which is what most filters are. */
+struct OperationDispatch {
+  OperationArguments arguments;
+  std::string destination;
   std::string a;
   std::string b;
   std::string c;
@@ -88,22 +88,23 @@ struct OpDispatch {
   std::vector<glm::vec4> table;
 };
 
-/** Does @p op have a kernel? Every runtime asks this and no runtime
+/** Does @p operation have a kernel? Every runtime asks this and no runtime
  *  keeps a list of its own, so an operator gains a kernel in one place
  *  and every runtime that dispatches them gains it at once. */
-bool has(const pop::Op& op);
+bool has(const pop::Operation& operation);
 
-/** @p op over @p count points, as a dispatch. False — leaving @p out
+/** @p operation over @p count points, as a dispatch. False — leaving @p out
  *  untouched — when there is no kernel for the operator. */
-bool describe(const pop::Op& op, size_t count, OpDispatch* out);
+bool describe(const pop::Operation& operation, size_t count,
+              OperationDispatch* out);
 
 /** THE HOST RUN: the kernel's own generated C++ over the bound lanes.
  *
- *  Every pointer addresses at least `args.code.y` values. Only @p dst is
- *  written; a role @p dispatch left unnamed may be given any of the
- *  others, since nothing reads it. */
-void run(const OpDispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
-         glm::vec4* c, glm::vec4* mask);
+ *  Every pointer addresses at least `arguments.code.y` values. Only @p
+ * destination is written; a role @p dispatch left unnamed may be given any of
+ * the others, since nothing reads it. */
+void run(const OperationDispatch& dispatch, glm::vec4* destination,
+         glm::vec4* a, glm::vec4* b, glm::vec4* c, glm::vec4* mask);
 
 /** THE KERNEL AS A DEVICE RUNS IT: the SPIR-V this build compiled from
  *  the same source `run` came out of, under the precise float model.
@@ -117,6 +118,6 @@ void run(const OpDispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
  *
  *  The words are the build's own and stand for the life of the
  *  process. */
-std::span<const uint32_t> opSpirv();
+std::span<const uint32_t> operationSpirv();
 
 }  // namespace sigil::geometry::mesh::kernel

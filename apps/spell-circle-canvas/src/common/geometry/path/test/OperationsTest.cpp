@@ -27,7 +27,7 @@
 #include "sigilgeometry/path/Edges.h"
 #include "sigilgeometry/path/Noise.h"
 #include "sigilgeometry/path/Numeric.h"
-#include "sigilgeometry/path/Ops.h"
+#include "sigilgeometry/path/Operations.h"
 #include "sigilgeometry/path/Segments.h"
 #include "support/Paths.h"
 
@@ -113,22 +113,22 @@ INSTANTIATE_TEST_SUITE_P(
     PathOps, PathBoolean,
     ::testing::Values(Boolean{"Unite",
                               [](const SkPath& a, const SkPath& b) {
-                                return ops::unite(a, b);
+                                return operations::unite(a, b);
                               },
                               150.0f, true},
                       Boolean{"Subtract",
                               [](const SkPath& a, const SkPath& b) {
-                                return ops::subtract(a, b);
+                                return operations::subtract(a, b);
                               },
                               50.0f, false},
                       Boolean{"Intersect",
                               [](const SkPath& a, const SkPath& b) {
-                                return ops::intersect(a, b);
+                                return operations::intersect(a, b);
                               },
                               50.0f, true},
                       Boolean{"Exclude",
                               [](const SkPath& a, const SkPath& b) {
-                                return ops::exclude(a, b);
+                                return operations::exclude(a, b);
                               },
                               150.0f, false}),
     [](const ::testing::TestParamInfo<Boolean>& info) {
@@ -138,7 +138,8 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(PathOps, UnitingAListOfOutlinesReachesEveryOneOfThem) {
   const SkPath a = rect(0, 0, 100, 100);
   const SkPath b = rect(50, 0, 100, 100);
-  EXPECT_TRUE(ops::unite({a, b, rect(140, 0, 100, 100)}).contains(200, 50));
+  EXPECT_TRUE(
+      operations::unite({a, b, rect(140, 0, 100, 100)}).contains(200, 50));
 }
 
 // Offset distance is a radius, not a diameter: a positive amount grows the
@@ -146,9 +147,9 @@ TEST(PathOps, UnitingAListOfOutlinesReachesEveryOneOfThem) {
 // circle of radius 50 offset by 10 spans 120 across and by -15 spans 70.
 TEST(PathOps, OffsetIsARadiusThatGrowsAndShrinksTheOutline) {
   const SkPath circle = SkPath::Circle(0, 0, 50);
-  const SkRect grown = ops::offset(circle, 10).computeTightBounds();
+  const SkRect grown = operations::offset(circle, 10).computeTightBounds();
   EXPECT_NEAR(grown.width(), 120, 1.5f);
-  const SkRect shrunk = ops::offset(circle, -15).computeTightBounds();
+  const SkRect shrunk = operations::offset(circle, -15).computeTightBounds();
   EXPECT_NEAR(shrunk.width(), 70, 1.5f);
 }
 
@@ -177,7 +178,7 @@ SkPath star() {
   return b.detach();
 }
 
-/** `ops::offset` as it was: a round-joined, round-capped stroke
+/** `operations::offset` as it was: a round-joined, round-capped stroke
  *  expansion of twice the distance, united with the source to grow and
  *  subtracted from it to shrink. */
 SkPath strokeExpandedOffset(const SkPath& path, float delta) {
@@ -188,8 +189,8 @@ SkPath strokeExpandedOffset(const SkPath& path, float delta) {
   stroke.setStrokeJoin(SkPaint::kRound_Join);
   stroke.setStrokeCap(SkPaint::kRound_Cap);
   const SkPath expanded = skpathutils::FillPathWithPaint(path, stroke);
-  return delta > 0 ? ops::unite(path, expanded)
-                   : ops::simplify(ops::subtract(path, expanded));
+  return delta > 0 ? operations::unite(path, expanded)
+                   : operations::simplify(operations::subtract(path, expanded));
 }
 
 /** `insetOutline` as it was: the same construction mitred, butt-capped
@@ -212,7 +213,7 @@ SkPath mitredInset(const SkPath& outline, float px) {
 TEST(PathOffset, StraddlingTheSourceIsTheStrokeExpansionItReplaces) {
   for (const SkPath& source : {SkPath::Circle(0, 0, 50), star()})
     for (const float distance : {12.0f, -12.0f, 3.0f, -3.0f})
-      EXPECT_TRUE(ops::offset(source, distance) ==
+      EXPECT_TRUE(operations::offset(source, distance) ==
                   strokeExpandedOffset(source, distance))
           << "distance " << distance;
 }
@@ -223,14 +224,14 @@ TEST(PathOffset, StraddlingTheSourceIsTheStrokeExpansionItReplaces) {
 // agree, and the robust one of the two is what the operator keeps.
 TEST(PathOffset, TheMitredButtJoinedOffsetIsTheConcentricFrameItReplaces) {
   for (const SkPath& source : {SkPath::Circle(0, 0, 50), star()}) {
-    EXPECT_TRUE(
-        ops::offset(source, -6.0f,
-                    {.join = ops::Join::Miter, .cap = ops::Cap::Butt}) ==
-        ops::simplify(mitredInset(source, 6.0f)));
-    EXPECT_TRUE(
-        ops::offset(source, 6.0f,
-                    {.join = ops::Join::Miter, .cap = ops::Cap::Butt}) ==
-        mitredInset(source, -6.0f));
+    EXPECT_TRUE(operations::offset(source, -6.0f,
+                                   {.join = operations::Join::Miter,
+                                    .cap = operations::Cap::Butt}) ==
+                operations::simplify(mitredInset(source, 6.0f)));
+    EXPECT_TRUE(operations::offset(source, 6.0f,
+                                   {.join = operations::Join::Miter,
+                                    .cap = operations::Cap::Butt}) ==
+                mitredInset(source, -6.0f));
   }
 }
 
@@ -238,18 +239,19 @@ TEST(PathOffset, TheMitredButtJoinedOffsetIsTheConcentricFrameItReplaces) {
 // each end of the dial is the sideways walk, exactly.
 TEST(PathOffset, EitherEndOfThePositionDialIsTheParallelWalk) {
   const SkPath source = star();
-  EXPECT_TRUE(ops::offset(source, 9.0f, {.position = 0, .step = 2.0f}) ==
+  EXPECT_TRUE(operations::offset(source, 9.0f, {.position = 0, .step = 2.0f}) ==
               parallel(source, 9.0f, 2.0f));
-  EXPECT_TRUE(ops::offset(source, 9.0f, {.position = 1, .step = 2.0f}) ==
+  EXPECT_TRUE(operations::offset(source, 9.0f, {.position = 1, .step = 2.0f}) ==
               parallel(source, -9.0f, 2.0f));
 }
 
 TEST(PathOffset, ARectangleGrowsByTheDistanceOnEveryAxisForEveryJoin) {
   const SkPath source = rect(0, 0, 100, 60);
-  for (const ops::Join join :
-       {ops::Join::Round, ops::Join::Miter, ops::Join::Bevel}) {
+  for (const operations::Join join :
+       {operations::Join::Round, operations::Join::Miter,
+        operations::Join::Bevel}) {
     const SkRect grown =
-        ops::offset(source, 10.0f, {.join = join}).computeTightBounds();
+        operations::offset(source, 10.0f, {.join = join}).computeTightBounds();
     EXPECT_NEAR(grown.width(), 120, 0.5f);
     EXPECT_NEAR(grown.height(), 80, 0.5f);
   }
@@ -260,14 +262,15 @@ TEST(PathOffset, ARectangleGrowsByTheDistanceOnEveryAxisForEveryJoin) {
 // clockwise rectangle and encloses none of it.
 TEST(PathOffset, ABandToOneSideIsTheMarkAndNotTheGrownArea) {
   const SkPath source = rect(0, 0, 100, 60);
-  const SkPath band = ops::offset(source, 10.0f, {.position = 0.1f});
+  const SkPath band = operations::offset(source, 10.0f, {.position = 0.1f});
   EXPECT_FALSE(band.contains(50, 30));
-  EXPECT_TRUE(ops::offset(source, 10.0f).contains(50, 30));
+  EXPECT_TRUE(operations::offset(source, 10.0f).contains(50, 30));
 }
 
 TEST(PathOffset, KeepCompatibleMovesTheNodesAndTheAnswerStillPairs) {
   const SkPath source = rect(0, 0, 100, 60);
-  const SkPath grown = ops::offset(source, 10.0f, {.keepCompatible = true});
+  const SkPath grown =
+      operations::offset(source, 10.0f, {.keepCompatible = true});
   EXPECT_EQ(compatible(source, grown), Compatible::Yes);
   const SkRect bounds = grown.computeTightBounds();
   EXPECT_NEAR(bounds.width(), 120, 1e-3f);
@@ -281,8 +284,8 @@ TEST(PathOffset, KeepCompatibleBluntsANeedleRatherThanShootingOff) {
   needle.lineTo(200, -1);
   needle.close();
   const SkPath source = needle.detach();
-  const SkPath grown =
-      ops::offset(source, 5.0f, {.miterLimit = 2.0f, .keepCompatible = true});
+  const SkPath grown = operations::offset(
+      source, 5.0f, {.miterLimit = 2.0f, .keepCompatible = true});
   EXPECT_EQ(compatible(source, grown), Compatible::Yes);
   // Two distances is the cap, so no node may travel further than that.
   const std::vector<SegmentContour> before = segments(source);
@@ -302,12 +305,13 @@ TEST(PathCorners, TheDefaultRoundingIsTheCornerEffectItReplaces) {
   const SkPath source = rect(0, 0, 100, 60);
   sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(8.0f);
   ASSERT_TRUE(fx && fx->filterPath(&dst, source, &rec));
-  EXPECT_TRUE(ops::roundCorners(source, 8.0f) == dst.detach());
+  EXPECT_TRUE(operations::roundCorners(source, 8.0f) == dst.detach());
 }
 
 TEST(PathCorners, RoundingCutsEveryCornerOfARectangle) {
   const SkPath source = rect(0, 0, 100, 60);
-  const SkPath round = ops::roundCorners(source, 10.0f, {.minTurnDeg = 5.0f});
+  const SkPath round =
+      operations::roundCorners(source, 10.0f, {.minTurnDeg = 5.0f});
   const std::vector<SegmentContour> read = segments(round);
   ASSERT_EQ(read.size(), 1u);
   // Four arcs, four straight runs between them.
@@ -329,7 +333,7 @@ TEST(PathCorners, VisualCorrectionHoldsTheArcsStandOffConstant) {
     b.moveTo(-200, 0);
     b.lineTo(0, 0);
     b.lineTo(200 * std::cos(turn), 200 * std::sin(turn));
-    const SkPath corner = ops::roundCorners(
+    const SkPath corner = operations::roundCorners(
         b.detach(), 20.0f, {.minTurnDeg = 1.0f, .visual = visual});
     // The arc's midpoint stands where the quadratic's middle is; how far
     // that is from the vertex is what the correction holds constant.
@@ -353,7 +357,7 @@ TEST(PathCorners, ACornerShallowerThanTheThresholdIsLeftAlone) {
   b.lineTo(100, 0);
   b.lineTo(200, 6);  // a turn of about three degrees
   const SkPath source = b.detach();
-  EXPECT_TRUE(ops::roundCorners(source, 10.0f, {.minTurnDeg = 20.0f}) ==
+  EXPECT_TRUE(operations::roundCorners(source, 10.0f, {.minTurnDeg = 20.0f}) ==
               source);
 }
 
@@ -361,7 +365,8 @@ TEST(PathCorners, ACornerShallowerThanTheThresholdIsLeftAlone) {
 // what a selection with no corners named is asked for.
 TEST(PathCorners, OutwardOnlyLeavesTheReflexCornersAlone) {
   const SkPath source = star();
-  const SkPath rounded = ops::roundCorners(source, 8.0f, {.outwardOnly = true});
+  const SkPath rounded =
+      operations::roundCorners(source, 8.0f, {.outwardOnly = true});
   const std::vector<SegmentContour> read = segments(rounded);
   ASSERT_EQ(read.size(), 1u);
   int curves = 0;
@@ -399,16 +404,21 @@ INSTANTIATE_TEST_SUITE_P(
     PathOps, PathDistort,
     ::testing::Values(
         Distort{"Roughen",
-                [](const SkPath& p) { return ops::Roughen{6, 8, 42}.apply(p); },
+                [](const SkPath& p) {
+                  return operations::Roughen{6, 8, 42}.apply(p);
+                },
                 6.0f},
         Distort{"Twirl",
-                [](const SkPath& p) { return ops::Twirl{90}.apply(p); }, 0.0f},
-        Distort{"Zigzag",
-                [](const SkPath& p) { return ops::Zigzag{4, 20}.apply(p); },
-                4.0f},
+                [](const SkPath& p) { return operations::Twirl{90}.apply(p); },
+                0.0f},
+        Distort{
+            "Zigzag",
+            [](const SkPath& p) { return operations::Zigzag{4, 20}.apply(p); },
+            4.0f},
         Distort{"AChainOfTwo",
                 [](const SkPath& p) {
-                  return ops::chain({ops::offsetBy(6), ops::Zigzag{4, 20}})(p);
+                  return operations::chain(
+                      {operations::offsetBy(6), operations::Zigzag{4, 20}})(p);
                 },
                 10.0f}),
     [](const ::testing::TestParamInfo<Distort>& info) {
@@ -418,7 +428,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(PathOps, BloatPushesOutwardAndNeverInward) {
   const SkPath base = SkPath::Circle(100, 100, 60);
   const SkRect bloated =
-      ops::PuckerBloat{0.8f}.apply(base).computeTightBounds();
+      operations::PuckerBloat{0.8f}.apply(base).computeTightBounds();
   EXPECT_GT(bloated.width(), 118);
 }
 
@@ -483,34 +493,39 @@ TEST_P(PathFillType, AnEvenOddDonutKeepsItsHole) {
 INSTANTIATE_TEST_SUITE_P(
     RebuildingOperators, PathFillType,
     testing::Values(
-        RebuildCase{"roundCorners",
-                    [](const SkPath& p) { return ops::roundCorners(p, 6); }},
+        RebuildCase{
+            "roundCorners",
+            [](const SkPath& p) { return operations::roundCorners(p, 6); }},
         RebuildCase{"selectedCorners",
                     [](const SkPath& p) {
-                      return ops::roundCorners(p, 6, {.minTurnDeg = 10});
+                      return operations::roundCorners(p, 6, {.minTurnDeg = 10});
                     }},
-        RebuildCase{"chamferCorners",
-                    [](const SkPath& p) { return ops::chamferCorners(p, 5); }},
         RebuildCase{
-            "displaceSquare",
-            [](const SkPath& p) { return ops::displaceSquare(p, 3, 20); }},
-        RebuildCase{"roughen",
+            "chamferCorners",
+            [](const SkPath& p) { return operations::chamferCorners(p, 5); }},
+        RebuildCase{"displaceSquare",
                     [](const SkPath& p) {
-                      return ops::Roughen{.amplitude = 2, .segmentPx = 5}.apply(
-                          p);
+                      return operations::displaceSquare(p, 3, 20);
                     }},
         RebuildCase{
-            "zigzag",
+            "roughen",
             [](const SkPath& p) {
-              return ops::Zigzag{.amplitude = 2, .wavelengthPx = 20}.apply(p);
+              return operations::Roughen{.amplitude = 2, .segmentPx = 5}.apply(
+                  p);
             }},
+        RebuildCase{"zigzag",
+                    [](const SkPath& p) {
+                      return operations::Zigzag{.amplitude = 2,
+                                                .wavelengthPx = 20}
+                          .apply(p);
+                    }},
         RebuildCase{"puckerBloat",
                     [](const SkPath& p) {
-                      return ops::PuckerBloat{.amount = 0.2f}.apply(p);
+                      return operations::PuckerBloat{.amount = 0.2f}.apply(p);
                     }},
         RebuildCase{"twirl",
                     [](const SkPath& p) {
-                      return ops::Twirl{.angleDeg = 10}.apply(p);
+                      return operations::Twirl{.angleDeg = 10}.apply(p);
                     }},
         RebuildCase{"edges",
                     [](const SkPath& p) { return edges(p, Edge::All); }},
@@ -533,7 +548,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(PathFillType, TheSameDonutWoundStaysSolid) {
   SkPath winding = evenOddDonut();
   winding.setFillType(SkPathFillType::kWinding);
-  const SkPath out = ops::roundCorners(winding, 6);
+  const SkPath out = operations::roundCorners(winding, 6);
   EXPECT_EQ(out.getFillType(), SkPathFillType::kWinding);
   EXPECT_TRUE(out.contains(50, 50));
 }
@@ -543,7 +558,7 @@ TEST(PathFillType, TheSameDonutWoundStaysSolid) {
 
 TEST(PathChamfer, EveryCornerOfASquareBecomesTwoNodesAndTheAreaShrinks) {
   const SkPath square = rect(0, 0, 100, 100);
-  const SkPath cut = ops::chamferCorners(square, 10);
+  const SkPath cut = operations::chamferCorners(square, 10);
   // Four corners, each replaced by an entry and an exit.
   EXPECT_EQ(placesOf(cut), 8u);
   EXPECT_EQ(cut.computeTightBounds(), square.computeTightBounds());
@@ -555,7 +570,7 @@ TEST(PathChamfer, EveryCornerOfASquareBecomesTwoNodesAndTheAreaShrinks) {
 // shape's own midpoints rather than an outline that crosses itself.
 TEST(PathChamfer, ACutLargerThanTheLegsIsClampedToHalfOfEach) {
   const SkPath square = rect(0, 0, 20, 20);
-  const SkPath cut = ops::chamferCorners(square, 1000);
+  const SkPath cut = operations::chamferCorners(square, 1000);
   const std::vector<SkPoint> points = pointsOf(cut);
   ASSERT_FALSE(points.empty());
   for (const SkPoint p : points) {
@@ -570,7 +585,8 @@ TEST(PathChamfer, ACutLargerThanTheLegsIsClampedToHalfOfEach) {
 // one square corner on every rectangle.
 TEST(PathChamfer, TheVertexTheWalkStartsAtIsCutToo) {
   const SkPath square = rect(0, 0, 100, 100);
-  const std::vector<SkPoint> points = pointsOf(ops::chamferCorners(square, 10));
+  const std::vector<SkPoint> points =
+      pointsOf(operations::chamferCorners(square, 10));
   for (const SkPoint p : points) {
     EXPECT_FALSE(p.fX == 0 && p.fY == 0) << "the starting corner survived";
   }
@@ -582,7 +598,7 @@ TEST(PathChamfer, AStraightThroughVertexIsNotACornerAndIsLeftAlone) {
   b.lineTo(50, 0);  // straight through
   b.lineTo(100, 0);
   b.lineTo(100, 50);
-  const SkPath cut = ops::chamferCorners(b.detach(), 10);
+  const SkPath cut = operations::chamferCorners(b.detach(), 10);
   // Ends kept, the straight-through vertex kept, the one real corner cut.
   EXPECT_EQ(placesOf(cut), 5u);
 }
@@ -595,7 +611,7 @@ TEST(PathChamfer, AContourWithACurvePassesThroughUntouched) {
   b.quadTo(50, 100, 100, 0);
   b.close();
   const SkPath source = b.detach();
-  const SkPath cut = ops::chamferCorners(source, 10);
+  const SkPath cut = operations::chamferCorners(source, 10);
   // The copy spells the closing line the source left to `close()`; what
   // the promise is about is that the curve came back a curve, through
   // the same points.
@@ -615,7 +631,7 @@ TEST(PathDisplaceSquare, AClosedContourCarriesAWholeNumberOfPeriods) {
   const SkPath circle = SkPath::Circle(0, 0, 100);
   const float circumference = kTau * 100.0f;
   for (const float wavelength : {20.0f, 33.0f, 47.0f}) {
-    const SkPath wave = ops::displaceSquare(circle, 5, wavelength);
+    const SkPath wave = operations::displaceSquare(circle, 5, wavelength);
     // Four plotted points per period — a pair at each half-step, where
     // the wave changes side — plus the pair the walk opens with and the
     // pair it closes with, both on the source curve.
@@ -628,7 +644,7 @@ TEST(PathDisplaceSquare, AClosedContourCarriesAWholeNumberOfPeriods) {
 
 TEST(PathDisplaceSquare, TheWaveStaysWithinItsAmplitudeOfTheSource) {
   const SkPath circle = SkPath::Circle(0, 0, 100);
-  for (const SkPoint p : pointsOf(ops::displaceSquare(circle, 6, 25))) {
+  for (const SkPoint p : pointsOf(operations::displaceSquare(circle, 6, 25))) {
     const float radius = std::hypot(p.fX, p.fY);
     EXPECT_GE(radius, 100.0f - 6.5f);
     EXPECT_LE(radius, 100.0f + 6.5f);
@@ -642,7 +658,8 @@ TEST(PathDistortEndpoints, ZigzagLeavesAnOpenContoursEndsWhereTheyWere) {
   b.moveTo(0, 0);
   b.lineTo(300, 0);
   const SkPath line = b.detach();
-  const SkPath wave = ops::Zigzag{.amplitude = 12, .wavelengthPx = 40}(line);
+  const SkPath wave =
+      operations::Zigzag{.amplitude = 12, .wavelengthPx = 40}(line);
   const std::vector<SkPoint> points = pointsOf(wave);
   ASSERT_GE(points.size(), 2u);
   EXPECT_NEAR(points.front().fY, 0.0f, 0.5f);

@@ -76,7 +76,7 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
@@ -447,7 +447,7 @@ struct PersonaMenu final : sketch::Sketch {
         .opacity(
             animate(motion::from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}))
         .cache(Cache::Texture)
-        .child(text(toU8(r.label), nn::menuType(41, r.color, 1.8f))
+        .child(text(toUtf8(r.label), nn::menuType(41, r.color, 1.8f))
                    .effect(styles::textGlow({0, 0, 0, 0.5f}, 3.5f)));
   }
 
@@ -502,13 +502,13 @@ struct PersonaMenu final : sketch::Sketch {
                   .clip(true)
                   .fill(Paint::solid(nn::kPaper))
                   .scale(&wedgePulse)
-                  .child(text(toU8(r.label), nn::menuType(50, nn::kRedC, 0))
+                  .child(text(toUtf8(r.label), nn::menuType(50, nn::kRedC, 0))
                              .left(lx + 3)
                              .top(3)
                              .rotate(-8)));
     // the black label (1.5x the unselected size), no glow -- ink on paper
     row.child(
-        text(toU8(r.label), nn::menuType(50, nn::kInk, 0)).left(lx).top(ly));
+        text(toUtf8(r.label), nn::menuType(50, nn::kInk, 0)).left(lx).top(ly));
     return row;
   }
 
@@ -559,7 +559,7 @@ struct PersonaMenu final : sketch::Sketch {
         .stroke(stroke(3, Fill::color(nn::kPaper)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(toU8(glyph), nn::smallType(14, nn::kPaper, 0)));
+        .child(text(toUtf8(glyph), nn::smallType(14, nn::kPaper, 0)));
   }
 
   /** The date stamp the pause menu wears in its top-left corner: the day
@@ -582,14 +582,14 @@ struct PersonaMenu final : sketch::Sketch {
             box()
                 .row()
                 .alignItems(Align::End)
-                .child(text(toU8("07/22"), nn::menuType(38, nn::kPaper, 2.0f))
+                .child(text(toUtf8("07/22"), nn::menuType(38, nn::kPaper, 2.0f))
                            .effect(styles::textGlow({0, 0, 0, 0.45f}, 3)))
                 .child(box()
                            .column()
                            .margin(11, 0, 0, 5)
-                           .child(text(toU8("SUNDAY"),
+                           .child(text(toUtf8("SUNDAY"),
                                        nn::smallType(11, nn::kCyanC, 2.6f)))
-                           .child(text(toU8("EVENING"),
+                           .child(text(toUtf8("EVENING"),
                                        nn::smallType(11, nn::kCyanB, 2.6f))
                                       .margin(0, 3, 0, 0))))
         .child(box()
@@ -600,7 +600,7 @@ struct PersonaMenu final : sketch::Sketch {
                        {0, 0}, {168, 0},
                        {{0.0f, {1, 1, 1, 0.85f}}, {1.0f, {1, 1, 1, 0.0f}}})))
         .child(
-            text(toU8("IWATODAI DORM"), nn::smallType(11, nn::kPaper, 2.2f)));
+            text(toUtf8("IWATODAI DORM"), nn::smallType(11, nn::kPaper, 2.2f)));
   }
 
   /** The party rail: four slanted cards with HP and SP. P3R skews every
@@ -635,7 +635,7 @@ struct PersonaMenu final : sketch::Sketch {
           .row()
           .alignItems(Align::Center)
           .gap(6)
-          .child(text(toU8(label), nn::smallType(9, color, 1.4f)).width(16))
+          .child(text(toUtf8(label), nn::smallType(9, color, 1.4f)).width(16))
           .child(box()
                      .width(84)
                      .height(6)
@@ -644,8 +644,8 @@ struct PersonaMenu final : sketch::Sketch {
                      .child(box()
                                 .left(0)
                                 .top(0)
-                                .width(Dim(84 * frac))
-                                .height(Dim(6.0f))
+                                .width(Dimension(84 * frac))
+                                .height(Dimension(6.0f))
                                 .fill(Paint::linear(
                                     {0, 0}, {0, 6},
                                     {{0.0f,
@@ -653,7 +653,7 @@ struct PersonaMenu final : sketch::Sketch {
                                        std::min(1.0f, color.fG * 1.4f),
                                        std::min(1.0f, color.fB * 1.4f), 1}},
                                      {1.0f, color}}))))
-          .child(text(toU8(numbers), nn::smallType(9, nn::kPaper, 0.6f)));
+          .child(text(toUtf8(numbers), nn::smallType(9, nn::kPaper, 0.6f)));
     };
 
     Element rail = box()
@@ -685,10 +685,10 @@ struct PersonaMenu final : sketch::Sketch {
               .child(box()
                          .row()
                          .alignItems(Align::End)
-                         .child(text(toU8(m.name),
+                         .child(text(toUtf8(m.name),
                                      nn::menuType(17, nn::kPaper, 1.0f))
                                     .grow(1))
-                         .child(text(toU8(level),
+                         .child(text(toUtf8(level),
                                      nn::smallType(10, nn::kCyanB, 1.6f))))
               .child(bar("HP", m.hp, m.hpMax, kHp))
               .child(bar("SP", m.sp, m.spMax, kSp)));
@@ -705,7 +705,7 @@ struct PersonaMenu final : sketch::Sketch {
         .fill(nn::kGroundDark)
         .child(backdrop())
         // ---- giant rotated index numeral, behind the menu ----
-        .child(text(toU8("04"),
+        .child(text(toUtf8("04"),
                     [] {
                       auto s = nn::menuType(220, nn::kNumeral, 0, false);
                       // The original tracks this at -0.2em on FOT-Rodin.
@@ -753,33 +753,34 @@ struct PersonaMenu final : sketch::Sketch {
         .child(dateBlock())
         .child(partyPanel())
         // ---- right-anchored tooltip title over the COMMAND rule ----
-        .child(box()
-                   .key("tooltip")
-                   .top(40 - 12)
-                   .right(43 - 12)
-                   .zIndex(8)
-                   .alignItems(Align::End)
-                   // texture-baked (the sigma-3 glow otherwise re-blurs
-                   // on every root replay); 12px padding keeps raster
-                   // room for the glow tail, pins shifted to compensate
-                   .padding(12)
-                   .cache(Cache::Texture)
-                   .translateX(animate(motion::from(36.0f).to(0.0f),
-                                       {400ms, &ch::easeOutQuint}))
-                   .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
-                   .child(text(toU8("PERSONA"), nn::menuType(30, nn::kPaper, 2))
-                              .effect(styles::textGlow({0, 0, 0, 0.5f}, 3)))
-                   .child(box()
-                              .row()
-                              .alignItems(Align::Center)
-                              .margin(0, 6, 0, 0)
-                              .child(text(toU8("COMMAND"),
-                                          nn::smallType(12, nn::kCyanB, 2)))
-                              .child(box()
-                                         .width(120)
-                                         .height(2)
-                                         .fill(SkColor4f{1, 1, 1, 0.8f})
-                                         .margin(8, 0, 0, 0))))
+        .child(
+            box()
+                .key("tooltip")
+                .top(40 - 12)
+                .right(43 - 12)
+                .zIndex(8)
+                .alignItems(Align::End)
+                // texture-baked (the sigma-3 glow otherwise re-blurs
+                // on every root replay); 12px padding keeps raster
+                // room for the glow tail, pins shifted to compensate
+                .padding(12)
+                .cache(Cache::Texture)
+                .translateX(animate(motion::from(36.0f).to(0.0f),
+                                    {400ms, &ch::easeOutQuint}))
+                .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
+                .child(text(toUtf8("PERSONA"), nn::menuType(30, nn::kPaper, 2))
+                           .effect(styles::textGlow({0, 0, 0, 0.5f}, 3)))
+                .child(box()
+                           .row()
+                           .alignItems(Align::Center)
+                           .margin(0, 6, 0, 0)
+                           .child(text(toUtf8("COMMAND"),
+                                       nn::smallType(12, nn::kCyanB, 2)))
+                           .child(box()
+                                      .width(120)
+                                      .height(2)
+                                      .fill(SkColor4f{1, 1, 1, 0.8f})
+                                      .margin(8, 0, 0, 0))))
         // ---- button prompts, bottom-right ----
         .child(
             box()
@@ -793,10 +794,10 @@ struct PersonaMenu final : sketch::Sketch {
                                  {400ms, &ch::easeOutQuad, 250ms}))
                 .child(promptCircle("O"))
                 .child(
-                    text(toU8("CONFIRM"), nn::smallType(11, nn::kCyanB, 1.5f))
+                    text(toUtf8("CONFIRM"), nn::smallType(11, nn::kCyanB, 1.5f))
                         .margin(8, 0, 22, 0))
                 .child(promptCircle("X"))
-                .child(text(toU8("BACK"), nn::smallType(11, nn::kCyanB, 1.5f))
+                .child(text(toUtf8("BACK"), nn::smallType(11, nn::kCyanB, 1.5f))
                            .margin(8, 0, 0, 0)));
   }
 };

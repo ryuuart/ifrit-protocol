@@ -58,7 +58,7 @@ inline Fill flourishParchment(const FlourishStyle& s, float freq = 0.04f) {
 // The acanthus leaf stamp — a pointed leaf whose own contour is walked with
 // gilt beads (recursion level 2) and split by a gilt midrib.
 
-inline ::sigil::geometry::shapes::OutlineFn leafOutline() {
+inline ::sigil::geometry::shapes::OutlineFunction leafOutline() {
   return [](SkSize s) {
     const float w = s.width(), h = s.height();
     SkPathBuilder b;

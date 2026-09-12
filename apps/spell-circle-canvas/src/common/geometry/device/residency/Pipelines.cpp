@@ -117,7 +117,8 @@ const Pipeline* PipelineCache::pipeline(const PipelineKey& key) {
   // The layout is the residency's, because the buffers are. A fullscreen
   // draw declares none: it reads no vertex buffer.
   if (!key.fullscreen) {
-    const std::span<const dg::LayoutElement> elements = meshLayout(key.prim);
+    const std::span<const dg::LayoutElement> elements =
+        meshLayout(key.primitive);
     info.SetInputLayout(
         dg::InputLayoutDesc{elements.data(), (dg::Uint32)elements.size()});
   }

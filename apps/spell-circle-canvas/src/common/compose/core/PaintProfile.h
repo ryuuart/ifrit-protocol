@@ -30,9 +30,9 @@ std::string profileLabel(const detail::Instance& inst, const SkRect& rect);
  *  unparsable value means 4ms, and an unset variable means never. */
 inline double profileThresholdMs() {
   static const double ms = [] {
-    const char* env = getenv("COMPOSE_PROF");
-    if (!env) return -1.0;
-    const double v = std::strtod(env, nullptr);
+    const char* environment = getenv("COMPOSE_PROF");
+    if (!environment) return -1.0;
+    const double v = std::strtod(environment, nullptr);
     return v > 0.0 ? v : 4.0;
   }();
   return ms;

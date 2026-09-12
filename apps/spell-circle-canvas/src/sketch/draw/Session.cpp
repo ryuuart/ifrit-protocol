@@ -69,7 +69,9 @@ class DrawSession final : public Session {
     m_sketch.reset();
   }
 
-  [[nodiscard]] const CanvasSpec& canvas() const override { return m_spec; }
+  [[nodiscard]] const CanvasSpecification& canvas() const override {
+    return m_specification;
+  }
 
   void frame(SkCanvas& canvas, double dt) override {
     m_laps.reset();
@@ -105,8 +107,8 @@ class DrawSession final : public Session {
       m_pen.begin(target,
                   frameNow(m_frameCount, m_clock.elapsed(), m_sinceDraw));
       dispatchEvents();
-      DrawContext ctx{m_pen,   *m_ticker, m_assets,
-                      m_fonts, &m_spec,   m_deterministic};
+      DrawContext ctx{m_pen,   *m_ticker,        m_assets,
+                      m_fonts, &m_specification, m_deterministic};
       m_sketch->draw(ctx);
       m_pen.end();
       m_sinceDraw = 0.0;
@@ -203,8 +205,8 @@ class DrawSession final : public Session {
   [[nodiscard]] draw::Frame frameNow(int count, double seconds,
                                      double delta) const {
     draw::Frame frame;
-    frame.width = m_spec.size.width();
-    frame.height = m_spec.size.height();
+    frame.width = m_specification.size.width();
+    frame.height = m_specification.size.height();
     frame.seconds = seconds;
     frame.deltaSeconds = delta;
     frame.frameCount = count;
@@ -231,10 +233,10 @@ class DrawSession final : public Session {
     SkPictureRecorder recorder;
     SkCanvas* canvas = recorder.beginRecording(SkRect::MakeWH(16384, 16384));
     m_pen.begin(*canvas, frameNow(0, 0.0, 0.0));
-    m_pen.width = m_spec.size.width();
-    m_pen.height = m_spec.size.height();
-    DrawContext ctx{m_pen,   *m_ticker, m_assets,
-                    m_fonts, &m_spec,   m_deterministic};
+    m_pen.width = m_specification.size.width();
+    m_pen.height = m_specification.size.height();
+    DrawContext ctx{m_pen,   *m_ticker,        m_assets,
+                    m_fonts, &m_specification, m_deterministic};
     m_sketch->setup(ctx);
     m_pen.end();
     m_setupPicture = recorder.finishRecordingAsPicture();
@@ -278,10 +280,11 @@ class DrawSession final : public Session {
    *  and on a screen coarser than it alike, and a finer screen still
    *  gets its own pixels. */
   [[nodiscard]] SkISize extentOn(const SkCanvas& canvas) const {
-    const float scale =
-        std::max(pixelScale(canvas), (float)std::max(1, m_spec.oversample));
-    return {std::max(1, (int)std::lround(m_spec.size.width() * scale)),
-            std::max(1, (int)std::lround(m_spec.size.height() * scale))};
+    const float scale = std::max(
+        pixelScale(canvas), (float)std::max(1, m_specification.oversample));
+    return {
+        std::max(1, (int)std::lround(m_specification.size.width() * scale)),
+        std::max(1, (int)std::lround(m_specification.size.height() * scale))};
   }
 
   /** The surface the sketch draws on, formed at the pixels the host's
@@ -298,7 +301,7 @@ class DrawSession final : public Session {
     sk_sp<SkSurface> surface = canvas.makeSurface(info);
     if (!surface) surface = SkSurfaces::Raster(info);
     SkCanvas& target = *surface->getCanvas();
-    target.clear(m_spec.background);
+    target.clear(m_specification.background);
     if (m_surface) {
       SkAutoCanvasRestore restore(&target, true);
       target.scale((float)extent.width() / (float)m_extent.width(),
@@ -307,12 +310,12 @@ class DrawSession final : public Session {
                       nullptr);
     } else if (m_setupPicture) {
       SkAutoCanvasRestore restore(&target, true);
-      const float scale = (float)extent.width() / m_spec.size.width();
+      const float scale = (float)extent.width() / m_specification.size.width();
       target.scale(scale, scale);
       target.drawPicture(m_setupPicture);
     }
     m_extent = extent;
-    m_scale = (float)extent.width() / m_spec.size.width();
+    m_scale = (float)extent.width() / m_specification.size.width();
     m_surface = std::move(surface);
   }
 
@@ -323,8 +326,8 @@ class DrawSession final : public Session {
     // the declared size that is the identity, and the bytes are the
     // plate's.
     SkAutoCanvasRestore restore(&canvas, true);
-    canvas.scale(m_spec.size.width() / (float)m_extent.width(),
-                 m_spec.size.height() / (float)m_extent.height());
+    canvas.scale(m_specification.size.width() / (float)m_extent.width(),
+                 m_specification.size.height() / (float)m_extent.height());
     m_surface->draw(&canvas, 0, 0);
   }
 
@@ -333,7 +336,7 @@ class DrawSession final : public Session {
   motion::FrameClock m_clock;
   // Held indirectly so a fresh setup can replace it whole; see runSetup.
   std::unique_ptr<motion::Ticker> m_ticker;
-  CanvasSpec m_spec;
+  CanvasSpecification m_specification;
   std::unique_ptr<DrawSketch> m_sketch;
   draw::Pen m_pen;
   sk_sp<SkPicture> m_setupPicture;

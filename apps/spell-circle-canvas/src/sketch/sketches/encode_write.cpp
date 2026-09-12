@@ -58,7 +58,7 @@ namespace img = sigil::image;
 namespace io = sigil::io;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -104,13 +104,13 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
                         : box();
   const sketch::kit::Theme& sheet = sketch::kit::theme();
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(art).absolute().inset(0))
-          .child(text(toU8(readout), sheet.mono(10, sheet.palette.figure))
+          .child(text(toUtf8(readout), sheet.mono(10, sheet.palette.figure))
                      .absolute()
-                     .left(Dim(6.0f))
-                     .top(Dim(6.0f))
+                     .left(Dimension(6.0f))
+                     .top(Dimension(6.0f))
                      .padding(4, 2)
                      .fill(Fill::color({0, 0, 0, 0.55f}))));
 }
@@ -161,17 +161,18 @@ struct EncodeWrite final : sketch::Sketch {
                        read ? read->width() : 0, read ? read->height() : 0);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("ENCODE, THEN WRITE \xc2\xb7 image::encodeImage, "
-                       "io::Hub::write"),
-         .subtitle = toU8("dials \xc2\xb7 the format \xc2\xb7 the quality the "
-                          "lossy ones honour (24) \xc2\xb7 the source's side "
-                          "(176 px) \xc2\xb7 the mount the bytes are stored "
-                          "under"),
-         .footer = toU8("the encoder hands bytes back and never looks at "
-                        "a filename; the hub stores them through the "
-                        "same mount table a read resolves by and drops "
-                        "every cached view of that URI, so the next ask "
-                        "reads the file")},
+        {.title = toUtf8("ENCODE, THEN WRITE \xc2\xb7 image::encodeImage, "
+                         "io::Hub::write"),
+         .subtitle =
+             toUtf8("dials \xc2\xb7 the format \xc2\xb7 the quality the "
+                    "lossy ones honour (24) \xc2\xb7 the source's side "
+                    "(176 px) \xc2\xb7 the mount the bytes are stored "
+                    "under"),
+         .footer = toUtf8("the encoder hands bytes back and never looks at "
+                          "a filename; the hub stores them through the "
+                          "same mount table a read resolves by and drops "
+                          "every cached view of that URI, so the next ask "
+                          "reads the file")},
         kit::cells(
             {.cells =
                  {cell("the source pixels",

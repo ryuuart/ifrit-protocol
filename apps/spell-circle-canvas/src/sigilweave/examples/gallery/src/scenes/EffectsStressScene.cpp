@@ -41,11 +41,11 @@ std::u8string makeStressText() {
 class StressPart final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams& params,
+                    int /*frameNumber*/, const SceneParameters& parameters,
                     FontContext& fontContext) override {
     if (!m_serif) m_serif = defaultSerif(fontContext);
     const sk_sp<SkTypeface>& typeface =
-        params.typeface ? params.typeface : m_serif;
+        parameters.typeface ? parameters.typeface : m_serif;
 
     const SkRect textBounds = SkRect::MakeLTRB(
         22.0f, 58.0f, std::max(23.0f, static_cast<float>(size.width()) - 22.0f),
@@ -53,19 +53,21 @@ class StressPart final : public Scene {
     // The panel's font size drives this directly rather than auto-fitting to
     // the box, so the slider stays meaningful; large sizes simply overflow.
     const float stressFontSize =
-        std::clamp(params.fontSize * 0.6f, 4.0f, 40.0f);
+        std::clamp(parameters.fontSize * 0.6f, 4.0f, 40.0f);
     // Reshaping/relayout only depends on text, typeface, and size; the paint
     // stack (toggles, glow spread/intensity) is far cheaper to rebuild, so it
     // gets its own dirty flag and never forces a relayout of 2,000 words.
-    const bool effectGlow = params.boolValue(QStringLiteral("glow"), true);
+    const bool effectGlow = parameters.boolValue(QStringLiteral("glow"), true);
     const bool effectOutline =
-        params.boolValue(QStringLiteral("outline"), true);
-    const bool effectShader = params.boolValue(QStringLiteral("shader"), true);
-    const bool effectStars = params.boolValue(QStringLiteral("stars"), true);
+        parameters.boolValue(QStringLiteral("outline"), true);
+    const bool effectShader =
+        parameters.boolValue(QStringLiteral("shader"), true);
+    const bool effectStars =
+        parameters.boolValue(QStringLiteral("stars"), true);
     const float glowSpread =
-        params.floatValue(QStringLiteral("glowSpread"), 0.6f);
+        parameters.floatValue(QStringLiteral("glowSpread"), 0.6f);
     const float glowIntensity =
-        params.floatValue(QStringLiteral("glowIntensity"), 1.3f);
+        parameters.floatValue(QStringLiteral("glowIntensity"), 1.3f);
     double layoutMicroseconds = 0;
     m_layoutBuild.ensure({size, typeface.get(), stressFontSize}, [&] {
       m_paragraph.clear();

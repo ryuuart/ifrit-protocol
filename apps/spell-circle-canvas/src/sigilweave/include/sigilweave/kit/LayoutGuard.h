@@ -46,16 +46,16 @@ namespace sigil::weave::kit {
 template <typename... Keys>
 class LayoutGuard {
  public:
-  /** Runs `relayoutFn` when the paragraph edited/needs shaping, the keys
+  /** Runs `relayoutFunction` when the paragraph edited/needs shaping, the keys
    *  changed, or nothing was laid out yet. Returns true when it ran. */
-  template <typename RelayoutFn>
-    requires std::invocable<RelayoutFn&>
+  template <typename RelayoutFunction>
+    requires std::invocable<RelayoutFunction&>
   bool ensure(const sigil::weave::Paragraph& paragraph,
-              std::tuple<Keys...> keys, RelayoutFn&& relayoutFn) {
+              std::tuple<Keys...> keys, RelayoutFunction&& relayoutFunction) {
     if (m_valid && !paragraph.needsShaping() &&
         paragraph.revision() == m_revision && keys == m_keys)
       return false;
-    relayoutFn();
+    relayoutFunction();
     m_keys = std::move(keys);
     m_revision = paragraph.revision();
     m_valid = true;

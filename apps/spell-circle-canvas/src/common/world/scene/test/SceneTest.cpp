@@ -426,7 +426,8 @@ TEST_F(WorldScene, APassSeesWhatExtractWroteAndNotTheTree) {
 
 TEST_F(WorldScene, ACulledGeometryPassDrawsOnlyItsSelection) {
   Frame frame = framed(pair());
-  frame.pass(geometryPass("glow").only(sel::tag("glow")).writes("colour"));
+  frame.pass(
+      geometryPass("glow").only(selectors::tag("glow")).writes("colour"));
   scene.render(frame);
 
   ASSERT_TRUE(scene.error().empty());
@@ -446,7 +447,7 @@ TEST_F(WorldScene, ANarrowedPostPassReachesOnlyItsCoverage) {
       .pass(postPass("dim")
                 .reads("colour")
                 .writes("dim")
-                .only(sel::tag("glow"))
+                .only(selectors::tag("glow"))
                 .levels(0.2f, 0.0f));
   masked.render(graded);
   ASSERT_TRUE(masked.error().empty());

@@ -43,7 +43,7 @@ Host::Options options() {
   std::ofstream(path) << "// watched, never built\n";
   Host::Options opts;
   opts.sketchPath = path;
-  opts.assetsDir = std::filesystem::temp_directory_path();
+  opts.assetsDirectory = std::filesystem::temp_directory_path();
   opts.flagsFile = std::filesystem::temp_directory_path() / "no_such.rsp";
   opts.compiledIn = &kEntry;
   return opts;

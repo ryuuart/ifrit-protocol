@@ -64,9 +64,9 @@ TEST(Surfaces, RecipesCompileAndShade) {
 TEST(Surfaces, BuildersFillTheDeclaredSlots) {
   const EnvironmentMap env = kit::studioEnvironment(64);
   const Texture normals = bevelNormals(SkPath::Circle(30, 30, 20), 5);
-  kit::ChromeParams params;
-  params.roughness = 0.5f;
-  const Material m = kit::chrome(normals, env, params);
+  kit::ChromeParameters parameters;
+  parameters.roughness = 0.5f;
+  const Material m = kit::chrome(normals, env, parameters);
   EXPECT_EQ(m.leaf("normals") != nullptr, true);
   EXPECT_EQ(m.leaf("env") != nullptr, true);
   EXPECT_EQ(m.get<glm::vec2>("envSize"), glm::vec2(64, 32));
@@ -77,7 +77,7 @@ TEST(Surfaces, BuildersFillTheDeclaredSlots) {
   EXPECT_NE(envTexture->image().get(), env.image(0).get());
   // Same inputs, equal materials: what lets a scene prune a repainted
   // badge.
-  EXPECT_EQ(m, kit::chrome(normals, env, params));
+  EXPECT_EQ(m, kit::chrome(normals, env, parameters));
   EXPECT_FALSE(m == kit::chrome(normals, env));
 }
 
@@ -196,28 +196,28 @@ TEST(TextPaint, EveryPaintCompilesAndMovesWithTheClock) {
     EXPECT_FALSE(a == make(bounds, 1.0f));
     EXPECT_EQ(a, make(bounds, 0.0f));
   }
-  const kit::TextPaintParams p = kit::textPaintParams(bounds, 2.0f);
+  const kit::TextPaintParameters p = kit::textPaintParameters(bounds, 2.0f);
   EXPECT_EQ(p.origin, glm::vec2(10, 20));
   EXPECT_EQ(p.extent, glm::vec2(100, 40));
   EXPECT_FLOAT_EQ(p.motion.x, std::sin(2.0f * 0.83f));
 }
 
 TEST(Surface, BothRecipesCompileAndShade) {
-  kit::SurfaceParams params;
-  params.baseColor = {0.2f, 0.6f, 0.9f, 1};
-  params.emissive = {1, 0.5f, 0, 1};
-  params.emissiveStrength = 0.5f;
-  for (const Material& m : {kit::surface(params), kit::unlit(params)}) {
+  kit::SurfaceParameters parameters;
+  parameters.baseColor = {0.2f, 0.6f, 0.9f, 1};
+  parameters.emissive = {1, 0.5f, 0, 1};
+  parameters.emissiveStrength = 0.5f;
+  for (const Material& m : {kit::surface(parameters), kit::unlit(parameters)}) {
     EXPECT_TRUE(skia::shader(m, {}));
     // Every declared slot is dressed, so no body evaluates an unbound
     // child.
     EXPECT_EQ(m.children().size(), m.recipe().children().size());
   }
-  EXPECT_TRUE(kit::isSurface(kit::surface(params)));
-  EXPECT_FALSE(kit::isUnlit(kit::surface(params)));
-  EXPECT_TRUE(kit::isUnlit(kit::unlit(params)));
-  EXPECT_EQ(kit::surface(params), kit::surface(params));
-  EXPECT_FALSE(kit::surface(params) == kit::unlit(params));
+  EXPECT_TRUE(kit::isSurface(kit::surface(parameters)));
+  EXPECT_FALSE(kit::isUnlit(kit::surface(parameters)));
+  EXPECT_TRUE(kit::isUnlit(kit::unlit(parameters)));
+  EXPECT_EQ(kit::surface(parameters), kit::surface(parameters));
+  EXPECT_FALSE(kit::surface(parameters) == kit::unlit(parameters));
 }
 
 TEST(Surface, DressesADecodedSet) {
@@ -248,9 +248,9 @@ TEST(Surface, DressesADecodedSet) {
 }
 
 TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
-  kit::SurfaceParams red;
+  kit::SurfaceParameters red;
   red.baseColor = {1, 0, 0, 1};
-  kit::SurfaceParams blue;
+  kit::SurfaceParameters blue;
   blue.baseColor = {0, 0, 1, 1};
   const auto shade = [&](float coverage) {
     const Material m =
@@ -275,9 +275,9 @@ TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
 
 namespace {
 
-/** A recipe whose params are one number nothing reads: what a case that
+/** A recipe whose parameters are one number nothing reads: what a case that
  *  is about slots or bodies rather than values stands a material on. */
-struct NoParams {
+struct NoParameters {
   float unused = 0;
 };
 
@@ -350,7 +350,7 @@ TEST(Over, ATreeOverTheSamplerBudgetIsRefusedRatherThanDrawn) {
   // Skia has accepted it, so the draw paints nothing and names nobody.
   // Refused here, the material that asked is the one reported.
   const int tooMany = skia::kSamplerLimit + 1;
-  Recipe recipe = Recipe::of<NoParams>("kit.test.overBudget");
+  Recipe recipe = Recipe::of<NoParameters>("kit.test.overBudget");
   std::string body = "half4 main(float2 p) { return ";
   for (int i = 0; i < tooMany; ++i) {
     const std::string slot = "uMap" + std::to_string(i);
@@ -359,7 +359,7 @@ TEST(Over, ATreeOverTheSamplerBudgetIsRefusedRatherThanDrawn) {
     body += slot + ".eval(p)";
   }
   recipe.body(Target::SkSL, body + "; }");
-  Material m(std::make_shared<const Recipe>(std::move(recipe)), NoParams{});
+  Material m(std::make_shared<const Recipe>(std::move(recipe)), NoParameters{});
   for (int i = 0; i < tooMany; ++i)
     m.child("uMap" + std::to_string(i), texel(i));
   EXPECT_EQ(skia::samplerCount(m), tooMany);

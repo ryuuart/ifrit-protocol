@@ -50,7 +50,7 @@ sk_sp<SkImageFilter> makeDirectionalBlur(float sigma, float angleDeg,
 
 Effect Effect::directionalBlur(float sigma, float angleDeg, float across) {
   Effect e;
-  e.m_dirBlur = DirectionalBlur{sigma, angleDeg, across};
+  e.m_directionalBlur = DirectionalBlur{sigma, angleDeg, across};
   e.m_filter = makeDirectionalBlur(sigma, angleDeg, across);
   return e;
 }
@@ -67,10 +67,10 @@ namespace {
  *  Branch-free because both nested mixes are exact at the level sigmas:
  *  t=0 → level0, t=1 → level1, t=2 → level2, and linear in sigma between.
  *  The level COUNT is deliberately not in the API — see Effect::blur. */
-sk_sp<SkRuntimeEffect> paramBlurMix() {
+sk_sp<SkRuntimeEffect> parametricBlurMix() {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, error] = SkRuntimeEffect::MakeForShader(
-        SkString(shaderSource("ParamBlurMix.sksl")));
+        SkString(shaderSource("ParametricBlurMix.sksl")));
     if (!effect)
       SkDebugf("[material] skia::Effect::blur: mix shader failed: %s\n",
                error.c_str());
@@ -101,10 +101,10 @@ std::shared_ptr<const Effect::BlurLevels> makeBlurLevels(float maxSigma) {
  *  sigma the map's white asks for; inside the declared range it rides
  *  the held pyramid as a scale on the mix parameter, and above it clamps
  *  to the range. */
-sk_sp<SkImageFilter> makeParamBlur(const Effect::BlurLevels* levels,
-                                   float sigma, sk_sp<SkShader> sigmaMap,
-                                   SkSize box) {
-  const sk_sp<SkRuntimeEffect> fx = paramBlurMix();
+sk_sp<SkImageFilter> makeParametricBlur(const Effect::BlurLevels* levels,
+                                        float sigma, sk_sp<SkShader> sigmaMap,
+                                        SkSize box) {
+  const sk_sp<SkRuntimeEffect> fx = parametricBlurMix();
   if (!sigmaMap || !fx || !levels) {
     // No map or no SkSL: the honest fallback is the constant blur the
     // parameter would have modulated, which is also what sigma == 0
@@ -136,7 +136,7 @@ sk_sp<SkImageFilter> makeParamBlur(const Effect::BlurLevels* levels,
 
 Effect Effect::blur(Paint sigmaMap, float maxSigma) {
   Effect e;
-  e.m_paramBlur = ParamBlur{maxSigma};
+  e.m_parametricBlur = ParametricBlur{maxSigma};
   e.m_blurLevels = makeBlurLevels(maxSigma);
   e.m_children.emplace_back("sigma",
                             std::make_shared<const Paint>(std::move(sigmaMap)));

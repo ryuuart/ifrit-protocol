@@ -55,7 +55,7 @@ std::shared_ptr<const Bytes> Hub::blob(std::string_view uri) {
     const auto cached = m_entries.find(key);
     if (cached != m_entries.end() && cached->second.blob)
       return cached->second.blob;
-    network = {m_networkCacheDir, m_networkPolicy, m_networkTransport};
+    network = {m_networkCacheDirectory, m_networkPolicy, m_networkTransport};
   }
 
   FetchResult fetched = fetchResource(*this, network, uri);
@@ -100,7 +100,7 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
   detail::NetworkAccess network;
   {
     const std::lock_guard lock(m_mutex);
-    network = {m_networkCacheDir, m_networkPolicy, m_networkTransport};
+    network = {m_networkCacheDirectory, m_networkPolicy, m_networkTransport};
     for (std::string_view uri : uris) {
       if (!seen.emplace(uri).second) continue;
       const std::string key = cacheKey(uri, nullptr);
@@ -193,7 +193,7 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
         mtime = entry->second.mtime;
       }
     }
-    network = {m_networkCacheDir, m_networkPolicy, m_networkTransport};
+    network = {m_networkCacheDirectory, m_networkPolicy, m_networkTransport};
   }
 
   FetchResult fetched;
@@ -275,7 +275,7 @@ std::shared_ptr<const Bytes> Hub::probeFetch(std::string_view uri,
   detail::NetworkAccess network;
   {
     const std::lock_guard lock(m_mutex);
-    network = {m_networkCacheDir, m_networkPolicy, m_networkTransport};
+    network = {m_networkCacheDirectory, m_networkPolicy, m_networkTransport};
   }
   FetchResult fetched = fetchResource(*this, network, uri);
   if (!fetched.blob) return nullptr;

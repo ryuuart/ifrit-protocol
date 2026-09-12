@@ -46,8 +46,9 @@ void digest(const sigil::material::Material& m,
 // Build a shader from an sksl recipe: constants, then bound Outputs at their
 // current value, then the auto-injected uTime/uResolution/uContentScale — the
 // last three only when the effect actually declares them (assigning a uniform
-// the effect lacks aborts in debug builds). `ctx` is null for the static build.
-sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* ctx,
+// the effect lacks aborts in debug builds). `paintFrame` is null for the static
+// build.
+sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* paintFrame,
                              bool worldSpace) {
   const sk_sp<SkRuntimeEffect>& effect = live.effect;
   if (!effect) return nullptr;
@@ -71,13 +72,14 @@ sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* ctx,
       if (n == name) return true;
     return false;
   };
-  const bool injectTime = ctx && validUniform(effect, "uTime", sizeof(float)) &&
+  const bool injectTime = paintFrame &&
+                          validUniform(effect, "uTime", sizeof(float)) &&
                           !userProvided("uTime");
   const bool injectScale =
-      ctx && validUniform(effect, "uContentScale", sizeof(float)) &&
+      paintFrame && validUniform(effect, "uContentScale", sizeof(float)) &&
       !userProvided("uContentScale");
-  const bool injectRes =
-      ctx && validUniform(effect, "uResolution", 2 * sizeof(float)) &&
+  const bool injectResolution =
+      paintFrame && validUniform(effect, "uResolution", 2 * sizeof(float)) &&
       !userProvided("uResolution");
 
   // A world-space material's uResolution is the ROOT canvas size, not the
@@ -85,14 +87,15 @@ sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* ctx,
   // dividing by the node's size would rescale the field per node and the
   // two siblings that were meant to share one continuous field would each
   // get their own.
-  const SkSize resSize = worldSpace && ctx && !ctx->rootSize.isEmpty()
-                             ? ctx->rootSize
-                             : (ctx ? ctx->size : SkSize::MakeEmpty());
+  const SkSize resolutionSize =
+      worldSpace && paintFrame && !paintFrame->rootSize.isEmpty()
+          ? paintFrame->rootSize
+          : (paintFrame ? paintFrame->size : SkSize::MakeEmpty());
 
   // The varying-input digest (constants are fixed per recipe; injected
   // values participate only when actually injected).
   std::vector<float> inputs;
-  if (ctx) {
+  if (paintFrame) {
     inputs.reserve(live.binds.size() + 2 * live.blocks.size() + 10);
     for (const auto& [name, out] : live.binds)
       inputs.push_back(motion::resolveFloatAt(nullptr, out));
@@ -108,20 +111,20 @@ sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* ctx,
     // When anchored, W is a varying input like any other: a node that MOVED
     // resolves a different shader, and the memo has to see that or the next
     // frame after the move replays the shader anchored to the old position.
-    if (worldSpace) digestToRoot(inputs, ctx->toRoot);
+    if (worldSpace) digestToRoot(inputs, paintFrame->toRoot);
     if (injectTime) {
       // Quantized through motion::quantizeTime rather than inline, so that
       // the value digested here and the value assigned to the uniform below
       // are produced by one function at one precision. Two spellings would
       // let the memo compare a time the shader was not built with.
-      const double t = sigil::motion::quantizeTime(ctx->seconds,
+      const double t = sigil::motion::quantizeTime(paintFrame->seconds,
                                                    (double)live.timeQuantizeHz);
       inputs.push_back((float)t);
     }
-    if (injectScale) inputs.push_back(ctx->contentScale);
-    if (injectRes) {
-      inputs.push_back(resSize.width());
-      inputs.push_back(resSize.height());
+    if (injectScale) inputs.push_back(paintFrame->contentScale);
+    if (injectResolution) {
+      inputs.push_back(resolutionSize.width());
+      inputs.push_back(resolutionSize.height());
     }
     // THE MEMO'S BLIND SPOT, closed at the door rather than papered over: a
     // child's varying inputs are the CHILD's (its own binds, its own uTime,
@@ -143,12 +146,13 @@ sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* ctx,
   // style, uResolution from layout), so this is the only place the warning
   // can be issued. Once per process, recognised by the sdf prelude's
   // uniform signature, when the reserve is at least half the shorter side.
-  if (injectRes && ctx->size.width() > 0 && ctx->size.height() > 0) {
+  if (injectResolution && paintFrame->size.width() > 0 &&
+      paintFrame->size.height() > 0) {
     static bool warnedPad = false;
     if (!warnedPad && validUniform(effect, "uPad", sizeof(float)) &&
         validUniform(effect, "uGlowR", sizeof(float))) {
       const float halfMin =
-          0.5f * std::min(ctx->size.width(), ctx->size.height());
+          0.5f * std::min(paintFrame->size.width(), paintFrame->size.height());
       for (const auto& [name, value] : live.constants)
         if (name == "uPad" && value >= halfMin) {
           warnedPad = true;
@@ -159,8 +163,9 @@ sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* ctx,
               "across. Size the node with material::sdf::minBoxFor(style, "
               "contentPx) = content + 2*material::sdf::pad(style). (warned "
               "once)\n",
-              value, ctx->size.width(), ctx->size.height(),
-              std::max(1.0f, std::min(ctx->size.width(), ctx->size.height()) -
+              value, paintFrame->size.width(), paintFrame->size.height(),
+              std::max(1.0f, std::min(paintFrame->size.width(),
+                                      paintFrame->size.height()) -
                                  2 * value));
           break;
         }
@@ -182,18 +187,19 @@ sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* ctx,
   // child ticks and a geometry child reads the parent node's box), and with
   // the null context on the static snapshot path.
   for (const auto& [name, child] : live.children)
-    b.child(name) = detail::childShader(child, ctx);  // pre-validated at store
-  if (ctx) {
+    b.child(name) =
+        detail::childShader(child, paintFrame);  // pre-validated at store
+  if (paintFrame) {
     // Auto-injects are size-checked too: a user declaring `uniform float
     // uResolution` must not receive a float2 write (SkDEBUGFAIL).
     if (injectTime) {
       b.uniform("uTime") = (float)sigil::motion::quantizeTime(
-          ctx->seconds, (double)live.timeQuantizeHz);
+          paintFrame->seconds, (double)live.timeQuantizeHz);
     }
-    if (injectScale) b.uniform("uContentScale") = ctx->contentScale;
-    if (injectRes)
+    if (injectScale) b.uniform("uContentScale") = paintFrame->contentScale;
+    if (injectResolution)
       b.uniform("uResolution") =
-          std::array<float, 2>{resSize.width(), resSize.height()};
+          std::array<float, 2>{resolutionSize.width(), resolutionSize.height()};
   }
   sk_sp<SkShader> built = b.makeShader();
   // Wrap BEFORE the memo stores. A held world-space field then keeps one
@@ -201,12 +207,13 @@ sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* ctx,
   // exactly what the painter's live-material memo compares to decide a
   // recording can replay. Wrapping after the store would mint a fresh
   // wrapper per resolve and the material would read as never holding still.
-  if (worldSpace && ctx) built = anchorToRoot(std::move(built), *ctx);
-  if (ctx) live.memo.store(std::move(inputs), built);
+  if (worldSpace && paintFrame)
+    built = anchorToRoot(std::move(built), *paintFrame);
+  if (paintFrame) live.memo.store(std::move(inputs), built);
   return built;
 }
 
-sk_sp<SkShader> Paint::buildBacked(const PaintFrame* ctx) const {
+sk_sp<SkShader> Paint::buildBacked(const PaintFrame* paintFrame) const {
   const Backed& backed = *m_backed;
   // A PASS BODY HAS NO STANDALONE SHADER. It is written against the
   // declarations the fx() runtime prepends once it knows the track's unit
@@ -219,26 +226,27 @@ sk_sp<SkShader> Paint::buildBacked(const PaintFrame* ctx) const {
   if (detail::isPassBody(backed.material.recipe())) return nullptr;
   sigil::material::FrameData frame;
   std::vector<std::byte> key;
-  if (ctx) {
-    frame.seconds = ctx->seconds;
-    frame.contentScale = ctx->contentScale;
+  if (paintFrame) {
+    frame.seconds = paintFrame->seconds;
+    frame.contentScale = paintFrame->contentScale;
     // A world-space material's uResolution is the ROOT canvas size, as on
     // the sksl path: the shader samples in root coordinates.
-    const SkSize resSize =
-        m_worldSpace && !ctx->rootSize.isEmpty() ? ctx->rootSize : ctx->size;
-    frame.resolution = {resSize.width(), resSize.height()};
+    const SkSize resolutionSize =
+        m_worldSpace && !paintFrame->rootSize.isEmpty() ? paintFrame->rootSize
+                                                        : paintFrame->size;
+    frame.resolution = {resolutionSize.width(), resolutionSize.height()};
     // An sdf style reserves its glow, shadow and border padding INSIDE the
     // box, so a generous glow on a modest box leaves almost no interior and
     // the shape all but disappears — with no error anywhere. The two
     // numbers that decide it only meet here, once per process.
     const sigil::material::Recipe& r = backed.material.recipe();
     if (r.reads(sigil::material::FrameInput::Resolution) &&
-        r.name().rfind("sdf.", 0) == 0 && ctx->size.width() > 0 &&
-        ctx->size.height() > 0) {
+        r.name().rfind("sdf.", 0) == 0 && paintFrame->size.width() > 0 &&
+        paintFrame->size.height() > 0) {
       static bool warnedPad = false;
       const float pad = backed.material.get<float>("uPad");
       const float halfMin =
-          0.5f * std::min(ctx->size.width(), ctx->size.height());
+          0.5f * std::min(paintFrame->size.width(), paintFrame->size.height());
       if (!warnedPad && pad >= halfMin) {
         warnedPad = true;
         SkDebugf(
@@ -248,23 +256,25 @@ sk_sp<SkShader> Paint::buildBacked(const PaintFrame* ctx) const {
             "across. Size the node with material::sdf::minBoxFor(style, "
             "contentPx) = content + 2*material::sdf::pad(style). (warned "
             "once)\n",
-            pad, ctx->size.width(), ctx->size.height(),
-            std::max(1.0f, std::min(ctx->size.width(), ctx->size.height()) -
+            pad, paintFrame->size.width(), paintFrame->size.height(),
+            std::max(1.0f, std::min(paintFrame->size.width(),
+                                    paintFrame->size.height()) -
                                2 * pad));
       }
     }
     digest(backed.material, frame, key);
     if (m_worldSpace) {
       std::vector<float> w;
-      digestToRoot(w, ctx->toRoot);
+      digestToRoot(w, paintFrame->toRoot);
       const auto* bytes = reinterpret_cast<const std::byte*>(w.data());
       key.insert(key.end(), bytes, bytes + w.size() * sizeof(float));
     }
     if (sk_sp<SkShader> memoised = backed.memo.hit(key)) return memoised;
   }
   sk_sp<SkShader> built = sigil::material::skia::shader(backed.material, frame);
-  if (m_worldSpace && ctx) built = anchorToRoot(std::move(built), *ctx);
-  if (ctx) backed.memo.store(std::move(key), built);
+  if (m_worldSpace && paintFrame)
+    built = anchorToRoot(std::move(built), *paintFrame);
+  if (paintFrame) backed.memo.store(std::move(key), built);
   return built;
 }
 
@@ -333,12 +343,12 @@ sk_sp<SkShader> Paint::fittedImageShader(const PaintFrame& frame) const {
 }
 
 sk_sp<SkShader> Paint::resolvePass(const PassInputs& in,
-                                   const PaintFrame& ctx) const {
+                                   const PaintFrame& paintFrame) const {
   if (!m_backed) return nullptr;
   const Backed& backed = *m_backed;
   const uint32_t n = std::max(in.units, 1u);
   std::shared_ptr<const sigil::material::Recipe> spec =
-      detail::passRecipeFor(backed.material.recipePtr(), n);
+      detail::passRecipeFor(backed.material.recipePointer(), n);
   if (!spec) return nullptr;
   // The instance is respecialized per draw rather than held: it carries
   // the material's CURRENT values, and a held one would go stale the
@@ -348,11 +358,12 @@ sk_sp<SkShader> Paint::resolvePass(const PassInputs& in,
   const sigil::material::Material specialized =
       backed.material.withRecipe(std::move(spec));
   sigil::material::FrameData frame;
-  frame.seconds = ctx.seconds;
-  frame.contentScale = ctx.contentScale;
-  const SkSize resSize =
-      m_worldSpace && !ctx.rootSize.isEmpty() ? ctx.rootSize : ctx.size;
-  frame.resolution = {resSize.width(), resSize.height()};
+  frame.seconds = paintFrame.seconds;
+  frame.contentScale = paintFrame.contentScale;
+  const SkSize resolutionSize = m_worldSpace && !paintFrame.rootSize.isEmpty()
+                                    ? paintFrame.rootSize
+                                    : paintFrame.size;
+  frame.resolution = {resolutionSize.width(), resolutionSize.height()};
   // uContent is the runtime's to fill, never the instance's: the layer is
   // rendered per draw and no material value could name it.
   static constexpr std::string_view kContent = "uContent";
@@ -371,7 +382,7 @@ sk_sp<SkShader> Paint::resolvePass(const PassInputs& in,
   // No memo here: the per-unit phases move every frame the pass is live,
   // and a settled pass replays from its node's recording rather than
   // resolving.
-  if (m_worldSpace) built = anchorToRoot(std::move(built), ctx);
+  if (m_worldSpace) built = anchorToRoot(std::move(built), paintFrame);
   return built;
 }
 

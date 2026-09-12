@@ -20,7 +20,7 @@
 
 namespace sketch = sigil::sketch;
 
-std::filesystem::path SketchbookView::assetsDir;
+std::filesystem::path SketchbookView::assetsDirectory;
 std::filesystem::path SketchbookView::flagsFile;
 sketch::Host* SketchbookView::host = nullptr;
 sigil::weave::FontContext* SketchbookView::fonts = nullptr;

@@ -74,7 +74,12 @@ auto DunhuangStarChart::buildAsterismArt() -> void {
 }
 
 auto DunhuangStarChart::asterismLines() -> Element {
-  auto g = box().left(0).top(0).width(Dim(kW)).height(Dim(kH)).key("asterisms");
+  auto g = box()
+               .left(0)
+               .top(0)
+               .width(Dimension(kW))
+               .height(Dimension(kH))
+               .key("asterisms");
   for (size_t i = 0; i < astArt.size(); ++i) {
     const AstArt& A = astArt[i];
     // the node's box is the ASTERISM's box, never the plate's
@@ -82,12 +87,12 @@ auto DunhuangStarChart::asterismLines() -> Element {
         box()
             .left(A.box.left())
             .top(A.box.top())
-            .width(Dim(A.box.width()))
-            .height(Dim(A.box.height()))
+            .width(Dimension(A.box.width()))
+            .height(Dimension(A.box.height()))
             .shape(heldPath(A.local))
             .stroke(spans::upTo(gate(A.t0, A.t0 + 0.9f)),
                     Brush{}
-                        .shaped(shapers::Jitter{.segLength = 13.0f,
+                        .shaped(shapers::Jitter{.segmentLength = 13.0f,
                                                 .deviation = 0.85f,
                                                 .seed = (uint32_t)(i * 31 + 7)})
                         .layer(lines::Line{.width = 1.05f,
@@ -138,7 +143,12 @@ auto DunhuangStarChart::buildFixtures() -> void {
 }
 
 auto DunhuangStarChart::map5Labels() -> Element {
-  auto g = box().left(0).top(0).width(Dim(kW)).height(Dim(kH)).key("m5lab");
+  auto g = box()
+               .left(0)
+               .top(0)
+               .width(Dimension(kW))
+               .height(Dimension(kH))
+               .key("m5lab");
   for (int i = 0; i < 20; ++i) {
     const M5Row& r = conc.five(i);
     const SkPoint c = m5Cent[(size_t)i];
@@ -157,8 +167,8 @@ auto DunhuangStarChart::map5Labels() -> Element {
     g.child(box()
                 .left(c.fX - 30)
                 .top(c.fY - 30)
-                .width(Dim(60))
-                .height(Dim(60))
+                .width(Dimension(60))
+                .height(Dimension(60))
                 .shape(shapes::circle())
                 .opacity(!r.defect.empty() ? gate(t, t + 0.3f)
                                            : flash(t, t + 0.3f, t + 3.0f))
@@ -182,26 +192,26 @@ auto DunhuangStarChart::map5Labels() -> Element {
       lx = c.fX + 26;
     }  // Ping, misplaced
     if (!none)
-      g.child(text(toU8(written), type(faceHan ? faceHan : faceSerif, 12.5f,
-                                       hexColor(0x241d15, 0.92f)))
+      g.child(text(toUtf8(written), type(faceHan ? faceHan : faceSerif, 12.5f,
+                                         hexColor(0x241d15, 0.92f)))
                   .left(lx)
                   .top(ly)
-                  .width(Dim(60))
+                  .width(Dimension(60))
                   .opacity(gate(tLine1 - 0.6f, tLine1 + 0.5f)));
     else
-      g.child(text(toU8("[no label]"),
+      g.child(text(toUtf8("[no label]"),
                    type(faceMono, 8.2f, hexColor(0xb4531f, 0.9f)))
                   .left(c.fX + 22)
                   .top(c.fY - 40)
-                  .width(Dim(70))
+                  .width(Dimension(70))
                   .opacity(gate(t, t + 0.3f)));
     if (cid == "21D")  // the leader from the misplaced label to its stars
       g.child(
           box()
               .left(std::min(lx, c.fX))
               .top(ly + 10)
-              .width(Dim(std::abs(lx - c.fX) + 4))
-              .height(Dim(c.fY - ly - 10))
+              .width(Dimension(std::abs(lx - c.fX) + 4))
+              .height(Dimension(c.fY - ly - 10))
               .shape(keyedShape(std::string_view("label-leader"),
                                 [](SkSize sz) {
                                   SkPathBuilder b;
@@ -224,8 +234,8 @@ auto DunhuangStarChart::archer() -> Element {
   auto g = box()
                .left(x - w * 0.5f)
                .top(kBandMid - h * 0.52f - kSegTop)
-               .width(Dim(w))
-               .height(Dim(h))
+               .width(Dimension(w))
+               .height(Dimension(h))
                .key("archer")
                .opacity(gate(tArch, tArch + 1.1f));
 
@@ -280,8 +290,8 @@ auto DunhuangStarChart::archer() -> Element {
     g.child(box()
                 .left(0)
                 .top(0)
-                .width(Dim(w))
-                .height(Dim(h))
+                .width(Dimension(w))
+                .height(Dimension(h))
                 .shape(heldPath(p))
                 .stroke(spans::upTo(gate(tArch + 0.05f * (float)i,
                                          tArch + 0.05f * (float)i + 0.55f)),
@@ -292,8 +302,8 @@ auto DunhuangStarChart::archer() -> Element {
       box()
           .left(0)
           .top(0)
-          .width(Dim(w))
-          .height(Dim(h))
+          .width(Dimension(w))
+          .height(Dimension(h))
           .shape(keyedShape(std::string_view("bow"),
                             [](SkSize) {
                               SkPathBuilder b;
@@ -311,8 +321,8 @@ auto DunhuangStarChart::archer() -> Element {
       box()
           .left(0)
           .top(0)
-          .width(Dim(w))
-          .height(Dim(h))
+          .width(Dimension(w))
+          .height(Dimension(h))
           .shape(keyedShape(std::string_view("arrow"),
                             [](SkSize) {
                               SkPathBuilder b;
@@ -322,17 +332,17 @@ auto DunhuangStarChart::archer() -> Element {
                             }))
           .stroke(spans::upTo(gate(tArch + 0.75f, tArch + 1.15f)),
                   lines::presets::arrow(1.5f, Fill::color(kCinnabar), 9.0f)));
-  g.child(text(toU8("a bowman in traditional dress, captioned THE GOD OF"),
+  g.child(text(toUtf8("a bowman in traditional dress, captioned THE GOD OF"),
                type(faceMono, 8.4f, hexColor(0x4a3b28, 0.85f)))
               .left(-18)
               .top(h - 12)
-              .width(Dim(300))
+              .width(Dimension(300))
               .opacity(gate(tArch + 1.0f, tArch + 1.6f)));
-  g.child(text(toU8("LIGHTNING, over a title nobody can read convincingly"),
+  g.child(text(toUtf8("LIGHTNING, over a title nobody can read convincingly"),
                type(faceMono, 8.4f, hexColor(0x4a3b28, 0.85f)))
               .left(-18)
               .top(h + 0)
-              .width(Dim(300))
+              .width(Dimension(300))
               .opacity(gate(tArch + 1.0f, tArch + 1.6f)));
   return g;
 }
@@ -342,8 +352,8 @@ auto DunhuangStarChart::unreadTitle() -> Element {
   auto g = box()
                .left(x - 34)
                .top(kBandTop + 44 - kSegTop)
-               .width(Dim(68))
-               .height(Dim(kBandH - 88))
+               .width(Dimension(68))
+               .height(Dimension(kBandH - 88))
                .key("title")
                .opacity(gate(tArch + 0.9f, tArch + 1.8f));
   for (int i = 0; i < 6; ++i) {
@@ -370,21 +380,21 @@ auto DunhuangStarChart::unreadTitle() -> Element {
       pb.moveTo(30, y + 10);
       pb.lineTo(50, y + 34);
     }
-    g.child(
-        box()
-            .left(0)
-            .top(0)
-            .width(Dim(68))
-            .height(Dim(kBandH - 88))
-            .shape(heldPath(pb.detach()))
-            .stroke(spans::upTo(gate(tArch + 0.9f + (float)i * 0.08f,
-                                     tArch + 1.4f + (float)i * 0.08f)),
-                    Brush{}
-                        .shaped(shapers::Jitter{
-                            .segLength = 9.0f, .deviation = 0.7f, .seed = seed})
-                        .layer(lines::Line{
-                            .width = 1.9f,
-                            .fill = Fill::color(hexColor(0x241d15, 0.78f))})));
+    g.child(box()
+                .left(0)
+                .top(0)
+                .width(Dimension(68))
+                .height(Dimension(kBandH - 88))
+                .shape(heldPath(pb.detach()))
+                .stroke(spans::upTo(gate(tArch + 0.9f + (float)i * 0.08f,
+                                         tArch + 1.4f + (float)i * 0.08f)),
+                        Brush{}
+                            .shaped(shapers::Jitter{.segmentLength = 9.0f,
+                                                    .deviation = 0.7f,
+                                                    .seed = seed})
+                            .layer(lines::Line{.width = 1.9f,
+                                               .fill = Fill::color(hexColor(
+                                                   0x241d15, 0.78f))})));
   }
   return g;
 }

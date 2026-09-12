@@ -58,7 +58,7 @@ struct Globals {
   Buffer pointOrigin;
   Buffer pointDir;
   Buffer pointColor;
-  Buffer pointTex;
+  Buffer pointTextureWindows;
   Buffer outPosition;
   Buffer outNormal;
   Buffer outColor;
@@ -89,7 +89,7 @@ void run(const StampDispatch& dispatch, glm::vec4* positions,
   globals.pointOrigin = reading(dispatch.pointOrigin);
   globals.pointDir = reading(dispatch.pointDir);
   globals.pointColor = reading(dispatch.pointColor);
-  globals.pointTex = reading(dispatch.pointTex);
+  globals.pointTextureWindows = reading(dispatch.pointTextureWindows);
   globals.outPosition = {positions, count};
   globals.outNormal = {normals, count};
   globals.outColor = {colors, count};
@@ -156,7 +156,7 @@ bool describe(const Cloud& cloud, const Mesh& stamp,
       options.tintLane.empty() ? nullptr : cloud.colorIf(options.tintLane);
   const std::vector<glm::vec3>* orientLane =
       options.orientLane.empty() ? nullptr : cloud.vectorIf(options.orientLane);
-  const std::vector<glm::vec4>* texLane = cloud.colorIf("Tex");
+  const std::vector<glm::vec4>* textureLane = cloud.colorIf("Tex");
 
   kernel::StampDispatch work;
   work.args.code = {(uint32_t)verts, (uint32_t)points,
@@ -183,7 +183,7 @@ bool describe(const Cloud& cloud, const Mesh& stamp,
   work.pointOrigin.reserve(points);
   work.pointDir.reserve(points);
   work.pointColor.reserve(points);
-  work.pointTex.reserve(points);
+  work.pointTextureWindows.reserve(points);
   for (size_t i = 0; i < points; ++i) {
     const glm::vec3& p = cloud.positions[i];
     const float scale =
@@ -199,8 +199,9 @@ bool describe(const Cloud& cloud, const Mesh& stamp,
                                   : glm::vec4{1, 1, 1, 1});
     // The texture window is the identity where the cloud carries none,
     // so the kernel remaps unconditionally and no branch decides it.
-    work.pointTex.push_back(
-        texLane && i < texLane->size() ? (*texLane)[i] : glm::vec4{0, 0, 1, 1});
+    work.pointTextureWindows.push_back(textureLane && i < textureLane->size()
+                                           ? (*textureLane)[i]
+                                           : glm::vec4{0, 0, 1, 1});
   }
 
   *out = std::move(work);

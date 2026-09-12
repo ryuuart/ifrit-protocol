@@ -12,12 +12,12 @@
 #include <numbers>
 #include <vector>
 
-#include "sigilgeometry/path/Ops.h"
+#include "sigilgeometry/path/Operations.h"
 #include "sigilgeometry/path/Polyline.h"
 
 using namespace sigil::geometry::path;
-using ops::Strip;
-using ops::StripOptions;
+using operations::Strip;
+using operations::StripOptions;
 
 namespace {
 
@@ -58,7 +58,7 @@ float areaOf(const SkPath& path) {
 
 TEST(StripJoinery, APieceThatMeetsNothingIsCutSquareAcross) {
   const Strip alone[1] = {{{10, 20}, {110, 20}, 8}};
-  const std::vector<SkPath> outlines = ops::stripOutlines(alone);
+  const std::vector<SkPath> outlines = operations::stripOutlines(alone);
   ASSERT_EQ(outlines.size(), 1u);
   const std::vector<glm::vec2> c = cornersOf(outlines[0]);
   EXPECT_EQ(c.size(), 4u);
@@ -72,7 +72,7 @@ TEST(StripJoinery, APieceThatMeetsNothingIsCutSquareAcross) {
 TEST(StripJoinery, ASetWithNoJointsIsEachPieceAsItsOwnRectangle) {
   const Strip apart[3] = {
       {{0, 0}, {40, 0}, 6}, {{0, 50}, {40, 50}, 10}, {{0, 100}, {30, 130}, 4}};
-  const std::vector<SkPath> outlines = ops::stripOutlines(apart);
+  const std::vector<SkPath> outlines = operations::stripOutlines(apart);
   ASSERT_EQ(outlines.size(), 3u);
   for (size_t i = 0; i < 3u; ++i) {
     const std::vector<glm::vec2> c = cornersOf(outlines[i]);
@@ -82,7 +82,7 @@ TEST(StripJoinery, ASetWithNoJointsIsEachPieceAsItsOwnRectangle) {
                 std::sqrt(d.x * d.x + d.y * d.y) * apart[i].width, 1e-2f);
   }
   // Nothing overlaps, so the joined figure is exactly the three of them.
-  EXPECT_NEAR(areaOf(ops::strips(apart)),
+  EXPECT_NEAR(areaOf(operations::strips(apart)),
               areaOf(outlines[0]) + areaOf(outlines[1]) + areaOf(outlines[2]),
               1e-1f);
 }
@@ -91,7 +91,7 @@ TEST(StripJoinery, TwoPiecesMeetingSquareAreMitredOnTheCornerDiagonal) {
   // A picture frame's corner: the seam is one straight face through the
   // node, so each piece stays a parallelogram.
   const Strip corner[2] = {spoke(0, 100, 20), spoke(90, 100, 20)};
-  const std::vector<SkPath> outlines = ops::stripOutlines(corner);
+  const std::vector<SkPath> outlines = operations::stripOutlines(corner);
   const std::vector<glm::vec2> c = cornersOf(outlines[0]);
   EXPECT_EQ(c.size(), 4u);
   EXPECT_TRUE(holds(c, {10, 10}));
@@ -103,7 +103,7 @@ TEST(StripJoinery, ThreePiecesMeetingAtSixtyDegreesTakeAWedgeEach) {
   // bisector it shares with the arm on either side of it.
   const Strip node[3] = {spoke(0, 80, 12), spoke(120, 80, 12),
                          spoke(240, 80, 12)};
-  const std::vector<SkPath> outlines = ops::stripOutlines(node);
+  const std::vector<SkPath> outlines = operations::stripOutlines(node);
   const std::vector<glm::vec2> c = cornersOf(outlines[0]);
   // Four along the piece plus the node itself, which is the apex of the
   // wedge cut out of its end.
@@ -124,13 +124,13 @@ TEST(StripJoinery, ThreePiecesMeetingAtSixtyDegreesTakeAWedgeEach) {
   // with nothing counted twice and nothing left over.
   float pieces = 0;
   for (const SkPath& p : outlines) pieces += areaOf(p);
-  EXPECT_NEAR(areaOf(ops::strips(node)), pieces, 1e-1f);
+  EXPECT_NEAR(areaOf(operations::strips(node)), pieces, 1e-1f);
 }
 
 TEST(StripJoinery, FourPiecesMeetingSquareNotchEachOtherOnTheDiagonals) {
   const Strip cross[4] = {spoke(0, 60, 16), spoke(90, 60, 16),
                           spoke(180, 60, 16), spoke(270, 60, 16)};
-  const std::vector<SkPath> outlines = ops::stripOutlines(cross);
+  const std::vector<SkPath> outlines = operations::stripOutlines(cross);
   const std::vector<glm::vec2> c = cornersOf(outlines[0]);
   EXPECT_EQ(c.size(), 5u);
   // Half a width is eight, and the bisectors run at forty-five degrees,
@@ -147,7 +147,7 @@ TEST(StripJoinery, TheMitreLimitBluntsANeedleAndBevelStopsEveryPointShort) {
   // page, so it is cut back at the limit.
   const Strip needle[2] = {spoke(0, 100, 10), spoke(6, 100, 10)};
   const std::vector<glm::vec2> mitred =
-      cornersOf(ops::stripOutlines(needle, {.miterLimit = 3.0f})[0]);
+      cornersOf(operations::stripOutlines(needle, {.miterLimit = 3.0f})[0]);
   float reach = 0;
   for (glm::vec2 p : mitred) reach = std::max(reach, std::hypot(p.x, p.y));
   // The far end stands a hundred out; what matters is the near one.
@@ -157,8 +157,8 @@ TEST(StripJoinery, TheMitreLimitBluntsANeedleAndBevelStopsEveryPointShort) {
       nearest = std::min(nearest, std::hypot(p.x, p.y));
   EXPECT_NEAR(nearest, 3.0f * 5.0f, 1e-2f);
 
-  const std::vector<glm::vec2> bevelled =
-      cornersOf(ops::stripOutlines(needle, {.join = ops::Join::Bevel})[0]);
+  const std::vector<glm::vec2> bevelled = cornersOf(
+      operations::stripOutlines(needle, {.join = operations::Join::Bevel})[0]);
   for (glm::vec2 p : bevelled)
     if (std::hypot(p.x, p.y) < 50.0f)
       EXPECT_NEAR(std::hypot(p.x, p.y), 5.0f, 1e-2f);
@@ -167,7 +167,7 @@ TEST(StripJoinery, TheMitreLimitBluntsANeedleAndBevelStopsEveryPointShort) {
 TEST(StripJoinery, ARoundJoinFinishesEachEndWithAnArcOfItsOwnHalfWidth) {
   const Strip alone[1] = {{{0, 0}, {50, 0}, 20}};
   const SkPath outline =
-      ops::stripOutlines(alone, {.join = ops::Join::Round})[0];
+      operations::stripOutlines(alone, {.join = operations::Join::Round})[0];
   // A rectangle with a half-disc on either end: the arc stands its own
   // half-width past each node and nowhere else.
   const SkRect box = outline.getBounds();
@@ -181,7 +181,8 @@ TEST(StripJoinery, ARoundJoinFinishesEachEndWithAnArcOfItsOwnHalfWidth) {
 
 TEST(StripJoinery, TwoPiecesThatCrossRatherThanMeetAreALap) {
   const Strip crossing[2] = {{{-50, 0}, {50, 0}, 10}, {{0, -50}, {0, 50}, 6}};
-  const std::vector<ops::StripLap> laps = ops::stripLaps(crossing);
+  const std::vector<operations::StripLap> laps =
+      operations::stripLaps(crossing);
   ASSERT_EQ(laps.size(), 1u);
   EXPECT_EQ(laps[0].pieces[0], 0);
   EXPECT_EQ(laps[0].pieces[1], 1);
@@ -199,7 +200,7 @@ TEST(StripJoinery, ALapRunsLongerAsTheAngleBetweenThePiecesCloses) {
                             {{-50 * std::cos(0.5236f), -50 * std::sin(0.5236f)},
                              {50 * std::cos(0.5236f), 50 * std::sin(0.5236f)},
                              6}};
-  const std::vector<ops::StripLap> laps = ops::stripLaps(slanted);
+  const std::vector<operations::StripLap> laps = operations::stripLaps(slanted);
   ASSERT_EQ(laps.size(), 1u);
   // Thirty degrees: the crossing piece's width carried across doubles.
   EXPECT_NEAR(laps[0].halfSpan[0], 6.0f, 1e-2f);
@@ -208,8 +209,8 @@ TEST(StripJoinery, ALapRunsLongerAsTheAngleBetweenThePiecesCloses) {
   // A grazing crossing is bounded rather than allowed to run away.
   const Strip grazing[2] = {{{-50, 0}, {50, 0}, 10},
                             {{-50, -0.5f}, {50, 0.5f}, 6}};
-  const std::vector<ops::StripLap> bounded =
-      ops::stripLaps(grazing, {.lapLimit = 3.0f});
+  const std::vector<operations::StripLap> bounded =
+      operations::stripLaps(grazing, {.lapLimit = 3.0f});
   ASSERT_EQ(bounded.size(), 1u);
   EXPECT_NEAR(bounded[0].halfSpan[0], 18.0f, 1e-3f);
   EXPECT_NEAR(bounded[0].halfSpan[1], 30.0f, 1e-3f);
@@ -217,11 +218,11 @@ TEST(StripJoinery, ALapRunsLongerAsTheAngleBetweenThePiecesCloses) {
 
 TEST(StripJoinery, AMeetingAtAnEndIsNotALapAndParallelPiecesNeverCross) {
   const Strip meeting[2] = {spoke(0, 100, 10), spoke(90, 100, 10)};
-  EXPECT_TRUE(ops::stripLaps(meeting).empty());
+  EXPECT_TRUE(operations::stripLaps(meeting).empty());
 
   const Strip tee[2] = {{{-50, 0}, {50, 0}, 10}, {{0, 0}, {0, 50}, 10}};
-  EXPECT_TRUE(ops::stripLaps(tee).empty());
+  EXPECT_TRUE(operations::stripLaps(tee).empty());
 
   const Strip parallel[2] = {{{0, 0}, {50, 0}, 10}, {{0, 20}, {50, 20}, 10}};
-  EXPECT_TRUE(ops::stripLaps(parallel).empty());
+  EXPECT_TRUE(operations::stripLaps(parallel).empty());
 }

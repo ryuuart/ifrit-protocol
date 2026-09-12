@@ -1,5 +1,5 @@
 /** @file
- * The params struct as a layout: reflection names, counts and offsets in
+ * The parameter struct as a layout: reflection names, counts and offsets in
  * declaration order, the walk over the fields, and the declarations each
  * target's compiler reads.
  */
@@ -15,7 +15,7 @@ using namespace sigil::material;
 
 namespace {
 
-struct TwoParams {
+struct TwoParameters {
   float uScale;
   Color uColor;
 };
@@ -30,11 +30,12 @@ struct EveryKind {
 
 }  // namespace
 
-TEST(Params, ReflectionNamesEveryFieldInDeclarationOrderAndFindsThemByName) {
-  EXPECT_EQ(fieldCount<TwoParams>(), 2u);
+TEST(Parameters,
+     ReflectionNamesEveryFieldInDeclarationOrderAndFindsThemByName) {
+  EXPECT_EQ(fieldCount<TwoParameters>(), 2u);
   EXPECT_EQ(fieldCount<EveryKind>(), 5u);
-  EXPECT_EQ((fieldName<0, TwoParams>()), "uScale");
-  EXPECT_EQ((fieldName<1, TwoParams>()), "uColor");
+  EXPECT_EQ((fieldName<0, TwoParameters>()), "uScale");
+  EXPECT_EQ((fieldName<1, TwoParameters>()), "uColor");
   const Schema& s = schema<EveryKind>();
   ASSERT_EQ(s.fields.size(), 5u);
   EXPECT_EQ(s.fields[0].name, "f");
@@ -43,8 +44,8 @@ TEST(Params, ReflectionNamesEveryFieldInDeclarationOrderAndFindsThemByName) {
   EXPECT_EQ(s.find("nope"), nullptr);
 }
 
-TEST(Params, TheSchemaIsTheParamsStructsOwnLayout) {
-  // A material's bytes ARE its params struct, so what a renderer writes
+TEST(Parameters, TheSchemaIsTheParametersStructsOwnLayout) {
+  // A material's bytes ARE its parameter struct, so what a renderer writes
   // a uniform at is where the field stands in the struct — whatever the
   // compiler chose to put it. The kinds are this library's reading of
   // the C++ types beside them.
@@ -64,7 +65,7 @@ TEST(Params, TheSchemaIsTheParamsStructsOwnLayout) {
   EXPECT_EQ(s.byteSize, sizeof(EveryKind));
 }
 
-TEST(Params, TheFieldWalkVisitsEveryFieldInDeclarationOrder) {
+TEST(Parameters, TheFieldWalkVisitsEveryFieldInDeclarationOrder) {
   const EveryKind p{
       1.5f, {2, 3}, {4, 5, 6, 7}, {8, 9, 10}, {0.1f, 0.2f, 0.3f, 1}};
   std::string names;
@@ -76,7 +77,7 @@ TEST(Params, TheFieldWalkVisitsEveryFieldInDeclarationOrder) {
   EXPECT_EQ(names, "f v2 v4 arr c ");
 }
 
-TEST(Params, EachTargetSpellsTheDeclarationsItsCompilerReads) {
+TEST(Parameters, EachTargetSpellsTheDeclarationsItsCompilerReads) {
   const std::string sksl = declare<EveryKind>(Target::SkSL);
   EXPECT_EQ(sksl,
             "uniform float f;\n"

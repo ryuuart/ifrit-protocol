@@ -172,8 +172,8 @@ struct WorldHud final : sketch::Set {
     stackEl.child(box()
                       .left(wh::kBarX + 2)
                       .top(wh::kBarY + 3)
-                      .width(Dim(wh::kHealthInnerW))
-                      .height(Dim(wh::kHealthInnerH))
+                      .width(Dimension(wh::kHealthInnerW))
+                      .height(Dimension(wh::kHealthInnerH))
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&hp)
                       .fill(Paint::linear({0, 0}, {0, wh::kHealthInnerH},
@@ -183,14 +183,14 @@ struct WorldHud final : sketch::Set {
     stackEl.child(box()
                       .left(wh::kBarX)
                       .top(wh::kBarY)
-                      .width(Dim(wh::kHealthW))
-                      .height(Dim(wh::kHealthH))
+                      .width(Dimension(wh::kHealthW))
+                      .height(Dimension(wh::kHealthH))
                       .corners({2})
                       .fill(Paint::solid({wh::kCritHp.fR, wh::kCritHp.fG,
                                           wh::kCritHp.fB, 0.55f}))
                       .opacity(&lowPulse)
                       .blend(SkBlendMode::kPlus));
-    stackEl.child(text(toU8("640 / 1030"), wh::type(11, wh::kInk, 0.8f))
+    stackEl.child(text(toUtf8("640 / 1030"), wh::type(11, wh::kInk, 0.8f))
                       .left(wh::kBarX + wh::kHealthW * 0.5f - 30)
                       .top(wh::kBarY + 5));
 
@@ -205,8 +205,8 @@ struct WorldHud final : sketch::Set {
     stackEl.child(box()
                       .left(ex + 2)
                       .top(wh::kEnergyY + 3)
-                      .width(Dim(wh::kEnergyInnerW))
-                      .height(Dim(wh::kEnergyInnerH))
+                      .width(Dimension(wh::kEnergyInnerW))
+                      .height(Dimension(wh::kEnergyInnerH))
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&energy)
                       .fill(Paint::solid(wh::kStamina)));
@@ -221,8 +221,8 @@ struct WorldHud final : sketch::Set {
     stackEl.child(box()
                       .left(ex + 2)
                       .top(wh::kPoiseY + 3)
-                      .width(Dim(wh::kEnergyInnerW))
-                      .height(Dim(wh::kEnergyInnerH))
+                      .width(Dimension(wh::kEnergyInnerW))
+                      .height(Dimension(wh::kEnergyInnerH))
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&poise)
                       .fill(Paint::solid(wh::kPoise)));
@@ -232,8 +232,8 @@ struct WorldHud final : sketch::Set {
         box()
             .left(ex + 2)
             .top(wh::kPoiseY + 3)
-            .width(Dim(wh::kEnergyInnerW))
-            .height(Dim(wh::kEnergyInnerH))
+            .width(Dimension(wh::kEnergyInnerW))
+            .height(Dimension(wh::kEnergyInnerH))
             .foreground(styles::TickRail{.color = wh::kPoiseTick,
                                          .pitch = wh::kEnergyInnerW / 6.0f,
                                          .minor = 10.0f,
@@ -263,8 +263,8 @@ struct WorldHud final : sketch::Set {
     Element rail = stack()
                        .left(wh::kSlotsX)
                        .top(wh::kSlotsY)
-                       .width(Dim(wh::kSlotsW))
-                       .height(Dim(wh::kSlotFrame));
+                       .width(Dimension(wh::kSlotsW))
+                       .height(Dimension(wh::kSlotFrame));
     rail.child(instances(slotAtlas, slotPool));
     for (int i = 0; i < wh::kSlotCount; ++i) {
       const float x =
@@ -276,8 +276,8 @@ struct WorldHud final : sketch::Set {
             box()
                 .left(x + 9)
                 .top(9)
-                .width(Dim(24.0f))
-                .height(Dim(24.0f))
+                .width(Dimension(24.0f))
+                .height(Dimension(24.0f))
                 .shape(wh::glyphPath(kSlots[i].glyph))
                 .fill(Paint::linear({0, 0}, {0, 24},
                                     {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
@@ -293,14 +293,14 @@ struct WorldHud final : sketch::Set {
             box()
                 .left(x + 3)
                 .top(3)
-                .width(Dim(wh::kSlot - 4))
-                .height(Dim(wh::kSlot - 4))
+                .width(Dimension(wh::kSlot - 4))
+                .height(Dimension(wh::kSlot - 4))
                 .transformOrigin(0.5f, 0.0f)
                 .scaleY(&cooldown[(size_t)i - 1])
                 .fill(Paint::linear({0, 0}, {0, wh::kSlot - 4},
                                     {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
                                      {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}})));
-      rail.child(text(toU8(kSlots[i].key), wh::type(9, wh::kInkDim, 0.6f))
+      rail.child(text(toUtf8(kSlots[i].key), wh::type(9, wh::kInkDim, 0.6f))
                      .left(x + 4)
                      .top(wh::kSlotFrame - 13));
     }
@@ -308,24 +308,24 @@ struct WorldHud final : sketch::Set {
     rail.child(box()
                    .left(wh::kSlotsW + 3)
                    .top(2)
-                   .width(Dim(34.0f))
-                   .height(Dim(38.0f))
+                   .width(Dimension(34.0f))
+                   .height(Dimension(38.0f))
                    .child(worldhud::boneFrame(34, 38, 3).inset(0))
                    .child(box()
                               .left(3)
                               .top(20)
-                              .width(Dim(28.0f))
-                              .height(Dim(6.0f))
+                              .width(Dimension(28.0f))
+                              .height(Dimension(6.0f))
                               .fill(Paint::solid(worldhud::kTrack))
                               .child(box()
                                          .left(0)
                                          .top(0)
-                                         .width(Dim(28.0f))
-                                         .height(Dim(6.0f))
+                                         .width(Dimension(28.0f))
+                                         .height(Dimension(6.0f))
                                          .transformOrigin(0.0f, 0.5f)
                                          .scaleX(&xp)
                                          .fill(Paint::solid(worldhud::kXp))))
-                   .child(text(toU8("34"), wh::type(13, wh::kInk, 0.4f, 640))
+                   .child(text(toUtf8("34"), wh::type(13, wh::kInk, 0.4f, 640))
                               .left(9)
                               .top(3)));
     return rail;
@@ -341,8 +341,8 @@ struct WorldHud final : sketch::Set {
         .key("minimap")
         .right(28)
         .top(28)
-        .width(Dim(d))
-        .height(Dim(d))
+        .width(Dimension(d))
+        .height(Dimension(d))
         .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
         .child(
             box()
@@ -390,8 +390,8 @@ struct WorldHud final : sketch::Set {
             box()
                 .left(d * 0.5f - 23)
                 .top(d * 0.5f - 23)
-                .width(Dim(46.0f))
-                .height(Dim(46.0f))
+                .width(Dimension(46.0f))
+                .height(Dimension(46.0f))
                 .rotate(&compass)
                 .child(box()
                            .inset(0)
@@ -406,22 +406,22 @@ struct WorldHud final : sketch::Set {
         .child(box()
                    .left(d * 0.5f - 4)
                    .top(d * 0.5f - 4)
-                   .width(Dim(8.0f))
-                   .height(Dim(8.0f))
+                   .width(Dimension(8.0f))
+                   .height(Dimension(8.0f))
                    .shape(shapes::polygon(3))
                    .fill(Paint::solid(hexColor(0xFFE9A8))))
         .child(box()
                    .left(d * 0.30f)
                    .top(d * 0.36f)
-                   .width(Dim(6.0f))
-                   .height(Dim(6.0f))
+                   .width(Dimension(6.0f))
+                   .height(Dimension(6.0f))
                    .corners({3})
                    .fill(Paint::solid(wh::kQualityLegendary)))
         .child(box()
                    .left(d * 0.68f)
                    .top(d * 0.62f)
-                   .width(Dim(6.0f))
-                   .height(Dim(6.0f))
+                   .width(Dimension(6.0f))
+                   .height(Dimension(6.0f))
                    .corners({3})
                    .fill(Paint::solid(wh::kEnemyHp)))
         // the ring
@@ -435,7 +435,7 @@ struct WorldHud final : sketch::Set {
                        PathFormat::Align::Inner))
                    .foreground(
                        stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}))))
-        .child(text(toU8("N"), wh::type(11, wh::kInk, 1.0f, 640))
+        .child(text(toUtf8("N"), wh::type(11, wh::kInk, 1.0f, 640))
                    .left(d * 0.5f - 4)
                    .top(7))
         .child(box()
@@ -444,7 +444,7 @@ struct WorldHud final : sketch::Set {
                    .right(0)
                    .bottom(-19)
                    .justify(Justify::Center)
-                   .child(text(toU8("1204, -388"),
+                   .child(text(toUtf8("1204, -388"),
                                wh::type(10, wh::kInkDim, 1.2f))));
   }
 
@@ -482,8 +482,8 @@ struct WorldHud final : sketch::Set {
     for (const Pip& p : kPips)
       row.child(
           box()
-              .width(Dim(30.0f))
-              .height(Dim(30.0f))
+              .width(Dimension(30.0f))
+              .height(Dimension(30.0f))
               .corners({4})
               .opacity(animate(motion::from(0.0f).to(1.0f), {320ms}))
               .translateY(animate(motion::from(-10.0f).to(0.0f), {380ms}))
@@ -503,11 +503,11 @@ struct WorldHud final : sketch::Set {
               .child(box()
                          .left(0)
                          .bottom(0)
-                         .width(Dim(30.0f))
-                         .height(Dim(30.0f * (1.0f - p.left)))
+                         .width(Dimension(30.0f))
+                         .height(Dimension(30.0f * (1.0f - p.left)))
                          .fill(Paint::solid({0, 0, 0, 0.62f}))
                          .zIndex(1))
-              .child(text(toU8(p.label), wh::type(9, p.color, 0.6f, 640))
+              .child(text(toUtf8(p.label), wh::type(9, p.color, 0.6f, 640))
                          .zIndex(2)));
     return row;
   }
@@ -544,14 +544,14 @@ struct WorldHud final : sketch::Set {
               .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
               .translateX(animate(motion::from(-24.0f).to(0.0f), {480ms}))
               .child(box()
-                         .width(Dim(16.0f))
-                         .height(Dim(16.0f))
+                         .width(Dimension(16.0f))
+                         .height(Dimension(16.0f))
                          .corners({2})
                          .fill(Paint::solid({l.color.fR * 0.28f,
                                              l.color.fG * 0.28f,
                                              l.color.fB * 0.28f, 1}))
                          .foreground(stroke(1.0f, Fill::color(l.color))))
-              .child(text(toU8(l.text), wh::type(11, l.color, 0.4f))));
+              .child(text(toUtf8(l.text), wh::type(11, l.color, 0.4f))));
     return feed;
   }
 
@@ -569,20 +569,20 @@ struct WorldHud final : sketch::Set {
         .zIndex(6)
         .opacity(animate(motion::from(0.0f).to(1.0f),
                          {360ms, &choreograph::easeOutQuad, 220ms}))
-        .child(text(toU8("CAVE TROLL"), wh::type(15, wh::kInk, 1.6f, 640)))
-        .child(text(toU8("Lv 27"), wh::type(10, wh::kInkDim, 1.4f))
+        .child(text(toUtf8("CAVE TROLL"), wh::type(15, wh::kInk, 1.6f, 640)))
+        .child(text(toUtf8("Lv 27"), wh::type(10, wh::kInkDim, 1.4f))
                    .margin(0, 2, 0, 4))
         .child(box()
-                   .width(Dim(168.0f))
-                   .height(Dim(9.0f))
+                   .width(Dimension(168.0f))
+                   .height(Dimension(9.0f))
                    .fill(Paint::solid(worldhud::kTrack))
                    .foreground(
                        stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f})))
                    .child(box()
                               .left(1)
                               .top(1)
-                              .width(Dim(166.0f))
-                              .height(Dim(7.0f))
+                              .width(Dimension(166.0f))
+                              .height(Dimension(7.0f))
                               .transformOrigin(0.0f, 0.5f)
                               .scaleX(&enemyHp)
                               .fill(Paint::solid(wh::kEnemyHp))));
@@ -603,9 +603,9 @@ struct WorldHud final : sketch::Set {
                    .left(28)
                    .top(70)
                    .zIndex(6)
-                   .child(text(toU8("WELDRIN VALE"),
+                   .child(text(toUtf8("WELDRIN VALE"),
                                wh::type(20, wh::kInk, 2.6f, 640)))
-                   .child(text(toU8("LEVEL 34  \xc2\xb7  CLEAR, LIGHT WIND"),
+                   .child(text(toUtf8("LEVEL 34  \xc2\xb7  CLEAR, LIGHT WIND"),
                                wh::type(11, wh::kInkDim, 0.9f))
                               .margin(0, 5, 0, 0)));
 

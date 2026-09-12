@@ -10,7 +10,7 @@
 # theme bound behaves correctly.
 #
 # It stands above the canvas runtime because `stage()` writes a
-# CanvasSpec through a SketchContext, which is why SigilSketch is PUBLIC
+# CanvasSpecification through a SketchContext, which is why SigilSketch is PUBLIC
 # here; it links no device backend, no window and no sketch.
 sigil_library(SigilSketchKit
   SOURCES Cells.cpp Console.cpp Heading.cpp Legend.cpp Meter.cpp Page.cpp

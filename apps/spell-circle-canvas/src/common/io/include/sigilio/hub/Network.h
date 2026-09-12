@@ -43,19 +43,19 @@ using NetworkTransport =
  *  without fetching or decoding it. Nothing when the URL is not a network
  *  resource, the cache entry is missing, or its size cannot be read. Zero
  *  is a present, empty resource. This checks metadata, not file contents.
- *  Empty @p cacheDir selects the same platform cache directory as a Hub
+ *  Empty @p cacheDirectory selects the same platform cache directory as a Hub
  *  given no override. This call creates no directories or files. */
 std::optional<std::uintmax_t> probeNetworkCache(
-    std::string_view url, const std::filesystem::path& cacheDir = {});
+    std::string_view url, const std::filesystem::path& cacheDirectory = {});
 
 /** Retains @p bytes for an http(s):// URL without contacting its server.
  *  Later disk-cache reads answer these bytes until another seed or fetch
  *  replaces them. A successful write publishes the complete resource;
  *  failure leaves any previous resource intact. Empty bytes are valid.
- *  False for a non-network URL or a failed write. Empty @p cacheDir selects
- *  the same platform cache directory as a Hub given no override.
- *  A Hub's already-loaded views keep their values. */
+ *  False for a non-network URL or a failed write. Empty @p cacheDirectory
+ * selects the same platform cache directory as a Hub given no override. A Hub's
+ * already-loaded views keep their values. */
 bool seedNetworkCache(std::string_view url, std::span<const std::byte> bytes,
-                      const std::filesystem::path& cacheDir = {});
+                      const std::filesystem::path& cacheDirectory = {});
 
 }  // namespace sigil::io

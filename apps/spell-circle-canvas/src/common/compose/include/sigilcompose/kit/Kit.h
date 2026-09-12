@@ -2,7 +2,7 @@
 
 /** @file
  * Components and presets built from the public Compose API.
- * Props describe the appearance; Element children supply the content.
+ * Properties describe the appearance; Element children supply the content.
  * Stroke, plate and ornament components are included from their own
  * headers because they belong to the brush feature.
  */

@@ -64,7 +64,7 @@ skia::GraphiteContext* adoptedGraphite() {
 
 /** One render target of the size a frame actually wraps. */
 core::hardware::TextureHandle target(core::hardware::GpuDevice& dev) {
-  core::hardware::TextureDesc desc;
+  core::hardware::TextureDescription desc;
   desc.width = 1024;
   desc.height = 1024;
   desc.format = core::hardware::TextureFormat::BGRA8Unorm;
@@ -121,7 +121,7 @@ void BM_Adopted_CreateDestroyTexture(benchmark::State& state) {
     state.SkipWithMessage("no adopted device: " + why);
     return;
   }
-  TextureDesc desc;
+  TextureDescription desc;
   desc.width = 64;
   desc.height = 64;
   for ([[maybe_unused]] auto iteration : state) {
@@ -142,7 +142,7 @@ void BM_Adopted_ImportExportRetire(benchmark::State& state) {
     state.SkipWithMessage("no adopted device: " + why);
     return;
   }
-  TextureDesc desc;
+  TextureDescription desc;
   desc.width = 64;
   desc.height = 64;
   const TextureHandle original = dev->createTexture(desc);

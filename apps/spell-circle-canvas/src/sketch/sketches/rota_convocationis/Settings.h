@@ -17,7 +17,7 @@
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
-#include <sigilgeometry/path/Ops.h>
+#include <sigilgeometry/path/Operations.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
@@ -315,7 +315,7 @@ half4 main(float2 xy) {
 })";
 
 /** The charge's ABI: one colour, the gold the flash lays on the names. */
-struct ChargeParams {
+struct ChargeParameters {
   sigil::material::Color uGold;
 };
 
@@ -326,7 +326,7 @@ struct ChargeParams {
  *  dylib a hot reload unloads. */
 inline std::shared_ptr<const sigil::material::Recipe> chargeRecipe() {
   return std::make_shared<const sigil::material::Recipe>(
-      sigil::material::Recipe::of<ChargeParams>("rota.charge")
+      sigil::material::Recipe::of<ChargeParameters>("rota.charge")
           .body(sigil::material::Target::SkSL, kChargeSksl));
 }
 
@@ -516,13 +516,13 @@ inline SkPath nodeRing(int count, float rNorm, float px, float fromDeg) {
  *  rules wobble differently and no two share a wave. */
 inline SkPath chalked(const SkPath& line, uint32_t seed,
                       float amplitude = 1.15f) {
-  return sigil::geometry::path::ops::Roughen{
+  return sigil::geometry::path::operations::Roughen{
       .amplitude = amplitude, .segmentPx = 34.0f, .seed = seed, .smooth = true}(
       line);
 }
 
 /** A LINE as a region of the given half-width. Stroke expansion, and not
- *  `ops::offset`, because offset unites its source with the expansion —
+ *  `operations::offset`, because offset unites its source with the expansion —
  *  correct for growing a region, and for a CLOSED line (a circle, a star
  *  compound's rings) it would hand back the interior as well. A rule is a
  *  line and never a disc. */
@@ -537,13 +537,13 @@ inline SkPath expand(const SkPath& line, float halfWidth) {
 
 /** The group's lines widened four times and unioned at each width. */
 inline Glow bakeGlow(const std::vector<SkPath>& lines, float coreHalf) {
-  namespace ops = sigil::geometry::path::ops;
+  namespace operations = sigil::geometry::path::operations;
   auto at = [&](float k) {
     std::vector<SkPath> regions;
     regions.reserve(lines.size());
     for (const SkPath& line : lines)
       regions.push_back(expand(line, coreHalf * k));
-    const SkPath united = ops::unite(regions);
+    const SkPath united = operations::unite(regions);
     const SkRect box = united.getBounds();
     return Grade{
         united.makeTransform(SkMatrix::Translate(-box.left(), -box.top())),
@@ -573,13 +573,13 @@ half4 main(float2 xy) {
 
 /** The rays' ABI. The body reads the node's box, which the recipe declares
  *  as a frame input rather than a field: the runtime fills it. */
-struct RaysParams {
+struct RaysParameters {
   sigil::material::Color uInk;
 };
 
 inline std::shared_ptr<const sigil::material::Recipe> raysRecipe() {
   return std::make_shared<const sigil::material::Recipe>(
-      sigil::material::Recipe::of<RaysParams>("rota.rays")
+      sigil::material::Recipe::of<RaysParameters>("rota.rays")
           .frame(sigil::material::FrameInput::Resolution)
           .body(sigil::material::Target::SkSL, kRaysSksl));
 }

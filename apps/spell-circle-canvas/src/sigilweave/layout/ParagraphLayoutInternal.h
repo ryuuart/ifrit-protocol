@@ -25,7 +25,7 @@ namespace sigil::weave {
 namespace detail {
 
 struct LayoutAccess {
-  static void retain(ParagraphLayout& layout, const ShapedWordRef& word) {
+  static void retain(ParagraphLayout& layout, const ShapedWordReference& word) {
     layout.m_shapedWords.push_back(word);
   }
 };
@@ -489,12 +489,12 @@ struct InitialLetterPlan {
   float tail = 0;       // pen travel the split word's remainder takes on band 0
   float fontSize = 0;   // the size the rule derived
   float capSpan = 0;    // the reference metric that size was derived from
-  float sinkOffset = 0;     // px from the first baseline to the initial's own
-  float pitch = 0;          // the initial's own block's band depth
-  float ascent = 0;         // and its ascent, for the band it is seated on
-  bool vertical = false;    // shaped down a column rather than along a line
-  ShapedWordRef glyphs;     // the initial itself
-  ShapedWordRef remainder;  // what is left of the word it split
+  float sinkOffset = 0;   // px from the first baseline to the initial's own
+  float pitch = 0;        // the initial's own block's band depth
+  float ascent = 0;       // and its ascent, for the band it is seated on
+  bool vertical = false;  // shaped down a column rather than along a line
+  ShapedWordReference glyphs;     // the initial itself
+  ShapedWordReference remainder;  // what is left of the word it split
   uint32_t styleIndex = 0;
   uint32_t wordIndex = 0;
   uint32_t textEnd = 0;  // one past the last unit the initial took

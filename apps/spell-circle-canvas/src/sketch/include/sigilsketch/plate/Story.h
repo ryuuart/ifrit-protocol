@@ -16,7 +16,7 @@ namespace sigil::sketch {
 class Assets;
 
 struct StoryOptions {
-  std::string out;
+  std::string outputPath;
   int only = -1;
   std::string kind;
   int width = 1080;

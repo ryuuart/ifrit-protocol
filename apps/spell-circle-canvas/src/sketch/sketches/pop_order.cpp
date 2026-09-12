@@ -155,9 +155,9 @@ Element splat(mesh::Cloud cloud, float spriteSize) {
 Element panel(const char* title, const char* note, Element inner) {
   // The well clips: the projection is wider than the frame.
   return sketch::kit::caption(
-      kPanel, toU8(title), toU8(note),
-      sketch::kit::well({.width = Dim(kPanel),
-                         .height = Dim(kPanel),
+      kPanel, toUtf8(title), toUtf8(note),
+      sketch::kit::well({.width = Dimension(kPanel),
+                         .height = Dimension(kPanel),
                          .ground = Fill::none(),
                          .keyline = Fill::color(kFrame)})
           .child(std::move(inner)));
@@ -194,15 +194,15 @@ struct PopOrder : sketch::Sketch {
     sorted = depthChain().order(kOrderAxis, kDescending).cloud();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("POP ORDER \xc2\xb7 order() is a PERMUTATION, "
-                       "and the point sink draws in it"),
-         .subtitle = toU8("colour is driven from P.z over the ring's own "
-                          "depth range, so colour IS depth and a "
-                          "mis-ordered sprite is a dark dot sitting on "
-                          "a bright one"),
-         .footer = toU8("Sort is CPU-only and stated as a boundary: a "
-                        "permutation is not a per-point map, so "
-                        "SigilWorld declines a chain holding one")},
+        {.title = toUtf8("POP ORDER \xc2\xb7 order() is a PERMUTATION, "
+                         "and the point sink draws in it"),
+         .subtitle = toUtf8("colour is driven from P.z over the ring's own "
+                            "depth range, so colour IS depth and a "
+                            "mis-ordered sprite is a dark dot sitting on "
+                            "a bright one"),
+         .footer = toUtf8("Sort is CPU-only and stated as a boundary: a "
+                          "permutation is not a per-point map, so "
+                          "SigilWorld declines a chain holding one")},
         kit::cells(
             {.cells = {panel("no order() \xc2\xb7 WRONG",
                              "scatter order = painter order",

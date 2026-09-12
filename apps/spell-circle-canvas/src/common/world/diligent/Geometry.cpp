@@ -15,7 +15,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Params.h>
+#include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/light/Light.h>
@@ -116,7 +116,7 @@ Surface surfaceOf(const material::Material* material, bool lit) {
  *  reported for the same names.
  *
  *  A 3x3 is the one field whose bytes are not already in the order the
- *  shader reads them in: the params hold it column by column, the way
+ *  shader reads them in: the parameters hold it column by column, the way
  *  glm does, and the program reads it row by row. */
 void writeMaterial(material::slang::Uniforms& uniforms,
                    const Surface& surface) {
@@ -480,7 +480,7 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   // what makes it visible in a pass that paints everything.
   if (work.realisation == Selection::Variant && pass.variant()) {
     const material::Field* field =
-        pass.variant()->recipe().params().find("baseColor");
+        pass.variant()->recipe().parameters().find("baseColor");
     const glm::vec4 colour = field && field->floats == 4
                                  ? pass.variant()->get<glm::vec4>("baseColor")
                                  : glm::vec4{1, 1, 1, 1};

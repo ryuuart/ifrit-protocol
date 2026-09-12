@@ -761,7 +761,7 @@ struct Bg3DiceRoll : sketch::Sketch {
   // ---------------------------------------------------------------- describe
   /** Only three things here change with STATE — the column, the total and
    *  the outcome. Everything else is behind `memo(0, …)`, whose body runs
-   *  only when its props change, i.e. never.
+   *  only when its properties change, i.e. never.
    *
    *  That matters more than it looks. The counter re-describes on every
    *  integer it passes through (12 → 20), so `describe()` runs about ten times

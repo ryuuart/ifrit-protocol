@@ -67,7 +67,7 @@ struct NamedOperator {
 };
 
 const std::vector<NamedOperator>& operators() {
-  static const std::vector<NamedOperator> ops = {
+  static const std::vector<NamedOperator> operations = {
       {"seed", [](pop::Builder b) { return b; }},
       {"move", [](pop::Builder b) { return b.move({0, 10, 0}); }},
       {"jitter", [](pop::Builder b) { return b.jitter(6); }},
@@ -88,15 +88,15 @@ const std::vector<NamedOperator>& operators() {
        [](pop::Builder b) { return b.select("band", {0, 0, 0}, 160, 0.4f); }},
       {"smooth", [](pop::Builder b) { return b.smooth(0.5f, 4); }},
   };
-  return ops;
+  return operations;
 }
 
 void BM_PopOperator(benchmark::State& state) {
   const int count = 1000;
-  const NamedOperator& op = operators()[(size_t)state.range(0)];
-  state.SetLabel(op.name);
+  const NamedOperator& operation = operators()[(size_t)state.range(0)];
+  state.SetLabel(operation.name);
   const Cloud seed = plain(count).cloud();
-  const pop::Chain chain = op.apply(pop::on(seed));
+  const pop::Chain chain = operation.apply(pop::on(seed));
   for ([[maybe_unused]] auto iteration : state)
     benchmark::DoNotOptimize(pop::cook(chain));
   countPoints(state, count);

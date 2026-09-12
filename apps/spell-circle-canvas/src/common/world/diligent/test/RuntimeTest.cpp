@@ -205,7 +205,7 @@ TEST(GpuRuntime, AMaskedPassReachesOnlyTheSelection) {
       .pass(postPass("hot")
                 .reads("colour")
                 .writes("hot")
-                .only(sel::tag("glow"))
+                .only(selectors::tag("glow"))
                 .levels(4.0f, 0.0f, {1, 1, 1, 1}));
   const SkBitmap masked = photograph(frame, on.runtime);
 
@@ -462,7 +462,7 @@ constexpr glm::vec4 kBodyColour{0.85f, 0.55f, 0.25f, 1.0f};
  *  only whether the emitter reached them. */
 Frame litAndUnlitCards() {
   namespace gm = ::sigil::geometry::mesh;
-  const material::kit::SurfaceParams params{
+  const material::kit::SurfaceParameters parameters{
       .baseColor = {kBodyColour.r, kBodyColour.g, kBodyColour.b, 1.0f}};
   return squareFrame(Element()
                          .key("set")
@@ -474,12 +474,12 @@ Frame litAndUnlitCards() {
                                     .key("lit")
                                     .at({-70, 0, 0})
                                     .mesh(gm::quad(110, 110))
-                                    .fill(material::kit::surface(params)))
+                                    .fill(material::kit::surface(parameters)))
                          .child(Element()
                                     .key("unlit")
                                     .at({70, 0, 0})
                                     .mesh(gm::quad(110, 110))
-                                    .fill(material::kit::unlit(params))));
+                                    .fill(material::kit::unlit(parameters))));
 }
 
 /** The two cards' middles: the left run is the lit one and the right is
@@ -551,7 +551,7 @@ TEST_P(EitherTier, AVariantReDrawStandsUnderThePassesLights) {
       .pass(geometryPass("colour")
                 .writes("colour")
                 .clear(SkColors::kBlack)
-                .only(sel::tag("glow"))
+                .only(selectors::tag("glow"))
                 .variant(material::kit::surface({.baseColor = {1, 1, 1, 1}})));
   const SkBitmap plate = photograph(frame, runtime);
   // The sphere stands at the centre of the frame; the sun travels toward

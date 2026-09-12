@@ -214,12 +214,12 @@ auto RotaConvocationis::colophon() -> Element {
       .gap(7)
       .hitTestable(false)
       .child(
-          text(toU8("ROTA CONVOCATIONIS"), label(12.0f, kAshDim, 5.2f))
+          text(toUtf8("ROTA CONVOCATIONIS"), label(12.0f, kAshDim, 5.2f))
               .key("titulus")
               // A lozenge stands at the word the whole figure
               // converges on, anchored to the rect the selector
               // resolves rather than to a number a caller measured.
-              .mark(weave::sel::text(u8"ROTA"),
+              .mark(weave::selectors::text(u8"ROTA"),
                     box()
                         .key("m-rota")
                         .left(pct(50))
@@ -232,10 +232,10 @@ auto RotaConvocationis::colophon() -> Element {
               .fx({.effect = fx::rise(10.0f),
                    .stagger = {.eachMs = 0, .amountMs = 420, .durationMs = 520},
                    .progress = beat(0.35, 1.8)}))
-      .child(text(toU8(std::to_string(totalGlyphs) +
-                       " GLYPHS \xc2\xb7 23 CVRVED BASELINES \xc2\xb7 10 "
-                       "TVRNING LAYERS \xc2\xb7 EVERY START CHAINED FROM A "
-                       "SPAN, NONE FITTED BY HAND"),
+      .child(text(toUtf8(std::to_string(totalGlyphs) +
+                         " GLYPHS \xc2\xb7 23 CVRVED BASELINES \xc2\xb7 10 "
+                         "TVRNING LAYERS \xc2\xb7 EVERY START CHAINED FROM A "
+                         "SPAN, NONE FITTED BY HAND"),
                   label(8.5f, hexColor(0x8A8299, 0.42f), 2.4f))
                  .key("colophon-2")
                  .opacity(beat(tIgnite + 0.4, tIgnite + 1.2)));

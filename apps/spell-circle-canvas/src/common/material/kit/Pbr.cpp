@@ -47,7 +47,7 @@ std::string slangSurface(Reflection reflection) {
 
 Recipe define(std::string name, std::string_view bodyFile,
               const std::string& slangBody) {
-  return Recipe::of<SurfaceParams>(std::move(name))
+  return Recipe::of<SurfaceParameters>(std::move(name))
       .child(std::string(kBaseColorSlot))
       .child(std::string(kNormalSlot))
       .child(std::string(kRoughnessSlot))
@@ -84,7 +84,7 @@ Texture flat(const char* key, SkColor4f color) {
       .tile(SkTileMode::kClamp);
 }
 
-/** Every slot filled with the value that leaves the params speaking for
+/** Every slot filled with the value that leaves the parameters speaking for
  *  themselves: white for the maps a scalar multiplies, a flat tangent
  *  normal for the normal map. */
 Material dress(Material m) {
@@ -119,60 +119,61 @@ const std::shared_ptr<const Recipe>& unlitRecipe() {
   return recipe;
 }
 
-Material surface(const SurfaceParams& params, Reflection reflection) {
-  return dress(Material(surfaceRecipe(reflection), params));
+Material surface(const SurfaceParameters& parameters, Reflection reflection) {
+  return dress(Material(surfaceRecipe(reflection), parameters));
 }
 
-Material unlit(const SurfaceParams& params) {
-  return dress(Material(unlitRecipe(), params));
+Material unlit(const SurfaceParameters& parameters) {
+  return dress(Material(unlitRecipe(), parameters));
 }
 
 bool isSurface(const Material& m) {
-  return m.recipePtr() == surfaceRecipe(Reflection::SplitSum) ||
-         m.recipePtr() == surfaceRecipe(Reflection::Additive) ||
-         m.recipePtr() == unlitRecipe();
+  return m.recipePointer() == surfaceRecipe(Reflection::SplitSum) ||
+         m.recipePointer() == surfaceRecipe(Reflection::Additive) ||
+         m.recipePointer() == unlitRecipe();
 }
 
-bool isUnlit(const Material& m) { return m.recipePtr() == unlitRecipe(); }
+bool isUnlit(const Material& m) { return m.recipePointer() == unlitRecipe(); }
 
-SurfaceParams SurfaceParams::chrome() {
+SurfaceParameters SurfaceParameters::chrome() {
   // Steel is not a mirror and not white: a slight cool bias and a
   // roughness a hand-polished object actually has.
-  SurfaceParams p;
+  SurfaceParameters p;
   p.baseColor = {0.92f, 0.95f, 1.0f, 1};
   p.metallic = 1;
   p.roughness = 0.04f;
   return p;
 }
 
-SurfaceParams SurfaceParams::gold() {
+SurfaceParameters SurfaceParameters::gold() {
   // The measured reflectance of gold, which is what a metal's base
   // colour means.
-  SurfaceParams p;
+  SurfaceParameters p;
   p.baseColor = {1.0f, 0.766f, 0.336f, 1};
   p.metallic = 1;
   p.roughness = 0.18f;
   return p;
 }
 
-SurfaceParams SurfaceParams::metal(Color tint, float roughness) {
-  SurfaceParams p;
+SurfaceParameters SurfaceParameters::metal(Color tint, float roughness) {
+  SurfaceParameters p;
   p.baseColor = tint;
   p.metallic = 1;
   p.roughness = roughness;
   return p;
 }
 
-SurfaceParams SurfaceParams::dielectric(Color baseColor, float roughness) {
-  SurfaceParams p;
+SurfaceParameters SurfaceParameters::dielectric(Color baseColor,
+                                                float roughness) {
+  SurfaceParameters p;
   p.baseColor = baseColor;
   p.metallic = 0;
   p.roughness = roughness;
   return p;
 }
 
-SurfaceParams SurfaceParams::glass() {
-  SurfaceParams p;
+SurfaceParameters SurfaceParameters::glass() {
+  SurfaceParameters p;
   p.baseColor = {1, 1, 1, 1};
   p.metallic = 0;
   p.roughness = 0.02f;
@@ -193,7 +194,7 @@ const Texture* map(const Material& m, std::string_view slot) {
   return fill ? nullptr : texture;
 }
 
-Material surface(const texture::TextureMaps& maps, SurfaceParams base) {
+Material surface(const texture::TextureMaps& maps, SurfaceParameters base) {
   using texture::Role;
   const auto has = [&](Role role) { return maps.map(role) != nullptr; };
   // A packed occlusion-roughness-metallic image stands in for whichever
@@ -216,7 +217,7 @@ Material surface(const texture::TextureMaps& maps, SurfaceParams base) {
   // A map's values must be able to reach the shader: the scalar it
   // multiplies starts at one when the set carries that map, unless the
   // caller's base already moved it.
-  const SurfaceParams stock;
+  const SurfaceParameters stock;
   if (metallic && base.metallic == stock.metallic) base.metallic = 1;
   if (roughness && base.roughness == stock.roughness) base.roughness = 1;
   if (has(Role::Emissive)) {

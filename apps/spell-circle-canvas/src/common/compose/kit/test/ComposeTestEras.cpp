@@ -192,7 +192,7 @@ TEST(KitEras, ARuleStandsWhereTheBlockIsAndTheThreeArmsDifferInWhere) {
     run.frame();
     run.composer.render(
         tree(kit::rules(run.composer, "epigraph",
-                        sigil::weave::sel::each(sigil::weave::Unit::Line),
+                        sigil::weave::selectors::each(sigil::weave::Unit::Line),
                         {.where = where,
                          .thickness = 3,
                          .gap = 4,

@@ -38,10 +38,10 @@ struct WebEngineConfig {
    *  engine uses the "resources" folder next to the executable (staged
    *  by the ultralight_copy_resources() CMake function), falling back to
    *  the SDK install location found at configure time. */
-  std::string resourceDir;
+  std::string resourceDirectory;
 
   /** Base directory that file:/// URLs resolve against. */
-  std::string fileSystemDir = ".";
+  std::string fileSystemDirectory = ".";
 
   /** Writable directory for persistent session data (cookies, local
    *  storage). Empty keeps everything in memory. */

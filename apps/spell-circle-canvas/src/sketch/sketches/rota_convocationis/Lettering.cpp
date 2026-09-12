@@ -27,7 +27,7 @@ auto RotaConvocationis::fitToRing(sketch::SketchContext& ctx,
   for (int pass = 0; pass < 2; ++pass) {
     sigil::weave::TextStyle probe = style;
     probe.shaping.fontSize = size;
-    const SkSize m = ctx.measure(text(toU8(s), probe));
+    const SkSize m = ctx.measure(text(toUtf8(s), probe));
     if (m.width() > 1.0f) size *= target / m.width();
   }
   return size;
@@ -127,7 +127,7 @@ auto RotaConvocationis::ladder(const char* key, int divisions, int skipEvery,
 }
 
 auto RotaConvocationis::invocatio() -> Element {
-  return text(toU8(voxText), ring(voxSize, kBone, 2.2f))
+  return text(toUtf8(voxText), ring(voxSize, kBone, 2.2f))
       .key("vox")
       .centerAt(kEye)
       .width(2 * rVox * kR)
@@ -164,7 +164,7 @@ auto RotaConvocationis::invocatio() -> Element {
 }
 
 auto RotaConvocationis::registrum() -> Element {
-  return text(toU8(runeText), rune(runeSize, kRuneInk, 2.0f))
+  return text(toUtf8(runeText), rune(runeSize, kRuneInk, 2.0f))
       .key("registrum")
       .centerAt(kEye)
       .width(2 * rRune * kR)
@@ -191,9 +191,11 @@ auto RotaConvocationis::nomina() -> Element {
   motion::Spread form = {.amountMs = 1900};
   form.then({.eachMs = 24, .durationMs = 420});
 
-  TextEffect swell = fx::seq(
-      fx::variableAxisSweep("GRAD", 400.0f, 860.0f).until(0.45f).xfade(0.25f),
-      fx::variableAxisSweep("GRAD", 860.0f, 400.0f));
+  TextEffect swell =
+      fx::sequence(fx::variableAxisSweep("GRAD", 400.0f, 860.0f)
+                       .until(0.45f)
+                       .crossfade(0.25f),
+                   fx::variableAxisSweep("GRAD", 860.0f, 400.0f));
 
   // How far past the ring's snug box the pass may paint: the glyphs
   // straddle the baseline circle and stand proud of the box at its four
@@ -202,7 +204,7 @@ auto RotaConvocationis::nomina() -> Element {
   // under-reporting shears the outer halves off at the layer's edge.
   constexpr float kReach = 90.0f;
   Element names =
-      text(toU8(nomText), ring(nomSize, kGold, 4.2f))
+      text(toUtf8(nomText), ring(nomSize, kGold, 4.2f))
           .key("nomina")
           .effect(styles::textGlow(kHalo, 6.0f))
           .centerAt(kEye)
@@ -252,7 +254,7 @@ auto RotaConvocationis::nomina() -> Element {
 }
 
 auto RotaConvocationis::textura() -> Element {
-  return text(toU8(texText), rune(texSize, kAsh, 0.0f))
+  return text(toUtf8(texText), rune(texSize, kAsh, 0.0f))
       .key("textura")
       .centerAt(kEye)
       .width(2 * rTex * kR)

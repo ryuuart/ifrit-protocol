@@ -9,16 +9,16 @@
 namespace sigil::compose::detail {
 
 namespace {
-const TextPainterOps*& textEngineSlot() {
-  static const TextPainterOps* engine = nullptr;
+const TextPainterOperations*& textEngineSlot() {
+  static const TextPainterOperations* engine = nullptr;
   return engine;
 }
 }  // namespace
 
-void registerTextEngine(const TextPainterOps* engine) {
+void registerTextEngine(const TextPainterOperations* engine) {
   textEngineSlot() = engine;
 }
 
-const TextPainterOps* registeredTextEngine() { return textEngineSlot(); }
+const TextPainterOperations* registeredTextEngine() { return textEngineSlot(); }
 
 }  // namespace sigil::compose::detail

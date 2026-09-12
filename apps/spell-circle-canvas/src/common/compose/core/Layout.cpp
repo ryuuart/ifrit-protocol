@@ -265,11 +265,11 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
     SkRect extent = SkRect::MakeEmpty();
     for (size_t i = 0; i < count; ++i) extent.join(rects[i]);
     const bool widthPinned = l.hasInsets &&
-                             l.insets.left.unit != Dim::Unit::Auto &&
-                             l.insets.right.unit != Dim::Unit::Auto;
+                             l.insets.left.unit != Dimension::Unit::Auto &&
+                             l.insets.right.unit != Dimension::Unit::Auto;
     const bool heightPinned = l.hasInsets &&
-                              l.insets.top.unit != Dim::Unit::Auto &&
-                              l.insets.bottom.unit != Dim::Unit::Auto;
+                              l.insets.top.unit != Dimension::Unit::Auto &&
+                              l.insets.bottom.unit != Dimension::Unit::Auto;
     // …and it keeps sizing an axis it once sized. WHICH IT REMEMBERS: the
     // point width in the style is not evidence, because the placement loop
     // above writes point widths on every child, so a scheme nested in a
@@ -280,15 +280,15 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
     const bool sizesHeight = l.absolute ||
                              YGNodeLayoutGetHeight(inst.yoga) <= 0.25f ||
                              inst.schemeSizedHeight;
-    if (l.width.unit == Dim::Unit::Auto && !widthPinned && sizesWidth &&
+    if (l.width.unit == Dimension::Unit::Auto && !widthPinned && sizesWidth &&
         extent.right() > 0 &&
         std::abs(YGNodeLayoutGetWidth(inst.yoga) - extent.right()) > 0.25f) {
       YGNodeStyleSetWidth(inst.yoga, extent.right());
       inst.schemeSizedWidth = true;
       applied = true;
     }
-    if (l.height.unit == Dim::Unit::Auto && !heightPinned && sizesHeight &&
-        extent.bottom() > 0 &&
+    if (l.height.unit == Dimension::Unit::Auto && !heightPinned &&
+        sizesHeight && extent.bottom() > 0 &&
         std::abs(YGNodeLayoutGetHeight(inst.yoga) - extent.bottom()) > 0.25f) {
       YGNodeStyleSetHeight(inst.yoga, extent.bottom());
       inst.schemeSizedHeight = true;

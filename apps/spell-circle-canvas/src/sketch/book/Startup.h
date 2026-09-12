@@ -67,11 +67,12 @@ void finishMaterialWarmup(std::future<sigil::material::WarmupResult>& loading);
 /** The compiler line the build captured, which lands beside the binaries
  *  rather than inside the bundle: a macOS application is a directory, and
  *  its executable sits three levels down inside it. */
-std::filesystem::path flagsFileNear(const std::filesystem::path& exeDir);
+std::filesystem::path flagsFileNear(
+    const std::filesystem::path& executableDirectory);
 
 /** The directory this binary stands in, whatever the path it was invoked
  *  through. */
-std::filesystem::path executableDir(const char* argv0);
+std::filesystem::path executableDirectory(const char* argv0);
 
 /** THE PROCESS'S ONE FONT CONTEXT, shaped through the system's fonts:
  *  every session, still and headless lane shares it, so the shaping and

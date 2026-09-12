@@ -44,7 +44,7 @@ namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -81,8 +81,8 @@ struct Mawarikomi final : sketch::Sketch {
     namespace mw = mawari;
     return mw::specimen(caption, mw::label(10, mw::kAi, 1.4f),
                         text(text8, style)
-                            .width(Dim(46.0f))
-                            .height(Dim(216.0f))
+                            .width(Dimension(46.0f))
+                            .height(Dimension(216.0f))
                             .writingMode(sigil::weave::WritingMode::kVerticalRL)
                             .maxLines(1)
                             .ellipsis(u8"…"),
@@ -105,16 +105,16 @@ struct Mawarikomi final : sketch::Sketch {
                    .key("hinomaru")
                    .absolute()
                    .inset(mw::kBlockLeft + 132, mw::kBlockTop + 96, 0, 0)
-                   .width(Dim(mw::kDiscSize))
-                   .height(Dim(mw::kDiscSize))
+                   .width(Dimension(mw::kDiscSize))
+                   .height(Dimension(mw::kDiscSize))
                    .shape(shapes::circle())
                    .fill(Fill::color(mw::kAka)))
         .child(box()
                    .key("in")
                    .absolute()
                    .inset(mw::kBlockLeft + 42, mw::kBlockTop + 316, 0, 0)
-                   .width(Dim(mw::kSealSize))
-                   .height(Dim(mw::kSealSize))
+                   .width(Dimension(mw::kSealSize))
+                   .height(Dimension(mw::kSealSize))
                    .shape(shapes::star(6))
                    .fill(Fill::color(mw::kAi)))
         // The passage itself. Two exclusions, one declaration each; the
@@ -129,8 +129,8 @@ struct Mawarikomi final : sketch::Sketch {
                     mw::body(21, mw::kSumi))
                    .absolute()
                    .inset(mw::kBlockLeft, mw::kBlockTop, 0, 0)
-                   .width(Dim(mw::kBlockW))
-                   .height(Dim(mw::kBlockH))
+                   .width(Dimension(mw::kBlockW))
+                   .height(Dimension(mw::kBlockH))
                    .writingMode(sigil::weave::WritingMode::kVerticalRL)
                    .flowAround("hinomaru", 11)
                    .flowAround("in", 9)
@@ -142,21 +142,22 @@ struct Mawarikomi final : sketch::Sketch {
                 .inset(64, 84, 0, 0)
                 .column()
                 .gap(10)
-                .child(text(toU8("\xe5\x9b\x9e\xe3\x82\x8a\xe8\xbe\xbc\xe3\x81"
-                                 "\xbf"),
-                            mw::body(42, mw::kSumi)))
+                .child(
+                    text(toUtf8("\xe5\x9b\x9e\xe3\x82\x8a\xe8\xbe\xbc\xe3\x81"
+                                "\xbf"),
+                         mw::body(42, mw::kSumi)))
                 .child(box()
-                           .width(Dim(120.0f))
-                           .height(Dim(1.0f))
+                           .width(Dimension(120.0f))
+                           .height(Dimension(1.0f))
                            .fill(Fill::color(mw::kAka)))
-                .child(text(toU8("THE COLUMN PARTS, AND THE COLUMN STOPS"),
+                .child(text(toUtf8("THE COLUMN PARTS, AND THE COLUMN STOPS"),
                             mw::label(12, mw::kAi, 2.6f))
-                           .width(Dim(268.0f)))
-                .child(text(toU8("an exclusion cuts a column exactly as it\n"
-                                 "cuts a line \xc2\xb7 a clamped column ends "
-                                 "in\na marker at its foot"),
+                           .width(Dimension(268.0f)))
+                .child(text(toUtf8("an exclusion cuts a column exactly as it\n"
+                                   "cuts a line \xc2\xb7 a clamped column ends "
+                                   "in\na marker at its foot"),
                             mw::label(13, mw::kSumi, 0.4f))
-                           .width(Dim(268.0f))))
+                           .width(Dimension(268.0f))))
         // The pair: one clamp in each script, so the marker's two forms
         // are side by side. Both columns hold far more than one column of
         // room, so both are cut.
@@ -172,17 +173,18 @@ struct Mawarikomi final : sketch::Sketch {
                                    u8"a Latin column turns a quarter turn and "
                                    u8"so does the marker that cuts it",
                                    mw::label(17, mw::kSumi, 0.2f))))
-        .child(text(toU8("both columns are clamped to ONE column and both "
-                         "overflow;\nthe cut moved up the column to make room "
-                         "for the marker"),
-                    mw::label(11, mw::kUsu))
-                   .absolute()
-                   .inset(64, 520, 0, 0)
-                   .width(Dim(300.0f)))
-        .child(text(toU8("silhouette \xe2\x86\x92 subtracted as itself  "
-                         "\xc2\xb7  a crossed column splits into head and "
-                         "foot  \xc2\xb7  the marker takes the form of the "
-                         "text it cut"),
+        .child(
+            text(toUtf8("both columns are clamped to ONE column and both "
+                        "overflow;\nthe cut moved up the column to make room "
+                        "for the marker"),
+                 mw::label(11, mw::kUsu))
+                .absolute()
+                .inset(64, 520, 0, 0)
+                .width(Dimension(300.0f)))
+        .child(text(toUtf8("silhouette \xe2\x86\x92 subtracted as itself  "
+                           "\xc2\xb7  a crossed column splits into head and "
+                           "foot  \xc2\xb7  the marker takes the form of the "
+                           "text it cut"),
                     mw::label(12, mw::kUsu))
                    .absolute()
                    .inset(64, mw::kH - 44, 0, 0));

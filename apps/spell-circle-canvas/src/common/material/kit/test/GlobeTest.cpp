@@ -26,8 +26,8 @@ namespace {
 
 /** The globe with its rules silenced, for a case asking about colour or
  *  shading rather than about the graticule. */
-kit::GlobeParams unruled() {
-  kit::GlobeParams p;
+kit::GlobeParameters unruled() {
+  kit::GlobeParameters p;
   p.minorWeight = 0;
   p.majorWeight = 0;
   p.horizonWeight = 0;
@@ -90,8 +90,8 @@ TEST(Globe, TheSkyStandsOverTheGroundAtALevelAttitude) {
 }
 
 TEST(Globe, RollTurnsThePictureAndPitchTurnsTheSphereUnderIt) {
-  kit::GlobeParams level = unruled();
-  kit::GlobeParams rolled = level;
+  kit::GlobeParameters level = unruled();
+  kit::GlobeParameters rolled = level;
   rolled.roll = 3.14159265f;
   const SkBitmap upright = render(kit::globe(level), 64, 64);
   const SkBitmap over = render(kit::globe(rolled), 64, 64);
@@ -101,7 +101,7 @@ TEST(Globe, RollTurnsThePictureAndPitchTurnsTheSphereUnderIt) {
 
   // Pitch slides the horizon: pitched a quarter turn, the pole faces the
   // eye and the whole disc reads as one hemisphere.
-  kit::GlobeParams pitched = level;
+  kit::GlobeParameters pitched = level;
   pitched.pitch = 1.5707963f;
   const SkBitmap nose = render(kit::globe(pitched), 64, 64);
   EXPECT_GT(SkColorGetB(nose.getColor(32, 12)),
@@ -112,8 +112,8 @@ TEST(Globe, RollTurnsThePictureAndPitchTurnsTheSphereUnderIt) {
 }
 
 TEST(Globe, YawSpinsTheGraticuleWithoutMovingTheHorizon) {
-  kit::GlobeParams still;
-  kit::GlobeParams turned = still;
+  kit::GlobeParameters still;
+  kit::GlobeParameters turned = still;
   turned.yaw = 0.0872665f;  // half the fine graticule's pitch
   const SkBitmap first = render(kit::globe(still), 96, 96);
   const SkBitmap second = render(kit::globe(turned), 96, 96);
@@ -126,8 +126,8 @@ TEST(Globe, YawSpinsTheGraticuleWithoutMovingTheHorizon) {
 }
 
 TEST(Globe, TheGraticulesPitchIsAProp) {
-  kit::GlobeParams fine;
-  kit::GlobeParams coarse = fine;
+  kit::GlobeParameters fine;
+  kit::GlobeParameters coarse = fine;
   coarse.minorDeg = 30.0f;
   const SkBitmap ruledFine = render(kit::globe(fine), 96, 96);
   const SkBitmap ruledCoarse = render(kit::globe(coarse), 96, 96);
@@ -139,7 +139,7 @@ TEST(Globe, TheGraticulesPitchIsAProp) {
 }
 
 TEST(Globe, TheLimbDarkensTheWayABallDoes) {
-  kit::GlobeParams flat = unruled();
+  kit::GlobeParameters flat = unruled();
   const Color one = {0.6f, 0.6f, 0.6f, 1};
   flat.sky = flat.skyPole = flat.ground = flat.groundPole = one;
   flat.specular = 0;

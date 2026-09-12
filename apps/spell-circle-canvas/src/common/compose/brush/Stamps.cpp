@@ -142,11 +142,11 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
   return out;
 }
 
-void drawStamp(SkCanvas& c, const SkPicture& pic, const PathSample& sample,
+void drawStamp(SkCanvas& c, const SkPicture& picture, const PathSample& sample,
                bool align, float rotateDeg, float scaleX, float scaleY,
-               const StampMod& m) {
+               const StampModifier& m) {
   if (m.skip || m.alpha <= 0.003f || m.scale <= 0.001f) return;
-  const SkRect cull = pic.cullRect();
+  const SkRect cull = picture.cullRect();
   c.save();
   c.translate(sample.position.x(), sample.position.y());
   if (align)
@@ -159,9 +159,9 @@ void drawStamp(SkCanvas& c, const SkPicture& pic, const PathSample& sample,
   if (m.alpha < 1.0f) {
     SkPaint fade;
     fade.setAlphaf(m.alpha);
-    c.drawPicture(&pic, nullptr, &fade);
+    c.drawPicture(&picture, nullptr, &fade);
   } else {
-    c.drawPicture(&pic);
+    c.drawPicture(&picture);
   }
   c.restore();
 }
@@ -173,23 +173,24 @@ void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
   // Prefer the instance-side store, so a brush value rebuilt every
   // describe still finds its art's bake; the member cache is the
   // standalone-paint fallback.
-  sk_sp<SkPicture> pic;
+  sk_sp<SkPicture> picture;
   if (ctx.stamps) {
-    if (const StampCache::Entry* e = ctx.stamps->get(art.node())) pic = e->pic;
-    if (!pic) {
+    if (const StampCache::Entry* e = ctx.stamps->get(art.node()))
+      picture = e->picture;
+    if (!picture) {
       // Shell box: snapshot() sizes by the root's CHILDREN and ignores
       // the root's own dimensions.
-      pic = snapshot(box().child(art), *ctx.fonts);
-      ctx.stamps->put(art.node(), {pic, nullptr, {0, 0}});
+      picture = snapshot(box().child(art), *ctx.fonts);
+      ctx.stamps->put(art.node(), {picture, nullptr, {0, 0}});
     }
   } else {
-    if (!cache->pic || !bakedFromNode(cache->bakedFor, art.node())) {
-      cache->pic = snapshot(box().child(art), *ctx.fonts);
+    if (!cache->picture || !bakedFromNode(cache->bakedFor, art.node())) {
+      cache->picture = snapshot(box().child(art), *ctx.fonts);
       cache->bakedFor = art.node();
     }
-    pic = cache->pic;
+    picture = cache->picture;
   }
-  if (!pic) return;
+  if (!picture) return;
 
   // An unset place.interval takes `spacing`, resolved here where the
   // spacing lives rather than by comparing against a sentinel value an
@@ -197,8 +198,8 @@ void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
   std::vector<PathSample> samples =
       placementSamples(ctx.outline, place, spacing);
   for (size_t i = 0; i < samples.size(); ++i) {
-    StampMod m;
-    if (mod) m = mod(samples[i], i, samples.size());
+    StampModifier m;
+    if (modifier) m = modifier(samples[i], i, samples.size());
     if (seed != 0) {
       const uint32_t k = (uint32_t)i;
       m.dAlong += core::noise::hash(seed, 4 * k) * jitterAlong;
@@ -206,7 +207,7 @@ void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
       m.scale *= 1.0f + core::noise::hash(seed, 4 * k + 2) * jitterScale;
       m.rotateDeg += core::noise::hash(seed, 4 * k + 3) * jitterRotateDeg;
     }
-    drawStamp(c, *pic, samples[i], alignToPath, 0, 1, 1, m);
+    drawStamp(c, *picture, samples[i], alignToPath, 0, 1, 1, m);
   }
 }
 
@@ -239,7 +240,7 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
     if (slot) return;
     if (ctx.stamps)
       if (const StampCache::Entry* hit = ctx.stamps->get(e.node()))
-        slot = hit->pic;
+        slot = hit->picture;
     if (!slot) {  // shell box: snapshot() sizes by the root's CHILDREN
       slot = snapshot(box().child(e), *ctx.fonts);
       if (ctx.stamps && slot)
@@ -259,7 +260,7 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
       authored > 0 ? authored : std::max(cache->side->cullRect().width(), 1.0f);
 
   size_t placed = 0;
-  // Two passes: count side tiles first so mod sees the true total.
+  // Two passes: count side tiles first so modifier sees the true total.
   std::vector<std::pair<PathSample, float>> sideSlots;  // sample + scaleX
   std::vector<std::pair<PathSample, const SkPicture*>> caps;
 
@@ -360,13 +361,13 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
   }
 
   for (const auto& [sample, sx] : sideSlots) {
-    StampMod m;
-    if (mod) m = mod(sample, placed, sideSlots.size());
+    StampModifier m;
+    if (modifier) m = modifier(sample, placed, sideSlots.size());
     drawStamp(c, *cache->side, sample, true, 0, sx, 1, m);
     ++placed;
   }
-  for (const auto& [sample, pic] : caps)
-    drawStamp(c, *pic, sample, true, 0, 1, 1, {});
+  for (const auto& [sample, picture] : caps)
+    drawStamp(c, *picture, sample, true, 0, 1, 1, {});
 }
 
 }  // namespace sigil::compose::brush

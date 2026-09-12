@@ -4,7 +4,7 @@
 
 auto WinampBase::describe() -> Element {
   using namespace wa;
-  Element root = stack().width(Dim(1320)).height(Dim(1947));
+  Element root = stack().width(Dimension(1320)).height(Dimension(1947));
 
   // the desktop: flat teal + one baked dither pass
   root.child(box().inset(0).fill(deskMat).cache(Cache::Texture));
@@ -12,8 +12,8 @@ auto WinampBase::describe() -> Element {
   // Main — pops in at its final position, scale 0.9 -> 1 on outBack.
   root.child(
       mainWindow()
-          .left(Dim(60))
-          .top(Dim(60))
+          .left(Dimension(60))
+          .top(Dimension(60))
           .transformOrigin(0.5f, 0.5f)
           .scale(animate(motion::from(0.9f).to(1.0f),
                          {200ms, motion::ease::outBack(), 100ms}))
@@ -24,8 +24,8 @@ auto WinampBase::describe() -> Element {
   // Equalizer — docking snap from 60 px above, the same outBack value.
   root.child(
       eqWindow()
-          .left(Dim(60))
-          .top(Dim(408))
+          .left(Dimension(60))
+          .top(Dimension(408))
           .translateY(animate(motion::from(-60.0f).to(0.0f),
                               {250ms, motion::ease::outBack(), 900ms}))
           .opacity(animate(
@@ -35,8 +35,8 @@ auto WinampBase::describe() -> Element {
   // Playlist — same snap, 1.25 s later.
   root.child(
       playlistWindow()
-          .left(Dim(60))
-          .top(Dim(756))
+          .left(Dimension(60))
+          .top(Dimension(756))
           .translateY(animate(motion::from(-60.0f).to(0.0f),
                               {250ms, motion::ease::outBack(), 2150ms}))
           .opacity(animate(

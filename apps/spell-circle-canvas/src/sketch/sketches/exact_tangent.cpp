@@ -49,7 +49,7 @@ namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -75,7 +75,7 @@ weave::TextStyle inscription(float size, SkColor4f color) {
  *  node's own box, so the leaf carries the plate's dimensions. */
 Element run(const char* word, float size, SkColor4f colour, bool exact,
             float inset = 16) {
-  return text(toU8(word), inscription(size, colour))
+  return text(toUtf8(word), inscription(size, colour))
       .absolute()
       .inset(inset)
       .onPath({.path = shapes::spiral(kTurns),
@@ -88,7 +88,7 @@ Element run(const char* word, float size, SkColor4f colour, bool exact,
  *  the type inside the baseline so a big face stays on the plate. */
 Element arcRun(const char* word, float size, SkColor4f colour, bool exact,
                float at = 0.30f, float offset = -22, float inset = 14) {
-  return text(toU8(word), inscription(size, colour))
+  return text(toUtf8(word), inscription(size, colour))
       .absolute()
       .inset(inset)
       .onPath({.path = shapes::circle(),
@@ -104,7 +104,7 @@ Element plate(Element body) {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(kCell, toU8(call), toU8(note),
+  return sketch::kit::caption(kCell, toUtf8(call), toUtf8(note),
                               plate(std::move(body)));
 }
 
@@ -117,18 +117,19 @@ struct ExactTangent final : sketch::Sketch {
     const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("THE TANGENT LADDER \xc2\xb7 "
-                       "TextPath::exactTangent on a tight spiral"),
-         .subtitle = toU8("dials \xc2\xb7 the size (15 px, then 74, then 260) "
-                          "\xc2\xb7 the spiral's turns (3.2) \xc2\xb7 "
-                          "exactTangent \xc2\xb7 how far off the "
-                          "baseline the type rides"),
-         .footer = toU8("the ladder is sixteen steps per pixel of em, "
-                        "clamped between 64 and 2048 \xe2\x80\x94 so a "
-                        "step sweeps a glyph's far edge about a fifth "
-                        "of a pixel at every size until the ceiling "
-                        "binds, which is why the switch is for artwork "
-                        "set large and static")},
+        {.title = toUtf8("THE TANGENT LADDER \xc2\xb7 "
+                         "TextPath::exactTangent on a tight spiral"),
+         .subtitle =
+             toUtf8("dials \xc2\xb7 the size (15 px, then 74, then 260) "
+                    "\xc2\xb7 the spiral's turns (3.2) \xc2\xb7 "
+                    "exactTangent \xc2\xb7 how far off the "
+                    "baseline the type rides"),
+         .footer = toUtf8("the ladder is sixteen steps per pixel of em, "
+                          "clamped between 64 and 2048 \xe2\x80\x94 so a "
+                          "step sweeps a glyph's far edge about a fifth "
+                          "of a pixel at every size until the ceiling "
+                          "binds, which is why the switch is for artwork "
+                          "set large and static")},
         kit::cells(
             {.cells = {cell("onPath({spiral(3.2), at = 0.42})",
                             "the baseline every cell uses \xc2\xb7 one run "

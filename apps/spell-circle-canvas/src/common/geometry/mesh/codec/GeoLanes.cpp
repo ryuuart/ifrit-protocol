@@ -114,34 +114,35 @@ std::vector<GeoAttribute> geoAttributes(const Json* list, size_t count) {
     const Json* type = desc.get("type");
     const Json* name = desc.get("name");
     if (!type || !name) continue;
-    GeoAttribute attr;
-    attr.name = name->string();
+    GeoAttribute attribute;
+    attribute.name = name->string();
     if (type->string() == "numeric") {
-      attr.size = payload.get("size") ? (int)payload.get("size")->number() : 1;
+      attribute.size =
+          payload.get("size") ? (int)payload.get("size")->number() : 1;
       const Json* values = payload.get("values");
-      if (!values || attr.size < 1 ||
-          !geoDecodeValues(*values, count, attr.size, attr.values))
+      if (!values || attribute.size < 1 ||
+          !geoDecodeValues(*values, count, attribute.size, attribute.values))
         continue;
     } else if (type->string() == "string") {
-      attr.isString = true;
-      attr.size = 1;
+      attribute.isString = true;
+      attribute.size = 1;
       if (const Json* strings = payload.get("strings"))
         for (const Json& str : strings->array())
-          attr.strings.push_back(str.string());
+          attribute.strings.push_back(str.string());
       const Json* indices = payload.get("indices");
-      if (!indices || !geoDecodeValues(*indices, count, 1, attr.values))
+      if (!indices || !geoDecodeValues(*indices, count, 1, attribute.values))
         continue;
     } else {
       continue;
     }
-    out.push_back(std::move(attr));
+    out.push_back(std::move(attribute));
   }
   return out;
 }
 
-const GeoAttribute* geoFind(const std::vector<GeoAttribute>& attrs,
+const GeoAttribute* geoFind(const std::vector<GeoAttribute>& attributes,
                             std::string_view name) {
-  for (const GeoAttribute& a : attrs)
+  for (const GeoAttribute& a : attributes)
     if (a.name == name) return &a;
   return nullptr;
 }

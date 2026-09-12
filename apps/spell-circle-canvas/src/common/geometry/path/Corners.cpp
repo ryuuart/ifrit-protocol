@@ -18,14 +18,14 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 
-#include "OpsInternal.h"
+#include "OperationsInternal.h"
 #include "sigilgeometry/path/Numeric.h"
-#include "sigilgeometry/path/Ops.h"
+#include "sigilgeometry/path/Operations.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Segments.h"
 #include "sigilgeometry/path/Skia.h"
 
-namespace sigil::geometry::path::ops {
+namespace sigil::geometry::path::operations {
 
 namespace {
 
@@ -283,4 +283,4 @@ SkPath chamferCorners(const SkPath& path, float cut) {
   return out.detach();
 }
 
-}  // namespace sigil::geometry::path::ops
+}  // namespace sigil::geometry::path::operations

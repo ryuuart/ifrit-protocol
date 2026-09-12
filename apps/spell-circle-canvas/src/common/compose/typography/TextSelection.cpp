@@ -171,7 +171,7 @@ void warnBadSelectorPattern(const std::u8string& pattern) {
   std::string key((const char*)pattern.data(), pattern.size());
   if (!seen.insert(key).second) return;
   SkDebugf(
-      "compose: weave::sel::regex(\"%s\") does not compile — this track "
+      "compose: weave::selectors::regex(\"%s\") does not compile — this track "
       "selects no glyphs\n",
       key.c_str());
 }
@@ -183,7 +183,8 @@ void warnNoSuchStyleName(const std::u8string& name) {
   std::string key((const char*)name.data(), name.size());
   if (!seen.insert(key).second) return;
   SkDebugf(
-      "compose: sel::style(\"%s\") — no run of this text was written under "
+      "compose: selectors::style(\"%s\") — no run of this text was written "
+      "under "
       "that name, so it addresses nothing (only a weave::rich() run added "
       "with add(text, styleName) carries one)\n",
       key.c_str());
@@ -194,7 +195,7 @@ void warnNoSuchFrameKey(const std::u8string& key) {
   std::string name((const char*)key.data(), key.size());
   if (!seen.insert(name).second) return;
   SkDebugf(
-      "compose: sel::inFrame(\"%s\") on a text leaf with no key() of its "
+      "compose: selectors::inFrame(\"%s\") on a text leaf with no key() of its "
       "own — a frame-local address is matched against the leaf's own key, so "
       "this one can never match and addresses nothing\n",
       name.c_str());
@@ -242,7 +243,8 @@ Ranges complementRanges(const Ranges& ranges, uint32_t length) {
 
 namespace {
 
-/** Once per process: an `weave::sel::each` slice asked of a text range. */
+/** Once per process: an `weave::selectors::each` slice asked of a text range.
+ */
 void warnSliceIgnored() {
   static thread_local bool warned = false;
   if (warned) return;

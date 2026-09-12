@@ -31,7 +31,7 @@ using namespace std::chrono_literals;
 // The libraries compose hands values from, each spelled at its own
 // origin: a schedule and an animatable are SigilMotion's, a silhouette
 // SigilGeometry's, a colour or a pattern SigilMaterial's, a style
-// SigilWeave's, an erased value or an env binding SigilCore's. Aliases
+// SigilWeave's, an erased value or an environment binding SigilCore's. Aliases
 // rather than using-directives, because `sigil::image` and
 // `sigil::measure` are namespaces that collide with compose's own
 // `image()` and `measure()` verbs.

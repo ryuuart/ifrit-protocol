@@ -33,7 +33,7 @@ class Story;
 namespace sigil::compose {
 
 /** UTF-8 std::string → std::u8string for text() call sites. */
-inline std::u8string toU8(std::string_view s) {
+inline std::u8string toUtf8(std::string_view s) {
   return std::u8string(s.begin(), s.end());
 }
 
@@ -42,7 +42,7 @@ inline std::u8string toU8(std::string_view s) {
 Element box();
 /** Overlap container: children share the box, painted in (zIndex,
  *  declaration order). EVERY child is absolute — the container sets it
- *  after the child's own layout props, so a child cannot rejoin the flex
+ *  after the child's own layout properties, so a child cannot rejoin the flex
  *  flow from inside a stack (it keeps its insets, which is what absolute
  *  is for: `.top(12).right(12)` pins a corner). Mixed flow wants a box
  *  with a stack inside it. */
@@ -66,7 +66,7 @@ Element stack();
  *
  *  The container ITSELF is an ordinary box in its parent's flow: size it
  *  with dims or insets, because it does NOT auto-size from its children.
- *  NOT SUPPORTED INSIDE, and ignored silently when written: flex props,
+ *  NOT SUPPORTED INSIDE, and ignored silently when written: flex properties,
  *  centerAt, layout() schemes, flowAround text. Those need the flex
  *  world. */
 Element positioned();
@@ -198,17 +198,17 @@ Element layout(L scheme) {
 Element slot(std::string_view name);
 
 namespace detail {
-Element makeMemo(std::any props,
+Element makeMemo(std::any properties,
                  std::function<bool(const std::any&, const std::any&)> equal,
                  std::function<Element(const std::any&)> invoke);
 }  // namespace detail
 
-/** Deferred description: `fn` runs only when `props` changed (by
+/** Deferred description: `fn` runs only when `properties` changed (by
  *  operator==) since the last render on this position/key — AND the
- *  ambient `env::` bindings are unchanged, because a memo is a pure
- *  function of (props, environment) and would otherwise serve the theme
+ *  ambient `environment::` bindings are unchanged, because a memo is a pure
+ *  function of (properties, environment) and would otherwise serve the theme
  *  it first described under forever. The captured stack is re-established
- *  around the deferred call, so `env::inherited<T>()` inside `fn` reads
+ *  around the deferred call, so `environment::inherited<T>()` inside `fn` reads
  *  what was bound where the memo was WRITTEN, not where it runs.
  *
  *  THE SHELL. The element this returns is a shell; the element `fn`
@@ -220,13 +220,13 @@ Element makeMemo(std::any props,
  *  property set on the shell (a fill, a transform, a layout dimension, a
  *  child, a decoration) describes nothing, is warned about once and
  *  ignored: set it on the element produced inside `fn`. A `.cache()`
- *  changed while the props and the environment compare equal does not
+ *  changed while the properties and the environment compare equal does not
  *  take, because a hit reuses the retained produce untouched — change a
  *  prop to re-describe. */
-template <ComponentProps P, ComponentFn<P> F>
-Element memo(P props, F fn) {
+template <ComponentProperties P, ComponentFunction<P> F>
+Element memo(P properties, F fn) {
   return detail::makeMemo(
-      std::any(std::move(props)),
+      std::any(std::move(properties)),
       [](const std::any& a, const std::any& b) {
         return std::any_cast<const P&>(a) == std::any_cast<const P&>(b);
       },

@@ -18,7 +18,7 @@
  * panel, button and well inside it wears the same era with nothing said
  * at the use site:
  *
- *     const env::Provide<kit::Bevel> era(kit::bevels::motif(hi, lo));
+ *     const environment::Provide<kit::Bevel> era(kit::bevels::motif(hi, lo));
  *     …
  *     panel.overlay(kit::ambientBevel());
  *
@@ -107,7 +107,7 @@ struct Bevel {
    *  softness, where the mark is a blur. */
   bool antiAlias = true;
   /** WHICH SIDES the ring is drawn on, and how its bands end where the
-   *  mask left their neighbour out — the same pair of props the inner
+   *  mask left their neighbour out — the same pair of properties the inner
    *  ring carries, for the outer one. Ignored above 0 softness, where the
    *  mark is a blurred plane pair rather than four bands. */
   geometry::path::Edge edges = geometry::path::Edge::All;

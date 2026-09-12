@@ -82,8 +82,9 @@ bool isNetworkUri(std::string_view uri) {
 }
 
 static std::filesystem::path networkCachePath(
-    std::string_view url, const std::filesystem::path& cacheDir) {
-  return (cacheDir.empty() ? defaultNetworkCacheDir() : cacheDir) /
+    std::string_view url, const std::filesystem::path& cacheDirectory) {
+  return (cacheDirectory.empty() ? defaultNetworkCacheDirectory()
+                                 : cacheDirectory) /
          networkCacheKey(url);
 }
 
@@ -109,7 +110,8 @@ static bool persistNetworkResource(const std::filesystem::path& cached,
  *  Offline: cache only. A fetch success always persists for the next
  *  run. */
 FetchResult fetchNetwork(const NetworkAccess& access, std::string_view url) {
-  const std::filesystem::path cached = networkCachePath(url, access.cacheDir);
+  const std::filesystem::path cached =
+      networkCachePath(url, access.cacheDirectory);
   std::error_code ec;
   const auto fromCache = [&]() -> FetchResult {
     if (std::filesystem::exists(cached, ec) && !ec)
@@ -175,7 +177,7 @@ std::filesystem::path platformCacheRoot() {
 
 }  // namespace
 
-std::filesystem::path defaultNetworkCacheDir() {
+std::filesystem::path defaultNetworkCacheDirectory() {
   const std::filesystem::path root = platformCacheRoot();
   const std::filesystem::path base =
       root.empty() ? std::filesystem::temp_directory_path() : root;
@@ -185,9 +187,10 @@ std::filesystem::path defaultNetworkCacheDir() {
 }  // namespace detail
 
 std::optional<std::uintmax_t> probeNetworkCache(
-    std::string_view url, const std::filesystem::path& cacheDir) {
+    std::string_view url, const std::filesystem::path& cacheDirectory) {
   if (!detail::isNetworkUri(url)) return std::nullopt;
-  const std::filesystem::path cached = detail::networkCachePath(url, cacheDir);
+  const std::filesystem::path cached =
+      detail::networkCachePath(url, cacheDirectory);
   std::error_code ec;
   if (!std::filesystem::is_regular_file(cached, ec) || ec) return std::nullopt;
   const std::uintmax_t size = std::filesystem::file_size(cached, ec);
@@ -195,15 +198,15 @@ std::optional<std::uintmax_t> probeNetworkCache(
 }
 
 bool seedNetworkCache(std::string_view url, std::span<const std::byte> bytes,
-                      const std::filesystem::path& cacheDir) {
+                      const std::filesystem::path& cacheDirectory) {
   if (!detail::isNetworkUri(url)) return false;
-  return detail::persistNetworkResource(detail::networkCachePath(url, cacheDir),
-                                        bytes);
+  return detail::persistNetworkResource(
+      detail::networkCachePath(url, cacheDirectory), bytes);
 }
 
-void Hub::setNetworkCacheDir(std::filesystem::path dir) {
+void Hub::setNetworkCacheDirectory(std::filesystem::path directory) {
   const std::lock_guard lock(m_mutex);
-  m_networkCacheDir = std::move(dir);
+  m_networkCacheDirectory = std::move(directory);
 }
 
 void Hub::setNetworkPolicy(NetworkPolicy policy) {

@@ -1,6 +1,6 @@
 /** @file
  * What a pass costs on the CPU: a geometry pass at several body counts,
- * the same pass culled to a tenth of them, and the three post ops over
+ * the same pass culled to a tenth of them, and the three post operations over
  * one target.
  */
 
@@ -98,7 +98,7 @@ void CulledPass(benchmark::State& state) {
   const int bodies = (int)state.range(0);
   const Bodies scene(bodies);
   const Pass pass =
-      geometryPass("glow").only(sel::tag("glow")).writes("colour");
+      geometryPass("glow").only(selectors::tag("glow")).writes("colour");
   Targets into = targets();
   for ([[maybe_unused]] auto iteration : state)
     Runtime::cpu()->execute(workOf(pass, Selection::Cull), scene.view(), into);

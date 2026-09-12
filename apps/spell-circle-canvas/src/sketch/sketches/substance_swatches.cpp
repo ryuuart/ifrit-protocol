@@ -93,7 +93,7 @@ Element card(const Swatch& swatch) {
   const std::string size =
       kit::formatted("%d \xc3\x97 %d", swatch.width, swatch.height);
   return sketch::kit::caption(
-             kCard, toU8(swatch.usage), toU8(size),
+             kCard, toUtf8(swatch.usage), toUtf8(size),
              image(swatch.asset)
                  .width(kCard)
                  .height(kCard)
@@ -115,7 +115,8 @@ Element notice(std::u8string heading, const std::string& detail) {
       .gap(10)
       .child(text(std::move(heading),
                   weave::textStyle({.size = 22, .color = kInk})))
-      .child(text(toU8(detail), weave::textStyle({.size = 13, .color = kDim})));
+      .child(
+          text(toUtf8(detail), weave::textStyle({.size = 13, .color = kDim})));
 }
 
 }  // namespace
@@ -215,7 +216,7 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
                                     {hexColor(0x1a120b), hexColor(0x0f0d10)})}))
             .child(sketch::kit::titleCard(
                        {.title = {u8"A PROCEDURAL ARCHIVE, COOKED"},
-                        .subtitle = {toU8(caption)}})
+                        .subtitle = {toUtf8(caption)}})
                        .left(kMargin)
                        .top(34))
             .child(std::move(grid)));

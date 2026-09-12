@@ -1,6 +1,6 @@
 # SigilMaterial — materials as recipe instances, as one feature library per
 # directory. The core feature is the value model: a recipe (a reflected
-# params struct plus one body per shading language), the material that
+# parameter struct plus one body per shading language), the material that
 # instantiates it, and the one program cache that compiles through the
 # compilers backends register. There are two of those backends: the Skia
 # one compiles a recipe's SkSL body into an SkRuntimeEffect, the Slang one
@@ -13,7 +13,7 @@
 # is why it stands beside the texture feature and not inside the core. Each backend is its own feature that
 # links the core and its renderer, so a consumer of the model alone links
 # no renderer. The colour feature is the leaf under the core: the value
-# a params struct holds and the OKLab round trip, linking nothing. The
+# a parameter struct holds and the OKLab round trip, linking nothing. The
 # sdf, pattern and field features are the primitives — fully
 # parameterised generators — the ocio feature bakes OpenColorIO's view
 # transforms to LUT materials over the texture feature, and the kit
@@ -24,7 +24,7 @@
 # interface over every feature, for a consumer of the whole library.
 # <sigilmaterial/Material.h> is the umbrella header over the core.
 sigil_library_root(SigilMaterial
-  BRIEF "Materials as recipe instances: reflected params, per-target bodies, one program cache"
+  BRIEF "Materials as recipe instances: reflected parameters, per-target bodies, one program cache"
   DOCS ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
        ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md)
 

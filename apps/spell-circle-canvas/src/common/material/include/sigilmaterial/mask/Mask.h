@@ -42,7 +42,7 @@ enum class MaskReading : uint8_t {
 
 /** The uniforms a mask reads. `value` is the constant mask's whole
  *  answer; the rest shape a sampled one. */
-struct MaskParams {
+struct MaskParameters {
   float value = 1;
   float channel = 0;  ///< 0 red .. 3 alpha
   float reading = 0;  ///< the MaskReading, as its enumerator

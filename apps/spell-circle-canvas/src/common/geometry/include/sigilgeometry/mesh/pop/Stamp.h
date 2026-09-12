@@ -81,7 +81,7 @@ struct StampDispatch {
   std::vector<glm::vec4> pointColor;
   /** Per point: the texture window its stamp's uvs are remapped
    *  through. */
-  std::vector<glm::vec4> pointTex;
+  std::vector<glm::vec4> pointTextureWindows;
 
   /** How many vertices a run of this writes into each output lane. It
    *  is a 32-bit word because a dispatch's argument block holds one, so

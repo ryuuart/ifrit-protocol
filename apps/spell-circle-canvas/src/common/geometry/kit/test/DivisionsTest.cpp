@@ -211,7 +211,8 @@ TEST(Divisions, ClosedAddsTheEndMarkAndSweepScopesTheLadder) {
 TEST(Divisions, TheOutlineFormTakesHalfTheShorterSideOfANonSquareBox) {
   // A non-square box must still produce a CIRCULAR ladder, or the frame's
   // fraction stops matching and every label on it slides.
-  const shapes::OutlineFn fn = shapes::ticks({.divisions = 4, .mark = {0, 1}});
+  const shapes::OutlineFunction fn =
+      shapes::ticks({.divisions = 4, .mark = {0, 1}});
   const Contours c = walk(fn(SkSize{400, 100}));
   ASSERT_EQ(c.pieces.size(), 4u);
   for (float len : c.lengths) EXPECT_NEAR(len, 50.0f, 1e-2f);

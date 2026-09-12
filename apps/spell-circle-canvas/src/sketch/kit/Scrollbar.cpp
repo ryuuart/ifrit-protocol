@@ -7,7 +7,7 @@
 namespace sigil::sketch::kit {
 
 using compose::box;
-using compose::Dim;
+using compose::Dimension;
 using compose::Element;
 using compose::Fill;
 
@@ -36,23 +36,24 @@ compose::Element scrollbar(Scrollbar bar) {
   bar.track.value_or(Fill::color(look.palette.cellGround)).apply(rail);
 
   const Thumb reading = bar.scrolled.thumb();
-  Dim length = bar.thumbLength;
-  if (length.unit == Dim::Unit::Auto && reading.length > 0)
-    length = Dim(reading.length);
-  if (length.unit != Dim::Unit::Auto) {
+  Dimension length = bar.thumbLength;
+  if (length.unit == Dimension::Unit::Auto && reading.length > 0)
+    length = Dimension(reading.length);
+  if (length.unit != Dimension::Unit::Auto) {
     Element slider = bar.thumb ? std::move(*bar.thumb)
                                : box().fill(Fill::color(look.palette.figure));
     // The bar owns the whole of the thumb's geometry: its length, its
     // place along the track, and how far it stands in from the two long
     // edges. What the caller handed over is the chrome.
     slider.absolute();
-    const Dim offset = Dim(reading.travel * std::clamp(bar.at, 0.0f, 1.0f));
+    const Dimension offset =
+        Dimension(reading.travel * std::clamp(bar.at, 0.0f, 1.0f));
     if (down) {
-      slider.left(Dim(bar.thumbInset)).right(Dim(bar.thumbInset));
+      slider.left(Dimension(bar.thumbInset)).right(Dimension(bar.thumbInset));
       slider.top(offset).height(length);
       if (bar.position) slider.translateY(*bar.position);
     } else {
-      slider.top(Dim(bar.thumbInset)).bottom(Dim(bar.thumbInset));
+      slider.top(Dimension(bar.thumbInset)).bottom(Dimension(bar.thumbInset));
       slider.left(offset).width(length);
       if (bar.position) slider.translateX(*bar.position);
     }

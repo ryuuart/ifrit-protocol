@@ -150,7 +150,7 @@ TEST(DataScale, APropWithNoMappingReadsLikeALogDomainThatTouchesZero) {
   EXPECT_TRUE(std::isnan(unit(10.0)));
   EXPECT_TRUE(unit.ticks(5).empty());
 
-  // The neighbouring props still map, so the guard costs nothing that
+  // The neighbouring properties still map, so the guard costs nothing that
   // has an answer.
   const Scale near{.domain = {-100, 100},
                    .range = {0, 1},

@@ -60,7 +60,7 @@ TEST(IONetwork, DefaultCacheDirIsUnderThePlatformCacheLocation) {
   // The OS evicts the temp directory on its own schedule, so a fetch a
   // later run depends on cannot live there.
   const fs::path fallback = fs::temp_directory_path();
-  const fs::path defaulted = detail::defaultNetworkCacheDir();
+  const fs::path defaulted = detail::defaultNetworkCacheDirectory();
 #if defined(_WIN32)
   const char* local = std::getenv("LOCALAPPDATA");
   const std::string root = local ? std::string(local) : "";
@@ -88,7 +88,7 @@ TEST(IONetwork, DefaultCacheDirIsUnderThePlatformCacheLocation) {
   const std::string url = "https://fake.invalid/overridden.txt";
   const std::string body = "written where the hub was told";
   Hub hub;
-  hub.setNetworkCacheDir(cache.path);
+  hub.setNetworkCacheDirectory(cache.path);
   hub.setNetworkTransport([&](std::string_view) {
     const auto* bytes = reinterpret_cast<const std::byte*>(body.data());
     return std::vector<std::byte>(bytes, bytes + body.size());
@@ -103,7 +103,7 @@ TEST(IONetwork, SeededCacheServesWithoutNetwork) {
   const std::string url = "https://fake.invalid/x.txt";
   ASSERT_TRUE(seedNetworkCache(url, bytesOf("from the cache"), cache.path));
   Hub hub;
-  hub.setNetworkCacheDir(cache.path);
+  hub.setNetworkCacheDirectory(cache.path);
   size_t requests = 0;
   hub.setNetworkTransport([&](std::string_view) {
     ++requests;
@@ -128,7 +128,7 @@ TEST(IONetwork, CacheProbeDistinguishesMissingAndEmptyWithoutCreatingFiles) {
       probeNetworkCache("https://fake.invalid/missing.txt", directory));
 
   Hub offline;
-  offline.setNetworkCacheDir(directory);
+  offline.setNetworkCacheDirectory(directory);
   offline.setNetworkPolicy(NetworkPolicy::Offline);
   size_t requests = 0;
   offline.setNetworkTransport([&](std::string_view) {
@@ -156,14 +156,14 @@ TEST(IONetwork, SeedingUsesTheRequestedDirectoryAndKeepsUrlsDistinct) {
   EXPECT_FALSE(probeNetworkCache(revision, second));
 
   Hub offline;
-  offline.setNetworkCacheDir(first);
+  offline.setNetworkCacheDirectory(first);
   offline.setNetworkPolicy(NetworkPolicy::Offline);
   EXPECT_EQ(offline.text(url), "first");
   EXPECT_EQ(offline.text(revision), "revision");
   ASSERT_TRUE(seedNetworkCache(url, bytesOf("replacement"), first));
   EXPECT_EQ(offline.text(url), "first");
   Hub reopened;
-  reopened.setNetworkCacheDir(first);
+  reopened.setNetworkCacheDirectory(first);
   reopened.setNetworkPolicy(NetworkPolicy::Offline);
   EXPECT_EQ(reopened.text(url), "replacement");
 }
@@ -206,7 +206,7 @@ TEST(IONetwork, SeededCacheDecodesImagesWithExtensionHint) {
       url, {static_cast<const std::byte*>(png->data()), png->size()},
       cache.path));
   Hub hub;
-  hub.setNetworkCacheDir(cache.path);
+  hub.setNetworkCacheDirectory(cache.path);
   auto image = hub.image(url);
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 1);
@@ -223,7 +223,7 @@ TEST(IONetwork, PollSkipsNetworkEntries) {
   const std::string url = "https://fake.invalid/data.bin";
   ASSERT_TRUE(seedNetworkCache(url, bytesOf("abc"), cache.path));
   Hub hub;
-  hub.setNetworkCacheDir(cache.path);
+  hub.setNetworkCacheDirectory(cache.path);
   ASSERT_NE(hub.blob(url), nullptr);
   EXPECT_FALSE(hub.poll());  // no mtime to watch, nothing erased
   auto again = hub.blob(url);
@@ -236,7 +236,7 @@ TEST(IONetwork, OfflinePolicyServesCacheAndNeverFetches) {
   const std::string cached = "https://fake.invalid/have.txt";
   ASSERT_TRUE(seedNetworkCache(cached, bytesOf("kept"), cache.path));
   Hub hub;
-  hub.setNetworkCacheDir(cache.path);
+  hub.setNetworkCacheDirectory(cache.path);
   hub.setNetworkPolicy(NetworkPolicy::Offline);
   EXPECT_EQ(hub.text(cached), "kept");
   // A miss fails without touching the network (fake host untried).
@@ -248,7 +248,7 @@ TEST(IONetwork, RefreshPolicyFallsBackToCacheOnFetchFailure) {
   const std::string url = "https://fake.invalid/live.txt";
   ASSERT_TRUE(seedNetworkCache(url, bytesOf("yesterday's copy"), cache.path));
   Hub hub;
-  hub.setNetworkCacheDir(cache.path);
+  hub.setNetworkCacheDirectory(cache.path);
   hub.setNetworkPolicy(NetworkPolicy::Refresh);
   // A transport that fails every fetch stands in for the network, so no
   // resolver is consulted: Refresh asks it first, then the cache answers.
@@ -265,7 +265,7 @@ TEST(IONetwork, FetchedBytesPersistWholeOrNotAtAll) {
   const ScratchDir cache("sigilio_net");
   const std::string url = "https://fake.invalid/fresh.bin";
   Hub hub;
-  hub.setNetworkCacheDir(cache.path);
+  hub.setNetworkCacheDirectory(cache.path);
   hub.setNetworkTransport([](std::string_view) {
     return std::optional<std::vector<std::byte>>{
         std::vector<std::byte>{std::byte{'o'}, std::byte{'k'}}};
@@ -280,7 +280,7 @@ TEST(IONetwork, FetchedBytesPersistWholeOrNotAtAll) {
             1);
 
   Hub offline;
-  offline.setNetworkCacheDir(cache.path);
+  offline.setNetworkCacheDirectory(cache.path);
   offline.setNetworkPolicy(NetworkPolicy::Offline);
   EXPECT_EQ(offline.text(url), "ok");
 }
@@ -297,7 +297,7 @@ TEST(IONetwork, TwoConcurrentFetchesOfOneUrlCommitOneWholeFile) {
   // Long enough that one writer is still writing when the other starts.
   const std::string body(512 * 1024, 'x');
   Hub hub;
-  hub.setNetworkCacheDir(cache.path);
+  hub.setNetworkCacheDirectory(cache.path);
   std::barrier inside(2);
   std::atomic<size_t> fetches{0};
   hub.setNetworkTransport([&](std::string_view) {
@@ -328,7 +328,7 @@ TEST(IONetwork, TwoConcurrentFetchesOfOneUrlCommitOneWholeFile) {
   EXPECT_EQ(left, std::vector<std::string>{detail::networkCacheKey(url)});
 
   Hub offline;
-  offline.setNetworkCacheDir(cache.path);
+  offline.setNetworkCacheDirectory(cache.path);
   offline.setNetworkPolicy(NetworkPolicy::Offline);
   EXPECT_EQ(offline.text(url), body);
 }
@@ -348,13 +348,13 @@ TEST(IONetwork, LiveFetchThenOfflineRoundTrip) {
       "glTF-Sample-Assets/2bac6f8c57bf471df0d2a1e8a8ec023c7801dddf/"
       "Models/Duck/glTF-Binary/Duck.glb";
   Hub online;
-  online.setNetworkCacheDir(cache.path);
+  online.setNetworkCacheDirectory(cache.path);
   auto fetched = online.blob(url);
   if (!fetched) GTEST_SKIP() << "no route to " << url;
   EXPECT_FALSE(fetched->bytes.empty());
 
   Hub offline;
-  offline.setNetworkCacheDir(cache.path);
+  offline.setNetworkCacheDirectory(cache.path);
   offline.setNetworkPolicy(NetworkPolicy::Offline);
   auto replay = offline.blob(url);
   ASSERT_NE(replay, nullptr);

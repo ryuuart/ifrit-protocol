@@ -14,7 +14,7 @@ namespace sigil::world {
 
 namespace {
 
-using motion::propEqual;
+using motion::propertyEqual;
 
 static_assert(core::kFieldCount<Transform> == 15,
               "Transform gained or lost a field — rule on it in "
@@ -23,15 +23,19 @@ bool transformEqual(const Transform& a, const Transform& b) {
   if (a.matrix.has_value() != b.matrix.has_value()) return false;
   if (a.matrix && *a.matrix != *b.matrix) return false;
   if (a.axis != b.axis) return false;
-  return propEqual(a.translateX, b.translateX) &&
-         propEqual(a.translateY, b.translateY) &&
-         propEqual(a.translateZ, b.translateZ) &&
-         propEqual(a.rotateX, b.rotateX) && propEqual(a.rotateY, b.rotateY) &&
-         propEqual(a.rotateZ, b.rotateZ) && propEqual(a.scaleX, b.scaleX) &&
-         propEqual(a.scaleY, b.scaleY) && propEqual(a.scaleZ, b.scaleZ) &&
-         propEqual(a.originX, b.originX) && propEqual(a.originY, b.originY) &&
-         propEqual(a.originZ, b.originZ) &&
-         propEqual(a.axisDegrees, b.axisDegrees);
+  return propertyEqual(a.translateX, b.translateX) &&
+         propertyEqual(a.translateY, b.translateY) &&
+         propertyEqual(a.translateZ, b.translateZ) &&
+         propertyEqual(a.rotateX, b.rotateX) &&
+         propertyEqual(a.rotateY, b.rotateY) &&
+         propertyEqual(a.rotateZ, b.rotateZ) &&
+         propertyEqual(a.scaleX, b.scaleX) &&
+         propertyEqual(a.scaleY, b.scaleY) &&
+         propertyEqual(a.scaleZ, b.scaleZ) &&
+         propertyEqual(a.originX, b.originX) &&
+         propertyEqual(a.originY, b.originY) &&
+         propertyEqual(a.originZ, b.originZ) &&
+         propertyEqual(a.axisDegrees, b.axisDegrees);
 }
 
 static_assert(core::kFieldCount<geometry::mesh::curve::Spline3> == 3,
@@ -49,7 +53,7 @@ bool alongEqual(const std::optional<Along>& a, const std::optional<Along>& b) {
   if (a.has_value() != b.has_value()) return false;
   if (!a) return true;
   return splineEqual(a->spline, b->spline) &&
-         propEqual(a->distance, b->distance);
+         propertyEqual(a->distance, b->distance);
 }
 
 static_assert(core::kFieldCount<Window> == 2,
@@ -59,7 +63,7 @@ bool windowEqual(const std::optional<Window>& a,
                  const std::optional<Window>& b) {
   if (a.has_value() != b.has_value()) return false;
   if (!a) return true;
-  return propEqual(a->head, b->head) && propEqual(a->span, b->span);
+  return propertyEqual(a->head, b->head) && propertyEqual(a->span, b->span);
 }
 
 static_assert(core::kFieldCount<Emission> == 4,
@@ -72,7 +76,7 @@ bool emissionEqual(const std::optional<Emission>& a,
   const auto dialEqual = [](const std::optional<motion::Animatable<float>>& x,
                             const std::optional<motion::Animatable<float>>& y) {
     if (x.has_value() != y.has_value()) return false;
-    return !x || propEqual(*x, *y);
+    return !x || propertyEqual(*x, *y);
   };
   return dialEqual(a->intensity, b->intensity) && dialEqual(a->red, b->red) &&
          dialEqual(a->green, b->green) && dialEqual(a->blue, b->blue);
@@ -99,7 +103,7 @@ bool skyEqual(const std::optional<SkyDials>& a,
   const auto dialEqual = [](const std::optional<motion::Animatable<float>>& x,
                             const std::optional<motion::Animatable<float>>& y) {
     if (x.has_value() != y.has_value()) return false;
-    return !x || propEqual(*x, *y);
+    return !x || propertyEqual(*x, *y);
   };
   return dialEqual(a->diffuse, b->diffuse) &&
          dialEqual(a->specular, b->specular) &&
@@ -121,14 +125,15 @@ bool materialsEqual(const ElementNode& a, const ElementNode& b) {
 
 }  // namespace
 
-static_assert(core::kFieldCount<ElementNode> == 19,
-              "A field of ElementNode appeared or vanished. Rule on it in "
-              "propsEqual() below — participate, or a stated reason not to "
-              "— then bump this count. A miss is silent: the node prunes, "
-              "the host is never told the field moved, and the scene keeps "
-              "drawing what the old value produced for as long as the node "
-              "lives.");
-bool propsEqual(const ElementNode& a, const ElementNode& b) {
+static_assert(
+    core::kFieldCount<ElementNode> == 19,
+    "A field of ElementNode appeared or vanished. Rule on it in "
+    "propertiesEqual() below — participate, or a stated reason not to "
+    "— then bump this count. A miss is silent: the node prunes, "
+    "the host is never told the field moved, and the scene keeps "
+    "drawing what the old value produced for as long as the node "
+    "lives.");
+bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   if (a.key != b.key) return false;
   if (!transformEqual(a.transform, b.transform)) return false;
   if (!alongEqual(a.along, b.along)) return false;

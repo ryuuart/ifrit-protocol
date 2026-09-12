@@ -56,10 +56,12 @@ struct Attrs {
  *  another cloud entirely — so one lane cannot be both what is read and
  *  what is written. @p count is how many points the store holds and
  *  @p grain how many one worker takes at a time. */
-void runSmooth(Attrs& attrs, const pop::Smooth& op, size_t count, size_t grain);
-void runRelax(Attrs& attrs, const pop::Relax& op, size_t count);
-void runCluster(Attrs& attrs, const pop::Cluster& op, size_t count,
+void runSmooth(Attrs& attributes, const pop::Smooth& operation, size_t count,
+               size_t grain);
+void runRelax(Attrs& attributes, const pop::Relax& operation, size_t count);
+void runCluster(Attrs& attributes, const pop::Cluster& operation, size_t count,
                 size_t grain);
-void runTransfer(Attrs& attrs, const pop::Transfer& op, size_t count);
+void runTransfer(Attrs& attributes, const pop::Transfer& operation,
+                 size_t count);
 
 }  // namespace sigil::geometry::mesh

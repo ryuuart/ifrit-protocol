@@ -188,7 +188,7 @@ class Pool {
    *
    *  The spans handed out above are a staging area — writing through them
    *  changes nothing the element can see. In Mode::Data this call is what
-   *  makes those writes visible, and omitting it is silent: the props
+   *  makes those writes visible, and omitting it is silent: the properties
    *  compare equal, the node prunes, and the previous picture replays as
    *  though the pool had not moved. `add()`, `resize()` and `clear()`
    *  publish themselves; only span writes need this. */
@@ -327,7 +327,7 @@ std::optional<size_t> pick(const Pool& pool, const Atlas& atlas, SkPoint point);
 /** The single-draw stamping leaf. It FILLS ITS PARENT (absolute, inset 0),
  *  so wrap it in a sized or positioned box and the pool's positions are
  *  that box's local pixels. The wrapper is the only placement API: this
- *  element cannot carry layout props of its own, because in Mode::Data it
+ *  element cannot carry layout properties of its own, because in Mode::Data it
  *  is produced inside a memo.
  *
  *  @p blend is PER SPRITE, and the distinction matters: `Element::blend()`

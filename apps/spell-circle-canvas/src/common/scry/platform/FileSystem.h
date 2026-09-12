@@ -31,10 +31,10 @@ class CallbackLogger;
  */
 class PrefixFileSystem final : public ultralight::FileSystem {
  public:
-  PrefixFileSystem(std::string resourceDir, std::string baseDir,
+  PrefixFileSystem(std::string resourceDirectory, std::string baseDirectory,
                    CallbackLogger* logger)
-      : m_resourceDir(std::move(resourceDir)),
-        m_baseDir(std::move(baseDir)),
+      : m_resourceDirectory(std::move(resourceDirectory)),
+        m_baseDirectory(std::move(baseDirectory)),
         m_logger(logger) {}
 
   // ultralight::FileSystem
@@ -48,8 +48,8 @@ class PrefixFileSystem final : public ultralight::FileSystem {
   std::string resolve(const ultralight::String& path) const;
 
  private:
-  std::string m_resourceDir;
-  std::string m_baseDir;
+  std::string m_resourceDirectory;
+  std::string m_baseDirectory;
   CallbackLogger* m_logger;
 };
 

@@ -11,13 +11,13 @@
  *  - STL, ascii and binary: the 3D-print staple;
  *  - PLY, ascii and binary little-endian: THE attribute carrier —
  *    every non-conventional vertex property becomes a named lane,
- *    every FACE property a primitive lane on Mesh::prims, and
+ *    every FACE property a primitive lane on Mesh::primitives, and
  *    faceless files are honest point clouds;
  *  - Alembic, .abc Ogawa: the vfx cache — meshes and point clouds at
  *    a chosen time, arbGeomParams as lanes (Alembic library);
  *  - Houdini .geo (JSON): the SOP network's own save — polygons
  *    unwelded so vertex-class uv and N survive, point attributes as
- *    lanes, primitive attributes on Mesh::prims, point and primitive
+ *    lanes, primitive attributes on Mesh::primitives, point and primitive
  *    GROUPS as 0/1 lanes under the group's name (a pop mask, ready
  *    made), and a primitive-less file as a point cloud (parsed by
  *    hand; the binary .bgeo and blosc .sc variants are not read).

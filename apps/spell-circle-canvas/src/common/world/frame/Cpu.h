@@ -23,7 +23,7 @@ void paintGeometry(const PassWork& work, const View& view, Targets& targets);
 /** Cook the pass's chain into the first point set it writes. */
 void cookPoints(const PassWork& work, Targets& targets);
 
-/** Apply the pass's op to the images it reads, into the first target it
+/** Apply the pass's operation to the images it reads, into the first target it
  *  writes. */
 void applyPost(const PassWork& work, Targets& targets);
 

@@ -10,7 +10,7 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcore/reconcile/Env.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
@@ -264,9 +264,9 @@ BENCHMARK(BM_Query_Bounds)
 // ---- The cost of an environment change under memos that never read it ----
 //
 // A memo captures the ambient environment stack when it is constructed and
-// compares that stack BEFORE it compares its own props. So changing anything
-// in the environment misses every memo below the provider, including memos
-// that never read the environment at all.
+// compares that stack BEFORE it compares its own properties. So changing
+// anything in the environment misses every memo below the provider, including
+// memos that never read the environment at all.
 //
 // These two arms bracket that cost. `_ThemeHeld` is the all-hits steady
 // state. `_ThemeChange` flips one environment value each iteration, which
@@ -288,13 +288,14 @@ struct MemoCellProps {
 };
 
 Element memoGridUnder(int count, const BenchPalette& palette) {
-  core::env::Provide<BenchPalette> theme(palette);
+  core::environment::Provide<BenchPalette> theme(palette);
   auto root = box().row().wrapLines().gap(1);
   for (int id = 0; id < count; ++id)
-    root.child(memo(MemoCellProps{id}, [](const MemoCellProps& props) {
-                 // Deliberately never reads core::env::inherited: this memo
-                 // has no reason to miss when the theme changes.
-                 return box().width(19).height(19).fill(cellFill(props.id));
+    root.child(memo(MemoCellProps{id}, [](const MemoCellProps& properties) {
+                 // Deliberately never reads core::environment::inherited: this
+                 // memo has no reason to miss when the theme changes.
+                 return box().width(19).height(19).fill(
+                     cellFill(properties.id));
                }).key("m" + std::to_string(id)));
   return root;
 }

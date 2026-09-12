@@ -1,7 +1,7 @@
 # SigilMaterial — colour
 
 The chapter on the colour leaf, which is the library's bottom: the
-colour value a params struct holds, the perceptual round trips, the ramp
+colour value a parameter struct holds, the perceptual round trips, the ramp
 as one value, the harmonies read around a hue, the dither threshold and
 the table a run of pixels is made of. `README.md` beside this file is
 the library; `PAINT.md` is the Skia paint the colours are painted with.
@@ -149,7 +149,7 @@ so the crossing is a field-for-field copy — no transfer function, no
 premultiply, no clamp, so a channel above 1 survives. `Color` is
 IMPLICITLY CONSTRUCTIBLE from one, matched by shape rather than by name
 (`FourFloatColor`: four float members `fR`, `fG`, `fB`, `fA`), so the
-leaf that every params struct includes still names no renderer:
+leaf that every parameter struct includes still names no renderer:
 
 ```cpp
 pattern::stripes(6, 6, kInk);              // kInk is an SkColor4f

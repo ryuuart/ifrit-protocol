@@ -84,13 +84,13 @@ Paint Paint::blend(std::vector<std::pair<Paint, SkBlendMode>> layers) {
 }
 
 /** THE BLEND FOLD, in one place because it has two callers that must agree:
- *  `ctx` non-null is resolve()'s per-frame form, null is asShader()'s
+ *  `paintFrame` non-null is resolve()'s per-frame form, null is asShader()'s
  *  context-free one. Either way the LAYERS are re-read here rather than the
  *  flattened snapshot blend() built, which is the whole point — a live layer
  *  contributes its current value per call. */
-sk_sp<SkShader> Paint::foldBlend(const PaintFrame* ctx) const {
-  return foldLayers(m_recipe->layers, [ctx](const Paint& layer) {
-    return detail::childShader(layer, ctx);
+sk_sp<SkShader> Paint::foldBlend(const PaintFrame* paintFrame) const {
+  return foldLayers(m_recipe->layers, [paintFrame](const Paint& layer) {
+    return detail::childShader(layer, paintFrame);
   });
 }
 

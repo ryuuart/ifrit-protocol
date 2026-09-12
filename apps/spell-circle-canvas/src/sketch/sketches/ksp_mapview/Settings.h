@@ -158,12 +158,12 @@ inline weave::TextStyle lcd(float sz, SkColor4f c, float tr = 0) {
   return ty(mono(), sz, c, tr);
 }
 inline Element t(const char* s, weave::TextStyle st) {
-  return text(toU8(s), std::move(st));
+  return text(toUtf8(s), std::move(st));
 }
 
 /** A node centred on a canvas point — the marker/gizmo idiom. */
 inline Element at(Element e, SkPoint c, float w, float h) {
-  e.width(Dim(w)).height(Dim(h)).centerAt(c);
+  e.width(Dimension(w)).height(Dimension(h)).centerAt(c);
   return e;
 }
 

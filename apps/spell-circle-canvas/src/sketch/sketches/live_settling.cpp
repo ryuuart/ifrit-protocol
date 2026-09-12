@@ -58,7 +58,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -87,9 +87,9 @@ const char* kPassage =
 /** The passage at one measure. `live` and the budget are what the cells
  *  vary; everything else is one setting. */
 Element passage(float measure, bool live, float budget) {
-  Element leaf = text(toU8(kPassage), body())
+  Element leaf = text(toUtf8(kPassage), body())
                      .key("para")
-                     .width(Dim(measure))
+                     .width(Dimension(measure))
                      .lineBreak(weave::LineBreakStrategy::kKnuthPlass);
   if (live) leaf.live(true, budget);
   return leaf;
@@ -132,16 +132,16 @@ struct LiveSettling final : sketch::Sketch {
     reports[3] = sweep(true, kStarved, kWide);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("A MOVING MEASURE \xc2\xb7 Element::live, "
-                       "Composer::settling"),
-         .subtitle = toU8("dials \xc2\xb7 the measure the swell runs "
-                          "between (150 to 230 px, one pixel at a step) "
-                          "\xc2\xb7 the frame's budget (4000 \xc2\xb5s, "
-                          "then 1)"),
-         .footer = toU8("a settled passage reports nothing and answers "
-                        "reused 0 \xe2\x80\x94 it decided its breaks "
-                        "once and no later frame asks it again, which "
-                        "is why live is DECLARED and never inferred")},
+        {.title = toUtf8("A MOVING MEASURE \xc2\xb7 Element::live, "
+                         "Composer::settling"),
+         .subtitle = toUtf8("dials \xc2\xb7 the measure the swell runs "
+                            "between (150 to 230 px, one pixel at a step) "
+                            "\xc2\xb7 the frame's budget (4000 \xc2\xb5s, "
+                            "then 1)"),
+         .footer = toUtf8("a settled passage reports nothing and answers "
+                          "reused 0 \xe2\x80\x94 it decided its breaks "
+                          "once and no later frame asks it again, which "
+                          "is why live is DECLARED and never inferred")},
         kit::cells(
             {.cells = {cell("live(true, 4000) \xc2\xb7 at the narrow end",
                             "the swell has crossed this measure before "
@@ -174,12 +174,12 @@ struct LiveSettling final : sketch::Sketch {
                float budget, const std::string& report) {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     return sketch::kit::caption(
-        kCell, toU8(call), toU8(note),
+        kCell, toUtf8(call), toUtf8(note),
         sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
             .column()
             .gap(10)
             .child(passage(measure, live, budget))
-            .child(text(toU8(report), sheet.mono(10, sheet.palette.figure))));
+            .child(text(toUtf8(report), sheet.mono(10, sheet.palette.figure))));
   }
 };
 

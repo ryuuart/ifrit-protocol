@@ -193,7 +193,7 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
             static_cast<size_t>(segmentStart),
             static_cast<size_t>(segmentEnd - segmentStart)),
         segmentStart == static_cast<int32_t>(word.textBegin), transformScratch);
-    ShapedWordRef shapedWord =
+    ShapedWordReference shapedWord =
         shapeWord(fontContext, span.style.shaping, resolvedTypeface,
                   segmentText, unicode::shaperScript(scriptRun.script),
                   (bidiLevel & 1u) != 0 && !shapeVertical, shapeVertical);
@@ -275,7 +275,7 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
         const StyleSpan& span = m_spans[styleIndex];
         sk_sp<SkTypeface> whitespaceTypeface = fontContext.variedTypeface(
             span.style.shaping.typeface, span.style.shaping.variations);
-        ShapedWordRef shapedWhitespace = shapeWord(
+        ShapedWordReference shapedWhitespace = shapeWord(
             fontContext, span.style.shaping, whitespaceTypeface, whitespace,
             unicode::shaperScript(unicode::kCommonScript), false,
             /*vertical=*/m_writingMode == WritingMode::kVerticalRL);

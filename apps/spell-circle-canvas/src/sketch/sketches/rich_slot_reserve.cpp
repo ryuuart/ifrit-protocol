@@ -54,7 +54,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -85,7 +85,7 @@ const char* kPassage =
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .child(std::move(body)));
 }
@@ -98,15 +98,15 @@ Element slotted(SkSize size, float drop, SkColor4f fill) {
                   .slot("chip", size, drop)
                   .add(u8" and it keeps its whole advance however narrow "
                        u8"the measure gets."))
-      .width(Dim(kCell - 24))
+      .width(Dimension(kCell - 24))
       .child(box().key("chip").fill(Fill::color(fill)));
 }
 
 /** The same passage under one reserved band, on a tinted plate so the
  *  line pitch is visible as a pitch. */
 Element banded(weave::ReservedBand band) {
-  return text(toU8(kPassage), body())
-      .width(Dim(kCell - 24))
+  return text(toUtf8(kPassage), body())
+      .width(Dimension(kCell - 24))
       .fill(Fill::color(kBandTint))
       .reserve(band);
 }
@@ -119,19 +119,19 @@ struct RichSlotReserve final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("SLOTS AND RESERVED ROOM \xc2\xb7 "
-                       "weave::RichText::slot, Element::reserve"),
-         .subtitle = toU8("dials \xc2\xb7 the slot's size (34\xc3\x97"
-                          "16, "
-                          "then 40\xc3\x97"
-                          "26) \xc2\xb7 its baseline drop "
-                          "(0, then 4) \xc2\xb7 the band reserved beside "
-                          "every line (14 px)"),
-         .footer = toU8("a text slot is not a mount slot: these names "
-                        "live in one rich-text value and are matched "
-                        "against this node's own children, so two "
-                        "captions may both reserve an \"icon\" and "
-                        "neither is reachable by renderSlot")},
+        {.title = toUtf8("SLOTS AND RESERVED ROOM \xc2\xb7 "
+                         "weave::RichText::slot, Element::reserve"),
+         .subtitle = toUtf8("dials \xc2\xb7 the slot's size (34\xc3\x97"
+                            "16, "
+                            "then 40\xc3\x97"
+                            "26) \xc2\xb7 its baseline drop "
+                            "(0, then 4) \xc2\xb7 the band reserved beside "
+                            "every line (14 px)"),
+         .footer = toUtf8("a text slot is not a mount slot: these names "
+                          "live in one rich-text value and are matched "
+                          "against this node's own children, so two "
+                          "captions may both reserve an \"icon\" and "
+                          "neither is reachable by renderSlot")},
         kit::cells(
             {.cells = {cell("weave::rich(…).slot(\"chip\", {34, 16})",
                             "the box stands ON the baseline, like an inline "

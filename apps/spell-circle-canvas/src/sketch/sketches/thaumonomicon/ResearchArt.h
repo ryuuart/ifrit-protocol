@@ -252,8 +252,8 @@ inline Brush penBrush(SkColor4f tint, float k, const Element& spatter,
   Brush br;
   if (bow > 0)
     br.shaped(shapers::Wave{.amplitude = g(bow), .wavelength = g(30)});
-  br.shaped(
-      shapers::Jitter{.segLength = g(4.5f), .deviation = g(0.45f), .seed = 21});
+  br.shaped(shapers::Jitter{
+      .segmentLength = g(4.5f), .deviation = g(0.45f), .seed = 21});
   // The bed: a crisp dark outline a GUI px wider than the body, and NO blur.
   // brush::Pattern and brush::Scatter bake their art with snapshot(), which
   // records DRAW CALLS, so an SkMaskFilter inside a tile is re-run on every
@@ -469,8 +469,8 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element& spatter) {
               .angleDeg = 32});
   // A doubled rule: a solid outer and a dotted inner that stops short.
   Brush rule;
-  rule.shaped(
-      shapers::Jitter{.segLength = g(5), .deviation = g(0.7f), .seed = seed});
+  rule.shaped(shapers::Jitter{
+      .segmentLength = g(5), .deviation = g(0.7f), .seed = seed});
   lines::Line outer;
   outer.width = g(1.6f);
   outer.fill = Fill::color(mskia::scale(kInkDeep, 1.0f, hidden ? 0.55f : 0.9f));
@@ -493,8 +493,8 @@ inline Element spikyOverlay(uint32_t seed) {
                   .shape(shapes::star(8, 0.74f, 0.35f))
                   .fill(Fill::color(mskia::scale(kBrass, 1.0f, 0.30f)));
   Brush br;
-  br.shaped(
-      shapers::Jitter{.segLength = g(4), .deviation = g(0.6f), .seed = seed});
+  br.shaped(shapers::Jitter{
+      .segmentLength = g(4), .deviation = g(0.6f), .seed = seed});
   lines::Line l;
   l.width = g(1.1f);
   l.fill = Fill::color(mskia::scale(kBrassLit, 0.9f, 0.85f));
@@ -931,7 +931,7 @@ inline void blitText(SkCanvas& c, const PixText& t, float x, float y,
       {.colour = col,
        .scale = g(1.0f),
        .shadowOffset = shadow ? SkVector{g(1.0f), g(1.0f)} : SkVector{0, 0},
-       .shadowMul = 0.25f});
+       .shadowMultiplier = 0.25f});
 }
 
 }  // namespace thaum

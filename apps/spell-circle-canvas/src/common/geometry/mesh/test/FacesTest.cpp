@@ -24,7 +24,7 @@ Mesh lidQuad(float y = 1.0f) {
   m.positions = {{-1, y, 1}, {1, y, 1}, {1, y, -1}, {-1, y, -1}};
   m.normals.assign(4, {0, 1, 0});
   m.indices = {0, 1, 2, 0, 2, 3};
-  m.prim("Id", {0, 0, 0, 0});
+  m.primitive("Id", {0, 0, 0, 0});
   return m;
 }
 
@@ -47,7 +47,7 @@ TEST(Faces, APolygonFannedIntoTrianglesIsStillOneFace) {
   // With no lane, every triangle is its own face and the two halves of
   // the same square answer two centroids.
   Mesh loose = lid;
-  loose.prims.clear();
+  loose.primitives.clear();
   EXPECT_EQ(faceCount(loose), 2u);
   EXPECT_NE(faceCentroid(loose, 0), faceCentroid(loose, 1));
 }
@@ -55,7 +55,7 @@ TEST(Faces, APolygonFannedIntoTrianglesIsStillOneFace) {
 TEST(Faces, TheOpposedFaceIsFoundFromTheCentroidsAndIsAbsentWhenThereIsNone) {
   Mesh pair = lidQuad(1.0f);
   Mesh floorFace = lidQuad(-1.0f);
-  for (glm::vec4& id : floorFace.prim("Id")) id.x = 1;
+  for (glm::vec4& id : floorFace.primitive("Id")) id.x = 1;
   pair.append(floorFace);
   ASSERT_EQ(faceCount(pair), 2u);
   EXPECT_EQ(opposedFace(pair, 0), std::optional<size_t>(1));
@@ -74,7 +74,7 @@ TEST(Faces, FaceUpTurnsTheChosenFaceOntoTheAxisAndNothingElse) {
   wall.positions = {{1, -1, -1}, {1, 1, -1}, {1, 1, 1}, {1, -1, 1}};
   wall.normals.assign(4, {1, 0, 0});
   wall.indices = {0, 1, 2, 0, 2, 3};
-  wall.prim("Id", {0, 0, 0, 0});
+  wall.primitive("Id", {0, 0, 0, 0});
 
   Mesh turned = wall;
   turned.transform(faceUp(wall, 0));
@@ -117,7 +117,7 @@ TEST(Faces, AnEdgeIsWhereTwoFacesMeetAndAFansOwnSeamIsNot) {
   folded.positions.push_back({-1, 2, -2});
   folded.normals.resize(folded.positions.size(), {0, 1, 0});
   folded.indices.insert(folded.indices.end(), {3, 2, 4, 3, 4, 5});
-  folded.prim("Id", {1, 0, 0, 0});  // the two new triangles are face 1
+  folded.primitive("Id", {1, 0, 0, 0});  // the two new triangles are face 1
   ASSERT_EQ(faceCount(folded), 2u);
   size_t shared = 0;
   for (const Edge& e : edges(folded))

@@ -1,12 +1,12 @@
 /** @file
- * surface_components — props and children make a reusable VFX card.
+ * surface_components — properties and children make a reusable VFX card.
  *
  * One component accepts a solid, a live fill, or a material. The same
  * gel style follows two resolved heights under texture caching. Five
  * cards occupy a three-column grid without widening the last row.
  *
  * EDIT THESE FIRST
- *   Card — the component's props; content arrives as an Element.
+ *   Card — the component's properties; content arrives as an Element.
  *   columns — the number of equal tracks in the panel grid.
  */
 
@@ -37,14 +37,14 @@ weave::TextStyle label(float size = 16) {
   return weave::textStyle({.size = size, .color = {0.94f, 0.95f, 0.98f, 1}});
 }
 
-Element card(const Card& props, Element content) {
-  return kit::well({.height = 204, .ground = props.ground},
+Element card(const Card& properties, Element content) {
+  return kit::well({.height = 204, .ground = properties.ground},
                    box()
                        .column()
                        .padding(18)
                        .gap(12)
                        .corners({12})
-                       .child(text(props.title, label()))
+                       .child(text(properties.title, label()))
                        .child(std::move(content).grow(1)));
 }
 
@@ -114,4 +114,4 @@ struct SurfaceComponents : sketch::Sketch {
 }  // namespace
 
 SIGIL_SKETCH(SurfaceComponents, "Kit · API",
-             "reusable cards, live surface props and resizing gel styles")
+             "reusable cards, live surface properties and resizing gel styles")

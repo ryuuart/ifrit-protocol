@@ -45,10 +45,10 @@
 // HOW THE RIPPLE IS SPELLED
 //
 // `fx::waveLoop` is this shape already, on dy. The axis version is the same
-// three lines with the sine landing on `GlyphMod::axis` instead — an ad-hoc
-// effect under a key, driven by a wrapping phase with `eachMs = 0` so every
-// glyph reads ONE master phase and the travelling wave comes from the glyph's
-// own index inside the effect body rather than from the cascade.
+// three lines with the sine landing on `GlyphModifier::axis` instead — an
+// ad-hoc effect under a key, driven by a wrapping phase with `eachMs = 0` so
+// every glyph reads ONE master phase and the travelling wave comes from the
+// glyph's own index inside the effect body rather than from the cascade.
 //
 // The track is NOT continuous, and that is worth knowing about a wave this
 // large. A driven axis coordinate is snapped before it reaches the draw,
@@ -145,7 +145,7 @@ TextEffect gradWave(float lo, float hi, float radPerGlyph) {
                       const float s =
                           0.5f + 0.5f * std::sin(t * 6.2831853f -
                                                  (float)g.index * radPerGlyph);
-                      GlyphMod m;
+                      GlyphModifier m;
                       m.axis = sigil::weave::FontVariation("GRAD",
                                                            lo + (hi - lo) * s);
                       return m;
@@ -243,10 +243,10 @@ struct AxisRipple : sketch::Sketch {
   [[nodiscard]] Element ripplePanel() {
     const float width = pens.back();
     Element panel = box().column().gap(10).width(width);
-    panel.child(text(toU8("GRAD \xe2\x80\x94 DRIVEN AT DRAW TIME, "
-                          "ONE SHAPING, LETTERS FIXED"),
+    panel.child(text(toUtf8("GRAD \xe2\x80\x94 DRIVEN AT DRAW TIME, "
+                            "ONE SHAPING, LETTERS FIXED"),
                      small(kLabel)));
-    panel.child(text(toU8(kProof), proof)
+    panel.child(text(toUtf8(kProof), proof)
                     .key("ripple")
                     .fx({.effect = gradWave(kGradLo, kGradHi, radPerGlyph),
                          .stagger = {.eachMs = 0, .durationMs = 400},
@@ -261,11 +261,12 @@ struct AxisRipple : sketch::Sketch {
                   "\xce\x94 %.2f PX ACROSS THE RAMP",
                   axisMin, axisMax, kWavesAcross, kPeriod,
                   gradWidthHi - gradWidthLo);
-    panel.child(text(toU8(hasGrad ? line
-                                  : "THIS FACE DECLARES NO GRAD AXIS \xc2\xb7 "
-                                    "THE DRIVE IS REFUSED AND THE LINE DRAWS "
-                                    "AT ITS SHAPED COORDINATES"),
-                     small(hasGrad ? kFaint : kMark, 11.0f, 0.6f)));
+    panel.child(
+        text(toUtf8(hasGrad ? line
+                            : "THIS FACE DECLARES NO GRAD AXIS \xc2\xb7 "
+                              "THE DRIVE IS REFUSED AND THE LINE DRAWS "
+                              "AT ITS SHAPED COORDINATES"),
+             small(hasGrad ? kFaint : kMark, 11.0f, 0.6f)));
     return panel;
   }
 
@@ -279,7 +280,7 @@ struct AxisRipple : sketch::Sketch {
                           .color = kInk,
                           .track = kProofTrack * 0.6f});
     style.variation(tag, value);
-    Element run = text(toU8(kProof), style);
+    Element run = text(toUtf8(kProof), style);
     // THE RULE IS ANCHORED TO THE RUN, not fitted to it. An unsliced
     // selector resolves to the union of every glyph's box, so pct(100) of
     // that rect is the last letter's trailing edge — which moves with the
@@ -293,7 +294,7 @@ struct AxisRipple : sketch::Sketch {
         .row()
         .alignItems(Align::Baseline)
         .gap(14)
-        .child(text(toU8(label), small(kLabel, 11.0f, 1.6f)).width(52))
+        .child(text(toUtf8(label), small(kLabel, 11.0f, 1.6f)).width(52))
         .child(std::move(run));
   }
 
@@ -310,13 +311,13 @@ struct AxisRipple : sketch::Sketch {
         .column()
         .gap(12)
         .grow(1)
-        .child(text(toU8(heading), small(kLabel)))
+        .child(text(toUtf8(heading), small(kLabel)))
         .child(box()
                    .column()
                    .gap(6)
                    .child(proofRow(tag, lo, loLabel, true))
                    .child(proofRow(tag, hi, hiLabel, false)))
-        .child(text(toU8(verdict), small(verdictInk, 11.0f, 0.6f)));
+        .child(text(toUtf8(verdict), small(verdictInk, 11.0f, 0.6f)));
   }
 
   /** The proof, twice: the axis that moves advances beside the axis that
@@ -369,19 +370,19 @@ struct AxisRipple : sketch::Sketch {
             box()
                 .row()
                 .alignItems(Align::End)
-                .child(text(toU8("THE AXIS RIPPLE"), small(kInk, 12.5f, 3.4f))
+                .child(text(toUtf8("THE AXIS RIPPLE"), small(kInk, 12.5f, 3.4f))
                            .grow(1))
-                .child(text(toU8("OPENTYPE FONT VARIATIONS \xc2\xb7 2016"),
+                .child(text(toUtf8("OPENTYPE FONT VARIATIONS \xc2\xb7 2016"),
                             small(kFaint))))
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(ripplePanel())
         .child(box().height(6))
         .child(proofPanels())
         .child(box().grow(1))
-        .child(text(toU8("A GRADE IS WEIGHT WITHOUT WIDTH \xc2\xb7 IT IS THE "
-                         "ONE AXIS A DRAW-TIME DRIVE CAN HONOUR, AND THE "
-                         "REASON THE RIPPLE COSTS ONE SHAPING RATHER THAN "
-                         "ONE PER FRAME"),
+        .child(text(toUtf8("A GRADE IS WEIGHT WITHOUT WIDTH \xc2\xb7 IT IS THE "
+                           "ONE AXIS A DRAW-TIME DRIVE CAN HONOUR, AND THE "
+                           "REASON THE RIPPLE COSTS ONE SHAPING RATHER THAN "
+                           "ONE PER FRAME"),
                     small(kFaint, 11.0f, 0.6f)));
   }
 
@@ -400,7 +401,7 @@ struct AxisRipple : sketch::Sketch {
     faceLabel = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
     const float measure = kW - 2.0f * kPadX;
     const auto runAt = [&](float size) {
-      return runPens(toU8(kProof),
+      return runPens(toUtf8(kProof),
                      weave::textStyle({.face = face,
                                        .size = size,
                                        .color = kInk,
@@ -411,7 +412,7 @@ struct AxisRipple : sketch::Sketch {
     proofSize = kRefSize * measure / runAt(kRefSize);
     proof = weave::textStyle(
         {.face = face, .size = proofSize, .color = kInk, .track = kProofTrack});
-    pens = runPens(toU8(kProof), proof, *ctx.fonts);
+    pens = runPens(toUtf8(kProof), proof, *ctx.fonts);
     glyphs = (int)pens.size() - 1;
     // ONE WAVE MEANS ONE WAVE. A radians-per-glyph constant is a wavelength
     // stated in the wrong unit: the same number is more than a full wave on
@@ -444,7 +445,7 @@ struct AxisRipple : sketch::Sketch {
            .color = kInk,
            .track = kProofTrack * (size == proofSize ? 1.0f : 0.6f)});
       s.variation(tag, value);
-      return runPens(toU8(kProof), s, *ctx.fonts).back();
+      return runPens(toUtf8(kProof), s, *ctx.fonts).back();
     };
     widthLo = widthAt("wght", kWghtLo, kProofRowSize);
     widthHi = widthAt("wght", kWghtHi, kProofRowSize);

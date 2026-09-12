@@ -15,7 +15,7 @@ namespace {
 /** A body written as a lambda. It carries no `==`, so a pass holding one
  *  is equal to nothing but its own copies — which is the honest answer
  *  about a callable: two of them cannot be told apart. */
-class LambdaBody : public PassBodyOps {
+class LambdaBody : public PassBodyOperations {
  public:
   explicit LambdaBody(std::function<void(const View&, Targets&)> fn)
       : m_fn(std::move(fn)) {}
@@ -83,17 +83,17 @@ Pass& Pass::stamp(geometry::mesh::Mesh body) {
 }
 
 Pass& Pass::blur(float sigma) {
-  m_op = Blur{sigma};
+  m_operation = Blur{sigma};
   return *this;
 }
 
 Pass& Pass::levels(float gain, float lift, SkColor4f tint) {
-  m_op = Levels{gain, lift, tint};
+  m_operation = Levels{gain, lift, tint};
   return *this;
 }
 
 Pass& Pass::composite(SkBlendMode mode, float opacity) {
-  m_op = Composite{mode, opacity};
+  m_operation = Composite{mode, opacity};
   return *this;
 }
 
@@ -114,7 +114,7 @@ bool Pass::operator==(const Pass& other) const {
          m_narrowed == other.m_narrowed && m_variant == other.m_variant &&
          m_realisation == other.m_realisation && m_clear == other.m_clear &&
          m_chain == other.m_chain && m_popRuntime == other.m_popRuntime &&
-         m_stamp == other.m_stamp && m_op == other.m_op &&
+         m_stamp == other.m_stamp && m_operation == other.m_operation &&
          m_body == other.m_body;
 }
 

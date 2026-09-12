@@ -64,11 +64,11 @@ BENCHMARK(BM_Append)
  *  output is three vertices per triangle whatever the input sharing was. */
 void BM_BakePrimColor(benchmark::State& state) {
   Mesh source = sheet((int)state.range(0));
-  std::vector<glm::vec4>& lane = source.prim("Color");
+  std::vector<glm::vec4>& lane = source.primitive("Color");
   lane.assign(source.triangleCount(), glm::vec4{1, 0, 0, 1});
   Mesh last;
   for ([[maybe_unused]] auto iteration : state) {
-    last = bakePrimColor(source);
+    last = bakePrimitiveColor(source);
     benchmark::DoNotOptimize(last.positions.data());
   }
   countVertices(state, last);

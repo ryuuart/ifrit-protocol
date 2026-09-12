@@ -29,10 +29,10 @@ QString markersDefaultText() {
 class MarkersScene final : public Scene {
  public:
   FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
-                    int frameNumber, const SceneParams& params,
+                    int frameNumber, const SceneParameters& parameters,
                     FontContext& fontContext) override {
     if (!m_serif) m_serif = defaultSerif(fontContext);
-    if (m_body.ensure(params, markersDefaultText(), m_serif)) {
+    if (m_body.ensure(parameters, markersDefaultText(), m_serif)) {
       // Scoped query: only search the window the box can actually place
       // (the frontier of the previous layout). Paste a novel and the regex
       // scans the visible text, not megabytes that will never land — and
@@ -75,7 +75,7 @@ class MarkersScene final : public Scene {
         std::fmod(static_cast<float>(elapsedSeconds) * 40.0f, 360.0f), 0.75f,
         0.72f};
     PaintStyle highlight(SkHSVToColor(hueSaturationValue));
-    switch (params.intValue(QStringLiteral("decoration"), 1)) {
+    switch (parameters.intValue(QStringLiteral("decoration"), 1)) {
       case 1:
         highlight.addDecoration({});  // metric underline, ink-skipping
         break;
@@ -106,13 +106,14 @@ class MarkersScene final : public Scene {
     double layoutMicroseconds = 0;
     m_layoutGuard.ensure(
         m_body.paragraph,
-        {size, params.alignment, params.lineBreakStrategy, params.fontSize},
+        {size, parameters.alignment, parameters.lineBreakStrategy,
+         parameters.fontSize},
         [&] {
           BlockFlow flow(box);
           ParagraphLayoutOptions options;
-          options.alignment = params.alignment;
-          options.lineBreakStrategy = params.lineBreakStrategy;
-          options.lineMetrics.height = params.fontSize * 1.8f;
+          options.alignment = parameters.alignment;
+          options.lineBreakStrategy = parameters.lineBreakStrategy;
+          options.lineMetrics.height = parameters.fontSize * 1.8f;
 
           const sigil::measure::Stopwatch layoutTime;
           m_layout =

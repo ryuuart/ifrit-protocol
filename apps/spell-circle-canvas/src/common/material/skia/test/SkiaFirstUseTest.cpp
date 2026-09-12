@@ -20,11 +20,11 @@
 namespace sigil::material {
 namespace {
 
-struct EmptyParams {};
+struct EmptyParameters {};
 
 Material green(const char* name) {
   return Material(
-      std::make_shared<const Recipe>(Recipe::of<EmptyParams>(name).body(
+      std::make_shared<const Recipe>(Recipe::of<EmptyParameters>(name).body(
           Target::SkSL, "half4 main(float2 p) { return half4(0, 1, 0, 1); }")));
 }
 
@@ -68,7 +68,7 @@ bool firstUse(Entry entry) {
       return drawsGreen(skia::Paint::recipe(material).asShader());
     case Entry::Effect: {
       const Material effect(std::make_shared<const Recipe>(
-          Recipe::of<EmptyParams>("first-effect")
+          Recipe::of<EmptyParameters>("first-effect")
               .child("content")
               .body(Target::SkSL,
                     "half4 main(float2 p) { return content.eval(p); }")));
@@ -77,7 +77,7 @@ bool firstUse(Entry entry) {
     }
     case Entry::Pass: {
       const Material pass(std::make_shared<const Recipe>(
-          Recipe::of<EmptyParams>("first-pass")
+          Recipe::of<EmptyParameters>("first-pass")
               .body(Target::SkSL,
                     "half4 main(float2 p) { return uContent.eval(p); }")));
       const skia::Paint paint = skia::Paint::recipe(pass);
@@ -148,6 +148,37 @@ INSTANTIATE_TEST_SUITE_P(RegistrationOrder, SkiaCustomCompiler, testing::Bool(),
                                              : "BeforeFirstDraw";
                          });
 
+bool recipeSnapshotsDistinguishCompilers() {
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<EmptyParameters>("effect.compiler-snapshot")
+          .child("content")
+          .body(Target::SkSL,
+                "half4 main(float2 p) { return content.eval(p); }"));
+  const skia::Effect builtin = skia::Effect::recipe(Material(recipe));
+  if (!builtin.imageFilter()) return false;
+  registerCompiler(Target::SkSL,
+                   [](std::shared_ptr<const Recipe> source, Variant variant,
+                      std::string& error) -> std::shared_ptr<Program> {
+                     auto [effect, message] =
+                         SkRuntimeEffect::MakeForShader(SkString(
+                             "uniform shader content; half4 main(float2 p) { "
+                             "return content.eval(p) * 0.5; }"));
+                     error = message.c_str();
+                     if (!effect) return nullptr;
+                     return std::make_shared<skia::SkiaProgram>(
+                         std::move(source), variant, std::move(effect));
+                   });
+  ProgramCache::shared().clear();
+  const skia::Effect custom = skia::Effect::recipe(Material(recipe));
+  return custom.imageFilter() && !(builtin == custom);
+}
+
+TEST(SkiaEffect, RecipeSnapshotsDistinguishCompiledPrograms) {
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
+  EXPECT_EXIT(std::_Exit(recipeSnapshotsDistinguishCompilers() ? 0 : 1),
+              testing::ExitedWithCode(0), "");
+}
+
 bool passProgramsAreReused() {
   if (ProgramCache::shared().hasCompiler(Target::SkSL)) return false;
   std::vector<std::shared_ptr<const Recipe>> compiled;
@@ -156,15 +187,16 @@ bool passProgramsAreReused() {
     compiled.push_back(recipe);
     return compileForSkia(std::move(recipe), variant, error);
   });
-  struct Params {
+  struct Parameters {
     float level = 1;
   };
   const auto authored = std::make_shared<const Recipe>(
-      Recipe::of<Params>("pass-reuse")
+      Recipe::of<Parameters>("pass-reuse")
           .body(Target::SkSL,
                 "half4 main(float2 p) { return half4(0, "
                 "half(uUnitRect[kUnitCount - 1].x * level), 0, 1); }"));
-  const skia::Paint paint = skia::Paint::recipe(Material(authored, Params{}));
+  const skia::Paint paint =
+      skia::Paint::recipe(Material(authored, Parameters{}));
   std::array<float, 12> three{};
   std::array<float, 20> five{};
   three[8] = 1;
@@ -185,12 +217,12 @@ bool passProgramsAreReused() {
   input.units = 3;
   if (!drawsGreen(paint.resolvePass(input, {})) || compiled.size() != 2)
     return false;
-  return compiled[0]->params() == authored->params() &&
-         compiled[1]->params() == authored->params() &&
+  return compiled[0]->parameters() == authored->parameters() &&
+         compiled[1]->parameters() == authored->parameters() &&
          compiled[0] != compiled[1];
 }
 
-TEST(SkiaPass, RepeatedUnitCountsReuseProgramsAndKeepTheAuthoredParams) {
+TEST(SkiaPass, RepeatedUnitCountsReuseProgramsAndKeepTheAuthoredParameters) {
   GTEST_FLAG_SET(death_test_style, "threadsafe");
   EXPECT_EXIT(std::_Exit(passProgramsAreReused() ? 0 : 1),
               testing::ExitedWithCode(0), "");

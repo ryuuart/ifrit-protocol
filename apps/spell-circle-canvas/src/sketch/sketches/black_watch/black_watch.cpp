@@ -778,7 +778,8 @@ struct BlackWatch : sketch::Sketch {
     // component four levels down is set in the card's ink without being
     // handed it.
     sketch::kit::Provide look(sheet());
-    Element root = stack().width(Dim(kCanvasW)).height(Dim(kCanvasH));
+    Element root =
+        stack().width(Dimension(kCanvasW)).height(Dimension(kCanvasH));
 
     // the board: one recipe, paint and tooth together
     root.child(
@@ -832,8 +833,8 @@ struct BlackWatch : sketch::Sketch {
       o.justification.lastLineAlignment = weave::TextAlignment::kStart;
       o.knuthPlass.tolerance = 6000.0f;
       o.lineMetrics.height = 16.0f;
-      root.child(
-          at(kColX, 1246, 320, 150).child(text(quote, o).width(Dim(320))));
+      root.child(at(kColX, 1246, 320, 150)
+                     .child(text(quote, o).width(Dimension(320))));
     }
 
     root.child(rule(kClothX, 1408, kCanvasW - 2 * kClothX, 1, kRule));

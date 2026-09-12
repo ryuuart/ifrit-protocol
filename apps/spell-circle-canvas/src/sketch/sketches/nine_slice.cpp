@@ -49,7 +49,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 using namespace sigil::compose::kit::ornament;
 
@@ -100,8 +100,8 @@ sketch::kit::Theme sheetTheme() {
  *  edge. */
 Element panel(Slice frame, std::u8string caption, SkColor4f ink) {
   return box()
-      .width(Dim(kPanelW))
-      .height(Dim(kPanelH))
+      .width(Dimension(kPanelW))
+      .height(Dimension(kPanelH))
       .background(std::move(frame))
       .padding(24)
       .alignItems(Align::Center)
@@ -115,8 +115,8 @@ Element panel(Slice frame, std::u8string caption, SkColor4f ink) {
  *  program of one's own reaches for, and it paints the same rects. */
 Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
   return box()
-      .width(Dim(kPanelW))
-      .height(Dim(kPanelH))
+      .width(Dimension(kPanelW))
+      .height(Dimension(kPanelH))
       .alignItems(Align::Center)
       .justify(Justify::Center)
       // The asset is the only captured input to this keyed draw.
@@ -195,14 +195,14 @@ struct NineSlice final : sketch::Sketch {
         {.cells = {sketch::kit::caption(
                        kPanelW, u8"the source",
                        u8"drawn once, offscreen, at 2\xc3\x97",
-                       image(oak).width(Dim(96)).height(Dim(96))),
+                       image(oak).width(Dimension(96)).height(Dimension(96))),
                    sketch::kit::caption(
                        kPanelW, u8"re-laid out every frame",
                        u8"the box changes, the corners do not",
                        panel(carvedFrameSlice(crimson, kFrameDensity),
                              u8"stretch me", kQuest)
-                           .width(Dim(breathW))
-                           .height(Dim(breathH)))},
+                           .width(Dimension(breathW))
+                           .height(Dimension(breathH)))},
          .gap = 34,
          .divider = Fill::color(kRule),
          .align = Align::Center});

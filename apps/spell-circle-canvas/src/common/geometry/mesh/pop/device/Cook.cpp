@@ -37,8 +37,8 @@ namespace dg = Diligent;
 
 namespace {
 
-using kernel::OpArgs;
-using kernel::OpDispatch;
+using kernel::OperationArguments;
+using kernel::OperationDispatch;
 
 /** How many lanes one dispatched group covers. It is the kernel's own
  *  `numthreads`, and the kernel drops the lanes past the point count
@@ -98,7 +98,7 @@ struct PopGpu {
    *  elements is not a buffer a binding can take, and the kernel does
    *  not read a table it was told is empty. */
   dg::IBufferView* stopTable(const std::vector<glm::vec4>& stops);
-  void dispatch(const OpDispatch& work, size_t count);
+  void dispatch(const OperationDispatch& work, size_t count);
   /** Every lane read back into @p into. */
   void readBack(pop::Lanes& into, size_t count);
 };
@@ -116,7 +116,7 @@ bool PopGpu::ready() {
   // Asked of the kernel and not of the build's raw output: the words a
   // driver may fuse a multiply-add in are not the words this dispatch is
   // held to agree with the host about.
-  const std::span<const uint32_t> words = kernel::opSpirv();
+  const std::span<const uint32_t> words = kernel::operationSpirv();
   ci.ByteCode = words.data();
   ci.ByteCodeSize = words.size() * sizeof(uint32_t);
   renderDevice->CreateShader(ci, &cs);
@@ -135,7 +135,7 @@ bool PopGpu::ready() {
 
   dg::BufferDesc desc;
   desc.Name = "pop kernel arguments";
-  desc.Size = sizeof(OpArgs);
+  desc.Size = sizeof(OperationArguments);
   desc.BindFlags = dg::BIND_UNIFORM_BUFFER;
   // Written with UpdateBuffer rather than mapped: a cook is not
   // necessarily inside a frame, and a default buffer's write does not
@@ -213,14 +213,14 @@ dg::IBufferView* PopGpu::stopTable(const std::vector<glm::vec4>& stops) {
   return table->GetDefaultView(dg::BUFFER_VIEW_UNORDERED_ACCESS);
 }
 
-void PopGpu::dispatch(const OpDispatch& work, size_t count) {
+void PopGpu::dispatch(const OperationDispatch& work, size_t count) {
   dg::IDeviceContext* context = device->context();
-  LaneBuffer* dst = lane(work.dst, count, nullptr);
-  if (!dst) return;
+  LaneBuffer* destination = lane(work.destination, count, nullptr);
+  if (!destination) return;
   const auto role = [&](const std::string& name) -> dg::IBufferView* {
-    if (name.empty()) return dst->view;
+    if (name.empty()) return destination->view;
     LaneBuffer* held = lane(name, count, nullptr);
-    return held ? held->view : dst->view;
+    return held ? held->view : destination->view;
   };
   dg::IBufferView* a = role(work.a);
   dg::IBufferView* b = role(work.b);
@@ -229,7 +229,8 @@ void PopGpu::dispatch(const OpDispatch& work, size_t count) {
   dg::IBufferView* stops = stopTable(work.table);
   if (!stops) return;
 
-  context->UpdateBuffer(arguments, 0, sizeof(OpArgs), &work.args,
+  context->UpdateBuffer(arguments, 0, sizeof(OperationArguments),
+                        &work.arguments,
                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
   const auto bind = [&](const char* name, dg::IDeviceObject* object) {
@@ -238,10 +239,10 @@ void PopGpu::dispatch(const OpDispatch& work, size_t count) {
       variable->Set(object);
   };
   bind("globalParams", arguments);
-  bind("dst", dst->view);
-  bind("srcA", a);
-  bind("srcB", b);
-  bind("srcC", c);
+  bind("destination", destination->view);
+  bind("sourceA", a);
+  bind("sourceB", b);
+  bind("sourceC", c);
   bind("mask", mask);
   bind("table", stops);
 
@@ -347,14 +348,14 @@ class DeviceExecutor : public pop::Executor {
 
   std::string name() const override { return "diligent"; }
 
-  bool supports(const pop::Op& op) const override {
+  bool supports(const pop::Operation& operation) const override {
     // A generator is not a map over points: it is run on the host and
     // uploaded, which is what makes the seed the two tiers share
     // bit-identical. Everything after it needs a kernel.
-    const bool leads = std::holds_alternative<pop::SplineScatter>(op) ||
-                       std::holds_alternative<pop::MeshScatter>(op) ||
-                       std::holds_alternative<pop::PointSet>(op);
-    return leads || kernel::has(op);
+    const bool leads = std::holds_alternative<pop::SplineScatter>(operation) ||
+                       std::holds_alternative<pop::MeshScatter>(operation) ||
+                       std::holds_alternative<pop::PointSet>(operation);
+    return leads || kernel::has(operation);
   }
 
   Cloud cook(const pop::Chain& chain) const override {
@@ -375,7 +376,7 @@ class DeviceExecutor : public pop::Executor {
     for (const auto& [name, values] : lanes) m_gpu->lane(name, count, &values);
 
     for (size_t opIndex = 1; opIndex < chain.size(); ++opIndex) {
-      OpDispatch work;
+      OperationDispatch work;
       if (!kernel::describe(chain[opIndex], count, &work)) continue;
       m_gpu->dispatch(work, count);
     }

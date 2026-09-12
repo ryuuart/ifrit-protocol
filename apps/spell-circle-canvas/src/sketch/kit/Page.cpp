@@ -7,7 +7,7 @@
 namespace sigil::sketch::kit {
 
 void stage(SketchContext& ctx, const Stage& surface) {
-  CanvasSpec declared;
+  CanvasSpecification declared;
   declared.size = surface.size;
   declared.background = surface.background.value_or(theme().palette.ground);
   declared.captureSeconds = surface.captureAt;
@@ -19,7 +19,7 @@ void stage(SketchContext& ctx, const Stage& surface) {
 
 compose::Element page(const Page& sheet, compose::Element content) {
   const Theme& look = theme();
-  const compose::kit::Sheet spec{
+  const compose::kit::Sheet specification{
       .title = sheet.title,
       .subtitle = sheet.subtitle,
       .footer = sheet.footer,
@@ -39,7 +39,9 @@ compose::Element page(const Page& sheet, compose::Element content) {
   // A page is the whole surface: the sheet does not size itself, so this
   // is where the canvas is handed to it.
   compose::Element surface =
-      compose::kit::sheet(spec, std::move(content)).absolute().inset(0);
+      compose::kit::sheet(specification, std::move(content))
+          .absolute()
+          .inset(0);
   return surface;
 }
 

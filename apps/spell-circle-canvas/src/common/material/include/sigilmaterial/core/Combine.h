@@ -52,7 +52,7 @@ std::string_view name(Blend blend);
 
 /** The uniforms `over()`'s recipes read: how strongly the top material
  *  shows where the mask is fully on. */
-struct OverParams {
+struct OverParameters {
   float amount = 1.0f;
 };
 
@@ -73,7 +73,7 @@ std::string stackName(Blend blend);
  *  the stack's own strength, which is a different question from where it
  *  applies and is why it is here rather than folded into the mask. It is
  *  ON THE SIGNATURE because a stack composed from its operands has no
- *  params struct to write afterwards: its ABI is its operands' fields,
+ *  parameter struct to write afterwards: its ABI is its operands' fields,
  *  so `set("amount", …)` on the result is a per-field write a caller has
  *  to know to make, and a caller who does not make it gets a stack at
  *  full strength that reads as a wrong mask.

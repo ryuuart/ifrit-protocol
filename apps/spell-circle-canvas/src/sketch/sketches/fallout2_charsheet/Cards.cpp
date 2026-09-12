@@ -58,7 +58,7 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   // NOT hyphenated. What the screen tests is forced leading, a computed wrap
   // width, a silhouette float, and mixed-size baseline alignment.
   weave::ParagraphBuilder pb(body(kInk));
-  pb.addText(toU8(d.blurb));
+  pb.addText(toUtf8(d.blurb));
   cardPara = std::make_shared<weave::Paragraph>(pb.build());
   weave::ParagraphLayoutOptions opts;
   opts.alignment = weave::TextAlignment::kStart;
@@ -66,9 +66,9 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   opts.hyphenation.enabled = false;
   opts.lineMetrics.height = n(kRowPitch11);  // the forced 11 px pitch, x2
   g.child(text(cardPara, opts)
-              .left(Dim(n(348 - 345)))
-              .top(Dim(n(315 - 267) - n(1.5f)))
-              .width(Dim(n(613 - 348)))
+              .left(Dimension(n(348 - 345)))
+              .top(Dimension(n(315 - 267) - n(1.5f)))
+              .width(Dimension(n(613 - 348)))
               .flowAround("card-ink", n(8)));
   return g;
 }
@@ -139,24 +139,24 @@ auto Fallout2CharSheet::failureCard() const -> Element {
   std::vector<sketch::kit::Row> rows;
   for (const sigil::measure::Check& c : sheetAudit.rows) {
     if (c.pass || !c.judged()) continue;
-    rows.push_back({{toU8(c.label), toU8(c.actual),
-                     toU8("shipped sheet says " + c.expected)},
+    rows.push_back({{toUtf8(c.label), toUtf8(c.actual),
+                     toUtf8("shipped sheet says " + c.expected)},
                     Fill::color(hexColor(0xE04020))});
   }
   sketch::kit::Provide bound(look);
   return box()
-      .left(Dim(120))
-      .top(Dim(160))
-      .width(Dim(kScreenW - 240))
-      .height(Dim(120.0f + 24.0f * (float)rows.size()))
+      .left(Dimension(120))
+      .top(Dimension(160))
+      .width(Dimension(kScreenW - 240))
+      .height(Dimension(120.0f + 24.0f * (float)rows.size()))
       .fill(Fill::color(hexColor(0x0B0D08, 0.96f)))
       .foreground(stroke(3.0f, Fill::color(hexColor(0xE04020)),
                          PathFormat::Align::Inner))
       .column()
       .padding(28)
       .gap(14)
-      .child(text(toU8("THE ARITHMETIC DOES NOT MATCH THE SHIPPED "
-                       "PREMADES"),
+      .child(text(toUtf8("THE ARITHMETIC DOES NOT MATCH THE SHIPPED "
+                         "PREMADES"),
                   sheetType(bodyBold(), 22.0f, hexColor(0xE04020), 1.2f)))
       .child(sketch::kit::table(
           std::move(rows),
@@ -166,10 +166,10 @@ auto Fallout2CharSheet::failureCard() const -> Element {
 auto Fallout2CharSheet::captionBand() -> Element {
   using namespace fo;
   Element band = box()
-                     .left(Dim(0))
-                     .top(Dim(kScreenH))
-                     .width(Dim(kScreenW))
-                     .height(Dim(kCaptionH))
+                     .left(Dimension(0))
+                     .top(Dimension(kScreenH))
+                     .width(Dimension(kScreenW))
+                     .height(Dimension(kCaptionH))
                      .fill(Paint::linearUnit({0, 0}, {0, 1},
                                              {{0.0f, hexColor(0x0B0D08)},
                                               {1.0f, hexColor(0x050604)}}));
@@ -183,17 +183,17 @@ auto Fallout2CharSheet::captionBand() -> Element {
       sheetAudit.checks() - sheetAudit.failures(), sheetAudit.checks());
   auto line = [&](const char* s, float size, SkColor4f c, float y,
                   float track) {
-    return text(toU8(s), fo::sheetType(bodyFace(), size, c, track))
-        .left(Dim(30))
-        .top(Dim(y));
+    return text(toUtf8(s), fo::sheetType(bodyFace(), size, c, track))
+        .left(Dimension(30))
+        .top(Dimension(y));
   };
-  band.child(text(toU8("FALLOUT 2 \xc2\xb7 CHARACTER SCREEN \xc2\xb7 BLACK "
-                       "ISLE STUDIOS, 1998 \xc2\xb7 640\xc3\x97"
-                       "480 8-BIT "
-                       "INDEXED, REBUILT AT 2\xc3\x97"),
+  band.child(text(toUtf8("FALLOUT 2 \xc2\xb7 CHARACTER SCREEN \xc2\xb7 BLACK "
+                         "ISLE STUDIOS, 1998 \xc2\xb7 640\xc3\x97"
+                         "480 8-BIT "
+                         "INDEXED, REBUILT AT 2\xc3\x97"),
                   fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
-                 .left(Dim(30))
-                 .top(Dim(14)));
+                 .left(Dimension(30))
+                 .top(Dimension(14)));
   band.child(line(audited.c_str(), 14.5f, kGreen, 41, 0.2f));
   band.child(
       line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "

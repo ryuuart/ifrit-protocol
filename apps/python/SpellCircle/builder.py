@@ -161,9 +161,3 @@ class SceneBuilder:
             scene_schema.SceneAddHeight(builder, float(canvas_height))
         builder.Finish(scene_schema.SceneEnd(builder))
         return bytes(builder.Output())
-
-
-# Compatibility names retained at the package boundary for existing scene
-# scripts. New code should use the descriptive names above.
-CircleSpec = CircleDefinition
-SCBuilder = SceneBuilder

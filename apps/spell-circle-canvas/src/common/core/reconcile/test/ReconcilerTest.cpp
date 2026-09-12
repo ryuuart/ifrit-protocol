@@ -172,10 +172,10 @@ namespace {
 
 /** A memo over an int, producing a keyed leaf whose value is that int;
  *  `calls` counts the deferred describes that actually ran. */
-Description memoOf(std::string key, int props, int* calls) {
+Description memoOf(std::string key, int properties, int* calls) {
   auto shell = description(key);
   Memo<Description> memo;
-  memo.props = props;
+  memo.properties = properties;
   memo.equal = [](const std::any& a, const std::any& b) {
     return std::any_cast<int>(a) == std::any_cast<int>(b);
   };
@@ -183,7 +183,7 @@ Description memoOf(std::string key, int props, int* calls) {
     ++*calls;
     return description(key, std::any_cast<int>(p));
   };
-  memo.env = env::capture();
+  memo.environment = environment::capture();
   shell->memo = std::move(memo);
   return shell;
 }
@@ -216,42 +216,42 @@ TEST(Reconciler, AMemoIsKeyedByItsEnvironmentToo) {
   FakeHost host;
   int calls = 0;
   {
-    env::Provide<Theme> theme(Theme{1});
+    environment::Provide<Theme> theme(Theme{1});
     host.render(description("root", 0, {memoOf("m", 7, &calls)}));
   }
   EXPECT_EQ(calls, 1);
   {
-    env::Provide<Theme> theme(Theme{1});
+    environment::Provide<Theme> theme(Theme{1});
     host.render(description("root", 0, {memoOf("m", 7, &calls)}));
   }
-  EXPECT_EQ(calls, 1);  // same props, equal environment: a hit
+  EXPECT_EQ(calls, 1);  // same properties, equal environment: a hit
   {
-    env::Provide<Theme> theme(Theme{2});
+    environment::Provide<Theme> theme(Theme{2});
     host.render(description("root", 0, {memoOf("m", 7, &calls)}));
   }
-  EXPECT_EQ(calls, 2);  // same props, different environment: a miss
+  EXPECT_EQ(calls, 2);  // same properties, different environment: a miss
 }
 
 TEST(Reconciler, ADeferredDescribeRunsUnderTheEnvironmentItWasWrittenIn) {
   FakeHost host;
   Description shell;
   {
-    env::Provide<Theme> theme(Theme{5});
+    environment::Provide<Theme> theme(Theme{5});
     shell = description("m");
     Memo<Description> memo;
-    memo.props = 0;
+    memo.properties = 0;
     memo.equal = [](const std::any&, const std::any&) { return true; };
     memo.invoke = [](const std::any&) {
-      const Theme* t = env::inherited<Theme>();
+      const Theme* t = environment::inherited<Theme>();
       return description("m", t ? t->tone : -1);
     };
-    memo.env = env::capture();
+    memo.environment = environment::capture();
     shell->memo = std::move(memo);
   }
-  ASSERT_FALSE(env::bound<Theme>());  // the author's scope is gone
+  ASSERT_FALSE(environment::bound<Theme>());  // the author's scope is gone
   host.render(description("root", 0, {shell}));
   EXPECT_EQ(host.child(0)->description->value, 5);
-  EXPECT_FALSE(env::bound<Theme>());  // and restored after the invoke
+  EXPECT_FALSE(environment::bound<Theme>());  // and restored after the invoke
 }
 
 TEST(Reconciler, SlotContentIsNotWalkedAndReplaceContentFillsIt) {

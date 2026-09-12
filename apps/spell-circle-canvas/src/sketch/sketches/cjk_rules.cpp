@@ -55,7 +55,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -108,14 +108,14 @@ Element column() {
              u8"「組版」「行送り」の禁則は、行頭に句読点を置かない。"
              u8"約物の空きは詰め、行末には句点をぶら下げる。",
              body())
-      .width(Dim(kCell - 24))
-      .height(Dim(kPicture - 24))
+      .width(Dimension(kCell - 24))
+      .height(Dimension(kPicture - 24))
       .writingMode(weave::WritingMode::kVerticalRL);
 }
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .child(std::move(body)));
 }
@@ -128,17 +128,17 @@ struct CjkRules final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("THE JAPANESE TABLES \xc2\xb7 kinsoku, hanging, "
-                       "mojikumi, tsume, lineBreakLocale"),
-         .subtitle = toU8("dials \xc2\xb7 the body size (13 px) \xc2\xb7 "
-                          "the bracket room and the tsume, as em "
-                          "fractions \xc2\xb7 the locale the "
-                          "segmentation runs under"),
-         .footer = toU8("every one of these is DATA the layout asks for "
-                        "and holds no opinion about \xe2\x80\x94 which "
-                        "marks a house forbids, hangs or closes up is a "
-                        "decision, and a caller's own table is a peer "
-                        "of the stock one")},
+        {.title = toUtf8("THE JAPANESE TABLES \xc2\xb7 kinsoku, hanging, "
+                         "mojikumi, tsume, lineBreakLocale"),
+         .subtitle = toUtf8("dials \xc2\xb7 the body size (13 px) \xc2\xb7 "
+                            "the bracket room and the tsume, as em "
+                            "fractions \xc2\xb7 the locale the "
+                            "segmentation runs under"),
+         .footer = toUtf8("every one of these is DATA the layout asks for "
+                          "and holds no opinion about \xe2\x80\x94 which "
+                          "marks a house forbids, hangs or closes up is a "
+                          "decision, and a caller's own table is a peer "
+                          "of the stock one")},
         kit::cells(
             {.cells = {cell("writingMode(kVerticalRL)",
                             "the passage with no table at all \xc2\xb7 the "

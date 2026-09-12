@@ -27,7 +27,7 @@ struct LainNavi : sketch::Sketch {
       // sigma, and the sigma is on the glyph MASK.
       const SkColor4f c = kConsoleInk;
       const float sigma = std::max(0.10f, focusSigma(y) + breathe.value());
-      const std::u8string line = toU8(kListing[src]);
+      const std::u8string line = toUtf8(kListing[src]);
       // A PHOSPHOR HALO UNDER EVERY LINE. At 2x against the plate the sharp
       // line is not a clean glyph: it peaks at 222 with a wide soft skirt that
       // bleeds into the lines above and below. A second draw at sigma + 2.4
@@ -407,8 +407,8 @@ struct LainNavi : sketch::Sketch {
     // measure a 40-character run at 100 pt and scale.
     {
       const std::string probe(40, 'M');
-      const SkSize m =
-          ctx.measure(text(toU8(probe), type(monoFace(), 100.0f, kConsoleInk)));
+      const SkSize m = ctx.measure(
+          text(toUtf8(probe), type(monoFace(), 100.0f, kConsoleInk)));
       const float advAt100 = m.width() / 40.0f;
       monoSize = advAt100 > 1.0f ? 100.0f * kAdvance / advAt100 : 22.0f;
     }

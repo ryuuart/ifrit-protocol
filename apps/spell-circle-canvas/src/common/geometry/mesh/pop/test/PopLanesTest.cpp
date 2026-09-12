@@ -26,15 +26,15 @@ using sigil::geometry::mesh::pop::test::flatRing;
 TEST(Pop, NamedAttributesFlowAndExport) {
   // Any NAME is an attribute: an operator that takes a lane takes a custom
   // one on equal terms with the built-in ones, so a lane can be created,
-  // jittered and scaled by the same ops the standard lanes use, and it
+  // jittered and scaled by the same operations the standard lanes use, and it
   // exports under the name it was given.
   const std::vector<glm::vec3> loop = flatRing(8, 200.0);
   const pop::Chain chain =
       pop::on(loop)
           .count(64)
           .fill("energy", {0.5f, 0, 0, 0})
-          .op(pop::Jitter{"energy", 0.25f, 5})
-          .op(pop::Math{"energy", {2, 1, 1, 1}, {0, 0, 0, 0}});
+          .operation(pop::Jitter{"energy", 0.25f, 5})
+          .operation(pop::Math{"energy", {2, 1, 1, 1}, {0, 0, 0, 0}});
   const Cloud cooked = pop::cook(chain);
   const std::vector<glm::vec4>* energy = cooked.colorIf("energy");
   ASSERT_TRUE(energy) << "customs must export under their own name";
@@ -45,7 +45,7 @@ TEST(Pop, NamedAttributesFlowAndExport) {
   }
   EXPECT_GT(hi, lo + 0.1f);  // jittered, not constant
   // Jitter is bounded by its amplitude, so the lane stays in
-  // 0.5 +/- 0.25 before the Math op doubles it into 0.5 .. 1.5.
+  // 0.5 +/- 0.25 before the Math operation doubles it into 0.5 .. 1.5.
   EXPECT_GT(lo, 0.4f);
   EXPECT_LT(hi, 1.6f);
 }
@@ -118,10 +118,11 @@ TEST(Pop, TheSeededMixerIsReproducibleAndSeedSensitive) {
   // it is made against the host rather than against a written-down number.
   const std::vector<glm::vec3> loop = flatRing(8, 100.0f);
   const auto jittered = [&](uint32_t seed) {
-    const Cloud cooked = pop::cook(pop::on(loop)
-                                       .count(6)
-                                       .fill("h", {0, 0, 0, 0})
-                                       .op(pop::Jitter{"h", 0.5f, seed}));
+    const Cloud cooked =
+        pop::cook(pop::on(loop)
+                      .count(6)
+                      .fill("h", {0, 0, 0, 0})
+                      .operation(pop::Jitter{"h", 0.5f, seed}));
     const std::vector<glm::vec4>* h = cooked.colorIf("h");
     std::vector<float> out;
     if (h)
@@ -180,9 +181,9 @@ TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
   const size_t perStamp = stamp.triangleCount();
   ASSERT_EQ(model.triangleCount(), (size_t)kPoints * perStamp);
 
-  const std::vector<glm::vec4>* color = model.primIf("Color");
-  const std::vector<glm::vec4>* id = model.primIf("Id");
-  const std::vector<glm::vec4>* size = model.primIf("size");
+  const std::vector<glm::vec4>* color = model.primitiveIf("Color");
+  const std::vector<glm::vec4>* id = model.primitiveIf("Id");
+  const std::vector<glm::vec4>* size = model.primitiveIf("size");
   ASSERT_TRUE(color && id && size);
   ASSERT_EQ(color->size(), model.triangleCount());
 
@@ -206,7 +207,7 @@ TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
 
   EXPECT_TRUE(pop::cookSweep(chain, sections::circle(), false,
                              {.segments = 160, .scale = 4, .caps = true})
-                  .prims.empty());
+                  .primitives.empty());
 }
 
 TEST(Pop, MixBlendsCopiesAndFadesByALane) {
@@ -279,7 +280,7 @@ TEST(Pop, PointSetSeedsAChainFromAnExistingCloudLanesAndAll) {
   EXPECT_EQ(pop::cook(pop::on(given).count(5).window(0.5f, 0.5f)).size(), 40u);
   // The layout the GPU executor uploads is the same function.
   pop::Lanes lanes;
-  pop::seedAttrs(given, lanes);
+  pop::seedAttributes(given, lanes);
   EXPECT_EQ(lanes.count("P"), 1u);
   EXPECT_EQ(lanes.count("Scale"), 1u);
   EXPECT_EQ(lanes.count("top"), 1u);

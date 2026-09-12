@@ -269,13 +269,13 @@ struct PsxDoomFire final : sketch::DrawSketch {
     return compose::box()
         .column()
         .gap(5)
-        .child(compose::text(compose::toU8("CELLULAR AUTOMATON"),
+        .child(compose::text(compose::toUtf8("CELLULAR AUTOMATON"),
                              uiStyle(12, kSteel, 2.6f))
                    .opacity(motion::animate(motion::from(0.0f).to(1.0f),
                                             {.duration = 260ms}))
                    .translateY(motion::animate(motion::from(8.0f).to(0.0f),
                                                {.duration = 260ms})))
-        .child(compose::text(compose::toU8(kTitle),
+        .child(compose::text(compose::toUtf8(kTitle),
                              weave::textStyle({.face = heavyFace(),
                                                .size = 50,
                                                .color = kBone,
@@ -289,7 +289,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
                                                      .delay = 120ms})}))
         .child(
             compose::text(
-                compose::toU8(
+                compose::toUtf8(
                     "id Software / Williams \xe2\x80\x94 PlayStation port "
                     "title screen \xc2\xb7 algorithm reverse-engineered "
                     "from the Doom 64 disassembly by Samuel Villarreal, "
@@ -313,7 +313,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
                                            .track = 34.0f});
     s.paint.addUnderlay(sigil::weave::kit::outline(
         hexColor(0x2A0805).toSkColor(), 7.0f, SkPaint::kRound_Join));
-    return compose::text(compose::toU8("DOOM"), std::move(s))
+    return compose::text(compose::toUtf8("DOOM"), std::move(s))
         .width(kPanelW)
         .textAlign(weave::TextAlignment::kCenter)
         .opacity(motion::animate(motion::from(0.0f).to(1.0f),

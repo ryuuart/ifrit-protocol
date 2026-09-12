@@ -273,7 +273,7 @@ const Realisation kRealisations[] = {
     {"ANarrowedGeometryPassIsCulled",
      [] {
        return framed().pass(
-           geometryPass("glow").only(sel::tag("glow")).writes("colour"));
+           geometryPass("glow").only(selectors::tag("glow")).writes("colour"));
      },
      "glow", Selection::Cull},
     {"APassThatNarrowsNothingAddressesEveryBody",
@@ -284,14 +284,14 @@ const Realisation kRealisations[] = {
        return framed()
            .pass(geometryPass("main").writes("colour"))
            .pass(postPass("bloom").reads("colour").writes("lit").only(
-               sel::tag("glow")));
+               selectors::tag("glow")));
      },
      "bloom", Selection::Mask},
     {"ANarrowedGeometryPassCarryingASurfaceIsRedrawnInIt",
      [] {
        return framed().pass(geometryPass("main")
                                 .writes("colour")
-                                .only(sel::tag("glow"))
+                                .only(selectors::tag("glow"))
                                 .variant(paint({1, 1, 1, 1})));
      },
      "main", Selection::Variant},
@@ -299,7 +299,7 @@ const Realisation kRealisations[] = {
      [] {
        return framed().pass(geometryPass("cover")
                                 .writes("mask")
-                                .only(sel::tag("glow"))
+                                .only(selectors::tag("glow"))
                                 .realise(Selection::Mask));
      },
      "cover", Selection::Mask},
@@ -326,7 +326,7 @@ TEST(WorldGraph, AMaskedPassReadsTheCoverageThePassAheadOfItWrites) {
       framed()
           .pass(geometryPass("main").writes("colour"))
           .pass(postPass("bloom").reads("colour").writes("lit").only(
-              sel::tag("glow")));
+              selectors::tag("glow")));
   const graph::Plan plan = graph::build(frame);
   ASSERT_TRUE((bool)plan);
   const PassWork* bloom = stepNamed(plan, "bloom");
@@ -336,7 +336,7 @@ TEST(WorldGraph, AMaskedPassReadsTheCoverageThePassAheadOfItWrites) {
   EXPECT_FALSE(bloom->coverageIn.empty());
   ASSERT_EQ(main->coverageOut.size(), 1u);
   EXPECT_EQ(main->coverageOut.front().name, bloom->coverageIn);
-  EXPECT_EQ(main->coverageOut.front().of, sel::tag("glow"));
+  EXPECT_EQ(main->coverageOut.front().of, selectors::tag("glow"));
   // …and the coverage is a resource of the frame like any other.
   EXPECT_NE(plan.resource(bloom->coverageIn), nullptr);
 }
@@ -346,9 +346,9 @@ TEST(WorldGraph, TwoMaskedPassesEachReadTheirOwnCoverage) {
       framed()
           .pass(geometryPass("main").writes("colour"))
           .pass(postPass("bloom").reads("colour").writes("lit").only(
-              sel::tag("glow")))
+              selectors::tag("glow")))
           .pass(postPass("blur").reads("lit").writes("final").only(
-              sel::tag("soft")));
+              selectors::tag("soft")));
   const graph::Plan plan = graph::build(frame);
   ASSERT_TRUE((bool)plan) << plan.error();
   const PassWork* main = stepNamed(plan, "main");
@@ -364,9 +364,9 @@ TEST(WorldGraph, TwoMaskedPassesEachReadTheirOwnCoverage) {
   for (const Coverage& painted : main->coverageOut) {
     EXPECT_NE(plan.resource(painted.name), nullptr);
     if (painted.name == bloom->coverageIn)
-      EXPECT_EQ(painted.of, sel::tag("glow"));
+      EXPECT_EQ(painted.of, selectors::tag("glow"));
     else if (painted.name == blur->coverageIn)
-      EXPECT_EQ(painted.of, sel::tag("soft"));
+      EXPECT_EQ(painted.of, selectors::tag("soft"));
     else
       ADD_FAILURE() << "a coverage no masked pass reads: " << painted.name;
   }
@@ -377,9 +377,9 @@ TEST(WorldGraph, TwoMasksOfTheSameSelectionShareOneCoverage) {
       framed()
           .pass(geometryPass("main").writes("colour"))
           .pass(postPass("bloom").reads("colour").writes("lit").only(
-              sel::tag("glow")))
+              selectors::tag("glow")))
           .pass(postPass("blur").reads("lit").writes("final").only(
-              sel::tag("glow")));
+              selectors::tag("glow")));
   const graph::Plan plan = graph::build(frame);
   ASSERT_TRUE((bool)plan) << plan.error();
   const PassWork* main = stepNamed(plan, "main");
@@ -393,8 +393,9 @@ TEST(WorldGraph, TwoMasksOfTheSameSelectionShareOneCoverage) {
 }
 
 TEST(WorldGraph, AMaskWithNothingPaintingBodiesAheadOfItIsAnError) {
-  const Frame frame = framed().pass(
-      postPass("bloom").reads("colour").writes("lit").only(sel::tag("glow")));
+  const Frame frame =
+      framed().pass(postPass("bloom").reads("colour").writes("lit").only(
+          selectors::tag("glow")));
   const graph::Plan plan = graph::build(frame);
   EXPECT_FALSE((bool)plan);
   EXPECT_NE(plan.error().find("bloom"), std::string::npos);

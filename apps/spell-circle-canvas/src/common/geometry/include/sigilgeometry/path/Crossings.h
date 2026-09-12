@@ -290,7 +290,7 @@ std::vector<Crossing> discoverCrossings(const std::vector<SkPath>& strands);
  *
  *  `maxRadius` is not a safety margin, it is REQUIRED for correctness on any
  *  ordinary braid. Once reach/sin(theta) approaches the spacing between
- *  knots, neighbouring lenses touch and path ops merge them into ONE
+ *  knots, neighbouring lenses touch and path operations merge them into ONE
  *  contour — at which point the first crossing's patch owns the whole run
  *  and the weave degenerates to "one strand on top" for half its knots.
  *  Pass half the arc distance to the adjacent crossing, so each knot can

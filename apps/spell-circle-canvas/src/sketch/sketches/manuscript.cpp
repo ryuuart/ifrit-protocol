@@ -74,7 +74,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 using namespace sigil::compose::kit::ornament;
 
@@ -199,10 +199,10 @@ struct Manuscript final : sketch::Sketch {
     gilt.strokeFill = Fill::color(pal.gold);
     return box()
         .absolute()
-        .left(Dim(px(kSpine)))
-        .top(Dim(px(kHead)))
-        .width(Dim(px(kMeasure)))
-        .height(Dim(px(kPitch * (float)kIncipitLines)))
+        .left(Dimension(px(kSpine)))
+        .top(Dimension(px(kHead)))
+        .width(Dimension(px(kMeasure)))
+        .height(Dimension(px(kPitch * (float)kIncipitLines)))
         .zIndex(1)
         .fill(Fill::color(pal.stem))
         .foreground(gilt)
@@ -244,8 +244,8 @@ struct Manuscript final : sketch::Sketch {
                                .color = pal.gold}))
             .key("versal")
             .absolute()
-            .left(Dim(0.0f))
-            .top(Dim(0.0f));
+            .left(Dimension(0.0f))
+            .top(Dimension(0.0f));
     Element prose = text(rest, body(kBodySize, pal.ink))
                         .flowAround("versal", px(2.4f))
                         .spanStyle(kit::nestedRun(opening), opening.style);
@@ -256,8 +256,8 @@ struct Manuscript final : sketch::Sketch {
     PathFormat fillet;
     fillet.width = px(0.7f);
     fillet.strokeFill = Fill::color(pal.gold);
-    initial.width(Dim(px(kPitch * (float)kCapLines)))
-        .height(Dim(px(kPitch * (float)kCapLines)))
+    initial.width(Dimension(px(kPitch * (float)kCapLines)))
+        .height(Dimension(px(kPitch * (float)kCapLines)))
         .fill(Fill::color(pal.stem))
         .foreground(fillet)
         .alignItems(Align::Center)
@@ -274,14 +274,14 @@ struct Manuscript final : sketch::Sketch {
     Element written =
         box()
             .absolute()
-            .left(Dim(px(kSpine)))
-            .top(Dim(px(blockTop)))
-            .width(Dim(px(kMeasure)))
-            .height(Dim(px(kDepth - kPitch * (float)kIncipitLines)))
+            .left(Dimension(px(kSpine)))
+            .top(Dimension(px(blockTop)))
+            .width(Dimension(px(kMeasure)))
+            .height(Dimension(px(kDepth - kPitch * (float)kIncipitLines)))
             .zIndex(1)
             .child(std::move(initial))
             .child(prose.key("block")
-                       .width(Dim(px(kMeasure)))
+                       .width(Dimension(px(kMeasure)))
                        .paragraph(block)
                        .lineBreak(weave::LineBreakStrategy::kKnuthPlass)
                        .hyphenation({.patterns = &hyphenator()})
@@ -294,10 +294,10 @@ struct Manuscript final : sketch::Sketch {
         illuminatedPanel(rubric)
             .key("note")
             .absolute()
-            .left(Dim(px(kMeasure - kForeEdge * 0.30f)))
-            .top(Dim(px(kPitch * 12.0f)))
-            .width(Dim(px(kForeEdge * 0.78f)))
-            .height(Dim(px(kPitch * 6.0f)))
+            .left(Dimension(px(kMeasure - kForeEdge * 0.30f)))
+            .top(Dimension(px(kPitch * 12.0f)))
+            .width(Dimension(px(kForeEdge * 0.78f)))
+            .height(Dimension(px(kPitch * 6.0f)))
             .zIndex(3)
             .padding(px(3.0f))
             .gap(px(1.6f))
@@ -312,10 +312,10 @@ struct Manuscript final : sketch::Sketch {
     written.child(box()
                       .key("sprig")
                       .absolute()
-                      .left(Dim(px(-kSpine * 0.2f)))
-                      .top(Dim(px(kPitch * 22.0f)))
-                      .width(Dim(px(kSpine * 0.9f)))
-                      .height(Dim(px(kPitch * 5.0f)))
+                      .left(Dimension(px(-kSpine * 0.2f)))
+                      .top(Dimension(px(kPitch * 22.0f)))
+                      .width(Dimension(px(kSpine * 0.9f)))
+                      .height(Dimension(px(kPitch * 5.0f)))
                       .zIndex(3)
                       .rotate(90.0f)
                       .child(custom("sprig", sprig(pal)).inset(0)));
@@ -337,10 +337,10 @@ struct Manuscript final : sketch::Sketch {
         // way a scribe's frame ruling is.
         .child(box()
                    .absolute()
-                   .left(Dim(px(kSpine)))
-                   .top(Dim(px(kHead)))
-                   .width(Dim(px(kMeasure)))
-                   .height(Dim(px(kDepth)))
+                   .left(Dimension(px(kSpine)))
+                   .top(Dimension(px(kHead)))
+                   .width(Dimension(px(kMeasure)))
+                   .height(Dimension(px(kDepth)))
                    .foreground(rule))
         .child(frieze(pal))
         .child(incipit(pal))

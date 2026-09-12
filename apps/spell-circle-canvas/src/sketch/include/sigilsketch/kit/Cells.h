@@ -22,8 +22,8 @@ namespace sigil::sketch::kit {
 /** THE FIXED SURFACE A SPECIMEN IS SHOWN IN, sized by the caller and
  *  grounded by the theme. */
 struct Well {
-  compose::Dim width;
-  compose::Dim height;
+  compose::Dimension width;
+  compose::Dimension height;
   /** Unset is the theme's cell ground. Set it to `Fill::none()` for a
    *  well that paints nothing, and to a material for a well grounded in
    *  something generated per pixel. */
@@ -88,7 +88,7 @@ struct Well {
   std::optional<Relief> relief;
 };
 
-/** @p surface, sized, grounded, padded and clipped as @p spec and the
+/** @p surface, sized, grounded, padded and clipped as @p specification and the
  *  theme say.
  *
  *      sketch::kit::well({.width = kCell, .height = kPicture})
@@ -98,16 +98,17 @@ struct Well {
  *  in a new box: hand it `custom(key, draw)` where the drawing wants the
  *  well's resolved size, and `box().child(body)` where the well holds a
  *  laid-out body. Omitted, it is an empty box ready for children. */
-[[nodiscard]] compose::Element well(const Well& spec, compose::Element surface);
-[[nodiscard]] compose::Element well(const Well& spec);
+[[nodiscard]] compose::Element well(const Well& specification,
+                                    compose::Element surface);
+[[nodiscard]] compose::Element well(const Well& specification);
 
 /** ONE CAPTIONED SPECIMEN: @p body with @p label over it and @p note
  *  under it, set in the theme's caption registers and spaced by its
  *  caption gaps.
  *
  *      sketch::kit::caption(
- *          kCell, toU8("Border::Mode::Bracket"),
- *          toU8("only within 18 px of each corner"),
+ *          kCell, toUtf8("Border::Mode::Bracket"),
+ *          toUtf8("only within 18 px of each corner"),
  *          well({.width = kCell, .height = kPicture}).child(plaque()))
  *
  *  @p measure is the width the remark wraps at — the cell's own width.

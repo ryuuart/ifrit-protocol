@@ -17,11 +17,11 @@ struct AstralTome : sketch::Sketch {
   Element label(const char* s, float x, float y, float size, SkColor4f col,
                 float track = 0.0f, bool useMono = false) const {
     return box().at({x, y}).child(
-        text(toU8(s), weave::textStyle({.face = useMono ? mono : serif,
-                                        .size = size,
-                                        .color = col,
-                                        .track = track,
-                                        .aliased = useMono})));
+        text(toUtf8(s), weave::textStyle({.face = useMono ? mono : serif,
+                                          .size = size,
+                                          .color = col,
+                                          .track = track,
+                                          .aliased = useMono})));
   }
   Element label(const std::string& s, float x, float y, float size,
                 SkColor4f col, float track = 0.0f, bool useMono = false) const {
@@ -316,17 +316,17 @@ struct AstralTome : sketch::Sketch {
                        .gap(5.0f)
                        .zIndex(20)
                        .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}));
-    band.child(text(toU8("ASTRAL SORCERY \xc2\xb7 "
-                         "GuiJournalConstellationCluster, PAGE 1 OF 4"),
+    band.child(text(toUtf8("ASTRAL SORCERY \xc2\xb7 "
+                           "GuiJournalConstellationCluster, PAGE 1 OF 4"),
                     weave::textStyle({.face = mono,
                                       .size = 13.0f,
                                       .color = {0.72f, 0.66f, 0.50f, 1.0f},
                                       .track = 2.6f})));
     band.child(text(
-        toU8("Four charts on one page at the mod's own numbers: a 95x95 "
-             "SQUARE render box hung on an 80x110 hit cell, the offsetMap's "
-             "zig-zag placing them, and every star's twinkle on its own "
-             "divisor between 12 and 21."),
+        toUtf8("Four charts on one page at the mod's own numbers: a 95x95 "
+               "SQUARE render box hung on an 80x110 hit cell, the offsetMap's "
+               "zig-zag placing them, and every star's twinkle on its own "
+               "divisor between 12 and 21."),
         weave::textStyle({.face = mono,
                           .size = 11.0f,
                           .color = {0.50f, 0.46f, 0.38f, 1.0f},

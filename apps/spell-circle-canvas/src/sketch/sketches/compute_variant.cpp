@@ -194,7 +194,7 @@ struct ComputeVariant final : sketch::Set {
                   .writes("colour")
                   .clear({0.028f, 0.032f, 0.05f, 1.0f})
                   .stamp(gm::quad(7.0f, 7.0f))
-                  .only(world::sel::tag(kSwapTag))
+                  .only(world::selectors::tag(kSwapTag))
                   .variant(hot)
                   .realise(world::Selection::Variant))
         .readback(world::readback("motes").then(

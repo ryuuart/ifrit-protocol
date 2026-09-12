@@ -34,11 +34,11 @@ TEST(SketchKitTicker, TheCrawlIsTheHandSpelledMarquee) {
       compose::kit::marquee(
           strip,
           {.phase = 0.0f, .gap = house.spacing.labelGap, .contentWidth = 60.0f})
-          .width(compose::Dim(200)),
+          .width(compose::Dimension(200)),
       kit::ticker({.content = strip,
                    .contentWidth = 60,
                    .phase = 0.0f,
-                   .width = compose::Dim(200)})));
+                   .width = compose::Dimension(200)})));
 }
 
 /** A minor mark draws a shorter tick and no word, so a scale reads its
@@ -46,9 +46,9 @@ TEST(SketchKitTicker, TheCrawlIsTheHandSpelledMarquee) {
 TEST(SketchKitTicker, AMinorMarkIsShorterAndUnnamed) {
   EXPECT_FALSE(sameDrawing(
       kit::timeline({.marks = {{0, u8"0 ms"}, {0.5f, u8"half", true}},
-                     .width = compose::Dim(300)}),
+                     .width = compose::Dimension(300)}),
       kit::timeline({.marks = {{0, u8"0 ms"}, {0.5f, u8"half", false}},
-                     .width = compose::Dim(300)})));
+                     .width = compose::Dimension(300)})));
 }
 
 /** THE INK IS THE MARK'S, NOT THE TICK'S: a scale given a colour of its
@@ -56,7 +56,8 @@ TEST(SketchKitTicker, AMinorMarkIsShorterAndUnnamed) {
  *  its own colour keeps its word out of it. */
 TEST(SketchKitTicker, TheInkColoursTheWordsAsWellAsTheTicks) {
   const kit::Theme& house = kit::houseTheme();
-  kit::Timeline scale{.marks = {{0.5f, u8"half"}}, .width = compose::Dim(300)};
+  kit::Timeline scale{.marks = {{0.5f, u8"half"}},
+                      .width = compose::Dimension(300)};
 
   // Below the rail and past a tick's reach, the only thing drawn is the
   // word, so an amber pixel in those rows is a word set in amber.

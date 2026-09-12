@@ -57,7 +57,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -86,8 +86,8 @@ const char* kPassage =
     "reaches for horizontal glyph-scaling last of all.";
 
 Element passage(weave::JustificationOptions options) {
-  return text(toU8(kPassage), body())
-      .width(Dim(kMeasure))
+  return text(toUtf8(kPassage), body())
+      .width(Dimension(kMeasure))
       .textAlign(weave::TextAlignment::kJustify)
       .lineBreak(weave::LineBreakStrategy::kKnuthPlass)
       .justification(options);
@@ -95,7 +95,7 @@ Element passage(weave::JustificationOptions options) {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .child(std::move(body)));
 }
@@ -123,18 +123,18 @@ struct SpacingPasses final : sketch::Sketch {
     lastWord.singleWord = weave::JustificationOptions::SingleWord::kJustify;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("THE THREE PASSES \xc2\xb7 JustificationOptions "
-                       "word gaps, letter spacing, glyph scale"),
-         .subtitle = toU8("dials \xc2\xb7 one measure (130 px) for every "
-                          "cell \xc2\xb7 the multiple a gap is aimed at "
-                          "(2.0) \xc2\xb7 "
-                          "the em fraction the letter pass adds "
-                          "(0.05) \xc2\xb7 the glyph scale (0.92)"),
-         .footer = toU8("each pass spends only what the one before it "
-                        "could not, and a pass whose limits equal its "
-                        "desired value contributes nothing and costs "
-                        "nothing \xe2\x80\x94 which is why a caller who "
-                        "sets none of them gets word spacing alone")},
+        {.title = toUtf8("THE THREE PASSES \xc2\xb7 JustificationOptions "
+                         "word gaps, letter spacing, glyph scale"),
+         .subtitle = toUtf8("dials \xc2\xb7 one measure (130 px) for every "
+                            "cell \xc2\xb7 the multiple a gap is aimed at "
+                            "(2.0) \xc2\xb7 "
+                            "the em fraction the letter pass adds "
+                            "(0.05) \xc2\xb7 the glyph scale (0.92)"),
+         .footer = toUtf8("each pass spends only what the one before it "
+                          "could not, and a pass whose limits equal its "
+                          "desired value contributes nothing and costs "
+                          "nothing \xe2\x80\x94 which is why a caller who "
+                          "sets none of them gets word spacing alone")},
         kit::cells(
             {.cells = {cell("justification({})",
                             "the word gaps alone \xc2\xb7 the two later "

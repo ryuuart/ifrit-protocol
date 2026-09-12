@@ -3,7 +3,7 @@
 /** @file
  * What the identity prune is spelled in: the comparator vocabulary a
  * description is compared through, and the field pins that make a field
- * added to a props block a BUILD FAILURE rather than a stale picture.
+ * added to a properties block a BUILD FAILURE rather than a stale picture.
  */
 
 #include <sigilcore/reconcile/Reads.h>
@@ -14,15 +14,15 @@ namespace sigil::compose::detail {
 struct ElementNode;
 
 // ---------------------------------------------------------------------------
-// FIELD PINS — a field added to a props block is a BUILD FAILURE
+// FIELD PINS — a field added to a properties block is a BUILD FAILURE
 //
-// THE FAILURE THIS CLOSES IS INVISIBLE BY CONSTRUCTION. `propsEqual()` and
+// THE FAILURE THIS CLOSES IS INVISIBLE BY CONSTRUCTION. `propertiesEqual()` and
 // its helpers compare a description field by field; a field left out makes
 // two DIFFERENT descriptions compare EQUAL, so the patch prunes,
 // `markPaintDirtyUp()` never runs, a stale picture replays, and
 // `applyTransitions()` — which only runs inside the `own` branch — never
 // ramps an `animate()` on that property. Nothing errors. No test fails.
-// A per-axis scale omitted from `propsEqual` and from `recordBounds()`'s
+// A per-axis scale omitted from `propertiesEqual` and from `recordBounds()`'s
 // transform gate is the shape this takes in practice: the property works
 // on first paint and then quietly stops responding.
 //
@@ -53,8 +53,8 @@ struct ElementNode;
 // Animatable, Shape, Decoration, Profile) CANNOT be pinned — reading a field
 // count needs an aggregate. Their hand-written comparators sit in the same
 // header or translation unit as their members, so a field and its comparison
-// are read together; PaintProps (here) and propsEqual (Reconcile.cpp) are the
-// pair that can drift apart unseen.
+// are read together; PaintProps (here) and propertiesEqual (Reconcile.cpp) are
+// the pair that can drift apart unseen.
 
 using ::sigil::core::kFieldCount;
 
@@ -65,17 +65,17 @@ using ::sigil::core::kFieldCount;
  *  because keyed siblings never prune into one another; a test that
  *  compares two different nodes will report a difference whatever the
  *  comparator does, and so passes even when the field is unread. */
-bool propsEqual(const ElementNode& a, const ElementNode& b);
+bool propertiesEqual(const ElementNode& a, const ElementNode& b);
 /** The shaped-binding half of the same comparator, SigilMotion's: every
  *  field of BoundFloat participates, under the pin beside its body. */
 using ::sigil::motion::boundMapEqual;
 /** An Animatable compared where every other animated slot is:
  *  SigilMotion's form-by-form comparator. */
-using ::sigil::motion::propEqual;
+using ::sigil::motion::propertyEqual;
 
 /** Constant, binding, or transitioned — one animatable flattened. */
-using ::sigil::motion::ResolvedProp;
-using ::sigil::motion::resolveProp;
+using ::sigil::motion::ResolvedProperty;
+using ::sigil::motion::resolveProperty;
 
 // ---------------------------------------------------------------------------
 // TEXT FX — the runtime side of the fx() seam (TextFx.cpp)
@@ -89,7 +89,7 @@ using ::sigil::motion::easeEqual;
 /** Same duration, same delay, same curve under easeEqual. */
 using ::sigil::motion::transitionEqual;
 /** Did the DESCRIBED transform change between two descriptions? The lanes
- *  mirror propsEqual's transform block plus travel(). Defined in
+ *  mirror propertiesEqual's transform block plus travel(). Defined in
  *  Reconcile.cpp beside the comparators it is built from. */
 bool describedTransformEqual(const ElementNode& a, const ElementNode& b);
 

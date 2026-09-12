@@ -151,7 +151,7 @@ uint64_t GpuDevice::frameIndex() const {
   return m_impl->frame;
 }
 
-TextureHandle GpuDevice::createTexture(const TextureDesc& desc) {
+TextureHandle GpuDevice::createTexture(const TextureDescription& desc) {
   if (desc.width <= 0 || desc.height <= 0) return {};
   const std::lock_guard<std::mutex> lock(m_impl->mutex);
   NativeTexture native = m_impl->backend->createTexture(desc);

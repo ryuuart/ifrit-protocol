@@ -214,7 +214,7 @@ std::string geo(const Mesh& mesh) {
   // with zero, so a colour written at three components comes back with no
   // alpha unless it happens to be called Color.
   bool wrotePrimClass = false;
-  for (const auto& [name, lane] : mesh.prims) {
+  for (const auto& [name, lane] : mesh.primitives) {
     if (lane.size() != tris || !writableName(name)) continue;
     out += wrotePrimClass ? "," : ",\"primitiveattributes\",[";
     wrotePrimClass = true;

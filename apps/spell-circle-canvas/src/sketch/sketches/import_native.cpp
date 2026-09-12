@@ -68,7 +68,7 @@ namespace scry = sigil::scry;
 namespace gm = sigil::geometry::mesh;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -104,12 +104,12 @@ Element dial(float edge) {
                  .inset(34, 34, 34, 34)
                  .column()
                  .gap(22)
-                 .child(text(toU8("COMPOSE"), label(30, {1, 1, 1, 0.92f}, 6)))
-                 .child(text(toU8("a composer painting into a surface of "
-                                  "its own; texture() is the value a slot "
-                                  "holds"),
+                 .child(text(toUtf8("COMPOSE"), label(30, {1, 1, 1, 0.92f}, 6)))
+                 .child(text(toUtf8("a composer painting into a surface of "
+                                    "its own; texture() is the value a slot "
+                                    "holds"),
                              label(17, {1, 1, 1, 0.45f}, 0.4f))
-                            .width(Dim(edge - 68)))
+                            .width(Dimension(edge - 68)))
                  .child(std::move(ticks)));
 }
 

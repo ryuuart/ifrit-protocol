@@ -204,12 +204,12 @@ std::string ply(const Mesh& mesh, const PlyOptions& options) {
   // layout every tool in the exchange path already emits and expects,
   // and the cost of matching it is zero. Do not reorder to suit a
   // caller — files in this shape are already out there being read.
-  const auto exportablePrim = [&](const std::string& name,
-                                  const std::vector<glm::vec4>& lane) {
+  const auto exportablePrimitive = [&](const std::string& name,
+                                       const std::vector<glm::vec4>& lane) {
     return lane.size() == tris && exportableLaneName(name);
   };
-  for (const auto& [name, lane] : mesh.prims)
-    if (exportablePrim(name, lane))
+  for (const auto& [name, lane] : mesh.primitives)
+    if (exportablePrimitive(name, lane))
       for (const char* channel : {"_r", "_g", "_b", "_a"})
         out += "property float " + name + channel + "\n";
   out += "end_header\n";
@@ -229,8 +229,8 @@ std::string ply(const Mesh& mesh, const PlyOptions& options) {
     sink.putInt((int32_t)mesh.indices[t]);
     sink.putInt((int32_t)mesh.indices[t + 1]);
     sink.putInt((int32_t)mesh.indices[t + 2]);
-    for (const auto& [name, lane] : mesh.prims)
-      if (exportablePrim(name, lane))
+    for (const auto& [name, lane] : mesh.primitives)
+      if (exportablePrimitive(name, lane))
         for (int c = 0; c < 4; ++c) sink.put(lane[t / 3][c]);
     sink.endRow();
   }

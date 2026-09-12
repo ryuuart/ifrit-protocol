@@ -286,8 +286,9 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
   for (int i = 0; i < warmup; ++i) host.frame(scratch, dt);
 
   for (int index = 0; index < options.frames; ++index) {
-    const std::string path =
-        options.frames > 1 ? numberedPath(options.out, index + 1) : options.out;
+    const std::string path = options.frames > 1
+                                 ? numberedPath(options.outputPath, index + 1)
+                                 : options.outputPath;
     {
       sketch::PhaseMark mark(sketch::Phase::Capture);
       if (!host.capture(path, options.scale)) {
@@ -300,8 +301,8 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
   std::printf(
       "wrote %s (%d frame%s at %.3gx, t=%.3gs %s, build %d, work %.2f ms "
       "avg)\n",
-      options.out.c_str(), options.frames, options.frames == 1 ? "" : "s",
-      options.scale, at,
+      options.outputPath.c_str(), options.frames,
+      options.frames == 1 ? "" : "s", options.scale, at,
       options.at >= 0.0 ? "asked for"
                         : (declared > 0.0 ? "declared" : "by default"),
       host.generation(), host.workMsAverage());

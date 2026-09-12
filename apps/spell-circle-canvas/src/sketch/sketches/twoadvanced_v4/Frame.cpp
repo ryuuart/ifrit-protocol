@@ -31,8 +31,8 @@ auto TwoAdvancedV4::cta(const char* lbl, float w, float h, SkColor4f hairline)
     -> Element {
   using namespace tav;
   return box()
-      .width(Dim(w))
-      .height(Dim(h))
+      .width(Dimension(w))
+      .height(Dimension(h))
       .shape(shapes::chamfered(9, shapes::Corner::Diagonal))
       .fill(mskia::Paint::linearUnit(
           {0, 0}, {0, 1},
@@ -51,8 +51,8 @@ auto TwoAdvancedV4::cta(const char* lbl, float w, float h, SkColor4f hairline)
 auto TwoAdvancedV4::readout(float w, float h, SkColor4f ground) -> Element {
   using namespace tav;
   return box()
-      .width(Dim(w))
-      .height(Dim(h))
+      .width(Dimension(w))
+      .height(Dimension(h))
       .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
       .fill(ground)
       .foreground(styles::BevelPair{
@@ -91,8 +91,8 @@ auto TwoAdvancedV4::navBar() -> Element {
   // walks the taxonomy.
   bar.child(
       box()
-          .left(Dim(0))
-          .top(Dim(38))
+          .left(Dimension(0))
+          .top(Dimension(38))
           .width(24)
           .height(3)
           .fill(kCyan)
@@ -301,7 +301,7 @@ auto TwoAdvancedV4::dockBars() -> std::vector<Element> {
     bars.push_back(box()
                        .grow(1)
                        .shrink(0)
-                       .height(Dim(72 * v))
+                       .height(Dimension(72 * v))
                        .fill(mskia::Paint::linearUnit(
                            {0, 0}, {0, 1},
                            {{0.0f, mskia::withAlpha(kD7, 1.0f)},
@@ -377,20 +377,25 @@ auto TwoAdvancedV4::footerDock() -> Element {
   strip.child(window("DISPATCH", "QUEUE  00114", "LAST  04.05.06", 280));
 
   // the instanced chevron array — one atlas cell, one stamp
-  strip.child(
-      box()
-          .width(260)
-          .height(150)
-          .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
-          .fill(hexColor(0x110303))
-          .foreground(styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 1, 1})
-          .child(box().left(Dim(12)).top(Dim(12)).width(236).height(96).child(
-              instancing::instances(dockAtlas, dockPool,
-                                    instancing::Mode::Data)))
-          .child(
-              box().left(Dim(12)).top(Dim(122)).child(t("ARRAY 6\xc3\x97"
-                                                        "14 \xc2\xb7 IDLE",
-                                                        micro(10, kD6, 220)))));
+  strip.child(box()
+                  .width(260)
+                  .height(150)
+                  .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
+                  .fill(hexColor(0x110303))
+                  .foreground(styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 1, 1})
+                  .child(box()
+                             .left(Dimension(12))
+                             .top(Dimension(12))
+                             .width(236)
+                             .height(96)
+                             .child(instancing::instances(
+                                 dockAtlas, dockPool, instancing::Mode::Data)))
+                  .child(box()
+                             .left(Dimension(12))
+                             .top(Dimension(122))
+                             .child(t("ARRAY 6\xc3\x97"
+                                      "14 \xc2\xb7 IDLE",
+                                      micro(10, kD6, 220)))));
 
   strip.child(
       box()
@@ -471,10 +476,10 @@ auto TwoAdvancedV4::footerDock() -> Element {
 auto TwoAdvancedV4::rail(bool right) -> Element {
   using namespace tav;
   Element r = box()
-                  .left(Dim(right ? 1916.0f : 0.0f))
-                  .top(Dim(0))
+                  .left(Dimension(right ? 1916.0f : 0.0f))
+                  .top(Dimension(0))
                   .width(24)
-                  .height(Dim(1560))
+                  .height(Dimension(1560))
                   .cache(Cache::None);
   const auto& gif = right ? railRightGif : railLeftGif;
   if (gif) {

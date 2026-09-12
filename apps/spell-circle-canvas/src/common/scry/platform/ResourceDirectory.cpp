@@ -3,7 +3,7 @@
  * checked for the ICU data file, and the three-step resolution order.
  */
 
-#include "ResourceDir.h"
+#include "ResourceDirectory.h"
 
 #include <sigilio/source/Places.h>
 
@@ -11,7 +11,7 @@
 
 namespace sigil::scry {
 
-std::string executableAdjacentResourceDir() {
+std::string executableAdjacentResourceDirectory() {
   const std::filesystem::path executable = io::executablePath();
   if (executable.empty()) return {};
   const std::filesystem::path dir = executable.parent_path() / "resources";
@@ -20,9 +20,9 @@ std::string executableAdjacentResourceDir() {
   return dir.string();
 }
 
-std::string resolveResourceDir(const std::string& configured) {
+std::string resolveResourceDirectory(const std::string& configured) {
   if (!configured.empty()) return configured;
-  std::string staged = executableAdjacentResourceDir();
+  std::string staged = executableAdjacentResourceDirectory();
   if (!staged.empty()) return staged;
   return SIGILSCRY_DEFAULT_RESOURCE_DIR;
 }

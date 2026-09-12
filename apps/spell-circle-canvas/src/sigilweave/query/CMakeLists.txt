@@ -1,6 +1,6 @@
 # Range search over a paragraph — substring, word, ICU regular expression
 # — and the marker set that follows the paragraph's edit log, with
-# Selector and the sel:: vocabulary beside them: the same question written
+# Selector and the selectors:: vocabulary beside them: the same question written
 # down as a comparable value rather than asked of a paragraph now. ICU is
 # private and linked directly for the regex search; a UTF-8 needle is
 # transcoded by the Unicode leaf, which owns that answer.

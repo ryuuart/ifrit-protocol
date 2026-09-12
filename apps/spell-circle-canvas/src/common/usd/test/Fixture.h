@@ -64,20 +64,20 @@ struct Torus {
 
 inline Torus twoSlotTorus() {
   geometry::mesh::Mesh mesh = geometry::mesh::torus(100, 40, 24, 12);
-  std::vector<glm::vec4>& lane = mesh.prim("Material", {0, 0, 0, 0});
+  std::vector<glm::vec4>& lane = mesh.primitive("Material", {0, 0, 0, 0});
   for (size_t t = 0; t < lane.size(); ++t) lane[t] = {(float)(t % 2), 0, 0, 0};
 
-  material::kit::SurfaceParams redParams;
-  redParams.baseColor = {1, 0, 0, 1};
-  redParams.roughness = 0.3f;
-  redParams.metallic = 0.75f;
+  material::kit::SurfaceParameters redParameters;
+  redParameters.baseColor = {1, 0, 0, 1};
+  redParameters.roughness = 0.3f;
+  redParameters.metallic = 0.75f;
 
   material::Material textured = material::kit::surface();
   textured.child(
       material::kit::kBaseColorSlot,
       material::Texture::of(solid(SK_ColorBLUE)).tile(SkTileMode::kRepeat));
 
-  return Torus{std::move(mesh), material::kit::surface(redParams),
+  return Torus{std::move(mesh), material::kit::surface(redParameters),
                std::move(textured)};
 }
 

@@ -78,7 +78,7 @@ void warnIgnoredMemoShellProps(const ElementNode& shell) {
   const auto only = [&](auto&& copy) {
     ElementNode probe;
     copy(probe);
-    return !propsEqual(probe, blank);
+    return !propertiesEqual(probe, blank);
   };
   struct Probe {
     const char* what;
@@ -205,12 +205,12 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
   // `next` IS `*inst.description`: on a memo that is the produce, and the
   // shell's say over it is applied here, before anything reads the node.
   // A memo hit returns before this runs and keeps the payload it merged
-  // on the patch that produced it, so a `.cache()` changed while props and
+  // on the patch that produced it, so a `.cache()` changed while properties and
   // environment compare equal does not take — the memo's own contract.
   if (inst.memoShell) mergeMemoShell(*inst.description, *inst.memoShell);
 
   // Recompute the world-space flag once per patch. A pruned node keeps
-  // its existing flag, which is correct: equal props mean equal
+  // its existing flag, which is correct: equal properties mean equal
   // materials. Then the movement class only this branch can see — a
   // changed described transform moves every descendant's node-to-root
   // matrix while those descendants prune — so the world-space ones are
@@ -234,7 +234,7 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
   // its own and must force the layout pass to run.
   if (!prev || prev->layout.centerAt != next.layout.centerAt)
     needsLayout = true;
-  // A positioned child's rect IS its layout props: a change must run
+  // A positioned child's rect IS its layout properties: a change must run
   // the layout pass so syncLayoutRects stales the recordings that
   // baked the old rect (the job Yoga's dirty bit does elsewhere).
   if (!inst.yoga && prev && !(prev->layout == next.layout)) needsLayout = true;
@@ -251,8 +251,8 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
         prevText->spanRestyles != text.spanRestyles;
     if (textChanged) {
       inst.contentRev++;
-      // No layout yet at describe time, so a weave::sel::line restyle resolves
-      // against nothing here; layoutText() re-materializes against the
+      // No layout yet at describe time, so a weave::selectors::line restyle
+      // resolves against nothing here; layoutText() re-materializes against the
       // fresh line geometry when one is asked for.
       materializeText(inst);
       if (inst.yoga) {
@@ -353,11 +353,11 @@ void Composer::Impl::reorder(Instance& parent, bool structureChanged) {
     YGNodeRemoveAllChildren(parent.yoga);
     for (auto& child : parent.children) {
       // Stack children overlap: EVERY child is absolute, unconditionally.
-      // This runs after create()/patch() applied the child's own layout props,
-      // so it is the last write and a child cannot opt out — which is the
-      // container's contract, not an oversight: a stack whose children could
-      // individually rejoin the flex flow would lay out as neither. What a
-      // child DOES keep is its insets — `.top(12).right(12)` inside a stack
+      // This runs after create()/patch() applied the child's own layout
+      // properties, so it is the last write and a child cannot opt out — which
+      // is the container's contract, not an oversight: a stack whose children
+      // could individually rejoin the flex flow would lay out as neither. What
+      // a child DOES keep is its insets — `.top(12).right(12)` inside a stack
       // pins that corner, because absolute is exactly the mode insets need.
       if (child->yoga) {
         if (parent.description->kind == Kind::Stack)

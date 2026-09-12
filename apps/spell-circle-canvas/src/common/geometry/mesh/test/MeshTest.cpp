@@ -72,7 +72,7 @@ TEST(Mesh, AppendRepairsShortIncomingLanes) {
   // hand-built meshes and imported files do this, e.g. a PLY whose extra
   // property list runs out early. Append repairs both sides, because a
   // plain insert would leave the MERGED lane undersized, and every consumer
-  // reads "lane sized to positions" (or to triangleCount, for prim lanes)
+  // reads "lane sized to positions" (or to triangleCount, for primitive lanes)
   // as the presence bit for the whole mesh: one short lane on one side
   // would switch tinting, lighting or texturing off for the merged result.
   Mesh a;
@@ -88,7 +88,7 @@ TEST(Mesh, AppendRepairsShortIncomingLanes) {
   b.colors = {{0, 1, 0, 1}, {0, 1, 0, 1}, {0, 1, 0, 1}};
   b.normals = {{1, 0, 0}, {1, 0, 0}, {1, 0, 0}};
   b.uvs = {{1, 1}, {1, 1}, {1, 1}};
-  b.prims["heat"] = {{5, 0, 0, 0}};  // 1 entry for 2 triangles
+  b.primitives["heat"] = {{5, 0, 0, 0}};  // 1 entry for 2 triangles
 
   a.append(b);
   ASSERT_EQ(a.positions.size(), 8u);
@@ -108,9 +108,9 @@ TEST(Mesh, AppendRepairsShortIncomingLanes) {
   // Prim lanes are counted per TRIANGLE rather than per vertex, and are
   // padded the same way, by the convention their lane name implies.
   ASSERT_EQ(a.triangleCount(), 4u);
-  const std::vector<glm::vec4>* heat = a.primIf("heat");
+  const std::vector<glm::vec4>* heat = a.primitiveIf("heat");
   ASSERT_TRUE(heat);
-  ASSERT_EQ(heat->size(), 4u) << "short incoming prim lane";
+  ASSERT_EQ(heat->size(), 4u) << "short incoming primitive lane";
   EXPECT_FLOAT_EQ((*heat)[2].x, 5.0f);  // theirs
   EXPECT_FLOAT_EQ((*heat)[3].x, 0.0f);  // padded by name
 
@@ -134,44 +134,44 @@ TEST(Mesh, AppendRepairsShortIncomingLanes) {
 TEST(Mesh, PrimLanesSizeToTrianglesAndAppendPadsByName) {
   Mesh a = splitQuad();
   EXPECT_EQ(a.triangleCount(), 2u);
-  EXPECT_EQ(a.primIf("Color"), nullptr) << "absent until touched";
-  a.prim("Color")[0] = {1, 0, 0, 1};
-  ASSERT_TRUE(a.primIf("Color"));
-  ASSERT_EQ(a.primIf("Color")->size(), 2u) << "one float4 per triangle";
-  EXPECT_EQ((*a.primIf("Color"))[1], (glm::vec4{1, 1, 1, 1}))
+  EXPECT_EQ(a.primitiveIf("Color"), nullptr) << "absent until touched";
+  a.primitive("Color")[0] = {1, 0, 0, 1};
+  ASSERT_TRUE(a.primitiveIf("Color"));
+  ASSERT_EQ(a.primitiveIf("Color")->size(), 2u) << "one float4 per triangle";
+  EXPECT_EQ((*a.primitiveIf("Color"))[1], (glm::vec4{1, 1, 1, 1}))
       << "\"Color\" creates white";
-  a.prim("heat", {0, 0, 0, 0})[1] = {9, 0, 0, 0};
+  a.primitive("heat", {0, 0, 0, 0})[1] = {9, 0, 0, 0};
 
-  // Appending a mesh with no prim lanes still pads ours, by the same name
+  // Appending a mesh with no primitive lanes still pads ours, by the same name
   // convention, so the lane stays sized to triangleCount().
   Mesh b = splitQuad();
   a.append(b);
   ASSERT_EQ(a.triangleCount(), 4u);
-  ASSERT_EQ(a.primIf("Color")->size(), 4u);
-  EXPECT_EQ((*a.primIf("Color"))[2], (glm::vec4{1, 1, 1, 1}));
-  EXPECT_EQ((*a.primIf("heat"))[3], (glm::vec4{0, 0, 0, 0}));
+  ASSERT_EQ(a.primitiveIf("Color")->size(), 4u);
+  EXPECT_EQ((*a.primitiveIf("Color"))[2], (glm::vec4{1, 1, 1, 1}));
+  EXPECT_EQ((*a.primitiveIf("heat"))[3], (glm::vec4{0, 0, 0, 0}));
 
   // ...and in the other direction, a lane only THEY have is padded back
   // over our existing triangles so their values still start at our old
   // triangle count.
   Mesh c = splitQuad();
-  c.prim("heat", {0, 0, 0, 0})[0] = {5, 0, 0, 0};
+  c.primitive("heat", {0, 0, 0, 0})[0] = {5, 0, 0, 0};
   a.append(c);
   ASSERT_EQ(a.triangleCount(), 6u);
-  const std::vector<glm::vec4>* heat = a.primIf("heat");
+  const std::vector<glm::vec4>* heat = a.primitiveIf("heat");
   ASSERT_EQ(heat->size(), 6u);
   EXPECT_FLOAT_EQ((*heat)[1].x, 9.0f);  // ours survived
   EXPECT_FLOAT_EQ((*heat)[2].x, 0.0f);  // padded
   EXPECT_FLOAT_EQ((*heat)[4].x, 5.0f);  // theirs landed at the right run
-  EXPECT_EQ(a.primIf("Color")->size(), 6u);
+  EXPECT_EQ(a.primitiveIf("Color")->size(), 6u);
 }
 
 TEST(Mesh, BakePrimColorUnweldsFlatColoursIntoVertices) {
   Mesh m = splitQuad();
   m.colors.assign(4, glm::vec4{1, 1, 1, 0.5f});
-  m.prim("Color")[0] = {1, 0, 0, 1};
-  m.prim("Color")[1] = {0, 0, 1, 1};
-  const Mesh baked = mesh::bakePrimColor(m, "Color");
+  m.primitive("Color")[0] = {1, 0, 0, 1};
+  m.primitive("Color")[1] = {0, 0, 1, 1};
+  const Mesh baked = mesh::bakePrimitiveColor(m, "Color");
   // A flat per-face colour cannot be expressed on shared vertices, so the
   // bake unwelds: every triangle gets its own three vertices and the
   // indices are renumbered to match.
@@ -188,10 +188,10 @@ TEST(Mesh, BakePrimColorUnweldsFlatColoursIntoVertices) {
     EXPECT_FLOAT_EQ(baked.colors[k].a, 0.5f);
   }
   EXPECT_EQ(baked.positions[3], m.positions[0]) << "triangle order kept";
-  EXPECT_TRUE(baked.primIf("Color")) << "lanes survive the unweld";
+  EXPECT_TRUE(baked.primitiveIf("Color")) << "lanes survive the unweld";
   // Naming a lane that does not exist leaves the mesh alone — still welded,
   // still valid — rather than unwelding it or clearing its colours.
-  EXPECT_EQ(mesh::bakePrimColor(m, "absent").vertexCount(), 4u);
+  EXPECT_EQ(mesh::bakePrimitiveColor(m, "absent").vertexCount(), 4u);
 }
 
 TEST(Mesh, AppendConjuresNoLaneNeitherSideAuthored) {

@@ -15,8 +15,8 @@ TEST(ComposeTextFx, ColorMulTintsEveryPassOfADressedGlyph) {
   shadowed.paint.addUnderlay(sigil::weave::PaintLayer(SK_ColorRED, {16, 0}));
 
   const auto render = [&](Host& host, std::string key, SkColor4f tint) {
-    GlyphMod mod;
-    mod.colorMul = tint;
+    GlyphModifier mod;
+    mod.colorMultiplier = tint;
     host.composer.render(box().padding(10).child(
         text(u8"I", shadowed)
             .key("k")
@@ -66,7 +66,7 @@ sigil::weave::TextStyle greyStyle(float size, float level) {
 
 /** One glyph under one or two colour-term tracks, drawn and read back. */
 std::vector<uint8_t> renderColorTracks(
-    std::vector<std::pair<std::string, GlyphMod>> tracks,
+    std::vector<std::pair<std::string, GlyphModifier>> tracks,
     float greyLevel = 0.25f, bool continuous = false) {
   Host host(140, 140);
   Element leaf = text(u8"I", greyStyle(52, greyLevel)).key("k");
@@ -82,7 +82,7 @@ std::vector<uint8_t> renderColorTracks(
 TEST(ComposeTextFx, ColorAddAddsAcrossTracksAndClampsAtTheDraw) {
   // One flash brightens: an added half-red over a quarter-grey glyph reads
   // red-forward where the untouched glyph reads flat grey.
-  GlyphMod addHalfRed;
+  GlyphModifier addHalfRed;
   addHalfRed.colorAdd = {0.5f, 0, 0, 0};
   const std::vector<uint8_t> flashed =
       renderColorTracks({{"addHalfRed", addHalfRed}});
@@ -94,9 +94,9 @@ TEST(ComposeTextFx, ColorAddAddsAcrossTracksAndClampsAtTheDraw) {
   // per track instead would land at 1.25-before-snap only by accident; the
   // law is sum-then-clamp, and byte identity against the saturated single
   // track is that law observed.
-  GlyphMod addMoreRed;
+  GlyphModifier addMoreRed;
   addMoreRed.colorAdd = {0.75f, 0, 0, 0};
-  GlyphMod addFullRed;
+  GlyphModifier addFullRed;
   addFullRed.colorAdd = {1.0f, 0, 0, 0};
   EXPECT_EQ(renderColorTracks(
                 {{"addHalfRed", addHalfRed}, {"addMoreRed", addMoreRed}}),
@@ -105,9 +105,9 @@ TEST(ComposeTextFx, ColorAddAddsAcrossTracksAndClampsAtTheDraw) {
 }
 
 TEST(ComposeTextFx, ColorScreenScreensCommutativelyAcrossTracks) {
-  GlyphMod screenRed;
+  GlyphModifier screenRed;
   screenRed.colorScreen = {0.5f, 0, 0, 0};
-  GlyphMod screenGreen;
+  GlyphModifier screenGreen;
   screenGreen.colorScreen = {0, 0.5f, 0, 0};
   // Order-free: 1 − (1−a)(1−b) reads the same both ways, so two glow
   // tracks land identically whichever is declared first.
@@ -117,7 +117,7 @@ TEST(ComposeTextFx, ColorScreenScreensCommutativelyAcrossTracks) {
   // …and the arithmetic is the screen blend itself: half screened twice is
   // 1 − 0.5·0.5 = 0.75 screened once. Both sides land on the snap ladder
   // (16/32 and 24/32), so the compare is exact.
-  GlyphMod screenThreeQuarters;
+  GlyphModifier screenThreeQuarters;
   screenThreeQuarters.colorScreen = {0.75f, 0, 0, 0};
   EXPECT_EQ(renderColorTracks({{"sR", screenRed}, {"sR2", screenRed}}),
             renderColorTracks({{"s34", screenThreeQuarters}}))
@@ -140,16 +140,16 @@ TEST(ComposeTextFx, TheColourTermsLerpComponentwiseInAKeysTable) {
     host.frame();
     return surfaceBytes(host, 140, 140);
   };
-  GlyphMod fullAdd;
+  GlyphModifier fullAdd;
   fullAdd.colorAdd = {1.0f, 0, 0, 0};
-  GlyphMod halfAdd;
+  GlyphModifier halfAdd;
   halfAdd.colorAdd = {0.5f, 0, 0, 0};
   EXPECT_EQ(renderKeysAt(fx::keys({{0.0f, {}}, {1.0f, fullAdd}})),
             renderKeysAt(fixed("halfAddK", halfAdd)))
       << "colorAdd did not lerp componentwise across a keys segment";
-  GlyphMod fullScreen;
+  GlyphModifier fullScreen;
   fullScreen.colorScreen = {0, 1.0f, 0, 0};
-  GlyphMod halfScreen;
+  GlyphModifier halfScreen;
   halfScreen.colorScreen = {0, 0.5f, 0, 0};
   EXPECT_EQ(renderKeysAt(fx::keys({{0.0f, {}}, {1.0f, fullScreen}})),
             renderKeysAt(fixed("halfScreenK", halfScreen)))
@@ -167,11 +167,11 @@ TEST(ComposeTextFx, NeutralColourTermsKeepTheFastPathByteIdentical) {
   // A deviation that spells the neutral terms outright must draw the very
   // bytes one that never mentions them draws: neutral means the untouched
   // source paint, not an identity-shaped filter over it.
-  GlyphMod spelled;
+  GlyphModifier spelled;
   spelled.dy = -4.0f;
   spelled.colorAdd = {0, 0, 0, 0};
   spelled.colorScreen = {0, 0, 0, 0};
-  GlyphMod silent;
+  GlyphModifier silent;
   silent.dy = -4.0f;
   EXPECT_EQ(renderColorTracks({{"spelledNeutral", spelled}}),
             renderColorTracks({{"silentNeutral", silent}}));
@@ -182,7 +182,7 @@ TEST(ComposeTextFx, TheSnapLadderBoundsTheColourTermsAndContinuousLiftsIt) {
   // rounding is what bounds the memoized filter population — and
   // Track::continuous lifts it, letting the raw value through at the cost
   // the opt-out names.
-  GlyphMod faint;
+  GlyphModifier faint;
   faint.colorAdd = {0.01f, 0.01f, 0.01f, 0};
   EXPECT_EQ(renderColorTracks({{"faintAdd", faint}}, 0.5f),
             renderColorTracks({}, 0.5f))
@@ -198,8 +198,8 @@ TEST(ComposeTextFx, TheFilterPathAgreesWithTheFlatColourPath) {
   // memoized matrix filter; a flat pass takes them in its colour. Same
   // arithmetic by contract — multiply, add, clamp, then screen — so the
   // two paths must land within rounding of each other.
-  GlyphMod mod;
-  mod.colorMul = {0.5f, 1.0f, 1.0f, 1.0f};
+  GlyphModifier mod;
+  mod.colorMultiplier = {0.5f, 1.0f, 1.0f, 1.0f};
   mod.colorAdd = {0.25f, 0.25f, 0, 0};
   mod.colorScreen = {0, 0.5f, 0.5f, 0};
   const auto render = [&](Host& host, bool shaderFill) {

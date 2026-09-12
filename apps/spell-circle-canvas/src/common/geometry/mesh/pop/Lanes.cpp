@@ -40,7 +40,7 @@ glm::vec4 pop::laneFill(std::string_view name) {
   return {0, 0, 0, 0};
 }
 
-std::string_view pop::attrFor(std::string_view lane) {
+std::string_view pop::attributeFor(std::string_view lane) {
   if (lane == "t") return "T";
   if (lane == "size") return "Scale";
   if (lane == "dir" || lane == "normal") return "Dir";
@@ -48,15 +48,15 @@ std::string_view pop::attrFor(std::string_view lane) {
   return lane;
 }
 
-std::string_view pop::cloudLaneFor(std::string_view attr) {
-  if (attr == "T") return "t";
-  if (attr == "Scale") return "size";
-  if (attr == "Dir") return "dir";
-  if (attr == "Color") return "tint";
-  return attr;
+std::string_view pop::cloudLaneFor(std::string_view attribute) {
+  if (attribute == "T") return "t";
+  if (attribute == "Scale") return "size";
+  if (attribute == "Dir") return "dir";
+  if (attribute == "Color") return "tint";
+  return attribute;
 }
 
-void pop::seedAttrs(const Cloud& cloud, pop::Lanes& lanes) {
+void pop::seedAttributes(const Cloud& cloud, pop::Lanes& lanes) {
   const size_t n = cloud.size();
   const auto lane = [&](const std::string& name, glm::vec4 fill) -> auto& {
     auto [it, inserted] = lanes.try_emplace(name);
@@ -76,7 +76,7 @@ void pop::seedAttrs(const Cloud& cloud, pop::Lanes& lanes) {
   lane("Tex", {0, 0, 1, 1});
   for (const auto& [name, values] : cloud.scalars) {
     if (values.size() != n) continue;
-    const std::string target(attrFor(name));
+    const std::string target(attributeFor(name));
     std::vector<glm::vec4>& out = lane(target, {0, 0, 0, 0});
     core::schedule::parallelFor(n, kLaneGrain, [&](size_t first, size_t last) {
       for (size_t i = first; i < last; ++i)
@@ -91,7 +91,8 @@ void pop::seedAttrs(const Cloud& cloud, pop::Lanes& lanes) {
     // importers write. The table maps either onto Dir, so "dir" has to
     // win where both exist.
     const bool skip = name == "normal" && cloud.vectorIf("dir");
-    const std::string target(skip ? std::string_view(name) : attrFor(name));
+    const std::string target(skip ? std::string_view(name)
+                                  : attributeFor(name));
     std::vector<glm::vec4>& out = lane(target, {0, 0, 1, 0});
     core::schedule::parallelFor(n, kLaneGrain, [&](size_t first, size_t last) {
       for (size_t i = first; i < last; ++i)
@@ -100,7 +101,7 @@ void pop::seedAttrs(const Cloud& cloud, pop::Lanes& lanes) {
   }
   for (const auto& [name, values] : cloud.colors) {
     if (values.size() != n) continue;
-    const std::string target(attrFor(name));
+    const std::string target(attributeFor(name));
     lane(target, {1, 1, 1, 1}) = values;
   }
 }
@@ -142,7 +143,7 @@ size_t pop::seedLanes(const pop::Chain& chain, pop::Lanes* lanes) {
   lane("Scale");
   lane("Color");
 
-  if (given) pop::seedAttrs(given->cloud, *lanes);
+  if (given) pop::seedAttributes(given->cloud, *lanes);
 
   if (surface) {
     const std::vector<glm::vec3>* normals = seeds.vectorIf("normal");

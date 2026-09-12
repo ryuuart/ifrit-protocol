@@ -56,7 +56,7 @@ struct Writer::Impl {
   std::string uniquePath(std::string_view parent, std::string_view name);
 
   /** The texture directory relative to the stage file. */
-  std::filesystem::path textureDir() const;
+  std::filesystem::path textureDirectory() const;
 
   /** Writes @p image as a PNG beside the stage (once per image, however
    *  many materials share it) and returns its stage-relative asset path;

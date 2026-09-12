@@ -13,7 +13,7 @@ namespace {
 
 using namespace sigil::sketch;
 
-struct StillKind final : KindOps {
+struct StillKind final : KindOperations {
   [[nodiscard]] std::string_view runtime() const override { return "still"; }
   [[nodiscard]] std::unique_ptr<Session> open(sigil::weave::FontContext&,
                                               Assets&, bool) const override {

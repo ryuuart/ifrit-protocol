@@ -102,7 +102,7 @@ void MemoHit(benchmark::State& state) {
     for (int i = 0; i < count; ++i) {
       auto shell = description("m" + std::to_string(i));
       Memo<Description> memo;
-      memo.props = i;
+      memo.properties = i;
       memo.equal = [](const std::any& a, const std::any& b) {
         return std::any_cast<int>(a) == std::any_cast<int>(b);
       };

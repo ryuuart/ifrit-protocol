@@ -20,7 +20,7 @@ namespace sigil::substance {
 namespace air = SubstanceAir;
 
 struct Package::Impl {
-  std::unique_ptr<air::PackageDesc> desc;
+  std::unique_ptr<air::PackageDesc> description;
   air::GraphInstances instances;
   std::unique_ptr<air::Renderer> renderer;
   std::vector<std::unique_ptr<Graph>> graphs;
@@ -33,7 +33,7 @@ Package::~Package() {
   m_impl->graphs.clear();
   m_impl->renderer.reset();
   m_impl->instances.clear();
-  m_impl->desc.reset();
+  m_impl->description.reset();
 }
 
 std::unique_ptr<Package> Package::load(const void* bytes, size_t size,
@@ -50,19 +50,19 @@ std::unique_ptr<Package> Package::load(const void* bytes, size_t size,
   air::OutputOptions options;
   options.mAllowedFormats = air::Format_RGBA8 | air::Format_L8;
   options.mMipmap = air::Mipmap_ForceNone;
-  impl.desc = std::make_unique<air::PackageDesc>(bytes, size, options);
-  if (!impl.desc->isValid()) {
+  impl.description = std::make_unique<air::PackageDesc>(bytes, size, options);
+  if (!impl.description->isValid()) {
     if (error) *error = "not a valid Substance archive";
     return nullptr;
   }
-  air::instantiate(impl.instances, *impl.desc);
+  air::instantiate(impl.instances, *impl.description);
   impl.renderer = std::make_unique<air::Renderer>();
   for (const auto& instance : impl.instances) {
     std::unique_ptr<Graph> graph(new Graph());
     graph->m_impl->instance = instance.get();
     graph->m_impl->renderer = impl.renderer.get();
-    graph->m_impl->label = str(instance->mDesc.mLabel);
-    graph->m_impl->url = str(instance->mDesc.mPackageUrl);
+    graph->m_impl->label = toString(instance->mDesc.mLabel);
+    graph->m_impl->url = toString(instance->mDesc.mPackageUrl);
     impl.graphs.push_back(std::move(graph));
   }
   return package;

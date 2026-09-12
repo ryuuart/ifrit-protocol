@@ -69,7 +69,7 @@ namespace image = sigil::image;
 namespace material = sigil::material;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
+using sigil::compose::toUtf8;
 
 namespace {
 
@@ -142,7 +142,7 @@ sk_sp<SkData> writeExr() {
 Element cell(std::string key, sk_sp<SkImage> picture, const char* call,
              std::string note) {
   return sketch::kit::caption(
-      kCell, toU8(call), toU8(note),
+      kCell, toUtf8(call), toUtf8(note),
       custom(std::move(key),
              [picture](SkCanvas& canvas, const PaintContext&) {
                if (!picture) return;
@@ -256,12 +256,12 @@ struct ExrChannels final : sketch::Sketch {
     }
 
     return sketch::kit::page(
-        {.title = toU8("FLOAT CHANNELS \xc2\xb7 decodeChannels "
-                       "+ ChannelData::index / makeImage"),
-         .subtitle = toU8("dials \xc2\xb7 the channel (named on "
-                          "each cell) \xc2\xb7 the slot the "
-                          "picked plane fills"),
-         .footer = toU8(foot)},
+        {.title = toUtf8("FLOAT CHANNELS \xc2\xb7 decodeChannels "
+                         "+ ChannelData::index / makeImage"),
+         .subtitle = toUtf8("dials \xc2\xb7 the channel (named on "
+                            "each cell) \xc2\xb7 the slot the "
+                            "picked plane fills"),
+         .footer = toUtf8(foot)},
         kit::cells(std::move(shelf)));
   }
 
@@ -274,9 +274,10 @@ struct ExrChannels final : sketch::Sketch {
         .column()
         .gap(10)
         .padding(40)
-        .child(text(toU8("no float source here"), label(20, sheet.palette.ink)))
         .child(
-            text(toU8(why), label(12, sheet.palette.ash)).width(Dim(620.0f)));
+            text(toUtf8("no float source here"), label(20, sheet.palette.ink)))
+        .child(text(toUtf8(why), label(12, sheet.palette.ash))
+                   .width(Dimension(620.0f)));
   }
 };
 

@@ -37,7 +37,7 @@ using sigil::material::test::render;
 
 namespace {
 
-struct TwoParams {
+struct TwoParameters {
   float uScale;
   Color uColor;
 };
@@ -55,7 +55,7 @@ TEST(SkiaPaint, APassBodyIsNotCompiledAsAShaderOfItsOwn) {
   // asked for, on a material that then renders correctly through the
   // pass path. So it is not attempted.
   auto pass = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("pass.body")
+      Recipe::of<TwoParameters>("pass.body")
           .body(Target::SkSL,
                 "half4 main(float2 p) {\n"
                 "  half4 c = uContent.eval(p);\n"
@@ -76,7 +76,7 @@ TEST(SkiaPaint, APassBodyIsNotCompiledAsAShaderOfItsOwn) {
 
   // An ordinary recipe is unaffected: it still compiles at the paint.
   auto plain = std::make_shared<const Recipe>(
-      Recipe::of<TwoParams>("pass.notone").body(Target::SkSL, kBody));
+      Recipe::of<TwoParameters>("pass.notone").body(Target::SkSL, kBody));
   EXPECT_NE(skia::Paint::recipe(Material(plain)).staticShader(), nullptr);
 }
 

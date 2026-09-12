@@ -23,7 +23,7 @@
 #include <include/effects/SkDiscretePathEffect.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/path/Contour.h>
-#include <sigilgeometry/path/Ops.h>
+#include <sigilgeometry/path/Operations.h>
 #include <sigilgeometry/path/Profile.h>
 #include <sigilgeometry/path/Shaper.h>
 
@@ -94,7 +94,7 @@ struct Wave {
  *  draw is TWO passes — full and half deviation at different seeds — so it
  *  is two brush layers or two restyles here, never one call. */
 struct Jitter {
-  float segLength = 8.0f, deviation = 2.0f;
+  float segmentLength = 8.0f, deviation = 2.0f;
   uint32_t seed = 7;
   bool operator==(const Jitter&) const = default;
   float bleed() const { return deviation * 2.0f; }
@@ -106,7 +106,7 @@ struct Jitter {
     // real run and draws as a second, phantom line.
     SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
     if (sk_sp<SkPathEffect> fx =
-            SkDiscretePathEffect::Make(segLength, deviation, seed);
+            SkDiscretePathEffect::Make(segmentLength, deviation, seed);
         fx && fx->filterPath(&out, p, &rec))
       return out.detach();
     return p;
@@ -127,7 +127,7 @@ struct Offset {
   bool operator==(const Offset&) const = default;
   float bleed() const { return std::abs(px); }
   SkPath shape(const SkPath& p) const {
-    return path::ops::offset(p, px, {.position = 0, .step = step});
+    return path::operations::offset(p, px, {.position = 0, .step = step});
   }
 };
 
@@ -139,7 +139,7 @@ struct Rounded {
   float radius = 6.0f;
   bool operator==(const Rounded&) const = default;
   SkPath shape(const SkPath& p) const {
-    return path::ops::roundCorners(p, radius);
+    return path::operations::roundCorners(p, radius);
   }
 };
 
@@ -155,7 +155,7 @@ struct Chamfer {
   float cut = 6.0f;
   bool operator==(const Chamfer&) const = default;
   SkPath shape(const SkPath& p) const {
-    return path::ops::chamferCorners(p, cut);
+    return path::operations::chamferCorners(p, cut);
   }
 };
 
@@ -167,7 +167,7 @@ struct Square {
   bool operator==(const Square&) const = default;
   float bleed() const { return std::abs(amplitude); }
   SkPath shape(const SkPath& p) const {
-    return path::ops::displaceSquare(p, amplitude, wavelength);
+    return path::operations::displaceSquare(p, amplitude, wavelength);
   }
 };
 
@@ -207,9 +207,9 @@ inline Chamfer chamfered(float cut = 6.0f) { return Chamfer{cut}; }
 inline Square square(float amplitude = 5.0f, float wavelength = 32.0f) {
   return Square{amplitude, wavelength};
 }
-inline Jitter jitter(float segLength = 8.0f, float deviation = 2.0f,
+inline Jitter jitter(float segmentLength = 8.0f, float deviation = 2.0f,
                      uint32_t seed = 7) {
-  return Jitter{segLength, deviation, seed};
+  return Jitter{segmentLength, deviation, seed};
 }
 inline Offset offset(float px, float step = 4.0f) { return Offset{px, step}; }
 

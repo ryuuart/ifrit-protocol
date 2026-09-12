@@ -11,7 +11,7 @@ namespace sigil::sketch::kit {
 using compose::Align;
 using compose::box;
 using compose::Corners;
-using compose::Dim;
+using compose::Dimension;
 using compose::Element;
 using compose::Fill;
 using compose::text;
@@ -53,8 +53,8 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
   const float bezel = chrome.bezel.value_or(look.spacing.bezel);
   Element shell = compose::box().column().padding(bezel);
   chrome.shell.value_or(Fill::color(look.palette.cellGround)).apply(shell);
-  if (chrome.width.unit != Dim::Unit::Auto) shell.width(chrome.width);
-  if (chrome.height.unit != Dim::Unit::Auto) shell.height(chrome.height);
+  if (chrome.width.unit != Dimension::Unit::Auto) shell.width(chrome.width);
+  if (chrome.height.unit != Dimension::Unit::Auto) shell.height(chrome.height);
   if (const float round = chrome.corners.value_or(look.spacing.panelCorners);
       round > 0)
     shell.corners(Corners{round});

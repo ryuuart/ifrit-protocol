@@ -6,7 +6,7 @@ Element TwoAdvancedV3::moduleBar(const char* glyph, const char* label,
                                  float w) {
   using namespace tv3;
   return box()
-      .width(Dim(w))
+      .width(Dimension(w))
       .height(26)
       .row()
       .alignItems(Align::Center)
@@ -41,8 +41,8 @@ Element TwoAdvancedV3::moduleBar(const char* glyph, const char* label,
 Element TwoAdvancedV3::button(const char* label, float w, float h) {
   using namespace tv3;
   return box()
-      .width(Dim(w))
-      .height(Dim(h))
+      .width(Dimension(w))
+      .height(Dimension(h))
       .fill(mskia::Paint::linearUnit(
           {0, 0}, {0, 1},
           {{0.0f, kSteelHi}, {0.5f, kSteel}, {1.0f, kSteelDim}}))
@@ -187,7 +187,7 @@ Element TwoAdvancedV3::navBar() {
 
 Element TwoAdvancedV3::navTabs(int active) {
   using namespace tv3;
-  Element row = box().width(Dim(kStageW - 230)).height(33).row();
+  Element row = box().width(Dimension(kStageW - 230)).height(33).row();
   for (int i = 0; i < 6; ++i) {
     const bool on = i == active;
     row.child(

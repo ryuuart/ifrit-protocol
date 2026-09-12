@@ -193,7 +193,7 @@ inline Parts named(std::string_view name) {
 }  // namespace parts
 
 class Gate;
-class MaskResolverOps;
+class MaskResolverOperations;
 
 /** The gate factories — the HOW half of `mask(what, with)`. Named `by::`
  *  because the call site reads as English: mask by edge, mask by spans,
@@ -294,7 +294,7 @@ class Gate {
    *  Region is static and a paint animates itself). */
   /** The brush engine that reads this gate — installed by every `by::`
    *  constructor, excluded from equality. */
-  core::Erased<MaskResolverOps> resolver;
+  core::Erased<MaskResolverOperations> resolver;
 
   /** How many animatable floats this gate carries, in the order the
    *  instance's mask slots index them: three per Spans term, one per Edge
@@ -331,7 +331,7 @@ struct Mask {
  *  entering and leaving the clips and coverage layers around each paint
  *  group — and asks the value for what those mechanics apply. Installed by
  *  every `by::` constructor; a Gate built without one gates nothing. */
-class MaskResolverOps : public SpanArithmeticOps {
+class MaskResolverOperations : public SpanArithmeticOperations {
  public:
   /** A Spans gate's show set this frame, normalized: the runs of the
    *  boundary the gate reveals, resolved against @p in. */
@@ -346,6 +346,6 @@ class MaskResolverOps : public SpanArithmeticOps {
 };
 
 /** The resolver as a gate carries it, excluded from structural equality. */
-using MaskResolver = core::Erased<MaskResolverOps>;
+using MaskResolver = core::Erased<MaskResolverOperations>;
 
 }  // namespace sigil::compose

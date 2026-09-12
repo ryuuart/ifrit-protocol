@@ -33,8 +33,8 @@ namespace {
 constexpr ScriptTag kLatin = 0x4C61746Eu;
 
 /// One run of @p text shaped down a column with @p features asked for.
-ShapedWordRef column(const std::vector<FontFeature>& features,
-                     std::u16string_view text) {
+ShapedWordReference column(const std::vector<FontFeature>& features,
+                           std::u16string_view text) {
   ShapingStyle style;
   style.typeface = verticalFeaturesFace();
   style.fontSize = 100.0f;  // 1000 upem: one font unit is a tenth of a px
@@ -44,8 +44,8 @@ ShapedWordRef column(const std::vector<FontFeature>& features,
 }
 
 /// The same run shaped along a line.
-ShapedWordRef line(const std::vector<FontFeature>& features,
-                   std::u16string_view text) {
+ShapedWordReference line(const std::vector<FontFeature>& features,
+                         std::u16string_view text) {
   ShapingStyle style;
   style.typeface = verticalFeaturesFace();
   style.fontSize = 100.0f;
@@ -68,8 +68,8 @@ TEST_F(VerticalFeatures, ColumnShapingTakesTheVerticalFormsUnasked) {
   // 'vert' is the one vertical feature nothing has to ask for: shaping a
   // run top-to-bottom applies it, which is what stands a bracket on its
   // vertical shape without any style saying so.
-  const ShapedWordRef down = column({}, u"A");
-  const ShapedWordRef across = line({}, u"A");
+  const ShapedWordReference down = column({}, u"A");
+  const ShapedWordReference across = line({}, u"A");
   ASSERT_EQ(down->glyphs.size(), 1u);
   ASSERT_EQ(across->glyphs.size(), 1u);
   EXPECT_NE(down->glyphs[0], across->glyphs[0])
@@ -78,9 +78,10 @@ TEST_F(VerticalFeatures, ColumnShapingTakesTheVerticalFormsUnasked) {
 }
 
 TEST_F(VerticalFeatures, TheVerticalFormsCanBeDeclined) {
-  const ShapedWordRef plain = column({}, u"A");
-  const ShapedWordRef declined = column({features::verticalFormsOff}, u"A");
-  const ShapedWordRef across = line({}, u"A");
+  const ShapedWordReference plain = column({}, u"A");
+  const ShapedWordReference declined =
+      column({features::verticalFormsOff}, u"A");
+  const ShapedWordReference across = line({}, u"A");
   ASSERT_EQ(declined->glyphs.size(), 1u);
   EXPECT_NE(declined->glyphs[0], plain->glyphs[0]);
   EXPECT_EQ(declined->glyphs[0], across->glyphs[0])
@@ -92,9 +93,10 @@ TEST_F(VerticalFeatures, TheRotationSetReachesWhatTheFormsDoNot) {
   // alone, the way a real face's rotation set reaches proportional forms
   // its vertical forms do not. Column shaping does NOT apply it — a style
   // that wants it names it.
-  const ShapedWordRef unasked = column({}, u"B");
-  const ShapedWordRef asked = column({features::verticalRotatedForms}, u"B");
-  const ShapedWordRef across = line({}, u"B");
+  const ShapedWordReference unasked = column({}, u"B");
+  const ShapedWordReference asked =
+      column({features::verticalRotatedForms}, u"B");
+  const ShapedWordReference across = line({}, u"B");
   ASSERT_EQ(unasked->glyphs.size(), 1u);
   ASSERT_EQ(asked->glyphs.size(), 1u);
   EXPECT_EQ(unasked->glyphs[0], across->glyphs[0])
@@ -104,8 +106,8 @@ TEST_F(VerticalFeatures, TheRotationSetReachesWhatTheFormsDoNot) {
 }
 
 TEST_F(VerticalFeatures, KanaFormsAreSubstitutedWhenAsked) {
-  const ShapedWordRef unasked = column({}, u"S");
-  const ShapedWordRef asked = column({features::verticalKana}, u"S");
+  const ShapedWordReference unasked = column({}, u"S");
+  const ShapedWordReference asked = column({features::verticalKana}, u"S");
   ASSERT_EQ(asked->glyphs.size(), 1u);
   EXPECT_NE(asked->glyphs[0], unasked->glyphs[0]);
   EXPECT_FLOAT_EQ(asked->advance, unasked->advance)
@@ -115,8 +117,9 @@ TEST_F(VerticalFeatures, KanaFormsAreSubstitutedWhenAsked) {
 TEST_F(VerticalFeatures, AlternatesMoveTheInkAndNotThePen) {
   // 'valt' is the face recentring punctuation on the column axis: the
   // glyph moves along the column, and the step to the next glyph does not.
-  const ShapedWordRef unasked = column({}, u"P");
-  const ShapedWordRef asked = column({features::verticalAlternates}, u"P");
+  const ShapedWordReference unasked = column({}, u"P");
+  const ShapedWordReference asked =
+      column({features::verticalAlternates}, u"P");
   ASSERT_EQ(asked->glyphs.size(), 1u);
   EXPECT_EQ(asked->glyphs[0], unasked->glyphs[0]) << "an alternate is a POSE";
   EXPECT_FLOAT_EQ(asked->advance, unasked->advance)
@@ -129,8 +132,8 @@ TEST_F(VerticalFeatures, AlternatesMoveTheInkAndNotThePen) {
 }
 
 TEST_F(VerticalFeatures, ProportionalMetricsTightenTheColumnStep) {
-  const ShapedWordRef unasked = column({}, u"Q");
-  const ShapedWordRef asked =
+  const ShapedWordReference unasked = column({}, u"Q");
+  const ShapedWordReference asked =
       column({features::proportionalVerticalMetrics}, u"Q");
   EXPECT_LT(asked->advance, unasked->advance)
       << "proportional vertical metrics must shorten a full-em step";
@@ -139,8 +142,8 @@ TEST_F(VerticalFeatures, ProportionalMetricsTightenTheColumnStep) {
 }
 
 TEST_F(VerticalFeatures, HalfWidthMetricsHalveTheColumnStep) {
-  const ShapedWordRef unasked = column({}, u"T");
-  const ShapedWordRef asked =
+  const ShapedWordReference unasked = column({}, u"T");
+  const ShapedWordReference asked =
       column({features::halfWidthVerticalMetrics}, u"T");
   EXPECT_NEAR(asked->advance, unasked->advance * 0.5f, 0.5f);
 }
@@ -148,8 +151,8 @@ TEST_F(VerticalFeatures, HalfWidthMetricsHalveTheColumnStep) {
 TEST_F(VerticalFeatures, VerticalKerningIsAskedForLikeAnyOtherFeature) {
   // Horizontal kerning runs unasked; the vertical pair table does not, so
   // a column that wants it names it.
-  const ShapedWordRef unasked = column({}, u"RR");
-  const ShapedWordRef asked = column({features::verticalKerning}, u"RR");
+  const ShapedWordReference unasked = column({}, u"RR");
+  const ShapedWordReference asked = column({features::verticalKerning}, u"RR");
   ASSERT_EQ(asked->advances.size(), 2u);
   EXPECT_FLOAT_EQ(unasked->advances[0], unasked->advances[1])
       << "the pair kerned without being asked to";
@@ -167,8 +170,8 @@ TEST_F(VerticalFeatures, AnAskedFeatureRunsInEitherDirection) {
   // ink down a column moves it off a baseline.
   const std::vector<FontFeature> all = {features::verticalRotatedForms,
                                         features::verticalKana};
-  const ShapedWordRef plain = line({}, u"BS");
-  const ShapedWordRef dressed = line(all, u"BS");
+  const ShapedWordReference plain = line({}, u"BS");
+  const ShapedWordReference dressed = line(all, u"BS");
   ASSERT_EQ(dressed->glyphs.size(), plain->glyphs.size());
   EXPECT_NE(dressed->glyphs, plain->glyphs)
       << "a feature the style named was gated on the writing direction — "
@@ -185,8 +188,8 @@ TEST_F(VerticalFeatures, TheFeatureListIsPartOfShapingIdentity) {
   // Two runs differing only in a vertical feature must not share a cache
   // entry: the feature list is in the shape key, and a hit that ignored it
   // would draw the first caller's forms for the second.
-  const ShapedWordRef plain = column({}, u"S");
-  const ShapedWordRef kana = column({features::verticalKana}, u"S");
+  const ShapedWordReference plain = column({}, u"S");
+  const ShapedWordReference kana = column({features::verticalKana}, u"S");
   EXPECT_NE(plain.get(), kana.get());
   EXPECT_EQ(column({}, u"S").get(), plain.get()) << "the cache stopped hitting";
 }

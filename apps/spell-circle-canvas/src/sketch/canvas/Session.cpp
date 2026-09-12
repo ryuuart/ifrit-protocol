@@ -103,7 +103,7 @@ class CanvasSession final : public Session {
     // TWO SIZINGS, deliberately: a sketch may lay out during setup, so
     // it needs a canvas before it runs, and it declares its own from
     // inside setup. The second call is a no-op when they agree.
-    m_composer->setSize(m_spec.size);
+    m_composer->setSize(m_specification.size);
     SketchContext ctx = context();
     m_sketch->setup(ctx);
     applySize();
@@ -116,7 +116,9 @@ class CanvasSession final : public Session {
     m_sketch.reset();
   }
 
-  [[nodiscard]] const CanvasSpec& canvas() const override { return m_spec; }
+  [[nodiscard]] const CanvasSpecification& canvas() const override {
+    return m_specification;
+  }
 
   void frame(SkCanvas& canvas, double dt) override {
     const PainterScope on(m_painter);
@@ -221,7 +223,7 @@ class CanvasSession final : public Session {
     // step, a round or a reciprocal downstream of it multiplies by a
     // gain the scene chose and nothing here can see. So the declaration
     // outranks the request: such a scene is drawn from live paint.
-    if (m_spec.nonlinearPicture) policy = Promotion::Off;
+    if (m_specification.nonlinearPicture) policy = Promotion::Off;
     m_composer->setAutoTexturePromotion(policy == Promotion::Off ? Policy::Off
                                         : policy == Promotion::Eager
                                             ? Policy::Eager
@@ -298,23 +300,24 @@ class CanvasSession final : public Session {
   /** The declared canvas, applied when it moved. Tracked here because a
    *  composer is told its size and never asked for it. */
   void applySize() {
-    if (m_applied == m_spec.size) return;
-    m_composer->setSize(m_spec.size);
-    m_applied = m_spec.size;
+    if (m_applied == m_specification.size) return;
+    m_composer->setSize(m_specification.size);
+    m_applied = m_specification.size;
   }
 
   SketchContext context() {
     // A prvalue: SketchContext is non-copyable, so guaranteed elision is
     // the only way it travels.
-    return SketchContext{*m_composer, m_ticker, m_assets,        m_spec.size,
-                         &m_spec,     &m_fonts, m_deterministic, &m_scenes};
+    return SketchContext{*m_composer,          m_ticker,         m_assets,
+                         m_specification.size, &m_specification, &m_fonts,
+                         m_deterministic,      &m_scenes};
   }
 
   weave::FontContext& m_fonts;
   Assets& m_assets;
   motion::FrameClock m_clock;
   motion::Ticker m_ticker;
-  CanvasSpec m_spec;
+  CanvasSpecification m_specification;
   /** The texture scenes the context handed out. Before the sketch and
    *  the composer, so they outlive both: an image a sketch took from one
    *  and a texture a retained tree holds are still standing when their
@@ -329,8 +332,8 @@ class CanvasSession final : public Session {
   // lays cost no allocation inside the span they are timing.
   measure::Laps m_laps;
   std::array<Lane, 4> m_lanes{};
-  SkSize m_applied = m_spec.size;  // what the composer was last told
-  bool m_stepping = false;         // the last frame took a stated step
+  SkSize m_applied = m_specification.size;  // what the composer was last told
+  bool m_stepping = false;                  // the last frame took a stated step
   geometry::mesh::render::Runtime m_painter;
   bool m_deterministic;
 };
