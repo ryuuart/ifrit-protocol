@@ -38,10 +38,23 @@ compose::Element page(const Page& sheet, compose::Element content) {
       .key = sheet.key};
   // A page is the whole surface: the sheet does not size itself, so this
   // is where the canvas is handed to it.
+  //
+  // AND IT IS THE ROOT OF THE CASCADE. The sheet's running text is the
+  // remark register — the one line on a specimen sheet set in sentences
+  // rather than as a label — so a leaf under a page that states no style
+  // of its own is set in that, in the theme's ink. A leaf handed a whole
+  // `weave::TextStyle` inherits nothing and is untouched.
+  const Register& running = look.type.captionNote;
   compose::Element surface =
       compose::kit::sheet(specification, std::move(content))
           .absolute()
-          .inset(0);
+          .inset(0)
+          .font({.face = running.face ? running.face
+                                      : (running.mono ? look.type.mono
+                                                      : look.type.sans),
+                 .size = running.size,
+                 .track = running.track})
+          .ink(look.palette.ink);
   return surface;
 }
 

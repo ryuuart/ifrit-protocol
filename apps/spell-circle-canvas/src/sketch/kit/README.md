@@ -139,6 +139,21 @@ flat colour, because a palette holds colours and a gradient is not one. A
 well that must paint nothing passes `Fill::none()`; a well that must
 paint something else passes that.
 
+**A PAGE IS THE ROOT OF THE CASCADE.** The sheet `page()` returns declares
+the font and the ink everything under it inherits: the theme's text face
+at the `TypeScale::captionNote` register — the sheet's RUNNING TEXT, the
+one line a specimen sheet sets in sentences rather than as a label — in
+`Palette::ink`. So a leaf written as `compose::text(utf8)` with no style
+of its own is set in the sheet's own voice; `compose::Element::font({.size
+= 22})` is that voice at another size and inherits the rest;
+`compose::stroke(1.0f)` with no fill named is drawn in the sheet's ink,
+which `Fill::currentInk()` also reads back; and a padding written as a
+`weave::Length` measures against the type in force. A leaf handed a whole
+`weave::TextStyle` — `compose::text(utf8, style)`, which is what
+`Theme::style` builds and what every component here passes — inherits
+nothing and is set exactly as it was written, so a sheet drawn before this
+paragraph existed draws the same.
+
 **A PLATE IS A WELL WITH TWO MORE FIELDS.** A grounded panel with rounded
 corners and one hairline round it is what a page puts a heading, a rack of
 pills or a warning strip on, and spelling it by hand is a box, a fill, a
