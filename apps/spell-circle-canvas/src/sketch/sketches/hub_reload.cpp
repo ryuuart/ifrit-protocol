@@ -219,12 +219,17 @@ struct HubReload final : sketch::Sketch {
              .gap = 14})));
   }
 
+  /** The readings: the mono face at 10 px in the figure colour, as one
+   *  font and one ink on the column that every row under it inherits. */
   Element lines(std::vector<std::string> rows) {
     const sketch::kit::Theme& look = sketch::kit::theme();
-    Element column = box().column().gap(8);
+    Element column = box()
+                         .column()
+                         .gap(8)
+                         .font(look.font({.size = 10, .mono = true}))
+                         .ink(look.palette.figure);
     for (const std::string& row : rows)
-      column.child(text(toUtf8(row), look.mono(10, look.palette.figure))
-                       .width(Dimension(kCell - 20)));
+      column.child(text(toUtf8(row)).width(Dimension(kCell - 20)));
     return column;
   }
 
