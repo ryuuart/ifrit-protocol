@@ -17,10 +17,7 @@
  * properties; code reads the look.
  *
  * Twelve cells, one feature each, and every cell's label is the call that
- * made it. Two of them move: the fading panel's ink is described again on
- * a timer and the still is taken partway through the ease, and the kept
- * canvas has been laying a translucent ground under a moving dot since
- * frame one.
+ * made it. Two of them move.
  *
  * EDIT THESE FIRST
  *   kSwitchAt / kFade / kCapture — when the panel's ink is re-described,
@@ -28,8 +25,8 @@
  *     capture must land inside the ease or the ninth cell shows one flat
  *     colour instead of a mixture.
  *   kSpin / kOrbit / kTrail — the dot's rate, its radius, and the alpha
- *     of the ground laid under it each frame. A larger alpha is a shorter
- *     trail.
+ *     of the ground laid under it each frame, which is its trail: a
+ *     larger alpha is a shorter one.
  */
 
 #include <sigilcompose/brush/Decorations.h>
@@ -92,8 +89,7 @@ sketch::kit::Theme sheetTheme() {
 
 // ------------------------------------------------------ what flows down
 
-/** (1) A leaf that names no style at all, three boxes under the node that
- *  set the font and the ink. */
+/** (1) A leaf that names no style at all, under boxes that name none. */
 Element inheritance() {
   return box()
       .column()
@@ -104,8 +100,7 @@ Element inheritance() {
       .child(box().child(box().child(box().child(text(u8"three boxes down")))));
 }
 
-/** (2) One field named on one sibling; the rest of the font still comes
- *  down to it. */
+/** (2) One field named on one sibling; the rest still comes down. */
 Element oneField() {
   return box()
       .column()
@@ -183,8 +178,7 @@ Element classes() {
       .child(text(u8"no sheet carries this").styleClass("headline"));
 }
 
-/** (6) A passage started with no base inherits; a run added with a partial
- *  keeps every field it did not name. */
+/** (6) A passage with no base inherits, run by run. */
 Element richRuns() {
   return box()
       .font({.size = 14})
@@ -199,8 +193,7 @@ Element richRuns() {
                                              .track = 1.4f}))));
 }
 
-/** (7) A property set on a subtree and read by anything under it, with a
- *  nearer ancestor overriding a farther one. */
+/** (7) A property set on a subtree, read under it, overridden nearer. */
 Element properties() {
   const auto reader = [] {
     return box()
@@ -366,19 +359,14 @@ Element lexicalChannel() {
 
 // --------------------------------------------------------- the furniture
 
-Element cell(const char* call, const char* note, Element body) {
+/** One captioned specimen. @p padding is 0 for a body that IS the well's
+ *  surface: a pen node sized to the well pads itself, and a second
+ *  padding would shrink it off its own measure. */
+Element cell(const char* call, const char* note, Element body,
+             float padding = kPad) {
   return sketch::kit::caption(
       kCell, toUtf8(call), toUtf8(note),
-      sketch::kit::well({.width = kCell, .height = kBody, .padding = kPad})
-          .child(std::move(body)));
-}
-
-/** A cell whose body IS the well's surface — a pen node sized to the well
- *  pads itself, so a second padding would shrink it off its own measure. */
-Element bare(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
-      sketch::kit::well({.width = kCell, .height = kBody, .padding = 0.0f})
+      sketch::kit::well({.width = kCell, .height = kBody, .padding = padding})
           .child(std::move(body)));
 }
 
@@ -471,17 +459,17 @@ struct Cascade final : sketch::Sketch {
                             "the node that declares it eases, and the still "
                             "is taken partway through the mixture",
                             crossFade(cooled)),
-                       bare("compose::pen(program)",
+                       cell("compose::pen(program)",
                             "the circle and the type size are the node's, "
                             "unasked for, and a fill inside push/pop "
                             "restyles the scope \xc2\xb7 the GLYPHS are p5's "
                             "black until a fill is set",
-                            penCell()),
-                       bare("compose::graphics(program)",
+                            penCell(), 0),
+                       cell("compose::graphics(program)",
                             "the same door onto pixels that are KEPT \xc2\xb7 "
                             "a translucent ground each frame is the trail "
                             "the repainting pen cannot leave",
-                            trail),
+                            trail, 0),
                        cell("environment::Provide<Accent>",
                             "the divergence, on its own \xc2\xb7 a component "
                             "handed nothing reads the binding in scope where "
