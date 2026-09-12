@@ -4,6 +4,29 @@
 
 namespace sigil::sketch::kit {
 
+weave::Type Theme::font(const Register& line) const {
+  return {.face = line.face ? line.face : (line.mono ? type.mono : type.sans),
+          .size = line.size,
+          .track = line.track};
+}
+
+weave::StyleSheet Theme::styleSheet() const {
+  weave::StyleSheet classes;
+  classes.set("title", font(type.title));
+  classes.set("subtitle", font(type.subtitle));
+  classes.set("footer", font(type.footer));
+  classes.set("captionLabel", font(type.captionLabel));
+  classes.set("captionNote", font(type.captionNote));
+  classes.set("eyebrow", font(type.eyebrow));
+  classes.set("section", font(type.section));
+  return classes;
+}
+
+Provide::Provide(Theme look) : Provide(look, look.styleSheet()) {}
+
+Provide::Provide(Theme look, weave::StyleSheet classes)
+    : m_look(std::move(look)), m_classes(std::move(classes)) {}
+
 weave::TextStyle Theme::style(const Register& line, SkColor4f color) const {
   return weave::textStyle(
       {.face = line.face ? line.face : (line.mono ? type.mono : type.sans),

@@ -14,7 +14,9 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/TextStyle.h>
+#include <sigilweave/style/Type.h>
 
 namespace sigil::sketch::kit {
 
@@ -168,6 +170,20 @@ struct Theme {
       compose::kit::Caption::Where::Split;
   bool operator==(const Theme&) const = default;
 
+  /** @p line AS THE PARTIAL TYPE the cascade inherits: the face it is
+   *  set in — its own, or whichever of the two it names — its size and
+   *  its track, and nothing else, so its colour is the ink in force where
+   *  it is read. `page()` seeds its root from one; a leaf under the page
+   *  set in another register says `.font(look.font(look.type.eyebrow))`,
+   *  or names the register as a class. */
+  [[nodiscard]] weave::Type font(const Register& line) const;
+  /** THE SEVEN REGISTERS AS CLASSES, each under the name its field
+   *  carries — "title", "subtitle", "footer", "captionLabel",
+   *  "captionNote", "eyebrow", "section" — so a leaf under a bound theme
+   *  says `.styleClass("eyebrow")` and is set as the theme's eyebrow is.
+   *  `Provide` binds it beside the theme; a sketch with classes of its
+   *  own adds them to this sheet and binds that. */
+  [[nodiscard]] weave::StyleSheet styleSheet() const;
   /** @p line in @p color, set in whichever of the two faces it names. */
   [[nodiscard]] weave::TextStyle style(const Register& line,
                                        SkColor4f color) const;
@@ -239,20 +255,33 @@ enum class Voice {
 [[nodiscard]] const Theme& theme();
 
 /** BIND A THEME for everything described while this object lives, the
- *  way a provider does: an alias for the reconciler's own inherited
- *  value, so a sketch needs one include and one word.
+ *  way a provider does — the reconciler's own inherited value, so a
+ *  sketch needs one include and one word — AND ITS REGISTERS AS CLASSES:
+ *  the theme's `styleSheet()` is bound beside it, so under the scope a
+ *  leaf says `.styleClass("captionLabel")` and is set in that register.
  *
  *      sketch::kit::Provide look(sheetTheme());
  *      ctx.composer.render(sketch::kit::page({...}, content));
  *
- *  RAII and LIFO, and it costs one empty vector where nothing binds one.
- *  BIND IT WHERE THE TREE IS DESCRIBED: a sketch that describes again
- *  when its data changes does so outside the scope its setup opened, and
- *  a theme bound only there is not in scope for the second description.
- *  A callable the KERNEL invokes later — a `custom()` paint program, a
- *  memo's deferred describe — runs outside this scope, so such a lambda
- *  captures the colours it needs by value here, where the scope still
- *  stands. */
-using Provide = sigil::core::environment::Provide<Theme>;
+ *  A sketch whose classes go past the registers builds the sheet from
+ *  `styleSheet()`, adds its own, and binds the pair with the two-argument
+ *  form. RAII and LIFO. BIND IT WHERE THE TREE IS DESCRIBED: a sketch
+ *  that describes again when its data changes does so outside the scope
+ *  its setup opened, and a theme bound only there is not in scope for the
+ *  second description. A callable the KERNEL invokes later — a `custom()`
+ *  paint program, a memo's deferred describe — runs outside this scope,
+ *  so such a lambda captures the colours it needs by value here, where
+ *  the scope still stands. */
+class Provide {
+ public:
+  explicit Provide(Theme look);
+  Provide(Theme look, weave::StyleSheet classes);
+  Provide(const Provide&) = delete;
+  Provide& operator=(const Provide&) = delete;
+
+ private:
+  sigil::core::environment::Provide<Theme> m_look;
+  sigil::core::environment::Provide<weave::StyleSheet> m_classes;
+};
 
 }  // namespace sigil::sketch::kit

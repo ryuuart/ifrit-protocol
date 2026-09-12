@@ -84,6 +84,48 @@ TEST(SketchKitTheme, AScopeBindsAndAnInnerScopeShadows) {
   EXPECT_EQ(kit::theme(), kit::houseTheme());
 }
 
+TEST(SketchKitTheme, ARegisterAsAFontIsItsFaceSizeAndTrackAndNoColour) {
+  const kit::Theme& house = kit::houseTheme();
+  const sigil::weave::Type eyebrow = house.font(house.type.eyebrow);
+  EXPECT_EQ(eyebrow.face, house.type.mono) << "a mono register, the mono face";
+  ASSERT_TRUE(eyebrow.size.has_value());
+  EXPECT_FLOAT_EQ(eyebrow.size->value, house.type.eyebrow.size);
+  ASSERT_TRUE(eyebrow.track.has_value());
+  EXPECT_FLOAT_EQ(eyebrow.track->value, house.type.eyebrow.track);
+  EXPECT_FALSE(eyebrow.color.has_value()) << "the ink in force paints it";
+  EXPECT_EQ(house.font(house.type.footer).face, house.type.sans);
+}
+
+TEST(SketchKitTheme, TheRegistersAreClassesUnderABoundTheme) {
+  namespace environment = sigil::core::environment;
+  EXPECT_EQ(environment::inherited<sigil::weave::StyleSheet>(), nullptr);
+  const kit::Theme& house = kit::houseTheme();
+  {
+    const kit::Provide bound(house);
+    const sigil::weave::StyleSheet* classes =
+        environment::inherited<sigil::weave::StyleSheet>();
+    ASSERT_NE(classes, nullptr);
+    EXPECT_EQ(classes->size(), 7u);
+    ASSERT_NE(classes->find("eyebrow"), nullptr);
+    EXPECT_EQ(*classes->find("eyebrow"), house.font(house.type.eyebrow));
+    EXPECT_EQ(*classes->find("captionLabel"),
+              house.font(house.type.captionLabel));
+
+    sigil::weave::StyleSheet own = house.styleSheet();
+    own.set("value", {.size = 13.0f});
+    {
+      const kit::Provide inner(house, own);
+      const sigil::weave::StyleSheet* bound =
+          environment::inherited<sigil::weave::StyleSheet>();
+      ASSERT_NE(bound, nullptr);
+      EXPECT_EQ(bound->size(), 8u) << "the registers and the sketch's own";
+      EXPECT_NE(bound->find("value"), nullptr);
+    }
+    EXPECT_EQ(environment::inherited<sigil::weave::StyleSheet>()->size(), 7u);
+  }
+  EXPECT_EQ(environment::inherited<sigil::weave::StyleSheet>(), nullptr);
+}
+
 /** The four registers a sheet is set in, spelled the long way at the call
  *  site and the theme's way here, must be the same style. */
 TEST(SketchKitTheme, ARegisterIsTheStyleTheCallSiteWouldHaveWritten) {

@@ -39,7 +39,8 @@ struct BorderWeave final : sketch::Sketch {
 distances a sheet is set by, and where a cell's caption lines stand.
 
 It arrives at a component through **`sigil::core::environment`**, the
-reconciler's inherited value, aliased here as `sketch::kit::Provide`:
+reconciler's inherited value, bound here by `sketch::kit::Provide`,
+which binds the theme and, beside it, its registers as classes:
 
 ```cpp
 sketch::kit::Theme sheetTheme() {
@@ -64,6 +65,22 @@ the theme's two faces it takes — and, for the line neither of those is,
 `Register::face`, the face that line names for itself. A masthead whose
 title is a display cut standing over an eyebrow in a grotesque and a
 subtitle in the text face is three faces, and a theme carries two.
+
+**A register is also a partial type for the cascade.** `Theme::font(line)`
+is the register as a `weave::Type` — its face, size and track, no colour,
+so the ink in force paints it — and `Theme::styleSheet()` is all seven as
+classes under their own names: `title`, `subtitle`, `footer`,
+`captionLabel`, `captionNote`, `eyebrow`, `section`. `Provide` binds that
+sheet beside the theme, so under it a leaf is set in a register by name:
+
+```cpp
+compose::text(u8"CALL").styleClass("captionLabel")   // the register, by name
+compose::text(u8"note").font(look.font(look.type.eyebrow))  // or as a value
+```
+
+A sketch whose classes go past the registers starts from `styleSheet()`,
+adds its own with `weave::StyleSheet::set`, and binds theme and sheet
+together with `Provide(look, classes)`.
 
 The face a register takes comes from somewhere, and three fallback runs
 recur across this repository's sheets: the book face, the terminal face
