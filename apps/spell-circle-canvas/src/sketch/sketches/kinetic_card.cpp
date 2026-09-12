@@ -114,13 +114,6 @@ sk_sp<SkTypeface> graded() {
   return sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
 }
 
-weave::TextStyle specimen(SkColor4f colour, sk_sp<SkTypeface> face) {
-  return weave::textStyle({.face = std::move(face),
-                           .size = kSpecimen,
-                           .color = colour,
-                           .track = 1.5f});
-}
-
 /** This card's look: bone on near-black, every line set in the font
  *  context's own face, and one voice for every cell — the call over the
  *  specimen, what it deviates under it. */
@@ -137,6 +130,15 @@ sketch::kit::Theme sheetTheme() {
   look.spacing.marginBottom = 30;
   look.spacing.captionGap = 8;
   return look;
+}
+
+/** The theme's registers as classes, and the specimen's own: the display
+ *  face at kSpecimen, tracked, in whatever ink is in force. */
+weave::StyleSheet sheetClasses() {
+  weave::StyleSheet classes = sheetTheme().styleSheet();
+  classes.set("specimen",
+              {.face = display(), .size = kSpecimen, .track = 1.5f});
+  return classes;
 }
 
 }  // namespace
@@ -176,25 +178,27 @@ struct KineticCard final : sketch::Sketch {
   }
 
   /** One cell: the specimen wearing one track, captioned with the call
-   *  that made it. The meter is not here — it is drawn over the whole
-   *  composition, because `beatsOf` answers in the composer's space. */
-  Element cell(const Row& row, Track track, SkColor4f ink,
-               sk_sp<SkTypeface> face) {
+   *  that made it. @p over is what this cell's specimen changes about the
+   *  register — a face, a colour — and nothing for most. The meter is not
+   *  here — it is drawn over the whole composition, because `beatsOf`
+   *  answers in the composer's space. */
+  Element cell(const Row& row, Track track, weave::Type over = {}) {
     track.progress = &phase;
     track.stagger = kCascade;
-    return sketch::kit::caption(
-        kCell, toUtf8(row.call), toUtf8(row.note),
-        box()
-            .width(Dimension(kCell))
-            .height(Dimension(kBodyH))
-            .child(text(toUtf8(row.word), specimen(ink, std::move(face)))
-                       .key(row.key)
-                       .width(Dimension(kCell))
-                       .fx(std::move(track))));
+    return sketch::kit::caption(kCell, toUtf8(row.call), toUtf8(row.note),
+                                box()
+                                    .width(Dimension(kCell))
+                                    .height(Dimension(kBodyH))
+                                    .child(text(toUtf8(row.word))
+                                               .styleClass("specimen")
+                                               .font(std::move(over))
+                                               .key(row.key)
+                                               .width(Dimension(kCell))
+                                               .fx(std::move(track))));
   }
 
   Element describe(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Provide look(sheetTheme(), sheetClasses());
     const Composer& composer = ctx.composer;
 
     static const Row kRows[9] = {
@@ -236,26 +240,21 @@ struct KineticCard final : sketch::Sketch {
     };
 
     std::vector<Element> cells;
-    cells.push_back(cell(kRows[0], {.effect = fx::rise(26)}, kBone, display()));
-    cells.push_back(
-        cell(kRows[1], {.effect = fx::slide(-32)}, kBone, display()));
-    cells.push_back(
-        cell(kRows[2], {.effect = fx::pop(0.35f, 1.70158f)}, kBone, display()));
-    cells.push_back(
-        cell(kRows[3], {.effect = fx::spinIn(70, 14)}, kBone, display()));
-    cells.push_back(
-        cell(kRows[4], {.effect = fx::scatter(40, 24)}, kBone, display()));
-    cells.push_back(cell(kRows[5], {.effect = fx::typeOn()}, kBone, display()));
+    cells.push_back(cell(kRows[0], {.effect = fx::rise(26)}));
+    cells.push_back(cell(kRows[1], {.effect = fx::slide(-32)}));
+    cells.push_back(cell(kRows[2], {.effect = fx::pop(0.35f, 1.70158f)}));
+    cells.push_back(cell(kRows[3], {.effect = fx::spinIn(70, 14)}));
+    cells.push_back(cell(kRows[4], {.effect = fx::scatter(40, 24)}));
+    cells.push_back(cell(kRows[5], {.effect = fx::typeOn()}));
     cells.push_back(cell(kRows[6],
                          {.effect = fx::variableAxisSweep("GRAD", 400, 1000)},
-                         kBone, graded()));
+                         {.face = graded()}));
     cells.push_back(cell(kRows[7], {.effect = fx::tint(kPale, kAccent)},
-                         kAccent, display()));
+                         {.color = kAccent}));
     // The loop reads the master as a phase rather than as an entrance, so
     // every glyph takes the SAME master and the travelling wave comes from
     // the glyph's own index inside the effect.
-    cells.push_back(cell(kRows[8], {.effect = fx::waveLoop(0.10f, 0.5f)}, kBone,
-                         display()));
+    cells.push_back(cell(kRows[8], {.effect = fx::waveLoop(0.10f, 0.5f)}));
 
     std::vector<Element> shelves;
     for (int r = 0; r < 3; ++r) {
