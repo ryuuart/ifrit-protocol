@@ -30,6 +30,7 @@ Rectangle {
     signal videoRequested
     signal benchRequested
     signal revealRequested
+    signal tagRequested(string path)
 
     color: Theme.rail
 
@@ -125,6 +126,22 @@ Rectangle {
                     color: Theme.muted
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
+                }
+            }
+
+            Flow {
+                Layout.fillWidth: true
+                Layout.preferredHeight: implicitHeight
+                spacing: 5
+                Repeater {
+                    model: rail.sketch.tags ?? []
+                    Button {
+                        required property string modelData
+                        text: modelData.split("/").join(" › ")
+                        font.pixelSize: 10
+                        implicitHeight: 26
+                        onClicked: rail.tagRequested(modelData)
+                    }
                 }
             }
 

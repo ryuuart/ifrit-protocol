@@ -26,6 +26,13 @@ qt_add_executable(Sketchbook
 )
 sigil_qt_target(Sketchbook)
 
+add_test(NAME sketch_browser
+  COMMAND Qt6::qmltestrunner
+    -input ${CMAKE_CURRENT_LIST_DIR}/test/tst_browser.qml
+    -platform offscreen)
+set_tests_properties(sketch_browser PROPERTIES
+  ENVIRONMENT "QT_QUICK_BACKEND=software" TIMEOUT 30)
+
 # A real .app: a bare Mach-O in bin/ gets no bundle identity, so macOS
 # gives it the executable's name in the menu bar and treats activation as
 # a plain process. `--headless` still works through the inner binary
@@ -44,11 +51,12 @@ set_target_properties(Sketchbook PROPERTIES
 # module. Both properties are read when the module is declared, so
 # they are set before it.
 foreach(sketchbook_qml IN ITEMS
-    Main CanvasPane Browser TopBar SketchList SketchGallery PlateThumb Inspector
+    Main CanvasPane Browser GroupTree TopBar SketchList SketchGallery PlateThumb Inspector
     StatusStrip Theme)
   set_source_files_properties(qml/${sketchbook_qml}.qml
     PROPERTIES QT_RESOURCE_ALIAS ${sketchbook_qml}.qml)
 endforeach()
+set_source_files_properties(qml/Groups.js PROPERTIES QT_RESOURCE_ALIAS Groups.js)
 # The palette is one object the whole window paints from, so it is
 # registered as a singleton rather than instantiated per panel.
 set_source_files_properties(qml/Theme.qml
@@ -61,6 +69,8 @@ qt_add_qml_module(Sketchbook
     qml/Main.qml
     qml/CanvasPane.qml
     qml/Browser.qml
+    qml/GroupTree.qml
+    qml/Groups.js
     qml/TopBar.qml
     qml/SketchList.qml
     qml/SketchGallery.qml

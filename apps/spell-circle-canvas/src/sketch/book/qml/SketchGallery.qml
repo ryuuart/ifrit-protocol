@@ -1,5 +1,5 @@
 // Delegates reach outward — a card needs the grid's selection and the
-// window's folder. Bound makes those captures explicit rather than
+// window's selection. Bound makes those captures explicit rather than
 // resolved by scope-chain accident.
 pragma ComponentBehavior: Bound
 
@@ -15,22 +15,17 @@ import Sigil.Sketchbook
 Item {
     id: gallery
 
-    /** The sketches the filter left, already sorted. No headers: a grid
-     *  reads by picture, and the folders are the chips over it. */
+    /** The filtered sketches in display order. */
     property var cards: []
     /** The catalog cards request their thumbnails from. */
     property var catalog: null
     /** Learned session facts overlaid by sketchIndex without resetting cards. */
     property var learnedSketches: ({})
-    /** Every folder with a count, plus the one that is on. */
-    property var folders: []
-    property string folder: ""
     property int selectedIndex: -1
     property int presentedIndex: -1
 
     signal selectRequested(int index)
     signal activateRequested(int index)
-    signal folderRequested(string folder)
     signal stepRequested(int delta)
 
     function focusRows() {
@@ -53,110 +48,9 @@ Item {
     function columns() {
         return Math.max(1, Math.floor(grid.width / 230));
     }
-    function folderIndex() {
-        for (let index = 0; index < gallery.folders.length; ++index)
-            if (gallery.folders[index].folder === gallery.folder)
-                return index;
-        return 0;
-    }
-
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
-
-        // ---- The folder lens ------------------------------------------------
-        // A registry has too many folders for a strip of clipped chips. The
-        // selector gives the full row to one name and the popup gives every
-        // folder the same aligned name/count columns.
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 46
-            color: "transparent"
-
-            Rectangle {
-                anchors.bottom: parent.bottom
-                width: parent.width
-                height: 1
-                color: Theme.ruleSoft
-            }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                anchors.topMargin: 7
-                anchors.bottomMargin: 7
-                spacing: 9
-
-                Label {
-                    text: "FOLDER"
-                    color: Theme.faint
-                    font.family: Theme.mono
-                    font.pixelSize: 9
-                    font.letterSpacing: 0.6
-                }
-
-                ComboBox {
-                    id: folderChoice
-
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 30
-                    model: gallery.folders
-                    currentIndex: gallery.folderIndex()
-                    textRole: "label"
-                    valueRole: "folder"
-                    displayText: currentIndex >= 0 ? gallery.folders[currentIndex].label + "  ·  " + gallery.folders[currentIndex].count : ""
-                    font.pixelSize: 11
-                    onActivated: gallery.folderRequested(currentValue)
-
-                    contentItem: Label {
-                        leftPadding: 9
-                        rightPadding: 28
-                        text: folderChoice.displayText
-                        color: Theme.label
-                        font: folderChoice.font
-                        verticalAlignment: Text.AlignVCenter
-                        elide: Text.ElideRight
-                    }
-
-                    background: Rectangle {
-                        radius: 6
-                        color: Theme.ground
-                        border.width: 1
-                        border.color: folderChoice.activeFocus ? Theme.accent : Theme.selection
-                    }
-
-                    delegate: ItemDelegate {
-                        id: folderRow
-
-                        required property int index
-                        required property var modelData
-
-                        width: folderChoice.popup.width
-                        height: 30
-                        highlighted: folderChoice.highlightedIndex === index
-
-                        contentItem: RowLayout {
-                            spacing: 8
-                            Label {
-                                Layout.fillWidth: true
-                                text: folderRow.modelData.label
-                                color: Theme.text
-                                font.pixelSize: 11
-                                elide: Text.ElideRight
-                            }
-                            Label {
-                                text: folderRow.modelData.count
-                                color: Theme.faint
-                                font.family: Theme.mono
-                                font.pixelSize: 10
-                                horizontalAlignment: Text.AlignRight
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         GridView {
             id: grid

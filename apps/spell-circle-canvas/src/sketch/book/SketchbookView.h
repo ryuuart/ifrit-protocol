@@ -194,8 +194,8 @@ class SketchbookView : public QQuickRhiItem {
   /** Published by the renderer from the running session: where the
    *  sketch is seen from, whether or not a pointer has moved it. */
   sigil::geometry::mesh::camera::Orbit m_orbit;
-  QVariantMap m_metrics = {{QStringLiteral("backend"),
-                            QStringLiteral("hardware QRhi renderer required")}};
+  QVariantMap m_metrics = {
+      {QStringLiteral("backend"), QStringLiteral("Waiting for a sketch")}};
   QString m_status;
   QString m_errorLog;
   QString m_state = QStringLiteral("waiting");

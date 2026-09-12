@@ -19,7 +19,6 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Dialogs
 import QtQuick.Layouts
-import Ifrit.Ui 1.0 as Ui
 import Sigil.Sketchbook
 
 ApplicationWindow {
@@ -56,8 +55,11 @@ ApplicationWindow {
         property string viewMode: "list"
         property bool inspectorOpen: true
         property real browserWidth: 540
-        property string sortKey: "folder"
+        property string sortKey: "name"
         property bool sortAscending: true
+        property string groupMode: "subjects"
+        property string groupPath: ""
+        property var expandedGroups: ({})
     }
 
     // ---- The rows, and what the window remembers about them --------------
@@ -70,6 +72,7 @@ ApplicationWindow {
     }
 
     property bool inspectorOpen: true
+    property bool restoringSettings: true
     /** The sketch the canvas opens on — named on the command line, or the
      *  first row. */
     readonly property int openAt: catalog.openIndex
@@ -79,6 +82,15 @@ ApplicationWindow {
     // window comes up on the browser they left.
     Connections {
         target: browser
+        function onGroupModeChanged() {
+            if (!window.restoringSettings) settings.groupMode = browser.groupMode;
+        }
+        function onGroupPathChanged() {
+            if (!window.restoringSettings) settings.groupPath = browser.groupPath;
+        }
+        function onExpandedGroupsChanged() {
+            if (!window.restoringSettings) settings.expandedGroups = browser.expandedGroups;
+        }
         function onViewModeChanged() { settings.viewMode = browser.viewMode; }
         function onSortKeyChanged() { settings.sortKey = browser.sortKey; }
         function onSortAscendingChanged() {
@@ -171,7 +183,8 @@ ApplicationWindow {
             browser.overlayRow(learned);
         }
         function onSketchIndexChanged() {
-            browser.selectedIndex = view.sketchIndex;
+            if (browser.rowForSketch(view.sketchIndex) >= 0)
+                browser.selectedIndex = view.sketchIndex;
         }
     }
 
@@ -210,7 +223,11 @@ ApplicationWindow {
         window.inspectorOpen = settings.inspectorOpen;
         browser.sortKey = settings.sortKey;
         browser.sortAscending = settings.sortAscending;
+        browser.expandedGroups = settings.expandedGroups;
+        browser.groupMode = settings.groupMode;
+        browser.groupPath = settings.groupPath;
         browser.openOn(window.openAt);
+        window.restoringSettings = false;
         // THE LOADING PHASE. Every sketch with no still gets one while
         // nothing is being presented, which is the only stretch in which
         // the machine is the fill's alone; opening a sketch ends it, and
@@ -233,13 +250,12 @@ ApplicationWindow {
             total: catalog.sketches.length
             shown: browser.cards.length
             viewMode: browser.viewMode
-            inspectorOpen: window.inspectorOpen
+            inspectorOpen: inspector.visible
+            inspectorAvailable: window.width >= 1100
             taskRunning: actions.taskRunning
-            onFilterTextChanged: browser.filterText = topBar.filterText
-            onViewModeRequested: mode => {
-                browser.viewMode = mode;
-                browser.reveal();
-            }
+            filterText: browser.filterText
+            onFilterRequested: text => browser.filterText = text
+            onViewModeRequested: mode => browser.chooseView(mode)
             onInspectorToggled: window.inspectorOpen = !window.inspectorOpen
             onVideoRequested: window.exportVideo(-1)
             onSteppedOut: {
@@ -261,6 +277,19 @@ ApplicationWindow {
                      : (SplitHandle.hovered ? "#2a2350" : Theme.rule)
             }
 
+            GroupTree {
+                SplitView.preferredWidth: 200
+                SplitView.minimumWidth: 160
+                SplitView.maximumWidth: 320
+                rows: browser.navigationRows
+                mode: browser.groupMode
+                selectedPath: browser.groupPath
+                count: browser.matchingCount
+                onGroupRequested: path => browser.chooseGroup(path)
+                onModeRequested: mode => browser.chooseMode(mode)
+                onBranchToggled: path => browser.toggleGroup(path)
+            }
+
             // ---- The browser ----
             Rectangle {
                 id: browserPane
@@ -277,13 +306,113 @@ ApplicationWindow {
                 Component.onDestruction:
                     settings.browserWidth = browserPane.width
 
+                Rectangle {
+                    id: groupHeading
+
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    height: 76
+                    color: Theme.panel
+
+                    RowLayout {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        height: 38
+                        anchors.leftMargin: 14
+                        anchors.rightMargin: 10
+                        spacing: 8
+                        Label {
+                            Layout.fillWidth: true
+                            text: browser.groupPath.length
+                                ? browser.groupPath.split("/").join("  ›  ") : "All sketches"
+                            color: Theme.text
+                            font.pixelSize: 12
+                            elide: Text.ElideRight
+                        }
+                        Label {
+                            text: browser.cards.length
+                            color: Theme.muted
+                            font.family: Theme.mono
+                            font.pixelSize: 10
+                        }
+                        ToolButton {
+                            visible: browser.groupPath.length > 0
+                            text: "×"
+                            implicitWidth: 24
+                            implicitHeight: 24
+                            Accessible.name: "Clear group"
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Clear the group and keep the search"
+                            onClicked: browser.chooseGroup("")
+                        }
+                    }
+                    RowLayout {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        anchors.leftMargin: 14
+                        anchors.rightMargin: 10
+                        anchors.bottomMargin: 6
+                        height: 28
+                        spacing: 6
+
+                        Label {
+                            text: "Sort"
+                            color: Theme.muted
+                            font.pixelSize: 11
+                        }
+                        ComboBox {
+                            Layout.fillWidth: true
+                            Layout.maximumWidth: 170
+                            implicitHeight: 28
+                            model: browser.sortOptions
+                            textRole: "label"
+                            valueRole: "key"
+                            currentIndex: browser.sortOptions.findIndex(function(option) {
+                                return option.key === browser.sortKey;
+                            })
+                            font.pixelSize: 11
+                            Accessible.name: "Sort sketches by"
+                            onActivated: browser.sortKey = currentValue
+                        }
+                        ToolButton {
+                            text: browser.sortAscending ? "↑" : "↓"
+                            implicitWidth: 26
+                            implicitHeight: 28
+                            Accessible.name: browser.sortAscending ? "Sort descending" : "Sort ascending"
+                            ToolTip.visible: hovered
+                            ToolTip.text: browser.sortAscending ? "Ascending; click to reverse" : "Descending; click to reverse"
+                            onClicked: browser.sortAscending = !browser.sortAscending
+                        }
+                        Item { Layout.fillWidth: true }
+                        Button {
+                            text: "Clear filters"
+                            visible: browser.hasFilters
+                            implicitHeight: 28
+                            font.pixelSize: 11
+                            onClicked: browser.clearFilters()
+                        }
+                    }
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        height: 1
+                        color: Theme.rule
+                    }
+                }
+
                 SketchList {
                     id: sketchList
 
-                    anchors.fill: parent
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: groupHeading.bottom
+                    anchors.bottom: parent.bottom
                     visible: browser.viewMode === "list"
                     catalog: catalog
-                    rows: browser.rows
+                    rows: browser.cards
                     learnedSketches: browser.learnedSketches
                     selectedIndex: browser.selectedIndex
                     presentedIndex: view.sketchIndex
@@ -291,7 +420,6 @@ ApplicationWindow {
                     sortAscending: browser.sortAscending
                     onSelectRequested: index => browser.select(index)
                     onActivateRequested: index => window.activate(index)
-                    onGroupToggled: name => browser.toggleGroup(name)
                     onSortRequested: key => browser.sortBy(key)
                     onStepRequested: delta => browser.step(delta)
                 }
@@ -299,19 +427,32 @@ ApplicationWindow {
                 SketchGallery {
                     id: gallery
 
-                    anchors.fill: parent
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: groupHeading.bottom
+                    anchors.bottom: parent.bottom
                     visible: browser.viewMode === "gallery"
                     catalog: catalog
                     cards: browser.cards
                     learnedSketches: browser.learnedSketches
-                    folders: browser.folders
-                    folder: browser.folder
                     selectedIndex: browser.selectedIndex
                     presentedIndex: view.sketchIndex
                     onSelectRequested: index => browser.select(index)
                     onActivateRequested: index => window.activate(index)
-                    onFolderRequested: name => browser.folder = name
                     onStepRequested: delta => browser.step(delta)
+                }
+                Label {
+                    anchors.centerIn: parent
+                    width: parent.width - 40
+                    visible: browser.cards.length === 0
+                    text: browser.filterText.length
+                        ? "No sketches match this search in "
+                          + (browser.groupPath || "All sketches") + "."
+                        : "No sketches in this group."
+                    color: Theme.muted
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
                 }
             }
 
@@ -331,7 +472,7 @@ ApplicationWindow {
                 SplitView.preferredWidth: 350
                 SplitView.minimumWidth: 280
                 SplitView.maximumWidth: 520
-                visible: window.inspectorOpen
+                visible: window.inspectorOpen && window.width >= 1100
                 catalog: catalog
                 sketch: browser.selectedSketch
                 presented: browser.selectedIndex === view.sketchIndex
@@ -343,6 +484,10 @@ ApplicationWindow {
                 onVideoRequested: window.exportVideo(browser.selectedIndex)
                 onBenchRequested: actions.bench(browser.selectedSketch)
                 onRevealRequested: actions.reveal(browser.selectedSketch)
+                onTagRequested: path => {
+                    browser.chooseMode("subjects");
+                    browser.chooseGroup(path);
+                }
             }
         }
 

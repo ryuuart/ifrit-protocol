@@ -3,9 +3,7 @@
 // resolved by scope-chain accident.
 pragma ComponentBehavior: Bound
 
-// THE DEFAULT WAY THROUGH THE REGISTRY: one line per sketch, folded into
-// its folder, with the facts that separate one sketch from another laid
-// out in columns a click can sort.
+// The selected group as rows with sortable columns.
 
 import QtQuick
 import QtQuick.Controls.Basic
@@ -15,9 +13,7 @@ import Sigil.Sketchbook
 Item {
     id: list
 
-    /** Headers and sketches in one flat array: one ListView, one current
-     *  index, and arrow keys that work. Every row carries the same
-     *  fields, so a delegate never reads `undefined` off the other kind. */
+    /** The filtered sketches in display order. */
     property var rows: []
     /** The catalog rows request their thumbnails from. */
     property var catalog: null
@@ -28,12 +24,11 @@ Item {
      *  first without disturbing the second. */
     property int selectedIndex: -1
     property int presentedIndex: -1
-    property string sortKey: "folder"
+    property string sortKey: "name"
     property bool sortAscending: true
 
     signal selectRequested(int index)
     signal activateRequested(int index)
-    signal groupToggled(string folder)
     signal sortRequested(string key)
     signal stepRequested(int delta)
 
@@ -63,9 +58,7 @@ Item {
     readonly property int gap: 10
 
     // THE COLUMNS GIVE WAY FROM THE RIGHT as the pane narrows, and the
-    // name never does: a row with no name is not a narrower row, it is
-    // an unreadable one. The folder goes first because a grouped list
-    // already says it in the heading above.
+    // name never does: a row with no name is unreadable.
     readonly property bool showFolder: list.width > 700
     readonly property bool showCanvas: list.width > 520
     readonly property bool showMoment: list.width > 460
@@ -162,7 +155,7 @@ Item {
             model: list.rows
             currentIndex: -1
             // A row's position says nothing about which sketch it holds
-            // — the list is folded, filtered and sorted — so the arrows
+            // — the list is filtered and sorted — so the arrows
             // move over the model rather than over the view.
             keyNavigationEnabled: false
             cacheBuffer: 400
@@ -176,88 +169,23 @@ Item {
             readonly property real rowWidth:
                 rowList.width - (rowScroll.visible ? rowScroll.width : 0)
 
-            // One delegate, two faces. A Loader per row would have to
-            // hand the row down through a required property after
-            // construction, which is what required properties forbid;
-            // cheap Items cost less than that fight.
             delegate: Item {
                 id: row
 
                 required property var modelData
-                readonly property var recordedSketch: row.modelData.sketch
+                readonly property var recordedSketch: row.modelData
                 readonly property var sketch:
                     list.learnedSketches[row.recordedSketch.sketchIndex]
                         ?? row.recordedSketch
 
                 width: rowList.rowWidth
-                height: row.modelData.header ? 30 : 48
-
-                // ---- A folder ----
-                Rectangle {
-                    anchors.fill: parent
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: 8
-                    visible: row.modelData.header
-                    color: "transparent"
-
-                    Rectangle {
-                        anchors.bottom: parent.bottom
-                        width: parent.width
-                        height: 1
-                        color: Theme.rule
-                    }
-
-                    RowLayout {
-                        id: folderRow
-
-                        anchors.fill: parent
-                        anchors.leftMargin: 4
-                        spacing: 6
-
-                        Label {
-                            // Fixed width so every folder name starts at
-                            // the same x whichever way the mark points.
-                            Layout.preferredWidth: 10
-                            horizontalAlignment: Text.AlignHCenter
-                            text: row.modelData.collapsed ? "▶" : "▼"
-                            color: Theme.label
-                            font.pixelSize: 8
-                        }
-                        Label {
-                            // The count sits against the name rather
-                            // than at the far edge: it is part of what
-                            // the folder is called, not a column.
-                            Layout.maximumWidth: folderRow.width - 60
-                            text: row.modelData.folder
-                            color: Theme.label
-                            font.pixelSize: 10
-                            font.letterSpacing: 0.8
-                            font.capitalization: Font.AllUppercase
-                            elide: Text.ElideRight
-                        }
-                        Label {
-                            text: row.modelData.count
-                            color: Theme.faint
-                            font.family: Theme.mono
-                            font.pixelSize: 10
-                        }
-                        Item { Layout.fillWidth: true }
-                    }
-
-                    TapHandler {
-                        onTapped: {
-                            list.groupToggled(row.modelData.folder);
-                            rowList.forceActiveFocus();
-                        }
-                    }
-                }
+                height: 48
 
                 // ---- A sketch ----
                 Rectangle {
                     anchors.fill: parent
                     anchors.leftMargin: 6
                     anchors.rightMargin: 6
-                    visible: !row.modelData.header
                     radius: 6
                     color: list.selectedIndex === row.sketch.sketchIndex
                         ? Theme.hover

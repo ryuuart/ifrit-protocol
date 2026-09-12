@@ -867,22 +867,43 @@ after another, so the two questions are kept apart:
   the arrows back. A sketch with nothing for a pointer to do ignores what
   arrives, and a drag over a set still orbits it.
 
-Two views over the same rows, and the toggle is in the top bar:
+The navigation rail groups sketches by **subject**, using tags from each
+sketch's opening comment. Paths such as `Typography/Paragraph` make an
+expandable tree. Selecting a parent includes all its descendants; a sketch
+with several tags appears in several groups, while every count and result
+list includes that sketch only once. Expanding a branch changes the tree
+without rebuilding the result views or changing the canvas.
 
-* **the list** (the default) — one line per sketch, folded into its
-  folder, with the thumbnail, the blurb, the folder, the runtime, the
-  canvas, the declared moment and the line count in columns. Clicking a
-  column heading orders by it and clicking again reverses; ordering by
-  anything but `folder` flattens the folds, because a column you asked to
-  read down is one you want to read without interruptions.
-* **the gallery** — every sketch as its own still, with the folders as
-  chips across the top.
+The rail's **Collections** option builds a tree from registration categories:
+`Study · Type` becomes Study → Type. These are logical groups independent of
+source directories. **All sketches** clears the group filter, and **Untagged**
+keeps sketches without subject tags reachable. The selected group, grouping
+mode and expanded branches survive relaunches; each group and search keeps
+separate list and gallery scroll positions during the run. The inspector's
+tag buttons open the corresponding subject group.
+
+Two views share the selected group, search and sort order, with a toggle in
+the top bar. Both show the same sort selector and direction above their
+results. Switching views preserves the selection and each view's scroll
+position; it does not jump to the selected sketch. Equal sort values,
+including unknown session facts, are ordered by name so narrowing a search
+does not reshuffle ties.
+
+* **the list** (the default) — one row per sketch, with the thumbnail,
+  blurb, collection, runtime, canvas, declared moment and line count in
+  columns. Clicking a column heading orders by it; clicking again reverses.
+* **the gallery** — every matching sketch as its own still.
 
 The filter takes free words and field words together, and every word has
-to match: a free word narrows on the name, the folder, the blurb and the
-file stem at once, while `folder:` and `kind:` narrow on that field
-alone — so `folder:study kind:canvas rain` is one question, not three.
-`/` puts the cursor in it and Escape empties it.
+to match. Free words search names, categories, tags, blurbs and file stems;
+`folder:`, `tag:` and `kind:` narrow on their respective fields. For example,
+`tag:typography tag:motion` finds sketches tagged with both subjects.
+Navigation counts show search hits before the selected group narrows them,
+so another branch says how many results selecting it would show. A selected
+group with no hits keeps its name and shows an empty-state message.
+`/` puts the cursor in the search field and Escape empties it. **Clear
+filters** clears both the search text and selected group in either view;
+the smaller clear controls remove only their own search or group.
 
 **The thumbnails are the app's own.** Sketchbook keeps one store — one PNG
 per sketch, under the platform cache location (`--thumbnails-dir` and the
@@ -955,9 +976,8 @@ guessing.
 
 ### How a sketch introduces itself
 
-The inspector shows two blocks read from the top of the sketch's own
-file. The rule is small on purpose, and it is stated here so an author
-can write to it:
+The inspector reads prose and subject tags from the top of the sketch's
+own file. The rule is small on purpose, so an author can write to it:
 
 The header is every line from the first line of the file down to the
 first line that is neither a comment nor blank — a run of line comments,
@@ -977,8 +997,14 @@ rule lines (a line of nothing but `=` or `-`).
   per knob: a line indented deeper than the first is an entry that ran
   past the file's own margin, and it rejoins the line above.
 
-Neither is required. A file with neither shows neither, and nothing about
-a sketch depends on writing one.
+* **Tags** come from lines beginning `TAGS:`. Commas separate paths and
+  slashes nest subjects: `// TAGS: Typography/Paragraph, Motion/Text` files
+  one sketch in both groups. Spaces around components and empty components
+  are removed; repeated paths count once. Tag lines never become subject
+  prose or editing instructions.
+
+All three are optional. A file without prose omits those blocks, and a file
+without tags remains available under Untagged and its collection.
 
 ## Plates
 

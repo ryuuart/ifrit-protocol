@@ -17,12 +17,14 @@ Rectangle {
     /** How many sketches there are, and how many the filter leaves. */
     property int total: 0
     property int shown: 0
-    /** "list" or "gallery". Written here, read by the window. */
+    /** The selected presentation of the shared results. */
     property string viewMode: "list"
     property bool inspectorOpen: true
+    property bool inspectorAvailable: true
     property bool taskRunning: false
-    property alias filterText: field.text
+    property string filterText: ""
 
+    signal filterRequested(string text)
     signal viewModeRequested(string mode)
     signal inspectorToggled
     signal videoRequested
@@ -112,7 +114,9 @@ Rectangle {
                     id: field
 
                     Layout.fillWidth: true
-                    placeholderText: "filter — name, folder, blurb, file, or folder: kind:"
+                    text: bar.filterText
+                    onTextEdited: bar.filterRequested(text)
+                    placeholderText: "Search sketches, tags…  tag:  kind:  folder:"
                     color: Theme.text
                     placeholderTextColor: Theme.faintest
                     font.pixelSize: 12
@@ -121,7 +125,7 @@ Rectangle {
                     // Escape clears rather than losing focus: the filter
                     // is a lens, and putting it down should be one key
                     // rather than select-all-delete.
-                    Keys.onEscapePressed: field.text = ""
+                    Keys.onEscapePressed: bar.filterRequested("")
                     Keys.onDownPressed: bar.steppedOut()
                     Keys.onReturnPressed: bar.steppedOut()
                 }
@@ -131,7 +135,8 @@ Rectangle {
                     font.pixelSize: 15
                     implicitWidth: 22
                     implicitHeight: 22
-                    onClicked: field.text = ""
+                    Accessible.name: "Clear search"
+                    onClicked: bar.filterRequested("")
                 }
             }
         }
@@ -205,13 +210,14 @@ Rectangle {
         // read.
         ToolButton {
             text: bar.inspectorOpen ? "❯" : "❮"
+            enabled: bar.inspectorAvailable
             font.pixelSize: 11
             implicitWidth: 26
             implicitHeight: 26
             ToolTip.visible: hovered
             ToolTip.delay: 700
-            ToolTip.text: bar.inspectorOpen ? "Close the inspector"
-                                            : "Open the inspector"
+            ToolTip.text: !bar.inspectorAvailable ? "Widen the window to show the inspector"
+                : (bar.inspectorOpen ? "Close the inspector" : "Open the inspector")
             onClicked: bar.inspectorToggled()
         }
     }
