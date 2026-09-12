@@ -65,10 +65,17 @@ const char* kNote = "which a text sets small and doubled inside the line";
 constexpr SkColor4f kBody{0.86f, 0.87f, 0.90f, 1};
 constexpr SkColor4f kSlot{0.16f, 0.17f, 0.20f, 1};
 
-weave::TextStyle serif(float size, SkColor4f color) {
-  const sk_sp<SkTypeface> face = weave::ports::face(
+sk_sp<SkTypeface> serif() {
+  return weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
+}
+
+/** The note's type: the paragraph the split is asked about is set in it
+ *  whole, and every drawn note inherits it from the slot it stands in. */
+weave::Type noteType() {
+  return {.face = serif(),
+          .size = kNoteSize,
+          .color = sketch::kit::theme().palette.figure};
 }
 
 /** UTF-16 back to UTF-8 for the two halves of a Latin note. The note is
@@ -99,24 +106,23 @@ struct WarichuPlaceholder final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     // The note as a paragraph of its own, which is what the split is asked
     // about: its size, its face and its language are the note's, and the
     // base has no say in any of them.
-    weave::Paragraph note = weave::ParagraphBuilder(serif(kNoteSize, figure))
-                                .addText(toUtf8(kNote))
-                                .build();
+    const weave::TextStyle noteStyle = weave::textStyle(noteType());
+    weave::Paragraph note =
+        weave::ParagraphBuilder(noteStyle).addText(toUtf8(kNote)).build();
     split = weave::warichuSplit(*ctx.fonts, note);
 
-    const std::u16string& text = note.text();
+    const std::u16string& utf16 = note.text();
     const uint32_t cut = split.cutWord < note.words().size()
                              ? note.words()[split.cutWord].textBegin
-                             : static_cast<uint32_t>(text.size());
-    first = narrow(std::u16string_view(text).substr(0, cut));
-    second = narrow(std::u16string_view(text).substr(cut));
+                             : static_cast<uint32_t>(utf16.size());
+    first = narrow(std::u16string_view(utf16).substr(0, cut));
+    second = narrow(std::u16string_view(utf16).substr(cut));
 
-    oneLine = ctx.measure(box().child(text_(kNote))).width();
+    oneLine = ctx.measure(box().child(text(toUtf8(kNote), noteStyle))).width();
     report[0] = kit::formatted("one line \xc2\xb7 advance %.1f px", oneLine);
     report[1] = kit::formatted("split \xc2\xb7 advance %.1f \xc2\xb7 band %.1f",
                                split.advance, split.band);
@@ -140,25 +146,24 @@ struct WarichuPlaceholder final : sketch::Sketch {
                     .gap = 14})));
   }
 
-  Element text_(const char* utf8) {
-    return text(toUtf8(utf8),
-                serif(kNoteSize, sketch::kit::theme().palette.figure));
-  }
-
   /** The base sentence, with one inline slot in the middle of it. */
   Element based(SkSize slot, Element child, bool vertical = false) {
     Element leaf =
-        text(weave::rich(serif(kBaseSize, kBody))
+        text(weave::rich()
                  .add(u8"A warichu ")
                  .slot("note", slot, kDrop)
                  .add(u8" interrupts the line it stands in, rather than "
                       u8"standing beside it."))
+            // Track nought: the page's running text is tracked; a serif is not.
+            .font({.face = serif(), .size = kBaseSize, .track = 0.0f})
+            .ink(kBody)
             .width(Dimension(kCell - 24))
             // The band goes into the block's strut, so the base's own
-            // pitch opens to hold the note.
+            // pitch opens to hold the note; the slot sets the note's type.
             .child(box()
                        .key("note")
                        .fill(Fill::color(kSlot))
+                       .font(noteType())
                        .child(std::move(child)));
     if (vertical) {
       leaf.writingMode(weave::WritingMode::kVerticalRL)
@@ -174,7 +179,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
     return cell("slot(\"note\", {one line, band})",
                 "the aside set as a single line \xc2\xb7 it takes the base's "
                 "whole measure and the line it interrupts has nowhere to go",
-                based({oneLine, kNoteSize * 1.4f}, text_(kNote)));
+                based({oneLine, kNoteSize * 1.4f}, text(toUtf8(kNote))));
   }
 
   /** The two lines, cut where the split said, stacked across the band it
@@ -204,9 +209,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
   Element stackedNote(bool vertical = false) {
     const float half = split.band * 0.5f;
     const auto row = [&](const std::u8string& text8, float along) {
-      Element leaf =
-          text(text8, serif(kNoteSize, sketch::kit::theme().palette.figure))
-              .absolute();
+      Element leaf = text(text8).absolute();
       if (vertical) {
         // The band is ACROSS the column in a vertical setting, so the two
         // lines stand side by side and each runs down the note's advance.
