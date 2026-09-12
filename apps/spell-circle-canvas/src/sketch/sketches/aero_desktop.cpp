@@ -40,7 +40,6 @@
 #include <cmath>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
@@ -70,17 +69,6 @@ constexpr float kTaskbarH = 40;
 
 // Win7 "Sky" accent (registry): #74B8FC.
 constexpr SkColor4f kSky{0.455f, 0.722f, 0.988f, 1};
-
-/** This chrome's type colour reaches the paint as 8-bit sRGB: a grey
- *  computed per frame lands on the same 256-step ladder as one quoted off
- *  the capture, which is the ladder the reference itself was drawn on.
- *  A style that carries the float through instead lands between two
- *  rungs, and the device raster resolves the two differently. */
-inline sigil::weave::TextStyle type(float size, SkColor4f color,
-                                    float tracking = 0) {
-  return sigil::weave::textStyle(
-      {.size = size, .color = color, .track = tracking, .color8 = true});
-}
 
 // The aurora wallpaper: deep vertical ground, flowing diagonal light
 // bands, fine filaments + speckle stars (high-frequency detail so the
@@ -360,8 +348,9 @@ struct AeroDesktop final : sketch::Sketch {
     return box()
         .inset(36, 8, 130, ad::kWH - ad::kCaption)
         .child(
-            text(toUtf8("Aurora Borealis \xe2\x80\x94 Aero Glass"),
-                 ad::type(12.5f, {0.05f, 0.05f, 0.05f, 1}))
+            text(toUtf8("Aurora Borealis \xe2\x80\x94 Aero Glass"))
+                .font(
+                    {.size = 12.5f, .color = SkColor4f{0.05f, 0.05f, 0.05f, 1}})
                 .inset(0, 0, 0, 0)
                 .effect(styles::textGlow({1, 1, 1, 0.90f}, 2.2f)
                             .then(styles::textGlow({1, 1, 1, 0.50f}, 4.5f))));
@@ -370,14 +359,14 @@ struct AeroDesktop final : sketch::Sketch {
   // ---- the client area (white, so the glass frame reads) --------------
   Element clientArea() {
     namespace ad = aero_desktop;
-    auto gray = [](float size, float g, float a = 1.0f) {
-      return ad::type(size, {g, g, g, a});
-    };
+    // every label in the pane is 12 px; each names its own grey
+    auto gray = [](float g) { return SkColor4f{g, g, g, 1}; };
     const float clientH = ad::kWH - ad::kCT - ad::kCB;
     return box()
         .inset(ad::kCL, ad::kCT, ad::kCR, ad::kCB)
         .fill(Fill::color({1, 1, 1, 1}))
         .clip()
+        .font({.size = 12})
         // toolbar strip
         .child(box()
                    .inset(0, 0, 0, clientH - 34)
@@ -388,8 +377,8 @@ struct AeroDesktop final : sketch::Sketch {
                    .inset(0, 34, 0, clientH - 35)
                    .fill(Fill::color({0.71f, 0.76f, 0.82f, 1})))
         .child(text(toUtf8("Organize \xe2\x96\xbe      "
-                           "Share with \xe2\x96\xbe      Burn"),
-                    gray(12, 0.28f))
+                           "Share with \xe2\x96\xbe      Burn"))
+                   .ink(gray(0.28f))
                    .inset(14, 9, 0, 0))
         // left navigation pane
         .child(box()
@@ -400,14 +389,16 @@ struct AeroDesktop final : sketch::Sketch {
                    .inset(150, 35, 0, 0)
                    .width(1)
                    .fill(Fill::color({0.88f, 0.90f, 0.93f, 1})))
-        .child(text(toUtf8("\xe2\x98\x85 Favorites"), gray(12, 0.25f))
+        .child(text(toUtf8("\xe2\x98\x85 Favorites"))
+                   .ink(gray(0.25f))
                    .inset(12, 48, 0, 0))
-        .child(text(toUtf8("Desktop"), gray(12, 0.42f)).inset(30, 70, 0, 0))
-        .child(text(toUtf8("Downloads"), gray(12, 0.42f)).inset(30, 90, 0, 0))
-        .child(text(toUtf8("\xe2\x96\xa3 Libraries"), gray(12, 0.25f))
+        .child(text(toUtf8("Desktop")).ink(gray(0.42f)).inset(30, 70, 0, 0))
+        .child(text(toUtf8("Downloads")).ink(gray(0.42f)).inset(30, 90, 0, 0))
+        .child(text(toUtf8("\xe2\x96\xa3 Libraries"))
+                   .ink(gray(0.25f))
                    .inset(12, 118, 0, 0))
-        .child(text(toUtf8("Documents"), gray(12, 0.42f)).inset(30, 140, 0, 0))
-        .child(text(toUtf8("Pictures"), gray(12, 0.42f)).inset(30, 160, 0, 0))
+        .child(text(toUtf8("Documents")).ink(gray(0.42f)).inset(30, 140, 0, 0))
+        .child(text(toUtf8("Pictures")).ink(gray(0.42f)).inset(30, 160, 0, 0))
         // main pane: a selected row + file rows
         .child(box()
                    .inset(162, 50, 12, 0)
@@ -417,15 +408,18 @@ struct AeroDesktop final : sketch::Sketch {
                                        {{0.0f, {0.86f, 0.92f, 0.98f, 1}},
                                         {1.0f, {0.74f, 0.85f, 0.96f, 1}}}))
                    .stroke(stroke(1, Fill::color({0.52f, 0.70f, 0.88f, 1}))))
-        .child(text(toUtf8("aurora_over_tromso.jpg"), gray(12, 0.15f))
+        .child(text(toUtf8("aurora_over_tromso.jpg"))
+                   .ink(gray(0.15f))
                    .inset(172, 54, 0, 0))
-        .child(text(toUtf8("colorization_formula.txt"), gray(12, 0.35f))
+        .child(text(toUtf8("colorization_formula.txt"))
+                   .ink(gray(0.35f))
                    .inset(172, 82, 0, 0))
-        .child(text(toUtf8("blurdeviation_30.reg"), gray(12, 0.35f))
+        .child(text(toUtf8("blurdeviation_30.reg"))
+                   .ink(gray(0.35f))
                    .inset(172, 106, 0, 0))
-        .child(
-            text(toUtf8("sky_74B8FC_balances_8_43_49.theme"), gray(12, 0.35f))
-                .inset(172, 130, 0, 0));
+        .child(text(toUtf8("sky_74B8FC_balances_8_43_49.theme"))
+                   .ink(gray(0.35f))
+                   .inset(172, 130, 0, 0));
   }
 
   // ---- the window ------------------------------------------------------
@@ -680,10 +674,12 @@ struct AeroDesktop final : sketch::Sketch {
                               .stroke(stroke(1, Fill::color({0.55f, 0.40f,
                                                              0.10f, 0.8f})))))
         // tray clock, pinned to the right edge (right-aligned for free)
-        .child(text(toUtf8("4:20 PM"), ad::type(12, {1, 1, 1, 0.92f}))
+        .child(text(toUtf8("4:20 PM"))
+                   .font({.size = 12, .color = SkColor4f{1, 1, 1, 0.92f}})
                    .top(13)
                    .right(10))
-        .child(text(toUtf8("11/8/2006"), ad::type(10, {1, 1, 1, 0.65f}))
+        .child(text(toUtf8("11/8/2006"))
+                   .font({.size = 10, .color = SkColor4f{1, 1, 1, 0.65f}})
                    .top(27)
                    .right(10));
   }
@@ -696,12 +692,13 @@ struct AeroDesktop final : sketch::Sketch {
           .inset(0, 52, 0, 0)
           .row()
           .justify(Justify::Center)
-          .child(text(toUtf8(label), ad::type(11.5f, c)));
+          .child(text(toUtf8(label)).ink(c));
     };
     return box()
         .inset(x, y, 0, 0)
         .width(92)
         .height(72)
+        .font({.size = 11.5f})
         .child(box().inset(24, 2, 24, 26).child(std::move(glyph)))
         .child(lbl({0, 0, 0, 0.85f})
                    .effect(sigil::material::skia::Effect::filter(
@@ -746,6 +743,13 @@ struct AeroDesktop final : sketch::Sketch {
   Element describe() {
     namespace ad = aero_desktop;
     return stack()
+        // THIS CHROME'S TYPE COLOUR REACHES THE PAINT AS 8-BIT sRGB, stated
+        // once here and inherited by every run: a grey computed per frame
+        // lands on the same 256-step ladder as one quoted off the capture,
+        // which is the ladder the reference itself was drawn on. A style
+        // that carries the float through instead lands between two rungs,
+        // and the device raster resolves the two differently.
+        .font({.color8 = true})
         // The wallpaper is its OWN texture plane. A live fill on the root
         // blocks the root's cache on volatile children, which leaves
         // 900x640 of SkSL re-rastering every frame; as a liveMatOnly plane
