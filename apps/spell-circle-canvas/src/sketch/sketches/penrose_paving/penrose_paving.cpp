@@ -298,10 +298,7 @@ struct PenrosePaving : sketch::Sketch {
         .column()
         .padding(14)
         .gap(9)
-        .child(text(
-            toUtf8(summary),
-            weave::textStyle(
-                {.size = 10.5f, .color = hexColor(0x8E9295), .track = 1.0f})))
+        .child(text(toUtf8(summary)))
         .child(sketch::kit::table(
             std::move(rows),
             {.columns = {{202}, {92, true}, {}}, .gap = 8, .swatchSide = 7}));
@@ -321,10 +318,7 @@ struct PenrosePaving : sketch::Sketch {
         .child(
             text(toUtf8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
                         "\xc3\x97"
-                        "1/\xcf\x86"),
-                 weave::textStyle({.size = 10.5f,
-                                   .color = hexColor(0x8E9295),
-                                   .track = 1.0f}))
+                        "1/\xcf\x86"))
                 .left(14)
                 .top(12))
         .child(box().left(10).top(34).width(kDiagW).height(kDiagH).child(
@@ -349,6 +343,9 @@ struct PenrosePaving : sketch::Sketch {
 
     return stack()
         .fill(Fill::color(kJointBed))
+        // The plaza's lettering voice, stated once: the small tracked line
+        // both panels are titled in. The plaque's lines step off it.
+        .font({.size = 10.5f, .color = hexColor(0x8E9295), .track = 1.0f})
         // the bedding course showing through the saw cuts
         // A procedural grain evaluated over every pixel of the canvas, and
         // the most expensive node in the frame by a wide margin. Nothing it
@@ -436,26 +433,25 @@ struct PenrosePaving : sketch::Sketch {
                                   PathFormat::Align::Inner))
                    .background(styles::dropShadow(hexColor(0x000000, 0.5f),
                                                   {0, 5}, 18)))
-        .child(text(toUtf8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
-                           "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
-                           "STAINLESS INSERTS"),
-                    weave::textStyle({.size = 13.0f,
-                                      .color = hexColor(0xDCE0E2),
-                                      .track = 1.9f}))
-                   .left(76)
-                   .top(1100)
-                   .opacity(1.0f))
-        .child(text(toUtf8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
-                           "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
-                    weave::textStyle({.size = 11.5f,
-                                      .color = hexColor(0xA9AEB1),
-                                      .track = 1.5f}))
-                   .left(76)
-                   .top(1126)
-                   .opacity(1.0f))
-        .child(text(toUtf8(spec), weave::textStyle({.size = 10.5f,
-                                                    .color = hexColor(0x8E9598),
-                                                    .track = 1.3f}))
+        .child(
+            text(toUtf8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
+                        "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
+                        "STAINLESS INSERTS"))
+                .font(
+                    {.size = 13.0f, .color = hexColor(0xDCE0E2), .track = 1.9f})
+                .left(76)
+                .top(1100)
+                .opacity(1.0f))
+        .child(
+            text(toUtf8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
+                        "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"))
+                .font(
+                    {.size = 11.5f, .color = hexColor(0xA9AEB1), .track = 1.5f})
+                .left(76)
+                .top(1126)
+                .opacity(1.0f))
+        .child(text(toUtf8(spec))
+                   .font({.color = hexColor(0x8E9598), .track = 1.3f})
                    .left(76)
                    .top(1152)
                    .opacity(1.0f))
