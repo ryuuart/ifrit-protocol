@@ -138,14 +138,15 @@ constexpr RampStop kRamp[] = {
 constexpr int kRampN = (int)(sizeof(kRamp) / sizeof(kRamp[0]));
 
 // ---------------------------------------------------------------------------
-// TYPE. A bold grotesque, with cap height selected by semantic role.
+// TYPE. A bold grotesque, with cap height selected by semantic role. A run is
+// a PARTIAL — face, size, condensation — set in the ink in force where it
+// lands; a probe measured outside the tree is the partial made whole.
 
 inline sk_sp<SkTypeface> boldFace() { return evangelion::groteskBold(); }
 
 // Horizontal condensation is independent of the selected cap height.
-inline weave::TextStyle type(float size, SkColor4f color, float condense = 1.0f,
-                             float track = 0.0f) {
-  return evangelion::type(boldFace(), size, color, condense, track);
+inline weave::Type type(float size, float condense = 1.0f) {
+  return {.face = boldFace(), .size = size, .condense = condense};
 }
 
 // ---------------------------------------------------------------------------
@@ -155,11 +156,6 @@ inline LayeredBrush rimStroke(float core, SkColor4f c) {
   return LayeredBrush{{
       {core, c, 0.0f, {}, 0, SkBlendMode::kSrcOver, false},
   }};
-}
-
-inline Element displayText(std::u8string s, float size, SkColor4f c,
-                           float condense = 1.0f) {
-  return text(std::move(s), type(size, c, condense));
 }
 
 // ---------------------------------------------------------------------------

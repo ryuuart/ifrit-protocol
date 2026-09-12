@@ -32,8 +32,8 @@ struct EvaMagiDefense : sketch::Sketch {
   // the funnel's material and on the ribbons' halo, so nothing re-describes.
   ch::Output<float> front{0.0f};
   sk_sp<SkImage> fieldStrip, haloStrip, ribbonHalo;  // baked once in setup
-  std::vector<weave::TextStyle> labelTypes;
-  std::vector<weave::TextStyle> alarmTypes;
+  std::vector<weave::Type> labelTypes;
+  std::vector<weave::Type> alarmTypes;
   float numeralSize = 96.0f;
   weave::FontContext* fonts = nullptr;
   /** THE ROTATION RULE, ASSERTED. Every row's verdict is COMPUTED from the
@@ -150,13 +150,14 @@ struct EvaMagiDefense : sketch::Sketch {
                       .height(r.height())
                       .corners({module.cellRadius})
                       .fill(Fill::color(kCell))
-                      .foreground(rimStroke(3.2f, rim));
+                      .foreground(rimStroke(3.2f, rim))
+                      .ink(kNumeral);
       // The numeral is centred in the cell's TOP SQUARE, not in the cell:
       // measured, the glyph's centre sits at 30% of a 150 px cell, which is
       // 44 px — the middle of the 88 px width. And it stays UPRIGHT while
       // the plate turns.
-      cell.child(displayText(toUtf8(std::string(1, (char)('0' + n))),
-                             numeralSize, kNumeral, 0.88f)
+      cell.child(text(toUtf8(std::string(1, (char)('0' + n))))
+                     .font(type(numeralSize, 0.88f))
                      .centerAt({r.width() * 0.5f, r.width() * 0.5f + 3})
                      .rotate(-s.rotation));
       plate.child(std::move(cell));
@@ -173,14 +174,15 @@ struct EvaMagiDefense : sketch::Sketch {
                     .alignItems(Align::Center)
                     .gap(-6)
                     .rotate(-s.rotation)
-                    .child(text(u8"MAGI", type(36, ink, 0.86f)))
-                    .child(text(toUtf8(s.name), type(50, ink, 0.95f))));
+                    .ink(ink)
+                    .child(text(u8"MAGI").font(type(36, 0.86f)))
+                    .child(text(toUtf8(s.name)).font(type(50, 0.95f))));
     return plate;
   }
 
   // --- a pill ----------------------------------------------------------------
-  Element pillOf(const eva::Label& L, const weave::TextStyle& style,
-                 int keyIndex, const char* keyTag, SkPoint origin) const {
+  Element pillOf(const eva::Label& L, const weave::Type& style, int keyIndex,
+                 const char* keyTag, SkPoint origin) const {
     using namespace eva;
     const LabelRegister labelStyle = labelRegister(L.role);
     const SkColor4f ink = L.alarm ? kAlarm : kRim;
@@ -196,23 +198,26 @@ struct EvaMagiDefense : sketch::Sketch {
                                                              : Align::Center)
                     .justify(Justify::Center)
                     .gap(labelStyle.lineGap)
+                    .ink(ink)
                     .key(std::string(keyTag) + std::to_string(keyIndex));
     if (L.pill) {
       node.shape(pillSilhouette(L.cuts));
       node.fill(Fill::color(kCell));
       node.foreground(rimStroke(L.alarm ? 4.5f : 3.0f, ink));
     }
-    const TextMetrics cap = metrics(style, *fonts);
+    const weave::TextStyle whole = weave::textStyle(style);  // the probes'
+    const TextMetrics cap = metrics(whole, *fonts);
     const float inkShift =
         cap.lineHeight * 0.5f - cap.capSlack() - cap.capHeight * 0.5f;
     const int count = L.lines[1] ? (L.lines[2] ? 3 : 2) : 1;
     const float step = (L.h - 2.0f * labelStyle.insetY) / (float)count;
     for (int i = 0; i < count; ++i)
       node.child(
-          text(toUtf8(L.lines[i]), style)
+          text(toUtf8(L.lines[i]))
+              .font(style)
               .centerAt(
                   {L.role == LabelRole::Country
-                       ? intrinsicSize(text(toUtf8(L.lines[i]), style), *fonts)
+                       ? intrinsicSize(text(toUtf8(L.lines[i]), whole), *fonts)
                                  .width() *
                              0.5f
                        : L.w * 0.5f,
@@ -429,8 +434,9 @@ struct EvaMagiDefense : sketch::Sketch {
         .padding(26)
         .gap(10)
         .child(
-            text(u8"ROTATION RULE VIOLATED — this plate is not one component",
-                 eva::type(40, {0, 0, 0, 1}, 0.95f)))
+            text(u8"ROTATION RULE VIOLATED — this plate is not one component")
+                .font(eva::type(40, 0.95f))
+                .ink({0, 0, 0, 1}))
         .child(sketch::kit::table(std::move(rows),
                                   {.columns = {{820}, {180, true}, {}},
                                    .gap = 18,
@@ -460,22 +466,21 @@ struct EvaMagiDefense : sketch::Sketch {
 
     auto solve = [&](const Label& label) {
       const LabelRegister reg = labelRegister(label.role);
-      const SkColor4f ink = label.alarm ? kAlarm : kRim;
       const int lines = label.lines[1] ? (label.lines[2] ? 3 : 2) : 1;
       const float capHeight = std::min(
           reg.size, (label.h - 2.0f * reg.insetY) / (float)lines - reg.lineGap);
-      auto style = atCapHeight(type(100.0f, ink), capHeight, *ctx.fonts);
+      const weave::TextStyle probe =
+          atCapHeight(weave::textStyle(type(100.0f)), capHeight, *ctx.fonts);
       float widest = 0.0f;
       for (const char* line : label.lines)
         if (line)
           widest =
-              std::max(widest, ctx.measure(text(toUtf8(line), style)).width());
+              std::max(widest, ctx.measure(text(toUtf8(line), probe)).width());
       // The cap height fixes the vertical register; condensation only fits
       // width.
-      style.shaping.scaleX = (label.w - 2.0f * reg.insetX) / widest;
-      if (label.role == LabelRole::Country)
-        style.shaping.scaleX = std::min(1.0f, style.shaping.scaleX);
-      return style;
+      float condense = (label.w - 2.0f * reg.insetX) / widest;
+      if (label.role == LabelRole::Country) condense = std::min(1.0f, condense);
+      return type(probe.shaping.fontSize, condense);
     };
     fonts = ctx.fonts;
     labelTypes.clear();
@@ -483,8 +488,8 @@ struct EvaMagiDefense : sketch::Sketch {
     alarmTypes.clear();
     for (const auto& label : kCollapsing) alarmTypes.push_back(solve(label));
     // Numerals use the font's cap metric, independently of its line box.
-    numeralSize =
-        atCapHeight(type(100.0f, kNumeral), 61.0f, *ctx.fonts).shaping.fontSize;
+    numeralSize = atCapHeight(weave::textStyle(type(100.0f)), 61.0f, *ctx.fonts)
+                      .shaping.fontSize;
 
     // --- motion ---
     falls.build(eva::kFalls, eva::kFallN, 1);
