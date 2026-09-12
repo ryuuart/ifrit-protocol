@@ -9,6 +9,8 @@
 #import <Foundation/Foundation.h>
 #import <QuartzCore/CAMetalLayer.h>
 
+#import "SCKNetworkRuntime.h"
+
 NS_ASSUME_NONNULL_BEGIN
 
 /** A single timestamped message entry shown in the activity feed. */
@@ -27,9 +29,13 @@ NS_SWIFT_UI_ACTOR
 /** A new scene frame was rendered into the offscreen canvas (and published
  *  to Syphon) — redraw any views presenting it. */
 - (void)engineDidRenderScene:(SCKEngine *)engine;
-/** One feed entry per received scene packet. */
+/** The current scene or its drawing configuration needs a new frame. */
+- (void)engineSceneDidChange:(SCKEngine *)engine;
+/** The accepted-packet rate changed, including byte-identical packets. */
+- (void)enginePacketRateDidChange:(SCKEngine *)engine;
+/** One feed entry per changed scene packet. */
 - (void)engine:(SCKEngine *)engine didAppendFeedEntry:(SCKFeedEntry *)entry;
-/** `listening` or `statusText` changed. */
+/** `starting`, `listening`, or `statusText` changed. */
 - (void)engineStatusDidChange:(SCKEngine *)engine;
 @end
 
@@ -48,11 +54,19 @@ NS_SWIFT_UI_ACTOR
 NS_SWIFT_UI_ACTOR
 @interface SCKEngine : NSObject
 
+/** Receives on the application's supplied event loop. The engine retains
+ *  the runtime while its receiver exists and owns no network worker. */
+- (instancetype)initWithRuntime:(SCKNetworkRuntime *)runtime NS_DESIGNATED_INITIALIZER;
+- (instancetype)init NS_UNAVAILABLE;
++ (instancetype)new NS_UNAVAILABLE;
+
 @property(nonatomic, weak, nullable) id<SCKEngineDelegate> delegate;
 
 /** @name Network */
 /** UDP port; assigning while listening rebinds in place. */
 @property(nonatomic) int port;
+/** A bind request is waiting for its event loop to report an outcome. */
+@property(nonatomic, readonly) BOOL starting;
 @property(nonatomic, readonly) BOOL listening;
 @property(nonatomic, readonly, copy) NSString *statusText;
 
@@ -92,12 +106,12 @@ NS_SWIFT_UI_ACTOR
 
 /** @name Performance
  * Smoothed metrics for status display, updated as packets arrive and
- * frames render (read them from engineDidRenderScene:).
+ * frames render. Rate and rendered-frame callbacks report these separately.
  */
 /** CPU milliseconds spent recording + submitting the last scene draws
  *  (exponential moving average). */
 @property(nonatomic, readonly) double renderMillis;
-/** Incoming scene packet rate (exponential moving average, Hz). */
+/** Accepted scene packet rate over a one-second window, zero after silence. */
 @property(nonatomic, readonly) double scenesPerSecond;
 
 /** @name Presentation
@@ -116,8 +130,9 @@ NS_SWIFT_UI_ACTOR
 
 /** The socket and what arrives on it. */
 @interface SCKEngine (Network)
-/** Binds the UDP socket; returns NO (with statusText updated) on failure. */
-- (BOOL)start;
+/** Requests an asynchronous bind. Status changes report binding, success,
+ *  bind failure, and a terminal receive failure on the main queue. */
+- (void)start;
 - (void)stop;
 /** Removes all scene entities and re-renders the (empty) canvas. */
 - (void)clearScene;

@@ -134,6 +134,10 @@ NS_EXTERNAL = {
     # The vector maths every params struct is written in, exposed in this
     # tree's own signatures.
     "glm",
+    # Boost.Asio's executor vocabulary is declared in dependency .hpp
+    # headers, outside the library .h roots this scanner reads.
+    "boost",
+    "asio",
     # Skia's actual namespaces, which are Sk-prefixed like its types and
     # would otherwise be probed as if they were classes.
     "SkSurfaces",
@@ -246,7 +250,7 @@ def code_regions(path):
 # the end of its line and take the closing `*/` with it, and everything
 # after it in the file would then read as commented-out — which is how a
 # type a document names goes missing without the document being wrong.
-COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
+COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.DOTALL)
 
 
 def strip_comments(text):
@@ -394,7 +398,7 @@ def scan_headers(incdirs):
     )
 
 
-INCLUDE_LINE = re.compile(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]', re.M)
+INCLUDE_LINE = re.compile(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]', re.MULTILINE)
 
 
 def reachable_from(roots, incdirs):
@@ -611,10 +615,9 @@ class Generator:
             return
         for header in headers:
             for path, names in self.spelled_in.items():
-                if path == header or path.endswith("/" + header):
-                    if spelled in names:
-                        self.listed.append((spelled, line, header))
-                        return
+                if (path == header or path.endswith("/" + header)) and spelled in names:
+                    self.listed.append((spelled, line, header))
+                    return
         if spelled in self.spelled_anywhere:
             self.excluded.append(
                 (spelled, line, "spelled by another header than the one listed")

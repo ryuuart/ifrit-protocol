@@ -42,28 +42,30 @@ struct NetworkManagerQmlType {
 };
 
 /**
- * QML singleton that owns the application's SpellCircleModel, GraphicsConfig,
- * and NetworkManager, wiring received UDP packets into the model.
+ * Application-owned models, graphics configuration, and network adapter.
+ * Received datagrams reach the scene model on their shared QObject thread;
+ * the supplied executor runs transport work independently.
  */
 class Models : public QObject {
   Q_OBJECT
   QML_NAMED_ELEMENT(Models)
-  QML_SINGLETON
+  QML_UNCREATABLE("Models are supplied by the application")
 
   Q_PROPERTY(SpellCircleModel* spellCircleModel READ spellCircleModel CONSTANT)
   Q_PROPERTY(GraphicsConfig* graphicsConfig READ graphicsConfig CONSTANT)
   Q_PROPERTY(NetworkManager* networkManager READ networkManager CONSTANT)
  public:
   /** Constructs and wires the model, graphics configuration, and receiver. */
-  explicit Models(QObject* parent = nullptr);
+  explicit Models(boost::asio::any_io_executor executor,
+                  QObject* parent = nullptr);
 
-  /** Returns the singleton SpellCircleModel instance. */
+  /** Returns the scene model. */
   SpellCircleModel* spellCircleModel() const { return m_spellCircleModel; }
 
-  /** Returns the singleton GraphicsConfig instance. */
+  /** Returns the graphics configuration. */
   GraphicsConfig* graphicsConfig() const { return m_graphicsConfig; }
 
-  /** Returns the singleton NetworkManager instance. */
+  /** Returns the network adapter. */
   NetworkManager* networkManager() const { return m_networkManager; }
 
  private:

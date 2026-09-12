@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <entt/entt.hpp>
+#include <optional>
 #include <string>
 
 namespace spellcircle {
@@ -69,17 +70,16 @@ struct SceneStats {
   bool hasGeometry() const { return circles > 0 || edges > 0 || boxes > 0; }
 };
 
-/** The largest payload a scene may arrive in. A scene reaches this decoder
- *  as one datagram and nothing else, and a datagram carries no more than
- *  this, so a larger buffer cannot have come off the wire: it is refused
- *  whole rather than walked. */
+/** The scene protocol's payload ceiling, matching the receiver's datagram
+ *  capacity. The same limit applies when a host supplies bytes directly;
+ *  larger buffers are refused before walking their contents. */
 inline constexpr size_t kMaximumScenePayload = 65536;
 
 /** Returns whether @p payload is a scene this decoder will accept: within
  *  kMaximumScenePayload and structurally valid FlatBuffers reachable from a
  *  Scene root, every offset, string and vector landing inside @p size.
- *  Callers must verify before decode() — decoding an unverified buffer is
- *  undefined behavior. An empty or null payload is not a scene. */
+ *  An empty or null payload is not a scene. Decoding performs this check
+ *  itself; this query is for callers that only need to inspect validity. */
 bool verifyScenePayload(const void* payload, size_t size);
 
 /**
@@ -96,9 +96,9 @@ class SceneDocument {
   float sceneWidth() const { return m_sceneWidth; }
   float sceneHeight() const { return m_sceneHeight; }
 
-  /** Replaces the current registry with entities parsed from @p payload,
-   *  which must already have passed verifyScenePayload(). */
-  SceneStats decode(const void* payload, size_t size);
+  /** Verifies @p payload and replaces the current registry when valid.
+   *  An invalid payload returns no stats and leaves the document intact. */
+  std::optional<SceneStats> decode(const void* payload, size_t size);
 
   /** Removes all scene entities and resets the author-space dimensions. */
   void clear();

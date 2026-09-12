@@ -68,10 +68,10 @@ bool verifyScenePayload(const void* payload, size_t size) {
   return SpellCircle::VerifySceneBuffer(verifier);
 }
 
-SceneStats SceneDocument::decode(const void* payload, size_t size) {
-  static_cast<void>(size);  // structural bounds were checked by the Verifier
+std::optional<SceneStats> SceneDocument::decode(const void* payload,
+                                                size_t size) {
+  if (!verifyScenePayload(payload, size)) return std::nullopt;
   const auto* scene = SpellCircle::GetScene(payload);
-  if (!scene) return {};
 
   m_registry.clear();
   m_sceneWidth = scene->width();

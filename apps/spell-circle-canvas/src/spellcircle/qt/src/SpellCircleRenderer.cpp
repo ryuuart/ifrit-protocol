@@ -18,7 +18,7 @@ void SpellCircleRenderer::synchronize(QCanvasPainterItem* item) {
 
   bool needsResolve = false;
 
-  const int modelGeneration =
+  const uint64_t modelGeneration =
       spellCircleItem->model() ? spellCircleItem->model()->generation() : 0;
   if (modelGeneration != m_knownModelGeneration) {
     m_knownModelGeneration = modelGeneration;

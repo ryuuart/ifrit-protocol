@@ -54,9 +54,8 @@ std::vector<uint8_t> sceneWithBox(float anchorX, float anchorY,
 }
 
 SceneDocument decodeScene(const std::vector<uint8_t>& bytes) {
-  EXPECT_TRUE(spellcircle::verifyScenePayload(bytes.data(), bytes.size()));
   SceneDocument document;
-  document.decode(bytes.data(), bytes.size());
+  EXPECT_TRUE(document.decode(bytes.data(), bytes.size()));
   return document;
 }
 
@@ -187,12 +186,12 @@ TEST(SceneModel, DenselySharedTablesStayInsideTheVerifiersBudget) {
 
   ASSERT_TRUE(spellcircle::verifyScenePayload(bytes.data(), bytes.size()));
   SceneDocument document;
-  const spellcircle::SceneStats stats =
-      document.decode(bytes.data(), bytes.size());
+  const auto stats = document.decode(bytes.data(), bytes.size());
+  ASSERT_TRUE(stats);
 
   // Every element decodes to its own Edge entity, but the two Point tables
   // behind them are one pair of entities however often they are named.
-  EXPECT_EQ(stats.edges, kAliases);
+  EXPECT_EQ(stats->edges, kAliases);
   EXPECT_EQ(document.registry().view<spellcircle::PointComponent>().size(), 2u);
   const spellcircle::ResolvedScene resolved =
       spellcircle::resolveScene(document, 1000.0f, 1000.0f);
@@ -248,19 +247,21 @@ TEST(SceneModel, AnEmptySceneClearsWhateverWasDrawnBefore) {
   const std::vector<uint8_t> withBox = sceneWithBox(500.0f, 500.0f, "one");
   SceneDocument document;
   ASSERT_TRUE(spellcircle::verifyScenePayload(withBox.data(), withBox.size()));
-  ASSERT_TRUE(document.decode(withBox.data(), withBox.size()).hasGeometry());
+  const auto populated = document.decode(withBox.data(), withBox.size());
+  ASSERT_TRUE(populated);
+  ASSERT_TRUE(populated->hasGeometry());
 
   flatbuffers::FlatBufferBuilder fbb;
   const std::vector<uint8_t> empty =
       finishScene(fbb, SpellCircle::CreateScene(fbb));
   ASSERT_TRUE(spellcircle::verifyScenePayload(empty.data(), empty.size()));
-  const spellcircle::SceneStats stats =
-      document.decode(empty.data(), empty.size());
+  const auto stats = document.decode(empty.data(), empty.size());
+  ASSERT_TRUE(stats);
 
-  EXPECT_EQ(stats.circles, 0);
-  EXPECT_EQ(stats.edges, 0);
-  EXPECT_EQ(stats.boxes, 0);
-  EXPECT_FALSE(stats.hasGeometry());
+  EXPECT_EQ(stats->circles, 0);
+  EXPECT_EQ(stats->edges, 0);
+  EXPECT_EQ(stats->boxes, 0);
+  EXPECT_FALSE(stats->hasGeometry());
   EXPECT_EQ(document.registry().view<spellcircle::PointComponent>().size(), 0u);
   EXPECT_EQ(document.sceneWidth(), 0.0f);
   EXPECT_EQ(document.sceneHeight(), 0.0f);
@@ -290,12 +291,12 @@ TEST(SceneModel, SharedPointTablesDecodeToOneEntity) {
 
   ASSERT_TRUE(spellcircle::verifyScenePayload(bytes.data(), bytes.size()));
   SceneDocument document;
-  const spellcircle::SceneStats stats =
-      document.decode(bytes.data(), bytes.size());
+  const auto stats = document.decode(bytes.data(), bytes.size());
+  ASSERT_TRUE(stats);
 
-  EXPECT_EQ(stats.circles, 0);  // circles embedded in points are not top-level
-  EXPECT_EQ(stats.edges, 1);
-  EXPECT_EQ(stats.boxes, 1);
+  EXPECT_EQ(stats->circles, 0);  // circles embedded in points are not top-level
+  EXPECT_EQ(stats->edges, 1);
+  EXPECT_EQ(stats->boxes, 1);
   EXPECT_EQ(document.registry().view<spellcircle::PointComponent>().size(), 2u);
 }
 

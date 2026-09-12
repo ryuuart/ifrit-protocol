@@ -4,11 +4,13 @@
 
 #include <QAbstractListModel>
 #include <QDateTime>
-#include <QElapsedTimer>
 #include <QList>
 #include <QString>
+#include <QTimer>
+#include <chrono>
+#include <cstdint>
 
-#include "SceneModel.h"
+#include "SceneSession.h"
 
 /** A single timestamped message entry shown in the activity feed. */
 struct FeedItem {
@@ -29,8 +31,7 @@ struct FeedItem {
  */
 class SpellCircleModel : public QAbstractListModel {
   Q_OBJECT
-  // Smoothed incoming scene packet rate (Hz) for the activity panel's
-  // status readouts; 0 until two packets have arrived.
+  // Incoming valid scene packet rate (Hz), measured at transport receipt.
   Q_PROPERTY(
       double scenesPerSecond READ scenesPerSecond NOTIFY scenesPerSecondChanged)
 
@@ -55,28 +56,31 @@ class SpellCircleModel : public QAbstractListModel {
   QHash<int, QByteArray> roleNames() const override;
 
   /** Scene entities decoded from the most recently parsed packet. */
-  const spellcircle::SceneDocument& document() const { return m_document; }
+  const spellcircle::SceneDocument& document() const {
+    return m_session.document();
+  }
 
   /** Incremented every time the registry is replaced. The renderer compares
    *  this against its own copy in synchronize() to skip redraws on zoom/pan. */
-  int generation() const { return m_generation; }
+  uint64_t generation() const { return m_session.generation(); }
 
-  /** Smoothed incoming scene packet rate in Hz. */
+  /** Incoming valid scene packet rate in Hz. */
   double scenesPerSecond() const { return m_scenesPerSecond; }
 
  signals:
   /** Emitted after the scene registry is replaced with newly parsed data. */
   void geometryChanged();
-  /** Emitted whenever the smoothed packet rate updates. */
+  /** Emitted whenever the packet rate updates, including expiry to zero. */
   void scenesPerSecondChanged();
 
  public slots:
   /**
-   * Parses a FlatBuffers-encoded SpellCircle Scene from @p payload (already
-   * verified by NetworkManager), replaces the current scene registry, and
-   * prepends a single feed entry noting the receipt.
+   * Verifies a FlatBuffers-encoded scene through the shared session, updates
+   * its document only when the payload changes, and prepends one feed entry
+   * for every valid receipt. The packet rate uses the transport's timestamp.
    */
-  void onSpellCircleReceived(const QString& source, const QByteArray& payload);
+  void onSpellCircleReceived(const QString& source, const QByteArray& payload,
+                             std::chrono::steady_clock::time_point receivedAt);
 
   /** Removes all scene entities, and trims the feed down to its most recent
    *  entries (rather than wiping it outright) so the sidebar list doesn't
@@ -84,10 +88,10 @@ class SpellCircleModel : public QAbstractListModel {
   void clear();
 
  private:
+  void updatePacketRate();
+
   QList<FeedItem> m_items;
-  spellcircle::SceneDocument m_document;
-  bool m_hasGeometry = false;
-  int m_generation = 0;
-  QElapsedTimer m_arrivalTimer;
+  spellcircle::SceneSession m_session;
+  QTimer m_rateTimer;
   double m_scenesPerSecond = 0.0;
 };

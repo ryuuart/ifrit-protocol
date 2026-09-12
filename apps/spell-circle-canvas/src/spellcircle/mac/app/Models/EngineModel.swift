@@ -16,7 +16,8 @@ import SwiftUI
 @MainActor
 @Observable
 final class EngineModel: NSObject, SCKEngineDelegate {
-    @ObservationIgnored let engine = SCKEngine()
+    @ObservationIgnored let networkRuntime: SCKNetworkRuntime
+    @ObservationIgnored let engine: SCKEngine
     @ObservationIgnored weak var canvasView: SCKCanvasView? {
         didSet {
             canvasView?.onViewChanged = { [weak self] percent in
@@ -29,6 +30,7 @@ final class EngineModel: NSObject, SCKEngineDelegate {
 
     private(set) var feed: [FeedEntry] = []
     private(set) var listening = false
+    private(set) var starting = false
     private(set) var statusText = ""
     private(set) var zoomPercent: Double = 0
     private(set) var renderMillis: Double = 0
@@ -95,6 +97,9 @@ final class EngineModel: NSObject, SCKEngineDelegate {
     }
 
     override init() {
+        let runtime = SCKNetworkRuntime()
+        networkRuntime = runtime
+        engine = SCKEngine(runtime: runtime)
         let defaults = UserDefaults.standard
         port = defaults.object(forKey: "port") as? Int ?? 27015
         canvasWidth = (defaults.object(forKey: "canvasWidth") as? Int ?? 4000)
@@ -164,6 +169,7 @@ final class EngineModel: NSObject, SCKEngineDelegate {
         engine.fontItalic = fontItalic
         engine.accentColor = NSColor(accentColor)
         listening = engine.listening
+        starting = engine.starting
         statusText = engine.statusText
     }
 
@@ -172,7 +178,7 @@ final class EngineModel: NSObject, SCKEngineDelegate {
     }
 
     func toggleListening() {
-        if engine.listening { engine.stop() } else { engine.start() }
+        if engine.listening || engine.starting { engine.stop() } else { engine.start() }
     }
 
     func clearScene() {
@@ -240,6 +246,14 @@ final class EngineModel: NSObject, SCKEngineDelegate {
         refreshMetrics()
     }
 
+    func engineSceneDidChange(_ engine: SCKEngine) {
+        canvasView?.redraw()
+    }
+
+    func enginePacketRateDidChange(_ engine: SCKEngine) {
+        refreshMetrics()
+    }
+
     func engine(_ engine: SCKEngine, didAppend entry: SCKFeedEntry) {
         // Console order: oldest first, newest appended at the bottom; the
         // cap trims from the top (FeedTableView compensates the scroll
@@ -254,6 +268,7 @@ final class EngineModel: NSObject, SCKEngineDelegate {
 
     func engineStatusDidChange(_ engine: SCKEngine) {
         listening = engine.listening
+        starting = engine.starting
         statusText = engine.statusText
     }
 

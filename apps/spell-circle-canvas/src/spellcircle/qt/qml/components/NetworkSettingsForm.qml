@@ -40,8 +40,8 @@ ColumnLayout {
             Layout.preferredWidth: 100
         }
         Switch {
-            text: root.network.listening ? "Listening" : "Stopped"
-            checked: root.network.listening
+            text: root.network.starting ? "Starting…" : root.network.listening ? "Listening" : "Stopped"
+            checked: root.network.listening || root.network.starting
             onToggled: checked ? root.network.start() : root.network.stop()
         }
     }
@@ -50,8 +50,8 @@ ColumnLayout {
         spacing: 8
 
         Rectangle {
-            width: 8
-            height: 8
+            implicitWidth: 8
+            implicitHeight: 8
             radius: 4
             color: root.network.listening ? Ui.Theme.statusText : Ui.Theme.disabledText
         }

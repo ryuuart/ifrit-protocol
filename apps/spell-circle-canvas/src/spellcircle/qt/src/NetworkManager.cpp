@@ -1,29 +1,28 @@
 #include "NetworkManager.h"
 
-#include <flatbuffers/flatbuffers.h>
 #include <spdlog/spdlog.h>
 
 #include <QCoreApplication>
-#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <utility>
 
-#include "SpellCircle_generated.h"
 #include "UdpReceiver.h"
 
-NetworkManager::NetworkManager(uint16_t port, QObject* parent)
+NetworkManager::NetworkManager(boost::asio::any_io_executor executor,
+                               uint16_t port, QObject* parent)
     : QObject(parent),
       m_port(port),
       m_statusText(tr("Stopped")),
-      m_receiver(std::make_unique<spellcircle::UdpReceiver>()) {}
+      m_receiver(
+          std::make_unique<spellcircle::UdpReceiver>(std::move(executor))) {}
 
 NetworkManager::~NetworkManager() {
-  // Join the I/O thread before members go away — after stop() returns the
-  // receiver invokes no more handlers.
+  // Retire callbacks before this QObject and its queued deliveries disappear.
   m_receiver->stop();
 }
 
@@ -33,67 +32,74 @@ void NetworkManager::setPort(int port) {
   m_port = boundedPort;
   emit portChanged();
 
-  if (m_listening) start();
+  if (m_requestedListening) start();
 }
 
-bool NetworkManager::start() {
-  // The receiver rebinds in place (a port change while listening tears the
-  // previous socket down first). The handler runs on the receiver's I/O
-  // thread — hop onto this object's thread before touching any state; the
-  // queued call is dropped automatically if this object is destroyed first.
-  const std::string error = m_receiver->start(
+void NetworkManager::start() {
+  const uint64_t generation = ++m_generation;
+  setRequestedListening(true);
+  setListening(false);
+  setStatusText(tr("Starting UDP :%1").arg(m_port));
+  m_receiver->start(
       m_port,
-      [this](std::vector<std::uint8_t> payload, const std::string& source) {
-        QByteArray bytes(reinterpret_cast<const char*>(payload.data()),
-                         static_cast<qsizetype>(payload.size()));
-        QString sourceText = QString::fromStdString(source);
+      [this, generation](spellcircle::Datagram datagram) {
+        QByteArray bytes(reinterpret_cast<const char*>(datagram.payload.data()),
+                         static_cast<qsizetype>(datagram.payload.size()));
+        QString sourceText = QString::fromStdString(datagram.source);
         QMetaObject::invokeMethod(
             this,
-            [this, sourceText = std::move(sourceText),
-             bytes = std::move(bytes)] { deliverDatagram(sourceText, bytes); },
+            [this, generation, sourceText = std::move(sourceText),
+             bytes = std::move(bytes), receivedAt = datagram.receivedAt] {
+              if (generation != m_generation || !m_requestedListening) return;
+              emit spellCircleReceived(sourceText, bytes, receivedAt);
+            },
+            Qt::QueuedConnection);
+      },
+      [this, generation](spellcircle::UdpReceiver::Status status) {
+        QMetaObject::invokeMethod(
+            this,
+            [this, generation, status = std::move(status)] {
+              if (generation != m_generation || !m_requestedListening) return;
+              if (status.error) {
+                setRequestedListening(false);
+                setListening(false);
+                const std::string error = status.error.message();
+                spdlog::error("UDP receiver failed on port {}: {}", status.port,
+                              error);
+                setStatusText(tr("UDP failed on :%1 — %2")
+                                  .arg(status.port)
+                                  .arg(QString::fromStdString(error)));
+                return;
+              }
+              spdlog::info("UDP listening on :{}", status.port);
+              setListening(true);
+              setStatusText(tr("Listening on UDP :%1").arg(status.port));
+            },
             Qt::QueuedConnection);
       });
-
-  if (!error.empty()) {
-    spdlog::error("UDP bind failed on port {}: {}", m_port, error);
-    setListening(false);
-    setStatusText(tr("Bind failed on :%1 — %2")
-                      .arg(m_port)
-                      .arg(QString::fromStdString(error)));
-    return false;
-  }
-
-  spdlog::info("UDP listening on :{}", m_port);
-  setListening(true);
-  setStatusText(tr("Listening on UDP :%1").arg(m_port));
-  return true;
 }
 
 void NetworkManager::stop() {
+  ++m_generation;
+  setRequestedListening(false);
   m_receiver->stop();
   spdlog::info("UDP socket closed");
   setListening(false);
   setStatusText(tr("Stopped"));
 }
 
-void NetworkManager::deliverDatagram(const QString& source,
-                                     const QByteArray& payload) {
-  flatbuffers::Verifier verifier(
-      reinterpret_cast<const uint8_t*>(payload.constData()),
-      static_cast<size_t>(payload.size()));
-  if (!SpellCircle::VerifySceneBuffer(verifier)) {
-    spdlog::warn("Dropped invalid SpellCircle buffer from {}",
-                 source.toStdString());
-    return;
-  }
-
-  emit spellCircleReceived(source, payload);
-}
-
 void NetworkManager::setListening(bool listening) {
   if (m_listening == listening) return;
+  const bool wasStarting = starting();
   m_listening = listening;
   emit listeningChanged();
+  if (wasStarting != starting()) emit startingChanged();
+}
+
+void NetworkManager::setRequestedListening(bool requested) {
+  const bool wasStarting = starting();
+  m_requestedListening = requested;
+  if (wasStarting != starting()) emit startingChanged();
 }
 
 void NetworkManager::setStatusText(const QString& statusText) {

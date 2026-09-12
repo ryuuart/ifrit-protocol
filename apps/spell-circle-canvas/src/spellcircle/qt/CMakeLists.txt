@@ -2,7 +2,7 @@
 # include/ and qml/ tree, several targets kept separate so concerns stay
 # layered:
 #
-#   SpellCircleNetwork  Qt adapter over the shared ASIO transport
+#   SpellCircleNetwork  Qt adapter over executor-owned transport
 #   SpellCircleModels   QML-facing models (SpellCircle.Models)
 #   SpellCircleCanvas   the canvas item + Skia backend (SpellCircle.Canvas)
 #   SpellCircle         the executable + application QML (SpellCircle.App)
@@ -10,16 +10,17 @@
 # QuickDialogs2 is named for the QML import in GraphicsSettingsForm.qml
 # rather than a C++ link.
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts
-                                     QuickDialogs2 CanvasPainter Network
+                                     QuickDialogs2 CanvasPainter
                                      GuiPrivate)
 qt_standard_project_setup(REQUIRES 6.11)
 find_package(EnTT CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
+find_package(boost_asio CONFIG REQUIRED)
+find_package(Threads REQUIRED)
 
 # ── Network: the Qt face of the shared transport ─────────────────────────
-# Wire transport only — marshals SpellCircleNet datagrams onto the Qt main
-# thread and verifies them against the shared schema. Everything that
-# interprets or presents them lives in the model layer below.
+# Marshals datagrams and binding results onto the QObject's thread. The
+# application supplies the executor, and the scene model verifies payloads.
 qt_add_library(SpellCircleNetwork SHARED
   src/NetworkManager.cpp include/NetworkManager.h
 )
@@ -27,11 +28,10 @@ sigil_qt_target(SpellCircleNetwork)
 
 target_link_libraries(SpellCircleNetwork
     PUBLIC
-      Qt6::Network
-      Qt6::Gui
+      Qt6::Core
+      Boost::asio
     PRIVATE
       spdlog::spdlog
-      SpellCircleSchema
       SpellCircleNet
 )
 
@@ -62,16 +62,22 @@ qt_add_qml_module(SpellCircleModels
 
 target_link_libraries(SpellCircleModels
   PUBLIC
+    Qt6::Gui
     SpellCircleNetwork # NetworkManager transport
-    SpellCircleScene # Qt-free scene document (decode + entt registry)
+    SpellCircleDocument # accepted scene state and document
     EnTT::EnTT
   PRIVATE
     spdlog::spdlog
-    SpellCircleSchema
 )
 
 target_include_directories(SpellCircleModels
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+sigil_test(spellcircle_qt_test
+  SOURCES test/ReceiverTest.cpp
+  LIBRARIES SpellCircleNetwork SpellCircleModels SpellCircleSchema
+            Qt6::Core Boost::asio Threads::Threads
 )
 
 # ── Canvas: the scene item, Skia backend, and texture publishing ─────────
@@ -220,4 +226,6 @@ target_link_libraries(SpellCircle
       spdlog::spdlog
       SpellCircleCanvas
       SpellCircleModels
+      Boost::asio
+      Threads::Threads
 )

@@ -1,13 +1,18 @@
+pragma ComponentBehavior: Bound
+
 import QtCore
 import QtQuick
 import QtQuick.Controls
 import Qt.labs.platform as Platform
 import Ifrit.Ui 1.0 as Ui
 import SpellCircle.Models 1.0
+import SpellCircle.App
 
 /** Top-level Spell Circle application composition. */
 ApplicationWindow {
     id: root
+
+    required property Models models
 
     width: 1280
     height: 800
@@ -123,9 +128,9 @@ ApplicationWindow {
 
     SettingsWindow {
         id: settingsWindow
-        config: Models.graphicsConfig
+        config: root.models.graphicsConfig
         fontDatabase: FontDatabase
-        network: Models.networkManager
+        network: root.models.networkManager
         visible: false
     }
 
@@ -174,14 +179,14 @@ ApplicationWindow {
             left: parent.left
         }
         open: root.sidebarOpen
-        model: Models.spellCircleModel
-        network: Models.networkManager
+        model: root.models.spellCircleModel
+        network: root.models.networkManager
         zoomPercent: previewPane.viewScale * 100
-        canvasWidth: Models.graphicsConfig.canvas.width
-        canvasHeight: Models.graphicsConfig.canvas.height
+        canvasWidth: root.models.graphicsConfig.canvas.width
+        canvasHeight: root.models.graphicsConfig.canvas.height
         onFitRequested: previewPane.fitView()
         onActualSizeRequested: previewPane.zoomToActualSize()
-        onClearRequested: Models.spellCircleModel.clear()
+        onClearRequested: root.models.spellCircleModel.clear()
     }
 
     Rectangle {
@@ -203,8 +208,8 @@ ApplicationWindow {
             bottom: parent.bottom
             left: sidebarDivider.right
         }
-        model: Models.spellCircleModel
-        config: Models.graphicsConfig
+        model: root.models.spellCircleModel
+        config: root.models.graphicsConfig
     }
 
     GlassIconButton {

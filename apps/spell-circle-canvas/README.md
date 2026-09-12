@@ -71,11 +71,18 @@ Python  ──FlatBuffers──▶  UDP :27015  ──▶  verify  ──▶  de
                         Syphon ◀── draw ◀── resolveScene ◀─┘
 ```
 
-`UdpReceiver` binds dual-stack and hands each datagram to the front end
-on its own I/O thread. The front end moves to its main thread,
-`verifyScenePayload()` rejects malformed buffers, and
-`SceneDocument::decode()` fills an `entt` registry with circle, point,
-edge, and box components.
+`UdpReceiver` binds dual-stack on a Boost.Asio executor supplied by its
+host. It delivers each payload with its source and monotonic receive time.
+The front end moves to its main thread, where `SceneSession` verifies and
+decodes changed payloads into an `entt` registry. Malformed packets leave
+the current scene intact. Byte-identical packets count toward the arrival
+rate without decoding or invalidating the scene again.
+
+Binding is asynchronous. Status callbacks report the actual bound port,
+bind errors, and terminal receive errors. A stop or rebind retires the old
+binding's callbacks immediately; the front ends also discard deliveries
+already queued for an obsolete binding. Socket operations and callbacks
+are serialized even when several threads run the supplied context.
 
 `resolveScene()` then converts that registry into a `ResolvedScene` of
 absolute native pixels, and `SceneRenderer::draw()` puts it on an
@@ -89,6 +96,52 @@ but absolute pixels, so the two apps cannot drift apart on geometry. If
 you are changing where something lands on screen, that function is where
 the change belongs.
 
+### Embedding the receiver
+
+Link `SpellCircleNet` for UDP transport and `SpellCircleDocument` for
+verified scene state. Neither target depends on Qt, AppKit, Skia, or a
+renderer. `SpellCircleScene` adds geometry resolution and drawing.
+
+```cpp
+#include "SceneSession.h"
+#include "UdpReceiver.h"
+#include <boost/asio/io_context.hpp>
+#include <iostream>
+
+boost::asio::io_context context;
+spellcircle::SceneSession scene;
+spellcircle::UdpReceiver receiver(context.get_executor());
+receiver.start(
+    27015,
+    [&](spellcircle::Datagram packet) {
+      scene.ingest(packet.payload.data(), packet.payload.size(),
+                   packet.receivedAt);
+    },
+    [](spellcircle::UdpReceiver::Status status) {
+      if (status.error) std::cerr << status.error.message() << '\n';
+    });
+context.run();
+```
+
+An existing host passes its executor and continues running its context.
+The receiver creates no thread and never runs, restarts, or stops that
+context. Stop and destruction wait for an executing callback to finish,
+except when invoked by that callback, then queue socket cancellation.
+They do not wait for the event loop to run. Keep the context alive until
+the receiver is destroyed; drain or destroy the context to release queued
+operations. Callbacks must not wait for a thread that is stopping or
+rebinding their receiver.
+
+`SceneSession` is synchronous and belongs to one owner thread. In the
+example it belongs to the network callback; the two apps instead dispatch
+packets to the UI thread before ingesting them. A host can also feed the
+session directly from another transport. Its generation changes only
+when the accepted document changes or is cleared. Arrival rates use the
+packet's receive time, so a busy UI queue cannot inflate them, and expire
+after two seconds of silence. Feed presentation remains the host's choice.
+`SceneDocument::decode()` also verifies its input when used directly and
+returns no statistics for an invalid payload.
+
 ## Layout
 
 The Qt-free core is shared; the two front ends are not.
@@ -96,8 +149,8 @@ The Qt-free core is shared; the two front ends are not.
 | Path | What it is |
 | --- | --- |
 | `src/spellcircle/shared/schema/` | `SpellCircle.fbs` and its generated header — the wire format |
-| `src/spellcircle/shared/net/` | `UdpReceiver`. Transport only; callers verify |
-| `src/spellcircle/shared/scene/` | Decode, resolve, draw, ring-label geometry |
+| `src/spellcircle/shared/net/` | Executor-supplied `UdpReceiver`, datagrams, binding status |
+| `src/spellcircle/shared/scene/` | `SpellCircleDocument`: verified ingestion and session state; `SpellCircleScene`: resolve, draw, ring-label geometry |
 | `src/spellcircle/qt/` | The Qt app — QML front end, cross-platform target |
 | `src/spellcircle/mac/` | `SpellCircleMac` — SwiftUI over an ObjC++ bridge, macOS only |
 
@@ -110,6 +163,12 @@ The Mac app is a separate executable rather than a Qt build. Its
 side — scene core, Skia, SigilWeave, ICU, HarfBuzz, Syphon — so the whole
 of it links through the clang++ driver and the Swift executable links one
 dylib.
+
+The Qt executable creates the network context and injects `Models` into
+the QML root. The Swift app creates `SCKNetworkRuntime` and passes it to
+its engine; multiple engines can share that runtime. An ObjC++ host can
+wrap an existing Boost executor through `SCKNetworkRuntimeInternal.h`
+without giving the runtime ownership of the external context.
 
 ## Libraries
 
@@ -151,11 +210,20 @@ ctest --test-dir build -C Release --output-on-failure
 `CMakeUserPresets.json`. It is one of nine verbs over the build's
 administration; `scripts/README.md` is the canon for all of them.
 
-The test suite covers the libraries and the shared scene core —
-`spellcircle_test` builds wire payloads with the FlatBuffers API and runs
-them through decode, resolution, box placement, and ring-label geometry.
-The two front ends themselves have no automated tests: verifying a change
-to app code means running it and sending it a scene.
+The test suite covers the libraries and the receiver layers:
+
+- `spellcircle_net_test` uses loopback UDP to exercise shared contexts,
+  cancellation, rebinding, callback teardown, and concurrent controls.
+- `spellcircle_document_test` checks accepted scene state, malformed
+  input, deduplication, clearing, and receive-time arrival rates.
+- `spellcircle_test` builds wire payloads and checks decode, resolution,
+  box placement, and ring-label geometry.
+- `spellcircle_qt_test` checks asynchronous status and queued-delivery
+  cancellation through the Qt adapter and its scene model.
+- `spellcircle_mac_test` checks main-queue status cancellation and the
+  lifetime of an externally supplied runtime through the ObjC++ adapter.
+
+App presentation also needs a live run with incoming scenes.
 
 Use a Release build for any performance work. Several library
 benchmarks and sketches are deliberately stressful and Debug

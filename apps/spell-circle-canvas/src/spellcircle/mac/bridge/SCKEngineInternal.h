@@ -2,7 +2,7 @@
 
 // The engine's own state — the Metal device and its Graphite context, the
 // scene the receiver decoded, the offscreen texture and its Syphon server,
-// the packet-rate and render-clock bookkeeping — and the few calls its
+// the shared scene session and render-clock bookkeeping — and the calls its
 // parts make of each other. ObjC++ only, and never part of the Clang
 // module the Swift app imports.
 
@@ -15,6 +15,7 @@
 #include "SceneGeometry.h"
 #include "SceneModel.h"
 #include "SceneRenderer.h"
+#include "SceneSession.h"
 #include "UdpReceiver.h"
 
 #include <include/core/SkColor.h>
@@ -22,7 +23,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <vector>
 
 #if !__has_feature(objc_arc)
 #error "the SCKEngine sources must be compiled with ARC (-fobjc-arc)"
@@ -53,9 +53,8 @@ struct BlitPalette {
   id<MTLCommandQueue> _queue;
   std::unique_ptr<sigil::skia::GraphiteContext> _graphite;
   std::unique_ptr<spellcircle::SceneRenderer> _sceneRenderer;
-  spellcircle::SceneDocument _document;
+  spellcircle::SceneSession _session;
   spellcircle::ResolvedScene _resolved;
-  BOOL _hasScene;
 
   // Offscreen scene canvas at the configured native size — the texture
   // published over Syphon and blitted into on-screen layers.
@@ -63,23 +62,18 @@ struct BlitPalette {
 
   SyphonMetalServer *_syphon;
 
-  // The same ASIO receiver the Qt app's NetworkManager wraps, so both
-  // frontends have one transport. Datagrams arrive on its I/O thread and
-  // are marshalled onto the main queue here.
+  // The application supplies the event loop. Its runtime stays alive until
+  // the receiver is released; packet and status callbacks hop to the main
+  // queue and are accepted only for the binding that produced them.
+  SCKNetworkRuntime *_networkRuntime;
   std::unique_ptr<spellcircle::UdpReceiver> _receiver;
+  uint64_t _networkGeneration;
+  BOOL _networkRequested;
   NSDateFormatter *_timestampFormatter;
-  CFTimeInterval _lastPacketTime;
-  CFTimeInterval _rateWindowStart;
-  int _rateWindowPackets;
-  // Backing for the custom staleness-aware scenesPerSecond getter (a
-  // readonly property with a hand-written getter isn't auto-synthesized).
-  double _scenesPerSecond;
 
   // Paced rendering: packets only mark the scene dirty; the render clock
   // (renderTickIfDue, at targetFramesPerSecond) and the display link (via
-  // renderPendingScene) actually render. Byte-identical payloads are
-  // dropped before decode.
-  std::vector<uint8_t> _lastPayload;
+  // renderPendingScene) actually render.
   BOOL _sceneDirty;
   BOOL _renderTickScheduled;
   CFTimeInterval _lastRenderTime;

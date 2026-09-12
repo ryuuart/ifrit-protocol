@@ -1,6 +1,6 @@
 # SpellCircle — the scene receiver product. Two executables share one core:
 #
-#   shared/  Qt-free code both frontends embed: the wire schema, the ASIO
+#   shared/  Qt-free code both frontends embed: the wire schema, Boost.Asio
 #            UDP transport, and the scene core (decode/resolve/draw).
 #   qt/      The cross-platform Qt Quick receiver (executable SpellCircle).
 #   mac/     The native SwiftUI receiver (executable SpellCircleMac,

@@ -2,6 +2,8 @@
 #include <QColor>
 #include <QFont>
 #include <QtCanvasPainter/QCanvasPainterItemRenderer>
+#include <cstdint>
+#include <limits>
 #include <memory>
 
 #include "CanvasSceneBackend.h"
@@ -61,7 +63,7 @@ class SpellCircleRenderer : public QCanvasPainterItemRenderer {
   QCanvasOffscreenCanvas m_canvas;
   int m_allocatedCanvasWidth = 0;
   int m_allocatedCanvasHeight = 0;
-  int m_knownModelGeneration = -1;
+  uint64_t m_knownModelGeneration = std::numeric_limits<uint64_t>::max();
   int m_knownConfigGeneration = -1;
   bool m_geometryDirty = true;
   // Null when the active QRhi backend has no publisher implementation (see

@@ -105,7 +105,7 @@ SkColor toSkColor(NSColor *color) {
 }
 
 - (void)resolveAndRender {
-  _resolved = spellcircle::resolveScene(_document, static_cast<float>(_canvasWidth),
+  _resolved = spellcircle::resolveScene(_session.document(), static_cast<float>(_canvasWidth),
                                         static_cast<float>(_canvasHeight));
   [self renderScene];
 }

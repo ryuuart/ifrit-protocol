@@ -33,7 +33,7 @@ struct ActivityPanel: View {
                             .labelsHidden()
                         Spacer()
                         Button(action: model.toggleListening) {
-                            Text(model.listening ? "Stop" : "Listen")
+                            Text(model.listening || model.starting ? "Stop" : "Listen")
                                 .frame(width: 52)
                         }
                         .controlSize(.small)

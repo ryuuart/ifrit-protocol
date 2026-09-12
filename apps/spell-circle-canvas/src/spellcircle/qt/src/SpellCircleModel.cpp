@@ -15,7 +15,12 @@ constexpr int kClearKeepItems = kMaxFeedItems - 450;
 }  // namespace
 
 SpellCircleModel::SpellCircleModel(QObject* parent)
-    : QAbstractListModel(parent) {}
+    : QAbstractListModel(parent) {
+  m_rateTimer.setInterval(250);
+  connect(&m_rateTimer, &QTimer::timeout, this,
+          &SpellCircleModel::updatePacketRate);
+  m_rateTimer.start();
+}
 
 int SpellCircleModel::rowCount(const QModelIndex& parent) const {
   if (parent.isValid()) return 0;
@@ -47,15 +52,12 @@ QHash<int, QByteArray> SpellCircleModel::roleNames() const {
 
 void SpellCircleModel::clear() {
   const bool willTrimFeed = m_items.size() > kClearKeepItems;
-  if (!willTrimFeed && !m_hasGeometry) return;
+  const uint64_t generation = m_session.generation();
 
   // The document isn't row data — rowCount()/data() only ever look at
   // m_items — so clearing it needs no model reset/row signals of its own.
-  m_document.clear();
-  m_hasGeometry = false;
-  m_arrivalTimer.invalidate();
-  m_scenesPerSecond = 0.0;
-  emit scenesPerSecondChanged();
+  m_session.clear();
+  updatePacketRate();
 
   // Trim the feed down to its most recent entries rather than wiping it
   // outright: a beginResetModel() here would flash the sidebar list empty
@@ -67,29 +69,21 @@ void SpellCircleModel::clear() {
     endRemoveRows();
   }
 
-  ++m_generation;
-  emit geometryChanged();
+  if (m_session.generation() != generation) emit geometryChanged();
 }
 
-void SpellCircleModel::onSpellCircleReceived(const QString& source,
-                                             const QByteArray& payload) {
-  if (m_arrivalTimer.isValid()) {
-    const double interval = m_arrivalTimer.restart() / 1000.0;
-    const double rate = interval > 0.0 ? 1.0 / interval : 0.0;
-    // Restart the average after a stream gap so the display recovers
-    // immediately instead of averaging across the silence.
-    m_scenesPerSecond = (interval > 2.0 || m_scenesPerSecond == 0.0)
-                            ? rate
-                            : m_scenesPerSecond * 0.9 + rate * 0.1;
-  } else {
-    m_arrivalTimer.start();
+void SpellCircleModel::onSpellCircleReceived(
+    const QString& source, const QByteArray& payload,
+    std::chrono::steady_clock::time_point receivedAt) {
+  const spellcircle::SceneUpdate update = m_session.ingest(
+      payload.constData(), static_cast<size_t>(payload.size()), receivedAt);
+  if (update == spellcircle::SceneUpdate::Invalid) {
+    spdlog::warn("Dropped invalid SpellCircle buffer from {}",
+                 source.toStdString());
+    return;
   }
-  emit scenesPerSecondChanged();
-
-  const spellcircle::SceneStats stats = m_document.decode(
-      payload.constData(), static_cast<size_t>(payload.size()));
-
-  m_hasGeometry = stats.hasGeometry();
+  updatePacketRate();
+  const spellcircle::SceneStats& stats = m_session.stats();
 
   // One concise feed entry per received scene, rather than one per circle.
   const QString message = QStringLiteral(
@@ -112,6 +106,12 @@ void SpellCircleModel::onSpellCircleReceived(const QString& source,
     endRemoveRows();
   }
 
-  ++m_generation;
-  emit geometryChanged();
+  if (update == spellcircle::SceneUpdate::Changed) emit geometryChanged();
+}
+
+void SpellCircleModel::updatePacketRate() {
+  const double rate = m_session.packetRate();
+  if (m_scenesPerSecond == rate) return;
+  m_scenesPerSecond = rate;
+  emit scenesPerSecondChanged();
 }

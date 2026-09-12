@@ -1,5 +1,8 @@
 #pragma once
 
+#include <boost/asio/any_io_executor.hpp>
+#include <boost/system/error_code.hpp>
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -8,63 +11,65 @@
 
 namespace spellcircle {
 
-/**
- * Dual-stack UDP datagram receiver on a dedicated I/O thread (standalone
- * ASIO). The one transport implementation shared by every receiver app —
- * the Qt NetworkManager and the native macOS SCKEngine both sit on top of
- * this instead of maintaining their own socket code.
- *
- * The handler is invoked on the internal I/O thread with the raw datagram
- * bytes and the sender formatted as "ip:port" (v4-mapped senders presented
- * as plain IPv4). Marshal to your UI/main thread before touching app state;
- * payload verification is intentionally left to the caller so this stays a
- * pure transport.
- *
- * start()/stop() are not thread-safe against each other — call them from
- * one owning thread (both apps drive them from their main threads).
+/** One complete UDP payload, its sender, and the time its receive completed.
+ *  IPv6 sources use bracketed addresses; mapped IPv4 sources use plain IPv4.
+ *  Arrival time uses a monotonic clock so UI queue delays do not affect rates.
  */
+struct Datagram {
+  std::vector<std::uint8_t> payload;
+  std::string source;
+  std::chrono::steady_clock::time_point receivedAt;
+};
+
+/** Dual-stack UDP transport on an executor supplied by the host.
+ *
+ *  The host owns and runs the executor's context, which must outlive this
+ *  receiver. The receiver serializes its socket operations and callbacks even
+ *  when several threads run that context. It never runs, restarts, stops, or
+ *  joins the context. Payload verification belongs to the scene consumer.
+ *
+ *  Controls may be called from any thread, including a callback. Stopping or
+ *  rebinding retires the preceding binding immediately: it waits for an
+ *  executing callback to return, unless called from that callback, and prevents
+ *  subsequent callbacks from entering. Socket cancellation itself is queued;
+ *  no control waits for the executor to run. Callbacks must not block waiting
+ *  for a thread that is stopping or rebinding the receiver. Callbacks already
+ *  forwarded to another event loop must be invalidated by that consumer.
+ *
+ *  Callback exceptions propagate through the host's context run function.
+ *  Destruction has the same cancellation guarantees as stop(). */
 class UdpReceiver {
  public:
-  using DatagramHandler = std::function<void(std::vector<std::uint8_t> payload,
-                                             std::string source)>;
+  /** A successful bind supplies the actual port (including an allocated port
+   *  when start was given zero). An error reports a failed bind or a terminal
+   *  receive failure; that binding receives no further datagrams. */
+  struct Status {
+    std::uint16_t port = 0;
+    boost::system::error_code error;
+  };
 
-  UdpReceiver();
+  using DatagramHandler = std::function<void(Datagram)>;
+  using StatusHandler = std::function<void(Status)>;
+
+  explicit UdpReceiver(boost::asio::any_io_executor executor);
   ~UdpReceiver();
-
   UdpReceiver(const UdpReceiver&) = delete;
   UdpReceiver& operator=(const UdpReceiver&) = delete;
 
-  /**
-   * Binds :port (IPv6 any, dual-stack — IPv4 senders arrive v4-mapped) and
-   * starts the receive loop. Any previous binding is torn down first, so a
-   * port change while listening rebinds in place — the semantics both apps
-   * already expose. Returns an empty string on success, otherwise a
-   * human-readable bind failure for status displays.
-   */
-  std::string start(std::uint16_t port, DatagramHandler handler);
+  /** Queues a new binding, closing the preceding socket before binding.
+   *  Both handlers execute on the supplied executor. Status reports the bind
+   *  outcome before any datagram. A stop or newer start may retire a queued
+   *  binding before either handler executes. */
+  void start(std::uint16_t port, DatagramHandler datagram,
+             StatusHandler status);
 
-  /** Closes the socket and joins the I/O thread. No handler invocations
-   *  occur after stop() returns. Safe to call when not listening. */
+  /** Retires the binding and queues socket closure. The host's other work
+   *  remains running. It is safe to stop before the context starts running. */
   void stop();
 
-  /** Whether a binding is live: true between a successful start() and the
-   *  next stop(), and false once the receive loop has given up on a broken
-   *  socket. */
-  bool listening() const;
-
-  /**
-   * Why the receive loop gave up, empty while it has not. A failure that
-   * concerns one datagram — an ICMP rejection reflected onto the next
-   * receive, a datagram too large for the buffer — leaves the socket bound
-   * and the loop running. A failure of the socket itself ends the loop
-   * instead of re-arming on an error that cannot clear, and its message is
-   * held here for a status display until the next start() or stop().
-   */
-  std::string failure() const;
-
  private:
-  struct Session;
-  std::unique_ptr<Session> m_session;
+  struct State;
+  std::shared_ptr<State> m_state;
 };
 
 }  // namespace spellcircle

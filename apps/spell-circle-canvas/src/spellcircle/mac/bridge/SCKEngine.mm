@@ -1,4 +1,5 @@
 #import "SCKEngineInternal.h"
+#import "SCKNetworkRuntimeInternal.h"
 
 #include <algorithm>
 
@@ -28,7 +29,7 @@ constexpr double kMaxTargetFps = 240.0;
 
 @implementation SCKEngine
 
-- (instancetype)init {
+- (instancetype)initWithRuntime:(SCKNetworkRuntime *)runtime {
   self = [super init];
   if (!self) return nil;
 
@@ -46,7 +47,8 @@ constexpr double kMaxTargetFps = 240.0;
   if (_device)
     _syphon = [[SyphonMetalServer alloc] initWithName:@"SpellCircle" device:_device options:nil];
 
-  _receiver = std::make_unique<spellcircle::UdpReceiver>();
+  _networkRuntime = runtime;
+  _receiver = std::make_unique<spellcircle::UdpReceiver>([runtime executor]);
   _port = kDefaultPort;
   _statusText = @"Stopped";
   _targetFramesPerSecond = kDefaultTargetFps;
@@ -79,7 +81,9 @@ constexpr double kMaxTargetFps = 240.0;
 }
 
 - (void)dealloc {
-  _receiver->stop();  // joins the I/O thread; no callbacks after this
+  ++_networkGeneration;
+  _receiver->stop();
+  _receiver.reset();
   [_syphon stop];
 }
 
@@ -87,14 +91,17 @@ constexpr double kMaxTargetFps = 240.0;
   const int boundedPort = std::clamp(port, 1, 65535);
   if (_port == boundedPort) return;
   _port = boundedPort;
-  if (_listening) [self start];
+  if (_networkRequested) [self start];
+}
+
+- (BOOL)starting {
+  return _networkRequested && !_listening;
 }
 
 // Reads as zero once the stream has been silent for a couple of seconds,
 // so a stopped sender doesn't leave a stale rate on screen.
 - (double)scenesPerSecond {
-  if (_lastPacketTime <= 0 || CACurrentMediaTime() - _lastPacketTime > 2.0) return 0.0;
-  return _scenesPerSecond;
+  return _session.packetRate();
 }
 
 // Every setter funnels through here: geometry resolution depends on the
@@ -102,7 +109,7 @@ constexpr double kMaxTargetFps = 240.0;
 // setters trivially uniform, and a config change is user-interaction rate.
 - (void)configDidChange {
   _sceneDirty = YES;
-  [self.delegate engineDidRenderScene:self];  // wake the view's display link
+  [self.delegate engineSceneDidChange:self];
   [self renderTickIfDue];
 }
 

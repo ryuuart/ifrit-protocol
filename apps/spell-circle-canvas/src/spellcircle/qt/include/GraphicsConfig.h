@@ -4,7 +4,7 @@
 #include <QObject>
 
 /** Geometry of the labelled boxes a scene can attach to its points, exposed as
- *  a grouped QML property on GraphicsConfig (Models.graphicsConfig.box.width,
+ *  a grouped QML property on GraphicsConfig (models.graphicsConfig.box.width,
  *  and so on) — the grouping convention Qt itself uses for Rectangle.border.
  *
  *  Lengths here are pre-scale: each is multiplied by GraphicsConfig's global
@@ -57,7 +57,7 @@ class BoxStyleConfig : public QObject {
 };
 
 /** Size of the render target, in real pixels, exposed as a grouped QML property
- *  (Models.graphicsConfig.canvas.width, and so on).
+ *  (models.graphicsConfig.canvas.width, and so on).
  *
  *  One setting feeds two consumers that must agree: it is both the coordinate
  *  space an incoming author-space scene is scaled into and the size of the
@@ -90,7 +90,7 @@ class CanvasSizeConfig : public QObject {
 /**
  * How scenes are styled: accent color, stroke width, global scale, typography,
  * box geometry, and the render-target size. Reachable from QML as
- * Models.graphicsConfig, which owns the instance. Lives on the GUI thread: the
+ * the application-owned models.graphicsConfig. Lives on the GUI thread: the
  * render side does not read these accessors while drawing, it copies the values
  * across when generation() tells it something changed.
  *
