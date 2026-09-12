@@ -60,10 +60,13 @@ struct Type {
    *  them; a relative length is resolved against what it is overlaid on. */
   std::optional<Length> size;
   std::optional<SkColor4f> color;
-  /** px of tracking added after each cluster (ShapingStyle::letterSpacing).
-   *  NOT per-mille: a reference that quotes tracking in per-mille is
-   *  converted at the call site, where the unit's own em size is known. */
-  std::optional<float> track;
+  /** Tracking added after each cluster (ShapingStyle::letterSpacing).
+   *  Pixels are implicit, so `.track = 1.2f` is that many; `em(-0.08f)` is
+   *  a fraction of the SIZE THE TYPE RESOLVES TO, resolved as it is
+   *  overlaid, so one register can state the tracking a face is set at
+   *  and hold it at every size. NOT per-mille: a reference that quotes
+   *  tracking in per-mille is a thousandth of an em. */
+  std::optional<Length> track;
   /** Horizontal condensation (ShapingStyle::scaleX) — how to condense a
    *  face that has no `wdth` axis to ask instead. */
   std::optional<float> condense;

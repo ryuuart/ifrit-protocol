@@ -69,7 +69,7 @@ Type initialType() {
   Type initial;
   initial.size = Length(kInitialSizePx);
   initial.color = SkColor4f{0, 0, 0, 1};
-  initial.track = 0.0f;
+  initial.track = Length(0.0f);
   initial.condense = 1.0f;
   initial.weight = 0.0f;
   initial.slant = 0.0f;
@@ -99,11 +99,15 @@ Type overlay(const Type& base, const Type& over, float rootSizePx,
              float lineHeightPx) {
   Type total = base;
   merge(total, over);
-  // The one field a copy cannot settle: a relative size is a statement
-  // ABOUT the base's, so here is where it becomes a number.
+  // The fields a copy cannot settle: a relative size is a statement ABOUT
+  // the base's, and a relative tracking is a statement about the size the
+  // type comes to, so here is where each becomes a number.
   if (over.size && over.size->relative())
     total.size = Length(
         resolvePx(*over.size, sizeAgainst(base), rootSizePx, lineHeightPx));
+  if (total.track && total.track->relative())
+    total.track = Length(resolvePx(*total.track, sizeAgainst(total),
+                                   rootSizePx, lineHeightPx));
   return total;
 }
 
@@ -113,7 +117,10 @@ TextStyle toTextStyle(const Type& total) {
   style.shaping.fontSize =
       total.size ? resolvePx(*total.size, kInitialSizePx, kInitialSizePx, 0.0f)
                  : kInitialSizePx;
-  style.shaping.letterSpacing = total.track.value_or(0.0f);
+  style.shaping.letterSpacing =
+      total.track ? resolvePx(*total.track, style.shaping.fontSize,
+                              kInitialSizePx, 0.0f)
+                  : 0.0f;
   style.shaping.scaleX = total.condense.value_or(1.0f);
   style.shaping.aliased = total.aliased.value_or(false);
   const SkColor4f color = total.color.value_or(SkColor4f{0, 0, 0, 1});
@@ -137,7 +144,9 @@ TextStyle overlay(TextStyle base, const Type& over) {
     base.shaping.fontSize =
         resolvePx(*over.size, against, kInitialSizePx, 0.0f);
   }
-  if (over.track) base.shaping.letterSpacing = *over.track;
+  if (over.track)
+    base.shaping.letterSpacing =
+        resolvePx(*over.track, base.shaping.fontSize, kInitialSizePx, 0.0f);
   if (over.condense) base.shaping.scaleX = *over.condense;
   if (over.aliased) base.shaping.aliased = *over.aliased;
   if (over.color) {

@@ -288,6 +288,28 @@ TEST(Type, ARelativeSizeResolvesAgainstTheBase) {
   EXPECT_FLOAT_EQ(overlay(built, {.size = em(0.25f)}).shaping.fontSize, 6.0f);
 }
 
+TEST(Type, ARelativeTrackingResolvesAgainstTheSizeTheTypeComesTo) {
+  // Tracking in ems is a fraction of the size the type is set at — the
+  // size after the same overlay resolved it — so one register states the
+  // tracking a face wants and holds it at every size.
+  const Type base{.size = 20.0f};
+  EXPECT_FLOAT_EQ(overlay(base, {.track = em(-0.08f)}).track->value, -1.6f);
+  EXPECT_FLOAT_EQ(overlay(base, {.size = 40.0f, .track = em(0.1f)}).track->value,
+                  4.0f)
+      << "against the size stated in the same partial, not the base's";
+  EXPECT_FALSE(overlay(base, {.track = 0.1_em}).track->relative());
+  // A pixel tracking is a pixel, whatever the size.
+  EXPECT_EQ(overlay(base, {.track = 1.2f}).track, Length(1.2f));
+  // The TextStyle forms resolve against the size the style carries.
+  EXPECT_FLOAT_EQ(textStyle({.size = 50.0f, .track = em(0.02f)})
+                      .shaping.letterSpacing,
+                  1.0f);
+  TextStyle built;
+  built.shaping.fontSize = 30.0f;
+  EXPECT_FLOAT_EQ(overlay(built, {.track = em(0.1f)}).shaping.letterSpacing,
+                  3.0f);
+}
+
 TEST(Type, MergeCopiesFieldsAndLeavesARelativeSizeRelative) {
   // Two partials written about one element fold into one partial, which is
   // not yet resolved against anything: a relative size stays relative
