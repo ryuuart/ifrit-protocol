@@ -262,22 +262,17 @@ Element figureBox(SkPoint centre, float radius) {
 // ---------------------------------------------------------------------------
 // type
 
-weave::TextStyle faced(sk_sp<SkTypeface> face, float size, SkColor4f color,
-                       float tracking = 0, float condense = 1.0f) {
-  return weave::textStyle({.face = std::move(face),
-                           .size = size,
-                           .color = color,
-                           .track = tracking,
-                           .condense = condense});
-}
-
 /** The OUTLINE register: sigil::weave::kit::outline()'s stroked paint installed
  *  as the node's ENTIRE foreground pass — no fill underneath, so the
  *  spiral is visible straight through the counters. Typotheque: "outline
- *  type through which the image beneath can be seen." */
+ *  type through which the image beneath can be seen." A WHOLE style: a
+ *  stroked foreground is paint, which a partial cannot state. */
 weave::TextStyle hollow(sk_sp<SkTypeface> face, float size, SkColor4f color,
                         float width, float tracking = 0) {
-  weave::TextStyle s = faced(std::move(face), size, color, tracking);
+  weave::TextStyle s = weave::textStyle({.face = std::move(face),
+                                         .size = size,
+                                         .color = color,
+                                         .track = tracking});
   s.paint.foreground =
       sigil::weave::kit::outline(color.toSkColor(), width).paint;
   s.paint.foreground.setAntiAlias(true);
@@ -461,8 +456,9 @@ struct VertigoTitles : sketch::Sketch {
     // laid over the busiest part of the card: that is where the film puts
     // its body credits too.
     panel.child(
-        text(toUtf8("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY"),
-             faced(faceDisplay, 15, kSolidInk, 2.6f))
+        text(toUtf8("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY"))
+            .font({.face = faceDisplay, .size = 15, .track = 2.6f})
+            .ink(kSolidInk)
             .key("credit")
             .centerAt({kEye.x(), kEye.y() + 152.0f})
             .opacity(animate(from(0.0f).to(1.0f), ramp(1550, 300)))
@@ -471,9 +467,11 @@ struct VertigoTitles : sketch::Sketch {
     // the instrument-dial legend, set on the limbus itself with
     // Element::onPath() — one text leaf where hand-placing curved
     // lettering would have been one leaf and one measure() per glyph.
+    const weave::Type legend{
+        .size = 11, .color = hexColor(0xEDE6D8, 0.42f), .track = 3.4f};
     panel.child(
-        text(toUtf8("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE"),
-             faced(faceGothic, 11, hexColor(0xEDE6D8, 0.42f), 3.4f))
+        text(toUtf8("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE"))
+            .font(legend)
             .key("ring-top")
             .width(544)
             .height(544)
@@ -485,8 +483,8 @@ struct VertigoTitles : sketch::Sketch {
                      .autoFlip = false})
             .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500))));
     panel.child(
-        text(toUtf8("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR"),
-             faced(faceGothic, 11, hexColor(0xEDE6D8, 0.42f), 3.4f))
+        text(toUtf8("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR"))
+            .font(legend)
             .key("ring-bottom")
             .width(544)
             .height(544)
@@ -511,14 +509,17 @@ struct VertigoTitles : sketch::Sketch {
         "CARD C · a:b 2:1 · δ 45° · k 0.22 · R 180 px",
         "CARD D · a:b 5:3 · δ 60° · k 0.12 · R 167 px",
     };
+    const weave::Type slug{.size = 10, .track = 1.8f};
     for (int i = 0; i < 4; ++i)
-      panel.child(text(toUtf8(kSlug[i]), faced(faceGothic, 10, kBone, 1.8f))
+      panel.child(text(toUtf8(kSlug[i]))
+                      .font(slug)
                       .key(std::string("slug") + kCards[i].tag)
                       .left(22)
                       .top(20)
                       .opacity(&cardA[i]));
-    panel.child(text(toUtf8("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone"),
-                     faced(faceGothic, 10, hexColor(0xEDE6D8, 0.50f), 1.8f))
+    panel.child(text(toUtf8("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone"))
+                    .font(slug)
+                    .ink(hexColor(0xEDE6D8, 0.50f))
                     .key("slug-rig")
                     .left(22)
                     .bottom(20)
@@ -561,12 +562,12 @@ struct VertigoTitles : sketch::Sketch {
                 .rotate(turntable()));
     p.child(text(toUtf8("VERTIGO"), hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
                 .key("spec-outline"));
-    p.child(text(toUtf8("SAUL BASS · JOHN WHITNEY"),
-                 faced(faceDisplay, 14, kBone, 2.0f))
+    p.child(text(toUtf8("SAUL BASS · JOHN WHITNEY"))
+                .font({.face = faceDisplay, .size = 14, .track = 2.0f})
                 .key("spec-solid"));
     p.child(text(toUtf8("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
-                        "— BOTH CLARENDON."),
-                 faced(faceGothic, 10, kSteel, 0.6f))
+                        "— BOTH CLARENDON."))
+                .font({.size = 10, .color = kSteel, .track = 0.6f})
                 .key("spec-cap"));
     return p;
   }
@@ -601,8 +602,10 @@ struct VertigoTitles : sketch::Sketch {
               .grow(1)
               .gap(2)
               .child(
-                  text(toUtf8(c.line1), faced(faceGothicBold, 11, kBone, 0.7f)))
-              .child(text(toUtf8(c.line2), faced(faceGothic, 9, kSteel))));
+                  text(toUtf8(c.line1))
+                      .font(
+                          {.face = faceGothicBold, .size = 11, .track = 0.7f}))
+              .child(text(toUtf8(c.line2)).font({.size = 9, .color = kSteel})));
       p.child(std::move(row));
     }
     return p;
@@ -618,18 +621,19 @@ struct VertigoTitles : sketch::Sketch {
         "CURVES PLOT JULES LISSAJOUS'S PARAMETRIC EQUATIONS",
     };
     auto p = plate(176).gap(5);
-    p.child(text(toUtf8("THE M-5 GUN DIRECTOR"),
-                 faced(faceGothicBold, 13, kBone, 1.6f))
+    p.child(text(toUtf8("THE M-5 GUN DIRECTOR"))
+                .font({.face = faceGothicBold, .size = 13, .track = 1.6f})
                 .key("rig-h"));
     for (int i = 0; i < 4; ++i)
-      p.child(text(toUtf8(kFacts[i]), faced(faceGothic, 10.5f, kSteel, 0.3f))
+      p.child(text(toUtf8(kFacts[i]))
+                  .font({.size = 10.5f, .color = kSteel, .track = 0.3f})
                   .key("rig" + std::to_string(i))
                   .opacity(animate(from(0.0f).to(1.0f),
                                    ramp(900.0f + (float)i * 90.0f, 300))));
     p.child(box().grow(1));
     p.child(text(toUtf8("hitchcocksvertigo.substack.com · rhizome.org "
-                        "· diyphotography.net"),
-                 faced(faceGothic, 9, kSteelDim))
+                        "· diyphotography.net"))
+                .font({.size = 9, .color = kSteelDim})
                 .key("rig-cite"));
     return p;
   }
@@ -655,6 +659,9 @@ struct VertigoTitles : sketch::Sketch {
   // ------------------------------------------------------------------
   Element describe() {
     auto root = box().column().padding(kPad).gap(28).fill(Fill::color(kInk));
+    // The chrome's face and ink, stated once; a line restates only the field
+    // it changes — a size, a tracking, the display face, a quieter colour.
+    root.font({.face = faceGothic}).ink(kBone);
 
     // ---- header ---------------------------------------------------
     static constexpr const char* kSrc[] = {
