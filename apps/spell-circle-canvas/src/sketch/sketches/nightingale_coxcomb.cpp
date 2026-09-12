@@ -472,7 +472,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
             sectorBox(local, r, skia0 + gap * 0.5f, 30.0f - gap)
                 .key(std::string(tag) + band.name + std::to_string(m))
                 .fill(*band.mat);
-        if (!outer) wedge.stroke(stroke(1.0f, Fill::color(kInk)));
+        if (!outer) wedge.stroke(stroke(1.0f));
         // The entrance scales the wedge about the WHEEL's centre, which
         // sectorBox set as the pivot: the sector grows out of the hub.
         wheelBox.child(
@@ -525,7 +525,9 @@ struct NightingaleCoxcomb : sketch::Sketch {
 
   // ------------------------------------------------------------------
   Element describe(sketch::SketchContext& ctx) {
-    auto root = stack().fill(Fill::color(kPaper));
+    // The engraver's one ink, stated once: every line of type and every
+    // mark that names no colour is printed in it.
+    auto root = stack().fill(Fill::color(kPaper)).ink(kInk);
 
     // ---- paper: fractal mottle, sparse foxing, a soft vignette ------
     // The paper base is three static but expensive layers: a procedural
@@ -591,6 +593,8 @@ struct NightingaleCoxcomb : sketch::Sketch {
                        {0.0f, 0.42f, 0.60f, 1.0f})));
 
     // ---- title block -------------------------------------------------
+    // An emboldening underlay lives on a whole style, so the two titles
+    // and the ring labels carry theirs and inherit nothing.
     const auto title1 = kit::emboldened(
         weave::textStyle(
             {.face = faceDisplay, .size = 39, .color = kInk, .track = 0.8f}),
@@ -627,25 +631,23 @@ struct NightingaleCoxcomb : sketch::Sketch {
                      .top(108.0f + (float)i * 4.0f)
                      .width(368)
                      .height(1)
-                     .fill(Fill::color(kInk))
+                     .fill(Fill::currentInk())
                      .transformOrigin(0.0f, 0.5f)
                      .scale(animate(from(0.0f).to(1.0f),
                                     ramp(tTitle2 * 1000 + 220 + (float)i * 60,
                                          420, ch::easeOutQuint))));
 
     // ---- the two diagram captions -----------------------------------
-    const auto capNum =
-        weave::textStyle({.face = faceGrotesque, .size = 24, .color = kInk});
-    const auto capText = weave::textStyle(
-        {.face = faceGrotesque, .size = 21, .color = kInk, .track = 0.4f});
     auto caption = [&](const char* num, const char* label, float cx, float numX,
                        float startSec, const char* key) {
-      root.child(text(toUtf8(num), capNum)
+      root.child(text(toUtf8(num))
+                     .font({.face = faceGrotesque, .size = 24})
                      .key(std::string(key) + "n")
                      .centerAt({numX, 40})
                      .opacity(animate(from(0.0f).to(1.0f),
                                       ramp(startSec * 1000, 320))));
-      root.child(text(toUtf8(label), capText)
+      root.child(text(toUtf8(label))
+                     .font({.face = faceGrotesque, .size = 21, .track = 0.4f})
                      .key(std::string(key) + "t")
                      .centerAt({cx, 78})
                      .opacity(animate(from(0.0f).to(1.0f),
@@ -723,7 +725,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
     for (Element& e : labels) root.child(std::move(e));
 
     // ---- the dashed leader between the two wheels -------------------
-    PathFormat dash = stroke(1.1f, Fill::color(kInk));
+    PathFormat dash = stroke(1.1f);
     dash.dashIntervals = {7.0f, 5.0f};
     root.child(box()
                    .inset(0)
@@ -748,18 +750,18 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // layout can reproduce — so the lines stay separate nodes and only
     // the SCHEDULE rides the engine. The container's staggerChildren is
     // the 200 ms per-line ladder, and each line's pen runs for exactly
-    // its cascade's span, so the writing speed is the cascade's own.
-    const auto script =
-        weave::textStyle({.face = faceScript, .size = 27, .color = kInk});
+    // its cascade's span, so the writing speed is the cascade's own. The
+    // hand they are written in is the container's, inherited.
     const motion::Spread penStagger{.amountMs = 620, .durationMs = 30};
-    Element legend = stack().inset(0).staggerChildren(200ms);
+    Element legend = stack().inset(0).staggerChildren(200ms).font(
+        {.face = faceScript, .size = 27});
     for (size_t i = 0; i < legendText.size(); ++i) {
       Track pen{.effect = fx::typeOn(),
                 .stagger = penStagger,
                 .progress = animate(
                     from(0.0f).to(1.0f),
                     ramp(tLegend * 1000, penStagger.spanMs(2), ch::easeNone))};
-      legend.child(text(toUtf8(legendText[i].text), script)
+      legend.child(text(toUtf8(legendText[i].text))
                        .key("leg" + std::to_string(i))
                        .fx(std::move(pen))
                        .left(171.0f + (float)legendText[i].indent * 22.0f)
@@ -768,9 +770,9 @@ struct NightingaleCoxcomb : sketch::Sketch {
     root.child(std::move(legend));
 
     // ---- printer's imprint ------------------------------------------
-    root.child(text(toUtf8("Harrison & Sons, St. Martin's Lane."),
-                    weave::textStyle(
-                        {.face = faceScript, .size = 20, .color = kInkSoft}))
+    root.child(text(toUtf8("Harrison & Sons, St. Martin's Lane."))
+                   .font({.face = faceScript, .size = 20})
+                   .ink(kInkSoft)
                    .key("imprint")
                    .centerAt({1712, 1004})
                    .opacity(animate(from(0.0f).to(1.0f),
