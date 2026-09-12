@@ -59,12 +59,14 @@ struct WinampBase : sketch::Sketch {
 
   /** TEXT.BMP's 5x6 native cell, approximated: a monospace sized so its
    *  advance plus tracking lands on exactly `cellN` NATIVE px. Uppercase only
-   *  — the real font has no lowercase glyphs at all. */
-  sigil::weave::TextStyle pix(float cellN, SkColor4f c, bool bold = false,
-                              float trackN = 0.0f) const {
+   *  — the real font has no lowercase glyphs at all. A PARTIAL: the run's
+   *  colour is the ink in force where it lands. */
+  sigil::weave::Type pix(float cellN, bool bold = false,
+                         float trackN = 0.0f) const {
     const float em = bold ? boldEm : monoEm;
-    return wa::type(bold ? wa::monoBold() : wa::mono(),
-                    wa::n(cellN - trackN) / em, c, wa::n(trackN), 1.0f);
+    return {.face = bold ? wa::monoBold() : wa::mono(),
+            .size = wa::n(cellN - trackN) / em,
+            .track = wa::n(trackN)};
   }
 
   // paragraph identities held so the playlist prunes across slot renders

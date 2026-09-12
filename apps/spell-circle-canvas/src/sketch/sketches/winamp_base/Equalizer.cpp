@@ -2,7 +2,10 @@
 
 auto WinampBase::eqWindow() -> Element {
   using namespace wa;
-  Element w = box().width(Dimension(n(275))).height(Dimension(n(116)));
+  // The window's captions — PREAMP and the band frequencies — are set in
+  // the body's lavender-grey; a key and the title bar say their own.
+  Element w =
+      box().width(Dimension(n(275))).height(Dimension(n(116))).ink(kCaption);
   w.child(box().inset(0).fill(steel).cache(Cache::Texture));
   raised(w, kWellHi, kWellLo);
   w.child(titleBar(275, "WINAMP EQUALIZER", false, false));
@@ -13,7 +16,7 @@ auto WinampBase::eqWindow() -> Element {
   on.child(
       box().width(Dimension(n(3))).height(Dimension(n(3))).fill(wa::kGreen));
   on.child(box().width(Dimension(n(2))));
-  on.child(t("ON", pix(4.4f, hexColor(0x121A24))));
+  on.child(t("ON", pix(4.4f)));
   w.child(on);
 
   Element autoB = key(40, 18, 32, 12, box());
@@ -23,7 +26,7 @@ auto WinampBase::eqWindow() -> Element {
                   .height(Dimension(n(3)))
                   .fill(hexColor(0x3C4A58)));
   autoB.child(box().width(Dimension(n(2))));
-  autoB.child(t("AUTO", pix(4.4f, hexColor(0x121A24))));
+  autoB.child(t("AUTO", pix(4.4f)));
   w.child(autoB);
 
   w.child(textKey(217, 18, 44, 12, "PRESETS", 4.4f));
@@ -70,19 +73,19 @@ auto WinampBase::eqWindow() -> Element {
     w.child(at(box(), 38, dby[i], 38, 7)
                 .justify(Justify::End)
                 .alignItems(Align::Center)
-                .child(t(db[i], pix(3.6f, dbc[i]))));
+                .child(t(db[i], pix(3.6f)).ink(dbc[i])));
 
   // PREAMP + the ten band captions, tight against the fader feet.
   w.child(at(box(), 3, 104, 30, 7)
               .alignItems(Align::Center)
-              .child(t("PREAMP", pix(3.6f, hexColor(0x8E8EB4)))));
+              .child(t("PREAMP", pix(3.6f))));
   static const char* bands[10] = {"60", "170", "310", "600", "1K",
                                   "3K", "6K",  "12K", "14K", "16K"};
   for (int i = 0; i < 10; ++i)
     w.child(at(box(), 76.0f + 18.0f * (float)i, 104, 18, 7)
                 .justify(Justify::Center)
                 .alignItems(Align::Center)
-                .child(t(bands[i], pix(3.6f, hexColor(0x8E8EB4)))));
+                .child(t(bands[i], pix(3.6f))));
   return w;
 }
 

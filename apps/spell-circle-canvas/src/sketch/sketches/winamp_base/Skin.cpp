@@ -102,6 +102,8 @@ auto WinampBase::key(float x, float y, float w, float h, Element glyph)
                                .edges = path::Edge::Bottom | path::Edge::Right,
                                .ends = styles::BevelEnds::Sliced};
   kit::bevelled(e, edge);
+  // the lettering on any key is set in the one dark ink
+  e.ink(kLabel);
   e.child(std::move(glyph));
   return e;
 }
@@ -119,7 +121,7 @@ auto WinampBase::textKey(float x, float y, float w, float h, const char* label,
   using namespace wa;
   Element e = key(x, y, w, h, box());
   e.justify(Justify::Center).alignItems(Align::Center);
-  e.child(t(label, pix(cell, hexColor(0x121A24))));
+  e.child(t(label, pix(cell)));
   return e;
 }
 
@@ -131,6 +133,8 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
       {0, 0}, {0, 1},
       {{0.0f, mskia::lighten(kTitle, 0.06f)}, {1.0f, dark(kTitle, 0.25f)}}));
   raised(bar, mskia::withAlpha(hexColor(0x5A5A82), 0.85f), hexColor(0x101018));
+  // the wordmark, the egg and the window buttons' glyphs: one gold
+  bar.ink(kGold);
 
   // grip hairlines either side of the wordmark
   const float gripW = wide ? 100.0f : 52.0f;
@@ -142,13 +146,13 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
   Element mark = at(box(), 0, (hN - 8) * 0.5f, wN, 8)
                      .justify(Justify::Center)
                      .alignItems(Align::Center);
-  mark.child(t(label, pix(6.6f, kGold, true, 1.7f))
-                 .opacity(motion::bind(&llama).invert()));
+  mark.child(
+      t(label, pix(6.6f, true, 1.7f)).opacity(motion::bind(&llama).invert()));
   bar.child(mark);
   Element egg = at(box(), 0, (hN - 8) * 0.5f, wN, 8)
                     .justify(Justify::Center)
                     .alignItems(Align::Center);
-  egg.child(t("IT REALLY WHIPS THE LLAMA'S ASS!", pix(5.2f, kGold, true, 0.7f))
+  egg.child(t("IT REALLY WHIPS THE LLAMA'S ASS!", pix(5.2f, true, 0.7f))
                 .opacity(&llama)
                 .scale(&llamaPop));
   bar.child(egg);
@@ -161,7 +165,7 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
                     .justify(Justify::Center)
                     .alignItems(Align::Center);
     raised(b, mskia::withAlpha(hexColor(0x5A5A82), 0.8f), hexColor(0x0E0E16));
-    b.child(t(g, pix(3.6f, kGold)));
+    b.child(t(g, pix(3.6f)));
     return b;
   };
   if (!wide)

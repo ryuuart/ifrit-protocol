@@ -55,14 +55,14 @@ auto WinampBase::playlistWindow() -> Element {
     bottom.child(textKey(14 + 29 * (float)i, 14, 22, 18, menus[i], 4.0f));
   Element opts = key(W - 44, 14, 22, 18, box());
   opts.column().justify(Justify::Center).alignItems(Align::Center);
-  opts.child(t("LIST", pix(3.8f, hexColor(0x121A24))));
-  opts.child(t("OPTS", pix(3.8f, hexColor(0x121A24))));
+  opts.child(t("LIST", pix(3.8f)));
+  opts.child(t("OPTS", pix(3.8f)));
   bottom.child(opts);
 
   // running-time readout
   bottom.child(at(box(), 132, 13, 62, 7)
                    .alignItems(Align::Center)
-                   .child(t(runningTime(), pix(4.0f, kPlText))));
+                   .child(t(runningTime(), pix(4.0f)).ink(kPlText)));
 
   // the mini transport dock
   Element dock = at(box(), 132, 22, 62, 12).fill(hexColor(0x12121E));
@@ -124,7 +124,7 @@ auto WinampBase::trackList() -> Element {
     r.child(ellipsized(i, std::to_string(i + 1) + ". " + tr.title, st,
                        n(listW - 40)));
     r.child(box().grow(1));
-    r.child(t(tr.time, type(arial(), n(9) * 0.78f, ink, n(0.5f))));
+    r.child(text(toUtf8(tr.time), st));
     // Rows reveal in bands of four: 25 rows on an even stagger reads as 25
     // separate animations, where batching reads as a list populating.
     r.opacity(&rowIn[(size_t)i]);

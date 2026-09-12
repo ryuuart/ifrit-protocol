@@ -40,7 +40,10 @@ auto WinampBase::rockPreset() -> const std::array<float, 11>& {
 
 auto WinampBase::mainWindow() -> Element {
   using namespace wa;
-  Element w = box().width(Dimension(n(275))).height(Dimension(n(116)));
+  // The display's lettering is TEXT.BMP's green: the marquee, the readouts
+  // and STEREO inherit it; the captions beside them name dimmer colours.
+  Element w =
+      box().width(Dimension(n(275))).height(Dimension(n(116))).ink(kDisplay);
   // The brushed body, on its own leaf so the bake is a texture and the
   // window's live children never drag the grain shader back per frame.
   w.child(box().inset(0).fill(steel).cache(Cache::Texture));
@@ -63,7 +66,7 @@ auto WinampBase::mainWindow() -> Element {
     clutter.child(at(box(), 0, cy[i], 8, cht[i])
                       .justify(Justify::Center)
                       .alignItems(Align::Center)
-                      .child(t(cl[i], pix(3.4f, hexColor(0x8E8EB4)))));
+                      .child(t(cl[i], pix(3.4f)).ink(kCaption)));
   // the specular glint that sweeps the stack once every 5 s
   clutter.child(
       at(box(), 0, 0, 8, 6)
@@ -102,7 +105,7 @@ auto WinampBase::mainWindow() -> Element {
          hexColor(0x08080E));
   Element title = at(box(), 2, 1, 154, 9).clip();
   title.child(kit::marquee(
-      t(marqueeText(), pix(5, hexColor(0x00E000))),
+      t(marqueeText(), pix(5)),
       {.phase = &marqueePhase, .gap = n(40), .contentWidth = marqueeW}));
   titleWell.child(title);
   w.child(titleWell);
@@ -115,25 +118,25 @@ auto WinampBase::mainWindow() -> Element {
     e.child(at(box(), 1, 2, wN - 2, 6)
                 .justify(Justify::End)
                 .alignItems(Align::Center)
-                .child(t(v, pix(4.6f, hexColor(0x00E000)))));
+                .child(t(v, pix(4.6f))));
     return e;
   };
   w.child(readout(111, 17, "192"));
   w.child(at(box(), 130, 43, 20, 6)
               .alignItems(Align::Center)
-              .child(t("kbps", pix(4, hexColor(0x6E6E9A)))));
+              .child(t("kbps", pix(4)).ink(hexColor(0x6E6E9A))));
   w.child(readout(154, 13, "44"));
   w.child(at(box(), 169, 43, 18, 6)
               .alignItems(Align::Center)
-              .child(t("kHz", pix(4, hexColor(0x6E6E9A)))));
+              .child(t("kHz", pix(4)).ink(hexColor(0x6E6E9A))));
   w.child(at(box(), 212, 41, 28, 12)
               .justify(Justify::Center)
               .alignItems(Align::Center)
-              .child(t("MONO", pix(4.4f, hexColor(0x3A3A5C)))));
+              .child(t("MONO", pix(4.4f)).ink(hexColor(0x3A3A5C))));
   w.child(at(box(), 240, 41, 29, 12)
               .justify(Justify::Center)
               .alignItems(Align::Center)
-              .child(t("STEREO", pix(4.0f, hexColor(0x00E000)))));
+              .child(t("STEREO", pix(4.0f))));
 
   // ---- the spectrum analyser well (native 24,43,76,16) ---------------
   Element vis = at(box(), 24, 43, 76, 16).fill(hexColor(0x000000));
@@ -215,7 +218,7 @@ auto WinampBase::eqPlToggle() -> Element {
                 .height(Dimension(n(3)))
                 .fill(on ? wa::kGreen : hexColor(0x3C4A58)));
     e.child(box().width(Dimension(n(1.5f))));
-    e.child(t(lbl, pix(4.2f, hexColor(0x121A24))));
+    e.child(t(lbl, pix(4.2f)));
     return e;
   };
   g.child(tog(0, "EQ", true));
@@ -268,7 +271,7 @@ auto WinampBase::transportRow() -> Element {
                  .height(Dimension(n(3)))
                  .fill(hexColor(0x3C4A58)));
   shuf.child(box().width(Dimension(n(2))));
-  shuf.child(t("SHUFFLE", pix(4.6f, hexColor(0x121A24))));
+  shuf.child(t("SHUFFLE", pix(4.6f)));
   r.child(shuf);
 
   Element rep = key(211, 1, 28, 15, box());
@@ -276,7 +279,7 @@ auto WinampBase::transportRow() -> Element {
   rep.child(
       box().width(Dimension(n(3))).height(Dimension(n(3))).fill(wa::kGreen));
   rep.child(box().width(Dimension(n(2))));
-  rep.child(t("REP", pix(4.6f, hexColor(0x121A24))));
+  rep.child(t("REP", pix(4.6f)));
   r.child(rep);
 
   // the "hardware self-test" light sweep — a single 150 ms pass over the
@@ -352,14 +355,15 @@ auto WinampBase::lcdCells(const std::string& s, SkColor4f ink) const
     -> Element {
   using namespace wa;
   const float pitch = n(54) / (s.empty() ? 1.0f : (float)s.size());
-  Element row = box().row().width(Dimension(n(54))).height(Dimension(n(13)));
+  Element row =
+      box().row().width(Dimension(n(54))).height(Dimension(n(13))).ink(ink);
   for (char ch : s) {
     Element cell = box()
                        .width(Dimension(pitch))
                        .shrink(0)
                        .justify(Justify::Center)
                        .alignItems(Align::Center);
-    if (ch != ' ') cell.child(t(std::string(1, ch), pix(10, ink)));
+    if (ch != ' ') cell.child(t(std::string(1, ch), pix(10)));
     row.child(std::move(cell));
   }
   return row;

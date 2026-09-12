@@ -111,8 +111,10 @@ auto WinampBase::setup(sketch::SketchContext& ctx) -> void {
       pos[(size_t)i] = {n(184), n(13.0f * (float)i + 6.5f)};
   }
 
-  // --- the marquee wants its content width measured once.
-  marqueeW = ctx.measure(t(marqueeText(), pix(5, hexColor(0x00E000)))).width();
+  // --- the marquee wants its content width measured once. A one-shot
+  // measure resolves no cascade, so the run is handed the whole style.
+  marqueeW = ctx.measure(text(toUtf8(marqueeText()), weave::textStyle(pix(5))))
+                 .width();
   if (marqueeW < 1) marqueeW = n(300);
 
   // --- one steppable drives every idle loop.

@@ -92,16 +92,19 @@ constexpr SkColor4f kGoldDim = hexColor(0x7A7A94);  // wordmark, unfocused
 constexpr SkColor4f kBtnHi = hexColor(0xEFFFFF);    // CBUTTONS bevel highlight
 constexpr SkColor4f kBtnFace = hexColor(0x97A8B9);  // CBUTTONS steel-blue face
 constexpr SkColor4f kBtnLo = hexColor(0x4A5A6B);    // CBUTTONS bevel shadow
-constexpr SkColor4f kGlyph = hexColor(0x1E2833);   // the ink on a transport key
-constexpr SkColor4f kGraph = hexColor(0x1B1A2C);   // EQMAIN graph screen navy
-constexpr SkColor4f kGrid = hexColor(0x3A3A55);    // EQMAIN dashed gridline
-constexpr SkColor4f kEqTop = hexColor(0x2A9A16);   // fader track, green
-constexpr SkColor4f kEqMid = hexColor(0xA6C731);   // ... yellow-gold
-constexpr SkColor4f kEqBot = hexColor(0xC5431B);   // ... red
-constexpr SkColor4f kPlBg = hexColor(0x000000);    // PLEDIT.TXT NormalBG
-constexpr SkColor4f kPlText = hexColor(0x00FF00);  // PLEDIT.TXT Normal
-constexpr SkColor4f kPlNow = hexColor(0xFFFFFF);   // PLEDIT.TXT Current
-constexpr SkColor4f kPlSel = hexColor(0x0000C6);   // PLEDIT.TXT SelectedBG
+constexpr SkColor4f kGlyph = hexColor(0x1E2833);  // the ink on a transport key
+constexpr SkColor4f kLabel = hexColor(0x121A24);  // the lettering on a key
+constexpr SkColor4f kCaption = hexColor(0x8E8EB4);  // a caption on the body
+constexpr SkColor4f kDisplay = hexColor(0x00E000);  // TEXT.BMP's lit green
+constexpr SkColor4f kGraph = hexColor(0x1B1A2C);    // EQMAIN graph screen navy
+constexpr SkColor4f kGrid = hexColor(0x3A3A55);     // EQMAIN dashed gridline
+constexpr SkColor4f kEqTop = hexColor(0x2A9A16);    // fader track, green
+constexpr SkColor4f kEqMid = hexColor(0xA6C731);    // ... yellow-gold
+constexpr SkColor4f kEqBot = hexColor(0xC5431B);    // ... red
+constexpr SkColor4f kPlBg = hexColor(0x000000);     // PLEDIT.TXT NormalBG
+constexpr SkColor4f kPlText = hexColor(0x00FF00);   // PLEDIT.TXT Normal
+constexpr SkColor4f kPlNow = hexColor(0xFFFFFF);    // PLEDIT.TXT Current
+constexpr SkColor4f kPlSel = hexColor(0x0000C6);    // PLEDIT.TXT SelectedBG
 constexpr SkColor4f kDesk = hexColor(0x008080);  // Windows 9x/2000 default teal
 constexpr SkColor4f kPeak = hexColor(0x969696);  // VISCOLOR 23, peak-hold dots
 
@@ -144,11 +147,12 @@ inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                            .condense = condense});
 }
 
-inline Element t(const char* s, sigil::weave::TextStyle st) {
-  return text(toUtf8(s), std::move(st));
+/** A run set in @p partial over the font and ink in force where it lands. */
+inline Element t(const char* s, sigil::weave::Type partial) {
+  return text(toUtf8(s)).font(std::move(partial));
 }
-inline Element t(const std::string& s, sigil::weave::TextStyle st) {
-  return text(toUtf8(s), std::move(st));
+inline Element t(const std::string& s, sigil::weave::Type partial) {
+  return text(toUtf8(s)).font(std::move(partial));
 }
 
 // ---------------------------------------------------------------------------
