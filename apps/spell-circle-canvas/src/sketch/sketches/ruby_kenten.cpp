@@ -75,16 +75,11 @@ constexpr float kColumnW = 70;  // the pitch a reserved band opens into
 constexpr float kColumnH = 250;
 constexpr float kSplitHeight = 120;
 
-/** Latin captions, set horizontally: a plate about a vertical convention
- *  that labelled itself vertically would be arguing its case in the same
- *  breath as showing it. */
-inline weave::TextStyle label(float size, SkColor4f colour, float track = 0) {
-  return weave::textStyle({.size = size, .color = colour, .track = track});
-}
-
 /** The one voice every column on this sheet is captioned in: the unit
  *  named, then what it does, both above the setting they describe and
- *  centred over it. */
+ *  centred over it. Latin, set horizontally: a plate about a vertical
+ *  convention that labelled itself vertically would be arguing its case
+ *  in the same breath as showing it. */
 inline kit::Caption voice() {
   return {.where = kit::Caption::Where::Above,
           .label = label(9.5f, kAka, 1.6f),
@@ -194,6 +189,8 @@ struct RubyKenten final : sketch::Sketch {
 
     return box()
         .fill(linearGradient({0, 0}, {0, f::kH}, {f::kKinariLift, f::kKinari}))
+        .font({.size = 10, .track = 0.2f})
+        .ink(f::kUsu)
         .child(
             box()
                 .absolute()
@@ -204,13 +201,13 @@ struct RubyKenten final : sketch::Sketch {
                                    "\xe5\x82\x8d\xe7\x82\xb9"),
                             f::body(30, f::kSumi)))
                 .child(box().height(6))
-                .child(text(toUtf8("A READING IS PART OF THE TEXT"),
-                            f::label(11, f::kAi, 3.0f)))
+                .child(text(toUtf8("A READING IS PART OF THE TEXT"))
+                           .font({.size = 11, .color = f::kAi, .track = 3.0f}))
                 .child(text(toUtf8("the band it needs is in the base's strut "
                                    "before the base is broken, so the column "
                                    "pitch opens once\nand the reading is "
-                                   "placed on the result"),
-                            f::label(10.5f, f::kUsu, 0.2f))
+                                   "placed on the result"))
+                           .font({.size = 10.5f})
                            .width(Dimension(430.0f))))
         .child(box()
                    .absolute()
@@ -249,8 +246,7 @@ struct RubyKenten final : sketch::Sketch {
         .child(
             text(toUtf8("mono \xc2\xb7 group \xc2\xb7 jukugo are the UNIT "
                         "and nothing else \xe2\x80\x94 the reading's size is "
-                        "its own type's, never a fraction of the base's"),
-                 f::label(10, f::kUsu, 0.2f))
+                        "its own type's, never a fraction of the base's"))
                 .absolute()
                 .inset(52, f::kH - 34, 0, 0));
   }
