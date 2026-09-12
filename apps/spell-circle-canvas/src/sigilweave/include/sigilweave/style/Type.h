@@ -146,8 +146,7 @@ Type& merge(Type& into, const Type& over);
  *  `lineHeightOf()` in `fonts/Shaper.h`, where the font service that can
  *  answer it lives; pass it here when the face is in reach. */
 [[nodiscard]] Type overlay(const Type& base, const Type& over,
-                           float rootSizePx = 16.0f,
-                           float lineHeightPx = 0.0f);
+                           float rootSizePx = 16.0f, float lineHeightPx = 0.0f);
 
 /** The `TextStyle` a TOTAL `Type` names, each unset field taking its
  *  `initialType()` value. A size still stated relatively has nothing left

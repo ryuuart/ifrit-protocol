@@ -592,7 +592,8 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
   b.append({u8"beta"});
 
   feed::TextOptions style;
-  style.styles.base(weave::textStyle({.size = 9, .color = SkColor4f{1, 1, 1, 1}}));
+  style.styles.base(
+      weave::textStyle({.size = 9, .color = SkColor4f{1, 1, 1, 1}}));
   style.window.gap = 1.0f;
 
   auto strip = [&] {
@@ -676,7 +677,8 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
   // count. feed::height() is that number, and the plate below is built
   // from it with no slack at all.
   feed::TextOptions st;
-  st.styles.base(weave::textStyle({.size = 9.2f, .color = SkColor4f{1, 1, 1, 1}}));
+  st.styles.base(
+      weave::textStyle({.size = 9.2f, .color = SkColor4f{1, 1, 1, 1}}));
   st.window.gap = 1.0f;
   st.window.visible = 12;
 

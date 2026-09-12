@@ -40,7 +40,8 @@ void Composer::Impl::materializeText(
     // An inheriting rich text's unstyled runs are set in the font in
     // force, its partial runs over it, and only a run written with a whole
     // style keeps the style it was written with.
-    const sigil::weave::TextStyle& base = inherits ? inherited : text.rich.base();
+    const sigil::weave::TextStyle& base =
+        inherits ? inherited : text.rich.base();
     // The runs concatenate with nothing between them: a rich text's spacing
     // is the author's own, exactly as it is in the strings they wrote.
     for (const sigil::weave::RichText::Run& run : text.rich.runs()) {

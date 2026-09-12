@@ -227,8 +227,8 @@ TEST(Type, APartialOverlaysATotalFieldByField) {
   base.condense = 0.9f;
   base.color = SkColor4f{1, 1, 1, 1};
 
-  const Type total = overlay(base, {.color = SkColor4f{1, 0, 0, 1},
-                                    .weight = 700.0f});
+  const Type total =
+      overlay(base, {.color = SkColor4f{1, 0, 0, 1}, .weight = 700.0f});
   EXPECT_EQ(total.color, (SkColor4f{1, 0, 0, 1})) << "a named field wins";
   EXPECT_EQ(total.weight, 700.0f);
   EXPECT_EQ(total.size, Length(20.0f)) << "a field it is silent about stands";
@@ -292,9 +292,11 @@ TEST(Type, MergeCopiesFieldsAndLeavesARelativeSizeRelative) {
   // Two partials written about one element fold into one partial, which is
   // not yet resolved against anything: a relative size stays relative
   // because neither partial knows what it is relative to.
-  Type folded{.size = 2_em, .track = 1.0f,
+  Type folded{.size = 2_em,
+              .track = 1.0f,
               .variations = {FontVariation("wght", 300.0f)}};
-  merge(folded, {.color = SkColor4f{0, 1, 0, 1}, .track = 4.0f,
+  merge(folded, {.color = SkColor4f{0, 1, 0, 1},
+                 .track = 4.0f,
                  .variations = {FontVariation("wght", 700.0f),
                                 FontVariation("wdth", 80.0f)}});
   EXPECT_EQ(folded.size, 2_em) << "a relative size is copied, not resolved";

@@ -102,8 +102,8 @@ Type overlay(const Type& base, const Type& over, float rootSizePx,
   // The one field a copy cannot settle: a relative size is a statement
   // ABOUT the base's, so here is where it becomes a number.
   if (over.size && over.size->relative())
-    total.size = Length(resolvePx(*over.size, sizeAgainst(base), rootSizePx,
-                                  lineHeightPx));
+    total.size = Length(
+        resolvePx(*over.size, sizeAgainst(base), rootSizePx, lineHeightPx));
   return total;
 }
 
@@ -132,8 +132,8 @@ TextStyle toTextStyle(const Type& total) {
 TextStyle overlay(TextStyle base, const Type& over) {
   if (over.face) base.shaping.typeface = over.face;
   if (over.size) {
-    const float against = base.shaping.fontSize > 0 ? base.shaping.fontSize
-                                                    : kInitialSizePx;
+    const float against =
+        base.shaping.fontSize > 0 ? base.shaping.fontSize : kInitialSizePx;
     base.shaping.fontSize =
         resolvePx(*over.size, against, kInitialSizePx, 0.0f);
   }

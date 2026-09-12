@@ -199,8 +199,8 @@ void Composer::Impl::resolveCascade(
   if (node.cascadeData) {
     const CascadeData& cascade = *node.cascadeData;
     if (!cascade.vars.empty()) {
-      auto own = std::make_shared<VarTable>(parentVars ? *parentVars
-                                                       : VarTable{});
+      auto own =
+          std::make_shared<VarTable>(parentVars ? *parentVars : VarTable{});
       own->overlay(cascade.vars);
       vars = std::move(own);
     }
@@ -296,8 +296,7 @@ void Composer::Impl::refreshInheritedInk(Instance& inst) {
       inst.paragraph->setPaint(state.restyleRanges[i], restyle.style.paint);
       if (restyle.paintOnly) continue;
       for (size_t j = 0; j < i; ++j) {
-        if (!text.spanRestyles[j].paintOnly || state.restyleFolded[j])
-          continue;
+        if (!text.spanRestyles[j].paintOnly || state.restyleFolded[j]) continue;
         for (const sigil::weave::CharRange& a : state.restyleRanges[i])
           for (const sigil::weave::CharRange& b : state.restyleRanges[j])
             if (a.start < b.end && b.start < a.end)

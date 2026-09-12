@@ -564,8 +564,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // two are the same path.
   inst.effectOnly = liveLayerEffect && !sharedOpaqueBesideLayerEffect &&
                     !boundFill && !liveMat && !patternPan && !fillLerp &&
-                    !inkLerp &&
-                    !scalarDeclared && !childrenVolatile &&
+                    !inkLerp && !scalarDeclared && !childrenVolatile &&
                     !verdict.subtreeReadsBackdrop && !node.hasMasks() &&
                     node.boundary == Boundary::Auto;
   const bool memoized = inst.liveMatOnly || inst.scalarMemo;

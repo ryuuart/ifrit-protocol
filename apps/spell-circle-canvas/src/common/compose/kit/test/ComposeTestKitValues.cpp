@@ -60,8 +60,10 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
     sk_sp<SkTypeface> face =
         sigil::weave::ports::pickTypeface({family}, SkFontStyle::Italic());
     if (!face) continue;
-    const auto style = sigil::weave::textStyle(
-        {.face = face, .size = 12.0f, .color = SkColor4f{1, 1, 1, 1}, .aliased = true});
+    const auto style = sigil::weave::textStyle({.face = face,
+                                                .size = 12.0f,
+                                                .color = SkColor4f{1, 1, 1, 1},
+                                                .aliased = true});
     for (const char8_t* s : {u8"Wf", u8"of", u8"lift", u8"Ay"}) {
       const kit::Coverage tight =
           kit::coverage(s, fonts(), style, {.x = 0, .y = 0});

@@ -267,7 +267,8 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
   // cascade pass reads the ramp into the resolved colour each frame. A
   // next ink with no transition, or one read from a custom property, is a
   // snap, and disconnects any easing in flight so the description lands.
-  const auto declaredInk = [](const ElementNode& n) -> std::optional<SkColor4f> {
+  const auto declaredInk =
+      [](const ElementNode& n) -> std::optional<SkColor4f> {
     if (!n.cascadeData || n.cascadeData->inkVar || !n.cascadeData->font)
       return std::nullopt;
     return n.cascadeData->font->color;

@@ -10,8 +10,11 @@ TEST(ComposeInkStroke, AStrokeThatNamesNoColourIsPaintedInTheInk) {
   // stroke(width) alone: the nearest ancestor's ink, green here, is the
   // colour of the band.
   Host host;
-  host.composer.render(box().padding(20).ink({0, 1, 0, 1}).child(
-      box().width(100).height(100).stroke(stroke(10))));
+  host.composer.render(
+      box()
+          .padding(20)
+          .ink({0, 1, 0, 1})
+          .child(box().width(100).height(100).stroke(stroke(10))));
   host.frame();
   // The band straddles the outline: five pixels inside the box's left edge
   // at x = 20 are the stroke's, well clear of its antialiased rim.
@@ -35,8 +38,11 @@ TEST(ComposeInkStroke, AStrokeInTheInkFollowsARecolouredAncestor) {
 
 TEST(ComposeInkStroke, AStrokeThatNamesAColourKeepsIt) {
   Host host;
-  host.composer.render(box().padding(20).ink({0, 1, 0, 1}).child(
-      box().width(100).height(100).stroke(stroke(10, red()))));
+  host.composer.render(
+      box()
+          .padding(20)
+          .ink({0, 1, 0, 1})
+          .child(box().width(100).height(100).stroke(stroke(10, red()))));
   host.frame();
   EXPECT_EQ(host.pixel(22, 70), SkColorSetARGB(255, 255, 0, 0));
 }
@@ -48,8 +54,10 @@ TEST(ComposeInkStroke, ALineWrittenAsTheInkTakesIt) {
   lines::Line line;
   line.width = 10;
   line.fill = Fill::currentInk();
-  host.composer.render(box().padding(20).ink({0, 0, 1, 1}).child(
-      box().width(100).height(100).stroke(line)));
+  host.composer.render(box()
+                           .padding(20)
+                           .ink({0, 0, 1, 1})
+                           .child(box().width(100).height(100).stroke(line)));
   host.frame();
   EXPECT_EQ(host.pixel(22, 70), SkColorSetARGB(255, 0, 0, 255));
 }

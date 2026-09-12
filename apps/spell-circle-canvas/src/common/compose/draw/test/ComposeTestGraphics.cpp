@@ -13,15 +13,14 @@ using sigil::draw::Pen;
 
 TEST(GraphicsNode, KeepsWhatAnEarlierFrameDrew) {
   Host host;
-  host.composer.render(stack().child(graphics([](Pen& pen) {
-                                       pen.noStroke();
-                                       pen.fill(255, 0, 0);
-                                       pen.rect((float)(pen.frameCount - 1) *
-                                                    10.0f,
-                                                0, 10, 10);
-                                     })
-                                         .width(50)
-                                         .height(50)));
+  host.composer.render(
+      stack().child(graphics([](Pen& pen) {
+                      pen.noStroke();
+                      pen.fill(255, 0, 0);
+                      pen.rect((float)(pen.frameCount - 1) * 10.0f, 0, 10, 10);
+                    })
+                        .width(50)
+                        .height(50)));
   host.frame();
   host.frame(1.0 / 60.0);
   EXPECT_EQ(host.pixel(5, 5), SK_ColorRED) << "the first frame's block";
@@ -30,15 +29,14 @@ TEST(GraphicsNode, KeepsWhatAnEarlierFrameDrew) {
 
 TEST(DrawNode, APenNodeRepaintsFromNothing) {
   Host host;
-  host.composer.render(stack().child(pen([](Pen& pen) {
-                                       pen.noStroke();
-                                       pen.fill(255, 0, 0);
-                                       pen.rect((float)(pen.frameCount - 1) *
-                                                    10.0f,
-                                                0, 10, 10);
-                                     })
-                                         .width(50)
-                                         .height(50)));
+  host.composer.render(
+      stack().child(pen([](Pen& pen) {
+                      pen.noStroke();
+                      pen.fill(255, 0, 0);
+                      pen.rect((float)(pen.frameCount - 1) * 10.0f, 0, 10, 10);
+                    })
+                        .width(50)
+                        .height(50)));
   host.frame();
   host.frame(1.0 / 60.0);
   // The same program on a pen node: there is no surface under it, so only

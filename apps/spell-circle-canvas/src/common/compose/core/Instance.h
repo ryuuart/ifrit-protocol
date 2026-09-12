@@ -245,7 +245,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
-  Fill fillFrom, fillTo;  // endpoints for kFillLerp
+  Fill fillFrom, fillTo;                             // endpoints for kFillLerp
   SkColor4f inkFrom{0, 0, 0, 1}, inkTo{0, 0, 0, 1};  // endpoints for kInkLerp
 
   // Derive-phase state
@@ -780,9 +780,8 @@ inline TextState& textStateOf(Instance& inst) {
 [[nodiscard]] inline sigil::weave::TextStyle baseStyleOf(const Instance& inst) {
   const ElementNode& node = *inst.description;
   if (node.textData && node.textData->inherits)
-    return sigil::weave::toTextStyle(inst.cascadeResolved
-                                         ? inst.font
-                                         : sigil::weave::initialType());
+    return sigil::weave::toTextStyle(
+        inst.cascadeResolved ? inst.font : sigil::weave::initialType());
   return node.textData ? node.textData->style : sigil::weave::TextStyle{};
 }
 
