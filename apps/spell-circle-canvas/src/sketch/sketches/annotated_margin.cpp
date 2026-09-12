@@ -80,9 +80,6 @@ sk_sp<SkTypeface> grotesque() {
   return weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
 }
 
-weave::TextStyle body(float size = 19.0f) {
-  return weave::textStyle({.face = serif(), .size = size, .color = kInk});
-}
 weave::TextStyle note(float size = 8.5f, SkColor4f colour = kFaint,
                       float track = 0.4f) {
   return weave::textStyle(
@@ -129,9 +126,12 @@ struct AnnotatedMargin final : sketch::Sketch {
     namespace ch = choreograph;
     const Composer& composer = ctx.composer;
 
+    // The text's voice is the page's; every note names its own.
     Element page =
         box()
             .fill(Fill::color(m::kPaper))
+            .font({.face = m::serif(), .size = 19})
+            .ink(m::kInk)
             .child(box()
                        .absolute()
                        .inset(52, 44, 0, 0)
@@ -144,7 +144,7 @@ struct AnnotatedMargin final : sketch::Sketch {
                                    m::note(10, m::kFaint, 0.3f))))
             // The passage itself: one leaf, keyed, and annotated by
             // nothing — everything below reads it from outside.
-            .child(text(m::kPassage, m::body())
+            .child(text(m::kPassage)
                        .key("passage")
                        .absolute()
                        .left(Dimension(m::kTextLeft))
@@ -154,8 +154,8 @@ struct AnnotatedMargin final : sketch::Sketch {
             // The same text again, lower, under a cascade — the playhead
             // below rides its beats.
             .child(text(toUtf8("A marker placed from a beat agrees with the "
-                               "letters by construction."),
-                        m::body(17))
+                               "letters by construction."))
+                       .font({.size = 17})
                        .key("cascade")
                        .absolute()
                        .left(Dimension(m::kTextLeft))
