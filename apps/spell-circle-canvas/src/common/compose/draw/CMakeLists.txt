@@ -12,7 +12,7 @@ sigil_library(SigilComposeDraw
 
 # Shapes its one run in the instrument face from src/test/assets/.
 sigil_test(compose_test
-  SOURCES test/ComposeTestDraw.cpp
+  SOURCES test/ComposeTestDraw.cpp test/ComposeTestGraphics.cpp
   LIBRARIES SigilComposeDraw SigilComposeTesting SigilWeavePorts)
 
 sigil_bench(compose_bench

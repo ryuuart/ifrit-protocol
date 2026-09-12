@@ -989,11 +989,23 @@ to the imperative pen, both ways, in its own target `SigilComposeDraw`:
 `compose::pen` takes a `PenProgram` — a function of a `draw::Pen` — and
 makes the node `custom()` would, at `Cache::None`, with the pen's width
 and height the node's box and its transform starting at the box's
-corner, so a declarative scene drops into p5's verbs for one node; and
-`compose::paintRetained` is where the pen's `element(...)` lands, an
-`Element` painted inside an imperative loop and RETAINED — reconciled
-against what the composer kept for that call site, so its layout, its
-shaping, its caches and its bindings carry from frame to frame.
+corner, so a declarative scene drops into p5's verbs for one node, and
+the pen begins in the node's own ink and resolved type, so an unset
+`fill` or `textSize` is what the cascade says rather than p5's white and
+twelve. `compose::graphics` is the same door onto a canvas that is KEPT:
+the program draws on a `draw::Graphics` the size of the box, which stands
+between frames and is put down on the node's canvas each one — `pen`
+repaints from nothing every frame, `graphics` keeps what earlier frames
+drew, which is what makes a trail, an accumulation and a picture drawn
+once possible. p5's loop words are therefore live on that program's own
+pen: `noLoop()` stops running it while the surface goes on being put
+down, `redraw()` runs it once more, `frameRate(fps)` runs it at most that
+often. And `compose::paintRetained` is where the pen's `element(...)`
+lands, an `Element` painted inside an imperative loop and RETAINED —
+reconciled against what the composer kept for that call site, so its
+layout, its shaping, its caches and its bindings carry from frame to
+frame, and seeded from the pen's inherited ink and font so the tree
+cascades from where the pen stands.
 
 **Testing — `testing/Checks.h`.** A separate target, `SigilComposeTesting`,
 which verifies generated geometry and reads back what was
@@ -1635,12 +1647,15 @@ arrow between the two libraries points one way: this feature links
 SigilDraw, and SigilDraw names nothing of compose — the pen reaches a
 retained `Element` through a seam it declares for any guest,
 `paintRetained`, which this feature defines for `Element` in compose's
-own namespace. The clock is whoever steps the pen: a `compose::pen`
-node's pen reads the composer's clock through the paint context, and a
-retained element's composer runs on a clock stepped by the pen's frame
-delta, advancing on the frames it is painted and standing still on the
-frames it is not. Neither side reads the wall, which is what keeps a
-plate with a pen in it reproducible.
+own namespace. The clock is whoever steps the pen: a `compose::pen` or
+`compose::graphics` node's pen reads the composer's clock through the
+paint context, and a retained element's composer runs on a clock stepped
+by the pen's frame delta, advancing on the frames it is painted and
+standing still on the frames it is not. Neither side reads the wall,
+which is what keeps a plate with a pen in it reproducible. The cascade
+crosses in both directions too: a node's ink and resolved type seed the
+pen it hosts, and a retained element is seeded from the pen's own
+inherited pair.
 
 Deliberately *not* linked: SigilVideo and SigilScry (their live leaves are
 header-only adapters with their own targets), EnTT (the instancing header
