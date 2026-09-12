@@ -103,12 +103,6 @@ inline sk_sp<SkTypeface> latin() { return evangelion::condensedBold(); }
 inline sk_sp<SkTypeface> latinPlain() { return evangelion::condensedRegular(); }
 inline sk_sp<SkTypeface> han() { return evangelion::minchoHeavy(); }
 
-inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
-                             SkColor4f color, float condense = 1.0f,
-                             float track = 0.0f) {
-  return evangelion::type(tf, size, color, condense, track);
-}
-
 // ---------------------------------------------------------------------------
 // THE PLATE, in a rectified coordinate system. The side panels are one module
 // mirrored around the central axis; the upper panel presents a matching flat.

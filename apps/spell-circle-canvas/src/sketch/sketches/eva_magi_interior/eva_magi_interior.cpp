@@ -113,8 +113,9 @@ struct EvaMagiInterior : sketch::Sketch {
         .column()
         .padding(30)
         .gap(14)
-        .child(text(u8"MODULE RULE VIOLATED",
-                    magi::type(magi::latin(), 52.0f, {0, 0, 0, 1})))
+        .child(text(u8"MODULE RULE VIOLATED")
+                   .font({.face = magi::latin(), .size = 52.0f})
+                   .ink({0, 0, 0, 1}))
         .child(sketch::kit::table(std::move(rows),
                                   {.columns = {{560}, {150, true}, {}},
                                    .gap = 16,
@@ -127,39 +128,45 @@ struct EvaMagiInterior : sketch::Sketch {
   // at (222, 692)" into a coordinate. The WIDTH is solved too, because Matisse
   // EB and the available Mincho fallback do not share a set width. Labels use
   // Helvetica CONDENSED — the frame is the authority on how much.
+  // A Latin solve answers a PARTIAL (face, size, condensation): the words take
+  // the ink where they land, and a probe is measured as a whole style. The Han
+  // runs stay whole: a stand-in Mincho below extra-bold strokes its paint.
 
-  weave::TextStyle fitCap(const sk_sp<SkTypeface>& tf, float cap, SkColor4f c,
-                          float* slack = nullptr) const {
+  weave::Type fitCap(const sk_sp<SkTypeface>& tf, float cap,
+                     float* slack = nullptr) const {
     float size = cap * 1.4f;
     if (fonts) {
-      const TextMetrics m = metrics(magi::type(tf, 100.0f, c), *fonts);
+      const TextMetrics m =
+          metrics(weave::textStyle({.face = tf, .size = 100.0f}), *fonts);
       if (m.capHeight > 1.0f) size = 100.0f * cap / m.capHeight;
     }
-    weave::TextStyle st = magi::type(tf, size, c);
-    if (slack) *slack = fonts ? metrics(st, *fonts).capSlack() : size * 0.22f;
+    const weave::Type st{.face = tf, .size = size};
+    if (slack)
+      *slack = fonts ? metrics(weave::textStyle(st), *fonts).capSlack()
+                     : size * 0.22f;
     return st;
   }
 
-  weave::TextStyle fitRun(const sk_sp<SkTypeface>& tf, const std::u8string& s,
-                          float cap, float inkW, SkColor4f c,
-                          float* slack = nullptr) const {
-    weave::TextStyle st = fitCap(tf, cap, c, slack);
+  weave::Type fitRun(const sk_sp<SkTypeface>& tf, const std::u8string& s,
+                     float cap, float inkW, float* slack = nullptr) const {
+    weave::Type st = fitCap(tf, cap, slack);
     if (fonts && inkW > 1.0f) {
-      const SkSize m = sigil::compose::intrinsicSize(text(s, st), *fonts);
+      const SkSize m =
+          sigil::compose::intrinsicSize(text(s, weave::textStyle(st)), *fonts);
       if (m.width() > 1.0f)
-        st.shaping.scaleX = std::clamp(inkW / m.width(), 0.40f, 1.8f);
+        st.condense = std::clamp(inkW / m.width(), 0.40f, 1.8f);
     }
     return st;
   }
 
-  weave::TextStyle fitWithin(const sk_sp<SkTypeface>& tf,
-                             const std::u8string& s, float cap, float maxWidth,
-                             SkColor4f c) const {
-    weave::TextStyle st = fitCap(tf, cap, c);
+  weave::Type fitWithin(const sk_sp<SkTypeface>& tf, const std::u8string& s,
+                        float cap, float maxWidth) const {
+    weave::Type st = fitCap(tf, cap);
     if (!fonts) return st;
-    const SkSize measured = sigil::compose::intrinsicSize(text(s, st), *fonts);
+    const SkSize measured =
+        sigil::compose::intrinsicSize(text(s, weave::textStyle(st)), *fonts);
     if (measured.width() > maxWidth && measured.width() > 1.0f)
-      st.shaping.scaleX = std::min(maxWidth / measured.width(), 1.0f);
+      st.condense = std::min(maxWidth / measured.width(), 1.0f);
     return st;
   }
 
@@ -185,9 +192,12 @@ struct EvaMagiInterior : sketch::Sketch {
   /** A run of type placed by its measured INK top-left. Nothing on this plate
    *  is rotated: the rectification says every baseline is horizontal to within
    *  1.3 deg, and the "varying roll" was the projection. */
-  Element inked(std::u8string s, const weave::TextStyle& st, SkPoint ink,
+  Element inked(std::u8string s, const weave::Type& st, SkPoint ink,
                 float slack) {
-    return box().left(ink.fX).top(ink.fY - slack).child(text(std::move(s), st));
+    return box()
+        .left(ink.fX)
+        .top(ink.fY - slack)
+        .child(text(std::move(s)).font(st));
   }
 
   // ==========================================================================
@@ -203,6 +213,9 @@ struct EvaMagiInterior : sketch::Sketch {
     const SkPath pads = magi::ownPads(sz, 41 + i * 7, p.circuitRuns ? 6 : 0);
     const ch::Output<float>* fr =
         i == 0 ? &front0 : (i == 1 ? &front1 : &front2);
+    // The panel's ink is its label colour; the circuitry, laid only on a
+    // clean panel, is drawn in it.
+    const SkColor4f labelInk = red ? magi::kInkRed : magi::kInk;
 
     mskia::Paint infection =
         mskia::Paint::sksl(infectionFx)
@@ -225,6 +238,7 @@ struct EvaMagiInterior : sketch::Sketch {
             .key(p.key)
             .shape(evangelion::panel({}))
             .fill(mskia::Paint::solid(red ? magi::kRed : magi::kMint))
+            .ink(labelInk)
             .clip(true)
             .style(decorations::doubleBorder(
                 decorations::border(5.0f, Fill::color(magi::kOrange), 0.0f),
@@ -242,12 +256,12 @@ struct EvaMagiInterior : sketch::Sketch {
               .shape(heldPath(circuit))
               .stroke(lines::Rails{.rails = {{.across = 6.0f,
                                               .width = 3.0f,
-                                              .fill = Fill::color(magi::kInk),
+                                              .fill = Fill::currentInk(),
                                               .cap = SkPaint::kSquare_Cap,
                                               .join = SkPaint::kMiter_Join},
                                              {.across = -3.0f,
                                               .width = 1.8f,
-                                              .fill = Fill::color(magi::kInk),
+                                              .fill = Fill::currentInk(),
                                               .cap = SkPaint::kSquare_Cap,
                                               .join = SkPaint::kMiter_Join}},
                                    .offsetStep = 6.0f}));
@@ -256,18 +270,17 @@ struct EvaMagiInterior : sketch::Sketch {
                      .fill(Fill::none())
                      .shape(heldPath(pads))
                      .stroke(PathFormat{.width = 2.0f,
-                                        .strokeFill = Fill::color(magi::kInk),
+                                        .strokeFill = Fill::currentInk(),
                                         .join = SkPaint::kMiter_Join}));
     }
     if (!red && seeded[(size_t)i]) node.child(box().inset(0).fill(infection));
-    const SkColor4f labelInk = red ? magi::kInkRed : magi::kInk;
-    node.child(text(toUtf8(p.number),
-                    fitCap(evangelion::voteNumeral(number), 86.0f, labelInk))
+    node.child(text(toUtf8(p.number))
+                   .font(fitCap(evangelion::voteNumeral(number), 86.0f))
                    .centerAt({sz.width() * 0.5f,
                               sz.height() * layout.numberSlotY(number)}));
-    node.child(text(toUtf8(p.label),
-                    fitWithin(evangelion::moduleLabel(), toUtf8(p.label), 31.0f,
-                              sz.width() - 44.0f, labelInk))
+    node.child(text(toUtf8(p.label))
+                   .font(fitWithin(evangelion::moduleLabel(), toUtf8(p.label),
+                                   31.0f, sz.width() - 44.0f))
                    .centerAt({sz.width() * 0.5f,
                               sz.height() * layout.nameSlotY(number)}));
     return node;
@@ -311,15 +324,16 @@ struct EvaMagiInterior : sketch::Sketch {
     return g;
   }
 
+  /** The plate's Latin is orange, stated once; the whole-style Han names its
+   *  own. */
   Element plateType() {
-    Element g = box().inset(0);
+    Element g = box().inset(0).ink(magi::kOrange);
     float sCode = 0, sFile = 0;
     g.child(inked(u8"CODE : 132",
-                  fitRun(magi::latin(), u8"CODE : 132", 45.0f, 270.0f,
-                         magi::kOrange, &sCode),
+                  fitRun(magi::latin(), u8"CODE : 132", 45.0f, 270.0f, &sCode),
                   {151.0f, 294.0f}, sCode));
-    const auto file = fitRun(magi::latin(), u8"EXTENTION:2048", 22.0f, 286.0f,
-                             magi::kOrange, &sFile);
+    const auto file =
+        fitRun(magi::latin(), u8"EXTENTION:2048", 22.0f, 286.0f, &sFile);
     static const char* kBlock[5] = {"FILE:MAGI_SYS", "EXTENTION:2048",
                                     "EX_MODE:ON", "PRIORITY:A__", nullptr};
     for (int i = 0; kBlock[i]; ++i)
@@ -334,9 +348,9 @@ struct EvaMagiInterior : sketch::Sketch {
     const auto k2 = fitEmSpan(u8"決議", 300.0f, magi::kKanji);
     g.child(text(u8"決議", k2).centerAt({1107.5f, 184.0f}));
 
-    g.child(
-        text(u8"MAGI", fitCap(evangelion::magiWordmark(), 54.0f, magi::kOrange))
-            .centerAt({720.0f, 535.0f}));
+    g.child(text(u8"MAGI")
+                .font(fitCap(evangelion::magiWordmark(), 54.0f))
+                .centerAt({720.0f, 535.0f}));
     return g;
   }
 
@@ -389,8 +403,11 @@ struct EvaMagiInterior : sketch::Sketch {
   Element countdownNumeral() {
     if (countdown < 0) return box().absolute().width(0).height(0);
     const std::string buf = kit::formatted("%d", countdown);
-    return box().left(1096).top(96).child(text(
-        toUtf8(buf), magi::type(magi::latin(), 260.0f, magi::kRedHot, 1.2f)));
+    return box().left(1096).top(96).child(text(toUtf8(buf))
+                                              .font({.face = magi::latin(),
+                                                     .size = 260.0f,
+                                                     .color = magi::kRedHot,
+                                                     .condense = 1.2f}));
   }
 
   /** The HUD slot: everything that changes on a CLOCK rather than on the
