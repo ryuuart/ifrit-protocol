@@ -42,7 +42,6 @@
 #include <string>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace mkit = sigil::material::kit;
 namespace mpattern = sigil::material::pattern;
 namespace mskia = sigil::material::skia;
@@ -96,12 +95,6 @@ constexpr double kSwapPeriod = 3.0;  // seconds between re-tilings
  *  contact; at 45° they run straight through; above it they cross, and
  *  the panel reads as an interlace. */
 constexpr float kContact[3] = {30.0f, 45.0f, 60.0f};
-
-inline sigil::weave::TextStyle type(float size, SkColor4f color,
-                                    float tracking = 0) {
-  return weave::textStyle(
-      {.size = size, .color = color, .track = tracking, .color8 = true});
-}
 
 /** One panel's tile: the kit's generator at this panel's contact angle,
  *  with the strap left at the generator's own width. */
@@ -184,38 +177,45 @@ struct Zellige final : sketch::Sketch {
                                       {0.42f, {1, 1, 1, 0.05f}},
                                       {0.58f, {0, 0, 0, 0.03f}},
                                       {1.00f, {0, 0, 0, 0.10f}}}))))
-        .child(text(toUtf8(label), zw::type(13, zw::kInk, 1.2f)));
+        .child(text(toUtf8(label)).font({.size = 13, .track = 1.2f}));
   }
 
   Element describe() {
     namespace zw = zellige_wall;
     return stack()
         .fill(Fill::color(zw::kPlaster))
+        // The wall's lettering, stated once: one ink, sent to the paint
+        // through the 8-bit ladder the palette was read in.
+        .font({.color8 = true})
+        .ink(zw::kInk)
         // Speckled plaster grain over the ground — its own full-bleed
         // layer (the root fill and the pattern can't share one slot).
         .child(box().inset(0, 0, 0, 0).fill(grain.material()))
-        .child(box()
-                   .column()
-                   .inset(50, 44, 50, 44)
-                   .gap(14)
-                   .child(box()
-                              .row()
-                              .alignItems(Align::Baseline)
-                              .gap(14)
-                              .child(text(toUtf8("ZELLIJE"),
-                                          zw::type(34, zw::kInk, 3)))
-                              .child(text(
-                                  toUtf8("Hankin PIC \xc2\xb7 4.8.8 \xc2\xb7 "
-                                         "\xce\xb8 swept 30\xe2\x80\x93"
-                                         "60\xc2\xb0"),
-                                  zw::type(14, zw::kSub, 1))))
-                   .child(box()
-                              .row()
-                              .grow(1)
-                              .gap(22)
-                              .child(panel(left, captions[0]))
-                              .child(panel(middle, captions[1]))
-                              .child(panel(right, captions[2]))));
+        .child(
+            box()
+                .column()
+                .inset(50, 44, 50, 44)
+                .gap(14)
+                .child(
+                    box()
+                        .row()
+                        .alignItems(Align::Baseline)
+                        .gap(14)
+                        .child(text(toUtf8("ZELLIJE"))
+                                   .font({.size = 34, .track = 3}))
+                        .child(text(toUtf8("Hankin PIC \xc2\xb7 4.8.8 \xc2\xb7 "
+                                           "\xce\xb8 swept 30\xe2\x80\x93"
+                                           "60\xc2\xb0"))
+                                   .font({.size = 14,
+                                          .color = zw::kSub,
+                                          .track = 1})))
+                .child(box()
+                           .row()
+                           .grow(1)
+                           .gap(22)
+                           .child(panel(left, captions[0]))
+                           .child(panel(middle, captions[1]))
+                           .child(panel(right, captions[2]))));
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {
