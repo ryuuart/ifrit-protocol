@@ -35,6 +35,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 namespace sketch = sigil::sketch;
@@ -64,16 +65,17 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-/** The wordmark's own face: as heavy as the machine has, so the fill has
- *  letterforms to be seen inside. */
-weave::TextStyle display() {
-  const sk_sp<SkTypeface> face =
-      weave::ports::face({"Avenir Next Heavy", "Helvetica Neue Bold",
-                          "Arial Black", "Impact", "sans-serif"});
-  return weave::textStyle({.face = face,
-                           .size = kSize,
-                           .color = sketch::kit::theme().palette.ink,
-                           .track = 3.0f});
+/** THE WORDMARK, as a class over the sheet's registers: its own face, as
+ *  heavy as the machine has, so the fill has letterforms to be seen inside,
+ *  at the one size — in the ink in force where it lands, which is the
+ *  page's. */
+weave::StyleSheet classes(const sketch::kit::Theme& look) {
+  return look.styleSheet().set(
+      "display",
+      {.face = weave::ports::face({"Avenir Next Heavy", "Helvetica Neue Bold",
+                                   "Arial Black", "Impact", "sans-serif"}),
+       .size = kSize,
+       .track = 3.0f});
 }
 
 /** The run's box, which is what an animated field is parameterised over.
@@ -87,16 +89,17 @@ Element cell(const char* call, const char* note, paint::Paint fill,
   Element plate = sketch::kit::well({.width = kCell, .height = kPicture})
                       .alignItems(Align::Center)
                       .justify(Justify::Center);
-  Element word = text(toUtf8(kWord), display()).textFill(std::move(fill));
+  Element word =
+      text(toUtf8(kWord)).styleClass("display").textFill(std::move(fill));
   if (beneath.isSolid() || beneath.asShader())
-    plate.child(
-        box()
-            .absolute()
-            .inset(0)
-            .alignItems(Align::Center)
-            .justify(Justify::Center)
-            .child(
-                text(toUtf8(kWord), display()).textFill(std::move(beneath))));
+    plate.child(box()
+                    .absolute()
+                    .inset(0)
+                    .alignItems(Align::Center)
+                    .justify(Justify::Center)
+                    .child(text(toUtf8(kWord))
+                               .styleClass("display")
+                               .textFill(std::move(beneath))));
   return sketch::kit::caption(kCell, toUtf8(call), toUtf8(note),
                               std::move(plate).child(std::move(word)));
 }
@@ -109,7 +112,8 @@ Element field(const char* call, const char* note, material::Material m) {
 
 struct TextPaints final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Theme sheet = sheetTheme();
+    const sketch::kit::Provide look(sheet, classes(sheet));
     // the fields are frozen at kMoment, not at the clock
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
