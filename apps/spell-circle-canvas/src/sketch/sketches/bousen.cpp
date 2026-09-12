@@ -87,18 +87,6 @@ inline sigil::weave::TextStyle columnFitted(float size, SkColor4f color) {
   return s;
 }
 
-/** Latin captions, which stay horizontal — the plate labels itself in the
- *  other writing mode so the two are side by side. */
-inline sigil::weave::TextStyle label(float size, SkColor4f color,
-                                     float tracking = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
-}
-
 /** A paint that draws its glyphs in @p ink and carries one band beside
  *  the column: `kUnderline` runs down the RIGHT of the column, `kOverline`
  *  down the left, `kHighlight` across the whole pitch. */
@@ -180,8 +168,12 @@ struct Bousen final : sketch::Sketch {
             .add(u8"小書きの仮名")
             .add(u8"は縦の形に替わり、列は右から左へ組み上がってゆく。");
 
+    // The Latin the plate labels itself in, stated once: every caption and
+    // note under here inherits it, and names only what differs.
     return box()
         .fill(std::move(ground))
+        .font({.size = 10})
+        .ink(bs::kUsu)
         .child(
             text(std::move(passage))
                 .absolute()
@@ -235,9 +227,11 @@ struct Bousen final : sketch::Sketch {
                                    .width(Dimension(168.0f))
                                    .height(Dimension(1.0f))
                                    .fill(Fill::color(bs::kAka)))
-                        .child(text(weave::rich(bs::label(10, bs::kUsu))
+                        .child(text(weave::rich()
                                         .add(toUtf8("mark() "),
-                                             bs::label(11, bs::kAka, 1))
+                                             weave::Type{.size = 11,
+                                                         .color = bs::kAka,
+                                                         .track = 1})
                                         .add(toUtf8("\xe2\x80\x94 anchored to "
                                                     "the phrase,\nnot to a "
                                                     "coordinate")))
@@ -256,12 +250,12 @@ struct Bousen final : sketch::Sketch {
                            .width(Dimension(120.0f))
                            .height(Dimension(1.0f))
                            .fill(Fill::color(bs::kAka)))
-                .child(text(toUtf8("THE COLUMN'S FURNITURE"),
-                            bs::label(13, bs::kAi, 3)))
+                .child(text(toUtf8("THE COLUMN'S FURNITURE"))
+                           .font({.size = 13, .color = bs::kAi, .track = 3}))
                 .child(
                     text(toUtf8("a band beside the column, not beneath a\n"
-                                "line \xc2\xb7 a mark on the phrase it names"),
-                         bs::label(13, bs::kSumi, 0.4f))
+                                "line \xc2\xb7 a mark on the phrase it names"))
+                        .font({.size = 13, .color = bs::kSumi, .track = 0.4f})
                         .width(Dimension(260.0f)))
                 .child(box().height(Dimension(20.0f)))
                 .child(box()
@@ -274,8 +268,8 @@ struct Bousen final : sketch::Sketch {
                 .child(box().height(Dimension(14.0f)))
                 .child(text(toUtf8("the pair is one string set twice: the "
                                    "second asks\nthe face for the metrics it "
-                                   "keeps for a column"),
-                            bs::label(11, bs::kUsu))
+                                   "keeps for a column"))
+                           .font({.size = 11})
                            .width(Dimension(300.0f))))
         // The cascade lives on its own strip, and it wears a band. A track
         // draws its glyphs itself, in batched buckets that carry glyphs
@@ -303,8 +297,7 @@ struct Bousen final : sketch::Sketch {
                                           &ch::easeNone, 220ms})}))
         .child(text(toUtf8("\xe2\x86\x91 this strip's entrance beats over\n"
                            "weave::Unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
-                           "and its band stands at rest"),
-                    bs::label(10, bs::kUsu))
+                           "and its band stands at rest"))
                    .absolute()
                    .inset(300, 466, 0, 0)
                    .width(Dimension(180.0f)))
@@ -327,8 +320,8 @@ struct Bousen final : sketch::Sketch {
                                     {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f},
                                     0)))
         .child(text(toUtf8("the entrance beats over COLUMNS \xc2\xb7 a band is "
-                           "beside the column, never beneath a line"),
-                    bs::label(12, bs::kUsu))
+                           "beside the column, never beneath a line"))
+                   .font({.size = 12})
                    .absolute()
                    .inset(64, bs::kH - 44, 0, 0));
   }
