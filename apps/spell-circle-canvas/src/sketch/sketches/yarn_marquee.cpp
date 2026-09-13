@@ -74,7 +74,6 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace camera = sigil::geometry::mesh::camera;
 namespace sections = sigil::geometry::sections;
 namespace curve = sigil::geometry::mesh::curve;
@@ -119,13 +118,12 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
 /** THE BANNER, as one column laid out at the full strip length. Sector
  *  spacing is `grow()` boxes rather than fixed gaps: the column is told
- *  how long it is and distributes the slack itself. */
+ *  how long it is and distributes the slack itself. The column is baked
+ *  alone, so its runs are set in the default family over the initial
+ *  values: the sector lines take the column's ink, and the numerals and
+ *  the headings say their own. */
 Element banner(float length) {
   const char8_t* pool[4] = {
       u8"the across-vector is the whole difference",
@@ -139,7 +137,8 @@ Element banner(float length) {
                        .width((float)kAcrossPx)
                        .height(length)
                        .padding(14, 48)
-                       .fill(Fill::color({0.031f, 0.047f, 0.086f, 0.62f}));
+                       .fill(Fill::color({0.031f, 0.047f, 0.086f, 0.62f}))
+                       .ink(kInk);
   column.child(
       box()
           .absolute()
@@ -150,15 +149,16 @@ Element banner(float length) {
           .absolute()
           .inset((float)kAcrossPx - 5, 0, 3, 0)
           .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.5f})));
-  column.child(text(u8"THE HUNG RAIL", label(60, kAccent)));
+  column.child(text(u8"THE HUNG RAIL").font({.size = 60}).ink(kAccent));
   for (int s = 0; s < kSectors; ++s) {
     column.child(box().grow());
     const std::string numeral = kit::formatted("- %02d -", s + 1);
-    column.child(text(toUtf8(numeral), label(34, kNumeral)));
-    column.child(text(pool[(size_t)s % 4], label(40, kInk)));
+    column.child(text(toUtf8(numeral)).font({.size = 34}).ink(kNumeral));
+    column.child(text(pool[(size_t)s % 4]).font({.size = 40}));
   }
   column.child(box().grow());
-  column.child(text(u8"and back to its own beginning", label(46, kAccent)));
+  column.child(
+      text(u8"and back to its own beginning").font({.size = 46}).ink(kAccent));
   return column;
 }
 
