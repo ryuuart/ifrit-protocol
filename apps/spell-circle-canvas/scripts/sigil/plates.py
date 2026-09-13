@@ -719,7 +719,7 @@ def main(argv: list) -> int:
             if args.stability > 0:
                 rerenders = {results[scene]}
                 for _ in range(args.stability):
-                    _, digest, _, _ = render_scene(
+                    _, digest, _, _, _ = render_scene(
                         binary,
                         scene,
                         plate_dir(args.config, "stability", fresh=False),
