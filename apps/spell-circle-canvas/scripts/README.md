@@ -1,6 +1,6 @@
 # Scripts
 
-The build's administration is ONE command with nine verbs:
+The build's administration is ONE command with ten verbs:
 
 ```sh
 python3 scripts/sigil.py <verb> [flags]
@@ -8,7 +8,7 @@ python3 scripts/sigil.py <verb> --help
 ```
 
 `setup`, `check`, `plates`, `bench`, `sanitize`, `docs`, `assets`,
-`flags`, `flatbuffers`. Each is a module in `scripts/sigil/`, over two
+`flags`, `flatbuffers`, `workspace`. Each is a module in `scripts/sigil/`, over two
 shared ones: `tree.py` is where the build tree is and how to talk to it —
 which directory a preset builds into, where a configuration's binaries
 land, where Sketchbook sits inside its bundle, what tests a configured
@@ -568,6 +568,36 @@ archive stays invisible, so each such dependency has an entry in
 Nothing of this repository's own is in that file. LeakSanitizer is
 unsupported on Apple Silicon and off — with it on the runtime aborts at
 startup before any test runs.
+
+## A workspace — `workspace`
+
+```sh
+python3 scripts/sigil.py workspace new <dir>
+```
+
+A sketch does not have to live in this repository: Sketchbook takes a
+`.cpp` path wherever it stands, compiles it with the flags this build
+captured and hot-swaps it on every save. What such a folder holds is a
+convention — the sketch named for the folder, `assets/` for what mounts
+at `res://`, `captures/` for what the window's Capture writes, and a
+README stating the contract — and this verb writes that convention once,
+so a new one starts from a file that runs rather than from an empty
+directory.
+
+It writes FILES AND NOTHING ELSE: no build tree, no CMake package, no
+install step, and nothing is added to this repository. The folder is
+bound to one checkout at one build time, because the flags the sketch
+compiles with are the ones in `sketch_flags.rsp` beside the Sketchbook
+binary — which is what the README it writes says, along with the lanes a
+file opened by path can and cannot be put through.
+
+The folder's own name is the sketch's: it names the entry file, the key
+the sketch's files are reached under, and the C++ type the registration
+macro is handed. A name no type can be made from is refused, and so is a
+folder that already holds a sketch of that name — nothing is overwritten.
+
+`src/sketch/README.md` is the canon for what a workspace is and how the
+live host compiles one.
 
 ## Docs, assets, flags, schema
 

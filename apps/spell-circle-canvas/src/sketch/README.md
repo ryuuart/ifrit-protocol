@@ -1243,6 +1243,19 @@ A `.cpp` path is taken **wherever it stands**, and the app opens on it:
 Sketchbook ~/sketches/my_experiment.cpp
 ```
 
+One verb writes such a folder, so a new one starts from a sketch that
+runs rather than from an empty directory:
+
+```sh
+python3 scripts/sigil.py workspace new ~/sketches/aurora_drift
+```
+
+It writes the folder's name as the sketch — `aurora_drift.cpp`, a sketch
+on this vocabulary that stages a canvas, reads a file through
+`ctx.assets` and states the theme's sheet on its root — beside `assets/`,
+`captures/` and a README stating the contract below. Files and nothing
+else: no build tree, no CMake package, no install step.
+
 The file joins the app's list under its own stem, filed under
 **Workspace** with the directory it came from beside the name, and it
 compiles, hot-swaps and captures exactly as a sketch in this repository

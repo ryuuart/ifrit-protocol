@@ -174,3 +174,11 @@ dir = "apps/spell-circle-canvas"
 # The fetcher only writes files, so this works on a fresh checkout with
 # no configured build tree.
 run = "python3 scripts/sigil.py assets"
+
+[tasks.workspace]
+description = "Scaffold a folder a sketch lives in, outside this tree (mise run workspace -- new <dir>)"
+dir = "apps/spell-circle-canvas"
+# The folder is written anywhere on disk and nothing here is touched, so
+# this works without a configured build tree — though opening what it
+# writes wants a built Sketchbook.
+run = "python3 scripts/sigil.py workspace"

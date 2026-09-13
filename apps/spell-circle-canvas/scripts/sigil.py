@@ -4,7 +4,7 @@
     python3 scripts/sigil.py <verb> [flags]
     python3 scripts/sigil.py <verb> --help
 
-Nine verbs over one package. `scripts/README.md` is the canon for what
+Ten verbs over one package. `scripts/README.md` is the canon for what
 each does and what it refuses; `--help` on a verb is the canon for its
 flags. Every mise task is one of these under a one-word name.
 """
@@ -25,6 +25,7 @@ VERBS = {
     "assets": "fetch the demo assets, or stage an SDK archive",
     "flags": "lift the sketch compile line out of the compilation database",
     "flatbuffers": "regenerate the committed Python schema modules",
+    "workspace": "scaffold a folder a sketch lives in, outside this tree",
 }
 
 

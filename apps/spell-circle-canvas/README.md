@@ -207,7 +207,7 @@ ctest --test-dir build -C Release --output-on-failure
 ```
 
 `sigil.py setup` finds Qt and vcpkg and writes the uncommitted
-`CMakeUserPresets.json`. It is one of nine verbs over the build's
+`CMakeUserPresets.json`. It is one of ten verbs over the build's
 administration; `scripts/README.md` is the canon for all of them.
 
 The test suite covers the libraries and the receiver layers:

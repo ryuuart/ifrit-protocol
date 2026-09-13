@@ -192,9 +192,9 @@ ones disable themselves without the SDK, GPU cases need Metal, and the
 world's device suites skip without a Vulkan runtime (`brew install
 molten-vk vulkan-loader`). Demo assets come from `mise run assets`.
 
-The build's administration is one command with nine verbs —
+The build's administration is one command with ten verbs —
 `python3 scripts/sigil.py <verb>`: setup, check, plates, bench,
-sanitize, docs, assets, flags, flatbuffers — documented in
+sanitize, docs, assets, flags, flatbuffers, workspace — documented in
 `apps/spell-circle-canvas/scripts/README.md`, which is the canon for
 what each does; `--help` on a verb is the canon for its flags. A
 library's own build module lives with the library
