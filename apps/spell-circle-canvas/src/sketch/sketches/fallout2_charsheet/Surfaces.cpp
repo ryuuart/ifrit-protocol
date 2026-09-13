@@ -107,22 +107,22 @@ auto Fallout2CharSheet::chrome() -> Element {
 
   // The outer frame and the dividers between the five panels — raised
   // facets lit from the top-left.
+  // vertical divider between the left/middle block and the skills column
   g.children({at(box(), 0, 0, 640, 480)
                   .foreground(stroke(n(3), Fill::color(hexColor(0x1E1810)),
                                      PathFormat::Align::Inner))
                   .foreground(inset(
                       n(3), fo::stamp(2.0f, 2.5f, hexColor(0xA08858, 0.45f),
-                                      hexColor(0x0C0906, 0.55f))))});
-  // vertical divider between the left/middle block and the skills column
-  g.children({at(box(), 328, 0, 4, 480)
+                                      hexColor(0x0C0906, 0.55f)))),
+              at(box(), 328, 0, 4, 480)
                   .fill(Paint::linearUnit({0, 0}, {1, 0},
                                           {{0.0f, hexColor(0x554430)},
-                                           {1.0f, hexColor(0x241D12)}}))});
-  g.children({at(box(), 165, 30, 3, 240)
+                                           {1.0f, hexColor(0x241D12)}})),
+              at(box(), 165, 30, 3, 240)
                   .fill(Paint::linearUnit({0, 0}, {1, 0},
                                           {{0.0f, hexColor(0x4E4030)},
-                                           {1.0f, hexColor(0x241D12)}}))});
-  g.children({at(box(), 5, 318, 320, 3)
+                                           {1.0f, hexColor(0x241D12)}})),
+              at(box(), 5, 318, 320, 3)
                   .fill(Paint::linearUnit({0, 0}, {0, 1},
                                           {{0.0f, hexColor(0x554430)},
                                            {1.0f, hexColor(0x241D12)}}))});
@@ -147,20 +147,19 @@ auto Fallout2CharSheet::chrome() -> Element {
 
   // The SKILLS heading (font 103, #907824) at (380, 5), and SKILL POINTS at
   // (400, 233) with its own two-digit odometer at (522, 228).
-  g.children({ink(engravedText("SKILLS", n(24.0f), 0.78f, 0.5f), 380, 4,
-                  engravedRise(n(24.0f)))});
   // The SKILL POINTS bar: a raised strip carrying the label and the counter,
   // between the skills well and the card.
-  g.children({raised({336, 226, 292, 30}, 3.0f)});
-  g.children({ink(engravedText("SKILL POINTS", n(24.0f), 0.78f, 0.5f), 400, 232,
-                  engravedRise(n(24.0f)))});
-  g.children({at(box(), 520, 226, 34, 28)
+  g.children({ink(engravedText("SKILLS", n(24.0f), 0.78f, 0.5f), 380, 4,
+                  engravedRise(n(24.0f))),
+              raised({336, 226, 292, 30}, 3.0f),
+              ink(engravedText("SKILL POINTS", n(24.0f), 0.78f, 0.5f), 400, 232,
+                  engravedRise(n(24.0f))),
+              at(box(), 520, 226, 34, 28)
                   .fill(Fill::color(hexColor(0x120E08)))
                   .corners(Corners{n(2)})
                   .foreground(fo::stamp(1.0f, 1.4f, hexColor(0x8A7448, 0.45f),
-                                        hexColor(0x000000, 0.6f), 300))});
-  g.children(
-      {box().left(0).top(0).children({slot("points")})});
+                                        hexColor(0x000000, 0.6f), 300)),
+              box().at({0, 0}).children({slot("points")})});
 
   // PRINT / DONE / CANCEL at y = 454, each with a red button light. Lamp
   // rects sampled at x 344..355, 457..468, 553..564, y 455..466.
@@ -182,9 +181,8 @@ auto Fallout2CharSheet::chrome() -> Element {
                          .corners(Corners{n(6)})
                          .fill(Fill::color(kLampOff))
                          .opacity(&lampFlash)});
-    g.children({lamp});
-    g.children({ink(engravedText(btn[i], n(22.0f), 0.80f, 0.3f), textX[i], 454,
-                    engravedRise(n(22.0f)))});
+    g.children({lamp, ink(engravedText(btn[i], n(22.0f), 0.80f, 0.3f), textX[i],
+                          454, engravedRise(n(22.0f)))});
   }
   return g;
 }

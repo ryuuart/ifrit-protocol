@@ -6,18 +6,13 @@
 
 auto Fallout2CharSheet::describe() -> Element {
   using namespace fo;
-  Element root = stack()
-                     .width(kScreenW)
-                     .height(kScreenH + kCaptionH);
+  Element root = stack().width(kScreenW).height(kScreenH + kCaptionH);
 
   // ---- the screen -----------------------------------------------------
   // THE ROOT OF THE SCREEN'S TYPE: font 101 in the terminal green, which
   // every row that names no style of its own is set in where it lands.
   Element screen = box()
-                       .left(0)
-                       .top(0)
-                       .width(kScreenW)
-                       .height(kScreenH)
+                       .rect(SkRect::MakeXYWH(0, 0, kScreenW, kScreenH))
                        .clip()
                        .fill(plateMat)
                        .font(bodyType())
@@ -29,15 +24,14 @@ auto Fallout2CharSheet::describe() -> Element {
                        .fill(plateTooth)
                        .blend(SkBlendMode::kOverlay)
                        .opacity(0.30f)
-                       .cache(Cache::Texture)});
-  screen.children({box()
+                       .cache(Cache::Texture),
+                   box()
                        .inset(0)
                        .fill(rustMat)
                        .blend(SkBlendMode::kSoftLight)
                        .opacity(0.55f)
-                       .cache(Cache::Texture)});
-
-  screen.children({chrome()});
+                       .cache(Cache::Texture),
+                   chrome()});
 
   // The S.P.E.C.I.A.L. column is NOT a well — sampled at (45,60) the
   // reference reads #483828, a LIT metal facet. It is a raised panel with
@@ -55,8 +49,8 @@ auto Fallout2CharSheet::describe() -> Element {
                      .fill(plateTooth)
                      .blend(SkBlendMode::kOverlay)
                      .opacity(0.34f)
-                     .cache(Cache::Texture)});
-    sp.children({box()
+                     .cache(Cache::Texture),
+                 box()
                      .inset(0)
                      .fill(rustMat)
                      .blend(SkBlendMode::kSoftLight)
@@ -78,34 +72,22 @@ auto Fallout2CharSheet::describe() -> Element {
                                   PathFormat::Align::Outer))});
     screen.children({sp});
   }
-  screen.children({well(kWellStatus)});
-  screen.children({well(kWellDerived)});
-  screen.children({well(kWellLevel)});
-  screen.children({well(kWellSkills, 3.0f)});
-  screen.children({well(kWellFolder, 3.0f)});
-
-  screen.children({specialColumn()});
-  screen.children({statusBlock()});
-  screen.children({derivedBlock()});
-  screen.children({levelBlock()});
-  screen.children({folder()});
-  screen.children({box().inset(0).children({slot("skills")})});
-  screen.children({card()});
-
   // POST: none. No bloom, no scanlines, no vignette, no CRT — a 1998 VGA
   // screen captured off a framebuffer has none of that and the restraint is
   // the point. At most a 4% grain so the metal does not read as vector-flat.
-  screen.children({box()
+  screen.children({well(kWellStatus), well(kWellDerived), well(kWellLevel),
+                   well(kWellSkills, 3.0f), well(kWellFolder, 3.0f),
+                   specialColumn(), statusBlock(), derivedBlock(), levelBlock(),
+                   folder(), box().inset(0).children({slot("skills")}), card(),
+                   box()
                        .inset(0)
                        .fill(canvasGrain)
                        .blend(SkBlendMode::kOverlay)
                        .opacity(0.04f)
                        .cache(Cache::Texture)});
-  root.children({screen});
-
   // ---- the plate caption. NOT part of the artefact: the screen above is
   // exactly 1280x960 and this band sits below it, carrying the audit.
-  root.children({captionBand()});
+  root.children({screen, captionBand()});
   if (sheetAudit.failures() > 0) root.children({failureCard()});
   return root;
 }
@@ -205,9 +187,7 @@ auto Fallout2CharSheet::setup(sketch::SketchContext& ctx) -> void {
           ctx.measure(t(skills()[(size_t)idx[k]].name, titleType())).width();
   }
 
-  ctx.ticker.add([this](double dt) {
-    step(dt);
-  });
+  ctx.ticker.add([this](double dt) { step(dt); });
 
   ctx.composer.render(describe());
   pushSlots(ctx, true);

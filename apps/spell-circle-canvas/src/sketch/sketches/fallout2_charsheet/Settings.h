@@ -212,7 +212,7 @@ inline Element t(const std::string& s, weave::Type partial) {
 /** Place at a DOCUMENTED (x, y) in original screen px. `y` is Fallout's draw
  *  y — the top of the glyph cell — so the rise correction lands here, once. */
 inline Element ink(Element e, float x, float y, float rise) {
-  e.left(kUnits.x(x)).top(kUnits.y(y) - rise);
+  e.at({kUnits.x(x), kUnits.y(y) - rise});
   return e;
 }
 /** Absolute placement in the SHEET'S OWN pixels — the numbers read off
