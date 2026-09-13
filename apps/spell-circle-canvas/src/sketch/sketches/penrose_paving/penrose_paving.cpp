@@ -6,6 +6,17 @@
 #include "Tiling.h"
 
 struct PenrosePaving : sketch::Sketch {
+  /** THE PLAQUE'S OWN WORDS, from `data/content.json` beside this file:
+   *  what the paving is, where it stands, and what the deflation vignette
+   *  shows. EDIT THAT FILE to change what the plaza says; a name it does
+   *  not carry reads as empty. Every other line on the plate is a
+   *  MEASUREMENT of the tiling and is computed, never written. */
+  std::shared_ptr<const sigil::data::Json> content;
+  std::string say(const char* name) const {
+    static const sigil::data::Json none;
+    return std::string((content ? *content : none)[name].text());
+  }
+
   std::vector<Tile> tiles;
   GraniteBank bank;
   Audit audit;
@@ -89,14 +100,12 @@ struct PenrosePaving : sketch::Sketch {
     };
 
     Element e =
-        box()
-            .left(bb.left())
-            .top(bb.top())
-            .width(bb.width())
-            .height(bb.height())
-            .shape(heldPath(shape))
-            .fill(bank.get(t.fat ? kRoyalWhite : kKobraGrey, t.seed, t.fat))
-            .foreground(Decoration(PaintProgram(chamfer)))
+        kit::at(
+            box()
+                .shape(heldPath(shape))
+                .fill(bank.get(t.fat ? kRoyalWhite : kKobraGrey, t.seed, t.fat))
+                .foreground(Decoration(PaintProgram(chamfer))),
+            bb.left(), bb.top(), bb.width(), bb.height())
             // the saw cut: a hairline of the joint's own colour just
             // inside the silhouette, so neighbouring setts never fuse
             .stroke(stroke(0.7f, Fill::color(hexColor(0x3D4043, 0.34f)),
@@ -147,19 +156,19 @@ struct PenrosePaving : sketch::Sketch {
                        {0.0f, inner, inner + rim, (inner + outer) * 0.5f,
                         outer - rim, outer, 1.0f});
 
-    return box()
-        .left(bb.left() - parentOrg.x())
-        .top(bb.top() - parentOrg.y())
-        .width(bb.width())
-        .height(bb.height())
-        .shape(heldPath(local))
-        .stroke(spans::upTo(&arcT[i]),
+    return kit::at(
+        box()
+            .shape(heldPath(local))
+            .stroke(
+                spans::upTo(&arcT[i]),
                 Brush{}  // the milled slot the insert sits in — a hairline of
                          // occlusion either side, not an outline
                     .layer(PathFormat{.width = kBandW + 0.9f,
                                       .strokeFill = Fill::color(kGroove)})
                     // the 30 mm polished insert
-                    .layer(PathFormat{.width = kBandW, .strokeFill = band}));
+                    .layer(PathFormat{.width = kBandW, .strokeFill = band})),
+        bb.left() - parentOrg.x(), bb.top() - parentOrg.y(), bb.width(),
+        bb.height());
   }
 
   // -------------------------------------------------------------------------
@@ -171,7 +180,7 @@ struct PenrosePaving : sketch::Sketch {
     // positioned(): every triangle carries its own bb rect — the
     // deflation patch is the field's pattern in miniature, Yoga-free.
     auto group = positioned()
-                     .inset(0, 0, 0, 0)
+                     .inset(0)
                      .key("gen" + std::to_string(gen))
                      .staggerChildren(9ms, motion::Spread::From::Center)
                      .transformOrigin(0.5f, 0.5f)
@@ -204,15 +213,12 @@ struct PenrosePaving : sketch::Sketch {
       b.close();
       SkPath p = b.detach();
       group.children(
-          {box()
-               .key("g" + std::to_string(gen) + "_" + std::to_string(i))
-               .left(bb.left())
-               .top(bb.top())
-               .width(bb.width())
-               .height(bb.height())
-               .shape(heldPath(p))
-               .fill(Fill::color(g.type == 1 ? hexColor(0xB6B2A7)
-                                             : hexColor(0x76797E)))
+          {kit::at(box()
+                       .key("g" + std::to_string(gen) + "_" + std::to_string(i))
+                       .shape(heldPath(p))
+                       .fill(Fill::color(g.type == 1 ? hexColor(0xB6B2A7)
+                                                     : hexColor(0x76797E))),
+                   bb.left(), bb.top(), bb.width(), bb.height())
                // NO per-piece scale: scaling each half about its own
                // centre pulls a subdivision apart, and a deflation
                // diagram that shows gaps is saying the opposite of
@@ -246,7 +252,7 @@ struct PenrosePaving : sketch::Sketch {
                                c.drawPath(b.detach(), p);
                              }
                            })
-                        .inset(0, 0, 0, 0)
+                        .inset(0)
                         .cache(Cache::None)});
     return group;
   }
@@ -287,42 +293,38 @@ struct PenrosePaving : sketch::Sketch {
         kit::formatted("VERIFIED AT STARTUP · %d CHECKS, %s", verdict.checks(),
                        verdict.pass() ? "ALL PASSED" : "ONE OR MORE FAILED");
     sketch::kit::Provide bound(look);
-    return box()
-        .left(1096)
-        .top(944)
-        .width(448)
-        .height(236)
-        .fill(Fill::color(hexColor(0x121517, 0.84f)))
-        .stroke(stroke(1.0f, Fill::color(hexColor(0x5E6163, 0.55f)),
-                       PathFormat::Align::Inner))
-        .background(styles::dropShadow(hexColor(0x000000, 0.55f), {0, 6}, 22))
-        .column()
-        .padding(14)
-        .gap(9)
-        .children({text(summary),
-                   sketch::kit::table(std::move(rows),
-                                      {.columns = {{202}, {92, true}, {}},
-                                       .gap = 8,
-                                       .swatchSide = 7})});
+    return kit::at(
+        box()
+            .fill(Fill::color(hexColor(0x121517, 0.84f)))
+            .stroke(stroke(1.0f, Fill::color(hexColor(0x5E6163, 0.55f)),
+                           PathFormat::Align::Inner))
+            .background(
+                styles::dropShadow(hexColor(0x000000, 0.55f), {0, 6}, 22))
+            .column()
+            .padding(14)
+            .gap(9)
+            .children({text(summary),
+                       sketch::kit::table(std::move(rows),
+                                          {.columns = {{202}, {92, true}, {}},
+                                           .gap = 8,
+                                           .swatchSide = 7})}),
+        1096, 944, 448, 236);
   }
 
   Element inset() {
     const SkRect r = SkRect::MakeXYWH(1178, 76, 348, 268);
-    return box()
-        .left(r.left())
-        .top(r.top())
-        .width(r.width())
-        .height(r.height())
-        .fill(Fill::color(hexColor(0x121517, 0.84f)))
-        .stroke(stroke(1.0f, Fill::color(hexColor(0x5E6163, 0.55f)),
-                       PathFormat::Align::Inner))
-        .background(styles::dropShadow(hexColor(0x000000, 0.55f), {0, 6}, 22))
-        .children({text("DEFLATION · FAT → 2 FAT + 1 THIN, "
-                        "×1/φ")
-                       .left(14)
-                       .top(12),
-                   box().left(10).top(34).width(kDiagW).height(kDiagH).children(
-                       {slot("deflate")})});
+    return kit::at(
+        box()
+            .fill(Fill::color(hexColor(0x121517, 0.84f)))
+            .stroke(stroke(1.0f, Fill::color(hexColor(0x5E6163, 0.55f)),
+                           PathFormat::Align::Inner))
+            .background(
+                styles::dropShadow(hexColor(0x000000, 0.55f), {0, 6}, 22))
+            .children(
+                {text(say("inset.head")).left(14).top(12),
+                 box().left(10).top(34).width(kDiagW).height(kDiagH).children(
+                     {slot("deflate")})}),
+        r.left(), r.top(), r.width(), r.height());
   }
 
   // -------------------------------------------------------------------------
@@ -333,9 +335,8 @@ struct PenrosePaving : sketch::Sketch {
     // rect, so there is nothing for a layout pass to solve. Under a plain
     // box() each sett and its two inlays would mount three flex nodes;
     // positioned() mounts them with none.
-    auto field = positioned().inset(0, 0, 0, 0);
-    for (size_t i = 0; i < tiles.size(); ++i)
-      field.children({sett(tiles[i], i)});
+    Element field = positioned().inset(0).children(
+        {each(tiles, [this](const Tile& t, size_t i) { return sett(t, i); })});
 
     const std::string spec = kit::formatted(
         "DE BRUIJN PENTAGRID  γ=1/5 (Γ=0)  s=%.0f px  "
@@ -355,19 +356,18 @@ struct PenrosePaving : sketch::Sketch {
         // automatic bake, so the cache has to be asked for by hand.
         .children(
             {box()
-                 .inset(0, 0, 0, 0)
+                 .inset(0)
                  .fill(Paint::recipe(field::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)))
                  .opacity(0.20f)
                  .cache(Cache::Texture),
-             field})
-        // Weathering at PLAZA scale — cells a couple of hundred px across,
-        // i.e. metres of traffic staining that crosses joints because dirt
-        // does not know where the setts are. Baked: it never changes, and a
-        // two-octave grain over the whole canvas is not worth re-evaluating
-        // once a frame to get the same pixels back.
-        .children(
-            {box()
-                 .inset(0, 0, 0, 0)
+             field,
+             // Weathering at PLAZA scale — cells a couple of hundred px across,
+             // i.e. metres of traffic staining that crosses joints because dirt
+             // does not know where the setts are. Baked: it never changes, and
+             // a two-octave grain over the whole canvas is not worth
+             // re-evaluating once a frame to get the same pixels back.
+             box()
+                 .inset(0)
                  .blend(SkBlendMode::kMultiply)
                  .opacity(0.42f)
                  .cache(Cache::Texture)
@@ -375,29 +375,27 @@ struct PenrosePaving : sketch::Sketch {
                      {{Paint::solid(hexColor(0xFFFFFF)), SkBlendMode::kSrcOver},
                       {Paint::recipe(
                            field::grain(0.0042f, 2, 91.0f, 0.62f, 1.15f)),
-                       SkBlendMode::kSoftLight}}))})
-        // ---- daylight. One multiply pass carries the sun's falloff across
-        // the plaza. It is SHALLOW: the header calls this a plan view and
-        // the forecourt is photographed in flat daylight, so a key bright
-        // enough to be read as a studio light is reading as a light rather
-        // than as a floor.
-        // Static, so it is baked: nothing here depends on the clock and the
-        // gradient covers the whole canvas.
-        .children(
-            {box()
-                 .inset(0, 0, 0, 0)
+                       SkBlendMode::kSoftLight}})),
+             // ---- daylight. One multiply pass carries the sun's falloff
+             // across the plaza. It is SHALLOW: the header calls this a plan
+             // view and the forecourt is photographed in flat daylight, so a
+             // key bright enough to be read as a studio light is reading as a
+             // light rather than as a floor. Static, so it is baked: nothing
+             // here depends on the clock and the gradient covers the whole
+             // canvas.
+             box()
+                 .inset(0)
                  .blend(SkBlendMode::kMultiply)
                  .cache(Cache::Texture)
                  .fill(radialGradient({470, 280}, 1280,
                                       {hexColor(0xFAFAF8), hexColor(0xE6E6E4),
                                        hexColor(0xB2B4B8), hexColor(0x74777C),
                                        hexColor(0x42454A)},
-                                      {0.0f, 0.22f, 0.50f, 0.78f, 1.0f}))})
-        // the sun pool itself, added back — also static, baked for the same
-        // reason as the pass above
-        .children(
-            {box()
-                 .inset(0, 0, 0, 0)
+                                      {0.0f, 0.22f, 0.50f, 0.78f, 1.0f})),
+             // the sun pool itself, added back — also static, baked for the
+             // same reason as the pass above
+             box()
+                 .inset(0)
                  .blend(SkBlendMode::kPlus)
                  .opacity(0.5f)
                  .cache(Cache::Texture)
@@ -405,62 +403,52 @@ struct PenrosePaving : sketch::Sketch {
                      {470, 280}, 1100,
                      {hexColor(0xFFF8E8, 0.13f), hexColor(0xFFF3DA, 0.075f),
                       hexColor(0xFFF0D0, 0.025f), hexColor(0x000000, 0.0f)},
-                     {0.0f, 0.34f, 0.68f, 1.0f}))})
-        // wet-stone sheen — a broad, low raking band that sweeps once per
-        // loop as the arcs finish, so the field reads as a wet surface
-        // catching the sky rather than as flat fill
-        .children({box()
-                       .inset(0, 0, 0, 0)
-                       .blend(SkBlendMode::kScreen)
-                       .opacity(&sheen)
-                       .fill(linearGradient(
-                           {180, 0}, {1500, 1200},
-                           {hexColor(0x000000, 0.0f), hexColor(0xBFD2E0, 0.09f),
-                            hexColor(0x000000, 0.0f)},
-                           {0.30f, 0.50f, 0.72f})),
-                   inset()})
-        // ---- the site plaque. A civic plaque sits on the paving, so give
-        // it a shadowed band to sit in rather than dropping 10 px type onto
-        // speckled granite where it cannot be read at any exposure.
-        .children(
-            {box().left(0).top(kH - 190).width(kW).height(190).fill(
-                 linearGradient(
-                     {0, kH - 190}, {0, kH},
-                     {hexColor(0x000000, 0.0f), hexColor(0x08090A, 0.42f),
-                      hexColor(0x08090A, 0.72f)},
-                     {0.0f, 0.5f, 1.0f})),
+                     {0.0f, 0.34f, 0.68f, 1.0f})),
+             // wet-stone sheen — a broad, low raking band that sweeps once per
+             // loop as the arcs finish, so the field reads as a wet surface
+             // catching the sky rather than as flat fill
              box()
-                 .left(56)
-                 .top(1084)
-                 .width(1010)
-                 .height(96)
-                 .fill(Fill::color(hexColor(0x101314, 0.90f)))
-                 .stroke(stroke(1.0f, Fill::color(hexColor(0x676B6D, 0.45f)),
-                                PathFormat::Align::Inner))
-                 .background(
-                     styles::dropShadow(hexColor(0x000000, 0.5f), {0, 5}, 18)),
-             text("PENROSE TILING · P3 RHOMBI · ROYAL "
-                  "WHITE & KOBRA GREY GRANITE · POLISHED 30 mm "
-                  "STAINLESS INSERTS")
-                 .font({.size = 13.0f,
-                        .color = hexColor(0xDCE0E2),
-                        .track = 1.9f})
-                 .left(76)
-                 .top(1100)
-                 .opacity(1.0f),
-             text("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
-                  "OXFORD · R. PENROSE 1974 / PAVING 2012")
-                 .font({.size = 11.5f,
-                        .color = hexColor(0xA9AEB1),
-                        .track = 1.5f})
-                 .left(76)
-                 .top(1126)
-                 .opacity(1.0f),
-             text(spec)
-                 .font({.color = hexColor(0x8E9598), .track = 1.3f})
-                 .left(76)
-                 .top(1152)
-                 .opacity(1.0f),
+                 .inset(0)
+                 .blend(SkBlendMode::kScreen)
+                 .opacity(&sheen)
+                 .fill(linearGradient(
+                     {180, 0}, {1500, 1200},
+                     {hexColor(0x000000, 0.0f), hexColor(0xBFD2E0, 0.09f),
+                      hexColor(0x000000, 0.0f)},
+                     {0.30f, 0.50f, 0.72f})),
+             inset(),
+             // ---- the site plaque. A civic plaque sits on the paving, so give
+             // it a shadowed band to sit in rather than dropping 10 px type
+             // onto speckled granite where it cannot be read at any exposure.
+             kit::at(box().fill(linearGradient(
+                         {0, kH - 190}, {0, kH},
+                         {hexColor(0x000000, 0.0f), hexColor(0x08090A, 0.42f),
+                          hexColor(0x08090A, 0.72f)},
+                         {0.0f, 0.5f, 1.0f})),
+                     0, kH - 190, kW, 190),
+             kit::at(box()
+                         .fill(Fill::color(hexColor(0x101314, 0.90f)))
+                         .stroke(stroke(1.0f,
+                                        Fill::color(hexColor(0x676B6D, 0.45f)),
+                                        PathFormat::Align::Inner))
+                         .background(styles::dropShadow(
+                             hexColor(0x000000, 0.5f), {0, 5}, 18)),
+                     56, 1084, 1010, 96),
+             // The plaque's three lines are one stack at one place: the
+             // paving's name, where it stands, and the pentagrid it was
+             // struck from.
+             kit::at(box().column().gap(13).children(
+                         {text(say("plaque.title"))
+                              .font({.size = 13.0f,
+                                     .color = hexColor(0xDCE0E2),
+                                     .track = 1.9f}),
+                          text(say("plaque.place"))
+                              .font({.size = 11.5f,
+                                     .color = hexColor(0xA9AEB1),
+                                     .track = 1.5f}),
+                          text(spec).font(
+                              {.color = hexColor(0x8E9598), .track = 1.3f})}),
+                     76, 1096, 1010, 72),
              verificationCard()});
   }
 
@@ -473,6 +461,7 @@ struct PenrosePaving : sketch::Sketch {
         ctx,
         {.size = SkSize::Make(kW, kH), .captureAt = 4.6, .background = kNight});
 
+    content = ctx.assets.json(ctx.local("data/content.json"));
     tiles = buildField(kModule, kModule * 1.2f);
     audit = verify(tiles, kModule);
 
