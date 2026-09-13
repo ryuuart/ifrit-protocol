@@ -13,6 +13,8 @@
 #include <sigilweave/style/Length.h>
 #include <sigilweave/style/StyleSheet.h>
 
+#include <array>
+
 #include "support/CoreTestSupport.h"
 
 using namespace sigil::weave::literals;
@@ -374,6 +376,38 @@ TEST(ComposeCascade, SeveralClassesFoldInOrderAndAPartialLaysOverThem) {
   c.frame();
   EXPECT_GT(widthOf(a, "t"), widthOf(b, "t") * 2.5f);
   EXPECT_FLOAT_EQ(widthOf(c, "t"), widthOf(b, "t"));
+}
+
+TEST(ComposeCascade, AChildrenBlockHoldsElementsAndListsInOrder) {
+  // A block of one element, a list each() made, and another element, is
+  // the same tree as the children added one by one.
+  const std::array<int, 2> sizes{20, 30};
+  const auto leaf = [](int size, std::string key) {
+    return text("A").font({.size = (float)size}).key(std::move(key));
+  };
+  Element block = box().column().children({
+      leaf(10, "a"),
+      each(sizes,
+           [&](int size, size_t i) {
+             return leaf(size, "e" + std::to_string(i));
+           }),
+      leaf(40, "b"),
+  });
+  Element oneByOne = box()
+                         .column()
+                         .child(leaf(10, "a"))
+                         .child(leaf(20, "e0"))
+                         .child(leaf(30, "e1"))
+                         .child(leaf(40, "b"));
+  Host a, b;
+  a.composer.render(pageWith(std::move(block), 10));
+  b.composer.render(pageWith(std::move(oneByOne), 10));
+  a.frame();
+  b.frame();
+  for (const char* key : {"a", "e0", "e1", "b"})
+    EXPECT_FLOAT_EQ(widthOf(a, key), widthOf(b, key)) << key;
+  EXPECT_GT(widthOf(a, "e1"), widthOf(a, "e0"));
+  EXPECT_GT(widthOf(a, "b"), widthOf(a, "e1"));
 }
 
 TEST(ComposeCascade, ATextLeafFromAPlainStringIsTheSameLeaf) {

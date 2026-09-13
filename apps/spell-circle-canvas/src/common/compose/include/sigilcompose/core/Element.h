@@ -89,6 +89,8 @@ struct Tether;
  *  frame and thrown away — it holds no GPU or layout state, and the
  *  retained tree behind it is the composer's business. The chaining
  *  setters return `*this`, so a node reads as one expression. */
+struct Children;
+
 class Element {
  public:
   Element();  // empty box
@@ -1372,6 +1374,19 @@ class Element {
 
   // ---- composition ----
   Element& child(Element e);
+  /** THE CHILDREN, AS ONE BLOCK: what is in the node, in order, after
+   *  every verb that says what is done to it —
+   *
+   *      column().gap(9).children({
+   *          heading(),
+   *          each(rows, row),
+   *          footer(),
+   *      });
+   *
+   *  A run of the block is an element or the list `each()` made from a
+   *  range, so a block mixes the two. Braces on a description mean this
+   *  and nothing else. */
+  Element& children(std::initializer_list<Children> runs);
   template <std::ranges::input_range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, Element>
   Element& children(R&& range) {
@@ -1418,6 +1433,15 @@ class Element {
   };
 
   NodeHandle m_node;
+};
+
+
+/** ONE RUN OF A `children({…})` BLOCK: an element, or the list `each()`
+ *  made, so the block mixes both. */
+struct Children {
+  std::vector<Element> items;
+  Children(Element one) { items.push_back(std::move(one)); }
+  Children(std::vector<Element> many) : items(std::move(many)) {}
 };
 
 }  // namespace sigil::compose

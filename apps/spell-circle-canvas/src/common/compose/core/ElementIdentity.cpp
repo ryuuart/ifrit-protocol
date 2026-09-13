@@ -69,4 +69,10 @@ Element& Element::child(Element e) {
   return *this;
 }
 
+Element& Element::children(std::initializer_list<Children> runs) {
+  for (const Children& run : runs)
+    for (const Element& e : run.items) child(e);
+  return *this;
+}
+
 }  // namespace sigil::compose

@@ -102,6 +102,23 @@ Element dashboard(const std::vector<Channel> &channels) {
 }
 ```
 
+The children are one block after the verbs. `children({…})` takes what
+is in the node, in order — an element, or the list `each(range, make)`
+builds from a range, mixed as they come — so braces on a description
+mean children and nothing else:
+
+```cpp
+box().column().gap(8).children({
+    heading(),
+    each(channels, [](const Channel &c) { return memo(c, meter).key(c.id); }),
+    footer(),
+});
+```
+
+`child()` adds one at a time, and a range goes into `children()` as it
+stands. An element that needs an identity of its own keys itself; the
+rest reconcile by position, as unkeyed siblings do.
+
 The host side is three objects — a clock, a ticker and the composer —
 which the host owns and wires together:
 
@@ -553,7 +570,7 @@ class attribute lists them, folded left to right, and a partial after the
 names is laid over them all: `styleClass("cell", {.color = c})` is the
 cell class in this cell's colour, one verb. A name neither sheet in scope
 carries warns once and sets nothing. A sheet is spelled as a literal, an
-entry per class — `weave::StyleSheet{{"ts", {.size = 11}}, {"dim",
+entry per class — `weave::StyleSheet{{"note", {.size = 11}}, {"dim",
 {.color = grey}}}` — and bound around the code that builds the elements.
 The two sheets are one class because the include graph keeps them apart:
 the text sheet is the style vocabulary's, which the rich-text feature

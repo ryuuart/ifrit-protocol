@@ -20,8 +20,10 @@
 #include <any>
 #include <functional>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 namespace sigil::weave {
@@ -71,6 +73,24 @@ Element stack();
  *  centerAt, layout() schemes, flowAround text. Those need the flex
  *  world. */
 Element positioned();
+/** THE CHILDREN A RANGE DESCRIBES, one per item in the range's order, for a
+ *  `children({…})` block: `column().children({heading(), each(rows, row)})`.
+ *  @p make takes the item, or the item and its index. An element that
+ *  needs an identity of its own keys itself; the rest reconcile by
+ *  position, as unkeyed siblings do. */
+template <std::ranges::input_range R, class Fn>
+[[nodiscard]] std::vector<Element> each(R&& range, Fn&& make) {
+  std::vector<Element> out;
+  size_t index = 0;
+  for (auto&& item : range) {
+    if constexpr (std::is_invocable_v<Fn&, decltype(item), size_t>)
+      out.push_back(make(item, index));
+    else
+      out.push_back(make(item));
+    ++index;
+  }
+  return out;
+}
 /** A text leaf SET IN THE FONT AND INK IN FORCE where it lands in the
  *  tree — the nearest ancestor's `Element::font` and `Element::ink`, or the
  *  root's — with its own `font()` overriding field by field. Built before

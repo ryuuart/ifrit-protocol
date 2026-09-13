@@ -352,7 +352,7 @@ NAMES: the levels of a log, the states a selection switches between, the
 roles a table's columns take. An entry states what it CHANGES, so one
 sheet serves a document whose base size was decided elsewhere, and lookup
 always answers — a name nobody registered resolves to the base alone. A
-sheet is spelled as a literal, an entry per name: `StyleSheet{{"ts",
+sheet is spelled as a literal, an entry per name: `StyleSheet{{"note",
 {.size = 11}}, {"dim", {.color = grey}}}`.
 
 A block has the same two forms. `ParagraphStyle` is total: the pitch, the
