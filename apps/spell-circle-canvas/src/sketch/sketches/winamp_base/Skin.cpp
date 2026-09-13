@@ -119,60 +119,53 @@ auto WinampBase::part(float x, float y, float w, float h, Shape shape)
 auto WinampBase::textKey(float x, float y, float w, float h, const char* label,
                          float cell) -> Element {
   using namespace wa;
-  Element e = key(x, y, w, h, box());
-  e.justify(Justify::Center).alignItems(Align::Center);
-  e.children({t(label, pix(cell))});
-  return e;
+  return key(x, y, w, h, box())
+      .justify(Justify::Center)
+      .alignItems(Align::Center)
+      .children({t(label, pix(cell))});
 }
 
 auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
                           float hN) -> Element {
   using namespace wa;
-  Element bar = at(box(), 0, 0, wN, hN);
-  bar.fill(mskia::Paint::linearUnit(
-      {0, 0}, {0, 1},
-      {{0.0f, mskia::lighten(kTitle, 0.06f)}, {1.0f, dark(kTitle, 0.25f)}}));
-  raised(bar, mskia::withAlpha(hexColor(0x5A5A82), 0.85f), hexColor(0x101018));
-  // the wordmark, the egg and the window buttons' glyphs: one gold
-  bar.ink(kGold);
-
+  // Window buttons, native 9x9, at the right-hand offsets the SDK pins them
+  // to; each is centred in whatever bar height it is given.
+  const auto wbtn = [this, hN](float x, const char* g) {
+    return raised(at(box(), x, (hN - 9) * 0.5f, 9, 9)
+                      .fill(dark(kTitle, 0.35f))
+                      .justify(Justify::Center)
+                      .alignItems(Align::Center),
+                  mskia::withAlpha(hexColor(0x5A5A82), 0.8f),
+                  hexColor(0x0E0E16))
+        .children({t(g, pix(3.6f))});
+  };
+  // the wordmark and the egg stand in the same box, crossfaded
+  const auto centred = [hN, wN](Element run) {
+    return at(box(), 0, (hN - 8) * 0.5f, wN, 8)
+        .justify(Justify::Center)
+        .alignItems(Align::Center)
+        .children({std::move(run)});
+  };
   // grip hairlines either side of the wordmark
   const float gripW = wide ? 100.0f : 52.0f;
   const float gy = (hN - 7.0f) * 0.5f;
-  bar.children({at(box(), 24, gy, gripW, 7).fill(gripTile.material())});
-  bar.children(
-      {at(box(), wN - 24 - gripW, gy, gripW, 7).fill(gripTile.material())});
-
-  // the wordmark, and the easter egg crossfaded over it
-  Element mark = at(box(), 0, (hN - 8) * 0.5f, wN, 8)
-                     .justify(Justify::Center)
-                     .alignItems(Align::Center);
-  mark.children(
-      {t(label, pix(6.6f, true, 1.7f)).opacity(motion::bind(&llama).invert())});
-  bar.children({mark});
-  Element egg = at(box(), 0, (hN - 8) * 0.5f, wN, 8)
-                    .justify(Justify::Center)
-                    .alignItems(Align::Center);
-  egg.children({t("IT REALLY WHIPS THE LLAMA'S ASS!", pix(5.2f, true, 0.7f))
-                    .opacity(&llama)
-                    .scale(&llamaPop)});
-  bar.children({egg});
-
-  // Window buttons, native 9x9, at the right-hand offsets the SDK pins
-  // them to; each is centred in whatever bar height it is given.
-  auto wbtn = [&](float x, const char* g) {
-    Element b = at(box(), x, (hN - 9) * 0.5f, 9, 9)
-                    .fill(dark(kTitle, 0.35f))
-                    .justify(Justify::Center)
-                    .alignItems(Align::Center);
-    raised(b, mskia::withAlpha(hexColor(0x5A5A82), 0.8f), hexColor(0x0E0E16));
-    b.children({t(g, pix(3.6f))});
-    return b;
-  };
-  if (!wide)
-    bar.children({wbtn(6, "-")});  // the option/context menu, native 9x9 at x=6
-  if (hasMin) bar.children({wbtn(wN - 31, "_")});
-  bar.children({wbtn(wN - 21, "=")});
-  bar.children({wbtn(wN - 11, "x")});
-  return bar;
+  // the wordmark, the egg and the window buttons' glyphs: one gold
+  return raised(at(box(), 0, 0, wN, hN)
+                    .fill(mskia::Paint::linearUnit(
+                        {0, 0}, {0, 1},
+                        {{0.0f, mskia::lighten(kTitle, 0.06f)},
+                         {1.0f, dark(kTitle, 0.25f)}}))
+                    .ink(kGold),
+                mskia::withAlpha(hexColor(0x5A5A82), 0.85f), hexColor(0x101018))
+      .children(
+          {at(box(), 24, gy, gripW, 7).fill(gripTile.material()),
+           at(box(), wN - 24 - gripW, gy, gripW, 7).fill(gripTile.material()),
+           centred(t(label, pix(6.6f, true, 1.7f))
+                       .opacity(motion::bind(&llama).invert())),
+           centred(t("IT REALLY WHIPS THE LLAMA'S ASS!", pix(5.2f, true, 0.7f))
+                       .opacity(&llama)
+                       .scale(&llamaPop)),
+           // the option/context menu, native 9x9 at x=6
+           wide ? box() : wbtn(6, "-"), hasMin ? wbtn(wN - 31, "_") : box(),
+           wbtn(wN - 21, "="), wbtn(wN - 11, "x")});
 }

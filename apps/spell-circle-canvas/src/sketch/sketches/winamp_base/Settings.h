@@ -12,6 +12,7 @@
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
@@ -19,6 +20,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigildraw/Draw.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/field/Field.h>
@@ -39,6 +41,7 @@
 #include <cmath>
 #include <cstdio>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -48,6 +51,7 @@ namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
+namespace draw = sigil::draw;
 namespace path = sigil::geometry::path;
 namespace patterns = sigil::material::pattern;
 namespace weave = sigil::weave;

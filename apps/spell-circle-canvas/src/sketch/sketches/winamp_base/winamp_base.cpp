@@ -6,45 +6,36 @@
 
 auto WinampBase::describe() -> Element {
   using namespace wa;
-  Element root = stack().width(1320).height(1947);
-
-  // the desktop: flat teal + one baked dither pass
-  root.children({box().inset(0).fill(deskMat).cache(Cache::Texture)});
-
-  // Main — pops in at its final position, scale 0.9 -> 1 on outBack.
-  root.children(
-      {mainWindow()
-           .left(60)
-           .top(60)
-           .transformOrigin(0.5f, 0.5f)
-           .scale(animate(motion::from(0.9f).to(1.0f),
-                          {200ms, motion::ease::outBack(), 100ms}))
-           .opacity(animate(
-               motion::through({{0ms, 0.0f}, {99ms, 0.0f}, {100ms, 1.0f}}),
-               &ch::easeNone))});
-
-  // Equalizer — docking snap from 60 px above, the same outBack value.
-  root.children(
-      {eqWindow()
-           .left(60)
-           .top(408)
-           .translateY(animate(motion::from(-60.0f).to(0.0f),
-                               {250ms, motion::ease::outBack(), 900ms}))
-           .opacity(animate(
-               motion::through({{0ms, 0.0f}, {899ms, 0.0f}, {900ms, 1.0f}}),
-               &ch::easeNone))});
-
-  // Playlist — same snap, 1.25 s later.
-  root.children(
-      {playlistWindow()
-           .left(60)
-           .top(756)
-           .translateY(animate(motion::from(-60.0f).to(0.0f),
-                               {250ms, motion::ease::outBack(), 2150ms}))
-           .opacity(animate(
-               motion::through({{0ms, 0.0f}, {2149ms, 0.0f}, {2150ms, 1.0f}}),
-               &ch::easeNone))});
-  return root;
+  // THE THREE WINDOWS, docking in the order the player opens them: Main pops
+  // in at its final position, then the Equalizer and the Playlist snap down
+  // from 60 px above on the same outBack value. Each is ABSENT until its
+  // moment rather than faded in — a window does not arrive translucent.
+  struct Dock {
+    Element window;
+    float top;
+    int atMs;
+  };
+  std::vector<Dock> windows;
+  windows.push_back({mainWindow(), 60, 100});
+  windows.push_back({eqWindow(), 408, 900});
+  windows.push_back({playlistWindow(), 756, 2150});
+  return stack().width(1320).height(1947).children(
+      {// the desktop: flat teal + one baked dither pass
+       box().inset(0).fill(deskMat).cache(Cache::Texture),
+       each(windows, [](Dock& d, size_t i) {
+         const auto ms = [](int at) { return std::chrono::milliseconds(at); };
+         Element w = std::move(d.window).left(60).top(d.top).opacity(animate(
+             motion::through(
+                 {{0ms, 0.0f}, {ms(d.atMs - 1), 0.0f}, {ms(d.atMs), 1.0f}}),
+             &ch::easeNone));
+         if (i == 0)
+           return w.transformOrigin(0.5f, 0.5f)
+               .scale(animate(motion::from(0.9f).to(1.0f),
+                              {200ms, motion::ease::outBack(), ms(d.atMs)}));
+         return w.translateY(
+             animate(motion::from(-60.0f).to(0.0f),
+                     {250ms, motion::ease::outBack(), ms(d.atMs - 250)}));
+       })});
 }
 
 auto WinampBase::setup(sketch::SketchContext& ctx) -> void {
@@ -118,9 +109,7 @@ auto WinampBase::setup(sketch::SketchContext& ctx) -> void {
   if (marqueeW < 1) marqueeW = n(300);
 
   // --- one steppable drives every idle loop.
-  ctx.ticker.add([this](double dt) {
-    step(dt);
-  });
+  ctx.ticker.add([this](double dt) { step(dt); });
 
   ctx.composer.render(describe());
   pushSlots(ctx, true);

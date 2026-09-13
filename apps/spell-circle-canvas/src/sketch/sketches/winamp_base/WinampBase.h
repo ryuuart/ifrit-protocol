@@ -114,6 +114,12 @@ struct WinampBase : sketch::Sketch {
    *  with a vertical ramp, zero radius, content centred. */
   Element key(float x, float y, float w, float h, Element glyph);
 
+  /** A LAMP AND ITS WORD, which is one control and not two: a 3 px square lit
+   *  or dead with the name printed after it, on a key of its own. The two
+   *  window toggles and the two play modes wear exactly this. */
+  Element lamp(float x, float y, float w, float h, const char* label, bool on,
+               float pad, float size);
+
   /** A glyph part inside a key, in native px local to the key. */
   static Element part(float x, float y, float w, float h, Shape shape = {});
 
