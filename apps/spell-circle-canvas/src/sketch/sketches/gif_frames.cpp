@@ -83,9 +83,6 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
 /** The caption register as a partial over what the cell inherits. */
 weave::Type labelType(float size, SkColor4f color, float track = 0) {
   return {.size = size, .color = color, .track = track};
@@ -228,12 +225,12 @@ struct GifFrames final : sketch::Sketch {
         .column()
         .gap(10)
         .padding(40)
-        .child(text(toUtf8("no animated document here"),
-                    label(20, sheet.palette.ink)))
+        .ink(sheet.palette.ink)
+        .child(text(toUtf8("no animated document here")).font({.size = 20}))
         .child(text(toUtf8(std::string(kSource) +
                            " did not decode: the hub reached neither the "
-                           "network nor a cached copy of it"),
-                    label(12, sheet.palette.ash))
+                           "network nor a cached copy of it"))
+                   .font({.size = 12, .color = sheet.palette.ash})
                    .width(Dimension(620.0f)));
   }
 };
