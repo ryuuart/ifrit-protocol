@@ -102,7 +102,7 @@ Pass& Pass::body(PassBody b) {
   return *this;
 }
 
-Pass& Pass::body(std::function<void(const View&, Targets&)> fn) {
+Pass& Pass::body(core::Callable<void(const View&, Targets&)> fn) {
   m_body = PassBody(LambdaBody(std::move(fn)));
   return *this;
 }

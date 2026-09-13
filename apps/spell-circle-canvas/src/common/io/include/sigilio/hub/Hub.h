@@ -44,6 +44,7 @@
  * default.
  */
 
+#include <sigilcore/callable/Callable.h>
 #include <sigilimage/decode/Decode.h>
 
 #include <boost/container/flat_map.hpp>
@@ -210,10 +211,12 @@ class Hub {
    *  cache file for a network URI). Replaces the decoder later asks
    *  use; a view already decoded keeps its value and the decoder that
    *  made it, which is what poll() re-runs for it. ImageAsset and
-   *  ChannelData are registered by the constructor. */
+   *  ChannelData are registered by the constructor. The hint is OFFERED:
+   *  a decoder that reads the bytes alone takes `[](const Bytes& bytes)
+   *  {…}`. */
   template <typename T>
   void registerDecoder(
-      std::function<std::optional<T>(const Bytes&, std::string_view hint)>
+      core::Callable<std::optional<T>(const Bytes&, std::string_view hint)>
           decode) {
     setDecoder(
         std::type_index(typeid(T)),
@@ -226,12 +229,20 @@ class Hub {
         });
   }
 
-  /** The same, from any object satisfying the Decoder concept. */
+  /** The same, from any object satisfying the Decoder concept — which
+   *  reads the hint or the bytes alone, as the callable form does. */
   template <typename T, Decoder<T> D>
   void registerDecoder(D decoder) {
     registerDecoder<T>([decoder = std::move(decoder)](const Bytes& bytes,
                                                       std::string_view hint) {
-      return decoder.decode(bytes, hint);
+      return core::callPrefix(
+          [&decoder](const Bytes& b, std::string_view h) {
+            if constexpr (requires { decoder.decode(b, h); })
+              return decoder.decode(b, h);
+            else
+              return decoder.decode(b);
+          },
+          bytes, hint);
     });
   }
 

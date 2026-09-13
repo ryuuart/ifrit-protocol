@@ -74,7 +74,7 @@ struct Length {
 void BM_Load_ViewHit(benchmark::State& state) {
   Mounted fixture((int)state.range(0));
   fixture.hub.registerDecoder<Length>(
-      [](const Bytes& bytes, std::string_view) -> std::optional<Length> {
+      [](const Bytes& bytes) -> std::optional<Length> {
         return Length{bytes.bytes.size()};
       });
   for (const std::string& uri : fixture.uris)

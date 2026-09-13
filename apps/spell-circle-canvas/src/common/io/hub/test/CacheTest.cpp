@@ -170,7 +170,7 @@ TEST_F(IOHub, PollRunsDecodersOutsideTheCacheLock) {
   dir.write("head.txt", "head");
   dir.write("tail.txt", "tail");
   hub.registerDecoder<Concatenation>(
-      [this](const Bytes& bytes, std::string_view) {
+      [this](const Bytes& bytes) {
         auto tail = hub.text("res://tail.txt");
         return Concatenation{std::string(bytes.asText()) + tail.value_or("")};
       });
@@ -187,6 +187,33 @@ TEST_F(IOHub, PollRunsDecodersOutsideTheCacheLock) {
   EXPECT_EQ(joined->text, "headtail");  // the old holder keeps the old
 }
 
+/** A decoder that reads the bytes and nothing else — the hint is offered,
+ *  so a format that never needed the name does not name it. */
+struct ByteCounter {
+  std::optional<WordCount> decode(const Bytes& bytes) const {
+    return WordCount{(uint32_t)bytes.asText().size()};
+  }
+};
+static_assert(Decoder<ByteCounter, WordCount>);
+
+TEST_F(IOHub, ADecoderThatNeedsNoHintDoesNotNameOne) {
+  // Both registrations offer the hint and take what the decoder names: an
+  // object whose decode() reads the bytes alone satisfies the concept, and a
+  // callable that names only the bytes is as good as one that names both.
+  dir.write("live.txt", "abcd");
+  hub.registerDecoder<WordCount>(ByteCounter{});
+  auto counted = hub.load<WordCount>("res://live.txt");
+  ASSERT_NE(counted, nullptr);
+  EXPECT_EQ(counted->words, 4u);
+
+  hub.registerDecoder<Concatenation>([](const Bytes& bytes) {
+    return Concatenation{"<" + std::string(bytes.asText()) + ">"};
+  });
+  auto wrapped = hub.load<Concatenation>("res://live.txt");
+  ASSERT_NE(wrapped, nullptr);
+  EXPECT_EQ(wrapped->text, "<abcd>");
+}
+
 TEST_F(IOHub, ReRegisteringADecoderAppliesToLaterAsksOnly) {
   dir.write("live.txt", "one two three");
   hub.registerDecoder<WordCount>(WordCounter{});
@@ -196,7 +223,7 @@ TEST_F(IOHub, ReRegisteringADecoderAppliesToLaterAsksOnly) {
 
   // A decoder that counts nothing, registered after the view exists.
   hub.registerDecoder<WordCount>(
-      [](const Bytes&, std::string_view) { return WordCount{0}; });
+      [] { return WordCount{0}; });
   dir.write("live.txt", "one two three four");
   touchForward(dir.path / "live.txt");
   EXPECT_TRUE(hub.poll());

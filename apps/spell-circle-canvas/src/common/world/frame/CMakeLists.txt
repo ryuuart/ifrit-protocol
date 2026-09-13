@@ -14,7 +14,7 @@ sigil_library(SigilWorldFrame
           View.cpp Cpu.h
   HEADERS Frame.h Pass.h Runtime.h Targets.h View.h
   PUBLIC SigilWorldElement SigilMaterialTexture SigilGeometryMeshRender
-         SigilCoreReconcile Boost::container
+         SigilCoreCallable SigilCoreReconcile Boost::container
   PRIVATE SigilGeometryMeshPop)
 
 # Links only the library it exercises, so a link edge that pulled the

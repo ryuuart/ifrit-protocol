@@ -83,11 +83,15 @@ concept ResolvingByteSource =
 /** Turns bytes into a T, or nothing when the bytes are not one. `hint`
  *  is the resource's name (a path or URI); a decoder may use its
  *  extension to sharpen format detection but must never REQUIRE it —
- *  bytes arriving from memory carry no name. */
+ *  bytes arriving from memory carry no name. So the hint is OFFERED
+ *  rather than demanded: a decoder that reads the bytes alone spells
+ *  `decode(bytes)` and is as good a decoder as one that takes both. */
 template <typename D, typename T>
 concept Decoder =
     requires(const D& decoder, const Bytes& bytes, std::string_view hint) {
       { decoder.decode(bytes, hint) } -> std::same_as<std::optional<T>>;
+    } || requires(const D& decoder, const Bytes& bytes) {
+      { decoder.decode(bytes) } -> std::same_as<std::optional<T>>;
     };
 
 /** WHAT A KIND OF MEANING IS PROBED WITH: a free function found by

@@ -881,7 +881,10 @@ the currency every feature under it speaks.
   `append()`/`transform()`/`computeNormals()`/`bounds()`, and
   `mesh::bakePrimitiveColor()`. Two surfaces are here rather than on the kit's
   shelf because everything else is built through them: `grid()`, the
-  parametric-sheet seam a caller hands its own formula to, and `quad()`,
+  parametric-sheet seam a caller hands its own formula to — answering the
+  position, which is differenced for the normals, or the position AND its
+  normal, which is taken at its word for one evaluation a vertex — and
+  `quad()`,
   the flat panel a consumer needs to have a mesh at all. The struct's own
   methods are `Mesh.cpp`; the two surfaces and the bake are
   `Generators.cpp`.

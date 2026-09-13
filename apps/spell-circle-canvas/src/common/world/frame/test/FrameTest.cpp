@@ -130,10 +130,30 @@ TEST(WorldFrame, APassComparesFieldByField) {
 }
 
 TEST(WorldFrame, ALambdaBodyIsEqualToNothingButItsOwnCopies) {
-  const Pass a = geometryPass("hand").body([](const View&, Targets&) {});
-  const Pass b = geometryPass("hand").body([](const View&, Targets&) {});
+  const Pass a = geometryPass("hand").body([] {});
+  const Pass b = geometryPass("hand").body([] {});
   EXPECT_NE(a, b);
   EXPECT_EQ(a, Pass(a));
+}
+
+TEST(WorldFrame, ABodyNamesOnlyWhatItReadsAndTheValueFormStillCompares) {
+  // The view and the targets are both offered to a body, which names the
+  // ones it reads: a body that only has to run names neither. The comparable
+  // seam value is untouched by that — it is still the form a frame prunes
+  // on, and a callable still compares equal to nothing but its own copies.
+  int ran = 0;
+  Bodies bodies;
+  Targets targets = targetsAt(kExtent);
+  const Pass bare = geometryPass("bare").body([&ran] { ++ran; });
+  Runtime::cpu()->execute(workOf(bare), bodies.view(), targets);
+  EXPECT_EQ(ran, 1);
+  size_t draws = 0;
+  const Pass viewed = geometryPass("viewed").body(
+      [&draws](const View& view) { draws = view.draws.size(); });
+  Runtime::cpu()->execute(workOf(viewed), bodies.view(), targets);
+  EXPECT_EQ(draws, bodies.view().draws.size());
+  EXPECT_NE(bare, geometryPass("bare").body([&ran] { ++ran; }));
+  EXPECT_EQ(bare, Pass(bare));
 }
 
 TEST(WorldFrame, ADeclaredNameIsNamedOnce) {

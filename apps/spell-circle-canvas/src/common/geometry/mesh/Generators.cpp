@@ -14,14 +14,21 @@ namespace sigil::geometry::mesh {
 
 using glm::cross;
 
-Mesh grid(int nu, int nv, const std::function<glm::vec3(float, float)>& fn) {
+namespace {
+
+/** The sheet every grid is built by: one sample per vertex answering the
+ *  position and the RAW normal — raw because a pole is only recognisable
+ *  before the normalize, and the repair below reads which entries had no
+ *  direction of their own. */
+Mesh sheet(int nu, int nv,
+           const core::Callable<std::pair<glm::vec3, glm::vec3>(float, float)>&
+               sample) {
   Mesh out;
   nu = std::max(nu, 2);
   nv = std::max(nv, 2);
   out.positions.reserve((size_t)nu * nv);
   out.uvs.reserve((size_t)nu * nv);
   out.normals.reserve((size_t)nu * nv);
-  const float eps = 1e-3f;
   // A pole is where the sheet's two parameter directions collapse onto
   // one point: the cross product there has no length and so no direction
   // to normalize. Which entries those are has to be recorded while the
@@ -32,17 +39,13 @@ Mesh grid(int nu, int nv, const std::function<glm::vec3(float, float)>& fn) {
     const float v = (float)j / (float)(nv - 1);
     for (int i = 0; i < nu; ++i) {
       const float u = (float)i / (float)(nu - 1);
-      out.positions.push_back(fn(u, v));
+      const auto [position, raw] = sample(u, v);
+      out.positions.push_back(position);
       // Image-convention UVs: (0,0) samples the texture's TOP-left, so
       // v runs opposite the parameter (v param 0 is the sheet's bottom
       // in y-up space). Every renderer that samples one of these sheets
       // assumes it.
       out.uvs.emplace_back(u, 1.0f - v);
-      const glm::vec3 du =
-          fn(std::min(u + eps, 1.0f), v) - fn(std::max(u - eps, 0.0f), v);
-      const glm::vec3 dv =
-          fn(u, std::min(v + eps, 1.0f)) - fn(u, std::max(v - eps, 0.0f));
-      const glm::vec3 raw = cross(du, dv);
       if (glm::dot(raw, raw) < 1e-16f) degenerate.push_back(out.normals.size());
       out.normals.push_back(normalized(raw));
     }
@@ -83,6 +86,25 @@ Mesh grid(int nu, int nv, const std::function<glm::vec3(float, float)>& fn) {
     }
   }
   return out;
+}
+
+}  // namespace
+
+Mesh grid(int nu, int nv, const core::Callable<glm::vec3(float, float)>& fn) {
+  const float eps = 1e-3f;
+  return sheet(nu, nv, [&fn, eps](float u, float v) {
+    const glm::vec3 du =
+        fn(std::min(u + eps, 1.0f), v) - fn(std::max(u - eps, 0.0f), v);
+    const glm::vec3 dv =
+        fn(u, std::min(v + eps, 1.0f)) - fn(u, std::max(v - eps, 0.0f));
+    return std::pair<glm::vec3, glm::vec3>{fn(u, v), cross(du, dv)};
+  });
+}
+
+Mesh grid(
+    int nu, int nv,
+    const core::Callable<std::pair<glm::vec3, glm::vec3>(float, float)>& fn) {
+  return sheet(nu, nv, fn);
 }
 
 Mesh quad(float width, float height) {

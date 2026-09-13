@@ -30,6 +30,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextUnit.h>
+#include <sigilcore/callable/Callable.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
 
@@ -94,7 +95,7 @@ struct Beside {
 [[nodiscard]] inline Element annotate(
     const Composer& composer, std::string_view baseKey,
     const sigil::weave::Selector& where, sigil::weave::Unit unit, Beside beside,
-    const std::function<Element(const TextUnit&)>& make) {
+    const core::Callable<Element(const TextUnit&)>& make) {
   Element overlay = positioned();
   const std::vector<TextUnit> units = composer.units(baseKey, where, unit);
   for (const TextUnit& entry : units) {
@@ -219,7 +220,7 @@ struct Anchored {
 [[nodiscard]] inline Element annotate(
     const Composer& composer, std::string_view baseKey,
     const sigil::weave::Selector& where, sigil::weave::Unit unit,
-    Anchored anchored, const std::function<Element(const TextUnit&)>& make) {
+    Anchored anchored, const core::Callable<Element(const TextUnit&)>& make) {
   Element overlay = positioned();
   const std::vector<TextUnit> units = composer.units(baseKey, where, unit);
   if (units.empty()) return overlay;

@@ -10,6 +10,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
+#include <sigilcore/callable/Callable.h>
 #include <sigilworld/frame/Pass.h>
 #include <sigilworld/frame/Runtime.h>
 
@@ -43,20 +44,22 @@ class Readback {
   Readback() = default;
   explicit Readback(std::string name) : m_name(std::move(name)) {}
 
-  /** What to do with the resource when it comes back. */
-  Readback& then(std::function<void(const Result&)> callback) {
+  /** What to do with the resource when it comes back. The result is
+   *  offered and the callback names it or not — a readback asked for only
+   *  to know the frame reached the device takes `[] {…}`. */
+  Readback& then(core::Callable<void(const Result&)> callback) {
     m_callback = std::move(callback);
     return *this;
   }
 
   [[nodiscard]] const std::string& name() const { return m_name; }
-  [[nodiscard]] const std::function<void(const Result&)>& callback() const {
+  [[nodiscard]] const core::Callable<void(const Result&)>& callback() const {
     return m_callback;
   }
 
  private:
   std::string m_name;
-  std::function<void(const Result&)> m_callback;
+  core::Callable<void(const Result&)> m_callback;
 };
 
 /** The resource @p name, handed back the frame after it was written. */

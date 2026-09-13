@@ -406,7 +406,7 @@ TEST_F(WorldScene, APassSeesWhatExtractWroteAndNotTheTree) {
   std::vector<std::string> tags;
   Frame frame = framed(pair());
   frame.pass(geometryPass("hand").writes("colour").body(
-      [&](const View& view, Targets&) {
+      [&](const View& view) {
         for (const Draw& draw : view.draws) {
           keys.emplace_back(draw.key);
           for (const std::string& word : draw.tags) tags.push_back(word);

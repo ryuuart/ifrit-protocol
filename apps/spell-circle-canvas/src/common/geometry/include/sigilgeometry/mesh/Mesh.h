@@ -17,11 +17,14 @@
  * <sigilgeometry/kit/Solids.h>.
  */
 
+#include <sigilcore/callable/Callable.h>
+
 #include <boost/container/map.hpp>
 #include <cstdint>
 #include <functional>
 #include <glm/glm.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace sigil::geometry::mesh {
@@ -89,9 +92,22 @@ struct Mesh {
 };
 
 /** Evaluate a parametric sheet on an nu x nv vertex grid. UVs are the
- *  (u,v) parameters. Normals from the analytic cross of numeric partial
- *  derivatives. */
-Mesh grid(int nu, int nv, const std::function<glm::vec3(float u, float v)>& fn);
+ *  (u,v) parameters.
+ *
+ *  WHAT THE FORMULA ANSWERS DECIDES WHERE THE NORMALS COME FROM. A formula
+ *  answering the POSITION is differenced: the sheet's two partial
+ *  derivatives are taken numerically and crossed, which is what a sheet
+ *  with no normal of its own needs and costs four extra evaluations per
+ *  vertex. A formula answering the position AND ITS NORMAL, in that order,
+ *  is taken at its word — one evaluation per vertex, and an exact normal
+ *  at a pole, where a difference has no direction to normalize. Either way
+ *  the normals come back unit length, and a normal with no length at all
+ *  borrows the nearest one that has. */
+Mesh grid(int nu, int nv,
+          const core::Callable<glm::vec3(float u, float v)>& fn);
+Mesh grid(int nu, int nv,
+          const core::Callable<std::pair<glm::vec3, glm::vec3>(float u,
+                                                               float v)>& fn);
 
 /** Flat quad panel in the xy plane facing +z, centered at origin. */
 Mesh quad(float width, float height);

@@ -49,6 +49,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcore/callable/Callable.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -256,13 +257,28 @@ class Atlas {
    *  do not move together, anything a single tint multiply cannot reach.
    *  When the variants ARE crops of one drawing, pack them into one cell
    *  and select with `Pool::texWindows()` instead: that costs one bake, not
-   *  `count` of them. */
-  int variants(int count, SkSize logicalSize,
-               const std::function<Element(int)>& make);
-  /** The general form: each variant brings its own logical size — one
-   *  recipe, several geometries. */
-  int variants(int count,
-               const std::function<std::pair<Element, SkSize>(int)>& make);
+   *  `count` of them.
+   *
+   *  WHAT THE CALLABLE ANSWERS DECIDES how the variant is sized: a tree
+   *  alone is registered at @p logicalSize, and a tree WITH a size brings
+   *  its own — one recipe, several geometries. The index is offered and a
+   *  recipe that does not read it names nothing. */
+  template <class Fn>
+    requires(core::PrefixCallable<Fn, Element(int)> ||
+             core::PrefixCallable<Fn, std::pair<Element, SkSize>(int)>)
+  int variants(int count, SkSize logicalSize, Fn make) {
+    if constexpr (core::PrefixCallable<Fn, std::pair<Element, SkSize>(int)>)
+      return sizedVariants(count, std::move(make));
+    else
+      return uniformVariants(count, logicalSize, std::move(make));
+  }
+  /** The same, where every variant brings its own size, so there is no
+   *  shared one to state. */
+  template <class Fn>
+    requires core::PrefixCallable<Fn, std::pair<Element, SkSize>(int)>
+  int variants(int count, Fn make) {
+    return sizedVariants(count, std::move(make));
+  }
   int frameCount() const { return (int)m_cells.size(); }
   SkSize frameSize(int frame) const {
     return valid(frame) ? m_cells[(size_t)frame].size : SkSize{0, 0};
@@ -281,6 +297,13 @@ class Atlas {
   bool ensureBaked(sigil::weave::FontContext& fonts);
 
  private:
+  /** The two erased forms the templates above land on: one shared size for
+   *  every variant, or a size per variant. */
+  int uniformVariants(int count, SkSize logicalSize,
+                      const core::Callable<Element(int)>& make);
+  int sizedVariants(
+      int count, const core::Callable<std::pair<Element, SkSize>(int)>& make);
+
   SkFilterMode m_filter = SkFilterMode::kLinear;
   struct Cell {
     Element tree;

@@ -252,7 +252,7 @@ a tree prunes on a node.
 | `chain(geometry::mesh::pop::Chain, geometry::mesh::pop::Runtime)` | the points a compute pass cooks, into the point set it writes |
 | `stamp(geometry::mesh::Mesh)` | the body a geometry pass stands at every point of every point set it reads |
 | `blur(sigma)` / `levels(gain, lift, tint)` / `composite(mode, opacity)` | what a post pass does to what it reads |
-| `body(…)` | THE ESCAPE: a callable handed the extracted `View` and the frame's `Targets`, which runs instead of the stage's own work and keeps its declarations |
+| `body(…)` | THE ESCAPE: a callable offered the extracted `View` and the frame's `Targets` — naming the ones it reads — which runs instead of the stage's own work and keeps its declarations. The comparable `PassBody` beside it is the form a frame prunes on; a callable compares equal to nothing but its own copies |
 
 **The order comes off the declarations.** Every resource has versions —
 one per pass that writes it, in declaration order — and three edges
@@ -444,7 +444,8 @@ frame is let go at the end of it.
 
 **The pixels stay on the device.** The frame's resources are device
 textures for as long as the runtime lives, and nothing crosses back until
-something asks for a resource BY NAME — a declared `readback`, or the
+something asks for a resource BY NAME — a declared `readback`, whose
+`then` offers the result to a callback that names it or not, or the
 picture being presented. That is what `Targets::source` is: a runtime
 that executed elsewhere answers for one name at a time, so a frame that
 reads nothing back pays for no crossing at all. With a source installed

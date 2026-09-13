@@ -189,7 +189,7 @@ TEST(ComposeUnits, ASiblingAnnotationPlacesOneElementPerUnit) {
                        sigil::weave::selectors::each(sigil::weave::Unit::Word),
                        sigil::weave::Unit::Word,
                        {.side = kit::Beside::Side::After, .gap = 4.0f},
-                       [](const TextUnit&) {
+                       [] {
                          return box()
                              .width(6.0f)
                              .height(6.0f)
@@ -239,7 +239,7 @@ TEST(ComposeUnits, AnAnchoredObjectStandsWhereTheOffsetPutsIt) {
          kit::annotate(host.composer, "t",
                        sigil::weave::selectors::text(u8"gamma"),
                        sigil::weave::Unit::Word, anchored,
-                       [](const TextUnit&) {
+                       [] {
                          return box()
                              .width(6.0f)
                              .height(6.0f)

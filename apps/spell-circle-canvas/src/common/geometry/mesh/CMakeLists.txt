@@ -5,7 +5,7 @@ find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilGeometryMesh
   SOURCES Faces.cpp Generators.cpp Mesh.cpp
   HEADERS Faces.h Mesh.h Vec.h
-  PUBLIC SigilGeometryPath Boost::container)
+  PUBLIC SigilGeometryPath SigilCoreCallable Boost::container)
 
 # ONE BINARY over the currency and the camera that places it. A camera is
 # not a boundary anyone reads: it names only mesh types and matrices, and

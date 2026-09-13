@@ -211,6 +211,32 @@ TEST(ComposeInstances, TheAtlasChoosesItsOwnFilter) {
   EXPECT_LE(blend(SkFilterMode::kNearest), 1);
 }
 
+TEST(ComposeInstances, WhatTheRecipeAnswersDecidesHowAVariantIsSized) {
+  // One verb: a recipe answering a TREE is baked at the size the caller
+  // states, and one answering a tree AND a size brings its own. The index is
+  // offered either way, so a recipe that bakes the same drawing three times
+  // names nothing.
+  auto shared = std::make_shared<instancing::Atlas>(1.0f);
+  const int first = shared->variants(2, {20, 20}, [](int v) {
+    const float g = 0.3f + 0.3f * (float)v;
+    return box().fill(Fill::color({g, g, g, 1}));
+  });
+  EXPECT_EQ(first, 0);
+  EXPECT_EQ(shared->frameSize(1), SkSize::Make(20, 20));
+
+  auto own = std::make_shared<instancing::Atlas>(1.0f);
+  own->variants(2, [](int v) {
+    const float side = 10.0f + 10.0f * (float)v;
+    return std::pair<Element, SkSize>{box().fill(red()), {side, side}};
+  });
+  EXPECT_EQ(own->frameSize(0), SkSize::Make(10, 10));
+  EXPECT_EQ(own->frameSize(1), SkSize::Make(20, 20));
+
+  auto nullary = std::make_shared<instancing::Atlas>(1.0f);
+  nullary->variants(3, {8, 8}, [] { return box().fill(red()); });
+  EXPECT_EQ(nullary->frameCount(), 3);
+}
+
 TEST(ComposeInstances, VariantsAreConsecutiveBakesOfOneRecipe) {
   // A variant is a separate BAKE of one recipe, addressed as first + v.
   // That is what tints() cannot do: a variant may differ by a whole

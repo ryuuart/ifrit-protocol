@@ -1401,7 +1401,9 @@ stop; and `kit::columns` over a `kit::ColumnSet`, N frames of one story
 threaded in order, with the `kit::Spanner`s that break the chain),
 what stands BESIDE that text in `kit/Annotations.h` (`kit::annotate`
 under `kit::Beside`, which does the arithmetic of the reading direction,
-or `kit::Anchored`, which takes the offset the author states) — and,
+or `kit::Anchored`, which takes the offset the author states; the unit is
+offered to the overlay it builds, so a mark that is the same at every unit
+names nothing) — and,
 shipped with the tiers whose
 types they are spelled in, `kit/Strokes.h`'s finished lines, braid,
 bracket spans, brush presets and `kit::groove` — the engraved cut across a disc's stroke, a

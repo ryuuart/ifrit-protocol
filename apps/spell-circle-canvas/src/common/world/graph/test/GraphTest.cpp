@@ -132,7 +132,7 @@ TEST(WorldGraph, AGeometryPassCarryingABodyMayWriteWhatWasWritten) {
   const Frame frame = framed()
                           .pass(geometryPass("main").writes("colour"))
                           .pass(geometryPass("hand").writes("colour").body(
-                              [](const View&, Targets&) {}));
+                              [] {}));
   const graph::Plan plan = graph::build(frame);
   ASSERT_TRUE((bool)plan) << plan.error();
   const std::vector<std::string> expected = {"main", "hand"};

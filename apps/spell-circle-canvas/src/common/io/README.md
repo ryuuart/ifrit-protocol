@@ -183,7 +183,9 @@ for a host that clears a hub between scenes.
 
 Every decode is a registered decoder. The constructor registers
 SigilImage's two — `ImageAsset` and `ChannelData` — and
-`registerDecoder<T>()` adds any other: SigilDrawBrush's
+`registerDecoder<T>()` adds any other — an object whose `decode()`
+satisfies the `Decoder` concept, or a callable, either of them reading the
+bytes and the name hint or the bytes alone: SigilDrawBrush's
 `format::BrushDecoder` is one such, answering a `brush::Tool` from a
 native brush archive, a Photoshop `.abr` or a Procreate `.brush`, and it
 lives in the brush library because a brush is that library's type; registering a type again replaces

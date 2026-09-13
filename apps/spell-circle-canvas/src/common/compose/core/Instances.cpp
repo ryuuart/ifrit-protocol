@@ -151,8 +151,8 @@ int Atlas::cell(Element tree, SkSize logicalSize) {
   return (int)m_cells.size() - 1;
 }
 
-int Atlas::variants(int count, SkSize logicalSize,
-                    const std::function<Element(int)>& make) {
+int Atlas::uniformVariants(int count, SkSize logicalSize,
+                           const core::Callable<Element(int)>& make) {
   int first = -1;
   for (int v = 0; v < count; ++v) {
     const int idx = cell(make(v), logicalSize);
@@ -161,8 +161,8 @@ int Atlas::variants(int count, SkSize logicalSize,
   return first;
 }
 
-int Atlas::variants(
-    int count, const std::function<std::pair<Element, SkSize>(int)>& make) {
+int Atlas::sizedVariants(
+    int count, const core::Callable<std::pair<Element, SkSize>(int)>& make) {
   int first = -1;
   for (int v = 0; v < count; ++v) {
     auto [tree, size] = make(v);

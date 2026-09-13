@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
+#include <utility>
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "support/GeometrySupport.h"
@@ -17,6 +18,31 @@ using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
 
 using sigil::geometry::test::splitQuad;
+
+TEST(Mesh, AFormulaMayAnswerItsOwnNormalAndIsTakenAtItsWord) {
+  // The sheet is the same either way; what changes is where the normals come
+  // from. A formula answering the position alone is differenced, which costs
+  // five evaluations a vertex; one answering the position AND its normal is
+  // evaluated once and its normal is used as given.
+  int differenced = 0, given = 0;
+  const Mesh a = mesh::grid(4, 3, [&](float u, float v) -> glm::vec3 {
+    ++differenced;
+    return {u * 10, v * 10, 0};
+  });
+  const Mesh b = mesh::grid(4, 3, [&](float u, float v) {
+    ++given;
+    return std::pair<glm::vec3, glm::vec3>{{u * 10, v * 10, 0}, {0, 0, 1}};
+  });
+  EXPECT_EQ(a.positions, b.positions);
+  EXPECT_EQ(a.uvs, b.uvs);
+  EXPECT_EQ(a.indices, b.indices);
+  EXPECT_EQ(given, 12) << "the answered normal is taken at its word";
+  EXPECT_EQ(differenced, 12 * 5) << "a position alone is differenced";
+  for (const glm::vec3& n : b.normals) {
+    EXPECT_FLOAT_EQ(n.z, 1.0f);
+    EXPECT_FLOAT_EQ(glm::length(n), 1.0f) << "the normals come back unit";
+  }
+}
 
 TEST(Mesh, TheSheetsUvsAndIndicesAgreeWithItsVertices) {
   Mesh m = mesh::grid(

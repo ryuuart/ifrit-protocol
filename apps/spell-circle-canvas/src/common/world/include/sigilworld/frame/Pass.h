@@ -9,6 +9,7 @@
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
+#include <sigilcore/callable/Callable.h>
 #include <sigilcore/comparable/Erased.h>
 #include <sigilworld/element/Geometry.h>
 #include <sigilworld/element/Selector.h>
@@ -163,9 +164,10 @@ class Pass {
   Pass& composite(SkBlendMode mode, float opacity = 1.0f);
   /** THE ESCAPE, as a comparable seam value. */
   Pass& body(PassBody b);
-  /** …and as a lambda, which compares equal to nothing but its own
-   *  copies, so a frame carrying one never prunes on it. */
-  Pass& body(std::function<void(const View&, Targets&)> fn);
+  /** …and as a callable, which compares equal to nothing but its own
+   *  copies, so a frame carrying one never prunes on it. The view and the
+   *  targets are both offered and it names the ones it reads. */
+  Pass& body(core::Callable<void(const View&, Targets&)> fn);
 
   // ---- what it declared ----
   [[nodiscard]] Stage stage() const { return m_stage; }

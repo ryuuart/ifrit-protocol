@@ -11,7 +11,7 @@ sigil_library(SigilIOHub
   SOURCES Cache.cpp Decoders.cpp Mounts.cpp Network.cpp Retention.cpp
           Selection.cpp Fetch.h Residency.h
   HEADERS Hub.h Network.h TextCatalog.h
-  PUBLIC SigilIOSource SigilImageDecode Boost::container
+  PUBLIC SigilIOSource SigilImageDecode SigilCoreCallable Boost::container
   PRIVATE SigilCoreSchedule CURL::libcurl)
 
 # The test builds its own PNG fixtures through the image encoder and
