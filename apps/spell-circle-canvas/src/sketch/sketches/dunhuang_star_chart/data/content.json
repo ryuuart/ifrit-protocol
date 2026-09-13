@@ -1,0 +1,127 @@
+{
+  "title": "THE DUNHUANG STAR CHART, REPROJECTED",
+  "provenance": "British Library Or.8210/S.3326 · Mogao Cave 17, Dunhuang · +649–684 · 3,940 × 244 mm, pure mulberry fibre 0.04 mm · 1,339 dots in 257 asterisms",
+  "claim": "NOT TRACED. 1,460 real stars precessed J2000 → +700 (IAU 1976) and pushed through Table 3's own measured projection.",
+  "plate": "PLATE I · north up, WEST AT RIGHT, RA increasing right-to-left — the direction the scroll reads",
+  "scale": "10 cm of scroll · IDP scan 204.8 px/cm",
+  "sources": "data: Stellarium chinese_chenzhuo (GPL) · astronexus/HYG v4.1 · arXiv:0906.3034 Tables 3–5 · IDP 7861395E5F814419BA05483EAB254832",
+
+  "locator": "THE WHOLE SCROLL, 1:16 · 3,940 × 244 mm · right: 26 cloud drawings over 80 columns of uranomancy · left: the 13-map atlas, 2,100 mm · shaded: what this plate shows",
+  "raRuler": "EACH FRAME SPANS 48° OF RA ON A 30° PITCH · HATCHED: the 18° it shares with its neighbour · the axis JUMPS BACK at every boundary",
+
+  "poleTitle": "THE CHART DATES ITSELF",
+  "pole": [
+    "the celestial pole's own track, from the SAME IAU 1976",
+    "matrix the 1,460 stars ride. rings at 10/20/30 deg.",
+    "polar distance at +700, computed here:",
+    {"words": "   alp UMi 7.88   bet UMi 10.66   alp Dra 19.14", "class": "chalk"},
+    "the paper measures the map's pole 3.9 +/- 2.9 deg from",
+    "the sky at +700 and calls it \"fully consistent\". so does",
+    "this: 3.9 deg is HALF alp UMi's own distance at that date."
+  ],
+  "poleEpochs": ["+700", "J2000"],
+  "poleSweep": "13.00 Julian centuries · the sky slides 18.5° in RA",
+  "poleMarks": ["alp UMi", "bet UMi", "alp Dra", "J2000 pole"],
+
+  "ruleTitle": "THE THIRD QUESTION, AND THE PAPER DOES NOT ASK IT",
+  "rule": [
+    "2,100 mm / 13 maps / 50 columns, RA scale 4.24-4.56 deg/cm,",
+    "map extension 45-48 deg (Table 3). 48 deg at 4.56 = 10.53 cm",
+    "of drawn map; 12 of those + a 20.4 cm disc leaves 63 cm for 50",
+    "columns = 12.7 mm each, a NORMAL Tang column. But 12 x 48 = 576",
+    "deg over a 360 deg sky: the gold bars below SHARE 18 deg each.",
+    {"words": "take 30 deg per map instead (12 x 30 = 360, one dot per star, matching the 1,339 census) and the columns come out", "class": "number"},
+    {"words": "21.6 mm wide, which is not a Tang column. NEITHER READING CLOSES. This plate draws the first, so you can see it.", "class": "number"}
+  ],
+
+  "disc": [
+    "MAP 13 · azimuthal, RA at 1.05°/cm of circumference,",
+    "DEC radial at 5.10°/cm, +90° to +52° (Table 3).",
+    {"words": "disc CENTRE is DEC +87.6°, NOT the pole: the +700 pole", "class": "vermilion"},
+    {"words": "falls {poleOffMm} mm away, marked. and a red UNENCIRCLED star,", "class": "vermilion"},
+    {"words": "slightly erased, sits near it — \"could be the Pole star\". Drawn as found.", "class": "vermilion"}
+  ],
+
+  "auditTitle": "MAP 5 · THE ORION REGION · TABLE 4 OF BONNET-BIDAUD, PRADERIE & WHITFIELD 2009",
+  "auditLead": "month 4 · xiu Zui, Shen, Jing · listed N→S, W→E, i.e. by increasing RA · R=Shi shi  B=Gan shi  W=Wu Xian shi",
+  "auditHeads": ["#", "ASTERISM", "中文", "COL", "SXC  MAP  CZ", "CONF", "DEFECT"],
+  "auditFoot": [
+    {"words": "TOTALS  SXC {m5Sxc}   map {m5Map}   Chen Zhuo {m5ChenZhuo} distinct (Fa's 3 in, Sanzhu's 9 absent — 5 + 9 = SXC's 14 for Wuche, exactly)", "class": "chalk"},
+    {"words": "Table 4's own n(map) column sums to 108. Its stated total is 109. The census is soft, and the paper says so.", "class": "number"},
+    {"words": "6 documented defects in 20 asterisms, drawn AS FOUND — ringed on map 5 above. A study that corrects them has destroyed the object.", "class": "flag"}
+  ],
+  "auditNoLabel": "[no label]",
+
+  "projectionTitle": "TWO QUESTIONS THE CHART CANNOT ANSWER, AND WHY",
+  "projectionPlots": [
+    {"caption": "map 5 DEC −27°…+43°", "note": "linear − Mercator (blue) vs the hand (red hairlines)"},
+    {"caption": "map 13 polar distance 0°…38°", "note": "equidist. − stereo. (blue); the hand is 7.6× the plot, off scale"}
+  ],
+  "projection": [
+    {"words": "Mercator parts from linear by {mercDeg}° max = {mercMm} mm of paper;", "class": "chalk"},
+    {"words": "  map 5's own DEC residual is 1.61°. signal/noise {mercRatio}, n=15,", "class": "chalk"},
+    {"words": "  SE(r) {mercSigma} -> the published 0.002 is {mercPub} sigma. NOT A RESULT.", "class": "chalk"},
+    {"words": "stereographic parts from equidistant by {stereoDeg}° = {stereoMm} mm;", "class": "chalk"},
+    {"words": "  radial residual 3.29°. signal/noise {stereoRatio}, n=19, SE(r) {stereoSigma}", "class": "chalk"},
+    {"words": "  -> the published 0.013 is {stereoPub} sigma. NOT A RESULT EITHER.", "class": "chalk"},
+    {"words": "all three maps favour PURE CYLINDRICAL (0.974/0.972, 0.975/0.974, 0.996/0.994) — 3 of 3, p=0.125", "class": "number"},
+    {"words": "the disc cannot decide BECAUSE IT STOPS AT +52°: over a full hemisphere the pair would part by 7.00°", "class": "dim"}
+  ],
+
+  "map13Title": "MAP 13 · THE CIRCUMPOLAR DISC · TABLE 5",
+  "map13": [
+    "34 asterisms, stated total 142 stars; the n(map) column sums to 141",
+    "(its Tianpei row reads \"5 or 6\", which is where the one goes).",
+    "紫微 Ziwei: two walls, E and W, 14 red + 1 black — Chen Zhuo's",
+    {"words": "  東垣 8 + 西垣 7 = 15. CLOSES EXACTLY.", "class": "chalk"},
+    "華蓋 Huagai: 7 stars \"+ 6\" the authors cannot account for.",
+    {"words": "  Chen Zhuo HAS 杠 Gang appended to it — but 9 stars, not 6.", "class": "chalk"},
+    "  consistent, and it does not close. drawn on the disc, unlabelled.",
+    "NI 1: one star, no character, east of Gouchen. 天棓 Tianpei is the",
+    "  SECOND mixed-colour asterism (\"5 R, 1 B?\"), not Ziwei alone.",
+    "三公 Sangong: Chen Zhuo files one copy under WU XIAN, the other",
+    {"words": "under GAN. The map draws both BLACK. Printed, not corrected.", "class": "flag"}
+  ],
+
+  "archer": [
+    "a bowman in traditional dress, captioned THE GOD OF",
+    "LIGHTNING, over a title nobody can read convincingly"
+  ],
+
+  "logJoin": [
+    {"words": "THE JOIN", "class": "heading"},
+    {"words": "chinese_chenzhuo: {ast} asterisms, 1,883 vertex words", "class": "dim"},
+    {"words": "1,463 star TOKENS — 3 are DSO (M44/M7/M31)", "class": "number"},
+    {"words": "  so {stars} HIP numbers vs Chen Zhuo's canonical 1,464", "class": "dim"},
+    {"words": "HYG v4.1 join on HIP: 1,457 direct, 3 LOST", "class": "number"},
+    {"words": "  55203 xi UMa, 78727 xi Sco, 115125 94 Aqr B", "class": "dim"},
+    {"words": "  cause: HYG BLANKS hip on resolved double components", "class": "dim"},
+    {"words": "  Bayer fallback recovers all three", "class": "pass"},
+    {"words": "RESOLVED {stars} / {stars} = 100.00%", "class": "pass"},
+    {"words": "largest 1300-yr proper motion 1.476 deg (HIP 19849)", "class": "dim"}
+  ],
+  "logEpoch": [
+    {"words": "THE EPOCH, AND THE DECLINATION WINDOW", "class": "heading"},
+    {"words": "paper precessed to +700, NOT +665 (sect. 4.1)", "class": "number"},
+    {"words": "  665 vs 700 = 0.489 deg RA; map 5's RA residual 2.26", "class": "dim"},
+    {"words": "  4.6x below the chart's own hand. UNRESOLVABLE.", "class": "pass"},
+    {"words": "of {stars} stars at +700:", "class": "dim"},
+    {"words": "  {onMaps} fall on maps 1-12  (|DEC| <= 45)", "class": "dim"},
+    {"words": "  {onDisc} fall on the disc    (DEC >= +52)", "class": "dim"},
+    {"words": "  {inGap} fall in the UNCOVERED band +45..+52", "class": "number"},
+    {"words": "  {tooSouth} are south of DEC -45, off the chart", "class": "number"},
+    {"words": "Chang'an is 34.3N, so DEC < -55.7 never rises at all", "class": "dim"}
+  ],
+  "logSchools": [
+    {"words": "THE SCHOOLS, AND WHAT IS NOT ATTESTED", "class": "heading"},
+    {"words": "S.3326 is the FIRST document to colour the three", "class": "dim"},
+    {"words": "  schools: Shi shi RED, Gan shi BLACK, Wu Xian WHITE", "class": "dim"},
+    {"words": "Tables 4+5 give a colour for 54 asterisms; {schooled} stars", "class": "dim"},
+    {"words": "{unattested} stars have NO published school: drawn undeclared", "class": "number"},
+    {"words": "guessing the rest would be inventing the evidence", "class": "dim"},
+    {"words": "Huagai +6 unaccounted: Chen Zhuo HAS Gang, 9 stars", "class": "number"},
+    {"words": "  9 != 6, so it is consistent and does not close", "class": "dim"},
+    {"words": "Sangong: Chen Zhuo files one under WU XIAN (white),", "class": "dim"},
+    {"words": "  the map draws BOTH black. printed, not corrected.", "class": "number"}
+  ]
+}
