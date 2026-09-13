@@ -1296,6 +1296,14 @@ struct,
 was built with, which is the root of a plate that has no layout at all
 and names no class, states no sheet and sets no font, so a page-less
 drawing states its own with `Element::styleSheet` on what it returns —
+with `kit::panel` beside it, the titled region a page divides itself
+into: an eyebrow over a title in the classes `eyebrow` and `title`, a
+note at the far edge of the head's last line in `captionNote`, each of
+the three a part (`Panel::eyebrowLine`, `Panel::titleLine`,
+`Panel::noteLine`), a hairline under the head where `Panel::rule` names
+one, and the whole standing in `Panel::body`, which is a `kit::Well` —
+its head is `kit::sheet`'s, so the rule bisects the distance to the
+content instead of adding to it —
 `kit/Placers.h`'s `place::grid`, `place::ring` and `place::repeat`, the
 fillers of an instanced leaf's pool — the first two over the same ring
 and grid arithmetic the layout schemes use, which is SigilGeometry's —

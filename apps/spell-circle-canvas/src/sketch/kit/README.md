@@ -168,8 +168,7 @@ painting an Element directly.
 | `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground — with `corners` and a `keyline`, the PLATE a panel stands on; with a `recess`, the hole punched in one; with a `relief`, the piece standing proud of one |
 | `caption(measure, label, note, body)` | one captioned specimen in the theme's voice — the label set in the class `captionLabel`, the note in `captionNote`; `measure` is the cell's own width, the one distance a caption cannot inherit |
 | `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
-| `columns(Columns)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is |
-| `panelGrid(PanelGrid)` | the same, wrapped every N, with a short last row keeping its share |
+| `panelGrid(PanelGrid)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is — on one row where `columns` is 0, wrapped every N above that, with a short last row keeping its share |
 | `passage(ctx, name)` | the prose at `res://passages/<name>`, minus the newlines a file ends with — the prose a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
 
 ```cpp
@@ -390,6 +389,7 @@ computed from anything states its `thumbLength` instead.
 | | |
 | --- | --- |
 | `backdrop(Backdrop)` | the theme's ground over the whole surface, shaded toward the corners and grained, over `compose::kit::vignette` and `grained` |
+| `panel(Panel, content)` | a titled region of a page: an eyebrow over a title, a note ranged at the far edge of the head, and the content on the plate under it |
 | `frame(Frame, screen)` | a device's chrome: an outer shell, a screen inset into it by the bezel on every side, and the plate its word is engraved on |
 
 ```cpp
@@ -401,6 +401,14 @@ sketch::kit::frame({.width = Dimension(275), .height = Dimension(116), .bezel = 
 which is the one thing here a theme cannot carry. `Frame::keyline` unset
 is the theme's rule and `Fill::none()` draws none, which is what a shell
 whose only rule runs round its OUTER edge asks for.
+
+**A PANEL IS A PLATE, NOT A SPECIMEN WELL.** `Panel::body` is a `Well`
+whose unset padding is the theme's PANEL padding, whose unset radius is
+its panel corner and whose unset keyline is its rule — a piece of
+furniture is padded, rounded and ruled, where a picture's surface is
+grounded and flush. Its three lines are set in the classes `eyebrow`,
+`title` and `captionNote`, and the two gaps of its head are the theme's
+caption gaps, so a region and the cell beside it breathe alike.
 
 ### A log, and things along an axis — `Console.h`, `Ticker.h`
 
@@ -426,8 +434,9 @@ word out of the scale's, the way a legend entry does.
 
 A leaf may not invent what an ancestor should own.
 
-* The run of cells, the captioned cell's arrangement and the sheet's own
-  layout — `compose::kit::cells`, `panelGrid`, `cell`, `well`, `sheet`. This library
+* The run of cells, the captioned cell's arrangement, a titled region's
+  head and the sheet's own layout — `compose::kit::cells`, `panelGrid`,
+  `cell`, `well`, `panel`, `sheet`. This library
   puts values into those; it does not restate them.
 * A ground's vignette and its grain as fills — `compose::kit::vignette`
   and `compose::kit::grained` (`kit/Ground.h`). `backdrop` puts the

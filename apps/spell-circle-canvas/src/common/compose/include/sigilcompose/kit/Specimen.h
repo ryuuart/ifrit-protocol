@@ -83,7 +83,8 @@ struct Well {
   /** Rounds the well. 0 is the square corner a specimen sheet uses. */
   float corners = 0.0f;
   /** ONE HAIRLINE ROUND THE WELL, over its ground — what turns a patch of
-   *  ground into a PLATE. Unset draws none.
+   *  ground into a PLATE. Unset draws none, and so does `Fill::none()`,
+   *  which is the spelling a ground takes.
    *
    *  IT IS DRAWN INSIDE THE WELL'S OWN BOX. A rule centred on the
    *  boundary would put half its width outside, so a plate and the plate

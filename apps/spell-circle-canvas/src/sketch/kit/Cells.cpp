@@ -25,7 +25,7 @@ compose::Element well(const Well& specification, compose::Element surface) {
        .padding = specification.padding.value_or(look.spacing.wellPadding),
        .paddingY = specification.paddingY,
        .clip = specification.clip,
-       .corners = specification.corners,
+       .corners = specification.corners.value_or(0.0f),
        .keyline = specification.keyline,
        .keylineWidth = specification.keylineWidth},
       std::move(surface));

@@ -24,7 +24,9 @@ Element well(const Well& spec, Element surface) {
   // Inside its own box: a keyline centred on the boundary would put half
   // its width outside, and a plate that is not the width it was given is
   // the one thing a fixed surface may not be.
-  if (spec.keyline)
+  // A keyline stated as Fill::none() draws none, which is the spelling a
+  // ground takes: a plate whose only rule runs elsewhere asks for it.
+  if (spec.keyline && spec.keyline->kind != Fill::Kind::None)
     surface.stroke(compose::stroke(spec.keylineWidth, *spec.keyline,
                                    PathFormat::Align::Inner));
   return surface;

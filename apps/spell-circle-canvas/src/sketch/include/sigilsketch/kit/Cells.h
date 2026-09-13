@@ -35,8 +35,10 @@ struct Well {
    *  is whatever `padding` resolves to. */
   std::optional<float> paddingY;
   bool clip = true;
-  /** Rounds the well. 0 is the square corner a specimen sheet uses. */
-  float corners = 0;
+  /** Rounds the well; unset is the square corner a specimen sheet uses.
+   *  A component that grounds a PLATE rather than a specimen — a panel —
+   *  reads an unset radius as the theme's own. */
+  std::optional<float> corners;
   /** ONE HAIRLINE ROUND THE WELL, over its ground — what turns a patch of
    *  ground into a PLATE. Unset draws none; unset is not the theme's rule,
    *  because a specimen well is grounded and unruled and that is the

@@ -983,3 +983,109 @@ TEST(KitBoard, StatesNoSheetAndNoFontSoTheCallersVerbsDecide) {
   EXPECT_NEAR(require(host.composer.bounds("named")).height(), lineHeight(9),
               1.5f);
 }
+
+// ---------------------------------------------------------------------------
+// kit/Board.h — the titled region
+
+namespace {
+
+/** The sheet a panel's three classes are registered on. */
+weave::StyleSheet panelClasses() {
+  return weave::StyleSheet{{"eyebrow", {.size = 9}},
+                           {"title", {.size = 14}},
+                           {"captionNote", {.size = 10}}};
+}
+
+}  // namespace
+
+TEST(KitPanel, RulesItsHeadOffItsContentAndStandsBothInItsOwnWell) {
+  const float eyebrow = lineHeight(9);
+  const float title = lineHeight(14);
+  kit::Panel region{
+      .eyebrow = "LOADOUT",
+      .title = "SLOTS",
+      .rule = red(),
+      .ruleWidth = 2,
+      .gap = 12,
+      .titleGap = 4,
+      .body = kit::Well{
+          .width = 200, .height = 160, .ground = green(), .padding = 10}};
+  Host host(300, 300);
+  host.composer.render(
+      box()
+          .width(300)
+          .height(300)
+          .styleSheet(panelClasses())
+          .children({kit::panel(region, box().key("content")).key("panel")}));
+  host.frame();
+  EXPECT_EQ(require(host.composer.bounds("panel")), SkRect::MakeWH(200, 160));
+  // The head stands inside the well's padding, and the content one gap
+  // under it.
+  const SkRect content = require(host.composer.bounds("content"));
+  EXPECT_FLOAT_EQ(content.left(), 10);
+  EXPECT_NEAR(content.top(), 10 + eyebrow + 4 + title + 12, 1.5f);
+  // The rule bisects that gap rather than adding to it, so an unruled
+  // panel puts its content in the same place.
+  const int ruleTop = (int)(10 + eyebrow + 4 + title + 5);
+  EXPECT_EQ(host.pixel(100, ruleTop + 1), SK_ColorRED);
+  EXPECT_EQ(host.pixel(100, ruleTop - 2), SK_ColorGREEN);
+  kit::Panel plain = region;
+  plain.rule = Fill::none();
+  host.composer.render(
+      box()
+          .width(300)
+          .height(300)
+          .styleSheet(panelClasses())
+          .children({kit::panel(plain, box().key("bare")).key("panel")}));
+  host.frame();
+  EXPECT_NEAR(require(host.composer.bounds("bare")).top(), content.top(), 1.0f);
+}
+
+TEST(KitPanel, RangesItsNoteAtTheFarEdgeOfTheHeadsLastLine) {
+  const auto noteRect = [](bool withTitle) {
+    kit::Panel region{.eyebrow = "LOADOUT",
+                      .title = withTitle ? "SLOTS" : "",
+                      .note = "3 / 8",
+                      .body = kit::Well{.width = 200, .padding = 10}};
+    region.noteLine = [](const sigil::compose::Utf8& t) {
+      return text(t.bytes()).key("note").font({.size = 10});
+    };
+    Host host(300, 300);
+    host.composer.render(
+        box()
+            .width(300)
+            .height(300)
+            .styleSheet(panelClasses())
+            .children({kit::panel(region, box().key("content"))}));
+    host.frame();
+    return std::pair{require(host.composer.bounds("note")),
+                     require(host.composer.bounds("content"))};
+  };
+  // On the title's line where there is a title, and on the eyebrow's
+  // where there is not — at the far edge of the head either way.
+  const auto [besideTitle, under] = noteRect(true);
+  EXPECT_FLOAT_EQ(besideTitle.right(), 190);
+  EXPECT_NEAR(besideTitle.top(), lineHeight(9) + 4 + 10, 2.0f);
+  const auto [besideEyebrow, alsoUnder] = noteRect(false);
+  EXPECT_FLOAT_EQ(besideEyebrow.right(), 190);
+  EXPECT_NEAR(besideEyebrow.top(), 10, 2.0f);
+}
+
+TEST(KitPanel, StandsBareWhereNoBodyIsStated) {
+  // A caller that grounds the region itself gets the head and the
+  // content and nothing around them.
+  Host host(300, 300);
+  host.composer.render(
+      box()
+          .width(300)
+          .height(300)
+          .styleSheet(panelClasses())
+          .children({kit::panel({.eyebrow = "LOADOUT"},
+                                box().key("content").height(40))
+                         .key("panel")}));
+  host.frame();
+  const SkRect panel = require(host.composer.bounds("panel"));
+  EXPECT_FLOAT_EQ(panel.left(), 0);
+  EXPECT_NEAR(require(host.composer.bounds("content")).top(),
+              lineHeight(9) + 12, 1.5f);
+}

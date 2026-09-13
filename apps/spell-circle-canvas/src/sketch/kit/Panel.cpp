@@ -1,5 +1,6 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Board.h>
 #include <sigilcompose/kit/Ground.h>
 #include <sigilsketch/kit/Panel.h>
 
@@ -35,6 +36,27 @@ compose::Element backdrop(const Backdrop& ground) {
         compose::kit::vignette(ground.over, edge))});
   }
   return surface;
+}
+
+compose::Element panel(const Panel& region, compose::Element content) {
+  const Theme& look = theme();
+  // The plate a panel stands on is not a specimen well: it is padded,
+  // rounded and ruled by the theme's own panel distances unless the
+  // caller states otherwise, and the well below puts the theme's ground
+  // and its recess or relief into the same value.
+  Well plate = region.body;
+  if (!plate.padding) plate.padding = look.spacing.panelPadding;
+  if (!plate.corners) plate.corners = look.spacing.panelCorners;
+  if (!plate.keyline) plate.keyline = Fill::color(look.palette.rule);
+  return well(plate, compose::kit::panel(
+                         {.eyebrow = region.eyebrow,
+                          .title = region.title,
+                          .note = region.note,
+                          .rule = region.ruled ? Fill::color(look.palette.rule)
+                                               : Fill{},
+                          .gap = look.spacing.captionGap,
+                          .titleGap = look.spacing.captionNoteGap},
+                         std::move(content)));
 }
 
 compose::Element frame(const Frame& chrome, compose::Element screen) {

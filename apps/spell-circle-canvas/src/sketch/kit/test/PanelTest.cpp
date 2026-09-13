@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/kit/Board.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -46,6 +47,64 @@ TEST(SketchKitPanel, AKeylineOfNoneDrawsNoKeyline) {
                   .screen = screen,
                   .screenCorners = 0,
                   .keyline = Fill::none()})));
+}
+
+// The titled region
+
+/** A panel is the compose region on the plate the theme's own panel
+ *  distances make — which is not a specimen well: it is padded by the
+ *  panel padding, rounded by the panel radius and ruled by the palette's
+ *  rule. */
+TEST(SketchKitPanel, APanelStandsOnThePlateTheThemesDistancesMake) {
+  const kit::Theme& house = kit::houseTheme();
+  const auto under = [&](Element tree) {
+    return compose::box()
+        .styleSheet(house.styleSheet())
+        .children({std::move(tree)});
+  };
+  Element byHand = compose::kit::well(
+      {.width = compose::Dimension(260),
+       .ground = Fill::color(house.palette.cellGround),
+       .padding = house.spacing.panelPadding,
+       .corners = house.spacing.panelCorners,
+       .keyline = Fill::color(house.palette.rule)},
+      compose::kit::panel({.eyebrow = u8"LOADOUT",
+                           .note = u8"3 / 8",
+                           .rule = Fill::color(house.palette.rule),
+                           .gap = house.spacing.captionGap,
+                           .titleGap = house.spacing.captionNoteGap},
+                          subject()));
+  Element byKit = kit::panel({.eyebrow = u8"LOADOUT",
+                              .note = u8"3 / 8",
+                              .ruled = true,
+                              .body = {.width = compose::Dimension(260)}},
+                             subject());
+  EXPECT_TRUE(sameDrawing(under(std::move(byHand)), under(std::move(byKit))));
+}
+
+/** The plate's radius, ground and keyline are the caller's where the
+ *  caller states them, and a keyline of none draws none. */
+TEST(SketchKitPanel, ThePlatesOwnValuesStandOverTheThemes) {
+  const kit::Theme& house = kit::houseTheme();
+  const Fill slate = Fill::color({0.18f, 0.20f, 0.24f, 1});
+  Element byHand = compose::kit::well(
+      {.width = compose::Dimension(260),
+       .ground = slate,
+       .padding = 4,
+       .corners = 0,
+       .keyline = Fill::none()},
+      compose::kit::panel({.eyebrow = u8"LOADOUT",
+                           .gap = house.spacing.captionGap,
+                           .titleGap = house.spacing.captionNoteGap},
+                          subject()));
+  Element byKit = kit::panel({.eyebrow = u8"LOADOUT",
+                              .body = {.width = compose::Dimension(260),
+                                       .ground = slate,
+                                       .padding = 4,
+                                       .corners = 0,
+                                       .keyline = Fill::none()}},
+                             subject());
+  EXPECT_TRUE(sameDrawing(std::move(byHand), std::move(byKit)));
 }
 
 // What stands behind and around

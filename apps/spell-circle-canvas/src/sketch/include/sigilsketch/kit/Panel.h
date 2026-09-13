@@ -2,7 +2,8 @@
 
 /** @file
  * WHAT STANDS BEHIND AND AROUND: the ground a whole canvas is dressed
- * with, and the shell a screen is set into.
+ * with, the titled region a page divides itself into, and the shell a
+ * screen is set into.
  */
 
 #include <include/core/SkColor.h>
@@ -12,6 +13,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -56,6 +58,40 @@ struct Backdrop {
  *  It places itself over the canvas and paints nothing else, so it is the
  *  first child of whatever a sketch renders. */
 [[nodiscard]] compose::Element backdrop(const Backdrop& ground);
+
+/** A TITLED REGION OF A PAGE, in the theme's voice: an eyebrow over a
+ *  title, a note ranged at the far edge of the head, and the content
+ *  standing on the plate under it.
+ *
+ *  What it adds over `compose::kit::panel` is the theme's distances and
+ *  colours: the head's two gaps, the ground, the padding, the radius and
+ *  the keyline a PLATE takes — which are not a specimen well's, because a
+ *  panel is a piece of furniture and a well is a picture's surface. */
+struct Panel {
+  compose::Utf8 eyebrow;
+  compose::Utf8 title;
+  compose::Utf8 note;
+  /** A hairline under the head, in the theme's rule colour. */
+  bool ruled = false;
+  /** THE PLATE THE REGION STANDS ON. Unset padding is the theme's panel
+   *  padding, an unset radius its panel corner and an unset keyline its
+   *  rule; `Fill::none()` draws no keyline, and a recess or a relief
+   *  under it reads the plate as sunk or raised. */
+  Well body;
+};
+
+/** THE REGION, with @p content standing under its head.
+ *
+ *      sketch::kit::panel({.eyebrow = "LOADOUT", .note = "3 / 8",
+ *                          .ruled = true,
+ *                          .body = {.width = compose::Dimension(260)}},
+ *                         slots())
+ *
+ *  The three lines are set in the classes `eyebrow`, `title` and
+ *  `captionNote`, so a panel under a page — or under any root that states
+ *  the theme's sheet — is in the theme's voice. */
+[[nodiscard]] compose::Element panel(const Panel& region,
+                                     compose::Element content);
 
 /** A DEVICE'S CHROME: an outer shell, a screen inset into it, and the
  *  plate the maker's word is engraved on.
