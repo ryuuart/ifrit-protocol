@@ -82,16 +82,22 @@ constexpr SkColor4f kHost = hexColor(0xE8920A);     // the ONE saturated mark
 // Type — the studio's chassis (the faces, the 1/1000-em tracking unit and
 // the text alias) plus THIS artefact's own register: the 2024 rebuild is
 // lettered in one grotesque at two weights, tracked wide for the chrome
-// and loose for the prose.
+// and loose for the prose. The chrome's face and condensation are the
+// page's own font, stated once on its root; a chrome label says only its
+// size, colour and tracking, and the prose restates the face it is set
+// in and that it is not condensed.
 
-inline sigil::weave::TextStyle micro(float size, SkColor4f c, float tr = 160) {
-  return sigil::weave::kit::tracked(grotBold(), size, c, tr, 0.96f);
+/** The chrome register: tracking quoted in 1/1000 em of @p size. */
+inline sigil::weave::Type micro(float size, SkColor4f c, float tr = 160) {
+  return {.size = size, .color = c, .track = size * tr / 1000.0f};
 }
-inline sigil::weave::TextStyle title(float size, SkColor4f c, float tr = 80) {
-  return sigil::weave::kit::tracked(grotBold(), size, c, tr, 1.0f);
-}
-inline sigil::weave::TextStyle prose(float size, SkColor4f c) {
-  return sigil::weave::kit::tracked(grot(), size, c, 30);
+/** The prose register: the medium weight, loosely tracked, uncondensed. */
+inline sigil::weave::Type prose(float size, SkColor4f c) {
+  return {.face = grot(),
+          .size = size,
+          .color = c,
+          .track = size * 30 / 1000.0f,
+          .condense = 1.0f};
 }
 
 // ---------------------------------------------------------------------------

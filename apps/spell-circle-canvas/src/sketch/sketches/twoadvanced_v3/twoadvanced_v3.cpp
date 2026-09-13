@@ -7,7 +7,9 @@
 
 Element TwoAdvancedV3::describe() {
   using namespace tv3;
-  Element page = stack();
+  // The page's font is the chrome's: the bold grotesque, condensed a
+  // touch. Every slot's content inherits it from where the slot stands.
+  Element page = stack().font({.face = grotBold(), .condense = 0.96f});
   if (pageTile) {
     // The 10×1600 strip exactly as the CSS places it: repeated across,
     // clamped down (the page is shorter than the strip).

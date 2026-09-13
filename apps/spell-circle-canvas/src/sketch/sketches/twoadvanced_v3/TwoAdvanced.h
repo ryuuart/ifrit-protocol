@@ -90,9 +90,15 @@ inline sk_sp<SkTypeface> verdanaFace(bool bold) {
 // ---------------------------------------------------------------------------
 // The one text alias.
 
-/** A narrow-string label, which is what every caption on these pages is. */
+/** A narrow-string label, which is what every caption on these pages is:
+ *  set in a whole style, which inherits nothing, or in a partial over the
+ *  font in force where the label lands. */
 inline sigil::compose::Element t(const char* s, sigil::weave::TextStyle style) {
   return sigil::compose::text(sigil::compose::toUtf8(s), std::move(style));
+}
+inline sigil::compose::Element t(const char* s, sigil::weave::Type partial) {
+  return sigil::compose::text(sigil::compose::toUtf8(s))
+      .font(std::move(partial));
 }
 
 // ---------------------------------------------------------------------------
