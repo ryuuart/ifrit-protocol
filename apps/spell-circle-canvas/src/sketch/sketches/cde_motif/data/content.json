@@ -1,0 +1,38 @@
+{
+  "fileManager": {
+    "title": "File Manager - user",
+    "menu": ["File", "Selected", "View", "Help"],
+    "path": "Path:",
+    "location": "/export/home/user",
+    "status": "31 Items  11 Hidden",
+    "folders": ["bin", "boot", "cdrom", "dev", "devices", "etc",
+                "export", "home", "kernel", "lib", "mnt", "net",
+                "opt", "platform", "proc", "sbin", "system", "tmp",
+                "usr", "var", "vol", "xfn", "lost+found", "core",
+                "mail", "news", "share", "spool", "local", "adm", "log"]
+  },
+  "colorDialog": {
+    "title": "Style Manager - Color",
+    "palettes": "Palettes",
+    "shipped": ["Cabernet", "Charcoal", "Delphinium", "Desert",
+                "GrayScale", "Lilac", "Neptune", "Olive"],
+    "sets": "Color Sets",
+    "count": "Number of Colors:",
+    "depth": "  High Color  (8 sets)",
+    "buttons": ["OK", "Add...", "Delete", "Help"]
+  },
+  "postedMenu": [
+    {"words": "New..."},
+    {"words": "Open", "cascade": true},
+    {"separator": true},
+    {"words": "Print", "insensitive": true},
+    {"words": "Properties..."},
+    {"separator": true},
+    {"words": "Close"}
+  ],
+  "derivation": "XmGetColors( bg ) - live",
+  "date": {"month": "Jul", "day": "22"},
+  "workspaces": ["One", "Two", "Three", "Four"],
+  "subpanel": "Help",
+  "iconified": ["Terminal", "Mailer", "Print Manager"]
+}

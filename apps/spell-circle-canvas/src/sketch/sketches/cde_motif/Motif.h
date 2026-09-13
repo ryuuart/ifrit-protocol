@@ -15,6 +15,7 @@
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Patterns.h>
@@ -34,6 +35,7 @@
 #include <string>
 #include <vector>
 
+namespace data = sigil::data;
 namespace sketch = sigil::sketch;
 namespace measure = sigil::measure;
 namespace test = sigil::compose::test;
@@ -457,6 +459,26 @@ inline sigil::weave::Type uiType() {
 
 /** ONE RUN OF UI TYPE IN THE INK IN FORCE — a window title, a menu item, a
  *  file name: each is just its own words. */
+/** THE RECORD AT @p key of @p doc — `data/content.json`, whose keys are
+ *  `fileManager`, `colorDialog`, `postedMenu`, `derivation`, `date`,
+ *  `workspaces`, `subpanel` and `iconified`. A missing file or key reads
+ *  as a null value, so a reader falls back to no words at all. */
+inline const data::Json& record(const std::shared_ptr<const data::Json>& doc,
+                                const char* key) {
+  static const data::Json none;
+  return doc ? (*doc)[key] : none;
+}
+
+/** @p node's words — empty where the document does not carry them. */
+inline std::string_view words(const data::Json& node) { return node.text(); }
+
+/** The words of @p node's list, in order. */
+inline std::vector<std::string> wordList(const data::Json& node) {
+  std::vector<std::string> out;
+  for (const data::Json& one : node.items()) out.emplace_back(one.text());
+  return out;
+}
+
 inline Element label(std::string_view t) { return text(t).shrink(0); }
 
 /** The same at another size, and in a colour of its own where the run is
@@ -541,11 +563,8 @@ inline Element textField(std::string_view t, float w, bool caret = false,
                       .padding(3, 0)
                       .children({label(t)});
   if (caret && caretOut)
-    inner.children({box()
-                        .width(1)
-                        .height(13)
-                        .fill(s.fg)
-                        .opacity(motion::bind(caretOut).quantize(2))});
+    inner.children({box().width(1).height(13).fill(s.fg).opacity(
+        motion::bind(caretOut).quantize(2))});
   Element field = surface(s)
                       .overlay(bevel(2, true, false))
                       .padding(2)
