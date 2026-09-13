@@ -5,6 +5,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Operations.h>
 #include <sigilmaterial/core/Bank.h>
@@ -17,10 +18,14 @@
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
+namespace data = sigil::data;
 namespace sketch = sigil::sketch;
 namespace matkit = sigil::material::kit;
 namespace mat = sigil::material;
@@ -35,6 +40,37 @@ using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
+
+/** THE RECORD AT @p key of @p doc — `data/content.json`, whose keys are
+ *  `caption`, `jigs` and `reading`. A missing file or key reads as a null
+ *  value, so a reader falls back to no words at all. */
+inline const data::Json& record(const std::shared_ptr<const data::Json>& doc,
+                                const char* key) {
+  static const data::Json none;
+  return doc ? (*doc)[key] : none;
+}
+
+/** @p node's words — empty where the document does not carry them. */
+inline Utf8 words(const data::Json& node) { return Utf8(node.text()); }
+
+/** The members of @p node's list, as the run `each()` walks. */
+inline std::span<const data::Json> run(const data::Json& node) {
+  return node.items();
+}
+
+/** ONE CIRCLE STROKED AND NOT FILLED, of radius @p r about @p c — the
+ *  struck construction circle this drawing is derived from. */
+inline Element ring(SkPoint c, float r, PathFormat pen) {
+  return kit::disc(c, r)
+      .shape(shapes::circle())
+      .fill(Fill::none())
+      .stroke(std::move(pen));
+}
+
+/** ONE FILLED CIRCLE of radius @p r about @p c: a marked point. */
+inline Element dot(SkPoint c, float r, SurfacePaint paint) {
+  return kit::disc(c, r).shape(shapes::circle()).fill(std::move(paint));
+}
 
 // ---------------------------------------------------------------------------
 // Palette — wood-tone matches by eye, not a colorimeter reading
@@ -515,11 +551,8 @@ Element stripElement(const Strip& s, TimberBank& bank,
   const float bevelAlpha = heavy ? 0.42f : 0.26f;
 
   Element e =
-      box()
-          .left((s.a.x() + s.b.x()) * 0.5f - boxW * 0.5f)
-          .top((s.a.y() + s.b.y()) * 0.5f - s.w * 0.5f)
-          .width(boxW)
-          .height(s.w)
+      kit::at((s.a.x() + s.b.x()) * 0.5f - boxW * 0.5f,
+              (s.a.y() + s.b.y()) * 0.5f - s.w * 0.5f, boxW, s.w)
           .rotate(angDeg)
           .shape(heldPath(shape))
           .fill(bank.get(*s.timber, s.w, !lit, s.seed))
