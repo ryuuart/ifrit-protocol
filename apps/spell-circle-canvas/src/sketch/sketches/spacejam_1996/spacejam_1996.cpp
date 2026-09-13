@@ -88,9 +88,7 @@ struct SpaceJam1996 : sketch::Sketch {
     Element c = box().column().alignSelf(Align::Start).shrink(0);
     if (s.asset < 0) c.width(0).height(0);
     if (s.brs > 0)
-      c.children({box()
-                      .width(0)
-                      .height(sj::S(18) * (float)s.brs)});
+      c.children({box().width(0).height(sj::S(18) * (float)s.brs)});
     if (s.asset >= 0) c.children({revealed(s.asset, inFlight)});
     c.cells(s.col, s.row, s.colspan, s.rowspan).cellAlign(s.across, s.down);
     return c;
@@ -124,18 +122,14 @@ struct SpaceJam1996 : sketch::Sketch {
     //    the only thing that moves. Restored from the HTML comment the live
     //    page keeps it in.
     const bool ballIn = (arrivedMask & (1u << kFastbreak)) != 0;
-    Element fastRow =
-        stack()
-            .left(S(70))
-            .top(S(86))
-            .width(S(500))
-            .height(S(46))
-            .children({revealed(kFast, (arrivedMask & (1u << kFast)) == 0)
-                           .left(S(3))
-                           .top(S(17.5f)),
-                       revealed(kBreak, (arrivedMask & (1u << kBreak)) == 0)
-                           .left(S(93))
-                           .top(S(17.5f))});
+    Element fastRow = kit::at(
+        stack().children({revealed(kFast, (arrivedMask & (1u << kFast)) == 0)
+                              .left(S(3))
+                              .top(S(17.5f)),
+                          revealed(kBreak, (arrivedMask & (1u << kBreak)) == 0)
+                              .left(S(93))
+                              .top(S(17.5f))}),
+        S(70), S(86), S(500), S(46));
     if (ballIn) {
       // Fully arrived: the live element, whose material steps its uTime at
       // 10 Hz — the GIF's own frame rate, six frames, forever.
@@ -146,21 +140,17 @@ struct SpaceJam1996 : sketch::Sketch {
     } else {
       // Still arriving: a partially-downloaded animated GIF shows its first
       // frame and does not animate. Same picture path as everything else.
-      fastRow.children({revealed(kFastbreak, true)
-                            .left(S(53))
-                            .top(S(3))});
+      fastRow.children({revealed(kFastbreak, true).left(S(53)).top(S(3))});
     }
 
     // 3. the planet table. Nothing below is hand-placed: `Table`
     //    runs the auto-layout rule over the children's measured sizes and
     //    the cells they claim.
-    Element grid = layout(table)
-                       .left(S(70))
-                       .top(S(168))
-                       .width(S(500))
-                       .height(S(435))
-                       .key("table");
-    for (const Slot& slot : kSlotTable) grid.children({cell(slot)});
+    Element grid =
+        layout(table).left(S(70)).top(S(168)).width(S(500)).height(S(435)).key(
+            "table");
+    grid.children(
+        {each(kSlotTable, [this](const Slot& s) { return cell(s); })});
 
     // 4. the © line — the ONLY live text on the page. <font size="-1"> is
     //    HTML size 2 of 7 -> 13.33 px computed, hard-wrapped by the author's
@@ -179,13 +169,13 @@ struct SpaceJam1996 : sketch::Sketch {
                            .font(small)});
 
     (void)ctx;
-    return stack()
-        .children({std::move(field)})
-        // the ad-slot table: 488x60 of server-side includes that no longer
-        // resolve. Left empty on purpose — 60 px of stars, and the reason
-        // the page has a bald strip at the top.
-        .children({std::move(fastRow), std::move(grid), std::move(colophon),
-                   verdict.failures() > 0 ? failureCard() : box()});
+    return stack().children(
+        {std::move(field),
+         // the ad-slot table: 488x60 of server-side includes that no longer
+         // resolve. Left empty on purpose — 60 px of stars, and the reason
+         // the page has a bald strip at the top.
+         std::move(fastRow), std::move(grid), std::move(colophon),
+         verdict.failures() > 0 ? failureCard() : box()});
   }
 
   // ---- setup -------------------------------------------------------------
@@ -197,41 +187,38 @@ struct SpaceJam1996 : sketch::Sketch {
       Element tree;
       float w, h;
     };
-    std::vector<Job> jobs;
-    jobs.push_back(
-        {kFast, wordmark(f, "FAST", S(50), S(11), true), S(50), S(11)});
-    jobs.push_back(
-        {kBreak, wordmark(f, "BREAK", S(50), S(11), false), S(50), S(11)});
-    jobs.push_back({kFastbreak,
-                    rect(0, 0, S(40), S(40))
-                        .left(0)
-                        .top(0)
-                        .shape(shapes::circle())
-                        .fill(ballMaterial(false, C5(0xFF6B29), C5(0xC64210),
-                                           C5(0x521800), 0.050f)),
-                    S(40), S(40)});
-    jobs.push_back({kPressbox, artPressBox(f), S(131), S(56)});
-    jobs.push_back({kJamcentral, artJamCentral(f), S(55), S(67)});
-    jobs.push_back({kBball, artBball(f), S(62), S(62)});
-    jobs.push_back({kLunartunes, artLunarTunes(f), S(95), S(77)});
-    jobs.push_back({kLineup, artLineup(f), S(63), S(52)});
-    jobs.push_back({kJamlogo, artLogo(f), S(272), S(165)});
-    jobs.push_back({kJump, artJump(f), S(58), S(52)});
-    jobs.push_back({kJunior, artJunior(f), S(49), S(57)});
-    jobs.push_back({kStudiostore, artStudioStore(f), S(94), S(72)});
-    jobs.push_back({kSouvenirs, artSouvenirs(f), S(83), S(83)});
-    jobs.push_back({kSitemap, artSitemap(f), S(104), S(67)});
-    jobs.push_back({kBehind, artBehind(f), S(67), S(63)});
-
-    for (Job& j : jobs) {
+    // EVERY BAKED ASSET IN ONE LIST, in the order the page asks for
+    // them: what it is, the tree it is drawn from, and the size the
+    // browser's own <IMG> gave it.
+    const std::vector<Job> jobs = {
+        {kFast, wordmark(f, "FAST", S(50), S(11), true), S(50), S(11)},
+        {kBreak, wordmark(f, "BREAK", S(50), S(11), false), S(50), S(11)},
+        {kFastbreak,
+         rect(0, 0, S(40), S(40))
+             .left(0)
+             .top(0)
+             .shape(shapes::circle())
+             .fill(ballMaterial(false, C5(0xFF6B29), C5(0xC64210), C5(0x521800),
+                                0.050f)),
+         S(40), S(40)},
+        {kPressbox, artPressBox(f), S(131), S(56)},
+        {kJamcentral, artJamCentral(f), S(55), S(67)},
+        {kBball, artBball(f), S(62), S(62)},
+        {kLunartunes, artLunarTunes(f), S(95), S(77)},
+        {kLineup, artLineup(f), S(63), S(52)},
+        {kJamlogo, artLogo(f), S(272), S(165)},
+        {kJump, artJump(f), S(58), S(52)},
+        {kJunior, artJunior(f), S(49), S(57)},
+        {kStudiostore, artStudioStore(f), S(94), S(72)},
+        {kSouvenirs, artSouvenirs(f), S(83), S(83)},
+        {kSitemap, artSitemap(f), S(104), S(67)},
+        {kBehind, artBehind(f), S(67), S(63)}};
+    for (const Job& j : jobs) {
       artW[j.ix] = j.w;
       artH[j.ix] = j.h;
-      pic[j.ix] = snapshot(box()
-                               .width(j.w)
-                               .height(j.h)
-                               .clip(true)
-                               .children({std::move(j.tree)}),
-                           f, {j.w, j.h});
+      pic[j.ix] =
+          snapshot(box().width(j.w).height(j.h).clip(true).children({j.tree}),
+                   f, {j.w, j.h});
     }
     artW[kStars] = artH[kStars] = 0;
   }
@@ -327,25 +314,24 @@ struct SpaceJam1996 : sketch::Sketch {
                       Fill::color(C5(0xFF0000))});
     }
     sketch::kit::Provide bound(look);
-    return box()
-        .left(S(40))
-        .top(S(120))
-        .width(S(560))
-        .height(S(30) + S(13) * (float)rows.size())
-        .fill(Fill::color(C5(0x000080)))
-        .foreground(
-            stroke(S(2), Fill::color(C5(0xFF0000)), PathFormat::Align::Inner))
-        .column()
-        .padding(S(12))
-        .gap(S(8))
-        .children(
-            {text("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID")
-                 .font(
-                     {.face = display(), .size = S(11), .color = C5(0xFFFF00)}),
-             sketch::kit::table(std::move(rows),
-                                {.columns = {{S(230)}, {S(46), true}, {}},
-                                 .gap = S(6),
-                                 .swatchSide = S(5)})});
+    return kit::at(
+        box()
+            .fill(Fill::color(C5(0x000080)))
+            .foreground(stroke(S(2), Fill::color(C5(0xFF0000)),
+                               PathFormat::Align::Inner))
+            .column()
+            .padding(S(12))
+            .gap(S(8))
+            .children(
+                {text("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID")
+                     .font({.face = display(),
+                            .size = S(11),
+                            .color = C5(0xFFFF00)}),
+                 sketch::kit::table(std::move(rows),
+                                    {.columns = {{S(230)}, {S(46), true}, {}},
+                                     .gap = S(6),
+                                     .swatchSide = S(5)})}),
+        S(40), S(120), S(560), S(30) + S(13) * (float)rows.size());
   }
 
   void setup(sketch::SketchContext& ctx) override {

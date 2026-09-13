@@ -126,11 +126,7 @@ inline Element& outlineText(Element& e, float r) {
 // Geometry sugar
 
 inline Element rect(float x, float y, float w, float h) {
-  return box()
-      .left(x)
-      .top(y)
-      .width(w)
-      .height(h);
+  return kit::at(x, y, w, h);
 }
 
 /** A shaded sphere: a circle-outlined box of 2r centred on c. Every planet

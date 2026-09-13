@@ -168,26 +168,24 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
                                      {0.62f, C5(0xF71818)},
                                      {1.0f, C5(0xAD0810)}});
   };
-  return artBox(W, H)
-      .children({ring(c, S(47), S(16), -20, 0.62f, ringMat()).zIndex(0),
-                 sphere(c, S(30),
-                        mskia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
-                                               {{0.0f, C5(0x0073E7)},
-                                                {0.30f, C5(0x006BD6)},
-                                                {0.66f, C5(0x0052AD)},
-                                                {1.0f, C5(0x00317B)}}))
-                     .stroke(stroke(S(1.5f), Fill::color(C5(0x00397B)),
-                                    PathFormat::Align::Inner))
-                     .zIndex(1)})
-      // the front half: the same ellipse, clipped to below the sphere's centre
-      .children(
-          {rect(0, c.fY, W, H - c.fY)
-               .clip(true)
-               .zIndex(2)
-               .children(
-                   {ring({c.fX, -S(0)}, S(47), S(16), -20, 0.62f, ringMat())
-                        .top(-c.fY)}),
-           navLabel(f, "LUNAR TUNES", S(19), S(0), S(57), S(9), kLabelWhite)});
+  return artBox(W, H).children(
+      {ring(c, S(47), S(16), -20, 0.62f, ringMat()).zIndex(0),
+       sphere(c, S(30),
+              mskia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
+                                     {{0.0f, C5(0x0073E7)},
+                                      {0.30f, C5(0x006BD6)},
+                                      {0.66f, C5(0x0052AD)},
+                                      {1.0f, C5(0x00317B)}}))
+           .stroke(stroke(S(1.5f), Fill::color(C5(0x00397B)),
+                          PathFormat::Align::Inner))
+           .zIndex(1),
+       // the front half: the same ellipse, clipped to below the sphere's centre
+       rect(0, c.fY, W, H - c.fY)
+           .clip(true)
+           .zIndex(2)
+           .children({ring({c.fX, -S(0)}, S(47), S(16), -20, 0.62f, ringMat())
+                          .top(-c.fY)}),
+       navLabel(f, "LUNAR TUNES", S(19), S(0), S(57), S(9), kLabelWhite)});
 }
 
 // --- p-lineup.gif, 63x52 — the same construction, red and cyan.
@@ -300,35 +298,33 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
       {rect(S(38), S(6), S(52), S(20))
            .shape(tri(1.0f, 1.0f, 0.86f, 0.0f, 0.0f, 1.0f))
            .fill(mskia::Paint::linearUnit(
-               {0, 0}, {0, 1}, {{0.0f, C5(0xF71039)}, {1.0f, hullLo}}))});
-  // ventral fin
-  ship.children({rect(S(58), S(36), S(40), S(15))
-                     .shape(tri(0.0f, 0.0f, 1.0f, 0.0f, 0.62f, 1.0f))
-                     .fill(Fill::color(C5(0xA50029)))});
-  // rear nacelle
-  ship.children(
-      {rect(S(4), S(25), S(36), S(14))
+               {0, 0}, {0, 1}, {{0.0f, C5(0xF71039)}, {1.0f, hullLo}})),
+       // ventral fin
+       rect(S(58), S(36), S(40), S(15))
+           .shape(tri(0.0f, 0.0f, 1.0f, 0.0f, 0.62f, 1.0f))
+           .fill(Fill::color(C5(0xA50029))),
+       // rear nacelle
+       rect(S(4), S(25), S(36), S(14))
            .shape(shapes::squircle(2.6f))
            .fill(mskia::Paint::linearUnit(
                {0, 0}, {0, 1},
-               {{0.0f, C5(0x8CDE73)}, {0.42f, grn}, {1.0f, grnLo}}))});
-  // fuselage
-  ship.children({rect(S(16), S(23), S(100), S(17))
-                     .shape(shapes::squircle(2.2f))
-                     .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                                    {{0.0f, hullHi},
-                                                     {0.26f, hull},
-                                                     {0.68f, hullLo},
-                                                     {1.0f, C5(0x8C0021)}}))});
-  // dorsal ridge highlight
-  ship.children(
-      {rect(S(28), S(25), S(72), S(3))
+               {{0.0f, C5(0x8CDE73)}, {0.42f, grn}, {1.0f, grnLo}})),
+       // fuselage
+       rect(S(16), S(23), S(100), S(17))
+           .shape(shapes::squircle(2.2f))
+           .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+                                          {{0.0f, hullHi},
+                                           {0.26f, hull},
+                                           {0.68f, hullLo},
+                                           {1.0f, C5(0x8C0021)}})),
+       // dorsal ridge highlight
+       rect(S(28), S(25), S(72), S(3))
            .shape(shapes::squircle(2.0f))
-           .fill(Fill::color(mskia::withAlpha(C5(0xFFC6D6), 0.85f)))});
-  // nose spike
-  ship.children({rect(S(108), S(27), S(24), S(8))
-                     .shape(shapes::arrow(0.28f, 0.90f))
-                     .fill(Fill::color(hull))});
+           .fill(Fill::color(mskia::withAlpha(C5(0xFFC6D6), 0.85f))),
+       // nose spike
+       rect(S(108), S(27), S(24), S(8))
+           .shape(shapes::arrow(0.28f, 0.90f))
+           .fill(Fill::color(hull))});
   // window strip
   for (int i = 0; i < 5; ++i)
     ship.children({rect(S(44 + i * 7.0f), S(29), S(4), S(4))
@@ -407,34 +403,34 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
         .transformOrigin(0.0f, 0.5f);
   };
 
-  return artBox(W, H)
-      .children({swirl().zIndex(0)})
-      // "SPACE": measured x 17..132, cap band y 47..87
-      .children({letters("SPACE", S(40), S(112), S(16), S(47), -7).zIndex(1)})
-      // "JAM": measured x 122..250, cap band y 25..115
-      .children({letters("JAM", S(80), S(132), S(124), S(28), -8).zIndex(2)})
-      // The swirl passing IN FRONT of the bottom of the J — the single cue
-      // that makes this read as a 1996 logotype instead of a gradient
-      // wordmark. Four concentric arcs, not one stroke: a PathFormat's fill
-      // is evaluated in node-local space, so it can vary ALONG a stroked
-      // band but not ACROSS its width, which is the direction the rainbow
-      // runs.
-      .children({[&] {
-        Element band = rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2).rotate(-18);
-        // Same four bands, at the same four radii the annulus ramp puts
-        // them at, so the ring READS as one ring that goes behind at the
-        // top and comes round in front at the bottom left.
-        const uint32_t ink[4] = {0x7310C6, 0xF70000, 0xFFAD42, 0xFFEF00};
-        for (int i = 0; i < 4; ++i) {
-          const float k = 0.960f - (float)i * 0.092f;
-          band.children(
-              {rect(rx * (1 - k), ry * (1 - k), rx * 2 * k, ry * 2 * k)
-                   .shape(shapes::arc(96, 90))
-                   .stroke(stroke(S(9.4f), Fill::color(C5(ink[i])),
-                                  PathFormat::Align::Center))});
-        }
-        return band.zIndex(3);
-      }()});
+  return artBox(W, H).children(
+      {swirl().zIndex(0),
+       // "SPACE": measured x 17..132, cap band y 47..87
+       letters("SPACE", S(40), S(112), S(16), S(47), -7).zIndex(1),
+       // "JAM": measured x 122..250, cap band y 25..115
+       letters("JAM", S(80), S(132), S(124), S(28), -8).zIndex(2),
+       // The swirl passing IN FRONT of the bottom of the J — the single cue
+       // that makes this read as a 1996 logotype instead of a gradient
+       // wordmark. Four concentric arcs, not one stroke: a PathFormat's fill
+       // is evaluated in node-local space, so it can vary ALONG a stroked
+       // band but not ACROSS its width, which is the direction the rainbow
+       // runs.
+       [&] {
+         Element band = rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2).rotate(-18);
+         // Same four bands, at the same four radii the annulus ramp puts
+         // them at, so the ring READS as one ring that goes behind at the
+         // top and comes round in front at the bottom left.
+         const uint32_t ink[4] = {0x7310C6, 0xF70000, 0xFFAD42, 0xFFEF00};
+         for (int i = 0; i < 4; ++i) {
+           const float k = 0.960f - (float)i * 0.092f;
+           band.children(
+               {rect(rx * (1 - k), ry * (1 - k), rx * 2 * k, ry * 2 * k)
+                    .shape(shapes::arc(96, 90))
+                    .stroke(stroke(S(9.4f), Fill::color(C5(ink[i])),
+                                   PathFormat::Align::Center))});
+         }
+         return band.zIndex(3);
+       }()});
 }
 
 // --- the Fast Break row's two wordmarks, 50x11 each, bright red caps.
@@ -453,15 +449,9 @@ inline Element wordmark(sigil::weave::FontContext& fonts, const char* s,
   if (m.width() > target && m.width() > 1) sx = target / m.width();
   Element t = text(s).font(styleAt(size));
   t.echo({kScale, kScale}, C5(0x8C0000));
-  t.left(rightAlign ? w - target : 0)
-      .top(-h * 0.22f)
-      .width(m.width() + 4.0f);
+  t.left(rightAlign ? w - target : 0).top(-h * 0.22f).width(m.width() + 4.0f);
   if (sx < 0.999f) t.scaleX(sx).transformOrigin(0.0f, 0.5f);
-  return stack()
-      .width(w)
-      .height(h)
-      .clip(true)
-      .children({std::move(t)});
+  return stack().width(w).height(h).clip(true).children({std::move(t)});
 }
 
 // ---------------------------------------------------------------------------
