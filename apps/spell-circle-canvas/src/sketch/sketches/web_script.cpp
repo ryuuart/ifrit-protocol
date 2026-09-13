@@ -57,7 +57,6 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace scry = sigil::scry;
 
 using namespace sigil::compose;
@@ -89,10 +88,6 @@ sketch::kit::Theme sheetTheme() {
   look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   look.spacing.captionGap = 6;
   return look;
-}
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
 }
 
 /** The document all four views load. It is deliberately taller than the
@@ -314,8 +309,10 @@ struct WebScript final : sketch::Sketch {
         .column()
         .gap(10)
         .padding(40)
-        .child(text(toUtf8("no web engine here"), label(20, sheet.palette.ink)))
-        .child(text(toUtf8(why), label(12, sheet.palette.ash))
+        .child(text(toUtf8("no web engine here"))
+                   .font({.size = 20, .color = sheet.palette.ink}))
+        .child(text(toUtf8(why))
+                   .font({.size = 12, .color = sheet.palette.ash})
                    .width(Dimension(620.0f)));
   }
 };
