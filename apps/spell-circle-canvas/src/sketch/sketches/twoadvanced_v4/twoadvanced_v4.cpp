@@ -40,7 +40,7 @@ auto TwoAdvancedV4::describe() -> Element {
   for (Element panel :
        {audioModule(), navBar(), masthead(), mainframe(), featureSystem(),
         auxiliary(), pressUpdates(), subSystem(), legalStrip(), footerDock()})
-    sheet.child(panel);
+    sheet.children({panel});
 
   // sitebackground.gif is a 1×1600 strip tiled across the page. When
   // the real strip is loaded it IS the page — repeated in x, ×2 in y,
@@ -71,14 +71,11 @@ auto TwoAdvancedV4::describe() -> Element {
                                         {0.65f, hexColor(0x3D060D)},
                                         {0.80f, hexColor(0x250002)},
                                         {1.00f, kBgBot}}))
-        .child(box().inset(0).fill(grain).opacity(0.07f).blend(
-            SkBlendMode::kOverlay));
+        .children({box().inset(0).fill(grain).opacity(0.07f).blend(
+            SkBlendMode::kOverlay)});
   }
-  return page.child(rail(false))
-      .child(rail(true))
-      .child(statusBar())
-      .child(sheet)
-      .child(bootOverlay());
+  return page.children(
+      {rail(false), rail(true), statusBar(), sheet, bootOverlay()});
 }
 
 auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
@@ -142,9 +139,10 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   // measure the press entries at the well's own wrap width, so the
   // auto-scroll walks the REAL overflow rather than a guessed one
   pressOverflow = std::max(
-      0.0f, ctx.measure(box().width(Dimension(kPressWellW)).child(pressList()))
-                    .height() -
-                kPressWellH);
+      0.0f,
+      ctx.measure(box().width(Dimension(kPressWellW)).children({pressList()}))
+              .height() -
+          kPressWellH);
 
   // --- the instanced chevron array in the footer dock ---
   dockAtlas = std::make_shared<instancing::Atlas>(2.0f);

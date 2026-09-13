@@ -47,10 +47,10 @@ Element panelOf(const kit::Bevel& b, int index) {
 static void BM_Chrome_Bevel(benchmark::State& state) {
   const kit::Bevel b = era((int)state.range(0));
   bench::Host host(240, 80);
-  host.composer.render(box().padding(20).child(panelOf(b, 0)));
+  host.composer.render(box().padding(20).children({panelOf(b, 0)}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) {
-    host.composer.render(box().padding(20).child(panelOf(b, 0)));
+    host.composer.render(box().padding(20).children({panelOf(b, 0)}));
     host.draw();
   }
 }
@@ -71,7 +71,8 @@ static void BM_Chrome_Panels(benchmark::State& state) {
     const sigil::core::environment::Provide<kit::Bevel> bound(
         kit::bevels::motif(kLit, kShade));
     Element page = box().padding(20).gap(4);
-    for (int i = 0; i < count; ++i) page.child(panelOf(kit::ambientBevel(), i));
+    for (int i = 0; i < count; ++i)
+      page.children({panelOf(kit::ambientBevel(), i)});
     return page;
   };
   host.composer.render(tree());
@@ -89,12 +90,12 @@ BENCHMARK(BM_Chrome_Panels)->Arg(60)->Unit(benchmark::kMicrosecond);
 static void BM_Chrome_Stipple(benchmark::State& state) {
   bench::Host host(240, 80);
   const auto tree = [] {
-    return box().padding(20).child(box()
-                                       .width(Dimension(180))
-                                       .height(Dimension(40))
-                                       .fill(kFace)
-                                       .overlay(styles::stipple(kShade))
-                                       .key("stippled"));
+    return box().padding(20).children({box()
+                                           .width(Dimension(180))
+                                           .height(Dimension(40))
+                                           .fill(kFace)
+                                           .overlay(styles::stipple(kShade))
+                                           .key("stippled")});
   };
   host.composer.render(tree());
   host.draw();

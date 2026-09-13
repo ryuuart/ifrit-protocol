@@ -138,26 +138,27 @@ Element banner(float length) {
                        .padding(14, 48)
                        .fill(Fill::color({0.031f, 0.047f, 0.086f, 0.62f}))
                        .ink(kInk);
-  column.child(
-      box()
-          .absolute()
-          .inset(3, 0, (float)kAcrossPx - 6, 0)
-          .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.9f})));
-  column.child(
-      box()
-          .absolute()
-          .inset((float)kAcrossPx - 5, 0, 3, 0)
-          .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.5f})));
-  column.child(text(u8"THE HUNG RAIL").font({.size = 60}).ink(kAccent));
+  column.children(
+      {box()
+           .absolute()
+           .inset(3, 0, (float)kAcrossPx - 6, 0)
+           .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.9f}))});
+  column.children(
+      {box()
+           .absolute()
+           .inset((float)kAcrossPx - 5, 0, 3, 0)
+           .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.5f}))});
+  column.children({text(u8"THE HUNG RAIL").font({.size = 60}).ink(kAccent)});
   for (int s = 0; s < kSectors; ++s) {
-    column.child(box().grow());
+    column.children({box().grow()});
     const std::string numeral = kit::formatted("- %02d -", s + 1);
-    column.child(text(numeral).font({.size = 34}).ink(kNumeral));
-    column.child(text(pool[(size_t)s % 4]).font({.size = 40}));
+    column.children({text(numeral).font({.size = 34}).ink(kNumeral)});
+    column.children({text(pool[(size_t)s % 4]).font({.size = 40})});
   }
-  column.child(box().grow());
-  column.child(
-      text(u8"and back to its own beginning").font({.size = 46}).ink(kAccent));
+  column.children({box().grow()});
+  column.children({text(u8"and back to its own beginning")
+                       .font({.size = 46})
+                       .ink(kAccent)});
   return column;
 }
 
@@ -248,7 +249,7 @@ struct YarnMarquee final : sketch::Sketch {
     // difference between them is which rail carries it.
     if (ctx.fonts) {
       const sk_sp<SkPicture> picture =
-          snapshot(box().child(banner((float)kBannerPx)), *ctx.fonts,
+          snapshot(box().children({banner((float)kBannerPx)}), *ctx.fonts,
                    {(float)kAcrossPx, (float)kBannerPx});
       sk_sp<SkSurface> surface =
           SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kAcrossPx, kBannerPx));

@@ -77,17 +77,17 @@ world::Element set(float seconds) {
           .lookAt(kEye);
 
   world::Element root;
-  root.key("set")
-      .child(world::Element().key("sun").light(world::light::sun(
-          {-0.4f, -0.85f, -0.35f}, {0.95f, 0.96f, 1.0f, 1.0f}, 0.9f)))
-      .child(world::Element()
-                 .key("plate")
-                 .at({0, -120, 0})
-                 .rotateX(-90.0f)
-                 .mesh(gm::quad(760, 760))
-                 .fill(material::kit::surface(
-                     {.baseColor = {0.09f, 0.10f, 0.13f, 1.0f}}))
-                 .tag("ground"));
+  root.key("set").children(
+      {world::Element().key("sun").light(world::light::sun(
+           {-0.4f, -0.85f, -0.35f}, {0.95f, 0.96f, 1.0f, 1.0f}, 0.9f)),
+       world::Element()
+           .key("plate")
+           .at({0, -120, 0})
+           .rotateX(-90.0f)
+           .mesh(gm::quad(760, 760))
+           .fill(material::kit::surface(
+               {.baseColor = {0.09f, 0.10f, 0.13f, 1.0f}}))
+           .tag("ground")});
 
   world::Element posts;
   posts.key("posts");
@@ -97,25 +97,26 @@ world::Element set(float seconds) {
     const float angle =
         arrange::along(0.0f, kTwoPi, (size_t)i, kPosts, arrange::Turn::Closed);
     const SkPoint on = arrange::onEllipse({0, 0}, {kRing, kRing}, angle);
-    posts.child(world::Element()
-                    .key("post" + std::to_string(i))
-                    .at({on.fX, -84.0f, on.fY})
-                    .rotateY(angle * 57.2957795f)
-                    .mesh(gm::superellipsoid({8.0f, 40.0f, 8.0f}, 6.0f, 10, 6))
-                    .fill(material::kit::surface(
-                        {.baseColor = {0.34f, 0.37f, 0.46f, 1.0f}}))
-                    .tag("lit"));
+    posts.children(
+        {world::Element()
+             .key("post" + std::to_string(i))
+             .at({on.fX, -84.0f, on.fY})
+             .rotateY(angle * 57.2957795f)
+             .mesh(gm::superellipsoid({8.0f, 40.0f, 8.0f}, 6.0f, 10, 6))
+             .fill(material::kit::surface(
+                 {.baseColor = {0.34f, 0.37f, 0.46f, 1.0f}}))
+             .tag("lit")});
   }
-  root.child(std::move(posts));
+  root.children({std::move(posts)});
 
-  root.child(world::Element()
-                 .key("comet")
-                 .chain(comet)
-                 .stamp(gm::quad(8.9f, 8.9f))
-                 .window(head, 0.22f)
-                 .fill(material::kit::surface(
-                     {.baseColor = {1.0f, 0.72f, 0.34f, 1.0f}}))
-                 .tag("glow"));
+  root.children({world::Element()
+                     .key("comet")
+                     .chain(comet)
+                     .stamp(gm::quad(8.9f, 8.9f))
+                     .window(head, 0.22f)
+                     .fill(material::kit::surface(
+                         {.baseColor = {1.0f, 0.72f, 0.34f, 1.0f}}))
+                     .tag("glow")});
   return root;
 }
 

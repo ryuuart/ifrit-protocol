@@ -188,7 +188,7 @@ Element specimen(float x, float y, float w, float h,
       .height(h)
       .shape(std::move(shape))
       .stroke(std::move(dec))
-      .child(call(label).absolute().left(0).top(h + labelDy));
+      .children({call(label).absolute().left(0).top(h + labelDy)});
 }
 
 /** The same, with no caption (for the rings, which are captioned outside
@@ -230,8 +230,8 @@ Element sectionTitle(float x, float y, const char* n, const char* name) {
       .row()
       .gap(11)
       .alignItems(Align::Baseline)
-      .child(romanBold(n, 15, kRed, 1.0f))
-      .child(romanBold(name, 12, kInk, 2.2f));
+      .children(
+          {romanBold(n, 15, kRed, 1.0f), romanBold(name, 12, kInk, 2.2f)});
 }
 
 // ---------------------------------------------------------------------------

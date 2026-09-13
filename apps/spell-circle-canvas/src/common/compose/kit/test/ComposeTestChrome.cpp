@@ -29,8 +29,11 @@ constexpr int kX = 20, kY = 20, kW = 100, kH = 60;
  *  overlay — over the fill, under nothing, which is the slot a bevel
  *  wants. */
 Element panel(const kit::Bevel& b) {
-  return box().padding(kX).child(
-      box().width(Dimension(kW)).height(Dimension(kH)).fill(kFace).overlay(b));
+  return box().padding(kX).children({box()
+                                         .width(Dimension(kW))
+                                         .height(Dimension(kH))
+                                         .fill(kFace)
+                                         .overlay(b)});
 }
 
 /** The pixel at (x, y) of the FACE's own coordinates. */
@@ -180,8 +183,8 @@ TEST(KitChrome, DressingAPanelPutsTheInnerRingOverItsContent) {
       kit::bevelled(face, b);
     else
       face.overlay(b);
-    face.child(box().grow(1).fill(SkColor4f{1, 0, 1, 1}));
-    return box().padding(kX).child(std::move(face));
+    face.children({box().grow(1).fill(SkColor4f{1, 0, 1, 1})});
+    return box().padding(kX).children({std::move(face)});
   };
 
   Host dressed(140, 100);
@@ -300,12 +303,12 @@ TEST(KitChrome, AMaskedMitredRingDrawsOnlyTheSidesItNames) {
 
 TEST(KitChrome, AStippleTakesEveryOtherCellAndLeavesTheRest) {
   Host host(140, 100);
-  host.composer.render(
-      box().padding(kX).child(box()
-                                  .width(Dimension(kW))
-                                  .height(Dimension(kH))
-                                  .fill(kFace)
-                                  .overlay(styles::stipple({1, 0, 0, 1}))));
+  host.composer.render(box().padding(kX).children(
+      {box()
+           .width(Dimension(kW))
+           .height(Dimension(kH))
+           .fill(kFace)
+           .overlay(styles::stipple({1, 0, 0, 1}))}));
   host.frame();
   // stipple(x, y) = (x + y) is even, at one pixel per cell.
   for (int y = 0; y < 4; ++y)
@@ -331,12 +334,12 @@ TEST(KitChrome, ADitherTakesAsManyCellsAsItsToneAsksFor) {
 
 TEST(KitChrome, ThePixelLatticeStippleDrawsInsideTheOutline) {
   Host host(140, 100);
-  host.composer.render(
-      box().padding(kX).child(box()
-                                  .width(Dimension(kW))
-                                  .height(Dimension(kH))
-                                  .fill(kFace)
-                                  .overlay(styles::stipple({1, 0, 0, 1}))));
+  host.composer.render(box().padding(kX).children(
+      {box()
+           .width(Dimension(kW))
+           .height(Dimension(kH))
+           .fill(kFace)
+           .overlay(styles::stipple({1, 0, 0, 1}))}));
   host.frame();
   // Nothing outside the face: a tile drawn over the bounds and clipped to
   // nothing would flood the host.
@@ -422,11 +425,11 @@ TEST(KitChrome, TheThemeCarriesTheEraToEveryPanelUnderIt) {
   // else, which is the whole point of the token set.
   const auto describe = [](kit::Bevel era) {
     const sigil::core::environment::Provide<kit::Bevel> bound(era);
-    return box().padding(kX).child(box()
-                                       .width(Dimension(kW))
-                                       .height(Dimension(kH))
-                                       .fill(kFace)
-                                       .overlay(kit::ambientBevel()));
+    return box().padding(kX).children({box()
+                                           .width(Dimension(kW))
+                                           .height(Dimension(kH))
+                                           .fill(kFace)
+                                           .overlay(kit::ambientBevel())});
   };
   Host host(140, 100);
   host.composer.render(describe(plain()));
@@ -458,7 +461,7 @@ TEST(KitChrome, ABevelUnderASpanGateKeepsItsRingInsideTheShape) {
                         .fill(kFace)
                         .overlay(plain());
     panel.mask(by::spans(spans::upTo(reveal)));
-    return box().padding(kX).child(std::move(panel));
+    return box().padding(kX).children({std::move(panel)});
   };
   Host host(140, 100);
   host.composer.render(face(0.1f));

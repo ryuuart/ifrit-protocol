@@ -41,7 +41,7 @@ compose::Element meter(const Meter& bar) {
     barPaint.apply(run);
     run.transformOrigin(0, 0.5f).scaleX(*bar.level);
     if (bar.corners > 0) run.corners(Corners{bar.corners});
-    rail.child(std::move(run));
+    rail.children({std::move(run)});
   } else if (filled > 0) {
     // The height is stated rather than left to the cross-axis stretch:
     // a rail is laid out in whichever direction its caller's tree runs,
@@ -52,7 +52,7 @@ compose::Element meter(const Meter& bar) {
     barPaint.apply(run);
     run.alignSelf(Align::Stretch);
     if (bar.corners > 0) run.corners(Corners{bar.corners});
-    rail.child(std::move(run));
+    rail.children({std::move(run)});
   }
 
   if (bar.label.empty() && bar.reading.empty()) return rail;
@@ -61,14 +61,15 @@ compose::Element meter(const Meter& bar) {
   if (bar.width.unit != Dimension::Unit::Auto) column.width(bar.width);
   Element head = box().row().alignItems(Align::Baseline);
   if (!bar.label.empty())
-    head.child(text(bar.label.bytes(),
-                    look.style(look.type.captionNote, look.palette.ash)));
-  head.child(box().grow(1));
+    head.children({text(bar.label.bytes(),
+                        look.style(look.type.captionNote, look.palette.ash))});
+  head.children({box().grow(1)});
   if (!bar.reading.empty())
-    head.child(text(bar.reading.bytes(),
-                    look.style(look.type.captionLabel, look.palette.figure)));
-  column.child(std::move(head));
-  column.child(std::move(rail.margin(0, look.spacing.captionNoteGap, 0, 0)));
+    head.children({text(bar.reading.bytes(), look.style(look.type.captionLabel,
+                                                        look.palette.figure))});
+  column.children({std::move(head)});
+  column.children(
+      {std::move(rail.margin(0, look.spacing.captionNoteGap, 0, 0))});
   return column;
 }
 
@@ -88,20 +89,20 @@ compose::Element gauge(const Gauge& dial) {
   };
 
   Element face = box().width(Dimension(diameter)).height(Dimension(diameter));
-  face.child(ring(dial.sweepDeg,
-                  dial.track.value_or(Fill::color(look.palette.cellGround))));
+  face.children({ring(dial.sweepDeg, dial.track.value_or(Fill::color(
+                                         look.palette.cellGround)))});
   if (swept > 0)
-    face.child(ring(dial.sweepDeg * swept,
-                    dial.bar.value_or(Fill::color(look.palette.figure))));
+    face.children({ring(dial.sweepDeg * swept,
+                        dial.bar.value_or(Fill::color(look.palette.figure)))});
   if (!dial.reading.empty())
-    face.child(box()
-                   .absolute()
-                   .inset(0)
-                   .alignItems(Align::Center)
-                   .justify(compose::Justify::Center)
-                   .child(text(dial.reading.bytes(),
-                               look.style(look.type.captionLabel,
-                                          look.palette.figure))));
+    face.children({box()
+                       .absolute()
+                       .inset(0)
+                       .alignItems(Align::Center)
+                       .justify(compose::Justify::Center)
+                       .children({text(dial.reading.bytes(),
+                                       look.style(look.type.captionLabel,
+                                                  look.palette.figure))})});
   return face;
 }
 

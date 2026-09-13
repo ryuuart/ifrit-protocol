@@ -270,8 +270,8 @@ struct HitmanVerlet final : sketch::Sketch {
   /** The A/B strip's chrome, with the instanced half riding in as a guest
    *  and the pen drawing the same 24 sticks beside it. */
   Element instancedHalf() {
-    return box().inset(0).child(
-        instancing::instances(barAtlas, barPool, instancing::Mode::Live));
+    return box().inset(0).children(
+        {instancing::instances(barAtlas, barPool, instancing::Mode::Live)});
   }
 
   void instancingStrip(Pen& pen, float x0, float y0, float a);

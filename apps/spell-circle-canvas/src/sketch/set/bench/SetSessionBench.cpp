@@ -42,17 +42,17 @@ struct Ring : Set {
   }
   world::Frame describe(float seconds) override {
     world::Element root =
-        world::Element().key("set").child(world::Element().key("sun").light(
-            world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)));
+        world::Element().key("set").children({world::Element().key("sun").light(
+            world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f))});
     for (int i = 0; i < 24; ++i) {
       const float angle = (float)i * 15.0f + seconds * 30.0f;
-      root =
-          root.child(world::Element()
-                         .key("body" + std::to_string(i))
-                         .rotateY(angle)
-                         .at({160.0f, 0, 0})
-                         .mesh(gm::superellipsoid({20, 20, 20}, 0.2f, 16, 12))
-                         .fill(sigil::material::kit::surface()));
+      root = root.children(
+          {world::Element()
+               .key("body" + std::to_string(i))
+               .rotateY(angle)
+               .at({160.0f, 0, 0})
+               .mesh(gm::superellipsoid({20, 20, 20}, 0.2f, 16, 12))
+               .fill(sigil::material::kit::surface())});
     }
     return root;
   }

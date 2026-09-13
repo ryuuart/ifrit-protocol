@@ -19,10 +19,10 @@ struct AstralTome : sketch::Sketch {
   /** A constellation's name: the serif at the chart's own size and
    *  tracking, in the page ink at the page's alpha. */
   Element name(const char* s, float x, float y) const {
-    return box().at({x, y}).child(
-        text(s)
-            .font({.face = serif, .size = 19.0f, .track = 2.4f})
-            .ink(mskia::scale(at::kInk, 1.0f, kInkAlphaOf())));
+    return box().at({x, y}).children(
+        {text(s)
+             .font({.face = serif, .size = 19.0f, .track = 2.4f})
+             .ink(mskia::scale(at::kInk, 1.0f, kInkAlphaOf()))});
   }
 
   // ------------------------------------------------------------- the plate
@@ -95,18 +95,18 @@ struct AstralTome : sketch::Sketch {
               .height(1.5f * r.mag)
               .shape(shapes::star(4, 0.26f, 0.14f))
               .fill(Fill::color(mskia::scale(at::kFieldStar, 1.0f, r.alpha)));
-      p.child(box()
-                  .inset(-60)
-                  .key(std::string("field") + std::to_string(i))
-                  .shape(shapes::lissajous(r.a, r.b, r.delta, 1600))
-                  .stroke(brush::Scatter{.art = std::move(art),
-                                         .spacing = r.spacing,
-                                         .seed = 8000u + (uint32_t)i * 37u,
-                                         .jitterAlong = r.spacing * 0.49f,
-                                         .jitterNormal = 300.0f,
-                                         .jitterScale = 0.85f,
-                                         .alignToPath = false,
-                                         .bleedPx = 330.0f}));
+      p.children({box()
+                      .inset(-60)
+                      .key(std::string("field") + std::to_string(i))
+                      .shape(shapes::lissajous(r.a, r.b, r.delta, 1600))
+                      .stroke(brush::Scatter{.art = std::move(art),
+                                             .spacing = r.spacing,
+                                             .seed = 8000u + (uint32_t)i * 37u,
+                                             .jitterAlong = r.spacing * 0.49f,
+                                             .jitterNormal = 300.0f,
+                                             .jitterScale = 0.85f,
+                                             .alignToPath = false,
+                                             .bleedPx = 330.0f})});
     }
     return p;
   }
@@ -234,28 +234,28 @@ struct AstralTome : sketch::Sketch {
     // star1.png is a BLURRED point, and its falloff is most of what makes
     // a chart read as a sky rather than as a dot diagram: the halo carries
     // further and holds more of the light than the glyph does.
-    grp.child(box().inset(0).fill(
+    grp.children({box().inset(0).fill(
         Paint::glowUnit({0.5f, 0.5f}, 0.62f,
                         {{0.0f, mskia::scale(col, 1.0f, 0.60f)},
                          {0.22f, mskia::scale(col, 1.0f, 0.30f)},
                          {0.55f, mskia::scale(col, 1.0f, 0.09f)},
-                         {1.0f, mskia::scale(col, 1.0f, 0.0f)}})));
+                         {1.0f, mskia::scale(col, 1.0f, 0.0f)}}))});
     // the glyph
-    grp.child(
-        box()
-            .rect(SkRect::MakeXYWH((side - r) * 0.5f, (side - r) * 0.5f, r, r))
-            .shape(shapes::star(4, 0.24f, 0.16f))
-            .fill(Fill::color(mskia::scale(col, 1.15f, 0.74f))));
+    grp.children(
+        {box()
+             .rect(SkRect::MakeXYWH((side - r) * 0.5f, (side - r) * 0.5f, r, r))
+             .shape(shapes::star(4, 0.24f, 0.16f))
+             .fill(Fill::color(mskia::scale(col, 1.15f, 0.74f)))});
     // the white-hot core. The one kPlus on this canvas, declared as a
     // departure on the plate: the source is GL_SRC_ALPHA/ONE_MINUS_SRC_ALPHA
     // throughout (Blending.java:23).
     const float cr = r * 0.34f;
-    grp.child(box()
-                  .rect(SkRect::MakeXYWH((side - cr) * 0.5f, (side - cr) * 0.5f,
-                                         cr, cr))
-                  .blend(SkBlendMode::kPlus)
-                  .shape(shapes::circle())
-                  .fill(Fill::color({0.92f, 0.94f, 1.0f, 0.52f})));
+    grp.children({box()
+                      .rect(SkRect::MakeXYWH((side - cr) * 0.5f,
+                                             (side - cr) * 0.5f, cr, cr))
+                      .blend(SkBlendMode::kPlus)
+                      .shape(shapes::circle())
+                      .fill(Fill::color({0.92f, 0.94f, 1.0f, 0.52f}))});
     return grp;
   }
 
@@ -305,16 +305,17 @@ struct AstralTome : sketch::Sketch {
                        .zIndex(20)
                        .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}))
                        .font({.face = mono});  // both lines are set in it
-    band.child(text("ASTRAL SORCERY · "
-                    "GuiJournalConstellationCluster, PAGE 1 OF 4")
-                   .font({.size = 13.0f, .track = 2.6f})
-                   .ink(SkColor4f{0.72f, 0.66f, 0.50f, 1.0f}));
-    band.child(text("Four charts on one page at the mod's own numbers: a "
-                    "95x95 SQUARE render box hung on an 80x110 hit cell, the "
-                    "offsetMap's zig-zag placing them, and every star's "
-                    "twinkle on its own divisor between 12 and 21.")
-                   .font({.size = 11.0f, .track = 0.4f})
-                   .ink(SkColor4f{0.50f, 0.46f, 0.38f, 1.0f}));
+    band.children({text("ASTRAL SORCERY · "
+                        "GuiJournalConstellationCluster, PAGE 1 OF 4")
+                       .font({.size = 13.0f, .track = 2.6f})
+                       .ink(SkColor4f{0.72f, 0.66f, 0.50f, 1.0f})});
+    band.children(
+        {text("Four charts on one page at the mod's own numbers: a "
+              "95x95 SQUARE render box hung on an 80x110 hit cell, the "
+              "offsetMap's zig-zag placing them, and every star's "
+              "twinkle on its own divisor between 12 and 21.")
+             .font({.size = 11.0f, .track = 0.4f})
+             .ink(SkColor4f{0.50f, 0.46f, 0.38f, 1.0f})});
     return band;
   }
 
@@ -326,23 +327,24 @@ struct AstralTome : sketch::Sketch {
       const bool sel = i == 1;  // bookmarkIndex 20 = Constellations
       const float w = 67.0f + (sel ? 0.0f : 5.0f);
       const float y = 20.0f + 18.0f * (float)i;
-      rail.child(box()
-                     .rect(SkRect::MakeXYWH(at::gx(at::kGuiW - 17.25f),
-                                            at::gy(y), at::g(w), at::g(15)))
-                     .key(std::string("bmk") + std::to_string(i))
-                     .shape(shapes::notched(at::g(9.0f), at::g(4.0f),
-                                            shapes::Corner::TopRight |
-                                                shapes::Corner::BottomRight))
-                     .fill(Paint::linearUnit(
-                         {0, 0}, {1, 0},
-                         {{0.0f, sel ? at::kLeatherWarm : at::kLeatherMid},
-                          {0.6f, mskia::scale(at::kLeatherMid, 0.8f)},
-                          {1.0f, at::kLeatherDark}}))
-                     .foreground(decorations::border(
-                         1.2f,
-                         Fill::color(
-                             mskia::scale(at::kGilt, 1.25f, sel ? 1.0f : 0.6f)),
-                         1.0f)));
+      rail.children(
+          {box()
+               .rect(SkRect::MakeXYWH(at::gx(at::kGuiW - 17.25f), at::gy(y),
+                                      at::g(w), at::g(15)))
+               .key(std::string("bmk") + std::to_string(i))
+               .shape(shapes::notched(
+                   at::g(9.0f), at::g(4.0f),
+                   shapes::Corner::TopRight | shapes::Corner::BottomRight))
+               .fill(Paint::linearUnit(
+                   {0, 0}, {1, 0},
+                   {{0.0f, sel ? at::kLeatherWarm : at::kLeatherMid},
+                    {0.6f, mskia::scale(at::kLeatherMid, 0.8f)},
+                    {1.0f, at::kLeatherDark}}))
+               .foreground(decorations::border(
+                   1.2f,
+                   Fill::color(
+                       mskia::scale(at::kGilt, 1.25f, sel ? 1.0f : 0.6f)),
+                   1.0f))});
       (void)kNames;  // the label rides 15 GUI px into a tab that starts
                      // 2.75 px from the tome's right edge: at 3x it is
                      // entirely off-canvas, so the tab bleeds and the name
@@ -381,8 +383,8 @@ struct AstralTome : sketch::Sketch {
 
     // ---- the tree -------------------------------------------------------
     Element root = box().inset(0);
-    root.child(leather().zIndex(0));
-    root.child(pagePlate().zIndex(1));
+    root.children({leather().zIndex(0)});
+    root.children({pagePlate().zIndex(1)});
 
     // THE TWINKLE. Ten divisors is the whole of it (12 + rand.nextInt(10)),
     // so ten ch::Output<float> drive 31 stars and 62 connection passes — but
@@ -435,10 +437,10 @@ struct AstralTome : sketch::Sketch {
           const int d =
               divisors[(size_t)pass * (size_t)c.linkCount + (size_t)li] -
               at::kDivMin;
-          chartLinks.child(place(linkPass(c, li, pass, lkKey++)
-                                     .mask(by::spans(spans::upTo(animate(
-                                         from(0.0f).to(1.0f), {520ms}))))
-                                     .opacity(bind(&bright[(size_t)d]))));
+          chartLinks.children({place(linkPass(c, li, pass, lkKey++)
+                                         .mask(by::spans(spans::upTo(animate(
+                                             from(0.0f).to(1.0f), {520ms}))))
+                                         .opacity(bind(&bright[(size_t)d])))});
         }
 
       // Stars. The star loop runs after both connection laps, so it picks up
@@ -446,15 +448,16 @@ struct AstralTome : sketch::Sketch {
       for (int si = 1; si <= c.starCount; ++si) {
         const int d =
             divisors[(size_t)(2 * c.linkCount + si - 1)] - at::kDivMin;
-        chartStars.child(place(starEl(c, si, stKey++)
-                                   .scale(animate(from(0.0f).to(1.0f), {380ms}))
-                                   .opacity(bind(&bright[(size_t)d]))));
+        chartStars.children(
+            {place(starEl(c, si, stKey++)
+                       .scale(animate(from(0.0f).to(1.0f), {380ms}))
+                       .opacity(bind(&bright[(size_t)d])))});
       }
-      links.child(std::move(chartLinks));
-      stars.child(std::move(chartStars));
+      links.children({std::move(chartLinks)});
+      stars.children({std::move(chartStars)});
     }
-    root.child(std::move(links));
-    root.child(std::move(stars));
+    root.children({std::move(links)});
+    root.children({std::move(stars)});
 
     // The names. Cluster:252-253 centres on x = 40 of an 80-wide cell — 7.5
     // GUI px left of the 95-wide chart — and drops the baseline at y = 90,
@@ -463,15 +466,15 @@ struct AstralTome : sketch::Sketch {
       const at::Con& c = at::kPage0[(size_t)ci];
       const SkPoint o = at::kOffsets[(size_t)ci];
       const float w = (float)std::char_traits<char>::length(c.name) * 8.6f;
-      root.child(name(c.name, at::gx(o.fX + at::kCellW * 0.5f) - w * 0.5f,
-                      at::gy(o.fY + 90.0f))
-                     .key(std::string("nm") + std::to_string(ci))
-                     .zIndex(6));
+      root.children({name(c.name, at::gx(o.fX + at::kCellW * 0.5f) - w * 0.5f,
+                          at::gy(o.fY + 90.0f))
+                         .key(std::string("nm") + std::to_string(ci))
+                         .zIndex(6)});
     }
 
-    root.child(arrow(367, 125, false, false, "arrowNext").zIndex(10));
-    root.child(arrow(197, 230, true, false, "arrowBack").zIndex(10));
-    root.child(bookmarkRail());
+    root.children({arrow(367, 125, false, false, "arrowNext").zIndex(10)});
+    root.children({arrow(197, 230, true, false, "arrowBack").zIndex(10)});
+    root.children({bookmarkRail()});
 
     // THE CAPTION BAND, outside the tome. Everything this study has to
     // say about the page — the 95-against-80 overhang, the offsetMap's
@@ -482,7 +485,7 @@ struct AstralTome : sketch::Sketch {
     // rather than of the page. The measurements live in this file's
     // header now, and what stands under the artefact is one band naming
     // what the plate is.
-    root.child(captionBand());
+    root.children({captionBand()});
 
     ctx.composer.render(root);
   }

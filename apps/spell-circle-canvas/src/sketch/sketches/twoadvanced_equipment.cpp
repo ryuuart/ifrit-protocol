@@ -237,9 +237,9 @@ struct TwoAdvancedEquipment : sketch::Sketch {
   Element topFrame() {
     using namespace teq;
     Element f = at(box(), 0, 0, kPageW, kTopH).clip();
-    f.child(at(img("ecom-topbar.gif", 790, 19), 0, 0, 790, 19));
-    f.child(at(img("ecom-logo.gif", 262, 78), 0, 19, 262, 78));
-    f.child(at(img("ecom-titleheader.gif", 511, 63), 262, 19, 511, 63));
+    f.children({at(img("ecom-topbar.gif", 790, 19), 0, 0, 790, 19)});
+    f.children({at(img("ecom-logo.gif", 262, 78), 0, 19, 262, 78)});
+    f.children({at(img("ecom-titleheader.gif", 511, 63), 262, 19, 511, 63)});
     // The four rollover buttons wrap beneath the title image. The page
     // preloads an -on.gif for each, but the archive never captured
     // those states (they only fetched on hover), so the swap is
@@ -250,14 +250,15 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     float x = 262;
     for (int i = 0; i < 4; ++i) {
       const float w = i == 3 ? 105.0f : 92.0f;
-      f.child(at(img(offs[i], w, 11), x, 82, w, 11));
+      f.children({at(img(offs[i], w, 11), x, 82, w, 11)});
       // The dwell: one second lit out of every eight, the four starting
       // 1.2 s apart, so the pointer walks the row.
       const float on0 = teq::kHoverFirst + (float)i * teq::kHoverStep;
-      f.child(at(box().fill(mskia::withAlpha(kWhite, 0.4f)), x, 82, w, 11)
-                  .opacity(motion::bind(&clock)
-                               .source(on0, on0 + teq::kHoverCycle)
-                               .square(teq::kHoverDwell / teq::kHoverCycle)));
+      f.children(
+          {at(box().fill(mskia::withAlpha(kWhite, 0.4f)), x, 82, w, 11)
+               .opacity(motion::bind(&clock)
+                            .source(on0, on0 + teq::kHoverCycle)
+                            .square(teq::kHoverDwell / teq::kHoverCycle))});
       x += w;
     }
     return f;
@@ -267,57 +268,60 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     using namespace teq;
     return at(box().fill(kWhite), 0, kTopH, kLeftW, kContentH)
         .clip()
-        .child(
-            at(img("ecom-productselectimage.jpg", 262, 266), 0, 0, 262, 266));
+        .children(
+            {at(img("ecom-productselectimage.jpg", 262, 266), 0, 0, 262, 266)});
   }
 
   /** One product: the maroon header row, the 2 px seam, the body row. */
   Element product(const teq::Product& p) {
     using namespace teq;
     Element block = box().column().width(501);
-    block.child(box()
-                    .height(15)
-                    .row()
-                    .child(box().width(13))
-                    .child(box()
-                               .width(16)
-                               .fill(kMaroon)
-                               .justify(Justify::Center)
-                               .alignItems(Align::Center)
-                               .child(img("ecom-arrowbutton.gif", 16, 15)))
-                    .child(box()
-                               .grow(1)
-                               .fill(kMaroon)
-                               .row()
-                               .alignItems(Align::Center)
-                               .padding(4, 0)
-                               .child(t(p.name, {.color = kWhite})))
-                    .child(box()
-                               .width(17)
-                               .fill(kMaroon)
-                               .justify(Justify::Center)
-                               .alignItems(Align::Center)
-                               .child(img("ecom-3dots.gif", 17, 15))));
-    block.child(box().height(2));
-    block.child(box()
-                    .row()
-                    .child(box().width(13))
-                    .child(img(p.thumb, 69, 52, hexColor(0xD8D0D0)))
-                    .child(box().width(3))
-                    .child(box()
-                               .width(416)
-                               .height(52)
-                               .fill(kRose)
-                               .column()
-                               .child(box().padding(7).child(
-                                   t(p.copy, {.color = kMaroon})))
-                               .child(box().grow(1))
-                               .child(box()
-                                          .row()
-                                          .justify(Justify::End)
-                                          .child(img("ecom-viewdetails.gif", 84,
-                                                     16)))));
-    block.child(box().height(6));
+    block.children(
+        {box()
+             .height(15)
+             .row()
+             .children({box().width(13)})
+             .children({box()
+                            .width(16)
+                            .fill(kMaroon)
+                            .justify(Justify::Center)
+                            .alignItems(Align::Center)
+                            .children({img("ecom-arrowbutton.gif", 16, 15)})})
+             .children({box()
+                            .grow(1)
+                            .fill(kMaroon)
+                            .row()
+                            .alignItems(Align::Center)
+                            .padding(4, 0)
+                            .children({t(p.name, {.color = kWhite})})})
+             .children({box()
+                            .width(17)
+                            .fill(kMaroon)
+                            .justify(Justify::Center)
+                            .alignItems(Align::Center)
+                            .children({img("ecom-3dots.gif", 17, 15)})})});
+    block.children({box().height(2)});
+    block.children(
+        {box()
+             .row()
+             .children({box().width(13)})
+             .children({img(p.thumb, 69, 52, hexColor(0xD8D0D0))})
+             .children({box().width(3)})
+             .children(
+                 {box()
+                      .width(416)
+                      .height(52)
+                      .fill(kRose)
+                      .column()
+                      .children({box().padding(7).children(
+                          {t(p.copy, {.color = kMaroon})})})
+                      .children({box().grow(1)})
+                      .children({box()
+                                     .row()
+                                     .justify(Justify::End)
+                                     .children({img("ecom-viewdetails.gif", 84,
+                                                    16)})})})});
+    block.children({box().height(6)});
     return block;
   }
 
@@ -332,17 +336,18 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     // scrolling — rows visibly compressing into one another.
     Element list =
         box().column().width(501).height(Dimension(kListH)).shrink(0);
-    list.child(box().height(1));
-    list.child(img("ecom-productselection.gif", 501, 16, kMaroon));
-    list.child(box().height(6));
-    for (const Product& p : kProducts) list.child(product(p));
-    list.child(img("ecom-breakerbar.gif", 501, 6, kMaroon));
-    list.child(box()
-                   .height(11)
-                   .row()
-                   .alignItems(Align::Center)
-                   .child(box().grow(1))
-                   .child(img("ecom-copyright.gif", 165, 11, kWhite)));
+    list.children({box().height(1)});
+    list.children({img("ecom-productselection.gif", 501, 16, kMaroon)});
+    list.children({box().height(6)});
+    for (const Product& p : kProducts) list.children({product(p)});
+    list.children({img("ecom-breakerbar.gif", 501, 6, kMaroon)});
+    list.children(
+        {box()
+             .height(11)
+             .row()
+             .alignItems(Align::Center)
+             .children({box().grow(1)})
+             .children({img("ecom-copyright.gif", 165, 11, kWhite)})});
     list.translateY(scrollEnvelope().target(0.0f, -contentOverflow));
 
     // The styled IE scrollbar: two arrow buttons and a proportional
@@ -360,8 +365,8 @@ struct TwoAdvancedEquipment : sketch::Sketch {
                                      PathFormat::Align::Inner)))
           .justify(Justify::Center)
           .alignItems(Align::Center)
-          .child(t(up ? "▴" : "▾",
-                   {.face = verdanaFace(true), .color = kSbArrow}));
+          .children({t(up ? "▴" : "▾",
+                       {.face = verdanaFace(true), .color = kSbArrow})});
     };
     const sketch::kit::Scrolled frame = scrolled();
     Element scrollbar =
@@ -379,14 +384,13 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     return at(box().fill(kWhite), kLeftW, kTopH, kPageW - kLeftW, kContentH)
         .clip()
         .row()
-        .child(box().grow(1).clip().child(list))
-        .child(scrollbar);
+        .children({box().grow(1).clip().children({list}), scrollbar});
   }
 
   Element bottomFrame() {
     using namespace teq;
     return at(box().fill(kWhite), 0, kPageH - kBottomH, kPageW, kBottomH)
-        .child(at(img("ecom-bottombar.gif", 790, 11), 0, 0, 790, 11));
+        .children({at(img("ecom-bottombar.gif", 790, 11), 0, 0, 790, 11)});
   }
 
   // =========================================================================
@@ -397,18 +401,16 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     // set in, stated once on the page; a label names its colour, and the
     // scrollbar's arrows the bold cut. Untracked, because an HTML table
     // cell had no way to say otherwise.
-    Element page = box()
-                       .width(Dimension(kPageW))
-                       .height(Dimension(kPageH))
-                       .font({.face = verdanaFace(false), .size = 10})
-                       .fill(kWhite)
-                       .child(topFrame())
-                       .child(leftFrame())
-                       .child(contentFrame())
-                       .child(bottomFrame());
-    return stack().child(at(std::move(page), 0, 0, kPageW, kPageH)
-                             .scale(2.0f)
-                             .transformOrigin(0, 0));
+    Element page =
+        box()
+            .width(Dimension(kPageW))
+            .height(Dimension(kPageH))
+            .font({.face = verdanaFace(false), .size = 10})
+            .fill(kWhite)
+            .children({topFrame(), leftFrame(), contentFrame(), bottomFrame()});
+    return stack().children({at(std::move(page), 0, 0, kPageW, kPageH)
+                                 .scale(2.0f)
+                                 .transformOrigin(0, 0)});
   }
 
   void setup(sketch::SketchContext& ctx) override {

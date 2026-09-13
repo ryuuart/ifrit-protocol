@@ -95,8 +95,9 @@ Element inheritance() {
       .gap(10)
       .font({.size = 15})
       .ink(kTeal)
-      .child(text(u8"text(utf8)"))
-      .child(box().child(box().child(box().child(text(u8"three boxes down")))));
+      .children({text(u8"text(utf8)"),
+                 box().children({box().children(
+                     {box().children({text(u8"three boxes down")})})})});
 }
 
 /** (2) One field named on one sibling; the rest still comes down. */
@@ -106,9 +107,9 @@ Element oneField() {
       .gap(6)
       .font({.size = 13})
       .ink(kPale)
-      .child(text(u8"a sibling"))
-      .child(text(u8"the size alone").font({.size = 22}))
-      .child(text(u8"a sibling"));
+      .children({text(u8"a sibling"),
+                 text(u8"the size alone").font({.size = 22}),
+                 text(u8"a sibling")});
 }
 
 /** (3) Marks that name no colour, under one ink. */
@@ -119,9 +120,9 @@ Element inkMarks() {
       .alignItems(Align::Center)
       .font({.size = 12})
       .ink(kWarm)
-      .child(box().width(58).height(58).stroke(stroke(1.5f)))
-      .child(box().width(58).height(58).fill(Fill::currentInk()))
-      .child(text(u8"and the words"));
+      .children({box().width(58).height(58).stroke(stroke(1.5f)),
+                 box().width(58).height(58).fill(Fill::currentInk()),
+                 text(u8"and the words")});
 }
 
 /** (4) THE WELL, and the divergence beside it. The left child is built
@@ -130,11 +131,8 @@ Element inkMarks() {
  *  colour out of the theme in scope while it was being built, and that
  *  read landed in its description — so the panel cannot reach it. */
 Element adoption() {
-  Element inheriting = box()
-                           .column()
-                           .gap(5)
-                           .child(text(u8"built first"))
-                           .child(text(u8"adopted after"));
+  Element inheriting = box().column().gap(5).children(
+      {text(u8"built first"), text(u8"adopted after")});
   Element lexical = [] {
     sketch::kit::Theme hot = sheetTheme();
     hot.palette.figure = kWarm;
@@ -143,9 +141,9 @@ Element adoption() {
         .column()
         .gap(5)
         .alignItems(Align::Center)
-        .child(box().width(30).height(30).corners({4}).fill(
-            Fill::color(sketch::kit::theme().palette.figure)))
-        .child(text(u8"read theme()"));
+        .children({box().width(30).height(30).corners({4}).fill(
+                       Fill::color(sketch::kit::theme().palette.figure)),
+                   text(u8"read theme()")});
   }();
   return box()
       .row()
@@ -155,8 +153,7 @@ Element adoption() {
       .fill(Fill::color(kPanel))
       .font({.size = 12})
       .ink(kPale)
-      .child(std::move(inheriting))
-      .child(std::move(lexical));
+      .children({std::move(inheriting), std::move(lexical)});
 }
 
 /** (5) A class is a named partial, resolved against the sheets in force
@@ -172,9 +169,9 @@ Element classes() {
       .gap(7)
       .font({.size = 12})
       .ink(kPale)
-      .child(text(u8"THROUGHPUT").styleClass("label"))
-      .child(text(u8"18.4").styleClass("figure"))
-      .child(text(u8"no sheet carries this").styleClass("headline"));
+      .children({text(u8"THROUGHPUT").styleClass("label"),
+                 text(u8"18.4").styleClass("figure"),
+                 text(u8"no sheet carries this").styleClass("headline")});
 }
 
 /** (6) A passage with no base inherits, run by run. */
@@ -182,13 +179,14 @@ Element richRuns() {
   return box()
       .font({.size = 14})
       .ink(kPale)
-      .child(text(weave::rich()
-                      .add(u8"inherits, then ")
-                      .add(u8"a partial run", weave::Type{.color = kWarm})
-                      .add(u8", then ")
-                      .add(u8"a total one",
-                           weave::textStyle(
-                               {.size = 10, .color = kCool, .track = 1.4f}))));
+      .children(
+          {text(weave::rich()
+                    .add(u8"inherits, then ")
+                    .add(u8"a partial run", weave::Type{.color = kWarm})
+                    .add(u8", then ")
+                    .add(u8"a total one",
+                         weave::textStyle(
+                             {.size = 10, .color = kCool, .track = 1.4f})))});
 }
 
 /** (7) A property set on a subtree, read under it, overridden nearer. */
@@ -198,9 +196,9 @@ Element properties() {
         .row()
         .gap(10)
         .alignItems(Align::Center)
-        .child(
-            box().width(26).height(26).corners({4}).fill(Fill::var("accent")))
-        .child(text(u8"ink(var(\"accent\"))").ink(var("accent")));
+        .children(
+            {box().width(26).height(26).corners({4}).fill(Fill::var("accent")),
+             text(u8"ink(var(\"accent\"))").ink(var("accent"))});
   };
   return box()
       .column()
@@ -209,15 +207,15 @@ Element properties() {
       .ink(kPale)
       .var("accent", kTeal)
       .var("gutter", Dimension(12.0f))
-      .child(box()
-                 .padding(var("gutter"))
-                 .fill(Fill::color(kPanel))
-                 .child(reader()))
-      .child(box()
-                 .var("accent", kWarm)
-                 .padding(var("gutter"))
-                 .fill(Fill::color(kPanel))
-                 .child(reader()));
+      .children({box()
+                     .padding(var("gutter"))
+                     .fill(Fill::color(kPanel))
+                     .children({reader()}),
+                 box()
+                     .var("accent", kWarm)
+                     .padding(var("gutter"))
+                     .fill(Fill::color(kPanel))
+                     .children({reader()})});
 }
 
 /** (8) A relative length measures against the font in force: a box
@@ -228,21 +226,21 @@ Element lengths() {
     return box()
         .font({.size = size})
         .ink(kPale)
-        .child(box()
-                   .padding(1_em)
-                   .fill(Fill::color(kPanel))
-                   .child(text(u8"1_em")));
+        .children({box()
+                       .padding(1_em)
+                       .fill(Fill::color(kPanel))
+                       .children({text(u8"1_em")})});
   };
   return box()
       .column()
       .gap(10)
       .alignItems(Align::Start)
-      .child(block(9))
-      .child(block(17))
-      .child(box()
-                 .font({.size = 11})
-                 .ink(kTeal)
-                 .child(text(u8"1.5_em of 11 px").font({.size = 1.5_em})));
+      .children(
+          {block(9), block(17),
+           box()
+               .font({.size = 11})
+               .ink(kTeal)
+               .children({text(u8"1.5_em of 11 px").font({.size = 1.5_em})})});
 }
 
 /** (9) The node that declares the ink eases it, and everything under it
@@ -258,9 +256,9 @@ Element crossFade(bool cooled) {
       .font({.size = 12})
       .ink(cooled ? kCool : kWarm)
       .transition({.duration = kFade})
-      .child(text(u8"everything under it"))
-      .child(box().height(26).stroke(stroke(1.5f)))
-      .child(box().width(60).height(26).fill(Fill::currentInk()));
+      .children({text(u8"everything under it"),
+                 box().height(26).stroke(stroke(1.5f)),
+                 box().width(60).height(26).fill(Fill::currentInk())});
 }
 
 // ------------------------------------------------------------- the pen
@@ -273,39 +271,40 @@ Element penCell() {
       .padding(kPad)
       .font({.size = 13})
       .ink(kTeal)
-      .child(compose::pen("cascade.pen",
-                          [](Pen& pen) {
-                            pen.noStroke();
-                            pen.circle(30, 32, 44);
-                            pen.text("no fill, no textFont", 70, 38);
-                            pen.push();
-                            pen.fill(kWarm);
-                            pen.circle(30, 104, 44);
-                            pen.text("pen.fill in a push", 70, 100);
-                            pen.pop();
-                            pen.circle(216, 104, 26);
-                          })
-                 .width(kCell - 2 * kPad)
-                 .height(kBody - 2 * kPad));
+      .children({compose::pen("cascade.pen",
+                              [](Pen& pen) {
+                                pen.noStroke();
+                                pen.circle(30, 32, 44);
+                                pen.text("no fill, no textFont", 70, 38);
+                                pen.push();
+                                pen.fill(kWarm);
+                                pen.circle(30, 104, 44);
+                                pen.text("pen.fill in a push", 70, 100);
+                                pen.pop();
+                                pen.circle(216, 104, 26);
+                              })
+                     .width(kCell - 2 * kPad)
+                     .height(kBody - 2 * kPad)});
 }
 
 /** (11) The kept canvas: the same door, onto pixels that stand between
  *  frames. A translucent ground each frame is p5's trail, which the
  *  repainting pen above cannot do at all. */
 Element trailCell() {
-  return box().padding(kPad).ink(kTeal).child(
-      compose::graphics("cascade.trail",
-                        [](Pen& pen) {
-                          pen.background(kPanel.fR * 255, kPanel.fG * 255,
-                                         kPanel.fB * 255, kTrail);
-                          const float t = (float)pen.millis() / 1000.0f * kSpin;
-                          pen.noStroke();
-                          pen.circle(pen.width * 0.5f + std::cos(t) * kOrbit,
-                                     pen.height * 0.5f + std::sin(t) * kOrbit,
-                                     16);
-                        })
-          .width(kCell - 2 * kPad)
-          .height(kBody - 2 * kPad));
+  return box().padding(kPad).ink(kTeal).children(
+      {compose::graphics("cascade.trail",
+                         [](Pen& pen) {
+                           pen.background(kPanel.fR * 255, kPanel.fG * 255,
+                                          kPanel.fB * 255, kTrail);
+                           const float t =
+                               (float)pen.millis() / 1000.0f * kSpin;
+                           pen.noStroke();
+                           pen.circle(pen.width * 0.5f + std::cos(t) * kOrbit,
+                                      pen.height * 0.5f + std::sin(t) * kOrbit,
+                                      16);
+                         })
+           .width(kCell - 2 * kPad)
+           .height(kBody - 2 * kPad)});
 }
 
 // ------------------------------------------------- the lexical channel
@@ -320,7 +319,7 @@ struct Accent {
 
 /** Handed nothing, and four plain containers below whatever bound one. */
 Element chip(int depth = 3) {
-  if (depth > 0) return box().padding(2).child(chip(depth - 1));
+  if (depth > 0) return box().padding(2).children({chip(depth - 1)});
   return box().width(44).height(20).corners({4}).fill(
       Fill::color(environment::inheritedOr(Accent{}).colour));
 }
@@ -331,25 +330,22 @@ Element lexicalChannel() {
   Element none = chip();
   Element outer = [] {
     const environment::Provide<Accent> bound(Accent{kTeal});
-    return box().row().gap(8).child(chip()).child(chip());
+    return box().row().gap(8).children({chip(), chip()});
   }();
   Element shadowed = [] {
     const environment::Provide<Accent> bound(Accent{kTeal});
     Element before = chip();
     const environment::Provide<Accent> nested(Accent{kWarm});
-    return box().row().gap(8).child(std::move(before)).child(chip());
+    return box().row().gap(8).children({std::move(before), chip()});
   }();
   return box()
       .column()
       .gap(5)
       .font({.size = 10})
       .ink(kPale)
-      .child(text(u8"nothing bound: chip()'s own default"))
-      .child(std::move(none))
-      .child(text(u8"one Provide, four levels up"))
-      .child(std::move(outer))
-      .child(text(u8"an inner Provide shadows it"))
-      .child(std::move(shadowed));
+      .children({text(u8"nothing bound: chip()'s own default"), std::move(none),
+                 text(u8"one Provide, four levels up"), std::move(outer),
+                 text(u8"an inner Provide shadows it"), std::move(shadowed)});
 }
 
 // --------------------------------------------------------- the furniture
@@ -362,7 +358,7 @@ Element cell(const char* call, const char* note, Element body,
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kBody, .padding = padding})
-          .child(std::move(body)));
+          .children({std::move(body)}));
 }
 
 Element row(std::vector<Element> four) {

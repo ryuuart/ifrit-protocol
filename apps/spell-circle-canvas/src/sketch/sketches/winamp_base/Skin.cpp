@@ -104,7 +104,7 @@ auto WinampBase::key(float x, float y, float w, float h, Element glyph)
   kit::bevelled(e, edge);
   // the lettering on any key is set in the one dark ink
   e.ink(kLabel);
-  e.child(std::move(glyph));
+  e.children({std::move(glyph)});
   return e;
 }
 
@@ -121,7 +121,7 @@ auto WinampBase::textKey(float x, float y, float w, float h, const char* label,
   using namespace wa;
   Element e = key(x, y, w, h, box());
   e.justify(Justify::Center).alignItems(Align::Center);
-  e.child(t(label, pix(cell)));
+  e.children({t(label, pix(cell))});
   return e;
 }
 
@@ -139,23 +139,24 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
   // grip hairlines either side of the wordmark
   const float gripW = wide ? 100.0f : 52.0f;
   const float gy = (hN - 7.0f) * 0.5f;
-  bar.child(at(box(), 24, gy, gripW, 7).fill(gripTile.material()));
-  bar.child(at(box(), wN - 24 - gripW, gy, gripW, 7).fill(gripTile.material()));
+  bar.children({at(box(), 24, gy, gripW, 7).fill(gripTile.material())});
+  bar.children(
+      {at(box(), wN - 24 - gripW, gy, gripW, 7).fill(gripTile.material())});
 
   // the wordmark, and the easter egg crossfaded over it
   Element mark = at(box(), 0, (hN - 8) * 0.5f, wN, 8)
                      .justify(Justify::Center)
                      .alignItems(Align::Center);
-  mark.child(
-      t(label, pix(6.6f, true, 1.7f)).opacity(motion::bind(&llama).invert()));
-  bar.child(mark);
+  mark.children(
+      {t(label, pix(6.6f, true, 1.7f)).opacity(motion::bind(&llama).invert())});
+  bar.children({mark});
   Element egg = at(box(), 0, (hN - 8) * 0.5f, wN, 8)
                     .justify(Justify::Center)
                     .alignItems(Align::Center);
-  egg.child(t("IT REALLY WHIPS THE LLAMA'S ASS!", pix(5.2f, true, 0.7f))
-                .opacity(&llama)
-                .scale(&llamaPop));
-  bar.child(egg);
+  egg.children({t("IT REALLY WHIPS THE LLAMA'S ASS!", pix(5.2f, true, 0.7f))
+                    .opacity(&llama)
+                    .scale(&llamaPop)});
+  bar.children({egg});
 
   // Window buttons, native 9x9, at the right-hand offsets the SDK pins
   // them to; each is centred in whatever bar height it is given.
@@ -165,13 +166,13 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
                     .justify(Justify::Center)
                     .alignItems(Align::Center);
     raised(b, mskia::withAlpha(hexColor(0x5A5A82), 0.8f), hexColor(0x0E0E16));
-    b.child(t(g, pix(3.6f)));
+    b.children({t(g, pix(3.6f))});
     return b;
   };
   if (!wide)
-    bar.child(wbtn(6, "-"));  // the option/context menu, native 9x9 at x=6
-  if (hasMin) bar.child(wbtn(wN - 31, "_"));
-  bar.child(wbtn(wN - 21, "="));
-  bar.child(wbtn(wN - 11, "x"));
+    bar.children({wbtn(6, "-")});  // the option/context menu, native 9x9 at x=6
+  if (hasMin) bar.children({wbtn(wN - 31, "_")});
+  bar.children({wbtn(wN - 21, "=")});
+  bar.children({wbtn(wN - 11, "x")});
   return bar;
 }

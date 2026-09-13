@@ -147,7 +147,7 @@ void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
       sk_sp<SkPicture> own;
       if (stampAt && ctx.fonts)
         if (std::optional<Element> e = stampAt(sample, index))
-          own = snapshot(box().child(std::move(*e)), *ctx.fonts);
+          own = snapshot(box().children({std::move(*e)}), *ctx.fonts);
       const sk_sp<SkPicture>& art = own ? own : stampPicture;
       canvas.save();
       canvas.translate(pos.x(), pos.y());

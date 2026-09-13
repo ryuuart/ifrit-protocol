@@ -22,7 +22,7 @@ TEST(ComposeInstances, StampsAtlasCellsAtPoolPositionsWithTint) {
     ASSERT_TRUE(atlas->image()->readPixels(nullptr, probe.pixmap(), 20, 20));
     EXPECT_EQ(probe.getColor(0, 0), SK_ColorWHITE);
   }
-  host.composer.render(box().child(instances(atlas, pool)));
+  host.composer.render(box().children({instances(atlas, pool)}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorWHITE);
   EXPECT_EQ(host.pixel(150, 50), SK_ColorRED);
@@ -36,7 +36,7 @@ TEST(ComposeInstances, DataModePrunesUntilTouched) {
   atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {16, 16});
   auto pool = std::make_shared<Pool>();
   pool->add({40, 40});
-  auto describe = [&] { return box().child(instances(atlas, pool)); };
+  auto describe = [&] { return box().children({instances(atlas, pool)}); };
   host.composer.render(describe());
   host.frame();
   // Unchanged pool: the re-describe prunes (memo hit), the cached picture
@@ -63,7 +63,7 @@ TEST(ComposeInstances, LiveModeReadsThePoolEveryFrame) {
   atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {16, 16});
   auto pool = std::make_shared<Pool>();
   pool->add({40, 40});
-  host.composer.render(box().child(instances(atlas, pool, Mode::Live)));
+  host.composer.render(box().children({instances(atlas, pool, Mode::Live)}));
   host.frame();
   EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE);
   // No touch(), no render() — the Cache::None leaf reads the latest data.
@@ -88,8 +88,8 @@ TEST(ComposeInstances, ThePerSpriteBlendAccumulatesWhereALayerCannot) {
     auto pool = std::make_shared<instancing::Pool>();
     for (int i = 0; i < 3; ++i)  // three sprites stacked on one spot
       pool->add({100, 100});
-    return box().absolute().inset(0).child(
-        instancing::instances(atlas, pool, instancing::Mode::Data, blend));
+    return box().absolute().inset(0).children(
+        {instancing::instances(atlas, pool, instancing::Mode::Data, blend)});
   };
 
   Host over(200, 200);
@@ -127,8 +127,8 @@ TEST(ComposeInstances, ThePerInstanceSizeLaneCarriesNonUniformScale) {
       pool->sizes()[0] = {4.0f, 0.25f};  // 80 x 5 — a streak
       pool->commit();
     }
-    return box().absolute().inset(0).child(
-        instancing::instances(atlas, pool, instancing::Mode::Data));
+    return box().absolute().inset(0).children(
+        {instancing::instances(atlas, pool, instancing::Mode::Data)});
   };
   auto redSpan = [](Host& host, bool horizontal) {
     int n = 0;
@@ -165,8 +165,8 @@ TEST(ComposeInstances, ANonUniformInstanceStillRotatesAboutItsCentre) {
   pool->commit();
 
   Host host(200, 200);
-  host.composer.render(box().absolute().inset(0).child(
-      instancing::instances(atlas, pool, instancing::Mode::Data)));
+  host.composer.render(box().absolute().inset(0).children(
+      {instancing::instances(atlas, pool, instancing::Mode::Data)}));
   host.frame();
   int across = 0, down = 0;
   for (int i = 0; i < 200; ++i) {
@@ -188,18 +188,15 @@ TEST(ComposeInstances, TheAtlasChoosesItsOwnFilter) {
     // A cell that is half red, half green: magnified, linear invents a
     // blend band across the seam and nearest does not.
     atlas->cell(
-        box()
-            .width(16)
-            .height(16)
-            .row()
-            .child(box().width(8).height(16).fill(Fill::color({1, 0, 0, 1})))
-            .child(box().width(8).height(16).fill(Fill::color({0, 1, 0, 1}))),
+        box().width(16).height(16).row().children(
+            {box().width(8).height(16).fill(Fill::color({1, 0, 0, 1})),
+             box().width(8).height(16).fill(Fill::color({0, 1, 0, 1}))}),
         {16, 16});
     auto pool = std::make_shared<instancing::Pool>();
     pool->add({100, 100}, 0, 0.0f, 8.0f);  // 8x magnification
     Host host(200, 200);
-    host.composer.render(box().absolute().inset(0).child(
-        instancing::instances(atlas, pool, instancing::Mode::Data)));
+    host.composer.render(box().absolute().inset(0).children(
+        {instancing::instances(atlas, pool, instancing::Mode::Data)}));
     host.frame();
     int mixed = 0;
     for (int x = 85; x < 115; ++x) {
@@ -231,8 +228,8 @@ TEST(ComposeInstances, VariantsAreConsecutiveBakesOfOneRecipe) {
   for (int v = 0; v < 3; ++v) frames[v] = first + v;
   pool->commit();
   Host host(200, 200);
-  host.composer.render(box().absolute().inset(0).child(
-      instancing::instances(atlas, pool, instancing::Mode::Data)));
+  host.composer.render(box().absolute().inset(0).children(
+      {instancing::instances(atlas, pool, instancing::Mode::Data)}));
   host.frame();
   const unsigned r0 = SkColorGetR(host.pixel(30, 30));
   const unsigned r1 = SkColorGetR(host.pixel(90, 30));
@@ -257,8 +254,8 @@ TEST(ComposeInstances, AddAfterAlphasKeepsEveryFade) {
   EXPECT_FLOAT_EQ(pool->alphas()[0], 0.5f);  // the fade survives the append
   EXPECT_FLOAT_EQ(pool->alphas()[1], 1.0f);  // the new instance is opaque
   Host host(200, 200);
-  host.composer.render(box().absolute().inset(0).child(
-      instancing::instances(atlas, pool, instancing::Mode::Data)));
+  host.composer.render(box().absolute().inset(0).children(
+      {instancing::instances(atlas, pool, instancing::Mode::Data)}));
   host.frame();
   const unsigned faded = SkColorGetR(host.pixel(40, 40));
   const unsigned opaque = SkColorGetR(host.pixel(120, 40));
@@ -342,16 +339,12 @@ TEST(ComposeInstances, APerInstanceUVWindowAddressesInsideACell) {
   auto atlas = std::make_shared<instancing::Atlas>(1.0f);
   atlas->filter(SkFilterMode::kNearest);
   // One cell, four vertical quarters: red, green, blue, white.
-  atlas->cell(
-      box()
-          .width(16)
-          .height(64)
-          .column()
-          .child(box().width(16).height(16).fill(Fill::color({1, 0, 0, 1})))
-          .child(box().width(16).height(16).fill(Fill::color({0, 1, 0, 1})))
-          .child(box().width(16).height(16).fill(Fill::color({0, 0, 1, 1})))
-          .child(box().width(16).height(16).fill(Fill::color({1, 1, 1, 1}))),
-      {16, 64});
+  atlas->cell(box().width(16).height(64).column().children(
+                  {box().width(16).height(16).fill(Fill::color({1, 0, 0, 1})),
+                   box().width(16).height(16).fill(Fill::color({0, 1, 0, 1})),
+                   box().width(16).height(16).fill(Fill::color({0, 0, 1, 1})),
+                   box().width(16).height(16).fill(Fill::color({1, 1, 1, 1}))}),
+              {16, 64});
 
   auto quarterAt = [&](float top) {
     auto pool = std::make_shared<instancing::Pool>();
@@ -360,8 +353,8 @@ TEST(ComposeInstances, APerInstanceUVWindowAddressesInsideACell) {
     pool->sizes()[0] = {1.0f, 0.25f};  // draw the window at its own aspect
     pool->commit();
     Host host(200, 200);
-    host.composer.render(box().absolute().inset(0).child(
-        instancing::instances(atlas, pool, instancing::Mode::Data)));
+    host.composer.render(box().absolute().inset(0).children(
+        {instancing::instances(atlas, pool, instancing::Mode::Data)}));
     host.frame();
     return host.pixel(100, 100);
   };
@@ -457,7 +450,9 @@ TEST(ComposeInstances, ACellRegisteredAfterTheFirstDrawIsDrawn) {
   atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {16, 16});
   auto pool = std::make_shared<Pool>();
   pool->add({40, 40});
-  const auto describe = [&] { return box().child(instances(atlas, pool)); };
+  const auto describe = [&] {
+    return box().children({instances(atlas, pool)});
+  };
   host.composer.render(describe());
   host.frame();
   EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE);

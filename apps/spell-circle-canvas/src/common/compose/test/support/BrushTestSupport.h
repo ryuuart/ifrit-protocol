@@ -47,14 +47,15 @@ Element expensivePanel() {
       material::skia::Paint::sksl(heavyEffect(false)));
   for (int i = 0; i < 220; ++i) {
     const float t = (float)i / 220.0f;
-    panel.child(box()
-                    .absolute()
-                    .left(4 + t * 170)
-                    .top(2)
-                    .width(2)
-                    .height(176)
-                    .fill(i % 2 ? green() : red())
-                    .foreground(stroke(0.7f, Fill::color({1, 1, 1, 0.5f}))));
+    panel.children(
+        {box()
+             .absolute()
+             .left(4 + t * 170)
+             .top(2)
+             .width(2)
+             .height(176)
+             .fill(i % 2 ? green() : red())
+             .foreground(stroke(0.7f, Fill::color({1, 1, 1, 0.5f})))});
   }
   return panel;
 }

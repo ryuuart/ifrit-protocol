@@ -125,11 +125,11 @@ struct Thaumonomicon : sketch::Sketch {
     }));
     // Paper tooth: the luminance grain, held back so it shades instead of
     // shouting. Inside the Cache::Texture bake, so its pixels are paid once.
-    e.child(box()
-                .inset(0)
-                .opacity(0.42f)
-                .blend(SkBlendMode::kOverlay)
-                .fill(Paint::recipe(field::grain(0.06f, 5, 3.0f))));
+    e.children({box()
+                    .inset(0)
+                    .opacity(0.42f)
+                    .blend(SkBlendMode::kOverlay)
+                    .fill(Paint::recipe(field::grain(0.06f, 5, 3.0f)))});
     return e;
   }
 
@@ -256,12 +256,12 @@ struct Thaumonomicon : sketch::Sketch {
       wrap.opacity(0.3f);
 
     const uint32_t seed = (uint32_t)(n.col * 31 + n.row * 17 + 101);
-    wrap.child(plateArt(n.meta, seed, spatter[0]).inset(g(2)));
-    if (n.meta & kSpiky) wrap.child(spikyOverlay(seed + 7));
-    wrap.child(iconEl(glyphs[(size_t)n.icon], n.state == kLocked ? 0.6f : 1.0f,
-                      n.state == kLocked)
-                   .left(g(8))
-                   .top(g(8)));
+    wrap.children({plateArt(n.meta, seed, spatter[0]).inset(g(2))});
+    if (n.meta & kSpiky) wrap.children({spikyOverlay(seed + 7)});
+    wrap.children({iconEl(glyphs[(size_t)n.icon],
+                          n.state == kLocked ? 0.6f : 1.0f, n.state == kLocked)
+                       .left(g(8))
+                       .top(g(8))});
     return wrap;
   }
 
@@ -275,10 +275,11 @@ struct Thaumonomicon : sketch::Sketch {
     Element g0 = box().inset(0);
     if (culled(n.col, n.row)) return g0;
     if (n.flagResearch)
-      g0.child(
-          researchBadge().centerAt({tlx - g(9) + g(8), tly - g(9) + g(8)}));
+      g0.children(
+          {researchBadge().centerAt({tlx - g(9) + g(8), tly - g(9) + g(8)})});
     if (n.flagPage)
-      g0.child(pageBadge().centerAt({tlx - g(9) + g(6), tly + g(9) + g(7)}));
+      g0.children(
+          {pageBadge().centerAt({tlx - g(9) + g(6), tly + g(9) + g(7)})});
     return g0;
   }
 
@@ -384,20 +385,20 @@ struct Thaumonomicon : sketch::Sketch {
     for (int i = 0; i < 7; ++i) {
       const float y = 10.0f + (float)(i + 1) * 24.0f;
       const bool selected = i == 2;  // ALCHEMY
-      rail.child(cornerPlate(selected ? SkColor4f{0.6f, 1.0f, 1.0f, 1}
-                                      : SkColor4f{1, 1, 1, 1})
-                     .left(g(-2 - 1))
-                     .top(g(y - 3 - 1))
-                     .opacity(selected ? 1.0f : 0.86f));
+      rail.children({cornerPlate(selected ? SkColor4f{0.6f, 1.0f, 1.0f, 1}
+                                          : SkColor4f{1, 1, 1, 1})
+                         .left(g(-2 - 1))
+                         .top(g(y - 3 - 1))
+                         .opacity(selected ? 1.0f : 0.86f)});
       const Category& cat = kCats[i];
-      rail.child(box()
-                     .left(g(1))
-                     .top(g(y))
-                     .width(g(16))
-                     .height(g(16))
-                     .opacity(selected ? 1.0f : 0.8f)
-                     .background(prog(
-                         [cat, selected](SkCanvas& c, const PaintContext&) {
+      rail.children({box()
+                         .left(g(1))
+                         .top(g(y))
+                         .width(g(16))
+                         .height(g(16))
+                         .opacity(selected ? 1.0f : 0.8f)
+                         .background(prog([cat, selected](SkCanvas& c,
+                                                          const PaintContext&) {
                            const kit::PixelInk k{c, U};
                            const SkColor4f col =
                                hexColor(cat.aspect, selected ? 1.0f : 0.66f);
@@ -442,24 +443,24 @@ struct Thaumonomicon : sketch::Sketch {
                                k.rect(7, 3, 2, 4, col);
                                break;
                            }
-                         })));
+                         }))});
     }
     // the search button (:170, UV 160,16 at x=1, y=height-17), 0.8 grey
-    rail.child(box()
-                   .left(g(1))
-                   .top(g(kGuiH - 17))
-                   .width(g(16))
-                   .height(g(16))
-                   .opacity(0.8f)
-                   .background(prog([](SkCanvas& c, const PaintContext&) {
-                     SkPaint p;
-                     p.setAntiAlias(true);
-                     p.setStyle(SkPaint::kStroke_Style);
-                     p.setStrokeWidth(g(1.6f));
-                     p.setColor4f(kBrassLit, nullptr);
-                     c.drawCircle(g(6.5f), g(6.5f), g(4.2f), p);
-                     c.drawLine(g(9.5f), g(9.5f), g(13.5f), g(13.5f), p);
-                   })));
+    rail.children({box()
+                       .left(g(1))
+                       .top(g(kGuiH - 17))
+                       .width(g(16))
+                       .height(g(16))
+                       .opacity(0.8f)
+                       .background(prog([](SkCanvas& c, const PaintContext&) {
+                         SkPaint p;
+                         p.setAntiAlias(true);
+                         p.setStyle(SkPaint::kStroke_Style);
+                         p.setStrokeWidth(g(1.6f));
+                         p.setColor4f(kBrassLit, nullptr);
+                         c.drawCircle(g(6.5f), g(6.5f), g(4.2f), p);
+                         c.drawLine(g(9.5f), g(9.5f), g(13.5f), g(13.5f), p);
+                       }))});
     return rail;
   }
 
@@ -581,15 +582,15 @@ struct Thaumonomicon : sketch::Sketch {
                         .width(g(kScreenX + 4))
                         .height(g(kScreenY + 4))
                         .clip();
-    plate.child(backdropBase()
-                    .cache(Cache::Texture)
-                    .translateX(bind(&driftX).scale(-U / 2.0f))
-                    .translateY(bind(&driftY).scale(-U / 2.0f)));
-    plate.child(backdropOver()
-                    .cache(Cache::Texture)
-                    .translateX(bind(&driftX).scale(-U / 1.5f))
-                    .translateY(bind(&driftY).scale(-U / 1.5f)));
-    root.child(std::move(plate));
+    plate.children({backdropBase()
+                        .cache(Cache::Texture)
+                        .translateX(bind(&driftX).scale(-U / 2.0f))
+                        .translateY(bind(&driftY).scale(-U / 2.0f))});
+    plate.children({backdropOver()
+                        .cache(Cache::Texture)
+                        .translateX(bind(&driftX).scale(-U / 1.5f))
+                        .translateY(bind(&driftY).scale(-U / 1.5f))});
+    root.children({std::move(plate)});
 
     // 2. the web. NOT clipped — the mod culls whole nodes at the viewport
     //    edge (:598) and lets everything else run out under the frame band,
@@ -601,7 +602,7 @@ struct Thaumonomicon : sketch::Sketch {
     for (const Node& n : kNodes)
       if (n.warp > 0 && !culled(n.col, n.row)) {
         const SkPoint c = centreOf(n.col, n.row);
-        inner.child(warpSwirl(&spin, n.warp).centerAt(c).zIndex(-1));
+        inner.children({warpSwirl(&spin, n.warp).centerAt(c).zIndex(-1)});
       }
 
     // 2b. the edges, in unlock order — staggerChildren cascades the
@@ -609,27 +610,27 @@ struct Thaumonomicon : sketch::Sketch {
     Element edges = box().inset(0).zIndex(0);
     std::vector<int> order = edgeOrder();
     int k = 0;
-    for (int i : order) edges.child(edgeEl(kEdges[i], k++));
+    for (int i : order) edges.children({edgeEl(kEdges[i], k++)});
     for (int i : order)
-      if (kEdges[i].tier != kSiblingKnown) edges.child(arrowEl(kEdges[i]));
-    inner.child(std::move(edges));
+      if (kEdges[i].tier != kSiblingKnown) edges.children({arrowEl(kEdges[i])});
+    inner.children({std::move(edges)});
 
     // 2c. the plates, then the badges at full brightness over them.
     Element plates = box().inset(0).zIndex(4);
-    for (const Node& n : kNodes) plates.child(nodePlate(n));
+    for (const Node& n : kNodes) plates.children({nodePlate(n)});
     for (const Node& n : kNodes)
-      if (n.flagResearch || n.flagPage) plates.child(nodeBadges(n));
-    inner.child(std::move(plates));
+      if (n.flagResearch || n.flagPage) plates.children({nodeBadges(n)});
+    inner.children({std::move(plates)});
 
-    root.child(std::move(inner));
+    root.children({std::move(inner)});
 
     // 3. the frame, drawn last (genResearchBackgroundFixedPost).
-    root.child(innerRule());
-    root.child(frameBand());
-    root.child(tabRail());
+    root.children({innerRule()});
+    root.children({frameBand()});
+    root.children({tabRail()});
 
     // 4. the hover tooltip, over everything including the frame.
-    root.child(tooltip());
+    root.children({tooltip()});
 
     ctx.composer.render(root);
   }

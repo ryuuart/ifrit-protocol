@@ -165,9 +165,9 @@ Element content(float w, float h) {
                                       {1.0f, {0.35f, 0.40f, 0.98f, 1}}}))
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      .child(text(u8"MATTE")
-                 .font({.size = 30, .track = 0})
-                 .ink(SkColor4f{1, 1, 1, 0.92f}));
+      .children({text(u8"MATTE")
+                     .font({.size = 30, .track = 0})
+                     .ink(SkColor4f{1, 1, 1, 0.92f})});
 }
 
 /** A panel: checkerboard, then the content, then the gate. */
@@ -176,19 +176,19 @@ Element cell(float w, float h, Element inner) {
       .width(w)
       .height(h)
       .stroke(stroke(1.0f, Fill::color(kFrame)))
-      .child(box().inset(0).fill(checker()))
-      .child(std::move(inner));
+      .children({box().inset(0).fill(checker()), std::move(inner)});
 }
 
 /** Which band is which, in the same order the run declares them. */
 Element bandLabels(float stripW) {
   Element row = box().row().width(stripW);
   for (const Band& band : kBands)
-    row.child(
-        box()
-            .width(stripW / (float)kBands.size())
-            .justify(Justify::Center)
-            .child(text(band.label).font({.size = 10, .track = 0}).ink(kDim)));
+    row.children(
+        {box()
+             .width(stripW / (float)kBands.size())
+             .justify(Justify::Center)
+             .children(
+                 {text(band.label).font({.size = 10, .track = 0}).ink(kDim)})});
   return row;
 }
 
@@ -236,22 +236,19 @@ struct MatteLuma final : sketch::Sketch {
                              gated(by::lumaOut(coverage)))},
          .gap = 12});
 
-    Element law = box()
-                      .column()
-                      .gap(6)
-                      .child(text("Rec. 601 on ENCODED values · each "
-                                  "colour paired with its 0.299 R + 0.587 G + "
-                                  "0.114 B grey twin")
-                                 .font({.size = 13, .track = 0}))
-                      .child(cell(stripW, 64, box().inset(0).fill(bands)))
-                      .child(bandLabels(stripW))
-                      .child(text("…"
-                                  "the same eight bands as a by::luma "
-                                  "matte ↓ each pair reads the SAME")
-                                 .font({.track = 0})
-                                 .ink(kDim)
-                                 .margin(0, 6, 0, 0))
-                      .child(cell(stripW, 64, std::move(bandMatted)));
+    Element law = box().column().gap(6).children(
+        {text("Rec. 601 on ENCODED values · each "
+              "colour paired with its 0.299 R + 0.587 G + "
+              "0.114 B grey twin")
+             .font({.size = 13, .track = 0}),
+         cell(stripW, 64, box().inset(0).fill(bands)), bandLabels(stripW),
+         text("…"
+              "the same eight bands as a by::luma "
+              "matte ↓ each pair reads the SAME")
+             .font({.track = 0})
+             .ink(kDim)
+             .margin(0, 6, 0, 0),
+         cell(stripW, 64, std::move(bandMatted))});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "TRACK MATTES · by::alpha / alphaOut / "

@@ -96,21 +96,21 @@ TEST(TextPass, NonRecipeMaterialRefusedAndGlyphsSurvive) {
   EXPECT_FALSE(refused);
 
   Host host;
-  host.composer.render(box().padding(30).child(
-      text(u8"REST", whiteStyle(40)).key("rest").fx({.effect = refused})));
+  host.composer.render(box().padding(30).children(
+      {text(u8"REST", whiteStyle(40)).key("rest").fx({.effect = refused})}));
   host.frame();
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(20, 20, 160, 100)));
 }
 
 TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
   Host host;
-  host.composer.render(box().padding(20).child(
-      text(u8"ABC DEF", whiteStyle(30))
-          .key("probe")
-          .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
-               .stagger = {.eachMs = 90, .durationMs = 200},
-               .unit = sigil::weave::Unit::Cluster,
-               .progress = 0.55f})));
+  host.composer.render(box().padding(20).children(
+      {text(u8"ABC DEF", whiteStyle(30))
+           .key("probe")
+           .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
+                .stagger = {.eachMs = 90, .durationMs = 200},
+                .unit = sigil::weave::Unit::Cluster,
+                .progress = 0.55f})}));
   host.frame();
 
   const std::vector<Beat> beats = host.composer.beatsOf("probe", 0);
@@ -136,17 +136,13 @@ TEST(TextPass, TwoUnitCountsInOneSessionEachDrawTheirOwn) {
   // Two nodes, two unit counts, one source: each track compiles (or finds)
   // its own specialization and both draw.
   Host host;
-  host.composer.render(
-      box()
-          .column()
-          .padding(16)
-          .gap(12)
-          .child(text(u8"AB", whiteStyle(28))
-                     .key("two")
-                     .fx({.effect = fx::pass(passOver(kIdentitySksl))}))
-          .child(text(u8"ABCDE", whiteStyle(28))
-                     .key("five")
-                     .fx({.effect = fx::pass(passOver(kIdentitySksl))})));
+  host.composer.render(box().column().padding(16).gap(12).children(
+      {text(u8"AB", whiteStyle(28))
+           .key("two")
+           .fx({.effect = fx::pass(passOver(kIdentitySksl))}),
+       text(u8"ABCDE", whiteStyle(28))
+           .key("five")
+           .fx({.effect = fx::pass(passOver(kIdentitySksl))})}));
   host.frame();
   const std::vector<Beat> two = host.composer.beatsOf("two", 0);
   const std::vector<Beat> five = host.composer.beatsOf("five", 0);
@@ -162,10 +158,10 @@ TEST(TextPass, ThePassFillsTheBoxGrownByItsReachAndNothingBeyond) {
   // green lands is exactly the pass's footprint. It must fill the node's
   // box grown by the track's reach and nothing beyond it.
   Host host;
-  host.composer.render(box().padding(60).child(
-      text(u8"IN", whiteStyle(30))
-          .key("bounded")
-          .fx({.effect = fx::pass(passOver(kFloodSksl)), .reach = 12.0f})));
+  host.composer.render(box().padding(60).children(
+      {text(u8"IN", whiteStyle(30))
+           .key("bounded")
+           .fx({.effect = fx::pass(passOver(kFloodSksl)), .reach = 12.0f})}));
   host.frame();
   const std::optional<SkRect> laidOut = host.composer.bounds("bounded");
   ASSERT_TRUE(laidOut.has_value());
@@ -199,11 +195,12 @@ TEST(TextPass, ReachGrowsBoundsWithoutMovingContent) {
                    return m;
                  });
   const auto describe = [&](float reach) {
-    return box().padding(60).child(
-        text(u8"HOIST", whiteStyle(34))
-            .key("hoist")
-            .fx({.effect = lift})
-            .fx({.effect = fx::pass(passOver(kIdentitySksl)), .reach = reach}));
+    return box().padding(60).children(
+        {text(u8"HOIST", whiteStyle(34))
+             .key("hoist")
+             .fx({.effect = lift})
+             .fx({.effect = fx::pass(passOver(kIdentitySksl)),
+                  .reach = reach})});
   };
   Host snug;
   snug.composer.render(describe(0.0f));
@@ -250,14 +247,15 @@ TEST(TextPass, ProgressAdvancesWithCascadeAndSettles) {
   // byte for byte.
   Host host;
   const auto describe = [&](float target) {
-    return box().padding(20).child(
-        text(u8"ABCD", whiteStyle(30))
-            .key("run")
-            .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
-                 .stagger = {.eachMs = 60, .durationMs = 200},
-                 .unit = sigil::weave::Unit::Cluster,
-                 .progress = animate(sigil::motion::to(target),
-                                     motion::Transition{.duration = 200ms})}));
+    return box().padding(20).children(
+        {text(u8"ABCD", whiteStyle(30))
+             .key("run")
+             .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
+                  .stagger = {.eachMs = 60, .durationMs = 200},
+                  .unit = sigil::weave::Unit::Cluster,
+                  .progress =
+                      animate(sigil::motion::to(target),
+                              motion::Transition{.duration = 200ms})})});
   };
   host.composer.render(describe(0.0f));
   host.frame();
@@ -287,19 +285,19 @@ TEST(TextPass, ComposesDownstreamOfDeviationTracks) {
                    return m;
                  });
   Host hidden;
-  hidden.composer.render(box().padding(30).child(
-      text(u8"GONE", whiteStyle(40))
-          .key("t")
-          .fx({.effect = hide})
-          .fx({.effect = fx::pass(passOver(kIdentitySksl))})));
+  hidden.composer.render(box().padding(30).children(
+      {text(u8"GONE", whiteStyle(40))
+           .key("t")
+           .fx({.effect = hide})
+           .fx({.effect = fx::pass(passOver(kIdentitySksl))})}));
   hidden.frame();
   EXPECT_FALSE(anyWhiteIn(hidden, SkIRect::MakeXYWH(10, 10, 180, 180)));
 
   Host shown;
-  shown.composer.render(box().padding(30).child(
-      text(u8"GONE", whiteStyle(40))
-          .key("t")
-          .fx({.effect = fx::pass(passOver(kIdentitySksl))})));
+  shown.composer.render(box().padding(30).children(
+      {text(u8"GONE", whiteStyle(40))
+           .key("t")
+           .fx({.effect = fx::pass(passOver(kIdentitySksl))})}));
   shown.frame();
   EXPECT_TRUE(anyWhiteIn(shown, SkIRect::MakeXYWH(10, 10, 180, 180)));
 }
@@ -308,10 +306,10 @@ TEST(TextPass, AddressedGlyphsDrawOnlyThroughTheirPass) {
   // A pass that returns transparent erases its units: were the glyphs also
   // drawn directly, the letters would still show underneath.
   Host host;
-  host.composer.render(box().padding(30).child(
-      text(u8"ERASED", whiteStyle(40))
-          .key("t")
-          .fx({.effect = fx::pass(passOver(kEraseSksl))})));
+  host.composer.render(box().padding(30).children(
+      {text(u8"ERASED", whiteStyle(40))
+           .key("t")
+           .fx({.effect = fx::pass(passOver(kEraseSksl))})}));
   host.frame();
   EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
 }
@@ -324,13 +322,13 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   const auto lettersShow = [](TextEffect effect, sigil::motion::Spread cascade,
                               float master) {
     Host host;
-    host.composer.render(
-        box().padding(30).child(text(u8"REST", whiteStyle(40))
-                                    .key("t")
-                                    .fx({.effect = std::move(effect),
-                                         .stagger = std::move(cascade),
-                                         .unit = sigil::weave::Unit::Cluster,
-                                         .progress = master})));
+    host.composer.render(box().padding(30).children(
+        {text(u8"REST", whiteStyle(40))
+             .key("t")
+             .fx({.effect = std::move(effect),
+                  .stagger = std::move(cascade),
+                  .unit = sigil::weave::Unit::Cluster,
+                  .progress = master})}));
     host.frame();
     return anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180));
   };
@@ -387,13 +385,13 @@ TEST(TextPass, RestDeclarationRidesEqualityAndNeedsAPass) {
 
 TEST(TextPass, ThePassFollowsAPathBaseline) {
   Host host;
-  host.composer.render(box().padding(10).child(
-      text(u8"AROUND THE RING", whiteStyle(22))
-          .key("ring")
-          .width(180)
-          .height(180)
-          .onPath({.path = geometry::shapes::circle()})
-          .fx({.effect = fx::pass(passOver(kIdentitySksl))})));
+  host.composer.render(box().padding(10).children(
+      {text(u8"AROUND THE RING", whiteStyle(22))
+           .key("ring")
+           .width(180)
+           .height(180)
+           .onPath({.path = geometry::shapes::circle()})
+           .fx({.effect = fx::pass(passOver(kIdentitySksl))})}));
   host.frame();
   // The identity pass hands back the curved lettering it was given.
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
@@ -403,13 +401,13 @@ TEST(TextPass, ThePassFollowsAPathBaseline) {
 
 TEST(TextPass, ThePassFollowsAVerticalColumn) {
   Host host;
-  host.composer.render(box().padding(10).child(
-      text(u8"VERTICAL", whiteStyle(22))
-          .key("col")
-          .width(160)
-          .height(180)
-          .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .fx({.effect = fx::pass(passOver(kIdentitySksl))})));
+  host.composer.render(box().padding(10).children(
+      {text(u8"VERTICAL", whiteStyle(22))
+           .key("col")
+           .width(160)
+           .height(180)
+           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .fx({.effect = fx::pass(passOver(kIdentitySksl))})}));
   host.frame();
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
   EXPECT_FALSE(host.composer.beatsOf("col", 0).empty());
@@ -439,11 +437,11 @@ sk_sp<SkRuntimeEffect> wideUniformEffect() {
 
 TEST(TextPass, WideAndArrayUniformsBindByDeclaredSize) {
   Host host;
-  host.composer.render(box().child(box().width(60).height(60).fill(
+  host.composer.render(box().children({box().width(60).height(60).fill(
       material::skia::Paint::sksl(wideUniformEffect())
           .uniform("uPair", std::array<float, 2>{1, 0})
           .uniform("uQuad", std::array<float, 4>{0, 1, 0, 0})
-          .uniform("uVals", std::vector<float>{0, 0, 1, 0}))));
+          .uniform("uVals", std::vector<float>{0, 0, 1, 0}))}));
   host.frame();
   EXPECT_EQ(host.pixel(30, 30), SK_ColorWHITE);  // all three lanes landed
 }
@@ -499,7 +497,7 @@ TEST(TextPass, UniformBlockIsLiveAndReadsOnCommit) {
 
   Host host;
   host.composer.render(
-      box().child(box().key("live").width(60).height(60).fill(live)));
+      box().children({box().key("live").width(60).height(60).fill(live)}));
   host.frame();
   EXPECT_EQ(SkColorGetB(host.pixel(30, 30)), 0u);  // uVals[2] still 0
   // An UNcommitted write changes nothing on screen: the resolve memo holds

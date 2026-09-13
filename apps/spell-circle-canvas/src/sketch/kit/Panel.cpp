@@ -25,14 +25,14 @@ compose::Element backdrop(const Backdrop& ground) {
     // The grain is a fill of its own laid over the ground rather than a
     // grained ground, so a ground that is a gradient or an image takes the
     // same grain the flat one does.
-    surface.child(box().absolute().inset(0).fill(compose::kit::grained(
-        {0.5f, 0.5f, 0.5f, 1}, ground.grain, ground.grainScale)));
+    surface.children({box().absolute().inset(0).fill(compose::kit::grained(
+        {0.5f, 0.5f, 0.5f, 1}, ground.grain, ground.grainScale))});
   }
   if (ground.vignette > 0) {
     SkColor4f edge = ground.edge.value_or(SkColor4f{0, 0, 0, 1});
     edge.fA = std::clamp(ground.vignette, 0.0f, 1.0f);
-    surface.child(box().absolute().inset(0).fill(
-        compose::kit::vignette(ground.over, edge)));
+    surface.children({box().absolute().inset(0).fill(
+        compose::kit::vignette(ground.over, edge))});
   }
   return surface;
 }
@@ -41,7 +41,7 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
   const Theme& look = theme();
   Element opening = compose::box().column().grow(1);
   chrome.screen.value_or(Fill::color(look.palette.ground)).apply(opening);
-  opening.clip().child(std::move(screen));
+  opening.clip().children({std::move(screen)});
   if (const float round =
           chrome.screenCorners.value_or(look.spacing.screenCorners);
       round > 0)
@@ -58,12 +58,12 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
   if (const float round = chrome.corners.value_or(look.spacing.panelCorners);
       round > 0)
     shell.corners(Corners{round});
-  shell.child(std::move(opening));
+  shell.children({std::move(opening)});
   if (!chrome.plate.empty())
-    shell.child(text(chrome.plate.bytes(),
-                     look.style(look.type.eyebrow, look.palette.ash))
-                    .margin(0, bezel * 0.5f, 0, 0)
-                    .alignSelf(Align::Center));
+    shell.children({text(chrome.plate.bytes(),
+                         look.style(look.type.eyebrow, look.palette.ash))
+                        .margin(0, bezel * 0.5f, 0, 0)
+                        .alignSelf(Align::Center)});
   return shell;
 }
 

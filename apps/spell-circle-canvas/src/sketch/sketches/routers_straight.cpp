@@ -78,15 +78,15 @@ Element plate(const std::string& tag, Element route) {
   wire.width = 1.6f;
   wire.strokeFill = Fill::color(sketch::kit::theme().palette.figure);
   return sketch::kit::well({.width = kCell, .height = kPicture})
-      .child(stack()
-                 .inset(0)
-                 .child(endpoint(tag + "-a", 16, 26))
-                 // The two are deliberately NOT on a 45 degree chord:
-                 // an octilinear leg would otherwise consume the whole
-                 // run and read as a straight line.
-                 .child(endpoint(tag + "-b", kCell - kNode - 16,
-                                 kPicture - 28 - 62)))
-      .child(std::move(route).inset(0).foreground(wire));
+      .children({stack()
+                     .inset(0)
+                     .children({endpoint(tag + "-a", 16, 26)})
+                     // The two are deliberately NOT on a 45 degree chord:
+                     // an octilinear leg would otherwise consume the whole
+                     // run and read as a straight line.
+                     .children({endpoint(tag + "-b", kCell - kNode - 16,
+                                         kPicture - 28 - 62)}),
+                 std::move(route).inset(0).foreground(wire)});
 }
 
 Element cell(const char* call, const char* note, const std::string& tag,

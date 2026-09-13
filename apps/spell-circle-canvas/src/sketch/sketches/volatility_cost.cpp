@@ -197,23 +197,23 @@ Element cells(const choreograph::Output<Fill>* tint) {
   auto row = box().key("cells").width(kCellsWidth).row().wrapLines().gap(2);
   for (int id = 0; id < kCells; ++id) {
     const float t = 0.20f + 0.04f * (float)(id % 6);
-    row.child(box()
-                  .key("c" + std::to_string(id))
-                  .width(26)
-                  .height(26)
-                  .shape(shapes::star(5 + id % 3, 0.45f, 0.08f))
-                  .fill(Fill::color({t, 0.45f, 0.68f, 1.0f}))
-                  .stroke(brush::solid(
-                      1.5f, Fill::color({0.95f, 0.86f, 0.55f, 1.0f}))));
+    row.children({box()
+                      .key("c" + std::to_string(id))
+                      .width(26)
+                      .height(26)
+                      .shape(shapes::star(5 + id % 3, 0.45f, 0.08f))
+                      .fill(Fill::color({t, 0.45f, 0.68f, 1.0f}))
+                      .stroke(brush::solid(
+                          1.5f, Fill::color({0.95f, 0.86f, 0.55f, 1.0f})))});
   }
-  row.child(box()
-                .key("accent")
-                .width(26)
-                .height(26)
-                .shape(shapes::star(7, 0.45f, 0.08f))
-                .fill(Animatable<Fill>(tint))
-                .stroke(brush::solid(
-                    1.5f, Fill::color({0.10f, 0.10f, 0.12f, 1.0f}))));
+  row.children({box()
+                    .key("accent")
+                    .width(26)
+                    .height(26)
+                    .shape(shapes::star(7, 0.45f, 0.08f))
+                    .fill(Animatable<Fill>(tint))
+                    .stroke(brush::solid(
+                        1.5f, Fill::color({0.10f, 0.10f, 0.12f, 1.0f})))});
   // The panel is held to the field's box so the two stand the same
   // height and the readout below them starts on one line.
   return box()
@@ -221,7 +221,7 @@ Element cells(const choreograph::Output<Fill>* tint) {
       .column()
       .width(kCellsWidth)
       .height(kFieldHeight)
-      .child(std::move(row));
+      .children({std::move(row)});
 }
 
 }  // namespace
@@ -290,24 +290,24 @@ struct VolatilityCost final : sketch::Sketch {
     std::mt19937 rng{3};
     for (int i = 0; i < kCards; ++i) {
       const float x = (float)(rng() % 570), y = (float)(rng() % 532);
-      root.child(box()
-                     .key("k" + std::to_string(i))
-                     .width(34)
-                     .height(22)
-                     .corners({4})
-                     .inset(x, y, 0, 0)
-                     .fill(Fill::color({0.09f, 0.10f, 0.16f, 1})));
+      root.children({box()
+                         .key("k" + std::to_string(i))
+                         .width(34)
+                         .height(22)
+                         .corners({4})
+                         .inset(x, y, 0, 0)
+                         .fill(Fill::color({0.09f, 0.10f, 0.16f, 1}))});
     }
     for (int i = 0; i < kMovers; ++i) {
       const float y = 12.0f + 22.0f * (float)i;
-      root.child(box()
-                     .key("m" + std::to_string(i))
-                     .width(46)
-                     .height(18)
-                     .corners({4})
-                     .inset(0, y, 0, 0)
-                     .translateX(movers[(size_t)i].get())
-                     .fill(Fill::color({0.49f, 0.91f, 1.0f, 0.8f})));
+      root.children({box()
+                         .key("m" + std::to_string(i))
+                         .width(46)
+                         .height(18)
+                         .corners({4})
+                         .inset(0, y, 0, 0)
+                         .translateX(movers[(size_t)i].get())
+                         .fill(Fill::color({0.49f, 0.91f, 1.0f, 0.8f}))});
     }
     return root;
   }
@@ -368,33 +368,30 @@ struct VolatilityCost final : sketch::Sketch {
     // stopwatch.
     const auto count = [](size_t v) { return std::to_string(v); };
     const sketch::kit::Readout how{.nameMeasure = 168};
-    return box()
-        .column()
-        .gap(3)
-        .child(
-            text("Composer::stats()").styleClass("heading").margin(0, 0, 0, 4))
-        .child(sketch::kit::readout(
-            {{u8"instances", count(frame.instances)},
-             {u8"describedNodes", count(frame.describedNodes)},
-             {u8"memoHits", count(frame.memoHits)},
-             {u8"patchedNodes", count(frame.patchedNodes)},
-             {u8"picturesLive", count(frame.picturesLive)},
-             {u8"texturesLive", count(frame.texturesLive)},
-             {u8"picturesRecorded", count(frame.picturesRecorded)},
-             {u8"texturesBaked", count(frame.texturesBaked)},
-             {u8"nodesPainted", count(frame.nodesPainted)},
-             {u8"reconcile ms", ms(ctx.measured(frame.reconcileMs))},
-             {u8"layout ms", ms(ctx.measured(frame.layoutMs))},
-             {u8"volatile ms", ms(ctx.measured(frame.volatileMs))},
-             {u8"paint ms", ms(ctx.measured(frame.paintMs))}},
-            how))
-        .child(box().height(8))
-        .child(text("the split").styleClass("heading").margin(0, 0, 0, 4))
-        .child(sketch::kit::readout(
-            {{u8"refused: Volatile", count((size_t)volatileNodes)},
-             {u8"reached a bake", count((size_t)bakedNodes)},
-             {u8"nodes profiled", count(profiled)}},
-            how));
+    return box().column().gap(3).children(
+        {text("Composer::stats()").styleClass("heading").margin(0, 0, 0, 4),
+         sketch::kit::readout(
+             {{u8"instances", count(frame.instances)},
+              {u8"describedNodes", count(frame.describedNodes)},
+              {u8"memoHits", count(frame.memoHits)},
+              {u8"patchedNodes", count(frame.patchedNodes)},
+              {u8"picturesLive", count(frame.picturesLive)},
+              {u8"texturesLive", count(frame.texturesLive)},
+              {u8"picturesRecorded", count(frame.picturesRecorded)},
+              {u8"texturesBaked", count(frame.texturesBaked)},
+              {u8"nodesPainted", count(frame.nodesPainted)},
+              {u8"reconcile ms", ms(ctx.measured(frame.reconcileMs))},
+              {u8"layout ms", ms(ctx.measured(frame.layoutMs))},
+              {u8"volatile ms", ms(ctx.measured(frame.volatileMs))},
+              {u8"paint ms", ms(ctx.measured(frame.paintMs))}},
+             how),
+         box().height(8),
+         text("the split").styleClass("heading").margin(0, 0, 0, 4),
+         sketch::kit::readout(
+             {{u8"refused: Volatile", count((size_t)volatileNodes)},
+              {u8"reached a bake", count((size_t)bakedNodes)},
+              {u8"nodes profiled", count(profiled)}},
+             how)});
   }
 
   /** THE COSTLIEST NODES, worst first, each with the tier it took and the
@@ -402,12 +399,12 @@ struct VolatilityCost final : sketch::Sketch {
    *  number lands on the node that actually costs. */
   Element costTable(const sketch::SketchContext& ctx) const {
     Element column = box().column().gap(3);
-    column.child(text(ctx.deterministic
-                          ? "Composer::profile() · self ms, by key"
-                          : "Composer::profile() · self ms, "
-                            "worst first")
-                     .styleClass("heading")
-                     .margin(0, 0, 0, 4));
+    column.children(
+        {text(ctx.deterministic ? "Composer::profile() · self ms, by key"
+                                : "Composer::profile() · self ms, "
+                                  "worst first")
+             .styleClass("heading")
+             .margin(0, 0, 0, 4)});
     std::vector<sketch::kit::Row> rows;
     rows.reserve(worst.size());
     for (const Composer::NodeCost& row : worst)
@@ -418,20 +415,24 @@ struct VolatilityCost final : sketch::Sketch {
     // The tier and the reason are the row's own quiet columns; the key
     // and the cost are what a reader is looking for, so those two carry
     // the figure register.
-    column.child(sketch::kit::table(
+    column.children({sketch::kit::table(
         std::move(rows), {.columns = {{126, true}, {46, true}, {66}, {}},
                           .gap = 8,
-                          .swatchSide = 9}));
+                          .swatchSide = 9})});
     return column;
   }
 
   Element readout(const sketch::SketchContext& ctx) const {
     if (!snapped)
-      return box().child(text("reading at " + ms(kSnapAt) + " s…")
-                             .font({.size = 12})
-                             .ink(kDim));
-    return box().column().gap(12).child(legend()).child(
-        box().row().gap(34).child(statsBlock(ctx)).child(costTable(ctx)));
+      return box().children({text("reading at " + ms(kSnapAt) + " s…")
+                                 .font({.size = 12})
+                                 .ink(kDim)});
+    return box().column().gap(12).children(
+        {legend(), box()
+                       .row()
+                       .gap(34)
+                       .children({statsBlock(ctx)})
+                       .children({costTable(ctx)})});
   }
 
   Element describe(sketch::SketchContext& ctx) {
@@ -446,27 +447,27 @@ struct VolatilityCost final : sketch::Sketch {
     return stack()
         .styleSheet(sheetClasses(look))
         .inset(0)
-        .child(tierMap())
-        .child(sketch::kit::page(
-            {.title = "THE CACHING PROOF · what every node "
-                      "did to produce its pixels",
-             .subtitle = "volatility propagates upward, so one "
-                         "bound leaf decides what its whole subtree "
-                         "costs — every keyed node is "
-                         "outlined in the tier it took, read back "
-                         "from a probe of its own at " +
-                         ms(kSnapAt) + " s",
-             .footer = "a picture records the DRAW CALLS, so "
-                       "replaying one re-runs every shader over "
-                       "every pixel; only a bake replaces that with "
-                       "a blit · numbers the sheet measured "
-                       "about itself are pinned for a diff"},
-            box()
-                .column()
-                .gap(16)
-                .child(
-                    kit::cells({.cells = {field(), cells(&tint)}, .gap = 22}))
-                .child(readout(ctx))));
+        .children({tierMap(),
+                   sketch::kit::page(
+                       {.title = "THE CACHING PROOF · what every node "
+                                 "did to produce its pixels",
+                        .subtitle = "volatility propagates upward, so one "
+                                    "bound leaf decides what its whole subtree "
+                                    "costs — every keyed node is "
+                                    "outlined in the tier it took, read back "
+                                    "from a probe of its own at " +
+                                    ms(kSnapAt) + " s",
+                        .footer = "a picture records the DRAW CALLS, so "
+                                  "replaying one re-runs every shader over "
+                                  "every pixel; only a bake replaces that with "
+                                  "a blit · numbers the sheet measured "
+                                  "about itself are pinned for a diff"},
+                       box()
+                           .column()
+                           .gap(16)
+                           .children({kit::cells(
+                               {.cells = {field(), cells(&tint)}, .gap = 22})})
+                           .children({readout(ctx)}))});
   }
 
   void setup(sketch::SketchContext& ctx) override {

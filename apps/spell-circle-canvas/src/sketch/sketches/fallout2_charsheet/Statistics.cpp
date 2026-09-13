@@ -26,16 +26,16 @@ auto Fallout2CharSheet::specialColumn() -> Element {
 
     // The two-letter gold abbreviation and its dash: measured ink 20..55,
     // 21 px tall, i.e. 2 px below the row's y. A worn engraved stencil.
-    g.child(ink(engravedText(std::string(abbr[(size_t)i]) + "-", n(29.0f),
-                             engravedCondense, 0.2f)
-                    .opacity(0.94f),
-                kAbbrX, y + 2.0f, engravedRise(n(29.0f))));
+    g.children({ink(engravedText(std::string(abbr[(size_t)i]) + "-", n(29.0f),
+                                 engravedCondense, 0.2f)
+                        .opacity(0.94f),
+                    kAbbrX, y + 2.0f, engravedRise(n(29.0f)))});
 
     // The two-digit odometer: BIG_NUM_WIDTH 14 x BIG_NUM_HEIGHT 24, white
     // digits on counter wheels with a seam across the digit. That seam is
     // what makes them read as wheels rather than as a readout, which is why
     // they animate the way they do.
-    g.child(odometer(kOdoX, y, value, "", ""));
+    g.children({odometer(kOdoX, y, value, "", "")});
 
     // The value descriptor on its dark plaque with the gold bevel along the
     // bottom-left. stat.msg 301-310, indexed by the VALUE.
@@ -48,16 +48,16 @@ auto Fallout2CharSheet::specialColumn() -> Element {
         styles::InnerShadow{hexColor(0x000000, 0.75f), {0, n(1.2f)}, n(2.0f)});
     plaque.stroke(stroke(n(1), Fill::color(hexColor(0x14100A)),
                          PathFormat::Align::Inner));
-    g.child(plaque);
+    g.children({plaque});
     // the gold L: a bar under the plaque running 4 px past its left edge,
     // and a short riser (sampled at y = 59..60, x from 96)
-    g.child(at(box(), kPlaqueX - 4, y + 22, kPlaqueW + 6, 2)
-                .fill(Paint::linearUnit(
-                    {0, 0}, {0, 1},
-                    {{0.0f, kParchLit2}, {1.0f, hexColor(0x8C6428)}})));
-    g.child(at(box(), kPlaqueX - 4, y + 15, 2, 7)
-                .fill(mskia::withAlpha(kParchLit, 0.85f)));
-    g.child(bodyAt(descriptor(value), kDescX, y + 8));
+    g.children({at(box(), kPlaqueX - 4, y + 22, kPlaqueW + 6, 2)
+                    .fill(Paint::linearUnit(
+                        {0, 0}, {0, 1},
+                        {{0.0f, kParchLit2}, {1.0f, hexColor(0x8C6428)}}))});
+    g.children({at(box(), kPlaqueX - 4, y + 15, 2, 7)
+                    .fill(mskia::withAlpha(kParchLit, 0.85f))});
+    g.children({bodyAt(descriptor(value), kDescX, y + 8)});
   }
   return g;
 }
@@ -84,13 +84,14 @@ auto Fallout2CharSheet::odometer(float x, float y, int value,
     if (c == 1 && !onesOverride.empty())
       glyph = onesOverride == " " ? "" : onesOverride;
     if (!glyph.empty())
-      wheel.child(box()
-                      .inset(0)
-                      .justify(Justify::Center)
-                      .alignItems(Align::Center)
-                      .child(t(glyph, fo::sheetType(digitFace(), n(20.0f),
-                                                    kDigit, 0, 0.98f))
-                                 .translateY(n(0.7f))));
+      wheel.children(
+          {box()
+               .inset(0)
+               .justify(Justify::Center)
+               .alignItems(Align::Center)
+               .children({t(glyph, fo::sheetType(digitFace(), n(20.0f), kDigit,
+                                                 0, 0.98f))
+                              .translateY(n(0.7f))})});
     // NO SEAM ACROSS THE DIGIT. The wheels are the mechanism and the
     // 123 ms blank is how it reads on screen, but the capture's BIG_NUM
     // glyphs are solid beige bitmaps on a dark inset with nothing across
@@ -100,7 +101,7 @@ auto Fallout2CharSheet::odometer(float x, float y, int value,
     wheel.foreground(onEdges(
         path::Edge::All, stroke(n(0.7f), Fill::color(hexColor(0x000000, 0.75f)),
                                 PathFormat::Align::Inner)));
-    g.child(wheel);
+    g.children({wheel});
   }
   return g;
 }
@@ -108,16 +109,16 @@ auto Fallout2CharSheet::odometer(float x, float y, int value,
 auto Fallout2CharSheet::statusBlock() -> Element {
   using namespace fo;
   Element g = box().inset(0);
-  g.child(bodyAt("Hit Points", 194, 46));
-  g.child(bodyAt(kit::formatted("%d/%d", stats.hitPoints, stats.hitPoints), 263,
-                 46));
+  g.children({bodyAt("Hit Points", 194, 46)});
+  g.children({bodyAt(kit::formatted("%d/%d", stats.hitPoints, stats.hitPoints),
+                     263, 46)});
   static const char* cond[7] = {"Poisoned",          "Radiated",
                                 "Eye Damage",        "Crippled Right Arm",
                                 "Crippled Left Arm", "Crippled Right Leg",
                                 "Crippled Left Leg"};
   for (int i = 0; i < 7; ++i)
-    g.child(bodyAt(cond[(size_t)i], 194, 46 + kRowPitch13 * (float)(i + 1))
-                .ink(kInactive));
+    g.children({bodyAt(cond[(size_t)i], 194, 46 + kRowPitch13 * (float)(i + 1))
+                    .ink(kInactive)});
   return g;
 }
 
@@ -150,8 +151,8 @@ auto Fallout2CharSheet::derivedBlock() -> Element {
   constexpr float kLabelCondense = 0.96f;
   for (int i = 0; i < 10; ++i) {
     const float y = 179 + kRowPitch13 * (float)i;
-    g.child(bodyAt(rows[(size_t)i].label, 194, y, kLabelCondense));
-    g.child(bodyAt(rows[(size_t)i].value, 288, y));
+    g.children({bodyAt(rows[(size_t)i].label, 194, y, kLabelCondense)});
+    g.children({bodyAt(rows[(size_t)i].value, 288, y)});
   }
   return g;
 }
@@ -159,10 +160,11 @@ auto Fallout2CharSheet::derivedBlock() -> Element {
 auto Fallout2CharSheet::levelBlock() -> Element {
   using namespace fo;
   Element g = box().inset(0);
-  g.child(bodyAt("Level: " + std::to_string(kLevel), 32, 280));
-  g.child(bodyAt("Exp: " + thousands(experienceForLevel(kLevel)), 32, 291));
-  g.child(bodyAt("Next Level: " + thousands(experienceForLevel(kLevel + 1)), 32,
-                 302));
+  g.children({bodyAt("Level: " + std::to_string(kLevel), 32, 280)});
+  g.children(
+      {bodyAt("Exp: " + thousands(experienceForLevel(kLevel)), 32, 291)});
+  g.children({bodyAt("Next Level: " + thousands(experienceForLevel(kLevel + 1)),
+                     32, 302)});
   return g;
 }
 
@@ -181,10 +183,11 @@ auto Fallout2CharSheet::folder() -> Element {
         raised({x0, sel ? 327.0f : 330.0f, x1 - x0, sel ? 33.0f : 29.0f}, 2.5f);
     if (!sel) tab.overlay(styles::colorOverlay(hexColor(0x000000, 0.30f)));
     tab.justify(Justify::Center).alignItems(Align::Center);
-    tab.child(engravedText(tabs[(size_t)i], n(23.0f), engravedCondense, 0.3f)
-                  .ink(sel ? kGold : hexColor(0x6E5A20))
-                  .translateY(sel ? n(-1.0f) : n(0.0f)));
-    g.child(tab);
+    tab.children(
+        {engravedText(tabs[(size_t)i], n(23.0f), engravedCondense, 0.3f)
+             .ink(sel ? kGold : hexColor(0x6E5A20))
+             .translateY(sel ? n(-1.0f) : n(0.0f))});
+    g.children({tab});
   }
 
   // Nine leader rows from y = 364, pitch 11, between x = 34 and x = 314.
@@ -195,13 +198,13 @@ auto Fallout2CharSheet::folder() -> Element {
     const float nameW = killNameW[(size_t)i] / kScale;  // back to orig px
     const float countW = killCountW[(size_t)i] / kScale;
     const float gap = 1.0f;  // fontGetLetterSpacing() at this size
-    g.child(bodyAt(k.name, 34, y));
-    g.child(bodyAt(count, 314 - countW, y));
+    g.children({bodyAt(k.name, 34, y)});
+    g.children({bodyAt(count, 314 - countW, y)});
     const float x0 = 34 + nameW + gap * 2;
     const float x1 = 314 - countW - gap * 2;
     if (x1 > x0)
-      g.child(at(box(), x0, y + kRowPitch11 * 0.5f - 1.0f, x1 - x0, 1)
-                  .fill(Fill::color(mskia::withAlpha(kGreen, 0.85f))));
+      g.children({at(box(), x0, y + kRowPitch11 * 0.5f - 1.0f, x1 - x0, 1)
+                      .fill(Fill::color(mskia::withAlpha(kGreen, 0.85f)))});
   }
 
   // The scroll arrows at x = 317 (characterEditorFolderViewClear).
@@ -217,23 +220,23 @@ auto Fallout2CharSheet::folder() -> Element {
     // The arrowhead spans the whole cell, so it is not the inscribed
     // `shapes::polygon(3)` — it is a triangle keyed on the one thing it
     // is a function of, which is the direction it points.
-    a.child(at(box(), 2, 3, 7, 6)
-                .fill(Fill::color(mskia::withAlpha(kGold, 0.9f)))
-                .shape(keyedShape(up, [up](SkSize s) {
-                  SkPathBuilder b;
-                  if (up) {
-                    b.moveTo(s.width() * 0.5f, 0);
-                    b.lineTo(s.width(), s.height());
-                    b.lineTo(0, s.height());
-                  } else {
-                    b.moveTo(0, 0);
-                    b.lineTo(s.width(), 0);
-                    b.lineTo(s.width() * 0.5f, s.height());
-                  }
-                  b.close();
-                  return b.detach();
-                })));
-    g.child(a);
+    a.children({at(box(), 2, 3, 7, 6)
+                    .fill(Fill::color(mskia::withAlpha(kGold, 0.9f)))
+                    .shape(keyedShape(up, [up](SkSize s) {
+                      SkPathBuilder b;
+                      if (up) {
+                        b.moveTo(s.width() * 0.5f, 0);
+                        b.lineTo(s.width(), s.height());
+                        b.lineTo(0, s.height());
+                      } else {
+                        b.moveTo(0, 0);
+                        b.lineTo(s.width(), 0);
+                        b.lineTo(s.width() * 0.5f, s.height());
+                      }
+                      b.close();
+                      return b.detach();
+                    }))});
+    g.children({a});
   }
   return g;
 }
@@ -249,8 +252,8 @@ auto Fallout2CharSheet::skillsColumn() -> Element {
     int pct = skillPct[(size_t)i];
     if (i == selected)
       pct += 2 * presses;  // 1 point = 2% on a tagged skill (editor.msg {500})
-    g.child(bodyAt(skills()[(size_t)i].name, 380, y).ink(c));
-    g.child(bodyAt(std::to_string(pct) + "%", 573, y).ink(c));
+    g.children({bodyAt(skills()[(size_t)i].name, 380, y).ink(c)});
+    g.children({bodyAt(std::to_string(pct) + "%", 573, y).ink(c)});
   }
   // The +/- slider graphic, blitted at (592, selectedIndex*11 + 27 + 16),
   // its buttons at x = 614.
@@ -267,22 +270,23 @@ auto Fallout2CharSheet::skillsColumn() -> Element {
     btn.foreground(stroke(n(0.8f), Fill::color(hexColor(0x8A7448, 0.7f)),
                           PathFormat::Align::Inner));
     if (k == 0)  // the `+` lamp flashes on each spend
-      btn.child(box()
-                    .inset(0)
-                    .fill(Fill::color(kLampOn))
-                    .corners(Corners{n(1.5f)})
-                    .opacity(&plusFlash));
-    btn.child(box()
-                  .inset(0)
-                  .justify(Justify::Center)
-                  .alignItems(Align::Center)
-                  .child(text(k == 0 ? "+" : "-")
-                             .font({.size = n(7.0f), .color = kGold})));
-    slider.child(btn);
+      btn.children({box()
+                        .inset(0)
+                        .fill(Fill::color(kLampOn))
+                        .corners(Corners{n(1.5f)})
+                        .opacity(&plusFlash)});
+    btn.children(
+        {box()
+             .inset(0)
+             .justify(Justify::Center)
+             .alignItems(Align::Center)
+             .children({text(k == 0 ? "+" : "-")
+                            .font({.size = n(7.0f), .color = kGold})})});
+    slider.children({btn});
   }
-  slider.child(at(box(), 2, 6, 16, 12)
-                   .fill(Fill::color(hexColor(0x141008)))
-                   .corners(Corners{n(1)}));
-  g.child(slider);
+  slider.children({at(box(), 2, 6, 16, 12)
+                       .fill(Fill::color(hexColor(0x141008)))
+                       .corners(Corners{n(1)})});
+  g.children({slider});
   return g;
 }

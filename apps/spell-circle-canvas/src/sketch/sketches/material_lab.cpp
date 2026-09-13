@@ -293,11 +293,11 @@ world::Element cards() {
       // The row runs across the turntable's parked station rather than
       // along it, so the cards are seen face on.
       .rotateY(90.0f)
-      .child(card("plain", left, plain()))
-      .child(card("stacked", left + kCardGap, stacked()))
-      .child(card("bumped", left + 2.0f * kCardGap, bumped()))
-      .child(card("sweep", left + 3.0f * kCardGap, sweep()))
-      .child(card("emissive", left + 4.0f * kCardGap, emitting()));
+      .children({card("plain", left, plain()),
+                 card("stacked", left + kCardGap, stacked()),
+                 card("bumped", left + 2.0f * kCardGap, bumped()),
+                 card("sweep", left + 3.0f * kCardGap, sweep()),
+                 card("emissive", left + 4.0f * kCardGap, emitting())});
 }
 
 }  // namespace

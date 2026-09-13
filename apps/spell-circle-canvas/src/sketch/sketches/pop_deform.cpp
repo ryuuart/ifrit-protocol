@@ -133,7 +133,7 @@ Element panel(const char* title, const char* note, Element inner) {
                                 .height = Dimension(kPanel * 1.6f),
                                 .ground = Fill::none(),
                                 .keyline = Fill::color(kFrame)})
-                 .child(std::move(inner)))
+                 .children({std::move(inner)}))
       .width(Dimension(kPanel));
 }
 
@@ -225,34 +225,35 @@ struct PopDeform final : sketch::Sketch {
          .gap = 14});
 
     Element banded = kit::cells(
-        {.cells =
-             {box()
-                  .width(Dimension(kLead))
-                  .column()
-                  .gap(6)
-                  .child(text("…and the same four, "
-                              ".masked(\"band\")")
-                             .font({.size = 13, .color = kInk, .track = 0.6f}))
-                  .child(text("a mask is one more lane on the "
-                              "cloud, so a masked deformer is the "
-                              "same chain reading one more "
-                              "channel. The four calls below are "
-                              "the four above with one more link "
-                              "in each; the amounts are shared "
-                              "constants, so the two rows are "
-                              "comparable by construction.")
-                             // the page's remark voice is tracked; a
-                             // body line is not
-                             .font({.size = 11, .color = kDim, .track = 0})
-                             .width(Dimension(kLead))),
-              panel("twist(…).masked(\"band\")", "only the band turns",
-                    splat(twistedM)),
-              panel("taper(…).masked(\"band\")", "only the band narrows",
-                    splat(taperedM)),
-              panel("bend(…).masked(\"band\")", "only the band arcs",
-                    splat(bentM)),
-              panel("peak(…).masked(\"band\")", "only the band is pushed",
-                    splat(peakedM))},
+        {.cells = {box()
+                       .width(Dimension(kLead))
+                       .column()
+                       .gap(6)
+                       .children(
+                           {text("…and the same four, "
+                                 ".masked(\"band\")")
+                                .font(
+                                    {.size = 13, .color = kInk, .track = 0.6f}),
+                            text("a mask is one more lane on the "
+                                 "cloud, so a masked deformer is the "
+                                 "same chain reading one more "
+                                 "channel. The four calls below are "
+                                 "the four above with one more link "
+                                 "in each; the amounts are shared "
+                                 "constants, so the two rows are "
+                                 "comparable by construction.")
+                                // the page's remark voice is tracked; a
+                                // body line is not
+                                .font({.size = 11, .color = kDim, .track = 0})
+                                .width(Dimension(kLead))}),
+                   panel("twist(…).masked(\"band\")", "only the band turns",
+                         splat(twistedM)),
+                   panel("taper(…).masked(\"band\")", "only the band narrows",
+                         splat(taperedM)),
+                   panel("bend(…).masked(\"band\")", "only the band arcs",
+                         splat(bentM)),
+                   panel("peak(…).masked(\"band\")", "only the band is pushed",
+                         splat(peakedM))},
          .gap = 14});
 
     ctx.composer.render(sketch::kit::page(

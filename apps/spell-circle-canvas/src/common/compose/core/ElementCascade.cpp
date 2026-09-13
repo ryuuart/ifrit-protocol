@@ -67,14 +67,6 @@ Element& Element::styleSheet(sigil::weave::StyleSheet sheet) {
   return *this;
 }
 
-Element& Element::styleClass(std::string_view names, sigil::weave::Type over) {
-  return styleClass(names).font(std::move(over));
-}
-
-Element& Element::styleClass(std::string_view names, sigil::weave::Block over) {
-  return styleClass(names).block(std::move(over));
-}
-
 Element& Element::var(std::string_view name, SkColor4f colour) {
   m_node->cascadeData.ensure().vars.set(compose::var(name), colour);
   return *this;

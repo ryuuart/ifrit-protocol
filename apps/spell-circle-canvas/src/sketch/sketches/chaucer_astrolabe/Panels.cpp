@@ -9,37 +9,40 @@ auto ChaucerAstrolabe::projectionPanel() -> Element {
   const float rr = 100;
 
   // the celestial sphere in section
-  g.child(kit::disc(c, rr)
-              .shape(shapes::circle())
-              .fill(Fill::none())
-              .stroke(stroke(1.6f, Fill::color(hexColor(0x241c15, 0.75f)))));
+  g.children(
+      {kit::disc(c, rr)
+           .shape(shapes::circle())
+           .fill(Fill::none())
+           .stroke(stroke(1.6f, Fill::color(hexColor(0x241c15, 0.75f))))});
   // the equatorial plane — the plane of projection
-  g.child(box()
-              .rect(SkRect::MakeXYWH(c.fX - rr - 78, c.fY - 1, 2 * rr + 156, 2))
-              .fill(Fill::color(hexColor(0x241c15, 0.6f))));
+  g.children(
+      {box()
+           .rect(SkRect::MakeXYWH(c.fX - rr - 78, c.fY - 1, 2 * rr + 156, 2))
+           .fill(Fill::color(hexColor(0x241c15, 0.6f)))});
   // the two tropics as chords
   for (int s = -1; s <= 1; s += 2) {
     const float y = c.fY - s * rr * std::sin(kEps * kD);
     const float half = rr * std::cos(kEps * kD);
-    g.child(box()
-                .rect(SkRect::MakeXYWH(c.fX - half, y - 0.7f, 2 * half, 1.4f))
-                .fill(Fill::color(hexColor(0x241c15, 0.42f))));
+    g.children(
+        {box()
+             .rect(SkRect::MakeXYWH(c.fX - half, y - 0.7f, 2 * half, 1.4f))
+             .fill(Fill::color(hexColor(0x241c15, 0.42f)))});
   }
   // the poles
-  g.child(kit::disc(SkPoint{c.fX, c.fY - rr}, 3.4f)
-              .shape(shapes::circle())
-              .fill(Fill::color(kInk)));
-  g.child(kit::disc(SkPoint{c.fX, c.fY + rr}, 5.0f)
-              .shape(shapes::circle())
-              .fill(Fill::color(kRubric)));
-  g.child(text("N")
-              .font({.face = faceSerif, .size = 15})
-              .centerAt({c.fX + 14, c.fY - rr - 2}));
-  g.child(text("S — the eye of the projection")
-              .font({.face = faceItalic, .size = 13, .color = kRubric})
-              .at({c.fX + 10, c.fY + rr + 2}));
-  g.child(slot("projray"));
-  g.child(slot("projread"));
+  g.children({kit::disc(SkPoint{c.fX, c.fY - rr}, 3.4f)
+                  .shape(shapes::circle())
+                  .fill(Fill::color(kInk))});
+  g.children({kit::disc(SkPoint{c.fX, c.fY + rr}, 5.0f)
+                  .shape(shapes::circle())
+                  .fill(Fill::color(kRubric))});
+  g.children({text("N")
+                  .font({.face = faceSerif, .size = 15})
+                  .centerAt({c.fX + 14, c.fY - rr - 2})});
+  g.children({text("S — the eye of the projection")
+                  .font({.face = faceItalic, .size = 13, .color = kRubric})
+                  .at({c.fX + 10, c.fY + rr + 2})});
+  g.children({slot("projray")});
+  g.children({slot("projread")});
   return g;
 }
 
@@ -60,18 +63,19 @@ auto ChaucerAstrolabe::projRay() -> Element {
   SkPathBuilder pb;
   pb.moveTo(S);
   pb.lineTo(Lp.fX + (Lp.fX - S.fX) * 0.06f, Lp.fY + (Lp.fY - S.fY) * 0.06f);
-  g.child(pathFigure(pb.detach(), 4)
-              .fill(Fill::none())
-              .stroke(PathFormat{
-                  .width = 1.5f,
-                  .strokeFill = Fill::color(hexColor(0x2f6f9c, 0.9f)),
-                  .dashIntervals = {6.0f, 4.0f}}));
-  g.child(kit::disc(P, 5.0f).shape(shapes::circle()).fill(Fill::color(kTrace)));
-  g.child(
-      kit::disc(Lp, 5.0f).shape(shapes::circle()).fill(Fill::color(kRubric)));
-  g.child(box()
-              .rect(SkRect::MakeXYWH(Lp.fX - 1, c.fY - 20, 2, 40))
-              .fill(Fill::color(hexColor(0x8c2f22, 0.55f))));
+  g.children({pathFigure(pb.detach(), 4)
+                  .fill(Fill::none())
+                  .stroke(PathFormat{
+                      .width = 1.5f,
+                      .strokeFill = Fill::color(hexColor(0x2f6f9c, 0.9f)),
+                      .dashIntervals = {6.0f, 4.0f}})});
+  g.children(
+      {kit::disc(P, 5.0f).shape(shapes::circle()).fill(Fill::color(kTrace))});
+  g.children(
+      {kit::disc(Lp, 5.0f).shape(shapes::circle()).fill(Fill::color(kRubric))});
+  g.children({box()
+                  .rect(SkRect::MakeXYWH(Lp.fX - 1, c.fY - 20, 2, 40))
+                  .fill(Fill::color(hexColor(0x8c2f22, 0.55f)))});
   return g;
 }
 
@@ -90,14 +94,15 @@ auto ChaucerAstrolabe::projRead() -> Element {
       .column()
       .gap(4)
       .font({.face = faceMono, .size = 14})
-      .child(text(kit::formatted("δ = %+7.3f°", dec)))
-      .child(text(kit::formatted("r = R_eq·tan((90−δ)/2) = "
-                                 "%.6f R",
-                                 rOfDec(dec))))
-      .child(note("R_can 0.424423  R_eq 0.651477  R_cap 1.000000"))
-      .child(note("a circle through the EYE projects to a LINE — "
-                  "which is"))
-      .child(note("why the meridian, alone of the 12 azimuths, is straight."));
+      .children(
+          {text(kit::formatted("δ = %+7.3f°", dec)),
+           text(kit::formatted("r = R_eq·tan((90−δ)/2) = "
+                               "%.6f R",
+                               rOfDec(dec))),
+           note("R_can 0.424423  R_eq 0.651477  R_cap 1.000000"),
+           note("a circle through the EYE projects to a LINE — "
+                "which is"),
+           note("why the meridian, alone of the 12 azimuths, is straight.")});
 }
 
 auto ChaucerAstrolabe::panel(float x, float y, float w, float h,
@@ -107,22 +112,23 @@ auto ChaucerAstrolabe::panel(float x, float y, float w, float h,
   auto g = box().rect(SkRect::MakeXYWH(0, 0, kW, kH)).ink(kInk);
   // the sheet's two headed lines are the classes of their own names,
   // stated on the sheet that writes them
-  g.child(kit::sheet({.title = title,
-                      .subtitle = sub != nullptr && *sub != '\0' ? sub : "",
-                      .marginX = 16,
-                      .marginTop = 11,
-                      .marginBottom = 12,
-                      .subtitleGap = 5,
-                      .contentGap = 13,
-                      .ground = Fill::color(hexColor(0xe8dcc2, 0.62f)),
-                      .rule = Fill::color(hexColor(0x241c15, 0.28f))},
-                     box())
-              .rect(SkRect::MakeXYWH(x, y, w, h))
-              .styleSheet(weave::StyleSheet{
-                  {"title", partial(faceLimb, 15, kRubric, 1.9f)},
-                  {"subtitle", partial(faceItalic, 14, hexColor(0x6b5a44))}})
-              .stroke(stroke(1.0f, Fill::color(hexColor(0x241c15, 0.24f)),
-                             PathFormat::Align::Inner)));
+  g.children(
+      {kit::sheet({.title = title,
+                   .subtitle = sub != nullptr && *sub != '\0' ? sub : "",
+                   .marginX = 16,
+                   .marginTop = 11,
+                   .marginBottom = 12,
+                   .subtitleGap = 5,
+                   .contentGap = 13,
+                   .ground = Fill::color(hexColor(0xe8dcc2, 0.62f)),
+                   .rule = Fill::color(hexColor(0x241c15, 0.28f))},
+                  box())
+           .rect(SkRect::MakeXYWH(x, y, w, h))
+           .styleSheet(weave::StyleSheet{
+               {"title", partial(faceLimb, 15, kRubric, 1.9f)},
+               {"subtitle", partial(faceItalic, 14, hexColor(0x6b5a44))}})
+           .stroke(stroke(1.0f, Fill::color(hexColor(0x241c15, 0.24f)),
+                          PathFormat::Align::Inner))});
   return g;
 }
 
@@ -151,10 +157,10 @@ auto ChaucerAstrolabe::familiesPanel() -> Element {
                  .stroke(stroke(1.2f, Fill::color(hexColor(0x241c15, 0.5f)),
                                 PathFormat::Align::Inner));
     auto put = [&](float mcx, float mcy, float mr, float w, float a) {
-      d.child(kit::disc(SkPoint{r + mcx * r, r - mcy * r}, mr * r)
-                  .shape(shapes::circle())
-                  .fill(Fill::none())
-                  .stroke(stroke(w, Fill::color(hexColor(0x241c15, a)))));
+      d.children({kit::disc(SkPoint{r + mcx * r, r - mcy * r}, mr * r)
+                      .shape(shapes::circle())
+                      .fill(Fill::none())
+                      .stroke(stroke(w, Fill::color(hexColor(0x241c15, a))))});
     };
     if (i == 0) {
       put(0, 0, 1.0f, 1.3f, 0.85f);
@@ -171,30 +177,31 @@ auto ChaucerAstrolabe::familiesPanel() -> Element {
         }
       const path::PlaneCircle pv = azimuth(0.0f);
       put(pv.centre.x, pv.centre.y, pv.radius, 1.0f, 0.75f);
-      d.child(box()
-                  .rect(SkRect::MakeXYWH(r - 0.5f, 0, 1, 2 * r))
-                  .fill(Fill::color(hexColor(0x241c15, 0.75f))));
+      d.children({box()
+                      .rect(SkRect::MakeXYWH(r - 0.5f, 0, 1, 2 * r))
+                      .fill(Fill::color(hexColor(0x241c15, 0.75f)))});
     } else {
       for (int k = 1; k <= 11; ++k) {
         const std::optional<path::PlaneCircle> c = seasonalLine(k);
         if (c) put(c->centre.x, c->centre.y, c->radius, 0.8f, 0.6f);
       }
-      d.child(box()
-                  .rect(SkRect::MakeXYWH(r - 0.5f, r, 1, r))
-                  .fill(Fill::color(hexColor(0x241c15, 0.7f))));
+      d.children({box()
+                      .rect(SkRect::MakeXYWH(r - 0.5f, r, 1, r))
+                      .fill(Fill::color(hexColor(0x241c15, 0.7f)))});
     }
-    g.child(std::move(d));
-    g.child(text(fams[i].name)
-                .font({.face = faceLimb, .size = 11.5f, .track = 1.2f})
-                .width(212)
-                .textAlign(sigil::weave::TextAlignment::kCenter)
-                .centerAt({cx, cy + r + 15}));
-    g.child(
-        text(fams[i].formula)
-            .font({.face = faceMono, .size = 9.5f, .color = hexColor(0x7b6a54)})
-            .width(212)
-            .textAlign(sigil::weave::TextAlignment::kCenter)
-            .centerAt({cx, cy + r + 30}));
+    g.children({std::move(d)});
+    g.children({text(fams[i].name)
+                    .font({.face = faceLimb, .size = 11.5f, .track = 1.2f})
+                    .width(212)
+                    .block({.alignment = sigil::weave::TextAlignment::kCenter})
+                    .centerAt({cx, cy + r + 15})});
+    g.children(
+        {text(fams[i].formula)
+             .font(
+                 {.face = faceMono, .size = 9.5f, .color = hexColor(0x7b6a54)})
+             .width(212)
+             .block({.alignment = sigil::weave::TextAlignment::kCenter})
+             .centerAt({cx, cy + r + 30})});
   }
   return g;
 }
@@ -208,15 +215,15 @@ auto ChaucerAstrolabe::backPanel() -> Element {
   const SkPoint c{px + 225, py + 232};
   const float r = 156;
 
-  g.child(kit::disc(c, r)
-              .shape(shapes::circle())
-              .fill(brass(0.44f))
-              .foreground(
-                  styles::BevelEmboss{.depth = 2,
-                                      .size = 4,
-                                      .angleDeg = 125,
-                                      .highlight = hexColor(0xffe9b0, 0.45f),
-                                      .shadow = hexColor(0x2a1d08, 0.5f)}));
+  g.children({kit::disc(c, r)
+                  .shape(shapes::circle())
+                  .fill(brass(0.44f))
+                  .foreground(styles::BevelEmboss{
+                      .depth = 2,
+                      .size = 4,
+                      .angleDeg = 125,
+                      .highlight = hexColor(0xffe9b0, 0.45f),
+                      .shadow = hexColor(0x2a1d08, 0.5f)})});
   // Four quadrants of 90° altitude scale (I.7–8): 181 rules every 2°,
   // every fifth of them heavier and reaching further in.
   //
@@ -232,10 +239,10 @@ auto ChaucerAstrolabe::backPanel() -> Element {
   {
     const path::Frame limb{.centre = c, .radius = r, .zero = path::Zero::East};
     auto ladder = [&](const shapes::Ticks& spec, float width) {
-      g.child(
-          pathFigure(shapes::ticks(limb, spec), 2)
-              .fill(Fill::none())
-              .stroke(stroke(width, Fill::color(hexColor(0x3a2a10, 0.6f)))));
+      g.children(
+          {pathFigure(shapes::ticks(limb, spec), 2)
+               .fill(Fill::none())
+               .stroke(stroke(width, Fill::color(hexColor(0x3a2a10, 0.6f))))});
     };
     ladder({.divisions = 180,
             .sweep = 360.0f,
@@ -253,10 +260,10 @@ auto ChaucerAstrolabe::backPanel() -> Element {
            1.1f);
   }
   for (float rr : {0.90f, 0.96f, 0.855f, 0.78f, 0.70f})
-    g.child(kit::disc(c, r * rr)
-                .shape(shapes::circle())
-                .fill(Fill::none())
-                .stroke(groove(r * rr, 1.2f, 0.6f, 0.3f)));
+    g.children({kit::disc(c, r * rr)
+                    .shape(shapes::circle())
+                    .fill(Fill::none())
+                    .stroke(groove(r * rr, 1.2f, 0.6f, 0.3f))});
   // the calendar and zodiac rings — Chaucer I.10 gives the month lengths
   {
     float acc = 0;
@@ -268,78 +275,82 @@ auto ChaucerAstrolabe::backPanel() -> Element {
       SkPathBuilder pb;
       pb.moveTo(arrange::onEllipse(c, {r * 0.78f, r * 0.78f}, a0 * kD));
       pb.lineTo(arrange::onEllipse(c, {r * 0.855f, r * 0.855f}, a0 * kD));
-      g.child(pathFigure(pb.detach(), 2)
-                  .fill(Fill::none())
-                  .stroke(stroke(1.1f, Fill::color(hexColor(0x3a2a10, 0.7f)))));
+      g.children(
+          {pathFigure(pb.detach(), 2)
+               .fill(Fill::none())
+               .stroke(stroke(1.1f, Fill::color(hexColor(0x3a2a10, 0.7f))))});
       const float am = (a0 + a1) * 0.5f;
-      g.child(text(kMonths[m])
-                  .font({.size = 9.5f, .color = hexColor(0x33240c, 0.85f)})
-                  .centerAt(arrange::onEllipse(c, {r * 0.817f, r * 0.817f},
-                                               am * kD)));
+      g.children({text(kMonths[m])
+                      .font({.size = 9.5f, .color = hexColor(0x33240c, 0.85f)})
+                      .centerAt(arrange::onEllipse(c, {r * 0.817f, r * 0.817f},
+                                                   am * kD))});
       const float az =
           arrange::along(-90.0f, 360.0f, (size_t)m, 12, arrange::Turn::Closed);
       const float azm = az + 15.0f;
-      g.child(text(std::string(kSigns[(m + 9) % 12]).substr(0, 3))
-                  .ink(hexColor(0x33240c, 0.7f))
-                  .centerAt(
-                      arrange::onEllipse(c, {r * 0.74f, r * 0.74f}, azm * kD)));
+      g.children({text(std::string(kSigns[(m + 9) % 12]).substr(0, 3))
+                      .ink(hexColor(0x33240c, 0.7f))
+                      .centerAt(arrange::onEllipse(c, {r * 0.74f, r * 0.74f},
+                                                   azm * kD))});
     }
   }
   // the shadow square: umbra recta and umbra versa, 12 divisions each (I.12)
   {
     const float s = r * 0.50f;
-    g.child(box()
-                .rect(SkRect::MakeXYWH(c.fX - s, c.fY, 2 * s, s))
-                .fill(Fill::none())
-                .stroke(stroke(1.4f, Fill::color(hexColor(0x3a2a10, 0.75f)))));
+    g.children(
+        {box()
+             .rect(SkRect::MakeXYWH(c.fX - s, c.fY, 2 * s, s))
+             .fill(Fill::none())
+             .stroke(stroke(1.4f, Fill::color(hexColor(0x3a2a10, 0.75f))))});
     for (int i = 1; i < 12; ++i) {
       const float t = (float)i / 12.0f;
-      g.child(box()
-                  .rect(SkRect::MakeXYWH(c.fX - s + 2 * s * t, c.fY, 0.8f,
-                                         s * (i % 3 == 0 ? 0.34f : 0.20f)))
-                  .fill(Fill::color(hexColor(0x3a2a10, 0.6f))));
-      g.child(
-          box()
-              .rect(SkRect::MakeXYWH(c.fX - s, c.fY + s * t,
-                                     s * (i % 3 == 0 ? 0.34f : 0.20f), 0.8f))
-              .fill(Fill::color(hexColor(0x3a2a10, 0.6f))));
-      g.child(box()
-                  .rect(SkRect::MakeXYWH(
-                      c.fX + s - s * (i % 3 == 0 ? 0.34f : 0.20f), c.fY + s * t,
-                      s * (i % 3 == 0 ? 0.34f : 0.20f), 0.8f))
-                  .fill(Fill::color(hexColor(0x3a2a10, 0.6f))));
+      g.children({box()
+                      .rect(SkRect::MakeXYWH(c.fX - s + 2 * s * t, c.fY, 0.8f,
+                                             s * (i % 3 == 0 ? 0.34f : 0.20f)))
+                      .fill(Fill::color(hexColor(0x3a2a10, 0.6f)))});
+      g.children(
+          {box()
+               .rect(SkRect::MakeXYWH(c.fX - s, c.fY + s * t,
+                                      s * (i % 3 == 0 ? 0.34f : 0.20f), 0.8f))
+               .fill(Fill::color(hexColor(0x3a2a10, 0.6f)))});
+      g.children({box()
+                      .rect(SkRect::MakeXYWH(
+                          c.fX + s - s * (i % 3 == 0 ? 0.34f : 0.20f),
+                          c.fY + s * t, s * (i % 3 == 0 ? 0.34f : 0.20f), 0.8f))
+                      .fill(Fill::color(hexColor(0x3a2a10, 0.6f)))});
     }
-    g.child(text("VMBRA RECTA")
-                .ink(hexColor(0x33240c, 0.8f))
-                .centerAt({c.fX - s * 0.52f, c.fY + s * 0.86f}));
-    g.child(text("VMBRA VERSA")
-                .ink(hexColor(0x33240c, 0.8f))
-                .centerAt({c.fX + s * 0.52f, c.fY + s * 0.86f}));
+    g.children({text("VMBRA RECTA")
+                    .ink(hexColor(0x33240c, 0.8f))
+                    .centerAt({c.fX - s * 0.52f, c.fY + s * 0.86f})});
+    g.children({text("VMBRA VERSA")
+                    .ink(hexColor(0x33240c, 0.8f))
+                    .centerAt({c.fX + s * 0.52f, c.fY + s * 0.86f})});
   }
   // the alidade, swung to 25° 30′ — the measurement II.3 starts from
-  g.child(
-      box()
-          .rect(SkRect::MakeXYWH(c.fX - r * 0.97f, c.fY - 5, 2 * r * 0.97f, 10))
-          .transformOrigin(0.5f, 0.5f)
-          .rotate(animate(from(0.0f).to(-25.5f),
-                          ramp(tChaucer * 1000 + 200, 900, ease::outBack())))
-          .fill(brass(0.76f))
-          .foreground(stroke(1.0f, Fill::color(hexColor(0x2a1d08, 0.6f))))
-          .background(shadow(hexColor(0x2a1d08, 0.45f), {2, 3}, 5)));
+  g.children(
+      {box()
+           .rect(
+               SkRect::MakeXYWH(c.fX - r * 0.97f, c.fY - 5, 2 * r * 0.97f, 10))
+           .transformOrigin(0.5f, 0.5f)
+           .rotate(animate(from(0.0f).to(-25.5f),
+                           ramp(tChaucer * 1000 + 200, 900, ease::outBack())))
+           .fill(brass(0.76f))
+           .foreground(stroke(1.0f, Fill::color(hexColor(0x2a1d08, 0.6f))))
+           .background(shadow(hexColor(0x2a1d08, 0.45f), {2, 3}, 5))});
   for (int s = -1; s <= 1; s += 2)
-    g.child(
-        box()
-            .rect(SkRect::MakeXYWH(c.fX + s * r * 0.90f - 5, c.fY - 16, 10, 32))
-            .transformOriginPx({5.0f - s * r * 0.90f, 16})
-            .rotate(animate(from(0.0f).to(-25.5f),
-                            ramp(tChaucer * 1000 + 200, 900, ease::outBack())))
-            .fill(brass(0.80f))
-            .foreground(stroke(1.0f, Fill::color(hexColor(0x2a1d08, 0.6f)))));
-  g.child(kit::disc(c, 8).shape(shapes::circle()).fill(brass(0.82f)));
-  g.child(text("altitude 25° 30′ — "
-               "12 March 1391")
-              .font({.face = faceItalic, .size = 13, .color = kRubric})
-              .centerAt({px + 225, py + ph - 22}));
+    g.children(
+        {box()
+             .rect(
+                 SkRect::MakeXYWH(c.fX + s * r * 0.90f - 5, c.fY - 16, 10, 32))
+             .transformOriginPx({5.0f - s * r * 0.90f, 16})
+             .rotate(animate(from(0.0f).to(-25.5f),
+                             ramp(tChaucer * 1000 + 200, 900, ease::outBack())))
+             .fill(brass(0.80f))
+             .foreground(stroke(1.0f, Fill::color(hexColor(0x2a1d08, 0.6f))))});
+  g.children({kit::disc(c, 8).shape(shapes::circle()).fill(brass(0.82f))});
+  g.children({text("altitude 25° 30′ — "
+                   "12 March 1391")
+                  .font({.face = faceItalic, .size = 13, .color = kRubric})
+                  .centerAt({px + 225, py + ph - 22})});
   return g;
 }
 
@@ -366,47 +377,47 @@ auto ChaucerAstrolabe::specCard() -> Element {
   };
   float y = py + 58;
   for (const KV& r : rows) {
-    g.child(text(r.k)
-                .font({.face = faceLimb,
-                       .size = 11,
-                       .color = hexColor(0x6b5a44),
-                       .track = 1.2f})
-                .left(px + 18)
-                .top(y)
-                .width(88));
-    g.child(text(r.v)
-                .font({.face = faceSerif, .size = 13.5f})
-                .left(px + 112)
-                .top(y - 2)
-                .width(pw - 130));
+    g.children({text(r.k)
+                    .font({.face = faceLimb,
+                           .size = 11,
+                           .color = hexColor(0x6b5a44),
+                           .track = 1.2f})
+                    .left(px + 18)
+                    .top(y)
+                    .width(88)});
+    g.children({text(r.v)
+                    .font({.face = faceSerif, .size = 13.5f})
+                    .left(px + 112)
+                    .top(y - 2)
+                    .width(pw - 130)});
     y += 20;
   }
   // the two obliquities, side by side
-  g.child(box()
-              .rect(SkRect::MakeXYWH(px + 18, y + 6, pw - 36, 1))
-              .fill(Fill::color(hexColor(0x241c15, 0.22f))));
-  g.child(text("φ = 51° 50′  Chaucer I.14, "
-               "Oxenford        ε = 23° 50.0′  "
-               "Chaucer I.17")
-              .font({.face = faceMono, .size = 12})
-              .left(px + 18)
-              .top(y + 14)
-              .width(pw - 36));
-  g.child(text("                                        ε = "
-               "23° 31.6′  TRVE at 1326      "
-               "Δ 18.4′")
-              .font({.face = faceMono, .size = 12, .color = kRubric})
-              .left(px + 18)
-              .top(y + 30)
-              .width(pw - 36));
-  g.child(text("his ε is an inherited PTOLEMAIC value, 1200 years "
-               "old — the equator comes out 0.586% small "
-               "(−0.229 mm), Cancer 1.175% "
-               "(−0.299 mm)")
-              .font({.face = faceItalic, .size = 12.5f})
-              .left(px + 18)
-              .top(y + 52)
-              .width(pw - 36));
+  g.children({box()
+                  .rect(SkRect::MakeXYWH(px + 18, y + 6, pw - 36, 1))
+                  .fill(Fill::color(hexColor(0x241c15, 0.22f)))});
+  g.children({text("φ = 51° 50′  Chaucer I.14, "
+                   "Oxenford        ε = 23° 50.0′  "
+                   "Chaucer I.17")
+                  .font({.face = faceMono, .size = 12})
+                  .left(px + 18)
+                  .top(y + 14)
+                  .width(pw - 36)});
+  g.children({text("                                        ε = "
+                   "23° 31.6′  TRVE at 1326      "
+                   "Δ 18.4′")
+                  .font({.face = faceMono, .size = 12, .color = kRubric})
+                  .left(px + 18)
+                  .top(y + 30)
+                  .width(pw - 36)});
+  g.children({text("his ε is an inherited PTOLEMAIC value, 1200 years "
+                   "old — the equator comes out 0.586% small "
+                   "(−0.229 mm), Cancer 1.175% "
+                   "(−0.299 mm)")
+                  .font({.face = faceItalic, .size = 12.5f})
+                  .left(px + 18)
+                  .top(y + 52)
+                  .width(pw - 36)});
   return g;
 }
 
@@ -416,47 +427,49 @@ auto ChaucerAstrolabe::starPanel() -> Element {
                  "precessed J2000 → 1326.0, IAU 1976 "
                  "ζ/z/θ — the sky has slid "
                  "8.6° in RA");
-  g.child(text("name on the rete        modern         RA 1326   "
-               "dec 1326    r / R")
-              .font({.face = faceMono, .size = 11, .color = hexColor(0x6b5a44)})
-              .at({px + 18, py + 60}));
+  g.children(
+      {text("name on the rete        modern         RA 1326   "
+            "dec 1326    r / R")
+           .font({.face = faceMono, .size = 11, .color = hexColor(0x6b5a44)})
+           .at({px + 18, py + 60})});
   for (size_t i = 0; i < kStars.size(); ++i) {
     const float y = py + 80 + (float)i * 25.5f;
     const float r = rOfDec(kStars[i].dec1326);
-    g.child(text(kStars[i].name)
-                .font({.face = faceLimb, .size = 12.5f, .track = 0.8f})
-                .at({px + 18, y}));
-    g.child(text(kStars[i].modern)
-                .font({.face = faceItalic,
-                       .size = 12.5f,
-                       .color = hexColor(0x6b5a44)})
-                .at({px + 168, y}));
-    g.child(text(kit::formatted("%8.3f  %+8.3f   %.5f", kStars[i].ra1326,
-                                kStars[i].dec1326, r))
-                .font({.face = faceMono, .size = 11.5f})
-                .at({px + 276, y + 1}));
+    g.children({text(kStars[i].name)
+                    .font({.face = faceLimb, .size = 12.5f, .track = 0.8f})
+                    .at({px + 18, y})});
+    g.children({text(kStars[i].modern)
+                    .font({.face = faceItalic,
+                           .size = 12.5f,
+                           .color = hexColor(0x6b5a44)})
+                    .at({px + 168, y})});
+    g.children({text(kit::formatted("%8.3f  %+8.3f   %.5f", kStars[i].ra1326,
+                                    kStars[i].dec1326, r))
+                    .font({.face = faceMono, .size = 11.5f})
+                    .at({px + 276, y + 1})});
     // where the star lands between Cancer and Capricorn
     const float bx = px + 480, bw = 148, lo = 0.18f;
-    g.child(box()
-                .rect(SkRect::MakeXYWH(bx, y + 8, bw, 1))
-                .fill(Fill::color(hexColor(0x241c15, 0.3f))));
+    g.children({box()
+                    .rect(SkRect::MakeXYWH(bx, y + 8, bw, 1))
+                    .fill(Fill::color(hexColor(0x241c15, 0.3f)))});
     for (float t : {kRcan, kReq, 1.0f})
-      g.child(box()
-                  .rect(SkRect::MakeXYWH(
-                      bx + bw * (t - lo) / (1.0f - lo) - 0.5f, y + 4, 1, 9))
-                  .fill(Fill::color(hexColor(0x241c15, 0.35f))));
-    g.child(kit::disc(SkPoint{bx + bw * (r - lo) / (1.0f - lo), y + 8.5f}, 3.6f)
-                .shape(shapes::circle())
-                .fill(Fill::color(i == 3 ? kRubric : kInk)));
+      g.children({box()
+                      .rect(SkRect::MakeXYWH(
+                          bx + bw * (t - lo) / (1.0f - lo) - 0.5f, y + 4, 1, 9))
+                      .fill(Fill::color(hexColor(0x241c15, 0.35f)))});
+    g.children(
+        {kit::disc(SkPoint{bx + bw * (r - lo) / (1.0f - lo), y + 8.5f}, 3.6f)
+             .shape(shapes::circle())
+             .fill(Fill::color(i == 3 ? kRubric : kInk))});
   }
-  g.child(text("ALHABOR / Sirius at 0.868 R is the outermost by a long "
-               "way — the only southern star here, which is "
-               "why it gets the biggest pointer on every rete ever "
-               "made.")
-              .font({.face = faceItalic, .size = 12, .color = kRubric})
-              .left(px + 18)
-              .top(py + ph - 44)
-              .width(pw - 36));
+  g.children({text("ALHABOR / Sirius at 0.868 R is the outermost by a long "
+                   "way — the only southern star here, which is "
+                   "why it gets the biggest pointer on every rete ever "
+                   "made.")
+                  .font({.face = faceItalic, .size = 12, .color = kRubric})
+                  .left(px + 18)
+                  .top(py + ph - 44)
+                  .width(pw - 36)});
   return g;
 }
 
@@ -464,17 +477,17 @@ auto ChaucerAstrolabe::chaucerPanel() -> Element {
   const float px = 1690, py = 920, pw = 646, ph = 260;
   auto g = panel(px, py, pw, ph, "CHAVCER'S OWNE ENSAMPLE",
                  "A Treatise on the Astrolabe, II.3");
-  g.child(text("“the yeer of oure lord 1391, the 12 day of "
-               "March … I took the altitude of my sonne, and "
-               "fond that it was 25 degrees and 30 of minutes … "
-               "fond the poynte of my label in the bordure, up-on a "
-               "capital lettre that is cleped an X … and fond "
-               "that it was 9 of the clokke of the day.”")
-              .font({.face = faceItalic, .size = 13.5f})
-              .left(px + 18)
-              .top(py + 62)
-              .width(pw - 36));
-  g.child(slot("chaucer"));
+  g.children({text("“the yeer of oure lord 1391, the 12 day of "
+                   "March … I took the altitude of my sonne, and "
+                   "fond that it was 25 degrees and 30 of minutes … "
+                   "fond the poynte of my label in the bordure, up-on a "
+                   "capital lettre that is cleped an X … and fond "
+                   "that it was 9 of the clokke of the day.”")
+                  .font({.face = faceItalic, .size = 13.5f})
+                  .left(px + 18)
+                  .top(py + 62)
+                  .width(pw - 36)});
+  g.children({slot("chaucer")});
   return g;
 }
 
@@ -485,14 +498,14 @@ auto ChaucerAstrolabe::chaucerBody() -> Element {
   auto g =
       box().left(px + 18).top(py + 140).width(pw - 36).column().gap(3).font(
           {.face = faceMono, .size = 12.5f});
-  g.child(text(chaucerH));
-  g.child(text(chaucerA));
-  g.child(text(chaucerDelta).ink(kRubric));
-  g.child(box().height(6));
-  g.child(text("Chaucer 09:00   ·   computed 08:53.8   "
-               "·   Δ 6.2 min — one hour-"
-               "letter's worth of reading precision on 132 mm")
-              .font({.face = faceSerif, .size = 13}));
+  g.children({text(chaucerH)});
+  g.children({text(chaucerA)});
+  g.children({text(chaucerDelta).ink(kRubric)});
+  g.children({box().height(6)});
+  g.children({text("Chaucer 09:00   ·   computed 08:53.8   "
+                   "·   Δ 6.2 min — one hour-"
+                   "letter's worth of reading precision on 132 mm")
+                  .font({.face = faceSerif, .size = 13})});
   return g;
 }
 
@@ -510,23 +523,24 @@ auto ChaucerAstrolabe::zodiacPanel() -> Element {
     const float span = a1 - a0;
     const float w = bw / 12.0f - 5.0f;
     const float h = 84.0f * span / maxSpan;
-    g.child(
-        box()
-            .rect(SkRect::MakeXYWH(bx + (bw / 12.0f) * (float)i, by - h, w, h))
-            .fill(Fill::color(span > 30 ? hexColor(0x8c2f22, 0.72f)
-                                        : hexColor(0x241c15, 0.62f)))
-            .scaleY(animate(
-                from(0.0f).to(1.0f),
-                ramp(tYear * 1000 + (float)i * 45, 520, ease::outBack())))
-            .transformOrigin(0.5f, 1.0f));
-    g.child(text(std::string(kSigns[i]).substr(0, 3))
-                .font({.face = faceLimb,
-                       .size = 10,
-                       .color = hexColor(0x6b5a44),
-                       .track = 0.5f})
-                .width(w)
-                .textAlign(sigil::weave::TextAlignment::kCenter)
-                .centerAt({bx + (bw / 12.0f) * (float)i + w * 0.5f, by + 12}));
+    g.children(
+        {box()
+             .rect(SkRect::MakeXYWH(bx + (bw / 12.0f) * (float)i, by - h, w, h))
+             .fill(Fill::color(span > 30 ? hexColor(0x8c2f22, 0.72f)
+                                         : hexColor(0x241c15, 0.62f)))
+             .scaleY(animate(
+                 from(0.0f).to(1.0f),
+                 ramp(tYear * 1000 + (float)i * 45, 520, ease::outBack())))
+             .transformOrigin(0.5f, 1.0f)});
+    g.children(
+        {text(std::string(kSigns[i]).substr(0, 3))
+             .font({.face = faceLimb,
+                    .size = 10,
+                    .color = hexColor(0x6b5a44),
+                    .track = 0.5f})
+             .width(w)
+             .block({.alignment = sigil::weave::TextAlignment::kCenter})
+             .centerAt({bx + (bw / 12.0f) * (float)i + w * 0.5f, by + 12})});
     // The 30° reference rule cuts across this band. A bar within ~9 px of
     // it (the 24.9° signs) put its value label ON the rule and the dashes
     // struck the digits through; those labels centre in the gap instead.
@@ -534,32 +548,33 @@ auto ChaucerAstrolabe::zodiacPanel() -> Element {
     float ly = by - h - 9;
     if (h < 84.0f * 30.0f / maxSpan && ly - 5.0f < y30r)
       ly = 0.5f * ((by - h) + y30r);
-    g.child(text(kit::formatted("%.1f", span))
-                .font({.face = faceMono, .size = 9.5f})
-                .width(w)
-                .textAlign(sigil::weave::TextAlignment::kCenter)
-                .centerAt({bx + (bw / 12.0f) * (float)i + w * 0.5f, ly}));
+    g.children({text(kit::formatted("%.1f", span))
+                    .font({.face = faceMono, .size = 9.5f})
+                    .width(w)
+                    .block({.alignment = sigil::weave::TextAlignment::kCenter})
+                    .centerAt({bx + (bw / 12.0f) * (float)i + w * 0.5f, ly})});
   }
   // the 30° reference — a 5-on/4-off STRIPE tile filling a 1 px band, not
   // a dashed stroke around the perimeter of a 1 px box. The perimeter walk
   // laid the dash down twice, one scanline apart and out of phase, and the
   // pair read as a sawtooth rather than a rule.
   const float y30 = by - 84.0f * 30.0f / maxSpan;
-  g.child(box()
-              .rect(SkRect::MakeXYWH(bx, y30, bw, 1))
-              .fill(Pattern(patterns::stripes(
-                                5.0f, 4.0f,
-                                skia::toColor(hexColor(0x241c15, 0.55f))))
-                        .material()));
-  g.child(
-      text("30° — an unprojected ring")
-          .font({.face = faceItalic, .size = 11, .color = hexColor(0x7b6a54)})
-          .at({bx + 4, y30 - 16}));
+  g.children({box()
+                  .rect(SkRect::MakeXYWH(bx, y30, bw, 1))
+                  .fill(Pattern(patterns::stripes(
+                                    5.0f, 4.0f,
+                                    skia::toColor(hexColor(0x241c15, 0.55f))))
+                            .material())});
+  g.children(
+      {text("30° — an unprojected ring")
+           .font({.face = faceItalic, .size = 11, .color = hexColor(0x7b6a54)})
+           .at({bx + 4, y30 - 16})});
   // the live sign marker
-  g.child(box()
-              .rect(SkRect::MakeXYWH(bx - 3, by + 2, bw / 12.0f - 5.0f + 6, 3))
-              .fill(Fill::color(kTrace))
-              .translateX(bind(&signMark).scale(bw / 12.0f)));
+  g.children(
+      {box()
+           .rect(SkRect::MakeXYWH(bx - 3, by + 2, bw / 12.0f - 5.0f + 6, 3))
+           .fill(Fill::color(kTrace))
+           .translateX(bind(&signMark).scale(bw / 12.0f))});
   return g;
 }
 
@@ -592,22 +607,22 @@ auto ChaucerAstrolabe::consolePanel() -> Element {
 
 auto ChaucerAstrolabe::titleStrip() -> Element {
   auto g = box().rect(SkRect::MakeXYWH(0, 0, kW, kH));
-  g.child(sketch::kit::titleCard(
-              {.title = {"ASTROLABIVM · ANNO DOMINI M CCC "
-                         "XXVI"},
-               .subtitle = {"compowned after the latitude of "
-                            "Oxenford · 51° "
-                            "50′"},
-               .notes = {{.words = "British Museum 1909,0617.1 "
-                                   "· brass · 132 "
-                                   "mm · the earliest "
-                                   "dated astrolabe made in "
-                                   "Europe",
-                          .ink = Fill::color(hexColor(0x6b5a44))}},
-               .ruled = true})
-              .left(64)
-              .top(44)
-              .width(Dimension(kW - 128)));
+  g.children({sketch::kit::titleCard(
+                  {.title = {"ASTROLABIVM · ANNO DOMINI M CCC "
+                             "XXVI"},
+                   .subtitle = {"compowned after the latitude of "
+                                "Oxenford · 51° "
+                                "50′"},
+                   .notes = {{.words = "British Museum 1909,0617.1 "
+                                       "· brass · 132 "
+                                       "mm · the earliest "
+                                       "dated astrolabe made in "
+                                       "Europe",
+                              .ink = Fill::color(hexColor(0x6b5a44))}},
+                   .ruled = true})
+                  .left(64)
+                  .top(44)
+                  .width(Dimension(kW - 128))});
   return g;
 }
 
@@ -619,31 +634,29 @@ auto ChaucerAstrolabe::readout() -> Element {
   auto g = box().left(92).top(1334).width(1064).row().gap(26).alignItems(
       Align::Baseline);
   auto cell = [&](const std::string& k, const std::string& v, SkColor4f c) {
-    return box()
-        .column()
-        .gap(1)
-        .child(text(k).font({.face = faceLimb,
-                             .size = 10,
-                             .color = hexColor(0x8a99b0),
-                             .track = 1.4f}))
-        .child(text(v).font({.face = faceMono, .size = 19, .color = c}));
+    return box().column().gap(1).children(
+        {text(k).font({.face = faceLimb,
+                       .size = 10,
+                       .color = hexColor(0x8a99b0),
+                       .track = 1.4f}),
+         text(v).font({.face = faceMono, .size = 19, .color = c})});
   };
-  g.child(cell("LOCAL APPARENT TIME", kit::formatted("%02d:%04.1f", hh, mm),
-               hexColor(0xffdc8b)));
-  g.child(cell("HOVR ANGLE", kit::formatted("%+8.3f°", hourAngle.value()),
-               hexColor(0xd8c79c)));
-  g.child(cell("SONNE ALTITVDE", kit::formatted("%+7.3f°", sunAlt.value()),
-               hexColor(0xd8c79c)));
-  g.child(cell("SONNE IN", kit::formatted("λ %6.2f°", sunLam.value()),
-               hexColor(0xd8c79c)));
-  g.child(cell(
+  g.children({cell("LOCAL APPARENT TIME", kit::formatted("%02d:%04.1f", hh, mm),
+                   hexColor(0xffdc8b))});
+  g.children({cell("HOVR ANGLE", kit::formatted("%+8.3f°", hourAngle.value()),
+                   hexColor(0xd8c79c))});
+  g.children({cell("SONNE ALTITVDE", kit::formatted("%+7.3f°", sunAlt.value()),
+                   hexColor(0xd8c79c))});
+  g.children({cell("SONNE IN", kit::formatted("λ %6.2f°", sunLam.value()),
+                   hexColor(0xd8c79c))});
+  g.children({cell(
       "LETTRE IN THE BORDVRE",
       std::string(kLetters[letter - 1]) + "  (" + std::to_string(letter) + ")",
-      hexColor(0xffdc8b)));
-  g.child(cell("HOVRE INEQVAL",
-               sunAlt.value() > 0
-                   ? std::string("— day")
-                   : std::string("night ") + std::to_string(nightHour),
-               hexColor(0xd8c79c)));
+      hexColor(0xffdc8b))});
+  g.children({cell("HOVRE INEQVAL",
+                   sunAlt.value() > 0
+                       ? std::string("— day")
+                       : std::string("night ") + std::to_string(nightHour),
+                   hexColor(0xd8c79c))});
   return g;
 }

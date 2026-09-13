@@ -92,12 +92,12 @@ Element shapePassage() {
           .height(kShapeSize)
           .shape(shapes::star(10, 0.62f, 0.08f))
           .fill(Fill::color(kGold))
-          .child(
-              text(u8"FLOW")
-                  .font(sketch::kit::theme().font({.size = 14, .track = 1.2f}))
-                  .absolute()
-                  .left(49)
-                  .top(66));
+          .children(
+              {text(u8"FLOW")
+                   .font(sketch::kit::theme().font({.size = 14, .track = 1.2f}))
+                   .absolute()
+                   .left(49)
+                   .top(66)});
 
   Element passage =
       text(
@@ -113,11 +113,8 @@ Element shapePassage() {
           .flowAround("central-star", kWrapMargin)
           .zIndex(1);
 
-  return box()
-      .width(430)
-      .height(350)
-      .child(std::move(medallion))
-      .child(std::move(passage));
+  return box().width(430).height(350).children(
+      {std::move(medallion), std::move(passage)});
 }
 
 Element droppedPassage() {
@@ -127,31 +124,29 @@ Element droppedPassage() {
           .height(kDropHeight)
           .shape(shapes::rounded(shapes::star(8, 0.58f, 0.12f), 5))
           .fill(Fill::color(kCinnabar))
-          .child(text(u8"H")
-                     .font({.size = 50, .color = kPaper})
-                     .absolute()
-                     .left(29)
-                     .top(29));
+          .children({text(u8"H")
+                         .font({.size = 50, .color = kPaper})
+                         .absolute()
+                         .left(29)
+                         .top(29)});
   ornament.key("illuminated-h")
       .absolute()
       .left(Dimension(0.0f))
       .top(Dimension(0.0f));
 
-  return box()
-      .width(430)
-      .height(350)
-      .child(std::move(ornament))
-      .child(text(u8"orizontal setting needs no drop-cap mechanism when the "
-                  u8"initial is an ornament. The ornament is an element with "
-                  u8"a key and a silhouette, while this paragraph is an "
-                  u8"ordinary text leaf flowing around that key. The opening "
-                  u8"lines take the changing room beside the points; the "
-                  u8"later lines return to the whole measure. A photograph, "
-                  u8"seal, flourish, or illustrated letter uses exactly the "
-                  u8"same relationship.")
-                 .key("drop-passage")
-                 .width(430)
-                 .flowAround("illuminated-h", kWrapMargin));
+  return box().width(430).height(350).children(
+      {std::move(ornament),
+       text(u8"orizontal setting needs no drop-cap mechanism when the "
+            u8"initial is an ornament. The ornament is an element with "
+            u8"a key and a silhouette, while this paragraph is an "
+            u8"ordinary text leaf flowing around that key. The opening "
+            u8"lines take the changing room beside the points; the "
+            u8"later lines return to the whole measure. A photograph, "
+            u8"seal, flourish, or illustrated letter uses exactly the "
+            u8"same relationship.")
+           .key("drop-passage")
+           .width(430)
+           .flowAround("illuminated-h", kWrapMargin)});
 }
 
 Element panel(float left, const char* title, const char* note, Element body) {
@@ -182,24 +177,25 @@ struct HorizontalFlow final : sketch::Sketch {
             .font({.face = sheet.type.mono, .size = 15})
             .ink(sheet.palette.ink)
             .styleSheet(sheet.styleSheet())
-            .child(text(u8"HORIZONTAL TEXT FLOW")
-                       .styleClass("title")
-                       .absolute()
-                       .left(42)
-                       .top(34))
-            .child(text(u8"one exclusion rule · a shape in the measure · an "
-                        u8"ornament at the opening")
-                       .styleClass("subtitle")
-                       .ink(sheet.palette.ash)
-                       .absolute()
-                       .left(43)
-                       .top(76))
-            .child(panel(42, "FLOW AROUND A SHAPE",
-                         "the line divides left and right, then becomes whole",
-                         shapePassage()))
-            .child(panel(562, "ORNAMENTED DROP CAP",
-                         "a caller-built element supplies the painted outline",
-                         droppedPassage())));
+            .children(
+                {text(u8"HORIZONTAL TEXT FLOW")
+                     .styleClass("title")
+                     .absolute()
+                     .left(42)
+                     .top(34),
+                 text(u8"one exclusion rule · a shape in the measure · an "
+                      u8"ornament at the opening")
+                     .styleClass("subtitle")
+                     .ink(sheet.palette.ash)
+                     .absolute()
+                     .left(43)
+                     .top(76),
+                 panel(42, "FLOW AROUND A SHAPE",
+                       "the line divides left and right, then becomes whole",
+                       shapePassage()),
+                 panel(562, "ORNAMENTED DROP CAP",
+                       "a caller-built element supplies the painted outline",
+                       droppedPassage())}));
   }
 };
 

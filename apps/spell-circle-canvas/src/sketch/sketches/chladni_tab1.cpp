@@ -573,22 +573,22 @@ struct ChladniTab1 : sketch::Sketch {
     };
 
     // ---- the rim hairline ----
-    root.child(
-        kit::disc(c, kR)
-            .key(tag + "rim")
-            .shape(shapes::circle())
-            .fill(Fill::none())
-            .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                        ramp(rimDelay, 620, ch::easeOutQuad))),
-                    stroke(1.5f, Fill::color(kInkLine))));
+    root.children(
+        {kit::disc(c, kR)
+             .key(tag + "rim")
+             .shape(shapes::circle())
+             .fill(Fill::none())
+             .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                         ramp(rimDelay, 620, ch::easeOutQuad))),
+                     stroke(1.5f, Fill::color(kInkLine)))});
 
     // ---- the figure itself ----
     if (f.kind == Kind::Star) {
-      root.child(kit::disc(c, kR * kTip)
-                     .key(tag + "star")
-                     .shape(shapes::star((int)f.points, f.inner))
-                     .fill(inkMat)
-                     .opacity(inkIn()));
+      root.children({kit::disc(c, kR * kTip)
+                         .key(tag + "star")
+                         .shape(shapes::star((int)f.points, f.inner))
+                         .fill(inkMat)
+                         .opacity(inkIn())});
     } else if (f.kind == Kind::Petals) {
       // Figures 3 and 5 are figures 2 and 4's star worn as a mask: the
       // hatched petals are the disc MINUS the star, and the star is then
@@ -609,33 +609,33 @@ struct ChladniTab1 : sketch::Sketch {
         lines::RadialHatch fan = lines::presets::radialHatch(
             Fill::color(hexColor(0x211c14, 0.62f)), (int)f.points * 60, 0.85f);
         fan.holeFraction = f.inner;
-        root.child(
-            kit::disc(c, kR)
-                .key(tag + "fan")
-                // The disc's own outline is the clip: a fan's spokes reach
-                // the box's half-diagonal, so on a square node they run out
-                // past the rim into the plate's paper.
-                .shape(shapes::circle())
-                .fill(Fill::none())
-                .background(fan)
-                .opacity(bind(&settle[fi]).source(0.52f, 0.98f).clamp(0, 1)));
+        root.children(
+            {kit::disc(c, kR)
+                 .key(tag + "fan")
+                 // The disc's own outline is the clip: a fan's spokes reach
+                 // the box's half-diagonal, so on a square node they run out
+                 // past the rim into the plate's paper.
+                 .shape(shapes::circle())
+                 .fill(Fill::none())
+                 .background(fan)
+                 .opacity(bind(&settle[fi]).source(0.52f, 0.98f).clamp(0, 1))});
       }
-      root.child(kit::disc(c, kR * 1.002f)
-                     .key(tag + "mask")
-                     .shape(shapes::star((int)f.points, f.inner))
-                     .fill(Fill::color(kPaper)));
+      root.children({kit::disc(c, kR * 1.002f)
+                         .key(tag + "mask")
+                         .shape(shapes::star((int)f.points, f.inner))
+                         .fill(Fill::color(kPaper))});
     } else {
       const std::vector<Linie>& lines = linienOf(f.num);
       for (size_t li = 0; li < lines.size(); ++li)
-        root.child(kit::disc(c, kR)
-                       .key(tag + "l" + std::to_string(li))
-                       .shape(linieOutline(lines[li]))
-                       .fill(Fill::none())
-                       .stroke(spans::upTo(bind(&settle[fi])
-                                               .source(0.55f, 0.98f)
-                                               .clamp(0.0f, 1.0f)),
-                               stroke(2.6f))
-                       .opacity(inkIn()));
+        root.children({kit::disc(c, kR)
+                           .key(tag + "l" + std::to_string(li))
+                           .shape(linieOutline(lines[li]))
+                           .fill(Fill::none())
+                           .stroke(spans::upTo(bind(&settle[fi])
+                                                   .source(0.55f, 0.98f)
+                                                   .clamp(0.0f, 1.0f)),
+                                   stroke(2.6f))
+                           .opacity(inkIn())});
     }
 
     // ---- the bow's contact arc: a travelling window on the rim, as a
@@ -645,40 +645,41 @@ struct ChladniTab1 : sketch::Sketch {
     bow.trimStart = 0.0f;
     bow.trimEnd = 0.065f;
     bow.trimPhase = &bowPhase[fi];
-    root.child(kit::disc(c, kR)
-                   .key(tag + "bow")
-                   .shape(shapes::circle())
-                   .fill(Fill::none())
-                   .stroke(bow)
-                   .opacity(&bowAlpha[fi])
-                   .cache(Cache::None));
+    root.children({kit::disc(c, kR)
+                       .key(tag + "bow")
+                       .shape(shapes::circle())
+                       .fill(Fill::none())
+                       .stroke(bow)
+                       .opacity(&bowAlpha[fi])
+                       .cache(Cache::None)});
 
     // ---- the numeral, upper left of its circle (measured at
     // -0.80R, -1.04R from the centre, baseline-left) ----
-    root.child(
-        text(std::to_string(f.num) + ".")
-            .font({.face = faceNumeral, .size = 37, .track = 0.5f})
-            .key(tag + "num")
-            .centerAt({c.fX - 0.82f * kR, c.fY - 1.15f * kR})
-            .opacity(animate(from(0.0f).to(1.0f),
-                             ramp(tNumeral * 1000 + (float)fi * 22.0f, 360))));
+    root.children({text(std::to_string(f.num) + ".")
+                       .font({.face = faceNumeral, .size = 37, .track = 0.5f})
+                       .key(tag + "num")
+                       .centerAt({c.fX - 0.82f * kR, c.fY - 1.15f * kR})
+                       .opacity(animate(
+                           from(0.0f).to(1.0f),
+                           ramp(tNumeral * 1000 + (float)fi * 22.0f, 360)))});
 
     // ---- reference letters: upright, never rotated ----
     const std::vector<Label>& labels = labelsOf(f.num);
     for (size_t li = 0; li < labels.size(); ++li) {
       const Label& l = labels[li];
-      root.child(
-          text(l.glyph)
-              .font({.face = faceLabel, .size = 33})
-              .key(tag + "lab" + std::to_string(li))
-              .centerAt(polar(c, kR * l.radius, l.bearing))
-              .opacity(bind(&settle[fi]).source(0.84f, 0.99f).clamp(0.0f, 1.0f))
-              .translateY(bind(&settle[fi])
-                              .source(0.84f, 0.99f)
-                              .map(ch::easeOutQuad)
-                              .invert()
-                              .target(0.0f, 7.0f)
-                              .clamp(0.0f, 7.0f)));
+      root.children(
+          {text(l.glyph)
+               .font({.face = faceLabel, .size = 33})
+               .key(tag + "lab" + std::to_string(li))
+               .centerAt(polar(c, kR * l.radius, l.bearing))
+               .opacity(
+                   bind(&settle[fi]).source(0.84f, 0.99f).clamp(0.0f, 1.0f))
+               .translateY(bind(&settle[fi])
+                               .source(0.84f, 0.99f)
+                               .map(ch::easeOutQuad)
+                               .invert()
+                               .target(0.0f, 7.0f)
+                               .clamp(0.0f, 7.0f))});
     }
   }
 
@@ -710,41 +711,42 @@ struct ChladniTab1 : sketch::Sketch {
     // What remains live is the sand pool (instancing Mode::Live), and it has
     // to: the grains ANIMATE in, which is the study's whole entrance, so
     // there is nothing to freeze.
-    root.child(
-        stack()
-            .inset(0)
-            .fill(Fill::color(kPaper))
-            .child(box().inset(0).fill(paperMat).opacity(0.16f).blend(
-                SkBlendMode::kSoftLight))
-            .child(box().inset(0).fill(foxing.material()))
-            .child(box()
-                       .left(0)
-                       .top(kH * 0.50f)
-                       .width(kW * 0.52f)
-                       .height(kH * 0.50f)
-                       .fill(foxingLL.material()))
-            .child(box().inset(0).fill(radialGradient(
-                {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
-                {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
-                 SkColor4f{kPaperEdge.fR, kPaperEdge.fG, kPaperEdge.fB, 0.26f}},
-                {0.0f, 0.62f, 1.0f})))
-            .cache(Cache::Texture));
+    root.children(
+        {stack()
+             .inset(0)
+             .fill(Fill::color(kPaper))
+             .children({box().inset(0).fill(paperMat).opacity(0.16f).blend(
+                 SkBlendMode::kSoftLight)})
+             .children({box().inset(0).fill(foxing.material())})
+             .children({box()
+                            .left(0)
+                            .top(kH * 0.50f)
+                            .width(kW * 0.52f)
+                            .height(kH * 0.50f)
+                            .fill(foxingLL.material())})
+             .children({box().inset(0).fill(radialGradient(
+                 {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
+                 {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
+                  SkColor4f{kPaperEdge.fR, kPaperEdge.fG, kPaperEdge.fB,
+                            0.26f}},
+                 {0.0f, 0.62f, 1.0f}))})
+             .cache(Cache::Texture)});
 
     // ---- the frame's double hairline ----
     for (int i = 0; i < 2; ++i) {
       const float g = (float)i * kRuleGap;
-      root.child(
-          box()
-              .left(kFrameL + g)
-              .top(kFrameT + g)
-              .width(kFrameR - kFrameL - 2 * g)
-              .height(kFrameB - kFrameT - 2 * g)
-              .key("frame" + std::to_string(i))
-              .fill(Fill::none())
-              .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                          ramp(tFrame * 1000 + (float)i * 90,
-                                               880, ch::easeOutQuint))),
-                      stroke(i == 0 ? 2.0f : 1.3f, Fill::color(kInkLine))));
+      root.children(
+          {box()
+               .left(kFrameL + g)
+               .top(kFrameT + g)
+               .width(kFrameR - kFrameL - 2 * g)
+               .height(kFrameB - kFrameT - 2 * g)
+               .key("frame" + std::to_string(i))
+               .fill(Fill::none())
+               .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                           ramp(tFrame * 1000 + (float)i * 90,
+                                                880, ch::easeOutQuint))),
+                       stroke(i == 0 ? 2.0f : 1.3f, Fill::color(kInkLine)))});
     }
 
     // ---- "Tab. I.", swash italic, above the frame at the right ----
@@ -752,27 +754,27 @@ struct ChladniTab1 : sketch::Sketch {
               .stagger = {.eachMs = 0, .amountMs = 520, .durationMs = 60},
               .progress = animate(from(0.0f).to(1.0f),
                                   ramp(tTitle * 1000, 620, ch::easeNone))};
-    root.child(text("Tab. I.")
-                   .font({.face = faceSwash, .size = 62, .track = 1.0f})
-                   .key("title")
-                   .fx(std::move(pen))
-                   .centerAt({1436 * kScale, 106 * kScale}));
+    root.children({text("Tab. I.")
+                       .font({.face = faceSwash, .size = 62, .track = 1.0f})
+                       .key("title")
+                       .fx(std::move(pen))
+                       .centerAt({1436 * kScale, 106 * kScale})});
 
     // ---- the twelve figures ----
     for (size_t i = 0; i < kFigures.size(); ++i) figure(root, i, ctx);
 
     // ---- the sand: every grain in one pool, one atlas stamp ----
-    root.child(box().inset(0).child(
-        instancing::instances(atlas, pool, instancing::Mode::Live)));
+    root.children({box().inset(0).children(
+        {instancing::instances(atlas, pool, instancing::Mode::Live)})});
 
     // ---- the engraver's signature, inside the frame at the foot ----
-    root.child(
-        text("Capieux. sculps. 1786.")
-            .font({.face = faceSwash, .size = 27, .track = 0.3f})
-            .ink(kInkSoft)
-            .key("credit")
-            .centerAt({1402 * kScale, 1917 * kScale})
-            .opacity(animate(from(0.0f).to(1.0f), ramp(tCredit * 1000, 700))));
+    root.children({text("Capieux. sculps. 1786.")
+                       .font({.face = faceSwash, .size = 27, .track = 0.3f})
+                       .ink(kInkSoft)
+                       .key("credit")
+                       .centerAt({1402 * kScale, 1917 * kScale})
+                       .opacity(animate(from(0.0f).to(1.0f),
+                                        ramp(tCredit * 1000, 700)))});
 
     return root;
   }

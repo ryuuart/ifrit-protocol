@@ -33,21 +33,14 @@ auto KspMapView::describe(sketch::SketchContext& ctx) -> Element {
   return stack()
       .width(Dimension(W))
       .height(Dimension(H))
-      .child(backdrop(ctx))
-      .child(std::move(map))
-      .child(std::move(bloom))
-      .child(burnCard())
-      .child(infoCard())
-      .child(toolbar())
-      .child(missionClock())
-      .child(altimeter())
-      .child(crewPlate())
-      .child(cluster())
+      .children({backdrop(ctx), std::move(map), std::move(bloom), burnCard(),
+                 infoCard(), toolbar(), missionClock(), altimeter(),
+                 crewPlate(), cluster()})
       // corner vignette, last
-      .child(box().inset(0).fill(
+      .children({box().inset(0).fill(
           Paint::radialUnit({0.5f, 0.5f}, 1.0f,
                             {{0.50f, hexColor(0x000000, 0.0f)},
-                             {1.0f, hexColor(0x000000, 0.30f)}})));
+                             {1.0f, hexColor(0x000000, 0.30f)}}))});
 }
 
 auto KspMapView::setup(sketch::SketchContext& ctx) -> void {

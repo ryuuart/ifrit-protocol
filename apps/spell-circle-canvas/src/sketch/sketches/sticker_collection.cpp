@@ -196,14 +196,11 @@ struct StickerCollection final : sketch::Sketch {
 
     const weave::TextStyle title = weave::textStyle(
         {.size = 29, .color = SkColor4f{1, 1, 1, 1}, .track = 3.4f});
-    ctx.composer.render(
-        stack()
-            .width(kWidth)
-            .height(kHeight)
-            .child(std::move(stage))
-            .child(text(u8"SIGIL STICKERS / GIF · WEBP · AVIFS · WEBM", title)
-                       .absolute()
-                       .inset(52, 58, 52, 1190)));
+    ctx.composer.render(stack().width(kWidth).height(kHeight).children(
+        {std::move(stage),
+         text(u8"SIGIL STICKERS / GIF · WEBP · AVIFS · WEBM", title)
+             .absolute()
+             .inset(52, 58, 52, 1190)}));
   }
 };
 

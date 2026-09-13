@@ -58,17 +58,17 @@ TEST(ComposeTextFx, TintComposesWithAnotherTrackByMultiplying) {
   // second tint is the product — not the last one to run. The letter is set
   // in white so the product is readable straight off the pixels.
   Host host(160, 120);
-  host.composer.render(box().padding(8).child(
-      text(u8"I", whiteStyle(64))
-          .key("k")
-          // Both tracks are AT REST (progress 0), where each contributes
-          // its own origin: 0.5 on red and 0.5 on green.
-          .fx({.effect = fx::tint({0.5f, 1, 1, 1}, {1, 1, 1, 1}),
-               .stagger = {.eachMs = 0, .durationMs = 100},
-               .progress = 0.0f})
-          .fx({.effect = fx::tint({1, 0.5f, 1, 1}, {1, 1, 1, 1}),
-               .stagger = {.eachMs = 0, .durationMs = 100},
-               .progress = 0.0f})));
+  host.composer.render(box().padding(8).children(
+      {text(u8"I", whiteStyle(64))
+           .key("k")
+           // Both tracks are AT REST (progress 0), where each contributes
+           // its own origin: 0.5 on red and 0.5 on green.
+           .fx({.effect = fx::tint({0.5f, 1, 1, 1}, {1, 1, 1, 1}),
+                .stagger = {.eachMs = 0, .durationMs = 100},
+                .progress = 0.0f})
+           .fx({.effect = fx::tint({1, 0.5f, 1, 1}, {1, 1, 1, 1}),
+                .stagger = {.eachMs = 0, .durationMs = 100},
+                .progress = 0.0f})}));
   host.frame();
   bool sawProduct = false;
   for (int y = 0; y < 120 && !sawProduct; ++y)
@@ -102,12 +102,12 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
   // placement — and it is the SAME rect the schedule read-back reports, so
   // a caret and a beat can never disagree about where a word is.
   Host host(400, 140);
-  host.composer.render(box().padding(10).child(
-      text(u8"ALPHA BETA GAMMA", whiteStyle(24))
-          .key("line")
-          .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
-          .mark(sigil::weave::selectors::word(1),
-                box().key("caret").fill(green()))));
+  host.composer.render(box().padding(10).children(
+      {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
+           .key("line")
+           .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
+           .mark(sigil::weave::selectors::word(1),
+                 box().key("caret").fill(green()))}));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("line", 0);
   ASSERT_EQ(beats.size(), 3u);
@@ -122,13 +122,13 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
   // difference from a slot: a 2 px caret pinned to the unit's leading edge
   // and hanging below it.
   Host pinned(400, 140);
-  pinned.composer.render(box().padding(10).child(
-      text(u8"ALPHA BETA GAMMA", whiteStyle(24))
-          .key("line")
-          .mark(
-              sigil::weave::selectors::word(1),
-              box().key("caret").left(0).top(pct(100)).width(2).height(9).fill(
-                  green()))));
+  pinned.composer.render(box().padding(10).children(
+      {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
+           .key("line")
+           .mark(
+               sigil::weave::selectors::word(1),
+               box().key("caret").left(0).top(pct(100)).width(2).height(9).fill(
+                   green()))}));
   pinned.frame();
   const SkRect tick = markRect(pinned, "caret");
   EXPECT_NEAR(tick.left(), caret.left(), 0.01f);
@@ -143,12 +143,12 @@ TEST(ComposeTextFx, MarkFollowsItsUnitWhenTheTextReflows) {
   // caret rather than compute one.
   const auto placeAt = [](float width) {
     Host host(400, 200);
-    host.composer.render(
-        box().padding(10).child(text(u8"ALPHA BETA GAMMA DELTA", whiteStyle(24))
-                                    .key("line")
-                                    .width(width)
-                                    .mark(sigil::weave::selectors::word(3),
-                                          box().key("caret").fill(green()))));
+    host.composer.render(box().padding(10).children(
+        {text(u8"ALPHA BETA GAMMA DELTA", whiteStyle(24))
+             .key("line")
+             .width(width)
+             .mark(sigil::weave::selectors::word(3),
+                   box().key("caret").fill(green()))}));
     host.frame();
     return markRect(host, "caret");
   };
@@ -167,14 +167,14 @@ TEST(ComposeTextFx, MarkStandsAtRestWhileACascadeDeviatesTheGlyphs) {
   // ride the motion reads beatsOf and drives its own transform.
   const auto placeAtProgress = [](float progress) {
     Host host(400, 200);
-    host.composer.render(box().padding(10).child(
-        text(u8"ALPHA BETA", whiteStyle(24))
-            .key("line")
-            .fx({.effect = fx::rise(40),
-                 .stagger = {.eachMs = 0, .durationMs = 100},
-                 .progress = progress})
-            .mark(sigil::weave::selectors::word(1),
-                  box().key("caret").fill(green()))));
+    host.composer.render(box().padding(10).children(
+        {text(u8"ALPHA BETA", whiteStyle(24))
+             .key("line")
+             .fx({.effect = fx::rise(40),
+                  .stagger = {.eachMs = 0, .durationMs = 100},
+                  .progress = progress})
+             .mark(sigil::weave::selectors::word(1),
+                   box().key("caret").fill(green()))}));
     host.frame();
     return markRect(host, "caret");
   };
@@ -192,15 +192,15 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
   // disagree on a ring any more than they can on a line. Resolved after
   // layout, because the curve resolves against the node's final box.
   Host host;
-  host.composer.render(box().padding(10).child(
-      text(u8"AROUND THE RING IT GOES", whiteStyle(18))
-          .key("ring")
-          .width(180)
-          .height(180)
-          .onPath({.path = geometry::shapes::circle()})
-          .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
-          .mark(sigil::weave::selectors::word(2),
-                box().key("caret").fill(green()))));
+  host.composer.render(box().padding(10).children(
+      {text(u8"AROUND THE RING IT GOES", whiteStyle(18))
+           .key("ring")
+           .width(180)
+           .height(180)
+           .onPath({.path = geometry::shapes::circle()})
+           .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
+           .mark(sigil::weave::selectors::word(2),
+                 box().key("caret").fill(green()))}));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
   ASSERT_GT(beats.size(), 2u);
@@ -214,14 +214,14 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
   // does not use: the same content laid straight puts the word somewhere
   // else entirely.
   Host straight;
-  straight.composer.render(box().padding(10).child(
-      text(u8"AROUND THE RING IT GOES", whiteStyle(18))
-          .key("ring")
-          .width(180)
-          .height(180)
-          .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
-          .mark(sigil::weave::selectors::word(2),
-                box().key("caret").fill(green()))));
+  straight.composer.render(box().padding(10).children(
+      {text(u8"AROUND THE RING IT GOES", whiteStyle(18))
+           .key("ring")
+           .width(180)
+           .height(180)
+           .fx({.effect = fx::rise(4), .unit = sigil::weave::Unit::Word})
+           .mark(sigil::weave::selectors::word(2),
+                 box().key("caret").fill(green()))}));
   straight.frame();
   const SkRect flow = markRect(straight, "caret");
   EXPECT_TRUE(std::abs(caret.left() - flow.left()) > 1.0f ||
@@ -235,11 +235,11 @@ TEST(ComposeTextFx, MarkResolvingNothingPlacesNothing) {
   // a style name no run carries selects nothing, and a mark on nothing must
   // draw nothing rather than land at the text node's origin.
   Host host(300, 140);
-  host.composer.render(box().padding(10).child(
-      text(u8"ALPHA BETA", whiteStyle(24))
-          .key("line")
-          .mark(selectors::style("nobody"),
-                box().key("caret").width(30).height(30).fill(green()))));
+  host.composer.render(box().padding(10).children(
+      {text(u8"ALPHA BETA", whiteStyle(24))
+           .key("line")
+           .mark(selectors::style("nobody"),
+                 box().key("caret").width(30).height(30).fill(green()))}));
   host.frame();
   EXPECT_TRUE(markRect(host, "caret").isEmpty())
       << "a mark on nothing took a box anyway";
@@ -256,11 +256,11 @@ TEST(ComposeTextFx, MarkPrunesAndReResolvesWhenItMoves) {
   // different word must not, or the caret keeps the rect it had.
   Host host(400, 140);
   const auto describe = [](uint32_t word) {
-    return box().padding(10).child(
-        text(u8"ALPHA BETA GAMMA", whiteStyle(24))
-            .key("line")
-            .mark(sigil::weave::selectors::word(word),
-                  box().key("caret").fill(green())));
+    return box().padding(10).children(
+        {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
+             .key("line")
+             .mark(sigil::weave::selectors::word(word),
+                   box().key("caret").fill(green()))});
   };
   host.composer.render(describe(0));
   host.frame();
@@ -283,7 +283,8 @@ TEST(ComposeTextFx, MarkIsNotASlotAndReservesNoSpaceInTheFlow) {
   // laid out as though it were not there.
   const auto widthOf = [](Element leaf) {
     Host host(400, 140);
-    host.composer.render(box().padding(10).child(std::move(leaf).key("line")));
+    host.composer.render(
+        box().padding(10).children({std::move(leaf).key("line")}));
     host.frame();
     return host.composer.bounds("line").value_or(SkRect::MakeEmpty()).width();
   };
@@ -333,12 +334,13 @@ TEST(ComposeCache, TextOnAPathOutsideItsBoxSurvivesTheCull) {
   // with no surface to truncate against.
   const auto plate = [](Cache cache) {
     auto host = std::make_unique<Host>(300, 200);
-    host->composer.render(box().child(text(u8"CIRCVMFERENTIA", whiteStyle(18))
-                                          .width(100)
-                                          .height(100)
-                                          .onPath({.path = RingBesideTheBox{}})
-                                          .cache(cache)
-                                          .key("ring")));
+    host->composer.render(
+        box().children({text(u8"CIRCVMFERENTIA", whiteStyle(18))
+                            .width(100)
+                            .height(100)
+                            .onPath({.path = RingBesideTheBox{}})
+                            .cache(cache)
+                            .key("ring")}));
     for (int i = 0; i < 4; ++i) host->frame(1.0 / 60.0);
     return host;
   };
@@ -368,9 +370,9 @@ TEST(ComposeShapeValues, TextOnAComparableBaselinePrunes) {
                  .at = at,
                  .align = TextPath::Align::Center});
   };
-  host.composer.render(box().child(ring(0.25f)));
+  host.composer.render(box().children({ring(0.25f)}));
   host.frame();
-  host.composer.render(box().child(ring(0.25f)));
+  host.composer.render(box().children({ring(0.25f)}));
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
       << "an identical curved run re-patched";
   host.frame();
@@ -380,6 +382,6 @@ TEST(ComposeShapeValues, TextOnAComparableBaselinePrunes) {
   // textEqual and a run that slides along its baseline compares equal to
   // where it was, prunes, and keeps the OLD placement forever with no
   // diagnostic — so this half of the case is the load-bearing one.
-  host.composer.render(box().child(ring(0.75f)));
+  host.composer.render(box().children({ring(0.75f)}));
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
 }

@@ -106,10 +106,11 @@ Element column(const std::u8string& prose, paint::Paint fill) {
              .track = 0,
              .language = "en-US"})
       .width(Dimension(kPanel - kInset * 2))
-      .paragraph(block())
-      .textAlign(weave::TextAlignment::kJustify)
-      .lineBreak(weave::LineBreakStrategy::kKnuthPlass)
-      .hyphenation({.patterns = &hyphenator()})
+      .paragraphs({block()})
+      .block({.alignment = weave::TextAlignment::kJustify})
+      .block({.lineBreak = weave::LineBreakStrategy::kKnuthPlass})
+      .block({.hyphenation =
+                  sigil::weave::HyphenationOptions{.patterns = &hyphenator()}})
       .textFill(std::move(fill));
 }
 
@@ -122,11 +123,11 @@ Element panel(const std::u8string& prose, const char* call, const char* note,
                                      .padding = kInset})
                       .column();
   if (beneath.isSolid() || beneath.asShader())
-    plate.child(
-        box().absolute().inset(0).child(column(prose, std::move(beneath))));
+    plate.children({box().absolute().inset(0).children(
+        {column(prose, std::move(beneath))})});
   return sketch::kit::caption(
       kPanel, call, note,
-      std::move(plate).child(column(prose, std::move(fill))));
+      std::move(plate).children({column(prose, std::move(fill))}));
 }
 
 Element field(const std::u8string& prose, const char* call, const char* note,

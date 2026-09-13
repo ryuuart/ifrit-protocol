@@ -17,10 +17,10 @@ TEST(ComposeTextFx, ColorMulTintsEveryPassOfADressedGlyph) {
   const auto render = [&](Host& host, std::string key, SkColor4f tint) {
     GlyphModifier mod;
     mod.colorMultiplier = tint;
-    host.composer.render(box().padding(10).child(
-        text(u8"I", shadowed)
-            .key("k")
-            .fx({.effect = fixed(std::move(key), mod)})));
+    host.composer.render(box().padding(10).children(
+        {text(u8"I", shadowed)
+             .key("k")
+             .fx({.effect = fixed(std::move(key), mod)})}));
     host.frame();
   };
   const auto count = [](Host& host, auto&& predicate) {
@@ -72,7 +72,7 @@ std::vector<uint8_t> renderColorTracks(
   Element leaf = text(u8"I", greyStyle(52, greyLevel)).key("k");
   for (auto& [key, mod] : tracks)
     leaf.fx({.effect = fixed(key, mod), .continuous = continuous});
-  host.composer.render(box().padding(10).child(std::move(leaf)));
+  host.composer.render(box().padding(10).children({std::move(leaf)}));
   host.frame();
   return surfaceBytes(host, 140, 140);
 }
@@ -132,11 +132,11 @@ TEST(ComposeTextFx, TheColourTermsLerpComponentwiseInAKeysTable) {
   const auto renderKeysAt = [](TextEffect effect) {
     Host host(140, 140);
     host.composer.render(
-        box().padding(10).child(text(u8"I", greyStyle(52, 0.25f))
-                                    .key("k")
-                                    .fx({.effect = std::move(effect),
-                                         .stagger = {.eachMs = 0},
-                                         .progress = 0.5f})));
+        box().padding(10).children({text(u8"I", greyStyle(52, 0.25f))
+                                        .key("k")
+                                        .fx({.effect = std::move(effect),
+                                             .stagger = {.eachMs = 0},
+                                             .progress = 0.5f})}));
     host.frame();
     return surfaceBytes(host, 140, 140);
   };
@@ -207,8 +207,8 @@ TEST(ComposeTextFx, TheFilterPathAgreesWithTheFlatColourPath) {
     if (shaderFill)
       style.paint.foreground.setShader(
           SkShaders::Color({0.5f, 0.5f, 0.5f, 1.0f}, nullptr));
-    host.composer.render(box().padding(10).child(
-        text(u8"I", style).key("k").fx({.effect = fixed("both", mod)})));
+    host.composer.render(box().padding(10).children(
+        {text(u8"I", style).key("k").fx({.effect = fixed("both", mod)})}));
     host.frame();
   };
   Host flat(140, 140);

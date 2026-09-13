@@ -707,7 +707,7 @@ text(weave::rich(body)
          .add(u8"press ")
          .slot("key", {28, 18})
          .add(u8" to continue"))
-    .child(box().key("key").fill(ink).corners({4}));
+    .children({box().key("key").fill(ink).corners({4})});
 ```
 
 The reserved box is one UNBREAKABLE word: no line breaks inside it, and a
@@ -815,16 +815,16 @@ pass and addresses the layout of the text BEFORE the restyle: it does not
 chase its own result, so a `spanStyle` that moves the line breaks leaves the
 selection where the first breaking put it.
 
-**Layout options, fluently.** `Element::textAlign`, `Element::lineBreak`
-(greedy or Knuth-Plass), `Element::hyphenation`, `Element::ellipsis`,
-`Element::maxLines`, `Element::lastLine`, `Element::justification`,
-`Element::tabStops`, `Element::reserve` and `Element::live` set the
-general knobs of `sigil::weave::ParagraphLayoutOptions` on any content
-form; `Element::kinsoku`, `Element::hanging` and `Element::mojikumi` hand
-it the three tables a house's own setting is stated in, and
-`Element::lineBreakLocale` names the tailoring the segmentation runs
-under, which belongs to the Paragraph and lands there the way
-`writingMode` does. The rest of that struct — Knuth-Plass tolerance,
+**Layout options, fluently.** `Element::block` states every layout-wide
+field a passage inherits, as one partial: its alignment, its breaking
+strategy (greedy or Knuth-Plass), its hyphenation, its last line, its
+justification, its tab stops, the three tables a house's own setting is
+stated in (`Block::kinsoku`, `Block::hanging`, `Block::mojikumi` with
+`Block::tsume`), and the tailoring the segmentation runs under
+(`Block::lineBreakLocale`), which belongs to the Paragraph and lands
+there the way `Block::writingMode` does. `Element::ellipsis`,
+`Element::maxLines`, `Element::reserve` and `Element::live` are the
+leaf's own, set on any content form. The rest of that struct — Knuth-Plass tolerance,
 line-metric overrides — stays behind the paragraph overload, which takes
 the whole options value. **On that overload the setters override FIELD BY
 FIELD**, and only the fields actually set: everything a setter did not
@@ -893,7 +893,7 @@ SigilWeave's README is the canon for what each one means. A block past the
 end of the list is set in THE BLOCK IN FORCE where the leaf stands — the
 `weave::Block` partials its ancestors declared through `Element::block`,
 folded down the tree — so ONE entry styles the first block and leaves the
-rest to the passage. `Element::paragraph` sets every block alike and
+rest to the passage. `Element::paragraphs` with whole styles sets every block alike and
 inherits nothing, and `Element::paragraphs` also takes NAMES, resolved
 through the block half of the `sigil::weave::StyleSheet` in force where
 the leaf lands into partials that are laid over the block in force when
@@ -915,8 +915,7 @@ its block styles and nothing else — no layout, no cursor, no frame — and
 weave::Story article(weave::rich(body).add(u8"…"));
 article.paragraphs({headingStyle, bodyStyle, bodyStyle});
 
-root.child(frame(article).key("a").thread("b").width(Dimension(300.0f)))
-    .child(frame(article).key("b").width(Dimension(300.0f)).ellipsis(u8"…"));
+root.children({frame(article).key("a").thread("b").width(Dimension(300.0f)), frame(article).key("b").width(Dimension(300.0f)).ellipsis(u8"…")});
 ```
 
 Each frame fills from where the one before it stopped, so the cut moves as
@@ -1106,7 +1105,7 @@ delimiter leaves it covering nothing rather than covering the paragraph.
 
 ### Vertical CJK
 
-`Element::writingMode` sets the passage running down the page.
+`block({.writingMode = …})` sets the passage running down the page.
 `sigil::weave::WritingMode::kVerticalRL` is the CJK book layout: characters
 top to bottom, columns advancing RIGHT TO LEFT from the node's right edge.
 It is one field of the block lane, set on the passage or on any node above
@@ -1120,7 +1119,7 @@ text(weave::rich(mincho)
          .add(u8"31", tateChuYoko)
          .add(u8"年、縦組みに対応した。"))
     .width(260).height(300)
-    .writingMode(sigil::weave::WritingMode::kVerticalRL)
+    .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
     .fx({.effect = fx::rise(24)});
 ```
 
@@ -1158,11 +1157,11 @@ there too.
 **The engine runs in columns.** `weave::Unit::Line` IS A COLUMN here, so a
 track with `.unit = weave::Unit::Line` beats column by column and
 `weave::selectors::line(0)` addresses the rightmost one; `weave::Unit::Cluster`
-runs down a column in reading order. `spanPaint`, `spanStyle`, `textAlign`
-(start is the top of the column), `maxLines` (which clamps COLUMNS) with
-`ellipsis` at the clamped column's foot, `flowAround`, `lastLine`,
-`lineBreak`, `textStroke`, `variationDrive` and `feed()`'s text tier all
-work as they do across a line. `mark()` anchors as it does anywhere — its
+runs down a column in reading order. `spanPaint`, `spanStyle`, the block's
+alignment (start is the top of the column), `maxLines` (which clamps
+COLUMNS) with `ellipsis` at the clamped column's foot, `flowAround`, the
+block's last line and breaking strategy, `textStroke`, `variationDrive`
+and `feed()`'s text tier all work as they do across a line. `mark()` anchors as it does anywhere — its
 rect is the union of the advance boxes its selector addressed, and in a
 column those stack downward, so a phrase's mark is a tall box standing in
 that phrase's column. `Element::textFill` maps its unit square onto the
@@ -1194,8 +1193,8 @@ it. The marker stands for the text it cut and is set the way that text was
 set: upright after upright glyphs, in the face's own vertical form when it
 has one, and turned with the column after a rotated Latin run.
 
-**What does not follow the type down the page.** `onPath` ignores
-`writingMode` entirely — a path run's baseline is its own geometry and has
+**What does not follow the type down the page.** `onPath` ignores the
+writing mode entirely — a path run's baseline is its own geometry and has
 no columns to advance — and setting both warns once and keeps the path. A
 decoration on a span DOES follow the type down the page — an underline runs beside the
 column on its right, an overline on its left, a strikethrough down the

@@ -162,7 +162,7 @@ Element panel(const char* title, const char* note, Element inner) {
                          .height = Dimension(kPanel),
                          .ground = Fill::none(),
                          .keyline = Fill::color(kFrame)})
-          .child(std::move(inner)));
+          .children({std::move(inner)}));
 }
 
 }  // namespace

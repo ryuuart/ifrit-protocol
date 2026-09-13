@@ -517,13 +517,13 @@ inline Element pushButton(std::string_view t, bool armed = false,
                       .alignItems(Align::Center)
                       .justify(Justify::Center)
                       .height(Dimension(25))
-                      .child(box()
-                                 .padding(6, 2)
-                                 .alignItems(Align::Center)
-                                 .justify(Justify::Center)
-                                 .child(label(t)));
+                      .children({box()
+                                     .padding(6, 2)
+                                     .alignItems(Align::Center)
+                                     .justify(Justify::Center)
+                                     .children({label(t)})});
   if (insensitive) inner.foreground(stipple());
-  Element ring = box().padding(2).child(std::move(inner));
+  Element ring = box().padding(2).children({std::move(inner)});
   if (defaulted) ring.overlay(bevel(1, true, false));
   return ring;
 }
@@ -539,20 +539,20 @@ inline Element textField(std::string_view t, float w, bool caret = false,
                       .alignItems(Align::Center)
                       .grow(1)
                       .padding(3, 0)
-                      .child(label(t));
+                      .children({label(t)});
   if (caret && caretOut)
-    inner.child(box()
-                    .width(Dimension(1))
-                    .height(Dimension(13))
-                    .fill(s.fg)
-                    .opacity(motion::bind(caretOut).quantize(2)));
+    inner.children({box()
+                        .width(Dimension(1))
+                        .height(Dimension(13))
+                        .fill(s.fg)
+                        .opacity(motion::bind(caretOut).quantize(2))});
   Element field = surface(s)
                       .overlay(bevel(2, true, false))
                       .padding(2)
                       .height(Dimension(24))
                       .row()
                       .alignItems(Align::Center)
-                      .child(std::move(inner));
+                      .children({std::move(inner)});
   if (!caret) return field.width(Dimension(w));
   // The focused widget carries XmeDrawHighlight's ring OUTSIDE its
   // shadow: four plain rectangles of highlightThickness, no mitre.
@@ -560,7 +560,7 @@ inline Element textField(std::string_view t, float w, bool caret = false,
       .width(Dimension(w))
       .padding(2)
       .overlay(highlight(2))
-      .child(std::move(field).grow(1));
+      .children({std::move(field).grow(1)});
 }
 
 // ---------------------------------------------------------------------------

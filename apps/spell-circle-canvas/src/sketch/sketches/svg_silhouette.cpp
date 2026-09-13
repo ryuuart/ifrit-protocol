@@ -67,15 +67,16 @@ Element cell(const char* call, const char* note, SkSize boxSize,
       sketch::kit::well({.width = kCell, .height = kPicture, .clip = false})
           .alignItems(Align::Center)
           .justify(Justify::Center)
-          .child(box()
-                     .width(Dimension(boxSize.width()))
-                     .height(Dimension(boxSize.height()))
-                     .stroke(stroke(1.0f, Fill::color(kBoxRule)))
-                     .child(box()
-                                .grow(1)
-                                .alignSelf(Align::Stretch)
-                                .shape(shapes::svg(kBolt, preserveAspect))
-                                .fill(Fill::color(kFigure)))));
+          .children(
+              {box()
+                   .width(Dimension(boxSize.width()))
+                   .height(Dimension(boxSize.height()))
+                   .stroke(stroke(1.0f, Fill::color(kBoxRule)))
+                   .children({box()
+                                  .grow(1)
+                                  .alignSelf(Align::Stretch)
+                                  .shape(shapes::svg(kBolt, preserveAspect))
+                                  .fill(Fill::color(kFigure))})}));
 }
 
 }  // namespace

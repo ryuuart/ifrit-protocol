@@ -49,8 +49,8 @@ Element GenesisFire::starField() {
       .inset(0)
       .opacity(
           animate(from(0.0f).to(1.0f), {.duration = 700ms, .delay = 340ms}))
-      .child(instancing::instances(starAtlas, starPool, instancing::Mode::Data,
-                                   SkBlendMode::kPlus));
+      .children({instancing::instances(
+          starAtlas, starPool, instancing::Mode::Data, SkBlendMode::kPlus)});
 }
 
 Element GenesisFire::dipper() {
@@ -70,68 +70,68 @@ Element GenesisFire::dipper() {
   Element g = box().inset(0).font({.face = monoFace()}).ink(kCyan);
 
   // the asterism, drawn on
-  g.child(
-      box()
-          .inset(0)
-          .shape(keyedShape(std::string_view("asterism"),
-                            [](SkSize) {
-                              SkPathBuilder b;
-                              auto P = [](int i) {
-                                return SkPoint{bx + kStars[i].u * bw,
-                                               by + kStars[i].v * bh};
-                              };
-                              b.moveTo(P(0));
-                              b.lineTo(P(1));
-                              b.lineTo(P(2));
-                              b.lineTo(P(3));
-                              b.lineTo(P(4));
-                              b.lineTo(P(5));
-                              b.lineTo(P(6));
-                              b.lineTo(P(3));
-                              return b.detach();
-                            }))
-          .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                      {.duration = 620ms, .delay = 1300ms})),
-                  stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.35f))))
-          .key("asterism"));
+  g.children(
+      {box()
+           .inset(0)
+           .shape(keyedShape(std::string_view("asterism"),
+                             [](SkSize) {
+                               SkPathBuilder b;
+                               auto P = [](int i) {
+                                 return SkPoint{bx + kStars[i].u * bw,
+                                                by + kStars[i].v * bh};
+                               };
+                               b.moveTo(P(0));
+                               b.lineTo(P(1));
+                               b.lineTo(P(2));
+                               b.lineTo(P(3));
+                               b.lineTo(P(4));
+                               b.lineTo(P(5));
+                               b.lineTo(P(6));
+                               b.lineTo(P(3));
+                               return b.detach();
+                             }))
+           .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                       {.duration = 620ms, .delay = 1300ms})),
+                   stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.35f))))
+           .key("asterism")});
 
   for (int i = 0; i < 8; ++i) {
     const SkPoint p = at(i);
     const float rad = std::max(1.4f, 4.6f - 0.85f * kStars[i].mag);
     const bool sol = i == 7;
-    g.child(kit::disc(p, rad * 2.0f)
-                .fill(Paint::radialUnit(
-                    {0.5f, 0.5f}, 0.707f,
-                    {{0.0f, sol ? hexColor(0xFFFFFF) : hexColor(0xEFF3FF)},
-                     {0.22f, sol ? hexColor(0xFFF4D8, 0.9f)
-                                 : hexColor(0xD9E4FF, 0.85f)},
-                     {1.0f, {1, 1, 1, 0}}}))
-                .blend(SkBlendMode::kPlus)
-                .opacity(animate(from(0.0f).to(1.0f),
-                                 {.duration = 500ms, .delay = 1200ms})));
-    g.child(text(kStars[i].name)
-                .font({.size = 7.0f, .track = 1.1f})
-                .ink(sol ? kCyan : hexColor(0x9FB0CC, 0.85f))
-                .left(p.fX + rad + 5.0f)
-                .top(p.fY - 5.0f)
-                .opacity(animate(from(0.0f).to(1.0f),
-                                 {.duration = 400ms, .delay = 1500ms})));
+    g.children({kit::disc(p, rad * 2.0f)
+                    .fill(Paint::radialUnit(
+                        {0.5f, 0.5f}, 0.707f,
+                        {{0.0f, sol ? hexColor(0xFFFFFF) : hexColor(0xEFF3FF)},
+                         {0.22f, sol ? hexColor(0xFFF4D8, 0.9f)
+                                     : hexColor(0xD9E4FF, 0.85f)},
+                         {1.0f, {1, 1, 1, 0}}}))
+                    .blend(SkBlendMode::kPlus)
+                    .opacity(animate(from(0.0f).to(1.0f),
+                                     {.duration = 500ms, .delay = 1200ms}))});
+    g.children({text(kStars[i].name)
+                    .font({.size = 7.0f, .track = 1.1f})
+                    .ink(sol ? kCyan : hexColor(0x9FB0CC, 0.85f))
+                    .left(p.fX + rad + 5.0f)
+                    .top(p.fY - 5.0f)
+                    .opacity(animate(from(0.0f).to(1.0f),
+                                     {.duration = 400ms, .delay = 1500ms}))});
   }
   // Smith's joke, verified in the header block.
   const SkPoint s = at(7);
-  g.child(box().left(s.fX + 4).top(s.fY + 6).width(1).height(16).fill(
-      hexColor(0x4FB8D8, 0.5f)));
-  g.child(box()
-              .left(s.fX + 9)
-              .top(s.fY + 12)
-              .column()
-              .gap(1)
-              .font({.size = 7.0f, .track = 0.9f})
-              .opacity(animate(from(0.0f).to(1.0f),
-                               {.duration = 400ms, .delay = 1600ms}))
-              .child(text("m = 2.63 FROM ε INDI (3.64 pc)"))
-              .child(text("\"OUR SUN WOULD APPEAR AS AN EXTRA STAR\"")
-                         .ink(hexColor(0x4FB8D8, 0.7f))));
+  g.children({box().left(s.fX + 4).top(s.fY + 6).width(1).height(16).fill(
+      hexColor(0x4FB8D8, 0.5f))});
+  g.children({box()
+                  .left(s.fX + 9)
+                  .top(s.fY + 12)
+                  .column()
+                  .gap(1)
+                  .font({.size = 7.0f, .track = 0.9f})
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   {.duration = 400ms, .delay = 1600ms}))
+                  .children({text("m = 2.63 FROM ε INDI (3.64 pc)")})
+                  .children({text("\"OUR SUN WOULD APPEAR AS AN EXTRA STAR\"")
+                                 .ink(hexColor(0x4FB8D8, 0.7f))})});
   return g;
 }
 
@@ -163,19 +163,20 @@ Element GenesisFire::regolith() {
           from(12.0f).to(0.0f),
           {.duration = 520ms, .ease = &ch::easeOutCubic, .delay = 420ms}))
       // Duff's local light. ONE Output (loopU) shaped into px.
-      .child(kit::disc(SkPoint{0, 0}, 132)
-                 .fill(Paint::radialUnit({0.5f, 0.5f}, 0.707f,
-                                         {{0.0f, hexColor(0xFF8A3A, 0.62f)},
-                                          {0.38f, hexColor(0xC24E14, 0.24f)},
-                                          {1.0f, hexColor(0xFF8A3A, 0.0f)}}))
-                 .blend(SkBlendMode::kPlus)
-                 .translateX(bind(&loopU).scale(1680.0f).offset(-80.0f))
-                 .translateY(limbY(444.0f) + 26.0f)
-                 .opacity(bind(&loopU).map([](float v) {
-                   const float t = v * 10.0f;
-                   return std::clamp(t / 0.4f, 0.0f, 1.0f) *
-                          std::clamp((9.6f - t) / 0.8f, 0.0f, 1.0f);
-                 })));
+      .children(
+          {kit::disc(SkPoint{0, 0}, 132)
+               .fill(Paint::radialUnit({0.5f, 0.5f}, 0.707f,
+                                       {{0.0f, hexColor(0xFF8A3A, 0.62f)},
+                                        {0.38f, hexColor(0xC24E14, 0.24f)},
+                                        {1.0f, hexColor(0xFF8A3A, 0.0f)}}))
+               .blend(SkBlendMode::kPlus)
+               .translateX(bind(&loopU).scale(1680.0f).offset(-80.0f))
+               .translateY(limbY(444.0f) + 26.0f)
+               .opacity(bind(&loopU).map([](float v) {
+                 const float t = v * 10.0f;
+                 return std::clamp(t / 0.4f, 0.0f, 1.0f) *
+                        std::clamp((9.6f - t) / 0.8f, 0.0f, 1.0f);
+               }))});
 }
 
 Element GenesisFire::shockwave() {
@@ -183,37 +184,37 @@ Element GenesisFire::shockwave() {
   // (off-frame left). Documented as elements; timing is reconstruction.
   const SkPoint impact{kX0, limbY(kX0 < 0 ? 0.0f : kX0) + 8.0f};
   Element g = box().inset(0);
-  g.child(kit::disc(impact, 170)
-              .fill(Paint::radialUnit({0.5f, 0.5f}, 0.707f,
-                                      {{0.0f, {1, 1, 1, 0.95f}},
-                                       {0.25f, hexColor(0xFFE7B0, 0.6f)},
-                                       {1.0f, hexColor(0xFF7A20, 0.0f)}}))
-              .blend(SkBlendMode::kPlus)
-              .opacity(bind(&loopU).map([](float v) {
-                const float t = v * 10.0f;
-                if (t < 0.06f) return t / 0.06f;
-                if (t < 0.45f) {
-                  const float k = 1.0f - (t - 0.06f) / 0.39f;
-                  return k * k;
-                }
-                return 0.0f;
-              })));
-  g.child(kit::disc(impact, 520)
-              .shape(shapes::circle())
-              .stroke(stroke(2.0f, Fill::color(hexColor(0xFFB070, 0.85f))))
-              .blend(SkBlendMode::kPlus)
-              .scale(bind(&loopU)
-                         .map([](float v) {
-                           return choreograph::easeOutCubic(
-                               std::clamp(v * 10.0f / 1.1f, 0.0f, 1.0f));
-                         })
-                         .clamp(0.001f, 1.0f))
-              .opacity(bind(&loopU).map([](float v) {
-                const float t = v * 10.0f;
-                if (t > 1.1f) return 0.0f;
-                const float k = 1.0f - t / 1.1f;
-                return k * k;
-              })));
+  g.children({kit::disc(impact, 170)
+                  .fill(Paint::radialUnit({0.5f, 0.5f}, 0.707f,
+                                          {{0.0f, {1, 1, 1, 0.95f}},
+                                           {0.25f, hexColor(0xFFE7B0, 0.6f)},
+                                           {1.0f, hexColor(0xFF7A20, 0.0f)}}))
+                  .blend(SkBlendMode::kPlus)
+                  .opacity(bind(&loopU).map([](float v) {
+                    const float t = v * 10.0f;
+                    if (t < 0.06f) return t / 0.06f;
+                    if (t < 0.45f) {
+                      const float k = 1.0f - (t - 0.06f) / 0.39f;
+                      return k * k;
+                    }
+                    return 0.0f;
+                  }))});
+  g.children({kit::disc(impact, 520)
+                  .shape(shapes::circle())
+                  .stroke(stroke(2.0f, Fill::color(hexColor(0xFFB070, 0.85f))))
+                  .blend(SkBlendMode::kPlus)
+                  .scale(bind(&loopU)
+                             .map([](float v) {
+                               return choreograph::easeOutCubic(
+                                   std::clamp(v * 10.0f / 1.1f, 0.0f, 1.0f));
+                             })
+                             .clamp(0.001f, 1.0f))
+                  .opacity(bind(&loopU).map([](float v) {
+                    const float t = v * 10.0f;
+                    if (t > 1.1f) return 0.0f;
+                    const float k = 1.0f - t / 1.1f;
+                    return k * k;
+                  }))});
   return g;
 }
 
@@ -226,10 +227,8 @@ Element GenesisFire::stageBelow() {
                               {{0.0f, hexColor(0x03040A)},
                                {0.55f, hexColor(0x05060D)},
                                {1.0f, hexColor(0x0A0B13)}}))
-      .child(starField().zIndex(1))
-      .child(dipper().zIndex(2))
-      .child(regolith().zIndex(3))
-      .child(shockwave().zIndex(4));
+      .children({starField().zIndex(1), dipper().zIndex(2),
+                 regolith().zIndex(3), shockwave().zIndex(4)});
 }
 
 Element GenesisFire::planInset() {
@@ -246,16 +245,16 @@ Element GenesisFire::planInset() {
           .stroke(stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.55f)),
                          PathFormat::Align::Inner))
           // the expanding wavefront ring — same Output, unit scale
-          .child(
-              kit::disc(SkPoint{34, 106}, 124)
-                  .shape(shapes::circle())
-                  .stroke(stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.75f))))
-                  .scale(bind(&loopU)
-                             .scale(10.0f / (float)kFrontCrossSeconds)
-                             .clamp(0.004f, 1.0f)))
-          .child(box().inset(0).child(
-              instancing::instances(planAtlas, planPool, instancing::Mode::Live,
-                                    SkBlendMode::kPlus)));
+          .children(
+              {kit::disc(SkPoint{34, 106}, 124)
+                   .shape(shapes::circle())
+                   .stroke(stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.75f))))
+                   .scale(bind(&loopU)
+                              .scale(10.0f / (float)kFrontCrossSeconds)
+                              .clamp(0.004f, 1.0f)),
+               box().inset(0).children({instancing::instances(
+                   planAtlas, planPool, instancing::Mode::Live,
+                   SkBlendMode::kPlus)})});
 
   return box()
       .left(24)
@@ -270,44 +269,41 @@ Element GenesisFire::planInset() {
       .scale(
           animate(from(0.94f).to(1.0f),
                   {.duration = 340ms, .ease = ease::outBack(), .delay = 900ms}))
-      .child(std::move(inner))
+      .children({std::move(inner)})
       // the impact point itself
-      .child(box()
-                 .left(12 + 34 - 2)
-                 .top(12 + 106 - 2)
-                 .width(4)
-                 .height(4)
-                 .shape(shapes::circle())
-                 .fill(hexColor(0xFFFFFF, 0.95f)))
+      .children({box()
+                     .left(12 + 34 - 2)
+                     .top(12 + 106 - 2)
+                     .width(4)
+                     .height(4)
+                     .shape(shapes::circle())
+                     .fill(hexColor(0xFFFFFF, 0.95f))})
       // rim caption on a curved baseline
-      .child(text("IMPACT · KETI BANDAR · ε INDI")
-                 .font({.face = monoFace(), .size = 8.0f, .track = 1.4f})
-                 .ink(kCyan)
-                 .left(12)
-                 .top(12)
-                 .width(184)
-                 .height(184)
-                 .onPath(TextPath{.path = shapes::circle(),
-                                  .at = 0.75f,
-                                  .align = TextPath::Align::Center,
-                                  .offset = 8.0f}));
+      .children({text("IMPACT · KETI BANDAR · ε INDI")
+                     .font({.face = monoFace(), .size = 8.0f, .track = 1.4f})
+                     .ink(kCyan)
+                     .left(12)
+                     .top(12)
+                     .width(184)
+                     .height(184)
+                     .onPath(TextPath{.path = shapes::circle(),
+                                      .at = 0.75f,
+                                      .align = TextPath::Align::Center,
+                                      .offset = 8.0f})});
 }
 
 Element GenesisFire::stageAbove() {
-  return stack()
-      .width(kStageW)
-      .height(kStageH)
-      .clip()
-      .child(planInset())
-      .child(text("FIG. 2 — DISTRIBUTION OF PARTICLE SYSTEMS "
-                  "ON THE PLANET'S SURFACE")
-                 .font({.face = monoFace(), .size = 8.5f, .track = 0.6f})
-                 .ink(kSteel)
-                 .left(24)
-                 .top(236)
-                 .width(300)
-                 .opacity(animate(from(0.0f).to(1.0f),
-                                  {.duration = 300ms, .delay = 1050ms})));
+  return stack().width(kStageW).height(kStageH).clip().children(
+      {planInset(),
+       text("FIG. 2 — DISTRIBUTION OF PARTICLE SYSTEMS "
+            "ON THE PLANET'S SURFACE")
+           .font({.face = monoFace(), .size = 8.5f, .track = 0.6f})
+           .ink(kSteel)
+           .left(24)
+           .top(236)
+           .width(300)
+           .opacity(animate(from(0.0f).to(1.0f),
+                            {.duration = 300ms, .delay = 1050ms}))});
 }
 
 void GenesisFire::blurCallout(Pen& pen, float x0, float y0, float w, float h,

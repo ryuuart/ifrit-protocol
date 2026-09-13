@@ -88,10 +88,11 @@ const char* kPassage =
 /** The passage at one measure. `live` and the budget are what the cells
  *  vary; everything else is one setting. */
 Element passage(float measure, bool live, float budget) {
-  Element leaf = text(kPassage, body())
-                     .key("para")
-                     .width(Dimension(measure))
-                     .lineBreak(weave::LineBreakStrategy::kKnuthPlass);
+  Element leaf =
+      text(kPassage, body())
+          .key("para")
+          .width(Dimension(measure))
+          .block({.lineBreak = weave::LineBreakStrategy::kKnuthPlass});
   if (live) leaf.live(true, budget);
   return leaf;
 }
@@ -115,7 +116,8 @@ struct LiveSettling final : sketch::Sketch {
       sk_sp<SkSurface> scratch =
           SkSurfaces::Raster(SkImageInfo::MakeN32Premul((int)kWide + 40, 320));
       const auto step = [&](float measure) {
-        probe.render(box().padding(10).child(passage(measure, live, budget)));
+        probe.render(
+            box().padding(10).children({passage(measure, live, budget)}));
         if (scratch) probe.draw(*scratch->getCanvas());
       };
       for (float w = kNarrow; w <= kWide; w += 1) step(w);
@@ -179,8 +181,8 @@ struct LiveSettling final : sketch::Sketch {
         sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
             .column()
             .gap(10)
-            .child(passage(measure, live, budget))
-            .child(text(report, sheet.mono(10, sheet.palette.figure))));
+            .children({passage(measure, live, budget),
+                       text(report, sheet.mono(10, sheet.palette.figure))}));
   }
 };
 

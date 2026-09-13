@@ -125,7 +125,7 @@ struct UiParticles final : sketch::Sketch {
         .alignItems(Align::Center)
         .justify(Justify::Center)
         .ink(t.ink)
-        .child(text(std::move(label)).font({.size = 15}));
+        .children({text(std::move(label)).font({.size = 15})});
   }
   Element shout(const ChipTheme& t, std::u8string label, int spikes) {
     return box()
@@ -139,7 +139,7 @@ struct UiParticles final : sketch::Sketch {
         .alignItems(Align::Center)
         .justify(Justify::Center)
         .ink(t.ink)
-        .child(text(std::move(label)).font({.size = 13}));
+        .children({text(std::move(label)).font({.size = 13})});
   }
   Element seal(const ChipTheme& t, std::u8string label, float lobe) {
     return box()
@@ -151,7 +151,7 @@ struct UiParticles final : sketch::Sketch {
         .alignItems(Align::Center)
         .justify(Justify::Center)
         .ink(t.ink)
-        .child(text(std::move(label)).font({.size = 13}));
+        .children({text(std::move(label)).font({.size = 13})});
   }
   Element framed(const Palette& pal, std::u8string label) {
     return box()
@@ -162,7 +162,7 @@ struct UiParticles final : sketch::Sketch {
         .alignItems(Align::Center)
         .justify(Justify::Center)
         .ink(pal.ink)
-        .child(text(std::move(label)).font({.size = 15}));
+        .children({text(std::move(label)).font({.size = 15})});
   }
   Element note(const ChipTheme& t, std::u8string line1, std::u8string line2) {
     PathFormat dashed;
@@ -183,8 +183,8 @@ struct UiParticles final : sketch::Sketch {
         .gap(2)
         .padding(6)
         .ink(t.ink)
-        .child(text(std::move(line1)).font({.size = 12}))
-        .child(text(std::move(line2)).font({.size = 10}).ink(t.edge));
+        .children({text(std::move(line1)).font({.size = 12}),
+                   text(std::move(line2)).font({.size = 10}).ink(t.edge)});
   }
 
   void buildChipAtlas() {
@@ -234,7 +234,7 @@ struct UiParticles final : sketch::Sketch {
       chipAtlas->cell(box()
                           .alignItems(Align::Center)
                           .justify(Justify::Center)
-                          .child(std::move(content)),
+                          .children({std::move(content)}),
                       {kSprite, kSprite});
     }
   }
@@ -255,9 +255,9 @@ struct UiParticles final : sketch::Sketch {
     return flourishCard(s, kPostW - 6, kPostH - 6)
         .font({.size = 10.5f})
         .ink(s.ink)
-        .child(text(cfg.title).font({.size = 15}))
-        .child(text(cfg.body1))
-        .child(text(cfg.body2).ink({s.bronze.fR, s.bronze.fG, s.bronze.fB, 1}));
+        .children(
+            {text(cfg.title).font({.size = 15}), text(cfg.body1),
+             text(cfg.body2).ink({s.bronze.fR, s.bronze.fG, s.bronze.fB, 1})});
   }
   Element carvedPost(const PostConfig& cfg) {
     const Palette pals[4] = {oakPalette(), azurePalette(), crimsonPalette(),
@@ -273,9 +273,8 @@ struct UiParticles final : sketch::Sketch {
         .gap(5)
         .font({.size = 10.5f})
         .ink(pal.ink)
-        .child(text(cfg.title).font({.size = 15}).ink(pal.stem))
-        .child(text(cfg.body1))
-        .child(text(cfg.body2));
+        .children({text(cfg.title).font({.size = 15}).ink(pal.stem),
+                   text(cfg.body1), text(cfg.body2)});
   }
   Element plainPost(const PostConfig& cfg) {
     // A modern dark UI card — the counterpoint to the ornate borders.
@@ -292,11 +291,11 @@ struct UiParticles final : sketch::Sketch {
         .padding(16, 14)
         .gap(6)
         .font({.size = 10.5f})
-        .child(text(cfg.title).font({.size = 15}).ink(accent))
-        .child(box().width(pct(38)).height(2).corners({1}).fill(
-            Fill::color(accent)))
-        .child(text(cfg.body1).ink(hexColor(0xcdd3df)))
-        .child(text(cfg.body2).ink(hexColor(0x9aa3b4)));
+        .children({text(cfg.title).font({.size = 15}).ink(accent),
+                   box().width(pct(38)).height(2).corners({1}).fill(
+                       Fill::color(accent)),
+                   text(cfg.body1).ink(hexColor(0xcdd3df)),
+                   text(cfg.body2).ink(hexColor(0x9aa3b4))});
   }
 
   Element postVariant(const PostConfig& cfg) {
@@ -374,7 +373,7 @@ struct UiParticles final : sketch::Sketch {
       postAtlas->cell(box()
                           .alignItems(Align::Center)
                           .justify(Justify::Center)
-                          .child(postVariant(post)),
+                          .children({postVariant(post)}),
                       {kPostW, kPostH});
   }
 
@@ -490,27 +489,27 @@ struct UiParticles final : sketch::Sketch {
             .fill(sigil::compose::linearGradient(
                 {0, 0}, {0, 640},
                 {{0.05f, 0.04f, 0.12f, 1}, {0.12f, 0.05f, 0.14f, 1}}))
-            .child(box().inset(0).child(instancing::instances(
-                chipAtlas, chipPool, instancing::Mode::Live)))
-            .child(box().inset(0).child(instancing::instances(
-                postAtlas, postPool, instancing::Mode::Live)))
+            .children({box().inset(0).children({instancing::instances(
+                           chipAtlas, chipPool, instancing::Mode::Live)}),
+                       box().inset(0).children({instancing::instances(
+                           postAtlas, postPool, instancing::Mode::Live)})})
             // THE TITLE, ON A SILL. The ground here is not merely crossed
             // by the type, it is the densest thing in the registry: a
             // knockout works against linework and disappears against a
             // field of stamps, so the line stands on an opaque plate of
             // its own.
-            .child(
-                kit::scrim(text(u8"UI as particles \u2014 820 chips over "
+            .children({kit::scrim(
+                           text(u8"UI as particles \u2014 820 chips over "
                                 u8"30 posts, one instances() stamp a tier",
                                 weave::textStyle(
                                     {.size = 17, .color = hexColor(0xf2f5fb)})),
                            {.fill = Fill::color({0.03f, 0.025f, 0.06f, 0.92f}),
                             .paddingX = 14,
                             .paddingY = 9})
-                    .absolute()
-                    .left(24)
-                    .top(22)
-                    .zIndex(2)));
+                           .absolute()
+                           .left(24)
+                           .top(22)
+                           .zIndex(2)}));
   }
 };
 

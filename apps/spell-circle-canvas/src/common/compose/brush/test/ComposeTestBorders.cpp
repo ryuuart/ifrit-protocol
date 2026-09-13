@@ -14,25 +14,25 @@ Fill white() { return Fill::color({1, 1, 1, 1}); }
  *  The panel sits at (0,0), so pixel(50, 1) is the middle of its top edge
  *  and pixel(10, 1) is 10 px along from its top-left corner. */
 Element panel(Decoration dec) {
-  return box().child(
-      box().width(100).height(100).fill(blue()).foreground(std::move(dec)));
+  return box().children(
+      {box().width(100).height(100).fill(blue()).foreground(std::move(dec))});
 }
 
 /** The same panel with a span-qualified stroke pass, which is how the
  *  corner vocabulary is spelled. */
 Element spanPanel(Spans where, Decoration dec) {
-  return box().child(box().width(100).height(100).fill(blue()).stroke(
-      std::move(where), std::move(dec)));
+  return box().children({box().width(100).height(100).fill(blue()).stroke(
+      std::move(where), std::move(dec))});
 }
 
 Element shapedSpanPanel(std::function<SkPath(SkSize)> outline, Spans where,
                         Decoration dec) {
-  return box().child(box()
-                         .width(100)
-                         .height(100)
-                         .shape(std::move(outline))
-                         .fill(blue())
-                         .stroke(std::move(where), std::move(dec)));
+  return box().children({box()
+                             .width(100)
+                             .height(100)
+                             .shape(std::move(outline))
+                             .fill(blue())
+                             .stroke(std::move(where), std::move(dec))});
 }
 
 }  // namespace
@@ -91,18 +91,18 @@ TEST(ComposeBorders, ARoundedCornerIsNotACorner) {
   // NOTHING at all, and a gapped rule runs the whole way round without a
   // single gap. Neither reports an error.
   Host host;
-  host.composer.render(box().child(
-      box().width(100).height(100).corners({30}).fill(blue()).stroke(
-          spans::corners(20), brush::solid(6, white()))));
+  host.composer.render(box().children(
+      {box().width(100).height(100).corners({30}).fill(blue()).stroke(
+          spans::corners(20), brush::solid(6, white()))}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 1), SK_ColorBLUE);
   EXPECT_EQ(host.pixel(1, 50), SK_ColorBLUE);
   EXPECT_EQ(host.pixel(9, 9), SK_ColorBLUE);  // on the corner arc itself
 
   Host gapped;
-  gapped.composer.render(box().child(
-      box().width(100).height(100).corners({30}).fill(blue()).stroke(
-          spans::edges(20), brush::solid(6, white()))));
+  gapped.composer.render(box().children(
+      {box().width(100).height(100).corners({30}).fill(blue()).stroke(
+          spans::edges(20), brush::solid(6, white()))}));
   gapped.frame();
   EXPECT_EQ(gapped.pixel(50, 1), SK_ColorWHITE);
   EXPECT_EQ(gapped.pixel(9, 9), SK_ColorWHITE);
@@ -131,9 +131,9 @@ TEST(ComposeBorders, WeightedCornersThickenWhereTheRuleTurns) {
 TEST(ComposeBorders, DoubleBorderStacksTwoIndependentInsets) {
   Host host;
   host.composer.render(
-      box().child(box().width(100).height(100).fill(blue()).style(
+      box().children({box().width(100).height(100).fill(blue()).style(
           decorations::doubleBorder(decorations::border(3, white()),
-                                    decorations::border(3, white(), 12)))));
+                                    decorations::border(3, white(), 12)))}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 0), SK_ColorWHITE);   // outer rule
   EXPECT_EQ(host.pixel(50, 12), SK_ColorWHITE);  // inner rule
@@ -144,11 +144,11 @@ TEST(ComposeBorders, DoubleBorderStacksTwoIndependentInsets) {
 // Echo misprints, stagger origin, quantized time.
 TEST(ComposePaint, EchoStampsShapeUnderTheFill) {
   Host host;
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(50, 50, 90, 90)
-                                       .fill(red())
-                                       .echo({10, 10}, {0, 1, 0, 1})));
+  host.composer.render(box().children({box()
+                                           .absolute()
+                                           .inset(50, 50, 90, 90)
+                                           .fill(red())
+                                           .echo({10, 10}, {0, 1, 0, 1})}));
   host.frame();
   EXPECT_EQ(host.pixel(80, 80), SK_ColorRED);      // real fill on top
   EXPECT_EQ(host.pixel(115, 115), SK_ColorGREEN);  // echo peeking past it
@@ -163,13 +163,13 @@ TEST(ComposePaint, EchoesAppendSoRegistrationDoublingIsTwoCalls) {
   // behind it) is two calls, not a missing feature. This pins that, and the
   // ordering: stamps paint in declaration order beneath the real pass.
   Host host;
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(60, 60, 100, 100)
-                                       .fill(red())
-                                       .echo({-14, -14}, {0, 0, 1, 1})
-                                       .echo({14, 14}, {0, 1, 0, 1})
-                                       .echo({20, 20}, {1, 1, 0, 1})));
+  host.composer.render(box().children({box()
+                                           .absolute()
+                                           .inset(60, 60, 100, 100)
+                                           .fill(red())
+                                           .echo({-14, -14}, {0, 0, 1, 1})
+                                           .echo({14, 14}, {0, 1, 0, 1})
+                                           .echo({20, 20}, {1, 1, 0, 1})}));
   host.frame();
   EXPECT_EQ(host.pixel(90, 90), SK_ColorRED);     // the real pass, on top
   EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);    // one stamp up-left…
@@ -182,8 +182,8 @@ TEST(ComposePaint, EchoesAppendSoRegistrationDoublingIsTwoCalls) {
 
 TEST(ComposeText, EchoStampsTextUnderThePass) {
   Host host(300, 120);
-  host.composer.render(box().padding(20).child(
-      text(u8"ECHO", whiteStyle(48)).echo({6, -8}, {1, 0, 0, 1})));
+  host.composer.render(box().padding(20).children(
+      {text(u8"ECHO", whiteStyle(48)).echo({6, -8}, {1, 0, 0, 1})}));
   host.frame();
   int redCount = 0, whiteCount = 0;
   for (int y = 0; y < 120; y += 2)
@@ -205,8 +205,7 @@ TEST(ComposeMotion, StaggerFromEndRunsBottomUp) {
                            .column()
                            .gap(10)
                            .staggerChildren(400ms, motion::Spread::From::End)
-                           .child(card())
-                           .child(card()));
+                           .children({card(), card()}));
   host.frame(0.3);  // LAST child leads; first still holds its `from`
   EXPECT_EQ(host.pixel(30, 15), SK_ColorBLACK);
   EXPECT_EQ(host.pixel(30, 55), SK_ColorRED);
@@ -219,16 +218,16 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
   // which is the point — a single from→to ramp can never cross its own
   // resting value, so this shape only exists if waypoints really play.
   Host host;
-  host.composer.render(box().child(
-      box()
-          .absolute()
-          .inset(100, 80, 60, 80)
-          .fill(red())
-          .translateX(animate(
-              sigil::motion::through({{std::chrono::milliseconds(0), 40.0f},
-                                      {std::chrono::milliseconds(200), -20.0f},
-                                      {std::chrono::milliseconds(400), 0.0f}}),
-              &choreograph::easeNone))));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(100, 80, 60, 80)
+           .fill(red())
+           .translateX(animate(
+               sigil::motion::through({{std::chrono::milliseconds(0), 40.0f},
+                                       {std::chrono::milliseconds(200), -20.0f},
+                                       {std::chrono::milliseconds(400), 0.0f}}),
+               &choreograph::easeNone))}));
   host.frame();
   EXPECT_EQ(host.pixel(145, 100), SK_ColorRED);  // starts at +40
   EXPECT_EQ(host.pixel(105, 100), SK_ColorBLACK);
@@ -239,16 +238,16 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
   EXPECT_EQ(host.pixel(105, 100), SK_ColorRED);
   EXPECT_EQ(host.pixel(85, 100), SK_ColorBLACK);
   // Identical re-describe prunes (waypoints compare structurally).
-  host.composer.render(box().child(
-      box()
-          .absolute()
-          .inset(100, 80, 60, 80)
-          .fill(red())
-          .translateX(animate(
-              sigil::motion::through({{std::chrono::milliseconds(0), 40.0f},
-                                      {std::chrono::milliseconds(200), -20.0f},
-                                      {std::chrono::milliseconds(400), 0.0f}}),
-              &choreograph::easeNone))));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(100, 80, 60, 80)
+           .fill(red())
+           .translateX(animate(
+               sigil::motion::through({{std::chrono::milliseconds(0), 40.0f},
+                                       {std::chrono::milliseconds(200), -20.0f},
+                                       {std::chrono::milliseconds(400), 0.0f}}),
+               &choreograph::easeNone))}));
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 }
 
@@ -260,27 +259,27 @@ TEST(ComposeReconcile, RemovedDimsAndInsetsRelease) {
   // description must actually unset, not linger from the last describe.
   Host host;
   host.composer.render(
-      box().row().child(box().width(120).height(40).fill(red()).key("b")));
+      box().row().children({box().width(120).height(40).fill(red()).key("b")}));
   host.frame();
   ASSERT_EQ(require(host.composer.bounds("b")).width(), 120);
-  host.composer.render(box().row().child(
-      box().height(40).fill(red()).key("b").child(box().width(30))));
+  host.composer.render(box().row().children(
+      {box().height(40).fill(red()).key("b").children({box().width(30)})}));
   host.frame();
   EXPECT_EQ(require(host.composer.bounds("b")).width(),
             30);  // released to content
 
   Host pins;
   pins.composer.render(
-      box().child(box().inset(10, 10, 10, 10).fill(blue()).key("p")));
+      box().children({box().inset(10, 10, 10, 10).fill(blue()).key("p")}));
   pins.frame();
   ASSERT_EQ(require(pins.composer.bounds("p")).width(), 180);
-  pins.composer.render(box().child(box()
-                                       .left(Dimension(20.0f))
-                                       .top(Dimension(20.0f))
-                                       .width(50)
-                                       .height(20)
-                                       .fill(blue())
-                                       .key("p")));
+  pins.composer.render(box().children({box()
+                                           .left(Dimension(20.0f))
+                                           .top(Dimension(20.0f))
+                                           .width(50)
+                                           .height(20)
+                                           .fill(blue())
+                                           .key("p")}));
   pins.frame();
   EXPECT_EQ(require(pins.composer.bounds("p")),
             SkRect::MakeXYWH(20, 20, 50, 20));
@@ -294,14 +293,15 @@ TEST(ComposeMotion, UnrelatedPatchDoesNotRestartAnEntrance) {
   // slightly-wrong timing, never as an error.
   Host host;
   auto tree = [](Fill f) {
-    return box().child(box()
-                           .width(80)
-                           .height(80)
-                           .fill(std::move(f))
-                           .opacity(animate(motion::from(0.0f).to(1.0f),
-                                            {std::chrono::milliseconds(400),
-                                             &choreograph::easeNone,
-                                             std::chrono::milliseconds(300)})));
+    return box().children(
+        {box()
+             .width(80)
+             .height(80)
+             .fill(std::move(f))
+             .opacity(animate(
+                 motion::from(0.0f).to(1.0f),
+                 {std::chrono::milliseconds(400), &choreograph::easeNone,
+                  std::chrono::milliseconds(300)}))});
   };
   host.composer.render(tree(red()));
   host.frame(0.35);  // 50ms into the ramp (after the 300ms hold)
@@ -323,14 +323,14 @@ TEST(ComposeMotion, ToggleBackDuringDelayHoldLands) {
   // more — arbitrarily long after the describe that cancelled it.
   Host host;
   auto tree = [](float op) {
-    return box().child(
-        box()
-            .width(80)
-            .height(80)
-            .fill(red())
-            .transition({std::chrono::milliseconds(200), &choreograph::easeNone,
-                         std::chrono::milliseconds(300)})
-            .opacity(op));
+    return box().children({box()
+                               .width(80)
+                               .height(80)
+                               .fill(red())
+                               .transition({std::chrono::milliseconds(200),
+                                            &choreograph::easeNone,
+                                            std::chrono::milliseconds(300)})
+                               .opacity(op)});
   };
   host.composer.render(tree(1.0f));
   host.frame();
@@ -374,7 +374,7 @@ TEST_P(OpenContourWrap, AWrappedWindowOnAnOpenContourStaysTwoPieces) {
     format.trimEnd = 1.2f;
     run.stroke(format);
   }
-  host.composer.render(box().child(std::move(run)));
+  host.composer.render(box().children({std::move(run)}));
   host.frame();
   EXPECT_EQ(host.pixel(170, 100), SK_ColorGREEN);  // tail piece [0.9, 1]
   EXPECT_EQ(host.pixel(40, 100), SK_ColorGREEN);   // head piece [0, 0.2]
@@ -404,23 +404,23 @@ TEST(ComposeMask, ClosedContourWrapSeamIsOnePiece) {
   // corner square is covered; two runs put two butt caps there and that
   // square is empty — the visible notch.
   Host host;
-  host.composer.render(box().child(
-      box()
-          .absolute()
-          .inset(20, 20, 20, 20)
-          .shape([](SkSize s) {  // closed rect, seam at its top-left corner
-            SkPathBuilder b;
-            b.moveTo(0, 0);
-            b.lineTo(s.width(), 0);
-            b.lineTo(s.width(), s.height());
-            b.lineTo(0, s.height());
-            b.close();
-            return b.detach();
-          })
-          // perimeter 640: [0, 0.2] runs 128 px right along the top edge,
-          // [0.9, 1] runs the last 64 px UP the left edge into the seam.
-          .mask(by::spans(spans::wrap(0.9f, 1.2f)))
-          .stroke(stroke(6, green()))));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(20, 20, 20, 20)
+           .shape([](SkSize s) {  // closed rect, seam at its top-left corner
+             SkPathBuilder b;
+             b.moveTo(0, 0);
+             b.lineTo(s.width(), 0);
+             b.lineTo(s.width(), s.height());
+             b.lineTo(0, s.height());
+             b.close();
+             return b.detach();
+           })
+           // perimeter 640: [0, 0.2] runs 128 px right along the top edge,
+           // [0.9, 1] runs the last 64 px UP the left edge into the seam.
+           .mask(by::spans(spans::wrap(0.9f, 1.2f)))
+           .stroke(stroke(6, green()))}));
   host.frame();
   EXPECT_EQ(host.pixel(80, 20), SK_ColorGREEN);    // head piece, top edge
   EXPECT_EQ(host.pixel(20, 50), SK_ColorGREEN);    // tail piece, left edge
@@ -434,13 +434,13 @@ TEST(ComposePaint, BackdropLeavesDecorationsUnclipped) {
   // An outer-aligned stroke lies OUTSIDE the node's shape, so clipping it
   // away is silent and total.
   Host host;
-  host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(60, 60, 60, 60)
-                      .backdrop(material::skia::Effect::filter(
-                          SkImageFilters::Blur(2, 2, nullptr)))
-                      .stroke(stroke(10, green(), PathFormat::Align::Outer))));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(60, 60, 60, 60)
+           .backdrop(material::skia::Effect::filter(
+               SkImageFilters::Blur(2, 2, nullptr)))
+           .stroke(stroke(10, green(), PathFormat::Align::Outer))}));
   host.frame();
   EXPECT_EQ(host.pixel(52, 100), SK_ColorGREEN);  // outer stroke intact
 }
@@ -460,16 +460,14 @@ TEST(ComposeMotion, AppendedItemEntersWithoutInheritedDelay) {
                            .column()
                            .gap(10)
                            .staggerChildren(std::chrono::milliseconds(400))
-                           .child(card("a"))
-                           .child(card("b")));
+                           .children({card("a"), card("b")}));
   host.frame(1.2);  // initial cascade done
   host.composer.render(box()
                            .column()
                            .gap(10)
                            .staggerChildren(std::chrono::milliseconds(400))
-                           .child(card("a"))
-                           .child(card("b"))
-                           .child(card("c")));  // appended: only new mount
+                           .children({card("a"), card("b"),
+                                      card("c")}));  // appended: only new mount
   host.frame(0.15);  // > its 100ms entrance, << 2·400ms ordinal delay
   EXPECT_EQ(host.pixel(30, 70), SK_ColorRED);  // "c" already in
 }

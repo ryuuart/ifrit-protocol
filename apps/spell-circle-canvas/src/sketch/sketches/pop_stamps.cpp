@@ -74,15 +74,13 @@ Element atlasSheet(float cell) {
         .absolute()
         .inset(col * cell, row * cell, cell - col * cell, cell - row * cell)
         .padding(cell * 0.12f)
-        .child(box().grow().shape(shape).fill(Fill::color(color)));
+        .children({box().grow().shape(shape).fill(Fill::color(color))});
   };
-  return stack()
-      .width(cell * 2)
-      .height(cell * 2)
-      .child(motif(0, 0, shapes::circle(), {0.4f, 0.85f, 1.0f, 1}))
-      .child(motif(1, 0, shapes::annulus(0.62f), {1.0f, 0.6f, 0.3f, 1}))
-      .child(motif(0, 1, shapes::polygon(4), {0.6f, 1.0f, 0.6f, 1}))
-      .child(motif(1, 1, shapes::star(4, 0.35f), {1.0f, 0.8f, 0.3f, 1}));
+  return stack().width(cell * 2).height(cell * 2).children(
+      {motif(0, 0, shapes::circle(), {0.4f, 0.85f, 1.0f, 1}),
+       motif(1, 0, shapes::annulus(0.62f), {1.0f, 0.6f, 0.3f, 1}),
+       motif(0, 1, shapes::polygon(4), {0.6f, 1.0f, 0.6f, 1}),
+       motif(1, 1, shapes::star(4, 0.35f), {1.0f, 0.8f, 0.3f, 1})});
 }
 
 std::vector<glm::vec3> ringPoints() {

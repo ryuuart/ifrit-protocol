@@ -26,23 +26,24 @@ compose::Element labelRow(const Reading& reading, const Readout& how) {
     reading.swatch.apply(mark);
     mark.shrink(0);
     if (how.swatchCorners > 0) mark.corners(Corners{how.swatchCorners});
-    row.child(std::move(mark));
+    row.children({std::move(mark)});
   }
   if (!reading.name.empty()) {
     Element name = text(reading.name.bytes(),
                         look.style(look.type.captionNote, look.palette.ash));
     if (how.nameMeasure > 0) name.width(Dimension(how.nameMeasure));
-    row.child(std::move(name));
+    row.children({std::move(name)});
   }
   // With a measure the space between is what grows, which is what puts
   // every figure on one edge however long the names are.
-  if (how.measure > 0) row.child(box().grow(1));
+  if (how.measure > 0) row.children({box().grow(1)});
   if (!reading.value.empty())
-    row.child(text(reading.value.bytes(),
-                   look.style(look.type.captionLabel, look.palette.figure)));
+    row.children(
+        {text(reading.value.bytes(),
+              look.style(look.type.captionLabel, look.palette.figure))});
   if (!reading.note.empty())
-    row.child(text(reading.note.bytes(),
-                   look.style(look.type.captionNote, look.palette.ash)));
+    row.children({text(reading.note.bytes(),
+                       look.style(look.type.captionNote, look.palette.ash))});
   return row;
 }
 
@@ -53,12 +54,12 @@ compose::Element readout(std::vector<Reading> rows, const Readout& how) {
   bool first = true;
   for (const Reading& reading : rows) {
     if (!first && how.ruled)
-      column.child(box()
-                       .height(Dimension(1))
-                       .alignSelf(Align::Stretch)
-                       .fill(Fill::color(look.palette.rule)));
+      column.children({box()
+                           .height(Dimension(1))
+                           .alignSelf(Align::Stretch)
+                           .fill(Fill::color(look.palette.rule))});
     first = false;
-    column.child(labelRow(reading, how));
+    column.children({labelRow(reading, how)});
   }
   return column;
 }
@@ -73,10 +74,10 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
   bool first = true;
   for (const Row& row : rows) {
     if (!first && how.ruled)
-      column.child(box()
-                       .height(Dimension(1))
-                       .alignSelf(Align::Stretch)
-                       .fill(Fill::color(look.palette.rule)));
+      column.children({box()
+                           .height(Dimension(1))
+                           .alignSelf(Align::Stretch)
+                           .fill(Fill::color(look.palette.rule))});
     first = false;
     Element line = box()
                        .row()
@@ -89,7 +90,7 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
       row.swatch.apply(mark);
       mark.shrink(0);
       if (how.swatchCorners > 0) mark.corners(Corners{how.swatchCorners});
-      line.child(std::move(mark));
+      line.children({std::move(mark)});
     }
     for (size_t i = 0; i < row.cells.size(); ++i) {
       // A row with more words than columns sets the surplus in the last
@@ -102,9 +103,9 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
       Element cell = text(row.cells[i].bytes(), ink(specification.figure));
       if (specification.width > 0 && i < how.columns.size())
         cell.width(Dimension(specification.width));
-      line.child(std::move(cell));
+      line.children({std::move(cell)});
     }
-    column.child(std::move(line));
+    column.children({std::move(line)});
   }
   return column;
 }

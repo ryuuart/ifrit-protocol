@@ -399,7 +399,7 @@ inline Element illuminatedPanel(const Palette& pal) {
       .background(sigil::compose::shadow({0, 0, 0, 0.35f}, {2, 3}, 8))
       .foreground(sigil::compose::stroke(1.8f, Fill::color(pal.stem)))
       .foreground(SwirlCorners{pal, 20.0f, 1.7f})
-      .child(box().inset(5).foreground(goldDash));
+      .children({box().inset(5).foreground(goldDash)});
 }
 
 /** Starburst outline for spiky shout dialogs: `spikes` points, `depth`

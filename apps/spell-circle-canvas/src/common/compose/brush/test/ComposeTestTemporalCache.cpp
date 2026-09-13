@@ -38,8 +38,8 @@ struct ClockedHost {
 Element timedLeaf(float quantizeHz) {
   material::skia::Paint m = material::skia::Paint::sksl(heavyEffect(true));
   if (quantizeHz > 0) m.quantizeTime(quantizeHz);
-  return box().child(
-      box().width(400).height(400).key("plasma").fill(std::move(m)));
+  return box().children(
+      {box().width(400).height(400).key("plasma").fill(std::move(m))});
 }
 
 }  // namespace
@@ -106,20 +106,20 @@ namespace {
 Element gatedRing(Cache mode) {
   return box()
       .cache(Cache::None)
-      .child(box()
-                 .width(120)
-                 .height(120)
-                 .key("ring")
-                 .cache(mode)
-                 .shape(geometry::shapes::circle())
-                 .stroke(stroke(6.0f, Fill::color({1, 1, 1, 1})))
-                 .mask(by::spans(spans::upTo(
-                     animate(sigil::motion::through(
-                                 {{std::chrono::milliseconds(0), 0.0f},
-                                  {std::chrono::milliseconds(200), 0.6f},
-                                  {std::chrono::milliseconds(600), 0.6f},
-                                  {std::chrono::milliseconds(800), 1.0f}}),
-                             &choreograph::easeNone)))));
+      .children({box()
+                     .width(120)
+                     .height(120)
+                     .key("ring")
+                     .cache(mode)
+                     .shape(geometry::shapes::circle())
+                     .stroke(stroke(6.0f, Fill::color({1, 1, 1, 1})))
+                     .mask(by::spans(spans::upTo(
+                         animate(sigil::motion::through(
+                                     {{std::chrono::milliseconds(0), 0.0f},
+                                      {std::chrono::milliseconds(200), 0.6f},
+                                      {std::chrono::milliseconds(600), 0.6f},
+                                      {std::chrono::milliseconds(800), 1.0f}}),
+                                 &choreograph::easeNone))))});
 }
 
 }  // namespace

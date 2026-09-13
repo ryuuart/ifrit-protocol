@@ -81,18 +81,17 @@ Element plot(const char* key, std::vector<kit::Trace> curves, int gridLines = 0,
       .toT = kSpan, .toY = ceiling, .pad = 10, .samples = 420, .rule = kGrid};
   for (int i = 1; i < gridLines; ++i)
     frame.rulesT.push_back(kSpan * (float)i / (float)gridLines);
-  return box()
-      .inset(0)
-      .child(box().left(10).right(10).bottom(9).height(1).fill(
-          Fill::color(sketch::kit::theme().palette.rule)))
-      .child(kit::curvePlot(key, std::move(curves), std::move(frame)));
+  return box().inset(0).children(
+      {box().left(10).right(10).bottom(9).height(1).fill(
+           Fill::color(sketch::kit::theme().palette.rule)),
+       kit::curvePlot(key, std::move(curves), std::move(frame))});
 }
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
-          .child(std::move(body)));
+          .children({std::move(body)}));
 }
 
 }  // namespace

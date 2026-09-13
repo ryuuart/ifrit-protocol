@@ -13,16 +13,16 @@ auto RotaConvocationis::describe() -> Element {
                                    {{0.0f, kNightLift}, {1.0f, kNight}}))
       .styleSheet(classes)
       .ink(kBone)
-      .child(box()
-                 .absolute()
-                 .inset(0)
-                 .opacity(envelope())
-                 // The charged circle breathes: under a percent of
-                 // scale, which is not a size change so much as the
-                 // reading that a finished circle is holding something
-                 // in.
-                 .child(wheel().scale(&humScale))
-                 .child(colophon()));
+      .children({box()
+                     .absolute()
+                     .inset(0)
+                     .opacity(envelope())
+                     // The charged circle breathes: under a percent of
+                     // scale, which is not a size change so much as the
+                     // reading that a finished circle is holding something
+                     // in.
+                     .children({wheel().scale(&humScale)})
+                     .children({colophon()})});
 }
 
 auto RotaConvocationis::setup(sketch::SketchContext& ctx) -> void {

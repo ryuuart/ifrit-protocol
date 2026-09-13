@@ -9,8 +9,8 @@ auto SigillumAemeth::describe(sketch::SketchContext&) -> Element {
 
   auto seal =
       box().rect(SkRect::MakeXYWH(kCx - kRR, kCy - kRR, 2 * kRR, 2 * kRR));
-  seal.child(waxGround().cache(Cache::Texture));
-  seal.child(circumferenceRules());
+  seal.children({waxGround().cache(Cache::Texture)});
+  seal.children({circumferenceRules()});
   // The settle. The rim is the FRAME and the two inner systems turn
   // against it off ONE Output — the seven-fold body one way, the five-fold
   // heart the other. Relative motion is what the figure is about: since
@@ -18,31 +18,31 @@ auto SigillumAemeth::describe(sketch::SketchContext&) -> Element {
   // direction, and arriving there is the ending. Turning the rim as well
   // would add a third full-plate layer resampled every frame and show no
   // relative motion that is not already on screen.
-  seal.child(circumferenceCells());
+  seal.children({circumferenceCells()});
   // the whole seven-fold system turns as one body — heptagon, its two
   // letter bands, the heptagram woven on its vertices, and everything the
   // heptagram's points contain.
-  seal.child(
-      box()
-          .inset(0)
-          .transformOrigin(0.5f, 0.5f)
-          .rotate(bind(&settle).target(0.0f, -360.0f / 7.0f))
-          .opacity(animate(from(0.0f).to(1.0f), ramp(tInner * 1000, 900)))
-          .cache(Cache::Texture)
-          .child(angles())
-          .child(heptagonNames())
-          .child(heptagram())
-          .child(inner()));
-  seal.child(innerRings());
-  seal.child(pentagram()
-                 .rotate(bind(&settle).target(0.0f, 72.0f))
-                 .transformOrigin(0.5f, 0.5f));
-  seal.child(centreCross());
-  seal.child(slot("solver"));
-  root.child(std::move(seal));
-  root.child(margin());
-  root.child(consolePanel());
-  root.child(colophon());
+  seal.children(
+      {box()
+           .inset(0)
+           .transformOrigin(0.5f, 0.5f)
+           .rotate(bind(&settle).target(0.0f, -360.0f / 7.0f))
+           .opacity(animate(from(0.0f).to(1.0f), ramp(tInner * 1000, 900)))
+           .cache(Cache::Texture)
+           .children({angles()})
+           .children({heptagonNames()})
+           .children({heptagram()})
+           .children({inner()})});
+  seal.children({innerRings()});
+  seal.children({pentagram()
+                     .rotate(bind(&settle).target(0.0f, 72.0f))
+                     .transformOrigin(0.5f, 0.5f)});
+  seal.children({centreCross()});
+  seal.children({slot("solver")});
+  root.children({std::move(seal)});
+  root.children({margin()});
+  root.children({consolePanel()});
+  root.children({colophon()});
   return root;
 }
 

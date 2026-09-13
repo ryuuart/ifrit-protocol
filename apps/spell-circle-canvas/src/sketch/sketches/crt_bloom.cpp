@@ -124,8 +124,7 @@ Element panel(Element construction) {
       .fill(Fill::color(kGround))
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      .child(std::move(construction))
-      .child(tube());
+      .children({std::move(construction), tube()});
 }
 
 /** THE SEAM, labelled: the hairline the comparison is read across. */
@@ -134,12 +133,12 @@ Element seam() {
       .column()
       .alignItems(Align::Center)
       .gap(6)
-      .child(text(u8"SEAM").font({.face = weave::defaultFace(),
-                                  .size = 10,
-                                  .color = kSeam,
-                                  .track = 2.0f}))
-      .child(box().width(2).height(kPanelH).fill(
-          Fill::color({kSeam.fR, kSeam.fG, kSeam.fB, 0.55f})));
+      .children({text(u8"SEAM").font({.face = weave::defaultFace(),
+                                      .size = 10,
+                                      .color = kSeam,
+                                      .track = 2.0f}),
+                 box().width(2).height(kPanelH).fill(
+                     Fill::color({kSeam.fR, kSeam.fG, kSeam.fB, 0.55f}))});
 }
 
 }  // namespace
@@ -164,21 +163,22 @@ struct CrtBloom final : sketch::Sketch {
     // The blurred copy is given the WHOLE panel to spread in. A blur is
     // clipped by its own node's box, so putting the effect on the tight
     // text node would cut the halo off square at the letters' bounds.
-    Element built = panel(stack()
-                              .alignItems(Align::Center)
-                              .justify(Justify::Center)
-                              .child(box()
-                                         .absolute()
-                                         .inset(0)
-                                         .alignItems(Align::Center)
-                                         .justify(Justify::Center)
-                                         .zIndex(1)
-                                         .child(headline(kHalo))
-                                         .effect(mskia::Effect::directionalBlur(
-                                             kSigma, 0.0f, kSigma))
-                                         .blend(SkBlendMode::kPlus)
-                                         .cache(Cache::Texture))
-                              .child(headline(kCore).zIndex(2)));
+    Element built =
+        panel(stack()
+                  .alignItems(Align::Center)
+                  .justify(Justify::Center)
+                  .children({box()
+                                 .absolute()
+                                 .inset(0)
+                                 .alignItems(Align::Center)
+                                 .justify(Justify::Center)
+                                 .zIndex(1)
+                                 .children({headline(kHalo)})
+                                 .effect(mskia::Effect::directionalBlur(
+                                     kSigma, 0.0f, kSigma))
+                                 .blend(SkBlendMode::kPlus)
+                                 .cache(Cache::Texture),
+                             headline(kCore).zIndex(2)}));
 
     ctx.composer.render(sketch::kit::page(
         {.title = "CRT BLOOM · Effect::glow beside the stack "

@@ -71,9 +71,9 @@ TEST(ComposeSpans, EveryAndAtAreTheSameLadder) {
 TEST(ComposeSpans, CornerPassMarksOnlyTheCorners) {
   Host host(200, 200);
   host.composer.render(
-      stack().child(box()
-                        .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-                        .stroke(spans::corners(20), stroke(6, red()))));
+      stack().children({box()
+                            .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                            .stroke(spans::corners(20), stroke(6, red()))}));
   host.frame();
   EXPECT_EQ(host.pixel(30, 20), SK_ColorRED) << "10px along the top edge";
   EXPECT_EQ(host.pixel(70, 20), SK_ColorBLACK) << "the middle of a run";
@@ -87,10 +87,10 @@ TEST(ComposeSpans, PassesAppendAndRestFillsTheGaps) {
   // as soon as the silhouette is not a rect.
   Host host(200, 200);
   host.composer.render(
-      stack().child(box()
-                        .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-                        .stroke(spans::corners(20), stroke(6, red()))
-                        .stroke(spans::rest(), stroke(6, green()))));
+      stack().children({box()
+                            .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                            .stroke(spans::corners(20), stroke(6, red()))
+                            .stroke(spans::rest(), stroke(6, green()))}));
   host.frame();
   EXPECT_EQ(host.pixel(30, 20), SK_ColorRED);
   EXPECT_EQ(host.pixel(70, 20), SK_ColorGREEN) << "rest() took the run";
@@ -103,11 +103,11 @@ TEST(ComposeSpans, OverlappingClaimsAreSaidOutLoud) {
   ::testing::internal::CaptureStderr();
   {
     Host host(200, 200);
-    host.composer.render(stack().child(
-        box()
-            .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-            .stroke(spans::every(1), stroke(4, red()), "halo")
-            .stroke(spans::upTo(0.5f), stroke(2, green()), "keyline")));
+    host.composer.render(stack().children(
+        {box()
+             .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+             .stroke(spans::every(1), stroke(4, red()), "halo")
+             .stroke(spans::upTo(0.5f), stroke(2, green()), "keyline")}));
     host.frame();
   }
   const std::string log = ::testing::internal::GetCapturedStderr();
@@ -123,10 +123,10 @@ TEST(ComposeSpans, UnqualifiedStrokesOverlayAndNeverCollide) {
   {
     Host host(200, 200);
     host.composer.render(
-        stack().child(box()
-                          .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-                          .stroke(stroke(8, red()))
-                          .stroke(stroke(3, green()))));
+        stack().children({box()
+                              .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                              .stroke(stroke(8, red()))
+                              .stroke(stroke(3, green()))}));
     host.frame();
     EXPECT_EQ(host.pixel(70, 20), SK_ColorGREEN) << "the second stroke wins";
   }
@@ -141,11 +141,11 @@ TEST(ComposeSpans, ReorderedTermsPruneBecauseResolveNeverReadsOrder) {
   // the other way round produces a spurious patch. Never a wrong picture,
   // only a lost prune, which is why nothing else would report it.
   const auto tree = [](Spans where) {
-    return stack().child(
-        box()
-            .key("m")
-            .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-            .stroke(std::move(where), stroke(4, red()), "marks"));
+    return stack().children(
+        {box()
+             .key("m")
+             .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+             .stroke(std::move(where), stroke(4, red()), "marks")});
   };
   Host host;
   host.composer.render(tree(spans::corners(8) | spans::at(0, 4)));
@@ -180,7 +180,7 @@ TEST(ComposeSpans, PassRevealMatchesTheNodeGatePixelForPixel) {
       e.mask(by::spans(spans::upTo(0.4f))).stroke(stroke(6, red()));
     else
       e.stroke(spans::upTo(0.4f), stroke(6, red()));
-    host.composer.render(stack().child(std::move(e)));
+    host.composer.render(stack().children({std::move(e)}));
     host.frame();
     std::vector<SkColor> out;
     for (int x = 15; x < 130; x += 3) out.push_back(host.pixel(x, 20));
@@ -200,11 +200,11 @@ TEST(ComposeSpans, PassRevealMatchesTheNodeGatePixelForPixel) {
 
 TEST(ComposeSpans, AnimatedRevealDrawsOnAndDeclaresVolatility) {
   Host host(200, 200);
-  host.composer.render(stack().child(
-      box()
-          .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-          .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {400ms})),
-                  stroke(6, red()))));
+  host.composer.render(stack().children(
+      {box()
+           .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+           .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {400ms})),
+                   stroke(6, red()))}));
   host.frame(0.02);
   auto inked = [&] {
     int n = 0;
@@ -231,11 +231,11 @@ TEST(ComposeSpans, FitSizesAGapFromKeyedContent) {
   // show the gap at its new position.
   Host host(200, 200);
   auto scene = [](SkRect label) {
-    return stack()
-        .child(box().key("lbl").rect(label))
-        .child(box()
-                   .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-                   .stroke(spans::fit("lbl", 0.0f), stroke(6, red())));
+    return stack().children(
+        {box().key("lbl").rect(label),
+         box()
+             .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+             .stroke(spans::fit("lbl", 0.0f), stroke(6, red()))});
   };
   host.composer.render(scene(SkRect::MakeXYWH(40, 10, 30, 20)));
   host.frame();
@@ -272,7 +272,7 @@ TEST(ComposeSpanBackground, TrimmedBackgroundFollowerHasASpanSpelling) {
       e.mask(by::spans(spans::upTo(0.45f))).background(stroke(6, red()));
     else
       e.background(spans::upTo(0.45f), stroke(6, red()));
-    host.composer.render(stack().child(std::move(e)));
+    host.composer.render(stack().children({std::move(e)}));
     host.frame();
     return boundaryRing(host);
   };
@@ -293,9 +293,11 @@ TEST(ComposeSpanBackground, ThePassPaintsUNDERTheChildren) {
     else
       e.stroke(spans::every(1), stroke(10, red()));
     // A child straddling the top edge, opaque, painted between the halves.
-    e.child(
-        box().absolute().rect(SkRect::MakeXYWH(30, -6, 40, 12)).fill(green()));
-    host.composer.render(stack().child(std::move(e)));
+    e.children({box()
+                    .absolute()
+                    .rect(SkRect::MakeXYWH(30, -6, 40, 12))
+                    .fill(green())});
+    host.composer.render(stack().children({std::move(e)}));
     host.frame();
     return host.pixel(70, 20);
   };
@@ -310,10 +312,10 @@ TEST(ComposeSpanBackground, OneBoundaryIsOneClaimLedgerAcrossBothHalves) {
   ::testing::internal::CaptureStderr();
   {
     Host host(200, 200);
-    host.composer.render(stack().child(
-        revealBox()
-            .background(spans::every(1), stroke(4, red()), "under")
-            .stroke(spans::upTo(0.5f), stroke(2, green()), "over")));
+    host.composer.render(stack().children(
+        {revealBox()
+             .background(spans::every(1), stroke(4, red()), "under")
+             .stroke(spans::upTo(0.5f), stroke(2, green()), "over")}));
     host.frame();
   }
   const std::string log = ::testing::internal::GetCapturedStderr();
@@ -326,9 +328,9 @@ TEST(ComposeSpanBackground, RestReadsAcrossTheHalvesToo) {
   // "the other passes" is the whole ledger, not this half of it.
   Host host(200, 200);
   host.composer.render(
-      stack().child(revealBox()
-                        .background(spans::upTo(0.25f), stroke(6, red()))
-                        .stroke(spans::rest(), stroke(6, green()))));
+      stack().children({revealBox()
+                            .background(spans::upTo(0.25f), stroke(6, red()))
+                            .stroke(spans::rest(), stroke(6, green()))}));
   host.frame();
   // The seam (fraction 0) of an rrect outline is its BOTTOM-LEFT corner and
   // the boundary runs UP the left edge from there, so the first quarter of
@@ -371,7 +373,7 @@ TEST(ComposeSpanCorner, AWholeContourClaimKeepsItsCornerJoin) {
         e.stroke(spans::rest(), std::move(wide));
         break;
     }
-    host.composer.render(stack().child(std::move(e)));
+    host.composer.render(stack().children({std::move(e)}));
     host.frame();
     std::vector<SkColor> out;
     // The miter's own square at the SEAM corner (20, 120), reaching out to

@@ -9,10 +9,10 @@
 
 TEST(ComposeStroke, StrokeAlignInnerAndOuter) {
   auto boxWith = [](PathFormat::Align align) {
-    return box().child(box()
-                           .absolute()
-                           .inset(50, 50, 50, 50)
-                           .stroke(stroke(20, green(), align)));
+    return box().children({box()
+                               .absolute()
+                               .inset(50, 50, 50, 50)
+                               .stroke(stroke(20, green(), align))});
   };
   Host inner, outer;
   inner.composer.render(boxWith(PathFormat::Align::Inner));
@@ -36,8 +36,8 @@ TEST(ComposeDecorations, BoundShadowOffsetSlides) {
   shadow.color = {0, 1, 0, 1};
   shadow.bindOffsetX = &lift;
   shadow.maxBind = 40.0f;
-  host.composer.render(
-      box().child(box().absolute().inset(60, 60, 80, 80).background(shadow)));
+  host.composer.render(box().children(
+      {box().absolute().inset(60, 60, 80, 80).background(shadow)}));
   host.frame();
   EXPECT_EQ(host.pixel(90, 90), SK_ColorGREEN);   // at rest: under the box
   EXPECT_EQ(host.pixel(135, 90), SK_ColorBLACK);  // nothing to the right
@@ -54,7 +54,7 @@ TEST(ComposeDecorations, KnockoutShadowLeavesTheFootprintClear) {
   s.offset = {20, 0};
   s.knockout = true;
   host.composer.render(
-      box().child(box().absolute().inset(60, 60, 80, 80).background(s)));
+      box().children({box().absolute().inset(60, 60, 80, 80).background(s)}));
   host.frame();
   EXPECT_EQ(host.pixel(130, 90), SK_ColorGREEN);  // shadow right of the box
   EXPECT_EQ(host.pixel(100, 90), SK_ColorBLACK);  // footprint knocked out
@@ -73,8 +73,8 @@ TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
   sliver.trimStart = 0.0f;
   sliver.trimEnd = 0.1f;
   sliver.trimPhase = &phase;
-  host.composer.render(box().child(
-      box().absolute().inset(50, 50, 50, 50).stroke(band).stroke(sliver)));
+  host.composer.render(box().children(
+      {box().absolute().inset(50, 50, 50, 50).stroke(band).stroke(sliver)}));
   host.frame();
   std::vector<SkIPoint> redNow;
   int greenCount = 0;
@@ -159,17 +159,17 @@ namespace {
 /** An L-shaped run: right along the bottom, then up — one hard 90° corner
  *  at local (120, 120), absolute (140, 140). */
 Element corneredRun(lines::Line style) {
-  return box().child(box()
-                         .absolute()
-                         .inset(20, 20, 20, 20)
-                         .shape([](SkSize s) {
-                           SkPathBuilder b;
-                           b.moveTo(0, 120);
-                           b.lineTo(120, 120);
-                           b.lineTo(120, 0);
-                           return b.detach();
-                         })
-                         .stroke(std::move(style)));
+  return box().children({box()
+                             .absolute()
+                             .inset(20, 20, 20, 20)
+                             .shape([](SkSize s) {
+                               SkPathBuilder b;
+                               b.moveTo(0, 120);
+                               b.lineTo(120, 120);
+                               b.lineTo(120, 0);
+                               return b.detach();
+                             })
+                             .stroke(std::move(style))});
 }
 
 }  // namespace
@@ -215,11 +215,11 @@ TEST(ComposeLines, ConcentricPlacesARingAtAStatedRadius) {
   // The stated-radii overload puts a circle exactly where it says. The
   // spaced form is kept here as the control that the trap is real.
   const auto ringNode = [](lines::RadialHatch hatch) {
-    return box().child(box()
-                           .absolute()
-                           .inset(20, 20, 20, 20)
-                           .shape(geometry::shapes::circle())
-                           .stroke(std::move(hatch)));
+    return box().children({box()
+                               .absolute()
+                               .inset(20, 20, 20, 20)
+                               .shape(geometry::shapes::circle())
+                               .stroke(std::move(hatch))});
   };
   Host stated, spaced;
   stated.composer.render(ringNode(
@@ -331,15 +331,16 @@ RailScan scanRails(Host& host, float cx, float cy, float rInner, float rOuter) {
 }
 
 Element circleRun(Decoration style, float radius) {
-  return box().child(box()
-                         .absolute()
-                         .inset(0, 0, 0, 0)
-                         .shape([radius](SkSize s) {
-                           SkPathBuilder b;
-                           b.addCircle(s.width() / 2, s.height() / 2, radius);
-                           return b.detach();
-                         })
-                         .stroke(std::move(style)));
+  return box().children({box()
+                             .absolute()
+                             .inset(0, 0, 0, 0)
+                             .shape([radius](SkSize s) {
+                               SkPathBuilder b;
+                               b.addCircle(s.width() / 2, s.height() / 2,
+                                           radius);
+                               return b.detach();
+                             })
+                             .stroke(std::move(style))});
 }
 
 }  // namespace
@@ -532,9 +533,9 @@ TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
   // that never changed. Inset, the sibling adaptor beside it, always had
   // one.
   auto scene = [] {
-    return box().child(box().width(100).height(100).fill(blue()).foreground(
+    return box().children({box().width(100).height(100).fill(blue()).foreground(
         onEdges(geometry::path::Edge::Top | geometry::path::Edge::Left,
-                stroke(8, Fill::color({1, 1, 1, 1})))));
+                stroke(8, Fill::color({1, 1, 1, 1}))))});
   };
   Host host;
   host.composer.render(scene());
@@ -545,9 +546,9 @@ TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);  // pruned
   // And it still compares UNEQUAL when the mask actually changes.
   host.composer.render(
-      box().child(box().width(100).height(100).fill(blue()).foreground(
+      box().children({box().width(100).height(100).fill(blue()).foreground(
           onEdges(geometry::path::Edge::Bottom,
-                  stroke(8, Fill::color({1, 1, 1, 1}))))));
+                  stroke(8, Fill::color({1, 1, 1, 1}))))}));
   host.frame();
   EXPECT_GT(host.composer.stats().picturesRecorded, 0u);
 }
@@ -622,22 +623,21 @@ TEST(ComposeRouters, ManhattanCasedRailMatchesCleanGeometry) {
   // brush over hand-authored clean geometry: nothing the router emits — no
   // degenerate verb, no split run — reaches the pixels.
   auto boxes = [](Element route) {
-    return stack()
-        .child(box()
-                   .key("a")
-                   .width(20)
-                   .height(20)
-                   .inset(10, 90, 170, 90)
-                   .absolute()
-                   .fill(red()))
-        .child(box()
-                   .key("b")
-                   .width(20)
-                   .height(20)
-                   .inset(170, 90, 10, 90)
-                   .absolute()
-                   .fill(green()))
-        .child(std::move(route));
+    return stack().children({box()
+                                 .key("a")
+                                 .width(20)
+                                 .height(20)
+                                 .inset(10, 90, 170, 90)
+                                 .absolute()
+                                 .fill(red()),
+                             box()
+                                 .key("b")
+                                 .width(20)
+                                 .height(20)
+                                 .inset(170, 90, 10, 90)
+                                 .absolute()
+                                 .fill(green()),
+                             std::move(route)});
   };
   Decoration wire = lines::presets::cased(3, Fill::color({1, 1, 1, 1}), 10);
   Host railed, clean;

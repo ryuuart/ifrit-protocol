@@ -120,7 +120,7 @@ struct RubyKenten final : sketch::Sketch {
     return text(std::move(utf8), f::body(f::kBodySize, f::kSumi))
         .width(Dimension(f::kColumnW))
         .height(Dimension(height))
-        .writingMode(weave::WritingMode::kVerticalRL);
+        .block({.writingMode = weave::WritingMode::kVerticalRL});
   }
 
   weave::Type rubyType() {
@@ -204,51 +204,52 @@ struct RubyKenten final : sketch::Sketch {
         .fill(linearGradient({0, 0}, {0, f::kH}, {f::kKinariLift, f::kKinari}))
         .font({.size = 10, .track = 0.2f})
         .ink(f::kUsu)
-        .child(
-            box()
-                .absolute()
-                .inset(52, 44, 0, 0)
-                .column()
-                .gap(4)
-                .child(text("ルビと"
-                            "傍点",
-                            f::body(30, f::kSumi)))
-                .child(box().height(6))
-                .child(text("A READING IS PART OF THE TEXT")
-                           .font({.size = 11, .color = f::kAi, .track = 3.0f}))
-                .child(text("the band it needs is in the base's strut "
-                            "before the base is broken, so the column "
-                            "pitch opens once\nand the reading is "
-                            "placed on the result")
-                           .font({.size = 10.5f})
-                           .width(Dimension(430.0f))))
-        .child(box()
-                   .absolute()
-                   .inset(0, 158, 46, 0)
-                   .row()
-                   .gap(20)
-                   .justify(Justify::End)
-                   .child(f::column("KENTEN · CLUSTER",
-                                    "one sesame a character, reserving "
-                                    "nothing",
-                                    std::move(kenten)))
-                   .child(f::column("JUKUGO · CLUSTER",
-                                    "the compound per character, each its "
-                                    "own reading",
-                                    std::move(jukugo)))
-                   .child(f::column("GROUP · WORD",
-                                    "one reading over the whole compound",
-                                    std::move(group)))
-                   .child(f::column("MONO · CLUSTER",
-                                    "one reading a character; the pitch "
-                                    "opens to hold it",
-                                    std::move(mono))))
-        .child(std::move(splitCell))
-        .child(text("mono · group · jukugo are the UNIT "
-                    "and nothing else — the reading's size is "
-                    "its own type's, never a fraction of the base's")
-                   .absolute()
-                   .inset(52, f::kH - 34, 0, 0));
+        .children(
+            {box()
+                 .absolute()
+                 .inset(52, 44, 0, 0)
+                 .column()
+                 .gap(4)
+                 .children({text("ルビと"
+                                 "傍点",
+                                 f::body(30, f::kSumi))})
+                 .children({box().height(6)})
+                 .children(
+                     {text("A READING IS PART OF THE TEXT")
+                          .font({.size = 11, .color = f::kAi, .track = 3.0f})})
+                 .children({text("the band it needs is in the base's strut "
+                                 "before the base is broken, so the column "
+                                 "pitch opens once\nand the reading is "
+                                 "placed on the result")
+                                .font({.size = 10.5f})
+                                .width(Dimension(430.0f))}),
+             box()
+                 .absolute()
+                 .inset(0, 158, 46, 0)
+                 .row()
+                 .gap(20)
+                 .justify(Justify::End)
+                 .children({f::column("KENTEN · CLUSTER",
+                                      "one sesame a character, reserving "
+                                      "nothing",
+                                      std::move(kenten))})
+                 .children({f::column("JUKUGO · CLUSTER",
+                                      "the compound per character, each its "
+                                      "own reading",
+                                      std::move(jukugo))})
+                 .children({f::column("GROUP · WORD",
+                                      "one reading over the whole compound",
+                                      std::move(group))})
+                 .children({f::column("MONO · CLUSTER",
+                                      "one reading a character; the pitch "
+                                      "opens to hold it",
+                                      std::move(mono))}),
+             std::move(splitCell),
+             text("mono · group · jukugo are the UNIT "
+                  "and nothing else — the reading's size is "
+                  "its own type's, never a fraction of the base's")
+                 .absolute()
+                 .inset(52, f::kH - 34, 0, 0)});
   }
 };
 

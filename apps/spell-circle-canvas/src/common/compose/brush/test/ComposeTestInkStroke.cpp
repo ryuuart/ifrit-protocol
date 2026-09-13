@@ -14,7 +14,7 @@ TEST(ComposeInkStroke, AStrokeThatNamesNoColourIsPaintedInTheInk) {
       box()
           .padding(20)
           .ink({0, 1, 0, 1})
-          .child(box().width(100).height(100).stroke(stroke(10))));
+          .children({box().width(100).height(100).stroke(stroke(10))}));
   host.frame();
   // The band straddles the outline: five pixels inside the box's left edge
   // at x = 20 are the stroke's, well clear of its antialiased rim.
@@ -25,8 +25,8 @@ TEST(ComposeInkStroke, AStrokeThatNamesNoColourIsPaintedInTheInk) {
 TEST(ComposeInkStroke, AStrokeInTheInkFollowsARecolouredAncestor) {
   Host host;
   const auto page = [](SkColor4f ink) {
-    return box().padding(20).ink(ink).child(
-        box().key("c").width(100).height(100).stroke(stroke(10)));
+    return box().padding(20).ink(ink).children(
+        {box().key("c").width(100).height(100).stroke(stroke(10))});
   };
   host.composer.render(page({1, 0, 0, 1}));
   host.frame();
@@ -42,7 +42,7 @@ TEST(ComposeInkStroke, AStrokeThatNamesAColourKeepsIt) {
       box()
           .padding(20)
           .ink({0, 1, 0, 1})
-          .child(box().width(100).height(100).stroke(stroke(10, red()))));
+          .children({box().width(100).height(100).stroke(stroke(10, red()))}));
   host.frame();
   EXPECT_EQ(host.pixel(22, 70), SkColorSetARGB(255, 255, 0, 0));
 }
@@ -54,16 +54,16 @@ TEST(ComposeInkStroke, ABorderWrittenAsTheInkOrAPropertyTakesIt) {
   inked.composer.render(box()
                             .padding(20)
                             .ink({0, 0, 1, 1})
-                            .child(box().width(100).height(100).stroke(
-                                decorations::border(10, Fill::currentInk()))));
+                            .children({box().width(100).height(100).stroke(
+                                decorations::border(10, Fill::currentInk()))}));
   inked.frame();
   EXPECT_EQ(inked.pixel(22, 70), SkColorSetARGB(255, 0, 0, 255));
   Host named;
   named.composer.render(box()
                             .padding(20)
                             .var("rule", SkColor4f{0, 1, 0, 1})
-                            .child(box().width(100).height(100).stroke(
-                                decorations::border(10, Fill::var("rule")))));
+                            .children({box().width(100).height(100).stroke(
+                                decorations::border(10, Fill::var("rule")))}));
   named.frame();
   EXPECT_EQ(named.pixel(22, 70), SkColorSetARGB(255, 0, 255, 0));
 }
@@ -75,10 +75,11 @@ TEST(ComposeInkStroke, ALineWrittenAsTheInkTakesIt) {
   lines::Line line;
   line.width = 10;
   line.fill = Fill::currentInk();
-  host.composer.render(box()
-                           .padding(20)
-                           .ink({0, 0, 1, 1})
-                           .child(box().width(100).height(100).stroke(line)));
+  host.composer.render(
+      box()
+          .padding(20)
+          .ink({0, 0, 1, 1})
+          .children({box().width(100).height(100).stroke(line)}));
   host.frame();
   EXPECT_EQ(host.pixel(22, 70), SkColorSetARGB(255, 0, 0, 255));
 }

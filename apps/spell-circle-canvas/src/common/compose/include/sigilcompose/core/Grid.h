@@ -98,8 +98,8 @@ struct Track {
  *      layout(layouts::Grid{
  *          .columns = {layouts::px(160), layouts::fr()},
  *          .areas = {"nav content"}, .gap = {12, 12}})
- *          .child(sidebar().area("nav"))
- *          .child(scene().area("content"))
+ *          .children({sidebar().area("nav")})
+ *          .children({scene().area("content")})
  *
  * Tracks resolve their minimums, accommodate content, then divide remaining
  * space among fractional shares. Rows and columns use the same rule.

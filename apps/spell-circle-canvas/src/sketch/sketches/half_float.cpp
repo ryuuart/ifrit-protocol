@@ -110,7 +110,7 @@ Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 10})
-          .child(std::move(body)));
+          .children({std::move(body)}));
 }
 
 }  // namespace

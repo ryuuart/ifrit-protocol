@@ -18,13 +18,13 @@ Element TwoAdvancedV3::describe() {
     page.fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
                                        {{0.0f, kPageHi}, {0.55f, kPage}}));
   }
-  page.child(bevelBar());
-  page.child(headerStrip());
-  page.child(wordmark());
-  page.child(navBar());
-  page.child(hairlines());
-  page.child(stageArt());
-  page.child(scrollStrip());
+  page.children({bevelBar()});
+  page.children({headerStrip()});
+  page.children({wordmark()});
+  page.children({navBar()});
+  page.children({hairlines()});
+  page.children({stageArt()});
+  page.children({scrollStrip()});
 
   // The poly-textured ground every lower module sits on.
   Element ground = at(box().clip(), kStageX, 640, kStageW, 400);
@@ -35,23 +35,23 @@ Element TwoAdvancedV3::describe() {
         {0, 0}, {1, 1}, {{0.0f, hexColor(0x22304A)}, {1.0f, kPage}}));
   ground.opacity(
       animate(motion::from(0.0f).to(1.0f), {380ms, &ch::easeOutQuad, 2250ms}));
-  page.child(ground);
+  page.children({ground});
 
   Element mods = at(box().row().gap(10), kStageX, kModY, kStageW, kModH);
-  mods.child(featuredPartner()).child(subData()).child(updates());
-  page.child(mods);
+  mods.children({featuredPartner(), subData(), updates()});
+  page.children({mods});
   // the dark divider band that closes the module row
-  page.child(at(box().fill(mskia::withAlpha(hexColor(0x26314A), 0.9f)), kStageX,
-                kModY + kModH + 2, kStageW, 8)
-                 .opacity(animate(motion::from(0.0f).to(1.0f),
-                                  {320ms, &ch::easeOutQuad, 2650ms})));
+  page.children({at(box().fill(mskia::withAlpha(hexColor(0x26314A), 0.9f)),
+                    kStageX, kModY + kModH + 2, kStageW, 8)
+                     .opacity(animate(motion::from(0.0f).to(1.0f),
+                                      {320ms, &ch::easeOutQuad, 2650ms}))});
 
   Element row = at(box().row().gap(10), kStageX, kRowY, kStageW, kRowH);
-  row.child(mailingList()).child(support2a()).child(follow2a());
-  page.child(row);
+  row.children({mailingList(), support2a(), follow2a()});
+  page.children({row});
 
-  page.child(footerRail());
-  page.child(bootOverlay());
+  page.children({footerRail()});
+  page.children({bootOverlay()});
   return page;
 }
 

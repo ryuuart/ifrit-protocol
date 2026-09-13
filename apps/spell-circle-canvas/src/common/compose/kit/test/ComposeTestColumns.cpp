@@ -39,14 +39,14 @@ std::vector<float> depths(Host& host, int count) {
 
 TEST(KitColumns, ABalancedRunIsShallowerThanTheDepthItWasGiven) {
   Host host(400, 600);
-  host.composer.render(
-      box().absolute().inset(0).child(kit::columns({.story = article(),
-                                                    .count = 3,
-                                                    .gutter = 20,
-                                                    .width = 360,
-                                                    .height = 400,
-                                                    .composer = &host.composer})
-                                          .child(box())));
+  host.composer.render(box().absolute().inset(0).children(
+      {kit::columns({.story = article(),
+                     .count = 3,
+                     .gutter = 20,
+                     .width = 360,
+                     .height = 400,
+                     .composer = &host.composer})
+           .children({box()})}));
   host.frame();
   // Nothing is balanced without a spanner to balance against: one row is
   // the whole assembly and it keeps the depth it was given.
@@ -56,19 +56,19 @@ TEST(KitColumns, ABalancedRunIsShallowerThanTheDepthItWasGiven) {
 TEST(KitColumns, ASpannerBreaksTheChainAndTheRunAboveItIsBalanced) {
   Host host(400, 900);
   const auto draw = [&] {
-    host.composer.render(box().absolute().inset(0).child(
-        kit::columns({.story = article(),
-                      .count = 3,
-                      .gutter = 20,
-                      .width = 360,
-                      .height = 300,
-                      .spanners = {{sigil::weave::selectors::line(11),
-                                    box()
-                                        .key("plate")
-                                        .width(Dimension(360))
-                                        .height(Dimension(24))
-                                        .fill(red())}},
-                      .composer = &host.composer})));
+    host.composer.render(box().absolute().inset(0).children(
+        {kit::columns({.story = article(),
+                       .count = 3,
+                       .gutter = 20,
+                       .width = 360,
+                       .height = 300,
+                       .spanners = {{sigil::weave::selectors::line(11),
+                                     box()
+                                         .key("plate")
+                                         .width(Dimension(360))
+                                         .height(Dimension(24))
+                                         .fill(red())}},
+                       .composer = &host.composer})}));
     host.frame();
   };
   draw();  // the first draw has no layout to read the selector off
@@ -93,7 +93,7 @@ TEST(KitColumns, ASpannerBreaksTheChainAndTheRunAboveItIsBalanced) {
 TEST(KitColumns, TheRunBelowTheSpannerResumesWhereTheOneAboveRanOut) {
   Host host(400, 900);
   const auto draw = [&] {
-    host.composer.render(box().absolute().inset(0).child(kit::columns(
+    host.composer.render(box().absolute().inset(0).children({kit::columns(
         {.story = article(),
          .count = 3,
          .gutter = 20,
@@ -102,7 +102,7 @@ TEST(KitColumns, TheRunBelowTheSpannerResumesWhereTheOneAboveRanOut) {
          .spanners =
              {{sigil::weave::selectors::line(11),
                box().key("plate").width(Dimension(360)).height(Dimension(24))}},
-         .composer = &host.composer})));
+         .composer = &host.composer})}));
     host.frame();
   };
   draw();
@@ -129,16 +129,16 @@ TEST(KitColumns, ARunWhoseFramesStateNoDepthInPixelsIsLeftAlone) {
   Host host(400, 600);
   // A ceiling is what the halving starts from; without one there is
   // nothing to halve, and the chain fills as an unbalanced chain does.
-  host.composer.render(box().absolute().inset(0).child(
-      box()
-          .row()
-          .gap(20)
-          .child(frame(article())
-                     .key("a")
-                     .thread("b")
-                     .width(Dimension(170.0f))
-                     .balanceChain())
-          .child(frame(article()).key("b").width(Dimension(170.0f)))));
+  host.composer.render(box().absolute().inset(0).children(
+      {box()
+           .row()
+           .gap(20)
+           .children({frame(article())
+                          .key("a")
+                          .thread("b")
+                          .width(Dimension(170.0f))
+                          .balanceChain()})
+           .children({frame(article()).key("b").width(Dimension(170.0f))})}));
   host.frame();
   EXPECT_GT(require(host.composer.bounds("a")).height(), 0);
 }

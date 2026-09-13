@@ -107,13 +107,10 @@ Element disc(float size, float left, float top, SkColor4f color) {
 }
 
 Element subject() {
-  return stack()
-      .width(kPanel)
-      .height(kPanel)
-      .fill(rules())
-      .child(disc(76, 26, 30, {0.98f, 0.44f, 0.34f, 1}))
-      .child(disc(52, 96, 96, {0.42f, 0.86f, 0.72f, 1}))
-      .child(disc(96, 118, 132, {0.96f, 0.82f, 0.36f, 1}));
+  return stack().width(kPanel).height(kPanel).fill(rules()).children(
+      {disc(76, 26, 30, {0.98f, 0.44f, 0.34f, 1}),
+       disc(52, 96, 96, {0.42f, 0.86f, 0.72f, 1}),
+       disc(96, 118, 132, {0.96f, 0.82f, 0.36f, 1})});
 }
 
 /** DEPTH OF FIELD: three stops down the unit square — max sigma at the

@@ -135,7 +135,7 @@ struct Bousen final : sketch::Sketch {
         text(u8"傍線例", style)
             .width(Dimension(28.0f))
             .height(Dimension(62.0f))
-            .writingMode(sigil::weave::WritingMode::kVerticalRL),
+            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
         132.0f, 8.0f);
   }
 
@@ -148,7 +148,7 @@ struct Bousen final : sketch::Sketch {
         text(u8"「あっ」、。", style)
             .width(Dimension(42.0f))
             .height(Dimension(150.0f))
-            .writingMode(sigil::weave::WritingMode::kVerticalRL),
+            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
         96.0f, 10.0f);
   }
 
@@ -175,158 +175,164 @@ struct Bousen final : sketch::Sketch {
         .fill(std::move(ground))
         .font({.size = 10})
         .ink(bs::kUsu)
-        .child(
-            text(std::move(passage))
-                .absolute()
-                .inset(bs::kW - bs::kBlockRight - bs::kBlockW, 96,
-                       bs::kBlockRight, 0)
-                .width(Dimension(bs::kBlockW))
-                .height(Dimension(bs::kBlockH))
-                .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                // The band the plate is named for: down the RIGHT of the
-                // column, the length of the phrase it dresses.
-                .spanPaint(
-                    weave::selectors::text(u8"傍線"),
-                    bs::banded(bs::kSumi,
-                               sigil::weave::Decoration::Kind::kUnderline,
-                               bs::kAka, 2.5f))
-                // Its opposite, down the left.
-                .spanPaint(weave::selectors::text(u8"約物"),
-                           bs::banded(bs::kSumi,
-                                      sigil::weave::Decoration::Kind::kOverline,
-                                      bs::kAi, 2.0f))
-                // A highlight covers the column PITCH — there is no cap
-                // band across a column to hang one on.
-                .spanPaint(
-                    weave::selectors::text(u8"小書きの仮名"),
-                    bs::banded(bs::kSumi,
-                               sigil::weave::Decoration::Kind::kHighlight,
-                               {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f}, 0))
-                // A mark stands in the margin BESIDE the phrase it names:
-                // the rect it anchors to is the union of that phrase's
-                // advance boxes, and in a column those stack downward, so
-                // the note it carries runs down the page beside them.
-                .mark(weave::selectors::text(u8"列は右から左へ"),
-                      box()
-                          .key("callout")
-                          // A mark is a child of the column and inherits
-                          // its writing mode; the note is Latin and reads
-                          // across, so the callout says so.
-                          .writingMode(sigil::weave::WritingMode::kHorizontal)
-                          .left(Dimension(-168.0f))
-                          .top(pct(0))
-                          .width(Dimension(168.0f))
-                          // THE LEADER. A note standing in the margin is a
-                          // note about nothing until something joins it to
-                          // the phrase; the rule runs from the text block
-                          // to the mark's own left edge, which is the
-                          // phrase's edge, so it lands where the anchor is
-                          // rather than where a coordinate would have put
-                          // it.
-                          .child(box()
-                                     .key("leader")
-                                     .absolute()
-                                     .left(Dimension(0.0f))
-                                     .top(Dimension(42.0f))
-                                     .width(Dimension(168.0f))
-                                     .height(Dimension(1.0f))
-                                     .fill(Fill::color(bs::kAka)))
-                          .child(text(weave::rich()
-                                          .add("mark() ",
-                                               weave::Type{.size = 11,
-                                                           .color = bs::kAka,
-                                                           .track = 1})
-                                          .add("— anchored to "
-                                               "the phrase,\nnot to a "
-                                               "coordinate"))
-                                     .width(Dimension(150.0f)))))
+        .children(
+            {text(std::move(passage))
+                 .absolute()
+                 .inset(bs::kW - bs::kBlockRight - bs::kBlockW, 96,
+                        bs::kBlockRight, 0)
+                 .width(Dimension(bs::kBlockW))
+                 .height(Dimension(bs::kBlockH))
+                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                 // The band the plate is named for: down the RIGHT of the
+                 // column, the length of the phrase it dresses.
+                 .spanPaint(
+                     weave::selectors::text(u8"傍線"),
+                     bs::banded(bs::kSumi,
+                                sigil::weave::Decoration::Kind::kUnderline,
+                                bs::kAka, 2.5f))
+                 // Its opposite, down the left.
+                 .spanPaint(
+                     weave::selectors::text(u8"約物"),
+                     bs::banded(bs::kSumi,
+                                sigil::weave::Decoration::Kind::kOverline,
+                                bs::kAi, 2.0f))
+                 // A highlight covers the column PITCH — there is no cap
+                 // band across a column to hang one on.
+                 .spanPaint(
+                     weave::selectors::text(u8"小書きの仮名"),
+                     bs::banded(bs::kSumi,
+                                sigil::weave::Decoration::Kind::kHighlight,
+                                {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f}, 0))
+                 // A mark stands in the margin BESIDE the phrase it names:
+                 // the rect it anchors to is the union of that phrase's
+                 // advance boxes, and in a column those stack downward, so
+                 // the note it carries runs down the page beside them.
+                 .mark(
+                     weave::selectors::text(u8"列は右から左へ"),
+                     box()
+                         .key("callout")
+                         // A mark is a child of the column and inherits
+                         // its writing mode; the note is Latin and reads
+                         // across, so the callout says so.
+                         .block({.writingMode =
+                                     sigil::weave::WritingMode::kHorizontal})
+                         .left(Dimension(-168.0f))
+                         .top(pct(0))
+                         .width(Dimension(168.0f))
+                         // THE LEADER. A note standing in the margin is a
+                         // note about nothing until something joins it to
+                         // the phrase; the rule runs from the text block
+                         // to the mark's own left edge, which is the
+                         // phrase's edge, so it lands where the anchor is
+                         // rather than where a coordinate would have put
+                         // it.
+                         .children({box()
+                                        .key("leader")
+                                        .absolute()
+                                        .left(Dimension(0.0f))
+                                        .top(Dimension(42.0f))
+                                        .width(Dimension(168.0f))
+                                        .height(Dimension(1.0f))
+                                        .fill(Fill::color(bs::kAka))})
+                         .children({text(weave::rich()
+                                             .add("mark() ",
+                                                  weave::Type{.size = 11,
+                                                              .color = bs::kAka,
+                                                              .track = 1})
+                                             .add("— anchored to "
+                                                  "the phrase,\nnot to a "
+                                                  "coordinate"))
+                                        .width(Dimension(150.0f))}))})
         // The plate names itself in the other writing mode, so the two
         // stand side by side.
-        .child(
-            box()
-                .absolute()
-                .inset(64, 92, 0, 0)
-                .column()
-                .gap(10)
-                .child(text("傍線", bs::body(44, bs::kSumi)))
-                .child(box()
-                           .width(Dimension(120.0f))
-                           .height(Dimension(1.0f))
-                           .fill(Fill::color(bs::kAka)))
-                .child(text("THE COLUMN'S FURNITURE")
-                           .font({.size = 13, .color = bs::kAi, .track = 3}))
-                .child(
-                    text("a band beside the column, not beneath a\n"
-                         "line · a mark on the phrase it names")
-                        .font({.size = 13, .color = bs::kSumi, .track = 0.4f})
-                        .width(Dimension(260.0f)))
-                .child(box().height(Dimension(20.0f)))
-                .child(box()
-                           .row()
-                           .gap(30)
-                           .child(specimen("AS THE FACE GIVES IT",
-                                           bs::body(26, bs::kSumi)))
-                           .child(specimen("valt · vpal · vkna",
-                                           bs::columnFitted(26, bs::kAka))))
-                .child(box().height(Dimension(14.0f)))
-                .child(text("the pair is one string set twice: the "
-                            "second asks\nthe face for the metrics it "
-                            "keeps for a column")
-                           .font({.size = 11})
-                           .width(Dimension(300.0f))))
+        .children(
+            {box()
+                 .absolute()
+                 .inset(64, 92, 0, 0)
+                 .column()
+                 .gap(10)
+                 .children({text("傍線", bs::body(44, bs::kSumi))})
+                 .children({box()
+                                .width(Dimension(120.0f))
+                                .height(Dimension(1.0f))
+                                .fill(Fill::color(bs::kAka))})
+                 .children(
+                     {text("THE COLUMN'S FURNITURE")
+                          .font({.size = 13, .color = bs::kAi, .track = 3})})
+                 .children(
+                     {text("a band beside the column, not beneath a\n"
+                           "line · a mark on the phrase it names")
+                          .font({.size = 13, .color = bs::kSumi, .track = 0.4f})
+                          .width(Dimension(260.0f))})
+                 .children({box().height(Dimension(20.0f))})
+                 .children({box()
+                                .row()
+                                .gap(30)
+                                .children({specimen("AS THE FACE GIVES IT",
+                                                    bs::body(26, bs::kSumi))})
+                                .children({specimen(
+                                    "valt · vpal · vkna",
+                                    bs::columnFitted(26, bs::kAka))})})
+                 .children({box().height(Dimension(14.0f))})
+                 .children({text("the pair is one string set twice: the "
+                                 "second asks\nthe face for the metrics it "
+                                 "keeps for a column")
+                                .font({.size = 11})
+                                .width(Dimension(300.0f))})})
         // The cascade lives on its own strip, and it wears a band. A track
         // draws its glyphs itself, in batched buckets that carry glyphs
         // alone, so the sideline is drawn beside them at the placement the
         // layout left it: it stands still down the whole column while the
         // letters travel into it.
-        .child(
-            text(u8"列ごとに文字が現れる。右から左へ。", bs::body(21, bs::kAi))
-                .absolute()
-                .inset(352, 150, 0, 0)
-                .width(Dimension(120.0f))
-                .height(Dimension(300.0f))
-                .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                .spanPaint(
-                    weave::selectors::text(u8"右から左へ"),
-                    bs::banded(bs::kAi,
-                               sigil::weave::Decoration::Kind::kUnderline,
-                               bs::kAka, 2.0f))
-                .fx({.effect = fx::rise(18),
-                     .stagger = bs::kColumnEntrance,
-                     .unit = weave::Unit::Line,
-                     .progress = animate(motion::from(0.0f).to(1.0f),
-                                         {std::chrono::milliseconds(
-                                              (int)bs::kColumnEntranceSpan),
-                                          &ch::easeNone, 220ms})}))
-        .child(text("↑ this strip's entrance beats over\n"
-                    "weave::Unit::Line — one COLUMN a beat,\n"
-                    "and its band stands at rest")
-                   .absolute()
-                   .inset(300, 466, 0, 0)
-                   .width(Dimension(180.0f)))
+        .children(
+            {text(u8"列ごとに文字が現れる。右から左へ。", bs::body(21, bs::kAi))
+                 .absolute()
+                 .inset(352, 150, 0, 0)
+                 .width(Dimension(120.0f))
+                 .height(Dimension(300.0f))
+                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                 .spanPaint(
+                     weave::selectors::text(u8"右から左へ"),
+                     bs::banded(bs::kAi,
+                                sigil::weave::Decoration::Kind::kUnderline,
+                                bs::kAka, 2.0f))
+                 .fx({.effect = fx::rise(18),
+                      .stagger = bs::kColumnEntrance,
+                      .unit = weave::Unit::Line,
+                      .progress = animate(motion::from(0.0f).to(1.0f),
+                                          {std::chrono::milliseconds(
+                                               (int)bs::kColumnEntranceSpan),
+                                           &ch::easeNone, 220ms})}),
+             text("↑ this strip's entrance beats over\n"
+                  "weave::Unit::Line — one COLUMN a beat,\n"
+                  "and its band stands at rest")
+                 .absolute()
+                 .inset(300, 466, 0, 0)
+                 .width(Dimension(180.0f))})
         // The three conventions, each on a column of its own, so the page
         // shows them side by side instead of naming them in a footer.
-        .child(
-            box()
-                .absolute()
-                .inset(64, 512, 0, 0)
-                .row()
-                .gap(26)
-                .child(bandSpecimen("UNDERLINE · RIGHT",
-                                    sigil::weave::Decoration::Kind::kUnderline,
-                                    bs::kAka, 2.5f))
-                .child(bandSpecimen("OVERLINE · LEFT",
-                                    sigil::weave::Decoration::Kind::kOverline,
-                                    bs::kAi, 2.0f))
-                .child(bandSpecimen("HIGHLIGHT · PITCH",
-                                    sigil::weave::Decoration::Kind::kHighlight,
-                                    {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f},
-                                    0)))
-        .child(text("the entrance beats over COLUMNS · a band is "
-                    "beside the column, never beneath a line")
-                   .font({.size = 12})
-                   .absolute()
-                   .inset(64, bs::kH - 44, 0, 0));
+        .children(
+            {box()
+                 .absolute()
+                 .inset(64, 512, 0, 0)
+                 .row()
+                 .gap(26)
+                 .children(
+                     {bandSpecimen("UNDERLINE · RIGHT",
+                                   sigil::weave::Decoration::Kind::kUnderline,
+                                   bs::kAka, 2.5f)})
+                 .children({bandSpecimen(
+                     "OVERLINE · LEFT",
+                     sigil::weave::Decoration::Kind::kOverline, bs::kAi, 2.0f)})
+                 .children({bandSpecimen(
+                     "HIGHLIGHT · PITCH",
+                     sigil::weave::Decoration::Kind::kHighlight,
+                     {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f}, 0)}),
+             text("the entrance beats over COLUMNS · a band is "
+                  "beside the column, never beneath a line")
+                 .font({.size = 12})
+                 .absolute()
+                 .inset(64, bs::kH - 44, 0, 0)});
   }
 };
 

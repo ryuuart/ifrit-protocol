@@ -58,11 +58,11 @@ constexpr auto kEnter = std::chrono::milliseconds(400);
 constexpr auto kStagger = std::chrono::milliseconds(120);
 
 world::Frame cardFrame() {
-  return world::Frame(world::Element().key("set").child(
-      world::Element()
-          .key("card")
-          .mesh(gm::quad(kCardW, kCardH))
-          .fill(sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}}))));
+  return world::Frame(world::Element().key("set").children(
+      {world::Element()
+           .key("card")
+           .mesh(gm::quad(kCardW, kCardH))
+           .fill(sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}}))}));
 }
 
 gm::camera::Camera cardCamera(float eyeZ) {
@@ -153,12 +153,12 @@ struct Probing : Sketch {
    *  goes on a CHILD of it, held at the start of its row: the probe has
    *  to reach the pixels for a comparison of them to say anything. */
   [[nodiscard]] Element art() const {
-    return box().inset(0).child(box()
-                                    .alignSelf(Align::Start)
-                                    .shrink(0)
-                                    .width(Dimension(ink))
-                                    .height(Dimension(20))
-                                    .fill(Fill::color({1, 0, 0, 1})));
+    return box().inset(0).children({box()
+                                        .alignSelf(Align::Start)
+                                        .shrink(0)
+                                        .width(Dimension(ink))
+                                        .height(Dimension(20))
+                                        .fill(Fill::color({1, 0, 0, 1}))});
   }
 };
 
@@ -290,8 +290,7 @@ world::Frame enteringFrame() {
           .key("set")
           .staggerChildren({.eachMs = (float)kStagger.count(),
                             .durationMs = (float)kEnter.count()})
-          .child(card("left", -40.0f))
-          .child(card("right", 40.0f)));
+          .children({card("left", -40.0f), card("right", 40.0f)}));
 }
 
 /** A sketch that bakes the entering card at three moments: before it

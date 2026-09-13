@@ -109,8 +109,8 @@ struct DartFlight final : sketch::Set {
         {.baseColor = {0.86f, 0.62f, 0.28f, 1.0f}, .roughness = 0.35f});
 
     world::Element subject = world::Element().key("flight");
-    subject.child(
-        world::Element().key("rail").mesh(rail).fill(wire).tag("rail"));
+    subject.children(
+        {world::Element().key("rail").mesh(rail).fill(wire).tag("rail")});
 
     // The gates: one node per station, each standing at a constant
     // distance along the loop and ROLLED about the rail inside the frame
@@ -118,24 +118,24 @@ struct DartFlight final : sketch::Set {
     // rotation lanes rather than replacing them.
     for (int i = 0; i < kGates; ++i) {
       const float where = lap * ((float)i / (float)kGates);
-      subject.child(world::Element()
-                        .key("gate" + std::to_string(i))
-                        .along(loop, where)
-                        .rotateY((float)i * 11.0f)
-                        .mesh(gate())
-                        .fill(brass)
-                        .tag("gate"));
+      subject.children({world::Element()
+                            .key("gate" + std::to_string(i))
+                            .along(loop, where)
+                            .rotateY((float)i * 11.0f)
+                            .mesh(gate())
+                            .fill(brass)
+                            .tag("gate")});
     }
 
     // …and the dart, on the same curve, at a distance that is a function
     // of the moment and of nothing else.
-    subject.child(
-        world::Element()
-            .key("dart")
-            .along(loop, motion::phase(seconds, 1.0 / kLapsPerSecond) * lap)
-            .mesh(dart())
-            .fill(chrome)
-            .tag("dart"));
+    subject.children(
+        {world::Element()
+             .key("dart")
+             .along(loop, motion::phase(seconds, 1.0 / kLapsPerSecond) * lap)
+             .mesh(dart())
+             .fill(chrome)
+             .tag("dart")});
 
     world::kit::Set set;
     set.rig.extent = 220.0f;

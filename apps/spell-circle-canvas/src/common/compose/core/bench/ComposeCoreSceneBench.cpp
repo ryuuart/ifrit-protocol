@@ -50,13 +50,14 @@ Element scoreRow(const Row& row) {
       .padding(8)
       .corners({6})
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
-      .child(text(toUtf8(row.name), style).grow(1))
-      .child(text(toUtf8(std::to_string(row.score)), style));
+      .children({text(toUtf8(row.name), style).grow(1),
+                 text(toUtf8(std::to_string(row.score)), style)});
 }
 
 Element scoreboard(const std::vector<Row>& rows) {
   auto list = box().column().gap(4).padding(16);
-  for (const Row& row : rows) list.child(memo(row, scoreRow).key(row.name));
+  for (const Row& row : rows)
+    list.children({memo(row, scoreRow).key(row.name)});
   return list;
 }
 
@@ -128,7 +129,8 @@ BENCHMARK_F(Scoreboard, Frame_OneTransitionActive)(benchmark::State& state) {
     state.PauseTiming();
     rows[10].score = ++flip;  // re-describe row 10 with a transition
     auto list = box().column().gap(4).padding(16).transition({16000ms});
-    for (const Row& row : rows) list.child(memo(row, scoreRow).key(row.name));
+    for (const Row& row : rows)
+      list.children({memo(row, scoreRow).key(row.name)});
     host->composer.render(list);
     state.ResumeTiming();
     host->ticker.tick(1.0 / 120.0);
@@ -155,7 +157,7 @@ static void BM_Draw_100Rows_Volatile(benchmark::State& state) {
   choreograph::Output<float> x = 0.0f;
   auto list = box().translateX(&x).column().gap(4).padding(16);
   for (const Row& row : makeRows(100))
-    list.child(memo(row, scoreRow).key(row.name));
+    list.children({memo(row, scoreRow).key(row.name)});
   host.composer.render(list);
   host.draw();
   for ([[maybe_unused]] auto iteration : state) {
@@ -172,7 +174,8 @@ static void BM_Draw_100Rows_TextureBlit(benchmark::State& state) {
   Host host;
   auto rows = makeRows(100);
   auto list = box().column().gap(4).padding(16).cache(Cache::Texture);
-  for (const Row& row : rows) list.child(memo(row, scoreRow).key(row.name));
+  for (const Row& row : rows)
+    list.children({memo(row, scoreRow).key(row.name)});
   host.composer.render(list);
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
@@ -194,7 +197,7 @@ Element bloomBlock(Cache mode) {
       .cache(mode)
       .effect(sigil::material::skia::Effect::filter(
           SkImageFilters::Blur(12, 12, nullptr)))
-      .child(text(u8"BLOOM PIPELINE", style));
+      .children({text(u8"BLOOM PIPELINE", style)});
 }
 
 void bloomArm(benchmark::State& state, Cache mode) {
@@ -247,13 +250,13 @@ Element haloedBand(Boundary boundary, const choreograph::Output<float>* turn) {
                          {0.35f, 0.85f, 1.0f, 1.0f}, 6.0f));
   for (int i = 0; i < 24; ++i) {
     const float a = (float)i * (float)(2 * M_PI) / 24.0f;
-    band.child(box()
-                   .absolute()
-                   .left(side * 0.5f + radius * std::cos(a) - 9.0f)
-                   .top(side * 0.5f + radius * std::sin(a) - 9.0f)
-                   .width(18)
-                   .height(18)
-                   .fill(Fill::color({1.0f, 0.78f, 0.3f, 1.0f})));
+    band.children({box()
+                       .absolute()
+                       .left(side * 0.5f + radius * std::cos(a) - 9.0f)
+                       .top(side * 0.5f + radius * std::sin(a) - 9.0f)
+                       .width(18)
+                       .height(18)
+                       .fill(Fill::color({1.0f, 0.78f, 0.3f, 1.0f}))});
   }
   return band;
 }
@@ -263,7 +266,7 @@ Element haloedBand(Boundary boundary, const choreograph::Output<float>* turn) {
 void haloHeldArm(benchmark::State& state, Boundary boundary, bool turning) {
   choreograph::Output<float> turn{0.0f};
   Host host(800, 800);
-  host.composer.render(box().child(haloedBand(boundary, &turn)));
+  host.composer.render(box().children({haloedBand(boundary, &turn)}));
   host.draw();
   float t = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -277,14 +280,15 @@ void haloHeldArm(benchmark::State& state, Boundary boundary, bool turning) {
 void haloRebakeArm(benchmark::State& state, Boundary boundary) {
   choreograph::Output<float> turn{0.0f};
   Host host(800, 800);
-  host.composer.render(box().child(haloedBand(boundary, &turn)));
+  host.composer.render(box().children({haloedBand(boundary, &turn)}));
   host.draw();
   float t = 0;
   for ([[maybe_unused]] auto iteration : state) {
     t += 0.004f;
     turn = t;
-    host.composer.render(
-        box().opacity(1.0f - 0.0001f * t).child(haloedBand(boundary, &turn)));
+    host.composer.render(box()
+                             .opacity(1.0f - 0.0001f * t)
+                             .children({haloedBand(boundary, &turn)}));
     host.draw();
   }
 }
@@ -518,7 +522,7 @@ void instancesArm(benchmark::State& state, instancing::Mode mode) {
   const size_t count = (size_t)state.range(0);
   Host host;
   auto [atlas, pool] = makeInstanceScene(count);
-  host.composer.render(box().child(instances(atlas, pool, mode)));
+  host.composer.render(box().children({instances(atlas, pool, mode)}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["instances"] = (double)count;
@@ -625,11 +629,11 @@ static void BM_Particles_EnttAtlasLeaf(benchmark::State& state) {
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
   host.composer.render(
-      box().child(custom([particles](SkCanvas& c, const PaintContext&) {
-                    particles->draw(c);
-                  })
-                      .inset(0)
-                      .cache(Cache::None)));
+      box().children({custom([particles](SkCanvas& c, const PaintContext&) {
+                        particles->draw(c);
+                      })
+                          .inset(0)
+                          .cache(Cache::None)}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) {
     particles->step(1.0f / 120.0f);
@@ -645,17 +649,17 @@ static void BM_Particles_DrawCircleLoop(benchmark::State& state) {
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
   host.composer.render(
-      box().child(custom([particles](SkCanvas& c, const PaintContext&) {
-                    SkPaint p;
-                    p.setAntiAlias(true);
-                    p.setColor(0xff7ee8ff);
-                    particles->registry.view<const Particle::Pos>().each(
-                        [&](const Particle::Pos& pos) {
-                          c.drawCircle(pos.x, pos.y, 3.5f, p);
-                        });
-                  })
-                      .inset(0)
-                      .cache(Cache::None)));
+      box().children({custom([particles](SkCanvas& c, const PaintContext&) {
+                        SkPaint p;
+                        p.setAntiAlias(true);
+                        p.setColor(0xff7ee8ff);
+                        particles->registry.view<const Particle::Pos>().each(
+                            [&](const Particle::Pos& pos) {
+                              c.drawCircle(pos.x, pos.y, 3.5f, p);
+                            });
+                      })
+                          .inset(0)
+                          .cache(Cache::None)}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) {
     particles->step(1.0f / 120.0f);
@@ -692,13 +696,14 @@ Element benchChunk(const ChunkProps& p) {
   auto tiles = box().width(10 * kTile).height(10 * kTile);
   for (int i = 0; i < (int)p.ids.size(); ++i) {
     const int row = i / 10;
-    tiles.child(image(benchAtlas())
-                    .region(SkRect::MakeXYWH((float)(p.ids[(size_t)i] % 4) * 16,
-                                             0, 16, 16))
-                    .absolute()
-                    .inset((float)(i % 10) * kTile, (float)row * kTile, 0, 0)
-                    .width(kTile)
-                    .height(kTile));
+    tiles.children(
+        {image(benchAtlas())
+             .region(SkRect::MakeXYWH((float)(p.ids[(size_t)i] % 4) * 16, 0, 16,
+                                      16))
+             .absolute()
+             .inset((float)(i % 10) * kTile, (float)row * kTile, 0, 0)
+             .width(kTile)
+             .height(kTile)});
   }
   return tiles;
 }
@@ -716,9 +721,9 @@ struct TileGrid {
   Element describe() const {
     auto grid = box().row().wrapLines().width(6 * 160.0f);
     for (int c = 0; c < 24; ++c)
-      grid.child(
-          memo(chunks[(size_t)c], benchChunk).key("c" + std::to_string(c)));
-    return box().child(grid);
+      grid.children(
+          {memo(chunks[(size_t)c], benchChunk).key("c" + std::to_string(c))});
+    return box().children({grid});
   }
 };
 
@@ -782,11 +787,11 @@ static void BM_Draw_TileGrid_SkSLFill(benchmark::State& state) {
   builder.child("atlas") = atlasShader;
   sk_sp<SkShader> field = builder.makeShader();
 
-  host.composer.render(box().child(box()
-                                       .width(960)
-                                       .height(640)
-                                       .fill(Fill::shader(field))
-                                       .cache(Cache::None)));
+  host.composer.render(box().children({box()
+                                           .width(960)
+                                           .height(640)
+                                           .fill(Fill::shader(field))
+                                           .cache(Cache::None)}));
   for ([[maybe_unused]] auto iteration : state) host.draw();
 }
 BENCHMARK(BM_Draw_TileGrid_SkSLFill);
@@ -831,10 +836,8 @@ Element emissiveStack(int index, Cache mode) {
       .cache(mode)
       .blend(SkBlendMode::kPlus)
       .opacity(0.55f + 0.04f * (float)(index % 8))
-      .child(grade(radius, 0.085f))
-      .child(grade(radius * 0.72f, 0.16f))
-      .child(grade(radius * 0.5f, 0.42f))
-      .child(grade(radius * 0.3f, 0.96f));
+      .children({grade(radius, 0.085f), grade(radius * 0.72f, 0.16f),
+                 grade(radius * 0.5f, 0.42f), grade(radius * 0.3f, 0.96f)});
 }
 
 void chargedDiscArm(benchmark::State& state, Cache mode) {
@@ -842,7 +845,7 @@ void chargedDiscArm(benchmark::State& state, Cache mode) {
   Host host(400, 400);
   Element disc =
       box().width(400).height(400).fill(Fill::color({0.05f, 0.04f, 0.06f, 1}));
-  for (int i = 0; i < count; ++i) disc.child(emissiveStack(i, mode));
+  for (int i = 0; i < count; ++i) disc.children({emissiveStack(i, mode)});
   host.composer.render(disc);
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
@@ -895,7 +898,7 @@ static void BM_Draw_Instances_Live_Graphite(benchmark::State& state) {
   Host host;
   auto [atlas, pool] = makeInstanceScene(count);
   host.composer.render(
-      box().child(instances(atlas, pool, instancing::Mode::Live)));
+      box().children({instances(atlas, pool, instancing::Mode::Live)}));
   host.composer.draw(target.canvas());
   target.submit();
   for ([[maybe_unused]] auto iteration : state) {
@@ -992,11 +995,11 @@ static void BM_Particles_EnttAtlasLeaf_Graphite(benchmark::State& state) {
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
   host.composer.render(
-      box().child(custom([particles](SkCanvas& c, const PaintContext&) {
-                    particles->draw(c);
-                  })
-                      .inset(0)
-                      .cache(Cache::None)));
+      box().children({custom([particles](SkCanvas& c, const PaintContext&) {
+                        particles->draw(c);
+                      })
+                          .inset(0)
+                          .cache(Cache::None)}));
   host.composer.draw(target.canvas());
   target.submit();
   for ([[maybe_unused]] auto iteration : state) {

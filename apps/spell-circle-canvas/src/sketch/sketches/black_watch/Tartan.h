@@ -454,13 +454,14 @@ inline const weave::StyleSheet& classes() {
  *  voice. The line box is 1.6 em of that type, so it follows the size the
  *  line resolves to. */
 inline Element label(const std::string& s, float x, float y, float w) {
-  return at(x, y, w, 0).height(1.6_em).child(text(s));
+  return at(x, y, w, 0).height(1.6_em).children({text(s)});
 }
 inline Element centred(const std::string& s, float x, float y, float w) {
   return at(x, y, w, 0)
       .height(1.6_em)
-      .child(
-          text(s).textAlign(weave::TextAlignment::kCenter).width(Dimension(w)));
+      .children({text(s)
+                     .block({.alignment = weave::TextAlignment::kCenter})
+                     .width(Dimension(w))});
 }
 inline Element rule(float x, float y, float w, float h, SkColor4f c) {
   return at(x, y, w, h).fill(c);

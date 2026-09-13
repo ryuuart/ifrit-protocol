@@ -55,15 +55,14 @@ struct Spun : Set {
   }
   world::Frame describe(float seconds) override {
     ++describes;
-    return world::Element()
-        .key("set")
-        .child(world::Element().key("sun").light(
-            world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)))
-        .child(world::Element()
-                   .key("body")
-                   .rotateY(seconds * 90.0f)
-                   .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
-                   .fill(sigil::material::kit::surface()));
+    return world::Element().key("set").children(
+        {world::Element().key("sun").light(
+             world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)),
+         world::Element()
+             .key("body")
+             .rotateY(seconds * 90.0f)
+             .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
+             .fill(sigil::material::kit::surface())});
   }
 };
 
@@ -87,8 +86,8 @@ struct Screened : Set {
     sigil::material::Material surface =
         sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}});
     surface.child(sigil::material::kit::kBaseColorSlot, screen->texture());
-    return world::Element().key("set").child(
-        world::Element().key("card").mesh(gm::quad(120, 90)).fill(surface));
+    return world::Element().key("set").children(
+        {world::Element().key("card").mesh(gm::quad(120, 90)).fill(surface)});
   }
 };
 
@@ -114,16 +113,15 @@ struct Framed : Set {
     ctx.camera(fallback);
   }
   world::Frame describe(float) override {
-    return world::Element()
-        .key("set")
-        .child(world::Element().key("sun").light(
-            world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)))
-        .child(world::Element().key("lens").camera(framedLens()))
-        .child(world::Element()
-                   .key("body")
-                   .at({40, 30, -10})
-                   .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
-                   .fill(sigil::material::kit::surface()));
+    return world::Element().key("set").children(
+        {world::Element().key("sun").light(
+             world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)),
+         world::Element().key("lens").camera(framedLens()),
+         world::Element()
+             .key("body")
+             .at({40, 30, -10})
+             .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
+             .fill(sigil::material::kit::surface())});
   }
 };
 

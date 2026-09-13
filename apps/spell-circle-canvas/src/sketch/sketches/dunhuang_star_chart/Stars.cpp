@@ -83,21 +83,21 @@ auto DunhuangStarChart::asterismLines() -> Element {
   for (size_t i = 0; i < astArt.size(); ++i) {
     const AstArt& A = astArt[i];
     // the node's box is the ASTERISM's box, never the plate's
-    g.child(
-        box()
-            .left(A.box.left())
-            .top(A.box.top())
-            .width(Dimension(A.box.width()))
-            .height(Dimension(A.box.height()))
-            .shape(heldPath(A.local))
-            .stroke(spans::upTo(gate(A.t0, A.t0 + 0.9f)),
-                    Brush{}
-                        .shaped(shapers::Jitter{.segmentLength = 13.0f,
-                                                .deviation = 0.85f,
-                                                .seed = (uint32_t)(i * 31 + 7)})
-                        .layer(lines::Line{.width = 1.05f,
-                                           .fill = Fill::color(A.ink),
-                                           .capSize = 0.0f})));
+    g.children({box()
+                    .left(A.box.left())
+                    .top(A.box.top())
+                    .width(Dimension(A.box.width()))
+                    .height(Dimension(A.box.height()))
+                    .shape(heldPath(A.local))
+                    .stroke(spans::upTo(gate(A.t0, A.t0 + 0.9f)),
+                            Brush{}
+                                .shaped(shapers::Jitter{
+                                    .segmentLength = 13.0f,
+                                    .deviation = 0.85f,
+                                    .seed = (uint32_t)(i * 31 + 7)})
+                                .layer(lines::Line{.width = 1.05f,
+                                                   .fill = Fill::color(A.ink),
+                                                   .capSize = 0.0f}))});
   }
   return g;
 }
@@ -164,20 +164,20 @@ auto DunhuangStarChart::map5Labels() -> Element {
     // later — while a defect row takes gate() and stays up for the rest of
     // the running score, so from mid-audit onward the plate carries
     // exactly the six documented defects.
-    g.child(box()
-                .left(c.fX - 30)
-                .top(c.fY - 30)
-                .width(Dimension(60))
-                .height(Dimension(60))
-                .shape(shapes::circle())
-                .opacity(!r.defect.empty() ? gate(t, t + 0.3f)
-                                           : flash(t, t + 0.3f, t + 3.0f))
-                .stroke(PathFormat{
-                    .width = 1.1f,
-                    .strokeFill = Fill::color(!r.defect.empty()
-                                                  ? hexColor(0xb4531f, 0.85f)
-                                                  : hexColor(0x2f6d86, 0.7f)),
-                    .dashIntervals = {4, 4}}));
+    g.children({box()
+                    .left(c.fX - 30)
+                    .top(c.fY - 30)
+                    .width(Dimension(60))
+                    .height(Dimension(60))
+                    .shape(shapes::circle())
+                    .opacity(!r.defect.empty() ? gate(t, t + 0.3f)
+                                               : flash(t, t + 0.3f, t + 3.0f))
+                    .stroke(PathFormat{
+                        .width = 1.1f,
+                        .strokeFill = Fill::color(
+                            !r.defect.empty() ? hexColor(0xb4531f, 0.85f)
+                                              : hexColor(0x2f6d86, 0.7f)),
+                        .dashIntervals = {4, 4}})});
 
     // WHAT IS WRITTEN ON THE PAPER, defects included
     std::string written = r.native;
@@ -192,40 +192,40 @@ auto DunhuangStarChart::map5Labels() -> Element {
       lx = c.fX + 26;
     }  // Ping, misplaced
     if (!none)
-      g.child(text(written)
-                  .font({.face = faceHan ? faceHan : faceSerif,
-                         .size = 12.5f,
-                         .color = hexColor(0x241d15, 0.92f)})
-                  .left(lx)
-                  .top(ly)
-                  .width(Dimension(60))
-                  .opacity(gate(tLine1 - 0.6f, tLine1 + 0.5f)));
+      g.children({text(written)
+                      .font({.face = faceHan ? faceHan : faceSerif,
+                             .size = 12.5f,
+                             .color = hexColor(0x241d15, 0.92f)})
+                      .left(lx)
+                      .top(ly)
+                      .width(Dimension(60))
+                      .opacity(gate(tLine1 - 0.6f, tLine1 + 0.5f))});
     else
-      g.child(text("[no label]")
-                  .font({.size = 8.2f, .color = hexColor(0xb4531f, 0.9f)})
-                  .left(c.fX + 22)
-                  .top(c.fY - 40)
-                  .width(Dimension(70))
-                  .opacity(gate(t, t + 0.3f)));
+      g.children({text("[no label]")
+                      .font({.size = 8.2f, .color = hexColor(0xb4531f, 0.9f)})
+                      .left(c.fX + 22)
+                      .top(c.fY - 40)
+                      .width(Dimension(70))
+                      .opacity(gate(t, t + 0.3f))});
     if (cid == "21D")  // the leader from the misplaced label to its stars
-      g.child(
-          box()
-              .left(std::min(lx, c.fX))
-              .top(ly + 10)
-              .width(Dimension(std::abs(lx - c.fX) + 4))
-              .height(Dimension(c.fY - ly - 10))
-              .shape(keyedShape(std::string_view("label-leader"),
-                                [](SkSize sz) {
-                                  SkPathBuilder b;
-                                  b.moveTo(sz.width(), 0);
-                                  b.lineTo(0, sz.height());
-                                  return b.detach();
-                                }))
-              .opacity(gate(t, t + 0.3f))
-              .stroke(lines::Line{.width = 0.7f,
-                                  .fill = Fill::color(hexColor(0xb4531f, 0.8f)),
-                                  .startCap = lines::Cap::Dot,
-                                  .capSize = 4.0f}));
+      g.children({box()
+                      .left(std::min(lx, c.fX))
+                      .top(ly + 10)
+                      .width(Dimension(std::abs(lx - c.fX) + 4))
+                      .height(Dimension(c.fY - ly - 10))
+                      .shape(keyedShape(std::string_view("label-leader"),
+                                        [](SkSize sz) {
+                                          SkPathBuilder b;
+                                          b.moveTo(sz.width(), 0);
+                                          b.lineTo(0, sz.height());
+                                          return b.detach();
+                                        }))
+                      .opacity(gate(t, t + 0.3f))
+                      .stroke(lines::Line{
+                          .width = 0.7f,
+                          .fill = Fill::color(hexColor(0xb4531f, 0.8f)),
+                          .startCap = lines::Cap::Dot,
+                          .capSize = 4.0f})});
   }
   return g;
 }
@@ -289,63 +289,63 @@ auto DunhuangStarChart::archer() -> Element {
     rib.fill = Fill::color(hexColor(0x241d15, 0.90f));
     rib.step = 2.0f;
     rib.width = BonePress{len, w0};
-    g.child(box()
-                .left(0)
-                .top(0)
-                .width(Dimension(w))
-                .height(Dimension(h))
-                .shape(heldPath(p))
-                .stroke(spans::upTo(gate(tArch + 0.05f * (float)i,
-                                         tArch + 0.05f * (float)i + 0.55f)),
-                        rib));
+    g.children({box()
+                    .left(0)
+                    .top(0)
+                    .width(Dimension(w))
+                    .height(Dimension(h))
+                    .shape(heldPath(p))
+                    .stroke(spans::upTo(gate(tArch + 0.05f * (float)i,
+                                             tArch + 0.05f * (float)i + 0.55f)),
+                            rib)});
   }
   // the bow and the arrow
-  g.child(
-      box()
-          .left(0)
-          .top(0)
-          .width(Dimension(w))
-          .height(Dimension(h))
-          .shape(keyedShape(std::string_view("bow"),
-                            [](SkSize) {
-                              SkPathBuilder b;
-                              b.moveTo(34, 8);
-                              b.cubicTo(-10, 56, -10, 126, 34, 176);
-                              b.moveTo(34, 8);
-                              b.lineTo(20, 92);
-                              b.lineTo(34, 176);
-                              return b.detach();
-                            }))
-          .stroke(spans::upTo(gate(tArch + 0.45f, tArch + 1.0f)),
-                  lines::Line{.width = 1.9f,
-                              .fill = Fill::color(hexColor(0x241d15, 0.88f))}));
-  g.child(
-      box()
-          .left(0)
-          .top(0)
-          .width(Dimension(w))
-          .height(Dimension(h))
-          .shape(keyedShape(std::string_view("arrow"),
-                            [](SkSize) {
-                              SkPathBuilder b;
-                              b.moveTo(140, 90);
-                              b.lineTo(6, 92);
-                              return b.detach();
-                            }))
-          .stroke(spans::upTo(gate(tArch + 0.75f, tArch + 1.15f)),
-                  lines::presets::arrow(1.5f, Fill::color(kCinnabar), 9.0f)));
-  g.child(text("a bowman in traditional dress, captioned THE GOD OF")
-              .font({.size = 8.4f, .color = hexColor(0x4a3b28, 0.85f)})
-              .left(-18)
-              .top(h - 12)
-              .width(Dimension(300))
-              .opacity(gate(tArch + 1.0f, tArch + 1.6f)));
-  g.child(text("LIGHTNING, over a title nobody can read convincingly")
-              .font({.size = 8.4f, .color = hexColor(0x4a3b28, 0.85f)})
-              .left(-18)
-              .top(h + 0)
-              .width(Dimension(300))
-              .opacity(gate(tArch + 1.0f, tArch + 1.6f)));
+  g.children({box()
+                  .left(0)
+                  .top(0)
+                  .width(Dimension(w))
+                  .height(Dimension(h))
+                  .shape(keyedShape(std::string_view("bow"),
+                                    [](SkSize) {
+                                      SkPathBuilder b;
+                                      b.moveTo(34, 8);
+                                      b.cubicTo(-10, 56, -10, 126, 34, 176);
+                                      b.moveTo(34, 8);
+                                      b.lineTo(20, 92);
+                                      b.lineTo(34, 176);
+                                      return b.detach();
+                                    }))
+                  .stroke(spans::upTo(gate(tArch + 0.45f, tArch + 1.0f)),
+                          lines::Line{.width = 1.9f,
+                                      .fill = Fill::color(
+                                          hexColor(0x241d15, 0.88f))})});
+  g.children(
+      {box()
+           .left(0)
+           .top(0)
+           .width(Dimension(w))
+           .height(Dimension(h))
+           .shape(keyedShape(std::string_view("arrow"),
+                             [](SkSize) {
+                               SkPathBuilder b;
+                               b.moveTo(140, 90);
+                               b.lineTo(6, 92);
+                               return b.detach();
+                             }))
+           .stroke(spans::upTo(gate(tArch + 0.75f, tArch + 1.15f)),
+                   lines::presets::arrow(1.5f, Fill::color(kCinnabar), 9.0f))});
+  g.children({text("a bowman in traditional dress, captioned THE GOD OF")
+                  .font({.size = 8.4f, .color = hexColor(0x4a3b28, 0.85f)})
+                  .left(-18)
+                  .top(h - 12)
+                  .width(Dimension(300))
+                  .opacity(gate(tArch + 1.0f, tArch + 1.6f))});
+  g.children({text("LIGHTNING, over a title nobody can read convincingly")
+                  .font({.size = 8.4f, .color = hexColor(0x4a3b28, 0.85f)})
+                  .left(-18)
+                  .top(h + 0)
+                  .width(Dimension(300))
+                  .opacity(gate(tArch + 1.0f, tArch + 1.6f))});
   return g;
 }
 
@@ -382,21 +382,21 @@ auto DunhuangStarChart::unreadTitle() -> Element {
       pb.moveTo(30, y + 10);
       pb.lineTo(50, y + 34);
     }
-    g.child(box()
-                .left(0)
-                .top(0)
-                .width(Dimension(68))
-                .height(Dimension(kBandH - 88))
-                .shape(heldPath(pb.detach()))
-                .stroke(spans::upTo(gate(tArch + 0.9f + (float)i * 0.08f,
-                                         tArch + 1.4f + (float)i * 0.08f)),
-                        Brush{}
-                            .shaped(shapers::Jitter{.segmentLength = 9.0f,
-                                                    .deviation = 0.7f,
-                                                    .seed = seed})
-                            .layer(lines::Line{.width = 1.9f,
-                                               .fill = Fill::color(hexColor(
-                                                   0x241d15, 0.78f))})));
+    g.children({box()
+                    .left(0)
+                    .top(0)
+                    .width(Dimension(68))
+                    .height(Dimension(kBandH - 88))
+                    .shape(heldPath(pb.detach()))
+                    .stroke(spans::upTo(gate(tArch + 0.9f + (float)i * 0.08f,
+                                             tArch + 1.4f + (float)i * 0.08f)),
+                            Brush{}
+                                .shaped(shapers::Jitter{.segmentLength = 9.0f,
+                                                        .deviation = 0.7f,
+                                                        .seed = seed})
+                                .layer(lines::Line{.width = 1.9f,
+                                                   .fill = Fill::color(hexColor(
+                                                       0x241d15, 0.78f))}))});
   }
   return g;
 }

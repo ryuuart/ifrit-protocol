@@ -64,10 +64,10 @@ TEST(SketchKitCells, WellTakesTheThemesCellGround) {
       compose::kit::well({.width = compose::Dimension(163),
                           .height = compose::Dimension(176),
                           .ground = Fill::color(house.palette.cellGround)},
-                         compose::box().child(subject())),
+                         compose::box().children({subject()})),
       kit::well(
           {.width = compose::Dimension(163), .height = compose::Dimension(176)},
-          compose::box().child(subject()))));
+          compose::box().children({subject()}))));
 }
 
 /** THE PLATE: a grounded well with rounded corners and one hairline round
@@ -86,14 +86,14 @@ TEST(SketchKitCells, APlateIsAGroundedWellWithCornersAndOneKeyline) {
                       .fill(ground)
                       .stroke(compose::stroke(
                           1.0f, edge, compose::PathFormat::Align::Inner))
-                      .child(subject()),
+                      .children({subject()}),
                   kit::well({.width = compose::Dimension(163),
                              .height = compose::Dimension(176),
                              .ground = ground,
                              .padding = 16,
                              .corners = 8,
                              .keyline = edge},
-                            compose::box().child(subject()))));
+                            compose::box().children({subject()}))));
 }
 
 /** A RECESSED well is the flush one with the shadow inside its edge and
@@ -137,13 +137,13 @@ TEST(SketchKitCells, APaddingDownOfItsOwn) {
                               .padding(13, 10)
                               .clip()
                               .fill(ground)
-                              .child(subject()),
+                              .children({subject()}),
                           kit::well({.width = compose::Dimension(163),
                                      .height = compose::Dimension(176),
                                      .ground = ground,
                                      .padding = 13,
                                      .paddingY = 10},
-                                    compose::box().child(subject()))));
+                                    compose::box().children({subject()}))));
 }
 
 /** THE GROUND'S OTHER FORM: a well grounded in a material draws what the
@@ -160,11 +160,11 @@ TEST(SketchKitCells, AWellGroundedInAMaterialIsTheHandSpelledFill) {
                       .height(compose::Dimension(176))
                       .clip()
                       .fill(sigil::material::skia::Paint::recipe(quarry))
-                      .child(subject()),
+                      .children({subject()}),
                   kit::well({.width = compose::Dimension(163),
                              .height = compose::Dimension(176),
                              .ground = quarry},
-                            compose::box().child(subject()))));
+                            compose::box().children({subject()}))));
 }
 
 /** A well carrying neither draws exactly what it always did. */
@@ -175,21 +175,21 @@ TEST(SketchKitCells, AWellWithoutThemDrawsWhatItAlwaysDid) {
                           .height = compose::Dimension(176),
                           .ground = Fill::color(house.palette.cellGround),
                           .padding = house.spacing.wellPadding},
-                         compose::box().child(subject())),
+                         compose::box().children({subject()})),
       kit::well(
           {.width = compose::Dimension(163), .height = compose::Dimension(176)},
-          compose::box().child(subject()))));
+          compose::box().children({subject()}))));
 }
 
 TEST(SketchKitCells, AnExplicitGroundWinsOverTheThemes) {
   EXPECT_FALSE(sameDrawing(
       kit::well(
           {.width = compose::Dimension(163), .height = compose::Dimension(176)},
-          compose::box().child(subject())),
+          compose::box().children({subject()})),
       kit::well({.width = compose::Dimension(163),
                  .height = compose::Dimension(176),
                  .ground = Fill::color({0.4f, 0.1f, 0.1f, 1})},
-                compose::box().child(subject()))));
+                compose::box().children({subject()}))));
 }
 
 // The runs

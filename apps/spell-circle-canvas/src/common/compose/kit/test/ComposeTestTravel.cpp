@@ -7,14 +7,14 @@
 TEST(ComposeShapes, ArrowPointsAlongPositiveX) {
   Host host(120, 60);
   host.composer.render(
-      box().child(box()
-                      .width(120)
-                      .height(60)
-                      .absolute()
-                      .left(0)
-                      .top(0)
-                      .shape(geometry::shapes::arrow())
-                      .fill(material::skia::Paint::solid({0, 1, 0, 1}))));
+      box().children({box()
+                          .width(120)
+                          .height(60)
+                          .absolute()
+                          .left(0)
+                          .top(0)
+                          .shape(geometry::shapes::arrow())
+                          .fill(material::skia::Paint::solid({0, 1, 0, 1}))}));
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(20, 30)), 200u);  // shaft on the axis
   EXPECT_LT(SkColorGetG(host.pixel(20, 6)), 60u);    // and not above it
@@ -28,13 +28,13 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
   // lower-right quadrant of its box and nothing else.
   Host host(200, 200);
   host.composer.render(
-      box().child(box()
-                      .width(200)
-                      .height(200)
-                      .absolute()
-                      .inset(0)
-                      .shape(geometry::shapes::sector(0, 90))
-                      .fill(material::skia::Paint::solid({1, 0, 0, 1}))));
+      box().children({box()
+                          .width(200)
+                          .height(200)
+                          .absolute()
+                          .inset(0)
+                          .shape(geometry::shapes::sector(0, 90))
+                          .fill(material::skia::Paint::solid({1, 0, 0, 1}))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(130, 130)), 200u);  // inside the wedge
   EXPECT_LT(SkColorGetR(host.pixel(70, 130)), 60u);    // lower-left: outside
@@ -43,13 +43,13 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
   // innerRatio carves the donut hole out of the middle.
   Host donut(200, 200);
   donut.composer.render(
-      box().child(box()
-                      .width(200)
-                      .height(200)
-                      .absolute()
-                      .inset(0)
-                      .shape(geometry::shapes::sector(0, 350, 0.6f))
-                      .fill(material::skia::Paint::solid({1, 0, 0, 1}))));
+      box().children({box()
+                          .width(200)
+                          .height(200)
+                          .absolute()
+                          .inset(0)
+                          .shape(geometry::shapes::sector(0, 350, 0.6f))
+                          .fill(material::skia::Paint::solid({1, 0, 0, 1}))}));
   donut.frame();
   EXPECT_GT(SkColorGetR(donut.pixel(180, 100)), 200u);  // on the ring
   EXPECT_LT(SkColorGetR(donut.pixel(100, 100)), 60u);   // through the hole
@@ -60,14 +60,14 @@ TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
   // fill the SHAPE, not the box that contains it, and follow the Output.
   choreograph::Output<float> k{1.0f};
   Host host;
-  host.composer.render(box().child(
-      box()
-          .width(100)
-          .height(100)
-          .inset(0, 0, 100, 100)
-          .absolute()
-          .shape(geometry::shapes::star(4, 0.3f))
-          .fill(material::skia::Paint::sksl(ukEffect()).uniform("uK", &k))));
+  host.composer.render(box().children(
+      {box()
+           .width(100)
+           .height(100)
+           .inset(0, 0, 100, 100)
+           .absolute()
+           .shape(geometry::shapes::star(4, 0.3f))
+           .fill(material::skia::Paint::sksl(ukEffect()).uniform("uK", &k))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 200u);  // star body
   EXPECT_LT(SkColorGetR(host.pixel(8, 8)), 30u);     // outside the arms
@@ -118,11 +118,11 @@ SkIRect inkBounds(Host& host, int w, int h) {
  *  square that travels. The inscribed circle is then centre (100,100) r=80
  *  in CANVAS coordinates, so every quadrant point is on-screen. */
 Element travelFrame(Element rider) {
-  return box().child(box()
-                         .key("frame")
-                         .absolute()
-                         .rect(SkRect::MakeXYWH(20, 20, 160, 160))
-                         .child(std::move(rider)));
+  return box().children({box()
+                             .key("frame")
+                             .absolute()
+                             .rect(SkRect::MakeXYWH(20, 20, 160, 160))
+                             .children({std::move(rider)})});
 }
 
 Element rider(MotionPath along, float size = 8) {
@@ -368,12 +368,13 @@ TEST(ComposeTravel, IsPaintOnlyAndAResizedFrameKeepsT) {
   Host host(200, 200);
   choreograph::Output<float> t{0};
   const auto describe = [&](float frameSize) {
-    return box().child(
-        box()
-            .key("frame")
-            .absolute()
-            .rect(SkRect::MakeXYWH(20, 20, frameSize, frameSize))
-            .child(rider({.path = geometry::shapes::circle(), .t = &t})));
+    return box().children(
+        {box()
+             .key("frame")
+             .absolute()
+             .rect(SkRect::MakeXYWH(20, 20, frameSize, frameSize))
+             .children(
+                 {rider({.path = geometry::shapes::circle(), .t = &t})})});
   };
   host.composer.render(describe(160));
   host.frame();

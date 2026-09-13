@@ -30,7 +30,7 @@ Element denseBlock(Cache mode) {
     para += u8"the quick brown fox jumps over the lazy dog ";
   auto block = box().padding(12).width(780).cache(mode).fill(
       Fill::color({0.1f, 0.1f, 0.12f, 1}));
-  for (int i = 0; i < 6; ++i) block.child(text(para, style));
+  for (int i = 0; i < 6; ++i) block.children({text(para, style)});
   return block;
 }
 
@@ -91,8 +91,8 @@ static void BM_Draw_KineticText(benchmark::State& state) {
   style.shaping.fontSize = 22.0f;
   auto block = box().column().gap(8).padding(16);
   for (int i = 0; i < lines; ++i)
-    block.child(text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
-                    .fx({.effect = fx::rise(24), .progress = &progress}));
+    block.children({text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
+                        .fx({.effect = fx::rise(24), .progress = &progress})});
   host.composer.render(block);
   host.draw();
   float t = 0;
@@ -119,15 +119,15 @@ static void BM_Draw_KineticColumns(benchmark::State& state) {
   style.shaping.languageTag = "ja";
   auto block = box().row().gap(8).padding(16);
   for (int i = 0; i < passages; ++i)
-    block.child(
-        text(u8"縦組みの文章は上から下へ流れ右から左へと列が進む", style)
-            .width(160)
-            .height(1100)
-            .writingMode(sigil::weave::WritingMode::kVerticalRL)
-            .fx({.effect = fx::rise(24),
-                 .stagger = {.eachMs = 120},
-                 .unit = sigil::weave::Unit::Line,
-                 .progress = &progress}));
+    block.children(
+        {text(u8"縦組みの文章は上から下へ流れ右から左へと列が進む", style)
+             .width(160)
+             .height(1100)
+             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+             .fx({.effect = fx::rise(24),
+                  .stagger = {.eachMs = 120},
+                  .unit = sigil::weave::Unit::Line,
+                  .progress = &progress})});
   host.composer.render(block);
   host.draw();
   float t = 0;
@@ -212,8 +212,8 @@ static void BM_Draw_KineticText_Graphite(benchmark::State& state) {
   style.shaping.fontSize = 22.0f;
   auto block = box().column().gap(8).padding(16);
   for (int i = 0; i < lines; ++i)
-    block.child(text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
-                    .fx({.effect = fx::rise(24), .progress = &progress}));
+    block.children({text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
+                        .fx({.effect = fx::rise(24), .progress = &progress})});
   host.composer.render(block);
   host.composer.draw(target.canvas());
   target.submit();

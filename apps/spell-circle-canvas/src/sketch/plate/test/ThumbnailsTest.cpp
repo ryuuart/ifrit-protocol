@@ -150,13 +150,13 @@ struct Standing : Sketch {
   void update(double /*elapsed*/, SketchContext& ctx) override {
     // The painter is read where a sketch reads it: from inside the body,
     // as it declares.
-    ctx.composer.render(box().width(32).height(24).child(
-        custom("mesh", [painter = painterRuntime()](SkCanvas& canvas,
-                                                    const PaintContext& paint) {
+    ctx.composer.render(box().width(32).height(24).children(
+        {custom("mesh", [painter = painterRuntime()](
+                            SkCanvas& canvas, const PaintContext& paint) {
           const sigil::geometry::mesh::camera::Camera camera;
           painter.get()->drawPanel(canvas, glm::mat4(1.0f), camera, paint.size,
                                    [](SkCanvas&) {});
-        })));
+        })}));
   }
 };
 

@@ -64,14 +64,11 @@ Element& Element::staggerChildren(std::chrono::milliseconds each,
   return *this;
 }
 
-Element& Element::child(Element e) {
-  m_node->children.push_back(std::move(e));
-  return *this;
-}
+void Element::append(Element e) { m_node->children.push_back(std::move(e)); }
 
 Element& Element::children(std::initializer_list<Children> runs) {
   for (const Children& run : runs)
-    for (const Element& e : run.items) child(e);
+    for (const Element& e : run.items) append(e);
   return *this;
 }
 

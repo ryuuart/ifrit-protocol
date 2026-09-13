@@ -160,10 +160,10 @@ struct Manuscript final : sketch::Sketch {
           .zIndex(2)
           // Keyed on the two numbers that tell the eight bands apart; the
           // palette is the leaf's one palette and does not vary.
-          .child(custom(kit::formatted("flourish %d %d", quadrant,
-                                       vertical ? 1 : 0),
-                        edgeFlourish(pal, quadrant, vertical))
-                     .inset(0));
+          .children({custom(kit::formatted("flourish %d %d", quadrant,
+                                           vertical ? 1 : 0),
+                            edgeFlourish(pal, quadrant, vertical))
+                         .inset(0)});
     };
     const float halfW = kLeafW * 0.5f;
     const float halfH = kLeafH * 0.5f;
@@ -173,21 +173,18 @@ struct Manuscript final : sketch::Sketch {
     const float headBand = kHead - edge * 2.0f;
     const float footBand = kFoot * 0.5f;
     const float sideBand = kSpine - edge;
-    return stack()
-        .inset(0)
-        .child(band(0, false, edge, edge, halfW - edge, headBand))
-        .child(band(1, false, halfW, edge, halfW - edge, headBand))
-        .child(band(3, false, edge, kLeafH - edge - footBand, halfW - edge,
-                    footBand))
-        .child(band(2, false, halfW, kLeafH - edge - footBand, halfW - edge,
-                    footBand))
-        .child(
-            band(0, true, edge, kHead * 0.6f, sideBand, halfH - kHead * 0.6f))
-        .child(band(3, true, edge, halfH, sideBand, halfH - kFoot * 0.6f))
-        .child(band(1, true, kLeafW - edge - sideBand, kHead * 0.6f, sideBand,
-                    halfH - kHead * 0.6f))
-        .child(band(2, true, kLeafW - edge - sideBand, halfH, sideBand,
-                    halfH - kFoot * 0.6f));
+    return stack().inset(0).children(
+        {band(0, false, edge, edge, halfW - edge, headBand),
+         band(1, false, halfW, edge, halfW - edge, headBand),
+         band(3, false, edge, kLeafH - edge - footBand, halfW - edge, footBand),
+         band(2, false, halfW, kLeafH - edge - footBand, halfW - edge,
+              footBand),
+         band(0, true, edge, kHead * 0.6f, sideBand, halfH - kHead * 0.6f),
+         band(3, true, edge, halfH, sideBand, halfH - kFoot * 0.6f),
+         band(1, true, kLeafW - edge - sideBand, kHead * 0.6f, sideBand,
+              halfH - kHead * 0.6f),
+         band(2, true, kLeafW - edge - sideBand, halfH, sideBand,
+              halfH - kFoot * 0.6f)});
   }
 
   /** The title above the preface: gold capitals inside a rectangle of
@@ -211,11 +208,11 @@ struct Manuscript final : sketch::Sketch {
         // The perspective lozenges: one row of gilded diamonds across the
         // frame, drawn on the frame itself rather than mounted on it.
         .background(SwirlCorners{pal, px(kPitch * 1.4f), px(0.5f)})
-        .child(text(u8"T · LIVII · PATAVINI · AB · "
-                    u8"VRBE · CONDITA · LIBER · PRIMVS")
-                   .font({.size = px(kBodySize * 0.86f),
-                          .color = pal.gold,
-                          .track = px(0.5f)}));
+        .children({text(u8"T · LIVII · PATAVINI · AB · "
+                        u8"VRBE · CONDITA · LIBER · PRIMVS")
+                       .font({.size = px(kBodySize * 0.86f),
+                              .color = pal.gold,
+                              .track = px(0.5f)})});
   }
 
   Element describe() {
@@ -278,14 +275,17 @@ struct Manuscript final : sketch::Sketch {
             .width(Dimension(px(kMeasure)))
             .height(Dimension(px(kDepth - kPitch * (float)kIncipitLines)))
             .zIndex(1)
-            .child(std::move(initial))
-            .child(prose.key("block")
-                       .width(Dimension(px(kMeasure)))
-                       .paragraph(block)
-                       .lineBreak(weave::LineBreakStrategy::kKnuthPlass)
-                       .hyphenation({.patterns = &hyphenator()})
-                       .flowAround("note", px(3.0f))
-                       .flowAround("sprig", px(2.4f)));
+            .children({std::move(initial),
+                       prose.key("block")
+                           .width(Dimension(px(kMeasure)))
+                           .paragraphs({block})
+                           .block({.lineBreak =
+                                       weave::LineBreakStrategy::kKnuthPlass})
+                           .block({.hyphenation =
+                                       sigil::weave::HyphenationOptions{
+                                           .patterns = &hyphenator()}})
+                           .flowAround("note", px(3.0f))
+                           .flowAround("sprig", px(2.4f))});
 
     // The marginal note the fore-edge margin is for, reaching a little
     // into the block so the text parts around it.
@@ -300,25 +300,25 @@ struct Manuscript final : sketch::Sketch {
             .zIndex(3)
             .padding(px(3.0f))
             .gap(px(1.6f))
-            .child(
-                text(u8"nota bene").font(body(kBodySize * 0.82f, rubric.stem)))
-            .child(text(u8"the gate takes no coin but memory")
-                       .font(body(kBodySize * 0.78f, rubric.ink)));
-    written.child(std::move(note));
+            .children(
+                {text(u8"nota bene").font(body(kBodySize * 0.82f, rubric.stem)),
+                 text(u8"the gate takes no coin but memory")
+                     .font(body(kBodySize * 0.78f, rubric.ink))});
+    written.children({std::move(note)});
 
     // One vine stem breaking out of the frieze into the block, which is
     // what a bianchi girari border does when it will not stay in the
     // margin. The text parts around it like any other exclusion.
-    written.child(box()
-                      .key("sprig")
-                      .absolute()
-                      .left(Dimension(px(-kSpine * 0.2f)))
-                      .top(Dimension(px(kPitch * 22.0f)))
-                      .width(Dimension(px(kSpine * 0.9f)))
-                      .height(Dimension(px(kPitch * 5.0f)))
-                      .zIndex(3)
-                      .rotate(90.0f)
-                      .child(custom("sprig", sprig(pal)).inset(0)));
+    written.children({box()
+                          .key("sprig")
+                          .absolute()
+                          .left(Dimension(px(-kSpine * 0.2f)))
+                          .top(Dimension(px(kPitch * 22.0f)))
+                          .width(Dimension(px(kSpine * 0.9f)))
+                          .height(Dimension(px(kPitch * 5.0f)))
+                          .zIndex(3)
+                          .rotate(90.0f)
+                          .children({custom("sprig", sprig(pal)).inset(0)})});
 
     // Everything static lives in one texture-baked stack: the page is
     // dense — a noise ground, hundreds of vine stamps, prose flowed around
@@ -338,16 +338,14 @@ struct Manuscript final : sketch::Sketch {
         .fill(parchmentFill(pal.parchment))
         // The pricking-and-ruling the block was written to, kept faint the
         // way a scribe's frame ruling is.
-        .child(box()
-                   .absolute()
-                   .left(Dimension(px(kSpine)))
-                   .top(Dimension(px(kHead)))
-                   .width(Dimension(px(kMeasure)))
-                   .height(Dimension(px(kDepth)))
-                   .foreground(rule))
-        .child(frieze(pal))
-        .child(incipit(pal))
-        .child(std::move(written));
+        .children({box()
+                       .absolute()
+                       .left(Dimension(px(kSpine)))
+                       .top(Dimension(px(kHead)))
+                       .width(Dimension(px(kMeasure)))
+                       .height(Dimension(px(kDepth)))
+                       .foreground(rule),
+                   frieze(pal), incipit(pal), std::move(written)});
   }
 
   void setup(sketch::SketchContext& ctx) override {

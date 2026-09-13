@@ -354,7 +354,7 @@ Element figure(const std::string& prefix, glm::vec3 at, float facingDeg,
                        .mesh(gm::superellipsoid(p.radii, p.exponent, 20, 14))
                        .fill(skin)
                        .tag("limb");
-    body.child(std::move(limb));
+    body.children({std::move(limb)});
     if ((int)i != selected) continue;
     // THE MARKER RING: a ring lying flat round the limb, pulsing. Flat
     // because the figure it hangs on is turned to face its opponent and a
@@ -364,12 +364,12 @@ Element figure(const std::string& prefix, glm::vec3 at, float facingDeg,
     // reconstructs is the one in which nothing else does.
     const float r =
         std::max(p.radii.x, p.radii.z) + 42.0f + 9.0f * selectedPulse;
-    body.child(Element()
-                   .key(prefix + "-mark")
-                   .at(p.at)
-                   .mesh(gm::torus(r, 3.2f, 36, 6))
-                   .fill(wire(1.0f, 3.4f))
-                   .tag("mark"));
+    body.children({Element()
+                       .key(prefix + "-mark")
+                       .at(p.at)
+                       .mesh(gm::torus(r, 3.2f, 36, 6))
+                       .fill(wire(1.0f, 3.4f))
+                       .tag("mark")});
   }
   return body;
 }
@@ -392,13 +392,13 @@ Element reachSphere(float seconds) {
     Element bearing = Element()
                           .key("meridian" + std::to_string(i))
                           .rotateY((float)i * 180.0f / (float)kMeridians);
-    bearing.child(Element()
-                      .key("ring")
-                      .rotateX(90.0f)
-                      .mesh(gm::torus(kSphereRadius, 1.1f, 64, 5))
-                      .fill(wire(0.34f, 1.5f))
-                      .tag("wire"));
-    sphere.child(std::move(bearing));
+    bearing.children({Element()
+                          .key("ring")
+                          .rotateX(90.0f)
+                          .mesh(gm::torus(kSphereRadius, 1.1f, 64, 5))
+                          .fill(wire(0.34f, 1.5f))
+                          .tag("wire")});
+    sphere.children({std::move(bearing)});
   }
   constexpr int kLatitudes = 5;
   for (int i = 0; i < kLatitudes; ++i) {
@@ -407,12 +407,13 @@ Element reachSphere(float seconds) {
     // of the ring cut there are the two components of the same place.
     const SkPoint on =
         arrange::onEllipse({0, 0}, {kSphereRadius, kSphereRadius}, lat);
-    sphere.child(Element()
-                     .key("latitude" + std::to_string(i))
-                     .at({0.0f, on.fY, 0.0f})
-                     .mesh(gm::torus(on.fX, 1.1f, 64, 5))
-                     .fill(wire(i == 2 ? 0.62f : 0.30f, i == 2 ? 2.4f : 1.5f))
-                     .tag("wire"));
+    sphere.children(
+        {Element()
+             .key("latitude" + std::to_string(i))
+             .at({0.0f, on.fY, 0.0f})
+             .mesh(gm::torus(on.fX, 1.1f, 64, 5))
+             .fill(wire(i == 2 ? 0.62f : 0.30f, i == 2 ? 2.4f : 1.5f))
+             .tag("wire")});
   }
   return sphere;
 }
@@ -438,14 +439,14 @@ Element attackLadder() {
                           .key("tick" + std::to_string(i))
                           .at({on.fX, 0.0f, -on.fY})
                           .rotateY(-(float)i * kAngleStep);
-    bearing.child(
-        Element()
-            .key("bar")
-            .rotateX(-90.0f)
-            .mesh(gm::quad(4.0f, len))
-            .fill(wire(inWedge ? 0.92f : 0.34f, inWedge ? 2.8f : 1.1f))
-            .tag("tick"));
-    ladder.child(std::move(bearing));
+    bearing.children(
+        {Element()
+             .key("bar")
+             .rotateX(-90.0f)
+             .mesh(gm::quad(4.0f, len))
+             .fill(wire(inWedge ? 0.92f : 0.34f, inWedge ? 2.8f : 1.1f))
+             .tag("tick")});
+    ladder.children({std::move(bearing)});
   }
   return ladder;
 }
@@ -571,36 +572,37 @@ struct VagrantStoryTarget final : sketch::Set {
                      bool large) {
       const std::u8string u8(reinterpret_cast<const char8_t*>(s.data()),
                              s.size());
-      root.child(run(ck::bakeRun(u8, *fonts, large ? title : body), x, y, c));
+      root.children(
+          {run(ck::bakeRun(u8, *fonts, large ? title : body), x, y, c)});
     };
 
     // THE GAUGES, hard in the bottom-left corner, which is where Vagrant
     // Story puts them and is the composition's own anchor. Three rows of
     // one pitch, so the block reads as one instrument.
     constexpr float kRow = 68.0f, kRow0 = 716.0f;
-    root.child(plate(34.0f, 698.0f, 452.0f, 226.0f, 0.72f));
+    root.children({plate(34.0f, 698.0f, 452.0f, 226.0f, 0.72f)});
     label("HP", 56.0f, kRow0, kBone, false);
-    root.child(gauge(156.0f, kRow0 - 4.0f, 276.0f, 28.0f,
-                     (float)kAshleyHp / (float)kAshleyMaxHp,
-                     {0.42f, 0.78f, 0.45f, 1.0f}));
+    root.children({gauge(156.0f, kRow0 - 4.0f, 276.0f, 28.0f,
+                         (float)kAshleyHp / (float)kAshleyMaxHp,
+                         {0.42f, 0.78f, 0.45f, 1.0f})});
     label(std::to_string(kAshleyHp) + "/" + std::to_string(kAshleyMaxHp),
           156.0f, kRow0 + 32.0f, kBone, false);
     label("MP", 56.0f, kRow0 + kRow, kBone, false);
-    root.child(gauge(156.0f, kRow0 + kRow - 4.0f, 276.0f, 28.0f,
-                     (float)kAshleyMp / (float)kAshleyMaxMp,
-                     {0.36f, 0.58f, 0.92f, 1.0f}));
+    root.children({gauge(156.0f, kRow0 + kRow - 4.0f, 276.0f, 28.0f,
+                         (float)kAshleyMp / (float)kAshleyMaxMp,
+                         {0.36f, 0.58f, 0.92f, 1.0f})});
     label(std::to_string(kAshleyMp) + "/" + std::to_string(kAshleyMaxMp),
           156.0f, kRow0 + kRow + 32.0f, kBone, false);
     label("RISK", 56.0f, kRow0 + 2.0f * kRow, kAmber, false);
-    root.child(gauge(156.0f, kRow0 + 2.0f * kRow - 4.0f, 276.0f, 28.0f,
-                     kRisk / 100.0f, kRisk >= 50.0f ? kBlood : kAmber));
+    root.children({gauge(156.0f, kRow0 + 2.0f * kRow - 4.0f, 276.0f, 28.0f,
+                         kRisk / 100.0f, kRisk >= 50.0f ? kBlood : kAmber)});
     label("RATE " + std::to_string(riskRate(kRisk)), 156.0f,
           kRow0 + 2.0f * kRow + 32.0f, kAmber, false);
 
     // THE TARGET CARD, beside the enemy: the selected limb, its armour,
     // its condition, its chain evasion, and the two hit numbers — the
     // printed one and the one that actually rolls.
-    root.child(plate(800.0f, 160.0f, 452.0f, 384.0f, 0.78f));
+    root.children({plate(800.0f, 160.0f, 452.0f, 384.0f, 0.78f)});
     label(std::string("TARGET  ") + L.name, 822.0f, 180.0f, kCyan, true);
     label(std::string("DULLAHAN  ") + kClassNames[kEnemyClass], 822.0f, 216.0f,
           kBone, false);
@@ -628,7 +630,7 @@ struct VagrantStoryTarget final : sketch::Set {
 
     // THE SIX LIMBS as one strip along the bottom — the struct's own
     // order, with the selected one picked out.
-    root.child(plate(514.0f, 806.0f, 730.0f, 94.0f, 0.66f));
+    root.children({plate(514.0f, 806.0f, 730.0f, 94.0f, 0.66f)});
     for (int i = 0; i < 6; ++i) {
       const float x = 534.0f + (float)i * 119.0f;
       const bool sel = i == kSelected;
@@ -668,56 +670,56 @@ struct VagrantStoryTarget final : sketch::Set {
     // The floor of the Iron Maiden: one dark flag, lit, so the figures
     // and the sphere have something to stand on and cast their values
     // against.
-    scene.child(Element()
-                    .key("floor")
-                    .at({0.0f, 0.0f, 0.0f})
-                    .rotateX(-90.0f)
-                    .mesh(gm::quad(1800.0f, 1800.0f))
-                    .fill(material::kit::surface(
-                        {.baseColor = {0.112f, 0.104f, 0.116f, 1.0f},
-                         .roughness = 0.9f}))
-                    .tag("ground"));
+    scene.children({Element()
+                        .key("floor")
+                        .at({0.0f, 0.0f, 0.0f})
+                        .rotateX(-90.0f)
+                        .mesh(gm::quad(1800.0f, 1800.0f))
+                        .fill(material::kit::surface(
+                            {.baseColor = {0.112f, 0.104f, 0.116f, 1.0f},
+                             .roughness = 0.9f}))
+                        .tag("ground")});
 
     // The chamber's far wall. Without it the upper half of the frame is
     // the clear colour, and a wireframe read against nothing is a
     // wireframe with no depth in it.
-    scene.child(Element()
-                    .key("wall")
-                    .at({0.0f, 300.0f, -900.0f})
-                    .mesh(gm::quad(2400.0f, 1200.0f))
-                    .fill(material::kit::surface(
-                        {.baseColor = {0.088f, 0.086f, 0.104f, 1.0f},
-                         .roughness = 0.95f}))
-                    .tag("ground"));
+    scene.children({Element()
+                        .key("wall")
+                        .at({0.0f, 300.0f, -900.0f})
+                        .mesh(gm::quad(2400.0f, 1200.0f))
+                        .fill(material::kit::surface(
+                            {.baseColor = {0.088f, 0.086f, 0.104f, 1.0f},
+                             .roughness = 0.95f}))
+                        .tag("ground")});
 
     // A cold key from behind the enemy and a warm fill at Ashley's back:
     // the dungeon's own two-source reading, which is what separates the
     // two figures without a rim pass.
-    scene.child(Element().key("key").light(light::sun(
-        {-0.42f, -0.74f, -0.52f}, {0.62f, 0.72f, 1.00f, 1.0f}, 0.92f)));
-    scene.child(Element().key("torch").light(
+    scene.children({Element().key("key").light(light::sun(
+        {-0.42f, -0.74f, -0.52f}, {0.62f, 0.72f, 1.00f, 1.0f}, 0.92f))});
+    scene.children({Element().key("torch").light(
         light::point({-330.0f, 240.0f, 300.0f}, {1.00f, 0.58f, 0.26f, 1.0f},
-                     1.60f, 1100.0f)));
-    scene.child(Element().key("bounce").light(light::sun(
-        {0.34f, -0.42f, 0.84f}, {0.44f, 0.50f, 0.66f, 1.0f}, 0.34f)));
+                     1.60f, 1100.0f))});
+    scene.children({Element().key("bounce").light(light::sun(
+        {0.34f, -0.42f, 0.84f}, {0.44f, 0.50f, 0.66f, 1.0f}, 0.34f))});
 
-    scene.child(
-        figure("ashley", kAshleyAt, 72.0f, 1.0f,
-               material::kit::surface({.baseColor = {0.62f, 0.60f, 0.55f, 1.0f},
-                                       .roughness = 0.44f}),
-               0.0f, -1));
+    scene.children({figure(
+        "ashley", kAshleyAt, 72.0f, 1.0f,
+        material::kit::surface(
+            {.baseColor = {0.62f, 0.60f, 0.55f, 1.0f}, .roughness = 0.44f}),
+        0.0f, -1)});
     const float pulse = 0.5f + 0.5f * std::sin(seconds * 4.2f);
-    scene.child(
-        figure("dullahan", kEnemyAt, -104.0f, 1.34f,
-               material::kit::surface({.baseColor = {0.22f, 0.24f, 0.30f, 1.0f},
-                                       .roughness = 0.28f}),
-               pulse, kSelected));
+    scene.children({figure(
+        "dullahan", kEnemyAt, -104.0f, 1.34f,
+        material::kit::surface(
+            {.baseColor = {0.22f, 0.24f, 0.30f, 1.0f}, .roughness = 0.28f}),
+        pulse, kSelected)});
 
-    scene.child(reachSphere(seconds));
-    scene.child(attackLadder());
+    scene.children({reachSphere(seconds)});
+    scene.children({attackLadder()});
 
     overlay->render(retained, (double)seconds);
-    scene.child(overlayQuad(overlay->texture()));
+    scene.children({overlayQuad(overlay->texture())});
 
     return Frame(std::move(scene));
   }

@@ -190,12 +190,12 @@ struct KineticCard final : sketch::Sketch {
                                 box()
                                     .width(Dimension(kCell))
                                     .height(Dimension(kBodyH))
-                                    .child(text(row.word)
-                                               .styleClass("specimen")
-                                               .font(std::move(over))
-                                               .key(row.key)
-                                               .width(Dimension(kCell))
-                                               .fx(std::move(track))));
+                                    .children({text(row.word)
+                                                   .styleClass("specimen")
+                                                   .font(std::move(over))
+                                                   .key(row.key)
+                                                   .width(Dimension(kCell))
+                                                   .fx(std::move(track))}));
   }
 
   Element describe(sketch::SketchContext& ctx) {
@@ -279,19 +279,20 @@ struct KineticCard final : sketch::Sketch {
     Element root = stack()
                        .styleSheet(sheetClasses())
                        .fill(Fill::color(kGround))
-                       .child(std::move(sheet));
+                       .children({std::move(sheet)});
     // One meter per cell, over the whole composition: the rects are in the
     // composer's space, so the bars land on the letters wherever the sheet
     // put them.
     for (const Row& row : kRows)
-      root.child(kit::trackMeter(composer, row.key, 0, kAccent,
-                                 {kAccent.fR, kAccent.fG, kAccent.fB, 0.14f},
-                                 {.where = kit::MeterPlacement::Where::Under,
-                                  .thickness = 3.0f,
-                                  .gap = 7.0f,
-                                  .trim = 1.5f})
-                     .absolute()
-                     .inset(0));
+      root.children(
+          {kit::trackMeter(composer, row.key, 0, kAccent,
+                           {kAccent.fR, kAccent.fG, kAccent.fB, 0.14f},
+                           {.where = kit::MeterPlacement::Where::Under,
+                            .thickness = 3.0f,
+                            .gap = 7.0f,
+                            .trim = 1.5f})
+               .absolute()
+               .inset(0)});
     return root;
   }
 };

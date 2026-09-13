@@ -11,9 +11,9 @@ TEST(ComposePatterns, GrainIsMonochromeAndVaries) {
   // channels, real variation.
   Host host(120, 120);
   host.composer.render(
-      box().child(box().width(120).height(120).absolute().inset(0).fill(
+      box().children({box().width(120).height(120).absolute().inset(0).fill(
           material::skia::Paint::recipe(
-              material::field::grain(0.08f, 4, 3.0f)))));
+              material::field::grain(0.08f, 4, 3.0f)))}));
   host.frame();
   int lo = 255, hi = 0;
   for (int y = 4; y < 116; y += 3)
@@ -42,8 +42,8 @@ TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
   EXPECT_TRUE(m.geometryDependent());  // inherited from the SDF layer
   EXPECT_FALSE(m.isAnimated());        // still cacheable
   Host host;
-  host.composer.render(box().child(
-      box().width(100).height(100).inset(0, 0, 100, 100).absolute().fill(m)));
+  host.composer.render(box().children(
+      {box().width(100).height(100).inset(0, 0, 100, 100).absolute().fill(m)}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 150u);  // circle body visible
   EXPECT_LT(SkColorGetR(host.pixel(3, 3)), 40u);     // corner outside circle
@@ -53,14 +53,14 @@ TEST(ComposeSdf, AStarFillsItsCentreAndMissesTheBoxCorners) {
   // The analytic N-star: fill covers the body, the box corners lie outside
   // the arms. One shader pass, pixel-space distance.
   Host host;
-  host.composer.render(box().child(
-      box()
-          .width(100)
-          .height(100)
-          .inset(0, 0, 100, 100)
-          .absolute()
-          .fill(material::skia::Paint::recipe(material::sdf::material(
-              material::sdf::star(5, 2.4f), {.fill = {1, 0, 0, 1}})))));
+  host.composer.render(box().children(
+      {box()
+           .width(100)
+           .height(100)
+           .inset(0, 0, 100, 100)
+           .absolute()
+           .fill(material::skia::Paint::recipe(material::sdf::material(
+               material::sdf::star(5, 2.4f), {.fill = {1, 0, 0, 1}})))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 200u);  // body
   const SkColor corner = host.pixel(4, 4);           // outside the arms
@@ -75,10 +75,10 @@ TEST(ComposeSdf, GeometryStaticCachesAndPrunes) {
   // per-kind effect pointer, equal constants).
   Host host;
   auto tree = [] {
-    return box().child(box().width(80).height(60).fill(
+    return box().children({box().width(80).height(60).fill(
         material::skia::Paint::recipe(material::sdf::material(
             material::sdf::roundBox(12),
-            {.fill = {0, 1, 0, 1}, .borderWidth = 3}))));
+            {.fill = {0, 1, 0, 1}, .borderWidth = 3})))});
   };
   host.composer.render(tree());
   host.frame();  // records
@@ -94,9 +94,9 @@ TEST(ComposeSdf, ResizeReResolvesGeometry) {
   // uResolution bakes into the recording; a size change must re-resolve —
   // the materialSize invalidation, without any prop change.
   Host host;  // 200x200 surface
-  host.composer.render(box().child(
-      box().grow(1).fill(material::skia::Paint::recipe(material::sdf::material(
-          material::sdf::circle(), {.fill = {1, 0, 0, 1}})))));
+  host.composer.render(box().children(
+      {box().grow(1).fill(material::skia::Paint::recipe(material::sdf::material(
+          material::sdf::circle(), {.fill = {1, 0, 0, 1}})))}));
   host.frame();  // circle c=(100,100) r≈99
   host.composer.setSize({120, 120});
   host.frame();  // circle c=(60,60) r≈59
@@ -114,15 +114,15 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
   const material::sdf::Style style{
       .fill = {1, 0, 0, 1}, .glowRadius = 12, .glowColor = {1, 1, 1, 1}};
   Host host;
-  host.composer.render(box().child(
-      box()
-          .width(100)
-          .height(100)
-          .inset(0, 0, 100, 100)
-          .absolute()
-          .fill(material::skia::Paint::recipe(
-                    material::sdf::material(material::sdf::circle(), style))
-                    .uniform("uGlowR", &glow))));
+  host.composer.render(box().children(
+      {box()
+           .width(100)
+           .height(100)
+           .inset(0, 0, 100, 100)
+           .absolute()
+           .fill(material::skia::Paint::recipe(
+                     material::sdf::material(material::sdf::circle(), style))
+                     .uniform("uGlowR", &glow))}));
   host.frame();
   // Size the probe from the PUBLIC pad helper (no hand-copied formula):
   // circle radius = 50 − pad; sample 6px outside the edge.
@@ -148,9 +148,9 @@ TEST(ComposeSdf, PadSwallowingTheBoxWarnsOnceNamingMinBoxFor) {
   ::testing::internal::CaptureStderr();
   {
     Host host;
-    host.composer.render(box().child(
-        box().width(60).height(60).fill(material::skia::Paint::recipe(
-            material::sdf::material(material::sdf::circle(), style)))));
+    host.composer.render(box().children(
+        {box().width(60).height(60).fill(material::skia::Paint::recipe(
+            material::sdf::material(material::sdf::circle(), style)))}));
     host.frame();
   }
   const std::string first = ::testing::internal::GetCapturedStderr();
@@ -161,9 +161,9 @@ TEST(ComposeSdf, PadSwallowingTheBoxWarnsOnceNamingMinBoxFor) {
   ::testing::internal::CaptureStderr();
   {
     Host host;
-    host.composer.render(box().child(
-        box().width(50).height(50).fill(material::skia::Paint::recipe(
-            material::sdf::material(material::sdf::circle(), style)))));
+    host.composer.render(box().children(
+        {box().width(50).height(50).fill(material::skia::Paint::recipe(
+            material::sdf::material(material::sdf::circle(), style)))}));
     host.frame();
   }
   EXPECT_EQ(
@@ -177,12 +177,12 @@ TEST(ComposePattern, CheckerTilesSeamlessly) {
   Pattern bg =
       Pattern(material::pattern::checker(10, {1, 0, 0, 1}, {0, 0, 1, 1}));
   Host host;
-  host.composer.render(box().child(box()
-                                       .width(60)
-                                       .height(20)
-                                       .inset(0, 0, 140, 180)
-                                       .absolute()
-                                       .fill(bg.material())));
+  host.composer.render(box().children({box()
+                                           .width(60)
+                                           .height(20)
+                                           .inset(0, 0, 140, 180)
+                                           .absolute()
+                                           .fill(bg.material())}));
   host.frame();
   EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);    // cell (0,0)
   EXPECT_EQ(host.pixel(15, 5), SK_ColorBLUE);  // cell (1,0)
@@ -198,7 +198,7 @@ TEST(ComposePattern, HeldPatternPrunesReseedRegenerates) {
       Pattern(material::pattern::speckle(64, 40, 1, 3, {{1, 1, 1, 1}}));
   Host host;
   auto tree = [&] {
-    return box().child(box().width(80).height(80).fill(grain.material()));
+    return box().children({box().width(80).height(80).fill(grain.material())});
   };
   host.composer.render(tree());
   host.frame();
@@ -223,7 +223,7 @@ TEST(ComposePattern, ReseedingACopyLeavesTheOriginalAlone) {
   auto plate = [&] {
     Host host(64, 64);
     host.composer.render(
-        box().child(box().width(64).height(64).fill(base.material())));
+        box().children({box().width(64).height(64).fill(base.material())}));
     host.frame();
     std::vector<SkColor> px;
     for (int y = 0; y < 64; y += 3)
@@ -242,17 +242,16 @@ TEST(ComposePattern, ReseedingACopyLeavesTheOriginalAlone) {
 TEST(ComposePattern, AnElementTreeIsATile) {
   // Patterns are compositions: an element tree (two boxes) as the tile.
   Pattern duo = Pattern::tile(
-      {20, 10}, box()
-                    .row()
-                    .child(box().width(10).height(10).fill(red()))
-                    .child(box().width(10).height(10).fill(blue())));
+      {20, 10},
+      box().row().children({box().width(10).height(10).fill(red()),
+                            box().width(10).height(10).fill(blue())}));
   Host host;
-  host.composer.render(box().child(box()
-                                       .width(40)
-                                       .height(10)
-                                       .inset(0, 0, 160, 190)
-                                       .absolute()
-                                       .fill(duo.material(fonts()))));
+  host.composer.render(box().children({box()
+                                           .width(40)
+                                           .height(10)
+                                           .inset(0, 0, 160, 190)
+                                           .absolute()
+                                           .fill(duo.material(fonts()))}));
   host.frame();
   EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);
   EXPECT_EQ(host.pixel(15, 5), SK_ColorBLUE);
@@ -269,12 +268,12 @@ TEST(ComposePattern, TheGirihEightTileIsAStarAndACross) {
   Pattern zellige = material::kit::girih8(24, pal);
   const float s = 24 * (1 + 1.41421356f);  // tile spacing ≈ 57.9
   Host host;
-  host.composer.render(box().child(box()
-                                       .width(120)
-                                       .height(120)
-                                       .inset(0, 0, 80, 80)
-                                       .absolute()
-                                       .fill(zellige.material())));
+  host.composer.render(box().children({box()
+                                           .width(120)
+                                           .height(120)
+                                           .inset(0, 0, 80, 80)
+                                           .absolute()
+                                           .fill(zellige.material())}));
   host.frame();
   // Tile center = khatam star fill (blue).
   const SkColor center = host.pixel((int)(s / 2), (int)(s / 2));
@@ -294,14 +293,14 @@ TEST(ComposeStyles, BevelLightsAndShadesOpposedEdges) {
   // left, the top inner edge reads brighter than the body and the bottom
   // inner edge darker.
   Host host;
-  host.composer.render(
-      box().child(box()
-                      .width(60)
-                      .height(60)
-                      .inset(0, 0, 140, 140)
-                      .absolute()
-                      .fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))
-                      .foreground(styles::BevelEmboss{.depth = 4, .size = 3})));
+  host.composer.render(box().children(
+      {box()
+           .width(60)
+           .height(60)
+           .inset(0, 0, 140, 140)
+           .absolute()
+           .fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))
+           .foreground(styles::BevelEmboss{.depth = 4, .size = 3})}));
   host.frame();
   const uint32_t top = SkColorGetR(host.pixel(30, 2));
   const uint32_t mid = SkColorGetR(host.pixel(30, 30));
@@ -315,15 +314,15 @@ TEST(ComposeStyles, AnOverlaySitsOverTheFillAndAStrokeOverBoth) {
   // ergonomic peer for dressing the outline.
   Host host;
   host.composer.render(
-      box().child(box()
-                      .width(60)
-                      .height(60)
-                      .inset(0, 0, 140, 140)
-                      .absolute()
-                      .fill(Fill::color({0, 0, 1, 1}))
-                      .foreground(styles::colorOverlay(
-                          {1, 0, 0, 1}, SkBlendMode::kSrcOver, 0.5f))
-                      .stroke(sigil::compose::stroke(4, green()))));
+      box().children({box()
+                          .width(60)
+                          .height(60)
+                          .inset(0, 0, 140, 140)
+                          .absolute()
+                          .fill(Fill::color({0, 0, 1, 1}))
+                          .foreground(styles::colorOverlay(
+                              {1, 0, 0, 1}, SkBlendMode::kSrcOver, 0.5f))
+                          .stroke(sigil::compose::stroke(4, green()))}));
   host.frame();
   const SkColor c = host.pixel(30, 30);  // 50% red over blue
   EXPECT_GT(SkColorGetR(c), 90u);
@@ -338,12 +337,12 @@ TEST(ComposeStyles, BevelBandsEdgesWhenNested) {
   // origin cannot see that, which is why this one is deliberately nested and
   // offset.
   Host host;
-  host.composer.render(box().padding(30).child(box().padding(10).child(
-      box()
-          .width(60)
-          .height(60)
-          .fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))
-          .foreground(styles::BevelEmboss{.depth = 4, .size = 3}))));
+  host.composer.render(box().padding(30).children({box().padding(10).children(
+      {box()
+           .width(60)
+           .height(60)
+           .fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))
+           .foreground(styles::BevelEmboss{.depth = 4, .size = 3})})}));
   host.frame();
   host.frame();  // the CACHED replay is the bug's trigger
   const uint32_t top = SkColorGetR(host.pixel(70, 42));
@@ -360,12 +359,12 @@ TEST(ComposeStyles, BigSoftShadowSurvivesPictureCaching) {
   // to grow by the decoration's declared bleed(). Otherwise the shadow draws
   // on the first frame and is truncated by every cached replay after it.
   Host host;
-  host.composer.render(box().padding(40).child(
-      box()
-          .width(60)
-          .height(40)
-          .background(sigil::compose::shadow({1, 0, 0, 0.9f}, {0, 10}, 20))
-          .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))));
+  host.composer.render(box().padding(40).children(
+      {box()
+           .width(60)
+           .height(40)
+           .background(sigil::compose::shadow({1, 0, 0, 0.9f}, {0, 10}, 20))
+           .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))}));
   host.frame();
   host.frame();  // cached replay
   // Node spans y∈[40,80); sample 14px below it — the soft red reach.
@@ -374,15 +373,15 @@ TEST(ComposeStyles, BigSoftShadowSurvivesPictureCaching) {
 
 TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
   Host host;
-  host.composer.render(box().child(
-      box()
-          .width(40)
-          .height(40)
-          .inset(60, 60, 100, 100)
-          .absolute()
-          .corners({8})
-          .background(styles::OuterGlow{.color = {1, 1, 1, 1}, .size = 10})
-          .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))));
+  host.composer.render(box().children(
+      {box()
+           .width(40)
+           .height(40)
+           .inset(60, 60, 100, 100)
+           .absolute()
+           .corners({8})
+           .background(styles::OuterGlow{.color = {1, 1, 1, 1}, .size = 10})
+           .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(56, 80)), 40u);  // halo 4px outside
   EXPECT_LT(SkColorGetR(host.pixel(30, 80)), 12u);  // fades with distance
@@ -394,16 +393,16 @@ TEST(ComposePatterns, APatternFillReachesThePixels) {
   // on it. What the stock tiles themselves paint — the run order, the
   // wrap, the phase — is SigilMaterial's own claim.
   Host host;
-  host.composer.render(box().child(
-      box()
-          .width(120)
-          .height(40)
-          .inset(0, 0, 80, 160)
-          .absolute()
-          .fill(Pattern(material::pattern::sequence({{10, {1, 0, 0, 1}},
-                                                     {10, {0, 1, 0, 1}},
-                                                     {10, {0, 0, 1, 1}}}))
-                    .material())));
+  host.composer.render(box().children(
+      {box()
+           .width(120)
+           .height(40)
+           .inset(0, 0, 80, 160)
+           .absolute()
+           .fill(Pattern(material::pattern::sequence({{10, {1, 0, 0, 1}},
+                                                      {10, {0, 1, 0, 1}},
+                                                      {10, {0, 0, 1, 1}}}))
+                     .material())}));
   host.frame();
   EXPECT_EQ(host.pixel(5, 20), SK_ColorRED);
   EXPECT_EQ(host.pixel(15, 20), SK_ColorGREEN);
@@ -420,8 +419,8 @@ TEST(ComposeColor, OcioViewTransformsOutputAndClears) {
   ASSERT_TRUE(sigil::material::ocio::available());
   Host host;
   host.composer.setView(sigil::material::ocio::exponent(2.2f));
-  host.composer.render(box().child(
-      box().width(60).height(60).fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))));
+  host.composer.render(box().children(
+      {box().width(60).height(60).fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))}));
   host.frame();
   const uint32_t dark = SkColorGetR(host.pixel(30, 30));
   EXPECT_GT(dark, 30u);

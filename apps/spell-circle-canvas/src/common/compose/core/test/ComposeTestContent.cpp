@@ -12,20 +12,16 @@ TEST(ComposeSlots, SlotUpdatesWithoutDisturbingSiblings) {
   static int staticRuns;
   staticRuns = 0;
   Host host;
-  host.composer.render(
-      box()
-          .row()
-          .gap(10)
-          .child(custom([](SkCanvas& c, const PaintContext& ctx) {
-                   ++staticRuns;
-                   SkPaint p;
-                   p.setColor(SK_ColorRED);
-                   c.drawRect(
-                       SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
-                 })
-                     .width(50)
-                     .height(50))
-          .child(slot("live").width(80).height(50)));
+  host.composer.render(box().row().gap(10).children(
+      {custom([](SkCanvas& c, const PaintContext& ctx) {
+         ++staticRuns;
+         SkPaint p;
+         p.setColor(SK_ColorRED);
+         c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
+       })
+           .width(50)
+           .height(50),
+       slot("live").width(80).height(50)}));
   host.frame();
   EXPECT_EQ(staticRuns, 1);
 
@@ -95,11 +91,11 @@ TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
   auto plate = [](Composer::InputSpace space) {
     Host h;
     h.composer.declareInputSpace(space);
-    h.composer.render(box().child(box().width(160).height(120).fill(
+    h.composer.render(box().children({box().width(160).height(120).fill(
         material::skia::Paint::linear({0, 0}, {160, 120},
                                       {{0.0f, {1, 0, 0, 1}},
                                        {0.5f, {0.25f, 0.5f, 0.25f, 0.8f}},
-                                       {1.0f, {0, 0, 1, 1}}}))));
+                                       {1.0f, {0, 0, 1, 1}}}))}));
     h.frame();
     SkBitmap bm;
     bm.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
@@ -123,9 +119,10 @@ TEST(ComposeContent, AHeldPathShapePrunesWhereALambdaNeverCan) {
   pb.addOval(SkRect::MakeXYWH(10, 10, 40, 40));
   const SkPath cooked = pb.detach();
   auto tree = [&cooked](bool held) {
-    return box().child(held ? box().width(60).height(60).shape(heldPath(cooked))
-                            : box().width(60).height(60).shape(
-                                  [cooked](SkSize) { return cooked; }));
+    return box().children(
+        {held ? box().width(60).height(60).shape(heldPath(cooked))
+              : box().width(60).height(60).shape(
+                    [cooked](SkSize) { return cooked; })});
   };
   Host host;
   host.composer.render(tree(true));
@@ -140,7 +137,7 @@ TEST(ComposeContent, AHeldPathShapePrunesWhereALambdaNeverCan) {
   rebuilt.addOval(SkRect::MakeXYWH(10, 10, 40, 40));
   const SkPath other = rebuilt.detach();
   host.composer.render(
-      box().child(box().width(60).height(60).shape(heldPath(other))));
+      box().children({box().width(60).height(60).shape(heldPath(other))}));
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
   // The lambda spelling never settles.
   Host raw;
@@ -164,7 +161,7 @@ TEST(ComposeContent, AKeyedShapeSettlesOnTheValueItClosesOver) {
     };
     auto leaf = keyed ? box().width(60).height(60).shape(radius, fn)
                       : box().width(60).height(60).shape(fn);
-    return box().child(leaf.fill(red()));
+    return box().children({leaf.fill(red())});
   };
   Host host;
   host.composer.render(tree(true, 2.0f));
@@ -193,11 +190,11 @@ TEST(ComposeContent, APictureLeafReplaysABakeAndStillPrunes) {
   // through — forfeiting the pruning and the caching the bake was taken
   // for. The picture leaf keeps both.
   Host host;
-  sk_sp<SkPicture> baked =
-      snapshot(box().child(box().width(40).height(40).fill(red())), fonts());
+  sk_sp<SkPicture> baked = snapshot(
+      box().children({box().width(40).height(40).fill(red())}), fonts());
   ASSERT_NE(baked, nullptr);
   auto tree = [&baked] {
-    return box().child(picture(baked, SkSize::Make(40, 40)).key("bake"));
+    return box().children({picture(baked, SkSize::Make(40, 40)).key("bake")});
   };
   host.composer.render(tree());
   host.frame();
@@ -214,8 +211,8 @@ TEST(ComposeContent, APictureLeafReplaysABakeAndStillPrunes) {
   host.frame();
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
   // Given other dims the picture is scaled to them.
-  host.composer.render(box().child(
-      picture(baked, SkSize::Make(40, 40)).key("bake").width(80).height(80)));
+  host.composer.render(box().children(
+      {picture(baked, SkSize::Make(40, 40)).key("bake").width(80).height(80)}));
   host.frame();
   EXPECT_EQ(host.pixel(70, 70), SK_ColorRED);
 }
@@ -227,8 +224,8 @@ TEST(ComposeContent, APathFigureCarriesItsOwnBox) {
   SkPathBuilder pb;
   pb.addRect(SkRect::MakeXYWH(30, 40, 20, 10));
   Host host;
-  host.composer.render(
-      positioned().child(pathFigure(pb.detach(), 4.0f).key("fig").fill(red())));
+  host.composer.render(positioned().children(
+      {pathFigure(pb.detach(), 4.0f).key("fig").fill(red())}));
   host.frame();
   const auto placed = host.composer.bounds("fig");
   ASSERT_TRUE(placed.has_value());
@@ -254,8 +251,8 @@ TEST(ComposeContent, AKeyedCustomPrunesAndTheKeyIsHonest) {
       p.setColor4f({shade, 0, 0, 1});
       c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
     };
-    return box().child(key ? custom(key, program).width(60).height(60)
-                           : custom(program).width(60).height(60));
+    return box().children({key ? custom(key, program).width(60).height(60)
+                               : custom(program).width(60).height(60)});
   };
   Host host;
   host.composer.render(tree("panel-a", 1.0f));

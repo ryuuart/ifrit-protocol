@@ -136,7 +136,7 @@ inline Element gelPill(std::string_view label, SkColor4f tint, float w = kPillW,
       .row()
       .justify(Justify::Center)
       .alignItems(Align::Center)
-      .child(text(label).styleClass("gelLabel").font(gelGround(tint)));
+      .children({text(label).styleClass("gelLabel").font(gelGround(tint))});
 }
 
 inline Element gelOrb(float d = kOrbD) {
@@ -154,14 +154,14 @@ inline Element gelOrb(float d = kOrbD) {
       // light-from-below, which the preset's inner lift undersells on a
       // sphere: a screen-blended bottom rim glow (child rides under the
       // preset's over-layer gloss, so the lens stays on top).
-      .child(box()
-                 .inset(d * 0.14f, d * 0.50f, d * 0.14f, d * 0.02f)
-                 .corners({d * 0.24f})
-                 .fill(Paint::radial({d * 0.36f, d * 0.55f}, d * 0.52f,
-                                     {{0.00f, {0.72f, 0.92f, 1.0f, 0.90f}},
-                                      {0.60f, {0.55f, 0.85f, 1.0f, 0.35f}},
-                                      {1.00f, {0.55f, 0.85f, 1.0f, 0.0f}}}))
-                 .blend(SkBlendMode::kScreen));
+      .children({box()
+                     .inset(d * 0.14f, d * 0.50f, d * 0.14f, d * 0.02f)
+                     .corners({d * 0.24f})
+                     .fill(Paint::radial({d * 0.36f, d * 0.55f}, d * 0.52f,
+                                         {{0.00f, {0.72f, 0.92f, 1.0f, 0.90f}},
+                                          {0.60f, {0.55f, 0.85f, 1.0f, 0.35f}},
+                                          {1.00f, {0.55f, 0.85f, 1.0f, 0.0f}}}))
+                     .blend(SkBlendMode::kScreen)});
 }
 
 // ---------------------------------------------------------------------------
@@ -200,32 +200,33 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
       .foreground(rim(path::Edge::Bottom, hexColor(0x4F93CA)))
       .foreground(rim(path::Edge::Left, hexColor(0x768FA5)))
       // bottom glow: inset 2, fades out by 45% up from the bottom, screen
-      .child(box()
-                 .inset(2, h * 0.55f, 2, 2)
-                 .corners({r - 2})
-                 .fill(Paint::linear(
-                     {0, h * 0.45f - 4}, {0, 0},
-                     {{0.0f, {t.glow.fR, t.glow.fG, t.glow.fB, 0.85f}},
-                      {1.0f, {t.glow.fR, t.glow.fG, t.glow.fB, 0.0f}}}))
-                 .blend(SkBlendMode::kScreen))
+      .children({box()
+                     .inset(2, h * 0.55f, 2, 2)
+                     .corners({r - 2})
+                     .fill(Paint::linear(
+                         {0, h * 0.45f - 4}, {0, 0},
+                         {{0.0f, {t.glow.fR, t.glow.fG, t.glow.fB, 0.85f}},
+                          {1.0f, {t.glow.fR, t.glow.fG, t.glow.fB, 0.0f}}}))
+                     .blend(SkBlendMode::kScreen)})
       // the LENS: x in [5%,95%] y in [4%,52%], white .72->0
-      .child(box()
-                 .inset(w * 0.05f, h * 0.04f, w * 0.05f, h * 0.48f)
-                 .corners({h * 0.24f})
-                 .fill(Paint::linear(
-                     {0, 0}, {0, h * 0.48f},
-                     {{0.0f, {1, 1, 1, 0.72f}}, {1.0f, {1, 1, 1, 0.0f}}})))
+      .children({box()
+                     .inset(w * 0.05f, h * 0.04f, w * 0.05f, h * 0.48f)
+                     .corners({h * 0.24f})
+                     .fill(Paint::linear(
+                         {0, 0}, {0, h * 0.48f},
+                         {{0.0f, {1, 1, 1, 0.72f}}, {1.0f, {1, 1, 1, 0.0f}}}))})
       // label, centered, riding above the lens
-      .child(box()
-                 .inset(0)
-                 .row()
-                 .justify(Justify::Center)
-                 .alignItems(Align::Center)
-                 .zIndex(1)
-                 .child(text(label)
-                            .styleClass("gelLabel")
-                            .font(gelGround({t.deep.fR * 1.3f, t.deep.fG * 1.3f,
-                                             t.deep.fB * 1.3f, 1}))));
+      .children({box()
+                     .inset(0)
+                     .row()
+                     .justify(Justify::Center)
+                     .alignItems(Align::Center)
+                     .zIndex(1)
+                     .children({text(label)
+                                    .styleClass("gelLabel")
+                                    .font(gelGround({t.deep.fR * 1.3f,
+                                                     t.deep.fG * 1.3f,
+                                                     t.deep.fB * 1.3f, 1}))})});
 }
 
 // ---------------------------------------------------------------------------
@@ -247,7 +248,7 @@ inline Element plasticButton(std::string_view label) {
       .row()
       .justify(Justify::Center)
       .alignItems(Align::Center)
-      .child(text(label, type(13, hexColor(0xFFFFFF), 0.5f, 600)));
+      .children({text(label, type(13, hexColor(0xFFFFFF), 0.5f, 600))});
 }
 
 /** Tiny window-chrome bevel square (the min/max/close cluster). */
@@ -315,8 +316,8 @@ struct Y2kChrome final : sketch::Sketch {
             .row()
             .alignItems(Align::Center)
             .height(Dimension(yc::kStatusH))
-            .child(text(unit, yc::type(11, hexColor(0x39424C), 1.0f, 550))
-                       .shrink(0));
+            .children({text(unit, yc::type(11, hexColor(0x39424C), 1.0f, 550))
+                           .shrink(0)});
     if (unitW > 0) content.width(Dimension(unitW)).shrink(0);
     return content;
   }
@@ -332,27 +333,27 @@ struct Y2kChrome final : sketch::Sketch {
             .material();
 
     // ---- title bar: the y2kChrome() PRESET on the bar box -----------------
-    Element titleBar = box()
-                           .height(yc::kTitleBarH)
-                           // No horizon sliver on a caption bar: at 12px type
-                           // the full-width sheen line reads as strikethrough
-                           // (real Y2K bars carry the top-edge highlight only).
-                           .style(kit::y2kChrome({.horizonSliver = false}))
-                           .row()
-                           .alignItems(Align::Center)
-                           .padding(12, 0)
-                           .gap(5)
-                           .child(text("SIGILNET 2000 — hyperportal v4.2")
-                                      .font({.size = 12,
-                                             .color = hexColor(0xF2F6FA),
-                                             .track = 0.4f,
-                                             .weight = 600,
-                                             .underlays = {{yc::ground(
-                                                 {0, 0.04f, 0.10f, 0.6f})}}}))
-                           .child(box().grow(1))
-                           .child(yc::chromeSquare(hexColor(0xD4D0C8)))
-                           .child(yc::chromeSquare(hexColor(0xD4D0C8)))
-                           .child(yc::chromeSquare(hexColor(0xC87050)));
+    Element titleBar =
+        box()
+            .height(yc::kTitleBarH)
+            // No horizon sliver on a caption bar: at 12px type
+            // the full-width sheen line reads as strikethrough
+            // (real Y2K bars carry the top-edge highlight only).
+            .style(kit::y2kChrome({.horizonSliver = false}))
+            .row()
+            .alignItems(Align::Center)
+            .padding(12, 0)
+            .gap(5)
+            .children({text("SIGILNET 2000 — hyperportal v4.2")
+                           .font({.size = 12,
+                                  .color = hexColor(0xF2F6FA),
+                                  .track = 0.4f,
+                                  .weight = 600,
+                                  .underlays = {{yc::ground(
+                                      {0, 0.04f, 0.10f, 0.6f})}}}),
+                       box().grow(1), yc::chromeSquare(hexColor(0xD4D0C8)),
+                       yc::chromeSquare(hexColor(0xD4D0C8)),
+                       yc::chromeSquare(hexColor(0xC87050))});
 
     // ---- wordmark: the y2kChrome() PRESET as a plate ----------------------
     // Fixed height so the hard horizon (49/51%) lands at a known y for the
@@ -368,38 +369,38 @@ struct Y2kChrome final : sketch::Sketch {
             .justify(Justify::Center)
             .alignItems(Align::Center)
             .padding(34, 0)
-            .child(text("MILLENNIUM",
-                        [] {
-                          namespace yc = y2k_chrome;
-                          auto s = yc::type(54, {1, 1, 1, 0.97f}, 3, 800);
-                          // Cast shadow, then a tight dark keyline: chrome
-                          // type needs both to sit off a chrome plate.
-                          sigil::weave::PaintLayer ground;
-                          ground.paint.setColor4f({0.02f, 0.05f, 0.09f, 0.55f},
-                                                  nullptr);
-                          ground.paint.setAntiAlias(true);
-                          ground.paint.setMaskFilter(SkMaskFilter::MakeBlur(
-                              kNormal_SkBlurStyle, 1.6f));
-                          ground.offset = {0, 2.4f};
-                          sigil::weave::PaintLayer contour;
-                          contour.paint.setAntiAlias(true);
-                          contour.paint.setStyle(SkPaint::kStroke_Style);
-                          contour.paint.setStrokeWidth(2.6f);
-                          contour.paint.setStrokeJoin(SkPaint::kRound_Join);
-                          contour.paint.setColor4f({0.02f, 0.06f, 0.11f, 0.9f},
-                                                   nullptr);
-                          s.paint.addUnderlay(ground);
-                          s.paint.addUnderlay(contour);
-                          return s;
-                        }())
-                       // The wordmark is CHROME, not white type on chrome.
-                       // With flat-white capitals the plate's horizon sliver
-                       // is the only bright line at that height and reads as
-                       // a rule struck through the word. Filling the type
-                       // with the same unit-space chrome ramp puts the
-                       // horizon inside the letterforms, which is where a
-                       // period chrome wordmark carries it.
-                       .textFill(kit::sunsetChromeType()));
+            .children({text("MILLENNIUM",
+                            [] {
+                              namespace yc = y2k_chrome;
+                              auto s = yc::type(54, {1, 1, 1, 0.97f}, 3, 800);
+                              // Cast shadow, then a tight dark keyline: chrome
+                              // type needs both to sit off a chrome plate.
+                              sigil::weave::PaintLayer ground;
+                              ground.paint.setColor4f(
+                                  {0.02f, 0.05f, 0.09f, 0.55f}, nullptr);
+                              ground.paint.setAntiAlias(true);
+                              ground.paint.setMaskFilter(SkMaskFilter::MakeBlur(
+                                  kNormal_SkBlurStyle, 1.6f));
+                              ground.offset = {0, 2.4f};
+                              sigil::weave::PaintLayer contour;
+                              contour.paint.setAntiAlias(true);
+                              contour.paint.setStyle(SkPaint::kStroke_Style);
+                              contour.paint.setStrokeWidth(2.6f);
+                              contour.paint.setStrokeJoin(SkPaint::kRound_Join);
+                              contour.paint.setColor4f(
+                                  {0.02f, 0.06f, 0.11f, 0.9f}, nullptr);
+                              s.paint.addUnderlay(ground);
+                              s.paint.addUnderlay(contour);
+                              return s;
+                            }())
+                           // The wordmark is CHROME, not white type on chrome.
+                           // With flat-white capitals the plate's horizon
+                           // sliver is the only bright line at that height and
+                           // reads as a rule struck through the word. Filling
+                           // the type with the same unit-space chrome ramp puts
+                           // the horizon inside the letterforms, which is where
+                           // a period chrome wordmark carries it.
+                           .textFill(kit::sunsetChromeType())});
 
     Element wordmark =
         box()
@@ -407,22 +408,24 @@ struct Y2kChrome final : sketch::Sketch {
             .translateY(animate(motion::from(14.0f).to(0.0f),
                                 {550ms, &ch::easeOutQuint}))
             .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
-            .child(plate)
+            .children({plate})
             // The preset's specular sliver rides the plate BEHIND the type.
             // Do not add a second sliver over the type: two bright lines at
             // the same height read as a strikethrough.
             // Starburst glints riding the horizon, plus one on a cap top.
-            .child(box().inset(22, horizonY - 12, 0, 0).child(yc::glint(24, 0)))
-            .child(box()
-                       .inset(0, horizonY - 9, 26, 0)
-                       .row()
-                       .justify(Justify::End)
-                       .child(yc::glint(18, 18, 0.9f)))
-            .child(box()
-                       .inset(0, 4, 110, 0)
-                       .row()
-                       .justify(Justify::End)
-                       .child(yc::glint(13, 12, 0.85f)));
+            .children({box()
+                           .inset(22, horizonY - 12, 0, 0)
+                           .children({yc::glint(24, 0)}),
+                       box()
+                           .inset(0, horizonY - 9, 26, 0)
+                           .row()
+                           .justify(Justify::End)
+                           .children({yc::glint(18, 18, 0.9f)}),
+                       box()
+                           .inset(0, 4, 110, 0)
+                           .row()
+                           .justify(Justify::End)
+                           .children({yc::glint(13, 12, 0.85f)})});
 
     // ---- tagline: styles::textGlow, chained for the hotter double glow ----
     // Aero glow on a LIGHT ground: saturated aero-blue core, white-hot
@@ -437,26 +440,28 @@ struct Y2kChrome final : sketch::Sketch {
             .margin(0, -12, 0, -24)
             .cache(Cache::Texture)
             .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
-            .child(text("· t h e   f u t u r e   i s   "
-                        "c h r o m e ·",
-                        yc::type(14, hexColor(0x7FD0FF), 2.5f, 650))
-                       .effect(styles::textGlow({1.0f, 1.0f, 1.0f, 0.95f}, 2)
-                                   .then(styles::textGlow(
-                                       {0.36f, 0.80f, 1.0f, 0.9f}, 7))));
+            .children(
+                {text("· t h e   f u t u r e   i s   "
+                      "c h r o m e ·",
+                      yc::type(14, hexColor(0x7FD0FF), 2.5f, 650))
+                     .effect(styles::textGlow({1.0f, 1.0f, 1.0f, 0.95f}, 2)
+                                 .then(styles::textGlow(
+                                     {0.36f, 0.80f, 1.0f, 0.9f}, 7)))});
 
     // ---- pill rack: three aquaGel() recolors ------------------------------
-    Element pills = box()
-                        .row()
-                        .justify(Justify::Center)
-                        .gap(22)
-                        .margin(0, 18, 0, 0)
-                        .key("pills")
-                        .translateY(animate(motion::from(12.0f).to(0.0f),
-                                            {550ms, &ch::easeOutQuint}))
-                        .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
-                        .child(yc::gelPill("ENTER  PORTAL", hexColor(0x1E8FFF)))
-                        .child(yc::gelPill("HOT  LINKS", hexColor(0xE03A3A)))
-                        .child(yc::gelPill("GUESTBOOK", hexColor(0x2AA84F)));
+    Element pills =
+        box()
+            .row()
+            .justify(Justify::Center)
+            .gap(22)
+            .margin(0, 18, 0, 0)
+            .key("pills")
+            .translateY(animate(motion::from(12.0f).to(0.0f),
+                                {550ms, &ch::easeOutQuint}))
+            .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
+            .children({yc::gelPill("ENTER  PORTAL", hexColor(0x1E8FFF)),
+                       yc::gelPill("HOT  LINKS", hexColor(0xE03A3A)),
+                       yc::gelPill("GUESTBOOK", hexColor(0x2AA84F))});
 
     // ---- the A/B card: hand-built recipe vs the preset --------------------
     Element abCard =
@@ -465,30 +470,31 @@ struct Y2kChrome final : sketch::Sketch {
             .justify(Justify::Center)
             .margin(0, 16, 0, 0)
             .opacity(animate(motion::from(0.0f).to(1.0f), {500ms}))
-            .child(
-                box()
-                    .row()
-                    .gap(28)
-                    .padding(16, 10)
-                    .corners({8})
-                    .fill(Fill::color({1, 1, 1, 0.13f}))
-                    .stroke(stroke(1, Fill::color(hexColor(0x9AA1A9, 0.6f))))
-                    .child(box()
-                               .column()
-                               .alignItems(Align::Center)
-                               .gap(6)
-                               .child(yc::aquaPill("AQUA  2000", yc::kBluePill))
-                               .child(text("HAND-BUILT · FIVE "
-                                           "STOPS BY HAND")
-                                          .styleClass("caption")))
-                    .child(box()
-                               .column()
-                               .alignItems(Align::Center)
-                               .gap(6)
-                               .child(yc::gelPill("AQUA  2000",
-                                                  hexColor(0x1E8FFF)))
-                               .child(text("PRESET · kit::aquaGel()")
-                                          .styleClass("caption"))));
+            .children(
+                {box()
+                     .row()
+                     .gap(28)
+                     .padding(16, 10)
+                     .corners({8})
+                     .fill(Fill::color({1, 1, 1, 0.13f}))
+                     .stroke(stroke(1, Fill::color(hexColor(0x9AA1A9, 0.6f))))
+                     .children({box()
+                                    .column()
+                                    .alignItems(Align::Center)
+                                    .gap(6)
+                                    .children({yc::aquaPill("AQUA  2000",
+                                                            yc::kBluePill)})
+                                    .children({text("HAND-BUILT · FIVE "
+                                                    "STOPS BY HAND")
+                                                   .styleClass("caption")})})
+                     .children({box()
+                                    .column()
+                                    .alignItems(Align::Center)
+                                    .gap(6)
+                                    .children({yc::gelPill("AQUA  2000",
+                                                           hexColor(0x1E8FFF))})
+                                    .children({text("PRESET · kit::aquaGel()")
+                                                   .styleClass("caption")})})});
 
     // ---- status bar: marquee, ticker-driven phase -------------------
     // The crawl, named: a strip run past a window twice so the loop has no
@@ -508,10 +514,11 @@ struct Y2kChrome final : sketch::Sketch {
             .alignItems(Align::Center)
             .padding(10, 0)
             .gap(8)
-            .child(strip)
-            .child(
-                box().width(1).height(11).fill(Fill::color(hexColor(0xA6ADB4))))
-            .child(text("56K", yc::type(10, hexColor(0x6A737D), 1.0f, 700)));
+            .children(
+                {strip,
+                 box().width(1).height(11).fill(
+                     Fill::color(hexColor(0xA6ADB4))),
+                 text("56K", yc::type(10, hexColor(0x6A737D), 1.0f, 700))});
 
     // The window's large blurred shadow is static and the marquee inside it
     // is not, and a node combining the two inherits the marquee's
@@ -536,19 +543,20 @@ struct Y2kChrome final : sketch::Sketch {
                                  {1.00f, hexColor(0x050817)}}))
             .corners({6})
             .clip()
-            .child(box()
-                       .inset(0)
-                       .fill(Pattern(mpattern::stripes(1, 4,
-                                                       mskia::toColor(hexColor(
-                                                           0x6E8CD8, 0.16f))))
-                                 .rotate(45)
-                                 .material())
-                       .blend(SkBlendMode::kPlus))
-            .child(box().inset(0).fill(
-                Paint::glowUnit({0.5f, 0.42f}, 1.02f,
-                                {{0.0f, {0.36f, 0.52f, 0.92f, 0.16f}},
-                                 {0.55f, {0, 0, 0, 0.0f}},
-                                 {1.0f, {0, 0, 0, 0.45f}}})))
+            .children(
+                {box()
+                     .inset(0)
+                     .fill(Pattern(mpattern::stripes(1, 4,
+                                                     mskia::toColor(hexColor(
+                                                         0x6E8CD8, 0.16f))))
+                               .rotate(45)
+                               .material())
+                     .blend(SkBlendMode::kPlus),
+                 box().inset(0).fill(
+                     Paint::glowUnit({0.5f, 0.42f}, 1.02f,
+                                     {{0.0f, {0.36f, 0.52f, 0.92f, 0.16f}},
+                                      {0.55f, {0, 0, 0, 0.0f}},
+                                      {1.0f, {0, 0, 0, 0.45f}}}))})
             .cache(Cache::Texture);
 
     // ---- assembly ---------------------------------------------------------
@@ -559,33 +567,33 @@ struct Y2kChrome final : sketch::Sketch {
         .fill(Paint::linear(
             {0, 0}, {0, yc::kH},
             {{0.0f, hexColor(0xB9BFC7)}, {1.0f, hexColor(0xA2A8B1)}}))
-        .child(box().inset(0).fill(check))
-        .child(windowBackplate)
+        .children({box().inset(0).fill(check), windowBackplate})
         // the window
-        .child(
-            box()
-                .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)
-                .column()
-                .corners({6})
-                .clip()
-                .stroke(stroke(1, Fill::color(hexColor(0x70777E))))
-                .child(titleBar)
-                .child(
-                    box()
-                        .column()
-                        .grow(1)
-                        .padding(28, 12)
-                        .child(box().grow(0.55f))
-                        .child(box()
-                                   .row()
-                                   .justify(Justify::Center)
-                                   .child(wordmark))
-                        .child(tagline)
-                        .child(pills)
-                        .child(abCard)
-                        .child(box().grow(1))
-                        // 3D groove rule - the <hr> of the period
-                        .child(box()
+        .children(
+            {box()
+                 .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)
+                 .column()
+                 .corners({6})
+                 .clip()
+                 .stroke(stroke(1, Fill::color(hexColor(0x70777E))))
+                 .children({titleBar})
+                 .children(
+                     {box()
+                          .column()
+                          .grow(1)
+                          .padding(28, 12)
+                          .children({box().grow(0.55f)})
+                          .children({box()
+                                         .row()
+                                         .justify(Justify::Center)
+                                         .children({wordmark})})
+                          .children({tagline})
+                          .children({pills})
+                          .children({abCard})
+                          .children({box().grow(1)})
+                          // 3D groove rule - the <hr> of the period
+                          .children(
+                              {box()
                                    .height(2)
                                    .margin(4, 0, 4, 10)
                                    .opacity(animate(motion::from(0.0f).to(1.0f),
@@ -595,40 +603,44 @@ struct Y2kChrome final : sketch::Sketch {
                                        {{0.0f, hexColor(0x8F969D)},
                                         {0.5f, hexColor(0x8F969D)},
                                         {0.501f, hexColor(0xFFFFFF)},
-                                        {1.0f, hexColor(0xFFFFFF)}})))
-                        // footer: preset orb, caption, 1998 plastic button
-                        .child(
-                            box()
-                                .row()
-                                .alignItems(Align::End)
-                                .key("footer")
-                                .opacity(animate(motion::from(0.0f).to(1.0f),
-                                                 {500ms}))
-                                .child(yc::gelOrb())
-                                .child(box()
-                                           .column()
-                                           .margin(14, 0, 0, 4)
-                                           .gap(3)
-                                           .child(text(
-                                               "now streaming @ 56k",
-                                               yc::type(12, hexColor(0xC8D6EE),
-                                                        0.6f, 600)))
-                                           .child(text("© 2000 sigilnet "
-                                                       "industries — "
-                                                       "best viewed at 800×600")
-                                                      .styleClass("note")))
-                                .child(box().grow(1))
-                                .child(box()
-                                           .column()
-                                           .alignItems(Align::End)
-                                           .gap(5)
-                                           .margin(0, 0, 0, 2)
-                                           .child(yc::plasticButton(
-                                               "ENTER SITE >>"))
-                                           .child(text("[ no frames · "
-                                                       "spacer.gif free ]")
-                                                      .styleClass("note")))))
-                .child(statusBar));
+                                        {1.0f, hexColor(0xFFFFFF)}}))})
+                          // footer: preset orb, caption, 1998 plastic button
+                          .children(
+                              {box()
+                                   .row()
+                                   .alignItems(Align::End)
+                                   .key("footer")
+                                   .opacity(animate(motion::from(0.0f).to(1.0f),
+                                                    {500ms}))
+                                   .children({yc::gelOrb()})
+                                   .children(
+                                       {box()
+                                            .column()
+                                            .margin(14, 0, 0, 4)
+                                            .gap(3)
+                                            .children({text(
+                                                "now streaming @ 56k",
+                                                yc::type(12, hexColor(0xC8D6EE),
+                                                         0.6f, 600))})
+                                            .children(
+                                                {text("© 2000 sigilnet "
+                                                      "industries — "
+                                                      "best viewed at 800×600")
+                                                     .styleClass("note")})})
+                                   .children({box().grow(1)})
+                                   .children(
+                                       {box()
+                                            .column()
+                                            .alignItems(Align::End)
+                                            .gap(5)
+                                            .margin(0, 0, 0, 2)
+                                            .children({yc::plasticButton(
+                                                "ENTER SITE >>")})
+                                            .children(
+                                                {text("[ no frames · "
+                                                      "spacer.gif free ]")
+                                                     .styleClass("note")})})})})
+                 .children({statusBar})});
   }
 };
 

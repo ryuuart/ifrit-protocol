@@ -93,7 +93,7 @@ Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
-          .child(std::move(body)));
+          .children({std::move(body)}));
 }
 
 }  // namespace
@@ -123,7 +123,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
     first = narrow(std::u16string_view(utf16).substr(0, cut));
     second = narrow(std::u16string_view(utf16).substr(cut));
 
-    oneLine = ctx.measure(box().child(text(kNote, noteStyle))).width();
+    oneLine = ctx.measure(box().children({text(kNote, noteStyle)})).width();
     report[0] = kit::formatted("one line · advance %.1f px", oneLine);
     report[1] = kit::formatted("split · advance %.1f · band %.1f",
                                split.advance, split.band);
@@ -161,13 +161,13 @@ struct WarichuPlaceholder final : sketch::Sketch {
             .width(Dimension(kCell - 24))
             // The band goes into the block's strut, so the base's own
             // pitch opens to hold the note; the slot sets the note's type.
-            .child(box()
-                       .key("note")
-                       .fill(Fill::color(kSlot))
-                       .font(noteType())
-                       .child(std::move(child)));
+            .children({box()
+                           .key("note")
+                           .fill(Fill::color(kSlot))
+                           .font(noteType())
+                           .children({std::move(child)})});
     if (vertical) {
-      leaf.writingMode(weave::WritingMode::kVerticalRL)
+      leaf.block({.writingMode = weave::WritingMode::kVerticalRL})
           .width(Dimension(kCell - 24))
           .height(Dimension(kPicture - 24));
     }
@@ -218,7 +218,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
             .top(Dimension(0.0f))
             .width(Dimension(half))
             .height(Dimension(split.advance))
-            .writingMode(weave::WritingMode::kVerticalRL);
+            .block({.writingMode = weave::WritingMode::kVerticalRL});
       } else {
         leaf.left(Dimension(0.0f))
             .top(Dimension(along))
@@ -226,7 +226,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
       }
       return leaf;
     };
-    return box().child(row(first, 0)).child(row(second, half));
+    return box().children({row(first, 0), row(second, half)});
   }
 
   /** What the split answered, printed. */
@@ -234,8 +234,8 @@ struct WarichuPlaceholder final : sketch::Sketch {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(8);
     for (const std::string& row : report)
-      column.child(text(row, sheet.mono(10, sheet.palette.figure))
-                       .width(Dimension(kCell - 24)));
+      column.children({text(row, sheet.mono(10, sheet.palette.figure))
+                           .width(Dimension(kCell - 24))});
     return cell("WarichuSplit{advance, band, cutWord}",
                 "what the split answered for this note at this size "
                 "· the caller cuts its own text at that word's start",

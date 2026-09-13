@@ -238,15 +238,15 @@ struct AxisRipple : sketch::Sketch {
   [[nodiscard]] Element ripplePanel() {
     const float width = pens.back();
     Element panel = box().column().gap(10).width(width);
-    panel.child(
-        text("GRAD — DRIVEN AT DRAW TIME, "
-             "ONE SHAPING, LETTERS FIXED"));
-    panel.child(text(kProof, proof)
-                    .key("ripple")
-                    .fx({.effect = gradWave(kGradLo, kGradHi, radPerGlyph),
-                         .stagger = {.eachMs = 0, .durationMs = 400},
-                         .progress = &phase}));
-    panel.child(meter(width));
+    panel.children(
+        {text("GRAD — DRIVEN AT DRAW TIME, "
+              "ONE SHAPING, LETTERS FIXED")});
+    panel.children({text(kProof, proof)
+                        .key("ripple")
+                        .fx({.effect = gradWave(kGradLo, kGradHi, radPerGlyph),
+                             .stagger = {.eachMs = 0, .durationMs = 400},
+                             .progress = &phase})});
+    panel.children({meter(width)});
     char line[160];
     // One line, deliberately: the panel is the run's own width, so a
     // caption that wraps changes the sheet's height between frames.
@@ -256,12 +256,12 @@ struct AxisRipple : sketch::Sketch {
                   "Δ %.2f PX ACROSS THE RAMP",
                   axisMin, axisMax, kWavesAcross, kPeriod,
                   gradWidthHi - gradWidthLo);
-    panel.child(text(hasGrad ? line
-                             : "THIS FACE DECLARES NO GRAD AXIS · "
-                               "THE DRIVE IS REFUSED AND THE LINE DRAWS "
-                               "AT ITS SHAPED COORDINATES")
-                    .font({.size = 11.0f, .track = 0.6f})
-                    .ink(hasGrad ? kFaint : kMark));
+    panel.children({text(hasGrad ? line
+                                 : "THIS FACE DECLARES NO GRAD AXIS · "
+                                   "THE DRIVE IS REFUSED AND THE LINE DRAWS "
+                                   "AT ITS SHAPED COORDINATES")
+                        .font({.size = 11.0f, .track = 0.6f})
+                        .ink(hasGrad ? kFaint : kMark)});
     return panel;
   }
 
@@ -289,8 +289,8 @@ struct AxisRipple : sketch::Sketch {
         .row()
         .alignItems(Align::Baseline)
         .gap(14)
-        .child(text(label).font({.size = 11.0f, .track = 1.6f}).width(52))
-        .child(std::move(run));
+        .children({text(label).font({.size = 11.0f, .track = 1.6f}).width(52),
+                   std::move(run)});
   }
 
   /** One axis, proved: the same word shaped at each end of it, left edges
@@ -302,18 +302,14 @@ struct AxisRipple : sketch::Sketch {
                                   float lo, float hi, const char* loLabel,
                                   const char* hiLabel, const char* verdict,
                                   SkColor4f verdictInk) {
-    return box()
-        .column()
-        .gap(12)
-        .grow(1)
-        .child(text(heading))
-        .child(box()
-                   .column()
-                   .gap(6)
-                   .child(proofRow(tag, lo, loLabel, true))
-                   .child(proofRow(tag, hi, hiLabel, false)))
-        .child(
-            text(verdict).font({.size = 11.0f, .track = 0.6f}).ink(verdictInk));
+    return box().column().gap(12).grow(1).children(
+        {text(heading),
+         box()
+             .column()
+             .gap(6)
+             .children({proofRow(tag, lo, loLabel, true)})
+             .children({proofRow(tag, hi, hiLabel, false)}),
+         text(verdict).font({.size = 11.0f, .track = 0.6f}).ink(verdictInk)});
   }
 
   /** The proof, twice: the axis that moves advances beside the axis that
@@ -343,13 +339,11 @@ struct AxisRipple : sketch::Sketch {
                   "wght %.0f → %.0f — A SHAPING AXIS", kWghtLo, kWghtHi);
     std::snprintf(gradHead, sizeof(gradHead), "GRAD %.0f → %.0f — A DRAWN AXIS",
                   kGradLo, kGradHi);
-    return box()
-        .row()
-        .gap(44)
-        .child(axisPanel(wghtHead, "wght", kWghtLo, kWghtHi, "300", "900", wght,
-                         kMark))
-        .child(axisPanel(gradHead, "GRAD", kGradLo, kGradHi, "400", "1000",
-                         grad, kAxis));
+    return box().row().gap(44).children(
+        {axisPanel(wghtHead, "wght", kWghtLo, kWghtHi, "300", "900", wght,
+                   kMark),
+         axisPanel(gradHead, "GRAD", kGradLo, kGradHi, "400", "1000", grad,
+                   kAxis)});
   }
 
   /** The label type is stated once on the root; a caption restates only what
@@ -364,25 +358,24 @@ struct AxisRipple : sketch::Sketch {
                              {0.0f, 0.6f, 1.0f}))
         .font({.face = faceLabel, .size = 11.5f, .track = 2.4f})
         .ink(kLabel)
-        .child(box()
-                   .row()
-                   .alignItems(Align::End)
-                   .child(text("THE AXIS RIPPLE")
-                              .font({.size = 12.5f, .track = 3.4f})
-                              .ink(kInk)
-                              .grow(1))
-                   .child(text("OPENTYPE FONT VARIATIONS · 2016").ink(kFaint)))
-        .child(box().height(1).fill(Fill::color(kFaint)))
-        .child(ripplePanel())
-        .child(box().height(6))
-        .child(proofPanels())
-        .child(box().grow(1))
-        .child(text("A GRADE IS WEIGHT WITHOUT WIDTH · IT IS THE "
-                    "ONE AXIS A DRAW-TIME DRIVE CAN HONOUR, AND THE "
-                    "REASON THE RIPPLE COSTS ONE SHAPING RATHER THAN "
-                    "ONE PER FRAME")
-                   .font({.size = 11.0f, .track = 0.6f})
-                   .ink(kFaint));
+        .children(
+            {box()
+                 .row()
+                 .alignItems(Align::End)
+                 .children({text("THE AXIS RIPPLE")
+                                .font({.size = 12.5f, .track = 3.4f})
+                                .ink(kInk)
+                                .grow(1)})
+                 .children(
+                     {text("OPENTYPE FONT VARIATIONS · 2016").ink(kFaint)}),
+             box().height(1).fill(Fill::color(kFaint)), ripplePanel(),
+             box().height(6), proofPanels(), box().grow(1),
+             text("A GRADE IS WEIGHT WITHOUT WIDTH · IT IS THE "
+                  "ONE AXIS A DRAW-TIME DRIVE CAN HONOUR, AND THE "
+                  "REASON THE RIPPLE COSTS ONE SHAPING RATHER THAN "
+                  "ONE PER FRAME")
+                 .font({.size = 11.0f, .track = 0.6f})
+                 .ink(kFaint)});
   }
 
   void setup(sketch::SketchContext& ctx) override {

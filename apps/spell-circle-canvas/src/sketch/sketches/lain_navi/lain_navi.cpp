@@ -39,11 +39,11 @@ struct LainNavi : sketch::Sketch {
       auto place = [&](Element e) {
         return e.at({kTextX, y - monoSize * 0.98f});
       };
-      g.child(place(text(line, type(monoFace(), monoSize,
-                                    mskia::scale(c, 0.40f), sigma + 2.4f)))
-                  .key("halo" + std::to_string(i)));
-      g.child(place(text(line, type(monoFace(), monoSize, c, sigma)))
-                  .key("mips" + std::to_string(i)));
+      g.children({place(text(line, type(monoFace(), monoSize,
+                                        mskia::scale(c, 0.40f), sigma + 2.4f)))
+                      .key("halo" + std::to_string(i))});
+      g.children({place(text(line, type(monoFace(), monoSize, c, sigma)))
+                      .key("mips" + std::to_string(i))});
     }
     return g;
   }
@@ -62,26 +62,27 @@ struct LainNavi : sketch::Sketch {
     auto g = box().inset(0).key("wire");
 
     // the ruling — straight, and stopping 7% short of both rims
-    g.child(box()
-                .inset(0)
-                .shape(keyedShape(
-                    phi, [phi](SkSize) { return generatrices(phi, 7); }))
-                .foreground(add(1.5f, mskia::scale(kWire, 0.44f), 0.0f))
-                .key("ruling"));
+    g.children({box()
+                    .inset(0)
+                    .shape(keyedShape(
+                        phi, [phi](SkSize) { return generatrices(phi, 7); }))
+                    .foreground(add(1.5f, mskia::scale(kWire, 0.44f), 0.0f))
+                    .key("ruling")});
 
     // the two rims and the waist — DOTTED, never solid (1.6 on 4.4 with a
     // round cap is the frame's own broken hairline)
     const std::vector<SkScalar> dot{1.6f, 4.4f};
     auto ellArc = [&](SkPoint c, float a, float b, float tilt, SkColor4f col,
                       float w, float t0, float t1, const char* key) {
-      g.child(box()
-                  .inset(0)
-                  .shape(keyedShape(std::tuple{c.fX, c.fY, a, b, tilt, t0, t1},
-                                    [c, a, b, tilt, t0, t1](SkSize) {
-                                      return ellipsePath(c, a, b, tilt, t0, t1);
-                                    }))
-                  .foreground(add(w, col, 0.0f, dot))
-                  .key(key));
+      g.children(
+          {box()
+               .inset(0)
+               .shape(keyedShape(std::tuple{c.fX, c.fY, a, b, tilt, t0, t1},
+                                 [c, a, b, tilt, t0, t1](SkSize) {
+                                   return ellipsePath(c, a, b, tilt, t0, t1);
+                                 }))
+               .foreground(add(w, col, 0.0f, dot))
+               .key(key)});
     };
     auto ell = [&](SkPoint c, float a, float b, float tilt, SkColor4f col,
                    float w, const char* key) {
@@ -100,17 +101,18 @@ struct LainNavi : sketch::Sketch {
     // the axis: a REAL line, not a rendered artifact of the surface, and it
     // does not pass through the waist centre — measured x 501..505 against a
     // waist centred on 498.
-    g.child(box()
-                .inset(0)
-                .shape(keyedShape(
-                    std::string_view("wire-axis"),
-                    [](SkSize) {
-                      SkPathBuilder b;
-                      b.moveTo(503 + kWireShift.fX, 28 + kWireShift.fY);
-                      b.lineTo(503 + kWireShift.fX, 524 + kWireShift.fY);
-                      return b.detach();
-                    }))
-                .foreground(add(2.4f, mskia::scale(kWire, 0.72f), 0.7f)));
+    g.children({box()
+                    .inset(0)
+                    .shape(keyedShape(std::string_view("wire-axis"),
+                                      [](SkSize) {
+                                        SkPathBuilder b;
+                                        b.moveTo(503 + kWireShift.fX,
+                                                 28 + kWireShift.fY);
+                                        b.lineTo(503 + kWireShift.fX,
+                                                 524 + kWireShift.fY);
+                                        return b.detach();
+                                      }))
+                    .foreground(add(2.4f, mskia::scale(kWire, 0.72f), 0.7f))});
 
     // `make me feel alright?` stands UPRIGHT beside the orbit's lower-left
     // arc rather than riding it. A run laid on the conic is turned per
@@ -118,10 +120,10 @@ struct LainNavi : sketch::Sketch {
     // upright, large, in a plain face — so the arc places it and does not
     // shape it. The anchor is the run the conic was fitted through in the
     // first place, (185, 455) up to (840, 215).
-    g.child(text(u8"make me feel alright?",
-                 type(phraseFace(), 44.0f, kAlright, 1.2f))
-                .centerAt({455, 392})
-                .key("alright"));
+    g.children({text(u8"make me feel alright?",
+                     type(phraseFace(), 44.0f, kAlright, 1.2f))
+                    .centerAt({455, 392})
+                    .key("alright")});
     return g;
   }
 
@@ -150,19 +152,19 @@ struct LainNavi : sketch::Sketch {
       // in-flow sharp CORE sizes the box; the bloom rides over it as an
       // absolute overlay (a stack() measures to nothing here and shoots the
       // run out of its own centre)
-      g.child(box()
-                  .centerAt(p.centre)
-                  .key("ph" + std::to_string(i))
-                  .child(text(std::u8string(p.text),
-                              type(serifFace(), p.size, mskia::scale(c, 0.42f),
-                                   6.5f))
-                             .inset(0))
-                  .child(text(std::u8string(p.text),
-                              type(serifFace(), p.size, mskia::scale(c, 0.55f),
-                                   2.2f))
-                             .inset(0))
-                  .child(text(std::u8string(p.text),
-                              type(serifFace(), p.size, c, 0.7f))));
+      g.children({box()
+                      .centerAt(p.centre)
+                      .key("ph" + std::to_string(i))
+                      .children({text(std::u8string(p.text),
+                                      type(serifFace(), p.size,
+                                           mskia::scale(c, 0.42f), 6.5f))
+                                     .inset(0)})
+                      .children({text(std::u8string(p.text),
+                                      type(serifFace(), p.size,
+                                           mskia::scale(c, 0.55f), 2.2f))
+                                     .inset(0)})
+                      .children({text(std::u8string(p.text),
+                                      type(serifFace(), p.size, c, 0.7f))})});
     }
     return g;
   }
@@ -176,11 +178,11 @@ struct LainNavi : sketch::Sketch {
     // not add. It is the BOTTOM: the #060719 ground is folded into its shader
     // and it composites kSrcOver, which is what keeps it off the every-frame
     // saveLayer that Cache::Texture plus .blend() would force.
-    root.child(box()
-                   .inset(0)
-                   .fill(mskia::Paint::sksl(plateEffect()))
-                   .cache(Cache::Texture)
-                   .key("plate"));
+    root.children({box()
+                       .inset(0)
+                       .fill(mskia::Paint::sksl(plateEffect()))
+                       .cache(Cache::Texture)
+                       .key("plate")});
 
     // S1 — the Japanese prose, FULL BLEED: it starts above the frame and runs
     // off all four edges. Leading 48-50 measured; nothing about it is aligned
@@ -193,38 +195,38 @@ struct LainNavi : sketch::Sketch {
         // what a right-to-left vertical original looks like when it is set
         // horizontally by a compositor who did not care
         const float x = -34.0f + 14.0f * std::sin((float)i * 1.7f);
-        g.child(text(std::u8string(kProseLines[i]),
-                     type(minchoFace(), proseSize, kProse, 0.95f, 1.5f))
-                    .at({x, y})
-                    .key("prose" + std::to_string(i)));
+        g.children({text(std::u8string(kProseLines[i]),
+                         type(minchoFace(), proseSize, kProse, 0.95f, 1.5f))
+                        .at({x, y})
+                        .key("prose" + std::to_string(i))});
       }
-      root.child(std::move(g));
+      root.children({std::move(g)});
     }
 
     // S2 — the lightened panel. Measured x 190..470, y 100..380, and it is
     // soft-edged: a radial ramp to nothing rather than a rect with a blur.
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(178, 88, 304, 304))
-                   .fill(mskia::Paint::radialUnit(
-                       {0.48f, 0.46f}, 0.95f,
-                       {{0.0f, kPanel},
-                        {0.55f, mskia::scale(kPanel, 0.86f)},
-                        {0.86f, mskia::scale(kPanel, 0.30f)},
-                        {1.0f, mskia::scale(kPanel, 0.0f)}}))
-                   .blend(SkBlendMode::kPlus)
-                   .cache(Cache::Texture)
-                   .key("panel"));
+    root.children({box()
+                       .rect(SkRect::MakeXYWH(178, 88, 304, 304))
+                       .fill(mskia::Paint::radialUnit(
+                           {0.48f, 0.46f}, 0.95f,
+                           {{0.0f, kPanel},
+                            {0.55f, mskia::scale(kPanel, 0.86f)},
+                            {0.86f, mskia::scale(kPanel, 0.30f)},
+                            {1.0f, mskia::scale(kPanel, 0.0f)}}))
+                       .blend(SkBlendMode::kPlus)
+                       .cache(Cache::Texture)
+                       .key("panel")});
 
     // ---- S3, THE CONSOLE WINDOW ---------------------------------------------
 
     // the body: one radial pedestal that is also the eye's rings
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(kBodyL, kBodyT, kBodyR - kBodyL,
-                                          kBodyB - kBodyT))
-                   .fill(pedestal())
-                   .blend(SkBlendMode::kPlus)
-                   .cache(Cache::Texture)
-                   .key("body"));
+    root.children({box()
+                       .rect(SkRect::MakeXYWH(kBodyL, kBodyT, kBodyR - kBodyL,
+                                              kBodyB - kBodyT))
+                       .fill(pedestal())
+                       .blend(SkBlendMode::kPlus)
+                       .cache(Cache::Texture)
+                       .key("body")});
 
     // the eye's remaining topology — eyelids, four satellites, the stem.
     // Enormously blurred: on the plate it is barely above the pedestal.
@@ -239,104 +241,107 @@ struct LainNavi : sketch::Sketch {
     // is also why Texture is excluded from the direct-blend path.
     // Bounded to the eye's own box, so the bake covers the eye and not the
     // whole canvas.
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(370, 150, 376, 400))
-                   .shape(keyedShape(std::string_view("eye-furniture"),
-                                     [](SkSize s) {
-                                       return eyeFurniture({s.width() * 0.5f,
-                                                            s.height() * 0.46f},
-                                                           92.0f);
-                                     }))
-                   .foreground(LayeredBrush{{{24.0f,
-                                              hexColor(0x070C17),
-                                              13.0f,
-                                              {},
-                                              0,
-                                              SkBlendMode::kPlus,
-                                              true},
-                                             {9.0f,
-                                              hexColor(0x0A1120),
-                                              5.0f,
-                                              {},
-                                              0,
-                                              SkBlendMode::kPlus,
-                                              true}}})
-                   .blend(SkBlendMode::kPlus)
-                   .cache(Cache::Texture)
-                   .key("eye"));
+    root.children({box()
+                       .rect(SkRect::MakeXYWH(370, 150, 376, 400))
+                       .shape(keyedShape(
+                           std::string_view("eye-furniture"),
+                           [](SkSize s) {
+                             return eyeFurniture(
+                                 {s.width() * 0.5f, s.height() * 0.46f}, 92.0f);
+                           }))
+                       .foreground(LayeredBrush{{{24.0f,
+                                                  hexColor(0x070C17),
+                                                  13.0f,
+                                                  {},
+                                                  0,
+                                                  SkBlendMode::kPlus,
+                                                  true},
+                                                 {9.0f,
+                                                  hexColor(0x0A1120),
+                                                  5.0f,
+                                                  {},
+                                                  0,
+                                                  SkBlendMode::kPlus,
+                                                  true}}})
+                       .blend(SkBlendMode::kPlus)
+                       .cache(Cache::Texture)
+                       .key("eye")});
 
     // the side rails: single hairlines at the body's own edges, dimmer than
     // the bars. No corner anywhere — the bars simply overhang them.
-    root.child(box()
-                   .inset(0)
-                   .shape(keyedShape(std::string_view("side-rails"),
-                                     [](SkSize) {
-                                       SkPathBuilder b;
-                                       b.moveTo(kBodyL, kBarTopB - 4);
-                                       b.lineTo(kBodyL + 8, kBarBotT + 4);
-                                       b.moveTo(kBodyR, kBarTopB - 4);
-                                       b.lineTo(kBodyR - 6, kBarBotT + 4);
-                                       return b.detach();
-                                     }))
-                   .foreground(add(2.0f, kRail, 0.8f))
-                   .key("rails"));
+    root.children({box()
+                       .inset(0)
+                       .shape(keyedShape(std::string_view("side-rails"),
+                                         [](SkSize) {
+                                           SkPathBuilder b;
+                                           b.moveTo(kBodyL, kBarTopB - 4);
+                                           b.lineTo(kBodyL + 8, kBarBotT + 4);
+                                           b.moveTo(kBodyR, kBarTopB - 4);
+                                           b.lineTo(kBodyR - 6, kBarBotT + 4);
+                                           return b.detach();
+                                         }))
+                       .foreground(add(2.0f, kRail, 0.8f))
+                       .key("rails")});
 
     // the MIPS block, in its own slot: it re-describes 4.5 times a second and
     // nothing else in the frame should be dirtied by that
-    root.child(slot("mips"));
+    root.children({slot("mips")});
 
     // the two chrome bars — parallelograms with opposite shear and an inverse
     // bevel each, the bottom one brighter. This is the only heavy element in
     // the interface and its 30 px against 2 px hairlines IS the contrast
     // structure.
-    root.child(
-        box()
-            .rect(SkRect::MakeXYWH(kBarTopL, kBarTopT, kBarTopR - kBarTopL,
-                                   kBarTopB - kBarTopT))
-            .shape(barOutline(kShearTop))
-            .fill(barBevel(kBarTopHi, kBarTopLo, 0.72f))
-            .blend(SkBlendMode::kPlus)
-            .cache(Cache::Texture)
-            .key("barTop"));
-    root.child(
-        box()
-            .rect(SkRect::MakeXYWH(kBarBotL, kBarBotT, kBarBotR - kBarBotL,
-                                   kBarBotB - kBarBotT))
-            .shape(barOutline(kShearBot))
-            .fill(barBevel(kBarBotHi, kBarBotLo, 1.02f))
-            .blend(SkBlendMode::kPlus)
-            .cache(Cache::Texture)
-            .key("barBot"));
+    root.children(
+        {box()
+             .rect(SkRect::MakeXYWH(kBarTopL, kBarTopT, kBarTopR - kBarTopL,
+                                    kBarTopB - kBarTopT))
+             .shape(barOutline(kShearTop))
+             .fill(barBevel(kBarTopHi, kBarTopLo, 0.72f))
+             .blend(SkBlendMode::kPlus)
+             .cache(Cache::Texture)
+             .key("barTop")});
+    root.children(
+        {box()
+             .rect(SkRect::MakeXYWH(kBarBotL, kBarBotT, kBarBotR - kBarBotL,
+                                    kBarBotB - kBarBotT))
+             .shape(barOutline(kShearBot))
+             .fill(barBevel(kBarBotHi, kBarBotLo, 1.02f))
+             .blend(SkBlendMode::kPlus)
+             .cache(Cache::Texture)
+             .key("barBot")});
 
     // the rotated Copland lockup, up the left margin at -55 deg. Documented
     // wordmark, verbatim off the boot plate and the ASCII transcription both.
-    root.child(
-        box()
-            .centerAt({88, 300})
-            .rotate(-55.0f)
-            .column()
-            .alignItems(Align::Center)
-            .gap(1)
-            .key("wordmark")
-            .child(text(u8"Copland OS Enterprise",
-                        type(serifItalicFace(), 34, kWordmark, 1.9f, 1.0f)))
-            .child(text(u8"Produced By Tachibana Lab",
-                        type(serifItalicFace(), 16,
-                             mskia::scale(kWordmark, 0.7f), 1.6f, 0.8f))));
+    root.children({box()
+                       .centerAt({88, 300})
+                       .rotate(-55.0f)
+                       .column()
+                       .alignItems(Align::Center)
+                       .gap(1)
+                       .key("wordmark")
+                       .children({text(
+                           u8"Copland OS Enterprise",
+                           type(serifItalicFace(), 34, kWordmark, 1.9f, 1.0f))})
+                       .children({text(
+                           u8"Produced By Tachibana Lab",
+                           type(serifItalicFace(), 16,
+                                mskia::scale(kWordmark, 0.7f), 1.6f, 0.8f))})});
 
     // ---- S4..S8, the Layer 07 strata over the window ------------------------
-    root.child(slot("wire"));
+    root.children({slot("wire")});
 
     // `cover me` — the only warm thing in the frame, set upright as a
     // title. x 576..884, y 136..229 measured.
-    root.child(
-        box()
-            .centerAt({730, 182})
-            .key("cover")
-            .child(text(u8"cover me", type(phraseFace(), 62,
-                                           mskia::scale(kCover, 0.5f), 6.5f))
-                       .centerAt({0, 0}))
-            .child(text(u8"cover me", type(phraseFace(), 62, kCover, 1.4f))));
+    root.children(
+        {box()
+             .centerAt({730, 182})
+             .key("cover")
+             .children(
+                 {text(u8"cover me",
+                       type(phraseFace(), 62, mskia::scale(kCover, 0.5f), 6.5f))
+                      .centerAt({0, 0})})
+             .children(
+                 {text(u8"cover me", type(phraseFace(), 62, kCover, 1.4f))})});
 
     // the magenta streaks, x 466..869, y 483..639: horizontal smears, not
     // shapes — three bands of different length at different heights, blurred
@@ -355,20 +360,20 @@ struct LainNavi : sketch::Sketch {
                                  {640, 574, 190, 0.85f},
                                  {742, 604, 118, 0.48f}};
       for (const auto& b : bands)
-        g.child(box()
-                    .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
-                    .fill(mskia::Paint::linearUnit(
-                        {0, 0}, {1, 0},
-                        {{0.0f, mskia::scale(kMagenta, 0.0f)},
-                         {0.30f, mskia::scale(kMagenta, b[3])},
-                         {0.68f, mskia::scale(kMagenta, b[3] * 0.8f)},
-                         {1.0f, mskia::scale(kMagenta, 0.0f)}}))
-                    .blend(SkBlendMode::kPlus)
-                    .cache(Cache::Texture));
-      root.child(std::move(g));
+        g.children({box()
+                        .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
+                        .fill(mskia::Paint::linearUnit(
+                            {0, 0}, {1, 0},
+                            {{0.0f, mskia::scale(kMagenta, 0.0f)},
+                             {0.30f, mskia::scale(kMagenta, b[3])},
+                             {0.68f, mskia::scale(kMagenta, b[3] * 0.8f)},
+                             {1.0f, mskia::scale(kMagenta, 0.0f)}}))
+                        .blend(SkBlendMode::kPlus)
+                        .cache(Cache::Texture)});
+      root.children({std::move(g)});
     }
 
-    root.child(slot("phrases"));
+    root.children({slot("phrases")});
 
     // ---- the tube -----------------------------------------------------------
     // The creep rides this wrapper rather than the baked node beneath it.
@@ -378,17 +383,17 @@ struct LainNavi : sketch::Sketch {
     // node's transform belongs on a parent that owns no paint, so that a
     // moving transform can never become an input to the bake. The next study
     // reading this should not assume there is a bug behind it.
-    root.child(box().inset(0).translateY(&creep).child(
-        box()
-            .rect(SkRect::MakeXYWH(0, -12, kW, kH + 24))
-            .fill(mskia::Paint::recipe(crtTube()))
-            .cache(Cache::Texture)
-            .key("crt")));
-    root.child(box()
-                   .inset(0)
-                   .fill(Fill::color({0, 0, 0, 1}))
-                   .opacity(&flicker)
-                   .key("flicker"));
+    root.children({box().inset(0).translateY(&creep).children(
+        {box()
+             .rect(SkRect::MakeXYWH(0, -12, kW, kH + 24))
+             .fill(mskia::Paint::recipe(crtTube()))
+             .cache(Cache::Texture)
+             .key("crt")})});
+    root.children({box()
+                       .inset(0)
+                       .fill(Fill::color({0, 0, 0, 1}))
+                       .opacity(&flicker)
+                       .key("flicker")});
     return root;
   }
 

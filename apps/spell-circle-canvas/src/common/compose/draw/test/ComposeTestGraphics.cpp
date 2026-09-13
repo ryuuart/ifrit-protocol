@@ -17,14 +17,14 @@ using sigil::draw::Pen;
 
 TEST(GraphicsNode, KeepsWhatAnEarlierFrameDrew) {
   Host host;
-  host.composer.render(
-      stack().child(graphics([](Pen& pen) {
-                      pen.noStroke();
-                      pen.fill(255, 0, 0);
-                      pen.rect((float)(pen.frameCount - 1) * 10.0f, 0, 10, 10);
-                    })
-                        .width(50)
-                        .height(50)));
+  host.composer.render(stack().children(
+      {graphics([](Pen& pen) {
+         pen.noStroke();
+         pen.fill(255, 0, 0);
+         pen.rect((float)(pen.frameCount - 1) * 10.0f, 0, 10, 10);
+       })
+           .width(50)
+           .height(50)}));
   host.frame();
   host.frame(1.0 / 60.0);
   EXPECT_EQ(host.pixel(5, 5), SK_ColorRED) << "the first frame's block";
@@ -33,14 +33,14 @@ TEST(GraphicsNode, KeepsWhatAnEarlierFrameDrew) {
 
 TEST(DrawNode, APenNodeRepaintsFromNothing) {
   Host host;
-  host.composer.render(
-      stack().child(pen([](Pen& pen) {
-                      pen.noStroke();
-                      pen.fill(255, 0, 0);
-                      pen.rect((float)(pen.frameCount - 1) * 10.0f, 0, 10, 10);
-                    })
-                        .width(50)
-                        .height(50)));
+  host.composer.render(stack().children(
+      {pen([](Pen& pen) {
+         pen.noStroke();
+         pen.fill(255, 0, 0);
+         pen.rect((float)(pen.frameCount - 1) * 10.0f, 0, 10, 10);
+       })
+           .width(50)
+           .height(50)}));
   host.frame();
   host.frame(1.0 / 60.0);
   // The same program on a pen node: there is no surface under it, so only
@@ -52,15 +52,15 @@ TEST(DrawNode, APenNodeRepaintsFromNothing) {
 TEST(GraphicsNode, NoLoopStopsTheProgramAndTheSurfaceIsStillPutDown) {
   Host host;
   int runs = 0;
-  host.composer.render(stack().child(graphics([&runs](Pen& pen) {
-                                       ++runs;
-                                       pen.noStroke();
-                                       pen.fill(255, 0, 0);
-                                       pen.rect(0, 0, 10, 10);
-                                       pen.noLoop();
-                                     })
-                                         .width(50)
-                                         .height(50)));
+  host.composer.render(stack().children({graphics([&runs](Pen& pen) {
+                                           ++runs;
+                                           pen.noStroke();
+                                           pen.fill(255, 0, 0);
+                                           pen.rect(0, 0, 10, 10);
+                                           pen.noLoop();
+                                         })
+                                             .width(50)
+                                             .height(50)}));
   host.frame();
   host.frame(1.0 / 60.0);
   host.frame(1.0 / 60.0);
@@ -71,13 +71,13 @@ TEST(GraphicsNode, NoLoopStopsTheProgramAndTheSurfaceIsStillPutDown) {
 TEST(GraphicsNode, RedrawRunsTheProgramOnce) {
   Host host;
   int runs = 0;
-  host.composer.render(stack().child(graphics([&runs](Pen& pen) {
-                                       ++runs;
-                                       pen.noLoop();
-                                       if (runs == 1) pen.redraw();
-                                     })
-                                         .width(50)
-                                         .height(50)));
+  host.composer.render(stack().children({graphics([&runs](Pen& pen) {
+                                           ++runs;
+                                           pen.noLoop();
+                                           if (runs == 1) pen.redraw();
+                                         })
+                                             .width(50)
+                                             .height(50)}));
   host.frame();
   host.frame(1.0 / 60.0);
   host.frame(1.0 / 60.0);
@@ -88,16 +88,16 @@ TEST(GraphicsNode, ThePointerReachesTheProgramInTheNodesOwnBox) {
   Host host;
   float x = -1, y = -1;
   bool pressed = false;
-  host.composer.render(stack().child(graphics([&](Pen& pen) {
-                                       x = pen.mouseX;
-                                       y = pen.mouseY;
-                                       pressed = pen.mouseIsPressed;
-                                     })
-                                         .absolute()
-                                         .left(20)
-                                         .top(10)
-                                         .width(50)
-                                         .height(50)));
+  host.composer.render(stack().children({graphics([&](Pen& pen) {
+                                           x = pen.mouseX;
+                                           y = pen.mouseY;
+                                           pressed = pen.mouseIsPressed;
+                                         })
+                                             .absolute()
+                                             .left(20)
+                                             .top(10)
+                                             .width(50)
+                                             .height(50)}));
   host.composer.setPointer({30, 15}, true);
   host.frame();
   EXPECT_FLOAT_EQ(x, 10.0f) << "the canvas point, less the node's corner";
@@ -115,14 +115,14 @@ TEST(GraphicsNode, TheKeysReachTheProgram) {
   bool down = false, aHeld = false;
   std::string key;
   int code = 0;
-  host.composer.render(stack().child(graphics([&](Pen& pen) {
-                                       down = pen.keyIsPressed;
-                                       key = pen.key;
-                                       code = pen.keyCode;
-                                       aHeld = pen.keyIsDown(65);
-                                     })
-                                         .width(50)
-                                         .height(50)));
+  host.composer.render(stack().children({graphics([&](Pen& pen) {
+                                           down = pen.keyIsPressed;
+                                           key = pen.key;
+                                           code = pen.keyCode;
+                                           aHeld = pen.keyIsDown(65);
+                                         })
+                                             .width(50)
+                                             .height(50)}));
   host.composer.setKey("a", 65, true);
   host.frame();
   EXPECT_TRUE(down);
@@ -142,14 +142,14 @@ TEST(GraphicsNode, TheProgramCountsItsOwnRunsAndItsOwnStep) {
   host.composer.setClock(&clock);
   std::vector<int> counts;
   std::vector<double> steps;
-  host.composer.render(stack().child(graphics([&](Pen& pen) {
-                                       if (pen.frameCount == 1)
-                                         pen.frameRate(30);
-                                       counts.push_back(pen.frameCount);
-                                       steps.push_back(pen.deltaTime);
-                                     })
-                                         .width(50)
-                                         .height(50)));
+  host.composer.render(stack().children({graphics([&](Pen& pen) {
+                                           if (pen.frameCount == 1)
+                                             pen.frameRate(30);
+                                           counts.push_back(pen.frameCount);
+                                           steps.push_back(pen.deltaTime);
+                                         })
+                                             .width(50)
+                                             .height(50)}));
   host.frame();
   for (int i = 0; i < 3; ++i) {
     clock.advance(1.0 / 60.0);
@@ -168,10 +168,10 @@ TEST(GraphicsNode, TheCanvasIsFormedNoCoarserThanTheBakeDensity) {
   Host host;
   float density = 0;
   host.composer.setBakeDensity(2.0f);
-  host.composer.render(
-      stack().child(graphics([&](Pen& pen) { density = pen.contentScale(); })
-                        .width(50)
-                        .height(50)));
+  host.composer.render(stack().children(
+      {graphics([&](Pen& pen) { density = pen.contentScale(); })
+           .width(50)
+           .height(50)}));
   host.frame();
   EXPECT_FLOAT_EQ(density, 2.0f)
       << "formed at the declared density on a canvas drawn at one";

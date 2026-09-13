@@ -165,11 +165,10 @@ struct ScatteredModel final : sketch::Set {
                 {.baseColor = {1, 1, 1, 1}, .roughness = 0.65f}))
             .tag("dust");
 
-    return world::Frame(world::kit::litSet(world::Element()
-                                               .key("subject")
-                                               .child(std::move(core))
-                                               .child(std::move(shell)),
-                                           set, seconds));
+    return world::Frame(
+        world::kit::litSet(world::Element().key("subject").children(
+                               {std::move(core), std::move(shell)}),
+                           set, seconds));
   }
 };
 

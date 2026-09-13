@@ -11,10 +11,7 @@ auto Minard1869::describe(sketch::SketchContext& ctx) -> Element {
   sketch::kit::Provide look(sheetLook);
   return box()
       .fill(Paint::solid(kDesk))
-      .child(titleStrip())
-      .child(sheet(ctx))
-      .child(auditColumn())
-      .child(consoleStrip());
+      .children({titleStrip(), sheet(ctx), auditColumn(), consoleStrip()});
 }
 
 auto Minard1869::setup(sketch::SketchContext& ctx) -> void {

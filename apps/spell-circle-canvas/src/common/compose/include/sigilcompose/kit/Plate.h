@@ -118,8 +118,8 @@ struct Plate {
   bool first = true;
   for (Element& col : p.columns) {
     if (!first && dividers)
-      inner.child(p.column ? box().height(p.dividerWidth).fill(p.divider)
-                           : box().width(p.dividerWidth).fill(p.divider));
+      inner.children({p.column ? box().height(p.dividerWidth).fill(p.divider)
+                               : box().width(p.dividerWidth).fill(p.divider)});
     first = false;
     // Shared-space columns go in DIRECTLY with grow(1) — no wrapper box. The
     // difference is not cosmetic: as a flex child of the row a feed also
@@ -127,17 +127,17 @@ struct Plate {
     // its content height and leave the rest of the cell empty.
     if (p.columnExtent <= 0) {
       col.grow(1);
-      inner.child(std::move(col));
+      inner.children({std::move(col)});
       continue;
     }
-    Element cell = box().child(std::move(col));
+    Element cell = box().children({std::move(col)});
     if (p.column)
       cell.height(p.columnExtent);
     else
       cell.width(p.columnExtent);
-    inner.child(std::move(cell));
+    inner.children({std::move(cell)});
   }
-  ground.child(std::move(inner));
+  ground.children({std::move(inner)});
   return ground;
 }
 
@@ -187,7 +187,8 @@ struct Console {
     Element stack = box().column().gap(c.stackGap);
     const size_t end = std::min(i + per, c.feeds.size());
     for (size_t j = i; j < end; ++j)
-      if (c.feeds[j]) stack.child(feed::feed(*c.feeds[j], c.style).grow(1));
+      if (c.feeds[j])
+        stack.children({feed::feed(*c.feeds[j], c.style).grow(1)});
     columns.push_back(std::move(stack));
   }
   c.plate.columns = std::move(columns);

@@ -11,24 +11,24 @@ and the ones that name nothing say so.
 
 | Control | Status | Where | From compose |
 | --- | --- | --- | --- |
-| Alignment: left / centre / right / justify variants | done, per block | `ParagraphStyle::alignment` | `Element::textAlign`; per block through `Element::paragraphs` |
-| Justification: word spacing min/desired/max | done | `JustificationOptions::wordSpacing`, `spaceStretch`, `spaceShrink` | `Element::justification` |
-| Justification: letter spacing min/desired/max | done | `JustificationOptions::letterSpacing*` | `Element::justification` |
-| Justification: glyph scaling min/desired/max | done | `JustificationOptions::glyphScale*` | `Element::justification` |
-| Justification: single-word rule | done | `JustificationOptions::singleWord` | `Element::justification` |
+| Alignment: left / centre / right / justify variants | done, per block | `ParagraphStyle::alignment` | `Element::block` (`Block::alignment`); per block through `Element::paragraphs` |
+| Justification: word spacing min/desired/max | done | `JustificationOptions::wordSpacing`, `spaceStretch`, `spaceShrink` | `Element::block` (`Block::justification`) |
+| Justification: letter spacing min/desired/max | done | `JustificationOptions::letterSpacing*` | `Element::block` (`Block::justification`) |
+| Justification: glyph scaling min/desired/max | done | `JustificationOptions::glyphScale*` | `Element::block` (`Block::justification`) |
+| Justification: single-word rule | done | `JustificationOptions::singleWord` | `Element::block` (`Block::justification`) |
 | Left / right / first-line / last-line indent | done | `IndentOptions` | `ParagraphStyle::indent`, through `Element::paragraphs` |
 | Space before / after | done, larger-of | `ParagraphStyle::spaceBefore`, `spaceAfter` | through `Element::paragraphs` |
 | Leading: auto, multiple, absolute, baseline grid | done | `Leading` | `ParagraphStyle::leading`, through `Element::paragraphs` |
 | Leading: all above the line, or half above and half below | done | `ParagraphStyle::halfLeading` | through `Element::paragraphs` |
 | Keep: widows, orphans, with next, all lines together, start in next frame | done — enforced at the frame boundary by retracting lines into the next fill, under both breakers | `KeepOptions` | `ParagraphStyle::keep`, through `Element::paragraphs` |
-| Hyphenation: pattern dictionary | done, for any language that has a pattern table — the engine matches letters of any script and a table declares the language it answers for; the kit carries English and a caller loads the rest | `HyphenationOptions::patterns`, `kit::PatternHyphenator`, `kit::englishHyphenationPatterns` | `Element::hyphenation` |
-| Hyphenation: minimum word, letters before / after, capitalised words | done | `HyphenationLimits` | `Element::hyphenation` |
-| Hyphenation: consecutive limit, last word of a block | done | `HyphenationOptions` | `Element::hyphenation`; per block through `Element::paragraphs` |
-| Hyphenation: zone | done, both breakers | `HyphenationOptions::zone` | `Element::hyphenation` |
-| Composer: single-line vs paragraph | done | `LineBreakStrategy` | `Element::lineBreak` |
+| Hyphenation: pattern dictionary | done, for any language that has a pattern table — the engine matches letters of any script and a table declares the language it answers for; the kit carries English and a caller loads the rest | `HyphenationOptions::patterns`, `kit::PatternHyphenator`, `kit::englishHyphenationPatterns` | `Element::block` (`Block::hyphenation`) |
+| Hyphenation: minimum word, letters before / after, capitalised words | done | `HyphenationLimits` | `Element::block` (`Block::hyphenation`) |
+| Hyphenation: consecutive limit, last word of a block | done | `HyphenationOptions` | `Element::block` (`Block::hyphenation`); per block through `Element::paragraphs` |
+| Hyphenation: zone | done, both breakers | `HyphenationOptions::zone` | `Element::block` (`Block::hyphenation`) |
+| Composer: single-line vs paragraph | done | `LineBreakStrategy` | `Element::block` (`Block::lineBreak`) |
 | Composer: balance ragged lines | done — a bisection for the narrowest measure that keeps the line count, with the last line scored like every other. The narrowing is a FRACTION of each interval's own length, so a block an exclusion cut into unequal lines gives up the same proportion of every one of them; over a uniform measure the two searches coincide. ONE APPROXIMATION remains: the bisection stops after a fixed number of steps rather than at the exact fraction where the count turns over | `ParagraphStyle::balanceRaggedLines` | through `Element::paragraphs` |
 | Composer: the live composer, and the budget under it | done — a moving input is declared, break decisions are kept per thread and reused at a measure already crossed, and a block the budget cannot finish is filled greedily for that frame and counted | `ParagraphLayoutOptions::live`, `KnuthPlassOptions::budgetMicroseconds`, `ParagraphLayout::reusedBlocks`, `degradedBlocks` | `Element::live`, reported by `Composer::settling` |
-| Optical margin alignment (hanging punctuation) | done | `HangingTable`, `kit::hanging` | `Element::hanging` |
+| Optical margin alignment (hanging punctuation) | done | `HangingTable`, `kit::hanging` | `Element::block` (`Block::hanging`) |
 | Initial letter: lines × graphemes | done — a block property, not a second element. The size is DERIVED: the initial's reference metric reaches from the first line's reference point to the baseline it sinks to, so a cap spans the lines it is given in any face. The notch is cut by wrapping the geometry, so exclusions, columns and contours all get it | `InitialLetter`, `initialLetterSize`, `ParagraphStyle::initial`, `ParagraphLayout::initial` | `Element::initialLetter` |
 | Initial letter: sink and raise | done — `sink` is lines below the first baseline, negative raising it above; unset drops the initial to the last line it spans | `InitialLetter::sink` | `Element::initialLetter` |
 | Initial letter: alphabetic / ideographic / hanging alignment | done — which reference metric the two alignments are made on: cap height, em box, or ascent | `InitialLetter::Align` | `Element::initialLetter` |
@@ -36,7 +36,7 @@ and the ones that name nothing say so.
 | Initial letter: an ORNAMENT instead of a letter | done as an ordinary exclusion — a keyed element with a silhouette, and a body that flows around that key | `ExclusionFlow` | `Element::key` with `Element::flowAround` |
 | Nested style | done as compose kit — the run stated in the text's own terms (words, a character count, or through a delimiter) and applied as a span restyle | `kit::NestedStyle`, `kit::nestedRun` | `kit::nestedRun` with `Element::spanStyle` |
 | Bullets and numbering | done as compose kit | `kit::bullets` | `kit::bullets` |
-| Tabs: position, leaders, alignment on a character | done | `TabStop` | `Element::tabStops`; per block through `Element::paragraphs` |
+| Tabs: position, leaders, alignment on a character | done | `TabStop` | `Element::block` (`Block::tabStops`); per block through `Element::paragraphs` |
 | Paragraph rules above / below, shading | done as compose kit | `kit::rules` | `kit::rules` |
 | Paragraph border | **not started** | — | — |
 | Nested styles, GREP styles, line styles | exists | `selectors::regex`, `selectors::line`, span restyling | `Element::spanStyle`, `Element::spanPaint` over the same selectors, plus compose's own `selectors::style` for a named run |
@@ -70,14 +70,14 @@ and the ones that name nothing say so.
 | Room reserved beside every line | done — a layout input, in the strut before anything is broken | `ReservedBand`, `ParagraphStyle::reserved` | `Element::reserve`; `Element::annotate` reserves its own on top |
 | Type on a path: orient, flip, start / end, align | exists | `PathFlow`, compose `onPath` | `Element::onPath` |
 | Type on a path: effects (skew, stair, gravity) | **not started** | — | — |
-| Vertical writing (CJK columns) | exists | `WritingMode::kVerticalRL` on the Paragraph | `Element::writingMode` |
+| Vertical writing (CJK columns) | exists | `WritingMode::kVerticalRL` on the Paragraph | `Element::block` (`Block::writingMode`) |
 | CJK: tate-chu-yoko | exists | `VerticalForm::kTateChuYoko` | the same field on a run's style; `Element::spanStyle` |
 | CJK: ruby — mono, group, jukugo | done | `layout/Beside.h`; compose `Annotation`, `kit::ruby` | `Element::annotate`, `kit::ruby` |
 | CJK: kenten | done | `kit::kenten` | `Element::annotate`, `kit::kenten` |
-| CJK: kinsoku | done — ICU's own strict/loose tailoring under a locale, plus a table over the segmentation for a house's own additions; the stock table is derived from the line-break class each character carries, narrowed to the full-width cell | `Paragraph::setLineBreakLocale`, `KinsokuTable`, `kit::kinsoku` | `Element::lineBreakLocale`, `Element::kinsoku` |
-| CJK: burasagari | done — the hanging table, along the column | `HangingTable` | `Element::hanging` |
-| CJK: mojikumi (per-class spacing) | done, as a table over the gaps between words — the class of each character is the table's, whether a character is full-width at all is Unicode's | `MojikumiTable`, `ParagraphLayoutOptions::mojikumi` | `Element::mojikumi` |
-| CJK: tsume | done, as a fraction closed at every gap between two plain full-width characters. LIMIT: two characters shaped inside one word are set by the face and the shaper, and no fraction here moves them | `ParagraphLayoutOptions::tsume` | `Element::mojikumi`'s second argument |
+| CJK: kinsoku | done — ICU's own strict/loose tailoring under a locale, plus a table over the segmentation for a house's own additions; the stock table is derived from the line-break class each character carries, narrowed to the full-width cell | `Paragraph::setLineBreakLocale`, `KinsokuTable`, `kit::kinsoku` | `Element::block` (`Block::lineBreakLocale`), `Element::block` (`Block::kinsoku`) |
+| CJK: burasagari | done — the hanging table, along the column | `HangingTable` | `Element::block` (`Block::hanging`) |
+| CJK: mojikumi (per-class spacing) | done, as a table over the gaps between words — the class of each character is the table's, whether a character is full-width at all is Unicode's | `MojikumiTable`, `ParagraphLayoutOptions::mojikumi` | `Element::block` (`Block::mojikumi`) |
+| CJK: tsume | done, as a fraction closed at every gap between two plain full-width characters. LIMIT: two characters shaped inside one word are set by the face and the shaper, and no fraction here moves them | `ParagraphLayoutOptions::tsume` | `Block::tsume` |
 | CJK: warichu | done — the note is cut where its two lines come closest in length and stacked inside the slot the base reserved | `warichuSplit`, `layoutWarichu` | **weave only.** The slot has to be sized from the note's own split, which is a question for a font context, and a compose description is written before there is one — so no verb reserves it yet. A caller holding a `FontContext` calls the two functions directly |
 | Baseline grid | done | `Leading::grid` | `Leading::grid` through `Element::paragraphs` |
 | Frame grid (CJK cell grid) | **not started** | — | — |

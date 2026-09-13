@@ -19,7 +19,7 @@ Element arrangement(std::vector<Element> children,
                                       .down = down})
                      .row()
                      .alignItems(measuredAlign);
-  for (Element& cell : children) grid.child(std::move(cell));
+  for (Element& cell : children) grid.children({std::move(cell)});
   return grid;
 }
 
@@ -66,10 +66,10 @@ Element cells(Cells run) {
       // The rule spans the run's whole cross extent whatever the cells'
       // own alignment is: a rule that stopped at the tallest cell's top
       // would read as a tick.
-      shelf.child(rule.fill(run.divider).alignSelf(Align::Stretch));
+      shelf.children({rule.fill(run.divider).alignSelf(Align::Stretch)});
     }
     first = false;
-    shelf.child(std::move(cell));
+    shelf.children({std::move(cell)});
   }
   return shelf;
 }

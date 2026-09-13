@@ -11,13 +11,13 @@ Element hairlinePill() {
   Element p =
       box().width(196).height(33).fill(Fill::color({0.85f, 0.86f, 0.9f, 1}));
   for (int i = 0; i < 46; ++i)
-    p.child(box()
-                .absolute()
-                .left(4 + (float)i * 4)
-                .top(5)
-                .width(1)
-                .height(23)
-                .fill(Fill::color({0.05f, 0.06f, 0.08f, 1})));
+    p.children({box()
+                    .absolute()
+                    .left(4 + (float)i * 4)
+                    .top(5)
+                    .width(1)
+                    .height(23)
+                    .fill(Fill::color({0.05f, 0.06f, 0.08f, 1}))});
   return p;
 }
 
@@ -32,7 +32,7 @@ Element hairlinePill() {
 Element rotatedPill(float degrees, bool cached) {
   Element p = hairlinePill().absolute().left(52).top(133).rotate(degrees);
   if (cached) p.cache(Cache::Texture);
-  return box().cache(Cache::None).child(std::move(p));
+  return box().cache(Cache::None).children({std::move(p)});
 }
 
 /** Pixels that differ at all, and the mean |Δ| over ink — the count is the
@@ -123,7 +123,7 @@ TEST(ComposeCache, ATextureBakeCompositesThroughItsOwnLayer) {
                     .opacity(0.5f)
                     .blend(SkBlendMode::kScreen);
     if (cached) p.cache(Cache::Texture);
-    return box().cache(Cache::None).child(std::move(p));
+    return box().cache(Cache::None).children({std::move(p)});
   };
   for (bool rotate : {false, true}) {
     Host plain(300, 300), baked(300, 300);
@@ -233,15 +233,15 @@ Element rampPanel(bool cached) {
           {0, 0}, {1, 1},
           {{0.0f, {0.9f, 0.3f, 0.1f, 1}}, {1.0f, {0.1f, 0.4f, 0.9f, 1}}}));
   for (int i = 0; i < 4; ++i)
-    p.child(box()
-                .absolute()
-                .left(15 + (float)i * 42)
-                .top(18)
-                .width(18)
-                .height(84)
-                .fill(Fill::color({0.92f, 0.93f, 0.95f, 1})));
+    p.children({box()
+                    .absolute()
+                    .left(15 + (float)i * 42)
+                    .top(18)
+                    .width(18)
+                    .height(84)
+                    .fill(Fill::color({0.92f, 0.93f, 0.95f, 1}))});
   if (cached) p.cache(Cache::Texture);
-  return box().cache(Cache::None).child(std::move(p));
+  return box().cache(Cache::None).children({std::move(p)});
 }
 
 }  // namespace
@@ -300,29 +300,29 @@ TEST(ComposeCache, ATextureBakeUnderPerspectiveTracksTheCamera) {
 TEST(ComposeCache, SparseFurnitureSurvivesAFractionalCaptureScale) {
   const auto scene = [](Cache cache) {
     auto furniture = box().inset(0).cache(cache);
-    furniture.child(
-        box()
-            .left(72)
-            .top(58)
-            .width(1296)
-            .height(936)
-            .fill(Fill::none())
-            .foreground(decorations::border(7, Fill::color({1, 1, 1, 1}))));
-    furniture.child(
-        box()
-            .left(442)
-            .top(311)
-            .width(556)
-            .height(556)
-            .shape(geometry::shapes::circle())
-            .fill(Fill::none())
-            .foreground(decorations::border(5, Fill::color({1, 1, 1, 1}))));
+    furniture.children(
+        {box()
+             .left(72)
+             .top(58)
+             .width(1296)
+             .height(936)
+             .fill(Fill::none())
+             .foreground(decorations::border(7, Fill::color({1, 1, 1, 1})))});
+    furniture.children(
+        {box()
+             .left(442)
+             .top(311)
+             .width(556)
+             .height(556)
+             .shape(geometry::shapes::circle())
+             .fill(Fill::none())
+             .foreground(decorations::border(5, Fill::color({1, 1, 1, 1})))});
     return box()
         .inset(0)
         .cache(Cache::None)
         .effect(
             material::skia::Effect::filter(SkImageFilters::Blur(1, 1, nullptr)))
-        .child(std::move(furniture));
+        .children({std::move(furniture)});
   };
   Host cached(1440, 1052), plain(1440, 1052);
   cached.composer.render(scene(Cache::Texture));

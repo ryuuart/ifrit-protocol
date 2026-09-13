@@ -34,17 +34,17 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
   // letters do.
   Host host(300, 140);
   const auto describe = [&](bool withMeter) {
-    Element root = box().padding(10).child(
-        text(u8"ABCD", whiteStyle(28))
-            .key("word")
-            .fx({.effect = fx::rise(4),
-                 .stagger = {.eachMs = 100, .durationMs = 100},
-                 .progress = 0.5f}));
+    Element root = box().padding(10).children(
+        {text(u8"ABCD", whiteStyle(28))
+             .key("word")
+             .fx({.effect = fx::rise(4),
+                  .stagger = {.eachMs = 100, .durationMs = 100},
+                  .progress = 0.5f})});
     if (withMeter)
-      root.child(
-          kit::trackMeter(host.composer, "word", 0, {1, 0, 0, 1}, {0, 0, 1, 1})
-              .absolute()
-              .inset(0));
+      root.children(
+          {kit::trackMeter(host.composer, "word", 0, {1, 0, 0, 1}, {0, 0, 1, 1})
+               .absolute()
+               .inset(0)});
     return root;
   };
   host.composer.render(describe(false));
@@ -86,11 +86,11 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
   // An unknown key is the query family's silent nothing, drawn: an overlay
   // with no cells in it, which measures as nothing rather than warning.
   Host empty(120, 80);
-  empty.composer.render(box().child(
-      kit::trackMeter(host.composer, "typo", 0, {1, 0, 0, 1}, {0, 0, 1, 1})
-          .key("meter")
-          .absolute()
-          .inset(0)));
+  empty.composer.render(box().children(
+      {kit::trackMeter(host.composer, "typo", 0, {1, 0, 0, 1}, {0, 0, 1, 1})
+           .key("meter")
+           .absolute()
+           .inset(0)}));
   empty.frame();
   for (int y = 0; y < 80; ++y)
     for (int x = 0; x < 120; ++x)
@@ -106,11 +106,11 @@ TEST(ComposeDebug, RestGhostDrawsTheSameWordUndeformedUnderTheMovingOne) {
   const SkColor4f ghostInk{0, 0, 1, 1};
   GlyphModifier shove;
   shove.dx = 60.0f;
-  host.composer.render(box().padding(10).child(
-      kit::restGhost(text(u8"AB", whiteStyle(40))
-                         .key("word")
-                         .fx({.effect = fixed("shove", shove)}),
-                     ghostInk)));
+  host.composer.render(box().padding(10).children(
+      {kit::restGhost(text(u8"AB", whiteStyle(40))
+                          .key("word")
+                          .fx({.effect = fixed("shove", shove)}),
+                      ghostInk)}));
   host.frame();
   const auto countBlue = [&](SkIRect region) {
     int hits = 0;
@@ -152,12 +152,12 @@ TEST(ComposeDebug, RestGhostCopiesTheTypeAndNotTheMarksOnIt) {
   // draw each of them twice under one key, which the composer's key index
   // cannot answer for — so the ghost is the type and nothing else.
   Host host(300, 140);
-  host.composer.render(box().padding(10).child(
-      kit::restGhost(text(u8"ALPHA BETA", whiteStyle(24))
-                         .key("word")
-                         .mark(sigil::weave::selectors::word(1),
-                               box().key("caret").width(4).fill(green())),
-                     {0, 0, 1, 1})));
+  host.composer.render(box().padding(10).children(
+      {kit::restGhost(text(u8"ALPHA BETA", whiteStyle(24))
+                          .key("word")
+                          .mark(sigil::weave::selectors::word(1),
+                                box().key("caret").width(4).fill(green())),
+                      {0, 0, 1, 1})}));
   host.frame();
   const SkRect caret =
       host.composer.bounds("caret").value_or(SkRect::MakeEmpty());
@@ -195,26 +195,26 @@ TEST(ComposeConsole, StacksFeedsPerColumnInOneVoice) {
   chrome.paddingY = 0;
   // One feed per column: the plate is one row tall.
   const float one =
-      intrinsicSize(box().child(kit::console(
-                        {.feeds = {&a, &b}, .style = voice, .plate = chrome})),
+      intrinsicSize(box().children({kit::console(
+                        {.feeds = {&a, &b}, .style = voice, .plate = chrome})}),
                     fonts())
           .height();
   EXPECT_NEAR(one, row, 1.0f);
   // Two per column: two rows and the stack gap.
   const float two =
-      intrinsicSize(box().child(kit::console({.feeds = {&a, &b, &c, &d},
-                                              .style = voice,
-                                              .stacked = 2,
-                                              .stackGap = 6,
-                                              .plate = chrome})),
+      intrinsicSize(box().children({kit::console({.feeds = {&a, &b, &c, &d},
+                                                  .style = voice,
+                                                  .stacked = 2,
+                                                  .stackGap = 6,
+                                                  .plate = chrome})}),
                     fonts())
           .height();
   EXPECT_NEAR(two, 2 * row + 6, 1.5f);
   // A null feed is skipped rather than dereferenced.
   const float gap =
       intrinsicSize(
-          box().child(kit::console(
-              {.feeds = {&a, nullptr}, .style = voice, .plate = chrome})),
+          box().children({kit::console(
+              {.feeds = {&a, nullptr}, .style = voice, .plate = chrome})}),
           fonts())
           .height();
   EXPECT_NEAR(gap, row, 1.0f);
@@ -272,11 +272,11 @@ TEST(ComposeInstruments, ACurvePlotDrawsTheFunctionThroughItsOwnMapping) {
   // range paints there and nowhere near the bottom.
   Host host(120, 60);
   host.composer.render(
-      box().child(kit::curvePlot("plot",
-                                 {{.f = [](float) { return 1.0f; },
-                                   .colour = {1, 0, 0, 1},
-                                   .width = 3.0f}},
-                                 plot)));
+      box().children({kit::curvePlot("plot",
+                                     {{.f = [](float) { return 1.0f; },
+                                       .colour = {1, 0, 0, 1},
+                                       .width = 3.0f}},
+                                     plot)}));
   host.frame();
   EXPECT_EQ(host.pixel(60, 10), SK_ColorRED);
   EXPECT_EQ(host.pixel(60, 50), SK_ColorBLACK);
@@ -288,7 +288,8 @@ TEST(ComposeInstruments, ACurvePlotDrawsTheFunctionThroughItsOwnMapping) {
   withRule.rulesT = {1.0f};
   withRule.rule = {0, 1, 0, 1};
   withRule.ruleWidth = 3.0f;
-  ruled.composer.render(box().child(kit::curvePlot("ruled", {}, withRule)));
+  ruled.composer.render(
+      box().children({kit::curvePlot("ruled", {}, withRule)}));
   ruled.frame();
   EXPECT_EQ(ruled.pixel(60, 30), SK_ColorGREEN);
   EXPECT_EQ(ruled.pixel(30, 30), SK_ColorBLACK);

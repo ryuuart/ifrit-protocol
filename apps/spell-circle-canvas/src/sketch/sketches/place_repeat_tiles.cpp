@@ -76,7 +76,7 @@ Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
-          .child(std::move(body)));
+          .children({std::move(body)}));
 }
 
 }  // namespace
@@ -120,15 +120,16 @@ struct PlaceRepeatTiles final : sketch::Sketch {
                                             {0.30f, 0.32f, 0.36f, 1}}));
     const SkColor4f figure = sketch::kit::theme().palette.figure;
     for (int i = 0; i < kTiles * 3; ++i)
-      run.child(box()
-                    .width(Dimension(kMotif.width()))
-                    .height(Dimension(kMotif.height()))
-                    .shape(shapes::star(6, 0.46f, 0.14f))
-                    .fill(Fill::color(i % 3 == 0 ? kWarm : figure)));
+      run.children({box()
+                        .width(Dimension(kMotif.width()))
+                        .height(Dimension(kMotif.height()))
+                        .shape(shapes::star(6, 0.46f, 0.14f))
+                        .fill(Fill::color(i % 3 == 0 ? kWarm : figure))});
     // …and re-recorded behind a bounding-box hierarchy, so each tile's
     // replay visits only the ops that meet it. Slicing without that is
     // quadratic: every tile would walk every tile's ops.
-    strip = tiles::sliceable(snapshot(box().child(std::move(run)), *ctx.fonts));
+    strip = tiles::sliceable(
+        snapshot(box().children({std::move(run)}), *ctx.fonts));
 
     ctx.composer.render(sketch::kit::page(
         {.title = "REPEAT AND TILE · instancing::place::"
@@ -148,8 +149,8 @@ struct PlaceRepeatTiles final : sketch::Sketch {
   }
 
   Element pooled(const std::shared_ptr<instancing::Pool>& pool) const {
-    return box().absolute().inset(0).child(
-        instancing::instances(atlas, pool, instancing::Mode::Data));
+    return box().absolute().inset(0).children(
+        {instancing::instances(atlas, pool, instancing::Mode::Data)});
   }
 
   Element chain() const {

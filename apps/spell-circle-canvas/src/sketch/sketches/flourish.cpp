@@ -166,16 +166,16 @@ struct Flourish final : sketch::Sketch {
         .foreground(onEdges(path::Edge::Top | path::Edge::Bottom,
                             Decoration(crestWalk)))
         .cache(Cache::Texture)
-        .child(box()
-                   .inset(13)
-                   .corners({15})
-                   .foreground(beadChain(st.goldBright, 13.0f, 2.3f))
-                   .foreground(giltDash(st.gold, 1.2f)))
-        .child(box().inset(22).foreground(
-            sigil::compose::stroke(0.8f, Fill::color(st.bronze))))
-        .child(layout(layouts::AlongPath{innerRect})
-                   .inset(0)
-                   .children(std::move(studs)));
+        .children({box()
+                       .inset(13)
+                       .corners({15})
+                       .foreground(beadChain(st.goldBright, 13.0f, 2.3f))
+                       .foreground(giltDash(st.gold, 1.2f)),
+                   box().inset(22).foreground(
+                       sigil::compose::stroke(0.8f, Fill::color(st.bronze))),
+                   layout(layouts::AlongPath{innerRect})
+                       .inset(0)
+                       .children(std::move(studs))});
   }
 
   Element frameGlow() const {
@@ -237,22 +237,23 @@ struct Flourish final : sketch::Sketch {
         .rotate(&spin[q])
         .scale(&breathe[q])
         .cache(Cache::Picture)
-        .child(
-            box()
-                .inset(15)
-                .shape(shapes::squircle(4.0f))
-                .fill(disc)
-                .foreground(sigil::compose::stroke(2.2f, Fill::color(st.gold)))
-                .foreground(
-                    sigil::compose::stroke(0.7f, Fill::color(st.goldBright))))
-        .child(
-            layout(layouts::Radial{0.82f}).inset(0).children(std::move(petals)))
-        .child(box()
-                   .inset(kMedD / 2 - 9, kMedD / 2 - 9, kMedD / 2 - 9,
-                          kMedD / 2 - 9)
-                   .shape(shapes::star(8, 0.5f))
-                   .fill(Fill::color(mp.accent ? st.goldBright : st.gold))
-                   .opacity(&flare));
+        .children(
+            {box()
+                 .inset(15)
+                 .shape(shapes::squircle(4.0f))
+                 .fill(disc)
+                 .foreground(sigil::compose::stroke(2.2f, Fill::color(st.gold)))
+                 .foreground(
+                     sigil::compose::stroke(0.7f, Fill::color(st.goldBright))),
+             layout(layouts::Radial{0.82f})
+                 .inset(0)
+                 .children(std::move(petals)),
+             box()
+                 .inset(kMedD / 2 - 9, kMedD / 2 - 9, kMedD / 2 - 9,
+                        kMedD / 2 - 9)
+                 .shape(shapes::star(8, 0.5f))
+                 .fill(Fill::color(mp.accent ? st.goldBright : st.gold))
+                 .opacity(&flare)});
   }
 
   Element filaments() const {
@@ -271,19 +272,15 @@ struct Flourish final : sketch::Sketch {
     auto arc = [&](const char* a, const char* b) {
       return connector(a, b, routers::arc(0.05f)).inset(0).foreground(gild);
     };
-    return stack()
-        .inset(0)
-        .zIndex(2)
-        .child(arc("med0", "med1"))
-        .child(arc("med1", "med2"))
-        .child(arc("med2", "med3"))
-        .child(arc("med3", "med0"))
-        .child(connector("med0", "med2", routers::orthogonal(18.0f))
-                   .inset(0)
-                   .foreground(beaded))
-        .child(connector("med1", "med3", routers::orthogonal(18.0f))
-                   .inset(0)
-                   .foreground(beaded));
+    return stack().inset(0).zIndex(2).children(
+        {arc("med0", "med1"), arc("med1", "med2"), arc("med2", "med3"),
+         arc("med3", "med0"),
+         connector("med0", "med2", routers::orthogonal(18.0f))
+             .inset(0)
+             .foreground(beaded),
+         connector("med1", "med3", routers::orthogonal(18.0f))
+             .inset(0)
+             .foreground(beaded)});
   }
 
   // ---- the central cartouche (the box being framed) ----------------------
@@ -343,7 +340,7 @@ struct Flourish final : sketch::Sketch {
           .column()
           .alignItems(Align::Center)
           .justify(Justify::Center)
-          .child(std::move(t));
+          .children({std::move(t)});
     };
 
     // The cartouche is set in the style's ink; the title and the closing
@@ -365,48 +362,48 @@ struct Flourish final : sketch::Sketch {
         .padding(30, 26)
         .gap(9)
         .alignItems(Align::Center)
-        .child(layout(layouts::Jittered{7, 0.7f})
-                   .inset(22)
-                   .children(std::move(sparks)))
-        .child(
-            stack()
-                .width(258)
-                .height(66)
-                .shape(scallopOutline(12))
-                .fill(Fill::color({st.parchment.fR * 1.05f,
-                                   st.parchment.fG * 1.05f,
-                                   st.parchment.fB * 1.02f, 1}))
-                .foreground(sigil::compose::stroke(1.3f, Fill::color(st.gold)))
-                .child(titleLayer(st.goldBright, true))
-                .child(titleLayer({0.34f, 0.20f, 0.09f, 1}, false)))
-        .child(box()
-                   .key("seal")
-                   .width(42)
-                   .height(42)
-                   .transformOrigin(0.5f, 0.5f)
-                   .scale(&sealBreathe)
-                   .shape(shapes::star(12, 0.66f))
-                   .fill(animate(
-                       motion::to(Fill::color(accent ? st.rubric : st.bronze)),
-                       {600ms}))
-                   .foreground(sigil::compose::stroke(
-                       1.4f, Fill::color(st.goldBright))))
-        .child(text(u8"Framed by a vine that draws itself on, corner by "
-                    u8"corner, while the medallions turn and the rules hold "
-                    u8"their three weights of gold — every ornament a "
-                    u8"different corner of the compose surface, woven around "
-                    u8"this seal.")
-                   .font({.size = 12.5f})
-                   .key("motto")
-                   .flowAround("seal", 7))
-        .child(box()
-                   .row()
-                   .gap(2)
-                   .justify(Justify::Center)
-                   .children(std::move(frieze)))
-        .child(text(u8"— a stress test that chose to be beautiful —")
-                   .font({.size = 11})
-                   .ink(st.rubric));
+        .children(
+            {layout(layouts::Jittered{7, 0.7f})
+                 .inset(22)
+                 .children(std::move(sparks)),
+             stack()
+                 .width(258)
+                 .height(66)
+                 .shape(scallopOutline(12))
+                 .fill(Fill::color({st.parchment.fR * 1.05f,
+                                    st.parchment.fG * 1.05f,
+                                    st.parchment.fB * 1.02f, 1}))
+                 .foreground(sigil::compose::stroke(1.3f, Fill::color(st.gold)))
+                 .children({titleLayer(st.goldBright, true)})
+                 .children({titleLayer({0.34f, 0.20f, 0.09f, 1}, false)}),
+             box()
+                 .key("seal")
+                 .width(42)
+                 .height(42)
+                 .transformOrigin(0.5f, 0.5f)
+                 .scale(&sealBreathe)
+                 .shape(shapes::star(12, 0.66f))
+                 .fill(animate(
+                     motion::to(Fill::color(accent ? st.rubric : st.bronze)),
+                     {600ms}))
+                 .foreground(
+                     sigil::compose::stroke(1.4f, Fill::color(st.goldBright))),
+             text(u8"Framed by a vine that draws itself on, corner by "
+                  u8"corner, while the medallions turn and the rules hold "
+                  u8"their three weights of gold — every ornament a "
+                  u8"different corner of the compose surface, woven around "
+                  u8"this seal.")
+                 .font({.size = 12.5f})
+                 .key("motto")
+                 .flowAround("seal", 7),
+             box()
+                 .row()
+                 .gap(2)
+                 .justify(Justify::Center)
+                 .children(std::move(frieze)),
+             text(u8"— a stress test that chose to be beautiful —")
+                 .font({.size = 11})
+                 .ink(st.rubric)});
   }
 
   // ---- draw-on scrollwork sweeps (Cache::None, read reveal live) ----------
@@ -545,28 +542,22 @@ struct Flourish final : sketch::Sketch {
     return stack()
         .fill(sigil::compose::radialGradient({kW / 2, kH / 2}, 620,
                                              {st.velvetCore, st.velvetEdge}))
-        .child(frameBand())
-        .child(frameGlow())
-        .child(filaments())
-        .child(memo(MedProps{0, accent},
-                    [this](const MedProps& p) { return medallion(p); })
-                   .key("med0"))
-        .child(memo(MedProps{1, accent},
-                    [this](const MedProps& p) { return medallion(p); })
-                   .key("med1"))
-        .child(memo(MedProps{2, accent},
-                    [this](const MedProps& p) { return medallion(p); })
-                   .key("med2"))
-        .child(memo(MedProps{3, accent},
-                    [this](const MedProps& p) { return medallion(p); })
-                   .key("med3"))
-        .child(cartouche())
-        .child(scrollworkCorner(0))
-        .child(scrollworkCorner(1))
-        .child(scrollworkCorner(2))
-        .child(scrollworkCorner(3))
-        .child(shimmer())
-        .child(goldDust());
+        .children({frameBand(), frameGlow(), filaments(),
+                   memo(MedProps{0, accent},
+                        [this](const MedProps& p) { return medallion(p); })
+                       .key("med0"),
+                   memo(MedProps{1, accent},
+                        [this](const MedProps& p) { return medallion(p); })
+                       .key("med1"),
+                   memo(MedProps{2, accent},
+                        [this](const MedProps& p) { return medallion(p); })
+                       .key("med2"),
+                   memo(MedProps{3, accent},
+                        [this](const MedProps& p) { return medallion(p); })
+                       .key("med3"),
+                   cartouche(), scrollworkCorner(0), scrollworkCorner(1),
+                   scrollworkCorner(2), scrollworkCorner(3), shimmer(),
+                   goldDust()});
   }
 
   void setup(sketch::SketchContext& ctx) override {

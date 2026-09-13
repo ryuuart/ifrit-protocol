@@ -189,23 +189,23 @@ struct NestedStyle {
     const std::u8string& marker =
         markers.empty() ? items[index]
                         : markers[std::min(index, markers.size() - 1)];
-    list.child(box()
-                   .child(text(items[index])
-                              .font(style)
-                              .width(Dimension(measure))
-                              .paragraph(hanging))
-                   .child(text(marker)
-                              .font(style)
-                              .absolute()
-                              .left(Dimension(0.0f))
-                              .top(Dimension(0.0f))));
+    list.children({box()
+                       .children({text(items[index])
+                                      .font(style)
+                                      .width(Dimension(measure))
+                                      .paragraphs({hanging})})
+                       .children({text(marker)
+                                      .font(style)
+                                      .absolute()
+                                      .left(Dimension(0.0f))
+                                      .top(Dimension(0.0f))})});
   }
   return list;
 }
 
 /** N COLUMNS OF ONE STORY, threaded left to right.
  *
- *      root.child(kit::columns(article, 3, 28, 760, 420));
+ *      root.children({kit::columns(article, 3, 28, 760, 420)});
  *
  *  There is no column geometry under this and there does not need to be: a
  *  Western column is a FRAME, and three of them side by side threaded in
@@ -240,7 +240,7 @@ struct NestedStyle {
       column.thread(keyPrefix + std::to_string(index + 1));
     else if (!ellipsis.empty())
       column.ellipsis(ellipsis.bytes());
-    row.child(std::move(column));
+    row.children({std::move(column)});
   }
   return row;
 }
@@ -260,10 +260,10 @@ struct Spanner {
 
 /** N COLUMNS OF ONE STORY, WITH THE THINGS THAT SPAN THEM.
  *
- *      root.child(kit::columns({.story = article, .count = 3,
+ *      root.children({kit::columns({.story = article, .count = 3,
  *                               .gutter = 28, .width = 760, .height = 420,
  *                               .spanners = {{weave::selectors::line(11),
- * plate()}}, .composer = &composer}));
+ * plate()}}, .composer = &composer})});
  *
  *  Each column takes an equal share of `width` after the gutters, and
  *  `height` is the DEEPEST a row of columns may be rather than the depth
@@ -329,11 +329,11 @@ struct ColumnSet {
         column.thread(keyAt(index + 1));
       else if (!set.ellipsis.empty())
         column.ellipsis(set.ellipsis.bytes());
-      row.child(std::move(column));
+      row.children({std::move(column)});
     }
-    stack.child(std::move(row));
+    stack.children({std::move(row)});
     if (r < static_cast<int>(set.spanners.size()))
-      stack.child(std::move(set.spanners[(size_t)r].what));
+      stack.children({std::move(set.spanners[(size_t)r].what)});
   }
   return stack;
 }
@@ -351,10 +351,10 @@ struct BlockRule {
 
 /** RULES AND SHADING CUT TO WHAT A BLOCK ACTUALLY OCCUPIES.
  *
- *      root.child(kit::rules(composer, "epigraph", selectors::all(),
+ *      root.children({kit::rules(composer, "epigraph", selectors::all(),
  *                            {.where = BlockRule::Where::Behind,
  *                             .bleed = 4, .colour = tint})
- *                     .absolute().inset(0));
+ *                     .absolute().inset(0)});
  *
  *  The extent comes from `Composer::units` over `weave::Unit::Line`, so a
  *  rule is as wide as the lines it dresses rather than as wide as the box
@@ -379,31 +379,31 @@ struct BlockRule {
   const std::string base(key);
   switch (rule.where) {
     case BlockRule::Where::Behind:
-      overlay.child(box()
-                        .key(base + "-shade")
-                        .left(extent.left())
-                        .top(extent.top() - rule.bleed)
-                        .width(extent.width())
-                        .height(extent.height() + rule.bleed * 2)
-                        .fill(Fill::color(rule.colour)));
+      overlay.children({box()
+                            .key(base + "-shade")
+                            .left(extent.left())
+                            .top(extent.top() - rule.bleed)
+                            .width(extent.width())
+                            .height(extent.height() + rule.bleed * 2)
+                            .fill(Fill::color(rule.colour))});
       break;
     case BlockRule::Where::Above:
-      overlay.child(box()
-                        .key(base + "-rule")
-                        .left(extent.left())
-                        .top(extent.top() - rule.gap - rule.thickness)
-                        .width(extent.width())
-                        .height(rule.thickness)
-                        .fill(Fill::color(rule.colour)));
+      overlay.children({box()
+                            .key(base + "-rule")
+                            .left(extent.left())
+                            .top(extent.top() - rule.gap - rule.thickness)
+                            .width(extent.width())
+                            .height(rule.thickness)
+                            .fill(Fill::color(rule.colour))});
       break;
     case BlockRule::Where::Below:
-      overlay.child(box()
-                        .key(base + "-rule")
-                        .left(extent.left())
-                        .top(extent.bottom() + rule.gap)
-                        .width(extent.width())
-                        .height(rule.thickness)
-                        .fill(Fill::color(rule.colour)));
+      overlay.children({box()
+                            .key(base + "-rule")
+                            .left(extent.left())
+                            .top(extent.bottom() + rule.gap)
+                            .width(extent.width())
+                            .height(rule.thickness)
+                            .fill(Fill::color(rule.colour))});
       break;
   }
   return overlay;

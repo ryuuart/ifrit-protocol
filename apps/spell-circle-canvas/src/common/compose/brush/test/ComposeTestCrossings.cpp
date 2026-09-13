@@ -197,8 +197,8 @@ TEST(ComposeComposites, LayersIsWeaveWithCoincidentSelfStrands) {
 
   auto draw = [](const brush::Weave& w) {
     Host host(200, 200);
-    host.composer.render(stack().child(
-        box().rect(SkRect::MakeXYWH(40, 40, 100, 100)).stroke(w)));
+    host.composer.render(stack().children(
+        {box().rect(SkRect::MakeXYWH(40, 40, 100, 100)).stroke(w)}));
     host.frame();
     std::vector<SkColor> out;
     for (int x = 30; x < 150; x += 3) out.push_back(host.pixel(x, 40));
@@ -222,7 +222,7 @@ TEST(ComposeComposites, WeaveRepairsTheCrossingsTheRuleDisagreesWith) {
          brush::Strand{strand::path(diagonal({20, 180}, {180, 20})),
                        brush::solid(9, green())}},
         std::move(rule));
-    host.composer.render(stack().child(box().inset(0).stroke(w)));
+    host.composer.render(stack().children({box().inset(0).stroke(w)}));
     host.frame();
     return host.pixel(100, 100);
   };
@@ -271,7 +271,7 @@ TEST(ComposeComposites, CrossingCacheRecomputesWhenAuthoredGeometryChanges) {
                    geometry::path::crossing::alternate());
   Host host(240, 240);
   host.composer.render(
-      stack().child(box().inset(0).stroke(w).cache(Cache::None)));
+      stack().children({box().inset(0).stroke(w).cache(Cache::None)}));
   host.frame();
   EXPECT_EQ(host.pixel(60, 100), SK_ColorRED) << "knot 0: red repaired over";
   EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN) << "knot 1: list order";
@@ -283,7 +283,7 @@ TEST(ComposeComposites, CrossingCacheRecomputesWhenAuthoredGeometryChanges) {
   brush::Weave moved = w;  // shares the WARM cache — that is the scenario
   moved.strands[1].path = strand::path(diagonal({180, 0}, {180, 200}));
   host.composer.render(
-      stack().child(box().inset(0).stroke(moved).cache(Cache::None)));
+      stack().children({box().inset(0).stroke(moved).cache(Cache::None)}));
   host.frame();
   EXPECT_EQ(host.pixel(140, 100), SK_ColorRED)
       << "stale crossings: (140,100) still numbered as the green knot";
@@ -317,16 +317,16 @@ TEST(ComposeComposites, CrossingCacheFollowsTheOutlineUnderRelativeStrands) {
     };
   };
   Host host(200, 200);
-  host.composer.render(stack().child(
-      box().inset(0).shape(ring(60.0f)).stroke(w).cache(Cache::None)));
+  host.composer.render(stack().children(
+      {box().inset(0).shape(ring(60.0f)).stroke(w).cache(Cache::None)}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 160), SK_ColorRED) << "the r=60 knot repairs";
   EXPECT_EQ(w.crossingCache->computes, 1);
   host.frame();
   EXPECT_EQ(w.crossingCache->computes, 1) << "steady outline: a hit";
 
-  host.composer.render(stack().child(
-      box().inset(0).shape(ring(85.0f)).stroke(w).cache(Cache::None)));
+  host.composer.render(stack().children(
+      {box().inset(0).shape(ring(85.0f)).stroke(w).cache(Cache::None)}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 185), SK_ColorRED)
       << "stale crossings: the repair stayed at the old radius";
@@ -357,7 +357,7 @@ TEST(ComposeComposites, CrossingCacheIsByteNeutral) {
   brush::Weave w = weaveX();
   Host host(240, 240);
   host.composer.render(
-      stack().child(box().inset(0).stroke(w).cache(Cache::None)));
+      stack().children({box().inset(0).stroke(w).cache(Cache::None)}));
   host.frame();
   const std::vector<uint8_t> cold = bytes(host);
   EXPECT_EQ(w.crossingCache->computes, 1);
@@ -368,7 +368,7 @@ TEST(ComposeComposites, CrossingCacheIsByteNeutral) {
   brush::Weave fresh = weaveX();  // its own cold cache
   Host host2(240, 240);
   host2.composer.render(
-      stack().child(box().inset(0).stroke(fresh).cache(Cache::None)));
+      stack().children({box().inset(0).stroke(fresh).cache(Cache::None)}));
   host2.frame();
   EXPECT_EQ(fresh.crossingCache->computes, 1);
   EXPECT_TRUE(cold == bytes(host2))
@@ -407,7 +407,7 @@ TEST(ComposeComposites, TheRepairCoversShallowCrossings) {
          brush::Strand{strand::path(through(dirB)), stroke(9, green())}},
         geometry::path::crossing::alternate());  // strand 0 (red) passes OVER
                                                  // at crossing 0
-    host.composer.render(stack().child(box().inset(0).stroke(w)));
+    host.composer.render(stack().children({box().inset(0).stroke(w)}));
     host.frame();
     int wrong = 0;
     for (int i = -40; i <= 40; ++i) {
@@ -452,7 +452,7 @@ TEST(ComposeComposites, ReachReportsTheMarkWhereBleedReportsNothing) {
        brush::Strand{strand::path(circle(240, 200, 90)),
                      stroke(9, green(), PathFormat::Align::Inner)}},
       geometry::path::CrossingRule(EveryCrossingRedOnTop{}));
-  host.composer.render(stack().child(box().inset(0).stroke(w)));
+  host.composer.render(stack().children({box().inset(0).stroke(w)}));
   host.frame();
   // Walk the red circle's stroke band through the upper crossing region.
   int red = 0, green = 0;
@@ -473,13 +473,13 @@ TEST(ComposeComposites, ReachReportsTheMarkWhereBleedReportsNothing) {
 TEST(ComposeStrands, AbsoluteOnlyLeavesTheBoundaryUnpainted) {
   // "With only absolute strands the boundary is an unpainted host."
   Host host(200, 200);
-  host.composer.render(stack().child(
-      box()
-          .rect(SkRect::MakeXYWH(40, 40, 100, 100))
-          .stroke(brush::weave(
-              {brush::Strand{strand::path(diagonal({0, 0}, {100, 0})),
-                             brush::solid(6, red())}},
-              geometry::path::CrossingRule{}))));
+  host.composer.render(stack().children(
+      {box()
+           .rect(SkRect::MakeXYWH(40, 40, 100, 100))
+           .stroke(brush::weave(
+               {brush::Strand{strand::path(diagonal({0, 0}, {100, 0})),
+                              brush::solid(6, red())}},
+               geometry::path::CrossingRule{}))}));
   host.frame();
   EXPECT_EQ(host.pixel(90, 40), SK_ColorRED) << "the authored strand paints";
   EXPECT_EQ(host.pixel(140, 90), SK_ColorBLACK)
@@ -505,15 +505,13 @@ TEST(ComposeStrands, RelativeStrandsRideTheBandsFrame) {
 
 TEST(ComposeStrands, BorrowedStrandsRideTheDerivePass) {
   Host host(200, 200);
-  host.composer.render(
-      stack()
-          .child(box().key("guide").rect(SkRect::MakeXYWH(60, 20, 80, 40)))
-          .child(
-              box()
-                  .rect(SkRect::MakeXYWH(20, 20, 160, 160))
-                  .stroke(brush::weave({brush::Strand{strand::from("guide"),
-                                                      brush::solid(6, red())}},
-                                       geometry::path::CrossingRule{}))));
+  host.composer.render(stack().children(
+      {box().key("guide").rect(SkRect::MakeXYWH(60, 20, 80, 40)),
+       box()
+           .rect(SkRect::MakeXYWH(20, 20, 160, 160))
+           .stroke(brush::weave(
+               {brush::Strand{strand::from("guide"), brush::solid(6, red())}},
+               geometry::path::CrossingRule{}))}));
   host.frame();
   host.frame();  // derive resolves against the first layout
   // The guide's own box outline, painted in the host's local space.
@@ -550,10 +548,10 @@ TEST(ComposeComposites, ClosedStrandsWrapAtTheirSeam) {
   const SkPath small = circle(288, 200, 13);
 
   Host host(400, 400);
-  host.composer.render(stack().child(box().inset(0).stroke(
+  host.composer.render(stack().children({box().inset(0).stroke(
       brush::weave({brush::Strand{strand::path(big), stroke(6, red())},
                     brush::Strand{strand::path(small), stroke(6, green())}},
-                   geometry::path::crossing::alternate()))));
+                   geometry::path::crossing::alternate()))}));
   host.frame();
 
   const std::vector<geometry::path::Crossing> knots =
@@ -576,14 +574,14 @@ TEST(ComposeComposites, CompositesNest) {
   Host host(200, 200);
   const brush::Weave inner =
       brush::layers({brush::solid(9, red()), brush::solid(3, green())});
-  host.composer.render(stack().child(
-      box()
-          .rect(SkRect::MakeXYWH(40, 40, 100, 100))
-          .stroke(brush::weave(
-              {brush::Strand{geometry::path::profile::self(), inner},
-               brush::Strand{geometry::path::profile::offset(12),
-                             brush::solid(2, blue())}},
-              geometry::path::CrossingRule{}))));
+  host.composer.render(stack().children(
+      {box()
+           .rect(SkRect::MakeXYWH(40, 40, 100, 100))
+           .stroke(brush::weave(
+               {brush::Strand{geometry::path::profile::self(), inner},
+                brush::Strand{geometry::path::profile::offset(12),
+                              brush::solid(2, blue())}},
+               geometry::path::CrossingRule{}))}));
   host.frame();
   EXPECT_EQ(host.pixel(90, 40), SK_ColorGREEN) << "the nested layers' top";
   EXPECT_EQ(host.pixel(90, 28), SK_ColorBLUE) << "the offset strand, outside";

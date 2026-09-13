@@ -12,15 +12,15 @@ TEST(ComposeCaching, StaticSubtreeRecordsOnce) {
   static int programRuns;
   programRuns = 0;
   Host host;
-  host.composer.render(box().child(
-      custom([](SkCanvas& c, const PaintContext& ctx) {
-        ++programRuns;
-        SkPaint p;
-        p.setColor(SK_ColorCYAN);
-        c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
-      })
-          .width(80)
-          .height(80)));
+  host.composer.render(box().children(
+      {custom([](SkCanvas& c, const PaintContext& ctx) {
+         ++programRuns;
+         SkPaint p;
+         p.setColor(SK_ColorCYAN);
+         c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
+       })
+           .width(80)
+           .height(80)}));
 
   host.frame();
   host.frame();
@@ -37,7 +37,7 @@ TEST(ComposeCaching, RelayoutInvalidatesStaleRecordings) {
   // new rects against the baked ones and drop what moved.
   Host host;
   host.composer.render(
-      box().child(box().width(pct(50)).height(40).fill(red())));
+      box().children({box().width(pct(50)).height(40).fill(red())}));
   host.frame();  // child spans x∈[0,100) at 200-wide viewport; recorded
   EXPECT_EQ(host.pixel(80, 20), SK_ColorRED);
   host.composer.setSize({120, 200});  // child now spans x∈[0,60)
@@ -50,11 +50,11 @@ TEST(ComposeCaching, CacheNoneRunsEveryFrame) {
   static int programRuns;
   programRuns = 0;
   Host host;
-  host.composer.render(
-      box().child(custom([](SkCanvas&, const PaintContext&) { ++programRuns; })
-                      .width(10)
-                      .height(10)
-                      .cache(Cache::None)));
+  host.composer.render(box().children(
+      {custom([](SkCanvas&, const PaintContext&) { ++programRuns; })
+           .width(10)
+           .height(10)
+           .cache(Cache::None)}));
   host.frame();
   host.frame();
   EXPECT_EQ(programRuns, 2);
@@ -63,7 +63,8 @@ TEST(ComposeCaching, CacheNoneRunsEveryFrame) {
 TEST(ComposeCaching, ReconcileInvalidatesRecording) {
   Host host;
   auto tree = [](Fill f) {
-    return box().child(box().key("x").width(60).height(60).fill(std::move(f)));
+    return box().children(
+        {box().key("x").width(60).height(60).fill(std::move(f))});
   };
   host.composer.render(tree(red()));
   host.frame();
@@ -83,20 +84,21 @@ TEST(ComposeCaching, APhosphorBloomOnATextureNodeIsBakedWithIt) {
   host.composer.render(
       box()
           .cache(Cache::None)
-          .child(box()
-                     .key("glow")
-                     .width(80)
-                     .height(80)
-                     .cache(Cache::Texture)
-                     .effect(material::skia::Effect::phosphorBloom(
-                         9, 0.5f, 1.0f, 0.8f, -30.0f, 0.5f))
-                     .child(box()
-                                .absolute()
-                                .left(28)
-                                .top(28)
-                                .width(24)
-                                .height(24)
-                                .fill(Fill::color({1, 0.7f, 0.1f, 1})))));
+          .children(
+              {box()
+                   .key("glow")
+                   .width(80)
+                   .height(80)
+                   .cache(Cache::Texture)
+                   .effect(material::skia::Effect::phosphorBloom(
+                       9, 0.5f, 1.0f, 0.8f, -30.0f, 0.5f))
+                   .children({box()
+                                  .absolute()
+                                  .left(28)
+                                  .top(28)
+                                  .width(24)
+                                  .height(24)
+                                  .fill(Fill::color({1, 0.7f, 0.1f, 1}))})}));
   host.frame();
   EXPECT_GE(host.composer.stats().texturesBaked, 1u);
   host.frame();
@@ -111,17 +113,17 @@ TEST(ComposeCaching, TextureCacheRasterizesOnceAndInvalidates) {
   programRuns = 0;
   Host host;
   auto tree = [](SkColor color) {
-    return box().child(
-        custom([color](SkCanvas& c, const PaintContext& ctx) {
-          ++programRuns;
-          SkPaint p;
-          p.setColor(color);
-          c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
-        })
-            .key("tex")
-            .width(80)
-            .height(80)
-            .cache(Cache::Texture));
+    return box().children(
+        {custom([color](SkCanvas& c, const PaintContext& ctx) {
+           ++programRuns;
+           SkPaint p;
+           p.setColor(color);
+           c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
+         })
+             .key("tex")
+             .width(80)
+             .height(80)
+             .cache(Cache::Texture)});
   };
   host.composer.render(tree(SK_ColorMAGENTA));
   host.frame();
@@ -166,7 +168,7 @@ TEST(ComposeCache, ABlendedLeafWithABoundOpacityPaintsWithoutALayer) {
     else
       leaf.opacity(plain);
     host->composer.render(profiledUnder(
-        stack().child(box().inset(0).fill(red())).child(std::move(leaf))));
+        stack().children({box().inset(0).fill(red()), std::move(leaf)})));
     host->frame();
     return host;
   };
@@ -188,18 +190,17 @@ TEST(ComposeCache, ARecordedLeafKeepsItsBoundOpacityOutOfTheRecording) {
   // the layer, so the opacity is applied over the replay.
   Host host;
   ch::Output<float> gain{1.0f};
-  host.composer.render(profiledUnder(stack()
-                                         .child(box().inset(0).fill(red()))
-                                         .child(box()
-                                                    .key("fading")
-                                                    .width(80)
-                                                    .height(80)
-                                                    .absolute()
-                                                    .left(10)
-                                                    .top(10)
-                                                    .fill(green())
-                                                    .cache(Cache::Picture)
-                                                    .opacity(&gain))));
+  host.composer.render(profiledUnder(
+      stack().children({box().inset(0).fill(red()), box()
+                                                        .key("fading")
+                                                        .width(80)
+                                                        .height(80)
+                                                        .absolute()
+                                                        .left(10)
+                                                        .top(10)
+                                                        .fill(green())
+                                                        .cache(Cache::Picture)
+                                                        .opacity(&gain)})));
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 200u) << "opaque at gain 1";
   gain = 0.0f;
@@ -323,15 +324,15 @@ TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
   // than moved.
   auto plate = [](bool texture) {
     Host host;
-    host.composer.render(box().fill(red()).child(
-        box()
-            .width(80)
-            .height(80)
-            .inset(20, 20, 100, 100)
-            .absolute()
-            .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
-            .blend(SkBlendMode::kPlus)
-            .cache(texture ? Cache::Texture : Cache::Picture)));
+    host.composer.render(box().fill(red()).children(
+        {box()
+             .width(80)
+             .height(80)
+             .inset(20, 20, 100, 100)
+             .absolute()
+             .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
+             .blend(SkBlendMode::kPlus)
+             .cache(texture ? Cache::Texture : Cache::Picture)}));
     for (int i = 0; i < 3; ++i)
       host.frame();  // settle: bake once, then replay/blit
     std::vector<SkColor> px;
@@ -352,14 +353,14 @@ TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
   // channel where the child overlaps.
   Host host;
   host.composer.render(
-      box().fill(red()).child(box()
-                                  .width(80)
-                                  .height(80)
-                                  .inset(20, 20, 100, 100)
-                                  .absolute()
-                                  .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
-                                  .blend(SkBlendMode::kPlus)
-                                  .cache(Cache::Texture)));
+      box().fill(red()).children({box()
+                                      .width(80)
+                                      .height(80)
+                                      .inset(20, 20, 100, 100)
+                                      .absolute()
+                                      .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
+                                      .blend(SkBlendMode::kPlus)
+                                      .cache(Cache::Texture)}));
   for (int i = 0; i < 3; ++i) host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 250u);  // 1.0 + 0.2 clamps
   EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 90u);   // the child's green
@@ -392,8 +393,8 @@ Element haloedNode(Boundary boundary, const choreograph::Output<float>* turn) {
       .transformOrigin(0.5f, 0.5f)
       .rotate(motion::bind(turn).target(0.0f, 360.0f))
       .effect(material::skia::Effect::glow({0.1f, 0.85f, 1.0f, 1}, 6))
-      .child(box().absolute().left(20).top(20).width(40).height(40).fill(
-          Fill::color({1, 0.72f, 0.15f, 1})));
+      .children({box().absolute().left(20).top(20).width(40).height(40).fill(
+          Fill::color({1, 0.72f, 0.15f, 1}))});
 }
 
 }  // namespace
@@ -415,7 +416,7 @@ TEST(ComposeCaching, AStaticEffectOverSettledContentIsRunOverItsBake) {
     Host host;
     host.composer.setProfiling(true);
     host.composer.render(
-        box().child(profiledUnder(haloedNode(boundary, &still))));
+        box().children({profiledUnder(haloedNode(boundary, &still))}));
     for (int i = 0; i < 3; ++i) host.frame();  // bake once, then blit
     const Composer::NodeCost* row = requireRow(host.composer, "halo");
     return std::pair{grab(host), row && row->effectDeferred};
@@ -453,7 +454,7 @@ TEST(ComposeCaching, ADeferredEffectSpreadsInsideTheBakeAndStopsAtIt) {
   choreograph::Output<float> still{0.0f};
   Host host;
   host.composer.render(
-      box().child(profiledUnder(haloedNode(Boundary::Auto, &still))));
+      box().children({profiledUnder(haloedNode(Boundary::Auto, &still))}));
   for (int i = 0; i < 3; ++i) host.frame();
   EXPECT_GT(SkColorGetB(host.pixel(56, 100)), 20u);  // 4 px out: the halo
   EXPECT_EQ(host.pixel(38, 100), SK_ColorBLACK);     // 2 px past the box
@@ -487,23 +488,24 @@ struct TracedRule {
 
 Element tracedDisc() {
   Element page = box().width(200).height(200).fill(Fill::color({0, 0, 0, 1}));
-  page.child(box()
-                 .absolute()
-                 .left(20)
-                 .top(20)
-                 .width(160)
-                 .height(160)
-                 .boundary(Boundary::Coverage)
-                 .stroke(TracedRule{})
-                 .key("traced")
-                 .child(box()
-                            .absolute()
-                            .left(18)
-                            .top(30)
-                            .width(120)
-                            .height(104)
-                            .shape(geometry::shapes::circle())
-                            .fill(Fill::color({0.9f, 0.8f, 0.3f, 1}))));
+  page.children(
+      {box()
+           .absolute()
+           .left(20)
+           .top(20)
+           .width(160)
+           .height(160)
+           .boundary(Boundary::Coverage)
+           .stroke(TracedRule{})
+           .key("traced")
+           .children({box()
+                          .absolute()
+                          .left(18)
+                          .top(30)
+                          .width(120)
+                          .height(104)
+                          .shape(geometry::shapes::circle())
+                          .fill(Fill::color({0.9f, 0.8f, 0.3f, 1}))})});
   return page;
 }
 
@@ -556,15 +558,16 @@ Element stripedBake(const ch::Output<float>* drift) {
                           .cache(Cache::Texture)
                           .key("striped");
   for (int i = 0; i < 40; ++i)
-    bakedNode.child(box()
-                        .absolute()
-                        .left((float)(i * 4))
-                        .top(0)
-                        .width(1)
-                        .height(160)
-                        .fill(Fill::color({0.95f, 0.85f, 0.2f, 1})));
+    bakedNode.children({box()
+                            .absolute()
+                            .left((float)(i * 4))
+                            .top(0)
+                            .width(1)
+                            .height(160)
+                            .fill(Fill::color({0.95f, 0.85f, 0.2f, 1}))});
   Element page = box().width(200).height(200).fill(Fill::color({0, 0, 0, 1}));
-  page.child(box().inset(0).translateY(drift).child(std::move(bakedNode)));
+  page.children(
+      {box().inset(0).translateY(drift).children({std::move(bakedNode)})});
   return page;
 }
 
@@ -663,15 +666,15 @@ TEST(ComposeCaching, DecorationOverflowFollowsResizeAndCachedReplay) {
   for (Cache cache : {Cache::Picture, Cache::Texture}) {
     Host host(300, 300);
     for (float height : {20.0f, 80.0f, 30.0f}) {
-      host.composer.render(box().child(box()
-                                           .key("relative")
-                                           .absolute()
-                                           .left(100)
-                                           .top(100)
-                                           .width(40)
-                                           .height(height)
-                                           .background(RelativeMark{})
-                                           .cache(cache)));
+      host.composer.render(box().children({box()
+                                               .key("relative")
+                                               .absolute()
+                                               .left(100)
+                                               .top(100)
+                                               .width(40)
+                                               .height(height)
+                                               .background(RelativeMark{})
+                                               .cache(cache)}));
       host.frame();
       host.frame();
       EXPECT_EQ(host.pixel(110, 100 - (int)(height / 2) + 2), SK_ColorRED);

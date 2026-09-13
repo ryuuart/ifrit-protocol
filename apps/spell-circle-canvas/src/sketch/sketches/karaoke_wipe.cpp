@@ -250,22 +250,22 @@ struct KaraokeWipe : sketch::Sketch {
     for (size_t i = 0; i < schedule.size(); ++i) {
       const bool starts = schedule[i].unitIndex != previousWord;
       previousWord = schedule[i].unitIndex;
-      strip.child(box()
-                      .key("t" + std::to_string(i))
-                      .left(schedule[i].rect.left())
-                      .top(starts ? 0.0f : 7.0f)
-                      .width(1)
-                      .height(starts ? 15.0f : 8.0f)
-                      .fill(Fill::color(starts ? kLabel : kFaint)));
+      strip.children({box()
+                          .key("t" + std::to_string(i))
+                          .left(schedule[i].rect.left())
+                          .top(starts ? 0.0f : 7.0f)
+                          .width(1)
+                          .height(starts ? 15.0f : 8.0f)
+                          .fill(Fill::color(starts ? kLabel : kFaint))});
     }
-    strip.child(box()
-                    .key("playhead")
-                    .left(0)
-                    .top(0)
-                    .width(2)
-                    .height(20)
-                    .fill(Fill::color(kSung))
-                    .translateX(&playhead));
+    strip.children({box()
+                        .key("playhead")
+                        .left(0)
+                        .top(0)
+                        .width(2)
+                        .height(20)
+                        .fill(Fill::color(kSung))
+                        .translateX(&playhead)});
     return strip;
   }
 
@@ -282,32 +282,32 @@ struct KaraokeWipe : sketch::Sketch {
             // it: nothing in a text node can carry a mark that is not a
             // glyph, so anything pointing AT the type lives beside it and
             // is placed from the schedule the type is running.
-            .child(box()
-                       .width(pct(100))
-                       .height(kHopHeight + 18.0f)
-                       .child(box()
-                                  .key("ball")
-                                  .left(0)
-                                  .top(kHopHeight)
-                                  .width(15)
-                                  .height(15)
-                                  .corners({8})
-                                  // Fleischer's ball is a hard white disc,
-                                  // and it is the one thing on the frame
-                                  // that is not part of the caption.
-                                  .fill(Fill::color(hexColor(0xFFFFFF)))
-                                  .translateX(&ballX)
-                                  .translateY(&ballY)))
-            .child(lyricLine())
-            .child(ruler().margin(0, 12, 0, 0))
-            .child(text(kLine2)
-                       .font({.size = kLyricSize * 0.78f,
-                              .color = kNext,
-                              .track = kTrack,
-                              .aliased = kAliased,
-                              .antiAlias = false})
-                       .key("line2")
-                       .margin(0, 22, 0, 0));
+            .children(
+                {box()
+                     .width(pct(100))
+                     .height(kHopHeight + 18.0f)
+                     .children({box()
+                                    .key("ball")
+                                    .left(0)
+                                    .top(kHopHeight)
+                                    .width(15)
+                                    .height(15)
+                                    .corners({8})
+                                    // Fleischer's ball is a hard white disc,
+                                    // and it is the one thing on the frame
+                                    // that is not part of the caption.
+                                    .fill(Fill::color(hexColor(0xFFFFFF)))
+                                    .translateX(&ballX)
+                                    .translateY(&ballY)}),
+                 lyricLine(), ruler().margin(0, 12, 0, 0),
+                 text(kLine2)
+                     .font({.size = kLyricSize * 0.78f,
+                            .color = kNext,
+                            .track = kTrack,
+                            .aliased = kAliased,
+                            .antiAlias = false})
+                     .key("line2")
+                     .margin(0, 22, 0, 0)});
 
     return box()
         .column()
@@ -317,26 +317,26 @@ struct KaraokeWipe : sketch::Sketch {
                              {0.0f, 0.5f, 1.0f}))
         .font({.face = face, .size = 11.5f, .track = 2.4f})
         .ink(kLabel)
-        .child(box()
-                   .row()
-                   .alignItems(Align::End)
-                   .child(text("FOLLOW THE BOUNCING BALL").grow(1))
-                   .child(text("FLEISCHER 1924 · CD+G 1985").ink(kNext)))
-        .child(box().height(1).fill(Fill::color(kFaint)))
-        .child(box().grow(1))
-        .child(box().alignItems(Align::Center).child(std::move(stage)))
-        .child(box().grow(1))
+        .children(
+            {box()
+                 .row()
+                 .alignItems(Align::End)
+                 .children({text("FOLLOW THE BOUNCING BALL").grow(1)})
+                 .children({text("FLEISCHER 1924 · CD+G 1985").ink(kNext)}),
+             box().height(1).fill(Fill::color(kFaint)), box().grow(1),
+             box().alignItems(Align::Center).children({std::move(stage)}),
+             box().grow(1)})
         // The numbers are read off the table rather than typed beside it:
         // a caption that can disagree with the schedule it describes is the
         // one thing worse than no caption.
-        .child(text("THE BALL MARKS THE POINT, THE WIPE MARKS THE "
-                    "BOUNDARY · " +
-                    std::to_string(wordCues().size()) + " SUNG TIMES, " +
-                    std::to_string((int)kEachMs) +
-                    " MS PER LETTER INSIDE A WORD, " +
-                    std::to_string((int)kSwitchMs) + " MS TO CHANGE")
-                   .font({.track = 0.5f})
-                   .ink(kFaint));
+        .children({text("THE BALL MARKS THE POINT, THE WIPE MARKS THE "
+                        "BOUNDARY · " +
+                        std::to_string(wordCues().size()) + " SUNG TIMES, " +
+                        std::to_string((int)kEachMs) +
+                        " MS PER LETTER INSIDE A WORD, " +
+                        std::to_string((int)kSwitchMs) + " MS TO CHANGE")
+                       .font({.track = 0.5f})
+                       .ink(kFaint)});
   }
 
   void setup(sketch::SketchContext& ctx) override {

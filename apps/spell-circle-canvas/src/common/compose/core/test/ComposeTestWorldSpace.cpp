@@ -53,18 +53,18 @@ Element rotatedInstrument(float rotationDeg, bool flagged) {
   // The corner child makes the panel RECORD — a childless leaf paints
   // live and re-resolves on every reach, which would hide a stale-W
   // recording from every pin built on this fixture.
-  group.child(
-      box()
-          .absolute()
-          .left(20)
-          .top(20)
-          .width(120)
-          .height(120)
-          .key("panel")
-          .fill(canvasLight(flagged, {40, 40}))
-          .child(box().absolute().left(0).top(0).width(4).height(4).fill(
-              Fill::color({0, 0.3f, 0, 1}))));
-  return box().child(std::move(group));
+  group.children(
+      {box()
+           .absolute()
+           .left(20)
+           .top(20)
+           .width(120)
+           .height(120)
+           .key("panel")
+           .fill(canvasLight(flagged, {40, 40}))
+           .children({box().absolute().left(0).top(0).width(4).height(4).fill(
+               Fill::color({0, 0.3f, 0, 1}))})});
+  return box().children({std::move(group)});
 }
 
 }  // namespace
@@ -112,10 +112,8 @@ TEST(ComposeWorldSpace, TwoSiblingsShareOneContinuousField) {
     material::skia::Paint ramp = material::skia::Paint::linear(
         {0, 0}, {200, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
     if (flagged) ramp.worldSpace();
-    return box()
-        .row()
-        .child(box().width(100).height(200).fill(ramp))
-        .child(box().width(100).height(200).fill(ramp));
+    return box().row().children({box().width(100).height(200).fill(ramp),
+                                 box().width(100).height(200).fill(ramp)});
   };
   Host flagged, control;
   flagged.composer.render(scene(true));
@@ -144,9 +142,9 @@ TEST(ComposeWorldSpace, TwoSiblingsShareOneContinuousField) {
 // offset.
 TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
   Host host;
-  host.composer.render(
-      box().child(box().absolute().left(40).top(40).width(120).height(120).fill(
-          canvasLight(true, {0, 0}))));
+  host.composer.render(box().children(
+      {box().absolute().left(40).top(40).width(120).height(120).fill(
+          canvasLight(true, {0, 0}))}));
   host.frame();
   EXPECT_LT(SkPoint::Distance(brightestPixel(host), {70, 70}), 3.0f)
       << "the composer resolve did not anchor through the layout offset";
@@ -182,11 +180,11 @@ TEST(ComposeWorldSpace, ALayoutMoveLeavesTheFieldAnchored) {
     // The corner child makes the panel RECORD (a childless leaf paints
     // live and would re-resolve on every reach, hiding the stale-W hole
     // this pin exists to close).
-    return box()
-        .row()
-        .child(box().width(spacer).height(10))
-        .child(box().width(120).height(200).key("panel").fill(light).child(
-            box().absolute().left(0).top(0).width(4).height(4).fill(green())));
+    return box().row().children(
+        {box().width(spacer).height(10),
+         box().width(120).height(200).key("panel").fill(light).children(
+             {box().absolute().left(0).top(0).width(4).height(4).fill(
+                 green())})});
   };
   Host host;
   host.composer.render(scene(20));
@@ -212,10 +210,10 @@ TEST(ComposeWorldSpace, AnAncestorsMoveReanchorsTheDescendant) {
             .worldSpace();
     // column: spacer, then a group whose panel child is absolutely inset —
     // the group MOVES, the panel's rect relative to the group does not.
-    return box()
-        .child(box().width(10).height(spacerH))
-        .child(box().width(200).height(140).key("group").child(
-            box().absolute().inset(10).key("panel").fill(light)));
+    return box().children(
+        {box().width(10).height(spacerH),
+         box().width(200).height(140).key("group").children(
+             {box().absolute().inset(10).key("panel").fill(light)})});
   };
   Host host;
   host.composer.render(scene(20));
@@ -243,15 +241,15 @@ TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
                      .key("group")
                      .rotate(&rot)
                      .transformOrigin(0.5f, 0.5f);
-    group.child(box()
-                    .absolute()
-                    .left(20)
-                    .top(20)
-                    .width(120)
-                    .height(120)
-                    .key("panel")
-                    .fill(canvasLight(true, {40, 40})));
-    host.composer.render(box().child(std::move(group)));
+    group.children({box()
+                        .absolute()
+                        .left(20)
+                        .top(20)
+                        .width(120)
+                        .height(120)
+                        .key("panel")
+                        .fill(canvasLight(true, {40, 40}))});
+    host.composer.render(box().children({std::move(group)}));
   };
   describe();
   host.frame();
@@ -291,7 +289,7 @@ TEST(ComposeWorldSpace, TheFlagRidesThePruneSignature) {
     material::skia::Paint m =
         material::skia::Paint::linear({0, 0}, {200, 0}, stops);
     if (flagged) m.worldSpace();
-    return box().child(box().width(100).height(100).key("panel").fill(m));
+    return box().children({box().width(100).height(100).key("panel").fill(m)});
   };
   Host host;
   host.composer.render(scene(true));
@@ -325,11 +323,9 @@ TEST(ComposeWorldSpace, TheResolveDigestSeesTheNodeMove) {
   m.uniform("uDrive", &drive);
   m.worldSpace();
   Host host;
-  host.composer.render(
-      box()
-          .row()
-          .child(box().grow(1).height(10))
-          .child(box().width(120).height(200).key("panel").fill(m)));
+  host.composer.render(box().row().children(
+      {box().grow(1).height(10),
+       box().width(120).height(200).key("panel").fill(m)}));
   host.frame();
   // Canvas 200 wide: the spacer grows to 80, the panel spans [80, 200] —
   // the red→blue boundary sits at CANVAS x=130 (world coordinates).

@@ -59,10 +59,10 @@ TEST(ComposeFx, EdgeGateOnAZeroMeasuredBoxRevealsRatherThanHides) {
   // whole subtree. A reveal at 1 must never hide anything.
   auto tree = [](bool withWipe) {
     Element outer = box().absolute().left(0).top(0);  // no dims: measures 0
-    outer.child(box().absolute().left(40).top(40).width(80).height(80).fill(
-        Fill::color({1, 0, 0, 1})));
+    outer.children({box().absolute().left(40).top(40).width(80).height(80).fill(
+        Fill::color({1, 0, 0, 1}))});
     if (withWipe) outer.mask(by::edge(90.0f, 1.0f));
-    return box().child(std::move(outer));
+    return box().children({std::move(outer)});
   };
   auto ink = [](Host& host) {
     int n = 0;
@@ -97,16 +97,16 @@ TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
   auto render = [](std::function<SkPath(SkSize)> path) {
     auto host = std::make_unique<Host>(300, 300);
     host->composer.render(
-        box().child(text(u8"RING INSCRIPTION", whiteStyle(30))
-                        .width(240)
-                        .height(240)
-                        .absolute()
-                        .left(30)
-                        .top(30)
-                        .onPath({.path = std::move(path),
-                                 .at = 0.25f,
-                                 .align = TextPath::Align::Center,
-                                 .offset = 0.0f})));
+        box().children({text(u8"RING INSCRIPTION", whiteStyle(30))
+                            .width(240)
+                            .height(240)
+                            .absolute()
+                            .left(30)
+                            .top(30)
+                            .onPath({.path = std::move(path),
+                                     .at = 0.25f,
+                                     .align = TextPath::Align::Center,
+                                     .offset = 0.0f})}));
     host->frame();
     return host;
   };
@@ -153,7 +153,7 @@ TEST(ComposeText, AliasedTextHasHardEdges) {
     auto style = whiteStyle(33);
     style.shaping.aliased = aliased;
     Host host(240, 100);
-    host.composer.render(box().padding(12).child(text(u8"AVWM", style)));
+    host.composer.render(box().padding(12).children({text(u8"AVWM", style)}));
     host.frame();
     int partial = 0, full = 0;
     for (int y = 0; y < 100; ++y)
@@ -185,10 +185,10 @@ TEST(ComposeQuery, AKeyedShellCanOptOutOfHitTesting) {
   auto tree = [](bool shellTestable) {
     Element shell = box().key("shell").absolute().inset(0);
     shell.hitTestable(shellTestable);
-    shell.child(
-        box().key("bar").absolute().left(20).top(20).width(40).height(40).fill(
-            red()));
-    return box().child(std::move(shell));
+    shell.children(
+        {box().key("bar").absolute().left(20).top(20).width(40).height(40).fill(
+            red())});
+    return box().children({std::move(shell)});
   };
 
   Host greedy(200, 200);
@@ -212,8 +212,8 @@ TEST(ComposeQuery, BoundsIsAbsentRatherThanNaNBeforeLayout) {
   // rather than a rect full of NaN: a NaN rect propagates silently into
   // whatever arithmetic the caller does with it.
   Host host(200, 200);
-  host.composer.render(box().child(
-      box().key("cell").absolute().left(10).top(10).width(50).height(50)));
+  host.composer.render(box().children(
+      {box().key("cell").absolute().left(10).top(10).width(50).height(50)}));
   // No frame() yet: nothing has been laid out, so the answer is ABSENCE.
   // An answer here at all would be a rect built out of an unlaid node.
   EXPECT_FALSE(host.composer.bounds("cell").has_value())
@@ -237,7 +237,7 @@ TEST(ComposeSlots, ASlotSurvivesItsContentCarryingTheSameKey) {
   // renderSlot() returns silently and the slot freezes on its first value,
   // with no warning. Slots therefore keep their own index.
   Host host(200, 200);
-  host.composer.render(box().child(slot("readout").absolute().inset(0)));
+  host.composer.render(box().children({slot("readout").absolute().inset(0)}));
   host.composer.renderSlot(
       "readout", box().key("readout").absolute().inset(0).fill(red()));
   host.frame();
@@ -245,7 +245,7 @@ TEST(ComposeSlots, ASlotSurvivesItsContentCarryingTheSameKey) {
 
   // Control: with NO colliding key the second update has always worked.
   Host control(200, 200);
-  control.composer.render(box().child(slot("r2").absolute().inset(0)));
+  control.composer.render(box().children({slot("r2").absolute().inset(0)}));
   control.composer.renderSlot("r2", box().absolute().inset(0).fill(red()));
   control.frame();
   control.composer.renderSlot("r2", box().absolute().inset(0).fill(green()));
@@ -273,7 +273,7 @@ TEST(ComposeSlots, KeyOnASlotRenamesItAndSaysSoOnce) {
   ::testing::internal::CaptureStderr();
   {
     Host quiet(200, 200);
-    quiet.composer.render(box().child(slot("gauges").absolute().inset(0)));
+    quiet.composer.render(box().children({slot("gauges").absolute().inset(0)}));
     quiet.composer.renderSlot("gauges", box().absolute().inset(0).fill(red()));
     quiet.frame();
     EXPECT_GT(SkColorGetR(quiet.pixel(100, 100)), 180);
@@ -296,7 +296,7 @@ TEST(ComposeSlots, KeyOnASlotRenamesItAndSaysSoOnce) {
   // And the warning is telling the truth: the mount answers to the NEW
   // name only.
   Host host(200, 200);
-  host.composer.render(box().child(renamed.absolute().inset(0)));
+  host.composer.render(box().children({renamed.absolute().inset(0)}));
   host.composer.renderSlot("panel", box().absolute().inset(0).fill(green()));
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(100, 100)), 180);
@@ -357,17 +357,17 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
   const SkRect r = SkRect::MakeXYWH(40, 60, 50, 30);
 
   auto longhand = [&] {
-    return box().child(box()
-                           .key("plate")
-                           .absolute()
-                           .left(Dimension(40))
-                           .top(Dimension(60))
-                           .width(Dimension(50))
-                           .height(Dimension(30))
-                           .fill(red()));
+    return box().children({box()
+                               .key("plate")
+                               .absolute()
+                               .left(Dimension(40))
+                               .top(Dimension(60))
+                               .width(Dimension(50))
+                               .height(Dimension(30))
+                               .fill(red())});
   };
   auto terse = [&] {
-    return box().child(box().key("plate").rect(r).fill(red()));
+    return box().children({box().key("plate").rect(r).fill(red())});
   };
 
   host.composer.render(longhand());
@@ -397,8 +397,8 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
   // NEGATIVE CONTROL — without this the two assertions above pass on a
   // composer that never patches anything, which is exactly the vacuous
   // shape this program keeps finding. A different rect MUST patch.
-  host.composer.render(box().child(
-      box().key("plate").rect(SkRect::MakeXYWH(41, 60, 50, 30)).fill(red())));
+  host.composer.render(box().children(
+      {box().key("plate").rect(SkRect::MakeXYWH(41, 60, 50, 30)).fill(red())}));
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u)
       << "the patch counter is not live, so the zeroes above prove nothing";
@@ -411,14 +411,14 @@ TEST(ComposePlacement, AtPinsTheCornerAndLeavesTheNodeToSizeItself) {
   // on a node that measures itself from its content.
   Host host(300, 200);
   auto longhand = [] {
-    return box().child(text(u8"Wm", styleAt(20))
-                           .key("cap")
-                           .absolute()
-                           .left(Dimension(30))
-                           .top(Dimension(40)));
+    return box().children({text(u8"Wm", styleAt(20))
+                               .key("cap")
+                               .absolute()
+                               .left(Dimension(30))
+                               .top(Dimension(40))});
   };
   auto terse = [] {
-    return box().child(text(u8"Wm", styleAt(20)).key("cap").at({30, 40}));
+    return box().children({text(u8"Wm", styleAt(20)).key("cap").at({30, 40})});
   };
 
   host.composer.render(longhand());
@@ -440,7 +440,7 @@ TEST(ComposePlacement, AtPinsTheCornerAndLeavesTheNodeToSizeItself) {
 
   // Negative control, as above.
   host.composer.render(
-      box().child(text(u8"Wm", styleAt(20)).key("cap").at({31, 40})));
+      box().children({text(u8"Wm", styleAt(20)).key("cap").at({31, 40})}));
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
 }
@@ -453,23 +453,23 @@ TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
   Host host(200, 200);
 
   auto withRedundant = [] {
-    return box().child(box()
-                           .key("p")
-                           .absolute()
-                           .left(Dimension(30))
-                           .top(Dimension(30))
-                           .width(20)
-                           .height(20)
-                           .fill(red()));
+    return box().children({box()
+                               .key("p")
+                               .absolute()
+                               .left(Dimension(30))
+                               .top(Dimension(30))
+                               .width(20)
+                               .height(20)
+                               .fill(red())});
   };
   auto without = [] {
-    return box().child(box()
-                           .key("p")
-                           .left(Dimension(30))
-                           .top(Dimension(30))
-                           .width(20)
-                           .height(20)
-                           .fill(red()));
+    return box().children({box()
+                               .key("p")
+                               .left(Dimension(30))
+                               .top(Dimension(30))
+                               .width(20)
+                               .height(20)
+                               .fill(red())});
   };
   host.composer.render(withRedundant());
   host.frame();
@@ -488,20 +488,16 @@ TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
   // pinned edge. Here .absolute() is the only thing taking it out of flow,
   // so removing it moves the node behind its sibling.
   Host flow(200, 200);
-  flow.composer.render(
-      box()
-          .row()
-          .child(box().width(60).height(20).fill(green()))
-          .child(box().key("q").absolute().width(20).height(20).fill(red())));
+  flow.composer.render(box().row().children(
+      {box().width(60).height(20).fill(green()),
+       box().key("q").absolute().width(20).height(20).fill(red())}));
   flow.frame();
   ASSERT_TRUE(flow.composer.bounds("q").has_value());
   EXPECT_FLOAT_EQ(require(flow.composer.bounds("q")).fLeft, 0.0f);
 
   flow.composer.render(
-      box()
-          .row()
-          .child(box().width(60).height(20).fill(green()))
-          .child(box().key("q").width(20).height(20).fill(red())));
+      box().row().children({box().width(60).height(20).fill(green()),
+                            box().key("q").width(20).height(20).fill(red())}));
   flow.frame();
   EXPECT_FLOAT_EQ(require(flow.composer.bounds("q")).fLeft, 60.0f)
       << "if this is still 0 then .absolute() alone is ALSO redundant and "
@@ -597,16 +593,16 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
   style.window.gap = 1.0f;
 
   auto strip = [&] {
-    return box().child(
-        kit::plate({.columns = {feed::feed(a, style), feed::feed(b, style)},
-                    .paddingX = 10,
-                    .paddingY = 6,
-                    .gap = 8,
-                    .fill = Fill::color({0, 0, 0.5f, 1}),
-                    .border = green(),
-                    .divider = red()})
-            .key("plate")
-            .rect(SkRect::MakeXYWH(20, 20, 200, 80)));
+    return box().children(
+        {kit::plate({.columns = {feed::feed(a, style), feed::feed(b, style)},
+                     .paddingX = 10,
+                     .paddingY = 6,
+                     .gap = 8,
+                     .fill = Fill::color({0, 0, 0.5f, 1}),
+                     .border = green(),
+                     .divider = red()})
+             .key("plate")
+             .rect(SkRect::MakeXYWH(20, 20, 200, 80))});
   };
   host.composer.render(strip());
   host.frame();
@@ -637,15 +633,15 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
   // A column plate puts the divider on the other axis, and the same call
   // site says so with one field.
   Host col(240, 120);
-  col.composer.render(box().child(
-      kit::plate({.columns = {feed::feed(a, style), feed::feed(b, style)},
-                  .column = true,
-                  .paddingX = 10,
-                  .paddingY = 6,
-                  .gap = 8,
-                  .fill = Fill::color({0, 0, 0.5f, 1}),
-                  .divider = red()})
-          .rect(SkRect::MakeXYWH(20, 20, 200, 80))));
+  col.composer.render(box().children(
+      {kit::plate({.columns = {feed::feed(a, style), feed::feed(b, style)},
+                   .column = true,
+                   .paddingX = 10,
+                   .paddingY = 6,
+                   .gap = 8,
+                   .fill = Fill::color({0, 0, 0.5f, 1}),
+                   .divider = red()})
+           .rect(SkRect::MakeXYWH(20, 20, 200, 80))}));
   col.frame();
   int redRows = 0;
   for (int y = 21; y < 99; ++y)
@@ -716,17 +712,17 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
   Host host(320, (int)std::ceil(panelH) + 40);
   auto divider = [&] { return box().height(div).fill(green()); };
   host.composer.render(
-      box().child(box()
-                      .key("panel")
-                      .padding(12.0f, padY)
-                      .column()
-                      .gap(gap)
-                      .child(feed::feed(a, st).key("feedA"))
-                      .child(divider())
-                      .child(feed::feed(b, st).key("feedB"))
-                      .child(divider())
-                      .child(feed::feed(c, st).key("feedC"))
-                      .rect(SkRect::MakeXYWH(10, 10, 300, panelH))));
+      box().children({box()
+                          .key("panel")
+                          .padding(12.0f, padY)
+                          .column()
+                          .gap(gap)
+                          .children({feed::feed(a, st).key("feedA")})
+                          .children({divider()})
+                          .children({feed::feed(b, st).key("feedB")})
+                          .children({divider()})
+                          .children({feed::feed(c, st).key("feedC")})
+                          .rect(SkRect::MakeXYWH(10, 10, 300, panelH))}));
   host.frame();
 
   ASSERT_TRUE(host.composer.bounds("panel").has_value());
@@ -758,7 +754,7 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
   ring.append({u8"BBBB", "alert"});
 
   Host host(220, 90);
-  host.composer.render(box().child(feed::feed(ring, st)));
+  host.composer.render(box().children({feed::feed(ring, st)}));
   host.frame();
   auto byHand = [&](bool staggered) {
     auto column = box().column().gap(st.window.gap).clip();
@@ -769,9 +765,9 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
       if (staggered)
         row.opacity(animate(motion::from(0.0f).to(1.0f),
                             {200ms, &choreograph::easeNone}));
-      column.child(std::move(row));
+      column.children({std::move(row)});
     }
-    return box().child(std::move(column));
+    return box().children({std::move(column)});
   };
   host.composer.render(byHand(false));
   host.frame();
@@ -867,7 +863,8 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   ASSERT_EQ(ring.size(), 2u);
   EXPECT_EQ(ring.rows()[0].value.style, "pass");
   EXPECT_EQ(ring.rows()[1].value.style, "fail");
-  EXPECT_NE(ring.rows()[1].value.text.bytes().find(u8"FAIL"), std::u8string::npos);
+  EXPECT_NE(ring.rows()[1].value.text.bytes().find(u8"FAIL"),
+            std::u8string::npos);
 
   // And it renders: a plate whose checks never reach the screen is the
   // situation this replaces.
@@ -877,7 +874,7 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
                              {{"pass", {0, 1, 0, 1}}, {"fail", {1, 0, 0, 1}}});
   host.composer.render(box()
                            .fill(Fill::color({0, 0, 0, 1}))
-                           .child(feed::feed(ring, style).at({4, 4})));
+                           .children({feed::feed(ring, style).at({4, 4})}));
   host.frame();
   int inked = 0;
   for (int y = 0; y < 40; ++y)

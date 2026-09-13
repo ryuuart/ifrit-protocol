@@ -214,13 +214,9 @@ struct VideoCompositing final : sketch::Sketch {
 
     const weave::TextStyle title = weave::textStyle(
         {.size = 34, .color = SkColor4f{1, 1, 1, 0.96f}, .track = 8.0f});
-    ctx.composer.render(stack()
-                            .width(kWidth)
-                            .height(kHeight)
-                            .child(std::move(stage))
-                            .child(text(u8"SKY / SIGNAL", title)
-                                       .absolute()
-                                       .inset(72, 88, 72, 1720)));
+    ctx.composer.render(stack().width(kWidth).height(kHeight).children(
+        {std::move(stage),
+         text(u8"SKY / SIGNAL", title).absolute().inset(72, 88, 72, 1720)}));
   }
 };
 

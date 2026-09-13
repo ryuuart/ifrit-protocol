@@ -76,7 +76,7 @@ Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
-          .child(std::move(body)));
+          .children({std::move(body)}));
 }
 
 }  // namespace
@@ -94,7 +94,8 @@ struct OpticalKerning final : sketch::Sketch {
     const SkColor4f figure = sketch::kit::theme().palette.figure;
     const auto advance = [&](const char* text8, bool optical) {
       return ctx
-          .measure(box().child(text(text8, display(kSize, figure, optical))))
+          .measure(
+              box().children({text(text8, display(kSize, figure, optical))}))
           .width();
     };
     for (int i = 0; i < 6; ++i)
@@ -148,18 +149,16 @@ struct OpticalKerning final : sketch::Sketch {
                 "the table in warm under the measured answer in cool "
                 "· the letters drift apart along the line, because "
                 "every pair's delta accumulates into the next",
-                box()
-                    .absolute()
-                    .inset(0)
-                    .child(headline(kTable, false).absolute().inset(0))
-                    .child(headline(kOptical, true).absolute().inset(0)));
+                box().absolute().inset(0).children(
+                    {headline(kTable, false).absolute().inset(0),
+                     headline(kOptical, true).absolute().inset(0)}));
   }
 
   Element table() {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(7);
     for (const std::string& row : rows)
-      column.child(text(row, sheet.mono(11, sheet.palette.figure)));
+      column.children({text(row, sheet.mono(11, sheet.palette.figure))});
     return cell("measured pair deltas",
                 "each pair set twice and the two advances subtracted "
                 "· negative closes the pair up, and the last row is "

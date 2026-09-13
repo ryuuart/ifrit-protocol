@@ -95,8 +95,8 @@ Element cell(const char* call, const char* note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .column()
           .gap(10)
-          .child(std::move(art))
-          .child(text(readout, sheet.mono(10, sheet.palette.figure))));
+          .children({std::move(art),
+                     text(readout, sheet.mono(10, sheet.palette.figure))}));
 }
 
 }  // namespace

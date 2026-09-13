@@ -181,7 +181,7 @@ Element leadingSpecimen(const char* caption, weave::Leading leading) {
                        .styleClass("body")
                        .font({.size = 11.5f})
                        .width(Dimension(kMeasure * 0.48f))
-                       .paragraph(style))
+                       .paragraphs({style}))
       .styleSheet(callClasses())
       .width(Dimension(kMeasure * 0.48f));
 }
@@ -213,14 +213,14 @@ struct ParagraphSheet final : sketch::Sketch {
                     box()
                         .height(Dimension(s::kGrid * 4))
                         .width(Dimension(s::kMeasure * 0.48f))
-                        .child(gridRules())
-                        .child(text(s::kFourWays)
-                                   .styleClass("body")
-                                   .font({.size = 11.5f})
-                                   .absolute()
-                                   .inset(0, 0, 0, 0)
-                                   .width(Dimension(s::kMeasure * 0.48f))
-                                   .paragraph(grid)))
+                        .children({gridRules(),
+                                   text(s::kFourWays)
+                                       .styleClass("body")
+                                       .font({.size = 11.5f})
+                                       .absolute()
+                                       .inset(0, 0, 0, 0)
+                                       .width(Dimension(s::kMeasure * 0.48f))
+                                       .paragraphs({grid})}))
               .styleSheet(s::callClasses())
               .width(Dimension(s::kMeasure * 0.48f));
     }
@@ -228,23 +228,21 @@ struct ParagraphSheet final : sketch::Sketch {
         "LEADING",
         "face · multiple · absolute · grid. The rules "
         "under the fourth are the grid it lands on.",
-        box()
-            .column()
-            .gap(14)
-            .child(
-                box()
-                    .row()
-                    .gap(18)
-                    .child(s::leadingSpecimen("Leading::face()",
-                                              weave::Leading::face()))
-                    .child(s::leadingSpecimen("Leading::multiple(1.7)",
-                                              weave::Leading::multiple(1.7f))))
-            .child(box()
-                       .row()
-                       .gap(18)
-                       .child(s::leadingSpecimen("Leading::absolute(22)",
-                                                 weave::Leading::absolute(22)))
-                       .child(std::move(gridCell))));
+        box().column().gap(14).children(
+            {box()
+                 .row()
+                 .gap(18)
+                 .children({s::leadingSpecimen("Leading::face()",
+                                               weave::Leading::face())})
+                 .children(
+                     {s::leadingSpecimen("Leading::multiple(1.7)",
+                                         weave::Leading::multiple(1.7f))}),
+             box()
+                 .row()
+                 .gap(18)
+                 .children({s::leadingSpecimen("Leading::absolute(22)",
+                                               weave::Leading::absolute(22))})
+                 .children({std::move(gridCell)})}));
   }
 
   /// Four rules one grid step apart, behind the grid specimen.
@@ -252,14 +250,14 @@ struct ParagraphSheet final : sketch::Sketch {
     namespace s = sheet;
     Element stackOfRules = box().absolute().inset(0, 0, 0, 0);
     for (int line = 0; line < 4; ++line)
-      stackOfRules.child(
-          box()
-              .absolute()
-              .left(Dimension(0.0f))
-              .top(Dimension(s::kGrid * static_cast<float>(line + 1)))
-              .width(Dimension(s::kMeasure * 0.48f))
-              .height(Dimension(1.0f))
-              .fill(Fill::color(s::kRule)));
+      stackOfRules.children(
+          {box()
+               .absolute()
+               .left(Dimension(0.0f))
+               .top(Dimension(s::kGrid * static_cast<float>(line + 1)))
+               .width(Dimension(s::kMeasure * 0.48f))
+               .height(Dimension(1.0f))
+               .fill(Fill::color(s::kRule))});
     return stackOfRules;
   }
 
@@ -350,10 +348,13 @@ struct ParagraphSheet final : sketch::Sketch {
                            .styleClass("body")
                            .font({.size = 11.0f})
                            .width(Dimension(s::kMeasure * 0.31f))
-                           .textAlign(weave::TextAlignment::kJustify)
-                           .lineBreak(weave::LineBreakStrategy::kKnuthPlass)
-                           .hyphenation({.patterns = &s::hyphenator()})
-                           .justification(spec))
+                           .block({.alignment = weave::TextAlignment::kJustify})
+                           .block({.lineBreak =
+                                       weave::LineBreakStrategy::kKnuthPlass})
+                           .block({.hyphenation =
+                                       sigil::weave::HyphenationOptions{
+                                           .patterns = &s::hyphenator()}})
+                           .block({.justification = spec}))
           .styleSheet(s::callClasses())
           .width(Dimension(s::kMeasure * 0.31f));
     };
@@ -363,12 +364,9 @@ struct ParagraphSheet final : sketch::Sketch {
         "word gaps, then letter spacing, then a glyph scale — "
         "each bounded by its own two limits, and a pass at its default "
         "contributes nothing.",
-        box()
-            .row()
-            .gap(14)
-            .child(column("gaps alone", gapsOnly))
-            .child(column("+ letter spacing", withLetters))
-            .child(column("+ glyph scale", withScale)));
+        box().row().gap(14).children({column("gaps alone", gapsOnly),
+                                      column("+ letter spacing", withLetters),
+                                      column("+ glyph scale", withScale)}));
   }
 
   Element tabPanel() {
@@ -393,7 +391,7 @@ struct ParagraphSheet final : sketch::Sketch {
             .styleClass("figures")
             .font({.size = 11.5f})
             .width(Dimension(520.0f))
-            .tabStops(stops));
+            .block({.tabStops = stops}));
   }
 
   Element columnPanel() {
@@ -421,7 +419,7 @@ struct ParagraphSheet final : sketch::Sketch {
             .font({.size = 15.0f})
             .width(Dimension(210.0f))
             .height(Dimension(250.0f))
-            .writingMode(weave::WritingMode::kVerticalRL)
+            .block({.writingMode = weave::WritingMode::kVerticalRL})
             .paragraphs({heading, verse}));
   }
 

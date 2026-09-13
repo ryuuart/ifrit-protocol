@@ -307,7 +307,7 @@ struct PassiveTree final : sketch::Sketch {
       m.uniform("uGlowR", 5.5f);
       e.fill(std::move(m));
     }
-    parent.child(e.key(nodeKey(i)));
+    parent.children({e.key(nodeKey(i))});
   }
 
   void notableNode(Element& parent, int i) {
@@ -335,36 +335,36 @@ struct PassiveTree final : sketch::Sketch {
       m.uniform("uGlowR", 7.0f);
       frame.fill(std::move(m));
     }
-    parent.child(std::move(frame));
+    parent.children({std::move(frame)});
     // the inner ring and the notch rosette that make it read "notable"
-    parent.child(pt::socket(nullptr, at, dia - 11,
-                            {.fill = {0, 0, 0, 0},
-                             .borderWidth = 1.6f,
-                             .borderColor = mskia::toColor(ring)},
-                            nullptr, 4));
-    parent.child(
-        box()
-            .width(Dimension(dia + 10))
-            .height(Dimension(dia + 10))
-            .centerAt(at)
-            // THE NOTCH ROSETTE IS THE NOTABLE'S METALWORK. PoE carries
-            // the node hierarchy in the frame art, not in the radius, and
-            // a rosette at a pixel and a half beside a plain minor circle
-            // is the same circle at a different size. Deeper notches, a
-            // heavier stroke.
-            .shape(pt::notchRing(8, 0.60f, 1.0f))
-            .stroke(stroke(2.4f, Fill::color({ring.fR, ring.fG, ring.fB,
-                                              alloc ? 1.0f : 0.72f})))
-            .zIndex(4));
+    parent.children({pt::socket(nullptr, at, dia - 11,
+                                {.fill = {0, 0, 0, 0},
+                                 .borderWidth = 1.6f,
+                                 .borderColor = mskia::toColor(ring)},
+                                nullptr, 4)});
+    parent.children(
+        {box()
+             .width(Dimension(dia + 10))
+             .height(Dimension(dia + 10))
+             .centerAt(at)
+             // THE NOTCH ROSETTE IS THE NOTABLE'S METALWORK. PoE carries
+             // the node hierarchy in the frame art, not in the radius, and
+             // a rosette at a pixel and a half beside a plain minor circle
+             // is the same circle at a different size. Deeper notches, a
+             // heavier stroke.
+             .shape(pt::notchRing(8, 0.60f, 1.0f))
+             .stroke(stroke(2.4f, Fill::color({ring.fR, ring.fG, ring.fB,
+                                               alloc ? 1.0f : 0.72f})))
+             .zIndex(4)});
     // The well is never empty in the real thing — a cast sigil sits in it.
-    parent.child(box()
-                     .width(Dimension(dia * 0.50f))
-                     .height(Dimension(dia * 0.50f))
-                     .centerAt(at)
-                     .shape(shapes::star(4, 0.34f))
-                     .fill(Paint::solid(
-                         {ring.fR, ring.fG, ring.fB, alloc ? 0.95f : 0.6f}))
-                     .zIndex(4));
+    parent.children({box()
+                         .width(Dimension(dia * 0.50f))
+                         .height(Dimension(dia * 0.50f))
+                         .centerAt(at)
+                         .shape(shapes::star(4, 0.34f))
+                         .fill(Paint::solid(
+                             {ring.fR, ring.fG, ring.fB, alloc ? 0.95f : 0.6f}))
+                         .zIndex(4)});
   }
 
   void masteryNode(Element& parent, int i) {
@@ -374,22 +374,22 @@ struct PassiveTree final : sketch::Sketch {
     const float dia = pt::diameterOf(n.kind);
     const SkColor4f ring = pt::ringColor(n.state);
     // A diamond, so a group's centre node never reads as one more socket.
-    parent.child(box()
-                     .width(Dimension(dia))
-                     .height(Dimension(dia))
-                     .centerAt(at)
-                     .key(nodeKey(i))
-                     .shape(shapes::polygon(4))
-                     .fill(Paint::solid(pt::kSocket))
-                     .stroke(stroke(1.8f, Fill::color(ring)))
-                     .zIndex(3));
-    parent.child(box()
-                     .width(Dimension(dia * 0.42f))
-                     .height(Dimension(dia * 0.42f))
-                     .centerAt(at)
-                     .shape(shapes::polygon(4))
-                     .fill(Paint::solid({ring.fR, ring.fG, ring.fB, 0.75f}))
-                     .zIndex(4));
+    parent.children({box()
+                         .width(Dimension(dia))
+                         .height(Dimension(dia))
+                         .centerAt(at)
+                         .key(nodeKey(i))
+                         .shape(shapes::polygon(4))
+                         .fill(Paint::solid(pt::kSocket))
+                         .stroke(stroke(1.8f, Fill::color(ring)))
+                         .zIndex(3)});
+    parent.children({box()
+                         .width(Dimension(dia * 0.42f))
+                         .height(Dimension(dia * 0.42f))
+                         .centerAt(at)
+                         .shape(shapes::polygon(4))
+                         .fill(Paint::solid({ring.fR, ring.fG, ring.fB, 0.75f}))
+                         .zIndex(4)});
   }
 
   void keystoneNode(Element& parent, int i) {
@@ -400,55 +400,56 @@ struct PassiveTree final : sketch::Sketch {
     const SkColor4f ring = pt::ringColor(n.state);
     const bool alloc = n.state == treedata::State::Allocated;
     // Halo well first, so the octagon frame sits inside its own light.
-    parent.child(
-        pt::socket(nullptr, at, dia - 6,
-                   {.fill = mskia::toColor(pt::kSocket),
-                    .borderWidth = 0,
-                    .glowRadius = 22,
-                    .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
-                                  alloc ? 0.42f : 0.12f}},
-                   nullptr, 2));
-    parent.child(box()
-                     .width(Dimension(dia))
-                     .height(Dimension(dia))
-                     .centerAt(at)
-                     .key(nodeKey(i))
-                     .shape(shapes::polygon(8, 22.5f))
-                     .fill(Paint::radial({dia * 0.5f, dia * 0.5f}, dia * 0.62f,
-                                         {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
-                                          {1.0f, {0.07f, 0.06f, 0.05f, 1}}}))
-                     .stroke(stroke(2.8f, Fill::color(ring)))
-                     .zIndex(3));
-    parent.child(box()
-                     .width(Dimension(dia - 11))
-                     .height(Dimension(dia - 11))
-                     .centerAt(at)
-                     .shape(shapes::polygon(8, 22.5f))
-                     .stroke(stroke(
-                         1.2f, Fill::color({ring.fR, ring.fG, ring.fB, 0.6f})))
-                     .zIndex(4));
-    parent.child(box()
-                     .width(Dimension(dia + 16))
-                     .height(Dimension(dia + 16))
-                     .centerAt(at)
-                     .shape(pt::notchRing(16, 0.86f, 1.0f))
-                     .stroke(stroke(
-                         1.3f, Fill::color({ring.fR, ring.fG, ring.fB, 0.55f})))
-                     .zIndex(4));
+    parent.children(
+        {pt::socket(nullptr, at, dia - 6,
+                    {.fill = mskia::toColor(pt::kSocket),
+                     .borderWidth = 0,
+                     .glowRadius = 22,
+                     .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
+                                   alloc ? 0.42f : 0.12f}},
+                    nullptr, 2)});
+    parent.children(
+        {box()
+             .width(Dimension(dia))
+             .height(Dimension(dia))
+             .centerAt(at)
+             .key(nodeKey(i))
+             .shape(shapes::polygon(8, 22.5f))
+             .fill(Paint::radial({dia * 0.5f, dia * 0.5f}, dia * 0.62f,
+                                 {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
+                                  {1.0f, {0.07f, 0.06f, 0.05f, 1}}}))
+             .stroke(stroke(2.8f, Fill::color(ring)))
+             .zIndex(3)});
+    parent.children({box()
+                         .width(Dimension(dia - 11))
+                         .height(Dimension(dia - 11))
+                         .centerAt(at)
+                         .shape(shapes::polygon(8, 22.5f))
+                         .stroke(stroke(1.2f, Fill::color({ring.fR, ring.fG,
+                                                           ring.fB, 0.6f})))
+                         .zIndex(4)});
+    parent.children({box()
+                         .width(Dimension(dia + 16))
+                         .height(Dimension(dia + 16))
+                         .centerAt(at)
+                         .shape(pt::notchRing(16, 0.86f, 1.0f))
+                         .stroke(stroke(1.3f, Fill::color({ring.fR, ring.fG,
+                                                           ring.fB, 0.55f})))
+                         .zIndex(4)});
     // A keystone's plate carries the heaviest sigil in the tree.
-    parent.child(
-        box()
-            .width(Dimension(dia * 0.60f))
-            .height(Dimension(dia * 0.60f))
-            .centerAt(at)
-            .shape(shapes::star(6, 0.40f))
-            .fill(Paint::radial(
-                {dia * 0.30f, dia * 0.30f}, dia * 0.34f,
-                {{0.0f,
-                  {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
-                   alloc ? 1.0f : 0.55f}},
-                 {1.0f, {ring.fR, ring.fG, ring.fB, alloc ? 0.85f : 0.40f}}}))
-            .zIndex(4));
+    parent.children(
+        {box()
+             .width(Dimension(dia * 0.60f))
+             .height(Dimension(dia * 0.60f))
+             .centerAt(at)
+             .shape(shapes::star(6, 0.40f))
+             .fill(Paint::radial(
+                 {dia * 0.30f, dia * 0.30f}, dia * 0.34f,
+                 {{0.0f,
+                   {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
+                    alloc ? 1.0f : 0.55f}},
+                  {1.0f, {ring.fR, ring.fG, ring.fB, alloc ? 0.85f : 0.40f}}}))
+             .zIndex(4)});
   }
 
   void jewelNode(Element& parent, int i) {
@@ -457,14 +458,14 @@ struct PassiveTree final : sketch::Sketch {
     const SkPoint at{n.x, n.y};
     const float dia = pt::diameterOf(n.kind);
     const SkColor4f ring = pt::ringColor(n.state);
-    parent.child(box()
-                     .width(Dimension(dia))
-                     .height(Dimension(dia))
-                     .centerAt(at)
-                     .key(nodeKey(i))
-                     .shape(shapes::polygon(4))
-                     .stroke(stroke(2.0f, Fill::color(ring)))
-                     .zIndex(3));
+    parent.children({box()
+                         .width(Dimension(dia))
+                         .height(Dimension(dia))
+                         .centerAt(at)
+                         .key(nodeKey(i))
+                         .shape(shapes::polygon(4))
+                         .stroke(stroke(2.0f, Fill::color(ring)))
+                         .zIndex(3)});
   }
 
   // ------------------------------------------------------------------
@@ -478,42 +479,43 @@ struct PassiveTree final : sketch::Sketch {
       for (float r : g.radius) widest = std::max(widest, r);
       if (widest <= 0) continue;
       const float discR = widest + 26;
-      root.child(
-          box()
-              .width(Dimension(discR * 2))
-              .height(Dimension(discR * 2))
-              .centerAt({g.x, g.y})
-              // THE GROUP DISC HAS TO BE SEEN. Path of Exile's
-              // PSGroupBackground is a warm plate the rosette sits ON,
-              // and at half a stop over the ground it is invisible: the
-              // rosettes then float on flat charcoal and the tree loses
-              // the one cue that says which nodes belong together.
-              .fill(Paint::radial({discR, discR}, discR,
-                                  {{0.00f, {0.30f, 0.24f, 0.18f, 0.85f}},
-                                   {0.55f, {0.22f, 0.18f, 0.14f, 0.62f}},
-                                   {0.86f, {0.15f, 0.12f, 0.10f, 0.28f}},
-                                   {1.00f, {0.10f, 0.08f, 0.07f, 0.0f}}}))
-              .zIndex(0));
+      root.children(
+          {box()
+               .width(Dimension(discR * 2))
+               .height(Dimension(discR * 2))
+               .centerAt({g.x, g.y})
+               // THE GROUP DISC HAS TO BE SEEN. Path of Exile's
+               // PSGroupBackground is a warm plate the rosette sits ON,
+               // and at half a stop over the ground it is invisible: the
+               // rosettes then float on flat charcoal and the tree loses
+               // the one cue that says which nodes belong together.
+               .fill(Paint::radial({discR, discR}, discR,
+                                   {{0.00f, {0.30f, 0.24f, 0.18f, 0.85f}},
+                                    {0.55f, {0.22f, 0.18f, 0.14f, 0.62f}},
+                                    {0.86f, {0.15f, 0.12f, 0.10f, 0.28f}},
+                                    {1.00f, {0.10f, 0.08f, 0.07f, 0.0f}}}))
+               .zIndex(0)});
       // …and its rim, which is what turns a wash into a plate.
-      root.child(
-          box()
-              .width(Dimension(discR * 2))
-              .height(Dimension(discR * 2))
-              .centerAt({g.x, g.y})
-              .shape(pt::circleOutline())
-              .stroke(stroke(1.2f, Fill::color({0.44f, 0.36f, 0.26f, 0.30f})))
-              .zIndex(0));
+      root.children(
+          {box()
+               .width(Dimension(discR * 2))
+               .height(Dimension(discR * 2))
+               .centerAt({g.x, g.y})
+               .shape(pt::circleOutline())
+               .stroke(stroke(1.2f, Fill::color({0.44f, 0.36f, 0.26f, 0.30f})))
+               .zIndex(0)});
       for (float r : g.radius) {
         if (r <= 0) continue;
-        root.child(box()
-                       .width(Dimension(r * 2))
-                       .height(Dimension(r * 2))
-                       .centerAt({g.x, g.y})
-                       .shape(pt::circleOutline())
-                       .stroke(stroke(
-                           1.0f, Fill::color({pt::kPewter.fR, pt::kPewter.fG,
-                                              pt::kPewter.fB, 0.30f})))
-                       .zIndex(0));
+        root.children(
+            {box()
+                 .width(Dimension(r * 2))
+                 .height(Dimension(r * 2))
+                 .centerAt({g.x, g.y})
+                 .shape(pt::circleOutline())
+                 .stroke(
+                     stroke(1.0f, Fill::color({pt::kPewter.fR, pt::kPewter.fG,
+                                               pt::kPewter.fB, 0.30f})))
+                 .zIndex(0)});
       }
     }
   }
@@ -536,16 +538,17 @@ struct PassiveTree final : sketch::Sketch {
         }
     if (best < 0) return;
     const treedata::Group& g = treedata::kGroups[best];
-    root.child(box()
-                   .width(Dimension(bestR * 2))
-                   .height(Dimension(bestR * 2))
-                   .centerAt({g.x, g.y})
-                   .shape(pt::circleOutline())
-                   .stroke(spans::wrap(0.92f, 1.06f).offset(&ringPhase),
-                           brush::presets::pulse({pt::kHalo.fR, pt::kHalo.fG,
-                                                  pt::kHalo.fB, 0.22f},
-                                                 {1, 1, 1, 0.75f}, 0.72f))
-                   .zIndex(2));
+    root.children(
+        {box()
+             .width(Dimension(bestR * 2))
+             .height(Dimension(bestR * 2))
+             .centerAt({g.x, g.y})
+             .shape(pt::circleOutline())
+             .stroke(spans::wrap(0.92f, 1.06f).offset(&ringPhase),
+                     brush::presets::pulse(
+                         {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.22f},
+                         {1, 1, 1, 0.75f}, 0.72f))
+             .zIndex(2)});
   }
 
   /** Every link is a rail. Same-group/same-orbit pairs get that group's
@@ -561,10 +564,10 @@ struct PassiveTree final : sketch::Sketch {
         const treedata::Group& g = treedata::kGroups[e.group];
         router = routers::orbit({g.x, g.y});
       }
-      root.child(rail({{nodeKey(e.a)}, {nodeKey(e.b)}}, std::move(router))
-                     .inset(0)
-                     .stroke(brush::presets::rope(state, pt::kRopeScale))
-                     .zIndex(1));
+      root.children({rail({{nodeKey(e.a)}, {nodeKey(e.b)}}, std::move(router))
+                         .inset(0)
+                         .stroke(brush::presets::rope(state, pt::kRopeScale))
+                         .zIndex(1)});
     }
   }
 
@@ -629,19 +632,20 @@ struct PassiveTree final : sketch::Sketch {
     for (int n : path) anchors.push_back(Anchor{nodeKey(n)});
     // Straight router: the spine crosses groups, and routers::orbit only
     // curves same-radius pairs anyway — a single focus would be a lie.
-    root.child(
-        rail(anchors)
-            .inset(0)
-            .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {900ms})),
-                    brush::presets::rope(2, pt::kRopeScale))
-            .zIndex(2));
-    root.child(rail(anchors)
-                   .inset(0)
-                   .stroke(spans::range(&pulseS, &pulseE),
-                           brush::presets::pulse({pt::kHalo.fR, pt::kHalo.fG,
-                                                  pt::kHalo.fB, 0.35f},
-                                                 {1, 1, 1, 0.9f}, 1.25f))
-                   .zIndex(2));
+    root.children(
+        {rail(anchors)
+             .inset(0)
+             .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {900ms})),
+                     brush::presets::rope(2, pt::kRopeScale))
+             .zIndex(2)});
+    root.children(
+        {rail(anchors)
+             .inset(0)
+             .stroke(spans::range(&pulseS, &pulseE),
+                     brush::presets::pulse(
+                         {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.35f},
+                         {1, 1, 1, 0.9f}, 1.25f))
+             .zIndex(2)});
   }
 
   /** Matched nodes get a breathing green ring; the selected node gets a
@@ -652,28 +656,29 @@ struct PassiveTree final : sketch::Sketch {
       if (!searched(i)) continue;
       const treedata::Node& n = treedata::kNodes[i];
       const float d = pt::diameterOf(n.kind) + 13;
-      root.child(
-          box()
-              .width(Dimension(d))
-              .height(Dimension(d))
-              .centerAt({n.x, n.y})
-              .shape(pt::circleOutline())
-              .opacity(&searchPulse)
-              .stroke(stroke(1.6f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
-                                                pt::kSearch.fB, 0.85f})))
-              .zIndex(5));
+      root.children(
+          {box()
+               .width(Dimension(d))
+               .height(Dimension(d))
+               .centerAt({n.x, n.y})
+               .shape(pt::circleOutline())
+               .opacity(&searchPulse)
+               .stroke(stroke(1.6f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
+                                                 pt::kSearch.fB, 0.85f})))
+               .zIndex(5)});
     }
     const treedata::Node& sel = treedata::kNodes[selectedIndex()];
     const float d = pt::diameterOf(sel.kind) + 30;
-    root.child(box()
-                   .width(Dimension(d))
-                   .height(Dimension(d))
-                   .centerAt({sel.x, sel.y})
-                   .rotate(&selectSpin)
-                   .shape(shapes::star(12, 0.82f))
-                   .stroke(stroke(1.2f, Fill::color({pt::kHalo.fR, pt::kHalo.fG,
-                                                     pt::kHalo.fB, 0.55f})))
-                   .zIndex(5));
+    root.children(
+        {box()
+             .width(Dimension(d))
+             .height(Dimension(d))
+             .centerAt({sel.x, sel.y})
+             .rotate(&selectSpin)
+             .shape(shapes::star(12, 0.82f))
+             .stroke(stroke(1.2f, Fill::color({pt::kHalo.fR, pt::kHalo.fG,
+                                               pt::kHalo.fB, 0.55f})))
+             .zIndex(5)});
   }
 
   /** The tooltip: name, kind rule, stat lines, italic flavour. Anchored in
@@ -710,56 +715,59 @@ struct PassiveTree final : sketch::Sketch {
             .zIndex(7)
             .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
             .translateY(animate(motion::from(10.0f).to(0.0f), {520ms}))
-            .child(text(detail->name)
-                       .font({.size = 17, .color = pt::kHalo, .track = 2.4f}))
-            .child(text(detail->kind)
-                       .font({.size = 9.5f, .track = 3.2f})
-                       .margin(0, 3, 0, 0))
-            .child(
-                box()
-                    .width(Dimension(kCardW - 32))
-                    .height(Dimension(1.0f))
-                    .margin(0, 9, 0, 9)
-                    .fill(Paint::linear(
-                        {0, 0}, {kCardW - 32, 0},
-                        {{0.0f,
-                          {pt::kGold.fR, pt::kGold.fG, pt::kGold.fB, 0.55f}},
-                         {1.0f,
-                          {pt::kGold.fR, pt::kGold.fG, pt::kGold.fB, 0.0f}}})));
+            .children(
+                {text(detail->name)
+                     .font({.size = 17, .color = pt::kHalo, .track = 2.4f}),
+                 text(detail->kind)
+                     .font({.size = 9.5f, .track = 3.2f})
+                     .margin(0, 3, 0, 0),
+                 box()
+                     .width(Dimension(kCardW - 32))
+                     .height(Dimension(1.0f))
+                     .margin(0, 9, 0, 9)
+                     .fill(Paint::linear(
+                         {0, 0}, {kCardW - 32, 0},
+                         {{0.0f,
+                           {pt::kGold.fR, pt::kGold.fG, pt::kGold.fB, 0.55f}},
+                          {1.0f,
+                           {pt::kGold.fR, pt::kGold.fG, pt::kGold.fB,
+                            0.0f}}}))});
     for (const char* line : detail->stats) {
       if (!line) continue;
-      card.child(
-          box()
-              .row()
-              .gap(7)
-              .margin(0, 0, 0, 5)
-              .child(box()
-                         .width(Dimension(3.0f))
-                         .height(Dimension(3.0f))
-                         .margin(0, 6, 0, 0)
-                         .corners({1.5f})
-                         .fill(Paint::solid({pt::kRimLit.fR, pt::kRimLit.fG,
-                                             pt::kRimLit.fB, 0.9f})))
-              .child(text(line)
-                         .font({.size = 12,
-                                .color = SkColor4f{0.62f, 0.68f, 0.90f, 1},
-                                .track = 0.2f})
-                         .grow(1)));
+      card.children(
+          {box()
+               .row()
+               .gap(7)
+               .margin(0, 0, 0, 5)
+               .children(
+                   {box()
+                        .width(Dimension(3.0f))
+                        .height(Dimension(3.0f))
+                        .margin(0, 6, 0, 0)
+                        .corners({1.5f})
+                        .fill(Paint::solid({pt::kRimLit.fR, pt::kRimLit.fG,
+                                            pt::kRimLit.fB, 0.9f}))})
+               .children({text(line)
+                              .font({.size = 12,
+                                     .color = SkColor4f{0.62f, 0.68f, 0.90f, 1},
+                                     .track = 0.2f})
+                              .grow(1)})});
     }
     if (detail->flavour)
-      card.child(text(detail->flavour)
-                     .font({.size = 11.5f,
-                            .color = SkColor4f{0.42f, 0.38f, 0.32f, 1},
-                            .track = 0.3f,
-                            .slant = -10.0f})
-                     .margin(0, 9, 0, 0));
+      card.children({text(detail->flavour)
+                         .font({.size = 11.5f,
+                                .color = SkColor4f{0.42f, 0.38f, 0.32f, 1},
+                                .track = 0.3f,
+                                .slant = -10.0f})
+                         .margin(0, 9, 0, 0)});
     // the leader from the card back to the node it describes
-    root.child(rail({{"detail"}, {nodeKey(sel)}})
-                   .inset(0)
-                   .stroke(stroke(1.0f, Fill::color({pt::kGold.fR, pt::kGold.fG,
-                                                     pt::kGold.fB, 0.35f})))
-                   .zIndex(6));
-    root.child(card.key("detail"));
+    root.children(
+        {rail({{"detail"}, {nodeKey(sel)}})
+             .inset(0)
+             .stroke(stroke(1.0f, Fill::color({pt::kGold.fR, pt::kGold.fG,
+                                               pt::kGold.fB, 0.35f})))
+             .zIndex(6)});
+    root.children({card.key("detail")});
   }
 
   /** The sheet's own look, for the masthead: the two registers the title
@@ -788,66 +796,67 @@ struct PassiveTree final : sketch::Sketch {
       // Bound only round the card, since everything else on this HUD is
       // set in the tree's own registers rather than in a sheet's.
       const sketch::kit::Provide look(mastheadTheme());
-      root.child(
-          sketch::kit::titleCard({.title = {"EMBERWOOD REACH"},
-                                  .subtitle = {"passive cluster — real orbit "
-                                               "geometry, four frame states"}})
-              .top(30)
-              .left(38)
-              .zIndex(8));
+      root.children(
+          {sketch::kit::titleCard({.title = {"EMBERWOOD REACH"},
+                                   .subtitle = {"passive cluster — real orbit "
+                                                "geometry, four frame states"}})
+               .top(30)
+               .left(38)
+               .zIndex(8)});
     }
-    root.child(box()
-                   .column()
-                   .alignItems(Align::End)
-                   .top(30)
-                   .right(36)
-                   .zIndex(8)
-                   .child(text(points).font(
-                       {.size = 21, .color = pt::kGold, .track = 2}))
-                   .child(text("passive points")
-                              .font({.size = 10.5f, .track = 1.5f})
-                              .margin(0, 4, 0, 0)));
+    root.children({box()
+                       .column()
+                       .alignItems(Align::End)
+                       .top(30)
+                       .right(36)
+                       .zIndex(8)
+                       .children({text(points).font(
+                           {.size = 21, .color = pt::kGold, .track = 2})})
+                       .children({text("passive points")
+                                      .font({.size = 10.5f, .track = 1.5f})
+                                      .margin(0, 4, 0, 0)})});
     // the search chip, Daripher's box with our palette
-    root.child(box()
-                   .row()
-                   .alignItems(Align::Center)
-                   .gap(8)
-                   .bottom(28)
-                   .left(38)
-                   .zIndex(8)
-                   .padding(10, 5)
-                   .corners({3})
-                   .fill(Paint::solid({0.075f, 0.063f, 0.051f, 0.9f}))
-                   .foreground(
-                       stroke(1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
-                                                 pt::kSearch.fB, 0.4f})))
-                   .child(text("search").font({.size = 10, .track = 1.8f}))
-                   .child(text("fire").font(
-                       {.size = 12, .color = pt::kSearch, .track = 0.6f}))
-                   .child(text(found).font({.size = 10, .track = 1.2f})));
+    root.children(
+        {box()
+             .row()
+             .alignItems(Align::Center)
+             .gap(8)
+             .bottom(28)
+             .left(38)
+             .zIndex(8)
+             .padding(10, 5)
+             .corners({3})
+             .fill(Paint::solid({0.075f, 0.063f, 0.051f, 0.9f}))
+             .foreground(
+                 stroke(1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
+                                           pt::kSearch.fB, 0.4f})))
+             .children({text("search").font({.size = 10, .track = 1.8f})})
+             .children({text("fire").font(
+                 {.size = 12, .color = pt::kSearch, .track = 0.6f})})
+             .children({text(found).font({.size = 10, .track = 1.2f})})});
 
     auto swatch = [&](int state, const char* label) {
       return box()
           .row()
           .alignItems(Align::Center)
           .gap(8)
-          .child(box()
-                     .width(Dimension(44.0f))
-                     .height(Dimension(14.0f))
-                     .shape(pt::hline())
-                     .stroke(brush::presets::rope(state, 0.8f)))
-          .child(text(label).font({.size = 11, .track = 0.8f}));
+          .children({box()
+                         .width(Dimension(44.0f))
+                         .height(Dimension(14.0f))
+                         .shape(pt::hline())
+                         .stroke(brush::presets::rope(state, 0.8f)),
+                     text(label).font({.size = 11, .track = 0.8f})});
     };
-    root.child(box()
-                   .row()
-                   .gap(20)
-                   .alignItems(Align::Center)
-                   .bottom(28)
-                   .right(36)
-                   .zIndex(8)
-                   .child(swatch(0, "normal"))
-                   .child(swatch(1, "intermediate"))
-                   .child(swatch(2, "active")));
+    root.children({box()
+                       .row()
+                       .gap(20)
+                       .alignItems(Align::Center)
+                       .bottom(28)
+                       .right(36)
+                       .zIndex(8)
+                       .children({swatch(0, "normal")})
+                       .children({swatch(1, "intermediate")})
+                       .children({swatch(2, "active")})});
   }
 
   Element describe() {

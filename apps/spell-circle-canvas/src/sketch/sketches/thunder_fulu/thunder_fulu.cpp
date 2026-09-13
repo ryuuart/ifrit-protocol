@@ -16,13 +16,13 @@ auto ThunderFulu::describe(sketch::SketchContext&) -> Element {
            {.face = faceItalic, .size = 10.5f, .color = hexColor(0x7d6f52)})
       .set("chant", {.face = faceItalic, .size = 11.0f, .color = kChalk});
   auto root = box().inset(0).font({.face = faceMono}).styleSheet(classes);
-  root.child(plate());
-  root.child(tread());
-  root.child(marginColumn());
-  root.child(chantPanel());
-  root.child(tempoPanel());
-  root.child(consolePanel());
-  root.child(furniture());
+  root.children({plate()});
+  root.children({tread()});
+  root.children({marginColumn()});
+  root.children({chantPanel()});
+  root.children({tempoPanel()});
+  root.children({consolePanel()});
+  root.children({furniture()});
   return root;
 }
 

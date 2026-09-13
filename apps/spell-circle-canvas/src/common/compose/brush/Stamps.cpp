@@ -180,12 +180,12 @@ void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
     if (!picture) {
       // Shell box: snapshot() sizes by the root's CHILDREN and ignores
       // the root's own dimensions.
-      picture = snapshot(box().child(art), *ctx.fonts);
+      picture = snapshot(box().children({art}), *ctx.fonts);
       ctx.stamps->put(art.node(), {picture, nullptr, {0, 0}});
     }
   } else {
     if (!cache->picture || !bakedFromNode(cache->bakedFor, art.node())) {
-      cache->picture = snapshot(box().child(art), *ctx.fonts);
+      cache->picture = snapshot(box().children({art}), *ctx.fonts);
       cache->bakedFor = art.node();
     }
     picture = cache->picture;
@@ -242,7 +242,7 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
       if (const StampCache::Entry* hit = ctx.stamps->get(e.node()))
         slot = hit->picture;
     if (!slot) {  // shell box: snapshot() sizes by the root's CHILDREN
-      slot = snapshot(box().child(e), *ctx.fonts);
+      slot = snapshot(box().children({e}), *ctx.fonts);
       if (ctx.stamps && slot)
         ctx.stamps->put(e.node(), {slot, nullptr, {0, 0}});
     }

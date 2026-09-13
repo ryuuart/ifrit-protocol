@@ -29,31 +29,28 @@ TEST(ComposeRouters, ARedescribedRouteRecordsOnce) {
   // that is the shape every author writes, and the shape a callable
   // could never settle from.
   const auto page = [] {
-    return box()
-        .width(300)
-        .height(200)
-        .child(box()
-                   .key("a")
-                   .absolute()
-                   .left(Dimension(10.0f))
-                   .top(Dimension(10.0f))
-                   .width(20)
-                   .height(20)
-                   .fill(red()))
-        .child(box()
-                   .key("b")
-                   .absolute()
-                   .left(Dimension(200.0f))
-                   .top(Dimension(150.0f))
-                   .width(20)
-                   .height(20)
-                   .fill(blue()))
-        .child(connector("a", "b",
-                         routers::orthogonal(routers::Bend::VFirst, 6.0f))
-                   .key("wire")
-                   .absolute()
-                   .inset(0)
-                   .foreground(PathFormat{.width = 2, .strokeFill = green()}));
+    return box().width(300).height(200).children(
+        {box()
+             .key("a")
+             .absolute()
+             .left(Dimension(10.0f))
+             .top(Dimension(10.0f))
+             .width(20)
+             .height(20)
+             .fill(red()),
+         box()
+             .key("b")
+             .absolute()
+             .left(Dimension(200.0f))
+             .top(Dimension(150.0f))
+             .width(20)
+             .height(20)
+             .fill(blue()),
+         connector("a", "b", routers::orthogonal(routers::Bend::VFirst, 6.0f))
+             .key("wire")
+             .absolute()
+             .inset(0)
+             .foreground(PathFormat{.width = 2, .strokeFill = green()})});
   };
   Host host;
   host.composer.render(page());
@@ -67,33 +64,28 @@ TEST(ComposeRouters, ARedescribedRouteRecordsOnce) {
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
       << "an unchanged router re-recorded the route";
   // …and a router with different parameters is a different description.
-  host.composer.render(
-      box()
-          .width(300)
-          .height(200)
-          .child(box()
-                     .key("a")
-                     .absolute()
-                     .left(Dimension(10.0f))
-                     .top(Dimension(10.0f))
-                     .width(20)
-                     .height(20)
-                     .fill(red()))
-          .child(box()
-                     .key("b")
-                     .absolute()
-                     .left(Dimension(200.0f))
-                     .top(Dimension(150.0f))
-                     .width(20)
-                     .height(20)
-                     .fill(blue()))
-          .child(
-              connector("a", "b",
-                        routers::orthogonal(routers::Bend::VFirst, 18.0f))
-                  .key("wire")
-                  .absolute()
-                  .inset(0)
-                  .foreground(PathFormat{.width = 2, .strokeFill = green()})));
+  host.composer.render(box().width(300).height(200).children(
+      {box()
+           .key("a")
+           .absolute()
+           .left(Dimension(10.0f))
+           .top(Dimension(10.0f))
+           .width(20)
+           .height(20)
+           .fill(red()),
+       box()
+           .key("b")
+           .absolute()
+           .left(Dimension(200.0f))
+           .top(Dimension(150.0f))
+           .width(20)
+           .height(20)
+           .fill(blue()),
+       connector("a", "b", routers::orthogonal(routers::Bend::VFirst, 18.0f))
+           .key("wire")
+           .absolute()
+           .inset(0)
+           .foreground(PathFormat{.width = 2, .strokeFill = green()})}));
   host.frame();
   EXPECT_GE(host.composer.stats().patchedNodes, 1u)
       << "a router with a different radius pruned";
@@ -127,15 +119,15 @@ TEST(ComposeLayouts, AbsoluteDiagonalAutoSizes) {
   // A Diagonal container sizes itself from the extent of what it placed, so
   // an author does not have to compute the skewed bounding box by hand.
   Host host;
-  host.composer.render(
-      box().child(Element(layout(layouts::Diagonal{.skewDeg = -20, .gap = 10}))
-                      .key("battery")
-                      .absolute()
-                      .left(Dimension(30.0f))
-                      .top(Dimension(20.0f))
-                      .child(box().width(80).height(24).fill(red()))
-                      .child(box().width(80).height(24).fill(blue()))
-                      .child(box().width(80).height(24).fill(green()))));
+  host.composer.render(box().children(
+      {Element(layout(layouts::Diagonal{.skewDeg = -20, .gap = 10}))
+           .key("battery")
+           .absolute()
+           .left(Dimension(30.0f))
+           .top(Dimension(20.0f))
+           .children({box().width(80).height(24).fill(red())})
+           .children({box().width(80).height(24).fill(blue())})
+           .children({box().width(80).height(24).fill(green())})}));
   host.frame();
   auto b = host.composer.bounds("battery");
   ASSERT_TRUE(b.has_value());

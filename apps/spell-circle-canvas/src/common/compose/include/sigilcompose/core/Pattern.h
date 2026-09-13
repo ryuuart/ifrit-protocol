@@ -159,7 +159,7 @@ class Pattern {
       // against a font context that may be gone. A picture holds
       // everything it draws. (Wrapped so the intrinsic-size root adopts
       // the tile's forced dims.)
-      sk_sp<SkPicture> pic = snapshot(box().child(*m_tree), *fonts);
+      sk_sp<SkPicture> pic = snapshot(box().children({*m_tree}), *fonts);
       m_tile.program([pic](SkCanvas& canvas, SkSize, uint32_t) {
         if (pic) canvas.drawPicture(pic);
       });

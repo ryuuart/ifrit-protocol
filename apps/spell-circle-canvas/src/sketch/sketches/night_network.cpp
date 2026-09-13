@@ -137,16 +137,13 @@ inline Element vineArt() {
         .rotate(deg)
         .fill(Fill::color(c));
   };
-  return stack()
-      .width(48)
-      .height(16)
-      .child(box()
-                 .inset(0, 6.8f, 0, 6.8f)
-                 .corners({1.2f})
-                 .fill(Fill::color(kMossDeep)))
-      .child(leaf(4, 0, -28, kMoss))
-      .child(leaf(18, 9, 152, kMossDeep))
-      .child(leaf(31, 0, -24, kMoss));
+  return stack().width(48).height(16).children(
+      {box()
+           .inset(0, 6.8f, 0, 6.8f)
+           .corners({1.2f})
+           .fill(Fill::color(kMossDeep)),
+       leaf(4, 0, -28, kMoss), leaf(18, 9, 152, kMossDeep),
+       leaf(31, 0, -24, kMoss)});
 }
 
 /** Legend row: the line's name in its own colour, the construction note
@@ -158,8 +155,8 @@ inline Element legendRow(const char* name, const char* what, SkColor4f c,
       .inset(30, y, 0, 0)
       .zIndex(8)
       .font({.size = 12.5f})
-      .child(text(name).font({.track = 1.4f}).ink(c))
-      .child(text(what).font({.track = 0.4f}).margin(10, 0, 0, 0));
+      .children({text(name).font({.track = 1.4f}).ink(c),
+                 text(what).font({.track = 0.4f}).margin(10, 0, 0, 0)});
 }
 
 }  // namespace night_network
@@ -351,209 +348,196 @@ struct NightNetwork final : sketch::Sketch {
             {0, 0}, {0, nn::kH},
             {{0.0f, nn::kInkHigh}, {0.5f, nn::kInk}, {1.0f, nn::kInk}}))
         // ---- the waterway, beneath everything ----
-        .child(rail({{"rv0"}, {"rv1"}, {"rv2"}, {"rv3"}, {"rv4"}},
-                    routers::octilinear(20))  // the Thames rule: the river
-                                              // rides the routes' own grid
-                   .inset(0)
-                   .stroke(river)
-                   .zIndex(1))
+        .children({rail({{"rv0"}, {"rv1"}, {"rv2"}, {"rv3"}, {"rv4"}},
+                        routers::octilinear(20))  // the Thames rule: the river
+                                                  // rides the routes' own grid
+                       .inset(0)
+                       .stroke(river)
+                       .zIndex(1)})
         // ---- the bus corridor (bridges the river) ----
-        .child(
-            rail({{"rd_w"}, {"rd1"}, {"rd2"}, {"rd_e"}}, routers::polyline(22))
-                .inset(0)
-                .mask(by::spans(spans::upTo(&roadReveal)))
-                .stroke(roadbed)
-                .stroke(busLane)
-                .stroke(curb)
-                .zIndex(2))
+        .children(
+            {rail({{"rd_w"}, {"rd1"}, {"rd2"}, {"rd_e"}}, routers::polyline(22))
+                 .inset(0)
+                 .mask(by::spans(spans::upTo(&roadReveal)))
+                 .stroke(roadbed)
+                 .stroke(busLane)
+                 .stroke(curb)
+                 .zIndex(2)})
         // ---- the carto railway ----
-        .child(rail({{"rw_w"}, {"rw1"}, {"rw2"}, {"rw_e"}},
-                    routers::octilinear(14))
-                   .inset(0)
-                   .mask(by::spans(spans::upTo(&railReveal)))
-                   .style(brush::presets::railwayCarto(
-                       1.6f, nn::kSteel, {0.95f, 0.94f, 0.90f, 1}))
-                   .zIndex(3))
+        .children({rail({{"rw_w"}, {"rw1"}, {"rw2"}, {"rw_e"}},
+                        routers::octilinear(14))
+                       .inset(0)
+                       .mask(by::spans(spans::upTo(&railReveal)))
+                       .style(brush::presets::railwayCarto(
+                           1.6f, nn::kSteel, {0.95f, 0.94f, 0.90f, 1}))
+                       .zIndex(3)})
         // ---- the cased metro pair ----
-        .child(rail({{"em_w"}, {"em1"}, {"hub"}, {"em2"}, {"em_e"}},
-                    routers::octilinear(0))
-                   .inset(0)
-                   .stroke(spans::upTo(&emberReveal), emberBrush)
-                   .zIndex(4))
+        .children({rail({{"em_w"}, {"em1"}, {"hub"}, {"em2"}, {"em_e"}},
+                        routers::octilinear(0))
+                       .inset(0)
+                       .stroke(spans::upTo(&emberReveal), emberBrush)
+                       .zIndex(4)})
         // ---- the one-way line ----
-        .child(rail({{"cy_w"}, {"cy1"}, {"hub"}, {"cy2"}, {"cy_e"}},
-                    routers::octilinear(8))
-                   .inset(0)
-                   .stroke(spans::upTo(&cyanReveal), current)
-                   .zIndex(4))
+        .children({rail({{"cy_w"}, {"cy1"}, {"hub"}, {"cy2"}, {"cy_e"}},
+                        routers::octilinear(8))
+                       .inset(0)
+                       .stroke(spans::upTo(&cyanReveal), current)
+                       .zIndex(4)})
         // ---- the orbital ring with instanced stations ----
-        .child(box()
-                   .width(190)
-                   .height(190)
-                   .centerAt({436, 320})
-                   .shape(shapes::arc(0.0f, 359.9f))
-                   .stroke(spans::upTo(&ringReveal), orbital)
-                   .zIndex(5))
+        .children({box()
+                       .width(190)
+                       .height(190)
+                       .centerAt({436, 320})
+                       .shape(shapes::arc(0.0f, 359.9f))
+                       .stroke(spans::upTo(&ringReveal), orbital)
+                       .zIndex(5)})
         // ---- twin service (bottom-right strip) ----
-        .child(rail({{"tw_w"}, {"tw1"}, {"tw_e"}}, routers::octilinear(9))
-                   .inset(0)
-                   .stroke(twin)
-                   .zIndex(2))
+        .children({rail({{"tw_w"}, {"tw1"}, {"tw_e"}}, routers::octilinear(9))
+                       .inset(0)
+                       .stroke(twin)
+                       .zIndex(2)})
         // ---- cableway (top gap) ----
-        .child(rail({{"cb_w"}, {"cb_e"}}, routers::polyline(0))
-                   .inset(0)
-                   .stroke(cableway)
-                   .zIndex(3))
+        .children({rail({{"cb_w"}, {"cb_e"}}, routers::polyline(0))
+                       .inset(0)
+                       .stroke(cableway)
+                       .zIndex(3)})
         // ---- millbrook creek (tapers INTO the smokewater) ----
-        .child(rail({{"ck_s"}, {"ck2"}, {"ck1"}, {"ck_m"}},
-                    routers::octilinear(10))  // source->mouth: narrow->wide
-                   .inset(0)
-                   .stroke(creek)
-                   .zIndex(1))
+        .children({rail({{"ck_s"}, {"ck2"}, {"ck1"}, {"ck_m"}},
+                        routers::octilinear(10))  // source->mouth: narrow->wide
+                       .inset(0)
+                       .stroke(creek)
+                       .zIndex(1)})
         // ---- ARTLINE: the SkVertices art warp (brush::artAlong) — one
         // leaf-vine cell stretched and BENT along the S-curve; rigid
         // stamps can't follow this curvature continuously ----
-        .child(box()
-                   .inset(58, 452, nn::kW - 430, nn::kH - 548)
-                   .shape(keyedShape(
-                       std::string_view("vine"),
-                       [](SkSize sz) {
-                         SkPathBuilder b;
-                         b.moveTo(0, sz.height() * 0.72f);
-                         b.cubicTo(sz.width() * 0.24f, sz.height() * -0.25f,
-                                   sz.width() * 0.40f, sz.height() * 1.30f,
-                                   sz.width() * 0.64f, sz.height() * 0.42f);
-                         b.cubicTo(sz.width() * 0.80f, sz.height() * -0.15f,
-                                   sz.width() * 0.90f, sz.height() * 0.75f,
-                                   sz.width() * 1.0f, sz.height() * 0.35f);
-                         return b.detach();
-                       }))
-                   .foreground(brush::artAlong(nn::vineArt(), 14, 5))
-                   .zIndex(3))
+        .children({box()
+                       .inset(58, 452, nn::kW - 430, nn::kH - 548)
+                       .shape(keyedShape(
+                           std::string_view("vine"),
+                           [](SkSize sz) {
+                             SkPathBuilder b;
+                             b.moveTo(0, sz.height() * 0.72f);
+                             b.cubicTo(sz.width() * 0.24f, sz.height() * -0.25f,
+                                       sz.width() * 0.40f, sz.height() * 1.30f,
+                                       sz.width() * 0.64f, sz.height() * 0.42f);
+                             b.cubicTo(sz.width() * 0.80f, sz.height() * -0.15f,
+                                       sz.width() * 0.90f, sz.height() * 0.75f,
+                                       sz.width() * 1.0f, sz.height() * 0.35f);
+                             return b.detach();
+                           }))
+                       .foreground(brush::artAlong(nn::vineArt(), 14, 5))
+                       .zIndex(3)})
         // ---- the saltmarsh: Sk2D lattice hatch on a blob field ----
-        .child(box()
-                   .width(120)
-                   .height(74)
-                   .centerAt({760, 524})
-                   .shape(shapes::blob(7, 0.16f))
-                   .fill(Fill::color({0.10f, 0.20f, 0.20f, 0.55f}))
-                   .background(lines::presets::hatch(
-                       Fill::color({0.36f, 0.72f, 0.62f, 0.5f}), 7, 1.1f, -32))
-                   .zIndex(1))
+        .children(
+            {box()
+                 .width(120)
+                 .height(74)
+                 .centerAt({760, 524})
+                 .shape(shapes::blob(7, 0.16f))
+                 .fill(Fill::color({0.10f, 0.20f, 0.20f, 0.55f}))
+                 .background(lines::presets::hatch(
+                     Fill::color({0.36f, 0.72f, 0.62f, 0.5f}), 7, 1.1f, -32))
+                 .zIndex(1)})
         // ---- the pipeline trio: identical points, different ops ----
-        .child(
-            box()
-                .inset(49, 554, nn::kW - 232, nn::kH - 581)
-                .shape(demoPath)
-                .stroke(demoRun(shapers::Wave{.amplitude = 4, .wavelength = 28},
-                                nn::kCyan))
-                .zIndex(3))
-        .child(box()
-                   .inset(49, 580, nn::kW - 232, nn::kH - 607)
-                   .shape(demoPath)
-                   .stroke(demoRun(
-                       shapers::Zigzag{.amplitude = 4, .wavelength = 28},
-                       nn::kAmber))
-                   .zIndex(3))
-        .child(box()
-                   .inset(49, 606, nn::kW - 232, nn::kH - 633)
-                   .shape(demoPath)
-                   .stroke(demoRun(
-                       shapers::Square{.amplitude = 4, .wavelength = 28},
-                       nn::kViolet))
-                   .zIndex(3))
+        .children({box()
+                       .inset(49, 554, nn::kW - 232, nn::kH - 581)
+                       .shape(demoPath)
+                       .stroke(demoRun(
+                           shapers::Wave{.amplitude = 4, .wavelength = 28},
+                           nn::kCyan))
+                       .zIndex(3),
+                   box()
+                       .inset(49, 580, nn::kW - 232, nn::kH - 607)
+                       .shape(demoPath)
+                       .stroke(demoRun(
+                           shapers::Zigzag{.amplitude = 4, .wavelength = 28},
+                           nn::kAmber))
+                       .zIndex(3),
+                   box()
+                       .inset(49, 606, nn::kW - 232, nn::kH - 633)
+                       .shape(demoPath)
+                       .stroke(demoRun(
+                           shapers::Square{.amplitude = 4, .wavelength = 28},
+                           nn::kViolet))
+                       .zIndex(3)})
         // ---- waypoint pins (invisible) ----
-        .child(nn::pin("rv0", 692, 4))
-        .child(nn::pin("rv1", 654, 144))
-        .child(nn::pin("rv2", 559, 296))
-        .child(nn::pin("rv3", 584, 472))
-        .child(nn::pin("rv4", 492, 636))
-        .child(nn::pin("rd_w", 84, 552))
-        .child(nn::pin("rd1", 366, 520))
-        .child(nn::pin("rd2", 633, 552))
-        .child(nn::pin("rd_e", 823, 512))
-        .child(nn::pin("tw_w", 366, 610))
-        .child(nn::pin("tw1", 633, 610))
-        .child(nn::pin("tw_e", 830, 589))
+        .children({nn::pin("rv0", 692, 4), nn::pin("rv1", 654, 144),
+                   nn::pin("rv2", 559, 296), nn::pin("rv3", 584, 472),
+                   nn::pin("rv4", 492, 636), nn::pin("rd_w", 84, 552),
+                   nn::pin("rd1", 366, 520), nn::pin("rd2", 633, 552),
+                   nn::pin("rd_e", 823, 512), nn::pin("tw_w", 366, 610),
+                   nn::pin("tw1", 633, 610), nn::pin("tw_e", 830, 589)})
         // The cableway ran from (302, 96) to (492, 48), which is through
         // the legend panel: its cable and its station rings crossed the
         // TWIN SERVICE and CABLEWAY rows and collided with their type. It
         // spans the clear band above the carto railway instead.
-        .child(nn::pin("cb_w", 508, 56))
-        .child(nn::pin("cb_e", 842, 34))
-        .child(nn::pin("ck_m", 579, 412))
-        .child(nn::pin("ck1", 636, 412))
-        .child(nn::pin("ck2", 676, 372))
-        .child(nn::pin("ck_s", 828, 372))
+        .children({nn::pin("cb_w", 508, 56), nn::pin("cb_e", 842, 34),
+                   nn::pin("ck_m", 579, 412), nn::pin("ck1", 636, 412),
+                   nn::pin("ck2", 676, 372), nn::pin("ck_s", 828, 372)})
         // ---- stations ----
-        .child(nn::station("em_w", 98, 448))
-        .child(nn::station("em1", 267, 376))
-        .child(nn::station("em2", 661, 320))
-        .child(nn::station("em_e", 809, 248))
-        .child(nn::station("rw_w", 390, 166, 13))
-        .child(nn::station("rw1", 436, 120, 13))
-        .child(nn::station("rw2", 591, 120, 13))
-        .child(nn::station("rw_e", 830, 164, 13))
-        .child(nn::station("cy_w", 105, 304))
-        .child(nn::station("cy1", 302, 260))
-        .child(nn::station("cy2", 605, 436))
-        .child(nn::station("cy_e", 773, 500))
-        .child(hub)
+        .children(
+            {nn::station("em_w", 98, 448), nn::station("em1", 267, 376),
+             nn::station("em2", 661, 320), nn::station("em_e", 809, 248),
+             nn::station("rw_w", 390, 166, 13),
+             nn::station("rw1", 436, 120, 13), nn::station("rw2", 591, 120, 13),
+             nn::station("rw_e", 830, 164, 13), nn::station("cy_w", 105, 304),
+             nn::station("cy1", 302, 260), nn::station("cy2", 605, 436),
+             nn::station("cy_e", 773, 500), hub})
         // ---- names ----
-        .child(nn::label("EMBER GATE", 461, 298).ink(nn::kBone))
-        .child(nn::label("wharf lane", 82, 466))
-        .child(nn::label("north quay", 524, 98))
-        .child(nn::label("saltmarsh", 693, 477))
-        .child(nn::label("the smokewater", 668, 206)
-                   .ink(SkColor4f{0.45f, 0.62f, 0.78f, 1}))
+        .children({nn::label("EMBER GATE", 461, 298).ink(nn::kBone),
+                   nn::label("wharf lane", 82, 466),
+                   nn::label("north quay", 524, 98),
+                   nn::label("saltmarsh", 693, 477),
+                   nn::label("the smokewater", 668, 206)
+                       .ink(SkColor4f{0.45f, 0.62f, 0.78f, 1})})
         // ---- title + legend ----
-        .child(box()
-                   .column()
-                   .inset(28, 27, 0, 0)
-                   .zIndex(8)
-                   .child(text("NIGHT NETWORK")
-                              .font({.size = 30, .track = 2})
-                              .ink(nn::kBone))
-                   .child(text("the brush engine — twelve"
-                               " constructions")
-                              .font({.size = 14, .track = 1})
-                              .margin(0, 6, 0, 0)))
+        .children({box()
+                       .column()
+                       .inset(28, 27, 0, 0)
+                       .zIndex(8)
+                       .children({text("NIGHT NETWORK")
+                                      .font({.size = 30, .track = 2})
+                                      .ink(nn::kBone)})
+                       .children({text("the brush engine — twelve"
+                                       " constructions")
+                                      .font({.size = 14, .track = 1})
+                                      .margin(0, 6, 0, 0)})})
         // Ten rows reach into the map now — a feathered ink backing keeps
         // the routes from striking through the legend type.
-        .child(box()
-                   .inset(18, 92, 0, 0)
-                   .width(430)
-                   .height(276)
-                   .corners({10})
-                   .fill(Fill::color({0.043f, 0.051f, 0.11f, 0.82f}))
-                   .zIndex(7))
-        .child(nn::legendRow("EMBER LINE", "cased pair over rounded corners",
-                             nn::kEmber, 102))
-        .child(nn::legendRow("STEEL SPUR", "carto railway: dark + white dash",
-                             nn::kSteel, 124))
-        .child(nn::legendRow("CURRENT LINE", "one-way: chevrons + arrow",
-                             nn::kCyan, 146))
-        .child(nn::legendRow("ORBITAL", "instanced station stamps", nn::kViolet,
-                             168))
-        .child(nn::legendRow("NIGHT BUS", "offset legs: lane + curb",
-                             nn::kAmber, 190))
-        .child(nn::legendRow("SMOKEWATER",
-                             "TfL Thames rule: octilinear band + banks",
-                             {0.45f, 0.62f, 0.78f, 1}, 212))
-        .child(nn::legendRow("TWIN SERVICE",
-                             "shared running: alternating dashes", nn::kRose,
-                             234))
-        .child(nn::legendRow("CABLEWAY", "stamped rings on a support cable",
-                             nn::kAsh, 256))
-        .child(nn::legendRow("MILLBROOK", "topo taper: calligraphic ribbon",
-                             {0.36f, 0.66f, 0.86f, 1}, 278))
-        .child(nn::legendRow("PIPELINE TRIO",
-                             "same points: wave / zigzag / square", nn::kBone,
-                             300))
-        .child(nn::legendRow("ARTLINE", "SkVertices art warp: one bent vine",
-                             {0.55f, 0.80f, 0.47f, 1}, 322))
-        .child(nn::legendRow("SALTMARSH", "Sk2D lattice hatch on a blob",
-                             {0.36f, 0.72f, 0.62f, 1}, 344));
+        .children(
+            {box()
+                 .inset(18, 92, 0, 0)
+                 .width(430)
+                 .height(276)
+                 .corners({10})
+                 .fill(Fill::color({0.043f, 0.051f, 0.11f, 0.82f}))
+                 .zIndex(7),
+             nn::legendRow("EMBER LINE", "cased pair over rounded corners",
+                           nn::kEmber, 102),
+             nn::legendRow("STEEL SPUR", "carto railway: dark + white dash",
+                           nn::kSteel, 124),
+             nn::legendRow("CURRENT LINE", "one-way: chevrons + arrow",
+                           nn::kCyan, 146),
+             nn::legendRow("ORBITAL", "instanced station stamps", nn::kViolet,
+                           168),
+             nn::legendRow("NIGHT BUS", "offset legs: lane + curb", nn::kAmber,
+                           190),
+             nn::legendRow("SMOKEWATER",
+                           "TfL Thames rule: octilinear band + banks",
+                           {0.45f, 0.62f, 0.78f, 1}, 212),
+             nn::legendRow("TWIN SERVICE", "shared running: alternating dashes",
+                           nn::kRose, 234),
+             nn::legendRow("CABLEWAY", "stamped rings on a support cable",
+                           nn::kAsh, 256),
+             nn::legendRow("MILLBROOK", "topo taper: calligraphic ribbon",
+                           {0.36f, 0.66f, 0.86f, 1}, 278),
+             nn::legendRow("PIPELINE TRIO",
+                           "same points: wave / zigzag / square", nn::kBone,
+                           300),
+             nn::legendRow("ARTLINE", "SkVertices art warp: one bent vine",
+                           {0.55f, 0.80f, 0.47f, 1}, 322),
+             nn::legendRow("SALTMARSH", "Sk2D lattice hatch on a blob",
+                           {0.36f, 0.72f, 0.62f, 1}, 344)});
   }
 };
 

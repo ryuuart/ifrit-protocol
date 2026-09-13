@@ -39,11 +39,11 @@ Element flexGrid(int count, int changed = -1, int phase = 0,
   auto root = box().row().wrapLines().gap(1);
   for (int slot = 0; slot < count; ++slot) {
     const int id = (slot + orderShift) % count;
-    root.child(box()
-                   .key("n" + std::to_string(id))
-                   .width(19)
-                   .height(19)
-                   .fill(cellFill(id, changed, phase)));
+    root.children({box()
+                       .key("n" + std::to_string(id))
+                       .width(19)
+                       .height(19)
+                       .fill(cellFill(id, changed, phase))});
   }
   return root;
 }
@@ -53,13 +53,13 @@ Element positionedGrid(int count) {
   constexpr int kColumns = 50;
   for (int id = 0; id < count; ++id) {
     const int row = id / kColumns;
-    root.child(box()
-                   .key("n" + std::to_string(id))
-                   .left((float)(id % kColumns) * 20.0f)
-                   .top((float)row * 20.0f)
-                   .width(19)
-                   .height(19)
-                   .fill(cellFill(id)));
+    root.children({box()
+                       .key("n" + std::to_string(id))
+                       .left((float)(id % kColumns) * 20.0f)
+                       .top((float)row * 20.0f)
+                       .width(19)
+                       .height(19)
+                       .fill(cellFill(id))});
   }
   return root;
 }
@@ -85,19 +85,24 @@ Element groupScene(int count, Cache mode) {
   constexpr int kColumns = 10;
   for (int id = 0; id < count; ++id) {
     const int row = id / kColumns;
-    group.child(box()
-                    .absolute()
-                    .left(18.0f + (float)(id % kColumns) * 59.0f)
-                    .top(18.0f + (float)row * 43.0f)
-                    .width(64)
-                    .height(13)
-                    .rotate((float)(id % 7) * 6.0f - 18.0f)
-                    .fill(sigil::material::skia::Paint::sksl(groupShader())));
+    group.children(
+        {box()
+             .absolute()
+             .left(18.0f + (float)(id % kColumns) * 59.0f)
+             .top(18.0f + (float)row * 43.0f)
+             .width(64)
+             .height(13)
+             .rotate((float)(id % 7) * 6.0f - 18.0f)
+             .fill(sigil::material::skia::Paint::sksl(groupShader()))});
   }
   // Keep the parent live so it calls into the group every frame. An Auto
   // parent would cache one picture containing the first-frame traversal and
   // make both arms bypass the group state machine entirely.
-  return box().cache(Cache::None).absolute().inset(0).child(std::move(group));
+  return box()
+      .cache(Cache::None)
+      .absolute()
+      .inset(0)
+      .children({std::move(group)});
 }
 
 }  // namespace
@@ -291,12 +296,12 @@ Element memoGridUnder(int count, const BenchPalette& palette) {
   core::environment::Provide<BenchPalette> theme(palette);
   auto root = box().row().wrapLines().gap(1);
   for (int id = 0; id < count; ++id)
-    root.child(memo(MemoCellProps{id}, [](const MemoCellProps& properties) {
-                 // Deliberately never reads core::environment::inherited: this
-                 // memo has no reason to miss when the theme changes.
-                 return box().width(19).height(19).fill(
-                     cellFill(properties.id));
-               }).key("m" + std::to_string(id)));
+    root.children({memo(MemoCellProps{id}, [](const MemoCellProps& properties) {
+                     // Deliberately never reads core::environment::inherited:
+                     // this memo has no reason to miss when the theme changes.
+                     return box().width(19).height(19).fill(
+                         cellFill(properties.id));
+                   }).key("m" + std::to_string(id))});
   return root;
 }
 
@@ -399,37 +404,34 @@ Element marqueeStrip(float acrossPx, float alongPx) {
     centered.alignment = sigil::weave::TextAlignment::kCenter;
     return sigil::compose::text(paragraph, centered);
   };
-  auto root = box()
-                  .column()
-                  .width(acrossPx)
-                  .height(alongPx)
-                  .padding(52, 110)
-                  .child(box().left(10).top(0).bottom(0).width(6).fill(
-                      Fill::color({0.455f, 0.878f, 0.745f, 0.95f})))
-                  .child(box().right(10).top(0).bottom(0).width(4).fill(
-                      Fill::color({0.455f, 0.878f, 0.745f, 0.5f})));
+  auto root =
+      box().column().width(acrossPx).height(alongPx).padding(52, 110).children(
+          {box().left(10).top(0).bottom(0).width(6).fill(
+               Fill::color({0.455f, 0.878f, 0.745f, 0.95f})),
+           box().right(10).top(0).bottom(0).width(4).fill(
+               Fill::color({0.455f, 0.878f, 0.745f, 0.5f}))});
   const int sectors = (int)(alongPx / 930.0f);  // the marquee's own density
   for (int s = 0; s < sectors; ++s) {
-    root.child(box().grow());
-    root.child(label("— " + std::to_string(s + 1) + " —", 64.0f,
-                     {0.62f, 0.69f, 0.79f, 1.0f}));
-    root.child(
-        label("nothing here tiles and nothing repeats: each sector "
-              "is a different neighborhood of the same element tree, "
-              "numbered as it passes.",
-              44.0f, {0.93f, 0.96f, 1.0f, 1.0f}));
+    root.children({box().grow()});
+    root.children({label("— " + std::to_string(s + 1) + " —", 64.0f,
+                         {0.62f, 0.69f, 0.79f, 1.0f})});
+    root.children(
+        {label("nothing here tiles and nothing repeats: each sector "
+               "is a different neighborhood of the same element tree, "
+               "numbered as it passes.",
+               44.0f, {0.93f, 0.96f, 1.0f, 1.0f})});
     auto row = box().row().gap(6).alignItems(Align::End).height(170);
     for (int i = 0; i < 44; ++i) {
       const float beat =
           0.5f + 0.35f * std::sin((float)i * 0.29f + (float)s * 1.7f);
-      row.child(box()
-                    .width(6)
-                    .height(28.0f + 134.0f * beat)
-                    .corners({3})
-                    .fill(Fill::color(
-                        {0.455f, 0.878f, 0.745f, 0.45f + 0.5f * beat})));
+      row.children({box()
+                        .width(6)
+                        .height(28.0f + 134.0f * beat)
+                        .corners({3})
+                        .fill(Fill::color(
+                            {0.455f, 0.878f, 0.745f, 0.45f + 0.5f * beat}))});
     }
-    root.child(std::move(row));
+    root.children({std::move(row)});
   }
   return root;
 }

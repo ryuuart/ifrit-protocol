@@ -25,9 +25,9 @@ namespace sigil::compose {
  *  into the next free cell, left to right and then down.
  *
  *      layout(Table{.width = 500, .spacing = 2, .padding = 1})
- *          .child(masthead().cells(0, 0, 5, 1).cellAlign(Align::End,
- *                                                        Align::Start))
- *          .child(panel().cells(1, 0, 1, 2))
+ *          .children({masthead().cells(0, 0, 5, 1).cellAlign(Align::End,
+ *                                                        Align::Start)})
+ *          .children({panel().cells(1, 0, 1, 2)})
  *
  *  A COLUMN IS SOLVED BETWEEN TWO WIDTHS, not from one. What its content
  *  WANTS is the widest thing in it; what its content NEEDS is the

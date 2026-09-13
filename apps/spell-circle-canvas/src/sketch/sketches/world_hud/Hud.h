@@ -159,12 +159,12 @@ inline Element boneFrame(float w, float h, float radius = 3) {
       // The grain: Veloren's frames are carved, and a ramp with no noise
       // in it is a plastic one. It rides UNDER the bevel, so the carve
       // reads through the highlight rather than over it.
-      .child(box()
-                 .inset(0)
-                 .corners({radius})
-                 .fill(Paint::recipe(field::noise(0.36f, 3, 1.0f)))
-                 .opacity(0.38f)
-                 .blend(SkBlendMode::kMultiply))
+      .children({box()
+                     .inset(0)
+                     .corners({radius})
+                     .fill(Paint::recipe(field::noise(0.36f, 3, 1.0f)))
+                     .opacity(0.38f)
+                     .blend(SkBlendMode::kMultiply)})
       .foreground(stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}),
                          PathFormat::Align::Outer));
 }
@@ -176,30 +176,30 @@ inline Element bar(float frameW, float frameH, float innerW, float innerH,
   const float padX = (frameW - innerW) * 0.5f;
   const float padY = (frameH - innerH) * 0.5f;
   Element e = boneFrame(frameW, frameH, 2)
-                  .child(track(innerW, innerH).left(padX).top(padY));
+                  .children({track(innerW, innerH).left(padX).top(padY)});
   if (decay > 0.0f)
-    e.child(box()
-                .left(padX + innerW * (1.0f - decay))
-                .top(padY)
-                .width(Dimension(innerW * decay))
-                .height(Dimension(innerH))
-                .fill(Paint::solid({kQualityEpic.fR, kQualityEpic.fG,
-                                    kQualityEpic.fB, 0.55f})));
-  e.child(
-      box()
-          .left(padX)
-          .top(padY)
-          .width(Dimension(innerW * fraction))
-          .height(Dimension(innerH))
-          .fill(Paint::linear(
-              {0, 0}, {0, innerH},
-              {{0.0f,
-                {std::min(1.0f, color.fR * 1.45f + 0.06f),
-                 std::min(1.0f, color.fG * 1.45f + 0.06f),
-                 std::min(1.0f, color.fB * 1.45f + 0.06f), 1}},
-               {0.5f, color},
-               {1.0f,
-                {color.fR * 0.62f, color.fG * 0.62f, color.fB * 0.62f, 1}}})));
+    e.children({box()
+                    .left(padX + innerW * (1.0f - decay))
+                    .top(padY)
+                    .width(Dimension(innerW * decay))
+                    .height(Dimension(innerH))
+                    .fill(Paint::solid({kQualityEpic.fR, kQualityEpic.fG,
+                                        kQualityEpic.fB, 0.55f}))});
+  e.children(
+      {box()
+           .left(padX)
+           .top(padY)
+           .width(Dimension(innerW * fraction))
+           .height(Dimension(innerH))
+           .fill(Paint::linear({0, 0}, {0, innerH},
+                               {{0.0f,
+                                 {std::min(1.0f, color.fR * 1.45f + 0.06f),
+                                  std::min(1.0f, color.fG * 1.45f + 0.06f),
+                                  std::min(1.0f, color.fB * 1.45f + 0.06f), 1}},
+                                {0.5f, color},
+                                {1.0f,
+                                 {color.fR * 0.62f, color.fG * 0.62f,
+                                  color.fB * 0.62f, 1}}}))});
   return e;
 }
 

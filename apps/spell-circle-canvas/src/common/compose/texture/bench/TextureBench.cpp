@@ -23,7 +23,7 @@ constexpr int kSide = 256;
 Element card(int cells, int phase) {
   Element root = box().width(pct(100)).height(pct(100)).row().wrapLines();
   for (int i = 0; i < cells; ++i)
-    root.child(box().width(16).height(16).fill(cellFill(i, 0, phase)));
+    root.children({box().width(16).height(16).fill(cellFill(i, 0, phase))});
   return root;
 }
 

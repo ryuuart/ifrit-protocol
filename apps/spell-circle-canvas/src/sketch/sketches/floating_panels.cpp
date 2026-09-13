@@ -88,21 +88,21 @@ Element card(float w, float h, SkColor4f accent) {
   const SkColor4f ink = {1, 1, 1, 0.25f};
   auto rows = box().column().gap(14);
   for (int i = 0; i < 4; ++i)
-    rows.child(box()
-                   .width(w - 60 - (float)i * 40)
-                   .height(8)
-                   .corners({4})
-                   .fill(Fill::color(ink)));
+    rows.children({box()
+                       .width(w - 60 - (float)i * 40)
+                       .height(8)
+                       .corners({4})
+                       .fill(Fill::color(ink))});
 
   auto bars = box().row().gap(6).alignItems(Align::End);
   for (int i = 0; i < 14; ++i) {
     const float t = (float)i / 13.0f;
-    bars.child(
-        box()
-            .width(10)
-            .height(10 + 34.0f * (0.5f + 0.5f * std::sin(t * 9.0f + 1.7f)))
-            .corners({2})
-            .fill(Fill::color({accent.fR, accent.fG, accent.fB, 0.85f})));
+    bars.children(
+        {box()
+             .width(10)
+             .height(10 + 34.0f * (0.5f + 0.5f * std::sin(t * 9.0f + 1.7f)))
+             .corners({2})
+             .fill(Fill::color({accent.fR, accent.fG, accent.fB, 0.85f}))});
   }
 
   const float gauge = 108;
@@ -110,24 +110,25 @@ Element card(float w, float h, SkColor4f accent) {
       .width(w)
       .height(h)
       .fill(Fill::color({0.055f, 0.071f, 0.125f, 0.9f}))
-      .child(box()
-                 .column()
-                 .gap(18)
-                 .absolute()
-                 .inset(16, 16, 16, 16)
-                 .child(box().width(w - 32).height(14).corners({7}).fill(
-                     Fill::color({accent.fR, accent.fG, accent.fB, 0.9f})))
-                 .child(std::move(rows))
-                 .child(std::move(bars)))
-      .child(sketch::kit::gauge({.fraction = 200.0f / 280.0f,
-                                 .diameter = gauge,
-                                 .thickness = gauge * 0.5f * (1 - 0.72f),
-                                 .startDeg = 130,
-                                 .sweepDeg = 280,
-                                 .track = Fill::color({1, 1, 1, 0.15f}),
-                                 .bar = Fill::color(accent)})
-                 .absolute()
-                 .inset(w - gauge - 16, h - gauge - 16, 16, 16));
+      .children(
+          {box()
+               .column()
+               .gap(18)
+               .absolute()
+               .inset(16, 16, 16, 16)
+               .children({box().width(w - 32).height(14).corners({7}).fill(
+                   Fill::color({accent.fR, accent.fG, accent.fB, 0.9f}))})
+               .children({std::move(rows)})
+               .children({std::move(bars)}),
+           sketch::kit::gauge({.fraction = 200.0f / 280.0f,
+                               .diameter = gauge,
+                               .thickness = gauge * 0.5f * (1 - 0.72f),
+                               .startDeg = 130,
+                               .sweepDeg = 280,
+                               .track = Fill::color({1, 1, 1, 0.15f}),
+                               .bar = Fill::color(accent)})
+               .absolute()
+               .inset(w - gauge - 16, h - gauge - 16, 16, 16)});
 }
 
 }  // namespace

@@ -151,7 +151,7 @@ template <class T, class RowFunction>
   for (size_t i = first; i < n; ++i) {
     Element built = row(rows[i].value);
     built.key(rowKey(rows[i].sequence));
-    column.child(std::move(built));
+    column.children({std::move(built)});
   }
   return column;
 }
@@ -197,7 +197,8 @@ template <class RowFunction>
   for (size_t i = 0; i < rows; ++i) probe.append(i);
   Element column =
       feed(probe, options, [&](const uint64_t&) { return probeRow(); });
-  return compose::intrinsicSize(box().child(std::move(column)), fonts).height();
+  return compose::intrinsicSize(box().children({std::move(column)}), fonts)
+      .height();
 }
 
 // ---------------------------------------------------------------------------

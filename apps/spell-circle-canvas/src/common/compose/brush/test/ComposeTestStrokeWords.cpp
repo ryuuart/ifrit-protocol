@@ -11,7 +11,7 @@ TEST(ComposeShapeRename, ShapeOverridesTheBox) {
   Host host(200, 200);
   Element e = box().rect(SkRect::MakeXYWH(20, 20, 100, 100)).fill(red());
   e.shape(geometry::shapes::circle());
-  host.composer.render(stack().child(std::move(e)));
+  host.composer.render(stack().children({std::move(e)}));
   host.frame();
   EXPECT_EQ(host.pixel(70, 70), SK_ColorRED) << "inside the circle";
   EXPECT_EQ(host.pixel(24, 24), SK_ColorBLACK)
@@ -40,7 +40,7 @@ TEST(ComposeMotionWords, AnimateToIsTheChangeRamp) {
         inner.opacity(opacity);
       else
         inner.opacity(animate(sigil::motion::to(opacity), {200ms}));
-      return stack().child(std::move(inner));
+      return stack().children({std::move(inner)});
     };
     host.composer.render(describe(1.0f));
     host.frame();
@@ -69,7 +69,7 @@ TEST(ComposeMotionWords, ToAloneHasNoEntranceAndFromToDoes) {
       inner.opacity(animate(motion::from(0.0f).to(1.0f), {400ms}));
     else
       inner.opacity(animate(sigil::motion::to(1.0f), {400ms}));
-    host.composer.render(stack().child(std::move(inner)));
+    host.composer.render(stack().children({std::move(inner)}));
     host.frame(0.001);
     return (int)SkColorGetR(host.pixel(50, 50));
   };
@@ -172,7 +172,7 @@ TEST(ComposeDeriveWords, TheQualifiedAndPlainConnectorDrawOnePicture) {
         qualified ? derive::connector("a", "b") : connector("a", "b");
     wire.absolute().inset(0).foreground(stroke(4, red()));
     host.composer.render(
-        stack().child(std::move(a)).child(std::move(b)).child(std::move(wire)));
+        stack().children({std::move(a), std::move(b), std::move(wire)}));
     host.frame();
     host.frame();  // derive resolves against the first layout
     std::vector<SkColor> out;
@@ -199,10 +199,9 @@ TEST(ComposeDeriveWords, TheFreeFlowAroundVerbIsTheMethod) {
       para = derive::flowAround(std::move(para), "cut", 6.0f);
     else
       para.flowAround("cut", 6.0f);
-    host.composer.render(
-        stack()
-            .child(box().key("cut").rect(SkRect::MakeXYWH(10, 10, 90, 60)))
-            .child(box().absolute().inset(0).child(std::move(para))));
+    host.composer.render(stack().children(
+        {box().key("cut").rect(SkRect::MakeXYWH(10, 10, 90, 60)),
+         box().absolute().inset(0).children({std::move(para)})}));
     host.frame();
     host.frame();
     std::vector<SkColor> out;
@@ -225,8 +224,8 @@ TEST(ComposeVolatility, ALiveMaterialOnASpanPassDeclaresItself) {
     Host host(200, 200);
     PathFormat mark = stroke(8, red());
     mark.strokeFill = material::skia::Paint::sksl(heavyEffect(live));
-    host.composer.render(
-        stack().child(revealBox().stroke(spans::upTo(0.6f), std::move(mark))));
+    host.composer.render(stack().children(
+        {revealBox().stroke(spans::upTo(0.6f), std::move(mark))}));
     host.frame();
     host.frame();  // no re-describe: only declared volatility can paint now
     return host.composer.stats().nodesPainted;

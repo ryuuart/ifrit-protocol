@@ -2,10 +2,10 @@
 
 auto HitmanVerlet::codeLine(const char* s, SkColor4f c, bool caret) -> Element {
   auto row = box().row().gap(4).height(Dimension(12)).shrink(0);
-  row.child(t(caret ? "◄" : " ", mono(7.0f, caret ? kRed : kInk))
-                .width(Dimension(8))
-                .shrink(0));
-  row.child(t(s, mono(9.5f, c, 0.1f)));
+  row.children({t(caret ? "◄" : " ", mono(7.0f, caret ? kRed : kInk))
+                    .width(Dimension(8))
+                    .shrink(0)});
+  row.children({t(s, mono(9.5f, c, 0.1f))});
   return row;
 }
 
@@ -15,55 +15,55 @@ auto HitmanVerlet::panelA1() -> Element {
                "VARIABLE",
                1)
       .gap(4)
-      .child(t("x' = 2x − x* + a·Δt²      x* "
-               "= x",
-               monoB(12.0f, kBone, 0.2f))
-                 .height(Dimension(16))
-                 .shrink(0))
-      .child(codeLine("temp    = x[i];", kBlue))
-      .child(codeLine("x[i]   += DRAG*(x[i]-oldx[i]) + g;", kBlue))
-      .child(codeLine("oldx[i] = temp;", kBlue))
-      .child(box().grow(1))
-      .child(t("1.99 IS A VELOCITY DAMP, NOT A POSITION ONE",
-               ui(7.5f, kRed, 0.5f)))
-      .child(t("x' = 1.99x − 0.99x* + aΔt²  ==  "
-               "x + 0.99(x−x*) + aΔt²",
-               mono(7.5f, kSteel, 0.1f)))
-      .child(t("AS PRINTED, A PARTICLE AT REST AT x = 500 DRIFTS 5 u/STEP "
-               "TOWARD THE ORIGIN.",
-               ui(7.0f, kTick, 0.4f)));
+      .children({t("x' = 2x − x* + a·Δt²      x* "
+                   "= x",
+                   monoB(12.0f, kBone, 0.2f))
+                     .height(Dimension(16))
+                     .shrink(0),
+                 codeLine("temp    = x[i];", kBlue),
+                 codeLine("x[i]   += DRAG*(x[i]-oldx[i]) + g;", kBlue),
+                 codeLine("oldx[i] = temp;", kBlue), box().grow(1),
+                 t("1.99 IS A VELOCITY DAMP, NOT A POSITION ONE",
+                   ui(7.5f, kRed, 0.5f)),
+                 t("x' = 1.99x − 0.99x* + aΔt²  ==  "
+                   "x + 0.99(x−x*) + aΔt²",
+                   mono(7.5f, kSteel, 0.1f)),
+                 t("AS PRINTED, A PARTICLE AT REST AT x = 500 DRIFTS 5 u/STEP "
+                   "TOWARD THE ORIGIN.",
+                   ui(7.0f, kTick, 0.4f))});
 }
 
 auto HitmanVerlet::panelA2() -> Element {
   return panel(kPanelAH[1], "A2 · THE STICK CONSTRAINT, AND A SIGN", 2)
-      .child(codeLine("delta = x2-x1;", kBlue))
-      .child(codeLine("deltalength = sqrt(delta*delta);", kBlue))
-      .child(codeLine("diff = (deltalength-restlength)/deltalength;", kBlue))
-      .child(codeLine("x1 -= delta*0.5*diff;", kRed, true))
-      .child(codeLine("x2 += delta*0.5*diff;", kRed, true))
-      .child(box().height(Dimension(2)).shrink(0))
-      .child(t("r = 100, |x2−x1| = 120 → diff = 1/6, "
-               "delta·0.5·diff = (10, 0)",
-               mono(7.5f, kSteel, 0.1f)))
-      .child(t("AS PRINTED : x1 = (−10,0)  x2 = (130,0)  "
-               "→ d = 140  DIVERGES",
-               mono(8.0f, kRed, 0.1f)))
-      .child(t("CORRECTED  : x1 = ( 10,0)  x2 = (110,0)  "
-               "→ d = 100  EXACT",
-               mono(8.0f, hexColor(0x4FC79E), 0.1f)))
-      .child(box().height(Dimension(2)).shrink(0))
-      .child(t("FOUR OF THE FIVE STICK LISTINGS CARRY IT: (C2), "
-               "STICK-IN-A-BOX, CLOTH, MASS-WEIGHTED.",
-               ui(7.5f, kSteel, 0.4f)))
-      .child(t("THE FIFTH — THE SQRT APPROXIMATION, THE ONE THAT "
-               "SHIPPED IN HITMAN — IS CORRECT WITH THE SAME TWO "
-               "ASSIGNMENT LINES, BECAUSE ITS FACTOR IS ALREADY NEGATIVE "
-               "UNDER TENSION. THE EXPOSITION FORM WAS MADE BY REMOVING THE "
-               "APPROXIMATION, AND THE SIGN WENT WITH IT.",
-               ui(7.5f, kTick, 0.4f)))
-      .child(box().grow(1))
-      .child(t("THE PAPER'S OWN STICK CODE PUSHES WHEN IT SHOULD PULL.",
-               monoB(9.0f, kRed, 0.2f)));
+      .children(
+          {codeLine("delta = x2-x1;", kBlue),
+           codeLine("deltalength = sqrt(delta*delta);", kBlue),
+           codeLine("diff = (deltalength-restlength)/deltalength;", kBlue),
+           codeLine("x1 -= delta*0.5*diff;", kRed, true),
+           codeLine("x2 += delta*0.5*diff;", kRed, true),
+           box().height(Dimension(2)).shrink(0),
+           t("r = 100, |x2−x1| = 120 → diff = 1/6, "
+             "delta·0.5·diff = (10, 0)",
+             mono(7.5f, kSteel, 0.1f)),
+           t("AS PRINTED : x1 = (−10,0)  x2 = (130,0)  "
+             "→ d = 140  DIVERGES",
+             mono(8.0f, kRed, 0.1f)),
+           t("CORRECTED  : x1 = ( 10,0)  x2 = (110,0)  "
+             "→ d = 100  EXACT",
+             mono(8.0f, hexColor(0x4FC79E), 0.1f)),
+           box().height(Dimension(2)).shrink(0),
+           t("FOUR OF THE FIVE STICK LISTINGS CARRY IT: (C2), "
+             "STICK-IN-A-BOX, CLOTH, MASS-WEIGHTED.",
+             ui(7.5f, kSteel, 0.4f)),
+           t("THE FIFTH — THE SQRT APPROXIMATION, THE ONE THAT "
+             "SHIPPED IN HITMAN — IS CORRECT WITH THE SAME TWO "
+             "ASSIGNMENT LINES, BECAUSE ITS FACTOR IS ALREADY NEGATIVE "
+             "UNDER TENSION. THE EXPOSITION FORM WAS MADE BY REMOVING THE "
+             "APPROXIMATION, AND THE SIGN WENT WITH IT.",
+             ui(7.5f, kTick, 0.4f)),
+           box().grow(1),
+           t("THE PAPER'S OWN STICK CODE PUSHES WHEN IT SHOULD PULL.",
+             monoB(9.0f, kRed, 0.2f))});
 }
 
 auto HitmanVerlet::panelA3() -> Element {
@@ -101,87 +101,87 @@ auto HitmanVerlet::panelA3() -> Element {
         .width(Dimension(52))
         .shrink(0)
         .alignItems(Align::Center)
-        .child(box().grow(1))
-        .child(
-            box()
-                .width(Dimension(30))
-                .height(Dimension(h))
-                .fill(i == 4 ? kBlue : hexColor(0x6FA8DC, 0.42f))
-                .scaleY(animate(from(0.0f).to(1.0f), {.duration = 220ms,
-                                                      .ease = ease::outBack(),
-                                                      .delay = 1600ms}))
-                .transformOrigin(0.5f, 1.0f))
-        .child(t(label, mono(7.0f, kSteel)));
+        .children(
+            {box().grow(1),
+             box()
+                 .width(Dimension(30))
+                 .height(Dimension(h))
+                 .fill(i == 4 ? kBlue : hexColor(0x6FA8DC, 0.42f))
+                 .scaleY(animate(from(0.0f).to(1.0f), {.duration = 220ms,
+                                                       .ease = ease::outBack(),
+                                                       .delay = 1600ms}))
+                 .transformOrigin(0.5f, 1.0f),
+             t(label, mono(7.0f, kSteel))});
   };
   return panel(kPanelAH[2], "A3 · THE SQUARE-ROOT APPROXIMATION", 3)
-      .child(codeLine("delta *= r*r/(delta*delta+r*r) - 0.5;", kBlue))
-      .child(codeLine("x1 -= delta;   x2 += delta;", kBlue))
-      .child(box()
-                 .height(Dimension(64))
-                 .shrink(0)
-                 .child(box()  // s = 0
-                            .left(Dimension(0))
-                            .top(Dimension(39.1f))
-                            .width(Dimension(324))
-                            .height(Dimension(1))
-                            .fill(hexColor(0x2A2E38)))
-                 .child(box()  // u = 1
-                            .left(Dimension(108))
-                            .top(Dimension(0))
-                            .width(Dimension(1))
-                            .height(Dimension(64))
-                            .fill(hexColor(0x2A2E38)))
-                 .child(plotCurve(false, kSteel, 1.4f))
-                 .child(plotCurve(true, kBlue, 1.8f))
-                 .child(t("s_exact", mono(7.0f, kSteel))
-                            .left(Dimension(4))
-                            .top(Dimension(2)))
-                 .child(t("s_approx", mono(7.0f, kBlue))
-                            .left(Dimension(4))
-                            .top(Dimension(13)))
-                 .child(t("u = d/r   0.5 → 2.0", mono(7.0f, kTick))
-                            .left(Dimension(244))
-                            .top(Dimension(52))))
-      .child(t("approx/exact:  0.60× at u=0.5 · 0.88 · "
-               "1.08 · 1.15 · 1.20× at u=2.0",
-               mono(7.5f, kSteel, 0.1f)))
-      .child(t("AGREES IN VALUE AND SLOPE AT u = 1. DENOMINATOR "
-               "d²+r² ≥ r² > 0, SO IT "
-               "CANNOT DIVIDE BY ZERO: §7's SINGULARITY NOTE "
-               "APPLIES ONLY TO THE EXACT FORM.",
-               ui(7.0f, kTick, 0.4f)))
-      .child(box()
-                 .row()
-                 .gap(2)
-                 .height(Dimension(38))
-                 .shrink(0)
-                 .staggerChildren(60ms)
-                 .child(bar(0, "60", 12))
-                 .child(bar(1, "80", 16))
-                 .child(bar(2, "90", 18))
-                 .child(bar(3, "95", 19))
-                 .child(bar(4, "97.5", 19.5f)))
-      .child(t("§7 SOFT CONSTRAINTS: HALF THE DEVIATION PER FRAME.",
-               ui(7.0f, kTick, 0.4f)));
+      .children({codeLine("delta *= r*r/(delta*delta+r*r) - 0.5;", kBlue),
+                 codeLine("x1 -= delta;   x2 += delta;", kBlue),
+                 box()
+                     .height(Dimension(64))
+                     .shrink(0)
+                     .children({box()  // s = 0
+                                    .left(Dimension(0))
+                                    .top(Dimension(39.1f))
+                                    .width(Dimension(324))
+                                    .height(Dimension(1))
+                                    .fill(hexColor(0x2A2E38))})
+                     .children({box()  // u = 1
+                                    .left(Dimension(108))
+                                    .top(Dimension(0))
+                                    .width(Dimension(1))
+                                    .height(Dimension(64))
+                                    .fill(hexColor(0x2A2E38))})
+                     .children({plotCurve(false, kSteel, 1.4f)})
+                     .children({plotCurve(true, kBlue, 1.8f)})
+                     .children({t("s_exact", mono(7.0f, kSteel))
+                                    .left(Dimension(4))
+                                    .top(Dimension(2))})
+                     .children({t("s_approx", mono(7.0f, kBlue))
+                                    .left(Dimension(4))
+                                    .top(Dimension(13))})
+                     .children({t("u = d/r   0.5 → 2.0", mono(7.0f, kTick))
+                                    .left(Dimension(244))
+                                    .top(Dimension(52))}),
+                 t("approx/exact:  0.60× at u=0.5 · 0.88 · "
+                   "1.08 · 1.15 · 1.20× at u=2.0",
+                   mono(7.5f, kSteel, 0.1f)),
+                 t("AGREES IN VALUE AND SLOPE AT u = 1. DENOMINATOR "
+                   "d²+r² ≥ r² > 0, SO IT "
+                   "CANNOT DIVIDE BY ZERO: §7's SINGULARITY NOTE "
+                   "APPLIES ONLY TO THE EXACT FORM.",
+                   ui(7.0f, kTick, 0.4f)),
+                 box()
+                     .row()
+                     .gap(2)
+                     .height(Dimension(38))
+                     .shrink(0)
+                     .staggerChildren(60ms)
+                     .children({bar(0, "60", 12)})
+                     .children({bar(1, "80", 16)})
+                     .children({bar(2, "90", 18)})
+                     .children({bar(3, "95", 19)})
+                     .children({bar(4, "97.5", 19.5f)}),
+                 t("§7 SOFT CONSTRAINTS: HALF THE DEVIATION PER FRAME.",
+                   ui(7.0f, kTick, 0.4f))});
 }
 
 auto HitmanVerlet::panelB1() -> Element {
   return panel(kPanelBH[0], "B1 · FIGURE 9: THE ANATOMY", 4)
       .gap(4)
-      .child(box().height(Dimension(118)).shrink(0))
-      .child(t("16 PARTICLES · 24 STICKS · 1 INEQUALITY "
-               "(KNEES, §6)",
-               monoB(8.5f, kBone, 0.1f)))
-      .child(t("16×2 − 24 = 8 PLANAR DOF   "
-               "(16×3 − 24 = 24 IN THE PAPER'S 3D)",
-               mono(8.0f, kSteel, 0.1f)))
-      .child(
-          t("COMPARE §5's TETRAHEDRON: 4×3 − 6 = 6", mono(8.0f, kSteel, 0.1f)))
-      .child(t("RE-COUNTED AT 600 dpi: THRESHOLD, ERODE BY A DISC r = 8 px "
-               "— EVERY STICK AND EVERY BODY-TEXT STEM DIES AND "
-               "EXACTLY 16 COMPONENTS OF 620–657 px SURVIVE. "
-               "THE PAPER PUBLISHES NO COUNT.",
-               ui(7.0f, kTick, 0.4f)));
+      .children(
+          {box().height(Dimension(118)).shrink(0),
+           t("16 PARTICLES · 24 STICKS · 1 INEQUALITY "
+             "(KNEES, §6)",
+             monoB(8.5f, kBone, 0.1f)),
+           t("16×2 − 24 = 8 PLANAR DOF   "
+             "(16×3 − 24 = 24 IN THE PAPER'S 3D)",
+             mono(8.0f, kSteel, 0.1f)),
+           t("COMPARE §5's TETRAHEDRON: 4×3 − 6 = 6", mono(8.0f, kSteel, 0.1f)),
+           t("RE-COUNTED AT 600 dpi: THRESHOLD, ERODE BY A DISC r = 8 px "
+             "— EVERY STICK AND EVERY BODY-TEXT STEM DIES AND "
+             "EXACTLY 16 COMPONENTS OF 620–657 px SURVIVE. "
+             "THE PAPER PUBLISHES NO COUNT.",
+             ui(7.0f, kTick, 0.4f))});
 }
 
 auto HitmanVerlet::paintAnatomy(Pen& pen, float x0, float y0, float w) -> void {
@@ -227,14 +227,15 @@ auto HitmanVerlet::panelB2() -> Element {
                "10",
                5)
       .gap(4)
-      .child(box().height(Dimension(156)).shrink(0))
-      .child(box().height(Dimension(34)).shrink(0))
-      .child(t("\"ITERATIONS USED IN HITMAN VARY BETWEEN 1 AND 10 WITH THE "
-               "KIND OF OBJECT SIMULATED.\" — §7. "
-               "ORDER MATTERS AS MUCH AS COUNT: LISTED FROM THE PIN A CHAIN "
-               "CONVERGES IN ONE SWEEP AND ALL THREE ARE IDENTICAL. THESE "
-               "ARE LISTED FROM THE FREE END.",
-               ui(7.0f, kTick, 0.4f)));
+      .children(
+          {box().height(Dimension(156)).shrink(0),
+           box().height(Dimension(34)).shrink(0),
+           t("\"ITERATIONS USED IN HITMAN VARY BETWEEN 1 AND 10 WITH THE "
+             "KIND OF OBJECT SIMULATED.\" — §7. "
+             "ORDER MATTERS AS MUCH AS COUNT: LISTED FROM THE PIN A CHAIN "
+             "CONVERGES IN ONE SWEEP AND ALL THREE ARE IDENTICAL. THESE "
+             "ARE LISTED FROM THE FREE END.",
+             ui(7.0f, kTick, 0.4f))});
 }
 
 auto HitmanVerlet::paintChains(Pen& pen, float x0, float y0) -> void {
@@ -295,33 +296,34 @@ auto HitmanVerlet::panelB3() -> Element {
         .row()
         .height(Dimension(11))
         .shrink(0)
-        .child(t(name, mono(8.0f, anchor ? kBlue : kSteel, 0.1f)).grow(1))
-        .child(t(val,
-                 anchor ? monoB(8.0f, kBlue, 0.1f) : mono(8.0f, kBone, 0.1f)));
+        .children({t(name, mono(8.0f, anchor ? kBlue : kSteel, 0.1f)).grow(1),
+                   t(val, anchor ? monoB(8.0f, kBlue, 0.1f)
+                                 : mono(8.0f, kBone, 0.1f))});
   };
   return panel(kPanelBH[2], "B3 · REST LENGTHS & PRODUCTION", 6)
       .gap(3)
-      .child(restRow("head – neck", "56.0", false))
-      .child(restRow("shoulder bar", "168.0", false))
-      .child(restRow("neck – waist (brace)", "176.0", false))
-      .child(restRow("hip bar", "140.0", false))
-      .child(restRow("hip – knee  (THE ANCHOR)", "100.0", true))
-      .child(restRow("knee – foot", "98.0", false))
-      .child(t("restlength = 100 ON THE THIGH FIXES THE FIGURE AT 486.2 "
-               "UNITS — 48.6% OF THE PAPER'S OWN CUBE. THIGH "
-               "100.0 / SHANK 98.0 IS 1.91% APART, SO THE DRILLIS & CONTINI "
-               "CROSS-CHECK IS DROPPED: NO PRIMARY SCAN, AND THE DIAGRAM "
-               "WOULD HAVE FAILED IT.",
-               ui(7.0f, kTick, 0.4f)))
-      .child(box().height(Dimension(4)).shrink(0))
-      .child(t("IO INTERACTIVE / EIDOS · 19 NOV 2000 · GLACIER "
-               "· DirectX 7.0a · GDC 2001, SAN JOSE",
-               ui(7.0f, kSteel, 0.3f)))
-      .child(t("\"THE PRESS OXYMORON: LIFELIKE DEATH ANIMATIONS\"",
-               ui(7.0f, kSteel, 0.3f)))
-      .child(t("HITMAN.INI: \"enableconsole 1\" + \"consolecmd ip_debug 1\" "
-               "— SHIFT+F9 BOMBS AN NPC, K = FREE CAM",
-               ui(7.0f, kSteel, 0.3f)));
+      .children(
+          {restRow("head – neck", "56.0", false),
+           restRow("shoulder bar", "168.0", false),
+           restRow("neck – waist (brace)", "176.0", false),
+           restRow("hip bar", "140.0", false),
+           restRow("hip – knee  (THE ANCHOR)", "100.0", true),
+           restRow("knee – foot", "98.0", false),
+           t("restlength = 100 ON THE THIGH FIXES THE FIGURE AT 486.2 "
+             "UNITS — 48.6% OF THE PAPER'S OWN CUBE. THIGH "
+             "100.0 / SHANK 98.0 IS 1.91% APART, SO THE DRILLIS & CONTINI "
+             "CROSS-CHECK IS DROPPED: NO PRIMARY SCAN, AND THE DIAGRAM "
+             "WOULD HAVE FAILED IT.",
+             ui(7.0f, kTick, 0.4f)),
+           box().height(Dimension(4)).shrink(0),
+           t("IO INTERACTIVE / EIDOS · 19 NOV 2000 · GLACIER "
+             "· DirectX 7.0a · GDC 2001, SAN JOSE",
+             ui(7.0f, kSteel, 0.3f)),
+           t("\"THE PRESS OXYMORON: LIFELIKE DEATH ANIMATIONS\"",
+             ui(7.0f, kSteel, 0.3f)),
+           t("HITMAN.INI: \"enableconsole 1\" + \"consolecmd ip_debug 1\" "
+             "— SHIFT+F9 BOMBS AN NPC, K = FREE CAM",
+             ui(7.0f, kSteel, 0.3f))});
 }
 
 auto HitmanVerlet::header() -> Element {
@@ -335,25 +337,26 @@ auto HitmanVerlet::header() -> Element {
       .height(Dimension(kHeaderH))
       .shrink(0)
       .gap(3)
-      .child(t("STATE AND CONTACT", ui(10.0f, kSteel, 2.6f))
-                 .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
-                 .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})))
-      .child(t("THE HITMAN RAGDOLL, 2000", faced(heavyFace(), 42, kBone, -0.3f))
-                 .key("title")
-                 .fx(std::move(rise)))
-      .child(t("Thomas Jakobsen, IO Interactive — \"Advanced "
-               "Character Physics\", GDC 2001 · shipped in Hitman: "
-               "Codename 47 (Eidos, 19 Nov 2000, Glacier engine, DirectX "
-               "7.0a) · every stick coloured by its LIVE constraint "
-               "error",
-               ui(10.5f, kSteel, 0.1f))
-                 .opacity(animate(from(0.0f).to(1.0f),
-                                  {.duration = 240ms, .delay = 400ms})))
-      .child(box().grow(1))
-      .child(box()
-                 .height(Dimension(1))
-                 .shrink(0)
-                 .fill(kKeyline)
-                 .opacity(animate(from(0.0f).to(1.0f),
-                                  {.duration = 400ms, .delay = 320ms})));
+      .children(
+          {t("STATE AND CONTACT", ui(10.0f, kSteel, 2.6f))
+               .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
+               .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
+           t("THE HITMAN RAGDOLL, 2000", faced(heavyFace(), 42, kBone, -0.3f))
+               .key("title")
+               .fx(std::move(rise)),
+           t("Thomas Jakobsen, IO Interactive — \"Advanced "
+             "Character Physics\", GDC 2001 · shipped in Hitman: "
+             "Codename 47 (Eidos, 19 Nov 2000, Glacier engine, DirectX "
+             "7.0a) · every stick coloured by its LIVE constraint "
+             "error",
+             ui(10.5f, kSteel, 0.1f))
+               .opacity(animate(from(0.0f).to(1.0f),
+                                {.duration = 240ms, .delay = 400ms})),
+           box().grow(1),
+           box()
+               .height(Dimension(1))
+               .shrink(0)
+               .fill(kKeyline)
+               .opacity(animate(from(0.0f).to(1.0f),
+                                {.duration = 400ms, .delay = 320ms}))});
 }

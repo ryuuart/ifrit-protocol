@@ -79,22 +79,20 @@ sketch::kit::Theme sheetTheme() {
  *  floor, so a reflection has something to be read against. */
 world::Element subject() {
   world::Element set;
-  set.key("subject")
-      .child(world::Element()
-                 .key("body")
-                 .at({0, 40, 0})
-                 .mesh(gm::superellipsoid({46, 46, 46}, 2.0f, 40, 26))
-                 .fill(material::kit::surface(
-                     {.baseColor = {0.85f, 0.86f, 0.88f, 1},
-                      .metallic = 1.0f,
-                      .roughness = 0.12f})))
-      .child(world::Element()
-                 .key("slab")
-                 .at({0, -14, 0})
-                 .mesh(gm::superellipsoid({150, 12, 150}, 8.0f, 20, 10))
-                 .fill(material::kit::surface(
-                     {.baseColor = {0.20f, 0.21f, 0.24f, 1},
-                      .roughness = 0.65f})));
+  set.key("subject").children(
+      {world::Element()
+           .key("body")
+           .at({0, 40, 0})
+           .mesh(gm::superellipsoid({46, 46, 46}, 2.0f, 40, 26))
+           .fill(material::kit::surface({.baseColor = {0.85f, 0.86f, 0.88f, 1},
+                                         .metallic = 1.0f,
+                                         .roughness = 0.12f})),
+       world::Element()
+           .key("slab")
+           .at({0, -14, 0})
+           .mesh(gm::superellipsoid({150, 12, 150}, 8.0f, 20, 10))
+           .fill(material::kit::surface(
+               {.baseColor = {0.20f, 0.21f, 0.24f, 1}, .roughness = 0.65f}))});
   return set;
 }
 
@@ -117,7 +115,7 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> baked) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
-          .child(std::move(picture).absolute().inset(0)));
+          .children({std::move(picture).absolute().inset(0)}));
 }
 
 }  // namespace
@@ -135,10 +133,9 @@ struct EnvLanes final : sketch::Sketch {
      *  cell's own dials, and nothing else different. */
     const auto bake = [&](world::Environment environment) {
       world::Element root;
-      root.key("set")
-          .child(world::Element().key("sky").environmentMap(
-              std::move(environment)))
-          .child(subject());
+      root.key("set").children(
+          {world::Element().key("sky").environmentMap(std::move(environment)),
+           subject()});
       return ctx.bakeSet(world::Frame(std::move(root)), lens(),
                          {(int)kCell, (int)kPicture}, kCellGround);
     };

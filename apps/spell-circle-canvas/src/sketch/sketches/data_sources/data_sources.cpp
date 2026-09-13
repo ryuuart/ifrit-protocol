@@ -33,25 +33,26 @@ Element bars(const data::Table* table, const char* names, const char* values,
              std::string_view missing) {
   Element column = box().column().gap(4).width(Dimension(kCell - 28));
   if (!table || !table->has(names) || !table->has(values))
-    return column.child(text(std::u8string(missing.begin(), missing.end())));
+    return column.children(
+        {text(std::u8string(missing.begin(), missing.end()))});
   const std::span<const std::string> label = table->column<std::string>(names);
   const std::span<const double> value = table->column<double>(values);
   double largest = 0;
   for (const double v : value) largest = std::max(largest, v);
   const data::Scale length{.domain = {0, largest}, .range = {0, kBars}};
   for (size_t row = 0; row < table->size(); ++row) {
-    column.child(
-        box()
-            .row()
-            .alignItems(Align::Center)
-            .gap(8)
-            .child(text(label[row]).width(Dimension(96.0f)))
-            .child(box()
-                       .height(Dimension(11.0f))
-                       .width(Dimension((float)length(value[row])))
-                       .fill(Fill::color(row == 0 ? kBar : kBarDim)))
-            .child(
-                text(std::to_string((long)value[row])).font({.size = 9.5f})));
+    column.children(
+        {box()
+             .row()
+             .alignItems(Align::Center)
+             .gap(8)
+             .children({text(label[row]).width(Dimension(96.0f))})
+             .children({box()
+                            .height(Dimension(11.0f))
+                            .width(Dimension((float)length(value[row])))
+                            .fill(Fill::color(row == 0 ? kBar : kBarDim))})
+             .children({text(std::to_string((long)value[row]))
+                            .font({.size = 9.5f})})});
   }
   return column;
 }

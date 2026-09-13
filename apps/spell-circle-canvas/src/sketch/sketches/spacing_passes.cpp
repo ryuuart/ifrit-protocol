@@ -89,16 +89,16 @@ const char* kPassage =
 Element passage(weave::JustificationOptions options) {
   return text(kPassage, body())
       .width(Dimension(kMeasure))
-      .textAlign(weave::TextAlignment::kJustify)
-      .lineBreak(weave::LineBreakStrategy::kKnuthPlass)
-      .justification(options);
+      .block({.alignment = weave::TextAlignment::kJustify})
+      .block({.lineBreak = weave::LineBreakStrategy::kKnuthPlass})
+      .block({.justification = options});
 }
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
-          .child(std::move(body)));
+          .children({std::move(body)}));
 }
 
 }  // namespace

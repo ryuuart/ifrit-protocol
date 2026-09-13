@@ -6,46 +6,46 @@ namespace sj {
 
 inline Element artSouvenirs(sigil::weave::FontContext& f) {
   const float W = S(83), H = S(83);
-  return artBox(W, H)
-      .child(sphere({S(41.5f), S(47.5f)}, S(35),
-                    mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                           {{0.0f, C5(0xEFEFEF)},
-                                            {0.16f, C5(0xDEEFEF)},
-                                            {0.52f, C5(0x29EFEF)},
-                                            {0.80f, C5(0x08C6C6)},
-                                            {1.0f, C5(0x006363)}}))
-                 .stroke(stroke(S(1.5f), Fill::color(C5(0x005252)),
-                                PathFormat::Align::Inner)))
-      .child(navLabel(f, "STELLAR SOUVENIRS", 0, S(-1), W, S(10), kLabelWhite));
+  return artBox(W, H).children(
+      {sphere({S(41.5f), S(47.5f)}, S(35),
+              mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                     {{0.0f, C5(0xEFEFEF)},
+                                      {0.16f, C5(0xDEEFEF)},
+                                      {0.52f, C5(0x29EFEF)},
+                                      {0.80f, C5(0x08C6C6)},
+                                      {1.0f, C5(0x006363)}}))
+           .stroke(stroke(S(1.5f), Fill::color(C5(0x005252)),
+                          PathFormat::Align::Inner)),
+       navLabel(f, "STELLAR SOUVENIRS", 0, S(-1), W, S(10), kLabelWhite)});
 }
 
 // --- p-jump.gif, 58x52 — the other centred glow.
 inline Element artJump(sigil::weave::FontContext& f) {
   const float W = S(58), H = S(52);
-  return artBox(W, H)
-      .child(sphere({S(28.5f), S(30.0f)}, S(21),
-                    mskia::Paint::glowUnit({0.46f, 0.60f}, 1.0f,
-                                           {{0.0f, C5(0xFFFFFF)},
-                                            {0.22f, C5(0xADF7A5)},
-                                            {0.52f, C5(0x39D631)},
-                                            {0.86f, C5(0x009400)},
-                                            {1.0f, C5(0x006B00)}}))
-                 .stroke(stroke(S(1.5f), Fill::color(C5(0x005A00)),
-                                PathFormat::Align::Inner)))
-      .child(navLabel(f, "JUMP STATION", 0, S(0), W, S(10)));
+  return artBox(W, H).children(
+      {sphere({S(28.5f), S(30.0f)}, S(21),
+              mskia::Paint::glowUnit({0.46f, 0.60f}, 1.0f,
+                                     {{0.0f, C5(0xFFFFFF)},
+                                      {0.22f, C5(0xADF7A5)},
+                                      {0.52f, C5(0x39D631)},
+                                      {0.86f, C5(0x009400)},
+                                      {1.0f, C5(0x006B00)}}))
+           .stroke(stroke(S(1.5f), Fill::color(C5(0x005A00)),
+                          PathFormat::Align::Inner)),
+       navLabel(f, "JUMP STATION", 0, S(0), W, S(10))});
 }
 
 // --- p-bball.gif, 62x62 — the static build of the seam shader.
 inline Element artBball(sigil::weave::FontContext& f) {
   const float W = S(62), H = S(62);
-  return artBox(W, H)
-      .child(kit::disc(SkPoint{S(31), S(37.5f)}, S(25.5f))
-                 .shape(shapes::circle())
-                 .fill(ballMaterial(false, C5(0xFF9C10), C5(0xC66300),
-                                    C5(0x843900), 0.055f))
-                 .stroke(stroke(S(1.2f), Fill::color(C5(0x632900)),
-                                PathFormat::Align::Inner)))
-      .child(navLabel(f, "PLANET B-BALL", 0, S(0), W, S(10)));
+  return artBox(W, H).children(
+      {kit::disc(SkPoint{S(31), S(37.5f)}, S(25.5f))
+           .shape(shapes::circle())
+           .fill(ballMaterial(false, C5(0xFF9C10), C5(0xC66300), C5(0x843900),
+                              0.055f))
+           .stroke(stroke(S(1.2f), Fill::color(C5(0x632900)),
+                          PathFormat::Align::Inner)),
+       navLabel(f, "PLANET B-BALL", 0, S(0), W, S(10))});
 }
 
 // --- p-jamcentral.gif, 55x67 — purple globe, green continents.
@@ -77,12 +77,11 @@ inline Element artJamCentral(sigil::weave::FontContext& f) {
                         {0.74f, 0.28f, 0.24f, 0.30f, 83, 0x08E700},
                         {0.28f, 0.80f, 0.34f, 0.16f, 97, 0x00EF00}};
   for (const Mass& m : mass)
-    globe.child(rect(m.x * d, m.y * d, m.w * d, m.h * d)
-                    .shape(shapes::blob(m.seed, 0.62f, 13))
-                    .fill(Fill::color(C5(m.ink))));
-  return artBox(W, H)
-      .child(std::move(globe))
-      .child(navLabel(f, "JAM CENTRAL", 0, S(-1), W, S(10)));
+    globe.children({rect(m.x * d, m.y * d, m.w * d, m.h * d)
+                        .shape(shapes::blob(m.seed, 0.62f, 13))
+                        .fill(Fill::color(C5(m.ink)))});
+  return artBox(W, H).children(
+      {std::move(globe), navLabel(f, "JAM CENTRAL", 0, S(-1), W, S(10))});
 }
 
 /** The shared gas-giant recipe: solid body, torn bands as an overlay(),
@@ -94,13 +93,13 @@ inline Element gasGiant(SkPoint c, float r, SkColor4f body, SkColor4f limb,
           .clip(true)
           .overlay(std::move(bands))
           .stroke(stroke(S(1.5f), Fill::color(limb), PathFormat::Align::Inner));
-  d.child(box().inset(0).fill(
+  d.children({box().inset(0).fill(
       mskia::Paint::glowUnit({0.34f, 0.28f}, 1.35f,
                              {{0.0f, mskia::withAlpha(hi, 0.42f)},
                               {0.34f, mskia::withAlpha(hi, 0.10f)},
                               {0.62f, {0, 0, 0, 0}},
                               {0.90f, {0, 0, 0, 0.30f}},
-                              {1.0f, {0, 0, 0, 0.62f}}})));
+                              {1.0f, {0, 0, 0, 0.62f}}}))});
   return d;
 }
 
@@ -116,10 +115,10 @@ inline Element artJunior(sigil::weave::FontContext& f) {
           0.42f,
           0.24f,
           -0.05f};
-  return artBox(W, H)
-      .child(gasGiant({S(24), S(34)}, S(22.5f), C5(0x00DE00), C5(0x005A00),
-                      C5(0xCEFFB5), std::move(b)))
-      .child(navLabel(f, "JUNIOR JAM", 0, S(-1), W, S(10)));
+  return artBox(W, H).children(
+      {gasGiant({S(24), S(34)}, S(22.5f), C5(0x00DE00), C5(0x005A00),
+                C5(0xCEFFB5), std::move(b)),
+       navLabel(f, "JUNIOR JAM", 0, S(-1), W, S(10))});
 }
 
 // --- p-studiostore.gif, 94x72 — orange body, purple streaks, torn hard.
@@ -134,10 +133,10 @@ inline Element artStudioStore(sigil::weave::FontContext& f) {
       0.60f,
       0.28f,
       -0.07f};
-  return artBox(W, H)
-      .child(gasGiant({S(48), S(42)}, S(29.5f), C5(0xFF9400), C5(0xE7A518),
-                      C5(0xFFDE9C), std::move(b)))
-      .child(navLabel(f, "WARNER STUDIO STORE", 0, S(-1), W, S(10)));
+  return artBox(W, H).children(
+      {gasGiant({S(48), S(42)}, S(29.5f), C5(0xFF9400), C5(0xE7A518),
+                C5(0xFFDE9C), std::move(b)),
+       navLabel(f, "WARNER STUDIO STORE", 0, S(-1), W, S(10))});
 }
 
 // --- p-behind.gif, 67x63 — navy body, four thin cyan cloud streaks.
@@ -151,10 +150,10 @@ inline Element artBehind(sigil::weave::FontContext& f) {
           0.52f,
           0.30f,
           -0.17f};
-  return artBox(W, H)
-      .child(gasGiant({S(33), S(37)}, S(25.5f), C5(0x000873), C5(0x0010BD),
-                      C5(0x2131C6), std::move(b)))
-      .child(navLabel(f, "BEHIND THE JAM", 0, S(-1), W, S(10)));
+  return artBox(W, H).children(
+      {gasGiant({S(33), S(37)}, S(25.5f), C5(0x000873), C5(0x0010BD),
+                C5(0x2131C6), std::move(b)),
+       navLabel(f, "BEHIND THE JAM", 0, S(-1), W, S(10))});
 }
 
 // --- p-lunartunes.gif, 95x77 — blue Saturn, red ring: two arcs and a
@@ -170,23 +169,25 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
                                      {1.0f, C5(0xAD0810)}});
   };
   return artBox(W, H)
-      .child(ring(c, S(47), S(16), -20, 0.62f, ringMat()).zIndex(0))
-      .child(sphere(c, S(30),
-                    mskia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
-                                           {{0.0f, C5(0x0073E7)},
-                                            {0.30f, C5(0x006BD6)},
-                                            {0.66f, C5(0x0052AD)},
-                                            {1.0f, C5(0x00317B)}}))
-                 .stroke(stroke(S(1.5f), Fill::color(C5(0x00397B)),
-                                PathFormat::Align::Inner))
-                 .zIndex(1))
+      .children({ring(c, S(47), S(16), -20, 0.62f, ringMat()).zIndex(0),
+                 sphere(c, S(30),
+                        mskia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
+                                               {{0.0f, C5(0x0073E7)},
+                                                {0.30f, C5(0x006BD6)},
+                                                {0.66f, C5(0x0052AD)},
+                                                {1.0f, C5(0x00317B)}}))
+                     .stroke(stroke(S(1.5f), Fill::color(C5(0x00397B)),
+                                    PathFormat::Align::Inner))
+                     .zIndex(1)})
       // the front half: the same ellipse, clipped to below the sphere's centre
-      .child(rect(0, c.fY, W, H - c.fY)
-                 .clip(true)
-                 .zIndex(2)
-                 .child(ring({c.fX, -S(0)}, S(47), S(16), -20, 0.62f, ringMat())
-                            .top(Dimension(-c.fY))))
-      .child(navLabel(f, "LUNAR TUNES", S(19), S(0), S(57), S(9), kLabelWhite));
+      .children(
+          {rect(0, c.fY, W, H - c.fY)
+               .clip(true)
+               .zIndex(2)
+               .children(
+                   {ring({c.fX, -S(0)}, S(47), S(16), -20, 0.62f, ringMat())
+                        .top(Dimension(-c.fY))}),
+           navLabel(f, "LUNAR TUNES", S(19), S(0), S(57), S(9), kLabelWhite)});
 }
 
 // --- p-lineup.gif, 63x52 — the same construction, red and cyan.
@@ -200,23 +201,23 @@ inline Element artLineup(sigil::weave::FontContext& f) {
                                      {0.75f, C5(0x21FFFF)},
                                      {1.0f, C5(0x089494)}});
   };
-  return artBox(W, H)
-      .child(ring(c, S(29), S(15), -22, 0.60f, ringMat()).zIndex(0))
-      .child(sphere({S(38), S(32)}, S(17),
-                    mskia::Paint::glowUnit({0.34f, 0.30f}, 1.30f,
-                                           {{0.0f, C5(0xFF4A6B)},
-                                            {0.28f, C5(0xFF425A)},
-                                            {0.62f, C5(0xF71818)},
-                                            {1.0f, C5(0xBD0810)}}))
-                 .stroke(stroke(S(1.4f), Fill::color(C5(0xA50008)),
-                                PathFormat::Align::Inner))
-                 .zIndex(1))
-      .child(rect(0, S(34), W, H - S(34))
-                 .clip(true)
-                 .zIndex(2)
-                 .child(ring({c.fX, 0}, S(29), S(15), -22, 0.60f, ringMat())
-                            .top(Dimension(c.fY - S(34) - S(15)))))
-      .child(navLabel(f, "THE LINEUP", S(8), S(-1), S(50), S(9)));
+  return artBox(W, H).children(
+      {ring(c, S(29), S(15), -22, 0.60f, ringMat()).zIndex(0),
+       sphere({S(38), S(32)}, S(17),
+              mskia::Paint::glowUnit({0.34f, 0.30f}, 1.30f,
+                                     {{0.0f, C5(0xFF4A6B)},
+                                      {0.28f, C5(0xFF425A)},
+                                      {0.62f, C5(0xF71818)},
+                                      {1.0f, C5(0xBD0810)}}))
+           .stroke(stroke(S(1.4f), Fill::color(C5(0xA50008)),
+                          PathFormat::Align::Inner))
+           .zIndex(1),
+       rect(0, S(34), W, H - S(34))
+           .clip(true)
+           .zIndex(2)
+           .children({ring({c.fX, 0}, S(29), S(15), -22, 0.60f, ringMat())
+                          .top(Dimension(c.fY - S(34) - S(15)))}),
+       navLabel(f, "THE LINEUP", S(8), S(-1), S(50), S(9))});
 }
 
 // --- p-sitemap.gif, 104x67 — a rainbow vortex and four yellow darts.
@@ -251,19 +252,19 @@ inline Element artSitemap(sigil::weave::FontContext& f) {
                                                      {0.86f, C5(0xF70000)},
                                                      {1.0f, C5(0x8C0000)}}))
                        .rotate(-33);
-  Element out = artBox(W, H).child(std::move(vortex));
+  Element out = artBox(W, H).children({std::move(vortex)});
   // four darts, outside the vortex on its two axes
   const float dw = S(17), dh = S(16);
   const float ang[4] = {122, -58, 210, 30};
   const float px[4] = {0.28f, -0.28f, 0.86f, -0.86f};
   const float py[4] = {-0.95f, 0.95f, 0.42f, -0.42f};
   for (int i = 0; i < 4; ++i)
-    out.child(rect(c.fX + px[i] * S(34) - dw * 0.5f,
-                   c.fY + py[i] * S(31) - dh * 0.5f, dw, dh)
-                  .shape(dart())
-                  .fill(Fill::color(C5(0xFFFF00)))
-                  .rotate(ang[i]));
-  out.child(navLabel(f, "SITE MAP", S(64), S(26), S(39), S(10)));
+    out.children({rect(c.fX + px[i] * S(34) - dw * 0.5f,
+                       c.fY + py[i] * S(31) - dh * 0.5f, dw, dh)
+                      .shape(dart())
+                      .fill(Fill::color(C5(0xFFFF00)))
+                      .rotate(ang[i])});
+  out.children({navLabel(f, "SITE MAP", S(64), S(26), S(39), S(10))});
   return out;
 }
 
@@ -295,46 +296,48 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
   // (125, 14): atan2(-27, 120) = -12.6 degrees.
   Element ship = rect(0, 0, W, H).rotate(-12.6f).transformOrigin(0.5f, 0.5f);
   // dorsal fin, swept back from mid-body
-  ship.child(rect(S(38), S(6), S(52), S(20))
-                 .shape(tri(1.0f, 1.0f, 0.86f, 0.0f, 0.0f, 1.0f))
-                 .fill(mskia::Paint::linearUnit(
-                     {0, 0}, {0, 1}, {{0.0f, C5(0xF71039)}, {1.0f, hullLo}})));
+  ship.children(
+      {rect(S(38), S(6), S(52), S(20))
+           .shape(tri(1.0f, 1.0f, 0.86f, 0.0f, 0.0f, 1.0f))
+           .fill(mskia::Paint::linearUnit(
+               {0, 0}, {0, 1}, {{0.0f, C5(0xF71039)}, {1.0f, hullLo}}))});
   // ventral fin
-  ship.child(rect(S(58), S(36), S(40), S(15))
-                 .shape(tri(0.0f, 0.0f, 1.0f, 0.0f, 0.62f, 1.0f))
-                 .fill(Fill::color(C5(0xA50029))));
+  ship.children({rect(S(58), S(36), S(40), S(15))
+                     .shape(tri(0.0f, 0.0f, 1.0f, 0.0f, 0.62f, 1.0f))
+                     .fill(Fill::color(C5(0xA50029)))});
   // rear nacelle
-  ship.child(rect(S(4), S(25), S(36), S(14))
-                 .shape(shapes::squircle(2.6f))
-                 .fill(mskia::Paint::linearUnit(
-                     {0, 0}, {0, 1},
-                     {{0.0f, C5(0x8CDE73)}, {0.42f, grn}, {1.0f, grnLo}})));
+  ship.children(
+      {rect(S(4), S(25), S(36), S(14))
+           .shape(shapes::squircle(2.6f))
+           .fill(mskia::Paint::linearUnit(
+               {0, 0}, {0, 1},
+               {{0.0f, C5(0x8CDE73)}, {0.42f, grn}, {1.0f, grnLo}}))});
   // fuselage
-  ship.child(rect(S(16), S(23), S(100), S(17))
-                 .shape(shapes::squircle(2.2f))
-                 .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                                {{0.0f, hullHi},
-                                                 {0.26f, hull},
-                                                 {0.68f, hullLo},
-                                                 {1.0f, C5(0x8C0021)}})));
+  ship.children({rect(S(16), S(23), S(100), S(17))
+                     .shape(shapes::squircle(2.2f))
+                     .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+                                                    {{0.0f, hullHi},
+                                                     {0.26f, hull},
+                                                     {0.68f, hullLo},
+                                                     {1.0f, C5(0x8C0021)}}))});
   // dorsal ridge highlight
-  ship.child(rect(S(28), S(25), S(72), S(3))
-                 .shape(shapes::squircle(2.0f))
-                 .fill(Fill::color(mskia::withAlpha(C5(0xFFC6D6), 0.85f))));
+  ship.children(
+      {rect(S(28), S(25), S(72), S(3))
+           .shape(shapes::squircle(2.0f))
+           .fill(Fill::color(mskia::withAlpha(C5(0xFFC6D6), 0.85f)))});
   // nose spike
-  ship.child(rect(S(108), S(27), S(24), S(8))
-                 .shape(shapes::arrow(0.28f, 0.90f))
-                 .fill(Fill::color(hull)));
+  ship.children({rect(S(108), S(27), S(24), S(8))
+                     .shape(shapes::arrow(0.28f, 0.90f))
+                     .fill(Fill::color(hull))});
   // window strip
   for (int i = 0; i < 5; ++i)
-    ship.child(rect(S(44 + i * 7.0f), S(29), S(4), S(4))
-                   .corners({S(1)})
-                   .fill(Fill::color(gold)));
+    ship.children({rect(S(44 + i * 7.0f), S(29), S(4), S(4))
+                       .corners({S(1)})
+                       .fill(Fill::color(gold))});
 
-  return artBox(W, H)
-      .child(std::move(ship))
-      .child(navLabel(f, "PRESS BOX SHUTTLE", S(50), S(38), S(80), S(10),
-                      kLabelWhite));
+  return artBox(W, H).children(
+      {std::move(ship), navLabel(f, "PRESS BOX SHUTTLE", S(50), S(38), S(80),
+                                 S(10), kLabelWhite)});
 }
 
 // --- p-jamlogo.gif, 272x165 — the largest object on the page by a factor
@@ -405,18 +408,18 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
   };
 
   return artBox(W, H)
-      .child(swirl().zIndex(0))
+      .children({swirl().zIndex(0)})
       // "SPACE": measured x 17..132, cap band y 47..87
-      .child(letters("SPACE", S(40), S(112), S(16), S(47), -7).zIndex(1))
+      .children({letters("SPACE", S(40), S(112), S(16), S(47), -7).zIndex(1)})
       // "JAM": measured x 122..250, cap band y 25..115
-      .child(letters("JAM", S(80), S(132), S(124), S(28), -8).zIndex(2))
+      .children({letters("JAM", S(80), S(132), S(124), S(28), -8).zIndex(2)})
       // The swirl passing IN FRONT of the bottom of the J — the single cue
       // that makes this read as a 1996 logotype instead of a gradient
       // wordmark. Four concentric arcs, not one stroke: a PathFormat's fill
       // is evaluated in node-local space, so it can vary ALONG a stroked
       // band but not ACROSS its width, which is the direction the rainbow
       // runs.
-      .child([&] {
+      .children({[&] {
         Element band = rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2).rotate(-18);
         // Same four bands, at the same four radii the annulus ramp puts
         // them at, so the ring READS as one ring that goes behind at the
@@ -424,13 +427,14 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
         const uint32_t ink[4] = {0x7310C6, 0xF70000, 0xFFAD42, 0xFFEF00};
         for (int i = 0; i < 4; ++i) {
           const float k = 0.960f - (float)i * 0.092f;
-          band.child(rect(rx * (1 - k), ry * (1 - k), rx * 2 * k, ry * 2 * k)
-                         .shape(shapes::arc(96, 90))
-                         .stroke(stroke(S(9.4f), Fill::color(C5(ink[i])),
-                                        PathFormat::Align::Center)));
+          band.children(
+              {rect(rx * (1 - k), ry * (1 - k), rx * 2 * k, ry * 2 * k)
+                   .shape(shapes::arc(96, 90))
+                   .stroke(stroke(S(9.4f), Fill::color(C5(ink[i])),
+                                  PathFormat::Align::Center))});
         }
         return band.zIndex(3);
-      }());
+      }()});
 }
 
 // --- the Fast Break row's two wordmarks, 50x11 each, bright red caps.
@@ -457,7 +461,7 @@ inline Element wordmark(sigil::weave::FontContext& fonts, const char* s,
       .width(Dimension(w))
       .height(Dimension(h))
       .clip(true)
-      .child(std::move(t));
+      .children({std::move(t)});
 }
 
 // ---------------------------------------------------------------------------

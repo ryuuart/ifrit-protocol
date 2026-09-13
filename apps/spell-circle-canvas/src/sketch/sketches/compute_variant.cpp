@@ -98,14 +98,14 @@ world::Element row(const char* key, float z, const char* tag,
   built.key(key);
   for (int i = 0; i < kBlocks; ++i) {
     const float x = ((float)i - (float)(kBlocks - 1) * 0.5f) * kSpacing;
-    built.child(
-        world::Element()
-            .key(std::string(key) + std::to_string(i))
-            .at({x, -60.0f, z})
-            .rotateY((float)i * 9.0f)
-            .mesh(gm::superellipsoid({30.0f, 44.0f, 30.0f}, 5.0f, 12, 8))
-            .fill(surface)
-            .tag(tag));
+    built.children(
+        {world::Element()
+             .key(std::string(key) + std::to_string(i))
+             .at({x, -60.0f, z})
+             .rotateY((float)i * 9.0f)
+             .mesh(gm::superellipsoid({30.0f, 44.0f, 30.0f}, 5.0f, 12, 8))
+             .fill(surface)
+             .tag(tag)});
   }
   return built;
 }
@@ -138,18 +138,18 @@ struct ComputeVariant final : sketch::Set {
         {.baseColor = {0.30f, 0.33f, 0.40f, 1.0f}, .roughness = 0.6f});
 
     world::Element root;
-    root.key("set")
-        .child(world::Element().key("sun").light(world::light::sun(
-            {-0.42f, -0.82f, -0.38f}, {0.96f, 0.97f, 1.0f, 1.0f}, 1.0f)))
-        .child(world::Element()
-                   .key("plate")
-                   .at({0, -104, 0})
-                   .rotateX(-90.0f)
-                   .mesh(gm::quad(900, 900))
-                   .fill(material::kit::surface(
-                       {.baseColor = {0.07f, 0.08f, 0.11f, 1.0f}})))
-        .child(row("far", -300.0f, "keep", slate))
-        .child(row("near", 110.0f, kSwapTag, slate));
+    root.key("set").children(
+        {world::Element().key("sun").light(world::light::sun(
+             {-0.42f, -0.82f, -0.38f}, {0.96f, 0.97f, 1.0f, 1.0f}, 1.0f)),
+         world::Element()
+             .key("plate")
+             .at({0, -104, 0})
+             .rotateX(-90.0f)
+             .mesh(gm::quad(900, 900))
+             .fill(material::kit::surface(
+                 {.baseColor = {0.07f, 0.08f, 0.11f, 1.0f}})),
+         row("far", -300.0f, "keep", slate),
+         row("near", 110.0f, kSwapTag, slate)});
 
     // THE READBACK, STOOD UP. One post per hundred points the callback
     // counted — none at all in a frame nothing came back in.
@@ -157,14 +157,15 @@ struct ComputeVariant final : sketch::Set {
     tally.key("tally");
     const int posts = cookedPoints / 100;
     for (int i = 0; i < posts; ++i)
-      tally.child(world::Element()
-                      .key("tally" + std::to_string(i))
-                      .at({((float)i - (float)(posts - 1) * 0.5f) * 34.0f,
-                           -90.0f, 200.0f})
-                      .mesh(gm::superellipsoid({9.0f, 18.0f, 9.0f}, 2.0f, 8, 5))
-                      .fill(material::kit::unlit(
-                          {.baseColor = {0.95f, 0.78f, 0.35f, 1.0f}})));
-    root.child(std::move(tally));
+      tally.children(
+          {world::Element()
+               .key("tally" + std::to_string(i))
+               .at({((float)i - (float)(posts - 1) * 0.5f) * 34.0f, -90.0f,
+                    200.0f})
+               .mesh(gm::superellipsoid({9.0f, 18.0f, 9.0f}, 2.0f, 8, 5))
+               .fill(material::kit::unlit(
+                   {.baseColor = {0.95f, 0.78f, 0.35f, 1.0f}}))});
+    root.children({std::move(tally)});
     return root;
   }
 

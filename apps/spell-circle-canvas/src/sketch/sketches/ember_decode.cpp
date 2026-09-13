@@ -233,38 +233,40 @@ struct EmberDecode : sketch::Sketch {
                        // The faint remark is the sheet's own voice: every
                        // line is set in it unless it says otherwise.
                        .font({.size = 10.5f, .color = kFaint, .track = 0.8f});
-    root.child(text("TEXT AS A SAMPLER · ONE SkSL PASS OVER ONE "
-                    "RENDERED LINE")
-                   .font({.size = 11.5f, .color = kLabel, .track = 1.6f}));
-    root.child(text(u8"EMBER DECODE")
-                   .font(burnt(78, 5.0f))
-                   .key("burn-display")
-                   .fx({.effect = fx::pass(burn),
-                        .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
-                        .unit = weave::Unit::Cluster,
-                        .progress = &display}));
-    root.child(
-        text("uUnitRect[N] · uUnitPhase[N] — a LETTER "
-             "is a unit; the bar under each one is the progress that "
-             "unit's uniform carries, read back from beatsOf"));
-    root.child(box().height(6));
-    root.child(text(u8"ONE PASS PER WORD PHASE")
-                   .font(burnt(27, 3.0f))
-                   .key("burn-words")
-                   .fx({.effect = fx::pass(burn),
-                        .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
-                        .unit = weave::Unit::Word,
-                        .progress = &words}));
-    root.child(
-        text("the same pass, the same source at another count "
-             "— a WORD is a unit here, and the "
-             "runtime compiled and cached one variant per "
-             "count"));
-    root.child(box().grow(1));
-    root.child(
-        text("one draw and one pass over each line's own box, "
-             "whatever N is · per-unit progress is "
-             "uniform DATA, not scene structure"));
+    root.children({text("TEXT AS A SAMPLER · ONE SkSL PASS OVER ONE "
+                        "RENDERED LINE")
+                       .font({.size = 11.5f, .color = kLabel, .track = 1.6f})});
+    root.children(
+        {text(u8"EMBER DECODE")
+             .font(burnt(78, 5.0f))
+             .key("burn-display")
+             .fx({.effect = fx::pass(burn),
+                  .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
+                  .unit = weave::Unit::Cluster,
+                  .progress = &display})});
+    root.children(
+        {text("uUnitRect[N] · uUnitPhase[N] — a LETTER "
+              "is a unit; the bar under each one is the progress that "
+              "unit's uniform carries, read back from beatsOf")});
+    root.children({box().height(6)});
+    root.children(
+        {text(u8"ONE PASS PER WORD PHASE")
+             .font(burnt(27, 3.0f))
+             .key("burn-words")
+             .fx({.effect = fx::pass(burn),
+                  .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
+                  .unit = weave::Unit::Word,
+                  .progress = &words})});
+    root.children(
+        {text("the same pass, the same source at another count "
+              "— a WORD is a unit here, and the "
+              "runtime compiled and cached one variant per "
+              "count")});
+    root.children({box().grow(1)});
+    root.children(
+        {text("one draw and one pass over each line's own box, "
+              "whatever N is · per-unit progress is "
+              "uniform DATA, not scene structure")});
 
     // THE SCHEDULE, DRAWN, from the same query the pass agrees with: one
     // bar per beat of the display track, at that beat's laid-out rect,
@@ -277,22 +279,22 @@ struct EmberDecode : sketch::Sketch {
     for (size_t i = 0; i < beats.size(); ++i) {
       const SkRect& r = beats[i].rect;
       const std::string cell = "beat" + std::to_string(i);
-      meter.child(box()
-                      .key(cell)
-                      .left(r.left())
-                      .top(r.bottom() + 6)
-                      .width(r.width())
-                      .height(3)
-                      .fill(Fill::color(kFaint))
-                      .child(box()
-                                 .key(cell + "-t")
-                                 .left(0)
-                                 .top(0)
-                                 .width(r.width() * beats[i].localT)
-                                 .height(3)
-                                 .fill(Fill::color(kEmber))));
+      meter.children({box()
+                          .key(cell)
+                          .left(r.left())
+                          .top(r.bottom() + 6)
+                          .width(r.width())
+                          .height(3)
+                          .fill(Fill::color(kFaint))
+                          .children({box()
+                                         .key(cell + "-t")
+                                         .left(0)
+                                         .top(0)
+                                         .width(r.width() * beats[i].localT)
+                                         .height(3)
+                                         .fill(Fill::color(kEmber))})});
     }
-    root.child(std::move(meter));  // appended last, so it paints over
+    root.children({std::move(meter)});  // appended last, so it paints over
     return root;
   }
 

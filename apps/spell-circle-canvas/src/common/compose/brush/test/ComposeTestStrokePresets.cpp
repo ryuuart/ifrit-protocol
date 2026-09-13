@@ -141,7 +141,7 @@ TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
       e.stroke(Brush{}
                    .shaped(geometry::shapers::wave(5, 24))
                    .layer(brush::solid(3, red())));
-    host.composer.render(stack().child(std::move(e)));
+    host.composer.render(stack().children({std::move(e)}));
     host.frame();
     int inked = 0;
     for (int x = 0; x < 200; ++x)
@@ -205,15 +205,15 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
     EXPECT_EQ(viaBraid[0].path, strands[0].path);
     EXPECT_EQ(viaBraid[1].path, strands[1].path);
 
-    host.composer.render(stack().child(
-        box()
-            .inset(0)
-            // the callable is invoked on every layout, so its capture must
-            // survive each return
-            // NOLINTNEXTLINE(performance-no-automatic-move)
-            .shape([&](SkSize) { return spine; })
-            .stroke(
-                brush::weave(strands, geometry::path::crossing::alternate()))));
+    host.composer.render(stack().children(
+        {box()
+             .inset(0)
+             // the callable is invoked on every layout, so its capture must
+             // survive each return
+             // NOLINTNEXTLINE(performance-no-automatic-move)
+             .shape([&](SkSize) { return spine; })
+             .stroke(brush::weave(strands,
+                                  geometry::path::crossing::alternate()))}));
     host.frame();
 
     // The knots, in the same order the rule numbers them.
@@ -426,8 +426,9 @@ TEST(ComposeKitStrokes, TheGrooveIsDarkOnTheInnerWallAndLitOnTheOuter) {
                      .shape(geometry::shapes::circle())
                      .fill(Fill::none())
                      .stroke(kit::groove(30, 8, dark, lite));
-  const sk_sp<SkPicture> picture = snapshot(
-      box().width(100).height(100).child(std::move(disc)), fonts(), {100, 100});
+  const sk_sp<SkPicture> picture =
+      snapshot(box().width(100).height(100).children({std::move(disc)}),
+               fonts(), {100, 100});
   ASSERT_TRUE(picture);
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 100));
@@ -484,8 +485,8 @@ TEST(ComposeKitStrokes, TheGrooveShoulderIsHowFarTheTwoWallsTakeToMeet) {
                        .fill(Fill::none())
                        .stroke(kit::groove(30, 16, dark, lite, shoulder));
     const sk_sp<SkPicture> picture =
-        snapshot(box().width(100).height(100).child(std::move(disc)), fonts(),
-                 {100, 100});
+        snapshot(box().width(100).height(100).children({std::move(disc)}),
+                 fonts(), {100, 100});
     sk_sp<SkSurface> surface =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 100));
     surface->getCanvas()->clear(SK_ColorBLACK);

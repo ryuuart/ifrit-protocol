@@ -430,15 +430,16 @@ struct NightingaleCoxcomb : sketch::Sketch {
       const float len =
           std::min({rimOf(i - 1), rimOf(i), rMax * kSpokeReach}) * 0.98f;
       if (len < 4.0f) continue;
-      wheelBox.child(
-          box()
-              .inset(0)
-              .key(std::string(tag) + "spoke" + std::to_string(i))
-              .shape(spoke(len / rMax, (float)i * 30.0f))
-              .stroke(spans::upTo(animate(
-                          from(0.0f).to(1.0f),
-                          ramp(spokeSec * 1000.0f + (float)i * 16.0f, 220.0f))),
-                      stroke(0.7f, Fill::color(kInkSoft))));
+      wheelBox.children(
+          {box()
+               .inset(0)
+               .key(std::string(tag) + "spoke" + std::to_string(i))
+               .shape(spoke(len / rMax, (float)i * 30.0f))
+               .stroke(
+                   spans::upTo(animate(
+                       from(0.0f).to(1.0f),
+                       ramp(spokeSec * 1000.0f + (float)i * 16.0f, 220.0f))),
+                   stroke(0.7f, Fill::color(kInkSoft)))});
     }
 
     for (int m = 0; m < 12; ++m) {
@@ -477,36 +478,36 @@ struct NightingaleCoxcomb : sketch::Sketch {
         if (!outer) wedge.stroke(stroke(1.0f));
         // The entrance scales the wedge about the WHEEL's centre, which
         // sectorBox set as the pivot: the sector grows out of the hub.
-        wheelBox.child(
-            std::move(wedge)
-                .scale(animate(from(0.002f).to(1.0f),
-                               ramp(delay, 620.0f, ch::easeOutExpo)))
-                // Each band's litho fill is a Paint::blend of four
-                // shaders (wash + speckle + blot + grain) over an area that
-                // never changes. Uncached, every one of those shaders re-runs
-                // on every frame for all ~24 bands. The content is static —
-                // only the entrance SCALE animates — and the cache captures
-                // NODE-LOCAL content, so the transform rides the blit and the
-                // texture is baked once.
-                //
-                // The trade is resampling: the scale transform now samples a
-                // baked texture rather than re-rasterising, so sector edges
-                // are texture-filtered and the stipple (noise generated in
-                // node-local space) shifts by a fraction of a pixel. On a
-                // data plate that is invisible; if pixel-exact sector edges
-                // matter more than the shader cost, drop this cache.
-                .cache(Cache::Texture));
+        wheelBox.children(
+            {std::move(wedge)
+                 .scale(animate(from(0.002f).to(1.0f),
+                                ramp(delay, 620.0f, ch::easeOutExpo)))
+                 // Each band's litho fill is a Paint::blend of four
+                 // shaders (wash + speckle + blot + grain) over an area that
+                 // never changes. Uncached, every one of those shaders re-runs
+                 // on every frame for all ~24 bands. The content is static —
+                 // only the entrance SCALE animates — and the cache captures
+                 // NODE-LOCAL content, so the transform rides the blit and the
+                 // texture is baked once.
+                 //
+                 // The trade is resampling: the scale transform now samples a
+                 // baked texture rather than re-rasterising, so sector edges
+                 // are texture-filtered and the stipple (noise generated in
+                 // node-local space) shifts by a fraction of a pixel. On a
+                 // data plate that is invisible; if pixel-exact sector edges
+                 // matter more than the shader cost, drop this cache.
+                 .cache(Cache::Texture)});
       }
 
       // the flash the index needle rings out of each month's rim
       const float rim =
           radiusOf(std::max({mo.disease, mo.wounds, mo.other, 1.0f})) + 10.0f;
-      wheelBox.child(
-          discBox(local, rim)
-              .key(std::string(tag) + "flash" + std::to_string(m))
-              .shape(shapes::arc(skia0 + 1.0f, 28.0f))
-              .stroke(stroke(2.4f, Fill::color(hexColor(0xc8a24a, 0.9f))))
-              .opacity(&flash[flashBase + m]));
+      wheelBox.children(
+          {discBox(local, rim)
+               .key(std::string(tag) + "flash" + std::to_string(m))
+               .shape(shapes::arc(skia0 + 1.0f, 28.0f))
+               .stroke(stroke(2.4f, Fill::color(hexColor(0xc8a24a, 0.9f))))
+               .opacity(&flash[flashBase + m])});
     }
     return wheelBox;
   }
@@ -544,55 +545,56 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // The group boundary sits exactly here: everything inside is the static
     // base, and the wedges and titles above it animate, so they stay outside
     // where the cache cannot be invalidated by them.
-    root.child(stack()
-                   .inset(0)
-                   .fill(Fill::color(kPaper))
-                   .child(box().inset(0).fill(paperMat).opacity(0.17f).blend(
-                       SkBlendMode::kSoftLight))
-                   .child(box().inset(0).fill(foxing.material()))
-                   .child(box().inset(0).fill(radialGradient(
-                       {kW * 0.5f, kH * 0.5f}, kW * 0.72f,
-                       {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
-                        hexColor(0x6b4a33, 0.085f)},
-                       {0.0f, 0.70f, 1.0f})))
-                   .cache(Cache::Texture));
+    root.children(
+        {stack()
+             .inset(0)
+             .fill(Fill::color(kPaper))
+             .children({box().inset(0).fill(paperMat).opacity(0.17f).blend(
+                 SkBlendMode::kSoftLight)})
+             .children({box().inset(0).fill(foxing.material())})
+             .children({box().inset(0).fill(radialGradient(
+                 {kW * 0.5f, kH * 0.5f}, kW * 0.72f,
+                 {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
+                  hexColor(0x6b4a33, 0.085f)},
+                 {0.0f, 0.70f, 1.0f}))})
+             .cache(Cache::Texture)});
 
     // ---- the reverse page showing through (custom leaf, raw Skia) ----
     // The verso title never changes and the face is resolved before the
     // tree is described, so the program is named and the node settles.
-    root.child(
-        custom(std::string_view("verso-title"), [this](SkCanvas& canvas,
-                                                       const PaintContext&) {
-          if (!faceDisplay) return;
-          SkFont f(faceDisplay, 46);
-          SkPaint p;
-          p.setAntiAlias(true);
-          p.setColor4f(hexColor(0x241c15, 0.055f), nullptr);
-          canvas.save();
-          canvas.translate(760, 118);  // mirrored: the verso title
-          canvas.scale(-1, 1);
-          canvas.drawString("ENGLAND", 0, 0, f, p);
-          canvas.restore();
-        }).inset(0));
+    root.children(
+        {custom(std::string_view("verso-title"), [this](SkCanvas& canvas,
+                                                        const PaintContext&) {
+           if (!faceDisplay) return;
+           SkFont f(faceDisplay, 46);
+           SkPaint p;
+           p.setAntiAlias(true);
+           p.setColor4f(hexColor(0x241c15, 0.055f), nullptr);
+           canvas.save();
+           canvas.translate(760, 118);  // mirrored: the verso title
+           canvas.scale(-1, 1);
+           canvas.drawString("ENGLAND", 0, 0, f, p);
+           canvas.restore();
+         }).inset(0)});
 
     // ---- the plate mark: the physical impression of the copper ------
-    root.child(
-        box()
-            .inset(26)
-            .fill(Fill::none())
-            .stroke(stroke(1.0f, Fill::color(hexColor(0x8a7060, 0.20f)))));
-    root.child(
-        box()
-            .inset(28)
-            .fill(Fill::none())
-            .stroke(stroke(1.0f, Fill::color(hexColor(0xffffff, 0.35f)))));
+    root.children(
+        {box()
+             .inset(26)
+             .fill(Fill::none())
+             .stroke(stroke(1.0f, Fill::color(hexColor(0x8a7060, 0.20f))))});
+    root.children(
+        {box()
+             .inset(28)
+             .fill(Fill::none())
+             .stroke(stroke(1.0f, Fill::color(hexColor(0xffffff, 0.35f))))});
 
     // ---- the spine fold at the sheet's centre -----------------------
-    root.child(box().left(938).top(0).width(24).height(kH).fill(
+    root.children({box().left(938).top(0).width(24).height(kH).fill(
         linearGradient({0, 0}, {24, 0},
                        {hexColor(0x3a2a20, 0.0f), hexColor(0x3a2a20, 0.06f),
                         hexColor(0xffffff, 0.09f), hexColor(0x3a2a20, 0.0f)},
-                       {0.0f, 0.42f, 0.60f, 1.0f})));
+                       {0.0f, 0.42f, 0.60f, 1.0f}))});
 
     // ---- title block -------------------------------------------------
     // An emboldening underlay lives on a whole style, so the two titles
@@ -610,67 +612,70 @@ struct NightingaleCoxcomb : sketch::Sketch {
              .stagger = {.eachMs = 0, .amountMs = 620, .durationMs = 40},
              .progress = animate(from(0.0f).to(1.0f),
                                  ramp(tTitle1 * 1000, 700, ch::easeNone))};
-    root.child(text("DIAGRAM of the CAUSES of MORTALITY", title1)
-                   .key("title1")
-                   .fx(std::move(t1))
-                   .echo({0.8f, 0.5f}, hexColor(0x241c15, 0.8f))
-                   .centerAt({968, 38}));
+    root.children({text("DIAGRAM of the CAUSES of MORTALITY", title1)
+                       .key("title1")
+                       .fx(std::move(t1))
+                       .echo({0.8f, 0.5f}, hexColor(0x241c15, 0.8f))
+                       .centerAt({968, 38})});
 
     Track t2{.effect = fx::typeOn(),
              .stagger = {.eachMs = 0, .amountMs = 340, .durationMs = 40},
              .progress = animate(from(0.0f).to(1.0f),
                                  ramp(tTitle2 * 1000, 400, ch::easeNone))};
-    root.child(text("in the ARMY in the EAST.", title2)
-                   .key("title2")
-                   .fx(std::move(t2))
-                   .echo({0.6f, 0.4f}, hexColor(0x241c15, 0.7f))
-                   .centerAt({945, 84}));
+    root.children({text("in the ARMY in the EAST.", title2)
+                       .key("title2")
+                       .fx(std::move(t2))
+                       .echo({0.6f, 0.4f}, hexColor(0x241c15, 0.7f))
+                       .centerAt({945, 84})});
 
     // the double hairline under the title
     for (int i = 0; i < 2; ++i)
-      root.child(box()
-                     .left(775)
-                     .top(108.0f + (float)i * 4.0f)
-                     .width(368)
-                     .height(1)
-                     .fill(Fill::currentInk())
-                     .transformOrigin(0.0f, 0.5f)
-                     .scale(animate(from(0.0f).to(1.0f),
-                                    ramp(tTitle2 * 1000 + 220 + (float)i * 60,
-                                         420, ch::easeOutQuint))));
+      root.children(
+          {box()
+               .left(775)
+               .top(108.0f + (float)i * 4.0f)
+               .width(368)
+               .height(1)
+               .fill(Fill::currentInk())
+               .transformOrigin(0.0f, 0.5f)
+               .scale(animate(from(0.0f).to(1.0f),
+                              ramp(tTitle2 * 1000 + 220 + (float)i * 60, 420,
+                                   ch::easeOutQuint)))});
 
     // ---- the two diagram captions -----------------------------------
     auto caption = [&](const char* num, const char* label, float cx, float numX,
                        float startSec, const char* key) {
-      root.child(text(num)
-                     .font({.face = faceGrotesque, .size = 24})
-                     .key(std::string(key) + "n")
-                     .centerAt({numX, 40})
-                     .opacity(animate(from(0.0f).to(1.0f),
-                                      ramp(startSec * 1000, 320))));
-      root.child(text(label)
-                     .font({.face = faceGrotesque, .size = 21, .track = 0.4f})
-                     .key(std::string(key) + "t")
-                     .centerAt({cx, 78})
-                     .opacity(animate(from(0.0f).to(1.0f),
-                                      ramp(startSec * 1000 + 90, 320))));
-      root.child(box()
-                     .left(cx - 140)
-                     .top(94)
-                     .width(280)
-                     .height(1)
-                     .fill(Fill::color(kInkSoft))
-                     .transformOrigin(0.0f, 0.5f)
-                     .scale(animate(
-                         from(0.0f).to(1.0f),
-                         ramp(startSec * 1000 + 180, 380, ch::easeOutQuint))));
+      root.children({text(num)
+                         .font({.face = faceGrotesque, .size = 24})
+                         .key(std::string(key) + "n")
+                         .centerAt({numX, 40})
+                         .opacity(animate(from(0.0f).to(1.0f),
+                                          ramp(startSec * 1000, 320)))});
+      root.children(
+          {text(label)
+               .font({.face = faceGrotesque, .size = 21, .track = 0.4f})
+               .key(std::string(key) + "t")
+               .centerAt({cx, 78})
+               .opacity(animate(from(0.0f).to(1.0f),
+                                ramp(startSec * 1000 + 90, 320)))});
+      root.children({box()
+                         .left(cx - 140)
+                         .top(94)
+                         .width(280)
+                         .height(1)
+                         .fill(Fill::color(kInkSoft))
+                         .transformOrigin(0.0f, 0.5f)
+                         .scale(animate(from(0.0f).to(1.0f),
+                                        ramp(startSec * 1000 + 180, 380,
+                                             ch::easeOutQuint)))});
     };
     caption("1.", "APRIL 1854 to MARCH 1855.", 1320, 1489, tCap1, "cap1");
     caption("2.", "APRIL 1855 to MARCH 1856.", 413, 394, tCap2, "cap2");
 
     // ---- the wheels --------------------------------------------------
-    root.child(wheel(ctx, d1, kC1, kR1, tWedge1, 0.115f, tSpoke1, 0, "a"));
-    root.child(wheel(ctx, d2, kC2, kR2, tWedge2, 0.100f, tSpoke2, 12, "b"));
+    root.children({wheel(ctx, d1, kC1, kR1, tWedge1, 0.115f, tSpoke1, 0, "a")});
+    root.children(
+        {wheel(ctx, d2, kC2, kR2, tWedge2, 0.100f, tSpoke2, 12, "b")});
 
     // ---- the ring labels: each hugging its own wedge's rim ----------
     const auto labelStyle = kit::emboldened(
@@ -724,27 +729,27 @@ struct NightingaleCoxcomb : sketch::Sketch {
     labels.push_back(ringRun(smallLabel, kC2, "1856", 180.0f, 134.0f,
                              tLabel2 * 1000 + 300, "y1856"));
 
-    for (Element& e : labels) root.child(std::move(e));
+    for (Element& e : labels) root.children({std::move(e)});
 
     // ---- the dashed leader between the two wheels -------------------
     PathFormat dash = stroke(1.1f);
     dash.dashIntervals = {7.0f, 5.0f};
-    root.child(box()
-                   .inset(0)
-                   .key("leader")
-                   .fill(Fill::none())
-                   .shape(keyedShape(std::string_view("leader"),
-                                     [](SkSize) {
-                                       SkPathBuilder p;
-                                       p.moveTo(202, 398);
-                                       p.lineTo(614, 522);
-                                       p.lineTo(1024, 374);
-                                       return p.detach();
-                                     }))
-                   .stroke(spans::upTo(animate(
-                               from(0.0f).to(1.0f),
-                               ramp(tLeader * 1000, 620, ch::easeOutQuad))),
-                           dash));
+    root.children({box()
+                       .inset(0)
+                       .key("leader")
+                       .fill(Fill::none())
+                       .shape(keyedShape(std::string_view("leader"),
+                                         [](SkSize) {
+                                           SkPathBuilder p;
+                                           p.moveTo(202, 398);
+                                           p.lineTo(614, 522);
+                                           p.lineTo(1024, 374);
+                                           return p.detach();
+                                         }))
+                       .stroke(spans::upTo(animate(
+                                   from(0.0f).to(1.0f),
+                                   ramp(tLeader * 1000, 620, ch::easeOutQuad))),
+                               dash)});
 
     // ---- the engraved-hand legend -----------------------------------
     // Twelve hand-placed lines, one node each: every line sits at the
@@ -763,26 +768,26 @@ struct NightingaleCoxcomb : sketch::Sketch {
                 .progress = animate(
                     from(0.0f).to(1.0f),
                     ramp(tLegend * 1000, penStagger.spanMs(2), ch::easeNone))};
-      legend.child(text(legendText[i].text)
-                       .key("leg" + std::to_string(i))
-                       .fx(std::move(pen))
-                       .left(171.0f + (float)legendText[i].indent * 22.0f)
-                       .top(628.0f + (float)i * 30.7f));
+      legend.children({text(legendText[i].text)
+                           .key("leg" + std::to_string(i))
+                           .fx(std::move(pen))
+                           .left(171.0f + (float)legendText[i].indent * 22.0f)
+                           .top(628.0f + (float)i * 30.7f)});
     }
-    root.child(std::move(legend));
+    root.children({std::move(legend)});
 
     // ---- printer's imprint ------------------------------------------
-    root.child(text("Harrison & Sons, St. Martin's Lane.")
-                   .font({.face = faceScript, .size = 20})
-                   .ink(kInkSoft)
-                   .key("imprint")
-                   .centerAt({1712, 1004})
-                   .opacity(animate(from(0.0f).to(1.0f),
-                                    ramp(tLegend * 1000 + 2500, 600))));
+    root.children({text("Harrison & Sons, St. Martin's Lane.")
+                       .font({.face = faceScript, .size = 20})
+                       .ink(kInkSoft)
+                       .key("imprint")
+                       .centerAt({1712, 1004})
+                       .opacity(animate(from(0.0f).to(1.0f),
+                                        ramp(tLegend * 1000 + 2500, 600)))});
 
     // ---- the index needles ------------------------------------------
-    root.child(needle(kC1, kR1, &needle1Deg, &needle1A, "needle1"));
-    root.child(needle(kC2, kR2, &needle2Deg, &needle2A, "needle2"));
+    root.children({needle(kC1, kR1, &needle1Deg, &needle1A, "needle1")});
+    root.children({needle(kC2, kR2, &needle2Deg, &needle2A, "needle2")});
 
     return root;
   }

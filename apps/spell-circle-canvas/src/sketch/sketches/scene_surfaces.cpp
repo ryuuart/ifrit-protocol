@@ -115,20 +115,20 @@ compose::Element levels(float seconds, SkColor4f accent) {
                               .fill(compose::hexColor(0x12171f))
                               .font({.antiAlias = false})
                               .styleSheet(screenType());
-  root.child(compose::text(u8"LEVELS").styleClass("title"));
+  root.children({compose::text(u8"LEVELS").styleClass("title")});
   compose::Element row =
       compose::box().row().gap(7.0f).height(compose::pct(100));
   for (int i = 0; i < 9; ++i) {
     const float phase = seconds * 2.1f + (float)i * 0.55f;
     const float height = 18.0f + 62.0f * (0.5f + 0.5f * std::sin(phase));
     compose::Element column = compose::box().width(14.0f).column();
-    column.child(
-        compose::box().width(compose::pct(100)).height(92.0f - height));
-    column.child(
-        compose::box().width(compose::pct(100)).height(height).fill(accent));
-    row.child(std::move(column));
+    column.children(
+        {compose::box().width(compose::pct(100)).height(92.0f - height)});
+    column.children(
+        {compose::box().width(compose::pct(100)).height(height).fill(accent)});
+    row.children({std::move(column)});
   }
-  root.child(std::move(row));
+  root.children({std::move(row)});
   return root;
 }
 
@@ -144,21 +144,22 @@ compose::Element trace(float seconds, SkColor4f accent) {
                               .fill(compose::hexColor(0x0f141c))
                               .font({.antiAlias = false})
                               .styleSheet(screenType());
-  root.child(compose::text(u8"TRACE").styleClass("title"));
+  root.children({compose::text(u8"TRACE").styleClass("title")});
   constexpr int kCells = 14;
   compose::Element row = compose::box().row().gap(5.0f).height(44.0f);
   for (int i = 0; i < kCells; ++i) {
     const float at =
         std::fmod(seconds * 0.45f + (float)i / (float)kCells, 1.0f);
     const float lit = 0.16f + 0.84f * std::pow(1.0f - at, 3.0f);
-    row.child(compose::box()
-                  .width(compose::pct(100))
-                  .height(44.0f)
-                  .fill(SkColor4f{accent.fR * lit, accent.fG * lit,
-                                  accent.fB * lit, 1.0f}));
+    row.children({compose::box()
+                      .width(compose::pct(100))
+                      .height(44.0f)
+                      .fill(SkColor4f{accent.fR * lit, accent.fG * lit,
+                                      accent.fB * lit, 1.0f})});
   }
-  root.child(std::move(row));
-  root.child(compose::text(u8"one wave, fourteen cells").styleClass("note"));
+  root.children({std::move(row)});
+  root.children(
+      {compose::text(u8"one wave, fourteen cells").styleClass("note")});
   return root;
 }
 
@@ -175,7 +176,7 @@ compose::Element dial(float seconds, SkColor4f accent) {
                               .fill(compose::hexColor(0x14121f))
                               .font({.antiAlias = false})
                               .styleSheet(screenType());
-  root.child(compose::text(u8"DIAL").styleClass("title"));
+  root.children({compose::text(u8"DIAL").styleClass("title")});
   const float reading = 0.5f + 0.5f * std::sin(seconds * 1.15f);
   compose::Element track = compose::box()
                                .width(compose::pct(100))
@@ -184,13 +185,13 @@ compose::Element dial(float seconds, SkColor4f accent) {
   compose::Element needle =
       compose::box().width(10.0f).height(26.0f).fill(accent);
   needle.absolute().left(6.0f + reading * 150.0f).top(0.0f);
-  track.child(std::move(needle));
-  root.child(std::move(track));
-  root.child(compose::box()
-                 .width(compose::pct(100))
-                 .height(12.0f + 46.0f * reading)
-                 .fill(SkColor4f{accent.fR * 0.35f, accent.fG * 0.35f,
-                                 accent.fB * 0.35f, 1.0f}));
+  track.children({std::move(needle)});
+  root.children({std::move(track)});
+  root.children({compose::box()
+                     .width(compose::pct(100))
+                     .height(12.0f + 46.0f * reading)
+                     .fill(SkColor4f{accent.fR * 0.35f, accent.fG * 0.35f,
+                                     accent.fB * 0.35f, 1.0f})});
   return root;
 }
 
@@ -209,11 +210,11 @@ compose::Element band(float seconds) {
     const float phase = seconds * 1.4f - (float)i * 0.34f;
     const float lit =
         0.12f + 0.88f * std::pow(0.5f + 0.5f * std::sin(phase), 4.0f);
-    root.child(
-        compose::box()
-            .width(compose::pct(100))
-            .height(compose::pct(100))
-            .fill(SkColor4f{0.30f * lit, 0.95f * lit, 0.70f * lit, 1.0f}));
+    root.children(
+        {compose::box()
+             .width(compose::pct(100))
+             .height(compose::pct(100))
+             .fill(SkColor4f{0.30f * lit, 0.95f * lit, 0.70f * lit, 1.0f})});
   }
   return root;
 }
@@ -231,18 +232,18 @@ compose::Element tape(float seconds) {
                               .fill(compose::hexColor(0x1f2430))
                               .font({.antiAlias = false})
                               .styleSheet(screenType());
-  root.child(compose::text(u8"WOVEN").styleClass("display"));
-  root.child(compose::text(u8"a scene, sampled").styleClass("caption"));
+  root.children({compose::text(u8"WOVEN").styleClass("display")});
+  root.children({compose::text(u8"a scene, sampled").styleClass("caption")});
   compose::Element marks =
       compose::box().row().gap(10.0f).height(18.0f).absolute();
   marks.left(16.0f).bottom(14.0f);
   for (int i = 0; i < 3; ++i) {
     const float phase = seconds * 1.7f + (float)i * 0.7f;
     const float length = 46.0f + 34.0f * (0.5f + 0.5f * std::sin(phase));
-    marks.child(compose::box().width(length).height(6.0f).fill(
-        compose::hexColor(0xeb8c40)));
+    marks.children({compose::box().width(length).height(6.0f).fill(
+        compose::hexColor(0xeb8c40))});
   }
-  root.child(std::move(marks));
+  root.children({std::move(marks)});
   return root;
 }
 
@@ -342,36 +343,37 @@ struct SceneSurfaces final : sketch::Set {
       // ellipse's two components land on z and on x in that order.
       const SkPoint on =
           arrange::onEllipse({0, 0}, {kArcRadius, kArcRadius}, bearing);
-      console.child(
-          world::Element()
-              .key("card" + std::to_string(i))
-              .at({on.fY, 78.0f, on.fX - kArcRadius})
-              .mesh(gm::quad(kCardWidth, kCardHeight))
-              .backface(world::Backface::Visible)
-              .fill(screenOf(cards[(size_t)i].at(seconds, content[(size_t)i])))
-              .tag("flat"));
+      console.children(
+          {world::Element()
+               .key("card" + std::to_string(i))
+               .at({on.fY, 78.0f, on.fX - kArcRadius})
+               .mesh(gm::quad(kCardWidth, kCardHeight))
+               .backface(world::Backface::Visible)
+               .fill(screenOf(cards[(size_t)i].at(seconds, content[(size_t)i])))
+               .tag("flat")});
     }
 
     // CURVED: the same kind of content on a panel that is not flat.
-    console.child(world::Element()
-                      .key("band")
-                      .at({0.0f, -40.0f, 0.0f})
-                      .mesh(gm::cylinderPanel(560.0f, 76.0f, kArcRadius, 72, 6))
-                      .backface(world::Backface::Visible)
-                      .fill(screenOf(strip.at(seconds, band(seconds))))
-                      .tag("curved"));
+    console.children(
+        {world::Element()
+             .key("band")
+             .at({0.0f, -40.0f, 0.0f})
+             .mesh(gm::cylinderPanel(560.0f, 76.0f, kArcRadius, 72, 6))
+             .backface(world::Backface::Visible)
+             .fill(screenOf(strip.at(seconds, band(seconds))))
+             .tag("curved")});
 
     // …and one lit body in front of them, so the plate carries both
     // readings at once: a surface the emitters reach, and screens they
     // do not.
-    console.child(
-        world::Element()
-            .key("shelf")
-            .at({0.0f, -96.0f, 96.0f})
-            .mesh(gm::superellipsoid({330.0f, 9.0f, 74.0f}, 6.0f, 48, 16))
-            .fill(material::kit::surface(
-                {.baseColor = {0.42f, 0.45f, 0.53f, 1.0f}, .roughness = 0.3f}))
-            .tag("frame"));
+    console.children(
+        {world::Element()
+             .key("shelf")
+             .at({0.0f, -96.0f, 96.0f})
+             .mesh(gm::superellipsoid({330.0f, 9.0f, 74.0f}, 6.0f, 48, 16))
+             .fill(material::kit::surface(
+                 {.baseColor = {0.42f, 0.45f, 0.53f, 1.0f}, .roughness = 0.3f}))
+             .tag("frame")});
 
     // TILED: the third sampling of the same kind of scene. The card
     // repeats along the ribbon and stands once across it, and the tape
@@ -385,13 +387,13 @@ struct SceneSurfaces final : sketch::Set {
     printedTape.child(material::kit::kBaseColorSlot, std::move(printed));
 
     world::Element room = world::Element().key("room");
-    room.child(std::move(console));
-    room.child(world::Element()
-                   .key("ribbon")
-                   .mesh(rail)
-                   .backface(world::Backface::Visible)
-                   .fill(std::move(printedTape))
-                   .tag("tiled"));
+    room.children({std::move(console)});
+    room.children({world::Element()
+                       .key("ribbon")
+                       .mesh(rail)
+                       .backface(world::Backface::Visible)
+                       .fill(std::move(printedTape))
+                       .tag("tiled")});
 
     world::kit::Set set;
     set.rig.extent = 300.0f;

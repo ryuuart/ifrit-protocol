@@ -106,7 +106,7 @@ Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
-          .child(std::move(body)));
+          .children({std::move(body)}));
 }
 
 }  // namespace
@@ -207,7 +207,7 @@ struct NoiseShelf final : sketch::Sketch {
           kit::formatted("  %016llx", (unsigned long long)both),
           kit::formatted("combine(0, 7)"),
           kit::formatted("  %016llx", (unsigned long long)mixed)})
-      column.child(text_(row));
+      column.children({text_(row)});
     return cell("fnv1a · combine",
                 "one-way folds over a word and over text · an address "
                 "and not a field, which is why nothing here is drawn",

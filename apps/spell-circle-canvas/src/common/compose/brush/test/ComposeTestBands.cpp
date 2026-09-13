@@ -48,7 +48,7 @@ TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
       b.inward();
     else
       b.centered();
-    host.composer.render(stack().child(b.fill(red())));
+    host.composer.render(stack().children({b.fill(red())}));
     host.frame();
     return std::pair<SkColor, SkColor>{host.pixel(70, 16), host.pixel(70, 24)};
   };
@@ -69,17 +69,17 @@ TEST(ComposeBand, MultiContourSpinesDoNotBridge) {
   // contours is bridged by a chord — two concentric ring spines come out as
   // a filled disc, which looks deliberate rather than broken.
   Host host(400, 400);
-  host.composer.render(
-      stack().child(band(
-                        [](SkSize s) {
-                          SkPathBuilder b;
-                          b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 150);
-                          b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 60);
-                          return b.detach();
-                        },
-                        across(12))
-                        .inset(0)
-                        .fill(red())));
+  host.composer.render(stack().children(
+      {band(
+           [](SkSize s) {
+             SkPathBuilder b;
+             b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 150);
+             b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 60);
+             return b.detach();
+           },
+           across(12))
+           .inset(0)
+           .fill(red())}));
   host.frame();
   EXPECT_EQ(host.pixel(200, 46), SK_ColorRED) << "the outer ring";
   EXPECT_EQ(host.pixel(200, 136), SK_ColorRED) << "the inner ring";
@@ -110,11 +110,12 @@ TEST(ComposeBand, ProfileMaxKeepsTheReachOutOfTheCull) {
   // clip: a Picture-cached node's cull is grown by the profile's reach,
   // and an outward band draws entirely OUTSIDE its layout box.
   Host host(200, 200);
-  host.composer.render(stack().child(band(rectSpine(), across(20))
-                                         .outward()
-                                         .rect(SkRect::MakeXYWH(60, 60, 40, 40))
-                                         .cache(Cache::Picture)
-                                         .fill(red())));
+  host.composer.render(
+      stack().children({band(rectSpine(), across(20))
+                            .outward()
+                            .rect(SkRect::MakeXYWH(60, 60, 40, 40))
+                            .cache(Cache::Picture)
+                            .fill(red())}));
   host.frame();
   EXPECT_EQ(host.pixel(80, 45), SK_ColorRED) << "15px outside the box";
   EXPECT_EQ(host.pixel(80, 80), SK_ColorBLACK) << "and not inside it";
@@ -123,9 +124,9 @@ TEST(ComposeBand, ProfileMaxKeepsTheReachOutOfTheCull) {
 TEST(ComposeBand, StrokePassesDressABandLikeAnyShape) {
   Host host(200, 200);
   host.composer.render(
-      stack().child(band(rectSpine(), across(16))
-                        .rect(SkRect::MakeXYWH(30, 30, 80, 80))
-                        .stroke(spans::every(1), stroke(4, green()))));
+      stack().children({band(rectSpine(), across(16))
+                            .rect(SkRect::MakeXYWH(30, 30, 80, 80))
+                            .stroke(spans::every(1), stroke(4, green()))}));
   host.frame();
   int inked = 0;
   for (int x = 0; x < 200; ++x)
@@ -143,15 +144,15 @@ TEST(ComposeRibbon, ProfileRibbonPaintsItsBand) {
       geometry::path::profile::offset(16.0f));  // constant 16px wide
   r.fill = Fill::color({1, 0, 0, 1});
   host.composer.render(
-      stack().child(box()
-                        .rect(SkRect::MakeXYWH(40, 40, 100, 100))
-                        .shape([](SkSize s) {
-                          SkPathBuilder p;
-                          p.moveTo(0, s.height() * 0.5f);
-                          p.lineTo(s.width(), s.height() * 0.5f);
-                          return p.detach();
-                        })
-                        .stroke(std::move(r))));
+      stack().children({box()
+                            .rect(SkRect::MakeXYWH(40, 40, 100, 100))
+                            .shape([](SkSize s) {
+                              SkPathBuilder p;
+                              p.moveTo(0, s.height() * 0.5f);
+                              p.lineTo(s.width(), s.height() * 0.5f);
+                              return p.detach();
+                            })
+                            .stroke(std::move(r))}));
   host.frame();
   EXPECT_EQ(host.pixel(90, 90), SK_ColorRED) << "on the spine";
   EXPECT_EQ(host.pixel(90, 84), SK_ColorRED) << "6px off it, inside 16 wide";
@@ -248,7 +249,7 @@ TEST(ComposeWidthProfile, StraightRunsAgreeWithTheLaneTheyReplaced) {
       r.widthStart = 30.0f;
       r.widthEnd = 10.0f;
     }
-    host.composer.render(stack().child(straightRun(std::move(r))));
+    host.composer.render(stack().children({straightRun(std::move(r))}));
     host.frame();
     std::vector<std::pair<int, float>> out;
     for (int x : {40, 70, 100, 130, 160})
@@ -297,7 +298,7 @@ TEST(ComposeWidthProfile, APxKeyedLawStaysPutUnderAReveal) {
                              return p.detach();
                            })
                            .stroke(spans::upTo(reveal), std::move(r));
-    host.composer.render(stack().child(std::move(revealed)));
+    host.composer.render(stack().children({std::move(revealed)}));
     host.frame();
     // the pulse is the widest column
     int best = -1, bestT = 0;
@@ -379,11 +380,11 @@ TEST(ComposeWidthProfile, ARibbonUnderAWidthProfilePrunes) {
       brush::Ribbon r;
       r.fill = Fill::color({1, 0, 0, 1});
       r.width = geometry::path::Profile(PulseAtPx{});
-      return box().child(box()
-                             .width(120)
-                             .height(120)
-                             .shape(geometry::shapes::circle())
-                             .stroke(r));
+      return box().children({box()
+                                 .width(120)
+                                 .height(120)
+                                 .shape(geometry::shapes::circle())
+                                 .stroke(r)});
     };
     host.composer.render(tree());
     host.frame();
@@ -425,7 +426,7 @@ TEST(ComposeWidthProfile, ANonFiniteSamplePinchesInsteadOfDeletingTheBand) {
       r.width = geometry::path::Profile(NanAtMidLaw{});
     else
       r.width = geometry::path::Profile(TaperLaw{20.0f, 20.0f});
-    host.composer.render(stack().child(straightRun(std::move(r))));
+    host.composer.render(stack().children({straightRun(std::move(r))}));
     host.frame();
     std::vector<int> t;
     for (int x : {40, 70, 100, 130, 160}) t.push_back(thicknessAt(host, x));

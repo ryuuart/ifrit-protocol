@@ -194,7 +194,8 @@ bool Atlas::ensureBaked(sigil::weave::FontContext& fonts) {
     // snapshot() sizes by the ROOT'S CHILDREN and ignores the root's own
     // dimensions — the cell tree already carries forced dims, so wrapping
     // it in a plain shell gives the picture exactly the cell's size.
-    sk_sp<SkPicture> picture = snapshot(box().child(m_cells[i].tree), fonts);
+    sk_sp<SkPicture> picture =
+        snapshot(box().children({m_cells[i].tree}), fonts);
     if (!picture) continue;
     canvas.save();
     canvas.translate(m_tex[i].left(), m_tex[i].top());

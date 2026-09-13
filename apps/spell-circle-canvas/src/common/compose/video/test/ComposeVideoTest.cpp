@@ -61,7 +61,7 @@ TEST(ComposeVideo, ClipIsALiveSizedLeaf) {
                       .fill(Fill::color({0, 0, 1, 1}))
                       .alignItems(Align::Center)
                       .justify(Justify::Center)
-                      .child(video(clip)));
+                      .children({video(clip)}));
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 128));
@@ -111,11 +111,9 @@ TEST(ComposeVideo, RegisteredHandleFansOnePlayerOutToSeveralLeaves) {
   sigil::motion::Ticker ticker;
   Composer composer(ticker, fonts());
   composer.setSize({128, 64});
-  composer.render(stack()
-                      .child(video(clip, playback, handle)
-                                 .rect(SkRect::MakeXYWH(0, 0, 64, 64)))
-                      .child(video(clip, playback, handle)
-                                 .rect(SkRect::MakeXYWH(64, 0, 64, 64))));
+  composer.render(stack().children(
+      {video(clip, playback, handle).rect(SkRect::MakeXYWH(0, 0, 64, 64)),
+       video(clip, playback, handle).rect(SkRect::MakeXYWH(64, 0, 64, 64))}));
   EXPECT_EQ(playback->size(), 1u);
 
   sk_sp<SkSurface> surface =
@@ -134,9 +132,9 @@ TEST(ComposeVideo, LeafCompositesItsSingleDrawWithoutAGroupingNode) {
   composer.setSize({64, 64});
   composer.render(box()
                       .fill(Fill::color({0, 0, 1, 1}))
-                      .child(video(clip, {.fit = VideoFit::Cover,
-                                          .opacity = 0.5f,
-                                          .blend = SkBlendMode::kPlus})));
+                      .children({video(clip, {.fit = VideoFit::Cover,
+                                              .opacity = 0.5f,
+                                              .blend = SkBlendMode::kPlus})}));
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 64));

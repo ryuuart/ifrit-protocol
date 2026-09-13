@@ -46,7 +46,7 @@ TEST(ComposeFeed, AnAppendCostsOneMountAndNeverRerecordsTheRowsAboveIt) {
   const feed::TextOptions options = feedOptions(10);
   Host host(200, 400);
   auto describe = [&] {
-    return box().padding(6).child(feed::feed(ring, options));
+    return box().padding(6).children({feed::feed(ring, options)});
   };
   host.composer.render(describe());
   host.frame();  // records the visible window
@@ -92,7 +92,7 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
   };
   Host host(160, 200);
   auto describe = [&] {
-    return box().padding(4).child(feed::feed(ring, options.window, lit));
+    return box().padding(4).children({feed::feed(ring, options.window, lit)});
   };
 
   host.composer.render(describe());
@@ -129,7 +129,7 @@ TEST(ComposeFeed, TheWindowNeverMountsTheRowsOutsideIt) {
     ring.append({toUtf8("line " + std::to_string(i))});
   const feed::TextOptions options = feedOptions(8);
   Host host(200, 200);
-  host.composer.render(box().child(feed::feed(ring, options)));
+  host.composer.render(box().children({feed::feed(ring, options)}));
   host.frame();
 
   EXPECT_FALSE(host.composer.bounds(feed::rowKey(1)).has_value())
@@ -142,7 +142,7 @@ TEST(ComposeFeed, TheWindowNeverMountsTheRowsOutsideIt) {
   const size_t live = host.composer.stats().instances;
   for (int i = 0; i < 200; ++i)
     ring.append({toUtf8("more " + std::to_string(i))});
-  host.composer.render(box().child(feed::feed(ring, options)));
+  host.composer.render(box().children({feed::feed(ring, options)}));
   host.frame();
   EXPECT_EQ(host.composer.stats().instances, live)
       << "the retained tree grew with the ring instead of with the window";
@@ -165,7 +165,7 @@ TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
   };
   Host host(160, 200);
   auto describe = [&] {
-    return box().padding(4).child(feed::feed(ring, options.window, lit));
+    return box().padding(4).children({feed::feed(ring, options.window, lit)});
   };
 
   host.composer.render(describe());
@@ -201,8 +201,8 @@ TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
   m.uniform("uAlsoMissing", &o);  // dropped → still not live
   EXPECT_FALSE(m.isAnimated());
   Host host;
-  host.composer.render(box().child(
-      box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)));
+  host.composer.render(box().children(
+      {box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)}));
   host.frame();  // paints with uK at its SkSL default (0) — and does not crash
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 40u);
 }
@@ -216,15 +216,15 @@ TEST(ComposeDerive, FlowAroundWrapsTextAroundFrame) {
   auto tree = [&](bool flow) {
     auto t = text(body, whiteStyle(18)).key("body");
     if (flow) t.flowAround("frame", 6);
-    return stack()
-        .child(box()
-                   .key("frame")
-                   .width(150)
-                   .height(140)
-                   .inset(200, 10, 10, 210)
-                   .absolute()
-                   .fill(Fill::color({0, 0.4f, 0, 1})))
-        .child(box().inset(0).child(std::move(t)).zIndex(1));
+    return stack().children(
+        {box()
+             .key("frame")
+             .width(150)
+             .height(140)
+             .inset(200, 10, 10, 210)
+             .absolute()
+             .fill(Fill::color({0, 0.4f, 0, 1})),
+         box().inset(0).children({std::move(t)}).zIndex(1)});
   };
 
   Host plain(360, 420), flowed(360, 420);
@@ -267,14 +267,13 @@ const std::u8string& flowBody() {
 
 /** One paragraph flowing around one keyed target of the caller's making. */
 Element flowScene(Element target, float margin) {
-  return stack()
-      .child(std::move(target))
-      .child(box()
-                 .inset(0)
-                 .child(text(flowBody(), whiteStyle(15))
-                            .key("body")
-                            .flowAround("obstacle", margin))
-                 .zIndex(1));
+  return stack().children(
+      {std::move(target), box()
+                              .inset(0)
+                              .children({text(flowBody(), whiteStyle(15))
+                                             .key("body")
+                                             .flowAround("obstacle", margin)})
+                              .zIndex(1)});
 }
 
 Element obstacleBox(Shape silhouette) {
@@ -303,8 +302,9 @@ TEST(ComposeDerive, FlowAroundShapelessTargetKeepsItsBox) {
 
 TEST(ComposeDerive, FlowAroundCycleIsIgnored) {
   Host host;
-  host.composer.render(box().child(
-      text(u8"self reference", whiteStyle(16)).key("self").flowAround("self")));
+  host.composer.render(box().children({text(u8"self reference", whiteStyle(16))
+                                           .key("self")
+                                           .flowAround("self")}));
   host.frame();  // must not hang or exclude itself into nothing
   EXPECT_NE(host.composer.paragraphLayout("self"), nullptr);
 }
@@ -314,12 +314,13 @@ TEST(ComposeCaching, TextureBakeScaleQuantized) {
   // zoom) must not re-bake Cache::Texture nodes every frame: the bake
   // scale quantizes up to a coarse step.
   Host host;
-  host.composer.render(box()
-                           .width(60)
-                           .height(60)
-                           .cache(Cache::Texture)
-                           .fill(red())
-                           .child(box().width(20).height(20).fill(green())));
+  host.composer.render(
+      box()
+          .width(60)
+          .height(60)
+          .cache(Cache::Texture)
+          .fill(red())
+          .children({box().width(20).height(20).fill(green())}));
   auto drawAt = [&](float s) {
     SkCanvas& canvas = *host.surface->getCanvas();
     canvas.save();
@@ -360,17 +361,18 @@ TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
   host.composer.render(
       box()
           .cache(Cache::None)
-          .child(box()
-                     .cache(Cache::None)
-                     .absolute()
-                     .translateX(&slide)
-                     .child(box()
-                                .width(60)
-                                .height(60)
-                                .cache(Cache::Texture)
-                                .fill(red())
-                                .child(box().width(20).height(20).fill(
-                                    green())))));
+          .children(
+              {box()
+                   .cache(Cache::None)
+                   .absolute()
+                   .translateX(&slide)
+                   .children({box()
+                                  .width(60)
+                                  .height(60)
+                                  .cache(Cache::Texture)
+                                  .fill(red())
+                                  .children({box().width(20).height(20).fill(
+                                      green())})})}));
   host.frame();
   EXPECT_GE(host.composer.stats().picturesRecorded, 1u);  // the first bake
   // The still -> moving transition costs exactly one re-bake, because the
@@ -417,23 +419,25 @@ int maxChannelDifference(Host& a, Host& b, int w, int h) {
 Element turnedPill(float degrees, Cache mode) {
   return box()
       .cache(Cache::None)
-      .child(
-          box()
-              .inset(0)
-              .child(box().absolute().left(2).top(2).width(4).height(4).fill(
-                  Fill::color({0, 0.3f, 0, 1})))
-              .child(box()
-                         .absolute()
-                         .left(60)
-                         .top(100)
-                         .width(140)
-                         .height(28)
-                         .key("pill")
-                         .cache(mode)
-                         .rotate(degrees)
-                         .transformOrigin(0.5f, 0.5f)
-                         .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))
-                         .child(text(u8"LEFT SIDE BARRIER", whiteStyle(15)))));
+      .children(
+          {box()
+               .inset(0)
+               .children(
+                   {box().absolute().left(2).top(2).width(4).height(4).fill(
+                       Fill::color({0, 0.3f, 0, 1}))})
+               .children({box()
+                              .absolute()
+                              .left(60)
+                              .top(100)
+                              .width(140)
+                              .height(28)
+                              .key("pill")
+                              .cache(mode)
+                              .rotate(degrees)
+                              .transformOrigin(0.5f, 0.5f)
+                              .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))
+                              .children({text(u8"LEFT SIDE BARRIER",
+                                              whiteStyle(15))})})});
 }
 
 }  // namespace
@@ -516,25 +520,25 @@ TEST(ComposeCaching, ANodeUnderALiveTransformKeepsTheLocalBakeInItsRecording) {
   host.composer.render(
       box()
           .cache(Cache::None)
-          .child(
-              box()
-                  .absolute()
-                  .translateX(&slide)
-                  .child(
-                      box().absolute().left(2).top(2).width(4).height(4).fill(
-                          Fill::color({0, 0.3f, 0, 1})))
-                  .child(
-                      box()
-                          .absolute()
-                          .left(60)
-                          .top(100)
-                          .width(60)
-                          .height(60)
-                          .cache(Cache::Texture)
-                          .rotate(-90.0f)
-                          .transformOrigin(0.5f, 0.5f)
-                          .fill(red())
-                          .child(box().width(20).height(20).fill(green())))));
+          .children(
+              {box()
+                   .absolute()
+                   .translateX(&slide)
+                   .children(
+                       {box().absolute().left(2).top(2).width(4).height(4).fill(
+                           Fill::color({0, 0.3f, 0, 1}))})
+                   .children({box()
+                                  .absolute()
+                                  .left(60)
+                                  .top(100)
+                                  .width(60)
+                                  .height(60)
+                                  .cache(Cache::Texture)
+                                  .rotate(-90.0f)
+                                  .transformOrigin(0.5f, 0.5f)
+                                  .fill(red())
+                                  .children({box().width(20).height(20).fill(
+                                      green())})})}));
   host.frame();
   EXPECT_GE(host.composer.stats().texturesBaked, 1u);
   // The still -> moving transition costs one remake, as it does through a
@@ -567,13 +571,13 @@ TEST(ComposeCaching, AMemoShellsCacheIsCarriedOntoItsProduce) {
   const auto describe = [](int tick) {
     return box()
         .cache(Cache::None)
-        .child(memo(Props{tick},
-                    [](const Props& p) {
-                      return box().width(40).height(40).fill(
-                          p.tick % 2 ? red() : green());
-                    })
-                   .key("cell")
-                   .cache(Cache::Picture));
+        .children({memo(Props{tick},
+                        [](const Props& p) {
+                          return box().width(40).height(40).fill(
+                              p.tick % 2 ? red() : green());
+                        })
+                       .key("cell")
+                       .cache(Cache::Picture)});
   };
   host.composer.render(describe(0));
   host.frame();
@@ -599,14 +603,14 @@ TEST(ComposeCaching, AMemoShellsCacheIsCarriedOntoItsProduce) {
 
 TEST(ComposeLayout, WrapLinesFlowsToSecondRow) {
   Host host;
-  host.composer.render(
-      box().child(box()
-                      .row()
-                      .wrapLines()
-                      .width(200)
-                      .child(box().width(80).height(40).fill(red()))
-                      .child(box().width(80).height(40).fill(green()))
-                      .child(box().width(80).height(40).fill(blue()))));
+  host.composer.render(box().children(
+      {box()
+           .row()
+           .wrapLines()
+           .width(200)
+           .children({box().width(80).height(40).fill(red())})
+           .children({box().width(80).height(40).fill(green())})
+           .children({box().width(80).height(40).fill(blue())})}));
   host.frame();
   EXPECT_EQ(host.pixel(40, 20), SK_ColorRED);
   EXPECT_EQ(host.pixel(120, 20), SK_ColorGREEN);
@@ -615,11 +619,12 @@ TEST(ComposeLayout, WrapLinesFlowsToSecondRow) {
 
 TEST(ComposeLayout, PerEdgePaddingAndMargin) {
   Host host;
-  host.composer.render(box().child(
-      box()
-          .padding(10, 20, 30, 40)
-          .key("outer")
-          .child(box().margin(5, 6, 7, 8).width(50).height(50).key("inner"))));
+  host.composer.render(box().children(
+      {box()
+           .padding(10, 20, 30, 40)
+           .key("outer")
+           .children(
+               {box().margin(5, 6, 7, 8).width(50).height(50).key("inner")})}));
   host.frame();
   auto inner = host.composer.bounds("inner");
   ASSERT_TRUE(inner.has_value());
@@ -629,8 +634,8 @@ TEST(ComposeLayout, PerEdgePaddingAndMargin) {
 
 TEST(ComposeLayout, DimLiteralsResolvePercent) {
   Host host;
-  host.composer.render(
-      box().child(box().width(50_pct).height(25_pct).fill(red()).key("half")));
+  host.composer.render(box().children(
+      {box().width(50_pct).height(25_pct).fill(red()).key("half")}));
   host.frame();
   auto rect = host.composer.bounds("half");
   ASSERT_TRUE(rect.has_value());
@@ -641,13 +646,12 @@ TEST(ComposeLayout, DimLiteralsResolvePercent) {
 TEST(ComposeContent, ImageRegionDrawsAtlasCell) {
   Host host;
   auto atlas = twoCellAtlas();
-  host.composer.render(box()
-                           .row()
-                           .child(image(atlas)
-                                      .region(SkRect::MakeXYWH(16, 0, 16, 16))
-                                      .width(50)
-                                      .height(50))
-                           .child(image(atlas).width(50).height(50)));
+  host.composer.render(
+      box().row().children({image(atlas)
+                                .region(SkRect::MakeXYWH(16, 0, 16, 16))
+                                .width(50)
+                                .height(50),
+                            image(atlas).width(50).height(50)}));
   host.frame();
   EXPECT_EQ(host.pixel(25, 25), SK_ColorGREEN);  // region: right cell only
   EXPECT_EQ(host.pixel(60, 25), SK_ColorRED);    // whole atlas: left half
@@ -657,12 +661,12 @@ TEST(ComposePaint, ContentScaleReportsHostScale) {
   Host host;
   float seen = 0.0f;
   host.composer.render(
-      box().child(custom([&seen](SkCanvas&, const PaintContext& ctx) {
-                    seen = ctx.contentScale;
-                  })
-                      .width(50)
-                      .height(50)
-                      .cache(Cache::None)));
+      box().children({custom([&seen](SkCanvas&, const PaintContext& ctx) {
+                        seen = ctx.contentScale;
+                      })
+                          .width(50)
+                          .height(50)
+                          .cache(Cache::None)}));
   SkCanvas& canvas = *host.surface->getCanvas();
   canvas.save();
   canvas.scale(2.0f, 2.0f);
@@ -680,15 +684,14 @@ TEST(ComposePaint, AnimatingReportsTheTickersState) {
   Host host;
   bool seen = false;
   host.composer.render(
-      box()
-          .child(box().width(40).height(40).fill(red()).opacity(
-              animate(motion::from(0.0f).to(1.0f), {400ms})))
-          .child(custom([&seen](SkCanvas&, const PaintContext& ctx) {
-                   seen = ctx.animating;
-                 })
-                     .width(10)
-                     .height(10)
-                     .cache(Cache::None)));
+      box().children({box().width(40).height(40).fill(red()).opacity(
+                          animate(motion::from(0.0f).to(1.0f), {400ms})),
+                      custom([&seen](SkCanvas&, const PaintContext& ctx) {
+                        seen = ctx.animating;
+                      })
+                          .width(10)
+                          .height(10)
+                          .cache(Cache::None)}));
   host.frame(0.016);
   EXPECT_TRUE(seen) << "an entrance is running: the ticker is active";
   for (int i = 0; i < 40; ++i)
@@ -702,21 +705,20 @@ TEST(ComposePaint, AnimatingReportsTheTickersState) {
 TEST(ComposeQueries, HitTestRespectsPaintOrderAndKeys) {
   Host host;
   host.composer.render(
-      stack()
-          .child(box().key("under").inset(0).fill(red()))
-          .child(box()
-                     .key("over")
-                     .width(60)
-                     .height(60)
-                     .inset(20, 20, 120, 120)
-                     .absolute()
-                     .fill(green()))
-          .child(box()
-                     .width(30)
-                     .height(30)
-                     .inset(150, 150, 20, 20)
-                     .absolute()
-                     .fill(blue())));  // keyless → falls to root
+      stack().children({box().key("under").inset(0).fill(red()),
+                        box()
+                            .key("over")
+                            .width(60)
+                            .height(60)
+                            .inset(20, 20, 120, 120)
+                            .absolute()
+                            .fill(green()),
+                        box()
+                            .width(30)
+                            .height(30)
+                            .inset(150, 150, 20, 20)
+                            .absolute()
+                            .fill(blue())}));  // keyless → falls to root
   host.frame();
   EXPECT_EQ(host.composer.hitTest({50, 50}).value_or(""), "over");
   EXPECT_EQ(host.composer.hitTest({120, 120}).value_or(""), "under");
@@ -734,14 +736,14 @@ TEST(ComposeTransform, SkewLeansPaintAndHits) {
   // backwards, so a point that is inside the leaning card but outside its
   // unsheared box still hits it.
   Host host;
-  host.composer.render(box().child(box()
-                                       .key("card")
-                                       .width(40)
-                                       .height(40)
-                                       .inset(60, 60, 100, 100)
-                                       .absolute()
-                                       .fill(red())
-                                       .skewX(-12.0f)));
+  host.composer.render(box().children({box()
+                                           .key("card")
+                                           .width(40)
+                                           .height(40)
+                                           .inset(60, 60, 100, 100)
+                                           .absolute()
+                                           .fill(red())
+                                           .skewX(-12.0f)}));
   host.frame();
   EXPECT_EQ(host.pixel(101, 64), SK_ColorRED);   // top leaned right
   EXPECT_EQ(host.pixel(61, 64), SK_ColorBLACK);  // vacated top-left
@@ -760,14 +762,14 @@ TEST(ComposeTransform, SkewXPositiveLeansTheTopTowardNegativeX) {
   // The sign is easy to state backwards, so the runtime's answer is
   // pinned here in pixels.
   Host host;
-  host.composer.render(box().child(box()
-                                       .key("card")
-                                       .width(40)
-                                       .height(40)
-                                       .inset(60, 60, 100, 100)
-                                       .absolute()
-                                       .fill(red())
-                                       .skewX(30.0f)));
+  host.composer.render(box().children({box()
+                                           .key("card")
+                                           .width(40)
+                                           .height(40)
+                                           .inset(60, 60, 100, 100)
+                                           .absolute()
+                                           .fill(red())
+                                           .skewX(30.0f)}));
   host.frame();
   // The unsheared box is x in [60, 100], y in [60, 100], centre (80, 80).
   // At y = 64 (16 above centre) the shift is tan(30) * -16 ~ -9.2, so the
@@ -792,13 +794,10 @@ TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
   // from value-comparable properties re-render for free.
   Host host;
   auto tree = [] {
-    return box()
-        .row()
-        .gap(8)
-        .padding(12)
-        .child(box().width(40).height(40).corners({6}).fill(red()))
-        .child(text(u8"static", styleAt(18)).key("t"))
-        .child(box().grow(1).fill(blue()).opacity(0.9f));
+    return box().row().gap(8).padding(12).children(
+        {box().width(40).height(40).corners({6}).fill(red()),
+         text(u8"static", styleAt(18)).key("t"),
+         box().grow(1).fill(blue()).opacity(0.9f)});
   };
   host.composer.render(tree());
   host.frame();
@@ -880,8 +879,8 @@ TEST(ComposeMotion, AnEmptyKeyframePathIsDETERMINATE) {
   // value rather than at a number nobody chose.
   Host host;
   host.composer.render(
-      box().child(box().width(80).height(80).fill(red()).opacity(
-          animate(sigil::motion::through({})))));
+      box().children({box().width(80).height(80).fill(red()).opacity(
+          animate(sigil::motion::through({})))}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorBLACK);  // opacity 0, not garbage
 }
@@ -905,8 +904,9 @@ TEST(ComposeMotion, AnimateThroughDeducesAFloatPath) {
 TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
   Host host;
   auto tree = [] {
-    return box().child(box().width(80).height(80).fill(red()).opacity(
-        animate(motion::from(0.0f).to(1.0f), {200ms, &choreograph::easeNone})));
+    return box().children(
+        {box().width(80).height(80).fill(red()).opacity(animate(
+            motion::from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}))});
   };
   host.composer.render(tree());
   host.frame();
@@ -928,9 +928,9 @@ TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
 TEST(ComposeMotion, AnimateColorSweepsOnMount) {
   Host host;
   host.composer.render(
-      box().child(box().width(80).height(80).fill(motion::Animatable<Fill>(
+      box().children({box().width(80).height(80).fill(motion::Animatable<Fill>(
           animate(motion::from(Fill::color({1, 1, 1, 1})).to(red()),
-                  {200ms, &choreograph::easeNone})))));
+                  {200ms, &choreograph::easeNone})))}));
   host.frame();
   EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE);  // the declared "from"
   host.frame(0.3);
@@ -942,8 +942,8 @@ TEST(ComposeCache, OverflowingChildSurvivesPictureCaching) {
   // by the parent's recording cull (the recordBounds fix).
   Host host(300, 200);
   host.composer.render(
-      box().child(box().width(100).height(100).fill(blue()).child(
-          box().width(40).height(40).fill(red()).translateX(150.0f))));
+      box().children({box().width(100).height(100).fill(blue()).children(
+          {box().width(40).height(40).fill(red()).translateX(150.0f)})}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);  // fully outside parent's box
@@ -956,9 +956,9 @@ TEST(ComposeCache, OverflowingChildSurvivesGroupOpacityLayer) {
   // BOUNDED by recordBounds, and saveLayer bounds are a real clip. Drop
   // the child union from recordBounds and the overflowing child is gone.
   Host host(300, 200);
-  host.composer.render(
-      box().child(box().width(100).height(100).fill(blue()).opacity(0.5f).child(
-          box().width(40).height(40).fill(red()).translateX(150.0f))));
+  host.composer.render(box().children(
+      {box().width(100).height(100).fill(blue()).opacity(0.5f).children(
+          {box().width(40).height(40).fill(red()).translateX(150.0f)})}));
   host.frame();
   EXPECT_GT(SkColorGetB(host.pixel(50, 20)), 100u);   // sanity: the parent
   EXPECT_GT(SkColorGetR(host.pixel(170, 20)), 100u);  // the escaped child
@@ -969,13 +969,14 @@ TEST(ComposeCache, OverflowingChildSurvivesTextureBake) {
   // recordBounds mapped to device, so anything the rect misses is
   // truncated by the surface itself — no picture cull involved.
   Host host(300, 200);
-  host.composer.render(box().child(
-      box()
-          .width(100)
-          .height(100)
-          .fill(blue())
-          .cache(Cache::Texture)
-          .child(box().width(40).height(40).fill(red()).translateX(150.0f))));
+  host.composer.render(box().children(
+      {box()
+           .width(100)
+           .height(100)
+           .fill(blue())
+           .cache(Cache::Texture)
+           .children(
+               {box().width(40).height(40).fill(red()).translateX(150.0f)})}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
@@ -989,7 +990,7 @@ TEST(ComposeElement, MutatingRenderedValueDetachesDescription) {
   Host host;
   Element panel = box().width(100).height(100).fill(red());
 
-  host.composer.render(box().child(panel));
+  host.composer.render(box().children({panel}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
 
@@ -997,7 +998,7 @@ TEST(ComposeElement, MutatingRenderedValueDetachesDescription) {
   // create a new description so pointer-identity pruning cannot preserve the
   // old cached picture.
   panel.fill(blue());
-  host.composer.render(box().child(panel));
+  host.composer.render(box().children({panel}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);
 }
@@ -1008,7 +1009,7 @@ TEST(ComposeElement, CopiedValuesMutateIndependently) {
   Element right = left;
   right.fill(blue());
 
-  host.composer.render(box().row().child(left).child(right));
+  host.composer.render(box().row().children({left, right}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
   EXPECT_EQ(host.pixel(150, 50), SK_ColorBLUE);
@@ -1020,14 +1021,12 @@ TEST(ComposeElement, CopiedValuesMutateIndependently) {
 TEST(ComposeEdgeStore, RoutesAtReturnsAnchoredRoutesInTreeOrder) {
   Host host;
   auto describe = [] {
-    return box()
-        .child(box().key("a").width(30).height(30).absolute().inset(10, 10, 160,
-                                                                    160))
-        .child(box().key("b").width(30).height(30).absolute().inset(160, 160,
-                                                                    10, 10))
-        .child(connector("a", "b").key("edge1"))
-        .child(rail({{"a", {0.5f, 0.5f}}, {"b", {0.5f, 0.5f}}}).key("edge2"))
-        .child(connector("a", "b"));  // keyless: anchored but unaddressable
+    return box().children(
+        {box().key("a").width(30).height(30).absolute().inset(10, 10, 160, 160),
+         box().key("b").width(30).height(30).absolute().inset(160, 160, 10, 10),
+         connector("a", "b").key("edge1"),
+         rail({{"a", {0.5f, 0.5f}}, {"b", {0.5f, 0.5f}}}).key("edge2"),
+         connector("a", "b")});  // keyless: anchored but unaddressable
   };
   host.composer.render(describe());
   host.frame();
@@ -1045,17 +1044,13 @@ TEST(ComposeRail, AFreePointAnchorsToNothingAndIsStillOnTheRoute) {
   // to carry its coordinates mounts and lays out a node per bend for a
   // number the caller already had.
   Host host;
-  host.composer.render(
-      box()
-          .child(
-              box().key("a").absolute().rect(SkRect::MakeXYWH(10, 10, 20, 20)))
-          .child(box().key("b").absolute().rect(
-              SkRect::MakeXYWH(150, 150, 20, 20)))
-          .child(rail({Anchor::on("a"), Anchor::at({20.0f, 160.0f}),
-                       Anchor::on("b")})
-                     .key("elbow")
-                     .absolute()
-                     .inset(0)));
+  host.composer.render(box().children(
+      {box().key("a").absolute().rect(SkRect::MakeXYWH(10, 10, 20, 20)),
+       box().key("b").absolute().rect(SkRect::MakeXYWH(150, 150, 20, 20)),
+       rail({Anchor::on("a"), Anchor::at({20.0f, 160.0f}), Anchor::on("b")})
+           .key("elbow")
+           .absolute()
+           .inset(0)}));
   host.frame();
   // The route turns at the free point: a hit at the elbow lands on the
   // rail, and the straight line between the two nodes does not pass
@@ -1067,11 +1062,11 @@ TEST(ComposeRail, AFreePointAnchorsToNothingAndIsStillOnTheRoute) {
   EXPECT_EQ(host.composer.routesAt("a").size(), 1u);
   EXPECT_EQ(host.composer.routesAt("b").size(), 1u);
   // A rail of free points alone binds nothing and still draws.
-  host.composer.render(box().child(
-      rail({Anchor::at({10.0f, 10.0f}), Anchor::at({10.0f, 180.0f})})
-          .key("free")
-          .absolute()
-          .inset(0)));
+  host.composer.render(box().children(
+      {rail({Anchor::at({10.0f, 10.0f}), Anchor::at({10.0f, 180.0f})})
+           .key("free")
+           .absolute()
+           .inset(0)}));
   host.frame();
   EXPECT_EQ(host.composer.hitTest({10, 100}), "free");
 }
@@ -1097,14 +1092,13 @@ TEST(ComposeRail, AnAnchorSaysWhichOfTheTwoThingsItIs) {
   // say. A rail bound to a 20x20 box at (150, 150) with norm {1, 1}
   // arrives at its bottom-right corner, not at (1, 1).
   Host host;
-  host.composer.render(box()
-                           .child(box().key("b").absolute().rect(
-                               SkRect::MakeXYWH(150.0f, 150.0f, 20.0f, 20.0f)))
-                           .child(rail({Anchor::at({170.0f, 10.0f}),
-                                        Anchor::on("b", {1.0f, 1.0f})})
-                                      .key("corner")
-                                      .absolute()
-                                      .inset(0)));
+  host.composer.render(box().children(
+      {box().key("b").absolute().rect(
+           SkRect::MakeXYWH(150.0f, 150.0f, 20.0f, 20.0f)),
+       rail({Anchor::at({170.0f, 10.0f}), Anchor::on("b", {1.0f, 1.0f})})
+           .key("corner")
+           .absolute()
+           .inset(0)}));
   host.frame();
   EXPECT_EQ(host.composer.hitTest({170, 100}), "corner");  // the vertical run
   EXPECT_EQ(host.composer.hitTest({170, 168}), "corner");  // down to {170,170}
@@ -1114,12 +1108,11 @@ TEST(ComposeEdgeStore, IndexClearsWhenRoutesUnmount) {
   Host host;
   bool withRoute = true;
   auto describe = [&] {
-    auto tree = box()
-                    .child(box().key("a").width(30).height(30).absolute().inset(
-                        10, 10, 160, 160))
-                    .child(box().key("b").width(30).height(30).absolute().inset(
-                        160, 160, 10, 10));
-    if (withRoute) tree.child(connector("a", "b").key("edge"));
+    auto tree = box().children(
+        {box().key("a").width(30).height(30).absolute().inset(10, 10, 160, 160),
+         box().key("b").width(30).height(30).absolute().inset(160, 160, 10,
+                                                              10)});
+    if (withRoute) tree.children({connector("a", "b").key("edge")});
     return tree;
   };
   host.composer.render(describe());
@@ -1153,11 +1146,11 @@ Element ringOfType(Cache mode, const choreograph::Output<float>* turn) {
                               u8"AQUA",  u8"IGNIS", u8"AER",   u8"SAL"};
   for (int i = 0; i < 12; ++i) {
     const float a = (float)i * (float)(2 * M_PI) / 12.0f;
-    ring.child(text(letters[i], whiteStyle(18))
-                   .absolute()
-                   .left(side * 0.5f + radius * std::cos(a) - 40.0f)
-                   .top(side * 0.5f + radius * std::sin(a) - 12.0f)
-                   .width(80));
+    ring.children({text(letters[i], whiteStyle(18))
+                       .absolute()
+                       .left(side * 0.5f + radius * std::cos(a) - 40.0f)
+                       .top(side * 0.5f + radius * std::sin(a) - 12.0f)
+                       .width(80)});
   }
   if (turn) ring.rotate(motion::bind(turn).target(0.0f, 360.0f));
   return ring;
@@ -1184,7 +1177,7 @@ Element ringInASlidingPage(const choreograph::Output<float>* slide,
                            .width(700)
                            .height(700)
                            .translateX(slide)
-                           .child(ringOfType(mode, nullptr)));
+                           .children({ringOfType(mode, nullptr)}));
 }
 
 }  // namespace

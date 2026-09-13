@@ -42,18 +42,18 @@ Element barByHand(float top, float length) {
       .column()
       .width(compose::Dimension(16))
       .height(compose::Dimension(232))
-      .child(stepper())
-      .child(compose::box()
-                 .grow(1)
-                 .fill(Fill::color(house.palette.cellGround))
-                 .child(compose::box()
-                            .absolute()
-                            .left(compose::Dimension(0))
-                            .right(compose::Dimension(0))
-                            .top(compose::Dimension(top))
-                            .height(compose::Dimension(length))
-                            .fill(Fill::color(house.palette.figure))))
-      .child(stepper());
+      .children({stepper(),
+                 compose::box()
+                     .grow(1)
+                     .fill(Fill::color(house.palette.cellGround))
+                     .children({compose::box()
+                                    .absolute()
+                                    .left(compose::Dimension(0))
+                                    .right(compose::Dimension(0))
+                                    .top(compose::Dimension(top))
+                                    .height(compose::Dimension(length))
+                                    .fill(Fill::color(house.palette.figure))}),
+                 stepper()});
 }
 
 Element bar(float at) {

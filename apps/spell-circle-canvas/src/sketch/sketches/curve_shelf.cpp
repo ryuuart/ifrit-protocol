@@ -69,13 +69,14 @@ Element cell(const char* call, const char* note, Shape curve) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
-          .child(box()
-                     .absolute()
-                     .inset(12)
-                     .shape(std::move(curve))
-                     .stroke(stroke(
-                         kWeight,
-                         Fill::color(sketch::kit::theme().palette.figure)))));
+          .children(
+              {box()
+                   .absolute()
+                   .inset(12)
+                   .shape(std::move(curve))
+                   .stroke(stroke(
+                       kWeight,
+                       Fill::color(sketch::kit::theme().palette.figure)))}));
 }
 
 }  // namespace

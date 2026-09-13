@@ -16,13 +16,13 @@ TEST(ComposeTable, AColumnIsAsWideAsWhatIsInItAndSharesTheSurplus) {
   // shared out IN PROPORTION, so the widest column takes the most of it.
   Host host;
   Table table{.width = 300};
-  host.composer.render(
-      box().child(layout(table)
-                      .width(pct(100))
-                      .grow(1)
-                      .child(box().key("a").width(30).height(20).cells(0, 0))
-                      .child(box().key("b").width(60).height(20).cells(1, 0))
-                      .child(box().key("c").width(90).height(20).cells(2, 0))));
+  host.composer.render(box().children(
+      {layout(table)
+           .width(pct(100))
+           .grow(1)
+           .children({box().key("a").width(30).height(20).cells(0, 0)})
+           .children({box().key("b").width(60).height(20).cells(1, 0)})
+           .children({box().key("c").width(90).height(20).cells(2, 0)})}));
   host.frame();
   const auto a = host.composer.bounds("a");
   const auto b = host.composer.bounds("b");
@@ -42,13 +42,15 @@ TEST(ComposeTable, ASpanTopsUpColumnsAndRowsDifferently) {
   // entirely on the LAST row it covers.
   Host host;
   Table table{.columns = 2, .rows = 2, .width = 100};
-  host.composer.render(box().child(
-      layout(table)
-          .width(200)
-          .height(200)
-          .child(box().key("wide").width(100).height(10).cells(0, 0, 2, 1))
-          .child(box().key("tall").width(10).height(100).cells(0, 1, 1, 2))
-          .child(box().key("small").width(10).height(10).cells(1, 1))));
+  host.composer.render(box().children(
+      {layout(table)
+           .width(200)
+           .height(200)
+           .children(
+               {box().key("wide").width(100).height(10).cells(0, 0, 2, 1)})
+           .children(
+               {box().key("tall").width(10).height(100).cells(0, 1, 1, 2)})
+           .children({box().key("small").width(10).height(10).cells(1, 1)})}));
   host.frame();
   const auto wide = host.composer.bounds("wide");
   const auto tall = host.composer.bounds("tall");
@@ -70,14 +72,15 @@ TEST(ComposeTable, WhatNoChildClaimedFlowsAndAlignsInsideItsCell) {
   // scheme that counts its flow from zero.
   Host host;
   Table table{.columns = 2, .width = 200};
-  host.composer.render(box().child(
-      layout(table)
-          .width(200)
-          .height(100)
-          .child(box().key("pinned").width(20).height(20).cells(1, 0))
-          .child(box().key("flowed").width(20).height(20))
-          .child(box().key("right").width(20).height(20).cells(1, 1).cellAlign(
-              Align::End, Align::Start))));
+  host.composer.render(box().children(
+      {layout(table)
+           .width(200)
+           .height(100)
+           .children({box().key("pinned").width(20).height(20).cells(1, 0)})
+           .children({box().key("flowed").width(20).height(20)})
+           .children(
+               {box().key("right").width(20).height(20).cells(1, 1).cellAlign(
+                   Align::End, Align::Start)})}));
   host.frame();
   const auto pinned = host.composer.bounds("pinned");
   const auto flowed = host.composer.bounds("flowed");

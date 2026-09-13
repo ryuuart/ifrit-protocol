@@ -92,7 +92,7 @@ inline SkBitmap rasterize(Element root, sigil::weave::FontContext& fonts,
           snapshot(box()
                        .width((float)size.width())
                        .height((float)size.height())
-                       .child(std::move(root)),
+                       .children({std::move(root)}),
                    fonts, {(float)size.width(), (float)size.height()}))
     surface->getCanvas()->drawPicture(picture);
   out.allocPixels(info);
@@ -164,7 +164,7 @@ inline Coverage coverage(std::u8string_view run,
                          const sigil::weave::TextStyle& style, Pad pad = {}) {
   Coverage out;
   const std::u8string text8(run);
-  const SkSize sz = intrinsicSize(box().child(text(text8, style)), fonts);
+  const SkSize sz = intrinsicSize(box().children({text(text8, style)}), fonts);
   out.advance = sz;
   // SLACK ON THE ADVANCE, because the scratch surface CONSTRAINS the run.
   // `intrinsicSize()` answers an unconstrained layout; laid out again inside
@@ -186,7 +186,7 @@ inline Coverage coverage(std::u8string_view run,
     SkBitmap plane = detail::rasterize(
         box()
             .padding((float)std::max(0, pad.x), (float)std::max(0, pad.y))
-            .child(text(text8, style)),
+            .children({text(text8, style)}),
         fonts, {w, h});
     if (plane.isNull()) return out;
     out.plane = std::move(plane);

@@ -187,14 +187,14 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Values(
         DirectDraw{
             "AnImageRect",
-            [] { return box().child(image(whiteTile(32)).absolute().inset(50, 50, 50, 50)); },
+            [] { return box().children({image(whiteTile(32)).absolute().inset(50, 50, 50, 50)}); },
             {{100, 100}},
             {}},
         DirectDraw{"ANineSliceLattice",
                    [] {
                      Decoration slice = Slice{whiteTile(48), {16, 32}, {16, 32}};
-                     return box().child(
-                         box().absolute().inset(50, 50, 50, 50).background(std::move(slice)));
+                     return box().children(
+                         {box().absolute().inset(50, 50, 50, 50).background(std::move(slice))});
                    },
                    {{100, 100}, {55, 55}},  // the stretched centre cell, then a corner cell
                    {}},
@@ -206,7 +206,7 @@ INSTANTIATE_TEST_SUITE_P(
                      auto pool = std::make_shared<Pool>();
                      pool->add({60, 60});
                      pool->add({140, 140});
-                     return box().child(instances(atlas, pool, Mode::Live));
+                     return box().children({instances(atlas, pool, Mode::Live)});
                    },
                    {{60, 60}, {140, 140}},
                    {{100, 100}}}),
@@ -327,11 +327,11 @@ TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
 
   const int w = 420, h = 160;
   auto tree = [&] {
-    return box().padding(20).child(text(u8"VERTIGO", style)
-                                       .key("word")
-                                       .fx({.effect = fx::pop(),
-                                            .stagger = {.eachMs = 30, .durationMs = 480},
-                                            .progress = 0.55f}));
+    return box().padding(20).children({text(u8"VERTIGO", style)
+                                           .key("word")
+                                           .fx({.effect = fx::pop(),
+                                                .stagger = {.eachMs = 30, .durationMs = 480},
+                                                .progress = 0.55f})});
   };
 
   sigil::motion::Ticker ticker;
@@ -381,12 +381,13 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
           .body(sigil::material::Target::SkSL,
                 "half4 main(float2 xy) { return uContent.eval(xy); }"));
   const auto describe = [&](float reach) {
-    return box().padding(60).child(text(u8"HOIST", style)
-                                       .key("hoist")
-                                       .fx({.effect = lift})
-                                       .fx({.effect = fx::pass(sigil::material::skia::Paint::recipe(
-                                                sigil::material::Material(identity))),
-                                            .reach = reach}));
+    return box().padding(60).children(
+        {text(u8"HOIST", style)
+             .key("hoist")
+             .fx({.effect = lift})
+             .fx({.effect = fx::pass(
+                      sigil::material::skia::Paint::recipe(sigil::material::Material(identity))),
+                  .reach = reach})});
   };
   const int w = 200, h = 200;
   sigil::motion::Ticker snugTicker;

@@ -6,13 +6,9 @@
 TEST(ComposeStyles, PresetBundlesRenderAndPrune) {
   Host host(300, 120);
   auto tree = [] {
-    return box()
-        .row()
-        .gap(20)
-        .padding(20)
-        .child(box().width(120).height(44).corners({22}).style(kit::aquaGel()))
-        .child(
-            box().width(120).height(44).corners({8}).style(kit::y2kChrome()));
+    return box().row().gap(20).padding(20).children(
+        {box().width(120).height(44).corners({22}).style(kit::aquaGel()),
+         box().width(120).height(44).corners({8}).style(kit::y2kChrome())});
   };
   host.composer.render(tree());
   host.frame();
@@ -57,15 +53,10 @@ TEST(ComposeStyles, AquaGelEdgesRunFromNoneToTheDeepCut) {
   lensToItsOutline.lensFadeEnd = 1.0f;
 
   Host host(500, 90);
-  host.composer.render(box()
-                           .row()
-                           .gap(8)
-                           .padding(8, 20)
-                           .child(withTopBand("none", 0.0f))
-                           .child(withTopBand("default", preset.topBand))
-                           .child(withTopBand("deep", 1.0f))
-                           .child(pill("nolens", noLens))
-                           .child(pill("lensout", lensToItsOutline)));
+  host.composer.render(box().row().gap(8).padding(8, 20).children(
+      {withTopBand("none", 0.0f), withTopBand("default", preset.topBand),
+       withTopBand("deep", 1.0f), pill("nolens", noLens),
+       pill("lensout", lensToItsOutline)}));
   host.frame();
   auto lum = [&](int x, int y) {
     const SkColor c = host.pixel(x, y);
@@ -99,9 +90,9 @@ TEST(ComposeStyles, AquaGelEdgesRunFromNoneToTheDeepCut) {
 
 TEST(ComposePatterns, HalftoneRampSwellsDownward) {
   Host host(100, 100);
-  host.composer.render(box().child(
-      box().width(100).height(100).fill(material::skia::Paint::recipe(
-          material::field::halftoneRamp(10, 1.0f, 4.0f, {1, 1, 1, 1})))));
+  host.composer.render(box().children(
+      {box().width(100).height(100).fill(material::skia::Paint::recipe(
+          material::field::halftoneRamp(10, 1.0f, 4.0f, {1, 1, 1, 1})))}));
   host.frame();
   int top = 0, bottom = 0;
   for (int y = 0; y < 20; ++y)
@@ -121,9 +112,9 @@ TEST(ComposePatterns, HalftoneRampBandRemaps) {
   // rampFrom/rampTo confine the swell: with the band pushed to the bottom
   // half, the top half stays at rMin everywhere.
   Host host(100, 100);
-  host.composer.render(box().child(box().width(100).height(100).fill(
+  host.composer.render(box().children({box().width(100).height(100).fill(
       material::skia::Paint::recipe(material::field::halftoneRamp(
-          10, 0.8f, 4.0f, {1, 1, 1, 1}, 0.0f, 0.5f, 1.0f)))));
+          10, 0.8f, 4.0f, {1, 1, 1, 1}, 0.0f, 0.5f, 1.0f)))}));
   host.frame();
   int band20 = 0, band45 = 0;
   for (int y = 10; y < 20; ++y)
@@ -147,7 +138,7 @@ TEST(ComposeStyles, RippleDisplacesTheLayer) {
     Element e =
         box().absolute().inset(20, 96, 20, 96).fill(Fill::color({1, 0, 0, 1}));
     if (warped) e.effect(styles::ripple(10, 60));
-    return box().child(std::move(e));
+    return box().children({std::move(e)});
   };
   Host flat, warped;
   flat.composer.render(bar(false));

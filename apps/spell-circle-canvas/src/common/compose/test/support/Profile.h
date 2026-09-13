@@ -31,7 +31,7 @@ namespace {
  *  over the cost threshold, which is a property of the content, not of
  *  the fixture. See `expensivePanel`. */
 Element profiledUnder(Element subject) {
-  return box().cache(Cache::None).child(std::move(subject));
+  return box().cache(Cache::None).children({std::move(subject)});
 }
 
 /** The profile row for `key`, failing loudly when there is none — the

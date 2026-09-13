@@ -14,41 +14,41 @@ auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
                   .height(Dimension(kH))
                   .font({.face = faceMono})
                   .styleSheet(voices());
-  root.child(ground());
-  root.child(locator());
+  root.children({ground()});
+  root.children({locator()});
 
   // the equatorial graticule the stars arrive in, fading as the fold runs
-  root.child(
-      box()
-          .left(108)
-          .top(250)
-          .width(Dimension(2344))
-          .height(Dimension(764))
-          .key("grat")
-          .opacity(gate(tSky - 0.6f, tSky + 0.6f))
-          .zIndex(-1)
-          .shape(keyedShape(std::string_view("graticule"),
-                            [](SkSize s) {
-                              SkPathBuilder b;
-                              for (int i = 0; i <= 12; ++i) {
-                                const float x = s.width() * (float)i / 12.0f;
-                                b.moveTo(x, 0);
-                                b.lineTo(x, s.height());
-                              }
-                              for (int j = 0; j <= 6; ++j) {
-                                const float y = s.height() * (float)j / 6.0f;
-                                b.moveTo(0, y);
-                                b.lineTo(s.width(), y);
-                              }
-                              return b.detach();
-                            }))
-          .stroke(
-              PathFormat{.width = 0.8f,
-                         .strokeFill = Fill::color(hexColor(0x2f6d86, 0.42f)),
-                         .dashIntervals = {3, 7}}));
+  root.children(
+      {box()
+           .left(108)
+           .top(250)
+           .width(Dimension(2344))
+           .height(Dimension(764))
+           .key("grat")
+           .opacity(gate(tSky - 0.6f, tSky + 0.6f))
+           .zIndex(-1)
+           .shape(keyedShape(std::string_view("graticule"),
+                             [](SkSize s) {
+                               SkPathBuilder b;
+                               for (int i = 0; i <= 12; ++i) {
+                                 const float x = s.width() * (float)i / 12.0f;
+                                 b.moveTo(x, 0);
+                                 b.lineTo(x, s.height());
+                               }
+                               for (int j = 0; j <= 6; ++j) {
+                                 const float y = s.height() * (float)j / 6.0f;
+                                 b.moveTo(0, y);
+                                 b.lineTo(s.width(), y);
+                               }
+                               return b.detach();
+                             }))
+           .stroke(
+               PathFormat{.width = 0.8f,
+                          .strokeFill = Fill::color(hexColor(0x2f6d86, 0.42f)),
+                          .dashIntervals = {3, 7}})});
 
-  root.child(scrollBand(-90, kBreakL, "bandL", -0.42f));
-  root.child(scrollBand(kBreakR, kW + 90, "bandR", -0.42f));
+  root.children({scrollBand(-90, kBreakL, "bandL", -0.42f)});
+  root.children({scrollBand(kBreakR, kW + 90, "bandR", -0.42f)});
   for (int seg = 0; seg < 2; ++seg) {
     auto sg = box()
                   .left(segLo(seg))
@@ -58,42 +58,42 @@ auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
                   .clip(true)
                   .key(seg ? "segR" : "segL");
     for (int k = 1; k <= 12; ++k) {
-      sg.child(mapFrame(k, seg));
-      sg.child(columnBand(k, seg));
+      sg.children({mapFrame(k, seg)});
+      sg.children({columnBand(k, seg)});
     }
-    sg.child(discPlate(seg));
-    sg.child(discNotes(seg));
-    sg.child(raRuler(seg));
+    sg.children({discPlate(seg)});
+    sg.children({discNotes(seg)});
+    sg.children({raRuler(seg)});
     if (seg == 0) {
-      sg.child(unreadTitle());
-      sg.child(archer());
+      sg.children({unreadTitle()});
+      sg.children({archer()});
     }
-    root.child(std::move(sg));
+    root.children({std::move(sg)});
   }
-  root.child(breakMark());
+  root.children({breakMark()});
 
   // the star field — ONE leaf for 1,460 dots
-  root.child(
-      box()
-          .left(0)
-          .top(0)
-          .width(Dimension(kW))
-          .height(Dimension(kH))
-          .key("stars")
-          .opacity(gate(tSky - 0.5f, tSky + 0.7f))
-          .child(instancing::instances(atlas, pool, instancing::Mode::Live)));
+  root.children({box()
+                     .left(0)
+                     .top(0)
+                     .width(Dimension(kW))
+                     .height(Dimension(kH))
+                     .key("stars")
+                     .opacity(gate(tSky - 0.5f, tSky + 0.7f))
+                     .children({instancing::instances(
+                         atlas, pool, instancing::Mode::Live)})});
 
-  root.child(asterismLines());
-  root.child(map5Labels());
+  root.children({asterismLines()});
+  root.children({map5Labels()});
 
-  root.child(headings());
-  root.child(poleDrift());
-  root.child(poleText());
-  root.child(ruleNote());
-  root.child(projectionPanel());
-  root.child(map13Panel());
-  root.child(slot("audit"));
-  root.child(consolePanel());
+  root.children({headings()});
+  root.children({poleDrift()});
+  root.children({poleText()});
+  root.children({ruleNote()});
+  root.children({projectionPanel()});
+  root.children({map13Panel()});
+  root.children({slot("audit")});
+  root.children({consolePanel()});
   return root;
 }
 

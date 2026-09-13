@@ -238,8 +238,8 @@ struct GerstnerGrid final : sketch::Sketch {
         .top(g::kFieldY)
         .width(Dimension(g::kFieldW))
         .height(Dimension(g::kFieldH))
-        .child(box().inset(0).fill(unitRule.material()))
-        .child(box().inset(0).fill(emphasisRule.material()));
+        .children({box().inset(0).fill(unitRule.material()),
+                   box().inset(0).fill(emphasisRule.material())});
   }
 
   /** The configuration: n column bands, each entering on a stagger. */
@@ -286,25 +286,25 @@ struct GerstnerGrid final : sketch::Sketch {
                          .gap(g::kUnit)
                          .font({.size = c.size});
       for (int b = 0; b < c.blocks; ++b)
-        copy.child(text(g::kBody[(i + b) % g::kBodyCount])
-                       .ink(b % 2 == 0 ? g::kInk : g::kInkSoft)
-                       .width(Dimension(colW)));
-      band.child(std::move(copy));
+        copy.children({text(g::kBody[(i + b) % g::kBodyCount])
+                           .ink(b % 2 == 0 ? g::kInk : g::kInkSoft)
+                           .width(Dimension(colW))});
+      band.children({std::move(copy)});
       // a column rule at the head, the way Capital marked its columns
-      band.child(box()
-                     .left(0)
-                     .top(g::kUnit * 3.4f)
-                     .width(Dimension(colW))
-                     .height(Dimension(1.4f))
-                     .fill(Fill::currentInk()));
+      band.children({box()
+                         .left(0)
+                         .top(g::kUnit * 3.4f)
+                         .width(Dimension(colW))
+                         .height(Dimension(1.4f))
+                         .fill(Fill::currentInk())});
       const std::string label = kit::formatted("%02d", i + 1);
-      band.child(
-          text(label)
-              .font(
-                  {.size = 10, .color = g::kRed, .track = 1.6f, .weight = 620})
-              .left(0)
-              .top(g::kUnit * 1.7f));
-      bands.child(std::move(band));
+      band.children(
+          {text(label)
+               .font(
+                   {.size = 10, .color = g::kRed, .track = 1.6f, .weight = 620})
+               .left(0)
+               .top(g::kUnit * 1.7f)});
+      bands.children({std::move(band)});
     }
     return bands;
   }
@@ -322,20 +322,20 @@ struct GerstnerGrid final : sketch::Sketch {
         .column()
         .left(g::kFieldX)
         .top(38)
-        .child(box()
-                   .row()
-                   .alignItems(Align::End)
-                   .font({.size = 30, .weight = 680})
-                   .child(text("PROGRAMME").font({.track = 3.2f}))
-                   .child(text("58")
-                              .font({.color = g::kRed, .track = 1.0f})
-                              .margin(14, 0, 0, 0))
-                   .child(text(count)
-                              .font({.size = 11,
-                                     .color = g::kInkSoft,
-                                     .track = 3.0f,
-                                     .weight = 600})
-                              .margin(18, 0, 0, 6)));
+        .children({box()
+                       .row()
+                       .alignItems(Align::End)
+                       .font({.size = 30, .weight = 680})
+                       .children({text("PROGRAMME").font({.track = 3.2f})})
+                       .children({text("58")
+                                      .font({.color = g::kRed, .track = 1.0f})
+                                      .margin(14, 0, 0, 0)})
+                       .children({text(count)
+                                      .font({.size = 11,
+                                             .color = g::kInkSoft,
+                                             .track = 3.0f,
+                                             .weight = 600})
+                                      .margin(18, 0, 0, 6)})});
   }
 
   /** The arithmetic, printed where a caption goes. */
@@ -353,12 +353,12 @@ struct GerstnerGrid final : sketch::Sketch {
             .left(g::kFieldX)
             .top(g::kFieldY + g::kFieldH + 16)
             .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
-            .child(text("58 =").font({.size = 13,
-                                      .color = g::kInkSoft,
-                                      .track = 1.2f,
-                                      .weight = 600}))
-            .child(text(c.arithmetic)
-                       .font({.size = 15, .track = 0.8f, .weight = 640}));
+            .children({text("58 =").font({.size = 13,
+                                          .color = g::kInkSoft,
+                                          .track = 1.2f,
+                                          .weight = 600}),
+                       text(c.arithmetic)
+                           .font({.size = 15, .track = 0.8f, .weight = 640})});
     // the ladder of all six, with the live one marked
     Element ladder = box()
                          .row()
@@ -370,18 +370,18 @@ struct GerstnerGrid final : sketch::Sketch {
     for (int i = 0; i < g::kConfigCount; ++i) {
       const bool live = i == config;
       const std::string n = kit::formatted("%d", g::kConfigs[i].columns);
-      ladder.child(
-          box()
-              .width(Dimension(22.0f))
-              .height(Dimension(22.0f))
-              .alignItems(Align::Center)
-              .justify(Justify::Center)
-              .fill(Fill::color(live ? g::kRed : SkColor4f{0, 0, 0, 0}))
-              .foreground(
-                  stroke(1.0f, Fill::color(live ? g::kRed : g::kInkSoft)))
-              .child(text(n).ink(live ? g::kPaper : g::kInkSoft)));
+      ladder.children(
+          {box()
+               .width(Dimension(22.0f))
+               .height(Dimension(22.0f))
+               .alignItems(Align::Center)
+               .justify(Justify::Center)
+               .fill(Fill::color(live ? g::kRed : SkColor4f{0, 0, 0, 0}))
+               .foreground(
+                   stroke(1.0f, Fill::color(live ? g::kRed : g::kInkSoft)))
+               .children({text(n).ink(live ? g::kPaper : g::kInkSoft)})});
     }
-    return stack().inset(0).child(std::move(row)).child(std::move(ladder));
+    return stack().inset(0).children({std::move(row), std::move(ladder)});
   }
 
   Element describe() {
@@ -397,56 +397,56 @@ struct GerstnerGrid final : sketch::Sketch {
     // library will not bake through an opacity and a blend — it would
     // round the coverage twice — so the bake is asked for here, and the
     // three octaves are evaluated once instead of once a frame.
-    root.child(box()
-                   .inset(0)
-                   .fill(mskia::Paint::recipe(field::noise(0.9f, 3, 5.0f)))
-                   .opacity(0.05f)
-                   .blend(SkBlendMode::kMultiply)
-                   .cache(Cache::Texture));
+    root.children({box()
+                       .inset(0)
+                       .fill(mskia::Paint::recipe(field::noise(0.9f, 3, 5.0f)))
+                       .opacity(0.05f)
+                       .blend(SkBlendMode::kMultiply)
+                       .cache(Cache::Texture)});
 
-    root.child(gridPlate());
-    root.child(columns());
-    root.child(headline());
-    root.child(arithmetic());
+    root.children({gridPlate()});
+    root.children({columns()});
+    root.children({headline()});
+    root.children({arithmetic()});
 
     // THE READING INDEX: one hairline sweeping the baseline grid, the
     // only continuous motion on a page of discrete states — and named on
     // the page, because an unlabelled red rule across live text reads as a
     // defect rather than as an instrument.
-    root.child(
-        text("READING INDEX")
-            .font({.size = 7, .color = g::kRed, .track = 0.6f, .weight = 620})
-            .left(g::kFieldX + g::kFieldW + 6)
-            .top(-4)
-            .translateY(&sweep)
-            .zIndex(6));
-    root.child(
-        box()
-            .left(g::kFieldX - 22)
-            .width(Dimension(g::kFieldW + 44))
-            .height(Dimension(1.0f))
-            .top(0)
-            .translateY(&sweep)
-            .fill(linearGradient({0, 0}, {g::kFieldW + 44, 0},
-                                 {{g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f},
-                                  {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.55f},
-                                  {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.55f},
-                                  {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f}},
-                                 {0.0f, 0.12f, 0.88f, 1.0f}))
-            .zIndex(6));
+    root.children(
+        {text("READING INDEX")
+             .font({.size = 7, .color = g::kRed, .track = 0.6f, .weight = 620})
+             .left(g::kFieldX + g::kFieldW + 6)
+             .top(-4)
+             .translateY(&sweep)
+             .zIndex(6)});
+    root.children(
+        {box()
+             .left(g::kFieldX - 22)
+             .width(Dimension(g::kFieldW + 44))
+             .height(Dimension(1.0f))
+             .top(0)
+             .translateY(&sweep)
+             .fill(linearGradient({0, 0}, {g::kFieldW + 44, 0},
+                                  {{g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f},
+                                   {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.55f},
+                                   {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.55f},
+                                   {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f}},
+                                  {0.0f, 0.12f, 0.88f, 1.0f}))
+             .zIndex(6)});
 
-    root.child(box()
-                   .column()
-                   .left(g::kFieldX)
-                   .bottom(26)
-                   .font({.size = 10})
-                   .ink(g::kInkSoft)
-                   .child(text("KARL GERSTNER · CAPITAL "
-                               "· 1962")
-                              .font({.track = 2.6f, .weight = 600}))
-                   .child(text("the mobile grid, run")
-                              .font({.track = 1.2f})
-                              .margin(0, 3, 0, 0)));
+    root.children({box()
+                       .column()
+                       .left(g::kFieldX)
+                       .bottom(26)
+                       .font({.size = 10})
+                       .ink(g::kInkSoft)
+                       .children({text("KARL GERSTNER · CAPITAL "
+                                       "· 1962")
+                                      .font({.track = 2.6f, .weight = 600})})
+                       .children({text("the mobile grid, run")
+                                      .font({.track = 1.2f})
+                                      .margin(0, 3, 0, 0)})});
     return root;
   }
 };

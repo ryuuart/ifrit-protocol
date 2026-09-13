@@ -339,13 +339,13 @@ inline Element starTile() {
   // two levels, which is exactly what an 8-bit screen did to them.
   const float ring[3][3] = {{14, 16, 26}, {17, 52, 19}, {80, 74, 15}};
   for (auto& g : ring)
-    tile.child(kit::disc(SkPoint{S(g[0]), S(g[1])}, S(g[2]))
-                   .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                                {{0.0f, {1, 1, 1, 0.0f}},
-                                                 {0.74f, {1, 1, 1, 0.0f}},
-                                                 {0.89f, {1, 1, 1, 0.030f}},
-                                                 {1.0f, {1, 1, 1, 0.0f}}}))
-                   .blend(SkBlendMode::kPlus));
+    tile.children({kit::disc(SkPoint{S(g[0]), S(g[1])}, S(g[2]))
+                       .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                                    {{0.0f, {1, 1, 1, 0.0f}},
+                                                     {0.74f, {1, 1, 1, 0.0f}},
+                                                     {0.89f, {1, 1, 1, 0.030f}},
+                                                     {1.0f, {1, 1, 1, 0.0f}}}))
+                       .blend(SkBlendMode::kPlus)});
 
   int bright = 0;
   for (const Star& s : kStarField) {
@@ -359,14 +359,14 @@ inline Element starTile() {
     // into a grey haze the artefact does not have.
     const float hr = 0.85f + 2.6f * L * L;
     const float R = S(2.7f * hr);
-    tile.child(kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, R)
-                   .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                                {{0.0f, {L, L, L, 1.0f}},
-                                                 {0.24f, {L, L, L, 0.66f}},
-                                                 {0.44f, {L, L, L, 0.26f}},
-                                                 {0.70f, {L, L, L, 0.055f}},
-                                                 {1.0f, {L, L, L, 0.0f}}}))
-                   .blend(SkBlendMode::kPlus));
+    tile.children({kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, R)
+                       .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                                    {{0.0f, {L, L, L, 1.0f}},
+                                                     {0.24f, {L, L, L, 0.66f}},
+                                                     {0.44f, {L, L, L, 0.26f}},
+                                                     {0.70f, {L, L, L, 0.055f}},
+                                                     {1.0f, {L, L, L, 0.0f}}}))
+                       .blend(SkBlendMode::kPlus)});
 
     // Spikes: thin tapered lobes, and on this tile they are the dominant
     // visual, not the glows. Four read as axial (+) crosses and two as
@@ -383,7 +383,7 @@ inline Element starTile() {
                        .fill(Fill::color({1, 1, 1, 0.38f + 0.42f * L}))
                        .blend(SkBlendMode::kPlus);
       if (diagSpike(s.x, s.y)) sp.rotate(45);
-      tile.child(std::move(sp));
+      tile.children({std::move(sp)});
     }
   }
   return tile;

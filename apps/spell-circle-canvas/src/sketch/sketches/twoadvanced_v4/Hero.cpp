@@ -59,22 +59,22 @@ auto TwoAdvancedV4::pod(const std::string& key, float x, float z, float scale)
     -> world::Element {
   namespace gm = sigil::geometry::mesh;
   world::Element p = world::Element().key(key).at({x, 0.0f, z}).scale(scale);
-  p.child(world::Element()
-              .key(key + "-shell")
-              .at({0.0f, 66.0f, 0.0f})
-              .mesh(gm::superellipsoid({52.0f, 74.0f, 52.0f}, 2.6f, 28, 18))
-              .fill(sigil::material::kit::surface(
-                  {.baseColor = {0.070f, 0.086f, 0.098f, 1.0f},
-                   .metallic = 0.7f,
-                   .roughness = 0.28f})));
-  p.child(world::Element()
-              .key(key + "-visor")
-              .at({0.0f, 50.0f, 42.0f})
-              .mesh(gm::superellipsoid({18.0f, 14.0f, 16.0f}, 1.8f, 20, 14))
-              .fill(sigil::material::kit::unlit(
-                  {.baseColor = {0.42f, 0.055f, 0.045f, 1.0f},
-                   .emissive = {1.0f, 0.16f, 0.12f, 1.0f},
-                   .emissiveStrength = 1.4f})));
+  p.children({world::Element()
+                  .key(key + "-shell")
+                  .at({0.0f, 66.0f, 0.0f})
+                  .mesh(gm::superellipsoid({52.0f, 74.0f, 52.0f}, 2.6f, 28, 18))
+                  .fill(sigil::material::kit::surface(
+                      {.baseColor = {0.070f, 0.086f, 0.098f, 1.0f},
+                       .metallic = 0.7f,
+                       .roughness = 0.28f}))});
+  p.children({world::Element()
+                  .key(key + "-visor")
+                  .at({0.0f, 50.0f, 42.0f})
+                  .mesh(gm::superellipsoid({18.0f, 14.0f, 16.0f}, 1.8f, 20, 14))
+                  .fill(sigil::material::kit::unlit(
+                      {.baseColor = {0.42f, 0.055f, 0.045f, 1.0f},
+                       .emissive = {1.0f, 0.16f, 0.12f, 1.0f},
+                       .emissiveStrength = 1.4f}))});
   return p;
 }
 
@@ -87,48 +87,48 @@ auto TwoAdvancedV4::bakeHero(int w, int h, sketch::SketchContext& ctx)
   // The lights: a cold key from behind the city, so the pods are read
   // as silhouettes against the halo, and a dim fill from the front so
   // their metal is not black.
-  scene.child(world::Element().key("key").light(world::light::sun(
-      {0.16f, -0.30f, 0.94f}, {0.36f, 0.86f, 0.92f, 1.0f}, 1.05f)));
-  scene.child(world::Element().key("fill").light(world::light::sun(
-      {-0.34f, -0.52f, -0.78f}, {0.44f, 0.72f, 0.82f, 1.0f}, 0.95f)));
+  scene.children({world::Element().key("key").light(world::light::sun(
+      {0.16f, -0.30f, 0.94f}, {0.36f, 0.86f, 0.92f, 1.0f}, 1.05f))});
+  scene.children({world::Element().key("fill").light(world::light::sun(
+      {-0.34f, -0.52f, -0.78f}, {0.44f, 0.72f, 0.82f, 1.0f}, 0.95f))});
 
   // THE SKY is a body: one unlit backdrop far behind everything, with
   // the ramp in its vertex colours. A gradient painted under the render
   // would be a second picture the scene knows nothing about.
-  scene.child(
-      world::Element()
-          .key("sky")
-          .at({0.0f, 900.0f, -5200.0f})
-          .mesh(skyMesh())
-          .fill(sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}})));
-  scene.child(world::Element()
-                  .key("water")
-                  .rotateX(-90.0f)
-                  .mesh(gm::quad(9000.0f, 9000.0f))
-                  .fill(sigil::material::kit::surface(
-                      {.baseColor = {0.012f, 0.070f, 0.082f, 1.0f},
-                       .metallic = 0.9f,
-                       .roughness = 0.10f})));
-  scene.child(world::Element()
-                  .key("city")
-                  .mesh(cityMesh())
-                  .fill(sigil::material::kit::surface(
-                      {.baseColor = {1, 1, 1, 1}, .roughness = 0.85f})));
+  scene.children(
+      {world::Element()
+           .key("sky")
+           .at({0.0f, 900.0f, -5200.0f})
+           .mesh(skyMesh())
+           .fill(sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}}))});
+  scene.children({world::Element()
+                      .key("water")
+                      .rotateX(-90.0f)
+                      .mesh(gm::quad(9000.0f, 9000.0f))
+                      .fill(sigil::material::kit::surface(
+                          {.baseColor = {0.012f, 0.070f, 0.082f, 1.0f},
+                           .metallic = 0.9f,
+                           .roughness = 0.10f}))});
+  scene.children({world::Element()
+                      .key("city")
+                      .mesh(cityMesh())
+                      .fill(sigil::material::kit::surface(
+                          {.baseColor = {1, 1, 1, 1}, .roughness = 0.85f}))});
   // THE HALO: a real ring behind the pods, which is what the reference
   // reads as depth rather than as a drawn circle — the middle pod
   // occludes it.
-  scene.child(world::Element()
-                  .key("halo")
-                  .at({0.0f, 150.0f, -760.0f})
-                  .rotateX(90.0f)
-                  .mesh(gm::torus(300.0f, 7.0f, 80, 8))
-                  .fill(sigil::material::kit::unlit(
-                      {.baseColor = {0.62f, 0.98f, 0.99f, 1.0f},
-                       .emissive = {0.62f, 0.98f, 0.99f, 1.0f},
-                       .emissiveStrength = 2.4f})));
-  scene.child(pod("pod-mid", 0.0f, -430.0f, 1.60f));
-  scene.child(pod("pod-left", -352.0f, -580.0f, 1.30f));
-  scene.child(pod("pod-right", 358.0f, -600.0f, 1.26f));
+  scene.children({world::Element()
+                      .key("halo")
+                      .at({0.0f, 150.0f, -760.0f})
+                      .rotateX(90.0f)
+                      .mesh(gm::torus(300.0f, 7.0f, 80, 8))
+                      .fill(sigil::material::kit::unlit(
+                          {.baseColor = {0.62f, 0.98f, 0.99f, 1.0f},
+                           .emissive = {0.62f, 0.98f, 0.99f, 1.0f},
+                           .emissiveStrength = 2.4f}))});
+  scene.children({pod("pod-mid", 0.0f, -430.0f, 1.60f)});
+  scene.children({pod("pod-left", -352.0f, -580.0f, 1.30f)});
+  scene.children({pod("pod-right", 358.0f, -600.0f, 1.26f)});
 
   camera::Camera lens;
   lens.eye = {0.0f, 30.0f, 320.0f};
@@ -154,28 +154,28 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // alone, which is the same forgiving contract every other bitmap on
   // this page keeps.
   if (heroPlate)
-    scene.child(box().inset(0).fill(
+    scene.children({box().inset(0).fill(
         mskia::Paint::image(heroPlate, SkTileMode::kClamp, SkTileMode::kClamp,
                             SkMatrix::Scale(w / (float)heroPlate->width(),
                                             h / (float)heroPlate->height()),
-                            SkSamplingOptions(SkFilterMode::kLinear))));
+                            SkSamplingOptions(SkFilterMode::kLinear)))});
   else
-    scene.child(box().inset(0).fill(
+    scene.children({box().inset(0).fill(
         mskia::Paint::linearUnit({0, 0}, {0, 0.66f},
                                  {{0.0f, hexColor(0x02070A)},
                                   {0.62f, hexColor(0x03181D)},
-                                  {1.0f, hexColor(0x073038)}})));
+                                  {1.0f, hexColor(0x073038)}}))});
 
   // the horizon haze band, full width. Without it the outer thirds are
   // black-on-black and the silhouettes have nothing to read against;
   // one kPlus ramp is the whole of the fix.
-  scene.child(at(box().fill(mskia::Paint::linearUnit(
-                     {0, 0}, {0, 1},
-                     {{0.00f, mskia::withAlpha(kTealBar, 0.0f)},
-                      {0.62f, mskia::withAlpha(kTealBar, 0.10f)},
-                      {1.00f, mskia::withAlpha(kTealBar, 0.34f)}})),
-                 0, horizon - 132, w, 132)
-                  .blend(SkBlendMode::kPlus));
+  scene.children({at(box().fill(mskia::Paint::linearUnit(
+                         {0, 0}, {0, 1},
+                         {{0.00f, mskia::withAlpha(kTealBar, 0.0f)},
+                          {0.62f, mskia::withAlpha(kTealBar, 0.10f)},
+                          {1.00f, mskia::withAlpha(kTealBar, 0.34f)}})),
+                     0, horizon - 132, w, 132)
+                      .blend(SkBlendMode::kPlus)});
 
   // THE portal: one SDF circle. Its box must RESERVE sdf::pad() for the
   // glow — sdf::minBoxFor() is the only honest way to size it, since
@@ -204,7 +204,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
     // hand-written keyframe path through the overshoot and back.
     portal.scale(animate(motion::from(0.80f).to(1.0f),
                          {620ms, motion::ease::outBack(2.1f), 2400ms}));
-  scene.child(portal);
+  scene.children({portal});
 
   // an orbital ring, trim-revealed with the panel
   Element ring = at(
@@ -215,7 +215,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   if (!still)
     ring.mask(by::spans(spans::upTo(animate(
         motion::from(0.0f).to(1.0f), {700ms, &ch::easeOutQuint, 2600ms}))));
-  scene.child(ring);
+  scene.children({ring});
 
   // water: streaks + a mirrored, blurred copy of the portal glow
   // The water is the RENDER's water; what compose adds over it is the
@@ -223,75 +223,75 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // reflects the halo in.
   Element water = at(box().clip(), 0, horizon, w, h - horizon);
   if (!still)
-    water.child(box()
-                    .inset(0)
-                    .fill(waterStreaks)
-                    .opacity(0.55f)
-                    .blend(SkBlendMode::kPlus));
-  water.child(box()
-                  .left(Dimension(cx - 190))
-                  .top(Dimension(-72))
-                  .width(380)
-                  .height(300)
-                  .fill(mskia::Paint::radialUnit(
-                      {0.5f, 0.14f}, 1.05f,
-                      {{0.0f, mskia::withAlpha(kGlow, 0.75f)},
-                       {0.45f, mskia::withAlpha(kTealBar, 0.32f)},
-                       {1.0f, mskia::withAlpha(kTealBar, 0.0f)}}))
-                  // smear the reflection down into the water: sigma 26
-                  // along the 90° axis (straight down), 14 across it
-                  .effect(mskia::Effect::directionalBlur(26, 90, 14))
-                  .opacity(0.78f)
-                  .blend(SkBlendMode::kPlus));
+    water.children({box()
+                        .inset(0)
+                        .fill(waterStreaks)
+                        .opacity(0.55f)
+                        .blend(SkBlendMode::kPlus)});
+  water.children({box()
+                      .left(Dimension(cx - 190))
+                      .top(Dimension(-72))
+                      .width(380)
+                      .height(300)
+                      .fill(mskia::Paint::radialUnit(
+                          {0.5f, 0.14f}, 1.05f,
+                          {{0.0f, mskia::withAlpha(kGlow, 0.75f)},
+                           {0.45f, mskia::withAlpha(kTealBar, 0.32f)},
+                           {1.0f, mskia::withAlpha(kTealBar, 0.0f)}}))
+                      // smear the reflection down into the water: sigma 26
+                      // along the 90° axis (straight down), 14 across it
+                      .effect(mskia::Effect::directionalBlur(26, 90, 14))
+                      .opacity(0.78f)
+                      .blend(SkBlendMode::kPlus)});
   // the specular COLUMN — the vertical smear of a light in water, and
   // the single cue that reads "reflection" from across the room
-  water.child(box()
-                  .left(Dimension(cx - 40))
-                  .top(Dimension(0))
-                  .width(80)
-                  .height(Dimension(h - horizon))
-                  .fill(mskia::Paint::linearUnit(
-                      {0, 0}, {0, 1},
-                      {{0.00f, mskia::withAlpha(kGlow, 0.55f)},
-                       {0.35f, mskia::withAlpha(kGlow, 0.20f)},
-                       {1.00f, mskia::withAlpha(kGlow, 0.0f)}}))
-                  // soften the column's sides: sigma 10 along the 0° axis
-                  // (horizontal), only 3 down its length
-                  .effect(mskia::Effect::directionalBlur(10, 0, 3))
-                  .blend(SkBlendMode::kPlus));
-  scene.child(water);
+  water.children({box()
+                      .left(Dimension(cx - 40))
+                      .top(Dimension(0))
+                      .width(80)
+                      .height(Dimension(h - horizon))
+                      .fill(mskia::Paint::linearUnit(
+                          {0, 0}, {0, 1},
+                          {{0.00f, mskia::withAlpha(kGlow, 0.55f)},
+                           {0.35f, mskia::withAlpha(kGlow, 0.20f)},
+                           {1.00f, mskia::withAlpha(kGlow, 0.0f)}}))
+                      // soften the column's sides: sigma 10 along the 0° axis
+                      // (horizontal), only 3 down its length
+                      .effect(mskia::Effect::directionalBlur(10, 0, 3))
+                      .blend(SkBlendMode::kPlus)});
+  scene.children({water});
 
   // THE horizon hairline. A hard, bright edge where the water starts
   // sells the reflection below it more than the blur itself does.
-  scene.child(
-      at(box().fill(mskia::withAlpha(kGlow, 0.62f)), 0, horizon - 1, w, 2));
-  scene.child(
-      at(box().fill(mskia::withAlpha(kCyanRing, 0.16f)), 0, horizon + 3, w, 1));
+  scene.children(
+      {at(box().fill(mskia::withAlpha(kGlow, 0.62f)), 0, horizon - 1, w, 2)});
+  scene.children({at(box().fill(mskia::withAlpha(kCyanRing, 0.16f)), 0,
+                     horizon + 3, w, 1)});
   return scene;
 }
 
 auto TwoAdvancedV4::hero(float w, float h) -> Element {
   using namespace tav;
   Element s = stack().width(Dimension(w)).height(Dimension(h)).clip();
-  s.child(heroScene(w, h, false));
+  s.children({heroScene(w, h, false)});
   // the atmospheric bloom pass: the same composite, blurred, screened
   // back over itself. Built `still` so it is provably static and the
   // Texture bake is paid once, not per frame.
-  s.child(
-      heroScene(w, h, true)
-          .effect(mskia::Effect::filter(SkImageFilters::Blur(22, 22, nullptr)))
-          .opacity(0.34f)
-          .blend(SkBlendMode::kPlus)
-          .cache(Cache::Texture)
-          .bakeScale(0.5f));
-  s.child(box().inset(0).fill(
+  s.children(
+      {heroScene(w, h, true)
+           .effect(mskia::Effect::filter(SkImageFilters::Blur(22, 22, nullptr)))
+           .opacity(0.34f)
+           .blend(SkBlendMode::kPlus)
+           .cache(Cache::Texture)
+           .bakeScale(0.5f)});
+  s.children({box().inset(0).fill(
       mskia::Paint::radialUnit({0.5f, 0.5f}, 1.0f,
                                {{0.00f, {0, 0, 0, 0}},
                                 {0.58f, {0, 0, 0, 0.10f}},
-                                {1.00f, {0, 0, 0, 0.66f}}})));
-  s.child(box().inset(0).foreground(styles::Scanlines{}));
-  s.child(box().inset(0).foreground(styles::Brackets{
-      mskia::withAlpha(kCyan, 0.7f), 22, 2, 8, shapes::Corner::All}));
+                                {1.00f, {0, 0, 0, 0.66f}}}))});
+  s.children({box().inset(0).foreground(styles::Scanlines{})});
+  s.children({box().inset(0).foreground(styles::Brackets{
+      mskia::withAlpha(kCyan, 0.7f), 22, 2, 8, shapes::Corner::All})});
 
   auto corner = [&](const char* a, const char* b, float l, float tp, bool end) {
     return box()
@@ -300,64 +300,68 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
         .alignItems(end ? Align::End : Align::Start)
         .left(Dimension(l))
         .top(Dimension(tp))
-        .child(t(a, micro(10, mskia::withAlpha(kCyan, 0.8f), 220)))
-        .child(t(b, micro(10, mskia::withAlpha(kCyanRing, 0.45f), 220)));
+        .children({t(a, micro(10, mskia::withAlpha(kCyan, 0.8f), 220)),
+                   t(b, micro(10, mskia::withAlpha(kCyanRing, 0.45f), 220))});
   };
-  s.child(corner("REND / MAXON C4D R8", "PASS 04 · FRM 0142", 20, 18, false));
-  s.child(corner("38.2144 N", "121.4944 W", w - 132, 18, true));
-  s.child(corner("DEPTH 00.42", "PRESS 1013 HPA", 20, h - 42, false));
-  s.child(
-      box()
-          .left(Dimension(w - 214))
-          .top(Dimension(h - 32))
-          .row()
-          .gap(6)
-          .alignItems(Align::Center)
-          .child(box().width(120).height(8).foreground(
-              styles::TickRail{mskia::withAlpha(kCyan, 0.6f), 6, 3, 8, 1, 4,
-                               0.5f, path::Edge::Top}))
-          .child(t("SIG 88%", micro(10, mskia::withAlpha(kCyan, 0.85f), 200))));
+  s.children(
+      {corner("REND / MAXON C4D R8", "PASS 04 · FRM 0142", 20, 18, false)});
+  s.children({corner("38.2144 N", "121.4944 W", w - 132, 18, true)});
+  s.children({corner("DEPTH 00.42", "PRESS 1013 HPA", 20, h - 42, false)});
+  s.children(
+      {box()
+           .left(Dimension(w - 214))
+           .top(Dimension(h - 32))
+           .row()
+           .gap(6)
+           .alignItems(Align::Center)
+           .children({box().width(120).height(8).foreground(
+               styles::TickRail{mskia::withAlpha(kCyan, 0.6f), 6, 3, 8, 1, 4,
+                                0.5f, path::Edge::Top})})
+           .children({t("SIG 88%",
+                        micro(10, mskia::withAlpha(kCyan, 0.85f), 200))})});
   return s;
 }
 
 auto TwoAdvancedV4::mainframe() -> Element {
   using namespace tav;
-  Element body = box().grow(1).clip().child(hero(1178, 316));
+  Element body = box().grow(1).clip().children({hero(1178, 316)});
   // The transition shutters: six slats over the viewport, each one's
   // cover fraction a bound value — the hero underneath is never
   // re-described, so its bloom bake survives every section change.
   const float slatW = 1178.0f / 6.0f;
   for (int i = 0; i < 6; ++i)
-    body.child(box()
-                   .left(Dimension((float)i * slatW))
-                   .top(Dimension(0))
-                   .width(Dimension(slatW + 1))
-                   .height(316)
-                   .fill(mskia::Paint::linearUnit({0, 0}, {1, 0},
-                                                  {{0.0f, hexColor(0x2A0708)},
-                                                   {1.0f, hexColor(0x1A0405)}}))
-                   .foreground(onEdges(
-                       path::Edge::Bottom,
-                       stroke(3, Fill::color(mskia::withAlpha(kCyan, 0.5f)),
-                              PathFormat::Align::Inner)))
-                   .scaleY(&shutter[(size_t)i])
-                   .transformOrigin(0.5f, 0.0f));
+    body.children(
+        {box()
+             .left(Dimension((float)i * slatW))
+             .top(Dimension(0))
+             .width(Dimension(slatW + 1))
+             .height(316)
+             .fill(mskia::Paint::linearUnit(
+                 {0, 0}, {1, 0},
+                 {{0.0f, hexColor(0x2A0708)}, {1.0f, hexColor(0x1A0405)}}))
+             .foreground(
+                 onEdges(path::Edge::Bottom,
+                         stroke(3, Fill::color(mskia::withAlpha(kCyan, 0.5f)),
+                                PathFormat::Align::Inner)))
+             .scaleY(&shutter[(size_t)i])
+             .transformOrigin(0.5f, 0.0f)});
   // The ACCESSING readout that rides the closed shutters.
-  body.child(box()
-                 .left(Dimension(1178.0f / 2 - 220))
-                 .top(Dimension(316.0f / 2 - 32))
-                 .width(440)
-                 .height(64)
-                 .shape(shapes::chamfered(10, shapes::Corner::Diagonal))
-                 .fill(mskia::withAlpha(hexColor(0x140404), 0.92f))
-                 .stroke(stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.6f)),
-                                PathFormat::Align::Inner))
-                 .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.7f), 10,
-                                              2, 3, shapes::Corner::All})
-                 .justify(Justify::Center)
-                 .alignItems(Align::Center)
-                 .child(slot("mfload"))
-                 .opacity(&shutterInfo));
+  body.children(
+      {box()
+           .left(Dimension(1178.0f / 2 - 220))
+           .top(Dimension(316.0f / 2 - 32))
+           .width(440)
+           .height(64)
+           .shape(shapes::chamfered(10, shapes::Corner::Diagonal))
+           .fill(mskia::withAlpha(hexColor(0x140404), 0.92f))
+           .stroke(stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.6f)),
+                          PathFormat::Align::Inner))
+           .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.7f), 10, 2, 3,
+                                        shapes::Corner::All})
+           .justify(Justify::Center)
+           .alignItems(Align::Center)
+           .children({slot("mfload")})
+           .opacity(&shutterInfo)});
 
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("mainframe")
@@ -366,9 +370,9 @@ auto TwoAdvancedV4::mainframe() -> Element {
                           {520ms, &ch::easeOutQuint, 2400ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
                        {300ms, &ch::easeOutQuad, 2400ms}))
-      .child(panelHeader("MAIN", "FRAME",
-                         "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 0))
-      .child(body);
+      .children({panelHeader("MAIN", "FRAME",
+                             "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 0),
+                 body});
   return panel;
 }
 
@@ -378,12 +382,12 @@ auto TwoAdvancedV4::mfLoadReadout(int section) -> Element {
       .row()
       .gap(10)
       .alignItems(Align::Center)
-      .child(t("ACCESSING", micro(12, mskia::withAlpha(kCyan, 0.85f), 260)))
-      .child(t("▸", micro(11, kCyan, 0)))
-      .child(t(kNavItems[section], heavy(17, kNear, 80)))
-      .child(box().width(60).height(10).foreground(
-          styles::TickRail{mskia::withAlpha(kCyan, 0.6f), 5, 3, 8, 1, 4, 0.5f,
-                           path::Edge::Bottom}));
+      .children({t("ACCESSING", micro(12, mskia::withAlpha(kCyan, 0.85f), 260)),
+                 t("▸", micro(11, kCyan, 0)),
+                 t(kNavItems[section], heavy(17, kNear, 80)),
+                 box().width(60).height(10).foreground(
+                     styles::TickRail{mskia::withAlpha(kCyan, 0.6f), 5, 3, 8, 1,
+                                      4, 0.5f, path::Edge::Bottom})});
 }
 
 auto TwoAdvancedV4::monitorBody(float h) -> Element {
@@ -409,37 +413,30 @@ auto TwoAdvancedV4::relatedStills() -> std::vector<Element> {
   std::vector<Element> out;
   for (int i = 0; i < 4; ++i) {
     const float g = 0.30f + 0.18f * (float)i;
-    Element cell =
-        box()
-            .grow(1)
-            .column()
-            .gap(3)
-            .child(
-                box()
-                    .grow(1)
-                    .shape(shapes::chamfered(7, shapes::Corner::Diagonal))
-                    .fill(
-                        mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                                 {{0.0f, hexColor(0x0A2C33)},
-                                                  {1.0f, hexColor(0x02171B)}}))
-                    .stroke(stroke(
-                        1,
-                        Fill::color(mskia::withAlpha(hexColor(0x0B3B40), 0.9f)),
-                        PathFormat::Align::Inner))
-                    .child(box().inset(0).fill(mskia::Paint::radialUnit(
-                        {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
-                        {{0.0f, mskia::withAlpha(kGlow, g)},
-                         {1.0f, mskia::withAlpha(kGlow, 0.0f)}})))
-                    .child(at(box().fill(hexColor(0x011114)), 6 + 4 * (float)i,
-                              18, 12, 30))
-                    .child(at(box().fill(hexColor(0x01191D)), 24 + 3 * (float)i,
-                              8, 16, 40))
-                    .child(at(box().fill(mskia::withAlpha(kGlow, 0.55f)), 0, 40,
-                              200, 1))
-                    .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.5f),
-                                                 6, 1, 2, shapes::Corner::All})
-                    .foreground(styles::Scanlines{{0, 0, 0, 0.24f}, 3, 1}))
-            .child(t(caps[i], micro(9, hexColor(0x123B3D), 220)));
+    Element cell = box().grow(1).column().gap(3).children(
+        {box()
+             .grow(1)
+             .shape(shapes::chamfered(7, shapes::Corner::Diagonal))
+             .fill(mskia::Paint::linearUnit(
+                 {0, 0}, {0, 1},
+                 {{0.0f, hexColor(0x0A2C33)}, {1.0f, hexColor(0x02171B)}}))
+             .stroke(stroke(
+                 1, Fill::color(mskia::withAlpha(hexColor(0x0B3B40), 0.9f)),
+                 PathFormat::Align::Inner))
+             .children({box().inset(0).fill(mskia::Paint::radialUnit(
+                 {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
+                 {{0.0f, mskia::withAlpha(kGlow, g)},
+                  {1.0f, mskia::withAlpha(kGlow, 0.0f)}}))})
+             .children({at(box().fill(hexColor(0x011114)), 6 + 4 * (float)i, 18,
+                           12, 30)})
+             .children({at(box().fill(hexColor(0x01191D)), 24 + 3 * (float)i, 8,
+                           16, 40)})
+             .children({at(box().fill(mskia::withAlpha(kGlow, 0.55f)), 0, 40,
+                           200, 1)})
+             .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.5f), 6, 1,
+                                          2, shapes::Corner::All})
+             .foreground(styles::Scanlines{{0, 0, 0, 0.24f}, 3, 1}),
+         t(caps[i], micro(9, hexColor(0x123B3D), 220))});
     out.push_back(std::move(cell));
   }
   return out;

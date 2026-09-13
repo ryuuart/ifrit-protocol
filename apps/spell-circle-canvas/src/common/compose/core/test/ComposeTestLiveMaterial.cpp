@@ -20,13 +20,13 @@ TEST(ComposeMaterial, LiveUniformAnimatesAndDeclaresVolatility) {
   ASSERT_TRUE(effect) << err.c_str();
   choreograph::Output<float> k{0.0f};
   Host host;
-  host.composer.render(box().child(
-      box()
-          .width(40)
-          .height(40)
-          .inset(0, 0, 160, 160)
-          .absolute()
-          .fill(material::skia::Paint::sksl(effect).uniform("uK", &k))));
+  host.composer.render(box().children(
+      {box()
+           .width(40)
+           .height(40)
+           .inset(0, 0, 160, 160)
+           .absolute()
+           .fill(material::skia::Paint::sksl(effect).uniform("uK", &k))}));
   host.frame();
   const SkColor c0 = host.pixel(20, 20);
   k = 1.0f;      // change the bound uniform — NO re-render
@@ -62,19 +62,9 @@ TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
   EXPECT_TRUE(b.isAnimated());
 
   Host host;
-  host.composer.render(box()
-                           .child(box()
-                                      .width(40)
-                                      .height(40)
-                                      .inset(0, 0, 160, 160)
-                                      .absolute()
-                                      .fill(a))
-                           .child(box()
-                                      .width(40)
-                                      .height(40)
-                                      .inset(60, 0, 100, 160)
-                                      .absolute()
-                                      .fill(b)));
+  host.composer.render(box().children(
+      {box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(a),
+       box().width(40).height(40).inset(60, 0, 100, 160).absolute().fill(b)}));
   host.frame();
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 90u);   // a: uK=0.2
   EXPECT_GT(SkColorGetR(host.pixel(80, 20)), 200u);  // b: uK=1.0 — not aliased
@@ -87,15 +77,15 @@ TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
   // plain fill is silently ignored.
   choreograph::Output<float> k{1.0f};
   Host host;
-  host.composer.render(
-      box().child(box()
-                      .width(40)
-                      .height(40)
-                      .inset(0, 0, 160, 160)
-                      .absolute()
-                      .fill(material::skia::Paint::sksl(ukEffect())
-                                .uniform("uK", &k))        // live red
-                      .fill(Fill::color({0, 1, 0, 1}))));  // then plain green
+  host.composer.render(box().children(
+      {box()
+           .width(40)
+           .height(40)
+           .inset(0, 0, 160, 160)
+           .absolute()
+           .fill(material::skia::Paint::sksl(ukEffect())
+                     .uniform("uK", &k))         // live red
+           .fill(Fill::color({0, 1, 0, 1}))}));  // then plain green
   host.frame();
   const SkColor c = host.pixel(20, 20);
   EXPECT_GT(SkColorGetG(c), 200u);  // green won
@@ -115,8 +105,8 @@ TEST(ComposeMaterial, BlendWithLiveLayerTracksOutputs) {
   });
   EXPECT_TRUE(m.isAnimated());  // inherited from the bound layer
   Host host;
-  host.composer.render(box().child(
-      box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)));
+  host.composer.render(box().children(
+      {box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)}));
   host.frame();
   const uint32_t bright = SkColorGetR(host.pixel(20, 20));
   EXPECT_GT(bright, 170u);  // ~0.8 * 255 = 204
@@ -186,8 +176,8 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
   sigil::motion::FrameClock clock;
   Host host;
   host.composer.setClock(&clock);
-  host.composer.render(box().child(
-      box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)));
+  host.composer.render(box().children(
+      {box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)}));
   host.frame();
   const uint32_t r0 = SkColorGetR(host.pixel(20, 20));  // uTime ≈ 0 → black
   clock.tick();                                         // advance real time…
@@ -205,21 +195,20 @@ TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
   Host host;
   host.composer.render(
       stack()
-          .child(box()
-                     .width(40)
-                     .height(40)
-                     .inset(0, 0, 160, 160)
-                     .absolute()
-                     .fill(Fill::color({0, 1, 0, 1})))  // green under
-          .child(
-              box()
-                  .width(40)
-                  .height(40)
-                  .inset(0, 0, 160, 160)
-                  .absolute()
-                  .fill(
-                      material::skia::Paint::sksl(ukEffect()).uniform("uK", &k))
-                  .blend(SkBlendMode::kPlus)));
+          .children({box()
+                         .width(40)
+                         .height(40)
+                         .inset(0, 0, 160, 160)
+                         .absolute()
+                         .fill(Fill::color({0, 1, 0, 1}))})  // green under
+          .children({box()
+                         .width(40)
+                         .height(40)
+                         .inset(0, 0, 160, 160)
+                         .absolute()
+                         .fill(material::skia::Paint::sksl(ukEffect())
+                                   .uniform("uK", &k))
+                         .blend(SkBlendMode::kPlus)}));
   host.frame();
   const SkColor c = host.pixel(20, 20);  // red + green = yellow
   EXPECT_GT(SkColorGetR(c), 200u);
@@ -247,7 +236,7 @@ TEST(ComposeMaterial, RenderSlotHostsLiveMaterial) {
   // any other — the slot path wires volatility identically.
   choreograph::Output<float> k{0.0f};
   Host host;
-  host.composer.render(box().child(slot("s").width(40).height(40)));
+  host.composer.render(box().children({slot("s").width(40).height(40)}));
   host.composer.renderSlot(
       "s", box().width(40).height(40).fill(
                material::skia::Paint::sksl(ukEffect()).uniform("uK", &k)));
@@ -279,8 +268,8 @@ TEST(ComposeMaterial, StableLiveResolveReplaysThePicture) {
   ASSERT_TRUE(fx) << err.c_str();
   Host host;
   choreograph::Output<float> phase{0.25f};
-  host.composer.render(box().child(box().width(100).height(100).fill(
-      material::skia::Paint::sksl(fx).uniform("uPhase", &phase))));
+  host.composer.render(box().children({box().width(100).height(100).fill(
+      material::skia::Paint::sksl(fx).uniform("uPhase", &phase))}));
   host.frame();  // records once
   const SkColor before = host.pixel(50, 50);
   host.frame();  // same phase → stable resolve → pure replay
@@ -322,14 +311,14 @@ TEST(ComposeMaterial, BakeScaleUpscalesThroughTheSameRect) {
   // blit stretches it back through the same dst rect — same coverage,
   // same color, a quarter of the evaluated pixels.
   Host host;
-  host.composer.render(box().child(box()
-                                       .left(20)
-                                       .top(20)
-                                       .width(100)
-                                       .height(100)
-                                       .cache(Cache::Texture)
-                                       .bakeScale(0.5f)
-                                       .fill(red())));
+  host.composer.render(box().children({box()
+                                           .left(20)
+                                           .top(20)
+                                           .width(100)
+                                           .height(100)
+                                           .cache(Cache::Texture)
+                                           .bakeScale(0.5f)
+                                           .fill(red())}));
   host.frame();  // bake at half scale
   host.frame();  // blit
   EXPECT_EQ(host.pixel(70, 70), SkColorSetARGB(255, 255, 0, 0));
@@ -352,16 +341,17 @@ TEST(ComposeMaterial, StableLiveResolveBlitsTheTexture) {
   choreograph::Output<float> phase{0.25f}, sibling{0.0f};
   host.composer.render(
       box()
-          .child(box()
-                     .width(100)
-                     .height(100)
-                     .cache(Cache::Texture)
-                     .fill(material::skia::Paint::sksl(fx).uniform("uPhase",
-                                                                   &phase)))
+          .children({box()
+                         .width(100)
+                         .height(100)
+                         .cache(Cache::Texture)
+                         .fill(material::skia::Paint::sksl(fx).uniform(
+                             "uPhase", &phase))})
           // An always-animating sibling keeps the ROOT live, which is the
           // ordinary case in a real scene: the shader-filled node must still
           // blit even though the frame as a whole is repainting.
-          .child(box().width(10).height(10).fill(red()).translateX(&sibling)));
+          .children(
+              {box().width(10).height(10).fill(red()).translateX(&sibling)}));
   host.frame();  // bakes
   const unsigned recordedAfterBake = host.composer.stats().picturesRecorded;
   EXPECT_GE(recordedAfterBake, 1u);

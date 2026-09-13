@@ -34,15 +34,15 @@ TEST(ComposeSpanWrap, MarchingAntsMatchTrimAtEveryPhaseIncludingMidSeam) {
   choreograph::Output<float> phase;
 
   Host trimmed(200, 200);
-  trimmed.composer.render(stack().child(
-      revealBox()
-          .mask(by::spans(spans::wrap(0.0f, kWindow).offset(&phase)))
-          .stroke(stroke(6, red()))));
+  trimmed.composer.render(stack().children(
+      {revealBox()
+           .mask(by::spans(spans::wrap(0.0f, kWindow).offset(&phase)))
+           .stroke(stroke(6, red()))}));
 
   Host spanned(200, 200);
-  spanned.composer.render(stack().child(revealBox().stroke(
+  spanned.composer.render(stack().children({revealBox().stroke(
       spans::wrap(motion::bind(&phase), motion::bind(&phase).offset(kWindow)),
-      stroke(6, red()))));
+      stroke(6, red()))}));
 
   for (float p : {0.0f, 0.12f, 0.37f, 0.5f, 0.66f, 0.80f, 0.90f, 0.97f}) {
     phase = p;
@@ -74,7 +74,7 @@ TEST(ComposeSpanWrap, AnimatedEndpointsMarchAcrossTheSeamAndMatchTrim) {
                    animate(motion::from(0.0f).to(1.0f), {1000ms}),
                    animate(motion::from(kWindow).to(1.0f + kWindow), {1000ms})),
                stroke(6, red()));
-    h->composer.render(stack().child(std::move(e)));
+    h->composer.render(stack().children({std::move(e)}));
     return h;
   };
   std::unique_ptr<Host> t = host(true), s = host(false);
@@ -96,7 +96,7 @@ TEST(ComposeSpanWrap, DegenerateWindowsMatchTrimToo) {
       e.mask(by::spans(spans::wrap(a, b))).stroke(stroke(6, red()));
     else
       e.stroke(spans::wrap(a, b), stroke(6, red()));
-    host.composer.render(stack().child(std::move(e)));
+    host.composer.render(stack().children({std::move(e)}));
     host.frame();
     return inkedCount(boundaryRing(host));
   };
@@ -180,7 +180,7 @@ TEST_P(SpanDoor, ThePassDoorAndTheNodeGateClaimTheSameRun) {
       e.mask(by::spans(row.window)).stroke(stroke(6, red()));
     else
       e.stroke(row.window, stroke(6, red()));
-    host.composer.render(stack().child(std::move(e)));
+    host.composer.render(stack().children({std::move(e)}));
     host.frame();
     return boundaryRing(host);
   };
@@ -220,8 +220,8 @@ TEST(ComposeSpanTrim, AWindowReachingOutsideZeroToOnePinsRatherThanWraps) {
   // points outside the stroke too, so "not all of the ring" is true of
   // every window.
   Host probe(200, 200);
-  probe.composer.render(stack().child(
-      revealBox().stroke(spans::range(-0.4f, 0.6f), stroke(6, red()))));
+  probe.composer.render(stack().children(
+      {revealBox().stroke(spans::range(-0.4f, 0.6f), stroke(6, red()))}));
   probe.frame();
   EXPECT_NE(probe.pixel(70, 20), SK_ColorBLACK) << "the top edge is inside";
   EXPECT_EQ(probe.pixel(70, 120), SK_ColorBLACK)
@@ -233,11 +233,11 @@ TEST(ComposeSpanTrim, BoundEndpointsScrubTheSameWindow) {
   choreograph::Output<float> begin, end;
   Host trimmed(200, 200), spanned(200, 200);
   trimmed.composer.render(
-      stack().child(revealBox()
-                        .mask(by::spans(spans::range(&begin, &end)))
-                        .stroke(stroke(6, red()))));
-  spanned.composer.render(stack().child(
-      revealBox().stroke(spans::range(&begin, &end), stroke(6, red()))));
+      stack().children({revealBox()
+                            .mask(by::spans(spans::range(&begin, &end)))
+                            .stroke(stroke(6, red()))}));
+  spanned.composer.render(stack().children(
+      {revealBox().stroke(spans::range(&begin, &end), stroke(6, red()))}));
   for (auto [b, e] : {std::pair{0.0f, 0.2f}, std::pair{0.3f, 0.9f},
                       std::pair{0.45f, 0.55f}}) {
     begin = b;
@@ -260,12 +260,12 @@ TEST(ComposeSpanTrim, TheOffsetArgumentIsEndpointArithmetic) {
   // than approximations.
   choreograph::Output<float> off;
   Host constTrim(200, 200), constSpan(200, 200);
-  constTrim.composer.render(
-      stack().child(revealBox()
-                        .mask(by::spans(spans::range(0.1f, 0.4f).offset(0.25f)))
-                        .stroke(stroke(6, red()))));
-  constSpan.composer.render(stack().child(revealBox().stroke(
-      spans::range(0.1f + 0.25f, 0.4f + 0.25f), stroke(6, red()))));
+  constTrim.composer.render(stack().children(
+      {revealBox()
+           .mask(by::spans(spans::range(0.1f, 0.4f).offset(0.25f)))
+           .stroke(stroke(6, red()))}));
+  constSpan.composer.render(stack().children({revealBox().stroke(
+      spans::range(0.1f + 0.25f, 0.4f + 0.25f), stroke(6, red()))}));
   constTrim.frame();
   constSpan.frame();
   EXPECT_EQ(boundaryRing(constSpan), boundaryRing(constTrim))
@@ -273,12 +273,12 @@ TEST(ComposeSpanTrim, TheOffsetArgumentIsEndpointArithmetic) {
 
   Host boundTrim(200, 200), boundSpan(200, 200);
   boundTrim.composer.render(
-      stack().child(revealBox()
-                        .mask(by::spans(spans::upTo(0.3f).offset(&off)))
-                        .stroke(stroke(6, red()))));
-  boundSpan.composer.render(stack().child(revealBox().stroke(
+      stack().children({revealBox()
+                            .mask(by::spans(spans::upTo(0.3f).offset(&off)))
+                            .stroke(stroke(6, red()))}));
+  boundSpan.composer.render(stack().children({revealBox().stroke(
       spans::range(motion::bind(&off), motion::bind(&off).offset(0.3f)),
-      stroke(6, red()))));
+      stroke(6, red()))}));
   for (float v : {0.0f, 0.17f, 0.42f, 0.61f}) {
     off = v;
     boundTrim.frame();
@@ -301,7 +301,7 @@ TEST(ComposeSpanTrim, AnimatedEndpointsRampTheSameWindow) {
     else
       e.stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {800ms})),
                stroke(6, red()));
-    h->composer.render(stack().child(std::move(e)));
+    h->composer.render(stack().children({std::move(e)}));
     return h;
   };
   std::unique_ptr<Host> t = host(true), s = host(false);
@@ -325,9 +325,9 @@ TEST(ComposeSpanTrim, OnePassPerClaimIsTheNPassRule) {
   // pass carrying a COMPOSITE brush. That is a different spelling, not a
   // missing capability.
   Host host(200, 200);
-  host.composer.render(stack().child(revealBox().stroke(
+  host.composer.render(stack().children({revealBox().stroke(
       spans::upTo(0.4f),
-      brush::layers({brush::solid(8, red()), brush::solid(3, green())}))));
+      brush::layers({brush::solid(8, red()), brush::solid(3, green())}))}));
   host.frame();
   EXPECT_EQ(host.pixel(40, 20), SK_ColorGREEN) << "both marks, one claim";
   EXPECT_EQ(host.pixel(110, 20), SK_ColorBLACK) << "and the claim ends";
@@ -343,12 +343,12 @@ TEST(ComposeSpanOffset, TwoLiveSourcesSummedIntoOneEndpointMatchTrim) {
   // live term, and this checks the sum is the same sum on both doors.
   choreograph::Output<float> begin, end, off;
   Host trimmed(200, 200), spanned(200, 200);
-  trimmed.composer.render(stack().child(
-      revealBox()
-          .mask(by::spans(spans::range(&begin, &end).offset(&off)))
-          .stroke(stroke(6, red()))));
-  spanned.composer.render(stack().child(revealBox().stroke(
-      spans::range(&begin, &end).offset(&off), stroke(6, red()))));
+  trimmed.composer.render(stack().children(
+      {revealBox()
+           .mask(by::spans(spans::range(&begin, &end).offset(&off)))
+           .stroke(stroke(6, red()))}));
+  spanned.composer.render(stack().children({revealBox().stroke(
+      spans::range(&begin, &end).offset(&off), stroke(6, red()))}));
   for (auto [b, e, o] :
        {std::tuple{0.0f, 0.3f, 0.0f}, std::tuple{0.0f, 0.3f, 0.25f},
         std::tuple{0.1f, 0.5f, -0.05f}, std::tuple{0.4f, 0.45f, 0.5f},
@@ -369,12 +369,12 @@ TEST(ComposeSpanOffset, TheSummedEndpointWrapsLikeTrimDoes) {
   // the ends are the window, each on its own Output.
   choreograph::Output<float> begin, end, off;
   Host trimmed(200, 200), spanned(200, 200);
-  trimmed.composer.render(
-      stack().child(revealBox()
-                        .mask(by::spans(spans::wrap(&begin, &end).offset(&off)))
-                        .stroke(stroke(6, red()))));
-  spanned.composer.render(stack().child(revealBox().stroke(
-      spans::wrap(&begin, &end).offset(&off), stroke(6, red()))));
+  trimmed.composer.render(stack().children(
+      {revealBox()
+           .mask(by::spans(spans::wrap(&begin, &end).offset(&off)))
+           .stroke(stroke(6, red()))}));
+  spanned.composer.render(stack().children({revealBox().stroke(
+      spans::wrap(&begin, &end).offset(&off), stroke(6, red()))}));
   begin = 0.0f;
   end = 0.22f;
   for (float o : {0.0f, 0.15f, 0.44f, 0.7f, 0.88f, 0.95f, 1.3f}) {
@@ -432,12 +432,13 @@ TEST(ComposeSpanWrap, WrapIsUnderTheOverlapLawLikeEveryOtherTerm) {
   ::testing::internal::CaptureStderr();
   {
     Host host(200, 200);
-    host.composer.render(stack().child(
-        revealBox()
-            // [0.9, 1] + [0, 0.15]
-            .stroke(spans::wrap(0.9f, 1.15f), stroke(4, red()), "ants")
-            // touches only the SECOND run
-            .stroke(spans::range(0.05f, 0.3f), stroke(2, green()), "keyline")));
+    host.composer.render(stack().children(
+        {revealBox()
+             // [0.9, 1] + [0, 0.15]
+             .stroke(spans::wrap(0.9f, 1.15f), stroke(4, red()), "ants")
+             // touches only the SECOND run
+             .stroke(spans::range(0.05f, 0.3f), stroke(2, green()),
+                     "keyline")}));
     host.frame();
   }
   const std::string log = ::testing::internal::GetCapturedStderr();
@@ -448,10 +449,11 @@ TEST(ComposeSpanWrap, WrapIsUnderTheOverlapLawLikeEveryOtherTerm) {
   ::testing::internal::CaptureStderr();
   {
     Host host(200, 200);
-    host.composer.render(stack().child(
-        revealBox()
-            .stroke(spans::wrap(0.9f, 1.05f), stroke(4, red()), "ants")
-            .stroke(spans::range(0.3f, 0.6f), stroke(2, green()), "keyline")));
+    host.composer.render(stack().children(
+        {revealBox()
+             .stroke(spans::wrap(0.9f, 1.05f), stroke(4, red()), "ants")
+             .stroke(spans::range(0.3f, 0.6f), stroke(2, green()),
+                     "keyline")}));
     host.frame();
   }
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "");
@@ -462,9 +464,9 @@ TEST(ComposeSpanWrap, RestIsTheComplementOfBothOfWrapsRuns) {
   // single interval in the middle — not two, and not the naive [end, begin].
   Host host(200, 200);
   host.composer.render(
-      stack().child(revealBox()
-                        .stroke(spans::wrap(0.9f, 1.15f), stroke(6, red()))
-                        .stroke(spans::rest(), stroke(6, green()))));
+      stack().children({revealBox()
+                            .stroke(spans::wrap(0.9f, 1.15f), stroke(6, red()))
+                            .stroke(spans::rest(), stroke(6, green()))}));
   host.frame();
   // Perimeter 400 px, seam at the BOTTOM-LEFT corner, running UP the left
   // edge: [0.9,1] is the last 40 px of the bottom edge, arriving at the

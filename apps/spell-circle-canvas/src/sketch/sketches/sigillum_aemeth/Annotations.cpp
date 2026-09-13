@@ -42,40 +42,40 @@ auto SigillumAemeth::solverOverlay() -> Element {
                         animate(motion::from(0.0f).to(1.0f), ramp(0, ms)))
                   : Animatable<float>(1.0f);
     };
-    g.child(
-        box()
-            .inset(0)
-            .shape(heldPath([&] {
-              SkPathBuilder b;
-              for (size_t i = 0; i < from.size(); ++i) {
-                b.moveTo(from[i]);
-                b.quadTo(ctrl[i], to[i]);
-              }
-              return b.detach();
-            }()))
-            .fill(Fill::none())
-            .stroke(spans::upTo(reveal(760.0f)),
-                    lines::Line{.width = 2.6f,
-                                .fill = Fill::color(hexColor(0x7fd0f4, 0.95f)),
-                                .endCap = lines::Cap::Arrow,
-                                .capSize = 15.0f})
-            .opacity(fade(0))
-            .key("hops" + std::to_string(n)));
-    g.child(box()
-                .inset(0)
-                .shape(heldPath([&] {
-                  SkPathBuilder b;
-                  for (const SkPoint& q : land)
-                    b.addCircle(q.fX, q.fY, 0.030f * kR);
-                  return b.detach();
-                }()))
-                .fill(Fill::none())
-                .stroke(spans::upTo(reveal(820.0f)),
-                        PathFormat{.width = 2.0f,
-                                   .strokeFill =
-                                       Fill::color(hexColor(0x59b6e8, 0.92f))})
-                .opacity(fade(0))
-                .key("lands" + std::to_string(n)));
+    g.children(
+        {box()
+             .inset(0)
+             .shape(heldPath([&] {
+               SkPathBuilder b;
+               for (size_t i = 0; i < from.size(); ++i) {
+                 b.moveTo(from[i]);
+                 b.quadTo(ctrl[i], to[i]);
+               }
+               return b.detach();
+             }()))
+             .fill(Fill::none())
+             .stroke(spans::upTo(reveal(760.0f)),
+                     lines::Line{.width = 2.6f,
+                                 .fill = Fill::color(hexColor(0x7fd0f4, 0.95f)),
+                                 .endCap = lines::Cap::Arrow,
+                                 .capSize = 15.0f})
+             .opacity(fade(0))
+             .key("hops" + std::to_string(n))});
+    g.children({box()
+                    .inset(0)
+                    .shape(heldPath([&] {
+                      SkPathBuilder b;
+                      for (const SkPoint& q : land)
+                        b.addCircle(q.fX, q.fY, 0.030f * kR);
+                      return b.detach();
+                    }()))
+                    .fill(Fill::none())
+                    .stroke(spans::upTo(reveal(820.0f)),
+                            PathFormat{.width = 2.0f,
+                                       .strokeFill = Fill::color(
+                                           hexColor(0x59b6e8, 0.92f))})
+                    .opacity(fade(0))
+                    .key("lands" + std::to_string(n))});
   }
   return g;
 }
@@ -94,59 +94,59 @@ auto SigillumAemeth::margin() -> Element {
                .styleSheet(weaveNs::StyleSheet{}.set(
                    "heading", {.color = kRubric, .track = 1.6f}));
 
-  g.child(text("SIGILLVM DEI ÆMÆTH")
-              .font({.face = faceDisplay,
-                     .size = 46,
-                     .color = kVellum,
-                     .track = 2.6f})
-              .at({0, 0}));
-  g.child(
-      text("EMETH nuncupatum · Mortlake by Richemond · "
-           "21 Martii 1582")
-          .font({.face = faceItalic, .size = 19, .color = hexColor(0xc7ab74)})
-          .at({2, 58}));
-  g.child(text("BL Sloane MS 3188 f.30r · wax disc BM 1838,1232.90.a "
-               "· 23.2 cm")
-              .font({.face = faceSerif})
-              .at({2, 86}));
-  g.child(box()
-              .rect(SkRect::MakeXYWH(0, 114, w, 2))
-              .fill(Fill::none())
-              .shape(keyedShape(w,
-                                [w](SkSize) {
-                                  SkPathBuilder b;
-                                  b.moveTo(0, 1);
-                                  b.lineTo(w, 1);
-                                  return b.detach();
-                                }))
-              .stroke(lines::rails(
-                  {{.across = 0.0f,
-                    .width = 2.4f,
-                    .fill = Fill::color(hexColor(0xc7ab74, 0.75f))},
-                   {.across = -5.0f,
-                    .width = 0.8f,
-                    .fill = Fill::color(hexColor(0xc7ab74, 0.40f)),
-                    .dash = {2.0f, 5.0f}}})));
+  g.children({text("SIGILLVM DEI ÆMÆTH")
+                  .font({.face = faceDisplay,
+                         .size = 46,
+                         .color = kVellum,
+                         .track = 2.6f})
+                  .at({0, 0})});
+  g.children(
+      {text("EMETH nuncupatum · Mortlake by Richemond · "
+            "21 Martii 1582")
+           .font({.face = faceItalic, .size = 19, .color = hexColor(0xc7ab74)})
+           .at({2, 58})});
+  g.children({text("BL Sloane MS 3188 f.30r · wax disc BM 1838,1232.90.a "
+                   "· 23.2 cm")
+                  .font({.face = faceSerif})
+                  .at({2, 86})});
+  g.children({box()
+                  .rect(SkRect::MakeXYWH(0, 114, w, 2))
+                  .fill(Fill::none())
+                  .shape(keyedShape(w,
+                                    [w](SkSize) {
+                                      SkPathBuilder b;
+                                      b.moveTo(0, 1);
+                                      b.lineTo(w, 1);
+                                      return b.detach();
+                                    }))
+                  .stroke(lines::rails(
+                      {{.across = 0.0f,
+                        .width = 2.4f,
+                        .fill = Fill::color(hexColor(0xc7ab74, 0.75f))},
+                       {.across = -5.0f,
+                        .width = 0.8f,
+                        .fill = Fill::color(hexColor(0xc7ab74, 0.40f)),
+                        .dash = {2.0f, 5.0f}}}))});
 
   // the seven Names, printing as the walk finds them
-  g.child(text("THE SEVEN NAMES, WALKED OFF THE RIM")
-              .styleClass("heading")
-              .at({0, 136}));
-  g.child(box()
-              .rect(SkRect::MakeXYWH(0, 158, w, 324))
-              .shape(keyedShape(w,
-                                [w](SkSize) {
-                                  SkPathBuilder b;
-                                  for (int n = 0; n <= 7; ++n) {
-                                    b.moveTo(0, 4 + (float)n * 46);
-                                    b.lineTo(w, 4 + (float)n * 46);
-                                  }
-                                  return b.detach();
-                                }))
-              .fill(Fill::none())
-              .stroke(PathFormat{
-                  .width = 0.8f,
-                  .strokeFill = Fill::color(hexColor(0xc7ab74, 0.14f))}));
+  g.children({text("THE SEVEN NAMES, WALKED OFF THE RIM")
+                  .styleClass("heading")
+                  .at({0, 136})});
+  g.children({box()
+                  .rect(SkRect::MakeXYWH(0, 158, w, 324))
+                  .shape(keyedShape(w,
+                                    [w](SkSize) {
+                                      SkPathBuilder b;
+                                      for (int n = 0; n <= 7; ++n) {
+                                        b.moveTo(0, 4 + (float)n * 46);
+                                        b.lineTo(w, 4 + (float)n * 46);
+                                      }
+                                      return b.detach();
+                                    }))
+                  .fill(Fill::none())
+                  .stroke(PathFormat{
+                      .width = 0.8f,
+                      .strokeFill = Fill::color(hexColor(0xc7ab74, 0.14f))})});
   for (int n = 0; n < 7; ++n) {
     const Solved& s = solved[(size_t)n];
     const float y = 166 + (float)n * 46;
@@ -154,25 +154,28 @@ auto SigillumAemeth::margin() -> Element {
     std::string chain;
     for (size_t i = 0; i < s.cells.size(); ++i)
       chain += (i ? "·" : "") + std::to_string(s.cells[i]);
-    g.child(text(std::to_string(n + 1) + ".")
-                .font({.size = 17})
-                .at({0, y + 6})
-                .opacity(animate(from(0.0f).to(1.0f), ramp(at, 300))));
-    g.child(text(kNames[(size_t)n].name)
-                .font({.face = faceDisplay,
-                       .size = 30,
-                       .color = kVellum,
-                       .track = 1.2f})
-                .at({34, y})
-                .opacity(animate(from(0.0f).to(1.0f), ramp(at + 120, 420))));
-    g.child(text(s.raw == s.reduced ? "" : "⟨" + s.raw + "⟩")
-                .font({.face = faceItalic, .color = hexColor(0x6f5f45)})
-                .at({212, y + 10})
-                .opacity(animate(from(0.0f).to(1.0f), ramp(at + 240, 420))));
-    g.child(text(chain)
-                .font({.size = 14, .color = kTrace})
-                .at({320, y + 10})
-                .opacity(animate(from(0.0f).to(1.0f), ramp(at + 60, 420))));
+    g.children({text(std::to_string(n + 1) + ".")
+                    .font({.size = 17})
+                    .at({0, y + 6})
+                    .opacity(animate(from(0.0f).to(1.0f), ramp(at, 300)))});
+    g.children(
+        {text(kNames[(size_t)n].name)
+             .font({.face = faceDisplay,
+                    .size = 30,
+                    .color = kVellum,
+                    .track = 1.2f})
+             .at({34, y})
+             .opacity(animate(from(0.0f).to(1.0f), ramp(at + 120, 420)))});
+    g.children(
+        {text(s.raw == s.reduced ? "" : "⟨" + s.raw + "⟩")
+             .font({.face = faceItalic, .color = hexColor(0x6f5f45)})
+             .at({212, y + 10})
+             .opacity(animate(from(0.0f).to(1.0f), ramp(at + 240, 420)))});
+    g.children(
+        {text(chain)
+             .font({.size = 14, .color = kTrace})
+             .at({320, y + 10})
+             .opacity(animate(from(0.0f).to(1.0f), ramp(at + 60, 420)))});
   }
 
   // the leftovers
@@ -183,29 +186,30 @@ auto SigillumAemeth::margin() -> Element {
         un += (un.empty() ? "" : "·") + std::to_string(i + 1);
         unl += kRing[(size_t)i].glyph;
       }
-    g.child(
-        text(kit::formatted("%d of 40 cells consumed · %d never visited",
-                            usedCells, 40 - usedCells))
-            .at({0, 492})
-            .opacity(animate(from(0.0f).to(1.0f), ramp(tDark * 1000, 500))));
-    g.child(text("unvisited  " + un + "   =  " + unl)
-                .ink(kRubric)
-                .at({0, 514})
-                .opacity(animate(from(0.0f).to(1.0f),
-                                 ramp(tDark * 1000 + 200, 500))));
-    g.child(
-        text("↳ the same rule reads them as YMON 22·7·13·31 and BORAOTH "
-             "26·36·19·…")
-            .font({.face = faceItalic, .size = 14, .color = hexColor(0x6f5f45)})
-            .at({0, 536})
-            .opacity(
-                animate(from(0.0f).to(1.0f), ramp(tDark * 1000 + 400, 500))));
+    g.children(
+        {text(kit::formatted("%d of 40 cells consumed · %d never visited",
+                             usedCells, 40 - usedCells))
+             .at({0, 492})
+             .opacity(animate(from(0.0f).to(1.0f), ramp(tDark * 1000, 500)))});
+    g.children({text("unvisited  " + un + "   =  " + unl)
+                    .ink(kRubric)
+                    .at({0, 514})
+                    .opacity(animate(from(0.0f).to(1.0f),
+                                     ramp(tDark * 1000 + 200, 500)))});
+    g.children(
+        {text("↳ the same rule reads them as YMON 22·7·13·31 and BORAOTH "
+              "26·36·19·…")
+             .font(
+                 {.face = faceItalic, .size = 14, .color = hexColor(0x6f5f45)})
+             .at({0, 536})
+             .opacity(
+                 animate(from(0.0f).to(1.0f), ramp(tDark * 1000 + 400, 500)))});
   }
 
   // the 7×7 square the birds delivered; read DOWN the columns
-  g.child(text("SEVEN BASKETS, SEVEN BIRDS · READ DOWN")
-              .styleClass("heading")
-              .at({0, 580}));
+  g.children({text("SEVEN BASKETS, SEVEN BIRDS · READ DOWN")
+                  .styleClass("heading")
+                  .at({0, 580})});
   // The seven angles UNROLLED, not tabulated. On the plate these rows lie
   // along seven sides of a heptagon; here they lie on seven nested arcs of
   // the same fan, so a "column" is a RADIAL RAY and reading down a column
@@ -223,29 +227,30 @@ auto SigillumAemeth::margin() -> Element {
     return -fanSpan * 0.5f + fanSpan * ((float)col + 0.5f) / 7.0f;
   };
   // the seven arcs the rows sit on — ruled first, as on a prepared sheet
-  g.child(box()
-              .rect(SkRect::MakeXYWH(0, 560, w, 300))
-              .shape(keyedShape(
-                  std::tuple{fanCx, fanCy, fanR0, fanDR, fanSpan},
-                  [fanCx, fanCy, fanR0, fanDR, fanSpan](SkSize) {
-                    SkPathBuilder b;
-                    for (int r = 0; r <= 7; ++r) {
-                      const float rr = fanR0 - (float)r * fanDR + fanDR * 0.5f;
-                      for (int i = 0; i <= 24; ++i) {
-                        const float a = (-fanSpan * 0.54f +
-                                         fanSpan * 1.08f * (float)i / 24.0f) *
-                                        kD;
-                        const SkPoint q = arrange::onEllipse(
-                            {fanCx, fanCy - 560.0f}, {rr, rr}, a - 1.5707963f);
-                        i == 0 ? b.moveTo(q) : b.lineTo(q);
-                      }
-                    }
-                    return b.detach();
-                  }))
-              .fill(Fill::none())
-              .stroke(PathFormat{
-                  .width = 0.8f,
-                  .strokeFill = Fill::color(hexColor(0xc7ab74, 0.15f))}));
+  g.children(
+      {box()
+           .rect(SkRect::MakeXYWH(0, 560, w, 300))
+           .shape(keyedShape(
+               std::tuple{fanCx, fanCy, fanR0, fanDR, fanSpan},
+               [fanCx, fanCy, fanR0, fanDR, fanSpan](SkSize) {
+                 SkPathBuilder b;
+                 for (int r = 0; r <= 7; ++r) {
+                   const float rr = fanR0 - (float)r * fanDR + fanDR * 0.5f;
+                   for (int i = 0; i <= 24; ++i) {
+                     const float a = (-fanSpan * 0.54f +
+                                      fanSpan * 1.08f * (float)i / 24.0f) *
+                                     kD;
+                     const SkPoint q = arrange::onEllipse(
+                         {fanCx, fanCy - 560.0f}, {rr, rr}, a - 1.5707963f);
+                     i == 0 ? b.moveTo(q) : b.lineTo(q);
+                   }
+                 }
+                 return b.detach();
+               }))
+           .fill(Fill::none())
+           .stroke(PathFormat{
+               .width = 0.8f,
+               .strokeFill = Fill::color(hexColor(0xc7ab74, 0.15f))})});
   // the column rays light in sequence, and each drags a leader out to its
   // name
   for (int c = 0; c < 7; ++c) {
@@ -253,49 +258,49 @@ auto SigillumAemeth::margin() -> Element {
     const SkPoint a0 = fanPt(0, c, fanDR * 0.55f);
     const SkPoint a1 = fanPt(6, c, -fanDR * 0.55f);
     const SkPoint nameAt{452.0f, 612.0f + (float)c * 33.0f};
-    g.child(box()
-                .inset(0)
-                .shape(keyedShape(std::tuple{a0.fX, a0.fY, a1.fX, a1.fY},
-                                  [a0, a1](SkSize) {
-                                    SkPathBuilder b;
-                                    b.moveTo(a0);
-                                    b.lineTo(a1);
-                                    return b.detach();
-                                  }))
-                .fill(Fill::none())
-                .stroke(lines::rails(
-                    {{.across = 19.0f,
-                      .width = 0.9f,
-                      .fill = Fill::color(hexColor(0x62b0dc, 0.60f))},
-                     {.across = -19.0f,
-                      .width = 0.9f,
-                      .fill = Fill::color(hexColor(0x62b0dc, 0.60f))}}))
-                .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 360))));
-    g.child(
-        box()
-            .inset(0)
-            .shape(keyedShape(std::tuple{a1.fX, a1.fY, nameAt.fX, nameAt.fY},
-                              [a1, nameAt](SkSize) {
-                                SkPathBuilder b;
-                                b.moveTo(a1);
-                                b.quadTo(
-                                    {(a1.fX + nameAt.fX) * 0.5f, a1.fY - 6.0f},
-                                    {nameAt.fX - 8.0f, nameAt.fY + 12.0f});
-                                return b.detach();
-                              }))
-            .fill(Fill::none())
-            .stroke(spans::upTo(
-                        animate(from(0.0f).to(1.0f), ramp(delay + 120, 420))),
-                    lines::Line{.width = 0.9f,
-                                .fill = Fill::color(hexColor(0x2f6f9c, 0.55f)),
-                                .endCap = lines::Cap::Dot,
-                                .capSize = 4.0f})
-            .opacity(animate(from(0.0f).to(1.0f), ramp(delay + 120, 300))));
-    g.child(
-        text(kArchangels[c])
-            .font({.face = faceQuill, .size = 21, .color = hexColor(0xd8c08a)})
-            .at({nameAt.fX, nameAt.fY})
-            .opacity(animate(from(0.0f).to(1.0f), ramp(delay + 220, 360))));
+    g.children({box()
+                    .inset(0)
+                    .shape(keyedShape(std::tuple{a0.fX, a0.fY, a1.fX, a1.fY},
+                                      [a0, a1](SkSize) {
+                                        SkPathBuilder b;
+                                        b.moveTo(a0);
+                                        b.lineTo(a1);
+                                        return b.detach();
+                                      }))
+                    .fill(Fill::none())
+                    .stroke(lines::rails(
+                        {{.across = 19.0f,
+                          .width = 0.9f,
+                          .fill = Fill::color(hexColor(0x62b0dc, 0.60f))},
+                         {.across = -19.0f,
+                          .width = 0.9f,
+                          .fill = Fill::color(hexColor(0x62b0dc, 0.60f))}}))
+                    .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 360)))});
+    g.children(
+        {box()
+             .inset(0)
+             .shape(keyedShape(std::tuple{a1.fX, a1.fY, nameAt.fX, nameAt.fY},
+                               [a1, nameAt](SkSize) {
+                                 SkPathBuilder b;
+                                 b.moveTo(a1);
+                                 b.quadTo(
+                                     {(a1.fX + nameAt.fX) * 0.5f, a1.fY - 6.0f},
+                                     {nameAt.fX - 8.0f, nameAt.fY + 12.0f});
+                                 return b.detach();
+                               }))
+             .fill(Fill::none())
+             .stroke(spans::upTo(
+                         animate(from(0.0f).to(1.0f), ramp(delay + 120, 420))),
+                     lines::Line{.width = 0.9f,
+                                 .fill = Fill::color(hexColor(0x2f6f9c, 0.55f)),
+                                 .endCap = lines::Cap::Dot,
+                                 .capSize = 4.0f})
+             .opacity(animate(from(0.0f).to(1.0f), ramp(delay + 120, 300)))});
+    g.children(
+        {text(kArchangels[c])
+             .font({.face = faceQuill, .size = 21, .color = hexColor(0xd8c08a)})
+             .at({nameAt.fX, nameAt.fY})
+             .opacity(animate(from(0.0f).to(1.0f), ramp(delay + 220, 360)))});
   }
   // the 49 letters, one per (row, column) slot on the fan
   for (int r = 0; r < 7; ++r)
@@ -303,23 +308,24 @@ auto SigillumAemeth::margin() -> Element {
       const float delay = tBirds * 1000 + (float)r * 260 + (float)c * 34;
       const bool isCross = kAngles[r][c] == std::string("†");
       const SkPoint at = fanPt(r, c, 0.0f);
-      g.child(text(kAngles[r][c])
-                  .font({.face = faceSeal,
-                         .size = 23,
-                         .color = isCross ? kRubric : kVellum})
-                  .width(30)
-                  .height(30)
-                  .centerAt(at)
-                  .rotate(fanAngle(c))
-                  .textAlign(weaveNs::TextAlignment::kCenter)
-                  .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 300))));
+      g.children(
+          {text(kAngles[r][c])
+               .font({.face = faceSeal,
+                      .size = 23,
+                      .color = isCross ? kRubric : kVellum})
+               .width(30)
+               .height(30)
+               .centerAt(at)
+               .rotate(fanAngle(c))
+               .block({.alignment = weaveNs::TextAlignment::kCenter})
+               .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 300)))});
     }
-  g.child(text("48 letters, and one is noted by a Cross: which maketh "
-               "the 49th.")
-              .font({.face = faceItalic})
-              .at({0, 840})
-              .opacity(animate(from(0.0f).to(1.0f),
-                               ramp(tBirds * 1000 + 2600, 400))));
+  g.children({text("48 letters, and one is noted by a Cross: which maketh "
+                   "the 49th.")
+                  .font({.face = faceItalic})
+                  .at({0, 840})
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(tBirds * 1000 + 2600, 400)))});
 
   // the four orders and their tablets
   const char* kLegend[4] = {"Filiæ Lucis · blue tablet in the forehead",
@@ -329,9 +335,9 @@ auto SigillumAemeth::margin() -> Element {
   const SkColor4f kLegendTint[4] = {
       hexColor(0xb9c6da, 0.95f), hexColor(0xe6bf63, 0.95f),
       hexColor(0xf7f1e2, 0.95f), hexColor(0x9dbfa2, 0.95f)};
-  g.child(text("THE FOUR ORDERS OF THE CHILDREN OF LIGHT")
-              .styleClass("heading")
-              .at({0, 870}));
+  g.children({text("THE FOUR ORDERS OF THE CHILDREN OF LIGHT")
+                  .styleClass("heading")
+                  .at({0, 870})});
   for (int i = 0; i < 4; ++i) {
     Element swatch = box()
                          .rect(SkRect::MakeXYWH(2, 898 + (float)i * 26, 16, 16))
@@ -342,10 +348,10 @@ auto SigillumAemeth::margin() -> Element {
       swatch.shape(shapes::polygon(3));
     else if (i == 0)
       swatch.shape(shapes::sector(-100.0f, 200.0f, 0.55f));
-    g.child(std::move(swatch));
-    g.child(text(kLegend[i])
-                .font({.face = faceSerif, .color = hexColor(0x9d8a66)})
-                .at({28, 896 + (float)i * 26}));
+    g.children({std::move(swatch)});
+    g.children({text(kLegend[i])
+                    .font({.face = faceSerif, .color = hexColor(0x9d8a66)})
+                    .at({28, 896 + (float)i * 26})});
   }
   return g;
 }
@@ -395,34 +401,35 @@ auto SigillumAemeth::colophon() -> Element {
                .rect(SkRect::MakeXYWH(1660 * kS, 1552 * kS, 690, 120))
                .scale(kS)
                .transformOrigin(0.0f, 0.0f);
-  g.child(box()
-              .rect(SkRect::MakeXYWH(0, 0, 690, 2))
-              .shape(keyedShape(std::string_view("colophon-rule"),
-                                [](SkSize) {
-                                  SkPathBuilder b;
-                                  b.moveTo(0, 1);
-                                  b.lineTo(690, 1);
-                                  return b.detach();
-                                }))
-              .fill(Fill::none())
-              .stroke(lines::rails(
-                  {{.across = 0.0f,
-                    .width = 1.8f,
-                    .fill = Fill::color(hexColor(0xc7ab74, 0.55f))},
-                   {.across = -4.0f,
-                    .width = 0.7f,
-                    .fill = Fill::color(hexColor(0xc7ab74, 0.30f)),
-                    .dash = {1.6f, 4.4f}}})));
-  g.child(
-      text("“This is the Seale, whose Name is Æmeth: "
-           "and it is to be made of perfect wax.”")
-          .font({.face = faceItalic, .size = 17, .color = hexColor(0xb59a6c)})
-          .left(0)
-          .top(16)
-          .width(690));
-  g.child(text("Uriel, 14 March 1582 · reconstruction from the "
-               "rule, not a tracing · SigilCompose study")
-              .font({.face = faceMono, .size = 12, .color = hexColor(0x6f5f45)})
-              .at({0, 62}));
+  g.children({box()
+                  .rect(SkRect::MakeXYWH(0, 0, 690, 2))
+                  .shape(keyedShape(std::string_view("colophon-rule"),
+                                    [](SkSize) {
+                                      SkPathBuilder b;
+                                      b.moveTo(0, 1);
+                                      b.lineTo(690, 1);
+                                      return b.detach();
+                                    }))
+                  .fill(Fill::none())
+                  .stroke(lines::rails(
+                      {{.across = 0.0f,
+                        .width = 1.8f,
+                        .fill = Fill::color(hexColor(0xc7ab74, 0.55f))},
+                       {.across = -4.0f,
+                        .width = 0.7f,
+                        .fill = Fill::color(hexColor(0xc7ab74, 0.30f)),
+                        .dash = {1.6f, 4.4f}}}))});
+  g.children(
+      {text("“This is the Seale, whose Name is Æmeth: "
+            "and it is to be made of perfect wax.”")
+           .font({.face = faceItalic, .size = 17, .color = hexColor(0xb59a6c)})
+           .left(0)
+           .top(16)
+           .width(690)});
+  g.children(
+      {text("Uriel, 14 March 1582 · reconstruction from the "
+            "rule, not a tracing · SigilCompose study")
+           .font({.face = faceMono, .size = 12, .color = hexColor(0x6f5f45)})
+           .at({0, 62})});
   return g;
 }

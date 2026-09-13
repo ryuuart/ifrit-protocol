@@ -303,7 +303,7 @@ struct BlackWatch : sketch::Sketch {
                         .fill(kWell);
 
     // the warp on the beam: the whole design, in one dimension
-    panel.child(at(0, 0, kClothW, kClothH).fill(warpMat));
+    panel.children({at(0, 0, kClothW, kClothH).fill(warpMat)});
 
     // the picks. 378 strips that differ only in WHICH of twelve pick
     // materials they wear and how far along the beat they have beaten in —
@@ -311,19 +311,20 @@ struct BlackWatch : sketch::Sketch {
     // tiles, and a Pool of 378 frames whose per-instance ALPHA lane is
     // written from the loom. One draw, no layout, and a fade that rewrites
     // one float per pick instead of running 378 bindings.
-    panel.child(at(0, 0, kClothW, kClothH)
-                    .child(instancing::instances(pickAtlas, pickPool,
-                                                 instancing::Mode::Live)));
+    panel.children({at(0, 0, kClothW, kClothH)
+                        .children({instancing::instances(
+                            pickAtlas, pickPool, instancing::Mode::Live)})});
 
     // the shutter: the warp beams on left-to-right. There is no wipe verb, and
     // scaleX on the ground itself would squash the bands rather than reveal
     // them, so the reveal is a retreating card-coloured blind laid over it.
-    panel.child(
-        at(0, 0, kClothW, kClothH)
-            .fill(kWell)
-            .transformOrigin(1.0f, 0.5f)
-            .scaleX(
-                bind(&loom).source(0.0f, kBeamEnd).invert().clamp(0.0f, 1.0f)));
+    panel.children({at(0, 0, kClothW, kClothH)
+                        .fill(kWell)
+                        .transformOrigin(1.0f, 0.5f)
+                        .scaleX(bind(&loom)
+                                    .source(0.0f, kBeamEnd)
+                                    .invert()
+                                    .clamp(0.0f, 1.0f))});
 
     // the five cloths. Pixel-identical to the woven picks at palette 0, so
     // the hand-off at the end of the weaving beat is invisible; then each
@@ -336,9 +337,10 @@ struct BlackWatch : sketch::Sketch {
                           {2, 0.6625f, 0.6875f},   {3, 0.7125f, 0.7375f},
                           {4, 0.7625f, 0.7875f},   {0, 0.8125f, kTurnEnd}};
     for (const Turn& t : turns)
-      panel.child(at(0, 0, kClothW, kClothH)
-                      .fill(clothMat[(size_t)t.pal])
-                      .opacity(bind(&loom).source(t.a, t.b).clamp(0.0f, 1.0f)));
+      panel.children(
+          {at(0, 0, kClothW, kClothH)
+               .fill(clothMat[(size_t)t.pal])
+               .opacity(bind(&loom).source(t.a, t.b).clamp(0.0f, 1.0f))});
 
     // the surface, above the weave: rib shadow, then yarn tooth. These are
     // siblings rather than decorations, and the reason is narrow.
@@ -350,39 +352,40 @@ struct BlackWatch : sketch::Sketch {
     // Cache::Texture, because a static SkSL Material caches its SHADER and not
     // its PIXELS — without the bake, this full-canvas fractal is re-evaluated
     // per pixel per frame, and it is by far the most expensive thing here.
-    panel.child(at(0, 0, kClothW, kClothH)
-                    .fill(gridMat)
-                    .blend(SkBlendMode::kMultiply)
-                    .opacity(0.9f));
-    panel.child(at(0, 0, kClothW, kClothH)
-                    .fill(yarnGrain)
-                    .blend(SkBlendMode::kOverlay)
-                    .cache(Cache::Texture)
-                    .opacity(0.14f));
+    panel.children({at(0, 0, kClothW, kClothH)
+                        .fill(gridMat)
+                        .blend(SkBlendMode::kMultiply)
+                        .opacity(0.9f)});
+    panel.children({at(0, 0, kClothW, kClothH)
+                        .fill(yarnGrain)
+                        .blend(SkBlendMode::kOverlay)
+                        .cache(Cache::Texture)
+                        .opacity(0.14f)});
 
     // the mirror axes, flashed once while the arithmetic proves itself
     for (int rep = 0; rep < 2; ++rep)
       for (int m : v.mirrors) {
         const float x = (float)(m + rep * v.total) * kPx;
         if (x > kClothW) continue;
-        panel.child(at(x - 0.5f, 0, 1, kClothH)
-                        .fill(kRed)
-                        .opacity(bind(&loom)
-                                     .source(kWeaveEnd, kProveEnd)
-                                     .map(plateau(0.25f))
-                                     .scale(0.8f)));
+        panel.children({at(x - 0.5f, 0, 1, kClothH)
+                            .fill(kRed)
+                            .opacity(bind(&loom)
+                                         .source(kWeaveEnd, kProveEnd)
+                                         .map(plateau(0.25f))
+                                         .scale(0.8f))});
       }
 
     // the fell line: the shuttle's current pick, riding the leading edge
-    panel.child(at(0, 0, kClothW, 2)
-                    .fill(kRed)
-                    .translateY(bind(&loom)
-                                    .source(kBeamEnd, kWeaveEnd)
-                                    .target(0.0f, kClothH)
-                                    .clamp(0.0f, kClothH))
-                    .opacity(bind(&loom)
-                                 .source(kBeamEnd - 0.01f, kWeaveEnd + 0.01f)
-                                 .map(plateau(0.03f))));
+    panel.children(
+        {at(0, 0, kClothW, 2)
+             .fill(kRed)
+             .translateY(bind(&loom)
+                             .source(kBeamEnd, kWeaveEnd)
+                             .target(0.0f, kClothH)
+                             .clamp(0.0f, kClothH))
+             .opacity(bind(&loom)
+                          .source(kBeamEnd - 0.01f, kWeaveEnd + 0.01f)
+                          .map(plateau(0.03f)))});
     return panel;
   }
 
@@ -392,20 +395,21 @@ struct BlackWatch : sketch::Sketch {
 
   Element theSettBar() {
     Element g = box();
-    g.child(at(kClothX, kBarY, kClothW, kBarH)
-                .fill(warpMat)
-                .foreground(
-                    stroke(1, Fill::color(kRule), PathFormat::Align::Outer)));
+    g.children({at(kClothX, kBarY, kClothW, kBarH)
+                    .fill(warpMat)
+                    .foreground(stroke(1, Fill::color(kRule),
+                                       PathFormat::Align::Outer))});
 
     // run numerals, staggered over two rows so a 4 px band still gets one
     for (size_t r = 0; r < bwRuns.size(); ++r) {
       const float cx =
           kClothX +
           ((float)runStart[r] + (float)bwRuns[r].threads * 0.5f) * kPx;
-      g.child(
-          centred(std::to_string(bwRuns[r].threads), cx - 14,
-                  kBarY + kBarH + 3 + (r % 2 ? 10.0f : 0.0f), 28)
-              .font({.size = 8, .color = r % 2 ? kInk2 : kInk, .track = 0.4f}));
+      g.children(
+          {centred(std::to_string(bwRuns[r].threads), cx - 14,
+                   kBarY + kBarH + 3 + (r % 2 ? 10.0f : 0.0f), 28)
+               .font(
+                   {.size = 8, .color = r % 2 ? kInk2 : kInk, .track = 0.4f})});
     }
 
     // the two pivots, snapping in when the arithmetic proves
@@ -413,40 +417,42 @@ struct BlackWatch : sketch::Sketch {
       for (size_t i = 0; i < v.mirrors.size(); ++i) {
         const float x = kClothX + (float)(v.mirrors[i] + rep * v.total) * kPx;
         if (x > kClothX + kClothW) continue;
-        g.child(at(x - 6, kBarY - 11, 12, 10)
-                    .shape(shapes::polygon(3, 180))
-                    .fill(kRed)
-                    .transformOrigin(0.5f, 1.0f)
-                    .scale(bind(&loom)
-                               .source(kWeaveEnd, kWeaveEnd + 0.035f)
-                               .map(backOut())));
+        g.children({at(x - 6, kBarY - 11, 12, 10)
+                        .shape(shapes::polygon(3, 180))
+                        .fill(kRed)
+                        .transformOrigin(0.5f, 1.0f)
+                        .scale(bind(&loom)
+                                   .source(kWeaveEnd, kWeaveEnd + 0.035f)
+                                   .map(backOut()))});
         if (rep == 0)
-          g.child(
-              centred(i == 0 ? "PIVOT  B/9" : "PIVOT  B/3", x - 45, kBarY - 26,
-                      90)
-                  .font({.size = 8, .color = kRed, .track = 0.8f})
-                  .opacity(bind(&loom)
-                               .source(kWeaveEnd + 0.01f, kWeaveEnd + 0.045f)
-                               .clamp(0.0f, 1.0f)));
+          g.children(
+              {centred(i == 0 ? "PIVOT  B/9" : "PIVOT  B/3", x - 45, kBarY - 26,
+                       90)
+                   .font({.size = 8, .color = kRed, .track = 0.8f})
+                   .opacity(bind(&loom)
+                                .source(kWeaveEnd + 0.01f, kWeaveEnd + 0.045f)
+                                .clamp(0.0f, 1.0f))});
       }
 
     // the register's own phrase, out of the way of the pivot flags
-    g.child(label("“THE DNA OF A TARTAN.”   — SCOTTISH REGISTER OF TARTANS, "
-                  "ON THE THREADCOUNT",
-                  660, kBarY - 26, 420)
-                .font({.size = 8.5f, .color = kRed, .track = 0.4f}));
+    g.children(
+        {label("“THE DNA OF A TARTAN.”   — SCOTTISH REGISTER OF TARTANS, "
+               "ON THE THREADCOUNT",
+               660, kBarY - 26, 420)
+             .font({.size = 8.5f, .color = kRed, .track = 0.4f})});
 
     // the count itself, set as one mono run
     std::string count;
     static const char kCode[] = "KBGYW";
     for (const auto& run : bwRuns)
       count += kit::formatted("%c%d ", kCode[run.shade], run.threads);
-    g.child(label(count, kClothX, kBarY + kBarH + 27, kClothW)
-                .font({.size = 11.5f, .color = kInk, .track = 0.3f}));
-    g.child(label("HALF-SETT, REGISTER NOTATION:  B/9 K2 B6 K2 B6 K18 G18 K6 "
-                  "G18 K18 B18 K2 B/3   =  126  =  252 / 2",
-                  kClothX, kBarY + kBarH + 47, kClothW)
-                .font({.size = 8.5f, .track = 0.5f}));
+    g.children({label(count, kClothX, kBarY + kBarH + 27, kClothW)
+                    .font({.size = 11.5f, .color = kInk, .track = 0.3f})});
+    g.children(
+        {label("HALF-SETT, REGISTER NOTATION:  B/9 K2 B6 K2 B6 K18 G18 K6 "
+               "G18 K18 B18 K2 B/3   =  126  =  252 / 2",
+               kClothX, kBarY + kBarH + 47, kClothW)
+             .font({.size = 8.5f, .track = 0.5f})});
     return g;
   }
 
@@ -462,10 +468,11 @@ struct BlackWatch : sketch::Sketch {
     const float tieX = x0 + kDrawN * c + 8;  // 1400
     Element g = box();
 
-    g.child(label("THE DRAFT  ·  4 SHAFTS, STRAIGHT DRAW, 2/2 BALANCED TWILL, "
-                  "TROMP AS WRIT",
-                  kColX, 140, kColW + 40)
-                .styleClass("heading"));
+    g.children(
+        {label("THE DRAFT  ·  4 SHAFTS, STRAIGHT DRAW, 2/2 BALANCED TWILL, "
+               "TROMP AS WRIT",
+               kColX, 140, kColW + 40)
+             .styleClass("heading")});
 
     auto cell = [&](float x, float y, bool on) {
       return at(x, y, c, c)
@@ -477,51 +484,55 @@ struct BlackWatch : sketch::Sketch {
     // threading — shaft (j mod 4), shaft 1 at the top
     for (int j = 0; j < kDrawN; ++j)
       for (int s = 0; s < 4; ++s)
-        g.child(cell(x0 + (float)j * c, y0 + (float)s * c,
-                     ((kDrawOrigin + j) % 4) == s));
+        g.children({cell(x0 + (float)j * c, y0 + (float)s * c,
+                         ((kDrawOrigin + j) % 4) == s)});
     // tie-up — treadle t lifts shafts t and t+1
     for (int t = 0; t < 4; ++t)
       for (int s = 0; s < 4; ++s)
-        g.child(cell(tieX + (float)t * c, y0 + (float)s * c,
-                     s == t || s == (t + 1) % 4));
+        g.children({cell(tieX + (float)t * c, y0 + (float)s * c,
+                         s == t || s == (t + 1) % 4)});
     // treadling — as-drawn-in, and it highlights in sync with the fell line
     for (int i = 0; i < kDrawN; ++i) {
       const int t = (kDrawOrigin + i) % 4;
       for (int tt = 0; tt < 4; ++tt)
-        g.child(cell(tieX + (float)tt * c, bodyY + (float)i * c, tt == t));
+        g.children({cell(tieX + (float)tt * c, bodyY + (float)i * c, tt == t)});
       const float a =
           kBeamEnd + (kWeaveEnd - kBeamEnd) * (float)i / (float)kDrawN;
       const float b =
           kBeamEnd + (kWeaveEnd - kBeamEnd) * (float)(i + 1) / (float)kDrawN;
-      g.child(at(tieX - 3, bodyY + (float)i * c, 4 * c + 6, c)
-                  .fill(hexColor(0x9A3324, 0.30f))
-                  .opacity(bind(&loom).source(a, b).map(plateau(0.35f))));
+      g.children({at(tieX - 3, bodyY + (float)i * c, 4 * c + 6, c)
+                      .fill(hexColor(0x9A3324, 0.30f))
+                      .opacity(bind(&loom).source(a, b).map(plateau(0.35f)))});
     }
     // drawdown — the cloth itself, at kDrawCell px per thread, kNearest
-    g.child(
-        at(x0, bodyY, (float)kDrawN * c, (float)kDrawN * c)
-            .child(image(drawdownAsset)
-                       .inset(0)
-                       .sampling(SkSamplingOptions(SkFilterMode::kNearest)))
-            .child(
-                at(0, 0, (float)kDrawN * c, (float)kDrawN * c).fill(drawGrid))
-            .foreground(
-                stroke(1, Fill::color(kInk), PathFormat::Align::Outer)));
+    g.children({at(x0, bodyY, (float)kDrawN * c, (float)kDrawN * c)
+                    .children({image(drawdownAsset)
+                                   .inset(0)
+                                   .sampling(SkSamplingOptions(
+                                       SkFilterMode::kNearest))})
+                    .children({at(0, 0, (float)kDrawN * c, (float)kDrawN * c)
+                                   .fill(drawGrid)})
+                    .foreground(stroke(1, Fill::color(kInk),
+                                       PathFormat::Align::Outer))});
 
-    g.child(label(kit::formatted(
-                      "ENDS %d-%d OF THE SETT (K2 B6 K18 G6), SQUARED AGAINST "
-                      "THEMSELVES  ·  %d PX / THREAD",
-                      kDrawOrigin + 1, kDrawOrigin + kDrawN, (int)c),
-                  x0, bodyY + (float)kDrawN * c + 6, kColW + 40)
-                .font({.size = 8, .track = 0.4f}));
+    g.children(
+        {label(kit::formatted(
+                   "ENDS %d-%d OF THE SETT (K2 B6 K18 G6), SQUARED AGAINST "
+                   "THEMSELVES  ·  %d PX / THREAD",
+                   kDrawOrigin + 1, kDrawOrigin + kDrawN, (int)c),
+               x0, bodyY + (float)kDrawN * c + 6, kColW + 40)
+             .font({.size = 8, .track = 0.4f})});
     // shaft numbers down the left of the threading block
     for (int s = 0; s < 4; ++s)
-      g.child(centred(std::to_string(s + 1), x0 - 15, y0 + (float)s * c - 1, 13)
-                  .font({.size = 7}));
-    g.child(centred("THREADING", x0 + 60, y0 - 11, 120).styleClass("tag"));
-    g.child(centred("TIE-UP", tieX - 8, y0 - 11, 60).styleClass("tag"));
-    g.child(centred("TREADLING", tieX - 14, bodyY - 12, 72).styleClass("tag"));
-    g.child(centred("DRAWDOWN", x0 + 60, bodyY - 12, 120).styleClass("tag"));
+      g.children(
+          {centred(std::to_string(s + 1), x0 - 15, y0 + (float)s * c - 1, 13)
+               .font({.size = 7})});
+    g.children({centred("THREADING", x0 + 60, y0 - 11, 120).styleClass("tag")});
+    g.children({centred("TIE-UP", tieX - 8, y0 - 11, 60).styleClass("tag")});
+    g.children(
+        {centred("TREADLING", tieX - 14, bodyY - 12, 72).styleClass("tag")});
+    g.children(
+        {centred("DRAWDOWN", x0 + 60, bodyY - 12, 120).styleClass("tag")});
     return g;
   }
 
@@ -530,43 +541,45 @@ struct BlackWatch : sketch::Sketch {
   Element theBlendTable() {
     const float y0 = 584, cell = 46, gap = 6, gx = kColX + 20;
     Element g = box();
-    g.child(
-        label("THE THIRD COLOURS  ·  WARP ACROSS, WEFT DOWN", kColX, 556, kColW)
-            .styleClass("heading"));
+    g.children({label("THE THIRD COLOURS  ·  WARP ACROSS, WEFT DOWN", kColX,
+                      556, kColW)
+                    .styleClass("heading")});
     static const char* kName[3] = {"K", "B", "G"};
     const SkSize module{cell, cell};
     const SkSize gaps{gap, gap};
     for (int i = 0; i < 3; ++i) {
       const SkRect head = arrange::cellRect({i, i}, module, gaps, {gx, y0});
-      g.child(centred(kName[i], head.fLeft, y0 - 14, cell)
-                  .font({.size = 9, .track = 0.8f}));
-      g.child(centred(kName[i], kColX, head.fTop + cell / 2 - 7, 16)
-                  .font({.size = 9, .track = 0.8f}));
+      g.children({centred(kName[i], head.fLeft, y0 - 14, cell)
+                      .font({.size = 9, .track = 0.8f})});
+      g.children({centred(kName[i], kColX, head.fTop + cell / 2 - 7, 16)
+                      .font({.size = 9, .track = 0.8f})});
     }
     for (int wf = 0; wf < 3; ++wf)
       for (int wp = 0; wp < 3; ++wp) {
         const SkRect box = arrange::cellRect({wp, wf}, module, gaps, {gx, y0});
-        g.child(at(box.fLeft, box.fTop, cell, cell)
-                    .fill(blendMat[(size_t)wf * 3 + (size_t)wp])
-                    .foreground(stroke(1, Fill::color(wp == wf ? kRule : kInk),
-                                       PathFormat::Align::Outer)));
+        g.children(
+            {at(box.fLeft, box.fTop, cell, cell)
+                 .fill(blendMat[(size_t)wf * 3 + (size_t)wp])
+                 .foreground(stroke(1, Fill::color(wp == wf ? kRule : kInk),
+                                    PathFormat::Align::Outer))});
       }
     const float tx =
         arrange::cellRect({3, 0}, module, gaps, {gx, y0}).fLeft + 12;
-    g.child(label("EACH CELL IS 6 × 6 THREADS AT 8 PX.", tx, y0 - 2, 200)
-                .font({.size = 8, .track = 0.3f}));
-    g.child(label("THE BLENDS ARE WOVEN, NOT MIXED.", tx, y0 + 10, 200)
-                .font({.size = 8, .track = 0.3f}));
-    g.child(label(kit::formatted(
-                      "n = %d  →  %d solid + %d blend  =  %d  =  n(n+1)/2",
-                      v.solids, v.solids, v.blends, v.perceived),
-                  tx, y0 + 30, 210)
-                .font({.size = 8.5f, .color = kRed, .track = 0.2f}));
-    g.child(label("A tartan has six colours from\nthree threads because the "
-                  "blend\nis spatial: at 42 ends per inch\nthe eye does the "
-                  "mixing, not\nthe dyer.",
-                  tx, y0 + 52, 200)
-                .font({.face = serifIt(), .size = 11}));
+    g.children({label("EACH CELL IS 6 × 6 THREADS AT 8 PX.", tx, y0 - 2, 200)
+                    .font({.size = 8, .track = 0.3f})});
+    g.children({label("THE BLENDS ARE WOVEN, NOT MIXED.", tx, y0 + 10, 200)
+                    .font({.size = 8, .track = 0.3f})});
+    g.children({label(kit::formatted(
+                          "n = %d  →  %d solid + %d blend  =  %d  =  n(n+1)/2",
+                          v.solids, v.solids, v.blends, v.perceived),
+                      tx, y0 + 30, 210)
+                    .font({.size = 8.5f, .color = kRed, .track = 0.2f})});
+    g.children(
+        {label("A tartan has six colours from\nthree threads because the "
+               "blend\nis spatial: at 42 ends per inch\nthe eye does the "
+               "mixing, not\nthe dyer.",
+               tx, y0 + 52, 200)
+             .font({.face = serifIt(), .size = 11})});
     return g;
   }
 
@@ -575,10 +588,11 @@ struct BlackWatch : sketch::Sketch {
   Element thePaletteStrip() {
     const float y0 = 790, rowH = 34;
     Element g = box();
-    g.child(label("ONE THREAD COUNT, FIVE SHADE CARDS  ·  SCOTTISH REGISTER "
-                  "OF TARTANS",
-                  kColX, 762, kColW + 40)
-                .styleClass("heading"));
+    g.children(
+        {label("ONE THREAD COUNT, FIVE SHADE CARDS  ·  SCOTTISH REGISTER "
+               "OF TARTANS",
+               kColX, 762, kColW + 40)
+             .styleClass("heading")});
     // which family the cloth is wearing, right now
     const float spans[5][2] = {{kWeaveEnd, kProveEnd},
                                {0.6375f, 0.6625f},
@@ -589,24 +603,24 @@ struct BlackWatch : sketch::Sketch {
     for (int r = 0; r < 5; ++r) {
       const float y = y0 + (float)r * rowH;
       const Palette& p = kPalettes[(size_t)r];
-      g.child(label(p.name, kColX + 10, y + 1, 140)
-                  .font({.size = 7.5f, .color = kInk, .track = 0.4f}));
+      g.children({label(p.name, kColX + 10, y + 1, 140)
+                      .font({.size = 7.5f, .color = kInk, .track = 0.4f})});
       const uint32_t shade[3] = {p.k, p.b, p.g};
       for (int i = 0; i < 3; ++i) {
         const float x = kColX + 150 + (float)i * 94;
-        g.child(at(x, y, 86, 14).fill(hexColor(shade[i])));
-        g.child(
-            label(kit::formatted("%s #%06X", code[i], shade[i]), x, y + 16, 86)
-                .font({.size = 7, .track = 0.2f}));
+        g.children({at(x, y, 86, 14).fill(hexColor(shade[i]))});
+        g.children(
+            {label(kit::formatted("%s #%06X", code[i], shade[i]), x, y + 16, 86)
+                 .font({.size = 7, .track = 0.2f})});
       }
       auto mark = [&](float a, float b) {
         return at(kColX, y - 2, 5, 22)
             .fill(kRed)
             .opacity(bind(&loom).source(a, b).map(plateau(0.12f)));
       };
-      g.child(mark(spans[r][0] - 0.012f, spans[r][1] + 0.012f));
+      g.children({mark(spans[r][0] - 0.012f, spans[r][1] + 0.012f)});
       if (r == 0)
-        g.child(mark(0.8125f, 1.03f));  // and back to Modern for the hold
+        g.children({mark(0.8125f, 1.03f)});  // and back to Modern for the hold
     }
     return g;
   }
@@ -621,66 +635,70 @@ struct BlackWatch : sketch::Sketch {
     static const char* kNames[4] = {"Campbell Argyll", "Grant", "Munro",
                                     "Sutherland"};
     Element g = box();
-    g.child(label("THE COCKBURN COLLECTION, 1810–15  ·  ONE CLOTH, FOUR "
-                  "LABELS",
-                  kClothX, 1030, 700)
-                .styleClass("heading"));
+    g.children({label("THE COCKBURN COLLECTION, 1810–15  ·  ONE CLOTH, FOUR "
+                      "LABELS",
+                      kClothX, 1030, 700)
+                    .styleClass("heading")});
     for (int i = 0; i < 4; ++i) {
       const float x =
           arrange::cellRect({i, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft;
       // the SAME crop of the SAME cloth, four times over
-      g.child(at(x, y0, sw, sh)
-                  .clip(true)
-                  .background(
-                      styles::dropShadow(hexColor(0x3E3A33, 0.45f), {2, 3}, 7))
-                  .fill(swatchMat)
-                  .foreground(
-                      stroke(1, Fill::color(kRule), PathFormat::Align::Outer))
-                  .child(at(0, 0, sw, sh)
-                             .fill(gridMat)
-                             .blend(SkBlendMode::kMultiply)
-                             .opacity(0.85f)));
-      g.child(centred(kNames[i], x, y0 + sh + 6, sw)
-                  .styleClass("name")
-                  .ink(kInk)
-                  .opacity(bind(&loom)
-                               .source(0.63f + (float)i * 0.022f,
-                                       0.66f + (float)i * 0.022f)
-                               .clamp(0.0f, 1.0f)));
+      g.children({at(x, y0, sw, sh)
+                      .clip(true)
+                      .background(styles::dropShadow(hexColor(0x3E3A33, 0.45f),
+                                                     {2, 3}, 7))
+                      .fill(swatchMat)
+                      .foreground(stroke(1, Fill::color(kRule),
+                                         PathFormat::Align::Outer))
+                      .children({at(0, 0, sw, sh)
+                                     .fill(gridMat)
+                                     .blend(SkBlendMode::kMultiply)
+                                     .opacity(0.85f)})});
+      g.children({centred(kNames[i], x, y0 + sh + 6, sw)
+                      .styleClass("name")
+                      .ink(kInk)
+                      .opacity(bind(&loom)
+                                   .source(0.63f + (float)i * 0.022f,
+                                           0.66f + (float)i * 0.022f)
+                                   .clamp(0.0f, 1.0f))});
     }
-    g.child(label("“The Cockburn Collection (1810-15) includes four specimens "
-                  "of the Government tartan labelled;",
-                  kClothX, y0 + sh + 28, 800)
-                .styleClass("quote"));
-    g.child(label("‘Campbell Argyll’, ‘Grant’, ‘Munro’ and ‘Sutherland’.”   "
-                  "— Scottish Register of Tartans, registration note, SRT 277",
-                  kClothX, y0 + sh + 43, 800)
-                .styleClass("quote"));
+    g.children(
+        {label("“The Cockburn Collection (1810-15) includes four specimens "
+               "of the Government tartan labelled;",
+               kClothX, y0 + sh + 28, 800)
+             .styleClass("quote")});
+    g.children(
+        {label("‘Campbell Argyll’, ‘Grant’, ‘Munro’ and ‘Sutherland’.”   "
+               "— Scottish Register of Tartans, registration note, SRT 277",
+               kClothX, y0 + sh + 43, 800)
+             .styleClass("quote")});
 
     // ...and the cloth that carries one of those names honestly
     const float ax =
         arrange::cellRect({4, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft + 12;
-    g.child(at(ax, y0, sw, sh)
-                .clip(true)
-                .background(
-                    styles::dropShadow(hexColor(0x3E3A33, 0.45f), {2, 3}, 7))
-                .fill(argyllMat)
-                .foreground(
-                    stroke(1.5f, Fill::color(kRed), PathFormat::Align::Outer))
-                .child(at(0, 0, sw, sh)
-                           .fill(gridMat)
-                           .blend(SkBlendMode::kMultiply)
-                           .opacity(0.85f)));
-    g.child(centred("Campbell of Argyll", ax, y0 + sh + 6, sw)
-                .styleClass("name")
-                .ink(kRed));
-    g.child(label("416 ends: the Government sett", ax, y0 + sh + 28, sw + 30)
-                .styleClass("note"));
-    g.child(label("with its two black centre-lines", ax, y0 + sh + 39, sw + 30)
-                .styleClass("note"));
-    g.child(label("recoloured YELLOW and WHITE.", ax, y0 + sh + 50, sw + 30)
-                .styleClass("note")
-                .ink(kRed));
+    g.children({at(ax, y0, sw, sh)
+                    .clip(true)
+                    .background(styles::dropShadow(hexColor(0x3E3A33, 0.45f),
+                                                   {2, 3}, 7))
+                    .fill(argyllMat)
+                    .foreground(stroke(1.5f, Fill::color(kRed),
+                                       PathFormat::Align::Outer))
+                    .children({at(0, 0, sw, sh)
+                                   .fill(gridMat)
+                                   .blend(SkBlendMode::kMultiply)
+                                   .opacity(0.85f)})});
+    g.children({centred("Campbell of Argyll", ax, y0 + sh + 6, sw)
+                    .styleClass("name")
+                    .ink(kRed)});
+    g.children(
+        {label("416 ends: the Government sett", ax, y0 + sh + 28, sw + 30)
+             .styleClass("note")});
+    g.children(
+        {label("with its two black centre-lines", ax, y0 + sh + 39, sw + 30)
+             .styleClass("note")});
+    g.children({label("recoloured YELLOW and WHITE.", ax, y0 + sh + 50, sw + 30)
+                    .styleClass("note")
+                    .ink(kRed)});
     return g;
   }
 
@@ -692,10 +710,11 @@ struct BlackWatch : sketch::Sketch {
   Element theComparison() {
     const float y0 = 1276, barW = 880, barH = 26, x0 = kClothX + 140;
     Element g = box();
-    g.child(label("THE SAME SETT, TWICE  ·  EACH NORMALISED TO ITS OWN TOTAL, "
-                  "UNIT FOR UNIT",
-                  kClothX, 1242, 900)
-                .styleClass("heading"));
+    g.children(
+        {label("THE SAME SETT, TWICE  ·  EACH NORMALISED TO ITS OWN TOTAL, "
+               "UNIT FOR UNIT",
+               kClothX, 1242, 900)
+             .styleClass("heading")});
 
     struct Bar {
       const char* name;
@@ -708,8 +727,8 @@ struct BlackWatch : sketch::Sketch {
         {"CAMPBELL ARGYLL   416", &caRuns, v.argyllTotal, y0 + barH + 8}};
     const Shades modern = shadesOf(kPalettes[0]);
     for (const Bar& b : bars) {
-      g.child(label(b.name, kClothX, b.y + 8, 140)
-                  .font({.size = 8.5f, .color = kInk, .track = 0.4f}));
+      g.children({label(b.name, kClothX, b.y + 8, 140)
+                      .font({.size = 8.5f, .color = kInk, .track = 0.4f})});
       float cur = 0;
       for (const Run& r : *b.runs) {
         const float w = barW * (float)r.threads / (float)b.total;
@@ -717,12 +736,12 @@ struct BlackWatch : sketch::Sketch {
         if (r.shade == Y || r.shade == W)
           seg.foreground(
               stroke(1.5f, Fill::color(kRed), PathFormat::Align::Outer));
-        g.child(std::move(seg));
+        g.children({std::move(seg)});
         cur += w;
       }
-      g.child(at(x0, b.y, barW, barH)
-                  .foreground(
-                      stroke(1, Fill::color(kRule), PathFormat::Align::Outer)));
+      g.children({at(x0, b.y, barW, barH)
+                      .foreground(stroke(1, Fill::color(kRule),
+                                         PathFormat::Align::Outer))});
     }
     // the unit boundaries, dropped through both bars
     float cum = 0;
@@ -731,21 +750,21 @@ struct BlackWatch : sketch::Sketch {
     for (int u = 0; u < 4; ++u) {
       const float cx =
           x0 + barW * (cum + (float)units[u] * 0.5f) / (float)v.total;
-      g.child(centred(uname[u], cx - 12, y0 - 15, 24)
-                  .font({.size = 8.5f, .color = kRed, .track = 0.6f}));
+      g.children({centred(uname[u], cx - 12, y0 - 15, 24)
+                      .font({.size = 8.5f, .color = kRed, .track = 0.6f})});
       cum += (float)units[u];
       if (u < 3)
-        g.child(at(x0 + barW * cum / (float)v.total - 0.5f, y0 - 3, 1,
-                   2 * barH + 14)
-                    .fill(hexColor(0x9A3324, 0.8f)));
+        g.children({at(x0 + barW * cum / (float)v.total - 0.5f, y0 - 3, 1,
+                       2 * barH + 14)
+                        .fill(hexColor(0x9A3324, 0.8f))});
     }
-    g.child(
-        label(kit::formatted("UNIT FRACTIONS AGREE TO %.2f %%  ·  IDENTICAL "
-                             "STRUCTURE, RUN FOR RUN  ·  DIFFERENT NUMBERS  ·  "
-                             "THE OVERCHECKS ARE RINGED",
-                             v.unitDrift * 100.0f),
-              x0, y0 + 2 * barH + 14, 900)
-            .font({.size = 8.5f, .color = kRed, .track = 0.3f}));
+    g.children({label(kit::formatted(
+                          "UNIT FRACTIONS AGREE TO %.2f %%  ·  IDENTICAL "
+                          "STRUCTURE, RUN FOR RUN  ·  DIFFERENT NUMBERS  ·  "
+                          "THE OVERCHECKS ARE RINGED",
+                          v.unitDrift * 100.0f),
+                      x0, y0 + 2 * barH + 14, 900)
+                    .font({.size = 8.5f, .color = kRed, .track = 0.3f})});
     return g;
   }
 
@@ -755,12 +774,12 @@ struct BlackWatch : sketch::Sketch {
     const float x0 = 1060, y0 = 1052, lh = 13.6f;
     const size_t rows = verdict.rows.size();
     Element g = box();
-    g.child(label("VERIFIED AT STARTUP, NOT ASSERTED", x0, 1030, kColW)
-                .styleClass("heading"));
-    g.child(at(x0 - 12, y0 - 8, 472, (float)rows * lh + 14)
-                .fill(hexColor(0xDCD4C4, 0.8f))
-                .foreground(
-                    stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
+    g.children({label("VERIFIED AT STARTUP, NOT ASSERTED", x0, 1030, kColW)
+                    .styleClass("heading")});
+    g.children({at(x0 - 12, y0 - 8, 472, (float)rows * lh + 14)
+                    .fill(hexColor(0xDCD4C4, 0.8f))
+                    .foreground(stroke(1, Fill::color(kRule),
+                                       PathFormat::Align::Inner))});
     // The words are the run's own — the label it was made under, the figure
     // it came to, and the verdict computed from the two. The mark before
     // each row carries that verdict as colour, so a row that failed is
@@ -776,13 +795,14 @@ struct BlackWatch : sketch::Sketch {
                        .swatch = Fill::color(
                            !c.judged() ? kRule : (c.pass ? kInk : kRed))});
     }
-    g.child(at(x0, y0, 450, (float)rows * lh)
-                .opacity(bind(&loom)
-                             .source(kWeaveEnd,
-                                     kWeaveEnd + (float)rows * 0.0092f + 0.011f)
-                             .clamp(0.0f, 1.0f))
-                .child(sketch::kit::table(
-                    std::move(lines), {.columns = {{322}, {58, true}, {}}})));
+    g.children(
+        {at(x0, y0, 450, (float)rows * lh)
+             .opacity(bind(&loom)
+                          .source(kWeaveEnd,
+                                  kWeaveEnd + (float)rows * 0.0092f + 0.011f)
+                          .clamp(0.0f, 1.0f))
+             .children({sketch::kit::table(
+                 std::move(lines), {.columns = {{322}, {58, true}, {}}})})});
     return g;
   }
 
@@ -803,21 +823,23 @@ struct BlackWatch : sketch::Sketch {
                        .styleSheet(classes());
 
     // the board: one recipe, paint and tooth together
-    root.child(
-        at(0, 0, kCanvasW, kCanvasH).fill(boardMat).cache(Cache::Texture));
-    root.child(at(24, 24, kCanvasW - 48, kCanvasH - 48)
-                   .foreground(stroke(1, Fill::color(kRule),
-                                      PathFormat::Align::Inner)));
+    root.children(
+        {at(0, 0, kCanvasW, kCanvasH).fill(boardMat).cache(Cache::Texture)});
+    root.children({at(24, 24, kCanvasW - 48, kCanvasH - 48)
+                       .foreground(stroke(1, Fill::color(kRule),
+                                          PathFormat::Align::Inner))});
 
     // 1. the heading
-    root.child(
-        label("BLACK WATCH (GOVERNMENT)", kClothX, 46, 900)
-            .font({.face = sansB(), .size = 34, .color = kInk, .track = 4.6f}));
-    root.child(label("STA 207  ·  STWR 207  ·  SRT 277  ·  TARTAN DATE "
-                     "01/01/1739  ·  CATEGORY MILITARY  ·  DESIGNER UNKNOWN",
-                     kClothX, 96, 1200)
-                   .font({.size = 10.5f, .track = 1.1f}));
-    root.child(rule(kClothX, 122, kCanvasW - 2 * kClothX, 1, kRule));
+    root.children(
+        {label("BLACK WATCH (GOVERNMENT)", kClothX, 46, 900)
+             .font(
+                 {.face = sansB(), .size = 34, .color = kInk, .track = 4.6f})});
+    root.children(
+        {label("STA 207  ·  STWR 207  ·  SRT 277  ·  TARTAN DATE "
+               "01/01/1739  ·  CATEGORY MILITARY  ·  DESIGNER UNKNOWN",
+               kClothX, 96, 1200)
+             .font({.size = 10.5f, .track = 1.1f})});
+    root.children({rule(kClothX, 122, kCanvasW - 2 * kClothX, 1, kRule)});
 
     // the specimen ticket — the physical facts, in the header's dead corner
     {
@@ -829,19 +851,19 @@ struct BlackWatch : sketch::Sketch {
           "OLDEST DATED: COCKBURN COLLECTION, MITCHELL LIBRARY, GLASGOW",
       };
       for (int i = 0; i < 5; ++i)
-        root.child(label(spec[i], kColX, 48 + (float)i * 12.5f, kColW + 40)
-                       .font({.size = 7.5f, .track = 0.35f}));
-      root.child(rule(kColX - 14, 46, 1, 62, kRule));
+        root.children({label(spec[i], kColX, 48 + (float)i * 12.5f, kColW + 40)
+                           .font({.size = 7.5f, .track = 0.35f})});
+      root.children({rule(kColX - 14, 46, 1, 62, kRule)});
     }
 
-    root.child(theSettBar());
-    root.child(theCloth());
-    root.child(theDraft());
-    root.child(theBlendTable());
-    root.child(thePaletteStrip());
-    root.child(theProvenance());
-    root.child(theVerification());
-    root.child(theComparison());
+    root.children({theSettBar()});
+    root.children({theCloth()});
+    root.children({theDraft()});
+    root.children({theBlendTable()});
+    root.children({thePaletteStrip()});
+    root.children({theProvenance()});
+    root.children({theVerification()});
+    root.children({theComparison()});
 
     // the justified paragraph, at a real 320 px measure
     {
@@ -855,18 +877,18 @@ struct BlackWatch : sketch::Sketch {
       o.justification.lastLineAlignment = weave::TextAlignment::kStart;
       o.knuthPlass.tolerance = 6000.0f;
       o.lineMetrics.height = 16.0f;
-      root.child(at(kColX, 1246, 320, 150)
-                     .child(text(quote, o).width(Dimension(320))));
+      root.children({at(kColX, 1246, 320, 150)
+                         .children({text(quote, o).width(Dimension(320))})});
     }
 
-    root.child(rule(kClothX, 1408, kCanvasW - 2 * kClothX, 1, kRule));
-    root.child(
-        label("SETT AFTER H. C. DOUGLAS, SCOTCH TARTAN SETTS, SHUTTLE-CRAFT "
-              "GUILD, 1949  ·  252 ENDS  ·  2/2 TWILL, STRAIGHT DRAW  ·  "
-              "PALETTE: SCOTTISH REGISTER OF TARTANS COLOUR SHADES  ·  63,504 "
-              "CELLS, NONE AUTHORED",
-              kClothX, 1414, kCanvasW - 2 * kClothX)
-            .font({.size = 8.5f, .track = 0.7f}));
+    root.children({rule(kClothX, 1408, kCanvasW - 2 * kClothX, 1, kRule)});
+    root.children(
+        {label("SETT AFTER H. C. DOUGLAS, SCOTCH TARTAN SETTS, SHUTTLE-CRAFT "
+               "GUILD, 1949  ·  252 ENDS  ·  2/2 TWILL, STRAIGHT DRAW  ·  "
+               "PALETTE: SCOTTISH REGISTER OF TARTANS COLOUR SHADES  ·  63,504 "
+               "CELLS, NONE AUTHORED",
+               kClothX, 1414, kCanvasW - 2 * kClothX)
+             .font({.size = 8.5f, .track = 0.7f})});
     return root;
   }
 

@@ -158,27 +158,24 @@ struct Zellige final : sketch::Sketch {
 
   Element panel(const Pattern& p, const std::string& label) {
     namespace zw = zellige_wall;
-    return box()
-        .column()
-        .grow(1)
-        .gap(8)
-        .child(box()
-                   .grow(1)
-                   .corners({3})
-                   .fill(p.material())
-                   // GLAZED, not carved. An inner shadow with an inner glow
-                   // is a bevel cut into plaster; a glazed tile is a hard
-                   // gloss with a sheen running off the light and a thin
-                   // wet line where the glaze pools at the joint.
-                   .foreground(styles::innerGlow({1, 1, 1, 0.26f}, 2))
-                   .stroke(sigil::compose::stroke(2.5f, Fill::color(zw::kInk)))
-                   .child(box().inset(0).fill(
-                       Paint::linear({0, 0}, {180, 260},
-                                     {{0.00f, {1, 1, 1, 0.20f}},
-                                      {0.42f, {1, 1, 1, 0.05f}},
-                                      {0.58f, {0, 0, 0, 0.03f}},
-                                      {1.00f, {0, 0, 0, 0.10f}}}))))
-        .child(text(label).font({.size = 13, .track = 1.2f}));
+    return box().column().grow(1).gap(8).children(
+        {box()
+             .grow(1)
+             .corners({3})
+             .fill(p.material())
+             // GLAZED, not carved. An inner shadow with an inner glow
+             // is a bevel cut into plaster; a glazed tile is a hard
+             // gloss with a sheen running off the light and a thin
+             // wet line where the glaze pools at the joint.
+             .foreground(styles::innerGlow({1, 1, 1, 0.26f}, 2))
+             .stroke(sigil::compose::stroke(2.5f, Fill::color(zw::kInk)))
+             .children({box().inset(0).fill(
+                 Paint::linear({0, 0}, {180, 260},
+                               {{0.00f, {1, 1, 1, 0.20f}},
+                                {0.42f, {1, 1, 1, 0.05f}},
+                                {0.58f, {0, 0, 0, 0.03f}},
+                                {1.00f, {0, 0, 0, 0.10f}}}))}),
+         text(label).font({.size = 13, .track = 1.2f})});
   }
 
   Element describe() {
@@ -191,29 +188,30 @@ struct Zellige final : sketch::Sketch {
         .ink(zw::kInk)
         // Speckled plaster grain over the ground — its own full-bleed
         // layer (the root fill and the pattern can't share one slot).
-        .child(box().inset(0, 0, 0, 0).fill(grain.material()))
-        .child(box()
-                   .column()
-                   .inset(50, 44, 50, 44)
-                   .gap(14)
-                   .child(box()
-                              .row()
-                              .alignItems(Align::Baseline)
-                              .gap(14)
-                              .child(text("ZELLIJE").font(
-                                  {.size = 34, .track = 3}))
-                              .child(text("Hankin PIC · 4.8.8 · "
-                                          "θ swept 30–60°")
-                                         .font({.size = 14,
-                                                .color = zw::kSub,
-                                                .track = 1})))
-                   .child(box()
-                              .row()
-                              .grow(1)
-                              .gap(22)
-                              .child(panel(left, captions[0]))
-                              .child(panel(middle, captions[1]))
-                              .child(panel(right, captions[2]))));
+        .children(
+            {box().inset(0, 0, 0, 0).fill(grain.material()),
+             box()
+                 .column()
+                 .inset(50, 44, 50, 44)
+                 .gap(14)
+                 .children({box()
+                                .row()
+                                .alignItems(Align::Baseline)
+                                .gap(14)
+                                .children({text("ZELLIJE").font(
+                                    {.size = 34, .track = 3})})
+                                .children({text("Hankin PIC · 4.8.8 · "
+                                                "θ swept 30–60°")
+                                               .font({.size = 14,
+                                                      .color = zw::kSub,
+                                                      .track = 1})})})
+                 .children({box()
+                                .row()
+                                .grow(1)
+                                .gap(22)
+                                .children({panel(left, captions[0])})
+                                .children({panel(middle, captions[1])})
+                                .children({panel(right, captions[2])})})});
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {

@@ -2,7 +2,7 @@
  * material_child — a material filling another's child slot, twice over:
  * the SkSL slot a shader samples, and the three slots `over()` stacks.
  *
- * TOP ROW — `Paint::sksl(...).child(name, Paint)`. A shader with TWO
+ * TOP ROW — `Paint::sksl(...).children({name, Paint})`. A shader with TWO
  * sources. `uIndex` is not a picture — its red BYTE is a palette index —
  * and `uPalette` is the 16-entry LUT that index selects from. That rule
  * ("look this number up over there") is expressible in SkSL and nowhere
@@ -215,16 +215,14 @@ Element panel(const Tables& tables, const char* call, const char* note,
               const sk_sp<SkImage>& table, float shade, std::string key) {
   return sketch::kit::caption(
       kPanel, call, note,
-      box()
-          .column()
-          .gap(6)
-          .child(box()
-                     .key(std::move(key))
-                     .width(kPanel)
-                     .height(kPanel)
-                     .fill(paletted(tables, table, shade))
-                     .stroke(stroke(1.0f, Fill::color(kFrame))))
-          .child(lutStrip(table)));
+      box().column().gap(6).children(
+          {box()
+               .key(std::move(key))
+               .width(kPanel)
+               .height(kPanel)
+               .fill(paletted(tables, table, shade))
+               .stroke(stroke(1.0f, Fill::color(kFrame))),
+           lutStrip(table)}));
 }
 
 // ------------------------------------------------------- over(base, top, mask)

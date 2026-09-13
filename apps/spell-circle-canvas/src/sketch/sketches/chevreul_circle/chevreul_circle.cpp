@@ -18,35 +18,36 @@ auto ChevreulCircle::describe(sketch::SketchContext& ctx) -> Element {
                      .styleSheet(classes());
 
   // the leaf: measured paper, its tooth, and the platemark
-  root.child(at(0, 0, kW, kH).fill(Fill::color(kPaper)));
+  root.children({at(0, 0, kW, kH).fill(Fill::color(kPaper))});
   if (kPaperGrain)
-    root.child(at(0, 0, kW, kH)
-                   .fill(paperGrain)
-                   .blend(SkBlendMode::kMultiply)
-                   .opacity(0.085f)
-                   .cache(Cache::Texture));  // 1800x1200 of generated material
-  root.child(
-      at(28, 28, kW - 56, kH - 56)
-          .fill(Fill::none())
-          .foreground(stroke(1.0f, Fill::color(hexColor(0x8C8578, 0.55f)))));
+    root.children(
+        {at(0, 0, kW, kH)
+             .fill(paperGrain)
+             .blend(SkBlendMode::kMultiply)
+             .opacity(0.085f)
+             .cache(Cache::Texture)});  // 1800x1200 of generated material
+  root.children(
+      {at(28, 28, kW - 56, kH - 56)
+           .fill(Fill::none())
+           .foreground(stroke(1.0f, Fill::color(hexColor(0x8C8578, 0.55f))))});
 
-  root.child(theHeader());
-  root.child(theWheel(ctx));
-  root.child(theQuadrant());
-  root.child(theLabPlot());
-  root.child(theObservations());
-  root.child(theIllusion());
-  root.child(theContrast());
-  root.child(theVerification());
+  root.children({theHeader()});
+  root.children({theWheel(ctx)});
+  root.children({theQuadrant()});
+  root.children({theLabPlot()});
+  root.children({theObservations()});
+  root.children({theIllusion()});
+  root.children({theContrast()});
+  root.children({theVerification()});
 
-  root.child(
-      label(
-          "COLOURS MEASURED FROM SCIENCE HISTORY INSTITUTE ND1280 .C497 1864, "
-          "PL. V, 2880×3789 · PAPER WHITE #EFE8D9 DIVIDED OUT IN LINEAR "
-          "LIGHT · CONSTRUCTION AFTER CHEVREUL §6, §16, §160–§165 · TRANS. "
-          "C. MARTEL · NO OUTPUT VIEW TRANSFORM IS SET, DELIBERATELY",
-          56, 1168, 1690)
-          .font({.size = 8, .track = 0.55f}));
+  root.children(
+      {label(
+           "COLOURS MEASURED FROM SCIENCE HISTORY INSTITUTE ND1280 .C497 1864, "
+           "PL. V, 2880×3789 · PAPER WHITE #EFE8D9 DIVIDED OUT IN LINEAR "
+           "LIGHT · CONSTRUCTION AFTER CHEVREUL §6, §16, §160–§165 · TRANS. "
+           "C. MARTEL · NO OUTPUT VIEW TRANSFORM IS SET, DELIBERATELY",
+           56, 1168, 1690)
+           .font({.size = 8, .track = 0.55f})});
   return root;
 }
 

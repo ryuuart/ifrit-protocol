@@ -86,38 +86,37 @@ struct FirstLight final : sketch::Set {
             .fade({1.0f, 0.72f, 0.35f, 1.0f}, {0.25f, 0.55f, 1.0f, 1.0f})
             .lookAt(eye);
 
-    return world::Element()
-        .key("set")
-        .child(world::Element().key("sun").light(world::light::sun(
-            {-0.45f, -0.8f, -0.4f}, {1.0f, 0.96f, 0.9f, 1.0f}, 0.95f)))
-        .child(world::Element()
-                   .key("lamp")
-                   .at({180, 150, 220})
-                   .light(world::light::point(
-                       {0, 0, 0}, {0.45f, 0.6f, 1.0f, 1.0f}, 0.9f, 900.0f)))
-        .child(world::kit::turntable(kTable, seconds))
-        .child(world::Element()
-                   .key("plate")
-                   .at({0, -150, 0})
-                   .rotateX(-90.0f)
-                   .mesh(gm::quad(900, 900))
-                   .fill(material::kit::surface(
-                       {.baseColor = {0.10f, 0.11f, 0.14f, 1.0f}}))
-                   .tag("ground"))
-        .child(world::Element()
-                   .key("tube")
-                   .mesh(tube)
-                   .fill(material::kit::surface(
-                       {.baseColor = {0.62f, 0.66f, 0.74f, 1.0f}}))
-                   .tag("lit"))
-        .child(world::Element()
-                   .key("comet")
-                   .chain(comet)
-                   .stamp(gm::quad(7.0f, 7.0f))
-                   .window(head, 0.28f)
-                   .fill(material::kit::surface(
-                       {.baseColor = {0.95f, 0.75f, 0.42f, 1.0f}}))
-                   .tag("glow"));
+    return world::Element().key("set").children(
+        {world::Element().key("sun").light(world::light::sun(
+             {-0.45f, -0.8f, -0.4f}, {1.0f, 0.96f, 0.9f, 1.0f}, 0.95f)),
+         world::Element()
+             .key("lamp")
+             .at({180, 150, 220})
+             .light(world::light::point({0, 0, 0}, {0.45f, 0.6f, 1.0f, 1.0f},
+                                        0.9f, 900.0f)),
+         world::kit::turntable(kTable, seconds),
+         world::Element()
+             .key("plate")
+             .at({0, -150, 0})
+             .rotateX(-90.0f)
+             .mesh(gm::quad(900, 900))
+             .fill(material::kit::surface(
+                 {.baseColor = {0.10f, 0.11f, 0.14f, 1.0f}}))
+             .tag("ground"),
+         world::Element()
+             .key("tube")
+             .mesh(tube)
+             .fill(material::kit::surface(
+                 {.baseColor = {0.62f, 0.66f, 0.74f, 1.0f}}))
+             .tag("lit"),
+         world::Element()
+             .key("comet")
+             .chain(comet)
+             .stamp(gm::quad(7.0f, 7.0f))
+             .window(head, 0.28f)
+             .fill(material::kit::surface(
+                 {.baseColor = {0.95f, 0.75f, 0.42f, 1.0f}}))
+             .tag("glow")});
   }
 };
 

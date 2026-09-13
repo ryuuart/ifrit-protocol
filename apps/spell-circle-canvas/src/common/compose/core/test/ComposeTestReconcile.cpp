@@ -19,10 +19,8 @@ TEST(ComposeReconcile, MemoSkipsDescribe) {
 
   Host host;
   auto describe = [&](int a, int b) {
-    return box()
-        .row()
-        .child(memo(Props{a}, component).key("a"))
-        .child(memo(Props{b}, component).key("b"));
+    return box().row().children({memo(Props{a}, component).key("a"),
+                                 memo(Props{b}, component).key("b")});
   };
 
   host.composer.render(describe(1, 2));
@@ -41,12 +39,12 @@ TEST(ComposeReconcile, KeyedReorderKeepsInstances) {
     return box().key(k).width(40).height(40).fill(std::move(f));
   };
   host.composer.render(
-      box().row().child(row("a", red())).child(row("b", green())));
+      box().row().children({row("a", red()), row("b", green())}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
 
   host.composer.render(
-      box().row().child(row("b", green())).child(row("a", red())));
+      box().row().children({row("b", green()), row("a", red())}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);  // reordered, not restyled
   EXPECT_EQ(host.composer.stats().instances, 3u);
@@ -84,13 +82,14 @@ TEST(ComposeDerive, ABorrowOfAConnectorWrittenAfterItLandsOnTheFirstFrame) {
   host.composer.render(
       positioned()
           .inset(0, 0, 0, 0)
-          .child(box()
-                     .absolute()
-                     .inset(0, 0, 0, 0)
-                     .foreground(Decoration(BorrowedStroke{"wire"})))
-          .child(box().key("a").left(20).top(90).width(20).height(20))
-          .child(box().key("b").left(160).top(90).width(20).height(20))
-          .child(connector("a", "b").key("wire").absolute().inset(0, 0, 0, 0)));
+          .children(
+              {box()
+                   .absolute()
+                   .inset(0, 0, 0, 0)
+                   .foreground(Decoration(BorrowedStroke{"wire"})),
+               box().key("a").left(20).top(90).width(20).height(20),
+               box().key("b").left(160).top(90).width(20).height(20),
+               connector("a", "b").key("wire").absolute().inset(0, 0, 0, 0)}));
   host.frame();  // THE FIRST frame — a pass behind is visible only here
   // The route runs centre to centre along y=100, and the borrowed stroke
   // is on it. An unrouted borrow dresses the connector's own box instead,
@@ -119,18 +118,18 @@ Element envThemedChip() {
 Element envPlainChip() { return box().width(20).height(20).fill(blue()); }
 
 Element envLevel3() {
-  return box().child(envThemedChip()).child(envPlainChip());
+  return box().children({envThemedChip(), envPlainChip()});
 }
 
-Element envLevel2() { return box().child(envLevel3()); }
+Element envLevel2() { return box().children({envLevel3()}); }
 
-Element envLevel1() { return box().child(envLevel2()); }
+Element envLevel1() { return box().children({envLevel2()}); }
 
 /** Describe under a binding, and hand back a tree the binding no longer
  *  touches — the whole design in three lines. */
 Element envDescribeWith(EnvPalette p) {
   core::environment::Provide<EnvPalette> theme(p);
-  return box().child(envLevel1());
+  return box().children({envLevel1()});
 }
 
 }  // namespace
@@ -147,7 +146,7 @@ TEST(ComposeEnv, InheritedValueReachesAComponentNobodyHandedIt) {
 
   // Unbound: the component's own default, exactly like a React context's.
   Host bare;
-  bare.composer.render(box().child(envLevel1()));
+  bare.composer.render(box().children({envLevel1()}));
   bare.frame();
   EXPECT_EQ(bare.pixel(5, 5), SK_ColorRED);
   EXPECT_FALSE(
@@ -218,7 +217,7 @@ TEST(ComposeEnv, MemoIsAPureFunctionOfPropsAndEnvironment) {
   // the composer are two statements, deliberately.
   auto describeWith = [&component](EnvPalette p) {
     core::environment::Provide<EnvPalette> theme(p);
-    return box().child(memo(Props{1}, component).key("m"));
+    return box().children({memo(Props{1}, component).key("m")});
   };
   auto renderWith = [&](EnvPalette p) {
     Element tree = describeWith(p);
@@ -310,7 +309,7 @@ TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
 
   Element tree = [&] {
     core::environment::Provide<feed::TextOptions> style(themed);
-    return box().padding(4).child(box().child(feed::feed(ring)));
+    return box().padding(4).children({box().children({feed::feed(ring)})});
   }();
   ASSERT_FALSE(core::environment::bound<feed::TextOptions>());
 
@@ -323,8 +322,8 @@ TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
   // The unbound spelling still compiles to the component's own default —
   // and a DIFFERENT default, which is what proves the binding was read.
   Host bare;
-  bare.composer.render(box().padding(4).child(
-      box().child(feed::feed(ring, feed::TextOptions{}))));
+  bare.composer.render(box().padding(4).children(
+      {box().children({feed::feed(ring, feed::TextOptions{})})}));
   bare.frame();
   EXPECT_NE(require(bare.composer.bounds(feed::rowKey(1))).width(),
             got.width());
@@ -353,11 +352,11 @@ TEST(ComposeReconcile, WiggledBindingsPruneOnlyWhenEveryParameterMatches) {
     float falloff = 0.5f;
   };
   auto tree = [](Rig r) {
-    return box().child(
-        box().key("shaken").width(40).height(40).fill(red()).translateX(
+    return box().children(
+        {box().key("shaken").width(40).height(40).fill(red()).translateX(
             motion::bind(&phase)
                 .target(-70.0f, 170.0f)
-                .wiggle(r.amount, r.frequency, r.seed, r.octaves, r.falloff)));
+                .wiggle(r.amount, r.frequency, r.seed, r.octaves, r.falloff))});
   };
 
   Host host;
@@ -401,23 +400,23 @@ TEST(ComposeReconcile, TwoSeedsShakeIndependentlyOnScreen) {
   auto tree = [] {
     // stack(): both marks lay out at the origin, so each row below is
     // unambiguously one of them.
-    return stack()
-        .child(box()
-                   .key("x")
-                   .width(8)
-                   .height(8)
-                   .fill(red())
-                   .translateX(
-                       sigil::motion::wiggle(&t, 40.0f, 3.0f, 1).offset(100.0f))
-                   .translateY(30.0f))
-        .child(box()
-                   .key("y")
-                   .width(8)
-                   .height(8)
-                   .fill(green())
-                   .translateX(
-                       sigil::motion::wiggle(&t, 40.0f, 3.0f, 2).offset(100.0f))
-                   .translateY(90.0f));
+    return stack().children(
+        {box()
+             .key("x")
+             .width(8)
+             .height(8)
+             .fill(red())
+             .translateX(
+                 sigil::motion::wiggle(&t, 40.0f, 3.0f, 1).offset(100.0f))
+             .translateY(30.0f),
+         box()
+             .key("y")
+             .width(8)
+             .height(8)
+             .fill(green())
+             .translateX(
+                 sigil::motion::wiggle(&t, 40.0f, 3.0f, 2).offset(100.0f))
+             .translateY(90.0f)});
   };
   host.composer.render(tree());
 

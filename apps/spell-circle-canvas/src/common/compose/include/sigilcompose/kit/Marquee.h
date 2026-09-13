@@ -41,17 +41,17 @@ inline Element marquee(const Element& content, MarqueeOptions how) {
     return pin ? box()
                      .width(Dimension(how.contentWidth))
                      .shrink(0)
-                     .child(content)
+                     .children({content})
                : content;
   };
-  return box().clip(true).child(box()
-                                    .row()
-                                    .gap(how.gap)
-                                    .shrink(0)
-                                    .alignSelf(Align::Start)
-                                    .translateX(std::move(how.phase))
-                                    .child(copy())
-                                    .child(copy()));
+  return box().clip(true).children({box()
+                                        .row()
+                                        .gap(how.gap)
+                                        .shrink(0)
+                                        .alignSelf(Align::Start)
+                                        .translateX(std::move(how.phase))
+                                        .children({copy()})
+                                        .children({copy()})});
 }
 
 }  // namespace sigil::compose::kit

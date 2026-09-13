@@ -21,22 +21,22 @@ TEST(ComposeDerive, ConnectorTracksMovedEndpoints) {
   wire.strokeFill = Fill::color({1, 1, 0, 1});
 
   auto tree = [&](float bLeft) {
-    return stack()
-        .child(box()
-                   .key("a")
-                   .width(20)
-                   .height(20)
-                   .inset(10, 10, 170, 170)
-                   .absolute()
-                   .fill(red()))
-        .child(box()
-                   .key("b")
-                   .width(20)
-                   .height(20)
-                   .inset(bLeft, 160, 180 - bLeft, 20)
-                   .absolute()
-                   .fill(green()))
-        .child(connector("a", "b").inset(0).foreground(wire).zIndex(-1));
+    return stack().children(
+        {box()
+             .key("a")
+             .width(20)
+             .height(20)
+             .inset(10, 10, 170, 170)
+             .absolute()
+             .fill(red()),
+         box()
+             .key("b")
+             .width(20)
+             .height(20)
+             .inset(bLeft, 160, 180 - bLeft, 20)
+             .absolute()
+             .fill(green()),
+         connector("a", "b").inset(0).foreground(wire).zIndex(-1)});
   };
 
   host.composer.render(tree(10.0f));
@@ -119,9 +119,9 @@ TEST(ComposeDecorations, SliceDensityLeavesTheStretchBandTheRemainder) {
 TEST(ComposeDecorations, EdgeSliceStrokesSelectedEdgesOnly) {
   Host host;
   host.composer.render(
-      box().child(box().width(100).height(100).fill(blue()).foreground(
+      box().children({box().width(100).height(100).fill(blue()).foreground(
           onEdges(geometry::path::Edge::Top | geometry::path::Edge::Left,
-                  stroke(8, Fill::color({1, 1, 1, 1}))))));
+                  stroke(8, Fill::color({1, 1, 1, 1}))))}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 1), SK_ColorWHITE);  // top edge stroked
   EXPECT_EQ(host.pixel(1, 50), SK_ColorWHITE);  // left edge stroked
@@ -134,10 +134,10 @@ TEST(ComposeDecorations, EdgesSplitRoundedCornersDiagonally) {
   // the diagonal — the top run must include the upper half of the
   // top-left arc but none of the left flank.
   Host host;
-  host.composer.render(box().child(
-      box().width(100).height(100).corners({30}).fill(blue()).foreground(
+  host.composer.render(box().children(
+      {box().width(100).height(100).corners({30}).fill(blue()).foreground(
           onEdges(geometry::path::Edge::Top,
-                  stroke(8, Fill::color({1, 1, 1, 1}))))));
+                  stroke(8, Fill::color({1, 1, 1, 1}))))}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 1), SK_ColorWHITE);  // top run center
   EXPECT_EQ(host.pixel(1, 50), SK_ColorBLUE);   // left flank untouched
@@ -150,10 +150,10 @@ TEST(ComposeDecorations, ASlicedInnerStrokePaintsTheBandInsideItsOwnEdges) {
   // of the stroke ALONG THOSE RUNS: a 8 px band on the two named edges,
   // nothing on the other two, and nothing outside the silhouette.
   Host host;
-  host.composer.render(
-      box().child(box().width(100).height(100).fill(blue()).foreground(onEdges(
+  host.composer.render(box().children(
+      {box().width(100).height(100).fill(blue()).foreground(onEdges(
           geometry::path::Edge::Bottom | geometry::path::Edge::Right,
-          stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Inner)))));
+          stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Inner)))}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 95), SK_ColorWHITE);   // in the bottom band
   EXPECT_EQ(host.pixel(95, 50), SK_ColorWHITE);   // in the right band
@@ -176,9 +176,9 @@ TEST(ComposeDecorations, ASlicedInnerStrokeIsTheKitsRingMaskedToTheSameEdges) {
   const auto edges = geometry::path::Edge::Bottom | geometry::path::Edge::Right;
 
   Host stroked;
-  stroked.composer.render(
-      box().child(box().width(100).height(100).fill(blue()).foreground(onEdges(
-          edges, stroke(8, Fill::color(tone), PathFormat::Align::Inner)))));
+  stroked.composer.render(box().children(
+      {box().width(100).height(100).fill(blue()).foreground(onEdges(
+          edges, stroke(8, Fill::color(tone), PathFormat::Align::Inner)))}));
   stroked.frame();
 
   Host ringed;
@@ -193,7 +193,7 @@ TEST(ComposeDecorations, ASlicedInnerStrokeIsTheKitsRingMaskedToTheSameEdges) {
                                 .ends = styles::BevelEnds::Mitred};
   Element panel = box().width(100).height(100).fill(blue());
   kit::bevelled(panel, bevel);
-  ringed.composer.render(box().child(std::move(panel)));
+  ringed.composer.render(box().children({std::move(panel)}));
   ringed.frame();
 
   EXPECT_TRUE(identicalPixels(stroked, ringed, 200, 200));
@@ -204,7 +204,7 @@ TEST(ComposeDecorations, ASlicedInnerStrokeIsTheKitsRingMaskedToTheSameEdges) {
   bevel.inner->ends = styles::BevelEnds::Sliced;
   Element sliced = box().width(100).height(100).fill(blue());
   kit::bevelled(sliced, bevel);
-  cut.composer.render(box().child(std::move(sliced)));
+  cut.composer.render(box().children({std::move(sliced)}));
   cut.frame();
   EXPECT_EQ(cut.pixel(4, 95), SK_ColorBLUE);       // bottom band cut at its
   EXPECT_EQ(stroked.pixel(4, 95), SK_ColorWHITE);  // open (left) end
@@ -218,18 +218,18 @@ TEST(ComposeDecorations, ASlicedOuterStrokePaintsTheBandOutsideItsOwnEdges) {
   // Outer keeps its meaning on a slice the same way: the half of the
   // stroke OUTSIDE the shape, along the named runs alone.
   Host host;
-  host.composer.render(stack().child(
-      box()
-          .absolute()
-          .left(20)
-          .top(20)
-          .width(100)
-          .height(100)
-          .fill(blue())
-          .foreground(onEdges(
-              geometry::path::Edge::Bottom | geometry::path::Edge::Right,
-              stroke(8, Fill::color({1, 1, 1, 1}),
-                     PathFormat::Align::Outer)))));
+  host.composer.render(stack().children(
+      {box()
+           .absolute()
+           .left(20)
+           .top(20)
+           .width(100)
+           .height(100)
+           .fill(blue())
+           .foreground(onEdges(
+               geometry::path::Edge::Bottom | geometry::path::Edge::Right,
+               stroke(8, Fill::color({1, 1, 1, 1}),
+                      PathFormat::Align::Outer)))}));
   host.frame();
   EXPECT_EQ(host.pixel(70, 124), SK_ColorWHITE);  // below the bottom edge
   EXPECT_EQ(host.pixel(124, 70), SK_ColorWHITE);  // right of the right edge
@@ -252,9 +252,9 @@ TEST(ComposeDecorations, ASlicedOuterStrokePaintsTheBandOutsideItsOwnEdges) {
 TEST(ComposeDecorations, ARevealedInnerStrokePaintsTheBandInsideTheShapeSoFar) {
   choreograph::Output<float> shown;
   Host host;
-  host.composer.render(stack().child(revealBox().fill(blue()).stroke(
+  host.composer.render(stack().children({revealBox().fill(blue()).stroke(
       spans::upTo(motion::bind(&shown)),
-      stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Inner))));
+      stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Inner))}));
 
   shown = 0.05f;  // 20 px up the left edge: y in [100, 120]
   host.frame();
@@ -289,14 +289,16 @@ TEST(ComposeDecorations, AFullyRevealedInnerStrokeIsTheUnspannedOne) {
       stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Inner);
 
   Host revealed;
-  revealed.composer.render(stack().child(revealBox()
-                                             .fill(blue())
-                                             .mask(by::spans(spans::upTo(1.0f)))
-                                             .stroke(mark)));
+  revealed.composer.render(
+      stack().children({revealBox()
+                            .fill(blue())
+                            .mask(by::spans(spans::upTo(1.0f)))
+                            .stroke(mark)}));
   revealed.frame();
 
   Host plain;
-  plain.composer.render(stack().child(revealBox().fill(blue()).stroke(mark)));
+  plain.composer.render(
+      stack().children({revealBox().fill(blue()).stroke(mark)}));
   plain.frame();
 
   EXPECT_TRUE(identicalPixels(revealed, plain, 200, 200));
@@ -306,9 +308,9 @@ TEST(ComposeDecorations, AFullyRevealedInnerStrokeIsTheUnspannedOne) {
 TEST(ComposeDecorations, ARevealedOuterStrokePaintsTheBandOutsideTheShape) {
   choreograph::Output<float> shown;
   Host host;
-  host.composer.render(stack().child(revealBox().fill(blue()).stroke(
+  host.composer.render(stack().children({revealBox().fill(blue()).stroke(
       spans::upTo(motion::bind(&shown)),
-      stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Outer))));
+      stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Outer))}));
 
   shown = 0.20f;  // the whole left edge
   host.frame();
@@ -323,9 +325,9 @@ TEST(ComposeDecorations, ARevealedCentredStrokeStraddlesTheRunAsItAlwaysDid) {
   // stands half inside the shape and half outside, along the shown run.
   choreograph::Output<float> shown;
   Host host;
-  host.composer.render(stack().child(revealBox().fill(blue()).stroke(
+  host.composer.render(stack().children({revealBox().fill(blue()).stroke(
       spans::upTo(motion::bind(&shown)),
-      stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Center))));
+      stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Center))}));
 
   shown = 0.20f;
   host.frame();
@@ -339,13 +341,10 @@ TEST(ComposeDecorations, ARevealedCentredStrokeStraddlesTheRunAsItAlwaysDid) {
 // Element stamps + snapshot().
 
 TEST(ComposeStamps, SnapshotBakesIntrinsicSize) {
-  sk_sp<SkPicture> pic =
-      snapshot(box()
-                   .row()
-                   .gap(4)
-                   .child(box().width(20).height(12).fill(red()))
-                   .child(box().width(20).height(12).fill(green())),
-               fonts());
+  sk_sp<SkPicture> pic = snapshot(
+      box().row().gap(4).children({box().width(20).height(12).fill(red()),
+                                   box().width(20).height(12).fill(green())}),
+      fonts());
   ASSERT_NE(pic, nullptr);
   EXPECT_FLOAT_EQ(pic->cullRect().width(), 44.0f);   // 20 + 4 + 20
   EXPECT_FLOAT_EQ(pic->cullRect().height(), 12.0f);  // content height
@@ -386,15 +385,16 @@ sk_sp<SkPicture> markedStrip(tiles::Flow flow) {
   const float h = (float)(down ? kTileH * kTileCount : kTileH);
   auto strip = box().width(w).height(h);
   for (int j = 0; j < kTileCount; ++j)
-    strip.child(box()
-                    .absolute()
-                    .left(kMark + (down ? 0.0f : (float)(j * kTileW)))
-                    .top(kMark + (down ? (float)(j * kTileH) : 0.0f))
-                    .width(kMarkSize)
-                    .height(kMarkSize)
-                    .fill(Fill::color(SkColor4f::FromColor(stripMark(j)))));
+    strip.children(
+        {box()
+             .absolute()
+             .left(kMark + (down ? 0.0f : (float)(j * kTileW)))
+             .top(kMark + (down ? (float)(j * kTileH) : 0.0f))
+             .width(kMarkSize)
+             .height(kMarkSize)
+             .fill(Fill::color(SkColor4f::FromColor(stripMark(j))))});
   // Shell box: snapshot() sizes by the ROOT's children, not its own dims.
-  return snapshot(box().child(std::move(strip)), fonts());
+  return snapshot(box().children({std::move(strip)}), fonts());
 }
 
 sk_sp<SkSurface> renderTile(const sk_sp<SkPicture>& pic, int index,
@@ -537,13 +537,13 @@ TEST(ComposeStamps, StampRecordsOnceReplaysPerSample) {
           .width(12)
           .height(12);
 
-  host.composer.render(box().child(box()
-                                       .width(100)
-                                       .height(100)
-                                       .inset(50, 50, 50, 50)
-                                       .absolute()
-                                       .fill(blue())
-                                       .foreground(vine)));
+  host.composer.render(box().children({box()
+                                           .width(100)
+                                           .height(100)
+                                           .inset(50, 50, 50, 50)
+                                           .absolute()
+                                           .fill(blue())
+                                           .foreground(vine)}));
   host.frame();
   host.frame();
   EXPECT_EQ(stampDescribes, 1);  // baked once, replayed at every sample
@@ -573,12 +573,12 @@ TEST(ComposeStamps, RecursiveStampWalksItsOwnContour) {
   outer.spacing = 40.0f;
   outer.stamp = box().width(16).height(16).fill(red()).foreground(dots);
 
-  host.composer.render(box().child(box()
-                                       .width(120)
-                                       .height(120)
-                                       .inset(40, 40, 40, 40)
-                                       .absolute()
-                                       .foreground(outer)));
+  host.composer.render(box().children({box()
+                                           .width(120)
+                                           .height(120)
+                                           .inset(40, 40, 40, 40)
+                                           .absolute()
+                                           .foreground(outer)}));
   host.frame();
   int redPx = 0, cyanPx = 0;
   for (int x = 0; x < 200; x += 2)
@@ -602,15 +602,15 @@ TEST(ComposeStamps, CustomLeafDrawsNestedComposer) {
   auto nested = std::make_shared<Composer>(*nestedTicker, fonts());
   nested->setSize({60, 60});
   nested->render(
-      box().padding(10).fill(green()).child(box().grow(1).fill(red())));
+      box().padding(10).fill(green()).children({box().grow(1).fill(red())}));
 
-  host.composer.render(box().child(
-      custom([nested, nestedTicker](SkCanvas& c, const PaintContext&) {
-        nested->draw(c);
-      })
-          .width(60)
-          .height(60)
-          .cache(Cache::None)));
+  host.composer.render(box().children(
+      {custom([nested, nestedTicker](SkCanvas& c, const PaintContext&) {
+         nested->draw(c);
+       })
+           .width(60)
+           .height(60)
+           .cache(Cache::None)}));
   host.frame();
   EXPECT_EQ(host.pixel(5, 5), SK_ColorGREEN);  // nested padding ring
   EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);  // nested content
@@ -624,25 +624,25 @@ TEST(ComposeDerive, OrthogonalRouterRunsManhattan) {
   PathFormat wire;
   wire.width = 4;
   wire.strokeFill = Fill::color({1, 1, 0, 1});
-  host.composer.render(stack()
-                           .child(box()
-                                      .key("a")
-                                      .width(20)
-                                      .height(20)
-                                      .inset(10, 10, 170, 170)
-                                      .absolute()
-                                      .fill(red()))
-                           .child(box()
-                                      .key("b")
-                                      .width(20)
-                                      .height(20)
-                                      .inset(160, 160, 20, 20)
-                                      .absolute()
-                                      .fill(green()))
-                           .child(connector("a", "b", routers::orthogonal())
-                                      .inset(0)
-                                      .foreground(wire)
-                                      .zIndex(-1)));
+  host.composer.render(
+      stack().children({box()
+                            .key("a")
+                            .width(20)
+                            .height(20)
+                            .inset(10, 10, 170, 170)
+                            .absolute()
+                            .fill(red()),
+                        box()
+                            .key("b")
+                            .width(20)
+                            .height(20)
+                            .inset(160, 160, 20, 20)
+                            .absolute()
+                            .fill(green()),
+                        connector("a", "b", routers::orthogonal())
+                            .inset(0)
+                            .foreground(wire)
+                            .zIndex(-1)}));
   host.frame();
   // Centers (20,20) and (170,170); midX = 95: H leg at y=20, V leg at
   // x=95, H leg at y=170.
@@ -657,25 +657,24 @@ TEST(ComposeDerive, ArcRouterBowsOffTheChord) {
   PathFormat wire;
   wire.width = 4;
   wire.strokeFill = Fill::color({1, 1, 0, 1});
-  host.composer.render(stack()
-                           .child(box()
-                                      .key("a")
-                                      .width(10)
-                                      .height(10)
-                                      .inset(20, 95, 170, 95)
-                                      .absolute()
-                                      .fill(red()))
-                           .child(box()
-                                      .key("b")
-                                      .width(10)
-                                      .height(10)
-                                      .inset(170, 95, 20, 95)
-                                      .absolute()
-                                      .fill(green()))
-                           .child(connector("a", "b", routers::arc(0.3f))
-                                      .inset(0)
-                                      .foreground(wire)
-                                      .zIndex(-1)));
+  host.composer.render(stack().children({box()
+                                             .key("a")
+                                             .width(10)
+                                             .height(10)
+                                             .inset(20, 95, 170, 95)
+                                             .absolute()
+                                             .fill(red()),
+                                         box()
+                                             .key("b")
+                                             .width(10)
+                                             .height(10)
+                                             .inset(170, 95, 20, 95)
+                                             .absolute()
+                                             .fill(green()),
+                                         connector("a", "b", routers::arc(0.3f))
+                                             .inset(0)
+                                             .foreground(wire)
+                                             .zIndex(-1)}));
   host.frame();
   // Horizontal chord from (25,100) to (175,100), bulge 0.3×150 = 45 px
   // toward +normal (downward-left convention: normal of (+x,0) is
@@ -694,23 +693,22 @@ TEST(ComposeDerive, ConnectorGapPullsTheWireOffTheEndpoints) {
     PathFormat wire;
     wire.width = 4;
     wire.strokeFill = Fill::color({1, 1, 0, 1});
-    return stack()
-        .child(box()
-                   .key("a")
-                   .width(20)
-                   .height(20)
-                   .inset(10, 90, 170, 90)
-                   .absolute()
-                   .fill(red()))
-        .child(box()
-                   .key("b")
-                   .width(20)
-                   .height(20)
-                   .inset(170, 90, 10, 90)
-                   .absolute()
-                   .fill(green()))
-        .child(
-            connector("a", "b", {}, gap).inset(0).foreground(wire).zIndex(1));
+    return stack().children(
+        {box()
+             .key("a")
+             .width(20)
+             .height(20)
+             .inset(10, 90, 170, 90)
+             .absolute()
+             .fill(red()),
+         box()
+             .key("b")
+             .width(20)
+             .height(20)
+             .inset(170, 90, 10, 90)
+             .absolute()
+             .fill(green()),
+         connector("a", "b", {}, gap).inset(0).foreground(wire).zIndex(1)});
   };
   // Control: with gap 0 the wire runs centre to centre, (20,100) → (180,100),
   // and paints OVER both terminal boxes. Without this arm, "the gapped wire
@@ -744,11 +742,11 @@ TEST(ComposeMask, WrapWindowCrossesTheSeam) {
   // A wrap window crossing the cycle seam must paint exactly the union of
   // its two clamped pieces — direction-agnostic pixel containment.
   auto strokedBox = [](Spans where) {
-    return box().child(box()
-                           .absolute()
-                           .inset(50, 50, 50, 50)
-                           .mask(by::spans(std::move(where)))
-                           .foreground(stroke(6, green())));
+    return box().children({box()
+                               .absolute()
+                               .inset(50, 50, 50, 50)
+                               .mask(by::spans(std::move(where)))
+                               .foreground(stroke(6, green()))});
   };
   Host wrap, pieceA, pieceB;
   wrap.composer.render(strokedBox(spans::wrap(0.9f, 1.15f)));
@@ -775,12 +773,12 @@ TEST(ComposeMask, WrapWindowCrossesTheSeam) {
 TEST(ComposeMask, WrapOffsetBindingMarchesTheWindow) {
   Host host;
   choreograph::Output<float> phase{0.0f};
-  host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(50, 50, 50, 50)
-                      .mask(by::spans(spans::wrap(0.0f, 0.25f).offset(&phase)))
-                      .foreground(stroke(6, green()))));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(50, 50, 50, 50)
+           .mask(by::spans(spans::wrap(0.0f, 0.25f).offset(&phase)))
+           .foreground(stroke(6, green()))}));
   host.frame();
   std::vector<SkIPoint> lit0;
   for (int y = 40; y < 160; y += 2)
@@ -802,10 +800,10 @@ TEST(ComposeShapeValues, ABandWithAComparableSpinePrunes) {
   // rather than refusing any authored spine outright.
   Host host;
   auto tree = [] {
-    return box().child(band(geometry::shapes::circle(), across(8.0f))
-                           .width(100)
-                           .height(100)
-                           .fill(red()));
+    return box().children({band(geometry::shapes::circle(), across(8.0f))
+                               .width(100)
+                               .height(100)
+                               .fill(red())});
   };
   host.composer.render(tree());
   host.frame();

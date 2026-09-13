@@ -34,11 +34,12 @@ TEST(SketchKitRows, ALabelRowRangesItsFigureToTheMeasure) {
           .alignItems(compose::Align::Center)
           .gap(house.spacing.labelGap)
           .width(compose::Dimension(220))
-          .child(compose::text(u8"nodes", house.style(house.type.captionNote,
-                                                      house.palette.ash)))
-          .child(compose::box().grow(1))
-          .child(compose::text(u8"1 248", house.style(house.type.captionLabel,
-                                                      house.palette.figure)));
+          .children(
+              {compose::text(u8"nodes", house.style(house.type.captionNote,
+                                                    house.palette.ash)),
+               compose::box().grow(1),
+               compose::text(u8"1 248", house.style(house.type.captionLabel,
+                                                    house.palette.figure))});
   EXPECT_TRUE(sameDrawing(std::move(byHand),
                           kit::labelRow({.name = u8"nodes", .value = u8"1 248"},
                                         {.measure = 220})));
@@ -53,10 +54,10 @@ TEST(SketchKitRows, AReadoutStacksItsRowsAtTheThemesGap) {
           .column()
           .gap(house.spacing.rowGap)
           .width(compose::Dimension(220))
-          .child(kit::labelRow({.name = u8"nodes", .value = u8"1 248"},
-                               {.measure = 220}))
-          .child(kit::labelRow({.name = u8"instances", .value = u8"96"},
-                               {.measure = 220}));
+          .children({kit::labelRow({.name = u8"nodes", .value = u8"1 248"},
+                                   {.measure = 220}),
+                     kit::labelRow({.name = u8"instances", .value = u8"96"},
+                                   {.measure = 220})});
   EXPECT_TRUE(sameDrawing(
       std::move(byHand),
       kit::readout({{u8"nodes", u8"1 248"}, {u8"instances", u8"96"}},
@@ -108,22 +109,23 @@ TEST(SketchKitRows, ATableDrawsTheHandSpelledColumns) {
       compose::box()
           .column()
           .gap(house.spacing.rowGap)
-          .child(compose::box()
-                     .row()
-                     .alignItems(compose::Align::Center)
-                     .gap(8)
-                     .child(compose::box()
-                                .width(compose::Dimension(9))
-                                .height(compose::Dimension(9))
-                                .fill(tier)
-                                .shrink(0))
-                     .child(compose::text(u8"cellPanel", figure())
-                                .width(compose::Dimension(126)))
-                     .child(compose::text(u8"0.00", figure())
-                                .width(compose::Dimension(46)))
-                     .child(compose::text(u8"Promoted", quiet())
-                                .width(compose::Dimension(66)))
-                     .child(compose::text(u8"baked by the library", quiet())));
+          .children({compose::box()
+                         .row()
+                         .alignItems(compose::Align::Center)
+                         .gap(8)
+                         .children({compose::box()
+                                        .width(compose::Dimension(9))
+                                        .height(compose::Dimension(9))
+                                        .fill(tier)
+                                        .shrink(0)})
+                         .children({compose::text(u8"cellPanel", figure())
+                                        .width(compose::Dimension(126))})
+                         .children({compose::text(u8"0.00", figure())
+                                        .width(compose::Dimension(46))})
+                         .children({compose::text(u8"Promoted", quiet())
+                                        .width(compose::Dimension(66))})
+                         .children({compose::text(u8"baked by the library",
+                                                  quiet())})});
   Element byKit = kit::table(
       {{{u8"cellPanel", u8"0.00", u8"Promoted", u8"baked by the library"},
         tier}},
@@ -142,20 +144,21 @@ TEST(SketchKitRows, ASurplusWordTakesTheLastColumnsRegister) {
       compose::box()
           .column()
           .gap(house.spacing.rowGap)
-          .child(compose::box()
-                     .row()
-                     .alignItems(compose::Align::Center)
-                     .gap(house.spacing.labelGap)
-                     .child(compose::text(u8"key",
-                                          house.style(house.type.captionNote,
-                                                      house.palette.ash))
-                                .width(compose::Dimension(60)))
-                     .child(compose::text(u8"0.00",
-                                          house.style(house.type.captionLabel,
-                                                      house.palette.figure)))
-                     .child(compose::text(u8"12",
-                                          house.style(house.type.captionLabel,
-                                                      house.palette.figure))));
+          .children(
+              {compose::box()
+                   .row()
+                   .alignItems(compose::Align::Center)
+                   .gap(house.spacing.labelGap)
+                   .children({compose::text(u8"key",
+                                            house.style(house.type.captionNote,
+                                                        house.palette.ash))
+                                  .width(compose::Dimension(60))})
+                   .children({compose::text(u8"0.00",
+                                            house.style(house.type.captionLabel,
+                                                        house.palette.figure))})
+                   .children({compose::text(
+                       u8"12", house.style(house.type.captionLabel,
+                                           house.palette.figure))})});
   EXPECT_TRUE(sameDrawing(std::move(byHand),
                           kit::table({{{u8"key", u8"0.00", u8"12"}}},
                                      {.columns = {{60}, {0, true}}})));

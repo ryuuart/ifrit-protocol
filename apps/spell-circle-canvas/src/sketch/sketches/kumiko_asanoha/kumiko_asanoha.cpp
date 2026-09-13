@@ -17,7 +17,8 @@ struct KumikoAsanoha : sketch::Sketch {
     auto add = [&](Element& into, Role role) {
       for (size_t i = 0; i < panel.strips.size(); ++i)
         if (panel.strips[i].role == role)
-          into.child(stripElement(panel.strips[i], bank, &fade[i], &pop[i]));
+          into.children(
+              {stripElement(panel.strips[i], bank, &fade[i], &pop[i])});
     };
     auto group = box().inset(0, 0, 0, 0).cache(Cache::Group);
     add(group, kRoleDiagonal);
@@ -58,7 +59,8 @@ struct KumikoAsanoha : sketch::Sketch {
     auto group = box().inset(0, 0, 0, 0).cache(Cache::Group);
     for (size_t i = 0; i < panel.strips.size(); ++i)
       if (panel.strips[i].role == kRoleFrame)
-        group.child(stripElement(panel.strips[i], bank, &fade[i], &pop[i]));
+        group.children(
+            {stripElement(panel.strips[i], bank, &fade[i], &pop[i])});
     return group;
   }
 
@@ -94,9 +96,10 @@ struct KumikoAsanoha : sketch::Sketch {
       }
     };
     auto group = stack().inset(0, 0, 0, 0).opacity(&seat);
-    group.child(custom(std::string_view("joinery"), marks).inset(0, 0, 0, 0));
+    group.children(
+        {custom(std::string_view("joinery"), marks).inset(0, 0, 0, 0)});
     for (const Strip& n : panel.nubs)
-      group.child(stripElement(n, bank, nullptr, nullptr));
+      group.children({stripElement(n, bank, nullptr, nullptr)});
     return group;
   }
 
@@ -117,15 +120,15 @@ struct KumikoAsanoha : sketch::Sketch {
         // A hot core with a dark rim blows out the middle third and puts
         // the corner cells in the dark, which loses the field at both ends
         // at once. The outer radius is the opening's diagonal.
-        .child(box()
-                   .inset(0, 0, 0, 0)
-                   .fill(Paint::radial(
-                       {open.width() * 0.5f, open.height() * 0.5f}, 585,
-                       {{0.00f, hexColor(0xF7E8C6, 0.88f)},
-                        {0.30f, hexColor(0xF2E0B4, 0.85f)},
-                        {0.58f, hexColor(0xE6CE9A, 0.79f)},
-                        {0.80f, hexColor(0xD3B37C, 0.71f)},
-                        {1.00f, hexColor(0xBE9862, 0.62f)}})));
+        .children({box()
+                       .inset(0, 0, 0, 0)
+                       .fill(Paint::radial(
+                           {open.width() * 0.5f, open.height() * 0.5f}, 585,
+                           {{0.00f, hexColor(0xF7E8C6, 0.88f)},
+                            {0.30f, hexColor(0xF2E0B4, 0.85f)},
+                            {0.58f, hexColor(0xE6CE9A, 0.79f)},
+                            {0.80f, hexColor(0xD3B37C, 0.71f)},
+                            {1.00f, hexColor(0xBE9862, 0.62f)}}))});
   }
 
   Element beam(float y, float h, bool top) {
@@ -233,87 +236,89 @@ struct KumikoAsanoha : sketch::Sketch {
                            .color = hexColor(0xC9B78F, 0.75f),
                            .track = 0.9f});
     // the drawing's own ground: a hairline ruled off the room above it
-    g.child(box().left(0).top(0).width(kW).height(1).fill(
-        Fill::color(hexColor(0x4A3620, 0.9f))));
+    g.children({box().left(0).top(0).width(kW).height(1).fill(
+        Fill::color(hexColor(0x4A3620, 0.9f)))});
 
     Element art = box().left(0).top(0).width(kW).height(kBandH);
 
     // the jigumi cell it all sits in
-    art.child(box()
-                  .left(org.x())
-                  .top(org.y() - y0)
-                  .width(side)
-                  .height(side)
-                  .stroke(stroke(1.0f, Fill::color(hexColor(0x8E6C3B, 0.85f)),
-                                 PathFormat::Align::Center)));
+    art.children(
+        {box()
+             .left(org.x())
+             .top(org.y() - y0)
+             .width(side)
+             .height(side)
+             .stroke(stroke(1.0f, Fill::color(hexColor(0x8E6C3B, 0.85f)),
+                            PathFormat::Align::Center))});
     // the two incircles, struck: the construction the whole pattern is
     // derived from, and the only circles anywhere in a kumiko panel
     for (const SkPoint& c : {I1, I2})
-      art.child(kit::disc(SkPoint{c.x(), c.y() - y0}, r)
-                    .shape(shapes::circle())
-                    .fill(Fill::none())
-                    .stroke(PathFormat{
-                        .width = 0.9f,
-                        .strokeFill = Fill::color(hexColor(0xC79A57, 0.45f)),
-                        .dashIntervals = {4.0f, 4.0f}}));
+      art.children({kit::disc(SkPoint{c.x(), c.y() - y0}, r)
+                        .shape(shapes::circle())
+                        .fill(Fill::none())
+                        .stroke(PathFormat{.width = 0.9f,
+                                           .strokeFill = Fill::color(
+                                               hexColor(0xC79A57, 0.45f)),
+                                           .dashIntervals = {4.0f, 4.0f}})});
     for (const SkPoint& c : {I1, I2})
-      art.child(kit::disc(SkPoint{c.x(), c.y() - y0}, 2.4f)
-                    .shape(shapes::circle())
-                    .fill(Fill::color(hexColor(0xF4E3B8, 0.9f))));
+      art.children({kit::disc(SkPoint{c.x(), c.y() - y0}, 2.4f)
+                        .shape(shapes::circle())
+                        .fill(Fill::color(hexColor(0xF4E3B8, 0.9f)))});
 
     // the seven pieces, exploded off their seats
     for (const Strip& st : cellPieces({org.x(), org.y() - y0}, side,
                                       std::max(6.0f, kHaW * 1.6f), 5.0f))
-      art.child(stripElement(st, bank, nullptr, nullptr));
+      art.children({stripElement(st, bank, nullptr, nullptr)});
 
-    g.child(std::move(art));
+    g.children({std::move(art)});
 
     // the three jigs, as the three angles one right angle is cut into
     const char* jig[3] = {"22.5°", "45°", "67.5°"};
     for (int i = 0; i < 3; ++i) {
       const float x = 430.0f + (float)i * 118.0f;
       const float a0 = 22.5f * (float)i;
-      g.child(kit::disc(SkPoint{x, 96.0f}, 44.0f)
-                  .shape(shapes::sector(-90.0f + a0, 22.5f, 0.0f))
-                  .fill(Fill::color(hexColor(0xC79A57, 0.16f)))
-                  .stroke(stroke(0.9f, Fill::color(hexColor(0xC79A57, 0.55f)),
-                                 PathFormat::Align::Inner)));
-      g.child(text(jig[i]).left(x - 30).top(150).width(60).textAlign(
-          weave::TextAlignment::kCenter));
+      g.children(
+          {kit::disc(SkPoint{x, 96.0f}, 44.0f)
+               .shape(shapes::sector(-90.0f + a0, 22.5f, 0.0f))
+               .fill(Fill::color(hexColor(0xC79A57, 0.16f)))
+               .stroke(stroke(0.9f, Fill::color(hexColor(0xC79A57, 0.55f)),
+                              PathFormat::Align::Inner))});
+      g.children({text(jig[i]).left(x - 30).top(150).width(60).block(
+          {.alignment = weave::TextAlignment::kCenter})});
     }
-    g.child(text("THREE JIGS — AND A RIGHT ANGLE IS "
-                 "22.5 + 45 + 22.5")
-                .font({.color = hexColor(0xB7A281, 0.55f), .track = 0.5f})
-                .left(392)
-                .top(24)
-                .width(300));
+    g.children({text("THREE JIGS — AND A RIGHT ANGLE IS "
+                     "22.5 + 45 + 22.5")
+                    .font({.color = hexColor(0xB7A281, 0.55f), .track = 0.5f})
+                    .left(392)
+                    .top(24)
+                    .width(300)});
 
     // the reading
-    g.child(
-        text("ONE CELL, TAKEN APART")
-            .font(
-                {.size = 12, .color = hexColor(0xE4D5B2, 0.86f), .track = 1.3f})
-            .left(760)
-            .top(30));
-    g.child(text("The diagonal cuts the cell into two right isoceles "
-                 "triangles. In each, the three infill pieces run from the "
-                 "triangle's vertices to its INCENTER — and every "
-                 "number the panel is built on falls out of that one rule.")
-                .left(760)
-                .top(56)
-                .width(520));
-    g.child(text("incircle r = s(2−√2)/2 = "
-                 "0.29289 s  ·  arm off a 45° corner = "
-                 "atan(√2−1) = "
-                 "22.5°")
-                .left(760)
-                .top(126)
-                .width(520));
-    g.child(text("1 diagonal + 2 fillers + 4 locking pieces = 7 per "
-                 "cell  ·  60 cells = 420 ha")
-                .left(760)
-                .top(148)
-                .width(520));
+    g.children({text("ONE CELL, TAKEN APART")
+                    .font({.size = 12,
+                           .color = hexColor(0xE4D5B2, 0.86f),
+                           .track = 1.3f})
+                    .left(760)
+                    .top(30)});
+    g.children({text("The diagonal cuts the cell into two right isoceles "
+                     "triangles. In each, the three infill pieces run from the "
+                     "triangle's vertices to its INCENTER — and every "
+                     "number the panel is built on falls out of that one rule.")
+                    .left(760)
+                    .top(56)
+                    .width(520)});
+    g.children({text("incircle r = s(2−√2)/2 = "
+                     "0.29289 s  ·  arm off a 45° corner = "
+                     "atan(√2−1) = "
+                     "22.5°")
+                    .left(760)
+                    .top(126)
+                    .width(520)});
+    g.children({text("1 diagonal + 2 fillers + 4 locking pieces = 7 per "
+                     "cell  ·  60 cells = 420 ha")
+                    .left(760)
+                    .top(148)
+                    .width(520)});
     return g;
   }
 
@@ -322,57 +327,55 @@ struct KumikoAsanoha : sketch::Sketch {
     const SkRect mid = kRegOuter.makeOutset(1.5f, 1.5f);
     return stack()
         .fill(Fill::color(kNight))
-        .child(backlight())
-        .child(lattice())
-        .child(joinery())
+        .children({backlight(), lattice(), joinery()})
         // Backlight bleed: the lamp's halo added OVER the
         // fretwork, so the light visibly wraps the pieces it is behind
         // instead of stopping dead at their silhouettes.
-        .child(
-            box()
-                .left(kRegOuter.left())
-                .top(kRegOuter.top())
-                .width(kRegOuter.width())
-                .height(kRegOuter.height())
-                .clip(true)
-                .opacity(&glow)
-                .blend(SkBlendMode::kPlus)
-                .fill(Paint::radial(
-                    {kRegOuter.width() * 0.5f, kRegOuter.height() * 0.5f}, 360,
-                    {{0.00f, hexColor(0xFFF2D2, 0.13f)},
-                     {0.45f, hexColor(0xE6BC7C, 0.07f)},
-                     {1.00f, hexColor(0x000000, 0.00f)}})))
-        .child(frame())
+        .children(
+            {box()
+                 .left(kRegOuter.left())
+                 .top(kRegOuter.top())
+                 .width(kRegOuter.width())
+                 .height(kRegOuter.height())
+                 .clip(true)
+                 .opacity(&glow)
+                 .blend(SkBlendMode::kPlus)
+                 .fill(Paint::radial(
+                     {kRegOuter.width() * 0.5f, kRegOuter.height() * 0.5f}, 360,
+                     {{0.00f, hexColor(0xFFF2D2, 0.13f)},
+                      {0.45f, hexColor(0xE6BC7C, 0.07f)},
+                      {1.00f, hexColor(0x000000, 0.00f)}})),
+             frame()})
         // The mitred frame's keyline draws itself on around the perimeter —
         // one continuous reveal, the first beat of the assembly.
-        .child(box()
-                   .left(mid.left())
-                   .top(mid.top())
-                   .width(mid.width())
-                   .height(mid.height())
-                   .stroke(spans::upTo(&frameTrim),
-                           PathFormat{.width = 2.2f,
-                                      .strokeFill = Fill::color(
-                                          hexColor(0xC79A57, 0.60f)),
-                                      .align = PathFormat::Align::Center}))
-        .child(post(0, 146))
-        .child(post(kW - 146, 146))
-        .child(beam(0, 122, true))
-        .child(beam(kRoom - 122, 122, false))
-        .child(text("ASANOHA KUMIKO · SQUARE JIGUMI · "
-                    "HINOKI ON KEYAKI · 900×400mm TYPE")
-                   .font({.size = 12, .color = kCaption, .track = 1.1f})
-                   .left(950)
-                   .top(916)
-                   .width(300)
-                   .textAlign(weave::TextAlignment::kEnd))
+        .children({box()
+                       .left(mid.left())
+                       .top(mid.top())
+                       .width(mid.width())
+                       .height(mid.height())
+                       .stroke(spans::upTo(&frameTrim),
+                               PathFormat{.width = 2.2f,
+                                          .strokeFill = Fill::color(
+                                              hexColor(0xC79A57, 0.60f)),
+                                          .align = PathFormat::Align::Center}),
+                   post(0, 146), post(kW - 146, 146), beam(0, 122, true),
+                   beam(kRoom - 122, 122, false),
+                   text("ASANOHA KUMIKO · SQUARE JIGUMI · "
+                        "HINOKI ON KEYAKI · 900×400mm TYPE")
+                       .font({.size = 12, .color = kCaption, .track = 1.1f})
+                       .left(950)
+                       .top(916)
+                       .width(300)
+                       .block({.alignment = weave::TextAlignment::kEnd})})
         // A faint vertical vignette — the near-side room, in shadow. It
         // stops at the room's floor: the shop drawing under it is a
         // drawing, not part of the room.
-        .child(box().left(0).top(0).width(kW).height(kRoom).fill(radialGradient(
-            {700, 500}, 920, {{0, 0, 0, 0}, {0, 0, 0, 0.30f}, {0, 0, 0, 0.62f}},
-            {0.30f, 0.72f, 1.0f})))
-        .child(shopDrawing());
+        .children(
+            {box().left(0).top(0).width(kW).height(kRoom).fill(radialGradient(
+                 {700, 500}, 920,
+                 {{0, 0, 0, 0}, {0, 0, 0, 0.30f}, {0, 0, 0, 0.62f}},
+                 {0.30f, 0.72f, 1.0f})),
+             shopDrawing()});
   }
 
   void setup(sketch::SketchContext& ctx) override {

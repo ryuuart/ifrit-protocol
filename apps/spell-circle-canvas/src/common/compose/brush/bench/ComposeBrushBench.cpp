@@ -60,7 +60,7 @@ Element maskedGrid(int count, MaskKind kind,
       leaf.mask(by::spans(spans::upTo(reveal)));
     else
       leaf.mask(by::edge(15.0f, reveal));
-    root.child(std::move(leaf));
+    root.children({std::move(leaf)});
   }
   return root;
 }
@@ -96,12 +96,12 @@ Element weaveScene(int strandCount) {
     strands.push_back(
         {strand::path(path.detach()), brush::solid(5.0f, Fill::color(color))});
   }
-  return stack().child(
-      box()
-          .inset(0)
-          .stroke(brush::weave(std::move(strands),
-                               geometry::path::crossing::alternate()))
-          .cache(Cache::None));
+  return stack().children(
+      {box()
+           .inset(0)
+           .stroke(brush::weave(std::move(strands),
+                                geometry::path::crossing::alternate()))
+           .cache(Cache::None)});
 }
 
 struct WaveWidth {
@@ -118,18 +118,18 @@ Element profiledRibbonGrid(int count) {
   constexpr int kColumns = 16;
   for (int id = 0; id < count; ++id) {
     const int row = id / kColumns;
-    root.child(
-        box()
-            .left((float)(id % kColumns) * 48.0f)
-            .top((float)row * 48.0f)
-            .width(40)
-            .height(40)
-            .shape(geometry::shapes::circle())
-            .fill(Fill::none())
-            .stroke(brush::ribbon(
-                geometry::path::Profile(WaveWidth{5.0f + (float)(id % 3)}),
-                Fill::color({0.92f, 0.45f, 0.22f, 1.0f})))
-            .cache(Cache::None));
+    root.children(
+        {box()
+             .left((float)(id % kColumns) * 48.0f)
+             .top((float)row * 48.0f)
+             .width(40)
+             .height(40)
+             .shape(geometry::shapes::circle())
+             .fill(Fill::none())
+             .stroke(brush::ribbon(
+                 geometry::path::Profile(WaveWidth{5.0f + (float)(id % 3)}),
+                 Fill::color({0.92f, 0.45f, 0.22f, 1.0f})))
+             .cache(Cache::None)});
   }
   return root;
 }
@@ -169,7 +169,7 @@ Element spanStrokeGrid(int passCount, choreograph::Output<float>& phase) {
                       sigil::motion::bind(&phase).offset(base + 0.6f * slot)),
           brush::solid(3.0f, Fill::color(color)));
     }
-    root.child(std::move(leaf));
+    root.children({std::move(leaf)});
   }
   return root;
 }
@@ -280,15 +280,15 @@ Element decoratedRow(const Row& row) {
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
       .background(shadow({0, 0, 0, 0.5f}, {0, 2}, 6))
       .foreground(stroke(1.5f, Fill::color({0.5f, 0.5f, 0.6f, 1})))
-      .child(text(toUtf8(row.name), style).grow(1))
-      .child(text(toUtf8(std::to_string(row.score)), style));
+      .children({text(toUtf8(row.name), style).grow(1),
+                 text(toUtf8(std::to_string(row.score)), style)});
 }
 
 Element decoratedBoard(const std::vector<Row>& rows) {
   auto list = box().column().gap(4).padding(16);
   for (const Row& row : rows)
-    list.child(
-        decoratedRow(row).key(row.name));  // no memo — prune must cover it
+    list.children(
+        {decoratedRow(row).key(row.name)});  // no memo — prune must cover it
   return list;
 }
 
@@ -365,14 +365,15 @@ ContourWalk starVine() {
  *  than rebuilt per station. */
 static void BM_Draw_StampBorder_Cached(benchmark::State& state) {
   Host host(800, 600);
-  host.composer.render(box().child(box()
-                                       .width(400)
-                                       .height(280)
-                                       .inset(100, 100, 300, 220)
-                                       .absolute()
-                                       .corners({20})
-                                       .fill(Fill::color({0.1f, 0.1f, 0.2f, 1}))
-                                       .foreground(starVine())));
+  host.composer.render(
+      box().children({box()
+                          .width(400)
+                          .height(280)
+                          .inset(100, 100, 300, 220)
+                          .absolute()
+                          .corners({20})
+                          .fill(Fill::color({0.1f, 0.1f, 0.2f, 1}))
+                          .foreground(starVine())}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
 }
@@ -384,16 +385,17 @@ BENCHMARK(BM_Draw_StampBorder_Cached);
 static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State& state) {
   Host host(800, 600);
   choreograph::Output<float> spin{0.0f};
-  host.composer.render(box().child(
-      box()
-          .width(300)
-          .height(300)
-          .inset(250, 150, 250, 150)
-          .absolute()
-          .shape(geometry::shapes::rounded(geometry::shapes::star(7, 0.6f), 10))
-          .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
-          .rotate(&spin)
-          .foreground(starVine())));
+  host.composer.render(
+      box().children({box()
+                          .width(300)
+                          .height(300)
+                          .inset(250, 150, 250, 150)
+                          .absolute()
+                          .shape(geometry::shapes::rounded(
+                              geometry::shapes::star(7, 0.6f), 10))
+                          .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
+                          .rotate(&spin)
+                          .foreground(starVine())}));
   host.draw();
   float angle = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -412,19 +414,19 @@ static void BM_Draw_ArtWarp_Live(benchmark::State& state) {
       brush::artAlong(box().width(48).height(16).corners({8}).fill(
                           Fill::color({0.5f, 0.8f, 0.5f, 1})),
                       14, 6);
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(20, 20, 20, 20)
-                                       .shape([](SkSize s) {
-                                         SkPathBuilder b;
-                                         b.moveTo(0, s.height() / 2);
-                                         b.cubicTo(s.width() * 0.3f, 0,
-                                                   s.width() * 0.5f, s.height(),
-                                                   s.width(), s.height() / 2);
-                                         return b.detach();
-                                       })
-                                       .foreground(vine)
-                                       .cache(Cache::None)));
+  host.composer.render(
+      box().children({box()
+                          .absolute()
+                          .inset(20, 20, 20, 20)
+                          .shape([](SkSize s) {
+                            SkPathBuilder b;
+                            b.moveTo(0, s.height() / 2);
+                            b.cubicTo(s.width() * 0.3f, 0, s.width() * 0.5f,
+                                      s.height(), s.width(), s.height() / 2);
+                            return b.detach();
+                          })
+                          .foreground(vine)
+                          .cache(Cache::None)}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
 }
@@ -434,14 +436,14 @@ BENCHMARK(BM_Draw_ArtWarp_Live);
 static void BM_Draw_Hatch_Live(benchmark::State& state) {
   Host host(900, 640);
   host.composer.render(
-      box().child(box()
-                      .width(400)
-                      .height(400)
-                      .centerAt({450, 320})
-                      .shape(geometry::shapes::blob(5, 0.2f))
-                      .background(lines::presets::hatch(
-                          Fill::color({1, 1, 1, 0.5f}), 7, 1.2f))
-                      .cache(Cache::None)));
+      box().children({box()
+                          .width(400)
+                          .height(400)
+                          .centerAt({450, 320})
+                          .shape(geometry::shapes::blob(5, 0.2f))
+                          .background(lines::presets::hatch(
+                              Fill::color({1, 1, 1, 0.5f}), 7, 1.2f))
+                          .cache(Cache::None)}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
 }
@@ -480,14 +482,14 @@ Element slowThemedPanel(int count, AccentFill mode,
                         SkColor4f plain) {
   auto row = box().key("row").row().wrapLines().gap(2);
   for (int id = 0; id < count; ++id)
-    row.child(box()
-                  .key("c" + std::to_string(id))
-                  .width(26)
-                  .height(26)
-                  .shape(geometry::shapes::star(5 + id % 3, 0.45f, 0.08f))
-                  .fill(cellFill(id))
-                  .stroke(brush::solid(
-                      1.5f, Fill::color({0.95f, 0.86f, 0.55f, 1.0f}))));
+    row.children({box()
+                      .key("c" + std::to_string(id))
+                      .width(26)
+                      .height(26)
+                      .shape(geometry::shapes::star(5 + id % 3, 0.45f, 0.08f))
+                      .fill(cellFill(id))
+                      .stroke(brush::solid(
+                          1.5f, Fill::color({0.95f, 0.86f, 0.55f, 1.0f})))});
   Element accent =
       box()
           .key("accent")
@@ -499,11 +501,11 @@ Element slowThemedPanel(int count, AccentFill mode,
     accent.fill(sigil::motion::Animatable<Fill>(bound));
   else
     accent.fill(Fill::color(plain));
-  row.child(std::move(accent));
+  row.children({std::move(accent)});
   // Two container levels above the row, so the ancestor chain the poison
   // climbs is a realistic panel/frame/root, not a single node.
-  return box().key("root").column().padding(6).child(
-      box().key("frame").column().padding(4).child(std::move(row)));
+  return box().key("root").column().padding(6).children(
+      {box().key("frame").column().padding(4).children({std::move(row)})});
 }
 
 /** Per-frame cache work, averaged, so the arms are comparable in NUMBERS
@@ -645,8 +647,8 @@ static void BM_Band_Construct(benchmark::State& state) {
   };
   Host host(1400, 1400);
   for ([[maybe_unused]] auto iteration : state) {
-    host.composer.render(stack().child(
-        band(ring, across(14)).inset(0).fill(Fill::color({1, 0, 0, 1}))));
+    host.composer.render(stack().children(
+        {band(ring, across(14)).inset(0).fill(Fill::color({1, 0, 0, 1}))}));
     host.draw();
   }
   state.SetItemsProcessed(state.iterations());

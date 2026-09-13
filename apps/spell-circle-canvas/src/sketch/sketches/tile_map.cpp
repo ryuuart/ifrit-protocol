@@ -186,11 +186,11 @@ Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
       const int id =
           cell == chunk.edit.cell ? chunk.edit.id : tileAt(chunk.index, x, y);
       const SkRect at = arrange::cellRect({x, y}, {kTile, kTile});
-      tiles.child(image(tileset)
-                      .region(SkRect::MakeXYWH((float)id * 16, 0, 16, 16))
-                      .inset(at.fLeft, at.fTop, 0, 0)
-                      .width(Dimension(kTile))
-                      .height(Dimension(kTile)));
+      tiles.children({image(tileset)
+                          .region(SkRect::MakeXYWH((float)id * 16, 0, 16, 16))
+                          .inset(at.fLeft, at.fTop, 0, 0)
+                          .width(Dimension(kTile))
+                          .height(Dimension(kTile))});
     }
   return tiles;
 }
@@ -262,21 +262,21 @@ struct TileMap final : sketch::Sketch {
               .height(Dimension(kChunkRows * kTile))
               // Recorded, so a describe that runs is a recording
               // written and the footer's count is the work itself.
-              .child(memo(Chunk{i, revisions[(size_t)i], edits[(size_t)i]},
-                          [tileset = tileset](const Chunk& c) {
-                            return chunkElement(tileset, c);
-                          })
-                         .key("chunk" + std::to_string(i))
-                         .cache(Cache::Picture))
+              .children({memo(Chunk{i, revisions[(size_t)i], edits[(size_t)i]},
+                              [tileset = tileset](const Chunk& c) {
+                                return chunkElement(tileset, c);
+                              })
+                             .key("chunk" + std::to_string(i))
+                             .cache(Cache::Picture)})
               // The wash: a sibling of the memo, so fading it costs the
               // memo nothing and the memo's own recording stands.
-              .child(box()
-                         .key("flash" + std::to_string(i))
-                         .absolute()
-                         .inset(0)
-                         .fill(Fill::color(kFlash))
-                         .opacity(&flash[(size_t)i]));
-      grid.child(std::move(chunk));
+              .children({box()
+                             .key("flash" + std::to_string(i))
+                             .absolute()
+                             .inset(0)
+                             .fill(Fill::color(kFlash))
+                             .opacity(&flash[(size_t)i])});
+      grid.children({std::move(chunk)});
     }
 
     const std::string counts = kit::formatted(

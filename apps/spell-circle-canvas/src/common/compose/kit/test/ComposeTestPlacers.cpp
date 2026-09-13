@@ -32,8 +32,8 @@ TEST(ComposePlacers, TheAlphaLaneFadesWithoutTouchingTheTint) {
   instancing::place::repeat(*pool, 2, {40, 40}, {80, 0}, 0.0f, 1.0f, 1.0f,
                             0.25f);
   Host host(200, 200);
-  host.composer.render(box().absolute().inset(0).child(
-      instancing::instances(atlas, pool, instancing::Mode::Data)));
+  host.composer.render(box().absolute().inset(0).children(
+      {instancing::instances(atlas, pool, instancing::Mode::Data)}));
   host.frame();
   const unsigned full = SkColorGetR(host.pixel(40, 40));
   const unsigned faded = SkColorGetR(host.pixel(120, 40));

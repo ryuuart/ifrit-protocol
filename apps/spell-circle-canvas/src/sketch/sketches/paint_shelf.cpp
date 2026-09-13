@@ -92,8 +92,9 @@ Element cell(const char* call, const char* note, Element body) {
 
 /** One paint across the whole cell. */
 Element swatch(const char* call, const char* note, paint::Paint fill) {
-  return cell(call, note,
-              box().child(box().absolute().inset(0).fill(std::move(fill))));
+  return cell(
+      call, note,
+      box().children({box().absolute().inset(0).fill(std::move(fill))}));
 }
 
 }  // namespace
@@ -135,12 +136,9 @@ struct PaintShelf final : sketch::Sketch {
       return p.worldSpace(world);
     };
     const auto pair = [&](bool world) {
-      return box()
-          .row()
-          .padding(18, 34)
-          .gap(16)
-          .child(box().grow(1).alignSelf(Align::Stretch).fill(field(world)))
-          .child(box().grow(1).alignSelf(Align::Stretch).fill(field(world)));
+      return box().row().padding(18, 34).gap(16).children(
+          {box().grow(1).alignSelf(Align::Stretch).fill(field(world)),
+           box().grow(1).alignSelf(Align::Stretch).fill(field(world))});
     };
 
     ctx.composer.render(sketch::kit::page(

@@ -53,7 +53,7 @@ compose::Element timeline(const Timeline& scale) {
       tick.top(Dimension(thickness));
     else
       tick.top(Dimension(-reach));
-    rail.child(std::move(tick));
+    rail.children({std::move(tick)});
   }
   Element column = box().column();
   if (scale.width.unit != Dimension::Unit::Auto) column.width(scale.width);
@@ -68,25 +68,25 @@ compose::Element timeline(const Timeline& scale) {
   for (const Timeline::Mark& mark : scale.marks) {
     if (!mark.major || mark.label.empty()) continue;
     any = true;
-    words.child(
-        box()
-            .absolute()
-            .left(compose::pct(std::clamp(mark.at, 0.0f, 1.0f) * 100))
-            .width(Dimension(0))
-            .row()
-            .justify(compose::Justify::Center)
-            .child(text(mark.label.bytes(),
-                        mark.ink ? look.style(look.type.eyebrow, *mark.ink)
-                                 : sharedInk)
-                       .shrink(0)));
+    words.children(
+        {box()
+             .absolute()
+             .left(compose::pct(std::clamp(mark.at, 0.0f, 1.0f) * 100))
+             .width(Dimension(0))
+             .row()
+             .justify(compose::Justify::Center)
+             .children({text(mark.label.bytes(),
+                             mark.ink ? look.style(look.type.eyebrow, *mark.ink)
+                                      : sharedInk)
+                            .shrink(0)})});
   }
   if (!scale.below && any) {
-    column.child(std::move(words.margin(0, 0, 0, reachOf)));
-    column.child(std::move(rail));
+    column.children({std::move(words.margin(0, 0, 0, reachOf))});
+    column.children({std::move(rail)});
     return column;
   }
-  column.child(std::move(rail));
-  if (any) column.child(std::move(words.margin(0, reachOf, 0, 0)));
+  column.children({std::move(rail)});
+  if (any) column.children({std::move(words.margin(0, reachOf, 0, 0))});
   return column;
 }
 

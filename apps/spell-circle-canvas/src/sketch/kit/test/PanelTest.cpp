@@ -37,7 +37,7 @@ TEST(SketchKitPanel, AKeylineOfNoneDrawsNoKeyline) {
           .height(compose::Dimension(180))
           .padding(20)
           .fill(shell)
-          .child(compose::box().column().grow(1).fill(screen).clip()),
+          .children({compose::box().column().grow(1).fill(screen).clip()}),
       kit::frame({.width = compose::Dimension(220),
                   .height = compose::Dimension(180),
                   .shell = shell,
@@ -96,15 +96,16 @@ TEST(SketchKitPanel, TheScreenIsInsetByTheBezel) {
           .height(compose::Dimension(120))
           .fill(Fill::color(house.palette.cellGround))
           .corners(compose::Corners{6})
-          .child(compose::box()
-                     .column()
-                     .grow(1)
-                     .fill(Fill::color(house.palette.ground))
-                     .clip()
-                     .corners(compose::Corners{2})
-                     .stroke(compose::stroke(1, Fill::color(house.palette.rule),
-                                             compose::PathFormat::Align::Inner))
-                     .child(subject()));
+          .children(
+              {compose::box()
+                   .column()
+                   .grow(1)
+                   .fill(Fill::color(house.palette.ground))
+                   .clip()
+                   .corners(compose::Corners{2})
+                   .stroke(compose::stroke(1, Fill::color(house.palette.rule),
+                                           compose::PathFormat::Align::Inner))
+                   .children({subject()})});
   EXPECT_TRUE(sameDrawing(std::move(byHand),
                           kit::frame({.width = compose::Dimension(200),
                                       .height = compose::Dimension(120),
@@ -131,15 +132,16 @@ TEST(SketchKitPanel, AFrameShellAndScreenTakeAMaterial) {
           .height(compose::Dimension(120))
           .fill(sigil::material::skia::Paint::recipe(purbeck))
           .corners(compose::Corners{6})
-          .child(compose::box()
-                     .column()
-                     .grow(1)
-                     .fill(sigil::material::skia::Paint::recipe(mortar))
-                     .clip()
-                     .corners(compose::Corners{2})
-                     .stroke(compose::stroke(1, Fill::color(house.palette.rule),
-                                             compose::PathFormat::Align::Inner))
-                     .child(subject()));
+          .children(
+              {compose::box()
+                   .column()
+                   .grow(1)
+                   .fill(sigil::material::skia::Paint::recipe(mortar))
+                   .clip()
+                   .corners(compose::Corners{2})
+                   .stroke(compose::stroke(1, Fill::color(house.palette.rule),
+                                           compose::PathFormat::Align::Inner))
+                   .children({subject()})});
   EXPECT_TRUE(sameDrawing(std::move(byHand),
                           kit::frame({.width = compose::Dimension(200),
                                       .height = compose::Dimension(120),

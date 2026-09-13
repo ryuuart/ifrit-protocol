@@ -54,7 +54,7 @@ TEST(ComposeWeb, WebLeafDrawsPublishedFrame) {
   composer.render(box()
                       .padding(50)
                       .fill(Fill::color({1, 0, 0, 1}))
-                      .child(web(view).grow(1)));
+                      .children({web(view).grow(1)}));
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 200));
@@ -84,10 +84,10 @@ TEST(ComposeWeb, ComposerDrawsIntoPageFacingCanvas) {
   sigil::motion::Ticker ticker;
   Composer composer(ticker, fonts());
   composer.setSize({64, 64});
-  composer.render(
-      box()
-          .fill(Fill::color({0, 0, 1, 1}))
-          .child(box().width(20).height(20).fill(Fill::color({1, 1, 0, 1}))));
+  composer.render(box()
+                      .fill(Fill::color({0, 0, 1, 1}))
+                      .children({box().width(20).height(20).fill(
+                          Fill::color({1, 1, 0, 1}))}));
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 64));
   composer.draw(*surface->getCanvas());

@@ -91,7 +91,7 @@ Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 14})
-          .child(std::move(body)));
+          .children({std::move(body)}));
 }
 
 /** One initial letter over the passage; `nested`, when given, sets the
@@ -115,23 +115,24 @@ Element dropped(const char* key, std::optional<kit::NestedStyle> nested) {
  *  the silhouette the opening lines subtract. */
 Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
   const sketch::kit::Theme& look = sketch::kit::theme();
-  Element ornament = box()
-                         .width(58)
-                         .height(64)
-                         .shape(sigil::geometry::shapes::star(8, 0.48f, 0.12f))
-                         .fill(Fill::color(look.palette.figure))
-                         .child(text(u8"W")
-                                    .font(serifType(27, look.palette.ground))
-                                    .absolute()
-                                    .left(15)
-                                    .top(14));
+  Element ornament =
+      box()
+          .width(58)
+          .height(64)
+          .shape(sigil::geometry::shapes::star(8, 0.48f, 0.12f))
+          .fill(Fill::color(look.palette.figure))
+          .children({text(u8"W")
+                         .font(serifType(27, look.palette.ground))
+                         .absolute()
+                         .left(15)
+                         .top(14)});
   ornament.key(key).absolute().left(Dimension(0.0f)).top(Dimension(0.0f));
   Element body = text(std::string_view(kPassage).substr(1))
                      .font(serifType(11.5f, kBody))
                      .width(Dimension(kCell - 28))
                      .flowAround(key, kMargin);
   if (nested) body.spanStyle(kit::nestedRun(*nested), nested->style);
-  return box().child(std::move(ornament)).child(std::move(body));
+  return box().children({std::move(ornament), std::move(body)});
 }
 
 }  // namespace
@@ -156,16 +157,12 @@ struct BulletsDropCap final : sketch::Sketch {
         u8"Roman, lettered, restarting, hierarchical — all data."};
     const std::vector<std::u8string> innerMarks = {u8"—", u8"—"};
 
-    Element list =
-        box()
-            .column()
-            .gap(9)
-            .child(kit::bullets(outer, outerMarks, serifType(11, kBody), kHang,
-                                kCell - 28 - kHang))
-            .child(kit::bullets(inner, innerMarks,
-                                serifType(10.5f, look.palette.ash), kHang,
-                                kCell - 28 - kHang * 2)
-                       .margin(kHang, 0, 0, 0));
+    Element list = box().column().gap(9).children(
+        {kit::bullets(outer, outerMarks, serifType(11, kBody), kHang,
+                      kCell - 28 - kHang),
+         kit::bullets(inner, innerMarks, serifType(10.5f, look.palette.ash),
+                      kHang, kCell - 28 - kHang * 2)
+             .margin(kHang, 0, 0, 0)});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "BULLETS AND THE INITIAL LETTER · "

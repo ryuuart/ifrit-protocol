@@ -135,40 +135,40 @@ struct HitSlots final : sketch::Sketch {
       const float h = 100.0f + (float)(i % 4) * 20.0f;
       Shape outline = shapes::blob((uint32_t)(60 + i), 0.32f, 6);
       if (i % 2 == 1) outline = shapes::star(5 + i % 3, 0.5f);
-      targets.child(
-          box()
-              .key(targetKey(i))
-              .width(w)
-              .height(h)
-              .inset(at.x() - w * 0.5f, at.y() - h * 0.5f, 0, 0)
-              .shape(std::move(outline))
-              .fill(Fill::color(
-                  {0.22f + 0.45f * hue, 0.30f + 0.22f * hue, 0.62f, 0.85f}))
-              .foreground(stroke(1.6f, Fill::color({0.85f, 0.95f, 1, 0.45f}))));
+      targets.children(
+          {box()
+               .key(targetKey(i))
+               .width(w)
+               .height(h)
+               .inset(at.x() - w * 0.5f, at.y() - h * 0.5f, 0, 0)
+               .shape(std::move(outline))
+               .fill(Fill::color(
+                   {0.22f + 0.45f * hue, 0.30f + 0.22f * hue, 0.62f, 0.85f}))
+               .foreground(
+                   stroke(1.6f, Fill::color({0.85f, 0.95f, 1, 0.45f})))});
     }
 
     // The wires: keyed, so `routesAt` can name them. A keyless route is
     // anchored but unaddressable, and the back-index omits it.
     auto wires = stack().inset(0).zIndex(1).hitTestable(false);
     for (int i = 0; i + 1 < kTargets; ++i)
-      wires.child(connector(targetKey(i), targetKey(i + 1),
-                            routers::arc(i % 2 == 0 ? 0.22f : -0.22f), 6)
-                      .key(wireKey(i))
-                      .hitTestable(false)
-                      .stroke(stroke(1.6f, Fill::color(kWire))));
+      wires.children({connector(targetKey(i), targetKey(i + 1),
+                                routers::arc(i % 2 == 0 ? 0.22f : -0.22f), 6)
+                          .key(wireKey(i))
+                          .hitTestable(false)
+                          .stroke(stroke(1.6f, Fill::color(kWire)))});
 
     return stack()
         .fill(linearGradient(
             {0, 0}, {0, kCanvas.height()},
             {{0.07f, 0.06f, 0.13f, 1}, {0.16f, 0.09f, 0.20f, 1}}, {0.0f, 1.0f}))
-        .child(std::move(targets))
-        .child(std::move(wires))
+        .children({std::move(targets), std::move(wires)})
         // Both slots opt OUT of the hit test. A slot's name is its key,
         // and a full-canvas marker slot would otherwise be the topmost
         // keyed node under every point the probe visits — the readout
         // would answer with the probe's own name, for ever.
-        .child(slot("probe").inset(0).zIndex(6).hitTestable(false))
-        .child(slot("answer").inset(0).zIndex(5).hitTestable(false));
+        .children({slot("probe").inset(0).zIndex(6).hitTestable(false),
+                   slot("answer").inset(0).zIndex(5).hitTestable(false)});
   }
 
   /** The probe marker: new content on every frame, which is why its
@@ -200,19 +200,19 @@ struct HitSlots final : sketch::Sketch {
 
     if (hitBounds) {
       const SkRect rect = *hitBounds;
-      root.child(custom(kit::formatted("hit %.2f %.2f %.2f %.2f", rect.fLeft,
-                                       rect.fTop, rect.fRight, rect.fBottom),
-                        [rect](SkCanvas& canvas, const PaintContext&) {
-                          SkPaint ring;
-                          ring.setAntiAlias(true);
-                          ring.setStyle(SkPaint::kStroke_Style);
-                          ring.setStrokeWidth(2.5f);
-                          ring.setColor4f(kLit);
-                          canvas.drawRoundRect(rect.makeOutset(10, 10), 16, 16,
-                                               ring);
-                        })
-                     .inset(0)
-                     .hitTestable(false));
+      root.children(
+          {custom(kit::formatted("hit %.2f %.2f %.2f %.2f", rect.fLeft,
+                                 rect.fTop, rect.fRight, rect.fBottom),
+                  [rect](SkCanvas& canvas, const PaintContext&) {
+                    SkPaint ring;
+                    ring.setAntiAlias(true);
+                    ring.setStyle(SkPaint::kStroke_Style);
+                    ring.setStrokeWidth(2.5f);
+                    ring.setColor4f(kLit);
+                    canvas.drawRoundRect(rect.makeOutset(10, 10), 16, 16, ring);
+                  })
+               .inset(0)
+               .hitTestable(false)});
     }
     // The named routes, drawn again over their own dim selves. A route
     // element is a derivation of the two nodes' resolved bounds, so the
@@ -221,10 +221,10 @@ struct HitSlots final : sketch::Sketch {
       const size_t dash = route.rfind('-');
       if (dash == std::string::npos) continue;
       const int i = std::stoi(route.substr(dash + 1));
-      root.child(connector(targetKey(i), targetKey(i + 1),
-                           routers::arc(i % 2 == 0 ? 0.22f : -0.22f), 6)
-                     .hitTestable(false)
-                     .stroke(stroke(2.6f, Fill::color(kLit))));
+      root.children({connector(targetKey(i), targetKey(i + 1),
+                               routers::arc(i % 2 == 0 ? 0.22f : -0.22f), 6)
+                         .hitTestable(false)
+                         .stroke(stroke(2.6f, Fill::color(kLit)))});
     }
 
     std::string routes;
@@ -242,19 +242,19 @@ struct HitSlots final : sketch::Sketch {
     // The readout is set in ash, and the answer's own line in the ink a
     // size up: one font on the column, one partial on that leaf.
     const sketch::kit::Theme& look = sketch::kit::theme();
-    return root.child(
-        box()
-            .column()
-            .gap(4)
-            .absolute()
-            .inset(20, ctx.size.height() - 78, 20, 14)
-            .hitTestable(false)
-            .font({.size = 12.5f})
-            .ink(look.palette.ash)
-            .child(text("hitTest(probe) → " + hitLabel)
-                       .font({.size = 16, .color = look.palette.ink}))
-            .child(text("bounds(\"" + hitLabel + "\") → " + rect))
-            .child(text("routesAt(\"" + hitLabel + "\") → " + routes)));
+    return root.children(
+        {box()
+             .column()
+             .gap(4)
+             .absolute()
+             .inset(20, ctx.size.height() - 78, 20, 14)
+             .hitTestable(false)
+             .font({.size = 12.5f})
+             .ink(look.palette.ash)
+             .children({text("hitTest(probe) → " + hitLabel)
+                            .font({.size = 16, .color = look.palette.ink})})
+             .children({text("bounds(\"" + hitLabel + "\") → " + rect)})
+             .children({text("routesAt(\"" + hitLabel + "\") → " + routes)})});
   }
 
   void setup(sketch::SketchContext& ctx) override {

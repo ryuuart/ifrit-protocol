@@ -394,7 +394,7 @@ struct ShippingForecast : sketch::Sketch {
             .styleClass("hero")
             .key(key)
             .width(pct(100))
-            .textAlign(sigil::weave::TextAlignment::kCenter)
+            .block({.alignment = sigil::weave::TextAlignment::kCenter})
             // The ramp is pinned to the line's METRIC BAND, not to
             // the glyphs — so a letter still under the mask is
             // painted with the bottom of the ramp and arrives into
@@ -646,7 +646,7 @@ struct ShippingForecast : sketch::Sketch {
             .font({.size = 19.5f})
             .key("forecast")
             .width(pct(100))
-            .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
+            .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
             .spanPaint(weave::selectors::regex(u8"[0-9]+"),
                        sigil::weave::PaintStyle(kAmber.toSkColor()))
             .fx(std::move(initials))
@@ -731,7 +731,7 @@ struct ShippingForecast : sketch::Sketch {
             .font({.size = 19.5f})
             .key("synopsis")
             .width(pct(100))
-            .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
+            .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
             .spanStyle(weave::selectors::regex(u8"[0-9]+"), graded)
             .spanPaint(weave::selectors::regex(u8"[0-9]+"),
                        sigil::weave::PaintStyle(kAmber.toSkColor()))
@@ -774,10 +774,10 @@ struct ShippingForecast : sketch::Sketch {
                        beat(2.80f + (float)i * 0.14f, 3.40f + (float)i * 0.14f))
                    .children({
                        text(r.place).styleClass("place").grow(1),
-                       text(r.wind).styleClass("wind").width(74).textAlign(
-                           sigil::weave::TextAlignment::kEnd),
-                       text(r.baro).styleClass("station").width(166).textAlign(
-                           sigil::weave::TextAlignment::kEnd),
+                       text(r.wind).styleClass("wind").width(74).block(
+                           {.alignment = sigil::weave::TextAlignment::kEnd}),
+                       text(r.baro).styleClass("station").width(166).block(
+                           {.alignment = sigil::weave::TextAlignment::kEnd}),
                    });
              }),
     });
@@ -853,7 +853,7 @@ struct ShippingForecast : sketch::Sketch {
         .top(196)
         .width(28)
         .height(560)
-        .writingMode(sigil::weave::WritingMode::kVerticalRL)
+        .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
         .fx({.effect = fx::rise(11.0f),
              .stagger = {.eachMs = 0,
                          .amountMs = 780,

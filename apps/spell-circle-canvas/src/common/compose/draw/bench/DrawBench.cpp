@@ -17,15 +17,15 @@ using sigil::draw::Pen;
 
 void DrawNode(benchmark::State& state) {
   bench::Host host(800, 600);
-  host.composer.render(stack().child(pen([](Pen& pen) {
-                                       pen.noStroke();
-                                       pen.fill(220, 120, 80);
-                                       for (int i = 0; i < 300; ++i)
-                                         pen.circle(pen.random(800),
-                                                    pen.random(600), 10);
-                                     })
-                                         .width(800)
-                                         .height(600)));
+  host.composer.render(stack().children({pen([](Pen& pen) {
+                                           pen.noStroke();
+                                           pen.fill(220, 120, 80);
+                                           for (int i = 0; i < 300; ++i)
+                                             pen.circle(pen.random(800),
+                                                        pen.random(600), 10);
+                                         })
+                                             .width(800)
+                                             .height(600)}));
   for (int i = 0; i < 4; ++i) host.draw();
   for (auto&& _ : state) host.draw();
 }
@@ -40,8 +40,8 @@ void RetainedCard(benchmark::State& state) {
       box()
           .padding(16)
           .fill(Fill::color({0.2f, 0.3f, 0.5f, 1}))
-          .child(text(u8"A retained card, reconciled every frame",
-                      sigil::weave::TextStyle{}));
+          .children({text(u8"A retained card, reconciled every frame",
+                          sigil::weave::TextStyle{})});
   for (auto&& _ : state) {
     Frame frame;
     frame.width = 800;

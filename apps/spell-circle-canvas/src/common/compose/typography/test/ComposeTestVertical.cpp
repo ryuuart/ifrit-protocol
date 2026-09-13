@@ -66,12 +66,12 @@ std::vector<float> columnAxes(const sigil::weave::ParagraphLayout& layout) {
 
 TEST(TextVertical, ColumnsRunTopToBottomAndAdvanceRightToLeft) {
   Host host(300, 240);
-  host.composer.render(box().padding(10).child(
-      text(kProse, jp(22, SK_ColorWHITE))
-          .width(200)
-          .height(180)
-          .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .key("t")));
+  host.composer.render(box().padding(10).children(
+      {text(kProse, jp(22, SK_ColorWHITE))
+           .width(200)
+           .height(180)
+           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
@@ -106,7 +106,7 @@ TEST(TextVertical, IntrinsicMeasurementSwapsTheAxes) {
       text(kProse, jp(20, SK_ColorWHITE)), fonts());
   const SkSize tall = sigil::compose::intrinsicSize(
       text(kProse, jp(20, SK_ColorWHITE))
-          .writingMode(sigil::weave::WritingMode::kVerticalRL),
+          .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
       fonts());
   EXPECT_GT(wide.width(), wide.height());
   EXPECT_GT(tall.height(), tall.width())
@@ -119,13 +119,13 @@ TEST(TextVertical, IntrinsicMeasurementSwapsTheAxes) {
 
 TEST(TextVertical, MaxLinesClampsColumns) {
   Host host(340, 200);
-  host.composer.render(box().padding(10).child(
-      text(kProse, jp(20, SK_ColorWHITE))
-          .width(300)
-          .height(120)
-          .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .maxLines(2)
-          .key("t")));
+  host.composer.render(box().padding(10).children(
+      {text(kProse, jp(20, SK_ColorWHITE))
+           .width(300)
+           .height(120)
+           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .maxLines(2)
+           .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
@@ -137,14 +137,14 @@ TEST(TextVertical, ALineSelectorAddressesAColumn) {
   // weave::selectors::line resolves through the LAYOUT, and in a vertical
   // passage the layout numbers columns. Column 0 is the RIGHTMOST one.
   Host host(300, 240);
-  host.composer.render(box().padding(10).child(
-      text(kProse, jp(22, SK_ColorWHITE))
-          .width(200)
-          .height(180)
-          .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .spanPaint(sigil::weave::selectors::line(0),
-                     sigil::weave::PaintStyle(SK_ColorRED))
-          .key("t")));
+  host.composer.render(box().padding(10).children(
+      {text(kProse, jp(22, SK_ColorWHITE))
+           .width(200)
+           .height(180)
+           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .spanPaint(sigil::weave::selectors::line(0),
+                      sigil::weave::PaintStyle(SK_ColorRED))
+           .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
@@ -167,16 +167,16 @@ TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
   // reading order down a column is what a stagger beats over.
   choreograph::Output<float> progress{0.45f};
   Host host(200, 320);
-  host.composer.render(box().padding(10).child(
-      text(u8"一二三四五六七八九十", jp(24, SK_ColorWHITE))
-          .width(60)
-          .height(300)
-          .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .fx({.effect = fx::rise(30),
-               .stagger = {.eachMs = 90},
-               .unit = sigil::weave::Unit::Cluster,
-               .progress = &progress})
-          .key("t")));
+  host.composer.render(box().padding(10).children(
+      {text(u8"一二三四五六七八九十", jp(24, SK_ColorWHITE))
+           .width(60)
+           .height(300)
+           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .fx({.effect = fx::rise(30),
+                .stagger = {.eachMs = 90},
+                .unit = sigil::weave::Unit::Cluster,
+                .progress = &progress})
+           .key("t")}));
   host.frame();
   const int top = inkCount(host, SkIRect::MakeXYWH(0, 10, 200, 120));
   const int bottom = inkCount(host, SkIRect::MakeXYWH(0, 190, 200, 120));
@@ -211,15 +211,16 @@ TEST(TextVertical, SpanPaintRecolorsAColumnWithoutReshaping) {
   };
 
   const auto describe = [&](bool restyled) {
-    Element t = text(body, jp(24, SK_ColorWHITE))
-                    .width(200)
-                    .height(220)
-                    .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                    .key("t");
+    Element t =
+        text(body, jp(24, SK_ColorWHITE))
+            .width(200)
+            .height(220)
+            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+            .key("t");
     if (restyled)
       t.spanPaint(sigil::weave::selectors::text(u8"赤い"),
                   sigil::weave::PaintStyle(SK_ColorRED));
-    return box().padding(10).child(std::move(t));
+    return box().padding(10).children({std::move(t)});
   };
 
   host.composer.render(describe(false));
@@ -244,8 +245,8 @@ TEST(TextVertical, TheParagraphOverloadKeepsTheFieldMaskContract) {
   vertical->setWritingMode(sigil::weave::WritingMode::kVerticalRL);
 
   // No setter names the mode: the paragraph's own mode stands.
-  host.composer.render(box().padding(10).child(
-      text(vertical, {}).width(200).height(180).key("t")));
+  host.composer.render(box().padding(10).children(
+      {text(vertical, {}).width(200).height(180).key("t")}));
   host.frame();
   const auto* asPassed = host.composer.paragraphLayout("t");
   ASSERT_NE(asPassed, nullptr);
@@ -255,12 +256,12 @@ TEST(TextVertical, TheParagraphOverloadKeepsTheFieldMaskContract) {
 
   // The setter names it: the setter wins, field by field, as every other
   // layout-option setter does on this overload.
-  host.composer.render(box().padding(10).child(
-      text(vertical, {})
-          .width(200)
-          .height(180)
-          .writingMode(sigil::weave::WritingMode::kHorizontal)
-          .key("t2")));
+  host.composer.render(box().padding(10).children(
+      {text(vertical, {})
+           .width(200)
+           .height(180)
+           .block({.writingMode = sigil::weave::WritingMode::kHorizontal})
+           .key("t2")}));
   host.frame();
   const auto* overridden = host.composer.paragraphLayout("t2");
   ASSERT_NE(overridden, nullptr);
@@ -272,14 +273,14 @@ TEST(TextVertical, TheParagraphOverloadKeepsTheFieldMaskContract) {
 TEST(TextVertical, OnPathIgnoresWritingModeAndSaysSoOnce) {
   Host host(240, 240);
   ::testing::internal::CaptureStderr();
-  host.composer.render(
-      box().child(text(u8"縦書きは曲線に乗らない", jp(20, SK_ColorWHITE))
-                      .width(200)
-                      .height(200)
-                      .centerAt({120, 120})
-                      .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                      .onPath({.path = geometry::shapes::circle()})
-                      .key("t")));
+  host.composer.render(box().children(
+      {text(u8"縦書きは曲線に乗らない", jp(20, SK_ColorWHITE))
+           .width(200)
+           .height(200)
+           .centerAt({120, 120})
+           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .onPath({.path = geometry::shapes::circle()})
+           .key("t")}));
   host.frame();
   const std::string first = ::testing::internal::GetCapturedStderr();
   EXPECT_NE(first.find("onPath"), std::string::npos)
@@ -308,11 +309,12 @@ TEST(TextVertical, AnUprightGlyphTurnsAboutItsColumnAxis) {
   // quarter of a line height rather than a rounding error.
   Host host(240, 300);
   const auto describe = [&](bool shrunk) {
-    Element t = text(u8"一二三四五", jp(28, SK_ColorWHITE))
-                    .width(60)
-                    .height(260)
-                    .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                    .key("t");
+    Element t =
+        text(u8"一二三四五", jp(28, SK_ColorWHITE))
+            .width(60)
+            .height(260)
+            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+            .key("t");
     if (shrunk)
       t.fx({.effect = fx::effect(
                 "quarter",
@@ -322,7 +324,7 @@ TEST(TextVertical, AnUprightGlyphTurnsAboutItsColumnAxis) {
                   return m;
                 },
                 40.0f)});
-    return box().padding(10).child(std::move(t));
+    return box().padding(10).children({std::move(t)});
   };
   const auto inkCentroidX = [&] {
     double sum = 0;
@@ -357,15 +359,15 @@ TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
   // the reading order kVerticalRL puts them in, and the exact opposite of
   // what a horizontal rect built from the same numbers would say.
   Host host(220, 300);
-  host.composer.render(box().padding(10).child(
-      text(kProse, jp(20, SK_ColorWHITE))
-          .key("col")
-          .width(180)
-          .height(240)
-          .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .fx({.effect = fx::rise(10),
-               .stagger = {.eachMs = 40},
-               .unit = sigil::weave::Unit::Cluster})));
+  host.composer.render(box().padding(10).children(
+      {text(kProse, jp(20, SK_ColorWHITE))
+           .key("col")
+           .width(180)
+           .height(240)
+           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .fx({.effect = fx::rise(10),
+                .stagger = {.eachMs = 40},
+                .unit = sigil::weave::Unit::Cluster})}));
   host.frame();
 
   const std::vector<Beat> beats = host.composer.beatsOf("col", 0);
@@ -433,15 +435,15 @@ TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
                           char32_t point) {
     GlyphModifier mod;
     mod.codepoint = point;
-    host.composer.render(box().padding(10).child(
-        text(u8"AAA", style)
-            .key("k")
-            .writingMode(mode)
-            .fx({.effect = fx::effect(
-                     point ? "sub" : "rest",
-                     [mod](const GlyphInfo&, float,
-                           sigil::core::noise::Mix64Stream&) { return mod; },
-                     /*reach=*/120.0f)})));
+    host.composer.render(box().padding(10).children(
+        {text(u8"AAA", style)
+             .key("k")
+             .block({.writingMode = mode})
+             .fx({.effect = fx::effect(
+                      point ? "sub" : "rest",
+                      [mod](const GlyphInfo&, float,
+                            sigil::core::noise::Mix64Stream&) { return mod; },
+                      /*reach=*/120.0f)})}));
     host.frame();
   };
   const auto drawn = [&](sigil::weave::WritingMode mode, char32_t point) {
@@ -478,13 +480,13 @@ TEST(TextVertical, TheUnitReadBackNamesHowEachOneStandsInItsColumn) {
   Host host(300, 240);
   sigil::weave::TextStyle tcy = jp(22, SK_ColorWHITE);
   tcy.shaping.verticalForm = sigil::weave::VerticalForm::kTateChuYoko;
-  host.composer.render(box().padding(10).child(
-      text(mixed, jp(22, SK_ColorWHITE))
-          .width(200)
-          .height(180)
-          .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .spanStyle(sigil::weave::selectors::text(u8"30"), tcy)
-          .key("t")));
+  host.composer.render(box().padding(10).children(
+      {text(mixed, jp(22, SK_ColorWHITE))
+           .width(200)
+           .height(180)
+           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .spanStyle(sigil::weave::selectors::text(u8"30"), tcy)
+           .key("t")}));
   host.frame();
 
   const std::vector<TextUnit> units = host.composer.units(
@@ -509,14 +511,14 @@ TEST(TextVertical, AMarkAnchorsToTheColumnItsUnitStandsIn) {
   // phrase's mark is a tall narrow box standing in that phrase's column —
   // not a wide short one across the page.
   Host host(300, 260);
-  host.composer.render(box().padding(10).child(
-      text(kProse, jp(22, SK_ColorWHITE))
-          .width(200)
-          .height(200)
-          .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .mark(sigil::weave::selectors::text(u8"縦組み"),
-                box().key("rule").width(Dimension(3.0f)).fill(red()))
-          .key("t")));
+  host.composer.render(box().padding(10).children(
+      {text(kProse, jp(22, SK_ColorWHITE))
+           .width(200)
+           .height(200)
+           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .mark(sigil::weave::selectors::text(u8"縦組み"),
+                 box().key("rule").width(Dimension(3.0f)).fill(red()))
+           .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
@@ -541,16 +543,17 @@ TEST(TextVertical, ASpanStyleReshapesOnlyTheRunItNames) {
   // pen steps DOWN.
   Host host(300, 300);
   const auto describe = [&](bool dressed) {
-    Element t = text(u8"縦組みの文章", jp(24, SK_ColorWHITE))
-                    .width(80)
-                    .height(260)
-                    .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                    .key("t");
+    Element t =
+        text(u8"縦組みの文章", jp(24, SK_ColorWHITE))
+            .width(80)
+            .height(260)
+            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+            .key("t");
     if (dressed) {
       sigil::weave::TextStyle big = jp(40, SK_ColorWHITE);
       t.spanStyle(sigil::weave::selectors::text(u8"文章"), big);
     }
-    return box().padding(10).child(std::move(t));
+    return box().padding(10).children({std::move(t)});
   };
   host.composer.render(describe(false));
   host.frame();
@@ -576,16 +579,16 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
   // passage separated by the geometry, not by the text.
   choreograph::Output<float> progress{0.35f};
   Host host(300, 260);
-  host.composer.render(box().padding(10).child(
-      text(kProse, jp(22, SK_ColorWHITE))
-          .width(200)
-          .height(200)
-          .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .fx({.effect = fx::typeOn(),
-               .stagger = {.eachMs = 400},
-               .unit = sigil::weave::Unit::Line,
-               .progress = &progress})
-          .key("t")));
+  host.composer.render(box().padding(10).children(
+      {text(kProse, jp(22, SK_ColorWHITE))
+           .width(200)
+           .height(200)
+           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .fx({.effect = fx::typeOn(),
+                .stagger = {.eachMs = 400},
+                .unit = sigil::weave::Unit::Line,
+                .progress = &progress})
+           .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
@@ -619,17 +622,17 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
   sideline.color = SK_ColorRED;
   sidelined.addDecoration(sideline);
   const auto describe = [&] {
-    return box().padding(10).child(
-        text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
-            .width(60)
-            .height(220)
-            .writingMode(sigil::weave::WritingMode::kVerticalRL)
-            .spanPaint(sigil::weave::selectors::text(u8"三四五六"), sidelined)
-            .fx({.effect = fx::rise(24),
-                 .stagger = {.eachMs = 90},
-                 .unit = sigil::weave::Unit::Cluster,
-                 .progress = &progress})
-            .key("t"));
+    return box().padding(10).children(
+        {text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
+             .width(60)
+             .height(220)
+             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+             .spanPaint(sigil::weave::selectors::text(u8"三四五六"), sidelined)
+             .fx({.effect = fx::rise(24),
+                  .stagger = {.eachMs = 90},
+                  .unit = sigil::weave::Unit::Cluster,
+                  .progress = &progress})
+             .key("t")});
   };
 
   Host host(240, 260);
@@ -704,13 +707,13 @@ TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
     sideline.color = SK_ColorRED;
     sideline.side = side;
     sidelined.addDecoration(sideline);
-    return box().padding(10).child(
-        text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
-            .width(60)
-            .height(220)
-            .writingMode(sigil::weave::WritingMode::kVerticalRL)
-            .spanPaint(sigil::weave::selectors::text(u8"三四五六"), sidelined)
-            .key("t"));
+    return box().padding(10).children(
+        {text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
+             .width(60)
+             .height(220)
+             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+             .spanPaint(sigil::weave::selectors::text(u8"三四五六"), sidelined)
+             .key("t")});
   };
 
   Host host(240, 260);

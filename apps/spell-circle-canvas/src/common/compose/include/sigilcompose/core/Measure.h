@@ -36,7 +36,7 @@ namespace sigil::compose {
  *  THE INTRINSIC SIZE COMES FROM THE ROOT'S CHILDREN, not from the root's
  *  own dims, and this catches people out: `snapshot(box().width(32).
  *  fill(…))` bakes at CONTENT size and quietly ignores the 32. Wrap the
- *  sized tree in a plain `box().child(...)` and the dims are honoured,
+ *  sized tree in a plain `box().children({...})` and the dims are honoured,
  *  because they now belong to a child. */
 sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
                           SkSize maxSize = SkSize::MakeEmpty());

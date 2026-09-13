@@ -50,36 +50,37 @@ Element mapping(const Mapping& properties) {
                         return (float)scale.position(inputs(unit));
                       },
                       kInk, 2.5f});
-  body.child(box()
-                 .left(area.left())
-                 .top(area.top())
-                 .width(area.width())
-                 .height(area.height())
-                 .child(kit::curvePlot(properties.title, std::move(traces),
-                                       {.samples = 256,
-                                        .rulesY = {0, 0.25f, 0.5f, 0.75f, 1},
-                                        .rule = {0.20f, 0.25f, 0.29f, 1}})));
+  body.children(
+      {box()
+           .left(area.left())
+           .top(area.top())
+           .width(area.width())
+           .height(area.height())
+           .children({kit::curvePlot(properties.title, std::move(traces),
+                                     {.samples = 256,
+                                      .rulesY = {0, 0.25f, 0.5f, 0.75f, 1},
+                                      .rule = {0.20f, 0.25f, 0.29f, 1}})})});
   if (categories)
-    body.child(custom(std::string(properties.title) + "-marks",
-                      [scale = properties.scale, area](SkCanvas& canvas,
-                                                       const PaintContext&) {
-                        SkPaint pen;
-                        pen.setAntiAlias(true);
-                        pen.setColor4f(kInk);
-                        data::Scale positions = scale;
-                        positions.range = {area.left(), area.right()};
-                        for (int i = 0; i < positions.steps; ++i) {
-                          const float x = (float)positions(i);
-                          const float width = (float)positions.bandwidth();
-                          if (width > 0)
-                            canvas.drawRect(
-                                SkRect::MakeXYWH(x, area.top() + 30, width, 52),
-                                pen);
-                          else
-                            canvas.drawCircle(x, area.centerY(), 7, pen);
-                        }
-                      })
-                   .inset(0));
+    body.children(
+        {custom(std::string(properties.title) + "-marks",
+                [scale = properties.scale, area](SkCanvas& canvas,
+                                                 const PaintContext&) {
+                  SkPaint pen;
+                  pen.setAntiAlias(true);
+                  pen.setColor4f(kInk);
+                  data::Scale positions = scale;
+                  positions.range = {area.left(), area.right()};
+                  for (int i = 0; i < positions.steps; ++i) {
+                    const float x = (float)positions(i);
+                    const float width = (float)positions.bandwidth();
+                    if (width > 0)
+                      canvas.drawRect(
+                          SkRect::MakeXYWH(x, area.top() + 30, width, 52), pen);
+                    else
+                      canvas.drawCircle(x, area.centerY(), 7, pen);
+                  }
+                })
+             .inset(0)});
 
   data::Scale axis = properties.scale;
   if (!categories && axis.transform != data::Transform::Time)
@@ -91,11 +92,12 @@ Element mapping(const Mapping& properties) {
                         : area.left() + (float)((tick - axis.domain.low) /
                                                 axis.domain.extent()) *
                                             area.width();
-    body.child(text(kit::formatted("%.3g", tick))
-                   .left(x - 20)
-                   .top(kHeight - 20)
-                   .width(40)
-                   .textAlign(sigil::weave::TextAlignment::kCenter));
+    body.children(
+        {text(kit::formatted("%.3g", tick))
+             .left(x - 20)
+             .top(kHeight - 20)
+             .width(40)
+             .block({.alignment = sigil::weave::TextAlignment::kCenter})});
   }
   return sketch::kit::caption(kWidth, properties.title, properties.note,
                               std::move(body));

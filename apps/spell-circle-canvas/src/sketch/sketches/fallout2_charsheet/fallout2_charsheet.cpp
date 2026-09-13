@@ -24,20 +24,20 @@ auto Fallout2CharSheet::describe() -> Element {
                        .ink(kGreen);
   // the cast-metal tooth and the rust, as layer elements: each composites
   // whole against what is already on the canvas
-  screen.child(box()
-                   .inset(0)
-                   .fill(plateTooth)
-                   .blend(SkBlendMode::kOverlay)
-                   .opacity(0.30f)
-                   .cache(Cache::Texture));
-  screen.child(box()
-                   .inset(0)
-                   .fill(rustMat)
-                   .blend(SkBlendMode::kSoftLight)
-                   .opacity(0.55f)
-                   .cache(Cache::Texture));
+  screen.children({box()
+                       .inset(0)
+                       .fill(plateTooth)
+                       .blend(SkBlendMode::kOverlay)
+                       .opacity(0.30f)
+                       .cache(Cache::Texture)});
+  screen.children({box()
+                       .inset(0)
+                       .fill(rustMat)
+                       .blend(SkBlendMode::kSoftLight)
+                       .opacity(0.55f)
+                       .cache(Cache::Texture)});
 
-  screen.child(chrome());
+  screen.children({chrome()});
 
   // The S.P.E.C.I.A.L. column is NOT a well — sampled at (45,60) the
   // reference reads #483828, a LIT metal facet. It is a raised panel with
@@ -50,62 +50,63 @@ auto Fallout2CharSheet::describe() -> Element {
                                              {{0.0f, hexColor(0x54462E)},
                                               {0.35f, kPlateLit},
                                               {1.0f, hexColor(0x3A3020)}}));
-    sp.child(box()
-                 .inset(0)
-                 .fill(plateTooth)
-                 .blend(SkBlendMode::kOverlay)
-                 .opacity(0.34f)
-                 .cache(Cache::Texture));
-    sp.child(box()
-                 .inset(0)
-                 .fill(rustMat)
-                 .blend(SkBlendMode::kSoftLight)
-                 .opacity(0.70f)
-                 .cache(Cache::Texture));
+    sp.children({box()
+                     .inset(0)
+                     .fill(plateTooth)
+                     .blend(SkBlendMode::kOverlay)
+                     .opacity(0.34f)
+                     .cache(Cache::Texture)});
+    sp.children({box()
+                     .inset(0)
+                     .fill(rustMat)
+                     .blend(SkBlendMode::kSoftLight)
+                     .opacity(0.70f)
+                     .cache(Cache::Texture)});
     sp.foreground(fo::stamp(1.6f, 2.0f, hexColor(0xB09868, 0.55f),
                             hexColor(0x080604, 0.70f)));
     sp.stroke(stroke(n(1), Fill::color(hexColor(0x1A1610)),
                      PathFormat::Align::Inner));
     for (int i = 0; i < 4; ++i)
-      sp.child(
-          sigil::compose::kit::disc(
-              SkPoint{n(((unsigned)i & 1u) ? kWellSpecial.w - 6 : 6.0f),
-                      n(((unsigned)i & 2u) ? kWellSpecial.h - 6 : 6.0f)},
-              n(2.6f))
-              .fill(rivetMat)
-              .foreground(stroke(n(0.6f), Fill::color(hexColor(0x000000, 0.7f)),
-                                 PathFormat::Align::Outer)));
-    screen.child(sp);
+      sp.children(
+          {sigil::compose::kit::disc(
+               SkPoint{n(((unsigned)i & 1u) ? kWellSpecial.w - 6 : 6.0f),
+                       n(((unsigned)i & 2u) ? kWellSpecial.h - 6 : 6.0f)},
+               n(2.6f))
+               .fill(rivetMat)
+               .foreground(stroke(n(0.6f),
+                                  Fill::color(hexColor(0x000000, 0.7f)),
+                                  PathFormat::Align::Outer))});
+    screen.children({sp});
   }
-  screen.child(well(kWellStatus));
-  screen.child(well(kWellDerived));
-  screen.child(well(kWellLevel));
-  screen.child(well(kWellSkills, 3.0f));
-  screen.child(well(kWellFolder, 3.0f));
+  screen.children({well(kWellStatus)});
+  screen.children({well(kWellDerived)});
+  screen.children({well(kWellLevel)});
+  screen.children({well(kWellSkills, 3.0f)});
+  screen.children({well(kWellFolder, 3.0f)});
 
-  screen.child(specialColumn());
-  screen.child(statusBlock());
-  screen.child(derivedBlock());
-  screen.child(levelBlock());
-  screen.child(folder());
-  screen.child(box().inset(0).child(slot("skills")));
-  screen.child(card());
+  screen.children({specialColumn()});
+  screen.children({statusBlock()});
+  screen.children({derivedBlock()});
+  screen.children({levelBlock()});
+  screen.children({folder()});
+  screen.children({box().inset(0).children({slot("skills")})});
+  screen.children({card()});
 
   // POST: none. No bloom, no scanlines, no vignette, no CRT — a 1998 VGA
   // screen captured off a framebuffer has none of that and the restraint is
   // the point. At most a 4% grain so the metal does not read as vector-flat.
-  screen.child(box()
-                   .inset(0)
-                   .fill(canvasGrain)
-                   .blend(SkBlendMode::kOverlay)
-                   .opacity(0.04f)
-                   .cache(Cache::Texture));
-  root.child(screen);
+  screen.children({box()
+                       .inset(0)
+                       .fill(canvasGrain)
+                       .blend(SkBlendMode::kOverlay)
+                       .opacity(0.04f)
+                       .cache(Cache::Texture)});
+  root.children({screen});
 
   // ---- the plate caption. NOT part of the artefact: the screen above is
   // exactly 1280x960 and this band sits below it, carrying the audit.
-  root.child(captionBand());
-  if (sheetAudit.failures() > 0) root.child(failureCard());
+  root.children({captionBand()});
+  if (sheetAudit.failures() > 0) root.children({failureCard()});
   return root;
 }
 

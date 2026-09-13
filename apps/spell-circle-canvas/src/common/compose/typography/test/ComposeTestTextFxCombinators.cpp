@@ -281,12 +281,12 @@ TEST(ComposeTextFx, AKeyTableIsComparableByItsNumbersAndItsCurves) {
 TEST(ComposeTextFx, AKeyedTrackPrunesWhenItsTableIsUnchanged) {
   Host host;
   const auto tree = [] {
-    return box().padding(10).child(
-        text(u8"KEYS", whiteStyle(28))
-            .key("k")
-            .fx({.effect =
-                     fx::keys({{0.0f, {}}, {0.5f, {.dy = -8.0f}}, {1.0f, {}}},
-                              &choreograph::easeInOutCubic)}));
+    return box().padding(10).children(
+        {text(u8"KEYS", whiteStyle(28))
+             .key("k")
+             .fx({.effect =
+                      fx::keys({{0.0f, {}}, {0.5f, {.dy = -8.0f}}, {1.0f, {}}},
+                               &choreograph::easeInOutCubic)})});
   };
   host.composer.render(tree());
   for (int i = 0; i < 4; ++i) host.frame(0.016);
@@ -297,12 +297,12 @@ TEST(ComposeTextFx, AKeyedTrackPrunesWhenItsTableIsUnchanged) {
 
   // The control: a table with one number moved is a different value, and
   // the node it describes has to be patched.
-  host.composer.render(box().padding(10).child(
-      text(u8"KEYS", whiteStyle(28))
-          .key("k")
-          .fx({.effect =
-                   fx::keys({{0.0f, {}}, {0.5f, {.dy = -9.0f}}, {1.0f, {}}},
-                            &choreograph::easeInOutCubic)})));
+  host.composer.render(box().padding(10).children(
+      {text(u8"KEYS", whiteStyle(28))
+           .key("k")
+           .fx({.effect =
+                    fx::keys({{0.0f, {}}, {0.5f, {.dy = -9.0f}}, {1.0f, {}}},
+                             &choreograph::easeInOutCubic)})}));
   EXPECT_GT(host.composer.stats().patchedNodes, 0u);
 }
 

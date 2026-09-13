@@ -14,8 +14,8 @@ TEST(ComposeDecorations, DashedBorderPaintsAlongOutline) {
   dashed.width = 6;
   dashed.strokeFill = Fill::color({1, 1, 0, 1});
   dashed.dashIntervals = {10, 10};
-  host.composer.render(box().child(
-      box().width(120).height(120).inset(20).absolute().foreground(dashed)));
+  host.composer.render(box().children(
+      {box().width(120).height(120).inset(20).absolute().foreground(dashed)}));
   host.frame();
   // Somewhere along the top edge a dash lands; somewhere it doesn't.
   int lit = 0;
@@ -39,12 +39,12 @@ TEST(ComposeDecorations, ContourWalkVisitsSamplesPositioned) {
     p.setColor(SK_ColorGREEN);
     c.drawRect(SkRect::MakeXYWH(-2, -2, 4, 4), p);  // at the sample origin
   };
-  host.composer.render(box().child(box()
-                                       .width(100)
-                                       .height(100)
-                                       .inset(50, 50, 50, 50)
-                                       .absolute()
-                                       .foreground(walk)));
+  host.composer.render(box().children({box()
+                                           .width(100)
+                                           .height(100)
+                                           .inset(50, 50, 50, 50)
+                                           .absolute()
+                                           .foreground(walk)}));
   host.frame();
   EXPECT_EQ(visits, 16);  // 400px perimeter / 25px spacing
   EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);  // top edge stamped
@@ -63,7 +63,7 @@ TEST(ComposeDecorations, AnimatedWalkDeclaresVolatility) {
     ++visits;
   };
   host.composer.render(
-      box().child(box().width(100).height(100).foreground(walk)));
+      box().children({box().width(100).height(100).foreground(walk)}));
   host.frame();
   host.frame();
   EXPECT_EQ(visits, 16);  // 8 samples × 2 frames: repainted per frame
@@ -92,16 +92,17 @@ TEST(ComposeDecorations, ContourWalkStampAtSequencesPerSampleArt) {
       return std::nullopt;  // odd samples: the shared stamp replays
     return box().width(10).height(10).fill(red());
   };
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(20, 80, 20, 80)
-                                       .shape([](SkSize s) {
-                                         SkPathBuilder b;
-                                         b.moveTo(0, s.height() / 2);
-                                         b.lineTo(s.width(), s.height() / 2);
-                                         return b.detach();
-                                       })
-                                       .foreground(walk)));
+  host.composer.render(box().children({box()
+                                           .absolute()
+                                           .inset(20, 80, 20, 80)
+                                           .shape([](SkSize s) {
+                                             SkPathBuilder b;
+                                             b.moveTo(0, s.height() / 2);
+                                             b.lineTo(s.width(),
+                                                      s.height() / 2);
+                                             return b.detach();
+                                           })
+                                           .foreground(walk)}));
   host.frame();
   // 160px rail, spacing 40 → samples at x = 20, 60, 100, 140 (y = 100).
   EXPECT_EQ(host.pixel(20, 100), SK_ColorRED);     // index 0: its own art
@@ -128,7 +129,7 @@ TEST(ComposeDecorations, SliceStretchesCenterKeepsCorners) {
   nine.xDivs = {10, 20};
   nine.yDivs = {10, 20};
   host.composer.render(
-      box().child(box().width(120).height(120).background(nine)));
+      box().children({box().width(120).height(120).background(nine)}));
   host.frame();
   EXPECT_EQ(host.pixel(60, 60), SK_ColorGREEN);  // stretched center
   EXPECT_EQ(host.pixel(4, 4), SK_ColorRED);      // corner intact
@@ -138,16 +139,16 @@ TEST(ComposeDecorations, SliceStretchesCenterKeepsCorners) {
 
 TEST(ComposeDecorations, ShadowSitsUnderTheFillAndAStrokeSitsOverIt) {
   Host host;
-  host.composer.render(box().child(
-      box()
-          .width(80)
-          .height(80)
-          .inset(40, 40, 40, 40)
-          .absolute()
-          .corners({10})
-          .background(sigil::compose::shadow({0, 0, 1, 1}, {12, 12}, 0))
-          .fill(red())
-          .foreground(sigil::compose::stroke(4, green()))));
+  host.composer.render(box().children(
+      {box()
+           .width(80)
+           .height(80)
+           .inset(40, 40, 40, 40)
+           .absolute()
+           .corners({10})
+           .background(sigil::compose::shadow({0, 0, 1, 1}, {12, 12}, 0))
+           .fill(red())
+           .foreground(sigil::compose::stroke(4, green()))}));
   host.frame();
   EXPECT_EQ(host.pixel(80, 80), SK_ColorRED);     // fill over shadow
   EXPECT_EQ(host.pixel(128, 128), SK_ColorBLUE);  // shadow offset corner
@@ -164,19 +165,15 @@ TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
     dash.width = 1;
     dash.strokeFill = blue();
     dash.dashIntervals = {4, 3};
-    return box()
-        .row()
-        .gap(8)
-        .padding(12)
-        .child(
-            box()
-                .width(40)
-                .height(40)
-                .corners({6})
-                .fill(red())
-                .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {2, 2}, 4))
-                .foreground(sigil::compose::stroke(2, green())))
-        .child(box().width(60).height(20).foreground(dash));
+    return box().row().gap(8).padding(12).children(
+        {box()
+             .width(40)
+             .height(40)
+             .corners({6})
+             .fill(red())
+             .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {2, 2}, 4))
+             .foreground(sigil::compose::stroke(2, green())),
+         box().width(60).height(20).foreground(dash)});
   };
   host.composer.render(tree());
   host.frame();
@@ -193,9 +190,9 @@ TEST(ComposeShapes, InsetRunsADecorationAgainstAShrunkOutline) {
   // nested chrome. A stroke run through inset(12, ...) must land INSIDE
   // the box, not on its edge.
   Host host(120, 120);
-  host.composer.render(box().child(
-      box().width(120).height(120).absolute().left(0).top(0).foreground(
-          inset(12.0f, stroke(4.0f, Fill::color({1, 0, 0, 1}))))));
+  host.composer.render(box().children(
+      {box().width(120).height(120).absolute().left(0).top(0).foreground(
+          inset(12.0f, stroke(4.0f, Fill::color({1, 0, 0, 1}))))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(60, 12)), 150u);  // the inset rule
   EXPECT_LT(SkColorGetR(host.pixel(60, 1)), 60u);    // the edge is bare
@@ -228,14 +225,12 @@ TEST(ComposeRail, ThreadsThroughAnchors) {
   // Three stations, one rail through their centers: the routed polyline is
   // the element; the PathFormat foreground dresses it.
   Host host;
-  host.composer.render(stack()
-                           .child(station("s1", 10, 40))
-                           .child(station("s2", 90, 40))
-                           .child(station("s3", 170, 40))
-                           .child(rail({{"s1"}, {"s2"}, {"s3"}})
-                                      .absolute()
-                                      .inset(0)
-                                      .foreground(railLine())));
+  host.composer.render(stack().children(
+      {station("s1", 10, 40), station("s2", 90, 40), station("s3", 170, 40),
+       rail({{"s1"}, {"s2"}, {"s3"}})
+           .absolute()
+           .inset(0)
+           .foreground(railLine())}));
   host.frame();
   EXPECT_EQ(host.pixel(60, 50), SK_ColorGREEN);   // between s1 and s2
   EXPECT_EQ(host.pixel(140, 50), SK_ColorGREEN);  // between s2 and s3
@@ -247,14 +242,13 @@ TEST(ComposeRail, DrawsOnWithTrim) {
   // subway line. A bound reveal advances with no render() calls.
   choreograph::Output<float> reveal{0.05f};
   Host host;
-  host.composer.render(stack()
-                           .child(station("a", 10, 40))
-                           .child(station("b", 170, 40))
-                           .child(rail({{"a"}, {"b"}})
-                                      .absolute()
-                                      .inset(0)
-                                      .mask(by::spans(spans::upTo(&reveal)))
-                                      .foreground(railLine())));
+  host.composer.render(
+      stack().children({station("a", 10, 40), station("b", 170, 40),
+                        rail({{"a"}, {"b"}})
+                            .absolute()
+                            .inset(0)
+                            .mask(by::spans(spans::upTo(&reveal)))
+                            .foreground(railLine())}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 50), SK_ColorBLACK);  // reveal stops at ~x=28
   reveal = 1.0f;                                  // no render()
@@ -268,12 +262,12 @@ TEST(ComposeRail, OctilinearRoutesDiagonalThenStraight) {
   Host host;
   host.composer.render(
       stack()
-          .child(station("a", 10, 40))    // center (20, 50)
-          .child(station("b", 130, 100))  // center (140, 110)
-          .child(rail({{"a"}, {"b"}}, routers::octilinear(0.0f))
-                     .absolute()
-                     .inset(0)
-                     .foreground(railLine())));
+          .children({station("a", 10, 40)})    // center (20, 50)
+          .children({station("b", 130, 100)})  // center (140, 110)
+          .children({rail({{"a"}, {"b"}}, routers::octilinear(0.0f))
+                         .absolute()
+                         .inset(0)
+                         .foreground(railLine())}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 80), SK_ColorGREEN);    // on the 45° leg
   EXPECT_EQ(host.pixel(110, 110), SK_ColorGREEN);  // on the straight leg
@@ -318,49 +312,48 @@ TEST_P(RailRoute, ARailReRoutesWhenWhatDecidesItsRouteChanges) {
 
 INSTANTIATE_TEST_SUITE_P(
     ComposeRail, RailRoute,
-    testing::Values(
-        RailDecision{"AnAnchorMoves",
-                     [](bool second) {
-                       return stack()
-                           .child(station("a", 10, 40))
-                           .child(station("b", 90, second ? 140 : 40))
-                           .child(rail({{"a"}, {"b"}})
-                                      .absolute()
-                                      .inset(0)
-                                      .foreground(railLine()));
-                     },
-                     {60, 50},
-                     {60, 100},
-                     {60, 50}},
-        RailDecision{"TheRouterIsSwapped",
-                     [](bool second) {
-                       return stack()
-                           .child(station("a", 10, 40))
-                           .child(station("b", 130, 100))
-                           .child(rail({{"a"}, {"b"}},
-                                       second ? routers::octilinear(0.0f)
-                                              : RailRouter{})
-                                      .absolute()
-                                      .inset(0)
-                                      .foreground(railLine()));
-                     },
-                     {80, 80},
-                     {50, 80},
-                     {80, 80}},
-        RailDecision{"AnAnchorsNormMoves",
-                     [](bool second) {
-                       const float ny = second ? 0.0f : 0.5f;
-                       return stack()
-                           .child(station("a", 10, 40))
-                           .child(station("b", 170, 40))
-                           .child(rail({{"a", {0.5f, ny}}, {"b", {0.5f, ny}}})
-                                      .absolute()
-                                      .inset(0)
-                                      .foreground(railLine()));
-                     },
-                     {100, 50},
-                     {100, 40},
-                     {100, 52}}),
+    testing::Values(RailDecision{"AnAnchorMoves",
+                                 [](bool second) {
+                                   return stack().children(
+                                       {station("a", 10, 40),
+                                        station("b", 90, second ? 140 : 40),
+                                        rail({{"a"}, {"b"}})
+                                            .absolute()
+                                            .inset(0)
+                                            .foreground(railLine())});
+                                 },
+                                 {60, 50},
+                                 {60, 100},
+                                 {60, 50}},
+                    RailDecision{"TheRouterIsSwapped",
+                                 [](bool second) {
+                                   return stack().children(
+                                       {station("a", 10, 40),
+                                        station("b", 130, 100),
+                                        rail({{"a"}, {"b"}},
+                                             second ? routers::octilinear(0.0f)
+                                                    : RailRouter{})
+                                            .absolute()
+                                            .inset(0)
+                                            .foreground(railLine())});
+                                 },
+                                 {80, 80},
+                                 {50, 80},
+                                 {80, 80}},
+                    RailDecision{
+                        "AnAnchorsNormMoves",
+                        [](bool second) {
+                          const float ny = second ? 0.0f : 0.5f;
+                          return stack().children(
+                              {station("a", 10, 40), station("b", 170, 40),
+                               rail({{"a", {0.5f, ny}}, {"b", {0.5f, ny}}})
+                                   .absolute()
+                                   .inset(0)
+                                   .foreground(railLine())});
+                        },
+                        {100, 50},
+                        {100, 40},
+                        {100, 52}}),
     [](const testing::TestParamInfo<RailDecision>& info) {
       return info.param.what;
     });
@@ -370,9 +363,10 @@ TEST(ComposeRail, ClearsWhenAnchorUnmounts) {
   // gone resolves to nothing and must draw nothing, not keep its last path.
   Host host;
   auto scene = [](bool withB) {
-    auto s = stack().child(station("a", 10, 40));
-    if (withB) s.child(station("b", 170, 40));
-    s.child(rail({{"a"}, {"b"}}).absolute().inset(0).foreground(railLine()));
+    auto s = stack().children({station("a", 10, 40)});
+    if (withB) s.children({station("b", 170, 40)});
+    s.children(
+        {rail({{"a"}, {"b"}}).absolute().inset(0).foreground(railLine())});
     return s;
   };
   host.composer.render(scene(true));
@@ -388,14 +382,13 @@ TEST(ComposeRail, HitsNearPathOnlyNotItsLayoutBox) {
   // by box would swallow every hit in the frame. It must hit near the routed
   // PATH instead.
   Host host;
-  host.composer.render(stack()
-                           .child(station("s1", 10, 40))
-                           .child(rail({{"s1"}, {"s2"}})
-                                      .key("line")
-                                      .absolute()
-                                      .inset(0)
-                                      .foreground(railLine()))
-                           .child(station("s2", 170, 40)));
+  host.composer.render(stack().children({station("s1", 10, 40),
+                                         rail({{"s1"}, {"s2"}})
+                                             .key("line")
+                                             .absolute()
+                                             .inset(0)
+                                             .foreground(railLine()),
+                                         station("s2", 170, 40)}));
   host.frame();
   auto onPath = host.composer.hitTest({100, 50});
   ASSERT_TRUE(onPath.has_value());
@@ -414,13 +407,13 @@ TEST(ComposeMask, PartialOutlineStrokesOnlyRevealedStretch) {
   // fill and every outline decoration trace the CUT path.
   Host host;
   host.composer.render(
-      box().child(box()
-                      .width(100)
-                      .height(100)
-                      .inset(0, 0, 100, 100)
-                      .absolute()
-                      .mask(by::spans(spans::upTo(0.2f)))
-                      .foreground(sigil::compose::stroke(4, green()))));
+      box().children({box()
+                          .width(100)
+                          .height(100)
+                          .inset(0, 0, 100, 100)
+                          .absolute()
+                          .mask(by::spans(spans::upTo(0.2f)))
+                          .foreground(sigil::compose::stroke(4, green()))}));
   host.frame();
   // Perimeter order for this outline: left → top → right → bottom, so the
   // first 20% is about the left edge. That order is a property of how the
@@ -435,14 +428,15 @@ TEST(ComposeMask, TransitionDrawsOn) {
   // perimeter over time (retarget-safe like every transitioned prop).
   Host host;
   auto tree = [](motion::Animatable<float> end) {
-    return box().child(box()
-                           .key("b")
-                           .width(100)
-                           .height(100)
-                           .inset(0, 0, 100, 100)
-                           .absolute()
-                           .mask(by::spans(spans::upTo(std::move(end))))
-                           .foreground(sigil::compose::stroke(4, green())));
+    return box().children(
+        {box()
+             .key("b")
+             .width(100)
+             .height(100)
+             .inset(0, 0, 100, 100)
+             .absolute()
+             .mask(by::spans(spans::upTo(std::move(end))))
+             .foreground(sigil::compose::stroke(4, green()))});
   };
   host.composer.render(tree(0.001f));
   host.frame();
@@ -462,13 +456,13 @@ TEST(ComposeMask, BoundGateRevealsWithoutRender) {
   choreograph::Output<float> end{0.2f};
   Host host;
   host.composer.render(
-      box().child(box()
-                      .width(100)
-                      .height(100)
-                      .inset(0, 0, 100, 100)
-                      .absolute()
-                      .mask(by::spans(spans::upTo(&end)))
-                      .foreground(sigil::compose::stroke(4, green()))));
+      box().children({box()
+                          .width(100)
+                          .height(100)
+                          .inset(0, 0, 100, 100)
+                          .absolute()
+                          .mask(by::spans(spans::upTo(&end)))
+                          .foreground(sigil::compose::stroke(4, green()))}));
   host.frame();
   // (99,30) sits at ~57.5% of the perimeter (right edge, top→bottom).
   EXPECT_EQ(host.pixel(99, 30), SK_ColorBLACK);  // bare at end=0.2
@@ -483,13 +477,12 @@ TEST(ComposeBrushes, FilamentGlowsAroundItsCore) {
   // off around it, built as a value brush on a rail rather than as a stack
   // of hand-placed nodes.
   Host host;
-  host.composer.render(stack()
-                           .child(station("a", 10, 90))
-                           .child(station("b", 170, 90))
-                           .child(rail({{"a"}, {"b"}})
-                                      .absolute()
-                                      .inset(0)
-                                      .stroke(brush::presets::filament())));
+  host.composer.render(
+      stack().children({station("a", 10, 90), station("b", 170, 90),
+                        rail({{"a"}, {"b"}})
+                            .absolute()
+                            .inset(0)
+                            .stroke(brush::presets::filament())}));
   host.frame();
   const SkColor core = host.pixel(100, 100);  // on the line (y=100)
   EXPECT_GT(SkColorGetR(core), 180u);         // near-white core
@@ -514,17 +507,17 @@ TEST(ComposeDecorations, AStrokeCanRefuseTheSmoothingThatBlursAHardRule) {
     return count;
   };
   auto ring = [](const PathFormat& format) {
-    return box().child(box()
-                           .absolute()
-                           .left(10)
-                           .top(10)
-                           .width(80)
-                           .height(80)
-                           .shape([](SkSize s) {
-                             return SkPath::Oval(
-                                 SkRect::MakeWH(s.fWidth, s.fHeight));
-                           })
-                           .foreground(format));
+    return box().children({box()
+                               .absolute()
+                               .left(10)
+                               .top(10)
+                               .width(80)
+                               .height(80)
+                               .shape([](SkSize s) {
+                                 return SkPath::Oval(
+                                     SkRect::MakeWH(s.fWidth, s.fHeight));
+                               })
+                               .foreground(format)});
   };
 
   const PathFormat smooth = stroke(3, Fill::color({1, 1, 1, 1}));
@@ -560,16 +553,16 @@ TEST(ComposeDecorations, ABrushThatBlendsRefusesItsNodeTheBake) {
                            .blend = SkBlendMode::kPlus});
     return box()
         .cache(Cache::None)
-        .child(box().absolute().left(0).top(0).width(200).height(200).fill(
-            Fill::color({0.55f, 0.4f, 0.2f, 1})))
-        .child(box()
-                   .key("filament")
-                   .absolute()
-                   .left(30)
-                   .top(30)
-                   .width(140)
-                   .height(140)
-                   .stroke(spans::edges(14), glow));
+        .children({box().absolute().left(0).top(0).width(200).height(200).fill(
+                       Fill::color({0.55f, 0.4f, 0.2f, 1})),
+                   box()
+                       .key("filament")
+                       .absolute()
+                       .left(30)
+                       .top(30)
+                       .width(140)
+                       .height(140)
+                       .stroke(spans::edges(14), glow)});
   };
   const auto render = [&](Composer::PromotionPolicy policy) {
     Host host;
@@ -610,18 +603,18 @@ TEST(ComposeDecorations, AWashThroughABlendModeRefusesItsNodeTheBake) {
   const auto page = [] {
     return box()
         .cache(Cache::None)
-        .child(box().absolute().left(0).top(0).width(200).height(200).fill(
-            Fill::color({0.55f, 0.4f, 0.2f, 1})))
-        .child(box()
-                   .key("washed")
-                   .absolute()
-                   .left(30)
-                   .top(30)
-                   .width(140)
-                   .height(140)
-                   .foreground(decorations::wash(
-                       material::skia::Paint::solid({0.9f, 0.9f, 0.9f, 1}),
-                       SkBlendMode::kSoftLight, 0.8f)));
+        .children({box().absolute().left(0).top(0).width(200).height(200).fill(
+                       Fill::color({0.55f, 0.4f, 0.2f, 1})),
+                   box()
+                       .key("washed")
+                       .absolute()
+                       .left(30)
+                       .top(30)
+                       .width(140)
+                       .height(140)
+                       .foreground(decorations::wash(
+                           material::skia::Paint::solid({0.9f, 0.9f, 0.9f, 1}),
+                           SkBlendMode::kSoftLight, 0.8f))});
   };
   const auto render = [&](Composer::PromotionPolicy policy) {
     Host host;

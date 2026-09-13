@@ -13,19 +13,18 @@ auto SlitScan2001::describe(sketch::SketchContext& ctx) -> Element {
       .padding(kPad)
       .gap(20)
       .fill(kInk)
-      .child(header())
-      .child(box()
-                 .row()
-                 .gap(28)
-                 .height(Dimension(kBodyH))
-                 .child(box()
-                            .column()
-                            .width(Dimension(kLeftW))
-                            .shrink(0)
-                            .gap(24)
-                            .child(filmFrame())
-                            .child(rigStrip()))
-                 .child(sidebar()));
+      .children({header(), box()
+                               .row()
+                               .gap(28)
+                               .height(Dimension(kBodyH))
+                               .children({box()
+                                              .column()
+                                              .width(Dimension(kLeftW))
+                                              .shrink(0)
+                                              .gap(24)
+                                              .children({filmFrame()})
+                                              .children({rigStrip()})})
+                               .children({sidebar()})});
 }
 
 // ===========================================================================

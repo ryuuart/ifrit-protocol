@@ -12,63 +12,63 @@ auto DunhuangStarChart::locator() -> Element {
                .rotate(0.32f)
                .key("locator")
                .opacity(gate(0.3f, 1.2f));
-  g.child(box()
-              .left(0)
-              .top(0)
-              .width(Dimension(lw))
-              .height(Dimension(lh))
-              .fill(Paint::linear({0, 0}, {0, lh},
-                                  {{0.0f, hexColor(0xa2865c)},
-                                   {0.5f, hexColor(0xd6bf95)},
-                                   {1.0f, hexColor(0xa2865c)}}))
-              .stroke(PathFormat{
-                  .width = 0.9f,
-                  .strokeFill = Fill::color(hexColor(0x2a2118, 0.75f))}));
+  g.children({box()
+                  .left(0)
+                  .top(0)
+                  .width(Dimension(lw))
+                  .height(Dimension(lh))
+                  .fill(Paint::linear({0, 0}, {0, lh},
+                                      {{0.0f, hexColor(0xa2865c)},
+                                       {0.5f, hexColor(0xd6bf95)},
+                                       {1.0f, hexColor(0xa2865c)}}))
+                  .stroke(PathFormat{
+                      .width = 0.9f,
+                      .strokeFill = Fill::color(hexColor(0x2a2118, 0.75f))})});
   // the 26 clouds and the 80 columns of the divination section, at the RIGHT
   for (int c = 0; c < 26; ++c) {
     const float cx = lw - 24.0f - (float)c * 24.0f;
-    g.child(box()
-                .left(cx - 7)
-                .top(6)
-                .width(Dimension(14))
-                .height(Dimension(9))
-                .shape(shapes::blob((uint32_t)(700 + c), 0.34f, 6))
-                .fill(Fill::color(hexColor(0x33291c, 0.85f))));
+    g.children({box()
+                    .left(cx - 7)
+                    .top(6)
+                    .width(Dimension(14))
+                    .height(Dimension(9))
+                    .shape(shapes::blob((uint32_t)(700 + c), 0.34f, 6))
+                    .fill(Fill::color(hexColor(0x33291c, 0.85f)))});
   }
   for (int c = 0; c < 80; ++c) {
     const float cx = lw - 20.0f - (float)c * 7.6f;
-    g.child(box()
-                .left(cx)
-                .top(19)
-                .width(Dimension(1.1f))
-                .height(Dimension(lh - 25))
-                .fill(Fill::color(hexColor(0x33291c, 0.55f))));
+    g.children({box()
+                    .left(cx)
+                    .top(19)
+                    .width(Dimension(1.1f))
+                    .height(Dimension(lh - 25))
+                    .fill(Fill::color(hexColor(0x33291c, 0.55f)))});
   }
   // the 13 maps
   const float atlasRight = lw - kScrollMm * mm + kAtlasMm * mm;
   for (int k = 1; k <= 12; ++k) {
     const float x0 = atlasRight - (mapSlotS(k) + kMapWmm) * mm;
-    g.child(box()
-                .left(x0)
-                .top(lh * 0.16f)
-                .width(Dimension(kMapWmm * mm))
-                .height(Dimension(lh * 0.68f))
-                .stroke(PathFormat{
-                    .width = 0.8f,
-                    .strokeFill = Fill::color(hexColor(0x2a2118, 0.9f))}));
+    g.children({box()
+                    .left(x0)
+                    .top(lh * 0.16f)
+                    .width(Dimension(kMapWmm * mm))
+                    .height(Dimension(lh * 0.68f))
+                    .stroke(PathFormat{
+                        .width = 0.8f,
+                        .strokeFill = Fill::color(hexColor(0x2a2118, 0.9f))})});
   }
   {
     const float dcx = atlasRight - discCentreS() * mm;
     const float dr = lh * 0.34f;
-    g.child(box()
-                .left(dcx - dr)
-                .top(lh * 0.5f - dr)
-                .width(Dimension(dr * 2))
-                .height(Dimension(dr * 2))
-                .shape(shapes::circle())
-                .stroke(PathFormat{
-                    .width = 0.8f,
-                    .strokeFill = Fill::color(hexColor(0x2a2118, 0.9f))}));
+    g.children({box()
+                    .left(dcx - dr)
+                    .top(lh * 0.5f - dr)
+                    .width(Dimension(dr * 2))
+                    .height(Dimension(dr * 2))
+                    .shape(shapes::circle())
+                    .stroke(PathFormat{
+                        .width = 0.8f,
+                        .strokeFill = Fill::color(hexColor(0x2a2118, 0.9f))})});
   }
   // the two windows this plate actually shows
   struct Win {
@@ -82,25 +82,25 @@ auto DunhuangStarChart::locator() -> Element {
     // window 0 runs off the strip; clamp it to the scroll it annotates
     const float a = std::max(0.0f, atlasRight - wn.s1 * mm);
     const float b = std::min(lw, atlasRight - wn.s0 * mm);
-    g.child(box()
-                .left(a)
-                .top(-4)
-                .width(Dimension(b - a))
-                .height(Dimension(lh + 8))
-                .fill(Fill::color(hexColor(0x2f6d86, 0.30f)))
-                .stroke(spans::corners(9.0f),
-                        brush::solid(1.4f, Fill::color(kTrace))));
+    g.children({box()
+                    .left(a)
+                    .top(-4)
+                    .width(Dimension(b - a))
+                    .height(Dimension(lh + 8))
+                    .fill(Fill::color(hexColor(0x2f6d86, 0.30f)))
+                    .stroke(spans::corners(9.0f),
+                            brush::solid(1.4f, Fill::color(kTrace)))});
   }
-  g.child(text("THE WHOLE SCROLL, 1:16 · 3,940 × 244 mm "
-               "· right: "
-               "26 cloud drawings over 80 columns of uranomancy "
-               "· left: the "
-               "13-map atlas, 2,100 mm · shaded: what this plate "
-               "shows")
-              .font({.size = 8.6f, .color = hexColor(0x9a8a68, 0.9f)})
-              .left(2)
-              .top(lh + 5)
-              .width(Dimension(1700)));
+  g.children({text("THE WHOLE SCROLL, 1:16 · 3,940 × 244 mm "
+                   "· right: "
+                   "26 cloud drawings over 80 columns of uranomancy "
+                   "· left: the "
+                   "13-map atlas, 2,100 mm · shaded: what this plate "
+                   "shows")
+                  .font({.size = 8.6f, .color = hexColor(0x9a8a68, 0.9f)})
+                  .left(2)
+                  .top(lh + 5)
+                  .width(Dimension(1700))});
   return g;
 }
 
@@ -129,16 +129,16 @@ auto DunhuangStarChart::poleDrift() -> Element {
   };
   for (int ring = 10; ring <= 30; ring += 10) {
     const float rr = (float)ring * pxPerDeg;
-    g.child(box()
-                .left(cx - rr)
-                .top(cy - rr)
-                .width(Dimension(rr * 2))
-                .height(Dimension(rr * 2))
-                .shape(shapes::circle())
-                .stroke(PathFormat{
-                    .width = 0.5f,
-                    .strokeFill = Fill::color(hexColor(0x8a7458, 0.30f)),
-                    .dashIntervals = {2, 5}}));
+    g.children({box()
+                    .left(cx - rr)
+                    .top(cy - rr)
+                    .width(Dimension(rr * 2))
+                    .height(Dimension(rr * 2))
+                    .shape(shapes::circle())
+                    .stroke(PathFormat{
+                        .width = 0.5f,
+                        .strokeFill = Fill::color(hexColor(0x8a7458, 0.30f)),
+                        .dashIntervals = {2, 5}})});
   }
   // the track, drawn BACKWARD from J2000 as the precession runs
   SkPathBuilder tb;
@@ -148,14 +148,15 @@ auto DunhuangStarChart::poleDrift() -> Element {
     const SkPoint q = plot(ra, dec);
     (e == 2000) ? tb.moveTo(q) : tb.lineTo(q);
   }
-  g.child(box()
-              .left(0)
-              .top(0)
-              .width(Dimension(S))
-              .height(Dimension(S))
-              .shape(heldPath(tb.detach()))
-              .stroke(spans::upTo(gate(tPrec0, tPrec1)),
-                      lines::Line{.width = 2.0f, .fill = Fill::color(kTrace)}));
+  g.children(
+      {box()
+           .left(0)
+           .top(0)
+           .width(Dimension(S))
+           .height(Dimension(S))
+           .shape(heldPath(tb.detach()))
+           .stroke(spans::upTo(gate(tPrec0, tPrec1)),
+                   lines::Line{.width = 2.0f, .fill = Fill::color(kTrace)})});
   // the whole 26,000-year circle, faint, for context
   SkPathBuilder wb;
   for (int e = -24000; e <= 4000; e += 250) {
@@ -165,16 +166,16 @@ auto DunhuangStarChart::poleDrift() -> Element {
     if (90.0f - dec > 30.0f) continue;
     (wb.countPoints() == 0) ? wb.moveTo(q) : wb.lineTo(q);
   }
-  g.child(box()
-              .left(0)
-              .top(0)
-              .width(Dimension(S))
-              .height(Dimension(S))
-              .shape(heldPath(wb.detach()))
-              .stroke(PathFormat{
-                  .width = 0.7f,
-                  .strokeFill = Fill::color(hexColor(0x8a7458, 0.45f)),
-                  .dashIntervals = {3, 4}}));
+  g.children({box()
+                  .left(0)
+                  .top(0)
+                  .width(Dimension(S))
+                  .height(Dimension(S))
+                  .shape(heldPath(wb.detach()))
+                  .stroke(PathFormat{
+                      .width = 0.7f,
+                      .strokeFill = Fill::color(hexColor(0x8a7458, 0.45f)),
+                      .dashIntervals = {3, 4}})});
   // alp UMi is 0.74° from the J2000 pole, so its dot lands ON the centre
   // marker and the default up-right label lands ON "J2000 pole". The two
   // captions flank the coincident pair on one line instead.
@@ -188,46 +189,46 @@ auto DunhuangStarChart::poleDrift() -> Element {
                        {211.0973f, 64.3758f, "alp Dra", -8.0f, -13.0f}};
   for (const Ref& r : refs) {
     const SkPoint q = plot(r.ra, r.dec);
-    g.child(box()
-                .left(q.fX - 3)
-                .top(q.fY - 3)
-                .width(Dimension(6))
-                .height(Dimension(6))
-                .shape(shapes::circle())
-                .fill(Fill::color(kCinnabar)));
-    g.child(text(r.name)
-                .font({.size = 7.4f, .color = hexColor(0x9a8a68)})
-                .left(q.fX + r.lx)
-                .top(q.fY + r.ly)
-                .width(Dimension(60)));
+    g.children({box()
+                    .left(q.fX - 3)
+                    .top(q.fY - 3)
+                    .width(Dimension(6))
+                    .height(Dimension(6))
+                    .shape(shapes::circle())
+                    .fill(Fill::color(kCinnabar))});
+    g.children({text(r.name)
+                    .font({.size = 7.4f, .color = hexColor(0x9a8a68)})
+                    .left(q.fX + r.lx)
+                    .top(q.fY + r.ly)
+                    .width(Dimension(60))});
   }
   {
     float ra, dec;
     poleAt(700.0f, ra, dec);
     const SkPoint q = plot(ra, dec);
-    g.child(box()
-                .left(q.fX - 6)
-                .top(q.fY - 6)
-                .width(Dimension(12))
-                .height(Dimension(12))
-                .shape(shapes::star(4, 0.30f))
-                .fill(Fill::color(kTrace))
-                .opacity(gate(tPrec1 - 0.4f, tPrec1 + 0.3f)));
+    g.children({box()
+                    .left(q.fX - 6)
+                    .top(q.fY - 6)
+                    .width(Dimension(12))
+                    .height(Dimension(12))
+                    .shape(shapes::star(4, 0.30f))
+                    .fill(Fill::color(kTrace))
+                    .opacity(gate(tPrec1 - 0.4f, tPrec1 + 0.3f))});
   }
-  g.child(box()
-              .left(cx - 3)
-              .top(cy - 3)
-              .width(Dimension(6))
-              .height(Dimension(6))
-              .shape(shapes::circle())
-              .stroke(PathFormat{
-                  .width = 0.9f,
-                  .strokeFill = Fill::color(hexColor(0xe0cfa6, 0.8f))}));
-  g.child(text("J2000 pole")
-              .font({.size = 7.4f, .color = hexColor(0x6d6249)})
-              .left(cx - 52)
-              .top(cy + 6)
-              .width(Dimension(70)));
+  g.children({box()
+                  .left(cx - 3)
+                  .top(cy - 3)
+                  .width(Dimension(6))
+                  .height(Dimension(6))
+                  .shape(shapes::circle())
+                  .stroke(PathFormat{
+                      .width = 0.9f,
+                      .strokeFill = Fill::color(hexColor(0xe0cfa6, 0.8f))})});
+  g.children({text("J2000 pole")
+                  .font({.size = 7.4f, .color = hexColor(0x6d6249)})
+                  .left(cx - 52)
+                  .top(cy + 6)
+                  .width(Dimension(70))});
   return g;
 }
 
@@ -238,12 +239,12 @@ auto DunhuangStarChart::poleText() -> Element {
                .width(Dimension(452))
                .key("poletext")
                .opacity(gate(tPrec0 - 0.6f, tPrec0 + 0.4f));
-  g.child(text("THE CHART DATES ITSELF")
-              .styleClass("heading")
-              .font({.size = 12.0f})
-              .left(0)
-              .top(0)
-              .width(Dimension(430)));
+  g.children({text("THE CHART DATES ITSELF")
+                  .styleClass("heading")
+                  .font({.size = 12.0f})
+                  .left(0)
+                  .top(0)
+                  .width(Dimension(430))});
   const char* rows[7] = {
       "the celestial pole's own track, from the SAME IAU 1976",
       "matrix the 1,460 stars ride. rings at 10/20/30 deg.",
@@ -254,72 +255,72 @@ auto DunhuangStarChart::poleText() -> Element {
       "this: 3.9 deg is HALF alp UMi's own distance at that date.",
   };
   for (int i = 0; i < 7; ++i)
-    g.child(
-        text(rows[i])
-            .font({.size = 9.0f, .color = i == 3 ? kChalk : hexColor(0x9a8a68)})
-            .left(0)
-            .top(18.0f + (float)i * 12.2f)
-            .width(Dimension(430)));
+    g.children({text(rows[i])
+                    .font({.size = 9.0f,
+                           .color = i == 3 ? kChalk : hexColor(0x9a8a68)})
+                    .left(0)
+                    .top(18.0f + (float)i * 12.2f)
+                    .width(Dimension(430))});
 
   // THE EPOCH, RUNNING. One Output remapped three ways: it turns the star
   // field's rotation matrix, walks the pole's track above, and slides this
   // marker — bind() doing the unit conversion at each call site instead of
   // three Outputs in the tick loop.
   const float bw = 430.0f;
-  g.child(
-      box()
-          .left(0)
-          .top(112)
-          .width(Dimension(bw))
-          .height(Dimension(9))
-          .shape(keyedShape(std::string_view("ruler-scale"),
-                            [](SkSize sz) {
-                              SkPathBuilder b;
-                              b.moveTo(0, 0);
-                              b.lineTo(0, sz.height());
-                              b.moveTo(0, sz.height() * 0.5f);
-                              b.lineTo(sz.width(), sz.height() * 0.5f);
-                              b.moveTo(sz.width(), 0);
-                              b.lineTo(sz.width(), sz.height());
-                              for (int c = 1; c < 13; ++c) {
-                                const float x = sz.width() * (float)c / 13.0f;
-                                b.moveTo(x, sz.height() * 0.5f - 2.5f);
-                                b.lineTo(x, sz.height() * 0.5f + 2.5f);
-                              }
-                              return b.detach();
-                            }))
-          .stroke(lines::Line{.width = 0.9f,
-                              .fill = Fill::color(hexColor(0x9a8a68, 0.8f))}));
-  g.child(text("+700")
-              .font({.size = 8.0f, .color = hexColor(0x9a8a68)})
-              .left(0)
-              .top(124)
-              .width(Dimension(40)));
-  g.child(text("J2000")
-              .font({.size = 8.0f, .color = hexColor(0x9a8a68)})
-              .left(bw - 40)
-              .top(124)
-              .width(Dimension(40))
-              .textAlign(weave::TextAlignment::kEnd));
-  g.child(box()
-              .left(-4)
-              .top(107)
-              .width(Dimension(8))
-              .height(Dimension(19))
-              .shape(shapes::polygon(3, 180.0f))
-              .fill(Fill::color(kCinnabar))
-              .translateX(settled
-                              ? Animatable<float>(0.0f)
-                              : Animatable<float>(bind(&scribe)
-                                                      .window(tPrec0, tPrec1)
-                                                      .invert()
-                                                      .target(0.0f, bw))));
-  g.child(text("13.00 Julian centuries · the sky slides "
-               "18.5° in RA")
-              .font({.size = 8.4f, .color = hexColor(0xc9a35c)})
-              .left(0)
-              .top(136)
-              .width(Dimension(430)));
+  g.children(
+      {box()
+           .left(0)
+           .top(112)
+           .width(Dimension(bw))
+           .height(Dimension(9))
+           .shape(keyedShape(std::string_view("ruler-scale"),
+                             [](SkSize sz) {
+                               SkPathBuilder b;
+                               b.moveTo(0, 0);
+                               b.lineTo(0, sz.height());
+                               b.moveTo(0, sz.height() * 0.5f);
+                               b.lineTo(sz.width(), sz.height() * 0.5f);
+                               b.moveTo(sz.width(), 0);
+                               b.lineTo(sz.width(), sz.height());
+                               for (int c = 1; c < 13; ++c) {
+                                 const float x = sz.width() * (float)c / 13.0f;
+                                 b.moveTo(x, sz.height() * 0.5f - 2.5f);
+                                 b.lineTo(x, sz.height() * 0.5f + 2.5f);
+                               }
+                               return b.detach();
+                             }))
+           .stroke(lines::Line{
+               .width = 0.9f, .fill = Fill::color(hexColor(0x9a8a68, 0.8f))})});
+  g.children({text("+700")
+                  .font({.size = 8.0f, .color = hexColor(0x9a8a68)})
+                  .left(0)
+                  .top(124)
+                  .width(Dimension(40))});
+  g.children({text("J2000")
+                  .font({.size = 8.0f, .color = hexColor(0x9a8a68)})
+                  .left(bw - 40)
+                  .top(124)
+                  .width(Dimension(40))
+                  .block({.alignment = weave::TextAlignment::kEnd})});
+  g.children(
+      {box()
+           .left(-4)
+           .top(107)
+           .width(Dimension(8))
+           .height(Dimension(19))
+           .shape(shapes::polygon(3, 180.0f))
+           .fill(Fill::color(kCinnabar))
+           .translateX(settled ? Animatable<float>(0.0f)
+                               : Animatable<float>(bind(&scribe)
+                                                       .window(tPrec0, tPrec1)
+                                                       .invert()
+                                                       .target(0.0f, bw)))});
+  g.children({text("13.00 Julian centuries · the sky slides "
+                   "18.5° in RA")
+                  .font({.size = 8.4f, .color = hexColor(0xc9a35c)})
+                  .left(0)
+                  .top(136)
+                  .width(Dimension(430))});
   return g;
 }
 
@@ -347,12 +348,12 @@ auto DunhuangStarChart::projectionPanel() -> Element {
                .width(Dimension(700))
                .key("proj")
                .opacity(gate(tProj, tProj + 0.9f));
-  g.child(text("TWO QUESTIONS THE CHART CANNOT ANSWER, AND WHY")
-              .styleClass("heading")
-              .font({.size = 13.0f, .track = 1.1f})
-              .left(0)
-              .top(0)
-              .width(Dimension(690)));
+  g.children({text("TWO QUESTIONS THE CHART CANNOT ANSWER, AND WHY")
+                  .styleClass("heading")
+                  .font({.size = 13.0f, .track = 1.1f})
+                  .left(0)
+                  .top(0)
+                  .width(Dimension(690))});
 
   // curve A: the Mercator ordinate against its own best-fit line
   const float pw = 320.0f, ph = 132.0f;
@@ -368,14 +369,14 @@ auto DunhuangStarChart::projectionPanel() -> Element {
   for (const auto& pl : plots) {
     auto p =
         box().left(pl.x).top(30).width(Dimension(pw)).height(Dimension(ph));
-    p.child(
-        box()
-            .left(0)
-            .top(0)
-            .width(Dimension(pw))
-            .height(Dimension(ph))
-            .stroke(spans::edges(16.0f),
-                    brush::solid(0.9f, Fill::color(hexColor(0x8a7458, 0.5f)))));
+    p.children({box()
+                    .left(0)
+                    .top(0)
+                    .width(Dimension(pw))
+                    .height(Dimension(ph))
+                    .stroke(spans::edges(16.0f),
+                            brush::solid(
+                                0.9f, Fill::color(hexColor(0x8a7458, 0.5f))))});
     const float lo = pl.lo, hi = pl.hi;
     const bool merc = pl.merc;
     // THE DEPARTURE CURVE, self-normalised — the same residual the
@@ -399,44 +400,44 @@ auto DunhuangStarChart::projectionPanel() -> Element {
       (i ? curve.lineTo(pw * (float)i / 80.0f,
                         ph * 0.5f - dep[i] / mx * ph * 0.40f)
          : curve.moveTo(0.0f, ph * 0.5f - dep[0] / mx * ph * 0.40f));
-    p.child(
-        box()
-            .left(0)
-            .top(0)
-            .width(Dimension(pw))
-            .height(Dimension(ph))
-            .shape(heldPath(curve.detach()))
-            .stroke(lines::Line{.width = 1.5f, .fill = Fill::color(kTrace)}));
+    p.children(
+        {box()
+             .left(0)
+             .top(0)
+             .width(Dimension(pw))
+             .height(Dimension(ph))
+             .shape(heldPath(curve.detach()))
+             .stroke(lines::Line{.width = 1.5f, .fill = Fill::color(kTrace)})});
     // the chart's own residual band, to the same vertical scale
     const Departure& dp = merc ? depMerc : depStereo;
     const float resid = merc ? 1.61f : 3.29f;
     const float halfRaw = resid / dp.maxDeg * ph * 0.40f;
     const float half = std::min(halfRaw, ph * 0.5f);
-    p.child(box()
-                .left(0)
-                .top(ph * 0.5f - half)
-                .width(Dimension(pw))
-                .height(Dimension(half * 2))
-                .fill(Fill::color(hexColor(0xa8382a, 0.13f)))
-                .stroke(PathFormat{
-                    .width = 0.6f,
-                    .strokeFill = Fill::color(hexColor(0xa8382a, 0.45f)),
-                    .dashIntervals = {4, 4}}));
-    p.child(text(pl.cap)
-                .font({.size = 8.4f, .color = hexColor(0x9a8a68)})
-                .left(0)
-                .top(ph + 4)
-                .width(Dimension(pw)));
-    p.child(text(merc ? "linear − Mercator (blue) vs the "
-                        "hand (red band)"
-                      : "equidist. − stereo. (blue); the "
-                        "hand is 7.6× "
-                        "the plot, off scale")
-                .font({.size = 8.4f, .color = hexColor(0x6d6249)})
-                .left(0)
-                .top(ph + 15)
-                .width(Dimension(pw)));
-    g.child(std::move(p));
+    p.children({box()
+                    .left(0)
+                    .top(ph * 0.5f - half)
+                    .width(Dimension(pw))
+                    .height(Dimension(half * 2))
+                    .fill(Fill::color(hexColor(0xa8382a, 0.13f)))
+                    .stroke(PathFormat{
+                        .width = 0.6f,
+                        .strokeFill = Fill::color(hexColor(0xa8382a, 0.45f)),
+                        .dashIntervals = {4, 4}})});
+    p.children({text(pl.cap)
+                    .font({.size = 8.4f, .color = hexColor(0x9a8a68)})
+                    .left(0)
+                    .top(ph + 4)
+                    .width(Dimension(pw))});
+    p.children({text(merc ? "linear − Mercator (blue) vs the "
+                            "hand (red band)"
+                          : "equidist. − stereo. (blue); the "
+                            "hand is 7.6× "
+                            "the plot, off scale")
+                    .font({.size = 8.4f, .color = hexColor(0x6d6249)})
+                    .left(0)
+                    .top(ph + 15)
+                    .width(Dimension(pw))});
+    g.children({std::move(p)});
   }
   const char* lines_[6] = {
       "Mercator parts from linear by %.3f° max = %.2f mm of paper;",
@@ -455,24 +456,24 @@ auto DunhuangStarChart::projectionPanel() -> Element {
       kit::formatted(lines_[5], 0.013f / depStereo.sigma),
   };
   for (int i = 0; i < 6; ++i)
-    g.child(text(rows[(size_t)i])
-                .font({.size = 9.6f, .color = kChalk})
-                .left(0)
-                .top(196 + (float)i * 13.4f)
-                .width(Dimension(690)));
-  g.child(text("all three maps favour PURE CYLINDRICAL (0.974/0.972, "
-               "0.975/0.974, 0.996/0.994) — 3 of 3, p=0.125")
-              .font({.size = 9.6f, .color = hexColor(0xcf6a4a)})
-              .left(0)
-              .top(280)
-              .width(Dimension(690)));
-  g.child(text("the disc cannot decide BECAUSE IT STOPS AT +52°: "
-               "over a "
-               "full hemisphere the pair would part by 7.00°")
-              .font({.size = 9.6f, .color = hexColor(0x6d6249)})
-              .left(0)
-              .top(294)
-              .width(Dimension(690)));
+    g.children({text(rows[(size_t)i])
+                    .font({.size = 9.6f, .color = kChalk})
+                    .left(0)
+                    .top(196 + (float)i * 13.4f)
+                    .width(Dimension(690))});
+  g.children({text("all three maps favour PURE CYLINDRICAL (0.974/0.972, "
+                   "0.975/0.974, 0.996/0.994) — 3 of 3, p=0.125")
+                  .font({.size = 9.6f, .color = hexColor(0xcf6a4a)})
+                  .left(0)
+                  .top(280)
+                  .width(Dimension(690))});
+  g.children({text("the disc cannot decide BECAUSE IT STOPS AT +52°: "
+                   "over a "
+                   "full hemisphere the pair would part by 7.00°")
+                  .font({.size = 9.6f, .color = hexColor(0x6d6249)})
+                  .left(0)
+                  .top(294)
+                  .width(Dimension(690))});
   return g;
 }
 
@@ -485,22 +486,22 @@ auto DunhuangStarChart::auditPanel() -> Element {
                .key("audit")
                .opacity(gate(tAudit - 0.9f, tAudit - 0.2f))
                .styleSheet(voices());
-  g.child(text("MAP 5 · THE ORION REGION · TABLE 4 OF "
-               "BONNET-BIDAUD, PRADERIE & WHITFIELD 2009")
-              .styleClass("heading")
-              .font({.size = 13.0f})
-              .left(0)
-              .top(0)
-              .width(Dimension(880)));
-  g.child(text("month 4 · xiu Zui, Shen, Jing · listed "
-               "N→"
-               "S, "
-               "W→E, i.e. by increasing RA · R=Shi shi  B=Gan shi  "
-               "W=Wu Xian shi")
-              .font({.size = 8.6f, .color = hexColor(0x9a8a68)})
-              .left(0)
-              .top(16)
-              .width(Dimension(880)));
+  g.children({text("MAP 5 · THE ORION REGION · TABLE 4 OF "
+                   "BONNET-BIDAUD, PRADERIE & WHITFIELD 2009")
+                  .styleClass("heading")
+                  .font({.size = 13.0f})
+                  .left(0)
+                  .top(0)
+                  .width(Dimension(880))});
+  g.children({text("month 4 · xiu Zui, Shen, Jing · listed "
+                   "N→"
+                   "S, "
+                   "W→E, i.e. by increasing RA · R=Shi shi  B=Gan shi  "
+                   "W=Wu Xian shi")
+                  .font({.size = 8.6f, .color = hexColor(0x9a8a68)})
+                  .left(0)
+                  .top(16)
+                  .width(Dimension(880))});
   // the subtitle above runs top 16..24 at 8.6 px; the column header needs
   // its own line, not the same one
   const float y0 = 40.0f, rowH = 15.2f;
@@ -515,11 +516,11 @@ auto DunhuangStarChart::auditPanel() -> Element {
                          {228, "COL"}, {253, "SXC"},     {281, "MAP"},
                          {312, "CZ"},  {362, "CONF"},    {400, "DEFECT"}};
   for (const Head& h : heads)
-    g.child(text(h.s)
-                .font({.size = 8.6f, .color = hexColor(0x6d6249)})
-                .left(h.x)
-                .top(y0 - 13)
-                .width(Dimension(120)));
+    g.children({text(h.s)
+                    .font({.size = 8.6f, .color = hexColor(0x6d6249)})
+                    .left(h.x)
+                    .top(y0 - 13)
+                    .width(Dimension(120))});
   for (int i = 0; i < 20; ++i) {
     const M5Row& r = conc.five(i);
     const float y = y0 + (float)i * rowH;
@@ -533,91 +534,91 @@ auto DunhuangStarChart::auditPanel() -> Element {
     int cz = 0;
     for (int a = 0; a < nAst; ++a)
       if (cat.ast(a).id == r.cid) cz = astUnique(cat, cat.ast(a));
-    row.child(text(kit::formatted("%3d", i + 1))
-                  .font({.size = 9.4f, .color = hexColor(0x6d6249)})
-                  .left(0)
-                  .top(0)
-                  .width(Dimension(26)));
-    row.child(text(r.pinyin)
-                  .font({.size = 9.4f, .color = kChalk})
-                  .left(30)
-                  .top(0)
-                  .width(Dimension(126)));
-    row.child(text(r.native)
-                  .font({.face = faceHan ? faceHan : faceSerif,
-                         .size = 10.4f,
-                         .color = schoolInk(r.school)})
-                  .left(160)
-                  .top(-2)
-                  .width(Dimension(64)));
-    row.child(box()
-                  .left(232)
-                  .top(3.4f)
-                  .width(Dimension(8))
-                  .height(Dimension(8))
-                  .shape(shapes::circle())
-                  .fill(Fill::color(schoolInk(r.school)))
-                  .stroke(PathFormat{.width = 0.8f,
-                                     .strokeFill = Fill::color(kInk)}));
-    row.child(text(kit::formatted("%4d %4d %4d", r.sxc, r.map, cz))
-                  .font({.size = 9.4f,
-                         .color = r.sxc == r.map ? hexColor(0x9a8a68)
-                                                 : hexColor(0xcf6a4a)})
-                  .left(250)
-                  .top(0)
-                  .width(Dimension(94)));
+    row.children({text(kit::formatted("%3d", i + 1))
+                      .font({.size = 9.4f, .color = hexColor(0x6d6249)})
+                      .left(0)
+                      .top(0)
+                      .width(Dimension(26))});
+    row.children({text(r.pinyin)
+                      .font({.size = 9.4f, .color = kChalk})
+                      .left(30)
+                      .top(0)
+                      .width(Dimension(126))});
+    row.children({text(r.native)
+                      .font({.face = faceHan ? faceHan : faceSerif,
+                             .size = 10.4f,
+                             .color = schoolInk(r.school)})
+                      .left(160)
+                      .top(-2)
+                      .width(Dimension(64))});
+    row.children({box()
+                      .left(232)
+                      .top(3.4f)
+                      .width(Dimension(8))
+                      .height(Dimension(8))
+                      .shape(shapes::circle())
+                      .fill(Fill::color(schoolInk(r.school)))
+                      .stroke(PathFormat{.width = 0.8f,
+                                         .strokeFill = Fill::color(kInk)})});
+    row.children({text(kit::formatted("%4d %4d %4d", r.sxc, r.map, cz))
+                      .font({.size = 9.4f,
+                             .color = r.sxc == r.map ? hexColor(0x9a8a68)
+                                                     : hexColor(0xcf6a4a)})
+                      .left(250)
+                      .top(0)
+                      .width(Dimension(94))});
     // the confidence index, as five cells
     for (int c = 0; c < 5; ++c)
-      row.child(
-          box()
-              .left(356 + (float)c * 7.0f)
-              .top(3.6f)
-              .width(Dimension(5.2f))
-              .height(Dimension(7.0f))
-              .fill(Fill::color(c < r.confidence ? hexColor(0xc9a35c, 0.85f)
-                                                 : hexColor(0x6d6249, 0.28f))));
+      row.children({box()
+                        .left(356 + (float)c * 7.0f)
+                        .top(3.6f)
+                        .width(Dimension(5.2f))
+                        .height(Dimension(7.0f))
+                        .fill(Fill::color(c < r.confidence
+                                              ? hexColor(0xc9a35c, 0.85f)
+                                              : hexColor(0x6d6249, 0.28f)))});
     if (!r.defect.empty())
-      row.child(text(r.defect)
-                    .font({.size = 9.0f, .color = hexColor(0xb4531f)})
-                    .left(400)
-                    .top(0)
-                    .width(Dimension(478)));
-    g.child(std::move(row));
+      row.children({text(r.defect)
+                        .font({.size = 9.0f, .color = hexColor(0xb4531f)})
+                        .left(400)
+                        .top(0)
+                        .width(Dimension(478))});
+    g.children({std::move(row)});
   }
   const float yT = y0 + 20.0f * rowH + 8.0f;
-  g.child(box()
-              .left(0)
-              .top(yT - 4)
-              .width(Dimension(878))
-              .height(Dimension(0.8f))
-              .fill(Fill::color(hexColor(0x8a7458, 0.5f)))
-              .opacity(gate(tAudit + 5.4f, tAudit + 5.9f)));
+  g.children({box()
+                  .left(0)
+                  .top(yT - 4)
+                  .width(Dimension(878))
+                  .height(Dimension(0.8f))
+                  .fill(Fill::color(hexColor(0x8a7458, 0.5f)))
+                  .opacity(gate(tAudit + 5.4f, tAudit + 5.9f))});
   const std::string tot = kit::formatted(
       "TOTALS  SXC %d   map %d   Chen Zhuo %d distinct (Fa's 3 in, Sanzhu's "
       "9 absent — 5 + 9 = SXC's 14 for Wuche, exactly)",
       m5Sxc, m5Map, m5ChenZhuo);
-  g.child(text(tot)
-              .font({.size = 9.4f, .color = kChalk})
-              .left(0)
-              .top(yT)
-              .width(Dimension(878))
-              .opacity(gate(tAudit + 5.5f, tAudit + 6.0f)));
-  g.child(text("Table 4's own n(map) column sums to 108. Its stated total "
-               "is 109. The census is soft, and the paper says so.")
-              .font({.size = 9.4f, .color = hexColor(0xcf6a4a)})
-              .left(0)
-              .top(yT + 13)
-              .width(Dimension(878))
-              .opacity(gate(tAudit + 5.7f, tAudit + 6.2f)));
-  g.child(text("6 documented defects in 20 asterisms, drawn AS FOUND "
-               "— "
-               "ringed on map 5 above. A study that corrects them has "
-               "destroyed the object.")
-              .font({.size = 9.4f, .color = hexColor(0xb4531f)})
-              .left(0)
-              .top(yT + 26)
-              .width(Dimension(878))
-              .opacity(gate(tAudit + 5.9f, tAudit + 6.4f)));
+  g.children({text(tot)
+                  .font({.size = 9.4f, .color = kChalk})
+                  .left(0)
+                  .top(yT)
+                  .width(Dimension(878))
+                  .opacity(gate(tAudit + 5.5f, tAudit + 6.0f))});
+  g.children({text("Table 4's own n(map) column sums to 108. Its stated total "
+                   "is 109. The census is soft, and the paper says so.")
+                  .font({.size = 9.4f, .color = hexColor(0xcf6a4a)})
+                  .left(0)
+                  .top(yT + 13)
+                  .width(Dimension(878))
+                  .opacity(gate(tAudit + 5.7f, tAudit + 6.2f))});
+  g.children({text("6 documented defects in 20 asterisms, drawn AS FOUND "
+                   "— "
+                   "ringed on map 5 above. A study that corrects them has "
+                   "destroyed the object.")
+                  .font({.size = 9.4f, .color = hexColor(0xb4531f)})
+                  .left(0)
+                  .top(yT + 26)
+                  .width(Dimension(878))
+                  .opacity(gate(tAudit + 5.9f, tAudit + 6.4f))});
   return g;
 }
 
@@ -628,12 +629,12 @@ auto DunhuangStarChart::map13Panel() -> Element {
                .width(Dimension(700))
                .key("m13")
                .opacity(gate(tAudit + 4.6f, tAudit + 5.4f));
-  g.child(text("MAP 13 · THE CIRCUMPOLAR DISC · TABLE 5")
-              .styleClass("heading")
-              .font({.size = 12.0f})
-              .left(0)
-              .top(0)
-              .width(Dimension(700)));
+  g.children({text("MAP 13 · THE CIRCUMPOLAR DISC · TABLE 5")
+                  .styleClass("heading")
+                  .font({.size = 12.0f})
+                  .left(0)
+                  .top(0)
+                  .width(Dimension(700))});
   const char* rows[10] = {
       "34 asterisms, stated total 142 stars; the n(map) column sums to 141",
       "(its Tianpei row reads \"5 or 6\", which is where the one goes).",
@@ -653,17 +654,19 @@ auto DunhuangStarChart::map13Panel() -> Element {
       "XIAN, the other",
   };
   for (int i = 0; i < 10; ++i)
-    g.child(text(rows[i])
-                .font({.size = 9.2f,
-                       .color = i == 3 || i == 5 ? kChalk : hexColor(0x9a8a68)})
-                .left(0)
-                .top(18.0f + (float)i * 12.4f)
-                .width(Dimension(700)));
-  g.child(text("under GAN. The map draws both BLACK. Printed, not corrected.")
-              .font({.size = 9.2f, .color = hexColor(0xb4531f)})
-              .left(0)
-              .top(18.0f + 10 * 12.4f)
-              .width(Dimension(700)));
+    g.children(
+        {text(rows[i])
+             .font({.size = 9.2f,
+                    .color = i == 3 || i == 5 ? kChalk : hexColor(0x9a8a68)})
+             .left(0)
+             .top(18.0f + (float)i * 12.4f)
+             .width(Dimension(700))});
+  g.children(
+      {text("under GAN. The map draws both BLACK. Printed, not corrected.")
+           .font({.size = 9.2f, .color = hexColor(0xb4531f)})
+           .left(0)
+           .top(18.0f + 10 * 12.4f)
+           .width(Dimension(700))});
   return g;
 }
 
@@ -678,19 +681,21 @@ auto DunhuangStarChart::consolePanel() -> Element {
                .stroke(stroke(1.0f, Fill::color(hexColor(0x8a7458, 0.24f)),
                               PathFormat::Align::Inner))
                .key("console");
-  g.child(
-      box()
-          .left(12)
-          .top(9)
-          .width(Dimension(w - 24))
-          .height(Dimension(h - 18))
-          .column()
-          .gap(6)
-          .child(feed::feed(logA, logStyle()))
-          .child(box().height(1).fill(Fill::color(hexColor(0x8a7458, 0.16f))))
-          .child(feed::feed(logB, logStyle()))
-          .child(box().height(1).fill(Fill::color(hexColor(0x8a7458, 0.16f))))
-          .child(feed::feed(logC, logStyle())));
+  g.children(
+      {box()
+           .left(12)
+           .top(9)
+           .width(Dimension(w - 24))
+           .height(Dimension(h - 18))
+           .column()
+           .gap(6)
+           .children({feed::feed(logA, logStyle())})
+           .children(
+               {box().height(1).fill(Fill::color(hexColor(0x8a7458, 0.16f)))})
+           .children({feed::feed(logB, logStyle())})
+           .children(
+               {box().height(1).fill(Fill::color(hexColor(0x8a7458, 0.16f)))})
+           .children({feed::feed(logC, logStyle())})});
   return g;
 }
 
@@ -719,20 +724,20 @@ auto DunhuangStarChart::ruleNote() -> Element {
       line.font({.size = 9.0f, .color = hexColor(0x9a8a68)});
     else
       line.styleClass("heading").font({.size = 12.0f});
-    g.child(std::move(line));
+    g.children({std::move(line)});
   }
-  g.child(text("take 30 deg per map instead (12 x 30 = 360, one dot per "
-               "star, matching the 1,339 census) and the columns come out")
-              .font({.size = 9.0f, .color = hexColor(0xcf6a4a)})
-              .left(0)
-              .top(92)
-              .width(Dimension(700)));
-  g.child(text("21.6 mm wide, which is not a Tang column. NEITHER READING "
-               "CLOSES. This plate draws the first, so you can see it.")
-              .font({.size = 9.0f, .color = hexColor(0xcf6a4a)})
-              .left(0)
-              .top(104)
-              .width(Dimension(700)));
+  g.children({text("take 30 deg per map instead (12 x 30 = 360, one dot per "
+                   "star, matching the 1,339 census) and the columns come out")
+                  .font({.size = 9.0f, .color = hexColor(0xcf6a4a)})
+                  .left(0)
+                  .top(92)
+                  .width(Dimension(700))});
+  g.children({text("21.6 mm wide, which is not a Tang column. NEITHER READING "
+                   "CLOSES. This plate draws the first, so you can see it.")
+                  .font({.size = 9.0f, .color = hexColor(0xcf6a4a)})
+                  .left(0)
+                  .top(104)
+                  .width(Dimension(700))});
   return g;
 }
 
@@ -743,72 +748,72 @@ auto DunhuangStarChart::headings() -> Element {
                .width(Dimension(kW))
                .height(Dimension(kH))
                .key("head");
-  g.child(text("THE DUNHUANG STAR CHART, REPROJECTED")
-              .font({.face = faceDisplay,
-                     .size = 27.0f,
-                     .color = hexColor(0xe0cfa6),
-                     .track = 2.4f})
-              .left(96)
-              .top(16)
-              .width(Dimension(1200)));
-  g.child(text("British Library Or.8210/S.3326 · Mogao Cave 17, "
-               "Dunhuang · +649–684 · 3,940 × 244 mm, "
-               "pure mulberry fibre 0.04 mm · 1,339 dots in 257 "
-               "asterisms")
-              .font({.size = 10.2f, .color = hexColor(0x9a8a68)})
-              .left(98)
-              .top(46)
-              .width(Dimension(1500)));
-  g.child(text("NOT TRACED. 1,460 real stars precessed J2000 "
-               "→ +700 "
-               "(IAU 1976) and pushed through Table 3's own measured "
-               "projection.")
-              .font({.size = 10.2f, .color = hexColor(0xc9a35c)})
-              .left(1660)
-              .top(16)
-              .width(Dimension(830)));
-  g.child(text("PLATE I · north up, WEST AT RIGHT, RA increasing "
-               "right-to-left — the direction the scroll reads")
-              .font({.size = 9.4f, .color = hexColor(0x6d6249)})
-              .left(1660)
-              .top(34)
-              .width(Dimension(830)));
+  g.children({text("THE DUNHUANG STAR CHART, REPROJECTED")
+                  .font({.face = faceDisplay,
+                         .size = 27.0f,
+                         .color = hexColor(0xe0cfa6),
+                         .track = 2.4f})
+                  .left(96)
+                  .top(16)
+                  .width(Dimension(1200))});
+  g.children({text("British Library Or.8210/S.3326 · Mogao Cave 17, "
+                   "Dunhuang · +649–684 · 3,940 × 244 mm, "
+                   "pure mulberry fibre 0.04 mm · 1,339 dots in 257 "
+                   "asterisms")
+                  .font({.size = 10.2f, .color = hexColor(0x9a8a68)})
+                  .left(98)
+                  .top(46)
+                  .width(Dimension(1500))});
+  g.children({text("NOT TRACED. 1,460 real stars precessed J2000 "
+                   "→ +700 "
+                   "(IAU 1976) and pushed through Table 3's own measured "
+                   "projection.")
+                  .font({.size = 10.2f, .color = hexColor(0xc9a35c)})
+                  .left(1660)
+                  .top(16)
+                  .width(Dimension(830))});
+  g.children({text("PLATE I · north up, WEST AT RIGHT, RA increasing "
+                   "right-to-left — the direction the scroll reads")
+                  .font({.size = 9.4f, .color = hexColor(0x6d6249)})
+                  .left(1660)
+                  .top(34)
+                  .width(Dimension(830))});
   // the scale bar, in cm of real paper
   const float barMm = 100.0f;
-  g.child(
-      box()
-          .left(96)
-          .top(1546)
-          .width(Dimension(barMm * kPxMm))
-          .height(Dimension(7))
-          .shape(keyedShape(std::string_view("scale-bar"),
-                            [](SkSize s) {
-                              SkPathBuilder b;
-                              b.moveTo(0, 6);
-                              b.lineTo(0, 0);
-                              b.lineTo(s.width(), 0);
-                              b.lineTo(s.width(), 6);
-                              for (int i = 1; i < 10; ++i) {
-                                b.moveTo(s.width() * (float)i / 10.0f, 0);
-                                b.lineTo(s.width() * (float)i / 10.0f,
-                                         i % 5 ? 3 : 5);
-                              }
-                              return b.detach();
-                            }))
-          .stroke(lines::Line{.width = 1.0f,
-                              .fill = Fill::color(hexColor(0x9a8a68, 0.8f))}));
-  g.child(text("10 cm of scroll · IDP scan 204.8 px/cm")
-              .font({.size = 8.6f, .color = hexColor(0x6d6249)})
-              .left(96 + barMm * kPxMm + 10)
-              .top(1544)
-              .width(Dimension(420)));
-  g.child(text("data: Stellarium chinese_chenzhuo (GPL) · "
-               "astronexus/HYG v4.1 · arXiv:0906.3034 Tables "
-               "3–5 "
-               "· IDP 7861395E5F814419BA05483EAB254832")
-              .font({.size = 8.6f, .color = hexColor(0x6d6249)})
-              .left(1660)
-              .top(1544)
-              .width(Dimension(880)));
+  g.children(
+      {box()
+           .left(96)
+           .top(1546)
+           .width(Dimension(barMm * kPxMm))
+           .height(Dimension(7))
+           .shape(keyedShape(std::string_view("scale-bar"),
+                             [](SkSize s) {
+                               SkPathBuilder b;
+                               b.moveTo(0, 6);
+                               b.lineTo(0, 0);
+                               b.lineTo(s.width(), 0);
+                               b.lineTo(s.width(), 6);
+                               for (int i = 1; i < 10; ++i) {
+                                 b.moveTo(s.width() * (float)i / 10.0f, 0);
+                                 b.lineTo(s.width() * (float)i / 10.0f,
+                                          i % 5 ? 3 : 5);
+                               }
+                               return b.detach();
+                             }))
+           .stroke(lines::Line{
+               .width = 1.0f, .fill = Fill::color(hexColor(0x9a8a68, 0.8f))})});
+  g.children({text("10 cm of scroll · IDP scan 204.8 px/cm")
+                  .font({.size = 8.6f, .color = hexColor(0x6d6249)})
+                  .left(96 + barMm * kPxMm + 10)
+                  .top(1544)
+                  .width(Dimension(420))});
+  g.children({text("data: Stellarium chinese_chenzhuo (GPL) · "
+                   "astronexus/HYG v4.1 · arXiv:0906.3034 Tables "
+                   "3–5 "
+                   "· IDP 7861395E5F814419BA05483EAB254832")
+                  .font({.size = 8.6f, .color = hexColor(0x6d6249)})
+                  .left(1660)
+                  .top(1544)
+                  .width(Dimension(880))});
   return g;
 }

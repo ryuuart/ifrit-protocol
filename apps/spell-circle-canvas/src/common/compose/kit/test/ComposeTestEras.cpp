@@ -26,8 +26,8 @@ int lum(SkColor c) { return SkColorGetR(c) + SkColorGetG(c) + SkColorGetB(c); }
  *  decoration and nothing else — no fill, so what is measured is what the
  *  decoration painted. */
 Element panel(Decoration what, float w = 160, float h = 100) {
-  return box().padding(20).child(
-      box().width(w).height(h).foreground(std::move(what)));
+  return box().padding(20).children(
+      {box().width(w).height(h).foreground(std::move(what))});
 }
 
 }  // namespace
@@ -78,8 +78,8 @@ TEST(KitEras, TheSliverLightsTheHorizonAndFadesAtBothEnds) {
 
 TEST(KitEras, TheKeylineIsStrokedOutsideTheSilhouetteAndZeroWidthDropsIt) {
   auto barWith = [](kit::ChromeOptions opts) {
-    return box().padding(20).child(
-        box().width(160).height(100).style(kit::y2kChrome(opts)));
+    return box().padding(20).children(
+        {box().width(160).height(100).style(kit::y2kChrome(opts))});
   };
   Host wide(200, 140), none(200, 140);
   wide.composer.render(barWith({.keylineWidth = 4.0f}));
@@ -146,8 +146,8 @@ TEST(KitEras, TheChromeTypeRampsSitInUnitSpaceSoTheHorizonHoldsAtAnySize) {
   // of the ramp is above the dark half in both.
   auto lit = [](float size, const material::skia::Paint& ramp) {
     Host host(300, 200);
-    host.composer.render(box().padding(20).child(
-        text(u8"HH", whiteStyle(size)).key("word").textFill(ramp)));
+    host.composer.render(box().padding(20).children(
+        {text(u8"HH", whiteStyle(size)).key("word").textFill(ramp)}));
     host.frame();
     const SkRect at = require(host.composer.bounds("word"));
     const auto band = [&](float frac) {
@@ -177,10 +177,9 @@ TEST(KitEras, TheChromeTypeRampsSitInUnitSpaceSoTheHorizonHoldsAtAnySize) {
 TEST(KitEras, ARuleStandsWhereTheBlockIsAndTheThreeArmsDifferInWhere) {
   Host host(300, 200);
   const auto tree = [](Element overlay) {
-    return box()
-        .padding(20)
-        .child(text(u8"EPIGRAPH", whiteStyle(20)).key("epigraph"))
-        .child(std::move(overlay).absolute().inset(0));
+    return box().padding(20).children(
+        {text(u8"EPIGRAPH", whiteStyle(20)).key("epigraph"),
+         std::move(overlay).absolute().inset(0)});
   };
   host.composer.render(tree(positioned()));
   host.frame();

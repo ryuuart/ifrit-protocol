@@ -43,7 +43,7 @@ Element shapedGrid(int count, ShapeIdentity identity) {
       const auto shape = geometry::shapes::star(5 + id % 3, 0.45f, 0.08f);
       leaf.shape([shape](SkSize size) { return shape.path(size); });
     }
-    root.child(std::move(leaf));
+    root.children({std::move(leaf)});
   }
   return root;
 }
@@ -77,14 +77,14 @@ static void BM_HitTest_ShapedTree(benchmark::State& state) {
   Host host(900, 640);
   auto scatter = layout(layouts::Jittered{.seed = 3}).inset(0);
   for (int i = 0; i < count; ++i)
-    scatter.child(box()
-                      .key("blob" + std::to_string(i))
-                      .width(60)
-                      .height(60)
-                      .shape(geometry::shapes::blob((uint32_t)i, 0.3f, 7))
-                      .rotate((float)i * 7.0f)
-                      .fill(Fill::color({0.5f, 0.3f, 0.4f, 1})));
-  host.composer.render(box().child(scatter));
+    scatter.children({box()
+                          .key("blob" + std::to_string(i))
+                          .width(60)
+                          .height(60)
+                          .shape(geometry::shapes::blob((uint32_t)i, 0.3f, 7))
+                          .rotate((float)i * 7.0f)
+                          .fill(Fill::color({0.5f, 0.3f, 0.4f, 1}))});
+  host.composer.render(box().children({scatter}));
   host.draw();
   int step = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -108,13 +108,14 @@ static void BM_Draw_BlendField_Blobs(benchmark::State& state) {
   Host host(900, 640);
   auto scatter = layout(layouts::Jittered{.seed = 9, .jitter = 0.8f}).inset(0);
   for (int i = 0; i < count; ++i)
-    scatter.child(box()
-                      .width(70)
-                      .height(60)
-                      .shape(geometry::shapes::blob((uint32_t)(i + 1), 0.3f, 6))
-                      .fill(Fill::color({0.4f, 0.2f, 0.4f, 0.5f}))
-                      .blend(SkBlendMode::kPlus));
-  host.composer.render(box().child(scatter));
+    scatter.children(
+        {box()
+             .width(70)
+             .height(60)
+             .shape(geometry::shapes::blob((uint32_t)(i + 1), 0.3f, 6))
+             .fill(Fill::color({0.4f, 0.2f, 0.4f, 0.5f}))
+             .blend(SkBlendMode::kPlus)});
+  host.composer.render(box().children({scatter}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
   reportNodes(state, count);

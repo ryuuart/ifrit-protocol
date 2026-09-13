@@ -4,70 +4,71 @@ auto RotaConvocationis::arcus() -> Element {
   Element turn =
       box().key("arcus").absolute().inset(0).hitTestable(false).rotate(
           motion::bind(&arcSpin).target(0.0f, 360.0f));
-  turn.child(rule("arc-chalk", kChalkArcs, 1.7f, kIron, tArc, 1.1));
-  turn.child(rule("arc-dash", kChalkDash, 1.0f, kIron, tArc - 0.3, 1.0));
-  turn.child(line("arc-spokes", arcSpokes, 0.9f, kIron, tArc + 0.2, 0.9));
-  turn.child(line("arc-nodes", arcNodes, 1.0f, kIron, tArc + 0.35, 0.8));
-  turn.child(emissive("arc-lit", glows[kGlowArc], &litArc));
+  turn.children({rule("arc-chalk", kChalkArcs, 1.7f, kIron, tArc, 1.1)});
+  turn.children({rule("arc-dash", kChalkDash, 1.0f, kIron, tArc - 0.3, 1.0)});
+  turn.children({line("arc-spokes", arcSpokes, 0.9f, kIron, tArc + 0.2, 0.9)});
+  turn.children({line("arc-nodes", arcNodes, 1.0f, kIron, tArc + 0.35, 0.8)});
+  turn.children({emissive("arc-lit", glows[kGlowArc], &litArc)});
   return turn;
 }
 
 auto RotaConvocationis::spur() -> Element {
   const SkPoint c = P(0.0f, rEdge);
-  return box()
-      .key("spur")
-      .absolute()
-      .inset(0)
-      .hitTestable(false)
-      .child(kit::disc(c, kSpurR)
-                 .key("spur-ground")
-                 .hitTestable(false)
-                 .fill(Fill::color(hexColor(0x0D0A16, 0.92f)))
-                 .opacity(beat(0.9, 1.4)))
-      .child(line("spur-rules", spurRules, 1.2f, kIron, 1.0, 0.9))
-      .child(text(spurText)
-                 .font({.size = 19.0f})
-                 .key("spur-glyph")
-                 .centerAt(c)
-                 .hitTestable(false)
-                 .fx({.effect = fx::hold(fx::pop(0.5f)),
-                      .stagger = {.durationMs = 360},
-                      .progress = beat(1.3, 1.8)}))
-      .child(emissive("spur-lit", glows[kGlowSpur], &litSpur));
+  return box().key("spur").absolute().inset(0).hitTestable(false).children(
+      {kit::disc(c, kSpurR)
+           .key("spur-ground")
+           .hitTestable(false)
+           .fill(Fill::color(hexColor(0x0D0A16, 0.92f)))
+           .opacity(beat(0.9, 1.4)),
+       line("spur-rules", spurRules, 1.2f, kIron, 1.0, 0.9),
+       text(spurText)
+           .font({.size = 19.0f})
+           .key("spur-glyph")
+           .centerAt(c)
+           .hitTestable(false)
+           .fx({.effect = fx::hold(fx::pop(0.5f)),
+                .stagger = {.durationMs = 360},
+                .progress = beat(1.3, 1.8)}),
+       emissive("spur-lit", glows[kGlowSpur], &litSpur)});
 }
 
 auto RotaConvocationis::stella() -> Element {
   Element turn =
       box().key("stella").absolute().inset(0).hitTestable(false).rotate(
           motion::bind(&starSpin).target(0.0f, 360.0f));
-  turn.child(rule("star-chalk", kChalkStar, 1.5f, kIron, tStar, 1.3));
+  turn.children({rule("star-chalk", kChalkStar, 1.5f, kIron, tStar, 1.3)});
   // THE CRESCENTS: three double-arcs laid ACROSS the compound, 120°
   // apart, each closed at both ends by a radial tie and carrying its
   // own short ladder. They are the plate's single THREE-FOLD mark —
   // applied over the mechanism rather than being a band of it — and
   // they ride the compound's rotation, so three things visibly sweep
   // past twelve.
-  turn.child(rule("cresc-chalk", kChalkCresc, 1.3f, kIron, tStar + 0.5, 1.0));
-  turn.child(line("cage-fence-o", cageFenceOut, 0.9f, kIronDim, tStar, 1.0));
-  turn.child(line("cage-fence-i", cageFenceIn, 0.9f, kIronDim, tStar, 1.0));
-  turn.child(line("cage-ladder", cageLadder, 0.6f, kIronDim, tStar + 0.1, 1.2));
-  turn.child(line("cage-beads", cageBeads, 0.9f, kIron, tStar + 0.3, 0.9));
-  turn.child(line("star-spokes", starSpokes, 0.8f, kIronDim, tStar + 0.2, 1.0));
-  turn.child(line("star-nodes", starNodes, 1.0f, kIron, tStar + 0.4, 0.9));
+  turn.children(
+      {rule("cresc-chalk", kChalkCresc, 1.3f, kIron, tStar + 0.5, 1.0)});
+  turn.children(
+      {line("cage-fence-o", cageFenceOut, 0.9f, kIronDim, tStar, 1.0)});
+  turn.children(
+      {line("cage-fence-i", cageFenceIn, 0.9f, kIronDim, tStar, 1.0)});
+  turn.children(
+      {line("cage-ladder", cageLadder, 0.6f, kIronDim, tStar + 0.1, 1.2)});
+  turn.children({line("cage-beads", cageBeads, 0.9f, kIron, tStar + 0.3, 0.9)});
+  turn.children(
+      {line("star-spokes", starSpokes, 0.8f, kIronDim, tStar + 0.2, 1.0)});
+  turn.children({line("star-nodes", starNodes, 1.0f, kIron, tStar + 0.4, 0.9)});
   for (int i = 0; i < (int)starSteps.size(); ++i)
-    turn.child(box()
-                   .key("star-morph" + std::to_string(i))
-                   .absolute()
-                   .inset(0)
-                   .hitTestable(false)
-                   .shape(heldPath(starSteps[(size_t)i]))
-                   .fill(Fill::none())
-                   .stroke(stroke(1.6f, Fill::color(kCore)))
-                   .blend(SkBlendMode::kPlus)
-                   .opacity(motion::bind(&morphStep)
-                                .window((float)i - 1.0f, (float)i + 1.0f)
-                                .pingPong()));
-  turn.child(emissive("star-lit", glows[kGlowStar], &litStar));
+    turn.children({box()
+                       .key("star-morph" + std::to_string(i))
+                       .absolute()
+                       .inset(0)
+                       .hitTestable(false)
+                       .shape(heldPath(starSteps[(size_t)i]))
+                       .fill(Fill::none())
+                       .stroke(stroke(1.6f, Fill::color(kCore)))
+                       .blend(SkBlendMode::kPlus)
+                       .opacity(motion::bind(&morphStep)
+                                    .window((float)i - 1.0f, (float)i + 1.0f)
+                                    .pingPong())});
+  turn.children({emissive("star-lit", glows[kGlowStar], &litStar)});
   return turn;
 }
 
@@ -78,10 +79,10 @@ auto RotaConvocationis::stellaInterior() -> Element {
                      .inset(0)
                      .hitTestable(false)
                      .rotate(motion::bind(&innerSpin).target(0.0f, 360.0f));
-  turn.child(rule("inner-chalk", kChalkInner, 1.2f, kIron, tInner, 1.2));
-  turn.child(
-      line("inner-spokes", innerSpokes, 0.7f, kIronDim, tInner + 0.2, 1.0));
-  turn.child(emissive("inner-lit", glows[kGlowInner], &litInner));
+  turn.children({rule("inner-chalk", kChalkInner, 1.2f, kIron, tInner, 1.2)});
+  turn.children(
+      {line("inner-spokes", innerSpokes, 0.7f, kIronDim, tInner + 0.2, 1.0)});
+  turn.children({emissive("inner-lit", glows[kGlowInner], &litInner)});
   return turn;
 }
 
@@ -94,19 +95,20 @@ auto RotaConvocationis::limina() -> Element {
   const Shape chordPath =
       shapes::chords({.sides = kStations, .step = 3, .inset = 74.0f});
   for (int k = 0; k < kLimens; ++k) {
-    fig.child(text(kLimina[k])
-                  .key("limen" + std::to_string(k))
-                  .absolute()
-                  .inset(0)
-                  .hitTestable(false)
-                  .onPath({.path = chordPath,
-                           .at = ((float)(k * 2) + 0.5f) / (float)kStations,
-                           .align = TextPath::Align::Center,
-                           .offset = 5.0f,
-                           .autoFlip = true})
-                  .fx({.effect = fx::typeOn(),
-                       .stagger = {.eachMs = 30, .durationMs = 120},
-                       .progress = beat(limenAt[k], limenAt[k] + limenSpanS)}));
+    fig.children(
+        {text(kLimina[k])
+             .key("limen" + std::to_string(k))
+             .absolute()
+             .inset(0)
+             .hitTestable(false)
+             .onPath({.path = chordPath,
+                      .at = ((float)(k * 2) + 0.5f) / (float)kStations,
+                      .align = TextPath::Align::Center,
+                      .offset = 5.0f,
+                      .autoFlip = true})
+             .fx({.effect = fx::typeOn(),
+                  .stagger = {.eachMs = 30, .durationMs = 120},
+                  .progress = beat(limenAt[k], limenAt[k] + limenSpanS)})});
   }
   return fig;
 }
@@ -121,20 +123,21 @@ auto RotaConvocationis::sigillum(int k) -> Element {
   // The ground: occludes the bands under the seal — a seal SITS ON the
   // plate rather than being drawn into it — and wears an aura for a
   // breath at ignition.
-  seal.child(box()
-                 .key(id + "-ground")
-                 .absolute()
-                 .inset(0)
-                 .corners({kSealR})
-                 .hitTestable(false)
-                 .fill(Fill::color(hexColor(0x0D0A16, 0.94f)))
-                 // The ground is dressed rather than shaded: an inner glow is
-                 // a blurred band hugging its own edge, a value decoration
-                 // that records once with the disc it sits on. It gives the
-                 // seal a lip of light without a second node and without a
-                 // shader.
-                 .overlay(styles::innerGlow(hexColor(0xE79A32, 0.30f), 8.0f))
-                 .opacity(beat(at, at + 0.4)));
+  seal.children(
+      {box()
+           .key(id + "-ground")
+           .absolute()
+           .inset(0)
+           .corners({kSealR})
+           .hitTestable(false)
+           .fill(Fill::color(hexColor(0x0D0A16, 0.94f)))
+           // The ground is dressed rather than shaded: an inner glow is
+           // a blurred band hugging its own edge, a value decoration
+           // that records once with the disc it sits on. It gives the
+           // seal a lip of light without a second node and without a
+           // shader.
+           .overlay(styles::innerGlow(hexColor(0xE79A32, 0.30f), 8.0f))
+           .opacity(beat(at, at + 0.4))});
   // The seal's own emissive rule. A seal is a small magic circle, so it
   // lights like one — but its two rules are concentric and cross
   // nothing, which is the case the SDF answers in one pass: silhouette,
@@ -151,36 +154,36 @@ auto RotaConvocationis::sigillum(int k) -> Element {
     // figure is one static shader and only its gain moves, so twelve of
     // them evaluating the field every frame is twelve times a cost that
     // is paid once. The blend and the gain ride the blit.
-    seal.child(
-        box()
-            .key(id + "-lit")
-            .absolute()
-            .inset(kSealR - side * 0.5f)
-            .hitTestable(false)
-            .cache(Cache::Texture)
-            .fill(mskia::Paint::recipe(sdf::material(sdf::circle(), lit)))
-            .blend(SkBlendMode::kPlus)
-            .opacity(&litSeal[k]));
+    seal.children(
+        {box()
+             .key(id + "-lit")
+             .absolute()
+             .inset(kSealR - side * 0.5f)
+             .hitTestable(false)
+             .cache(Cache::Texture)
+             .fill(mskia::Paint::recipe(sdf::material(sdf::circle(), lit)))
+             .blend(SkBlendMode::kPlus)
+             .opacity(&litSeal[k])});
   }
   // The rules, struck as sweeps.
-  seal.child(box()
-                 .key(id + "-rule-out")
-                 .absolute()
-                 .inset(0)
-                 .corners({kSealR})
-                 .hitTestable(false)
-                 .fill(Fill::none())
-                 .stroke(spans::upTo(beat(at, at + 0.55)),
-                         stroke(1.2f, Fill::color(kIron))))
-      .child(box()
-                 .key(id + "-rule-in")
-                 .absolute()
-                 .inset(kSealR - kSealRing + 7.0f)
-                 .corners({kSealRing - 7.0f})
-                 .hitTestable(false)
-                 .fill(Fill::none())
-                 .stroke(spans::upTo(beat(at + 0.15, at + 0.7)),
-                         stroke(0.7f, Fill::color(kIronDim))));
+  seal.children({box()
+                     .key(id + "-rule-out")
+                     .absolute()
+                     .inset(0)
+                     .corners({kSealR})
+                     .hitTestable(false)
+                     .fill(Fill::none())
+                     .stroke(spans::upTo(beat(at, at + 0.55)),
+                             stroke(1.2f, Fill::color(kIron))),
+                 box()
+                     .key(id + "-rule-in")
+                     .absolute()
+                     .inset(kSealR - kSealRing + 7.0f)
+                     .corners({kSealRing - 7.0f})
+                     .hitTestable(false)
+                     .fill(Fill::none())
+                     .stroke(spans::upTo(beat(at + 0.15, at + 0.7)),
+                             stroke(0.7f, Fill::color(kIronDim)))});
   // THE TURNING BODY: everything in the seal that is not a circle and
   // not the ordinal. The rules and the ground are concentric discs and
   // a disc under rotation is the same disc, so they stay outside this
@@ -194,66 +197,67 @@ auto RotaConvocationis::sigillum(int k) -> Element {
   // The order-sided polygon, turning AGAINST its own seal once lit, so
   // the figure inside a seal and the seal around it are visibly two
   // mechanisms and not one drawing.
-  body.child(box()
-                 .key(id + "-poly")
-                 .absolute()
-                 .inset(kSealR - 16.0f)
-                 .hitTestable(false)
-                 .shape(shapes::polygon(s.order))
-                 .fill(Fill::none())
-                 .stroke(stroke(0.9f, Fill::color(kIron)))
-                 .rotate(motion::bind(&sealCog[k]).target(0.0f, 360.0f))
-                 .opacity(beat(at + 0.3, at + 0.9)));
+  body.children({box()
+                     .key(id + "-poly")
+                     .absolute()
+                     .inset(kSealR - 16.0f)
+                     .hitTestable(false)
+                     .shape(shapes::polygon(s.order))
+                     .fill(Fill::none())
+                     .stroke(stroke(0.9f, Fill::color(kIron)))
+                     .rotate(motion::bind(&sealCog[k]).target(0.0f, 360.0f))
+                     .opacity(beat(at + 0.3, at + 0.9))});
   // The ring: two words of the register, tumbling onto the circle and
   // then carried round by the body it belongs to. Its phase is a plain
   // number — a twelfth per station, so no two seals open their text at
   // the same clock angle — because the turning is the body's and a run
   // that is not driving its own placement can rest at whole pixels
   // until an ancestor moves it.
-  body.child(text(sealText[k])
-                 .styleClass("ring")
-                 .font({.size = sealSize[k], .track = 1.4f})
-                 .key(id + "-ring")
-                 .absolute()
-                 .inset(kSealR - kSealRing)
-                 .hitTestable(false)
-                 // …and baked for the same reason: once its cascade has
-                 // landed the run is a settled picture that the body
-                 // turns, and a replay would re-draw every glyph of every
-                 // seal on every frame.
-                 .cache(Cache::Texture)
-                 .onPath({.path = shapes::circle(),
-                          .at = (float)k / (float)kSeals,
-                          .align = TextPath::Align::Start,
-                          .offset = -sealSize[k] * 0.34f,
-                          .autoFlip = false})
-                 .fx({.effect = fx::hold(fx::spinIn(70.0f, 9.0f)),
-                      .stagger = {.eachMs = 30, .durationMs = 480},
-                      .progress = beat(at + 0.25, at + 0.25 + sealSpanS)}));
-  seal.child(std::move(body));
+  body.children(
+      {text(sealText[k])
+           .styleClass("ring")
+           .font({.size = sealSize[k], .track = 1.4f})
+           .key(id + "-ring")
+           .absolute()
+           .inset(kSealR - kSealRing)
+           .hitTestable(false)
+           // …and baked for the same reason: once its cascade has
+           // landed the run is a settled picture that the body
+           // turns, and a replay would re-draw every glyph of every
+           // seal on every frame.
+           .cache(Cache::Texture)
+           .onPath({.path = shapes::circle(),
+                    .at = (float)k / (float)kSeals,
+                    .align = TextPath::Align::Start,
+                    .offset = -sealSize[k] * 0.34f,
+                    .autoFlip = false})
+           .fx({.effect = fx::hold(fx::spinIn(70.0f, 9.0f)),
+                .stagger = {.eachMs = 30, .durationMs = 480},
+                .progress = beat(at + 0.25, at + 0.25 + sealSpanS)})});
+  seal.children({std::move(body)});
   // THE ORDINAL at the centre, decoding — held, so a numeral waiting
   // its beat is absent rather than churning wrong — and GIMBALLED: it
   // carries the carrier's rotation backwards, so the one mark on the
   // seal that has to be read stands upright at every station the rim
   // brings it to while everything around it turns.
-  seal.child(
-      text(s.ordo)
-          .styleClass("mono")
-          .font({.size = 12.0f, .color = kGold, .track = 1.0f})
-          .key(id + "-ordo")
-          .centerAt({kSealR, kSealR})
-          .hitTestable(false)
-          .rotate(motion::bind(&sealUpright).target(0.0f, 360.0f))
-          .effect(styles::textGlow(kHalo, 3.0f))
-          .fx({.effect = fx::hold(fx::scramble(U"IVXLC", 12)),
-               .stagger = {.eachMs = 90, .durationMs = 620},
-               .progress = beat(at + 0.55, at + 0.55 + sealSpanS * 0.9)})
-          .fx({.effect = fx::keys({{0.00f, {}},
-                                   {0.80f, {}},
-                                   {0.90f, {.colorAdd = kCore}},
-                                   {1.00f, {}}}),
-               .stagger = {.eachMs = 90, .durationMs = 620},
-               .progress = beat(at + 0.55, at + 0.55 + sealSpanS * 0.9)}));
+  seal.children(
+      {text(s.ordo)
+           .styleClass("mono")
+           .font({.size = 12.0f, .color = kGold, .track = 1.0f})
+           .key(id + "-ordo")
+           .centerAt({kSealR, kSealR})
+           .hitTestable(false)
+           .rotate(motion::bind(&sealUpright).target(0.0f, 360.0f))
+           .effect(styles::textGlow(kHalo, 3.0f))
+           .fx({.effect = fx::hold(fx::scramble(U"IVXLC", 12)),
+                .stagger = {.eachMs = 90, .durationMs = 620},
+                .progress = beat(at + 0.55, at + 0.55 + sealSpanS * 0.9)})
+           .fx({.effect = fx::keys({{0.00f, {}},
+                                    {0.80f, {}},
+                                    {0.90f, {.colorAdd = kCore}},
+                                    {1.00f, {}}}),
+                .stagger = {.eachMs = 90, .durationMs = 620},
+                .progress = beat(at + 0.55, at + 0.55 + sealSpanS * 0.9)})});
   return seal;
 }
 
@@ -274,29 +278,30 @@ auto RotaConvocationis::emblema() -> Element {
   Element hub =
       box().key("emblem").absolute().inset(0).hitTestable(false).rotate(
           motion::bind(&hexSpin).target(0.0f, 360.0f));
-  hub.child(rule("hex-chalk", kChalkHexagram, 1.1f, kIron, tInner, 0.8));
-  hub.child(line("hub-dots", hubDots, 1.0f, kIron, tInner + 0.3, 0.7));
-  hub.child(line("hub-motes", hubMotes, 0.9f, kIronDim, tInner + 0.5, 0.7));
-  hub.child(emissive("hub-lit", glows[kGlowHub], &litHub));
-  hub.child(
-      text(hubRuneText)
-          .font({.size = 13.0f, .color = kAsh})
-          .key("hub-ring")
-          .absolute()
-          .inset(0)
-          .hitTestable(false)
-          .onPath({.path = shapes::chords(
-                       {.sides = 6,
-                        .step = 2,
-                        .radius = rHexagram * kR / (std::min(kW, kH) * 0.5f),
-                        .inset = 14.0f}),
-                   .at = 0.0f,
-                   .align = TextPath::Align::Start,
-                   .offset = 4.0f,
-                   .autoFlip = true})
-          .fx({.effect = fx::hold(fx::typeOn()),
-               .stagger = {.eachMs = 26, .durationMs = 260},
-               .progress = beat(tHub - 0.3, tHub + 0.9)}));
+  hub.children({rule("hex-chalk", kChalkHexagram, 1.1f, kIron, tInner, 0.8)});
+  hub.children({line("hub-dots", hubDots, 1.0f, kIron, tInner + 0.3, 0.7)});
+  hub.children(
+      {line("hub-motes", hubMotes, 0.9f, kIronDim, tInner + 0.5, 0.7)});
+  hub.children({emissive("hub-lit", glows[kGlowHub], &litHub)});
+  hub.children(
+      {text(hubRuneText)
+           .font({.size = 13.0f, .color = kAsh})
+           .key("hub-ring")
+           .absolute()
+           .inset(0)
+           .hitTestable(false)
+           .onPath({.path = shapes::chords(
+                        {.sides = 6,
+                         .step = 2,
+                         .radius = rHexagram * kR / (std::min(kW, kH) * 0.5f),
+                         .inset = 14.0f}),
+                    .at = 0.0f,
+                    .align = TextPath::Align::Start,
+                    .offset = 4.0f,
+                    .autoFlip = true})
+           .fx({.effect = fx::hold(fx::typeOn()),
+                .stagger = {.eachMs = 26, .durationMs = 260},
+                .progress = beat(tHub - 0.3, tHub + 0.9)})});
   return hub;
 }
 

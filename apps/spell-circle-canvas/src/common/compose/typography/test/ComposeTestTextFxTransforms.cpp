@@ -47,10 +47,10 @@ TEST(ComposeTextFx, SkewAndNonUniformScaleTakeTheMatrixPath) {
   // Room on every side: a doubled glyph and a leaning one both grow past
   // the box, and a clipped measurement would compare two surface edges.
   const auto render = [&](Host& host, std::string key, GlyphModifier mod) {
-    host.composer.render(box().padding(60).child(
-        text(u8"H", whiteStyle(60))
-            .key("k")
-            .fx({.effect = fixed(std::move(key), mod)})));
+    host.composer.render(box().padding(60).children(
+        {text(u8"H", whiteStyle(60))
+             .key("k")
+             .fx({.effect = fixed(std::move(key), mod)})}));
     host.frame();
   };
   Host upright(200, 200);
@@ -91,13 +91,13 @@ TEST(ComposeTextFx, AHeldTrackPaintsNothingBeforeItsBeatBesideAnOpenTrack) {
   GlyphModifier lift;
   lift.dy = -3;
   const auto render = [&](Host& host, TextEffect decode) {
-    host.composer.render(box().padding(20).child(
-        text(u8"HOLD", whiteStyle(36))
-            .key("k")
-            .fx({.effect = std::move(decode),
-                 .stagger = {.eachMs = 40, .durationMs = 200},
-                 .progress = &progress})
-            .fx({.effect = fixed("lift", lift)})));
+    host.composer.render(box().padding(20).children(
+        {text(u8"HOLD", whiteStyle(36))
+             .key("k")
+             .fx({.effect = std::move(decode),
+                  .stagger = {.eachMs = 40, .durationMs = 200},
+                  .progress = &progress})
+             .fx({.effect = fixed("lift", lift)})}));
     host.frame();
   };
   // The control first: unheld, the same tree at the same moment paints —
@@ -127,10 +127,10 @@ TEST(ComposeTextFx, SkewYShearsTheOtherAxisAndTakesTheMatrixPath) {
   // the same asymmetry on the same axis for both would pass for a `skewY`
   // that was quietly wired to `skewXDeg`.
   const auto render = [&](Host& host, std::string key, GlyphModifier mod) {
-    host.composer.render(box().padding(60).child(
-        text(u8"H", whiteStyle(60))
-            .key("k")
-            .fx({.effect = fixed(std::move(key), mod)})));
+    host.composer.render(box().padding(60).children(
+        {text(u8"H", whiteStyle(60))
+             .key("k")
+             .fx({.effect = fixed(std::move(key), mod)})}));
     host.frame();
   };
   Host upright(200, 200);
@@ -175,7 +175,7 @@ void expectFastPathLineUntouched(GlyphModifier lean) {
     if (shearSecondLine)
       t.fx({.where = sigil::weave::selectors::line(1),
             .effect = fixed("lean", lean)});
-    return box().padding(10).child(std::move(t));
+    return box().padding(10).children({std::move(t)});
   };
   Host plain(200, 200), mixed(200, 200);
   plain.composer.render(tree(false));
@@ -252,8 +252,8 @@ TEST(ComposeTextFx, ContinuousLiftsTheSnapAndStillSettles) {
     lean.rotateDeg = 2.0f;
     Track track{.effect = fixed("lean2", lean)};
     track.continuous = continuous;
-    host.composer.render(box().padding(20).child(
-        text(u8"HH", whiteStyle(64)).key("k").fx(std::move(track))));
+    host.composer.render(box().padding(20).children(
+        {text(u8"HH", whiteStyle(64)).key("k").fx(std::move(track))}));
     host.frame();
   };
   Host snapped(200, 200), smooth(200, 200);
@@ -269,8 +269,8 @@ TEST(ComposeTextFx, ContinuousLiftsTheSnapAndStillSettles) {
   choreograph::Output<float> progress{0.0f};
   Track track{.effect = fx::rise(14), .progress = &progress};
   track.continuous = true;
-  settling.composer.render(box().padding(20).child(
-      text(u8"SETTLE", whiteStyle(24)).key("k").fx(std::move(track))));
+  settling.composer.render(box().padding(20).children(
+      {text(u8"SETTLE", whiteStyle(24)).key("k").fx(std::move(track))}));
   settling.frame();
   progress = 1.0f;
   for (int i = 0; i < 12; ++i) settling.frame(0.016);

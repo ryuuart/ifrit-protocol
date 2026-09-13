@@ -53,11 +53,11 @@ TEST(ComposeBlockLane, ALeafIsSetInTheLeadingInForce) {
   // Double leading on an ancestor: the same three lines take about twice
   // the height, through a box that says nothing.
   Host plain, open;
-  plain.composer.render(box().padding(10).child(box().child(leaf())));
+  plain.composer.render(box().padding(10).children({box().children({leaf()})}));
   Block wide;
   wide.leading = Leading::multiple(2.0f);
   open.composer.render(
-      box().padding(10).block(wide).child(box().child(leaf())));
+      box().padding(10).block(wide).children({box().children({leaf()})}));
   const float single = boxOf(plain, "t").height();
   const float doubled = boxOf(open, "t").height();
   EXPECT_GT(doubled, single * 1.6f);
@@ -72,9 +72,9 @@ TEST(ComposeBlockLane, APartialOverlaysTheInheritedBlockFieldByField) {
   Block centred;
   centred.alignment = TextAlignment::kCenter;
   Host start, both;
-  start.composer.render(box().padding(10).block(wide).child(leaf()));
-  both.composer.render(
-      box().padding(10).block(wide).child(box().block(centred).child(leaf())));
+  start.composer.render(box().padding(10).block(wide).children({leaf()}));
+  both.composer.render(box().padding(10).block(wide).children(
+      {box().block(centred).children({leaf()})}));
   const SkRect a = boxOf(start, "t");
   const SkRect b = boxOf(both, "t");
   EXPECT_NEAR(a.height(), b.height(), 0.5f) << "the leading still inherits";
@@ -86,9 +86,9 @@ TEST(ComposeBlockLane, AWholeParagraphStyleInheritsNothing) {
   Block wide;
   wide.leading = Leading::multiple(2.0f);
   Host plain, whole;
-  plain.composer.render(box().padding(10).child(leaf()));
-  whole.composer.render(box().padding(10).block(wide).child(
-      leaf().paragraph(sigil::weave::ParagraphStyle{})));
+  plain.composer.render(box().padding(10).children({leaf()}));
+  whole.composer.render(box().padding(10).block(wide).children(
+      {leaf().paragraphs({sigil::weave::ParagraphStyle{}})}));
   EXPECT_NEAR(boxOf(plain, "t").height(), boxOf(whole, "t").height(), 0.5f);
 }
 
@@ -102,16 +102,16 @@ TEST(ComposeBlockLane, AClassCarriesBothHalves) {
   const sigil::weave::StyleSheet look{{"body", {.size = 24.0f}},
                                       {"body", wide}};
   Host plain, classed;
-  plain.composer.render(box().padding(10).child(leaf()));
+  plain.composer.render(box().padding(10).children({leaf()}));
   // The leaf states no size of its own: a node's own font stands over its
   // classes, so the size here is the class's to give.
-  classed.composer.render(box().padding(10).styleSheet(look).child(
-      text(kLines)
-          .font({.face = sigil::test::instrument::sans()})
-          .ink({1, 1, 1, 1})
-          .width(Dimension(240.0f))
-          .key("t")
-          .styleClass("body")));
+  classed.composer.render(box().padding(10).styleSheet(look).children(
+      {text(kLines)
+           .font({.face = sigil::test::instrument::sans()})
+           .ink({1, 1, 1, 1})
+           .width(Dimension(240.0f))
+           .key("t")
+           .styleClass("body")}));
   const SkRect a = boxOf(plain, "t");
   const SkRect b = boxOf(classed, "t");
   EXPECT_GT(b.height(), a.height() * 2.5f)
@@ -127,10 +127,11 @@ TEST(ComposeBlockLane, ANamedBlockIsLaidOverTheBlockInForce) {
   Block wide;
   wide.leading = Leading::multiple(2.0f);
   Host start, named;
-  start.composer.render(box().padding(10).block(wide).child(leaf()));
+  start.composer.render(box().padding(10).block(wide).children({leaf()}));
   const std::array<std::string_view, 1> names{"lead"};
-  named.composer.render(box().padding(10).block(wide).styleSheet(blocks).child(
-      leaf().paragraphs(names)));
+  named.composer.render(
+      box().padding(10).block(wide).styleSheet(blocks).children(
+          {leaf().paragraphs(names)}));
   const SkRect a = boxOf(start, "t");
   const SkRect b = boxOf(named, "t");
   EXPECT_NEAR(a.height(), b.height(), 0.5f);
@@ -141,10 +142,10 @@ TEST(ComposeBlockLane, TheWritingModeInForceSetsALeafVertical) {
   Block vertical;
   vertical.writingMode = sigil::weave::WritingMode::kVerticalRL;
   Host across, down;
-  across.composer.render(box().padding(10).child(
-      text(u8"AAAA").font({.size = 12}).ink({1, 1, 1, 1}).key("t")));
-  down.composer.render(box().padding(10).block(vertical).child(
-      text(u8"AAAA").font({.size = 12}).ink({1, 1, 1, 1}).key("t")));
+  across.composer.render(box().padding(10).children(
+      {text(u8"AAAA").font({.size = 12}).ink({1, 1, 1, 1}).key("t")}));
+  down.composer.render(box().padding(10).block(vertical).children(
+      {text(u8"AAAA").font({.size = 12}).ink({1, 1, 1, 1}).key("t")}));
   const SkRect a = boxOf(across, "t");
   const SkRect b = boxOf(down, "t");
   EXPECT_GT(a.width(), a.height());
@@ -155,19 +156,20 @@ TEST(ComposeBlockLane, TheTextVerbsAreTheLanesSpellings) {
   // textAlign on a box that is not text: every leaf under it is centred,
   // through a box that says nothing — the verb is block({.alignment}).
   Host start, centred, vertical;
-  start.composer.render(box().padding(10).child(box().child(leaf())));
+  start.composer.render(box().padding(10).children({box().children({leaf()})}));
   centred.composer.render(box()
                               .padding(10)
-                              .textAlign(TextAlignment::kCenter)
-                              .child(box().child(leaf())));
+                              .block({.alignment = TextAlignment::kCenter})
+                              .children({box().children({leaf()})}));
   const SkRect a = boxOf(start, "t");
   const SkRect b = boxOf(centred, "t");
   EXPECT_GT(inkStartIn(centred, b), inkStartIn(start, a) + 4);
   vertical.composer.render(
       box()
           .padding(10)
-          .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .child(text(u8"AAAA").font({.size = 12}).ink({1, 1, 1, 1}).key("t")));
+          .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+          .children(
+              {text(u8"AAAA").font({.size = 12}).ink({1, 1, 1, 1}).key("t")}));
   const SkRect c = boxOf(vertical, "t");
   EXPECT_GT(c.height(), c.width());
 }
@@ -199,11 +201,12 @@ TEST(ComposeBlockLane, ImageSamplingSetOnAnAncestorReachesTheImageUnderIt) {
   };
   const auto picture = [&] { return image(asset).width(160).height(160); };
   const SkSamplingOptions nearest(SkFilterMode::kNearest);
-  EXPECT_GT(mixed(box().child(picture())), 2)
+  EXPECT_GT(mixed(box().children({picture()})), 2)
       << "linear when nothing states it";
-  EXPECT_LE(mixed(box().child(picture().sampling(nearest))), 1)
+  EXPECT_LE(mixed(box().children({picture().sampling(nearest)})), 1)
       << "on the leaf";
-  EXPECT_LE(mixed(box().sampling(nearest).child(box().child(picture()))), 1)
+  EXPECT_LE(
+      mixed(box().sampling(nearest).children({box().children({picture()})})), 1)
       << "on an ancestor, through a box that says nothing";
 }
 
@@ -212,7 +215,7 @@ TEST(ComposeBlockLane, AChangedAncestorBlockRelaysOutTheLeavesUnderIt) {
   const auto page = [](float factor) {
     Block lead;
     lead.leading = Leading::multiple(factor);
-    return box().padding(10).block(lead).child(box().child(leaf()));
+    return box().padding(10).block(lead).children({box().children({leaf()})});
   };
   host.composer.render(page(1.0f));
   const float single = boxOf(host, "t").height();

@@ -102,7 +102,7 @@ struct Tategaki final : sketch::Sketch {
             .font(std::move(style))
             .width(Dimension(46.0f))
             .height(Dimension(140.0f))
-            .writingMode(sigil::weave::WritingMode::kVerticalRL),
+            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
         0.0f, 12.0f);
   }
 
@@ -144,76 +144,79 @@ struct Tategaki final : sketch::Sketch {
     return box()
         .fill(std::move(ground))
         .ink(tg::kGofun)
-        .child(text(std::move(passage))
-                   .font(tg::bodyType(tg::kBodySize))
-                   .absolute()
-                   .inset(tg::kW - tg::kColumnBlockRight - tg::kColumnBlockW,
-                          92, tg::kColumnBlockRight, 0)
-                   .width(Dimension(tg::kColumnBlockW))
-                   .height(Dimension(tg::kColumnBlockH))
-                   .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                   // The phrase the plate is about, in vermilion — paint only,
-                   // so the glyphs are exactly the glyphs the passage shaped.
-                   .spanPaint(weave::selectors::text(u8"縦組み"),
-                              sigil::weave::PaintStyle(tg::kAka.toSkColor()))
-                   // One settling entrance, beating cluster by cluster in
-                   // READING ORDER: down each column, then right to left.
-                   .fx({.effect = fx::rise(30),
-                        .stagger = tg::kSettle,
-                        .progress = animate(
-                            motion::from(0.0f).to(1.0f),
-                            {std::chrono::milliseconds((int)tg::kSettleSpan),
-                             &ch::easeNone, 180ms})}))
-        .child(
-            box()
-                .absolute()
-                .inset(64, 88, 0, 0)
-                .column()
-                .gap(10)
-                .child(text("縦組み").font(tg::bodyType(46)))
-                .child(box()
-                           .width(Dimension(120.0f))
-                           .height(Dimension(1.0f))
-                           .fill(Fill::color(tg::kAi)))
-                .child(text("VERTICAL-RL").font(tg::labelType(15, tg::kAi, 4)))
-                .child(text("UTR#50 orientation, 'vert' forms,\n"
-                            "tate-chu-yoko digits, rotated Latin")
-                           .font(tg::labelType(14, 0.5f))
-                           .width(Dimension(240.0f)))
-                .child(box().height(Dimension(26.0f)))
-                .child(
-                    box()
-                        .row()
-                        .gap(34)
-                        .child(specimen(
-                            "UPRIGHT", weave::rich().add(u8"字は立つ"),
-                            tg::bodyType(28,
-                                         sigil::weave::VerticalForm::kUpright)))
-                        .child(specimen(
-                            "ROTATED", weave::rich().add(u8"Latin lies"),
-                            tg::bodyType(24, tg::kAi,
-                                         sigil::weave::VerticalForm::kRotated)))
-                        .child(specimen(
-                            "TATE-CHU-YOKO",
-                            weave::rich()
-                                .add(u8"令和")
-                                .add(
-                                    u8"07",
-                                    weave::Type{.color = tg::kAka,
-                                                .verticalForm = sigil::weave::
-                                                    VerticalForm::kTateChuYoko})
-                                .add(u8"年"),
-                            tg::bodyType(28))))
-                .child(box().height(Dimension(22.0f)))
-                .child(text("one paragraph · one writingMode "
-                            "· three forms")
-                           .font(tg::labelType(13, {0.55f, 0.53f, 0.50f, 1}))
-                           .width(Dimension(300.0f))))
-        .child(text("cluster-unit entrance staggers DOWN the column, "
-                    "columns advance right to left")
-                   .font(tg::labelType(13, {0.48f, 0.46f, 0.44f, 1}))
-                   .absolute()
-                   .inset(64, tg::kH - 46, 0, 0));
+        .children(
+            {text(std::move(passage))
+                 .font(tg::bodyType(tg::kBodySize))
+                 .absolute()
+                 .inset(tg::kW - tg::kColumnBlockRight - tg::kColumnBlockW, 92,
+                        tg::kColumnBlockRight, 0)
+                 .width(Dimension(tg::kColumnBlockW))
+                 .height(Dimension(tg::kColumnBlockH))
+                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                 // The phrase the plate is about, in vermilion — paint only,
+                 // so the glyphs are exactly the glyphs the passage shaped.
+                 .spanPaint(weave::selectors::text(u8"縦組み"),
+                            sigil::weave::PaintStyle(tg::kAka.toSkColor()))
+                 // One settling entrance, beating cluster by cluster in
+                 // READING ORDER: down each column, then right to left.
+                 .fx({.effect = fx::rise(30),
+                      .stagger = tg::kSettle,
+                      .progress = animate(
+                          motion::from(0.0f).to(1.0f),
+                          {std::chrono::milliseconds((int)tg::kSettleSpan),
+                           &ch::easeNone, 180ms})}),
+             box()
+                 .absolute()
+                 .inset(64, 88, 0, 0)
+                 .column()
+                 .gap(10)
+                 .children({text("縦組み").font(tg::bodyType(46))})
+                 .children({box()
+                                .width(Dimension(120.0f))
+                                .height(Dimension(1.0f))
+                                .fill(Fill::color(tg::kAi))})
+                 .children(
+                     {text("VERTICAL-RL").font(tg::labelType(15, tg::kAi, 4))})
+                 .children({text("UTR#50 orientation, 'vert' forms,\n"
+                                 "tate-chu-yoko digits, rotated Latin")
+                                .font(tg::labelType(14, 0.5f))
+                                .width(Dimension(240.0f))})
+                 .children({box().height(Dimension(26.0f))})
+                 .children(
+                     {box()
+                          .row()
+                          .gap(34)
+                          .children({specimen(
+                              "UPRIGHT", weave::rich().add(u8"字は立つ"),
+                              tg::bodyType(
+                                  28, sigil::weave::VerticalForm::kUpright))})
+                          .children({specimen(
+                              "ROTATED", weave::rich().add(u8"Latin lies"),
+                              tg::bodyType(
+                                  24, tg::kAi,
+                                  sigil::weave::VerticalForm::kRotated))})
+                          .children({specimen(
+                              "TATE-CHU-YOKO",
+                              weave::rich()
+                                  .add(u8"令和")
+                                  .add(u8"07",
+                                       weave::Type{
+                                           .color = tg::kAka,
+                                           .verticalForm = sigil::weave::
+                                               VerticalForm::kTateChuYoko})
+                                  .add(u8"年"),
+                              tg::bodyType(28))})})
+                 .children({box().height(Dimension(22.0f))})
+                 .children(
+                     {text("one paragraph · one writingMode "
+                           "· three forms")
+                          .font(tg::labelType(13, {0.55f, 0.53f, 0.50f, 1}))
+                          .width(Dimension(300.0f))}),
+             text("cluster-unit entrance staggers DOWN the column, "
+                  "columns advance right to left")
+                 .font(tg::labelType(13, {0.48f, 0.46f, 0.44f, 1}))
+                 .absolute()
+                 .inset(64, tg::kH - 46, 0, 0)});
   }
 };
 

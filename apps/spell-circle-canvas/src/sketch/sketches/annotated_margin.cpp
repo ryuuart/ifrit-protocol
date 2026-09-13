@@ -133,111 +133,113 @@ struct AnnotatedMargin final : sketch::Sketch {
             .fill(Fill::color(m::kPaper))
             .font({.face = m::serif(), .size = 19})
             .ink(m::kInk)
-            .child(
-                box()
-                    .absolute()
-                    .inset(52, 44, 0, 0)
-                    .column()
-                    .gap(6)
-                    .child(text("BESIDE THE TEXT", m::note(12, m::kInk, 4.0f)))
-                    .child(text("one element per unit, placed from "
-                                "the unit's own rect",
-                                m::note(10, m::kFaint, 0.3f))))
+            .children({box()
+                           .absolute()
+                           .inset(52, 44, 0, 0)
+                           .column()
+                           .gap(6)
+                           .children({text("BESIDE THE TEXT",
+                                           m::note(12, m::kInk, 4.0f))})
+                           .children({text("one element per unit, placed from "
+                                           "the unit's own rect",
+                                           m::note(10, m::kFaint, 0.3f))})})
             // The passage itself: one leaf, keyed, and annotated by
             // nothing — everything below reads it from outside.
-            .child(text(m::kPassage)
-                       .key("passage")
-                       .absolute()
-                       .left(Dimension(m::kTextLeft))
-                       .top(Dimension(m::kTextTop))
-                       .width(Dimension(m::kMeasure))
-                       .paragraph({.leading = weave::Leading::multiple(1.55f)}))
+            .children({text(m::kPassage)
+                           .key("passage")
+                           .absolute()
+                           .left(Dimension(m::kTextLeft))
+                           .top(Dimension(m::kTextTop))
+                           .width(Dimension(m::kMeasure))
+                           .paragraphs(
+                               {{.leading = weave::Leading::multiple(1.55f)}})})
             // The same text again, lower, under a cascade — the playhead
             // below rides its beats.
-            .child(text("A marker placed from a beat agrees with the "
-                        "letters by construction.")
-                       .font({.size = 17})
-                       .key("cascade")
-                       .absolute()
-                       .left(Dimension(m::kTextLeft))
-                       .top(Dimension(m::kH - 210))
-                       .width(Dimension(m::kMeasure))
-                       .fx({.effect = fx::rise(14),
-                            .stagger = m::kRoll,
-                            .unit = weave::Unit::Word,
-                            .progress = animate(
-                                motion::from(0.0f).to(1.0f),
-                                {std::chrono::milliseconds((int)m::kRollSpan),
-                                 &ch::easeNone, 200ms})}));
+            .children({text("A marker placed from a beat agrees with the "
+                            "letters by construction.")
+                           .font({.size = 17})
+                           .key("cascade")
+                           .absolute()
+                           .left(Dimension(m::kTextLeft))
+                           .top(Dimension(m::kH - 210))
+                           .width(Dimension(m::kMeasure))
+                           .fx({.effect = fx::rise(14),
+                                .stagger = m::kRoll,
+                                .unit = weave::Unit::Word,
+                                .progress = animate(motion::from(0.0f).to(1.0f),
+                                                    {std::chrono::milliseconds(
+                                                         (int)m::kRollSpan),
+                                                     &ch::easeNone, 200ms})})});
 
     // ── The label under every word of the opening phrase ────────────────
-    page.child(kit::annotate(composer, "passage", weave::selectors::words(0, 6),
-                             weave::Unit::Word,
-                             {.side = kit::Beside::Side::After, .gap = 5.0f},
-                             [&](const TextUnit& unit) {
-                               // The label says what the unit IS — its range
-                               // and the line it landed on — because a label
-                               // that only repeated the word would be showing
-                               // nothing the word does not already show.
-                               return text(std::to_string(unit.range.start) +
-                                               "–" +
-                                               std::to_string(unit.range.end),
-                                           m::note(7.5f, m::kMark, 0.2f));
-                             })
-                   .absolute()
-                   .inset(0, 0, 0, 0));
+    page.children(
+        {kit::annotate(composer, "passage", weave::selectors::words(0, 6),
+                       weave::Unit::Word,
+                       {.side = kit::Beside::Side::After, .gap = 5.0f},
+                       [&](const TextUnit& unit) {
+                         // The label says what the unit IS — its range
+                         // and the line it landed on — because a label
+                         // that only repeated the word would be showing
+                         // nothing the word does not already show.
+                         return text(std::to_string(unit.range.start) + "–" +
+                                         std::to_string(unit.range.end),
+                                     m::note(7.5f, m::kMark, 0.2f));
+                       })
+             .absolute()
+             .inset(0, 0, 0, 0)});
 
     // ── One note per line, in the gutter, with a leader ──────────────────
-    page.child(kit::annotate(
-                   composer, "passage",
-                   weave::selectors::each(weave::Unit::Line), weave::Unit::Line,
-                   {.side = kit::Beside::Side::Start,
-                    .gap = m::kGutter,
-                    .measure = m::kNoteMeasure},
-                   [&](const TextUnit& unit) {
-                     return box()
-                         .width(Dimension(m::kNoteMeasure))
-                         .justify(Justify::End)
-                         .row()
-                         .gap(8)
-                         .child(text("line " + std::to_string(unit.lineIndex) +
-                                         " · baseline " +
-                                         std::to_string((int)unit.axis),
-                                     m::note()))
-                         .child(box()
-                                    .width(Dimension(m::kGutter - 6))
-                                    .height(Dimension(1.0f))
-                                    .fill(Fill::color(m::kFaint)));
-                   })
-                   .absolute()
-                   .inset(0, 0, 0, 0));
+    page.children(
+        {kit::annotate(
+             composer, "passage", weave::selectors::each(weave::Unit::Line),
+             weave::Unit::Line,
+             {.side = kit::Beside::Side::Start,
+              .gap = m::kGutter,
+              .measure = m::kNoteMeasure},
+             [&](const TextUnit& unit) {
+               return box()
+                   .width(Dimension(m::kNoteMeasure))
+                   .justify(Justify::End)
+                   .row()
+                   .gap(8)
+                   .children({text("line " + std::to_string(unit.lineIndex) +
+                                       " · baseline " +
+                                       std::to_string((int)unit.axis),
+                                   m::note())})
+                   .children({box()
+                                  .width(Dimension(m::kGutter - 6))
+                                  .height(Dimension(1.0f))
+                                  .fill(Fill::color(m::kFaint))});
+             })
+             .absolute()
+             .inset(0, 0, 0, 0)});
 
     // ── A rule cut to what the block occupies ───────────────────────────
-    page.child(kit::rules(composer, "passage",
-                          weave::selectors::each(weave::Unit::Line),
-                          {.where = kit::BlockRule::Where::Below,
-                           .thickness = 1.0f,
-                           .gap = 14.0f,
-                           .colour = m::kMark})
-                   .absolute()
-                   .inset(0, 0, 0, 0));
+    page.children({kit::rules(composer, "passage",
+                              weave::selectors::each(weave::Unit::Line),
+                              {.where = kit::BlockRule::Where::Below,
+                               .thickness = 1.0f,
+                               .gap = 14.0f,
+                               .colour = m::kMark})
+                       .absolute()
+                       .inset(0, 0, 0, 0)});
 
     // ── The playhead, riding the cascade ────────────────────────────────
-    page.child(kit::trackMeter(composer, "cascade", 0, m::kHot,
-                               {m::kHot.fR, m::kHot.fG, m::kHot.fB, 0.12f},
-                               {.where = kit::MeterPlacement::Where::Under,
-                                .thickness = 3.0f,
-                                .gap = 5.0f,
-                                .trim = 2.0f})
-                   .absolute()
-                   .inset(0, 0, 0, 0));
+    page.children({kit::trackMeter(composer, "cascade", 0, m::kHot,
+                                   {m::kHot.fR, m::kHot.fG, m::kHot.fB, 0.12f},
+                                   {.where = kit::MeterPlacement::Where::Under,
+                                    .thickness = 3.0f,
+                                    .gap = 5.0f,
+                                    .trim = 2.0f})
+                       .absolute()
+                       .inset(0, 0, 0, 0)});
 
-    return page.child(
-        text("a sibling annotation reserves nothing and lags a frame; "
-             "a reading that must never lag is part of the text",
-             m::note(10, m::kFaint, 0.2f))
-            .absolute()
-            .inset(52, m::kH - 34, 0, 0));
+    return page.children(
+        {text("a sibling annotation reserves nothing and lags a frame; "
+              "a reading that must never lag is part of the text",
+              m::note(10, m::kFaint, 0.2f))
+             .absolute()
+             .inset(52, m::kH - 34, 0, 0)});
   }
 };
 

@@ -80,7 +80,7 @@ static void BM_Draw_Pattern_Fill_Live(benchmark::State& state) {
                                           {0.1f, 0.1f, 0.12f, 1}))
           .material();
   host.composer.render(
-      box().child(box().inset(0).fill(halftone).cache(Cache::None)));
+      box().children({box().inset(0).fill(halftone).cache(Cache::None)}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["pitch"] = pitch;
@@ -96,10 +96,10 @@ static void BM_Draw_Pattern_Rotate_Live(benchmark::State& state) {
       Pattern(material::pattern::stripes(6, 6, {0.2f, 0.2f, 0.25f, 1}));
   float angle = 0;
   auto describe = [&] {
-    return box().child(box()
-                           .inset(0)
-                           .fill(stripes.rotate(angle).material())
-                           .cache(Cache::None));
+    return box().children({box()
+                               .inset(0)
+                               .fill(stripes.rotate(angle).material())
+                               .cache(Cache::None)});
   };
   host.composer.render(describe());
   host.draw();
@@ -144,7 +144,7 @@ Element cardGrid(int count, float side, CardPaint paint) {
               style.borderWidth,
               Fill::color(material::skia::toSkColor(style.borderColor))));
     }
-    root.child(std::move(card));
+    root.children({std::move(card)});
   }
   return root;
 }
@@ -184,14 +184,15 @@ namespace {
 Element shadowedCards(int count, Cache mode) {
   auto root = box().row().wrapLines().gap(10).padding(10);
   for (int id = 0; id < count; ++id)
-    root.child(box()
-                   .key("s" + std::to_string(id))
-                   .width(120)
-                   .height(72)
-                   .corners({8})
-                   .fill(Fill::color(hexColor(0x2a3140)))
-                   .background(styles::dropShadow({0, 0, 0, 0.55f}, {0, 4}, 10))
-                   .cache(mode));
+    root.children(
+        {box()
+             .key("s" + std::to_string(id))
+             .width(120)
+             .height(72)
+             .corners({8})
+             .fill(Fill::color(hexColor(0x2a3140)))
+             .background(styles::dropShadow({0, 0, 0, 0.55f}, {0, 4}, 10))
+             .cache(mode)});
   return root;
 }
 

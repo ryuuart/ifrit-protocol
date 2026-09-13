@@ -12,11 +12,10 @@ TEST(ComposeCache, ConnectorWireSurvivesParentCaching) {
   // recording cull has to account for that, or the wire is drawn on the
   // first frame and clipped away by every cached replay after it.
   Host host;
-  host.composer.render(
-      box()
-          .child(box().absolute().inset(20, 90, 160, 90).fill(red()).key("a"))
-          .child(box().absolute().inset(160, 90, 20, 90).fill(red()).key("b"))
-          .child(connector("a", "b").stroke(stroke(4, green()))));
+  host.composer.render(box().children(
+      {box().absolute().inset(20, 90, 160, 90).fill(red()).key("a"),
+       box().absolute().inset(160, 90, 20, 90).fill(red()).key("b"),
+       connector("a", "b").stroke(stroke(4, green()))}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);  // the wire, mid-span
   host.frame();                                    // cached replay
@@ -29,12 +28,12 @@ TEST(ComposeCache, TextureBakeKeepsBleedAndOverflow) {
   // it) is silently cropped away by a bake sized to the node.
   Host host;
   host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(70, 70, 70, 70)
-                      .cache(Cache::Texture)
-                      .background(Shadow{{0, 1, 0, 1}, {30, 0}, 0})
-                      .fill(red())));
+      box().children({box()
+                          .absolute()
+                          .inset(70, 70, 70, 70)
+                          .cache(Cache::Texture)
+                          .background(Shadow{{0, 1, 0, 1}, {30, 0}, 0})
+                          .fill(red())}));
   host.frame();
   EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN);  // shadow past the box
 }
@@ -47,11 +46,11 @@ TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
   // missed re-bake shows up.
   Host host;
   auto tree = [](motion::Animatable<float> op) {
-    return box().child(box()
-                           .width(80)
-                           .height(80)
-                           .fill(Fill::color({1, 0, 0, 1}))
-                           .opacity(std::move(op)));
+    return box().children({box()
+                               .width(80)
+                               .height(80)
+                               .fill(Fill::color({1, 0, 0, 1}))
+                               .opacity(std::move(op))});
   };
   host.composer.render(tree(1.0f));
   host.frame();
@@ -105,15 +104,15 @@ Element splitPlane(bool clipped, SkBlendMode childBlend) {
           .overlay(stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
           .foreground(stroke(1.5f, Fill::color({1, 1, 1, 0.5f})));
   if (clipped) plane.clip(true);
-  plane.child(box()
-                  .absolute()
-                  .left(10)
-                  .top(80)
-                  .width(50)
-                  .height(50)
-                  .fill(Fill::color({1.0f, 0.35f, 0.1f, 0.85f}))
-                  .blend(childBlend)
-                  .translateX(motion::bind(&splitSweep()).scale(130.0f)));
+  plane.children({box()
+                      .absolute()
+                      .left(10)
+                      .top(80)
+                      .width(50)
+                      .height(50)
+                      .fill(Fill::color({1.0f, 0.35f, 0.1f, 0.85f}))
+                      .blend(childBlend)
+                      .translateX(motion::bind(&splitSweep()).scale(130.0f))});
   return profiledUnder(std::move(plane));
 }
 
@@ -260,14 +259,14 @@ TEST(ComposeCache, ItIsTheVolatileChildThatSplitsTheBake) {
             .fill(material::skia::Paint::sksl(sharedHeavyEffect()))
             .overlay(stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
             .foreground(stroke(1.5f, Fill::color({1, 1, 1, 0.5f})))
-            .child(box()
-                       .absolute()
-                       .left(10)
-                       .top(80)
-                       .width(50)
-                       .height(50)
-                       .fill(Fill::color({1.0f, 0.35f, 0.1f, 0.85f}))
-                       .translateX(65.0f)));
+            .children({box()
+                           .absolute()
+                           .left(10)
+                           .top(80)
+                           .width(50)
+                           .height(50)
+                           .fill(Fill::color({1.0f, 0.35f, 0.1f, 0.85f}))
+                           .translateX(65.0f)}));
   };
   Host host(200, 200);
   host.composer.setProfiling(true);
@@ -295,16 +294,16 @@ TEST(ComposeCache, ARefusalNamesEveryReasonAndNotJustTheFirst) {
   // never take, so including it would make this test unfalsifiable.
   Host host(220, 220);
   host.composer.setProfiling(true);
-  host.composer.render(
-      profiledUnder(expensivePanel().key("many").clip(true).rotate(30.0f).child(
-          box()
-              .absolute()
-              .left(4)
-              .top(4)
-              .width(20)
-              .height(20)
-              .fill(red())
-              .translateX(motion::bind(&splitSweep()).scale(40.0f)))));
+  host.composer.render(profiledUnder(
+      expensivePanel().key("many").clip(true).rotate(30.0f).children(
+          {box()
+               .absolute()
+               .left(4)
+               .top(4)
+               .width(20)
+               .height(20)
+               .fill(red())
+               .translateX(motion::bind(&splitSweep()).scale(40.0f))})));
   for (int i = 0; i < 24; ++i) {
     splitSweep() = (float)i / 24.0f;
     host.frame();

@@ -231,12 +231,12 @@ struct GifFrames final : sketch::Sketch {
         .gap(10)
         .padding(40)
         .ink(sheet.palette.ink)
-        .child(text("no animated document here").font({.size = 20}))
-        .child(text(std::string(kSource) +
-                    " did not decode: the hub reached neither the "
-                    "network nor a cached copy of it")
-                   .font({.size = 12, .color = sheet.palette.ash})
-                   .width(Dimension(620.0f)));
+        .children({text("no animated document here").font({.size = 20}),
+                   text(std::string(kSource) +
+                        " did not decode: the hub reached neither the "
+                        "network nor a cached copy of it")
+                       .font({.size = 12, .color = sheet.palette.ash})
+                       .width(Dimension(620.0f))});
   }
 };
 

@@ -34,37 +34,38 @@ auto Minard1869::hannibalSea() -> Element {
   auto g = box().inset(0);
   // Keyed: the two cooked paths are the whole of what the program closes
   // over, and both are a function of the coast this file states once.
-  g.child(custom("seahatch",
-                 [sea, rings](SkCanvas& c, const PaintContext&) {
-                   SkPaint p;
-                   p.setAntiAlias(true);
-                   p.setStyle(SkPaint::kStroke_Style);
-                   p.setStrokeWidth(0.5f);
-                   c.save();
-                   c.clipPath(sea, true);
-                   for (size_t i = 0; i < rings.size(); ++i) {
-                     p.setColor4f(hexColor(0x4e4436, 0.55f - 0.062f * (float)i),
-                                  nullptr);
-                     c.drawPath(rings[i], p);
-                   }
-                   c.restore();
-                 })
-              .inset(0)
-              .cache(Cache::Texture)
-              .key("seahatch")
-              .opacity(beat(tHann + 0.25f, tHann + 1.0f)));
+  g.children({custom("seahatch",
+                     [sea, rings](SkCanvas& c, const PaintContext&) {
+                       SkPaint p;
+                       p.setAntiAlias(true);
+                       p.setStyle(SkPaint::kStroke_Style);
+                       p.setStrokeWidth(0.5f);
+                       c.save();
+                       c.clipPath(sea, true);
+                       for (size_t i = 0; i < rings.size(); ++i) {
+                         p.setColor4f(
+                             hexColor(0x4e4436, 0.55f - 0.062f * (float)i),
+                             nullptr);
+                         c.drawPath(rings[i], p);
+                       }
+                       c.restore();
+                     })
+                  .inset(0)
+                  .cache(Cache::Texture)
+                  .key("seahatch")
+                  .opacity(beat(tHann + 0.25f, tHann + 1.0f))});
   // the shore itself, engraved on top
-  g.child(box()
-              .inset(0)
-              .shape(pathFn(line))
-              .stroke(spans::upTo(beat(tHann, tHann + 0.5f)),
-                      stroke(1.1f, Fill::color(kInk)))
-              .key("coast"));
-  g.child(text("Iles Baléares")
-              .font({.face = faceItalic, .size = 9, .track = 0.2f})
-              .at({150, 500})
-              .key("baleares")
-              .opacity(beat(tHann + 0.9f, tHann + 1.2f)));
+  g.children({box()
+                  .inset(0)
+                  .shape(pathFn(line))
+                  .stroke(spans::upTo(beat(tHann, tHann + 0.5f)),
+                          stroke(1.1f, Fill::color(kInk)))
+                  .key("coast")});
+  g.children({text("Iles Baléares")
+                  .font({.face = faceItalic, .size = 9, .track = 0.2f})
+                  .at({150, 500})
+                  .key("baleares")
+                  .opacity(beat(tHann + 0.9f, tHann + 1.2f))});
   return g;
 }
 
@@ -130,50 +131,50 @@ auto Minard1869::lehmann(const std::vector<std::array<float, 4>>& ridges,
 auto Minard1869::hannibalPanel() -> Element {
   auto g = box().inset(0);
 
-  g.child(text("Carte Figurative des pertes successives en hommes de "
-               "l'armée qu'Annibal conduisit d'Espagne")
-              .font({.size = 19, .track = 0.2f})
-              .at({210, 58})
-              .key("htitle1")
-              .opacity(beat(tHann, tHann + 0.4f)));
-  g.child(text("en Italie en traversant les Gaules (selon Polybe).")
-              .font({.size = 17, .track = 0.2f})
-              .at({320, 84})
-              .key("htitle2")
-              .opacity(beat(tHann + 0.1f, tHann + 0.5f)));
-  g.child(text("Dressée par M. Minard, Inspecteur Général "
-               "des Ponts et Chaussées en retraite.")
-              .font({.size = 14, .track = 0.15f})
-              .at({300, 110})
-              .key("htitle3")
-              .opacity(beat(tHann + 0.2f, tHann + 0.6f)));
-  g.child(text("Paris, le 20 Novembre 1869.")
-              .font({.size = 14, .track = 0.15f})
-              .at({700, 132})
-              .key("htitle4")
-              .opacity(beat(tHann + 0.3f, tHann + 0.7f)));
+  g.children({text("Carte Figurative des pertes successives en hommes de "
+                   "l'armée qu'Annibal conduisit d'Espagne")
+                  .font({.size = 19, .track = 0.2f})
+                  .at({210, 58})
+                  .key("htitle1")
+                  .opacity(beat(tHann, tHann + 0.4f))});
+  g.children({text("en Italie en traversant les Gaules (selon Polybe).")
+                  .font({.size = 17, .track = 0.2f})
+                  .at({320, 84})
+                  .key("htitle2")
+                  .opacity(beat(tHann + 0.1f, tHann + 0.5f))});
+  g.children({text("Dressée par M. Minard, Inspecteur Général "
+                   "des Ponts et Chaussées en retraite.")
+                  .font({.size = 14, .track = 0.15f})
+                  .at({300, 110})
+                  .key("htitle3")
+                  .opacity(beat(tHann + 0.2f, tHann + 0.6f))});
+  g.children({text("Paris, le 20 Novembre 1869.")
+                  .font({.size = 14, .track = 0.15f})
+                  .at({700, 132})
+                  .key("htitle4")
+                  .opacity(beat(tHann + 0.3f, tHann + 0.7f))});
 
-  g.child(hannibalSea());
+  g.children({hannibalSea()});
 
   // The Pyrenees and the Alps, hachured by Lehmann's rule.
-  g.child(lehmann({{{562, 302, 58, 15}}, {{604, 288, 50, 13}}}, 440, 250, 720,
-                  350, "pyrenees", tHann + 0.55f));
-  g.child(lehmann({{{1046, 336, 52, 30}},
-                   {{1086, 382, 62, 34}},
-                   {{1002, 296, 40, 22}},
-                   {{1128, 432, 54, 30}},
-                   {{1064, 476, 72, 26}},
-                   {{1176, 392, 44, 24}}},
-                  900, 220, 1290, 570, "alps", tHann + 0.7f));
+  g.children({lehmann({{{562, 302, 58, 15}}, {{604, 288, 50, 13}}}, 440, 250,
+                      720, 350, "pyrenees", tHann + 0.55f)});
+  g.children({lehmann({{{1046, 336, 52, 30}},
+                       {{1086, 382, 62, 34}},
+                       {{1002, 296, 40, 22}},
+                       {{1128, 432, 54, 30}},
+                       {{1064, 476, 72, 26}},
+                       {{1176, 392, 44, 24}}},
+                      900, 220, 1290, 570, "alps", tHann + 0.7f)});
 
   // rivers, in a lighter sloped hand
   auto river = [&](const std::vector<SkPoint>& pts, const char* k, float t0) {
-    g.child(box()
-                .inset(0)
-                .shape(pathFn(smooth(pts)))
-                .stroke(spans::upTo(beat(t0, t0 + 0.4f)),
-                        stroke(0.8f, Fill::color(hexColor(0x4e4436, 0.8f))))
-                .key(k));
+    g.children({box()
+                    .inset(0)
+                    .shape(pathFn(smooth(pts)))
+                    .stroke(spans::upTo(beat(t0, t0 + 0.4f)),
+                            stroke(0.8f, Fill::color(hexColor(0x4e4436, 0.8f))))
+                    .key(k)});
   };
   river({{206, 190}, {198, 240}, {212, 280}, {200, 322}}, "ebre", tHann + 0.9f);
   river({{796, 150}, {806, 210}, {790, 268}, {800, 320}, {780, 358}}, "rhone",
@@ -186,18 +187,19 @@ auto Minard1869::hannibalPanel() -> Element {
   // own strengths. This is the primitive the whole sheet is made of.
   const SkPath spine = polylineH(plate.hannibal);
   const WidthProfile prof = profileOfH(plate.hannibal);
-  g.child(bandElement(spine, prof, kZone, "hband",
-                      beat(tHann + 0.55f, tHann + 1.6f)));
+  g.children({bandElement(spine, prof, kZone, "hband",
+                          beat(tHann + 0.55f, tHann + 1.6f))});
 
   // the ten numbers, written ACROSS the zones ("écrits en travers"),
   // Orient::Tangent on a cross-segment
   for (size_t i = 0; i + 1 < plate.hannibal.size(); ++i) {
     if (i > 0 && plate.hannibal[i].men == plate.hannibal[i - 1].men) continue;
-    g.child(bandNumber({plate.hannibal[i].x, plate.hannibal[i].y},
-                       {plate.hannibal[i + 1].x - plate.hannibal[i].x,
-                        plate.hannibal[i + 1].y - plate.hannibal[i].y},
-                       plate.hannibal[i].men, 8.2f, "hn" + std::to_string(i),
-                       tHann + 0.7f + 0.06f * (float)i));
+    g.children(
+        {bandNumber({plate.hannibal[i].x, plate.hannibal[i].y},
+                    {plate.hannibal[i + 1].x - plate.hannibal[i].x,
+                     plate.hannibal[i + 1].y - plate.hannibal[i].y},
+                    plate.hannibal[i].men, 8.2f, "hn" + std::to_string(i),
+                    tHann + 0.7f + 0.06f * (float)i)});
   }
 
   // the place names
@@ -211,28 +213,28 @@ auto Minard1869::hannibalPanel() -> Element {
                           .color = hexColor(0x4e4436),
                           .track = 1.2f}
             : weave::Type{.face = faceItalic, .size = 9, .track = 0.2f};
-    g.child(text(p.name)
-                .font(st)
-                .at({p.x, p.y})
-                .key("hp" + std::to_string(i))
-                .opacity(beat(tHann + 1.0f + 0.012f * (float)i,
-                              tHann + 1.4f + 0.012f * (float)i)));
+    g.children({text(p.name)
+                    .font(st)
+                    .at({p.x, p.y})
+                    .key("hp" + std::to_string(i))
+                    .opacity(beat(tHann + 1.0f + 0.012f * (float)i,
+                                  tHann + 1.4f + 0.012f * (float)i))});
   }
 
   // The LEGEND BOX — top right, and it is the second, independent
   // statement of the same scale rule.
-  g.child(legendBox());
+  g.children({legendBox()});
   // the scale bar, in the panel's OWN lieue (4,560 m — not the Russian
   // panel's 4,444.8 m; the two panels use different lieues)
-  g.child(scaleBar(640, 500, 14.09f / 3.0f, 30, 5, "Lieues de 4.560 m", "hbar",
-                   tHann + 1.45f));
+  g.children({scaleBar(640, 500, 14.09f / 3.0f, 30, 5, "Lieues de 4.560 m",
+                       "hbar", tHann + 1.45f)});
   // the compass arrow in the Mediterranean
-  g.child(box()
-              .inset(0)
-              .shape(segFn({846, 486}, {900, 424}))
-              .stroke(spans::upTo(beat(tHann + 1.5f, tHann + 1.75f)),
-                      lines::presets::arrow(1.2f, Fill::color(kInk), 9.0f))
-              .key("compass"));
+  g.children({box()
+                  .inset(0)
+                  .shape(segFn({846, 486}, {900, 424}))
+                  .stroke(spans::upTo(beat(tHann + 1.5f, tHann + 1.75f)),
+                          lines::presets::arrow(1.2f, Fill::color(kInk), 9.0f))
+                  .key("compass")});
   return g;
 }
 
@@ -244,7 +246,7 @@ auto Minard1869::legendBox() -> Element {
                .stroke(stroke(1.0f, Fill::color(kInk)))
                .key("legendbox")
                .opacity(beat(tHann + 1.5f, tHann + 1.8f));
-  g.child(text("Légende.").font({.size = 14}).at({140, 4}));
+  g.children({text("Légende.").font({.size = 14}).at({140, 4})});
   const char* lines_[] = {
       "Les nombres d'hommes restés à Annibal sont "
       "représentés",
@@ -258,9 +260,9 @@ auto Minard1869::legendBox() -> Element {
       "prétendre la justifier.",
   };
   for (int i = 0; i < 5; ++i)
-    g.child(text(lines_[i])
-                .font({.size = 9.6f, .track = 0.05f})
-                .at({8, 24 + 16.0f * (float)i}));
+    g.children({text(lines_[i])
+                    .font({.size = 9.6f, .track = 0.05f})
+                    .at({8, 24 + 16.0f * (float)i})});
   return g;
 }
 
@@ -328,59 +330,59 @@ auto Minard1869::advanceZones() -> Element {
     return bandElement(polyline(st), profileOf(st), kZone, key,
                        std::move(reveal));
   };
-  return box()
-      .inset(0)
-      .child(zone(plate.advTrunk, "advTrunk", beat(tAdv, tAdv + 1.6f)))
-      .child(zone(plate.advNorth, "advNorth", beat(tAdv + 0.35f, tAdv + 0.8f)))
-      .child(zone(plate.advPolotzk, "advPol", beat(tAdv + 0.55f, tAdv + 1.2f)));
+  return box().inset(0).children(
+      {zone(plate.advTrunk, "advTrunk", beat(tAdv, tAdv + 1.6f)),
+       zone(plate.advNorth, "advNorth", beat(tAdv + 0.35f, tAdv + 0.8f)),
+       zone(plate.advPolotzk, "advPol", beat(tAdv + 0.55f, tAdv + 1.2f))});
 }
 
 auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
   auto g = box().inset(0);
 
-  g.child(text("Carte Figurative des pertes successives en hommes de "
-               "l'Armée Française dans la campagne de Russie "
-               "1812—1813.")
-              .font({.size = 18, .track = 0.15f})
-              .at({200, kDivHN + 14})
-              .key("ntitle")
-              .opacity(beat(tLegend, tLegend + 0.3f)));
-  g.child(text("Dressée par M. Minard, Inspecteur Général "
-               "des Ponts et Chaussées en retraite.        Paris, "
-               "le 20 Novembre 1869.")
-              .font({.size = 13, .track = 0.1f})
-              .at({300, kDivHN + 40})
-              .key("ntitle2")
-              .opacity(beat(tLegend + 0.1f, tLegend + 0.4f)));
+  g.children({text("Carte Figurative des pertes successives en hommes de "
+                   "l'Armée Française dans la campagne de Russie "
+                   "1812—1813.")
+                  .font({.size = 18, .track = 0.15f})
+                  .at({200, kDivHN + 14})
+                  .key("ntitle")
+                  .opacity(beat(tLegend, tLegend + 0.3f))});
+  g.children({text("Dressée par M. Minard, Inspecteur Général "
+                   "des Ponts et Chaussées en retraite.        Paris, "
+                   "le 20 Novembre 1869.")
+                  .font({.size = 13, .track = 0.1f})
+                  .at({300, kDivHN + 40})
+                  .key("ntitle2")
+                  .opacity(beat(tLegend + 0.1f, tLegend + 0.4f))});
 
   // the legend as a PARAGRAPH, which is what it is — not a key.
   for (int i = 0; i < 5; ++i) {
-    g.child(
-        text(plate.legend[i])
-            .font({.size = 9.8f, .track = 0.02f})
-            .at({i == 3 ? 148.0f : 128.0f, kDivHN + 58 + 14.6f * (float)i})
-            .key("nleg" + std::to_string(i))
-            .mask(by::edge(0.0f, beat(tLegend + 0.25f + 0.16f * (float)i,
-                                      tLegend + 0.55f + 0.16f * (float)i))));
+    g.children(
+        {text(plate.legend[i])
+             .font({.size = 9.8f, .track = 0.02f})
+             .at({i == 3 ? 148.0f : 128.0f, kDivHN + 58 + 14.6f * (float)i})
+             .key("nleg" + std::to_string(i))
+             .mask(by::edge(0.0f, beat(tLegend + 0.25f + 0.16f * (float)i,
+                                       tLegend + 0.55f + 0.16f * (float)i)))});
   }
 
   // the rivers of the Russian panel
   auto river = [&](const std::vector<SkPoint>& pts, const char* label,
                    SkPoint lp, const char* k, float t0) {
-    g.child(box()
-                .inset(0)
-                .shape(pathFn(smooth(pts)))
-                .stroke(spans::upTo(beat(t0, t0 + 0.35f)),
-                        stroke(0.7f, Fill::color(hexColor(0x4e4436, 0.85f))))
-                .key(k));
-    g.child(text(label)
-                .font({.face = faceItalic,
-                       .size = 8,
-                       .color = hexColor(0x4e4436),
-                       .track = 0.6f})
-                .at({lp.x(), lp.y()})
-                .key(std::string(k) + "L")
-                .opacity(beat(t0 + 0.2f, t0 + 0.5f)));
+    g.children(
+        {box()
+             .inset(0)
+             .shape(pathFn(smooth(pts)))
+             .stroke(spans::upTo(beat(t0, t0 + 0.35f)),
+                     stroke(0.7f, Fill::color(hexColor(0x4e4436, 0.85f))))
+             .key(k)});
+    g.children({text(label)
+                    .font({.face = faceItalic,
+                           .size = 8,
+                           .color = hexColor(0x4e4436),
+                           .track = 0.6f})
+                    .at({lp.x(), lp.y()})
+                    .key(std::string(k) + "L")
+                    .opacity(beat(t0 + 0.2f, t0 + 0.5f))});
   };
   river({{mapX(23.7f), mapY(56.0f)},
          {mapX(23.95f), mapY(55.3f)},
@@ -411,27 +413,30 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
   // The zones read the 12.6% morph the way every other band on the sheet
   // does: through the width law, at paint. Nothing here re-describes when
   // it moves.
-  redStone.child(advanceZones());
+  redStone.children({advanceZones()});
   // the stone took unevenly: a very low-amplitude speckle in the zone
   // colour, NOT a gradient (the Commons p10/p90 are two units apart)
-  redStone.child(box()
-                     .inset(0)
-                     .fill(tintSpeckle.material())
-                     .blend(SkBlendMode::kMultiply)
-                     .opacity(0.06f)
-                     .cache(Cache::Texture)
-                     .key("tintwander"));
-  g.child(std::move(redStone));
+  redStone.children({box()
+                         .inset(0)
+                         .fill(tintSpeckle.material())
+                         .blend(SkBlendMode::kMultiply)
+                         .opacity(0.06f)
+                         .cache(Cache::Texture)
+                         .key("tintwander")});
+  g.children({std::move(redStone)});
 
   // --- THE RETREAT ------------------------------------------------------
-  g.child(bandElement(polyline(plate.retEast), profileOf(plate.retEast),
-                      kInkDeep, "retEast", beat(tRet, tRet + 0.9f)));
-  g.child(bandElement(polyline(plate.retPolotzk), profileOf(plate.retPolotzk),
-                      kInkDeep, "retPol", beat(tRet + 0.7f, tRet + 1.0f)));
-  g.child(bandElement(polyline(plate.retWest), profileOf(plate.retWest),
-                      kInkDeep, "retWest", beat(tRet + 0.85f, tRet + 1.7f)));
-  g.child(bandElement(polyline(plate.retNorth), profileOf(plate.retNorth),
-                      kInkDeep, "retNorth", beat(tRet + 1.5f, tRet + 1.8f)));
+  g.children({bandElement(polyline(plate.retEast), profileOf(plate.retEast),
+                          kInkDeep, "retEast", beat(tRet, tRet + 0.9f))});
+  g.children(
+      {bandElement(polyline(plate.retPolotzk), profileOf(plate.retPolotzk),
+                   kInkDeep, "retPol", beat(tRet + 0.7f, tRet + 1.0f))});
+  g.children(
+      {bandElement(polyline(plate.retWest), profileOf(plate.retWest), kInkDeep,
+                   "retWest", beat(tRet + 0.85f, tRet + 1.7f))});
+  g.children(
+      {bandElement(polyline(plate.retNorth), profileOf(plate.retNorth),
+                   kInkDeep, "retNorth", beat(tRet + 1.5f, tRet + 1.8f))});
 
   // The arithmetic of the splits, as a footnote row along the bottom of
   // the map panel — five identities, all exact, on numbers Minard
@@ -446,19 +451,19 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
                            "4 + 6 = 10 recrossed"};
     float x = kFrameL + 16;
     for (int i = 0; i < 5; ++i) {
-      g.child(text(ident[i])
-                  .font({.face = faceUiBold, .size = 9.5f, .color = kBlue})
-                  .at({x, kDivNT - 26})
-                  .key("ar" + std::to_string(i))
-                  .opacity(beat(tAdv + 0.5f + 0.35f * (float)i,
-                                tAdv + 0.75f + 0.35f * (float)i)));
+      g.children({text(ident[i])
+                      .font({.face = faceUiBold, .size = 9.5f, .color = kBlue})
+                      .at({x, kDivNT - 26})
+                      .key("ar" + std::to_string(i))
+                      .opacity(beat(tAdv + 0.5f + 0.35f * (float)i,
+                                    tAdv + 0.75f + 0.35f * (float)i))});
       x += 20.0f + 6.4f * (float)std::char_traits<char>::length(ident[i]);
     }
-    g.child(text("all five EXACT")
-                .font({.face = faceUiBold, .size = 9.5f, .color = kPass})
-                .at({x, kDivNT - 26})
-                .key("arok")
-                .opacity(beat(tRet + 1.8f, tRet + 2.1f)));
+    g.children({text("all five EXACT")
+                    .font({.face = faceUiBold, .size = 9.5f, .color = kPass})
+                    .at({x, kDivNT - 26})
+                    .key("arok")
+                    .opacity(beat(tRet + 1.8f, tRet + 2.1f))});
   }
 
   // --- the engraved numbers --------------------------------------------
@@ -467,9 +472,10 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
     for (size_t i = 0; i + 1 < st.size(); ++i) {
       if (i > 0 && st[i].men == st[i - 1].men) continue;
       const SkPoint a = stationPt(st[i]), b = stationPt(st[i + 1]);
-      g.child(bandNumber({(a.x() + b.x()) * 0.5f, (a.y() + b.y()) * 0.5f},
-                         {b.x() - a.x(), b.y() - a.y()}, st[i].men, kNumSize,
-                         tag + std::to_string(i), t0 + dt * (float)i));
+      g.children(
+          {bandNumber({(a.x() + b.x()) * 0.5f, (a.y() + b.y()) * 0.5f},
+                      {b.x() - a.x(), b.y() - a.y()}, st[i].men, kNumSize,
+                      tag + std::to_string(i), t0 + dt * (float)i)});
     }
   };
   numbersFor(plate.advTrunk, "nA", tAdv + 0.4f, 0.07f);
@@ -479,8 +485,8 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
   numbersFor(plate.retWest, "nE", tRet + 0.9f, 0.06f);
   numbersFor(plate.retPolotzk, "nF", tRet + 0.8f, 0.05f);
   // what recrossed the Niemen
-  g.child(bandNumber({mapX(23.95f), mapY(54.4f)}, {1, 0}, 10000, kNumSize, "nG",
-                     tRet + 1.7f));
+  g.children({bandNumber({mapX(23.95f), mapY(54.4f)}, {1, 0}, 10000, kNumSize,
+                         "nG", tRet + 1.7f)});
 
   // --- the place names --------------------------------------------------
   for (size_t i = 0; i < plate.cities.size(); ++i) {
@@ -494,10 +500,10 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
                           .textStroke(0.5f, Fill::currentInk())
                     : text(c.plate).font(
                           {.face = faceItalic, .size = 9.6f, .track = 0.2f});
-    g.child(e.at({mapX(c.lon) + c.dx, mapY(c.lat) + c.dy})
-                .key("city" + std::to_string(i))
-                .opacity(beat(tAdv + 0.1f + 0.03f * (float)i,
-                              tAdv + 0.4f + 0.03f * (float)i)));
+    g.children({e.at({mapX(c.lon) + c.dx, mapY(c.lat) + c.dy})
+                    .key("city" + std::to_string(i))
+                    .opacity(beat(tAdv + 0.1f + 0.03f * (float)i,
+                                  tAdv + 0.4f + 0.03f * (float)i))});
   }
 
   // THE FLOOR, drawn on the plate itself: the blue outline is the width
@@ -510,42 +516,42 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
     const float y = mapY(54.4f);
     fb.addRect(SkRect::MakeLTRB(mapX(24.1f), y - floorPx * 0.5f, mapX(25.0f),
                                 y + floorPx * 0.5f));
-    g.child(box()
-                .inset(0)
-                .shape(pathFn(fb.detach()))
-                .stroke(stroke(0.9f, Fill::color(kBlue)))
-                .key("floorink")
-                .opacity(beat(tScale + 1.4f, tScale + 1.7f)));
-    g.child(text("what the crayon actually laid — 1.57 mm, "
-                 "2.6× the rule")
-                .font({.face = faceUi, .size = 9, .color = kBlue})
-                .at({mapX(24.1f), y + 10})
-                .key("floorinklab")
-                .opacity(beat(tScale + 1.5f, tScale + 1.8f)));
+    g.children({box()
+                    .inset(0)
+                    .shape(pathFn(fb.detach()))
+                    .stroke(stroke(0.9f, Fill::color(kBlue)))
+                    .key("floorink")
+                    .opacity(beat(tScale + 1.4f, tScale + 1.7f))});
+    g.children({text("what the crayon actually laid — 1.57 mm, "
+                     "2.6× the rule")
+                    .font({.face = faceUi, .size = 9, .color = kBlue})
+                    .at({mapX(24.1f), y + 10})
+                    .key("floorinklab")
+                    .opacity(beat(tScale + 1.5f, tScale + 1.8f))});
   }
 
   // THE CALIPER LIES. Minard's own bar, read against Minard's own map.
-  g.child(text("Minard's own bar reads Kowno→Smolensk as 210 "
-               "lieues = 933 km.  The truth is 520 km.  ×1.79 — "
-               "UNEXPLAINED")
-              .font({.face = faceUiBold, .size = 10.0f, .color = kAmber})
-              .at({880, 958})
-              .key("barlies")
-              .opacity(beat(tBar, tBar + 0.4f)));
-  g.child(
-      text("hypotheses: the labels are half their true value · "
-           "copied unrescaled from Fezensac · my longitude "
-           "scale is wrong.  None asserted.")
-          .font(
-              {.face = faceUi, .size = 9.0f, .color = hexColor(0xb5761e, 0.9f)})
-          .at({880, 972})
-          .key("barhyp")
-          .opacity(beat(tBar + 0.4f, tBar + 0.8f)));
+  g.children({text("Minard's own bar reads Kowno→Smolensk as 210 "
+                   "lieues = 933 km.  The truth is 520 km.  ×1.79 — "
+                   "UNEXPLAINED")
+                  .font({.face = faceUiBold, .size = 10.0f, .color = kAmber})
+                  .at({880, 958})
+                  .key("barlies")
+                  .opacity(beat(tBar, tBar + 0.4f))});
+  g.children({text("hypotheses: the labels are half their true value · "
+                   "copied unrescaled from Fezensac · my longitude "
+                   "scale is wrong.  None asserted.")
+                  .font({.face = faceUi,
+                         .size = 9.0f,
+                         .color = hexColor(0xb5761e, 0.9f)})
+                  .at({880, 972})
+                  .key("barhyp")
+                  .opacity(beat(tBar + 0.4f, tBar + 0.8f))});
 
   // the lieue bar, and its ticks
-  g.child(scaleBar(mapX(33.4f), 930.0f, 4.985f * 0.6549f, 50, 5,
-                   "Lieues communes de France (Carte de M. de Fezensac)",
-                   "nbar", tAdv + 1.7f));
+  g.children({scaleBar(mapX(33.4f), 930.0f, 4.985f * 0.6549f, 50, 5,
+                       "Lieues communes de France (Carte de M. de Fezensac)",
+                       "nbar", tAdv + 1.7f)});
   return g;
 }
 
@@ -554,18 +560,18 @@ auto Minard1869::scaleBar(float x, float y, float pxPerUnit, int span, int step,
     -> Element {
   auto g = box().inset(0).key(key).opacity(beat(t0, t0 + 0.3f));
   const float w = pxPerUnit * (float)span;
-  g.child(box()
-              .inset(0)
-              .shape(segFn({x, y}, {x + w, y}))
-              .stroke(stroke(0.9f, Fill::color(kInk))));
+  g.children({box()
+                  .inset(0)
+                  .shape(segFn({x, y}, {x + w, y}))
+                  .stroke(stroke(0.9f, Fill::color(kInk)))});
   for (int v = 0; v <= span; v += step) {
     const float tx = x + pxPerUnit * (float)v;
     if (v > 25 && v < span)
       continue;  // the plate's own graduation: 0 5 10 15 20 25 ...... 50
-    g.child(box().inset(0).shape(segFn({tx, y - 4}, {tx, y})));
-    g.child(text(std::to_string(v))
-                .font({.face = faceNum, .size = 6.5f})
-                .at({tx - 3, y + 2}));
+    g.children({box().inset(0).shape(segFn({tx, y - 4}, {tx, y}))});
+    g.children({text(std::to_string(v))
+                    .font({.face = faceNum, .size = 6.5f})
+                    .at({tx - 3, y + 2})});
   }
   // the ticks as one stroked path so they are one node
   {
@@ -576,43 +582,44 @@ auto Minard1869::scaleBar(float x, float y, float pxPerUnit, int span, int step,
       tb.moveTo(tx, y - 4);
       tb.lineTo(tx, y);
     }
-    g.child(box()
-                .inset(0)
-                .shape(pathFn(tb.detach()))
-                .stroke(stroke(0.9f, Fill::color(kInk))));
+    g.children({box()
+                    .inset(0)
+                    .shape(pathFn(tb.detach()))
+                    .stroke(stroke(0.9f, Fill::color(kInk)))});
   }
-  g.child(text(label)
-              .font({.face = faceItalic, .size = 7.5f, .track = 0.1f})
-              .at({x, y - 18}));
+  g.children({text(label)
+                  .font({.face = faceItalic, .size = 7.5f, .track = 0.1f})
+                  .at({x, y - 18})});
   return g;
 }
 
 auto Minard1869::temperaturePanel() -> Element {
   auto g = box().inset(0);
-  g.child(text("TABLEAU GRAPHIQUE de la température en degrés "
-               "du thermomètre de Réaumur au dessous de "
-               "zéro.")
-              .font({.size = 13, .track = 0.3f})
-              .at({300, kDivNT + 4})
-              .key("tempTitle")
-              .opacity(beat(tTemp, tTemp + 0.3f)));
+  g.children({text("TABLEAU GRAPHIQUE de la température en degrés "
+                   "du thermomètre de Réaumur au dessous de "
+                   "zéro.")
+                  .font({.size = 13, .track = 0.3f})
+                  .at({300, kDivNT + 4})
+                  .key("tempTitle")
+                  .opacity(beat(tTemp, tTemp + 0.3f))});
 
   // the INVERTED axis: 0 at the top, 30 degrés at the bottom
   for (int r = 0; r <= 30; r += 5) {
     const float y = tempY((float)-r);
-    g.child(box()
-                .inset(0)
-                .shape(segFn({kFrameL, y}, {kFrameR - 34, y}))
-                .stroke(spans::upTo(beat(tTemp + 0.1f + 0.03f * (float)r,
-                                         tTemp + 0.45f + 0.03f * (float)r)),
-                        stroke(0.4f, Fill::color(hexColor(0x4e4436, 0.45f))))
-                .key("taxis" + std::to_string(r)));
-    g.child(text(r == 30 ? "30 degrés" : std::to_string(r))
-                .font({.face = faceNum, .size = 7})
-                .at({kFrameR - 30, y - 4})
-                .key("tlab" + std::to_string(r))
-                .opacity(beat(tTemp + 0.15f + 0.03f * (float)r,
-                              tTemp + 0.5f + 0.03f * (float)r)));
+    g.children(
+        {box()
+             .inset(0)
+             .shape(segFn({kFrameL, y}, {kFrameR - 34, y}))
+             .stroke(spans::upTo(beat(tTemp + 0.1f + 0.03f * (float)r,
+                                      tTemp + 0.45f + 0.03f * (float)r)),
+                     stroke(0.4f, Fill::color(hexColor(0x4e4436, 0.45f))))
+             .key("taxis" + std::to_string(r))});
+    g.children({text(r == 30 ? "30 degrés" : std::to_string(r))
+                    .font({.face = faceNum, .size = 7})
+                    .at({kFrameR - 30, y - 4})
+                    .key("tlab" + std::to_string(r))
+                    .opacity(beat(tTemp + 0.15f + 0.03f * (float)r,
+                                  tTemp + 0.5f + 0.03f * (float)r))});
   }
 
   // the curve, and the fine ticks hatched UNDER it (not a fill)
@@ -624,39 +631,40 @@ auto Minard1869::temperaturePanel() -> Element {
   for (size_t i = 0; i < curve.size(); ++i)
     i == 0 ? cb.moveTo(curve[i]) : cb.lineTo(curve[i]);
   const SkPath curvePath = cb.detach();
-  g.child(box()
-              .inset(0)
-              .shape(pathFn(curvePath))
-              .stroke(stroke(1.2f, Fill::color(kInk)))
-              // right to left, the way the retreat runs
-              .mask(by::edge(180.0f, beat(tTemp + 0.4f, tTemp + 1.1f)))
-              .key("tcurve"));
+  g.children({box()
+                  .inset(0)
+                  .shape(pathFn(curvePath))
+                  .stroke(stroke(1.2f, Fill::color(kInk)))
+                  // right to left, the way the retreat runs
+                  .mask(by::edge(180.0f, beat(tTemp + 0.4f, tTemp + 1.1f)))
+                  .key("tcurve")});
   // the hatched underside: short ticks hanging off the curve
-  g.child(custom("thatch",
-                 [curvePath](SkCanvas& c, const PaintContext&) {
-                   SkPaint p;
-                   p.setAntiAlias(true);
-                   p.setStyle(SkPaint::kStroke_Style);
-                   p.setStrokeWidth(0.55f);
-                   p.setColor4f(hexColor(0x38301f, 0.9f), nullptr);
-                   SkContourMeasureIter it(curvePath, false);
-                   while (sk_sp<SkContourMeasure> m = it.next()) {
-                     const float len = m->length();
-                     // the loop walks a distance; the accumulated float is
-                     // the position
-                     // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
-                     for (float d = 0; d < len; d += 3.0f) {
-                       SkPoint q;
-                       SkVector tn;
-                       if (!m->getPosTan(d, &q, &tn)) continue;
-                       c.drawLine(q.x(), q.y(), q.x() - 1.4f, q.y() + 5.0f, p);
-                     }
-                   }
-                 })
-              .inset(0)
-              .cache(Cache::Texture)
-              .key("thatch")
-              .opacity(beat(tTemp + 0.6f, tTemp + 1.2f)));
+  g.children({custom("thatch",
+                     [curvePath](SkCanvas& c, const PaintContext&) {
+                       SkPaint p;
+                       p.setAntiAlias(true);
+                       p.setStyle(SkPaint::kStroke_Style);
+                       p.setStrokeWidth(0.55f);
+                       p.setColor4f(hexColor(0x38301f, 0.9f), nullptr);
+                       SkContourMeasureIter it(curvePath, false);
+                       while (sk_sp<SkContourMeasure> m = it.next()) {
+                         const float len = m->length();
+                         // the loop walks a distance; the accumulated float is
+                         // the position
+                         // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
+                         for (float d = 0; d < len; d += 3.0f) {
+                           SkPoint q;
+                           SkVector tn;
+                           if (!m->getPosTan(d, &q, &tn)) continue;
+                           c.drawLine(q.x(), q.y(), q.x() - 1.4f, q.y() + 5.0f,
+                                      p);
+                         }
+                       }
+                     })
+                  .inset(0)
+                  .cache(Cache::Texture)
+                  .key("thatch")
+                  .opacity(beat(tTemp + 0.6f, tTemp + 1.2f))});
 
   // THE DROPLINES. Nine of them, from the retreat band down through the
   // divider into the graph. They are the joint between the two panels
@@ -674,56 +682,56 @@ auto Minard1869::temperaturePanel() -> Element {
                                      {{0.0f, hexColor(0x4e4436, 0.80f)},
                                       {0.66f, hexColor(0x4e4436, 0.22f)},
                                       {1.0f, hexColor(0x4e4436, 0.75f)}});
-    g.child(box()
-                .inset(0)
-                .shape(pathFn(d.detach()))
-                .stroke(spans::upTo(beat(tTemp + 0.25f + 0.05f * (float)i,
-                                         tTemp + 0.55f + 0.05f * (float)i)),
-                        f)
-                .key("drop" + std::to_string(i)));
+    g.children({box()
+                    .inset(0)
+                    .shape(pathFn(d.detach()))
+                    .stroke(spans::upTo(beat(tTemp + 0.25f + 0.05f * (float)i,
+                                             tTemp + 0.55f + 0.05f * (float)i)),
+                            f)
+                    .key("drop" + std::to_string(i))});
 
     // the annotation, as engraved. 8bre / 9bre / Xbre are October /
     // November / December — the old Roman-calendar notation, and a
     // caption that "corrects" Xbre to 10bre is wrong twice over.
-    g.child(text(plate.temps[i].label)
-                .font({.face = faceNum, .size = 7.4f, .track = 0.1f})
-                .at({x - 26, tempY(plate.temps[i].reaumur) + 5})
-                .key("tann" + std::to_string(i))
-                .opacity(beat(tTemp + 0.5f + 0.06f * (float)i,
-                              tTemp + 0.8f + 0.06f * (float)i)));
+    g.children({text(plate.temps[i].label)
+                    .font({.face = faceNum, .size = 7.4f, .track = 0.1f})
+                    .at({x - 26, tempY(plate.temps[i].reaumur) + 5})
+                    .key("tann" + std::to_string(i))
+                    .opacity(beat(tTemp + 0.5f + 0.06f * (float)i,
+                                  tTemp + 0.8f + 0.06f * (float)i))});
   }
   // the undated −11°, and its two independent recoveries
-  g.child(text("24 novembre  (derived, days column)")
-              .font({.face = faceUi, .size = 8, .color = kBlue})
-              .at({mapX(29.2f) - 26, tempY(-11) + 16})
-              .key("recov1")
-              .opacity(beat(tTemp + 1.35f, tTemp + 1.6f)));
-  g.child(text("25 novembre  (derived, lon interpolation)")
-              .font({.face = faceUi, .size = 8, .color = kBlue})
-              .at({mapX(29.2f) - 26, tempY(-11) + 27})
-              .key("recov2")
-              .opacity(beat(tTemp + 1.5f, tTemp + 1.75f)));
+  g.children({text("24 novembre  (derived, days column)")
+                  .font({.face = faceUi, .size = 8, .color = kBlue})
+                  .at({mapX(29.2f) - 26, tempY(-11) + 16})
+                  .key("recov1")
+                  .opacity(beat(tTemp + 1.35f, tTemp + 1.6f))});
+  g.children({text("25 novembre  (derived, lon interpolation)")
+                  .font({.face = faceUi, .size = 8, .color = kBlue})
+                  .at({mapX(29.2f) - 26, tempY(-11) + 27})
+                  .key("recov2")
+                  .opacity(beat(tTemp + 1.5f, tTemp + 1.75f))});
 
-  g.child(text("Les Cosaques passent au galop\nle Niémen gelé.")
-              .font({.size = 10, .track = 0.1f})
-              .at({kFrameL + 20, kDivNT + 40})
-              .key("cosaques")
-              .opacity(beat(tTemp + 1.1f, tTemp + 1.5f)));
+  g.children({text("Les Cosaques passent au galop\nle Niémen gelé.")
+                  .font({.size = 10, .track = 0.1f})
+                  .at({kFrameL + 20, kDivNT + 40})
+                  .key("cosaques")
+                  .opacity(beat(tTemp + 1.1f, tTemp + 1.5f))});
   return g;
 }
 
 auto Minard1869::imprints() -> Element {
   auto g = box().inset(0);
-  g.child(text("Autog. par Regnier, 8. Pas. Sᵗᵉ Marie Sᵗ "
-               "Gᵃᵉᵐ à Paris.")
-              .font({.face = faceItalic, .size = 7})
-              .at({kFrameL + 6, kFrameB + 6})
-              .key("imp1")
-              .opacity(beat(1.0f, 1.3f)));
-  g.child(text("Imp. Lith. Regnier et Dourdet")
-              .font({.face = faceItalic, .size = 7})
-              .at({kFrameR - 140, kFrameB + 6})
-              .key("imp2")
-              .opacity(beat(1.0f, 1.3f)));
+  g.children({text("Autog. par Regnier, 8. Pas. Sᵗᵉ Marie Sᵗ "
+                   "Gᵃᵉᵐ à Paris.")
+                  .font({.face = faceItalic, .size = 7})
+                  .at({kFrameL + 6, kFrameB + 6})
+                  .key("imp1")
+                  .opacity(beat(1.0f, 1.3f))});
+  g.children({text("Imp. Lith. Regnier et Dourdet")
+                  .font({.face = faceItalic, .size = 7})
+                  .at({kFrameR - 140, kFrameB + 6})
+                  .key("imp2")
+                  .opacity(beat(1.0f, 1.3f))});
   return g;
 }

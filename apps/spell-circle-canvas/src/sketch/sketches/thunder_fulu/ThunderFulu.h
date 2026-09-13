@@ -101,7 +101,7 @@ struct ThunderFulu : sketch::Sketch {
 
   Element inkLayer() {
     auto g = box().inset(0).key("ink");
-    for (const Stroke& s : strokes) g.child(inkStroke(s));
+    for (const Stroke& s : strokes) g.children({inkStroke(s)});
     return g;
   }
 

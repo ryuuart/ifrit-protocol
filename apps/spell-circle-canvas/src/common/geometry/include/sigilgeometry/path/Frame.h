@@ -86,7 +86,7 @@ enum class Sense { CW, CCW };
  *  name.
  *
  *      const Frame fig{.centre = {kRR, kRR}, .radius = kR};  // North/CW
- *      g.child(disc(fig.at(126.0f, 0.72f), 6.0f).fill(ink));
+ *      g.children({disc(fig.at(126.0f, 0.72f), 6.0f).fill(ink)});
  *
  *  Trivially copyable; holds no Element and no node state. */
 struct Frame {
@@ -236,7 +236,7 @@ struct Frame {
  *
  *      const Grid geo{.scale = 4.0f}, type{.scale = 2.5f};
  *      box().rect(geo.rect(12, 8, 40, 16))
- *           .child(text(u8"HIT", ts).at({type.x(13), type.y(9)}));
+ *           .children({text(u8"HIT", ts).at({type.x(13), type.y(9)})});
  *
  *  Note `s()` takes no origin and `x()`/`y()` do. A width is not a
  *  position; adding the origin to one is the bug this split prevents. */

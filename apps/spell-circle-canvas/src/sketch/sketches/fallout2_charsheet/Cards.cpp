@@ -20,14 +20,14 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   // arithmetic here, over the substituted faces' own measured metrics —
   // alignItems(Align::Baseline) would be the kernel spelling, but the two
   // runs are absolutely positioned at documented x/y, not laid out in a row.
-  g.child(ink(t(d.name, titleType()), 348 - 345, 272 - 267, titleRise));
+  g.children({ink(t(d.name, titleType()), 348 - 345, 272 - 267, titleRise)});
   const int walkIdx = skill == 0 ? 0 : (skill == 7 ? 1 : 2);
   const float advance = titleAdvance[walkIdx] / kScale;
-  g.child(bodyAt(d.formula, 348 - 345 + advance + 8, 286 - 267));
+  g.children({bodyAt(d.formula, 348 - 345 + advance + 8, 286 - 267)});
 
   // ---- the rule: two 1-px lines at y = 300, 301 ------------------------
-  g.child(
-      at(box(), 348 - 345, 300 - 267, 613 - 348, 2).fill(Fill::currentInk()));
+  g.children(
+      {at(box(), 348 - 345, 300 - 267, 613 - 348, 2).fill(Fill::currentInk())});
 
   // ---- the illustration, and the FLOAT the copy clears ----------------
   // The exclusion is the keyed node's resolved BOX. Fallout's exclusion is
@@ -40,7 +40,8 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   // Flowing around the FIGURE's own box instead strands words in the gap to
   // its right, which is correct DTP behaviour and wrong for 1998.
   const float inkX = 484 - 345 + pose.inkLeft;
-  g.child(at(box(), inkX, 309 - 267, (613 - 345) - inkX, 128).key("card-ink"));
+  g.children(
+      {at(box(), inkX, 309 - 267, (613 - 345) - inkX, 128).key("card-ink")});
   Element figNode = at(box(), inkX, 309 - 267, pose.inkWidth, 128);
   // The silhouette is a function of the pose and of nothing else, so the
   // pose is what tells one drawing from another: keyed, the node settles
@@ -49,7 +50,7 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   // PathFormat exposes no cap or join, so these open contours end square and
   // mitre at the joints — fine for a 1998 blit.
   figNode.stroke(stroke(n(1.15f), PathFormat::Align::Center));
-  g.child(figNode);
+  g.children({figNode});
 
   // ---- the body. Greedy first-fit, ragged right, forced 11 px pitch. ---
   // Fallout's wordWrap() is greedy with no hyphenation and the ragged edge
@@ -64,11 +65,11 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   opts.lineBreakStrategy = weave::LineBreakStrategy::kGreedy;
   opts.hyphenation.enabled = false;
   opts.lineMetrics.height = n(kRowPitch11);  // the forced 11 px pitch, x2
-  g.child(text(cardPara, opts)
-              .left(Dimension(n(348 - 345)))
-              .top(Dimension(n(315 - 267) - n(1.5f)))
-              .width(Dimension(n(613 - 348)))
-              .flowAround("card-ink", n(8)));
+  g.children({text(cardPara, opts)
+                  .left(Dimension(n(348 - 345)))
+                  .top(Dimension(n(315 - 267) - n(1.5f)))
+                  .width(Dimension(n(613 - 348)))
+                  .flowAround("card-ink", n(8))});
   return g;
 }
 
@@ -84,47 +85,47 @@ auto Fallout2CharSheet::card() -> Element {
   c.overlay(styles::Overlay{parchTooth, SkBlendMode::kSoftLight, 0.55f});
   // creases: two diagonal slivers and one bottom-right scuff. The creases
   // are what sell the card as a stuck-on scrap.
-  c.child(
-      at(box(), -40, -20, 60, 260)
-          .rotate(-16.0f)
-          .translateX(n(120))
-          .fill(Paint::linearUnit({0, 0}, {1, 0},
-                                  {{0.0f, mskia::withAlpha(kRust, 0.0f)},
-                                   {0.5f, mskia::withAlpha(kRust, 0.16f)},
-                                   {1.0f, mskia::withAlpha(kRust, 0.0f)}})));
-  c.child(at(box(), -40, -20, 34, 260)
-              .rotate(9.0f)
-              .translateX(n(232))
-              .fill(Paint::linearUnit(
-                  {0, 0}, {1, 0},
-                  {{0.0f, mskia::withAlpha(hexColor(0x7C581C), 0.0f)},
-                   {0.5f, mskia::withAlpha(hexColor(0x6A4A18), 0.20f)},
-                   {1.0f, mskia::withAlpha(hexColor(0x7C581C), 0.0f)}})));
-  c.child(at(box(), 150, 120, 130, 55)
-              .fill(Paint::radialUnit(
-                  {0.55f, 0.75f}, 1.0f,
-                  {{0.0f, mskia::withAlpha(kParchScuff, 0.30f)},
-                   {1.0f, mskia::withAlpha(kParchScuff, 0.0f)}})));
-  c.child(at(box(), -6, -10, 60, 190)
-              .fill(Paint::linearUnit(
-                  {0, 0}, {1, 0},
-                  {{0.0f, mskia::withAlpha(hexColor(0x5A3C10), 0.28f)},
-                   {1.0f, mskia::withAlpha(hexColor(0x5A3C10), 0.0f)}})));
+  c.children(
+      {at(box(), -40, -20, 60, 260)
+           .rotate(-16.0f)
+           .translateX(n(120))
+           .fill(Paint::linearUnit({0, 0}, {1, 0},
+                                   {{0.0f, mskia::withAlpha(kRust, 0.0f)},
+                                    {0.5f, mskia::withAlpha(kRust, 0.16f)},
+                                    {1.0f, mskia::withAlpha(kRust, 0.0f)}}))});
+  c.children({at(box(), -40, -20, 34, 260)
+                  .rotate(9.0f)
+                  .translateX(n(232))
+                  .fill(Paint::linearUnit(
+                      {0, 0}, {1, 0},
+                      {{0.0f, mskia::withAlpha(hexColor(0x7C581C), 0.0f)},
+                       {0.5f, mskia::withAlpha(hexColor(0x6A4A18), 0.20f)},
+                       {1.0f, mskia::withAlpha(hexColor(0x7C581C), 0.0f)}}))});
+  c.children({at(box(), 150, 120, 130, 55)
+                  .fill(Paint::radialUnit(
+                      {0.55f, 0.75f}, 1.0f,
+                      {{0.0f, mskia::withAlpha(kParchScuff, 0.30f)},
+                       {1.0f, mskia::withAlpha(kParchScuff, 0.0f)}}))});
+  c.children({at(box(), -6, -10, 60, 190)
+                  .fill(Paint::linearUnit(
+                      {0, 0}, {1, 0},
+                      {{0.0f, mskia::withAlpha(hexColor(0x5A3C10), 0.28f)},
+                       {1.0f, mskia::withAlpha(hexColor(0x5A3C10), 0.0f)}}))});
   // the scrap's own soiling — kept light: the reference card is bright ochre
   // right into its corners
-  c.child(box().inset(0).fill(Paint::radialUnit(
+  c.children({box().inset(0).fill(Paint::radialUnit(
       {0.46f, 0.42f}, 1.35f,
       {{0.0f, mskia::withAlpha(hexColor(0x2A1C08), 0.0f)},
        {0.70f, mskia::withAlpha(hexColor(0x2A1C08), 0.04f)},
-       {1.0f, mskia::withAlpha(hexColor(0x2A1C08), 0.22f)}})));
-  c.child(at(box(), 178, 118, 110, 60)
-              .fill(Paint::radialUnit(
-                  {0.60f, 0.85f}, 1.0f,
-                  {{0.0f, mskia::withAlpha(hexColor(0x3A2A12), 0.18f)},
-                   {1.0f, mskia::withAlpha(hexColor(0x3A2A12), 0.0f)}})));
+       {1.0f, mskia::withAlpha(hexColor(0x2A1C08), 0.22f)}}))});
+  c.children({at(box(), 178, 118, 110, 60)
+                  .fill(Paint::radialUnit(
+                      {0.60f, 0.85f}, 1.0f,
+                      {{0.0f, mskia::withAlpha(hexColor(0x3A2A12), 0.18f)},
+                       {1.0f, mskia::withAlpha(hexColor(0x3A2A12), 0.0f)}}))});
   c.stroke(stroke(n(1.5f), Fill::color(hexColor(0x2A1C08, 0.75f)),
                   PathFormat::Align::Inner));
-  c.child(box().inset(0).child(slot("card")));
+  c.children({box().inset(0).children({slot("card")})});
   return c;
 }
 
@@ -156,11 +157,12 @@ auto Fallout2CharSheet::failureCard() const -> Element {
       .column()
       .padding(28)
       .gap(14)
-      .child(t("THE ARITHMETIC DOES NOT MATCH THE SHIPPED PREMADES",
-               sheetType(bodyBold(), 22.0f, hexColor(0xE04020), 1.2f)))
-      .child(sketch::kit::table(
-          std::move(rows),
-          {.columns = {{420}, {90, true}, {}}, .gap = 16, .swatchSide = 11}));
+      .children({t("THE ARITHMETIC DOES NOT MATCH THE SHIPPED PREMADES",
+                   sheetType(bodyBold(), 22.0f, hexColor(0xE04020), 1.2f)),
+                 sketch::kit::table(std::move(rows),
+                                    {.columns = {{420}, {90, true}, {}},
+                                     .gap = 16,
+                                     .swatchSide = 11})});
 }
 
 auto Fallout2CharSheet::captionBand() -> Element {
@@ -186,27 +188,27 @@ auto Fallout2CharSheet::captionBand() -> Element {
   auto line = [](const char* s, float y) {
     return text(s).left(Dimension(30)).top(Dimension(y));
   };
-  band.child(t("FALLOUT 2 · CHARACTER SCREEN · BLACK ISLE "
-               "STUDIOS, 1998 · 640×480 8-BIT INDEXED, REBUILT AT 2×",
-               fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
-                 .left(Dimension(30))
-                 .top(Dimension(14)));
-  band.child(line(audited.c_str(), 41)
-                 .font({.size = 14.5f, .color = kGreen, .track = 0.2f}));
-  band.child(line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "
-                  "palette has no pure green, so what reached the CRT is "
-                  "#3CF800.",
-                  64)
-                 .ink(hexColor(0x8A8A78)));
-  band.child(line("Chrome, plaques, rivets, tabs and parchment are "
-                  "procedural; the originals are raster FRMs (intrface art "
-                  "id 177). The sheet is RE-SET in real faces.",
-                  84)
-                 .ink(hexColor(0x6A6A5A)));
-  band.child(line("The screen above is exactly 1280×960 — "
-                  "halve it and it overlays the 1998 capture. This band is "
-                  "not part of the artefact.",
-                  104)
-                 .ink(hexColor(0x55554A)));
+  band.children({t("FALLOUT 2 · CHARACTER SCREEN · BLACK ISLE "
+                   "STUDIOS, 1998 · 640×480 8-BIT INDEXED, REBUILT AT 2×",
+                   fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
+                     .left(Dimension(30))
+                     .top(Dimension(14))});
+  band.children({line(audited.c_str(), 41)
+                     .font({.size = 14.5f, .color = kGreen, .track = 0.2f})});
+  band.children({line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "
+                      "palette has no pure green, so what reached the CRT is "
+                      "#3CF800.",
+                      64)
+                     .ink(hexColor(0x8A8A78))});
+  band.children({line("Chrome, plaques, rivets, tabs and parchment are "
+                      "procedural; the originals are raster FRMs (intrface art "
+                      "id 177). The sheet is RE-SET in real faces.",
+                      84)
+                     .ink(hexColor(0x6A6A5A))});
+  band.children({line("The screen above is exactly 1280×960 — "
+                      "halve it and it overlays the 1998 capture. This band is "
+                      "not part of the artefact.",
+                      104)
+                     .ink(hexColor(0x55554A))});
   return band;
 }

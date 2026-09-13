@@ -13,13 +13,13 @@ Element pillCaption(const std::string& childKey, float width,
                     SkSize size = {34, 16}) {
   // The width lives on an inner box: the render root is always resized to
   // the composer's own size, so a width written there is overwritten.
-  return box().child(box().padding(8).width(width).child(
-      text(sigil::weave::rich(coloredStyle(18, SK_ColorWHITE))
-               .add(u8"press the archive key ")
-               .slot("pill", size, 4)
-               .add(u8" to continue the long descent"))
-          .key("caption")
-          .child(box().key(std::move(childKey)).fill(red()))));
+  return box().children({box().padding(8).width(width).children(
+      {text(sigil::weave::rich(coloredStyle(18, SK_ColorWHITE))
+                .add(u8"press the archive key ")
+                .slot("pill", size, 4)
+                .add(u8" to continue the long descent"))
+           .key("caption")
+           .children({box().key(std::move(childKey)).fill(red())})})});
 }
 
 }  // namespace
@@ -141,16 +141,12 @@ TEST(TextSlot, TheSlotNamespaceIsTheValuesOwnNotTheMountRegistry) {
     return text(sigil::weave::rich(coloredStyle(16, SK_ColorWHITE))
                     .slot("icon", {20, 12}, 2)
                     .add(words))
-        .child(box().key("icon").fill(Fill::color(SkColor4f::FromColor(ink))));
+        .children(
+            {box().key("icon").fill(Fill::color(SkColor4f::FromColor(ink)))});
   };
-  host.composer.render(
-      box()
-          .column()
-          .padding(6)
-          .width(300)
-          .child(caption(SK_ColorRED, u8" first line of the pair").key("a"))
-          .child(
-              caption(SK_ColorGREEN, u8" second line of the pair").key("b")));
+  host.composer.render(box().column().padding(6).width(300).children(
+      {caption(SK_ColorRED, u8" first line of the pair").key("a"),
+       caption(SK_ColorGREEN, u8" second line of the pair").key("b")}));
   host.frame();
   const SkIRect all = SkIRect::MakeXYWH(0, 0, 320, 240);
   EXPECT_GT(countColor(host, all, SK_ColorRED), 20);

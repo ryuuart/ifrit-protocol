@@ -119,13 +119,12 @@ Element chain(const std::string& tag, const weave::Story& story) {
         .clip()
         .fill(Fill::color(sketch::kit::theme().palette.cellGround))
         .padding(10)
-        .child(std::move(leaf));
+        .children({std::move(leaf)});
   };
   return box()
       .row()
       .gap(kChainCell - 2 * kFrame.width())
-      .child(plate(tag + "-1", true))
-      .child(plate(tag + "-2", false));
+      .children({plate(tag + "-1", true), plate(tag + "-2", false)});
 }
 
 Element optionPlate(Element body) {
@@ -135,7 +134,7 @@ Element optionPlate(Element body) {
       .clip()
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .padding(12)
-      .child(std::move(body));
+      .children({std::move(body)});
 }
 
 }  // namespace
@@ -195,9 +194,7 @@ struct KeepsAndFrames final : sketch::Sketch {
   Element options() {
     // `weave::Story` takes its bytes as a `std::u8string`, which a plain
     // literal is not, so the four passages are widened once here.
-    const auto passage = [](const char* words) {
-      return words;
-    };
+    const auto passage = [](const char* words) { return words; };
     Element seated =
         text(passage("Seated on the first line's own ascent, which is what "
                      "a leaf that says nothing gets."),

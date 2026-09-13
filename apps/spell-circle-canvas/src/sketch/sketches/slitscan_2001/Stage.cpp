@@ -12,28 +12,27 @@ auto SlitScan2001::header() -> Element {
       .height(Dimension(kHeaderH))
       .gap(4)
       .font({.face = uiFace()})
-      .child(
-          t("TIME AS AN AXIS OF THE IMAGE",
-            {.size = 10, .color = kType2, .track = 2.6f})
-              .key("eyebrow")
-              .opacity(animate(from(0.0f).to(1.0f), {260ms, ch::easeOutQuad}))
-              .translateY(
-                  animate(from(8.0f).to(0.0f), {260ms, ch::easeOutQuad})))
-      .child(
-          t("THE SLIT-SCAN MACHINE, 1966–68",
-            {.face = uiBoldFace(), .size = 40, .color = kType, .track = 0.4f})
-              .key("title")
-              .textStroke(0.6f, Fill::color(kInk))
-              .fx(std::move(rise)))
-      .child(t("Douglas Trumbull — ‘Creating Special Effects for 2001: A "
-               "Space Odyssey’, American Cinematographer 49(6):416–420, "
-               "451–453, June 1968 (READ DIRECTLY) · Cinefex 85, April "
-               "2001 · Super Panavision 70, 65 mm 5-perf spherical, "
-               "2.20:1, 24 fps, f/1.8",
-               {.size = 11, .color = kType2})
-                 .key("cite")
-                 .opacity(animate(from(0.0f).to(1.0f),
-                                  {240ms, ch::easeOutQuad, 400ms})));
+      .children(
+          {t("TIME AS AN AXIS OF THE IMAGE",
+             {.size = 10, .color = kType2, .track = 2.6f})
+               .key("eyebrow")
+               .opacity(animate(from(0.0f).to(1.0f), {260ms, ch::easeOutQuad}))
+               .translateY(
+                   animate(from(8.0f).to(0.0f), {260ms, ch::easeOutQuad})),
+           t("THE SLIT-SCAN MACHINE, 1966–68",
+             {.face = uiBoldFace(), .size = 40, .color = kType, .track = 0.4f})
+               .key("title")
+               .textStroke(0.6f, Fill::color(kInk))
+               .fx(std::move(rise)),
+           t("Douglas Trumbull — ‘Creating Special Effects for 2001: A "
+             "Space Odyssey’, American Cinematographer 49(6):416–420, "
+             "451–453, June 1968 (READ DIRECTLY) · Cinefex 85, April "
+             "2001 · Super Panavision 70, 65 mm 5-perf spherical, "
+             "2.20:1, 24 fps, f/1.8",
+             {.size = 11, .color = kType2})
+               .key("cite")
+               .opacity(animate(from(0.0f).to(1.0f),
+                                {240ms, ch::easeOutQuad, 400ms}))});
 }
 
 auto SlitScan2001::filmFrame() -> Element {
@@ -42,12 +41,11 @@ auto SlitScan2001::filmFrame() -> Element {
 
   // THE ACCUMULATION. Two exposures, kPlus, one atlas stamp each.
   auto raw = [this] {
-    return box()
-        .inset(0)
-        .child(instancing::instances(atlas, wallA, instancing::Mode::Live,
-                                     SkBlendMode::kPlus))
-        .child(instancing::instances(atlas, wallB, instancing::Mode::Live,
-                                     SkBlendMode::kPlus));
+    return box().inset(0).children(
+        {instancing::instances(atlas, wallA, instancing::Mode::Live,
+                               SkBlendMode::kPlus),
+         instancing::instances(atlas, wallB, instancing::Mode::Live,
+                               SkBlendMode::kPlus)});
   };
   Element accumulation =
       raw().effect(Effect::shader(transfer, {{"k", transferK()}}));
@@ -120,54 +118,55 @@ auto SlitScan2001::filmFrame() -> Element {
       .key("film")
       .mask(by::edge(
           0.0f, animate(from(0.0f).to(1.0f), {520ms, ch::easeOutCubic, 240ms})))
-      .child(std::move(accumulation))
-      .child(std::move(vanishing))
-      .child(std::move(halation))
+      .children(
+          {std::move(accumulation), std::move(vanishing), std::move(halation)})
       // The shutter bar -- the ONLY thing in the plate driven by
       // addFixed's interpolant, and the caption says why.
-      .child(box()
-                 .left(Dimension(0))
-                 .top(Dimension(0))
-                 .width(Dimension(kFilmW))
-                 .height(2)
-                 .fill(al(kCold, 0.4f))
-                 .mask(by::edge(0.0f, bind(&frameAlpha))))
-      .child(hud(s.name, 10, 10, -1, -1, al(kCold, 0.75f)))
-      .child(
-          hud(kit::formatted("FRAME %06lld · 24 fps · %d STAMPS/WALL · kPLUS",
-                             filmNo, kKDisplay),
-              -1, 10, 10, -1, al(kTick, 0.9f)))
+      .children(
+          {box()
+               .left(Dimension(0))
+               .top(Dimension(0))
+               .width(Dimension(kFilmW))
+               .height(2)
+               .fill(al(kCold, 0.4f))
+               .mask(by::edge(0.0f, bind(&frameAlpha))),
+           hud(s.name, 10, 10, -1, -1, al(kCold, 0.75f)),
+           hud(kit::formatted("FRAME %06lld · 24 fps · %d STAMPS/WALL · kPLUS",
+                              filmNo, kKDisplay),
+               -1, 10, 10, -1, al(kTick, 0.9f))})
       // The footer is ONE bottom-anchored column, not four absolute rows.
       // Two of these lines are long enough to wrap at this measure, and a
       // row placed by its own bottom offset grows upward into the row above
       // it — the stack has to own the spacing for the wrap to be safe.
-      .child(box()
-                 .absolute()
-                 .left(Dimension(10))
-                 .right(Dimension(10))
-                 .bottom(Dimension(6))
-                 .column()
-                 .gap(2)
-                 .child(box()
-                            .row()
-                            .justify(Justify::SpaceBetween)
-                            .child(t(kit::formatted(
-                                         "MACHINE TIME %lld h %02lld m  @ "
-                                         "2880 : 1%s",
-                                         mh, mm, everClamped ? "  *" : ""),
-                                     {.color = al(kTick, 0.95f)}))
-                            .child(t("2.20 : 1 · 65 mm 5-PERF · f/1.8",
-                                     {.color = al(kTick, 0.95f)})))
-                 .child(t("THE FRAME IS HELD, NOT TWEENED. addFixed’s "
-                          "INTERPOLANT DRIVES THE SHUTTER BAR AND NOTHING "
-                          "IN THE PICTURE.",
-                          {.color = al(kTick, 0.8f)}))
-                 .child(t("THE SWEEP BEGINS 5 px FROM THE VANISHING POINT = "
-                          "15 FEET FROM THE LENS, AND ENDS AT 600 px = 1½ "
-                          "INCHES · THE FRAME IS THE SCAN, 120 : 1, DRAWN "
-                          "TO ITS OWN SCALE — THE 5 px HOLE AT THE APEX IS "
-                          "THAT FAR LIMIT, VISIBLE",
-                          {.color = al(kType2, 0.95f)})));
+      .children(
+          {box()
+               .absolute()
+               .left(Dimension(10))
+               .right(Dimension(10))
+               .bottom(Dimension(6))
+               .column()
+               .gap(2)
+               .children(
+                   {box()
+                        .row()
+                        .justify(Justify::SpaceBetween)
+                        .children(
+                            {t(kit::formatted("MACHINE TIME %lld h %02lld m  @ "
+                                              "2880 : 1%s",
+                                              mh, mm, everClamped ? "  *" : ""),
+                               {.color = al(kTick, 0.95f)})})
+                        .children({t("2.20 : 1 · 65 mm 5-PERF · f/1.8",
+                                     {.color = al(kTick, 0.95f)})})})
+               .children({t("THE FRAME IS HELD, NOT TWEENED. addFixed’s "
+                            "INTERPOLANT DRIVES THE SHUTTER BAR AND NOTHING "
+                            "IN THE PICTURE.",
+                            {.color = al(kTick, 0.8f)})})
+               .children({t("THE SWEEP BEGINS 5 px FROM THE VANISHING POINT = "
+                            "15 FEET FROM THE LENS, AND ENDS AT 600 px = 1½ "
+                            "INCHES · THE FRAME IS THE SCAN, 120 : 1, DRAWN "
+                            "TO ITS OWN SCALE — THE 5 px HOLE AT THE APEX IS "
+                            "THAT FAR LIMIT, VISIBLE",
+                            {.color = al(kType2, 0.95f)})})});
 }
 
 auto SlitScan2001::rigStrip() -> Element {
@@ -182,52 +181,55 @@ auto SlitScan2001::rigStrip() -> Element {
       // carriage's live position and the artwork's live offset as they
       // paint, at Cache::None, so their picture is different every
       // frame; a key would name one drawing and replay it.
-      .child(
-          custom([this](SkCanvas& c, const PaintContext& p) { drawRig(c, p); })
-              .left(Dimension(0))
-              .top(Dimension(0))
-              .width(Dimension(kElevW))
-              .height(Dimension(kRigH))
-              .clip()
-              .cache(Cache::None))
-      .child(custom([this](SkCanvas& c, const PaintContext& p) {
-               drawArtworkPanel(c, p);
-             })
-                 .left(Dimension(kRigW - kPanelStripW))
-                 .top(Dimension(0))
-                 .width(Dimension(kPanelStripW))
-                 .height(Dimension(kRigH))
-                 .cache(Cache::None))
+      .children(
+          {custom([this](SkCanvas& c, const PaintContext& p) { drawRig(c, p); })
+               .left(Dimension(0))
+               .top(Dimension(0))
+               .width(Dimension(kElevW))
+               .height(Dimension(kRigH))
+               .clip()
+               .cache(Cache::None),
+           custom([this](SkCanvas& c, const PaintContext& p) {
+             drawArtworkPanel(c, p);
+           })
+               .left(Dimension(kRigW - kPanelStripW))
+               .top(Dimension(0))
+               .width(Dimension(kPanelStripW))
+               .height(Dimension(kRigH))
+               .cache(Cache::None)})
       // The "THIS EXPOSURE" monitor, in the elevation's upper-left where
       // there is nothing but sky. The only place you see a frame BEING
       // MADE rather than made, so it gets the good corner.
-      .child(box()
-                 .left(Dimension(18))
-                 .top(Dimension(10))
-                 .width(264)
-                 .height(116)
-                 .corners({4})
-                 .fill(al(kPanelBg, 0.92f))
-                 .stroke(stroke(1.0f, Fill::color(kRule)))
-                 .clip()
-                 .child(box()
-                            .inset(0)
-                            .child(instancing::instances(atlas, monA,
-                                                         instancing::Mode::Live,
-                                                         SkBlendMode::kPlus))
-                            .child(instancing::instances(atlas, monB,
-                                                         instancing::Mode::Live,
-                                                         SkBlendMode::kPlus))
-                            .effect(Effect::shader(transfer, {{"k", 2.4f}})))
-                 .child(t("THIS EXPOSURE",
-                          {.size = 8, .color = al(kCold, 0.85f), .track = 1.4f})
-                            .left(Dimension(8))
-                            .top(Dimension(5)))
-                 .child(slot("expo").left(Dimension(8)).bottom(Dimension(19)))
-                 .child(t("ONE SWEEP / 3.0 s. THE MACHINE TOOK 45–60 s "
-                          "[C85]. ×18.",
-                          {.size = 7, .color = al(kTick, 0.95f)})
-                            .left(Dimension(8))
-                            .bottom(Dimension(6))))
-      .child(slot("readout").left(Dimension(20)).top(Dimension(130)));
+      .children(
+          {box()
+               .left(Dimension(18))
+               .top(Dimension(10))
+               .width(264)
+               .height(116)
+               .corners({4})
+               .fill(al(kPanelBg, 0.92f))
+               .stroke(stroke(1.0f, Fill::color(kRule)))
+               .clip()
+               .children({box()
+                              .inset(0)
+                              .children({instancing::instances(
+                                  atlas, monA, instancing::Mode::Live,
+                                  SkBlendMode::kPlus)})
+                              .children({instancing::instances(
+                                  atlas, monB, instancing::Mode::Live,
+                                  SkBlendMode::kPlus)})
+                              .effect(Effect::shader(transfer, {{"k", 2.4f}}))})
+               .children(
+                   {t("THIS EXPOSURE",
+                      {.size = 8, .color = al(kCold, 0.85f), .track = 1.4f})
+                        .left(Dimension(8))
+                        .top(Dimension(5))})
+               .children(
+                   {slot("expo").left(Dimension(8)).bottom(Dimension(19))})
+               .children({t("ONE SWEEP / 3.0 s. THE MACHINE TOOK 45–60 s "
+                            "[C85]. ×18.",
+                            {.size = 7, .color = al(kTick, 0.95f)})
+                              .left(Dimension(8))
+                              .bottom(Dimension(6))}),
+           slot("readout").left(Dimension(20)).top(Dimension(130))});
 }

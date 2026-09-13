@@ -9,9 +9,9 @@
 TEST(ComposeTransitions, RampsAndRetargetsFromCurrent) {
   Host host;
   auto at = [&](float target) {
-    return box().child(
-        box().key("m").width(50).height(50).fill(red()).translateX(animate(
-            sigil::motion::to(target), {400ms, &choreograph::easeNone})));
+    return box().children(
+        {box().key("m").width(50).height(50).fill(red()).translateX(animate(
+            sigil::motion::to(target), {400ms, &choreograph::easeNone}))});
   };
   host.composer.render(at(0.0f));
   host.frame();
@@ -33,12 +33,12 @@ TEST(ComposeTransitions, RampsAndRetargetsFromCurrent) {
 TEST(ComposeTransitions, UnmountCancelsMotions) {
   Host host;
   host.composer.render(
-      box().child(box().key("gone").width(10).height(10).translateX(
-          animate(sigil::motion::to(500.0f), {1000ms}))));
+      box().children({box().key("gone").width(10).height(10).translateX(
+          animate(sigil::motion::to(500.0f), {1000ms}))}));
   host.frame();
   host.composer.render(
-      box().child(box().key("gone").width(10).height(10).translateX(
-          animate(sigil::motion::to(0.0f), {1000ms}))));
+      box().children({box().key("gone").width(10).height(10).translateX(
+          animate(sigil::motion::to(0.0f), {1000ms}))}));
   host.frame(0.1);
   EXPECT_TRUE(host.ticker.active());
   host.composer.render(box());  // unmount mid-flight
@@ -50,7 +50,7 @@ TEST(ComposeBindings, OutputDrivesPaintWithoutRender) {
   Host host;
   choreograph::Output<float> x = 0.0f;
   host.composer.render(
-      box().child(box().width(40).height(40).fill(blue()).translateX(&x)));
+      box().children({box().width(40).height(40).fill(blue()).translateX(&x)}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorBLUE);
 
@@ -70,8 +70,8 @@ TEST(ComposeBindings, ActiveWakesForABindingThatSettledAndMovedAgain) {
   // would sleep through the change.
   Host host;
   choreograph::Output<Fill> bar{Fill::color({1, 0, 0, 1})};
-  host.composer.render(box().child(
-      box().absolute().left(20).top(20).width(60).height(60).fill(&bar)));
+  host.composer.render(box().children(
+      {box().absolute().left(20).top(20).width(60).height(60).fill(&bar)}));
   host.frame();
 
   // Held still long enough for the walk to release the binding.
@@ -107,9 +107,9 @@ TEST(ComposeTransitions, PlainSnapAfterTransitionLands) {
   // — and a settled ramp holds its target forever.
   Host host;
   auto at = [](sigil::motion::Animatable<float> x) {
-    return box().child(
-        box().key("m").width(50).height(50).fill(red()).translateX(
-            std::move(x)));
+    return box().children(
+        {box().key("m").width(50).height(50).fill(red()).translateX(
+            std::move(x))});
   };
   host.composer.render(at(0.0f));
   host.frame();
@@ -163,11 +163,11 @@ SkIRect inkBounds(Host& host, int w, int h) {
  *  square that travels. The inscribed circle is then centre (100,100) r=80
  *  in CANVAS coordinates, so every quadrant point is on-screen. */
 Element travelFrame(Element rider) {
-  return box().child(box()
-                         .key("frame")
-                         .absolute()
-                         .rect(SkRect::MakeXYWH(20, 20, 160, 160))
-                         .child(std::move(rider)));
+  return box().children({box()
+                             .key("frame")
+                             .absolute()
+                             .rect(SkRect::MakeXYWH(20, 20, 160, 160))
+                             .children({std::move(rider)})});
 }
 
 Element rider(MotionPath along, float size = 8) {
@@ -237,13 +237,13 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
   // replays at the old scale — a wrong picture with no failure anywhere.
   Host host(200, 200);
   const auto bar = [](float sx) {
-    return box().child(box()
-                           .key("bar")
-                           .absolute()
-                           .rect(SkRect::MakeXYWH(0, 0, 40, 40))
-                           .transformOrigin(0, 0)
-                           .fill(red())
-                           .scaleX(sx));
+    return box().children({box()
+                               .key("bar")
+                               .absolute()
+                               .rect(SkRect::MakeXYWH(0, 0, 40, 40))
+                               .transformOrigin(0, 0)
+                               .fill(red())
+                               .scaleX(sx)});
   };
   host.composer.render(bar(1.0f));
   host.frame();
@@ -263,22 +263,22 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
       << "…and the stale picture replayed";
 
   host.composer.render(
-      bar(2.0f).child(box()
-                          .key("y")
-                          .absolute()
-                          .rect(SkRect::MakeXYWH(0, 60, 40, 40))
-                          .transformOrigin(0, 0)
-                          .fill(green())
-                          .scaleY(1.0f)));
+      bar(2.0f).children({box()
+                              .key("y")
+                              .absolute()
+                              .rect(SkRect::MakeXYWH(0, 60, 40, 40))
+                              .transformOrigin(0, 0)
+                              .fill(green())
+                              .scaleY(1.0f)}));
   host.frame();
   host.composer.render(
-      bar(2.0f).child(box()
-                          .key("y")
-                          .absolute()
-                          .rect(SkRect::MakeXYWH(0, 60, 40, 40))
-                          .transformOrigin(0, 0)
-                          .fill(green())
-                          .scaleY(2.0f)));
+      bar(2.0f).children({box()
+                              .key("y")
+                              .absolute()
+                              .rect(SkRect::MakeXYWH(0, 60, 40, 40))
+                              .transformOrigin(0, 0)
+                              .fill(green())
+                              .scaleY(2.0f)}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 130), SK_ColorGREEN)
       << "a CHANGED scaleY pruned into the old description";

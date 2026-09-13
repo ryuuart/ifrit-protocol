@@ -93,12 +93,12 @@ Element pixelSprite(const Sprite& sprite, const SpriteStyle& style) {
   for (const SpriteRun& run : sprite.runs) {
     const SkColor4f colour = faded(sprite.colourOf(run.index), style.alpha);
     if (colour.fA <= 0) continue;
-    root.child(box()
-                   .left(Dimension(run.x * style.cell))
-                   .top(Dimension(run.y * style.cell))
-                   .width(Dimension(run.w * style.cell))
-                   .height(Dimension(run.h * style.cell))
-                   .fill(colour));
+    root.children({box()
+                       .left(Dimension(run.x * style.cell))
+                       .top(Dimension(run.y * style.cell))
+                       .width(Dimension(run.w * style.cell))
+                       .height(Dimension(run.h * style.cell))
+                       .fill(colour)});
   }
   return root;
 }

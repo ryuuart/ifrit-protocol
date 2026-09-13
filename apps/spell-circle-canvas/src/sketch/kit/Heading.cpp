@@ -39,7 +39,7 @@ compose::Element titleCard(const TitleCard& card) {
   int placed = 0;
   const auto place = [&](Element line, float before) {
     if (placed > 0) line.margin(0, before, 0, 0);
-    column.child(std::move(line));
+    column.children({std::move(line)});
     ++placed;
   };
   const auto named = [&](const char* which) {
@@ -72,18 +72,17 @@ compose::Element titleCard(const TitleCard& card) {
       box().column().gap(look.spacing.rowGap).alignItems(Align::End);
   for (size_t i = 0; i < card.notes.size(); ++i) {
     const Line& note = card.notes[i];
-    ranged.child(
-        spoken(note,
-               look.style(look.type.captionNote,
-                          note.ink.value_or(Fill::color(look.palette.ash))),
-               card.key.empty() ? std::string()
-                                : card.key + "-note" + std::to_string(i)));
+    ranged.children(
+        {spoken(note,
+                look.style(look.type.captionNote,
+                           note.ink.value_or(Fill::color(look.palette.ash))),
+                card.key.empty() ? std::string()
+                                 : card.key + "-note" + std::to_string(i))});
   }
   return box()
       .row()
       .alignItems(Align::End)
-      .child(std::move(column.grow(1)))
-      .child(std::move(ranged));
+      .children({std::move(column.grow(1)), std::move(ranged)});
 }
 
 compose::Element sectionHeader(const SectionHeader& header) {
@@ -91,16 +90,16 @@ compose::Element sectionHeader(const SectionHeader& header) {
   Element row =
       box().row().alignItems(Align::Center).gap(look.spacing.labelGap);
   if (!header.label.empty())
-    row.child(text(header.label.bytes(),
-                   look.style(look.type.section, look.palette.ink)));
+    row.children({text(header.label.bytes(),
+                       look.style(look.type.section, look.palette.ink))});
   // The rule is what GROWS, so the label stays at the left and the note at
   // the right however wide the header is given.
   Element between = box().grow(1).height(Dimension(1)).alignSelf(Align::Center);
   if (header.ruled) between.fill(Fill::color(look.palette.rule));
-  row.child(std::move(between));
+  row.children({std::move(between)});
   if (!header.note.empty())
-    row.child(text(header.note.bytes(),
-                   look.style(look.type.captionNote, look.palette.ash)));
+    row.children({text(header.note.bytes(),
+                       look.style(look.type.captionNote, look.palette.ash))});
   return row;
 }
 

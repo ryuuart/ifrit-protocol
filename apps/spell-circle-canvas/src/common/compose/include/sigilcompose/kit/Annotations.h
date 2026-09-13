@@ -65,14 +65,14 @@ struct Beside {
 /** ONE ELEMENT PER UNIT a selector addresses on a keyed text node, placed
  *  beside it.
  *
- *      root.child(kit::annotate(composer, "verse",
+ *      root.children({kit::annotate(composer, "verse",
  *                               weave::selectors::each(weave::Unit::Word),
  *                               weave::Unit::Word,
  *                               {.side = Beside::Side::End, .gap = 14},
  *                               [&](const TextUnit &u) {
  *                                 return text(gloss(u.range), small);
  *                               })
- *                     .absolute().inset(0));
+ *                     .absolute().inset(0)});
  *
  *  THE RECTS ARE IN THE COMPOSER'S SPACE, because that is the space
  *  `Composer::units` answers in, so the result belongs over the whole
@@ -150,7 +150,7 @@ struct Beside {
       else
         cell.width(along);
     }
-    overlay.child(cell.child(std::move(child)));
+    overlay.children({cell.children({std::move(child)})});
   }
   return overlay;
 }
@@ -202,13 +202,13 @@ struct Anchored {
 /** ONE ELEMENT PER UNIT, AT THE POSITION THE CALLER STATES — the same
  *  read-back as the placement above, with the arithmetic handed over.
  *
- *      root.child(kit::annotate(composer, "verse",
+ *      root.children({kit::annotate(composer, "verse",
  *                               weave::selectors::text(u8"Ishmael"),
  *                               weave::Unit::Word,
  *                               {.horizontal = kit::Anchored::From::Frame,
  *                                .offset = {-44, 0}},
  *                               [&](const TextUnit &u) { return figure(u); })
- *                     .absolute().inset(0));
+ *                     .absolute().inset(0)});
  *
  *  Anchored to the text and positioned by the caller: the object moves
  *  with the word when the copy or the measure changes, and stands exactly
@@ -259,12 +259,12 @@ struct Anchored {
         .on = anchored.at, .at = {0.0f, 0.0f}, .offset = anchored.offset};
     const float left = hang.place(across, SkSize::MakeEmpty()).left();
     const float top = hang.place(down, SkSize::MakeEmpty()).top();
-    overlay.child(box()
-                      .key(std::string(baseKey) + "-anchored" +
-                           std::to_string(entry.index))
-                      .left(left)
-                      .top(top)
-                      .child(make(entry)));
+    overlay.children({box()
+                          .key(std::string(baseKey) + "-anchored" +
+                               std::to_string(entry.index))
+                          .left(left)
+                          .top(top)
+                          .children({make(entry)})});
   }
   return overlay;
 }

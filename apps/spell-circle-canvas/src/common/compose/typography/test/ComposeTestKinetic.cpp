@@ -13,12 +13,12 @@ TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
   // in the instrument face at 32 px, plus the padding, need the width.
   Host host(300, 200);
   auto tree = [](sigil::motion::Animatable<float> progress) {
-    return box().padding(10).child(
-        text(u8"IIIIIIIIIIII", whiteStyle(32))
-            .key("k")
-            .fx({.effect = fx::rise(24),
-                 .stagger = {.eachMs = 40, .durationMs = 200},
-                 .progress = std::move(progress)}));
+    return box().padding(10).children(
+        {text(u8"IIIIIIIIIIII", whiteStyle(32))
+             .key("k")
+             .fx({.effect = fx::rise(24),
+                  .stagger = {.eachMs = 40, .durationMs = 200},
+                  .progress = std::move(progress)})});
   };
   host.composer.render(tree(0.0f));
   host.frame();
@@ -83,12 +83,11 @@ TEST(ComposeKinetic, ATrackKeepsABlurredUnderlayBeneathTheStroke) {
   };
 
   Host actual(420, 140);
-  actual.composer.render(box().child(tracked(dressed, "word")));
+  actual.composer.render(box().children({tracked(dressed, "word")}));
   actual.frame();
   Host expected(420, 140);
-  expected.composer.render(box()
-                               .child(tracked(haloOnly, "halos"))
-                               .child(tracked(strokeOnly, "strokes")));
+  expected.composer.render(box().children(
+      {tracked(haloOnly, "halos"), tracked(strokeOnly, "strokes")}));
   expected.frame();
 
   // The two trees are not the same tree -- one dressed node against two
@@ -122,12 +121,12 @@ TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
   // transition animates the reveal and the node paints live while moving.
   Host host;
   auto tree = [](sigil::motion::Animatable<float> progress) {
-    return box().padding(10).child(
-        text(u8"POP", whiteStyle(40))
-            .key("k")
-            .fx({.effect = fx::pop(),
-                 .stagger = {.eachMs = 20, .durationMs = 150},
-                 .progress = std::move(progress)}));
+    return box().padding(10).children(
+        {text(u8"POP", whiteStyle(40))
+             .key("k")
+             .fx({.effect = fx::pop(),
+                  .stagger = {.eachMs = 20, .durationMs = 150},
+                  .progress = std::move(progress)})});
   };
   host.composer.render(tree(0.001f));
   host.frame();
@@ -159,12 +158,12 @@ TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
   // 32 px, plus the padding, need the width.
   Host host(300, 200);
   choreograph::Output<float> progress{0.0f};
-  host.composer.render(box().padding(10).child(
-      text(u8"IIIIIIIIIIII", whiteStyle(32))
-          .key("k")
-          .fx({.effect = fx::rise(24),
-               .stagger = {.eachMs = 40, .durationMs = 200},
-               .progress = &progress})));
+  host.composer.render(box().padding(10).children(
+      {text(u8"IIIIIIIIIIII", whiteStyle(32))
+           .key("k")
+           .fx({.effect = fx::rise(24),
+                .stagger = {.eachMs = 40, .durationMs = 200},
+                .progress = &progress})}));
   host.frame();
   auto b = host.composer.bounds("k");
   ASSERT_TRUE(b.has_value());

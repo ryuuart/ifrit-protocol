@@ -71,7 +71,7 @@ struct MeterPlacement {
  *
  *  THE RECTS ARE IN THE COMPOSER'S SPACE, because that is the space
  *  `beatsOf` answers in. Put the result over the whole composition —
- *  `root.child(kit::trackMeter(...).absolute().inset(0))` — and the cells
+ *  `root.children({kit::trackMeter(...).absolute().inset(0)})` — and the cells
  *  land on the type wherever it is. It is read at DESCRIBE time from the
  *  layout the last draw left standing, so a moving cascade wants a
  *  re-describe per frame to move with it; that is the cost, and it is why
@@ -94,21 +94,22 @@ struct MeterPlacement {
     const float height = under ? placement.thickness : rect.height();
     const float top = under ? rect.bottom() + placement.gap : rect.top();
     const std::string cell = "beat" + std::to_string(i);
-    overlay.child(
-        box()
-            .key(cell)
-            .left(rect.left())
-            .top(top)
-            .width(width)
-            .height(height)
-            .fill(Fill::color(bed))
-            .child(box()
-                       .key(cell + "-t")
-                       .left(0)
-                       .top(0)
-                       .width(width * std::clamp(beats[i].localT, 0.0f, 1.0f))
-                       .height(height)
-                       .fill(Fill::color(fill))));
+    overlay.children(
+        {box()
+             .key(cell)
+             .left(rect.left())
+             .top(top)
+             .width(width)
+             .height(height)
+             .fill(Fill::color(bed))
+             .children(
+                 {box()
+                      .key(cell + "-t")
+                      .left(0)
+                      .top(0)
+                      .width(width * std::clamp(beats[i].localT, 0.0f, 1.0f))
+                      .height(height)
+                      .fill(Fill::color(fill))})});
   }
   return overlay;
 }
@@ -123,8 +124,8 @@ struct MeterPlacement {
  *  @p colour and pinned at the box's origin, and @p moving itself in the
  *  flow, which is what sizes the box. Drop it in where the text was:
  *
- *      box().child(kit::restGhost(
- *          text(u8"RUBBERBAND", set).key("word").fx({…}), rest))
+ *      box().children({kit::restGhost(
+ *          text(u8"RUBBERBAND", set).key("word").fx({…}), rest)})
  *
  *  What the rest copy is — the same content, style, width and layout with
  *  no tracks, no span restyles and none of the moving copy's children,
@@ -141,7 +142,7 @@ struct MeterPlacement {
       // absolute so the MOVING copy is what sizes the box around them.
       .left(0.0f)
       .top(0.0f);
-  return box().child(std::move(ghost)).child(std::move(moving));
+  return box().children({std::move(ghost), std::move(moving)});
 }
 
 /** ONE CURVE ON A PLOT: a function of the domain, and how it is drawn.

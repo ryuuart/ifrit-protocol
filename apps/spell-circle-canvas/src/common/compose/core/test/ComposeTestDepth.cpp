@@ -25,11 +25,11 @@ bool anyRedIn(Host& host, int w, int h) {
 
 /** A 100×100 red plane centred on a 200×200 canvas, turned about y. */
 Element turnedAboutY(float degrees) {
-  return box().child(box()
-                         .absolute()
-                         .rect(SkRect::MakeXYWH(50, 50, 100, 100))
-                         .fill(red())
-                         .rotateY(degrees));
+  return box().children({box()
+                             .absolute()
+                             .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                             .fill(red())
+                             .rotateY(degrees)});
 }
 
 }  // namespace
@@ -61,12 +61,12 @@ TEST(ComposeDepth, PerspectiveScalesAPlaneMovedInDepth) {
   // z = −400; at z = 0 the view leaves it exactly where it was.
   Host host(200, 200);
   const auto scene = [](float z) {
-    return box().perspective(400).child(
-        box()
-            .absolute()
-            .rect(SkRect::MakeXYWH(75, 75, 50, 50))
-            .fill(red())
-            .translateZ(z));
+    return box().perspective(400).children(
+        {box()
+             .absolute()
+             .rect(SkRect::MakeXYWH(75, 75, 50, 50))
+             .fill(red())
+             .translateZ(z)});
   };
   host.composer.render(scene(0));
   host.frame();
@@ -93,12 +93,12 @@ TEST(ComposeDepth, AViewOnTheParentLeavesAFlatChildAlone) {
   // A child at z = 0 with no turn divides by 1: the parent's perspective
   // moves nothing about it, and the pixels are the flat child's.
   Host flat(200, 200);
-  flat.composer.render(box().child(
-      box().absolute().rect(SkRect::MakeXYWH(30, 40, 80, 60)).fill(red())));
+  flat.composer.render(box().children(
+      {box().absolute().rect(SkRect::MakeXYWH(30, 40, 80, 60)).fill(red())}));
   flat.frame();
   Host viewed(200, 200);
-  viewed.composer.render(box().perspective(300).child(
-      box().absolute().rect(SkRect::MakeXYWH(30, 40, 80, 60)).fill(red())));
+  viewed.composer.render(box().perspective(300).children(
+      {box().absolute().rect(SkRect::MakeXYWH(30, 40, 80, 60)).fill(red())}));
   viewed.frame();
   EXPECT_TRUE(identicalPixels(flat, viewed, 200, 200));
 }
@@ -121,25 +121,25 @@ Element cubeUnder(float distance, float yaw, float pitch) {
         .rect(SkRect::MakeXYWH(50, 50, 100, 100))
         .fill(std::move(fill));
   };
-  return box().perspective(distance).child(
-      box()
-          .absolute()
-          .rect(SkRect::MakeXYWH(0, 0, 200, 200))
-          .preserve3d()
-          .rotateX(pitch)
-          .rotateY(yaw)
-          .child(face("front", red()).translateZ(50))
-          .child(face("right", green()).rotateY(90).translateX(50))
-          .child(face("top", blue()).rotateX(90).translateY(-50))
-          .child(face("left", Fill::color({1, 1, 0, 1}))
-                     .rotateY(-90)
-                     .translateX(-50))
-          .child(face("bottom", Fill::color({0, 1, 1, 1}))
-                     .rotateX(-90)
-                     .translateY(50))
-          .child(face("back", Fill::color({1, 0, 1, 1}))
-                     .rotateY(180)
-                     .translateZ(-50)));
+  return box().perspective(distance).children(
+      {box()
+           .absolute()
+           .rect(SkRect::MakeXYWH(0, 0, 200, 200))
+           .preserve3d()
+           .rotateX(pitch)
+           .rotateY(yaw)
+           .children({face("front", red()).translateZ(50)})
+           .children({face("right", green()).rotateY(90).translateX(50)})
+           .children({face("top", blue()).rotateX(90).translateY(-50)})
+           .children({face("left", Fill::color({1, 1, 0, 1}))
+                          .rotateY(-90)
+                          .translateX(-50)})
+           .children({face("bottom", Fill::color({0, 1, 1, 1}))
+                          .rotateX(-90)
+                          .translateY(50)})
+           .children({face("back", Fill::color({1, 0, 1, 1}))
+                          .rotateY(180)
+                          .translateZ(-50)})});
 }
 
 Element cube(float yaw, float pitch) { return cubeUnder(800, yaw, pitch); }
@@ -191,15 +191,16 @@ TEST(ComposeDepth, AGroupingPropertyFlattensTheSpaceItStandsOn) {
           .rect(SkRect::MakeXYWH(50, 50, 100, 100))
           .fill(std::move(fill));
     };
-    Element space = box()
-                        .absolute()
-                        .rect(SkRect::MakeXYWH(0, 0, 200, 200))
-                        .preserve3d()
-                        .child(face(red()).translateZ(50))
-                        .child(face(Fill::color({1, 0, 1, 1})).translateZ(-50));
+    Element space =
+        box()
+            .absolute()
+            .rect(SkRect::MakeXYWH(0, 0, 200, 200))
+            .preserve3d()
+            .children({face(red()).translateZ(50),
+                       face(Fill::color({1, 0, 1, 1})).translateZ(-50)});
     grouping(space);
     Host host(200, 200);
-    host.composer.render(box().perspective(800).child(std::move(space)));
+    host.composer.render(box().perspective(800).children({std::move(space)}));
     host.frame();
     return host.pixel(100, 100);
   };
@@ -307,13 +308,13 @@ TEST(ComposeDepth, AHitLandsWhereTheProjectionPutThePlane) {
   // projection is built by hand, and every local point of the card hits
   // the card where that projection puts it — and paints red there.
   Host host(200, 200);
-  host.composer.render(
-      box().perspective(500).child(box()
-                                       .key("card")
-                                       .absolute()
-                                       .rect(SkRect::MakeXYWH(50, 50, 100, 100))
-                                       .fill(red())
-                                       .rotateY(50)));
+  host.composer.render(box().perspective(500).children(
+      {box()
+           .key("card")
+           .absolute()
+           .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+           .fill(red())
+           .rotateY(50)}));
   host.frame();
   const SkM44 projection = cssPerspective(500, {100, 100}) *
                            SkM44::Translate(50, 50) * SkM44::Translate(50, 50) *
@@ -343,12 +344,13 @@ TEST(ComposeDepth, AHitLandsWhereTheProjectionPutThePlane) {
 
 TEST(ComposeDepth, AnEdgeOnPlaneAnswersNoHit) {
   Host host(200, 200);
-  host.composer.render(box().child(box()
-                                       .key("card")
-                                       .absolute()
-                                       .rect(SkRect::MakeXYWH(50, 50, 100, 100))
-                                       .fill(red())
-                                       .rotateY(90)));
+  host.composer.render(
+      box().children({box()
+                          .key("card")
+                          .absolute()
+                          .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                          .fill(red())
+                          .rotateY(90)}));
   host.frame();
   EXPECT_FALSE(host.composer.hitTest({100, 100}).has_value());
 }
@@ -385,20 +387,19 @@ TEST(ComposeDepth, AHiddenBackfaceIsNeitherPaintedNorHit) {
   // answers; with its back visible it covers the other, mirrored, and
   // answers the hit itself. The same half turn about x hides it too.
   const auto pair = [](Backface facing, float rx, float ry) {
-    return box()
-        .child(box()
-                   .key("under")
-                   .absolute()
-                   .rect(SkRect::MakeXYWH(50, 50, 100, 100))
-                   .fill(green()))
-        .child(box()
-                   .key("over")
-                   .absolute()
-                   .rect(SkRect::MakeXYWH(50, 50, 100, 100))
-                   .fill(red())
-                   .rotateX(rx)
-                   .rotateY(ry)
-                   .backface(facing));
+    return box().children({box()
+                               .key("under")
+                               .absolute()
+                               .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                               .fill(green()),
+                           box()
+                               .key("over")
+                               .absolute()
+                               .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                               .fill(red())
+                               .rotateX(rx)
+                               .rotateY(ry)
+                               .backface(facing)});
   };
   Host host(200, 200);
   host.composer.render(pair(Backface::Hidden, 0, 180));
@@ -429,14 +430,15 @@ TEST(ComposeDepth, AMirrorIsNotABackface) {
   // positive (cofactor and determinant both negate), so a hidden backface
   // still shows the mirrored front, as CSS's rule has it.
   Host host(200, 200);
-  host.composer.render(box().child(box()
-                                       .key("card")
-                                       .absolute()
-                                       .rect(SkRect::MakeXYWH(50, 50, 100, 100))
-                                       .fill(red())
-                                       .scaleX(-1)
-                                       .rotateY(0)
-                                       .backface(Backface::Hidden)));
+  host.composer.render(
+      box().children({box()
+                          .key("card")
+                          .absolute()
+                          .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                          .fill(red())
+                          .scaleX(-1)
+                          .rotateY(0)
+                          .backface(Backface::Hidden)}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
   EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "card");
@@ -457,14 +459,14 @@ TEST(ComposeDepth, AFlippingCardShowsOneFaceAtATime) {
           .rotateY(ry)
           .backface(Backface::Hidden);
     };
-    return box().perspective(600).child(
-        box()
-            .absolute()
-            .rect(SkRect::MakeXYWH(0, 0, 200, 200))
-            .preserve3d()
-            .rotateY(turn)
-            .child(face("front", red(), 0))
-            .child(face("back", blue(), 180)));
+    return box().perspective(600).children(
+        {box()
+             .absolute()
+             .rect(SkRect::MakeXYWH(0, 0, 200, 200))
+             .preserve3d()
+             .rotateY(turn)
+             .children({face("front", red(), 0)})
+             .children({face("back", blue(), 180)})});
   };
   Host host(200, 200);
   for (float turn : {0.0f, 30.0f, 80.0f}) {
@@ -491,12 +493,12 @@ TEST(ComposeDepth, APlaneUnderAMovingViewIsMovingItself) {
   // the dolly would move nothing at all.
   Host host(200, 200);
   choreograph::Output<float> distance{400.0f};
-  host.composer.render(box().perspective(&distance).child(
-      box()
-          .absolute()
-          .rect(SkRect::MakeXYWH(50, 50, 100, 100))
-          .fill(red())
-          .translateZ(90)));
+  host.composer.render(box().perspective(&distance).children(
+      {box()
+           .absolute()
+           .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+           .fill(red())
+           .translateZ(90)}));
   host.frame();
   int near = 0;
   for (int x = 0; x < 200; ++x)
@@ -519,13 +521,13 @@ TEST(ComposeDepth, AHingeBehindThePlaneIsATransformOriginWithADepth) {
   // are the same quarter turn and land in different places.
   const auto centreAfterAQuarterTurn = [](float pivotZ) {
     Host host(200, 200);
-    host.composer.render(box().perspective(600).child(
-        box()
-            .absolute()
-            .rect(SkRect::MakeXYWH(50, 50, 100, 100))
-            .fill(red())
-            .transformOrigin3d(0.5f, 0.5f, pivotZ)
-            .rotateY(45)));
+    host.composer.render(box().perspective(600).children(
+        {box()
+             .absolute()
+             .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+             .fill(red())
+             .transformOrigin3d(0.5f, 0.5f, pivotZ)
+             .rotateY(45)}));
     host.frame();
     int painted = 0;
     for (int x = 0; x < 200; ++x)
@@ -545,21 +547,22 @@ TEST(ComposeDepth, ADepthLaneRampsLikeAnyOtherLane) {
   // transition ramps from the turn it is at: halfway through a 0 → 90
   // ramp the plane is mid-turn — narrower than flat, still visible.
   Host host(200, 200);
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .rect(SkRect::MakeXYWH(50, 50, 100, 100))
-                                       .fill(red())
-                                       .rotateY(0)));
+  host.composer.render(
+      box().children({box()
+                          .absolute()
+                          .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                          .fill(red())
+                          .rotateY(0)}));
   host.frame();
-  host.composer.render(box().child(
-      box()
-          .absolute()
-          .rect(SkRect::MakeXYWH(50, 50, 100, 100))
-          .fill(red())
-          .rotateY(
-              animate(motion::to(90.0f),
-                      motion::Transition{.duration = 200ms,
-                                         .ease = &choreograph::easeNone}))));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+           .fill(red())
+           .rotateY(
+               animate(motion::to(90.0f),
+                       motion::Transition{.duration = 200ms,
+                                          .ease = &choreograph::easeNone}))}));
   host.frame(0.1);  // 45°: cos(45°) · 100 ≈ 71 px about the centre
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
   EXPECT_EQ(host.pixel(70, 100), SK_ColorRED);

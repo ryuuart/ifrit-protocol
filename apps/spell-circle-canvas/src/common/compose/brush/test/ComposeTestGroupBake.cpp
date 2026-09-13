@@ -14,9 +14,14 @@ namespace {
 Element groupField(int count, float x, float y, Cache mode = Cache::Group) {
   Element root = box().cache(Cache::None);
   for (int i = 0; i < count; ++i)
-    root.child(
-        box().absolute().left(x).top(y).width(100).height(100).cache(mode).fill(
-            Fill::color({0.2f, 0.5f, 0.8f, 1})));
+    root.children({box()
+                       .absolute()
+                       .left(x)
+                       .top(y)
+                       .width(100)
+                       .height(100)
+                       .cache(mode)
+                       .fill(Fill::color({0.2f, 0.5f, 0.8f, 1}))});
   return root;
 }
 
@@ -72,15 +77,15 @@ TEST(ComposeCache, AGroupBakeAtTheCanvasOriginStillBakes) {
   host.composer.setProfiling(true);
   Element root = box()
                      .cache(Cache::None)
-                     .child(box()
-                                .absolute()
-                                .left(0)
-                                .top(0)
-                                .width(100)
-                                .height(100)
-                                .cache(Cache::Group)
-                                .key("corner")
-                                .fill(Fill::color({0.2f, 0.5f, 0.8f, 1})));
+                     .children({box()
+                                    .absolute()
+                                    .left(0)
+                                    .top(0)
+                                    .width(100)
+                                    .height(100)
+                                    .cache(Cache::Group)
+                                    .key("corner")
+                                    .fill(Fill::color({0.2f, 0.5f, 0.8f, 1}))});
   host.composer.render(root);
   settleGroups(host);
   EXPECT_EQ(host.composer.stats().texturesLive, 1u);
@@ -207,7 +212,7 @@ Element lattice(Cache mode) {
                   .height(240)
                   .key("lattice")
                   .cache(mode);
-  for (int i = 0; i < kBoards; ++i) g.child(board(i));
+  for (int i = 0; i < kBoards; ++i) g.children({board(i)});
   return g;
 }
 
@@ -235,11 +240,11 @@ Element latticeScene(Cache mode, Ground ground) {
                         .top(0)
                         .width(240)
                         .height(240)
-                        .child(std::move(g));
+                        .children({std::move(g)});
   Element root = stack();
   if (ground != Ground::Black)
-    root.child(box().inset(0).fill(Fill::color({0.07f, 0.06f, 0.05f, 1})));
-  return root.child(std::move(wrapped));
+    root.children({box().inset(0).fill(Fill::color({0.07f, 0.06f, 0.05f, 1}))});
+  return root.children({std::move(wrapped)});
 }
 
 /** Both hosts, same frame, same numbers, promotion off on BOTH so the only
@@ -439,14 +444,14 @@ TEST(ComposeCache, AGroupsOwnFadeDoesNotDropItsBake) {
   static choreograph::Output<float> groupFade{1.0f};
   const auto scene = [](Cache mode) {
     Element g = lattice(mode).opacity(&groupFade);
-    return stack().child(box()
-                             .cache(Cache::None)
-                             .absolute()
-                             .left(0)
-                             .top(0)
-                             .width(240)
-                             .height(240)
-                             .child(std::move(g)));
+    return stack().children({box()
+                                 .cache(Cache::None)
+                                 .absolute()
+                                 .left(0)
+                                 .top(0)
+                                 .width(240)
+                                 .height(240)
+                                 .children({std::move(g)})});
   };
   Host on(240, 240), off(240, 240);
   on.composer.setAutoTexturePromotion(false);
@@ -495,15 +500,15 @@ bool groupBakesWith(Element extra) {
   host.composer.setAutoTexturePromotion(false);
   host.composer.setProfiling(true);
   setBoardPhase(kGroupDone + 0.4);
-  Element g = lattice(Cache::Group).child(std::move(extra));
-  host.composer.render(stack().child(box()
-                                         .cache(Cache::None)
-                                         .absolute()
-                                         .left(0)
-                                         .top(0)
-                                         .width(240)
-                                         .height(240)
-                                         .child(std::move(g))));
+  Element g = lattice(Cache::Group).children({std::move(extra)});
+  host.composer.render(stack().children({box()
+                                             .cache(Cache::None)
+                                             .absolute()
+                                             .left(0)
+                                             .top(0)
+                                             .width(240)
+                                             .height(240)
+                                             .children({std::move(g)})}));
   bool sawBlit = false;
   for (int i = 0; i < 10; ++i) {
     host.frame();
@@ -567,14 +572,14 @@ TEST(ComposeCache, AMovingGroupRefusesTheBakeRatherThanRemakingIt) {
   setBoardPhase(kGroupDone + 0.4);
   slide = 0.0f;
   Element g = lattice(Cache::Group).translateX(&slide);
-  host.composer.render(stack().child(box()
-                                         .cache(Cache::None)
-                                         .absolute()
-                                         .left(0)
-                                         .top(0)
-                                         .width(240)
-                                         .height(240)
-                                         .child(std::move(g))));
+  host.composer.render(stack().children({box()
+                                             .cache(Cache::None)
+                                             .absolute()
+                                             .left(0)
+                                             .top(0)
+                                             .width(240)
+                                             .height(240)
+                                             .children({std::move(g)})}));
   for (int i = 0; i < 6; ++i) host.frame();
   size_t bakes = 0;
   for (int i = 1; i <= 20; ++i) {

@@ -189,11 +189,11 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
   if (ctx.fonts) {
     Element strip = box().row();
     for (int b = 0; b < kBandN; ++b)
-      strip.child(box()
-                      .width(Dimension(kBandW))
-                      .height(Dimension(32))
-                      .shrink(0)
-                      .fill(Fill::color(gamme[(size_t)b])));
+      strip.children({box()
+                          .width(Dimension(kBandW))
+                          .height(Dimension(32))
+                          .shrink(0)
+                          .fill(Fill::color(gamme[(size_t)b]))});
     // test::rasterize is the read-back: it wraps the tree in the shell
     // snapshot() needs, draws it at an explicit canvas size and hands the
     // pixels over. N32 rather than the float default, because the claim
@@ -280,8 +280,8 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
     Element probe = box()
                         .width(Dimension(gw))
                         .height(Dimension(gh))
-                        .child(instancing::instances(quadAtlas, quadPool,
-                                                     instancing::Mode::Data));
+                        .children({instancing::instances(
+                            quadAtlas, quadPool, instancing::Mode::Data)});
     const test::Raster r = test::rasterize(
         std::move(probe), *ctx.fonts, {(int)std::ceil(gw), (int)std::ceil(gh)},
         kN32_SkColorType);

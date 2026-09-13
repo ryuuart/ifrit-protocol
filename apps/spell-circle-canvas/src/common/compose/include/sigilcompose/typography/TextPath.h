@@ -28,7 +28,7 @@ struct TextPath {
    *  frame cut into several contours still carries its whole run.
    *
    *  "The node's box" means the TEXT NODE'S OWN box, not a parent's. The
-   *  tempting `disc(c, R).child(text(...).onPath(...))` resolves the ring
+   *  tempting `disc(c, R).children({text(...).onPath(...)})` resolves the ring
    *  against the text's intrinsic size and silently collapses every label
    *  into a blob. Give the TEXT node the disc's width and height instead
    *  — the text leaf is the disc. */

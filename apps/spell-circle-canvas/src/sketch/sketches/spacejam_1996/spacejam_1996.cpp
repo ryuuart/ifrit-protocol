@@ -88,10 +88,10 @@ struct SpaceJam1996 : sketch::Sketch {
     Element c = box().column().alignSelf(Align::Start).shrink(0);
     if (s.asset < 0) c.width(Dimension(0)).height(Dimension(0));
     if (s.brs > 0)
-      c.child(box()
-                  .width(Dimension(0))
-                  .height(Dimension(sj::S(18) * (float)s.brs)));
-    if (s.asset >= 0) c.child(revealed(s.asset, inFlight));
+      c.children({box()
+                      .width(Dimension(0))
+                      .height(Dimension(sj::S(18) * (float)s.brs))});
+    if (s.asset >= 0) c.children({revealed(s.asset, inFlight)});
     c.cells(s.col, s.row, s.colspan, s.rowspan).cellAlign(s.across, s.down);
     return c;
   }
@@ -130,25 +130,25 @@ struct SpaceJam1996 : sketch::Sketch {
             .top(Dimension(S(86)))
             .width(Dimension(S(500)))
             .height(Dimension(S(46)))
-            .child(revealed(kFast, (arrivedMask & (1u << kFast)) == 0)
-                       .left(Dimension(S(3)))
-                       .top(Dimension(S(17.5f))))
-            .child(revealed(kBreak, (arrivedMask & (1u << kBreak)) == 0)
-                       .left(Dimension(S(93)))
-                       .top(Dimension(S(17.5f))));
+            .children({revealed(kFast, (arrivedMask & (1u << kFast)) == 0)
+                           .left(Dimension(S(3)))
+                           .top(Dimension(S(17.5f))),
+                       revealed(kBreak, (arrivedMask & (1u << kBreak)) == 0)
+                           .left(Dimension(S(93)))
+                           .top(Dimension(S(17.5f)))});
     if (ballIn) {
       // Fully arrived: the live element, whose material steps its uTime at
       // 10 Hz — the GIF's own frame rate, six frames, forever.
-      fastRow.child(rect(S(53), S(3), S(40), S(40))
-                        .shape(shapes::circle())
-                        .fill(fastballMat)
-                        .key("fastbreak"));
+      fastRow.children({rect(S(53), S(3), S(40), S(40))
+                            .shape(shapes::circle())
+                            .fill(fastballMat)
+                            .key("fastbreak")});
     } else {
       // Still arriving: a partially-downloaded animated GIF shows its first
       // frame and does not animate. Same picture path as everything else.
-      fastRow.child(revealed(kFastbreak, true)
-                        .left(Dimension(S(53)))
-                        .top(Dimension(S(3))));
+      fastRow.children({revealed(kFastbreak, true)
+                            .left(Dimension(S(53)))
+                            .top(Dimension(S(3)))});
     }
 
     // 3. the planet table. Nothing below is hand-placed: `Table`
@@ -160,7 +160,7 @@ struct SpaceJam1996 : sketch::Sketch {
                        .width(Dimension(S(500)))
                        .height(Dimension(S(435)))
                        .key("table");
-    for (const Slot& slot : kSlotTable) grid.child(cell(slot));
+    for (const Slot& slot : kSlotTable) grid.children({cell(slot)});
 
     // 4. the © line — the ONLY live text on the page. <font size="-1"> is
     //    HTML size 2 of 7 -> 13.33 px computed, hard-wrapped by the author's
@@ -173,21 +173,19 @@ struct SpaceJam1996 : sketch::Sketch {
             .width(Dimension(S(640)))
             .column()
             .alignItems(Align::Center)
-            .child(text("SPACE JAM, characters, names, and all related")
-                       .font(small))
-            .child(text("indicia are trademarks of Warner Bros. © 1996")
-                       .font(small));
+            .children({text("SPACE JAM, characters, names, and all related")
+                           .font(small),
+                       text("indicia are trademarks of Warner Bros. © 1996")
+                           .font(small)});
 
     (void)ctx;
     return stack()
-        .child(std::move(field))
+        .children({std::move(field)})
         // the ad-slot table: 488x60 of server-side includes that no longer
         // resolve. Left empty on purpose — 60 px of stars, and the reason
         // the page has a bald strip at the top.
-        .child(std::move(fastRow))
-        .child(std::move(grid))
-        .child(std::move(colophon))
-        .child(verdict.failures() > 0 ? failureCard() : box());
+        .children({std::move(fastRow), std::move(grid), std::move(colophon),
+                   verdict.failures() > 0 ? failureCard() : box()});
   }
 
   // ---- setup -------------------------------------------------------------
@@ -232,7 +230,7 @@ struct SpaceJam1996 : sketch::Sketch {
                                .width(Dimension(j.w))
                                .height(Dimension(j.h))
                                .clip(true)
-                               .child(std::move(j.tree)),
+                               .children({std::move(j.tree)}),
                            f, {j.w, j.h});
     }
     artW[kStars] = artH[kStars] = 0;
@@ -340,14 +338,14 @@ struct SpaceJam1996 : sketch::Sketch {
         .column()
         .padding(S(12))
         .gap(S(8))
-        .child(
-            text("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID")
-                .font(
-                    {.face = display(), .size = S(11), .color = C5(0xFFFF00)}))
-        .child(sketch::kit::table(std::move(rows),
-                                  {.columns = {{S(230)}, {S(46), true}, {}},
-                                   .gap = S(6),
-                                   .swatchSide = S(5)}));
+        .children(
+            {text("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID")
+                 .font(
+                     {.face = display(), .size = S(11), .color = C5(0xFFFF00)}),
+             sketch::kit::table(std::move(rows),
+                                {.columns = {{S(230)}, {S(46), true}, {}},
+                                 .gap = S(6),
+                                 .swatchSide = S(5)})});
   }
 
   void setup(sketch::SketchContext& ctx) override {

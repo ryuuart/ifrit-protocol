@@ -33,7 +33,7 @@ Element pageWith(Element leaf, float size) {
       .padding(10)
       .font({.face = sigil::test::instrument::sans(), .size = size})
       .ink({1, 1, 1, 1})
-      .child(std::move(leaf).key("t"));
+      .children({std::move(leaf).key("t")});
 }
 
 }  // namespace
@@ -48,7 +48,7 @@ TEST(ComposeCascade,
         .padding(10)
         .font({.face = sigil::test::instrument::sans(), .size = size})
         .ink({1, 1, 1, 1})
-        .child(box().child(text(u8"AAAA").key("leaf")));
+        .children({box().children({text(u8"AAAA").key("leaf")})});
   };
   Host big, small;
   big.composer.render(page(30));
@@ -67,8 +67,8 @@ TEST(ComposeCascade, APartialFontOverlaysTheInheritedOneFieldByField) {
           .padding(10)
           .font({.face = sigil::test::instrument::sans(), .size = 12})
           .ink({1, 1, 1, 1})
-          .child(text(u8"AAAA").key("base"))
-          .child(text(u8"AAAA").font({.size = 36}).key("big")));
+          .children({text(u8"AAAA").key("base"),
+                     text(u8"AAAA").font({.size = 36}).key("big")}));
   host.frame();
   EXPECT_GT(widthOf(host, "big"), widthOf(host, "base") * 2.0f);
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 100)));
@@ -77,7 +77,7 @@ TEST(ComposeCascade, APartialFontOverlaysTheInheritedOneFieldByField) {
 TEST(ComposeCascade, AChildBuiltBeforeItWasAdoptedIsSetInTheAdoptersInk) {
   // Built first, with no scope around it, then handed to the box that
   // sets the ink: the leaf is white because of where it LANDED.
-  Element content = box().child(text(u8"AAAA"));
+  Element content = box().children({text(u8"AAAA")});
   Host host;
   host.composer.render(pageWith(std::move(content), 24));
   host.frame();
@@ -87,12 +87,13 @@ TEST(ComposeCascade, AChildBuiltBeforeItWasAdoptedIsSetInTheAdoptersInk) {
 TEST(ComposeCascade, ATotalStyleInheritsNothing) {
   // A leaf given a TextStyle is set in it alone, whatever the ancestors set.
   Host under, alone;
-  under.composer.render(box()
-                            .padding(10)
-                            .font({.size = 48})
-                            .child(text(u8"AAAA", whiteStyle(12)).key("t")));
+  under.composer.render(
+      box()
+          .padding(10)
+          .font({.size = 48})
+          .children({text(u8"AAAA", whiteStyle(12)).key("t")}));
   alone.composer.render(
-      box().padding(10).child(text(u8"AAAA", whiteStyle(12)).key("t")));
+      box().padding(10).children({text(u8"AAAA", whiteStyle(12)).key("t")}));
   under.frame();
   alone.frame();
   EXPECT_FLOAT_EQ(widthOf(under, "t"), widthOf(alone, "t"));
@@ -103,8 +104,8 @@ TEST(ComposeCascade, AFillNamingTheCurrentInkFollowsARecolouredAncestor) {
   // ancestor's ink moved, and the fill written as the ink follows it.
   Host host;
   const auto page = [](SkColor4f ink) {
-    return box().key("p").ink(ink).child(
-        box().key("c").width(60).height(60).fill(Fill::currentInk()));
+    return box().key("p").ink(ink).children(
+        {box().key("c").width(60).height(60).fill(Fill::currentInk())});
   };
   host.composer.render(page({1, 0, 0, 1}));
   host.frame();
@@ -123,10 +124,10 @@ TEST(ComposeCascade, ACustomPropertyIsReadByAnyDescendantThatNamesIt) {
       box()
           .var("accent", SkColor4f{0, 0, 1, 1})
           .var("gutter", Dimension(40.0f))
-          .child(box()
-                     .padding(var("gutter"))
-                     .child(box().key("in").width(20).height(20).fill(
-                         Fill::var("accent")))));
+          .children({box()
+                         .padding(var("gutter"))
+                         .children({box().key("in").width(20).height(20).fill(
+                             Fill::var("accent"))})}));
   host.frame();
   const SkRect in = require(host.composer.bounds("in"));
   EXPECT_FLOAT_EQ(in.left(), 40.0f);
@@ -136,12 +137,13 @@ TEST(ComposeCascade, ACustomPropertyIsReadByAnyDescendantThatNamesIt) {
 
 TEST(ComposeCascade, ANearerAncestorsPropertyWinsOverAFartherOnes) {
   Host host;
-  host.composer.render(box()
-                           .var("accent", SkColor4f{1, 0, 0, 1})
-                           .child(box()
-                                      .var("accent", SkColor4f{0, 1, 0, 1})
-                                      .child(box().width(40).height(40).fill(
-                                          Fill::var("accent")))));
+  host.composer.render(
+      box()
+          .var("accent", SkColor4f{1, 0, 0, 1})
+          .children({box()
+                         .var("accent", SkColor4f{0, 1, 0, 1})
+                         .children({box().width(40).height(40).fill(
+                             Fill::var("accent"))})}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SkColorSetARGB(255, 0, 255, 0));
 }
@@ -152,8 +154,8 @@ TEST(ComposeCascade, AnEmLengthResolvesAgainstTheNodesOwnFontSize) {
   const auto page = [](float size) {
     return box()
         .font({.size = size})
-        .child(box().padding(1_em).child(
-            box().key("in").width(10).height(10).fill(green())));
+        .children({box().padding(1_em).children(
+            {box().key("in").width(10).height(10).fill(green())})});
   };
   twenty.composer.render(page(20));
   forty.composer.render(page(40));
@@ -182,8 +184,8 @@ TEST(ComposeCascade, AChangedAncestorFontRelaysOutTheLengthsMeasuredInIt) {
     return box()
         .key("root")
         .font({.size = size})
-        .child(box().padding(1_em).child(
-            box().key("in").width(10).height(10).fill(green())));
+        .children({box().padding(1_em).children(
+            {box().key("in").width(10).height(10).fill(green())})});
   };
   host.composer.render(page(10));
   host.frame();
@@ -202,7 +204,7 @@ TEST(ComposeCascade, ASlotInheritsFromWhereItStands) {
           .padding(10)
           .font({.face = sigil::test::instrument::sans(), .size = 28})
           .ink({1, 1, 1, 1})
-          .child(slot("hud")));
+          .children({slot("hud")}));
   host.composer.renderSlot("hud", text(u8"AAAA").key("t"));
   host.frame();
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 60)));
@@ -236,16 +238,16 @@ TEST(ComposeCascade,
       box()
           .padding(10)
           .font({.face = sigil::test::instrument::sans(), .size = 24})
-          .child(text(u8"AAAA").key("t")));
+          .children({text(u8"AAAA").key("t")}));
   reset.composer.render(
       box()
           .padding(10)
           .font({.face = sigil::test::instrument::sans(), .size = 24})
-          .child(text(u8"AAAA")
-                     .font({.face = sigil::weave::defaultFace()})
-                     .key("t")));
+          .children({text(u8"AAAA")
+                         .font({.face = sigil::weave::defaultFace()})
+                         .key("t")}));
   bare.composer.render(
-      box().padding(10).font({.size = 24}).child(text(u8"AAAA").key("t")));
+      box().padding(10).font({.size = 24}).children({text(u8"AAAA").key("t")}));
   faced.frame();
   reset.frame();
   bare.frame();
@@ -259,18 +261,21 @@ TEST(ComposeCascade, ABakeSetsAnInheritingLeafInTheFontOfItsRoot) {
   // the bake set, and comes out exactly as the leaf given that font whole.
   const sk_sp<SkTypeface> face = sigil::test::instrument::sans();
   const SkSize inheriting = intrinsicSize(
-      box().font({.face = face, .size = 40}).child(text(u8"AAAA")), fonts());
-  const SkSize whole = intrinsicSize(
-      box().child(
-          text(u8"AAAA", sigil::weave::textStyle({.face = face, .size = 40}))),
+      box().font({.face = face, .size = 40}).children({text(u8"AAAA")}),
       fonts());
-  const SkSize initial = intrinsicSize(box().child(text(u8"AAAA")), fonts());
+  const SkSize whole = intrinsicSize(
+      box().children({text(
+          u8"AAAA", sigil::weave::textStyle({.face = face, .size = 40}))}),
+      fonts());
+  const SkSize initial =
+      intrinsicSize(box().children({text(u8"AAAA")}), fonts());
   EXPECT_FLOAT_EQ(inheriting.width(), whole.width());
   EXPECT_FLOAT_EQ(inheriting.height(), whole.height());
   EXPECT_GT(inheriting.width(), initial.width() * 1.5f)
       << "not the initial 16 px the root would give a leaf under nothing";
   const sk_sp<SkPicture> picture = snapshot(
-      box().font({.face = face, .size = 40}).child(text(u8"AAAA")), fonts());
+      box().font({.face = face, .size = 40}).children({text(u8"AAAA")}),
+      fonts());
   ASSERT_TRUE(picture);
   EXPECT_FLOAT_EQ(picture->cullRect().width(), whole.width());
 }
@@ -284,7 +289,7 @@ TEST(ComposeCascade, APartialSpanStyleIsLaidOverTheStyleTheRangeIsSetIn) {
         .padding(10)
         .font({.face = sigil::test::instrument::sans(), .size = 12})
         .ink({1, 1, 1, 1})
-        .child(std::move(leaf).key("t"));
+        .children({std::move(leaf).key("t")});
   };
   const auto second = [] { return sigil::weave::selectors::text(u8"BBBB"); };
   Host plain, sized, tinted;
@@ -318,7 +323,7 @@ TEST(ComposeCascade, AnInkTransitionEasesEverythingUnderTheNodeAndSettles) {
         .key("p")
         .ink(ink)
         .transition({.duration = 200ms})
-        .child(box().width(60).height(60).fill(Fill::currentInk()));
+        .children({box().width(60).height(60).fill(Fill::currentInk())});
   };
   host.composer.render(page({1, 0, 0, 1}));
   host.frame();
@@ -367,7 +372,8 @@ TEST(ComposeCascade, ClassesFoldInTheSheetsOrderAndAPartialLaysOverThem) {
   c.composer.render(
       pageWith(text("AAAA").styleSheet(dimLast).styleClass("dim big"), 10));
   d.composer.render(pageWith(
-      text("AAAA").styleSheet(bigLast).styleClass("big", {.size = 14}), 10));
+      text("AAAA").styleSheet(bigLast).styleClass("big").font({.size = 14}),
+      10));
   a.frame();
   b.frame();
   c.frame();
@@ -384,14 +390,14 @@ TEST(ComposeCascade, ANearerSheetStandsOverAFartherOneByName) {
                                        {"dim", {.size = 14}}};
   const sigil::weave::StyleSheet inner{{"big", {.size = 14}}};
   Host a, b;
-  a.composer.render(
-      pageWith(box().styleSheet(outer).child(box().styleSheet(inner).child(
-                   text("AAAA").styleClass("big").key("t"))),
-               10));
-  b.composer.render(
-      pageWith(box().styleSheet(outer).child(box().styleSheet(inner).child(
-                   text("AAAA").styleClass("dim").key("t"))),
-               10));
+  a.composer.render(pageWith(
+      box().styleSheet(outer).children({box().styleSheet(inner).children(
+          {text("AAAA").styleClass("big").key("t")})}),
+      10));
+  b.composer.render(pageWith(
+      box().styleSheet(outer).children({box().styleSheet(inner).children(
+          {text("AAAA").styleClass("dim").key("t")})}),
+      10));
   a.frame();
   b.frame();
   EXPECT_FLOAT_EQ(widthOf(a, "t"), widthOf(b, "t"));
@@ -412,12 +418,8 @@ TEST(ComposeCascade, AChildrenBlockHoldsElementsAndListsInOrder) {
            }),
       leaf(40, "b"),
   });
-  Element oneByOne = box()
-                         .column()
-                         .child(leaf(10, "a"))
-                         .child(leaf(20, "e0"))
-                         .child(leaf(30, "e1"))
-                         .child(leaf(40, "b"));
+  Element oneByOne = box().column().children(
+      {leaf(10, "a"), leaf(20, "e0"), leaf(30, "e1"), leaf(40, "b")});
   Host a, b;
   a.composer.render(pageWith(std::move(block), 10));
   b.composer.render(pageWith(std::move(oneByOne), 10));
@@ -482,7 +484,7 @@ TEST(ComposeCascade, TheRootInheritsWhatTheComposerWasTold) {
   host.composer.setInherited(
       sigil::weave::Type{.face = sigil::test::instrument::sans(), .size = 30},
       {1, 1, 1, 1});
-  host.composer.render(box().padding(10).child(text(u8"AAAA").key("t")));
+  host.composer.render(box().padding(10).children({text(u8"AAAA").key("t")}));
   host.frame();
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 60)));
   EXPECT_GT(widthOf(host, "t"), 40.0f);

@@ -158,11 +158,11 @@ struct EvaMagiDefense : sketch::Sketch {
       // measured, the glyph's centre sits at 30% of a 150 px cell, which is
       // 44 px — the middle of the 88 px width. And it stays UPRIGHT while
       // the plate turns.
-      cell.child(text(std::string(1, (char)('0' + n)))
-                     .font(type(numeralSize, 0.88f))
-                     .centerAt({r.width() * 0.5f, r.width() * 0.5f + 3})
-                     .rotate(-s.rotation));
-      plate.child(std::move(cell));
+      cell.children({text(std::string(1, (char)('0' + n)))
+                         .font(type(numeralSize, 0.88f))
+                         .centerAt({r.width() * 0.5f, r.width() * 0.5f + 3})
+                         .rotate(-s.rotation)});
+      plate.children({std::move(cell)});
     }
 
     // MAGI 0n knocked dark into the plate: two lines, two SIZES (cap 26 over
@@ -170,15 +170,15 @@ struct EvaMagiDefense : sketch::Sketch {
     //
     // The word is narrower than the installation number. Its width must
     // also clear the neighbouring cell when the plate turns sideways.
-    plate.child(box()
-                    .centerAt(module.labelCentre())
-                    .column()
-                    .alignItems(Align::Center)
-                    .gap(-6)
-                    .rotate(-s.rotation)
-                    .ink(ink)
-                    .child(text(u8"MAGI").font(type(36, 0.86f)))
-                    .child(text(s.name).font(type(50, 0.95f))));
+    plate.children({box()
+                        .centerAt(module.labelCentre())
+                        .column()
+                        .alignItems(Align::Center)
+                        .gap(-6)
+                        .rotate(-s.rotation)
+                        .ink(ink)
+                        .children({text(u8"MAGI").font(type(36, 0.86f))})
+                        .children({text(s.name).font(type(50, 0.95f))})});
     return plate;
   }
 
@@ -213,16 +213,16 @@ struct EvaMagiDefense : sketch::Sketch {
     const int count = L.lines[1] ? (L.lines[2] ? 3 : 2) : 1;
     const float step = (L.h - 2.0f * labelStyle.insetY) / (float)count;
     for (int i = 0; i < count; ++i)
-      node.child(
-          text(L.lines[i])
-              .font(style)
-              .centerAt(
-                  {L.role == LabelRole::Country
-                       ? intrinsicSize(text(L.lines[i]).font(style), *fonts)
-                                 .width() *
-                             0.5f
-                       : L.w * 0.5f,
-                   labelStyle.insetY + step * ((float)i + 0.5f) + inkShift}));
+      node.children(
+          {text(L.lines[i])
+               .font(style)
+               .centerAt(
+                   {L.role == LabelRole::Country
+                        ? intrinsicSize(text(L.lines[i]).font(style), *fonts)
+                                  .width() *
+                              0.5f
+                        : L.w * 0.5f,
+                    labelStyle.insetY + step * ((float)i + 0.5f) + inkShift})});
     return node;
   }
 
@@ -289,7 +289,7 @@ struct EvaMagiDefense : sketch::Sketch {
         .top(origin.fY)
         .width(bounds.width() + 2.0f * kHaloReach)
         .height(bounds.height() + 2.0f * kHaloReach)
-        .child(mark(origin))
+        .children({mark(origin)})
         .effect(tubeBloom())
         .cache(Cache::Texture)
         .key(key);
@@ -308,25 +308,26 @@ struct EvaMagiDefense : sketch::Sketch {
     const auto& module = tre::kModule;
     for (int i = 0; i < kSiteN; ++i) {
       const Site& s = kSites[i];
-      g.child(glowing(
+      g.children({glowing(
           unroll(s.centre), module.barWidth, module.totalHeight(), s.rotation,
           std::string("glow#") + s.name,
-          [&, i](SkPoint origin) { return installation(i, origin, true); }));
+          [&, i](SkPoint origin) { return installation(i, origin, true); })});
       if (s.falls)
-        g.child(glowing(unroll(s.centre), module.barWidth, module.totalHeight(),
-                        s.rotation, std::string("glow#") + s.name + "#fallen",
-                        [&, i](SkPoint origin) {
-                          return installation(i, origin, false);
-                        })
-                    .opacity(&fallAlpha[i]));
+        g.children(
+            {glowing(unroll(s.centre), module.barWidth, module.totalHeight(),
+                     s.rotation, std::string("glow#") + s.name + "#fallen",
+                     [&, i](SkPoint origin) {
+                       return installation(i, origin, false);
+                     })
+                 .opacity(&fallAlpha[i])});
     }
     for (int i = 0; i < kLabelN; ++i)
-      g.child(glowing(unroll(kLabels[i].centre), kLabels[i].w, kLabels[i].h,
-                      kLabels[i].rotate, "glowlab" + std::to_string(i),
-                      [&, i](SkPoint origin) {
-                        return pillOf(kLabels[i], labelTypes[(size_t)i], i,
-                                      "lab", origin);
-                      }));
+      g.children({glowing(unroll(kLabels[i].centre), kLabels[i].w, kLabels[i].h,
+                          kLabels[i].rotate, "glowlab" + std::to_string(i),
+                          [&, i](SkPoint origin) {
+                            return pillOf(kLabels[i], labelTypes[(size_t)i], i,
+                                          "lab", origin);
+                          })});
     return g;
   }
 
@@ -358,8 +359,8 @@ struct EvaMagiDefense : sketch::Sketch {
   Element describe() {
     using namespace eva;
     auto camera = [](Element e) {
-      return box().inset(0).child(
-          std::move(e.rotate(kRoll).transformOriginPx({kW * 0.5f, kH * 0.5f})));
+      return box().inset(0).children({std::move(
+          e.rotate(kRoll).transformOriginPx({kW * 0.5f, kH * 0.5f}))});
     };
 
     auto root = stack().inset(0);
@@ -371,34 +372,34 @@ struct EvaMagiDefense : sketch::Sketch {
     // The ribbons: flat fills of one continuous field, panned by the front.
     // In a SLOT, so a fall's re-describe never reaches the funnel and the
     // funnel's pan never reaches the marks.
-    picture.child(camera(slot("funnel")));
+    picture.children({camera(slot("funnel"))});
     // …their halo, screened over them, and the marks on their own bakes
     // above both — a panel hides the ribbon under it, halo and all.
-    picture.child(camera(ribbonGlow()));
-    picture.child(camera(art()));
-    picture.child(camera(collapsingLayer(0)));
-    picture.child(camera(collapsingLayer(1)));
-    root.child(std::move(picture).key("phosphor"));
+    picture.children({camera(ribbonGlow())});
+    picture.children({camera(art())});
+    picture.children({camera(collapsingLayer(0))});
+    picture.children({camera(collapsingLayer(1))});
+    root.children({std::move(picture).key("phosphor")});
 
     // the photographed CRT: scanlines + vignette baked once, crept
     mskia::Paint crt = mskia::Paint::recipe(evangelion::tube());
-    root.child(box()
-                   .left(0)
-                   .top(-8)
-                   .width(kW)
-                   .height(kH + 16)
-                   .fill(crt)
-                   .translateY(&creep)
-                   .cache(Cache::Texture)
-                   .key("crt"));
+    root.children({box()
+                       .left(0)
+                       .top(-8)
+                       .width(kW)
+                       .height(kH + 16)
+                       .fill(crt)
+                       .translateY(&creep)
+                       .cache(Cache::Texture)
+                       .key("crt")});
     // phosphor flicker: an alpha-0 plane 99% of the time, so it costs nothing
-    root.child(box()
-                   .inset(0)
-                   .fill(Fill::color({0, 0, 0, 1}))
-                   .opacity(&flicker)
-                   .key("flicker"));
+    root.children({box()
+                       .inset(0)
+                       .fill(Fill::color({0, 0, 0, 1}))
+                       .opacity(&flicker)
+                       .key("flicker")});
 
-    if (verdict.failures() > 0) root.child(failureBanner());
+    if (verdict.failures() > 0) root.children({failureBanner()});
     return root;
   }
 
@@ -434,14 +435,14 @@ struct EvaMagiDefense : sketch::Sketch {
         .column()
         .padding(26)
         .gap(10)
-        .child(
-            text(u8"ROTATION RULE VIOLATED — this plate is not one component")
-                .font(eva::type(40, 0.95f))
-                .ink({0, 0, 0, 1}))
-        .child(sketch::kit::table(std::move(rows),
-                                  {.columns = {{820}, {180, true}, {}},
-                                   .gap = 18,
-                                   .swatchSide = 15}));
+        .children(
+            {text(u8"ROTATION RULE VIOLATED — this plate is not one component")
+                 .font(eva::type(40, 0.95f))
+                 .ink({0, 0, 0, 1}),
+             sketch::kit::table(std::move(rows),
+                                {.columns = {{820}, {180, true}, {}},
+                                 .gap = 18,
+                                 .swatchSide = 15})});
   }
 
   // --- host ------------------------------------------------------------------

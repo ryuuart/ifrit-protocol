@@ -1,7 +1,5 @@
 /** @file
- * The text verbs — the ones that name a block property and are the
- * block lane's spellings, one field each, inherited by every leaf under
- * the node; and the leaf's own: the glyph stroke, the overflow, the
+ * The text leaf's own verbs: the glyph stroke, the overflow, the
  * frame, the frame chain and the exclusion — with the leaf's options'
  * fold onto SigilWeave's layout options and the UTF-16 boundary the leaf
  * speaks to it across — and the leaf as it stands at rest, which is a
@@ -66,22 +64,6 @@ Element& Element::textStroke(float width, Fill fill) {
   return *this;
 }
 
-Element& Element::textAlign(sigil::weave::TextAlignment a) {
-  return block({.alignment = a});
-}
-
-Element& Element::writingMode(sigil::weave::WritingMode mode) {
-  return block({.writingMode = mode});
-}
-
-Element& Element::lineBreak(sigil::weave::LineBreakStrategy strategy) {
-  return block({.lineBreak = strategy});
-}
-
-Element& Element::hyphenation(sigil::weave::HyphenationOptions spec) {
-  return block({.hyphenation = spec});
-}
-
 Element& Element::ellipsis(std::u8string_view marker) {
   detail::TextOptions& options = m_node->textData.ensure().options;
   options.ellipsis = weave::unicode::toUtf16(marker);
@@ -109,11 +91,6 @@ Element& Element::paragraphs(std::span<const std::string_view> names) {
   options.blocks.clear();
   options.set &= ~(uint32_t)detail::TextOptions::kBlocks;
   return *this;
-}
-
-Element& Element::paragraph(sigil::weave::ParagraphStyle style) {
-  return paragraphs(
-      std::vector<sigil::weave::ParagraphStyle>{std::move(style)});
 }
 
 Element& Element::initialLetter(sigil::weave::InitialLetter initial) {
@@ -145,32 +122,12 @@ Element& Element::distribute(sigil::weave::FrameOptions::Distribute rule,
   return *this;
 }
 
-Element& Element::justification(sigil::weave::JustificationOptions spec) {
-  return block({.justification = std::move(spec)});
-}
-
-Element& Element::tabStops(sigil::weave::TabStopOptions stops) {
-  return block({.tabStops = std::move(stops)});
-}
-
 Element& Element::live(bool on, float budgetMicroseconds) {
   detail::TextOptions& options = m_node->textData.ensure().options;
   options.live = on;
   options.budgetMicroseconds = budgetMicroseconds;
   options.set |= detail::TextOptions::kLive;
   return *this;
-}
-
-Element& Element::kinsoku(sigil::weave::KinsokuTable table) {
-  return block({.kinsoku = std::move(table)});
-}
-
-Element& Element::hanging(sigil::weave::HangingTable table) {
-  return block({.hanging = std::move(table)});
-}
-
-Element& Element::mojikumi(sigil::weave::MojikumiTable table, float tsume) {
-  return block({.mojikumi = std::move(table), .tsume = tsume});
 }
 
 Element& Element::balanceChain(uint32_t throughLine) {
@@ -185,10 +142,6 @@ Element& Element::reserve(sigil::weave::ReservedBand band) {
   options.reserved = band;
   options.set |= detail::TextOptions::kReserved;
   return *this;
-}
-
-Element& Element::lineBreakLocale(std::string_view locale) {
-  return block({.lineBreakLocale = std::string(locale)});
 }
 
 Element& Element::thread(std::string_view key) {
@@ -211,11 +164,6 @@ Element& Element::maxLines(int lines) {
   options.maxLines = lines;
   options.set |= detail::TextOptions::kMaxLines;
   return *this;
-}
-
-Element& Element::lastLine(sigil::weave::TextAlignment alignment,
-                           bool justify) {
-  return block({.lastLineAlignment = alignment, .justifyLastLine = justify});
 }
 
 Element& Element::flowAround(std::string_view key, float margin) {

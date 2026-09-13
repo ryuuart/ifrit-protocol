@@ -18,70 +18,70 @@ auto ChaucerAstrolabe::describe(sketch::SketchContext&) -> Element {
   // recording), so undeclared this evaluates the noise across 2400x1600
   // every frame. Texture, not Picture: replaying a picture re-runs the
   // shader; an image blits.
-  root.child(box()
-                 .inset(0)
-                 .key("vgrain")
-                 .cache(Cache::Texture)
-                 .fill(vellumGrain)
-                 .opacity(0.13f)
-                 .blend(SkBlendMode::kSoftLight));
+  root.children({box()
+                     .inset(0)
+                     .key("vgrain")
+                     .cache(Cache::Texture)
+                     .fill(vellumGrain)
+                     .opacity(0.13f)
+                     .blend(SkBlendMode::kSoftLight)});
 
   // the case: the object sits in a vitrine, not on the page
-  root.child(
-      box()
-          .rect(SkRect::MakeXYWH(56, 140, 1132, 1258))
-          .key("case")
-          .corners({3})
-          .fill(Fill::color(kCase))
-          .opacity(animate(from(0.0f).to(1.0f), ramp(tGround * 1000, 700))));
-  root.child(
-      box()
-          .rect(SkRect::MakeXYWH(56, 140, 1132, 1258))
-          .key("vignette")
-          .corners({3})
-          .cache(Cache::Texture)
-          .fill(Paint::glowUnit({0.50f, 0.46f}, 1.05f,
-                                {{0.0f, hexColor(0x33405a, 0.55f)},
-                                 {0.62f, hexColor(0x1d222d, 0.0f)},
-                                 {1.0f, hexColor(0x080a10, 0.75f)}}))
-          .opacity(animate(from(0.0f).to(1.0f), ramp(tGround * 1000, 900))));
+  root.children(
+      {box()
+           .rect(SkRect::MakeXYWH(56, 140, 1132, 1258))
+           .key("case")
+           .corners({3})
+           .fill(Fill::color(kCase))
+           .opacity(animate(from(0.0f).to(1.0f), ramp(tGround * 1000, 700)))});
+  root.children(
+      {box()
+           .rect(SkRect::MakeXYWH(56, 140, 1132, 1258))
+           .key("vignette")
+           .corners({3})
+           .cache(Cache::Texture)
+           .fill(Paint::glowUnit({0.50f, 0.46f}, 1.05f,
+                                 {{0.0f, hexColor(0x33405a, 0.55f)},
+                                  {0.62f, hexColor(0x1d222d, 0.0f)},
+                                  {1.0f, hexColor(0x080a10, 0.75f)}}))
+           .opacity(animate(from(0.0f).to(1.0f), ramp(tGround * 1000, 900)))});
   // the contact shadow
-  root.child(
-      box()
-          .rect(SkRect::MakeXYWH(kCx - kMaterR * 1.02f, kCy + kMaterR * 0.86f,
-                                 kMaterR * 2.04f, kMaterR * 0.30f))
-          .key("contact")
-          .shape(shapes::circle())
-          .cache(Cache::Texture)
-          .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                {{0.0f, hexColor(0x05070c, 0.75f)},
-                                 {1.0f, hexColor(0x05070c, 0.0f)}}))
-          .opacity(animate(from(0.0f).to(1.0f), ramp(tMater * 1000, 900))));
+  root.children(
+      {box()
+           .rect(SkRect::MakeXYWH(kCx - kMaterR * 1.02f, kCy + kMaterR * 0.86f,
+                                  kMaterR * 2.04f, kMaterR * 0.30f))
+           .key("contact")
+           .shape(shapes::circle())
+           .cache(Cache::Texture)
+           .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                 {{0.0f, hexColor(0x05070c, 0.75f)},
+                                  {1.0f, hexColor(0x05070c, 0.0f)}}))
+           .opacity(animate(from(0.0f).to(1.0f), ramp(tMater * 1000, 900)))});
 
-  root.child(titleStrip());
-  root.child(limb());
-  root.child(plate());
+  root.children({titleStrip()});
+  root.children({limb()});
+  root.children({plate()});
   // the rete is a physically raised sheet: it casts onto the plate
-  root.child(box()
-                 .rect(SkRect::MakeXYWH(0, 0, kW, kH))
-                 .key("retewrap")
-                 .child(reteShadow())
-                 .child(reteGroup()));
+  root.children({box()
+                     .rect(SkRect::MakeXYWH(0, 0, kW, kH))
+                     .key("retewrap")
+                     .children({reteShadow()})
+                     .children({reteGroup()})});
   // the only saturated thing on the object, and it reads as a line drawn ON
   // the brass rather than engraved into it — no groove, no bevel
-  root.child(rule());
-  root.child(slot("sun"));
-  root.child(construction());
-  root.child(slot("readout"));
+  root.children({rule()});
+  root.children({slot("sun")});
+  root.children({construction()});
+  root.children({slot("readout")});
 
-  root.child(projectionPanel());
-  root.child(familiesPanel());
-  root.child(backPanel());
-  root.child(specCard());
-  root.child(starPanel());
-  root.child(chaucerPanel());
-  root.child(zodiacPanel());
-  root.child(consolePanel());
+  root.children({projectionPanel()});
+  root.children({familiesPanel()});
+  root.children({backPanel()});
+  root.children({specCard()});
+  root.children({starPanel()});
+  root.children({chaucerPanel()});
+  root.children({zodiacPanel()});
+  root.children({consolePanel()});
   return root;
 }
 

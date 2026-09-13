@@ -115,9 +115,9 @@ Element notice(std::u8string heading, const std::string& detail) {
       .foreground(stroke(1.0f, Fill::color(hexColor(0xffb46b, 0.24f))))
       .column()
       .gap(10)
-      .child(text(std::move(heading),
-                  weave::textStyle({.size = 22, .color = kInk})))
-      .child(text(detail, weave::textStyle({.size = 13, .color = kDim})));
+      .children({text(std::move(heading),
+                      weave::textStyle({.size = 22, .color = kInk})),
+                 text(detail, weave::textStyle({.size = 13, .color = kDim}))});
 }
 
 }  // namespace
@@ -148,8 +148,8 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
       ctx.composer.render(
           stack()
               .fill(Fill::color(hexColor(0x140f0a)))
-              .child(notice(u8"the archive did not load",
-                            error.empty() ? archive().string() : error)));
+              .children({notice(u8"the archive did not load",
+                                error.empty() ? archive().string() : error)}));
       return;
     }
 
@@ -157,10 +157,10 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
     graph.setResolution(kCookLog2, kCookLog2);
     if (!graph.render()) {
       ctx.canvas(940, 320);
-      ctx.composer.render(
-          stack()
-              .fill(Fill::color(hexColor(0x140f0a)))
-              .child(notice(u8"the graph did not cook", archive().string())));
+      ctx.composer.render(stack()
+                              .fill(Fill::color(hexColor(0x140f0a)))
+                              .children({notice(u8"the graph did not cook",
+                                                archive().string())}));
       return;
     }
 
@@ -205,22 +205,19 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
                        .left(kMargin)
                        .top(kHeaderHeight)
                        .width(kPerRow * kCard + (kPerRow - 1) * kGap)
-                       .child(sketch::kit::panelGrid(
-                           {.cells = std::move(cards), .columns = kPerRow}));
+                       .children({sketch::kit::panelGrid(
+                           {.cells = std::move(cards), .columns = kPerRow})});
 
-    ctx.composer.render(
-        stack()
-            .child(sketch::kit::backdrop(
-                {.over = ctx.size,
-                 .ground =
-                     linearGradient({0, 0}, {0, ctx.size.height()},
-                                    {hexColor(0x1a120b), hexColor(0x0f0d10)})}))
-            .child(sketch::kit::titleCard(
-                       {.title = {u8"A PROCEDURAL ARCHIVE, COOKED"},
-                        .subtitle = {caption}})
-                       .left(kMargin)
-                       .top(34))
-            .child(std::move(grid)));
+    ctx.composer.render(stack().children(
+        {sketch::kit::backdrop({.over = ctx.size,
+                                .ground = linearGradient(
+                                    {0, 0}, {0, ctx.size.height()},
+                                    {hexColor(0x1a120b), hexColor(0x0f0d10)})}),
+         sketch::kit::titleCard({.title = {u8"A PROCEDURAL ARCHIVE, COOKED"},
+                                 .subtitle = {caption}})
+             .left(kMargin)
+             .top(34),
+         std::move(grid)}));
   }
 };
 

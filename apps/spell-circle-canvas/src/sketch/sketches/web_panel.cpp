@@ -174,8 +174,8 @@ Element note(std::u8string heading, std::u8string body) {
       .foreground(stroke(1.0f, Fill::color(hexColor(0x7ee8ff, 0.22f))))
       .column()
       .gap(6)
-      .child(text(std::move(heading)).font({.size = 14}))
-      .child(text(std::move(body)).font({.size = 11.5f, .color = kDim}));
+      .children({text(std::move(heading)).font({.size = 14}),
+                 text(std::move(body)).font({.size = 11.5f, .color = kDim})});
 }
 
 }  // namespace
@@ -227,40 +227,41 @@ struct WebPanelSketch final : sketch::Sketch {
             {hexColor(0x140e26), hexColor(0x241033), hexColor(0x0d1424)}))
         // The scene's one ink, stated once; the dim lines say so.
         .ink(kInk)
-        .child(text(u8"A PAGE AS A LEAF")
-                   .font({.size = 15, .track = 2.4f})
-                   .left(40)
-                   .top(32))
+        .children({text(u8"A PAGE AS A LEAF")
+                       .font({.size = 15, .track = 2.4f})
+                       .left(40)
+                       .top(32)})
         // The page at its own pixel size: the view is created at exactly
         // the box it is laid into, so nothing resamples.
-        .child(box()
-                   .inset(40, 96, 300, 94)
-                   .corners({16})
-                   .clip()
-                   .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 26))
-                   .child(web(m_view).width(kPageWidth).height(kPageHeight)))
-        .child(box()
-                   .left(704)
-                   .top(96)
-                   .column()
-                   .gap(14)
-                   .child(note(u8"HTML → canvas",
-                               u8"The engine publishes each repaint as a "
-                               u8"frame; the leaf draws the newest one into "
-                               u8"the bounds the layout gave it."))
-                   .child(note(u8"canvas → HTML",
-                               u8"A slot the page names by URL, filled by "
-                               u8"drawing into the canvas the engine hands "
-                               u8"back — no adapter either way."))
-                   .child(note(u8"one renderer",
-                               u8"A process boots exactly one engine, so it "
-                               u8"is held beside the sketch rather than "
-                               u8"inside it.")))
-        .child(text(u8"the page background is transparent — the scene's "
-                    u8"gradient is what shows between its cards")
-                   .font({.size = 12, .color = kDim})
-                   .left(40)
-                   .top(590));
+        .children(
+            {box()
+                 .inset(40, 96, 300, 94)
+                 .corners({16})
+                 .clip()
+                 .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 26))
+                 .children({web(m_view).width(kPageWidth).height(kPageHeight)}),
+             box()
+                 .left(704)
+                 .top(96)
+                 .column()
+                 .gap(14)
+                 .children({note(u8"HTML → canvas",
+                                 u8"The engine publishes each repaint as a "
+                                 u8"frame; the leaf draws the newest one into "
+                                 u8"the bounds the layout gave it.")})
+                 .children({note(u8"canvas → HTML",
+                                 u8"A slot the page names by URL, filled by "
+                                 u8"drawing into the canvas the engine hands "
+                                 u8"back — no adapter either way.")})
+                 .children({note(u8"one renderer",
+                                 u8"A process boots exactly one engine, so it "
+                                 u8"is held beside the sketch rather than "
+                                 u8"inside it.")}),
+             text(u8"the page background is transparent — the scene's "
+                  u8"gradient is what shows between its cards")
+                 .font({.size = 12, .color = kDim})
+                 .left(40)
+                 .top(590)});
   }
 
   /** What a host shows in place of the piece when the engine has nothing
@@ -271,17 +272,18 @@ struct WebPanelSketch final : sketch::Sketch {
     return stack()
         .fill(Fill::color(hexColor(0x0b0a16)))
         .ink(kInk)
-        .child(
-            box()
-                .inset(40, 40, 40, 40)
-                .corners({16})
-                .padding(28)
-                .fill(Fill::color(hexColor(0x121a2c, 0.9f)))
-                .foreground(stroke(1.0f, Fill::color(hexColor(0x7ee8ff, 0.2f))))
-                .column()
-                .gap(10)
-                .child(text(u8"no web engine here").font({.size = 22}))
-                .child(text(why).font({.size = 13, .color = kDim})));
+        .children(
+            {box()
+                 .inset(40, 40, 40, 40)
+                 .corners({16})
+                 .padding(28)
+                 .fill(Fill::color(hexColor(0x121a2c, 0.9f)))
+                 .foreground(
+                     stroke(1.0f, Fill::color(hexColor(0x7ee8ff, 0.2f))))
+                 .column()
+                 .gap(10)
+                 .children({text(u8"no web engine here").font({.size = 22})})
+                 .children({text(why).font({.size = 13, .color = kDim})})});
   }
 
  private:

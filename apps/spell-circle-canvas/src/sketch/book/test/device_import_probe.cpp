@@ -55,9 +55,9 @@ struct DeviceImportProbe : sketch::Sketch {
         stack()
             .alignItems(Align::Center)
             .justify(Justify::Center)
-            .child(text(
+            .children({text(
                 imported ? u8"imported" : u8"no device",
-                weave::textStyle({.size = 22, .color = hexColor(0xd8e2f0)}))));
+                weave::textStyle({.size = 22, .color = hexColor(0xd8e2f0)}))}));
   }
 };
 

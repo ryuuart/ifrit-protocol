@@ -6,38 +6,38 @@ auto WinampBase::eqWindow() -> Element {
   // the body's lavender-grey; a key and the title bar say their own.
   Element w =
       box().width(Dimension(n(275))).height(Dimension(n(116))).ink(kCaption);
-  w.child(box().inset(0).fill(steel).cache(Cache::Texture));
+  w.children({box().inset(0).fill(steel).cache(Cache::Texture)});
   raised(w, kWellHi, kWellLo);
-  w.child(titleBar(275, "WINAMP EQUALIZER", false, false));
+  w.children({titleBar(275, "WINAMP EQUALIZER", false, false)});
 
   // ON / AUTO / PRESETS
   Element on = key(14, 18, 26, 12, box());
   on.row().alignItems(Align::Center).padding(n(2), 0, 0, 0);
-  on.child(
-      box().width(Dimension(n(3))).height(Dimension(n(3))).fill(wa::kGreen));
-  on.child(box().width(Dimension(n(2))));
-  on.child(t("ON", pix(4.4f)));
-  w.child(on);
+  on.children(
+      {box().width(Dimension(n(3))).height(Dimension(n(3))).fill(wa::kGreen)});
+  on.children({box().width(Dimension(n(2)))});
+  on.children({t("ON", pix(4.4f))});
+  w.children({on});
 
   Element autoB = key(40, 18, 32, 12, box());
   autoB.row().alignItems(Align::Center).padding(n(2), 0, 0, 0);
-  autoB.child(box()
-                  .width(Dimension(n(3)))
-                  .height(Dimension(n(3)))
-                  .fill(hexColor(0x3C4A58)));
-  autoB.child(box().width(Dimension(n(2))));
-  autoB.child(t("AUTO", pix(4.4f)));
-  w.child(autoB);
+  autoB.children({box()
+                      .width(Dimension(n(3)))
+                      .height(Dimension(n(3)))
+                      .fill(hexColor(0x3C4A58))});
+  autoB.children({box().width(Dimension(n(2)))});
+  autoB.children({t("AUTO", pix(4.4f))});
+  w.children({autoB});
 
-  w.child(textKey(217, 18, 44, 12, "PRESETS", 4.4f));
+  w.children({textKey(217, 18, 44, 12, "PRESETS", 4.4f)});
 
   // the response graph (native 86,17,113,19) — its curve is the SAME 10
   // Outputs the faders below ride, so the two widgets can never disagree.
   Element graph = at(box(), 86, 17, 113, 19).fill(graphMat);
   sunken(graph, mskia::withAlpha(hexColor(0x4A4A70), 0.6f), hexColor(0x08080E));
-  graph.child(box().inset(0).fill(graphGrid.material()));
-  graph.child(eqCurve().inset(0).cache(Cache::None));
-  w.child(graph);
+  graph.children({box().inset(0).fill(graphGrid.material())});
+  graph.children({eqCurve().inset(0).cache(Cache::None)});
+  w.children({graph});
 
   // the eleven faders: preamp at native x21, bands on an 18 px pitch
   // from x78 — the real, non-skinnable positions.
@@ -46,7 +46,7 @@ auto WinampBase::eqWindow() -> Element {
     Element trough = at(box(), x, 38, 14, 63).fill(hexColor(0x14141F));
     sunken(trough, mskia::withAlpha(hexColor(0x4A4A70), 0.55f),
            hexColor(0x08080E));
-    trough.child(at(box(), 2, 1, 10, 61).fill(faderTrack));
+    trough.children({at(box(), 2, 1, 10, 61).fill(faderTrack)});
     // thumb 11x11, travel 0..52 native. bind() turns the [-1,1] gain
     // straight into pixels — no second Output in slider units.
     Element th = at(box(), 1, 0, 12, 11)
@@ -58,9 +58,9 @@ auto WinampBase::eqWindow() -> Element {
                                      .source(-1.0f, 1.0f)
                                      .target(n(52), n(0)));
     raised(th);
-    th.child(at(box(), 2, 5, 8, 1).fill(mskia::withAlpha(kBtnLo, 0.85f)));
-    trough.child(th);
-    w.child(trough);
+    th.children({at(box(), 2, 5, 8, 1).fill(mskia::withAlpha(kBtnLo, 0.85f))});
+    trough.children({th});
+    w.children({trough});
   }
 
   // +12dB / 0dB / -12dB, baked pixel art in the real EQMAIN.BMP, printed
@@ -70,22 +70,22 @@ auto WinampBase::eqWindow() -> Element {
   const SkColor4f dbc[3] = {dark(kEqTop, 0.15f), dark(kEqMid, 0.28f),
                             dark(kEqBot, 0.10f)};
   for (int i = 0; i < 3; ++i)
-    w.child(at(box(), 38, dby[i], 38, 7)
-                .justify(Justify::End)
-                .alignItems(Align::Center)
-                .child(t(db[i], pix(3.6f)).ink(dbc[i])));
+    w.children({at(box(), 38, dby[i], 38, 7)
+                    .justify(Justify::End)
+                    .alignItems(Align::Center)
+                    .children({t(db[i], pix(3.6f)).ink(dbc[i])})});
 
   // PREAMP + the ten band captions, tight against the fader feet.
-  w.child(at(box(), 3, 104, 30, 7)
-              .alignItems(Align::Center)
-              .child(t("PREAMP", pix(3.6f))));
+  w.children({at(box(), 3, 104, 30, 7)
+                  .alignItems(Align::Center)
+                  .children({t("PREAMP", pix(3.6f))})});
   static const char* bands[10] = {"60", "170", "310", "600", "1K",
                                   "3K", "6K",  "12K", "14K", "16K"};
   for (int i = 0; i < 10; ++i)
-    w.child(at(box(), 76.0f + 18.0f * (float)i, 104, 18, 7)
-                .justify(Justify::Center)
-                .alignItems(Align::Center)
-                .child(t(bands[i], pix(3.6f))));
+    w.children({at(box(), 76.0f + 18.0f * (float)i, 104, 18, 7)
+                    .justify(Justify::Center)
+                    .alignItems(Align::Center)
+                    .children({t(bands[i], pix(3.6f))})});
   return w;
 }
 

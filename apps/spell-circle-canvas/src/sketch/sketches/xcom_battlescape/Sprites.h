@@ -235,11 +235,12 @@ struct Ink {
 // ---------------------------------------------------------------------------
 // THE PALETTE, IN THE SHADER. Every atlas cell's art is authored ONCE, in
 // indices, and the 256-entry table reaches SkSL as a 256 x 1 CHILD IMAGE:
-// `Paint::sksl(...).child("uPalette", Paint::image(strip, ..., kNearest))`.
-// The lookup has to be a child rather than a uniform array because the index
-// is a PIXEL VALUE — SkSL indexes a uniform array only by a constant — and it
-// has to be kNearest because the sampled value is data, not colour: a linear
-// tap between two palette entries is a blend of two unrelated hues.
+// `Paint::sksl(...).child("uPalette", Paint::image(strip, ...,
+// kNearest))`. The lookup has to be a child rather than a uniform array
+// because the index is a PIXEL VALUE — SkSL indexes a uniform array only by a
+// constant — and it has to be kNearest because the sampled value is data, not
+// colour: a linear tap between two palette entries is a blend of two unrelated
+// hues.
 //
 // The body below is shd() and replaceBlock() transcribed, and like them it
 // does not multiply: one add, one compare, one snap to absolute black.
@@ -909,13 +910,13 @@ inline Element statBar(float x, float y, int value, int maxValue, int colorIdx,
   // The top outline row carries "<key>-max" so the audit can measure the
   // DRAWN outline length the same way it measures the drawn fill.
   Element g = box().inset(0).hitTestable(false);
-  g.child(at(x, y, (float)(maxValue + 1), 1)
-              .fill(C(outline))
-              .key(std::string(key) + "-max"));
-  g.child(at(x, y + 2, (float)(maxValue + 1), 1).fill(C(outline)));
-  g.child(at(x + (float)maxValue, y + 1, 1, 1).fill(C(outline)));
+  g.children({at(x, y, (float)(maxValue + 1), 1)
+                  .fill(C(outline))
+                  .key(std::string(key) + "-max")});
+  g.children({at(x, y + 2, (float)(maxValue + 1), 1).fill(C(outline))});
+  g.children({at(x + (float)maxValue, y + 1, 1, 1).fill(C(outline))});
   if (value > 0)
-    g.child(at(x, y + 1, (float)value, 1).fill(C(colorIdx)).key(key));
+    g.children({at(x, y + 1, (float)value, 1).fill(C(colorIdx)).key(key)});
   return g;
 }
 
@@ -926,7 +927,7 @@ inline Element statBar(float x, float y, int value, int maxValue, int colorIdx,
 inline Element recess(float x, float y, int firstIdx) {
   Element g = box().inset(0).hitTestable(false);
   for (int r = 0; r < 7; ++r)
-    g.child(at(x, y + (float)r, 17, 1).fill(C(firstIdx + r)));
+    g.children({at(x, y + (float)r, 17, 1).fill(C(firstIdx + r))});
   return g;
 }
 

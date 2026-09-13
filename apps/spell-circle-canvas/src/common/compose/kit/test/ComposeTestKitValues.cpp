@@ -229,7 +229,7 @@ TEST(KitPixelType, MaskedIsANodeTheSizeOfTheMask) {
   const kit::Mask m = kit::bakeRun(u8"88", fonts(), pixelStyle(10.0f));
   ASSERT_TRUE(m);
   const SkSize sz =
-      intrinsicSize(box().child(kit::masked(m, {.scale = 2.0f})), fonts());
+      intrinsicSize(box().children({kit::masked(m, {.scale = 2.0f})}), fonts());
   EXPECT_FLOAT_EQ(sz.width(), (float)m.w * 2.0f);
   EXPECT_FLOAT_EQ(sz.height(), (float)m.h * 2.0f);
 }
@@ -263,11 +263,12 @@ TEST(KitLegibility, ShadeIsAnOffsetFillNotAStroke) {
 TEST(KitLegibility, ScrimGrowsTheRunByItsPadding) {
   sigil::weave::TextStyle st;
   st.shaping.fontSize = 12;
-  const SkSize bare = intrinsicSize(box().child(text(u8"NAVI", st)), fonts());
-  const SkSize plated =
-      intrinsicSize(box().child(kit::scrim(text(u8"NAVI", st),
-                                           {.paddingX = 3, .paddingY = 4})),
-                    fonts());
+  const SkSize bare =
+      intrinsicSize(box().children({text(u8"NAVI", st)}), fonts());
+  const SkSize plated = intrinsicSize(
+      box().children(
+          {kit::scrim(text(u8"NAVI", st), {.paddingX = 3, .paddingY = 4})}),
+      fonts());
   EXPECT_FLOAT_EQ(plated.width(), bare.width() + 6);
   EXPECT_FLOAT_EQ(plated.height(), bare.height() + 8);
 }
@@ -340,8 +341,8 @@ TEST(KitLegibility, DrawHaloedPutsGroundColourAroundTheInk) {
 
 TEST(KitAt, PinsInkAtTheAbsoluteRectAndNowhereElse) {
   Host host;
-  host.composer.render(
-      box().width(200).height(200).child(kit::at(20, 30, 40, 50).fill(red())));
+  host.composer.render(box().width(200).height(200).children(
+      {kit::at(20, 30, 40, 50).fill(red())}));
   host.frame();
   EXPECT_EQ(host.pixel(21, 31), SK_ColorRED);
   EXPECT_EQ(host.pixel(59, 79), SK_ColorRED);
@@ -355,8 +356,8 @@ TEST(KitAt, TheElementOverloadPlacesANodeItDidNotBuild) {
   // The node carries its own paint and knows nothing about the plate; the
   // plate says where it goes. That split is the overload's whole reason.
   Element painted = box().fill(green());
-  host.composer.render(box().width(200).height(200).child(
-      kit::at(std::move(painted), 100, 10, 30, 20)));
+  host.composer.render(box().width(200).height(200).children(
+      {kit::at(std::move(painted), 100, 10, 30, 20)}));
   host.frame();
   EXPECT_EQ(host.pixel(101, 11), SK_ColorGREEN);
   EXPECT_EQ(host.pixel(129, 29), SK_ColorGREEN);
@@ -380,14 +381,11 @@ TEST(KitOrnament, AnOrnamentKeepsItsSilhouetteAsTheOpeningExclusion) {
         .absolute()
         .left(Dimension(0.0f))
         .top(Dimension(0.0f));
-    return box()
-        .width(220)
-        .height(260)
-        .child(std::move(ornament))
-        .child(text(passage, pixelStyle(12))
-                   .key("body")
-                   .width(220)
-                   .flowAround("ornament", 4));
+    return box().width(220).height(260).children(
+        {std::move(ornament), text(passage, pixelStyle(12))
+                                  .key("body")
+                                  .width(220)
+                                  .flowAround("ornament", 4)});
   };
 
   Host boxed(220, 260), round(220, 260);
@@ -462,7 +460,7 @@ weave::StyleSheet captionClasses() {
 /** One line of type at @p size, as the layout will size it. */
 float lineHeight(float size) {
   return intrinsicSize(
-             box().child(text(u8"Hg", weave::textStyle({.size = size}))),
+             box().children({text(u8"Hg", weave::textStyle({.size = size}))}),
              fonts())
       .height();
 }
@@ -480,10 +478,10 @@ TEST(KitSpecimen, TheCaptionsLinesStandWhereTheVoiceSays) {
             .width(300)
             .height(300)
             .styleSheet(captionClasses())
-            .child(kit::cell(specimenVoice(where), "LABEL",
-                             withNote ? "a note" : "",
-                             box().key("body").width(100).height(40))
-                       .key("cell")));
+            .children({kit::cell(specimenVoice(where), "LABEL",
+                                 withNote ? "a note" : "",
+                                 box().key("body").width(100).height(40))
+                           .key("cell")}));
     host.frame();
     return std::pair{host.composer.bounds("body").value().top(),
                      host.composer.bounds("cell").value().height()};
@@ -531,10 +529,10 @@ TEST(KitSpecimen, AMeasureKeepsALongLabelFromWideningItsCell) {
 
 TEST(KitSpecimen, AWellAppliesTheCallersSizeGroundAndPadding) {
   Host host(160, 120);
-  host.composer.render(box().width(160).height(120).child(
-      kit::well({.width = 100, .height = 80, .ground = red(), .padding = 10},
-                box().key("well").child(
-                    box().key("body").width(20).height(15).fill(green())))));
+  host.composer.render(box().width(160).height(120).children({kit::well(
+      {.width = 100, .height = 80, .ground = red(), .padding = 10},
+      box().key("well").children(
+          {box().key("body").width(20).height(15).fill(green())}))}));
   host.frame();
 
   const auto well = host.composer.bounds("well");
@@ -551,21 +549,22 @@ TEST(KitSpecimen, AWellAppliesTheCallersSizeGroundAndPadding) {
 TEST(KitSpecimen, AWellClipsByDefaultAndCanBeOpened) {
   const auto specimen = [](bool clip) {
     return kit::well({.width = 100, .height = 80, .clip = clip},
-                     box().child(box()
-                                     .absolute()
-                                     .left(Dimension(90))
-                                     .top(Dimension(20))
-                                     .width(30)
-                                     .height(20)
-                                     .fill(green())));
+                     box().children({box()
+                                         .absolute()
+                                         .left(Dimension(90))
+                                         .top(Dimension(20))
+                                         .width(30)
+                                         .height(20)
+                                         .fill(green())}));
   };
   Host host(160, 120);
-  host.composer.render(box().width(160).height(120).child(specimen(true)));
+  host.composer.render(box().width(160).height(120).children({specimen(true)}));
   host.frame();
   EXPECT_EQ(host.pixel(95, 25), SK_ColorGREEN);
   EXPECT_EQ(host.pixel(105, 25), SK_ColorBLACK);
 
-  host.composer.render(box().width(160).height(120).child(specimen(false)));
+  host.composer.render(
+      box().width(160).height(120).children({specimen(false)}));
   host.frame();
   EXPECT_EQ(host.pixel(105, 25), SK_ColorGREEN);
 }
@@ -588,7 +587,7 @@ TEST(KitSpecimen, ARunSpacesItsCellsAndRulesBetweenThem) {
                        .dividerWidth = 2});
   };
   Host host(300, 300);
-  host.composer.render(box().width(300).height(300).child(run(false)));
+  host.composer.render(box().width(300).height(300).children({run(false)}));
   host.frame();
   // cell, gap, rule, gap, cell — and the rule spans the taller cell.
   EXPECT_FLOAT_EQ(host.composer.bounds("b").value().left(), 50 + 10 + 2 + 10);
@@ -596,7 +595,7 @@ TEST(KitSpecimen, ARunSpacesItsCellsAndRulesBetweenThem) {
   EXPECT_EQ(host.pixel(61, 25), SK_ColorRED);
   EXPECT_EQ(host.pixel(55, 5), SK_ColorBLACK);
 
-  host.composer.render(box().width(300).height(300).child(run(true)));
+  host.composer.render(box().width(300).height(300).children({run(true)}));
   host.frame();
   EXPECT_FLOAT_EQ(host.composer.bounds("b").value().top(), 20 + 10 + 2 + 10);
   EXPECT_EQ(host.pixel(5, 31), SK_ColorRED);
@@ -665,8 +664,9 @@ TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
  *  value on a surface that is not square. */
 TEST(KitGround, AVignetteShadesTheCornersAndHoldsTheMiddle) {
   Host host(300, 200);
-  host.composer.render(box().absolute().inset(0).fill(green()).child(
-      box().absolute().inset(0).fill(kit::vignette({300, 200}, {0, 0, 0, 1}))));
+  host.composer.render(box().absolute().inset(0).fill(green()).children(
+      {box().absolute().inset(0).fill(
+          kit::vignette({300, 200}, {0, 0, 0, 1}))}));
   host.frame();
   EXPECT_EQ(host.pixel(150, 100), SK_ColorGREEN);
   const SkColor topLeft = host.pixel(1, 1);
@@ -703,13 +703,13 @@ TEST(KitGround, AGrainIsNeutralAtZeroAndBrokenAboveIt) {
 
 TEST(KitSpecimen, PanelsShareWidthAndKeepTheLastRowAligned) {
   Host host(320, 200);
-  host.composer.render(box().child(kit::panelGrid(
+  host.composer.render(box().children({kit::panelGrid(
       {.cells = {box().key("a").width(240).height(20),
                  box().key("b").width(10).height(30), box().key("c").height(10),
                  box().key("d").height(15)},
        .columns = 3,
        .gap = 10,
-       .rowGap = 12})));
+       .rowGap = 12})}));
   host.frame();
   const auto a = host.composer.bounds("a");
   const auto b = host.composer.bounds("b");
@@ -725,14 +725,14 @@ TEST(KitSpecimen, PanelsShareWidthAndKeepTheLastRowAligned) {
 
 TEST(KitSpecimen, PanelDividersKeepTheirWidthAcrossWrappedRows) {
   Host host(300, 200);
-  host.composer.render(box().child(kit::panelGrid(
+  host.composer.render(box().children({kit::panelGrid(
       {.cells = {box().key("a").height(20), box().key("b").height(30),
                  box().key("c").height(15), box().key("d").height(25)},
        .columns = 2,
        .gap = 10,
        .rowGap = 12,
        .divider = red(),
-       .dividerWidth = 4})));
+       .dividerWidth = 4})}));
   host.frame();
   const auto a = host.composer.bounds("a");
   const auto b = host.composer.bounds("b");
@@ -751,8 +751,8 @@ TEST(KitSpecimen, PanelDividersKeepTheirWidthAcrossWrappedRows) {
 TEST(KitSpecimen, SurfacePaintPreservesBindingsAndMaterialResolution) {
   choreograph::Output<Fill> ink(Fill::color({1, 0, 0, 1}));
   Host host(200, 100);
-  host.composer.render(
-      box().child(kit::well({.width = 100, .height = 60, .ground = &ink})));
+  host.composer.render(box().children(
+      {kit::well({.width = 100, .height = 60, .ground = &ink})}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
   ink = Fill::color({0, 1, 0, 1});
@@ -762,8 +762,8 @@ TEST(KitSpecimen, SurfacePaintPreservesBindingsAndMaterialResolution) {
   const SurfacePaint paint = material::skia::Paint::linearUnit(
       {0, 0}, {1, 0}, {{0, {1, 0, 0, 1}}, {1, {0, 0, 1, 1}}});
   for (float width : {80.0f, 160.0f}) {
-    host.composer.render(box().child(
-        kit::well({.width = width, .height = 60, .ground = paint})));
+    host.composer.render(box().children(
+        {kit::well({.width = width, .height = 60, .ground = paint})}));
     host.frame();
     const SkColor middle = host.pixel((int)(width / 2), 20);
     EXPECT_NEAR(SkColorGetR(middle), SkColorGetB(middle), 5);

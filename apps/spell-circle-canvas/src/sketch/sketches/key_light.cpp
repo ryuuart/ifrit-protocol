@@ -55,28 +55,28 @@ struct Dials {
 /** A ring of posts round one body — the same tree at every moment. */
 world::Element subject() {
   world::Element set;
-  set.key("subject").child(
-      world::Element()
-          .key("body")
-          .at({0.0f, 34.0f, 0.0f})
-          .mesh(gm::superellipsoid({46, 46, 46}, 3.0f, 28, 18))
-          .fill(material::kit::surface(
-              {.baseColor = {0.72f, 0.70f, 0.66f, 1.0f}, .roughness = 0.45f}))
-          .tag("lit"));
+  set.key("subject").children(
+      {world::Element()
+           .key("body")
+           .at({0.0f, 34.0f, 0.0f})
+           .mesh(gm::superellipsoid({46, 46, 46}, 3.0f, 28, 18))
+           .fill(material::kit::surface(
+               {.baseColor = {0.72f, 0.70f, 0.66f, 1.0f}, .roughness = 0.45f}))
+           .tag("lit")});
   for (int i = 0; i < kPosts; ++i) {
     // The angle is wanted too, to turn each post onto its own spoke, so
     // the ring is taken as the two halves rather than as onRing.
     const float angle =
         arrange::along(0.0f, kTwoPi, (size_t)i, kPosts, arrange::Turn::Closed);
     const SkPoint on = arrange::onEllipse({0, 0}, {kRing, kRing}, angle);
-    set.child(world::Element()
-                  .key("post" + std::to_string(i))
-                  .at({on.fX, 0.0f, on.fY})
-                  .rotateY(angle * 57.2957795f)
-                  .mesh(gm::superellipsoid({11, 52, 11}, 5.0f, 12, 8))
-                  .fill(material::kit::surface(
-                      {.baseColor = {0.36f, 0.38f, 0.44f, 1.0f}}))
-                  .tag("lit"));
+    set.children({world::Element()
+                      .key("post" + std::to_string(i))
+                      .at({on.fX, 0.0f, on.fY})
+                      .rotateY(angle * 57.2957795f)
+                      .mesh(gm::superellipsoid({11, 52, 11}, 5.0f, 12, 8))
+                      .fill(material::kit::surface(
+                          {.baseColor = {0.36f, 0.38f, 0.44f, 1.0f}}))
+                      .tag("lit")});
   }
   return set;
 }
@@ -94,7 +94,7 @@ world::Element rigWithDials(const world::kit::Rig& spec, Dials& dials) {
     if (lamp.node()->key == "key")
       copy.intensity(&dials.intensity)
           .emission(&dials.red, &dials.green, &dials.blue);
-    out.child(std::move(copy));
+    out.children({std::move(copy)});
   }
   return out;
 }
@@ -138,8 +138,8 @@ struct KeyLight final : sketch::Set {
     world::Element dressed;
     dressed.key(root.node()->key);
     for (const world::Element& child : root.node()->children)
-      dressed.child(child.node()->key == "rig" ? rigWithDials(set.rig, *dials)
-                                               : child);
+      dressed.children(
+          {child.node()->key == "rig" ? rigWithDials(set.rig, *dials) : child});
     return world::Frame(std::move(dressed));
   }
 };

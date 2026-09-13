@@ -96,7 +96,7 @@ Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
-          .child(std::move(body)));
+          .children({std::move(body)}));
 }
 
 /** One passage with an inline slot in the middle of it. */
@@ -108,7 +108,7 @@ Element slotted(SkSize size, float drop, SkColor4f fill) {
                   .add(u8" and it keeps its whole advance however narrow "
                        u8"the measure gets."))
       .width(Dimension(kCell - 24))
-      .child(box().key("chip").fill(Fill::color(fill)));
+      .children({box().key("chip").fill(Fill::color(fill))});
 }
 
 /** The same passage under one reserved band, on a tinted plate so the

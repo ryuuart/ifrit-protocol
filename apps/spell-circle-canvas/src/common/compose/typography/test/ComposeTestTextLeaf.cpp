@@ -13,8 +13,8 @@ TEST(TextLayout, FullyConstrainedAbsoluteTextPaints) {
   Host host;
   sigil::weave::TextStyle style = styleAt(40);
   style.paint.foreground.setColor(SK_ColorWHITE);
-  host.composer.render(
-      stack().child(text(u8"WWWW", style).absolute().inset(10, 10, 10, 120)));
+  host.composer.render(stack().children(
+      {text(u8"WWWW", style).absolute().inset(10, 10, 10, 120)}));
   host.frame();
   int lit = 0;
   for (int x = 10; x < 190; x += 4)
@@ -31,7 +31,7 @@ TEST(TextLayout, AlignItemsCentersTextLeaf) {
                            .width(200)
                            .height(60)
                            .alignItems(Align::Center)
-                           .child(text(u8"W", style)));
+                           .children({text(u8"W", style)}));
   host.frame();
 
   int litLeft = 0, litMiddle = 0;
@@ -55,7 +55,7 @@ TEST(TextLayout, ParagraphOverloadPaintsMixedSpans) {
   para->appendText(u8"BIG", big);
   para->appendText(u8" and small", small);
 
-  host.composer.render(box().padding(10).child(text(para).key("spans")));
+  host.composer.render(box().padding(10).children({text(para).key("spans")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("spans");
   ASSERT_NE(layout, nullptr);
@@ -73,14 +73,15 @@ TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {
   // combination most likely to leave the text laid out at zero size and
   // therefore invisible.
   Host host;
-  host.composer.render(stack().child(
-      box()
-          .column()
-          .absolute()
-          .inset(10, 10, 10, 10)
-          .child(layout(layouts::BaselineGrid{.rhythm = 24})
-                     .width(pct(100))
-                     .child(text(u8"probe", whiteStyle(28)).key("p")))));
+  host.composer.render(stack().children(
+      {box()
+           .column()
+           .absolute()
+           .inset(10, 10, 10, 10)
+           .children(
+               {layout(layouts::BaselineGrid{.rhythm = 24})
+                    .width(pct(100))
+                    .children({text(u8"probe", whiteStyle(28)).key("p")})})}));
   host.frame();
   auto b = host.composer.bounds("p");
   ASSERT_TRUE(b.has_value());

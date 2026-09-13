@@ -68,16 +68,16 @@ constexpr float kPhaseStep = 1.0f / 2400.0f;
 constexpr int kFrames = 90;
 
 Element ringAt(sigil::motion::Animatable<float> at, float pixelSize) {
-  return box().child(text(u8"H", whiteStyle(pixelSize))
-                         .key("ring")
-                         .width(kField)
-                         .height(kField)
-                         .absolute()
-                         .left(0)
-                         .top(0)
-                         .onPath({.path = geometry::shapes::circle(),
-                                  .at = std::move(at),
-                                  .align = TextPath::Align::Center}));
+  return box().children({text(u8"H", whiteStyle(pixelSize))
+                             .key("ring")
+                             .width(kField)
+                             .height(kField)
+                             .absolute()
+                             .left(0)
+                             .top(0)
+                             .onPath({.path = geometry::shapes::circle(),
+                                      .at = std::move(at),
+                                      .align = TextPath::Align::Center})});
 }
 
 /// ONE LETTER riding a ring whose phase is BOUND — the marquee's own
@@ -101,17 +101,17 @@ std::vector<SkPoint> ringTrack(float pixelSize) {
 /// PLAIN NUMBER — the run declares nothing through the baseline, so whatever
 /// grid its glyphs land on is the track's answer and nobody else's.
 Element ringWith(float at, float pixelSize, Track track) {
-  return box().child(text(u8"H", whiteStyle(pixelSize))
-                         .key("ring")
-                         .width(kField)
-                         .height(kField)
-                         .absolute()
-                         .left(0)
-                         .top(0)
-                         .onPath({.path = geometry::shapes::circle(),
-                                  .at = at,
-                                  .align = TextPath::Align::Center})
-                         .fx(std::move(track)));
+  return box().children({text(u8"H", whiteStyle(pixelSize))
+                             .key("ring")
+                             .width(kField)
+                             .height(kField)
+                             .absolute()
+                             .left(0)
+                             .top(0)
+                             .onPath({.path = geometry::shapes::circle(),
+                                      .at = at,
+                                      .align = TextPath::Align::Center})
+                             .fx(std::move(track))});
 }
 
 /// The most distinct frames a WHOLE-PIXEL origin can produce over that
@@ -169,15 +169,16 @@ std::vector<SkPoint> turnedFigureTrack(float pixelSize) {
   std::vector<SkPoint> track;
   for (int i = 0; i < kFrames; ++i) {
     spin = 0.15f * (float)i;
-    host.composer.render(box().child(box()
-                                         .key("figure")
-                                         .absolute()
-                                         .left(0)
-                                         .top(0)
-                                         .width(kField)
-                                         .height(kField)
-                                         .rotate(&spin)
-                                         .child(ringAt(0.05f, pixelSize))));
+    host.composer.render(
+        box().children({box()
+                            .key("figure")
+                            .absolute()
+                            .left(0)
+                            .top(0)
+                            .width(kField)
+                            .height(kField)
+                            .rotate(&spin)
+                            .children({ringAt(0.05f, pixelSize)})}));
     host.frame();
     track.push_back(inkCentroid(host, kField, kField));
   }
@@ -207,15 +208,15 @@ std::vector<SkPoint> slidingTrack(float pixelSize) {
   std::vector<SkPoint> track;
   for (int i = 0; i < kSlideFrames; ++i) {
     progress = 1.0f - std::cbrt((kFromPx - kTravel * (float)i) / kDistance);
-    host.composer.render(box().child(
-        text(u8"H", whiteStyle(pixelSize))
-            .key("run")
-            .width(kField)
-            .height(kField)
-            .absolute()
-            .left(0)
-            .top(0)
-            .fx({.effect = fx::slide(kDistance), .progress = &progress})));
+    host.composer.render(box().children(
+        {text(u8"H", whiteStyle(pixelSize))
+             .key("run")
+             .width(kField)
+             .height(kField)
+             .absolute()
+             .left(0)
+             .top(0)
+             .fx({.effect = fx::slide(kDistance), .progress = &progress})}));
     host.frame();
     track.push_back(inkCentroid(host, kField, kField));
   }
@@ -411,17 +412,17 @@ TEST(ComposePathMotion, ATrackRotationTurnsOnTheSameLadderAsTheBaseline) {
     for (int i = 0; i < kSteps; ++i) {
       progress = (float)i / (float)(kSteps - 1);
       host.composer.render(
-          box().child(text(u8"H", whiteStyle(size))
-                          .key("ring")
-                          .width(kField)
-                          .height(kField)
-                          .absolute()
-                          .left(0)
-                          .top(0)
-                          .onPath({.path = geometry::shapes::circle(),
-                                   .at = &phase,
-                                   .align = TextPath::Align::Center})
-                          .fx({.effect = turn, .progress = &progress})));
+          box().children({text(u8"H", whiteStyle(size))
+                              .key("ring")
+                              .width(kField)
+                              .height(kField)
+                              .absolute()
+                              .left(0)
+                              .top(0)
+                              .onPath({.path = geometry::shapes::circle(),
+                                       .at = &phase,
+                                       .align = TextPath::Align::Center})
+                              .fx({.effect = turn, .progress = &progress})}));
       host.frame();
       SkBitmap bm;
       bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));
@@ -462,17 +463,17 @@ TEST(ComposePathMotion, ExactTangentTurnsAGlyphTheLadderSnaps) {
   auto render = [](const Shape& path, float size, float phase, bool exact) {
     Host host(kField, kField);
     host.composer.render(
-        box().child(text(u8"H", whiteStyle(size))
-                        .key("ring")
-                        .width(kField)
-                        .height(kField)
-                        .absolute()
-                        .left(0)
-                        .top(0)
-                        .onPath({.path = path,
-                                 .at = phase,
-                                 .align = TextPath::Align::Center,
-                                 .exactTangent = exact})));
+        box().children({text(u8"H", whiteStyle(size))
+                            .key("ring")
+                            .width(kField)
+                            .height(kField)
+                            .absolute()
+                            .left(0)
+                            .top(0)
+                            .onPath({.path = path,
+                                     .at = phase,
+                                     .align = TextPath::Align::Center,
+                                     .exactTangent = exact})}));
     host.frame();
     SkBitmap bm;
     bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));

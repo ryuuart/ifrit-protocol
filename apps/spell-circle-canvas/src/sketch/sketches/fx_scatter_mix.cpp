@@ -80,12 +80,12 @@ Element cell(const char* call, const char* note, const char* key, Track track) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
-          .child(text("DISPLACEMENT", specimen())
-                     .key(key)
-                     .width(Dimension(kCell - 28))
-                     .absolute()
-                     .inset(14, 60, 14, 14)
-                     .fx(std::move(track))));
+          .children({text("DISPLACEMENT", specimen())
+                         .key(key)
+                         .width(Dimension(kCell - 28))
+                         .absolute()
+                         .inset(14, 60, 14, 14)
+                         .fx(std::move(track))}));
 }
 
 /** The one spread every cell starts from — the origin and the

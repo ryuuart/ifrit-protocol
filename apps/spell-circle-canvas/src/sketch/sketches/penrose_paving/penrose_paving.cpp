@@ -109,7 +109,7 @@ struct PenrosePaving : sketch::Sketch {
             .scale(
                 bind(&grow[i]).map(ease::outBack(1.32f)).target(0.52f, 1.0f));
 
-    for (int k = 0; k < 2; ++k) e.child(inlay(t, k, org, i));
+    for (int k = 0; k < 2; ++k) e.children({inlay(t, k, org, i)});
     return e;
   }
 
@@ -203,23 +203,23 @@ struct PenrosePaving : sketch::Sketch {
       b.lineTo(g.c.x() - bb.left(), g.c.y() - bb.top());
       b.close();
       SkPath p = b.detach();
-      group.child(
-          box()
-              .key("g" + std::to_string(gen) + "_" + std::to_string(i))
-              .left(bb.left())
-              .top(bb.top())
-              .width(bb.width())
-              .height(bb.height())
-              .shape(heldPath(p))
-              .fill(Fill::color(g.type == 1 ? hexColor(0xB6B2A7)
-                                            : hexColor(0x76797E)))
-              // NO per-piece scale: scaling each half about its own
-              // centre pulls a subdivision apart, and a deflation
-              // diagram that shows gaps is saying the opposite of
-              // what it is for. The enclosing group takes the
-              // entrance transform instead.
-              .opacity(animate(from(0.0f).to(1.0f),
-                               Transition{260ms, choreograph::easeOutQuad})));
+      group.children(
+          {box()
+               .key("g" + std::to_string(gen) + "_" + std::to_string(i))
+               .left(bb.left())
+               .top(bb.top())
+               .width(bb.width())
+               .height(bb.height())
+               .shape(heldPath(p))
+               .fill(Fill::color(g.type == 1 ? hexColor(0xB6B2A7)
+                                             : hexColor(0x76797E)))
+               // NO per-piece scale: scaling each half about its own
+               // centre pulls a subdivision apart, and a deflation
+               // diagram that shows gaps is saying the opposite of
+               // what it is for. The enclosing group takes the
+               // entrance transform instead.
+               .opacity(animate(from(0.0f).to(1.0f),
+                                Transition{260ms, choreograph::easeOutQuad}))});
     }
 
     // The rhomb outlines: every triangle is run b→a→c and left OPEN, so the
@@ -231,23 +231,23 @@ struct PenrosePaving : sketch::Sketch {
     // settled before it is described, so the program is a value the
     // node can compare rather than a callable that never matches.
     auto edges = tri;
-    group.child(custom(kit::formatted("rhomb-edges-%d", gen),
-                       [edges](SkCanvas& c, const PaintContext&) {
-                         SkPaint p;
-                         p.setAntiAlias(true);
-                         p.setStyle(SkPaint::kStroke_Style);
-                         p.setStrokeWidth(1.0f);
-                         p.setColor4f(hexColor(0x1B1D1E, 0.85f), nullptr);
-                         for (const Tri& g : edges) {
-                           SkPathBuilder b;
-                           b.moveTo(g.b);
-                           b.lineTo(g.a);
-                           b.lineTo(g.c);
-                           c.drawPath(b.detach(), p);
-                         }
-                       })
-                    .inset(0, 0, 0, 0)
-                    .cache(Cache::None));
+    group.children({custom(kit::formatted("rhomb-edges-%d", gen),
+                           [edges](SkCanvas& c, const PaintContext&) {
+                             SkPaint p;
+                             p.setAntiAlias(true);
+                             p.setStyle(SkPaint::kStroke_Style);
+                             p.setStrokeWidth(1.0f);
+                             p.setColor4f(hexColor(0x1B1D1E, 0.85f), nullptr);
+                             for (const Tri& g : edges) {
+                               SkPathBuilder b;
+                               b.moveTo(g.b);
+                               b.lineTo(g.a);
+                               b.lineTo(g.c);
+                               c.drawPath(b.detach(), p);
+                             }
+                           })
+                        .inset(0, 0, 0, 0)
+                        .cache(Cache::None)});
     return group;
   }
 
@@ -299,10 +299,11 @@ struct PenrosePaving : sketch::Sketch {
         .column()
         .padding(14)
         .gap(9)
-        .child(text(summary))
-        .child(sketch::kit::table(
-            std::move(rows),
-            {.columns = {{202}, {92, true}, {}}, .gap = 8, .swatchSide = 7}));
+        .children({text(summary),
+                   sketch::kit::table(std::move(rows),
+                                      {.columns = {{202}, {92, true}, {}},
+                                       .gap = 8,
+                                       .swatchSide = 7})});
   }
 
   Element inset() {
@@ -316,12 +317,12 @@ struct PenrosePaving : sketch::Sketch {
         .stroke(stroke(1.0f, Fill::color(hexColor(0x5E6163, 0.55f)),
                        PathFormat::Align::Inner))
         .background(styles::dropShadow(hexColor(0x000000, 0.55f), {0, 6}, 22))
-        .child(text("DEFLATION · FAT → 2 FAT + 1 THIN, "
-                    "×1/φ")
-                   .left(14)
-                   .top(12))
-        .child(box().left(10).top(34).width(kDiagW).height(kDiagH).child(
-            slot("deflate")));
+        .children({text("DEFLATION · FAT → 2 FAT + 1 THIN, "
+                        "×1/φ")
+                       .left(14)
+                       .top(12),
+                   box().left(10).top(34).width(kDiagW).height(kDiagH).children(
+                       {slot("deflate")})});
   }
 
   // -------------------------------------------------------------------------
@@ -333,7 +334,8 @@ struct PenrosePaving : sketch::Sketch {
     // box() each sett and its two inlays would mount three flex nodes;
     // positioned() mounts them with none.
     auto field = positioned().inset(0, 0, 0, 0);
-    for (size_t i = 0; i < tiles.size(); ++i) field.child(sett(tiles[i], i));
+    for (size_t i = 0; i < tiles.size(); ++i)
+      field.children({sett(tiles[i], i)});
 
     const std::string spec = kit::formatted(
         "DE BRUIJN PENTAGRID  γ=1/5 (Γ=0)  s=%.0f px  "
@@ -351,28 +353,29 @@ struct PenrosePaving : sketch::Sketch {
         // depends on animates, so Cache::Texture bakes it once and the cache
         // never invalidates; the node's opacity is what keeps it out of the
         // automatic bake, so the cache has to be asked for by hand.
-        .child(
-            box()
-                .inset(0, 0, 0, 0)
-                .fill(Paint::recipe(field::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)))
-                .opacity(0.20f)
-                .cache(Cache::Texture))
-        .child(field)
+        .children(
+            {box()
+                 .inset(0, 0, 0, 0)
+                 .fill(Paint::recipe(field::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)))
+                 .opacity(0.20f)
+                 .cache(Cache::Texture),
+             field})
         // Weathering at PLAZA scale — cells a couple of hundred px across,
         // i.e. metres of traffic staining that crosses joints because dirt
         // does not know where the setts are. Baked: it never changes, and a
         // two-octave grain over the whole canvas is not worth re-evaluating
         // once a frame to get the same pixels back.
-        .child(box()
-                   .inset(0, 0, 0, 0)
-                   .blend(SkBlendMode::kMultiply)
-                   .opacity(0.42f)
-                   .cache(Cache::Texture)
-                   .fill(Paint::blend({{Paint::solid(hexColor(0xFFFFFF)),
-                                        SkBlendMode::kSrcOver},
-                                       {Paint::recipe(field::grain(
-                                            0.0042f, 2, 91.0f, 0.62f, 1.15f)),
-                                        SkBlendMode::kSoftLight}})))
+        .children(
+            {box()
+                 .inset(0, 0, 0, 0)
+                 .blend(SkBlendMode::kMultiply)
+                 .opacity(0.42f)
+                 .cache(Cache::Texture)
+                 .fill(Paint::blend(
+                     {{Paint::solid(hexColor(0xFFFFFF)), SkBlendMode::kSrcOver},
+                      {Paint::recipe(
+                           field::grain(0.0042f, 2, 91.0f, 0.62f, 1.15f)),
+                       SkBlendMode::kSoftLight}}))})
         // ---- daylight. One multiply pass carries the sun's falloff across
         // the plaza. It is SHALLOW: the header calls this a plan view and
         // the forecourt is photographed in flat daylight, so a key bright
@@ -380,81 +383,85 @@ struct PenrosePaving : sketch::Sketch {
         // than as a floor.
         // Static, so it is baked: nothing here depends on the clock and the
         // gradient covers the whole canvas.
-        .child(box()
-                   .inset(0, 0, 0, 0)
-                   .blend(SkBlendMode::kMultiply)
-                   .cache(Cache::Texture)
-                   .fill(radialGradient({470, 280}, 1280,
-                                        {hexColor(0xFAFAF8), hexColor(0xE6E6E4),
-                                         hexColor(0xB2B4B8), hexColor(0x74777C),
-                                         hexColor(0x42454A)},
-                                        {0.0f, 0.22f, 0.50f, 0.78f, 1.0f})))
+        .children(
+            {box()
+                 .inset(0, 0, 0, 0)
+                 .blend(SkBlendMode::kMultiply)
+                 .cache(Cache::Texture)
+                 .fill(radialGradient({470, 280}, 1280,
+                                      {hexColor(0xFAFAF8), hexColor(0xE6E6E4),
+                                       hexColor(0xB2B4B8), hexColor(0x74777C),
+                                       hexColor(0x42454A)},
+                                      {0.0f, 0.22f, 0.50f, 0.78f, 1.0f}))})
         // the sun pool itself, added back — also static, baked for the same
         // reason as the pass above
-        .child(box()
-                   .inset(0, 0, 0, 0)
-                   .blend(SkBlendMode::kPlus)
-                   .opacity(0.5f)
-                   .cache(Cache::Texture)
-                   .fill(radialGradient(
-                       {470, 280}, 1100,
-                       {hexColor(0xFFF8E8, 0.13f), hexColor(0xFFF3DA, 0.075f),
-                        hexColor(0xFFF0D0, 0.025f), hexColor(0x000000, 0.0f)},
-                       {0.0f, 0.34f, 0.68f, 1.0f})))
+        .children(
+            {box()
+                 .inset(0, 0, 0, 0)
+                 .blend(SkBlendMode::kPlus)
+                 .opacity(0.5f)
+                 .cache(Cache::Texture)
+                 .fill(radialGradient(
+                     {470, 280}, 1100,
+                     {hexColor(0xFFF8E8, 0.13f), hexColor(0xFFF3DA, 0.075f),
+                      hexColor(0xFFF0D0, 0.025f), hexColor(0x000000, 0.0f)},
+                     {0.0f, 0.34f, 0.68f, 1.0f}))})
         // wet-stone sheen — a broad, low raking band that sweeps once per
         // loop as the arcs finish, so the field reads as a wet surface
         // catching the sky rather than as flat fill
-        .child(box()
-                   .inset(0, 0, 0, 0)
-                   .blend(SkBlendMode::kScreen)
-                   .opacity(&sheen)
-                   .fill(linearGradient(
-                       {180, 0}, {1500, 1200},
-                       {hexColor(0x000000, 0.0f), hexColor(0xBFD2E0, 0.09f),
-                        hexColor(0x000000, 0.0f)},
-                       {0.30f, 0.50f, 0.72f})))
-        .child(inset())
+        .children({box()
+                       .inset(0, 0, 0, 0)
+                       .blend(SkBlendMode::kScreen)
+                       .opacity(&sheen)
+                       .fill(linearGradient(
+                           {180, 0}, {1500, 1200},
+                           {hexColor(0x000000, 0.0f), hexColor(0xBFD2E0, 0.09f),
+                            hexColor(0x000000, 0.0f)},
+                           {0.30f, 0.50f, 0.72f})),
+                   inset()})
         // ---- the site plaque. A civic plaque sits on the paving, so give
         // it a shadowed band to sit in rather than dropping 10 px type onto
         // speckled granite where it cannot be read at any exposure.
-        .child(box().left(0).top(kH - 190).width(kW).height(190).fill(
-            linearGradient({0, kH - 190}, {0, kH},
-                           {hexColor(0x000000, 0.0f), hexColor(0x08090A, 0.42f),
-                            hexColor(0x08090A, 0.72f)},
-                           {0.0f, 0.5f, 1.0f})))
-        .child(box()
-                   .left(56)
-                   .top(1084)
-                   .width(1010)
-                   .height(96)
-                   .fill(Fill::color(hexColor(0x101314, 0.90f)))
-                   .stroke(stroke(1.0f, Fill::color(hexColor(0x676B6D, 0.45f)),
-                                  PathFormat::Align::Inner))
-                   .background(styles::dropShadow(hexColor(0x000000, 0.5f),
-                                                  {0, 5}, 18)))
-        .child(
-            text("PENROSE TILING · P3 RHOMBI · ROYAL "
-                 "WHITE & KOBRA GREY GRANITE · POLISHED 30 mm "
-                 "STAINLESS INSERTS")
-                .font(
-                    {.size = 13.0f, .color = hexColor(0xDCE0E2), .track = 1.9f})
-                .left(76)
-                .top(1100)
-                .opacity(1.0f))
-        .child(
-            text("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
-                 "OXFORD · R. PENROSE 1974 / PAVING 2012")
-                .font(
-                    {.size = 11.5f, .color = hexColor(0xA9AEB1), .track = 1.5f})
-                .left(76)
-                .top(1126)
-                .opacity(1.0f))
-        .child(text(spec)
-                   .font({.color = hexColor(0x8E9598), .track = 1.3f})
-                   .left(76)
-                   .top(1152)
-                   .opacity(1.0f))
-        .child(verificationCard());
+        .children(
+            {box().left(0).top(kH - 190).width(kW).height(190).fill(
+                 linearGradient(
+                     {0, kH - 190}, {0, kH},
+                     {hexColor(0x000000, 0.0f), hexColor(0x08090A, 0.42f),
+                      hexColor(0x08090A, 0.72f)},
+                     {0.0f, 0.5f, 1.0f})),
+             box()
+                 .left(56)
+                 .top(1084)
+                 .width(1010)
+                 .height(96)
+                 .fill(Fill::color(hexColor(0x101314, 0.90f)))
+                 .stroke(stroke(1.0f, Fill::color(hexColor(0x676B6D, 0.45f)),
+                                PathFormat::Align::Inner))
+                 .background(
+                     styles::dropShadow(hexColor(0x000000, 0.5f), {0, 5}, 18)),
+             text("PENROSE TILING · P3 RHOMBI · ROYAL "
+                  "WHITE & KOBRA GREY GRANITE · POLISHED 30 mm "
+                  "STAINLESS INSERTS")
+                 .font({.size = 13.0f,
+                        .color = hexColor(0xDCE0E2),
+                        .track = 1.9f})
+                 .left(76)
+                 .top(1100)
+                 .opacity(1.0f),
+             text("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
+                  "OXFORD · R. PENROSE 1974 / PAVING 2012")
+                 .font({.size = 11.5f,
+                        .color = hexColor(0xA9AEB1),
+                        .track = 1.5f})
+                 .left(76)
+                 .top(1126)
+                 .opacity(1.0f),
+             text(spec)
+                 .font({.color = hexColor(0x8E9598), .track = 1.3f})
+                 .left(76)
+                 .top(1152)
+                 .opacity(1.0f),
+             verificationCard()});
   }
 
   // -------------------------------------------------------------------------

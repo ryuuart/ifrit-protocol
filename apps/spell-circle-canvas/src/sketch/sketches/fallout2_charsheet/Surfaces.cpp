@@ -74,11 +74,11 @@ auto Fallout2CharSheet::well(fo::Rect r, float radius, bool rivets) -> Element {
     for (int i = 0; i < 4; ++i) {
       const float rx = ((unsigned)i & 1u) ? r.w - inset : inset;
       const float ry = ((unsigned)i & 2u) ? r.h - inset : inset;
-      e.child(
-          sigil::compose::kit::disc(SkPoint{n(rx), n(ry)}, n(2.4f))
-              .fill(rivetMat)
-              .foreground(stroke(n(0.6f), Fill::color(hexColor(0x000000, 0.7f)),
-                                 PathFormat::Align::Outer)));
+      e.children({sigil::compose::kit::disc(SkPoint{n(rx), n(ry)}, n(2.4f))
+                      .fill(rivetMat)
+                      .foreground(stroke(n(0.6f),
+                                         Fill::color(hexColor(0x000000, 0.7f)),
+                                         PathFormat::Align::Outer))});
     }
   }
   return e;
@@ -97,7 +97,7 @@ auto Fallout2CharSheet::raised(fo::Rect r, float radius) -> Element {
 auto Fallout2CharSheet::centred(fo::Rect r, Element child) -> Element {
   Element e = fo::atR(box(), r);
   e.justify(Justify::Center).alignItems(Align::Center);
-  e.child(std::move(child));
+  e.children({std::move(child)});
   return e;
 }
 
@@ -107,25 +107,25 @@ auto Fallout2CharSheet::chrome() -> Element {
 
   // The outer frame and the dividers between the five panels — raised
   // facets lit from the top-left.
-  g.child(at(box(), 0, 0, 640, 480)
-              .foreground(stroke(n(3), Fill::color(hexColor(0x1E1810)),
-                                 PathFormat::Align::Inner))
-              .foreground(
-                  inset(n(3), fo::stamp(2.0f, 2.5f, hexColor(0xA08858, 0.45f),
-                                        hexColor(0x0C0906, 0.55f)))));
+  g.children({at(box(), 0, 0, 640, 480)
+                  .foreground(stroke(n(3), Fill::color(hexColor(0x1E1810)),
+                                     PathFormat::Align::Inner))
+                  .foreground(inset(
+                      n(3), fo::stamp(2.0f, 2.5f, hexColor(0xA08858, 0.45f),
+                                      hexColor(0x0C0906, 0.55f))))});
   // vertical divider between the left/middle block and the skills column
-  g.child(at(box(), 328, 0, 4, 480)
-              .fill(Paint::linearUnit(
-                  {0, 0}, {1, 0},
-                  {{0.0f, hexColor(0x554430)}, {1.0f, hexColor(0x241D12)}})));
-  g.child(at(box(), 165, 30, 3, 240)
-              .fill(Paint::linearUnit(
-                  {0, 0}, {1, 0},
-                  {{0.0f, hexColor(0x4E4030)}, {1.0f, hexColor(0x241D12)}})));
-  g.child(at(box(), 5, 318, 320, 3)
-              .fill(Paint::linearUnit(
-                  {0, 0}, {0, 1},
-                  {{0.0f, hexColor(0x554430)}, {1.0f, hexColor(0x241D12)}})));
+  g.children({at(box(), 328, 0, 4, 480)
+                  .fill(Paint::linearUnit({0, 0}, {1, 0},
+                                          {{0.0f, hexColor(0x554430)},
+                                           {1.0f, hexColor(0x241D12)}}))});
+  g.children({at(box(), 165, 30, 3, 240)
+                  .fill(Paint::linearUnit({0, 0}, {1, 0},
+                                          {{0.0f, hexColor(0x4E4030)},
+                                           {1.0f, hexColor(0x241D12)}}))});
+  g.children({at(box(), 5, 318, 320, 3)
+                  .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                          {{0.0f, hexColor(0x554430)},
+                                           {1.0f, hexColor(0x241D12)}}))});
 
   // Top plaques (measured bright runs at y = 1: 15..153, 155..236, 238..312).
   const char* plaqueText[3] = {"NARG", "AGE 20", "MALE"};
@@ -140,26 +140,27 @@ auto Fallout2CharSheet::chrome() -> Element {
     // with the whole leftover above them. Lifting the run by a third of
     // that rise puts the CAPS' own band in the middle of the plaque, which
     // is the only band on a run of capitals anyone reads as centred.
-    p.child(engravedText(plaqueText[i], n(26.0f), engravedCondense, 0.6f)
-                .margin(0, -engravedRise(n(26.0f)) / 3.0f, 0, 0));
-    g.child(p);
+    p.children({engravedText(plaqueText[i], n(26.0f), engravedCondense, 0.6f)
+                    .margin(0, -engravedRise(n(26.0f)) / 3.0f, 0, 0)});
+    g.children({p});
   }
 
   // The SKILLS heading (font 103, #907824) at (380, 5), and SKILL POINTS at
   // (400, 233) with its own two-digit odometer at (522, 228).
-  g.child(ink(engravedText("SKILLS", n(24.0f), 0.78f, 0.5f), 380, 4,
-              engravedRise(n(24.0f))));
+  g.children({ink(engravedText("SKILLS", n(24.0f), 0.78f, 0.5f), 380, 4,
+                  engravedRise(n(24.0f)))});
   // The SKILL POINTS bar: a raised strip carrying the label and the counter,
   // between the skills well and the card.
-  g.child(raised({336, 226, 292, 30}, 3.0f));
-  g.child(ink(engravedText("SKILL POINTS", n(24.0f), 0.78f, 0.5f), 400, 232,
-              engravedRise(n(24.0f))));
-  g.child(at(box(), 520, 226, 34, 28)
-              .fill(Fill::color(hexColor(0x120E08)))
-              .corners(Corners{n(2)})
-              .foreground(fo::stamp(1.0f, 1.4f, hexColor(0x8A7448, 0.45f),
-                                    hexColor(0x000000, 0.6f), 300)));
-  g.child(box().left(Dimension(0)).top(Dimension(0)).child(slot("points")));
+  g.children({raised({336, 226, 292, 30}, 3.0f)});
+  g.children({ink(engravedText("SKILL POINTS", n(24.0f), 0.78f, 0.5f), 400, 232,
+                  engravedRise(n(24.0f)))});
+  g.children({at(box(), 520, 226, 34, 28)
+                  .fill(Fill::color(hexColor(0x120E08)))
+                  .corners(Corners{n(2)})
+                  .foreground(fo::stamp(1.0f, 1.4f, hexColor(0x8A7448, 0.45f),
+                                        hexColor(0x000000, 0.6f), 300))});
+  g.children(
+      {box().left(Dimension(0)).top(Dimension(0)).children({slot("points")})});
 
   // PRINT / DONE / CANCEL at y = 454, each with a red button light. Lamp
   // rects sampled at x 344..355, 457..468, 553..564, y 455..466.
@@ -176,14 +177,14 @@ auto Fallout2CharSheet::chrome() -> Element {
     lamp.foreground(stroke(n(1.2f), Fill::color(hexColor(0x1A1208)),
                            PathFormat::Align::Outer));
     if (i == 1)  // DONE dims and returns as the `+` is pressed
-      lamp.child(box()
-                     .inset(0)
-                     .corners(Corners{n(6)})
-                     .fill(Fill::color(kLampOff))
-                     .opacity(&lampFlash));
-    g.child(lamp);
-    g.child(ink(engravedText(btn[i], n(22.0f), 0.80f, 0.3f), textX[i], 454,
-                engravedRise(n(22.0f))));
+      lamp.children({box()
+                         .inset(0)
+                         .corners(Corners{n(6)})
+                         .fill(Fill::color(kLampOff))
+                         .opacity(&lampFlash)});
+    g.children({lamp});
+    g.children({ink(engravedText(btn[i], n(22.0f), 0.80f, 0.3f), textX[i], 454,
+                    engravedRise(n(22.0f)))});
   }
   return g;
 }

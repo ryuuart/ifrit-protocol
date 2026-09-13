@@ -88,15 +88,16 @@ auto SlitScan2001::fitAtK(sigil::weave::FontContext& fonts, int K) -> Fit {
       box()
           .width(Dimension(kFilmW))
           .height(Dimension(kFilmH))
-          .child(instancing::instances(flatAtlas, pa, instancing::Mode::Data,
-                                       SkBlendMode::kPlus))
-          .child(instancing::instances(flatAtlas, pb, instancing::Mode::Data,
-                                       SkBlendMode::kPlus));
+          .children(
+              {instancing::instances(flatAtlas, pa, instancing::Mode::Data,
+                                     SkBlendMode::kPlus),
+               instancing::instances(flatAtlas, pb, instancing::Mode::Data,
+                                     SkBlendMode::kPlus)});
   // snapshot() sizes the picture by the root's CHILDREN, not by the
   // root's own width/height -- hence the shell box. Passed directly, the
   // accumulation's children are instancing leaves, which measure zero on
   // both axes, and the read-back would be a silently empty raster.
-  sk_sp<SkPicture> pic = snapshot(box().child(std::move(accum)), fonts);
+  sk_sp<SkPicture> pic = snapshot(box().children({std::move(accum)}), fonts);
   sk_sp<SkSurface> surf = SkSurfaces::Raster(SkImageInfo::Make(
       (int)kFilmW, (int)kFilmH, kRGBA_F16_SkColorType, kPremul_SkAlphaType));
   if (!pic || !surf) return out;
@@ -242,12 +243,12 @@ auto SlitScan2001::roundTrip(sigil::weave::FontContext& fonts) -> void {
     pool->texWindows()[0] = SkRect::MakeXYWH(left, 0, kWinFrac, 1.0f);
     pool->commit();
 
-    Element acc =
-        box()
-            .width(Dimension((float)boxW))
-            .height(Dimension((float)boxH))
-            .child(instancing::instances(one, pool, instancing::Mode::Data));
-    sk_sp<SkPicture> pic = snapshot(box().child(std::move(acc)), fonts);
+    Element acc = box()
+                      .width(Dimension((float)boxW))
+                      .height(Dimension((float)boxH))
+                      .children({instancing::instances(
+                          one, pool, instancing::Mode::Data)});
+    sk_sp<SkPicture> pic = snapshot(box().children({std::move(acc)}), fonts);
     SkBitmap bm;
     if (!pic || !bm.tryAllocN32Pixels(boxW, boxH)) return;
     {

@@ -129,7 +129,8 @@ Element& Element::mark(sigil::weave::Selector where, Element what) {
   if (what.node()->key.empty())
     what.key("mark#" + std::to_string(text.marks.size()));
   text.marks.push_back({std::move(where), what.node()->key});
-  return child(std::move(what));
+  append(std::move(what));
+  return *this;
 }
 
 Element& Element::variationDrive(const char (&tag)[5],

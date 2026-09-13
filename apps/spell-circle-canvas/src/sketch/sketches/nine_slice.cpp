@@ -103,7 +103,8 @@ Element panel(Slice frame, std::u8string caption, SkColor4f ink) {
       .padding(24)
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      .child(text(std::move(caption)).font({.size = 17, .track = 0}).ink(ink));
+      .children(
+          {text(std::move(caption)).font({.size = 17, .track = 0}).ink(ink)});
 }
 
 /** THE DIRECT DOOR, in a leaf of its own: `skia::draw::drawLattice`
@@ -117,23 +118,24 @@ Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
       .alignItems(Align::Center)
       .justify(Justify::Center)
       // The asset is the only captured input to this keyed draw.
-      .child(custom("lattice.direct",
-                    [asset = std::move(asset)](SkCanvas& canvas,
-                                               const PaintContext& ctx) {
-                      const sk_sp<SkImage> image =
-                          asset ? asset->frameAt(0).image : nullptr;
-                      if (!image) return;
-                      const int side = image->width();
-                      const std::vector<int> xs{side / 3, side * 2 / 3};
-                      const std::vector<int> ys{side / 3, side * 2 / 3};
-                      sigil::skia::draw::drawLattice(
-                          canvas, image, xs, ys,
-                          SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
-                          SkFilterMode::kLinear);
-                    })
-                 .absolute()
-                 .inset(0))
-      .child(text(u8"DIRECT").font({.size = 17, .track = 0}).ink(kQuest));
+      .children(
+          {custom("lattice.direct",
+                  [asset = std::move(asset)](SkCanvas& canvas,
+                                             const PaintContext& ctx) {
+                    const sk_sp<SkImage> image =
+                        asset ? asset->frameAt(0).image : nullptr;
+                    if (!image) return;
+                    const int side = image->width();
+                    const std::vector<int> xs{side / 3, side * 2 / 3};
+                    const std::vector<int> ys{side / 3, side * 2 / 3};
+                    sigil::skia::draw::drawLattice(
+                        canvas, image, xs, ys,
+                        SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
+                        SkFilterMode::kLinear);
+                  })
+               .absolute()
+               .inset(0),
+           text(u8"DIRECT").font({.size = 17, .track = 0}).ink(kQuest)});
 }
 
 struct NineSlice final : sketch::Sketch {

@@ -109,7 +109,7 @@ struct Caption {
   int placed = 0;
   const auto place = [&](Element part, float before) {
     if (placed > 0) part.margin(0, before, 0, 0);
-    column.child(std::move(part));
+    column.children({std::move(part)});
     ++placed;
   };
   const bool hasLabel = !label.empty();
@@ -157,12 +157,12 @@ struct Caption {
  *
  *      kit::well({.width = 240, .height = 160,
  *                 .ground = Fill::color(kGround), .padding = 12},
- *                box().child(subject()))
+ *                box().children({subject()}))
  *
  *  The second argument is the surface itself, not a child wrapped in a new
  *  box. Hand it `custom(key, draw)` when the drawing should receive the
- *  well's resolved size directly; hand it `box().child(body)` when the well
- *  contains a laid-out body. An open width or height leaves that dimension
+ *  well's resolved size directly; hand it `box().children({body})` when the
+ * well contains a laid-out body. An open width or height leaves that dimension
  *  already carried by the surface alone. */
 struct Well {
   Dimension width;
@@ -362,34 +362,34 @@ struct Sheet {
   if (hasTitle || hasSubtitle) {
     Element header = named(box().column(), "header");
     if (hasTitle)
-      header.child(
-          named(text(page.title.bytes()).styleClass("title"), "title"));
+      header.children(
+          {named(text(page.title.bytes()).styleClass("title"), "title")});
     if (page.styles) header.styleSheet(*page.styles);
     if (hasSubtitle) {
       Element subtitle =
           named(text(page.subtitle.bytes()).styleClass("subtitle"), "subtitle");
       if (hasTitle) subtitle.margin(0, page.subtitleGap, 0, 0);
-      header.child(std::move(subtitle));
+      header.children({std::move(subtitle)});
     }
-    root.child(std::move(header));
+    root.children({std::move(header)});
     if (ruled)
-      root.child(rule("head-rule"));
+      root.children({rule("head-rule")});
     else
       content.margin(0, page.contentGap, 0, 0);
   }
 
   content.grow(1);
-  root.child(named(std::move(content), "content"));
+  root.children({named(std::move(content), "content")});
 
   if (!page.footer.empty()) {
     Element footer =
         named(text(page.footer.bytes()).styleClass("footer"), "footer");
     if (page.styles) footer.styleSheet(*page.styles);
     if (ruled)
-      root.child(rule("foot-rule"));
+      root.children({rule("foot-rule")});
     else
       footer.margin(0, page.contentGap, 0, 0);
-    root.child(std::move(footer));
+    root.children({std::move(footer)});
   }
   return root;
 }

@@ -116,45 +116,46 @@ auto ThunderFulu::ironGround() -> Element {
   auto g = box().inset(0);
 
   // the plate stands off the altar cloth
-  g.child(box()
-              .left(-16)
-              .top(-8)
-              .width(Dimension(kPW + 46))
-              .height(Dimension(kPH + 44))
-              .shape(shapes::chamfered(26.0f))
-              .fill(Paint::radialUnit({0.5f, 0.5f}, 0.78f,
-                                      {{0.0f, hexColor(0x000000, 0.66f)},
-                                       {0.72f, hexColor(0x000000, 0.40f)},
-                                       {1.0f, hexColor(0x000000, 0.0f)}}))
-              .key("ironshadow"));
+  g.children({box()
+                  .left(-16)
+                  .top(-8)
+                  .width(Dimension(kPW + 46))
+                  .height(Dimension(kPH + 44))
+                  .shape(shapes::chamfered(26.0f))
+                  .fill(Paint::radialUnit({0.5f, 0.5f}, 0.78f,
+                                          {{0.0f, hexColor(0x000000, 0.66f)},
+                                           {0.72f, hexColor(0x000000, 0.40f)},
+                                           {1.0f, hexColor(0x000000, 0.0f)}}))
+                  .key("ironshadow")});
 
   // the plate itself: hammered iron, warm under an altar lamp. The edge is
   // NOT a radius — it is what a hammer leaves.
-  g.child(box()
-              .inset(0)
-              .shape(shapes::shaped(shapes::chamfered(17.0f),
-                                    shapers::Jitter{46.0f, 2.6f, 1356}))
-              // linearUnit, not linear: linear() is in NODE PIXELS, so
-              // a {0.1,0} -> {0.9,1} ramp is one pixel wide at the corner
-              // and clamps the whole plate to its last stop.
-              .fill(Paint::linearUnit({0.10f, -0.06f}, {0.96f, 1.0f},
-                                      {{0.0f, hexColor(0x736a5b)},
-                                       {0.18f, hexColor(0x4f4840)},
-                                       {0.46f, kIronMid},
-                                       {0.78f, hexColor(0x201e1d)},
-                                       {1.0f, hexColor(0x161514)}}))
-              .foreground(lines::presets::hatch(
-                  Fill::color(hexColor(0xa79a83, 0.075f)), 13.0f, 1.6f, -18.0f))
-              .foreground(lines::presets::hatch(
-                  Fill::color(hexColor(0x000000, 0.13f)), 31.0f, 3.4f, 24.0f))
-              .foreground(Wash{.material = ironGrain,
-                               .blend = SkBlendMode::kOverlay,
-                               .amount = 0.30f})
-              .foreground(Wash{.material = ironSpeck.material(),
-                               .blend = SkBlendMode::kMultiply,
-                               .amount = 0.85f})
-              .cache(Cache::Texture)
-              .key("iron"));
+  g.children(
+      {box()
+           .inset(0)
+           .shape(shapes::shaped(shapes::chamfered(17.0f),
+                                 shapers::Jitter{46.0f, 2.6f, 1356}))
+           // linearUnit, not linear: linear() is in NODE PIXELS, so
+           // a {0.1,0} -> {0.9,1} ramp is one pixel wide at the corner
+           // and clamps the whole plate to its last stop.
+           .fill(Paint::linearUnit({0.10f, -0.06f}, {0.96f, 1.0f},
+                                   {{0.0f, hexColor(0x736a5b)},
+                                    {0.18f, hexColor(0x4f4840)},
+                                    {0.46f, kIronMid},
+                                    {0.78f, hexColor(0x201e1d)},
+                                    {1.0f, hexColor(0x161514)}}))
+           .foreground(lines::presets::hatch(
+               Fill::color(hexColor(0xa79a83, 0.075f)), 13.0f, 1.6f, -18.0f))
+           .foreground(lines::presets::hatch(
+               Fill::color(hexColor(0x000000, 0.13f)), 31.0f, 3.4f, 24.0f))
+           .foreground(Wash{.material = ironGrain,
+                            .blend = SkBlendMode::kOverlay,
+                            .amount = 0.30f})
+           .foreground(Wash{.material = ironSpeck.material(),
+                            .blend = SkBlendMode::kMultiply,
+                            .amount = 0.85f})
+           .cache(Cache::Texture)
+           .key("iron")});
 
   // the beaten edge, and the corners rounded BY HAMMERING. brush::Pattern
   // corner tiles: a facet, not a fillet.
@@ -169,31 +170,31 @@ auto ThunderFulu::ironGround() -> Element {
   // alignment — a mild difference, which is exactly why the choice has to
   // be written down rather than left to whatever the default happens to
   // be.
-  g.child(
-      box()
-          .inset(0)
-          .shape(shapes::shaped(shapes::chamfered(17.0f),
-                                shapers::Jitter{38.0f, 3.1f, 46}))
-          .fill(Fill::none())
-          .stroke(
-              Brush{}
-                  .layer(lines::rails(
-                      {{.across = 0.0f,
-                        .width = 3.0f,
-                        .fill = Fill::color(hexColor(0x5d564a, 0.85f))},
-                       {.across = -5.5f,
-                        .width = 1.1f,
-                        .fill = Fill::color(hexColor(0x0a0909, 0.75f))}}))
-                  .layer(brush::Pattern{
-                      .side = hammerTile,
-                      .corner = brush::CornerArt{hammerCorner,
-                                                 brush::CornerAlign::Bisector},
-                      .advance = 26.0f,
-                      .cornerAngleDeg = 30.0f,
-                      .cornerLength = 34.0f,
-                      .bleedPx = 22.0f}))
-          .cache(Cache::Texture)
-          .key("ironedge"));
+  g.children(
+      {box()
+           .inset(0)
+           .shape(shapes::shaped(shapes::chamfered(17.0f),
+                                 shapers::Jitter{38.0f, 3.1f, 46}))
+           .fill(Fill::none())
+           .stroke(
+               Brush{}
+                   .layer(lines::rails(
+                       {{.across = 0.0f,
+                         .width = 3.0f,
+                         .fill = Fill::color(hexColor(0x5d564a, 0.85f))},
+                        {.across = -5.5f,
+                         .width = 1.1f,
+                         .fill = Fill::color(hexColor(0x0a0909, 0.75f))}}))
+                   .layer(brush::Pattern{
+                       .side = hammerTile,
+                       .corner = brush::CornerArt{hammerCorner,
+                                                  brush::CornerAlign::Bisector},
+                       .advance = 26.0f,
+                       .cornerAngleDeg = 30.0f,
+                       .cornerLength = 34.0f,
+                       .bleedPx = 22.0f}))
+           .cache(Cache::Texture)
+           .key("ironedge")});
   return g;
 }
 

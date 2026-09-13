@@ -566,9 +566,9 @@ struct DaemonConsole final : sketch::Sketch {
                       .padding(6, 1)
                       .corners({2})
                       .alignItems(Align::Center)
-                      .child(box().width(3).height(12).corners({1.5f}).fill(
-                          Fill::color(d.stripe)))
-                      .child(std::move(leaf));
+                      .children({box().width(3).height(12).corners({1.5f}).fill(
+                                     Fill::color(d.stripe)),
+                                 std::move(leaf)});
     // Severity in form as well as ink: a breach line carries its own wash.
     if (r.sev == dc::kBreach)
       row.fill(Fill::color(mskia::withAlpha(dc::kCrit, 0.09f)));
@@ -596,11 +596,11 @@ struct DaemonConsole final : sketch::Sketch {
         .row()
         .gap(8)
         .alignItems(Align::Center)
-        .child(box().width(6).height(6).corners({1.5f}).fill(Fill::color(chip)))
-        .child(text(label).font(chrome(10, dc::kChrome, 1.6f)))
-        .child(box().grow(1))
-        .child(text(std::format("{}", n))
-                   .font(chrome(12, dc::kBone, 0, true, true)));
+        .children(
+            {box().width(6).height(6).corners({1.5f}).fill(Fill::color(chip)),
+             text(label).font(chrome(10, dc::kChrome, 1.6f)), box().grow(1),
+             text(std::format("{}", n))
+                 .font(chrome(12, dc::kBone, 0, true, true))});
   }
 
   Element rule(float marginTop, float marginBottom) {
@@ -666,11 +666,12 @@ struct DaemonConsole final : sketch::Sketch {
             // The scrollback's voice, stated once: every row is set in it
             // and its named runs are partials over it.
             .font({.face = faceMono, .size = 12.5f, .color = dc::kBody})
-            .child(feed::feed(
-                       ring, window,
-                       [&](const dc::LogRow& r) { return logRow(r, styles); })
-                       .zIndex(1))
-            .child(box().inset(0).fill(fade).zIndex(2).hitTestable(false));
+            .children({feed::feed(ring, window,
+                                  [&](const dc::LogRow& r) {
+                                    return logRow(r, styles);
+                                  })
+                           .zIndex(1),
+                       box().inset(0).fill(fade).zIndex(2).hitTestable(false)});
 
     // ---- header band ------------------------------------------------------
     Element header =
@@ -678,22 +679,22 @@ struct DaemonConsole final : sketch::Sketch {
             .row()
             .gap(10)
             .alignItems(Align::Center)
-            .child(box().width(9).height(9).corners({2}).rotate(45.0f).fill(
-                Fill::color(dc::kAccent)))
-            .child(text("WARDNET").font(chrome(15, dc::kBone, 3.5f, true)))
-            .child(
-                text("PERIMETER WATCH").font(chrome(10.5f, dc::kChrome, 3.5f)))
-            .child(box().grow(1))
-            .child(text("NODE 07 · flooded-causeway")
-                       .font(chrome(10.5f, dc::kDim, 0.8f)))
-            .child(box()
-                       .width(6)
-                       .height(6)
-                       .corners({3})
-                       .fill(Fill::color(dc::kOk))
-                       .opacity(&lamp))
-            .child(text(std::format("T+{:07.2f}", mission(clockNow)))
-                       .font(chrome(11.5f, dc::kAccent, 0.6f, true, true)));
+            .children(
+                {box().width(9).height(9).corners({2}).rotate(45.0f).fill(
+                     Fill::color(dc::kAccent)),
+                 text("WARDNET").font(chrome(15, dc::kBone, 3.5f, true)),
+                 text("PERIMETER WATCH").font(chrome(10.5f, dc::kChrome, 3.5f)),
+                 box().grow(1),
+                 text("NODE 07 · flooded-causeway")
+                     .font(chrome(10.5f, dc::kDim, 0.8f)),
+                 box()
+                     .width(6)
+                     .height(6)
+                     .corners({3})
+                     .fill(Fill::color(dc::kOk))
+                     .opacity(&lamp),
+                 text(std::format("T+{:07.2f}", mission(clockNow)))
+                     .font(chrome(11.5f, dc::kAccent, 0.6f, true, true))});
 
     // ---- rail -------------------------------------------------------------
     Element rail =
@@ -701,47 +702,46 @@ struct DaemonConsole final : sketch::Sketch {
             .column()
             .width(172)
             .gap(9)
-            .child(text("CHANNELS").styleClass("label"))
-            .child(meterRow("LATT", &meter[0]))
-            .child(meterRow("GATE", &meter[1]))
-            .child(meterRow("FLUX", &meter[2]))
-            .child(meterRow("AUTH", &meter[3]))
-            .child(rule(6, 2))
-            .child(text("SEVERITY · SESSION").styleClass("label"))
-            .child(counterRow("SEALS", dc::kOk, gen.seals))
-            .child(counterRow("FLUX WARNS", dc::kWarn, gen.warns))
-            .child(counterRow("BREACHES", dc::kCrit, gen.breaches))
-            .child(rule(6, 2))
-            .child(text("UPLINK").styleClass("label"))
-            .child(
-                box()
-                    .row()
-                    .gap(8)
-                    .alignItems(Align::Center)
-                    .child(text("latency").font(chrome(10, dc::kChrome, 0.8f)))
-                    .child(box().grow(1))
-                    .child(
-                        text(std::format("{:2.0f} mS",
-                                         11.0 + 3.0 * std::sin(clockNow * 0.7)))
-                            .font(chrome(11, dc::kBone, 0, true, true))))
+            .children(
+                {text("CHANNELS").styleClass("label"),
+                 meterRow("LATT", &meter[0]), meterRow("GATE", &meter[1]),
+                 meterRow("FLUX", &meter[2]), meterRow("AUTH", &meter[3]),
+                 rule(6, 2), text("SEVERITY · SESSION").styleClass("label"),
+                 counterRow("SEALS", dc::kOk, gen.seals),
+                 counterRow("FLUX WARNS", dc::kWarn, gen.warns),
+                 counterRow("BREACHES", dc::kCrit, gen.breaches), rule(6, 2),
+                 text("UPLINK").styleClass("label"),
+                 box()
+                     .row()
+                     .gap(8)
+                     .alignItems(Align::Center)
+                     .children(
+                         {text("latency").font(chrome(10, dc::kChrome, 0.8f))})
+                     .children({box().grow(1)})
+                     .children(
+                         {text(std::format(
+                                   "{:2.0f} mS",
+                                   11.0 + 3.0 * std::sin(clockNow * 0.7)))
+                              .font(chrome(11, dc::kBone, 0, true, true))})})
             // The hero stat anchors the rail's foot: session health as one
             // number, amber the moment the breach count says it should be.
-            .child(box().grow(1))
-            .child(rule(6, 2))
-            .child(text("WARD INTEGRITY").styleClass("label"))
-            .child(box()
-                       .row()
-                       .gap(4)
-                       .alignItems(Align::Baseline)
-                       .child(text(std::format("{:.1f}", integrity()))
-                                  .font(chrome(24,
-                                               integrity() >= 96.0 ? dc::kBone
-                                                                   : dc::kWarn,
-                                               0, true, true)))
-                       .child(text("%").font(chrome(12, dc::kChrome))))
-            .child(text(std::format("{} breach{} this session", gen.breaches,
-                                    gen.breaches == 1 ? "" : "es"))
-                       .styleClass("fine"));
+            .children(
+                {box().grow(1), rule(6, 2),
+                 text("WARD INTEGRITY").styleClass("label"),
+                 box()
+                     .row()
+                     .gap(4)
+                     .alignItems(Align::Baseline)
+                     .children(
+                         {text(std::format("{:.1f}", integrity()))
+                              .font(chrome(
+                                  24,
+                                  integrity() >= 96.0 ? dc::kBone : dc::kWarn,
+                                  0, true, true))})
+                     .children({text("%").font(chrome(12, dc::kChrome))}),
+                 text(std::format("{} breach{} this session", gen.breaches,
+                                  gen.breaches == 1 ? "" : "es"))
+                     .styleClass("fine")});
 
     // ---- prompt -----------------------------------------------------------
     const char* command = dc::kCommands[commandIndex];
@@ -753,78 +753,80 @@ struct DaemonConsole final : sketch::Sketch {
             // The prompt's own voice: the host name is set in it, the
             // sigil in the heavier cut, and the typed command a half size up.
             .font({.face = faceMono, .size = 12, .color = dc::kDim})
-            .child(text(weave::rich().add("wardnet").add(
-                " $ ", weave::Type{.face = faceMonoMed, .color = dc::kAccent})))
-            .child(text(std::string(command).substr(0, shown))
-                       .font({.size = 12.5f, .color = dc::kBone}))
-            .child(box()
-                       .width(7)
-                       .height(13)
-                       .margin(3, 0, 0, 0)
-                       .fill(Fill::color(dc::kAccent))
-                       // The blink is the pulse waveform itself: on for
-                       // 0.62 s of every 1.06 s cycle, resting dim rather
-                       // than vanishing. Phase 0 is ON, so the caret the
-                       // typing machine parks at 0 sits solid.
-                       .opacity(motion::bind(&caretClock)
-                                    .source(0.0f, 1.06f)
-                                    .square(0.62f / 1.06f)
-                                    .target(0.10f, 1.0f))
-                       .key("caret"))
-            .child(box().grow(1))
-            .child(text(std::format("ring 256 · {} events",
-                                    (unsigned long long)gen.events))
-                       .styleClass("fine"));
+            .children({text(weave::rich().add("wardnet").add(
+                           " $ ", weave::Type{.face = faceMonoMed,
+                                              .color = dc::kAccent})),
+                       text(std::string(command).substr(0, shown))
+                           .font({.size = 12.5f, .color = dc::kBone}),
+                       box()
+                           .width(7)
+                           .height(13)
+                           .margin(3, 0, 0, 0)
+                           .fill(Fill::color(dc::kAccent))
+                           // The blink is the pulse waveform itself: on for
+                           // 0.62 s of every 1.06 s cycle, resting dim rather
+                           // than vanishing. Phase 0 is ON, so the caret the
+                           // typing machine parks at 0 sits solid.
+                           .opacity(motion::bind(&caretClock)
+                                        .source(0.0f, 1.06f)
+                                        .square(0.62f / 1.06f)
+                                        .target(0.10f, 1.0f))
+                           .key("caret"),
+                       box().grow(1),
+                       text(std::format("ring 256 · {} events",
+                                        (unsigned long long)gen.events))
+                           .styleClass("fine")});
 
     return stack()
         .styleSheet(classes())
         .fill(Paint::linear({0, 0}, {0, dc::kH},
                             {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}}))
-        .child(
-            box()
-                .column()
-                .inset(26, 22, 26, 22)
-                .fill(panel)
-                .clip()
-                .padding(padX, padY)
-                // The enclosure's face, inherited by every chrome line; the
-                // well and the prompt root their own monospaced voice under it.
-                .font({.face = faceChrome})
-                .child(header)
-                .child(rule(9, 8))
-                .child(box()
-                           .row()
-                           .grow(1)
-                           .gap(16)
-                           .clip()
-                           .child(std::move(well))
-                           .child(box().width(1).fill(Fill::color(dc::kRule)))
-                           .child(std::move(rail)))
-                .child(rule(8, 7))
-                .child(promptLine))
+        .children({box()
+                       .column()
+                       .inset(26, 22, 26, 22)
+                       .fill(panel)
+                       .clip()
+                       .padding(padX, padY)
+                       // The enclosure's face, inherited by every chrome line;
+                       // the well and the prompt root their own monospaced
+                       // voice under it.
+                       .font({.face = faceChrome})
+                       .children({header})
+                       .children({rule(9, 8)})
+                       .children({box()
+                                      .row()
+                                      .grow(1)
+                                      .gap(16)
+                                      .clip()
+                                      .children({std::move(well)})
+                                      .children({box().width(1).fill(
+                                          Fill::color(dc::kRule))})
+                                      .children({std::move(rail)})})
+                       .children({rule(8, 7)})
+                       .children({promptLine})})
         // the living surface: the scanline tile, crept by its bound pan
-        .child(box()
-                   .inset(0)
-                   .zIndex(3)
-                   .hitTestable(false)
-                   .fill(Pattern(scanlines)
-                             .offset(std::nullopt, &scanCreep)
-                             .material())
-                   .blend(SkBlendMode::kScreen))
+        .children({box()
+                       .inset(0)
+                       .zIndex(3)
+                       .hitTestable(false)
+                       .fill(Pattern(scanlines)
+                                 .offset(std::nullopt, &scanCreep)
+                                 .material())
+                       .blend(SkBlendMode::kScreen)})
         // …and the refresh band, baked once and slid down the panel. Its
         // rest position puts the tent's centre 90 px above the top edge,
         // so the sweep enters from above and leaves below the foot.
-        .child(box()
-                   .left(0)
-                   .top(-90.0f - dc::kRefreshH * 0.5f)
-                   .width(dc::kW)
-                   .height(dc::kRefreshH)
-                   .zIndex(4)
-                   .hitTestable(false)
-                   .fill(dc::refreshBand())
-                   .translateY(&refreshSweep)
-                   .cache(Cache::Texture)
-                   .blend(SkBlendMode::kScreen));
+        .children({box()
+                       .left(0)
+                       .top(-90.0f - dc::kRefreshH * 0.5f)
+                       .width(dc::kW)
+                       .height(dc::kRefreshH)
+                       .zIndex(4)
+                       .hitTestable(false)
+                       .fill(dc::refreshBand())
+                       .translateY(&refreshSweep)
+                       .cache(Cache::Texture)
+                       .blend(SkBlendMode::kScreen)});
   }
 };
 

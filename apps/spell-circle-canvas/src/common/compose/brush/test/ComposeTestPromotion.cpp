@@ -21,13 +21,13 @@ TEST(ComposeCache, TheAutoPromotionSwitchChangesNoPixels) {
   // mechanism — see the profiling cases for that.
   Host reference;
   reference.composer.setAutoTexturePromotion(false);
-  reference.composer.render(box().child(expensivePanel()));
+  reference.composer.render(box().children({expensivePanel()}));
   for (int i = 0; i < 30; ++i) reference.frame();
   const std::vector<SkColor> before = grab(reference);
 
   Host promoted;
   promoted.composer.setAutoTexturePromotion(true);
-  promoted.composer.render(box().child(expensivePanel()));
+  promoted.composer.render(box().children({expensivePanel()}));
   for (int i = 0; i < 30; ++i) promoted.frame();
   const std::vector<SkColor> after = grab(promoted);
 
@@ -47,7 +47,7 @@ TEST(ComposeCache, NoRowReportsPromotedWhilePromotionIsOff) {
   Host host;
   host.composer.setAutoTexturePromotion(false);
   host.composer.setProfiling(true);
-  host.composer.render(box().child(expensivePanel()));
+  host.composer.render(box().children({expensivePanel()}));
   for (int i = 0; i < 30; ++i) host.frame();
   bool sawPromoted = false, sawPicture = false;
   for (const auto& row : host.composer.profile()) {
@@ -89,18 +89,17 @@ namespace {
  *  transparent black differ enormously, so a wrongly-baked subtree is
  *  loud rather than subtle. */
 Element blendingScene(SkBlendMode mode) {
-  return profiledUnder(stack()
-                           .child(box().absolute().inset(0).fill(
-                               Fill::color({0.55f, 0.55f, 0.6f, 1})))
-                           .child(expensivePanel().key("reader").child(
-                               box()
-                                   .absolute()
-                                   .left(20)
-                                   .top(20)
-                                   .width(90)
-                                   .height(90)
-                                   .fill(Fill::color({0.9f, 0.5f, 0.2f, 1}))
-                                   .blend(mode))));
+  return profiledUnder(stack().children(
+      {box().absolute().inset(0).fill(Fill::color({0.55f, 0.55f, 0.6f, 1})),
+       expensivePanel().key("reader").children(
+           {box()
+                .absolute()
+                .left(20)
+                .top(20)
+                .width(90)
+                .height(90)
+                .fill(Fill::color({0.9f, 0.5f, 0.2f, 1}))
+                .blend(mode)})}));
 }
 
 }  // namespace
@@ -174,14 +173,12 @@ TEST(ComposeCache, PromotionRefusesABackdropFilter) {
   // destination, so a bake would filter transparent black.
   Host host(220, 220);
   host.composer.setProfiling(true);
-  host.composer.render(profiledUnder(
-      stack()
-          .child(box().absolute().inset(0).fill(
-              Fill::color({0.55f, 0.55f, 0.6f, 1})))
-          .child(expensivePanel().key("reader").child(
-              box().absolute().left(20).top(20).width(90).height(90).backdrop(
-                  material::skia::Effect::filter(
-                      SkImageFilters::Blur(3, 3, nullptr)))))));
+  host.composer.render(profiledUnder(stack().children(
+      {box().absolute().inset(0).fill(Fill::color({0.55f, 0.55f, 0.6f, 1})),
+       expensivePanel().key("reader").children(
+           {box().absolute().left(20).top(20).width(90).height(90).backdrop(
+               material::skia::Effect::filter(
+                   SkImageFilters::Blur(3, 3, nullptr)))})})));
   for (int i = 0; i < 24; ++i) host.frame();
   const Composer::NodeCost* row = requireRow(host.composer, "reader");
   ASSERT_NE(row, nullptr);
@@ -327,9 +324,9 @@ Element arcTable() {
         animate(motion::from(0.0001f).to(r.endDeg / 360.0f),
                 {std::chrono::milliseconds(120u << (unsigned)r.ring),
                  &choreograph::easeNone, std::chrono::milliseconds(150)}))));
-    plate.child(std::move(arc).key("ring" + std::to_string(r.ring)));
+    plate.children({std::move(arc).key("ring" + std::to_string(r.ring))});
   }
-  page.child(std::move(plate).inset(238, 20, 238, 20).key("plate"));
+  page.children({std::move(plate).inset(238, 20, 238, 20).key("plate")});
   return page;
 }
 

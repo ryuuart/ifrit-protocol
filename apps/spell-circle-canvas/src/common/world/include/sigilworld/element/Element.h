@@ -23,6 +23,7 @@
 #include <functional>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
+#include <initializer_list>
 #include <memory>
 #include <ranges>
 #include <span>
@@ -68,6 +69,12 @@ class Element {
     requires std::convertible_to<std::ranges::range_value_t<R>, Element>
   Element& children(R&& range) {
     for (auto&& e : range) child(std::move(e));
+    return *this;
+  }
+  /** THE CHILDREN, AS ONE BLOCK — what is in the element, in order —
+   *  the spelling a compose tree uses too. */
+  Element& children(std::initializer_list<Element> block) {
+    for (const Element& e : block) child(e);
     return *this;
   }
 

@@ -86,31 +86,31 @@ Element dial(float edge) {
   auto ticks = box().row().gap(7).alignItems(Align::End);
   for (int i = 0; i < 18; ++i) {
     const float t = (float)i / 17.0f;
-    ticks.child(box()
-                    .width(10)
-                    .height(14 + 74.0f * (0.5f + 0.5f * std::sin(t * 8.4f)))
-                    .corners({3})
-                    .fill(Fill::color({0.30f, 0.86f, 1.0f, 0.9f})));
+    ticks.children({box()
+                        .width(10)
+                        .height(14 + 74.0f * (0.5f + 0.5f * std::sin(t * 8.4f)))
+                        .corners({3})
+                        .fill(Fill::color({0.30f, 0.86f, 1.0f, 0.9f}))});
   }
   return stack()
       .width(edge)
       .height(edge)
       .fill(Fill::color({0.043f, 0.055f, 0.094f, 1}))
-      .child(box()
-                 .absolute()
-                 .inset(34, 34, 34, 34)
-                 .column()
-                 .gap(22)
-                 .child(text("COMPOSE")
-                            .font({.size = 30, .track = 6})
-                            .ink(SkColor4f{1, 1, 1, 0.92f}))
-                 .child(text("a composer painting into a surface of "
-                             "its own; texture() is the value a slot "
-                             "holds")
-                            .font({.size = 17, .track = 0.4f})
-                            .ink(SkColor4f{1, 1, 1, 0.45f})
-                            .width(Dimension(edge - 68)))
-                 .child(std::move(ticks)));
+      .children({box()
+                     .absolute()
+                     .inset(34, 34, 34, 34)
+                     .column()
+                     .gap(22)
+                     .children({text("COMPOSE")
+                                    .font({.size = 30, .track = 6})
+                                    .ink(SkColor4f{1, 1, 1, 0.92f})})
+                     .children({text("a composer painting into a surface of "
+                                     "its own; texture() is the value a slot "
+                                     "holds")
+                                    .font({.size = 17, .track = 0.4f})
+                                    .ink(SkColor4f{1, 1, 1, 0.45f})
+                                    .width(Dimension(edge - 68))})
+                     .children({std::move(ticks)})});
 }
 
 /** WHAT THE PAGE SCREEN CARRIES. Laid out by the web engine, published as
@@ -237,18 +237,18 @@ struct ImportNative final : sketch::Set {
                      material::Texture::of(pageFrame));
 
     world::Element root;
-    root.key("set")
-        .child(world::Element().key("sun").light(world::light::sun(
-            {-0.4f, -0.8f, -0.4f}, {0.95f, 0.96f, 1.0f, 1.0f}, 0.9f)))
-        .child(world::Element()
-                   .key("plate")
-                   .at({0, -118, 0})
-                   .rotateX(-90.0f)
-                   .mesh(gm::quad(900, 700))
-                   .fill(material::kit::surface(
-                       {.baseColor = {0.05f, 0.06f, 0.09f, 1.0f}})))
-        .child(screen("compose", -125.0f, 17.0f, std::move(fromCompose)))
-        .child(screen("page", 125.0f, -17.0f, std::move(fromPage)));
+    root.key("set").children(
+        {world::Element().key("sun").light(world::light::sun(
+             {-0.4f, -0.8f, -0.4f}, {0.95f, 0.96f, 1.0f, 1.0f}, 0.9f)),
+         world::Element()
+             .key("plate")
+             .at({0, -118, 0})
+             .rotateX(-90.0f)
+             .mesh(gm::quad(900, 700))
+             .fill(material::kit::surface(
+                 {.baseColor = {0.05f, 0.06f, 0.09f, 1.0f}})),
+         screen("compose", -125.0f, 17.0f, std::move(fromCompose)),
+         screen("page", 125.0f, -17.0f, std::move(fromPage))});
     return world::Frame(std::move(root));
   }
 };

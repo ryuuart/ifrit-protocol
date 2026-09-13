@@ -351,29 +351,29 @@ struct VertigoTitles : sketch::Sketch {
     const float R = c.amp * kFit;
     const std::string tag = c.tag;
 
-    into.child(
-        figureBox(kEye, R)
-            .key("curve" + tag)
-            .shape(figure(c))
-            .stroke(spans::upTo(&growth[i]),
-                    brush::presets::filament(c.core, hexColor(0xFFE9CF), 0.48f))
-            .rotate(turntable())
-            .opacity(&cardA[i]));
+    into.children({figureBox(kEye, R)
+                       .key("curve" + tag)
+                       .shape(figure(c))
+                       .stroke(spans::upTo(&growth[i]),
+                               brush::presets::filament(
+                                   c.core, hexColor(0xFFE9CF), 0.48f))
+                       .rotate(turntable())
+                       .opacity(&cardA[i])});
 
     // the nib: a short bright plus-blended window at the trailing edge
     // The nib's trailing edge is `growth` MINUS a constant — a derived
     // value, which is a shaped binding on the same Output rather than a
     // second Output kept in step by hand.
-    into.child(
-        figureBox(kEye, R)
-            .key("nib" + tag)
-            .shape(figure(c))
-            .stroke(spans::range(bind(&growth[i]).offset(-kNib).clamp(0, 1),
-                                 &growth[i]),
-                    brush::presets::pulse({1.0f, 0.90f, 0.72f, 0.42f},
-                                          {1, 1, 1, 0.95f}, 0.7f))
-            .rotate(turntable())
-            .opacity(&penA[i]));
+    into.children(
+        {figureBox(kEye, R)
+             .key("nib" + tag)
+             .shape(figure(c))
+             .stroke(spans::range(bind(&growth[i]).offset(-kNib).clamp(0, 1),
+                                  &growth[i]),
+                     brush::presets::pulse({1.0f, 0.90f, 0.72f, 0.42f},
+                                           {1, 1, 1, 0.95f}, 0.7f))
+             .rotate(turntable())
+             .opacity(&penA[i])});
   }
 
   // ------------------------------------------------------------------
@@ -396,22 +396,25 @@ struct VertigoTitles : sketch::Sketch {
                      .key("screen")
                      .fill(irisMat);
 
-    panel.child(ring(61.0f, hexColor(0x090604, 0.85f), 3.0f)
-                    .key("pupil-edge")
-                    .opacity(animate(from(0.0f).to(1.0f), ramp(300, 420))));
-    panel.child(ring(146.0f, hexColor(0x2A1D10, 0.40f), 1.2f).key("iris-mid"));
-    panel.child(ring(262.0f, hexColor(0x120C07, 0.24f), 10.0f).key("limbus"));
+    panel.children(
+        {ring(61.0f, hexColor(0x090604, 0.85f), 3.0f)
+             .key("pupil-edge")
+             .opacity(animate(from(0.0f).to(1.0f), ramp(300, 420)))});
+    panel.children(
+        {ring(146.0f, hexColor(0x2A1D10, 0.40f), 1.2f).key("iris-mid")});
+    panel.children(
+        {ring(262.0f, hexColor(0x120C07, 0.24f), 10.0f).key("limbus")});
 
     // "the screen is suddenly stained red" — kColor keeps the iris's
     // luminance and swaps its hue/saturation, so it TINTS rather than
     // covers. Sudden onset: easeInQuad.
-    panel.child(box()
-                    .key("stain")
-                    .inset(0)
-                    .blend(SkBlendMode::kColor)
-                    .fill(animate(from(Fill::color(hexColor(0x3A2A1C)))
-                                      .to(Fill::color(hexColor(0xC81E2C))),
-                                  ramp(700, 500, ch::easeInQuad))));
+    panel.children({box()
+                        .key("stain")
+                        .inset(0)
+                        .blend(SkBlendMode::kColor)
+                        .fill(animate(from(Fill::color(hexColor(0x3A2A1C)))
+                                          .to(Fill::color(hexColor(0xC81E2C))),
+                                      ramp(700, 500, ch::easeInQuad)))});
 
     for (int i = 0; i < 4; ++i) spiralCard(panel, i);
 
@@ -443,13 +446,14 @@ struct VertigoTitles : sketch::Sketch {
       // The entrance ramp covers the cascade's own span, so the last
       // capital lands exactly when the master progress does.
       const Spread cascade{.eachMs = 30, .durationMs = 480};
-      panel.child(text("VERTIGO", face)
-                      .key("vertigo")
-                      .centerAt(kEye)
-                      .fx({.effect = fx::pop(0.30f),
-                           .stagger = cascade,
-                           .progress = animate(from(0.0f).to(1.0f),
-                                               ramp(780, cascade.spanMs(7)))}));
+      panel.children(
+          {text("VERTIGO", face)
+               .key("vertigo")
+               .centerAt(kEye)
+               .fx({.effect = fx::pop(0.30f),
+                    .stagger = cascade,
+                    .progress = animate(from(0.0f).to(1.0f),
+                                        ramp(780, cascade.spanMs(7)))})});
     }
 
     // the other register — "solid black capitals of the SAME typeface"
@@ -457,49 +461,50 @@ struct VertigoTitles : sketch::Sketch {
     // unadorned next to VERTIGO's hollow display caps, and deliberately
     // laid over the busiest part of the card: that is where the film puts
     // its body credits too.
-    panel.child(
-        text("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY")
-            .font({.face = faceDisplay, .size = 15, .track = 2.6f})
-            .ink(kSolidInk)
-            .key("credit")
-            .centerAt({kEye.x(), kEye.y() + 152.0f})
-            .opacity(animate(from(0.0f).to(1.0f), ramp(1550, 300)))
-            .translateY(animate(from(10.0f).to(0.0f), ramp(1550, 300))));
+    panel.children(
+        {text("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY")
+             .font({.face = faceDisplay, .size = 15, .track = 2.6f})
+             .ink(kSolidInk)
+             .key("credit")
+             .centerAt({kEye.x(), kEye.y() + 152.0f})
+             .opacity(animate(from(0.0f).to(1.0f), ramp(1550, 300)))
+             .translateY(animate(from(10.0f).to(0.0f), ramp(1550, 300)))});
 
     // the instrument-dial legend, set on the limbus itself with
     // Element::onPath() — one text leaf where hand-placing curved
     // lettering would have been one leaf and one measure() per glyph.
     const weave::Type legend{
         .size = 11, .color = hexColor(0xEDE6D8, 0.42f), .track = 3.4f};
-    panel.child(text("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE")
-                    .font(legend)
-                    .key("ring-top")
-                    .width(544)
-                    .height(544)
-                    .centerAt(kEye)
-                    .onPath({.path = ringPath(),
-                             .at = 0.25f,
-                             .align = TextPath::Align::Center,
-                             .offset = 3.0f,
-                             .autoFlip = false})
-                    .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500))));
-    panel.child(
-        text("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR")
-            .font(legend)
-            .key("ring-bottom")
-            .width(544)
-            .height(544)
-            .centerAt(kEye)
-            // Same clockwise baseline as the top caption, half a turn
-            // round. autoFlip turns the whole run over so it reads right
-            // way up on the underside of the ring; glyph order and glyph
-            // orientation both follow, so the text is not mirrored.
-            .onPath({.path = ringPath(),
-                     .at = 0.75f,
-                     .align = TextPath::Align::Center,
-                     .offset = 3.0f,
-                     .autoFlip = true})
-            .opacity(animate(from(0.0f).to(1.0f), ramp(1120, 500))));
+    panel.children(
+        {text("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE")
+             .font(legend)
+             .key("ring-top")
+             .width(544)
+             .height(544)
+             .centerAt(kEye)
+             .onPath({.path = ringPath(),
+                      .at = 0.25f,
+                      .align = TextPath::Align::Center,
+                      .offset = 3.0f,
+                      .autoFlip = false})
+             .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500)))});
+    panel.children(
+        {text("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR")
+             .font(legend)
+             .key("ring-bottom")
+             .width(544)
+             .height(544)
+             .centerAt(kEye)
+             // Same clockwise baseline as the top caption, half a turn
+             // round. autoFlip turns the whole run over so it reads right
+             // way up on the underside of the ring; glyph order and glyph
+             // orientation both follow, so the text is not mirrored.
+             .onPath({.path = ringPath(),
+                      .at = 0.75f,
+                      .align = TextPath::Align::Center,
+                      .offset = 3.0f,
+                      .autoFlip = true})
+             .opacity(animate(from(0.0f).to(1.0f), ramp(1120, 500)))});
 
     // the card slug: four of them stacked in the same corner, each riding
     // its own card's opacity — so the caption cross-dissolves with the
@@ -512,42 +517,43 @@ struct VertigoTitles : sketch::Sketch {
     };
     const weave::Type slug{.size = 10, .track = 1.8f};
     for (int i = 0; i < 4; ++i)
-      panel.child(text(kSlug[i])
-                      .font(slug)
-                      .key(std::string("slug") + kCards[i].tag)
-                      .left(22)
-                      .top(20)
-                      .opacity(&cardA[i]));
-    panel.child(text("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone")
-                    .font(slug)
-                    .ink(hexColor(0xEDE6D8, 0.50f))
-                    .key("slug-rig")
-                    .left(22)
-                    .bottom(20)
-                    .opacity(animate(from(0.0f).to(1.0f), ramp(1200, 400))));
+      panel.children({text(kSlug[i])
+                          .font(slug)
+                          .key(std::string("slug") + kCards[i].tag)
+                          .left(22)
+                          .top(20)
+                          .opacity(&cardA[i])});
+    panel.children(
+        {text("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone")
+             .font(slug)
+             .ink(hexColor(0xEDE6D8, 0.50f))
+             .key("slug-rig")
+             .left(22)
+             .bottom(20)
+             .opacity(animate(from(0.0f).to(1.0f), ramp(1200, 400)))});
 
     // Film gate: grain, and NO vignette. The one colour source located
     // for this passage describes a flat saturated field — cool tones and
     // warm tones, not a centre that falls off to black. A ramp to the
     // corners is a modern device and it was reading as the subject.
-    panel.child(box()
-                    .inset(0)
-                    .fill(filmGrain)
-                    .blend(SkBlendMode::kOverlay)
-                    .opacity(0.42f));
+    panel.children({box()
+                        .inset(0)
+                        .fill(filmGrain)
+                        .blend(SkBlendMode::kOverlay)
+                        .opacity(0.42f)});
 
     // the bezel is its OWN node: trim() on the panel would reveal the
     // iris fill along with the keyline.
-    panel.child(
-        box()
-            .key("bezel")
-            .inset(0)
-            .corners({10})
-            .fill(Fill::none())
-            .stroke(
-                spans::upTo(animate(from(0.0f).to(1.0f),
-                                    ramp(260, 480, ch::easeOutCubic))),
-                stroke(2.0f, Fill::color(kKeyline), PathFormat::Align::Inner)));
+    panel.children(
+        {box()
+             .key("bezel")
+             .inset(0)
+             .corners({10})
+             .fill(Fill::none())
+             .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                         ramp(260, 480, ch::easeOutCubic))),
+                     stroke(2.0f, Fill::color(kKeyline),
+                            PathFormat::Align::Inner))});
     return panel;
   }
 
@@ -556,20 +562,21 @@ struct VertigoTitles : sketch::Sketch {
     auto p = plate(140).gap(6);
     // something to see THROUGH the counters — the whole point of the
     // outline register. Card C's own curve, spinning with the rest.
-    p.child(figureBox({130.0f, 70.0f}, 74.0f)
-                .key("spec-bed")
-                .shape(figure(kCards[2], 700))
-                .stroke(stroke(0.8f, Fill::color(hexColor(0x2E5C9E, 0.55f))))
-                .rotate(turntable()));
-    p.child(text("VERTIGO", hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
-                .key("spec-outline"));
-    p.child(text("SAUL BASS · JOHN WHITNEY")
-                .font({.face = faceDisplay, .size = 14, .track = 2.0f})
-                .key("spec-solid"));
-    p.child(text("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
-                 "— BOTH CLARENDON.")
-                .font({.size = 10, .color = kSteel, .track = 0.6f})
-                .key("spec-cap"));
+    p.children(
+        {figureBox({130.0f, 70.0f}, 74.0f)
+             .key("spec-bed")
+             .shape(figure(kCards[2], 700))
+             .stroke(stroke(0.8f, Fill::color(hexColor(0x2E5C9E, 0.55f))))
+             .rotate(turntable())});
+    p.children({text("VERTIGO", hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
+                    .key("spec-outline")});
+    p.children({text("SAUL BASS · JOHN WHITNEY")
+                    .font({.face = faceDisplay, .size = 14, .track = 2.0f})
+                    .key("spec-solid")});
+    p.children({text("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
+                     "— BOTH CLARENDON.")
+                    .font({.size = 10, .color = kSteel, .track = 0.6f})
+                    .key("spec-cap")});
     return p;
   }
 
@@ -585,26 +592,28 @@ struct VertigoTitles : sketch::Sketch {
                      .key(std::string("idx") + c.tag);
       // the chip draws the card's OWN curve at 15px — same generator,
       // same six constants, 1/12 the amplitude
-      row.child(box()
-                    .width(38)
-                    .height(38)
-                    .shrink(0)
-                    .corners({3})
-                    .fill(Fill::color(hexColor(0x080605)))
-                    .stroke(stroke(1.0f, Fill::color(kKeyline),
-                                   PathFormat::Align::Inner))
-                    .child(figureBox({19.0f, 19.0f}, 13.0f)
-                               .shape(figure(c, 360))
-                               .stroke(stroke(0.9f, Fill::color(c.core)))
-                               .rotate(turntable())));
-      row.child(box()
-                    .column()
-                    .grow(1)
-                    .gap(2)
-                    .child(text(c.line1).font(
-                        {.face = faceGothicBold, .size = 11, .track = 0.7f}))
-                    .child(text(c.line2).font({.size = 9, .color = kSteel})));
-      p.child(std::move(row));
+      row.children(
+          {box()
+               .width(38)
+               .height(38)
+               .shrink(0)
+               .corners({3})
+               .fill(Fill::color(hexColor(0x080605)))
+               .stroke(stroke(1.0f, Fill::color(kKeyline),
+                              PathFormat::Align::Inner))
+               .children({figureBox({19.0f, 19.0f}, 13.0f)
+                              .shape(figure(c, 360))
+                              .stroke(stroke(0.9f, Fill::color(c.core)))
+                              .rotate(turntable())})});
+      row.children(
+          {box()
+               .column()
+               .grow(1)
+               .gap(2)
+               .children({text(c.line1).font(
+                   {.face = faceGothicBold, .size = 11, .track = 0.7f})})
+               .children({text(c.line2).font({.size = 9, .color = kSteel})})});
+      p.children({std::move(row)});
     }
     return p;
   }
@@ -619,20 +628,20 @@ struct VertigoTitles : sketch::Sketch {
         "CURVES PLOT JULES LISSAJOUS'S PARAMETRIC EQUATIONS",
     };
     auto p = plate(176).gap(5);
-    p.child(text("THE M-5 GUN DIRECTOR")
-                .font({.face = faceGothicBold, .size = 13, .track = 1.6f})
-                .key("rig-h"));
+    p.children({text("THE M-5 GUN DIRECTOR")
+                    .font({.face = faceGothicBold, .size = 13, .track = 1.6f})
+                    .key("rig-h")});
     for (int i = 0; i < 4; ++i)
-      p.child(text(kFacts[i])
-                  .font({.size = 10.5f, .color = kSteel, .track = 0.3f})
-                  .key("rig" + std::to_string(i))
-                  .opacity(animate(from(0.0f).to(1.0f),
-                                   ramp(900.0f + (float)i * 90.0f, 300))));
-    p.child(box().grow(1));
-    p.child(text("hitchcocksvertigo.substack.com · rhizome.org "
-                 "· diyphotography.net")
-                .font({.size = 9, .color = kSteelDim})
-                .key("rig-cite"));
+      p.children({text(kFacts[i])
+                      .font({.size = 10.5f, .color = kSteel, .track = 0.3f})
+                      .key("rig" + std::to_string(i))
+                      .opacity(animate(from(0.0f).to(1.0f),
+                                       ramp(900.0f + (float)i * 90.0f, 300)))});
+    p.children({box().grow(1)});
+    p.children({text("hitchcocksvertigo.substack.com · rhizome.org "
+                     "· diyphotography.net")
+                    .font({.size = 9, .color = kSteelDim})
+                    .key("rig-cite")});
     return p;
   }
 
@@ -680,53 +689,53 @@ struct VertigoTitles : sketch::Sketch {
       // Bound round the masthead only: everything under it is set in the
       // sequence's own registers rather than in a sheet's.
       const sketch::kit::Provide look(mastheadTheme());
-      root.child(
-          sketch::kit::titleCard(
-              {.eyebrow = {.words = "PRECESSING LISSAJOUS FIGURES",
-                           .opacity =
-                               animate(from(0.0f).to(1.0f), ramp(0, 260)),
-                           .lift = animate(from(8.0f).to(0.0f), ramp(0, 260))},
-               .title = {.words = "VERTIGO, 1958",
-                         .fx = Track{.effect = fx::rise(18.0f),
-                                     .stagger = {.eachMs = 26,
-                                                 .amountMs = 0,
-                                                 .durationMs = 420},
-                                     .progress = animate(
-                                         from(0.0f).to(1.0f),
-                                         ramp(140, 900, ch::easeOutExpo))}},
-               .subtitle = {.words = "Saul Bass, title design — John "
-                                     "Whitney, spirals — Paramount, "
-                                     "dir. Alfred Hitchcock",
+      root.children(
+          {sketch::kit::titleCard(
+               {.eyebrow = {.words = "PRECESSING LISSAJOUS FIGURES",
                             .opacity =
-                                animate(from(0.0f).to(1.0f), ramp(420, 240))},
-               .notes = std::move(sources),
-               .align = Align::Stretch,
-               .key = "head"})
-              .height(104));
+                                animate(from(0.0f).to(1.0f), ramp(0, 260)),
+                            .lift = animate(from(8.0f).to(0.0f), ramp(0, 260))},
+                .title = {.words = "VERTIGO, 1958",
+                          .fx = Track{.effect = fx::rise(18.0f),
+                                      .stagger = {.eachMs = 26,
+                                                  .amountMs = 0,
+                                                  .durationMs = 420},
+                                      .progress = animate(
+                                          from(0.0f).to(1.0f),
+                                          ramp(140, 900, ch::easeOutExpo))}},
+                .subtitle = {.words = "Saul Bass, title design — John "
+                                      "Whitney, spirals — Paramount, "
+                                      "dir. Alfred Hitchcock",
+                             .opacity =
+                                 animate(from(0.0f).to(1.0f), ramp(420, 240))},
+                .notes = std::move(sources),
+                .align = Align::Stretch,
+                .key = "head"})
+               .height(104)});
     }
 
     // hairline under the header
-    root.child(box()
-                   .height(1)
-                   .fill(Fill::color(kKeyline))
-                   .transformOrigin(0.0f, 0.5f)
-                   .scale(animate(from(0.0f).to(1.0f),
-                                  ramp(200, 620, ch::easeOutCubic))));
+    root.children({box()
+                       .height(1)
+                       .fill(Fill::color(kKeyline))
+                       .transformOrigin(0.0f, 0.5f)
+                       .scale(animate(from(0.0f).to(1.0f),
+                                      ramp(200, 620, ch::easeOutCubic)))});
 
     // ---- body -----------------------------------------------------
-    root.child(box()
-                   .row()
-                   .gap(32)
-                   .height(kPanelH)
-                   .child(screenPanel())
-                   .child(box()
-                              .width(kSideW)
-                              .shrink(0)
-                              .column()
-                              .gap(20)
-                              .child(typeSpecimen())
-                              .child(spiralIndex())
-                              .child(rigPlate())));
+    root.children({box()
+                       .row()
+                       .gap(32)
+                       .height(kPanelH)
+                       .children({screenPanel()})
+                       .children({box()
+                                      .width(kSideW)
+                                      .shrink(0)
+                                      .column()
+                                      .gap(20)
+                                      .children({typeSpecimen()})
+                                      .children({spiralIndex()})
+                                      .children({rigPlate()})})});
 
     // ---- the whole sheet under one very faint tooth ---------------
     // A full-canvas procedural grain shader. It never changes, but the
@@ -734,12 +743,12 @@ struct VertigoTitles : sketch::Sketch {
     // so without the explicit Cache::Texture the shader is re-evaluated
     // over every pixel of the canvas on every frame. Nothing here is
     // animated, so the baked texture stays valid for the whole run.
-    root.child(box()
-                   .inset(0)
-                   .fill(paperGrain)
-                   .blend(SkBlendMode::kOverlay)
-                   .opacity(0.16f)
-                   .cache(Cache::Texture));
+    root.children({box()
+                       .inset(0)
+                       .fill(paperGrain)
+                       .blend(SkBlendMode::kOverlay)
+                       .opacity(0.16f)
+                       .cache(Cache::Texture)});
     return root;
   }
 

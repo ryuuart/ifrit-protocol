@@ -38,7 +38,7 @@ TEST(ComposeFeed, ATypedOnRowPaintsLiveThenCachesWhenItsTrackSettles) {
   };
   Host host(240, 120);
   host.composer.render(
-      box().padding(4).child(feed::feed(ring, options.window, typed)));
+      box().padding(4).children({feed::feed(ring, options.window, typed)}));
   host.frame(0.05);
   EXPECT_GT(host.composer.stats().nodesPainted, 0u)
       << "a running typeOn track must paint live";
@@ -83,15 +83,13 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
                     .add(toUtf8(r.ts + "  "), "ts")
                     .add(toUtf8(r.tag + "  "), "tag")
                     .add(toUtf8(r.body));
-    return box()
-        .row()
-        .gap(6)
-        .child(box().width(3).height(10).fill(Fill::color(SkColors::kRed)))
-        .child(text(std::move(line))
-                   .fx({.effect = fx::typeOn(),
-                        .stagger = {.eachMs = 5, .durationMs = 30},
-                        .progress = animate(motion::from(0.0f).to(1.0f),
-                                            {200ms, &choreograph::easeNone})}));
+    return box().row().gap(6).children(
+        {box().width(3).height(10).fill(Fill::color(SkColors::kRed)),
+         text(std::move(line))
+             .fx({.effect = fx::typeOn(),
+                  .stagger = {.eachMs = 5, .durationMs = 30},
+                  .progress = animate(motion::from(0.0f).to(1.0f),
+                                      {200ms, &choreograph::easeNone})})});
   };
   constexpr size_t kRowNodes = 3;  // the row box, the stripe, the text leaf
 
@@ -101,7 +99,7 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
     options.gap = 2.0f;
     Host host(260, 500);
     auto describe = [&] {
-      return box().padding(6).child(feed::feed(ring, options, rowEl));
+      return box().padding(6).children({feed::feed(ring, options, rowEl)});
     };
     host.composer.render(describe());
     host.frame(0.4);  // every mounted entrance has settled

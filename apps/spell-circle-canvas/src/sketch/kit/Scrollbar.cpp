@@ -30,7 +30,7 @@ compose::Element scrollbar(Scrollbar bar) {
     shell.column();
   else
     shell.row();
-  if (bar.leading) shell.child(std::move(*bar.leading));
+  if (bar.leading) shell.children({std::move(*bar.leading)});
 
   Element rail = box().grow(1);
   bar.track.value_or(Fill::color(look.palette.cellGround)).apply(rail);
@@ -57,11 +57,11 @@ compose::Element scrollbar(Scrollbar bar) {
       slider.left(offset).width(length);
       if (bar.position) slider.translateX(*bar.position);
     }
-    rail.child(std::move(slider));
+    rail.children({std::move(slider)});
   }
 
-  shell.child(std::move(rail));
-  if (bar.trailing) shell.child(std::move(*bar.trailing));
+  shell.children({std::move(rail)});
+  if (bar.trailing) shell.children({std::move(*bar.trailing)});
   return shell;
 }
 

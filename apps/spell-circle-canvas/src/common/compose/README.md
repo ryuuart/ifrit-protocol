@@ -75,8 +75,7 @@ Element meter(const Channel &c) {
       .alignItems(Align::Center)
       // A mark on part of the boundary: L-brackets at every tangent break.
       .stroke(spans::corners(12), stroke(1.5f, Fill::color(ink)))
-      .child(text(c.label, weave::textStyle({.size = 13, .color = ink})))
-      .child(box()
+      .children({text(c.label, weave::textStyle({.size = 13, .color = ink})), box()
                  .grow()
                  .height(6)
                  .fill(ink)
@@ -84,7 +83,7 @@ Element meter(const Channel &c) {
                  // The bar ramps because the DESCRIBED value moved. Nobody
                  // steps it; the reconciler sees the change and starts a
                  // motion that retargets from wherever the bar is now.
-                 .scaleX(animate(to(c.level), Transition{.duration = 220ms})));
+                 .scaleX(animate(to(c.level), Transition{.duration = 220ms}))});
 }
 
 Element dashboard(const std::vector<Channel> &channels) {
@@ -115,9 +114,9 @@ box().column().gap(8).children({
 });
 ```
 
-`child()` adds one at a time, and a range goes into `children()` as it
-stands. An element that needs an identity of its own keys itself; the
-rest reconcile by position, as unkeyed siblings do.
+A range goes into `children()` as it stands. An element that needs an
+identity of its own keys itself; the rest reconcile by position, as
+unkeyed siblings do.
 
 The host side is three objects — a clock, a ticker and the composer —
 which the host owns and wires together:
@@ -390,7 +389,7 @@ the translate outermost of all.
 
 ```cpp
 box().perspective(800)  // the view, for the children
-    .child(box().rect(card).fill(paper).rotateY(bind(&turn).target(0, 360)));
+    .children({box().rect(card).fill(paper).rotateY(bind(&turn).target(0, 360))});
 ```
 
 **One 4x4 per node, flattened at paint.** A node composes its parent's
@@ -415,12 +414,12 @@ the translate is outermost:
 
 ```cpp
 box().preserve3d().rotateY(bind(&yaw).target(0, 360))
-    .child(face().translateZ(half))                 // front
-    .child(face().rotateY(90).translateX(half))     // right
-    .child(face().rotateX(90).translateY(-half))    // top
-    .child(face().rotateY(-90).translateX(-half))   // left
-    .child(face().rotateX(-90).translateY(half))    // bottom
-    .child(face().rotateY(180).translateZ(-half));  // back
+    .children({face().translateZ(half)})                 // front
+    .children({face().rotateY(90).translateX(half)})     // right
+    .children({face().rotateX(90).translateY(-half)})    // top
+    .children({face().rotateY(-90).translateX(-half)})   // left
+    .children({face().rotateX(-90).translateY(half)})    // bottom
+    .children({face().rotateY(180).translateZ(-half)});  // back
 ```
 
 The view reaches into the space: the perspective declared on the host's
@@ -477,9 +476,9 @@ transfers whole: text properties inherit, box properties do not.
 
 ```cpp
 box().font({.face = serif, .size = 14}).ink(hexColor(0xe6e6ea))
-    .child(text(u8"Signal"))                      // the font and ink above
-    .child(text(u8"Heading").font({.size = 22}))  // the size alone; the rest inherits
-    .child(box().stroke(stroke(1.5f)));           // no colour named: the ink
+    .children({text(u8"Signal")})                      // the font and ink above
+    .children({text(u8"Heading").font({.size = 22})})  // the size alone; the rest inherits
+    .children({box().stroke(stroke(1.5f))});           // no colour named: the ink
 ```
 
 **A leaf that names no style is set in the font and ink in force where
@@ -528,15 +527,15 @@ breaking strategy, the writing mode, the line-break locale and the line
 tables CJK text is set by, CSS's inherited block properties — and every
 text leaf under it sets its paragraphs in the block in force, a partial
 on the leaf itself included. A whole `weave::ParagraphStyle` the leaf
-wrote through `paragraph` or `paragraphs` inherits nothing, as a whole
-text style does, and a block named through `paragraphs(names)` is that
-name's partial laid over the block in force when the leaf lays out. The
-verbs that name one of these properties — `textAlign`, `hyphenation`,
-`justification`, `tabStops`, `lineBreak`, `lineBreakLocale`,
-`writingMode`, `lastLine`, `kinsoku`, `hanging`, `mojikumi` — are the
-lane's spellings for one field each: set on any node, inherited by every
-text leaf under it, exactly as `block()` is, so there is one property
-under each name and it inherits. What a node keeps to itself is what CSS
+wrote through `paragraphs` inherits nothing, as a whole text style does,
+and a block named through `paragraphs(names)` is that name's partial laid
+over the block in force when the leaf lays out. `block()` is the ONE
+spelling of every one of those fields — `block({.alignment =
+TextAlignment::kCenter})` on any node centres every line under it,
+`block({.writingMode = WritingMode::kVerticalRL})` sets the text under it
+in vertical columns — and a sheet's rule states the same partial under a
+name, so there is one property under each name and it inherits. What a
+node keeps to itself is what CSS
 keeps there: its ellipsis and line count, its frame's first baseline and
 distribution, its reservation, its threading, its exclusions, its initial
 letter, and a whole style — and, on a whole style, the block's air before
@@ -579,7 +578,7 @@ inherit down the tree like any `font()` or `block()`. Specificity is
 flat and stated: an inherited value loses to a class, between classes
 the SHEET's order decides (a later entry over an earlier, whatever order
 the names were written in), and a class loses to the node's own `font()`
-or `block()`, so `styleClass("cell", {.color = c})` is the cell class in
+or `block()`, so `styleClass("cell").font({.color = c})` is the cell class in
 this cell's colour. A name no sheet in force carries warns once and sets
 nothing. A run of a `weave::rich()` value written with a name resolves
 the same way when the leaf is shaped, through the sheet's type half,
@@ -913,9 +912,7 @@ layout(layouts::Grid{
     .columns = layouts::repeatTrack(4, layouts::fr()),
     .rows = layouts::repeatTrack(4, layouts::fr()),
     .gap = {8, 8}})
-    .child(header().cells(0, 0, 2, 1))
-    .child(sidebar().cells(3, 0, 1, 3))
-    .child(body());  // flows into the next unoccupied cell
+    .children({header().cells(0, 0, 2, 1), sidebar().cells(3, 0, 1, 3), body()});  // flows into the next unoccupied cell
 ```
 
 `Table` is the HTML automatic table layout: unequal columns

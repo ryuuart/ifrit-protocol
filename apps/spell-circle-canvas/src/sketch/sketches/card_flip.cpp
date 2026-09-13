@@ -102,11 +102,11 @@ Element panel(SkRect frame, const char* caption) {
       .corners({10})
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .perspective(kViewDistance)
-      .child(text(caption)
-                 .font({.size = 13, .color = kAsh, .track = 2})
-                 .absolute()
-                 .left(18)
-                 .bottom(14));
+      .children({text(caption)
+                     .font({.size = 13, .color = kAsh, .track = 2})
+                     .absolute()
+                     .left(18)
+                     .bottom(14)});
 }
 
 }  // namespace
@@ -156,16 +156,16 @@ struct CardFlip final : sketch::Sketch {
           .rotateY(turn)
           .backface(Backface::Hidden)
           .font({.color = kPaper, .track = 1})
-          .child(text(title).font({.size = 30}))
-          .child(text(line).font({.size = 14}).width(pct(100)));
+          .children({text(title).font({.size = 30}),
+                     text(line).font({.size = 14}).width(pct(100))});
     };
     return box()
         .absolute()
         .rect(SkRect::MakeXYWH((380 - w) * 0.5f, (440 - h) * 0.5f, w, h))
         .preserve3d()
         .rotateY(motion::bind(&flip).target(0, 360))
-        .child(face("FRONT", "rotateY · backface hidden", kCardFront, 0))
-        .child(face("BACK", "pre-turned half round", kCardBack, 180));
+        .children({face("FRONT", "rotateY · backface hidden", kCardFront, 0),
+                   face("BACK", "pre-turned half round", kCardBack, 180)});
   }
 
   /** THE CUBE: six planes in one shared space, each turned into place
@@ -180,7 +180,7 @@ struct CardFlip final : sketch::Sketch {
           .foreground(stroke(1.0f, Fill::color(kEdge)))
           .alignItems(Align::Center)
           .justify(Justify::Center)
-          .child(text(kFaceNames[i]).font({.size = 64}));
+          .children({text(kFaceNames[i]).font({.size = 64})});
     };
     return box()
         .absolute()
@@ -189,12 +189,12 @@ struct CardFlip final : sketch::Sketch {
         .preserve3d()
         .rotateX(motion::bind(&spinX).target(0, 360))
         .rotateY(motion::bind(&spinY).target(0, 360))
-        .child(face(0).translateZ(half))
-        .child(face(1).rotateY(90).translateX(half))
-        .child(face(2).rotateX(90).translateY(-half))
-        .child(face(3).rotateY(-90).translateX(-half))
-        .child(face(4).rotateX(-90).translateY(half))
-        .child(face(5).rotateY(180).translateZ(-half));
+        .children({face(0).translateZ(half),
+                   face(1).rotateY(90).translateX(half),
+                   face(2).rotateX(90).translateY(-half),
+                   face(3).rotateY(-90).translateX(-half),
+                   face(4).rotateX(-90).translateY(half),
+                   face(5).rotateY(180).translateZ(-half)});
   }
 
   /** THE PLATE: a paragraph on a plane tipped away, projected at draw. */
@@ -217,8 +217,8 @@ struct CardFlip final : sketch::Sketch {
         .transformOrigin(0.5f, 1.0f)  // hinged along its bottom edge
         .rotateX(kTilt)
         .rotateY(motion::bind(&sway).source(-1, 1).target(-14, 14))
-        .child(text("TILTED PLATE").font({.size = 18, .track = 3}))
-        .child(text(passage).font({.size = 14}).width(pct(100)));
+        .children({text("TILTED PLATE").font({.size = 18, .track = 3}),
+                   text(passage).font({.size = 14}).width(pct(100))});
   }
 
   Element describe() const {
@@ -233,20 +233,20 @@ struct CardFlip final : sketch::Sketch {
         // and the title name their ash, the card its paper.
         .font({.face = look.type.sans})
         .ink(look.palette.ink)
-        .child(text("THE DEPTH LANES — A NODE IS A PLANE")
-                   .font({.size = 14, .color = kAsh, .track = 3})
-                   .absolute()
-                   .left(gap)
-                   .top(14))
-        .child(panel(SkRect::MakeXYWH(gap, top, pw, ph),
-                     "CARD · rotateY under perspective, backs hidden")
-                   .child(card()))
-        .child(panel(SkRect::MakeXYWH(2 * gap + pw, top, pw, ph),
-                     "CUBE · six planes in one space, sorted by depth")
-                   .child(cube()))
-        .child(panel(SkRect::MakeXYWH(3 * gap + 2 * pw, top, pw, ph),
-                     "PLATE · type on a tilted plane stays sharp")
-                   .child(plate()));
+        .children({text("THE DEPTH LANES — A NODE IS A PLANE")
+                       .font({.size = 14, .color = kAsh, .track = 3})
+                       .absolute()
+                       .left(gap)
+                       .top(14),
+                   panel(SkRect::MakeXYWH(gap, top, pw, ph),
+                         "CARD · rotateY under perspective, backs hidden")
+                       .children({card()}),
+                   panel(SkRect::MakeXYWH(2 * gap + pw, top, pw, ph),
+                         "CUBE · six planes in one space, sorted by depth")
+                       .children({cube()}),
+                   panel(SkRect::MakeXYWH(3 * gap + 2 * pw, top, pw, ph),
+                         "PLATE · type on a tilted plane stays sharp")
+                       .children({plate()})});
   }
 };
 

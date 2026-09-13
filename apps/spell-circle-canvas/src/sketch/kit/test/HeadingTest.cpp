@@ -39,14 +39,14 @@ TEST(SketchKitHeading, TitleCardDrawsTheHandSpelledColumn) {
       compose::box()
           .column()
           .alignItems(compose::Align::Start)
-          .child(compose::text(u8"SIGIL · COMPOSE",
-                               line(house.type.eyebrow, house.palette.ash)))
-          .child(compose::text(u8"THE STROKE ATLAS",
-                               line(house.type.title, house.palette.ink))
-                     .margin(0, house.spacing.subtitleGap, 0, 0))
-          .child(compose::text(u8"every rail, at one width",
-                               line(house.type.subtitle, house.palette.ash))
-                     .margin(0, house.spacing.subtitleGap, 0, 0));
+          .children({compose::text(u8"SIGIL · COMPOSE",
+                                   line(house.type.eyebrow, house.palette.ash)),
+                     compose::text(u8"THE STROKE ATLAS",
+                                   line(house.type.title, house.palette.ink))
+                         .margin(0, house.spacing.subtitleGap, 0, 0),
+                     compose::text(u8"every rail, at one width",
+                                   line(house.type.subtitle, house.palette.ash))
+                         .margin(0, house.spacing.subtitleGap, 0, 0)});
   Element byKit = kit::titleCard({.eyebrow = {u8"SIGIL · COMPOSE"},
                                   .title = {u8"THE STROKE ATLAS"},
                                   .subtitle = {u8"every rail, at one width"}});
@@ -61,13 +61,14 @@ TEST(SketchKitHeading, AMissingLineSpendsNoGap) {
       compose::box()
           .column()
           .alignItems(compose::Align::Start)
-          .child(compose::text(
-              u8"T", kit::houseTheme().style(kit::houseTheme().type.title,
-                                             kit::houseTheme().palette.ink)))
-          .child(compose::text(u8"S", kit::houseTheme().style(
-                                          kit::houseTheme().type.subtitle,
-                                          kit::houseTheme().palette.ash))
-                     .margin(0, kit::houseTheme().spacing.subtitleGap, 0, 0))));
+          .children(
+              {compose::text(u8"T", kit::houseTheme().style(
+                                        kit::houseTheme().type.title,
+                                        kit::houseTheme().palette.ink)),
+               compose::text(u8"S", kit::houseTheme().style(
+                                        kit::houseTheme().type.subtitle,
+                                        kit::houseTheme().palette.ash))
+                   .margin(0, kit::houseTheme().spacing.subtitleGap, 0, 0)})));
 }
 
 /** THE MASTHEAD: a card at the left and a stack of ranged notes at the
@@ -82,27 +83,28 @@ TEST(SketchKitHeading, ACardWithNotesIsTheHandSpelledRow) {
       compose::box()
           .row()
           .alignItems(compose::Align::End)
-          .child(
-              compose::box()
-                  .column()
-                  .alignItems(compose::Align::Stretch)
-                  .child(compose::text(u8"MET OFFICE", line(house.type.eyebrow,
-                                                            house.palette.ash)))
-                  .child(
-                      compose::text(u8"THE SHIPPING FORECAST",
-                                    line(house.type.title, house.palette.ink))
-                          .margin(0, house.spacing.subtitleGap, 0, 0))
-                  .grow(1))
-          .child(compose::box()
-                     .column()
-                     .gap(house.spacing.rowGap)
-                     .alignItems(compose::Align::End)
-                     .child(compose::text(
-                         u8"ISSUED 0015 UTC",
-                         line(house.type.captionNote, house.palette.ash)))
-                     .child(compose::text(
-                         u8"VALID TO 0600 UTC",
-                         line(house.type.captionNote, house.palette.ash))));
+          .children(
+              {compose::box()
+                   .column()
+                   .alignItems(compose::Align::Stretch)
+                   .children(
+                       {compose::text(u8"MET OFFICE", line(house.type.eyebrow,
+                                                           house.palette.ash))})
+                   .children(
+                       {compose::text(u8"THE SHIPPING FORECAST",
+                                      line(house.type.title, house.palette.ink))
+                            .margin(0, house.spacing.subtitleGap, 0, 0)})
+                   .grow(1),
+               compose::box()
+                   .column()
+                   .gap(house.spacing.rowGap)
+                   .alignItems(compose::Align::End)
+                   .children({compose::text(
+                       u8"ISSUED 0015 UTC",
+                       line(house.type.captionNote, house.palette.ash))})
+                   .children({compose::text(
+                       u8"VALID TO 0600 UTC",
+                       line(house.type.captionNote, house.palette.ash))})});
   EXPECT_TRUE(sameDrawing(
       std::move(byHand),
       kit::titleCard({.eyebrow = {u8"MET OFFICE"},
@@ -131,12 +133,12 @@ TEST(SketchKitHeading, ARegisterNamesItsOwnFace) {
       compose::box()
           .column()
           .alignItems(compose::Align::Start)
-          .child(compose::text(
+          .children({compose::text(
               u8"THE STROKE ATLAS",
               sigil::weave::textStyle({.face = paper.type.mono,
                                        .size = paper.type.title.size,
                                        .color = paper.palette.ink,
-                                       .track = paper.type.title.track})));
+                                       .track = paper.type.title.track}))});
   EXPECT_TRUE(sameDrawing(std::move(byHand),
                           kit::titleCard({.title = {u8"THE STROKE ATLAS"}})));
 }

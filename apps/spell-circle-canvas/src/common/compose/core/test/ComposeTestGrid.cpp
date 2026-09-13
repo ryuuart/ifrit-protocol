@@ -310,14 +310,15 @@ struct Recorder {
 TEST(ComposeGrid, ASchemeThatAsksIsToldHowNarrowItsTextChildrenCanGo) {
   Host host(300, 200);
   const Recorder recorder;
-  host.composer.render(box().absolute().inset(0).child(
-      layout(recorder)
-          .absolute()
-          .left(Dimension(0.0f))
-          .top(Dimension(0.0f))
-          .width(Dimension(200.0f))
-          .child(text(u8"one two three four five six seven eight", styleAt(12))
-                     .width(Dimension(200.0f)))));
+  host.composer.render(box().absolute().inset(0).children(
+      {layout(recorder)
+           .absolute()
+           .left(Dimension(0.0f))
+           .top(Dimension(0.0f))
+           .width(Dimension(200.0f))
+           .children(
+               {text(u8"one two three four five six seven eight", styleAt(12))
+                    .width(Dimension(200.0f))})}));
   host.frame();
   ASSERT_EQ(recorder.seen->childMinSizes.size(), 1u);
   // The narrowest the paragraph goes is one word, and it was measured at
@@ -352,9 +353,9 @@ TEST(ComposeGrid, AChildClaimsItsRegionByNameThroughTheComposer) {
                   .areas = {"head head", "nav  main"}})
           .absolute()
           .inset(0)
-          .child(box().key("head").area("head").fill(red()))
-          .child(box().key("nav").area("nav").fill(green()))
-          .child(box().key("main").area("main").fill(blue())));
+          .children({box().key("head").area("head").fill(red()),
+                     box().key("nav").area("nav").fill(green()),
+                     box().key("main").area("main").fill(blue())}));
   host.frame();
   EXPECT_EQ(require(host.composer.bounds("head")),
             SkRect::MakeXYWH(0, 0, 400, 40));
@@ -369,12 +370,12 @@ TEST(ComposeGrid, AGridEmbeddedInAColumnTakesItsHeightFromWhatItPlaced) {
   // container contributes to its height and flex would collapse it to
   // nothing. The extent it placed is the height instead.
   Host host(300, 300);
-  host.composer.render(box().column().absolute().inset(0).child(
-      layout(Grid{.columns = {layouts::fr(1), layouts::fr(1)},
-                  .rows = {layouts::px(60)}})
-          .key("grid")
-          .child(box().fill(red()))
-          .child(box().fill(green()))));
+  host.composer.render(box().column().absolute().inset(0).children(
+      {layout(Grid{.columns = {layouts::fr(1), layouts::fr(1)},
+                   .rows = {layouts::px(60)}})
+           .key("grid")
+           .children({box().fill(red())})
+           .children({box().fill(green())})}));
   host.frame();
   EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), 60);
   EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).width(), 300);
@@ -405,14 +406,14 @@ TEST(ComposeGrid, EqualModulesRespectSpansAndFlowIntoFreeCells) {
   const layouts::Grid grid{.columns = layouts::repeatTrack(4, layouts::fr()),
                            .rows = layouts::repeatTrack(4, layouts::fr()),
                            .gap = {8, 8}};
-  host.composer.render(
-      box().child(layout(grid)
-                      .width(pct(100))
-                      .grow(1)
-                      .child(box().key("a").cells(0, 0, 2, 1).fill(red()))
-                      .child(box().key("b").cells(3, 0, 1, 3).fill(blue()))
-                      .child(box().key("c").fill(green()))
-                      .child(box().key("d").fill(red()))));
+  host.composer.render(box().children(
+      {layout(grid)
+           .width(pct(100))
+           .grow(1)
+           .children({box().key("a").cells(0, 0, 2, 1).fill(red())})
+           .children({box().key("b").cells(3, 0, 1, 3).fill(blue())})
+           .children({box().key("c").fill(green())})
+           .children({box().key("d").fill(red())})}));
   host.frame();
   auto a = host.composer.bounds("a");
   auto b = host.composer.bounds("b");

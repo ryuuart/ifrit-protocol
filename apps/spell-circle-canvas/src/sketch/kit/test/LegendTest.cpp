@@ -44,20 +44,21 @@ TEST(SketchKitLegend, AnEntryIsASwatchAndItsWords) {
           .column()
           .gap(house.spacing.rowGap)
           .alignItems(compose::Align::Start)
-          .child(
-              compose::box()
-                  .row()
-                  .alignItems(compose::Align::Center)
-                  .gap(house.spacing.captionNoteGap)
-                  .child(
-                      compose::box()
-                          .width(compose::Dimension(house.spacing.swatchSide))
-                          .height(compose::Dimension(house.spacing.swatchSide))
-                          .fill(warm)
-                          .shrink(0))
-                  .child(compose::text(
-                      u8"lit",
-                      house.style(house.type.captionNote, house.palette.ink))));
+          .children(
+              {compose::box()
+                   .row()
+                   .alignItems(compose::Align::Center)
+                   .gap(house.spacing.captionNoteGap)
+                   .children(
+                       {compose::box()
+                            .width(compose::Dimension(house.spacing.swatchSide))
+                            .height(
+                                compose::Dimension(house.spacing.swatchSide))
+                            .fill(warm)
+                            .shrink(0)})
+                   .children({compose::text(u8"lit",
+                                            house.style(house.type.captionNote,
+                                                        house.palette.ink))})});
   EXPECT_TRUE(sameDrawing(std::move(byHand),
                           kit::legend({.entries = {{warm, u8"lit"}}})));
 }
@@ -77,20 +78,21 @@ TEST(SketchKitLegend, AnEntryCanCarryItsOwnEdgeAndItsOwnInk) {
           .column()
           .gap(house.spacing.rowGap)
           .alignItems(compose::Align::Start)
-          .child(compose::box()
-                     .row()
-                     .alignItems(compose::Align::Center)
-                     .gap(6)
-                     .child(compose::box()
-                                .width(compose::Dimension(9))
-                                .height(compose::Dimension(9))
-                                .fill(body)
-                                .shrink(0)
-                                .corners(compose::Corners{1.5f})
-                                .foreground(
-                                    compose::stroke(1.0f, Fill::color(rare))))
-                     .child(compose::text(
-                         u8"rare", house.style(house.type.captionNote, rare))));
+          .children(
+              {compose::box()
+                   .row()
+                   .alignItems(compose::Align::Center)
+                   .gap(6)
+                   .children({compose::box()
+                                  .width(compose::Dimension(9))
+                                  .height(compose::Dimension(9))
+                                  .fill(body)
+                                  .shrink(0)
+                                  .corners(compose::Corners{1.5f})
+                                  .foreground(compose::stroke(
+                                      1.0f, Fill::color(rare)))})
+                   .children({compose::text(
+                       u8"rare", house.style(house.type.captionNote, rare))})});
   Element byKit = kit::legend(
       {.entries = {{body, u8"rare", {}, Fill::color(rare), Fill::color(rare)}},
        .swatchSide = 9,
@@ -130,14 +132,14 @@ TEST(SketchKitLegend, AnEntrysMarkIsWhateverTheCallerDrew) {
           .column()
           .gap(house.spacing.rowGap)
           .alignItems(compose::Align::Start)
-          .child(compose::box()
-                     .row()
-                     .alignItems(compose::Align::Center)
-                     .gap(house.spacing.captionNoteGap)
-                     .child(sample)
-                     .child(compose::text(u8"porphyry",
-                                          house.style(house.type.captionNote,
-                                                      house.palette.ink))));
+          .children({compose::box()
+                         .row()
+                         .alignItems(compose::Align::Center)
+                         .gap(house.spacing.captionNoteGap)
+                         .children({sample})
+                         .children({compose::text(
+                             u8"porphyry", house.style(house.type.captionNote,
+                                                       house.palette.ink))})});
   EXPECT_TRUE(sameDrawing(
       std::move(byHand),
       kit::legend({.entries = {{.label = u8"porphyry", .mark = sample}}})));
@@ -167,8 +169,9 @@ TEST(SketchKitLegend, AChipIsItsWordOnTheThemesFigureGround) {
           .padding(house.spacing.chipPaddingX, house.spacing.chipPaddingY)
           .fill(Fill::color(house.palette.figure))
           .corners(compose::Corners{2})
-          .child(compose::text(u8"PINNED", house.style(house.type.eyebrow,
-                                                       house.palette.ground)));
+          .children(
+              {compose::text(u8"PINNED", house.style(house.type.eyebrow,
+                                                     house.palette.ground))});
   EXPECT_TRUE(sameDrawing(std::move(byHand), kit::chip({.label = u8"PINNED"})));
 }
 

@@ -118,9 +118,9 @@ Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
-          .child(std::move(body).absolute().inset(
+          .children({std::move(body).absolute().inset(
               (kCell - kArt) / 2, (kPicture - kArt) / 2, (kCell - kArt) / 2,
-              (kPicture - kArt) / 2)));
+              (kPicture - kArt) / 2)}));
 }
 
 }  // namespace
@@ -191,9 +191,8 @@ struct CoverageBoundary final : sketch::Sketch {
                             box()
                                 .boundary(Boundary::Coverage)
                                 .style(halo())
-                                .child(disc(6, 22, 62))
-                                .child(disc(44, 4, 70))
-                                .child(disc(30, 60, 76)))},
+                                .children({disc(6, 22, 62), disc(44, 4, 70),
+                                           disc(30, 60, 76)}))},
              .gap = 12})));
   }
 };

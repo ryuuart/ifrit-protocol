@@ -346,11 +346,11 @@ inline Element panel(float w, float h) {
       .fill(Paint::linear({0, 0}, {0, h}, {{0.0f, kStoneHi}, {1.0f, kStoneLo}}))
       .clip()
       // quarried, not smooth: the grain is generated, never a texture file
-      .child(box()
-                 .inset(0)
-                 .fill(Paint::recipe(field::noise(0.06f, 4, 7.0f)))
-                 .opacity(0.16f)
-                 .blend(SkBlendMode::kOverlay))
+      .children({box()
+                     .inset(0)
+                     .fill(Paint::recipe(field::noise(0.06f, 4, 7.0f)))
+                     .opacity(0.16f)
+                     .blend(SkBlendMode::kOverlay)})
       .foreground(styles::BevelEmboss{
           2.5f,
           4.0f,
@@ -381,12 +381,9 @@ inline Element rivets(float w, float h, float inset = 11) {
             {3, 3}, 3.4f,
             {{0.0f, kBronzeLit}, {0.7f, kBronze}, {1.0f, kBronzeDim}}));
   };
-  return stack()
-      .inset(0)
-      .child(stud(inset, inset))
-      .child(stud(w - inset, inset))
-      .child(stud(inset, h - inset))
-      .child(stud(w - inset, h - inset));
+  return stack().inset(0).children({stud(inset, inset), stud(w - inset, inset),
+                                    stud(inset, h - inset),
+                                    stud(w - inset, h - inset)});
 }
 
 }  // namespace loot

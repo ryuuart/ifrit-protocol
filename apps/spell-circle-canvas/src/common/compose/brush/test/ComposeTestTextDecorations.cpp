@@ -21,12 +21,12 @@ TEST(ComposeDecorations, RadialHatchFansOutOfAPointAndRingsRoundIt) {
 
   Host fan(200, 200);
   fan.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(20)
-                      .shape(geometry::shapes::circle())
-                      .background(lines::presets::radialHatch(
-                          Fill::color({1, 1, 1, 1}), 32, 1.5f))));
+      box().children({box()
+                          .absolute()
+                          .inset(20)
+                          .shape(geometry::shapes::circle())
+                          .background(lines::presets::radialHatch(
+                              Fill::color({1, 1, 1, 1}), 32, 1.5f))}));
   fan.frame();
   // Ink everywhere around the rim…
   EXPECT_GT(lit(fan, 20, 20, 180, 180), 800);
@@ -38,12 +38,12 @@ TEST(ComposeDecorations, RadialHatchFansOutOfAPointAndRingsRoundIt) {
 
   Host rings(200, 200);
   rings.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(20)
-                      .shape(geometry::shapes::circle())
-                      .background(lines::presets::concentric(
-                          Fill::color({1, 1, 1, 1}), 8, 1.5f))));
+      box().children({box()
+                          .absolute()
+                          .inset(20)
+                          .shape(geometry::shapes::circle())
+                          .background(lines::presets::concentric(
+                              Fill::color({1, 1, 1, 1}), 8, 1.5f))}));
   rings.frame();
   EXPECT_GT(lit(rings, 20, 20, 180, 180), 800);
   EXPECT_EQ(lit(rings, 20, 20, 32, 32), 0);
@@ -97,14 +97,14 @@ TEST(ComposeDecorations, EachStrokeCarriesItsOwnTrimWindow) {
   head.trimEnd = 1.0f;
   Host host(200, 200);
   host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(0)
-                      .shape(line)
-                      .fill(Fill::none())
-                      .mask(by::spans(spans::upTo(0.6f)))
-                      .foreground(stroke(3, Fill::color({1, 0, 0, 1})))
-                      .foreground(head)));
+      box().children({box()
+                          .absolute()
+                          .inset(0)
+                          .shape(line)
+                          .fill(Fill::none())
+                          .mask(by::spans(spans::upTo(0.6f)))
+                          .foreground(stroke(3, Fill::color({1, 0, 0, 1})))
+                          .foreground(head)}));
   host.frame();
 
   // The body reaches ~x118 (10 + 0.6*180); nothing past it.
@@ -137,8 +137,9 @@ TEST(ComposeDecorations, OverlayPaintsOverTheFillAndUnderTheContent) {
             .absolute()
             .inset(0)
             .fill(Fill::color({1, 1, 1, 1}))
-            .child(box().absolute().left(60).top(60).width(80).height(80).fill(
-                Fill::color({0, 1, 0, 1})));
+            .children(
+                {box().absolute().left(60).top(60).width(80).height(80).fill(
+                    Fill::color({0, 1, 0, 1}))});
     return useForeground ? cell.foreground(bars) : cell.overlay(bars);
   };
   auto greenPixels = [](Host& host) {
@@ -152,9 +153,9 @@ TEST(ComposeDecorations, OverlayPaintsOverTheFillAndUnderTheContent) {
   };
 
   Host over(200, 200), under(200, 200);
-  over.composer.render(box().child(build(/*useForeground=*/true)));
+  over.composer.render(box().children({build(/*useForeground=*/true)}));
   over.frame();
-  under.composer.render(box().child(build(/*useForeground=*/false)));
+  under.composer.render(box().children({build(/*useForeground=*/false)}));
   under.frame();
 
   // foreground(): the stripes cross the child and eat into it.
@@ -180,14 +181,14 @@ TEST(ComposeDecorations, DashPhaseCanBeBoundSoDashesMarch) {
   dashed.dashPhaseBinding = &march;
 
   Host host(200, 200);
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .left(0)
-                                       .top(90)
-                                       .width(200)
-                                       .height(20)
-                                       .fill(Fill::none())
-                                       .foreground(dashed)));
+  host.composer.render(box().children({box()
+                                           .absolute()
+                                           .left(0)
+                                           .top(90)
+                                           .width(200)
+                                           .height(20)
+                                           .fill(Fill::none())
+                                           .foreground(dashed)}));
   host.frame();
   auto row = [&] {
     std::vector<bool> lit;
@@ -219,16 +220,16 @@ TEST(ComposeDecorations, TheBrushVocabularyWorksOnGeometryYouBuiltYourself) {
   dashedHead.trimEnd = 1.0f;
 
   Host host(200, 200);
-  host.composer.render(box().child(
-      custom([dashedHead](SkCanvas& canvas, const PaintContext& ctx) {
-        // Geometry computed HERE, per paint, and decorated.
-        SkPathBuilder b;
-        b.moveTo(10, 100).lineTo(190, 100);
-        decorations::paintOn(canvas, ctx, b.detach(), dashedHead);
-      })
-          .absolute()
-          .inset(0)
-          .cache(Cache::None)));
+  host.composer.render(box().children(
+      {custom([dashedHead](SkCanvas& canvas, const PaintContext& ctx) {
+         // Geometry computed HERE, per paint, and decorated.
+         SkPathBuilder b;
+         b.moveTo(10, 100).lineTo(190, 100);
+         decorations::paintOn(canvas, ctx, b.detach(), dashedHead);
+       })
+           .absolute()
+           .inset(0)
+           .cache(Cache::None)}));
   host.frame();
 
   auto lit = [&](int x0, int x1) {
@@ -250,15 +251,15 @@ TEST(ComposeDecorations, WashFloodsTheOutlineWithAMaterialAndPrunes) {
   // that never prunes. overlay() is a different slot: it paints UNDER the
   // children.
   auto build = [](float amount) {
-    return box().child(
-        box()
-            .absolute()
-            .inset(0)
-            .fill(Fill::color({0, 0, 0, 1}))
-            .child(box().absolute().inset(40).fill(Fill::color({0, 0, 1, 1})))
-            .foreground(
-                decorations::wash(material::skia::Paint::solid({1, 0, 0, 1}),
-                                  SkBlendMode::kPlus, amount)));
+    return box().children({box()
+                               .absolute()
+                               .inset(0)
+                               .fill(Fill::color({0, 0, 0, 1}))
+                               .children({box().absolute().inset(40).fill(
+                                   Fill::color({0, 0, 1, 1}))})
+                               .foreground(decorations::wash(
+                                   material::skia::Paint::solid({1, 0, 0, 1}),
+                                   SkBlendMode::kPlus, amount))});
   };
   Host full(120, 120), half(120, 120), none(120, 120);
   full.composer.render(build(1.0f));
@@ -297,12 +298,12 @@ TEST(ComposeDecorations, PathFormatCarriesStrokeCapAndJoin) {
     PathFormat f = stroke(24, Fill::color({1, 1, 1, 1}));
     f.join = join;
     Host host(200, 200);
-    host.composer.render(box().child(box()
-                                         .absolute()
-                                         .inset(0)
-                                         .shape(elbow)
-                                         .fill(Fill::none())
-                                         .foreground(f)));
+    host.composer.render(box().children({box()
+                                             .absolute()
+                                             .inset(0)
+                                             .shape(elbow)
+                                             .fill(Fill::none())
+                                             .foreground(f)}));
     host.frame();
     // The outer corner of the elbow: a miter reaches it, a round does not.
     return host.pixel(171, 29) != SK_ColorBLACK;
@@ -321,8 +322,8 @@ TEST(ComposeDecorations, AStrokeCanTakeAMaterial) {
   f.strokeFill = material::skia::Paint::linearUnit(
       {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   Host host(200, 200);
-  host.composer.render(
-      box().child(box().absolute().inset(20).fill(Fill::none()).foreground(f)));
+  host.composer.render(box().children(
+      {box().absolute().inset(20).fill(Fill::none()).foreground(f)}));
   host.frame();
   // The ramp runs across the node, so the left edge of the stroke is red
   // and the right edge blue — a Fill could only have been one colour.
@@ -346,14 +347,14 @@ TEST(ComposeFx, WipeRevealsAlongAnAxisWithoutSquashing) {
     return n;
   };
   auto build = [](float angle, float t) {
-    return box().child(box()
-                           .absolute()
-                           .left(20)
-                           .top(20)
-                           .width(160)
-                           .height(160)
-                           .fill(Fill::color({1, 0, 0, 1}))
-                           .mask(by::edge(angle, t)));
+    return box().children({box()
+                               .absolute()
+                               .left(20)
+                               .top(20)
+                               .width(160)
+                               .height(160)
+                               .fill(Fill::color({1, 0, 0, 1}))
+                               .mask(by::edge(angle, t))});
   };
 
   Host half(200, 200);
@@ -398,11 +399,11 @@ TEST(ComposeFx, EdgeGateIsBindableWithoutARedescribe) {
   // held still.
   Host host(200, 200);
   choreograph::Output<float> reveal{0.0f};
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(20)
-                                       .fill(Fill::color({1, 0, 0, 1}))
-                                       .mask(by::edge(0.0f, &reveal))));
+  host.composer.render(box().children({box()
+                                           .absolute()
+                                           .inset(20)
+                                           .fill(Fill::color({1, 0, 0, 1}))
+                                           .mask(by::edge(0.0f, &reveal))}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);
 
@@ -434,7 +435,7 @@ TEST(ComposePattern, ARepeatCanBePanned) {
   auto colourAt = [](material::skia::Paint m, int x) {
     Host host(64, 64);
     host.composer.render(
-        box().child(box().absolute().inset(0).fill(std::move(m))));
+        box().children({box().absolute().inset(0).fill(std::move(m))}));
     host.frame();
     return host.pixel(x, 32);
   };
@@ -454,9 +455,9 @@ TEST(ComposePatterns, GridLinesTakeATwoAxisPitch) {
   // A lattice whose x and y pitch differ is not exotic — an X-COM control
   // panel's is 5 x 2 — and gridLines took one `spacing`.
   Host host(120, 120);
-  host.composer.render(box().child(box().absolute().inset(0).fill(
+  host.composer.render(box().children({box().absolute().inset(0).fill(
       Pattern(material::pattern::gridLines(20.0f, 8.0f, 2.0f, {1, 1, 1, 1}))
-          .material())));
+          .material())}));
   host.frame();
   auto rules = [&](bool vertical) {
     int runs = 0;

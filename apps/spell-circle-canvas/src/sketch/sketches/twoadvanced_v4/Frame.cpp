@@ -12,19 +12,17 @@ auto TwoAdvancedV4::panelHeader(const char* boldHalf, const char* restHalf,
       .foreground(onEdges(path::Edge::Bottom,
                           stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.35f)),
                                  PathFormat::Align::Inner)))
-      .child(t(boldHalf, heavy(17, kNear, 40)))
-      .child(t(restHalf,
-               sigil::weave::kit::tracked(arial(), 15, kHeadDim, 40, 0.95f)))
-      .child(box().width(12))
-      .child(box().width(1).height(12).fill(mskia::withAlpha(kCyan, 0.4f)))
-      .child(box().width(10))
-      .child(t(flavor, micro(11, mskia::withAlpha(kDust, 1.0f), 260)))
-      .child(box().grow(1))
-      .child(tickDots(cluster))
-      .child(box().width(8))
-      .child(box().width(34).height(10).foreground(
-          styles::TickRail{mskia::withAlpha(kCyan, 0.55f), 4, 3, 7, 1, 3, 0.5f,
-                           path::Edge::Bottom}));
+      .children({t(boldHalf, heavy(17, kNear, 40)),
+                 t(restHalf, sigil::weave::kit::tracked(arial(), 15, kHeadDim,
+                                                        40, 0.95f)),
+                 box().width(12),
+                 box().width(1).height(12).fill(mskia::withAlpha(kCyan, 0.4f)),
+                 box().width(10),
+                 t(flavor, micro(11, mskia::withAlpha(kDust, 1.0f), 260)),
+                 box().grow(1), tickDots(cluster), box().width(8),
+                 box().width(34).height(10).foreground(
+                     styles::TickRail{mskia::withAlpha(kCyan, 0.55f), 4, 3, 7,
+                                      1, 3, 0.5f, path::Edge::Bottom})});
 }
 
 auto TwoAdvancedV4::cta(const char* lbl, float w, float h, SkColor4f hairline)
@@ -45,7 +43,7 @@ auto TwoAdvancedV4::cta(const char* lbl, float w, float h, SkColor4f hairline)
       .row()
       .justify(Justify::Center)
       .alignItems(Align::Center)
-      .child(t(lbl, label(15, kNear, 110)));
+      .children({t(lbl, label(15, kNear, 110))});
 }
 
 auto TwoAdvancedV4::readout(float w, float h, SkColor4f ground) -> Element {
@@ -71,33 +69,33 @@ auto TwoAdvancedV4::navBar() -> Element {
                            kChrome);
   bar.key("nav").area("nav").fill(stripesLive).staggerChildren(40ms);
   for (int i = 0; i < 7; ++i) {
-    bar.child(box()
-                  .column()
-                  .alignItems(Align::Center)
-                  .gap(3)
-                  .translateY(animate(motion::from(16.0f).to(0.0f),
-                                      {240ms, &ch::easeOutQuint, 2250ms}))
-                  .opacity(animate(motion::from(0.0f).to(1.0f),
-                                   {240ms, &ch::easeOutQuad, 2250ms}))
-                  .child(t(kNavItems[i], label(13, kNear, 80)))
-                  .child(box().width(8).height(2).fill(
-                      mskia::withAlpha(kDust, 0.6f))));
+    bar.children({box()
+                      .column()
+                      .alignItems(Align::Center)
+                      .gap(3)
+                      .translateY(animate(motion::from(16.0f).to(0.0f),
+                                          {240ms, &ch::easeOutQuint, 2250ms}))
+                      .opacity(animate(motion::from(0.0f).to(1.0f),
+                                       {240ms, &ch::easeOutQuad, 2250ms}))
+                      .children({t(kNavItems[i], label(13, kNear, 80))})
+                      .children({box().width(8).height(2).fill(
+                          mskia::withAlpha(kDust, 0.6f))})});
     if (i < 6)
-      bar.child(box().width(1).height(20).fill(
-          mskia::withAlpha(hexColor(0x2A0A0C), 0.9f)));
+      bar.children({box().width(1).height(20).fill(
+          mskia::withAlpha(hexColor(0x2A0A0C), 0.9f))});
   }
   // The GLOBAL NAVIGATOR's live selection mark: one cyan bar whose X is
   // a single bound value, gliding between items as the section cycle
   // walks the taxonomy.
-  bar.child(
-      box()
-          .left(Dimension(0))
-          .top(Dimension(38))
-          .width(24)
-          .height(3)
-          .fill(kCyan)
-          .background(styles::OuterGlow{mskia::withAlpha(kGlow, 0.5f), 6, 0})
-          .translateX(&navIndX));
+  bar.children(
+      {box()
+           .left(Dimension(0))
+           .top(Dimension(38))
+           .width(24)
+           .height(3)
+           .fill(kCyan)
+           .background(styles::OuterGlow{mskia::withAlpha(kGlow, 0.5f), 6, 0})
+           .translateX(&navIndX)});
   return bar;
 }
 
@@ -114,24 +112,25 @@ auto TwoAdvancedV4::masthead() -> Element {
     // The production mark itself, recoloured to the wordmark cyan: a
     // solid fill masked by the SVG raster's coverage, so the vector
     // art contributes shape only and the palette stays sampled.
-    emblem.child(box().width(62).height(62).fill(kCyan).mask(
-        by::alpha(stretchFill(logoBugSvg, 62, 62))));
+    emblem.children({box().width(62).height(62).fill(kCyan).mask(
+        by::alpha(stretchFill(logoBugSvg, 62, 62)))});
   } else {
     emblem
         .fill(mskia::Paint::recipe(msdf::material(
             msdf::circle(), {.fill = {0, 0, 0, 0},
                              .borderWidth = 4,
                              .borderColor = mskia::toColor(kCyan)})))
-        .child(box()
-                   .width(50)
-                   .height(50)
-                   .shape(shapes::polygon(6, 0))
-                   .stroke(stroke(
-                       1, Fill::color(mskia::withAlpha(kCyanRing, 0.75f))))
-                   .justify(Justify::Center)
-                   .alignItems(Align::Center)
-                   .child(t("2", sigil::weave::kit::tracked(blackFace(), 32,
-                                                            kCyan, 0, 0.85f))));
+        .children(
+            {box()
+                 .width(50)
+                 .height(50)
+                 .shape(shapes::polygon(6, 0))
+                 .stroke(
+                     stroke(1, Fill::color(mskia::withAlpha(kCyanRing, 0.75f))))
+                 .justify(Justify::Center)
+                 .alignItems(Align::Center)
+                 .children({t("2", sigil::weave::kit::tracked(
+                                       blackFace(), 32, kCyan, 0, 0.85f))})});
   }
 
   return box()
@@ -142,43 +141,47 @@ auto TwoAdvancedV4::masthead() -> Element {
                           {420ms, &ch::easeOutQuint, 1850ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
                        {300ms, &ch::easeOutQuad, 1850ms}))
-      .child(
-          box()
-              .grow(1)
-              .row()
-              .alignItems(Align::Center)
-              .padding(26, 0, 8, 0)
-              .gap(18)
-              .child(emblem)
-              .child(box()
-                         .column()
-                         .gap(6)
-                         .child(t("2ADVANCED STUDIOS",
-                                  sigil::weave::kit::tracked(blackFace(), 25,
-                                                             kCyan, 80, 0.90f))
-                                    .effect(styles::textGlow(
-                                        mskia::withAlpha(kGlow, 0.55f), 6)))
-                         .child(t("PROGRESSIVE DESIGN TECHNOLOGY",
-                                  micro(12, kDust, 240)))
-                         .child(box()
-                                    .row()
-                                    .gap(6)
-                                    .alignItems(Align::Center)
-                                    .child(box().width(30).height(1).fill(
-                                        mskia::withAlpha(kCyan, 0.5f)))
-                                    .child(t("EST. 1999 · IRVINE CA",
-                                             micro(10, kDustDim, 200)))))
-              .child(box().grow(1))
-              .child(box()
-                         .column()
-                         .alignItems(Align::End)
-                         .gap(4)
-                         .child(t("BUILD 4.0.7", micro(10, kDustDim, 200)))
-                         .child(t("FLASH 6 REQ.", micro(10, kDustDim, 200)))
-                         .child(t("1024×768 MIN", micro(10, kDustDim, 200)))))
+      .children(
+          {box()
+               .grow(1)
+               .row()
+               .alignItems(Align::Center)
+               .padding(26, 0, 8, 0)
+               .gap(18)
+               .children({emblem})
+               .children(
+                   {box()
+                        .column()
+                        .gap(6)
+                        .children({t("2ADVANCED STUDIOS",
+                                     sigil::weave::kit::tracked(
+                                         blackFace(), 25, kCyan, 80, 0.90f))
+                                       .effect(styles::textGlow(
+                                           mskia::withAlpha(kGlow, 0.55f), 6))})
+                        .children({t("PROGRESSIVE DESIGN TECHNOLOGY",
+                                     micro(12, kDust, 240))})
+                        .children(
+                            {box()
+                                 .row()
+                                 .gap(6)
+                                 .alignItems(Align::Center)
+                                 .children({box().width(30).height(1).fill(
+                                     mskia::withAlpha(kCyan, 0.5f))})
+                                 .children({t("EST. 1999 · IRVINE CA",
+                                              micro(10, kDustDim, 200))})})})
+               .children({box().grow(1)})
+               .children(
+                   {box()
+                        .column()
+                        .alignItems(Align::End)
+                        .gap(4)
+                        .children({t("BUILD 4.0.7", micro(10, kDustDim, 200))})
+                        .children({t("FLASH 6 REQ.", micro(10, kDustDim, 200))})
+                        .children(
+                            {t("1024×768 MIN", micro(10, kDustDim, 200))})})})
       // the glowing 2px cyan divider under the whole masthead panel
-      .child(box().height(2).fill(kCyan).background(
-          styles::OuterGlow{mskia::withAlpha(kGlow, 0.55f), 10, 1}));
+      .children({box().height(2).fill(kCyan).background(
+          styles::OuterGlow{mskia::withAlpha(kGlow, 0.55f), 10, 1})});
 }
 
 auto TwoAdvancedV4::toggle(const char* lbl, bool on) -> Element {
@@ -197,7 +200,7 @@ auto TwoAdvancedV4::toggle(const char* lbl, bool on) -> Element {
                      PathFormat::Align::Inner))
       .justify(Justify::Center)
       .alignItems(Align::Center)
-      .child(t(lbl, micro(10, on ? kCyan : kDustDim, 160)));
+      .children({t(lbl, micro(10, on ? kCyan : kDustDim, 160))});
 }
 
 auto TwoAdvancedV4::footerLinks() -> std::vector<Element> {
@@ -226,68 +229,71 @@ auto TwoAdvancedV4::legalStrip() -> Element {
       .area("legal")
       .opacity(animate(motion::from(0.0f).to(1.0f),
                        {400ms, &ch::easeOutQuad, 3750ms}))
-      .child(
-          box()
-              .alignSelf(Align::Stretch)
-              .row()
-              .alignItems(Align::Center)
-              .child(box()
-                         .row()
-                         .gap(6)
-                         .alignItems(Align::Center)
-                         .child(box().width(60).height(1).fill(
-                             mskia::withAlpha(kDust, 0.35f)))
-                         .child(t("SITE REQUIRES MACROMEDIA FLASH "
-                                  "PLAYER 6",
-                                  micro(10, kDustDim, 200))))
-              .child(box().grow(1))
-              .child(box()
-                         .row()
-                         .gap(7)
-                         .alignItems(Align::Center)
-                         .child(t("ARCHIVED VERSIONS:", micro(11, kDust, 240)))
-                         .child(box()
-                                    .height(24)
-                                    .padding(8, 0)
-                                    .shape(shapes::chamfered(
-                                        7, shapes::Corner::Diagonal))
-                                    .fill(hexColor(0x2A0A0C))
-                                    .stroke(stroke(1,
-                                                   Fill::color(mskia::withAlpha(
-                                                       kDust, 0.45f)),
-                                                   PathFormat::Align::Inner))
-                                    .row()
-                                    .gap(6)
-                                    .alignItems(Align::Center)
-                                    .child(t("▸", micro(9, kCyan, 0)))
-                                    .child(t("V3 'EXPANSIONS'",
-                                             label(12, kNear, 90)))
-                                    .child(t("▾", micro(9, kDust, 0))))))
-      .child(box().grow(1))
-      .child(box()
-                 .row()
-                 .gap(9)
-                 .alignItems(Align::Center)
-                 .child(box().width(40).height(1).fill(
-                     mskia::withAlpha(kDust, 0.3f)))
-                 .children(footerLinks())
-                 .child(box().width(40).height(1).fill(
-                     mskia::withAlpha(kDust, 0.3f))))
-      .child(box().height(4))
-      .child(t("COPYRIGHT (C) 2003 2ADVANCED STUDIOS, LLC.  ALL RIGHTS "
-               "RESERVED.",
-               micro(12, kDust, 240)))
-      .child(box()
-                 .row()
-                 .gap(10)
-                 .alignItems(Align::Center)
-                 .child(t("LEGAL", micro(11, kDustDim, 200)))
-                 .child(box().width(1).height(10).fill(
-                     mskia::withAlpha(kDust, 0.35f)))
-                 .child(t("PRIVACY POLICY", micro(11, kDustDim, 200)))
-                 .child(box().width(1).height(10).fill(
-                     mskia::withAlpha(kDust, 0.35f)))
-                 .child(t("SITE MAP", micro(11, kDustDim, 200))));
+      .children(
+          {box()
+               .alignSelf(Align::Stretch)
+               .row()
+               .alignItems(Align::Center)
+               .children({box()
+                              .row()
+                              .gap(6)
+                              .alignItems(Align::Center)
+                              .children({box().width(60).height(1).fill(
+                                  mskia::withAlpha(kDust, 0.35f))})
+                              .children({t("SITE REQUIRES MACROMEDIA FLASH "
+                                           "PLAYER 6",
+                                           micro(10, kDustDim, 200))})})
+               .children({box().grow(1)})
+               .children(
+                   {box()
+                        .row()
+                        .gap(7)
+                        .alignItems(Align::Center)
+                        .children(
+                            {t("ARCHIVED VERSIONS:", micro(11, kDust, 240))})
+                        .children(
+                            {box()
+                                 .height(24)
+                                 .padding(8, 0)
+                                 .shape(shapes::chamfered(
+                                     7, shapes::Corner::Diagonal))
+                                 .fill(hexColor(0x2A0A0C))
+                                 .stroke(stroke(1,
+                                                Fill::color(mskia::withAlpha(
+                                                    kDust, 0.45f)),
+                                                PathFormat::Align::Inner))
+                                 .row()
+                                 .gap(6)
+                                 .alignItems(Align::Center)
+                                 .children({t("▸", micro(9, kCyan, 0))})
+                                 .children({t("V3 'EXPANSIONS'",
+                                              label(12, kNear, 90))})
+                                 .children({t("▾", micro(9, kDust, 0))})})}),
+           box().grow(1),
+           box()
+               .row()
+               .gap(9)
+               .alignItems(Align::Center)
+               .children({box().width(40).height(1).fill(
+                   mskia::withAlpha(kDust, 0.3f))})
+               .children(footerLinks())
+               .children({box().width(40).height(1).fill(
+                   mskia::withAlpha(kDust, 0.3f))}),
+           box().height(4),
+           t("COPYRIGHT (C) 2003 2ADVANCED STUDIOS, LLC.  ALL RIGHTS "
+             "RESERVED.",
+             micro(12, kDust, 240)),
+           box()
+               .row()
+               .gap(10)
+               .alignItems(Align::Center)
+               .children({t("LEGAL", micro(11, kDustDim, 200))})
+               .children({box().width(1).height(10).fill(
+                   mskia::withAlpha(kDust, 0.35f))})
+               .children({t("PRIVACY POLICY", micro(11, kDustDim, 200))})
+               .children({box().width(1).height(10).fill(
+                   mskia::withAlpha(kDust, 0.35f))})
+               .children({t("SITE MAP", micro(11, kDustDim, 200))})});
 }
 
 auto TwoAdvancedV4::dockBars() -> std::vector<Element> {
@@ -348,89 +354,95 @@ auto TwoAdvancedV4::footerDock() -> Element {
         .column()
         .padding(10)
         .gap(5)
-        .child(box()
-                   .row()
-                   .alignItems(Align::Center)
-                   .gap(6)
-                   .child(t(title, sigil::weave::kit::tracked(blackFace(), 12,
-                                                              kD7, 60, 0.92f)))
-                   .child(box().grow(1).height(1).fill(kD4))
-                   .child(t("»", micro(11, kD5, 0))))
-        .child(t(a, micro(10, kD6, 220)))
-        .child(t(b, micro(10, mskia::withAlpha(kD6, 0.7f), 220)))
-        .child(box().grow(1))
-        .child(box()
-                   .row()
-                   .gap(5)
-                   .alignItems(Align::Center)
-                   .child(box().width(58).height(8).foreground(styles::TickRail{
-                       kD6, 5, 3, 7, 1, 3, 0.5f, path::Edge::Top}))
-                   .child(box().grow(1))
-                   .child(t("v v", micro(10, kD6, 200))));
+        .children(
+            {box()
+                 .row()
+                 .alignItems(Align::Center)
+                 .gap(6)
+                 .children({t(title, sigil::weave::kit::tracked(
+                                         blackFace(), 12, kD7, 60, 0.92f))})
+                 .children({box().grow(1).height(1).fill(kD4)})
+                 .children({t("»", micro(11, kD5, 0))}),
+             t(a, micro(10, kD6, 220)),
+             t(b, micro(10, mskia::withAlpha(kD6, 0.7f), 220)), box().grow(1),
+             box()
+                 .row()
+                 .gap(5)
+                 .alignItems(Align::Center)
+                 .children(
+                     {box().width(58).height(8).foreground(styles::TickRail{
+                         kD6, 5, 3, 7, 1, 3, 0.5f, path::Edge::Top})})
+                 .children({box().grow(1)})
+                 .children({t("v v", micro(10, kD6, 200))})});
   };
 
-  strip.child(window("NAVIGATION", "SECTOR / PROPHECY", "NODE 04.11.22", 300));
-  strip.child(
-      window("EQUIPMENT", "RENDER FARM  08/08", "STORAGE  4.2 TB", 300));
-  strip.child(window("DISPATCH", "QUEUE  00114", "LAST  04.05.06", 280));
+  strip.children(
+      {window("NAVIGATION", "SECTOR / PROPHECY", "NODE 04.11.22", 300)});
+  strip.children(
+      {window("EQUIPMENT", "RENDER FARM  08/08", "STORAGE  4.2 TB", 300)});
+  strip.children({window("DISPATCH", "QUEUE  00114", "LAST  04.05.06", 280)});
 
   // the instanced chevron array — one atlas cell, one stamp
-  strip.child(
-      box()
-          .width(260)
-          .height(150)
-          .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
-          .fill(hexColor(0x110303))
-          .foreground(styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 1, 1})
-          .child(box()
-                     .left(Dimension(12))
-                     .top(Dimension(12))
-                     .width(236)
-                     .height(96)
-                     .child(instancing::instances(dockAtlas, dockPool,
-                                                  instancing::Mode::Data)))
-          .child(box()
-                     .left(Dimension(12))
-                     .top(Dimension(122))
-                     .child(t("ARRAY 6×14 · IDLE", micro(10, kD6, 220)))));
+  strip.children(
+      {box()
+           .width(260)
+           .height(150)
+           .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
+           .fill(hexColor(0x110303))
+           .foreground(styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 1, 1})
+           .children({box()
+                          .left(Dimension(12))
+                          .top(Dimension(12))
+                          .width(236)
+                          .height(96)
+                          .children({instancing::instances(
+                              dockAtlas, dockPool, instancing::Mode::Data)})})
+           .children({box()
+                          .left(Dimension(12))
+                          .top(Dimension(122))
+                          .children({t("ARRAY 6×14 · IDLE",
+                                       micro(10, kD6, 220))})})});
 
-  strip.child(
-      box()
-          .grow(1)
-          .height(150)
-          .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
-          .fill(hexColor(0x140404))
-          .column()
-          .padding(10)
-          .gap(5)
-          .foreground(styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 1, 1})
-          .foreground(styles::Brackets{kD6, 9, 2, 3, shapes::Corner::All})
-          .child(box()
-                     .row()
-                     .alignItems(Align::Center)
-                     .gap(6)
-                     .child(t("SIGNAL", sigil::weave::kit::tracked(
-                                            blackFace(), 12, kD7, 60, 0.92f)))
-                     .child(box().grow(1).height(1).fill(kD4))
-                     .child(t("»", micro(11, kD5, 0))))
-          .child(box()
-                     .grow(1)
-                     .fill(hexColor(0x0D0202))
-                     .foreground(styles::BevelPair{kD4, {0, 0, 0, 0.5f}, 1, 1})
-                     .row()
-                     .alignItems(Align::End)
-                     .gap(2)
-                     .padding(6)
-                     .children(dockBars()))
-          .child(
-              box()
-                  .row()
-                  .gap(6)
-                  .alignItems(Align::Center)
-                  .child(t("GAIN 0.42 · SWEEP 20 MS", micro(10, kD6, 220)))
-                  .child(box().grow(1))
-                  .child(box().width(70).height(8).foreground(styles::TickRail{
-                      kD5, 5, 3, 7, 1, 3, 0.5f, path::Edge::Top}))));
+  strip.children(
+      {box()
+           .grow(1)
+           .height(150)
+           .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
+           .fill(hexColor(0x140404))
+           .column()
+           .padding(10)
+           .gap(5)
+           .foreground(styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 1, 1})
+           .foreground(styles::Brackets{kD6, 9, 2, 3, shapes::Corner::All})
+           .children({box()
+                          .row()
+                          .alignItems(Align::Center)
+                          .gap(6)
+                          .children({t("SIGNAL",
+                                       sigil::weave::kit::tracked(
+                                           blackFace(), 12, kD7, 60, 0.92f))})
+                          .children({box().grow(1).height(1).fill(kD4)})
+                          .children({t("»", micro(11, kD5, 0))})})
+           .children(
+               {box()
+                    .grow(1)
+                    .fill(hexColor(0x0D0202))
+                    .foreground(styles::BevelPair{kD4, {0, 0, 0, 0.5f}, 1, 1})
+                    .row()
+                    .alignItems(Align::End)
+                    .gap(2)
+                    .padding(6)
+                    .children(dockBars())})
+           .children({box()
+                          .row()
+                          .gap(6)
+                          .alignItems(Align::Center)
+                          .children({t("GAIN 0.42 · SWEEP 20 MS",
+                                       micro(10, kD6, 220))})
+                          .children({box().grow(1)})
+                          .children({box().width(70).height(8).foreground(
+                              styles::TickRail{kD5, 5, 3, 7, 1, 3, 0.5f,
+                                               path::Edge::Top})})})});
 
   Element cluster =
       box()
@@ -446,26 +458,26 @@ auto TwoAdvancedV4::footerDock() -> Element {
           .alignItems(Align::Center)
           .gap(14);
   for (int i = 0; i < 3; ++i)
-    cluster.child(
-        box()
-            .width(80)
-            .height(80)
-            .fill(mskia::Paint::recipe(msdf::material(
-                msdf::circle(), {.fill = mskia::toColor(hexColor(0x0A0202)),
-                                 .borderWidth = 3,
-                                 .borderColor = mskia::toColor(kD6)})))
-            .justify(Justify::Center)
-            .alignItems(Align::Center)
-            .child(radarSweep(i, hexColor(0xB65050), 0.42f))
-            .child(box()
-                       .inset(26)
-                       .corners({16})
-                       .fill(mskia::withAlpha(kD1, 0.92f))
-                       .stroke(stroke(1, Fill::color(kD4),
-                                      PathFormat::Align::Inner)))
-            .child(t(i == 0 ? "01" : (i == 1 ? "02" : "03"),
-                     micro(11, kD7, 140))));
-  strip.child(cluster);
+    cluster.children(
+        {box()
+             .width(80)
+             .height(80)
+             .fill(mskia::Paint::recipe(msdf::material(
+                 msdf::circle(), {.fill = mskia::toColor(hexColor(0x0A0202)),
+                                  .borderWidth = 3,
+                                  .borderColor = mskia::toColor(kD6)})))
+             .justify(Justify::Center)
+             .alignItems(Align::Center)
+             .children({radarSweep(i, hexColor(0xB65050), 0.42f)})
+             .children({box()
+                            .inset(26)
+                            .corners({16})
+                            .fill(mskia::withAlpha(kD1, 0.92f))
+                            .stroke(stroke(1, Fill::color(kD4),
+                                           PathFormat::Align::Inner))})
+             .children({t(i == 0 ? "01" : (i == 1 ? "02" : "03"),
+                          micro(11, kD7, 140))})});
+  strip.children({cluster});
   return strip;
 }
 
@@ -518,52 +530,54 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
   };
 
   Element o = stack().inset(0).zIndex(90);
-  o.child(box()
-              .inset(0)
-              .fill(hexColor(0x120303))
-              .opacity(animate(motion::through(
-                  {{0ms, 1.0f}, {1400ms, 1.0f}, {1560ms, 0.0f}}))));
+  o.children({box()
+                  .inset(0)
+                  .fill(hexColor(0x120303))
+                  .opacity(animate(motion::through(
+                      {{0ms, 1.0f}, {1400ms, 1.0f}, {1560ms, 0.0f}})))});
   // 1. the single cyan pixel-dot
-  o.child(
-      at(box().fill(kCyan), cx - 3, cy - 3, 6, 6)
-          .opacity(animate(motion::through(
-              {{0ms, 0.0f}, {150ms, 1.0f}, {1350ms, 1.0f}, {1450ms, 0.0f}}))));
+  o.children({at(box().fill(kCyan), cx - 3, cy - 3, 6, 6)
+                  .opacity(animate(motion::through({{0ms, 0.0f},
+                                                    {150ms, 1.0f},
+                                                    {1350ms, 1.0f},
+                                                    {1450ms, 0.0f}})))});
   // 2. the reticle drawing OUTWARD from it on four trimmed rays
-  o.child(hair(cx - 470, cy, 470, 1, -1, 1, 150));
-  o.child(hair(cx, cy, 470, 1, 1, 1, 150));
-  o.child(hair(cx, cy - 300, 1, 300, 1, -1, 220));
-  o.child(hair(cx, cy, 1, 300, 1, 1, 220));
-  o.child(
-      at(box()
-             .shape(shapes::arc(-90, 359))
-             .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f),
-                                         {500ms, &ch::easeOutQuint, 260ms})),
-                     stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.7f)))),
-         cx - 92, cy - 92, 184, 184));
+  o.children({hair(cx - 470, cy, 470, 1, -1, 1, 150)});
+  o.children({hair(cx, cy, 470, 1, 1, 1, 150)});
+  o.children({hair(cx, cy - 300, 1, 300, 1, -1, 220)});
+  o.children({hair(cx, cy, 1, 300, 1, 1, 220)});
+  o.children(
+      {at(box()
+              .shape(shapes::arc(-90, 359))
+              .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f),
+                                          {500ms, &ch::easeOutQuint, 260ms})),
+                      stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.7f)))),
+          cx - 92, cy - 92, 184, 184)});
   // 3. the 0→100 readout (a slot: TEXT, so it cannot be a binding)
-  o.child(
-      at(box().column().alignItems(Align::Center).gap(9), cx - 260, cy + 120,
-         520, 110)
-          .opacity(animate(motion::through(
-              {{520ms, 0.0f}, {620ms, 1.0f}, {1350ms, 1.0f}, {1450ms, 0.0f}})))
-          .child(slot("bootpct"))
-          .child(box()
-                     .width(420)
-                     .height(2)
-                     .fill(mskia::withAlpha(kCyan, 0.18f))
-                     .child(box().inset(0).shape(ray(1, 1)).stroke(
-                         spans::upTo(animate(motion::from(0.0f).to(1.0f),
-                                             {800ms, &ch::easeNone, 550ms})),
-                         stroke(2, Fill::color(kCyan)))))
-          .child(t("LOADING PROPHECY INTERFACE · 970×655",
-                   micro(11, mskia::withAlpha(kCyan, 0.6f), 240))));
+  o.children(
+      {at(box().column().alignItems(Align::Center).gap(9), cx - 260, cy + 120,
+          520, 110)
+           .opacity(animate(motion::through(
+               {{520ms, 0.0f}, {620ms, 1.0f}, {1350ms, 1.0f}, {1450ms, 0.0f}})))
+           .children({slot("bootpct")})
+           .children(
+               {box()
+                    .width(420)
+                    .height(2)
+                    .fill(mskia::withAlpha(kCyan, 0.18f))
+                    .children({box().inset(0).shape(ray(1, 1)).stroke(
+                        spans::upTo(animate(motion::from(0.0f).to(1.0f),
+                                            {800ms, &ch::easeNone, 550ms})),
+                        stroke(2, Fill::color(kCyan)))})})
+           .children({t("LOADING PROPHECY INTERFACE · 970×655",
+                        micro(11, mskia::withAlpha(kCyan, 0.6f), 240))})});
   // 4. the boot-complete flash
-  o.child(box()
-              .inset(0)
-              .fill(SkColor4f{1, 1, 1, 1})
-              .opacity(animate(motion::through(
-                  {{1330ms, 0.0f}, {1390ms, 0.7f}, {1460ms, 0.0f}})))
-              .blend(SkBlendMode::kPlus));
+  o.children({box()
+                  .inset(0)
+                  .fill(SkColor4f{1, 1, 1, 1})
+                  .opacity(animate(motion::through(
+                      {{1330ms, 0.0f}, {1390ms, 0.7f}, {1460ms, 0.0f}})))
+                  .blend(SkBlendMode::kPlus)});
   o.opacity(animate(motion::through({{1440ms, 1.0f}, {1480ms, 0.0f}})));
   return o;
 }
@@ -575,9 +589,9 @@ auto TwoAdvancedV4::bootReadout() -> Element {
       .row()
       .alignItems(Align::Baseline)
       .gap(6)
-      .child(t(buf.c_str(),
-               sigil::weave::kit::tracked(blackFace(), 46, kCyan, 40, 0.9f)))
-      .child(t("%",
-               sigil::weave::kit::tracked(
-                   blackFace(), 20, mskia::withAlpha(kCyan, 0.6f), 40, 0.9f)));
+      .children({t(buf.c_str(), sigil::weave::kit::tracked(blackFace(), 46,
+                                                           kCyan, 40, 0.9f)),
+                 t("%", sigil::weave::kit::tracked(
+                            blackFace(), 20, mskia::withAlpha(kCyan, 0.6f), 40,
+                            0.9f))});
 }

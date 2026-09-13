@@ -188,8 +188,8 @@ class Element {
    *  scheme's own picture of itself (`layouts::Grid::areas`).
    *
    *      layout(layouts::Grid{.areas = {"head head", "nav  main"}})
-   *          .child(masthead().area("head"))
-   *          .child(sidebar().area("nav"))
+   *          .children({masthead().area("head")})
+   *          .children({sidebar().area("nav")})
    *
    *  A name survives what four integers do not: insert a row into the
    *  picture and every child stays in the region it named, where every
@@ -214,8 +214,9 @@ class Element {
    *  that one", "as wide as the column" — flex and inset() express it and
    *  this does not.
    *
-   *      g.child(box().rect(panelBox).fill(…));
-   *      g.child(text(u8"…", st).at({panelBox.fLeft + 16, panelBox.fTop}));
+   *      g.children({box().rect(panelBox).fill(…)});
+   *      g.children({text(u8"…", st).at({panelBox.fLeft + 16,
+   * panelBox.fTop})});
    *
    *  Does not cover right()/bottom() pinning, percentage insets, or
    *  autoDimension() sides — those are different intents and keep the longhand.
@@ -342,12 +343,21 @@ class Element {
    *  A text leaf's every block is set in the block in force where the
    *  leaf lands, unless the leaf wrote a whole `weave::ParagraphStyle`
    *  for it, which inherits nothing; a block named through
-   *  `paragraphs(names)` is that name's partial laid over it. The verbs
-   *  that name one field — `textAlign`, `lineBreak`, `hyphenation`,
-   *  `justification`, `tabStops`, `lastLine`, `writingMode`,
-   *  `lineBreakLocale`, `kinsoku`, `hanging`, `mojikumi` — are this
-   *  partial's spellings for that field and cascade the same way from
-   *  wherever they are written. */
+   *  `paragraphs(names)` is that name's partial laid over it. This is the
+   *  ONE spelling of every block field — `block({.alignment =
+   *  TextAlignment::kCenter})` centres every line under the node,
+   *  `block({.writingMode = WritingMode::kVerticalRL})` sets the text under
+   *  it in vertical columns, and so on for every field of `weave::Block` —
+   *  and it cascades the same way from wherever it is written.
+   *
+   *  A VERTICAL leaf measures on the other axis: its main extent is its
+   *  height, its intrinsic width one column pitch per column, and for
+   *  `Align::Baseline` it reports its first character's baseline. Per
+   *  character the mode is UTR#50's — ideographs upright with their `vert`
+   *  forms, Latin on its side — and a run that wants otherwise says so in
+   *  its own style. A run on a path (`onPath`) ignores the mode: its
+   *  baseline is its own geometry and has no columns to advance; setting
+   *  both warns once and the path wins. */
   Element& block(sigil::weave::Block partial);
   /** THE INK: the colour text under this node is set in and every mark
    *  that names no colour is painted in — CSS's `color`, which is the
@@ -374,11 +384,6 @@ class Element {
    *  sets then inherit down the tree. A name neither sheet in force
    *  carries warns once and sets nothing. */
   Element& styleClass(std::string_view names);
-  /** The classes, then @p over laid over them: `styleClass("cell",
-   *  {.color = c})` is the cell class with this one's colour, in one
-   *  verb — what a row of cells that differ in colour alone says. */
-  Element& styleClass(std::string_view names, sigil::weave::Type over);
-  Element& styleClass(std::string_view names, sigil::weave::Block over);
   /** A CUSTOM PROPERTY set on this node and inherited by everything under
    *  it, read back through `var(name)` written as a length, `Fill::var`
    *  written as a fill, or `ink(var(name))`. The nearest ancestor that set
@@ -925,20 +930,12 @@ class Element {
    *  read `beatsOf` to ride it. */
   Element& mark(sigil::weave::Selector where, Element what);
 
-  /** How lines sit inside the width they are set in (SigilWeave
-   *  TextAlignment — kStart/kCenter/kEnd/kJustify). Meaningful when the
-   *  leaf is WIDER than its text (explicit width, grow, stack stretch);
-   *  intrinsic-width text has nothing to align within. One field of the
-   *  block `block()` states whole: set on any node and inherited by every
-   *  text leaf under it, as CSS inherits `text-align`. */
-  Element& textAlign(sigil::weave::TextAlignment a);
-
   /** Text leaves only: THE FRAME THIS ONE FILLS INTO — the next link of a
    *  chain over one `weave::Story`.
    *
-   *      root.child(frame(article).key("a").thread("b").width(Dimension(280)))
-   *          .child(frame(article).key("b").thread("c").width(Dimension(280)))
-   *          .child(frame(article).key("c").width(Dimension(280)));
+   *      root.children({frame(article).key("a").thread("b").width(Dimension(280))})
+   *          .children({frame(article).key("b").thread("c").width(Dimension(280))})
+   *          .children({frame(article).key("c").width(Dimension(280))});
    *
    *  Each frame fills from where the one before it stopped, so the cut
    *  moves as any frame's measure moves. A frame that threads somewhere
@@ -979,7 +976,7 @@ class Element {
    *  compound, emphasis dots down a column, a gloss under a phrase.
    *
    *      text(passage, body)
-   *          .writingMode(WritingMode::kVerticalRL)
+   *          .block({.writingMode = WritingMode::kVerticalRL})
    *          .annotate({.where = weave::selectors::text(u8"漢字"),
    *                     .unit = weave::Unit::Word,          // group ruby
    *                     .readings = {u8"かんじ"},
@@ -1021,8 +1018,6 @@ class Element {
    *  sheet in force carries warns once and changes nothing about its
    *  block. */
   Element& paragraphs(std::span<const std::string_view> names);
-  /** Every block of this passage set alike. */
-  Element& paragraph(sigil::weave::ParagraphStyle style);
   /** Text leaves only: THIS PASSAGE'S OPENING SET LARGE — a versal sized so
    *  its cap height spans the lines it is given, seated on the baseline it
    *  sinks to, with the lines under it wrapping the notch it cuts.
@@ -1057,17 +1052,6 @@ class Element {
    *  nothing to spend. */
   Element& distribute(sigil::weave::FrameOptions::Distribute rule,
                       float maximumInterlineSpacing = 0);
-  /** How a justified line spends what it has — the word spacing it aims
-   *  at and its elasticity, then letter spacing, then a horizontal scale
-   *  on the glyphs, each bounded by its own two limits. Inert unless the
-   *  passage justifies. One field of the block, inherited by every text
-   *  leaf under the node. */
-  Element& justification(sigil::weave::JustificationOptions spec);
-  /** Where a tab takes the pen, what the stop pins there — the start of
-   *  its cell, its end, its centre, or a named character — and the leader
-   *  set across the gap it opened. One field of the block, inherited by
-   *  every text leaf under the node. */
-  Element& tabStops(sigil::weave::TabStopOptions stops);
 
   /** Text leaves only: AN INPUT OF THIS PASSAGE IS MOVING — a measure that
    *  animates, a frame that grows, content that changes from one frame to
@@ -1097,31 +1081,6 @@ class Element {
    *  says so. */
   Element& live(bool on = true, float budgetMicroseconds = 0);
 
-  /** WHICH CHARACTERS MAY NOT STAND AT A LINE'S EDGE — kinsoku shori, as
-   *  a house's own table over whatever the line-break locale already
-   *  prohibits. The prohibition is settled during segmentation, so both
-   *  breakers obey it and neither learns a rule.
-   *  `sigil::weave::kit::kinsoku()` is the stock table and a caller's own
-   *  is its peer. One field of the block, inherited by every text leaf
-   *  under the node. */
-  Element& kinsoku(sigil::weave::KinsokuTable table);
-  /** HOW FAR A CHARACTER MAY STAND OUTSIDE THE MEASURE, as a fraction of
-   *  its own advance — optical margin alignment along a line, burasagari
-   *  down a column. It is the LINE EDGE and has nothing to do with the
-   *  hanging indent, which is a negative `ParagraphStyle::indent.firstLine`.
-   *  `sigil::weave::kit::hanging()` is the stock table. One field of the
-   *  block, inherited by every text leaf under the node. */
-  Element& hanging(sigil::weave::HangingTable table);
-  /** HOW MUCH ROOM STANDS BETWEEN TWO ADJACENT FULL-WIDTH CHARACTERS, by
-   *  the class of each, as a fraction of the em — negative closes the gap
-   *  up, which is what nearly every entry of a real table does. `tsume`
-   *  closes the gap after every full-width character the table gives no
-   *  class of its own, on top of that. Both apply where two characters
-   *  meet across a break opportunity; two characters shaped inside one
-   *  word are the face's and the shaper's. The table and the tsume are
-   *  two fields of the block, inherited by every text leaf under the
-   *  node. */
-  Element& mojikumi(sigil::weave::MojikumiTable table, float tsume = 0);
   /** Text leaves only: ROOM BESIDE EVERY LINE of this passage, over and
    *  above the leading — `before` above a line and right of a column,
    *  `after` below one and left. It is a layout input: the room is in the
@@ -1129,42 +1088,6 @@ class Element {
    *  top of this, so a passage that only carries readings needs none of
    *  this. */
   Element& reserve(sigil::weave::ReservedBand band);
-  /** THE TAILORING THE LINE-BREAK ANALYSIS RUNS UNDER — `"ja@lb=strict"`
-   *  is the strict Japanese rule set a printed page is set under,
-   *  `"zh@lb=loose"` the loose Chinese one. A tailored prohibition is a
-   *  boundary that never opens, so nothing downstream learns a rule. One
-   *  field of the block, inherited by every text leaf under the node; it
-   *  belongs to the Paragraph rather than to the layout options, and a
-   *  locale nobody names leaves a passed-in paragraph's own standing. */
-  Element& lineBreakLocale(std::string_view locale);
-
-  /** Lay the text out in VERTICAL-RL CJK columns
-   *  (`sigil::weave::WritingMode::kVerticalRL`) instead of horizontal
-   *  lines. Characters run top to bottom, columns advance RIGHT TO LEFT
-   *  from the node's right edge, and the node's width is the measure the
-   *  columns wrap within.
-   *
-   *  Per character the mode is UTR#50's: ideographs stand upright and take
-   *  their `vert` forms, Latin lies on its side. A run that wants
-   *  otherwise says so in its own style — `TextStyle::shaping.verticalForm`
-   *  is `kUpright`, `kRotated` or `kTateChuYoko` — on a `weave::rich()` run or
-   *  through `spanStyle`.
-   *
-   *  A vertical leaf MEASURES ON THE OTHER AXIS: its main extent is its
-   *  HEIGHT, and its intrinsic width is one column pitch per column. It has
-   *  no baseline — the reading axis is y — so for `Align::Baseline` it
-   *  reports its first character's baseline, which lines a column's opening
-   *  character up with a horizontal neighbour's first line.
-   *
-   *  `onPath` IGNORES IT: a path run's baseline is its own geometry and has
-   *  no columns to advance. Setting both warns once and the path wins.
-   *
-   *  One field of the block, inherited by every text leaf under the node,
-   *  as CSS inherits `writing-mode`: a row of vertical panels states it
-   *  once. It belongs to the Paragraph rather than to the layout options,
-   *  and a mode nobody names leaves a passed-in paragraph's own
-   *  standing. */
-  Element& writingMode(sigil::weave::WritingMode mode);
 
   // ---- span restyling: the type treatment, addressed by selector -------
   //
@@ -1261,13 +1184,6 @@ class Element {
   // for everything a setter did not name. Setting none of them leaves the
   // passed options untouched.
 
-  /** Greedy (the fast default) or Knuth-Plass optimal line breaking. One
-   *  field of the block, inherited by every text leaf under the node. */
-  Element& lineBreak(sigil::weave::LineBreakStrategy strategy);
-  /** Whether soft-hyphen break opportunities are taken, and what
-   *  Knuth-Plass charges for taking them. One field of the block,
-   *  inherited by every text leaf under the node. */
-  Element& hyphenation(sigil::weave::HyphenationOptions options);
   /** Text leaves only: the marker appended to the last line when the text
    *  overflows its geometry. Empty disables it. */
   Element& ellipsis(std::u8string_view marker);
@@ -1275,13 +1191,6 @@ class Element {
    *  rest reports as overflow and `ellipsis()`, when set, lands on the
    *  clamped line. 0 is unclamped. */
   Element& maxLines(int lines);
-  /** How a paragraph-final or hard-break-final line sits under
-   *  `TextAlignment::kJustify` — its own alignment, or `justify` to
-   *  stretch it to the full measure like every other line. Inert under
-   *  the other alignments, which have no special last line. Two fields of
-   *  the block, inherited by every text leaf under the node. */
-  Element& lastLine(sigil::weave::TextAlignment alignment,
-                    bool justify = false);
 
   /** Text leaves only: paint the GLYPHS with this material, mapped to
    *  TEXT-METRIC space — the material's unit square lands with x across
@@ -1375,7 +1284,6 @@ class Element {
       motion::Spread::From from = motion::Spread::From::Start);
 
   // ---- composition ----
-  Element& child(Element e);
   /** THE CHILDREN, AS ONE BLOCK: what is in the node, in order, after
    *  every verb that says what is done to it —
    *
@@ -1392,7 +1300,7 @@ class Element {
   template <std::ranges::input_range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, Element>
   Element& children(R&& range) {
-    for (auto&& e : range) child(std::move(e));
+    for (auto&& e : range) append(std::move(e));
     return *this;
   }
 
@@ -1404,6 +1312,8 @@ class Element {
       : m_node(std::move(n)) {}
 
  private:
+  /** One more child at the end, which both `children()` forms go through. */
+  void append(Element e);
   /** Register a decoration's declared derive borrows (see
    *  BorrowingDecoration). Every slot that takes a Decoration must call
    *  this: a borrow honoured in some slots and not others resolves to

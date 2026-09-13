@@ -34,10 +34,10 @@ TEST(ComposeMaskGates, AHelpersMarksAreGatedFromOutsideIt) {
         .stroke(stroke(2, red()));
   };
   Host all(200, 200), gated(200, 200);
-  all.composer.render(stack().child(helper()));
+  all.composer.render(stack().children({helper()}));
   all.frame();
-  gated.composer.render(stack().child(
-      helper().mask(parts::marks(), by::spans(spans::upTo(0.4f)))));
+  gated.composer.render(stack().children(
+      {helper().mask(parts::marks(), by::spans(spans::upTo(0.4f)))}));
   gated.frame();
   // Every one of the three is cut by the one call the CALLER wrote.
   EXPECT_EQ(gated.pixel(40, 20), all.pixel(40, 20)) << "inside the window";
@@ -62,14 +62,15 @@ TEST(ComposeMaskGates, ADecorationReceivesTheAlreadyGatedRun) {
   wet.trimStart = 0.90f;
   wet.trimEnd = 1.0f;
   Host host(200, 200);
-  host.composer.render(stack().child(box()
-                                         .absolute()
-                                         .inset(0)
-                                         .shape(line)
-                                         .fill(Fill::none())
-                                         .stroke(stroke(4, red()))
-                                         .foreground(wet)
-                                         .mask(by::spans(spans::upTo(0.5f)))));
+  host.composer.render(
+      stack().children({box()
+                            .absolute()
+                            .inset(0)
+                            .shape(line)
+                            .fill(Fill::none())
+                            .stroke(stroke(4, red()))
+                            .foreground(wet)
+                            .mask(by::spans(spans::upTo(0.5f)))}));
   host.frame();
   // The body reaches x≈100; nothing past it.
   EXPECT_GT(redInk(host, 20, 95, 90, 105), 40);
@@ -104,7 +105,7 @@ TEST(ComposeMaskGates, TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
     else
       e.mask(by::spans(spans::upTo(
           animate(sigil::motion::to(0.5f), {400ms, &choreograph::easeNone}))));
-    return stack().child(std::move(e));
+    return stack().children({std::move(e)});
   };
   Host host(200, 200);
   host.composer.render(tree(0));
@@ -136,7 +137,7 @@ TEST(ComposeMaskGates, TheGateIsAPropertyOfABuiltElement) {
   const auto build = [](bool still) {
     Element ring = revealBox().stroke(stroke(6, red()));
     if (!still) ring.mask(by::spans(spans::upTo(0.25f)));
-    return stack().child(std::move(ring));
+    return stack().children({std::move(ring)});
   };
   Host live(200, 200), shot(200, 200);
   live.composer.render(build(false));
@@ -156,10 +157,10 @@ TEST(ComposeMaskGates, AClaimUnderAGateIsTheIntersection) {
   // overriding the other.
   const auto draw = [](float t) {
     Host host(200, 200);
-    host.composer.render(
-        stack().child(revealBox()
-                          .stroke(spans::corners(18), stroke(6, red()), "brk")
-                          .mask(parts::marks(), by::spans(spans::upTo(t)))));
+    host.composer.render(stack().children(
+        {revealBox()
+             .stroke(spans::corners(18), stroke(6, red()), "brk")
+             .mask(parts::marks(), by::spans(spans::upTo(t)))}));
     host.frame();
     return inkedCount(boundaryRing(host));
   };
@@ -177,11 +178,11 @@ TEST(ComposeMaskGates, AClaimUnderAGateIsTheIntersection) {
   testing::internal::CaptureStderr();
   {
     Host host(200, 200);
-    host.composer.render(stack().child(
-        revealBox()
-            .stroke(spans::range(0.0f, 0.5f), stroke(4, red()), "a")
-            .stroke(spans::range(0.3f, 0.8f), stroke(4, green()), "b")
-            .mask(parts::marks(), by::spans(spans::upTo(0.0f)))));
+    host.composer.render(stack().children(
+        {revealBox()
+             .stroke(spans::range(0.0f, 0.5f), stroke(4, red()), "a")
+             .stroke(spans::range(0.3f, 0.8f), stroke(4, green()), "b")
+             .mask(parts::marks(), by::spans(spans::upTo(0.0f)))}));
     host.frame();
   }
   EXPECT_NE(testing::internal::GetCapturedStderr().find("both claim"),
@@ -197,15 +198,16 @@ TEST(ComposeMaskGates, OneMarkIsGatedAndItsSiblingIsNot) {
   // re-declares its parent's shape, which costs a node and loses the
   // outline the marks were following.
   const auto panel = [](float t) {
-    return stack().child(box()
-                             .absolute()
-                             .left(20)
-                             .top(20)
-                             .width(160)
-                             .height(160)
-                             .overlay(stroke(20, red()), "hazard")
-                             .foreground(stroke(4, green()), "keyline")
-                             .mask(parts::named("hazard"), by::edge(0.0f, t)));
+    return stack().children(
+        {box()
+             .absolute()
+             .left(20)
+             .top(20)
+             .width(160)
+             .height(160)
+             .overlay(stroke(20, red()), "hazard")
+             .foreground(stroke(4, green()), "keyline")
+             .mask(parts::named("hazard"), by::edge(0.0f, t))});
   };
   Host closed(200, 200), open(200, 200);
   closed.composer.render(panel(0.0f));
@@ -246,11 +248,11 @@ TEST(ComposeMaskGates, TheIntersectionIsExactIntervalArithmetic) {
     return n;
   };
   Host host(200, 200);
-  host.composer.render(stack().child(
-      revealBox()
-          .stroke(stroke(6, red()))
-          .mask(by::spans(spans::range(0.0f, 0.5f)))     // left + top
-          .mask(by::spans(spans::range(0.3f, 1.0f)))));  // top's last 80%
+  host.composer.render(stack().children(
+      {revealBox()
+           .stroke(stroke(6, red()))
+           .mask(by::spans(spans::range(0.0f, 0.5f)))      // left + top
+           .mask(by::spans(spans::range(0.3f, 1.0f)))}));  // top's last 80%
   host.frame();
   // [0.3, 0.5] is the top edge from x = 40 to x = 120 and nothing else.
   EXPECT_EQ(topEdgeInk(host, 22, 36), 0) << "before the intersection";
@@ -263,10 +265,10 @@ TEST(ComposeMaskGates, TheIntersectionIsExactIntervalArithmetic) {
   // Two masks that share nothing show nothing — intersection, never union.
   Host disjoint(200, 200);
   disjoint.composer.render(
-      stack().child(revealBox()
-                        .stroke(stroke(6, red()))
-                        .mask(by::spans(spans::range(0.0f, 0.2f)))
-                        .mask(by::spans(spans::range(0.6f, 0.8f)))));
+      stack().children({revealBox()
+                            .stroke(stroke(6, red()))
+                            .mask(by::spans(spans::range(0.0f, 0.2f)))
+                            .mask(by::spans(spans::range(0.6f, 0.8f)))}));
   disjoint.frame();
   EXPECT_EQ(inkedCount(boundaryRing(disjoint)), 0u);
 }
@@ -287,7 +289,7 @@ TEST(ComposeMaskGates, TheStrokeSpansSugarLawIsPixelExact) {
     else
       e.stroke(stroke(6, red()), "brk")
           .mask(parts::named("brk"), by::spans(spans::corners(18)));
-    host.composer.render(stack().child(std::move(e)));
+    host.composer.render(stack().children({std::move(e)}));
     host.frame();
     return boundaryRing(host);
   };
@@ -304,10 +306,10 @@ TEST(ComposeMaskGates, AnUnmatchedMaskNameIsASilentNoOp) {
   // a typo'd label produces an ungated mark, not an error.
   const auto draw = [](const char* label) {
     Host host(200, 200);
-    host.composer.render(stack().child(
-        revealBox()
-            .stroke(stroke(6, red()), "outer")
-            .mask(parts::named(label), by::spans(spans::upTo(0.0f)))));
+    host.composer.render(stack().children(
+        {revealBox()
+             .stroke(stroke(6, red()), "outer")
+             .mask(parts::named(label), by::spans(spans::upTo(0.0f)))}));
     host.frame();
     return inkedCount(boundaryRing(host));
   };
@@ -331,19 +333,19 @@ TEST(ComposeMaskGates, AGatedNodeKeepsTheScalarMemoAndPrunes) {
   const auto ring = [] {
     return box()
         .cache(Cache::None)
-        .child(box()
-                   .width(120)
-                   .height(120)
-                   .key("ring")
-                   .shape(geometry::shapes::circle())
-                   .stroke(stroke(6.0f, Fill::color({1, 1, 1, 1})))
-                   .mask(by::spans(spans::upTo(
-                       animate(sigil::motion::through(
-                                   {{std::chrono::milliseconds(0), 0.0f},
-                                    {std::chrono::milliseconds(200), 0.6f},
-                                    {std::chrono::milliseconds(600), 0.6f},
-                                    {std::chrono::milliseconds(800), 1.0f}}),
-                               &choreograph::easeNone)))));
+        .children({box()
+                       .width(120)
+                       .height(120)
+                       .key("ring")
+                       .shape(geometry::shapes::circle())
+                       .stroke(stroke(6.0f, Fill::color({1, 1, 1, 1})))
+                       .mask(by::spans(spans::upTo(animate(
+                           sigil::motion::through(
+                               {{std::chrono::milliseconds(0), 0.0f},
+                                {std::chrono::milliseconds(200), 0.6f},
+                                {std::chrono::milliseconds(600), 0.6f},
+                                {std::chrono::milliseconds(800), 1.0f}}),
+                           &choreograph::easeNone))))});
   };
   Host host;
   host.composer.render(ring());
@@ -374,10 +376,10 @@ TEST(ComposeMaskGates, AStaticGateStillPrunesAndAMovingOneRepaints) {
   // participates in reconciler equality. A re-describe with the SAME mask
   // must prune; a re-describe with a different one must not.
   const auto tree = [](float t) {
-    return stack().child(revealBox()
-                             .key("m")
-                             .stroke(stroke(6, red()))
-                             .mask(by::spans(spans::upTo(t))));
+    return stack().children({revealBox()
+                                 .key("m")
+                                 .stroke(stroke(6, red()))
+                                 .mask(by::spans(spans::upTo(t)))});
   };
   Host host(200, 200);
   host.composer.render(tree(0.4f));
@@ -404,8 +406,9 @@ TEST(ComposeMaskGates, TheSpansGateReachesSurfaceAndMarksAndNotTheChildren) {
   Element e =
       box().absolute().left(20).top(20).width(100).height(100).fill(red()).mask(
           by::spans(spans::upTo(0.0f)));
-  e.child(box().absolute().left(10).top(10).width(40).height(40).fill(green()));
-  host.composer.render(stack().child(std::move(e)));
+  e.children(
+      {box().absolute().left(10).top(10).width(40).height(40).fill(green())});
+  host.composer.render(stack().children({std::move(e)}));
   host.frame();
   EXPECT_EQ(redInk(host), 0) << "the SURFACE is gated by a spans gate";
   EXPECT_EQ(host.pixel(50, 50), SK_ColorGREEN)
@@ -417,11 +420,11 @@ TEST(ComposeMaskGates, TheSpansGateReachesSurfaceAndMarksAndNotTheChildren) {
   const auto both = [] {
     return revealBox().fill(red()).stroke(stroke(6, green()));
   };
-  onlyMarks.composer.render(
-      stack().child(both().mask(parts::marks(), by::spans(spans::upTo(0.0f)))));
+  onlyMarks.composer.render(stack().children(
+      {both().mask(parts::marks(), by::spans(spans::upTo(0.0f)))}));
   onlyMarks.frame();
-  onlySurface.composer.render(stack().child(
-      both().mask(parts::surface(), by::spans(spans::upTo(0.0f)))));
+  onlySurface.composer.render(stack().children(
+      {both().mask(parts::surface(), by::spans(spans::upTo(0.0f)))}));
   onlySurface.frame();
   EXPECT_GT(SkColorGetR(onlyMarks.pixel(70, 70)), 180) << "surface kept";
   EXPECT_EQ(onlySurface.pixel(70, 70), SK_ColorBLACK) << "surface gated";
@@ -434,15 +437,15 @@ TEST(ComposeMaskGates, TheEdgeGateIsWipesHalfPlaneToTheBit) {
   // It reaches the node's decorations and its children too, which is what
   // distinguishes it from a spans gate.
   Host host(200, 200);
-  host.composer.render(stack().child(box()
-                                         .absolute()
-                                         .left(20)
-                                         .top(20)
-                                         .width(160)
-                                         .height(160)
-                                         .fill(red())
-                                         .stroke(stroke(6, green()))
-                                         .mask(by::edge(0.0f, 0.5f))));
+  host.composer.render(stack().children({box()
+                                             .absolute()
+                                             .left(20)
+                                             .top(20)
+                                             .width(160)
+                                             .height(160)
+                                             .fill(red())
+                                             .stroke(stroke(6, green()))
+                                             .mask(by::edge(0.0f, 0.5f))}));
   host.frame();
   // A reveal, not a squash: the edge lands at the box's MIDPOINT.
   int edge = 0;
@@ -478,19 +481,19 @@ TEST(ComposeMaskGates, TheGateGeometryIsTrimsGeometry) {
 
     Host gated(200, 200), truth(200, 200);
     gated.composer.render(
-        stack().child(revealBox()
-                          .stroke(stroke(6, red()))
-                          .mask(by::spans(spans::range(lo, hi)))));
+        stack().children({revealBox()
+                              .stroke(stroke(6, red()))
+                              .mask(by::spans(spans::range(lo, hi)))}));
     gated.frame();
     truth.composer.render(
-        stack().child(custom([want](SkCanvas& c, const PaintContext&) {
-                        SkPaint p;
-                        p.setAntiAlias(true);
-                        p.setStyle(SkPaint::kStroke_Style);
-                        p.setStrokeWidth(6);
-                        p.setColor4f({1, 0, 0, 1}, nullptr);
-                        c.drawPath(want, p);
-                      }).rect(r)));
+        stack().children({custom([want](SkCanvas& c, const PaintContext&) {
+                            SkPaint p;
+                            p.setAntiAlias(true);
+                            p.setStyle(SkPaint::kStroke_Style);
+                            p.setStrokeWidth(6);
+                            p.setColor4f({1, 0, 0, 1}, nullptr);
+                            c.drawPath(want, p);
+                          }).rect(r)}));
     truth.frame();
     EXPECT_EQ(boundaryRing(gated), boundaryRing(truth))
         << "window " << lo << ".." << hi;
@@ -504,9 +507,10 @@ TEST(ComposeMaskGates, ASettledBoundGateRecaches) {
   // looks cached and costs as if it were not.
   choreograph::Output<float> reveal{0.0f};
   Host host;
-  host.composer.render(box().child(revealBox()
-                                       .stroke(stroke(6, red()))
-                                       .mask(by::spans(spans::upTo(&reveal)))));
+  host.composer.render(
+      box().children({revealBox()
+                          .stroke(stroke(6, red()))
+                          .mask(by::spans(spans::upTo(&reveal)))}));
   host.frame();
   reveal = 1.0f;                // the ramp lands…
   for (int i = 0; i < 12; ++i)  // …and the release warms up (8 frames)
@@ -546,20 +550,21 @@ namespace {
 Element settledFillPanel(const choreograph::Output<Fill>* tint) {
   auto row = box().key("row").row().wrapLines().gap(2);
   for (int id = 0; id < 12; ++id)
-    row.child(box()
-                  .width(26)
-                  .height(26)
-                  .shape(geometry::shapes::star(5 + id % 3, 0.45f, 0.08f))
-                  .fill(blue())
-                  .stroke(stroke(1.5f, green())));
-  row.child(box().key("accent").width(26).height(26).fill(
-      motion::Animatable<Fill>(tint)));
+    row.children({box()
+                      .width(26)
+                      .height(26)
+                      .shape(geometry::shapes::star(5 + id % 3, 0.45f, 0.08f))
+                      .fill(blue())
+                      .stroke(stroke(1.5f, green()))});
+  row.children({box().key("accent").width(26).height(26).fill(
+      motion::Animatable<Fill>(tint))});
   return box()
       .key("root")
       .cache(Cache::Texture)
       .column()
       .padding(6)
-      .child(box().key("frame").column().padding(4).child(std::move(row)));
+      .children(
+          {box().key("frame").column().padding(4).children({std::move(row)})});
 }
 
 }  // namespace
@@ -672,14 +677,14 @@ TEST(ComposeMaskGates, TheEdgeGateReachesTheChildren) {
     Element g = box().absolute().left(20).top(20).width(160).height(160).mask(
         by::edge(90.0f, t));
     for (int i = 0; i < 4; ++i)
-      g.child(box()
-                  .absolute()
-                  .left(0)
-                  .top((float)i * 40)
-                  .width(160)
-                  .height(36)
-                  .fill(red()));
-    return stack().child(std::move(g));
+      g.children({box()
+                      .absolute()
+                      .left(0)
+                      .top((float)i * 40)
+                      .width(160)
+                      .height(36)
+                      .fill(red())});
+    return stack().children({std::move(g)});
   };
   Host half(200, 200), whole(200, 200);
   half.composer.render(lattice(0.5f));
@@ -705,10 +710,10 @@ TEST(ComposeMaskGates, TheShapeGateAndItsComplementAreBothTerms) {
     return box().absolute().left(20).top(20).width(100).height(100).fill(red());
   };
   inside.composer.render(
-      stack().child(plate().mask(by::shape(Region::rect(seal)))));
+      stack().children({plate().mask(by::shape(Region::rect(seal)))}));
   inside.frame();
   outside.composer.render(
-      stack().child(plate().mask(by::outside(Region::rect(seal)))));
+      stack().children({plate().mask(by::outside(Region::rect(seal)))}));
   outside.frame();
   // The gate is stated in the node's LOCAL space, so the seal covers
   // (40,40)-(100,100) on the canvas.
@@ -718,10 +723,10 @@ TEST(ComposeMaskGates, TheShapeGateAndItsComplementAreBothTerms) {
   EXPECT_GT(SkColorGetR(outside.pixel(110, 110)), 180);
   // THE SET DIFFERENCE: inside one region AND outside another, which is
   // the picture the raw SkPathOp was written for.
-  diff.composer.render(stack().child(
-      plate()
-          .mask(by::shape(Region::rect(SkRect::MakeXYWH(0, 0, 80, 80))))
-          .mask(by::outside(Region::rect(SkRect::MakeXYWH(0, 0, 40, 40))))));
+  diff.composer.render(stack().children(
+      {plate()
+           .mask(by::shape(Region::rect(SkRect::MakeXYWH(0, 0, 80, 80))))
+           .mask(by::outside(Region::rect(SkRect::MakeXYWH(0, 0, 40, 40))))}));
   diff.frame();
   EXPECT_EQ(diff.pixel(35, 35), SK_ColorBLACK) << "cut out of the middle";
   EXPECT_GT(SkColorGetR(diff.pixel(70, 70)), 180) << "inside the outer";
@@ -733,11 +738,17 @@ TEST(ComposeMaskGates, TheAlphaGateTakesItsCoverageFromAMaterial) {
   // for. Without it, the only way to fade a node by a gradient is to hand-
   // roll a Material plus a kDstIn layer at every call site.
   Host host(200, 200);
-  host.composer.render(stack().child(
-      box().absolute().left(20).top(20).width(160).height(160).fill(red()).mask(
-          by::alpha(material::skia::Paint::linear(
-              {0, 0}, {160, 0},
-              {{0.0f, {1, 1, 1, 1}}, {1.0f, {1, 1, 1, 0}}})))));
+  host.composer.render(stack().children(
+      {box()
+           .absolute()
+           .left(20)
+           .top(20)
+           .width(160)
+           .height(160)
+           .fill(red())
+           .mask(by::alpha(material::skia::Paint::linear(
+               {0, 0}, {160, 0},
+               {{0.0f, {1, 1, 1, 1}}, {1.0f, {1, 1, 1, 0}}})))}));
   host.frame();
   // Opaque at the left of the ramp, gone at the right, monotone between.
   EXPECT_GT(SkColorGetR(host.pixel(25, 100)), 200);
@@ -755,14 +766,14 @@ Element coveragePlates(const std::vector<Gate>& gates) {
   Element root = stack();
   int i = 0;
   for (const Gate& g : gates) {
-    root.child(box()
-                   .absolute()
-                   .left(10.0f + 38.0f * (float)i)
-                   .top(20)
-                   .width(30)
-                   .height(160)
-                   .fill(Fill::color({1, 1, 1, 1}))
-                   .mask(g));
+    root.children({box()
+                       .absolute()
+                       .left(10.0f + 38.0f * (float)i)
+                       .top(20)
+                       .width(30)
+                       .height(160)
+                       .fill(Fill::color({1, 1, 1, 1}))
+                       .mask(g)});
     ++i;
   }
   return root;
@@ -828,17 +839,17 @@ TEST(ComposeMaskGates, TheLumaLawIsTheSameThroughAShader) {
   //   mid   (0,.5,.5) -> .2935+.057   ->  89
   //   right (0,0,1) -> 0.114          ->  29
   Host host(200, 200);
-  host.composer.render(
-      stack().child(box()
-                        .absolute()
-                        .left(20)
-                        .top(20)
-                        .width(160)
-                        .height(160)
-                        .fill(Fill::color({1, 1, 1, 1}))
-                        .mask(by::luma(material::skia::Paint::linear(
-                            {0, 0}, {160, 0},
-                            {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))));
+  host.composer.render(stack().children(
+      {box()
+           .absolute()
+           .left(20)
+           .top(20)
+           .width(160)
+           .height(160)
+           .fill(Fill::color({1, 1, 1, 1}))
+           .mask(by::luma(material::skia::Paint::linear(
+               {0, 0}, {160, 0},
+               {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))}));
   host.frame();
   EXPECT_NEAR((int)SkColorGetR(host.pixel(22, 100)), 150, 4) << "green end";
   EXPECT_NEAR((int)SkColorGetR(host.pixel(100, 100)), 89, 4) << "the mix";
@@ -905,17 +916,17 @@ TEST(ComposeMaskGates, ThreeMasksAtThreeRatesIntersectPerFrame) {
   // per mask, which is what keeps them independent.
   choreograph::Output<float> slow{1.0f}, fast{1.0f};
   Host host(200, 200);
-  host.composer.render(stack().child(
-      box()
-          .absolute()
-          .left(20)
-          .top(20)
-          .width(160)
-          .height(160)
-          .fill(red())
-          .mask(by::edge(0.0f, &fast))    // from the left
-          .mask(by::edge(180.0f, &slow))  // …and from the right
-          .mask(by::shape(Region::rect(SkRect::MakeXYWH(0, 40, 160, 80))))));
+  host.composer.render(stack().children(
+      {box()
+           .absolute()
+           .left(20)
+           .top(20)
+           .width(160)
+           .height(160)
+           .fill(red())
+           .mask(by::edge(0.0f, &fast))    // from the left
+           .mask(by::edge(180.0f, &slow))  // …and from the right
+           .mask(by::shape(Region::rect(SkRect::MakeXYWH(0, 40, 160, 80))))}));
   host.frame();
   // All three open: the band the shape gate leaves is fully lit.
   EXPECT_GT(redInk(host, 25, 65, 175, 155), 8000);
@@ -951,8 +962,8 @@ TEST(ComposeMaskGates, TheOvalRegionCutsTheInscribedEllipseAndNotItsBox) {
   const auto plate = [] {
     return box().absolute().left(20).top(20).width(100).height(100).fill(red());
   };
-  host.composer.render(stack().child(
-      plate().mask(by::shape(Region::oval(SkRect::MakeWH(100, 100))))));
+  host.composer.render(stack().children(
+      {plate().mask(by::shape(Region::oval(SkRect::MakeWH(100, 100))))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(70, 70)), 180) << "the middle is kept";
   EXPECT_GT(SkColorGetR(host.pixel(70, 25)), 180) << "…and the top of the arc";
@@ -961,8 +972,8 @@ TEST(ComposeMaskGates, TheOvalRegionCutsTheInscribedEllipseAndNotItsBox) {
   EXPECT_EQ(host.pixel(114, 114), SK_ColorBLACK) << "…and the far one";
   // The complement is the same region read the other way round.
   Host outside(200, 200);
-  outside.composer.render(stack().child(
-      plate().mask(by::outside(Region::oval(SkRect::MakeWH(100, 100))))));
+  outside.composer.render(stack().children(
+      {plate().mask(by::outside(Region::oval(SkRect::MakeWH(100, 100))))}));
   outside.frame();
   EXPECT_EQ(outside.pixel(70, 70), SK_ColorBLACK);
   EXPECT_GT(SkColorGetR(outside.pixel(26, 26)), 180);
@@ -1020,8 +1031,8 @@ TEST(ComposeCache, ABoundFillMovingUnderAHeldGateRepaints) {
   choreograph::Output<float> reveal{1.0f};
   choreograph::Output<Fill> tint{Fill::color({1, 0, 0, 1})};  // red
   Host host(200, 200);
-  host.composer.render(box().child(
-      revealBox().fill(&tint).mask(by::spans(spans::upTo(&reveal)))));
+  host.composer.render(box().children(
+      {revealBox().fill(&tint).mask(by::spans(spans::upTo(&reveal)))}));
   host.frame();
   for (int i = 0; i < 4; ++i) host.frame(0.016);  // let the memo bake and hold
   EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";
@@ -1059,12 +1070,12 @@ TEST(ComposeCache, ALiveEffectMovingUnderAHeldGateRepaints) {
   choreograph::Output<float> reveal{1.0f};
   choreograph::Output<float> amt{1.0f};
   Host host(200, 200);
-  host.composer.render(box().child(
-      revealBox()
-          .fill(Fill::color({1, 0, 0, 1}))
-          .effect(material::skia::Effect::shader(fx, {{"amt", 1.0f}})
-                      .uniform("amt", &amt))
-          .mask(by::spans(spans::upTo(&reveal)))));
+  host.composer.render(box().children(
+      {revealBox()
+           .fill(Fill::color({1, 0, 0, 1}))
+           .effect(material::skia::Effect::shader(fx, {{"amt", 1.0f}})
+                       .uniform("amt", &amt))
+           .mask(by::spans(spans::upTo(&reveal)))}));
   host.frame();
   for (int i = 0; i < 4; ++i) host.frame(0.016);
   EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";
@@ -1099,19 +1110,20 @@ Pattern halfTilePattern() {
 Element pannedPanel(Pattern& pat) {
   auto row = box().key("row").row().wrapLines().gap(2);
   for (int id = 0; id < 12; ++id)
-    row.child(box()
-                  .width(26)
-                  .height(26)
-                  .shape(geometry::shapes::star(5 + id % 3, 0.45f, 0.08f))
-                  .fill(blue())
-                  .stroke(stroke(1.5f, green())));
-  row.child(box().key("accent").width(26).height(26).fill(pat.material()));
+    row.children({box()
+                      .width(26)
+                      .height(26)
+                      .shape(geometry::shapes::star(5 + id % 3, 0.45f, 0.08f))
+                      .fill(blue())
+                      .stroke(stroke(1.5f, green()))});
+  row.children({box().key("accent").width(26).height(26).fill(pat.material())});
   return box()
       .key("root")
       .cache(Cache::Texture)
       .column()
       .padding(6)
-      .child(box().key("frame").column().padding(4).child(std::move(row)));
+      .children(
+          {box().key("frame").column().padding(4).children({std::move(row)})});
 }
 
 }  // namespace

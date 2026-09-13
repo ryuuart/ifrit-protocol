@@ -189,7 +189,8 @@ struct RoutesProbe final : sketch::Sketch {
         .width(Dimension(kNode))
         .height(Dimension(34))
         .fill(Fill::color(sheet.palette.cellGround))
-        .child(text(key).styleClass("readout").absolute().inset(9, 9, 0, 0));
+        .children(
+            {text(key).styleClass("readout").absolute().inset(9, 9, 0, 0)});
   }
 
   Element diagram() const {
@@ -201,53 +202,54 @@ struct RoutesProbe final : sketch::Sketch {
         stack()
             .inset(0)
             // The hub every listed route is anchored on.
-            .child(probe("hub", 128, 128)
-                       .width(Dimension(80))
-                       .height(Dimension(44)))
+            .children({probe("hub", 128, 128)
+                           .width(Dimension(80))
+                           .height(Dimension(44))})
             // Four probes, each wearing one promotion verdict.
-            .child(probe("spun", 16, 24).rotate(-8))
-            .child(probe("glass", 220, 24).opacity(0.55f))
-            .child(probe("baked", 16, 232).cache(Cache::Texture))
-            .child(
-                probe("live", 220, 232)
-                    .cache(Cache::None)
-                    .child(custom("routes.live",
-                                  [](SkCanvas& canvas, const PaintContext& pc) {
-                                    SkPaint paint;
-                                    paint.setColor4f(kWire);
-                                    canvas.drawRect(
-                                        {0, 0,
-                                         pc.size.width() *
-                                             (float)(0.3 +
-                                                     0.5 * pc.elapsedSeconds),
-                                         3},
-                                        paint);
-                                  })
-                               .absolute()
-                               .inset(0, 26, 0, 0)));
+            .children(
+                {probe("spun", 16, 24).rotate(-8),
+                 probe("glass", 220, 24).opacity(0.55f),
+                 probe("baked", 16, 232).cache(Cache::Texture),
+                 probe("live", 220, 232)
+                     .cache(Cache::None)
+                     .children(
+                         {custom("routes.live",
+                                 [](SkCanvas& canvas, const PaintContext& pc) {
+                                   SkPaint paint;
+                                   paint.setColor4f(kWire);
+                                   canvas.drawRect(
+                                       {0, 0,
+                                        pc.size.width() *
+                                            (float)(0.3 +
+                                                    0.5 * pc.elapsedSeconds),
+                                        3},
+                                       paint);
+                                 })
+                              .absolute()
+                              .inset(0, 26, 0, 0)})});
 
     // Keyed routes: only a keyed route is addressable, and routesAt lists
     // exactly these.
     Element wires =
         stack()
             .inset(0)
-            .child(connector("spun", kProbe,
-                             routers::orthogonal(routers::Bend::VFirst, 8))
-                       .key("wire-spun")
-                       .inset(0)
-                       .foreground(wire))
-            .child(connector("glass", kProbe, routers::arc(0.18f))
-                       .key("wire-glass")
-                       .inset(0)
-                       .foreground(wire))
-            .child(connector(kProbe, "baked", routers::straight())
-                       .key("wire-baked")
-                       .inset(0)
-                       .foreground(wire))
+            .children({connector("spun", kProbe,
+                                 routers::orthogonal(routers::Bend::VFirst, 8))
+                           .key("wire-spun")
+                           .inset(0)
+                           .foreground(wire),
+                       connector("glass", kProbe, routers::arc(0.18f))
+                           .key("wire-glass")
+                           .inset(0)
+                           .foreground(wire),
+                       connector(kProbe, "baked", routers::straight())
+                           .key("wire-baked")
+                           .inset(0)
+                           .foreground(wire)})
             // …and one with no key at all: anchored, drawn, unlistable.
-            .child(connector(kProbe, "live", routers::arc(-0.18f))
-                       .inset(0)
-                       .foreground(wire));
+            .children({connector(kProbe, "live", routers::arc(-0.18f))
+                           .inset(0)
+                           .foreground(wire)});
 
     // The diagram is composed on a probe of its own before it stands on
     // the sheet, so its classes are stated on the diagram itself.
@@ -255,8 +257,7 @@ struct RoutesProbe final : sketch::Sketch {
                               .height = kPicture,
                               .ground = Fill::color({0.085f, 0.09f, 0.10f, 1})})
         .styleSheet(sheetClasses(sketch::kit::theme()))
-        .child(nodes)
-        .child(wires);
+        .children({nodes, wires});
   }
 
   /** A readout: one line per string, in the sheet's own mono. */
@@ -265,12 +266,13 @@ struct RoutesProbe final : sketch::Sketch {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(7);
     if (rows.empty())
-      column.child(text(empty)
-                       .styleClass("readout")
-                       .ink(sheet.palette.ash)
-                       .width(Dimension(measure)));
+      column.children({text(empty)
+                           .styleClass("readout")
+                           .ink(sheet.palette.ash)
+                           .width(Dimension(measure))});
     for (const std::string& row : rows)
-      column.child(text(row).styleClass("readout").width(Dimension(measure)));
+      column.children(
+          {text(row).styleClass("readout").width(Dimension(measure))});
     return column;
   }
 

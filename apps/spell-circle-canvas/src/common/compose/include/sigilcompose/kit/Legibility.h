@@ -173,8 +173,10 @@ struct Scrim {
  *  every glyph pass, needing no extra node. It takes no padding, so reach
  *  for this one when the plate has to stand off the type. */
 inline Element scrim(Element run, const Scrim& s = {}) {
-  Element plate =
-      box().padding(s.paddingX, s.paddingY).fill(s.fill).child(std::move(run));
+  Element plate = box()
+                      .padding(s.paddingX, s.paddingY)
+                      .fill(s.fill)
+                      .children({std::move(run)});
   if (s.radius > 0) plate.corners({s.radius});
   return plate;
 }

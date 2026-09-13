@@ -75,11 +75,11 @@ TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
     sigil::weave::TextStyle style = styleAt(48);
     style.shaping.typeface = ui;
     style.paint.foreground.setColor(SK_ColorWHITE);  // black-on-black otherwise
-    return box().child(text(u8"WEIGHT", style)
-                           .key("t")
-                           .variationDrive("GRAD", &grade)
-                           .absolute()
-                           .inset(20, 60, 20, 60));
+    return box().children({text(u8"WEIGHT", style)
+                               .key("t")
+                               .variationDrive("GRAD", &grade)
+                               .absolute()
+                               .inset(20, 60, 20, 60)});
   };
   host.composer.render(describe());
   host.frame();
@@ -119,16 +119,16 @@ TEST(ComposeVariationDrive, TheAxisDrivesOnAPathRunToo) {
   style.shaping.typeface = ui;
   style.paint.foreground.setColor(SK_ColorWHITE);
   host.composer.render(
-      box().child(text(u8"GRADED RING", style)
-                      .key("ring")
-                      .width(200)
-                      .height(200)
-                      .absolute()
-                      .left(20)
-                      .top(20)
-                      .onPath({.path = geometry::shapes::circle(),
-                               .align = TextPath::Align::Center})
-                      .variationDrive("GRAD", &grade)));
+      box().children({text(u8"GRADED RING", style)
+                          .key("ring")
+                          .width(200)
+                          .height(200)
+                          .absolute()
+                          .left(20)
+                          .top(20)
+                          .onPath({.path = geometry::shapes::circle(),
+                                   .align = TextPath::Align::Center})
+                          .variationDrive("GRAD", &grade)}));
   host.frame();
   SkBitmap lo;
   lo.allocPixels(SkImageInfo::MakeN32Premul(240, 240));
@@ -186,11 +186,11 @@ TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
   sigil::weave::TextStyle style = styleAt(48);
   style.shaping.typeface = ui;
   style.paint.foreground.setColor(SK_ColorWHITE);  // black-on-black otherwise
-  host.composer.render(box().child(text(u8"WEIGHT", style)
-                                       .key("t")
-                                       .variationDrive("wght", &weight)
-                                       .absolute()
-                                       .inset(20, 60, 20, 60)));
+  host.composer.render(box().children({text(u8"WEIGHT", style)
+                                           .key("t")
+                                           .variationDrive("wght", &weight)
+                                           .absolute()
+                                           .inset(20, 60, 20, 60)}));
   host.frame();
   SkBitmap base;
   base.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
@@ -230,20 +230,20 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
   choreograph::Output<float> grade{gradeMax};
 
   Host verb;
-  verb.composer.render(box().child(text(u8"GRADE", style)
-                                       .key("t")
-                                       .variationDrive("GRAD", &grade)
-                                       .absolute()
-                                       .inset(20, 60, 20, 60)));
+  verb.composer.render(box().children({text(u8"GRADE", style)
+                                           .key("t")
+                                           .variationDrive("GRAD", &grade)
+                                           .absolute()
+                                           .inset(20, 60, 20, 60)}));
   verb.frame();
 
   Host byHand;
-  byHand.composer.render(box().child(
-      text(u8"GRADE", style)
-          .key("t")
-          .fx({.effect = TextEffect::variableAxis("GRAD", gradeMax)})
-          .absolute()
-          .inset(20, 60, 20, 60)));
+  byHand.composer.render(box().children(
+      {text(u8"GRADE", style)
+           .key("t")
+           .fx({.effect = TextEffect::variableAxis("GRAD", gradeMax)})
+           .absolute()
+           .inset(20, 60, 20, 60)}));
   byHand.frame();
 
   SkBitmap fromVerb, fromTrack;
@@ -261,12 +261,12 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
   // …and the drive stays visible under a second track: a second
   // track that moves the glyphs leaves the grade in place.
   Host stacked;
-  stacked.composer.render(box().child(text(u8"GRADE", style)
-                                          .key("t")
-                                          .variationDrive("GRAD", &grade)
-                                          .fx({.effect = fx::rise(0)})
-                                          .absolute()
-                                          .inset(20, 60, 20, 60)));
+  stacked.composer.render(box().children({text(u8"GRADE", style)
+                                              .key("t")
+                                              .variationDrive("GRAD", &grade)
+                                              .fx({.effect = fx::rise(0)})
+                                              .absolute()
+                                              .inset(20, 60, 20, 60)}));
   stacked.frame();
   SkBitmap composed;
   composed.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
@@ -320,8 +320,8 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
                 .stagger = {.eachMs = 0, .durationMs = 100},
                 .progress = &phase};
     track.continuous = continuous;
-    composer.render(box().padding(10).child(
-        text(u8"GRADE", style).key("t").fx(std::move(track))));
+    composer.render(box().padding(10).children(
+        {text(u8"GRADE", style).key("t").fx(std::move(track))}));
     Retained out;
     double walk = 0.0;
     for (int f = 0; f < 2 * kHalf; ++f) {

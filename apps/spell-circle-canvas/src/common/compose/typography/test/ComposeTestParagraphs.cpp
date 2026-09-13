@@ -70,17 +70,17 @@ std::vector<float> baselinesOf(Host& host, const char* key) {
 
 TEST(ComposeParagraphs, ABlockStyleOpensThePitchTheLeafSetsIt) {
   Host plain(360, 300);
-  plain.composer.render(box().child(
-      text(passage(), whiteStyle(14)).key("t").width(Dimension(200.0f))));
+  plain.composer.render(box().children(
+      {text(passage(), whiteStyle(14)).key("t").width(Dimension(200.0f))}));
   plain.frame();
   const std::vector<float> tight = baselinesOf(plain, "t");
 
   Host led(360, 300);
-  led.composer.render(box().child(
-      text(passage(), whiteStyle(14))
-          .key("t")
-          .width(Dimension(200.0f))
-          .paragraph({.leading = sigil::weave::Leading::multiple(2.0f)})));
+  led.composer.render(box().children(
+      {text(passage(), whiteStyle(14))
+           .key("t")
+           .width(Dimension(200.0f))
+           .paragraphs({{.leading = sigil::weave::Leading::multiple(2.0f)}})}));
   led.frame();
   const std::vector<float> loose = baselinesOf(led, "t");
 
@@ -99,10 +99,10 @@ TEST(ComposeParagraphs, OneEntryStylesTheFirstBlockAndLeavesTheRestPlain) {
   // At 13 px in the instrument face the first block's first line is "First
   // block runs on for several words so" at 288.6 px, so centred in 300 it
   // starts 5.7 px in.
-  host.composer.render(box().child(text(twoBlocks(), whiteStyle(13))
-                                       .key("t")
-                                       .width(Dimension(300.0f))
-                                       .paragraphs({heading})));
+  host.composer.render(box().children({text(twoBlocks(), whiteStyle(13))
+                                           .key("t")
+                                           .width(Dimension(300.0f))
+                                           .paragraphs({heading})}));
   host.frame();
   const std::vector<TextUnit> lines = host.composer.units(
       "t", sigil::weave::selectors::each(sigil::weave::Unit::Line),
@@ -118,9 +118,9 @@ TEST(ComposeParagraphs, OneEntryStylesTheFirstBlockAndLeavesTheRestPlain) {
 TEST(ComposeUnits, EveryUnitASelectorAddressesIsReportedOnce) {
   Host host(400, 300);
   host.composer.render(
-      box().child(text(toUtf8("alpha beta gamma"), whiteStyle(16))
-                      .key("t")
-                      .width(Dimension(360.0f))));
+      box().children({text(toUtf8("alpha beta gamma"), whiteStyle(16))
+                          .key("t")
+                          .width(Dimension(360.0f))}));
   host.frame();
   const std::vector<TextUnit> words = host.composer.units(
       "t", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -145,8 +145,8 @@ TEST(ComposeUnits, AUnitReportsOnEveryLineItLandedOn) {
   // selector over a wrapped passage reports one entry per line, never one
   // rect spanning the break.
   Host host(300, 300);
-  host.composer.render(box().child(
-      text(passage(), whiteStyle(14)).key("t").width(Dimension(160.0f))));
+  host.composer.render(box().children(
+      {text(passage(), whiteStyle(14)).key("t").width(Dimension(160.0f))}));
   host.frame();
   const std::vector<TextUnit> lines = host.composer.units(
       "t", sigil::weave::selectors::each(sigil::weave::Unit::Line),
@@ -160,9 +160,10 @@ TEST(ComposeUnits, AUnitReportsOnEveryLineItLandedOn) {
 
 TEST(ComposeUnits, AnUnknownKeyAndAnEmptySelectionAnswerEmpty) {
   Host host(300, 200);
-  host.composer.render(box().child(text(toUtf8("alpha beta"), whiteStyle(16))
-                                       .key("t")
-                                       .width(Dimension(280.0f))));
+  host.composer.render(
+      box().children({text(toUtf8("alpha beta"), whiteStyle(16))
+                          .key("t")
+                          .width(Dimension(280.0f))}));
   host.frame();
   EXPECT_TRUE(
       host.composer
@@ -179,26 +180,25 @@ TEST(ComposeUnits, AnUnknownKeyAndAnEmptySelectionAnswerEmpty) {
 TEST(ComposeUnits, ASiblingAnnotationPlacesOneElementPerUnit) {
   Host host(400, 300);
   const auto describe = [&] {
-    return box()
-        .child(text(toUtf8("alpha beta gamma"), whiteStyle(16))
-                   .key("t")
-                   .absolute()
-                   .left(Dimension(20.0f))
-                   .top(Dimension(40.0f))
-                   .width(Dimension(360.0f)))
-        .child(kit::annotate(
-                   host.composer, "t",
-                   sigil::weave::selectors::each(sigil::weave::Unit::Word),
-                   sigil::weave::Unit::Word,
-                   {.side = kit::Beside::Side::After, .gap = 4.0f},
-                   [](const TextUnit&) {
-                     return box()
-                         .width(Dimension(6.0f))
-                         .height(Dimension(6.0f))
-                         .fill(green());
-                   })
-                   .absolute()
-                   .inset(0, 0, 0, 0));
+    return box().children(
+        {text(toUtf8("alpha beta gamma"), whiteStyle(16))
+             .key("t")
+             .absolute()
+             .left(Dimension(20.0f))
+             .top(Dimension(40.0f))
+             .width(Dimension(360.0f)),
+         kit::annotate(host.composer, "t",
+                       sigil::weave::selectors::each(sigil::weave::Unit::Word),
+                       sigil::weave::Unit::Word,
+                       {.side = kit::Beside::Side::After, .gap = 4.0f},
+                       [](const TextUnit&) {
+                         return box()
+                             .width(Dimension(6.0f))
+                             .height(Dimension(6.0f))
+                             .fill(green());
+                       })
+             .absolute()
+             .inset(0, 0, 0, 0)});
   };
   host.composer.render(describe());
   host.frame();
@@ -231,24 +231,24 @@ TEST(ComposeUnits, AnAnchoredObjectStandsWhereTheOffsetPutsIt) {
   // is why the two references are named per axis.
   Host host(400, 300);
   const auto describe = [&](kit::Anchored anchored) {
-    return box()
-        .child(text(toUtf8("alpha beta gamma"), whiteStyle(16))
-                   .key("t")
-                   .absolute()
-                   .left(Dimension(80.0f))
-                   .top(Dimension(40.0f))
-                   .width(Dimension(300.0f)))
-        .child(kit::annotate(host.composer, "t",
-                             sigil::weave::selectors::text(toUtf8("gamma")),
-                             sigil::weave::Unit::Word, anchored,
-                             [](const TextUnit&) {
-                               return box()
-                                   .width(Dimension(6.0f))
-                                   .height(Dimension(6.0f))
-                                   .fill(green());
-                             })
-                   .absolute()
-                   .inset(0, 0, 0, 0));
+    return box().children(
+        {text(toUtf8("alpha beta gamma"), whiteStyle(16))
+             .key("t")
+             .absolute()
+             .left(Dimension(80.0f))
+             .top(Dimension(40.0f))
+             .width(Dimension(300.0f)),
+         kit::annotate(host.composer, "t",
+                       sigil::weave::selectors::text(toUtf8("gamma")),
+                       sigil::weave::Unit::Word, anchored,
+                       [](const TextUnit&) {
+                         return box()
+                             .width(Dimension(6.0f))
+                             .height(Dimension(6.0f))
+                             .fill(green());
+                       })
+             .absolute()
+             .inset(0, 0, 0, 0)});
   };
   const kit::Anchored fromFrame{.horizontal = kit::Anchored::From::Frame,
                                 .offset = {-20.0f, 0.0f}};
@@ -287,14 +287,14 @@ TEST(ComposeTypeset, ANestedStyleCoversTheWordsItCountsAndStops) {
   const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Words,
                                  .count = 3,
                                  .style = colouredType(16, SK_ColorGREEN)};
-  host.composer.render(
-      box().child(text(toUtf8("alpha beta gamma delta epsilon"), whiteStyle(16))
-                      .key("t")
-                      .absolute()
-                      .left(Dimension(20.0f))
-                      .top(Dimension(40.0f))
-                      .width(Dimension(360.0f))
-                      .spanStyle(kit::nestedRun(opening), opening.style)));
+  host.composer.render(box().children(
+      {text(toUtf8("alpha beta gamma delta epsilon"), whiteStyle(16))
+           .key("t")
+           .absolute()
+           .left(Dimension(20.0f))
+           .top(Dimension(40.0f))
+           .width(Dimension(360.0f))
+           .spanStyle(kit::nestedRun(opening), opening.style)}));
   host.frame();
   const std::vector<TextUnit> words = host.composer.units(
       "t", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -319,13 +319,13 @@ TEST(ComposeTypeset, ANestedRunEndsOnItsDelimiterAndIncludesIt) {
                               .delimiter = toUtf8("."),
                               .style = colouredType(16, SK_ColorGREEN)};
   host.composer.render(
-      box().child(text(toUtf8("alpha beta. gamma delta"), whiteStyle(16))
-                      .key("t")
-                      .absolute()
-                      .left(Dimension(20.0f))
-                      .top(Dimension(40.0f))
-                      .width(Dimension(360.0f))
-                      .spanStyle(kit::nestedRun(lead), lead.style)));
+      box().children({text(toUtf8("alpha beta. gamma delta"), whiteStyle(16))
+                          .key("t")
+                          .absolute()
+                          .left(Dimension(20.0f))
+                          .top(Dimension(40.0f))
+                          .width(Dimension(360.0f))
+                          .spanStyle(kit::nestedRun(lead), lead.style)}));
   host.frame();
   const std::vector<TextUnit> words = host.composer.units(
       "t", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -347,13 +347,13 @@ TEST(ComposeTypeset, ANestedRunEndsOnItsDelimiterAndIncludesIt) {
                                 .delimiter = toUtf8("§"),
                                 .style = colouredType(16, SK_ColorGREEN)};
   missing.composer.render(
-      box().child(text(toUtf8("alpha beta. gamma delta"), whiteStyle(16))
-                      .key("t")
-                      .absolute()
-                      .left(Dimension(20.0f))
-                      .top(Dimension(40.0f))
-                      .width(Dimension(360.0f))
-                      .spanStyle(kit::nestedRun(absent), absent.style)));
+      box().children({text(toUtf8("alpha beta. gamma delta"), whiteStyle(16))
+                          .key("t")
+                          .absolute()
+                          .left(Dimension(20.0f))
+                          .top(Dimension(40.0f))
+                          .width(Dimension(360.0f))
+                          .spanStyle(kit::nestedRun(absent), absent.style)}));
   missing.frame();
   EXPECT_FALSE(anyGreenIn(missing, SkIRect::MakeXYWH(0, 0, 400, 300)));
 }
@@ -367,18 +367,19 @@ TEST(ComposeTypeset, AnInitialLetterCarriesANestedOpeningIntoItsBlock) {
   const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Words,
                                  .count = 2,
                                  .style = colouredType(16, SK_ColorGREEN)};
-  host.composer.render(box().child(
-      box()
-          .absolute()
-          .left(Dimension(20.0f))
-          .top(Dimension(40.0f))
-          .width(Dimension(340.0f))
-          .height(Dimension(200.0f))
-          .child(text(toUtf8("Whale alpha beta gamma"), whiteStyle(16))
-                     .key("body")
-                     .width(Dimension(240.0f))
-                     .initialLetter({.lines = 3, .margin = 6.0f})
-                     .spanStyle(kit::nestedRun(opening), opening.style))));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .left(Dimension(20.0f))
+           .top(Dimension(40.0f))
+           .width(Dimension(340.0f))
+           .height(Dimension(200.0f))
+           .children(
+               {text(toUtf8("Whale alpha beta gamma"), whiteStyle(16))
+                    .key("body")
+                    .width(Dimension(240.0f))
+                    .initialLetter({.lines = 3, .margin = 6.0f})
+                    .spanStyle(kit::nestedRun(opening), opening.style)})}));
   host.frame();
   const std::vector<TextUnit> words = host.composer.units(
       "body", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -405,18 +406,18 @@ TEST(ComposeAnnotate, AReservingReadingOpensThePitchBeforeTheBaseIsBroken) {
     return lines.empty() ? 0.0f : lines.front().pitch;
   };
   Host bare(400, 400);
-  bare.composer.render(box().child(
-      text(passage(), whiteStyle(16)).key("t").width(Dimension(220.0f))));
+  bare.composer.render(box().children(
+      {text(passage(), whiteStyle(16)).key("t").width(Dimension(220.0f))}));
   bare.frame();
 
   Host read(400, 400);
-  read.composer.render(box().child(
-      text(passage(), whiteStyle(16))
-          .key("t")
-          .width(Dimension(220.0f))
-          .annotate(kit::ruby(sigil::weave::selectors::text(toUtf8("three")),
-                              sigil::weave::Unit::Word, {toUtf8("iii")},
-                              {.size = 8.0f}, 1.0f))));
+  read.composer.render(box().children(
+      {text(passage(), whiteStyle(16))
+           .key("t")
+           .width(Dimension(220.0f))
+           .annotate(kit::ruby(sigil::weave::selectors::text(toUtf8("three")),
+                               sigil::weave::Unit::Word, {toUtf8("iii")},
+                               {.size = 8.0f}, 1.0f))}));
   read.frame();
 
   EXPECT_GT(pitchOf(read), pitchOf(bare) + 4.0f);
@@ -430,17 +431,17 @@ TEST(ComposeAnnotate, AReadingThatReservesNothingLeavesThePitchAlone) {
     return lines.empty() ? 0.0f : lines.front().pitch;
   };
   Host bare(400, 400);
-  bare.composer.render(box().child(
-      text(passage(), whiteStyle(16)).key("t").width(Dimension(220.0f))));
+  bare.composer.render(box().children(
+      {text(passage(), whiteStyle(16)).key("t").width(Dimension(220.0f))}));
   bare.frame();
 
   Host marked(400, 400);
-  marked.composer.render(box().child(
-      text(passage(), whiteStyle(16))
-          .key("t")
-          .width(Dimension(220.0f))
-          .annotate(kit::kenten(sigil::weave::selectors::text(toUtf8("three")),
-                                {.size = 6.0f}, toUtf8("."), 1.0f))));
+  marked.composer.render(box().children(
+      {text(passage(), whiteStyle(16))
+           .key("t")
+           .width(Dimension(220.0f))
+           .annotate(kit::kenten(sigil::weave::selectors::text(toUtf8("three")),
+                                 {.size = 6.0f}, toUtf8("."), 1.0f))}));
   marked.frame();
 
   EXPECT_NEAR(pitchOf(marked), pitchOf(bare), 0.01f);
@@ -468,16 +469,16 @@ TEST(ComposeAnnotate, ReserveIsWhatOpensTheBaseLineBox) {
                       .reserve = reserve};
   };
   const auto pitchWith = [&](Host& host, bool reserve) {
-    host.composer.render(box().child(text(passage(), whiteStyle(16))
-                                         .key("t")
-                                         .width(Dimension(220.0f))
-                                         .annotate(reading(reserve))));
+    host.composer.render(box().children({text(passage(), whiteStyle(16))
+                                             .key("t")
+                                             .width(Dimension(220.0f))
+                                             .annotate(reading(reserve))}));
     host.frame();
     return pitchOf(host);
   };
   Host bare(400, 400);
-  bare.composer.render(box().child(
-      text(passage(), whiteStyle(16)).key("t").width(Dimension(220.0f))));
+  bare.composer.render(box().children(
+      {text(passage(), whiteStyle(16)).key("t").width(Dimension(220.0f))}));
   bare.frame();
 
   Host over(400, 400), reserved(400, 400);
@@ -496,17 +497,15 @@ TEST(ComposeStory, EachFrameFillsFromWhereTheOneBeforeItStopped) {
                                   .add(toUtf8(" "))
                                   .add(passage()));
   Host host(500, 300);
-  host.composer.render(box()
-                           .row()
-                           .child(frame(article)
-                                      .key("a")
-                                      .thread("b")
-                                      .width(Dimension(160.0f))
-                                      .height(Dimension(60.0f)))
-                           .child(frame(article)
-                                      .key("b")
-                                      .width(Dimension(160.0f))
-                                      .height(Dimension(200.0f))));
+  host.composer.render(box().row().children({frame(article)
+                                                 .key("a")
+                                                 .thread("b")
+                                                 .width(Dimension(160.0f))
+                                                 .height(Dimension(60.0f)),
+                                             frame(article)
+                                                 .key("b")
+                                                 .width(Dimension(160.0f))
+                                                 .height(Dimension(200.0f))}));
   host.frame();
   const std::vector<TextUnit> first = host.composer.units(
       "a", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -534,17 +533,16 @@ TEST(ComposeStory, ANarrowerFirstFrameMovesTheCut) {
                                     .add(toUtf8(" "))
                                     .add(passage()));
     Host host(500, 300);
-    host.composer.render(box()
-                             .row()
-                             .child(frame(article)
-                                        .key("a")
-                                        .thread("b")
-                                        .width(Dimension(measure))
-                                        .height(Dimension(60.0f)))
-                             .child(frame(article)
-                                        .key("b")
-                                        .width(Dimension(160.0f))
-                                        .height(Dimension(200.0f))));
+    host.composer.render(
+        box().row().children({frame(article)
+                                  .key("a")
+                                  .thread("b")
+                                  .width(Dimension(measure))
+                                  .height(Dimension(60.0f)),
+                              frame(article)
+                                  .key("b")
+                                  .width(Dimension(160.0f))
+                                  .height(Dimension(200.0f))}));
     host.frame();
     const std::vector<TextUnit> second = host.composer.units(
         "b", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -565,8 +563,8 @@ TEST(ComposeStory, TheMarkerEndsTheChainAndNoCutInsideIt) {
                                     .add(passage())
                                     .add(toUtf8(" "))
                                     .add(passage()));
-    host.composer.render(box().child(kit::columns(
-        article, 3, 12.0f, 240.0f, 32.0f, "col", std::move(marker))));
+    host.composer.render(box().children({kit::columns(
+        article, 3, 12.0f, 240.0f, 32.0f, "col", std::move(marker))}));
     host.frame();
     return std::array{host.composer.paragraphLayout("col0"),
                       host.composer.paragraphLayout("col1"),
@@ -607,7 +605,7 @@ TEST(ComposeBoundary, GlyphsHandTheDecorationsTheLettersInsteadOfTheBox) {
                              canvas.drawPath(ctx.outline, paint);
                            })));
     if (boundary != Boundary::Auto) leaf.boundary(boundary);
-    return box().child(std::move(leaf));
+    return box().children({std::move(leaf)});
   };
   Host boxed(300, 200), lettered(300, 200);
   boxed.composer.render(describe(Boundary::Auto));
@@ -637,12 +635,12 @@ std::u8string longPassage() {
 
 /** One frame of a live passage at `measure`, reporting what it cost. */
 TextSettling settlingAt(Host& host, float measure, float budget) {
-  host.composer.render(
-      box().child(text(longPassage(), whiteStyle(13))
-                      .key("t")
-                      .width(Dimension(measure))
-                      .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-                      .live(true, budget)));
+  host.composer.render(box().children(
+      {text(longPassage(), whiteStyle(13))
+           .key("t")
+           .width(Dimension(measure))
+           .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
+           .live(true, budget)}));
   host.frame();
   return host.composer.settling("t");
 }
@@ -690,11 +688,12 @@ TEST(ComposeLiveText, ABoundMeasureRelaysEveryFrameWithoutGrowingTheTree) {
 
 TEST(ComposeLiveText, ASettledTextDecidesItsBreaksOnceAndThenComposesNothing) {
   Host host(600, 500);
-  const Element leaf =
-      box().child(text(longPassage(), whiteStyle(13))
-                      .key("t")
-                      .width(Dimension(340.0f))
-                      .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass));
+  const Element leaf = box().children(
+      {text(longPassage(), whiteStyle(13))
+           .key("t")
+           .width(Dimension(340.0f))
+           .block(
+               {.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})});
   host.composer.render(leaf);
   host.frame();
   // A settled passage never asks the break store — it is not one of a run
@@ -732,12 +731,13 @@ TEST(ComposeLiveText, AnInheritingPassageSettlesExactlyAsATotalOneDoes) {
                    : text(longPassage(),
                           sigil::weave::textStyle(
                               {.size = 13, .color = SkColor4f{1, 1, 1, 1}}));
-      host.composer.render(box().child(
-          std::move(leaf)
-              .key("t")
-              .width(Dimension(measure))
-              .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-              .live(true, 1.0f)));
+      host.composer.render(box().children(
+          {std::move(leaf)
+               .key("t")
+               .width(Dimension(measure))
+               .block(
+                   {.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
+               .live(true, 1.0f)}));
       host.frame();
       answers.push_back(host.composer.settling("t"));
     }
@@ -775,17 +775,15 @@ namespace {
 void twoFrames(Host& host, float measure = 160.0f) {
   sigil::weave::Story article(
       sigil::weave::rich(whiteStyle(13)).add(longPassage()));
-  host.composer.render(box()
-                           .row()
-                           .child(frame(article)
-                                      .key("a")
-                                      .thread("b")
-                                      .width(Dimension(measure))
-                                      .height(Dimension(70.0f)))
-                           .child(frame(article)
-                                      .key("b")
-                                      .width(Dimension(measure))
-                                      .height(Dimension(400.0f))));
+  host.composer.render(box().row().children({frame(article)
+                                                 .key("a")
+                                                 .thread("b")
+                                                 .width(Dimension(measure))
+                                                 .height(Dimension(70.0f)),
+                                             frame(article)
+                                                 .key("b")
+                                                 .width(Dimension(measure))
+                                                 .height(Dimension(400.0f))}));
   host.frame();
 }
 
@@ -804,24 +802,22 @@ TEST(ComposeStory, ABalancedRunHoldsTheStoryDownToTheLineItWasGiven) {
   const sigil::weave::Story article{words, whiteStyle(12)};
   Host host(600, 500);
   const uint32_t through = 5;
-  host.composer.render(box()
-                           .row()
-                           .child(frame(article)
-                                      .key("a")
-                                      .thread("b")
-                                      .width(Dimension(120.0f))
-                                      .height(Dimension(200.0f))
-                                      .balanceChain(through))
-                           .child(frame(article)
-                                      .key("b")
-                                      .thread("c")
-                                      .width(Dimension(120.0f))
-                                      .height(Dimension(200.0f)))
-                           .child(frame(article)
-                                      .key("c")
-                                      .width(Dimension(120.0f))
-                                      .height(Dimension(200.0f))
-                                      .balanceChain()));
+  host.composer.render(box().row().children({frame(article)
+                                                 .key("a")
+                                                 .thread("b")
+                                                 .width(Dimension(120.0f))
+                                                 .height(Dimension(200.0f))
+                                                 .balanceChain(through),
+                                             frame(article)
+                                                 .key("b")
+                                                 .thread("c")
+                                                 .width(Dimension(120.0f))
+                                                 .height(Dimension(200.0f)),
+                                             frame(article)
+                                                 .key("c")
+                                                 .width(Dimension(120.0f))
+                                                 .height(Dimension(200.0f))
+                                                 .balanceChain()}));
   host.frame();
   host.frame();  // the first draw has no fill to balance against
 
@@ -921,8 +917,9 @@ TEST(ComposeLineTables, TsumeClosesTheGapsBetweenFullWidthCharacters) {
         text(toUtf8("あいうえお、かきくけこ。さしすせそ"), whiteStyle(20))
             .key("t")
             .width(Dimension(360.0f));
-    if (tsume != 0) leaf.mojikumi({}, tsume);
-    host.composer.render(box().child(std::move(leaf)));
+    if (tsume != 0)
+      leaf.block({.mojikumi = sigil::weave::MojikumiTable{}, .tsume = tsume});
+    host.composer.render(box().children({std::move(leaf)}));
     host.frame();
     const std::vector<TextUnit> line = host.composer.units(
         "t", sigil::weave::selectors::line(0), sigil::weave::Unit::Line);
@@ -946,19 +943,17 @@ TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
     track.progress = 0.5f;
     return track;
   };
-  host.composer.render(box()
-                           .row()
-                           .child(frame(article)
-                                      .key("a")
-                                      .thread("b")
-                                      .width(Dimension(160.0f))
-                                      .height(Dimension(70.0f))
-                                      .fx(reveal()))
-                           .child(frame(article)
-                                      .key("b")
-                                      .width(Dimension(160.0f))
-                                      .height(Dimension(400.0f))
-                                      .fx(reveal())));
+  host.composer.render(box().row().children({frame(article)
+                                                 .key("a")
+                                                 .thread("b")
+                                                 .width(Dimension(160.0f))
+                                                 .height(Dimension(70.0f))
+                                                 .fx(reveal()),
+                                             frame(article)
+                                                 .key("b")
+                                                 .width(Dimension(160.0f))
+                                                 .height(Dimension(400.0f))
+                                                 .fx(reveal())}));
   host.frame();
   const std::vector<Beat> first = host.composer.beatsOf("a", 0);
   const std::vector<Beat> second = host.composer.beatsOf("b", 0);
@@ -982,11 +977,11 @@ TEST(ComposeFrameOptions, DistributeSpendsTheRoomLeftOverDownTheBox) {
   // the last line to the foot and leaves the first where it stood.
   const auto baselines = [](sigil::weave::FrameOptions::Distribute rule) {
     Host host(360, 400);
-    host.composer.render(box().child(text(passage(), whiteStyle(14))
-                                         .key("t")
-                                         .width(Dimension(200.0f))
-                                         .height(Dimension(300.0f))
-                                         .distribute(rule)));
+    host.composer.render(box().children({text(passage(), whiteStyle(14))
+                                             .key("t")
+                                             .width(Dimension(200.0f))
+                                             .height(Dimension(300.0f))
+                                             .distribute(rule)}));
     host.frame();
     return baselinesOf(host, "t");
   };
@@ -1023,11 +1018,11 @@ TEST(ComposeFrameOptions, DistributeSpendsTheRoomLeftOverDownAStoryFrame) {
     Host host(360, 400);
     sigil::weave::Story article(
         sigil::weave::rich(whiteStyle(14)).add(passage()));
-    host.composer.render(box().child(frame(article)
-                                         .key("t")
-                                         .width(Dimension(200.0f))
-                                         .height(Dimension(300.0f))
-                                         .distribute(rule)));
+    host.composer.render(box().children({frame(article)
+                                             .key("t")
+                                             .width(Dimension(200.0f))
+                                             .height(Dimension(300.0f))
+                                             .distribute(rule)}));
     host.frame();
     return baselinesOf(host, "t");
   };
@@ -1050,12 +1045,12 @@ TEST(ComposeFrameOptions, DistributeSpendsTheRoomLeftOverDownAStoryFrame) {
 std::vector<float> justifiedEdges(sigil::weave::JustificationOptions spec,
                                   const char* body, float measure) {
   Host host(400, 400);
-  host.composer.render(
-      box().child(text(toUtf8(body), whiteStyle(12))
-                      .key("t")
-                      .width(Dimension(measure))
-                      .textAlign(sigil::weave::TextAlignment::kJustify)
-                      .justification(spec)));
+  host.composer.render(box().children(
+      {text(toUtf8(body), whiteStyle(12))
+           .key("t")
+           .width(Dimension(measure))
+           .block({.alignment = sigil::weave::TextAlignment::kJustify})
+           .block({.justification = spec})}));
   host.frame();
   std::vector<float> edges;
   for (const TextUnit& line : host.composer.units(
@@ -1111,9 +1106,9 @@ TextSettling sweptSettling(bool live, float budgetMicroseconds, float endAt) {
              whiteStyle(11.5f))
             .key("para")
             .width(Dimension(measure))
-            .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass);
+            .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass});
     if (live) leaf.live(true, budgetMicroseconds);
-    host.composer.render(box().padding(10).child(std::move(leaf)));
+    host.composer.render(box().padding(10).children({std::move(leaf)}));
     host.frame();
   };
   for (float measure = 150; measure <= 230; measure += 1) step(measure);
@@ -1171,8 +1166,8 @@ TEST(KitBullets, TheMarkerKeepsTheRoomTheIndentOpened) {
              "carries on under it.")};
   const std::array<std::u8string, 1> markers = {std::u8string()};
   Host host(300, 160);
-  host.composer.render(box().padding(0).child(kit::bullets(
-      items, markers, colouredType(13, SK_ColorWHITE), kHang, 240.0f)));
+  host.composer.render(box().padding(0).children({kit::bullets(
+      items, markers, colouredType(13, SK_ColorWHITE), kHang, 240.0f)}));
   host.frame();
   int leftmost = 300;
   for (int y = 0; y < 160; ++y)
@@ -1195,18 +1190,18 @@ TEST(ComposeAnnotate, ABrokenBaseSharesOneReadingAndShiftsNothingAfterIt) {
   // the wrong base, which shows up as the last base left bare.
   Host host(400, 400);
   const sigil::weave::Type reading = colouredType(9, SK_ColorGREEN);
-  host.composer.render(box().child(
-      text(threeSentences(), whiteStyle(16))
-          .key("t")
-          .absolute()
-          .left(Dimension(20.0f))
-          .top(Dimension(40.0f))
-          .width(Dimension(150.0f))
-          .annotate(kit::ruby(
-              sigil::weave::selectors::each(sigil::weave::Unit::Sentence),
-              sigil::weave::Unit::Sentence,
-              {toUtf8("one"), toUtf8("two two two"), toUtf8("three")}, reading,
-              2.0f))));
+  host.composer.render(box().children(
+      {text(threeSentences(), whiteStyle(16))
+           .key("t")
+           .absolute()
+           .left(Dimension(20.0f))
+           .top(Dimension(40.0f))
+           .width(Dimension(150.0f))
+           .annotate(kit::ruby(
+               sigil::weave::selectors::each(sigil::weave::Unit::Sentence),
+               sigil::weave::Unit::Sentence,
+               {toUtf8("one"), toUtf8("two two two"), toUtf8("three")}, reading,
+               2.0f))}));
   host.frame();
 
   const std::vector<TextUnit> units = host.composer.units(
@@ -1259,11 +1254,13 @@ TEST(ComposeLiveText,
     host.composer.render(
         box()
             .cache(Cache::None)
-            .child(text(longPassage(), whiteStyle(13))
-                       .key("t")
-                       .width(Dimension(measure))
-                       .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-                       .live(true, budget)));
+            .children(
+                {text(longPassage(), whiteStyle(13))
+                     .key("t")
+                     .width(Dimension(measure))
+                     .block({.lineBreak =
+                                 sigil::weave::LineBreakStrategy::kKnuthPlass})
+                     .live(true, budget)}));
     host.frame();
     return host.composer.settling("t");
   };

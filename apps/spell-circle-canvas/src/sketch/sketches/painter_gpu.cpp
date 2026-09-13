@@ -81,21 +81,21 @@ Element card(float w, float h, SkColor4f accent) {
   const SkColor4f faint{1, 1, 1, 0.22f};
   auto rules = box().column().gap(9);
   for (int i = 0; i < 3; ++i)
-    rules.child(box()
-                    .width(w - 44 - (float)i * 26)
-                    .height(6)
-                    .corners({3})
-                    .fill(Fill::color(faint)));
+    rules.children({box()
+                        .width(w - 44 - (float)i * 26)
+                        .height(6)
+                        .corners({3})
+                        .fill(Fill::color(faint))});
 
   auto bars = box().row().gap(5).alignItems(Align::End);
   for (int i = 0; i < 10; ++i) {
     const float t = (float)i / 9.0f;
-    bars.child(
-        box()
-            .width(8)
-            .height(8 + 26.0f * (0.5f + 0.5f * std::sin(t * 8.0f + 1.1f)))
-            .corners({2})
-            .fill(Fill::color({accent.fR, accent.fG, accent.fB, 0.85f})));
+    bars.children(
+        {box()
+             .width(8)
+             .height(8 + 26.0f * (0.5f + 0.5f * std::sin(t * 8.0f + 1.1f)))
+             .corners({2})
+             .fill(Fill::color({accent.fR, accent.fG, accent.fB, 0.85f}))});
   }
 
   return box()
@@ -105,10 +105,9 @@ Element card(float w, float h, SkColor4f accent) {
       .column()
       .gap(12)
       .padding(12)
-      .child(box().width(w - 24).height(11).corners({5}).fill(
-          Fill::color({accent.fR, accent.fG, accent.fB, 0.92f})))
-      .child(std::move(rules))
-      .child(std::move(bars));
+      .children({box().width(w - 24).height(11).corners({5}).fill(
+                     Fill::color({accent.fR, accent.fG, accent.fB, 0.92f})),
+                 std::move(rules), std::move(bars)});
 }
 
 }  // namespace

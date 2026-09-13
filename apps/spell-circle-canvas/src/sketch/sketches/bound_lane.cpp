@@ -224,7 +224,7 @@ Element panel(float width, float height, const char* title, const char* sub,
                          .ground = Fill::none(),
                          .clip = false,
                          .keyline = Fill::color(kFrame)})
-          .child(std::move(inner)));
+          .children({std::move(inner)}));
 }
 
 /** The mark: 22 px, and its CENTRE (the default transformOrigin, hence
@@ -252,7 +252,7 @@ Element track(Shape curve, MotionPath along, Element mark, const char* caption,
                                   .margin(22, 4, 22, 10)
                                   .shape(std::move(curve))
                                   .stroke(stroke(1.4f, Fill::color(kCurve)))
-                                  .child(std::move(mark)));
+                                  .children({std::move(mark)}));
 }
 
 }  // namespace
@@ -341,9 +341,8 @@ struct BoundLane : sketch::Sketch {
                   locus("locus.split", shakeX.value(), shakeY.value(), kTrace)),
               panel(230, 230, "the same lanes, LIVE",
                     "amber = shared seed, teal = 1 / 2",
-                    stack()
-                        .child(chip(shakeX, sameY, kTraceB, 62))
-                        .child(chip(shakeX, shakeY, kTrace, 142))),
+                    stack().children({chip(shakeX, sameY, kTraceB, 62),
+                                      chip(shakeX, shakeY, kTrace, 142)})),
               text("THE ORDER IS THE POINT. wrap folds the affine "
                    "value, so a wrapped phase still wiggles across "
                    "the seam; wiggle adds in the property's own "

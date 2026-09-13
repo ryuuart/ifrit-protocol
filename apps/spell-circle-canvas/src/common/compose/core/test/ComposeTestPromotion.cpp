@@ -46,15 +46,15 @@ Element promotablePage() {
   Element page = box().width(180).height(180).fill(
       material::skia::Paint::sksl(gridEffect()));
   for (int i = 0; i < 56; ++i)
-    page.child(box()
-                   .absolute()
-                   .left(-6 + (float)i * 3.3f)
-                   .top(-8)
-                   .width(2)
-                   .height(196)
-                   .fill(i % 2 ? green() : red()));
-  page.child(
-      text(u8"JAM", whiteStyle(24)).absolute().left(8).top(70).width(160));
+    page.children({box()
+                       .absolute()
+                       .left(-6 + (float)i * 3.3f)
+                       .top(-8)
+                       .width(2)
+                       .height(196)
+                       .fill(i % 2 ? green() : red())});
+  page.children(
+      {text(u8"JAM", whiteStyle(24)).absolute().left(8).top(70).width(160)});
   return page;
 }
 
@@ -257,41 +257,41 @@ namespace {
 Element eagerPage() {
   return box()
       .cache(Cache::None)
-      .child(box()
-                 .key("plain")
-                 .absolute()
-                 .left(0)
-                 .top(0)
-                 .width(40)
-                 .height(40)
-                 .fill(red()))
-      .child(box()
-                 .key("faded")
-                 .absolute()
-                 .left(50)
-                 .top(0)
-                 .width(40)
-                 .height(40)
-                 .fill(green())
-                 .opacity(0.5f))
-      .child(box()
-                 .key("turned")
-                 .absolute()
-                 .left(100)
-                 .top(0)
-                 .width(40)
-                 .height(40)
-                 .fill(blue())
-                 .rotate(7))
-      .child(box()
-                 .key("recorded")
-                 .absolute()
-                 .left(0)
-                 .top(50)
-                 .width(40)
-                 .height(40)
-                 .fill(red())
-                 .cache(Cache::Picture));
+      .children({box()
+                     .key("plain")
+                     .absolute()
+                     .left(0)
+                     .top(0)
+                     .width(40)
+                     .height(40)
+                     .fill(red()),
+                 box()
+                     .key("faded")
+                     .absolute()
+                     .left(50)
+                     .top(0)
+                     .width(40)
+                     .height(40)
+                     .fill(green())
+                     .opacity(0.5f),
+                 box()
+                     .key("turned")
+                     .absolute()
+                     .left(100)
+                     .top(0)
+                     .width(40)
+                     .height(40)
+                     .fill(blue())
+                     .rotate(7),
+                 box()
+                     .key("recorded")
+                     .absolute()
+                     .left(0)
+                     .top(50)
+                     .width(40)
+                     .height(40)
+                     .fill(red())
+                     .cache(Cache::Picture)});
 }
 
 }  // namespace
@@ -329,9 +329,9 @@ TEST(ComposeCache, ANodeInsideABakeIsNotBakedAgain) {
   host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
   host.composer.setProfiling(true);
   Element page = box().key("outer").width(100).height(100).fill(red());
-  page.child(
-      box().key("inner").absolute().left(20).top(20).width(40).height(40).fill(
-          green()));
+  page.children(
+      {box().key("inner").absolute().left(20).top(20).width(40).height(40).fill(
+          green())});
   host.composer.render(std::move(page));
   host.frame();
 
@@ -408,11 +408,10 @@ namespace {
 Pattern hardTile() {
   return Pattern::tile(
       {12, 12},
-      box()
-          .child(box().absolute().left(0).top(0).width(6).height(6).fill(
-              Fill::color({1, 1, 1, 1})))
-          .child(box().absolute().left(7).top(3).width(3).height(6).fill(
-              Fill::color({0.2f, 0.9f, 0.3f, 1}))));
+      box().children({box().absolute().left(0).top(0).width(6).height(6).fill(
+                          Fill::color({1, 1, 1, 1})),
+                      box().absolute().left(7).top(3).width(3).height(6).fill(
+                          Fill::color({0.2f, 0.9f, 0.3f, 1}))}));
 }
 
 }  // namespace
@@ -426,8 +425,8 @@ TEST(ComposeCache, APromotedTileSamplesWhereTheLivePaintSampled) {
   Pattern pattern = hardTile();
   const auto page = [&] {
     Element out = promotablePage();
-    out.child(box().absolute().left(10).top(10).width(160).height(160).fill(
-        pattern.material(fonts())));
+    out.children({box().absolute().left(10).top(10).width(160).height(160).fill(
+        pattern.material(fonts()))});
     return out;
   };
   SkMatrix host = SkMatrix::Scale(1.875f, 1.875f);
@@ -456,28 +455,28 @@ TEST(ComposeCache, ACustomProgramIsCountedAsCompositingWithTheCanvas) {
   const auto page = [] {
     return box()
         .cache(Cache::None)
-        .child(box()
-                   .key("ground")
-                   .absolute()
-                   .left(0)
-                   .top(0)
-                   .width(180)
-                   .height(180)
-                   .fill(Fill::color({0.45f, 0.35f, 0.15f, 1})))
-        .child(custom([](SkCanvas& canvas, const PaintContext& ctx) {
-                 SkPaint paint;
-                 paint.setColor4f({0.4f, 0.4f, 0.4f, 1});
-                 paint.setBlendMode(SkBlendMode::kPlus);
-                 canvas.drawRect(
-                     SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
-                     paint);
-               })
-                   .key("plus")
-                   .absolute()
-                   .left(20)
-                   .top(20)
-                   .width(120)
-                   .height(120));
+        .children({box()
+                       .key("ground")
+                       .absolute()
+                       .left(0)
+                       .top(0)
+                       .width(180)
+                       .height(180)
+                       .fill(Fill::color({0.45f, 0.35f, 0.15f, 1})),
+                   custom([](SkCanvas& canvas, const PaintContext& ctx) {
+                     SkPaint paint;
+                     paint.setColor4f({0.4f, 0.4f, 0.4f, 1});
+                     paint.setBlendMode(SkBlendMode::kPlus);
+                     canvas.drawRect(
+                         SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
+                         paint);
+                   })
+                       .key("plus")
+                       .absolute()
+                       .left(20)
+                       .top(20)
+                       .width(120)
+                       .height(120)});
   };
   const std::function<Element()> fn = page;
   const PromotionDrift drift =
@@ -513,17 +512,16 @@ namespace {
 Pattern softTile() {
   return Pattern::tile(
       {16, 16},
-      box()
-          .child(box().absolute().left(1).top(1).width(14).height(14).fill(
-              Fill::color({1, 1, 1, 0.35f})))
-          .child(box()
-                     .absolute()
-                     .left(3)
-                     .top(3)
-                     .width(10)
-                     .height(3)
-                     .fill(Fill::color({0.2f, 0.9f, 0.3f, 0.6f}))
-                     .rotate(24)));
+      box().children({box().absolute().left(1).top(1).width(14).height(14).fill(
+                          Fill::color({1, 1, 1, 0.35f})),
+                      box()
+                          .absolute()
+                          .left(3)
+                          .top(3)
+                          .width(10)
+                          .height(3)
+                          .fill(Fill::color({0.2f, 0.9f, 0.3f, 0.6f}))
+                          .rotate(24)}));
 }
 
 }  // namespace
@@ -538,8 +536,8 @@ TEST(ComposeCache, APromotedNodeCompositesAPartlyTransparentTileAsItDidLive) {
   Pattern pattern = softTile();
   const auto page = [&] {
     Element out = promotablePage();
-    out.child(box().absolute().left(10).top(10).width(160).height(160).fill(
-        pattern.material(fonts())));
+    out.children({box().absolute().left(10).top(10).width(160).height(160).fill(
+        pattern.material(fonts()))});
     return out;
   };
   SkMatrix host = SkMatrix::Scale(1.875f, 1.875f);
@@ -563,8 +561,8 @@ TEST(ComposeCache, AStillAtANewScaleResamplesATileWhereTheLivePaintDoes) {
   Pattern pattern = hardTile();
   const auto page = [&] {
     Element out = promotablePage();
-    out.child(box().absolute().left(10).top(10).width(160).height(160).fill(
-        pattern.material(fonts())));
+    out.children({box().absolute().left(10).top(10).width(160).height(160).fill(
+        pattern.material(fonts()))});
     return out;
   };
   bool promoted = false;
@@ -594,17 +592,15 @@ TEST(ComposeCache, APromotedEdgeThatLeavesTheCanvasLandsWhereItLandedLive) {
   // leaves its canvas on some side, so this is most of what a bake is ever
   // taken over, and every outline on the page moves with it.
   const auto turned = [] {
-    return profiledUnder(box()
-                             .key("page")
-                             .child(promotablePage())
-                             .child(box()
-                                        .absolute()
-                                        .left(-30)
-                                        .top(-14)
-                                        .width(260)
-                                        .height(40)
-                                        .fill(blue())
-                                        .rotate(7)));
+    return profiledUnder(
+        box().key("page").children({promotablePage(), box()
+                                                          .absolute()
+                                                          .left(-30)
+                                                          .top(-14)
+                                                          .width(260)
+                                                          .height(40)
+                                                          .fill(blue())
+                                                          .rotate(7)}));
   };
   const auto render = [&](bool promotion, bool* promotedOut) {
     Host host(200, 200);
@@ -654,12 +650,12 @@ Element typeOutsideItsBox() {
   style.shaping.fontSize = 24;
   style.paint.foreground.setColor(SK_ColorWHITE);
   Element page = box().width(180).height(80).fill(red());
-  page.child(
-      text(u8"a\u0308\u0304\u030a\u0302 e\u0308\u0304\u030a\u0302", style)
-          .absolute()
-          .left(6)
-          .top(20)
-          .width(168));
+  page.children(
+      {text(u8"a\u0308\u0304\u030a\u0302 e\u0308\u0304\u030a\u0302", style)
+           .absolute()
+           .left(6)
+           .top(20)
+           .width(168)});
   return page;
 }
 
@@ -700,11 +696,11 @@ TEST(ComposeFaces, APromotedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics) {
         Fill::color(SkColor4f{0.07f, 0.07f, 0.09f, 1}));
     weave::TextStyle style = machineStyleAt(14);
     style.paint.foreground.setColor(SkColorSetRGB(232, 232, 236));
-    sheet.child(text(u8"FloatImage, halfFloat gjpqy,", style)
-                    .absolute()
-                    .left(8)
-                    .top(8)
-                    .width(280));
+    sheet.children({text(u8"FloatImage, halfFloat gjpqy,", style)
+                        .absolute()
+                        .left(8)
+                        .top(8)
+                        .width(280)});
     return sheet;
   };
   const PromotionDrift drift =
@@ -743,14 +739,14 @@ struct FlatStroke {
  *  pixels. */
 Element strokedArc() {
   Element page = box().width(400).height(400).fill(Fill::color({0, 0, 0, 1}));
-  page.child(box()
-                 .absolute()
-                 .left(31)
-                 .top(31)
-                 .width(338)
-                 .height(338)
-                 .shape(sigil::geometry::shapes::arc(-30.0f))
-                 .stroke(FlatStroke{22}));
+  page.children({box()
+                     .absolute()
+                     .left(31)
+                     .top(31)
+                     .width(338)
+                     .height(338)
+                     .shape(sigil::geometry::shapes::arc(-30.0f))
+                     .stroke(FlatStroke{22})});
   return page;
 }
 
@@ -759,14 +755,14 @@ Element strokedArc() {
  *  magnitude those coordinates are computed at. */
 Element strokedArcFarFromTheOrigin() {
   Element page = box().width(1500).height(1500).fill(Fill::color({0, 0, 0, 1}));
-  page.child(box()
-                 .absolute()
-                 .left(1100)
-                 .top(1100)
-                 .width(338)
-                 .height(338)
-                 .shape(sigil::geometry::shapes::arc(-30.0f))
-                 .stroke(FlatStroke{22}));
+  page.children({box()
+                     .absolute()
+                     .left(1100)
+                     .top(1100)
+                     .width(338)
+                     .height(338)
+                     .shape(sigil::geometry::shapes::arc(-30.0f))
+                     .stroke(FlatStroke{22})});
   return page;
 }
 
@@ -853,7 +849,7 @@ Element blackPage() {
 
 Element shapeOutsideItsBox() {
   Element page = blackPage();
-  page.child(ruledNode());
+  page.children({ruledNode()});
   return page;
 }
 
@@ -870,13 +866,13 @@ namespace {
 Element blurredChildUnderAGroup() {
   Element page = blackPage();
   Element group = box().absolute().left(100).top(100).width(40).height(40);
-  group.child(box()
-                  .width(40)
-                  .height(40)
-                  .fill(Fill::color({1, 1, 1, 1}))
-                  .effect(material::skia::Effect::filter(
-                      SkImageFilters::Blur(10, 10, nullptr))));
-  page.child(std::move(group));
+  group.children({box()
+                      .width(40)
+                      .height(40)
+                      .fill(Fill::color({1, 1, 1, 1}))
+                      .effect(material::skia::Effect::filter(
+                          SkImageFilters::Blur(10, 10, nullptr)))});
+  page.children({std::move(group)});
   return page;
 }
 
@@ -935,8 +931,8 @@ Element ruledNodeUnder(Layer layer) {
     // the leaf's own fill paint: the fill-only leaf routes blend and
     // opacity onto the paint and never opens a layer at all, which would
     // be a fixture that poses nothing.
-    rules.child(box().absolute().left(30).top(30).width(20).height(20).fill(
-        Fill::color({0, 0, 1, 1})));
+    rules.children({box().absolute().left(30).top(30).width(20).height(20).fill(
+        Fill::color({0, 0, 1, 1}))});
     rules.opacity(0.6f);
   }
   if (layer == Layer::Effect)
@@ -945,7 +941,7 @@ Element ruledNodeUnder(Layer layer) {
     // picture is the only thing between the two renders.
     rules.effect(material::skia::Effect::filter(
         SkColorFilters::Blend(SK_ColorGREEN, SkBlendMode::kModulate)));
-  page.child(std::move(rules));
+  page.children({std::move(rules)});
   return page;
 }
 
@@ -1074,7 +1070,7 @@ Element haloedNode(bool past, bool reserving) {
   if (past) node.shape(discPastTheBox());
   if (reserving) node.background(Reserve{});
   Element page = blackPage();
-  page.child(std::move(node));
+  page.children({std::move(node)});
   return page;
 }
 
@@ -1175,15 +1171,15 @@ Element revealedPage(float reveal) {
   Element page = box().width(240).height(240).fill(Fill::color({0, 0, 0, 1}));
   Element window =
       box().absolute().left(0).top(0).width(240).height(reveal).clip();
-  window.child(box()
-                   .absolute()
-                   .left(20)
-                   .top(20)
-                   .width(200)
-                   .height(200)
-                   .fill(material::skia::Paint::sksl(gridEffect()))
-                   .key("mark"));
-  page.child(window.key("window"));
+  window.children({box()
+                       .absolute()
+                       .left(20)
+                       .top(20)
+                       .width(200)
+                       .height(200)
+                       .fill(material::skia::Paint::sksl(gridEffect()))
+                       .key("mark")});
+  page.children({window.key("window")});
   return page;
 }
 
@@ -1248,11 +1244,11 @@ Element additiveType() {
                      .height(200)
                      .cache(Cache::None)
                      .fill(Fill::color({0.22f, 0.26f, 0.34f, 1}));
-  page.child(promotablePage().absolute().left(0).top(10).key("panel"));
+  page.children({promotablePage().absolute().left(0).top(10).key("panel")});
   sigil::weave::TextStyle lit = whiteStyle(40);
   lit.paint.foreground.setColor(SkColorSetRGB(120, 200, 255));
   lit.paint.foreground.setBlendMode(SkBlendMode::kPlus);
-  page.child(text(u8"LIT", lit).absolute().left(140).top(70).width(150));
+  page.children({text(u8"LIT", lit).absolute().left(140).top(70).width(150)});
   return page;
 }
 
@@ -1473,16 +1469,16 @@ namespace {
  *  sub-pixel move costs a whole step of a pixel's coverage. */
 Element settlingStamp(const ch::Output<float>* lane) {
   Element page = box().width(200).height(200).fill(Fill::color({0, 0, 0, 1}));
-  page.child(box()
-                 .absolute()
-                 .left(40)
-                 .top(70)
-                 .width(120)
-                 .height(60)
-                 .shape(geometry::shapes::circle())
-                 .stroke(FlatStroke{1.5f})
-                 .scale(lane)
-                 .key("stamp"));
+  page.children({box()
+                     .absolute()
+                     .left(40)
+                     .top(70)
+                     .width(120)
+                     .height(60)
+                     .shape(geometry::shapes::circle())
+                     .stroke(FlatStroke{1.5f})
+                     .scale(lane)
+                     .key("stamp")});
   return page;
 }
 

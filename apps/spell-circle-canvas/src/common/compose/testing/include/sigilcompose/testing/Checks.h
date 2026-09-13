@@ -594,7 +594,7 @@ inline Raster rasterize(Element root, sigil::weave::FontContext& fonts,
           snapshot(box()
                        .width((float)size.width())
                        .height((float)size.height())
-                       .child(std::move(root)),
+                       .children({std::move(root)}),
                    fonts, {(float)size.width(), (float)size.height()}))
     surface->getCanvas()->drawPicture(picture);
   out.bitmap.allocPixels(info);

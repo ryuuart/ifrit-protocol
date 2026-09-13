@@ -200,9 +200,11 @@ struct MeshNormalBridge final : sketch::Sketch {
           .width(300)
           .absolute()
           .inset(kCanvas.width() * 0.5f + x - 150, kCanvas.height() - 92, 0, 0)
-          .child(text(call).font({.size = 12.5f, .track = 0.4f}))
-          .child(
-              text(note).font({.size = 10.5f}).ink(kDim).width(Dimension(300)));
+          .children({text(call).font({.size = 12.5f, .track = 0.4f}),
+                     text(note)
+                         .font({.size = 10.5f})
+                         .ink(kDim)
+                         .width(Dimension(300))});
     };
     ctx.composer.render(
         // Every line is set in the bright ink unless it says otherwise;
@@ -211,35 +213,36 @@ struct MeshNormalBridge final : sketch::Sketch {
             .ink(kInk)
             // Keyed on the sink's own name: everything `draw` reads is
             // cooked above, in this setup, and nothing after it moves.
-            .child(custom("mesh.normal.bridge",
-                          [this](SkCanvas& canvas, const PaintContext&) {
-                            draw(canvas);
-                          })
-                       .inset(0))
-            .child(text("NORMAL MAPS · two sources, one recipe")
-                       .font({.size = 15, .track = 2.0f})
-                       .left(30)
-                       .top(20))
-            .child(caption("Mode::Normals → material::kit::chrome",
-                           "a superellipsoid's own normals, rasterised into "
-                           "a G-buffer and read back",
-                           kStations[0]))
-            .child(caption("Mode::Normals → material::kit::gold",
-                           "the same bridge, another recipe and another "
-                           "environment",
-                           kStations[1]))
-            .child(caption("bevelNormals(path, 118) → material::kit::chrome",
-                           "no mesh at all — a shoulder derived "
-                           "from a flat path's coverage, under the same "
-                           "recipe and the same sky",
-                           kStations[2]))
-            .child(text("both encode device-space normals as "
-                        "rgb = n·0.5 + 0.5, and a recipe cannot "
-                        "tell which one it was handed")
-                       .font({.size = 11})
-                       .ink(kDim)
-                       .left(30)
-                       .bottom(16)));
+            .children(
+                {custom("mesh.normal.bridge",
+                        [this](SkCanvas& canvas, const PaintContext&) {
+                          draw(canvas);
+                        })
+                     .inset(0),
+                 text("NORMAL MAPS · two sources, one recipe")
+                     .font({.size = 15, .track = 2.0f})
+                     .left(30)
+                     .top(20),
+                 caption("Mode::Normals → material::kit::chrome",
+                         "a superellipsoid's own normals, rasterised into "
+                         "a G-buffer and read back",
+                         kStations[0]),
+                 caption("Mode::Normals → material::kit::gold",
+                         "the same bridge, another recipe and another "
+                         "environment",
+                         kStations[1]),
+                 caption("bevelNormals(path, 118) → material::kit::chrome",
+                         "no mesh at all — a shoulder derived "
+                         "from a flat path's coverage, under the same "
+                         "recipe and the same sky",
+                         kStations[2]),
+                 text("both encode device-space normals as "
+                      "rgb = n·0.5 + 0.5, and a recipe cannot "
+                      "tell which one it was handed")
+                     .font({.size = 11})
+                     .ink(kDim)
+                     .left(30)
+                     .bottom(16)}));
   }
 };
 

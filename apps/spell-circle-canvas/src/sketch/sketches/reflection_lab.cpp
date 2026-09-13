@@ -94,20 +94,20 @@ world::Element balls() {
       // The row runs across the turntable's parked station rather than
       // along it, so all four are seen face on.
       .rotateY(90.0f)
-      .child(ball(
-          "chrome", left,
-          material::kit::surface(material::kit::SurfaceParameters::chrome())))
-      .child(
-          ball("rough", left + kGap,
-               material::kit::surface(material::kit::SurfaceParameters::metal(
-                   {0.85f, 0.86f, 0.88f, 1}, 0.35f))))
-      .child(ball(
-          "dielectric", left + 2.0f * kGap,
-          material::kit::surface(material::kit::SurfaceParameters::dielectric(
-              {0.14f, 0.30f, 0.42f, 1}, 0.15f))))
-      .child(ball(
-          "glass", left + 3.0f * kGap,
-          material::kit::surface(material::kit::SurfaceParameters::glass())));
+      .children(
+          {ball("chrome", left,
+                material::kit::surface(
+                    material::kit::SurfaceParameters::chrome())),
+           ball("rough", left + kGap,
+                material::kit::surface(material::kit::SurfaceParameters::metal(
+                    {0.85f, 0.86f, 0.88f, 1}, 0.35f))),
+           ball("dielectric", left + 2.0f * kGap,
+                material::kit::surface(
+                    material::kit::SurfaceParameters::dielectric(
+                        {0.14f, 0.30f, 0.42f, 1}, 0.15f))),
+           ball("glass", left + 3.0f * kGap,
+                material::kit::surface(
+                    material::kit::SurfaceParameters::glass()))});
 }
 
 }  // namespace
@@ -184,7 +184,7 @@ struct ReflectionLab final : sketch::Set {
     set.table.period = 0.0f;
     set.table.fovYDeg = 46.0f;
     return world::Frame(world::kit::litSet(
-        world::Element().key("study").child(dome).child(row), set, seconds));
+        world::Element().key("study").children({dome, row}), set, seconds));
   }
 };
 

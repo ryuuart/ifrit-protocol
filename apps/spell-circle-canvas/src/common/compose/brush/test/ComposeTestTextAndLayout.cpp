@@ -8,8 +8,8 @@
 
 TEST(ComposeLayout, PerSideInsetPinsWithoutStretch) {
   Host host(200, 100);
-  host.composer.render(box().child(
-      box().top(10).right(20).width(50).height(30).fill(red()).key("badge")));
+  host.composer.render(box().children(
+      {box().top(10).right(20).width(50).height(30).fill(red()).key("badge")}));
   host.frame();
   auto b = host.composer.bounds("badge");
   ASSERT_TRUE(b.has_value());
@@ -20,10 +20,10 @@ TEST(ComposeLayout, PerSideInsetPinsWithoutStretch) {
 TEST(ComposeLayout, DimInsetsAcceptPercent) {
   Host host(200, 100);
   host.composer.render(
-      box().child(box()
-                      .inset(pct(10), pct(10), pct(10), pct(10))
-                      .fill(red())
-                      .key("panel")));
+      box().children({box()
+                          .inset(pct(10), pct(10), pct(10), pct(10))
+                          .fill(red())
+                          .key("panel")}));
   host.frame();
   auto b = host.composer.bounds("panel");
   ASSERT_TRUE(b.has_value());
@@ -31,12 +31,10 @@ TEST(ComposeLayout, DimInsetsAcceptPercent) {
 }
 
 TEST(ComposeMeasure, MeasureReportsIntrinsicSize) {
-  const SkSize size = intrinsicSize(box()
-                                        .row()
-                                        .gap(10)
-                                        .child(box().width(40).height(30))
-                                        .child(box().width(40).height(20)),
-                                    fonts());
+  const SkSize size =
+      intrinsicSize(box().row().gap(10).children({box().width(40).height(30),
+                                                  box().width(40).height(20)}),
+                    fonts());
   EXPECT_EQ(size, SkSize::Make(90, 30));
 }
 
@@ -49,11 +47,11 @@ TEST(ComposeText, TextAlignCentersWithinWideBox) {
   };
   Host start(400, 100), center(400, 100);
   start.composer.render(
-      box().child(text(u8"II", whiteStyle(30)).width(Dimension(300.0f))));
-  center.composer.render(
-      box().child(text(u8"II", whiteStyle(30))
-                      .width(Dimension(300.0f))
-                      .textAlign(sigil::weave::TextAlignment::kCenter)));
+      box().children({text(u8"II", whiteStyle(30)).width(Dimension(300.0f))}));
+  center.composer.render(box().children(
+      {text(u8"II", whiteStyle(30))
+           .width(Dimension(300.0f))
+           .block({.alignment = sigil::weave::TextAlignment::kCenter})}));
   start.frame();
   center.frame();
   const int startX = leftmostLit(start), centerX = leftmostLit(center);
@@ -65,10 +63,10 @@ TEST(ComposeText, TextAlignCentersWithinWideBox) {
 TEST(ComposeKitMarquee, TwoCopiesSlideUnderOneClip) {
   Host host(200, 60);
   choreograph::Output<float> phase{0.0f};
-  host.composer.render(box().padding(10).child(
-      kit::marquee(box().width(60).height(20).fill(red()), {.phase = &phase})
-          .width(Dimension(100.0f))
-          .height(Dimension(20.0f))));
+  host.composer.render(box().padding(10).children(
+      {kit::marquee(box().width(60).height(20).fill(red()), {.phase = &phase})
+           .width(Dimension(100.0f))
+           .height(Dimension(20.0f))}));
   host.frame();
   EXPECT_EQ(host.pixel(60, 20), SK_ColorRED);   // first copy
   EXPECT_EQ(host.pixel(105, 20), SK_ColorRED);  // second copy (65..130 → clip)
@@ -83,13 +81,13 @@ TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
   // below. textFill maps it to the CAP BAND, so the switch happens INSIDE
   // the glyphs — capitals read red on top, blue underneath.
   Host host(300, 120);
-  host.composer.render(box().padding(20).child(
-      text(u8"HHH", whiteStyle(64))
-          .textFill(material::skia::Paint::linear({0, 0}, {0, 1},
-                                                  {{0.0f, {1, 0, 0, 1}},
-                                                   {0.499f, {1, 0, 0, 1}},
-                                                   {0.501f, {0, 0, 1, 1}},
-                                                   {1.0f, {0, 0, 1, 1}}}))));
+  host.composer.render(box().padding(20).children(
+      {text(u8"HHH", whiteStyle(64))
+           .textFill(material::skia::Paint::linear({0, 0}, {0, 1},
+                                                   {{0.0f, {1, 0, 0, 1}},
+                                                    {0.499f, {1, 0, 0, 1}},
+                                                    {0.501f, {0, 0, 1, 1}},
+                                                    {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
   // Find the lit band first, then judge its top vs bottom thirds — the
   // ramp midline lives at the CAP BAND's middle, not the canvas's.
@@ -151,13 +149,13 @@ TEST(ComposeText, OnPathRidesTheBaselineItIsGiven) {
   };
 
   Host top(240, 240);
-  top.composer.render(box().child(ring(0.25f)));
+  top.composer.render(box().children({ring(0.25f)}));
   top.frame();
   EXPECT_GT(lit(top, 0, 110), 200);   // ink on the top arc
   EXPECT_LT(lit(top, 140, 240), 40);  // and almost none below
 
   Host bottom(240, 240);
-  bottom.composer.render(box().child(ring(0.75f)));
+  bottom.composer.render(box().children({ring(0.75f)}));
   bottom.frame();
   EXPECT_GT(lit(bottom, 140, 240), 200);
   EXPECT_LT(lit(bottom, 0, 110), 40);
@@ -185,16 +183,16 @@ TEST(ComposeText, OnPathWrapsTheSeamAndTheFlippedRunKeepsItsHalf) {
   };
 
   Host seam(240, 240);
-  seam.composer.render(
-      box().child(text(u8"HHHHHHHH", whiteStyle(20))
-                      .width(240)
-                      .height(240)
-                      .absolute()
-                      .left(0)
-                      .top(0)
-                      .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
-                               .at = 0.0f,
-                               .align = TextPath::Align::Center})));
+  seam.composer.render(box().children(
+      {text(u8"HHHHHHHH", whiteStyle(20))
+           .width(240)
+           .height(240)
+           .absolute()
+           .left(0)
+           .top(0)
+           .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
+                    .at = 0.0f,
+                    .align = TextPath::Align::Center})}));
   seam.frame();
   // at=0 on this arc is 9 o'clock, so a centred run straddles it: ink on
   // BOTH sides of the horizontal midline, near the left edge.
@@ -218,9 +216,9 @@ TEST(ComposeText, OnPathWrapsTheSeamAndTheFlippedRunKeepsItsHalf) {
                  .autoFlip = flip});
   };
   Host plain(260, 260), flipped(260, 260);
-  plain.composer.render(box().child(lopsided(false)));
+  plain.composer.render(box().children({lopsided(false)}));
   plain.frame();
-  flipped.composer.render(box().child(lopsided(true)));
+  flipped.composer.render(box().children({lopsided(true)}));
   flipped.frame();
   // Both runs occupy the same stretch of the ring, so the heavy Ws land in
   // the same place — which is exactly what mirroring would break.
@@ -247,9 +245,9 @@ TEST(ComposeText, TextFillKeepsTheStylesOtherPasses) {
     s.paint.addUnderlay(keyline);
     return s;
   }();
-  host.composer.render(box().padding(20).child(
-      text(u8"HHH", styled)
-          .textFill(material::skia::Paint::solid({1, 0, 0, 1}))));
+  host.composer.render(box().padding(20).children(
+      {text(u8"HHH", styled)
+           .textFill(material::skia::Paint::solid({1, 0, 0, 1}))}));
   host.frame();
   int red = 0, green = 0;
   for (int y = 0; y < 120; ++y)
@@ -273,7 +271,7 @@ TEST(ComposeMotion, DelayStaggersTheEntrance) {
                  std::chrono::milliseconds((int)(delaySec * 1000))}));
   };
   host.composer.render(
-      box().column().gap(10).child(card(0.0f)).child(card(0.4f)));
+      box().column().gap(10).children({card(0.0f), card(0.4f)}));
   host.frame(0.3);  // first card done, second still holding its `from`
   EXPECT_EQ(host.pixel(30, 15), SK_ColorRED);
   EXPECT_EQ(host.pixel(30, 55), SK_ColorBLACK);
@@ -285,14 +283,14 @@ TEST(ComposePaint, ClipSparesDecorations) {
   // clip() bounds fill/content/children; decorations dress the outline —
   // an Outer stroke and a shadow survive on a clipped node.
   Host host;
-  host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(60, 60, 60, 60)
-                      .clip(true)
-                      .fill(blue())
-                      .stroke(stroke(10, green(), PathFormat::Align::Outer))
-                      .child(box().width(200).height(10).fill(red()))));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(60, 60, 60, 60)
+           .clip(true)
+           .fill(blue())
+           .stroke(stroke(10, green(), PathFormat::Align::Outer))
+           .children({box().width(200).height(10).fill(red())})}));
   host.frame();
   EXPECT_EQ(host.pixel(52, 100), SK_ColorGREEN);  // outer stroke intact
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLUE);  // fill clipped area
@@ -303,7 +301,7 @@ TEST(ComposeTransform, PixelOriginPivotsWhereTold) {
   // Two hosts: fractional center origin vs px origin at the box's own
   // top-left corner; rotate 90° and the box lands in different places.
   Host frac, px;
-  auto tree = [](Element inner) { return box().child(std::move(inner)); };
+  auto tree = [](Element inner) { return box().children({std::move(inner)}); };
   frac.composer.render(tree(box()
                                 .absolute()
                                 .inset(80, 80, 80, 80)
@@ -324,8 +322,8 @@ TEST(ComposeTransform, PixelOriginPivotsWhereTold) {
 
 TEST(ComposeLayout, CenterAtPinsMeasuredBoxOnPoint) {
   Host host;
-  host.composer.render(box().child(
-      box().centerAt({120, 80}).width(40).height(20).fill(red()).key("s")));
+  host.composer.render(box().children(
+      {box().centerAt({120, 80}).width(40).height(20).fill(red()).key("s")}));
   host.frame();
   auto b = host.composer.bounds("s");
   ASSERT_TRUE(b.has_value());
@@ -343,8 +341,7 @@ TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
         animate(motion::from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}));
   };
   host.composer.render(
-      box().column().gap(10).staggerChildren(400ms).child(card()).child(
-          card()));
+      box().column().gap(10).staggerChildren(400ms).children({card(), card()}));
   host.frame(0.3);  // child 0 settled; child 1 still holding its `from`
   EXPECT_EQ(host.pixel(30, 15), SK_ColorRED);
   EXPECT_EQ(host.pixel(30, 55), SK_ColorBLACK);
@@ -407,16 +404,16 @@ TEST(ComposeTextPath, ABoundPhaseWalksTheRunRoundAClosedBaseline) {
   choreograph::Output<float> phase{0.0f};
   Host host(kHost, kHost);
   host.composer.render(
-      box().child(text(u8"MARQUEE", whiteStyle(20))
-                      .key("ring")
-                      .width(kRing)
-                      .height(kRing)
-                      .absolute()
-                      .left((kHost - kRing) / 2)
-                      .top((kHost - kRing) / 2)
-                      .onPath({.path = geometry::shapes::circle(),
-                               .at = &phase,
-                               .align = TextPath::Align::Center})));
+      box().children({text(u8"MARQUEE", whiteStyle(20))
+                          .key("ring")
+                          .width(kRing)
+                          .height(kRing)
+                          .absolute()
+                          .left((kHost - kRing) / 2)
+                          .top((kHost - kRing) / 2)
+                          .onPath({.path = geometry::shapes::circle(),
+                                   .at = &phase,
+                                   .align = TextPath::Align::Center})}));
   host.frame();
   const SkPoint centre{kHost / 2.0f, kHost / 2.0f};
   const RingInk atZero = ringInk(host, kHost, centre);
@@ -444,16 +441,16 @@ TEST(ComposeTextPath, ThePhaseWrapsAcrossTheSeamWithNothingLost) {
   choreograph::Output<float> phase{0.9f};
   Host host(240, 240);
   host.composer.render(
-      box().child(text(u8"SEAMLESS", whiteStyle(20))
-                      .key("ring")
-                      .width(240)
-                      .height(240)
-                      .absolute()
-                      .left(0)
-                      .top(0)
-                      .onPath({.path = geometry::shapes::circle(),
-                               .at = &phase,
-                               .align = TextPath::Align::Center})));
+      box().children({text(u8"SEAMLESS", whiteStyle(20))
+                          .key("ring")
+                          .width(240)
+                          .height(240)
+                          .absolute()
+                          .left(0)
+                          .top(0)
+                          .onPath({.path = geometry::shapes::circle(),
+                                   .at = &phase,
+                                   .align = TextPath::Align::Center})}));
   host.frame();
   const SkPoint centre{120, 120};
   const RingInk before = ringInk(host, 240, centre);
@@ -476,15 +473,15 @@ TEST(ComposeTextPath, ASettledPhaseStopsPaintingLiveAndCaches) {
   // content volatility. Driving it again re-declares in the same frame.
   choreograph::Output<float> phase{0.0f};
   Host host(240, 240);
-  host.composer.render(box().child(
-      text(u8"HELD", whiteStyle(20))
-          .key("ring")
-          .width(240)
-          .height(240)
-          .absolute()
-          .left(0)
-          .top(0)
-          .onPath({.path = geometry::shapes::circle(), .at = &phase})));
+  host.composer.render(box().children(
+      {text(u8"HELD", whiteStyle(20))
+           .key("ring")
+           .width(240)
+           .height(240)
+           .absolute()
+           .left(0)
+           .top(0)
+           .onPath({.path = geometry::shapes::circle(), .at = &phase})}));
   for (int frame = 0; frame < 20; ++frame) host.frame();
   EXPECT_FALSE(host.composer.dirty())
       << "a phase that never moves keeps repainting";
@@ -531,7 +528,7 @@ TEST(ComposeTextPath, ATrackDeviatesInTheBaselinesOwnFrame) {
                     .top(onPath ? 0.0f : 90.0f)
                     .fx({.effect = lift, .progress = progress});
     if (onPath) t.onPath({.path = downward});
-    return box().child(std::move(t));
+    return box().children({std::move(t)});
   };
   auto inkCentroid = [](Host& host) {
     double sumX = 0, sumY = 0;
@@ -600,7 +597,7 @@ TEST(ComposeTextPath, ATrackAndABaselineBothRunRatherThanOneWinning) {
                   return mod;
                 }),
             .progress = 1.0f});
-    return box().child(std::move(t));
+    return box().children({std::move(t)});
   };
   plain.composer.render(ring(false));
   plain.frame();

@@ -150,7 +150,7 @@ struct VideoCompose final : sketch::Sketch {
           arrange::cellRect(arrange::cellAt((size_t)cell, kColumns), module);
       leaf.rect(SkRect::MakeXYWH(at.fLeft, at.fTop, at.width() + 0.5f,
                                  at.height() + 0.5f));
-      stage.child(std::move(leaf));
+      stage.children({std::move(leaf)});
     };
 
     for (int cell = 0; cell < kCells; ++cell) {
@@ -160,17 +160,17 @@ struct VideoCompose final : sketch::Sketch {
 
     const weave::TextStyle title = weave::textStyle(
         {.size = 27, .color = SkColor4f{1, 1, 1, 0.96f}, .track = 5.5f});
-    stage.child(text(u8"100 / COMPOSE VIDEO", title)
-                    .absolute()
-                    .inset(42, 42, 42, kHeight - 96));
-    stage.child(box()
-                    .absolute()
-                    .inset(0)
-                    .fill(Fill::color({0, 0, 0, 1}))
-                    .opacity(&loading)
-                    .alignItems(Align::Center)
-                    .justify(Justify::Center)
-                    .child(text(u8"BUFFERING / 005 SOURCES", title)));
+    stage.children({text(u8"100 / COMPOSE VIDEO", title)
+                        .absolute()
+                        .inset(42, 42, 42, kHeight - 96)});
+    stage.children({box()
+                        .absolute()
+                        .inset(0)
+                        .fill(Fill::color({0, 0, 0, 1}))
+                        .opacity(&loading)
+                        .alignItems(Align::Center)
+                        .justify(Justify::Center)
+                        .children({text(u8"BUFFERING / 005 SOURCES", title)})});
     ctx.composer.render(std::move(stage));
   }
 };

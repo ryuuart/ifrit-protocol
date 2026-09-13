@@ -26,9 +26,9 @@ TEST(ComposePixelStyles, TheBevelPairLightsTheNearEdgesAndShadesTheFar) {
   Host host(100, 100);
   const styles::BevelPair raised =
       styles::bevelPair(SkColor4f{1, 1, 1, 1}, SkColor4f{0, 0, 0, 1}, 2);
-  host.composer.render(box().child(
-      box().left(10).top(10).width(40).height(30).fill(grey()).overlay(
-          raised)));
+  host.composer.render(box().children(
+      {box().left(10).top(10).width(40).height(30).fill(grey()).overlay(
+          raised)}));
   host.frame();
   // Two pixels in from each edge: light top and left, dark bottom and
   // right, and the grey face between them.
@@ -48,9 +48,9 @@ TEST(ComposePixelStyles, TheBevelPairLightsTheNearEdgesAndShadesTheFar) {
   EXPECT_TRUE(sunken.sunken);
   EXPECT_FALSE(sunken == raised);
   EXPECT_EQ(sunken.inverted(), raised);
-  host.composer.render(box().child(
-      box().left(10).top(10).width(40).height(30).fill(grey()).overlay(
-          sunken)));
+  host.composer.render(box().children(
+      {box().left(10).top(10).width(40).height(30).fill(grey()).overlay(
+          sunken)}));
   host.frame();
   EXPECT_EQ(host.pixel(11, 11), SK_ColorBLACK);
   EXPECT_EQ(host.pixel(48, 25), SK_ColorWHITE);
@@ -72,14 +72,14 @@ TEST(ComposePixelStyles, TheDerivedPairLightensAndDropsTheFace) {
 TEST(ComposePixelStyles, BracketsStandOffTheBoxAtTheCornersAsked) {
   Host host(120, 80);
   host.composer.render(
-      box().child(box()
-                      .width(100)
-                      .height(60)
-                      .fill(Fill::color({0, 0, 0, 1}))
-                      .foreground(styles::brackets(
-                          {1, 0, 0, 1}, 10, 2, 4,
-                          geometry::shapes::Corner::TopLeft |
-                              geometry::shapes::Corner::BottomRight))));
+      box().children({box()
+                          .width(100)
+                          .height(60)
+                          .fill(Fill::color({0, 0, 0, 1}))
+                          .foreground(styles::brackets(
+                              {1, 0, 0, 1}, 10, 2, 4,
+                              geometry::shapes::Corner::TopLeft |
+                                  geometry::shapes::Corner::BottomRight))}));
   host.frame();
   // Top-left: a 2 px L whose outer edge stands 4 px in, arms 10 px long.
   EXPECT_EQ(host.pixel(4, 10), SK_ColorRED);
@@ -97,12 +97,12 @@ TEST(ComposePixelStyles, BracketsStandOffTheBoxAtTheCornersAsked) {
 
 TEST(ComposePixelStyles, TheTickRailWalksOneEdgeWithEveryNthMarkLong) {
   Host host(120, 40);
-  host.composer.render(box().child(
-      box()
-          .width(100)
-          .height(20)
-          .fill(Fill::color({0, 0, 0, 1}))
-          .foreground(styles::tickRail({1, 0, 0, 1}, 10, 3, 6, 4))));
+  host.composer.render(box().children(
+      {box()
+           .width(100)
+           .height(20)
+           .fill(Fill::color({0, 0, 0, 1}))
+           .foreground(styles::tickRail({1, 0, 0, 1}, 10, 3, 6, 4))}));
   host.frame();
   // Marks at 5, 15, 25, …: the first and every fourth are 6 px, the rest
   // 3 px, each one pixel wide.
@@ -118,11 +118,11 @@ TEST(ComposePixelStyles, TheTickRailWalksOneEdgeWithEveryNthMarkLong) {
   // The same rail hung off the bottom, from the far side.
   styles::TickRail bottom =
       styles::tickRail({1, 0, 0, 1}, 10, 3, 6, 4, geometry::path::Edge::Bottom);
-  host.composer.render(box().child(box()
-                                       .width(100)
-                                       .height(20)
-                                       .fill(Fill::color({0, 0, 0, 1}))
-                                       .foreground(bottom)));
+  host.composer.render(box().children({box()
+                                           .width(100)
+                                           .height(20)
+                                           .fill(Fill::color({0, 0, 0, 1}))
+                                           .foreground(bottom)}));
   host.frame();
   EXPECT_EQ(host.pixel(5, 18), SK_ColorRED);
   EXPECT_EQ(host.pixel(5, 14), SK_ColorRED);
@@ -133,11 +133,11 @@ TEST(ComposePixelStyles, TheTickRailWalksOneEdgeWithEveryNthMarkLong) {
 TEST(ComposePixelStyles, ScanlinesAreRowsInsideTheOutline) {
   Host host(40, 40);
   host.composer.render(
-      box().child(box()
-                      .width(20)
-                      .height(20)
-                      .fill(Fill::color({1, 1, 1, 1}))
-                      .overlay(styles::scanlines({0, 0, 0, 1}, 4, 2))));
+      box().children({box()
+                          .width(20)
+                          .height(20)
+                          .fill(Fill::color({1, 1, 1, 1}))
+                          .overlay(styles::scanlines({0, 0, 0, 1}, 4, 2))}));
   host.frame();
   EXPECT_EQ(host.pixel(10, 0), SK_ColorBLACK);
   EXPECT_EQ(host.pixel(10, 1), SK_ColorBLACK);
@@ -153,11 +153,11 @@ TEST(ComposePixelStyles, ScanlinesAreRowsInsideTheOutline) {
   styles::Scanlines shifted =
       styles::scanlines({1, 0, 0, 1}, 4, 2, SkBlendMode::kPlus);
   shifted.phase = 2.0f;
-  host.composer.render(box().child(box()
-                                       .width(20)
-                                       .height(20)
-                                       .fill(Fill::color({0, 0, 0, 1}))
-                                       .overlay(shifted)));
+  host.composer.render(box().children({box()
+                                           .width(20)
+                                           .height(20)
+                                           .fill(Fill::color({0, 0, 0, 1}))
+                                           .overlay(shifted)}));
   host.frame();
   EXPECT_EQ(host.pixel(10, 0), SK_ColorBLACK);
   EXPECT_EQ(host.pixel(10, 2), SK_ColorRED);

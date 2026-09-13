@@ -100,10 +100,10 @@ auto RotaConvocationis::emissive(const std::string& key, const Glow& g,
       .cache(Cache::Texture)
       .blend(SkBlendMode::kPlus)
       .opacity(gain)
-      .child(inside(key + "-bloom", g.bloom, kBloom, 0.085f))
-      .child(inside(key + "-mid", g.mid, kBloom, 0.16f))
-      .child(inside(key + "-halo", g.halo, kHalo, 0.42f))
-      .child(inside(key + "-core", g.core, kCore, 0.96f));
+      .children({inside(key + "-bloom", g.bloom, kBloom, 0.085f),
+                 inside(key + "-mid", g.mid, kBloom, 0.16f),
+                 inside(key + "-halo", g.halo, kHalo, 0.42f),
+                 inside(key + "-core", g.core, kCore, 0.96f)});
 }
 
 auto RotaConvocationis::ladder(const char* key, int divisions, int skipEvery,

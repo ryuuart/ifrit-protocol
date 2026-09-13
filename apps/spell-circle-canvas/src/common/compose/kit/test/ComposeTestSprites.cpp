@@ -142,8 +142,8 @@ TEST(KitSprites, TheNodeFormPaintsWhatTheBakedFormDoes) {
       pixelMap(threeByThree(), {kChars, kColours});
   ASSERT_TRUE(sprite.has_value());
   Host host;
-  host.composer.render(box().absolute().inset(0).child(
-      sigil::compose::kit::pixelSprite(*sprite, {.cell = 10.0f})));
+  host.composer.render(box().absolute().inset(0).children(
+      {sigil::compose::kit::pixelSprite(*sprite, {.cell = 10.0f})}));
   host.frame();
   EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);     // a
   EXPECT_EQ(host.pixel(15, 5), SK_ColorBLUE);   // b

@@ -337,10 +337,10 @@ struct MatrixRain : sketch::Sketch {
     // column, width is the column pitch the next one advances left by.
     std::string probe;
     for (int i = 0; i < 8; ++i) appendUtf8(probe, U'ｱ');
-    const SkSize one =
-        ctx.measure(text(probe)
-                        .font(voice(size))
-                        .writingMode(sigil::weave::WritingMode::kVerticalRL));
+    const SkSize one = ctx.measure(
+        text(probe)
+            .font(voice(size))
+            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}));
     const float step = std::max(1.0f, one.height() / 8.0f);
     const float pitch = std::max(1.0f, one.width());
     const int rows = std::max(1, (int)std::floor(kH / step));
@@ -401,7 +401,7 @@ struct MatrixRain : sketch::Sketch {
         .width(kW)
         .height(kH)
         .clip()
-        .writingMode(sigil::weave::WritingMode::kVerticalRL)
+        .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
         .opacity(f.alpha)
         .fx({.effect = streak(),
              .stagger = cascade,
@@ -426,40 +426,41 @@ struct MatrixRain : sketch::Sketch {
     // The bed: the whole screen faintly alive. No streak track — these
     // glyphs are never bright and never absent, they only churn, mirrored
     // and lifted like the curtains above them.
-    root.child(text(bedText)
-                   .font({.size = kBedSize, .color = kBedInk})
-                   .key("rain-bed")
-                   .left(0)
-                   .top(0)
-                   .width(kW)
-                   .height(kH)
-                   .clip()
-                   .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                   .fx({.where = !westCells(), .effect = mirrorLift()})
-                   .fx({.where = westCells(), .effect = westLift()})
-                   .fx({.where = !westCells(),
-                        .effect = fx::scramble(rainKana(), 20),
-                        .progress = &bedChurn})
-                   .fx({.where = westCells(),
-                        .effect = fx::scramble(rainWest(), 20),
-                        .progress = &bedChurn}));
+    root.children(
+        {text(bedText)
+             .font({.size = kBedSize, .color = kBedInk})
+             .key("rain-bed")
+             .left(0)
+             .top(0)
+             .width(kW)
+             .height(kH)
+             .clip()
+             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+             .fx({.where = !westCells(), .effect = mirrorLift()})
+             .fx({.where = westCells(), .effect = westLift()})
+             .fx({.where = !westCells(),
+                  .effect = fx::scramble(rainKana(), 20),
+                  .progress = &bedChurn})
+             .fx({.where = westCells(),
+                  .effect = fx::scramble(rainWest(), 20),
+                  .progress = &bedChurn})});
 
-    for (int j = 0; j < kFieldCount; ++j) root.child(curtain(j));
+    for (int j = 0; j < kFieldCount; ++j) root.children({curtain(j)});
 
     // The monitor's falloff: a radial wash from clear centre to dark
     // edges, over everything. Static, so it caches.
-    root.child(box()
-                   .key("vignette")
-                   .left(0)
-                   .top(0)
-                   .width(kW)
-                   .height(kH)
-                   .hitTestable(false)
-                   .fill(mskia::Paint::glowUnit(
-                       {0.5f, 0.44f}, 1.05f,
-                       {{0.0f, {0, 0, 0, 0}},
-                        {0.60f, {0, 0, 0, 0.04f}},
-                        {1.0f, {0.002f, 0.008f, 0.004f, 0.45f}}})));
+    root.children({box()
+                       .key("vignette")
+                       .left(0)
+                       .top(0)
+                       .width(kW)
+                       .height(kH)
+                       .hitTestable(false)
+                       .fill(mskia::Paint::glowUnit(
+                           {0.5f, 0.44f}, 1.05f,
+                           {{0.0f, {0, 0, 0, 0}},
+                            {0.60f, {0, 0, 0, 0.04f}},
+                            {1.0f, {0.002f, 0.008f, 0.004f, 0.45f}}}))});
 
     // The caption's own ground. The field runs edge to edge and every
     // column is churning, so a line of type laid straight onto it competes
@@ -467,44 +468,45 @@ struct MatrixRain : sketch::Sketch {
     // bottom edge — the void the field is drawn on, faded out above the
     // line — puts the caption on a surface without drawing a bar across
     // the picture.
-    root.child(box()
-                   .key("caption-scrim")
-                   .left(0)
-                   .top(kH - 52)
-                   .width(kW)
-                   .height(52)
-                   .hitTestable(false)
-                   .fill(linearGradient({0, 0}, {0, 52},
-                                        {{kVoid.fR, kVoid.fG, kVoid.fB, 0.0f},
-                                         {kVoid.fR, kVoid.fG, kVoid.fB, 0.72f},
-                                         {kVoid.fR, kVoid.fG, kVoid.fB, 0.92f}},
-                                        {0.0f, 0.45f, 1.0f})));
+    root.children(
+        {box()
+             .key("caption-scrim")
+             .left(0)
+             .top(kH - 52)
+             .width(kW)
+             .height(52)
+             .hitTestable(false)
+             .fill(linearGradient({0, 0}, {0, 52},
+                                  {{kVoid.fR, kVoid.fG, kVoid.fB, 0.0f},
+                                   {kVoid.fR, kVoid.fG, kVoid.fB, 0.72f},
+                                   {kVoid.fR, kVoid.fG, kVoid.fB, 0.92f}},
+                                  {0.0f, 0.45f, 1.0f}))});
 
-    root.child(
-        // NO GLYPH COUNT. A caption states the DECLARATION, never a
-        // probe against the host's own fonts: a count read off the
-        // installed faces is stable per font set and therefore the one
-        // thing on the page that could differ between two machines
-        // rendering the same declared moment. That there are four planes
-        // is a fact about the declaration, so that is what is stated.
-        text("SIMON WHITELEY'S DIGITAL RAIN · FOUR PLANES OF "
-             "HALF-WIDTH KATAKANA AND DIGITS, "
-             "MIRRORED PER GLYPH, HELD UPRIGHT · THE LIGHT FALLS, "
-             "THE TYPE STANDS STILL",
-             weave::textStyle({.face = faceLabel,
-                               .size = 10.5f,
-                               .color = kLabel,
-                               .track = 2.2f}))
-            .key("caption")
-            .left(26)
-            .top(kH - 30));
+    root.children(
+        {// NO GLYPH COUNT. A caption states the DECLARATION, never a
+         // probe against the host's own fonts: a count read off the
+         // installed faces is stable per font set and therefore the one
+         // thing on the page that could differ between two machines
+         // rendering the same declared moment. That there are four planes
+         // is a fact about the declaration, so that is what is stated.
+         text("SIMON WHITELEY'S DIGITAL RAIN · FOUR PLANES OF "
+              "HALF-WIDTH KATAKANA AND DIGITS, "
+              "MIRRORED PER GLYPH, HELD UPRIGHT · THE LIGHT FALLS, "
+              "THE TYPE STANDS STILL",
+              weave::textStyle({.face = faceLabel,
+                                .size = 10.5f,
+                                .color = kLabel,
+                                .track = 2.2f}))
+             .key("caption")
+             .left(26)
+             .top(kH - 30)});
 
     if (kMeter)
-      root.child(kit::trackMeter(ctx.composer, "rain-near", 0,
-                                 {0.2f, 0.9f, 0.4f, 0.5f})
-                     .absolute()
-                     .inset(0)
-                     .hitTestable(false));
+      root.children({kit::trackMeter(ctx.composer, "rain-near", 0,
+                                     {0.2f, 0.9f, 0.4f, 0.5f})
+                         .absolute()
+                         .inset(0)
+                         .hitTestable(false)});
     return root;
   }
 

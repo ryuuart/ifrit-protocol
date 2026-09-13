@@ -129,13 +129,13 @@ Element cell(const char* call, const char* note, Element body,
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
-          .child(std::move(body))
-          .child(text(readout, look.mono(10, look.palette.figure))
-                     .absolute()
-                     .left(Dimension(8.0f))
-                     .top(Dimension(6.0f))
-                     .padding(4, 2)
-                     .fill(Fill::color(look.palette.cellGround))));
+          .children({std::move(body),
+                     text(readout, look.mono(10, look.palette.figure))
+                         .absolute()
+                         .left(Dimension(8.0f))
+                         .top(Dimension(6.0f))
+                         .padding(4, 2)
+                         .fill(Fill::color(look.palette.cellGround))}));
 }
 
 }  // namespace

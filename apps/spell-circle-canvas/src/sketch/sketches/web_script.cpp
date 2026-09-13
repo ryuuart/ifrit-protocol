@@ -307,11 +307,11 @@ struct WebScript final : sketch::Sketch {
         .column()
         .gap(10)
         .padding(40)
-        .child(text("no web engine here")
-                   .font({.size = 20, .color = sheet.palette.ink}))
-        .child(text(why)
-                   .font({.size = 12, .color = sheet.palette.ash})
-                   .width(Dimension(620.0f)));
+        .children({text("no web engine here")
+                       .font({.size = 20, .color = sheet.palette.ink}),
+                   text(why)
+                       .font({.size = 12, .color = sheet.palette.ash})
+                       .width(Dimension(620.0f))});
   }
 };
 

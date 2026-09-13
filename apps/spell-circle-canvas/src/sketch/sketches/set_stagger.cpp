@@ -84,20 +84,20 @@ world::Element row(const std::string& key, float z, motion::Spread spread,
   parent.key(key).staggerChildren(spread);
   for (int i = 0; i < kCount; ++i) {
     const float x = ((float)i - (float)(kCount - 1) * 0.5f) * kPitch;
-    parent.child(world::Element()
-                     .key(key + std::to_string(i))
-                     .at({x, 30, z})
-                     .mesh(gm::superellipsoid({22, 30, 22}, 3.0f, 18, 12))
-                     .fill(skin)
-                     .tag("body")
-                     // THE ENTRANCE, and the only thing the cascade delays: the
-                     // path plays once, when the node first appears.
-                     .translateY(motion::animate(
-                         motion::from(kRise).to(0.0f),
-                         {std::chrono::milliseconds((int)kDuration)}))
-                     .scale(motion::animate(
-                         motion::from(0.35f).to(1.0f),
-                         {std::chrono::milliseconds((int)kDuration)})));
+    parent.children({world::Element()
+                         .key(key + std::to_string(i))
+                         .at({x, 30, z})
+                         .mesh(gm::superellipsoid({22, 30, 22}, 3.0f, 18, 12))
+                         .fill(skin)
+                         .tag("body")
+                         // THE ENTRANCE, and the only thing the cascade delays:
+                         // the path plays once, when the node first appears.
+                         .translateY(motion::animate(
+                             motion::from(kRise).to(0.0f),
+                             {std::chrono::milliseconds((int)kDuration)}))
+                         .scale(motion::animate(
+                             motion::from(0.35f).to(1.0f),
+                             {std::chrono::milliseconds((int)kDuration)}))});
   }
   return parent;
 }
@@ -124,17 +124,16 @@ struct SetStagger final : sketch::Set {
 
   world::Frame describe(float seconds) override {
     world::Element subject;
-    subject.key("rows")
-        .child(row("near", 60,
-                   {.eachMs = kEach,
-                    .durationMs = kDuration,
-                    .from = motion::Spread::From::Start},
-                   coolSlab()))
-        .child(row("far", -80,
-                   {.eachMs = kEach,
-                    .durationMs = kDuration,
-                    .from = motion::Spread::From::Edges},
-                   litSlab()));
+    subject.key("rows").children({row("near", 60,
+                                      {.eachMs = kEach,
+                                       .durationMs = kDuration,
+                                       .from = motion::Spread::From::Start},
+                                      coolSlab()),
+                                  row("far", -80,
+                                      {.eachMs = kEach,
+                                       .durationMs = kDuration,
+                                       .from = motion::Spread::From::Edges},
+                                      litSlab())});
 
     // The tree declares NO camera, so the viewpoint the setup wrote is
     // the one the frame is seen from — a still eye, because what moves
@@ -145,16 +144,14 @@ struct SetStagger final : sketch::Set {
     rig.elevation = 34.0f;
 
     world::Element root;
-    root.key("set")
-        .child(world::Element()
-                   .key("ground")
-                   .at({0, -12, 0})
-                   .mesh(gm::superellipsoid({420, 10, 300}, 8.0f, 12, 8))
-                   .fill(material::kit::surface(
-                       {.baseColor = {0.20f, 0.21f, 0.24f, 1},
-                        .roughness = 0.7f})))
-        .child(world::kit::threePoint(rig))
-        .child(std::move(subject));
+    root.key("set").children(
+        {world::Element()
+             .key("ground")
+             .at({0, -12, 0})
+             .mesh(gm::superellipsoid({420, 10, 300}, 8.0f, 12, 8))
+             .fill(material::kit::surface(
+                 {.baseColor = {0.20f, 0.21f, 0.24f, 1}, .roughness = 0.7f})),
+         world::kit::threePoint(rig), std::move(subject)});
 
     world::Frame frame(std::move(root));
     // THE SELECTION, made visible where the frame paints everything: the

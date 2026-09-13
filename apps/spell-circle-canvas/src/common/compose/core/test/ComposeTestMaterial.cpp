@@ -17,13 +17,13 @@ TEST(ComposeMaterial, UnitRampFollowsTheBoxItLandsIn) {
             {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}));
   };
   Host small(80, 40);
-  small.composer.render(box().child(card(80, 40)));
+  small.composer.render(box().children({card(80, 40)}));
   small.frame();
   EXPECT_GT(SkColorGetR(small.pixel(40, 2)), 180u);   // top is red…
   EXPECT_GT(SkColorGetB(small.pixel(40, 37)), 180u);  // …bottom is blue
 
   Host tall(80, 300);
-  tall.composer.render(box().child(card(80, 300)));
+  tall.composer.render(box().children({card(80, 300)}));
   tall.frame();
   EXPECT_GT(SkColorGetR(tall.pixel(40, 3)), 180u);
   EXPECT_GT(SkColorGetB(tall.pixel(40, 296)), 180u);
@@ -38,14 +38,14 @@ TEST(ComposeMaterial, UnitRampFollowsTheBoxItLandsIn) {
 TEST(ComposeMaterial, LinearGradientFillPaints) {
   Host host;
   host.composer.render(
-      box().child(box()
-                      .width(100)
-                      .height(20)
-                      .inset(0, 0, 100, 180)
-                      .absolute()
-                      .fill(material::skia::Paint::linear(
-                          {0, 0}, {100, 0},
-                          {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))));
+      box().children({box()
+                          .width(100)
+                          .height(20)
+                          .inset(0, 0, 100, 180)
+                          .absolute()
+                          .fill(material::skia::Paint::linear(
+                              {0, 0}, {100, 0},
+                              {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
   const SkColor left = host.pixel(2, 10);
   const SkColor right = host.pixel(98, 10);
@@ -62,15 +62,15 @@ TEST(ComposeMaterial, ConicalMovesTheHighlightWithoutMovingTheFalloff) {
   // (SkShaders::TwoPointConicalGradient) keeps the outer circle put and
   // moves only the focus, which is the sphere-shading primitive.
   const auto sphere = [](SkPoint focus) {
-    return box().child(
-        box()
-            .width(120)
-            .height(120)
-            .inset(40, 40, 40, 40)
-            .absolute()
-            .fill(material::skia::Paint::conical(
-                focus, 0.0f, {60, 60}, 60.0f,
-                {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0.2f, 1}}})));
+    return box().children(
+        {box()
+             .width(120)
+             .height(120)
+             .inset(40, 40, 40, 40)
+             .absolute()
+             .fill(material::skia::Paint::conical(
+                 focus, 0.0f, {60, 60}, 60.0f,
+                 {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0.2f, 1}}}))});
   };
   Host centered, offset;
   centered.composer.render(sphere({60, 60}));
@@ -147,17 +147,17 @@ TEST(ComposeMaterial, BlendStackCompositesToOneShader) {
   // Two solids blended kPlus → additive brighten in ONE flattened shader
   // (no saveLayer). red + green = yellow.
   Host host;
-  host.composer.render(box().child(
-      box()
-          .width(40)
-          .height(40)
-          .inset(0, 0, 160, 160)
-          .absolute()
-          .fill(material::skia::Paint::blend({
-              {material::skia::Paint::solid({1, 0, 0, 1}),
-               SkBlendMode::kSrcOver},
-              {material::skia::Paint::solid({0, 1, 0, 1}), SkBlendMode::kPlus},
-          }))));
+  host.composer.render(box().children(
+      {box()
+           .width(40)
+           .height(40)
+           .inset(0, 0, 160, 160)
+           .absolute()
+           .fill(material::skia::Paint::blend({
+               {material::skia::Paint::solid({1, 0, 0, 1}),
+                SkBlendMode::kSrcOver},
+               {material::skia::Paint::solid({0, 1, 0, 1}), SkBlendMode::kPlus},
+           }))}));
   host.frame();
   const SkColor c = host.pixel(20, 20);
   EXPECT_GT(SkColorGetR(c), 200u);
@@ -171,9 +171,9 @@ TEST(ComposeMaterial, StaticMaterialCollapsesToFillAndCaches) {
   // draws. (Reconcile-side pruning across re-render is pinned separately by
   // StaticMaterialPrunesAcrossRerender.)
   Host host;
-  host.composer.render(
-      box().child(box().width(60).height(60).fill(material::skia::Paint::radial(
-          {30, 30}, 30, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}}))));
+  host.composer.render(box().children(
+      {box().width(60).height(60).fill(material::skia::Paint::radial(
+          {30, 30}, 30, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}}))}));
   host.frame();  // records
   EXPECT_GE(host.composer.stats().picturesLive, 1u);
   host.frame();  // no re-render — replays the cached picture
@@ -187,15 +187,16 @@ TEST(ComposeMaterial, StaticMaterialPrunesAcrossRerender) {
   // re-patches and re-records on every render() with nothing to show for it.
   Host host;
   auto tree = [] {
-    return box()
-        .child(box().width(60).height(60).fill(material::skia::Paint::linear(
-            {0, 0}, {60, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))
-        .child(box().width(40).height(40).fill(material::skia::Paint::blend({
-            {material::skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
-            {material::skia::Paint::radial(
-                 {20, 20}, 20, {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 0, 1}}}),
-             SkBlendMode::kPlus},
-        })));
+    return box().children(
+        {box().width(60).height(60).fill(material::skia::Paint::linear(
+             {0, 0}, {60, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})),
+         box().width(40).height(40).fill(material::skia::Paint::blend({
+             {material::skia::Paint::solid({0, 0, 0, 1}),
+              SkBlendMode::kSrcOver},
+             {material::skia::Paint::radial(
+                  {20, 20}, 20, {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 0, 1}}}),
+              SkBlendMode::kPlus},
+         }))});
   };
   host.composer.render(tree());
   host.frame();
@@ -211,9 +212,9 @@ TEST(ComposeMaterial, ChangedRecipeStillInvalidates) {
   // patches and repaints.
   Host host;
   auto tree = [](SkColor4f c) {
-    return box().child(
-        box().key("g").width(60).height(60).fill(material::skia::Paint::linear(
-            {0, 0}, {60, 0}, {{0.0f, c}, {1.0f, c}})));
+    return box().children(
+        {box().key("g").width(60).height(60).fill(material::skia::Paint::linear(
+            {0, 0}, {60, 0}, {{0.0f, c}, {1.0f, c}}))});
   };
   host.composer.render(tree({1, 0, 0, 1}));
   host.frame();
@@ -309,10 +310,10 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
   // source is the node's own painted content (that is Effect's `content`
   // child) — they are sources the material brings with it.
   Host host(80, 20);
-  host.composer.render(stack().child(box().absolute().inset(0).fill(
+  host.composer.render(stack().children({box().absolute().inset(0).fill(
       material::skia::Paint::sksl(paletteEffect(), {{"uShade", 0.0f}})
           .child("uIndex", indexSource())
-          .child("uPalette", paletteSource(rampPalette())))));
+          .child("uPalette", paletteSource(rampPalette())))}));
   host.frame();
   EXPECT_EQ(host.pixel(10, 10), SK_ColorRED) << "index 0";
   EXPECT_EQ(host.pixel(30, 10), SK_ColorGREEN) << "index 1";
@@ -322,10 +323,10 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
   // The LUT is the point: re-authoring the palette re-colours the picture
   // without touching the index texture — the paletted-shading trick itself.
   Host swapped(80, 20);
-  swapped.composer.render(stack().child(box().absolute().inset(0).fill(
+  swapped.composer.render(stack().children({box().absolute().inset(0).fill(
       material::skia::Paint::sksl(paletteEffect(), {{"uShade", 0.0f}})
           .child("uIndex", indexSource())
-          .child("uPalette", paletteSource(reversedPalette())))));
+          .child("uPalette", paletteSource(reversedPalette())))}));
   swapped.frame();
   EXPECT_EQ(swapped.pixel(10, 10), SK_ColorWHITE) << "same indices, new LUT";
   EXPECT_EQ(swapped.pixel(70, 10), SK_ColorRED);
@@ -333,10 +334,10 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
   // And the shade step is index ARITHMETIC, clamped at the ramp's end —
   // every cell moves one entry down the palette and the last one sticks.
   Host shaded(80, 20);
-  shaded.composer.render(stack().child(box().absolute().inset(0).fill(
+  shaded.composer.render(stack().children({box().absolute().inset(0).fill(
       material::skia::Paint::sksl(paletteEffect(), {{"uShade", 1.0f}})
           .child("uIndex", indexSource())
-          .child("uPalette", paletteSource(rampPalette())))));
+          .child("uPalette", paletteSource(rampPalette())))}));
   shaded.frame();
   EXPECT_EQ(shaded.pixel(10, 10), SK_ColorGREEN) << "0 + 1";
   EXPECT_EQ(shaded.pixel(50, 10), SK_ColorWHITE) << "2 + 1";
@@ -367,10 +368,10 @@ TEST(ComposeMaterial, TheChildRidesThePruneSignature) {
   // palette patches and repaints.
   Host host(80, 20);
   auto tree = [](const sk_sp<SkImage>& lut) {
-    return stack().child(box().key("lut").absolute().inset(0).fill(
+    return stack().children({box().key("lut").absolute().inset(0).fill(
         material::skia::Paint::sksl(paletteEffect(), {{"uShade", 0.0f}})
             .child("uIndex", indexSource())
-            .child("uPalette", paletteSource(lut))));
+            .child("uPalette", paletteSource(lut)))});
   };
   host.composer.render(tree(rampPalette()));
   host.frame();
@@ -411,8 +412,8 @@ TEST(ComposeMaterial, ALiveChildMakesTheParentLive) {
       << "…and a static child leaves the parent static";
 
   Host host;
-  host.composer.render(
-      stack().child(box().absolute().inset(0).width(40).height(40).fill(live)));
+  host.composer.render(stack().children(
+      {box().absolute().inset(0).width(40).height(40).fill(live)}));
   host.frame();
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 40u);  // uK = 0 → black
   k = 1.0f;                                         // no render()
@@ -446,7 +447,7 @@ TEST(ComposeMaterial, AGeometryChildPropagatesTheGeometryTier) {
   EXPECT_FALSE(m.isAnimated()) << "geometry is not live";
 
   Host host(100, 20);
-  host.composer.render(stack().child(box().absolute().inset(0).fill(m)));
+  host.composer.render(stack().children({box().absolute().inset(0).fill(m)}));
   host.frame();
   // The ramp spans the node's own width: dark at the left edge, bright at
   // the right. A child resolved with a null context would read uResolution
@@ -466,7 +467,7 @@ TEST(ComposeMaterial, AnUndeclaredChildNameIsIgnored) {
           .child("uPalette", paletteSource(rampPalette()))
           .child("uNoSuchSlot", material::skia::Paint::solid({1, 1, 1, 1}));
   EXPECT_FALSE(m.isAnimated());
-  host.composer.render(stack().child(box().absolute().inset(0).fill(m)));
+  host.composer.render(stack().children({box().absolute().inset(0).fill(m)}));
   host.frame();
   EXPECT_EQ(host.pixel(10, 10), SK_ColorRED) << "the declared slots still ran";
 
@@ -497,13 +498,13 @@ TEST(ComposeMaterial, DeclaredBleedGrowsTheRecordingCull) {
   };
   {
     Host host;  // recipe carrier: a static solid material
-    host.composer.render(box().padding(40).child(
-        box()
-            .width(60)
-            .height(40)
-            .cache(Cache::Texture)
-            .shape(overflowShape)
-            .fill(material::skia::Paint::solid({1, 0, 0, 1}).bleed(24))));
+    host.composer.render(box().padding(40).children(
+        {box()
+             .width(60)
+             .height(40)
+             .cache(Cache::Texture)
+             .shape(overflowShape)
+             .fill(material::skia::Paint::solid({1, 0, 0, 1}).bleed(24))}));
     host.frame();
     host.frame();  // the cached replay is where a small cull would bite
     // Node spans y∈[40,80); 14px below is inside the disc's overflow.
@@ -511,15 +512,15 @@ TEST(ComposeMaterial, DeclaredBleedGrowsTheRecordingCull) {
   }
   {
     Host host;  // live carrier: a geometry-tier material (uResolution ramp)
-    host.composer.render(box().padding(40).child(
-        box()
-            .width(60)
-            .height(40)
-            .cache(Cache::Texture)
-            .shape(overflowShape)
-            .fill(material::skia::Paint::linearUnit(
-                      {0, 0}, {1, 1}, {{0, {1, 0, 0, 1}}, {1, {1, 0, 0, 1}}})
-                      .bleed(24))));
+    host.composer.render(box().padding(40).children(
+        {box()
+             .width(60)
+             .height(40)
+             .cache(Cache::Texture)
+             .shape(overflowShape)
+             .fill(material::skia::Paint::linearUnit(
+                       {0, 0}, {1, 1}, {{0, {1, 0, 0, 1}}, {1, {1, 0, 0, 1}}})
+                       .bleed(24))}));
     host.frame();
     host.frame();
     EXPECT_EQ(host.pixel(70, 94), SK_ColorRED);
@@ -545,17 +546,17 @@ TEST(ComposeMaterial, ABlendLayerCompositesAtItsAmount) {
   // srcOver white-over-red at 0.5 lands on pink, and at 0 leaves red.
   auto plate = [](float amt) {
     Host host;
-    host.composer.render(box().child(
-        box()
-            .width(60)
-            .height(60)
-            .inset(0, 0, 140, 140)
-            .absolute()
-            .fill(material::skia::Paint::blend(
-                {{material::skia::Paint::solid({1, 0, 0, 1}),
-                  SkBlendMode::kSrcOver},
-                 {material::skia::Paint::solid({1, 1, 1, 1}).amount(amt),
-                  SkBlendMode::kSrcOver}}))));
+    host.composer.render(box().children(
+        {box()
+             .width(60)
+             .height(60)
+             .inset(0, 0, 140, 140)
+             .absolute()
+             .fill(material::skia::Paint::blend(
+                 {{material::skia::Paint::solid({1, 0, 0, 1}),
+                   SkBlendMode::kSrcOver},
+                  {material::skia::Paint::solid({1, 1, 1, 1}).amount(amt),
+                   SkBlendMode::kSrcOver}}))}));
     host.frame();
     return host.pixel(30, 30);
   };
@@ -591,12 +592,12 @@ TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
   src->commit();
   Host host;
   auto tree = [&] {
-    return box().child(box()
-                           .width(100)
-                           .height(100)
-                           .inset(0, 0, 100, 100)
-                           .absolute()
-                           .fill(material::skia::Paint::buffer(src)));
+    return box().children({box()
+                               .width(100)
+                               .height(100)
+                               .inset(0, 0, 100, 100)
+                               .absolute()
+                               .fill(material::skia::Paint::buffer(src))});
   };
   host.composer.render(tree());
   host.frame();

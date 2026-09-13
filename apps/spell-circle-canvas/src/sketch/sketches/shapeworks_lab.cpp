@@ -292,10 +292,8 @@ struct ShapeworksLab : sketch::Sketch {
             .clip()
             .cache(Cache::None);
 
-    return stack()
-        .child(std::move(outlineLab))
-        .child(std::move(materialLab))
-        .child(std::move(flight));
+    return stack().children(
+        {std::move(outlineLab), std::move(materialLab), std::move(flight)});
   }
 
   void setup(sketch::SketchContext& ctx) override {

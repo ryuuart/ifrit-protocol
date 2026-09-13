@@ -234,18 +234,16 @@ Element graph(const char* key, TextEffect effect, Table table,
   for (const Tick& tick : ticks)
     if (tick.value != rest) frame.rulesY.push_back(tick.value);
   for (const fx::Key& keyframe : table) frame.marks.push_back(keyframe.at);
-  return box()
-      .width(pct(100))
-      .height(pct(100))
-      .child(kit::curvePlot(std::string(key) + "-rest",
-                            {{[rest](float) { return rest; }, kRest, 1}},
-                            {.fromY = lo, .toY = hi, .samples = 1}))
-      .child(kit::curvePlot(key,
-                            {{[effect = std::move(effect), lane](float t) {
-                                return lane(at(effect, t));
-                              },
-                              color}},
-                            std::move(frame)));
+  return box().width(pct(100)).height(pct(100)).children(
+      {kit::curvePlot(std::string(key) + "-rest",
+                      {{[rest](float) { return rest; }, kRest, 1}},
+                      {.fromY = lo, .toY = hi, .samples = 1}),
+       kit::curvePlot(key,
+                      {{[effect = std::move(effect), lane](float t) {
+                          return lane(at(effect, t));
+                        },
+                        color}},
+                      std::move(frame))});
 }
 
 }  // namespace
@@ -271,16 +269,13 @@ struct ElasticType : sketch::Sketch {
     // the deviation is measured against. A track's deviation is per glyph
     // and lives only in the draw, so nothing else on the sheet says where
     // the undeformed letter was.
-    return box()
-        .column()
-        .gap(8)
-        .child(text(caption))
-        .child(kit::restGhost(
-            text(word, set).key(word).fx(
-                {.effect = std::move(effect),
-                 .stagger = {.eachMs = kEachMs, .durationMs = kDurMs},
-                 .progress = &pass}),
-            kRest));
+    return box().column().gap(8).children(
+        {text(caption), kit::restGhost(text(word, set).key(word).fx(
+                                           {.effect = std::move(effect),
+                                            .stagger = {.eachMs = kEachMs,
+                                                        .durationMs = kDurMs},
+                                            .progress = &pass}),
+                                       kRest)});
   }
 
   /** A plot, its frame, and the axis it is read against. The labels hang
@@ -293,23 +288,20 @@ struct ElasticType : sketch::Sketch {
                         .width(pct(100))
                         .height(kPlotH)
                         .stroke(stroke(1.0f, Fill::color(kFaint)))
-                        .child(std::move(inner).inset(0));
+                        .children({std::move(inner).inset(0)});
     for (const Tick& tick : ticks)
-      frame.child(text(tick.label)
-                      .font({.size = 9.5f, .track = 0.4f})
-                      .absolute()
-                      .right(5)
-                      // Held inside the frame: a value at the very top of the
-                      // range would hang its label off the plot, and a label
-                      // outside the box it names is a label for nothing.
-                      .top(std::clamp(tickY(tick.value, lo, hi, kPlotH) - 12.0f,
-                                      1.0f, kPlotH - 15.0f)));
-    return box()
-        .column()
-        .grow(1)
-        .gap(7)
-        .child(std::move(frame))
-        .child(text(title).font({.size = 11.0f, .track = 0.8f}));
+      frame.children(
+          {text(tick.label)
+               .font({.size = 9.5f, .track = 0.4f})
+               .absolute()
+               .right(5)
+               // Held inside the frame: a value at the very top of the
+               // range would hang its label off the plot, and a label
+               // outside the box it names is a label for nothing.
+               .top(std::clamp(tickY(tick.value, lo, hi, kPlotH) - 12.0f, 1.0f,
+                               kPlotH - 15.0f))});
+    return box().column().grow(1).gap(7).children(
+        {std::move(frame), text(title).font({.size = 11.0f, .track = 0.8f})});
   }
 
   /** The label type is stated once on the root; a caption restates only what
@@ -324,61 +316,63 @@ struct ElasticType : sketch::Sketch {
                              {0.0f, 0.55f, 1.0f}))
         .font({.face = faceLabel, .size = 11.5f, .track = 2.4f})
         .ink(kLabel)
-        .child(box()
-                   .row()
-                   .alignItems(Align::End)
-                   .child(text("ELASTIC TYPE")
-                              .font({.size = 12.5f, .track = 3.4f})
-                              .ink(kInk)
-                              .grow(1))
-                   .child(text("ANIMATE.CSS 2013 · SQUASH AND "
-                               "STRETCH 1981")
-                              .ink(kFaint)))
-        .child(box().height(1).fill(Fill::color(kFaint)))
-        .child(text("GREY IS THE REST POSE, SHARING THE LIVE LINE'S "
-                    "ORIGIN — WHERE IT SHOWS, THAT LETTER "
-                    "IS DEFORMED")
-                   .font({.size = 10.5f, .track = 0.6f})
-                   .ink(kRest))
-        .child(row("RUBBERBAND", "rubberBand · SEVEN STOPS ON TWO SCALE AXES",
-                   fx::keys(rubberTable(), &cssEase)))
-        .child(row("JELLO",
-                   "jello · A HALVING, ALTERNATING SHEAR · "
-                   "BOTH AXES",
-                   fx::keys(jelloTable(), &cssEase)))
-        .child(box().grow(1))
-        .child(
-            box()
-                .row()
-                .gap(28)
-                .height(146)
-                .child(plot("rubberBand — scaleX 0.75 TO 1.25",
-                            graph(
-                                "g-rx", fx::keys(rubberTable(), &cssEase),
-                                rubberTable(),
-                                [](const GlyphModifier& m) { return m.scaleX; },
-                                kX, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
-                            kScaleLo, kScaleHi, scaleTicks()))
-                .child(plot("rubberBand — scaleY 0.75 TO 1.25",
-                            graph(
-                                "g-ry", fx::keys(rubberTable(), &cssEase),
-                                rubberTable(),
-                                [](const GlyphModifier& m) { return m.scaleY; },
-                                kY, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
-                            kScaleLo, kScaleHi, scaleTicks()))
-                .child(plot(
-                    "jello — skewX = skewY ±12.5°, HALVING",
-                    graph(
-                        "g-j", fx::keys(jelloTable(), &cssEase), jelloTable(),
-                        [](const GlyphModifier& m) { return m.skewXDeg; }, kX,
-                        kShearLo, kShearHi, 0.0f, shearTicks()),
-                    kShearLo, kShearHi, shearTicks())))
-        .child(text("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
-                    "DEVIATION AN RSXFORM CANNOT CARRY · EVERY "
-                    "GLYPH ON THESE TWO LINES DRAWS UNDER ITS OWN "
-                    "MATRIX")
-                   .font({.size = 11.0f, .track = 0.6f})
-                   .ink(kFaint));
+        .children(
+            {box()
+                 .row()
+                 .alignItems(Align::End)
+                 .children({text("ELASTIC TYPE")
+                                .font({.size = 12.5f, .track = 3.4f})
+                                .ink(kInk)
+                                .grow(1)})
+                 .children({text("ANIMATE.CSS 2013 · SQUASH AND "
+                                 "STRETCH 1981")
+                                .ink(kFaint)}),
+             box().height(1).fill(Fill::color(kFaint)),
+             text("GREY IS THE REST POSE, SHARING THE LIVE LINE'S "
+                  "ORIGIN — WHERE IT SHOWS, THAT LETTER "
+                  "IS DEFORMED")
+                 .font({.size = 10.5f, .track = 0.6f})
+                 .ink(kRest),
+             row("RUBBERBAND", "rubberBand · SEVEN STOPS ON TWO SCALE AXES",
+                 fx::keys(rubberTable(), &cssEase)),
+             row("JELLO",
+                 "jello · A HALVING, ALTERNATING SHEAR · "
+                 "BOTH AXES",
+                 fx::keys(jelloTable(), &cssEase)),
+             box().grow(1),
+             box()
+                 .row()
+                 .gap(28)
+                 .height(146)
+                 .children(
+                     {plot("rubberBand — scaleX 0.75 TO 1.25",
+                           graph(
+                               "g-rx", fx::keys(rubberTable(), &cssEase),
+                               rubberTable(),
+                               [](const GlyphModifier& m) { return m.scaleX; },
+                               kX, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
+                           kScaleLo, kScaleHi, scaleTicks())})
+                 .children(
+                     {plot("rubberBand — scaleY 0.75 TO 1.25",
+                           graph(
+                               "g-ry", fx::keys(rubberTable(), &cssEase),
+                               rubberTable(),
+                               [](const GlyphModifier& m) { return m.scaleY; },
+                               kY, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
+                           kScaleLo, kScaleHi, scaleTicks())})
+                 .children({plot(
+                     "jello — skewX = skewY ±12.5°, HALVING",
+                     graph(
+                         "g-j", fx::keys(jelloTable(), &cssEase), jelloTable(),
+                         [](const GlyphModifier& m) { return m.skewXDeg; }, kX,
+                         kShearLo, kShearHi, 0.0f, shearTicks()),
+                     kShearLo, kShearHi, shearTicks())}),
+             text("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
+                  "DEVIATION AN RSXFORM CANNOT CARRY · EVERY "
+                  "GLYPH ON THESE TWO LINES DRAWS UNDER ITS OWN "
+                  "MATRIX")
+                 .font({.size = 11.0f, .track = 0.6f})
+                 .ink(kFaint)});
   }
 
   void setup(sketch::SketchContext& ctx) override {

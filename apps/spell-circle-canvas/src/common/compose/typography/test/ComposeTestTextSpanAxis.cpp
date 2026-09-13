@@ -86,18 +86,18 @@ TEST(TextSpanAxis, AnInvariantAxisRedrawsWithoutReshaping) {
   sigil::weave::TextStyle base = coloredStyle(40, SK_ColorWHITE);
   base.shaping.typeface = face;
   const std::u8string body = u8"Count 1234 now";
-  host.composer.render(box().padding(10).child(text(body, base).key("t")));
+  host.composer.render(box().padding(10).children({text(body, base).key("t")}));
   host.frame();
   const std::vector<const void*> shapesBefore = runShapes(host, "t");
   const std::vector<SkPoint> originsBefore = runOrigins(host, "t");
   ASSERT_FALSE(shapesBefore.empty());
   const SkBitmap plain = grab(host, 400, 120);
 
-  host.composer.render(box().padding(10).child(
-      text(body, base)
-          .spanStyle(sigil::weave::selectors::regex(u8"[0-9]+"),
-                     withAxis(base, "GRAD", hi))
-          .key("t")));
+  host.composer.render(box().padding(10).children(
+      {text(body, base)
+           .spanStyle(sigil::weave::selectors::regex(u8"[0-9]+"),
+                      withAxis(base, "GRAD", hi))
+           .key("t")}));
   host.frame();
   EXPECT_EQ(runShapes(host, "t"), shapesBefore)
       << "an axis-only spanStyle re-shaped a word — the axis went into the "
@@ -129,13 +129,13 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
 
   // The order an author reaches for when the colour is the point.
   Host paintFirst(400, 120);
-  paintFirst.composer.render(box().padding(10).child(
-      text(body, base)
-          .spanPaint(sigil::weave::selectors::regex(u8"[0-9]+"),
-                     sigil::weave::PaintStyle(SK_ColorRED))
-          .spanStyle(sigil::weave::selectors::regex(u8"[0-9]+"),
-                     withAxis(base, "GRAD", hi))
-          .key("t")));
+  paintFirst.composer.render(box().padding(10).children(
+      {text(body, base)
+           .spanPaint(sigil::weave::selectors::regex(u8"[0-9]+"),
+                      sigil::weave::PaintStyle(SK_ColorRED))
+           .spanStyle(sigil::weave::selectors::regex(u8"[0-9]+"),
+                      withAxis(base, "GRAD", hi))
+           .key("t")}));
   paintFirst.frame();
   EXPECT_GT(countColor(paintFirst, all, SK_ColorRED), 20)
       << "the spanStyle painted over the earlier spanPaint's colour";
@@ -144,13 +144,13 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
   // …and the order that works around it, which must now be the same
   // picture rather than the only one that keeps both declarations.
   Host styleFirst(400, 120);
-  styleFirst.composer.render(box().padding(10).child(
-      text(body, base)
-          .spanStyle(sigil::weave::selectors::regex(u8"[0-9]+"),
-                     withAxis(base, "GRAD", hi))
-          .spanPaint(sigil::weave::selectors::regex(u8"[0-9]+"),
-                     sigil::weave::PaintStyle(SK_ColorRED))
-          .key("t")));
+  styleFirst.composer.render(box().padding(10).children(
+      {text(body, base)
+           .spanStyle(sigil::weave::selectors::regex(u8"[0-9]+"),
+                      withAxis(base, "GRAD", hi))
+           .spanPaint(sigil::weave::selectors::regex(u8"[0-9]+"),
+                      sigil::weave::PaintStyle(SK_ColorRED))
+           .key("t")}));
   styleFirst.frame();
   EXPECT_EQ(pixelsDiffering(grab(paintFirst, 400, 120),
                             grab(styleFirst, 400, 120), 400, 120),
@@ -180,10 +180,11 @@ TEST(TextSpanAxis, AnAdvanceVariantAxisReshapesInstead) {
   // asked about is nothing to warn about.
   ::testing::internal::CaptureStderr();
   const auto at = [&](float weight) {
-    host.composer.render(box().padding(10).child(
-        text(body, base)
-            .spanStyle(sigil::weave::Selector{}, withAxis(base, "wght", weight))
-            .key("t")));
+    host.composer.render(box().padding(10).children(
+        {text(body, base)
+             .spanStyle(sigil::weave::Selector{},
+                        withAxis(base, "wght", weight))
+             .key("t")}));
     host.frame();
     return grab(host, 400, 120);
   };
@@ -229,12 +230,12 @@ TEST(TextSpanAxis, TheCoordinateTakesTheSizeScaledLadder) {
     for (int i = 0; i < kSamples; ++i) {
       const float value =
           lo + (hi - lo) * 0.5f + window * (float)i / (float)(kSamples - 1);
-      composer.render(box().padding(4).child(
-          // A default-constructed selector addresses every glyph.
-          text(u8"888", style)
-              .key("t")
-              .spanStyle(sigil::weave::Selector{},
-                         withAxis(style, "GRAD", value))));
+      composer.render(box().padding(4).children(
+          {// A default-constructed selector addresses every glyph.
+           text(u8"888", style)
+               .key("t")
+               .spanStyle(sigil::weave::Selector{},
+                          withAxis(style, "GRAD", value))}));
       ticker.tick(1.0 / 60.0);
       surface->getCanvas()->clear(SK_ColorBLACK);
       composer.draw(*surface->getCanvas());
@@ -265,7 +266,7 @@ TEST(TextSpanAxis, ALaterDeclarationWinsOnOverlap) {
   base.shaping.typeface = face;
   const auto drawn = [&](const std::function<Element(Element)>& dress) {
     host.composer.render(
-        box().padding(10).child(dress(text(u8"GRADE", base).key("t"))));
+        box().padding(10).children({dress(text(u8"GRADE", base).key("t"))}));
     host.frame();
     return grab(host, 400, 120);
   };
@@ -292,8 +293,8 @@ TEST(TextOptionSetters, MaxLinesAndEllipsisClampTheText) {
   const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
   const std::u8string body =
       u8"one two three four five six seven eight nine ten eleven twelve";
-  host.composer.render(box().padding(10).child(
-      text(body, base).width(180).maxLines(2).ellipsis(u8"...").key("t")));
+  host.composer.render(box().padding(10).children(
+      {text(body, base).width(180).maxLines(2).ellipsis(u8"...").key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
@@ -313,11 +314,12 @@ TEST(TextOptionSetters, HyphenationRendersTheHyphenAtASoftBreak) {
   // takes the half and the drawn hyphen as well.
   const std::u8string body = u8"short extraordi\u00adnarily";
   const auto runsOnFirstLineWith = [&](bool enabled) {
-    host.composer.render(
-        box().padding(4).child(text(body, base)
-                                   .width(200)
-                                   .hyphenation({.enabled = enabled})
-                                   .key("t")));
+    host.composer.render(box().padding(4).children(
+        {text(body, base)
+             .width(200)
+             .block({.hyphenation =
+                         sigil::weave::HyphenationOptions{.enabled = enabled}})
+             .key("t")}));
     host.frame();
     const auto* layout = host.composer.paragraphLayout("t");
     if (!layout) return 0;
@@ -344,7 +346,7 @@ TEST(TextOptionSetters, SettersOverrideAPassedOptionsValueFieldByField) {
   // At 20 px in the instrument face the first line is "one two three four"
   // at 198 px, so a centred line starts 11 px in.
   host.composer.render(
-      box().child(text(para, passed).width(220).maxLines(2).key("t")));
+      box().children({text(para, passed).width(220).maxLines(2).key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
@@ -364,8 +366,8 @@ TEST(TextOptionSetters, KnuthPlassBreaksARaggedParagraphDifferently) {
       u8"a longer word then tiny bits of text and an extraordinarily "
       u8"lengthy one to finish the measure";
   const auto lineStartsUnder = [&](sigil::weave::LineBreakStrategy strategy) {
-    host.composer.render(box().padding(4).child(
-        text(body, base).width(240).lineBreak(strategy).key("t")));
+    host.composer.render(box().padding(4).children(
+        {text(body, base).width(240).block({.lineBreak = strategy}).key("t")}));
     host.frame();
     std::vector<uint32_t> starts;
     const auto* layout = host.composer.paragraphLayout("t");

@@ -104,8 +104,8 @@ Element rhythmLines() {
 Element cell(const char* call, const char* note, Element placed,
              bool ruled = false) {
   Element plate = sketch::kit::well({.width = kCell, .height = kPicture});
-  if (ruled) plate.child(rhythmLines());
-  plate.child(placed.absolute().inset(kInset).children(cards()));
+  if (ruled) plate.children({rhythmLines()});
+  plate.children({placed.absolute().inset(kInset).children(cards())});
   return sketch::kit::caption(kCell, call, note, std::move(plate));
 }
 

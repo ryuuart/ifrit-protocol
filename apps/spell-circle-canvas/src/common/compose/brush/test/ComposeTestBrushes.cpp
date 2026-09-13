@@ -9,12 +9,12 @@
 namespace {
 
 Element shapedPanel(std::function<SkPath(SkSize)> outline, Decoration dec) {
-  return box().child(box()
-                         .width(100)
-                         .height(100)
-                         .shape(std::move(outline))
-                         .fill(blue())
-                         .foreground(std::move(dec)));
+  return box().children({box()
+                             .width(100)
+                             .height(100)
+                             .shape(std::move(outline))
+                             .fill(blue())
+                             .foreground(std::move(dec))});
 }
 
 }  // namespace
@@ -149,23 +149,23 @@ TEST(ComposeSeams, SketchyJitterLeavesTheAxis) {
 TEST(ComposeSeams, SvgOutlineTracesThePathData) {
   // A right triangle authored as an SVG d-string, stretched to the node.
   Host host;
-  host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(50, 50, 50, 50)
-                      .shape(geometry::shapes::svg("M0 0 L100 0 L100 100 Z"))
-                      .fill(red())));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(50, 50, 50, 50)
+           .shape(geometry::shapes::svg("M0 0 L100 0 L100 100 Z"))
+           .fill(red())}));
   host.frame();
   EXPECT_EQ(host.pixel(140, 70), SK_ColorRED);    // inside the hypotenuse
   EXPECT_EQ(host.pixel(60, 130), SK_ColorBLACK);  // outside it
   // Hit-testing follows the silhouette too.
-  host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(50, 50, 50, 50)
-                      .shape(geometry::shapes::svg("M0 0 L100 0 L100 100 Z"))
-                      .fill(red())
-                      .key("tri")));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(50, 50, 50, 50)
+           .shape(geometry::shapes::svg("M0 0 L100 0 L100 100 Z"))
+           .fill(red())
+           .key("tri")}));
   host.frame();
   EXPECT_EQ(host.composer.hitTest({140, 70}).value_or(""), "tri");
   EXPECT_FALSE(host.composer.hitTest({60, 130}).has_value());
@@ -212,27 +212,27 @@ TEST(ComposeBrushes, AStampBakeSurvivesABrushRebuiltEveryDescribe) {
   static int bakes;
   bakes = 0;
   const Element art =  // stable: its node pointer is the cache key
-      box().width(8).height(8).child(
-          custom([](SkCanvas& c, const PaintContext&) {
-            ++bakes;
-            SkPaint p;
-            p.setColor(SK_ColorRED);
-            c.drawRect(SkRect::MakeWH(8, 8), p);
-          })
-              .width(8)
-              .height(8)
-              .cache(Cache::None));
+      box().width(8).height(8).children(
+          {custom([](SkCanvas& c, const PaintContext&) {
+             ++bakes;
+             SkPaint p;
+             p.setColor(SK_ColorRED);
+             c.drawRect(SkRect::MakeWH(8, 8), p);
+           })
+               .width(8)
+               .height(8)
+               .cache(Cache::None)});
   Host host;
   auto tree = [&] {
     brush::Scatter s;  // fresh VALUE: empty member cache, on purpose
     s.art = art;
     s.spacing = 20;
     s.alignToPath = false;
-    return box().child(box()
-                           .width(120)
-                           .height(120)
-                           .cache(Cache::None)  // repaints every frame
-                           .stroke(std::move(s)));
+    return box().children({box()
+                               .width(120)
+                               .height(120)
+                               .cache(Cache::None)  // repaints every frame
+                               .stroke(std::move(s))});
   };
   for (int i = 0; i < 5; ++i) {
     host.composer.render(tree());
@@ -266,25 +266,25 @@ TEST(ComposeBrushes, AFreshArtNodePerDescribeRebakesByContract) {
   Host host;
   auto tree = [&](SkColor color) {
     Element art =  // fresh node EVERY call, on purpose — the contract's cost
-        box().width(8).height(8).child(
-            custom([color](SkCanvas& c, const PaintContext&) {
-              ++bakes;
-              SkPaint p;
-              p.setColor(color);
-              c.drawRect(SkRect::MakeWH(8, 8), p);
-            })
-                .width(8)
-                .height(8)
-                .cache(Cache::None));
+        box().width(8).height(8).children(
+            {custom([color](SkCanvas& c, const PaintContext&) {
+               ++bakes;
+               SkPaint p;
+               p.setColor(color);
+               c.drawRect(SkRect::MakeWH(8, 8), p);
+             })
+                 .width(8)
+                 .height(8)
+                 .cache(Cache::None)});
     brush::Scatter s;
     s.art = std::move(art);
     s.spacing = 20;
     s.alignToPath = false;
-    return box().child(box()
-                           .width(120)
-                           .height(120)
-                           .cache(Cache::None)  // repaints every frame
-                           .stroke(std::move(s)));
+    return box().children({box()
+                               .width(120)
+                               .height(120)
+                               .cache(Cache::None)  // repaints every frame
+                               .stroke(std::move(s))});
   };
   for (int i = 0; i < 4; ++i) {
     host.composer.render(tree(SK_ColorRED));
@@ -326,17 +326,17 @@ TEST(ComposeBrushes, PatternCornerTileSitsOnTheBend) {
   b.corner = brush::CornerArt{box().width(12).height(12).fill(blue()),
                               brush::CornerAlign::Bisector};
   host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(40, 40, 40, 40)
-                      .shape([](SkSize s) {  // an L: right then down
-                        SkPathBuilder p;
-                        p.moveTo(0, 0);
-                        p.lineTo(s.width(), 0);
-                        p.lineTo(s.width(), s.height());
-                        return p.detach();
-                      })
-                      .stroke(std::move(b))));
+      box().children({box()
+                          .absolute()
+                          .inset(40, 40, 40, 40)
+                          .shape([](SkSize s) {  // an L: right then down
+                            SkPathBuilder p;
+                            p.moveTo(0, 0);
+                            p.lineTo(s.width(), 0);
+                            p.lineTo(s.width(), s.height());
+                            return p.detach();
+                          })
+                          .stroke(std::move(b))}));
   host.frame();
   EXPECT_EQ(host.pixel(160, 40), SK_ColorBLUE);  // corner tile at the bend
   EXPECT_EQ(host.pixel(100, 40), SK_ColorRED);   // side tiles on the top leg
@@ -345,8 +345,8 @@ TEST(ComposeBrushes, PatternCornerTileSitsOnTheBend) {
 
 TEST(ComposeSeams, PerlinNoiseFillsWithVariation) {
   Host host(100, 100);
-  host.composer.render(box().child(box().width(100).height(100).fill(
-      material::skia::Paint::recipe(material::field::noise(0.05f, 4, 2.0f)))));
+  host.composer.render(box().children({box().width(100).height(100).fill(
+      material::skia::Paint::recipe(material::field::noise(0.05f, 4, 2.0f)))}));
   host.frame();
   std::set<SkColor> distinct;
   for (int y = 10; y < 90; y += 8)
@@ -363,20 +363,20 @@ TEST(ComposeBrushes, PatternCornerTileAtTheClosedSeam) {
   b.side = box().width(20).height(4).fill(red());
   b.corner = brush::CornerArt{box().width(12).height(12).fill(blue()),
                               brush::CornerAlign::Bisector};
-  host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(50, 50, 50, 50)
-                      .shape([](SkSize s) {  // closed rect starting at (0,0)
-                        SkPathBuilder p;
-                        p.moveTo(0, 0);
-                        p.lineTo(s.width(), 0);
-                        p.lineTo(s.width(), s.height());
-                        p.lineTo(0, s.height());
-                        p.close();
-                        return p.detach();
-                      })
-                      .stroke(std::move(b))));
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(50, 50, 50, 50)
+           .shape([](SkSize s) {  // closed rect starting at (0,0)
+             SkPathBuilder p;
+             p.moveTo(0, 0);
+             p.lineTo(s.width(), 0);
+             p.lineTo(s.width(), s.height());
+             p.lineTo(0, s.height());
+             p.close();
+             return p.detach();
+           })
+           .stroke(std::move(b))}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);  // the seam corner tile
 }

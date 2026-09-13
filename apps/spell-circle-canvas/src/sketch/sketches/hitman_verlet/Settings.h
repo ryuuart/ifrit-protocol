@@ -220,8 +220,8 @@ inline Element panel(float height, const char* heading, int order) {
       .translateX(
           animate(from(14.0f).to(0.0f), {.duration = 300ms, .delay = delay}))
       .key(std::string("panel") + std::to_string(order))
-      .child(
-          t(heading, ui(9.5f, kSteel, 1.9f)).height(Dimension(12)).shrink(0));
+      .children(
+          {t(heading, ui(9.5f, kSteel, 1.9f)).height(Dimension(12)).shrink(0)});
 }
 
 }  // namespace hitman_verlet

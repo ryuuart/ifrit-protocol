@@ -8,14 +8,14 @@ TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
   Host host(200, 200);
   choreograph::Output<float> phase{0.0f};
   host.composer.render(
-      box().child(box()
-                      .width(20)
-                      .height(20)
-                      .absolute()
-                      .left(0)
-                      .top(90)
-                      .fill(red())
-                      .translateX(motion::bind(&phase).target(0, 160))));
+      box().children({box()
+                          .width(20)
+                          .height(20)
+                          .absolute()
+                          .left(0)
+                          .top(90)
+                          .fill(red())
+                          .translateX(motion::bind(&phase).target(0, 160))}));
   auto redAt = [&](int x) { return SkColorGetR(host.pixel(x, 100)) > 180; };
 
   host.frame();
@@ -38,15 +38,16 @@ TEST(ComposeBindings, AChangedShapeRepatchesRatherThanPruning) {
   Host host(200, 200);
   choreograph::Output<float> phase{1.0f};
   auto tree = [&](float far) {
-    return box().child(box()
-                           .key("dot")
-                           .width(20)
-                           .height(20)
-                           .absolute()
-                           .left(0)
-                           .top(90)
-                           .fill(red())
-                           .translateX(motion::bind(&phase).target(0, far)));
+    return box().children(
+        {box()
+             .key("dot")
+             .width(20)
+             .height(20)
+             .absolute()
+             .left(0)
+             .top(90)
+             .fill(red())
+             .translateX(motion::bind(&phase).target(0, far))});
   };
   host.composer.render(tree(40.0f));
   host.frame();
@@ -66,17 +67,17 @@ TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
   // deleted, so the omission produces no error anywhere.
   Host host(240, 240);
   auto ring = [](float at) {
-    return box().child(
-        text(u8"HHHHHHHHHH", whiteStyle(22))
-            .key("ring")
-            .width(240)
-            .height(240)
-            .absolute()
-            .left(0)
-            .top(0)
-            .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
-                     .at = at,
-                     .align = TextPath::Align::Center}));
+    return box().children(
+        {text(u8"HHHHHHHHHH", whiteStyle(22))
+             .key("ring")
+             .width(240)
+             .height(240)
+             .absolute()
+             .left(0)
+             .top(0)
+             .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
+                      .at = at,
+                      .align = TextPath::Align::Center})});
   };
   auto lit = [&](int y0, int y1) {
     int count = 0;
@@ -103,15 +104,15 @@ TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
   // default curve". It is the latter.
   Host host(200, 200);
   host.composer.render(
-      box().child(box()
-                      .width(40)
-                      .height(40)
-                      .absolute()
-                      .left(0)
-                      .top(80)
-                      .fill(red())
-                      .translateX(animate(motion::from(0.0f).to(120.0f),
-                                          {200ms, {}, 0ms}))));
+      box().children({box()
+                          .width(40)
+                          .height(40)
+                          .absolute()
+                          .left(0)
+                          .top(80)
+                          .fill(red())
+                          .translateX(animate(motion::from(0.0f).to(120.0f),
+                                              {200ms, {}, 0ms}))}));
   host.frame();     // would throw here
   host.frame(0.4);  // land the entrance
   EXPECT_TRUE(SkColorGetR(host.pixel(130, 100)) > 180);
@@ -140,13 +141,13 @@ TEST(ComposeText, OnPathFillsEveryContourNotJustTheFirst) {
   // A run long enough to overflow contour 1 must continue onto contour 2.
   Host host(200, 200);
   host.composer.render(
-      box().child(text(u8"HHHH HHHH HHHH HHHH HHHH HHHH", whiteStyle(20))
-                      .width(200)
-                      .height(200)
-                      .absolute()
-                      .left(0)
-                      .top(0)
-                      .onPath({.path = twoSegments, .at = 0.0f})));
+      box().children({text(u8"HHHH HHHH HHHH HHHH HHHH HHHH", whiteStyle(20))
+                          .width(200)
+                          .height(200)
+                          .absolute()
+                          .left(0)
+                          .top(0)
+                          .onPath({.path = twoSegments, .at = 0.0f})}));
   host.frame();
   EXPECT_GT(lit(host, 20, 60), 200);    // ink on the first contour…
   EXPECT_GT(lit(host, 140, 180), 200);  // …and on the second, which a
@@ -173,13 +174,13 @@ TEST(ComposeText, OnPathBreaksAtWordsBetweenContours) {
   };
   Host host(200, 200);
   host.composer.render(
-      box().child(text(u8"HHHH HHHHHHHHHH", whiteStyle(20))
-                      .width(200)
-                      .height(200)
-                      .absolute()
-                      .left(0)
-                      .top(0)
-                      .onPath({.path = twoSegments, .at = 0.0f})));
+      box().children({text(u8"HHHH HHHHHHHHHH", whiteStyle(20))
+                          .width(200)
+                          .height(200)
+                          .absolute()
+                          .left(0)
+                          .top(0)
+                          .onPath({.path = twoSegments, .at = 0.0f})}));
   host.frame();
   EXPECT_GT(lit(host, 20, 60), 100);    // the short word on contour 1…
   EXPECT_GT(lit(host, 140, 180), 200);  // …the long one whole on contour 2
@@ -260,17 +261,17 @@ TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
   // tangent, so a midpoint that happens to land on a locally odd tangent
   // cannot decide for every glyph in the run.
   auto ring = [](float at, bool flip) {
-    return box().child(text(u8"HHHHHHHH", whiteStyle(20))
-                           .width(200)
-                           .height(200)
-                           .absolute()
-                           .left(0)
-                           .top(0)
-                           .onPath({.path = geometry::shapes::circle(),
-                                    .at = at,
-                                    .align = TextPath::Align::Center,
-                                    .offset = 4.0f,
-                                    .autoFlip = flip}));
+    return box().children({text(u8"HHHHHHHH", whiteStyle(20))
+                               .width(200)
+                               .height(200)
+                               .absolute()
+                               .left(0)
+                               .top(0)
+                               .onPath({.path = geometry::shapes::circle(),
+                                        .at = at,
+                                        .align = TextPath::Align::Center,
+                                        .offset = 4.0f,
+                                        .autoFlip = flip})});
   };
   auto snap = [](Host& host) {
     SkBitmap bm;
@@ -310,8 +311,8 @@ TEST(ComposeBindings, AFillCanBeBoundLive) {
   // same steppable that computes the number driving everything else.
   Host host(200, 200);
   choreograph::Output<Fill> bar{Fill::color({1, 0, 0, 1})};
-  host.composer.render(box().child(
-      box().absolute().left(20).top(80).width(160).height(40).fill(&bar)));
+  host.composer.render(box().children(
+      {box().absolute().left(20).top(80).width(160).height(40).fill(&bar)}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(100, 100)), 180);
   EXPECT_LT(SkColorGetG(host.pixel(100, 100)), 80);
@@ -330,13 +331,13 @@ TEST(ComposeContent, SamplingReachesTheImageLeaf) {
   auto atlas = twoCellAtlas();  // 32x16: left half red, right half green
   auto magnified = [&](SkSamplingOptions options) {
     Host host(200, 200);
-    host.composer.render(box().child(image(atlas)
-                                         .sampling(options)
-                                         .absolute()
-                                         .left(0)
-                                         .top(0)
-                                         .width(200)
-                                         .height(100)));
+    host.composer.render(box().children({image(atlas)
+                                             .sampling(options)
+                                             .absolute()
+                                             .left(0)
+                                             .top(0)
+                                             .width(200)
+                                             .height(100)}));
     host.frame();
     // Count columns straddling the red/green seam that are NEITHER pure
     // red nor pure green — the blend band linear filtering invents.
@@ -366,7 +367,7 @@ TEST(ComposeMaterials, GlowUnitReachesTheInscribedCircleNotTheCorners) {
   auto edgeValue = [&](material::skia::Paint m) {
     Host host(200, 200);
     host.composer.render(
-        box().child(box().absolute().inset(0).fill(std::move(m))));
+        box().children({box().absolute().inset(0).fill(std::move(m))}));
     host.frame();
     // Just inside the box edge, on the horizontal centre line — where the
     // inscribed circle touches.
@@ -409,17 +410,17 @@ TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
     // ONE tall glyph: a run spread along the arc keeps a wide footprint
     // whichever way its glyphs face, so a multi-glyph run cannot see the
     // per-glyph rotation at all.
-    return box().child(text(u8"I", whiteStyle(64))
-                           .width(240)
-                           .height(240)
-                           .absolute()
-                           .left(0)
-                           .top(0)
-                           .onPath({.path = circle,
-                                    .at = 0.25f,  // the bottom of the ring
-                                    .align = TextPath::Align::Center,
-                                    .offset = -50.0f,
-                                    .orient = orient}));
+    return box().children({text(u8"I", whiteStyle(64))
+                               .width(240)
+                               .height(240)
+                               .absolute()
+                               .left(0)
+                               .top(0)
+                               .onPath({.path = circle,
+                                        .at = 0.25f,  // the bottom of the ring
+                                        .align = TextPath::Align::Center,
+                                        .offset = -50.0f,
+                                        .orient = orient})});
   };
   auto footprint = [](Host& host) {
     int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
@@ -461,17 +462,18 @@ TEST(ComposeText, OnPathCanLeaveEveryGlyphLevelForACalendarRing) {
     auto circle = geometry::shapes::parametric(
         [](float t) { return SkPoint{std::cos(t), std::sin(t)}; }, 0.0f,
         2.0f * SK_FloatPI, 360, true);
-    return box().child(text(u8"I", whiteStyle(64))
-                           .width(240)
-                           .height(240)
-                           .absolute()
-                           .left(0)
-                           .top(0)
-                           .onPath({.path = circle,
-                                    .at = 0.5f,  // 9 o'clock: tangent upward
-                                    .align = TextPath::Align::Center,
-                                    .offset = -50.0f,
-                                    .orient = orient}));
+    return box().children(
+        {text(u8"I", whiteStyle(64))
+             .width(240)
+             .height(240)
+             .absolute()
+             .left(0)
+             .top(0)
+             .onPath({.path = circle,
+                      .at = 0.5f,  // 9 o'clock: tangent upward
+                      .align = TextPath::Align::Center,
+                      .offset = -50.0f,
+                      .orient = orient})});
   };
   auto footprint = [](Host& host) {
     int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
@@ -533,10 +535,11 @@ TEST(ComposeText, TextFillWorksWithTheUnitRamps) {
   // whole gradient to a sliver near zero. Every glyph then paints the first
   // stop, flat — a wrong picture that looks like a deliberate solid fill.
   Host host(320, 160);
-  host.composer.render(box().padding(20).child(
-      text(u8"HH", whiteStyle(96))
-          .textFill(material::skia::Paint::linearUnit(
-              {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))));
+  host.composer.render(box().padding(20).children(
+      {text(u8"HH", whiteStyle(96))
+           .textFill(material::skia::Paint::linearUnit(
+               {0, 0}, {0, 1},
+               {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
 
   // Walk the glyph band and collect the reddest and bluest inked pixels.
@@ -582,10 +585,10 @@ TEST(ComposeText, TextStrokeDressesTheGlyphsNotTheBox) {
   Host plain(320, 160), outlined(320, 160);
   auto style = whiteStyle(96);
   style.paint.foreground.setColor4f({1, 0, 0, 1}, nullptr);
-  plain.composer.render(box().padding(20).child(text(u8"HH", style)));
+  plain.composer.render(box().padding(20).children({text(u8"HH", style)}));
   plain.frame();
-  outlined.composer.render(box().padding(20).child(
-      text(u8"HH", style).textStroke(8.0f, Fill::color({0, 1, 0, 1}))));
+  outlined.composer.render(box().padding(20).children(
+      {text(u8"HH", style).textStroke(8.0f, Fill::color({0, 1, 0, 1}))}));
   outlined.frame();
 
   // The letterform bodies still paint in the fill colour…
@@ -601,11 +604,12 @@ TEST(ComposeText, TextStrokeComposesWithTextFill) {
   // The stroke is a pass BENEATH whatever fills the letterforms, so the
   // two spell "engraved chrome type" together rather than fighting.
   Host host(320, 160);
-  host.composer.render(box().padding(20).child(
-      text(u8"HH", whiteStyle(96))
-          .textStroke(9.0f, Fill::color({0, 1, 0, 1}))
-          .textFill(material::skia::Paint::linearUnit(
-              {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))));
+  host.composer.render(box().padding(20).children(
+      {text(u8"HH", whiteStyle(96))
+           .textStroke(9.0f, Fill::color({0, 1, 0, 1}))
+           .textFill(material::skia::Paint::linearUnit(
+               {0, 0}, {0, 1},
+               {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
   int green = 0, ramp = 0;
   for (int y = 0; y < 160; ++y)
@@ -717,8 +721,8 @@ TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
       stops.push_back({t, {v, v, v, 1}});
     }
     Host host(256, 32);
-    host.composer.render(box().child(box().absolute().inset(0).fill(
-        material::skia::Paint::linearUnit({0, 0}, {1, 0}, stops))));
+    host.composer.render(box().children({box().absolute().inset(0).fill(
+        material::skia::Paint::linearUnit({0, 0}, {1, 0}, stops))}));
     host.frame();
     // Count the light/dark transitions across the middle scanline.
     int flips = 0;
@@ -739,9 +743,9 @@ TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
 
   // Degenerate counts still behave.
   Host one(64, 64);
-  one.composer.render(box().child(
-      box().absolute().inset(0).fill(material::skia::Paint::linearUnit(
-          {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}}))));
+  one.composer.render(box().children(
+      {box().absolute().inset(0).fill(material::skia::Paint::linearUnit(
+          {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}}))}));
   one.frame();
   EXPECT_GT(SkColorGetR(one.pixel(32, 32)), 200);
 }

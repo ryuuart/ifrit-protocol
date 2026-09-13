@@ -52,14 +52,13 @@ const std::u8string& flowBody() {
 
 /** One paragraph flowing around one keyed target of the caller's making. */
 Element flowScene(Element target, float margin) {
-  return stack()
-      .child(std::move(target))
-      .child(box()
-                 .inset(0)
-                 .child(text(flowBody(), whiteStyle(15))
-                            .key("body")
-                            .flowAround("obstacle", margin))
-                 .zIndex(1));
+  return stack().children(
+      {std::move(target), box()
+                              .inset(0)
+                              .children({text(flowBody(), whiteStyle(15))
+                                             .key("body")
+                                             .flowAround("obstacle", margin)})
+                              .zIndex(1)});
 }
 
 Element obstacleBox(Shape silhouette) {
@@ -130,21 +129,20 @@ TEST(ComposeDerive, FlowAroundMarginHoldsOffTheSilhouette) {
 TEST(ComposeDerive, FlowAroundSilhouetteTracksAMovingTarget) {
   // Moving targets already re-derive; a silhouette target must too.
   auto scene = [](float left) {
-    return stack()
-        .child(box()
-                   .key("obstacle")
-                   .width(160)
-                   .height(160)
-                   .left(left)
-                   .top(40)
-                   .shape(geometry::shapes::circle())
-                   .fill(Fill::color({0, 0.4f, 0, 1})))
-        .child(box()
-                   .inset(0)
-                   .child(text(flowBody(), whiteStyle(15))
-                              .key("body")
-                              .flowAround("obstacle", 6))
-                   .zIndex(1));
+    return stack().children({box()
+                                 .key("obstacle")
+                                 .width(160)
+                                 .height(160)
+                                 .left(left)
+                                 .top(40)
+                                 .shape(geometry::shapes::circle())
+                                 .fill(Fill::color({0, 0.4f, 0, 1})),
+                             box()
+                                 .inset(0)
+                                 .children({text(flowBody(), whiteStyle(15))
+                                                .key("body")
+                                                .flowAround("obstacle", 6)})
+                                 .zIndex(1)});
   };
   Host host(360, 460);
   host.composer.render(scene(100));
@@ -170,8 +168,8 @@ TEST(ComposeShapeValues, CustomOutlineShapesFillAndClip) {
     return b.detach();
   };
   host.composer.render(
-      box().width(100).height(100).clip().shape(diamond).fill(red()).child(
-          box().inset(0).absolute().fill(green())));
+      box().width(100).height(100).clip().shape(diamond).fill(red()).children(
+          {box().inset(0).absolute().fill(green())}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorGREEN);  // clipped child inside
   EXPECT_EQ(host.pixel(3, 3), SK_ColorBLACK);    // box corner outside shape
@@ -191,21 +189,21 @@ TEST(ComposeShapeValues, RoundedOutlineCutsSharpCorners) {
   // Nested (the root always fills the viewport); radius 20 pulls the
   // 100x100 diamond's top vertex from y=0 down to y≈7.
   host.composer.render(
-      box().child(box()
-                      .width(100)
-                      .height(100)
-                      .shape(geometry::shapes::rounded(diamond, 20))
-                      .fill(red())));
+      box().children({box()
+                          .width(100)
+                          .height(100)
+                          .shape(geometry::shapes::rounded(diamond, 20))
+                          .fill(red())}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);   // body intact
   EXPECT_EQ(host.pixel(50, 3), SK_ColorBLACK);  // sharp tip rounded away
   EXPECT_EQ(host.pixel(50, 12), SK_ColorRED);   // rounded apex below y≈7
 
-  host.composer.render(box().child(box()
-                                       .width(100)
-                                       .height(100)
-                                       .shape(geometry::shapes::star(5))
-                                       .fill(red())));
+  host.composer.render(box().children({box()
+                                           .width(100)
+                                           .height(100)
+                                           .shape(geometry::shapes::star(5))
+                                           .fill(red())}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);    // star body
   EXPECT_NE(host.pixel(50, 3), SK_ColorBLACK);   // sharp top point present
@@ -215,8 +213,8 @@ TEST(ComposeShapeValues, RoundedOutlineCutsSharpCorners) {
 TEST(ComposeShapeValues, PerCornerRadiiIndependent) {
   Host host;
   // Sharp top-left, heavily rounded top-right.
-  host.composer.render(box().child(
-      box().width(100).height(100).corners({0, 40, 0, 0}).fill(red())));
+  host.composer.render(box().children(
+      {box().width(100).height(100).corners({0, 40, 0, 0}).fill(red())}));
   host.frame();
   EXPECT_EQ(host.pixel(2, 2), SK_ColorRED);     // sharp TL corner filled
   EXPECT_EQ(host.pixel(97, 2), SK_ColorBLACK);  // rounded TR corner empty
@@ -228,18 +226,17 @@ TEST(ComposeShapeValues, PerCornerRadiiIndependent) {
 
 TEST(ComposeShapeValues, PolygonAndSquircleSilhouettes) {
   Host host;
-  host.composer.render(box()
-                           .row()
-                           .child(box()
-                                      .width(90)
-                                      .height(90)
-                                      .shape(geometry::shapes::polygon(6))
-                                      .fill(red()))
-                           .child(box()
-                                      .width(90)
-                                      .height(90)
-                                      .shape(geometry::shapes::squircle(4))
-                                      .fill(green())));
+  host.composer.render(
+      box().row().children({box()
+                                .width(90)
+                                .height(90)
+                                .shape(geometry::shapes::polygon(6))
+                                .fill(red()),
+                            box()
+                                .width(90)
+                                .height(90)
+                                .shape(geometry::shapes::squircle(4))
+                                .fill(green())}));
   host.frame();
   EXPECT_EQ(host.pixel(45, 45), SK_ColorRED);     // hexagon body
   EXPECT_EQ(host.pixel(2, 2), SK_ColorBLACK);     // hexagon corner cut
@@ -262,11 +259,11 @@ TEST(ComposeShapeValues, AStockGeneratorShapePrunes) {
   // nothing reports it.
   Host host;
   auto tree = [] {
-    return box().child(box()
-                           .width(100)
-                           .height(100)
-                           .shape(geometry::shapes::star(5, 0.5f, 0.12f))
-                           .fill(red()));
+    return box().children({box()
+                               .width(100)
+                               .height(100)
+                               .shape(geometry::shapes::star(5, 0.5f, 0.12f))
+                               .fill(red())});
   };
   host.composer.render(tree());
   host.frame();
@@ -284,11 +281,11 @@ TEST(ComposeShapeValues, AChangedParameterPatchesAndMovesPixels) {
   // different parameter is a different value, patches, and redraws.
   Host host;
   auto tree = [](int sides) {
-    return box().child(box()
-                           .width(100)
-                           .height(100)
-                           .shape(geometry::shapes::polygon(sides))
-                           .fill(red()));
+    return box().children({box()
+                               .width(100)
+                               .height(100)
+                               .shape(geometry::shapes::polygon(sides))
+                               .fill(red())});
   };
   host.composer.render(tree(4));  // diamond: box corners empty
   host.frame();
@@ -307,15 +304,16 @@ TEST(ComposeShapeValues, ARawCallableIsTheEscapeHatchAndStaysConservative) {
   // fact changed. An author who needs the prune wraps the node in memo().
   Host host;
   auto tree = [] {
-    return box().child(box()
-                           .width(100)
-                           .height(100)
-                           .shape([](SkSize s) {
-                             SkPathBuilder b;
-                             b.addOval(SkRect::MakeWH(s.width(), s.height()));
-                             return b.detach();
-                           })
-                           .fill(red()));
+    return box().children({box()
+                               .width(100)
+                               .height(100)
+                               .shape([](SkSize s) {
+                                 SkPathBuilder b;
+                                 b.addOval(
+                                     SkRect::MakeWH(s.width(), s.height()));
+                                 return b.detach();
+                               })
+                               .fill(red())});
   };
   host.composer.render(tree());
   host.frame();
@@ -411,12 +409,12 @@ TEST(ComposeShapeValues,
   // entirely cached.
   Host host;
   auto tree = [] {
-    return box().child(box()
-                           .width(120)
-                           .height(120)
-                           .shape(geometry::shapes::circle())
-                           .fill(red())
-                           .cache(Cache::Texture));
+    return box().children({box()
+                               .width(120)
+                               .height(120)
+                               .shape(geometry::shapes::circle())
+                               .fill(red())
+                               .cache(Cache::Texture)});
   };
   host.composer.render(tree());
   host.frame();  // records + bakes once
@@ -431,21 +429,20 @@ TEST(ComposeShapeValues,
 
 TEST(ComposeQueries, HitTestHonorsShapeAndRotation) {
   Host host;
-  host.composer.render(box()
-                           .child(box()
-                                      .key("star")
-                                      .width(100)
-                                      .height(100)
-                                      .shape(geometry::shapes::star(5))
-                                      .fill(red()))
-                           .child(box()
-                                      .key("spun")
-                                      .width(80)
-                                      .height(20)
-                                      .inset(60, 140, 60, 40)
-                                      .absolute()
-                                      .rotate(90.0f)
-                                      .fill(green())));
+  host.composer.render(box().children({box()
+                                           .key("star")
+                                           .width(100)
+                                           .height(100)
+                                           .shape(geometry::shapes::star(5))
+                                           .fill(red()),
+                                       box()
+                                           .key("spun")
+                                           .width(80)
+                                           .height(20)
+                                           .inset(60, 140, 60, 40)
+                                           .absolute()
+                                           .rotate(90.0f)
+                                           .fill(green())}));
   host.frame();
   EXPECT_EQ(host.composer.hitTest({50, 50}).value_or(""), "star");
   // Between the star's arms: inside the box, outside the silhouette.
@@ -469,10 +466,10 @@ TEST(ComposeLayouts, RadialPlacesChildrenOnTheRing) {
     dots.push_back(
         box().width(10).height(10).fill(red()).key("d" + std::to_string(i)));
   host.composer.render(
-      box().child(layout(layouts::Radial{.radiusFraction = 0.8f})
-                      .width(200)
-                      .height(200)
-                      .children(dots)));
+      box().children({layout(layouts::Radial{.radiusFraction = 0.8f})
+                          .width(200)
+                          .height(200)
+                          .children(dots)}));
   host.frame();
   // Radius 80 from center (100,100), starting up, clockwise quarters.
   auto center = [&](const char* k) {
@@ -494,11 +491,11 @@ TEST(ComposeLayouts, AlongPathFollowsAStarContour) {
   for (int i = 0; i < 10; ++i)
     beads.push_back(
         box().width(6).height(6).fill(green()).key("b" + std::to_string(i)));
-  host.composer.render(
-      box().child(layout(layouts::AlongPath{.path = geometry::shapes::star(5)})
-                      .width(180)
-                      .height(180)
-                      .children(beads)));
+  host.composer.render(box().children(
+      {layout(layouts::AlongPath{.path = geometry::shapes::star(5)})
+           .width(180)
+           .height(180)
+           .children(beads)}));
   host.frame();
   // First bead sits on the star's top point (contour start).
   auto b0 = host.composer.bounds("b0");
@@ -521,12 +518,12 @@ TEST(ComposeLayouts, BaselineGridSnapsBottomsAndBaselines) {
   // Non-text children anchor by BOTTOM: heights 15 & 27 on rhythm 20 land
   // their bottoms on grid lines 20 and 60 (flow 20+27=47 rounds up).
   Host host;
-  host.composer.render(box().child(
-      layout(layouts::BaselineGrid{.rhythm = 20})
-          .width(pct(100))
-          .grow(1)
-          .child(box().key("a").width(40).height(15).fill(red()))
-          .child(box().key("b").width(40).height(27).fill(blue()))));
+  host.composer.render(box().children(
+      {layout(layouts::BaselineGrid{.rhythm = 20})
+           .width(pct(100))
+           .grow(1)
+           .children({box().key("a").width(40).height(15).fill(red())})
+           .children({box().key("b").width(40).height(27).fill(blue())})}));
   host.frame();
   auto a = host.composer.bounds("a");
   auto b = host.composer.bounds("b");
@@ -538,11 +535,11 @@ TEST(ComposeLayouts, BaselineGridSnapsBottomsAndBaselines) {
   // 200 grid line, (200 - top) equals the baseline offset — strictly LESS
   // than the child's height (bottom-anchoring would make them equal).
   // Font-metric independent.
-  host.composer.render(
-      box().child(layout(layouts::BaselineGrid{.rhythm = 200})
-                      .width(pct(100))
-                      .grow(1)
-                      .child(text(u8"Xylograph", styleAt(40)).key("t"))));
+  host.composer.render(box().children(
+      {layout(layouts::BaselineGrid{.rhythm = 200})
+           .width(pct(100))
+           .grow(1)
+           .children({text(u8"Xylograph", styleAt(40)).key("t")})}));
   host.frame();
   auto t = host.composer.bounds("t");
   ASSERT_TRUE(t.has_value());
@@ -558,10 +555,10 @@ TEST(ComposeLayouts, JitteredIsDeterministicAndContained) {
     for (int i = 0; i < 9; ++i)
       bits.push_back(
           box().width(12).height(12).fill(blue()).key("s" + std::to_string(i)));
-    host.composer.render(box().child(layout(layouts::Jittered{.seed = seed})
-                                         .width(200)
-                                         .height(200)
-                                         .children(bits)));
+    host.composer.render(box().children({layout(layouts::Jittered{.seed = seed})
+                                             .width(200)
+                                             .height(200)
+                                             .children(bits)}));
     host.frame();
     std::vector<SkPoint> out;
     for (int i = 0; i < 9; ++i) {
@@ -608,12 +605,13 @@ Element tileChunk(const ChunkProps& p) {
     const int id = p.tiles[(size_t)i];
     const int atlasRow = id / 2, row = i / 4;
     const float sx = (float)(id % 2) * 8, sy = (float)atlasRow * 8;
-    chunk.child(image(atlas)
-                    .region(SkRect::MakeXYWH(sx, sy, 8, 8))
-                    .absolute()
-                    .inset((float)(i % 4) * kTilePx, (float)row * kTilePx, 0, 0)
-                    .width(kTilePx)
-                    .height(kTilePx));
+    chunk.children(
+        {image(atlas)
+             .region(SkRect::MakeXYWH(sx, sy, 8, 8))
+             .absolute()
+             .inset((float)(i % 4) * kTilePx, (float)row * kTilePx, 0, 0)
+             .width(kTilePx)
+             .height(kTilePx)});
   }
   return chunk;
 }
@@ -632,9 +630,9 @@ TEST(ComposeTiling, OnlyTouchedChunkRerecords) {
   auto maze = [&] {
     auto grid = box().row().wrapLines().width(2 * 4 * kTilePx);
     for (int c = 0; c < 4; ++c)
-      grid.child(
-          memo(chunks[(size_t)c], tileChunk).key("chunk" + std::to_string(c)));
-    return box().child(grid);
+      grid.children({memo(chunks[(size_t)c], tileChunk)
+                         .key("chunk" + std::to_string(c))});
+    return box().children({grid});
   };
 
   host.composer.render(maze());
@@ -673,11 +671,11 @@ TEST(ComposeLayouts, RadialRadiusAtGivesEachChildItsOwnRing) {
   for (int i = 0; i < 4; ++i)
     dots.push_back(
         box().width(10).height(10).fill(red()).key("r" + std::to_string(i)));
-  host.composer.render(box().child(
-      layout(layouts::Radial{.radiusFraction = 0.8f, .radiusAt = {0.4f, 0.8f}})
-          .width(200)
-          .height(200)
-          .children(dots)));
+  host.composer.render(box().children(
+      {layout(layouts::Radial{.radiusFraction = 0.8f, .radiusAt = {0.4f, 0.8f}})
+           .width(200)
+           .height(200)
+           .children(dots)}));
   host.frame();
   auto center = [&](const char* k) {
     auto r = host.composer.bounds(k);

@@ -54,11 +54,11 @@ TEST(SketchKitMeter, TheBarIsTheFractionOfTheTrack) {
                        .height(compose::Dimension(house.spacing.barHeight))
                        .fill(Fill::color(house.palette.cellGround))
                        .clip()
-                       .child(compose::box()
-                                  .width(compose::pct(40))
-                                  .height(compose::pct(100))
-                                  .fill(Fill::color(house.palette.figure))
-                                  .alignSelf(compose::Align::Stretch));
+                       .children({compose::box()
+                                      .width(compose::pct(40))
+                                      .height(compose::pct(100))
+                                      .fill(Fill::color(house.palette.figure))
+                                      .alignSelf(compose::Align::Stretch)});
   EXPECT_TRUE(sameDrawing(
       std::move(byHand),
       kit::meter({.fraction = 0.4f, .width = compose::Dimension(220)})));
@@ -70,10 +70,10 @@ TEST(SketchKitMeter, TheBarIsTheFractionOfTheTrack) {
  *  the horizontal one. */
 TEST(SketchKitMeter, TheBarFillsItsRailInsideAColumn) {
   const SkColor4f figure = kit::houseTheme().palette.figure;
-  SkBitmap drawn = Drawn(compose::box().column().child(
-                             kit::meter({.fraction = 0.5f,
-                                         .width = compose::Dimension(200),
-                                         .height = compose::Dimension(20)})))
+  SkBitmap drawn = Drawn(compose::box().column().children(
+                             {kit::meter({.fraction = 0.5f,
+                                          .width = compose::Dimension(200),
+                                          .height = compose::Dimension(20)})}))
                        .pixels();
   const SkColor4f pixel = drawn.getColor4f(40, 10);
   EXPECT_NEAR(pixel.fR, figure.fR, 0.02f);

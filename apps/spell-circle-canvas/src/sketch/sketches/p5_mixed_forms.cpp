@@ -63,10 +63,10 @@ struct P5MixedForms final : sketch::Sketch {
         .corners({12})
         .fill(compose::Fill::color({0.16f, 0.20f, 0.34f, 0.92f}))
         .font({.size = 15})
-        .child(compose::text(u8"a compose card, retained"))
-        .child(compose::text("frame " + std::to_string(frame))
-                   .font({.size = 12})
-                   .key("frame"));
+        .children({compose::text(u8"a compose card, retained"),
+                   compose::text("frame " + std::to_string(frame))
+                       .font({.size = 12})
+                       .key("frame")});
   }
 
   void setup(sketch::SketchContext& ctx) override {
@@ -81,10 +81,10 @@ struct P5MixedForms final : sketch::Sketch {
             // face, a size or a colour except where it means to change one.
             .font({.size = kDisplay, .track = 1.5f})
             .ink({1, 1, 1, 1})
-            .child(compose::graphics("p5_mixed_forms.loop",
-                                     [this](Pen& pen) { loop(pen); })
-                       .absolute()
-                       .inset(0)));
+            .children({compose::graphics("p5_mixed_forms.loop",
+                                         [this](Pen& pen) { loop(pen); })
+                           .absolute()
+                           .inset(0)}));
   }
 
   void loop(Pen& pen) {

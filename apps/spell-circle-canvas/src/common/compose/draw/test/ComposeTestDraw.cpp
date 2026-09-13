@@ -53,15 +53,15 @@ TEST(DrawNode, RunsThePenOverTheNodesBoxEveryFrame) {
   Host host;
   int runs = 0;
   float width = 0;
-  host.composer.render(stack().child(pen([&](Pen& pen) {
-                                       ++runs;
-                                       width = pen.width;
-                                       pen.noStroke();
-                                       pen.fill(255, 0, 0);
-                                       pen.rect(0, 0, 10, 10);
-                                     })
-                                         .width(50)
-                                         .height(40)));
+  host.composer.render(stack().children({pen([&](Pen& pen) {
+                                           ++runs;
+                                           width = pen.width;
+                                           pen.noStroke();
+                                           pen.fill(255, 0, 0);
+                                           pen.rect(0, 0, 10, 10);
+                                         })
+                                             .width(50)
+                                             .height(40)}));
   host.frame();
   EXPECT_EQ(runs, 1);
   EXPECT_FLOAT_EQ(width, 50.0f);
@@ -73,15 +73,15 @@ TEST(DrawNode, RunsThePenOverTheNodesBoxEveryFrame) {
 
 TEST(DrawNode, ThePenHoldsItsStyleFromFrameToFrame) {
   Host host;
-  host.composer.render(stack().child(pen([](Pen& pen) {
-                                       if (pen.frameCount == 1) {
-                                         pen.noStroke();
-                                         pen.fill(0, 0, 255);
-                                       }
-                                       pen.rect(0, 0, 20, 20);
-                                     })
-                                         .width(50)
-                                         .height(50)));
+  host.composer.render(stack().children({pen([](Pen& pen) {
+                                           if (pen.frameCount == 1) {
+                                             pen.noStroke();
+                                             pen.fill(0, 0, 255);
+                                           }
+                                           pen.rect(0, 0, 20, 20);
+                                         })
+                                             .width(50)
+                                             .height(50)}));
   host.frame();
   host.frame(1.0 / 60.0);
   EXPECT_EQ(host.pixel(10, 10), SK_ColorBLUE);
@@ -89,15 +89,15 @@ TEST(DrawNode, ThePenHoldsItsStyleFromFrameToFrame) {
 
 TEST(DrawNode, TheTransformStartsAtTheBox) {
   Host host;
-  host.composer.render(stack().child(pen([](Pen& pen) {
-                                       pen.noStroke();
-                                       pen.fill(0, 255, 0);
-                                       pen.rect(0, 0, 10, 10);
-                                     })
-                                         .width(30)
-                                         .height(30)
-                                         .left(60)
-                                         .top(70)));
+  host.composer.render(stack().children({pen([](Pen& pen) {
+                                           pen.noStroke();
+                                           pen.fill(0, 255, 0);
+                                           pen.rect(0, 0, 10, 10);
+                                         })
+                                             .width(30)
+                                             .height(30)
+                                             .left(60)
+                                             .top(70)}));
   host.frame();
   EXPECT_EQ(host.pixel(65, 75), SK_ColorGREEN);
   EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);
