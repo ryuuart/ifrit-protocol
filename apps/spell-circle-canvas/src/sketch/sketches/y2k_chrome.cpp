@@ -44,8 +44,8 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Ticker.h>
+#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/PaintLayer.h>
-#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>

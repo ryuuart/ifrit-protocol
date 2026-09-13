@@ -5,8 +5,6 @@
  */
 
 #include <sigilweave/layout/Block.h>
-#include <sigilweave/layout/ParagraphStyleSheet.h>
-#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -66,11 +64,6 @@ Element& Element::styleClass(std::string_view names) {
 
 Element& Element::styleSheet(sigil::weave::StyleSheet sheet) {
   m_node->cascadeData.ensure().sheet = std::move(sheet);
-  return *this;
-}
-
-Element& Element::styleSheet(sigil::weave::ParagraphStyleSheet blocks) {
-  m_node->cascadeData.ensure().blocks = std::move(blocks);
   return *this;
 }
 

@@ -1,7 +1,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilweave/style/StyleSheet.h>
+#include <sigilweave/layout/StyleSheet.h>
 
 #include <utility>
 

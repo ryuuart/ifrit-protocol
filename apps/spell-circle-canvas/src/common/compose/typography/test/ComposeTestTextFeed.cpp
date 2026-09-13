@@ -79,7 +79,7 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
     ring.append({"0412.50", "AUTH", "row " + std::to_string(i)});
   auto rowEl = [&](const StructuredRow& r) {
     auto line = sigil::weave::rich(styles.base())
-                    .styles(styles)
+                    .styles(styles.types())
                     .add(toUtf8(r.ts + "  "), "ts")
                     .add(toUtf8(r.tag + "  "), "tag")
                     .add(toUtf8(r.body));

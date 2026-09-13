@@ -4,7 +4,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/kit/Cells.h>
-#include <sigilweave/style/StyleSheet.h>
+#include <sigilweave/layout/StyleSheet.h>
 
 #include <utility>
 #include <vector>

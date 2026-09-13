@@ -33,6 +33,6 @@
 #include "sigilweave/style/PaintLayer.h"
 #include "sigilweave/style/PaintStyle.h"
 #include "sigilweave/style/ShapingStyle.h"
-#include "sigilweave/style/StyleSheet.h"
 #include "sigilweave/style/TextStyle.h"
 #include "sigilweave/style/Type.h"
+#include "sigilweave/style/TypeSheet.h"

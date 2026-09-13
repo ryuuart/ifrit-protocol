@@ -8,10 +8,10 @@
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Measure.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Length.h>
-#include <sigilweave/style/StyleSheet.h>
 
 #include <array>
 

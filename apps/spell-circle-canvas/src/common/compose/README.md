@@ -562,17 +562,19 @@ the sheet the component carries on those lines (`kit::Caption::styles`,
 so a partial inside it resolves against the bake's root.
 
 **A sheet is a value on the tree, and a class is a name resolved
-against it.** `Element::styleSheet` states a `weave::StyleSheet`, or a
-`weave::ParagraphStyleSheet`, on any node; it is in force for that node
-and everything under it, inherited as the font is, and a nearer sheet's
-entries stand over a farther one's by name, so a subtree carries a look
-of its own. A sheet is spelled as a literal, an entry per class —
-`weave::StyleSheet{{"note", {.size = 11}}, {"dim", {.color = grey}}}`.
+against it.** `Element::styleSheet` states a `weave::StyleSheet` on any node; it is in
+force for that node and everything under it, inherited as the font is,
+and a nearer sheet's rules stand over a farther one's by name, so a
+subtree carries a look of its own. A sheet is a literal of `weave::Rule`s,
+one per class, each a type half and a block half — `{"note", {.size =
+11}}` names the type half by its fields, `{"lead", {.firstLineIndent =
+24}}` the block half, and `weave::rule("body").font({.size =
+19.5f}).block({.leading = Leading::multiple(1.35f)})` both, with the verbs
+a tree is written with.
 `Element::styleClass` names classes: several in one call, separated by
 spaces as CSS's class attribute lists them. The cascade pass resolves
-each name against the sheets in force where the element LANDS — the
-`weave::Type` the text sheet registers and the `weave::Block` the block
-sheet registers, whichever carries it — and the fields a class sets
+each name against the sheet in force where the element LANDS — the rule's
+type half and its block half, whichever it states — and the fields a class sets
 inherit down the tree like any `font()` or `block()`. Specificity is
 flat and stated: an inherited value loses to a class, between classes
 the SHEET's order decides (a later entry over an earlier, whatever order
@@ -580,17 +582,13 @@ the names were written in), and a class loses to the node's own `font()`
 or `block()`, so `styleClass("cell", {.color = c})` is the cell class in
 this cell's colour. A name no sheet in force carries warns once and sets
 nothing. A run of a `weave::rich()` value written with a name resolves
-the same way when the leaf is shaped, unless the value names a sheet of
-its own. The two sheets are one class because the include graph keeps
-them apart: the text sheet is the style vocabulary's, which the rich-text
-feature reads, and a block's fields are the layout's, which sits above
-it.
+the same way when the leaf is shaped, through the sheet's type half,
+unless the value names a `weave::TypeSheet` of its own.
 `weave::rich()` started with no base
 is an inheriting passage: a run added with a partial keeps the inherited
 face and size in every field it does not name, and only a run added with
 a whole style keeps the style it was written with. Blocks have the same
-discipline through `sigil::weave::ParagraphStyleSheet` and
-`Element::paragraphs`.
+discipline through the block half of the sheet and `Element::paragraphs`.
 
 **A custom property is set on a node and read by anything under it.**
 `Element::var` sets one; `var(name)` reads it as a `Dimension`,

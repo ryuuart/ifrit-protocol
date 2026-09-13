@@ -1,6 +1,6 @@
 /** @file
  * The style vocabulary as plain values: the fluent variation sugar, the
- * paint-layer presets and their order, the StyleSheet's lookup, replacement
+ * paint-layer presets and their order, the TypeSheet's lookup, replacement
  * and equality, and the partial `Type` a call site names a style's numbers
  * in — what it overlays, what it leaves alone, and how a relative length
  * becomes pixels. The feature preset tags are settled by the compiler where
@@ -20,7 +20,7 @@ using namespace sigil::weave;
 
 // The umbrella still spells every subject, and a sheet's entries are the
 // PARTIALS a class is, not whole styles.
-static_assert(std::is_same_v<StyleSheet::Entry::second_type, Type>);
+static_assert(std::is_same_v<TypeSheet::Entry::second_type, Type>);
 
 TEST(TextStyle, TheFluentSugarAppendsInTheOrderItWasCalled) {
   // weight()/opticalSize()/variation() replace in place when the axis is
@@ -73,12 +73,12 @@ TEST(PaintStyle, PaintLayersExposeCompletePaintAndExplicitOrder) {
   EXPECT_FALSE(identical == style);
 }
 
-TEST(StyleSheet, AClassResolvesThroughTheSheetAndAnAbsentNameAnswersTheBase) {
+TEST(TypeSheet, AClassResolvesThroughTheSheetAndAnAbsentNameAnswersTheBase) {
   TextStyle base;
   base.shaping.fontSize = 12.0f;
   base.paint.foreground.setColor4f({1, 1, 1, 1}, nullptr);
 
-  StyleSheet styles(base);
+  TypeSheet styles(base);
   // The class states only the colour — the size is the base's, which is the
   // whole point of an entry being a partial.
   styles.set("alert", Type{.color = SkColor4f{1, 0, 0, 1}});
@@ -102,11 +102,11 @@ TEST(StyleSheet, AClassResolvesThroughTheSheetAndAnAbsentNameAnswersTheBase) {
   EXPECT_EQ(styles.size(), 1u) << "a failed lookup must not register a name";
 
   // A default-constructed sheet still answers: the base is a default style.
-  EXPECT_TRUE(StyleSheet{}["anything"] == TextStyle{});
+  EXPECT_TRUE(TypeSheet{}["anything"] == TextStyle{});
 }
 
-TEST(StyleSheet, ALiteralSpellsTheEntriesInOrderAndALaterNameReplaces) {
-  const sigil::weave::StyleSheet sheet{
+TEST(TypeSheet, ALiteralSpellsTheEntriesInOrderAndALaterNameReplaces) {
+  const sigil::weave::TypeSheet sheet{
       {"a", {.size = 1}}, {"b", {.size = 2}}, {"a", {.size = 3}}};
   ASSERT_EQ(sheet.size(), 2u);
   EXPECT_EQ(sheet.entries()[0].first, "a");
@@ -115,11 +115,11 @@ TEST(StyleSheet, ALiteralSpellsTheEntriesInOrderAndALaterNameReplaces) {
   EXPECT_EQ(*sheet.find("b")->size, 2);
 }
 
-TEST(StyleSheet, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
+TEST(TypeSheet, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
   const Type small{.size = 9.0f};
   const Type large{.size = 24.0f};
 
-  StyleSheet a;
+  TypeSheet a;
   a.set("head", small).set("body", large);
   EXPECT_EQ(a.size(), 2u);
   EXPECT_EQ(a.entries()[0].first, "head") << "entries keep insertion order";
@@ -130,9 +130,9 @@ TEST(StyleSheet, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
   EXPECT_EQ(a.entries()[0].first, "head");
   EXPECT_FLOAT_EQ(a["head"].shaping.fontSize, 24.0f);
 
-  // Equality is what lets a StyleSheet ride inside a larger comparable
+  // Equality is what lets a TypeSheet ride inside a larger comparable
   // value: same base, same entries, same order.
-  StyleSheet b;
+  TypeSheet b;
   b.set("head", large).set("body", large);
   EXPECT_TRUE(a == b);
   TextStyle other;
@@ -140,11 +140,11 @@ TEST(StyleSheet, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
   b.base(other);
   EXPECT_FALSE(a == b) << "the base participates in equality";
 
-  StyleSheet reordered;
+  TypeSheet reordered;
   reordered.set("body", large).set("head", large);
   EXPECT_FALSE(a == reordered) << "equality is order-sensitive";
 
-  StyleSheet extra = a;
+  TypeSheet extra = a;
   extra.set("note", small);
   EXPECT_FALSE(a == extra);
 }

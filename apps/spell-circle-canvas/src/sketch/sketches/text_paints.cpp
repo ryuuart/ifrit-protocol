@@ -36,8 +36,8 @@
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 namespace sketch = sigil::sketch;

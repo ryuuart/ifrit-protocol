@@ -196,11 +196,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // THE CUSTOM PROPERTIES IN FORCE: the parent's table shared when this
   // node sets none, or a copy of it with this node's own written over.
   std::shared_ptr<const VarTable> vars;
-  // THE SHEETS IN FORCE: the parent's shared when this node states none,
-  // or a copy of the parent's with this node's entries set over it by
-  // name. A class this node names resolves against them.
+  // THE SHEET IN FORCE: the parent's shared when this node states none,
+  // or a copy of the parent's with this node's rules set over it by name.
+  // A class this node names resolves against it.
   std::shared_ptr<const sigil::weave::StyleSheet> sheet;
-  std::shared_ptr<const sigil::weave::ParagraphStyleSheet> blocks;
   // Whether the pass has resolved this node at least once — before that,
   // `font` and `vars` are whatever the constructor left and nothing may
   // read them as the truth.

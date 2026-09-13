@@ -30,9 +30,9 @@
 #include <utility>
 #include <vector>
 
-#include "sigilweave/style/StyleSheet.h"
 #include "sigilweave/style/TextStyle.h"
 #include "sigilweave/style/Type.h"
+#include "sigilweave/style/TypeSheet.h"
 
 namespace sigil::weave {
 
@@ -58,7 +58,8 @@ namespace sigil::weave {
  *  identity and an edit history, and a freshly built one reads as new
  *  content however familiar its words are.
  *
- *  NAMES resolve through a `StyleSheet`, which `styles()` supplies. A name
+ *  NAMES resolve through a `TypeSheet` — the type half of a sheet — which
+ *  `styles()` supplies. A name
  *  the sheet does not register resolves to the base handed to `rich()` —
  *  the base is this text's one default, and a misspelled name shows as
  *  content set in it rather than as content that did not draw. Resolution
@@ -153,7 +154,7 @@ class RichText {
   RichText& slot(std::string name, SkSize size, float baselineDrop = 0);
   /** Supplies the style sheet names resolve through, and re-resolves every
    *  named run already added. */
-  RichText& styles(StyleSheet sheet);
+  RichText& styles(TypeSheet sheet);
 
   /** The style unstyled runs and unregistered names are set in. */
   [[nodiscard]] const TextStyle& base() const { return m_base; }
@@ -188,7 +189,7 @@ class RichText {
  private:
   TextStyle m_base;
   std::vector<Run> m_runs;
-  StyleSheet m_styles;
+  TypeSheet m_styles;
   bool m_hasBase = false;
   bool m_hasStyles = false;
 };

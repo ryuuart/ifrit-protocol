@@ -6,7 +6,7 @@
 #include <sigilcompose/kit/Ground.h>
 #include <sigilcompose/kit/Kit.h>
 #include <sigilcore/reconcile/Environment.h>
-#include <sigilweave/style/StyleSheet.h>
+#include <sigilweave/layout/StyleSheet.h>
 
 #include <cmath>
 #include <utility>

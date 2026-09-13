@@ -105,9 +105,9 @@ void detail::warnNoSuchClass(std::string_view name, bool anySheetInScope) {
   static thread_local boost::unordered_flat_set<std::string> warned;
   if (!warned.insert(std::string(name)).second) return;
   SkDebugf(
-      "[compose] styleClass(\"%.*s\") names a class neither the "
-      "weave::StyleSheet nor the weave::ParagraphStyleSheet in force where "
-      "the element lands carries%s — nothing was set, and the text under it "
+      "[compose] styleClass(\"%.*s\") names a class the weave::StyleSheet in "
+      "force where the element lands does not carry%s — nothing was set, and "
+      "the text under it "
       "is set in whatever it inherits. State a sheet with styleSheet() on "
       "the element or on any node above it, and register the name on it. "
       "(warned once)\n",
@@ -192,7 +192,7 @@ void Composer::Impl::runCascade() {
   inkAnimating = false;
   if (rootLineHeight <= 0.0f) rootLineHeight = lineHeightAt(rootFont);
   resolveCascade(*root, rootFont, rootLineHeight, nullptr, rootBlock,
-                 rootSampling, rootSheet, rootBlocks);
+                 rootSampling, rootSheet);
   // A running ink transition moves the colour every frame, so the next
   // frame resolves again; otherwise the answers stand until a reconcile
   // says otherwise.
@@ -204,40 +204,28 @@ void Composer::Impl::resolveCascade(
     float parentLineHeight, const std::shared_ptr<const VarTable>& parentVars,
     const sigil::weave::Block& parentBlock,
     const std::optional<SkSamplingOptions>& parentSampling,
-    const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet,
-    const std::shared_ptr<const sigil::weave::ParagraphStyleSheet>&
-        parentBlocks) {
+    const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet) {
   const ElementNode& node = *inst.description;
   sigil::weave::Type font = parentFont;
   std::shared_ptr<const VarTable> vars = parentVars;
   sigil::weave::Block block = parentBlock;
   std::optional<SkSamplingOptions> sampling = parentSampling;
   std::shared_ptr<const sigil::weave::StyleSheet> sheet = parentSheet;
-  std::shared_ptr<const sigil::weave::ParagraphStyleSheet> blocks =
-      parentBlocks;
   if (node.cascadeData) {
     const CascadeData& cascade = *node.cascadeData;
-    // The sheets this node states: its entries over the inherited ones by
+    // The sheet this node states: its rules over the inherited ones by
     // name, its base standing, the result shared with everything under it.
     if (cascade.sheet) {
       auto own = std::make_shared<sigil::weave::StyleSheet>(
           parentSheet ? *parentSheet : sigil::weave::StyleSheet{});
       own->base(cascade.sheet->base());
-      for (const auto& entry : cascade.sheet->entries())
-        own->set(entry.first, entry.second);
+      for (const sigil::weave::Rule& r : cascade.sheet->rules()) own->set(r);
       sheet = std::move(own);
-    }
-    if (cascade.blocks) {
-      auto own = std::make_shared<sigil::weave::ParagraphStyleSheet>(
-          parentBlocks ? *parentBlocks : sigil::weave::ParagraphStyleSheet{});
-      for (const auto& entry : cascade.blocks->entries())
-        own->set(entry.first, entry.second);
-      blocks = std::move(own);
     }
     // THE CLASSES, then the node's own partials over them: a class's
     // fields are the node's unless the node states the field itself, as an
     // inline style beats a class. Between classes the SHEET's order
-    // decides, a later entry over an earlier one, so the order the names
+    // decides, a later rule over an earlier one, so the order the names
     // were written in means nothing, as it means nothing in a class
     // attribute. Both are laid over the PARENT's font in one overlay, so a
     // relative size in either is measured against the size inherited.
@@ -246,32 +234,24 @@ void Composer::Impl::resolveCascade(
     if (!cascade.classes.empty()) {
       sigil::weave::Type classFont;
       sigil::weave::Block classBlock;
-      bool anyFont = false, anyBlock = false;
+      bool any = false;
       const auto named = [&](std::string_view name) {
         return std::find(cascade.classes.begin(), cascade.classes.end(),
                          name) != cascade.classes.end();
       };
       if (sheet)
-        for (const auto& entry : sheet->entries())
-          if (named(entry.first)) {
-            sigil::weave::merge(classFont, entry.second);
-            anyFont = true;
-          }
-      if (blocks)
-        for (const auto& entry : blocks->entries())
-          if (named(entry.first)) {
-            sigil::weave::merge(classBlock, entry.second);
-            anyBlock = true;
+        for (const sigil::weave::Rule& r : sheet->rules())
+          if (named(r.name())) {
+            sigil::weave::merge(classFont, r.type());
+            sigil::weave::merge(classBlock, r.block());
+            any = true;
           }
       for (const std::string& name : cascade.classes)
-        if (!(sheet && sheet->contains(name)) &&
-            !(blocks && blocks->contains(name)))
-          warnNoSuchClass(name, sheet != nullptr || blocks != nullptr);
-      if (anyFont) {
+        if (!(sheet && sheet->contains(name)))
+          warnNoSuchClass(name, sheet != nullptr);
+      if (any) {
         if (ownFont) sigil::weave::merge(classFont, *ownFont);
         ownFont = std::move(classFont);
-      }
-      if (anyBlock) {
         if (ownBlock) sigil::weave::merge(classBlock, *ownBlock);
         ownBlock = std::move(classBlock);
       }
@@ -319,7 +299,6 @@ void Composer::Impl::resolveCascade(
   inst.block = block;
   inst.sampling = sampling;
   inst.sheet = sheet;
-  inst.blocks = blocks;
   inst.cascadeResolved = true;
   if (shapeChanged) inst.lineHeight = lineHeightAt(font);
 
@@ -373,8 +352,7 @@ void Composer::Impl::resolveCascade(
     contentDirty = true;
   }
   for (auto& child : inst.children)
-    resolveCascade(*child, font, inst.lineHeight, vars, block, sampling, sheet,
-                   blocks);
+    resolveCascade(*child, font, inst.lineHeight, vars, block, sampling, sheet);
 }
 
 void Composer::Impl::refreshInheritedInk(Instance& inst) {

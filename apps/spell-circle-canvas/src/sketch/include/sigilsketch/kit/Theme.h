@@ -14,7 +14,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcore/reconcile/Environment.h>
-#include <sigilweave/style/StyleSheet.h>
+#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/TextStyle.h>
 #include <sigilweave/style/Type.h>
 

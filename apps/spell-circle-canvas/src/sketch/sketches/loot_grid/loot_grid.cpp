@@ -2,7 +2,7 @@
 
 // TAGS: Interfaces/Game
 
-#include <sigilweave/style/StyleSheet.h>
+#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include "Inventory.h"

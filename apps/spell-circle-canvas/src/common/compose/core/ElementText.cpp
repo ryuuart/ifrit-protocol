@@ -10,7 +10,6 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf — the rest-of-non-text diagnostic
-#include <sigilweave/layout/ParagraphStyleSheet.h>
 #include <sigilweave/unicode/Unicode.h>
 
 #include "ComposeInternal.h"

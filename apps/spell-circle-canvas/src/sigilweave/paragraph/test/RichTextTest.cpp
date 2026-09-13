@@ -47,7 +47,7 @@ TEST(RichText, RunsConcatenateInTheOrderTheyWereAdded) {
 
 TEST(RichText, NamesResolveThroughAStyleSheetInEitherOrder) {
   const TextStyle base = colored(SK_ColorWHITE);
-  StyleSheet reds;
+  TypeSheet reds;
   reds.set("accent", Type{.color = SkColor4f{1, 0, 0, 1}});
 
   const RichText after = rich(base).add(u8"x", "accent").styles(reds);
@@ -62,7 +62,7 @@ TEST(RichText, NamesResolveThroughAStyleSheetInEitherOrder) {
 
 TEST(RichText, AnUnregisteredNameResolvesToTheBase) {
   const TextStyle base = colored(SK_ColorWHITE);
-  StyleSheet reds;
+  TypeSheet reds;
   reds.set("accent", Type{.color = SkColor4f{1, 0, 0, 1}});
   const RichText unknown = rich(base).add(u8"x", "nope").styles(reds);
   EXPECT_EQ(colorOf(unknown, 0), SK_ColorWHITE)
@@ -77,7 +77,7 @@ TEST(RichText, AStyleSheetIsInPlayOnlyOnceGiven) {
   // What a host offering an ambient registry asks before it supplies one.
   const RichText none = rich(colored(SK_ColorWHITE)).add(u8"x", "accent");
   EXPECT_FALSE(none.hasStyles());
-  StyleSheet reds;
+  TypeSheet reds;
   reds.set("accent", Type{.color = SkColor4f{1, 0, 0, 1}});
   RichText given = none;
   EXPECT_TRUE(given.styles(reds).hasStyles());
@@ -109,9 +109,9 @@ TEST(RichText, EqualityIsTheBaseTheRunsAndTheirResolvedStyles) {
 
   // The SHEET is not compared: two values that resolved to the same styles
   // describe the same passage however they got there.
-  StyleSheet reds;
+  TypeSheet reds;
   reds.set("accent", Type{.color = SkColor4f{1, 0, 0, 1}});
-  StyleSheet more = reds;
+  TypeSheet more = reds;
   more.set("unused", Type{.color = SkColor4f{0, 0, 1, 1}});
   EXPECT_TRUE(rich(base).add(u8"x", "accent").styles(reds) ==
               rich(base).add(u8"x", "accent").styles(more));

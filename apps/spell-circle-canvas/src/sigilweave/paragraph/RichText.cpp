@@ -95,7 +95,7 @@ RichText& RichText::slot(std::string name, SkSize size, float baselineDrop) {
   return *this;
 }
 
-RichText& RichText::styles(StyleSheet sheet) {
+RichText& RichText::styles(TypeSheet sheet) {
   m_styles = std::move(sheet);
   m_hasStyles = true;
   for (Run& run : m_runs) {

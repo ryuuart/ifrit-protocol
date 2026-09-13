@@ -24,9 +24,9 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
-#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <string_view>

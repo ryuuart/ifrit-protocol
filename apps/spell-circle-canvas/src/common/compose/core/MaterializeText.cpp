@@ -60,7 +60,7 @@ void Composer::Impl::materializeText(
     const bool bySheet = !text.rich.hasStyles() && inst.sheet != nullptr;
     if (bySheet) {
       resolved = text.rich;
-      resolved.styles(*inst.sheet);
+      resolved.styles(inst.sheet->types());
     }
     const sigil::weave::RichText& rich = bySheet ? resolved : text.rich;
     for (const sigil::weave::RichText::Run& run : rich.runs()) {
@@ -284,11 +284,11 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
     // nobody registered changes nothing about its block, and says so.
     options.blocks.clear();
     for (const std::string& name : text.options.blockClassNames) {
-      const sigil::weave::Block* found =
-          inst.blocks ? inst.blocks->find(name) : nullptr;
-      if (!found) warnNoSuchParagraphStyle(name, inst.blocks != nullptr);
-      options.blocks.push_back(found ? sigil::weave::overlay(lane, *found)
-                                     : lane);
+      const sigil::weave::Rule* found =
+          inst.sheet ? inst.sheet->find(name) : nullptr;
+      if (!found) warnNoSuchParagraphStyle(name, inst.sheet != nullptr);
+      options.blocks.push_back(
+          found ? sigil::weave::overlay(lane, found->block()) : lane);
     }
   }
   if ((text.options.set & TextOptions::kInitialLetter) &&

@@ -99,8 +99,9 @@ TEST(TextRich, NamedRunsResolveThroughTheSheetInForce) {
             SK_ColorRED)
       << "the sheet in force never reached the leaf";
   EXPECT_EQ(
-      accentColor(sigil::weave::rich(base).add(u8"x", "accent").styles(greens),
-                  &reds),
+      accentColor(
+          sigil::weave::rich(base).add(u8"x", "accent").styles(greens.types()),
+          &reds),
       SK_ColorGREEN)
       << "an explicit style set must beat the one in force";
   // No sheet on the tree: nothing is offered, so rich()'s own base answers.
@@ -224,7 +225,7 @@ sigil::weave::StyleSheet glossarySet(SkColor termColor, float termSize) {
  *  written under the name and the middle one is not. */
 sigil::weave::RichText glossaryCopy(const sigil::weave::StyleSheet& set) {
   sigil::weave::RichText copy = sigil::weave::rich(set.base());
-  copy.styles(set)
+  copy.styles(set.types())
       .add(u8"alpha ")
       .add(u8"beta", "term")
       .add(u8" gamma ")

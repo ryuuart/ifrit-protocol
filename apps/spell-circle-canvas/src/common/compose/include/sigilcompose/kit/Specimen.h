@@ -23,7 +23,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Utf8.h>
-#include <sigilweave/style/StyleSheet.h>
+#include <sigilweave/layout/StyleSheet.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -43,9 +43,10 @@ namespace sigil::compose::kit {
  *  them and the body, and the width either wraps at. One value per sheet,
  *  handed to every cell on it, so the sheet has one voice.
  *
- *  NO TYPE IS HERE. A label is set in the class `captionLabel` of the
- *  sheet in scope and a note in `captionNote`, so what the two lines look
- *  like is one entry each in the sheet the caller binds. */
+ *  NO TYPE IS HERE. A label is set in the class `captionLabel` and a note
+ *  in `captionNote` of the sheet in force where the cell lands — or of
+ *  `styles`, the sheet the caption carries for its own two lines — so
+ *  what they look like is one rule each in a sheet. */
 struct Caption {
   /** WHERE THE CAPTION'S LINES STAND relative to the body.
    *

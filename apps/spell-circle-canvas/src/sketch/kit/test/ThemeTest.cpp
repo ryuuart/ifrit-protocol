@@ -122,18 +122,18 @@ TEST(SketchKitTheme, TheRegistersAreClassesUnderABoundTheme) {
     ASSERT_NE(classes, nullptr);
     EXPECT_EQ(classes->size(), 7u);
     ASSERT_NE(classes->find("eyebrow"), nullptr);
-    EXPECT_EQ(*classes->find("eyebrow"), house.font(house.type.eyebrow))
+    EXPECT_EQ(classes->find("eyebrow")->type(), house.font(house.type.eyebrow))
         << "a register a sheet sets inside its content names no colour";
-    EXPECT_EQ(*classes->find("captionLabel"),
+    EXPECT_EQ(classes->find("captionLabel")->type(),
               house.font(house.type.captionLabel, house.palette.ink))
         << "a class carries its whole look, colour included";
-    EXPECT_EQ(*classes->find("captionNote"),
+    EXPECT_EQ(classes->find("captionNote")->type(),
               house.font(house.type.captionNote, house.palette.ash));
-    EXPECT_EQ(*classes->find("title"),
+    EXPECT_EQ(classes->find("title")->type(),
               house.font(house.type.title, house.palette.ink));
-    EXPECT_EQ(*classes->find("subtitle"),
+    EXPECT_EQ(classes->find("subtitle")->type(),
               house.font(house.type.subtitle, house.palette.ash));
-    EXPECT_EQ(*classes->find("footer"),
+    EXPECT_EQ(classes->find("footer")->type(),
               house.font(house.type.footer, house.palette.ash));
 
     sigil::weave::StyleSheet own = house.styleSheet();

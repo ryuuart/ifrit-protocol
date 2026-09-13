@@ -51,7 +51,7 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilweave/style/StyleSheet.h>
+#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 #include <sigilworld/kit/Kit.h>
 

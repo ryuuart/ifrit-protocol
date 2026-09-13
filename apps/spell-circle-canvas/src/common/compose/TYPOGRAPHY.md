@@ -87,7 +87,7 @@ position: every run a `weave::rich()` value added under a style name
 `sigil::weave::StyleSheet`).
 
 ```cpp
-text(weave::rich(base).styles(set)
+text(weave::rich(base).styles(set.types())
          .add(u8"gusting ").add(u8"soon", "term").add(u8", then rain"))
     .fx({.where = !selectors::style("term"), .effect = fx::variableAxis("GRAD", 900)});
 ```
@@ -733,8 +733,8 @@ could not place is silent, like every other word that did not fit.
 whole `sigil::weave::TextStyle`, a run in a PARTIAL `sigil::weave::Type`
 that overrides the base field by field, or a run under a NAME — a class
 — resolved through a `sigil::weave::StyleSheet` supplied by
-`weave::RichText::styles` or in force on the tree through
-`Element::styleSheet`, when the leaf is shaped. An explicit sheet beats
+`weave::RichText::styles` as a `sigil::weave::TypeSheet` or in force on the
+tree through `Element::styleSheet`, when the leaf is shaped. An explicit sheet beats
 the one in force, and a name the sheet does not register resolves to the base
 `weave::rich()` was given, so a misspelling shows as content set in the
 default rather than as content that did not draw. A rich text started
@@ -895,10 +895,10 @@ end of the list is set in THE BLOCK IN FORCE where the leaf stands — the
 folded down the tree — so ONE entry styles the first block and leaves the
 rest to the passage. `Element::paragraph` sets every block alike and
 inherits nothing, and `Element::paragraphs` also takes NAMES, resolved
-through the `sigil::weave::ParagraphStyleSheet` the environment offers
-into partials that are laid over the block in force when the leaf lays
-out — the same discipline `weave::rich().add(text, name)` follows for
-character styles. A name no sheet in scope carries WARNS ONCE and changes
+through the block half of the `sigil::weave::StyleSheet` in force where
+the leaf lands into partials that are laid over the block in force when
+the leaf lays out — the same discipline `weave::rich().add(text, name)`
+follows for character styles. A name no sheet in force carries WARNS ONCE and changes
 nothing about its block, because a block quietly set in a default nobody
 asked for looks exactly like a style that did not take.
 

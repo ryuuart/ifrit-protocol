@@ -9,8 +9,7 @@
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilweave/layout/Block.h>
-#include <sigilweave/layout/ParagraphStyleSheet.h>
-#include <sigilweave/style/StyleSheet.h>
+#include <sigilweave/layout/StyleSheet.h>
 
 #include <array>
 #include <string_view>
@@ -96,24 +95,23 @@ TEST(ComposeBlockLane, AWholeParagraphStyleInheritsNothing) {
 TEST(ComposeBlockLane, AClassCarriesBothHalves) {
   // One name in both sheets: the text half sets the size, the block half
   // the leading, and styleClass folds both.
-  sigil::weave::StyleSheet types;
-  types.set("body", {.size = 24.0f});
-  sigil::weave::ParagraphStyleSheet blocks;
   Block wide;
   wide.leading = Leading::multiple(2.0f);
-  blocks.set("body", wide);
+  // One class, both halves: the type half and the block half under one
+  // name.
+  const sigil::weave::StyleSheet look{{"body", {.size = 24.0f}},
+                                      {"body", wide}};
   Host plain, classed;
   plain.composer.render(box().padding(10).child(leaf()));
   // The leaf states no size of its own: a node's own font stands over its
   // classes, so the size here is the class's to give.
-  classed.composer.render(
-      box().padding(10).styleSheet(types).styleSheet(blocks).child(
-          text(kLines)
-              .font({.face = sigil::test::instrument::sans()})
-              .ink({1, 1, 1, 1})
-              .width(Dimension(240.0f))
-              .key("t")
-              .styleClass("body")));
+  classed.composer.render(box().padding(10).styleSheet(look).child(
+      text(kLines)
+          .font({.face = sigil::test::instrument::sans()})
+          .ink({1, 1, 1, 1})
+          .width(Dimension(240.0f))
+          .key("t")
+          .styleClass("body")));
   const SkRect a = boxOf(plain, "t");
   const SkRect b = boxOf(classed, "t");
   EXPECT_GT(b.height(), a.height() * 2.5f)
@@ -123,10 +121,9 @@ TEST(ComposeBlockLane, AClassCarriesBothHalves) {
 TEST(ComposeBlockLane, ANamedBlockIsLaidOverTheBlockInForce) {
   // paragraphs({"lead"}) under double leading: the named block takes its
   // alignment from the name and its leading from the lane.
-  sigil::weave::ParagraphStyleSheet blocks;
   Block centred;
   centred.alignment = TextAlignment::kCenter;
-  blocks.set("lead", centred);
+  const sigil::weave::StyleSheet blocks{{"lead", centred}};
   Block wide;
   wide.leading = Leading::multiple(2.0f);
   Host start, named;

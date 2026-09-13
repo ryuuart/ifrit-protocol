@@ -5,7 +5,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilweave/layout/Block.h>
-#include <sigilweave/layout/ParagraphStyleSheet.h>
+#include <sigilweave/layout/StyleSheet.h>
 
 using namespace sigil::weave;
 
@@ -72,30 +72,39 @@ TEST(Block, ApplySetsTheLayoutWideFieldsAPartialStates) {
   EXPECT_FALSE(block.empty());
 }
 
-TEST(ParagraphStyleSheet, ALiteralSpellsTheEntries) {
-  const sigil::weave::ParagraphStyleSheet sheet{{"body", {.widowLines = 2}},
-                                                {"lead", {.widowLines = 3}}};
-  ASSERT_EQ(sheet.size(), 2u);
-  EXPECT_EQ(*sheet.find("lead")->widowLines, 3);
+TEST(StyleSheet, ARuleHasATypeHalfAndABlockHalfAndANameStatedAgainAdds) {
+  Block wide;
+  wide.leading = Leading::multiple(2.0f);
+  // Spelled by the half each line names, and once with the verbs; "body"
+  // twice is one rule with both halves.
+  const sigil::weave::StyleSheet sheet{
+      {"body", {.size = 24.0f}},
+      {"body", wide},
+      {"lead", {.widowLines = 3}},
+      sigil::weave::rule("note").font({.size = 9.0f}).block({.widowLines = 2}),
+  };
+  ASSERT_EQ(sheet.size(), 3u);
+  ASSERT_NE(sheet.find("body"), nullptr);
+  EXPECT_EQ(*sheet.find("body")->type().size, 24.0f);
+  EXPECT_EQ(sheet.find("body")->block().leading, wide.leading);
+  EXPECT_EQ(*sheet.find("lead")->block().widowLines, 3);
+  EXPECT_FALSE(sheet.find("lead")->type().size.has_value());
+  EXPECT_EQ(*sheet.find("note")->type().size, 9.0f);
+  EXPECT_EQ(*sheet.find("note")->block().widowLines, 2);
   EXPECT_EQ(sheet.find("nope"), nullptr);
+  EXPECT_EQ(sheet.rules()[0].name(), "body") << "rules keep their order";
 }
 
-TEST(ParagraphStyleSheet, NamesResolveToPartialsAndAnAbsentNameIsAbsent) {
-  ParagraphStyleSheet sheet;
-  Block heading;
-  heading.leading = Leading::multiple(1.1f);
-  sheet.set("heading", heading);
-  Block body;
-  body.alignment = TextAlignment::kJustify;
-  sheet.set("body", body);
-  EXPECT_EQ(sheet.size(), 2u);
-  ASSERT_NE(sheet.find("heading"), nullptr);
-  EXPECT_EQ(*sheet.find("heading"), heading);
-  EXPECT_EQ(sheet.find("footer"), nullptr);
-  EXPECT_TRUE(sheet.contains("body"));
-  Block wider;
-  wider.alignment = TextAlignment::kCenter;
-  sheet.set("body", wider);
-  EXPECT_EQ(sheet.size(), 2u) << "replaced in place";
-  EXPECT_EQ(sheet.find("body")->alignment, TextAlignment::kCenter);
+TEST(StyleSheet, TheTypeHalfIsATypeSheetWithTheBase) {
+  TextStyle base;
+  base.shaping.fontSize = 19.5f;
+  const sigil::weave::StyleSheet sheet{
+      base, {{"big", {.size = 40.0f}}, {"lead", {.widowLines = 3}}}};
+  const TypeSheet half = sheet.types();
+  EXPECT_FLOAT_EQ(half.base().shaping.fontSize, 19.5f);
+  ASSERT_NE(half.find("big"), nullptr);
+  EXPECT_EQ(*half.find("big")->size, 40.0f);
+  ASSERT_NE(half.find("lead"), nullptr)
+      << "a block-only rule is a name with nothing over the base";
+  EXPECT_FALSE(half.find("lead")->size.has_value());
 }

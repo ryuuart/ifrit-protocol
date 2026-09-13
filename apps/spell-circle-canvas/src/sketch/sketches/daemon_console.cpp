@@ -497,7 +497,7 @@ struct DaemonConsole final : sketch::Sketch {
     const dc::SevDress& d = dc::dress(r.sev);
 
     auto line = weave::rich()
-                    .styles(styles)
+                    .styles(styles.types())
                     .add(std::format("{:07.2f}  ", r.t), "ts")
                     .add(std::format("{:<6}", r.tag), d.tagStyle)
                     .add(r.body, d.bodyStyle);

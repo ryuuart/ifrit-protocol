@@ -11,7 +11,7 @@ find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeaveStyle
   SOURCES Type.cpp
   HEADERS Decoration.h Length.h PaintLayer.h PaintStyle.h ShapingStyle.h
-          Style.h StyleSheet.h Type.h TextStyle.h
+          Style.h TypeSheet.h Type.h TextStyle.h
   PUBLIC unofficial::skia::skia)
 
 # Styles are plain values, so their test shapes nothing, links no fonts and

@@ -291,7 +291,7 @@ every frame.
 Three of the values are worth naming here because they are what a caller
 writes rather than what the engine produces. **`RichText`** says a mixed
 passage as runs and the styles — whole ones, PARTIALS, or the NAMES of
-classes in a `StyleSheet` — they are set in, and two of them describing the
+classes in a `TypeSheet` — they are set in, and two of them describing the
 same runs are EQUAL, which is how a caller that rebuilds its text every
 frame shapes nothing when nothing changed.
 **`Story`** is one of those plus the block styles its paragraphs are set
@@ -347,13 +347,13 @@ to is in reach, so a total `Type` always carries pixels. The face that answers a
 not in the style vocabulary at all — ask `weave::lineHeightOf` for it, and
 pass what it returns.
 
-A **`StyleSheet`** is a base style and a handful of those partials under
+A **`TypeSheet`** is a base style and a handful of those partials under
 NAMES: the levels of a log, the states a selection switches between, the
 roles a table's columns take. An entry states what it CHANGES, so one
 sheet serves a document whose base size was decided elsewhere, and lookup
-always answers — a name nobody registered resolves to the base alone. A
-sheet is spelled as a literal, an entry per name: `StyleSheet{{"note",
-{.size = 11}}, {"dim", {.color = grey}}}`.
+always answers — a name nobody registered resolves to the base alone. It
+is the TYPE HALF of the sheet a tree states, which is `StyleSheet` in the
+layout layer, below.
 
 A block has the same two forms. `ParagraphStyle` is total: the pitch, the
 air around the block, its indents, keeps, initial letter and the four
@@ -367,16 +367,24 @@ two partials into one, `weave::overlay` resolving one onto a whole style,
 and `weave::apply` setting the layout-wide fields a partial states on a
 layout's options. What a block keeps to itself — its air, and its keeps
 with the next block — stays on the whole style, as a margin is a box's
-own. A **`ParagraphStyleSheet`** holds those partials under names, the
-block half of a class: what a document resolves `"heading"` and `"body"`
-through, each name the fields that block changes over what it inherits.
+own.
+
+A **`StyleSheet`** is the classes a tree states, as one value: **`Rule`**s
+under names, each a type half and a block half — `{"note", {.size = 11}}`
+names the type half by its fields, `{"lead", {.firstLineIndent = 24}}` the
+block half, and `rule("body").font({.size = 19.5f}).block({.leading =
+Leading::multiple(1.35f)})` both, with the verbs a tree is written with. A
+name stated again ADDS to its rule, the later fields standing, so a class
+is spelled once per half and a sheet stated nearer changes only what it
+names. `types()` is the type half as a `TypeSheet`, what the paragraph
+layer shapes a rich run's named runs through.
 
 ## Targets and dependencies
 
 | Target | Contents | Beyond Skia |
 |---|---|---|
 | `SigilWeaveUnicode` | the Unicode leaf | ICU and HarfBuzz's ICU bridge, private; no Skia |
-| `SigilWeaveStyle` | the style vocabulary, with `Type` — the partial a call site names a style's numbers in, every field optional — the merges that resolve one, and the `StyleSheet` of named partials | — |
+| `SigilWeaveStyle` | the style vocabulary, with `Type` — the partial a call site names a style's numbers in, every field optional — the merges that resolve one, and the `TypeSheet` of named partials | — |
 | `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, Boost.Unordered and Boost.ContainerHash — private |
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, Boost.Container — private |
 | `SigilWeaveLayout` | flows and silhouettes, the initial letter, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); SigilImageField (the distance field a silhouette measures its standoff off), the Unicode leaf, HarfBuzz, ICU and Boost.Unordered — private |
@@ -487,7 +495,7 @@ What each feature's `test/` holds:
 
 - `unicode/test/` — the Unicode leaf, with no fonts at all.
 - `style/test/` — styles as plain values: fluent sugar, paint-layer
-  presets, the `StyleSheet`'s lookup, and what a partial overlays, leaves
+  presets, the `TypeSheet`'s lookup, and what a partial overlays, leaves
   alone, and resolves a relative length against. No fonts either, and no
   run-time case for the feature preset tags: they are `static_assert`ed
   beside their own declarations, where only editing them can falsify

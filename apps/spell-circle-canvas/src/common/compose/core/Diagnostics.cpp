@@ -98,8 +98,8 @@ void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope) {
   if (!seen.insert(std::string(name)).second) return;
   SkDebugf(
       "compose: paragraphs(\"%.*s\") — %s, so this block is set in what it "
-      "inherits and nothing more. Register it on a ParagraphStyleSheet "
-      "stated with styleSheet() on this element or on a node above it, or "
+      "inherits and nothing more. Register it on the StyleSheet stated with "
+      "styleSheet() on this element or on a node above it, or "
       "pass the style itself.\n",
       (int)name.size(), name.data(),
       anySetInScope ? "the block sheet in force carries no such name"

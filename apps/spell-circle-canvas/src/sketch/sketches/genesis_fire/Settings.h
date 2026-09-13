@@ -26,8 +26,8 @@
 #include <sigilmotion/physics/Physics.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Meter.h>
+#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>

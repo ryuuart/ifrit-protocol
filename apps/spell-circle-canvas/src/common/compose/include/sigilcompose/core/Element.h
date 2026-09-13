@@ -27,7 +27,7 @@
 #include <sigilmotion/values/Animated.h>
 #include <sigilweave/layout/Block.h>
 #include <sigilweave/layout/ParagraphLayout.h>
-#include <sigilweave/layout/ParagraphStyleSheet.h>
+#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Style.h>
 
 #include <any>
@@ -359,14 +359,13 @@ class Element {
    *  `ink(var("accent"))`. A property nobody set, or one holding a length,
    *  leaves the inherited ink standing and says so once. */
   Element& ink(VarRef reference);
-  /** THE SHEETS this node and everything under it resolve their classes
-   *  through: the text half and the block half, each stated on any node
-   *  and inherited down the tree as the font is, a nearer sheet's entries
-   *  standing over a farther one's by name. A sheet is a value on the
-   *  description, so a subtree carries its own and nothing is bound
-   *  around the code that builds it. */
+  /** THE SHEET this node and everything under it resolve their classes
+   *  through: rules under names, each a type half and a block half,
+   *  stated on any node and inherited down the tree as the font is, a
+   *  nearer sheet's rules standing over a farther one's by name. A sheet
+   *  is a value on the description, so a subtree carries its own and
+   *  nothing is bound around the code that builds it. */
   Element& styleSheet(sigil::weave::StyleSheet sheet);
-  Element& styleSheet(sigil::weave::ParagraphStyleSheet blocks);
   /** CLASSES: the partials the sheets in force register under each name
    *  in @p names — several, separated by spaces, as CSS's class attribute
    *  lists them, folded in left to right — resolved by the cascade pass
@@ -1015,16 +1014,12 @@ class Element {
    *  the justification, the hyphenation and the tab stops — each of which
    *  falls back to this leaf's own where the block leaves it unset. */
   Element& paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks);
-  /** The same, by NAME, resolved through the `ParagraphStyleSheet` the
-   *  environment offers
-   * (`environment::Provide<sigil::weave::ParagraphStyleSheet>`).
-   *
-   *  Resolution happens where this is written, inside the author's describe
-   *  scope, so the finished description holds real styles and depends on no
-   *  scope that has since ended — the same discipline `weave::rich().add(text,
-   *  name)` follows for character styles. A name the set does not carry
-   *  resolves to the set's base entry, and with no set in scope every name
-   *  resolves to a plain block. */
+  /** The same, by NAME: one class per block, resolved through the block
+   *  half of the sheet in force where the leaf LANDS, when it lays out,
+   *  and laid over the block in force there — so a named block keeps the
+   *  leading it inherits and changes only what its rule says. A name no
+   *  sheet in force carries warns once and changes nothing about its
+   *  block. */
   Element& paragraphs(std::span<const std::string_view> names);
   /** Every block of this passage set alike. */
   Element& paragraph(sigil::weave::ParagraphStyle style);

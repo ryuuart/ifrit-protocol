@@ -147,8 +147,9 @@ text (its own section below).
   are `kit/PaintLayers.h`), `style/Decoration.h`
   (`Decoration`), `style/PaintStyle.h` (`PaintStyle`, draw-time),
   `style/TextStyle.h` (`TextStyle` = the two halves) and
-  `style/StyleSheet.h` (`StyleSheet`, a base style and the named PARTIALS
-  over it, comparable by value, whose lookup always answers — an
+  `style/TypeSheet.h` (`TypeSheet`, a base style and the named PARTIALS
+  over it — the type half of the sheet a tree states — comparable by
+  value, whose lookup always answers — an
   unregistered name resolves to the base alone, and `find` is the form
   that admits absence; `set`, `contains`, `entries`).
 - **`style/Length.h`** — `Length`: a distance in pixels, or one stated
@@ -165,9 +166,10 @@ text (its own section below).
   one, `overlay` resolves one onto a whole `ParagraphStyle`,
   `toParagraphStyle` is what a partial names alone, and `apply` sets the
   layout-wide fields a partial states on a layout's options.
-  **`layout/ParagraphStyleSheet.h`** — `ParagraphStyleSheet`, those
-  partials under names: what `"heading"` and `"body"` resolve to, and the
-  block half of a class.
+  **`layout/StyleSheet.h`** — `Rule` and `StyleSheet`: the classes a tree
+  states, rules under names with a type half and a block half each,
+  written by the half a literal names or with `rule()`'s verbs; `types()`
+  hands the paragraph layer the type half as a `TypeSheet`.
 - **`style/Type.h`** — `Type`, the PARTIAL a call site names a style in:
   a designated-init aggregate whose every field is OPTIONAL, so a style
   can state the two things it changes and inherit the rest. It carries
@@ -242,8 +244,7 @@ a contour interval carries a `geometry::path::Contour`:
   `layout/Justification.h`, `layout/Overflow.h`, `layout/TabStops.h`,
   `layout/Frame.h` (`FrameOptions`, `ReservedBand`, `PathTextOptions`),
   `layout/Mojikumi.h` and `layout/ParagraphStyle.h` (`Leading`,
-  `IndentOptions`, `KeepOptions`, `ParagraphStyle`,
-  `ParagraphStyleSheet`).
+  `IndentOptions`, `KeepOptions`, `ParagraphStyle`).
 - **`layout/PositionedRun.h`** — `PositionedRun`, one draw call, and the
   `LineMetrics` and `ColumnMetrics` bands derived from placed runs. A run
   BORROWS its glyphs: `shaped` is a `const ShapedWord*` into the paragraph

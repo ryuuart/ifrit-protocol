@@ -15,11 +15,10 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilweave/layout/Block.h>
-#include <sigilweave/layout/ParagraphStyleSheet.h>
 #include <sigilweave/layout/Story.h>
+#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/paragraph/RichText.h>
-#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -500,11 +499,10 @@ struct CascadeData {
    *  were written: resolved in the cascade pass against the sheets in
    *  force where the node lands, and laid under the node's own partials. */
   std::vector<std::string> classes;
-  /** The sheets this node states for itself and everything under it
-   *  (Element::styleSheet): the text half and the block half. Its entries
-   *  lie over the inherited sheet's, by name. */
+  /** The sheet this node states for itself and everything under it
+   *  (Element::styleSheet). Its rules lie over the inherited sheet's, by
+   *  name. */
   std::optional<sigil::weave::StyleSheet> sheet;
-  std::optional<sigil::weave::ParagraphStyleSheet> blocks;
   /** The block partial this node declares for everything under it:
    *  Element::block, and the block half of a class. */
   std::optional<sigil::weave::Block> block;
