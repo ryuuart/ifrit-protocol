@@ -55,7 +55,7 @@ struct WorldHud final : sketch::Set {
     slotAtlas = std::make_shared<instancing::Atlas>(2.0f);
     slotAtlas->cell(
         wh::boneFrame(wh::kSlotFrame, wh::kSlotFrame, 3)
-            .children({wh::track(wh::kSlot - 4, wh::kSlot - 4).left(5).top(5)}),
+            .children({wh::track(wh::kSlot - 4, wh::kSlot - 4).at({5, 5})}),
         {wh::kSlotFrame, wh::kSlotFrame});
     slotPool = std::make_shared<instancing::Pool>();
     for (int i = 0; i < wh::kSlotCount; ++i)
@@ -163,99 +163,54 @@ struct WorldHud final : sketch::Set {
 
   Element barStack() {
     namespace wh = worldhud;
-    using namespace std::chrono_literals;
-    Element stackEl = stack().inset(0);
-
-    // health, with the decay ghost and the low-HP wash
-    stackEl.children({box().left(wh::kBarX).top(wh::kBarY).children(
-        {wh::bar(wh::kHealthW, wh::kHealthH, wh::kHealthInnerW,
-                 wh::kHealthInnerH, 0.62f, wh::kHp, 0.14f)})});
-    // the live fill rides on top of the static frame so only IT repaints
-    stackEl.children({box()
-                          .left(wh::kBarX + 2)
-                          .top(wh::kBarY + 3)
-                          .width(wh::kHealthInnerW)
-                          .height(wh::kHealthInnerH)
-                          .transformOrigin(0.0f, 0.5f)
-                          .scaleX(&hp)
-                          .fill(Paint::linear({0, 0}, {0, wh::kHealthInnerH},
-                                              {{0.0f, hexColor(0x7FE000)},
-                                               {0.5f, wh::kHp},
-                                               {1.0f, hexColor(0x2F5C00)}}))});
-    stackEl.children({box()
-                          .left(wh::kBarX)
-                          .top(wh::kBarY)
-                          .width(wh::kHealthW)
-                          .height(wh::kHealthH)
-                          .corners({2})
-                          .fill(Paint::solid({wh::kCritHp.fR, wh::kCritHp.fG,
-                                              wh::kCritHp.fB, 0.55f}))
-                          .opacity(&lowPulse)
-                          .blend(SkBlendMode::kPlus)});
-    stackEl.children({text("640 / 1030")
-                          .font(wh::line(11, 0.8f))
-                          .left(wh::kBarX + wh::kHealthW * 0.5f - 30)
-                          .top(wh::kBarY + 5)});
-
-    // energy
     const float ex = (wh::kW - wh::kEnergyW) * 0.5f;
-    stackEl.children(
-        {box()
-             .left(ex)
-             .top(wh::kEnergyY)
-             .children({wh::bar(wh::kEnergyW, wh::kEnergyH, wh::kEnergyInnerW,
-                                wh::kEnergyInnerH, 1.0f, wh::kStamina)})});
-    stackEl.children({box()
-                          .left(ex + 2)
-                          .top(wh::kEnergyY + 3)
-                          .width(wh::kEnergyInnerW)
-                          .height(wh::kEnergyInnerH)
-                          .transformOrigin(0.0f, 0.5f)
-                          .scaleX(&energy)
-                          .fill(Paint::solid(wh::kStamina))});
-
-    // poise, with skillbar.rs's 3x10 ticks along it
-    stackEl.children(
-        {box()
-             .left(ex)
-             .top(wh::kPoiseY)
-             .children({wh::bar(wh::kEnergyW, wh::kEnergyH, wh::kEnergyInnerW,
-                                wh::kEnergyInnerH, 1.0f, wh::kPoise)})});
-    stackEl.children({box()
-                          .left(ex + 2)
-                          .top(wh::kPoiseY + 3)
-                          .width(wh::kEnergyInnerW)
-                          .height(wh::kEnergyInnerH)
-                          .transformOrigin(0.0f, 0.5f)
-                          .scaleX(&poise)
-                          .fill(Paint::solid(wh::kPoise))});
-    // The ticks are a RAIL, not five boxes: one mark every sixth of the
-    // bar, three wide and ten tall, declared once as the ladder it is.
-    stackEl.children(
-        {box()
-             .left(ex + 2)
-             .top(wh::kPoiseY + 3)
-             .width(wh::kEnergyInnerW)
-             .height(wh::kEnergyInnerH)
-             .foreground(styles::TickRail{.color = wh::kPoiseTick,
-                                          .pitch = wh::kEnergyInnerW / 6.0f,
-                                          .minor = 10.0f,
-                                          .major = 10.0f,
-                                          .width = 3.0f,
-                                          .majorEvery = 0,
-                                          .phase = 1.0f,
-                                          .edge = path::Edge::Top})});
-    return stackEl;
+    return stack().inset(0).children(
+        {// health, with the decay ghost, the live fill, the low-HP wash over
+         // the lot and the reading printed on it
+         wh::bar({.frameW = wh::kHealthW,
+                  .frameH = wh::kHealthH,
+                  .innerW = wh::kHealthInnerW,
+                  .innerH = wh::kHealthInnerH,
+                  .color = wh::kHp,
+                  .decay = 0.14f,
+                  .live = &hp})
+             .at({wh::kBarX, wh::kBarY})
+             .children({box()
+                            .rect(SkRect::MakeWH(wh::kHealthW, wh::kHealthH))
+                            .corners({2})
+                            .fill(Paint::solid({wh::kCritHp.fR, wh::kCritHp.fG,
+                                                wh::kCritHp.fB, 0.55f}))
+                            .opacity(&lowPulse)
+                            .blend(SkBlendMode::kPlus),
+                        text("640 / 1030")
+                            .font(wh::line(11, 0.8f))
+                            .at({wh::kHealthW * 0.5f - 30, 5})}),
+         wh::bar({.frameW = wh::kEnergyW,
+                  .frameH = wh::kEnergyH,
+                  .innerW = wh::kEnergyInnerW,
+                  .innerH = wh::kEnergyInnerH,
+                  .color = wh::kStamina,
+                  .live = &energy})
+             .at({ex, wh::kEnergyY}),
+         // poise, with skillbar.rs's 3x10 ticks along it
+         wh::bar({.frameW = wh::kEnergyW,
+                  .frameH = wh::kEnergyH,
+                  .innerW = wh::kEnergyInnerW,
+                  .innerH = wh::kEnergyInnerH,
+                  .color = wh::kPoise,
+                  .live = &poise,
+                  .ticks = true})
+             .at({ex, wh::kPoiseY})});
   }
 
   Element hotbar() {
     namespace wh = worldhud;
-    using namespace std::chrono_literals;
-    static const struct {
+    struct Slot {
       const char* key;
       wh::Glyph glyph;
       bool filled;
-    } kSlots[] = {
+    };
+    static const Slot kSlots[] = {
         {"M1", wh::Glyph::Sword, true}, {"1", wh::Glyph::Fire, true},
         {"2", wh::Glyph::Frost, true},  {"3", wh::Glyph::Heal, true},
         {"4", wh::Glyph::Dash, true},   {"5", wh::Glyph::Shield, true},
@@ -263,86 +218,93 @@ struct WorldHud final : sketch::Set {
         {"8", wh::Glyph::Sword, false}, {"9", wh::Glyph::Fire, false},
         {"0", wh::Glyph::Frost, false}, {"M2", wh::Glyph::Bow, true},
     };
-    Element rail = stack()
-                       .left(wh::kSlotsX)
-                       .top(wh::kSlotsY)
-                       .width(wh::kSlotsW)
-                       .height(wh::kSlotFrame);
-    rail.children({instances(slotAtlas, slotPool)});
-    for (int i = 0; i < wh::kSlotCount; ++i) {
-      const float x =
-          arrange::cellRect({i, 0}, {wh::kSlotFrame, wh::kSlotFrame},
-                            {wh::kSlotGap, 0})
-              .fLeft;
-      if (kSlots[i].filled)
-        rail.children(
-            {box()
-                 .left(x + 9)
-                 .top(9)
-                 .width(24.0f)
-                 .height(24.0f)
-                 .shape(wh::glyphPath(kSlots[i].glyph))
-                 .fill(Paint::linear({0, 0}, {0, 24},
-                                     {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
-                 // several glyphs are line-only (frost, dash, bow):
-                 // a fill alone leaves them invisible
-                 .stroke(stroke(2.2f, Fill::color(wh::kBoneHi)))
-                 .stroke(stroke(3.4f, Fill::color({0.04f, 0.03f, 0.02f, 0.75f}),
-                                PathFormat::Align::Outer))});
-      // four of them are cooling down: the sweep Veloren draws as a dark
-      // wipe over the icon
-      if (i >= 1 && i <= 4)
-        rail.children(
-            {box()
-                 .left(x + 3)
-                 .top(3)
-                 .width(wh::kSlot - 4)
-                 .height(wh::kSlot - 4)
-                 .transformOrigin(0.5f, 0.0f)
-                 .scaleY(&cooldown[(size_t)i - 1])
-                 .fill(Paint::linear({0, 0}, {0, wh::kSlot - 4},
-                                     {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
-                                      {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}}))});
-      rail.children({text(kSlots[i].key)
-                         .font(wh::line(9, 0.6f))
-                         .ink(wh::kInkDim)
-                         .left(x + 4)
-                         .top(wh::kSlotFrame - 13)});
-    }
-    // the selected-exp chip skillbar.rs hangs off slot10
-    rail.children(
-        {box()
-             .left(wh::kSlotsW + 3)
-             .top(2)
-             .width(34.0f)
-             .height(38.0f)
-             .children({worldhud::boneFrame(34, 38, 3).inset(0)})
-             .children(
-                 {box()
-                      .left(3)
-                      .top(20)
-                      .width(28.0f)
-                      .height(6.0f)
-                      .fill(Paint::solid(worldhud::kTrack))
-                      .children({box()
-                                     .left(0)
-                                     .top(0)
-                                     .width(28.0f)
-                                     .height(6.0f)
-                                     .transformOrigin(0.0f, 0.5f)
-                                     .scaleX(&xp)
-                                     .fill(Paint::solid(worldhud::kXp))})})
-             .children(
-                 {text("34").font(wh::line(13, 0.4f, 640)).left(9).top(3)})});
-    return rail;
+    return stack()
+        .rect(SkRect::MakeXYWH(wh::kSlotsX, wh::kSlotsY, wh::kSlotsW,
+                               wh::kSlotFrame))
+        .children(
+            {instances(slotAtlas, slotPool),
+             each(kSlots,
+                  [this](const Slot& s, size_t i) {
+                    const float x =
+                        arrange::cellRect({(int)i, 0},
+                                          {wh::kSlotFrame, wh::kSlotFrame},
+                                          {wh::kSlotGap, 0})
+                            .fLeft;
+                    Element cell = box().rect(
+                        SkRect::MakeXYWH(x, 0, wh::kSlotFrame, wh::kSlotFrame));
+                    if (s.filled)
+                      cell.children(
+                          {box()
+                               .rect(SkRect::MakeXYWH(9, 9, 24.0f, 24.0f))
+                               .shape(wh::glyphPath(s.glyph))
+                               .fill(Paint::linear(
+                                   {0, 0}, {0, 24},
+                                   {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
+                               // several glyphs are line-only (frost, dash,
+                               // bow): a fill alone leaves them invisible
+                               .stroke(stroke(2.2f, Fill::color(wh::kBoneHi)))
+                               .stroke(stroke(
+                                   3.4f,
+                                   Fill::color({0.04f, 0.03f, 0.02f, 0.75f}),
+                                   PathFormat::Align::Outer))});
+                    // four of them are cooling down: the sweep Veloren draws
+                    // as a dark wipe over the icon
+                    if (i >= 1 && i <= 4)
+                      cell.children(
+                          {box()
+                               .rect(SkRect::MakeXYWH(3, 3, wh::kSlot - 4,
+                                                      wh::kSlot - 4))
+                               .transformOrigin(0.5f, 0.0f)
+                               .scaleY(&cooldown[i - 1])
+                               .fill(Paint::linear(
+                                   {0, 0}, {0, wh::kSlot - 4},
+                                   {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
+                                    {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}}))});
+                    return cell.children({text(s.key)
+                                              .font(wh::line(9, 0.6f))
+                                              .ink(wh::kInkDim)
+                                              .at({4, wh::kSlotFrame - 13})});
+                  }),
+             // the selected-exp chip skillbar.rs hangs off slot10
+             box()
+                 .rect(SkRect::MakeXYWH(wh::kSlotsW + 3, 2, 34.0f, 38.0f))
+                 .children(
+                     {wh::boneFrame(34, 38, 3).inset(0),
+                      box()
+                          .rect(SkRect::MakeXYWH(3, 20, 28.0f, 6.0f))
+                          .fill(Paint::solid(wh::kTrack))
+                          .children({box()
+                                         .rect(SkRect::MakeWH(28.0f, 6.0f))
+                                         .transformOrigin(0.0f, 0.5f)
+                                         .scaleX(&xp)
+                                         .fill(Paint::solid(wh::kXp))}),
+                      text("34").font(wh::line(13, 0.4f, 640)).at({9, 3})})});
   }
 
   /** The minimap: generated terrain under a bone ring, with a compass
    *  rose that counter-rotates and player/POI markers. */
   Element minimap() {
     namespace wh = worldhud;
-    using namespace std::chrono_literals;
     constexpr float d = 168;
+    // THE HEIGHT BANDS: three passes of one noise field at three frequencies,
+    // which is how a world map reads as terrain rather than as a texture.
+    struct Band {
+      float frequency;
+      int octaves;
+      float gain, opacity;
+      SkBlendMode blend;
+    };
+    const Band kBands[3] = {{0.014f, 5, 3.0f, 0.85f, SkBlendMode::kMultiply},
+                            {0.030f, 4, 2.0f, 0.55f, SkBlendMode::kOverlay},
+                            {0.070f, 2, 5.0f, 0.30f, SkBlendMode::kMultiply}};
+    // a marker on the map: a small rounded pip at a fraction of the dial
+    const auto pin = [](float u, float v, SkColor4f ink) {
+      return box()
+          .rect(SkRect::MakeXYWH(d * u, d * v, 6.0f, 6.0f))
+          .corners({3})
+          .fill(Paint::solid(ink));
+    };
+    const SkColor4f bone = wh::kBoneHi;
     return stack()
         .key("minimap")
         .right(28)
@@ -356,34 +318,22 @@ struct WorldHud final : sketch::Set {
                  .corners({d * 0.5f})
                  .clip()
                  .fill(Paint::solid(hexColor(0x2E4A2A)))
-                 .children(
-                     {box()
-                          .inset(0)
-                          .fill(Paint::recipe(field::noise(0.014f, 5, 3.0f)))
-                          .opacity(0.85f)
-                          .blend(SkBlendMode::kMultiply)})
-                 // the height BANDS: three thresholds of one noise field,
-                 // which is how a world map reads as terrain rather than
-                 // as a texture
-                 .children(
-                     {box()
-                          .inset(0)
-                          .fill(Paint::recipe(field::noise(0.030f, 4, 2.0f)))
-                          .opacity(0.55f)
-                          .blend(SkBlendMode::kOverlay)})
-                 .children(
-                     {box()
-                          .inset(0)
-                          .fill(Paint::recipe(field::noise(0.070f, 2, 5.0f)))
-                          .opacity(0.30f)
-                          .blend(SkBlendMode::kMultiply)})
-                 .children({box().inset(0).fill(
-                     Paint::radial({d * 0.5f, d * 0.5f}, d * 0.55f,
-                                   {{0.0f, {0, 0, 0, 0}},
-                                    {0.72f, {0, 0, 0, 0.25f}},
-                                    {1.0f, {0, 0, 0, 0.75f}}}))})
-                 // the rivers Veloren's world always has
-                 .children({box()
+                 .children({each(kBands,
+                                 [](const Band& b) {
+                                   return box()
+                                       .inset(0)
+                                       .fill(Paint::recipe(field::noise(
+                                           b.frequency, b.octaves, b.gain)))
+                                       .opacity(b.opacity)
+                                       .blend(b.blend);
+                                 }),
+                            box().inset(0).fill(
+                                Paint::radial({d * 0.5f, d * 0.5f}, d * 0.55f,
+                                              {{0.0f, {0, 0, 0, 0}},
+                                               {0.72f, {0, 0, 0, 0.25f}},
+                                               {1.0f, {0, 0, 0, 0.75f}}})),
+                            // the rivers Veloren's world always has
+                            box()
                                 .inset(0)
                                 .fill(Pattern(mpattern::stripes(
                                                   2, 47,
@@ -391,53 +341,32 @@ struct WorldHud final : sketch::Set {
                                                       0x2F6FA8, 0.30f))))
                                           .material())
                                 .rotate(24.0f)
-                                .opacity(0.7f)})})
-        // THE COMPASS ROSE, turning under the frame. It is a rose and not
-        // a cross: small, at the middle, eight points, with the four
-        // cardinal arms longer than the four between them.
-        .children(
-            {box()
-                 .left(d * 0.5f - 23)
-                 .top(d * 0.5f - 23)
-                 .width(46.0f)
-                 .height(46.0f)
-                 .rotate(&compass)
-                 .children(
-                     {box()
-                          .inset(0)
-                          .shape(shapes::star(8, 0.34f))
-                          .fill(Paint::solid({wh::kBoneHi.fR, wh::kBoneHi.fG,
-                                              wh::kBoneHi.fB, 0.30f}))})
-                 .children(
-                     {box()
-                          .inset(9)
-                          .shape(shapes::star(4, 0.22f))
-                          .fill(Paint::solid({wh::kBoneHi.fR, wh::kBoneHi.fG,
-                                              wh::kBoneHi.fB, 0.62f}))}),
+                                .opacity(0.7f)}),
+             // THE COMPASS ROSE, turning under the frame. It is a rose and not
+             // a cross: small, at the middle, eight points, with the four
+             // cardinal arms longer than the four between them.
              box()
-                 .left(d * 0.5f - 4)
-                 .top(d * 0.5f - 4)
-                 .width(8.0f)
-                 .height(8.0f)
+                 .rect(SkRect::MakeXYWH(d * 0.5f - 23, d * 0.5f - 23, 46.0f,
+                                        46.0f))
+                 .rotate(&compass)
+                 .children({box()
+                                .inset(0)
+                                .shape(shapes::star(8, 0.34f))
+                                .fill(Paint::solid(
+                                    {bone.fR, bone.fG, bone.fB, 0.30f})),
+                            box()
+                                .inset(9)
+                                .shape(shapes::star(4, 0.22f))
+                                .fill(Paint::solid(
+                                    {bone.fR, bone.fG, bone.fB, 0.62f}))}),
+             box()
+                 .rect(SkRect::MakeXYWH(d * 0.5f - 4, d * 0.5f - 4, 8.0f, 8.0f))
                  .shape(shapes::polygon(3))
                  .fill(Paint::solid(hexColor(0xFFE9A8))),
+             pin(0.30f, 0.36f, wh::kQualityLegendary),
+             pin(0.68f, 0.62f, wh::kEnemyHp),
+             // the ring
              box()
-                 .left(d * 0.30f)
-                 .top(d * 0.36f)
-                 .width(6.0f)
-                 .height(6.0f)
-                 .corners({3})
-                 .fill(Paint::solid(wh::kQualityLegendary)),
-             box()
-                 .left(d * 0.68f)
-                 .top(d * 0.62f)
-                 .width(6.0f)
-                 .height(6.0f)
-                 .corners({3})
-                 .fill(Paint::solid(wh::kEnemyHp))})
-        // the ring
-        .children(
-            {box()
                  .inset(0)
                  .corners({d * 0.5f})
                  .foreground(stroke(
@@ -447,7 +376,7 @@ struct WorldHud final : sketch::Set {
                      PathFormat::Align::Inner))
                  .foreground(
                      stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}))),
-             text("N").font(wh::line(11, 1.0f, 640)).left(d * 0.5f - 4).top(7),
+             text("N").font(wh::line(11, 1.0f, 640)).at({d * 0.5f - 4, 7}),
              box()
                  .row()
                  .left(0)
@@ -482,47 +411,45 @@ struct WorldHud final : sketch::Set {
         {"PRT", wh::kBuff, 0.88f},   {"BRN", wh::kDebuff, 0.51f},
         {"BLD", wh::kDebuff, 0.19f},
     };
-    Element row = box()
-                      .key("buffs")
-                      .row()
-                      .gap(6)
-                      .left(28)
-                      .top(28)
-                      .zIndex(6)
-                      .staggerChildren(70ms);
-    for (const Pip& p : kPips)
-      row.children(
-          {box()
-               .width(30.0f)
-               .height(30.0f)
-               .corners({4})
-               .opacity(animate(motion::from(0.0f).to(1.0f), {320ms}))
-               .translateY(animate(motion::from(-10.0f).to(0.0f), {380ms}))
-               .fill(Paint::linear(
-                   {0, 0}, {0, 30},
-                   {{0.0f, hexColor(0x2A2118)}, {1.0f, hexColor(0x120C08)}}))
-               .foreground(stroke(1.4f, Fill::color({p.color.fR, p.color.fG,
-                                                     p.color.fB, 0.28f})))
-               // THE DRAIN RING: the same outline stroked again, trimmed
-               // to what is left of the buff. One node, two decorations —
-               // a trim window is per decoration, so the spent part and
-               // the remaining part need no second element.
-               .foreground(drainRing(p.color, p.left))
-               .alignItems(Align::Center)
-               .justify(Justify::Center)
-               // the drain: a dark wipe from the bottom, under the label
-               .children({box()
-                              .left(0)
-                              .bottom(0)
-                              .width(30.0f)
-                              .height(30.0f * (1.0f - p.left))
-                              .fill(Paint::solid({0, 0, 0, 0.62f}))
-                              .zIndex(1)})
-               .children({text(p.label)
-                              .font(wh::line(9, 0.6f, 640))
-                              .ink(p.color)
-                              .zIndex(2)})});
-    return row;
+    return box()
+        .key("buffs")
+        .row()
+        .gap(6)
+        .at({28, 28})
+        .zIndex(6)
+        .staggerChildren(70ms)
+        .children(each(kPips, [drainRing](const Pip& p) {
+          return box()
+              .width(30.0f)
+              .height(30.0f)
+              .corners({4})
+              .opacity(animate(motion::from(0.0f).to(1.0f), {320ms}))
+              .translateY(animate(motion::from(-10.0f).to(0.0f), {380ms}))
+              .fill(Paint::linear(
+                  {0, 0}, {0, 30},
+                  {{0.0f, hexColor(0x2A2118)}, {1.0f, hexColor(0x120C08)}}))
+              .foreground(stroke(1.4f, Fill::color({p.color.fR, p.color.fG,
+                                                    p.color.fB, 0.28f})))
+              // THE DRAIN RING: the same outline stroked again, trimmed
+              // to what is left of the buff. One node, two decorations —
+              // a trim window is per decoration, so the spent part and
+              // the remaining part need no second element.
+              .foreground(drainRing(p.color, p.left))
+              .alignItems(Align::Center)
+              .justify(Justify::Center)
+              // the drain: a dark wipe from the bottom, under the label
+              .children({box()
+                             .left(0)
+                             .bottom(0)
+                             .width(30.0f)
+                             .height(30.0f * (1.0f - p.left))
+                             .fill(Paint::solid({0, 0, 0, 0.62f}))
+                             .zIndex(1),
+                         text(p.label)
+                             .font(wh::line(9, 0.6f, 640))
+                             .ink(p.color)
+                             .zIndex(2)});
+        }));
   }
 
   /** The loot scroller: recent pickups, each in its quality colour. */
@@ -540,33 +467,31 @@ struct WorldHud final : sketch::Set {
         {"Rugged Hide", wh::kQualityModerate},
         {"Glowing Remains", wh::kQualityEpic},
     };
-    Element feed = box()
-                       .key("loot")
-                       .column()
-                       .gap(3)
-                       .left(28)
-                       .bottom(70)
-                       .zIndex(6)
-                       .staggerChildren(90ms);
-    for (const Line& l : kLines)
-      feed.children(
-          {box()
-               .row()
-               .alignItems(Align::Center)
-               .gap(7)
-               .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
-               .translateX(animate(motion::from(-24.0f).to(0.0f), {480ms}))
-               .children({box()
-                              .width(16.0f)
-                              .height(16.0f)
-                              .corners({2})
-                              .fill(Paint::solid({l.color.fR * 0.28f,
-                                                  l.color.fG * 0.28f,
-                                                  l.color.fB * 0.28f, 1}))
-                              .foreground(stroke(1.0f, Fill::color(l.color)))})
-               .children(
-                   {text(l.text).font(wh::line(11, 0.4f)).ink(l.color)})});
-    return feed;
+    return box()
+        .key("loot")
+        .column()
+        .gap(3)
+        .left(28)
+        .bottom(70)
+        .zIndex(6)
+        .staggerChildren(90ms)
+        .children(each(kLines, [](const Line& l) {
+          return box()
+              .row()
+              .alignItems(Align::Center)
+              .gap(7)
+              .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
+              .translateX(animate(motion::from(-24.0f).to(0.0f), {480ms}))
+              .children({box()
+                             .width(16.0f)
+                             .height(16.0f)
+                             .corners({2})
+                             .fill(Paint::solid({l.color.fR * 0.28f,
+                                                 l.color.fG * 0.28f,
+                                                 l.color.fB * 0.28f, 1}))
+                             .foreground(stroke(1.0f, Fill::color(l.color))),
+                         text(l.text).font(wh::line(11, 0.4f)).ink(l.color)});
+        }));
   }
 
   /** The enemy nameplate: ENEMY_HP_COLOR over a black track. */
@@ -583,25 +508,23 @@ struct WorldHud final : sketch::Set {
         .zIndex(6)
         .opacity(animate(motion::from(0.0f).to(1.0f),
                          {360ms, &choreograph::easeOutQuad, 220ms}))
-        .children({text("CAVE TROLL").font(wh::line(15, 1.6f, 640)),
-                   text("Lv 27")
-                       .font(wh::line(10, 1.4f))
-                       .ink(wh::kInkDim)
-                       .margin(0, 2, 0, 4),
-                   box()
-                       .width(168.0f)
-                       .height(9.0f)
-                       .fill(Paint::solid(worldhud::kTrack))
-                       .foreground(stroke(
-                           1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f})))
-                       .children({box()
-                                      .left(1)
-                                      .top(1)
-                                      .width(166.0f)
-                                      .height(7.0f)
-                                      .transformOrigin(0.0f, 0.5f)
-                                      .scaleX(&enemyHp)
-                                      .fill(Paint::solid(wh::kEnemyHp))})});
+        .children(
+            {text("CAVE TROLL").font(wh::line(15, 1.6f, 640)),
+             text("Lv 27")
+                 .font(wh::line(10, 1.4f))
+                 .ink(wh::kInkDim)
+                 .margin(0, 2, 0, 4),
+             box()
+                 .width(168.0f)
+                 .height(9.0f)
+                 .fill(Paint::solid(worldhud::kTrack))
+                 .foreground(
+                     stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f})))
+                 .children({box()
+                                .rect(SkRect::MakeXYWH(1, 1, 166.0f, 7.0f))
+                                .transformOrigin(0.0f, 0.5f)
+                                .scaleX(&enemyHp)
+                                .fill(Paint::solid(wh::kEnemyHp))})});
   }
 
   /** The HUD itself: everything Veloren draws over the world. */
@@ -610,31 +533,21 @@ struct WorldHud final : sketch::Set {
     using namespace std::chrono_literals;
 
     // The root paints NOTHING. What is behind the HUD is the frame's own
-    // valley, and a scrim here would be this study answering its own
-    // question. What it does state is the HUD's voice: the black shade
-    // under every string, and the ink the strings are set in unless they
-    // name a dimmer or a quality colour of their own.
-    auto root = stack().font({.underlays = {{wh::shade()}}}).ink(wh::kInk);
-
-    root.children(
-        {box()
-             .column()
-             .left(28)
-             .top(70)
-             .zIndex(6)
-             .children({text("WELDRIN VALE").font(wh::line(20, 2.6f, 640))})
-             .children({text("LEVEL 34  ·  CLEAR, LIGHT WIND")
+    // valley, and a scrim here would be this study answering its own question.
+    // What it DOES state is the HUD's voice: the black shade under every
+    // string, and the ink the strings are set in unless they name a dimmer or
+    // a quality colour of their own.
+    return stack()
+        .font({.underlays = {{wh::shade()}}})
+        .ink(wh::kInk)
+        .children({box().column().at({28, 70}).zIndex(6).children(
+                       {text("WELDRIN VALE").font(wh::line(20, 2.6f, 640)),
+                        text("LEVEL 34  ·  CLEAR, LIGHT WIND")
                             .font(wh::line(11, 0.9f))
                             .ink(wh::kInkDim)
-                            .margin(0, 5, 0, 0)})});
-
-    root.children({buffRow()});
-    root.children({minimap()});
-    root.children({targetPlate()});
-    root.children({lootFeed()});
-    root.children({barStack()});
-    root.children({hotbar()});
-    return root;
+                            .margin(0, 5, 0, 0)}),
+                   buffRow(), minimap(), targetPlate(), lootFeed(), barStack(),
+                   hotbar()});
   }
 };
 

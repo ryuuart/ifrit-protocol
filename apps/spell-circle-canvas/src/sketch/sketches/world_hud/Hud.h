@@ -169,37 +169,67 @@ inline Element boneFrame(float w, float h, float radius = 3) {
                          PathFormat::Align::Outer));
 }
 
-/** A bar: bone frame, sunk track, content, and Veloren's decay ghost —
- *  the QUALITY_EPIC band it paints over maximum health you have lost. */
-inline Element bar(float frameW, float frameH, float innerW, float innerH,
-                   float fraction, SkColor4f color, float decay = 0.0f) {
-  const float padX = (frameW - innerW) * 0.5f;
-  const float padY = (frameH - innerH) * 0.5f;
-  Element e = boneFrame(frameW, frameH, 2)
-                  .children({track(innerW, innerH).left(padX).top(padY)});
-  if (decay > 0.0f)
+/** ONE BAR OF THE SKILLBAR: what it measures, how wide its frame and its
+ *  track are, and what it reads.
+ *
+ *  `fraction` is a reading taken once — the bar as a still picture — and
+ *  `live` is the fraction it reads EVERY FRAME, which is a full-size fill
+ *  pinned at its left edge and scaled, so the Output feeds the transform and
+ *  never a width. `decay` is Veloren's QUALITY_EPIC band over the maximum you
+ *  have lost, and `ticks` is skillbar.rs's ladder along the poise bar: one
+ *  mark every sixth, three wide and ten tall, declared as the rail it is. */
+struct Bar {
+  float frameW = 0, frameH = 0, innerW = 0, innerH = 0;
+  SkColor4f color{1, 1, 1, 1};
+  float fraction = 1.0f;
+  float decay = 0.0f;
+  const choreograph::Output<float>* live = nullptr;
+  bool ticks = false;
+};
+
+inline Element bar(const Bar& b) {
+  const float padX = (b.frameW - b.innerW) * 0.5f;
+  const float padY = (b.frameH - b.innerH) * 0.5f;
+  const SkColor4f c = b.color;
+  const Paint body =
+      Paint::linear({0, 0}, {0, b.innerH},
+                    {{0.0f,
+                      {std::min(1.0f, c.fR * 1.45f + 0.06f),
+                       std::min(1.0f, c.fG * 1.45f + 0.06f),
+                       std::min(1.0f, c.fB * 1.45f + 0.06f), 1}},
+                     {0.5f, c},
+                     {1.0f, {c.fR * 0.62f, c.fG * 0.62f, c.fB * 0.62f, 1}}});
+  Element e = boneFrame(b.frameW, b.frameH, 2)
+                  .children({track(b.innerW, b.innerH).at({padX, padY})});
+  if (b.decay > 0.0f)
     e.children({box()
-                    .left(padX + innerW * (1.0f - decay))
-                    .top(padY)
-                    .width(innerW * decay)
-                    .height(innerH)
+                    .rect(SkRect::MakeXYWH(padX + b.innerW * (1.0f - b.decay),
+                                           padY, b.innerW * b.decay, b.innerH))
                     .fill(Paint::solid({kQualityEpic.fR, kQualityEpic.fG,
                                         kQualityEpic.fB, 0.55f}))});
-  e.children(
-      {box()
-           .left(padX)
-           .top(padY)
-           .width(innerW * fraction)
-           .height(innerH)
-           .fill(Paint::linear({0, 0}, {0, innerH},
-                               {{0.0f,
-                                 {std::min(1.0f, color.fR * 1.45f + 0.06f),
-                                  std::min(1.0f, color.fG * 1.45f + 0.06f),
-                                  std::min(1.0f, color.fB * 1.45f + 0.06f), 1}},
-                                {0.5f, color},
-                                {1.0f,
-                                 {color.fR * 0.62f, color.fG * 0.62f,
-                                  color.fB * 0.62f, 1}}}))});
+  // the live fill rides on top of the static frame so only IT repaints
+  if (b.live)
+    e.children({box()
+                    .rect(SkRect::MakeXYWH(padX, padY, b.innerW, b.innerH))
+                    .transformOrigin(0.0f, 0.5f)
+                    .scaleX(b.live)
+                    .fill(body)});
+  else
+    e.children({box()
+                    .rect(SkRect::MakeXYWH(padX, padY, b.innerW * b.fraction,
+                                           b.innerH))
+                    .fill(body)});
+  if (b.ticks)
+    e.children({box()
+                    .rect(SkRect::MakeXYWH(padX, padY, b.innerW, b.innerH))
+                    .foreground(styles::TickRail{.color = kPoiseTick,
+                                                 .pitch = b.innerW / 6.0f,
+                                                 .minor = 10.0f,
+                                                 .major = 10.0f,
+                                                 .width = 3.0f,
+                                                 .majorEvery = 0,
+                                                 .phase = 1.0f,
+                                                 .edge = path::Edge::Top})});
   return e;
 }
 
