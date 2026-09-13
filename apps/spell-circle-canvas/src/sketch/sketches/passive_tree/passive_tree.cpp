@@ -67,6 +67,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Heading.h>
+#include <sigilsketch/kit/Legend.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/style/Type.h>
@@ -334,15 +335,16 @@ struct PassiveTree final : sketch::Sketch {
       m.uniform("uGlowR", 7.0f);
       frame.fill(std::move(m));
     }
-    parent.children({std::move(frame)});
     // the inner ring and the notch rosette that make it read "notable"
-    parent.children({pt::socket(nullptr, at, dia - 11,
-                                {.fill = {0, 0, 0, 0},
-                                 .borderWidth = 1.6f,
-                                 .borderColor = mskia::toColor(ring)},
-                                nullptr, 4)});
+    // The well is never empty in the real thing — a cast sigil sits in it.
     parent.children(
-        {box()
+        {std::move(frame),
+         pt::socket(nullptr, at, dia - 11,
+                    {.fill = {0, 0, 0, 0},
+                     .borderWidth = 1.6f,
+                     .borderColor = mskia::toColor(ring)},
+                    nullptr, 4),
+         box()
              .width(dia + 10)
              .height(dia + 10)
              .centerAt(at)
@@ -354,16 +356,15 @@ struct PassiveTree final : sketch::Sketch {
              .shape(pt::notchRing(8, 0.60f, 1.0f))
              .stroke(stroke(2.4f, Fill::color({ring.fR, ring.fG, ring.fB,
                                                alloc ? 1.0f : 0.72f})))
+             .zIndex(4),
+         box()
+             .width(dia * 0.50f)
+             .height(dia * 0.50f)
+             .centerAt(at)
+             .shape(shapes::star(4, 0.34f))
+             .fill(Paint::solid(
+                 {ring.fR, ring.fG, ring.fB, alloc ? 0.95f : 0.6f}))
              .zIndex(4)});
-    // The well is never empty in the real thing — a cast sigil sits in it.
-    parent.children({box()
-                         .width(dia * 0.50f)
-                         .height(dia * 0.50f)
-                         .centerAt(at)
-                         .shape(shapes::star(4, 0.34f))
-                         .fill(Paint::solid(
-                             {ring.fR, ring.fG, ring.fB, alloc ? 0.95f : 0.6f}))
-                         .zIndex(4)});
   }
 
   void masteryNode(Element& parent, int i) {
@@ -381,8 +382,8 @@ struct PassiveTree final : sketch::Sketch {
                          .shape(shapes::polygon(4))
                          .fill(Paint::solid(pt::kSocket))
                          .stroke(stroke(1.8f, Fill::color(ring)))
-                         .zIndex(3)});
-    parent.children({box()
+                         .zIndex(3),
+                     box()
                          .width(dia * 0.42f)
                          .height(dia * 0.42f)
                          .centerAt(at)
@@ -399,6 +400,7 @@ struct PassiveTree final : sketch::Sketch {
     const SkColor4f ring = pt::ringColor(n.state);
     const bool alloc = n.state == treedata::State::Allocated;
     // Halo well first, so the octagon frame sits inside its own light.
+    // A keystone's plate carries the heaviest sigil in the tree.
     parent.children(
         {pt::socket(nullptr, at, dia - 6,
                     {.fill = mskia::toColor(pt::kSocket),
@@ -406,9 +408,8 @@ struct PassiveTree final : sketch::Sketch {
                      .glowRadius = 22,
                      .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
                                    alloc ? 0.42f : 0.12f}},
-                    nullptr, 2)});
-    parent.children(
-        {box()
+                    nullptr, 2),
+         box()
              .width(dia)
              .height(dia)
              .centerAt(at)
@@ -418,26 +419,24 @@ struct PassiveTree final : sketch::Sketch {
                                  {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
                                   {1.0f, {0.07f, 0.06f, 0.05f, 1}}}))
              .stroke(stroke(2.8f, Fill::color(ring)))
-             .zIndex(3)});
-    parent.children({box()
-                         .width(dia - 11)
-                         .height(dia - 11)
-                         .centerAt(at)
-                         .shape(shapes::polygon(8, 22.5f))
-                         .stroke(stroke(1.2f, Fill::color({ring.fR, ring.fG,
-                                                           ring.fB, 0.6f})))
-                         .zIndex(4)});
-    parent.children({box()
-                         .width(dia + 16)
-                         .height(dia + 16)
-                         .centerAt(at)
-                         .shape(pt::notchRing(16, 0.86f, 1.0f))
-                         .stroke(stroke(1.3f, Fill::color({ring.fR, ring.fG,
-                                                           ring.fB, 0.55f})))
-                         .zIndex(4)});
-    // A keystone's plate carries the heaviest sigil in the tree.
-    parent.children(
-        {box()
+             .zIndex(3),
+         box()
+             .width(dia - 11)
+             .height(dia - 11)
+             .centerAt(at)
+             .shape(shapes::polygon(8, 22.5f))
+             .stroke(
+                 stroke(1.2f, Fill::color({ring.fR, ring.fG, ring.fB, 0.6f})))
+             .zIndex(4),
+         box()
+             .width(dia + 16)
+             .height(dia + 16)
+             .centerAt(at)
+             .shape(pt::notchRing(16, 0.86f, 1.0f))
+             .stroke(
+                 stroke(1.3f, Fill::color({ring.fR, ring.fG, ring.fB, 0.55f})))
+             .zIndex(4),
+         box()
              .width(dia * 0.60f)
              .height(dia * 0.60f)
              .centerAt(at)
@@ -478,6 +477,7 @@ struct PassiveTree final : sketch::Sketch {
       for (float r : g.radius) widest = std::max(widest, r);
       if (widest <= 0) continue;
       const float discR = widest + 26;
+      // …and its rim, which is what turns a wash into a plate.
       root.children(
           {box()
                .width(discR * 2)
@@ -493,10 +493,8 @@ struct PassiveTree final : sketch::Sketch {
                                     {0.55f, {0.22f, 0.18f, 0.14f, 0.62f}},
                                     {0.86f, {0.15f, 0.12f, 0.10f, 0.28f}},
                                     {1.00f, {0.10f, 0.08f, 0.07f, 0.0f}}}))
-               .zIndex(0)});
-      // …and its rim, which is what turns a wash into a plate.
-      root.children(
-          {box()
+               .zIndex(0),
+           box()
                .width(discR * 2)
                .height(discR * 2)
                .centerAt({g.x, g.y})
@@ -636,9 +634,8 @@ struct PassiveTree final : sketch::Sketch {
              .inset(0)
              .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {900ms})),
                      brush::presets::rope(2, pt::kRopeScale))
-             .zIndex(2)});
-    root.children(
-        {rail(anchors)
+             .zIndex(2),
+         rail(anchors)
              .inset(0)
              .stroke(spans::range(&pulseS, &pulseE),
                      brush::presets::pulse(
@@ -699,8 +696,7 @@ struct PassiveTree final : sketch::Sketch {
     Element card =
         box()
             .width(kCardW)
-            .left(kCardX)
-            .top(kCardY)
+            .at({kCardX, kCardY})
             .column()
             .padding(16, 13)
             .gap(0)
@@ -731,27 +727,26 @@ struct PassiveTree final : sketch::Sketch {
                           {1.0f,
                            {pt::kGold.fR, pt::kGold.fG, pt::kGold.fB,
                             0.0f}}}))});
-    for (const char* line : detail->stats) {
-      if (!line) continue;
-      card.children(
-          {box()
-               .row()
-               .gap(7)
-               .margin(0, 0, 0, 5)
-               .children(
-                   {box()
-                        .width(3.0f)
-                        .height(3.0f)
-                        .margin(0, 6, 0, 0)
-                        .corners({1.5f})
-                        .fill(Paint::solid({pt::kRimLit.fR, pt::kRimLit.fG,
-                                            pt::kRimLit.fB, 0.9f}))})
-               .children({text(line)
-                              .font({.size = 12,
-                                     .color = SkColor4f{0.62f, 0.68f, 0.90f, 1},
-                                     .track = 0.2f})
-                              .grow(1)})});
-    }
+    // one bulleted line per modifier the node carries
+    card.children({each(detail->stats, [](const char* line) -> Element {
+      if (!line) return box();
+      return box()
+          .row()
+          .gap(7)
+          .margin(0, 0, 0, 5)
+          .children({box()
+                         .width(3.0f)
+                         .height(3.0f)
+                         .margin(0, 6, 0, 0)
+                         .corners({1.5f})
+                         .fill(Paint::solid({pt::kRimLit.fR, pt::kRimLit.fG,
+                                             pt::kRimLit.fB, 0.9f})),
+                     text(line)
+                         .font({.size = 12,
+                                .color = SkColor4f{0.62f, 0.68f, 0.90f, 1},
+                                .track = 0.2f})
+                         .grow(1)});
+    })});
     if (detail->flavour)
       card.children({text(detail->flavour)
                          .font({.size = 11.5f,
@@ -765,8 +760,8 @@ struct PassiveTree final : sketch::Sketch {
              .inset(0)
              .stroke(stroke(1.0f, Fill::color({pt::kGold.fR, pt::kGold.fG,
                                                pt::kGold.fB, 0.35f})))
-             .zIndex(6)});
-    root.children({card.key("detail")});
+             .zIndex(6),
+         card.key("detail")});
   }
 
   /** The sheet's own look, for the masthead: the two registers the title
@@ -803,20 +798,20 @@ struct PassiveTree final : sketch::Sketch {
                .left(38)
                .zIndex(8)});
     }
-    root.children({box()
-                       .column()
-                       .alignItems(Align::End)
-                       .top(30)
-                       .right(36)
-                       .zIndex(8)
-                       .children({text(points).font(
-                           {.size = 21, .color = pt::kGold, .track = 2})})
-                       .children({text("passive points")
-                                      .font({.size = 10.5f, .track = 1.5f})
-                                      .margin(0, 4, 0, 0)})});
     // the search chip, Daripher's box with our palette
     root.children(
         {box()
+             .column()
+             .alignItems(Align::End)
+             .top(30)
+             .right(36)
+             .zIndex(8)
+             .children({text(points).font(
+                            {.size = 21, .color = pt::kGold, .track = 2}),
+                        text("passive points")
+                            .font({.size = 10.5f, .track = 1.5f})
+                            .margin(0, 4, 0, 0)}),
+         box()
              .row()
              .alignItems(Align::Center)
              .gap(8)
@@ -829,33 +824,29 @@ struct PassiveTree final : sketch::Sketch {
              .foreground(
                  stroke(1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
                                            pt::kSearch.fB, 0.4f})))
-             .children({text("search").font({.size = 10, .track = 1.8f})})
-             .children({text("fire").font(
-                 {.size = 12, .color = pt::kSearch, .track = 0.6f})})
-             .children({text(found).font({.size = 10, .track = 1.2f})})});
+             .children({text("search").font({.size = 10, .track = 1.8f}),
+                        text("fire").font(
+                            {.size = 12, .color = pt::kSearch, .track = 0.6f}),
+                        text(found).font({.size = 10, .track = 1.2f})})});
 
-    auto swatch = [&](int state, const char* label) {
-      return box()
-          .row()
-          .alignItems(Align::Center)
-          .gap(8)
-          .children({box()
-                         .width(44.0f)
-                         .height(14.0f)
-                         .shape(pt::hline())
-                         .stroke(brush::presets::rope(state, 0.8f)),
-                     text(label).font({.size = 11, .track = 0.8f})});
-    };
-    root.children({box()
-                       .row()
-                       .gap(20)
-                       .alignItems(Align::Center)
+    // THE KEY TO THE THREE RAILS. Its mark is not a patch of colour but a
+    // length of the rope itself, drawn by the same preset the tree's own
+    // edges are, which is what `LegendEntry::mark` is for.
+    static const std::array<const char*, 3> kStates{"normal", "intermediate",
+                                                    "active"};
+    std::vector<sketch::kit::LegendEntry> key;
+    for (size_t i = 0; i < kStates.size(); ++i)
+      key.push_back({.label = kStates[i],
+                     .mark = box()
+                                 .width(44.0f)
+                                 .height(14.0f)
+                                 .shape(pt::hline())
+                                 .stroke(brush::presets::rope((int)i, 0.8f))});
+    root.children({sketch::kit::legend(
+                       {.entries = std::move(key), .column = false, .gap = 20})
                        .bottom(28)
                        .right(36)
-                       .zIndex(8)
-                       .children({swatch(0, "normal")})
-                       .children({swatch(1, "intermediate")})
-                       .children({swatch(2, "active")})});
+                       .zIndex(8)});
   }
 
   Element describe() {
