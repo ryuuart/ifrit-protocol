@@ -1,0 +1,17 @@
+{
+  "title": "1er CERCLE CHROMATIQUE DE Mr CHEVREUL — RENFERMANT LES COULEURS FRANCHES",
+  "imprint": "PL. V · DES COULEURS ET DE LEURS APPLICATIONS AUX ARTS INDUSTRIELS · J.-B. BAILLIÈRE ET FILS, PARIS, 1864 · DIGEON SC. · LAMOUREUX IMP. · 37 CM",
+  "footer": "COLOURS MEASURED FROM SCIENCE HISTORY INSTITUTE ND1280 .C497 1864, PL. V, 2880×3789 · PAPER WHITE #EFE8D9 DIVIDED OUT IN LINEAR LIGHT · CONSTRUCTION AFTER CHEVREUL §6, §16, §160–§165 · TRANS. C. MARTEL · NO OUTPUT VIEW TRANSFORM IS SET, DELIBERATELY",
+  "lab.head": "CIELAB a* b* · THE 72 MEASURED COLOURS · 36 DIAMETERS",
+  "lab.key": "+ = a*b* ORIGIN     ○ = CENTROID OF THE 72",
+  "obs.head": "LES DIX-SEPT OBSERVATIONS · §21–§37",
+  "obs.note": "indigo read as BLEU-VIOLET (54); greenish-yellow as JAUNE-VERT (30) — both readings, not citations",
+  "illusion.head": "THE CHEVREUL ILLUSION · TWENTY FLAT BANDS",
+  "illusion.strips": "§164 read as equal REFLECTANCE   ·   the modern equal code-value ramp   ·   §164 under γ 2.2",
+  "illusion.quote": "“the light tone will appear lighter, and the deep tone deeper, commencing at the line of contact” — Introduction",
+  "illusion.noOcio": "OCIO: not compiled in",
+  "wheel.outer": "outer band = the same 72 values as ONE 146-stop sweep gradient · outer numerals = index n, NOT ON THE PLATE",
+  "quadrant.head": "CHEVREUL'S QUADRANT · §163–§165 · ROUGE, TEN RADII × TWENTY TONES = 200 CELLS",
+  "quadrant.note": "— mixed in LINEAR light, per §164's quantities of pigment",
+  "contrast.quote": "§38: “do we know, at the present day, of two coloured bodies … Certainly not!”"
+}

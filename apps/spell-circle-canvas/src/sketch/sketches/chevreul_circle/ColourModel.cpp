@@ -189,11 +189,8 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
   if (ctx.fonts) {
     Element strip = box().row();
     for (int b = 0; b < kBandN; ++b)
-      strip.children({box()
-                          .width(kBandW)
-                          .height(32)
-                          .shrink(0)
-                          .fill(Fill::color(gamme[(size_t)b]))});
+      strip.children({box().width(kBandW).height(32).shrink(0).fill(
+          Fill::color(gamme[(size_t)b]))});
     // test::rasterize is the read-back: it wraps the tree in the shell
     // snapshot() needs, draws it at an explicit canvas size and hands the
     // pixels over. N32 rather than the float default, because the claim
@@ -277,11 +274,8 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
   if (ctx.fonts && quadAtlas && quadPool) {
     const float gw = 10 * (kQCellW + kQGapX) - kQGapX;
     const float gh = 20 * (kQCellH + kQGapY) - kQGapY;
-    Element probe = box()
-                        .width(gw)
-                        .height(gh)
-                        .children({instancing::instances(
-                            quadAtlas, quadPool, instancing::Mode::Data)});
+    Element probe = box().width(gw).height(gh).children(
+        {instancing::instances(quadAtlas, quadPool, instancing::Mode::Data)});
     const test::Raster r = test::rasterize(
         std::move(probe), *ctx.fonts, {(int)std::ceil(gw), (int)std::ceil(gh)},
         kN32_SkColorType);

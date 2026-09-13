@@ -16,6 +16,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
@@ -26,6 +27,7 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
@@ -310,7 +312,14 @@ inline const weave::StyleSheet& classes() {
           .set("column", {.size = 6.5f, .track = 0.2f})
           .set("readout", {.size = 8.0f, .track = 0.2f})
           .set("finding", {.size = 8.0f, .color = kRed, .track = 0.2f})
-          .set("quote", {.face = serifIt(), .size = 8.5f});
+          .set("quote", {.face = serifIt(), .size = 8.5f})
+          // What the a*b* plot's own parts are drawn in: the chart kit
+          // names the part and the plate says the colour.
+          .set("plotRule", {.color = hexColor(0x8C8578, 0.35f)})
+          .set("plotAxis", {.color = kInk})
+          .set("plotLabel", {.size = 7.0f, .color = kInk2, .track = 0.3f})
+          .set("chord", {.color = hexColor(0x8C8578, 0.85f)})
+          .set("centroid", {.color = kRed});
   return look;
 }
 
@@ -338,9 +347,8 @@ inline Element centred(const std::string& s, float x, float y, float w) {
 inline Element rightAt(const std::string& s, float x, float y, float w) {
   return at(x, y, w, 0)
       .height(1.7_em)
-      .children({text(s)
-                     .block({.alignment = weave::TextAlignment::kEnd})
-                     .width(w)});
+      .children(
+          {text(s).block({.alignment = weave::TextAlignment::kEnd}).width(w)});
 }
 
 /** The rim baseline: a circle wound COUNTER-CLOCKWISE and starting at

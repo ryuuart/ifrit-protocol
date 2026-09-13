@@ -31,23 +31,10 @@ auto ChevreulCircle::describe(sketch::SketchContext& ctx) -> Element {
            .fill(Fill::none())
            .foreground(stroke(1.0f, Fill::color(hexColor(0x8C8578, 0.55f))))});
 
-  root.children({theHeader()});
-  root.children({theWheel(ctx)});
-  root.children({theQuadrant()});
-  root.children({theLabPlot()});
-  root.children({theObservations()});
-  root.children({theIllusion()});
-  root.children({theContrast()});
-  root.children({theVerification()});
-
   root.children(
-      {label(
-           "COLOURS MEASURED FROM SCIENCE HISTORY INSTITUTE ND1280 .C497 1864, "
-           "PL. V, 2880×3789 · PAPER WHITE #EFE8D9 DIVIDED OUT IN LINEAR "
-           "LIGHT · CONSTRUCTION AFTER CHEVREUL §6, §16, §160–§165 · TRANS. "
-           "C. MARTEL · NO OUTPUT VIEW TRANSFORM IS SET, DELIBERATELY",
-           56, 1168, 1690)
-           .font({.size = 8, .track = 0.55f})});
+      {theHeader(), theWheel(ctx), theQuadrant(), theLabPlot(),
+       theObservations(), theIllusion(), theContrast(), theVerification(),
+       label(say("footer"), 56, 1168, 1690).font({.size = 8, .track = 0.55f})});
   return root;
 }
 
@@ -60,6 +47,7 @@ auto ChevreulCircle::setup(sketch::SketchContext& ctx) -> void {
       ctx,
       {.size = SkSize::Make(kW, kH), .captureAt = 12.6, .background = kPaper});
 
+  content = ctx.assets.json(ctx.local("data/content.json"));
   computeColours();
 
   // materials held as members so their identity survives re-describes

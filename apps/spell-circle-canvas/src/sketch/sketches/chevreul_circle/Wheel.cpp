@@ -30,13 +30,12 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
       {kit::disc(kC, kRSweepOut + 6)
            .shape(shapes::circle())
            .background(styles::dropShadow(hexColor(0x3A352D, 0.30f), {3, 3}, 8))
-           .fill(Fill::color(kPaper))});
-
-  // ---- the limb's tint and its two engraved circles ---------------
-  g.children({kit::disc(kC, kRLimbOut)
-                  .shape(shapes::annulus(kRLimbIn / kRLimbOut))
-                  .fill(Fill::color(kWell))
-                  .opacity(bind(&demo).window(0.15f, 0.19f))});
+           .fill(Fill::color(kPaper)),
+       // ---- the limb's tint and its two engraved circles ---------------
+       kit::disc(kC, kRLimbOut)
+           .shape(shapes::annulus(kRLimbIn / kRLimbOut))
+           .fill(Fill::color(kWell))
+           .opacity(bind(&demo).window(0.15f, 0.19f))});
   for (float r : {kRLimbIn, kRLimbOut})
     g.children({kit::disc(kC, r)
                     .key(kit::formatted("limb%.0f", r))
@@ -104,8 +103,8 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
                   .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                         {{0.0f, hexColor(0x8C8578, 0.0f)},
                                          {0.72f, hexColor(0x8C8578, 0.0f)},
-                                         {1.0f, hexColor(0x8C8578, 0.22f)}}))});
-  g.children({kit::disc(kC, rMed)
+                                         {1.0f, hexColor(0x8C8578, 0.22f)}})),
+              kit::disc(kC, rMed)
                   .shape(shapes::circle())
                   .fill(Fill::color(kPaper))
                   .stroke(stroke(1.0f, Fill::color(kRule)))});
@@ -195,27 +194,24 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
     }
     // the cell divider, on the sector boundary
     const float bd = sectorStart(n) * 3.14159265f / 180.0f;
-    g.children(
-        {box()
-             .left(kC.fX - kRLimbOut)
-             .top(kC.fY - kRLimbOut)
-             .width(2 * kRLimbOut)
-             .height(2 * kRLimbOut)
-             .key("div" + std::to_string(n))
-             .fill(Fill::none())
-             .shape(keyedShape(bd,
-                               [bd](SkSize s) {
-                                 const float cx = s.width() * 0.5f,
-                                             cy = s.height() * 0.5f;
-                                 SkPathBuilder p;
-                                 p.moveTo(arrange::onEllipse(
-                                     {cx, cy}, {kRLimbIn, kRLimbIn}, bd));
-                                 p.lineTo(arrange::onEllipse(
-                                     {cx, cy}, {kRLimbOut, kRLimbOut}, bd));
-                                 return p.detach();
-                               }))
-             .stroke(stroke(0.7f, Fill::color(kRule)))
-             .opacity(bind(&demo).window(0.18f, 0.21f))});
+    g.children({kit::at(
+        box()
+            .key("div" + std::to_string(n))
+            .fill(Fill::none())
+            .shape(keyedShape(bd,
+                              [bd](SkSize s) {
+                                const float cx = s.width() * 0.5f,
+                                            cy = s.height() * 0.5f;
+                                SkPathBuilder p;
+                                p.moveTo(arrange::onEllipse(
+                                    {cx, cy}, {kRLimbIn, kRLimbIn}, bd));
+                                p.lineTo(arrange::onEllipse(
+                                    {cx, cy}, {kRLimbOut, kRLimbOut}, bd));
+                                return p.detach();
+                              }))
+            .stroke(stroke(0.7f, Fill::color(kRule)))
+            .opacity(bind(&demo).window(0.18f, 0.21f)),
+        kC.fX - kRLimbOut, kC.fY - kRLimbOut, 2 * kRLimbOut, 2 * kRLimbOut)});
   }
 
   // ---- the index ring: NOT ON THE PLATE ---------------------------
@@ -258,8 +254,8 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
     for (int i = 0; i < 8; ++i) {
       const int n = i * 9;
       ins.children({at(x0 + (float)i * (w + 1), y0, w, h)
-                        .fill(Fill::color(scanned[(size_t)n]))});
-      ins.children({at(x0 + (float)i * (w + 1), y0 + h + 1, w, h)
+                        .fill(Fill::color(scanned[(size_t)n])),
+                    at(x0 + (float)i * (w + 1), y0 + h + 1, w, h)
                         .fill(Fill::color(corrected[(size_t)n]))});
     }
     ins.children({label("scanned / corrected", x0, y0 + 2 * h + 3, 160)
@@ -282,9 +278,7 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
                         v.covUncovered, v.covDoubled, v.covSamples,
                         v.closedContours, v.endpointPoints),
          kInk2},
-        {"outer band = the same 72 values as ONE 146-stop sweep gradient · "
-         "outer numerals = index n, NOT ON THE PLATE",
-         kRed},
+        {say("wheel.outer"), kRed},
     }};
     for (size_t i = 0; i < lines.size(); ++i)
       g.children({label(lines[i].first, 56, 864 + (float)i * 11.8f, 760)
@@ -297,11 +291,8 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
 
 auto ChevreulCircle::theQuadrant() -> Element {
   Element g = box();
-  g.children(
-      {label("CHEVREUL'S QUADRANT · §163–§165 · ROUGE, TEN RADII × TWENTY "
-             "TONES = 200 CELLS",
-             56, 918, 760)
-           .font({.size = 9, .color = kInk, .track = 0.6f})});
+  g.children({label(say("quadrant.head"), 56, 918, 760)
+                  .font({.size = 9, .color = kInk, .track = 0.6f})});
   const float gw = 10 * (kQCellW + kQGapX) - kQGapX;
   const float gh = 20 * (kQCellH + kQGapY) - kQGapY;
 
@@ -320,23 +311,18 @@ auto ChevreulCircle::theQuadrant() -> Element {
     g.children({rightAt(std::to_string(t), 56,
                         kQY + (float)(t - 1) * (kQCellH + kQGapY) - 2.0f, 34)
                     .font({.size = 6.5f, .color = t == 15 ? kRed : kInk2})});
-  g.children({at(kQX - 4, kQY + 14.0f * (kQCellH + kQGapY) - 1, gw + 8, 1)
-                  .fill(Fill::color(hexColor(0x8E2F26, 0.55f)))
-                  .opacity(bind(&demo).window(0.93f, 0.95f))});
-
   g.children(
-      {at(kQX, kQY, gw, gh)
+      {at(kQX - 4, kQY + 14.0f * (kQCellH + kQGapY) - 1, gw + 8, 1)
+           .fill(Fill::color(hexColor(0x8E2F26, 0.55f)))
+           .opacity(bind(&demo).window(0.93f, 0.95f)),
+       at(kQX, kQY, gw, gh)
            .background(styles::dropShadow(hexColor(0x3A352D, 0.22f), {2, 2}, 5))
            .fill(Fill::color(kWell))
            .children({instancing::instances(quadAtlas, quadPool,
-                                            instancing::Mode::Live)})});
-
-  g.children({label(derivation2 + "   — mixed in LINEAR light, per §164's "
-                                  "quantities of pigment",
-                    56, kQY + gh + 6, 760)
-                  .styleClass("readout")});
-  g.children(
-      {label(kit::formatted("instanced: 1 atlas cell, 200 tints, %d/%d "
+                                            instancing::Mode::Live)}),
+       label(derivation2 + "   " + say("quadrant.note"), 56, kQY + gh + 6, 760)
+           .styleClass("readout"),
+       label(kit::formatted("instanced: 1 atlas cell, 200 tints, %d/%d "
                             "colour-exact on readback (max channel dev %d)",
                             v.tintExact, v.tintCells, v.tintMaxDev),
              56, kQY + gh + 20, 760)
@@ -352,9 +338,8 @@ auto ChevreulCircle::chordCounter() -> Element {
   const float x0 = 852, y0 = 136, S = 380;
   Element g = box().styleSheet(classes());
   g.children(
-      {label(counterText, x0 + 10, y0 + S - 32, S - 20).styleClass("finding")});
-  g.children(
-      {label(kit::formatted("centroid a* %.2f  b* %.2f   ·   mean C* %.1f",
+      {label(counterText, x0 + 10, y0 + S - 32, S - 20).styleClass("finding"),
+       label(kit::formatted("centroid a* %.2f  b* %.2f   ·   mean C* %.1f",
                             v.centA, v.centB, v.meanChroma),
              x0 + 10, y0 + S - 18, S - 20)
            .font({.size = 7.5f, .track = 0.2f})});
