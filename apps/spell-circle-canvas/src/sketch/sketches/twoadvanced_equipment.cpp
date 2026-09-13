@@ -96,13 +96,6 @@ constexpr SkColor4f kSbFace = hexColor(0xBBC0C9);   // SCROLLBAR-FACE-COLOR
 constexpr SkColor4f kSbTrack = hexColor(0xE4E6EA);  // SCROLLBAR-TRACK-COLOR
 constexpr SkColor4f kSbArrow = hexColor(0x666666);  // SCROLLBAR-ARROW-COLOR
 
-/** Verdana at HTML size=1: 10 px — the one register the whole store is
- *  set in, bold only in the product headers. Untracked, because an HTML
- *  table cell had no way to say otherwise. */
-inline sigil::weave::TextStyle verdana(SkColor4f color, bool bold = false) {
-  return sigil::weave::kit::tracked(verdanaFace(bold), 10, color);
-}
-
 // Frameset geometry, in the page's own CSS pixels.
 constexpr float kPageW = 790, kPageH = 580;
 constexpr float kTopH = 103, kBottomH = 15;
@@ -298,7 +291,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
                                .row()
                                .alignItems(Align::Center)
                                .padding(4, 0)
-                               .child(t(p.name, verdana(kWhite))))
+                               .child(t(p.name, {.color = kWhite})))
                     .child(box()
                                .width(17)
                                .fill(kMaroon)
@@ -306,24 +299,24 @@ struct TwoAdvancedEquipment : sketch::Sketch {
                                .alignItems(Align::Center)
                                .child(img("ecom-3dots.gif", 17, 15))));
     block.child(box().height(2));
-    block.child(
-        box()
-            .row()
-            .child(box().width(13))
-            .child(img(p.thumb, 69, 52, hexColor(0xD8D0D0)))
-            .child(box().width(3))
-            .child(
-                box()
-                    .width(416)
-                    .height(52)
-                    .fill(kRose)
-                    .column()
-                    .child(box().padding(7).child(t(p.copy, verdana(kMaroon))))
-                    .child(box().grow(1))
+    block.child(box()
+                    .row()
+                    .child(box().width(13))
+                    .child(img(p.thumb, 69, 52, hexColor(0xD8D0D0)))
+                    .child(box().width(3))
                     .child(box()
-                               .row()
-                               .justify(Justify::End)
-                               .child(img("ecom-viewdetails.gif", 84, 16)))));
+                               .width(416)
+                               .height(52)
+                               .fill(kRose)
+                               .column()
+                               .child(box().padding(7).child(
+                                   t(p.copy, {.color = kMaroon})))
+                               .child(box().grow(1))
+                               .child(box()
+                                          .row()
+                                          .justify(Justify::End)
+                                          .child(img("ecom-viewdetails.gif", 84,
+                                                     16)))));
     block.child(box().height(6));
     return block;
   }
@@ -367,8 +360,8 @@ struct TwoAdvancedEquipment : sketch::Sketch {
                                      PathFormat::Align::Inner)))
           .justify(Justify::Center)
           .alignItems(Align::Center)
-          .child(
-              t(up ? "\xe2\x96\xb4" : "\xe2\x96\xbe", verdana(kSbArrow, true)));
+          .child(t(up ? "\xe2\x96\xb4" : "\xe2\x96\xbe",
+                   {.face = verdanaFace(true), .color = kSbArrow}));
     };
     const sketch::kit::Scrolled frame = scrolled();
     Element scrollbar =
@@ -400,9 +393,14 @@ struct TwoAdvancedEquipment : sketch::Sketch {
 
   Element describe() {
     using namespace teq;
+    // Verdana at HTML size=1: 10 px — the one register the whole store is
+    // set in, stated once on the page; a label names its colour, and the
+    // scrollbar's arrows the bold cut. Untracked, because an HTML table
+    // cell had no way to say otherwise.
     Element page = box()
                        .width(Dimension(kPageW))
                        .height(Dimension(kPageH))
+                       .font({.face = verdanaFace(false), .size = 10})
                        .fill(kWhite)
                        .child(topFrame())
                        .child(leftFrame())
