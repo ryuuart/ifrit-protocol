@@ -313,16 +313,16 @@ struct DaemonConsole final : sketch::Sketch {
   }
 
   /** The row voices, named once and resolved by name from every weave::rich()
-   *  span. Timestamps and tags are monospaced so the columns align by
-   *  construction; the chrome (header, rail, counters) is proportional with
-   *  tabular numerals asked of it where digits must sit in columns. */
+   *  span, as partials over the font the well is rooted in: timestamps and
+   *  tags are monospaced so the columns align by construction. The chrome
+   *  (header, rail, counters) is proportional with tabular numerals asked
+   *  of it where digits must sit in columns. */
   sigil::weave::StyleSheet rowStyles() const {
     namespace dc = daemon_console;
-    sigil::weave::StyleSheet s(weave::textStyle(
-        {.face = faceMono, .size = 12.5f, .color = dc::kBody}));
-    // Every entry is a PARTIAL over that base: the payload voices change
-    // the colour alone, the timestamp one size down with it, and only the
-    // tags name a face of their own.
+    sigil::weave::StyleSheet s;
+    // Every entry is a PARTIAL over the well's font: the payload voices
+    // change the colour alone, the timestamp one size down with it, and
+    // only the tags name a face of their own.
     s.set("ts", weave::Type{.size = 11, .color = dc::kDim});
     s.set("trace", weave::Type{.color = dc::kDim});
     s.set("seal", weave::Type{.color = hexColor(0x8FE5C4)});
@@ -340,16 +340,35 @@ struct DaemonConsole final : sketch::Sketch {
     return s;
   }
 
-  /** A chrome style — the proportional voice of the enclosure. Tabular
-   *  numerals so a ticking clock or a counter never jitters sideways. */
-  sigil::weave::TextStyle chrome(float size, SkColor4f color, float track = 0,
-                                 bool medium = false, bool tabular = false) {
-    sigil::weave::TextStyle s =
-        weave::textStyle({.face = medium ? faceChromeMed : faceChrome,
-                          .size = size,
-                          .color = color,
-                          .track = track});
-    if (tabular) s.shaping.fontFeatures = {weave::features::tabularNumbers};
+  /** A chrome register — the proportional voice of the enclosure, which
+   *  the panel is rooted in, so a line names only its size, colour and
+   *  tracking; `medium` names the heavier cut. Tabular numerals so a
+   *  ticking clock or a counter never jitters sideways. */
+  weave::Type chrome(float size, SkColor4f color, float track = 0,
+                     bool medium = false, bool tabular = false) const {
+    weave::Type t{.size = size, .color = color, .track = track};
+    if (medium) t.face = faceChromeMed;
+    if (tabular) t.features = {weave::features::tabularNumbers};
+    return t;
+  }
+
+  /** The theme's registers and the two lines the rail and the prompt name
+   *  by class: `label`, the tracked small capitals a rail section is headed
+   *  by, and `fine`, the print under a figure, with tabular numerals. Both
+   *  name their face: `fine` also stands in the prompt row, which is rooted
+   *  in the monospaced voice. */
+  weave::StyleSheet classes() const {
+    namespace dc = daemon_console;
+    weave::StyleSheet s = look.styleSheet();
+    s.set("label", {.face = faceChromeMed,
+                    .size = 9.5f,
+                    .color = dc::kDim,
+                    .track = 2.4f});
+    s.set("fine", {.face = faceChrome,
+                   .size = 9.5f,
+                   .color = dc::kDim,
+                   .track = 0.8f,
+                   .features = {{weave::features::tabularNumbers}}});
     return s;
   }
 
@@ -480,7 +499,7 @@ struct DaemonConsole final : sketch::Sketch {
     namespace dc = daemon_console;
     const dc::SevDress& d = dc::dress(r.sev);
 
-    auto line = weave::rich(styles.base())
+    auto line = weave::rich()
                     .styles(styles)
                     .add(toUtf8(std::format("{:07.2f}  ", r.t)), "ts")
                     .add(toUtf8(std::format("{:<6}", r.tag)), d.tagStyle)
@@ -581,10 +600,10 @@ struct DaemonConsole final : sketch::Sketch {
         .gap(8)
         .alignItems(Align::Center)
         .child(box().width(6).height(6).corners({1.5f}).fill(Fill::color(chip)))
-        .child(text(toUtf8(label), chrome(10, dc::kChrome, 1.6f)))
+        .child(text(toUtf8(label)).font(chrome(10, dc::kChrome, 1.6f)))
         .child(box().grow(1))
-        .child(text(toUtf8(std::format("{}", n)),
-                    chrome(12, dc::kBone, 0, true, true)));
+        .child(text(toUtf8(std::format("{}", n)))
+                   .font(chrome(12, dc::kBone, 0, true, true)));
   }
 
   Element rule(float marginTop, float marginBottom) {
@@ -605,7 +624,7 @@ struct DaemonConsole final : sketch::Sketch {
     namespace feed = sigil::compose::feed;
     // Bound where the tree is DESCRIBED: this sketch describes again on
     // every appended row, outside whatever scope setup opened.
-    const sketch::kit::Provide dress(look);
+    const sketch::kit::Provide dress(look, classes());
 
     // Panel chrome: one-pass SDF (fill + border + glow), cached between
     // layouts. The style reserves its glow's reach INSIDE the box, so the
@@ -647,6 +666,9 @@ struct DaemonConsole final : sketch::Sketch {
         box()
             .grow(1)
             .clip()
+            // The scrollback's voice, stated once: every row is set in it
+            // and its named runs are partials over it.
+            .font({.face = faceMono, .size = 12.5f, .color = dc::kBody})
             .child(feed::feed(
                        ring, window,
                        [&](const dc::LogRow& r) { return logRow(r, styles); })
@@ -661,70 +683,71 @@ struct DaemonConsole final : sketch::Sketch {
             .alignItems(Align::Center)
             .child(box().width(9).height(9).corners({2}).rotate(45.0f).fill(
                 Fill::color(dc::kAccent)))
-            .child(text(toUtf8("WARDNET"), chrome(15, dc::kBone, 3.5f, true)))
-            .child(text(toUtf8("PERIMETER WATCH"),
-                        chrome(10.5f, dc::kChrome, 3.5f)))
+            .child(
+                text(toUtf8("WARDNET")).font(chrome(15, dc::kBone, 3.5f, true)))
+            .child(text(toUtf8("PERIMETER WATCH"))
+                       .font(chrome(10.5f, dc::kChrome, 3.5f)))
             .child(box().grow(1))
-            .child(text(toUtf8("NODE 07 \xc2\xb7 flooded-causeway"),
-                        chrome(10.5f, dc::kDim, 0.8f)))
+            .child(text(toUtf8("NODE 07 \xc2\xb7 flooded-causeway"))
+                       .font(chrome(10.5f, dc::kDim, 0.8f)))
             .child(box()
                        .width(6)
                        .height(6)
                        .corners({3})
                        .fill(Fill::color(dc::kOk))
                        .opacity(&lamp))
-            .child(text(toUtf8(std::format("T+{:07.2f}", mission(clockNow))),
-                        chrome(11.5f, dc::kAccent, 0.6f, true, true)));
+            .child(text(toUtf8(std::format("T+{:07.2f}", mission(clockNow))))
+                       .font(chrome(11.5f, dc::kAccent, 0.6f, true, true)));
 
     // ---- rail -------------------------------------------------------------
-    const sigil::weave::TextStyle label = chrome(9.5f, dc::kDim, 2.4f, true);
     Element rail =
         box()
             .column()
             .width(172)
             .gap(9)
-            .child(text(toUtf8("CHANNELS"), label))
+            .child(text(toUtf8("CHANNELS")).styleClass("label"))
             .child(meterRow("LATT", &meter[0]))
             .child(meterRow("GATE", &meter[1]))
             .child(meterRow("FLUX", &meter[2]))
             .child(meterRow("AUTH", &meter[3]))
             .child(rule(6, 2))
-            .child(text(toUtf8("SEVERITY \xc2\xb7 SESSION"), label))
+            .child(
+                text(toUtf8("SEVERITY \xc2\xb7 SESSION")).styleClass("label"))
             .child(counterRow("SEALS", dc::kOk, gen.seals))
             .child(counterRow("FLUX WARNS", dc::kWarn, gen.warns))
             .child(counterRow("BREACHES", dc::kCrit, gen.breaches))
             .child(rule(6, 2))
-            .child(text(toUtf8("UPLINK"), label))
+            .child(text(toUtf8("UPLINK")).styleClass("label"))
             .child(box()
                        .row()
                        .gap(8)
                        .alignItems(Align::Center)
-                       .child(text(toUtf8("latency"),
-                                   chrome(10, dc::kChrome, 0.8f)))
+                       .child(text(toUtf8("latency"))
+                                  .font(chrome(10, dc::kChrome, 0.8f)))
                        .child(box().grow(1))
                        .child(text(toUtf8(std::format(
                                        "{:2.0f} mS",
-                                       11.0 + 3.0 * std::sin(clockNow * 0.7))),
-                                   chrome(11, dc::kBone, 0, true, true))))
+                                       11.0 + 3.0 * std::sin(clockNow * 0.7))))
+                                  .font(chrome(11, dc::kBone, 0, true, true))))
             // The hero stat anchors the rail's foot: session health as one
             // number, amber the moment the breach count says it should be.
             .child(box().grow(1))
             .child(rule(6, 2))
-            .child(text(toUtf8("WARD INTEGRITY"), label))
-            .child(
-                box()
-                    .row()
-                    .gap(4)
-                    .alignItems(Align::Baseline)
-                    .child(text(
-                        toUtf8(std::format("{:.1f}", integrity())),
-                        chrome(24, integrity() >= 96.0 ? dc::kBone : dc::kWarn,
-                               0, true, true)))
-                    .child(text(toUtf8("%"), chrome(12, dc::kChrome))))
-            .child(text(
-                toUtf8(std::format("{} breach{} this session", gen.breaches,
-                                   gen.breaches == 1 ? "" : "es")),
-                chrome(9.5f, dc::kDim, 0.8f, false, true)));
+            .child(text(toUtf8("WARD INTEGRITY")).styleClass("label"))
+            .child(box()
+                       .row()
+                       .gap(4)
+                       .alignItems(Align::Baseline)
+                       .child(text(toUtf8(std::format("{:.1f}", integrity())))
+                                  .font(chrome(24,
+                                               integrity() >= 96.0 ? dc::kBone
+                                                                   : dc::kWarn,
+                                               0, true, true)))
+                       .child(text(toUtf8("%")).font(chrome(12, dc::kChrome))))
+            .child(text(toUtf8(std::format("{} breach{} this session",
+                                           gen.breaches,
+                                           gen.breaches == 1 ? "" : "es")))
+                       .styleClass("fine"));
 
     // ---- prompt -----------------------------------------------------------
     const char* command = dc::kCommands[commandIndex];
@@ -733,18 +756,16 @@ struct DaemonConsole final : sketch::Sketch {
             .row()
             .gap(2)
             .alignItems(Align::Center)
-            .child(text(weave::rich(weave::textStyle({.face = faceMono,
-                                                      .size = 12,
-                                                      .color = dc::kDim}))
-                            .add(toUtf8("wardnet"))
-                            .add(toUtf8(" $ "),
-                                 weave::textStyle({.face = faceMonoMed,
-                                                   .size = 12,
-                                                   .color = dc::kAccent}))))
+            // The prompt's own voice: the host name is set in it, the
+            // sigil in the heavier cut, and the typed command a half size up.
+            .font({.face = faceMono, .size = 12, .color = dc::kDim})
             .child(text(
-                toUtf8(std::string(command).substr(0, shown)),
-                weave::textStyle(
-                    {.face = faceMono, .size = 12.5f, .color = dc::kBone})))
+                weave::rich()
+                    .add(toUtf8("wardnet"))
+                    .add(toUtf8(" $ "), weave::Type{.face = faceMonoMed,
+                                                    .color = dc::kAccent})))
+            .child(text(toUtf8(std::string(command).substr(0, shown)))
+                       .font({.size = 12.5f, .color = dc::kBone}))
             .child(box()
                        .width(7)
                        .height(13)
@@ -761,8 +782,8 @@ struct DaemonConsole final : sketch::Sketch {
                        .key("caret"))
             .child(box().grow(1))
             .child(text(toUtf8(std::format("ring 256 \xc2\xb7 {} events",
-                                           (unsigned long long)gen.events)),
-                        chrome(9.5f, dc::kDim, 0.8f, false, true)));
+                                           (unsigned long long)gen.events)))
+                       .styleClass("fine"));
 
     return stack()
         .fill(Paint::linear({0, 0}, {0, dc::kH},
@@ -774,6 +795,9 @@ struct DaemonConsole final : sketch::Sketch {
                 .fill(panel)
                 .clip()
                 .padding(padX, padY)
+                // The enclosure's face, inherited by every chrome line; the
+                // well and the prompt root their own monospaced voice under it.
+                .font({.face = faceChrome})
                 .child(header)
                 .child(rule(9, 8))
                 .child(box()
