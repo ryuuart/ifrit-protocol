@@ -22,6 +22,12 @@
  * class resolves to, exactly as text's colour is. Only a stroke width, a
  * radius and a sampling count are props: no colour, size or face is.
  *
+ * A PLOT OF SEVERAL SERIES names a class per layer. `styleClass` on a
+ * layer's props is the class it reads INSTEAD of the one its part is named
+ * for — the same kind of part, a different entry on the sheet, which is
+ * what CSS's class attribute is for — and the sketch registers that name
+ * on the sheet it states. Empty is the part's own class.
+ *
  *     kit::plot("fit", {.x = {.domain = {0, 440000}},
  *                       .y = {.domain = {0, 180}}, .pad = 8},
  *               {kit::axis({.of = kit::Axis::X}),
@@ -47,6 +53,7 @@
 #include <functional>
 #include <optional>
 #include <ranges>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -244,6 +251,8 @@ struct Rules {
   /** Domain values on the y scale: a line across the box at each. */
   std::vector<double> y;
   float width = 1.0f;
+  /** The class read instead of `rule`, for a second ladder of its own. */
+  std::string styleClass;
 };
 
 /** THE RULES, in the class `rule`. */
@@ -265,6 +274,8 @@ struct Trace {
    *  one. */
   std::vector<double> marks;
   float markRadius = 2.5f;
+  /** The class read instead of `trace`, for a second series. */
+  std::string styleClass;
 };
 
 /** THE CURVE, in the class `trace`: @p f walked across the x domain and
@@ -281,6 +292,8 @@ struct Area {
   /** The y the band is closed back along. */
   double base = 0.0;
   int samples = 240;
+  /** The class read instead of `area`, for a second band. */
+  std::string styleClass;
 };
 
 /** THE AREA, filled in the class `area`. */
@@ -318,6 +331,8 @@ struct Marks {
   std::function<double(const Row&)> x;
   std::function<double(const Row&)> y;
   Anchor anchor;
+  /** The class read instead of `mark`, for a second series. */
+  std::string styleClass;
 };
 
 /** THE MARKS — one child per row of @p rows, @p mark built from the row
@@ -355,6 +370,8 @@ struct Bands {
    *  wedge's own shape on whatever this answers, so a part that states a
    *  shape of its own is overruled there. */
   compose::kit::Part<std::size_t, double> part;
+  /** The class read instead of `bar`, for a second series. */
+  std::string styleClass;
 };
 
 /** THE BANDS — one child per row, in the class `bar`.
@@ -365,6 +382,14 @@ template <std::ranges::input_range R, class Row = std::ranges::range_value_t<R>>
 [[nodiscard]] Layer bands(R&& rows,
                           const std::type_identity_t<Bands<Row>>& how = {});
 
+/** HOW A WORD PLACED IN THE FIELD STANDS. */
+struct Label {
+  Anchor anchor;
+  /** The class read instead of `label` — a word in the colour of the
+   *  series it names says so with that series' own class. */
+  std::string styleClass;
+};
+
 /** A WORD AT A POINT OF THE FIELD, in the class `label` — what names a
  *  curve, a region or one reading, placed through the same mapping the
  *  drawing is, so it lands ON the thing it names.
@@ -372,7 +397,7 @@ template <std::ranges::input_range R, class Row = std::ranges::range_value_t<R>>
  *      kit::label("s_exact", 1.6, 0.2)
  */
 [[nodiscard]] Layer label(compose::Utf8 words, double x, double y,
-                          const Anchor& how = {});
+                          const Label& how = {});
 
 // ---------------------------------------------------------------------------
 // What the two placing templates funnel into: the data as domain values and
@@ -385,10 +410,16 @@ namespace detail {
 [[nodiscard]] Layer anchored(std::vector<Datum> data,
                              std::vector<compose::Element> children,
                              const Anchor& anchor, std::string_view styleClass);
+/** @p stated, or @p own where a layer named no class of its own. */
+[[nodiscard]] inline std::string_view classOf(const std::string& stated,
+                                              std::string_view own) {
+  return stated.empty() ? own : std::string_view(stated);
+}
 
 /** The layer that draws @p data's bands out from @p base. */
 [[nodiscard]] Layer banded(std::vector<Datum> data, double base, float corners,
-                           compose::kit::Part<std::size_t, double> part);
+                           compose::kit::Part<std::size_t, double> part,
+                           std::string_view styleClass);
 
 /** @p read of @p row, or @p index where no reader was named. */
 template <class Row>
@@ -413,7 +444,7 @@ Layer marks(R&& rows,
     ++index;
   }
   return detail::anchored(std::move(data), std::move(children), how.anchor,
-                          "mark");
+                          detail::classOf(how.styleClass, "mark"));
 }
 
 template <std::ranges::input_range R, class Row>
@@ -425,7 +456,8 @@ Layer bands(R&& rows, const std::type_identity_t<Bands<Row>>& how) {
         {detail::number(how.x, row, index), detail::number(how.y, row, index)});
     ++index;
   }
-  return detail::banded(std::move(data), how.base, how.corners, how.part);
+  return detail::banded(std::move(data), how.base, how.corners, how.part,
+                        detail::classOf(how.styleClass, "bar"));
 }
 
 }  // namespace sigil::sketch::kit

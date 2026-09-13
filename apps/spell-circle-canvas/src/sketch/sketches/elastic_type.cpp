@@ -87,8 +87,10 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -202,11 +204,22 @@ struct Tick {
 
 using Ticks = std::vector<Tick>;
 
+/** THE FOUR CLASSES THE GRAPHS ARE DRESSED BY: the rules a trace is read
+ *  against, the rest pose, and one per lane. */
+weave::StyleSheet graphSheet() {
+  weave::StyleSheet dressed;
+  dressed.set("rule", {.color = kFaint});
+  dressed.set("rest", {.color = kRest});
+  dressed.set("x", {.color = kX});
+  dressed.set("y", {.color = kY});
+  return dressed;
+}
+
 /** Where a value sits in a plot box of height @p h, in that box's own
- *  pixels. The graph paints its rules with it and `plot` hangs its labels
- *  off the same arithmetic, so the two cannot drift apart. */
+ *  pixels. The graph is drawn through this same frame and `plot` hangs its
+ *  labels off it, so the two cannot drift apart. */
 float tickY(float value, float lo, float hi, float h) {
-  return kit::Plot{.fromY = lo, .toY = hi}.at(0, value, {0, h}).fY;
+  return sketch::kit::Plot{.y = {.domain = {lo, hi}}}.at(0, value, {0, h}).fY;
 }
 
 // The two axes, named where they are ruled. The extremes are the published
@@ -228,22 +241,29 @@ Ticks shearTicks() {
  *  are the value range the plot's height spans, and @p ticks are the values
  *  it rules. */
 Element graph(const char* key, TextEffect effect, Table table,
-              float (*lane)(const GlyphModifier&), SkColor4f color, float lo,
+              float (*lane)(const GlyphModifier&), const char* series, float lo,
               float hi, float rest, Ticks ticks) {
-  kit::Plot frame{.fromY = lo, .toY = hi, .rule = kFaint, .markRadius = 2.6f};
+  std::vector<double> ruled;
   for (const Tick& tick : ticks)
-    if (tick.value != rest) frame.rulesY.push_back(tick.value);
-  for (const fx::Key& keyframe : table) frame.marks.push_back(keyframe.at);
-  return box().width(pct(100)).height(pct(100)).children(
-      {kit::curvePlot(std::string(key) + "-rest",
-                      {{[rest](float) { return rest; }, kRest, 1}},
-                      {.fromY = lo, .toY = hi, .samples = 1}),
-       kit::curvePlot(key,
-                      {{[effect = std::move(effect), lane](float t) {
-                          return lane(at(effect, t));
-                        },
-                        color}},
-                      std::move(frame))});
+    if (tick.value != rest) ruled.push_back(tick.value);
+  std::vector<double> published;
+  for (const fx::Key& keyframe : table) published.push_back(keyframe.at);
+  return sketch::kit::plot(
+             key, {.y = {.domain = {lo, hi}}},
+             {sketch::kit::rules({.y = std::move(ruled)}),
+              sketch::kit::trace(
+                  [rest](double) { return rest; },
+                  {.width = 1.0f, .samples = 1, .styleClass = "rest"}),
+              sketch::kit::trace(
+                  [effect = std::move(effect), lane](double t) {
+                    return lane(at(effect, (float)t));
+                  },
+                  {.width = 1.6f,
+                   .marks = std::move(published),
+                   .markRadius = 2.6f,
+                   .styleClass = series})})
+      .width(pct(100))
+      .height(pct(100));
 }
 
 }  // namespace
@@ -316,6 +336,7 @@ struct ElasticType : sketch::Sketch {
                              {0.0f, 0.55f, 1.0f}))
         .font({.face = faceLabel, .size = 11.5f, .track = 2.4f})
         .ink(kLabel)
+        .styleSheet(graphSheet())
         .children(
             {box()
                  .row()
@@ -350,7 +371,7 @@ struct ElasticType : sketch::Sketch {
                                "g-rx", fx::keys(rubberTable(), &cssEase),
                                rubberTable(),
                                [](const GlyphModifier& m) { return m.scaleX; },
-                               kX, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
+                               "x", kScaleLo, kScaleHi, 1.0f, scaleTicks()),
                            kScaleLo, kScaleHi, scaleTicks())})
                  .children(
                      {plot("rubberBand — scaleY 0.75 TO 1.25",
@@ -358,13 +379,13 @@ struct ElasticType : sketch::Sketch {
                                "g-ry", fx::keys(rubberTable(), &cssEase),
                                rubberTable(),
                                [](const GlyphModifier& m) { return m.scaleY; },
-                               kY, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
+                               "y", kScaleLo, kScaleHi, 1.0f, scaleTicks()),
                            kScaleLo, kScaleHi, scaleTicks())})
                  .children({plot(
                      "jello — skewX = skewY ±12.5°, HALVING",
                      graph(
                          "g-j", fx::keys(jelloTable(), &cssEase), jelloTable(),
-                         [](const GlyphModifier& m) { return m.skewXDeg; }, kX,
+                         [](const GlyphModifier& m) { return m.skewXDeg; }, "x",
                          kShearLo, kShearHi, 0.0f, shearTicks()),
                      kShearLo, kShearHi, shearTicks())}),
              text("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "

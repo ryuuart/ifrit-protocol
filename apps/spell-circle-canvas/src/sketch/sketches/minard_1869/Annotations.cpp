@@ -204,7 +204,8 @@ auto Minard1869::cardScale() -> Element {
   // across, band px up. Every dot, the fitted line and any label go
   // through this one `at()`, so a mark and its caption cannot land on
   // two different arithmetics.
-  const kit::Plot plot{.fromT = 0, .toT = 440000, .fromY = 0, .toY = 180};
+  const sketch::kit::Plot plot{.x = {.domain = {0, 440000}},
+                               .y = {.domain = {0, 180}}};
   const SkSize field{pw, ph};
   auto P = [&](float men, float px) {
     const SkPoint q = plot.at(men, px, field);
@@ -317,8 +318,8 @@ auto Minard1869::cardFloor() -> Element {
   // strengths, which crowd into the last twentieth of a linear axis, so
   // the abscissa is log10(men) and the mapping value is handed that
   // rather than the men.
-  const kit::Plot plot{
-      .fromT = 3.5f, .toT = 5.05f, .fromY = 3.0f, .toY = 11.5f};
+  const sketch::kit::Plot plot{.x = {.domain = {3.5, 5.05}},
+                               .y = {.domain = {3.0, 11.5}}};
   const SkSize field{pw, ph};
   auto P = [&](float men, float px) {
     const SkPoint q = plot.at(std::log10(std::max(men, 1000.0f)), px, field);

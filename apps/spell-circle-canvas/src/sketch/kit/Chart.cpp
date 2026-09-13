@@ -303,7 +303,7 @@ Layer axis(const Ruler& how) {
 Layer rules(const Rules& how) {
   return [how](const Plot& frame, std::string_view key, std::size_t index) {
     return recorded(
-        named(key, "rule", index), "rule",
+        named(key, "rule", index), detail::classOf(how.styleClass, "rule"),
         [how, frame](SkCanvas& canvas, const PaintContext& pc) {
           SkPaint pen = strokePen(pc, how.width);
           if (frame.polar) {
@@ -368,18 +368,18 @@ SkPathBuilder walked(const Plot& frame,
 Layer trace(sigil::core::Callable<double(double)> f, const Trace& how) {
   return [f = std::move(f), how](const Plot& frame, std::string_view key,
                                  std::size_t index) {
-    return recorded(named(key, "trace", index), "trace",
-                    [f, how, frame](SkCanvas& canvas, const PaintContext& pc) {
-                      if (!f) return;
-                      SkPaint pen = strokePen(pc, how.width);
-                      canvas.drawPath(
-                          walked(frame, f, how.samples, pc.size).detach(), pen);
-                      if (!(how.markRadius > 0)) return;
-                      pen.setStyle(SkPaint::kFill_Style);
-                      for (double value : how.marks)
-                        canvas.drawCircle(frame.at(value, f(value), pc.size),
-                                          how.markRadius, pen);
-                    });
+    return recorded(
+        named(key, "trace", index), detail::classOf(how.styleClass, "trace"),
+        [f, how, frame](SkCanvas& canvas, const PaintContext& pc) {
+          if (!f) return;
+          SkPaint pen = strokePen(pc, how.width);
+          canvas.drawPath(walked(frame, f, how.samples, pc.size).detach(), pen);
+          if (!(how.markRadius > 0)) return;
+          pen.setStyle(SkPaint::kFill_Style);
+          for (double value : how.marks)
+            canvas.drawCircle(frame.at(value, f(value), pc.size),
+                              how.markRadius, pen);
+        });
   };
 }
 
@@ -387,7 +387,7 @@ Layer area(sigil::core::Callable<double(double)> f, const Area& how) {
   return [f = std::move(f), how](const Plot& frame, std::string_view key,
                                  std::size_t index) {
     return recorded(
-        named(key, "area", index), "area",
+        named(key, "area", index), detail::classOf(how.styleClass, "area"),
         [f, how, frame](SkCanvas& canvas, const PaintContext& pc) {
           if (!f) return;
           SkPaint pen;

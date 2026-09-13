@@ -465,6 +465,23 @@ name a colour and nothing else, and only `tick` and `label` carry type,
 because only they set words. What stays a prop is a stroke width, a radius,
 a sampling count and a distance: geometry, never look.
 
+**A PLOT OF SEVERAL SERIES NAMES A CLASS PER LAYER.** `styleClass` on a
+layer's props is the class it reads instead of the one its part is named
+for — the same kind of part under a different entry on the sheet, which is
+what a class attribute is for — so a sketch with three curves registers
+three names on the sheet it states and writes one of them at each `trace`.
+The axis is the exception and carries no override: there is one axis per
+scale, and its line and its ticks are two classes already.
+
+```cpp
+weave::StyleSheet look = sketch::kit::houseTheme().styleSheet();
+look.set("second", {.color = kCool});
+…
+sketch::kit::plot("decay", frame,
+                  {sketch::kit::trace(fast),
+                   sketch::kit::trace(slow, {.styleClass = "second"})})
+```
+
 **A TICK'S NUMBER IS A `Part`.** `Ruler::tickLine` is a function of the
 VALUE, because how a number reads is the data's business and not the kit's;
 empty is the value to three significant figures in the class `tick`, which

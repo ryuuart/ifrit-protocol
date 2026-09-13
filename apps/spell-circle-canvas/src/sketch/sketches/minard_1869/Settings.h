@@ -16,7 +16,6 @@
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
@@ -33,6 +32,7 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>

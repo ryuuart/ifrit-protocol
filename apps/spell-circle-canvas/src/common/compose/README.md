@@ -1328,17 +1328,12 @@ content instead of adding to it —
 `kit/Placers.h`'s `place::grid`, `place::ring` and `place::repeat`, the
 fillers of an instanced leaf's pool — the first two over the same ring
 and grid arithmetic the layout schemes use, which is SigilGeometry's —
-the three instruments in `kit/Instruments.h` —
+the two instruments in `kit/Instruments.h` —
 `kit::trackMeter` (a cascade's schedule drawn, one cell per beat at its
 rect, filled by its local time — `MeterPlacement` stands the cells over
 the beats or under them as a rule, for a track whose own letters are
-what is being watched), `kit::restGhost` (the same word
-undeformed under the moving one) and `kit::curvePlot` (a function of one
-variable walked over its own domain, ruled at values stated in that
-domain's units and dotted at the samples a reference quotes, so a curve
-can be checked against one; its `Plot::at` is the mapping the drawing
-uses, which is how a caller's own label lands ON the curve rather than
-near it) — a component's own lines as parts in
+what is being watched) and `kit::restGhost` (the same word
+undeformed under the moving one) — a component's own lines as parts in
 `kit/Part.h` — `kit::Part`, one such line as a function of what the
 component offers about it, the text and then the component, handed any
 callable whose parameters are a prefix of that offer (`core::Callable`
@@ -1944,6 +1939,17 @@ single arc-length coordinate. What stays here is the
 POLICY the verb states — the fraction wraps on a closed curve and clamps
 on an open one, the tangent angle comes from a look-ahead chord, and the
 path outranks the translate lanes.
+
+**A NUMBER DRAWN AGAINST A FRAME WITH SCALES is not here either.** A
+domain, a range and the transform between them are ONE mapping value, and
+that value is SigilData's, which no tier of this library links: a plot
+whose two axes are those mappings is built where SigilData is in reach,
+and what this library supplies it is the keyed recording, the layout
+scheme a mark is placed by and the cascade the mark's colour is read out
+of. What stays here is the READING of a column that states no scale at
+all — `kit::bars`, N rows against an extent derived from the values,
+which is a row reading that sizes itself from its content and needs no
+box to be given.
 
 `SigilComposeTexture` is the one feature that owns a SURFACE, and it is
 the exception the bullet below states. `compose::TextureScene` keeps a

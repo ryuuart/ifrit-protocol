@@ -144,10 +144,12 @@ Layer anchored(std::vector<Datum> data, std::vector<Element> children,
 }
 
 Layer banded(std::vector<Datum> data, double base, float corners,
-             compose::kit::Part<std::size_t, double> part) {
-  return [data = std::move(data), base, corners, part](
+             compose::kit::Part<std::size_t, double> part,
+             std::string_view styleClass) {
+  return [data = std::move(data), base, corners, part,
+          cls = std::string(styleClass)](
              const Plot& frame, std::string_view key, std::size_t index) {
-    const std::string stem = named(key, "bar", index);
+    const std::string stem = named(key, cls, index);
     // A polar band's own shape needs no box: its two angles come from the
     // angle scale, whose range is the stated sweep, and its two radii are
     // fractions of whatever the outer radius turns out to be.
@@ -171,7 +173,7 @@ Layer banded(std::vector<Datum> data, double base, float corners,
       children.push_back(std::move(one.key(stem + "-" + std::to_string(i))));
     }
     Element field = compose::layout(Spanned{frame, data, base})
-                        .styleClass("bar")
+                        .styleClass(cls)
                         .absolute()
                         .inset(0)
                         .key(stem);
@@ -184,11 +186,12 @@ Layer banded(std::vector<Datum> data, double base, float corners,
 
 namespace sigil::sketch::kit {
 
-Layer label(compose::Utf8 words, double x, double y, const Anchor& how) {
+Layer label(compose::Utf8 words, double x, double y, const Label& how) {
   return [words = std::move(words), x, y, how](
              const Plot& frame, std::string_view key, std::size_t index) {
     const Layer one =
-        detail::anchored({Datum{x, y}}, {compose::text(words)}, how, "label");
+        detail::anchored({Datum{x, y}}, {compose::text(words)}, how.anchor,
+                         detail::classOf(how.styleClass, "label"));
     return one(frame, key, index);
   };
 }
