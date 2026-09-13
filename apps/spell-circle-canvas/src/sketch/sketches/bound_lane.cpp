@@ -111,13 +111,6 @@ const SkColor4f kCurve{0.32f, 0.46f, 0.62f, 1};
 const SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
 const SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-/** The one voice every panel on this sheet is captioned in: the picture,
- *  then what it is, then the call that spelled it, measured to the cell
- *  so a note never widens its own panel. */
 void strokePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
                 float width) {
   SkPaint paint;
@@ -218,6 +211,9 @@ Element locus(const char* key, const BoundFloat& wx, const BoundFloat& wy,
       .cache(Cache::None);
 }
 
+/** ONE PANEL, captioned in the one voice every panel here is: the
+ *  picture, then what it is, then the call that spelled it, measured to
+ *  the cell so a note never widens its own panel. */
 Element panel(float width, float height, const char* title, const char* sub,
               Element inner) {
   inner.inset(0);  // the plot fills its frame
@@ -355,8 +351,10 @@ struct BoundLane : sketch::Sketch {
                                "the seam; wiggle adds in the property's own "
                                "units, so its amount is pixels here and laps "
                                "below; clamp is always last, whenever it was "
-                               "written."),
-                        label(12, kDim))
+                               "written."))
+                       .font({.face = weave::defaultFace(),
+                              .size = 12,
+                              .color = kDim})
                        .width(Dimension(420))},
          .gap = 24});
 
