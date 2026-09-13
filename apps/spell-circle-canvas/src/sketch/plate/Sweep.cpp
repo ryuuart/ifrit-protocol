@@ -352,6 +352,19 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // EARLIER than them, which there is no way to rewind. So the session
     // is reopened and stepped from zero at the same fixed step, and the
     // capture frame is then a function of the DECLARATION alone.
+    // WHAT THE SKETCH ASKED FOR, WHOLE, or what the width allows. A
+    // declared oversample is the sketch's own grid — one pixel of what
+    // it reconstructs covering the same count of device pixels
+    // everywhere — and the fraction a width ceiling produces is exactly
+    // what that cannot survive, so a declaration outranks the ceiling
+    // and every tier honours it alike: two plates of one sketch are
+    // comparable only if they were photographed on the same grid.
+    const int declaredOversample = session->canvas().oversample;
+    const float scale =
+        declaredOversample > 0
+            ? (float)declaredOversample
+            : std::max(1.0f, std::min(session->oversample(),
+                                      kPlateWidthCeiling / size.width()));
     double declared = options.captureAt > 0 ? options.captureAt
                                             : session->canvas().captureSeconds;
     // A ledger run always takes the exact-stepped path; a sketch with no
@@ -371,6 +384,13 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         if (timingJson) std::fclose(timingJson);
         return 1;
       }
+      // A CAPTURE IS PHOTOGRAPHED AT ITS OWN DENSITY, and so is everything
+      // the scene forms on the way to it: a kept canvas or a bake formed
+      // during the stepped frames is drawn on the plate's grid rather than
+      // magnified to it, as the live capture declares before its still.
+      // Declared before the first frame, because a bake formed before the
+      // declaration is re-formed only when its node describes again.
+      session->setBakeDensity(scale);
       const int captureFrame = (int)std::lround(declared * kRate);
       for (int f = 0; f < captureFrame; ++f) advanceOne();
     } else {
@@ -409,19 +429,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       }
     }
 
-    // WHAT THE SKETCH ASKED FOR, WHOLE, or what the width allows. A
-    // declared oversample is the sketch's own grid — one pixel of what
-    // it reconstructs covering the same count of device pixels
-    // everywhere — and the fraction a width ceiling produces is exactly
-    // what that cannot survive, so a declaration outranks the ceiling
-    // and every tier honours it alike: two plates of one sketch are
-    // comparable only if they were photographed on the same grid.
-    const int declaredOversample = session->canvas().oversample;
-    const float scale =
-        declaredOversample > 0
-            ? (float)declaredOversample
-            : std::max(1.0f, std::min(session->oversample(),
-                                      kPlateWidthCeiling / size.width()));
     const SkImageInfo plateInfo = SkImageInfo::MakeN32Premul(
         (int)(size.width() * scale), (int)(size.height() * scale));
     const std::string path = options.outputDirectory + "/" +

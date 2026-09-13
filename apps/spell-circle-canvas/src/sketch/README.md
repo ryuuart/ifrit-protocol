@@ -604,7 +604,11 @@ and magnified through the zoom the way a bitmap the sketch loaded would
 be, instead of being rasterized again at every rung of the composer's
 bake ladder the gesture passes through. The **Capture** action raises the
 density for the photograph, so an explicitly asked-for still is written
-at its own resolution rather than at the reader's.
+at its own resolution rather than at the reader's. The plate ledger does
+the same before the first frame it steps: it declares the plate's density
+to the session it reopens, so a kept canvas or a bake formed on the way
+to the capture moment is drawn on the plate's grid rather than magnified
+to it.
 
 The app is a macOS bundle, so a headless run goes through the binary
 inside it:
