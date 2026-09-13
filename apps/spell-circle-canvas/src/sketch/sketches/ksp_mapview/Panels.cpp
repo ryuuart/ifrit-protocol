@@ -7,9 +7,9 @@ auto KspMapView::infoRow(const char* label, const char* value) -> Element {
       .height(Dimension(19))
       .alignItems(Align::Center)
       .padding(0, 0, 0, 8)
-      .child(t(label, body(11, kCardInk)))
+      .child(text(toUtf8(label)))
       .child(box().grow(1))
-      .child(t(value, bold(11, kOrange)));
+      .child(t(value, {.face = sansB(), .color = kOrange}));
 }
 
 auto KspMapView::infoHead(const char* label) -> Element {
@@ -19,14 +19,18 @@ auto KspMapView::infoHead(const char* label) -> Element {
       .justify(Justify::Center)
       .padding(0, 0, 0, 8)
       .fill(Paint::solid(ksp::kCardStrip))
-      .child(t(label, bold(11, kOrange, 0.2f)));
+      .child(t(label, {.face = sansB(), .color = kOrange, .track = 0.2f}));
 }
 
 auto KspMapView::infoCard() -> Element {
   using namespace ksp;
+  // The card is set in the sans at 11 px in the card ink: a row's label
+  // says nothing, a figure and a head name the bold cut and the orange.
   return at(
       box()
           .column()
+          .font({.face = sans(), .size = 11})
+          .ink(kCardInk)
           .fill(Paint::solid(kCardBody))
           .clip()
           .translateX(animate(from(46.0f).to(0.0f), {380ms, ch::easeOutQuad}))
@@ -36,13 +40,16 @@ auto KspMapView::infoCard() -> Element {
                      .justify(Justify::Center)
                      .padding(0, 0, 0, 9)
                      .fill(Paint::solid(kOrange))
-                     .child(t("Kerbal X", bold(14, hexColor(0xFFFFFF)))))
+                     .child(t("Kerbal X", {.face = sansB(),
+                                           .size = 14,
+                                           .color = hexColor(0xFFFFFF)})))
           .child(box()
                      .height(Dimension(19))
                      .justify(Justify::Center)
                      .padding(0, 0, 0, 9)
                      .fill(Paint::solid(kCardSub))
-                     .child(t("Info", bold(11, hexColor(0xE8E8EA)))))
+                     .child(t("Info",
+                              {.face = sansB(), .color = hexColor(0xE8E8EA)})))
           .child(infoHead("Vessel classification"))
           .child(box()
                      .row()
