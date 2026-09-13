@@ -72,12 +72,6 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-weave::TextStyle mono(float size, SkColor4f color) {
-  const sk_sp<SkTypeface> face =
-      weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
 /** The face the bake reads: aliased, so the coverage handed back is
  *  already 0 or 1 and the threshold has nothing left to decide. The
  *  96-cell font is baked from a PROPORTIONAL face on purpose — a `1` is
@@ -150,8 +144,11 @@ struct PixFontDotSprite final : sketch::Sketch {
               .row()
               .gap(10)
               .alignItems(Align::Center)
-              .child(text(toUtf8(kit::formatted("%2.0f", kBakeSizes[i])),
-                          mono(9, sketch::kit::theme().palette.ash)))
+              .child(text(toUtf8(kit::formatted("%2.0f", kBakeSizes[i])))
+                         .font({.face = sketch::kit::theme().type.mono,
+                                .size = 9,
+                                .track = 0})
+                         .ink(sketch::kit::theme().palette.ash))
               .child(kit::masked(sweep[i], {.colour = kOn, .scale = 2})));
     return cell("bakeRun(\"3.eg\", fonts, aliased(size))",
                 "one run, three bake sizes, one present scale \xc2\xb7 at the "
