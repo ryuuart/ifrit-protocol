@@ -371,10 +371,9 @@ struct KaraokeWipe : sketch::Sketch {
     // through it.
     ctx.captureAt(kLeadIn + kLineSeconds * 0.44);
 
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       cycle = motion::phase(t, loop) * (float)loop;
-      return true;
     });
 
     ctx.composer.render(describe());

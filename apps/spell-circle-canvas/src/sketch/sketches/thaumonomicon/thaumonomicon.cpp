@@ -548,7 +548,7 @@ struct Thaumonomicon : sketch::Sketch {
       glyphs.push_back(glyphSprite(glyph));
 
     // ---- motion ----------------------------------------------------------
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       // :610 — sin(systemTime % 600 / 600 * 2pi) * 0.25 + 0.75, wall clock,
       // so every unlockable node is in lockstep with zero phase offset.
@@ -557,7 +557,6 @@ struct Thaumonomicon : sketch::Sketch {
       spin = (float)std::fmod(t * 0.06, 1.0);
       driftX = (float)(std::sin(t * 0.17) * 26.0);
       driftY = (float)(std::cos(t * 0.11) * 16.0);
-      return true;
     });
 
     // ---- the tree --------------------------------------------------------

@@ -207,7 +207,6 @@ auto Fallout2CharSheet::setup(sketch::SketchContext& ctx) -> void {
 
   ctx.ticker.add([this](double dt) {
     step(dt);
-    return true;
   });
 
   ctx.composer.render(describe());

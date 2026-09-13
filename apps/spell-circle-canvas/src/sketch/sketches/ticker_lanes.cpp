@@ -203,7 +203,7 @@ struct TickerLanes final : sketch::Sketch {
                    "promise"},
         kit::cells(
             {.cells =
-                 {cell("ticker.add([](double dt) { … return true; })",
+                 {cell("ticker.add([] { …})",
                        "the free steppable, handed the frame's delta "
                        "· it answers true forever here, which is "
                        "what keeps active() true forever",

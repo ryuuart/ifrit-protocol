@@ -881,7 +881,6 @@ struct Bg3DiceRoll : sketch::Sketch {
         hatchSpacing = 14.0f - 11.0f * e;  // 14 px -> 3 px
         hatchAngle = 12.0f + 12.0f * e;    // a 12 degree swing
       }
-      return true;
     });
 
     ctx.composer.render(describe(ctx));

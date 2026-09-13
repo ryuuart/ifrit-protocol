@@ -100,6 +100,34 @@ TEST(Ticker, ASteppableRunsUntilItReportsItIsDoneAndIsThenDropped) {
   EXPECT_FALSE(ticker.active());
 }
 
+TEST(Ticker, ASteppableNamesOnlyWhatItReadsAndAVoidOneKeepsTicking) {
+  // The delta and the ticker's elapsed time are both offered, and every
+  // prefix of them is a steppable: neither, the delta, or both. A steppable
+  // that ANSWERS NOTHING says nothing about being finished, so it is taken
+  // as never finished and holds active() true for as long as it is added.
+  Ticker ticker;
+  int bare = 0;
+  double summed = 0.0, clock = 0.0;
+  ticker.add([&bare] { ++bare; });
+  ticker.add([&summed](double dt) { summed += dt; });
+  ticker.add([&clock](double dt, double elapsed) { clock = elapsed; });
+
+  EXPECT_TRUE(ticker.tick(0.25));
+  EXPECT_TRUE(ticker.tick(0.25));
+  EXPECT_EQ(bare, 2);
+  EXPECT_DOUBLE_EQ(summed, 0.5);
+  EXPECT_DOUBLE_EQ(clock, ticker.elapsed());
+  EXPECT_TRUE(ticker.active()) << "a void steppable never retires itself";
+
+  // A fixed step reads the same rule: answering nothing keeps it running.
+  Ticker fixed;
+  int steps = 0;
+  fixed.addFixed(10.0, [&steps] { ++steps; });
+  EXPECT_TRUE(fixed.tick(0.35));
+  EXPECT_EQ(steps, 3);
+  EXPECT_TRUE(fixed.active());
+}
+
 // ---------------------------------------------------------------------------
 // derive() — a cell recomputed every tick from another cell through a
 // bound chain, and the two-phase step that makes it current rather than
@@ -118,7 +146,6 @@ TEST(Ticker, ADerivationNeverReadsAStaleSource) {
   ticker.add([&](double dt) {
     t += dt;
     src = (float)t;
-    return true;
   });
 
   ticker.tick(0.5);

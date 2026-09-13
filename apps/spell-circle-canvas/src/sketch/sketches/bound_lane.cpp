@@ -268,18 +268,16 @@ struct BoundLane : sketch::Sketch {
     // `seconds` is the SCHEDULE the shake is phased off. It ramps forever
     // rather than wrapping, so `frequency` reads as plain Hz and the noise
     // never steps at a seam.
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       seconds = (float)t;
-      return true;
     });
     // `phase` is the other kind of schedule: a lap, wrapped by hand here
     // because the tracks want it in [0,1) as their input, not as their
     // output.
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       phase = (float)std::fmod(t / kPeriod, 1.0);
-      return true;
     });
 
     // The chips' own lanes and the plots' are the SAME values: build

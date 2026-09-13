@@ -17,13 +17,13 @@ Ticker::Ticker() {
   m_timeline.setDefaultRemoveOnFinish(true);
 }
 
-void Ticker::add(std::function<bool(double)> steppable) {
+void Ticker::addStep(std::function<bool(double, double)> steppable) {
   m_steppables.push_back(std::move(steppable));
 }
 
-void Ticker::addFixed(double hz, std::function<bool()> fn, int maxCatchUp,
-                      choreograph::Output<float>* alphaOut,
-                      FixedStatus* statusOut) {
+void Ticker::addFixedStep(double hz, std::function<bool()> fn, int maxCatchUp,
+                          choreograph::Output<float>* alphaOut,
+                          FixedStatus* statusOut) {
   if (hz <= 0.0 || !fn) return;
   add([hz, maxCatchUp, alphaOut, statusOut, fn = std::move(fn), total = 0.0,
        ran = 0.0](double dt) mutable {
@@ -109,7 +109,7 @@ bool Ticker::tick(double deltaSeconds) {
   // steppable, in registration order.
   m_timeline.step(deltaSeconds);
   for (auto it = m_steppables.begin(); it != m_steppables.end();) {
-    if ((*it)(deltaSeconds))
+    if ((*it)(deltaSeconds, m_elapsed))
       ++it;
     else
       it = m_steppables.erase(it);

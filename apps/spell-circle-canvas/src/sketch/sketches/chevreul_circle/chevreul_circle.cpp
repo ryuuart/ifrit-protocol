@@ -94,7 +94,7 @@ auto ChevreulCircle::setup(sketch::SketchContext& ctx) -> void {
   buildLaw();
 
   // one Output, 0 -> 1 over 13.0 s, then a 1.0 s hold, then loop.
-  ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+  ctx.ticker.add([this, &ticker = ctx.ticker] {
     const double t = ticker.elapsed();
     const double u = std::fmod(t, 14.0);
     demo = (float)std::clamp(u / 13.0, 0.0, 1.0);
@@ -109,7 +109,6 @@ auto ChevreulCircle::setup(sketch::SketchContext& ctx) -> void {
         for (int r = 0; r < 20; ++r) tints[(size_t)k * 20 + (size_t)r].fA = a;
       }
     }
-    return true;
   });
 
   ctx.composer.render(describe(ctx));

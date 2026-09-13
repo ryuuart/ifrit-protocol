@@ -295,11 +295,10 @@ struct Y2kChrome final : sketch::Sketch {
     unitW = std::ceil(unit.width());
     wrapLen = unitW + yc::kTickerGap;
 
-    ticker.add([this, &ticker](double) {
+    ticker.add([this, &ticker] {
       namespace yc = y2k_chrome;
       const double t = ticker.elapsed();
       tickX = -(float)std::fmod(t * yc::kTickerSpeed, (double)wrapLen);
-      return true;
     });
 
     composer.render(describe());

@@ -386,10 +386,9 @@ struct ElasticType : sketch::Sketch {
     face = weave::ports::face({"Avenir Next", "Futura", "Helvetica Neue"}, 700);
     faceLabel = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
 
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       pass = motion::phase(t, kLoop);
-      return true;
     });
 
     ctx.composer.render(describe());

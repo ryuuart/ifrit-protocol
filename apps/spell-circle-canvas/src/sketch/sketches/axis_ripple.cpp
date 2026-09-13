@@ -446,10 +446,9 @@ struct AxisRipple : sketch::Sketch {
     gradRowLo = widthAt("GRAD", kGradLo, kProofRowSize);
     gradRowHi = widthAt("GRAD", kGradHi, kProofRowSize);
 
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       phase = motion::phase(t, kPeriod);
-      return true;
     });
 
     ctx.composer.render(describe());

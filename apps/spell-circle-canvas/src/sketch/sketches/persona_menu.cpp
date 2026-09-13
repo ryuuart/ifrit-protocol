@@ -283,7 +283,6 @@ struct PersonaMenu final : sketch::Sketch {
                            {.periodSeconds = 0.391f, .damping = 0.215f});
       curDx = cursorFlight.value;
       curDy = -cursorFlight.value;
-      return true;
     });
 
     composer.render(describe());

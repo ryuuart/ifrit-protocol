@@ -246,7 +246,7 @@ struct PassiveTree final : sketch::Sketch {
     // sweeping the allocated spine in 1.1 s then resting out a 2.8 s
     // cycle); the wrap comet at 0.5 rev/s; the search sin; the selection
     // ring's slow rotation.
-    ticker.add([this, &ticker](double) {
+    ticker.add([this, &ticker] {
       const double t = ticker.elapsed();
       breath = 5.5f + 3.5f * (float)std::sin(t * 2.1);
       const float cycle = (float)std::fmod(t, 2.8);
@@ -256,7 +256,6 @@ struct PassiveTree final : sketch::Sketch {
       ringPhase = (float)std::fmod(t * 0.5, 1.0);
       searchPulse = 0.5f + 0.5f * (float)std::sin(t * 3.0);
       selectSpin = (float)std::fmod(t * 22.0, 360.0);
-      return true;
     });
 
     composer.render(describe());

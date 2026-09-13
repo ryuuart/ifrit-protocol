@@ -621,7 +621,6 @@ struct PenrosePaving : sketch::Sketch {
       }
       const float sp = (float)std::clamp((now - kSheen0) / kSheenDur, 0.0, 1.0);
       sheen = std::sin(sp * 3.14159265f);  // one pass, then gone
-      return true;
     });
 
     ctx.composer.render(describe(ctx));

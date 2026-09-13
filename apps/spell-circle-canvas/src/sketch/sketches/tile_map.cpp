@@ -243,7 +243,6 @@ struct TileMap final : sketch::Sketch {
       for (int i = 0; i < kChunks; ++i)
         flash[(size_t)i] =
             motion::decay((float)(clock - editedAt[(size_t)i]), kFade);
-      return true;
     });
     probe = std::make_unique<Composer>(ctx.ticker, *ctx.fonts);
     probe->setSize(ctx.size);

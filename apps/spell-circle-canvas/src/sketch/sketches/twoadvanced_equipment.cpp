@@ -453,10 +453,9 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     // --- the clock ---------------------------------------------------
     // Both behaviours are shapes of it, declared where they are drawn, so
     // this is the whole per-frame side of the page.
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double tt = ticker.elapsed();
       clock = (float)tt;
-      return true;
     });
 
     ctx.composer.render(describe());

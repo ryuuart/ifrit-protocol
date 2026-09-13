@@ -103,7 +103,7 @@ auto Minard1869::setup(sketch::SketchContext& ctx) -> void {
   // ONE Output drives every beat, looping at tLoop. Each beat is
   // bind().window(lo, hi), never from(): outside a window from() feeds
   // the easing curve values outside its domain and ease:: is not total.
-  ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+  ctx.ticker.add([this, &ticker = ctx.ticker] {
     const double t = ticker.elapsed();
     const float s = (float)std::fmod(t, (double)tLoop);
     T = s;
@@ -126,7 +126,6 @@ auto Minard1869::setup(sketch::SketchContext& ctx) -> void {
     dimAmt = 0.42f * std::clamp(d, 0.0f, 1.0f);
     calAlpha = std::clamp(
         std::min((s - tScale - 0.2f) / 0.3f, (28.6f - s) / 0.9f), 0.0f, 1.0f);
-    return true;
   });
   // The caliper walks in CLICKS: one spot reading every 2/3 s on its own
   // fixed-rate lane, independent of the frame rate.

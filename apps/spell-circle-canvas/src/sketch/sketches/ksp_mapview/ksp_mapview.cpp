@@ -82,7 +82,7 @@ auto KspMapView::setup(sketch::SketchContext& ctx) -> void {
   burnTick = 0;
   nextBurnAt = 0;
 
-  ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+  ctx.ticker.add([this, &ticker = ctx.ticker] {
     const double t = ticker.elapsed();
     const float ft = (float)t;
     dashFast = -ft * 22.0f;
@@ -113,7 +113,6 @@ auto KspMapView::setup(sketch::SketchContext& ctx) -> void {
     rollTape = 0.5f + 0.42f * std::sin(ft * 2.6f);
     yawTape = 0.5f + 0.42f * std::sin(ft * 2.17f + 2.0f);
     dvSweep = 0.34f + 0.30f * (0.5f + 0.5f * std::sin(ft * 0.8f));
-    return true;
   });
 
   ctx.composer.render(describe(ctx));

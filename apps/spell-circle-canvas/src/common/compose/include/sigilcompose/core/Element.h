@@ -404,7 +404,7 @@ class Element {
    *  computes the number:
    *
    *      ch::Output<float> level; ch::Output<Fill> bar;
-   *      ticker.add([&](double){ level = v; bar = Fill::color(ramp(v)); … });
+   *      ticker.add([&]{ level = v; bar = Fill::color(ramp(v)); … });
    *      box().scaleX(bind(&level)).fill(&bar)
    *
    *  What does NOT exist is deriving one from the other at the binding

@@ -159,10 +159,9 @@ struct KineticCard final : sketch::Sketch {
     // exists to show, and late enough that each word is legible as the
     // word it is.
     phase = 0;
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       phase = motion::phase(t, kPeriod);
-      return true;
     });
     // THE METERS ARE A READ-BACK: they resolve from the layout the last
     // draw left standing, so the page is described once for the specimens

@@ -494,7 +494,7 @@ struct EvaMagiDefense : sketch::Sketch {
 
     // --- motion ---
     falls.build(eva::kFalls, eva::kFallN, 1);
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       // scanlines creep one WHOLE PIXEL at a time, 4 px per 8 s: a fractional
       // translate turns the cached CRT texture's blit into a resample.
@@ -515,7 +515,6 @@ struct EvaMagiDefense : sketch::Sketch {
         fallAlpha[i] =
             kFallRest + (1.0f - kFallRest) * ch::easeOutQuad(falls.localTime(
                                                  master, (uint32_t)i, 0));
-      return true;
     });
 
     ctx.composer.render(describe());

@@ -641,10 +641,9 @@ struct StrokeAtlasSketch : sketch::Sketch {
 
     // The one moving thing on the sheet: the marching-ants frame. A specimen
     // plate should still prove that a rule can be alive.
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       march = std::fmod((float)t * 22.0f, 14.0f);
-      return true;
     });
 
     ctx.composer.render(describe(ctx));

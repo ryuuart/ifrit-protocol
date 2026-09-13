@@ -94,7 +94,6 @@ auto ThunderFulu::setup(sketch::SketchContext& ctx) -> void {
   ctx.ticker.add([this](double dt) {
     clockT += dt;
     scribe = (float)std::fmod(clockT, (double)kLoop);
-    return true;
   });
 
   ctx.composer.render(describe(ctx));

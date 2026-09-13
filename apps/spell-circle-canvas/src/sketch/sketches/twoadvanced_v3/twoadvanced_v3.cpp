@@ -94,13 +94,12 @@ void TwoAdvancedV3::setup(sketch::SketchContext& ctx) {
   }
 
   // --- idle motion ------------------------------------------------------
-  ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+  ctx.ticker.add([this, &ticker = ctx.ticker] {
     const double tAcc = ticker.elapsed();
     const float s = (float)tAcc;
     // the art beacon: sharp on, slow decay, period 2.4 s
     const float ph = std::fmod(s, 2.4f);
     beaconAlpha = ph < 0.12f ? 1.0f : std::max(0.15f, 1.0f - ph * 0.8f);
-    return true;
   });
 
   ctx.composer.render(describe());

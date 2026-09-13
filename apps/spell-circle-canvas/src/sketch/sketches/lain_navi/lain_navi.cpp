@@ -423,7 +423,7 @@ struct LainNavi : sketch::Sketch {
     // roughly 1.0 em, so the body size is the leading less the gap)
     proseSize = 28.0f;
 
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       // whole-pixel creep: a fractional translate turns a cached blit into a
       // resample, so the creep steps in whole pixels and never lands between
@@ -432,7 +432,6 @@ struct LainNavi : sketch::Sketch {
       flicker = ph < 0.05 ? 0.055f : 0.0f;
       // the camera hunting focus, +-0.4 px at 0.15 Hz
       breathe = 0.4f * (float)std::sin(t * 0.9424778);
-      return true;
     });
 
     ctx.composer.render(describe(ctx));

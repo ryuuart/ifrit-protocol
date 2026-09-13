@@ -378,7 +378,6 @@ struct AstralTome : sketch::Sketch {
                                  0.375));
       // Cluster:163 — sin(t/4)/32 + 1 on the client tick.
       arrowScale = (float)(std::sin(t / 4.0) / 32.0 + 1.0);
-      return true;
     });
 
     // ---- the tree -------------------------------------------------------

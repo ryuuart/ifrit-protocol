@@ -120,7 +120,6 @@ auto WinampBase::setup(sketch::SketchContext& ctx) -> void {
   // --- one steppable drives every idle loop.
   ctx.ticker.add([this](double dt) {
     step(dt);
-    return true;
   });
 
   ctx.composer.render(describe());

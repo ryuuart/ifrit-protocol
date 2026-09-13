@@ -100,7 +100,6 @@ auto SigillumAemeth::setup(sketch::SketchContext& ctx) -> void {
       s = (float)((1.0 - u) * (1.0 - u) * (1.0 - u));
     }
     settle = s;
-    return true;
   });
 
   ctx.composer.render(describe(ctx));

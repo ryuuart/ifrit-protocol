@@ -499,7 +499,6 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
     // two thirds down its fourteen feet, mid-exposure.
     tau = std::fmod(elapsed / 3.0 + 0.60, 1.0);
     rebuildWalls();
-    return true;
   });
 
   if (ctx.fonts) {

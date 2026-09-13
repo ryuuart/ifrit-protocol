@@ -83,7 +83,7 @@ struct LootGrid final : sketch::Sketch {
                             lt::kCols, {lt::kCell, lt::kCell}, {0, 0},
                             {lt::kGap, lt::kGap});
 
-    ticker.add([this, &ticker](double) {
+    ticker.add([this, &ticker] {
       const double t = ticker.elapsed();
       // 4.4 s round trip: rest blocked, slide, rest free, slide back.
       const double cycle = std::fmod(t, 4.4);
@@ -107,7 +107,6 @@ struct LootGrid final : sketch::Sketch {
       const float g = (float)std::min(1.0, t / 1.6);
       goldFrac = g;
       gold = (int)(214860 * g);
-      return true;
     });
 
     composer.render(describe());

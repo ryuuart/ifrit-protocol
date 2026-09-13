@@ -897,7 +897,6 @@ struct ChladniTab1 : sketch::Sketch {
           tint[i] = {1, 1, 1, appear};
         }
       }
-      return true;
     });
 
     ctx.composer.render(describe(ctx));

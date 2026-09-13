@@ -43,7 +43,7 @@ feature it names, and everything below is the library as a whole.
 
 | chapter | what it covers |
 |---------|----------------|
-| **[CLOCK.md](CLOCK.md)** | `FrameClock` and `Ticker`: deltas, the two phases of a tick, derivations, the fixed-rate lane, and the signal a host sleeps on |
+| **[CLOCK.md](CLOCK.md)** | `FrameClock` and `Ticker`: deltas, the two phases of a tick, a steppable naming the delta and the clock or neither, derivations, the fixed-rate lane, and the signal a host sleeps on |
 | **[VALUES.md](VALUES.md)** | `Transition`, `Animatable<T>` and its four forms, the held `AnimatedFloat` a ticker runs, `Oscillator` and `Sequence`, `Spring`, the lanes a host retargets through, and the three words for stillness |
 | **[BIND.md](BIND.md)** | `bind()`, the `Bound` chain and the fixed order `BoundFloat::apply` runs its stages in, the envelopes that are the waveform vocabulary, and the wiggle field |
 | **[PHYSICS.md](PHYSICS.md)** | `Points`, `Force`, `Neighbourhood`, `Constraint` and `Verlet`: the one feature here that is stepped rather than read, and `Particles` with the `Emitter` that fills it |

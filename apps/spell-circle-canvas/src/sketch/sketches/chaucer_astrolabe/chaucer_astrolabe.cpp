@@ -251,7 +251,6 @@ auto ChaucerAstrolabe::setup(sketch::SketchContext& ctx) -> void {
     // rather than as a moment caught anywhere along the way, and it is an
     // identity: tan((90+ε)/2) is the reciprocal of R_eq, so r there is 1 R.
     projDec = -kEps * std::cos(((float)now - tStill) * 0.75f);
-    return true;
   });
 
   ctx.composer.render(describe(ctx));

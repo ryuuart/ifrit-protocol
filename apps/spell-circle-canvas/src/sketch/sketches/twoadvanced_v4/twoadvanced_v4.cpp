@@ -175,7 +175,7 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   }
 
   // --- the idle motion, all of it driven from this one ticker -----------
-  ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+  ctx.ticker.add([this, &ticker = ctx.ticker] {
     const double t = ticker.elapsed();
     const float s = (float)t;
     stripePan = s * 2.5f;                               // 20 px / 8 s
@@ -250,7 +250,6 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
     } else {
       pressScroll = 0.0f;
     }
-    return true;
   });
 
   ctx.composer.render(describe());

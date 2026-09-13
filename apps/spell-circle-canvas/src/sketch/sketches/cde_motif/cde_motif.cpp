@@ -889,7 +889,7 @@ struct CdeMotifSketch : sketch::Sketch {
 
     // The clock: 60x, so a minute passes every second and the hand
     // visibly steps.
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       clockT = (float)std::fmod(t / 60.0 + 0.42, 1.0);
       busy = (std::fmod(t, 0.5) < 0.25) ? 1.0f : 0.0f;
@@ -904,7 +904,6 @@ struct CdeMotifSketch : sketch::Sketch {
       // The sweep: 0 -> 255 over 8 s, held 1 s at each end.
       const double u = std::fmod(t, 10.0);
       sweep = (float)(u < 1.0 ? 0.0 : (u < 9.0 ? (u - 1.0) / 8.0 : 1.0));
-      return true;
     });
 
     ctx.composer.render(describe(ctx));

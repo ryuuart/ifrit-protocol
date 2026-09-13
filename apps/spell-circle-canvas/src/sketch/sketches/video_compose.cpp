@@ -128,7 +128,7 @@ struct VideoCompose final : sketch::Sketch {
                           optionsFor((int)i, 0, i >= 2).startSeconds);
       }
       loading = 1.0f;
-      ctx.ticker.add([this, playback, handles](double) {
+      ctx.ticker.add([this, playback, handles] {
         for (const vid::Playback::Handle handle : handles)
           if (!playback->ready(handle)) return true;
         loading = 0.0f;

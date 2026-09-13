@@ -269,10 +269,9 @@ struct VolatilityCost final : sketch::Sketch {
       auto out = std::make_unique<choreograph::Output<float>>(0.0f);
       const float phase = (float)i * 0.7f;
       movers.push_back(std::move(out));
-      ticker.add([o = movers.back().get(), phase, &ticker](double) {
+      ticker.add([o = movers.back().get(), phase, &ticker] {
         const double t = ticker.elapsed();
         *o = 280.0f + 270.0f * (float)std::sin(t * 0.9 + phase);
-        return true;
       });
     }
   }

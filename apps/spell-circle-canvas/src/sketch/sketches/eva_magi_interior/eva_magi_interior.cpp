@@ -544,7 +544,6 @@ struct EvaMagiInterior : sketch::Sketch {
       goldOn = std::fmod(t, flash * 2.0) < flash ? 1.0f : 0.34f;
       creep = (float)((int)std::floor(clock * 0.5) % 4);
       flicker = std::fmod(clock, 4.0) < 0.04 ? 0.045f : 0.0f;
-      return true;
     });
 
     ctx.composer.render(describe());

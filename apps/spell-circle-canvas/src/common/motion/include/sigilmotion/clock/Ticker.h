@@ -9,8 +9,10 @@
 #include <choreograph/Choreograph.h>
 
 #include <functional>
+#include <type_traits>
 #include <vector>
 
+#include "sigilcore/callable/Callable.h"
 #include "sigilmotion/bind/Bound.h"
 
 namespace sigil::motion {
@@ -42,23 +44,41 @@ class Ticker {
   choreograph::Timeline& timeline() { return m_timeline; }
 
   /**
-   * Registers an additional steppable — `fn(dt)` returns whether it
-   * still needs frames. Steppables returning false are dropped. Use for
-   * per-frame effects Choreograph does not express, such as physics.
+   * Registers an additional steppable. The frame's delta and the ticker's
+   * total elapsed time are both offered and a steppable names the ones it
+   * reads — `[] {…}`, `[](double dt) {…}`, `[](double dt, double elapsed)
+   * {…}` — and it may answer whether it still needs frames. Steppables
+   * answering false are dropped. Use for per-frame effects Choreograph does
+   * not express, such as physics.
    *
-   * A steppable that always returns true keeps active() true forever,
-   * and so keeps an event-driven host rendering forever. Retire it when
+   * A steppable that always returns true keeps active() true forever, and
+   * so keeps an event-driven host rendering forever. A steppable that
+   * ANSWERS NOTHING is one of those: saying nothing about being finished is
+   * taken as never finished, so a void steppable keeps active() true for as
+   * long as it is added. Retire it — answer false, or do not add it — when
    * it has nothing left to do.
    */
-  void add(std::function<bool(double)> steppable);
+  template <class Fn>
+    requires core::PrefixCallable<Fn, void(double, double)>
+  void add(Fn steppable) {
+    addStep([fn = std::move(steppable)](double dt, double elapsed) mutable {
+      if constexpr (std::is_void_v<decltype(core::callPrefix(fn, dt,
+                                                             elapsed))>) {
+        core::callPrefix(fn, dt, elapsed);
+        return true;
+      } else {
+        return (bool)core::callPrefix(fn, dt, elapsed);
+      }
+    });
+  }
 
   /**
    * Registers a FIXED-TIMESTEP steppable: `fn()` is called zero or more
    * times per frame so that it advances at exactly @p hz, whatever the
-   * host is drawing at. Returns whether it still needs frames, like
-   * add().
+   * host is drawing at. It may answer whether it still needs frames, like
+   * add(), and answering nothing means it always does.
    *
-   *     ticker.addFixed(27.0, [this] { stepFire(); return true; });
+   *     ticker.addFixed(27.0, [this] { stepFire(); });
    *
    * The step count comes from TOTAL ELAPSED TIME, not from a running
    * accumulator: `want = floor(total * hz)`, run `want - ran`. A float
@@ -89,9 +109,23 @@ class Ticker {
     bool clamped = false;
   };
 
-  void addFixed(double hz, std::function<bool()> fn, int maxCatchUp = 8,
+  template <class Fn>
+    requires core::PrefixCallable<Fn, void()>
+  void addFixed(double hz, Fn fn, int maxCatchUp = 8,
                 choreograph::Output<float>* alphaOut = nullptr,
-                FixedStatus* statusOut = nullptr);
+                FixedStatus* statusOut = nullptr) {
+    addFixedStep(
+        hz,
+        [step = std::move(fn)]() mutable {
+          if constexpr (std::is_void_v<decltype(core::callPrefix(step))>) {
+            core::callPrefix(step);
+            return true;
+          } else {
+            return (bool)core::callPrefix(step);
+          }
+        },
+        maxCatchUp, alphaOut, statusOut);
+  }
 
   /**
    * A DERIVED OUTPUT: `dst` is recomputed every tick as `chain` applied
@@ -102,7 +136,7 @@ class Ticker {
    * cells, exactly as with any bound Output.
    *
    *     ch::Output<float> phase, penTip, stepped, backwards;
-   *     ticker.add([&](double) { phase = ...; return true; });
+   *     ticker.add([&](double dt) { phase = ...; });
    *     ticker.derive(&penTip,    bind(&phase).offset(-0.008f).clamp(0, 1));
    *     ticker.derive(&stepped,   bind(&phase).quantize(8));
    *     ticker.derive(&backwards, bind(&phase).invert());
@@ -161,13 +195,11 @@ class Ticker {
    * Total time this Ticker has been stepped, in seconds: the sum of the
    * deltas passed to tick(), not wall-clock time.
    *
-   * A steppable is handed only `dt`, and a steppable is where Outputs get
-   * written, so this is how one reaches the CLOCK rather than the delta
-   * without accumulating a private copy of the same number:
+   * The same number a steppable is offered as its second parameter, for a
+   * caller that reaches the clock from outside one:
    *
-   *     ticker.add([this, &ticker](double) {
-   *       phase = std::sin(ticker.elapsed() * 2.0);
-   *       return true;
+   *     ticker.add([this](double dt, double elapsed) {
+   *       phase = std::sin(elapsed * 2.0);
    *     });
    */
   double elapsed() const { return m_elapsed; }
@@ -180,8 +212,15 @@ class Ticker {
     BoundFloat map;
   };
 
+  /** The erased steppable every `add` spelling lands on: the delta and the
+   *  elapsed time, answering whether it still needs frames. */
+  void addStep(std::function<bool(double, double)> steppable);
+  void addFixedStep(double hz, std::function<bool()> fn, int maxCatchUp,
+                    choreograph::Output<float>* alphaOut,
+                    FixedStatus* statusOut);
+
   choreograph::Timeline m_timeline;
-  std::vector<std::function<bool(double)>> m_steppables;
+  std::vector<std::function<bool(double, double)>> m_steppables;
   std::vector<Derivation> m_derivations;
   double m_elapsed = 0.0;
 };

@@ -412,7 +412,6 @@ struct KumikoAsanoha : sketch::Sketch {
       glow = choreograph::easeOutCubic(clamp01((now - kTGlow) / kDGlow));
       frameTrim = choreograph::easeOutCubic(
           clamp01((now - kTFrame) / (kDFrame + 0.35)));
-      return true;
     });
 
     ctx.composer.render(describe(ctx));

@@ -991,11 +991,10 @@ struct ShippingForecast : sketch::Sketch {
                                         {0.52f, kBone},
                                         {1.00f, hexColor(0xC9A46A)}});
 
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       cycle = motion::phase(t, kLoop) * (float)kLoop;
       secs = (float)t;
-      return true;
     });
 
     ctx.composer.render(describe());

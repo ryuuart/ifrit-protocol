@@ -230,7 +230,7 @@ auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
   logC.append(
       {"  the map draws BOTH black. printed, not corrected.", "number"});
 
-  ctx.ticker.add([this, &tick = ctx.ticker](double) {
+  ctx.ticker.add([this, &tick = ctx.ticker] {
     clockT = tick.elapsed();
     const float t = (float)std::fmod(clockT, (double)kLoop);
     scribe = t;
@@ -238,7 +238,6 @@ auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
         2000.0f + (700.0f - 2000.0f) * smooth((t - tPrec0) / (tPrec1 - tPrec0));
     const float f = smooth((t - tFold0) / (tFold1 - tFold0));
     rebuild(e, f);
-    return true;
   });
 
   ctx.composer.render(describe(ctx));

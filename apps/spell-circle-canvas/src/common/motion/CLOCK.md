@@ -59,6 +59,13 @@ registration order; then the derivations. Because derivations run second,
 a derived cell never reads a source that has not been stepped this frame,
 whatever order things were registered in.
 
+`Ticker::add` offers a steppable the frame's delta and the ticker's total
+elapsed time, and it names the ones it reads: `[] {…}`, `[](double dt) {…}`
+and `[](double dt, double elapsed) {…}` are all steppables. It may answer
+whether it still needs frames, and one that answers nothing always does
+(see the gotcha below). `addFixed` reads the same rule with nothing
+offered: `[] {…}` or `[] { … return alive; }`.
+
 ## Gotchas
 
 `Ticker` is not thread-safe. Use one per animation domain and touch it
@@ -88,6 +95,8 @@ meaningless.
 
 `active()` stays true while any steppable is registered, and a steppable
 is only dropped when it returns `false`. A steppable that always returns
-`true` pins the host awake forever. Derivations never contribute to
+`true` pins the host awake forever — and so does one that returns NOTHING:
+saying nothing about being finished is taken as never finished, so a void
+steppable holds `active()` true for as long as it is added. Derivations never contribute to
 `active()` — they are pure in their source, so if nothing else moves,
 neither can they.

@@ -127,13 +127,12 @@ struct CardFlip final : sketch::Sketch {
     spinX = 0;
     spinY = 0;
     sway = 0;
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       flip = motion::phase(t, kFlipPeriod);
       spinX = motion::phase(t, kSpinXPeriod);
       spinY = motion::phase(t, kSpinYPeriod);
       sway = (float)std::sin(t * 6.283185 / kSwayPeriod);
-      return true;
     });
     ctx.composer.render(describe());
   }

@@ -593,7 +593,7 @@ struct Flourish final : sketch::Sketch {
     ticker.timeline().apply(&titleFade).then<ch::RampTo>(1.0f, 1.2f);
     ticker.timeline().apply(&flare).then<ch::RampTo>(1.0f, 1.3f);
 
-    ticker.add([this, &ticker](double) {
+    ticker.add([this, &ticker] {
       const double t = ticker.elapsed();
       for (int q = 0; q < 4; ++q) {
         const float dir = (q == 0 || q == 2) ? 1.0f : -1.0f;
@@ -601,7 +601,6 @@ struct Flourish final : sketch::Sketch {
         breathe[q] = 1.0f + 0.05f * (float)std::sin(t * 1.3 + q * 1.5707963);
       }
       sealBreathe = 1.0f + 0.06f * (float)std::sin(t * 1.1);
-      return true;
     });
 
     composer.render(describe());

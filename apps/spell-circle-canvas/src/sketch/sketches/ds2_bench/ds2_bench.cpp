@@ -796,7 +796,7 @@ struct Ds2Bench : sketch::Sketch {
                              .background = hexColor(0x02060A)});
     bakePips();
 
-    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+    ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
       for (size_t i = 0; i < glow.size(); ++i)
         glow[i] = 6.0f + 2.1f * (float)std::sin(t * 2.75 + (double)i * 0.62);
@@ -818,7 +818,6 @@ struct Ds2Bench : sketch::Sketch {
         jitterX = 0.0f;
         holoAlpha = 1.0f;
       }
-      return true;
     });
 
     ctx.composer.render(describe(ctx));

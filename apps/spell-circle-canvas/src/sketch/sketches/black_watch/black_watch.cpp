@@ -919,7 +919,6 @@ struct BlackWatch : sketch::Sketch {
         alpha[(size_t)i] =
             std::clamp((loom.value() - w0) / 0.0035f, 0.0f, 1.0f);
       }
-      return true;
     });
     ctx.composer.render(describe(ctx));
   }
