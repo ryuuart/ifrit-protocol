@@ -42,6 +42,8 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilweave/style/StyleSheet.h>
+#include <sigilweave/style/Type.h>
 
 #include <cstdio>
 #include <string>
@@ -49,6 +51,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toUtf8;
@@ -63,6 +66,18 @@ constexpr float kNode = 74;
 constexpr const char* kProbe = "hub";  // whose routes are listed
 
 constexpr SkColor4f kWire{0.42f, 0.62f, 0.78f, 1};
+
+/** The sheet's one class past the registers: the readout, in the mono
+ *  face and the figure ink, which the probe plates and the answer lines
+ *  share. */
+weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
+  weave::StyleSheet classes = look.styleSheet();
+  classes.set("readout", {.face = look.type.mono,
+                          .size = 10,
+                          .color = look.palette.figure,
+                          .track = 0});
+  return classes;
+}
 
 /** A promotion outcome as the one word the enum names — for the refusal
  *  MASK, where the sentence a reason spells would not fit. */
@@ -124,6 +139,8 @@ struct RoutesProbe final : sketch::Sketch {
   std::vector<std::string> verdicts;  // one line per probe, from profile()
 
   void setup(sketch::SketchContext& ctx) override {
+    const sketch::kit::Provide look(sketch::kit::houseTheme(),
+                                    sheetClasses(sketch::kit::houseTheme()));
     // the readouts are taken before the sheet is built
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -175,7 +192,8 @@ struct RoutesProbe final : sketch::Sketch {
         .width(Dimension(kNode))
         .height(Dimension(34))
         .fill(Fill::color(sheet.palette.cellGround))
-        .child(text(toUtf8(key), sheet.mono(10, sheet.palette.figure))
+        .child(text(toUtf8(key))
+                   .styleClass("readout")
                    .absolute()
                    .inset(9, 9, 0, 0));
   }
@@ -250,11 +268,13 @@ struct RoutesProbe final : sketch::Sketch {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(7);
     if (rows.empty())
-      column.child(text(toUtf8(empty), sheet.mono(10, sheet.palette.ash))
+      column.child(text(toUtf8(empty))
+                       .styleClass("readout")
+                       .ink(sheet.palette.ash)
                        .width(Dimension(measure)));
     for (const std::string& row : rows)
-      column.child(text(toUtf8(row), sheet.mono(10, sheet.palette.figure))
-                       .width(Dimension(measure)));
+      column.child(
+          text(toUtf8(row)).styleClass("readout").width(Dimension(measure)));
     return column;
   }
 
