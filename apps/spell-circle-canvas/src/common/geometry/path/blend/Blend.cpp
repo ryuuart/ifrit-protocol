@@ -106,11 +106,15 @@ int stepsForPair(const Options& options, const Key& a, const Key& b,
   switch (options.spacing) {
     case Spacing::Steps:
       return std::max(options.steps, 0);
-    case Spacing::Distance:
-      return options.distance <= 0
-                 ? 0
-                 : std::max(0,
-                            (int)std::floor(spanLength / options.distance) - 1);
+    case Spacing::Distance: {
+      if (options.distance <= 0) return 0;
+      // A span that is a whole number of slots long gets exactly that many,
+      // whatever the last bits of its accumulated length say: a slot's
+      // worth of rounding is far larger than any such error, so the floor
+      // is taken a ten-thousandth of a slot up.
+      const float slots = spanLength / options.distance + 1e-4f;
+      return std::max(0, (int)std::floor(slots) - 1);
+    }
     case Spacing::SmoothColor: {
       // Enough steps that adjacent colors differ by under a display
       // quantum: Illustrator's 254-step black-to-white, scaled by the

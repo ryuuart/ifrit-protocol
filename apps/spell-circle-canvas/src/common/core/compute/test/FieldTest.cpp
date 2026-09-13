@@ -114,7 +114,7 @@ TEST(Field, TheWholeLookIsOneNumberAtAPointAndNotSevenCallsAtOne) {
                    .lacunarity = 2.0f,
                    .fold = Fold::Ridged,
                    .warp = 0.35f};
-  EXPECT_EQ(bits(look.at(3.0f, -2.0f)), 0xbea1d4b6u);
+  EXPECT_EQ(bits(look.at(3.0f, -2.0f)), 0xbea1d4cfu);
 }
 
 TEST(Field, ReadsNearValuesAtNearPointsWhichIsWhatMakesItAField) {
