@@ -38,6 +38,10 @@ sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
     if (maxSize.height() > 0)
       YGNodeStyleSetMaxHeight(impl.root->yoga, maxSize.height());
   }
+  // A bake is a root: the cascade resolves against the initial values the
+  // fresh composer holds, so an inheriting leaf inside it is set in what
+  // its ancestors within the bake say — before it is measured.
+  if (impl.cascadeDirty) impl.runCascade();
   impl.ensureLayout();
   const SkRect rect = impl.instanceRect(*impl.root);
   if (rect.isEmpty()) return nullptr;
@@ -207,6 +211,10 @@ SkSize intrinsicSize(const Element& root, sigil::weave::FontContext& fonts,
     if (maxSize.height() > 0)
       YGNodeStyleSetMaxHeight(impl.root->yoga, maxSize.height());
   }
+  // A bake is a root: the cascade resolves against the initial values the
+  // fresh composer holds, so an inheriting leaf inside it is set in what
+  // its ancestors within the bake say — before it is measured.
+  if (impl.cascadeDirty) impl.runCascade();
   impl.ensureLayout();
   const SkRect rect = impl.instanceRect(*impl.root);
   return {rect.width(), rect.height()};

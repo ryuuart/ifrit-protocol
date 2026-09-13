@@ -17,6 +17,7 @@
 #include <sigilweave/layout/Story.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/style/Type.h>
 
 #include <array>
 #include <vector>
@@ -132,7 +133,14 @@ struct SpanRestyle {
   sigil::weave::TextStyle style;  ///< paintOnly reads `style.paint` alone
   /** setPaint (never re-shapes) rather than setStyle. */
   bool paintOnly = false;
+  /** A restyle written as a PARTIAL: laid over the style the range is set
+   *  in when the text is materialised — the font in force for an
+   *  inheriting leaf, the leaf's own style otherwise — so `style` above is
+   *  unread. One that names no shaping field is applied as a repaint. */
+  std::optional<sigil::weave::Type> partial;
   bool operator==(const SpanRestyle& other) const {
+    if (partial || other.partial)
+      return where == other.where && partial == other.partial;
     return where == other.where && paintOnly == other.paintOnly &&
            (paintOnly ? style.paint == other.style.paint
                       : style == other.style);

@@ -16,10 +16,16 @@
  * makes a cap span three lines is answerable only where the block's pitch
  * and the face's own metrics are.
  *
- * NOTHING HERE DECIDES A RATIO. A reading's size is its own style's and a
- * marker's inset is stated in pixels: the library carries no fraction of a
- * base's size anywhere, because which fraction is right is a decision and
- * decisions are the caller's.
+ * NOTHING HERE DECIDES A RATIO. A reading's size is its own partial's —
+ * `0.5_em` of the base's when the caller says so — and a marker's inset is
+ * stated in pixels: the library carries no fraction of a base's size
+ * anywhere, because which fraction is right is a decision and decisions
+ * are the caller's.
+ *
+ * EVERY STYLE HERE IS A PARTIAL (`weave::Type`): a reading, a nested run,
+ * a list's items are set in the fields the caller names over what the
+ * text they belong to is set in, which is how a list under a page takes
+ * the page's face and a reading follows its base's colour.
  */
 
 #include <include/core/SkColor.h>
@@ -64,8 +70,7 @@ namespace sigil::compose::kit {
 [[nodiscard]] inline Annotation ruby(sigil::weave::Selector over,
                                      sigil::weave::Unit unit,
                                      std::vector<std::u8string> readings,
-                                     sigil::weave::TextStyle style,
-                                     float gap = 0) {
+                                     sigil::weave::Type style, float gap = 0) {
   return Annotation{.where = std::move(over),
                     .unit = unit,
                     .readings = std::move(readings),
@@ -87,7 +92,7 @@ namespace sigil::compose::kit {
  *  of the paragraph it stands in — and why a passage that wants them clear
  *  of the type asks for leading rather than for a reservation. */
 [[nodiscard]] inline Annotation kenten(sigil::weave::Selector over,
-                                       sigil::weave::TextStyle style,
+                                       sigil::weave::Type style,
                                        std::u8string mark = u8"\xef\xb9\x85",
                                        float gap = 0) {
   return Annotation{.where = std::move(over),
@@ -125,7 +130,8 @@ struct NestedStyle {
   /** `Delimiter`: the mark the run ends on, and includes. */
   std::u8string delimiter;
   /** What the run it names is set in. */
-  sigil::weave::TextStyle style;
+  /** What the opening is set in: a partial over the block's style. */
+  sigil::weave::Type style;
 };
 
 /** THE SELECTOR A NESTED STYLE MEANS.
@@ -173,7 +179,7 @@ struct NestedStyle {
  *  marker already stands and print through it. */
 [[nodiscard]] inline Element bullets(std::span<const std::u8string> items,
                                      std::span<const std::u8string> markers,
-                                     sigil::weave::TextStyle style, float hang,
+                                     sigil::weave::Type style, float hang,
                                      float measure, float gap = 4.0f) {
   Element list = box().column().gap(gap);
   sigil::weave::ParagraphStyle hanging;
@@ -183,10 +189,12 @@ struct NestedStyle {
         markers.empty() ? items[index]
                         : markers[std::min(index, markers.size() - 1)];
     list.child(box()
-                   .child(text(items[index], style)
+                   .child(text(items[index])
+                              .font(style)
                               .width(Dimension(measure))
                               .paragraph(hanging))
-                   .child(text(marker, style)
+                   .child(text(marker)
+                              .font(style)
                               .absolute()
                               .left(Dimension(0.0f))
                               .top(Dimension(0.0f))));

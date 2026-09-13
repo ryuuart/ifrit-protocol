@@ -9,6 +9,7 @@
 #include <sigilcompose/core/Measure.h>
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Length.h>
 #include <sigilweave/style/StyleSheet.h>
 
@@ -221,6 +222,62 @@ TEST(ComposeCascade, ABakeIsARoot) {
   bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
   surface->readPixels(bm.pixmap(), 10, 10);
   EXPECT_EQ(bm.getColor(0, 0), SK_ColorBLACK);
+}
+
+TEST(ComposeCascade, ABakeSetsAnInheritingLeafInTheFontOfItsRoot) {
+  // The cascade runs inside a bake as it does in a frame: a leaf that
+  // names no style is measured and drawn in the font its ancestors WITHIN
+  // the bake set, and comes out exactly as the leaf given that font whole.
+  const sk_sp<SkTypeface> face = sigil::test::instrument::sans();
+  const SkSize inheriting = intrinsicSize(
+      box().font({.face = face, .size = 40}).child(text(u8"AAAA")), fonts());
+  const SkSize whole = intrinsicSize(
+      box().child(
+          text(u8"AAAA", sigil::weave::textStyle({.face = face, .size = 40}))),
+      fonts());
+  const SkSize initial = intrinsicSize(box().child(text(u8"AAAA")), fonts());
+  EXPECT_FLOAT_EQ(inheriting.width(), whole.width());
+  EXPECT_FLOAT_EQ(inheriting.height(), whole.height());
+  EXPECT_GT(inheriting.width(), initial.width() * 1.5f)
+      << "not the initial 16 px the root would give a leaf under nothing";
+  const sk_sp<SkPicture> picture = snapshot(
+      box().font({.face = face, .size = 40}).child(text(u8"AAAA")), fonts());
+  ASSERT_TRUE(picture);
+  EXPECT_FLOAT_EQ(picture->cullRect().width(), whole.width());
+}
+
+TEST(ComposeCascade, APartialSpanStyleIsLaidOverTheStyleTheRangeIsSetIn) {
+  // The words a partial covers keep the face and the ink the leaf
+  // inherits and take the one field the partial names; a partial naming
+  // only a colour repaints them without moving a glyph.
+  const auto page = [](Element leaf) {
+    return box()
+        .padding(10)
+        .font({.face = sigil::test::instrument::sans(), .size = 12})
+        .ink({1, 1, 1, 1})
+        .child(std::move(leaf).key("t"));
+  };
+  const auto second = [] { return sigil::weave::selectors::text(u8"BBBB"); };
+  Host plain, sized, tinted;
+  plain.composer.render(page(text(u8"AAAA BBBB")));
+  sized.composer.render(
+      page(text(u8"AAAA BBBB").spanStyle(second(), {.size = 36})));
+  tinted.composer.render(
+      page(text(u8"AAAA BBBB")
+               .spanStyle(second(), {.color = SkColor4f{1, 0, 0, 1}})));
+  plain.frame();
+  sized.frame();
+  tinted.frame();
+  EXPECT_GT(widthOf(sized, "t"), widthOf(plain, "t") * 1.5f);
+  EXPECT_FLOAT_EQ(widthOf(tinted, "t"), widthOf(plain, "t"))
+      << "a colour alone is a repaint: nothing re-shaped";
+  EXPECT_TRUE(anyWhiteIn(sized, SkIRect::MakeXYWH(10, 10, 40, 60)))
+      << "the first word is still set in the inherited ink";
+  bool red = false;
+  for (int y = 10; y < 40 && !red; ++y)
+    for (int x = 10; x < 190 && !red; ++x)
+      red = tinted.pixel(x, y) == SkColorSetARGB(255, 255, 0, 0);
+  EXPECT_TRUE(red) << "the second word took the partial's colour";
 }
 
 TEST(ComposeCascade, AnInkTransitionEasesEverythingUnderTheNodeAndSettles) {

@@ -68,7 +68,7 @@ bool textPathEqual(const TextPath& a, const TextPath& b) {
 }
 
 static_assert(kFieldCount<TextData> == 20 && kFieldCount<TextOptions> == 21 &&
-                  kFieldCount<SpanRestyle> == 3,
+                  kFieldCount<SpanRestyle> == 4,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
               "field NOT compared, and only because the full-control "

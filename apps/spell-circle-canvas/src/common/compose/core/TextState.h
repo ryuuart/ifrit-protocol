@@ -78,6 +78,11 @@ struct TextState {
   // as materialisation left them without a line being broken again.
   std::vector<std::vector<sigil::weave::CharRange>> restyleRanges;
   std::vector<bool> restyleFolded;
+  // The style each restyle resolved to — a partial laid over the style
+  // the range is set in — and whether it was applied as a repaint, which
+  // a partial naming no shaping field is.
+  std::vector<sigil::weave::TextStyle> restyleStyles;
+  std::vector<bool> restylePaintOnly;
 };
 
 }  // namespace sigil::compose::detail

@@ -12,6 +12,15 @@ namespace sigil::compose {
 
 using namespace detail;
 
+sigil::weave::TextStyle Composer::Impl::leafStyle(const Instance& inst) const {
+  const TextData& text = *inst.description->textData;
+  if (text.inherits)
+    return sigil::weave::toTextStyle(inst.cascadeResolved ? inst.font
+                                                          : rootFont);
+  if (!text.rich.empty()) return text.rich.base();
+  return text.style;
+}
+
 void Composer::Impl::materializeText(
     Instance& inst, std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns) {
@@ -121,6 +130,22 @@ void Composer::Impl::materializeText(
   const size_t restyleCount = text.spanRestyles.size();
   std::vector<std::vector<sigil::weave::CharRange>> resolvedRanges(
       restyleCount);
+  // A restyle written as a partial is laid over the style the range is
+  // set in; one that names no shaping field is applied as a repaint. Both
+  // are settled here, once, and kept for the ink-only replay.
+  const sigil::weave::TextStyle restyleBase = leafStyle(inst);
+  std::vector<sigil::weave::TextStyle> resolvedStyles(restyleCount);
+  std::vector<bool> resolvedPaintOnly(restyleCount);
+  for (size_t i = 0; i < restyleCount; ++i) {
+    const SpanRestyle& restyle = text.spanRestyles[i];
+    if (restyle.partial) {
+      resolvedStyles[i] = sigil::weave::overlay(restyleBase, *restyle.partial);
+      resolvedPaintOnly[i] = !sigil::weave::reshapes(*restyle.partial);
+    } else {
+      resolvedStyles[i] = restyle.style;
+      resolvedPaintOnly[i] = restyle.paintOnly;
+    }
+  }
   // The ranges are the painter's answer: text that carries none — a
   // description built without a text verb — is restyled by nothing.
   const TextPainterOperations* painter = textPainterOf(inst);
@@ -136,6 +161,8 @@ void Composer::Impl::materializeText(
     TextState& state = textStateOf(inst);
     state.restyleRanges = resolvedRanges;
     state.restyleFolded.assign(restyleCount, false);
+    state.restyleStyles = resolvedStyles;
+    state.restylePaintOnly = resolvedPaintOnly;
   }
   // The intersection of two selections, as the ranges they share.
   const auto overlap = [](std::span<const sigil::weave::CharRange> a,
@@ -154,12 +181,13 @@ void Composer::Impl::materializeText(
   bool paintDeclared = false;
   for (size_t i = 0; i < restyleCount; ++i) {
     const SpanRestyle& restyle = text.spanRestyles[i];
+    const sigil::weave::TextStyle& style = resolvedStyles[i];
     const std::vector<sigil::weave::CharRange>& ranges = resolvedRanges[i];
     if (ranges.empty()) continue;
-    if (restyle.paintOnly) {
+    if (resolvedPaintOnly[i]) {
       // The batch form: N ranges cost one span-list rebuild, and shaping
       // keys are untouched, so nothing re-shapes and nothing relayouts.
-      inst.paragraph->setPaint(ranges, restyle.style.paint);
+      inst.paragraph->setPaint(ranges, style.paint);
       paintDeclared = true;
       continue;
     }
@@ -172,13 +200,12 @@ void Composer::Impl::materializeText(
     std::vector<sigil::weave::CharRange> carriedRanges;
     if (paintDeclared)
       for (size_t j = 0; j < i; ++j) {
-        if (!text.spanRestyles[j].paintOnly) continue;
+        if (!resolvedPaintOnly[j]) continue;
         std::vector<sigil::weave::CharRange> shared =
             overlap(ranges, resolvedRanges[j]);
         if (shared.empty()) continue;
         carriedRanges.insert(carriedRanges.end(), shared.begin(), shared.end());
-        carried.emplace_back(std::move(shared),
-                             &text.spanRestyles[j].style.paint);
+        carried.emplace_back(std::move(shared), &resolvedStyles[j].paint);
       }
     // THE FOLD. A style that differs from the text it covers only in
     // advance-invariant variable-font axes — a grade over the numerals, an
@@ -191,11 +218,11 @@ void Composer::Impl::materializeText(
     // reshaping restyle covers the same text: a track deviates whatever
     // the paragraph shaped, and a later style must be the one that stands.
     std::vector<std::pair<std::string, float>> folded;
-    if (painter && painter->foldable(inst, restyle.style, ranges,
-                                     *inst.paragraph, carriedRanges, folded)) {
+    if (painter && painter->foldable(inst, style, ranges, *inst.paragraph,
+                                     carriedRanges, folded)) {
       bool coveredLater = false;
       for (size_t j = i + 1; j < restyleCount && !coveredLater; ++j) {
-        if (text.spanRestyles[j].paintOnly) continue;
+        if (resolvedPaintOnly[j]) continue;
         for (const sigil::weave::CharRange& a : ranges)
           for (const sigil::weave::CharRange& b : resolvedRanges[j])
             if (a.start < b.end && b.start < a.end) coveredLater = true;
@@ -213,7 +240,7 @@ void Composer::Impl::materializeText(
       }
     }
     for (const sigil::weave::CharRange& range : ranges)
-      inst.paragraph->setStyle(range.start, range.end, restyle.style);
+      inst.paragraph->setStyle(range.start, range.end, style);
     // …and the earlier paints back over it, so the style's own paint
     // stands only where no `spanPaint` reached.
     for (const auto& [where, paint] : carried)

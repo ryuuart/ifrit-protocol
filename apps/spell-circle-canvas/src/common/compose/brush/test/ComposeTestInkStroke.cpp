@@ -47,6 +47,27 @@ TEST(ComposeInkStroke, AStrokeThatNamesAColourKeepsIt) {
   EXPECT_EQ(host.pixel(22, 70), SkColorSetARGB(255, 255, 0, 0));
 }
 
+TEST(ComposeInkStroke, ABorderWrittenAsTheInkOrAPropertyTakesIt) {
+  // A border's fill resolves through the same context a stroke's does:
+  // the ink in force, or a custom property an ancestor set.
+  Host inked;
+  inked.composer.render(box()
+                            .padding(20)
+                            .ink({0, 0, 1, 1})
+                            .child(box().width(100).height(100).stroke(
+                                border(10, Fill::currentInk()))));
+  inked.frame();
+  EXPECT_EQ(inked.pixel(22, 70), SkColorSetARGB(255, 0, 0, 255));
+  Host named;
+  named.composer.render(box()
+                            .padding(20)
+                            .var("rule", SkColor4f{0, 1, 0, 1})
+                            .child(box().width(100).height(100).stroke(
+                                border(10, Fill::var("rule")))));
+  named.frame();
+  EXPECT_EQ(named.pixel(22, 70), SkColorSetARGB(255, 0, 255, 0));
+}
+
 TEST(ComposeInkStroke, ALineWrittenAsTheInkTakesIt) {
   // The cartography stroke's fill, written as the ink, resolves through
   // the same context a plain stroke's does.

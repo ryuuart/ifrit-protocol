@@ -35,6 +35,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
+#include <sigilweave/style/Type.h>
 
 #include <initializer_list>
 #include <string_view>
@@ -89,6 +90,33 @@ inline sigil::weave::TextStyle shaded(sigil::weave::TextStyle style,
   return style;
 }
 
+/** The same two on a PARTIAL: the pass is stated on the partial's own
+ *  underlays, which replace whatever the text would have inherited, and a
+ *  colour of transparent black is drawn in the colour the text is set in
+ *  — a halo that follows the ink wherever the partial lands. */
+inline sigil::weave::Type haloed(sigil::weave::Type type,
+                                 const Halo& halo = {}) {
+  SkPaint p;
+  p.setAntiAlias(true);
+  p.setColor4f(halo.colour, nullptr);
+  p.setStyle(SkPaint::kStroke_Style);
+  p.setStrokeWidth(halo.width);
+  p.setStrokeJoin(halo.join);
+  if (!type.underlays) type.underlays.emplace();
+  type.underlays->push_back(sigil::weave::PaintLayer(std::move(p)));
+  return type;
+}
+inline sigil::weave::Type shaded(sigil::weave::Type type,
+                                 const Shade& shade = {}) {
+  sigil::weave::PaintLayer layer;
+  layer.paint.setAntiAlias(true);
+  layer.paint.setColor4f(shade.colour, nullptr);
+  layer.offset = shade.offset;
+  if (!type.underlays) type.underlays.emplace();
+  type.underlays->push_back(std::move(layer));
+  return type;
+}
+
 /** The same underlay used for weight rather than for separation: a stroke
  *  in the INK's colour thickens the face at the glyph level, which is how
  *  you match an engraved title heavier than any installed digital face.
@@ -105,6 +133,20 @@ inline sigil::weave::TextStyle emboldened(sigil::weave::TextStyle style,
   p.setStrokeJoin(SkPaint::kRound_Join);
   style.paint.addUnderlay(sigil::weave::PaintLayer(std::move(p)));
   return style;
+}
+/** On a partial; a @p colour of transparent black is the ink the text is
+ *  set in, which is what a weight usually wants. */
+inline sigil::weave::Type emboldened(sigil::weave::Type type, float width,
+                                     SkColor4f colour = {0, 0, 0, 0}) {
+  SkPaint p;
+  p.setAntiAlias(true);
+  p.setColor4f(colour, nullptr);
+  p.setStyle(SkPaint::kStroke_Style);
+  p.setStrokeWidth(width);
+  p.setStrokeJoin(SkPaint::kRound_Join);
+  if (!type.underlays) type.underlays.emplace();
+  type.underlays->push_back(sigil::weave::PaintLayer(std::move(p)));
+  return type;
 }
 
 // ---------------------------------------------------------------------------

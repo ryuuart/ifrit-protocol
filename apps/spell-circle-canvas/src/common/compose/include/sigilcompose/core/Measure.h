@@ -67,6 +67,14 @@ struct TextMetrics {
 
 TextMetrics metrics(const sigil::weave::TextStyle& style,
                     sigil::weave::FontContext& fonts);
+/** The same for a PARTIAL, resolved against the initial values — what a
+ *  leaf set in it would measure as a root, with no tree above it — so a
+ *  partial that names its face and size answers exactly as the whole
+ *  style would. */
+inline TextMetrics metrics(const sigil::weave::Type& type,
+                           sigil::weave::FontContext& fonts) {
+  return metrics(sigil::weave::textStyle(type), fonts);
+}
 
 /** Shape ONE RUN without building an Element: per-glyph advances in px, in
  *  visual order, through the same shaping path a text() leaf takes, so

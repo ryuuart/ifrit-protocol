@@ -448,8 +448,8 @@ namespace {
 
 kit::Caption specimenVoice(kit::Caption::Where where) {
   return {.where = where,
-          .label = weave::textStyle({.size = 12}),
-          .note = weave::textStyle({.size = 10}),
+          .label = {.size = 12},
+          .note = {.size = 10},
           .gap = 6,
           .noteGap = 4};
 }
@@ -597,8 +597,8 @@ TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
   const float footer = lineHeight(11);
   kit::Sheet page{.title = u8"TITLE",
                   .footer = u8"the footer",
-                  .titleStyle = weave::textStyle({.size = 15}),
-                  .footerStyle = weave::textStyle({.size = 11}),
+                  .titleStyle = {.size = 15},
+                  .footerStyle = {.size = 11},
                   .marginX = 30,
                   .marginTop = 16,
                   .marginBottom = 14,

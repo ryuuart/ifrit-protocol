@@ -31,6 +31,10 @@ sigil::weave::TextStyle colouredStyle(float size, SkColor colour) {
   style.paint.foreground.setColor(colour);
   return style;
 }
+/** The same as a PARTIAL over whatever the text it lands on is set in. */
+sigil::weave::Type colouredType(float size, SkColor colour) {
+  return {.size = size, .color = SkColor4f::FromColor(colour)};
+}
 
 /** A passage long enough to wrap at the measures below. */
 std::u8string passage() {
@@ -282,7 +286,7 @@ TEST(ComposeTypeset, ANestedStyleCoversTheWordsItCountsAndStops) {
   Host host(400, 300);
   const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Words,
                                  .count = 3,
-                                 .style = colouredStyle(16, SK_ColorGREEN)};
+                                 .style = colouredType(16, SK_ColorGREEN)};
   host.composer.render(
       box().child(text(toUtf8("alpha beta gamma delta epsilon"), whiteStyle(16))
                       .key("t")
@@ -313,7 +317,7 @@ TEST(ComposeTypeset, ANestedRunEndsOnItsDelimiterAndIncludesIt) {
   Host host(400, 300);
   const kit::NestedStyle lead{.until = kit::NestedStyle::Until::Delimiter,
                               .delimiter = toUtf8("."),
-                              .style = colouredStyle(16, SK_ColorGREEN)};
+                              .style = colouredType(16, SK_ColorGREEN)};
   host.composer.render(
       box().child(text(toUtf8("alpha beta. gamma delta"), whiteStyle(16))
                       .key("t")
@@ -341,7 +345,7 @@ TEST(ComposeTypeset, ANestedRunEndsOnItsDelimiterAndIncludesIt) {
   Host missing(400, 300);
   const kit::NestedStyle absent{.until = kit::NestedStyle::Until::Delimiter,
                                 .delimiter = toUtf8("§"),
-                                .style = colouredStyle(16, SK_ColorGREEN)};
+                                .style = colouredType(16, SK_ColorGREEN)};
   missing.composer.render(
       box().child(text(toUtf8("alpha beta. gamma delta"), whiteStyle(16))
                       .key("t")
@@ -362,7 +366,7 @@ TEST(ComposeTypeset, AnInitialLetterCarriesANestedOpeningIntoItsBlock) {
   Host host(400, 300);
   const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Words,
                                  .count = 2,
-                                 .style = colouredStyle(16, SK_ColorGREEN)};
+                                 .style = colouredType(16, SK_ColorGREEN)};
   host.composer.render(box().child(
       box()
           .absolute()
@@ -412,7 +416,7 @@ TEST(ComposeAnnotate, AReservingReadingOpensThePitchBeforeTheBaseIsBroken) {
           .width(Dimension(220.0f))
           .annotate(kit::ruby(sigil::weave::selectors::text(toUtf8("three")),
                               sigil::weave::Unit::Word, {toUtf8("iii")},
-                              whiteStyle(8), 1.0f))));
+                              {.size = 8.0f}, 1.0f))));
   read.frame();
 
   EXPECT_GT(pitchOf(read), pitchOf(bare) + 4.0f);
@@ -436,7 +440,7 @@ TEST(ComposeAnnotate, AReadingThatReservesNothingLeavesThePitchAlone) {
           .key("t")
           .width(Dimension(220.0f))
           .annotate(kit::kenten(sigil::weave::selectors::text(toUtf8("three")),
-                                whiteStyle(6), toUtf8("."), 1.0f))));
+                                {.size = 6.0f}, toUtf8("."), 1.0f))));
   marked.frame();
 
   EXPECT_NEAR(pitchOf(marked), pitchOf(bare), 0.01f);
@@ -458,7 +462,7 @@ TEST(ComposeAnnotate, ReserveIsWhatOpensTheBaseLineBox) {
     return Annotation{.where = sigil::weave::selectors::text(toUtf8("three")),
                       .unit = sigil::weave::Unit::Word,
                       .readings = {toUtf8("iii")},
-                      .style = whiteStyle(8),
+                      .style = {.size = 8.0f},
                       .side = Annotation::Side::Before,
                       .gap = 1.0f,
                       .reserve = reserve};
@@ -1130,8 +1134,8 @@ TEST(KitBullets, TheMarkerKeepsTheRoomTheIndentOpened) {
              "carries on under it.")};
   const std::array<std::u8string, 1> markers = {std::u8string()};
   Host host(300, 160);
-  host.composer.render(box().padding(0).child(
-      kit::bullets(items, markers, whiteStyle(13), kHang, 240.0f)));
+  host.composer.render(box().padding(0).child(kit::bullets(
+      items, markers, colouredType(13, SK_ColorWHITE), kHang, 240.0f)));
   host.frame();
   int leftmost = 300;
   for (int y = 0; y < 160; ++y)
@@ -1153,7 +1157,7 @@ TEST(ComposeAnnotate, ABrokenBaseSharesOneReadingAndShiftsNothingAfterIt) {
   // base takes the next base's reading and every reading after it names
   // the wrong base, which shows up as the last base left bare.
   Host host(400, 400);
-  const sigil::weave::TextStyle reading = colouredStyle(9, SK_ColorGREEN);
+  const sigil::weave::Type reading = colouredType(9, SK_ColorGREEN);
   host.composer.render(box().child(
       text(threeSentences(), whiteStyle(16))
           .key("t")

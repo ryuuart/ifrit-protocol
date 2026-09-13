@@ -204,7 +204,8 @@ std::vector<TextUnit> unitsOfText(Composer::Impl& impl, Instance& inst,
  *  alone: the tallest reading's line height plus its standoff, on each
  *  side that carries one. Asked BEFORE the base is laid out. */
 sigil::weave::ReservedBand reservedBandOf(
-    Composer::Impl& impl, std::span<const Annotation> annotations);
+    Composer::Impl& impl, const Instance& inst,
+    std::span<const Annotation> annotations);
 /** LAYS OUT EVERY READING against the placement the base reached, leaving
  *  the results on the instance for the kernel to draw. A base unit that
  *  broke across a line or a column has its reading split between the

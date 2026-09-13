@@ -199,6 +199,9 @@ void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
                           ? geometry::path::insetOutline(ctx.outline, inset)
                           : ctx.outline;
 
+  // A fill written as the ink in force, or as a custom property, takes
+  // its colour from the node the border is painted under.
+  const Fill resolved = resolveRef(fill, ctx);
   auto strokeWith = [&](const SkPath& path, float w) {
     if (path.isEmpty() || w <= 0) return;
     SkPaint p;
@@ -207,10 +210,10 @@ void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     p.setStrokeWidth(w);
     p.setStrokeCap(cap);
     p.setStrokeJoin(join);
-    if (fill.kind == Fill::Kind::Color)
-      p.setColor4f(fill.colorValue, nullptr);
-    else if (fill.kind == Fill::Kind::Shader)
-      p.setShader(fill.shaderValue);
+    if (resolved.kind == Fill::Kind::Color)
+      p.setColor4f(resolved.colorValue, nullptr);
+    else if (resolved.kind == Fill::Kind::Shader)
+      p.setShader(resolved.shaderValue);
     if (!dash.empty())
       p.setPathEffect(
           SkDashPathEffect::Make(SkSpan(dash.data(), dash.size()), phase()));

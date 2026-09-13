@@ -1195,6 +1195,15 @@ class Element {
    *  paint stands only where none reached. */
   Element& spanStyle(sigil::weave::Selector where,
                      sigil::weave::TextStyle style);
+  /** Text leaves only: restyle the range this selector finds with a
+   *  PARTIAL — the fields it names over the style the range is set in,
+   *  which is the font in force for an inheriting leaf and the leaf's own
+   *  style otherwise; the rest stands. A size in ems is of that style's
+   *  size. A partial that names no shaping field — a colour, a decoration,
+   *  a pass — is a repaint and never re-shapes; one that names a face, a
+   *  size, tracking, features or any other shaping field re-shapes the
+   *  words it covers, exactly as the whole style above does. */
+  Element& spanStyle(sigil::weave::Selector where, sigil::weave::Type partial);
 
   // ---- layout options, fluently ----------------------------------------
   //

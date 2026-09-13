@@ -286,23 +286,29 @@ void Composer::Impl::refreshInheritedInk(Instance& inst) {
   // again where the two overlap; a restyle folded into an axis track
   // painted nothing.
   if (inst.textState) {
-    const TextState& state = *inst.textState;
+    TextState& state = *inst.textState;
     const size_t count =
         std::min({text.spanRestyles.size(), state.restyleRanges.size(),
-                  state.restyleFolded.size()});
+                  state.restyleFolded.size(), state.restyleStyles.size(),
+                  state.restylePaintOnly.size()});
+    // A partial restyle was laid over the font then in force; the ink
+    // moved, so it is laid over the font now in force.
+    for (size_t i = 0; i < count; ++i)
+      if (const auto& partial = text.spanRestyles[i].partial)
+        state.restyleStyles[i] = sigil::weave::overlay(base, *partial);
     for (size_t i = 0; i < count; ++i) {
       if (state.restyleFolded[i]) continue;
-      const SpanRestyle& restyle = text.spanRestyles[i];
-      inst.paragraph->setPaint(state.restyleRanges[i], restyle.style.paint);
-      if (restyle.paintOnly) continue;
+      inst.paragraph->setPaint(state.restyleRanges[i],
+                               state.restyleStyles[i].paint);
+      if (state.restylePaintOnly[i]) continue;
       for (size_t j = 0; j < i; ++j) {
-        if (!text.spanRestyles[j].paintOnly || state.restyleFolded[j]) continue;
+        if (!state.restylePaintOnly[j] || state.restyleFolded[j]) continue;
         for (const sigil::weave::CharRange& a : state.restyleRanges[i])
           for (const sigil::weave::CharRange& b : state.restyleRanges[j])
             if (a.start < b.end && b.start < a.end)
               inst.paragraph->setPaint(std::max(a.start, b.start),
                                        std::min(a.end, b.end),
-                                       text.spanRestyles[j].style.paint);
+                                       state.restyleStyles[j].paint);
       }
     }
   }

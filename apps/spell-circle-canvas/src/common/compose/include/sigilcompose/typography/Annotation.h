@@ -11,6 +11,7 @@
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/TextStyle.h>
+#include <sigilweave/style/Type.h>
 
 #include <string>
 #include <vector>
@@ -53,7 +54,11 @@ struct Annotation {
    *  written; a list shorter than the units leaves the rest bare. */
   std::vector<std::u8string> readings;
   /** The reading's own type. */
-  sigil::weave::TextStyle style;
+  /** What the reading is set in: a PARTIAL over the style the base is set
+   *  in, so `{.size = 0.5_em}` is half the base's size whatever the base
+   *  inherits, and a face stated is the reading's own. Empty sets the
+   *  reading in the base's style outright. */
+  sigil::weave::Type style;
   /** Which side of the type it stands on: `Before` is above a line and to
    *  the RIGHT of a column, `After` below a line and to the LEFT of one —
    *  the sides each writing mode reads its furniture on. */

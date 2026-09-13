@@ -423,6 +423,13 @@ struct Composer::Impl {
    *  on its inherited ranges in place, the restyles replayed over them,
    *  and nothing re-shaped or re-broken. */
   void refreshInheritedInk(detail::Instance& inst);
+  /** THE STYLE A LEAF'S TEXT IS SET IN before any restyle or reading is
+   *  laid over it: the font in force for an inheriting leaf — the root's
+   *  before the cascade has run — the base of a rich passage, or the whole
+   *  style a leaf was written with. What a partial restyle, a reading's
+   *  partial and a nested style overlay. */
+  [[nodiscard]] sigil::weave::TextStyle leafStyle(
+      const detail::Instance& inst) const;
   /** The face's own line height at @p font, px. */
   float lineHeightAt(const sigil::weave::Type& font);
   /** Builds the instance's Paragraph from whichever content form its

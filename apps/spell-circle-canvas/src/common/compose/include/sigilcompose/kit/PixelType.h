@@ -264,6 +264,19 @@ inline Mask bakeRun(std::u8string_view run, sigil::weave::FontContext& fonts,
                     float thresholdAt = 0.5f) {
   return threshold(coverage(run, fonts, style, pad), thresholdAt);
 }
+/** A bake is a root: a PARTIAL resolves against the initial values, as the
+ *  leaf it would set does under `snapshot`, so a partial naming its face
+ *  and size bakes exactly what the whole style would. */
+inline Coverage coverage(std::u8string_view run,
+                         sigil::weave::FontContext& fonts,
+                         const sigil::weave::Type& type, Pad pad = {}) {
+  return coverage(run, fonts, sigil::weave::textStyle(type), pad);
+}
+inline Mask bakeRun(std::u8string_view run, sigil::weave::FontContext& fonts,
+                    const sigil::weave::Type& type, Pad pad = {},
+                    float thresholdAt = 0.5f) {
+  return bakeRun(run, fonts, sigil::weave::textStyle(type), pad, thresholdAt);
+}
 
 /** How a baked mask is presented. */
 struct Present {
@@ -399,6 +412,13 @@ inline PixFont bakeFont(sigil::weave::FontContext& fonts,
     f.digitAdvance =
         std::max(f.digitAdvance, f.cells[(size_t)d + ('0' - 32)].advance);
   return f;
+}
+/** On a partial, resolved against the initial values as every bake is. */
+inline PixFont bakeFont(sigil::weave::FontContext& fonts,
+                        const sigil::weave::Type& type, Pad pad = {3, 3},
+                        float thresholdAt = 0.5f, float spaceRatio = 0.34f) {
+  return bakeFont(fonts, sigil::weave::textStyle(type), pad, thresholdAt,
+                  spaceRatio);
 }
 
 /** How a run is spaced and where it lands. */

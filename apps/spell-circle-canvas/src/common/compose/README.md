@@ -467,7 +467,14 @@ it lands.** `text(utf8)` is that leaf. `Element::font` on any node is a
 PARTIAL, a `weave::Type` whose every field is optional: the fields it
 names override the inherited font and the rest inherit, so
 `font({.size = 22})` is the inherited face and colour at another size,
-and `font({.size = 1.5_em})` is half again the size inherited.
+and `font({.size = 1.5_em})` is half again the size inherited. The font
+is everything a passage inherits: the face, size, tracking, condensation
+and axes; the features, language, optical kerning, word spacing, case and
+vertical form a run is shaped with; and the paint around the colour — the
+line decorations and the passes beneath and above the glyphs, a halo or a
+shadow — where a decoration or a pass that names no colour is drawn in
+the ink. What stays on a whole `weave::TextStyle` is the foreground
+paint's own state beyond its colour: a shader, a blur, a blend.
 `Element::ink` is the font's colour spelled alone — CSS's `color` — which
 text under the node is set in, which every mark that names no colour is
 painted in (`stroke(1.5f)` with no fill, a line or a ribbon written as
@@ -490,6 +497,18 @@ however it was described, and a description holds only what was written
 keeps the prune exact. A bake is a root: `snapshot`, an atlas cell, a
 pattern tile and `compose::texture` resolve against the initial values,
 as an image placed on a page inherits nothing from it.
+
+**A range and a reading take the same partial.** `Element::spanStyle`
+with a `weave::Type` lays the fields it names over the style the range is
+set in — the inherited font for an inheriting leaf, the leaf's own style
+otherwise — and a partial naming no shaping field repaints without
+re-shaping. A reading's style (`Annotation`, `kit::ruby`, `kit::kenten`),
+a nested run (`kit::NestedStyle`), a list's items (`kit::bullets`), an
+initial letter's and a caption's or a sheet's lines (`kit::Caption`,
+`kit::Sheet`) are partials over the text they belong to, so a reading at
+`0.5_em` is half its base whatever the base inherits. A bake — `snapshot`,
+`intrinsicSize`, `kit::coverage` — runs the cascade over its own tree,
+so a partial inside it resolves against the bake's root.
 
 **A class is a named partial.** `Element::styleClass` folds in the
 `weave::Type` a `weave::StyleSheet` in scope registers under the name,

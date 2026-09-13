@@ -63,7 +63,7 @@ struct TextEngine final : TextPainterOperations {
   }
   sigil::weave::ReservedBand reservedBand(
       Instance& inst, std::span<const Annotation> annotations) const override {
-    return reservedBandOf(*inst.owner, annotations);
+    return reservedBandOf(*inst.owner, inst, annotations);
   }
   std::vector<Beat> beats(Instance& inst, size_t trackIndex) const override {
     return beatsOfTrack(inst, trackIndex);
@@ -195,6 +195,16 @@ Element& Element::spanStyle(sigil::weave::Selector where,
   detail::SpanRestyle restyle;
   restyle.where = std::move(where);
   restyle.style = std::move(style);
+  dressedText(m_node->textData.ensure())
+      .spanRestyles.push_back(std::move(restyle));
+  return *this;
+}
+
+Element& Element::spanStyle(sigil::weave::Selector where,
+                            sigil::weave::Type partial) {
+  detail::SpanRestyle restyle;
+  restyle.where = std::move(where);
+  restyle.partial = std::move(partial);
   dressedText(m_node->textData.ensure())
       .spanRestyles.push_back(std::move(restyle));
   return *this;

@@ -63,6 +63,16 @@ inline Element at(Element e, float x, float y, float w, float h) {
       .height(Dimension(h));
   return e;
 }
+/** The same two with the size stated as `Dimension`s — a height of
+ *  `1.7_em` beside a width in px — for a pinned box measured in the font
+ *  it will be set in. */
+inline Element at(float x, float y, Dimension w, Dimension h) {
+  return box().left(Dimension(x)).top(Dimension(y)).width(w).height(h);
+}
+inline Element at(Element e, float x, float y, Dimension w, Dimension h) {
+  e.left(Dimension(x)).top(Dimension(y)).width(w).height(h);
+  return e;
+}
 
 /** `disc` at @p frame: an Element sized and centred for a
  *  `shapes::circle()`/`sector()`/`arc()` outline at @p rNorm of the

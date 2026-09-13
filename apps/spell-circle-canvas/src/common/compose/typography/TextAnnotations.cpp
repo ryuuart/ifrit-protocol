@@ -22,15 +22,19 @@ namespace sigil::compose {
 using namespace detail;
 
 sigil::weave::ReservedBand detail::reservedBandOf(
-    Composer::Impl& impl, std::span<const Annotation> annotations) {
+    Composer::Impl& impl, const Instance& inst,
+    std::span<const Annotation> annotations) {
   sigil::weave::ReservedBand band;
+  // A reading's partial is laid over the style the base is set in.
+  const sigil::weave::TextStyle base = impl.leafStyle(inst);
   for (const Annotation& annotation : annotations) {
     if (!annotation.reserve || annotation.readings.empty()) continue;
     // The band is the READING'S OWN, asked of the engine before anything
     // is broken — which is what makes a reservation a layout input and not
     // a cycle.
-    const float depth =
-        sigil::weave::bandBeside(impl.fonts, annotation.style, annotation.gap);
+    const float depth = sigil::weave::bandBeside(
+        impl.fonts, sigil::weave::overlay(base, annotation.style),
+        annotation.gap);
     if (annotation.side == Annotation::Side::Before)
       band.before = std::max(band.before, depth);
     else
@@ -49,9 +53,12 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
   const sigil::weave::WritingMode mode = inst.paragraph->writingMode();
   const bool column = mode == sigil::weave::WritingMode::kVerticalRL;
   std::vector<uint32_t> sources;
+  const sigil::weave::TextStyle base = impl.leafStyle(inst);
 
   for (const Annotation& annotation : annotations) {
     if (annotation.readings.empty()) continue;
+    const sigil::weave::TextStyle readingStyle =
+        sigil::weave::overlay(base, annotation.style);
     // WHICH UNITS: the published per-unit answer, which reports a base
     // that broke across a line or a column on BOTH of them, with the source
     // unit beside each — so the split below is a fact the placement already
@@ -68,7 +75,7 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
     auto place = [&](const TextUnit& unit, const std::u16string& text) {
       if (text.empty()) return;
       auto reading = std::make_shared<sigil::weave::Paragraph>();
-      reading->appendText(text, annotation.style);
+      reading->appendText(text, readingStyle);
       Instance::PlacedAnnotation placed;
       placed.layout = sigil::weave::layoutBeside(
           impl.fonts, *reading,

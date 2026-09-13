@@ -22,6 +22,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilweave/style/TextStyle.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -37,9 +38,10 @@ namespace sigil::compose::kit {
 // ---------------------------------------------------------------------------
 // The captioned cell
 
-/** HOW A CELL IS CAPTIONED: the two type styles its lines are set in, the
- *  air between them and the body, and where they stand. One value per
- *  sheet, handed to every cell on it, so the sheet has one voice. */
+/** HOW A CELL IS CAPTIONED: the two partials its lines are set in, over
+ *  what the cell inherits, the air between them and the body, and where
+ *  they stand. One value per sheet, handed to every cell on it, so the
+ *  sheet has one voice. */
 struct Caption {
   /** WHERE THE CAPTION'S LINES STAND relative to the body.
    *
@@ -52,8 +54,8 @@ struct Caption {
    *  whose name is a legend. */
   enum class Where : uint8_t { Split, Above, Below };
   Where where = Where::Split;
-  sigil::weave::TextStyle label;
-  sigil::weave::TextStyle note;
+  sigil::weave::Type label;
+  sigil::weave::Type note;
   /** Between a caption line and the body, px. */
   float gap = 6.0f;
   /** Between the label and the note where the two stand together
@@ -102,12 +104,12 @@ struct Caption {
   Element labelLeaf;
   Element noteLeaf;
   if (hasLabel) {
-    labelLeaf = text(std::move(label), caption.label);
+    labelLeaf = text(std::move(label)).font(caption.label);
     if (caption.labelMeasure > 0)
       labelLeaf.width(Dimension(caption.labelMeasure));
   }
   if (hasNote) {
-    noteLeaf = text(std::move(note), caption.note);
+    noteLeaf = text(std::move(note)).font(caption.note);
     if (caption.noteMeasure > 0) noteLeaf.width(Dimension(caption.noteMeasure));
   }
   switch (caption.where) {
@@ -288,9 +290,10 @@ struct Sheet {
   std::u8string title;
   std::u8string subtitle;
   std::u8string footer;
-  sigil::weave::TextStyle titleStyle;
-  sigil::weave::TextStyle subtitleStyle;
-  sigil::weave::TextStyle footerStyle;
+  /** What each line is set in: a partial over what the sheet inherits. */
+  sigil::weave::Type titleStyle;
+  sigil::weave::Type subtitleStyle;
+  sigil::weave::Type footerStyle;
   /** The page margins, px: the two sides, the top and the bottom. */
   float marginX = 30.0f;
   float marginTop = 16.0f;
@@ -340,10 +343,10 @@ struct Sheet {
   if (hasTitle || hasSubtitle) {
     Element header = named(box().column(), "header");
     if (hasTitle)
-      header.child(named(text(page.title, page.titleStyle), "title"));
+      header.child(named(text(page.title).font(page.titleStyle), "title"));
     if (hasSubtitle) {
       Element subtitle =
-          named(text(page.subtitle, page.subtitleStyle), "subtitle");
+          named(text(page.subtitle).font(page.subtitleStyle), "subtitle");
       if (hasTitle) subtitle.margin(0, page.subtitleGap, 0, 0);
       header.child(std::move(subtitle));
     }
@@ -358,7 +361,7 @@ struct Sheet {
   root.child(named(std::move(content), "content"));
 
   if (!page.footer.empty()) {
-    Element footer = named(text(page.footer, page.footerStyle), "footer");
+    Element footer = named(text(page.footer).font(page.footerStyle), "footer");
     if (ruled)
       root.child(rule("foot-rule"));
     else
