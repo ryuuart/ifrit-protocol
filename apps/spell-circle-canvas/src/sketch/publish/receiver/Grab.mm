@@ -47,8 +47,15 @@ int runGrab(const Arguments &arguments) {
 
   Feed feed(device, arguments.server, arguments.app);
   if (!feed.open(budget)) {
-    std::fprintf(stderr, "nothing is publishing under \"%s\" on this machine\n",
-                 arguments.server.c_str());
+    // The application is named back when one was asked for: a publication
+    // of that name from somebody else is not the one that was wanted, and
+    // a refusal that did not say so would read as nobody publishing it.
+    if (arguments.app.empty())
+      std::fprintf(stderr, "nothing is publishing under \"%s\" on this machine\n",
+                   arguments.server.c_str());
+    else
+      std::fprintf(stderr, "%s is publishing nothing under \"%s\" on this machine\n",
+                   arguments.app.c_str(), arguments.server.c_str());
     return 2;
   }
 
