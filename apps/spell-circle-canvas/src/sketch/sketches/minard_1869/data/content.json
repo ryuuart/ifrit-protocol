@@ -1,0 +1,712 @@
+{
+  "head": {
+    "title": "Carte figurative des pertes successives en hommes de l'armée française dans la campagne de Russie 1812–1813, comparée à celle d'Annibal durant la 2ᵉᵐᵉ guerre punique",
+    "subtitle": "BnF, Ge Don 4182 · lithograph · 62 × 54 cm · Paris, 20 novembre 1869 · Minard was 88, and died ten months later during the siege of Paris",
+    "notes": [
+      {
+        "words": "the sheet is drawn at its own aspect — 2.258 px per millimetre of Minard's paper, so every band width on screen is a real millimetre count",
+        "ink": "blue"
+      },
+      {
+        "words": "THE PLATE STATES ITS OWN CONSTRUCTION RULE.  THIS SKETCH CHECKS IT — AND THEN CHECKS ITSELF WITH THE SAME MEASUREMENT.",
+        "ink": "amber"
+      }
+    ]
+  },
+  "provenance": [
+    {
+      "words": "pour la Bibliothèque impériale",
+      "x": 40,
+      "y": 4,
+      "size": 30,
+      "track": 1.0,
+      "key": "dedic",
+      "t0": 0.45,
+      "t1": 1.15,
+      "wipe": true
+    },
+    {
+      "words": "Ge Don 4182",
+      "x": 1218,
+      "y": 12,
+      "size": 16,
+      "track": 0.4,
+      "key": "gedon",
+      "t0": 0.9,
+      "t1": 1.2
+    }
+  ],
+  "stamps": [
+    {
+      "words": "DON\nN° 4182",
+      "x": 230,
+      "y": 118,
+      "r": 30,
+      "key": "stamp1",
+      "t0": 0.85
+    },
+    {
+      "words": "BIBL.",
+      "x": 920,
+      "y": 118,
+      "r": 26,
+      "key": "stamp2",
+      "t0": 0.95
+    }
+  ],
+  "hannibal": {
+    "titles": [
+      {
+        "words": "Carte Figurative des pertes successives en hommes de l'armée qu'Annibal conduisit d'Espagne",
+        "x": 210,
+        "y": 58,
+        "size": 19,
+        "track": 0.2,
+        "key": "htitle1",
+        "t0": 0.0
+      },
+      {
+        "words": "en Italie en traversant les Gaules (selon Polybe).",
+        "x": 320,
+        "y": 84,
+        "size": 17,
+        "track": 0.2,
+        "key": "htitle2",
+        "t0": 0.1
+      },
+      {
+        "words": "Dressée par M. Minard, Inspecteur Général des Ponts et Chaussées en retraite.",
+        "x": 300,
+        "y": 110,
+        "size": 14,
+        "track": 0.15,
+        "key": "htitle3",
+        "t0": 0.2
+      },
+      {
+        "words": "Paris, le 20 Novembre 1869.",
+        "x": 700,
+        "y": 132,
+        "size": 14,
+        "track": 0.15,
+        "key": "htitle4",
+        "t0": 0.3
+      }
+    ],
+    "sea": {
+      "words": "Iles Baléares",
+      "x": 150,
+      "y": 500,
+      "size": 9,
+      "track": 0.2,
+      "key": "baleares",
+      "t0": 0.9,
+      "italic": true,
+      "face": "italic"
+    },
+    "legend": {
+      "heading": "Légende.",
+      "lines": [
+        "Les nombres d'hommes restés à Annibal sont représentés",
+        "par la largeur des zônes colorées à raison d'un millimètre",
+        "pour dix mille hommes, ils sont de plus écrits en travers des zônes.",
+        "Il n'y a pas d'opinion arrêtée sur le point où Annibal a",
+        "traversé les Alpes, j'ai adopté celle de Larosa sans prétendre la justifier."
+      ]
+    },
+    "bar": "Lieues de 4.560 m"
+  },
+  "napoleon": {
+    "titles": [
+      {
+        "words": "Carte Figurative des pertes successives en hommes de l'Armée Française dans la campagne de Russie 1812—1813.",
+        "x": 200,
+        "y": 14,
+        "size": 18,
+        "track": 0.15,
+        "key": "ntitle",
+        "t0": 0.0
+      },
+      {
+        "words": "Dressée par M. Minard, Inspecteur Général des Ponts et Chaussées en retraite.        Paris, le 20 Novembre 1869.",
+        "x": 300,
+        "y": 40,
+        "size": 13,
+        "track": 0.1,
+        "key": "ntitle2",
+        "t0": 0.1
+      }
+    ],
+    "identities": [
+      "422 − 22 = 400",
+      "400 − 60 = 340",
+      "20 + 30 = 50  (Bobr)",
+      "50 − 28 = 22,000 in four days  (the Berezina)",
+      "4 + 6 = 10 recrossed"
+    ],
+    "identitiesVerdict": "all five EXACT",
+    "bar": "Lieues communes de France (Carte de M. de Fezensac)",
+    "notes": [
+      {
+        "words": "what the crayon actually laid — 1.57 mm, 2.6× the rule",
+        "x": 0,
+        "y": 0,
+        "size": 9,
+        "face": "ui",
+        "key": "floorinklab",
+        "t0": 0
+      }
+    ],
+    "bar.remarks": [
+      {
+        "words": "Minard's own bar reads Kowno→Smolensk as 210 lieues = 933 km.  The truth is 520 km.  ×1.79 — UNEXPLAINED",
+        "x": 880,
+        "y": 958,
+        "size": 10,
+        "face": "bold",
+        "style": "amberInk",
+        "width": 420,
+        "key": "barlies",
+        "t0": 0.0,
+        "t1": 0.4
+      },
+      {
+        "words": "hypotheses: the labels are half their true value · copied unrescaled from Fezensac · my longitude scale is wrong.  None asserted.",
+        "x": 880,
+        "y": 976,
+        "size": 9,
+        "face": "ui",
+        "style": "amberQuiet",
+        "width": 420,
+        "key": "barhyp",
+        "t0": 0.4,
+        "t1": 0.8
+      }
+    ]
+  },
+  "temperature": {
+    "title": "TABLEAU GRAPHIQUE de la température en degrés du thermomètre de Réaumur au dessous de zéro.",
+    "recoveries": [
+      "24 novembre  (derived, days column)",
+      "25 novembre  (derived, lon interpolation)"
+    ],
+    "notes": [
+      {
+        "words": "Les Cosaques passent au galop\nle Niémen gelé.",
+        "x": 66,
+        "y": 1056,
+        "size": 10,
+        "track": 0.1,
+        "key": "cosaques",
+        "t0": 1.1,
+        "t1": 1.5
+      }
+    ]
+  },
+  "imprints": [
+    {
+      "words": "Autog. par Regnier, 8. Pas. Sᵗᵉ Marie Sᵗ Gᵃᵉᵐ à Paris.",
+      "at": "left"
+    },
+    {
+      "words": "Imp. Lith. Regnier et Dourdet",
+      "at": "right"
+    }
+  ],
+  "caliper": {
+    "provenance": "(measured on the BnF sheet, no cross-scan calibration)",
+    "claim": "the legend says 1.0000"
+  },
+  "cards": [
+    {
+      "key": "card1",
+      "title": "DOES THE PLATE OBEY ITS OWN LEGEND?",
+      "y": 128,
+      "h": 326,
+      "notes": [
+        {
+          "words": "half a French ligne = 1.1279 mm      (SPECULATION)",
+          "x": 650,
+          "y": 204,
+          "size": 10,
+          "face": "ui",
+          "key": "ligneNote",
+          "t0": 4.8,
+          "t1": 5.2
+        },
+        {
+          "words": "competing: litho reduction · catalogued paper size wrong (this one would kill it)",
+          "x": 650,
+          "y": 220,
+          "size": 9,
+          "face": "ui",
+          "width": 330,
+          "key": "ligneAlt",
+          "t0": 5.2,
+          "t1": 5.6
+        },
+        {
+          "words": "and the SAME factor appears on the Hannibal panel, drawn from different data.",
+          "x": 650,
+          "y": 250,
+          "size": 10,
+          "face": "ui",
+          "style": "cardInk",
+          "width": 330,
+          "key": "hannSame",
+          "t0": 2.5,
+          "t1": 2.8
+        }
+      ],
+      "fit": "width_px = 3.828 px per 10,000 men,  intercept −0.19 px,  R² = 0.99266",
+      "proportional": "the fitted line goes through the ORIGIN to a fifth of a pixel — the zones are not merely\nlinear in men, they are proportional",
+      "rules": [
+        {
+          "value": "1.000 mm",
+          "what": "what the legend says",
+          "mm": 1.0,
+          "class": "claim",
+          "key": "ruleStated",
+          "t0": 0.4
+        },
+        {
+          "value": "1.126 mm",
+          "what": "what the ink measures  (12.6% wider)",
+          "mm": 1.1258,
+          "class": "measured",
+          "key": "ruleMeasured",
+          "t0": 2.0
+        }
+      ]
+    },
+    {
+      "key": "card2",
+      "title": "THE FLOOR",
+      "y": 466,
+      "h": 196,
+      "slope": "3.8 px per 10,000 — the advance band's slope; the retreat holds it above ~35,000 men",
+      "notes": [
+        {
+          "words": "4,000 men drawn 2.6× too wide — 0.4 mm is below what a lithographic crayon will hold",
+          "x": 44,
+          "y": 152,
+          "size": 10,
+          "face": "ui",
+          "style": "amberInk",
+          "width": 470,
+          "key": "floorAmber",
+          "t0": 1.0,
+          "t1": 1.3
+        },
+        {
+          "words": "minimum drawn width 5.4 px = 1.57 mm",
+          "x": 540,
+          "y": 40,
+          "size": 10,
+          "face": "ui",
+          "style": "cardInk",
+          "width": 440,
+          "key": "floorMin",
+          "t0": 1.1,
+          "t1": 1.4
+        },
+        {
+          "words": "NEGATIVE RESULT — and it is the more useful half: the famous 12,000→14,000 anomaly is NOT\nmeasurable in the ink. At the floor both readings are 5.4 px. The prettier finding does not exist.",
+          "x": 540,
+          "y": 62,
+          "size": 10,
+          "face": "ui",
+          "style": "claim",
+          "width": 440,
+          "key": "floorNeg",
+          "t0": 1.4,
+          "t1": 1.8
+        }
+      ]
+    },
+    {
+      "key": "card3",
+      "title": "THE MAP IS A REAL MAP",
+      "y": 668,
+      "h": 250,
+      "exaggeration": "residual vectors ×8",
+      "quantum": "0.1° grid = 6.41 km",
+      "notes": [
+        {
+          "words": "median 5.35 km on an 871 km span — 0.6%. The received account is wrong.",
+          "x": 630,
+          "y": 180,
+          "size": 12,
+          "face": "bold",
+          "style": "pass",
+          "width": 330,
+          "key": "geoCap",
+          "t0": 1.7,
+          "t1": 2.0
+        },
+        {
+          "words": "residual is within 1.8× of what the 0.1° digitisation grid alone produces",
+          "x": 630,
+          "y": 216,
+          "size": 9,
+          "face": "ui",
+          "width": 330,
+          "key": "geoCap2",
+          "t0": 1.8,
+          "t1": 2.1
+        }
+      ]
+    },
+    {
+      "key": "card4",
+      "title": "WHAT HE DID DISTORT",
+      "y": 926,
+      "h": 206,
+      "notes": [
+        {
+          "words": "TOTAL 934.2 km real → 944.6 km on Minard, ratio 1.011 — one leg squeezed to 59%, the next stretched to 153%, the total kept right,\nexactly where Wizma, Chjat and Mojaisk crowd into 130 px of lettering.  That the room was for the labels is an INFERENCE.",
+          "x": 44,
+          "y": 174,
+          "size": 10,
+          "face": "ui",
+          "style": "cardInk",
+          "width": 900,
+          "key": "legTotal",
+          "t0": 0.9,
+          "t1": 1.3
+        }
+      ]
+    },
+    {
+      "key": "card5",
+      "title": "RÉAUMUR",
+      "y": 1144,
+      "h": 204,
+      "columns": [
+        "date on the plate",
+        "°R",
+        "°C",
+        "°F",
+        "days"
+      ],
+      "undated": "   (NO DATE ENGRAVED)",
+      "notes": [
+        {
+          "words": "°C = °R × 5/4      °F = °R × 9/4 + 32      (exact — Réaumur puts 80 degrees between ice and steam)",
+          "x": 24,
+          "y": 172,
+          "size": 10,
+          "face": "ui",
+          "width": 560,
+          "key": "reqs",
+          "t0": 0.5,
+          "t1": 0.8
+        },
+        {
+          "words": "−30 °R = −37.50 °C = −35.50 °F.  The plate's title says degrés du\nthermomètre de Réaumur in display capitals, and reproductions still\nrelabel the axis Celsius while keeping his numbers.",
+          "x": 584,
+          "y": 24,
+          "size": 10,
+          "face": "ui",
+          "style": "claim",
+          "width": 400,
+          "key": "reaWrong",
+          "t0": 0.9,
+          "t1": 1.3
+        },
+        {
+          "words": "Hannibal 218 BC    96,000 → 26,000    survived 27.08%\nNapoleon 1812     422,000 → 10,000    survived  2.37%\nThis is why he printed them together.",
+          "x": 584,
+          "y": 96,
+          "size": 12,
+          "face": "bold",
+          "style": "cardInk",
+          "width": 400,
+          "key": "twoCamp",
+          "t0": 2.0,
+          "t1": 2.5
+        }
+      ]
+    }
+  ],
+  "audit": {
+    "flow.head": [
+      {
+        "t": "FLOW CONSERVATION — Minard's own engraved numbers",
+        "s": "heading"
+      }
+    ],
+    "hannibal.polybius": [
+      {
+        "t": "  Pyrenees   Hanno 11,000 + 10,000 sent home = 21,000; Minard draws 20,000",
+        "s": "dim"
+      },
+      {
+        "t": "  → the one place he smooths.  Δ 1,000",
+        "s": "dim"
+      }
+    ],
+    "scale.legend": [
+      {
+        "t": "DOES THE PLATE OBEY ITS OWN LEGEND?",
+        "s": "heading"
+      },
+      {
+        "t": "  legend (BOTH panels)  \"à raison d'un millimètre pour dix mille hommes\"",
+        "s": "dim"
+      },
+      {
+        "t": "  11 treads, Commons scan:  3.828 px/10k, intercept −0.19 px, R² 0.99266",
+        "s": "measured"
+      }
+    ],
+    "scale.frame": [
+      {
+        "t": "  frame 3685 px = 579.14 mm ⇒ 3.4482 px/mm on that scan",
+        "s": "dim"
+      }
+    ],
+    "scale.reads": [
+      {
+        "t": "  four direct BnF spot reads             1.1258 ± 0.013 mm",
+        "s": "measured"
+      },
+      {
+        "t": "  STATED                                 1.0000 mm",
+        "s": "dim"
+      }
+    ],
+    "scale.hannibal": [
+      {
+        "t": "  and the SAME factor on the Hannibal panel, other data, other continent",
+        "s": "fail"
+      }
+    ],
+    "floor": [
+      {
+        "t": "",
+        "s": "dim"
+      },
+      {
+        "t": "THE FLOOR",
+        "s": "heading"
+      },
+      {
+        "t": "  above ~35,000 men      3.6 – 3.9 px per 10,000   (holds scale)",
+        "s": "pass"
+      },
+      {
+        "t": "  at 8,000 / 4,000       7.0 / 10.5 px per 10,000   (2.6× too wide)",
+        "s": "fail"
+      },
+      {
+        "t": "  minimum drawn width    5.4 px = 1.57 mm — what a crayon holds",
+        "s": "fail"
+      },
+      {
+        "t": "  → 12,000→14,000 is NOT measurable in the ink. NEGATIVE RESULT, REPORTED.",
+        "s": "fail"
+      },
+      {
+        "t": "",
+        "s": "dim"
+      }
+    ],
+    "geo.head": [
+      {
+        "t": "MINARD'S GEOGRAPHY vs THE REAL WORLD",
+        "s": "heading"
+      }
+    ],
+    "geo.quantum": [
+      {
+        "t": "  0.1° digitisation quantum, diagonal        6.41 km",
+        "s": "dim"
+      },
+      {
+        "t": "  rms expected from quantisation alone      3.70 km",
+        "s": "dim"
+      }
+    ],
+    "geo.legs": [
+      {
+        "t": "  worst legs  Wixma→Chjat 0.591  Chjat→Mojaisk 1.528  TOTAL 1.011",
+        "s": "fail"
+      },
+      {
+        "t": "",
+        "s": "dim"
+      }
+    ],
+    "projection": [
+      {
+        "t": "THE PROJECTION — re-measured here, and one finding is new",
+        "s": "heading"
+      },
+      {
+        "t": "  Napoleon panel, tan centreline, 8 stations east of Polotzk:",
+        "s": "dim"
+      },
+      {
+        "t": "    d = 280.3 px/deg lat,  d/b = 2.142,  R² 0.866, rms 34 px",
+        "s": "measured"
+      },
+      {
+        "t": "    true-to-scale at 55°N = 1.743  → latitude STRETCHED 1.23×",
+        "s": "measured"
+      },
+      {
+        "t": "  Hannibal panel, same fit, 11 stations, BnF sheet:",
+        "s": "dim"
+      },
+      {
+        "t": "    d/b = 0.048,  R² = 0.12   (robust: 0.048–0.075 over any anchor)",
+        "s": "fail"
+      },
+      {
+        "t": "  → THE TWO PANELS DO NOT SHARE A PROJECTION. The top one is a STRIP,",
+        "s": "fail"
+      },
+      {
+        "t": "    not a map: latitude explains an eighth of the band's height. So the",
+        "s": "fail"
+      },
+      {
+        "t": "    received \"Minard sacrificed geography\" is wrong about the panel every-",
+        "s": "fail"
+      },
+      {
+        "t": "    one quotes and right about the panel nobody looks at.",
+        "s": "fail"
+      },
+      {
+        "t": "",
+        "s": "dim"
+      }
+    ],
+    "bar": [
+      {
+        "t": "THE SCALE BAR DISAGREES WITH THE MAP",
+        "s": "heading"
+      },
+      {
+        "t": "  \"Lieues communes\" 4.985 px/lieue, linear to 0.2% ⇒ 1 mm = 3.074 km",
+        "s": "measured"
+      },
+      {
+        "t": "  the map, from real longitudes: 1 mm = 1.688 km   1 : 1,688,000",
+        "s": "measured"
+      },
+      {
+        "t": "  ratio 1.82                                     UNEXPLAINED",
+        "s": "fail"
+      },
+      {
+        "t": "  Kowno→Smolensk with Minard's own bar: 933 km. Truth: 520 km.",
+        "s": "fail"
+      },
+      {
+        "t": "  hypotheses: labels half value | copied unrescaled from Fezensac | my scale",
+        "s": "dim"
+      },
+      {
+        "t": "  (the two panels also use DIFFERENT lieues: 4,444.8 m and 4,560 m)",
+        "s": "dim"
+      },
+      {
+        "t": "",
+        "s": "dim"
+      },
+      {
+        "t": "RÉAUMUR",
+        "s": "heading"
+      },
+      {
+        "t": "  °C = °R × 5/4   °F = °R × 9/4 + 32   (exact, no offset)",
+        "s": "dim"
+      }
+    ],
+    "reaumur.tail": [
+      {
+        "t": "  the undated −11° recovers as 24 Nov (days col.) and 25 Nov (lon interp.)",
+        "s": "measured"
+      },
+      {
+        "t": "",
+        "s": "dim"
+      }
+    ],
+    "abscissa": [
+      {
+        "t": "THE TWO PANELS SHARE ONE ABSCISSA",
+        "s": "heading"
+      },
+      {
+        "t": "  vertical rules detected in y ∈ [700,930]     9 inner + 2 frame",
+        "s": "dim"
+      },
+      {
+        "t": "  best matches  lon 25.300 vs 25.3  Δ 0.000  |  28.593 vs 28.5  Δ 0.09",
+        "s": "measured"
+      },
+      {
+        "t": "  2 rules unmatched, 2 readings unmatched     PARTIAL — reported, not fudged",
+        "s": "fail"
+      },
+      {
+        "t": "  in THIS sketch the lock is one shared mapX(lon) called from both panels;",
+        "s": "dim"
+      },
+      {
+        "t": "  nothing in the library can declare it. A scale is not a layout.",
+        "s": "fail"
+      }
+    ],
+    "own.head": [
+      {
+        "t": "THE SKETCH'S OWN GEOMETRY — the same auditor, turned round",
+        "s": "heading"
+      }
+    ],
+    "own.outline": [
+      {
+        "t": "  so the two disagree, and the outline is what they disagree about. A min-chord",
+        "s": "dim"
+      }
+    ],
+    "own.seams": [
+      {
+        "t": "  goes in and out along every interior seam: no area, no ink, and fatal to a chord.",
+        "s": "fail"
+      },
+      {
+        "t": "  ⇒ A WIDTH AUDIT IS ONLY AS GOOD AS THE OUTLINE IT CROSSES. Reported, not fudged.",
+        "s": "fail"
+      }
+    ],
+    "own.brush": [
+      {
+        "t": "  Both zones are one brush::Ribbon on the width Profile seam, bevelled at the",
+        "s": "pass"
+      },
+      {
+        "t": "  joins — the chord across the outside of the turn, and the inside fills as a union.",
+        "s": "pass"
+      }
+    ],
+    "own.corner": [
+      {
+        "t": "  → the corner this sheet is hardest on is Wilna's: 130 px of band turning on an",
+        "s": "dim"
+      },
+      {
+        "t": "    86 px leg, where the union of the steps is thicker than the law and the",
+        "s": "dim"
+      },
+      {
+        "t": "    outline folds over itself. It draws solid.",
+        "s": "dim"
+      }
+    ]
+  }
+}
