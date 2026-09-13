@@ -15,13 +15,17 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Board.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigildata/decode/Json.h>
 #include <sigildata/table/Table.h>
+#include <sigildraw/Draw.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Profile.h>
@@ -34,6 +38,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Heading.h>
+#include <sigilsketch/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -44,6 +49,7 @@
 #include <array>
 #include <cmath>
 #include <iterator>
+#include <memory>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -66,6 +72,7 @@ namespace path = sigil::geometry::path;
 namespace data = sigil::data;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
+using sigil::draw::Pen;
 
 namespace minard_1869 {}
 using namespace minard_1869;
@@ -226,7 +233,63 @@ struct Sheet {
   std::vector<Measured> treads, floorPts;
   std::vector<Leg> legs;
   std::vector<std::string> legend;
+  /** THE PLATE'S WORDS. Every line of lettering, every card's title and
+   *  every run of the audit's script stands in `data/content.json` and is
+   *  read by key: `words["hannibal"]["titles"]` is a list of engraved
+   *  lines, each `{words, x, y, size, track, key, t0}`; `words["audit"]`
+   *  is the console's script as named runs of `{t, s}`; `words["cards"]`
+   *  the five audit cards' titles and rects. A key that is not there
+   *  reads as a null value, so every reader below states its fallback. */
+  std::shared_ptr<const data::Json> words;
 };
+
+/** ONE PLACED LINE, as the document writes it: the words, where they
+ *  stand, how wide they wrap, the register and the hand they are set in,
+ *  the class that colours them, and the beat they arrive on. Every line
+ *  of type on this plate — the two panels' titles, the legend, the audit
+ *  cards' remarks, the imprints — is one of these, so the document is the
+ *  content and the sketch is the template.
+ *
+ *  `face` names one of the plate's five hands ("ui", "bold", "italic",
+ *  "num", "roman"); unset inherits the engraver's script. `style` is the
+ *  class the line's colour is read from on the sheet in force. `wipe`
+ *  draws the line on with the pen travelling along it rather than fading
+ *  it in, which is what a manuscript hand does. */
+struct Lettering {
+  Utf8 words;
+  float x = 0, y = 0, size = 10, track = 0, t0 = 0, t1 = 0, width = 0;
+  std::string key, face, style;
+  bool wipe = false;
+};
+
+inline Lettering lettering(const data::Json& n, float dy = 0.0f) {
+  return {.words = std::string(n["words"].text()),
+          .x = (float)n["x"].number(),
+          .y = (float)n["y"].number() + dy,
+          .size = (float)n["size"].number(10.0),
+          .track = (float)n["track"].number(),
+          .t0 = (float)n["t0"].number(),
+          .t1 = (float)n["t1"].number(),
+          .width = (float)n["width"].number(),
+          .key = std::string(n["key"].text()),
+          .face = std::string(n["face"].text()),
+          .style = std::string(n["style"].text()),
+          .wipe = n["wipe"].boolean()};
+}
+
+/** THE WORDS OF A LIST, one per entry — a table's row of cells, or a
+ *  paragraph's run of lines. */
+inline std::vector<Utf8> wordsOf(const data::Json& doc) {
+  std::vector<Utf8> out;
+  for (const data::Json& n : doc.items())
+    out.emplace_back(std::string(n.text()));
+  return out;
+}
+
+/** ONE STRING out of a record, empty where the key is not there. */
+inline std::string said(const data::Json& doc, const char* named) {
+  return std::string(doc[named].text());
+}
 
 inline Sheet readSheet(sketch::SketchContext& ctx) {
   Sheet s;
@@ -318,6 +381,7 @@ inline Sheet readSheet(sketch::SketchContext& ctx) {
     for (const std::string& line : t->column<std::string>("text"))
       s.legend.push_back(line);
 
+  s.words = ctx.assets.json(ctx.local("data/content.json"));
   return s;
 }
 
@@ -500,6 +564,15 @@ inline SkPath smooth(const std::vector<SkPoint>& p) {
   pts.reserve(p.size());
   for (const SkPoint& q : p) pts.push_back({q.x(), q.y()});
   return path::smoothThrough(pts);
+}
+
+/** A RULE BETWEEN TWO POINTS, cooked — what `segFn` is as a comparable
+ *  scheme, for the places that hand a path to something else. */
+inline SkPath segment(SkPoint a, SkPoint b) {
+  SkPathBuilder p;
+  p.moveTo(a);
+  p.lineTo(b);
+  return p.detach();
 }
 
 inline SkPath rectPath(float l, float t, float r, float bm) {

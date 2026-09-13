@@ -1,140 +1,6 @@
 #include "Minard1869.h"
 
-auto Minard1869::paperGround() -> Element {
-  return box()
-      .inset(0)
-      .fill(paperMat)
-      // the ageing: warmer and dirtier toward the edges
-      .foreground(decorations::wash(vignette, SkBlendMode::kMultiply, 0.30f))
-      .cache(Cache::Texture)
-      .key("paper");
-}
-
-auto Minard1869::frames() -> Element {
-  auto g = box().inset(0);
-  // the two printed frames are ONE rule around each panel, drawn as a
-  // double rule the way the plate cuts them
-  auto rule = [&](float l, float t, float r, float bm, const char* k, float t0,
-                  float t1) {
-    g.children({box()
-                    .inset(0)
-                    .shape(pathFn(rectPath(l, t, r, bm)))
-                    .stroke(spans::upTo(beat(t0, t1)),
-                            lines::Line{.width = 1.1f,
-                                        .fill = Fill::color(kInk),
-                                        .parallels = 2,
-                                        .gap = 3.0f})
-                    .key(k)});
-  };
-  rule(kFrameL, kFrameT, kFrameR, kDivHN, "frameH", 0.25f, 1.1f);
-  rule(kFrameL, kDivHN + 4, kFrameR, kFrameB, "frameN", 0.35f, 1.2f);
-  // the map | temperature divider
-  g.children({box()
-                  .inset(0)
-                  .shape(segFn({kFrameL, kDivNT}, {kFrameR, kDivNT}))
-                  .stroke(spans::upTo(beat(0.4f, 1.2f)),
-                          stroke(1.0f, Fill::color(kInk)))
-                  .key("divNT")});
-  return g;
-}
-
-auto Minard1869::provenance() -> Element {
-  auto g = box().inset(0);
-  g.children({text("pour la Bibliothèque impériale")
-                  .font({.size = 30, .color = kManuscript, .track = 1.0f})
-                  .at({40, 4})
-                  .key("dedic")
-                  .mask(by::edge(0.0f, beat(0.45f, 1.15f)))});
-  g.children({text("Ge Don 4182")
-                  .font({.size = 16, .color = kManuscript, .track = 0.4f})
-                  .at({1218, 12})
-                  .key("gedon")
-                  .opacity(beat(0.9f, 1.2f))});
-  auto stamp = [&](float cx, float cy, float r, const char* label,
-                   const char* k, float t0) {
-    g.children(
-        {box()
-             .rect(SkRect::MakeXYWH(cx - r, cy - r * 0.66f, 2 * r, 1.32f * r))
-             .shape(shapes::circle())
-             .stroke(stroke(1.5f, Fill::color(kStampRed)))
-             .children({text(label)
-                            .font({.face = faceRoman,
-                                   .size = 7.5f,
-                                   .color = kStampRed,
-                                   .track = 0.3f})
-                            .at({r * 0.35f, r * 0.42f})})
-             .key(k)
-             .scale(animate(from(0.0f).to(1.0f),
-                            ramp(t0 * 1000, 420, ch::EaseOutBack())))
-             .opacity(beat(t0, t0 + 0.2f))});
-  };
-  stamp(230, 118, 30, "DON\nN° 4182", "stamp1", 0.85f);
-  stamp(920, 118, 26, "BIBL.", "stamp2", 0.95f);
-  return g;
-}
-
-auto Minard1869::spot(int i) const -> SpotRead {
-  switch ((unsigned)i & 3u) {
-    case 0:
-      return {mapX(24.0f) + 8, mapY(54.9f), bandPx(422000) * 0.5f,
-              47.15f,          422000,      "Napoléon, at the Niemen"};
-    case 1:
-      return {mapX(24.9f), mapY(55.0f), bandPx(400000) * 0.5f,
-              44.54f,      400000,      "Napoléon, after the northern column"};
-    case 2:
-      return {mapX(37.0f), mapY(55.62f), bandPx(100000) * 0.5f,
-              11.43f,      100000,       "Napoléon, at Moscou"};
-    default:
-      return {222,    264,   bandPx(96000) * 0.5f,
-              10.84f, 96000, "Annibal, at the Ebro — a DIFFERENT panel"};
-  }
-}
-
-auto Minard1869::caliper() -> Element {
-  const SpotRead r = spot(calStep);
-  auto g = box().inset(0).key("caliperGrp").opacity(&calAlpha);
-  auto jaw = [&](float x, float y, float halfPx, const char* k) {
-    SkPathBuilder p;
-    p.moveTo(x - 16, y - halfPx);
-    p.lineTo(x + 16, y - halfPx);
-    p.moveTo(x - 16, y + halfPx);
-    p.lineTo(x + 16, y + halfPx);
-    p.moveTo(x + 12, y - halfPx);
-    p.lineTo(x + 12, y + halfPx);
-    g.children(
-        {box()
-             .inset(0)
-             .shape(pathFn(p.detach()))
-             .background(shadow(hexColor(0x000000, 0.30f), {1.5f, 2.0f}, 3.0f))
-             .stroke(stroke(2.0f, Fill::color(kBlue)))
-             .key(k)});
-  };
-  jaw(r.x, r.y, r.halfPx, "jaw1");
-  const float rx = kFrameL + 10, ry = 686.0f;
-  g.children({text(kit::formatted("%.2f mm", r.mm))
-                  .font({.face = faceUiBold, .size = 17, .color = kBlue})
-                  .at({rx, ry})
-                  .key("calread")});
-  g.children({text(kit::formatted("÷ %.0f = %.4f mm / 10.000", r.men,
-                                  r.mm / (r.men / 10000.0f)))
-                  .font({.face = faceUi, .size = 9.5f, .color = kBlue})
-                  .at({rx, ry + 20})
-                  .key("calread2")});
-  g.children(
-      {text(std::string(r.where) +
-            "\n(measured on the BnF sheet, no cross-scan "
-            "calibration)")
-           .font({.face = faceUi, .size = 9, .color = hexColor(0x2f6f9c, 0.9f)})
-           .at({rx, ry + 33})
-           .key("calread3")});
-  g.children({text("the legend says 1.0000")
-                  .font({.face = faceUiBold, .size = 10, .color = kClaimRed})
-                  .at({rx, ry + 58})
-                  .key("calread4")});
-  return g;
-}
-
-auto Minard1869::sheet(sketch::SketchContext& ctx) -> Element {
+auto Minard1869::sheet() -> Element {
   // the plate is engraved in the script hand and printed in one ink; a
   // line in another face or ink says so
   return box()
@@ -142,7 +8,7 @@ auto Minard1869::sheet(sketch::SketchContext& ctx) -> Element {
       .background(shadow(hexColor(0x000000, 0.55f), {6, 10}, 26))
       .font({.face = faceScript})
       .ink(kInk)
-      .children({paperGround(), frames(), hannibalPanel(), napoleonPanel(ctx),
+      .children({paperGround(), frames(), hannibalPanel(), napoleonPanel(),
                  temperaturePanel(), imprints(), provenance(),
                  box()
                      .inset(0)
@@ -165,520 +31,430 @@ auto Minard1869::sheet(sketch::SketchContext& ctx) -> Element {
       .opacity(beat(0.0f, 0.6f));
 }
 
-auto Minard1869::card(float y, float h, const char* title, const char* key,
-                      float t0, Element body) -> Element {
-  // a card's lines are the interface face in the audit's grey unless one
+auto Minard1869::card(const data::Json& spec, float t0, Element body)
+    -> Element {
+  // A card's lines are the interface face in the audit's grey unless one
   // says otherwise: a finding in blue, a claim in red, a verdict in the
-  // card's own ink
-  auto c = box()
-               .rect(SkRect::MakeXYWH(kAuditX, y, kAuditW, h))
-               .key(key)
-               .opacity(beat(t0, t0 + 0.4f))
-               .translateY(bind(&T).window(t0, t0 + 0.4f).invert().scale(14))
-               .font({.face = faceUi})
-               .ink(kGrey);
-  // the card's headed line is the class of its own name, stated on the
-  // sheet that writes it
-  c.children({kit::sheet({.title = title,
-                          .marginX = 18,
-                          .marginTop = 12,
-                          .marginBottom = 12,
-                          .contentGap = 13,
-                          .ground = Fill::color(kCard),
-                          .rule = Fill::color(kCardInk)},
-                         box())
-                  .inset(0)
-                  .styleSheet(weave::StyleSheet{
-                      {"title", partial(faceUiBold, 15, kCardInk, 1.6f)}})
-                  .stroke(stroke(1.0f, Fill::color(hexColor(0xcfc6b4))))});
-  c.children({std::move(body)});
-  return c;
+  // card's own ink. The plate, the head and the rule under it are the
+  // kit's panel; the body stands in the panel's own well.
+  const std::string key(spec["key"].text());
+  return kit::panel(
+             {.title = std::string(spec["title"].text()),
+              .rule = Fill::color(kCardInk),
+              .gap = 13,
+              .body = kit::Well{.ground = Fill::color(kCard),
+                                .padding = 18,
+                                .paddingY = 12,
+                                .clip = false,
+                                .keyline = Fill::color(hexColor(0xcfc6b4))}},
+             std::move(body))
+      .rect(SkRect::MakeXYWH(kAuditX, (float)spec["y"].number(), kAuditW,
+                             (float)spec["h"].number()))
+      .styleSheet(cardSheet)
+      .font({.face = faceUi})
+      .ink(kGrey)
+      .key(key)
+      .opacity(beat(t0, t0 + 0.4f))
+      .translateY(bind(&T).window(t0, t0 + 0.4f).invert().scale(14));
 }
 
-auto Minard1869::cardScale() -> Element {
-  // the measured staircase (Commons scan), from the file
-  const std::vector<Measured>& treads = plate.treads;
-  const float slope = 3.828f, intercept = -0.19f, r2 = 0.99266f;
-  const float px0 = 60, py0 = 60, pw = 560, ph = 236;
-  // WHAT THE TWO AXES MEAN, as the library's own mapping value: men
-  // across, band px up. Every dot, the fitted line and any label go
-  // through this one `at()`, so a mark and its caption cannot land on
-  // two different arithmetics.
-  const sketch::kit::Plot plot{.x = {.domain = {0, 440000}},
-                               .y = {.domain = {0, 180}}};
-  const SkSize field{pw, ph};
-  auto P = [&](float men, float px) {
-    const SkPoint q = plot.at(men, px, field);
-    return SkPoint{px0 + q.x(), py0 + q.y()};
+auto Minard1869::cardScale(const data::Json& said) -> Element {
+  const float slope = 3.828f, intercept = -0.19f;
+  // WHAT THE TWO AXES MEAN: men across, band px up. The fitted line is a
+  // FUNCTION of the men, the eleven measured treads are marks of the
+  // table, and the four words in the field are labels — so nothing here
+  // turns a strength into a pixel.
+  const sketch::kit::Plot field{
+      .x = {.domain = {0, 440000}}, .y = {.domain = {0, 180}}, .pad = 6};
+  const auto tread = [this](const Measured&, size_t i) -> Element {
+    return box()
+        .width(7.2f)
+        .height(7.2f)
+        .shape(shapes::circle())
+        .fill(Fill::currentInk())
+        .key("tread" + std::to_string(i))
+        .opacity(beat(tScale + 0.6f + 0.09f * (float)i,
+                      tScale + 0.8f + 0.09f * (float)i));
   };
-  auto g = box().inset(0);
-  // axes
-  g.children({box()
-                  .inset(0)
-                  .shape(segFn({px0, py0 + ph}, {px0 + pw, py0 + ph}))
-                  .stroke(stroke(1.0f, Fill::color(kCardInk)))});
-  g.children({box()
-                  .inset(0)
-                  .shape(segFn({px0, py0}, {px0, py0 + ph}))
-                  .stroke(stroke(1.0f, Fill::color(kCardInk)))});
-  // the fitted line
-  g.children(
-      {box()
+  // THE TWO RULES, DRAWN PROPORTIONAL: each length IS its millimetre
+  // value, so the 12.6% is a length rather than a caption.
+  const float rx = 650, rwUnit = 268;
+  auto ruleRow = [&](const data::Json& n, size_t i) -> Element {
+    const float y = 118 + 56.0f * (float)i;
+    const float t0 = tScale + (float)n["t0"].number();
+    const SkColor4f col = n["class"].text() == "claim" ? kClaimRed : kBlue;
+    return box()
+        .inset(0)
+        .ink(col)
+        .key(std::string(n["key"].text()))
+        .opacity(beat(t0, t0 + 0.3f))
+        .children({box()
+                       .inset(0)
+                       .shape(segFn({rx, y},
+                                    {rx + rwUnit * (float)n["mm"].number(), y}))
+                       .stroke(spans::upTo(beat(t0, t0 + 0.3f)),
+                               stroke(2.0f, Fill::currentInk())),
+                   text(std::string(n["value"].text()))
+                       .font({.face = faceUiBold, .size = 17})
+                       .at({rx, y - 26}),
+                   text(std::string(n["what"].text()))
+                       .font({.size = 10})
+                       .at({rx, y + 6})});
+  };
+  return box().inset(0).children(
+      {sketch::kit::plot(
+           "fit", field,
+           {sketch::kit::axis({.of = sketch::kit::Axis::X, .numbers = false}),
+            sketch::kit::axis({.of = sketch::kit::Axis::Y, .numbers = false}),
+            sketch::kit::trace(
+                [slope, intercept](double men) {
+                  return intercept + slope * men / 10000.0;
+                },
+                {.width = 1.6f, .styleClass = "measured"}),
+            sketch::kit::marks(plate.treads, tread,
+                               {.x = &Measured::men,
+                                .y = &Measured::mm,
+                                .styleClass = "measured"}),
+            sketch::kit::label(
+                std::string(said["fit"].text()), 10000, 176,
+                {.anchor = {.across = Align::Start, .down = Align::Start},
+                 .styleClass = "measured"}),
+            sketch::kit::label(
+                std::string(said["proportional"].text()), 10000, 154,
+                {.anchor = {.across = Align::Start, .down = Align::Start}}),
+            sketch::kit::label(
+                "men →", 440000, 0,
+                {.anchor = {.across = Align::End, .down = Align::Start}}),
+            sketch::kit::label(
+                "px", 0, 180,
+                {.anchor = {.across = Align::End, .down = Align::End}})})
+           .rect(SkRect::MakeXYWH(50, 36, 560, 218)),
+       each(said["rules"].items(), ruleRow),
+       // the tick at one millimetre, so the two lengths are read against
+       // the same origin
+       box()
            .inset(0)
-           .shape(segFn(P(0, intercept), P(440000, intercept + slope * 44.0f)))
-           .stroke(spans::upTo(beat(tScale + 1.8f, tScale + 2.4f)),
-                   stroke(1.6f, Fill::color(kBlue)))
-           .key("fitline")});
-  for (size_t i = 0; i < treads.size(); ++i) {
-    g.children({kit::disc(P(treads[i].men, treads[i].mm), 3.6f)
-                    .shape(shapes::circle())
-                    .fill(Paint::solid(kBlue))
-                    .key("tread" + std::to_string(i))
-                    .opacity(beat(tScale + 0.6f + 0.09f * (float)i,
-                                  tScale + 0.8f + 0.09f * (float)i))});
-  }
-  g.children({text("width_px = 3.828 px per 10,000 men,  intercept "
-                   "−0.19 px,  R² = 0.99266")
-                  .font({.size = 11, .color = kBlue})
-                  .at({px0 + 6, py0 + 4})
-                  .key("fitlab")
-                  .opacity(beat(tScale + 2.3f, tScale + 2.6f))});
-  g.children({text("the fitted line goes through the ORIGIN to a fifth of "
-                   "a pixel — the zones are not merely\nlinear in men, "
-                   "they are proportional")
-                  .font({.size = 10})
-                  .at({px0 + 6, py0 + 22})
-                  .key("proplab")
-                  .opacity(beat(tScale + 2.4f, tScale + 2.7f))});
-  g.children(
-      {text("men →").font({.size = 9}).at({px0 + pw - 40, py0 + ph + 6})});
-  g.children({text("px").font({.size = 9}).at({px0 - 24, py0 - 2})});
-
-  // the two horizontal rules that matter
-  // the two rules are drawn PROPORTIONAL: their lengths are the two
-  // millimetre values, so the 12.6% is a length rather than a caption
-  const float rx = 660, rwUnit = 268;
-  auto ruleRow = [&](float y, const char* v, const char* what, SkColor4f col,
-                     const char* k, float t0, float mm) {
-    const float rw = rwUnit * mm;
-    g.children({box()
-                    .inset(0)
-                    .shape(segFn({rx, y}, {rx + rw, y}))
-                    .stroke(spans::upTo(beat(t0, t0 + 0.3f)),
-                            stroke(2.0f, Fill::color(col)))
-                    .key(k)});
-    g.children({text(v)
-                    .font({.face = faceUiBold, .size = 17, .color = col})
-                    .at({rx, y - 26})
-                    .key(std::string(k) + "v")
-                    .opacity(beat(t0, t0 + 0.3f))});
-    g.children({text(what)
-                    .font({.size = 10, .color = col})
-                    .at({rx, y + 6})
-                    .key(std::string(k) + "w")
-                    .opacity(beat(t0, t0 + 0.3f))});
-  };
-  ruleRow(140, "1.000 mm", "what the legend says", kClaimRed, "ruleStated",
-          tScale + 0.4f, 1.0f);
-  ruleRow(196, "1.126 mm", "what the ink measures  (12.6% wider)", kBlue,
-          "ruleMeasured", tScale + 2.0f, kMmPer10k);
-  g.children({box()
-                  .inset(0)
-                  .shape(segFn({rx + rwUnit, 132}, {rx + rwUnit, 204}))
-                  .stroke(PathFormat{.width = 1.0f,
-                                     .strokeFill = Fill::color(kGrey),
-                                     .dashIntervals = {3, 3}})
-                  .key("ruleTick")
-                  .opacity(beat(tScale + 2.0f, tScale + 2.3f))});
-  g.children({text("half a French ligne = 1.1279 mm      (SPECULATION)")
-                  .font({.size = 10})
-                  .at({rx, 238})
-                  .key("ligneNote")
-                  .opacity(beat(tLigne, tLigne + 0.4f))});
-  g.children({text("competing: litho reduction · catalogued paper size "
-                   "wrong (this one would kill it)")
-                  .font({.size = 9})
-                  .at({rx, 254})
-                  .key("ligneAlt")
-                  .opacity(beat(tLigne + 0.4f, tLigne + 0.8f))});
-  g.children({text("and the SAME factor appears on the Hannibal panel, "
-                   "drawn from different data.")
-                  .font({.size = 10, .color = kCardInk})
-                  .at({rx, 276})
-                  .key("hannSame")
-                  .opacity(beat(tScale + 2.5f, tScale + 2.8f))});
-  return g;
+           .shape(segFn({rx + rwUnit, 110}, {rx + rwUnit, 182}))
+           .stroke(PathFormat{.width = 1.0f,
+                              .strokeFill = Fill::color(kGrey),
+                              .dashIntervals = {3, 3}})
+           .key("ruleTick")
+           .opacity(beat(tScale + 2.0f, tScale + 2.3f)),
+       lettering(said["notes"], 0.0f, tScale)});
 }
 
-auto Minard1869::cardFloor() -> Element {
+auto Minard1869::cardFloor(const data::Json& said) -> Element {
   const std::vector<Measured>& pts = plate.floorPts;
-  const float px0 = 60, py0 = 58, pw = 470, ph = 108;
-  auto g = box().inset(0);
   // THE DOMAIN IS THE LOGARITHM. The floor is a fact about the smallest
   // strengths, which crowd into the last twentieth of a linear axis, so
-  // the abscissa is log10(men) and the mapping value is handed that
-  // rather than the men.
-  const sketch::kit::Plot plot{.x = {.domain = {3.5, 5.05}},
-                               .y = {.domain = {3.0, 11.5}}};
-  const SkSize field{pw, ph};
-  auto P = [&](float men, float px) {
-    const SkPoint q = plot.at(std::log10(std::max(men, 1000.0f)), px, field);
-    return SkPoint{px0 + q.x(), py0 + q.y()};
+  // the abscissa is log10(men).
+  const sketch::kit::Plot field{
+      .x = {.domain = {3.5, 5.05}}, .y = {.domain = {3.0, 11.5}}, .pad = 4};
+  // The measured staircase, read as a function of the logarithm: the
+  // treads are a step law, so the walk between two of them holds the
+  // wider one's width — which is what a crayon does.
+  const auto laid = [&pts](double logMen) {
+    // the widest tread at or under the sample: a crayon holds one width
+    // until the next reading takes over, which is what a step law is
+    double px = pts.empty() ? 0.0 : pts.back().mm, widest = -1e9;
+    for (const Measured& m : pts) {
+      const double at = std::log10((double)m.men);
+      if (at <= logMen && at > widest) {
+        widest = at;
+        px = m.mm;
+      }
+    }
+    return px;
   };
-  g.children({box()
-                  .inset(0)
-                  .shape(segFn({px0, py0 + ph}, {px0 + pw, py0 + ph}))
-                  .stroke(stroke(1.0f, Fill::color(kCardInk)))});
-  SkPathBuilder line;
-  for (size_t i = pts.size(); i-- > 0;) {
-    const SkPoint q = P(pts[i].men, pts[i].mm);
-    i == pts.size() - 1 ? line.moveTo(q) : line.lineTo(q);
-  }
-  g.children({box()
-                  .inset(0)
-                  .shape(pathFn(line.detach()))
-                  .stroke(spans::upTo(beat(tScale + 1.0f, tScale + 1.8f)),
-                          stroke(1.6f, Fill::color(kBlue)))
-                  .key("floorline")});
-  // the crayon floor
-  g.children({box()
-                  .inset(0)
-                  .shape(segFn({px0, P(1000, 3.83f).y()},
-                               {px0 + pw, P(1000, 3.83f).y()}))
-                  .stroke(PathFormat{.width = 1.0f,
-                                     .strokeFill = Fill::color(kGrey),
-                                     .dashIntervals = {5, 4}})
-                  .key("floorRule")
-                  .opacity(beat(tScale + 1.4f, tScale + 1.7f))});
-  g.children({text("3.8 px per 10,000 — the advance band's slope; the "
-                   "retreat holds it above ~35,000 men")
-                  .font({.size = 9})
-                  .at({px0 + 120, py0 - 14})
-                  .key("floorLab")
-                  .opacity(beat(tScale + 1.5f, tScale + 1.8f))});
-  for (size_t i = 0; i < pts.size(); ++i)
-    g.children({kit::disc(P(pts[i].men, pts[i].mm), 3.0f)
-                    .shape(shapes::circle())
-                    .fill(Paint::solid(i >= 8 ? kAmber : kBlue))
-                    .key("fp" + std::to_string(i))
-                    .opacity(beat(tScale + 1.0f + 0.05f * (float)i,
-                                  tScale + 1.2f + 0.05f * (float)i))});
-  for (float men : {4000.0f, 10000.0f, 30000.0f, 100000.0f})
-    g.children({text(french(men))
-                    .font({.size = 8.5f})
-                    .at({P(men, 3.0f).x() - 12, py0 + ph + 4})
-                    .key("fx" + std::to_string((int)men))});
-  g.children({text("4,000 men drawn 2.6× too wide — 0.4 mm is "
-                   "below what a lithographic crayon will hold")
-                  .font({.size = 10, .color = kAmber})
-                  .at({px0, py0 + ph + 18})
-                  .key("floorAmber")
-                  .opacity(beat(tScale + 1.8f, tScale + 2.1f))});
-  g.children({text("minimum drawn width 5.4 px = 1.57 mm")
-                  .font({.size = 10, .color = kCardInk})
-                  .at({px0 + 480, py0 + 44})
-                  .key("floorMin")
-                  .opacity(beat(tScale + 1.9f, tScale + 2.2f))});
-  g.children({text("NEGATIVE RESULT — and it is the more useful half: "
-                   "the famous 12,000→14,000 anomaly is NOT\nmeasurable "
-                   "in the ink. At the floor both readings are 5.4 px. The "
-                   "prettier finding does not exist.")
-                  .font({.size = 10, .color = kClaimRed})
-                  .left(px0 + 480)
-                  .top(py0 + 10)
-                  .width(kAuditW - px0 - 500)
-                  .key("floorNeg")
-                  .opacity(beat(tScale + 2.2f, tScale + 2.6f))});
-  return g;
+  const auto dot = [this](const Measured&, size_t i) -> Element {
+    return box()
+        .width(6)
+        .height(6)
+        .shape(shapes::circle())
+        .fill(Fill::currentInk())
+        .styleClass(i >= 8 ? "amber" : "")
+        .key("fp" + std::to_string(i))
+        .opacity(beat(tScale + 1.0f + 0.05f * (float)i,
+                      tScale + 1.2f + 0.05f * (float)i));
+  };
+  const std::array<float, 4> ticked{4000, 10000, 30000, 100000};
+  return box().inset(0).children(
+      {sketch::kit::plot(
+           "floor", field,
+           {sketch::kit::axis(
+                {.of = sketch::kit::Axis::X,
+                 .ticks = {std::log10(4000.0), std::log10(10000.0),
+                           std::log10(30000.0), std::log10(100000.0)},
+                 .tickLine =
+                     [&ticked](double v) {
+                       const size_t i = v < 3.7   ? 0
+                                        : v < 4.2 ? 1
+                                        : v < 4.7 ? 2
+                                                  : 3;
+                       return sketch::kit::tickLabel(french(ticked[i]));
+                     }}),
+            // the crayon floor: the width below which no line was laid
+            sketch::kit::rules({.y = {3.83}, .styleClass = "grey"}),
+            sketch::kit::trace(
+                laid,
+                {.width = 1.6f, .samples = 300, .styleClass = "measured"}),
+            sketch::kit::marks(pts, dot,
+                               {.x =
+                                    [](const Measured& m) {
+                                      return std::log10(
+                                          std::max((double)m.men, 1000.0));
+                                    },
+                                .y = &Measured::mm,
+                                .styleClass = "measured"}),
+            sketch::kit::label(std::string(said["slope"].text()),
+                               std::log10(30000.0), 11.4,
+                               {.anchor = {.down = Align::Start}})})
+           .rect(SkRect::MakeXYWH(50, 36, 470, 96)),
+       lettering(said["notes"], 0.0f, tScale + 0.8f)});
 }
 
-auto Minard1869::cardGeo() -> Element {
-  auto g = box().inset(0);
-  const float ox = 40, oy = 52, sc = 31.0f;  // px per degree, inset map
-  const float exagg = 8.0f;
-  auto MX = [&](float lon) { return ox + (lon - 23.5f) * sc; };
-  auto MY = [&](float lat) { return oy + (56.2f - lat) * sc * 1.4f; };
-  // Minard's cities as dots, the real positions as crosses, residual
-  // vectors at 20x
+auto Minard1869::cardGeo(const data::Json& said) -> Element {
+  // THE INSET MAP: Minard's cities as dots against the gazetteer's
+  // positions as crosses, with the residual exaggerated eightfold so a
+  // five-kilometre error is visible at all. The frame says what the two
+  // axes mean — degrees of longitude across, degrees of latitude up — and
+  // every dot, cross, vector and label reads the same mapping.
+  constexpr float exagg = 8.0f;
+  const sketch::kit::Plot field{
+      .x = {.domain = {23.5, 38.5}}, .y = {.domain = {53.6, 56.4}}, .pad = 8};
   // the route itself, so the dots read as a campaign and not a scatter
-  {
-    SkPathBuilder rt;
+  const auto route = [this](const sketch::kit::Plot& f) {
     const std::vector<Station>* legs[] = {&plate.advTrunk, &plate.retEast,
                                           &plate.retWest};
-    for (const std::vector<Station>* v : legs)
-      for (size_t i = 0; i < v->size(); ++i) {
-        const SkPoint q{MX((*v)[i].lon), MY((*v)[i].lat)};
-        i == 0 ? rt.moveTo(q) : rt.lineTo(q);
-      }
-    g.children(
-        {box()
-             .inset(0)
-             .shape(pathFn(rt.detach()))
-             .stroke(spans::upTo(beat(tGeo, tGeo + 0.5f)),
-                     stroke(1.4f, Fill::color(hexColor(0x1c1a17, 0.35f))))
-             .key("georoute")});
-  }
-  SkPathBuilder crosses, vectors;
-  for (const City& c : plate.cities) {
-    const float mx = MX(c.lon), my = MY(c.lat);
-    const float rx = mx + (c.rlon - c.lon) * sc * exagg;
-    const float ry = my - (c.rlat - c.lat) * sc * 1.4f * exagg;
-    crosses.moveTo(rx - 3, ry);
-    crosses.lineTo(rx + 3, ry);
-    crosses.moveTo(rx, ry - 3);
-    crosses.lineTo(rx, ry + 3);
-    vectors.moveTo(mx, my);
-    vectors.lineTo(rx, ry);
-  }
-  g.children({box()
-                  .inset(0)
-                  .shape(pathFn(vectors.detach()))
-                  .stroke(spans::upTo(beat(tGeo + 0.5f, tGeo + 1.1f)),
-                          stroke(0.8f, Fill::color(hexColor(0x2f6f9c, 0.6f))))
-                  .key("geovec")});
-  g.children({box()
-                  .inset(0)
-                  .shape(pathFn(crosses.detach()))
-                  .stroke(stroke(1.0f, Fill::color(kCardInk)))
-                  .key("geocross")
-                  .opacity(beat(tGeo + 0.2f, tGeo + 0.6f))});
-  for (size_t i = 0; i < plate.cities.size(); ++i) {
-    const City& c = plate.cities[i];
+    return box()
+        .absolute()
+        .inset(0)
+        .styleClass("route")
+        .shape([this, f, legs](SkSize field) {
+          SkPathBuilder rt;
+          for (const std::vector<Station>* v : legs)
+            for (size_t i = 0; i < v->size(); ++i) {
+              const SkPoint q = f.at((*v)[i].lon, (*v)[i].lat, field);
+              i == 0 ? rt.moveTo(q) : rt.lineTo(q);
+            }
+          return rt.detach();
+        })
+        .stroke(spans::upTo(beat(tGeo, tGeo + 0.5f)),
+                stroke(1.4f, Fill::currentInk()));
+  };
+  // the residual vectors and the crosses at their far ends, one recording
+  // each because a segment is not one of the family's marks
+  const auto residuals = [this](bool crosses) {
+    return [this, crosses](const sketch::kit::Plot& f) {
+      return box()
+          .absolute()
+          .inset(0)
+          .styleClass(crosses ? "cross" : "vector")
+          .shape([this, f, crosses](SkSize field) {
+            SkPathBuilder p;
+            for (const City& c : plate.cities) {
+              const SkPoint m = f.at(c.lon, c.lat, field);
+              const SkPoint r = f.at(c.lon + (c.rlon - c.lon) * exagg,
+                                     c.lat + (c.rlat - c.lat) * exagg, field);
+              if (!crosses) {
+                p.moveTo(m);
+                p.lineTo(r);
+                continue;
+              }
+              p.moveTo(r.x() - 3, r.y());
+              p.lineTo(r.x() + 3, r.y());
+              p.moveTo(r.x(), r.y() - 3);
+              p.lineTo(r.x(), r.y() + 3);
+            }
+            return p.detach();
+          })
+          .stroke(spans::upTo(beat(tGeo + (crosses ? 0.2f : 0.5f),
+                                   tGeo + (crosses ? 0.6f : 1.1f))),
+                  stroke(crosses ? 1.0f : 0.8f, Fill::currentInk()));
+    };
+  };
+  const auto city = [this](const City& c, size_t i) -> Element {
     const bool out = cityKm(c) > 20.0f;
-    g.children({kit::disc(SkPoint{MX(c.lon), MY(c.lat)}, out ? 4.0f : 2.6f)
-                    .shape(shapes::circle())
-                    .fill(Paint::solid(out ? kAmber : kBlue))
-                    .key("gc" + std::to_string(i))
-                    .opacity(beat(tGeo + 0.1f + 0.02f * (float)i,
-                                  tGeo + 0.35f + 0.02f * (float)i))});
-    if (out)
-      g.children({text(c.plate)
-                      .font({.face = faceUiBold, .size = 10, .color = kAmber})
-                      .at({MX(c.lon) + 7, MY(c.lat) - 6})
-                      .key("gcl" + std::to_string(i))
-                      .opacity(beat(tGeo + 1.6f, tGeo + 1.9f))});
-  }
-
-  // the histogram of the 20 residuals
-  const float hx = 640, hy = 58, hw = 250, hh = 108;
-  std::array<int, 8> bins{};
-  for (const City& c : plate.cities) {
-    int b = (int)(cityKm(c) / 5.0f);
-    bins[(size_t)std::min(7, b)]++;
-  }
-  for (size_t i = 0; i < bins.size(); ++i) {
-    const float bw = hw / 8.0f;
-    const float bh = (float)bins[i] / 9.0f * hh;
-    g.children(
-        {box()
-             .rect(SkRect::MakeXYWH(hx + bw * (float)i + 1, hy + hh - bh,
-                                    bw - 2, std::max(bh, 1.0f)))
-             .fill(Paint::solid(i >= 4 ? kAmber : kBlue))
-             .key("hist" + std::to_string(i))
-             .scale(animate(from(0.0f).to(1.0f),
-                            ramp((tGeo + 1.0f) * 1000 + 60.0f * (float)i, 320)))
-             .transformOrigin(0.5f, 1.0f)
-             .opacity(beat(tGeo + 1.0f + 0.06f * (float)i,
-                           tGeo + 1.2f + 0.06f * (float)i))});
-  }
-  // the digitisation quantum, as a grey band behind
-  g.children(
-      {box()
-           .rect(SkRect::MakeXYWH(hx + hw * 6.41f / 40.0f - 6, hy, 12, hh))
-           .fill(Paint::solid(hexColor(0x6d675c, 0.22f)))
-           .key("quantum")
-           .opacity(beat(tGeo + 1.3f, tGeo + 1.6f))});
-  g.children({text("residual vectors ×8")
-                  .font({.size = 9})
-                  .at({ox, oy + 150})
-                  .key("exaggLab")
-                  .opacity(beat(tGeo + 0.6f, tGeo + 0.9f))});
-  g.children({text("0.1° grid = 6.41 km")
-                  .font({.size = 9})
-                  .at({hx + hw * 6.41f / 40.0f + 10, hy + 4})
-                  .key("quantumLab")
-                  .opacity(beat(tGeo + 1.35f, tGeo + 1.65f))});
-  g.children({text("median 5.35 km on an 871 km span — 0.6%. The "
-                   "received account is wrong.")
-                  .font({.face = faceUiBold, .size = 12, .color = kPass})
-                  .left(hx)
-                  .top(hy + hh + 10)
-                  .width(330)
-                  .key("geoCap")
-                  .opacity(beat(tGeo + 1.7f, tGeo + 2.0f))});
-  g.children({text("residual is within 1.8× of what the 0.1° "
-                   "digitisation grid alone produces")
-                  .font({.size = 9})
-                  .left(hx)
-                  .top(hy + hh + 42)
-                  .width(330)
-                  .key("geoCap2")
-                  .opacity(beat(tGeo + 1.8f, tGeo + 2.1f))});
-  return g;
+    const float side = out ? 8.0f : 5.2f;
+    return box()
+        .width(side)
+        .height(side)
+        .shape(shapes::circle())
+        .fill(Fill::currentInk())
+        .styleClass(out ? "amber" : "")
+        .key("gc" + std::to_string(i))
+        .opacity(beat(tGeo + 0.1f + 0.02f * (float)i,
+                      tGeo + 0.35f + 0.02f * (float)i));
+  };
+  // the histogram of the 20 residuals, in five-kilometre bins, against
+  // the digitisation quantum standing behind it
+  std::array<double, 8> bins{};
+  for (const City& c : plate.cities)
+    bins[(size_t)std::min(7, (int)(cityKm(c) / 5.0f))] += 1.0;
+  const auto column = [this](size_t i, double) -> Element {
+    return box()
+        .fill(Fill::currentInk())
+        .styleClass(i >= 4 ? "amber" : "")
+        .scale(animate(from(0.0f).to(1.0f),
+                       ramp((tGeo + 1.0f) * 1000 + 60.0f * (float)i, 320)))
+        .transformOrigin(0.5f, 1.0f)
+        .opacity(beat(tGeo + 1.0f + 0.06f * (float)i,
+                      tGeo + 1.2f + 0.06f * (float)i));
+  };
+  return box().inset(0).children(
+      {sketch::kit::plot(
+           "geo", field,
+           {route, residuals(false), residuals(true),
+            sketch::kit::marks(plate.cities, city,
+                               {.x = &City::lon, .y = &City::lat}),
+            // the three cities the residual is worst at name themselves
+            sketch::kit::marks(plate.cities,
+                               [this](const City& c, size_t i) -> Element {
+                                 if (cityKm(c) <= 20.0f) return box();
+                                 return text(c.plate)
+                                     .font({.face = faceUiBold, .size = 10})
+                                     .key("gcl" + std::to_string(i))
+                                     .opacity(beat(tGeo + 1.6f, tGeo + 1.9f));
+                               },
+                               {.x = &City::lon,
+                                .y = &City::lat,
+                                .anchor = {.across = Align::Start,
+                                           .down = Align::End,
+                                           .offset = {7, -6}},
+                                .styleClass = "amber"}),
+            sketch::kit::label(
+                std::string(said["exaggeration"].text()), 23.5, 53.6,
+                {.anchor = {.across = Align::Start, .down = Align::End}})})
+           .rect(SkRect::MakeXYWH(30, 34, 560, 132)),
+       sketch::kit::plot(
+           "hist",
+           {.x = {.transform = data::Transform::Band,
+                  .steps = 8,
+                  .padding = 0.12},
+            .y = {.domain = {0, 9}}},
+           {// the digitisation quantum, as a grey band behind the columns
+            sketch::kit::rules({.x = {6.41 / 5.0 - 0.5},
+                                .width = 12.0f,
+                                .styleClass = "grey"}),
+            sketch::kit::bands(
+                bins, {.y = [](double v) { return v; }, .part = column}),
+            sketch::kit::label(std::string(said["quantum"].text()),
+                               6.41 / 5.0 - 0.5, 8.4,
+                               {.anchor = {.across = Align::Start,
+                                           .down = Align::Start,
+                                           .offset = {10, 0}}})})
+           .rect(SkRect::MakeXYWH(630, 34, 250, 100)),
+       lettering(said["notes"], 0.0f, tGeo)});
 }
 
-auto Minard1869::cardLegs() -> Element {
-  const std::vector<Leg>& legs = plate.legs;
-  auto g = box().inset(0);
-  const float bx = 250, by = 50, bw = 480, rowH = 12.2f;
+auto Minard1869::cardLegs(const data::Json& said) -> Element {
+  // TEN LEG RATIOS AGAINST 1.00, each a row: the name, then a bar grown
+  // out of the unit rule — left where Minard squeezed the leg, right
+  // where he stretched it — and the ratio after it. A deviation from a
+  // centre is the one column reading the plot family draws no band for,
+  // so the rows are the card's own.
+  const float bx = 250, by = 42, bw = 480, rowH = 12.2f;
   const float mid = bx + bw * 0.5f;
-  g.children({box()
+  return box().inset(0).children(
+      {inked(segment({mid, by - 4}, {mid, by + rowH * 10 + 4}),
+             stroke(1.0f, Fill::color(kCardInk))),
+       each(plate.legs,
+            [&](const Leg& l, size_t i) -> Element {
+              const float y = by + rowH * (float)i;
+              const bool bad = l.ratio < 0.7f || l.ratio > 1.3f;
+              const float dx = (l.ratio - 1.0f) * bw * 0.62f;
+              const float t0 = tDistort + 0.1f + 0.05f * (float)i;
+              return box()
                   .inset(0)
-                  .shape(segFn({mid, by - 4}, {mid, by + rowH * 10 + 4}))
-                  .stroke(stroke(1.0f, Fill::color(kCardInk)))});
-  for (size_t i = 0; i < legs.size(); ++i) {
-    const float y = by + rowH * (float)i;
-    const bool bad = legs[i].ratio < 0.7f || legs[i].ratio > 1.3f;
-    const float dx = (legs[i].ratio - 1.0f) * bw * 0.62f;
-    g.children({text(legs[i].name)
-                    .font({.size = 9.5f, .color = bad ? kAmber : kGrey})
-                    .at({60, y - 2})
-                    .key("legn" + std::to_string(i))
-                    .opacity(beat(tDistort + 0.1f + 0.04f * (float)i,
-                                  tDistort + 0.3f + 0.04f * (float)i))});
-    g.children(
-        {box()
-             .rect(SkRect::MakeXYWH(dx < 0 ? mid + dx : mid, y,
-                                    std::max(std::fabs(dx), 1.0f), 7))
-             .fill(Paint::solid(bad ? kAmber : kBlue))
-             .key("legb" + std::to_string(i))
-             .scale(animate(from(0.0f).to(1.0f),
-                            ramp((tDistort + 0.2f) * 1000 + 70.0f * (float)i,
-                                 420, ch::EaseOutBack())))
-             .transformOrigin(dx < 0 ? 1.0f : 0.0f, 0.5f)
-             .opacity(beat(tDistort + 0.2f + 0.05f * (float)i,
-                           tDistort + 0.4f + 0.05f * (float)i))});
-    g.children({text(kit::formatted("%.3f", legs[i].ratio))
-                    .font({.size = 9.5f, .color = bad ? kAmber : kGrey})
-                    .at({bx + bw + 20, y - 2})
-                    .key("legv" + std::to_string(i))
-                    .opacity(beat(tDistort + 0.2f + 0.04f * (float)i,
-                                  tDistort + 0.4f + 0.04f * (float)i))});
-  }
-  g.children(
-      {text("TOTAL 934.2 km real → 944.6 km on Minard, ratio "
-            "1.011 — one leg squeezed to 59%, the next stretched "
-            "to 153%, the total kept right,\nexactly where Wizma, "
-            "Chjat and Mojaisk crowd into 130 px of lettering.  "
-            "That the room was for the labels is an INFERENCE.")
-           .font({.size = 10, .color = kCardInk})
-           .left(60)
-           // Two lines of 10 pt under ten rows of 12.2 is what the card's
-           // 206 holds: set any lower and the second line's baseline
-           // falls past the card edge and the sentence is cut in half.
-           .top(by + rowH * 10 + 4)
-           .width(900)
-           .key("legTotal")
-           .opacity(beat(tDistort + 0.9f, tDistort + 1.3f))});
-  return g;
+                  .styleClass(bad ? "amberInk" : "measured")
+                  .opacity(beat(t0, t0 + 0.2f))
+                  .children({text(l.name).font({.size = 9.5f}).at({60, y - 2}),
+                             box()
+                                 .rect(SkRect::MakeXYWH(
+                                     dx < 0 ? mid + dx : mid, y,
+                                     std::max(std::fabs(dx), 1.0f), 7))
+                                 .fill(Fill::currentInk())
+                                 .scale(animate(
+                                     from(0.0f).to(1.0f),
+                                     ramp(t0 * 1000, 420, ch::EaseOutBack())))
+                                 .transformOrigin(dx < 0 ? 1.0f : 0.0f, 0.5f),
+                             text(kit::formatted("%.3f", l.ratio))
+                                 .font({.size = 9.5f})
+                                 .at({bx + bw + 20, y - 2})});
+            }),
+       // Two lines of 10 pt under ten rows is what the card's 206 holds:
+       // set the note any lower and the second line's baseline falls past
+       // the card edge and the sentence is cut in half.
+       lettering(said["notes"], 0.0f, tDistort)});
 }
 
-auto Minard1869::cardReaumur() -> Element {
-  auto g = box().inset(0);
-  const float x0 = 40, y0 = 50, rowH = 15.0f;
-  const char* heads[] = {"date on the plate", "°R", "°C", "°F", "days"};
-  const float cols[] = {0, 250, 330, 410, 500};
-  for (int c = 0; c < 5; ++c)
-    g.children({text(heads[c])
-                    .font({.face = faceUiBold, .size = 9.5f})
-                    .at({x0 + cols[c], y0 - 16})
-                    .key("rh" + std::to_string(c))});
+auto Minard1869::cardReaumur(const data::Json& said) -> Element {
+  // THE NINE ENGRAVED READINGS, converted twice: five columns each at its
+  // own width, the three numeric ones set in the figure register. The one
+  // undated reading says so in its own cell.
+  std::vector<sketch::kit::Row> rows;
+  rows.push_back({.cells = wordsOf(said["columns"])});
   for (size_t i = 0; i < plate.temps.size(); ++i) {
     const Temp& t = plate.temps[i];
-    const bool cold = t.reaumur <= -30.0f;
-    const SkColor4f col = cold ? kBlue : kCardInk;
-    const float y = y0 + rowH * (float)i;
-    auto cell = [&](int c, const std::string& s, SkColor4f cc, float sz) {
-      g.children({text(s)
-                      .font({.size = sz, .color = cc})
-                      .at({x0 + cols[c], y})
-                      .key("rc" + std::to_string(i) + "_" + std::to_string(c))
-                      .opacity(beat(tReaumur + 0.05f * (float)i,
-                                    tReaumur + 0.25f + 0.05f * (float)i))});
-    };
-    cell(0,
-         i == 4 ? std::string(t.label) + "   (NO DATE ENGRAVED)"
-                : std::string(t.label),
-         i == 4 ? kAmber : col, cold ? 11.0f : 10.0f);
-    cell(1, kit::formatted("%.0f", t.reaumur), col, cold ? 11.5f : 10.0f);
-    cell(2, kit::formatted("%.2f", t.reaumur * 1.25f), col,
-         cold ? 11.5f : 10.0f);
-    cell(3, kit::formatted("%.2f", t.reaumur * 2.25f + 32.0f), col,
-         cold ? 11.5f : 10.0f);
-    cell(4, i == 0 ? std::string("—") : std::to_string(t.daysSincePrev), kGrey,
-         10.0f);
+    rows.push_back(
+        {.cells = {t.label + (i == 4 ? std::string(said["undated"].text())
+                                     : std::string()),
+                   kit::formatted("%.0f", t.reaumur),
+                   kit::formatted("%.2f", t.reaumur * 1.25f),
+                   kit::formatted("%.2f", t.reaumur * 2.25f + 32.0f),
+                   i == 0 ? std::string("—") : std::to_string(t.daysSincePrev)},
+         .key = "rc" + std::to_string(i)});
   }
-  g.children({text("°C = °R × 5/4      °F = °R "
-                   "× 9/4 + 32      (exact — Réaumur puts 80 "
-                   "degrees between ice and steam)")
-                  .font({.size = 10})
-                  .at({x0, y0 + rowH * 9 + 2})
-                  .key("reqs")
-                  .opacity(beat(tReaumur + 0.5f, tReaumur + 0.8f))});
-  g.children({text("−30 °R = −37.50 °C = −35.50 "
-                   "°F.  The plate's title says degrés du\nthermomètre "
-                   "de Réaumur in display capitals, and reproductions "
-                   "still\nrelabel the axis Celsius while keeping his "
-                   "numbers.")
-                  .font({.size = 10, .color = kClaimRed})
-                  .left(x0 + 560)
-                  .top(y0 + 4)
-                  .width(400)
-                  .key("reaWrong")
-                  .opacity(beat(tReaumur + 0.9f, tReaumur + 1.3f))});
-  // the two campaigns, the reason the panels share a sheet
-  g.children({text("Hannibal 218 BC    96,000 → 26,000    survived "
-                   "27.08%\nNapoleon 1812     422,000 → 10,000    "
-                   "survived  2.37%\nThis is why he printed them together.")
-                  .font({.face = faceUiBold, .size = 12, .color = kCardInk})
-                  .left(x0 + 560)
-                  .top(y0 + 74)
-                  .width(420)
-                  .key("twoCamp")
-                  .opacity(beat(tTwo, tTwo + 0.5f))});
-  return g;
+  return box().inset(0).children(
+      {sketch::kit::table(
+           std::move(rows),
+           {.columns = {{250}, {80, true}, {80, true}, {90, true}, {}}})
+           .at({40, 34})
+           .width(540)
+           .key("reaumurTable")
+           .staggerChildren(50ms)
+           .opacity(beat(tReaumur, tReaumur + 0.3f)),
+       // the equations, the caption reproductions still get wrong, and
+       // the two campaigns that are the reason the panels share a sheet
+       lettering(said["notes"], 0.0f, tReaumur)});
 }
 
 auto Minard1869::auditColumn() -> Element {
-  auto g = box().inset(0);
-  g.children({card(128, 326, "DOES THE PLATE OBEY ITS OWN LEGEND?", "card1",
-                   tScale, cardScale())});
-  g.children(
-      {card(466, 196, "THE FLOOR", "card2", tScale + 0.8f, cardFloor())});
-  g.children(
-      {card(668, 250, "THE MAP IS A REAL MAP", "card3", tGeo, cardGeo())});
-  g.children(
-      {card(926, 206, "WHAT HE DID DISTORT", "card4", tDistort, cardLegs())});
-  g.children({card(1144, 204, "RÉAUMUR", "card5", tReaumur, cardReaumur())});
-  return g;
+  // THE AUDIT IS ANOTHER WORLD and it has another theme: clean paper,
+  // crisp rules, the interface face, and the blue a measurement is
+  // printed in as its figure colour. Every kit component under these
+  // five cards reads it, so a table and a plot on a card are dressed by
+  // the card's own look and not by the desk's.
+  const sketch::kit::Provide look(cardLook);
+  const data::Json& cards = doc()["cards"];
+  // The five cards, in the order the argument runs: the scale, the floor
+  // it breaks at, the geography it keeps, the geography it does not, and
+  // the thermometer nobody reads.
+  const std::array<float, 5> beats{tScale, tScale + 0.8f, tGeo, tDistort,
+                                   tReaumur};
+  return box().inset(0).children(
+      {card(cards[0], beats[0], cardScale(cards[0])),
+       card(cards[1], beats[1], cardFloor(cards[1])),
+       card(cards[2], beats[2], cardGeo(cards[2])),
+       card(cards[3], beats[3], cardLegs(cards[3])),
+       card(cards[4], beats[4], cardReaumur(cards[4]))});
 }
 
 auto Minard1869::titleStrip() -> Element {
-  auto g = box().rect(SkRect::MakeXYWH(48, 28, 2464, 80));
-  g.children({sketch::kit::titleCard(
-                  {.title = {"Carte figurative des pertes successives en "
-                             "hommes de l'armée française dans la campagne "
-                             "de Russie 1812–1813, comparée à celle "
-                             "d'Annibal durant la 2ᵉᵐᵉ guerre punique"},
-                   .subtitle = {"BnF, Ge Don 4182 · lithograph · 62 × 54 "
-                                "cm · Paris, 20 novembre 1869 · Minard was "
-                                "88, and died ten months later during the "
-                                "siege of Paris"},
-                   .notes = {{.words = "the sheet is drawn at its own aspect "
-                                       "— 2.258 px per millimetre of "
-                                       "Minard's paper, so every band width "
-                                       "on screen is a real millimetre "
-                                       "count",
-                              .ink = Fill::color(hexColor(0x2f6f9c))},
-                             {.words = "THE PLATE STATES ITS OWN "
-                                       "CONSTRUCTION RULE.  THIS SKETCH "
-                                       "CHECKS IT — AND THEN CHECKS ITSELF "
-                                       "WITH THE SAME MEASUREMENT.",
-                              .ink = Fill::color(hexColor(0xb5761e))}}})
-                  .left(0)
-                  .top(0)
-                  .width(2464)});
-  return g;
+  const data::Json& head = doc()["head"];
+  std::vector<sketch::kit::Line> notes;
+  for (const data::Json& n : head["notes"].items())
+    notes.push_back(
+        {.words = std::string(n["words"].text()),
+         .ink = Fill::color(n["ink"].text() == "blue" ? hexColor(0x2f6f9c)
+                                                      : hexColor(0xb5761e))});
+  return box()
+      .rect(SkRect::MakeXYWH(48, 28, 2464, 80))
+      .children({sketch::kit::titleCard(
+                     {.title = {std::string(head["title"].text())},
+                      .subtitle = {std::string(head["subtitle"].text())},
+                      .notes = std::move(notes)})
+                     .inset(0)});
 }
 
 auto Minard1869::consoleStrip() -> Element {

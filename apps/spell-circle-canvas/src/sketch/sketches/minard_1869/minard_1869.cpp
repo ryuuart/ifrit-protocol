@@ -4,14 +4,14 @@
 
 #include "Minard1869.h"
 
-auto Minard1869::describe(sketch::SketchContext& ctx) -> Element {
+auto Minard1869::describe() -> Element {
   // The desk's sheet stands for everything described below it, so a kit
   // component four levels down is set in this plate's registers without
   // being handed them.
-  sketch::kit::Provide look(sheetLook);
-  return box()
-      .fill(Paint::solid(kDesk))
-      .children({titleStrip(), sheet(ctx), auditColumn(), consoleStrip()});
+  const sketch::kit::Provide look(sheetLook);
+  return kit::board({.size = {kW, kH}, .ground = Paint::solid(kDesk)})
+      .styleSheet(sheetLook.styleSheet())
+      .children({titleStrip(), sheet(), auditColumn(), consoleStrip()});
 }
 
 auto Minard1869::setup(sketch::SketchContext& ctx) -> void {
@@ -62,6 +62,35 @@ auto Minard1869::setup(sketch::SketchContext& ctx) -> void {
   sheetLook.type.captionNote = {11, 0};
   sheetLook.spacing.subtitleGap = 6;
   sheetLook.spacing.rowGap = 5;
+
+  // THE AUDIT'S OWN LOOK: the same arrangement on cleaner paper, with the
+  // blue a measurement is printed in as its figure colour, and the five
+  // classes a card adds to it so a bar, a dot, a rule and the word that
+  // names one take their colour from one entry.
+  cardLook = sheetLook;
+  cardLook.palette.ground = kCard;
+  cardLook.palette.cellGround = kCard;
+  cardLook.palette.ink = kCardInk;
+  cardLook.palette.ash = kGrey;
+  cardLook.palette.rule = hexColor(0xcfc6b4);
+  cardLook.palette.figure = kBlue;
+  cardLook.type.captionLabel = {9.5f, 0};
+  cardLook.type.captionNote = {9.5f, 0};
+  cardSheet = cardLook.styleSheet();
+  cardSheet.set("title", partial(faceUiBold, 15, kCardInk, 1.6f));
+  cardSheet.set("measured", weave::Type{.color = kBlue});
+  cardSheet.set("amber", weave::Type{.color = kAmber});
+  cardSheet.set("grey", weave::Type{.color = hexColor(0x6d675c, 0.45f)});
+  cardSheet.set("route", weave::Type{.color = hexColor(0x1c1a17, 0.35f)});
+  cardSheet.set("vector", weave::Type{.color = hexColor(0x2f6f9c, 0.6f)});
+  cardSheet.set("cross", weave::Type{.color = kCardInk});
+  cardSheet.set("cardInk", weave::Type{.color = kCardInk});
+  cardSheet.set("claim", weave::Type{.color = kClaimRed});
+  cardSheet.set("pass", weave::Type{.color = kPass});
+  cardSheet.set("amberInk", weave::Type{.color = kAmber});
+  cardSheet.set("plotAxis", weave::Type{.color = kCardInk});
+  cardSheet.set("plotTick", partial(faceNum, 8.5f, kGrey));
+  cardSheet.set("plotLabel", partial(faceUi, 9.5f, kGrey));
 
   // THE PAPER, and it is a FIBRE problem, not a colour problem: pulp
   // grain, the laid lines of a hand-made 19th-century sheet at ~1.2 px
@@ -137,7 +166,7 @@ auto Minard1869::setup(sketch::SketchContext& ctx) -> void {
       },
       8);
 
-  ctx.composer.render(describe(ctx));
+  ctx.composer.render(describe());
   ctx.composer.renderSlot("caliper", caliper());
   calShown = calStep;
 }

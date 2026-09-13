@@ -45,6 +45,15 @@ struct Minard1869 : sketch::Sketch {
   /** The look every kit component below this sketch is set in; built in
    *  setup, once the faces it names have been resolved. */
   sketch::kit::Theme sheetLook;
+  /** THE AUDIT'S OWN LOOK, and it is deliberately another world: clean
+   *  paper, crisp rules, the interface face, and the blue a measurement
+   *  is printed in as the figure colour. Bound over the five cards. */
+  sketch::kit::Theme cardLook;
+  /** The sheet a card states: the card theme's classes, and the ones a
+   *  card adds — `measured`, `amber`, `amberInk`, `grey`, `route`,
+   *  `vector`, `cross`, `cardInk`, `claim`, `pass` — so a rule, a bar, a
+   *  dot and the word that names it take one colour from one entry. */
+  weave::StyleSheet cardSheet;
 
   // -----------------------------------------------------------------------
   // beat clock (seconds). Everything reads through bind(&T).window(a,b).
@@ -71,6 +80,53 @@ struct Minard1869 : sketch::Sketch {
   // =======================================================================
   // THE SHEET
 
+  /** THE DOCUMENT, or a null value where the file did not load: every
+   *  reader below goes through this, so a plate without its content file
+   *  draws without its lettering rather than not at all. */
+  const data::Json& doc() const;
+
+  /** ONE OF THE PLATE'S FIVE HANDS by the name the document calls it:
+   *  the interface face and its bold, the fine sloped italic the place
+   *  names are set in, the upright condensed face the numbers are, and
+   *  the spaced roman MOSCOU alone takes. An unknown name inherits the
+   *  engraver's script, which is what the sheet's root states. */
+  sk_sp<SkTypeface> hand(const std::string& named) const;
+
+  /** ONE LINE OF THE PLATE'S LETTERING as the document writes it: the
+   *  words, where they stand, the register they are set in, and the beat
+   *  they enter on. Everything on the sheet that is a line of type goes
+   *  through here, so the document is the content and this is the
+   *  template. */
+  Element engraved(const Lettering& line) const;
+
+  /** A WHOLE RUN OF LETTERING out of a record of the document, one
+   *  element per entry, every beat offset by @p t0 and every baseline by
+   *  @p dy — which is what lets a panel's or a card's lines be written in
+   *  its own coordinates. */
+  std::vector<Element> lettering(const data::Json& run, float dy,
+                                 float t0) const;
+
+  /** ONE STRING out of the document, empty where the key is not there. */
+  std::string word(const char* panel, const char* named) const;
+
+  /** AN ENGRAVED LINE: a cooked path stroked over the whole sheet and
+   *  drawn on as the beat runs ALONG it. Every rule, coast, river,
+   *  dropline and graduation on the plate is one of these, so none of
+   *  them restates the box it is drawn in or how a line arrives. */
+  template <class Nib>
+  Element inked(SkPath path, const Nib& nib, float t0, float t1) const {
+    return box()
+        .inset(0)
+        .shape(pathFn(std::move(path)))
+        .stroke(spans::upTo(beat(t0, t1)), nib);
+  }
+  /** The same line, already printed: what the plate carries before the
+   *  beat it is read at reaches it. */
+  template <class Nib>
+  Element inked(SkPath path, const Nib& nib) const {
+    return box().inset(0).shape(pathFn(std::move(path))).stroke(nib);
+  }
+
   Element paperGround();
 
   Element frames();
@@ -78,6 +134,11 @@ struct Minard1869 : sketch::Sketch {
   /** Minard's own hand across the top margin, and the two donation
    *  stamps. This is the part of the object that makes it HIS copy. */
   Element provenance();
+
+  /** A COAST OR A RIVER: a smooth path the placed points steer, stroked
+   *  along as the beat runs. */
+  Element river(const std::vector<SkPoint>& pts, float width, SkColor4f colour,
+                const char* key, float t0);
 
   // =======================================================================
   // HANNIBAL — the panel nobody has seen
@@ -87,13 +148,8 @@ struct Minard1869 : sketch::Sketch {
    *  which is geometry::path::parallel called once per ring. */
   Element hannibalSea();
 
-  /** Lehmann hachures (Johann Georg Lehmann, 1799): strokes down the line
-   *  of steepest descent, black-to-white ratio proportional to slope —
-   *  all white at 0°, all black at 45°. Generated from a synthetic height
-   *  field of gaussian ridges, not drawn. Every stroke's direction, length,
-   *  weight and alpha come from the local gradient, so this is a FIELD
-   *  rather than a repeated motif and patterns::stripes cannot express
-   *  it. */
+  /** Lehmann hachures: strokes down the line of steepest descent, drawn
+   *  with the pen over a synthetic height field of gaussian ridges. */
   Element lehmann(const std::vector<std::array<float, 4>>& ridges, float x0,
                   float y0, float x1, float y1, const char* key, float t0);
 
@@ -130,19 +186,15 @@ struct Minard1869 : sketch::Sketch {
   Element bandNumber(SkPoint at, SkVector tangent, float men, float size,
                      const std::string& key, float t0);
 
-  /** The advance: one trunk and two branches, each the same band brush
-   *  over its own strength law, revealed from the Niemen eastward the way
-   *  the army walked it. */
   Element advanceZones();
 
-  Element napoleonPanel(sketch::SketchContext& ctx);
+  Element napoleonPanel();
 
-  /** A graduated bar. `pxPerUnit` is px per lieue, `span` the last label,
-   *  `step` the label interval. Built by hand rather than by stamping along
-   *  a contour: each graduation carries its own number, and a stamped
-   *  element cannot know which sample it is. */
+  /** A graduated bar: the rule, the ticks the plate numbers, and the unit
+   *  it is measured in. `pxPerUnit` is px per lieue, `span` the last
+   *  label, `step` the label interval. */
   Element scaleBar(float x, float y, float pxPerUnit, int span, int step,
-                   const char* label, const char* key, float t0);
+                   const Utf8& label, const char* key, float t0);
 
   // =======================================================================
   // THE TEMPERATURE PANEL — and the nine droplines that ARE the joint
@@ -167,36 +219,35 @@ struct Minard1869 : sketch::Sketch {
    *  paper rather than as ink. */
   Element caliper();
 
-  Element sheet(sketch::SketchContext& ctx);
+  Element sheet();
 
   // =======================================================================
   // THE AUDIT — five cards, a different world: clean paper, crisp rules,
   // no grain.
 
-  /** ONE AUDIT CARD. Its ground, its title and the rule under the title
-   *  are `kit::sheet`'s header, laid over the whole card, and the body is
-   *  a sibling of it — so the body keeps the card's own coordinates while
-   *  the header flows and a longer title pushes its own rule down. */
-  Element card(float y, float h, const char* title, const char* key, float t0,
-               Element body);
+  /** ONE AUDIT CARD: the plate, its title and the rule under it are
+   *  `compose::kit::panel`'s head and well, the body stands in that
+   *  well's own coordinates, and the card's remarks are the run of
+   *  lettering its own record carries. */
+  Element card(const data::Json& spec, float t0, Element body);
 
   /** Card 1 — DOES THE PLATE OBEY ITS OWN LEGEND?  The eleven measured
    *  treads, the fit through them, and the two rules that matter. */
-  Element cardScale();
+  Element cardScale(const data::Json& said);
 
   /** Card 2 — THE FLOOR. And the negative result: at the floor, the
    *  12,000 -> 14,000 anomaly is invisible in the ink. */
-  Element cardFloor();
+  Element cardFloor(const data::Json& said);
 
   /** Card 3 — THE MAP IS A REAL MAP. The received account is wrong. */
-  Element cardGeo();
+  Element cardGeo(const data::Json& said);
 
   /** Card 4 — WHAT HE DID DISTORT. Ten leg ratios against 1.00. */
-  Element cardLegs();
+  Element cardLegs(const data::Json& said);
 
   /** Card 5 — RÉAUMUR. °C = °R × 5/4 and °F = °R × 9/4 + 32, both exact,
    *  and the axis relabels itself live. */
-  Element cardReaumur();
+  Element cardReaumur(const data::Json& said);
 
   Element auditColumn();
 
@@ -213,7 +264,7 @@ struct Minard1869 : sketch::Sketch {
 
   // =======================================================================
 
-  Element describe(sketch::SketchContext& ctx);
+  Element describe();
 
   // =======================================================================
   // THE PROOF — every number computed here, none copied.

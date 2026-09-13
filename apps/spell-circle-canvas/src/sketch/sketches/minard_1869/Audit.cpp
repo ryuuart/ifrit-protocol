@@ -5,6 +5,14 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
   auto say = [&](feed::TextRing& r, const std::string& s, const char* style) {
     r.append({s, style});
   };
+  /** A NAMED RUN OF THE SCRIPT, out of the document. The console's words
+   *  are content and stand in `data/content.json`; the code is the order
+   *  they are read in and the holes the measurements fill. */
+  auto run = [&](feed::TextRing& r, const char* named) {
+    if (!plate.words) return;
+    for (const data::Json& n : (*plate.words)["audit"][named].items())
+      r.append({std::string(n["t"].text()), std::string(n["s"].text("dim"))});
+  };
   // THE VERDICT IS NEVER WRITTEN BY HAND. `measure::check` computes it
   // from the two values and `test::report` prints it in the ink that
   // verdict chose, so a line that reads EXACT cannot disagree with the
@@ -27,7 +35,7 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
   auto chk = [&](feed::TextRing& r, const std::string& label, long lhs,
                  long rhs) { row(r, measure::check(label, rhs, lhs)); };
 
-  say(colA, "FLOW CONSERVATION — Minard's own engraved numbers", "heading");
+  run(colA, "flow.head");
   chk(colA, "422,000 − 22,000 (northern column)", 422000 - 22000, 400000);
   chk(colA, "400,000 − 60,000 (Polotzk column)", 400000 - 60000, 340000);
   chk(colA, "340,000 + 60,000 + 22,000", 340000 + 60000 + 22000, 422000);
@@ -68,11 +76,7 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
       12000 + 8000 + 6000, 26000);
   chk(colA, "38,000 foot + 8,000 horse, entering the Alps", 38000 + 8000,
       46000);
-  say(colA,
-      "  Pyrenees   Hanno 11,000 + 10,000 sent home = 21,000; Minard draws "
-      "20,000",
-      "dim");
-  say(colA, "  → the one place he smooths.  Δ 1,000", "dim");
+  run(colA, "hannibal.polybius");
   say(colA,
       kit::formatted("  Hannibal 218 BC   96,000 → 26,000   survived %.2f%%",
                      100.0 * 26.0 / 96.0),
@@ -84,62 +88,31 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
   say(colA, "", "dim");
 
   // --- the scale audit --------------------------------------------------
-  say(colB, "DOES THE PLATE OBEY ITS OWN LEGEND?", "heading");
-  say(colB,
-      "  legend (BOTH panels)  \"à raison d'un millimètre pour dix "
-      "mille hommes\"",
-      "dim");
-  say(colB,
-      "  11 treads, Commons scan:  3.828 px/10k, intercept "
-      "−0.19 px, R² 0.99266",
-      "measured");
+  run(colB, "scale.legend");
   row(colB,
       measure::check("  intercept / (10,000-men width)", 0.0, -0.05, 0.1));
   row(colB, measure::check("  paper aspect 3945/3423 vs 62/54", 62.0 / 54.0,
                            3945.0 / 3423.0, 0.01));
-  say(colB, "  frame 3685 px = 579.14 mm ⇒ 3.4482 px/mm on that scan", "dim");
+  run(colB, "scale.frame");
   say(colB,
       kit::formatted("  from the regression                        %.3f mm/10k",
                      3.828 / 3.4482),
       "measured");
-  say(colB, "  four direct BnF spot reads             1.1258 ± 0.013 mm",
-      "measured");
-  say(colB, "  STATED                                 1.0000 mm", "dim");
+  run(colB, "scale.reads");
   // THE PLATE'S OWN CLAIM, checked: a finding, not a defect here.
   row(colB, measure::finding(
                 measure::check("  → mm per 10,000 men, against the legend", 1.0,
                                (double)kMmPer10k, 0.01)));
-  say(colB,
-      "  and the SAME factor on the Hannibal panel, other data, other "
-      "continent",
-      "fail");
+  run(colB, "scale.hannibal");
   say(colB,
       kit::formatted(
           "  half a French ligne (2.2558/2) = 1.1279 mm  — %.2f%% away  "
           "[SPECULATION]",
           100.0 * std::fabs(kLigneHalf - kMmPer10k) / kMmPer10k),
       "dim");
-  say(colB, "", "dim");
-  say(colB, "THE FLOOR", "heading");
-  say(colB,
-      "  above ~35,000 men      3.6 – 3.9 px per 10,000   (holds "
-      "scale)",
-      "pass");
-  say(colB,
-      "  at 8,000 / 4,000       7.0 / 10.5 px per 10,000   (2.6× "
-      "too wide)",
-      "fail");
-  say(colB,
-      "  minimum drawn width    5.4 px = 1.57 mm — what a crayon "
-      "holds",
-      "fail");
-  say(colB,
-      "  → 12,000→14,000 is NOT measurable in the ink. "
-      "NEGATIVE RESULT, REPORTED.",
-      "fail");
-  say(colB, "", "dim");
+  run(colB, "floor");
 
-  say(colC, "MINARD'S GEOGRAPHY vs THE REAL WORLD", "heading");
+  run(colC, "geo.head");
   {
     std::vector<float> km;
     km.reserve(std::size(plate.cities));
@@ -160,8 +133,7 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
         "measured");
     say(colC, kit::formatted("                         rms  %.2f km", rms),
         "measured");
-    say(colC, "  0.1° digitisation quantum, diagonal        6.41 km", "dim");
-    say(colC, "  rms expected from quantisation alone      3.70 km", "dim");
+    run(colC, "geo.quantum");
     // A statement about MINARD'S MAP, not about this file, and the one
     // the received account gets backwards: the rms residual is three
     // times the floor his data's own 0.1-degree quantisation sets, on a
@@ -181,77 +153,13 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
         kit::formatted("  Kowno→Moscou  real %.1f km   Minard %.1f km", kmKM,
                        kmM),
         "measured");
-    say(colC,
-        "  worst legs  Wixma→Chjat 0.591  Chjat→Mojaisk "
-        "1.528  TOTAL 1.011",
-        "fail");
+    run(colC, "geo.legs");
   }
-  say(colC, "", "dim");
 
   // --- the projection fits, both panels --------------------------------
-  say(colC, "THE PROJECTION — re-measured here, and one finding is new",
-      "heading");
-  say(colC,
-      "  Napoleon panel, tan centreline, 8 stations east of Polotzk:", "dim");
-  say(colC,
-      "    d = 280.3 px/deg lat,  d/b = 2.142,  R² 0.866, rms 34 "
-      "px",
-      "measured");
-  say(colC,
-      "    true-to-scale at 55°N = 1.743  → latitude "
-      "STRETCHED 1.23×",
-      "measured");
-  say(colC, "  Hannibal panel, same fit, 11 stations, BnF sheet:", "dim");
-  say(colC,
-      "    d/b = 0.048,  R² = 0.12   (robust: 0.048–0.075 "
-      "over any anchor)",
-      "fail");
-  say(colC,
-      "  → THE TWO PANELS DO NOT SHARE A PROJECTION. The top one "
-      "is a STRIP,",
-      "fail");
-  say(colC,
-      "    not a map: latitude explains an eighth of the band's "
-      "height. So the",
-      "fail");
-  say(colC,
-      "    received \"Minard sacrificed geography\" is wrong about the "
-      "panel every-",
-      "fail");
-  say(colC, "    one quotes and right about the panel nobody looks at.",
-      "fail");
-  say(colC, "", "dim");
+  run(colC, "projection");
 
-  say(colD, "THE SCALE BAR DISAGREES WITH THE MAP", "heading");
-  say(colD,
-      "  \"Lieues communes\" 4.985 px/lieue, linear to 0.2% ⇒ 1 mm "
-      "= 3.074 km",
-      "measured");
-  say(colD,
-      "  the map, from real longitudes: 1 mm = 1.688 km   1 : "
-      "1,688,000",
-      "measured");
-  say(colD, "  ratio 1.82                                     UNEXPLAINED",
-      "fail");
-  say(colD,
-      "  Kowno→Smolensk with Minard's own bar: 933 km. Truth: 520 "
-      "km.",
-      "fail");
-  say(colD,
-      "  hypotheses: labels half value | copied unrescaled from "
-      "Fezensac | my scale",
-      "dim");
-  say(colD,
-      "  (the two panels also use DIFFERENT lieues: 4,444.8 m and "
-      "4,560 m)",
-      "dim");
-  say(colD, "", "dim");
-
-  say(colD, "RÉAUMUR", "heading");
-  say(colD,
-      "  °C = °R × 5/4   °F = °R × 9/4 + "
-      "32   (exact, no offset)",
-      "dim");
+  run(colD, "bar");
   row(colD, measure::check("  −30 °"
                            "R in °C",
                            -37.5, -30.0 * 5.0 / 4.0, 1e-9));
@@ -259,11 +167,7 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
                            "R in °F",
                            -35.5, -30.0 * 9.0 / 4.0 + 32.0, 1e-9));
   row(colD, measure::reading("  readings converted", 9));
-  say(colD,
-      "  the undated −11° recovers as 24 Nov (days col.) and "
-      "25 Nov (lon interp.)",
-      "measured");
-  say(colD, "", "dim");
+  run(colD, "reaumur.tail");
 
   // --- THE SKETCH'S OWN GEOMETRY ---------------------------------------
   // THE BAND THE SHEET DRAWS, handed back by the brush that draws it, so
@@ -315,18 +219,16 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
       }
     }
   }
-  {
-    const SkRect bb = advBand.getBounds();
-    const std::array<SkPath, 1> pieces{advBand};
+  // The area a band covers: a raycast over its own bounds, which is the
+  // one reading that does not care how many interior seams it has.
+  const auto areaOf = [](const SkPath& band) {
+    const SkRect bb = band.getBounds();
+    const std::array<SkPath, 1> pieces{band};
     const test::Coverage cov = test::coverage(pieces, bb, 512);
-    advanceArea = (1.0f - cov.uncoveredFraction()) * bb.width() * bb.height();
-  }
-  {
-    const SkRect bb = retBand.getBounds();
-    const std::array<SkPath, 1> pieces{retBand};
-    const test::Coverage cov = test::coverage(pieces, bb, 512);
-    retreatArea = (1.0f - cov.uncoveredFraction()) * bb.width() * bb.height();
-  }
+    return (1.0f - cov.uncoveredFraction()) * bb.width() * bb.height();
+  };
+  advanceArea = areaOf(advBand);
+  retreatArea = areaOf(retBand);
   // do the two zones overlap? They must not — they are adjacent.
   {
     const std::array<SkPath, 2> pieces{advBand, retBand};
@@ -437,32 +339,9 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
   riserFracErr = (float)ctx.measured(riserFracErr, 176.4);
   if (ctx.deterministic) riserWorstCity = "Witebsk";
 
-  say(colD, "THE TWO PANELS SHARE ONE ABSCISSA", "heading");
-  say(colD,
-      "  vertical rules detected in y ∈ [700,930]     9 inner + 2 "
-      "frame",
-      "dim");
+  run(colD, "abscissa");
 
-  say(colD,
-      "  best matches  lon 25.300 vs 25.3  Δ 0.000  |  28.593 vs "
-      "28.5  Δ 0.09",
-      "measured");
-
-  say(colD,
-      "  2 rules unmatched, 2 readings unmatched     PARTIAL — "
-      "reported, not fudged",
-      "fail");
-  say(colD,
-      "  in THIS sketch the lock is one shared mapX(lon) called from "
-      "both panels;",
-      "dim");
-  say(colD,
-      "  nothing in the library can declare it. A scale is not a "
-      "layout.",
-      "fail");
-
-  say(colE, "THE SKETCH'S OWN GEOMETRY — the same auditor, turned round",
-      "heading");
+  run(colE, "own.head");
   say(colE,
       kit::formatted(
           "  advance band, min-chord every 4 px:  max |err| %.2f px = %.3f "
@@ -490,10 +369,7 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
           advanceInk, advanceArea,
           100.0 * std::fabs(advanceArea - advanceInk) / advanceInk),
       "pass");
-  say(colE,
-      "  so the two disagree, and the outline is what they disagree "
-      "about. A min-chord",
-      "dim");
+  run(colE, "own.outline");
   say(colE,
       kit::formatted(
           "  raycasts the band RESOLVED, and resolving its %.0f steps "
@@ -506,27 +382,13 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
           "— the boundary",
           (double)outlineWalk, (double)advPerimeter),
       "measured");
-  say(colE,
-      "  goes in and out along every interior seam: no area, no ink, and "
-      "fatal to a chord.",
-      "fail");
-  say(colE,
-      "  ⇒ A WIDTH AUDIT IS ONLY AS GOOD AS THE OUTLINE IT "
-      "CROSSES. Reported, not fudged.",
-      "fail");
+  run(colE, "own.seams");
   say(colE,
       kit::formatted(
           "  retreat band: max |err| %.2f px = %.3f mm · fills %.0f px²",
           auditRetreat.maxError, auditRetreat.maxError / kPxPerMm, retreatArea),
       auditRetreat.within(2.0f) ? "pass" : "fail");
-  say(colE,
-      "  Both zones are one brush::Ribbon on the width Profile seam, "
-      "bevelled at the",
-      "pass");
-  say(colE,
-      "  joins — the chord across the outside of the turn, and the "
-      "inside fills as a union.",
-      "pass");
+  run(colE, "own.brush");
   say(colE,
       kit::formatted("  coverage(advance ∪ retreat) doubled %.4f — they touch "
                      "near Wizma, as on the plate",
@@ -558,13 +420,5 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
       std::string("    ^ the trap, and its worst riser is ") + riserWorstCity +
           "'s",
       "fail");
-  say(colE,
-      "  → the corner this sheet is hardest on is Wilna's: 130 px of "
-      "band turning on an",
-      "dim");
-  say(colE,
-      "    86 px leg, where the union of the steps is thicker than the "
-      "law and the",
-      "dim");
-  say(colE, "    outline folds over itself. It draws solid.", "dim");
+  run(colE, "own.corner");
 }
