@@ -19,7 +19,7 @@ sigil_library(SigilSketchKit
           Panel.h Passage.h Rows.h Scrollbar.h Theme.h Ticker.h
   PUBLIC SigilSketch SigilComposeCore SigilComposeKit SigilCoreReconcile
          SigilGeometryKit SigilMaterial SigilWeave
-  PRIVATE SigilWeavePorts SigilIO)
+  PRIVATE SigilWeavePorts SigilIO SigilDataTable)
 
 # The kit's own claim: the theme is a comparable value a scope binds, and
 # every component draws exactly what the compose kit spelled by hand with
@@ -30,4 +30,4 @@ sigil_test(sketch_test
           test/LegendTest.cpp test/MeterTest.cpp test/PageTest.cpp
           test/PanelTest.cpp test/PassageTest.cpp test/RowsTest.cpp
           test/ScrollbarTest.cpp test/ThemeTest.cpp test/TickerTest.cpp
-  LIBRARIES SigilSketchKit SigilMaterialKit SigilMotionClock)
+  LIBRARIES SigilSketchKit SigilMaterialKit SigilMotionClock SigilDataTable)

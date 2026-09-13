@@ -73,9 +73,10 @@ subtitle in the text face is three faces, and a theme carries two.
 is the register as a `weave::Type` — its face, size and track, no colour,
 so the ink in force paints it — and `Theme::styleSheet()` is all seven as
 classes under their own names: `title`, `subtitle`, `footer`,
-`captionLabel`, `captionNote`, `eyebrow`, `section`. A node that states
-that sheet with `styleSheet()` puts it in force for everything under it,
-so a leaf there is set in a register by name:
+`captionLabel`, `captionNote`, `eyebrow`, `section` — with `readout`
+beside them, the one class no register of its own answers. A node that
+states that sheet with `styleSheet()` puts it in force for everything
+under it, so a leaf there is set in a register by name:
 
 ```cpp
 compose::text(u8"CALL").styleClass("captionLabel")   // the register, by name
@@ -89,6 +90,12 @@ sets INSIDE its content — `eyebrow` and `section` — name no colour, so
 each is painted in the ink in force wherever it is read. So a page's three
 lines and a cell's two are one entry each on this sheet and nowhere else:
 a theme with two colours moved moves every line that names them.
+
+**One class is not a register of its own.** `readout` is the register a
+CALL is set in — the digits of one width — in `Palette::figure`, and it is
+where a MEASURED FIGURE stands: a readout's value, a figure column's
+cells, a reading pinned over a picture. It is an eighth entry on the
+sheet, so a figure reads as one wherever it is written.
 
 A sketch whose classes go past the registers starts from `styleSheet()`,
 adds its own with `weave::StyleSheet::set` or as a literal, and states
@@ -279,6 +286,7 @@ sketch::kit::titleCard(
 | `labelRow(Reading, Readout)` | the name at the left in the quiet register, the figure at the right in the figure colour and the face a call is set in, with a swatch before the name where the row is also a key |
 | `readout(rows, Readout)` | a stack of those, at the theme's row gap, optionally ruled between |
 | `table(rows, Table)` | N columns each at its own width, the ones that carry a number in the figure register, with a mark before the first — the reading a pair cannot hold |
+| `bars(labels, values, Bars)` | one row per value against the largest of them: the label at the left, the bar in the theme's figure colour on a track of the same dimmed, and the figure after it — with the overload that reads the two columns off a table |
 
 ```cpp
 sketch::kit::readout({{u8"nodes", nodes}, {u8"instances", live}},
@@ -303,6 +311,17 @@ sketch::kit::table(rows, {.columns = {{126, true}, {46, true}, {66}, {}},
 A figure a sketch measured about its own execution goes through
 `ctx.measured` **before** it reaches here. These components arrange a
 row; what the number is, and whether it is pinned, is the sketch's.
+
+**BARS ARE NOT A ROW OF METERS.** A meter is one fraction of a known
+whole; `bars` is N rows against an extent DERIVED from the values, which
+is what a plot of a column is and why no scale is stated anywhere.
+`Bars::largest` states the extent where a plot must share one with the
+plot beside it, and `Bars::rest` is the track behind each bar —
+`Fill::none()` draws none.
+
+```cpp
+sketch::kit::bars(*cities, "city", "population", {.length = 150})
+```
 
 ### Colour, named — `Legend.h`
 

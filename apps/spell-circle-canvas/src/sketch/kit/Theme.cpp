@@ -35,6 +35,11 @@ weave::StyleSheet Theme::styleSheet() const {
   // what a section standing on a panel of its own asks for.
   classes.set("eyebrow", font(type.eyebrow));
   classes.set("section", font(type.section));
+  // A MEASURED FIGURE is the one thing on the sheet that is neither type
+  // nor furniture, so it is the register a CALL is set in — the digits of
+  // one width — in the palette's figure colour, wherever it stands: a
+  // readout's value, a figure column's cells, a reading over a picture.
+  classes.set("readout", font(type.captionLabel, palette.figure));
   return classes;
 }
 

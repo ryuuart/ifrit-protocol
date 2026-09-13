@@ -5,6 +5,9 @@
 
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/kit/Rows.h>
+#include <sigildata/table/Table.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -33,7 +36,7 @@ TEST(SketchKitRows, ALabelRowRangesItsFigureToTheMeasure) {
           .row()
           .alignItems(compose::Align::Center)
           .gap(house.spacing.labelGap)
-          .width(compose::Dimension(220))
+          .width(220)
           .children(
               {compose::text(u8"nodes", house.style(house.type.captionNote,
                                                     house.palette.ash)),
@@ -53,7 +56,7 @@ TEST(SketchKitRows, AReadoutStacksItsRowsAtTheThemesGap) {
       compose::box()
           .column()
           .gap(house.spacing.rowGap)
-          .width(compose::Dimension(220))
+          .width(220)
           .children({kit::labelRow({.name = u8"nodes", .value = u8"1 248"},
                                    {.measure = 220}),
                      kit::labelRow({.name = u8"instances", .value = u8"96"},
@@ -109,23 +112,19 @@ TEST(SketchKitRows, ATableDrawsTheHandSpelledColumns) {
       compose::box()
           .column()
           .gap(house.spacing.rowGap)
-          .children({compose::box()
-                         .row()
-                         .alignItems(compose::Align::Center)
-                         .gap(8)
-                         .children({compose::box()
-                                        .width(compose::Dimension(9))
-                                        .height(compose::Dimension(9))
-                                        .fill(tier)
-                                        .shrink(0)})
-                         .children({compose::text(u8"cellPanel", figure())
-                                        .width(compose::Dimension(126))})
-                         .children({compose::text(u8"0.00", figure())
-                                        .width(compose::Dimension(46))})
-                         .children({compose::text(u8"Promoted", quiet())
-                                        .width(compose::Dimension(66))})
-                         .children({compose::text(u8"baked by the library",
-                                                  quiet())})});
+          .children(
+              {compose::box()
+                   .row()
+                   .alignItems(compose::Align::Center)
+                   .gap(8)
+                   .children(
+                       {compose::box().width(9).height(9).fill(tier).shrink(0)})
+                   .children(
+                       {compose::text(u8"cellPanel", figure()).width(126)})
+                   .children({compose::text(u8"0.00", figure()).width(46)})
+                   .children({compose::text(u8"Promoted", quiet()).width(66)})
+                   .children(
+                       {compose::text(u8"baked by the library", quiet())})});
   Element byKit = kit::table(
       {{{u8"cellPanel", u8"0.00", u8"Promoted", u8"baked by the library"},
         tier}},
@@ -152,7 +151,7 @@ TEST(SketchKitRows, ASurplusWordTakesTheLastColumnsRegister) {
                    .children({compose::text(u8"key",
                                             house.style(house.type.captionNote,
                                                         house.palette.ash))
-                                  .width(compose::Dimension(60))})
+                                  .width(60)})
                    .children({compose::text(u8"0.00",
                                             house.style(house.type.captionLabel,
                                                         house.palette.figure))})
@@ -162,6 +161,50 @@ TEST(SketchKitRows, ASurplusWordTakesTheLastColumnsRegister) {
   EXPECT_TRUE(sameDrawing(std::move(byHand),
                           kit::table({{{u8"key", u8"0.00", u8"12"}}},
                                      {.columns = {{60}, {0, true}}})));
+}
+
+// The bars a column of values is drawn as
+
+/** One row per value, the bar against the largest of them, drawn in the
+ *  theme's figure colour on a track of the same dimmed. */
+TEST(SketchKitRows, BarsStandAgainstTheLargestValue) {
+  const kit::Theme& house = kit::houseTheme();
+  const std::vector<compose::Utf8> labels = {u8"Tokyo", u8"Lagos"};
+  const std::vector<double> values = {37.0, 15.0};
+  compose::kit::Bars how{.length = 150,
+                         .labelMeasure = 96,
+                         .barHeight = house.spacing.barHeight,
+                         .gap = house.spacing.labelGap,
+                         .rowGap = house.spacing.rowGap,
+                         .bar = Fill::color(house.palette.figure),
+                         .rest = Fill::color(sigil::material::skia::withAlpha(
+                             house.palette.figure, 0.25f))};
+  const auto quiet = house.style(house.type.captionNote, house.palette.ash);
+  const auto number =
+      house.style(house.type.captionLabel, house.palette.figure);
+  how.labelLine = [quiet](const compose::Utf8& words) {
+    return compose::text(words.bytes(), quiet);
+  };
+  how.figureLine = [number](double value) {
+    return compose::text(compose::kit::formatted("%.0f", value), number);
+  };
+  EXPECT_TRUE(sameDrawing(compose::kit::bars(labels, values, how),
+                          kit::bars(labels, values, {})));
+}
+
+/** The same, read straight off two columns of a table — which is what a
+ *  sketch holding a decoded CSV has. */
+TEST(SketchKitRows, BarsReadTwoColumnsOfATable) {
+  sigil::data::Table cities;
+  cities.add<std::string>("city", {"Tokyo", "Lagos"});
+  cities.add<double>("population", {37.0, 15.0});
+  const std::vector<compose::Utf8> labels = {u8"Tokyo", u8"Lagos"};
+  const std::vector<double> values = {37.0, 15.0};
+  EXPECT_TRUE(sameDrawing(kit::bars(labels, values, {}),
+                          kit::bars(cities, "city", "population", {})));
+  // A column that is not there draws no row rather than guessing one.
+  EXPECT_TRUE(
+      sameDrawing(compose::box(), kit::bars(cities, "city", "deaths", {})));
 }
 
 }  // namespace

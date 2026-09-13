@@ -23,6 +23,7 @@
 #include "sigilcompose/kit/PixelType.h"
 #include "sigilcompose/kit/Placers.h"
 #include "sigilcompose/kit/Routers.h"
+#include "sigilcompose/kit/Rows.h"
 #include "sigilcompose/kit/Specimen.h"
 #include "sigilcompose/kit/Sprites.h"
 #include "sigilcompose/kit/Typeset.h"

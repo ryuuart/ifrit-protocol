@@ -50,9 +50,10 @@ namespace sigil::compose::kit {
 [[nodiscard]] inline Element captionNote(const Utf8& text) {
   return compose::text(text.bytes()).styleClass("captionNote");
 }
-/** The leaf a caption's reading defaults to: @p text in the class
- *  `readout`, the class a measured figure is set in. */
-[[nodiscard]] inline Element captionReading(const Utf8& text) {
+/** THE LEAF A MEASURED FIGURE DEFAULTS TO: @p text in the class
+ *  `readout` — a caption's reading, a readout's value, a figure column's
+ *  cells. One leaf, because it is one line wherever it stands. */
+[[nodiscard]] inline Element figure(const Utf8& text) {
   return compose::text(text.bytes()).styleClass("readout");
 }
 
@@ -163,7 +164,7 @@ struct Caption {
    *  default. */
   Part<Utf8, Caption> label = captionLabel;
   Part<Utf8, Caption> note = captionNote;
-  Part<Utf8, Caption> readingLine = captionReading;
+  Part<Utf8, Caption> readingLine = figure;
 };
 
 /** ONE CAPTIONED CELL: @p body with @p label and @p note set beside it as
@@ -200,7 +201,7 @@ struct Caption {
             .padding(Dimension(caption.gap), Dimension(caption.gap * 0.5f))
             .children({caption.readingLine
                            ? caption.readingLine(caption.reading, caption)
-                           : captionReading(caption.reading)});
+                           : figure(caption.reading)});
     // The scrim is the cell's own ground, so the reading stands off
     // whatever the body draws under it.
     if (caption.body && !caption.body->ground.none())

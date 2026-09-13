@@ -1360,6 +1360,22 @@ cell's label is set in the class `captionLabel` of the sheet in force
 and its note in `captionNote`, a page's three lines in `title`,
 `subtitle` and `footer` — so the kit decides no look and a text prop is a
 `compose::Utf8`, which takes `"…"` and `u8"…"` alike;
+`kit/Rows.h` — a name and the figure that answers it: `kit::reading`, one
+row of a `kit::Reading` set as a `kit::Rows` says (the name at the left,
+the figure at the far edge of `Rows::measure`, the swatch of a row that is
+also a key before both), `kit::readout`, a stack of them ruled between
+where `Rows::divider` names a fill, `kit::table`, N `kit::Column`s each at
+its own width — one head cell per column in the class `section`, a figure
+column's cells in `readout` and the rest in `captionNote`, one swatch and
+one key per row, and every row its own run of cells, so a short row stays
+short and a surplus word takes the last column's class — and `kit::bars`,
+one row per value against an extent DERIVED from the values
+(`Bars::largest` states it instead), each bar in `Bars::bar` on the track
+`Bars::rest` holds, with the figure after it as a function of the VALUE
+because how a number reads is the data's business; a readout and a table
+are different readings and neither is the other with a field set, and
+`kit::figure` is the one leaf a measured figure is set by, in the class
+`readout`, wherever it stands;
 `kit/Ground.h`'s two dressings for a flat ground — `kit::vignette`, a
 radial ramp measured to the CORNER so it meets all four at one value on
 a surface that is not square, and `kit::grained`, value noise collapsed

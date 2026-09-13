@@ -1,113 +1,146 @@
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Rows.h>
+#include <sigildata/table/Table.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/kit/Rows.h>
 
-#include <algorithm>
 #include <cstddef>
 #include <utility>
+#include <vector>
 
 namespace sigil::sketch::kit {
 
-using compose::Align;
-using compose::box;
-using compose::Corners;
-using compose::Dimension;
 using compose::Element;
 using compose::Fill;
-using compose::text;
+using compose::Utf8;
+
+namespace {
+
+/** The two registers a reading is set in, as the parts the arrangement
+ *  writes its lines with: the name and the note in the theme's quiet
+ *  register, the figure in the register a CALL is set in, in the figure
+ *  colour. */
+struct Registers {
+  weave::TextStyle quiet;
+  weave::TextStyle number;
+};
+
+Registers registers(const Theme& look) {
+  return {look.style(look.type.captionNote, look.palette.ash),
+          look.style(look.type.captionLabel, look.palette.figure)};
+}
+
+compose::kit::Rows arrangement(const Readout& how, const Theme& look) {
+  compose::kit::Rows rows{
+      .measure = how.measure,
+      .nameMeasure = how.nameMeasure,
+      .gap = look.spacing.rowGap,
+      .labelGap = look.spacing.labelGap,
+      .divider = how.ruled ? Fill::color(look.palette.rule) : Fill{},
+      .swatchSide = how.swatchSide.value_or(look.spacing.swatchSide),
+      .swatchCorners = how.swatchCorners};
+  const Registers set = registers(look);
+  rows.nameLine = [quiet = set.quiet](const Utf8& words) {
+    return compose::text(words.bytes(), quiet);
+  };
+  rows.valueLine = [number = set.number](const Utf8& words) {
+    return compose::text(words.bytes(), number);
+  };
+  rows.noteLine = rows.nameLine;
+  return rows;
+}
+
+}  // namespace
 
 compose::Element labelRow(const Reading& reading, const Readout& how) {
-  const Theme& look = theme();
-  Element row =
-      box().row().alignItems(Align::Center).gap(look.spacing.labelGap);
-  if (how.measure > 0) row.width(Dimension(how.measure));
-  if (!reading.swatch.none()) {
-    const float side = how.swatchSide.value_or(look.spacing.swatchSide);
-    Element mark = box().width(Dimension(side)).height(Dimension(side));
-    reading.swatch.apply(mark);
-    mark.shrink(0);
-    if (how.swatchCorners > 0) mark.corners(Corners{how.swatchCorners});
-    row.children({std::move(mark)});
-  }
-  if (!reading.name.empty()) {
-    Element name = text(reading.name.bytes(),
-                        look.style(look.type.captionNote, look.palette.ash));
-    if (how.nameMeasure > 0) name.width(Dimension(how.nameMeasure));
-    row.children({std::move(name)});
-  }
-  // With a measure the space between is what grows, which is what puts
-  // every figure on one edge however long the names are.
-  if (how.measure > 0) row.children({box().grow(1)});
-  if (!reading.value.empty())
-    row.children(
-        {text(reading.value.bytes(),
-              look.style(look.type.captionLabel, look.palette.figure))});
-  if (!reading.note.empty())
-    row.children({text(reading.note.bytes(),
-                       look.style(look.type.captionNote, look.palette.ash))});
-  return row;
+  return compose::kit::reading({.name = reading.name,
+                                .value = reading.value,
+                                .note = reading.note,
+                                .swatch = reading.swatch},
+                               arrangement(how, theme()));
 }
 
 compose::Element readout(std::vector<Reading> rows, const Readout& how) {
-  const Theme& look = theme();
-  Element column = box().column().gap(look.spacing.rowGap);
-  if (how.measure > 0) column.width(Dimension(how.measure));
-  bool first = true;
-  for (const Reading& reading : rows) {
-    if (!first && how.ruled)
-      column.children({box()
-                           .height(Dimension(1))
-                           .alignSelf(Align::Stretch)
-                           .fill(Fill::color(look.palette.rule))});
-    first = false;
-    column.children({labelRow(reading, how)});
-  }
-  return column;
+  std::vector<compose::kit::Reading> readings;
+  readings.reserve(rows.size());
+  for (Reading& one : rows)
+    readings.push_back({.name = std::move(one.name),
+                        .value = std::move(one.value),
+                        .note = std::move(one.note),
+                        .swatch = std::move(one.swatch)});
+  return compose::kit::readout(readings, arrangement(how, theme()));
 }
 
 compose::Element table(std::vector<Row> rows, const Table& how) {
   const Theme& look = theme();
-  const auto ink = [&](bool figure) {
-    return figure ? look.style(look.type.captionLabel, look.palette.figure)
-                  : look.style(look.type.captionNote, look.palette.ash);
-  };
-  Element column = box().column().gap(look.spacing.rowGap);
-  bool first = true;
+  std::vector<compose::kit::Column> columns;
+  columns.reserve(how.columns.size());
+  for (const Column& one : how.columns)
+    columns.push_back({.width = one.width, .figure = one.figure});
+  // The rows are held by value for the length of this call, so the spans
+  // the arrangement reads stand on them.
+  std::vector<std::span<const Utf8>> cells;
+  std::vector<compose::SurfacePaint> swatches;
+  std::vector<std::string> keys;
+  cells.reserve(rows.size());
+  swatches.reserve(rows.size());
+  keys.reserve(rows.size());
   for (const Row& row : rows) {
-    if (!first && how.ruled)
-      column.children({box()
-                           .height(Dimension(1))
-                           .alignSelf(Align::Stretch)
-                           .fill(Fill::color(look.palette.rule))});
-    first = false;
-    Element line = box()
-                       .row()
-                       .alignItems(Align::Center)
-                       .gap(how.gap.value_or(look.spacing.labelGap));
-    if (!row.key.empty()) line.key(row.key);
-    if (!row.swatch.none()) {
-      const float side = how.swatchSide.value_or(look.spacing.swatchSide);
-      Element mark = box().width(Dimension(side)).height(Dimension(side));
-      row.swatch.apply(mark);
-      mark.shrink(0);
-      if (how.swatchCorners > 0) mark.corners(Corners{how.swatchCorners});
-      line.children({std::move(mark)});
-    }
-    for (size_t i = 0; i < row.cells.size(); ++i) {
-      // A row with more words than columns sets the surplus in the last
-      // column's register, at its own width — which is the shape a table
-      // whose final column is prose already has.
-      const Column specification =
-          how.columns.empty()
-              ? Column{}
-              : how.columns[std::min(i, how.columns.size() - 1)];
-      Element cell = text(row.cells[i].bytes(), ink(specification.figure));
-      if (specification.width > 0 && i < how.columns.size())
-        cell.width(Dimension(specification.width));
-      line.children({std::move(cell)});
-    }
-    column.children({std::move(line)});
+    cells.emplace_back(row.cells);
+    swatches.push_back(row.swatch);
+    keys.push_back(row.key);
   }
-  return column;
+  compose::kit::Table specification{
+      .columns = std::move(columns),
+      .gap = how.gap.value_or(look.spacing.labelGap),
+      .rowGap = look.spacing.rowGap,
+      .divider = how.ruled ? Fill::color(look.palette.rule) : Fill{},
+      .swatches = swatches,
+      .swatchSide = how.swatchSide.value_or(look.spacing.swatchSide),
+      .swatchCorners = how.swatchCorners,
+      .keys = keys};
+  const Registers set = registers(look);
+  specification.cellLine = [set](const Utf8& words,
+                                 const compose::kit::Table& shape,
+                                 std::size_t column) {
+    const bool figure =
+        !shape.columns.empty() &&
+        shape.columns[std::min(column, shape.columns.size() - 1)].figure;
+    return compose::text(words.bytes(), figure ? set.number : set.quiet);
+  };
+  return compose::kit::table(cells, specification);
+}
+
+compose::Element bars(std::span<const compose::Utf8> labels,
+                      std::span<const double> values, const Bars& how) {
+  const Theme& look = theme();
+  compose::kit::Bars specification{
+      .length = how.length,
+      .largest = how.largest,
+      .labelMeasure = how.labelMeasure,
+      .barHeight = how.barHeight.value_or(look.spacing.barHeight),
+      .gap = how.gap.value_or(look.spacing.labelGap),
+      .rowGap = how.rowGap.value_or(look.spacing.rowGap),
+      .bar = how.bar.value_or(Fill::color(look.palette.figure)),
+      .rest = how.rest.value_or(
+          Fill::color(material::skia::withAlpha(look.palette.figure, 0.25f)))};
+  const Registers set = registers(look);
+  specification.labelLine = [quiet = set.quiet](const Utf8& words) {
+    return compose::text(words.bytes(), quiet);
+  };
+  specification.figureLine = [number = set.number](double value) {
+    return compose::text(compose::kit::formatted("%.0f", value), number);
+  };
+  return compose::kit::bars(labels, values, specification);
+}
+
+compose::Element bars(const data::Table& table, std::string_view labels,
+                      std::string_view values, const Bars& how) {
+  const std::span<const std::string> names = table.column<std::string>(labels);
+  std::vector<compose::Utf8> words;
+  words.reserve(names.size());
+  for (const std::string& one : names) words.emplace_back(one);
+  return bars(words, table.column<double>(values), how);
 }
 
 }  // namespace sigil::sketch::kit

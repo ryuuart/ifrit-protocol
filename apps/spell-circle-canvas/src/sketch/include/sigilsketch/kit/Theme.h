@@ -182,15 +182,18 @@ struct Theme {
   [[nodiscard]] weave::Type font(const Register& line, SkColor4f color) const;
   /** THE SEVEN REGISTERS AS CLASSES, each under the name its field
    *  carries — "title", "subtitle", "footer", "captionLabel",
-   *  "captionNote", "eyebrow", "section" — so a leaf under a bound theme
+   *  "captionNote", "eyebrow", "section" — plus "readout", the one class
+   *  that is not a register of its own, so a leaf under a bound theme
    *  says `.styleClass("eyebrow")` and is set as the theme's eyebrow is.
    *  `Provide` binds it beside the theme; a sketch with classes of its
    *  own adds them to this sheet and binds that.
    *
    *  EACH CLASS CARRIES ITS WHOLE LOOK, colour included: `title` and
    *  `captionLabel` in the palette's ink, `subtitle`, `footer` and
-   *  `captionNote` in its ash. `eyebrow` and `section` name no colour, so
-   *  each is painted in the ink in force where it is read. */
+   *  `captionNote` in its ash, and `readout` — the register a CALL is set
+   *  in, which is where a MEASURED FIGURE stands — in its figure colour.
+   *  `eyebrow` and `section` name no colour, so each is painted in the
+   *  ink in force where it is read. */
   [[nodiscard]] weave::StyleSheet styleSheet() const;
   /** @p line in @p color, set in whichever of the two faces it names. */
   [[nodiscard]] weave::TextStyle style(const Register& line,

@@ -2,8 +2,8 @@
 
 /** @file
  * A NAME AND THE FIGURE THAT ANSWERS IT: one row of it, the readout
- * several of them make, and the fixed-column table for the reading that
- * is more than a pair.
+ * several of them make, the fixed-column table for the reading that is
+ * more than a pair, and the bars a column of values is drawn as.
  */
 
 #include <sigilcompose/core/Element.h>
@@ -13,8 +13,17 @@
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
+
+namespace sigil::data {
+/** The tabular value a plot reads its two columns out of; its own words
+ *  are `<sigildata/table/Table.h>`, which this names and does not
+ *  include. */
+class Table;
+}  // namespace sigil::data
 
 namespace sigil::sketch::kit {
 
@@ -117,5 +126,53 @@ struct Table {
  *  own width, which is what a reading of more than a name and a figure
  *  needs. Neither is the other with a field set. */
 [[nodiscard]] compose::Element table(std::vector<Row> rows, const Table& how);
+
+/** HOW A COLUMN OF BARS IS DRAWN — the label at the left, the bar against
+ *  the largest of the values, and the figure after it, in the theme's
+ *  figure colour and register.
+ *
+ *  A BAR CHART IS NOT A ROW OF METERS. A meter is one fraction of a known
+ *  whole; this is N rows against an extent DERIVED from the values, which
+ *  is what a plot of a column is, and it is why no scale is stated
+ *  anywhere. */
+struct Bars {
+  /** The longest bar, px. */
+  float length = 150;
+  /** The value the longest bar stands for; 0 derives it from the values
+   *  themselves. */
+  double largest = 0;
+  /** The width the labels take, px; 0 lets each size itself. */
+  float labelMeasure = 96;
+  /** Unset is the theme's bar height. */
+  std::optional<float> barHeight;
+  /** Between the label, the bar and the figure; unset is the theme's
+   *  label gap. */
+  std::optional<float> gap;
+  /** Between rows; unset is the theme's row gap. */
+  std::optional<float> rowGap;
+  /** The bar itself; unset is the theme's figure colour. */
+  std::optional<compose::SurfacePaint> bar;
+  /** The track behind it — the room the longest bar takes, so a short bar
+   *  reads against the extent. Unset is the theme's figure dimmed;
+   *  `Fill::none()` draws no track. */
+  std::optional<compose::SurfacePaint> rest;
+};
+
+/** THE BARS — one row per value, @p labels read in the same order.
+ *
+ *      sketch::kit::bars(names, populations, {.length = 150})
+ */
+[[nodiscard]] compose::Element bars(std::span<const compose::Utf8> labels,
+                                    std::span<const double> values,
+                                    const Bars& how = {});
+
+/** THE SAME, read straight off two columns of @p table: @p labels names
+ *  its text column and @p values its number column. A column that is not
+ *  there, or that holds something else, draws no row — which is a table
+ *  the sketch has not loaded, and the sketch's own note to write. */
+[[nodiscard]] compose::Element bars(const data::Table& table,
+                                    std::string_view labels,
+                                    std::string_view values,
+                                    const Bars& how = {});
 
 }  // namespace sigil::sketch::kit
