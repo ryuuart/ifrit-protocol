@@ -267,17 +267,18 @@ struct EvaMagiInterior : sketch::Sketch {
                                   .strokeFill = Fill::currentInk(),
                                   .join = SkPaint::kMiter_Join})});
     }
+    // A panel Ireul has not reached yet carries NO infection node at all.
     if (!red && seeded[(size_t)i])
-      node.children({box().inset(0).fill(infection),
-                     text(p.number)
-                         .font(fitCap(evangelion::voteNumeral(number), 86.0f))
-                         .centerAt({sz.width() * 0.5f,
-                                    sz.height() * layout.numberSlotY(number)}),
-                     text(p.label)
-                         .font(fitWithin(evangelion::moduleLabel(), p.label,
-                                         31.0f, sz.width() - 44.0f))
-                         .centerAt({sz.width() * 0.5f,
-                                    sz.height() * layout.nameSlotY(number)})});
+      node.children({box().inset(0).fill(infection)});
+    node.children({text(p.number)
+                       .font(fitCap(evangelion::voteNumeral(number), 86.0f))
+                       .centerAt({sz.width() * 0.5f,
+                                  sz.height() * layout.numberSlotY(number)}),
+                   text(p.label)
+                       .font(fitWithin(evangelion::moduleLabel(), p.label,
+                                       31.0f, sz.width() - 44.0f))
+                       .centerAt({sz.width() * 0.5f,
+                                  sz.height() * layout.nameSlotY(number)})});
     return node;
   }
 
@@ -412,13 +413,12 @@ struct EvaMagiInterior : sketch::Sketch {
 
     // The bus is drawn first. The square modules are masks over it, and their
     // labels live inside their rotated local coordinate systems.
-    picture.children({plateFurniture().cache(Cache::Texture).key("furniture")});
-    for (int i = 0; i < 3; ++i)
-      picture.children(
-          {panelNode(i),
-           // Headings and state cards occupy the frontmost UI layer.
-           plateType().cache(Cache::Texture).key("ptype"), verdictBox(),
-           slot("hud")});
+    picture.children(
+        {plateFurniture().cache(Cache::Texture).key("furniture"),
+         each(std::views::iota(0, 3), [this](int i) { return panelNode(i); }),
+         // Headings and state cards occupy the frontmost UI layer.
+         plateType().cache(Cache::Texture).key("ptype"), verdictBox(),
+         slot("hud")});
     root.children(
         {std::move(picture).effect(evangelion::phosphor()).key("phosphor"),
          // --- the tube
