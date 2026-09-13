@@ -7,7 +7,7 @@
 #include "Catalogue.h"
 
 #include <sigildata/table/Table.h>
-#include <sigilsketch/core/Assets.h>
+#include <sigilsketch/canvas/Sketch.h>
 
 #include <charconv>
 #include <memory>
@@ -19,9 +19,9 @@ namespace {
 
 using sigil::data::Table;
 
-std::shared_ptr<const Table> read(sigil::sketch::Assets& assets,
+std::shared_ptr<const Table> read(sigil::sketch::SketchContext& ctx,
                                   std::string_view name) {
-  return assets.table("data/dunhuang/" + std::string(name));
+  return ctx.assets.table(ctx.local("data/" + std::string(name)));
 }
 
 /** The vertex words of one asterism, appended in the order the file
@@ -47,10 +47,10 @@ uint16_t appendWords(std::string_view run, std::vector<uint16_t>& out) {
 
 }  // namespace
 
-Catalogue catalogue(sigil::sketch::Assets& assets) {
+Catalogue catalogue(sigil::sketch::SketchContext& ctx) {
   Catalogue c;
 
-  if (const auto stars = read(assets, "stars.csv")) {
+  if (const auto stars = read(ctx, "stars.csv")) {
     const auto ra = stars->column<double>("ra");
     const auto dec = stars->column<double>("dec");
     const auto mag = stars->column<double>("mag");
@@ -62,7 +62,7 @@ Catalogue catalogue(sigil::sketch::Assets& assets) {
     }
   }
 
-  if (const auto ast = read(assets, "asterisms.csv")) {
+  if (const auto ast = read(ctx, "asterisms.csv")) {
     const auto id = ast->column<std::string>("id");
     const auto pinyin = ast->column<std::string>("pinyin");
     const auto native = ast->column<std::string>("native");
@@ -83,7 +83,7 @@ Catalogue catalogue(sigil::sketch::Assets& assets) {
     }
   }
 
-  if (const auto xiu = read(assets, "mansions.csv")) {
+  if (const auto xiu = read(ctx, "mansions.csv")) {
     const auto native = xiu->column<std::string>("native");
     const auto pinyin = xiu->column<std::string>("pinyin");
     const auto star = xiu->column<double>("star");

@@ -131,8 +131,8 @@ auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
                                   skia::toColor(hexColor(0x2a2118, 0.08f))});
   paperSpeck.seed(649);
 
-  cat = catalogue(ctx.assets);
-  conc = readConcordance(ctx.assets);
+  cat = catalogue(ctx);
+  conc = readConcordance(ctx);
   nStars = cat.stars();
   nAst = cat.asterisms();
 

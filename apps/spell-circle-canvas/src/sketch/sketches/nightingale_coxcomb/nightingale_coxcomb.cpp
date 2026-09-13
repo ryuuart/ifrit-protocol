@@ -60,7 +60,7 @@
 //
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
-//       src/sketch/sketches/nightingale_coxcomb.cpp \
+//       src/sketch/sketches/nightingale_coxcomb/nightingale_coxcomb.cpp \
 //       --frame /tmp/nightingale_coxcomb.png
 //
 // The 13.6 s mark is the settled plate. Earlier moments show the argument
@@ -797,11 +797,11 @@ struct NightingaleCoxcomb : sketch::Sketch {
   std::vector<LegendLine> legendText;
 
   void setup(sketch::SketchContext& ctx) override {
-    if (const auto deaths = ctx.assets.table("data/nightingale/deaths.csv")) {
+    if (const auto deaths = ctx.assets.table(ctx.local("data/deaths.csv"))) {
       d1 = readWheel(*deaths, 1);
       d2 = readWheel(*deaths, 2);
     }
-    if (const auto legend = ctx.assets.table("data/nightingale/legend.csv")) {
+    if (const auto legend = ctx.assets.table(ctx.local("data/legend.csv"))) {
       const auto indent = legend->column<double>("indent");
       const auto text = legend->column<std::string>("text");
       for (size_t i = 0; i < indent.size(); ++i)

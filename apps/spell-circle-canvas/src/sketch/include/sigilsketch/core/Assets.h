@@ -27,7 +27,8 @@ namespace sigil::sketch {
 
 /** THE FILES A SKETCH REACHES FOR that it did not generate.
  *
- *  The sketch's assets directory mounts at `res://`. `image()` keeps the
+ *  The demo assets root mounts at `res://` and the sketches folder at
+ *  `sketch://`, under which a sketch's own files stand. `image()` keeps the
  *  forgiving contract a live-edited file wants — a magenta placeholder
  *  stands in for a missing or undecodable file and heals the moment one
  *  appears — and `hub()` opens the full resource surface (text, blobs,

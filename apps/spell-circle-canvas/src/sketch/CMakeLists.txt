@@ -20,12 +20,13 @@
 sigil_library_root(SigilSketch
   BRIEF "Sketches: one file per scene, one registry, one host"
   DOCS ${CMAKE_CURRENT_LIST_DIR}/kit/README.md)
-# Where a sketch looks for what it did not generate, and where the live
-# host finds the file behind a registry entry. Neither directory need
-# exist: a missing asset yields the placeholder and heals when a file
-# appears.
+# Where the live host finds the file behind a registry entry, and what
+# mounts at res://: the demo assets a machine fetched (fonts, models,
+# textures), while a sketch's own files stand in its directory and reach
+# it through sketch://. Neither directory need exist: a missing asset
+# yields the placeholder and heals when a file appears.
 set(SIGIL_SKETCH_DIR ${CMAKE_CURRENT_LIST_DIR}/sketches)
-set(SIGIL_SKETCH_ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/sketches/assets)
+set(SIGIL_SKETCH_ASSET_DIR ${SIGIL_ASSET_DIR})
 
 find_package(boost_container CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)

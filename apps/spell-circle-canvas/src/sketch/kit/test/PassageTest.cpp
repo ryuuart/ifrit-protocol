@@ -1,5 +1,5 @@
 /** @file
- * The words a sketch reads off its own assets directory.
+ * The words a sketch reads off its own directory.
  */
 
 #include <gtest/gtest.h>
@@ -27,22 +27,25 @@ using sigil::sketch::kit::test::subject;
 using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
 
-/** A sketch's assets directory holding one passage, so what `passage`
- *  answers can be compared to what was written. */
+/** A sketch's own directory holding one passage under data/, mounted as
+ *  the files of the sketch keyed `passage`, so what `passage` answers can
+ *  be compared to what was written. */
 struct Beside {
   std::filesystem::path root =
       std::filesystem::temp_directory_path() / "sketch_kit_passage";
-  sigil::sketch::Assets store{root};
+  sigil::sketch::Assets store{""};
   sigil::motion::Ticker ticker;
   compose::Composer composer{ticker, fonts()};
   sigil::sketch::CanvasSpecification specification;
   sigil::sketch::SketchContext ctx{composer, ticker,         store,
-                                   {0, 0},   &specification, &fonts()};
+                                   {0, 0},   &specification, &fonts(),
+                                   false,    nullptr,        "passage"};
 
   explicit Beside(std::string_view text) {
     std::filesystem::remove_all(root);
-    std::filesystem::create_directories(root / "passages");
-    std::ofstream(root / "passages" / "one.txt", std::ios::binary) << text;
+    std::filesystem::create_directories(root / "data");
+    std::ofstream(root / "data" / "one.txt", std::ios::binary) << text;
+    store.mountSketch("passage", root);
   }
   ~Beside() { std::filesystem::remove_all(root); }
 };
@@ -55,12 +58,13 @@ std::string read(const std::u8string& text) {
 
 TEST(SketchKitPassage, TheTextIsTheFilesWithoutItsLastNewline) {
   Beside beside("one line\nand another\n");
-  EXPECT_EQ(read(kit::passage(beside.ctx, "one.txt")), "one line\nand another");
+  EXPECT_EQ(read(kit::passage(beside.ctx, "data/one.txt")),
+            "one line\nand another");
 }
 
 TEST(SketchKitPassage, AMissingPassageIsEmptyRatherThanAStandIn) {
   Beside beside("anything");
-  EXPECT_TRUE(kit::passage(beside.ctx, "absent.txt").empty());
+  EXPECT_TRUE(kit::passage(beside.ctx, "data/absent.txt").empty());
 }
 
 }  // namespace

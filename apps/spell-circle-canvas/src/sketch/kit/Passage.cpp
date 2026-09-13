@@ -8,7 +8,7 @@
 namespace sigil::sketch::kit {
 
 std::u8string passage(SketchContext& ctx, std::string_view name) {
-  const std::string uri = "res://passages/" + std::string(name);
+  const std::string uri = ctx.local(name);
   std::optional<std::string> text = ctx.assets.hub().text(uri);
   if (!text) {
     std::fprintf(stderr, "[sketch] no passage at %s\n", uri.c_str());

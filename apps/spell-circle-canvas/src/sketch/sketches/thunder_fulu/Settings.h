@@ -166,10 +166,10 @@ inline std::vector<T> words(std::string_view run) {
   return out;
 }
 
-inline Font readFont(sketch::Assets& assets) {
+inline Font readFont(sketch::SketchContext& ctx) {
   Font font;
-  const auto file = [&assets](const char* name) {
-    return assets.table("data/thunder_fulu/" + std::string(name));
+  const auto file = [&ctx](const char* name) {
+    return ctx.assets.table(ctx.local("data/" + std::string(name)));
   };
 
   if (const auto t = file("strokes.csv")) {

@@ -18,15 +18,16 @@ struct SketchContext;
 
 namespace sigil::sketch::kit {
 
-/** THE PASSAGE AT `res://passages/<name>`, as one string.
+/** THE PASSAGE IN THE SKETCH'S OWN FILES, `ctx.local(name)`, as one
+ *  string.
  *
- *      body = sketch::kit::passage(ctx, "paragraph_paints.txt");
+ *      body = sketch::kit::passage(ctx, "data/paragraph_paints.txt");
  *
  *  A page of running text is the SUBJECT of a sketch about setting one,
  *  and it is also the longest thing in the file that is about the
- *  setting — so it stands beside the sketch as a file and reaches it
- *  through the sketch's own resource hub, which caches it and notices an
- *  edit to it.
+ *  setting — so it stands in the sketch's directory as a file and reaches
+ *  it through the sketch's own resource hub, which caches it and notices
+ *  an edit to it.
  *
  *  THE TEXT IS THE FILE'S, MINUS THE NEWLINES IT ENDS WITH. A file ends
  *  in one by convention rather than because the prose breaks there, and

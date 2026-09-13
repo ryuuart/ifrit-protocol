@@ -68,11 +68,11 @@ struct DataSources final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     sketch::kit::stage(ctx, {.size = {1100, 420}, .captureAt = 0.05});
     // The CSV beside this sketch, decoded to a Table by the hub.
-    csv = ctx.assets.table(ctx.local("cities.csv"));
+    csv = ctx.assets.table(ctx.local("data/cities.csv"));
     // The SQLite store beside this sketch, opened in place: the same rows,
     // shaped by a query rather than by hand.
     if (const std::shared_ptr<const data::Database> store =
-            ctx.assets.database(ctx.local("cities.sqlite"))) {
+            ctx.assets.database(ctx.local("data/cities.sqlite"))) {
       fromSqlite = store->query(
           "SELECT country, SUM(population) AS population FROM cities "
           "GROUP BY country ORDER BY population DESC",
@@ -83,7 +83,7 @@ struct DataSources final : sketch::Sketch {
     // DuckDB over the CSV file itself, from a store that lives in memory
     // for as long as this frame is described.
     const std::filesystem::path path =
-        ctx.assets.hub().resolve(ctx.local("cities.csv"));
+        ctx.assets.hub().resolve(ctx.local("data/cities.csv"));
     if (std::optional<data::Database> scratch =
             data::Database::memory(data::Engine::Duck, &duckNote)) {
       fromDuck = scratch->query(
@@ -107,13 +107,13 @@ struct DataSources final : sketch::Sketch {
         kit::cells(
             {.cells =
                  {sketch::kit::caption(
-                      kCell, u8"assets.table(local(\"cities.csv\"))",
+                      kCell, u8"assets.table(local(\"data/cities.csv\"))",
                       u8"the decoder types the columns: text, number, flag, "
                       u8"instant",
                       bars(csv.get(), "city", "population",
                            "the CSV has not loaded")),
                   sketch::kit::caption(
-                      kCell, u8"assets.database(local(\"cities.sqlite\"))",
+                      kCell, u8"assets.database(local(\"data/cities.sqlite\"))",
                       u8"SUM(population) GROUP BY country · the store "
                       u8"is opened in place and reopened when it changes",
                       bars(fromSqlite ? &*fromSqlite : nullptr, "country",

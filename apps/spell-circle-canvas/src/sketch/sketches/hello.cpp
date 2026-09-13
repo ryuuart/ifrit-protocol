@@ -4,9 +4,9 @@
 //       src/sketch/sketches/hello.cpp
 //
 // Then EDIT THIS FILE AND SAVE — the canvas reloads in a couple of
-// seconds. Drop images into sketches/assets/ and load them with
-// ctx.assets.image("name.png") (a magenta checker shows until the file
-// exists; editing the file on disk hot-swaps it too).
+// seconds. Drop an image beside this file and load it with
+// ctx.assets.image(ctx.local("name.png")) (a magenta checker shows until
+// the file exists; editing the file on disk hot-swaps it too).
 
 // TAGS: Runtime/Starter
 

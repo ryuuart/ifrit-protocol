@@ -48,7 +48,7 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
   // sketches share. A sketch that carries data of its own is a directory.
   if (!m_sketches.empty()) m_hub.mount("sketch://", m_sketches);
   // A data file is a resource like an image is: with the decoders on,
-  // hub().load<Table>("res://data/x.csv") answers, cached and reloaded
+  // hub().load<Table>("sketch://<key>/data/x.csv") answers, cached and reloaded
   // by the same machinery, and a sketch carries no literal table. A
   // database file answers the same way, opened in place.
   sigil::data::registerDecoders(m_hub);

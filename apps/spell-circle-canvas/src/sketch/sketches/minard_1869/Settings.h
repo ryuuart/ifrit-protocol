@@ -228,10 +228,10 @@ struct Sheet {
   std::vector<std::string> legend;
 };
 
-inline Sheet readSheet(sketch::Assets& assets) {
+inline Sheet readSheet(sketch::SketchContext& ctx) {
   Sheet s;
-  const auto file = [&assets](const char* name) {
-    return assets.table("data/minard/" + std::string(name));
+  const auto file = [&ctx](const char* name) {
+    return ctx.assets.table(ctx.local("data/" + std::string(name)));
   };
 
   if (const auto t = file("march.csv")) {

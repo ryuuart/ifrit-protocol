@@ -119,8 +119,8 @@ other `.cpp` in that directory is a unit of it.** The key is still the
 stem, `SIGIL_SKETCH` still goes in the entry and nowhere else, and the
 build compiles every unit into the sketch target with the entry. A
 directory with no entry of its own name is not a sketch, and nothing
-in it is compiled. By default, `assets/` stands beside the sketch folder;
-`--assets` chooses a different resource root.
+in it is compiled. A sketch's own files stand in its directory, under
+`data/`; `res://` is the demo assets root, and `--assets` chooses another.
 
 What goes in a unit is what an edit to the plate should never compile
 again: a data table generated from a source and frozen, a construction
@@ -1249,17 +1249,19 @@ So a workspace is just a directory:
 The directory form and relative local includes work the same way wherever
 the entry stands. Framework headers come from the flags this checkout builds.
 
-`assets/` beside the sketch is the default root, and `--assets <dir>`
-names another. A sketch's OWN files stand beside it: `ctx.local("x.csv")`
-is the URI of `x.csv` in the directory the sketch's entry stands in —
-`sketch://<key>/x.csv`, the sketches folder mounted at `sketch://` —
-which `ctx.assets.table()`, `ctx.assets.image()`,
+For a sketch opened by path, `assets/` beside it is the `res://` root and
+`--assets <dir>` names another; in this repository `res://` is the demo
+assets root, `build/assets`, which `mise run assets` fills. A sketch's
+OWN files stand in its directory, under `data/`: `ctx.local("data/x.csv")`
+is the URI of `data/x.csv` under the directory the sketch's entry stands
+in — `sketch://<key>/data/x.csv`, the sketches folder mounted at
+`sketch://` — which `ctx.assets.table()`, `ctx.assets.image()`,
 `ctx.assets.database()` and the hub take as they take any URI. For a
 directory sketch that directory is its own, for a bare file it is the
 folder the sketches share, so a sketch that carries data of its own is
 written as a directory, and a workspace sketch opened by path has the
 files beside that path. A `.sqlite` or `.duckdb` file is a data source
-like a CSV is: `ctx.assets.database(ctx.local("cities.sqlite"))` opens
+like a CSV is: `ctx.assets.database(ctx.local("data/cities.sqlite"))` opens
 it in place, cached and reopened when it changes, and its `query()`
 answers the same `Table` the CSV decodes to. Saving `palette.h` rebuilds
 the sketch that includes it.
@@ -1376,8 +1378,10 @@ writes the response file a hot-reloaded sketch compiles with.
 ## Assets
 
 A sketch reaches for what it did not generate through `ctx.assets`.
-`assets/` **beside the sketch file** mounts at `res://`, and `--assets
-<dir>` names another directory instead — one root, whichever it is.
+`res://` is one root, whichever it is: the demo assets a machine fetched
+(`build/assets`) in this repository, `assets/` beside a sketch opened by
+path, or the directory `--assets <dir>` names. A sketch's own files stand
+in its directory under `data/` and are named by `ctx.local()`.
 `image()` keeps the
 forgiving contract a live-edited file wants — a magenta placeholder
 stands in for a missing or undecodable file and heals the moment one

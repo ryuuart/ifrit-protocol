@@ -316,10 +316,10 @@ struct Concordance {
   }
 };
 
-inline Concordance readConcordance(sketch::Assets& assets) {
+inline Concordance readConcordance(sketch::SketchContext& ctx) {
   Concordance c;
-  const auto file = [&assets](const char* name) {
-    return assets.table("data/dunhuang/" + std::string(name));
+  const auto file = [&ctx](const char* name) {
+    return ctx.assets.table(ctx.local("data/" + std::string(name)));
   };
   const auto letter = [](const std::string& text) {
     return text.empty() ? ' ' : text[0];

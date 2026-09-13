@@ -353,8 +353,8 @@ struct Manuscript final : sketch::Sketch {
                              .captureAt = 3.5,
                              .background = SkColor4f{0.11f, 0.09f, 0.075f, 1}});
     book = weave::ports::face(kBookFaces, 400);
-    pages[0] = sketch::kit::passage(ctx, "manuscript_1.txt");
-    pages[1] = sketch::kit::passage(ctx, "manuscript_2.txt");
+    pages[0] = sketch::kit::passage(ctx, "data/manuscript_1.txt");
+    pages[1] = sketch::kit::passage(ctx, "data/manuscript_2.txt");
     page = 0;
     nextTurn = kTurnSecs;
     ctx.composer.render(describe());

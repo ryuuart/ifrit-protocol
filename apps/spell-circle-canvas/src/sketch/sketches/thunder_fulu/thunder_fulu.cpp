@@ -27,7 +27,7 @@ auto ThunderFulu::describe(sketch::SketchContext&) -> Element {
 }
 
 auto ThunderFulu::setup(sketch::SketchContext& ctx) -> void {
-  font = readFont(ctx.assets);
+  font = readFont(ctx);
 
   // The single frame this sketch is photographed at, chosen on the 27 s
   // score: everything through the 19.65 s tap is complete and the foot is

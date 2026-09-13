@@ -3,8 +3,8 @@
 // unit of its own beside the sketch, so that an edit to the plate never
 // reads the tables again.
 //
-// THREE DATA FILES under res://data/dunhuang/, read through the sketch's
-// own resource hub:
+// THREE DATA FILES in this sketch's data/, read through the sketch's own
+// resource hub:
 //
 //   stars.csv      1,460 HIP stars from Stellarium's chinese_chenzhuo
 //                  joined to HYG v4.1 — RA, Dec, magnitude — with proper
@@ -27,7 +27,7 @@
 #include <vector>
 
 namespace sigil::sketch {
-class Assets;
+struct SketchContext;
 }
 
 namespace dunhuang {
@@ -92,6 +92,6 @@ struct Catalogue {
 /** Reads the three files off @p assets. A file the hub cannot answer leaves
  *  its table empty rather than half-built, so a sketch missing its data
  *  draws nothing instead of drawing a fragment. */
-Catalogue catalogue(sigil::sketch::Assets& assets);
+Catalogue catalogue(sigil::sketch::SketchContext& ctx);
 
 }  // namespace dunhuang

@@ -161,7 +161,7 @@ struct ParagraphPaints final : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
-    prose = sketch::kit::passage(ctx, "paragraph_paints.txt");
+    prose = sketch::kit::passage(ctx, "data/paragraph_paints.txt");
     // the fields are frozen at kMoment, not the clock
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

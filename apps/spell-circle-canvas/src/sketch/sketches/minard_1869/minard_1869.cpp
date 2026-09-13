@@ -15,7 +15,7 @@ auto Minard1869::describe(sketch::SketchContext& ctx) -> Element {
 }
 
 auto Minard1869::setup(sketch::SketchContext& ctx) -> void {
-  plate = readSheet(ctx.assets);
+  plate = readSheet(ctx);
   ctx.canvas(kW, kH);
   ctx.background(kDesk);
   fonts = ctx.fonts;

@@ -1,5 +1,5 @@
 /** @file
- * material_child — a material filling another's child slot, twice over:
+ * material_slots — a material filling another's slot, twice over:
  * the SkSL slot a shader samples, and the three slots `over()` stacks.
  *
  * TOP ROW — `Paint::sksl(...).children({name, Paint})`. A shader with TWO
