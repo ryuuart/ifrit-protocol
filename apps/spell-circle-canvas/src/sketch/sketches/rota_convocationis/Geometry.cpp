@@ -25,7 +25,8 @@ auto RotaConvocationis::spur() -> Element {
                  .fill(Fill::color(hexColor(0x0D0A16, 0.92f)))
                  .opacity(beat(0.9, 1.4)))
       .child(line("spur-rules", spurRules, 1.2f, kIron, 1.0, 0.9))
-      .child(text(toUtf8(spurText), rune(19.0f, kBone, 0.0f))
+      .child(text(toUtf8(spurText))
+                 .font({.size = 19.0f})
                  .key("spur-glyph")
                  .centerAt(c)
                  .hitTestable(false)
@@ -85,11 +86,15 @@ auto RotaConvocationis::stellaInterior() -> Element {
 }
 
 auto RotaConvocationis::limina() -> Element {
-  Element fig = kit::disc(kEye, rStar * kR).key("limina").hitTestable(false);
+  Element fig = kit::disc(kEye, rStar * kR)
+                    .key("limina")
+                    .hitTestable(false)
+                    .styleClass("label")
+                    .font({.size = 11.0f, .color = kAsh, .track = 2.0f});
   const Shape chordPath =
       shapes::chords({.sides = kStations, .step = 3, .inset = 74.0f});
   for (int k = 0; k < kLimens; ++k) {
-    fig.child(text(toUtf8(kLimina[k]), label(11.0f, kAsh, 2.0f))
+    fig.child(text(toUtf8(kLimina[k]))
                   .key("limen" + std::to_string(k))
                   .absolute()
                   .inset(0)
@@ -205,7 +210,9 @@ auto RotaConvocationis::sigillum(int k) -> Element {
   // the same clock angle — because the turning is the body's and a run
   // that is not driving its own placement can rest at whole pixels
   // until an ancestor moves it.
-  body.child(text(toUtf8(sealText[k]), ring(sealSize[k], kBone, 1.4f))
+  body.child(text(toUtf8(sealText[k]))
+                 .styleClass("ring")
+                 .font({.size = sealSize[k], .track = 1.4f})
                  .key(id + "-ring")
                  .absolute()
                  .inset(kSealR - kSealRing)
@@ -230,7 +237,9 @@ auto RotaConvocationis::sigillum(int k) -> Element {
   // seal that has to be read stands upright at every station the rim
   // brings it to while everything around it turns.
   seal.child(
-      text(toUtf8(s.ordo), mono(12.0f, kGold, 1.0f))
+      text(toUtf8(s.ordo))
+          .styleClass("mono")
+          .font({.size = 12.0f, .color = kGold, .track = 1.0f})
           .key(id + "-ordo")
           .centerAt({kSealR, kSealR})
           .hitTestable(false)
@@ -270,7 +279,8 @@ auto RotaConvocationis::emblema() -> Element {
   hub.child(line("hub-motes", hubMotes, 0.9f, kIronDim, tInner + 0.5, 0.7));
   hub.child(emissive("hub-lit", glows[kGlowHub], &litHub));
   hub.child(
-      text(toUtf8(hubRuneText), rune(13.0f, kAsh, 0.0f))
+      text(toUtf8(hubRuneText))
+          .font({.size = 13.0f, .color = kAsh})
           .key("hub-ring")
           .absolute()
           .inset(0)
@@ -292,7 +302,8 @@ auto RotaConvocationis::emblema() -> Element {
 
 auto RotaConvocationis::monogramma() -> Element {
   motion::Spread letters = {.eachMs = 240, .durationMs = 760};
-  return text(toUtf8(emblemText), rune(52.0f, kBone, 6.0f))
+  return text(toUtf8(emblemText))
+      .font({.size = 52.0f, .track = 6.0f})
       .key("monogramma")
       .centerAt(kEye)
       .hitTestable(false)

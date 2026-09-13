@@ -110,37 +110,25 @@ struct RotaConvocationis : sketch::Sketch {
   // ------------------------------------------------------------------
   // type
 
-  [[nodiscard]] sigil::weave::TextStyle ring(float size, SkColor4f color,
-                                             float track = 3.0f) const {
-    return weave::textStyle(
-        {.face = faceRingBold, .size = size, .color = color, .track = track});
-  }
-  /** THE REGISTER'S TYPE takes no face. The invented alphabet is not in
-   *  the interface family, and asking for it by name would be asking for
-   *  a font this study does not ship: the shaper's own fallback finds the
-   *  letterforms, which is the mechanism that puts them on the plate. */
-  [[nodiscard]] static sigil::weave::TextStyle rune(float size, SkColor4f color,
-                                                    float track) {
-    return weave::textStyle({.size = size, .color = color, .track = track});
-  }
-  [[nodiscard]] sigil::weave::TextStyle mono(float size, SkColor4f color,
-                                             float track = 1.0f) const {
-    return weave::textStyle(
-        {.face = faceMono, .size = size, .color = color, .track = track});
-  }
-  [[nodiscard]] sigil::weave::TextStyle label(float size, SkColor4f color,
-                                              float track = 2.6f) const {
-    return weave::textStyle(
-        {.face = faceRing, .size = size, .color = color, .track = track});
-  }
+  /** THE THREE VOICES THAT NAME A FACE, as classes: `ring` is the bold
+   *  interface cut the bands are set in, `label` its text weight for the
+   *  captions and the colophon, `mono` the ordinals' terminal face. Every
+   *  leaf states its own size, tracking and — where the ink the sheet is
+   *  rooted in is not it — colour. THE REGISTER IS NO CLASS and names no
+   *  face: the invented alphabet is not in the interface family, and
+   *  asking for it by name would be asking for a font this study does not
+   *  ship. A leaf that names no face is set in the font context's own
+   *  family, and the shaper's fallback finds the letterforms, which is the
+   *  mechanism that puts them on the plate. */
+  sigil::weave::StyleSheet classes;
 
-  /** The size at which @p s girds a circle of radius @p radius: measured
-   *  straight, refined once because tracking is px and does not scale
-   *  with the type. */
-  [[nodiscard]] float fitToRing(sketch::SketchContext& ctx,
-                                const std::string& s,
-                                const sigil::weave::TextStyle& style,
-                                float radius, float fill = 0.985f);
+  /** The size at which @p probe girds a circle of radius @p radius: measured
+   *  straight from @p size, refined once because tracking is px and does
+   *  not scale with the type. The probe is the band's own leaf — its
+   *  class and tracking — and is measured on its own, in the initial
+   *  ink. */
+  [[nodiscard]] float fitToRing(sketch::SketchContext& ctx, Element probe,
+                                float size, float radius, float fill = 0.985f);
 
   // ------------------------------------------------------------------
   // the drawn lines

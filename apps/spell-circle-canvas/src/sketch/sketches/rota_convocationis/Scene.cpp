@@ -213,8 +213,10 @@ auto RotaConvocationis::colophon() -> Element {
       .alignItems(Align::Center)
       .gap(7)
       .hitTestable(false)
+      .styleClass("label")
       .child(
-          text(toUtf8("ROTA CONVOCATIONIS"), label(12.0f, kAshDim, 5.2f))
+          text(toUtf8("ROTA CONVOCATIONIS"))
+              .font({.size = 12.0f, .color = kAshDim, .track = 5.2f})
               .key("titulus")
               // A lozenge stands at the word the whole figure
               // converges on, anchored to the rect the selector
@@ -235,8 +237,10 @@ auto RotaConvocationis::colophon() -> Element {
       .child(text(toUtf8(std::to_string(totalGlyphs) +
                          " GLYPHS \xc2\xb7 23 CVRVED BASELINES \xc2\xb7 10 "
                          "TVRNING LAYERS \xc2\xb7 EVERY START CHAINED FROM A "
-                         "SPAN, NONE FITTED BY HAND"),
-                  label(8.5f, hexColor(0x8A8299, 0.42f), 2.4f))
+                         "SPAN, NONE FITTED BY HAND"))
+                 .font({.size = 8.5f,
+                        .color = hexColor(0x8A8299, 0.42f),
+                        .track = 2.4f})
                  .key("colophon-2")
                  .opacity(beat(tIgnite + 0.4, tIgnite + 1.2)));
 }

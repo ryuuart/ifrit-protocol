@@ -18,16 +18,13 @@ auto RotaConvocationis::envelope() -> motion::Animatable<float> {
       .map(&ch::easeInOutQuad);
 }
 
-auto RotaConvocationis::fitToRing(sketch::SketchContext& ctx,
-                                  const std::string& s,
-                                  const sigil::weave::TextStyle& style,
-                                  float radius, float fill) -> float {
+auto RotaConvocationis::fitToRing(sketch::SketchContext& ctx, Element probe,
+                                  float size, float radius, float fill)
+    -> float {
   const float target = 2.0f * 3.14159265f * radius * fill;
-  float size = style.shaping.fontSize;
   for (int pass = 0; pass < 2; ++pass) {
-    sigil::weave::TextStyle probe = style;
-    probe.shaping.fontSize = size;
-    const SkSize m = ctx.measure(text(toUtf8(s), probe));
+    Element sized = probe;
+    const SkSize m = ctx.measure(sized.font({.size = size}));
     if (m.width() > 1.0f) size *= target / m.width();
   }
   return size;
@@ -127,7 +124,9 @@ auto RotaConvocationis::ladder(const char* key, int divisions, int skipEvery,
 }
 
 auto RotaConvocationis::invocatio() -> Element {
-  return text(toUtf8(voxText), ring(voxSize, kBone, 2.2f))
+  return text(toUtf8(voxText))
+      .styleClass("ring")
+      .font({.size = voxSize, .track = 2.2f})
       .key("vox")
       .centerAt(kEye)
       .width(2 * rVox * kR)
@@ -164,7 +163,8 @@ auto RotaConvocationis::invocatio() -> Element {
 }
 
 auto RotaConvocationis::registrum() -> Element {
-  return text(toUtf8(runeText), rune(runeSize, kRuneInk, 2.0f))
+  return text(toUtf8(runeText))
+      .font({.size = runeSize, .color = kRuneInk, .track = 2.0f})
       .key("registrum")
       .centerAt(kEye)
       .width(2 * rRune * kR)
@@ -204,7 +204,9 @@ auto RotaConvocationis::nomina() -> Element {
   // under-reporting shears the outer halves off at the layer's edge.
   constexpr float kReach = 90.0f;
   Element names =
-      text(toUtf8(nomText), ring(nomSize, kGold, 4.2f))
+      text(toUtf8(nomText))
+          .styleClass("ring")
+          .font({.size = nomSize, .color = kGold, .track = 4.2f})
           .key("nomina")
           .effect(styles::textGlow(kHalo, 6.0f))
           .centerAt(kEye)
@@ -254,7 +256,8 @@ auto RotaConvocationis::nomina() -> Element {
 }
 
 auto RotaConvocationis::textura() -> Element {
-  return text(toUtf8(texText), rune(texSize, kAsh, 0.0f))
+  return text(toUtf8(texText))
+      .font({.size = texSize, .color = kAsh})
       .key("textura")
       .centerAt(kEye)
       .width(2 * rTex * kR)

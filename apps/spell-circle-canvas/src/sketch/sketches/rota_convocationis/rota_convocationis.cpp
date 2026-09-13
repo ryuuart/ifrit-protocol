@@ -5,9 +5,14 @@
 #include "RotaConvocationis.h"
 
 auto RotaConvocationis::describe() -> Element {
+  // The classes are read where a leaf is written, so the sheet is bound
+  // around the whole description; the ink is the bands' bone, and every
+  // leaf set in another colour says so.
+  const sigil::core::environment::Provide<weave::StyleSheet> look(classes);
   return stack()
       .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.9f,
                                    {{0.0f, kNightLift}, {1.0f, kNight}}))
+      .ink(kBone)
       .child(box()
                  .absolute()
                  .inset(0)
@@ -29,6 +34,11 @@ auto RotaConvocationis::setup(sketch::SketchContext& ctx) -> void {
   faceRing = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
   faceRingBold = sketch::kit::houseFace(sketch::kit::Voice::Interface, 600);
   faceMono = weave::ports::face({"Menlo", "SF Mono", "Courier New"}, 500);
+  classes.set("ring", {.face = faceRingBold})
+      .set("label", {.face = faceRing})
+      .set("mono", {.face = faceMono});
+  // The fit probes below are leaves written under the same classes.
+  const sigil::core::environment::Provide<weave::StyleSheet> look(classes);
 
   // ---- content, fitted to its own bands --------------------------------
   voxText = "+ ";
@@ -63,13 +73,19 @@ auto RotaConvocationis::setup(sketch::SketchContext& ctx) -> void {
   for (int k = 0; k < kSeals; ++k)
     sealText[k] = deal(0x5EE00u + (uint32_t)k, 2, 7, 8) + "\xc2\xb7 ";
 
-  voxSize = fitToRing(ctx, voxText, ring(18, kBone, 2.2f), rVox * kR);
-  runeSize = fitToRing(ctx, runeText, rune(20, kRuneInk, 2.0f), rRune * kR);
-  nomSize = fitToRing(ctx, nomText, ring(30, kGold, 4.2f), rNom * kR);
-  texSize = fitToRing(ctx, texText, rune(9, kAsh, 0.0f), rTex * kR, 0.995f);
+  voxSize = fitToRing(
+      ctx, text(toUtf8(voxText)).styleClass("ring").font({.track = 2.2f}), 18,
+      rVox * kR);
+  runeSize = fitToRing(ctx, text(toUtf8(runeText)).font({.track = 2.0f}), 20,
+                       rRune * kR);
+  nomSize = fitToRing(
+      ctx, text(toUtf8(nomText)).styleClass("ring").font({.track = 4.2f}), 30,
+      rNom * kR);
+  texSize = fitToRing(ctx, text(toUtf8(texText)), 9, rTex * kR, 0.995f);
   for (int k = 0; k < kSeals; ++k)
-    sealSize[k] =
-        fitToRing(ctx, sealText[k], ring(9, kBone, 1.4f), kSealRing, 0.97f);
+    sealSize[k] = fitToRing(
+        ctx, text(toUtf8(sealText[k])).styleClass("ring").font({.track = 1.4f}),
+        9, kSealRing, 0.97f);
 
   // ---- the writing cue table: pace, pausing at each cross --------------
   voxCues.clear();

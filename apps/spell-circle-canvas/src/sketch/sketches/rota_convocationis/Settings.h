@@ -14,6 +14,7 @@
 #include <sigilcompose/kit/Kit.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -32,6 +33,7 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Style.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
