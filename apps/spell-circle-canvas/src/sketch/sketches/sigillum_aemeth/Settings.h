@@ -22,6 +22,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -37,6 +38,7 @@
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -430,14 +432,6 @@ inline shapes::OutlineFunction wobbled(shapes::OutlineFunction base,
 
 // ---------------------------------------------------------------------------
 // paint helpers
-
-// A positional shorthand over type. Every text run on this plate is
-// built from the same four fields, and there are hundreds of call sites.
-inline weaveNs::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
-                               float tracking = 0) {
-  return weaveNs::textStyle(
-      {.face = std::move(face), .size = size, .color = c, .track = tracking});
-}
 
 using motion::ramp;  // ramp(delayMs, durationMs) — a delayed eased reveal
 

@@ -144,17 +144,16 @@ auto SigillumAemeth::circumferenceCells() -> Element {
               .opacity(animate(from(0.0f).to(1.0f), ramp(tCells * 1000, 620)))
               .key("dividers"));
 
-  // the letters, upright-radial, and their numbers above or below
-  const weaveNs::TextStyle letStyle =
-      type(faceRing, 0.060f * kR, hexColor(0x241603, 1.0f));
-  const weaveNs::TextStyle numStyle =
-      type(faceRing, 0.031f * kR, hexColor(0x4a3210, 1.0f));
+  // the letters, upright-radial, and their numbers above or below: the
+  // ring's face, the letter's size and its ink are the cells' own, and a
+  // number is set smaller and browner
+  g.font({.face = faceRing, .size = 0.060f * kR}).ink(hexColor(0x241603, 1.0f));
   for (int i = 0; i < 40; ++i) {
     const Cell& c = kRing[(size_t)i];
     const float th = (float)i * 9.0f;
     const float f = frac(th);
     const bool dim = !visited[(size_t)i];
-    auto cellLetter = text(toUtf8(c.glyph), letStyle)
+    auto cellLetter = text(toUtf8(c.glyph))
                           .width(Dimension(2 * rCellLet * kR))
                           .height(Dimension(2 * rCellLet * kR))
                           .centerAt({kRR, kRR})
@@ -171,17 +170,19 @@ auto SigillumAemeth::circumferenceCells() -> Element {
     g.child(std::move(cellLetter));
     if (c.number > 0) {
       const float rr = c.step > 0 ? rNumOut : rNumIn;
-      g.child(text(toUtf8(std::to_string(c.number)), numStyle)
-                  .width(Dimension(2 * rr * kR))
-                  .height(Dimension(2 * rr * kR))
-                  .centerAt({kRR, kRR})
-                  .key("cn" + std::to_string(i))
-                  .onPath(TextPath{.path = shapes::circle(),
-                                   .at = f,
-                                   .align = TextPath::Align::Center,
-                                   .offset = 0.0f,
-                                   .autoFlip = false,
-                                   .orient = TextPath::Orient::Radial}));
+      g.child(
+          text(toUtf8(std::to_string(c.number)))
+              .font({.size = 0.031f * kR, .color = hexColor(0x4a3210, 1.0f)})
+              .width(Dimension(2 * rr * kR))
+              .height(Dimension(2 * rr * kR))
+              .centerAt({kRR, kRR})
+              .key("cn" + std::to_string(i))
+              .onPath(TextPath{.path = shapes::circle(),
+                               .at = f,
+                               .align = TextPath::Align::Center,
+                               .offset = 0.0f,
+                               .autoFlip = false,
+                               .orient = TextPath::Orient::Radial}));
     }
   }
   return g;
@@ -264,8 +265,8 @@ auto SigillumAemeth::angles() -> Element {
 
   // the 49 letters: ONE text run per row on a SEVEN-CONTOUR chord path,
   // addressed by (k + 0.5)/7 of one continuous arc-length coordinate.
-  const weaveNs::TextStyle angStyle =
-      type(faceSeal, 0.049f * kR, hexColor(0x201404, 1.0f), 0.034f * kR);
+  g.font({.face = faceSeal, .size = 0.049f * kR, .track = 0.034f * kR})
+      .ink(hexColor(0x201404, 1.0f));
   for (int k = 0; k < 7; ++k) {
     std::string row;
     for (int c = 0; c < 7; ++c) row += kAngles[k][c];
@@ -276,7 +277,7 @@ auto SigillumAemeth::angles() -> Element {
     // painting live and out of any texture for the whole hold. The birds'
     // later arrival is therefore marked by a separate cheap rule on each
     // plate rather than by holding this run's opacity.
-    g.child(text(toUtf8(row), angStyle)
+    g.child(text(toUtf8(row))
                 .inset(0)
                 .key("ang" + std::to_string(k))
                 .onPath(TextPath{.path = heptChords(rAngleHept, 0.0f),
@@ -336,14 +337,16 @@ auto SigillumAemeth::heptagonNames() -> Element {
                     .dash = {1.4f, 4.6f}}}))
               .key("heptrule2"));
 
-  const weaveNs::TextStyle nameStyle =
-      type(faceQuill, 0.048f * kR, hexColor(0x201404, 1.0f), 0.026f * kR);
+  // the quill's face, size, tracking and ink are the band's; the gloss
+  // inside it is the italic, untracked
+  g.font({.face = faceQuill, .size = 0.048f * kR, .track = 0.026f * kR})
+      .ink(hexColor(0x201404, 1.0f));
   for (int k = 0; k < 7; ++k) {
     std::string row;
     for (auto gl : kGodNames[(size_t)k].glyphs) {
       row += (gl[0] == '*') ? "\xc9\x9b" : gl;  // the 21/8 ligature stands in
     }
-    g.child(text(toUtf8(row), nameStyle)
+    g.child(text(toUtf8(row))
                 .inset(0)
                 .key("god" + std::to_string(k))
                 .onPath(TextPath{.path = heptChords(rNameHept, 0.0f),
@@ -353,8 +356,11 @@ auto SigillumAemeth::heptagonNames() -> Element {
                                  .autoFlip = false,
                                  .orient = TextPath::Orient::Tangent}));
     // the Latin marginal reading, inside the heptagon, smaller
-    g.child(text(toUtf8(kGodNames[(size_t)k].gloss),
-                 type(faceItalic, 0.022f * kR, hexColor(0x53380f, 0.88f)))
+    g.child(text(toUtf8(kGodNames[(size_t)k].gloss))
+                .font({.face = faceItalic,
+                       .size = 0.022f * kR,
+                       .color = hexColor(0x53380f, 0.88f),
+                       .track = 0.0f})
                 .inset(0)
                 .key("gloss" + std::to_string(k))
                 .onPath(TextPath{.path = heptChords(rNameHept - 0.056f, 0.0f),
@@ -484,7 +490,10 @@ auto SigillumAemeth::innerRings() -> Element {
 }
 
 auto SigillumAemeth::inner() -> Element {
-  auto g = box().inset(0);
+  // every letter inside the heptagram is the seal's face in one ink;
+  // only the size differs between an order's ring and ZABATHIEL's
+  auto g =
+      box().inset(0).font({.face = faceSeal}).ink(hexColor(0x201404, 1.0f));
 
   // The four orders, each with the tablet the record gives it: an
   // arc-segment worn in the forehead, a round gold plate on the breast,
@@ -539,8 +548,8 @@ auto SigillumAemeth::inner() -> Element {
       g.child(std::move(tablet));
 
       const std::string nm = ord.names[k];
-      g.child(text(toUtf8(nm == "*" ? "E\xc9\x9b" : nm),
-                   type(faceSeal, ord.size * kR, hexColor(0x201404, 1.0f)))
+      g.child(text(toUtf8(nm == "*" ? "E\xc9\x9b" : nm))
+                  .font({.size = ord.size * kR})
                   .width(Dimension(2 * ord.radius * kR))
                   .height(Dimension(2 * ord.radius * kR))
                   .centerAt({kRR, kRR})
@@ -570,8 +579,8 @@ auto SigillumAemeth::inner() -> Element {
               .key("zabhept"));
   for (int k = 0; k < 7; ++k) {
     const std::string s = kZabathiel[k];
-    g.child(text(toUtf8(s == "I*" ? "I\xc9\x9b" : s),
-                 type(faceSeal, 0.030f * kR, hexColor(0x201404, 1.0f)))
+    g.child(text(toUtf8(s == "I*" ? "I\xc9\x9b" : s))
+                .font({.size = 0.030f * kR})
                 .inset(0)
                 .key("zab" + std::to_string(k))
                 .onPath(TextPath{.path = heptChords(rInnerHept - 0.028f, 0.0f),
@@ -585,9 +594,12 @@ auto SigillumAemeth::inner() -> Element {
 }
 
 auto SigillumAemeth::pentagram() -> Element {
+  // the initials' seal face, size and ink; a name's tail is the quill
   auto g = box()
                .rect(SkRect::MakeXYWH(kRR - kHp, kRR - kHp, 2 * kHp, 2 * kHp))
-               .transformOrigin(0.5f, 0.5f);
+               .transformOrigin(0.5f, 0.5f)
+               .font({.face = faceSeal, .size = 0.052f * kR})
+               .ink(hexColor(0x241704, 1.0f));
   // "Set Z, of Zedekieil within the angle which standeth up toward the
   // begynning of the greatest Circle" — point-up, aligned on division 1.
   g.child(kit::disc(SkPoint{kHp, kHp}, rPenta * kR)
@@ -611,8 +623,7 @@ auto SigillumAemeth::pentagram() -> Element {
   for (int k = 0; k < 5; ++k) {
     const float th = (float)k * 72.0f;
     g.child(
-        text(toUtf8(kPentaNames[(size_t)k].initial),
-             type(faceSeal, 0.052f * kR, hexColor(0x241704, 1.0f)))
+        text(toUtf8(kPentaNames[(size_t)k].initial))
             .width(Dimension(2 * rPentaInit * kR))
             .height(Dimension(2 * rPentaInit * kR))
             .centerAt({kHp, kHp})
@@ -627,8 +638,10 @@ auto SigillumAemeth::pentagram() -> Element {
                              ramp(tInner * 1000 + 900 + (float)k * 40, 420))));
     // the rest of the name runs circularly outward into the exterior angle
     g.child(
-        text(toUtf8(kPentaNames[(size_t)k].tail),
-             type(faceQuill, 0.024f * kR, hexColor(0x40300f, 0.92f)))
+        text(toUtf8(kPentaNames[(size_t)k].tail))
+            .font({.face = faceQuill,
+                   .size = 0.024f * kR,
+                   .color = hexColor(0x40300f, 0.92f)})
             .width(Dimension(2 * rPentaTail * kR))
             .height(Dimension(2 * rPentaTail * kR))
             .centerAt({kHp, kHp})
@@ -646,7 +659,10 @@ auto SigillumAemeth::pentagram() -> Element {
 }
 
 auto SigillumAemeth::centreCross() -> Element {
-  auto g = box().rect(SkRect::MakeXYWH(kRR - kHc, kRR - kHc, 2 * kHc, 2 * kHc));
+  auto g = box()
+               .rect(SkRect::MakeXYWH(kRR - kHc, kRR - kHc, 2 * kHc, 2 * kHc))
+               .font({.face = faceSeal, .size = 0.025f * kR})
+               .ink(hexColor(0x2b1d08, 1.0f));
   const float arm = rCross * kR;
   g.child(box()
               .width(Dimension(2.4f * arm))
@@ -688,8 +704,7 @@ auto SigillumAemeth::centreCross() -> Element {
                 {"el", 180.0f, rCross * 1.02f},
                 {"LE", 270.0f, rCross * 1.02f}};
   for (int i = 0; i < 4; ++i) {
-    g.child(text(toUtf8(kArms[i].s),
-                 type(faceSeal, 0.025f * kR, hexColor(0x2b1d08, 1.0f)))
+    g.child(text(toUtf8(kArms[i].s))
                 .width(Dimension(2 * kArms[i].r * kR))
                 .height(Dimension(2 * kArms[i].r * kR))
                 .centerAt({kHc, kHc})
