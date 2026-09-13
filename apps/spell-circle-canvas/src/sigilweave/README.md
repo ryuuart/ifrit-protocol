@@ -317,12 +317,28 @@ written about one passage into one partial, without resolving anything.
 engaged with the value an unset one means — so `weave::textStyle(t)` is a
 partial over those, and `weave::toTextStyle` the style a total comes to.
 
+A partial carries everything a passage inherits, not the numbers alone:
+the shaping controls — features, language, optical kerning, word spacing,
+case, vertical form — and the paint around the colour — the line
+decorations and the passes beneath and above the glyphs. A list among
+them (features, decorations, passes) is one value: a partial that states
+one replaces what it inherits whole, as CSS's `font-feature-settings`
+does. A decoration that names no colour, and a pass whose paint colour is
+transparent, are drawn in the colour the text is set in, so a halo or an
+underline stated once in a sheet stands under every colour. What stays
+off the partial is the foreground paint's own state beyond its colour — a
+shader, a blur, a blend — which a call site adds to the built style.
+`weave::reshapes` says whether a partial's fields change the shaping or
+only the paint, for a consumer that can repaint a range without setting
+it again.
+
 A size may be stated against a number the call site does not have:
 `weave::em(0.75f)` of a size decided elsewhere, `weave::rem(2)` of a
 root's, `weave::lh(1)` of a line's, or the `_em` / `_rem` / `_lh` suffixes
-that spell the same three (`Length`). A relative length becomes pixels
-inside `overlay`, where the number it is relative to is in reach, so a
-total `Type` always carries pixels. The face that answers a line height is
+that spell the same three (`Length`). A tracking and a word spacing may
+be stated the same way, against the size the type comes to. A relative
+length becomes pixels inside `overlay`, where the number it is relative
+to is in reach, so a total `Type` always carries pixels. The face that answers a line height is
 not in the style vocabulary at all — ask `weave::lineHeightOf` for it, and
 pass what it returns.
 

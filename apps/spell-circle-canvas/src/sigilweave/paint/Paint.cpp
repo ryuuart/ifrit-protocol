@@ -45,30 +45,31 @@ using detail::DecorationPhase;
 using detail::forEachDecorationRect;
 using detail::resolvePaint;
 
-/** The paint a layer draws with: its own, or — when it carries a material
- *  and a resolver is registered — a copy shading with the material over
- *  @p bounds. */
+/** The paint a layer draws with: its own — in the foreground's colour
+ *  where it states none — or, when it carries a material and a resolver is
+ *  registered, a copy shading with the material over @p bounds. */
 template <typename DrawPass>
-void drawLayer(const PaintLayer& layer, const SkRect& bounds,
-               DrawPass&& drawPass) {
+void drawLayer(const PaintLayer& layer, const SkPaint& foreground,
+               const SkRect& bounds, DrawPass&& drawPass) {
+  const SkPaint own = layer.resolvedPaint(foreground);
   if (layer.material && paint::hasMaterialResolver()) {
-    SkPaint shaded = layer.paint;
+    SkPaint shaded = own;
     shaded.setShader(paint::resolverSlot()(*layer.material, bounds));
     if (!shaded.nothingToDraw()) drawPass(shaded, layer.offset);
     return;
   }
-  if (!layer.paint.nothingToDraw()) drawPass(layer.paint, layer.offset);
+  if (!own.nothingToDraw()) drawPass(own, layer.offset);
 }
 
 template <typename DrawPass>
 void drawPaintLayers(const PaintStyle& style, const SkRect& bounds,
                      DrawPass&& drawPass) {
   for (const PaintLayer& layer : style.underlays)
-    drawLayer(layer, bounds, drawPass);
+    drawLayer(layer, style.foreground, bounds, drawPass);
   if (!style.foreground.nothingToDraw())
     drawPass(style.foreground, SkVector{0, 0});
   for (const PaintLayer& layer : style.overlays)
-    drawLayer(layer, bounds, drawPass);
+    drawLayer(layer, style.foreground, bounds, drawPass);
 }
 
 /** Where a run's glyphs land on the canvas: the blob's bounds at its

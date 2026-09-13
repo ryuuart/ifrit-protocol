@@ -110,10 +110,10 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
   const uint32_t styleIndex =
       segments.empty() ? 0u : segments.front().styleIndex;
   const std::vector<StyleSpan>& spans = paragraph.spans();
+  const TextStyle openingStyle =
+      styleIndex < spans.size() ? spans[styleIndex].style : TextStyle{};
   TextStyle capStyle =
-      asked.style
-          ? *asked.style
-          : (styleIndex < spans.size() ? spans[styleIndex].style : TextStyle{});
+      asked.style.empty() ? openingStyle : overlay(openingStyle, asked.style);
   const float reference =
       asked.align == InitialLetter::Align::kIdeographic
           ? (spans.empty()

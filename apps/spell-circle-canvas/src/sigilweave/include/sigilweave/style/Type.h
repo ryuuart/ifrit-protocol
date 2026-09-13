@@ -16,10 +16,14 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
+#include <sigilweave/style/Decoration.h>
 #include <sigilweave/style/Length.h>
+#include <sigilweave/style/PaintLayer.h>
+#include <sigilweave/style/ShapingStyle.h>
 #include <sigilweave/style/TextStyle.h>
 
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace sigil::weave {
@@ -49,9 +53,14 @@ namespace sigil::weave {
  *  as it is overlaid, where the number it is relative to is known, so a
  *  total `Type` always carries pixels.
  *
- *  Anything not here is added to the RETURNED style — a mask-filter blur, a
- *  kPlus blend, a mandatory underlay. Those are per-artefact decisions and
- *  stay at the call site. */
+ *  It carries everything a passage inherits: how it is shaped — face, size,
+ *  tracking, condensation, axes, features, language, kerning, word spacing,
+ *  case, vertical form, glyph edging — and how it is painted — the colour,
+ *  the paint's antialias and colour ladder, the line decorations, the passes
+ *  beneath and above the glyphs. What is NOT here is the foreground paint's
+ *  own state beyond its colour: a shader, a mask-filter blur, a blend mode.
+ *  Those are added to the RETURNED style at the call site, and a leaf that
+ *  carries them is set in a whole `TextStyle`. */
 struct Type {
   /** null → unset: the face inherited, or the FontContext's default family
    *  (plus its fallback chain) when nothing above names one. */
@@ -100,6 +109,39 @@ struct Type {
    *  varied-face memo entry. A merge replaces an axis already present where
    *  it stands rather than appending a second setting of it. */
   std::vector<FontVariation> variations;
+  /** BCP-47 tag of the language the passage is in
+   *  (ShapingStyle::languageTag), which chooses the fallback faces and the
+   *  OpenType localised forms. An empty string states no language, the
+   *  shaper's default; unset is the language inherited. */
+  std::optional<std::string> language;
+  /** OpenType features (ShapingStyle::fontFeatures). A SET LIST REPLACES
+   *  the inherited one whole, as CSS's `font-feature-settings` does: a
+   *  passage that wants the inherited features and one more restates
+   *  them. */
+  std::optional<std::vector<FontFeature>> features;
+  /** Pair spacing measured from the letters in place of the face's kerning
+   *  table (ShapingStyle::opticalKerning). */
+  std::optional<bool> opticalKerning;
+  /** Extra space at each word gap (ShapingStyle::wordSpacing). Pixels are
+   *  implicit; `em(0.25f)` is a fraction of the SIZE THE TYPE RESOLVES TO,
+   *  resolved as tracking is. */
+  std::optional<Length> wordSpacing;
+  /** The case the passage is set in (ShapingStyle::textTransform). */
+  std::optional<TextTransform> textTransform;
+  /** How a run stands in a vertical column (ShapingStyle::verticalForm). */
+  std::optional<VerticalForm> verticalForm;
+  /** The line decorations (PaintStyle::decorations): an underline, a
+   *  strikethrough, a highlight. A set list replaces the inherited one. A
+   *  decoration that names no colour is drawn in the colour the text is
+   *  set in, so an underline stated once stands under every colour. */
+  std::optional<std::vector<Decoration>> decorations;
+  /** The passes drawn beneath the glyphs (PaintStyle::underlays) — a halo,
+   *  a shadow, a ring — and above them (PaintStyle::overlays). A set list
+   *  replaces the inherited one. A pass whose paint colour is transparent
+   *  is drawn in the colour the text is set in, on its own stroke, blur
+   *  and offset. */
+  std::optional<std::vector<PaintLayer>> underlays;
+  std::optional<std::vector<PaintLayer>> overlays;
 
   bool operator==(const Type&) const = default;
 
@@ -108,15 +150,27 @@ struct Type {
   [[nodiscard]] bool empty() const {
     return face == nullptr && !size && !color && !track && !condense &&
            !weight && !slant && !aliased && !antiAlias && !color8 &&
-           variations.empty();
+           variations.empty() && !language && !features && !opticalKerning &&
+           !wordSpacing && !textTransform && !verticalForm && !decorations &&
+           !underlays && !overlays;
   }
 };
+
+/** Whether the fields @p partial sets change how a passage is SHAPED — its
+ *  face, size, tracking, condensation, axes, features, language, kerning,
+ *  word spacing, case, vertical form or glyph edging — as against how it is
+ *  painted, which its colour, the paint's antialias and ladder, and the
+ *  decorations and passes change. A consumer that can repaint a range
+ *  without re-shaping it asks this first. */
+[[nodiscard]] bool reshapes(const Type& partial);
 
 /** EVERY FIELD ENGAGED, WITH THE VALUE AN UNSET ONE MEANS when nothing is
  *  left above it to inherit from: a null face (the font context's default
  *  family), 16 px, opaque black, no tracking, no condensation, no weight
- *  and no slant axis, antialiased glyphs on an antialiased paint, and the
- *  float colour ladder rather than the 8-bit one.
+ *  and no slant axis, antialiased glyphs on an antialiased paint, the float
+ *  colour ladder rather than the 8-bit one, no language, no features, the
+ *  face's own kerning, no word spacing, the text's own case, the column's
+ *  automatic form, no decorations and no passes.
  *
  *  The root of a cascade: a partial overlaid on this is a total. */
 [[nodiscard]] Type initialType();
@@ -139,10 +193,11 @@ Type& merge(Type& into, const Type& over);
  *  where it does not. Variations are appended, an axis already present
  *  replaced where it stands.
  *
- *  A RELATIVE `over.size` BECOMES PIXELS HERE, which is the one thing this
- *  does that a plain merge cannot: `em` multiplies `base.size`, falling
- *  back to 16 px when the base states no size or states its own
- *  relatively; `rem` multiplies `rootSizePx`; `lh` multiplies
+ *  A RELATIVE `over.size` BECOMES PIXELS HERE — and so do a relative
+ *  tracking and word spacing, against the size the type comes to — which is
+ *  the one thing this does that a plain merge cannot: `em` multiplies
+ * `base.size`, falling back to 16 px when the base states no size or states its
+ * own relatively; `rem` multiplies `rootSizePx`; `lh` multiplies
  *  `lineHeightPx`, and when that is 0 — no line height known — it
  *  multiplies 1.2 times the base size instead, a single-spaced line being
  *  about that much of the type it is set in. The face's own number is

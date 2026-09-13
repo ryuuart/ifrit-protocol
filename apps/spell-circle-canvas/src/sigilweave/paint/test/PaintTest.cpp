@@ -75,6 +75,44 @@ TEST(PaintPasses, ShadowAndShaderDrawWithoutRelayout) {
   })) << "the shadow pass put no ink outside the fill";
 }
 
+TEST(PaintPasses, APassWhoseColourIsTransparentDrawsInTheForegrounds) {
+  // An underlay stated with no colour of its own — transparent — is a
+  // copy of the glyphs in the text's colour on the pass's own offset: red
+  // ink lands where only the offset copy reaches. Black stated outright
+  // stays black.
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(u8"halo");
+  BlockFlow flow(SkRect::MakeWH(200, 60));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  const auto inkOf = [&](SkColor layerColour) {
+    PaintStyle style(SK_ColorRED);
+    style.addUnderlay(PaintLayer(layerColour, {0, 120}));
+    paragraph.setPaint(0, 4, style);
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 200));
+    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+    layout.draw(surface->getCanvas(), paragraph);
+    SkPixmap pixmap;
+    EXPECT_TRUE(surface->peekPixels(&pixmap));
+    int red = 0, black = 0;
+    for (int y = 100; y < 200; ++y)
+      for (int x = 0; x < 200; ++x) {
+        const SkColor c = pixmap.getColor(x, y);
+        if (SkColorGetA(c) == 0) continue;
+        if (SkColorGetR(c) > 200 && SkColorGetG(c) < 60) ++red;
+        if (SkColorGetR(c) < 60 && SkColorGetG(c) < 60 && SkColorGetB(c) < 60)
+          ++black;
+      }
+    return std::pair{red, black};
+  };
+  const auto [redUnset, blackUnset] = inkOf(SK_ColorTRANSPARENT);
+  EXPECT_GT(redUnset, 0) << "the transparent pass took the foreground's red";
+  EXPECT_EQ(blackUnset, 0);
+  const auto [redBlack, blackBlack] = inkOf(SK_ColorBLACK);
+  EXPECT_EQ(redBlack, 0);
+  EXPECT_GT(blackBlack, 0) << "a colour stated outright is kept";
+}
+
 TEST(PaintPasses, ASelectionBandBehindALineCoversItsInterior) {
   // The headline use case: a band behind a whole line is the line's own
   // rect() painted before draw().

@@ -32,7 +32,12 @@ namespace sigil::weave {
  * highlights cheap without saveLayer().
  */
 struct PaintLayer {
-  SkPaint paint;             ///< applied as configured — nothing is overridden
+  /// Applied as configured, with one reading: a TRANSPARENT colour on it
+  /// means the foreground's colour — the pass is drawn in whatever colour
+  /// the text is set in, on its own stroke, blur and offset, so a halo
+  /// stated once stands under every colour. A pass that should draw
+  /// nothing is left out rather than set transparent.
+  SkPaint paint;
   SkVector offset = {0, 0};  ///< px translation of this pass only
   /// A SigilMaterial instance this pass shades with, in place of the
   /// paint's own shader. Held by pointer: the style feature links no
@@ -67,6 +72,16 @@ struct PaintLayer {
 
   /** SkPaint compares every scalar and effect-object identity; the
    *  material by pointer. */
+  /** The paint this pass draws with beside @p foreground: its own, or —
+   *  where its colour is transparent — its own settings in the
+   *  foreground's colour. */
+  [[nodiscard]] SkPaint resolvedPaint(const SkPaint& foreground) const {
+    if (!(paint.getColor4f() == SkColor4f{0, 0, 0, 0})) return paint;
+    SkPaint own = paint;
+    own.setColor4f(foreground.getColor4f(), nullptr);
+    return own;
+  }
+
   bool operator==(const PaintLayer& other) const {
     return paint == other.paint && offset == other.offset &&
            material == other.material;

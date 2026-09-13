@@ -76,6 +76,15 @@ Type initialType() {
   initial.aliased = false;
   initial.antiAlias = true;
   initial.color8 = false;
+  initial.language = std::string{};
+  initial.features = std::vector<FontFeature>{};
+  initial.opticalKerning = false;
+  initial.wordSpacing = Length(0.0f);
+  initial.textTransform = TextTransform::kNone;
+  initial.verticalForm = VerticalForm::kAuto;
+  initial.decorations = std::vector<Decoration>{};
+  initial.underlays = std::vector<PaintLayer>{};
+  initial.overlays = std::vector<PaintLayer>{};
   return initial;
 }
 
@@ -92,6 +101,15 @@ Type& merge(Type& into, const Type& over) {
   if (over.color8) into.color8 = over.color8;
   for (const FontVariation& axis : over.variations)
     setAxis(into.variations, axis);
+  if (over.language) into.language = over.language;
+  if (over.features) into.features = over.features;
+  if (over.opticalKerning) into.opticalKerning = over.opticalKerning;
+  if (over.wordSpacing) into.wordSpacing = over.wordSpacing;
+  if (over.textTransform) into.textTransform = over.textTransform;
+  if (over.verticalForm) into.verticalForm = over.verticalForm;
+  if (over.decorations) into.decorations = over.decorations;
+  if (over.underlays) into.underlays = over.underlays;
+  if (over.overlays) into.overlays = over.overlays;
   return into;
 }
 
@@ -108,6 +126,9 @@ Type overlay(const Type& base, const Type& over, float rootSizePx,
   if (total.track && total.track->relative())
     total.track = Length(
         resolvePx(*total.track, sizeAgainst(total), rootSizePx, lineHeightPx));
+  if (total.wordSpacing && total.wordSpacing->relative())
+    total.wordSpacing = Length(resolvePx(*total.wordSpacing, sizeAgainst(total),
+                                         rootSizePx, lineHeightPx));
   return total;
 }
 
@@ -133,6 +154,19 @@ TextStyle toTextStyle(const Type& total) {
   if (total.slant && *total.slant != 0) style.variation("slnt", *total.slant);
   for (const FontVariation& axis : total.variations)
     setAxis(style.shaping.variations, axis);
+  style.shaping.wordSpacing =
+      total.wordSpacing ? resolvePx(*total.wordSpacing, style.shaping.fontSize,
+                                    kInitialSizePx, 0.0f)
+                        : 0.0f;
+  if (total.language) style.shaping.languageTag = *total.language;
+  if (total.features) style.shaping.fontFeatures = *total.features;
+  style.shaping.opticalKerning = total.opticalKerning.value_or(false);
+  style.shaping.textTransform =
+      total.textTransform.value_or(TextTransform::kNone);
+  style.shaping.verticalForm = total.verticalForm.value_or(VerticalForm::kAuto);
+  if (total.decorations) style.paint.decorations = *total.decorations;
+  if (total.underlays) style.paint.underlays = *total.underlays;
+  if (total.overlays) style.paint.overlays = *total.overlays;
   return style;
 }
 
@@ -160,7 +194,26 @@ TextStyle overlay(TextStyle base, const Type& over) {
   if (over.slant && *over.slant != 0) base.variation("slnt", *over.slant);
   for (const FontVariation& axis : over.variations)
     setAxis(base.shaping.variations, axis);
+  if (over.wordSpacing)
+    base.shaping.wordSpacing = resolvePx(
+        *over.wordSpacing, base.shaping.fontSize, kInitialSizePx, 0.0f);
+  if (over.language) base.shaping.languageTag = *over.language;
+  if (over.features) base.shaping.fontFeatures = *over.features;
+  if (over.opticalKerning) base.shaping.opticalKerning = *over.opticalKerning;
+  if (over.textTransform) base.shaping.textTransform = *over.textTransform;
+  if (over.verticalForm) base.shaping.verticalForm = *over.verticalForm;
+  if (over.decorations) base.paint.decorations = *over.decorations;
+  if (over.underlays) base.paint.underlays = *over.underlays;
+  if (over.overlays) base.paint.overlays = *over.overlays;
   return base;
+}
+
+bool reshapes(const Type& partial) {
+  return partial.face != nullptr || partial.size || partial.track ||
+         partial.condense || partial.weight || partial.slant ||
+         partial.aliased || !partial.variations.empty() || partial.language ||
+         partial.features || partial.opticalKerning || partial.wordSpacing ||
+         partial.textTransform || partial.verticalForm;
 }
 
 }  // namespace sigil::weave

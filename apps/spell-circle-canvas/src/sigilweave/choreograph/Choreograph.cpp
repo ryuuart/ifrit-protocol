@@ -204,10 +204,12 @@ void GlyphRSXformBatches::addGlyph(const ShapedWord* font,
     place(batchForPass(font, dress.face, dressed, offset, band));
   };
   for (const PaintLayer& layer : style.underlays)
-    addPass(layer.paint, layer.offset, PassBand::Underlay);
+    addPass(layer.resolvedPaint(style.foreground), layer.offset,
+            PassBand::Underlay);
   addPass(style.foreground, {0, 0}, PassBand::Foreground);
   for (const PaintLayer& layer : style.overlays)
-    addPass(layer.paint, layer.offset, PassBand::Overlay);
+    addPass(layer.resolvedPaint(style.foreground), layer.offset,
+            PassBand::Overlay);
 }
 
 void GlyphRSXformBatches::clear() {

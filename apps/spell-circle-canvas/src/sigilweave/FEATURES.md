@@ -156,18 +156,23 @@ text (its own section below).
   relative units spelled either as `em`, `rem`, `lh` or as the `_em`,
   `_rem`, `_lh` suffixes beside them. Pixels are implicit, so a plain
   number already is a length and no pixel suffix is declared here.
-- **`style/Type.h`** — `Type`, the PARTIAL a call site names a style's
-  numbers in: a designated-init aggregate (face, size, colour, tracking,
+- **`style/Type.h`** — `Type`, the PARTIAL a call site names a style in:
+  a designated-init aggregate whose every field is OPTIONAL, so a style
+  can state the two things it changes and inherit the rest. It carries
+  what a passage inherits: the numbers (face, size, colour, tracking,
   condensation, weight, slant, aliasing, the 8-bit colour ladder, extra
-  axes) whose every field is OPTIONAL, so a style can state the two things
-  it changes and inherit the rest. `empty` asks whether it states nothing.
-  Around it: `initialType`, every field engaged with the value an unset one
+  axes), the shaping controls (language, features, optical kerning, word
+  spacing, case, vertical form) and the paint around the colour (the line
+  decorations, the passes beneath and above the glyphs), a list among
+  them replacing whole. `empty` asks whether it states nothing; `reshapes`
+  whether what it states changes the shaping or only the paint. Around
+  it: `initialType`, every field engaged with the value an unset one
   means; `merge`, the pure field copy that folds two partials written about
   one passage into one; `overlay`, the resolving merge that is one step of
   a cascade — onto a `Type`, or onto a built `TextStyle` — and the one
-  place a relative size becomes pixels; `toTextStyle`, the style a total
-  names; and `textStyle`, a partial over the initial values, which is the
-  one-call form a study writes. It decides nothing — there is no type scale
+  place a relative size, tracking or word spacing becomes pixels;
+  `toTextStyle`, the style a total names; and `textStyle`, a partial over
+  the initial values, which is the one-call form a study writes. It decides nothing — there is no type scale
   and no opinion about which face stands in for which. The face itself
   comes from `ports::pickTypeface()`, which walks the system font manager,
   or from `ports::face()`, which keeps that answer once per chain and style

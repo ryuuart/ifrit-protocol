@@ -29,6 +29,7 @@
 
 #include "sigilweave/fonts/Shaper.h"
 #include "sigilweave/style/TextStyle.h"
+#include "sigilweave/style/Type.h"
 
 namespace sigil::weave {
 
@@ -76,9 +77,11 @@ struct InitialLetter {
   Wrap wrap = Wrap::kBox;
   /// How far the following lines stand off the initial, px.
   float margin = 0;
-  /// What the initial is set in; unset sets it in the style the block's
-  /// opening already carries, at the derived size.
-  std::optional<TextStyle> style;
+  /// What the initial is set in: a PARTIAL over the style the block's
+  /// opening carries — a display face, a colour — with the rest the
+  /// opening's own, at the derived size. Empty sets it in the opening's
+  /// style outright.
+  Type style;
 
   bool operator==(const InitialLetter&) const = default;
 };

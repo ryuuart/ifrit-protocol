@@ -334,3 +334,98 @@ TEST(Type, MergeCopiesFieldsAndLeavesARelativeSizeRelative) {
   Type keep{.size = 11.0f};
   EXPECT_TRUE(merge(keep, Type{}) == Type{.size = 11.0f});
 }
+
+TEST(Type, TheShapingControlsAndThePaintPassesLandOnTheStyle) {
+  // Everything a passage inherits crosses to the style: how it is shaped
+  // and how it is painted around its colour.
+  Type t;
+  t.language = "ja";
+  t.features = {FontFeature("smcp", 1)};
+  t.opticalKerning = true;
+  t.wordSpacing = 3.0f;
+  t.textTransform = TextTransform::kUppercase;
+  t.verticalForm = VerticalForm::kUpright;
+  t.decorations = {Decoration{}};
+  t.underlays = {PaintLayer(SK_ColorRED)};
+  t.overlays = {PaintLayer(SK_ColorBLUE, {1, 1})};
+  const TextStyle s = textStyle(t);
+  EXPECT_EQ(s.shaping.languageTag, "ja");
+  ASSERT_EQ(s.shaping.fontFeatures.size(), 1u);
+  EXPECT_EQ(s.shaping.fontFeatures[0], FontFeature("smcp", 1));
+  EXPECT_TRUE(s.shaping.opticalKerning);
+  EXPECT_FLOAT_EQ(s.shaping.wordSpacing, 3.0f);
+  EXPECT_EQ(s.shaping.textTransform, TextTransform::kUppercase);
+  EXPECT_EQ(s.shaping.verticalForm, VerticalForm::kUpright);
+  ASSERT_EQ(s.paint.decorations.size(), 1u);
+  ASSERT_EQ(s.paint.underlays.size(), 1u);
+  ASSERT_EQ(s.paint.overlays.size(), 1u);
+  EXPECT_EQ(s.paint.overlays[0].offset, (SkVector{1, 1}));
+  // The initial values: nothing of the kind.
+  const TextStyle initial = textStyle({});
+  EXPECT_TRUE(initial.shaping.languageTag.empty());
+  EXPECT_TRUE(initial.shaping.fontFeatures.empty());
+  EXPECT_FALSE(initial.shaping.opticalKerning);
+  EXPECT_FLOAT_EQ(initial.shaping.wordSpacing, 0.0f);
+  EXPECT_TRUE(initial.paint.decorations.empty());
+  EXPECT_TRUE(initial.paint.underlays.empty());
+}
+
+TEST(Type, ASetListReplacesTheInheritedOneAndAnUnsetListKeepsIt) {
+  // Features and passes are lists, and a list is one value: a partial
+  // that states one replaces what it inherits whole, and one that states
+  // none leaves the inherited list standing.
+  Type base = initialType();
+  base.features = {FontFeature("liga", 1)};
+  base.underlays = {PaintLayer(SK_ColorRED)};
+  Type over;
+  over.features = {FontFeature("smcp", 1)};
+  const Type replaced = overlay(base, over);
+  ASSERT_EQ(replaced.features->size(), 1u);
+  EXPECT_EQ((*replaced.features)[0], FontFeature("smcp", 1));
+  ASSERT_TRUE(replaced.underlays);
+  EXPECT_EQ(replaced.underlays->size(), 1u) << "unset: the inherited passes";
+  Type none;
+  none.underlays = std::vector<PaintLayer>{};
+  EXPECT_TRUE(overlay(base, none).underlays->empty())
+      << "an empty list stated is a list, and it replaces";
+  // The same over a built style.
+  TextStyle built = textStyle(base);
+  EXPECT_EQ(overlay(built, over).shaping.fontFeatures[0],
+            FontFeature("smcp", 1));
+  EXPECT_EQ(overlay(built, Type{}).paint.underlays.size(), 1u);
+}
+
+TEST(Type, ARelativeWordSpacingResolvesAgainstTheSizeTheTypeComesTo) {
+  Type base = initialType();
+  base.size = 20.0f;
+  Type over;
+  over.size = 40.0f;
+  over.wordSpacing = em(0.5f);
+  const Type total = overlay(base, over);
+  ASSERT_TRUE(total.wordSpacing);
+  EXPECT_FALSE(total.wordSpacing->relative());
+  EXPECT_FLOAT_EQ(total.wordSpacing->value, 20.0f)
+      << "half of the 40 px the type comes to, not of the 20 inherited";
+  TextStyle built;
+  built.shaping.fontSize = 30.0f;
+  Type quarter;
+  quarter.wordSpacing = em(0.25f);
+  EXPECT_FLOAT_EQ(overlay(built, quarter).shaping.wordSpacing, 7.5f);
+}
+
+TEST(Type, OnlyAFieldThatChangesTheShapeReshapes) {
+  EXPECT_FALSE(reshapes({}));
+  EXPECT_FALSE(reshapes({.color = SkColor4f{1, 0, 0, 1}}));
+  Type passes;
+  passes.underlays = {PaintLayer(SK_ColorRED)};
+  passes.decorations = {Decoration{}};
+  EXPECT_FALSE(reshapes(passes)) << "paint around the glyphs: a repaint";
+  EXPECT_TRUE(reshapes({.size = 12.0f}));
+  EXPECT_TRUE(reshapes({.track = 1.0f}));
+  Type language;
+  language.language = "ja";
+  EXPECT_TRUE(reshapes(language));
+  Type spacing;
+  spacing.wordSpacing = 2.0f;
+  EXPECT_TRUE(reshapes(spacing));
+}
