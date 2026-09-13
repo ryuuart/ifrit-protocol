@@ -43,7 +43,6 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 namespace geometry = sigil::geometry;
@@ -83,10 +82,6 @@ const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
 const SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
 
 /** A thin vertical loop: points scatter along it with a radial spread,
  *  so the cloud is a fuzzy column standing on the y axis. */
@@ -230,32 +225,35 @@ struct PopDeform final : sketch::Sketch {
          .gap = 14});
 
     Element banded = kit::cells(
-        {.cells = {box()
-                       .width(Dimension(kLead))
-                       .column()
-                       .gap(6)
-                       .child(text(toUtf8("\xe2\x80\xa6"
-                                          "and the same four, "
-                                          ".masked(\"band\")"),
-                                   label(13, kInk, 0.6f)))
-                       .child(text(toUtf8("a mask is one more lane on the "
-                                          "cloud, so a masked deformer is the "
-                                          "same chain reading one more "
-                                          "channel. The four calls below are "
-                                          "the four above with one more link "
-                                          "in each; the amounts are shared "
-                                          "constants, so the two rows are "
-                                          "comparable by construction."),
-                                   label(11, kDim))
-                                  .width(Dimension(kLead))),
-                   panel("twist(\xe2\x80\xa6).masked(\"band\")",
-                         "only the band turns", splat(twistedM)),
-                   panel("taper(\xe2\x80\xa6).masked(\"band\")",
-                         "only the band narrows", splat(taperedM)),
-                   panel("bend(\xe2\x80\xa6).masked(\"band\")",
-                         "only the band arcs", splat(bentM)),
-                   panel("peak(\xe2\x80\xa6).masked(\"band\")",
-                         "only the band is pushed", splat(peakedM))},
+        {.cells =
+             {box()
+                  .width(Dimension(kLead))
+                  .column()
+                  .gap(6)
+                  .child(text(toUtf8("\xe2\x80\xa6"
+                                     "and the same four, "
+                                     ".masked(\"band\")"))
+                             .font({.size = 13, .color = kInk, .track = 0.6f}))
+                  .child(text(toUtf8("a mask is one more lane on the "
+                                     "cloud, so a masked deformer is the "
+                                     "same chain reading one more "
+                                     "channel. The four calls below are "
+                                     "the four above with one more link "
+                                     "in each; the amounts are shared "
+                                     "constants, so the two rows are "
+                                     "comparable by construction."))
+                             // the page's remark voice is tracked; a
+                             // body line is not
+                             .font({.size = 11, .color = kDim, .track = 0})
+                             .width(Dimension(kLead))),
+              panel("twist(\xe2\x80\xa6).masked(\"band\")",
+                    "only the band turns", splat(twistedM)),
+              panel("taper(\xe2\x80\xa6).masked(\"band\")",
+                    "only the band narrows", splat(taperedM)),
+              panel("bend(\xe2\x80\xa6).masked(\"band\")", "only the band arcs",
+                    splat(bentM)),
+              panel("peak(\xe2\x80\xa6).masked(\"band\")",
+                    "only the band is pushed", splat(peakedM))},
          .gap = 14});
 
     ctx.composer.render(sketch::kit::page(
