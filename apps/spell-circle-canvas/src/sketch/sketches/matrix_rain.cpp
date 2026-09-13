@@ -312,26 +312,15 @@ struct MatrixRain : sketch::Sketch {
   ch::Output<float> churn[kFieldCount];
   ch::Output<float> bedChurn{0.0f};
 
-  /** The vertical style all four fields share the shape of: the kana held
-   *  UPRIGHT — their default vertical orientation is rotated, and the
-   *  screens show them standing. */
-  [[nodiscard]] sigil::weave::TextStyle kanaStyle(float size, SkColor4f color,
-                                                  float glowSigma) const {
-    sigil::weave::TextStyle style =
-        weave::textStyle({.face = faceKana, .size = size, .color = color});
-    style.shaping.verticalForm = sigil::weave::VerticalForm::kUpright;
-    if (glowSigma > 0)
-      // THE HALATION. A phosphor screen does not draw a glyph, it excites
-      // a spot, and the spot spreads: the film's rain has a green bloom
-      // around every column heavy enough to fill the space between the
-      // strokes of a glyph. A crisp glyph with a faint edge is a printed
-      // one. The FAR field takes none of it — a blurred underlay is a
-      // second pass over every glyph in the plane, and the plane whose
-      // glyphs are sixteen pixels tall spends that budget without
-      // changing the picture.
-      style.paint.addUnderlay(
-          sigil::weave::kit::glow(0xC040FF70, glowSigma, 1.9f));
-    return style;
+  /** The rain's voice, which the root sets and every field inherits: the
+   *  kana held UPRIGHT — their default vertical orientation is rotated, and
+   *  the screens show them standing. A measure is a root of its own, so
+   *  the probe states the voice itself, at its size. */
+  [[nodiscard]] weave::Type voice(float size = 0) const {
+    weave::Type rain{.face = faceKana,
+                     .verticalForm = sigil::weave::VerticalForm::kUpright};
+    if (size > 0) rain.size = size;
+    return rain;
   }
 
   /** One field's text, sized off measured metrics. A column is ended by
@@ -349,7 +338,8 @@ struct MatrixRain : sketch::Sketch {
     std::string probe;
     for (int i = 0; i < 8; ++i) appendUtf8(probe, U'ｱ');
     const SkSize one =
-        ctx.measure(text(toUtf8(probe), kanaStyle(size, kHead, 0.0f))
+        ctx.measure(text(toUtf8(probe))
+                        .font(voice(size))
                         .writingMode(sigil::weave::WritingMode::kVerticalRL));
     const float step = std::max(1.0f, one.height() / 8.0f);
     const float pitch = std::max(1.0f, one.width());
@@ -390,7 +380,21 @@ struct MatrixRain : sketch::Sketch {
     cascade.seed = f.seed;
     cascade.then({.eachMs = f.eachMs, .durationMs = f.durationMs});
     cascade.loopMs = f.loopMs;
-    return text(toUtf8(fieldText[j]), kanaStyle(f.size, kHead, f.glowSigma))
+    // What this plane adds to the rain's voice: its size, which is also its
+    // depth cue, and its halation. THE HALATION. A phosphor screen does not
+    // draw a glyph, it excites a spot, and the spot spreads: the film's
+    // rain has a green bloom around every column heavy enough to fill the
+    // space between the strokes of a glyph. A crisp glyph with a faint
+    // edge is a printed one. The FAR field takes none of it — a blurred
+    // underlay is a second pass over every glyph in the plane, and the
+    // plane whose glyphs are sixteen pixels tall spends that budget
+    // without changing the picture.
+    weave::Type plane{.size = f.size};
+    if (f.glowSigma > 0)
+      plane.underlays = {
+          sigil::weave::kit::glow(0xC040FF70, f.glowSigma, 1.9f)};
+    return text(toUtf8(fieldText[j]))
+        .font(plane)
         .key(f.key)
         .left(0)
         .top(0)
@@ -415,12 +419,15 @@ struct MatrixRain : sketch::Sketch {
   }
 
   [[nodiscard]] Element describe(sketch::SketchContext& ctx) {
-    Element root = stack().fill(Fill::color(kVoid));
+    // The rain's voice and the head's ink, inherited by the bed and every
+    // curtain; the caption is set in its own whole style.
+    Element root = stack().fill(Fill::color(kVoid)).font(voice()).ink(kHead);
 
     // The bed: the whole screen faintly alive. No streak track — these
     // glyphs are never bright and never absent, they only churn, mirrored
     // and lifted like the curtains above them.
-    root.child(text(toUtf8(bedText), kanaStyle(kBedSize, kBedInk, 0.0f))
+    root.child(text(toUtf8(bedText))
+                   .font({.size = kBedSize, .color = kBedInk})
                    .key("rain-bed")
                    .left(0)
                    .top(0)
