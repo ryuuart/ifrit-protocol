@@ -1,0 +1,45 @@
+{
+  "wordmark": {"name": "2 A D V A N C E D", "registered": "®", "studios": "S T U D I O S"},
+  "navbar": {"arrow": "→", "label": "2A.V3..2024 // EXPANSIONS"},
+  "art": {"return": "[ RETURN TO MAIN ]", "engaged": "MODULE.ENGAGED", "loading": "LOADING.MODULE"},
+  "scroll": {"arrow": "↓", "left": "SCROLL.EXTENDED.CONTENT", "right": "AMBIENCE.MUTE"},
+  "footer": {"links": ["(C) 2024 2ADVANCED STUDIOS", "CONDITIONS OF USE", "PRIVACY POLICY"],
+             "divider": "//", "hosting": "HOSTING PARTNER:"},
+  "boot": {"wordmark": "2ADVANCED", "motto": "SOLACE IN TECHNOLOGY. BELIEF IN THE FUTURE."},
+  "modules": {
+    "partner": {
+      "glyph": "F", "bar": "FEATURED.PARTNER", "button": "VISIT RIVE",
+      "head": "2ADVANCED POWERED BY RIVE",
+      "copy": "WE HAVE REARCHITECTED OUR 2001 WEBSITE \"V.3 EXPANSIONS\", (PREVIOUSLY AWARDED \"MOST INFLUENTIAL FLASH WEBSITE OF THE DECADE\") USING THE RIVE INTERACTIVE ANIMATION PLATFORM IN COMBINATION WITH REACT JS",
+      "plus": "+", "rive": "R"
+    },
+    "discord": {
+      "glyph": "S", "bar": "SUB.DATA",
+      "head": "JOIN THE 2A DISCORD COMMUNITY",
+      "copy": "2ADVANCED IS BUILDING THE ULTIMATE INDUSTRY DISCORD SPACE FOR REALTIME CREATIVE COLLABORATION, SHARING OF INTERESTS AND BROAD PEER SUPPORT - JOIN US HERE.",
+      "call": "JOIN OUR DISCORD"
+    },
+    "updates": {
+      "glyph": "U", "bar": "UPDATES", "button": "VISIT DDD", "mark": "DDD",
+      "head": "CATCH 2A LIVE AT DDD IN MILAN",
+      "copy": "DIGITAL DESIGN DAYS IS OFFICIALLY BACK IN 2024 AND 2ADVANCED WILL BE THERE. COME SEE FOUNDERS ERIC JORDAN & TONY NOVAK SPEAK AT THE UPCOMING DDD EVENT IN MILAN, ITALY OCT 6TH-8TH. GET YOUR TICKETS BEFORE THEY'RE GONE!"
+    },
+    "mailing": {
+      "glyph": "M", "bar": "MAILING LIST",
+      "prompt": "ENTER EMAIL ADDRESS:", "placeholder": "EMAILADDRESS@DOMAIN.COM",
+      "button": "SUBMIT"
+    },
+    "support": {
+      "glyph": "S", "bar": "SUPPORT 2A",
+      "halves": [
+        {"head": "2A ON PATREON",
+         "copy": "GET 2A SOURCE CODE, DIGITAL ASSETS, MUSIC, DOCUMENTS, FILES AND MORE...",
+         "call": "GET SOURCE"},
+        {"head": "2A MERCH SHOP",
+         "copy": "GET T-SHIRTS, HATS, APARREL, POSTERS, WORKSPACE AND CREATIVE TOYS AND MORE...",
+         "call": "SHOP MERCH"}
+      ]
+    },
+    "follow": {"glyph": "F", "bar": "FOLLOW 2A"}
+  }
+}

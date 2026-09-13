@@ -18,13 +18,8 @@ Element TwoAdvancedV3::describe() {
     page.fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
                                        {{0.0f, kPageHi}, {0.55f, kPage}}));
   }
-  page.children({bevelBar()});
-  page.children({headerStrip()});
-  page.children({wordmark()});
-  page.children({navBar()});
-  page.children({hairlines()});
-  page.children({stageArt()});
-  page.children({scrollStrip()});
+  page.children({bevelBar(), headerStrip(), wordmark(), navBar(), hairlines(),
+                 stageArt(), scrollStrip()});
 
   // The poly-textured ground every lower module sits on.
   Element ground = at(box().clip(), kStageX, 640, kStageW, 400);
@@ -39,19 +34,16 @@ Element TwoAdvancedV3::describe() {
 
   Element mods = at(box().row().gap(10), kStageX, kModY, kStageW, kModH);
   mods.children({featuredPartner(), subData(), updates()});
-  page.children({mods});
-  // the dark divider band that closes the module row
-  page.children({at(box().fill(mskia::withAlpha(hexColor(0x26314A), 0.9f)),
+  page.children({mods,
+                 // the dark divider band that closes the module row
+                 at(box().fill(mskia::withAlpha(hexColor(0x26314A), 0.9f)),
                     kStageX, kModY + kModH + 2, kStageW, 8)
                      .opacity(animate(motion::from(0.0f).to(1.0f),
                                       {320ms, &ch::easeOutQuad, 2650ms}))});
 
   Element row = at(box().row().gap(10), kStageX, kRowY, kStageW, kRowH);
   row.children({mailingList(), support2a(), follow2a()});
-  page.children({row});
-
-  page.children({footerRail()});
-  page.children({bootOverlay()});
+  page.children({row, footerRail(), bootOverlay()});
   return page;
 }
 
@@ -62,6 +54,11 @@ void TwoAdvancedV3::setup(sketch::SketchContext& ctx) {
   sketch::kit::stage(
       ctx,
       {.size = SkSize::Make(kW, kH), .captureAt = 7.6, .background = kPage});
+
+  // THE PAGE'S COPY: every label, head, paragraph and button stands in the
+  // document beside this sketch, so an edit to the words re-runs setup
+  // without a rebuild.
+  doc = ctx.assets.json(ctx.local("data/content.json"));
 
   diag =
       patterns::stripes(2, 9, mskia::toColor(mskia::withAlpha(kSteelHi, 0.5f)));

@@ -57,6 +57,12 @@ struct TwoAdvancedV3 : sketch::Sketch {
   };
   std::array<ImagePtr, 6> sectionBg{};
 
+  /** THE PAGE'S COPY: every label, head, paragraph and button on the
+   *  rebuild stands in `data/content.json` beside this sketch, read in
+   *  setup, so the code is the page's structure and the file is what it
+   *  says. */
+  std::shared_ptr<const data::Json> doc;
+
   // --- the out-of-band assets, fetched directly --------------------------
   ImagePtr pageTile;      // background.gif, 10×1600
   ImagePtr socialSprite;  // social-icons@2x.png, 436×32
@@ -120,10 +126,10 @@ struct TwoAdvancedV3 : sketch::Sketch {
   /** The steel module title bar every lower panel wears: glyph chip,
    *  tracked caps title, the dot-matrix field filling the right half,
    *  and the divider dots at the far end. */
-  Element moduleBar(const char* glyph, const char* label, float w);
+  Element moduleBar(const Utf8& glyph, const Utf8& label, float w);
 
   /** The recessed steel button ("VISIT RIVE", "SUBMIT", …). */
-  Element button(const char* label, float w, float h = 24);
+  Element button(const Utf8& label, float w, float h = 24);
 
   /** The little segmented load meter that trails the CTAs. */
   Element meter(int lit);
@@ -164,13 +170,13 @@ struct TwoAdvancedV3 : sketch::Sketch {
   Element scrollStrip();
 
   /** One lower module: title bar + bordered translucent body. */
-  Element module(const char* glyph, const char* barLabel, Element body,
+  Element module(const Utf8& glyph, const Utf8& barLabel, Element body,
                  int order);
 
   /** The framed thumb plate the two outer modules share: a mini toolbar
    *  strip up top, a dark viewport with its top-right corner cut at 45°,
    *  and the labelled plate attached beneath with the mirrored cut. */
-  Element thumbPlate(Element content, const char* btn);
+  Element thumbPlate(Element content, const Utf8& btn);
 
   /** The lockup inside FEATURED.PARTNER's plate: 2a mark + R mark. */
   Element riveLockup();

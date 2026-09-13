@@ -17,8 +17,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
   // leaf patched onto a container trips the layout engine.
   const std::string key =
       kit::formatted("sec:%d:%d", sec, settle >= 1.0f ? 1 : (int)(settle * 14));
-  Element art =
-      box().key(key).width(kStageW).height(kArtH).clip();
+  Element art = box().key(key).width(kStageW).height(kArtH).clip();
   const ImagePtr& bg = sec < 0 ? homeBg : sectionBg[(size_t)sec];
   if (bg)
     art.fill(stretchFill(bg, kStageW, kArtH));
@@ -61,10 +60,10 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
                        .alignItems(Align::Center)
                        .gap(10)
                        .children({box().grow(1).height(1).fill(
-                           mskia::withAlpha(kSteelHi, 0.55f))})
-                       .children({t(spec.tab, micro(14, kNear, 600))})
-                       .children({box().width(24).height(8).fill(
-                           mskia::withAlpha(kSteelHi, 0.8f))}),
+                                      mskia::withAlpha(kSteelHi, 0.55f)),
+                                  t(spec.tab, micro(14, kNear, 600)),
+                                  box().width(24).height(8).fill(
+                                      mskia::withAlpha(kSteelHi, 0.8f))}),
                    kStageW - 560, 12, 540, 22)
                     .opacity(0.25f + 0.75f * settle)
                     .scaleX(1.5f - 0.5f * settle)
@@ -90,14 +89,16 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
                       .opacity(settle)});
   }
   // RETURN TO MAIN, bottom right.
-  art.children({at(t("[ RETURN TO MAIN ]",
-                     micro(9, mskia::withAlpha(kNear, 0.85f), 200)),
-                   kStageW - 190, kArtH - 30, 180, 14)
-                    .opacity(settle)});
-  // MODULE.ENGAGED tick, bottom left — the riv's load-state voice.
-  art.children({at(t(settle >= 1.0f ? "MODULE.ENGAGED" : "LOADING.MODULE",
-                     micro(9, mskia::withAlpha(kSteelHi, 0.8f), 240)),
-                   18, kArtH - 30, 220, 14)});
+  const data::Json& voice = record(doc, "art");
+  art.children(
+      {at(t(words(voice["return"]),
+            micro(9, mskia::withAlpha(kNear, 0.85f), 200)),
+          kStageW - 190, kArtH - 30, 180, 14)
+           .opacity(settle),
+       // MODULE.ENGAGED tick, bottom left — the riv's load-state voice.
+       at(t(words(voice[settle >= 1.0f ? "engaged" : "loading"]),
+            micro(9, mskia::withAlpha(kSteelHi, 0.8f), 240)),
+          18, kArtH - 30, 220, 14)});
   return art;
 }
 
@@ -105,11 +106,10 @@ Element TwoAdvancedV3::transitionArt(int fromSec, int toSec, int step) {
   using namespace tv3;
   const float f = (float)step / 14.0f;
   const std::string key = kit::formatted("trans:%d:%d", fromSec, toSec);
-  Element out =
-      box().key(key).width(kStageW).height(kArtH).clip();
-  out.children({box().inset(0).children({sectionArt(fromSec, 1.0f)})});
+  Element out = box().key(key).width(kStageW).height(kArtH).clip();
   out.children(
-      {box().inset(0).children({sectionArt(toSec, f)}).mask(by::edge(0, f))});
+      {box().inset(0).children({sectionArt(fromSec, 1.0f)}),
+       box().inset(0).children({sectionArt(toSec, f)}).mask(by::edge(0, f))});
   // the leading band, one step wide, brightest at mid-sweep
   const float x = kStageW * f;
   out.children(
@@ -119,7 +119,7 @@ Element TwoAdvancedV3::transitionArt(int fromSec, int toSec, int step) {
   return out;
 }
 
-Element TwoAdvancedV3::module(const char* glyph, const char* barLabel,
+Element TwoAdvancedV3::module(const Utf8& glyph, const Utf8& barLabel,
                               Element body, int order) {
   using namespace tv3;
   return box()
@@ -141,7 +141,7 @@ Element TwoAdvancedV3::module(const char* glyph, const char* barLabel,
                         std::chrono::milliseconds(2300 + 120 * order)}));
 }
 
-Element TwoAdvancedV3::thumbPlate(Element content, const char* btn) {
+Element TwoAdvancedV3::thumbPlate(Element content, const Utf8& btn) {
   using namespace tv3;
   return box()
       .width(150)
@@ -175,52 +175,47 @@ Element TwoAdvancedV3::thumbPlate(Element content, const char* btn) {
                               PathFormat::Align::Inner))
                .justify(Justify::Center)
                .alignItems(Align::Center)
-               .children({t(btn, micro(11, kNear, 140))})});
+               .children({text(btn).font(micro(11, kNear, 140))})});
 }
 
 Element TwoAdvancedV3::riveLockup() {
   using namespace tv3;
+  const data::Json& page = record(doc, "modules")["partner"];
   Element row = box().row().gap(7).alignItems(Align::Center);
   if (logoMark)
     row.children({box().width(34).height(34).fill(kNear).mask(
         by::alpha(stretchFill(logoMark, 34, 34)))});
-  row.children({t("+", sigil::weave::kit::tracked(
-                           grotBold(), 13, mskia::withAlpha(kNear, 0.9f), 0))});
+  row.children({text(words(page["plus"]),
+                     sigil::weave::kit::tracked(
+                         grotBold(), 13, mskia::withAlpha(kNear, 0.9f), 0))});
   if (riveLogo)
     row.children(
         {box().width(44).height(44).fill(stretchFill(riveLogo, 44, 44))});
   else
-    row.children(
-        {t("R", sigil::weave::kit::tracked(grotBold(), 26, kNear, 0))});
+    row.children({text(words(page["rive"]),
+                       sigil::weave::kit::tracked(grotBold(), 26, kNear, 0))});
   return row;
 }
 
 Element TwoAdvancedV3::featuredPartner() {
   using namespace tv3;
+  const data::Json& page = record(doc, "modules")["partner"];
   Element body = box().row().padding(12).gap(12).children(
-      {thumbPlate(riveLockup(), "VISIT RIVE"),
-       box()
-           .grow(1)
-           .column()
-           .gap(8)
-           .children({box()
-                          .row()
-                          .gap(7)
-                          .alignItems(Align::Center)
-                          .children({meter(2)})
-                          .children({t("2ADVANCED POWERED BY RIVE",
-                                       micro(12, kNear, 20))})})
-           .children({t("WE HAVE REARCHITECTED OUR 2001 WEBSITE \"V.3 "
-                        "EXPANSIONS\", (PREVIOUSLY AWARDED \"MOST "
-                        "INFLUENTIAL FLASH WEBSITE OF THE DECADE\") "
-                        "USING THE RIVE INTERACTIVE ANIMATION PLATFORM "
-                        "IN COMBINATION WITH REACT JS",
-                        prose(12, hexColor(0xC7D0DD)))})});
-  return module("F", "FEATURED.PARTNER", std::move(body), 0);
+      {thumbPlate(riveLockup(), words(page["button"])),
+       box().grow(1).column().gap(8).children(
+           {box()
+                .row()
+                .gap(7)
+                .alignItems(Align::Center)
+                .children(
+                    {meter(2), t(words(page["head"]), micro(12, kNear, 20))}),
+            t(words(page["copy"]), prose(12, hexColor(0xC7D0DD)))})});
+  return module(words(page["glyph"]), words(page["bar"]), std::move(body), 0);
 }
 
 Element TwoAdvancedV3::subData() {
   using namespace tv3;
+  const data::Json& page = record(doc, "modules")["discord"];
   Element icon = box().width(56).height(56);
   if (!discordSeq.empty())
     icon.children({slot("discord")});
@@ -237,56 +232,45 @@ Element TwoAdvancedV3::subData() {
                    .row()
                    .gap(6)
                    .alignItems(Align::Center)
-                   .children({meter(3)})
-                   .children({t("JOIN THE 2A DISCORD COMMUNITY",
-                                micro(13.5f, kNear, 60))}),
-               icon,
-               t("2ADVANCED IS BUILDING THE ULTIMATE INDUSTRY DISCORD "
-                 "SPACE FOR REALTIME CREATIVE COLLABORATION, SHARING OF "
-                 "INTERESTS AND BROAD PEER SUPPORT - JOIN US HERE.",
-                 prose(12, hexColor(0xC7D0DD))),
+                   .children({meter(3),
+                              t(words(page["head"]), micro(13.5f, kNear, 60))}),
+               icon, t(words(page["copy"]), prose(12, hexColor(0xC7D0DD))),
                box().grow(1),
                box()
                    .row()
                    .gap(8)
                    .alignItems(Align::Center)
-                   .children({t("JOIN OUR DISCORD", micro(12, kNear, 120))})
-                   .children({meter(2)})});
-  return module("S", "SUB.DATA", std::move(body), 1);
+                   .children({t(words(page["call"]), micro(12, kNear, 120)),
+                              meter(2)})});
+  return module(words(page["glyph"]), words(page["bar"]), std::move(body), 1);
 }
 
 Element TwoAdvancedV3::updates() {
   using namespace tv3;
+  const data::Json& page = record(doc, "modules")["updates"];
   Element body = box().row().padding(12).gap(12).children(
-      {thumbPlate(dddLogo ? box().width(56).height(72).fill(
-                                stretchFill(dddLogo, 56, 72))
-                          : t("DDD", sigil::weave::kit::tracked(grotBold(), 20,
-                                                                kNear, 100)),
-                  "VISIT DDD"),
-       box()
-           .grow(1)
-           .column()
-           .gap(8)
-           .children({box()
-                          .row()
-                          .gap(7)
-                          .alignItems(Align::Center)
-                          .children({meter(2)})
-                          .children({t("CATCH 2A LIVE AT DDD IN MILAN",
-                                       micro(12, kNear, 20))})})
-           .children({t("DIGITAL DESIGN DAYS IS OFFICIALLY BACK IN 2024 "
-                        "AND 2ADVANCED WILL BE THERE. COME SEE FOUNDERS "
-                        "ERIC JORDAN & TONY NOVAK SPEAK AT THE UPCOMING "
-                        "DDD EVENT IN MILAN, ITALY OCT 6TH-8TH. GET YOUR "
-                        "TICKETS BEFORE THEY'RE GONE!",
-                        prose(12, hexColor(0xC7D0DD)))})});
-  return module("U", "UPDATES", std::move(body), 2);
+      {thumbPlate(
+           dddLogo
+               ? box().width(56).height(72).fill(stretchFill(dddLogo, 56, 72))
+               : text(words(page["mark"]),
+                      sigil::weave::kit::tracked(grotBold(), 20, kNear, 100)),
+           words(page["button"])),
+       box().grow(1).column().gap(8).children(
+           {box()
+                .row()
+                .gap(7)
+                .alignItems(Align::Center)
+                .children(
+                    {meter(2), t(words(page["head"]), micro(12, kNear, 20))}),
+            t(words(page["copy"]), prose(12, hexColor(0xC7D0DD)))})});
+  return module(words(page["glyph"]), words(page["bar"]), std::move(body), 2);
 }
 
 Element TwoAdvancedV3::mailingList() {
   using namespace tv3;
-  Element body = box().column().padding(12, 8).gap(6).children(
-      {t("ENTER EMAIL ADDRESS:", micro(11, hexColor(0xC7D0DD), 100)),
+  const data::Json& page = record(doc, "modules")["mailing"];
+  Element body = box().padding(12, 8).gap(6).children(
+      {t(words(page["prompt"]), micro(11, hexColor(0xC7D0DD), 100)),
        box()
            .row()
            .gap(8)
@@ -302,46 +286,41 @@ Element TwoAdvancedV3::mailingList() {
                           .alignItems(Align::Center)
                           .padding(7, 0)
                           .children({t(
-                              "EMAILADDRESS@DOMAIN.COM",
-                              micro(9, mskia::withAlpha(kBody, 0.7f), 100))})})
-           .children({button("SUBMIT", 64)})});
-  return module("M", "MAILING LIST", std::move(body), 3);
+                              words(page["placeholder"]),
+                              micro(9, mskia::withAlpha(kBody, 0.7f), 100))}),
+                      button(words(page["button"]), 64)})});
+  return module(words(page["glyph"]), words(page["bar"]), std::move(body), 3);
 }
 
 Element TwoAdvancedV3::support2a() {
   using namespace tv3;
-  auto half = [&](const char* head, const char* copy, const char* btn) {
+  const data::Json& page = record(doc, "modules")["support"];
+  const auto half = [&](const data::Json& side) {
     return box()
         .grow(1)
         .basis(0)
         .column()
         .gap(4)
         .alignItems(Align::Center)
-        .children(
-            {t(head, micro(11, kNear, 60)),
-             t(copy, prose(9, mskia::withAlpha(hexColor(0xC7D0DD), 0.95f))),
-             box().grow(1),
-             box()
-                 .row()
-                 .gap(6)
-                 .alignItems(Align::Center)
-                 .children({meter(2)})
-                 .children({t(btn, micro(10, kNear, 120))})});
+        .children({t(words(side["head"]), micro(11, kNear, 60)),
+                   t(words(side["copy"]),
+                     prose(9, mskia::withAlpha(hexColor(0xC7D0DD), 0.95f))),
+                   box().grow(1),
+                   box()
+                       .row()
+                       .gap(6)
+                       .alignItems(Align::Center)
+                       .children({meter(2), t(words(side["call"]),
+                                              micro(10, kNear, 120))})});
   };
   Element body = box().row().padding(12, 4).gap(14).children(
-      {half("2A ON PATREON",
-            "GET 2A SOURCE CODE, DIGITAL ASSETS, MUSIC, "
-            "DOCUMENTS, FILES AND MORE...",
-            "GET SOURCE"),
-       half("2A MERCH SHOP",
-            "GET T-SHIRTS, HATS, APARREL, POSTERS, WORKSPACE "
-            "AND CREATIVE TOYS AND MORE...",
-            "SHOP MERCH")});
-  return module("S", "SUPPORT 2A", std::move(body), 4);
+      {each(run(page["halves"]), half)});
+  return module(words(page["glyph"]), words(page["bar"]), std::move(body), 4);
 }
 
 Element TwoAdvancedV3::follow2a() {
   using namespace tv3;
+  const data::Json& page = record(doc, "modules")["follow"];
   Element icons = box().height(16);
   if (socialSprite) {
     // The sprite is authored @2x (436×32); the layout shows it at 1×.
@@ -359,5 +338,5 @@ Element TwoAdvancedV3::follow2a() {
                      .justify(Justify::Center)
                      .alignItems(Align::Center)
                      .children({icons});
-  return module("F", "FOLLOW 2A", std::move(body), 5);
+  return module(words(page["glyph"]), words(page["bar"]), std::move(body), 5);
 }
