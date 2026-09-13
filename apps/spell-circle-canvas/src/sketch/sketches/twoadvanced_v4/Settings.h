@@ -121,19 +121,34 @@ inline SkColor4f dark(SkColor4f c, float k) { return mskia::scale(c, 1 - k); }
 // Type — the studio's chassis (the faces, the 1/1000-em tracking unit and
 // the text alias) plus THIS artefact's own register: Helvetica
 // CondensedBlack is the whole chrome voice, Arial Black is the headline
-// weight, and Arial is the only thing prose is ever set in.
+// weight, and Arial is the only thing prose is ever set in. The chrome's
+// face and its condensation are the page's own font, stated once on its
+// root; a chrome label says only its size, colour and tracking, and the
+// other three registers restate what they change — a tighter
+// condensation, the headline face, the uncondensed prose face.
 
-inline sigil::weave::TextStyle micro(float size, SkColor4f c, float tr = 200) {
-  return sigil::weave::kit::tracked(condBlack(), size, c, tr, 0.92f);
+/** The chrome register: tracking quoted in 1/1000 em of @p size. */
+inline sigil::weave::Type micro(float size, SkColor4f c, float tr = 200) {
+  return {.size = size, .color = c, .track = size * tr / 1000.0f};
 }
-inline sigil::weave::TextStyle label(float size, SkColor4f c, float tr = 100) {
-  return sigil::weave::kit::tracked(condBlack(), size, c, tr, 0.88f);
+/** The chrome, condensed further: the section labels. */
+inline sigil::weave::Type label(float size, SkColor4f c, float tr = 100) {
+  return {.size = size,
+          .color = c,
+          .track = size * tr / 1000.0f,
+          .condense = 0.88f};
 }
-inline sigil::weave::TextStyle heavy(float size, SkColor4f c, float tr = 40) {
-  return sigil::weave::kit::tracked(blackFace(), size, c, tr, 0.94f);
+/** The headline weight. */
+inline sigil::weave::Type heavy(float size, SkColor4f c, float tr = 40) {
+  return {.face = blackFace(),
+          .size = size,
+          .color = c,
+          .track = size * tr / 1000.0f,
+          .condense = 0.94f};
 }
-inline sigil::weave::TextStyle prose(float size, SkColor4f c) {
-  return sigil::weave::kit::tracked(arial(), size, c, 0);
+/** The prose register: untracked, uncondensed. */
+inline sigil::weave::Type prose(float size, SkColor4f c) {
+  return {.face = arial(), .size = size, .color = c, .condense = 1.0f};
 }
 
 // ---------------------------------------------------------------------------

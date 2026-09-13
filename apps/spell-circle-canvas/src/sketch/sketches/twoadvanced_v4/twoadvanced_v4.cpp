@@ -49,7 +49,10 @@ auto TwoAdvancedV4::describe() -> Element {
   // read back off a loaded run and written down as stops, plus grain
   // for its vertical tooth, so a cold cache renders the same page a
   // warm one does rather than a lighter cousin of it.
-  Element page = stack();
+  // The page's font is the chrome's: the condensed black, condensed a
+  // little further. Every slot's content inherits it from where the slot
+  // stands.
+  Element page = stack().font({.face = condBlack(), .condense = 0.92f});
   if (siteBgGif) {
     page.fill(stretchFill(siteBgGif, 1940, 3200, SkTileMode::kRepeat));
   } else {
