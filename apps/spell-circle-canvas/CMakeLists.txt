@@ -39,7 +39,7 @@ endif()
 # after one build and another way after the next. Contraction pinned off
 # for every target of this tree keeps the bits the same across builds;
 # the dependencies are imported already built and are not affected.
-add_compile_options(-ffp-contract=off)
+add_compile_options($<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-ffp-contract=off>)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 include(Sigil) # the calls every library under src/ is built from
