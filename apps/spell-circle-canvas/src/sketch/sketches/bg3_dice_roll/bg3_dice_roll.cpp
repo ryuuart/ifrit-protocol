@@ -52,7 +52,7 @@ struct Bg3DiceRoll : sketch::Sketch {
   /** A bare rule as its own tiny node — a stroke wants a box the size of the
    *  stroke, never the canvas. */
   static Element rule(float x, float y, float w, Decoration d, float h = 1.0f) {
-    return box().left(x).top(y).width(w).height(h).foreground(std::move(d));
+    return kit::at(box().foreground(std::move(d)), x, y, w, h);
   }
 
   // -------------------------------------------------------------- the solid
@@ -193,37 +193,33 @@ struct Bg3DiceRoll : sketch::Sketch {
     ornament.cornerAngleDeg = a;
 
     Element ring =
-        stack()
-            .left(bg3::kCx - o)
-            .top(bg3::kCy - o)
-            .width(o * 2)
-            .height(o * 2)
+        kit::at(stack(), bg3::kCx - o, bg3::kCy - o, o * 2, o * 2)
             // The outer 20-gon: the rule THICKENS at each of the twenty
             // vertices — the brass-rule move.
-            .children({box()
-                           .inset(0)
-                           .shape(shapes::polygon(20))
-                           .foreground(decorations::weightedCorners(
-                               1.5f, 5.5f, bg3::gilt(), 20.0f, 0.0f, a))})
-            // A twenty-tick bracket ladder just inside it: one tick per face
-            // of the die, so the ornament IS the index.
-            .children({box()
-                           .inset(17)
-                           .shape(shapes::polygon(20))
-                           .stroke(spans::corners(15.0f, a),
-                                   brush::solid(2.4f, bg3::ink(0.7f)))})
-            // The illuminated border proper: fleuron on every vertex.
             .children(
-                {box().inset(36).shape(shapes::polygon(20)).stroke(ornament)})
-            // The inner 20-gon: stops short at every flat, so vellum
-            // breathes between the two rules.
-            .children({box()
-                           .inset(o - i)
-                           .shape(shapes::polygon(20))
-                           .stroke(spans::edges(32.0f, a),
-                                   brush::solid(2.4f, bg3::ink(0.85f)))
-                           .stroke(spans::corners(11.0f, a),
-                                   brush::solid(3.4f, bg3::gilt()))});
+                {box()
+                     .inset(0)
+                     .shape(shapes::polygon(20))
+                     .foreground(decorations::weightedCorners(
+                         1.5f, 5.5f, bg3::gilt(), 20.0f, 0.0f, a)),
+                 // A twenty-tick bracket ladder just inside it: one tick per
+                 // face of the die, so the ornament IS the index.
+                 box()
+                     .inset(17)
+                     .shape(shapes::polygon(20))
+                     .stroke(spans::corners(15.0f, a),
+                             brush::solid(2.4f, bg3::ink(0.7f))),
+                 // The illuminated border proper: fleuron on every vertex.
+                 box().inset(36).shape(shapes::polygon(20)).stroke(ornament),
+                 // The inner 20-gon: stops short at every flat, so vellum
+                 // breathes between the two rules.
+                 box()
+                     .inset(o - i)
+                     .shape(shapes::polygon(20))
+                     .stroke(spans::edges(32.0f, a),
+                             brush::solid(2.4f, bg3::ink(0.85f)))
+                     .stroke(spans::corners(11.0f, a),
+                             brush::solid(3.4f, bg3::gilt()))});
     return ring.rotate(&bezelSpin)
         .transformOrigin(0.5f, 0.5f)
         .cache(Cache::Texture);
@@ -235,12 +231,8 @@ struct Bg3DiceRoll : sketch::Sketch {
    *  turned rings belong. */
   Element bezelBand() const {
     const float o = bg3::kBezelOuter;
-    return box()
-        .left(bg3::kCx - o)
-        .top(bg3::kCy - o)
-        .width(o * 2)
-        .height(o * 2)
-        .shape(shapes::polygon(20))
+    return kit::at(box().shape(shapes::polygon(20)), bg3::kCx - o, bg3::kCy - o,
+                   o * 2, o * 2)
         // Light enough that the rules read as ornament ON vellum rather than
         // ink on a brown ring — this is gilt, not bronze.
         .fill(linearGradient({0, 0}, {o * 1.4f, o * 2},
@@ -262,12 +254,8 @@ struct Bg3DiceRoll : sketch::Sketch {
    *  20-gons, counter-rotating under the die. */
   Element rosette() const {
     const float r = bg3::kBezelInner - 6.0f;
-    return box()
-        .left(bg3::kCx - r)
-        .top(bg3::kCy - r)
-        .width(r * 2)
-        .height(r * 2)
-        .shape(shapes::polygon(20, 9.0f))
+    return kit::at(box().shape(shapes::polygon(20, 9.0f)), bg3::kCx - r,
+                   bg3::kCy - r, r * 2, r * 2)
         // Opaque, so it masks the band's concentric rules down to the band.
         .fill(radialGradient(
             {r, r}, r,
@@ -310,29 +298,23 @@ struct Bg3DiceRoll : sketch::Sketch {
       nib.nibAngleDeg = mirror ? 118.0f : 62.0f;
       nib.nibContrast = 0.18f;
       const float dir = mirror ? -1.0f : 1.0f;
-      return box()
-          .left(mirror ? 18.0f : 388.0f)
-          .top(26.0f)
-          .width(118)
-          .height(62)
-          .shape(shapes::parametric(
-              [dir](float t) {
-                // Unit space: a hooked spur that curls back on itself.
-                const float u = t * 3.14159f;
-                return SkPoint{
-                    dir * (-0.92f + 1.72f * t),
-                    -0.55f * std::sin(u) * std::cos(u * 0.62f) + 0.30f * t};
-              },
-              0.0f, 1.0f, 96))
-          .background(nib);
+      return kit::at(
+          box()
+              .shape(shapes::parametric(
+                  [dir](float t) {
+                    // Unit space: a hooked spur that curls back on itself.
+                    const float u = t * 3.14159f;
+                    return SkPoint{
+                        dir * (-0.92f + 1.72f * t),
+                        -0.55f * std::sin(u) * std::cos(u * 0.62f) + 0.30f * t};
+                  },
+                  0.0f, 1.0f, 96))
+              .background(nib),
+          mirror ? 18.0f : 388.0f, 26.0f, 118, 62);
     };
 
-    return stack()
-        .left(bg3::kCx - 262.0f)
-        .top(112.0f)
-        .width(524)
-        .height(150)
-        .children(
+    return kit::at(
+        stack().children(
             {box()
                  .left(148)
                  .top(0)
@@ -344,23 +326,26 @@ struct Bg3DiceRoll : sketch::Sketch {
                  .style(decorations::doubleBorder(
                      decorations::border(1.9f, bg3::ink(0.9f), 5.0f),
                      decorations::border(0.7f, bg3::giltDark(), 10.0f))),
-             flourish(false), flourish(true)})
-        // The hanger: the plate reads as a hung sign, so it hangs from a rule.
-        .children({rule(166.0f, 118.0f, 192.0f, engraved, 1.0f)})
-        // The plate box (148..376) and its hanger (166..358) are both centred
-        // on local 262, and the three type runs have to be centred on it too.
-        // The offsets below are INK centres, not advances: "D C" carries a
-        // trailing 7 px letterspace and the caption 1.2, so centring on the
-        // measured advance leaves each run visibly off-axis on a symmetric
-        // sign, in different directions.
-        .children({label("D C", 148.0f + 90.0f, 10.0f, 21.0f,
-                         mskia::withAlpha(bg3::kInk, 0.72f), 7.0f),
-                   label(std::to_string(bg3::kDC), 148.0f + 91.5f, 26.0f, 42.0f,
-                         bg3::kInk)})
-        // The caption lives INSIDE the plate: below it the plate deliberately
-        // bleeds over the bezel's top flat, and type on the band is unreadable.
-        .children({label("SkillCheck · StatsRollType", 148.0f + 26.5f, 82.0f,
-                         9.5f, mskia::withAlpha(bg3::kInk, 0.5f), 1.2f, true)});
+             flourish(false), flourish(true),
+             // The hanger: the plate reads as a hung sign, so it hangs from a
+             // rule.
+             rule(166.0f, 118.0f, 192.0f, engraved, 1.0f),
+             // The plate box (148..376) and its hanger (166..358) are both
+             // centred on local 262, and the three type runs have to be centred
+             // on it too. The offsets below are INK centres, not advances: "D
+             // C" carries a trailing 7 px letterspace and the caption 1.2, so
+             // centring on the measured advance leaves each run visibly
+             // off-axis on a symmetric sign, in different directions.
+             label("D C", 148.0f + 90.0f, 10.0f, 21.0f,
+                   mskia::withAlpha(bg3::kInk, 0.72f), 7.0f),
+             label(std::to_string(bg3::kDC), 148.0f + 91.5f, 26.0f, 42.0f,
+                   bg3::kInk),
+             // The caption lives INSIDE the plate: below it the plate
+             // deliberately bleeds over the bezel's top flat, and type on the
+             // band is unreadable.
+             label("SkillCheck · StatsRollType", 148.0f + 26.5f, 82.0f, 9.5f,
+                   mskia::withAlpha(bg3::kInk, 0.5f), 1.2f, true)}),
+        bg3::kCx - 262.0f, 112.0f, 524, 150);
   }
 
   // ------------------------------------------------------- the skill ladder
@@ -382,7 +367,7 @@ struct Bg3DiceRoll : sketch::Sketch {
       return kTop + (float)ordinal * kPitch + (float)blockIndex * kBlockGap;
     };
 
-    Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
+    Element g = kit::at(stack(), 0, 0, bg3::kW, bg3::kH);
     const float yLast = yOf(17);
     g.children({rule(kX, kTop - 12.0f, 1.2f,
                      lines::presets::hatch(bg3::ink(0.42f), 4.0f, 1.2f, 90.0f),
@@ -392,19 +377,16 @@ struct Bg3DiceRoll : sketch::Sketch {
       const float y0 = yOf(blk.first);
       const float y1 = yOf(blk.first + blk.count - 1);
       // A bracket that only exists at the block's ends.
-      g.children(
-          {box()
-               .left(kX - 14.0f)
-               .top(y0 - 6.0f)
-               .width(14.0f)
-               .height(y1 - y0 + 12.0f)
-               .shape(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
-               .stroke(spans::corners(11.0f, 24.0f),
-                       brush::solid(1.6f, bg3::giltDark()))});
-      // The header sits in the gap ABOVE its block, on its own row.
-      g.children({label(blk.ability, kX + 22.0f, y0 - 21.0f, 9.0f,
-                        mskia::withAlpha(bg3::kGiltDark, 0.95f), 2.4f, true)});
-      g.children({label("AbilityId " + std::to_string(blk.abilityOrdinal),
+      g.children({kit::at(box()
+                              .shape(shapes::chamfered(
+                                  5.0f, shapes::Corner::AntiDiagonal))
+                              .stroke(spans::corners(11.0f, 24.0f),
+                                      brush::solid(1.6f, bg3::giltDark())),
+                          kX - 14.0f, y0 - 6.0f, 14.0f, y1 - y0 + 12.0f),
+                  // The header sits in the gap ABOVE its block, on its own row.
+                  label(blk.ability, kX + 22.0f, y0 - 21.0f, 9.0f,
+                        mskia::withAlpha(bg3::kGiltDark, 0.95f), 2.4f, true),
+                  label("AbilityId " + std::to_string(blk.abilityOrdinal),
                         kX + 128.0f, y0 - 20.0f, 7.5f,
                         mskia::withAlpha(bg3::kInk, 0.34f), 0.8f, true)});
     }
@@ -412,16 +394,16 @@ struct Bg3DiceRoll : sketch::Sketch {
     for (const auto& sk : bg3::kSkills) {
       const float y = yOf(sk.ordinal);
       const bool live = sk.ordinal == bg3::kActiveSkill;
-      g.children({rule(
-          kX, y, live ? 26.0f : 15.0f,
-          stroke(live ? 2.4f : 1.0f, live ? bg3::gilt() : bg3::ink(0.55f)),
-          live ? 2.4f : 1.0f)});
-      g.children({label(sk.name, kX + (live ? 34.0f : 22.0f), y - 8.0f,
-                        live ? 15.0f : 11.5f,
-                        live ? bg3::kInk : mskia::withAlpha(bg3::kInk, 0.58f),
-                        live ? 1.6f : 0.6f)});
       g.children(
-          {labelR(std::to_string(sk.ordinal), kX - 19.0f, y - 6.0f, 9.5f,
+          {rule(
+               kX, y, live ? 26.0f : 15.0f,
+               stroke(live ? 2.4f : 1.0f, live ? bg3::gilt() : bg3::ink(0.55f)),
+               live ? 2.4f : 1.0f),
+           label(sk.name, kX + (live ? 34.0f : 22.0f), y - 8.0f,
+                 live ? 15.0f : 11.5f,
+                 live ? bg3::kInk : mskia::withAlpha(bg3::kInk, 0.58f),
+                 live ? 1.6f : 0.6f),
+           labelR(std::to_string(sk.ordinal), kX - 19.0f, y - 6.0f, 9.5f,
                   mskia::withAlpha(bg3::kInk, live ? 0.85f : 0.34f), true)});
     }
     return g.cache(Cache::Texture);
@@ -439,9 +421,7 @@ struct Bg3DiceRoll : sketch::Sketch {
     constexpr float kRight = 1076.0f;
     constexpr float kRowW = kRight - kX + 112.0f;
 
-    Element col =
-        box().left(0).top(0).width(bg3::kW).height(bg3::kH).staggerChildren(
-            110ms);
+    Element col = kit::at(box().staggerChildren(110ms), 0, 0, bg3::kW, bg3::kH);
 
     for (int i = 0; i < rowsMounted && i < (int)bg3::kBonuses.size(); ++i) {
       const auto& b = bg3::kBonuses[(size_t)i];
@@ -456,15 +436,12 @@ struct Bg3DiceRoll : sketch::Sketch {
       // opacity is a saveLayer the size of the node's box, so the box is
       // the row, never the canvas.
       Element row =
-          stack()
-              .left(kX - 96.0f)
-              .top(y - 10.0f)
-              .width(kRowW)
-              .height(44.0f)
-              .opacity(animate(from(0.0f).to(1.0f),
-                               {260ms, choreograph::easeOutQuad}))
-              .translateX(animate(from(18.0f).to(0.0f),
-                                  {300ms, choreograph::easeOutQuad}))
+          kit::at(stack()
+                      .opacity(animate(from(0.0f).to(1.0f),
+                                       {260ms, choreograph::easeOutQuad}))
+                      .translateX(animate(from(18.0f).to(0.0f),
+                                          {300ms, choreograph::easeOutQuad})),
+                  kX - 96.0f, y - 10.0f, kRowW, 44.0f)
               // The leader tick, running back toward the bezel.
               .children(
                   {rule(0.0f, 20.0f, 84.0f,
@@ -488,78 +465,74 @@ struct Bg3DiceRoll : sketch::Sketch {
     constexpr float kX = 648.0f;
     constexpr float kY = 1024.0f;
     constexpr float kRight = 1076.0f;
-    Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
+    Element g = kit::at(stack(), 0, 0, bg3::kW, bg3::kH);
     g.children(
         {rule(kX + 96.0f, kY - 12.0f, kRight - kX - 96.0f + 16.0f,
               brush::presets::heavyHairHeavy(2.0f, 0.7f, bg3::ink(0.85f), 4.0f),
-              1.0f)});
-    g.children({label("Total", kX + 96.0f, kY + 4.0f, 22.0f,
-                      mskia::withAlpha(bg3::kInk, 0.8f), 3.0f)});
-    g.children({label("StatsRollResult.Total", kX + 96.0f, kY + 32.0f, 9.0f,
-                      mskia::withAlpha(bg3::kInk, 0.42f), 0.8f, true)});
-    g.children({labelR(std::to_string(shownTotal), kRight, kY - 14.0f, 56.0f,
-                       bg3::kInk)});
+              1.0f),
+         label("Total", kX + 96.0f, kY + 4.0f, 22.0f,
+               mskia::withAlpha(bg3::kInk, 0.8f), 3.0f),
+         label("StatsRollResult.Total", kX + 96.0f, kY + 32.0f, 9.0f,
+               mskia::withAlpha(bg3::kInk, 0.42f), 0.8f, true),
+         labelR(std::to_string(shownTotal), kRight, kY - 14.0f, 56.0f,
+                bg3::kInk)});
     return g;
   }
 
   /** The outcome. `Hatch` with BOTH bindings — pitch and angle — on a box
    *  the size of the banner, never the canvas. */
   Element outcome() const {
-    if (!outcomeMounted) return box().left(0).top(0).width(1).height(1);
+    if (!outcomeMounted) return kit::at(0, 0, 1, 1);
     lines::Hatch wash;
     wash.strokeFill = Fill::color(mskia::withAlpha(bg3::kViridian, 0.34f));
     wash.width = 1.5f;
     wash.spacingBinding = &hatchSpacing;
     wash.angleBinding = &hatchAngle;
-    return stack()
-        .left(636.0f)
-        .top(1094.0f)
-        .width(452.0f)
-        .height(64.0f)
-        .shape(shapes::chamfered(14.0f, shapes::Corner::Diagonal))
-        .fill(mskia::withAlpha(bg3::kViridian, 0.10f))
-        .overlay(wash)
-        .foreground(decorations::weightedCorners(1.2f, 3.4f, bg3::gilt(), 16.0f,
-                                                 0.0f, 30.0f))
-        .children(
-            {label("SUCCESS", 34.0f, 12.0f, 30.0f, bg3::kViridian, 8.0f),
-             label("RollCritical.None 0  ·  Total 20 ≥ DC 15", 34.0f, 44.0f,
-                   9.0f, mskia::withAlpha(bg3::kInk, 0.55f), 0.9f, true)})
-        .opacity(
-            animate(from(0.0f).to(1.0f), {380ms, choreograph::easeOutQuad}));
+    return kit::at(
+        stack()
+            .shape(shapes::chamfered(14.0f, shapes::Corner::Diagonal))
+            .fill(mskia::withAlpha(bg3::kViridian, 0.10f))
+            .overlay(wash)
+            .foreground(decorations::weightedCorners(1.2f, 3.4f, bg3::gilt(),
+                                                     16.0f, 0.0f, 30.0f))
+            .children(
+                {label("SUCCESS", 34.0f, 12.0f, 30.0f, bg3::kViridian, 8.0f),
+                 label("RollCritical.None 0  ·  Total 20 ≥ DC 15", 34.0f, 44.0f,
+                       9.0f, mskia::withAlpha(bg3::kInk, 0.55f), 0.9f, true)})
+            .opacity(animate(from(0.0f).to(1.0f),
+                             {380ms, choreograph::easeOutQuad})),
+        636.0f, 1094.0f, 452.0f, 64.0f);
   }
 
   // ------------------------------------------------------------- marginalia
   Element portrait() const {
     constexpr float cx = 372.0f, cy = 742.0f, r = 64.0f;
-    return stack()
-        .left(cx - r - 16.0f)
-        .top(cy - r - 16.0f)
-        .width(r * 2 + 32.0f)
-        .height(r * 2 + 32.0f)
-        .shape(shapes::chamfered(10.0f))
-        .fill(mskia::withAlpha(bg3::kVellumDeep, 0.95f))
-        .background(shadow({0.1f, 0.07f, 0.04f, 0.32f}, {0, 3}, 10))
-        .style(decorations::doubleBorder(
-            decorations::border(1.8f, bg3::ink(0.9f)),
-            decorations::border(0.7f, bg3::giltDark(), 5.0f)))
-        .children({box()
-                       .left(16.0f)
-                       .top(16.0f)
-                       .width(r * 2)
-                       .height(r * 2)
-                       .shape(shapes::polygon(20, 9.0f))
-                       .fill(radialGradient(
-                           {r, r * 0.8f}, r * 1.25f,
-                           {mskia::withAlpha(bg3::kVellum, 1.0f),
-                            mskia::withAlpha(bg3::kGiltDark, 0.55f)}))
-                       .overlay(lines::presets::concentric(bg3::giltDark(0.45f),
-                                                           4, 0.6f))
-                       .overlay(lines::presets::radialHatch(bg3::giltDark(0.3f),
-                                                            20, 0.5f))
-                       .stroke(spans::corners(10.0f, bg3::kCornerAngle),
-                               brush::solid(2.0f, bg3::ink(0.8f)))})
-        .cache(Cache::Texture);
+    return kit::at(
+        stack()
+            .shape(shapes::chamfered(10.0f))
+            .fill(mskia::withAlpha(bg3::kVellumDeep, 0.95f))
+            .background(shadow({0.1f, 0.07f, 0.04f, 0.32f}, {0, 3}, 10))
+            .style(decorations::doubleBorder(
+                decorations::border(1.8f, bg3::ink(0.9f)),
+                decorations::border(0.7f, bg3::giltDark(), 5.0f)))
+            .children({box()
+                           .left(16.0f)
+                           .top(16.0f)
+                           .width(r * 2)
+                           .height(r * 2)
+                           .shape(shapes::polygon(20, 9.0f))
+                           .fill(radialGradient(
+                               {r, r * 0.8f}, r * 1.25f,
+                               {mskia::withAlpha(bg3::kVellum, 1.0f),
+                                mskia::withAlpha(bg3::kGiltDark, 0.55f)}))
+                           .overlay(lines::presets::concentric(
+                               bg3::giltDark(0.45f), 4, 0.6f))
+                           .overlay(lines::presets::radialHatch(
+                               bg3::giltDark(0.3f), 20, 0.5f))
+                           .stroke(spans::corners(10.0f, bg3::kCornerAngle),
+                                   brush::solid(2.0f, bg3::ink(0.8f)))})
+            .cache(Cache::Texture),
+        cx - r - 16.0f, cy - r - 16.0f, r * 2 + 32.0f, r * 2 + 32.0f);
   }
 
   /** BG3's dialogue DCs sit on a 5-step ladder. Drawn as a scale in the right
@@ -572,21 +545,21 @@ struct Bg3DiceRoll : sketch::Sketch {
     constexpr float kStep = 68.0f;  // per 5 points of DC
     auto yOf = [](float dc) { return kBottom - (dc - 5.0f) / 5.0f * kStep; };
 
-    Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
+    Element g = kit::at(stack(), 0, 0, bg3::kW, bg3::kH);
     g.children({rule(kX, yOf(30.0f) - 14.0f, 1.2f,
                      lines::presets::hatch(bg3::ink(0.42f), 4.0f, 1.2f, 90.0f),
-                     kBottom - yOf(30.0f) + 28.0f)});
-    g.children({label("DC LADDER", kX - 30.0f, yOf(30.0f) - 34.0f, 9.0f,
+                     kBottom - yOf(30.0f) + 28.0f),
+                label("DC LADDER", kX - 30.0f, yOf(30.0f) - 34.0f, 9.0f,
                       mskia::withAlpha(bg3::kInk, 0.5f), 2.2f, true)});
 
     for (int dc = 5; dc <= 30; dc += 5) {
       const float y = yOf((float)dc);
       const bool target = dc == bg3::kDC;
-      g.children({rule(
-          kX - (target ? 20.0f : 11.0f), y, target ? 20.0f : 11.0f,
-          stroke(target ? 2.6f : 1.0f, target ? bg3::gilt() : bg3::ink(0.5f)),
-          target ? 2.6f : 1.0f)});
-      g.children({label(std::to_string(dc), kX + 8.0f, y - 8.0f,
+      g.children({rule(kX - (target ? 20.0f : 11.0f), y, target ? 20.0f : 11.0f,
+                       stroke(target ? 2.6f : 1.0f,
+                              target ? bg3::gilt() : bg3::ink(0.5f)),
+                       target ? 2.6f : 1.0f),
+                  label(std::to_string(dc), kX + 8.0f, y - 8.0f,
                         target ? 15.0f : 11.5f,
                         target ? bg3::kInk : mskia::withAlpha(bg3::kInk, 0.55f),
                         target ? 1.4f : 0.6f)});
@@ -595,38 +568,33 @@ struct Bg3DiceRoll : sketch::Sketch {
     const float yDC = yOf((float)bg3::kDC);
     const float yTotal = yOf((float)bg3::kFinalTotal);
     g.children(
-        {box()
-             .left(kX - 34.0f)
-             .top(yTotal)
-             .width(20.0f)
-             .height(yDC - yTotal)
-             .shape(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
-             .fill(mskia::withAlpha(bg3::kViridian, 0.14f))
-             .stroke(spans::corners(9.0f, 24.0f),
-                     brush::solid(1.8f, Fill::color(bg3::kViridian)))});
-    g.children({rule(kX - 34.0f, yTotal, 34.0f,
-                     stroke(2.6f, Fill::color(bg3::kViridian)), 2.6f)});
-    g.children({label("TOTAL", kX + 8.0f, yTotal - 30.0f, 9.0f,
-                      mskia::withAlpha(bg3::kViridian, 0.95f), 1.8f, true)});
-    g.children({label("+5", kX - 62.0f, (yDC + yTotal) * 0.5f - 7.0f, 11.0f,
-                      mskia::withAlpha(bg3::kViridian, 0.9f), 0.6f, true)});
-    g.children({label("DC", kX - 52.0f, yDC - 7.0f, 9.0f,
-                      mskia::withAlpha(bg3::kGiltDark, 0.95f), 1.4f, true)});
+        {kit::at(
+             box()
+                 .shape(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
+                 .fill(mskia::withAlpha(bg3::kViridian, 0.14f))
+                 .stroke(spans::corners(9.0f, 24.0f),
+                         brush::solid(1.8f, Fill::color(bg3::kViridian))),
+             kX - 34.0f, yTotal, 20.0f, yDC - yTotal),
+         rule(kX - 34.0f, yTotal, 34.0f,
+              stroke(2.6f, Fill::color(bg3::kViridian)), 2.6f),
+         label("TOTAL", kX + 8.0f, yTotal - 30.0f, 9.0f,
+               mskia::withAlpha(bg3::kViridian, 0.95f), 1.8f, true),
+         label("+5", kX - 62.0f, (yDC + yTotal) * 0.5f - 7.0f, 11.0f,
+               mskia::withAlpha(bg3::kViridian, 0.9f), 0.6f, true),
+         label("DC", kX - 52.0f, yDC - 7.0f, 9.0f,
+               mskia::withAlpha(bg3::kGiltDark, 0.95f), 1.4f, true)});
     return g.cache(Cache::Texture);
   }
 
   Element marginalia() const {
-    Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
+    Element g = kit::at(stack(), 0, 0, bg3::kW, bg3::kH);
     // Registration marks: brackets on a chamfered frame that bleeds.
     g.children(
-        {box()
-             .left(26)
-             .top(26)
-             .width(bg3::kW - 52)
-             .height(bg3::kH - 52)
-             .shape(shapes::chamfered(26.0f))
-             .stroke(spans::corners(30.0f, 24.0f),
-                     brush::solid(1.4f, bg3::ink(0.42f)))
+        {kit::at(box()
+                     .shape(shapes::chamfered(26.0f))
+                     .stroke(spans::corners(30.0f, 24.0f),
+                             brush::solid(1.4f, bg3::ink(0.42f))),
+                 26, 26, bg3::kW - 52, bg3::kH - 52)
              // A Border rather than a stroke pass: an inset rule has no
              // stroke-pass spelling, since a pass rides the node's outline.
              .foreground(Border{.width = 0.6f,
@@ -634,21 +602,21 @@ struct Bg3DiceRoll : sketch::Sketch {
                                 .inset = 8.0f,
                                 .mode = Border::Mode::Gapped,
                                 .corner = 46.0f,
-                                .cornerAngleDeg = 24.0f})});
-    g.children({label("BALDUR’S GATE 3  ·  DIALOGUE ABILITY CHECK", 56.0f,
-                      44.0f, 13.0f, mskia::withAlpha(bg3::kInk, 0.62f), 3.4f)});
+                                .cornerAngleDeg = 24.0f}),
+         label("BALDUR’S GATE 3  ·  DIALOGUE ABILITY CHECK", 56.0f, 44.0f,
+               13.0f, mskia::withAlpha(bg3::kInk, 0.62f), 3.4f)});
 
     // The advantage note: in the top-left margin, clear of both the skill
     // ladder and the bezel. The leader running from it down to the discarded
     // die is NOT part of this block — see advantageLeader() below.
     constexpr float kAx2 = 56.0f, kAy2 = 138.0f;
     g.children({label("ADVANTAGE", kAx2, kAy2, 12.0f,
-                      mskia::withAlpha(bg3::kAdvantage, 0.95f), 3.2f)});
-    g.children({rule(
-        kAx2, kAy2 + 17.0f, 188.0f,
-        stroke(1.2f, Fill::color(mskia::withAlpha(bg3::kAdvantage, 0.75f))),
-        1.2f)});
-    g.children({label("2d20 keep highest · DiscardedDiceTotal  " +
+                      mskia::withAlpha(bg3::kAdvantage, 0.95f), 3.2f),
+                rule(kAx2, kAy2 + 17.0f, 188.0f,
+                     stroke(1.2f, Fill::color(mskia::withAlpha(bg3::kAdvantage,
+                                                               0.75f))),
+                     1.2f),
+                label("2d20 keep highest · DiscardedDiceTotal  " +
                           std::to_string(bg3::kDiscardedDiceTotal),
                       kAx2, kAy2 + 22.0f, 9.0f,
                       mskia::withAlpha(bg3::kInk, 0.55f), 0.8f, true)});
@@ -661,21 +629,22 @@ struct Bg3DiceRoll : sketch::Sketch {
     // modifiers accumulate, so it gets the margin to itself: a leader running
     // out of the bezel to a label and a numeral nothing crosses.
     constexpr float kNx = 962.0f, kNy = 246.0f;
-    g.children({rule(kNx - 74.0f, kNy + 44.0f, 74.0f,
-                     brush::presets::dottedCore(
-                         1.5f, 2.4f, bg3::giltDark(0.95f), 3.6f, 7.0f),
-                     1.0f)});
-    g.children({label("NaturalRoll", kNx, kNy, 12.0f,
-                      mskia::withAlpha(bg3::kInk, 0.62f), 2.6f)});
-    g.children({label("StatsRollResult", kNx, kNy + 16.0f, 8.0f,
-                      mskia::withAlpha(bg3::kInk, 0.38f), 0.8f, true)});
-    g.children({label(std::to_string(bg3::kNaturalRoll), kNx, kNy + 28.0f,
-                      52.0f, bg3::kInk)});
-    g.children({rule(
-        kNx, kNy + 92.0f, 118.0f,
-        brush::presets::heavyHairHeavy(1.8f, 0.6f, bg3::gilt(), 3.4f), 1.0f)});
-    g.children({label("before modifiers", kNx, kNy + 98.0f, 8.5f,
-                      mskia::withAlpha(bg3::kGiltDark, 0.85f), 1.0f, true)});
+    g.children(
+        {rule(kNx - 74.0f, kNy + 44.0f, 74.0f,
+              brush::presets::dottedCore(1.5f, 2.4f, bg3::giltDark(0.95f), 3.6f,
+                                         7.0f),
+              1.0f),
+         label("NaturalRoll", kNx, kNy, 12.0f,
+               mskia::withAlpha(bg3::kInk, 0.62f), 2.6f),
+         label("StatsRollResult", kNx, kNy + 16.0f, 8.0f,
+               mskia::withAlpha(bg3::kInk, 0.38f), 0.8f, true),
+         label(std::to_string(bg3::kNaturalRoll), kNx, kNy + 28.0f, 52.0f,
+               bg3::kInk),
+         rule(kNx, kNy + 92.0f, 118.0f,
+              brush::presets::heavyHairHeavy(1.8f, 0.6f, bg3::gilt(), 3.4f),
+              1.0f),
+         label("before modifiers", kNx, kNy + 98.0f, 8.5f,
+               mskia::withAlpha(bg3::kGiltDark, 0.85f), 1.0f, true)});
     return g.cache(Cache::Texture);
   }
 
@@ -700,32 +669,28 @@ struct Bg3DiceRoll : sketch::Sketch {
 
   /** The outermost ornamental ring, running off all four edges. */
   Element outerRing() const {
-    return box()
-        .left(bg3::kCx - 700.0f)
-        .top(bg3::kCy - 660.0f)
-        .width(1400)
-        .height(1400)
-        .shape(shapes::polygon(40, 4.5f))
-        .style(decorations::doubleBorder(
-            decorations::border(2.6f, bg3::giltDark(0.42f)),
-            decorations::border(0.9f, bg3::ink(0.3f), 16.0f)))
-        .background(lines::presets::concentric(bg3::giltDark(0.10f), 3, 1.0f))
-        .cache(Cache::Texture);
+    return kit::at(box()
+                       .shape(shapes::polygon(40, 4.5f))
+                       .style(decorations::doubleBorder(
+                           decorations::border(2.6f, bg3::giltDark(0.42f)),
+                           decorations::border(0.9f, bg3::ink(0.3f), 16.0f)))
+                       .background(lines::presets::concentric(
+                           bg3::giltDark(0.10f), 3, 1.0f))
+                       .cache(Cache::Texture),
+                   bg3::kCx - 700.0f, bg3::kCy - 660.0f, 1400, 1400);
   }
 
   /** The discarded die of the advantage pair: behind, up-left, rotated,
    *  dimmed. DiscardedDiceTotal is a field, not an inference. */
   Element discardedDie() const {
-    return box()
-        .left(0)
-        .top(0)
-        .width(bg3::kW)
-        .height(bg3::kH)
-        .translateX(-40.0f)
-        .translateY(-40.0f)
-        .rotate(-23.0f)
-        .transformOriginPx({bg3::kCx, bg3::kCy})
-        .children({die(bg3::kDieRadius * 0.86f, 0.45f, false, 1.9f)});
+    return kit::at(
+        box()
+            .translateX(-40.0f)
+            .translateY(-40.0f)
+            .rotate(-23.0f)
+            .transformOriginPx({bg3::kCx, bg3::kCy})
+            .children({die(bg3::kDieRadius * 0.86f, 0.45f, false, 1.9f)}),
+        0, 0, bg3::kW, bg3::kH);
   }
 
   /** The leader from the ADVANTAGE block to the discarded die. It has to be
@@ -734,36 +699,31 @@ struct Bg3DiceRoll : sketch::Sketch {
    *  callout stopped short of the thing it calls out. */
   Element advantageLeader() const {
     constexpr float kAx2 = 56.0f, kAy2 = 138.0f;
-    return box()
-        .left(kAx2 + 238.0f)
-        .top(kAy2 + 64.0f)
-        .width(232.0f)
-        .height(196.0f)
-        .shape(shapes::parametric(
-            [](float t) {
-              return SkPoint{-1.0f + 2.0f * t, -1.0f + 2.0f * t * t};
-            },
-            0.0f, 1.0f, 48))
-        .background(
-            stroke(1.0f, Fill::color(mskia::withAlpha(bg3::kInk, 0.32f))));
+    return kit::at(
+        box()
+            .shape(shapes::parametric(
+                [](float t) {
+                  return SkPoint{-1.0f + 2.0f * t, -1.0f + 2.0f * t * t};
+                },
+                0.0f, 1.0f, 48))
+            .background(
+                stroke(1.0f, Fill::color(mskia::withAlpha(bg3::kInk, 0.32f)))),
+        kAx2 + 238.0f, kAy2 + 64.0f, 232.0f, 196.0f);
   }
 
   /** The winner, punching in on a keyframe path: one ramp cannot shape a
    *  landing. */
   Element heroDie() const {
-    return box()
-        .left(0)
-        .top(0)
-        .width(bg3::kW)
-        .height(bg3::kH)
-        .transformOriginPx({bg3::kCx, bg3::kCy})
-        .scale(animate(through({{0ms, 0.80f},
-                                {1100ms, 1.0f},
-                                {1210ms, 1.075f},
-                                {1300ms, 0.975f},
-                                {1390ms, 1.02f},
-                                {1450ms, 1.0f}})))
-        .children({die(bg3::kDieRadius, 1.0f, true, 0.0f)});
+    return kit::at(box()
+                       .transformOriginPx({bg3::kCx, bg3::kCy})
+                       .scale(animate(through({{0ms, 0.80f},
+                                               {1100ms, 1.0f},
+                                               {1210ms, 1.075f},
+                                               {1300ms, 0.975f},
+                                               {1390ms, 1.02f},
+                                               {1450ms, 1.0f}})))
+                       .children({die(bg3::kDieRadius, 1.0f, true, 0.0f)}),
+                   0, 0, bg3::kW, bg3::kH);
   }
 
   // ---------------------------------------------------------------- describe
@@ -824,20 +784,21 @@ struct Bg3DiceRoll : sketch::Sketch {
                        .gap(7.0f)
                        .zIndex(30)
                        .fill(Fill::color({0.020f, 0.017f, 0.014f, 1.0f}));
-    band.children({label("BALDUR’S GATE 3 · DIALOGUE ABILITY "
-                         "CHECK, THE INSTANT AFTER THE DIE LANDS",
-                         0.0f, 0.0f, 12.0f, mskia::withAlpha(bg3::kGilt, 0.92f),
-                         2.8f, true)
-                       .left(0.0f)
-                       .top(0.0f)
-                       .absolute()
-                       .left(56.0f)
-                       .top(30.0f)});
-    band.children({label(
-        "Every ordinal and enum name off Norbyte/bg3se's generated Lua "
-        "type surface · the modifiers are added AFTER the "
-        "natural roll",
-        56.0f, 58.0f, 10.0f, mskia::withAlpha(bg3::kInk, 0.46f), 0.6f, true)});
+    band.children(
+        {label("BALDUR’S GATE 3 · DIALOGUE ABILITY "
+               "CHECK, THE INSTANT AFTER THE DIE LANDS",
+               0.0f, 0.0f, 12.0f, mskia::withAlpha(bg3::kGilt, 0.92f), 2.8f,
+               true)
+             .left(0.0f)
+             .top(0.0f)
+             .absolute()
+             .left(56.0f)
+             .top(30.0f),
+         label("Every ordinal and enum name off Norbyte/bg3se's generated Lua "
+               "type surface · the modifiers are added AFTER the "
+               "natural roll",
+               56.0f, 58.0f, 10.0f, mskia::withAlpha(bg3::kInk, 0.46f), 0.6f,
+               true)});
     return band;
   }
 
